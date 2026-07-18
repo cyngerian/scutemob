@@ -4,7 +4,7 @@
 //! - G-18: AdditionalLandPlay (one-shot spell effect) and AdditionalLandPlays (static ability)
 //! - G-19: PreventAllCombatDamage and PreventCombatDamageFromOrTo
 //! - G-20: GainControl and ExchangeControl
-use mtg_engine::rules::layers::expire_end_of_turn_effects;
+use mtg_engine::rules::layers::{expire_end_of_turn_effects, expire_until_next_turn_effects};
 use mtg_engine::rules::turn_actions::reset_turn_state;
 use mtg_engine::state::continuous_effect::{
     ContinuousEffect as CE, EffectDuration, EffectFilter, EffectId, EffectLayer, LayerModification,
@@ -328,8 +328,9 @@ fn test_gain_control_creates_continuous_effect() {
     );
 }
 
-/// CR 613.1b — GainControl UntilEndOfTurn: after expire_end_of_turn_effects, the
-/// continuous effect is removed and controller reverts.
+/// CR 613.1b/514.2/613.7 — GainControl UntilEndOfTurn: after expire_end_of_turn_effects,
+/// the continuous effect is removed AND the object's controller reverts to its owner
+/// (PB-OS1 -- the revert previously never happened; this assertion is load-bearing).
 #[test]
 fn test_gain_control_until_eot_expires() {
     let p1 = p(1);
@@ -370,6 +371,151 @@ fn test_gain_control_until_eot_expires() {
     assert!(
         !has_control_effect,
         "CR 613.1b: UntilEndOfTurn GainControl should be removed after cleanup"
+    );
+    assert_eq!(
+        state.objects().get(&target_id).unwrap().controller,
+        p2,
+        "CR 514.2/613.7: after UntilEndOfTurn control effect expires at cleanup, \
+         control reverts to the owner (p2), not stays with the thief (p1)"
+    );
+}
+
+/// CR 611.2c/613.7 (PB-OS1) — stacked control: when an object is under TWO SetController
+/// effects (an UntilEndOfTurn steal and a still-active WhileSourceOnBattlefield steal from
+/// a different player), expiring the UntilEndOfTurn effect must NOT blindly snap control
+/// back to the owner -- it must keep the second, still-active controller. This is the
+/// negative test: a naive "always reset controller = owner on expiry" fix would fail it.
+#[test]
+fn test_gain_control_until_eot_stacked_control_persists() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let p3 = p(3);
+    let target = ObjectSpec::creature(p2, "Target", 2, 2).in_zone(ZoneId::Battlefield);
+    // p3's source permanent must be on the battlefield (and phased in, the default) for
+    // `is_effect_active` to treat the WhileSourceOnBattlefield effect as active.
+    let p3_source = ObjectSpec::creature(p3, "Source", 1, 1).in_zone(ZoneId::Battlefield);
+
+    let mut state = GameStateBuilder::four_player()
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .object(target)
+        .object(p3_source)
+        .build()
+        .unwrap();
+
+    let target_id = find_object(&state, "Target");
+    let source_id = find_object(&state, "Source");
+
+    // Effect A: p1 steals UntilEndOfTurn (earlier timestamp).
+    let eff_a = CE {
+        id: EffectId(200),
+        source: None,
+        layer: EffectLayer::Control,
+        modification: LayerModification::SetController(p1),
+        filter: EffectFilter::SingleObject(target_id),
+        duration: EffectDuration::UntilEndOfTurn,
+        is_cda: false,
+        timestamp: 100,
+        condition: None,
+    };
+    // Effect B: p3 steals WhileSourceOnBattlefield (later timestamp -- still active).
+    let eff_b = CE {
+        id: EffectId(201),
+        source: Some(source_id),
+        layer: EffectLayer::Control,
+        modification: LayerModification::SetController(p3),
+        filter: EffectFilter::SingleObject(target_id),
+        duration: EffectDuration::WhileSourceOnBattlefield,
+        is_cda: false,
+        timestamp: 101,
+        condition: None,
+    };
+    state.continuous_effects_mut().push_back(eff_a);
+    state.continuous_effects_mut().push_back(eff_b);
+    // Latest active controller is p3.
+    state.objects_mut().get_mut(&target_id).unwrap().controller = p3;
+
+    expire_end_of_turn_effects(&mut state);
+
+    let has_eot_effect = state
+        .continuous_effects()
+        .iter()
+        .any(|e| e.duration == EffectDuration::UntilEndOfTurn);
+    assert!(
+        !has_eot_effect,
+        "CR 514.2: the UntilEndOfTurn control effect should be removed after cleanup"
+    );
+    let has_wsob_effect = state
+        .continuous_effects()
+        .iter()
+        .any(|e| e.duration == EffectDuration::WhileSourceOnBattlefield);
+    assert!(
+        has_wsob_effect,
+        "the still-active WhileSourceOnBattlefield control effect must remain"
+    );
+    assert_eq!(
+        state.objects().get(&target_id).unwrap().controller,
+        p3,
+        "CR 611.2c/613.7: control stays with the second, still-active controller (p3), \
+         not a blind snap back to owner (p2)"
+    );
+}
+
+/// CR 514.2 vs 611.2b (PB-OS1) — UntilYourNextTurn control survives end-of-turn cleanup
+/// and reverts only when the named player's untap step runs `expire_until_next_turn_effects`.
+#[test]
+fn test_gain_control_until_next_turn_reverts_at_untap() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let creature = ObjectSpec::creature(p2, "Target", 2, 2).in_zone(ZoneId::Battlefield);
+
+    let mut state = GameStateBuilder::four_player()
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .object(creature)
+        .build()
+        .unwrap();
+
+    let target_id = find_object(&state, "Target");
+
+    // p1 steals the creature "until your next turn" (CR 611.2b).
+    let eff = CE {
+        id: EffectId(300),
+        source: None,
+        layer: EffectLayer::Control,
+        modification: LayerModification::SetController(p1),
+        filter: EffectFilter::SingleObject(target_id),
+        duration: EffectDuration::UntilYourNextTurn(p1),
+        is_cda: false,
+        timestamp: 100,
+        condition: None,
+    };
+    state.continuous_effects_mut().push_back(eff);
+    state.objects_mut().get_mut(&target_id).unwrap().controller = p1;
+
+    // Cleanup at the end of the current turn must NOT revert an UntilYourNextTurn effect.
+    expire_end_of_turn_effects(&mut state);
+    assert_eq!(
+        state.objects().get(&target_id).unwrap().controller,
+        p1,
+        "CR 514.2: UntilYourNextTurn control effects survive end-of-turn cleanup"
+    );
+    let still_has_effect = state
+        .continuous_effects()
+        .iter()
+        .any(|e| e.duration == EffectDuration::UntilYourNextTurn(p1));
+    assert!(
+        still_has_effect,
+        "the UntilYourNextTurn effect must not be removed by expire_end_of_turn_effects"
+    );
+
+    // Only at p1's own untap step does the effect expire and control revert.
+    expire_until_next_turn_effects(&mut state, p1);
+    assert_eq!(
+        state.objects().get(&target_id).unwrap().controller,
+        p2,
+        "CR 611.2b: control reverts to the owner (p2) once expire_until_next_turn_effects \
+         runs at the thief's (p1's) untap step"
     );
 }
 

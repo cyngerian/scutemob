@@ -951,6 +951,21 @@ enrich blocks, but the mana-trigger dispatch path was not in that sweep.
 ## 11. New finding filed by PB-EF9 (scutemob-110)
 
 ### OOS-EF9-1 (correctness, pre-existing) — `WhileSourceOnBattlefield` / `UntilEndOfTurn` gain-control never reverts control
+
+> ✅ **PARTIALLY RESOLVED — PB-OS1 (`scutemob-116`), 2026-07-18.** The
+> `UntilEndOfTurn`/`UntilYourNextTurn` half is FIXED: `recompute_object_controller` is now wired
+> into `expire_end_of_turn_effects` **and** `expire_until_next_turn_effects`, so those durations
+> revert control (CR 514.2 / 611.2b / 613.7). The vacuous `test_gain_control_until_eot_expires` was
+> de-vacuoused (asserts control reverts) plus stacked-control + timing tests added. **Roster
+> correction**: the `all_cards()` sweep found only **2** in-scope cards — `sarkhan_vol`,
+> `zealous_conscripts` — NOT 3. `karrthus_tyrant_of_jund` uses `EffectDuration::Indefinite`, which is
+> **correct** (Karrthus grants *permanent* control, CR 611.2a — no "for as long as" clause; the
+> Scryfall ruling confirms control "doesn't wear off during the cleanup step" — verified by
+> primitive-impl-reviewer), so it is out of scope by design, not a bug. No PROTOCOL/HASH bump.
+> **REMAINING (still open, carried forward)**: the `WhileSourceOnBattlefield` gain-control reversion
+> half — a *different* removal path (SBA when the source leaves, not the end-of-turn passes) with its
+> own reconcile site — was explicitly deferred. Refile/track that half as the surviving OOS-EF9-1.
+
 `Effect::GainControl` writes `obj.controller` imperatively and pushes a Layer-2 `SetController`
 continuous effect, but `calculate_characteristics` treats `SetController` as a **no-op** (control
 lives on `GameObject`, not `Characteristics`) and there is **no reconcile loop**. The `expire_*`

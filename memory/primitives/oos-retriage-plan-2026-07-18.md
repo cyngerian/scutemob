@@ -354,6 +354,18 @@ color-subset mechanism the engine lacks today).
 
 ## 4. PB-OS1 — fully specified & dispatchable (AC 4937)
 
+> ✅ **COLLECTED — `scutemob-116`, 2026-07-18.** Shipped exactly as specified: wired the idle
+> `recompute_object_controller` into `expire_end_of_turn_effects` + `expire_until_next_turn_effects`
+> (behaviour-only, **no PROTOCOL/HASH bump** as predicted). De-vacuoused
+> `test_gain_control_until_eot_expires` (proven fail-then-pass) + added stacked-control and
+> UntilEndOfTurn-vs-UntilYourNextTurn timing tests. **Roster from `all_cards()`: 2 in-scope cards**
+> (`sarkhan_vol`, `zealous_conscripts`) — NOT 3; `karrthus_tyrant_of_jund` correctly uses
+> `EffectDuration::Indefinite` (permanent control, CR 611.2a — reviewer-confirmed, not a bug).
+> Golden-script sweep: 0 scripts encoded the old behaviour. 3479 tests, all gates green, /review
+> clean (1 MEDIUM doc-only, fixed). **WhileSourceOnBattlefield reversion deferred** (separate
+> SBA-removal path) — surviving half of OOS-EF9-1, carried forward as a follow-up.
+
+
 **Title**: `PB-OS1: gain-control reversion — UntilEndOfTurn/UntilYourNextTurn SetController never reverts (OOS-EF9-1)`
 **Class**: CORRECTNESS (invariant #9 — legal-but-wrong on shipped `Complete` defs)
 **Pipeline**: `/implement-primitive` (plan → implement → review → fix). Agent:

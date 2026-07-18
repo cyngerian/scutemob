@@ -1,31 +1,71 @@
-# Primitive WIP: PB-EF12 — granted `any_color` ManaAbility color choice (EF-W-PB2-3) — CLOSES THE EF QUEUE
+# Primitive WIP: PB-OS1 — gain-control reversion (UntilEndOfTurn/UntilYourNextTurn SetController never reverts, OOS-EF9-1)
 
-batch: EF12
-task: scutemob-114
-branch: feat/pb-ef12-granted-anycolor-manaability-color-choice-ef-w-pb2-3
+batch: OS1
+task: scutemob-116
+branch: feat/pb-os1-gain-control-reversion-untilendofturnuntilyournexttur
 started: 2026-07-18
-phase: implement
+phase: review
 
-Plan: `memory/primitives/pb-plan-EF12.md`. Review: `memory/primitives/pb-review-EF12.md`.
+Plan: `memory/primitives/pb-plan-OS1.md`. Review: `memory/primitives/pb-review-OS1.md`.
 
-Coordinator decision (recorded in `memory/decisions.md` 2026-07-18): the colour choice rides
-`Command::TapForMana { chosen_color: Option<ManaColor> }`, validated against the offered set
-(WUBRG; reject `Colorless`; reject `None` on an `any_color` ability — no silent Colorless default).
-PROTOCOL bumps (Command is on the SR-8 wire); HASH does NOT (Command is not in the GameState hash
-closure). Simulator emits a concrete legal colour (SR-38 precedent).
+## Brief (THE PLAN IS `memory/primitives/oos-retriage-plan-2026-07-18.md` §4)
+CORRECTNESS / integrity (invariant #9). `expire_end_of_turn_effects` (layers.rs ~:1583) and
+`expire_until_next_turn_effects` (~:1631) drop `SetController` continuous effects via filter-collect
+reassignment but never call the already-existing `recompute_object_controller` (layers.rs :1797,
+wired only into `expire_while_you_control_source_effects` by PB-EF9) — so `obj.controller` is never
+reverted and sarkhan_vol / zealous_conscripts / karrthus_tyrant_of_jund keep stolen creatures forever
+while shipping Complete.
+
+Fix: wire the existing helper into both passes (mirror PB-EF9 Step 2/3). No new DSL type;
+**NO PROTOCOL/HASH bump** — if a bump is forced, STOP and re-scope.
+
+De-vacuous `test_gain_control_until_eot_expires` (tests/primitives/primitive_pb32.rs) — must fail
+pre-fix, pass post-fix. Add stacked-control + APNAP/timing tests. Roster sweep from `all_cards()`.
+Reconcile golden scripts (CR 611.2b/613.7). WhileSourceOnBattlefield reversion is EXPLICITLY OUT OF
+SCOPE (own SBA-removal reconcile site) — flag as follow-up.
 
 ## Steps
-- [x] 1. `Command::TapForMana` gains `chosen_color: Option<ManaColor>` (`#[serde(default)]`) — done
-- [x] 2. `handle_tap_for_mana` signature + engine.rs dispatch thread `chosen_color` — done
-- [x] 3. `handle_tap_for_mana` validates + produces chosen colour for `any_color` abilities — done (rejects `Some(Colorless)` and `None`; `!any_color` requires `None`)
-- [x] 4. Backfill `chosen_color: None,` to all existing `Command::TapForMana { .. }` literals — done (106 real literal sites across 20 files; plan's ~227 estimate overcounted, per usual PB yield-calibration drift)
-- [x] 5. elven_chorus grant wired + flipped Complete; grant-based any_color cards verified — done (cryptolith_rite.rs/paradise_mantle.rs already Complete, dispatch shared, proven end-to-end by a same-shape grant test)
-- [x] 6. Restore demoted tap-cost `AddManaAnyColor` rocks/lands (oracle-verified) — done: 17 restored to Complete (16 rocks/lands/creatures + elven_chorus); 1 eyeballed restore (deathrite_shaman) reverted after the refined gate caught it (targeted ability, CR 605.1a disqualifies); 7 held back on real second blockers with notes rewritten (command_tower, arcane_signet, commanders_sphere, path_of_ancestry, mox_amber, forbidden_orchard, glistening_sphere)
-- [x] 7. `effect_choose_gate` refined (registered_colors any_color→WUBRG; stub gate served-vs-unserved) — done, incl. 2 new non-vacuity tests + a documented-and-verified-absent "mixed" hole
-- [x] 8. Simulator `legal_actions.rs` + `mana_solver.rs` emit concrete legal chosen_color — done + new simulator test proving engine-legality
-- [x] 9. New tests `pb_ef12_any_color_choice.rs` (happy + decoys, non-vacuous) — done, 7 tests, decoys empirically proven non-vacuous
-- [x] 10. PROTOCOL 17→18 + fingerprint re-pin + sentinels; HASH only if machine-forced — done, HASH stays 55 (confirmed, no hash_schema gate reaction)
-- [x] 11. OOS seed for unserved AddManaAnyColor family; bookkeeping; authoring-report rerun — done, OOS-EF12-1 filed in w-pb2-engine-findings doc; roster updated; coverage 61.1%→62.1% (1,098/1,796 → 1,117/1,798)
-- [x] 12. All gates green — build/test(3476 pass)/clippy/fmt/defs-fmt all green. /review NOT run (coordinator's job per runner brief).
+- [x] 1. Engine Change 1 — `expire_end_of_turn_effects` (layers.rs) collects `ObjectId`s of
+      removed `UntilEndOfTurn` Layer-2 `SetController` effects before reassignment, calls
+      `recompute_object_controller` after — done
+- [x] 2. Engine Change 2 — `expire_until_next_turn_effects` same shape gated on
+      `EffectDuration::UntilYourNextTurn(active_player)` — done
+- [x] 3. Visibility confirmed unchanged — `recompute_object_controller` stays private,
+      in-module (both callers same module, `rules/layers.rs`) — done
+- [x] 4. De-vacuous `test_gain_control_until_eot_expires` — added
+      `assert_eq!(controller == p2, ...)`. Proven fail-then-pass: `git stash` on
+      layers.rs engine change reproduced the pre-fix bug (`assert_eq!` panicked,
+      `left: PlayerId(1) right: PlayerId(2)`); restoring the engine change made it pass.
+- [x] 5. Test 2 — `test_gain_control_until_eot_stacked_control_persists` (negative test:
+      stacked UntilEndOfTurn(p1) + WhileSourceOnBattlefield(p3) on one object; only the
+      UntilEndOfTurn effect is removed; controller stays p3, not owner p2) — done, passes
+- [x] 6. Test 3 — `test_gain_control_until_next_turn_reverts_at_untap` (UntilYourNextTurn
+      survives `expire_end_of_turn_effects`, reverts only at
+      `expire_until_next_turn_effects(state, p1)`) — done, passes
+- [x] 7. Roster sweep from `all_cards()` (new committed test
+      `pb_os1_gain_control_reversion_roster` in
+      `tests/primitives/pb_os1_gain_control_reversion.rs`, registered in
+      `tests/primitives/main.rs`) — **FINDING: only 2 cards in scope, not the plan's
+      3** — `sarkhan_vol` + `zealous_conscripts`. `karrthus_tyrant_of_jund` models its
+      "for as long as you control [this]" ability with `EffectDuration::Indefinite`
+      (own file comment: "no stated duration"), not `UntilEndOfTurn`/`UntilYourNextTurn`
+      — untouched by either expiry pass in this PB. That's a distinct, out-of-scope bug
+      (arguably should be `WhileYouControlSource` like Dragonlord Silumgar/Olivia
+      Voldaren model the same oracle pattern) — flagged as a follow-up, not fixed here.
+      6 other GainControl uses confirmed out of scope (Indefinite ×4, WhileYouControlSource ×2).
+- [x] 8. Golden-script reconciliation — grepped
+      `sarkhan|zealous_conscripts|karrthus|Threaten|Act of Treason|GainControl|gain control`
+      across `test-data/generated-scripts/`: **0 hits**. Positive assertion recorded —
+      no script encodes the pre-fix never-reverts behavior.
+- [x] 9. Gates: `cargo build --workspace` green, **no** PROTOCOL_VERSION/HASH_SCHEMA_VERSION
+      change (confirmed — wire impact none as predicted). `cargo test --all` green.
+      `cargo clippy --all-targets -- -D warnings` clean. `cargo fmt --check` +
+      `tools/check-defs-fmt.sh` clean.
 
-phase: done  # /review (primitive-impl-reviewer, Opus): 0 findings. Gates green, 3476 tests. PROTOCOL 18, HASH 55. Committed a8eb45b5. EF QUEUE COMPLETE.
+phase: reviewed  # /review (primitive-impl-reviewer, Opus): engine fix clean & collectable;
+1 MEDIUM (doc-guidance only, fixed). karrthus_tyrant_of_jund is NOT a follow-up bug — its
+Indefinite duration is CORRECT (permanent control, CR 611.2a; Scryfall ruling: control
+"doesn't wear off during the cleanup step ... doesn't expire if Karrthus leaves"). Roster
+count of 2 (sarkhan_vol + zealous_conscripts) is correct. Misleading test doc comment
+corrected. NO karrthus OOS seed filed. Genuine deferral carried forward: WhileSourceOnBattlefield
+gain-control reversion (remaining half of OOS-EF9-1, different SBA-removal path).

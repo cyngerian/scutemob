@@ -1583,6 +1583,23 @@ fn depends_on(a: &ContinuousEffect, b: &ContinuousEffect) -> bool {
 pub fn expire_end_of_turn_effects(state: &mut GameState) {
     use crate::state::replacement_effect::ReplacementId;
     // Expire UntilEndOfTurn continuous effects (CR 514.2).
+    // Collect the objects of any expiring Layer-2 SetController effect BEFORE the
+    // reassignment below so control can be reverted (CR 613.7) once the effect is
+    // actually gone (see `recompute_object_controller`'s doc comment -- calling it
+    // before removal would re-observe the effect and no-op the revert).
+    let reverted: Vec<ObjectId> = state
+        .continuous_effects
+        .iter()
+        .filter(|e| {
+            e.duration == EffectDuration::UntilEndOfTurn
+                && e.layer == EffectLayer::Control
+                && matches!(e.modification, LayerModification::SetController(_))
+        })
+        .filter_map(|e| match e.filter {
+            EffectFilter::SingleObject(id) => Some(id),
+            _ => None,
+        })
+        .collect();
     let keep: imbl::Vector<ContinuousEffect> = state
         .continuous_effects
         .iter()
@@ -1590,6 +1607,11 @@ pub fn expire_end_of_turn_effects(state: &mut GameState) {
         .cloned()
         .collect();
     state.continuous_effects = keep;
+    // CR 514.2/613.7: revert control of any object whose UntilEndOfTurn SetController
+    // effect just expired. Must run after the reassignment above.
+    for id in reverted {
+        recompute_object_controller(state, id);
+    }
     // Expire UntilEndOfTurn replacement effects (CR 514.2).
     // Collect IDs to remove first so we can also clean up prevention_counters.
     let expired_ids: Vec<ReplacementId> = state
@@ -1630,6 +1652,22 @@ pub fn expire_end_of_turn_effects(state: &mut GameState) {
 /// on all objects controlled by the active player (CR 602.5b once-per-turn enforcement).
 pub fn expire_until_next_turn_effects(state: &mut GameState, active_player: PlayerId) {
     // Expire UntilYourNextTurn continuous effects for this player.
+    // Collect the objects of any expiring Layer-2 SetController effect BEFORE the
+    // reassignment below so control can be reverted (CR 611.2b/613.7) once the effect
+    // is actually gone (see `recompute_object_controller`'s doc comment).
+    let reverted: Vec<ObjectId> = state
+        .continuous_effects
+        .iter()
+        .filter(|e| {
+            e.duration == EffectDuration::UntilYourNextTurn(active_player)
+                && e.layer == EffectLayer::Control
+                && matches!(e.modification, LayerModification::SetController(_))
+        })
+        .filter_map(|e| match e.filter {
+            EffectFilter::SingleObject(id) => Some(id),
+            _ => None,
+        })
+        .collect();
     let keep: imbl::Vector<ContinuousEffect> = state
         .continuous_effects
         .iter()
@@ -1637,6 +1675,11 @@ pub fn expire_until_next_turn_effects(state: &mut GameState, active_player: Play
         .cloned()
         .collect();
     state.continuous_effects = keep;
+    // CR 611.2b/613.7: revert control of any object whose UntilYourNextTurn
+    // SetController effect just expired. Must run after the reassignment above.
+    for id in reverted {
+        recompute_object_controller(state, id);
+    }
     // Expire UntilYourNextTurn replacement effects for this player (CR 611.2b).
     // This fixes the gap where dynamically-registered replacement effects (e.g.
     // Lightning's Stagger) would persist forever without this cleanup.
