@@ -5056,6 +5056,8 @@ impl HashInto for TargetRequirement {
                 count.hash_into(hasher);
                 inner.hash_into(hasher);
             }
+            // PB-EF6: TargetOpponent -- CR 102.3 / 601.2c (discriminant 18)
+            TargetRequirement::TargetOpponent => 18u8.hash_into(hasher),
         }
     }
 }
