@@ -22,13 +22,16 @@
   template placeholders (`OOS-seed-name`, `OOS-confirmed`, `OOS-flagged`), the `-N`
   naming-convention tokens (`OOS-EWC-N`, `OOS-LKI-N`, `OOS-LKI-Power-N`, `OOS-XA2-N`,
   `OOS-EWCD-N`), and bare umbrella/heading tokens (`OOS-LKI`, `OOS-XA`, `OOS-XA2`, `OOS-EAT`,
-  `OOS-EWC`, `OOS-EF5`, `OOS-EF3b`, `OOS-AC7`) → **62 distinct real seeds** (counting the
-  `OOS-LKI-5`≡`OOS-LKI-Power` and `OOS-AC9-MULTINAME`≡`OOS-AC9-SEARCHNAME` aliases once each,
-  and the 3 stale EF-finding banners `EF-W-MISS-3/6`, `EF-W-PB2-8`).
-- **Classification**: **24 resolved/stale** (14 already doc-marked; **10 newly verified this
-  task** — *the headline finding: the EF/EWC/EAT/AC9 waves silently closed several older
-  seeds nobody had re-checked*), **16 active-PB-candidate** (5 correctness + 11 capability),
-  **7 defer** (subsystem / one-off / high-complexity), **22 dormant-0-yield-defensive**.
+  `OOS-EWC`, `OOS-EF5`, `OOS-EF3b`, `OOS-AC7`) → **65 distinct real `OOS-*`/`EF-EF*` seeds**
+  (70 enumerated rows across the §1 buckets, deduped by the two alias pairs
+  `OOS-XA-3`≡`OOS-XA2-3` and `OOS-AC9-MULTINAME`≡`OOS-AC9-SEARCHNAME`), **plus 3 stale
+  `EF-W-*` finding banners** (`EF-W-MISS-3/6`, `EF-W-PB2-8` — findings, not `OOS-` seeds)
+  folded into §1a. (`OOS-LKI-5` is an alias of the `OOS-LKI-Power` umbrella, counted once.)
+- **Classification** (enumerated rows per bucket): **23 resolved/stale** (§1a — 13 already
+  doc-marked; **10 newly verified this task** — *the headline finding: the EF/EWC/EAT/AC9
+  waves silently closed several older seeds nobody had re-checked*), **16 active-PB-candidate**
+  (5 correctness + 11 capability), **7 defer** (subsystem / one-off / high-complexity),
+  **24 dormant-0-yield-defensive**.
 - **The queue**: **PB-OS1 → PB-OS11** below, correctness-first. **PB-OS1 = OOS-EF9-1**
   (gain-control never reverts — **legal-but-wrong on 3 shipped `Complete` cards**, invariant #9,
   and *the fix helper already exists*). Fully specified in §4.
@@ -44,7 +47,7 @@ dropped.** Legend: **RESOLVED** = full chain exists / card shipped; **CANDIDATE*
 into the PB queue (§3); **DEFER** = real but out-of-scope (subsystem/one-off/high-complexity);
 **DORMANT** = filed defensively, 0 cards in the current corpus.
 
-### 1a. Resolved / stale (chain-verified closed) — 24
+### 1a. Resolved / stale (chain-verified closed) — 23 rows (10 newly verified this task + 13 already doc-marked)
 
 | Seed | Source doc | Resolved by | Chain evidence (verified 2026-07-18) |
 | --- | --- | --- | --- |
@@ -92,7 +95,7 @@ Ranked and specified in §3. Correctness (5): **OOS-EF9-1**, **EF-EF1-A**, **OOS
 | **OOS-AC7-3** | pb-plan-AC7 | Frodo, Sauron's Bane cluster — conditional-on-own-subtype activated ability + Ring mechanics. Multi-blocker. |
 | **OOS-AC6-2** | pb-plan-AC6 | Generic upkeep-sweep queue-then-evaluate ordering (Land Tax). Correctness-adjacent but 0 confirmed wrong-state card; fold into a future upkeep-trigger PB. |
 
-### 1d. Dormant-0-yield-defensive (open, 0 cards in corpus) — 22
+### 1d. Dormant-0-yield-defensive (open, 0 cards in corpus) — 24 (25 tokens; `OOS-AC9-MULTINAME`≡`OOS-AC9-SEARCHNAME`)
 
 Filed preventively; **build only when a card demands it** (AC-chain precedent: "do not build
 primitives that unblock zero cards"). Kept in the backlog, **not** in the PB queue.
@@ -104,6 +107,9 @@ primitives that unblock zero cards"). Kept in the backlog, **not** in the PB que
 `OOS-AC8-2` (can't-win/can't-lose guard); `OOS-AC9-SEARCHNAME`≡`OOS-AC9-MULTINAME` (multi-name
 search), `OOS-AC9-FILTERMANA` (3-way filter-land choice, M10), `OOS-AC9-ELSPETH` (live-filter vs
 fixed-set approximation, M10), `OOS-AC9-AMASSCHOICE` (deterministic Army pick, M10);
+`OOS-EF3b-2` (extend `derived_attack_trigger_for_keyword` to the full builder-synthesized
+keyword-trigger set — Dethrone/Training/Enlist/Persist/Undying + granted Myriad/Provoke; unblocks
+0 current cards, bites only when a future card *grants* one of these keywords);
 `OOS-XA2-1` (color-predicate audit — likely already correct), `OOS-XA2-2` (has_name audit),
 `OOS-XA2-4` (`CombatRole` enum refactor), `OOS-XA2-5` (runtime-predicate helper extraction);
 `OOS-EWCD-1` (card-type receiver filter), `OOS-EWCD-2` (supertype receiver filter),
@@ -355,8 +361,9 @@ color-subset mechanism the engine lacks today).
 
 ### Scope (what to change)
 1. **`crates/engine/src/rules/layers.rs`** — in `expire_end_of_turn_effects` (`:1583`) and
-   `expire_until_next_turn_effects` (`:1631`): before/after the `retain` that drops the
-   `UntilEndOfTurn` / `UntilYourNextTurn` continuous effects, collect the `ObjectId`s of every
+   `expire_until_next_turn_effects` (`:1631`): around the `.filter(|e| e.duration != …).collect()`
+   reassignment that drops the `UntilEndOfTurn` / `UntilYourNextTurn` continuous effects (note: it
+   is a filter-collect reassignment, **not** a `retain`), collect the `ObjectId`s of every
    removed `SetController` effect's target and call `recompute_object_controller(state, id)` on
    each (mirroring the Step-2/Step-3 pattern already in
    `expire_while_you_control_source_effects`, `:~1740-1782`). Reuse the existing helper verbatim
@@ -440,5 +447,5 @@ swan_song / PB-EF1 first" correctness-first opening.
 4. `memory/card-authoring/w-pb2-engine-findings-2026-07-17.md` — added CLOSED banner to
    **EF-W-PB2-8** (PB-EF8).
 
-Everything else (14 already-doc-marked resolved, 16 candidates, 7 defer, 22 dormant) is
+Everything else (13 already-doc-marked resolved, 16 candidates, 7 defer, 24 dormant) is
 enumerated here; no per-doc status change was needed for those.
