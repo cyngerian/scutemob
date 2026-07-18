@@ -14,7 +14,7 @@
 > Detailed PB-by-PB handoffs, hazards, and seed inventories live in `memory/workstream-state.md`.
 > Worker sessions: append detail there, not here. CLAUDE.md tracks current snapshot only.
 
-- **Active Milestone**: M9.5 DONE — **Card Authoring Campaign ACTIVE** (plan: `memory/card-authoring/campaign-plan-2026-05-16.md` §0 recalibration 2026-07-07; clean coverage **1,032/1,748 = 59.0%** per `tools/authoring-report.py`; **PB-AC chain COMPLETE — AC0..AC9 all shipped**; **marker sweep COMPLETE — `scutemob-88`**; **SR-33..38 chain COMPLETE**; **W-PB2 + W-EMPTY COMPLETE — `scutemob-95`/`96`**)
+- **Active Milestone**: M9.5 DONE — **Card Authoring Campaign ACTIVE** (plan: `memory/card-authoring/campaign-plan-2026-05-16.md` §0 recalibration 2026-07-07; clean coverage **1,065/1,781 = 59.8%** per `tools/authoring-report.py`; **PB-AC chain COMPLETE — AC0..AC9 all shipped**; **marker sweep COMPLETE — `scutemob-88`**; **SR-33..38 chain COMPLETE**; **W-PB2 + W-EMPTY + W-MISS COMPLETE — `scutemob-95`/`96`/`97`**)
 - **Invariant #9 is machine-enforced (SR-2).** `CardDefinition.completeness` (`Complete` by
   Default) marks a def `Inert` / `Partial` / `KnownWrong`; `validate_deck` rejects any
   non-`Complete` card with `DeckViolation::IncompleteCard`. `CardRegistry::try_new` errors on
@@ -259,7 +259,14 @@
   `memory/card-authoring/sr36-engine-findings-2026-07-17.md` (**SG-1 MEDIUM: the simulator's
   `LegalActionProvider` ignores `life_cost` — harmless while the cost was dropped, now it
   offers bots unpayable actions**).
-- **Last Updated**: 2026-07-17 (**W-EMPTY collected, `scutemob-96` merge `a9152c83`** — the plan's
+- **Last Updated**: 2026-07-17 (**W-MISS collected, `scutemob-97` merge `9cec7673`** — the ~115
+  estimate re-derived to **35/194 authorable** (157 blocked with per-card blockers, 2
+  false-missing); **33 authored Complete** in 3 reviewed batches, 2 honest mid-wave demotions
+  (Ojutai: targeted attack-trigger drops its target; Misdirection: single-target restriction
+  inexpressible — EF-W-MISS-9/10). Coverage **59.0% → 59.8%** (1,065/1,781; corpus grew +33
+  files). **10 engine findings filed** (EF-W-MISS-1..10, incl. latent `swan_song.rs`
+  token-recipient bug) in `memory/card-authoring/w-miss-roster-2026-07-17.md`. 3330 tests. Earlier:
+  **W-EMPTY collected, `scutemob-96` merge `a9152c83`** — the plan's
   "~110 authorable empty defs" was stale: after the marker sweep + W-PB2, only 60 inert defs
   remained, **3 authorable** (57 genuinely blocked, truthfully marked). `turn` +
   `sea_gate_restoration` Complete (+2, coverage **59.0%**); `disciple_of_freyalise` stayed partial
