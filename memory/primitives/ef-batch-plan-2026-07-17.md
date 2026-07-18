@@ -85,7 +85,7 @@ changes behaviour:
 | --- | --- | --- | --- |
 | EF-W-MISS-1 | HIGH | `swan_song` gives the Bird to the caster, not the countered spell's controller | **YES** — swan_song has no `completeness` field → defaults `Complete` |
 | EF-W-MISS-10 | HIGH | targeted `WheneverCreatureYouControlAttacks` drops its target (`enrich` hardcodes `targets: vec![]`) | No — all shipped users pass empty targets; Ojutai/Soul of Winter were *removed*, not shipped |
-| EF-W-MISS-3 | MED-HIGH | granted keyword-triggers (Melee/Battle Cry/Annihilator via `AddKeyword`) are silent no-ops | No — no Complete def grants a trigger-keyword to others yet |
+| EF-W-MISS-3 | MED | granted keyword-triggers (Melee/Battle Cry/Annihilator via `AddKeyword`) are silent no-ops (static keywords grant fine; only trigger-bearing keywords) | No — no Complete def grants a trigger-keyword to others yet |
 | EF-W-PB2-1 | MED | `PermanentCount` ignores `exclude_self` (éomer +1 too many) | No — éomer ships `known_wrong` (honestly marked) |
 | EF-W-EMPTY-1 | MED | sacrifice cost/effect path ignores `exclude_self` (can sac the source itself) | No — disciple/korvold ship `partial` |
 | EF-W-MISS-2 | MED | `UntapAll` ignores `exclude_self` | No |
@@ -175,6 +175,18 @@ demote is not a PB and should not wait in the queue.
   is *correct-in-4-player* (substituting EachOpponent/Controller is wrong in Commander).
 - **Note**: MISS-10 and MISS-4 are separable if the PB proves too large; MISS-10 (bug) goes first.
 
+### PB-EF3b — granted keyword-triggers fire  ·  CORRECTNESS
+- **Findings**: EF-W-MISS-3.
+- **Fix**: synthesize the keyword-derived triggered ability (Melee / Battle Cry / Annihilator)
+  when a keyword is added by a continuous effect, not only from **printed** keywords in
+  `builder.rs`. Today `LayerModification::AddKeyword` inserts into `keywords` but the derived
+  trigger is never built, so an anthem granting a trigger-keyword to *other* creatures registers
+  the keyword and the trigger silently never fires (static keywords like flying/haste grant fine).
+- **Candidates (2)**: Adriana, Skyhunter Strike Force (Lieutenant grants).
+- **Discounted ship**: **~2.** Small correctness fix; likely no schema bump (runtime synthesis,
+  no new DSL type). Sequenced in the correctness group (labeled `3b` to keep the later
+  numbering + cross-refs stable — it runs before the capability batches below).
+
 ### PB-EF4 — TriggeringCreature as effect subject/source  ·  capability (Cluster B)
 - **Findings**: EF-W-PB2-6 ≡ EF-W-MISS-5 (`EffectFilter::TriggeringCreature`), EF-W-PB2-7
   (`DealDamage` source-override).
@@ -252,6 +264,7 @@ demote is not a PB and should not wait in the queue.
 | **PB-EF1** ⭐ | correctness | PB2-1, EMPTY-1, MISS-2 (+EF-4/5, OOS-TS-2) | ~4–5 | none |
 | PB-EF2 | correctness | MISS-1 | ~2 | PROTOCOL+HASH |
 | PB-EF3 | correctness+cap | MISS-10, MISS-4 | ~5–6 | PROTOCOL (MISS-4) |
+| PB-EF3b | correctness | MISS-3 | ~2 | none |
 | PB-EF4 | capability | PB2-6≡MISS-5, PB2-7 | ~4–5 | PROTOCOL |
 | PB-EF5 | capability | MISS-6 | ~7–9 | PROTOCOL |
 | PB-EF6 | capability | PB2-2 | ~3 | PROTOCOL |
@@ -262,9 +275,10 @@ demote is not a PB and should not wait in the queue.
 | PB-EF11 | capability | MISS-8, MISS-9 | ~2 | PROTOCOL |
 | PB-EF12 | capability (gated) | PB2-3 | ~1–2 | maybe |
 
-**Total discounted ship across the queue: ~35–45 flips/authors** (from ~60 candidates),
+**Total discounted ship across the queue: ~37–47 flips/authors** (from ~62 candidates),
 consistent with the campaign's measured primitive-batch rate. **Correctness batches
-(demote + PB-EF1..EF3) come first** and clear all six correctness findings, including the
+(demote + PB-EF1, EF2, EF3, EF3b) come first** and clear all six correctness findings
+(MISS-1, MISS-10, MISS-3, PB2-1, EMPTY-1, MISS-2), including the
 one live-wrong `Complete` def.
 
 **Recommended first dispatch: PB-EF1** (`exclude_self` enforcement sweep) — highest
