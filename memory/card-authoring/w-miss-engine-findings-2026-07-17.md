@@ -62,6 +62,30 @@ ability — `KeywordAbility::Transform`'s behaviour is carried only by the exter
 greatest number of cards any player discarded this way" — not representable. Blocks Windfall
 (Wheel of Fortune / Tolarian Winds / Fateful Showdown, which use `ThatMany`/`Fixed`, are fine).
 
+## EF-W-MISS-9 (LOW): no spells-only single-target restriction
+Misdirection needs "target spell **with a single target**". The only single-target
+`TargetRequirement` (`TargetSpellOrAbilityWithSingleTarget`) also permits abilities, and
+`TargetFilter` has no target-count field to narrow `TargetSpellWithFilter`. So Misdirection
+cannot be authored Complete without over-permissive cast legality. Fix: a spell-only
+single-target `TargetRequirement`, or a target-count predicate on the spell filter.
+
+## EF-W-MISS-10 (HIGH): targeted `WheneverCreatureYouControlAttacks` drops its target
+The *targeted* variant of the attack trigger has never worked. `enrich_spec_from_def`
+converts `WheneverCreatureYouControlAttacks` to a runtime `TriggeredAbilityDef` with
+**hardcoded `targets: vec![]`** (`crates/engine/src/testing/replay_harness.rs:3011`),
+discarding the DSL's `targets` (`TargetPermanentWithFilter`, etc.). The registry fallback
+(`abilities.rs:6699-6713`) then indexes `def.abilities` by `trigger.ability_index`, but
+that index is into the runtime `triggered_abilities` vec, not `def.abilities` — so it
+matches the wrong ability and returns no targets. Net: the trigger goes on the stack with
+no target and any `TapPermanent`/`PreventNextUntap`/etc. resolves against an empty list —
+wrong game state, not merely omitted text. Every shipped user of this trigger passes
+`targets: vec![]` (kolaghan, dromoka, utvara, kazuul), so the path was never exercised.
+**Blocked: Ojutai, Soul of Winter** ("tap target creature or artifact an opponent
+controls…") — authored, reviewed, then **removed** this wave (not shipped wrong). Fix
+(a PB/SR, not an authoring wave): forward the DSL `targets` into the runtime trigger def in
+the enrich block, and fix the fallback to match the Triggered ability rather than raw-index
+`def.abilities`.
+
 ## Note (not a finding): report name-normalization
 `authoring-report.py` lists **Steelshaper's Gift** and **Dwynen's Elite** as missing though
 `steelshaper_s_gift.rs` / `dwynen_s_elite.rs` exist with correct names — an apostrophe

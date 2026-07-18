@@ -29,10 +29,22 @@ another large slice.
 
 | Disposition | Count |
 | --- | ---: |
-| **Authorable now** (author Complete this wave) | **35** |
+| **Authored Complete this wave** | **33** |
+| Blocked — genuine current DSL/engine gap | 159 |
 | Already on disk (false-missing — report name-normalization quirk) | 2 |
-| Blocked — genuine current DSL/engine gap | 157 |
 | **Total missing (per report)** | **194** |
+
+> **Updates (authoring + review):** Two cards demoted authorable → blocked during the wave:
+> - **Misdirection** — oracle requires "target spell **with a single target**"; the DSL's
+>   only single-target restriction (`TargetRequirement::TargetSpellOrAbilityWithSingleTarget`)
+>   also legalizes targeting *abilities*, and `TargetFilter` has no single-target-count field
+>   — either option is over-permissive (wrong cast legality). See EF-W-MISS-9.
+> - **Ojutai, Soul of Winter** — authored + reviewed, then removed: the *targeted* variant of
+>   `WheneverCreatureYouControlAttacks` silently drops its target (`enrich_spec_from_def`
+>   hardcodes `targets: vec![]`), so the tap/detain resolves against nothing. Batch-2 review
+>   HIGH. Engine gap, not authoring error — see EF-W-MISS-10; fix belongs to a PB/SR.
+>
+> Net authored Complete this wave: **33**.
 
 ### Per-group breakdown
 
@@ -40,10 +52,10 @@ another large slice.
 | --- | ---: | ---: | ---: | ---: |
 | activated-sacrifice | 16 | 4 | 12 | 0 |
 | activated-tap | 25 | 7 | 18 | 0 |
-| attack-trigger | 28 | 4 | 24 | 0 |
+| attack-trigger | 28 | 3† | 25 | 0 |
 | untap-phase | 12 | 5 | 7 | 0 |
 | sacrifice-outlet | 5 | 1 | 4 | 0 |
-| modal-choice | 37 | 5 | 32 | 0 |
+| modal-choice | 37 | 4† | 33 | 0 |
 | other | 23 | 3 | 18 | 2 |
 | static-enchantment | 8 | 1 | 7 | 0 |
 | token-create | 10 | 3 | 7 | 0 |
@@ -52,11 +64,11 @@ another large slice.
 | draw | 6 | 1 | 5 | 0 |
 | exile-play | 1 | 0 | 1 | 0 |
 | removal-exile | 1 | 1 | 0 | 0 |
-| **Total** | **194** | **37†** | **155** | **2** |
+| **Total** | **194** | **33** | **159** | **2** |
 
-† 37 line-item AUTHORABLE minus 2 that are actually the false-missing EXISTS cards is a
-double-count artifact of grouping — the true **new-authoring** count is **35** (Misdirection
-counted; see its caveat). Exact list below.
+† attack-trigger and modal-choice each lost one to a mid-wave demotion (Ojutai → EF-W-MISS-10;
+Misdirection → EF-W-MISS-9). The **new-authoring** total shipped Complete this wave is **33**.
+Exact list below (Ojutai and Misdirection struck through in the batch tables).
 
 ## False-missing (already on disk — do NOT author)
 
@@ -90,7 +102,7 @@ missing-count delta reads correctly.)
 | Card | Reference def | Primitives / key clause |
 | --- | --- | --- |
 | Goblin Wardriver | Battle Cry (handled kw) | 2/2, single printed `KeywordAbility::BattleCry` |
-| Ojutai, Soul of Winter | `sharktocrab.rs` | `WheneverCreatureYouControlAttacks{Dragon}` → `Sequence(TapPermanent, PreventNextUntap)` on opponent non-land permanent |
+| ~~Ojutai, Soul of Winter~~ **DEMOTED→blocked** | `sharktocrab.rs` | targeted attack trigger drops its target (EF-W-MISS-10); removed |
 | Rhys the Exiled | dromoka/samut patterns | `WhenAttacks` → `GainLife{PermanentCount(Elf you control)}`; `{B},Sacrifice(Elf): Regenerate(Source)` |
 | Triumphant Adventurer | `radha_heart_of_keld.rs`, `nadaar.rs` | Deathtouch kw; static `AddKeyword(FirstStrike)` on Source when `IsYourTurn`; `WhenAttacks` → `VentureIntoDungeon` |
 | Aggravated Assault | `karlach_fury_of_avernus.rs` | Activated `{3}{R}{R}`, `SorcerySpeed`, `Sequence(UntapAll{creatures}, AdditionalCombatPhase{followed_by_main:true})` |
@@ -112,7 +124,7 @@ missing-count delta reads correctly.)
 | Omnath, Locus of the Roil | `avenger_of_zendikar.rs`, `omnath_locus_of_rage.rs` | ETB `DealDamage{TargetAny, PermanentCount{Elemental}}`; landfall → `Sequence[AddCounter, Conditional{YouControlNOrMore{8 lands} → DrawCards}]` (**verify combined targeted-landfall shape at review**) |
 | Touch the Spirit Realm | `brutal_cathar.rs`, `boseiju_who_endures.rs` | ETB `ExileWithDelayedReturn{UpToN 1, WhenSourceLeaves}`; Channel = activated `Cost::Sequence[{1}{W}, DiscardSelf]` → exile at next end step (**verify Channel-from-hand + UpToN targeting at review**) |
 | Ramunap.. see above | | |
-| Misdirection ⚠ | `force_of_will.rs`, `bolt_bend.rs` | Pitch `[ExileFromHand{Blue}]` + `Spell{ChangeTargets{must_change:true}, TargetSpell}`. **CAVEAT: "spell with a single target" is not enforceable — if the target-spell filter cannot restrict to single-target spells, DEMOTE to blocked (over-permissive cast legality = wrong game state).** |
+| ~~Misdirection~~ **DEMOTED→blocked** | `force_of_will.rs`, `bolt_bend.rs` | single-target restriction inexpressible (EF-W-MISS-9); not authored |
 | Flux Channeler | `venerated_rotpriest.rs`, `tezzerets_gambit.rs` | `WheneverYouCastSpell{noncreature_only:true}` → `Effect::Proliferate` |
 | Dragonmaster Outcast | `simic_ascendancy.rs`, `murmuring_mystic.rs` | `AtBeginningOfYourUpkeep` + `intervening_if: YouControlNOrMore{6 lands}` → `CreateToken` (5/5 Dragon flying) |
 | Revel in Riches | `hellkite_tyrant.rs`, `simic_ascendancy.rs` | `WheneverCreatureDies{controller: opponent}` → `CreateToken(Treasure)`; upkeep + `intervening_if: YouControlNOrMore{10 Treasure}` → `Effect::WinGame` |
