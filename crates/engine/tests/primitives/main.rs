@@ -34,6 +34,7 @@ mod pb_ef8_exile_self_from_hand;
 mod pb_ef9_while_you_control_source;
 mod pb_k_land_drops;
 mod pb_l_landfall;
+mod pb_os1_gain_control_reversion;
 mod pbd_damaged_player_filter;
 mod pbn_subtype_filtered_triggers;
 mod pbp_power_of_sacrificed_creature;
