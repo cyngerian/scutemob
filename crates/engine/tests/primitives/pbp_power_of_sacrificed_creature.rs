@@ -347,7 +347,7 @@ fn test_greater_good_draws_by_sacrificed_power_then_discards_three() {
 ///
 /// Discriminator: pre-PB-P Life's Legacy has `count: EffectAmount::Fixed(1)` placeholder
 /// and draws 1 card. Post-PB-P the captured LKI power flows from
-/// additional_costs.Sacrifice.lki_powers into ctx.sacrificed_creature_powers, drawing 6.
+/// additional_costs.Sacrifice.lki into ctx.sacrificed_creature_lki, drawing 6.
 #[test]
 fn test_lifes_legacy_draws_by_sacrificed_power_on_resolve() {
     let p1 = p(1);
@@ -408,7 +408,7 @@ fn test_lifes_legacy_draws_by_sacrificed_power_on_resolve() {
     let lib_before = count_in_zone(&state, ZoneId::Library(p1));
 
     // Cast Life's Legacy, sacrificing the 6/6 Beast as additional cost.
-    // The harness caller passes lki_powers: vec![] — the engine fills in the captured value.
+    // The harness caller passes lki: vec![] — the engine fills in the captured value.
     let (state, _) = process_command(
         state,
         Command::CastSpell(Box::new(CastSpellData {
@@ -420,7 +420,7 @@ fn test_lifes_legacy_draws_by_sacrificed_power_on_resolve() {
             kicker_times: 0,
             additional_costs: vec![AdditionalCost::Sacrifice {
                 ids: vec![beast_id],
-                lki_powers: vec![],
+                lki: vec![],
             }],
             alt_cost: None,
             convoke_creatures: vec![],
@@ -706,9 +706,9 @@ fn test_zero_power_creature_sacrifice_mills_zero() {
     );
 }
 
-// ── Test M6: Empty sacrificed_creature_powers returns 0 (defensive) ───────────
+// ── Test M6: Empty sacrificed_creature_lki returns 0 (defensive) ───────────
 
-/// PB-P M6: Defensive test — when EffectContext.sacrificed_creature_powers is empty
+/// PB-P M6: Defensive test — when EffectContext.sacrificed_creature_lki is empty
 /// (card author used PowerOfSacrificedCreature without a sacrifice cost),
 /// the effect resolves with count=0 and does not panic.
 ///
@@ -738,17 +738,17 @@ fn test_sacrifice_no_capture_returns_zero_defensive() {
 
     let lib_before = count_in_zone(&state, ZoneId::Library(p1));
 
-    // Construct an EffectContext with NO sacrificed_creature_powers (empty vec).
+    // Construct an EffectContext with NO sacrificed_creature_lki (empty vec).
     // This simulates a card author pairing PowerOfSacrificedCreature with a non-sacrifice cost.
     let mut ctx = EffectContext::new(p1, ObjectId(9999), vec![]);
     // Confirm the field is empty (default from EffectContext::new).
     assert!(
-        ctx.sacrificed_creature_powers.is_empty(),
-        "PB-P M6: EffectContext::new should initialize sacrificed_creature_powers to empty vec"
+        ctx.sacrificed_creature_lki.is_empty(),
+        "PB-P M6: EffectContext::new should initialize sacrificed_creature_lki to empty vec"
     );
 
     // Execute a MillCards effect with count=PowerOfSacrificedCreature.
-    // With empty sacrificed_creature_powers, resolve_amount returns 0.
+    // With empty sacrificed_creature_lki, resolve_amount returns 0.
     // Mill 0 should be a no-op — no panic, no library change.
     let effect = Effect::MillCards {
         player: PlayerTarget::Controller,
@@ -761,7 +761,7 @@ fn test_sacrifice_no_capture_returns_zero_defensive() {
     let lib_after = count_in_zone(&state, ZoneId::Library(p1));
     assert_eq!(
         lib_before, lib_after,
-        "PB-P M6: Mill with empty sacrificed_creature_powers should be a no-op (count=0). \
+        "PB-P M6: Mill with empty sacrificed_creature_lki should be a no-op (count=0). \
          lib_before={}, lib_after={}",
         lib_before, lib_after
     );
@@ -1145,7 +1145,7 @@ fn test_lifes_legacy_with_zero_power_creature_draws_zero() {
             kicker_times: 0,
             additional_costs: vec![AdditionalCost::Sacrifice {
                 ids: vec![wall_id],
-                lki_powers: vec![],
+                lki: vec![],
             }],
             alt_cost: None,
             convoke_creatures: vec![],

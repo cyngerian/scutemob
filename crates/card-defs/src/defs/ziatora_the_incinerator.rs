@@ -45,7 +45,7 @@ pub fn card() -> CardDefinition {
              non-interactive (always executes choices.first(), so it would force the sacrifice); \
              (2) reflexive 'when you do' triggered ability. NOT blocked on the damage amount — \
              EffectAmount::PowerOfSacrificedCreature shipped in PB-P (card_definition.rs:2611), \
-             but ctx.sacrificed_creature_powers is only populated on the activated-ability-cost \
+             but ctx.sacrificed_creature_lki is only populated on the activated-ability-cost \
              and spell-additional-cost paths, so it would need threading to the trigger path too.",
         ),
         ..Default::default()

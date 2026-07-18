@@ -110,7 +110,7 @@ fn cast_devour_creature(
             } else {
                 vec![mtg_engine::AdditionalCost::Sacrifice {
                     ids: devour_sacrifices,
-                    lki_powers: vec![],
+                    lki: vec![],
                 }]
             },
             hybrid_choices: vec![],
@@ -640,7 +640,7 @@ fn test_devour_only_own_creatures() {
             face_down_kind: None,
             additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice {
                 ids: vec![opp_fodder_id],
-                lki_powers: vec![],
+                lki: vec![],
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
@@ -718,7 +718,7 @@ fn test_devour_cannot_sacrifice_self() {
             face_down_kind: None,
             additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice {
                 ids: vec![devour_id],
-                lki_powers: vec![],
+                lki: vec![],
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],

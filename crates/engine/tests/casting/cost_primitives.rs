@@ -470,7 +470,7 @@ fn test_spell_sacrifice_cost_creature() {
             face_down_kind: None,
             additional_costs: vec![AdditionalCost::Sacrifice {
                 ids: vec![bear_id],
-                lki_powers: vec![],
+                lki: vec![],
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
@@ -609,7 +609,7 @@ fn test_spell_sacrifice_cost_wrong_type() {
             face_down_kind: None,
             additional_costs: vec![AdditionalCost::Sacrifice {
                 ids: vec![artifact_id],
-                lki_powers: vec![],
+                lki: vec![],
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],

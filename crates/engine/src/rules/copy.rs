@@ -244,7 +244,7 @@ pub fn copy_spell_on_stack(
         cast_from_top_with_bonus: false,
         // PB-P: Copies do not inherit sacrifice LKI powers (the copy was not cast with
         // a sacrifice cost — CR 707.2: one-shot additional costs are not copied).
-        sacrificed_creature_powers: vec![],
+        sacrificed_creature_lki: vec![],
         // CR 603.10a: Copies do not inherit LKI counter snapshots.
         lki_counters: imbl::OrdMap::new(),
         lki_power: None,
@@ -439,7 +439,7 @@ pub fn resolve_cascade(
                 // Cascade free-casts are not from library top.
                 cast_from_top_with_bonus: false,
                 // PB-P: Cascade free-casts do not have sacrifice costs.
-                sacrificed_creature_powers: vec![],
+                sacrificed_creature_lki: vec![],
                 // CR 603.10a: Cascade free-casts have no LKI counter snapshot.
                 lki_counters: imbl::OrdMap::new(),
                 lki_power: None,
@@ -655,7 +655,7 @@ pub fn resolve_discover(
                 // Discover free-casts are not from library top.
                 cast_from_top_with_bonus: false,
                 // PB-P: Discover free-casts do not have sacrifice costs.
-                sacrificed_creature_powers: vec![],
+                sacrificed_creature_lki: vec![],
                 // CR 603.10a: Discover free-casts have no LKI counter snapshot.
                 lki_counters: imbl::OrdMap::new(),
                 lki_power: None,

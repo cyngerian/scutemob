@@ -127,11 +127,18 @@ pub struct EffectContext {
     /// Set by `fire_mana_triggered_abilities` in mana.rs when resolving AddManaMatchingType.
     /// Each entry is (color, amount). Deterministic fallback: first entry's color is used.
     pub mana_produced: Option<Vec<(ManaColor, u32)>>,
-    /// CR 608.2b: LKI powers of creatures sacrificed as a cost for this spell or ability,
-    /// captured at the cost-payment site BEFORE `move_object_to_zone`.
-    /// Read by `EffectAmount::PowerOfSacrificedCreature` (PB-P).
-    /// Empty for spells/abilities whose costs did not include creature sacrifice.
-    pub sacrificed_creature_powers: Vec<i32>,
+    /// CR 608.2b/608.2h/608.2i: LKI (power/toughness/mana value) of creatures
+    /// sacrificed as a cost or by a resolution-time effect, captured BEFORE
+    /// `move_object_to_zone`. Read by
+    /// `EffectAmount::{PowerOf,ToughnessOf,ManaValueOf}SacrificedCreature` (PB-P, PB-EF10).
+    /// Empty for spells/abilities whose costs/effects did not include creature sacrifice.
+    pub sacrificed_creature_lki: Vec<crate::state::types::SacrificedCreatureLki>,
+    /// CR 608.2c/608.2h: transient, per-resolution flag — true iff an
+    /// `Effect::SacrificePermanents` earlier in THIS resolution actually sacrificed
+    /// >= 1 permanent. Read by `Condition::SacrificeFired` ("if you do", PB-EF10).
+    /// Not hashed, not serialized — runtime resolution scratch only, same as
+    /// `sacrificed_creature_lki`'s sibling fields on this struct.
+    pub sacrifice_fired: bool,
     /// CR 603.10a / CR 113.7a: LKI counter snapshot for leaves-battlefield triggers.
     /// Populated by `flush_pending_triggers` (abilities.rs) when a `WhenDies` /
     /// `WhenLeavesBattlefield` trigger is put on the stack, capturing the source's
@@ -196,7 +203,8 @@ impl EffectContext {
             triggering_creature_id: None,
             chosen_creature_type: None,
             mana_produced: None,
-            sacrificed_creature_powers: vec![],
+            sacrificed_creature_lki: vec![],
+            sacrifice_fired: false,
             lki_counters: None,
             lki_power: None,
             countered_spell_controller: None,
@@ -233,7 +241,8 @@ impl EffectContext {
             triggering_creature_id: None,
             chosen_creature_type: None,
             mana_produced: None,
-            sacrificed_creature_powers: vec![],
+            sacrificed_creature_lki: vec![],
+            sacrifice_fired: false,
             lki_counters: None,
             lki_power: None,
             countered_spell_controller: None,
@@ -3230,7 +3239,8 @@ fn execute_effect_inner(
                             triggering_creature_id: ctx.triggering_creature_id,
                             chosen_creature_type: ctx.chosen_creature_type.clone(),
                             mana_produced: ctx.mana_produced.clone(),
-                            sacrificed_creature_powers: ctx.sacrificed_creature_powers.clone(),
+                            sacrificed_creature_lki: ctx.sacrificed_creature_lki.clone(),
+                            sacrifice_fired: ctx.sacrifice_fired,
                             lki_counters: ctx.lki_counters.clone(),
                             lki_power: ctx.lki_power,
                             countered_spell_controller: ctx.countered_spell_controller,
@@ -3270,7 +3280,8 @@ fn execute_effect_inner(
                             triggering_creature_id: ctx.triggering_creature_id,
                             chosen_creature_type: ctx.chosen_creature_type.clone(),
                             mana_produced: ctx.mana_produced.clone(),
-                            sacrificed_creature_powers: ctx.sacrificed_creature_powers.clone(),
+                            sacrificed_creature_lki: ctx.sacrificed_creature_lki.clone(),
+                            sacrifice_fired: ctx.sacrifice_fired,
                             lki_counters: ctx.lki_counters.clone(),
                             lki_power: ctx.lki_power,
                             countered_spell_controller: ctx.countered_spell_controller,
@@ -7257,11 +7268,23 @@ pub(crate) fn resolve_amount(state: &GameState, amount: &EffectAmount, ctx: &Eff
         }
         // CR 608.2b: Read the LKI power of the first creature sacrificed as a cost.
         // Captured BEFORE move_object_to_zone at the sacrifice cost-payment site.
-        // Returns 0 defensively if no creature was sacrificed (ctx.sacrificed_creature_powers
+        // Returns 0 defensively if no creature was sacrificed (ctx.sacrificed_creature_lki
         // is empty), so a card author mistakenly using this variant without a sacrifice cost
         // gets a deterministic 0, not a panic.
         EffectAmount::PowerOfSacrificedCreature => {
-            ctx.sacrificed_creature_powers.first().copied().unwrap_or(0)
+            ctx.sacrificed_creature_lki
+                .first()
+                .map(|l| l.power)
+                .unwrap_or(0)
+        }
+        // CR 608.2b/608.2i: Read the LKI toughness of the first creature sacrificed as
+        // a cost/effect this resolution (PB-EF10 — Momentous Fall: "gain life equal to
+        // its toughness"). Same defensive-0 contract as PowerOfSacrificedCreature.
+        EffectAmount::ToughnessOfSacrificedCreature => {
+            ctx.sacrificed_creature_lki
+                .first()
+                .map(|l| l.toughness)
+                .unwrap_or(0)
         }
         // CR 603.10a / CR 113.7a: Read counter count from LKI snapshot captured at
         // trigger-fire time. Returns 0 if no LKI was captured (variant misused on
@@ -8878,7 +8901,8 @@ pub fn check_static_condition(
                 triggering_creature_id: None,
                 chosen_creature_type: None,
                 mana_produced: None,
-                sacrificed_creature_powers: vec![],
+                sacrificed_creature_lki: vec![],
+                sacrifice_fired: false,
                 lki_counters: None,
                 lki_power: None,
                 countered_spell_controller: None,

@@ -248,7 +248,7 @@ fn test_casualty_basic_copy() {
             face_down_kind: None,
             additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice {
                 ids: vec![creature_id],
-                lki_powers: vec![],
+                lki: vec![],
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
@@ -400,7 +400,7 @@ fn test_casualty_power_threshold() {
             face_down_kind: None,
             additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice {
                 ids: vec![weak_id],
-                lki_powers: vec![],
+                lki: vec![],
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
@@ -429,7 +429,7 @@ fn test_casualty_power_threshold() {
             face_down_kind: None,
             additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice {
                 ids: vec![strong_id],
-                lki_powers: vec![],
+                lki: vec![],
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
@@ -523,7 +523,7 @@ fn test_casualty_not_a_creature() {
             face_down_kind: None,
             additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice {
                 ids: vec![artifact_id],
-                lki_powers: vec![],
+                lki: vec![],
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
@@ -566,7 +566,7 @@ fn test_casualty_wrong_controller() {
             face_down_kind: None,
             additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice {
                 ids: vec![opp_creature_id],
-                lki_powers: vec![],
+                lki: vec![],
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
@@ -638,7 +638,7 @@ fn test_casualty_no_keyword_sacrifice_ignored() {
             face_down_kind: None,
             additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice {
                 ids: vec![creature_id],
-                lki_powers: vec![],
+                lki: vec![],
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
@@ -682,7 +682,7 @@ fn test_casualty_copy_is_not_cast() {
             face_down_kind: None,
             additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice {
                 ids: vec![creature_id],
-                lki_powers: vec![],
+                lki: vec![],
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
@@ -743,7 +743,7 @@ fn test_casualty_higher_power_accepted() {
             face_down_kind: None,
             additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice {
                 ids: vec![big_id],
-                lki_powers: vec![],
+                lki: vec![],
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
@@ -784,7 +784,7 @@ fn test_casualty_creature_not_on_battlefield() {
             face_down_kind: None,
             additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice {
                 ids: vec![dead_id],
-                lki_powers: vec![],
+                lki: vec![],
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],

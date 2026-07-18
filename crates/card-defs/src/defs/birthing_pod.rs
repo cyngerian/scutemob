@@ -3,10 +3,13 @@
 //   1 plus the sacrificed creature's mana value, put that card onto the battlefield, then shuffle.
 //   Activate only as a sorcery.
 //
-// DSL gap: the search filter "mana value equal to 1 plus sacrificed creature's mana value" is dynamic
-//   and requires runtime context about the sacrificed creature (no TargetFilter for dynamic MV).
-//   Phyrexian mana cost also not representable in ManaCost (no {G/P} field).
-// W5 policy: complex sacrifice-conditional search cannot be expressed faithfully — abilities: vec![].
+// PB-EF10 sweep (2026-07-18): PB-EF10 added EffectAmount::ManaValueOfSacrificedCreature and
+// TargetFilter.max_cmc_amount (a runtime UPPER-BOUND cap: "mana value X or less"). Birthing
+// Pod needs mana value EQUAL TO 1 + the sacrificed creature's MV, not "or less" — a runtime
+// max_cmc_amount alone would wrongly accept any cheaper creature too (legal-but-wrong). This
+// needs a runtime EXACT-mana-value filter (or a paired min_cmc_amount set to the same
+// EffectAmount) which is out of this PB's declared scope. Still blocked; recorded as a
+// follow-up alongside OOS-EF10-1.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {

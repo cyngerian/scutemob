@@ -2682,7 +2682,7 @@ pub enum EffectAmount {
     DomainCount { player: PlayerTarget },
     /// CR 608.2b LKI: The layer-resolved power of the (first) creature sacrificed as
     /// a cost for this spell or activated ability. Captured at sacrifice time (BEFORE
-    /// `move_object_to_zone`) and stored in `EffectContext.sacrificed_creature_powers`.
+    /// `move_object_to_zone`) and stored in `EffectContext.sacrificed_creature_lki`.
     /// Returns 0 if no creature was sacrificed (defensive default — the card author
     /// should not pair this variant with a non-sacrifice cost).
     ///
@@ -2698,6 +2698,14 @@ pub enum EffectAmount {
     /// NOT the graveyard object's base characteristics. Any anthem or P/T-setting effect
     /// that applied on the battlefield contributes the boosted value, not the printed value.
     PowerOfSacrificedCreature,
+    /// CR 608.2b/608.2i LKI: the layer-resolved toughness of the (first) creature
+    /// sacrificed as a cost or by a resolution-time effect (PB-EF10). Captured at
+    /// sacrifice time (BEFORE `move_object_to_zone`) and stored in
+    /// `EffectContext.sacrificed_creature_lki`. Returns 0 if no creature was sacrificed.
+    ///
+    /// Used by Momentous Fall: "you gain life equal to the sacrificed creature's
+    /// toughness."
+    ToughnessOfSacrificedCreature,
     /// CR 603.10a / CR 113.7a: Counter count from last-known information (LKI).
     /// Used by WhenDies / WhenLeavesBattlefield triggers whose effect needs to know
     /// how many counters of a given type were on the source as it last existed on

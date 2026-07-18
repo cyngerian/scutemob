@@ -46,6 +46,6 @@ pub use types::{
     AdditionalCost, AffinityTarget, AltCostKind, BlockingExceptionFilter, CardType, ChampionFilter,
     Color, CounterType, CumulativeUpkeepCost, DayNight, EnchantControllerConstraint, EnchantFilter,
     EnchantTarget, FaceDownKind, KeywordAbility, LandwalkType, ManaColor, ProtectionQuality,
-    SubType, SuperType, TurnFaceUpMethod,
+    SacrificedCreatureLki, SubType, SuperType, TurnFaceUpMethod,
 };
 pub use zone::{Zone, ZoneId, ZoneType};

@@ -4234,16 +4234,31 @@ pub fn handle_cast_spell(
             let chars = expect_characteristics(state, sac_id);
             chars.power.unwrap_or(0)
         };
-        // Patch the lki_powers field of the AdditionalCost::Sacrifice entry in additional_costs
-        // so that at resolution time, ctx.sacrificed_creature_powers is populated correctly.
+        // CR 608.2h/608.2i: Capture the full LKI (power/toughness/mana value) of the
+        // sacrificed creature BEFORE the zone move (PB-EF10: Momentous Fall/Eldritch
+        // Evolution read toughness/mana value in addition to power).
+        let sac_lki: crate::state::types::SacrificedCreatureLki = {
+            let chars = expect_characteristics(state, sac_id);
+            crate::state::types::SacrificedCreatureLki {
+                power: chars.power.unwrap_or(0),
+                toughness: chars.toughness.unwrap_or(0),
+                mana_value: chars
+                    .mana_cost
+                    .as_ref()
+                    .map(|c| c.mana_value())
+                    .unwrap_or(0),
+            }
+        };
+        // Patch the lki field of the AdditionalCost::Sacrifice entry in additional_costs
+        // so that at resolution time, ctx.sacrificed_creature_lki is populated correctly.
         for ac in additional_costs.iter_mut() {
-            if let crate::state::types::AdditionalCost::Sacrifice { ids, lki_powers } = ac {
+            if let crate::state::types::AdditionalCost::Sacrifice { ids, lki } = ac {
                 if ids.contains(&sac_id) {
-                    if lki_powers.len() != ids.len() {
-                        lki_powers.resize(ids.len(), 0);
+                    if lki.len() != ids.len() {
+                        lki.resize(ids.len(), crate::state::types::SacrificedCreatureLki::default());
                     }
                     if let Some(pos) = ids.iter().position(|id| *id == sac_id) {
-                        lki_powers[pos] = sac_lki_power;
+                        lki[pos] = sac_lki.clone();
                     }
                 }
             }
@@ -4575,9 +4590,9 @@ pub fn handle_cast_spell(
         triggering_creature_id: None,
         // PB-A: Thundermane Dragon on_cast_effect — apply haste at resolution (CR 400.7).
         cast_from_top_with_bonus,
-        // PB-P: For spells, LKI powers flow through additional_costs.Sacrifice.lki_powers
+        // PB-P: For spells, LKI powers flow through additional_costs.Sacrifice.lki
         // at resolution; this field is for activated abilities only.
-        sacrificed_creature_powers: vec![],
+        sacrificed_creature_lki: vec![],
         lki_counters: imbl::OrdMap::new(),
         lki_power: None,
         defending_player: None,
@@ -7926,7 +7941,7 @@ mod tests {
             combat_damage_amount: 0,
             triggering_creature_id: None,
             cast_from_top_with_bonus: false,
-            sacrificed_creature_powers: vec![],
+            sacrificed_creature_lki: vec![],
             lki_counters: imbl::OrdMap::new(),
             lki_power: None,
             defending_player: None,

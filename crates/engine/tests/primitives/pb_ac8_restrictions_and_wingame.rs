@@ -1303,7 +1303,7 @@ fn test_cant_be_sacrificed_cast_cost_emerge_cannot_pay() {
             face_down_kind: None,
             additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice {
                 ids: vec![sac_id],
-                lki_powers: vec![],
+                lki: vec![],
             }],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],

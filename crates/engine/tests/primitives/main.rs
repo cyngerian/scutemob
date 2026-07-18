@@ -28,6 +28,7 @@ mod pb_ef6_target_opponent;
 mod pb_ef7_modal_activated;
 mod pb_ef8_exile_self_from_hand;
 mod pb_ef9_while_you_control_source;
+mod pb_ef10_sacrifice_driven_amounts;
 mod pb_k_land_drops;
 mod pb_l_landfall;
 mod pbd_damaged_player_filter;

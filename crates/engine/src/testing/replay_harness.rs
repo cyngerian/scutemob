@@ -454,11 +454,11 @@ pub fn translate_player_action(
                     // resolve it to an ObjectId and add AdditionalCost::Sacrifice.
                     if let Some(sac_name) = sacrifice_card_name {
                         if let Some(sac_id) = find_on_battlefield(state, player, sac_name) {
-                            // lki_powers: vec![] — non-LKI path; engine fills in the value at the
+                            // lki: vec![] — non-LKI path; engine fills in the value at the
                             // cost-payment site inside handle_cast_spell (CR 608.2b, PB-P).
                             costs.push(AdditionalCost::Sacrifice {
                                 ids: vec![sac_id],
-                                lki_powers: vec![],
+                                lki: vec![],
                             });
                         }
                     }
@@ -1322,7 +1322,7 @@ pub fn translate_player_action(
                     .map(|id| {
                         vec![crate::state::types::AdditionalCost::Sacrifice {
                             ids: vec![id],
-                            lki_powers: vec![],
+                            lki: vec![],
                         }]
                     })
                     .unwrap_or_default(),
@@ -1386,7 +1386,7 @@ pub fn translate_player_action(
                 face_down_kind: None,
                 additional_costs: vec![crate::state::types::AdditionalCost::Sacrifice {
                     ids: vec![emerge_sac_id],
-                    lki_powers: vec![],
+                    lki: vec![],
                 }],
                 hybrid_choices: vec![],
                 phyrexian_life_payments: vec![],
@@ -1465,7 +1465,7 @@ pub fn translate_player_action(
                     .map(|id| {
                         vec![crate::state::types::AdditionalCost::Sacrifice {
                             ids: vec![id],
-                            lki_powers: vec![],
+                            lki: vec![],
                         }]
                     })
                     .unwrap_or_default(),
@@ -1715,7 +1715,7 @@ pub fn translate_player_action(
                 } else {
                     vec![crate::state::types::AdditionalCost::Sacrifice {
                         ids: devour_ids,
-                        lki_powers: vec![],
+                        lki: vec![],
                     }]
                 },
                 hybrid_choices: vec![],

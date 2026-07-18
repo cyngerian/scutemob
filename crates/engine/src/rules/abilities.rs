@@ -276,7 +276,8 @@ pub fn handle_activate_ability(
                 triggering_creature_id: None,
                 chosen_creature_type: None,
                 mana_produced: None,
-                sacrificed_creature_powers: vec![],
+                sacrificed_creature_lki: vec![],
+                sacrifice_fired: false,
                 lki_counters: None,
                 lki_power: None,
                 countered_spell_controller: None,
@@ -910,10 +911,11 @@ pub fn handle_activate_ability(
         }
         events.push(GameEvent::PermanentExerted { object_id: source });
     }
-    // PB-P: CR 608.2b — LKI powers of creatures sacrificed as activated-ability cost.
-    // Populated inside the sacrifice block (BEFORE move_object_to_zone); read at
-    // StackObject construction and propagated to EffectContext at resolution.
-    let mut sacrificed_lki_powers: Vec<i32> = vec![];
+    // PB-P/PB-EF10: CR 608.2b/608.2h/608.2i — LKI of creatures sacrificed as
+    // activated-ability cost. Populated inside the sacrifice block (BEFORE
+    // move_object_to_zone); read at StackObject construction and propagated to
+    // EffectContext at resolution.
+    let mut sacrificed_lki: Vec<crate::state::types::SacrificedCreatureLki> = vec![];
     // CR 602.2: Pay sacrifice-another-permanent cost (e.g., "Sacrifice a creature: ...").
     // The caller supplies the ObjectId of the permanent to sacrifice via `sacrifice_target`.
     if let Some(ref filter) = ability_cost.sacrifice_filter {
@@ -1018,9 +1020,21 @@ pub fn handle_activate_ability(
             // unwrap_or_else fallback handles LKI path (object not on battlefield).
             let pre_chars_opt = crate::rules::layers::calculate_characteristics(state, sac_id);
             let resolved = crate::rules::layers::expect_characteristics(state, sac_id);
-            // CR 608.2b: Capture LKI power BEFORE the zone move (CR 400.7 kills old id after).
+            // CR 608.2b/608.2h/608.2i: Capture full LKI (power/toughness/mana value)
+            // BEFORE the zone move (CR 400.7 kills old id after).
             let lki_power = resolved.power.or(obj.characteristics.power);
-            sacrificed_lki_powers.push(lki_power.unwrap_or(0));
+            let lki_toughness = resolved.toughness.or(obj.characteristics.toughness);
+            let lki_mana_value = resolved
+                .mana_cost
+                .as_ref()
+                .or(obj.characteristics.mana_cost.as_ref())
+                .map(|c| c.mana_value())
+                .unwrap_or(0);
+            sacrificed_lki.push(crate::state::types::SacrificedCreatureLki {
+                power: lki_power.unwrap_or(0),
+                toughness: lki_toughness.unwrap_or(0),
+                mana_value: lki_mana_value,
+            });
             (
                 resolved
                     .card_types
@@ -1272,9 +1286,10 @@ pub fn handle_activate_ability(
     stack_obj.modes_chosen = validated_modes_chosen;
     // CR 107.3k: Propagate x_value so effects using EffectAmount::XValue resolve correctly.
     stack_obj.x_value = x_value.unwrap_or(0);
-    // PB-P: Carry captured LKI powers of cost-sacrificed creatures forward to resolution,
-    // where EffectAmount::PowerOfSacrificedCreature reads them from EffectContext.
-    stack_obj.sacrificed_creature_powers = sacrificed_lki_powers;
+    // PB-P/PB-EF10: Carry captured LKI of cost-sacrificed creatures forward to
+    // resolution, where EffectAmount::{PowerOf,ToughnessOf,ManaValueOf}SacrificedCreature
+    // read them from EffectContext.
+    stack_obj.sacrificed_creature_lki = sacrificed_lki;
     state.stack_objects.push_back(stack_obj);
     // CR 602.5b: Track once-per-turn activation for abilities with the restriction.
     if is_once_per_turn {
