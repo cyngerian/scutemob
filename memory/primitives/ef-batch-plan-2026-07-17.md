@@ -188,7 +188,7 @@ changes behaviour:
 | EF-W-PB2-2 | MED | `TargetRequirement::TargetOpponent` | shaman_of_the_pack, raiders_wake, forbidden_orchard, ajani_sleeper_agent |
 | EF-W-MISS-4 | MED | "defending player / planeswalker" target for attack triggers | hellrider, Brutal Hordechief, Raid Bombardment, Norn's Decree, Karazikar, Silumgar, Cunning Rhetoric |
 | EF-W-PB2-4 | MED | modal `AbilityDefinition::Activated { modes }` | goblin_cratermaker + modal-activated cohort |
-| EF-W-PB2-8 | MED | `Cost::ExileSelfFromHand` (+ `activation_zone: Hand`) | simian_spirit_guide (+ Elvish/other pitch-for-mana) |
+| ~~EF-W-PB2-8~~ ✅ CLOSED (scutemob-109) | MED | `Cost::ExileSelfFromHand` (+ `activation_zone: Hand`) | simian_spirit_guide + elvish_spirit_guide → Complete |
 | EF-W-PB2-5 | MED | `EffectDuration::WhileYouControlSource` | olivia_voldaren + gain-control lends |
 | EF-W-PB2-3 | MED | granted `any_color` ManaAbility → real color choice (not `Colorless`) | elven_chorus (+ future granted-any-color) |
 | EF-W-MISS-6 | LOW* | ~~card-invokable `Effect::TransformSelf`~~ ✅ DONE (scutemob-106); Battle/Super Nova SPLIT → OOS-EF5-1/2 | 11 body-only DFCs + Invasion of Ikoria + Sephiroth |
@@ -445,11 +445,36 @@ demote is not a PB and should not wait in the queue.
   (sweep `all_cards()` for activated abilities currently forced onto the gated `Effect::Choose`).
 - **Discounted ship**: **~2–4** (re-run the corpus sweep to size the cohort before dispatch).
 
-### PB-EF8 — `Cost::ExileSelfFromHand` (activation from hand)  ·  capability
-- **Findings**: EF-W-PB2-8.
+### PB-EF8 — `Cost::ExileSelfFromHand` (activation from hand)  ·  capability  ·  ✅ DONE (scutemob-109)
+> **SHIPPED 2026-07-18. EF-W-PB2-8 CLOSED.** Added `Cost::ExileSelfFromHand` (DSL) +
+> `ActivationZone::Hand` (decorative; the cost variant is the single behavioral source of truth,
+> mirroring how `Cost::DiscardSelf`/Channel drives hand activation with no zone marker). The two
+> cards ("Exile this card from your hand: Add {mana}") are **mana abilities** (CR 605.1a — no
+> target, could add mana), so they lower through `mana_ability_lowering` → `handle_tap_for_mana`
+> and resolve **stacklessly** (CR 605.3b/605.5 — no priority reset, `players_passed` untouched),
+> never the stack-using `handle_activate_ability`. `mana_ability_cost_components` gained an
+> accepting arm and the SR-34 **no-tap guard was relaxed scoped to `exile_self_from_hand` only**
+> (CR 400.7 makes the exile inherently one-shot/self-consuming, so the "free repeatable stackless
+> mana ability" seam that guard closed does not apply; a negative-control test pins that Food-Chain
+> `SacrificeSelf`-only / `Cost::Mana`-only no-tap costs still decline). `handle_tap_for_mana` now
+> fetches the ability before the zone check and branches Hand-vs-Battlefield legality (owner check,
+> mirroring Channel), then exiles the source to `ZoneId::Exile` (`GameEvent::ObjectExiled`,
+> reusing the pitch-cost hand-exile shape) before producing mana. CR 106.12: no `{T}` → mana
+> replacements (Nyxbloom/Mana Reflection) and WhenTappedForMana triggers correctly do NOT fire
+> (both gated on `requires_tap`). **Corpus sweep = 2 flips**: **simian_spirit_guide**
+> (inert→**Complete**) and **elvish_spirit_guide** (known_wrong→**Complete**, killing a live
+> free-infinite-`{G}` bug). False positives verified out of scope: saw_it_coming (Foretell),
+> chrome_mox (Imprint), gemstone_caverns (Luck-counter ETB). **PROTOCOL 12→13, HASH 50→51**
+> (both machine-forced — `Cost`/`ActivationZone` reach the SR-8 wire closure; the two new runtime
+> bool fields reach the GameState hash). `Command::TapForMana` frame unchanged. 7 new tests
+> (happy ×2, CR-605.5 stackless invariant, decoy A/B each proven non-vacuous, lowering-gate
+> positive+negative control, CR-106.12 `requires_tap` invariant). /review 0 HIGH / 0 MED / 1 LOW
+> (elvish oracle_text "card"→"creature", fixed). Coverage 60.7% → **60.9%** (1,091/1,792, +2). All
+> gates green. Plan/review: `memory/primitives/pb-plan-EF8.md` / `pb-review-EF8.md`.
+- **Findings**: EF-W-PB2-8 — CLOSED.
 - **Fix**: add `Cost::ExileSelfFromHand` + `activation_zone: Hand`, mirroring `Cost::DiscardSelf`.
 - **Candidates**: simian_spirit_guide (flip `partial`) + other pitch-for-mana / activate-from-hand cards.
-- **Discounted ship**: **~2–3.**
+- **Discounted ship**: **~2–3** → **2 shipped.**
 
 ### PB-EF9 — `EffectDuration::WhileYouControlSource`  ·  capability
 - **Findings**: EF-W-PB2-5.
@@ -493,7 +518,7 @@ demote is not a PB and should not wait in the queue.
 | **PB-EF5** ✅ DONE | capability | MISS-6 | **2 shipped** | PROTOCOL+HASH |
 | **PB-EF6** ✅ DONE | capability | PB2-2 | **3 flips + fell_specter fix** | PROTOCOL+HASH |
 | **PB-EF7** ✅ DONE | capability | PB2-4 | **2 shipped** | PROTOCOL+HASH |
-| PB-EF8 | capability | PB2-8 | ~2–3 | maybe |
+| **PB-EF8** ✅ DONE | capability | PB2-8 | **2 shipped** | PROTOCOL+HASH |
 | PB-EF9 | capability | PB2-5 | ~1–2 | maybe |
 | PB-EF10 | capability | MISS-7 | ~3 | maybe |
 | PB-EF11 | capability | MISS-8, MISS-9 | ~2 | PROTOCOL |
