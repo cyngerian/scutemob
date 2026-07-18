@@ -376,6 +376,11 @@ uses `GameStateBuilder`.
 - [ ] `authoring-report.py` rerun; coverage delta posted as task comment
 - [ ] OOS seeds recorded: OOS-AC8-1 (persistent no-max-hand designation), OOS-AC8-2 (can't-win/can't-lose)
 
+> **OOS-AC8-1 ✅ RESOLVED 2026-07-18 (verified by scutemob-115 retriage).** `Effect::SetNoMaximumHandSize`
+> shipped (PB-AC9, "rest of the game" persistent player designation, `card_definition.rs:2441`) and
+> `sea_gate_restoration.rs` uses it and is **`Complete`** (authored by W-EMPTY, scutemob-96). OOS-AC8-2
+> (can't-win/can't-lose guard) remains open and dormant (0 roster cards).
+
 ---
 
 ## Risks & Edge Cases

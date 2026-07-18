@@ -38,7 +38,13 @@ should be demoted from Complete until fixed, OR fixed in an SR. **Coordinator ca
 untaps every filter match including the source. Affects any "each other" untap. Fix: honour
 `exclude_self` in the `UntapAll` executor.
 
-## EF-W-MISS-3 (MEDIUM): granted keyword-triggers are silent no-ops
+## EF-W-MISS-3 (MEDIUM): granted keyword-triggers are silent no-ops — ✅ CLOSED (PB-EF3b, scutemob-104)
+> **CLOSED 2026-07-18 (banner added by scutemob-115 retriage; the fix shipped 2026-07-18).** The
+> shared helper `derived_attack_trigger_for_keyword` synthesizes the derived triggered ability for a
+> granted trigger-keyword (Melee/Battle Cry/Annihilator) post-layer via `calculate_characteristics`.
+> Adriana flipped Complete. (Extending the helper to the full keyword set → OOS-EF3b-2; the
+> `RemoveKeyword` stale-trigger asymmetry → OOS-EF3b-3, both still open.)
+
 `LayerModification::AddKeyword` inserts into `keywords` but the derived triggered ability
 (Melee, Battle Cry, Annihilator) is synthesized only from **printed** keywords in `builder.rs`.
 So an anthem granting Melee/Battle Cry to *other* creatures registers the keyword but the
@@ -69,7 +75,14 @@ just-triggered) creature cannot be expressed via `ApplyContinuousEffect` — no 
 the triggering object. Keeps `ogre_battledriver.rs` partial; blocks Atarka, Fervent Charge,
 Goblin Piledriver, Muxus.
 
-## EF-W-MISS-6 (LOW — large but known cohort): no card-invokable self-transform effect
+## EF-W-MISS-6 (LOW — large but known cohort): no card-invokable self-transform effect — ⚠️ PARTIALLY CLOSED (PB-EF5, scutemob-106)
+> **TransformSelf half CLOSED 2026-07-18 (banner added by scutemob-115 retriage).** `Effect::TransformSelf`
+> shipped (PB-EF5), flipping the in-place DFC cohort. **The two other clauses in this finding remain
+> open, as separate seeds**: `CardType::Battle`/Siege (Invasion of Ikoria) → **OOS-EF5-1**; Sephiroth
+> "Super Nova" bespoke keyword → **OOS-EF5-2**. A THIRD mechanism surfaced during PB-EF5 —
+> return-transformed / enters-transformed as a *new object* (edgar/fable/nicol_bolas/grist) → **OOS-EF5-3**
+> (ranked PB-OS4). So this finding is not fully closed; its remaining yield lives in OOS-EF5-1/2/3.
+
 The Effect enum has only `Meld`; there is no `Effect::Transform`/`TransformSelf`. A card cannot
 cause itself (or another named permanent) to transform from a triggered/activated/conditional
 ability — `KeywordAbility::Transform`'s behaviour is carried only by the external

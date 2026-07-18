@@ -244,7 +244,10 @@ a Dragon, so it misattributes on 100% of firings — left `inert`), and `scourge
 **Fix**: add an optional `source: Option<EffectTarget>` to `DealDamage` (defaulting to `ctx.source`),
 resolvable to `TriggeringCreature`. PB-sized. Wire change (Effect shape) → PROTOCOL bump.
 
-## EF-W-PB2-8 — no "exile this card from hand" activation cost (MEDIUM)
+## EF-W-PB2-8 — no "exile this card from hand" activation cost (MEDIUM) — ✅ CLOSED (PB-EF8, scutemob-109)
+> **CLOSED 2026-07-18 (banner added by scutemob-115 retriage; the fix shipped 2026-07-18).**
+> `Cost::ExileSelfFromHand` exists (`card_definition.rs:1268`) with hand-zone activation through the
+> mana-ability lowering path. `simian_spirit_guide.rs` + `elvish_spirit_guide.rs` flipped Complete.
 
 `card_definition.rs:1247` — the only exile-from-hand `Cost` is `Cost::ExileFromHand { color }`,
 which is the **Force of Will-style pitch cost** (exile a card *of a chosen color* from hand to
