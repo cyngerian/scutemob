@@ -3,10 +3,7 @@
 //         At the beginning of your end step, if you control seven or more lands, transform Thaumatic Compass.
 // Back:  Spires of Orazca — Land
 //         {T}: Add {C}.
-//         {T}: Tap target creature an opponent controls.
-//
-// DSL gap: at-beginning-of-end-step conditional-transform trigger not expressible.
-// Front search ability and back tap abilities are faithfully implemented.
+//         {T}: Untap target attacking creature an opponent controls and remove it from combat.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -50,15 +47,31 @@ pub fn card() -> CardDefinition {
                 once_per_turn: false,
             },
             AbilityDefinition::Keyword(KeywordAbility::Transform),
-            // TODO: at beginning of your end step, if you control seven or more lands, transform
-            //   (needs TriggerCondition::AtBeginningOfYourEndStep + Condition::YouControlNOrMoreLands(7) + TransformSelf effect)
+            // CR 701.27a/f: "At the beginning of your end step, if you control seven or
+            // more lands, transform Thaumatic Compass." (PB-EF5)
+            AbilityDefinition::Triggered {
+                once_per_turn: false,
+                trigger_condition: TriggerCondition::AtBeginningOfYourEndStep,
+                effect: Effect::TransformSelf,
+                intervening_if: Some(Condition::YouControlNOrMoreWithFilter {
+                    count: 7,
+                    filter: TargetFilter {
+                        has_card_type: Some(CardType::Land),
+                        ..Default::default()
+                    },
+                }),
+                targets: vec![],
+                modes: None,
+                trigger_zone: None,
+            },
         ],
         color_indicator: None,
         back_face: Some(CardFace {
             name: "Spires of Orazca".to_string(),
             mana_cost: None,
             types: types(&[CardType::Land]),
-            oracle_text: "{T}: Add {C}.\n{T}: Tap target creature an opponent controls."
+            oracle_text: "{T}: Add {C}.\n{T}: Untap target attacking creature an opponent \
+                          controls and remove it from combat."
                 .to_string(),
             power: None,
             toughness: None,
@@ -75,14 +88,20 @@ pub fn card() -> CardDefinition {
                     activation_zone: None,
                     once_per_turn: false,
                 },
+                // "{T}: Untap target attacking creature an opponent controls and remove it
+                // from combat." The untap + attacking-opponent-creature target are expressible;
+                // the "remove it from combat" clause has NO effect primitive (only Regenerate
+                // references removal-from-combat internally) — so this model OMITS that clause
+                // and the def stays `partial`. See OOS-EF5-4(g). CR 508 / 701.21.
                 AbilityDefinition::Activated {
                     cost: Cost::Tap,
-                    effect: Effect::TapPermanent {
+                    effect: Effect::UntapPermanent {
                         target: EffectTarget::DeclaredTarget { index: 0 },
                     },
                     timing_restriction: None,
                     targets: vec![TargetRequirement::TargetCreatureWithFilter(TargetFilter {
                         controller: TargetController::Opponent,
+                        is_attacking: true,
                         ..Default::default()
                     })],
                     activation_condition: None,
@@ -102,11 +121,16 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
+        // Front (search + TransformSelf end-step trigger) is fully modeled. The back face,
+        // Spires of Orazca, is NOT: "{T}: Untap target attacking creature an opponent controls
+        // and remove it from combat" needs a remove-from-combat effect primitive that does not
+        // exist (only Regenerate references combat removal internally). The modeled untap omits
+        // that clause, so the def is truthfully `partial`, not Complete — see OOS-EF5-4(g).
         completeness: Completeness::partial(
-            "Blocked on a transform-self effect: Effect has no Transform variant (only Meld). \
-             TriggerCondition::AtBeginningOfYourEndStep and \
-             Condition::YouControlNOrMoreWithFilter{count:7, lands} both exist and are ready to \
-             use once the effect lands.",
+            "Spires of Orazca back face: '{T}: Untap target attacking creature an opponent \
+             controls and remove it from combat' lacks a remove-from-combat effect primitive; \
+             modeled untap omits the combat-removal clause (OOS-EF5-4g). Front TransformSelf \
+             (PB-EF5) is complete.",
         ),
     }
 }

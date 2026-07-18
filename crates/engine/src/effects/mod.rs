@@ -164,6 +164,12 @@ pub struct EffectContext {
     /// `PlayerTarget::DefendingPlayer` and as the Player-target fallback of
     /// `EffectTarget::AttackTarget`.
     pub defending_player: Option<crate::state::PlayerId>,
+    /// CR 701.27f / 701.28e: once-per-instruction guard for `Effect::TransformSelf`
+    /// (PB-EF5). True once `ctx.source` has transformed/converted during this
+    /// resolving instruction; a subsequent `TransformSelf` in the same resolution
+    /// (e.g. inside a `Sequence` or `Conditional`, which reuse the same `&mut ctx`)
+    /// is then ignored. Latched only when a flip actually occurs.
+    pub source_transformed_this_resolution: bool,
 }
 impl EffectContext {
     /// Build a basic context from resolution data.
@@ -195,6 +201,7 @@ impl EffectContext {
             lki_power: None,
             countered_spell_controller: None,
             defending_player: None,
+            source_transformed_this_resolution: false,
         }
     }
     /// Build a context with kicker status (CR 702.33d).
@@ -231,6 +238,7 @@ impl EffectContext {
             lki_power: None,
             countered_spell_controller: None,
             defending_player: None,
+            source_transformed_this_resolution: false,
         }
     }
     /// Resolve a declared target to a player (if it's a player target).
@@ -3219,6 +3227,8 @@ fn execute_effect_inner(
                             lki_power: ctx.lki_power,
                             countered_spell_controller: ctx.countered_spell_controller,
                             defending_player: ctx.defending_player,
+                            source_transformed_this_resolution: ctx
+                                .source_transformed_this_resolution,
                         };
                         execute_effect_inner(state, effect, &mut inner_ctx, events);
                     }
@@ -3257,6 +3267,8 @@ fn execute_effect_inner(
                             lki_power: ctx.lki_power,
                             countered_spell_controller: ctx.countered_spell_controller,
                             defending_player: ctx.defending_player,
+                            source_transformed_this_resolution: ctx
+                                .source_transformed_this_resolution,
                         };
                         execute_effect_inner(state, effect, &mut inner_ctx, events);
                     }
@@ -4069,6 +4081,26 @@ fn execute_effect_inner(
                     }
                 }
                 // CR 701.42c: If partner not found or conditions not met, nothing happens.
+            }
+        }
+        // CR 701.27a/f, 712.18: flip the resolving ability's own source DFC in place.
+        Effect::TransformSelf => {
+            // CR 701.27f / 701.28e: once-per-instruction -- a second TransformSelf in the
+            // same resolving ability is ignored.
+            if !ctx.source_transformed_this_resolution {
+                if let Ok(evs) =
+                    crate::rules::engine::transform_permanent_in_place(state, ctx.source)
+                {
+                    // Only latch the guard if a flip actually occurred (a no-op on a
+                    // non-DFC / meld / daybound source must not consume the instruction).
+                    if evs
+                        .iter()
+                        .any(|e| matches!(e, GameEvent::PermanentTransformed { .. }))
+                    {
+                        ctx.source_transformed_this_resolution = true;
+                    }
+                    events.extend(evs);
+                }
             }
         }
         // CR 702.75a / CR 607.2a: Play the card exiled face-down by this permanent's
@@ -8825,6 +8857,7 @@ pub fn check_static_condition(
                 lki_power: None,
                 countered_spell_controller: None,
                 defending_player: None,
+                source_transformed_this_resolution: false,
             };
             check_condition(state, condition, &ctx)
         }

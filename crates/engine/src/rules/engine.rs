@@ -1059,12 +1059,18 @@ fn handle_pay_recover(
 ///
 /// No new object is created (CR 712.18). Counters, damage, attachments, and
 /// continuous effects all persist through transformation.
+///
+/// This is the `Command::Transform` path: it validates the permanent exists,
+/// is on the battlefield, is controlled by `player`, and is not daybound/
+/// nightbound (those reject with `Err` — they can only transform via their
+/// own keyword enforcement system) — then delegates the actual flip to
+/// `transform_permanent_in_place`, which is shared with the
+/// `Effect::TransformSelf` executor path (PB-EF5).
 fn handle_transform(
     state: &mut GameState,
     player: PlayerId,
     permanent: crate::state::game_object::ObjectId,
 ) -> Result<Vec<GameEvent>, GameStateError> {
-    use crate::rules::events::GameEvent;
     use crate::state::zone::ZoneId;
     let mut events = Vec::new();
     // Validate permanent exists and is on the battlefield.
@@ -1098,8 +1104,52 @@ fn handle_transform(
                 .into(),
         ));
     }
+    events.extend(transform_permanent_in_place(state, permanent)?);
+    Ok(events)
+}
+
+/// CR 701.27a-g / 712.18: flip a DFC permanent to its other face in place.
+/// No new object (CR 712.18). Counters/damage/Auras persist. Runs the CR 704.3
+/// SBA check. Returns `PermanentTransformed` (+ SBA) events, or an empty vec if
+/// nothing happens (non-DFC 701.27c, instant/sorcery back 701.27d, meld-pair
+/// 712.4c, daybound/nightbound 702.145, or the object no longer exists — CR
+/// 400.7, e.g. a source that has since left the battlefield). Does NOT
+/// validate zone/controller (caller's job) and does NOT run the CR 701.27f
+/// once-per-instruction guard (caller's job — see the `Effect::TransformSelf`
+/// executor in `effects/mod.rs`).
+pub(crate) fn transform_permanent_in_place(
+    state: &mut GameState,
+    permanent: crate::state::game_object::ObjectId,
+) -> Result<Vec<GameEvent>, GameStateError> {
+    let mut events = Vec::new();
+    // CR 400.7: a `None` here means the object has since left its zone (become a
+    // new object) -- a rules-correct no-op, not an engine bug.
+    let obj = match state.fizzle_object(permanent) {
+        Some(obj) => obj,
+        None => return Ok(events),
+    };
+    // CR 702.145b/e: Permanents with daybound/nightbound can only transform via
+    // their own keyword enforcement system -- a card-invoked TransformSelf is a
+    // silent no-op here (the Command path rejects with Err before ever reaching
+    // this helper, so Command::Transform behavior is unaffected).
+    let has_daybound = obj
+        .characteristics
+        .keywords
+        .contains(&crate::state::types::KeywordAbility::Daybound);
+    let has_nightbound = obj
+        .characteristics
+        .keywords
+        .contains(&crate::state::types::KeywordAbility::Nightbound);
+    if has_daybound || has_nightbound {
+        return Ok(events);
+    }
+    // Capture the fields we need before any further `state.card_registry` reads
+    // (which don't conflict, but keeping this as a single snapshot avoids a
+    // second bare `.objects.get` for the CR 701.27d back-face check below).
+    let card_id = obj.card_id.clone();
+    let is_transformed = obj.is_transformed;
     // CR 712.4c: Meld cards cannot be transformed or converted.
-    if let Some(ref cid) = obj.card_id {
+    if let Some(ref cid) = card_id {
         if let Some(def) = state.card_registry.get(cid.clone()) {
             if def.meld_pair.is_some() {
                 return Ok(events); // Silently ignore transform instruction
@@ -1107,7 +1157,6 @@ fn handle_transform(
         }
     }
     // CR 701.27c: Only DFCs can transform.
-    let card_id = obj.card_id.clone();
     let is_dfc = if let Some(ref cid) = card_id {
         state
             .card_registry
@@ -1122,11 +1171,7 @@ fn handle_transform(
         return Ok(events);
     }
     // CR 701.27d: Back face can't be an instant or sorcery.
-    let would_transform_to_back = !state
-        .objects
-        .get(&permanent)
-        .map(|o| o.is_transformed)
-        .unwrap_or(false);
+    let would_transform_to_back = !is_transformed;
     if would_transform_to_back {
         if let Some(ref cid) = card_id {
             if let Some(def) = state.card_registry.get(cid.clone()) {
@@ -1148,14 +1193,22 @@ fn handle_transform(
         }
     }
     // CR 712.18: Transform flips the face. No new object — same ObjectId.
-    let to_back_face = if let Some(obj) = state.objects.get_mut(&permanent) {
+    // `None` here would mean the object left between the fizzle_object read
+    // above and here (no intervening mutation exists in this function, so this
+    // cannot actually happen) — treated as a fizzle for symmetry with the read.
+    // (`current_timestamp` is read before the mutable borrow below because
+    // `fizzle_object_mut` -- unlike a direct `state.objects.get_mut` field
+    // access -- takes `&mut self`, so `state.timestamp_counter` isn't
+    // separately accessible while `obj` is alive.)
+    let current_timestamp = state.timestamp_counter;
+    let to_back_face = if let Some(obj) = state.fizzle_object_mut(permanent) {
         obj.is_transformed = !obj.is_transformed;
-        obj.last_transform_timestamp = state.timestamp_counter;
-        state.timestamp_counter += 1;
+        obj.last_transform_timestamp = current_timestamp;
         obj.is_transformed // true = now showing back face
     } else {
-        return Err(GameStateError::ObjectNotFound(permanent));
+        return Ok(events);
     };
+    state.timestamp_counter += 1;
     events.push(GameEvent::PermanentTransformed {
         object_id: permanent,
         to_back_face,

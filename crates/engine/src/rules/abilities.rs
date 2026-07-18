@@ -280,6 +280,7 @@ pub fn handle_activate_ability(
                 lki_power: None,
                 countered_spell_controller: None,
                 defending_player: None,
+                source_transformed_this_resolution: false,
             };
             if !crate::effects::check_condition(state, condition, &ctx) {
                 return Err(GameStateError::InvalidCommand(
