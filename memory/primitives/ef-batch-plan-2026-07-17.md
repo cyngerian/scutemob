@@ -689,7 +689,14 @@ power" **optional** effect would resolve X = 0.
 
 ## 6. New finding filed by PB-EF3 (scutemob-103)
 
-### OOS-EF3-1 (capability) — defending-player-scoped *continuous* effect (locked EffectFilter)
+### ✅ CLOSED (2026-07-19, `scutemob-137` / PB-OS7) — OOS-EF3-1 (capability) — defending-player-scoped *continuous* effect (locked EffectFilter)
+> Shipped in PB-OS7: `EffectFilter::CreaturesControlledByDefendingPlayer` (DSL placeholder,
+> substituted at `Effect::ApplyContinuousEffect` execution into `CreaturesControlledBy(ctx.defending_player)`,
+> `None => return`). `silumgar_the_drifting_death` authored NEW→`Complete`. PROTOCOL 21→22 / HASH 58→59
+> (both machine-forced). Karazikar's target-filter + goad remainder deferred → **OOS-OS7-1**; a
+> pre-existing engine-wide CR 611.2c set-snapshot gap surfaced by the review → **OOS-OS7-2** (both in
+> `memory/primitives/oos-retriage-plan-2026-07-18.md`). Original finding text preserved below.
+
 `PlayerTarget::DefendingPlayer` (added by PB-EF3) covers *point* effects scoped to the
 defending player (life loss, damage, draw). It does **not** cover a *continuous* effect whose
 affected set is "creatures the defending player controls", because a `ContinuousEffectDef` is

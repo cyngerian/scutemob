@@ -385,7 +385,7 @@ mechanical churn (~40 `ActivationCost` struct literals + ~50 `sacrifice_target` 
   `None => return`, never `unwrap_or(ctx.controller)`). PROTOCOL 21→22 (machine-forced —
   `EffectFilter`'s sibling field `EffectDuration` on the same `ContinuousEffectDef` struct already
   put the struct in the wire closure at PB-EF9/v14, contradicting the plan's predicted no-bump) /
-  HASH 58→59. 9 tests, all execution-probing. Review: no HIGH, card ships; 1 MEDIUM (doc-only, see
+  HASH 58→59. 11 tests, all execution-probing. Review: no HIGH, card ships; 1 MEDIUM (doc-only, see
   **OOS-OS7-2** below), 2 LOW (stale frozen-prefix comments — fixed; missing negative tests — added).
   Karazikar NOT authored — see **OOS-OS7-1** below.
 
