@@ -96,6 +96,13 @@ header comments. Update this WIP status. Non-shipped cards keep their real named
   - **nicol_bolas, grist** → stay unauthored. Blocker: OOS-OS4-1 (loyalty); grist also needs entered-from-graveyard trigger condition.
   - **Single wire bump**: PROTOCOL 18→19, HASH 55→56 (one effect variant only — re-pin fingerprints FRESH from failing gates after removals; the runner's earlier 19/20/56/57 digests are STALE, closure changed).
   - **Honest yield: 0 Complete flips, 1 Partial with real primitive usage.** The return-transformed *mechanism* ships (AC 5038: new object + back-face characteristics layer-resolved, tested). File OOS-OS4-1 + OOS-OS4-2. Narrow OOS-EF5-3 (NOT fully closed — Complete flips blocked by OOS-OS4-1/2).
-- [ ] 6b. Fix pass (SHIP NARROWED) — primitive-impl-runner
-- [ ] 7. Green gates: build/test/clippy/fmt + check-defs-fmt.sh
-- [ ] 8. Seeds OOS-OS4-1/2 + narrow OOS-EF5-3 in plan + source docs; /review; Completion Sequence
+- [x] 6b. Fix pass (SHIP NARROWED) — primitive-impl-runner. Removed 2 unused effect variants + `DelayedTriggerAction::ReturnFromGraveyardToBattlefieldTransformed`; kept ONLY `Effect::ExileSourceAndReturnTransformed` (hash discriminant 94). Deleted `edgar_charmed_groom.rs`. Fable stays partial (ch. III wired; blockers named incl. OOS-OS4-2). Single wire bump PROTOCOL 18→19 (fingerprint `14d2b0d4...`), HASH 55→56 (decl `0be185c3...`, stream `46da5643...`); intermediate v20/v57 rows removed; digests re-pinned FRESH from failing gates. Test module pruned 14→9 (removed delayed/immediate-no-exile/edgar-integration; integrity guard widened to all 3 unauthored cards).
+- [x] 7. Green gates — ALL GREEN: `cargo build --workspace`, `cargo test --all` (0 failures), `cargo clippy --workspace --all-targets -- -D warnings`, `cargo fmt --check`, `tools/check-defs-fmt.sh` (1799 defs). Independently spot-verified PROTOCOL=19 / HASH=56, no code refs to removed variants, edgar gone / fable present, no v20/v57 rows.
+- [x] 8. Close-out docs — ef-batch-plan §9 OOS-EF5-3 NARROWED banner (not fully closed); §13 filed **OOS-OS4-1** (planeswalker-back starting loyalty) + **OOS-OS4-2** (face-aware back-face ability gathering, likely also affects PB-EF5 TransformSelf markers). oos-retriage-plan §PB-OS4 SHIPPED-NARROWED banner + queue table strike.
+phase: close-out (pending /review + Completion Sequence)
+
+## Final outcome (2026-07-19)
+- **Shipped**: `Effect::ExileSourceAndReturnTransformed` — return-transformed as a NEW object (CR 400.7 + 712.18), back-face characteristics layer-resolved, no counters/auras carried, Saga 714.4 no-sacrifice. PROTOCOL 18→19, HASH 55→56 (single bump). 9 tests in `mechanics_m_z/pb_os4_return_transformed.rs`.
+- **Yield (honest)**: 0 Complete flips; `fable_of_the_mirror_breaker` **partial** with real ch. III primitive usage. edgar/nicol/grist unauthored with named blockers.
+- **New seeds**: OOS-OS4-1 (loyalty), OOS-OS4-2 (face-aware ability gathering). OOS-EF5-3 narrowed, not fully closed.
+- **AC status**: 5038 ✓ (primitive ships end-to-end, CR 400.7 pinned), 5039 ✓ (all 4 verified vs oracle; honest yield, non-shipped carry real blockers), 5040 ✓ (single PROTOCOL/HASH bump, sentinels/history updated), 5041 ✓ (all gates green; /review pending; OOS-EF5-3 honestly narrowed in plan + source docs).

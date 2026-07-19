@@ -247,6 +247,20 @@ ship = expected clean-`Complete` after the PB + its backfill authoring, at the h
 - **Discounted ship**: **~1.** Small; closes a `known_wrong`.
 
 ### PB-OS4 — return-transformed / enters-transformed (OOS-EF5-3) · capability · **highest yield**
+> ⚠️ **SHIPPED NARROWED — `scutemob-130`, 2026-07-19 — 0 Complete flips (honest).** The
+> return-transformed **mechanism** shipped: `Effect::ExileSourceAndReturnTransformed` (new object
+> per CR 400.7, back-face characteristics layer-resolved, no counters/auras carried, Saga 714.4
+> no-sacrifice; PROTOCOL 18→19, HASH 55→56 single bump). Implementation+review surfaced a deeper
+> general transform gap — **transformed permanents don't gather back-face non-keyword abilities**
+> (front `def.abilities` iterated unconditionally; only keywords read `back_face`) — filed
+> **OOS-OS4-2** (ef-batch-plan §13). Net: `fable_of_the_mirror_breaker` → **partial** (ch. III
+> return-transformed wired = real primitive usage; ch. I/II inexpressible + back-face activated
+> ability blocked by OOS-OS4-2); `edgar_charmed_groom` **left unauthored** (would emit wrong state
+> — front anthem on the returned artifact — until OOS-OS4-2); `nicol_bolas_the_ravager` +
+> `grist_voracious_larva` **left unauthored** (planeswalker-back starting-loyalty gap = **OOS-OS4-1**;
+> grist also needs an entered-from-graveyard trigger condition). OOS-EF5-3 **narrowed, not fully
+> closed** (Complete flips remain blocked by OOS-OS4-1/2). Record: `memory/primitive-wip.md`,
+> `memory/primitives/pb-review-OS4.md`, ef-batch-plan §9 (narrowed banner) + §13 (new seeds).
 - **Findings**: OOS-EF5-3.
 - **Fix**: a `ReturnTransformed`/`enters_transformed` flag on the zone-change/return effect
   (`Effect::MoveZone` or a dedicated `Effect::ReturnTransformed`) — a permanent exiled/dies and
@@ -343,7 +357,7 @@ ship = expected clean-`Complete` after the PB + its backfill authoring, at the h
 | **PB-OS1** | OOS-EF9-1 | correctness (integrity) | 3+ fixes (0 new flips) | none |
 | ~~PB-OS2~~ ✅ SHIPPED `scutemob-128` | EF-EF1-A | correctness (micro) | 1 (disciple_of_freyalise) | none |
 | ~~PB-OS3~~ ✅ SHIPPED `scutemob-129` | OOS-EF6-1 | correctness | 1 (forbidden_orchard) | none |
-| PB-OS4 | OOS-EF5-3 | capability | ~2-3 | PROTOCOL |
+| ~~PB-OS4~~ ⚠️ SHIPPED NARROWED `scutemob-130` | OOS-EF5-3 (narrowed) | capability | 0 Complete + 1 partial (fable); blocked by new OOS-OS4-1/2 | PROTOCOL 18→19 / HASH 55→56 |
 | PB-OS5 | OOS-EF4-1 | capability | ~2 | PROTOCOL |
 | PB-OS6 | OOS-EF5-4 (a/b/c/d/g) | capability (sub-batch) | ~3 | PROTOCOL (some) |
 | PB-OS7 | OOS-EF3-1 | capability | ~1-2 | PROTOCOL |
