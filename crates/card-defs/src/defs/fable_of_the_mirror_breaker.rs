@@ -114,12 +114,17 @@ pub fn card() -> CardDefinition {
             abilities: vec![
                 // "{1}, {T}: Create a token that's a copy of another target nonlegendary
                 // creature you control, except it has haste. Sacrifice it at the
-                // beginning of the next end step." Same shape as Kiki-Jiki, Mirror
-                // Breaker's own activated ability (kiki_jiki_mirror_breaker.rs),
-                // including its known-wrong residual: `TargetFilter` has no
-                // "nonlegendary" exclusion (only `legendary: bool` = must-BE-legendary),
-                // so an illegal legendary target is not rejected. `exclude_self: true`
-                // correctly encodes "another".
+                // beginning of the next end step." NOTE: this back-face ability is
+                // currently NON-FUNCTIONAL on the transformed Reflection — transformed
+                // permanents don't gather their back-face non-keyword abilities
+                // (OOS-OS4-2, `register_static_continuous_effects`/activated-ability
+                // lookup iterate front `def.abilities`). It is authored here so the def
+                // is oracle-complete for when OOS-OS4-2 lands; until then the card stays
+                // `partial` (see the `completeness` message below). It ALSO shares
+                // Kiki-Jiki, Mirror Breaker's own known-wrong residual: `TargetFilter`
+                // has no "nonlegendary" exclusion (only `legendary: bool` = must-BE-
+                // legendary), so an illegal legendary target would not be rejected.
+                // `exclude_self: true` correctly encodes "another".
                 AbilityDefinition::Activated {
                     cost: Cost::Sequence(vec![
                         Cost::Mana(ManaCost {
