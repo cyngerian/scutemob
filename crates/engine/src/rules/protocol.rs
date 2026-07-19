@@ -168,7 +168,13 @@ use crate::state::hash::HASH_SCHEMA_VERSION;
 ///   closes EF-W-PB2-3, the last item on the EF queue). `ManaColor` was already in
 ///   the closure. The closure's type count is unchanged; `Command`'s declared shape
 ///   moved, so the digest moves.
-pub const PROTOCOL_VERSION: u32 = 18;
+/// - 19: PB-OS4 (2026-07-19) — `Effect` (already in the closure) gains two new unit
+///   variants, `ExileSourceAndReturnTransformed` and
+///   `ReturnSourceToBattlefieldTransformedNextEndStep` (CR 400.7 / 712.18 / 603.7 —
+///   a permanent that leaves and returns to the battlefield already transformed is
+///   a NEW object, unlike `TransformSelf`'s in-place flip; OOS-EF5-3). The closure's
+///   type count is unchanged; `Effect`'s declared shape moved, so the digest moves.
+pub const PROTOCOL_VERSION: u32 = 19;
 
 /// Digest of the serialized shape of the wire-frame type closure
 /// (`Command`, `GameEvent`, [`ReplayLog`] and everything they reach).
@@ -186,7 +192,7 @@ pub const PROTOCOL_VERSION: u32 = 18;
 /// existing `u32` *means* does not. Semantic changes still require a manual
 /// [`PROTOCOL_VERSION`] bump.
 pub const PROTOCOL_SCHEMA_FINGERPRINT: &str =
-    "841e4b4130b2e2bfef5b190dc6dc57f18a2ee42a5484a652c2df690358cb115e";
+    "1d0dc7b8d5ea44129090b873826d798e84dd7698d1b2170214b66d65d2543e05";
 
 /// One `(version, fingerprint)` row of the append-only protocol-schema history.
 ///
@@ -343,6 +349,13 @@ pub const PROTOCOL_HISTORY: &[ProtocolEpoch] = &[
         // PB-EF12 (2026-07-18): Command::TapForMana gained chosen_color (see the
         // `- 18:` History line above).
         fingerprint: "841e4b4130b2e2bfef5b190dc6dc57f18a2ee42a5484a652c2df690358cb115e",
+    },
+    ProtocolEpoch {
+        version: 19,
+        // PB-OS4 (2026-07-19): Effect gained ExileSourceAndReturnTransformed and
+        // ReturnSourceToBattlefieldTransformedNextEndStep (see the `- 19:` History
+        // line above).
+        fingerprint: "1d0dc7b8d5ea44129090b873826d798e84dd7698d1b2170214b66d65d2543e05",
     },
 ];
 

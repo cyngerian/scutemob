@@ -4,7 +4,7 @@ batch: OS4
 task: scutemob-130
 branch: feat/pb-os4-return-transformed-enters-transformed-as-a-new-object
 started: 2026-07-19
-phase: plan
+phase: implement
 
 Plan: `memory/primitives/pb-plan-OS4.md`. Review: `memory/primitives/pb-review-OS4.md`.
 
@@ -59,12 +59,25 @@ Close (or honestly narrow) **OOS-EF5-3** in `oos-retriage-plan-2026-07-18.md` §
 banner + table strike) and `ef-batch-plan-2026-07-17.md` §9 (CLOSED banner). Update shipped-card
 header comments. Update this WIP status. Non-shipped cards keep their real named blocker.
 
+## Plan outcome (2026-07-19)
+- **Design**: 2 dedicated unit `Effect` variants — `ExileSourceAndReturnTransformed` (immediate; fable ch. III) + `ReturnSourceToBattlefieldTransformedNextEndStep` (delayed; edgar dies→end-step) — plus new `DelayedTriggerAction::ReturnFromGraveyardToBattlefieldTransformed`. Reuses craft return path (engine.rs:1422-1441), ExileWithDelayedReturn idiom, SagaChapter. NOT a flag on MoveZone (blast radius).
+- **Honest yield ~2**: fable_of_the_mirror_breaker + edgar_charmed_groom → Complete. nicol_bolas_the_ravager + grist_voracious_larva **STAY OUT** — named blocker: planeswalker back face + `CardFace` has no `starting_loyalty` → 0-loyalty PW dies to SBA 704.5i. File follow-up seed **OOS-OS4-1**. grist also needs entered-from-graveyard trigger condition.
+- **Brief correction**: nicol_bolas returns IMMEDIATELY (not next end step) — moot (stays out) but recorded.
+- **Wire**: PROTOCOL 18→19, HASH 55→56 machine-forced (3 new enum variants in SR-8 closure). Effect hash discriminants 94/95. `DelayedTriggerAction` matched at 4 hash.rs sites — all need new arm.
+
 ## Steps
-- [ ] 1. Plan — primitive-impl-planner → pb-plan-OS4.md (verify 4 cards vs MCP; design primitive + Saga; justify PROTOCOL bump)
-- [ ] 2. Implement engine change (return-transformed threading; Saga integration for Fable) — primitive-impl-runner
+- [x] 1. Plan — primitive-impl-planner → pb-plan-OS4.md (verified 4 cards; design + Saga; PROTOCOL/HASH bump justified)
+- [x] 2. Implement engine change (return-transformed threading; Saga integration for Fable) — primitive-impl-runner
+  - Added `Effect::ExileSourceAndReturnTransformed` + `Effect::ReturnSourceToBattlefieldTransformedNextEndStep` (card_definition.rs, near TransformSelf); `DelayedTriggerAction::ReturnFromGraveyardToBattlefieldTransformed` (stubs.rs). Immediate executor arm (effects/mod.rs, mirrors craft return path) + delayed registration arm; dispatch arm in resolution.rs (mirrors ReturnFromExileToBattlefield). Hash: Effect discriminants 94/95; DelayedTriggerAction local discriminant 5 at all 4 sites. `cargo check --workspace` clean (no TUI/replay-viewer match gaps — confirmed, matches plan's Change 9 prediction).
 - [ ] 3. Flip card defs (only genuinely-correct ones; others keep named blocker)
 - [ ] 4. Tests (identity CR 400.7, characteristics CR 712.18, timing, Saga)
-- [ ] 5. PROTOCOL/HASH bump + sentinel/history rows updated
+- [x] 5. PROTOCOL/HASH bump + sentinel/history rows updated
+  - PROTOCOL_VERSION 18→19 (`rules/protocol.rs`), fingerprint `1d0dc7b8d5ea44129090b873826d798e84dd7698d1b2170214b66d65d2543e05`, FROZEN_HISTORY_PREFIX_DIGEST re-pinned to `427628738bef89b1a939590242978b532810bfbaea7f44b8d07ce6275c07b6c1`.
+  - HASH_SCHEMA_VERSION 55→56 (`state/hash.rs`), decl `d8752059bb71f8c104ab76caf4995055dd9bdd2e8fe5c298e79cb3dbecaa2b98`, stream `46da56438f4951cb7b3eb76ed35fa966ffa738b6449eb611459c77359ba455ee`, FROZEN_HISTORY_PREFIX_DIGEST re-pinned to `4f1b8eba2e9cfb60cf8e7aed5d56f774b09d959352fc911af9016b0b39ac2bb2`.
+  - All values copied verbatim from the failing gate tests' expected output (never hand-computed), per SR-8/SR-17 doctrine.
+  - Bulk-updated ~35 scattered sentinel assertions (`HASH_SCHEMA_VERSION, 55u8` → `56u8`; `PROTOCOL_VERSION, 18` → `19`) across `crates/engine/tests/`.
+  - SR-25 `bare_lookup_ratchet` gate caught 2 new bare `.objects.get(` lookups in the new `effects/mod.rs` executor + 1 in the new `resolution.rs` dispatch arm; converted to `fizzle_object`/`expect_object` (no ceiling bump needed — kept at 107/102).
+  - `cargo test -p mtg-engine --test core`: 424 passed, 0 failed.
 - [ ] 6. Review — primitive-impl-reviewer → pb-review-OS4.md; fix cycle if findings
 - [ ] 7. Green gates: build/test/clippy/fmt + check-defs-fmt.sh
 - [ ] 8. Close OOS-EF5-3 in plan + source docs; /review; Completion Sequence

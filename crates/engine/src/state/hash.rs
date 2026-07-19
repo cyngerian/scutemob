@@ -493,7 +493,19 @@
 ///   => 19u8.hash_into(hasher)`, discriminant 19 after `TargetOpponent`=18.
 ///   `decl_fingerprint` MOVES (the enum's declared shape changed — a new variant);
 ///   `stream_fingerprint` moves per the v40 mechanism (a new `HashInto` arm).
-pub const HASH_SCHEMA_VERSION: u8 = 55;
+/// - 56: PB-OS4 (2026-07-19) — `Effect` gains two new unit variants,
+///   `ExileSourceAndReturnTransformed` (discriminant 94) and
+///   `ReturnSourceToBattlefieldTransformedNextEndStep` (discriminant 95) (CR 400.7 /
+///   712.18 / 603.7 — return-transformed as a NEW object, distinct from
+///   `TransformSelf`'s in-place flip; OOS-EF5-3). `DelayedTriggerAction` gains a new
+///   unit variant `ReturnFromGraveyardToBattlefieldTransformed` (local discriminant 5
+///   at all four `DelayedTriggerAction` hash sites). Fed to `HashInto` as
+///   `Effect::ExileSourceAndReturnTransformed => 94u8.hash_into(hasher)`,
+///   `Effect::ReturnSourceToBattlefieldTransformedNextEndStep => 95u8.hash_into(hasher)`,
+///   and `DelayedTriggerAction::ReturnFromGraveyardToBattlefieldTransformed =>
+///   5u8.hash_into(hasher)`. `decl_fingerprint` MOVES (two enums' declared shapes
+///   changed); `stream_fingerprint` moves per the v40 mechanism.
+pub const HASH_SCHEMA_VERSION: u8 = 56;
 
 /// One `(version, fingerprints)` row of the append-only hash-schema history.
 ///
@@ -719,6 +731,16 @@ pub const HASH_SCHEMA_HISTORY: &[HashSchemaEpoch] = &[
         // per the v40 mechanism.
         decl_fingerprint: "9b983aaa133cbff0946e4a135fa5de2618b99e25de04d75fe19c1d8429a1c2f8",
         stream_fingerprint: "ad965c6475550f53446281c921656eaf068c623a28295c4e2d1e2f62b83d9987",
+    },
+    HashSchemaEpoch {
+        version: 56,
+        // PB-OS4 (2026-07-19): Effect gained ExileSourceAndReturnTransformed and
+        // ReturnSourceToBattlefieldTransformedNextEndStep; DelayedTriggerAction
+        // gained ReturnFromGraveyardToBattlefieldTransformed (see the `- 56:` History
+        // line above). decl_fingerprint moves (two enums' declared shapes changed);
+        // stream_fingerprint moves per the v40 mechanism.
+        decl_fingerprint: "d8752059bb71f8c104ab76caf4995055dd9bdd2e8fe5c298e79cb3dbecaa2b98",
+        stream_fingerprint: "46da56438f4951cb7b3eb76ed35fa966ffa738b6449eb611459c77359ba455ee",
     },
 ];
 
@@ -2303,6 +2325,9 @@ impl HashInto for DelayedTrigger {
             crate::state::stubs::DelayedTriggerAction::ExileObject => {
                 4u8.hash_into(hasher);
             }
+            crate::state::stubs::DelayedTriggerAction::ReturnFromGraveyardToBattlefieldTransformed => {
+                5u8.hash_into(hasher);
+            }
         }
         // Hash timing discriminant
         match &self.timing {
@@ -3364,6 +3389,9 @@ impl HashInto for TriggerData {
                     crate::state::stubs::DelayedTriggerAction::ExileObject => {
                         4u8.hash_into(hasher);
                     }
+                    crate::state::stubs::DelayedTriggerAction::ReturnFromGraveyardToBattlefieldTransformed => {
+                        5u8.hash_into(hasher);
+                    }
                 }
             }
         }
@@ -3687,6 +3715,9 @@ impl HashInto for StackObjectKind {
                     }
                     crate::state::stubs::DelayedTriggerAction::ExileObject => {
                         4u8.hash_into(hasher);
+                    }
+                    crate::state::stubs::DelayedTriggerAction::ReturnFromGraveyardToBattlefieldTransformed => {
+                        5u8.hash_into(hasher);
                     }
                 }
             }
@@ -6514,6 +6545,9 @@ impl HashInto for Effect {
                             crate::state::stubs::DelayedTriggerAction::ExileObject => {
                                 4u8.hash_into(hasher)
                             }
+                            crate::state::stubs::DelayedTriggerAction::ReturnFromGraveyardToBattlefieldTransformed => {
+                                5u8.hash_into(hasher)
+                            }
                         }
                     }
                 }
@@ -6736,6 +6770,14 @@ impl HashInto for Effect {
             }
             // PB-EF5: TransformSelf (discriminant 93) — CR 701.27a/f, 712.18.
             Effect::TransformSelf => 93u8.hash_into(hasher),
+            // PB-OS4 (OOS-EF5-3): ExileSourceAndReturnTransformed (discriminant 94) —
+            // CR 400.7 / 712.18.
+            Effect::ExileSourceAndReturnTransformed => 94u8.hash_into(hasher),
+            // PB-OS4 (OOS-EF5-3): ReturnSourceToBattlefieldTransformedNextEndStep
+            // (discriminant 95) — CR 400.7 / 603.7.
+            Effect::ReturnSourceToBattlefieldTransformedNextEndStep => {
+                95u8.hash_into(hasher)
+            }
         }
     }
 }

@@ -7561,6 +7561,60 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         }
                     }
                 }
+                DelayedTriggerAction::ReturnFromGraveyardToBattlefieldTransformed => {
+                    // CR 400.7 / 603.7c / 712.18: return from the graveyard to the
+                    // battlefield already transformed, under owner's control. A NEW
+                    // object -- not TransformSelf's in-place flip (PB-OS4, OOS-EF5-3).
+                    let gy_info = state
+                        .fizzle_object(target)
+                        .filter(|o| matches!(o.zone, ZoneId::Graveyard(_)))
+                        .map(|o| (o.owner, o.card_id.clone()));
+                    if let Some((owner, card_id_opt)) = gy_info {
+                        // CR ruling: if the card isn't a DFC, it stays in the graveyard.
+                        let is_dfc = card_id_opt
+                            .as_ref()
+                            .and_then(|cid| {
+                                state
+                                    .card_registry
+                                    .get(cid.clone())
+                                    .map(|def| def.back_face.is_some())
+                            })
+                            .unwrap_or(false);
+                        if is_dfc {
+                            if let Some((new_bf_id, _)) =
+                                state.expect_move_object_to_zone(target, ZoneId::Battlefield)
+                            {
+                                let ts = state.timestamp_counter;
+                                state.timestamp_counter += 1;
+                                if let Some(obj) = state.expect_object_mut(new_bf_id) {
+                                    obj.controller = owner;
+                                    obj.is_transformed = true;
+                                    obj.last_transform_timestamp = ts;
+                                }
+                                let registry = std::sync::Arc::clone(&state.card_registry);
+                                crate::rules::replacement::register_static_continuous_effects(
+                                    state,
+                                    new_bf_id,
+                                    card_id_opt.as_ref(),
+                                    &registry,
+                                );
+                                let etb_events =
+                                    crate::rules::replacement::queue_carddef_etb_triggers(
+                                        state,
+                                        new_bf_id,
+                                        owner,
+                                        card_id_opt.as_ref(),
+                                        &registry,
+                                    );
+                                events.extend(etb_events);
+                                events.push(GameEvent::PermanentEnteredBattlefield {
+                                    player: stack_obj.controller,
+                                    object_id: new_bf_id,
+                                });
+                            }
+                        }
+                    }
+                }
                 DelayedTriggerAction::SacrificeObject => {
                     // Sacrifice the target (must still be on the battlefield).
                     // PB-AC8 review E1 / CR 701.21a: a "can't be sacrificed"

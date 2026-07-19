@@ -38,6 +38,12 @@ pub enum DelayedTriggerAction {
     ReturnFromExileToHand,
     /// Return the target object from the graveyard to its owner's hand.
     ReturnFromGraveyardToHand,
+    /// CR 400.7 / 603.7c / PB-OS4 (OOS-EF5-3): Return the target object from the
+    /// graveyard to the battlefield **already transformed**, under its owner's
+    /// control. A new object per CR 400.7 (not `TransformSelf`'s in-place flip);
+    /// if the target isn't a double-faced card, it stays in the graveyard (CR
+    /// ruling). Used by Edgar, Charmed Groom's WhenDies -> next-end-step return.
+    ReturnFromGraveyardToBattlefieldTransformed,
     /// Sacrifice the target object (must still be on the battlefield).
     SacrificeObject,
     /// Exile the target object (must still be on the battlefield).

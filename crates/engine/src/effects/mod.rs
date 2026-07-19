@@ -4228,6 +4228,105 @@ fn execute_effect_inner(
                 }
             }
         }
+        // CR 400.7 / 712.18 / PB-OS4 (OOS-EF5-3): exile ctx.source, then return it to
+        // the battlefield already transformed -- a NEW object (unlike TransformSelf's
+        // in-place flip). Mirrors the craft return path (rules/engine.rs handle_craft).
+        Effect::ExileSourceAndReturnTransformed => {
+            let source_id = ctx.source;
+            let controller = ctx.controller;
+            // CR 400.7 / 603.10a: capture LKI (counters/power) before the object
+            // becomes a new one.
+            let owner_and_lki = state
+                .fizzle_object(source_id)
+                .filter(|o| o.zone == ZoneId::Battlefield)
+                .map(|o| {
+                    let lki_power =
+                        crate::rules::layers::calculate_characteristics(state, source_id)
+                            .and_then(|c| c.power)
+                            .or(o.characteristics.power);
+                    (o.owner, o.counters.clone(), lki_power)
+                });
+            let Some((owner, pre_lba_counters, pre_lba_power)) = owner_and_lki else {
+                return;
+            };
+            // Step 1: exile the source. CR 400.7j: subsequent steps can still find it.
+            let Some((exile_id, _)) = state.fizzle_move_object_to_zone(source_id, ZoneId::Exile)
+            else {
+                return;
+            };
+            events.push(GameEvent::ObjectExiled {
+                player: controller,
+                object_id: source_id,
+                new_exile_id: exile_id,
+                pre_lba_counters: pre_lba_counters.clone(),
+                pre_lba_power,
+            });
+            ctx.source = exile_id;
+            // CR ruling: if the card isn't a double-faced card, it stays in exile.
+            // `exile_id` was just returned by the move above; it is live.
+            let card_id_opt = state
+                .expect_object(exile_id)
+                .and_then(|o| o.card_id.clone());
+            let is_dfc = card_id_opt
+                .as_ref()
+                .and_then(|cid| {
+                    state
+                        .card_registry
+                        .get(cid.clone())
+                        .map(|def| def.back_face.is_some())
+                })
+                .unwrap_or(false);
+            if !is_dfc {
+                return;
+            }
+            // Step 2: return it to the battlefield, transformed (CR 712.18).
+            let Some((battlefield_id, _)) =
+                state.fizzle_move_object_to_zone(exile_id, ZoneId::Battlefield)
+            else {
+                return;
+            };
+            let ts = state.timestamp_counter;
+            state.timestamp_counter += 1;
+            if let Some(obj) = state.expect_object_mut(battlefield_id) {
+                obj.controller = owner;
+                obj.is_transformed = true;
+                obj.last_transform_timestamp = ts;
+            }
+            ctx.source = battlefield_id;
+            let registry = std::sync::Arc::clone(&state.card_registry);
+            crate::rules::replacement::register_static_continuous_effects(
+                state,
+                battlefield_id,
+                card_id_opt.as_ref(),
+                &registry,
+            );
+            let etb_events = crate::rules::replacement::queue_carddef_etb_triggers(
+                state,
+                battlefield_id,
+                owner,
+                card_id_opt.as_ref(),
+                &registry,
+            );
+            events.extend(etb_events);
+            events.push(GameEvent::PermanentEnteredBattlefield {
+                player: controller,
+                object_id: battlefield_id,
+            });
+        }
+        // CR 400.7 / 603.7 / PB-OS4 (OOS-EF5-3): register a delayed triggered ability
+        // that returns ctx.source (typically a graveyard object, from a WhenDies
+        // trigger) to the battlefield already transformed at the next end step.
+        Effect::ReturnSourceToBattlefieldTransformedNextEndStep => {
+            use crate::state::stubs::{DelayedTrigger, DelayedTriggerAction, DelayedTriggerTiming};
+            state.delayed_triggers.push_back(DelayedTrigger {
+                source: ctx.source,
+                controller: ctx.controller,
+                target_object: ctx.source,
+                action: DelayedTriggerAction::ReturnFromGraveyardToBattlefieldTransformed,
+                timing: DelayedTriggerTiming::AtNextEndStep,
+                fired: false,
+            });
+        }
         // CR 702.75a / CR 607.2a: Play the card exiled face-down by this permanent's
         // Hideaway ETB trigger without paying its mana cost.
         //

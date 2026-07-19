@@ -2086,6 +2086,45 @@ pub enum Effect {
     /// it hasn't transformed or converted since the ability was put onto the stack.
     /// A second `TransformSelf` in the same resolving ability/instruction is ignored.
     TransformSelf,
+    /// CR 400.7 / 712.18 / PB-OS4 (OOS-EF5-3): Exile the resolving ability's own
+    /// source (`ctx.source`), then return it to the battlefield **already
+    /// transformed**, under its owner's control.
+    ///
+    /// Unlike `TransformSelf` (which flips a DFC in place, keeping the same
+    /// `ObjectId` — CR 712.18), this is the "leaves and comes back" mechanism: the
+    /// permanent becomes a new object per CR 400.7 when it's exiled, and a
+    /// *further* new object enters the battlefield already showing its back
+    /// face. Counters, Auras/Equipment, and damage do NOT carry over — they were
+    /// on the object that just became a new object.
+    ///
+    /// CR 400.7j: this effect resolves the exile and the return within the same
+    /// instruction, so it can "find" the object it just exiled to return it.
+    /// CR ruling: if the source isn't a double-faced card, it stays in exile —
+    /// it does not return.
+    ///
+    /// Used by Fable of the Mirror Breaker's Saga chapter III ("Exile Fable of
+    /// the Mirror Breaker, then return it to the battlefield transformed under
+    /// its owner's control").
+    ExileSourceAndReturnTransformed,
+    /// CR 400.7 / 603.7 / PB-OS4 (OOS-EF5-3): Register a delayed triggered
+    /// ability that returns the resolving ability's own source (`ctx.source` —
+    /// typically a graveyard object, from a WhenDies trigger) to the
+    /// battlefield **already transformed**, under its owner's control, at the
+    /// beginning of the next end step.
+    ///
+    /// Unlike `TransformSelf`, this is the "leaves and comes back as a new
+    /// object" mechanism (CR 400.7): the returned permanent is a new `ObjectId`
+    /// with back-face characteristics; counters/Auras do not carry over.
+    ///
+    /// CR 603.7: the delayed trigger fires at the beginning of the next end
+    /// step (any player's), goes on the stack, and can be responded to. CR
+    /// ruling: if the source isn't a double-faced card, it stays in the
+    /// graveyard — it does not return.
+    ///
+    /// Used by Edgar, Charmed Groom's "When Edgar, Charmed Groom dies, return it
+    /// to the battlefield transformed under its owner's control at the
+    /// beginning of the next end step."
+    ReturnSourceToBattlefieldTransformedNextEndStep,
     /// CR 701.14a: Two creatures fight each other. Each deals damage equal to
     /// its power to the other creature simultaneously.
     ///
