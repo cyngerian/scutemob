@@ -16,6 +16,21 @@
 
 ---
 
+## ✅ QUEUE COMPLETE — PB-OS1 → PB-OS11 ALL SHIPPED (2026-07-19)
+
+> **The PB-OS queue is CLOSED.** PB-OS11 (`scutemob-141`) shipped the final batch —
+> `Cost::RemoveCounter` mana-ability lowering (OOS-LKI-3, reframed: modern Workhorse is
+> "Remove a +1/+1 counter: Add {C}", no sacrifice) + `TriggerCondition::WheneverYouAttack { filter }`
+> batch-filtered-attack primitive (OOS-TS-1, reframed: `exclude_subtypes` already existed; the gap
+> was the filterless once-per-batch trigger). **PROTOCOL 25→26 / HASH 62→63.** 6 cards flipped to
+> Complete: `workhorse` (new), `anim_pakal_thousandth_moon`, `general_kreat_the_boltbringer`,
+> `hermes_overseer_of_elpis` (TODO-sweep forced adds), + `gemstone_array` / `druids_repository`
+> (backfill via the RemoveCounter lowering). **Both OOS-LKI-3 and OOS-TS-1 CLOSED** (see §2/§3).
+> Remaining follow-up: the rider-seed mini-triage (OOS-OS4-3, OS6-1, OS7-1/2, OS8-1/2, OS9-1 +
+> hidden_strings optionality) is NOT part of this queue.
+
+---
+
 ## 0. Headline
 
 - **84 raw `OOS-*` / `EF-EF*` grep matches** across `memory/` + `docs/`. After removing
@@ -169,11 +184,16 @@ next triage. Banners added (§6).
 - **OOS-EF5-4** sub-primitives verified absent: `Cost::Sacrifice` has **no count field**
   (Westvale Abbey "Sacrifice five creatures" inexpressible); `TriggerCondition::WheneverYouAttack`
   is a **bare unit** with no count field (Legions' Landing "attacked with 3+").
-- **OOS-TS-1** — *partially* superseded: `WheneverCreatureYouControlAttacks` now carries
-  `filter: Option<TargetFilter>` (Dragon/Vampire-attacks works), and PB-TS shipped
-  `TokenSpec.count: EffectAmount`. Anim Pakal's **surviving** blocker is narrower than filed:
-  the attacker filter must express "nontoken **AND not-Gnome**" — needs a subtype-**exclusion**
-  on `TargetFilter` (has `is_nontoken`, no `exclude_subtype`). Re-scoped, still open, 1 card.
+- **OOS-TS-1** — ✅ **CLOSED PB-OS11 (`scutemob-141`, 2026-07-19).** Re-scope was itself stale:
+  `TargetFilter.exclude_subtypes` **already existed and was enforced** in `matches_filter`
+  (`effects/mod.rs:8856`). The true gap was that `TriggerCondition::WheneverYouAttack` was a
+  filterless unit firing on **every** attack; `WheneverCreatureYouControlAttacks{filter}` fires
+  once **per** matching attacker (over-triggers a batch trigger). Fix: `WheneverYouAttack`
+  unit→struct `{ filter: Option<TargetFilter> }`, applied once-per-batch via a new
+  `ControllerAttacks` branch in `collect_triggers_for_event`. `anim_pakal_thousandth_moon` flipped
+  → Complete with `exclude_subtypes: [Gnome]` (created Gnome tokens self-exclude and, being tokens
+  put onto the battlefield attacking, are never *declared* attackers — the "nontoken" intent is
+  satisfied structurally). Forced-add flips: `general_kreat_the_boltbringer`, `hermes_overseer_of_elpis`.
 
 ---
 
@@ -527,16 +547,26 @@ done: ~4-6 flips. Candidate for a near-term correctness PB.
 - **Candidates (2)**: `hidden_strings`, `umezawas_jitte` (`known_wrong`→Complete).
 - **Discounted ship**: **~2.** Two singletons, PB-EF11-style cleanup batch.
 
-### PB-OS11 — cost-payment LKI counter + Anim Pakal attacker exclusion (OOS-LKI-3 + OOS-TS-1) · capability · cleanup singletons
-- **Findings**: OOS-LKI-3, OOS-TS-1 (bundled cleanup).
-- **Fix**: OOS-LKI-3 — `EffectContext.sacrificed_creature_counters` (parallel to
-  `sacrificed_creature_powers`, populated at the activated-cost sacrifice site) for Workhorse
-  ("{T}, sacrifice this: add X mana, X = +1/+1 counters"); OOS-TS-1 — a subtype-**exclusion**
-  field on `TargetFilter` (`exclude_subtype`) so Anim Pakal's attacker filter can say "nontoken
-  AND not-Gnome" (attacker-filter + TokenSpec.count already exist). **PROTOCOL bump** (TargetFilter
-  field + EffectContext shape).
-- **Candidates (2)**: `workhorse`, `anim_pakal_thousandth_moon`.
-- **Discounted ship**: **~2.**
+### PB-OS11 — ✅ SHIPPED `scutemob-141` (2026-07-19) — RemoveCounter mana-ability lowering + batch-filtered-attack trigger (OOS-LKI-3 + OOS-TS-1) · capability · cleanup singletons — **CLOSES THE QUEUE**
+- **Findings**: OOS-LKI-3, OOS-TS-1 (bundled cleanup). **Both premises were verified stale against
+  MCP-authoritative oracle text and reframed** (see §2 for OOS-TS-1).
+- **Fix (as shipped)**: **OOS-LKI-3** — the filed premise ("{T}, sacrifice this: add X mana, X =
+  +1/+1 counters") does not match any printed card: modern Workhorse is *"Remove a +1/+1 counter
+  from this creature: Add {C}"* (no sacrifice, no X-mana), so `SacrificedCreatureLki` is never
+  involved (chain-verified: it carries only power/toughness/mana_value, no counters). Reframed to the
+  AC's own "lowered mana-ability path" core (SR-34/36): a `Cost::RemoveCounter` mana ability with no
+  `{T}` must be lowerable to a true mana ability (CR 605.1a). Added `ManaAbility.remove_counter`,
+  accept `Cost::RemoveCounter` in `mana_ability_cost_components` + relax the no-tap guard
+  (self-exhausting, PB-EF8 template), pay in `handle_tap_for_mana` reusing `GameEvent::CounterRemoved`.
+  **OOS-TS-1** — `exclude_subtypes` already existed+enforced; the real gap was the filterless
+  once-per-attack `WheneverYouAttack` unit. Made it a struct `{ filter: Option<TargetFilter> }` fired
+  once-per-batch via a `ControllerAttacks` branch. **PROTOCOL 25→26 / HASH 62→63** (ManaAbility inside
+  the wire closure via `Characteristics.mana_abilities`; TriggerCondition half HASH-only).
+- **Shipped (6 Complete)**: `workhorse` (new), `anim_pakal_thousandth_moon`,
+  `general_kreat_the_boltbringer` + `hermes_overseer_of_elpis` (TODO-sweep forced adds),
+  `gemstone_array` + `druids_repository` (backfill via the RemoveCounter lowering — same
+  any-color→chosen-colour fix as birds_of_paradise, execution-verified). **Actual ship: 6** (vs ~2
+  discounted). **OOS-LKI-3 + OOS-TS-1 CLOSED.**
 
 ### Queue summary
 
@@ -553,7 +583,7 @@ done: ~4-6 flips. Candidate for a near-term correctness PB.
 | ~~PB-OS8~~ ✅ SHIPPED `scutemob-138` | OOS-EF10-1 (+min_cmc) | capability | 2 Complete (birthing_ritual, growing_rites_of_itlimoc); birthing_pod stays partial (new blocker OOS-OS8-1); muxus re-pointed (OOS-OS8-2) | PROTOCOL 22→23 / HASH 59→60 |
 | ~~PB-OS9~~ ✅ SHIPPED `scutemob-139` | OOS-EF3b-1 | capability | 1 Complete (skyhunter_strike_force); loyal_apprentice + siege_gang_lieutenant authored CR-correct but stay partial (new blocker OOS-OS9-1: AtBeginningOfCombat sweep gap) | PROTOCOL 23→24 / HASH 60→61 |
 | ~~PB-OS10~~ ✅ IMPLEMENTED `scutemob-140` (pending merge) | OOS-XS-1 + OOS-EF7-1 | capability (singletons) | 1 Complete (umezawas_jitte) + distinctness primitive pinned (hidden_strings stays known_wrong) | PROTOCOL 24→25 / HASH 61→62 |
-| PB-OS11 | OOS-LKI-3 + OOS-TS-1 | capability (singletons) | ~2 | PROTOCOL |
+| ~~PB-OS11~~ ✅ SHIPPED `scutemob-141` | OOS-LKI-3 + OOS-TS-1 | capability (singletons) | **6 Complete** (workhorse new, anim_pakal, general_kreat, hermes, gemstone_array, druids_repository) — both premises reframed vs MCP | PROTOCOL 25→26 / HASH 62→63 |
 
 **Total discounted ship across the queue: ~19-22 clean flips** + the PB-OS1 integrity correction
 on 3 already-`Complete` cards. Correctness group (PB-OS1..OS3) first, then capability by yield.

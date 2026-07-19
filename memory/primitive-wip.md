@@ -1,11 +1,20 @@
-# Primitive WIP — PB-OS11 (IN PROGRESS) — CLOSES THE PB-OS QUEUE
+# Primitive WIP — PB-OS11 ✅ DONE — **PB-OS QUEUE COMPLETE**
 
 <!-- last_updated: 2026-07-19 -->
 
 **Task**: `scutemob-141` · branch `feat/pb-os11-final-queue-batch-cost-payment-lki-counters-oos-lki-`
-**Phase**: review
+**Phase**: done (review passed — primitive-impl-reviewer + /review both clean; MEDIUM fixed in `e29dd99f`)
 **Plan file**: `memory/primitives/pb-plan-OS11.md`
 **Review file**: `memory/primitives/pb-review-OS11.md`
+
+> ✅ **PB-OS11 SHIPPED (pending collect/merge).** RemoveCounter mana-ability lowering (OOS-LKI-3,
+> reframed) + `WheneverYouAttack { filter }` batch-filtered-attack trigger (OOS-TS-1, reframed).
+> **PROTOCOL 25→26 / HASH 62→63.** 6 cards → Complete: workhorse (new), anim_pakal, general_kreat,
+> hermes, gemstone_array, druids_repository. Suite green (3614+ passing), clippy/fmt/defs-fmt clean.
+> **OOS-LKI-3 + OOS-TS-1 CLOSED** in plan + source docs; queue header marked COMPLETE.
+> **THE PB-OS QUEUE IS CLOSED** — no next PB. Remaining follow-up (NOT this queue): rider-seed
+> mini-triage (OOS-OS4-3, OS6-1, OS7-1/2, OS8-1/2, OS9-1 + hidden_strings optionality).
+> Coordinator handles collect/merge/snapshot + WIP reset to idle.
 
 ## IMPLEMENT PHASE COMPLETE (2026-07-19)
 
