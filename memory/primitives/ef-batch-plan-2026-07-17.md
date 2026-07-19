@@ -857,6 +857,26 @@ See PB-EF5 plan §7 / coordinator DECISION 3. FF-set DFC back-face keyword actio
 engine project, unrelated to body-only-DFC flips. Not touched by this batch.
 
 ### OOS-EF5-3 (capability, new — surfaced by this batch) — return-transformed / enter-the-battlefield-transformed
+> ⚠️ **NARROWED — PB-OS4 (`scutemob-130`), 2026-07-19 — NOT fully closed.** The
+> return-transformed *mechanism* shipped: `Effect::ExileSourceAndReturnTransformed` (exile the
+> source, then return it to the battlefield as a **new object** on its back face — CR 400.7 new
+> object, back-face characteristics **layer-resolved**, no counters/auras carried, Saga CR 714.4
+> no-sacrifice). PROTOCOL 18→19, HASH 55→56 (single bump). **BUT no candidate card flipped
+> Complete**, because implementation+review surfaced a deeper, general transform gap:
+> **transformed permanents do not gather their back-face non-keyword abilities** (static/ETB/upkeep
+> trigger/activated) — `register_static_continuous_effects`, `queue_carddef_etb_triggers`, and the
+> upkeep trigger scan all iterate the FRONT `def.abilities` unconditionally (only *keywords* read
+> `back_face`, layers.rs). Filed as **OOS-OS4-2** (§11). Consequences: `fable_of_the_mirror_breaker`
+> ships **partial** (ch. III return-transformed wired = real primitive usage, but ch. I token-trigger
+> + ch. II bounded discard inexpressible, and the back-face Reflection activated ability is
+> non-functional per OOS-OS4-2); `edgar_charmed_groom` **left unauthored** (would re-register its
+> front Vampire anthem onto the returned artifact = wrong game state until OOS-OS4-2);
+> `nicol_bolas_the_ravager` + `grist_voracious_larva` **left unauthored** (planeswalker-back
+> starting-loyalty gap = **OOS-OS4-1**, §11; grist additionally needs an entered-from-graveyard
+> trigger condition). The two unused effect variants the runner speculatively added
+> (`ReturnSourceToBattlefieldTransformed[NextEndStep]`) were removed (SHIP-NARROWED, W6
+> no-speculative-machinery). Full record: `memory/primitive-wip.md`, `memory/primitives/pb-review-OS4.md`.
+
 A permanent is exiled (or dies) and returns as a **new object**, already on its back face.
 This is a fundamentally different mechanism than `TransformSelf` (which flips a permanent
 **in place**, same `ObjectId`, CR 712.18). Needed by:
@@ -1031,3 +1051,46 @@ value) are expressible after PB-EF10 — this dig is the only remaining blocker.
   `min_cmc_amount: Option<Box<EffectAmount>>` (same runtime-resolution mechanism) or a dedicated
   exact-match runtime filter would close it; small, but out of this PB's declared scope
   (`Implement-phase default-to-defer`, `memory/conventions.md`).
+
+---
+
+## 13. New seeds filed by PB-OS4 (scutemob-130)
+
+PB-OS4 shipped `Effect::ExileSourceAndReturnTransformed` (return-transformed as a new object —
+OOS-EF5-3, narrowed above). During implementation+review two distinct out-of-scope blockers were
+surfaced that keep all four OOS-EF5-3 candidate cards from flipping Complete. Both are their own
+PBs.
+
+### OOS-OS4-1 (capability) — planeswalker-back-face starting loyalty on enter/return-transformed
+A DFC whose **back face is a planeswalker** (nicol_bolas_the_ravager → Nicol Bolas, the Arisen;
+grist_voracious_larva → Grist, the Plague Swarm) cannot be authored: `CardFace`
+(`card_definition.rs`) has **no `starting_loyalty`** field, and neither the enter-transformed nor
+the return-transformed path assigns loyalty counters. Such a card would enter transformed with **0
+loyalty** and be put into the graveyard by SBA 704.5i (CR 306.5b / 704.5i) on the next SBA check —
+wrong game state. **Fix shape**: add `CardFace.starting_loyalty: Option<u32>` (wire-affecting —
+`CardFace` is in the SR-8 closure → PROTOCOL bump) and assign `CounterType::Loyalty` counters in
+both the ETB-transformed and return-transformed object-construction paths (CR 306.5b); then author
+the two planeswalker back faces (3 loyalty abilities each, some complex). Blocks
+`nicol_bolas_the_ravager`, `grist_voracious_larva`. (grist **additionally** needs an
+"entered-from-your-graveyard / cast-from-your-graveyard" trigger condition that does not exist in
+the DSL — a second, smaller sub-blocker.)
+
+### OOS-OS4-2 (correctness/capability, cross-cutting) — transformed permanents don't gather back-face non-keyword abilities
+A permanent showing its **back face** (via in-place `TransformSelf` OR the new return-transformed
+path) does **not** use its back face's non-keyword abilities. `register_static_continuous_effects`
+(`rules/replacement.rs`), `queue_carddef_etb_triggers` (`rules/replacement.rs`), and the upkeep
+triggered-ability scan (`rules/turn_actions.rs`) all iterate the **front** `def.abilities`
+unconditionally — only *keywords* consult `back_face` (`rules/layers.rs`). Consequences: (a) a
+transformed permanent's back-face static / ETB / upkeep-trigger / activated abilities never
+function; (b) the transformed permanent wrongly **retains its front face's** static/ETB abilities
+(e.g. a returned Edgar Markov's Coffin — an artifact — wrongly re-registers Edgar's front "Other
+Vampires get +1/+1" anthem). **This likely also affects already-shipped PB-EF5 in-place
+`TransformSelf` Complete markers** (e.g. any card whose back face has a non-keyword ability —
+audit thaumatic_compass / docent_of_perfection back faces). **Fix shape**: make ability gathering
+**face-aware** — when `obj.is_transformed`, gather from `def.back_face`'s abilities across all four
+call sites (static registration, ETB queue, upkeep/triggered scan, and activated-ability lookup).
+Broad blast radius across the general transform machinery; needs its own PB + review (may change
+the behavior of already-shipped TransformSelf cards). Blocks `edgar_charmed_groom` (wrong state
+without it) and the back-face activated ability of `fable_of_the_mirror_breaker`'s Reflection of
+Kiki-Jiki (both authored honestly around the gap by PB-OS4: edgar left unauthored, fable partial
+with the blocker named).

@@ -493,7 +493,15 @@
 ///   => 19u8.hash_into(hasher)`, discriminant 19 after `TargetOpponent`=18.
 ///   `decl_fingerprint` MOVES (the enum's declared shape changed — a new variant);
 ///   `stream_fingerprint` moves per the v40 mechanism (a new `HashInto` arm).
-pub const HASH_SCHEMA_VERSION: u8 = 55;
+/// - 56: PB-OS4 (2026-07-19, SHIP NARROWED) — `Effect` gains one new unit variant,
+///   `ExileSourceAndReturnTransformed` (discriminant 94, CR 400.7 / 712.18 — exile
+///   the resolving ability's own source, then return it to the battlefield already
+///   transformed as a NEW object, distinct from `TransformSelf`'s in-place flip;
+///   OOS-EF5-3; used by Fable of the Mirror Breaker's Saga chapter III). Fed to
+///   `HashInto` as `Effect::ExileSourceAndReturnTransformed => 94u8.hash_into(hasher)`.
+///   `decl_fingerprint` MOVES (the enum's declared shape changed); `stream_fingerprint`
+///   moves per the v40 mechanism.
+pub const HASH_SCHEMA_VERSION: u8 = 56;
 
 /// One `(version, fingerprints)` row of the append-only hash-schema history.
 ///
@@ -719,6 +727,15 @@ pub const HASH_SCHEMA_HISTORY: &[HashSchemaEpoch] = &[
         // per the v40 mechanism.
         decl_fingerprint: "9b983aaa133cbff0946e4a135fa5de2618b99e25de04d75fe19c1d8429a1c2f8",
         stream_fingerprint: "ad965c6475550f53446281c921656eaf068c623a28295c4e2d1e2f62b83d9987",
+    },
+    HashSchemaEpoch {
+        version: 56,
+        // PB-OS4 (2026-07-19, SHIP NARROWED): Effect gained
+        // ExileSourceAndReturnTransformed (see the `- 56:` History line above).
+        // decl_fingerprint moves (genuine enum-shape change); stream_fingerprint
+        // moves per the v40 mechanism.
+        decl_fingerprint: "0be185c35eabf8e0824ae97b33ca4c86a941b5c81f3b2cd87fd2766aa1b288f4",
+        stream_fingerprint: "46da56438f4951cb7b3eb76ed35fa966ffa738b6449eb611459c77359ba455ee",
     },
 ];
 
@@ -6736,6 +6753,9 @@ impl HashInto for Effect {
             }
             // PB-EF5: TransformSelf (discriminant 93) — CR 701.27a/f, 712.18.
             Effect::TransformSelf => 93u8.hash_into(hasher),
+            // PB-OS4 (OOS-EF5-3, SHIP NARROWED): ExileSourceAndReturnTransformed
+            // (discriminant 94) — CR 400.7 / 712.18.
+            Effect::ExileSourceAndReturnTransformed => 94u8.hash_into(hasher),
         }
     }
 }

@@ -168,7 +168,14 @@ use crate::state::hash::HASH_SCHEMA_VERSION;
 ///   closes EF-W-PB2-3, the last item on the EF queue). `ManaColor` was already in
 ///   the closure. The closure's type count is unchanged; `Command`'s declared shape
 ///   moved, so the digest moves.
-pub const PROTOCOL_VERSION: u32 = 18;
+/// - 19: PB-OS4 (2026-07-19, SHIP NARROWED) — `Effect` (already in the closure)
+///   gains one new unit variant, `ExileSourceAndReturnTransformed` (CR 400.7 /
+///   712.18 — a permanent that leaves and returns to the battlefield already
+///   transformed is a NEW object, unlike `TransformSelf`'s in-place flip;
+///   OOS-EF5-3; used by Fable of the Mirror Breaker's Saga chapter III). The
+///   closure's type count is unchanged; `Effect`'s declared shape moved, so the
+///   digest moves.
+pub const PROTOCOL_VERSION: u32 = 19;
 
 /// Digest of the serialized shape of the wire-frame type closure
 /// (`Command`, `GameEvent`, [`ReplayLog`] and everything they reach).
@@ -186,7 +193,7 @@ pub const PROTOCOL_VERSION: u32 = 18;
 /// existing `u32` *means* does not. Semantic changes still require a manual
 /// [`PROTOCOL_VERSION`] bump.
 pub const PROTOCOL_SCHEMA_FINGERPRINT: &str =
-    "841e4b4130b2e2bfef5b190dc6dc57f18a2ee42a5484a652c2df690358cb115e";
+    "14d2b0d4380ac53be126fd26e5541bfc834c49942cca9598921858caf442aa7c";
 
 /// One `(version, fingerprint)` row of the append-only protocol-schema history.
 ///
@@ -343,6 +350,12 @@ pub const PROTOCOL_HISTORY: &[ProtocolEpoch] = &[
         // PB-EF12 (2026-07-18): Command::TapForMana gained chosen_color (see the
         // `- 18:` History line above).
         fingerprint: "841e4b4130b2e2bfef5b190dc6dc57f18a2ee42a5484a652c2df690358cb115e",
+    },
+    ProtocolEpoch {
+        version: 19,
+        // PB-OS4 (2026-07-19, SHIP NARROWED): Effect gained
+        // ExileSourceAndReturnTransformed (see the `- 19:` History line above).
+        fingerprint: "14d2b0d4380ac53be126fd26e5541bfc834c49942cca9598921858caf442aa7c",
     },
 ];
 
