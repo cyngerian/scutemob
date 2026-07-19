@@ -83,10 +83,15 @@ write a one-line "Last Handoff" entry summarizing what happened.
 
 ### 4.5. Card authoring operations checkoff (W6 only)
 
-If this session worked on W6 card authoring AND `docs/card-authoring-operations.md`
-has unchecked items, check off any completed tasks (`- [ ]` → `- [x]`). Reference
-the task IDs in the Last Handoff "Completed" bullet.
+If this session worked on W6 card authoring AND the HISTORICAL
+`docs/card-authoring-operations.md` still has unchecked items, you may check off completed
+tasks (`- [ ]` → `- [x]`) as a historical-reference courtesy. Record the real completion in
+the live campaign tracker `memory/card-authoring/campaign-plan-2026-05-16.md` (§0), and
+reference the task IDs in the Last Handoff "Completed" bullet.
 
+> **Note (DOCB-2, `scutemob-132`):** `docs/card-authoring-operations.md` is bannered
+> HISTORICAL — it is not the live status source; `campaign-plan-2026-05-16.md` §0 is.
+>
 > **Fallback**: Once all items in the operations plan are checked off (X-7
 > complete), this step becomes a no-op. Skip it for all future sessions.
 

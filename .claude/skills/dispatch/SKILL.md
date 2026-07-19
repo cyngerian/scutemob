@@ -179,6 +179,10 @@ run `/collect {task_id}` as normal. The `/collect` skill handles:
 - Pre-merge conflict check (`esm worktree check`)
 - Merging and cleanup (`esm worktree merge`)
 - Transitioning to done (`esm task transition`)
+- **State-sync (`/collect` step 7)** — for a PB/queue item, updating the active queue-plan
+  banner + `memory/workstream-state.md` even when the queue is paused. This is mandatory:
+  skipping it is the N4 re-dispatch hazard from `memory/doc-audit-2026-07-18b.md` (a shipped
+  PB left showing "RECOMMENDED FIRST DISPATCH" gets re-picked by the next dispatch loop).
 
 ## Notes
 

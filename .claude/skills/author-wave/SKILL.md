@@ -5,8 +5,14 @@ description: Orchestrate the full author-review-fix-commit cycle for one card au
 
 # Author Wave
 
-Orchestrate the full author → review → fix → commit cycle for one authoring group
-from the card authoring operations plan (`docs/card-authoring-operations.md`).
+Orchestrate the full author → review → fix → commit cycle for one authoring group.
+
+> **Doc note (DOCB-2, `scutemob-132`):** `docs/card-authoring-operations.md` is bannered
+> **HISTORICAL**. Only its **"Authoring Order and Engine Risk Assessment"** section remains
+> a valid live reference (CLAUDE.md "Card Authoring Wave Process" sanctions it for the wave
+> sequence) — read only that section from it. The live campaign tracker is
+> `memory/card-authoring/campaign-plan-2026-05-16.md` (§0); coverage/health is
+> `docs/authoring-status.md` (via `python3 tools/authoring-report.py`).
 
 ## Arguments
 
@@ -33,7 +39,8 @@ from the card authoring operations plan (`docs/card-authoring-operations.md`).
 ### Step 0: Read State
 
 1. Read `memory/card-authoring/wave-progress.md` if it exists
-2. Read `docs/card-authoring-operations.md` to find the target group
+2. Read the **Authoring Order** section of `docs/card-authoring-operations.md` (HISTORICAL doc;
+   that section only — CLAUDE.md-sanctioned live) to find the target group
 
 **If `$ARGUMENTS` is `--status`**:
 - Display wave progress table. Stop.
@@ -118,8 +125,10 @@ If failures: fix and re-test.
 
 ### Step 7: Update State and Commit
 
-1. Update `memory/card-authoring/wave-progress.md` with group status
-2. Check off the A-* item in `docs/card-authoring-operations.md`
+1. Update `memory/card-authoring/wave-progress.md` with group status (primary tracker)
+2. Record group completion in `memory/card-authoring/campaign-plan-2026-05-16.md` §0.
+   (The old A-* checkoff in HISTORICAL `docs/card-authoring-operations.md` may be updated
+   as a historical-reference courtesy but is not the live status source.)
 3. Stage all new/changed card def files
 4. Commit: `W6-cards: author <group> (<N> cards)`
 
