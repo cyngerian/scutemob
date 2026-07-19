@@ -3889,6 +3889,16 @@ pub enum Condition {
     /// The captured count does not decrease if attackers later leave combat
     /// (Legion's Landing ruling 2017-09-29). Used by Legion's Landing (PB-OS6(b)).
     YouAttackedWithNOrMore(u32),
+    /// Lieutenant (ability word) / CR 903.3d: "if/as long as you control your
+    /// commander." True iff the effect controller currently controls, on the
+    /// battlefield (phased-in), at least one commander card **they own**
+    /// (membership in their own `commander_ids` inherently encodes ownership).
+    ///
+    /// Distinct from CR 118.9 "if you control **a** commander" (any owner) used
+    /// by the Commander free-cast predicate (`casting.rs`) — do NOT conflate the
+    /// two. A stolen commander you do not control does not satisfy this; a
+    /// commander you stole back does. PB-OS9.
+    YouControlYourCommander,
 }
 // ── Mode Selection ────────────────────────────────────────────────────────────
 /// Modal spells/abilities: choose N of M modes (CR 700.2).

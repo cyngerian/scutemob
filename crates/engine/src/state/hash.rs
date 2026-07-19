@@ -540,7 +540,14 @@
 ///   and `self.min_cmc_amount.hash_into(hasher)` right after `max_cmc_amount` on
 ///   `TargetFilter`. `decl_fingerprint` MOVES (both types' declared shapes changed);
 ///   `stream_fingerprint` moves per the v40 mechanism.
-pub const HASH_SCHEMA_VERSION: u8 = 60;
+/// - 61: PB-OS9 (2026-07-19, OOS-EF3b-1) — `Condition` gains one new unit variant,
+///   `YouControlYourCommander` (discriminant 51, CR 903.3d — Lieutenant ability word:
+///   "if/as long as you control your commander"; `skyhunter_strike_force`,
+///   `loyal_apprentice`, `siege_gang_lieutenant`). Fed to `HashInto` as
+///   `Condition::YouControlYourCommander => 51u8.hash_into(hasher)`. `decl_fingerprint`
+///   MOVES (the enum's declared shape changed — a new variant); `stream_fingerprint`
+///   moves per the v40 mechanism.
+pub const HASH_SCHEMA_VERSION: u8 = 61;
 
 /// One `(version, fingerprints)` row of the append-only hash-schema history.
 ///
@@ -813,6 +820,14 @@ pub const HASH_SCHEMA_HISTORY: &[HashSchemaEpoch] = &[
         // changes); stream_fingerprint moves per the v40 mechanism.
         decl_fingerprint: "73e6f285645f087b7aa2346b0b84ba0394f51c6d9ebfff6c18cafc926f665728",
         stream_fingerprint: "55fa8a7776b413a2bb66ffda61d0d51bf52687e450ae12cd36e697879ff351c1",
+    },
+    HashSchemaEpoch {
+        version: 61,
+        // PB-OS9 (2026-07-19, OOS-EF3b-1): Condition gained YouControlYourCommander
+        // (see the `- 61:` History line above). decl_fingerprint moves (genuine
+        // enum-shape change); stream_fingerprint moves per the v40 mechanism.
+        decl_fingerprint: "e4db4f9355ba59cf78800941c10f0ab82b4a902bc1876657bd7a9898b215828a",
+        stream_fingerprint: "8f240c72b6b024d03c698dde9be162ae089eda8e6ecf15c14f5576ee936b6474",
     },
 ];
 
@@ -5975,6 +5990,8 @@ impl HashInto for Condition {
                 50u8.hash_into(hasher);
                 n.hash_into(hasher);
             }
+            // PB-OS9 / CR 903.3d (discriminant 51)
+            Condition::YouControlYourCommander => 51u8.hash_into(hasher),
         }
     }
 }

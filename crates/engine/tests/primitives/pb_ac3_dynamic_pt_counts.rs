@@ -882,7 +882,7 @@ fn test_mirror_entity_pumps_and_types() {
 /// this test and the `state/hash.rs` history block.
 #[test]
 fn test_hash_schema_version_is_30() {
-    assert_eq!(mtg_engine::HASH_SCHEMA_VERSION, 60u8);
+    assert_eq!(mtg_engine::HASH_SCHEMA_VERSION, 61u8);
 }
 
 /// Hash soundness / determinism: the three new `EffectAmount` variants and the new

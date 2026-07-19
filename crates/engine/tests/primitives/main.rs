@@ -39,6 +39,7 @@ mod pb_os5_relative_attacker_count;
 mod pb_os6_dfc_flip_conditions;
 mod pb_os7_defending_player_continuous_filter;
 mod pb_os8_look_at_top_then_place;
+mod pb_os9_lieutenant_commander_control;
 mod pbd_damaged_player_filter;
 mod pbn_subtype_filtered_triggers;
 mod pbp_power_of_sacrificed_creature;

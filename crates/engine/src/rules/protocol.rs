@@ -217,7 +217,12 @@ use crate::state::hash::HASH_SCHEMA_VERSION;
 ///   gains a new field `min_cmc_amount` (runtime lower-bound mana-value cap, mirror
 ///   of the existing `max_cmc_amount`). Both `Effect` and `TargetFilter` are already
 ///   in the closure — type COUNT unchanged, declared shape moves, digest moves.
-pub const PROTOCOL_VERSION: u32 = 23;
+/// - 24: PB-OS9 (2026-07-19, OOS-EF3b-1): `Condition` gains a new unit variant
+///   `YouControlYourCommander` (CR 903.3d — Lieutenant ability word: "if/as long as
+///   you control your commander"; `skyhunter_strike_force`, `loyal_apprentice`,
+///   `siege_gang_lieutenant`). `Condition` is already in the closure (reachable via
+///   `Effect::Conditional`) — type COUNT unchanged, declared shape moves, digest moves.
+pub const PROTOCOL_VERSION: u32 = 24;
 
 /// Digest of the serialized shape of the wire-frame type closure
 /// (`Command`, `GameEvent`, [`ReplayLog`] and everything they reach).
@@ -235,7 +240,7 @@ pub const PROTOCOL_VERSION: u32 = 23;
 /// existing `u32` *means* does not. Semantic changes still require a manual
 /// [`PROTOCOL_VERSION`] bump.
 pub const PROTOCOL_SCHEMA_FINGERPRINT: &str =
-    "553f2ff2e54c7de707209b79db7f8bca0fc0c37405871a0c1b31c431e6dedb32";
+    "0e538f6b09a62e9c2c2ecf667fc61d0af7c41bce875b602f509bb0cc91aaffb0";
 
 /// One `(version, fingerprint)` row of the append-only protocol-schema history.
 ///
@@ -424,6 +429,12 @@ pub const PROTOCOL_HISTORY: &[ProtocolEpoch] = &[
         // LookAtTopThenPlace; TargetFilter gained min_cmc_amount (see the `- 23:`
         // History line above).
         fingerprint: "553f2ff2e54c7de707209b79db7f8bca0fc0c37405871a0c1b31c431e6dedb32",
+    },
+    ProtocolEpoch {
+        version: 24,
+        // PB-OS9 (2026-07-19, OOS-EF3b-1): Condition gained YouControlYourCommander
+        // (see the `- 24:` History line above).
+        fingerprint: "0e538f6b09a62e9c2c2ecf667fc61d0af7c41bce875b602f509bb0cc91aaffb0",
     },
 ];
 

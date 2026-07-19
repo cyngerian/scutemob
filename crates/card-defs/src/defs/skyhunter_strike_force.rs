@@ -5,13 +5,10 @@
 // Lieutenant — As long as you control your commander, other creatures you control
 // have melee.
 //
-// ENGINE-BLOCKED (Lieutenant grant): "As long as you control your commander, other
-// creatures you control have melee" needs a "you control your commander" condition
-// on a continuous-effect grant. No `Condition` variant nor `TargetFilter` field
-// expresses "is commander" (card_definition.rs Condition/TargetFilter enums audited,
-// PB-EF3b recon) — `ContinuousEffectDef.condition` has nowhere to hang this check.
-// Flying + printed Melee are modeled and correct; the Lieutenant anthem is omitted
-// (not wrong game state — see Completeness note). Blocker filed as OOS-EF3b-1.
+// PB-OS9 / CR 903.3d: Lieutenant anthem is a conditional Layer 6 grant of Melee to
+// other creatures you control, gated on Condition::YouControlYourCommander. Post-
+// PB-EF3b the granted Melee synthesizes its attack trigger, so this anthem now
+// actually fires for the recipient creatures.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -34,16 +31,19 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Flying),
             // CR 702.121a: printed Melee (self).
             AbilityDefinition::Keyword(KeywordAbility::Melee),
-            // Lieutenant clause ENGINE-BLOCKED (see top-of-file comment) — omitted,
-            // not modeled wrong.
+            // Lieutenant — CR 903.3d: "As long as you control your commander, other
+            // creatures you control have melee." Layer 6 conditional grant.
+            AbilityDefinition::Static {
+                continuous_effect: ContinuousEffectDef {
+                    layer: EffectLayer::Ability,
+                    modification: LayerModification::AddKeyword(KeywordAbility::Melee),
+                    filter: EffectFilter::OtherCreaturesYouControl,
+                    duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: Some(Condition::YouControlYourCommander),
+                },
+            },
         ],
-        completeness: Completeness::partial(
-            "Lieutenant clause 'As long as you control your commander, other creatures you \
-             control have melee' is unrepresentable: no Condition variant nor TargetFilter field \
-             expresses 'you control your commander' for a continuous-effect grant \
-             (ContinuousEffectDef.condition). Flying + printed Melee are modeled and correct; the \
-             anthem is omitted (not wrong game state). Blocker filed as OOS-EF3b-1.",
-        ),
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }
