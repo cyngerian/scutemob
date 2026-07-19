@@ -99,4 +99,5 @@ forbidden_orchard header comment. Update PB-OS3 status.
 - [x] 6. Review — primitive-impl-reviewer → pb-review-OS3.md; CLEAN BILL (0 HIGH/MED/LOW, 1 INFO forward-looking no-action re: mana_produced not propagated on CardDefETB path — not needed by forbidden_orchard). No fix phase.
 - [x] 7. Green gates: `cargo build --workspace` clean; `cargo test --all` all-green (incl. `card_defs_fmt::card_defs_are_rustfmt_clean`); `cargo clippy --workspace --all-targets -- -D warnings` zero warnings; `cargo fmt --check` clean (after reformatting mana_triggers.rs); `tools/check-defs-fmt.sh` clean (1798 defs)
 - [x] 8a. Close OOS-EF6-1 in source docs + plan — DONE: SHIPPED banner + table strike in oos-retriage-plan §3; CLOSED banner in ef-batch-plan §10 (canonical finding). forbidden_orchard header comment already rewritten by runner. (workstream-state §38 PB-EF6 line is a historical filing record, left as-is.)
-- [ ] 8b. /review; Completion Sequence
+- [x] 8b. /review — PASSED (Opus reviewer): all 4 ACs PASS, 0 issues, ready to merge. Adversarial checks (CardDefETB safety, immediate-branch untouched, no doubler regression) all clean. Completion Sequence next.
+phase: DONE (pending signal-ready)
