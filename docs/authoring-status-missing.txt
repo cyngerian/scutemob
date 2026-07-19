@@ -1,6 +1,6 @@
 # Authoring plan — cards still missing on disk
-# Generated: 2026-07-19 02:49 UTC  Git: 888981f8  Plan snapshot: 2026-03-10
-# Format: <group>\t<card name>   (142 cards)
+# Generated: 2026-07-19 02:59 UTC  Git: 7ee96913  Plan snapshot: 2026-03-10
+# Format: <group>\t<card name>   (140 cards)
 
 activated-sacrifice	Chatterfang, Squirrel General
 activated-sacrifice	Dark-Dweller Oracle
@@ -50,8 +50,6 @@ attack-trigger	Thrakkus the Butcher
 attack-trigger	Trench Behemoth
 attack-trigger	Winota, Joiner of Forces
 body-only	Edgar, Charmed Groom
-body-only	Fable of the Mirror-Breaker
-body-only	Fable of the Mirror-Breaker // Reflection of Kiki-Jiki
 body-only	Grist, Voracious Larva // Grist, the Plague Swarm
 body-only	Invasion of Ikoria // Zilortha, Apex of Ikoria
 body-only	Legion's Landing

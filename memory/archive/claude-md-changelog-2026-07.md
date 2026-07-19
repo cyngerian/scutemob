@@ -409,3 +409,21 @@ Roster sweep test derived from `all_cards()`; doubler/immediate-branch regressio
 non-vacuity by revert-and-rerun. No PROTOCOL/HASH change. Reviews clean (1 INFO, no action).
 **PB-OS1..OS3 (correctness group) all shipped.** Next: PB-OS4 (return-transformed /
 enters-transformed, capability, ~2-3 of 4 DFCs, PROTOCOL bump expected).
+
+## 2026-07-19 — PB-OS4 collected SHIPPED-NARROWED (`scutemob-130`, merge `7ee96913`)
+
+Return-transformed as a NEW object ships: `Effect::ExileSourceAndReturnTransformed`
+(CR 400.7 + 712.18 — new ObjectId, back-face characteristics layer-resolved, no
+counters/auras carried, Saga 714.4 no-sacrifice), PROTOCOL 18→19 / HASH 55→56 (single
+bump, digests re-pinned fresh from failing gates). **Reviewer HIGH became the headline**:
+the transform machinery gathers FRONT-face abilities regardless of face
+(`register_static_continuous_effects`, `queue_carddef_etb_triggers`, upkeep scan) —
+filed **OOS-OS4-2** (own PB; likely implicates PB-EF5's shipped TransformSelf
+`Complete` markers — correctness candidate to triage AHEAD of OS5). Ship narrowed
+accordingly: edgar UN-authored (would register its front anthem on the Coffin — wrong
+state), two speculative effect variants removed, honest yield **0 Complete flips + fable
+partial with real ch. III usage**; nicol_bolas/grist blocked on **OOS-OS4-1**
+(planeswalker-back loyalty). OOS-EF5-3 honestly NARROWED, not closed. An oracle-text
+divergence (edgar has no end-step clause) was caught against cards.sqlite mid-implement.
+Gates all green; 9 tests. DOCB-1 deferred items completed at this collect:
+primitive-wip reset to IDLE, authoring-report regenerated (1,799 defs, 62.2%).
