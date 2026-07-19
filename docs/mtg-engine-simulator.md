@@ -1,5 +1,7 @@
 # MTG Engine — Game Simulator & Fuzzer
 
+<!-- last_updated: 2026-02-28 -->
+
 > Design document for automated game simulation, fuzz testing, and interactive TUI play.
 
 ## Context

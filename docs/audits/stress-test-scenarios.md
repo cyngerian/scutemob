@@ -1,5 +1,7 @@
 # Stress Test Scenarios
 
+<!-- last_updated: 2026-03-28 -->
+
 **Date**: 2026-03-27
 **Purpose**: Curated list of card combinations known to stress MTG engine implementations.
 These target the gap identified in `docs/mtg-engine-runtime-integrity.md` — "legal-but-wrong"

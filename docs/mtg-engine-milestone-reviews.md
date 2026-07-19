@@ -1,5 +1,7 @@
 # MTG Engine — Milestone Code Reviews
 
+<!-- last_updated: 2026-07-14 -->
+
 > **Purpose**: Per-milestone code review tracking. Records files introduced, CR sections
 > implemented, findings (bugs, enforcement gaps, code quality, test gaps), and deferred
 > issues. Updated as milestones complete and issues are discovered or resolved.
@@ -13,7 +15,10 @@
 > multiple milestones in one session leads to shallow reviews and missed issues.
 > Finish one, commit, then start a new session for the next.
 >
-> **Last Updated**: 2026-03-20 (W3 LOW S1-S4 complete: 48 LOWs closed — 20 S1 doc/code cleanup, 2 S2 test gaps, 8 S3 perf/schema/replay, 4 S4 behavioral; 14 confirmed prior work)
+> **Last Updated**: 2026-07-14 — header stamp refreshed to match body currency; the live
+> issue index below is maintained through the SR-1..38, EF, and PB-OS waves. (Prior header
+> note, 2026-03-20: W3 LOW S1-S4 complete — 48 LOWs closed: 20 S1 doc/code cleanup, 2 S2 test
+> gaps, 8 S3 perf/schema/replay, 4 S4 behavioral; 14 confirmed prior work.)
 
 ---
 

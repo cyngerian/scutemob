@@ -1,5 +1,7 @@
 # How the MTG Rules Engine Works
 
+<!-- last_updated: 2026-04-13 -->
+
 > **Audience**: narrative walkthrough for new contributors and external readers.
 > This document is a concrete explanatory tour of the engine: what the core idea
 > is, what the six key systems do, and how they compose on a worked example.

@@ -6,6 +6,8 @@ last_updated: 2026-07-18
 
 # Cleanup Retention Policy
 
+<!-- last_updated: 2026-07-18 -->
+
 Defines what lives where, what gets archived when, and what protocol governs
 any cleanup pass on the scutemob project. Read by the `/cleanup` skill on
 startup. This is the policy document for end-of-milestone cleanup.

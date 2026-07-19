@@ -1,5 +1,7 @@
 # Event Log Diagnosability
 
+<!-- last_updated: 2026-03-28 -->
+
 **Date**: 2026-03-27
 **Purpose**: Ensure that when something goes wrong in a game — whether detected by the
 runtime integrity checker, noticed by a player, or found in post-game analysis — the

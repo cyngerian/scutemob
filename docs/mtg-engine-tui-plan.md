@@ -1,5 +1,7 @@
 # MTG Engine — Ratatui TUI Applications Plan
 
+<!-- last_updated: 2026-02-26 -->
+
 > **Purpose**: Plan document for all TUI applications in the MTG rules engine project.
 > Built with [Ratatui](https://ratatui.rs/) (v0.30) + crossterm backend.
 >

@@ -1,5 +1,7 @@
 # MTG Engine — Known Interaction Gaps
 
+<!-- last_updated: 2026-03-13 -->
+
 > Tracked gaps discovered by testing the engine against known confusing MTG rules interactions.
 > These are not milestone-scoped — fix opportunistically or when a card needs the behavior.
 >

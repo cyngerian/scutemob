@@ -1,5 +1,7 @@
 # Runtime Integrity: Watchdog, Recovery, and Bug Reporting
 
+<!-- last_updated: 2026-03-22 -->
+
 > **Purpose**: Ensure that when a rules bug occurs during a live game, it is caught
 > immediately, the game state is recoverable, and the bug is diagnosable. This is a
 > pre-alpha requirement — a game that silently corrupts and can't recover is a showstopper.

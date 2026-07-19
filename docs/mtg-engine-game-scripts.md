@@ -1,5 +1,7 @@
 # MTG Game Script Generation & Validation Strategy
 
+<!-- last_updated: 2026-07-10 -->
+
 ## Purpose
 
 This document defines the strategy for generating engine-independent game scripts that serve

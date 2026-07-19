@@ -1,0 +1,177 @@
+# ESM documentation management — scutemob (MTG Commander Rules Engine)
+#
+# Scope: the LIVING documentation set only — evergreen references, living ledgers,
+# active runbooks, and the standing audit program. The bannered HISTORICAL/RETIRED
+# planning docs (project-status, workstream-coordination, primitive-card-plan,
+# dsl-gap-closure-plan, low-issues-remediation, card-authoring-operations,
+# ability-batch-plan) are intentionally EXCLUDED: they self-mark their status and
+# must not be nudged toward "refresh." Frozen SR task-records (sr-4/5/9a/14/15/24)
+# and self-dating generated reports (authoring-status.md) are likewise out of scope —
+# they never drift. See memory/doc-audit-2026-07-18.md F6 for the rationale.
+#
+# Trigger philosophy (keeps /docs status coherent and avoids false-stale noise):
+#   * LIVING LEDGERS + STANDING AUDITS carry coupled triggers on the subsystem they
+#     track. On /eot the drift check is scoped to the session's changed files, so a
+#     trigger fires only when the session actually touched the coupled subsystem —
+#     a genuine "your change may have invalidated this ledger" nudge, not noise.
+#     All use frequency: session (checked at /eot, not on every /done).
+#   * EVERGREEN REFERENCE / DESIGN docs are stable and do NOT drift with routine code
+#     churn, so they carry NO triggers: they are tracked by marker + age in
+#     /docs status only. A blanket engine-source trigger on these would blanket-flag
+#     them STALE on every engine commit — the exact false-stale noise to avoid.
+docs_dir: docs/
+templates:
+
+  # ================================================================
+  # Evergreen references / design docs — marker + age only, no drift triggers.
+  # ================================================================
+  architecture:
+    file: mtg-engine-architecture.md
+    description: System architecture, design rationale, and testing strategy
+    triggers: []
+    frequency: session
+
+  corner-cases:
+    file: mtg-engine-corner-cases.md
+    description: 36 known difficult interactions the engine must handle correctly
+    triggers: []
+    frequency: session
+
+  game-scripts:
+    file: mtg-engine-game-scripts.md
+    description: Engine-independent test-script generation, JSON schema, replay harness
+    triggers: []
+    frequency: session
+
+  engine-explanation:
+    file: engine_explanation.md
+    description: Narrative walkthrough of the engine for a newcomer
+    triggers: []
+    frequency: session
+
+  card-pipeline:
+    file: mtg-engine-card-pipeline.md
+    description: Card-definition organization, DSL rationale, scaling strategy
+    triggers: []
+    frequency: session
+
+  protocol-versioning:
+    file: mtg-engine-protocol-versioning.md
+    description: Wire-versioning policy behind SR-8 (Command / GameEvent / replay logs)
+    triggers: []
+    frequency: session
+
+  replay-viewer:
+    file: mtg-engine-replay-viewer.md
+    description: M9.5 game-state stepper — architecture, API, Svelte components
+    triggers: []
+    frequency: session
+
+  simulator:
+    file: mtg-engine-simulator.md
+    description: RandomBot / HeuristicBot / GameDriver / LegalActionProvider design
+    triggers: []
+    frequency: session
+
+  interaction-gaps:
+    file: mtg-engine-interaction-gaps.md
+    description: Catalogue of known unresolved rules-interaction gaps
+    triggers: []
+    frequency: session
+
+  runtime-integrity:
+    file: mtg-engine-runtime-integrity.md
+    description: Watchdog, recovery, bug reporting — pre-alpha requirement
+    triggers: []
+    frequency: session
+
+  tui-plan:
+    file: mtg-engine-tui-plan.md
+    description: Terminal UI dashboard plan
+    triggers: []
+    frequency: session
+
+  cleanup-retention-policy:
+    file: cleanup-retention-policy.md
+    description: Two-tier retention ladder, archive convention, /cleanup protocol
+    triggers: []
+    frequency: session
+
+  # ================================================================
+  # Living ledgers — coupled triggers; a scoped /eot nudge is desired signal.
+  # ================================================================
+  engine-invariants:
+    file: engine-invariants.md
+    description: Full text of the machine-enforced SR gates (SR-2/3/4/5/6/7/8/9a/9b/9c/35/36)
+    triggers:
+    - crates/engine/src/state/keyword_registry.rs
+    - crates/engine/src/effects/mod.rs
+    - crates/engine/src/rules/resolution.rs
+    frequency: session
+
+  roadmap:
+    file: mtg-engine-roadmap.md
+    description: What to build and in what order; milestone definitions
+    triggers:
+    - crates/engine/src/**
+    frequency: session
+
+  milestone-reviews:
+    file: mtg-engine-milestone-reviews.md
+    description: Per-milestone code-review findings, file inventories, issue tracking
+    triggers:
+    - crates/engine/src/**
+    frequency: session
+
+  corner-case-audit:
+    file: mtg-engine-corner-case-audit.md
+    description: Living correctness ledger — coverage status, card-def gaps, deferred items
+    triggers:
+    - crates/engine/src/rules/**
+    - crates/engine/tests/**
+    frequency: session
+
+  ability-coverage:
+    file: mtg-engine-ability-coverage.md
+    description: Keyword and pattern coverage tracking (refresh via /audit-abilities)
+    triggers:
+    - crates/engine/src/rules/**
+    - crates/card-defs/src/defs/**
+    frequency: session
+
+  sr-remediation-plan:
+    file: sr-remediation-plan.md
+    description: SR remediation track operations guide and full SR-1..38 log
+    # Marker-only: the SR-1..38 track is CLOSED, so an engine-source trigger would just
+    # perpetually nudge a doc no engine change will reopen. Track by marker/age; a future
+    # SR wave can re-add a trigger.
+    triggers: []
+    frequency: session
+
+  # ================================================================
+  # Standing audit program — the three finding-audits track engine source.
+  # audits/README.md and audits/methodology.md are static navigational/meta docs, not
+  # living ledgers: they carry last_updated markers (see the files) but are intentionally
+  # NOT drift-tracked here — a docs/audits/** trigger would self-flag them on every edit
+  # to any audit.
+  # ================================================================
+  audits-layer-bypass:
+    file: audits/layer-bypass-audit.md
+    description: Layer-bypass audit (9 HIGH = its own M10-scheduled class, not live bugs)
+    triggers:
+    - crates/engine/src/rules/**
+    frequency: session
+
+  audits-event-log:
+    file: audits/event-log-diagnosability.md
+    description: Event-log diagnosability audit
+    triggers:
+    - crates/engine/src/state/**
+    frequency: session
+
+  audits-stress-test:
+    file: audits/stress-test-scenarios.md
+    description: Stress-test scenario audit
+    triggers:
+    - crates/engine/tests/**
+    frequency: session
