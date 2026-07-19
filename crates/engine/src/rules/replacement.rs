@@ -1176,6 +1176,18 @@ pub fn apply_self_etb_from_definition(
     // MR-M8-12: register each self-ETB WouldEnterBattlefield replacement into
     // `state.replacement_effects` so it is applied through the framework below
     // (rather than inline) — participating in CR 614.15 ordering / CR 614.5.
+    //
+    // PB-OS4b limitation (OOS-OS4-2): this reads the FRONT `def.abilities`
+    // unconditionally, not `def.effective_abilities(obj.is_transformed)`. On the
+    // enter-transformed paths (craft/disturb/exile-return, e.g. `resolution.rs`
+    // craft ETB), a permanent that enters back-face-up therefore gathers its
+    // FRONT face's self-ETB replacements (enters-tapped / enters-with-counters),
+    // not the visible back face's — contrary to CR 712.8d/e. No roster DFC/craft/
+    // disturb back face declares a WouldEnterBattlefield self-replacement, so this
+    // is unreachable today; it is left front-only deliberately (making it
+    // face-aware needs the same producer/consumer index-parity handling as the
+    // rest of PB-OS4b and has zero roster benefit — W6 no-speculative-machinery).
+    // A future DFC whose BACK face enters tapped / with counters must revisit this.
     for ability in &def.abilities {
         if let AbilityDefinition::Replacement {
             trigger: ReplacementTrigger::WouldEnterBattlefield { .. },
@@ -1892,6 +1904,12 @@ pub fn register_permanent_replacement_abilities(
     let Some(def) = registry.get(cid.clone()) else {
         return;
     };
+    // PB-OS4b limitation (OOS-OS4-2): reads FRONT `def.abilities`, not
+    // `def.effective_abilities(is_transformed)`. A permanent entering back-face-up
+    // (craft/disturb/exile-return) registers its FRONT face's permanent
+    // replacement abilities, not its back face's (CR 712.8d/e). No roster DFC back
+    // face declares a non-self permanent replacement, so unreachable today; left
+    // front-only for the same reason as `apply_self_etb_from_definition` above.
     for ability in &def.abilities {
         if let AbilityDefinition::Replacement {
             trigger,
