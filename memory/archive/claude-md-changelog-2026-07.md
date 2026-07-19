@@ -362,3 +362,27 @@
   (`CARGO_INCREMENTAL=0` check 7s → 2–3s; defs report `Fresh`). All 1,749 def files moved with
   **zero content edits** via a two-module re-export in `card-defs`. Earlier same day: SR-5 —
   `state::keyword_registry` gates new KeywordAbility variants; the task's "117 KeywordAbility catch-alls" premise was a misattribution — only 2 of them are on that enum, the rest sit on `AbilityDefinition`/`ZoneId`/`ZoneChangeAction`, filed as `scutemob-67`; 3129 tests. Earlier same day: SR-4 — 398 swallow-sites in effects/resolution classified LKI-vs-bug; `state::diagnostics` vocabulary. SR-3 — invariant #3 machine-enforced: GameState sealed, 287 files migrated, `cargo build --workspace` added to CI as the seal gate. SR-2 — invariant #9 registry gate; clean coverage 57.6%. The prior 56.2% was an undercount: the authoring report's `abilities: vec![]` regex also matched nested `mana_abilities: vec![]`. SR-1 — CI live.)
+
+---
+
+## 2026-07-18 — DOC remediation complete (appended per recurrence rule)
+
+Doc audit (`memory/doc-audit-2026-07-18.md` F1-F8) remediated in one sitting after PB-OS1:
+- **DOC-5+8** (`scutemob-121`/`124`, merge `e22a836f`, coordinator-inline per gated protocol):
+  15 files archived to `memory/archive/2026-07/` (README'd); §3 glob widened to `*review*.md`;
+  DOC-8 ruling recorded (abilities distillation authorized → follow-up `scutemob-127`;
+  primitives + reviews stay untouchable); Gate A also caught `/implement-primitive` pointing
+  at a stale WIP duplicate (frozen at PB-AC9) — 12 refs repointed to live `memory/primitive-wip.md`.
+- **DOC-1v2** (`scutemob-125`, merge `4c7995b0`): CLAUDE.md 77.8KB → 34KB; changelog → this
+  file (verbatim); invariants → `docs/engine-invariants.md` (routed); counts fixed
+  (1,798 / Seventeen agents); recurrence rule added; secondary docs index + 5 skill lines.
+- **DOC-3** (`scutemob-119`, auto-memory, empty repo branch): 18/18 MEMORY.md links resolve;
+  SR-6 helpers.rs path fixed; removed-skill refs cleaned; archive-move repoints applied.
+- **DOC-2** (`scutemob-118`, merge `c0de9550`): 7 stale docs bannered
+  (RETIRED/HISTORICAL + successor); `project-status.md` retired outright (user decision);
+  CLAUDE.md routing repointed.
+- **DOC-6v2** (`scutemob-126`, merge `78a10cc0`): `.claude/docs.yaml` created over the living
+  set; `<!-- last_updated -->` stamps adopted (~20 docs); milestone-reviews/sr-plan/corner-case
+  stamps fixed; layer-bypass-audit disambiguated; `ability-wip.md` cleared to IDLE;
+  ability-coverage stamped-and-deferred.
+- Cancelled-superseded: `scutemob-117`/`120`/`122`/`123`. One ~10s ESM outage mid-run, recovered.
