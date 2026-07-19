@@ -175,7 +175,12 @@ use crate::state::hash::HASH_SCHEMA_VERSION;
 ///   OOS-EF5-3; used by Fable of the Mirror Breaker's Saga chapter III). The
 ///   closure's type count is unchanged; `Effect`'s declared shape moved, so the
 ///   digest moves.
-pub const PROTOCOL_VERSION: u32 = 19;
+/// - 20: PB-OS5 (2026-07-19) — `EffectAmount` (already in the closure) gains
+///   `OtherAttackersSharingCreatureType { relative_to: EffectTarget }` (CR
+///   205.3m/508.1 — count of other attacking creatures sharing a creature type
+///   with the triggering creature; OOS-EF4-1, Shared Animosity). Closure type
+///   count unchanged; `EffectAmount`'s declared shape moved, so the digest moves.
+pub const PROTOCOL_VERSION: u32 = 20;
 
 /// Digest of the serialized shape of the wire-frame type closure
 /// (`Command`, `GameEvent`, [`ReplayLog`] and everything they reach).
@@ -193,7 +198,7 @@ pub const PROTOCOL_VERSION: u32 = 19;
 /// existing `u32` *means* does not. Semantic changes still require a manual
 /// [`PROTOCOL_VERSION`] bump.
 pub const PROTOCOL_SCHEMA_FINGERPRINT: &str =
-    "14d2b0d4380ac53be126fd26e5541bfc834c49942cca9598921858caf442aa7c";
+    "5243cffc75ff5357ce485988f43e4df781590d48605d0875e1230a3cd6f421b6";
 
 /// One `(version, fingerprint)` row of the append-only protocol-schema history.
 ///
@@ -356,6 +361,12 @@ pub const PROTOCOL_HISTORY: &[ProtocolEpoch] = &[
         // PB-OS4 (2026-07-19, SHIP NARROWED): Effect gained
         // ExileSourceAndReturnTransformed (see the `- 19:` History line above).
         fingerprint: "14d2b0d4380ac53be126fd26e5541bfc834c49942cca9598921858caf442aa7c",
+    },
+    ProtocolEpoch {
+        version: 20,
+        // PB-OS5 (2026-07-19): EffectAmount gained
+        // OtherAttackersSharingCreatureType (see the `- 20:` History line above).
+        fingerprint: "5243cffc75ff5357ce485988f43e4df781590d48605d0875e1230a3cd6f421b6",
     },
 ];
 

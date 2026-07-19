@@ -7586,6 +7586,57 @@ pub(crate) fn resolve_amount(state: &GameState, amount: &EffectAmount, ctx: &Eff
             },
             ctx,
         ),
+        // PB-OS5 (discriminant 24): CR 205.3m/508.1/613.1d — count OTHER attacking
+        // creatures (any controller) sharing a layer-resolved creature type with
+        // `relative_to` (the triggering creature). `relative_to` is resolved via
+        // `resolve_effect_target_list`, which already gates `EffectTarget::TriggeringCreature`
+        // on `state.objects.contains_key` (CR 400.7) — no separate raw-ctx fallback is
+        // needed. Uses `calculate_characteristics` (Option-returning) rather than
+        // `expect_characteristics` for `relative_to` itself, since a card author could
+        // in principle pair this with an `EffectTarget` that resolves to a since-departed
+        // object; the battlefield attacker scan below uses `expect_characteristics`
+        // (safe — those objects are freshly re-established as live via the
+        // `combat.is_attacking` + `ZoneId::Battlefield` filter).
+        EffectAmount::OtherAttackersSharingCreatureType { relative_to } => {
+            let Some(rel_id) = resolve_effect_target_list(state, relative_to, ctx)
+                .into_iter()
+                .find_map(|t| match t {
+                    ResolvedTarget::Object(id) => Some(id),
+                    ResolvedTarget::Player(_) => None,
+                })
+            else {
+                return 0;
+            };
+            let Some(combat) = state.combat.as_ref() else {
+                return 0;
+            };
+            let Some(rel_chars) = crate::rules::layers::calculate_characteristics(state, rel_id)
+            else {
+                return 0;
+            };
+            let rel_subtypes = rel_chars.subtypes;
+            if rel_subtypes.is_empty() {
+                return 0;
+            }
+            state
+                .objects
+                .values()
+                .filter(|obj| {
+                    obj.zone == ZoneId::Battlefield
+                        && obj.is_phased_in()
+                        && obj.id != rel_id // CR 109.1/603.2: "other"
+                        && combat.is_attacking(obj.id) // CR 508.1: all attackers, any controller
+                        && {
+                            let chars =
+                                crate::rules::layers::expect_characteristics(state, obj.id);
+                            chars
+                                .card_types
+                                .contains(&crate::state::types::CardType::Creature)
+                                && chars.subtypes.iter().any(|st| rel_subtypes.contains(st))
+                        }
+                })
+                .count() as i32
+        }
     }
 }
 // ── Zone resolution helpers ───────────────────────────────────────────────────

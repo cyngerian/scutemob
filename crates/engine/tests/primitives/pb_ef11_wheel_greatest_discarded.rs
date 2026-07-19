@@ -88,7 +88,7 @@ fn setup_three_players(hands: [usize; 3], library_n: usize) -> GameState {
 #[test]
 fn test_pb_ef11_hash_schema_version_live_sentinel() {
     assert_eq!(
-        HASH_SCHEMA_VERSION, 56u8,
+        HASH_SCHEMA_VERSION, 57u8,
         "PB-EF11 bumped HASH_SCHEMA_VERSION 53->54->55 across its two commits. If you bumped \
          again, update this test."
     );

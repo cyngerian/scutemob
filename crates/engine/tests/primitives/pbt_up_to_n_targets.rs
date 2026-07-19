@@ -409,7 +409,7 @@ fn test_pbt_hash_schema_version_live_sentinel() {
     // HASH_SCHEMA_VERSION live sentinel — fails if the schema version drifts
     // without this test being updated. See the `state/hash.rs` history block.
     assert_eq!(
-        HASH_SCHEMA_VERSION, 56u8,
+        HASH_SCHEMA_VERSION, 57u8,
         "HASH_SCHEMA_VERSION drifted without this sentinel being updated. Bump this assertion and the state/hash.rs history block together; the authoritative check is the SR-17 machine gate in tests/core/hash_schema.rs."
     );
 
@@ -863,7 +863,7 @@ fn test_pbt_up_to_n_rejects_wrong_type() {
 #[test]
 fn test_pbt_hash_schema_version_sentinel_regression() {
     assert_eq!(
-        HASH_SCHEMA_VERSION, 56u8,
+        HASH_SCHEMA_VERSION, 57u8,
         "HASH_SCHEMA_VERSION drifted without this sentinel being updated. Bump this assertion and the state/hash.rs history block together; the authoritative check is the SR-17 machine gate in tests/core/hash_schema.rs."
     );
 }

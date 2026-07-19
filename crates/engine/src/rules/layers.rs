@@ -2114,6 +2114,13 @@ pub(crate) fn resolve_cda_amount(
             object_id,
             controller,
         ),
+        // PB-OS5 (discriminant 24): CR 613 — resolving `relative_to` (the triggering
+        // creature) requires `EffectContext`, which is absent here. This variant is
+        // only ever used via the spell-effect ApplyContinuousEffect -> ModifyPowerDynamic
+        // substitution (`resolve_amount`, value locked in at resolution per CR 608.2h/
+        // 107.3f) and is never stored in a Layer-7a CDA. Returns 0 defensively (mirrors
+        // `CounterCountAtLastKnownInformation` / `SourcePowerAtLastKnownInformation` above).
+        EffectAmount::OtherAttackersSharingCreatureType { .. } => 0,
         _ => {
             debug_assert!(
                 false,
