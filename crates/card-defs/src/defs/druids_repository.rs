@@ -36,9 +36,10 @@ pub fn card() -> CardDefinition {
                 modes: None,
                 trigger_zone: None,
             },
-            // CR 602.2: Remove a charge counter: Add one mana of any color.
-            // Note: Technically a mana ability (CR 605.1). Implemented as regular activated
-            // ability for this batch. Mana-ability classification deferred to PB-37.
+            // CR 605.1a: Remove a charge counter: Add one mana of any color. A mana
+            // ability (no target, could add mana, not loyalty) — PB-OS11 lowers the
+            // Cost::RemoveCounter self-cost to a true mana ability, and the any-color
+            // effect resolves to the chosen color via Command::TapForMana.chosen_color.
             AbilityDefinition::Activated {
                 cost: Cost::RemoveCounter {
                     counter: CounterType::Charge,
@@ -55,16 +56,7 @@ pub fn card() -> CardDefinition {
                 modes: None,
             },
         ],
-        completeness: Completeness::known_wrong(
-            "CR 106.1b: 'Remove a charge counter: Add one mana of any color' adds one COLORLESS \
-             mana (probed with 5 charge counters: +1 colorless). Also a CR 605.1a/605.3b \
-             violation — it is a mana ability but registers as a stack-using activated ability, \
-             because mana_ability_cost_components refuses Cost::RemoveCounter (ManaAbility has no \
-             counter-cost field and handle_tap_for_mana has no counter payment path). Note this \
-             ability has NO tap component at all, and every try_as_tap_mana_ability return site \
-             hardcodes requires_tap: true — the requires_tap: false path is unexercised in the \
-             whole corpus. The color bug is the reason for known_wrong rather than partial.",
-        ),
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

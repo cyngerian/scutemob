@@ -272,19 +272,22 @@ fn the_marker_detector_is_not_vacuous() {
     // against `all_cards()`, not estimated). This is a genuine headline-number
     // decrease from authoring work, not detector drift -- lower the floor with the
     // same 9-count margin the previous threshold kept, rather than papering over it.
-    // PB-OS11 (2026-07-19, final PB-OS batch): threshold lowered 672 -> 662. Three
-    // defs flipped partial/known_wrong -> Complete this batch
-    // (general_kreat_the_boltbringer, hermes_overseer_of_elpis: partial ->
-    // Complete; anim_pakal_thousandth_moon: known_wrong -> Complete), all via the
-    // new TriggerCondition::WheneverYouAttack{filter} batch-filtered-attack
-    // primitive. The corpus's non-Complete count had already drifted down from 681
-    // (intervening OS4-OS10 batches lowered it without needing to touch this
+    // PB-OS11 (2026-07-19, final PB-OS batch): threshold lowered 672 -> 662. Five
+    // defs flipped partial/known_wrong -> Complete this batch: three via the new
+    // TriggerCondition::WheneverYouAttack{filter} batch-filtered-attack primitive
+    // (general_kreat_the_boltbringer, hermes_overseer_of_elpis: partial -> Complete;
+    // anim_pakal_thousandth_moon: known_wrong -> Complete), plus two backfill flips
+    // via the Cost::RemoveCounter mana-ability lowering (gemstone_array,
+    // druids_repository: known_wrong -> Complete — their plain any-color mana ability
+    // now resolves the chosen colour on the lowered TapForMana path, same as
+    // birds_of_paradise). The corpus's non-Complete count had already drifted down
+    // from 681 (intervening OS4-OS10 batches lowered it without needing to touch this
     // floor, since the assert is a lower bound) to 674 before this batch, and now
-    // to 671 (verified via a direct grep of MARKER_FRAGMENTS across
-    // crates/card-defs/src/defs/*.rs). Same 9-count margin convention as before.
+    // to 669 (verified via a direct grep of MARKER_FRAGMENTS across
+    // crates/card-defs/src/defs/*.rs). Same margin convention as before.
     assert!(
         marked >= 662,
-        "marker detector matched only {marked} files; the corpus has 671 non-Complete defs. \
+        "marker detector matched only {marked} files; the corpus has 669 non-Complete defs. \
          MARKER_FRAGMENTS is broken and the gate would spuriously flag marked defs"
     );
 }

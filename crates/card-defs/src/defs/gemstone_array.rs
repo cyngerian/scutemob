@@ -34,9 +34,10 @@ pub fn card() -> CardDefinition {
                 once_per_turn: false,
                 modes: None,
             },
-            // CR 602.2: Remove a charge counter: Add one mana of any color.
-            // Note: Technically a mana ability (CR 605.1) but implemented as regular
-            // activated ability for this batch. Mana-ability classification deferred to PB-37.
+            // CR 605.1a: Remove a charge counter: Add one mana of any color. A mana
+            // ability (no target, could add mana, not loyalty) — PB-OS11 lowers the
+            // Cost::RemoveCounter self-cost to a true mana ability, and the any-color
+            // effect resolves to the chosen color via Command::TapForMana.chosen_color.
             AbilityDefinition::Activated {
                 cost: Cost::RemoveCounter {
                     counter: CounterType::Charge,
@@ -53,13 +54,7 @@ pub fn card() -> CardDefinition {
                 modes: None,
             },
         ],
-        completeness: Completeness::known_wrong(
-            "CR 106.1b: 'Remove a charge counter: Add one mana of any color' adds one COLORLESS \
-             mana (probed with 5 charge counters: +1 colorless). Same Cost::RemoveCounter \
-             lowering blocker and same unexercised requires_tap: false path as Druids' \
-             Repository. The '{2}: Put a charge counter' ability is correct. The color bug is the \
-             reason for known_wrong rather than partial.",
-        ),
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }
