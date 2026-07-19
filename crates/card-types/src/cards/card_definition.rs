@@ -2106,53 +2106,6 @@ pub enum Effect {
     /// the Mirror Breaker, then return it to the battlefield transformed under
     /// its owner's control").
     ExileSourceAndReturnTransformed,
-    /// CR 400.7 / 603.7 / PB-OS4 (OOS-EF5-3): Register a delayed triggered
-    /// ability that returns the resolving ability's own source (`ctx.source` —
-    /// typically a graveyard object, from a WhenDies trigger) to the
-    /// battlefield **already transformed**, under its owner's control, at the
-    /// beginning of the next end step.
-    ///
-    /// Unlike `TransformSelf`, this is the "leaves and comes back as a new
-    /// object" mechanism (CR 400.7): the returned permanent is a new `ObjectId`
-    /// with back-face characteristics; counters/Auras do not carry over.
-    ///
-    /// CR 603.7: the delayed trigger fires at the beginning of the next end
-    /// step (any player's), goes on the stack, and can be responded to. CR
-    /// ruling: if the source isn't a double-faced card, it stays in the
-    /// graveyard — it does not return.
-    ///
-    /// No roster card in PB-OS4 uses this exact timing (Edgar, Charmed Groom's
-    /// real oracle text turned out to return **immediately** on the WhenDies
-    /// trigger, not at the next end step — see
-    /// `ReturnSourceToBattlefieldTransformed` below), but the primitive is a
-    /// real, distinct CR 603.7 timing mode and is exercised directly by unit
-    /// tests.
-    ReturnSourceToBattlefieldTransformedNextEndStep,
-    /// CR 400.7 / 712.18 / PB-OS4 (OOS-EF5-3): Return the resolving ability's
-    /// own source (`ctx.source` — already off the battlefield, e.g. a graveyard
-    /// object from a WhenDies trigger) to the battlefield **already
-    /// transformed**, under its owner's control. **Immediate, no exile step.**
-    ///
-    /// Distinct from both `ExileSourceAndReturnTransformed` (which exiles a
-    /// still-on-battlefield source as a cost before returning it — Saga
-    /// chapters, activated abilities) and
-    /// `ReturnSourceToBattlefieldTransformedNextEndStep` (which delays to the
-    /// next end step). This variant is for a source that has *already* left
-    /// the battlefield through some other event (typically death) and returns
-    /// on the very same trigger resolution — the same shape as Persist/Undying's
-    /// `Effect::MoveZone { target: EffectTarget::Source, to: Battlefield }`,
-    /// except the returned object also flips to its back face (CR 712.18) and
-    /// is, per CR 400.7, a new object (counters/Auras do not carry over).
-    ///
-    /// CR ruling: if the source isn't a double-faced card, it stays wherever it
-    /// currently is — it does not return.
-    ///
-    /// Used by Edgar, Charmed Groom's "When Edgar, Charmed Groom dies, return it
-    /// to the battlefield transformed under its owner's control." (No "at the
-    /// beginning of the next end step" clause — added here as a genuine PB-OS4
-    /// deviation from the plan's reconstruction, confirmed against
-    /// `cards.sqlite` oracle text at authoring time.)
-    ReturnSourceToBattlefieldTransformed,
     /// CR 701.14a: Two creatures fight each other. Each deals damage equal to
     /// its power to the other creature simultaneously.
     ///

@@ -366,7 +366,7 @@ fn test_pb_ts_counter_count_from_live_source() {
 fn test_pb_ts_hash_schema_version_and_token_spec_hash_determinism() {
     // (e-1) Schema-version sentinel.
     assert_eq!(
-        HASH_SCHEMA_VERSION, 57u8,
+        HASH_SCHEMA_VERSION, 56u8,
         "HASH_SCHEMA_VERSION drifted without this sentinel being updated. Bump this assertion and the state/hash.rs history block together; the authoritative check is the SR-17 machine gate in tests/core/hash_schema.rs."
     );
 

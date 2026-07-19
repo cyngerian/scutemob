@@ -493,28 +493,15 @@
 ///   => 19u8.hash_into(hasher)`, discriminant 19 after `TargetOpponent`=18.
 ///   `decl_fingerprint` MOVES (the enum's declared shape changed — a new variant);
 ///   `stream_fingerprint` moves per the v40 mechanism (a new `HashInto` arm).
-/// - 56: PB-OS4 (2026-07-19) — `Effect` gains two new unit variants,
-///   `ExileSourceAndReturnTransformed` (discriminant 94) and
-///   `ReturnSourceToBattlefieldTransformedNextEndStep` (discriminant 95) (CR 400.7 /
-///   712.18 / 603.7 — return-transformed as a NEW object, distinct from
-///   `TransformSelf`'s in-place flip; OOS-EF5-3). `DelayedTriggerAction` gains a new
-///   unit variant `ReturnFromGraveyardToBattlefieldTransformed` (local discriminant 5
-///   at all four `DelayedTriggerAction` hash sites). Fed to `HashInto` as
-///   `Effect::ExileSourceAndReturnTransformed => 94u8.hash_into(hasher)`,
-///   `Effect::ReturnSourceToBattlefieldTransformedNextEndStep => 95u8.hash_into(hasher)`,
-///   and `DelayedTriggerAction::ReturnFromGraveyardToBattlefieldTransformed =>
-///   5u8.hash_into(hasher)`. `decl_fingerprint` MOVES (two enums' declared shapes
-///   changed); `stream_fingerprint` moves per the v40 mechanism.
-/// - 57: PB-OS4 COMMIT 2 (2026-07-19) — `Effect` gains a third unit variant,
-///   `ReturnSourceToBattlefieldTransformed` (discriminant 96, CR 400.7 / 712.18 —
-///   an immediate, no-exile return-transformed for a source that already left the
-///   battlefield via a prior event; discovered when Edgar, Charmed Groom's real
-///   oracle text turned out to return immediately rather than at the next end
-///   step, a genuine divergence from the plan's reconstruction). Fed to `HashInto`
-///   as `Effect::ReturnSourceToBattlefieldTransformed => 96u8.hash_into(hasher)`.
+/// - 56: PB-OS4 (2026-07-19, SHIP NARROWED) — `Effect` gains one new unit variant,
+///   `ExileSourceAndReturnTransformed` (discriminant 94, CR 400.7 / 712.18 — exile
+///   the resolving ability's own source, then return it to the battlefield already
+///   transformed as a NEW object, distinct from `TransformSelf`'s in-place flip;
+///   OOS-EF5-3; used by Fable of the Mirror Breaker's Saga chapter III). Fed to
+///   `HashInto` as `Effect::ExileSourceAndReturnTransformed => 94u8.hash_into(hasher)`.
 ///   `decl_fingerprint` MOVES (the enum's declared shape changed); `stream_fingerprint`
 ///   moves per the v40 mechanism.
-pub const HASH_SCHEMA_VERSION: u8 = 57;
+pub const HASH_SCHEMA_VERSION: u8 = 56;
 
 /// One `(version, fingerprints)` row of the append-only hash-schema history.
 ///
@@ -743,21 +730,12 @@ pub const HASH_SCHEMA_HISTORY: &[HashSchemaEpoch] = &[
     },
     HashSchemaEpoch {
         version: 56,
-        // PB-OS4 (2026-07-19): Effect gained ExileSourceAndReturnTransformed and
-        // ReturnSourceToBattlefieldTransformedNextEndStep; DelayedTriggerAction
-        // gained ReturnFromGraveyardToBattlefieldTransformed (see the `- 56:` History
-        // line above). decl_fingerprint moves (two enums' declared shapes changed);
-        // stream_fingerprint moves per the v40 mechanism.
-        decl_fingerprint: "d8752059bb71f8c104ab76caf4995055dd9bdd2e8fe5c298e79cb3dbecaa2b98",
+        // PB-OS4 (2026-07-19, SHIP NARROWED): Effect gained
+        // ExileSourceAndReturnTransformed (see the `- 56:` History line above).
+        // decl_fingerprint moves (genuine enum-shape change); stream_fingerprint
+        // moves per the v40 mechanism.
+        decl_fingerprint: "0be185c35eabf8e0824ae97b33ca4c86a941b5c81f3b2cd87fd2766aa1b288f4",
         stream_fingerprint: "46da56438f4951cb7b3eb76ed35fa966ffa738b6449eb611459c77359ba455ee",
-    },
-    HashSchemaEpoch {
-        version: 57,
-        // PB-OS4 COMMIT 2 (2026-07-19): Effect gained ReturnSourceToBattlefieldTransformed
-        // (see the `- 57:` History line above). decl_fingerprint moves (genuine
-        // enum-shape change); stream_fingerprint moves per the v40 mechanism.
-        decl_fingerprint: "199dca883307310b269f108836b3631c87ed75197ed3c67e93bc16a8c5097147",
-        stream_fingerprint: "31bfd0ed5d7d5d3bf64c1c5bb83b919849d5dd2908c3cd1d223ee73d4bfa62dc",
     },
 ];
 
@@ -2342,9 +2320,6 @@ impl HashInto for DelayedTrigger {
             crate::state::stubs::DelayedTriggerAction::ExileObject => {
                 4u8.hash_into(hasher);
             }
-            crate::state::stubs::DelayedTriggerAction::ReturnFromGraveyardToBattlefieldTransformed => {
-                5u8.hash_into(hasher);
-            }
         }
         // Hash timing discriminant
         match &self.timing {
@@ -3406,9 +3381,6 @@ impl HashInto for TriggerData {
                     crate::state::stubs::DelayedTriggerAction::ExileObject => {
                         4u8.hash_into(hasher);
                     }
-                    crate::state::stubs::DelayedTriggerAction::ReturnFromGraveyardToBattlefieldTransformed => {
-                        5u8.hash_into(hasher);
-                    }
                 }
             }
         }
@@ -3732,9 +3704,6 @@ impl HashInto for StackObjectKind {
                     }
                     crate::state::stubs::DelayedTriggerAction::ExileObject => {
                         4u8.hash_into(hasher);
-                    }
-                    crate::state::stubs::DelayedTriggerAction::ReturnFromGraveyardToBattlefieldTransformed => {
-                        5u8.hash_into(hasher);
                     }
                 }
             }
@@ -6562,9 +6531,6 @@ impl HashInto for Effect {
                             crate::state::stubs::DelayedTriggerAction::ExileObject => {
                                 4u8.hash_into(hasher)
                             }
-                            crate::state::stubs::DelayedTriggerAction::ReturnFromGraveyardToBattlefieldTransformed => {
-                                5u8.hash_into(hasher)
-                            }
                         }
                     }
                 }
@@ -6787,17 +6753,9 @@ impl HashInto for Effect {
             }
             // PB-EF5: TransformSelf (discriminant 93) — CR 701.27a/f, 712.18.
             Effect::TransformSelf => 93u8.hash_into(hasher),
-            // PB-OS4 (OOS-EF5-3): ExileSourceAndReturnTransformed (discriminant 94) —
-            // CR 400.7 / 712.18.
+            // PB-OS4 (OOS-EF5-3, SHIP NARROWED): ExileSourceAndReturnTransformed
+            // (discriminant 94) — CR 400.7 / 712.18.
             Effect::ExileSourceAndReturnTransformed => 94u8.hash_into(hasher),
-            // PB-OS4 (OOS-EF5-3): ReturnSourceToBattlefieldTransformedNextEndStep
-            // (discriminant 95) — CR 400.7 / 603.7.
-            Effect::ReturnSourceToBattlefieldTransformedNextEndStep => 95u8.hash_into(hasher),
-            // PB-OS4 (OOS-EF5-3): ReturnSourceToBattlefieldTransformed (discriminant
-            // 96) — CR 400.7 / 712.18. Added when Edgar, Charmed Groom's real oracle
-            // text turned out to return immediately (no delay), a third timing mode
-            // beyond the plan's two.
-            Effect::ReturnSourceToBattlefieldTransformed => 96u8.hash_into(hasher),
         }
     }
 }

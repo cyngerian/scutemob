@@ -11,12 +11,20 @@
 //   creature you control, except it has haste. Sacrifice it at the beginning
 //   of the next end step.
 //
-// PB-OS4 (OOS-EF5-3): chapter III is the primitive this PB adds — exiling the
-// Saga then returning it transformed is CR 400.7 / 712.18 (a NEW object
-// entering the battlefield already showing the Reflection of Kiki-Jiki face),
-// wired here via `Effect::ExileSourceAndReturnTransformed`. Chapter III itself
-// is fully expressible and tested; the card as a whole is `partial` because of
-// two residuals unrelated to PB-OS4's primitive (see below).
+// PB-OS4 (OOS-EF5-3, SHIP NARROWED): chapter III is the primitive this PB adds —
+// exiling the Saga then returning it transformed is CR 400.7 / 712.18 (a NEW
+// object entering the battlefield already showing the Reflection of Kiki-Jiki
+// face), wired here via `Effect::ExileSourceAndReturnTransformed`. Chapter III
+// itself is fully expressible and tested; the card as a whole is `partial`
+// because of THREE residuals (see below), none of which is this PB's
+// primitive: (a) chapter I's token-attached triggered ability, (b) chapter
+// II's bounded discard-then-draw (no DSL primitive), and (c) the back face's
+// Reflection of Kiki-Jiki activated ability, which is NOT merely
+// mis-filtered but entirely non-functional -- the engine's return-transformed
+// path never gathers a transformed permanent's back-face activated/triggered
+// abilities at all (OOS-OS4-2, a general transform-machinery gap found in
+// review; front Saga chapter abilities are Triggered, not Static/ETB, so
+// nothing wrongly re-registers on the returned Reflection either way).
 use crate::cards::helpers::*;
 
 fn goblin_shaman_token() -> TokenSpec {
@@ -156,16 +164,22 @@ pub fn card() -> CardDefinition {
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
         completeness: Completeness::partial(
-            "chapter I's Goblin Shaman token is created with correct P/T/color/subtypes but \
-             without its own \"whenever this token attacks, create a Treasure token\" ability -- \
-             TokenSpec has no field for a triggered ability attached to a created token. Chapter \
-             II (\"You may discard up to two cards. If you do, draw that many cards.\") is \
-             Effect::Nothing -- no DSL primitive for a bounded optional discard whose count \
-             drives a matching draw (DiscardCards has no player-choice bound; WheelHand only \
-             disposes of the whole hand). Chapter III (the PB-OS4 primitive this card exists to \
-             exercise -- Effect::ExileSourceAndReturnTransformed, CR 400.7/712.18) IS fully wired \
-             and correct. The back face's activated ability also inherits Kiki-Jiki, Mirror \
-             Breaker's known-wrong gap (TargetFilter has no \"nonlegendary\" exclusion).",
+            "Three real blockers, all genuinely inexpressible/non-functional today (none is the \
+             PB-OS4 primitive, which IS fully wired and correct): (a) chapter I's Goblin Shaman \
+             token is created with correct P/T/color/subtypes but without its own \"whenever this \
+             token attacks, create a Treasure token\" ability -- TokenSpec has no field for a \
+             triggered ability attached to a created token. (b) Chapter II (\"You may discard up \
+             to two cards. If you do, draw that many cards.\") is Effect::Nothing -- no DSL \
+             primitive for a bounded optional discard whose count drives a matching draw \
+             (DiscardCards has no player-choice bound; WheelHand only disposes of the whole hand). \
+             (c) Chapter III (Effect::ExileSourceAndReturnTransformed, CR 400.7/712.18) IS fully \
+             wired and correct, but the back face's Reflection of Kiki-Jiki activated ability it \
+             returns as is NOT FUNCTIONAL: the engine's return-transformed path registers/queues \
+             abilities from the card's FRONT face only, and never gathers a transformed \
+             permanent's back-face activated/triggered/static abilities at all (OOS-OS4-2, a \
+             general transform-machinery gap, not a mere TargetFilter mis-filter). Front Saga \
+             chapter abilities are Triggered, not Static/ETB, so nothing wrongly re-registers on \
+             the returned Reflection -- the residual is inertness, not wrong game state.",
         ),
     }
 }
