@@ -63,4 +63,5 @@ it; check w-pb2/pb-plan-EF10); update PB-OS2 entry in the retriage plan §3.
 - [x] 6. Review — primitive-impl-reviewer → pb-review-OS2.md; CLEAN BILL, zero HIGH/MEDIUM/LOW, 2 informational NITs (no fix). No fix phase needed.
 - [x] 7. Green gates: build/test/clippy/fmt + check-defs-fmt — `cargo build --workspace` clean; `cargo test --all` all-green (0 failed, incl. `core::card_defs_fmt`); `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --check` clean; `tools/check-defs-fmt.sh` clean (1798 defs). PROTOCOL/HASH sentinel tests (`core::protocol_schema`, `core::hash_schema`, 38 tests) all pass untouched — no version bump. TODO sweep on disciple_of_freyalise.rs: 0 remaining.
 - [x] 8a. Close EF-EF1-A in source docs + plan — DONE (commit 2b73c58e): CLOSED banner on canonical finding (ef-batch-plan-2026-07-17.md §5), closed note in w-empty-engine-findings, SHIPPED banner + table strike in oos-retriage-plan §3. Source code already carried the closed note (effects/mod.rs, disciple).
-- [ ] 8b. /review; Completion Sequence
+- [x] 8b. /review — PASSED (Opus reviewer): all 4 ACs PASS, zero issues, ready to merge. Only a pre-existing harmless nit (stale comment in EF10 version-sentinel test, correctly asserts 18/55; out of scope). Completion Sequence next.
+phase: DONE (pending signal-ready)
