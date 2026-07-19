@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-07-19 10:45 UTC  
-**Git:** `dcef1775` on `main`  
+**Generated:** 2026-07-19 14:41 UTC  
+**Git:** `bd220b00` on `main`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -19,25 +19,25 @@ and what is intentionally NOT in it.**
 
 | Metric | Count | Δ since last run |
 | --- | ---: | ---: |
-| Card def files on disk | 1,803 | · |
+| Card def files on disk | 1,804 | +1 |
 | Authoring-plan target universe (snapshot 2026-03-10) | 1,636 | · |
 | Plan cards with a def file (any-face match) | 1,501 | · |
 | Plan cards still missing a def file | 135 | · |
-| Bonus defs (on disk, outside plan) | 321 | · |
-| Effective coverage vs plan target | **111%** (1,822 / 1,636) | — |
-| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 62.6% | 1,129 | +1 |
-| With TODO markers | 522 | -1 |
+| Bonus defs (on disk, outside plan) | 322 | +1 |
+| Effective coverage vs plan target | **111%** (1,823 / 1,636) | — |
+| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 62.9% | 1,135 | +6 |
+| With TODO markers | 517 | -5 |
 | Empty `abilities: vec![]` placeholders | 152 | · |
-| Total TODO lines across all defs | 953 | · |
+| Total TODO lines across all defs | 949 | -4 |
 
 ## Authoring activity (git, by window)
 
 | Window | New files added | Existing files modified |
 | --- | ---: | ---: |
-| last 7 days | 56 | 1,768 |
-| last 30 days | 56 | 2,942 |
-| last 90 days | 56 | 2,978 |
-| last 1 year | 1,829 | 3,365 |
+| last 7 days | 57 | 1,769 |
+| last 30 days | 57 | 2,943 |
+| last 90 days | 57 | 2,979 |
+| last 1 year | 1,830 | 3,366 |
 
 ## Bonus defs outside the plan
 
@@ -52,11 +52,11 @@ reference cards, or sample cards shipped alongside primitive batches.
 | `W1-B* (ability batches)` | 90 |
 | `W6-cards` | 45 |
 | `W5-cards` | 36 |
-| `W6-prim` | 17 |
+| `W6-prim` | 18 |
 | `chore` | 11 |
 | `W1-Morph` | 3 |
 
-**By month added:** 2026-02: 137, 2026-03: 173, 2026-04: 11
+**By month added:** 2026-02: 137, 2026-03: 173, 2026-04: 11, 2026-07: 1
 
 ## Coverage by authoring-plan group
 
@@ -68,7 +68,7 @@ are blocked on engine primitives.
 | --- | ---: | ---: | ---: | ---: | ---: |
 | `combat-keyword` | 187 / 187 | 100% | 88 | 84 | 15 |
 | `draw` | 164 / 169 | 97% | 78 | 69 | 17 |
-| `token-create` | 148 / 155 | 95% | 82 | 50 | 16 |
+| `token-create` | 148 / 155 | 95% | 83 | 49 | 16 |
 | `land-etb-tapped` | 138 / 138 | 100% | 116 | 22 | 0 |
 | `other` | 108 / 131 | 82% | 70 | 31 | 7 |
 | `modal-choice` | 73 / 105 | 70% | 37 | 24 | 12 |
@@ -87,7 +87,7 @@ are blocked on engine primitives.
 | `activated-sacrifice` | 8 / 19 | 42% | 6 | 1 | 1 |
 | `mana-creature` | 19 / 19 | 100% | 14 | 5 | 0 |
 | `graveyard-recursion` | 18 / 18 | 100% | 8 | 6 | 4 |
-| `removal-damage-each` | 17 / 17 | 100% | 11 | 5 | 1 |
+| `removal-damage-each` | 17 / 17 | 100% | 12 | 4 | 1 |
 | `counter` | 16 / 16 | 100% | 8 | 5 | 3 |
 | `removal-exile` | 14 / 14 | 100% | 5 | 5 | 4 |
 | `untap-phase` | 6 / 13 | 46% | 5 | 0 | 1 |
@@ -98,7 +98,7 @@ are blocked on engine primitives.
 | `removal-bounce` | 10 / 10 | 100% | 6 | 3 | 1 |
 | `static-enchantment` | 1 / 8 | 12% | 1 | 0 | 0 |
 | `discard-effect` | 4 / 7 | 57% | 4 | 0 | 0 |
-| `scry-surveil` | 7 / 7 | 100% | 3 | 4 | 0 |
+| `scry-surveil` | 7 / 7 | 100% | 4 | 3 | 0 |
 | `aura` | 6 / 6 | 100% | 3 | 2 | 1 |
 | `etb-trigger` | 6 / 6 | 100% | 1 | 4 | 1 |
 | `lifedrain` | 6 / 6 | 100% | 3 | 1 | 2 |
@@ -171,9 +171,9 @@ the next thing to triage when the classifier table is grown.
 
 | Gap bucket | TODO lines | Δ since last run |
 | --- | ---: | ---: |
-| OTHER (unclassified) | 583 | · |
+| OTHER (unclassified) | 582 | -1 |
 | DSL gap (unspecified) | 120 | · |
-| attack trigger (self / generic) | 26 | · |
+| attack trigger (self / generic) | 23 | -3 |
 | TriggerCondition::* missing variant | 17 | · |
 | dynamic hexproof / protection | 17 | · |
 | replacement effect missing | 14 | · |
@@ -201,23 +201,23 @@ _…and 27 more buckets totaling 47 lines._
 
 ### Raw OTHER samples (read these to design new classifier buckets)
 
-Showing 12 of 583 
+Showing 12 of 582 
 unclassified TODO lines. If two or three of these have a common theme, that's a 
 new bucket to add to `TODO_BUCKETS` in `tools/authoring-report.py`. Sample is 
 deterministic (sorted by slug).
 
 ```
 abstergo_entertainment: // TODO: {3}, {T}, Exile Abstergo Entertainment: Return up to one target historic card
-blood_tribute: // TODO: "if kicked, gain life equal to life lost" needs conditional.
-deadly_tempest: // TODO: The "each player loses life equal to creatures they controlled" requires
-experimental_augury: // TODO: Interactive top-3 selection deferred to M10.
-go_for_the_throat: // TODO: "nonartifact creature" — no exclude_card_types on TargetFilter.
-jeskas_will: // TODO: Mode 1 needs mana-scaled-by-opponent-hand-count.
-marionette_apprentice: // ENGINE-BLOCKED: "Whenever another creature or artifact you control dies" — there is no
+bloodchief_ascension: // TODO: Both abilities are complex — end-step conditional counter placement needs
+deep_gnome_terramancer: // TODO: "lands enter under opponent's control without being played" trigger condition
+exuberant_fuseling: // TODO: "whenever another creature or artifact you control is put into a graveyard
+goblin_king: // TODO: AllCreaturesWithSubtype includes Goblin King itself — "other" semantics
+jeskas_will: // TODO: Mode 2 needs impulse-draw (exile top 3, play this turn).
+marionette_apprentice: // ENGINE-BLOCKED: "Whenever another creature or artifact you control is put into
 out_of_the_tombs: // TODO: Upkeep counter + mill scaling with counter count not expressible.
-ruthless_technomancer: // ENGINE-BLOCKED: see module comment -- ETB optional-sacrifice-for-Treasure
+ruthless_winnower: // TODO: "non-Elf creature" filter — SacrificePermanents has no subtype exclusion.
 sorin_imperious_bloodlord: // TODO: "If it's a Vampire, put a +1/+1 counter on it" — requires
-teferi_temporal_archmage: // TODO: Emblem creation for "activate loyalty at instant speed" not in DSL.
+teferis_protection: // TODO: "All permanents you control phase out" — Effect::PhaseOut for all controller permanents.
 tyvar_jubilant_brawler: // TODO: static — creatures you control can activate abilities as though they had haste
 ```
 
@@ -235,6 +235,8 @@ tyvar_jubilant_brawler: // TODO: static — creatures you control can activate a
 ## Recent card-touching commits
 
 ```
+e29dd99f W6-prim: PB-OS11 review-fix — flip gemstone_array + druids_repository known_wrong→Complete
+69768559 W6-prim: PB-OS11 — final PB-OS batch: RemoveCounter mana-ability lowering + batch filtered-attack trigger
 d876d19b W6-prim: PB-OS10 — inter-target distinctness + Jitte any-recipient combat trigger
 63335b8d W6-prim: PB-OS9 — Condition::YouControlYourCommander (OOS-EF3b-1); PROTOCOL 24 / HASH 61
 63148132 W6-prim: PB-OS8 — Effect::LookAtTopThenPlace + TargetFilter.min_cmc_amount (OOS-EF10-1 + OS6-deferred-(d))
@@ -258,8 +260,6 @@ ad9755ff scutemob-111: PB-EF10 COMMIT 1 — SacrificedCreatureLki data-model mig
 eba28604 scutemob-110: PB-EF9 — EffectDuration::WhileYouControlSource (EF-W-PB2-5)
 a7ae66ce scutemob-109: PB-EF8 /review LOW — elvish_spirit_guide oracle_text card→creature
 3a5f1678 scutemob-109: PB-EF8 — Cost::ExileSelfFromHand (activation from hand)
-1574aa17 scutemob-108: PB-EF7 review fixes — LKI discriminator + validation-branch tests
-bd43762b scutemob-108: PB-EF7 card fixes — Goblin Cratermaker + Cankerbloom to Complete
 ```
 
 ## Missing card-defs sidecar

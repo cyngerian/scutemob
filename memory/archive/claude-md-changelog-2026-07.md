@@ -525,3 +525,24 @@ once-per-source per combat step). **umezawas_jitte `known_wrong`→Complete** (t
 `known_wrong` — a SURVIVING second blocker (tap-or-untap "may" optionality; distinctness now
 enforced+pinned for when it clears). Single PROTOCOL 24→**25** / HASH 61→**62**. Review LOW-only,
 dispositioned; 16 tests. Coverage **1,129/1,803 = 62.6%**. Next: PB-OS11 — closes the queue.
+
+## 2026-07-19 — PB-OS11 collected (`scutemob-141`, merge `bd220b00`) — THE PB-OS QUEUE IS COMPLETE
+
+Final batch. **Both seed premises verified stale against oracle and honestly reframed before
+building** (feedback_verify_full_chain at its best): OOS-LKI-3's filed "sacrifice for X=counters"
+is not modern Workhorse — it is `Cost::RemoveCounter` needing mana-ability LOWERING
+(`ManaAbility.remove_counter`); OOS-TS-1's exclude_subtypes already existed — the real gap was
+`WheneverYouAttack { filter }` (once-per-batch filtered attack trigger). **6 flips**: workhorse
+(new), anim_pakal_thousandth_moon, general_kreat_the_boltbringer, hermes_overseer_of_elpis
+(TODO-sweep adds), gemstone_array + druids_repository (RemoveCounter backfills) — beat the ~2
+estimate. PROTOCOL 25→**26** / HASH 62→**63**. 19 execution-based tests; review MEDIUM fixed,
+both reviews clean. Coverage **1,135/1,804 = 62.9%**.
+
+**QUEUE TOTALS (PB-OS1..OS11 + OS4b, `scutemob-115`..`141`, ~26h)**: 12 PBs + 1 triage +
+DOC/DOCB interludes; coverage 62.1% → **62.9%** (+18 clean flips + 4 Complete-but-wrong made
+right: sarkhan_vol/zealous_conscripts control reversion, docent/bloodline face-aware);
+known_wrong closed: swan-song-class integrity holds — forbidden_orchard, umezawas_jitte,
+delver; PROTOCOL 18→**26**, HASH 55→**63** (all machine-forced, every bump justified);
+tests 3476 → **3560+**; 8 rider seeds filed for the next triage; 2 seed premises falsified-
+and-reframed, 1 falsification branch exercised (Hidden Strings distinctness confirmed real).
+Every worker review clean or fixed; zero forced flips.
