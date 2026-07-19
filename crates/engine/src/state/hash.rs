@@ -505,7 +505,16 @@
 ///   and `DelayedTriggerAction::ReturnFromGraveyardToBattlefieldTransformed =>
 ///   5u8.hash_into(hasher)`. `decl_fingerprint` MOVES (two enums' declared shapes
 ///   changed); `stream_fingerprint` moves per the v40 mechanism.
-pub const HASH_SCHEMA_VERSION: u8 = 56;
+/// - 57: PB-OS4 COMMIT 2 (2026-07-19) — `Effect` gains a third unit variant,
+///   `ReturnSourceToBattlefieldTransformed` (discriminant 96, CR 400.7 / 712.18 —
+///   an immediate, no-exile return-transformed for a source that already left the
+///   battlefield via a prior event; discovered when Edgar, Charmed Groom's real
+///   oracle text turned out to return immediately rather than at the next end
+///   step, a genuine divergence from the plan's reconstruction). Fed to `HashInto`
+///   as `Effect::ReturnSourceToBattlefieldTransformed => 96u8.hash_into(hasher)`.
+///   `decl_fingerprint` MOVES (the enum's declared shape changed); `stream_fingerprint`
+///   moves per the v40 mechanism.
+pub const HASH_SCHEMA_VERSION: u8 = 57;
 
 /// One `(version, fingerprints)` row of the append-only hash-schema history.
 ///
@@ -741,6 +750,14 @@ pub const HASH_SCHEMA_HISTORY: &[HashSchemaEpoch] = &[
         // stream_fingerprint moves per the v40 mechanism.
         decl_fingerprint: "d8752059bb71f8c104ab76caf4995055dd9bdd2e8fe5c298e79cb3dbecaa2b98",
         stream_fingerprint: "46da56438f4951cb7b3eb76ed35fa966ffa738b6449eb611459c77359ba455ee",
+    },
+    HashSchemaEpoch {
+        version: 57,
+        // PB-OS4 COMMIT 2 (2026-07-19): Effect gained ReturnSourceToBattlefieldTransformed
+        // (see the `- 57:` History line above). decl_fingerprint moves (genuine
+        // enum-shape change); stream_fingerprint moves per the v40 mechanism.
+        decl_fingerprint: "199dca883307310b269f108836b3631c87ed75197ed3c67e93bc16a8c5097147",
+        stream_fingerprint: "31bfd0ed5d7d5d3bf64c1c5bb83b919849d5dd2908c3cd1d223ee73d4bfa62dc",
     },
 ];
 
@@ -6778,6 +6795,11 @@ impl HashInto for Effect {
             Effect::ReturnSourceToBattlefieldTransformedNextEndStep => {
                 95u8.hash_into(hasher)
             }
+            // PB-OS4 (OOS-EF5-3): ReturnSourceToBattlefieldTransformed (discriminant
+            // 96) — CR 400.7 / 712.18. Added when Edgar, Charmed Groom's real oracle
+            // text turned out to return immediately (no delay), a third timing mode
+            // beyond the plan's two.
+            Effect::ReturnSourceToBattlefieldTransformed => 96u8.hash_into(hasher),
         }
     }
 }

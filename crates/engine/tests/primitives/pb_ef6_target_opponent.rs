@@ -277,7 +277,7 @@ fn test_target_opponent_hashes_distinctly() {
     use mtg_engine::state::hash::HashInto;
 
     assert_eq!(
-        HASH_SCHEMA_VERSION, 56u8,
+        HASH_SCHEMA_VERSION, 57u8,
         "HASH_SCHEMA_VERSION drifted without this sentinel being updated. Bump this \
          assertion and the state/hash.rs history block together; the authoritative \
          check is the SR-17 machine gate in tests/core/hash_schema.rs."

@@ -174,7 +174,15 @@ use crate::state::hash::HASH_SCHEMA_VERSION;
 ///   a permanent that leaves and returns to the battlefield already transformed is
 ///   a NEW object, unlike `TransformSelf`'s in-place flip; OOS-EF5-3). The closure's
 ///   type count is unchanged; `Effect`'s declared shape moved, so the digest moves.
-pub const PROTOCOL_VERSION: u32 = 19;
+/// - 20: PB-OS4 COMMIT 2 (2026-07-19) — `Effect` (already in the closure) gains a
+///   third unit variant, `ReturnSourceToBattlefieldTransformed` (CR 400.7 / 712.18
+///   — an immediate, no-exile return-transformed for a source that already left
+///   the battlefield via a prior event, e.g. death; discovered when Edgar, Charmed
+///   Groom's real oracle text turned out to return immediately rather than at the
+///   next end step, a genuine divergence from the plan's reconstruction, confirmed
+///   against `cards.sqlite`). The closure's type count is unchanged; `Effect`'s
+///   declared shape moved, so the digest moves.
+pub const PROTOCOL_VERSION: u32 = 20;
 
 /// Digest of the serialized shape of the wire-frame type closure
 /// (`Command`, `GameEvent`, [`ReplayLog`] and everything they reach).
@@ -192,7 +200,7 @@ pub const PROTOCOL_VERSION: u32 = 19;
 /// existing `u32` *means* does not. Semantic changes still require a manual
 /// [`PROTOCOL_VERSION`] bump.
 pub const PROTOCOL_SCHEMA_FINGERPRINT: &str =
-    "1d0dc7b8d5ea44129090b873826d798e84dd7698d1b2170214b66d65d2543e05";
+    "f24363fe8d09f2458d3ff39d89faa83b256731214198739d182f5988902e88dd";
 
 /// One `(version, fingerprint)` row of the append-only protocol-schema history.
 ///
@@ -356,6 +364,12 @@ pub const PROTOCOL_HISTORY: &[ProtocolEpoch] = &[
         // ReturnSourceToBattlefieldTransformedNextEndStep (see the `- 19:` History
         // line above).
         fingerprint: "1d0dc7b8d5ea44129090b873826d798e84dd7698d1b2170214b66d65d2543e05",
+    },
+    ProtocolEpoch {
+        version: 20,
+        // PB-OS4 COMMIT 2 (2026-07-19): Effect gained ReturnSourceToBattlefieldTransformed
+        // (see the `- 20:` History line above).
+        fingerprint: "f24363fe8d09f2458d3ff39d89faa83b256731214198739d182f5988902e88dd",
     },
 ];
 
