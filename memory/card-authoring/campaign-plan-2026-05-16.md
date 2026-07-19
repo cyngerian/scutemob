@@ -75,6 +75,13 @@ def's behaviour changed, no `Complete` def moved. No HASH/PROTOCOL bump (marker-
 The PB-first + cohort-backfill rhythm below still holds; the EF batch plan is where the
 PB definitions now live.
 
+**REPOINT 2026-07-18:** the EF queue (`ef-batch-plan-2026-07-17.md`, PB-EF1..EF12 + EF-13)
+is now **COMPLETE** (`scutemob-99..114`). The active engine-primitive queue is the OOS
+retriage: **`memory/primitives/oos-retriage-plan-2026-07-18.md`** (PB-OS1..OS11 ranked;
+OS1..OS3 shipped, OS4 in flight per `scutemob-130`). Clean coverage 62.1% (1,117/1,798).
+The PB-first + cohort-backfill rhythm is unchanged — only the source of the ranked PB
+queue moved from the EF plan to the OS plan.
+
 ---
 
 ## 1. Headline split — ⚠️ SUPERSEDED by §0 (kept for the original reasoning)

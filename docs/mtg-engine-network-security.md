@@ -1,5 +1,7 @@
 # MTG Commander Rules Engine: Network Security Enhancements
 
+<!-- last_updated: 2026-07-18 -->
+
 > **DEFERRED UPGRADE PATH — not the active M10 plan.**
 >
 > M10 implements a centralized WebSocket server (see `docs/mtg-engine-roadmap.md` M10).

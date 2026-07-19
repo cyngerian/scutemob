@@ -1,5 +1,7 @@
 # Guide to the Authoring Status Report
 
+<!-- last_updated: 2026-07-18 -->
+
 This guide explains how to read `docs/authoring-status.md` and the tooling behind it.
 The report itself is auto-generated and overwritten on every run — never edit it.
 This guide IS hand-written and meant to evolve as the report does.

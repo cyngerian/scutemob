@@ -1,6 +1,12 @@
 # MTG Commander Rules Engine: Development Roadmap
 
-<!-- last_updated: 2026-03-28 -->
+<!-- last_updated: 2026-07-18 -->
+
+> **Current milestone**: this roadmap defines the milestone *sequence*, not the live
+> position. For where the project actually is, see **CLAUDE.md → Current State**
+> (as of 2026-07-18: **M9.5 DONE**, Card Authoring Campaign active). This document
+> is not updated per-milestone; treat milestone completion signals as belonging to
+> CLAUDE.md.
 
 ## Purpose of This Document
 

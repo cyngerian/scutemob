@@ -2,6 +2,15 @@
 
 <!-- last_updated: 2026-03-08 -->
 
+> **⚠️ Audit stamp stale — refresh deferred (noted 2026-07-18).** The case-level
+> statuses below were last re-audited 2026-03-08 and have **not** been re-run against the
+> current engine (the SR-1..38, EF, and PB-OS waves have all landed since). Treat the
+> per-case statuses as a March snapshot, not present-day truth. A full re-audit is a
+> heavyweight `cr-coverage-auditor` run and was intentionally **deferred out of the
+> DOCB-3 docs pass** (mirrors the `docs/mtg-engine-ability-coverage.md` stamp-and-defer) —
+> run the auditor to re-validate before relying on these tables. CLAUDE.md → Current State
+> carries the current correctness headline (0 HIGH / 2 MEDIUM / 6 LOW).
+>
 > **Living document.** Re-audit after each milestone that adds mechanics or cards.
 > Use `cr-coverage-auditor` agent for bulk re-checks.
 >

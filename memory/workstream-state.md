@@ -1,7 +1,7 @@
 # Workstream State
 
-> Coordination file for parallel sessions. Read by `/start-session`, claimed by
-> `/start-work`, released by `/end-session`. This file is the source of truth for
+> Coordination file for parallel sessions. Read by `/start`, claimed by
+> `/start-work`, released by `/eot`. This file is the source of truth for
 > which workstreams are actively being worked on.
 >
 > **Protocol**: Read before starting. Claim before coding. Release when done.

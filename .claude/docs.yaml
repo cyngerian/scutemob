@@ -97,6 +97,18 @@ templates:
     triggers: []
     frequency: session
 
+  network-security:
+    file: mtg-engine-network-security.md
+    description: Deferred P2P + Mental Poker upgrade path (not the active M10 plan)
+    triggers: []
+    frequency: session
+
+  authoring-status-guide:
+    file: authoring-status-guide.md
+    description: Hand-written guide to the generated authoring-status.md report
+    triggers: []
+    frequency: session
+
   # ================================================================
   # Living ledgers — coupled triggers; a scoped /eot nudge is desired signal.
   # ================================================================
