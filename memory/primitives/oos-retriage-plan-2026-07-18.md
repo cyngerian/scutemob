@@ -507,7 +507,7 @@ here). Fix = add the per-step card-def sweep in `begin_combat()` mirroring the u
 No wire change expected (uses existing `PendingTriggerKind::CardDefETB`). Estimated yield when
 done: ~4-6 flips. Candidate for a near-term correctness PB.
 
-### PB-OS10 — spells-only single-target-distinctness + Jitte trigger (OOS-XS-1 + OOS-EF7-1) · capability · cleanup singletons · ✅ IMPLEMENTED on branch `scutemob-140` (pending /collect merge, 2026-07-19)
+### PB-OS10 — spells-only single-target-distinctness + Jitte trigger (OOS-XS-1 + OOS-EF7-1) · capability · cleanup singletons · ✅ SHIPPED `scutemob-140` (merge `dcef1775`, 2026-07-19)
 > **Both seeds CLOSED** (real, not falsified — CR 601.2c + the "another" grammar confirms
 > distinctness for Hidden Strings; Jitte oracle "deals combat damage" = any recipient). Shipped:
 > `TargetRequirement::TargetPermanentDistinctFrom(usize)` (opt-in per slot, enforced in casting.rs)
@@ -517,7 +517,7 @@ done: ~4-6 flips. Candidate for a near-term correctness PB.
 > execution-verified counters/cost/3 modes); **hidden_strings stays `known_wrong`** (surviving
 > tap-or-untap "may" optionality blocker; distinctness now enforced+pinned). Single batched
 > PROTOCOL 24→25 / HASH 61→62. 0 HIGH/0 MEDIUM/3 LOW (dispositioned); 16 new tests. Review:
-> `pb-review-OS10.md`. Coordinator: flip this row's SHIPPED SHA at /collect.
+> `pb-review-OS10.md`. Collected `dcef1775`.
 - **Findings**: OOS-XS-1, OOS-EF7-1 (bundled — two independent 1-card cleanups, low blast radius).
 - **Fix**: OOS-XS-1 — inter-target distinctness (`TargetRequirement::TargetPermanentDistinctFrom(usize)`
   or a post-bind duplicate-rejection pass) for Hidden Strings; OOS-EF7-1 — a

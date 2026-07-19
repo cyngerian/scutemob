@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-07-19 09:49 UTC  
-**Git:** `6800d924` on `main`  
+**Generated:** 2026-07-19 10:45 UTC  
+**Git:** `dcef1775` on `main`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -25,10 +25,10 @@ and what is intentionally NOT in it.**
 | Plan cards still missing a def file | 135 | · |
 | Bonus defs (on disk, outside plan) | 321 | · |
 | Effective coverage vs plan target | **111%** (1,822 / 1,636) | — |
-| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 62.6% | 1,128 | +1 |
-| With TODO markers | 523 | -1 |
+| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 62.6% | 1,129 | +1 |
+| With TODO markers | 522 | -1 |
 | Empty `abilities: vec![]` placeholders | 152 | · |
-| Total TODO lines across all defs | 953 | -3 |
+| Total TODO lines across all defs | 953 | · |
 
 ## Authoring activity (git, by window)
 
@@ -105,7 +105,7 @@ are blocked on engine primitives.
 | `sacrifice-outlet` | 6 / 6 | 100% | 6 | 0 | 0 |
 | `lifegain` | 5 / 5 | 100% | 3 | 0 | 2 |
 | `mana-other` | 5 / 5 | 100% | 3 | 2 | 0 |
-| `removal-minus` | 4 / 4 | 100% | 2 | 1 | 1 |
+| `removal-minus` | 4 / 4 | 100% | 3 | 0 | 1 |
 | `exile-play` | 0 / 1 | 0% | 0 | 0 | 0 |
 | `protection` | 1 / 1 | 100% | 0 | 1 | 0 |
 | `x-spell` | 1 / 1 | 100% | 1 | 0 | 0 |
@@ -171,7 +171,7 @@ the next thing to triage when the classifier table is grown.
 
 | Gap bucket | TODO lines | Δ since last run |
 | --- | ---: | ---: |
-| OTHER (unclassified) | 583 | -3 |
+| OTHER (unclassified) | 583 | · |
 | DSL gap (unspecified) | 120 | · |
 | attack trigger (self / generic) | 26 | · |
 | TriggerCondition::* missing variant | 17 | · |
@@ -235,6 +235,7 @@ tyvar_jubilant_brawler: // TODO: static — creatures you control can activate a
 ## Recent card-touching commits
 
 ```
+d876d19b W6-prim: PB-OS10 — inter-target distinctness + Jitte any-recipient combat trigger
 63335b8d W6-prim: PB-OS9 — Condition::YouControlYourCommander (OOS-EF3b-1); PROTOCOL 24 / HASH 61
 63148132 W6-prim: PB-OS8 — Effect::LookAtTopThenPlace + TargetFilter.min_cmc_amount (OOS-EF10-1 + OS6-deferred-(d))
 2beaba4f W6-prim: PB-OS7 — author silumgar_the_drifting_death.rs (Complete)
@@ -259,7 +260,6 @@ a7ae66ce scutemob-109: PB-EF8 /review LOW — elvish_spirit_guide oracle_text ca
 3a5f1678 scutemob-109: PB-EF8 — Cost::ExileSelfFromHand (activation from hand)
 1574aa17 scutemob-108: PB-EF7 review fixes — LKI discriminator + validation-branch tests
 bd43762b scutemob-108: PB-EF7 card fixes — Goblin Cratermaker + Cankerbloom to Complete
-a4319e8d scutemob-108: PB-EF7 corpus-wide modes: None, on Activated ability defs (mechanical)
 ```
 
 ## Missing card-defs sidecar

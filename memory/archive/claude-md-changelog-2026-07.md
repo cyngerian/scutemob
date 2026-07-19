@@ -513,3 +513,15 @@ continuous-grant paths; grant drops on leave/steal via layer re-eval.
 CR-correct but stay partial → **OOS-OS9-1** (AtBeginningOfCombat trigger sweep gap — new
 finding). PROTOCOL 23→**24** / HASH 60→**61** (both machine-forced, stop-and-flagged).
 Review: clean. Coverage **1,128/1,803 = 62.6%**. Next: PB-OS10, then OS11 closes the queue.
+
+## 2026-07-19 — PB-OS10 collected (`scutemob-140`, merge `dcef1775`) — OOS-XS-1 + OOS-EF7-1 CLOSED
+
+Both seeds verified REAL against CR before building (falsification branch exercised and
+passed: CR 601.2c + "another" grammar confirms Hidden Strings distinctness; Jitte oracle =
+any recipient). Shipped `TargetRequirement::TargetPermanentDistinctFrom(usize)` (opt-in
+per-slot, casting.rs) + `TriggerCondition::WhenEquippedCreatureDealsCombatDamage` (deduped
+once-per-source per combat step). **umezawas_jitte `known_wrong`→Complete** (trigger + modal
+`Activated::modes` conversion, execution-verified). hidden_strings stays honestly
+`known_wrong` — a SURVIVING second blocker (tap-or-untap "may" optionality; distinctness now
+enforced+pinned for when it clears). Single PROTOCOL 24→**25** / HASH 61→**62**. Review LOW-only,
+dispositioned; 16 tests. Coverage **1,129/1,803 = 62.6%**. Next: PB-OS11 — closes the queue.
