@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-07-19 07:51 UTC  
-**Git:** `e2dd4c1f` on `main`  
+**Generated:** 2026-07-19 08:54 UTC  
+**Git:** `38246a6e` on `main`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -19,25 +19,25 @@ and what is intentionally NOT in it.**
 
 | Metric | Count | Δ since last run |
 | --- | ---: | ---: |
-| Card def files on disk | 1,803 | +1 |
+| Card def files on disk | 1,803 | · |
 | Authoring-plan target universe (snapshot 2026-03-10) | 1,636 | · |
-| Plan cards with a def file (any-face match) | 1,501 | +1 |
-| Plan cards still missing a def file | 135 | -1 |
+| Plan cards with a def file (any-face match) | 1,501 | · |
+| Plan cards still missing a def file | 135 | · |
 | Bonus defs (on disk, outside plan) | 321 | · |
 | Effective coverage vs plan target | **111%** (1,822 / 1,636) | — |
-| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 62.4% | 1,125 | +1 |
-| With TODO markers | 525 | · |
-| Empty `abilities: vec![]` placeholders | 153 | · |
-| Total TODO lines across all defs | 958 | · |
+| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 62.5% | 1,127 | +2 |
+| With TODO markers | 524 | -1 |
+| Empty `abilities: vec![]` placeholders | 152 | -1 |
+| Total TODO lines across all defs | 956 | -2 |
 
 ## Authoring activity (git, by window)
 
 | Window | New files added | Existing files modified |
 | --- | ---: | ---: |
-| last 7 days | 56 | 1,765 |
-| last 30 days | 56 | 2,939 |
-| last 90 days | 56 | 2,975 |
-| last 1 year | 1,829 | 3,362 |
+| last 7 days | 56 | 1,767 |
+| last 30 days | 56 | 2,941 |
+| last 90 days | 56 | 2,977 |
+| last 1 year | 1,829 | 3,364 |
 
 ## Bonus defs outside the plan
 
@@ -73,7 +73,7 @@ are blocked on engine primitives.
 | `other` | 108 / 131 | 82% | 70 | 31 | 7 |
 | `modal-choice` | 73 / 105 | 70% | 37 | 24 | 12 |
 | `mana-land` | 92 / 92 | 100% | 64 | 27 | 1 |
-| `body-only` | 64 / 70 | 91% | 36 | 12 | 16 |
+| `body-only` | 64 / 70 | 91% | 38 | 10 | 16 |
 | `removal-destroy` | 56 / 56 | 100% | 35 | 17 | 4 |
 | `counters-plus` | 49 / 49 | 100% | 25 | 19 | 5 |
 | `land-fetch` | 45 / 45 | 100% | 27 | 14 | 4 |
@@ -102,7 +102,7 @@ are blocked on engine primitives.
 | `aura` | 6 / 6 | 100% | 3 | 2 | 1 |
 | `etb-trigger` | 6 / 6 | 100% | 1 | 4 | 1 |
 | `lifedrain` | 6 / 6 | 100% | 3 | 1 | 2 |
-| `sacrifice-outlet` | 6 / 6 | 100% | 5 | 0 | 1 |
+| `sacrifice-outlet` | 6 / 6 | 100% | 6 | 0 | 0 |
 | `lifegain` | 5 / 5 | 100% | 3 | 0 | 2 |
 | `mana-other` | 5 / 5 | 100% | 3 | 2 | 0 |
 | `removal-minus` | 4 / 4 | 100% | 2 | 1 | 1 |
@@ -171,7 +171,7 @@ the next thing to triage when the classifier table is grown.
 
 | Gap bucket | TODO lines | Δ since last run |
 | --- | ---: | ---: |
-| OTHER (unclassified) | 587 | · |
+| OTHER (unclassified) | 586 | -1 |
 | DSL gap (unspecified) | 120 | · |
 | attack trigger (self / generic) | 26 | · |
 | TriggerCondition::* missing variant | 17 | · |
@@ -179,9 +179,9 @@ the next thing to triage when the classifier table is grown.
 | replacement effect missing | 14 | · |
 | Cost::* missing variant | 13 | · |
 | EffectAmount::* missing variant | 12 | · |
-| interactive / hidden-info choice | 11 | · |
 | sacrifice as cost | 11 | · |
 | combat-damage-to-player trigger | 10 | · |
+| interactive / hidden-info choice | 10 | -1 |
 | can't / must block-attack | 7 | · |
 | can't be countered | 7 | · |
 | opponent-action trigger | 7 | · |
@@ -201,19 +201,19 @@ _…and 27 more buckets totaling 47 lines._
 
 ### Raw OTHER samples (read these to design new classifier buckets)
 
-Showing 12 of 587 
+Showing 12 of 586 
 unclassified TODO lines. If two or three of these have a common theme, that's a 
 new bucket to add to `TODO_BUCKETS` in `tools/authoring-report.py`. Sample is 
 deterministic (sorted by slug).
 
 ```
 abstergo_entertainment: // TODO: {3}, {T}, Exile Abstergo Entertainment: Return up to one target historic card
-blood_tribute: // TODO: Kicker cost "tap a Vampire" is non-mana kicker.
-curse_of_opulence: // TODO: Gold token spec not a helper function.
-experimental_augury: // TODO: Interactive top-3 selection deferred to M10.
-go_for_the_throat: // TODO: "nonartifact creature" — no exclude_card_types on TargetFilter.
-jeskas_will: // TODO: Mode 2 needs impulse-draw (exile top 3, play this turn).
-marionette_apprentice: // ENGINE-BLOCKED: "Whenever another creature or artifact you control dies" — there is no
+blood_tribute: // TODO: "if kicked, gain life equal to life lost" needs conditional.
+deadly_tempest: // TODO: The "each player loses life equal to creatures they controlled" requires
+exuberant_fuseling: // TODO: "whenever another creature or artifact you control is put into a graveyard
+goblin_king: // TODO: AllCreaturesWithSubtype includes Goblin King itself — "other" semantics
+jeskas_will: // TODO: "choose both if commander" conditional entwine.
+marionette_apprentice: // ENGINE-BLOCKED: "Whenever another creature or artifact you control is put into
 out_of_the_tombs: // TODO: Upkeep counter + mill scaling with counter count not expressible.
 ruthless_winnower: // TODO: "non-Elf creature" filter — SacrificePermanents has no subtype exclusion.
 song_of_freyalise: // TODO: Saga chapter III — +1/+1 counters on all creatures you control plus vigilance,
@@ -233,6 +233,7 @@ tyvar_jubilant_brawler: // TODO: static — creatures you control can activate a
 ## Recent card-touching commits
 
 ```
+63148132 W6-prim: PB-OS8 — Effect::LookAtTopThenPlace + TargetFilter.min_cmc_amount (OOS-EF10-1 + OS6-deferred-(d))
 2beaba4f W6-prim: PB-OS7 — author silumgar_the_drifting_death.rs (Complete)
 bd15b45b W6-prim: PB-OS6 review LOW — soften delver 'strictly beneficial' comment wording
 969ef404 W6-prim: PB-OS6 wire bump (PROTOCOL 20->21, HASH 57->58) + card defs
@@ -257,7 +258,6 @@ a7ae66ce scutemob-109: PB-EF8 /review LOW — elvish_spirit_guide oracle_text ca
 bd43762b scutemob-108: PB-EF7 card fixes — Goblin Cratermaker + Cankerbloom to Complete
 a4319e8d scutemob-108: PB-EF7 corpus-wide modes: None, on Activated ability defs (mechanical)
 7f6d5082 scutemob-107: PB-EF6 card-def fixups — vengeful_bloodwitch comment, forbidden_orchard revert
-b5305f41 scutemob-107: PB-EF6 card defs — TargetOpponent flips + fixes (EF-W-PB2-2)
 ```
 
 ## Missing card-defs sidecar

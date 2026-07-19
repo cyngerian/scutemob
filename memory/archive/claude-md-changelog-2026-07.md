@@ -490,3 +490,15 @@ opponent-vs-opponent TriggerCondition; also unblocks kogla R1). **OOS-OS7-2** (d
 MEDIUM): CR 611.2c entering/leaving-control edge is engine-wide and pre-existing. Review:
 no HIGH, initial needs-fix resolved (2 LOW fixed, negative tests added). Coverage
 **1,125/1,803 = 62.4%**. Next: PB-OS8.
+
+## 2026-07-19 — PB-OS8 collected (`scutemob-138`, merge `38246a6e`) — OOS-EF10-1 CLOSED
+
+`Effect::LookAtTopThenPlace` (top-N scope pinned by position-N+1 decoy — the SearchLibrary
+distinction; look events private per invariant #7) + `TargetFilter.min_cmc_amount` (both CMC
+boundary decoys). **birthing_ritual inert→Complete, growing_rites partial→Complete** (OS6's
+deferred (d) closed). birthing_pod honestly blocked → **OOS-OS8-1** (Phyrexian mana in
+activated costs — new finding); muxus put-multiple → **OOS-OS8-2**. PROTOCOL 22→**23** /
+HASH 59→**60**. Initial needs-fix resolved (large_enum_variant allow per repo precedent).
+Coverage **1,127/1,803 = 62.5%**. NOTE: esm worktree check false-flagged conflicts +
+provisioned damage on this task — attestation branch-name drift (recorded hazard); real
+merge verified clean via git merge-tree first. Next: PB-OS9.

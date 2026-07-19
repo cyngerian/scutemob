@@ -1,15 +1,15 @@
 {
-  "generated": "2026-07-19 07:51 UTC",
-  "git_head": "e2dd4c1f",
+  "generated": "2026-07-19 08:54 UTC",
+  "git_head": "38246a6e",
   "total_files": 1803,
-  "total_todos": 958,
+  "total_todos": 956,
   "file_buckets": {
-    "clean": 1125,
-    "todo": 525,
-    "empty": 153
+    "clean": 1127,
+    "todo": 524,
+    "empty": 152
   },
   "todo_classes": {
-    "OTHER (unclassified)": 587,
+    "OTHER (unclassified)": 586,
     "replacement effect missing": 14,
     "TriggerCondition::* missing variant": 17,
     "attack trigger (self / generic)": 26,
@@ -29,7 +29,7 @@
     "EffectAmount::* missing variant": 12,
     "opponent-action trigger": 7,
     "per-player effect dispatch": 3,
-    "interactive / hidden-info choice": 11,
+    "interactive / hidden-info choice": 10,
     "noncombat-damage prevent": 4,
     "EnchantTarget missing variant": 1,
     "equipment grants ability": 5,
