@@ -1206,4 +1206,3 @@ fn no_serde_conversion_attributes_in_closure() {
         offenders.join("\n  ")
     );
 }
-

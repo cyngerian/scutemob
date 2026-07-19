@@ -350,6 +350,26 @@ ship = expected clean-`Complete` after the PB + its backfill authoring, at the h
   `growing_rites_of_itlimoc` (partial→Complete), `thaumatic_compass` (partial→Complete).
 - **Discounted ship**: **~3** of 5. Sub-primitives can ship in one PB or split; sequence (a)/(g)
   first (smallest), fold (d) into PB-OS8 if that ships first.
+- **✅ SHIPPED** (2026-07-19, `scutemob-136`): (a) `delver_of_secrets` partial→Complete via
+  `Condition::TopCardIsInstantOrSorcery`; (b) `legions_landing` NEW→Complete via
+  `Condition::YouAttackedWithNOrMore(u32)` + `PlayerState.attackers_declared_this_turn`; (g)
+  `thaumatic_compass` partial→Complete via `Effect::RemoveFromCombat { target }` +
+  `GameEvent::RemovedFromCombat` + shared `remove_from_combat` helper (factored out of
+  `apply_regeneration`). PROTOCOL 20→21 / HASH 57→58. (c) `westvale_abbey` and (d)
+  `growing_rites_of_itlimoc`'s ETB deferred — see **OOS-OS6-1** below and the growing_rites
+  TODO/completeness note (now cites PB-OS8) respectively.
+
+**New seed — OOS-OS6-1 (capability) — multi-count sacrifice activation cost.** Deferred out of
+PB-OS6's (c) `westvale_abbey`. Add a count to the activated-ability sacrifice cost so "Sacrifice
+five creatures"/"Sacrifice five Treasures" is payable. Fix shape: `ActivationCost.sacrifice_count:
+u32` (default 1) + a plural `Command::ActivateAbility.sacrifice_targets: Vec<ObjectId>` (keep
+singular `sacrifice_target` for the count==1 fast path, or migrate) + a multi-target validation
+loop in `handle_activate_ability` (count == N, all distinct, all match the filter,
+`object_cant_be_sacrificed` honored). Candidates (2): `westvale_abbey` (new; back = Ormendahl,
+Profane Prince 9/7 Demon), `kellogg_dangerous_mind` (partial→Complete, "Sacrifice five
+Treasures:" rides the same primitive). New wire type (Command reshape) → PROTOCOL bump. ~90-site
+mechanical churn (~40 `ActivationCost` struct literals + ~50 `sacrifice_target` reference sites)
+— full design rationale in `memory/primitives/pb-plan-OS6.md` "Scope decisions (c)".
 
 ### PB-OS7 — defending-player-scoped continuous filter (OOS-EF3-1) · capability
 - **Findings**: OOS-EF3-1.
@@ -412,7 +432,7 @@ ship = expected clean-`Complete` after the PB + its backfill authoring, at the h
 | ~~PB-OS4~~ ⚠️ SHIPPED NARROWED `scutemob-130` | OOS-EF5-3 (narrowed) | capability | 0 Complete + 1 partial (fable); blocked by new OOS-OS4-1/2 | PROTOCOL 18→19 / HASH 55→56 |
 | ~~PB-OS4b~~ ✅ SHIPPED `scutemob-134` | OOS-OS4-2 | correctness (cross-cutting) | 2 kept-`Complete` (docent, bloodline — were live-wrong); 3 partials made functional | none (behavior-only; 19/56 unchanged) |
 | ~~PB-OS5~~ ✅ SHIPPED `scutemob-135` | OOS-EF4-1 | capability | 2 Complete (shared_animosity, goblin_piledriver) + 2 partial-improvements (rabblemaster pump, muxus attack-half) | PROTOCOL 19→20 / HASH 56→57 |
-| PB-OS6 | OOS-EF5-4 (a/b/c/d/g) | capability (sub-batch) | ~3 | PROTOCOL (some) |
+| ~~PB-OS6~~ ✅ SHIPPED `scutemob-136` | OOS-EF5-4 (a/b/g shipped; c deferred to OOS-OS6-1, d deferred to PB-OS8) | capability (sub-batch) | 3 Complete (delver_of_secrets, legions_landing, thaumatic_compass) | PROTOCOL 20→21 / HASH 57→58 |
 | PB-OS7 | OOS-EF3-1 | capability | ~1-2 | PROTOCOL |
 | PB-OS8 | OOS-EF10-1 (+min_cmc) | capability | ~2 | PROTOCOL |
 | PB-OS9 | OOS-EF3b-1 | capability | ~1-2 | verify |

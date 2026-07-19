@@ -17,8 +17,11 @@
 //! - `Command::Transform` / `handle_transform` behavior is unchanged by the
 //!   `transform_permanent_in_place` extraction.
 //! - Card integration: `thaumatic_compass` (end-step intervening-if transform),
-//!   `docent_of_perfection` (cast-trigger token-then-conditional-transform), and the
-//!   `delver_of_secrets` integrity demote (PB-EF5 §6a).
+//!   `docent_of_perfection` (cast-trigger token-then-conditional-transform). The
+//!   `delver_of_secrets`/`thaumatic_compass` integrity regressions below were originally
+//!   demoted-to-Partial guards (PB-EF5 §6a / OOS-EF5-4g); PB-OS6 closed both gaps
+//!   (`Condition::TopCardIsInstantOrSorcery`, `Effect::RemoveFromCombat`), so they now
+//!   assert Complete instead.
 
 use std::collections::HashMap;
 
@@ -26,9 +29,9 @@ use mtg_engine::effects::{execute_effect, EffectContext};
 use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::{
     all_cards, calculate_characteristics, enrich_spec_from_def, process_command, AbilityDefinition,
-    CardDefinition, CardFace, CardId, CardRegistry, CardType, Command, Completeness, Effect,
-    GameEvent, GameState, GameStateBuilder, GameStateError, KeywordAbility, ManaColor, ObjectId,
-    ObjectSpec, PlayerId, Step, SubType, Target, TypeLine, ZoneId,
+    CardDefinition, CardFace, CardId, CardRegistry, CardType, Command, Effect, GameEvent,
+    GameState, GameStateBuilder, GameStateError, KeywordAbility, ManaColor, ObjectId, ObjectSpec,
+    PlayerId, Step, SubType, Target, TypeLine, ZoneId,
 };
 
 // ── Generic helpers ───────────────────────────────────────────────────────────
@@ -873,43 +876,44 @@ fn test_docent_of_perfection_stays_untransformed_below_threshold() {
     );
 }
 
-// ── Integrity regression: delver_of_secrets is marked partial ────────────────
+// ── Integrity regression: delver_of_secrets is now Complete (PB-OS6a) ────────
 
-/// Integrity regression guard for PB-EF5 §6a: `delver_of_secrets` was mismarked
-/// `Complete` despite never actually transforming (no upkeep trigger modeled). It must
-/// stay non-`Complete` until the "top card is instant/sorcery" reveal condition exists.
+/// Integrity regression guard for PB-EF5 §6a, UPDATED by PB-OS6(a): `delver_of_secrets`
+/// was correctly marked `Partial` (never transforming, no upkeep trigger modeled) until
+/// PB-OS6 added `Condition::TopCardIsInstantOrSorcery` and wired the upkeep trigger. It
+/// must now be `Complete` -- this guard flips polarity to catch a future regression that
+/// silently reverts the def to a placeholder.
 #[test]
-fn test_delver_of_secrets_marked_partial() {
+fn test_delver_of_secrets_marked_complete() {
     let def = all_cards()
         .into_iter()
         .find(|d| d.name == "Delver of Secrets")
         .expect("Delver of Secrets should have a CardDefinition");
     assert!(
-        !def.completeness.is_complete(),
-        "delver_of_secrets must NOT be Complete -- its upkeep transform trigger is unmodeled"
-    );
-    assert!(
-        matches!(def.completeness, Completeness::Partial(_)),
-        "delver_of_secrets should be marked Partial specifically (not KnownWrong/Inert)"
+        def.completeness.is_complete(),
+        "delver_of_secrets should be Complete after PB-OS6(a) -- \
+         Condition::TopCardIsInstantOrSorcery gates the upkeep TransformSelf"
     );
 }
 
-// ── Integrity regression: thaumatic_compass is marked partial (back-face blocker) ─────
+// ── Integrity regression: thaumatic_compass is now Complete (PB-OS6g) ────────
 
-/// Integrity guard: the front (search + end-step TransformSelf) is complete, but the
-/// Spires of Orazca back face ("{T}: Untap target attacking creature an opponent controls
-/// and remove it from combat") lacks a remove-from-combat effect primitive, so the def must
-/// NOT be `Complete` (OOS-EF5-4g). The front-transform test above still proves TransformSelf
-/// fires; this pins the honest completeness so the fabricated "{T}: Tap target creature"
-/// model (removed in the /review fix) cannot silently return as Complete.
+/// Integrity guard, UPDATED by PB-OS6(g): the front (search + end-step TransformSelf) was
+/// already complete; the Spires of Orazca back face ("{T}: Untap target attacking creature
+/// an opponent controls and remove it from combat") used to lack a remove-from-combat
+/// effect primitive (OOS-EF5-4g), so the def stayed `Partial`. PB-OS6 added
+/// `Effect::RemoveFromCombat` and rewired the back-face untap ability as a two-step
+/// Sequence, so the def is now `Complete`. This guard flips polarity to catch a future
+/// regression that silently reverts the def to a placeholder.
 #[test]
-fn test_thaumatic_compass_marked_partial() {
+fn test_thaumatic_compass_marked_complete() {
     let def = all_cards()
         .into_iter()
         .find(|d| d.name == "Thaumatic Compass")
         .expect("Thaumatic Compass should have a CardDefinition");
     assert!(
-        matches!(def.completeness, Completeness::Partial(_)),
-        "thaumatic_compass must be Partial -- Spires' remove-from-combat clause is inexpressible"
+        def.completeness.is_complete(),
+        "thaumatic_compass should be Complete after PB-OS6(g) -- Spires' \
+         remove-from-combat clause is now expressible via Effect::RemoveFromCombat"
     );
 }
