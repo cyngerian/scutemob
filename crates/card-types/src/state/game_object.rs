@@ -552,6 +552,10 @@ pub enum TriggerEvent {
     ///
     /// "Whenever equipped creature deals combat damage to a player."
     EquippedCreatureDealsCombatDamageToPlayer,
+    /// CR 510.3a / 603.2c: fires on an Equipment when its equipped creature deals
+    /// combat damage to ANY recipient (player, creature, or planeswalker). Fired once
+    /// per equipped source creature per combat-damage step from `rules/abilities.rs`.
+    EquippedCreatureDealsCombatDamage,
     /// CR 510.3a: Fires on Aura permanents when their attached creature deals damage
     /// to a player (combat or non-combat, depending on combat_only filter).
     ///

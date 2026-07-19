@@ -2986,6 +2986,13 @@ pub enum TargetRequirement {
     /// and applies the same self-target prevention (CR 115.10 ruling: a spell can't be
     /// made to target itself). Used by Misdirection.
     TargetSpellWithSingleTarget,
+    /// "another target permanent" (CR 601.2c) — a battlefield permanent that must be a
+    /// DIFFERENT object than the target bound to requirement slot `usize`. Type-legality
+    /// is identical to `TargetPermanent`; only inter-target distinctness is added. Mirrors
+    /// the `exclude_self` opt-in pattern (PB-XS). The index is the *requirement-slot*
+    /// index (position in the ability's `targets`/`mode_targets` list), not a
+    /// declaration-order index. Used by Hidden Strings.
+    TargetPermanentDistinctFrom(usize),
     /// "up to N target [inner]" (CR 601.2c).
     ///
     /// The player chooses how many targets to declare (0 to `count`, inclusive). Each
@@ -3490,6 +3497,12 @@ pub enum TriggerCondition {
     /// combat damage to a player. The trigger source is the Equipment, not the creature.
     /// The Equipment must be on the battlefield and attached to the dealing creature.
     WhenEquippedCreatureDealsCombatDamageToPlayer,
+    /// "Whenever equipped creature deals combat damage" (ANY recipient — player,
+    /// creature, or planeswalker). CR 510.3a / 603.2c. Distinct from
+    /// `WhenEquippedCreatureDealsCombatDamageToPlayer`, which fires only on damage to
+    /// a player. Fires once per equipped source creature per combat-damage step. The
+    /// trigger source is the Equipment. Used by Umezawa's Jitte.
+    WhenEquippedCreatureDealsCombatDamage,
     /// "Whenever enchanted creature deals damage to a player" / "...deals combat damage..."
     ///
     /// CR 510.3a: Fires when the creature this Aura is attached to deals > 0 damage

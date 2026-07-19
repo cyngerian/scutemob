@@ -222,7 +222,15 @@ use crate::state::hash::HASH_SCHEMA_VERSION;
 ///   you control your commander"; `skyhunter_strike_force`, `loyal_apprentice`,
 ///   `siege_gang_lieutenant`). `Condition` is already in the closure (reachable via
 ///   `Effect::Conditional`) — type COUNT unchanged, declared shape moves, digest moves.
-pub const PROTOCOL_VERSION: u32 = 24;
+/// - 25: PB-OS10 (2026-07-19, OOS-XS-1 + OOS-EF7-1): `TargetRequirement` gains a new
+///   variant `TargetPermanentDistinctFrom(usize)` (CR 601.2c "another target permanent"
+///   inter-target distinctness; `hidden_strings`). `TargetRequirement` is already in
+///   the closure (reachable via `AbilityDefinition::Spell.targets` etc.) — type COUNT
+///   unchanged, declared shape moves, digest moves. (`TriggerEvent`/`TriggerCondition`
+///   also gained a paired variant for OOS-EF7-1's any-recipient equipped-creature
+///   combat-damage trigger, `umezawas_jitte`, but neither is in the wire closure —
+///   that half of this batch is a HASH-only change, see `state::hash`.)
+pub const PROTOCOL_VERSION: u32 = 25;
 
 /// Digest of the serialized shape of the wire-frame type closure
 /// (`Command`, `GameEvent`, [`ReplayLog`] and everything they reach).
@@ -240,7 +248,7 @@ pub const PROTOCOL_VERSION: u32 = 24;
 /// existing `u32` *means* does not. Semantic changes still require a manual
 /// [`PROTOCOL_VERSION`] bump.
 pub const PROTOCOL_SCHEMA_FINGERPRINT: &str =
-    "0e538f6b09a62e9c2c2ecf667fc61d0af7c41bce875b602f509bb0cc91aaffb0";
+    "a3f9bb05a3c8e784468ac6b0946e50bb1ae43bf9d75789ef24581cd42e04fd62";
 
 /// One `(version, fingerprint)` row of the append-only protocol-schema history.
 ///
@@ -435,6 +443,12 @@ pub const PROTOCOL_HISTORY: &[ProtocolEpoch] = &[
         // PB-OS9 (2026-07-19, OOS-EF3b-1): Condition gained YouControlYourCommander
         // (see the `- 24:` History line above).
         fingerprint: "0e538f6b09a62e9c2c2ecf667fc61d0af7c41bce875b602f509bb0cc91aaffb0",
+    },
+    ProtocolEpoch {
+        version: 25,
+        // PB-OS10 (2026-07-19, OOS-XS-1 + OOS-EF7-1): TargetRequirement gained
+        // TargetPermanentDistinctFrom (see the `- 25:` History line above).
+        fingerprint: "a3f9bb05a3c8e784468ac6b0946e50bb1ae43bf9d75789ef24581cd42e04fd62",
     },
 ];
 

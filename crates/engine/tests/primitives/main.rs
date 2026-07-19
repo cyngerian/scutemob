@@ -34,6 +34,7 @@ mod pb_ef8_exile_self_from_hand;
 mod pb_ef9_while_you_control_source;
 mod pb_k_land_drops;
 mod pb_l_landfall;
+mod pb_os10_singleton_cleanup;
 mod pb_os1_gain_control_reversion;
 mod pb_os5_relative_attacker_count;
 mod pb_os6_dfc_flip_conditions;

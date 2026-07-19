@@ -2983,6 +2983,32 @@ pub(crate) fn build_face_ability_vectors(
             });
         }
     }
+    // CR 510.3a: Convert "Whenever equipped creature deals combat damage" (any recipient).
+    for ability in abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition: TriggerCondition::WhenEquippedCreatureDealsCombatDamage,
+            effect,
+            targets,
+            ..
+        } = ability
+        {
+            triggered_abilities.push(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
+                trigger_on: TriggerEvent::EquippedCreatureDealsCombatDamage,
+                intervening_if: None,
+                description: "Whenever equipped creature deals combat damage (CR 510.3a)"
+                    .to_string(),
+                effect: Some(effect.clone()),
+                etb_filter: None,
+                death_filter: None,
+                combat_damage_filter: None,
+                triggering_creature_filter: None,
+                targets: targets.clone(),
+            });
+        }
+    }
     // CR 510.3a: Convert "Whenever enchanted creature deals damage to a player" triggers.
     for ability in abilities {
         if let AbilityDefinition::Triggered {

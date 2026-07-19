@@ -6,11 +6,11 @@
 // • You gain 2 life.
 // Equip {2}
 //
-// Note: the counter-removal ability below is a "Choose one" modal activated ability;
-// PB-EF7 (2026-07-18) shipped the modal-activated-ability primitive it needs
-// (`AbilityDefinition::Activated::modes`), but this card is NOT flipped to use it — see
-// the `known_wrong` note and OOS-EF7-1 below. The surviving blocker is the counters
-// trigger, not the mode selection.
+// PB-OS10 (2026-07-19, OOS-EF7-1): the counters trigger uses the any-recipient
+// `WhenEquippedCreatureDealsCombatDamage` variant (player, creature, or planeswalker —
+// not just players), and the counter-removal ability is a real modal activated ability
+// (`AbilityDefinition::Activated::modes`, the PB-EF7 primitive). Execution-verified:
+// any-recipient trigger, `Cost::RemoveCounter` payment/gating, and all three modes.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -35,13 +35,11 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Equip),
             // CR 510.3a: Whenever equipped creature deals combat damage, put two charge counters
             // on Umezawa's Jitte.
-            // OOS-EF7-1: Oracle says "deals combat damage" (any recipient), not just to players.
-            // Needs a WhenEquippedCreatureDealsCombatDamage variant. Current trigger is the
-            // closest available approximation (misses damage dealt to creatures) — this is the
-            // real, still-open blocker; see the `known_wrong` note below.
+            // PB-OS10 (OOS-EF7-1): oracle says "deals combat damage" (any recipient, not just
+            // players) — now uses the any-recipient WhenEquippedCreatureDealsCombatDamage variant.
             AbilityDefinition::Triggered {
                 once_per_turn: false,
-                trigger_condition: TriggerCondition::WhenEquippedCreatureDealsCombatDamageToPlayer,
+                trigger_condition: TriggerCondition::WhenEquippedCreatureDealsCombatDamage,
                 effect: Effect::AddCounter {
                     target: EffectTarget::Source,
                     counter: CounterType::Charge,
@@ -53,22 +51,28 @@ pub fn card() -> CardDefinition {
                 modes: None,
                 trigger_zone: None,
             },
-            // CR 602.2 / PB-35: Remove a charge counter: Choose one —
+            // CR 602.2 / 700.2a (PB-OS10): Remove a charge counter: Choose one —
             // Mode 0: Equipped creature gets +2/+2 until end of turn.
             // Mode 1: Target creature gets -1/-1 until end of turn.
             // Mode 2: You gain 2 life.
-            // Bot fallback: mode 0 (+2/+2 to equipped creature).
             AbilityDefinition::Activated {
                 cost: Cost::RemoveCounter {
                     counter: CounterType::Charge,
                     count: 1,
                 },
-                effect: Effect::Choose {
-                    prompt: "Choose one — equipped creature gets +2/+2; or target creature gets \
-                             -1/-1; or you gain 2 life"
-                        .to_string(),
-                    choices: vec![
-                        // Mode 0: Equipped creature gets +2/+2 until end of turn.
+                effect: Effect::Sequence(vec![]), // placeholder; real effects live in `modes`
+                timing_restriction: None,
+                targets: vec![], // MUST be empty when mode_targets is Some
+                activation_condition: None,
+                activation_zone: None,
+                once_per_turn: false,
+                modes: Some(ModeSelection {
+                    min_modes: 1,
+                    max_modes: 1,
+                    allow_duplicate_modes: false,
+                    mode_costs: None,
+                    modes: vec![
+                        // Mode 0: equipped creature +2/+2 EOT (no target)
                         Effect::ApplyContinuousEffect {
                             effect_def: Box::new(ContinuousEffectDef {
                                 layer: EffectLayer::PtModify,
@@ -78,7 +82,7 @@ pub fn card() -> CardDefinition {
                                 condition: None,
                             }),
                         },
-                        // Mode 1: Target creature gets -1/-1 until end of turn.
+                        // Mode 1: target creature -1/-1 EOT (1 target)
                         Effect::ApplyContinuousEffect {
                             effect_def: Box::new(ContinuousEffectDef {
                                 layer: EffectLayer::PtModify,
@@ -88,35 +92,21 @@ pub fn card() -> CardDefinition {
                                 condition: None,
                             }),
                         },
-                        // Mode 2: You gain 2 life.
+                        // Mode 2: gain 2 life (no target)
                         Effect::GainLife {
                             player: PlayerTarget::Controller,
                             amount: EffectAmount::Fixed(2),
                         },
                     ],
-                },
-                timing_restriction: None,
-                targets: vec![
-                    // Mode 1 target: any creature
-                    TargetRequirement::TargetCreature,
-                ],
-                activation_condition: None,
-                activation_zone: None,
-                once_per_turn: false,
-                modes: None,
+                    mode_targets: Some(vec![
+                        vec![],                                  // Mode 0: no targets
+                        vec![TargetRequirement::TargetCreature], // Mode 1: one target creature
+                        vec![],                                  // Mode 2: no targets
+                    ]),
+                }),
             },
         ],
-        completeness: Completeness::known_wrong(
-            "PB-EF7 (2026-07-18): the modal-activated-ability primitive now exists \
-             (AbilityDefinition::Activated::modes / ModeSelection) and would fix the +2/+2-only \
-             defect on the counter-removal ability, but that is not the surviving blocker \
-             (OOS-EF7-1). The counters trigger fires only on combat damage to PLAYERS — oracle \
-             says 'deals combat damage' (any recipient, e.g. a blocking creature) — and needs a \
-             WhenEquippedCreatureDealsCombatDamage trigger variant (distinct from \
-             WhenEquippedCreatureDealsCombatDamageToPlayer) before this card can be Complete. Not \
-             fixed by this PB; scope was 2 flips (Goblin Cratermaker, Cankerbloom) plus this \
-             honest note.",
-        ),
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }
