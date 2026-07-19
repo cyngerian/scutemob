@@ -1,4 +1,4 @@
-# Primitive WIP — PB-OS5 (OOS-EF4-1) · phase: implement
+# Primitive WIP — PB-OS5 (OOS-EF4-1) · phase: close-out
 
 <!-- last_updated: 2026-07-19 -->
 
@@ -11,8 +11,8 @@
 ## Phase checklist
 - [x] plan   — `primitive-impl-planner` → `pb-plan-OS5.md` (DONE — ONE new variant `OtherAttackersSharingCreatureType`; piledriver/muxus/rabblemaster reuse existing `AttackingCreatureCount`/`PermanentCount`; ×2 via `Sum(x,x)`; single PROTOCOL 19→20 + HASH 56→57)
 - [x] implement — `primitive-impl-runner` (DONE 2026-07-19 — engine variant (card_definition.rs discriminant 24) + `resolve_amount` executor (effects/mod.rs) + explicit `resolve_cda_amount => 0` arm (layers.rs) + hash discriminant 24 (state/hash.rs) + PROTOCOL_VERSION 19→20 (fingerprint `5243cffc75...`) + HASH_SCHEMA_VERSION 56→57 (decl `02fb46a2f9...` / stream `31bfd0ed5d...`) + all 36 sentinel files bumped + shared_animosity→Complete + goblin_piledriver NEW→Complete + goblin_rabblemaster pump clause implemented (stays partial, note corrected) + muxus_goblin_grandee NEW attack-half (stays partial) + 11 new tests in `pb_os5_relative_attacker_count.rs` (all 3 mandatory decoys verified non-vacuous by temporary revert) — all 4 gates green)
-- [ ] review  — `primitive-impl-reviewer` → `pb-review-OS5.md`
-- [ ] fix     — `primitive-impl-runner` applies review findings
+- [x] review  — `primitive-impl-reviewer` → `pb-review-OS5.md` (CLEAN BILL — 0 HIGH, 0 MEDIUM, 2 LOW informational/no-fix)
+- [x] fix     — none required (clean bill)
 - [ ] gates + /review + close-out
 
 ## Seed
