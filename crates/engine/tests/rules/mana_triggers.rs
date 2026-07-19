@@ -13,7 +13,7 @@
 use mtg_engine::{
     all_cards, card_name_to_id, enrich_spec_from_def, process_command, CardDefinition,
     CardRegistry, Color, Command, GameEvent, GameState, GameStateBuilder, ManaAbility, ManaColor,
-    ObjectId, ObjectSpec, PlayerId, Step, ZoneId,
+    ObjectId, ObjectSpec, PlayerId, StackObjectKind, Step, Target, ZoneId,
 };
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -800,12 +800,18 @@ fn pass_all(state: GameState, players: &[PlayerId]) -> (GameState, Vec<GameEvent
 /// CR 605.5a — "An ability with a target is not a mana ability." Forbidden Orchard's
 /// Spirit token trigger has a target, so it goes on the stack as a normal triggered ability
 /// (NOT an immediate triggered mana ability). The PendingTrigger must use ability_index=1
-/// (the Triggered ability in the card def), NOT ability_index=0 (the mana Activated ability).
+/// (the Triggered ability in the card def), and — since OOS-EF6-1 (PB-OS3) — kind
+/// `CardDefETB` (was `Normal`), because target/effect resolution for this trigger must read
+/// `def.abilities.get(ability_index)` (the raw index this loop holds), not the runtime
+/// `characteristics.triggered_abilities` vec that `Normal` reads (which has no entry for
+/// `WhenTappedForMana`).
 ///
 /// Verifies:
 /// 1. Tapping Forbidden Orchard for mana adds mana to the pool (the Activated ability fires).
-/// 2. A PendingTrigger is queued with kind=Normal and ability_index=1 (the Spirit trigger).
-/// 3. After priority passes, the trigger resolves and a Spirit token appears on the battlefield.
+/// 2. A PendingTrigger is queued with kind=CardDefETB and ability_index=1 (the Spirit trigger).
+/// 3. After priority passes, the trigger resolves and a Spirit token appears on the battlefield
+///    **controlled by p2** — the sole opponent in this 2-player game (CR 605.5a target dispatch,
+///    not the pre-fix behaviour of routing the token to Forbidden Orchard's own controller).
 fn test_mana_trigger_forbidden_orchard() {
     let p1 = p(1);
     let p2 = p(2);
@@ -844,7 +850,7 @@ fn test_mana_trigger_forbidden_orchard() {
     )
     .unwrap();
 
-    // Verify: exactly one PendingTrigger of kind Normal with ability_index=1.
+    // Verify: exactly one PendingTrigger of kind CardDefETB with ability_index=1.
     // (Index 0 is the mana Activated ability; index 1 is the Spirit token Triggered ability.)
     assert_eq!(
         state.pending_triggers().len(),
@@ -855,8 +861,9 @@ fn test_mana_trigger_forbidden_orchard() {
     let trigger = &state.pending_triggers()[0];
     assert_eq!(
         trigger.kind,
-        mtg_engine::state::stubs::PendingTriggerKind::Normal,
-        "Forbidden Orchard Spirit trigger must be PendingTriggerKind::Normal"
+        mtg_engine::state::stubs::PendingTriggerKind::CardDefETB,
+        "OOS-EF6-1 (PB-OS3): Forbidden Orchard Spirit trigger must be PendingTriggerKind::CardDefETB \
+         so its declared TargetOpponent target resolves via the raw def.abilities index"
     );
     assert_eq!(
         trigger.ability_index, 1,
@@ -869,20 +876,24 @@ fn test_mana_trigger_forbidden_orchard() {
     let (state, _) = pass_all(state, &[p1, p2]);
     let (state, _) = pass_all(state, &[p1, p2]);
 
-    // Verify: a Spirit creature token exists on the battlefield.
-    let spirit_count = state
-        .objects()
-        .values()
-        .filter(|o| {
-            o.zone == ZoneId::Battlefield
-                && o.characteristics.name.contains("Spirit")
-                && o.characteristics.power == Some(1)
-                && o.characteristics.toughness == Some(1)
-        })
-        .count();
-    assert_eq!(
-        spirit_count, 1,
+    // Verify: a Spirit creature token exists on the battlefield, controlled by p2 (the
+    // targeted opponent — CR 605.5a), not p1 (Forbidden Orchard's own controller).
+    let spirit = state.objects().values().find(|o| {
+        o.zone == ZoneId::Battlefield
+            && o.characteristics.name.contains("Spirit")
+            && o.characteristics.power == Some(1)
+            && o.characteristics.toughness == Some(1)
+    });
+    assert!(
+        spirit.is_some(),
         "Forbidden Orchard Spirit token trigger should create a 1/1 Spirit token when it resolves"
+    );
+    assert_eq!(
+        spirit.unwrap().controller,
+        p2,
+        "CR 605.5a: the Spirit token must be controlled by the TARGETED OPPONENT (p2), not \
+         Forbidden Orchard's own controller (p1) — this is the drawback the card's oracle text \
+         describes"
     );
 }
 
@@ -1047,5 +1058,278 @@ fn test_caged_sun_applies_to_sacrificed_land() {
         green, 2,
         "CR 106.12b: Caged Sun's mana-production replacement must apply to a land \
          tapped-and-sacrificed for mana (1 green from the land + 1 additional from Caged Sun = 2)"
+    );
+}
+
+// ── Test 13: Forbidden Orchard — 4-player decoy compose test (OOS-EF6-1 / PB-OS3) ──
+
+#[test]
+/// CR 605.5a / CR 603.3d — OOS-EF6-1 (PB-OS3) mandatory decoy compose test. 4-player game:
+/// p1 controls Forbidden Orchard and is active; p2, p3, p4 are all opponents. p1 taps
+/// Forbidden Orchard choosing a real colour (White — proves the PB-EF12 any-colour half).
+/// Both halves of the card must compose: (a) the chosen-colour mana half and (b) the
+/// target-opponent Spirit half (OOS-EF6-1). The auto-picker (first non-controller active
+/// player in `turn_order`) selects p2 as the DECLARED target; p3/p4 are decoy opponents that
+/// must receive nothing, and p1 (the controller) must receive nothing either — this
+/// distinguishes "declared target" from "controller" (the pre-fix bug), "EachOpponent"
+/// (would give all three opponents a token), and "a random opponent."
+fn test_forbidden_orchard_token_goes_to_declared_opponent_4player() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let p3 = p(3);
+    let p4 = p(4);
+    let (defs, registry) = build_registry();
+
+    let orchard = make_spec(p1, "Forbidden Orchard", ZoneId::Battlefield, &defs);
+
+    let state = GameStateBuilder::four_player()
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .with_registry(registry)
+        .object(orchard)
+        .build()
+        .unwrap();
+
+    let orchard_id = state
+        .objects()
+        .values()
+        .find(|o| o.characteristics.name == "Forbidden Orchard" && o.zone == ZoneId::Battlefield)
+        .map(|o| o.id)
+        .unwrap();
+
+    // Tap for a chosen colour (White) — proves the any-colour half (PB-EF12) composes.
+    let (state, _) = process_command(
+        state,
+        Command::TapForMana {
+            player: p1,
+            source: orchard_id,
+            ability_index: 0,
+            chosen_color: Some(ManaColor::White),
+        },
+    )
+    .unwrap();
+
+    // (1) Chosen-colour mana half composes.
+    let (white, _, _, _, _, _) = mana_pool(&state, p1);
+    assert_eq!(
+        white, 1,
+        "PB-EF12: Forbidden Orchard's mana ability must produce the chosen colour (White)"
+    );
+
+    // (2) Exactly one PendingTrigger, kind CardDefETB, ability_index 1.
+    assert_eq!(
+        state.pending_triggers().len(),
+        1,
+        "CR 605.5a: the Spirit token trigger (has a target) must be queued, not resolved \
+         immediately as a triggered mana ability"
+    );
+    let trigger = &state.pending_triggers()[0];
+    assert_eq!(
+        trigger.kind,
+        mtg_engine::state::stubs::PendingTriggerKind::CardDefETB,
+        "OOS-EF6-1: Forbidden Orchard's Spirit trigger must be PendingTriggerKind::CardDefETB"
+    );
+    assert_eq!(
+        trigger.ability_index, 1,
+        "ability_index must be 1 (the Triggered ability)"
+    );
+
+    // Pass priority for all 4 players: the trigger is flushed onto the stack. Capture its
+    // declared target BEFORE it resolves — this proves target DISPATCH, not just the end
+    // effect (a bug that produced the right effect for the wrong recipient would still pass
+    // an end-effect-only assertion).
+    let (state, _) = pass_all(state, &[p1, p2, p3, p4]);
+    assert_eq!(
+        state.stack_objects().len(),
+        1,
+        "the Spirit trigger must be on the stack after the priority pass that flushes it"
+    );
+    let stack_obj = &state.stack_objects()[0];
+    assert!(
+        matches!(stack_obj.kind, StackObjectKind::TriggeredAbility { .. }),
+        "queued stack object must be a TriggeredAbility"
+    );
+    assert_eq!(
+        stack_obj.targets.len(),
+        1,
+        "the trigger must carry exactly one recorded target (TargetOpponent)"
+    );
+    assert_eq!(
+        stack_obj.targets[0].target,
+        Target::Player(p2),
+        "CR 603.3d: the auto-picked target must be p2 — the first active opponent in \
+         turn_order — proving real target dispatch, not a hardcoded/hidden fallback"
+    );
+
+    // Pass priority again: the trigger resolves, creating the Spirit for the declared opponent.
+    let (state, _) = pass_all(state, &[p1, p2, p3, p4]);
+
+    // (3)+(4) Exactly one Spirit token exists, controlled by p2.
+    let spirits: Vec<_> = state
+        .objects()
+        .values()
+        .filter(|o| {
+            o.zone == ZoneId::Battlefield
+                && o.characteristics.name.contains("Spirit")
+                && o.characteristics.power == Some(1)
+                && o.characteristics.toughness == Some(1)
+        })
+        .collect();
+    assert_eq!(spirits.len(), 1, "exactly one Spirit token must be created");
+    assert_eq!(
+        spirits[0].controller, p2,
+        "the Spirit must be controlled by the DECLARED target opponent (p2)"
+    );
+
+    // (5) Decoy proof: p1 (controller), p3, p4 (decoy opponents) control ZERO Spirits.
+    for decoy in [p1, p3, p4] {
+        let decoy_spirits = state
+            .objects()
+            .values()
+            .filter(|o| {
+                o.zone == ZoneId::Battlefield
+                    && o.characteristics.name.contains("Spirit")
+                    && o.controller == decoy
+            })
+            .count();
+        assert_eq!(
+            decoy_spirits, 0,
+            "decoy proof: player {:?} must control ZERO Spirits — only the declared target \
+             (p2) should receive the token, not the controller, not the other opponents \
+             (rules out EachOpponent / random-opponent / controller-fallback recipient bugs)",
+            decoy
+        );
+    }
+}
+
+// ── Test 14: No-regression on inline WhenTappedForMana doublers (OOS-EF6-1 / PB-OS3) ──
+
+#[test]
+/// CR 605.4a / 106.12a — no-regression check for OOS-EF6-1 (PB-OS3). Wild Growth's
+/// WhenTappedForMana trigger has NO declared targets and its effect is mana-producing, so it
+/// takes the UNTOUCHED immediate-mana branch (`mana.rs:698-707`,
+/// `targets.is_empty() && is_mana_producing_effect(effect)`) — the OOS-EF6-1 fix only touched
+/// the stack-push `else` branch for targeted triggers. Confirms the kind reclassification
+/// (Normal → CardDefETB for the stack-push branch) does not regress any of the 6 non-targeted
+/// WhenTappedForMana roster cards: the mana still resolves immediately, and no PendingTrigger
+/// (of any kind, including the reclassified CardDefETB) is queued.
+fn test_mana_doubler_when_tapped_for_mana_no_regression() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let (defs, registry) = build_registry();
+
+    let forest_a = make_spec(p1, "Forest", ZoneId::Battlefield, &defs);
+    let wild_growth = make_spec(p1, "Wild Growth", ZoneId::Battlefield, &defs);
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .at_step(Step::PreCombatMain)
+        .active_player(p1)
+        .with_registry(registry)
+        .object(forest_a)
+        .object(wild_growth)
+        .build()
+        .unwrap();
+
+    let forest_id = state
+        .objects()
+        .values()
+        .find(|o| o.characteristics.name == "Forest" && o.zone == ZoneId::Battlefield)
+        .map(|o| o.id)
+        .unwrap();
+    let wg_id = state
+        .objects()
+        .values()
+        .find(|o| o.characteristics.name == "Wild Growth" && o.zone == ZoneId::Battlefield)
+        .map(|o| o.id)
+        .unwrap();
+    // Attach Wild Growth to the Forest so its WhenTappedForMana filter (EnchantedLand) matches.
+    if let Some(obj) = state.objects_mut().get_mut(&wg_id) {
+        obj.attached_to = Some(forest_id);
+    }
+
+    let (new_state, _) = process_command(
+        state,
+        Command::TapForMana {
+            player: p1,
+            source: forest_id,
+            ability_index: 0,
+            chosen_color: None,
+        },
+    )
+    .unwrap();
+
+    let (_, _, _, _, green, _) = mana_pool(&new_state, p1);
+    assert_eq!(
+        green, 2,
+        "Wild Growth must still add green IMMEDIATELY (the untouched immediate-mana branch) — \
+         OOS-EF6-1's kind reclassification only touched the stack-push branch for targeted \
+         triggers"
+    );
+    assert!(
+        new_state.pending_triggers().is_empty(),
+        "Wild Growth's WhenTappedForMana trigger has no target and a mana-producing effect, so \
+         it must resolve IMMEDIATELY — no PendingTrigger of ANY kind (including the \
+         reclassified CardDefETB) should be queued"
+    );
+}
+
+// ── Test 15: WhenTappedForMana roster sweep (SR-34/36 — OOS-EF6-1 / PB-OS3) ──
+
+#[test]
+/// SR-34/36 — enumerate `all_cards()` (not grep) for every def carrying a
+/// `TriggerCondition::WhenTappedForMana` triggered ability and partition by whether it
+/// declares a target. OOS-EF6-1's engine fix (Normal → CardDefETB) only changes behaviour for
+/// the stack-push branch, which is reached ONLY when `targets` is non-empty (or the effect
+/// isn't mana-producing). This test is the authoritative confirmation that Forbidden Orchard
+/// is the sole targeted card in the roster — the other 6 are untargeted mana-doublers/adders
+/// that route through the untouched immediate-mana branch and cannot regress.
+fn test_when_tapped_for_mana_roster_sweep() {
+    use mtg_engine::{AbilityDefinition, TriggerCondition};
+
+    let cards = all_cards();
+    let mut targeted: Vec<String> = Vec::new();
+    let mut untargeted: Vec<String> = Vec::new();
+    for def in &cards {
+        for ability in &def.abilities {
+            if let AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenTappedForMana { .. },
+                targets,
+                ..
+            } = ability
+            {
+                if targets.is_empty() {
+                    untargeted.push(def.name.clone());
+                } else {
+                    targeted.push(def.name.clone());
+                }
+            }
+        }
+    }
+    targeted.sort();
+    targeted.dedup();
+    untargeted.sort();
+    untargeted.dedup();
+
+    assert_eq!(
+        targeted,
+        vec!["Forbidden Orchard".to_string()],
+        "OOS-EF6-1 (PB-OS3): only Forbidden Orchard should declare a target on its \
+         WhenTappedForMana trigger — this is the entire blast radius of the reclassified \
+         stack-push branch"
+    );
+    assert_eq!(
+        untargeted,
+        vec![
+            "Badgermole Cub".to_string(),
+            "Crypt Ghast".to_string(),
+            "Leyline of Abundance".to_string(),
+            "Mirari's Wake".to_string(),
+            "Wild Growth".to_string(),
+            "Zendikar Resurgent".to_string(),
+        ],
+        "the remaining WhenTappedForMana roster (untargeted, mana-producing effects) routes \
+         through the untouched immediate-mana branch and is unaffected by OOS-EF6-1"
     );
 }

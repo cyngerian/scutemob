@@ -931,6 +931,19 @@ plan's table, during this batch):
 ## 10. New finding filed by PB-EF6 (scutemob-107)
 
 ### OOS-EF6-1 (correctness, pre-existing) — `WhenTappedForMana` triggers can't resolve a declared target
+> ✅ **CLOSED — PB-OS3 (`scutemob-129`), 2026-07-19.** Fixed via **Option B**: in
+> `fire_mana_triggered_abilities`, the push-to-stack branch now queues the trigger as the existing
+> `PendingTriggerKind::CardDefETB` instead of `Normal`. `CardDefETB`'s flush lookup
+> (`has_ability_targets` / target resolution) uses `def.abilities.get(ability_index)` — the raw def
+> index the mana path already sets — so the declared `targets` resolve; the `Normal` path instead
+> read the runtime `characteristics.triggered_abilities` vec, which `enrich_spec_from_def` never
+> populated for `WhenTappedForMana`. `CardDefETB` carries no ETB semantics (a pure raw-index marker,
+> per PB-EF3 A2); `doubler_applies_to_trigger` keys on `triggering_event` (None), so no spurious
+> doubling; the immediate-mana branch is untouched. `forbidden_orchard` `known_wrong`→**Complete**
+> (recipient wired to `DeclaredTarget{0}`; both halves compose). 4-player decoy compose test +
+> `all_cards()` roster sweep (only forbidden_orchard among the 7 targets). **No PROTOCOL/HASH bump.**
+> Plan `pb-plan-OS3.md`, review `pb-review-OS3.md` (clean bill).
+
 `rules/mana.rs::fire_mana_triggered_abilities` queues a `TriggerCondition::WhenTappedForMana`
 trigger as `PendingTriggerKind::Normal` with the ability's **raw `def.abilities` index**. The
 trigger auto-target picker in `flush_pending_triggers`, for a `Normal`-kind trigger, reads its
