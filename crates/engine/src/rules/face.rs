@@ -115,12 +115,37 @@ pub(crate) fn apply_face_change(state: &mut GameState, obj_id: ObjectId, new_is_
 /// ability avoids disturbing any other continuous effect the object happens to own
 /// (e.g. a temporary effect granted by a different source).
 ///
-/// Non-`Static` abilities (`TriggerDoubling`, `SuppressCreatureETBTriggers`,
-/// `StaticRestriction`, CDA P/T effects, etc.) are intentionally NOT deregistered
-/// here in the mandatory scope -- no roster card's back face declares any of them,
-/// and each lives in its own `state.*` collection with its own shape. If a future
-/// card needs one of these face-aware, extend this function symmetrically with
-/// `register_static_continuous_effects`.
+/// Non-`Static` abilities are intentionally NOT deregistered here in the mandatory
+/// scope -- no roster card's back face declares any of them, and each lives in its
+/// own `state.*` collection with its own shape (some registering more than one
+/// entry per ability, e.g. `CdaModifyPowerToughness`). As of this writing
+/// `register_static_continuous_effects` (`replacement.rs`) also registers, from the
+/// *effective* face, the following, none of which this function removes:
+/// - `AbilityDefinition::TriggerDoubling` -> `state.trigger_doublers`
+/// - `AbilityDefinition::SuppressCreatureETBTriggers` -> `state.etb_suppressors`
+/// - `AbilityDefinition::StaticRestriction` -> `state.restrictions`
+/// - `AbilityDefinition::CdaPowerToughness` -> `state.continuous_effects` (Layer 7a, `is_cda: true`)
+/// - `AbilityDefinition::CdaModifyPowerToughness` -> `state.continuous_effects` (Layer 7c,
+///   `is_cda: true`; up to TWO entries per ability, one per Some(power)/Some(toughness))
+/// - `AbilityDefinition::AdditionalLandPlays` -> `state.additional_land_play_sources`
+/// - `AbilityDefinition::StaticFlashGrant` -> `state.flash_grants`
+/// - `AbilityDefinition::StaticPlayFromGraveyard` -> `state.play_from_graveyard_permissions`
+/// - `AbilityDefinition::StaticPlayFromTop` -> `state.play_from_top_permissions`
+///
+/// (PB-OS4b review E2 named only the first four of these; re-reading
+/// `register_static_continuous_effects` for this fix turned up five more --
+/// `CdaModifyPowerToughness`, `AdditionalLandPlays`, `StaticFlashGrant`,
+/// `StaticPlayFromGraveyard`, `StaticPlayFromTop` -- that were also missing from
+/// that enumeration. The full family is materially larger and more heterogeneous
+/// than a `Static`-shaped symmetric extension: several of these collections key on
+/// different field shapes (`Option<ObjectId>` vs `ObjectId` source, 1-or-2 entries
+/// per ability, no shared `(layer, duration, modification, filter)` tuple to compare
+/// against outside `state.continuous_effects`), so a precise structural remove for
+/// all nine is a distinctly larger and riskier change than the one this function
+/// already does for `Static`. Deferred rather than attempted opportunistically here;
+/// if a future DFC back face declares any of the nine, extend this function
+/// symmetrically with `register_static_continuous_effects`, collection by
+/// collection, at that time.
 pub(crate) fn deregister_face_statics(
     state: &mut GameState,
     obj_id: ObjectId,

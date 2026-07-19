@@ -8,7 +8,7 @@ the **front** face's, when `obj.is_transformed` is true.
 **Seed**: OOS-OS4-2 (`memory/primitives/ef-batch-plan-2026-07-17.md` §13; evidence in
 `memory/primitives/pb-review-OS4.md` E1/C1).
 **Task**: `scutemob-134`, branch `feat/pb-os4b-face-aware-ability-gathering-transformed-permanents-`.
-**Phase**: implement (plan approved by worker; runner executing)
+**Phase**: fix (review verdict needs-fix: E1 MEDIUM residual sweeps + E2 LOW deregister asymmetry)
 
 ## Scope
 
@@ -105,6 +105,31 @@ Two ability channels, BOTH front-only for transformed permanents:
   deregister correctness; PROTOCOL 19 / HASH 56 unchanged; front-only sites untouched.
 - [ ] Deferred follow-up: file OOS-OS4-3 (edgar_charmed_groom + re-add
   `Effect::ReturnSourceToBattlefieldTransformed`, one wire bump).
+
+## Fix phase (pb-review-OS4b.md)
+- [x] E1 (MEDIUM): first-main (`turn_actions.rs` precombat_main_actions), postcombat-main
+  (`postcombat_main_actions`), and end-step (`end_step_actions`) CardDef trigger sweeps now
+  route through `def.effective_abilities(obj.is_transformed)`, mirroring the upkeep sweep at
+  `turn_actions.rs:284`. Added `test_front_end_step_no_trigger` +
+  `test_back_end_step_trigger_fires_only_when_transformed` decoys to
+  `pb_os4b_face_aware_abilities.rs` (mirroring the upkeep decoy pair). 21/21 tests in that file
+  pass.
+- [x] E2 (LOW): took the "leave as-is, correct + expand the doc constraint" path, not the
+  symmetric extension. Re-reading `register_static_continuous_effects` for this fix found the
+  non-`Static` family is actually **10 variants** registered from the effective face (not the
+  4 the review named): `TriggerDoubling`, `SuppressCreatureETBTriggers`, `StaticRestriction`,
+  `CdaPowerToughness`, `CdaModifyPowerToughness` (up to 2 entries/ability), `AdditionalLandPlays`,
+  `StaticFlashGrant`, `StaticPlayFromGraveyard`, `StaticPlayFromTop` — spread across 7 different
+  `state.*` collections with heterogeneous shapes (some `Option<ObjectId>` source fields, some
+  1-or-2-entries-per-ability). That's materially larger/riskier than the `Static` case per the
+  task's own fallback criterion, so `deregister_face_statics`'s doc comment in `face.rs` was
+  rewritten to enumerate the full, verified list of untouched variants + their collections
+  (correcting the review's undercount) rather than attempting the extension. No roster card
+  reaches this today.
+- [x] Full gates re-run post-fix: `cargo build --workspace` clean; `cargo test --all` 3512
+  passed / 0 failed; `cargo clippy --all-targets -- -D warnings` clean; `cargo fmt --check` +
+  `tools/check-defs-fmt.sh` (1799 defs) clean; `PROTOCOL_VERSION == 19` / `HASH_SCHEMA_VERSION
+  == 56` confirmed unchanged (behavior-only fix, no wire bump).
 
 ## Files (plan/review)
 - Plan: `memory/primitives/pb-plan-OS4b.md`
