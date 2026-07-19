@@ -466,15 +466,44 @@ has_card_type: Creature, max_cmc: Some(5) }, matched_dest: Battlefield{tapped:fa
 unmatched_dest: Library{Bottom} }` in a small follow-up. Candidates: `muxus_goblin_grandee`
 (attack-half already Complete via PB-OS5; this is the last remaining ETB half).
 
-### PB-OS9 — Lieutenant / "you control your commander" condition (OOS-EF3b-1) · capability
-- **Findings**: OOS-EF3b-1.
-- **Fix**: `Condition::YouControlYourCommander` (or a `CommanderControlled` flag on `TargetFilter`)
-  checked against the effect controller's `commander_ids` + battlefield presence. Likely a **new
-  `Condition` variant reusing existing wire shape** — verify PROTOCOL impact at plan time (`Condition`
-  is in the SR-8 closure).
-- **Candidates (1-2)**: `skyhunter_strike_force` (partial→Complete) + any other Lieutenant-keyword
-  card (recurs across printings).
-- **Discounted ship**: **~1-2.**
+### PB-OS9 — Lieutenant / "you control your commander" condition (OOS-EF3b-1) · capability ✅ SHIPPED `scutemob-139` (commit `63335b8d`, 2026-07-19)
+> **SHIPPED 2026-07-19. OOS-EF3b-1 CLOSED.** Added `Condition::YouControlYourCommander` unit
+> variant (CR 903.3d — controller CONTROLS, on the battlefield & phased-in, a commander they OWN;
+> per-owner `commander_ids` encodes ownership → controlling an OPPONENT's commander, or an opponent
+> controlling YOURS, is correctly OFF; stole-back → ON via Layer-2 `SetController` writeback). One
+> real arm in `check_condition` serves BOTH consumption shapes — the intervening-if path
+> (resolution-time, CR 603.4) and the continuous-grant path (`check_static_condition`'s `_ =>`
+> fallback, layer re-eval, drops on commander leave/steal). Hash discriminant 51.
+> **Wire: PROTOCOL 23→24 / HASH 60→61**, both machine-forced (`Condition` in both SR-8 PROTOCOL and
+> GameState hash closures), fingerprints re-pinned, history rows appended. 15 tests (all decoys
+> non-vacuous: stolen-commander OFF, control-opponent's-commander-only OFF, command-zone false,
+> dies→drop same SBA batch, skyhunter grant drops on leave/steal, siege-gang 2-tokens-vs-0
+> resolution check). Plan `pb-plan-OS9.md`; review `pb-review-OS9.md` (0 HIGH / 0 MEDIUM).
+> **Yield: 1 clean flip** (`skyhunter_strike_force` partial→**Complete**), NOT the plan's predicted
+> 3 — see the deviation seed below. `legion_lieutenant` confirmed name-only ("Other Vampires you
+> control get +1/+1"), OUT. Coverage 1,127→**1,128**.
+- **Findings**: OOS-EF3b-1 ✅ CLOSED.
+- **Candidates**: `skyhunter_strike_force` (partial→**Complete**, continuous grant);
+  `loyal_apprentice` + `siege_gang_lieutenant` — Lieutenant DSL authored CR-correct
+  (`intervening_if: Some(Condition::YouControlYourCommander)` on an `AtBeginningOfCombat` trigger)
+  but **kept `partial`** because the trigger never fires in real play (deviation seed below);
+  `legion_lieutenant` OUT (name-only).
+- **Discounted ship**: **1** (predicted ~1-2; primitive itself fully working — the two extra
+  partials are blocked downstream of this primitive, not by it).
+
+**New seed — OOS-OS9-1 (correctness/capability) — card-def `AtBeginningOfCombat` trigger sweep
+missing from `begin_combat()`.** Verified by execution (SR-34/36) + independently in source:
+`crates/engine/src/rules/turn_actions.rs` `begin_combat()` (~line 1684) queues ONLY emblem triggers
+(`collect_emblem_triggers_for_event`, CR 114.4) and returns `Vec::new()` — there is **no** card-def
+`AbilityDefinition::Triggered { trigger_condition: AtBeginningOfCombat, .. }` sweep, unlike the
+upkeep / first-main / postcombat-main / end-step steps which each have one. So any battlefield
+permanent's `AtBeginningOfCombat` triggered ability silently never fires. **Blocks**:
+`loyal_apprentice`, `siege_gang_lieutenant` (this batch, kept partial); also pre-existing silent
+gaps for `legion_warboss`, `goblin_rabblemaster`, `mirage_phalanx`, `helm_of_the_host` (not touched
+here). Fix = add the per-step card-def sweep in `begin_combat()` mirroring the upkeep sweep
+(active-player-scoped `AtBeginningOfCombat`; the DSL doc already treats it as "on your turn").
+No wire change expected (uses existing `PendingTriggerKind::CardDefETB`). Estimated yield when
+done: ~4-6 flips. Candidate for a near-term correctness PB.
 
 ### PB-OS10 — spells-only single-target-distinctness + Jitte trigger (OOS-XS-1 + OOS-EF7-1) · capability · cleanup singletons
 - **Findings**: OOS-XS-1, OOS-EF7-1 (bundled — two independent 1-card cleanups, low blast radius).
@@ -510,7 +539,7 @@ unmatched_dest: Library{Bottom} }` in a small follow-up. Candidates: `muxus_gobl
 | ~~PB-OS6~~ ✅ SHIPPED `scutemob-136` | OOS-EF5-4 (a/b/g shipped; c deferred to OOS-OS6-1, d deferred to PB-OS8) | capability (sub-batch) | 3 Complete (delver_of_secrets, legions_landing, thaumatic_compass) | PROTOCOL 20→21 / HASH 57→58 |
 | PB-OS7 | OOS-EF3-1 | capability | ~1-2 | PROTOCOL |
 | ~~PB-OS8~~ ✅ SHIPPED `scutemob-138` | OOS-EF10-1 (+min_cmc) | capability | 2 Complete (birthing_ritual, growing_rites_of_itlimoc); birthing_pod stays partial (new blocker OOS-OS8-1); muxus re-pointed (OOS-OS8-2) | PROTOCOL 22→23 / HASH 59→60 |
-| PB-OS9 | OOS-EF3b-1 | capability | ~1-2 | verify |
+| ~~PB-OS9~~ ✅ SHIPPED `scutemob-139` | OOS-EF3b-1 | capability | 1 Complete (skyhunter_strike_force); loyal_apprentice + siege_gang_lieutenant authored CR-correct but stay partial (new blocker OOS-OS9-1: AtBeginningOfCombat sweep gap) | PROTOCOL 23→24 / HASH 60→61 |
 | PB-OS10 | OOS-XS-1 + OOS-EF7-1 | capability (singletons) | ~2 | PROTOCOL |
 | PB-OS11 | OOS-LKI-3 + OOS-TS-1 | capability (singletons) | ~2 | PROTOCOL |
 

@@ -786,7 +786,15 @@ source's layer-resolved characteristics.
 
 ## 7. New findings filed by PB-EF3b (scutemob-104)
 
-### OOS-EF3b-1 (capability) — "you control your commander" (Lieutenant) continuous-grant condition
+### OOS-EF3b-1 (capability) — "you control your commander" (Lieutenant) continuous-grant condition · ✅ CLOSED (PB-OS9, `scutemob-139`, 2026-07-19)
+> **CLOSED by PB-OS9.** Added `Condition::YouControlYourCommander` (CR 903.3d) serving both the
+> continuous-grant path (`ContinuousEffectDef.condition` → `check_static_condition`) and the
+> intervening-if path. `skyhunter_strike_force` flipped partial→**Complete**. PROTOCOL 23→24 /
+> HASH 60→61. (The two intervening-if Lieutenant cards `loyal_apprentice`/`siege_gang_lieutenant`
+> are authored CR-correct with this condition but blocked on a separate engine gap, OOS-OS9-1 —
+> the missing `AtBeginningOfCombat` card-def sweep in `begin_combat()`.) Detail:
+> `oos-retriage-plan-2026-07-18.md` §3 PB-OS9.
+
 Lieutenant-style abilities ("As long as you control your commander, [static effect]") need a
 condition on a continuous-effect grant (`ContinuousEffectDef.condition`) that evaluates
 "the effect's controller currently controls their commander." No such condition exists:
