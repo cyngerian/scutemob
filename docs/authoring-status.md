@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-07-19 08:54 UTC  
-**Git:** `38246a6e` on `main`  
+**Generated:** 2026-07-19 09:49 UTC  
+**Git:** `6800d924` on `main`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -25,19 +25,19 @@ and what is intentionally NOT in it.**
 | Plan cards still missing a def file | 135 | · |
 | Bonus defs (on disk, outside plan) | 321 | · |
 | Effective coverage vs plan target | **111%** (1,822 / 1,636) | — |
-| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 62.5% | 1,127 | +2 |
-| With TODO markers | 524 | -1 |
-| Empty `abilities: vec![]` placeholders | 152 | -1 |
-| Total TODO lines across all defs | 956 | -2 |
+| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 62.6% | 1,128 | +1 |
+| With TODO markers | 523 | -1 |
+| Empty `abilities: vec![]` placeholders | 152 | · |
+| Total TODO lines across all defs | 953 | -3 |
 
 ## Authoring activity (git, by window)
 
 | Window | New files added | Existing files modified |
 | --- | ---: | ---: |
-| last 7 days | 56 | 1,767 |
-| last 30 days | 56 | 2,941 |
-| last 90 days | 56 | 2,977 |
-| last 1 year | 1,829 | 3,364 |
+| last 7 days | 56 | 1,768 |
+| last 30 days | 56 | 2,942 |
+| last 90 days | 56 | 2,978 |
+| last 1 year | 1,829 | 3,365 |
 
 ## Bonus defs outside the plan
 
@@ -77,7 +77,7 @@ are blocked on engine primitives.
 | `removal-destroy` | 56 / 56 | 100% | 35 | 17 | 4 |
 | `counters-plus` | 49 / 49 | 100% | 25 | 19 | 5 |
 | `land-fetch` | 45 / 45 | 100% | 27 | 14 | 4 |
-| `attack-trigger` | 19 / 34 | 56% | 15 | 3 | 1 |
+| `attack-trigger` | 19 / 34 | 56% | 16 | 2 | 1 |
 | `death-trigger` | 34 / 34 | 100% | 20 | 9 | 5 |
 | `mana-artifact` | 34 / 34 | 100% | 22 | 10 | 2 |
 | `activated-tap` | 9 / 27 | 33% | 8 | 0 | 1 |
@@ -171,7 +171,7 @@ the next thing to triage when the classifier table is grown.
 
 | Gap bucket | TODO lines | Δ since last run |
 | --- | ---: | ---: |
-| OTHER (unclassified) | 586 | -1 |
+| OTHER (unclassified) | 583 | -3 |
 | DSL gap (unspecified) | 120 | · |
 | attack trigger (self / generic) | 26 | · |
 | TriggerCondition::* missing variant | 17 | · |
@@ -181,7 +181,7 @@ the next thing to triage when the classifier table is grown.
 | EffectAmount::* missing variant | 12 | · |
 | sacrifice as cost | 11 | · |
 | combat-damage-to-player trigger | 10 | · |
-| interactive / hidden-info choice | 10 | -1 |
+| interactive / hidden-info choice | 10 | · |
 | can't / must block-attack | 7 | · |
 | can't be countered | 7 | · |
 | opponent-action trigger | 7 | · |
@@ -201,7 +201,7 @@ _…and 27 more buckets totaling 47 lines._
 
 ### Raw OTHER samples (read these to design new classifier buckets)
 
-Showing 12 of 586 
+Showing 12 of 583 
 unclassified TODO lines. If two or three of these have a common theme, that's a 
 new bucket to add to `TODO_BUCKETS` in `tools/authoring-report.py`. Sample is 
 deterministic (sorted by slug).
@@ -210,29 +210,32 @@ deterministic (sorted by slug).
 abstergo_entertainment: // TODO: {3}, {T}, Exile Abstergo Entertainment: Return up to one target historic card
 blood_tribute: // TODO: "if kicked, gain life equal to life lost" needs conditional.
 deadly_tempest: // TODO: The "each player loses life equal to creatures they controlled" requires
-exuberant_fuseling: // TODO: "whenever another creature or artifact you control is put into a graveyard
-goblin_king: // TODO: AllCreaturesWithSubtype includes Goblin King itself — "other" semantics
-jeskas_will: // TODO: "choose both if commander" conditional entwine.
-marionette_apprentice: // ENGINE-BLOCKED: "Whenever another creature or artifact you control is put into
+experimental_augury: // TODO: Interactive top-3 selection deferred to M10.
+go_for_the_throat: // TODO: "nonartifact creature" — no exclude_card_types on TargetFilter.
+jeskas_will: // TODO: Mode 1 needs mana-scaled-by-opponent-hand-count.
+marionette_apprentice: // ENGINE-BLOCKED: "Whenever another creature or artifact you control dies" — there is no
 out_of_the_tombs: // TODO: Upkeep counter + mill scaling with counter count not expressible.
-ruthless_winnower: // TODO: "non-Elf creature" filter — SacrificePermanents has no subtype exclusion.
-song_of_freyalise: // TODO: Saga chapter III — +1/+1 counters on all creatures you control plus vigilance,
+ruthless_technomancer: // ENGINE-BLOCKED: see module comment -- ETB optional-sacrifice-for-Treasure
+sorin_imperious_bloodlord: // TODO: "If it's a Vampire, put a +1/+1 counter on it" — requires
 teferi_temporal_archmage: // TODO: Emblem creation for "activate loyalty at instant speed" not in DSL.
 tyvar_jubilant_brawler: // TODO: static — creatures you control can activate abilities as though they had haste
 ```
 
 ## ⚠ Completeness-marker drift
 
-4 defs whose `completeness:` marker contradicts their comments. The marker is authoritative (it is what `validate_deck` reads), so fix whichever is stale.
+6 defs whose `completeness:` marker contradicts their comments. The marker is authoritative (it is what `validate_deck` reads), so fix whichever is stale.
 
 - `ashnods_altar` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `boggart_shenanigans` — marked partial but has no TODO / ENGINE-BLOCKED comment
+- `loyal_apprentice` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `phyrexian_tower` — marked partial but has no TODO / ENGINE-BLOCKED comment
+- `siege_gang_lieutenant` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `temple_of_the_dragon_queen` — marked partial but has no TODO / ENGINE-BLOCKED comment
 
 ## Recent card-touching commits
 
 ```
+63335b8d W6-prim: PB-OS9 — Condition::YouControlYourCommander (OOS-EF3b-1); PROTOCOL 24 / HASH 61
 63148132 W6-prim: PB-OS8 — Effect::LookAtTopThenPlace + TargetFilter.min_cmc_amount (OOS-EF10-1 + OS6-deferred-(d))
 2beaba4f W6-prim: PB-OS7 — author silumgar_the_drifting_death.rs (Complete)
 bd15b45b W6-prim: PB-OS6 review LOW — soften delver 'strictly beneficial' comment wording
@@ -257,7 +260,6 @@ a7ae66ce scutemob-109: PB-EF8 /review LOW — elvish_spirit_guide oracle_text ca
 1574aa17 scutemob-108: PB-EF7 review fixes — LKI discriminator + validation-branch tests
 bd43762b scutemob-108: PB-EF7 card fixes — Goblin Cratermaker + Cankerbloom to Complete
 a4319e8d scutemob-108: PB-EF7 corpus-wide modes: None, on Activated ability defs (mechanical)
-7f6d5082 scutemob-107: PB-EF6 card-def fixups — vengeful_bloodwitch comment, forbidden_orchard revert
 ```
 
 ## Missing card-defs sidecar

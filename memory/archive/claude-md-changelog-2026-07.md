@@ -502,3 +502,14 @@ HASH 59→**60**. Initial needs-fix resolved (large_enum_variant allow per repo 
 Coverage **1,127/1,803 = 62.5%**. NOTE: esm worktree check false-flagged conflicts +
 provisioned damage on this task — attestation branch-name drift (recorded hazard); real
 merge verified clean via git merge-tree first. Next: PB-OS9.
+
+## 2026-07-19 — PB-OS9 collected (`scutemob-139`, merge `6800d924`) — OOS-EF3b-1 CLOSED
+
+`Condition::YouControlYourCommander` (CR 903.3d): controls + battlefield + phased-in + OWNS —
+per-owner `commander_ids` makes stolen-commander semantics correct both directions (yours
+stolen → OFF; stole-back → ON). One `check_condition` arm serves intervening-if AND
+continuous-grant paths; grant drops on leave/steal via layer re-eval.
+`skyhunter_strike_force` **Complete**; loyal_apprentice + siege_gang_lieutenant authored
+CR-correct but stay partial → **OOS-OS9-1** (AtBeginningOfCombat trigger sweep gap — new
+finding). PROTOCOL 23→**24** / HASH 60→**61** (both machine-forced, stop-and-flagged).
+Review: clean. Coverage **1,128/1,803 = 62.6%**. Next: PB-OS10, then OS11 closes the queue.
