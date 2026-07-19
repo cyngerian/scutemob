@@ -2,7 +2,7 @@
 
 <!-- last_updated: 2026-07-19 -->
 
-**Phase**: review
+**Phase**: close-out (clean bill — reviewer + /review both PASS; ready for collect)
 **Task**: scutemob-136
 **Branch**: feat/pb-os6-dfc-flip-condition-sub-batch-oos-ef5-4-abcdg-delver-l
 

@@ -908,6 +908,25 @@ This is a fundamentally different mechanism than `TransformSelf` (which flips a 
   integration for fable. New wire type → PROTOCOL bump. A whole PB (4 cards).
 
 ### OOS-EF5-4 (capability, new — DFC flip-condition primitives, batchable) — distinct 2nd blockers
+> ✅ **SHIPPED-NARROWED — PB-OS6 (`scutemob-136`), 2026-07-19.** Three of the five sub-primitives
+> shipped, flipping 3 cards to `Complete`; the other two were honestly narrowed to follow-up seeds.
+> **Shipped:** (a) `delver_of_secrets` partial→Complete via `Condition::TopCardIsInstantOrSorcery`;
+> (b) `legions_landing` NEW→Complete via `Condition::YouAttackedWithNOrMore(u32)` +
+> `PlayerState.attackers_declared_this_turn` (CR 508.4 — only declared attackers count); (g)
+> `thaumatic_compass` partial→Complete via `Effect::RemoveFromCombat { target }` +
+> `GameEvent::RemovedFromCombat` + a shared `remove_from_combat` helper factored out of
+> `apply_regeneration` (CR 506.4). Single batched **PROTOCOL 20→21 / HASH 57→58**.
+> **Narrowed/deferred:** (c) `westvale_abbey` → new seed **OOS-OS6-1** (multi-count sacrifice
+> *activation cost* — needs an `ActivationCost.sacrifice_count` field **and** a plural
+> `Command::ActivateAbility.sacrifice_targets` Command-wire reshape, ~90-site churn for a single
+> card; `kellogg_dangerous_mind` "Sacrifice five Treasures" rides the same primitive). (d)
+> `growing_rites_of_itlimoc`'s ETB "look at top N, take a match, bottom the rest" → **PB-OS8**
+> (`Effect::LookAtTopThenPlace` family; building a minimal duplicate here would force a throwaway
+> wire type + a second PROTOCOL bump when OS8 lands). growing_rites stays `partial` (its end-step
+> `TransformSelf` half already works). Plan `memory/primitives/pb-plan-OS6.md`, review
+> `pb-review-OS6.md` (clean bill), queue entry `oos-retriage-plan-2026-07-18.md` §3 (PB-OS6).
+> Per-item status: (a) ✅ (b) ✅ (g) ✅ (c) → OOS-OS6-1 (d) → PB-OS8 (e) already moved to OOS-EF5-3.
+
 The remaining roster DFCs whose transform clause could use `TransformSelf` but whose
 **surviving** clause needs a separate primitive (verified against real oracle text, not the
 plan's table, during this batch):
