@@ -164,7 +164,16 @@ filter defect on mode 2 is moot until the modal primitive exists.
 **Fix**: add `modes: Option<ModeSelection>` (+ `mode_targets`) to `AbilityDefinition::Activated`
 and wire announce/validate/resolution, mirroring the `Spell`/`Triggered` modal path. PB-sized.
 
-### OOS-EF7-1 — Umezawa's Jitte still blocked after PB-EF7 (its trigger, not its modal ability)
+### OOS-EF7-1 — Umezawa's Jitte still blocked after PB-EF7 (its trigger, not its modal ability) — ✅ CLOSED (PB-OS10, scutemob-140, 2026-07-19)
+> `TriggerCondition::WhenEquippedCreatureDealsCombatDamage` + `TriggerEvent::EquippedCreatureDealsCombatDamage`
+> (any recipient — player, creature, planeswalker/battle) added, distinct from the `…ToPlayer`
+> variant. Fired in `abilities.rs` from the combat-damage collector, deduped once-per-source-creature
+> per combat-damage step (CR 603.2c), 0-damage skipped (CR 603.2g). `umezawas_jitte.rs` trigger
+> repointed AND the modal RemoveCounter ability converted `Effect::Choose` → `AbilityDefinition::Activated::modes`
+> (the non-interactive first-option `Effect::Choose` is barred from Complete). **Flipped
+> `known_wrong` → `Complete`** after execution-verifying all three clauses (any-recipient trigger,
+> `Cost::RemoveCounter` gating, all 3 modes selecting). PROTOCOL 24→25 / HASH 61→62. Tests:
+> `pb_os10_singleton_cleanup.rs` (Jitte trigger/decoy/modal/cost, 12 tests).
 
 The modal-activated primitive now exists and would correctly resolve Jitte's "Remove a
 charge counter: Choose one —" ability (equipped creature +2/+2 / target creature -1/-1 /

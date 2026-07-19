@@ -814,7 +814,18 @@ fixed: Roalesk, Samut Voice of Dissent, Torch Courier, Brash Taunter, Ezuri
 Renegade Leader, Oath of Teferi, Elderfang Ritualist, Dour Port-Mage,
 Thousand-Faced Shadow.
 
-### OOS-XS-1: "different from other declared target" — Hidden Strings, twincast-style
+### OOS-XS-1: "different from other declared target" — Hidden Strings, twincast-style — ✅ CLOSED (PB-OS10, scutemob-140, 2026-07-19)
+
+> **Primitive shipped.** `TargetRequirement::TargetPermanentDistinctFrom(usize)` added
+> (opt-in per slot; type-legality identical to `TargetPermanent`, so it does NOT break the
+> CR 601.2c default that the same object may be reused across separate "target" instances —
+> only the "another"/"other" grammar forces distinctness). Enforced by
+> `enforce_inter_target_distinctness` in `casting.rs`, called from both `validate_targets_inner`
+> and `validate_targets_positional`. `hidden_strings` slot 1 wired to `TargetPermanentDistinctFrom(0)`.
+> Pinned by `pb_os10_singleton_cleanup.rs`: same-permanent-twice REJECTED, two-different ACCEPTED.
+> **`hidden_strings` stays `known_wrong`** — its tap-or-untap player-choice + "may" optionality
+> remain unmodeled (introducing them would require a gated-stub `Effect::Choose`, barred from
+> Complete); distinctness is no longer the blocker. PROTOCOL 24→25 / HASH 61→62.
 
 **Cards**: Hidden Strings ("tap or untap target permanent, then you may tap
 or untap another target permanent"). Future cards with "two target X, no two
