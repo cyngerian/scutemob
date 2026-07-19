@@ -385,6 +385,7 @@ pub fn handle_play_land(
         new_land_id,
         card_id.as_ref(),
         &registry,
+        false,
     );
     events.push(GameEvent::LandPlayed {
         player,

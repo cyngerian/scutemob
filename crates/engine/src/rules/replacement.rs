@@ -1176,6 +1176,18 @@ pub fn apply_self_etb_from_definition(
     // MR-M8-12: register each self-ETB WouldEnterBattlefield replacement into
     // `state.replacement_effects` so it is applied through the framework below
     // (rather than inline) — participating in CR 614.15 ordering / CR 614.5.
+    //
+    // PB-OS4b limitation (OOS-OS4-2): this reads the FRONT `def.abilities`
+    // unconditionally, not `def.effective_abilities(obj.is_transformed)`. On the
+    // enter-transformed paths (craft/disturb/exile-return, e.g. `resolution.rs`
+    // craft ETB), a permanent that enters back-face-up therefore gathers its
+    // FRONT face's self-ETB replacements (enters-tapped / enters-with-counters),
+    // not the visible back face's — contrary to CR 712.8d/e. No roster DFC/craft/
+    // disturb back face declares a WouldEnterBattlefield self-replacement, so this
+    // is unreachable today; it is left front-only deliberately (making it
+    // face-aware needs the same producer/consumer index-parity handling as the
+    // rest of PB-OS4b and has zero roster benefit — W6 no-speculative-machinery).
+    // A future DFC whose BACK face enters tapped / with counters must revisit this.
     for ability in &def.abilities {
         if let AbilityDefinition::Replacement {
             trigger: ReplacementTrigger::WouldEnterBattlefield { .. },
@@ -1405,14 +1417,26 @@ pub fn queue_carddef_etb_triggers(
     let Some(def) = registry.get(cid.clone()) else {
         return Vec::new();
     };
-    // CR 702.104b: Retrieve tribute_was_paid status from the permanent for trigger condition check.
-    let tribute_was_paid = state
+    // CR 702.104b: Retrieve tribute_was_paid status from the permanent for trigger
+    // condition check. PB-OS4b (CR 712.8d/e): also read the entering object's live
+    // `is_transformed` here (single lookup, SR-25 ratchet) so a permanent that
+    // enters already showing its back face (craft, disturb,
+    // ExileSourceAndReturnTransformed) queues that face's ETB triggers, not the
+    // front face's. `ability_index` below is a dense index into the *effective*
+    // list; the CardDefETB consumers (rules/abilities.rs) re-derive against
+    // `effective_abilities(obj.is_transformed)` at resolution time using the same
+    // contract (see the Index-Stability discussion in the PB-OS4b plan).
+    let (tribute_was_paid, entering_is_transformed) = state
         .objects
         .get(&new_id)
-        .map(|o| o.tribute_was_paid)
-        .unwrap_or(false);
+        .map(|o| (o.tribute_was_paid, o.is_transformed))
+        .unwrap_or((false, false));
     let mut evts = Vec::new();
-    for (idx, ability) in def.abilities.iter().enumerate() {
+    for (idx, ability) in def
+        .effective_abilities(entering_is_transformed)
+        .iter()
+        .enumerate()
+    {
         match ability {
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
@@ -1880,6 +1904,12 @@ pub fn register_permanent_replacement_abilities(
     let Some(def) = registry.get(cid.clone()) else {
         return;
     };
+    // PB-OS4b limitation (OOS-OS4-2): reads FRONT `def.abilities`, not
+    // `def.effective_abilities(is_transformed)`. A permanent entering back-face-up
+    // (craft/disturb/exile-return) registers its FRONT face's permanent
+    // replacement abilities, not its back face's (CR 712.8d/e). No roster DFC back
+    // face declares a non-self permanent replacement, so unreachable today; left
+    // front-only for the same reason as `apply_self_etb_from_definition` above.
     for ability in &def.abilities {
         if let AbilityDefinition::Replacement {
             trigger,
@@ -2034,11 +2064,19 @@ pub fn register_permanent_replacement_abilities(
 ///
 /// The `filter` field is used as-is; `EffectFilter::AttachedCreature` will resolve
 /// correctly at characteristic-calculation time via the source's `attached_to` field.
+///
+/// `is_transformed` (PB-OS4b, CR 712.8d/e): selects which face's abilities are
+/// registered -- pass the entering/current object's `is_transformed` value. `false`
+/// for a normal ETB (front face); `true` for a permanent entering already
+/// transformed (e.g. craft return, `ExileSourceAndReturnTransformed`) or when this
+/// is called from [`super::face::apply_face_change`] to register the newly-visible
+/// face at an in-place transform boundary.
 pub fn register_static_continuous_effects(
     state: &mut GameState,
     new_id: ObjectId,
     card_id: Option<&crate::state::player::CardId>,
     registry: &crate::cards::registry::CardRegistry,
+    is_transformed: bool,
 ) {
     use crate::cards::card_definition::AbilityDefinition;
     use crate::state::continuous_effect::{ContinuousEffect, EffectId};
@@ -2054,7 +2092,7 @@ pub fn register_static_continuous_effects(
         .expect_object(new_id)
         .map(|obj| obj.controller)
         .unwrap_or_else(|| crate::state::player::PlayerId(0));
-    for ability in &def.abilities {
+    for ability in def.effective_abilities(is_transformed) {
         match ability {
             AbilityDefinition::Static { continuous_effect } => {
                 let eff_id = state.next_object_id().0;

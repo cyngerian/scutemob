@@ -1006,6 +1006,7 @@ fn test_ashaya_pt_equals_lands_you_control() {
         ashaya,
         card_id.as_ref(),
         &registry,
+        false,
     );
 
     let chars = calculate_characteristics(&state, ashaya).unwrap();
@@ -1064,6 +1065,7 @@ fn test_multani_pt_sums_lands_and_graveyard_lands() {
         multani,
         card_id.as_ref(),
         &registry,
+        false,
     );
 
     let chars = calculate_characteristics(&state, multani).unwrap();

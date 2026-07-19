@@ -9,6 +9,7 @@ pub mod commander;
 pub mod copy;
 pub mod engine;
 pub mod events;
+pub mod face;
 pub mod foretell;
 pub mod lands;
 pub mod layers;

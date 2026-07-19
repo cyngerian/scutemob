@@ -664,11 +664,15 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     if stack_obj.is_cast_transformed {
                         obj.is_transformed = true;
                         // Disturb is the only current source of is_cast_transformed.
-                        // Verify by checking the card has AbilityDefinition::Disturb.
-                        let has_disturb_abil = obj
+                        // Verify by checking the card has AbilityDefinition::Disturb
+                        // (a front-face ability -- Disturb is printed as an alternative
+                        // casting method on the front face, so this check intentionally
+                        // reads `def.abilities`, not the back face's abilities).
+                        let back_def = obj
                             .card_id
                             .as_ref()
-                            .and_then(|cid| registry.get(cid.clone()))
+                            .and_then(|cid| registry.get(cid.clone()));
+                        let has_disturb_abil = back_def
                             .map(|def| {
                                 def.abilities.iter().any(|a| {
                                     matches!(
@@ -679,6 +683,27 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             })
                             .unwrap_or(false);
                         obj.was_cast_disturbed = has_disturb_abil;
+                        // PB-OS4b (CR 712.8d/e): the permanent enters showing its BACK
+                        // face. Rebuild the Channel-A ability vectors
+                        // (mana/activated/triggered) from the back face here -- the
+                        // `characteristics` this object carried forward from off the
+                        // battlefield were always front-face (CR 400.7/712.8a), so
+                        // without this the back-face-up permanent would dispatch its
+                        // front face's activated/triggered abilities. Static continuous
+                        // effect registration (Channel B) is intentionally left to the
+                        // generic `register_static_continuous_effects` call later in
+                        // this same ETB flow, which reads this object's live
+                        // `is_transformed` -- doing it here too would double-register
+                        // the back face's statics.
+                        if let Some(def) = back_def {
+                            let (mana_abilities, activated_abilities, triggered_abilities) =
+                                crate::testing::replay_harness::build_face_ability_vectors(
+                                    def.effective_abilities(true),
+                                );
+                            obj.characteristics.mana_abilities = mana_abilities;
+                            obj.characteristics.activated_abilities = activated_abilities;
+                            obj.characteristics.triggered_abilities = triggered_abilities;
+                        }
                     }
                     // CR 603.4: Mark this permanent as having entered via casting.
                     // Used by Condition::WasCast ("if you cast it") intervening-if checks.
@@ -1679,11 +1704,21 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 // continuous effects do not activate while they are face-down.
                 // Effects will be registered when the permanent is turned face-up.
                 if !is_face_down_entering {
+                    // PB-OS4b (CR 712.8d/e): read the object's live `is_transformed`
+                    // (set above for a disturb-cast permanent) rather than assuming
+                    // front-face -- this is the single generic registration point for
+                    // this permanent, so it must register whichever face is showing.
+                    let entering_is_transformed = state
+                        .objects
+                        .get(&new_id)
+                        .map(|o| o.is_transformed)
+                        .unwrap_or(false);
                     super::replacement::register_static_continuous_effects(
                         state,
                         new_id,
                         card_id.as_ref(),
                         &registry,
+                        entering_is_transformed,
                     );
                 }
                 events.push(GameEvent::PermanentEnteredBattlefield {
@@ -1950,12 +1985,17 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             )
                         } else {
                             // Card registry fallback for plain AbilityDefinition::Triggered
-                            // and AbilityDefinition::SagaChapter (CR 714.2b).
+                            // and AbilityDefinition::SagaChapter (CR 714.2b). PB-OS4b
+                            // (CR 712.8d/e): index into the currently-visible face's
+                            // effective list ("is_transformed at consume time" contract).
                             let result = obj
                                 .card_id
                                 .as_ref()
                                 .and_then(|cid| state.card_registry.get(cid.clone()))
-                                .and_then(|def| def.abilities.get(ability_index))
+                                .and_then(|def| {
+                                    def.effective_abilities(obj.is_transformed)
+                                        .get(ability_index)
+                                })
                                 .and_then(|abil| {
                                     match abil {
                                         crate::cards::card_definition::AbilityDefinition::Triggered {
@@ -1978,11 +2018,16 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     } else {
                         // CardDefETB path: ability_index is into CardDef::abilities.
                         // Always use the card registry — never runtime triggered_abilities.
+                        // PB-OS4b (CR 712.8d/e): index into the currently-visible face's
+                        // effective list ("is_transformed at consume time" contract).
                         let result = obj
                             .card_id
                             .as_ref()
                             .and_then(|cid| state.card_registry.get(cid.clone()))
-                            .and_then(|def| def.abilities.get(ability_index))
+                            .and_then(|def| {
+                                def.effective_abilities(obj.is_transformed)
+                                    .get(ability_index)
+                            })
                             .and_then(|abil| match abil {
                                 crate::cards::card_definition::AbilityDefinition::Triggered {
                                     effect,
@@ -2009,13 +2054,18 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             // chosen mode effects at resolution time. modes_chosen was set in
             // flush_pending_triggers (bot fallback: mode 0).
             let triggered_effect_opt: Option<crate::cards::card_definition::Effect> = {
-                // Look up the CardDef ability to get modes field.
+                // Look up the CardDef ability to get modes field. PB-OS4b
+                // (CR 712.8d/e): index into the currently-visible face's
+                // effective list ("is_transformed at consume time" contract).
                 let modes_opt = state
                     .objects
                     .get(&source_object)
-                    .and_then(|obj| obj.card_id.as_ref())
-                    .and_then(|cid| state.card_registry.get(cid.clone()))
-                    .and_then(|def| def.abilities.get(ability_index))
+                    .and_then(|obj| {
+                        let cid = obj.card_id.as_ref()?;
+                        let def = state.card_registry.get(cid.clone())?;
+                        def.effective_abilities(obj.is_transformed)
+                            .get(ability_index)
+                    })
                     .and_then(|abil| {
                         if let crate::cards::card_definition::AbilityDefinition::Triggered {
                             modes,
@@ -3133,6 +3183,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     new_id,
                     card_id.as_ref(),
                     &registry,
+                    false,
                 );
                 // 5. Emit PermanentEnteredBattlefield.
                 events.push(GameEvent::PermanentEnteredBattlefield {
@@ -4381,6 +4432,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         new_id,
                         card_id.as_ref(),
                         &registry,
+                        false,
                     );
                     events.push(GameEvent::PermanentEnteredBattlefield {
                         player: owner,
@@ -6115,6 +6167,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     new_id,
                     card_id.as_ref(),
                     &registry,
+                    false,
                 );
                 // 8. Emit PermanentEnteredBattlefield.
                 events.push(GameEvent::PermanentEnteredBattlefield {
@@ -6335,6 +6388,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         token_id,
                         source_card_id.as_ref(),
                         &registry,
+                        false,
                     );
                     events.push(GameEvent::TokenCreated {
                         player: controller,
@@ -6560,6 +6614,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         token_id,
                         source_card_id.as_ref(),
                         &registry,
+                        false,
                     );
                     events.push(GameEvent::TokenCreated {
                         player: controller,
@@ -6800,6 +6855,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             token_id,
                             source_card_id.as_ref(),
                             &registry,
+                            false,
                         );
                         events.push(GameEvent::TokenCreated {
                             player: controller,
@@ -7166,14 +7222,12 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     .unwrap_or(false);
                 if still_on_battlefield && not_already_transformed && has_back_face {
                     let to_back_face = !obj.is_transformed;
-                    // Impossible-absence: assert without the whole-struct borrow that
-                    // `expect_object_mut` would take (this block reads other `state` fields).
-                    debug_assert_object_live!(state, permanent);
-                    if let Some(obj_mut) = state.objects.get_mut(&permanent) {
-                        obj_mut.is_transformed = to_back_face;
-                        obj_mut.last_transform_timestamp = state.timestamp_counter;
-                        state.timestamp_counter += 1;
-                    }
+                    // PB-OS4b (CR 712.8d/e, 712.18): route the flip through
+                    // `apply_face_change` so it deregisters the old face's static
+                    // continuous effects, rebuilds the Channel-A ability vectors from
+                    // the new face, and registers the new face's static continuous
+                    // effects.
+                    crate::rules::face::apply_face_change(state, permanent, to_back_face);
                     events.push(GameEvent::PermanentTransformed {
                         object_id: permanent,
                         to_back_face,
@@ -7211,10 +7265,15 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 debug_assert_object_live!(state, new_id);
                 if let Some(obj) = state.objects.get_mut(&new_id) {
                     obj.controller = activator;
-                    obj.is_transformed = true;
-                    obj.last_transform_timestamp = state.timestamp_counter;
-                    state.timestamp_counter += 1;
                 }
+                // PB-OS4b (CR 702.167a, 712.8d/e): the returned card enters
+                // transformed (back face up). Route through `apply_face_change` so
+                // it rebuilds the Channel-A ability vectors from the back face and
+                // registers the back face's static continuous effects — this stack
+                // -based craft path previously never registered ANY statics for a
+                // crafted-in permanent; apply_face_change closes that pre-existing
+                // gap as a side effect of the flip.
+                crate::rules::face::apply_face_change(state, new_id, true);
                 let card_id_for_etb = state.objects.get(&new_id).and_then(|o| o.card_id.clone());
                 let registry = state.card_registry.clone();
                 let self_evts = super::replacement::apply_self_etb_from_definition(
@@ -7310,14 +7369,12 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             let obj = state.objects.get(&permanent).unwrap();
                             !obj.is_transformed
                         };
-                        // Impossible-absence: assert without the whole-struct borrow that
-                        // `expect_object_mut` would take (this block reads other `state` fields).
-                        debug_assert_object_live!(state, permanent);
-                        if let Some(obj_mut) = state.objects.get_mut(&permanent) {
-                            obj_mut.is_transformed = to_back_face;
-                            obj_mut.last_transform_timestamp = state.timestamp_counter;
-                            state.timestamp_counter += 1;
-                        }
+                        // PB-OS4b (CR 712.8d/e, 702.145c/f): route the flip through
+                        // `apply_face_change` so it deregisters the old face's static
+                        // continuous effects, rebuilds the Channel-A ability vectors
+                        // from the new face, and registers the new face's static
+                        // continuous effects.
+                        crate::rules::face::apply_face_change(state, permanent, to_back_face);
                         events.push(GameEvent::PermanentTransformed {
                             object_id: permanent,
                             to_back_face,
@@ -7496,6 +7553,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                     new_bf_id,
                                     card_id_opt.as_ref(),
                                     &registry,
+                                    false,
                                 );
                                 let controller = state
                                     .objects

@@ -71,7 +71,13 @@ const SWEPT_FILES: &[(&str, usize)] = &[
     // this comment already claimed. The fallback is now reserved for the case where
     // the attacker itself has left the live `combat.attackers` map entirely.
     ("src/effects/mod.rs", 107),
-    ("src/rules/resolution.rs", 102),
+    // PB-OS4b (2026-07-19): 102 → 101. `apply_face_change` replaced several raw
+    // `state.objects.get_mut(&id)` transform-flip sites with a single call, and one
+    // `debug_assert_object_live!` + bare-lookup pair collapsed into a plain
+    // `state.objects.get(&id).map(..)` NONSWALLOW read (turn_actions-style) at the
+    // TransformTrigger/DayboundTransformTrigger/craft-return boundary sites — net one
+    // fewer bare lookup in this file.
+    ("src/rules/resolution.rs", 101),
     // SR-14
     // PB-EF3 (2026-07-18): 72 → 74. Two new NONSWALLOW predicate reads, both matching the
     // file's existing residue shape exactly: (1) `state.objects.get(pw_id).map(|obj| obj

@@ -1200,19 +1200,16 @@ pub(crate) fn transform_permanent_in_place(
     // `None` here would mean the object left between the fizzle_object read
     // above and here (no intervening mutation exists in this function, so this
     // cannot actually happen) — treated as a fizzle for symmetry with the read.
-    // (`current_timestamp` is read before the mutable borrow below because
-    // `fizzle_object_mut` -- unlike a direct `state.objects.get_mut` field
-    // access -- takes `&mut self`, so `state.timestamp_counter` isn't
-    // separately accessible while `obj` is alive.)
-    let current_timestamp = state.timestamp_counter;
-    let to_back_face = if let Some(obj) = state.fizzle_object_mut(permanent) {
-        obj.is_transformed = !obj.is_transformed;
-        obj.last_transform_timestamp = current_timestamp;
-        obj.is_transformed // true = now showing back face
-    } else {
+    let Some(obj) = state.fizzle_object(permanent) else {
         return Ok(events);
     };
-    state.timestamp_counter += 1;
+    let to_back_face = !obj.is_transformed;
+    // PB-OS4b (CR 712.8d/e, 712.18): route the flip through `apply_face_change` so
+    // it deregisters the front face's static continuous effects, rebuilds the
+    // Channel-A ability vectors (mana/activated/triggered) from the back face, and
+    // registers the back face's static continuous effects — replacing the previous
+    // raw `is_transformed` flip, which left all three of those stale.
+    crate::rules::face::apply_face_change(state, permanent, to_back_face);
     events.push(GameEvent::PermanentTransformed {
         object_id: permanent,
         to_back_face,
@@ -1423,18 +1420,19 @@ fn handle_activate_craft(
         // Move the exiled source card to the battlefield.
         let (battlefield_id, _) =
             state.move_object_to_zone(exiled_source_id, ZoneId::Battlefield)?;
-        // Set is_transformed = true (back face up) on the new permanent.
-        // Also track the exiled materials for CR 702.167c abilities.
-        // `battlefield_id` was just returned by the move above; the block reads
-        // `state.timestamp_counter` while `obj` is borrowed, so keep the disjoint
-        // field access and assert liveness separately.
+        // Track the exiled materials for CR 702.167c abilities.
+        // `battlefield_id` was just returned by the move above; it is live here.
         debug_assert_object_live!(state, battlefield_id);
         if let Some(obj) = state.objects.get_mut(&battlefield_id) {
-            obj.is_transformed = true;
-            obj.last_transform_timestamp = state.timestamp_counter;
-            state.timestamp_counter += 1;
             obj.craft_exiled_cards = exiled_material_ids.into_iter().collect();
         }
+        // PB-OS4b (CR 702.167a, 712.8d/e): the returned card enters transformed
+        // (back face up). Route through `apply_face_change` so it rebuilds the
+        // Channel-A ability vectors from the back face and registers the back
+        // face's static continuous effects — this path previously never
+        // registered ANY statics for a crafted-in permanent; apply_face_change
+        // closes that pre-existing gap as a side effect of the flip.
+        crate::rules::face::apply_face_change(state, battlefield_id, true);
         events.push(GameEvent::PermanentEnteredBattlefield {
             player,
             object_id: battlefield_id,
@@ -2001,6 +1999,7 @@ fn place_opening_hand_permanents(
                     new_id,
                     card_id_opt.as_ref(),
                     &registry,
+                    false,
                 );
             }
         }

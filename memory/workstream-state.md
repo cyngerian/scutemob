@@ -15,7 +15,7 @@
 | W3: LOW Remediation | — | available | — | LOW Sweep campaign COMPLETE 2026-05-16 (`scutemob-31..38`): 36 LOWs closed, LOW-OPEN 45→6. 6 remain (honestly deferred). Plan: `memory/archive/2026-07/low-sweep-plan.md` (archived 2026-07-18). |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | — | available | — | **PB-OS queue ACTIVE** (`memory/primitives/oos-retriage-plan-2026-07-18.md`, from OOS retriage `scutemob-115`): **OS1..OS3 SHIPPED** (correctness group — gain-control reversion, MayPayThenEffect sacrifice LKI, WhenTappedForMana targets; `scutemob-116`/`128`/`129`), **OS4 IN FLIGHT** (`scutemob-130`). Coverage **1,119/1,798** post-OS2/OS3 flips (verify at OS4 collect); 3476+ tests; PROTOCOL 18 / HASH 55 (OS4 will bump). Prior EF queue COMPLETE (`scutemob-99..114`). |
+| W6: Primitive + Card Authoring | — | available | — | **PB-OS queue ACTIVE** (`memory/primitives/oos-retriage-plan-2026-07-18.md`, from OOS retriage `scutemob-115`): **OS1..OS3 SHIPPED** (`scutemob-116`/`128`/`129`), **OS4 SHIPPED NARROWED** (`scutemob-130`, PROTOCOL 18→19 / HASH 55→56), **OS4b SHIPPED/in-review** (`scutemob-134` — face-aware ability gathering, OOS-OS4-2 closed; docent+bloodline kept `Complete`; wire-neutral 19/56; suite 3515). Next: **OS5** (or OOS-OS4-3 edgar micro-PB). 3515 tests. Prior EF queue COMPLETE (`scutemob-99..114`). |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),

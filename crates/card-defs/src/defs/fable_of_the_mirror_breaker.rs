@@ -11,20 +11,22 @@
 //   creature you control, except it has haste. Sacrifice it at the beginning
 //   of the next end step.
 //
-// PB-OS4 (OOS-EF5-3, SHIP NARROWED): chapter III is the primitive this PB adds —
+// PB-OS4 (OOS-EF5-3, SHIP NARROWED): chapter III is the primitive PB-OS4 added —
 // exiling the Saga then returning it transformed is CR 400.7 / 712.18 (a NEW
 // object entering the battlefield already showing the Reflection of Kiki-Jiki
 // face), wired here via `Effect::ExileSourceAndReturnTransformed`. Chapter III
-// itself is fully expressible and tested; the card as a whole is `partial`
-// because of THREE residuals (see below), none of which is this PB's
-// primitive: (a) chapter I's token-attached triggered ability, (b) chapter
-// II's bounded discard-then-draw (no DSL primitive), and (c) the back face's
-// Reflection of Kiki-Jiki activated ability, which is NOT merely
-// mis-filtered but entirely non-functional -- the engine's return-transformed
-// path never gathers a transformed permanent's back-face activated/triggered
-// abilities at all (OOS-OS4-2, a general transform-machinery gap found in
-// review; front Saga chapter abilities are Triggered, not Static/ETB, so
-// nothing wrongly re-registers on the returned Reflection either way).
+// itself is fully expressible and tested. PB-OS4b (OOS-OS4-2) then fixed the
+// general transform-machinery gap PB-OS4's review found: the returned
+// Reflection's back-face activated ability is now reachable/activatable (it
+// was previously entirely non-functional -- the engine gathered no back-face
+// abilities at all for a transformed permanent). The card as a whole stays
+// `partial` because of TWO remaining residuals, neither of which is
+// OOS-OS4-2's scope: (a) chapter I's token-attached triggered ability, (b)
+// chapter II's bounded discard-then-draw (no DSL primitive). The back face's
+// activated ability is reachable but still shares Kiki-Jiki, Mirror Breaker's
+// own known-wrong residual (no "nonlegendary" `TargetFilter` exclusion) --
+// see the ability's own comment below for the precise boundary between
+// "reachable" and "fully correct."
 use crate::cards::helpers::*;
 
 fn goblin_shaman_token() -> TokenSpec {
@@ -114,17 +116,18 @@ pub fn card() -> CardDefinition {
             abilities: vec![
                 // "{1}, {T}: Create a token that's a copy of another target nonlegendary
                 // creature you control, except it has haste. Sacrifice it at the
-                // beginning of the next end step." NOTE: this back-face ability is
-                // currently NON-FUNCTIONAL on the transformed Reflection — transformed
-                // permanents don't gather their back-face non-keyword abilities
-                // (OOS-OS4-2, `register_static_continuous_effects`/activated-ability
-                // lookup iterate front `def.abilities`). It is authored here so the def
-                // is oracle-complete for when OOS-OS4-2 lands; until then the card stays
-                // `partial` (see the `completeness` message below). It ALSO shares
-                // Kiki-Jiki, Mirror Breaker's own known-wrong residual: `TargetFilter`
-                // has no "nonlegendary" exclusion (only `legendary: bool` = must-BE-
-                // legendary), so an illegal legendary target would not be rejected.
-                // `exclude_self: true` correctly encodes "another".
+                // beginning of the next end step." PB-OS4b (OOS-OS4-2) made this
+                // back-face activated ability reachable/activatable on the
+                // transformed Reflection -- `CardDefinition::effective_abilities`
+                // now gathers the back face's abilities into the runtime
+                // characteristics vectors and registers its statics, instead of
+                // the front face's. It still shares Kiki-Jiki, Mirror Breaker's
+                // own known-wrong residual: `TargetFilter` has no "nonlegendary"
+                // exclusion (only `legendary: bool` = must-BE-legendary), so an
+                // illegal legendary target would not be rejected. `exclude_self:
+                // true` correctly encodes "another". The card stays `partial`
+                // for chapter I/II's unrelated residuals (see the completeness
+                // message below), not for this ability's reachability anymore.
                 AbilityDefinition::Activated {
                     cost: Cost::Sequence(vec![
                         Cost::Mana(ManaCost {
@@ -169,23 +172,22 @@ pub fn card() -> CardDefinition {
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
         completeness: Completeness::partial(
-            "Three real blockers, all genuinely inexpressible/non-functional today (none is the \
-             PB-OS4 primitive, which IS fully wired and correct): (a) chapter I's Goblin Shaman \
-             token is created with correct P/T/color/subtypes but without its own \"whenever this \
-             token attacks, create a Treasure token\" ability -- TokenSpec has no field for a \
-             triggered ability attached to a created token. (b) Chapter II (\"You may discard up \
-             to two cards. If you do, draw that many cards.\") is Effect::Nothing -- no DSL \
-             primitive for a bounded optional discard whose count drives a matching draw \
+            "Two real blockers remain, both genuinely inexpressible today (neither is the \
+             PB-OS4/PB-OS4b primitives, which ARE fully wired and correct): (a) chapter I's \
+             Goblin Shaman token is created with correct P/T/color/subtypes but without its own \
+             \"whenever this token attacks, create a Treasure token\" ability -- TokenSpec has no \
+             field for a triggered ability attached to a created token. (b) Chapter II (\"You may \
+             discard up to two cards. If you do, draw that many cards.\") is Effect::Nothing -- \
+             no DSL primitive for a bounded optional discard whose count drives a matching draw \
              (DiscardCards has no player-choice bound; WheelHand only disposes of the whole \
-             hand). (c) Chapter III (Effect::ExileSourceAndReturnTransformed, CR 400.7/712.18) IS \
-             fully wired and correct, but the back face's Reflection of Kiki-Jiki activated \
-             ability it returns as is NOT FUNCTIONAL: the engine's return-transformed path \
-             registers/queues abilities from the card's FRONT face only, and never gathers a \
-             transformed permanent's back-face activated/triggered/static abilities at all \
-             (OOS-OS4-2, a general transform-machinery gap, not a mere TargetFilter mis-filter). \
-             Front Saga chapter abilities are Triggered, not Static/ETB, so nothing wrongly \
-             re-registers on the returned Reflection -- the residual is inertness, not wrong game \
-             state.",
+             hand). Chapter III (Effect::ExileSourceAndReturnTransformed, CR 400.7/712.18) IS \
+             fully wired and correct, and PB-OS4b (OOS-OS4-2) fixed the general \
+             transform-machinery gap PB-OS4's review found: the back face's Reflection of \
+             Kiki-Jiki activated ability it returns is now reachable/activatable (previously the \
+             engine's return-transformed path gathered no back-face abilities at all). That \
+             ability still shares Kiki-Jiki, Mirror Breaker's own known-wrong \"nonlegendary\" \
+             TargetFilter residual, but reachability itself is no longer a blocker for this \
+             card's Partial status.",
         ),
     }
 }

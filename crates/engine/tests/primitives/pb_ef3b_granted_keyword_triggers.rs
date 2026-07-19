@@ -636,7 +636,13 @@ fn test_ef3b_adriana_grants_melee_to_other_creatures() {
     // continuous effect must be registered explicitly — mirrors what
     // resolution.rs does when Adriana actually resolves from the stack).
     let adriana_card_id = card_name_to_id("Adriana, Captain of the Guard");
-    register_static_continuous_effects(&mut state, adriana_id, Some(&adriana_card_id), &registry);
+    register_static_continuous_effects(
+        &mut state,
+        adriana_id,
+        Some(&adriana_card_id),
+        &registry,
+        false,
+    );
 
     // Sanity: the anthem grants Melee to the vanilla squire, NOT to Adriana herself.
     let squire_pre = calculate_characteristics(&state, squire_id).unwrap();
