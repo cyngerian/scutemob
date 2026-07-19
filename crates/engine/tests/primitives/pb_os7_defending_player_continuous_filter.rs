@@ -690,12 +690,16 @@ fn test_os7_card_registered() {
 fn test_os7_version_sentinels() {
     assert_eq!(
         HASH_SCHEMA_VERSION, 60u8,
-        "HASH_SCHEMA_VERSION should be 59 after PB-OS7 (EffectFilter gained \
-         CreaturesControlledByDefendingPlayer, discriminant 36)"
+        "HASH_SCHEMA_VERSION drifted from this live sentinel. PB-OS7 first moved it to 59 \
+         (EffectFilter gained CreaturesControlledByDefendingPlayer, discriminant 36); it is \
+         since 60 (PB-OS8 TargetFilter.min_cmc_amount). Bump this value with the state/hash.rs \
+         history block on every HASH change."
     );
     assert_eq!(
         PROTOCOL_VERSION, 23,
-        "PROTOCOL_VERSION should be 22 after PB-OS7 -- see the protocol.rs `- 22:` \
-         history line for why this moved despite the plan predicting no bump"
+        "PROTOCOL_VERSION drifted from this live sentinel. PB-OS7 first moved it to 22 (see the \
+         protocol.rs `- 22:` history line for why it moved despite the plan predicting no bump); \
+         it is since 23 (PB-OS8 Effect::LookAtTopThenPlace). Bump this value with the protocol.rs \
+         history block on every wire change."
     );
 }
