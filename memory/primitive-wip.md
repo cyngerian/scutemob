@@ -11,8 +11,8 @@
 ## Phase
 - [x] plan  → `memory/primitives/pb-plan-OS9.md`
 - [x] implement  → see progress below; DEVIATION from plan, see note
-- [ ] review  ← current
-- [ ] fix
+- [x] review  → `memory/primitives/pb-review-OS9.md` (0 HIGH / 0 MEDIUM, ship-ready)
+- [ ] fix  → none required
 
 ## Implement progress
 - [x] Change 1: `Condition::YouControlYourCommander` unit variant added
