@@ -208,6 +208,12 @@ ship = expected clean-`Complete` after the PB + its backfill authoring, at the h
 - **Fully specified in §4.**
 
 ### PB-OS2 — optional-cost sacrifice power (EF-EF1-A) · CORRECTNESS · micro
+> ✅ **SHIPPED 2026-07-19 (`scutemob-128`).** Threaded the layer-resolved `Vec<SacrificedCreatureLki>`
+> up through `pay_optional_cost`/`try_pay_optional_cost` into the `Effect::MayPayThenEffect` executor
+> (`ctx.sacrificed_creature_lki`/`sacrifice_fired` set before `then`). `disciple_of_freyalise` front face
+> `partial`→`Complete` (sole flip; birthing_ritual dig-blocked, ziatora triggered-`may`-blocked — both
+> correctly stay partial). Decoy (anthem + wrong-creature) + decline-no-leak + card-integration tests.
+> **No PROTOCOL/HASH bump.** EF-EF1-A CLOSED. Plan `pb-plan-OS2.md`, review `pb-review-OS2.md` (clean bill).
 - **Findings**: EF-EF1-A.
 - **Fix**: thread `EffectContext` (or an out-param) into `sacrifice_permanents_for_player` and
   push the pre-zone-move layer-resolved power into `ctx.sacrificed_creature_powers`, mirroring the
@@ -323,7 +329,7 @@ ship = expected clean-`Complete` after the PB + its backfill authoring, at the h
 | PB | Seed(s) | Class | Discounted ship | Wire bump |
 | --- | --- | --- | --- | --- |
 | **PB-OS1** | OOS-EF9-1 | correctness (integrity) | 3+ fixes (0 new flips) | none |
-| PB-OS2 | EF-EF1-A | correctness (micro) | ~1 | none |
+| ~~PB-OS2~~ ✅ SHIPPED `scutemob-128` | EF-EF1-A | correctness (micro) | 1 (disciple_of_freyalise) | none |
 | PB-OS3 | OOS-EF6-1 | correctness | ~1 | likely none |
 | PB-OS4 | OOS-EF5-3 | capability | ~2-3 | PROTOCOL |
 | PB-OS5 | OOS-EF4-1 | capability | ~2 | PROTOCOL |

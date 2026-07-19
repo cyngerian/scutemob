@@ -1,71 +1,67 @@
-# Primitive WIP: PB-OS1 — gain-control reversion (UntilEndOfTurn/UntilYourNextTurn SetController never reverts, OOS-EF9-1)
+# Primitive WIP: PB-OS2 — optional-cost sacrifice power (EF-EF1-A)
 
-batch: OS1
-task: scutemob-116
-branch: feat/pb-os1-gain-control-reversion-untilendofturnuntilyournexttur
-started: 2026-07-18
+batch: OS2
+task: scutemob-128
+branch: feat/pb-os2-optional-cost-sacrifice-power-ef-ef1-a-maypaytheneffe
+started: 2026-07-19
 phase: review
 
-Plan: `memory/primitives/pb-plan-OS1.md`. Review: `memory/primitives/pb-review-OS1.md`.
+Plan: `memory/primitives/pb-plan-OS2.md`. Review: `memory/primitives/pb-review-OS2.md`.
 
-## Brief (THE PLAN IS `memory/primitives/oos-retriage-plan-2026-07-18.md` §4)
-CORRECTNESS / integrity (invariant #9). `expire_end_of_turn_effects` (layers.rs ~:1583) and
-`expire_until_next_turn_effects` (~:1631) drop `SetController` continuous effects via filter-collect
-reassignment but never call the already-existing `recompute_object_controller` (layers.rs :1797,
-wired only into `expire_while_you_control_source_effects` by PB-EF9) — so `obj.controller` is never
-reverted and sarkhan_vol / zealous_conscripts / karrthus_tyrant_of_jund keep stolen creatures forever
-while shipping Complete.
+## Brief (THE PLAN IS `memory/primitives/oos-retriage-plan-2026-07-18.md` §3 PB-OS2)
+CORRECTNESS / micro. `EffectAmount::PowerOfSacrificedCreature` reads
+`ctx.sacrificed_creature_lki`, populated only at the **activated-cost** site
+(`handle_activate_ability` → `stack_obj.sacrificed_creature_lki`) and the
+`Effect::SacrificePermanents` executor (effects/mod.rs:3445-3476). The **optional-cost**
+sacrifice path — `Effect::MayPayThenEffect` (effects/mod.rs:3393-3414) →
+`try_pay_optional_cost` → `pay_optional_cost` (effects/mod.rs:8096-8182) → for
+`Cost::Sacrifice`, `sacrifice_permanents_for_player` (effects/mod.rs:7832) — **discards**
+the returned LKI vec (`let _ = ...`, explicit EF-EF1-A deferral note at ~8128-8143). So
+"you may sacrifice a creature; if you do, [X] where X = its power" resolves X = 0.
 
-Fix: wire the existing helper into both passes (mirror PB-EF9 Step 2/3). No new DSL type;
-**NO PROTOCOL/HASH bump** — if a bump is forced, STOP and re-scope.
+Fix (mirrors the activated-cost site; the layer-resolved pre-zone-move capture ALREADY
+exists inside `sacrifice_permanents_for_player`):
+- `pay_optional_cost` returns `Vec<SacrificedCreatureLki>` (sacrifice branch = the returned
+  vec; `Cost::Sequence` extends; every other cost = `vec![]`).
+- `try_pay_optional_cost` returns the vec on success (e.g. `Option<Vec<..>>`, `None` = didn't pay).
+- `Effect::MayPayThenEffect` executor: after a successful pay, set
+  `ctx.sacrificed_creature_lki = returned; ctx.sacrifice_fired = !returned.is_empty();`
+  **before** `execute_effect_inner(then)`. Keep `exclude_self` source threading + the
+  `ctx.controller = pid` payer rebind intact.
 
-De-vacuous `test_gain_control_until_eot_expires` (tests/primitives/primitive_pb32.rs) — must fail
-pre-fix, pass post-fix. Add stacked-control + APNAP/timing tests. Roster sweep from `all_cards()`.
-Reconcile golden scripts (CR 611.2b/613.7). WhileSourceOnBattlefield reversion is EXPLICITLY OUT OF
-SCOPE (own SBA-removal reconcile site) — flag as follow-up.
+**No new DSL type → NO PROTOCOL/HASH bump.** `SacrificedCreatureLki` already exists and is
+already hashed on the stack object. If a bump is forced, STOP and re-scope.
+
+## Roster sweep (all_cards(), pre-verified)
+- **disciple_of_freyalise** (partial → **Complete**): front-face ETB "you may sacrifice
+  another creature; if you do, gain X life and draw X cards, X = its power" — the sole flip.
+  Back face already Complete. Wire front face as
+  `MayPayThenEffect { cost: Cost::Sacrifice(TargetFilter{exclude_self:true, creature}),
+  then: Sequence[ GainLife{PowerOfSacrificedCreature}, DrawCards{PowerOfSacrificedCreature} ] }`.
+- **birthing_ritual**: stays partial — blocked on the top-7 DIG (OOS-EF10-1 / PB-OS8), NOT this.
+- **ziatora_the_incinerator**: stays partial — blocked on optional-sacrifice-inside-a-*triggered*
+  ability + reflexive "when you do" (Triggered has no `may` field), NOT this.
+
+## Mandatory tests
+- **Decoy (layer-resolution pin)**: anthem (e.g. +2/+0) in play; sacrifice a creature whose
+  BASE power ≠ layer-resolved power; assert gained-life/drawn = layer-resolved power (not base),
+  AND that the captured creature is the *sacrificed* one, not a wrong-creature decoy on the board.
+- **Decline path**: may-pay declined (no eligible sacrifice / pay-when-able false) → `then` does
+  not run, no life gained, no draw, no stale `ctx.sacrificed_creature_lki` leaking to siblings.
+
+## Close-out
+Close EF-EF1-A: replace the deferral note in `pay_optional_cost`; CLOSED banner in source
+finding docs (`memory/card-authoring/w-empty-engine-findings-2026-07-17.md` line ~16 references
+it; check w-pb2/pb-plan-EF10); update PB-OS2 entry in the retriage plan §3.
 
 ## Steps
-- [x] 1. Engine Change 1 — `expire_end_of_turn_effects` (layers.rs) collects `ObjectId`s of
-      removed `UntilEndOfTurn` Layer-2 `SetController` effects before reassignment, calls
-      `recompute_object_controller` after — done
-- [x] 2. Engine Change 2 — `expire_until_next_turn_effects` same shape gated on
-      `EffectDuration::UntilYourNextTurn(active_player)` — done
-- [x] 3. Visibility confirmed unchanged — `recompute_object_controller` stays private,
-      in-module (both callers same module, `rules/layers.rs`) — done
-- [x] 4. De-vacuous `test_gain_control_until_eot_expires` — added
-      `assert_eq!(controller == p2, ...)`. Proven fail-then-pass: `git stash` on
-      layers.rs engine change reproduced the pre-fix bug (`assert_eq!` panicked,
-      `left: PlayerId(1) right: PlayerId(2)`); restoring the engine change made it pass.
-- [x] 5. Test 2 — `test_gain_control_until_eot_stacked_control_persists` (negative test:
-      stacked UntilEndOfTurn(p1) + WhileSourceOnBattlefield(p3) on one object; only the
-      UntilEndOfTurn effect is removed; controller stays p3, not owner p2) — done, passes
-- [x] 6. Test 3 — `test_gain_control_until_next_turn_reverts_at_untap` (UntilYourNextTurn
-      survives `expire_end_of_turn_effects`, reverts only at
-      `expire_until_next_turn_effects(state, p1)`) — done, passes
-- [x] 7. Roster sweep from `all_cards()` (new committed test
-      `pb_os1_gain_control_reversion_roster` in
-      `tests/primitives/pb_os1_gain_control_reversion.rs`, registered in
-      `tests/primitives/main.rs`) — **FINDING: only 2 cards in scope, not the plan's
-      3** — `sarkhan_vol` + `zealous_conscripts`. `karrthus_tyrant_of_jund` models its
-      "for as long as you control [this]" ability with `EffectDuration::Indefinite`
-      (own file comment: "no stated duration"), not `UntilEndOfTurn`/`UntilYourNextTurn`
-      — untouched by either expiry pass in this PB. That's a distinct, out-of-scope bug
-      (arguably should be `WhileYouControlSource` like Dragonlord Silumgar/Olivia
-      Voldaren model the same oracle pattern) — flagged as a follow-up, not fixed here.
-      6 other GainControl uses confirmed out of scope (Indefinite ×4, WhileYouControlSource ×2).
-- [x] 8. Golden-script reconciliation — grepped
-      `sarkhan|zealous_conscripts|karrthus|Threaten|Act of Treason|GainControl|gain control`
-      across `test-data/generated-scripts/`: **0 hits**. Positive assertion recorded —
-      no script encodes the pre-fix never-reverts behavior.
-- [x] 9. Gates: `cargo build --workspace` green, **no** PROTOCOL_VERSION/HASH_SCHEMA_VERSION
-      change (confirmed — wire impact none as predicted). `cargo test --all` green.
-      `cargo clippy --all-targets -- -D warnings` clean. `cargo fmt --check` +
-      `tools/check-defs-fmt.sh` clean.
-
-phase: reviewed  # /review (primitive-impl-reviewer, Opus): engine fix clean & collectable;
-1 MEDIUM (doc-guidance only, fixed). karrthus_tyrant_of_jund is NOT a follow-up bug — its
-Indefinite duration is CORRECT (permanent control, CR 611.2a; Scryfall ruling: control
-"doesn't wear off during the cleanup step ... doesn't expire if Karrthus leaves"). Roster
-count of 2 (sarkhan_vol + zealous_conscripts) is correct. Misleading test doc comment
-corrected. NO karrthus OOS seed filed. Genuine deferral carried forward: WhileSourceOnBattlefield
-gain-control reversion (remaining half of OOS-EF9-1, different SBA-removal path).
+- [x] 1. Plan — primitive-impl-planner → pb-plan-OS2.md (DONE)
+- [x] 2. Implement engine change (pay_optional_cost / try_pay_optional_cost / MayPayThenEffect) — `crates/engine/src/effects/mod.rs`: `pay_optional_cost` (~8096) now returns `Vec<SacrificedCreatureLki>`; `try_pay_optional_cost` (~8168) now returns `Option<Vec<SacrificedCreatureLki>>`; `Effect::MayPayThenEffect` executor (~3393) sets `ctx.sacrificed_creature_lki`/`ctx.sacrifice_fired` before `execute_effect_inner(then)`; scratch probe caller (~8077) discards with `let _ =`. `cargo check -p mtg-engine` clean.
+- [x] 3. Flip disciple_of_freyalise front face → Complete — `crates/card-defs/src/defs/disciple_of_freyalise.rs` wired front-face ETB as `Triggered { WhenEntersBattlefield, MayPayThenEffect { Cost::Sacrifice(exclude_self:true creature), then: Sequence[GainLife, DrawCards] both PowerOfSacrificedCreature } }`; `completeness: Completeness::Complete`; header comment updated. `cargo check -p mtg-card-defs` clean.
+- [x] 4. Decoy test (anthem + wrong-creature) + decline-path test — `crates/engine/tests/primitives/pb_ef10_sacrifice_driven_amounts.rs`: `test_may_pay_sacrifice_captures_layer_resolved_power` (decoy, anthem+wrong-creature pin), `test_may_pay_sacrifice_declined_no_capture_no_leak` (decline + no-leak DECOY), `test_disciple_of_freyalise_front_face_gains_and_draws_power` (card-def integration). All 3 pass post-fix; revert-and-rerun confirmed decoy + card-integration tests FAIL against the pre-fix engine (decline test correctly passes both ways — it validates the negative path).
+- [x] 5. Confirm no PROTOCOL/HASH bump — untouched; `test_pb_ef10_version_sentinels` still asserts PROTOCOL_VERSION==18, HASH_SCHEMA_VERSION==55, unchanged, passing.
+- [x] 6. Review — primitive-impl-reviewer → pb-review-OS2.md; CLEAN BILL, zero HIGH/MEDIUM/LOW, 2 informational NITs (no fix). No fix phase needed.
+- [x] 7. Green gates: build/test/clippy/fmt + check-defs-fmt — `cargo build --workspace` clean; `cargo test --all` all-green (0 failed, incl. `core::card_defs_fmt`); `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --check` clean; `tools/check-defs-fmt.sh` clean (1798 defs). PROTOCOL/HASH sentinel tests (`core::protocol_schema`, `core::hash_schema`, 38 tests) all pass untouched — no version bump. TODO sweep on disciple_of_freyalise.rs: 0 remaining.
+- [x] 8a. Close EF-EF1-A in source docs + plan — DONE (commit 2b73c58e): CLOSED banner on canonical finding (ef-batch-plan-2026-07-17.md §5), closed note in w-empty-engine-findings, SHIPPED banner + table strike in oos-retriage-plan §3. Source code already carried the closed note (effects/mod.rs, disciple).
+- [x] 8b. /review — PASSED (Opus reviewer): all 4 ACs PASS, zero issues, ready to merge. Only a pre-existing harmless nit (stale comment in EF10 version-sentinel test, correctly asserts 18/55; out of scope). Completion Sequence next.
+phase: DONE (pending signal-ready)
