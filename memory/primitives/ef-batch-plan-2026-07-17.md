@@ -719,6 +719,17 @@ player must be **captured into the registered `ContinuousEffectDef` instance** a
 ## 8. New finding filed by PB-EF4 (scutemob-105)
 
 ### OOS-EF4-1 (capability) — per-trigger "attacking creatures sharing a property with the triggering creature" count `EffectAmount`
+> ✅ **CLOSED — PB-OS5 (`scutemob-135`, 2026-07-19).** Added `EffectAmount::OtherAttackersSharingCreatureType
+> { relative_to: EffectTarget }` (discriminant 24) — at resolution counts OTHER attacking creatures (any
+> controller) sharing ≥1 layer-resolved creature type with `relative_to` (the triggering creature),
+> Changeling-safe (CR 702.73a). `shared_animosity` inert→**Complete**. The adjacent goblin-tribal count
+> cards did NOT need this variant: `goblin_piledriver` (new→**Complete**, +2/+0 via `Sum(count,count)`)
+> and `goblin_rabblemaster` (pump implemented, stays partial on forced-attack) reuse the existing
+> `AttackingCreatureCount{EachPlayer, exclude_self}`; `muxus_goblin_grandee` attack-half (new, stays
+> partial on the ETB reveal/put — see below) reuses `PermanentCount{Controller, exclude_self}`. Single
+> PROTOCOL 19→20 + HASH 56→57. Muxus's ETB reveal-top-six/put-Goblins primitive remains open under
+> **OOS-EF10 / PB-OS8**. Record: `memory/primitives/pb-plan-OS5.md`, `pb-review-OS5.md`.
+
 `EffectFilter::TriggeringCreature` (added by PB-EF4) supplies the *subject* of a triggered
 continuous effect, but there is no `EffectAmount` variant that counts *other attacking creatures
 matching a property of the triggering creature*, evaluated per-trigger against the trigger

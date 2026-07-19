@@ -2871,6 +2871,28 @@ pub enum EffectAmount {
     ///
     /// Discriminant 21 (state/hash.rs).
     HandSize { player: PlayerTarget },
+    /// CR 205.3m / 508.1 / 613.1d: Count OTHER attacking creatures (any controller)
+    /// whose layer-resolved creature-type set shares ≥1 type with `relative_to`'s
+    /// layer-resolved creature-type set. `relative_to` resolves to the triggering
+    /// creature (Shared Animosity: the attacker that fired the "creature you control
+    /// attacks" trigger). Excludes `relative_to` itself ("other", CR 109.1/603.2).
+    /// Returns 0 if `relative_to` resolves to no object, is typeless, or combat is
+    /// `None`.
+    ///
+    /// This reads `state.combat.attackers` (attacking-set membership, ANY controller —
+    /// ruling 2008-04-01: "this ability counts creatures, not creature types" and
+    /// includes a teammate's attackers), not a `Characteristics` field, so it is
+    /// unavailable via `PermanentCount`/`AttackingCreatureCount` (both of those are
+    /// keyed to `ctx.source`, not an arbitrary relative object). Layer-resolved
+    /// subtypes (CR 613.1d) make Changeling (CR 702.73a) share with everyone for free.
+    ///
+    /// **Not CDA-eligible**: resolving `relative_to` needs `EffectContext`, which is
+    /// absent in `resolve_cda_amount` — this variant only ever reaches the engine via
+    /// the spell-effect `resolve_amount` path (locked in at resolution, CR 608.2h/
+    /// 107.3f), never a Layer-7a CDA. `resolve_cda_amount` has an explicit `=> 0` arm.
+    ///
+    /// Discriminant 24 (state/hash.rs).
+    OtherAttackersSharingCreatureType { relative_to: EffectTarget },
 }
 // ── Target Requirements ───────────────────────────────────────────────────────
 /// A legal target type for a spell or ability (CR 601.2c, CR 115).

@@ -501,7 +501,15 @@
 ///   `HashInto` as `Effect::ExileSourceAndReturnTransformed => 94u8.hash_into(hasher)`.
 ///   `decl_fingerprint` MOVES (the enum's declared shape changed); `stream_fingerprint`
 ///   moves per the v40 mechanism.
-pub const HASH_SCHEMA_VERSION: u8 = 56;
+/// - 57: PB-OS5 (2026-07-19) — `EffectAmount` gains one new variant,
+///   `OtherAttackersSharingCreatureType { relative_to: EffectTarget }` (discriminant
+///   24, CR 205.3m/508.1 — count of OTHER attacking creatures sharing a creature
+///   type with the relative/triggering creature; OOS-EF4-1, Shared Animosity). Fed
+///   to `HashInto` as `EffectAmount::OtherAttackersSharingCreatureType { relative_to }
+///   => { 24u8.hash_into(hasher); relative_to.hash_into(hasher); }`. `decl_fingerprint`
+///   MOVES (the enum's declared shape changed — a new variant); `stream_fingerprint`
+///   moves per the v40 mechanism.
+pub const HASH_SCHEMA_VERSION: u8 = 57;
 
 /// One `(version, fingerprints)` row of the append-only hash-schema history.
 ///
@@ -736,6 +744,15 @@ pub const HASH_SCHEMA_HISTORY: &[HashSchemaEpoch] = &[
         // moves per the v40 mechanism.
         decl_fingerprint: "0be185c35eabf8e0824ae97b33ca4c86a941b5c81f3b2cd87fd2766aa1b288f4",
         stream_fingerprint: "46da56438f4951cb7b3eb76ed35fa966ffa738b6449eb611459c77359ba455ee",
+    },
+    HashSchemaEpoch {
+        version: 57,
+        // PB-OS5 (2026-07-19): EffectAmount gained
+        // OtherAttackersSharingCreatureType (see the `- 57:` History line above).
+        // decl_fingerprint moves (genuine enum-shape change); stream_fingerprint
+        // moves per the v40 mechanism.
+        decl_fingerprint: "02fb46a2f98c8f8793e4f58469e44bd256abcc3f8fc4b85895be2547af78db43",
+        stream_fingerprint: "31bfd0ed5d7d5d3bf64c1c5bb83b919849d5dd2908c3cd1d223ee73d4bfa62dc",
     },
 ];
 
@@ -5453,6 +5470,13 @@ impl HashInto for EffectAmount {
             // PB-EF10 (discriminant 23) — CR 608.2h/202.3: LKI mana value of the
             // first creature sacrificed as a cost/effect this resolution.
             EffectAmount::ManaValueOfSacrificedCreature => 23u8.hash_into(hasher),
+            // PB-OS5 (discriminant 24) — CR 205.3m/508.1: count of OTHER attacking
+            // creatures sharing a creature type with the relative (triggering)
+            // creature.
+            EffectAmount::OtherAttackersSharingCreatureType { relative_to } => {
+                24u8.hash_into(hasher);
+                relative_to.hash_into(hasher);
+            }
         }
     }
 }
