@@ -51,7 +51,8 @@
   variants as `Handled { sites }` (engine code branches on it, at exactly these files)
   or `Marker { carrier, cr }` (presence marker; the rules text is implemented by
   `carrier`, per the cited CR — 18 of these). **Adding a variant is a compile error
-  until you classify it**, and `tests/keyword_registry.rs` then checks the claim
+  until you classify it**, and `crates/engine/tests/core/keyword_registry.rs`
+  (`--test core keyword_registry::`) then checks the claim
   against the source tree: declared site sets must exactly equal a comment-stripped
   scan, so a keyword that loses its last dispatch site — or a `Marker` that gains one —
   fails the suite. Audit: `docs/sr-5-keyword-catchall-audit.md`. The same hazard on
@@ -72,13 +73,16 @@
   per-keyword `Option` fields are gone; a trigger kind's payload lives in
   `data: Option<TriggerData>` (`card-types/src/state/stack.rs`), which
   `flush_pending_triggers` reads and threads into `StackObjectKind::KeywordTrigger`.
-  `tests/pending_trigger_shape.rs` pins the struct's 16-field set, requires every
+  `crates/engine/tests/core/pending_trigger_shape.rs` (`--test core pending_trigger_shape::`)
+  pins the struct's 16-field set, requires every
   `PendingTrigger { .. }` literal to carry `..PendingTrigger::blank(source, controller, kind)`,
   and asserts each `TriggerData` variant still has a consumer in *both* `abilities.rs` and
   `resolution.rs` — **deleting a `resolution.rs` match arm compiles with zero errors** and
   would otherwise make the trigger a silent no-op. **New per-kind state goes in a
   `TriggerData` variant, never as a field on the struct** — a new field fails the suite.
-  `HASH_SCHEMA_VERSION` is now **37**.
+  `HASH_SCHEMA_VERSION` was **37** when SR-7 landed; it has since advanced with every
+  hash-affecting change (read the live `pub const` in `crates/engine/src/state/hash.rs`
+  rather than quoting a number that drifts).
 - **The card-def corpus is format-checked by `tools/check-defs-fmt.sh`, not by `cargo fmt` (SR-35).**
   `cargo fmt --all -- --check` exits 0 having checked **zero** of the 1,748 files in
   `crates/card-defs/src/defs/`: rustfmt walks `mod` declarations *textually*, expanding no
@@ -121,7 +125,8 @@
   `hash_schema_version` and checks it separately. **The version is machine-checked**:
   `PROTOCOL_SCHEMA_FINGERPRINT` pins a blake3 digest of the **transitive type closure** of
   the three wire frames (its size and the digest itself live in `rules/protocol.rs`; do not
-  re-quote them here — they move whenever the wire does), and `tests/protocol_schema.rs` recomputes it from source — so
+  re-quote them here — they move whenever the wire does), and `crates/engine/tests/core/protocol_schema.rs`
+  (`--test core protocol_schema::`) recomputes it from source — so
   `#[serde(skip)]`/`rename`/`rename_all` (all invisible to rustc) and any shape change fail the
   build. The closure reaches `Characteristics` → `Effect` → the whole card DSL, so **adding an
   `Effect` variant is a wire change and most PBs will bump `PROTOCOL_VERSION`**; it stops at

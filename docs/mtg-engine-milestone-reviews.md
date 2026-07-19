@@ -2139,7 +2139,7 @@ RC-2 Session 5: Migration of ~30 remaining one-off trigger SOK/PTK variants into
 
 **Review Status**: REVIEWED (2026-03-09)
 
-This is the final gate review for the Type Consolidation refactoring, covering all 6 implementation sessions across 4 refactoring clusters. It validates correctness, exhaustiveness, hash consistency, serialization, and documentation across 169 changed files (+4659/-15688 lines, net -11029). 1934 tests pass, clippy clean, workspace builds.
+This is the final gate review for the Type Consolidation refactoring, covering all 6 implementation sessions across 4 refactoring clusters. (Reconciliation note, 2026-07-18: `docs/mtg-engine-type-consolidation.md` frames the same work as "5 clusters / ~8 sessions" — a planning-vs-review framing difference, not a scope conflict; both docs are historical and describe the same COMPLETE 2026-03-09 refactor.) It validates correctness, exhaustiveness, hash consistency, serialization, and documentation across 169 changed files (+4659/-15688 lines, net -11029). 1934 tests pass, clippy clean, workspace builds.
 
 ### Summary of Changes
 

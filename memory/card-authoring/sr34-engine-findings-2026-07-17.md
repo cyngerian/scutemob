@@ -7,6 +7,11 @@ Filed, **not fixed** here, per the SR protocol and the task's explicit scope bou
 
 ## SF-8 — `Cost::Tap` + `AddManaScaled` produces exactly 1 mana, not the scaled amount
 
+> ✅ **CLOSED — SR-36 (`scutemob-92`, merge `264f0e9e`, 2026-07-18).** `handle_tap_for_mana`
+> gained an `AddManaScaled` branch resolving `ManaAbility::scaled_amount` (Gaea's Cradle now
+> taps for the scaled amount). This is now the machine-enforced SR-36 gate (see
+> `docs/engine-invariants.md`). The finding below is the historical filing.
+
 **Severity: HIGH. Pre-existing, unchanged by SR-34, but now load-bearing for a design
 decision (Finding A) rather than an invisible accident.**
 
@@ -56,6 +61,11 @@ filed here, not attempted.
 ---
 
 ## SF-9 — `Cost::PayLife` is silently unpaid for *non-mana* activated abilities
+
+> ✅ **CLOSED — SR-36 (`scutemob-92`, merge `264f0e9e`, 2026-07-18).** The `life_cost`
+> payment path now runs for non-mana activated abilities (Staff of Compleation's victims
+> pay life on activation), disjoint by construction from the `AddManaScaled` path per the
+> SR-36 gate (`docs/engine-invariants.md`). The finding below is the historical filing.
 
 **Severity: HIGH (upgraded from MEDIUM by `scutemob-90`). Pre-existing, unchanged by SR-34.
 NOT hypothetical — live victims proven by activation, named below.**

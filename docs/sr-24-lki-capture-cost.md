@@ -1,5 +1,7 @@
 # SR-24 — Bounding `capture_lki_snapshot` cost
 
+<!-- last_updated: 2026-07-16 -->
+
 > Re-audit task `scutemob-79`. Measure the LKI-snapshot capture on the mass-departure
 > path, then gate it if it earns a gate. Same perf axis as the deferred LOWs
 > MR-M1-18 / MR-M6-14 and the `sba_check` / `full_turn_4p` benches.
