@@ -9295,6 +9295,28 @@ pub fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectCon
         // permanent. See ctx.sacrifice_fired's doc comment for the per-resolution
         // scoping caveat.
         Condition::SacrificeFired => ctx.sacrifice_fired,
+        // PB-OS9 / CR 903.3d + "your commander" (owned): true iff the controller
+        // controls, on the battlefield (phased-in), at least one commander card
+        // they OWN. Membership in the controller's own commander_ids inherently
+        // encodes ownership. Deliberately stricter than the CommanderFreeCast
+        // predicate (casting.rs, CR 118.9 "control A commander" -- any owner);
+        // do not reuse that closure here.
+        Condition::YouControlYourCommander => match state.expect_player(ctx.controller) {
+            Some(ps) => {
+                let cmd_ids = &ps.commander_ids;
+                state.objects.values().any(|obj| {
+                    obj.zone == ZoneId::Battlefield
+                        && obj.is_phased_in()
+                        && obj.controller == ctx.controller
+                        && obj
+                            .card_id
+                            .as_ref()
+                            .map(|cid| cmd_ids.contains(cid))
+                            .unwrap_or(false)
+                })
+            }
+            None => false,
+        },
     }
 }
 /// Evaluate a condition in a static ability context (no EffectContext available).
@@ -9372,6 +9394,9 @@ pub fn check_static_condition(
         // Delegate all other variants to check_condition with a minimal context.
         // Cast-time variants (WasKicked, WasOverloaded, etc.) return false since there
         // is no spell context in a static ability evaluation.
+        // PB-OS9: Condition::YouControlYourCommander is handled here -- it reads only
+        // ctx.controller + state, so the minimal EffectContext built below evaluates
+        // it correctly (proven by the Skyhunter continuous-grant test).
         _ => {
             let ctx = EffectContext {
                 controller,

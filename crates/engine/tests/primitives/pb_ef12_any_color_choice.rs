@@ -360,7 +360,7 @@ fn test_ef12_decoy_fixed_color_source_rejects_a_choice() {
 #[test]
 fn test_ef12_protocol_version_sentinel() {
     assert_eq!(
-        PROTOCOL_VERSION, 23,
+        PROTOCOL_VERSION, 24,
         "PROTOCOL_VERSION changed. Update this sentinel and the History list in \
          rules/protocol.rs."
     );
