@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-07-18 21:11 UTC  
-**Git:** `e991b237` on `feat/pb-ef12-granted-anycolor-manaability-color-choice-ef-w-pb2-3`  
+**Generated:** 2026-07-19 02:49 UTC  
+**Git:** `888981f8` on `main`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -25,10 +25,10 @@ and what is intentionally NOT in it.**
 | Plan cards still missing a def file | 142 | · |
 | Bonus defs (on disk, outside plan) | 321 | · |
 | Effective coverage vs plan target | **111%** (1,815 / 1,636) | — |
-| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 62.1% | 1,117 | · |
-| With TODO markers | 527 | · |
+| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 62.2% | 1,119 | +2 |
+| With TODO markers | 525 | -2 |
 | Empty `abilities: vec![]` placeholders | 154 | · |
-| Total TODO lines across all defs | 957 | · |
+| Total TODO lines across all defs | 956 | -1 |
 
 ## Authoring activity (git, by window)
 
@@ -36,7 +36,7 @@ and what is intentionally NOT in it.**
 | --- | ---: | ---: |
 | last 7 days | 50 | 1,764 |
 | last 30 days | 50 | 2,938 |
-| last 90 days | 50 | 2,978 |
+| last 90 days | 50 | 2,974 |
 | last 1 year | 1,823 | 3,361 |
 
 ## Bonus defs outside the plan
@@ -72,8 +72,8 @@ are blocked on engine primitives.
 | `land-etb-tapped` | 138 / 138 | 100% | 116 | 22 | 0 |
 | `other` | 108 / 131 | 82% | 70 | 31 | 7 |
 | `modal-choice` | 73 / 105 | 70% | 37 | 24 | 12 |
-| `mana-land` | 92 / 92 | 100% | 63 | 28 | 1 |
-| `body-only` | 60 / 70 | 86% | 32 | 12 | 16 |
+| `mana-land` | 92 / 92 | 100% | 64 | 27 | 1 |
+| `body-only` | 60 / 70 | 86% | 34 | 10 | 16 |
 | `removal-destroy` | 56 / 56 | 100% | 35 | 17 | 4 |
 | `counters-plus` | 49 / 49 | 100% | 25 | 19 | 5 |
 | `land-fetch` | 45 / 45 | 100% | 27 | 14 | 4 |
@@ -193,7 +193,7 @@ the next thing to triage when the classifier table is grown.
 | Gap bucket | TODO lines | Δ since last run |
 | --- | ---: | ---: |
 | OTHER (unclassified) | 586 | · |
-| DSL gap (unspecified) | 122 | · |
+| DSL gap (unspecified) | 121 | -1 |
 | attack trigger (self / generic) | 25 | · |
 | TriggerCondition::* missing variant | 17 | · |
 | dynamic hexproof / protection | 17 | · |
@@ -244,12 +244,11 @@ tyvar_jubilant_brawler: // TODO: static — creatures you control can activate a
 
 ## ⚠ Completeness-marker drift
 
-7 defs whose `completeness:` marker contradicts their comments. The marker is authoritative (it is what `validate_deck` reads), so fix whichever is stale.
+6 defs whose `completeness:` marker contradicts their comments. The marker is authoritative (it is what `validate_deck` reads), so fix whichever is stale.
 
 - `ashnods_altar` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `boggart_shenanigans` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `delver_of_secrets` — marked partial but has no TODO / ENGINE-BLOCKED comment
-- `disciple_of_freyalise` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `phyrexian_tower` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `temple_of_the_dragon_queen` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `thaumatic_compass` — marked partial but has no TODO / ENGINE-BLOCKED comment
@@ -257,6 +256,9 @@ tyvar_jubilant_brawler: // TODO: static — creatures you control can activate a
 ## Recent card-touching commits
 
 ```
+e16cd0c8 W6-prim: PB-OS3 — WhenTappedForMana trigger target dispatch (OOS-EF6-1)
+95c8a632 scutemob-128: PB-OS2 — thread sacrificed-creature LKI through the optional-cost path (EF-EF1-A)
+a8eb45b5 scutemob-114: PB-EF12 — granted any_color ManaAbility color choice (EF-W-PB2-3) — CLOSES THE EF QUEUE
 50a83faf scutemob-112: PB-EF11 COMMIT 2 — spell-only TargetSpellWithSingleTarget + Misdirection (PROTOCOL 17, HASH 55)
 135ef9e6 scutemob-112: PB-EF11 COMMIT 1 — WheelDraw::GreatestDiscarded + Windfall (PROTOCOL 16, HASH 54)
 9418011b scutemob-111: PB-EF10 COMMIT 3 — Condition::SacrificeFired + version bump (PROTOCOL 15, HASH 53)
@@ -279,9 +281,6 @@ db43d268 scutemob-105: PB-EF4 fix phase — apply 2 LOW review findings
 6f2b299d scutemob-102: PB-EF2 — CreateToken player-scoped recipient (EF-W-MISS-1)
 38fa59c3 scutemob-101: EF-13 (Option A) — reclassify 101 no-behaviour Partial defs to Inert
 bfdda877 Merge branch 'main' into feat/pb-ef1-excludeself-enforcement-sweep-honor-the-field-at-ever
-34ded5ee scutemob-100: demote swan_song Complete -> known_wrong (EF-W-MISS-1)
-60e9eb00 scutemob-99: PB-EF1 cards + exclude_self regression tests
-eb9d7e34 scutemob-97: W-MISS — author 33 missing-file cards Complete (coverage 59.0% -> 59.8%)
 ```
 
 ## Missing card-defs sidecar
