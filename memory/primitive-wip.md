@@ -84,6 +84,18 @@ header comments. Update this WIP status. Non-shipped cards keep their real named
   - Bulk-updated ~35 scattered sentinel assertions (`HASH_SCHEMA_VERSION, 55u8` → `56u8`; `PROTOCOL_VERSION, 18` → `19`) across `crates/engine/tests/`.
   - SR-25 `bare_lookup_ratchet` gate caught 2 new bare `.objects.get(` lookups in the new `effects/mod.rs` executor + 1 in the new `resolution.rs` dispatch arm; converted to `fizzle_object`/`expect_object` (no ceiling bump needed — kept at 107/102).
   - `cargo test -p mtg-engine --test core`: 424 passed, 0 failed.
-- [ ] 6. Review — primitive-impl-reviewer → pb-review-OS4.md; fix cycle if findings
+- [x] 6. Review — primitive-impl-reviewer → pb-review-OS4.md. **1 HIGH + 2 MEDIUM.**
+  - **HIGH (H1)**: the return path fires FRONT-face abilities, not back-face. `register_static_continuous_effects` (replacement.rs:2057) + `queue_carddef_etb_triggers` (:1415) + the upkeep trigger scan (turn_actions.rs:277) all iterate front `def.abilities` with NO `is_transformed`/`back_face` branch (only keywords read back_face, layers.rs:116). Verified directly. Consequence: Edgar Markov's Coffin upkeep loop never fires AND Edgar's front Vampire anthem wrongly re-registers onto the Coffin (WRONG game state) → Edgar cannot be Complete OR Partial. This is a general transform-machinery gap (likely also affects PB-EF5 in-place TransformSelf Complete markers). = **OOS-OS4-2** (own PB).
+  - **MED (double bump)**: PB did TWO wire bumps (18→19→20 / 55→56→57). AC 5040 requires ONE. Collapse to a single 18→19 / 55→56 (intermediate versions never left this branch).
+  - **MED (unused variant)**: `ReturnSourceToBattlefieldTransformedNextEndStep` + `DelayedTriggerAction` unused → REMOVE.
+- **SCOPE DECISION (coordinator/user, 2026-07-19): SHIP NARROWED.** Face-aware ability gathering (OOS-OS4-2) is out of scope (its own PB, touches general transform machinery, may change shipped TransformSelf behavior — STOP-and-flag). Reduce PB-OS4 to what ships honestly:
+  - Keep ONLY `Effect::ExileSourceAndReturnTransformed` (used by Fable ch. III — correct for new-object identity + back-face characteristics + Saga no-sacrifice; no wrong state).
+  - **REMOVE** `Effect::ReturnSourceToBattlefieldTransformed` (edgar-immediate, no shipping card) + `Effect::ReturnSourceToBattlefieldTransformedNextEndStep` + `DelayedTriggerAction::ReturnFromGraveyardToBattlefieldTransformed` (unused).
+  - **Fable** → stays Partial (ch. III wired = real primitive usage; ch. I/II inexpressible; back-face Reflection activated ability blocked by OOS-OS4-2 — name it). No wrong state (Reflection inert, front Saga abilities are Triggered not Static so nothing wrongly registers).
+  - **Edgar** → UN-AUTHOR (delete edgar_charmed_groom.rs) — would emit wrong state (front anthem on Coffin) until OOS-OS4-2. Blocker: OOS-OS4-2.
+  - **nicol_bolas, grist** → stay unauthored. Blocker: OOS-OS4-1 (loyalty); grist also needs entered-from-graveyard trigger condition.
+  - **Single wire bump**: PROTOCOL 18→19, HASH 55→56 (one effect variant only — re-pin fingerprints FRESH from failing gates after removals; the runner's earlier 19/20/56/57 digests are STALE, closure changed).
+  - **Honest yield: 0 Complete flips, 1 Partial with real primitive usage.** The return-transformed *mechanism* ships (AC 5038: new object + back-face characteristics layer-resolved, tested). File OOS-OS4-1 + OOS-OS4-2. Narrow OOS-EF5-3 (NOT fully closed — Complete flips blocked by OOS-OS4-1/2).
+- [ ] 6b. Fix pass (SHIP NARROWED) — primitive-impl-runner
 - [ ] 7. Green gates: build/test/clippy/fmt + check-defs-fmt.sh
-- [ ] 8. Close OOS-EF5-3 in plan + source docs; /review; Completion Sequence
+- [ ] 8. Seeds OOS-OS4-1/2 + narrow OOS-EF5-3 in plan + source docs; /review; Completion Sequence
