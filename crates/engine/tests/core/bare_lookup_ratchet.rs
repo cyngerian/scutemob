@@ -70,7 +70,16 @@ const SWEPT_FILES: &[(&str, usize)] = &[
     // lookup finds the planeswalker gone -- it fizzles immediately, matching what
     // this comment already claimed. The fallback is now reserved for the case where
     // the attacker itself has left the live `combat.attackers` map entirely.
-    ("src/effects/mod.rs", 107),
+    // PB-OS6 (2026-07-19): 107 → 109. Two new NONSWALLOW predicate reads, both exact
+    // copies of pre-existing sibling `Condition` arms' shape in this same match:
+    // (1) `Condition::TopCardIsInstantOrSorcery`'s `state.zones.get(&lib_zone)
+    // .and_then(|z| z.top())` -- identical idiom to `TopCardIsCreatureOfChosenType`
+    // a few lines above it (an empty library legitimately answers the peek `false`,
+    // not an engine bug); (2) `Condition::YouAttackedWithNOrMore(n)`'s `state.players
+    // .get(&ctx.controller).map(..).unwrap_or(false)` -- identical idiom to
+    // `YouAttackedThisTurn` / `ControllerLifeAtLeast` / half the other `Condition`
+    // arms in this file (a missing controller answers the predicate `false`).
+    ("src/effects/mod.rs", 109),
     // PB-OS4b (2026-07-19): 102 → 101. `apply_face_change` replaced several raw
     // `state.objects.get_mut(&id)` transform-flip sites with a single call, and one
     // `debug_assert_object_live!` + bare-lookup pair collapsed into a plain

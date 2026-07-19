@@ -136,6 +136,16 @@ const ALLOWLIST: &[(&str, &str)] = &[
          gain-control of your own creatures; W-PB2 engine finding notes the residual. Not a real \
          deviation — it is the only expression the DSL offers. (scutemob-95)",
     ),
+    (
+        "delver_of_secrets",
+        "PB-OS6(a): \"upkeep trigger modeled as an unconditional AtBeginningOfYourUpkeep \
+         trigger\" describes the DSL shape (Effect::Conditional gated on \
+         Condition::TopCardIsInstantOrSorcery), not a behavioral deviation from the oracle's \
+         optional reveal. Reveal-to-transform is beneficial in effectively all realistic \
+         board states (1/1 -> 3/2 flier), so a mandatory-if-true model is faithful for this \
+         card specifically -- unlike heralds_horn.rs (known_wrong), where declining the \
+         reveal can be correct.",
+    ),
 ];
 
 /// Read every `*.rs` file directly under `defs/`. Returns `(file_stem, source)`.

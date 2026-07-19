@@ -1461,6 +1461,9 @@ pub fn reset_turn_state(state: &mut GameState, player: PlayerId) {
             // turn for all players (Condition::YouAttackedThisTurn is scoped to the
             // current game turn for any player, not just the active player).
             p.attacked_this_turn = false;
+            // PB-OS6(b) / CR 508.1/508.4: per-turn declared-attacker count resets at the
+            // start of each turn for all players (Condition::YouAttackedWithNOrMore).
+            p.attackers_declared_this_turn = 0;
             // PB-AC6 / CR 111.10: per-turn created-a-token flag resets at the start of
             // each turn for all players (Condition::CreatedATokenThisTurn).
             p.created_token_this_turn = false;

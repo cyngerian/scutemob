@@ -435,6 +435,16 @@ pub struct PlayerState {
     /// attacked" (Bloodsoaked Champion ruling).
     #[serde(default)]
     pub attacked_this_turn: bool,
+    /// PB-OS6(b) / CR 508.1/508.4: the number of creatures this player declared as
+    /// attackers on their most recent `DeclareAttackers` action this turn. Set
+    /// alongside `attacked_this_turn` in `handle_declare_attackers`. Reset for ALL
+    /// players at each turn boundary in `reset_turn_state`. Used by
+    /// `Condition::YouAttackedWithNOrMore`. Only creatures actually declared as
+    /// attackers count -- creatures put onto the battlefield attacking (CR 508.4) do
+    /// NOT increment this. On a turn with multiple combats (Aggravated Assault etc.),
+    /// the count is overwritten by the most recent declaration, not accumulated.
+    #[serde(default)]
+    pub attackers_declared_this_turn: u32,
     /// PB-AC6 / CR 111.10: true once this player has created one or more tokens this
     /// turn. Set in `GameState::add_object` (single chokepoint for all token creation
     /// paths). Reset for ALL players at each turn boundary in `reset_turn_state`.

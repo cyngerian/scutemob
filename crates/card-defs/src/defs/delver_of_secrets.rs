@@ -3,9 +3,15 @@
 //        if instant or sorcery transform Delver of Secrets
 // Back:  Insectile Aberration, Human Insect 3/2 flying (blue via color indicator)
 //
-// DSL gap: upkeep trigger with "look at top card, if instant/sorcery transform"
-// requires TopOfLibraryIsType condition + TransformSelf effect (not yet in DSL).
-// Transform keyword and back_face are faithfully represented.
+// PB-OS6(a): upkeep trigger modeled as an unconditional AtBeginningOfYourUpkeep
+// trigger whose effect is Effect::Conditional on Condition::TopCardIsInstantOrSorcery
+// (mirrors heralds_horn.rs). Faithfully mandatory-if-true: revealing to transform is
+// beneficial in effectively all realistic board states (a 1/1 becomes a 3/2 flier), so
+// optimal play reveals -- unlike Herald's Horn (known_wrong, since "put into hand" can be
+// undesirable). The rare cases where declining is correct (dodging flier/power-based
+// removal, keeping the Human Wizard subtype for tribal, hidden-info bluff) don't affect
+// the modeled game state; the mandatory model matches the engine's peek-conditional
+// convention. Complete.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -25,7 +31,22 @@ pub fn card() -> CardDefinition {
         toughness: Some(1),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Transform),
-            // DSL gap: upkeep trigger needs TransformSelf effect + TopOfLibraryIsType condition
+            // CR 400.2/614.1c: "At the beginning of your upkeep, look at the top card of
+            // your library. You may reveal that card. If an instant or sorcery card is
+            // revealed this way, transform Delver of Secrets."
+            AbilityDefinition::Triggered {
+                once_per_turn: false,
+                trigger_condition: TriggerCondition::AtBeginningOfYourUpkeep,
+                effect: Effect::Conditional {
+                    condition: Condition::TopCardIsInstantOrSorcery,
+                    if_true: Box::new(Effect::TransformSelf),
+                    if_false: Box::new(Effect::Nothing),
+                },
+                intervening_if: None,
+                targets: vec![],
+                modes: None,
+                trigger_zone: None,
+            },
         ],
         color_indicator: None,
         back_face: Some(CardFace {
@@ -48,9 +69,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-        completeness: Completeness::partial(
-            "upkeep transform trigger unmodeled — needs a 'top card is instant/sorcery' reveal \
-             condition; TransformSelf (PB-EF5) is necessary but not sufficient",
-        ),
+        completeness: Completeness::Complete,
     }
 }

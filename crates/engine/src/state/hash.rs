@@ -509,7 +509,18 @@
 ///   => { 24u8.hash_into(hasher); relative_to.hash_into(hasher); }`. `decl_fingerprint`
 ///   MOVES (the enum's declared shape changed — a new variant); `stream_fingerprint`
 ///   moves per the v40 mechanism.
-pub const HASH_SCHEMA_VERSION: u8 = 57;
+/// - 58: PB-OS6 (2026-07-19) — five new `HashInto` sites in one batch (DFC
+///   flip-condition sub-batch, OOS-EF5-4 a/b/g): `Condition` gains
+///   `TopCardIsInstantOrSorcery` (discriminant 49) and `YouAttackedWithNOrMore(u32)`
+///   (discriminant 50, CR 400.2/614.1c and CR 508.1/508.4 respectively); `Effect`
+///   gains `RemoveFromCombat { target: EffectTarget }` (discriminant 95, CR 506.4);
+///   `GameEvent` gains `RemovedFromCombat { object_id: ObjectId }` (discriminant
+///   128); `PlayerState` gains `attackers_declared_this_turn: u32`, hashed right
+///   after `attacked_this_turn`. Fed to `HashInto` in the matching new match arms
+///   plus the new `PlayerState` field line. `decl_fingerprint` MOVES (three enums'
+///   declared shapes changed plus a new struct field); `stream_fingerprint` moves
+///   per the v40 mechanism.
+pub const HASH_SCHEMA_VERSION: u8 = 58;
 
 /// One `(version, fingerprints)` row of the append-only hash-schema history.
 ///
@@ -753,6 +764,17 @@ pub const HASH_SCHEMA_HISTORY: &[HashSchemaEpoch] = &[
         // moves per the v40 mechanism.
         decl_fingerprint: "02fb46a2f98c8f8793e4f58469e44bd256abcc3f8fc4b85895be2547af78db43",
         stream_fingerprint: "31bfd0ed5d7d5d3bf64c1c5bb83b919849d5dd2908c3cd1d223ee73d4bfa62dc",
+    },
+    HashSchemaEpoch {
+        version: 58,
+        // PB-OS6 (2026-07-19): Condition gained TopCardIsInstantOrSorcery /
+        // YouAttackedWithNOrMore; Effect gained RemoveFromCombat; GameEvent gained
+        // RemovedFromCombat; PlayerState gained attackers_declared_this_turn (see
+        // the `- 58:` History line above). decl_fingerprint moves (genuine
+        // struct/enum-shape changes); stream_fingerprint moves per the v40
+        // mechanism.
+        decl_fingerprint: "9cb0bf12fdb38572f272b0f6f544e7a9421f2201cd6cb53c5cd9539ee7a9f954",
+        stream_fingerprint: "9c0797735dbdd18743134cc3816d02dfddeb4508dc69f2afa1afa263d0d87d2a",
     },
 ];
 
@@ -1939,6 +1961,9 @@ impl HashInto for PlayerState {
         self.ring_bearer_id.hash_into(hasher);
         // PB-AC6 / CR 508.1 (Raid): whether this player attacked this turn.
         self.attacked_this_turn.hash_into(hasher);
+        // PB-OS6(b) / CR 508.1/508.4: how many creatures this player declared as
+        // attackers this turn (captured count for Condition::YouAttackedWithNOrMore).
+        self.attackers_declared_this_turn.hash_into(hasher);
         // PB-AC6 / CR 111.10: whether this player created a token this turn.
         self.created_token_this_turn.hash_into(hasher);
         // PB-AC6: spells cast this turn, reset for ALL players (unlike spells_cast_this_turn).
@@ -5136,6 +5161,11 @@ impl HashInto for GameEvent {
                 127u8.hash_into(hasher);
                 object_id.hash_into(hasher);
             }
+            // PB-OS6(g): RemovedFromCombat -- CR 506.4 (discriminant 128)
+            GameEvent::RemovedFromCombat { object_id } => {
+                128u8.hash_into(hasher);
+                object_id.hash_into(hasher);
+            }
         }
     }
 }
@@ -5896,6 +5926,13 @@ impl HashInto for Condition {
             Condition::OpponentControlsMoreLandsThanYou => 47u8.hash_into(hasher),
             // PB-EF10: "if you do" — SacrificeFired (discriminant 48)
             Condition::SacrificeFired => 48u8.hash_into(hasher),
+            // PB-OS6(a) / CR 400.2/614.1c: top card is instant/sorcery (discriminant 49)
+            Condition::TopCardIsInstantOrSorcery => 49u8.hash_into(hasher),
+            // PB-OS6(b) / CR 508.1/508.4: "you attacked with N or more creatures" (discriminant 50)
+            Condition::YouAttackedWithNOrMore(n) => {
+                50u8.hash_into(hasher);
+                n.hash_into(hasher);
+            }
         }
     }
 }
@@ -6780,6 +6817,11 @@ impl HashInto for Effect {
             // PB-OS4 (OOS-EF5-3, SHIP NARROWED): ExileSourceAndReturnTransformed
             // (discriminant 94) — CR 400.7 / 712.18.
             Effect::ExileSourceAndReturnTransformed => 94u8.hash_into(hasher),
+            // PB-OS6(g): RemoveFromCombat (discriminant 95) — CR 506.4.
+            Effect::RemoveFromCombat { target } => {
+                95u8.hash_into(hasher);
+                target.hash_into(hasher);
+            }
         }
     }
 }

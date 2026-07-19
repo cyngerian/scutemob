@@ -90,16 +90,19 @@ pub fn card() -> CardDefinition {
                     once_per_turn: false,
                     modes: None,
                 },
-                // "{T}: Untap target attacking creature an opponent controls and remove it
-                // from combat." The untap + attacking-opponent-creature target are expressible;
-                // the "remove it from combat" clause has NO effect primitive (only Regenerate
-                // references removal-from-combat internally) — so this model OMITS that clause
-                // and the def stays `partial`. See OOS-EF5-4(g). CR 508 / 701.21.
+                // CR 506.4/701.21 (PB-OS6(g)): "{T}: Untap target attacking creature an
+                // opponent controls and remove it from combat." Two-step Sequence: untap
+                // does NOT itself remove from combat (CR 506.4b), so both effects are needed.
                 AbilityDefinition::Activated {
                     cost: Cost::Tap,
-                    effect: Effect::UntapPermanent {
-                        target: EffectTarget::DeclaredTarget { index: 0 },
-                    },
+                    effect: Effect::Sequence(vec![
+                        Effect::UntapPermanent {
+                            target: EffectTarget::DeclaredTarget { index: 0 },
+                        },
+                        Effect::RemoveFromCombat {
+                            target: EffectTarget::DeclaredTarget { index: 0 },
+                        },
+                    ]),
                     timing_restriction: None,
                     targets: vec![TargetRequirement::TargetCreatureWithFilter(TargetFilter {
                         controller: TargetController::Opponent,
@@ -124,16 +127,8 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-        // Front (search + TransformSelf end-step trigger) is fully modeled. The back face,
-        // Spires of Orazca, is NOT: "{T}: Untap target attacking creature an opponent controls
-        // and remove it from combat" needs a remove-from-combat effect primitive that does not
-        // exist (only Regenerate references combat removal internally). The modeled untap omits
-        // that clause, so the def is truthfully `partial`, not Complete — see OOS-EF5-4(g).
-        completeness: Completeness::partial(
-            "Spires of Orazca back face: '{T}: Untap target attacking creature an opponent \
-             controls and remove it from combat' lacks a remove-from-combat effect primitive; \
-             modeled untap omits the combat-removal clause (OOS-EF5-4g). Front TransformSelf \
-             (PB-EF5) is complete.",
-        ),
+        // Front (search + TransformSelf end-step trigger) and back (mana ability + untap-and-
+        // remove-from-combat via Effect::RemoveFromCombat, PB-OS6(g)) are both fully modeled.
+        completeness: Completeness::Complete,
     }
 }

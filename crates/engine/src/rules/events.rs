@@ -950,6 +950,15 @@ pub enum GameEvent {
         /// The shield that was consumed.
         shield_id: ReplacementId,
     },
+    /// A permanent was removed from combat by an effect (CR 506.4).
+    ///
+    /// Emitted when `Effect::RemoveFromCombat` resolves (PB-OS6(g)). "A creature
+    /// that's removed from combat stops being an attacking, blocking, blocked,
+    /// and/or unblocked creature." Does not imply the permanent was untapped.
+    RemovedFromCombat {
+        /// The permanent that was removed from combat.
+        object_id: ObjectId,
+    },
     // ── Umbra Armor event (CR 702.89a) ─────────────────────────────────────
     /// Umbra armor replacement applied -- an Aura was destroyed to save the enchanted permanent.
     ///
