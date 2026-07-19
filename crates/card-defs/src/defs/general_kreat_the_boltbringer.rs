@@ -2,6 +2,11 @@
 // Whenever one or more Goblins you control attack, create a 1/1 red Goblin creature
 // token that's tapped and attacking.
 // Whenever another creature you control enters, General Kreat deals 1 damage to each opponent.
+//
+// PB-OS11 (forced add, self-identified TODO): "Whenever one or more Goblins you control
+// attack" is a BATCH trigger (CR 508.1m) -- fires ONCE per combat if at least one Goblin
+// attacked, not once per matching attacker. TriggerCondition::WheneverYouAttack{filter}
+// (PB-OS11) expresses this directly via has_subtype: Goblin on the declared-attacker set.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -25,12 +30,36 @@ pub fn card() -> CardDefinition {
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
-            // TODO: DSL gap — "Whenever one or more Goblins you control attack" fires ONCE per
-            // combat if at least one Goblin attacked. WheneverCreatureYouControlAttacks fires
-            // per-creature (over-triggers). WheneverYouAttack fires once but doesn't check for
-            // Goblins (over-triggers when no Goblins attack). A
-            // WheneverOneOrMoreCreaturesWithSubtypeAttack trigger variant is needed.
-
+            // "Whenever one or more Goblins you control attack, create a 1/1 red Goblin
+            // creature token that's tapped and attacking." (CR 508.1m batch trigger.)
+            AbilityDefinition::Triggered {
+                once_per_turn: false,
+                trigger_condition: TriggerCondition::WheneverYouAttack {
+                    filter: Some(TargetFilter {
+                        has_subtype: Some(SubType("Goblin".to_string())),
+                        controller: TargetController::You,
+                        ..Default::default()
+                    }),
+                },
+                effect: Effect::CreateToken {
+                    spec: TokenSpec {
+                        name: "Goblin".to_string(),
+                        card_types: [CardType::Creature].into_iter().collect(),
+                        subtypes: [SubType("Goblin".to_string())].into_iter().collect(),
+                        colors: [Color::Red].into_iter().collect(),
+                        power: 1,
+                        toughness: 1,
+                        count: EffectAmount::Fixed(1),
+                        tapped: true,
+                        enters_attacking: true,
+                        ..Default::default()
+                    },
+                },
+                intervening_if: None,
+                targets: vec![],
+                modes: None,
+                trigger_zone: None,
+            },
             // Whenever another creature you control enters, General Kreat deals 1 damage to each opponent.
             AbilityDefinition::Triggered {
                 once_per_turn: false,
@@ -55,10 +84,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial(
-            "DSL gap — 'Whenever one or more Goblins you control attack' fires ONCE per combat if \
-             at least one Goblin attacked....",
-        ),
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

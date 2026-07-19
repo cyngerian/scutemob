@@ -260,7 +260,7 @@ fn counter_scenario(p1: PlayerId, p2: PlayerId, counterer: &str) -> GameState {
 #[test]
 fn test_pb_ef2_hash_schema_version_live_sentinel() {
     assert_eq!(
-        HASH_SCHEMA_VERSION, 62u8,
+        HASH_SCHEMA_VERSION, 63u8,
         "PB-EF2 added TokenSpec.recipient + two PlayerTarget variants (HASH 44->45). Update \
          this sentinel and the state/hash.rs history block together; the authoritative check \
          is the SR-17 machine gate in tests/core/hash_schema.rs."

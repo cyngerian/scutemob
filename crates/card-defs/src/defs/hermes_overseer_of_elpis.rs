@@ -3,10 +3,10 @@
 //   with flying and vigilance.
 // Whenever you attack with one or more Birds, scry 2.
 //
-// ENGINE-BLOCKED (second ability): "Whenever you attack with one or more Birds" requires
-// a once-per-combat attack trigger gated on controlling attackers of a specific subtype.
-// WheneverCreatureYouControlAttacks fires once per attacking creature (not once per combat),
-// and WheneverYouAttack has no filter. Neither correctly models the batched subtype attack.
+// PB-OS11 (forced add, self-identified TODO): "Whenever you attack with one or more Birds"
+// is a BATCH trigger (CR 508.1m) -- fires ONCE per combat if at least one Bird attacked,
+// not once per matching attacker. TriggerCondition::WheneverYouAttack{filter} (PB-OS11)
+// expresses this directly via has_subtype: Bird on the declared-attacker set.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -67,15 +67,27 @@ pub fn card() -> CardDefinition {
                 modes: None,
                 trigger_zone: None,
             },
-            // ENGINE-BLOCKED: "Whenever you attack with one or more Birds, scry 2."
-            // No once-per-combat batched subtype attack trigger exists in DSL.
-            // WheneverCreatureYouControlAttacks fires per-creature (not per-combat),
-            // and WheneverYouAttack has no subtype filter. Omitted per W5 policy.
+            // "Whenever you attack with one or more Birds, scry 2." (CR 508.1m batch trigger.)
+            AbilityDefinition::Triggered {
+                once_per_turn: false,
+                trigger_condition: TriggerCondition::WheneverYouAttack {
+                    filter: Some(TargetFilter {
+                        has_subtype: Some(SubType("Bird".to_string())),
+                        controller: TargetController::You,
+                        ..Default::default()
+                    }),
+                },
+                effect: Effect::Scry {
+                    player: PlayerTarget::Controller,
+                    count: EffectAmount::Fixed(2),
+                },
+                intervening_if: None,
+                targets: vec![],
+                modes: None,
+                trigger_zone: None,
+            },
         ],
-        completeness: Completeness::partial(
-            "(second ability): 'Whenever you attack with one or more Birds' requires a \
-             once-per-combat attack trigger gated on...",
-        ),
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

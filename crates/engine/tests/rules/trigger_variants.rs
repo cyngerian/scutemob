@@ -465,7 +465,7 @@ fn test_whenever_you_attack_trigger_variant() {
         oracle_text: "Whenever you attack, gain 1 life.".to_string(),
         abilities: vec![AbilityDefinition::Triggered {
             once_per_turn: false,
-            trigger_condition: TriggerCondition::WheneverYouAttack,
+            trigger_condition: TriggerCondition::WheneverYouAttack { filter: None },
             effect: Effect::GainLife {
                 player: PlayerTarget::Controller,
                 amount: EffectAmount::Fixed(1),
@@ -482,7 +482,7 @@ fn test_whenever_you_attack_trigger_variant() {
     assert!(def.abilities.iter().any(|a| matches!(
         a,
         AbilityDefinition::Triggered {
-            trigger_condition: TriggerCondition::WheneverYouAttack,
+            trigger_condition: TriggerCondition::WheneverYouAttack { .. },
             ..
         }
     )));

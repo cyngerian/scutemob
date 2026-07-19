@@ -146,6 +146,17 @@ const ALLOWLIST: &[(&str, &str)] = &[
          card specifically -- unlike heralds_horn.rs (known_wrong), where declining the \
          reveal can be correct.",
     ),
+    (
+        "anim_pakal_thousandth_moon",
+        "PB-OS11: \"accepted minor deviation\" describes a documented, non-blocking edge \
+         case — if Anim Pakal itself leaves the battlefield mid-resolution of its own \
+         trigger, ruling 2023-11-10(a) says to use its last-known +1/+1 counter count, but \
+         EffectAmount::CounterCount{Source} reads LIVE counters (no non-leaves-trigger LKI \
+         counter reader exists in the engine). In the overwhelming majority of games Anim \
+         Pakal is present through resolution, so the count is correct; this is the accepted \
+         gap the plan (pb-plan-OS11.md, B-Card-1) explicitly directs not to block Complete \
+         on, consistent with corpus precedent for mid-resolution source removal.",
+    ),
 ];
 
 /// Read every `*.rs` file directly under `defs/`. Returns `(file_stem, source)`.
@@ -261,9 +272,19 @@ fn the_marker_detector_is_not_vacuous() {
     // against `all_cards()`, not estimated). This is a genuine headline-number
     // decrease from authoring work, not detector drift -- lower the floor with the
     // same 9-count margin the previous threshold kept, rather than papering over it.
+    // PB-OS11 (2026-07-19, final PB-OS batch): threshold lowered 672 -> 662. Three
+    // defs flipped partial/known_wrong -> Complete this batch
+    // (general_kreat_the_boltbringer, hermes_overseer_of_elpis: partial ->
+    // Complete; anim_pakal_thousandth_moon: known_wrong -> Complete), all via the
+    // new TriggerCondition::WheneverYouAttack{filter} batch-filtered-attack
+    // primitive. The corpus's non-Complete count had already drifted down from 681
+    // (intervening OS4-OS10 batches lowered it without needing to touch this
+    // floor, since the assert is a lower bound) to 674 before this batch, and now
+    // to 671 (verified via a direct grep of MARKER_FRAGMENTS across
+    // crates/card-defs/src/defs/*.rs). Same 9-count margin convention as before.
     assert!(
-        marked >= 672,
-        "marker detector matched only {marked} files; the corpus has 681 non-Complete defs. \
+        marked >= 662,
+        "marker detector matched only {marked} files; the corpus has 671 non-Complete defs. \
          MARKER_FRAGMENTS is broken and the gate would spuriously flag marked defs"
     );
 }

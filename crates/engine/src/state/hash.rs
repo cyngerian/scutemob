@@ -560,7 +560,22 @@
 ///   48u8.hash_into(hasher)`, and `TriggerCondition::WhenEquippedCreatureDealsCombatDamage
 ///   => 48u8.hash_into(hasher)`. `decl_fingerprint` MOVES (three enums' declared
 ///   shapes changed); `stream_fingerprint` moves per the v40 mechanism.
-pub const HASH_SCHEMA_VERSION: u8 = 62;
+/// - 63: PB-OS11 (2026-07-19, final PB-OS batch — OOS-LKI-3 + OOS-TS-1, both
+///   reframed against MCP source): `ManaAbility` gained `remove_counter:
+///   Option<(CounterType, u32)>` (a `Cost::RemoveCounter` mana-ability cost
+///   component, CR 605.1a — Workhorse, and backfill Gemstone Array / Druids'
+///   Repository); `TriggerCondition::WheneverYouAttack` went from a bare unit to
+///   `{ filter: Option<TargetFilter> }` (a once-per-combat batch-filtered attack
+///   trigger, CR 508.1/508.1m — Anim Pakal, General Kreat, Hermes). Fed to
+///   `HashInto` as `self.remove_counter.hash_into(hasher)` on `ManaAbility`, and
+///   `TriggerCondition::WheneverYouAttack { filter } => { 33u8.hash_into(hasher);
+///   filter.hash_into(hasher); }`. `decl_fingerprint` MOVES (two types' declared
+///   shapes changed); `stream_fingerprint` moves per the v40 mechanism.
+///   `TriggerCondition`/`TriggerEvent` and `ManaAbility` are both OUTSIDE the
+///   SR-8 wire closure (protocol.rs v25/PB-OS10 note; ManaAbility field
+///   additions are HASH-only by precedent, SR-34 v41 / PB-EF8 v51), so PROTOCOL
+///   stays unchanged at 25 — HASH-only bump.
+pub const HASH_SCHEMA_VERSION: u8 = 63;
 
 /// One `(version, fingerprints)` row of the append-only hash-schema history.
 ///
@@ -851,6 +866,15 @@ pub const HASH_SCHEMA_HISTORY: &[HashSchemaEpoch] = &[
         // enums' shapes changed); stream_fingerprint moves per the v40 mechanism.
         decl_fingerprint: "68b5e8eb60496b5f5f76faf2575647c6718b2fac65db1774e9ccb8cce2cb1707",
         stream_fingerprint: "7e69e7f8284f48221555c208f4c63da590e7eff1439cb694bafd3320359f2d7d",
+    },
+    HashSchemaEpoch {
+        version: 63,
+        // PB-OS11 (2026-07-19, final PB-OS batch): ManaAbility gained
+        // remove_counter; TriggerCondition::WheneverYouAttack unit -> struct with
+        // filter (see the `- 63:` History line above). decl_fingerprint moves (two
+        // types' shapes changed); stream_fingerprint moves per the v40 mechanism.
+        decl_fingerprint: "b9d2f3313251bdec0a601996416e779f062e5810262e2992a044a1d808fd530c",
+        stream_fingerprint: "04bbac494da8ff26fc83b57a91cfd3637470ac0c0b616aaf356c7edf11fcd007",
     },
 ];
 
@@ -1796,6 +1820,9 @@ impl HashInto for ManaAbility {
         // PB-EF8: two states differing only in whether this mana ability is a
         // from-hand exile-self ability must not hash identically.
         self.exile_self_from_hand.hash_into(hasher);
+        // PB-OS11: two states differing only in a mana ability's remove-counter
+        // cost component must not hash identically.
+        self.remove_counter.hash_into(hasher);
     }
 }
 impl HashInto for Characteristics {
@@ -5758,8 +5785,13 @@ impl HashInto for TriggerCondition {
                 filter.hash_into(hasher);
                 player_filter.hash_into(hasher);
             }
-            // CR 508.1: "Whenever you attack" — discriminant 33
-            TriggerCondition::WheneverYouAttack => 33u8.hash_into(hasher),
+            // CR 508.1: "Whenever you attack" — discriminant 33. PB-OS11: now carries
+            // an optional attacker-set filter; two states differing only in that
+            // filter must not hash identically.
+            TriggerCondition::WheneverYouAttack { filter } => {
+                33u8.hash_into(hasher);
+                filter.hash_into(hasher);
+            }
             // CR 603.10a: "When ~ leaves the battlefield" — discriminant 34
             TriggerCondition::WhenLeavesBattlefield => 34u8.hash_into(hasher),
             // CR 603.2: "When you cast this spell" — discriminant 35
