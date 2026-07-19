@@ -6,9 +6,12 @@
 // PB-OS6(a): upkeep trigger modeled as an unconditional AtBeginningOfYourUpkeep
 // trigger whose effect is Effect::Conditional on Condition::TopCardIsInstantOrSorcery
 // (mirrors heralds_horn.rs). Faithfully mandatory-if-true: revealing to transform is
-// strictly beneficial (a 1/1 becomes a 3/2 flier with no downside), so optimal play
-// always reveals -- unlike Herald's Horn (known_wrong, since "put into hand" can be
-// undesirable), Delver has no reason to decline. Complete.
+// beneficial in effectively all realistic board states (a 1/1 becomes a 3/2 flier), so
+// optimal play reveals -- unlike Herald's Horn (known_wrong, since "put into hand" can be
+// undesirable). The rare cases where declining is correct (dodging flier/power-based
+// removal, keeping the Human Wizard subtype for tribal, hidden-info bluff) don't affect
+// the modeled game state; the mandatory model matches the engine's peek-conditional
+// convention. Complete.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
