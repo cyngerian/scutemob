@@ -5896,6 +5896,16 @@ fn validate_targets_inner(
             )));
         }
 
+        // CR 601.2c inter-target distinctness. Build slot -> bound ObjectId from target_slot
+        // (object targets only; players never satisfy a permanent-distinct requirement).
+        let mut slot_object: Vec<Option<ObjectId>> = vec![None; requirements.len()];
+        for (ti, slot) in target_slot.iter().enumerate() {
+            if let (Some(si), Target::Object(id)) = (slot, &targets[ti]) {
+                slot_object[*si] = Some(*id);
+            }
+        }
+        enforce_inter_target_distinctness(requirements, &slot_object)?;
+
         // Build the req_for_target vec: for each target, return the requirement at its slot.
         // For UpToN slots, return the UpToN requirement (not the inner) so that validation
         // below uses the UpToN arm which delegates to inner correctly.
@@ -5943,6 +5953,16 @@ pub(crate) fn validate_targets_positional(
             targets.len()
         )));
     }
+    // CR 601.2c inter-target distinctness (positional: slot index == target index).
+    let slot_object: Vec<Option<ObjectId>> = targets
+        .iter()
+        .map(|t| match t {
+            Target::Object(id) => Some(*id),
+            Target::Player(_) => None,
+        })
+        .collect();
+    enforce_inter_target_distinctness(requirements, &slot_object)?;
+
     let req_for_target: Vec<Option<&TargetRequirement>> = requirements.iter().map(Some).collect();
     validate_mapped_targets(
         state,
@@ -6082,6 +6102,30 @@ fn validate_mapped_targets(
         spell_targets.push(spell_target);
     }
     Ok(spell_targets)
+}
+/// CR 601.2c ("another target"): enforce that every `TargetPermanentDistinctFrom(k)`
+/// slot is filled by a different object than slot `k`. `slot_object[i]` is the
+/// ObjectId bound to requirement slot `i` (None if that slot took a player/no target).
+fn enforce_inter_target_distinctness(
+    requirements: &[TargetRequirement],
+    slot_object: &[Option<ObjectId>],
+) -> Result<(), GameStateError> {
+    for (si, req) in requirements.iter().enumerate() {
+        if let TargetRequirement::TargetPermanentDistinctFrom(other) = req {
+            let a = slot_object.get(si).copied().flatten();
+            let b = slot_object.get(*other).copied().flatten();
+            if let (Some(a), Some(b)) = (a, b) {
+                if a == b {
+                    return Err(GameStateError::InvalidTarget(
+                        "the same permanent cannot be chosen for both targets \
+                         ('another target permanent', CR 601.2c)"
+                            .to_string(),
+                    ));
+                }
+            }
+        }
+    }
+    Ok(())
 }
 /// CR 601.2c: Check that a player target satisfies a requirement.
 ///
@@ -6244,6 +6288,9 @@ fn validate_object_satisfies_requirement(
     let valid = match req {
         TargetRequirement::TargetCreature => on_battlefield && is_creature,
         TargetRequirement::TargetPermanent => on_battlefield,
+        // CR 601.2c ("another target"): type-legality identical to TargetPermanent;
+        // distinctness is enforced by `enforce_inter_target_distinctness`.
+        TargetRequirement::TargetPermanentDistinctFrom(_) => on_battlefield,
         TargetRequirement::TargetArtifact => on_battlefield && is_artifact,
         TargetRequirement::TargetEnchantment => on_battlefield && is_enchantment,
         TargetRequirement::TargetLand => on_battlefield && is_land,

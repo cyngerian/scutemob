@@ -164,6 +164,8 @@ next triage. Banners added (§6).
   `WhenTappedForMana` case in `enrich_spec_from_def`'s runtime `triggered_abilities` population.
 - **OOS-EF7-1** — only `WhenEquippedCreatureDealsCombatDamageToPlayer` exists
   (`card_definition.rs:3389`); no any-recipient variant. Umezawa's Jitte `known_wrong`.
+  **✅ CLOSED PB-OS10 (`scutemob-140`, pending merge):** `WhenEquippedCreatureDealsCombatDamage`
+  (any recipient) added; Jitte flipped → Complete.
 - **OOS-EF5-4** sub-primitives verified absent: `Cost::Sacrifice` has **no count field**
   (Westvale Abbey "Sacrifice five creatures" inexpressible); `TriggerCondition::WheneverYouAttack`
   is a **bare unit** with no count field (Legions' Landing "attacked with 3+").
@@ -505,7 +507,17 @@ here). Fix = add the per-step card-def sweep in `begin_combat()` mirroring the u
 No wire change expected (uses existing `PendingTriggerKind::CardDefETB`). Estimated yield when
 done: ~4-6 flips. Candidate for a near-term correctness PB.
 
-### PB-OS10 — spells-only single-target-distinctness + Jitte trigger (OOS-XS-1 + OOS-EF7-1) · capability · cleanup singletons
+### PB-OS10 — spells-only single-target-distinctness + Jitte trigger (OOS-XS-1 + OOS-EF7-1) · capability · cleanup singletons · ✅ IMPLEMENTED on branch `scutemob-140` (pending /collect merge, 2026-07-19)
+> **Both seeds CLOSED** (real, not falsified — CR 601.2c + the "another" grammar confirms
+> distinctness for Hidden Strings; Jitte oracle "deals combat damage" = any recipient). Shipped:
+> `TargetRequirement::TargetPermanentDistinctFrom(usize)` (opt-in per slot, enforced in casting.rs)
+> and `TriggerCondition::WhenEquippedCreatureDealsCombatDamage` + matching `TriggerEvent` (any
+> recipient, deduped once-per-source per combat step). **umezawas_jitte flipped → Complete**
+> (trigger repointed + modal ability converted `Effect::Choose` → `Activated::modes`,
+> execution-verified counters/cost/3 modes); **hidden_strings stays `known_wrong`** (surviving
+> tap-or-untap "may" optionality blocker; distinctness now enforced+pinned). Single batched
+> PROTOCOL 24→25 / HASH 61→62. 0 HIGH/0 MEDIUM/3 LOW (dispositioned); 16 new tests. Review:
+> `pb-review-OS10.md`. Coordinator: flip this row's SHIPPED SHA at /collect.
 - **Findings**: OOS-XS-1, OOS-EF7-1 (bundled — two independent 1-card cleanups, low blast radius).
 - **Fix**: OOS-XS-1 — inter-target distinctness (`TargetRequirement::TargetPermanentDistinctFrom(usize)`
   or a post-bind duplicate-rejection pass) for Hidden Strings; OOS-EF7-1 — a
@@ -540,7 +552,7 @@ done: ~4-6 flips. Candidate for a near-term correctness PB.
 | PB-OS7 | OOS-EF3-1 | capability | ~1-2 | PROTOCOL |
 | ~~PB-OS8~~ ✅ SHIPPED `scutemob-138` | OOS-EF10-1 (+min_cmc) | capability | 2 Complete (birthing_ritual, growing_rites_of_itlimoc); birthing_pod stays partial (new blocker OOS-OS8-1); muxus re-pointed (OOS-OS8-2) | PROTOCOL 22→23 / HASH 59→60 |
 | ~~PB-OS9~~ ✅ SHIPPED `scutemob-139` | OOS-EF3b-1 | capability | 1 Complete (skyhunter_strike_force); loyal_apprentice + siege_gang_lieutenant authored CR-correct but stay partial (new blocker OOS-OS9-1: AtBeginningOfCombat sweep gap) | PROTOCOL 23→24 / HASH 60→61 |
-| PB-OS10 | OOS-XS-1 + OOS-EF7-1 | capability (singletons) | ~2 | PROTOCOL |
+| ~~PB-OS10~~ ✅ IMPLEMENTED `scutemob-140` (pending merge) | OOS-XS-1 + OOS-EF7-1 | capability (singletons) | 1 Complete (umezawas_jitte) + distinctness primitive pinned (hidden_strings stays known_wrong) | PROTOCOL 24→25 / HASH 61→62 |
 | PB-OS11 | OOS-LKI-3 + OOS-TS-1 | capability (singletons) | ~2 | PROTOCOL |
 
 **Total discounted ship across the queue: ~19-22 clean flips** + the PB-OS1 integrity correction

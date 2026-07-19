@@ -34,7 +34,9 @@ pub fn card() -> CardDefinition {
                 ]),
                 targets: vec![
                     TargetRequirement::TargetPermanent,
-                    TargetRequirement::TargetPermanent,
+                    // PB-OS10 (OOS-XS-1): CR 601.2c "another target permanent" — must differ
+                    // from requirement slot 0.
+                    TargetRequirement::TargetPermanentDistinctFrom(0),
                 ],
                 modes: None,
                 cant_be_countered: false,
@@ -43,10 +45,13 @@ pub fn card() -> CardDefinition {
         ],
         completeness: Completeness::known_wrong(
             "modeled as an unconditional double tap. Oracle is 'you MAY tap OR untap' — the untap \
-             mode and the optionality are both dropped, and 'another target permanent' \
-             distinctness is not enforced. Effect::Choose is non-interactive (effects/mod.rs:3190 \
-             always executes the first option), so the mode choice has no correct expression \
-             today.",
+             mode and the optionality are both dropped. PB-OS10 (2026-07-19) added \
+             TargetPermanentDistinctFrom and wired it onto the second target slot, so 'another \
+             target permanent' distinctness IS now enforced (the same permanent can no longer be \
+             chosen for both targets). The card remains known_wrong because (i) 'tap OR untap' \
+             player choice is unmodeled (always taps), and (ii) the 'you MAY' optionality is \
+             dropped for both instances. No Effect::Choose is introduced for these — that would \
+             be a non-interactive gated stub, barred from Complete.",
         ),
         ..Default::default()
     }

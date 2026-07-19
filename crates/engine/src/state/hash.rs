@@ -547,7 +547,20 @@
 ///   `Condition::YouControlYourCommander => 51u8.hash_into(hasher)`. `decl_fingerprint`
 ///   MOVES (the enum's declared shape changed — a new variant); `stream_fingerprint`
 ///   moves per the v40 mechanism.
-pub const HASH_SCHEMA_VERSION: u8 = 61;
+/// - 62: PB-OS10 (2026-07-19, OOS-XS-1 + OOS-EF7-1) — three new variants in one
+///   batch: `TargetRequirement` gains `TargetPermanentDistinctFrom(usize)`
+///   (discriminant 20, CR 601.2c "another target permanent" inter-target
+///   distinctness; `hidden_strings`); `TriggerEvent` gains
+///   `EquippedCreatureDealsCombatDamage` (discriminant 48) and `TriggerCondition`
+///   gains `WhenEquippedCreatureDealsCombatDamage` (discriminant 48) — the
+///   any-recipient sibling of the existing `...ToPlayer` pair (CR 510.3a/603.2c;
+///   `umezawas_jitte`). Fed to `HashInto` as
+///   `TargetRequirement::TargetPermanentDistinctFrom(idx) => { 20u8.hash_into(hasher);
+///   idx.hash_into(hasher); }`, `TriggerEvent::EquippedCreatureDealsCombatDamage =>
+///   48u8.hash_into(hasher)`, and `TriggerCondition::WhenEquippedCreatureDealsCombatDamage
+///   => 48u8.hash_into(hasher)`. `decl_fingerprint` MOVES (three enums' declared
+///   shapes changed); `stream_fingerprint` moves per the v40 mechanism.
+pub const HASH_SCHEMA_VERSION: u8 = 62;
 
 /// One `(version, fingerprints)` row of the append-only hash-schema history.
 ///
@@ -828,6 +841,16 @@ pub const HASH_SCHEMA_HISTORY: &[HashSchemaEpoch] = &[
         // enum-shape change); stream_fingerprint moves per the v40 mechanism.
         decl_fingerprint: "e4db4f9355ba59cf78800941c10f0ab82b4a902bc1876657bd7a9898b215828a",
         stream_fingerprint: "8f240c72b6b024d03c698dde9be162ae089eda8e6ecf15c14f5576ee936b6474",
+    },
+    HashSchemaEpoch {
+        version: 62,
+        // PB-OS10 (2026-07-19, OOS-XS-1 + OOS-EF7-1): TargetRequirement gained
+        // TargetPermanentDistinctFrom; TriggerEvent/TriggerCondition gained
+        // EquippedCreatureDealsCombatDamage / WhenEquippedCreatureDealsCombatDamage
+        // (see the `- 62:` History line above). decl_fingerprint moves (three
+        // enums' shapes changed); stream_fingerprint moves per the v40 mechanism.
+        decl_fingerprint: "68b5e8eb60496b5f5f76faf2575647c6718b2fac65db1774e9ccb8cce2cb1707",
+        stream_fingerprint: "7e69e7f8284f48221555c208f4c63da590e7eff1439cb694bafd3320359f2d7d",
     },
 ];
 
@@ -3172,6 +3195,8 @@ impl HashInto for TriggerEvent {
                 by_opponent.hash_into(hasher);
                 include_abilities.hash_into(hasher);
             }
+            // PB-OS10: equipped creature deals combat damage, any recipient — discriminant 48
+            TriggerEvent::EquippedCreatureDealsCombatDamage => 48u8.hash_into(hasher),
         }
     }
 }
@@ -5332,6 +5357,11 @@ impl HashInto for TargetRequirement {
             TargetRequirement::TargetOpponent => 18u8.hash_into(hasher),
             // PB-EF11: TargetSpellWithSingleTarget -- CR 115.7a/115.7b (discriminant 19)
             TargetRequirement::TargetSpellWithSingleTarget => 19u8.hash_into(hasher),
+            // PB-OS10: TargetPermanentDistinctFrom -- CR 601.2c "another target" (discriminant 20)
+            TargetRequirement::TargetPermanentDistinctFrom(idx) => {
+                20u8.hash_into(hasher);
+                idx.hash_into(hasher);
+            }
         }
     }
 }
@@ -5792,6 +5822,8 @@ impl HashInto for TriggerCondition {
                 by_opponent.hash_into(hasher);
                 include_abilities.hash_into(hasher);
             }
+            // PB-OS10: "Whenever equipped creature deals combat damage" (any recipient) — discriminant 48
+            TriggerCondition::WhenEquippedCreatureDealsCombatDamage => 48u8.hash_into(hasher),
         }
     }
 }

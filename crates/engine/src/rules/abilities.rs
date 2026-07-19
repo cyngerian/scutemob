@@ -5412,6 +5412,55 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         }
                     }
                 }
+                // CR 510.3a / 603.2c: EquippedCreatureDealsCombatDamage (any recipient).
+                // Fires once per equipped SOURCE creature per combat-damage step, regardless of
+                // how many recipients it damaged (trample/multi-block = one dealing event; double
+                // strike = two steps = two invocations of this collector).
+                let mut damaged_sources: Vec<ObjectId> = Vec::new();
+                for assignment in assignments {
+                    if assignment.amount == 0 {
+                        continue; // CR 603.2g
+                    }
+                    if !damaged_sources.contains(&assignment.source) {
+                        damaged_sources.push(assignment.source);
+                    }
+                }
+                for source_creature in damaged_sources {
+                    // CR 603.10: combat-damage triggers do NOT look back — source must still be
+                    // on the battlefield. A quiet `None`/wrong-zone here is a legitimate CR
+                    // 608.2b-style fizzle (the source could conceivably have left between
+                    // damage assignment and this collector running), not an engine bug.
+                    let Some(creature_obj) = state.fizzle_object(source_creature) else {
+                        continue;
+                    };
+                    if creature_obj.zone != ZoneId::Battlefield {
+                        continue;
+                    }
+                    let attachments: Vec<ObjectId> =
+                        creature_obj.attachments.iter().copied().collect();
+                    // total damage this source dealt this step (for cards that read the amount;
+                    // Jitte ignores it but populate for parity with the ...ToPlayer path).
+                    let total: u32 = assignments
+                        .iter()
+                        .filter(|a| a.source == source_creature)
+                        .map(|a| a.amount)
+                        .sum();
+                    for attachment_id in attachments {
+                        let pre_len = triggers.len();
+                        collect_triggers_for_event(
+                            state,
+                            &mut triggers,
+                            TriggerEvent::EquippedCreatureDealsCombatDamage,
+                            Some(attachment_id),
+                            None,
+                        );
+                        for t in &mut triggers[pre_len..] {
+                            t.entering_object_id = Some(source_creature);
+                            t.combat_damage_amount = total;
+                            // damaged_player intentionally left None — recipient may be a creature/pw.
+                        }
+                    }
+                }
                 // CR 510.3a / CR 603.2: AnyCreatureDealsCombatDamageToOpponent —
                 // "Whenever a creature deals combat damage to one of your opponents."
                 // Fires globally for any creature dealing damage to an opponent of
@@ -7299,6 +7348,10 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                                         match req {
                                             TargetRequirement::TargetCreature => is_creature,
                                             TargetRequirement::TargetPermanent => true,
+                                            // CR 601.2c ("another target"): type-legality identical
+                                            // to TargetPermanent; distinctness enforced at declaration
+                                            // validation (casting.rs), not here.
+                                            TargetRequirement::TargetPermanentDistinctFrom(_) => true,
                                             TargetRequirement::TargetArtifact => is_artifact,
                                             TargetRequirement::TargetEnchantment => is_enchantment,
                                             TargetRequirement::TargetLand => is_land,
