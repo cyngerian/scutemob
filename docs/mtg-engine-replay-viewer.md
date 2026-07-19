@@ -1,5 +1,7 @@
 # Game State Stepper: Developer Replay Viewer
 
+<!-- last_updated: 2026-02-22 -->
+
 > **Deferred: relevant at M9.5. Do not load in earlier sessions.**
 
 ## Purpose

@@ -1,5 +1,7 @@
 # Engine Audits
 
+<!-- last_updated: 2026-03-28 -->
+
 Correctness audits targeting systemic bug classes in the rules engine. Each audit
 identifies a category of implementation error, lists every affected callsite, and
 proposes a uniform fix.

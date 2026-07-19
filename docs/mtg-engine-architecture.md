@@ -1,5 +1,7 @@
 # MTG Commander Rules Engine: Architecture & Testing Strategy
 
+<!-- last_updated: 2026-04-13 -->
+
 > **Audience**: design-decision reference for engine developers and Claude Code
 > sessions. Decision-oriented and detailed. For a narrative walkthrough of how
 > the engine actually works at runtime (with a concrete worked example), see

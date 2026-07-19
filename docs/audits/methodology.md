@@ -1,5 +1,7 @@
 # Invariant-Driven Audit Methodology
 
+<!-- last_updated: 2026-03-28 -->
+
 **Date**: 2026-03-27
 **Purpose**: A repeatable process for finding systemic bugs in complex rule engines.
 Applicable to this MTG engine and generalizable to any system where correctness is

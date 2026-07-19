@@ -1,5 +1,7 @@
 # MTG Commander Rules Engine: Development Roadmap
 
+<!-- last_updated: 2026-03-28 -->
+
 ## Purpose of This Document
 
 This document defines the development roadmap as a sequence of milestones, each with concrete deliverables, acceptance criteria, and dependencies. It is the project management backbone — all task tracking, sprint planning, and progress assessment flows from this document.

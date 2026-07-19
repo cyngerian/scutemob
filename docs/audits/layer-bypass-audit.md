@@ -1,5 +1,13 @@
 # Layer Bypass Audit
 
+<!-- last_updated: 2026-03-28 -->
+
+> **Severity-tally disambiguation**: the "9 HIGH" callsites catalogued here are this audit's
+> own **M10-scheduled correctness class** (layer-bypass reads), *not* live open engine bugs.
+> They are deliberately distinct from — and do not contradict — the "0 HIGH" engine tally in
+> CLAUDE.md's Current State and `docs/mtg-engine-milestone-reviews.md`, which counts the
+> general milestone-review issue index. Both are correct at once.
+
 **Date**: 2026-03-27
 **Bug class**: Engine code reads from static `CardDefinition` (via `card_registry`) for
 battlefield objects instead of using `calculate_characteristics()` (layer-resolved state).

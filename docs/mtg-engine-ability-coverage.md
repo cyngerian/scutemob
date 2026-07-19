@@ -1,5 +1,15 @@
 # MTG Engine — Ability Coverage Audit
 
+<!-- last_updated: 2026-03-11 -->
+
+> **⚠️ Audit stamp stale — refresh deferred (noted 2026-07-18).** The per-ability status
+> tables below were last regenerated 2026-03-11 and have **not** been re-run against the
+> current engine (the SR-1..38, EF, and PB-OS waves have landed since). Treat the row-level
+> statuses as a March snapshot, not present-day truth. Refreshing them is a heavyweight
+> `/audit-abilities` agent run and was intentionally **deferred out of the DOC-6v2 docs pass**
+> — run `/audit-abilities` to re-validate before relying on these tables. CLAUDE.md → Current
+> State → Abilities carries the current headline tally (~199 validated).
+>
 > Living document. Refresh with `/audit-abilities`.
 > Last audited: 2026-03-11 (The Ring Tempts You + Venture/Dungeon validated; summary table corrected to 95/105 P4 validated, 0 none; 194 total validated)
 > Reclassified 2026-03-09: 9 digital-only abilities → `permanent-n/a`; Banding → `deferred` (post-alpha)

@@ -1,6 +1,6 @@
 # SR Remediation Track — Operations Guide
 
-<!-- last_updated: 2026-07-11 -->
+<!-- last_updated: 2026-07-17 -->
 
 > **Audience:** any session (human-driven or agent) working the SR-prefixed tasks.
 > This track runs **outside** the `/start` / `/eot` skills and outside the W1–W6

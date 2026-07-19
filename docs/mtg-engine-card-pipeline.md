@@ -1,5 +1,7 @@
 # Card Definition Pipeline & Scaling Strategy
 
+<!-- last_updated: 2026-07-10 -->
+
 > How card definitions are structured, authored, and organized — and how this
 > approach scales from 112 cards to 27,000+.
 

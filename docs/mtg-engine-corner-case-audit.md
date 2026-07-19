@@ -1,5 +1,7 @@
 # Corner Case Correctness Audit
 
+<!-- last_updated: 2026-03-08 -->
+
 > **Living document.** Re-audit after each milestone that adds mechanics or cards.
 > Use `cr-coverage-auditor` agent for bulk re-checks.
 >

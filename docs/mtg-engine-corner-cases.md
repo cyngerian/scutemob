@@ -1,5 +1,7 @@
 # MTG Rules Engine: Corner Case Interaction Test Reference
 
+<!-- last_updated: 2026-02-23 -->
+
 > This document catalogs known difficult interactions that any MTG rules engine must handle
 > correctly. Each entry describes the interaction, what rules subsystem it stress-tests,
 > the expected correct behavior, and which CR sections govern it.
