@@ -3173,6 +3173,15 @@ fn execute_effect_inner(
                         None => return, // No chosen type — skip effect.
                     }
                 }
+                // CR 508.4 / 611.2a (PB-OS7, OOS-EF3-1): stamp the captured defending
+                // player into the locked filter at effect creation. The layer system
+                // cannot read ctx, so the player must be baked in now. None => apply to
+                // nothing (never fall back to ctx.controller — that would debuff the
+                // caster's own creatures).
+                CEFilter::CreaturesControlledByDefendingPlayer => match ctx.defending_player {
+                    Some(pid) => CEFilter::CreaturesControlledBy(pid),
+                    None => return,
+                },
                 other => other.clone(),
             };
             // CR 608.2h / PB-X: Resolve ModifyBothDynamic at execution time so the stored

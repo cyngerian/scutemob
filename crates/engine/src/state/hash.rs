@@ -520,7 +520,15 @@
 ///   plus the new `PlayerState` field line. `decl_fingerprint` MOVES (three enums'
 ///   declared shapes changed plus a new struct field); `stream_fingerprint` moves
 ///   per the v40 mechanism.
-pub const HASH_SCHEMA_VERSION: u8 = 58;
+/// - 59: PB-OS7 (2026-07-19, OOS-EF3-1) — `EffectFilter` gains one new unit variant,
+///   `CreaturesControlledByDefendingPlayer` (discriminant 36, CR 508.4/611.2a — DSL
+///   placeholder substituted at `Effect::ApplyContinuousEffect` execution time into
+///   `CreaturesControlledBy(ctx.defending_player)`; used by Silumgar, the Drifting
+///   Death). Fed to `HashInto` as
+///   `EffectFilter::CreaturesControlledByDefendingPlayer => 36u8.hash_into(hasher)`.
+///   `decl_fingerprint` MOVES (the enum's declared shape changed — a new variant);
+///   `stream_fingerprint` moves per the v40 mechanism.
+pub const HASH_SCHEMA_VERSION: u8 = 59;
 
 /// One `(version, fingerprints)` row of the append-only hash-schema history.
 ///
@@ -775,6 +783,15 @@ pub const HASH_SCHEMA_HISTORY: &[HashSchemaEpoch] = &[
         // mechanism.
         decl_fingerprint: "9cb0bf12fdb38572f272b0f6f544e7a9421f2201cd6cb53c5cd9539ee7a9f954",
         stream_fingerprint: "9c0797735dbdd18743134cc3816d02dfddeb4508dc69f2afa1afa263d0d87d2a",
+    },
+    HashSchemaEpoch {
+        version: 59,
+        // PB-OS7 (2026-07-19, OOS-EF3-1): EffectFilter gained
+        // CreaturesControlledByDefendingPlayer (see the `- 59:` History line above).
+        // decl_fingerprint moves (genuine enum-shape change); stream_fingerprint
+        // moves per the v40 mechanism.
+        decl_fingerprint: "109b4d5a6cc67f924434b7b15dc2429ea12237a559162e6574fcb661e978c299",
+        stream_fingerprint: "e1fd5db827a553417419db080b7e2b659fc371bab277e8ccff5822e7325c5ae8",
     },
 ];
 
@@ -2146,6 +2163,8 @@ impl HashInto for EffectFilter {
             EffectFilter::CreaturesYouControlOfChosenColor => 34u8.hash_into(hasher),
             // CR 611.2a: the triggering creature (entering/attacking) — discriminant 35
             EffectFilter::TriggeringCreature => 35u8.hash_into(hasher),
+            // PB-OS7 (OOS-EF3-1): DSL placeholder "creatures defending player controls" — discriminant 36
+            EffectFilter::CreaturesControlledByDefendingPlayer => 36u8.hash_into(hasher),
         }
     }
 }

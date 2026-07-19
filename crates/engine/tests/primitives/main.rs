@@ -37,6 +37,7 @@ mod pb_l_landfall;
 mod pb_os1_gain_control_reversion;
 mod pb_os5_relative_attacker_count;
 mod pb_os6_dfc_flip_conditions;
+mod pb_os7_defending_player_continuous_filter;
 mod pbd_damaged_player_filter;
 mod pbn_subtype_filtered_triggers;
 mod pbp_power_of_sacrificed_creature;

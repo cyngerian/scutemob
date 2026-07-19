@@ -139,6 +139,19 @@ pub enum EffectFilter {
     /// gets +N/+N until end of turn" (Dragon Tempest, Ogre Battledriver, Atarka,
     /// Fervent Charge, Dreadhorde Invasion). CR 611.2a / 613.1f.
     TriggeringCreature,
+    /// DSL placeholder: "creatures the DEFENDING player controls." Substituted at
+    /// `Effect::ApplyContinuousEffect` execution time into
+    /// `CreaturesControlledBy(ctx.defending_player)` using the per-attacker defending
+    /// player captured by the attack trigger (CR 508.4 / 611.2a). If no defending player
+    /// was captured (`ctx.defending_player == None`), the effect is skipped entirely —
+    /// it must NEVER fall back to the controller (that would debuff the caster's own
+    /// creatures). Never appears in a stored `ContinuousEffect`; the layer arm returns
+    /// `false` as an unreached guard (mirrors `Source` / `TriggeringCreature`).
+    ///
+    /// Used by Silumgar, the Drifting Death ("Whenever a Dragon you control attacks,
+    /// creatures defending player controls get -1/-1 until end of turn.").
+    /// PB-OS7 / OOS-EF3-1.
+    CreaturesControlledByDefendingPlayer,
     /// Applies to all creature permanents controlled by the source's controller.
     ///
     /// Resolved dynamically at layer-application time using `effect.source` to determine

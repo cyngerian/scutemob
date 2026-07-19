@@ -662,6 +662,10 @@ fn effect_applies_to(
         // at ApplyContinuousEffect execution time. If it somehow reaches here unresolved,
         // treat it as non-matching (same pattern as Source/DeclaredTarget).
         EffectFilter::TriggeringCreature => false,
+        // CreaturesControlledByDefendingPlayer is a DSL placeholder resolved to
+        // CreaturesControlledBy(pid) at ApplyContinuousEffect execution. If it reaches
+        // here unresolved, treat as non-matching (same pattern as Source/TriggeringCreature).
+        EffectFilter::CreaturesControlledByDefendingPlayer => false,
         // CR 301.5 / CR 702.6a: Equipment static ability applies only to the equipped
         // creature. The source object's `attached_to` field identifies that creature.
         // If the equipment is not attached to anything, the filter matches nothing.
