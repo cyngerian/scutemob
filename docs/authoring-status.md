@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-07-19 05:43 UTC  
-**Git:** `de58b1cc` on `main`  
+**Generated:** 2026-07-19 07:01 UTC  
+**Git:** `63ca78ce` on `main`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -19,25 +19,25 @@ and what is intentionally NOT in it.**
 
 | Metric | Count | Δ since last run |
 | --- | ---: | ---: |
-| Card def files on disk | 1,801 | +2 |
+| Card def files on disk | 1,802 | +1 |
 | Authoring-plan target universe (snapshot 2026-03-10) | 1,636 | · |
-| Plan cards with a def file (any-face match) | 1,498 | +2 |
-| Plan cards still missing a def file | 138 | -2 |
+| Plan cards with a def file (any-face match) | 1,500 | +2 |
+| Plan cards still missing a def file | 136 | -2 |
 | Bonus defs (on disk, outside plan) | 321 | · |
-| Effective coverage vs plan target | **111%** (1,819 / 1,636) | — |
-| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 62.2% | 1,121 | +2 |
-| With TODO markers | 527 | +1 |
-| Empty `abilities: vec![]` placeholders | 153 | -1 |
-| Total TODO lines across all defs | 958 | -1 |
+| Effective coverage vs plan target | **111%** (1,821 / 1,636) | — |
+| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 62.4% | 1,124 | +3 |
+| With TODO markers | 525 | -2 |
+| Empty `abilities: vec![]` placeholders | 153 | · |
+| Total TODO lines across all defs | 958 | · |
 
 ## Authoring activity (git, by window)
 
 | Window | New files added | Existing files modified |
 | --- | ---: | ---: |
-| last 7 days | 54 | 1,765 |
-| last 30 days | 54 | 2,939 |
-| last 90 days | 54 | 2,975 |
-| last 1 year | 1,827 | 3,362 |
+| last 7 days | 55 | 1,765 |
+| last 30 days | 55 | 2,939 |
+| last 90 days | 55 | 2,975 |
+| last 1 year | 1,828 | 3,362 |
 
 ## Bonus defs outside the plan
 
@@ -73,7 +73,7 @@ are blocked on engine primitives.
 | `other` | 108 / 131 | 82% | 70 | 31 | 7 |
 | `modal-choice` | 73 / 105 | 70% | 37 | 24 | 12 |
 | `mana-land` | 92 / 92 | 100% | 64 | 27 | 1 |
-| `body-only` | 62 / 70 | 89% | 34 | 12 | 16 |
+| `body-only` | 64 / 70 | 91% | 36 | 12 | 16 |
 | `removal-destroy` | 56 / 56 | 100% | 35 | 17 | 4 |
 | `counters-plus` | 49 / 49 | 100% | 25 | 19 | 5 |
 | `land-fetch` | 45 / 45 | 100% | 27 | 14 | 4 |
@@ -171,8 +171,8 @@ the next thing to triage when the classifier table is grown.
 
 | Gap bucket | TODO lines | Δ since last run |
 | --- | ---: | ---: |
-| OTHER (unclassified) | 587 | -1 |
-| DSL gap (unspecified) | 120 | -1 |
+| OTHER (unclassified) | 587 | · |
+| DSL gap (unspecified) | 120 | · |
 | attack trigger (self / generic) | 26 | · |
 | TriggerCondition::* missing variant | 17 | · |
 | dynamic hexproof / protection | 17 | · |
@@ -223,18 +223,18 @@ tyvar_jubilant_brawler: // TODO: static — creatures you control can activate a
 
 ## ⚠ Completeness-marker drift
 
-6 defs whose `completeness:` marker contradicts their comments. The marker is authoritative (it is what `validate_deck` reads), so fix whichever is stale.
+4 defs whose `completeness:` marker contradicts their comments. The marker is authoritative (it is what `validate_deck` reads), so fix whichever is stale.
 
 - `ashnods_altar` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `boggart_shenanigans` — marked partial but has no TODO / ENGINE-BLOCKED comment
-- `delver_of_secrets` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `phyrexian_tower` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `temple_of_the_dragon_queen` — marked partial but has no TODO / ENGINE-BLOCKED comment
-- `thaumatic_compass` — marked partial but has no TODO / ENGINE-BLOCKED comment
 
 ## Recent card-touching commits
 
 ```
+bd15b45b W6-prim: PB-OS6 review LOW — soften delver 'strictly beneficial' comment wording
+969ef404 W6-prim: PB-OS6 wire bump (PROTOCOL 20->21, HASH 57->58) + card defs
 8c31c1fd W6-prim: PB-OS5 (OOS-EF4-1) — dynamic relative-count EffectAmount
 55664ad8 scutemob-134: PB-OS4b card-def message fixes + wip checklist
 be9f371c W6-prim: PB-OS4 /review nit — Fable back-face comment names OOS-OS4-2 non-functional status
@@ -258,13 +258,11 @@ a4319e8d scutemob-108: PB-EF7 corpus-wide modes: None, on Activated ability defs
 7f6d5082 scutemob-107: PB-EF6 card-def fixups — vengeful_bloodwitch comment, forbidden_orchard revert
 b5305f41 scutemob-107: PB-EF6 card defs — TargetOpponent flips + fixes (EF-W-PB2-2)
 5ddc2067 scutemob-106: PB-EF5 /review fixes + closeout — TransformSelf
-e3479962 scutemob-106: PB-EF5 card defs + tests — Effect::TransformSelf corpus usage
-db43d268 scutemob-105: PB-EF4 fix phase — apply 2 LOW review findings
 ```
 
 ## Missing card-defs sidecar
 
-The full list of 138 plan cards still missing on disk is at 
+The full list of 136 plan cards still missing on disk is at 
 `docs/authoring-status-missing.txt` (tab-separated `group<TAB>name`, sorted by group). 
 Use it as a batch-author worklist.
 

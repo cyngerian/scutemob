@@ -463,3 +463,15 @@ existing counts — zero extra wire surface); rabblemaster pump implemented (par
 forced-attack blocker); muxus attack-half authored (partial → PB-OS8 dig blocker). Single
 PROTOCOL 19→**20** / HASH 56→**57**. Reviewer clean bill. Coverage **1,121/1,801 = 62.2%**.
 Next: PB-OS6 (DFC flip-condition sub-batch, OOS-EF5-4).
+
+## 2026-07-19 — PB-OS6 collected (`scutemob-136`, merge `63ca78ce`) — OOS-EF5-4 a/b/g shipped
+
+DFC flip-condition sub-batch: (a) top-card-is-instant/sorcery reveal Condition (delver flip,
+CR 702.x reveal semantics; deviation-scan ALLOWLIST entry justified — mandatory-if-true is
+faithful), (b) count on `WheneverYouAttack` (legions_landing 3+), (g) `RemoveFromCombat`
+(thaumatic_compass back face). **3 Complete**: delver_of_secrets, legions_landing,
+thaumatic_compass (the OS4b face-aware work made the back-face halves real). (c) Sacrifice
+count deferred → **OOS-OS6-1** (Westvale); (d) folded into PB-OS8 as planned. Two stale
+PB-EF5 regression guards updated partial→complete. Single batched PROTOCOL 20→**21** /
+HASH 57→**58**, append-only history verified. Review: clean bill (1 LOW). Tests **3538**;
+coverage **1,124/1,802 = 62.4%**. Next: PB-OS7.

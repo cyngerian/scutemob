@@ -1,6 +1,6 @@
 # Authoring plan — cards still missing on disk
-# Generated: 2026-07-19 05:43 UTC  Git: de58b1cc  Plan snapshot: 2026-03-10
-# Format: <group>\t<card name>   (138 cards)
+# Generated: 2026-07-19 07:01 UTC  Git: 63ca78ce  Plan snapshot: 2026-03-10
+# Format: <group>\t<card name>   (136 cards)
 
 activated-sacrifice	Chatterfang, Squirrel General
 activated-sacrifice	Dark-Dweller Oracle
@@ -50,8 +50,6 @@ attack-trigger	Winota, Joiner of Forces
 body-only	Edgar, Charmed Groom
 body-only	Grist, Voracious Larva // Grist, the Plague Swarm
 body-only	Invasion of Ikoria // Zilortha, Apex of Ikoria
-body-only	Legion's Landing
-body-only	Legion's Landing // Adanto, the First Fort
 body-only	Nicol Bolas, the Ravager
 body-only	Sephiroth, Fabled SOLDIER // Sephiroth, One-Winged Angel
 body-only	Westvale Abbey
