@@ -438,3 +438,18 @@ worker-missed, coordinator-applied). DOCB-2 (`cf9535d6`, provisioned-override ju
 /implement-primitive + /audit-cards rewired onto live sources, /start-work RETIRED with
 banner, /collect gained mandatory PB state-sync step (N4 root-cause fix); risk noted —
 esm update may clobber provisioned-skill customizations. PB dispatch gate LIFTED.
+
+## 2026-07-19 — PB-OS4b collected (`scutemob-134`, merge `77d411a0`) — OOS-OS4-2 CLOSED
+
+Face-aware ability gathering shipped **wire-neutral** (PROTOCOL 19 / HASH 56 unchanged):
+`def.effective_abilities(is_transformed)` at every gathering site — the 3 filed sites plus
+the sweep's finds (activated/mana/triggered population, and reviewer E1's three main-phase/
+end-step CardDef trigger sweeps; 8 boundary sites route through one `apply_face_change`).
+**docent_of_perfection + bloodline_keeper were Complete-but-WRONG and are now verified
+Complete by execution** (pinning tests; the PB-EF5 markers survive honestly). Fable's
+back-face Reflection is now activatable (stays Partial, ch. I/II only); growing_rites/
+thaumatic back abilities functional. Face-distinction decoys incl. there-and-back and
+non-DFC-noop. Reviewer E2 found the non-Static registration family is 10 variants (not 4)
+— documented, not extended (no roster card reaches it). Edgar half deferred as
+**OOS-OS4-3** (re-add `ReturnSourceToBattlefieldTransformed`, 1 wire bump). Tests 3476 →
+**3512**. Reviews: 4/4 PASS, 1 LOW documented in source. Next: PB-OS5.
