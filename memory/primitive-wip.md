@@ -14,7 +14,17 @@ closure). Karazikar BLOCKED -> filed OOS-OS7-1; ship = 1 (silumgar). Plan: memor
 **PB**: PB-OS7 — defending-player-scoped continuous filter (OOS-EF3-1)
 **Task**: scutemob-137
 **Branch**: feat/pb-os7-defending-player-scoped-continuous-filter-oos-ef3-1-s
-**Phase**: implement
+**Phase**: review
+
+## Verification checklist (ALL DONE — see plan's checklist section)
+
+- [x] `cargo build --workspace` clean
+- [x] `cargo test --all` — 3547 passed, 0 failed
+- [x] `cargo clippy --workspace --all-targets -- -D warnings` — clean
+- [x] `cargo fmt --check` — clean (fmt applied once to the new test file)
+- [x] `tools/check-defs-fmt.sh` — 1803 defs checked, clean
+- [x] HASH_SCHEMA_VERSION 58→59, all ~40 test sentinels swept
+- [x] PROTOCOL_VERSION 21→22 (deviation from plan, documented below and in protocol.rs)
 
 ## Engine changes (DONE)
 
@@ -23,6 +33,7 @@ closure). Karazikar BLOCKED -> filed OOS-OS7-1; ship = 1 (silumgar). Plan: memor
 - [x] `layers.rs` `filter_matches` `=> false` guard arm
 - [x] `hash.rs` HashInto discriminant 36 + `HASH_SCHEMA_VERSION` 58→59 + `- 59:` History line + v59 `HashSchemaEpoch` row (re-pinned from failing-gate output); ~40 test sentinels swept 58→59
 - [x] `silumgar_the_drifting_death.rs` authored `Complete` (no gated stubs, no TODOs); `check-defs-fmt.sh` clean; Karazikar NOT authored, OOS-OS7-1 already filed in the plan
+- [x] `crates/engine/tests/primitives/pb_os7_defending_player_continuous_filter.rs` — 9 tests, all pass (plan asked for 8; added `test_os7_card_registered` smoke test). Registered in `tests/primitives/main.rs`.
 - [x] **PROTOCOL DEVIATION FROM PLAN**: the plan predicted NO PROTOCOL bump (`EffectFilter` "off the wire closure" per the PB-EF4/v9 note). Empirically WRONG — `protocol_schema_fingerprint_is_pinned` failed. Root cause: PB-EF9 (v14) put `EffectDuration` — a sibling field of `EffectFilter` on the same `ContinuousEffectDef` struct — into the wire closure via `Effect::ApplyContinuousEffect`, which transitively pulled `EffectFilter` in too. The PB-EF4-era "off the wire closure" claim went stale at v14 and nobody updated it. Bumped `PROTOCOL_VERSION` 21→22, re-pinned `PROTOCOL_SCHEMA_FINGERPRINT` + appended `PROTOCOL_HISTORY` row + `FROZEN_HISTORY_PREFIX_DIGEST` + `protocol_version_sentinel`, and swept 5 test-suite `PROTOCOL_VERSION, 21` sentinels to 22. Documented the correction inline in `rules/protocol.rs`'s `- 22:` history line. Flagged here per the plan's explicit "STOP AND FLAG" instruction — reported, not silently absorbed.
 
 ## Brief
