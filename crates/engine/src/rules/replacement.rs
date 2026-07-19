@@ -2725,28 +2725,9 @@ pub fn apply_regeneration(
     if let Some(obj) = state.expect_object_mut(object_id) {
         obj.status.tapped = true;
     }
-    // 3. Remove from combat (if attacking or blocking)
-    if let Some(combat) = &mut state.combat {
-        combat.attackers.remove(&object_id);
-        combat.blockers.remove(&object_id);
-        // Also remove from damage_assignment_order as an attacker
-        combat.damage_assignment_order.remove(&object_id);
-        // Remove as a blocker from all damage assignment orders.
-        // imbl::OrdMap has no iter_mut, so rebuild.
-        let updated: imbl::OrdMap<_, _> = combat
-            .damage_assignment_order
-            .iter()
-            .map(|(attacker_id, order)| {
-                let filtered: Vec<_> = order
-                    .iter()
-                    .filter(|&&blocker| blocker != object_id)
-                    .copied()
-                    .collect();
-                (*attacker_id, filtered)
-            })
-            .collect();
-        combat.damage_assignment_order = updated;
-    }
+    // 3. Remove from combat (if attacking or blocking) -- CR 506.4/701.19a.
+    // PB-OS6(g): factored into a shared helper, reused by Effect::RemoveFromCombat.
+    crate::rules::combat::remove_from_combat(state, object_id);
     // 4. Remove the one-shot shield (consumed)
     let keep: imbl::Vector<_> = state
         .replacement_effects

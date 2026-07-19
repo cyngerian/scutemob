@@ -1486,6 +1486,12 @@ pub enum Effect {
     TapPermanent { target: EffectTarget },
     /// CR 701.17: Untap a permanent.
     UntapPermanent { target: EffectTarget },
+    /// CR 506.4: Remove a permanent from combat. "A creature that's removed from combat
+    /// stops being an attacking, blocking, blocked, and/or unblocked creature." Does NOT
+    /// untap it (CR 506.4b — tapping/untapping does not by itself remove from combat;
+    /// pair with `UntapPermanent` via `Effect::Sequence` for "untap ... and remove it
+    /// from combat" cards like Spires of Orazca).
+    RemoveFromCombat { target: EffectTarget },
     /// CR 502.3 (PB-LS6): The target permanent doesn't untap during its controller's next
     /// untap step. Increments the target's `skip_untap_steps` counter by 1; the counter is
     /// decremented at the controller's untap step (see `untap_active_player_permanents`).
@@ -3829,6 +3835,20 @@ pub enum Condition {
     /// `Effect::MayPayThenEffect { cost: Cost::Sacrifice(..), then: X }` instead —
     /// the `then` arm is the implicit "if you do" and needs no Condition.
     SacrificeFired,
+    /// True if the top card of the effect controller's library is an instant or
+    /// sorcery card. CR 400.2 (printed characteristics in library); CR 614.1c (the
+    /// peek is hidden info; deterministic engine sees all).
+    ///
+    /// Used by Delver of Secrets' upkeep flip trigger (PB-OS6(a)).
+    TopCardIsInstantOrSorcery,
+    /// CR 508.1/508.4: "if you attacked with N or more creatures." True when the
+    /// effect controller's `PlayerState::attackers_declared_this_turn >= n`. Only
+    /// creatures actually declared as attackers count (tokens/permanents put onto
+    /// the battlefield attacking do not, CR 508.4).
+    ///
+    /// The captured count does not decrease if attackers later leave combat
+    /// (Legion's Landing ruling 2017-09-29). Used by Legion's Landing (PB-OS6(b)).
+    YouAttackedWithNOrMore(u32),
 }
 // ── Mode Selection ────────────────────────────────────────────────────────────
 /// Modal spells/abilities: choose N of M modes (CR 700.2).

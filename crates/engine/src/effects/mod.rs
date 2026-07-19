@@ -2164,6 +2164,21 @@ fn execute_effect_inner(
                 }
             }
         }
+        // CR 506.4 (PB-OS6(g)): Remove a permanent from combat. Does NOT untap it
+        // (CR 506.4b) -- pair with Effect::UntapPermanent via Effect::Sequence for
+        // "untap ... and remove it from combat" cards (Spires of Orazca).
+        Effect::RemoveFromCombat { target } => {
+            let targets = resolve_effect_target_list(state, target, ctx);
+            for resolved in targets {
+                if let ResolvedTarget::Object(id) = resolved {
+                    // SR-4 LKI-fizzle: if the target already left the battlefield or
+                    // combat (fizzled), remove_from_combat is a silent no-op (false).
+                    if crate::rules::combat::remove_from_combat(state, id) {
+                        events.push(GameEvent::RemovedFromCombat { object_id: id });
+                    }
+                }
+            }
+        }
         // PB-LS6 / CR 502.3: The target permanent doesn't untap during its controller's
         // next untap step. Increments skip_untap_steps by 1; the counter is decremented
         // (and the permanent skips untapping) in untap_active_player_permanents.
@@ -9034,11 +9049,34 @@ pub fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectCon
                 _ => false,
             }
         }
+        // CR 400.2/614.1c: Delver of Secrets upkeep flip trigger — check if top of
+        // library is an instant or sorcery card. Hidden-info peek; deterministic
+        // engine sees all. Empty library => false.
+        Condition::TopCardIsInstantOrSorcery => {
+            let lib_zone = ZoneId::Library(ctx.controller);
+            let top_id = state.zones.get(&lib_zone).and_then(|z| z.top());
+            top_id
+                .and_then(|id| state.expect_object(id))
+                .map(|card| {
+                    card.characteristics.card_types.contains(&CardType::Instant)
+                        || card.characteristics.card_types.contains(&CardType::Sorcery)
+                })
+                .unwrap_or(false)
+        }
         // PB-AC6 / Raid, CR 508.1: "if you attacked this turn."
         Condition::YouAttackedThisTurn => state
             .players
             .get(&ctx.controller)
             .map(|p| p.attacked_this_turn)
+            .unwrap_or(false),
+        // PB-OS6(b) / CR 508.1/508.4: "if you attacked with N or more creatures."
+        // Reads the captured attackers_declared_this_turn count (not a live combat
+        // scan), so it stays true even if attackers later leave combat (Legion's
+        // Landing ruling 2017-09-29).
+        Condition::YouAttackedWithNOrMore(n) => state
+            .players
+            .get(&ctx.controller)
+            .map(|p| p.attackers_declared_this_turn >= *n)
             .unwrap_or(false),
         // PB-AC6 / CR 111.10: "if you created a token this turn."
         Condition::CreatedATokenThisTurn => state

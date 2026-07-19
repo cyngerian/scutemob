@@ -271,6 +271,7 @@ impl GameStateBuilder {
                 ring_bearer_id: None,
                 temporary_protection_qualities: vec![],
                 attacked_this_turn: false,
+                attackers_declared_this_turn: 0,
                 created_token_this_turn: false,
                 spells_cast_this_game_turn: 0,
             };

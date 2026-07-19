@@ -624,6 +624,10 @@ pub fn handle_declare_attackers(
     if !attackers.is_empty() {
         if let Some(ps) = state.expect_player_mut(player) {
             ps.attacked_this_turn = true;
+            // PB-OS6(b) / CR 508.1/508.4: capture the declared-attacker count for
+            // Condition::YouAttackedWithNOrMore. Only declared attackers count;
+            // overwritten (not accumulated) on multi-combat turns.
+            ps.attackers_declared_this_turn = attackers.len() as u32;
         }
     }
     // CR 702.154a: Store enlist pairings for trigger collection in abilities.rs.
@@ -676,6 +680,61 @@ pub fn handle_declare_attackers(
     state.turn.priority_holder = Some(player);
     events.push(GameEvent::PriorityGiven { player });
     Ok(events)
+}
+/// CR 506.4: Remove a permanent from combat.
+///
+/// "A permanent is removed from combat if ... an effect specifically removes it
+/// from combat ... A creature that's removed from combat stops being an attacking,
+/// blocking, blocked, and/or unblocked creature." This does NOT untap the
+/// permanent (CR 506.4b) -- callers that need "untap and remove from combat"
+/// (e.g. Spires of Orazca / thaumatic_compass) must pair this with
+/// `Effect::UntapPermanent` via `Effect::Sequence`.
+///
+/// Clears the object from `combat.attackers`, `combat.blockers`,
+/// `combat.blocked_attackers`, and every `combat.damage_assignment_order` slot
+/// (both as an attacker key and as an entry in any blocker list). Returns
+/// whether anything was actually removed (i.e. the object was in combat at all).
+///
+/// Factored out of `apply_regeneration` (PB-OS6(g)) — that function's step 3 is a
+/// behavior-identical caller of this helper.
+pub(crate) fn remove_from_combat(state: &mut GameState, object_id: ObjectId) -> bool {
+    let Some(combat) = state.combat.as_mut() else {
+        return false;
+    };
+    let mut removed = false;
+    if combat.attackers.remove(&object_id).is_some() {
+        removed = true;
+    }
+    if combat.blockers.remove(&object_id).is_some() {
+        removed = true;
+    }
+    if combat.blocked_attackers.remove(&object_id).is_some() {
+        removed = true;
+    }
+    if combat.damage_assignment_order.remove(&object_id).is_some() {
+        removed = true;
+    }
+    // imbl::OrdMap has no iter_mut, so rebuild while stripping object_id from any
+    // blocker list.
+    let mut any_blocker_list_changed = false;
+    let updated: OrdMap<_, _> = combat
+        .damage_assignment_order
+        .iter()
+        .map(|(attacker_id, order)| {
+            let before_len = order.len();
+            let filtered: Vec<_> = order
+                .iter()
+                .filter(|&&blocker| blocker != object_id)
+                .copied()
+                .collect();
+            if filtered.len() != before_len {
+                any_blocker_list_changed = true;
+            }
+            (*attacker_id, filtered)
+        })
+        .collect();
+    combat.damage_assignment_order = updated;
+    removed || any_blocker_list_changed
 }
 // ---------------------------------------------------------------------------
 // Declare Blockers

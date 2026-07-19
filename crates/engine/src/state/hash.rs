@@ -1939,6 +1939,9 @@ impl HashInto for PlayerState {
         self.ring_bearer_id.hash_into(hasher);
         // PB-AC6 / CR 508.1 (Raid): whether this player attacked this turn.
         self.attacked_this_turn.hash_into(hasher);
+        // PB-OS6(b) / CR 508.1/508.4: how many creatures this player declared as
+        // attackers this turn (captured count for Condition::YouAttackedWithNOrMore).
+        self.attackers_declared_this_turn.hash_into(hasher);
         // PB-AC6 / CR 111.10: whether this player created a token this turn.
         self.created_token_this_turn.hash_into(hasher);
         // PB-AC6: spells cast this turn, reset for ALL players (unlike spells_cast_this_turn).
@@ -5136,6 +5139,11 @@ impl HashInto for GameEvent {
                 127u8.hash_into(hasher);
                 object_id.hash_into(hasher);
             }
+            // PB-OS6(g): RemovedFromCombat -- CR 506.4 (discriminant 128)
+            GameEvent::RemovedFromCombat { object_id } => {
+                128u8.hash_into(hasher);
+                object_id.hash_into(hasher);
+            }
         }
     }
 }
@@ -5896,6 +5904,13 @@ impl HashInto for Condition {
             Condition::OpponentControlsMoreLandsThanYou => 47u8.hash_into(hasher),
             // PB-EF10: "if you do" — SacrificeFired (discriminant 48)
             Condition::SacrificeFired => 48u8.hash_into(hasher),
+            // PB-OS6(a) / CR 400.2/614.1c: top card is instant/sorcery (discriminant 49)
+            Condition::TopCardIsInstantOrSorcery => 49u8.hash_into(hasher),
+            // PB-OS6(b) / CR 508.1/508.4: "you attacked with N or more creatures" (discriminant 50)
+            Condition::YouAttackedWithNOrMore(n) => {
+                50u8.hash_into(hasher);
+                n.hash_into(hasher);
+            }
         }
     }
 }
@@ -6780,6 +6795,11 @@ impl HashInto for Effect {
             // PB-OS4 (OOS-EF5-3, SHIP NARROWED): ExileSourceAndReturnTransformed
             // (discriminant 94) — CR 400.7 / 712.18.
             Effect::ExileSourceAndReturnTransformed => 94u8.hash_into(hasher),
+            // PB-OS6(g): RemoveFromCombat (discriminant 95) — CR 506.4.
+            Effect::RemoveFromCombat { target } => {
+                95u8.hash_into(hasher);
+                target.hash_into(hasher);
+            }
         }
     }
 }
