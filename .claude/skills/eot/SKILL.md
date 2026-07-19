@@ -100,7 +100,7 @@ Review what happened this session. Route new content to the appropriate file:
 - New infra / testing / builder / im-rs gotcha → `memory/gotchas-infra.md`
 - New convention or style decision → `memory/conventions.md`
 - New design decision → `memory/decisions.md`
-- Cross-cutting operational detail (applies nearly every session) → `memory/MEMORY.md`
+- Cross-cutting operational detail (applies nearly every session) → auto-memory `MEMORY.md` at `/home/skydude/.claude/projects/-home-skydude-projects-scutemob/memory/MEMORY.md` (NOT a repo path)
 
 **Anti-bloat rules**:
 - Do NOT duplicate content already in CLAUDE.md or any memory topic file.
