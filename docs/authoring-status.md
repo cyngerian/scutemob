@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-07-19 07:01 UTC  
-**Git:** `63ca78ce` on `main`  
+**Generated:** 2026-07-19 07:51 UTC  
+**Git:** `e2dd4c1f` on `main`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -19,14 +19,14 @@ and what is intentionally NOT in it.**
 
 | Metric | Count | Δ since last run |
 | --- | ---: | ---: |
-| Card def files on disk | 1,802 | +1 |
+| Card def files on disk | 1,803 | +1 |
 | Authoring-plan target universe (snapshot 2026-03-10) | 1,636 | · |
-| Plan cards with a def file (any-face match) | 1,500 | +2 |
-| Plan cards still missing a def file | 136 | -2 |
+| Plan cards with a def file (any-face match) | 1,501 | +1 |
+| Plan cards still missing a def file | 135 | -1 |
 | Bonus defs (on disk, outside plan) | 321 | · |
-| Effective coverage vs plan target | **111%** (1,821 / 1,636) | — |
-| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 62.4% | 1,124 | +3 |
-| With TODO markers | 525 | -2 |
+| Effective coverage vs plan target | **111%** (1,822 / 1,636) | — |
+| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 62.4% | 1,125 | +1 |
+| With TODO markers | 525 | · |
 | Empty `abilities: vec![]` placeholders | 153 | · |
 | Total TODO lines across all defs | 958 | · |
 
@@ -34,10 +34,10 @@ and what is intentionally NOT in it.**
 
 | Window | New files added | Existing files modified |
 | --- | ---: | ---: |
-| last 7 days | 55 | 1,765 |
-| last 30 days | 55 | 2,939 |
-| last 90 days | 55 | 2,975 |
-| last 1 year | 1,828 | 3,362 |
+| last 7 days | 56 | 1,765 |
+| last 30 days | 56 | 2,939 |
+| last 90 days | 56 | 2,975 |
+| last 1 year | 1,829 | 3,362 |
 
 ## Bonus defs outside the plan
 
@@ -77,7 +77,7 @@ are blocked on engine primitives.
 | `removal-destroy` | 56 / 56 | 100% | 35 | 17 | 4 |
 | `counters-plus` | 49 / 49 | 100% | 25 | 19 | 5 |
 | `land-fetch` | 45 / 45 | 100% | 27 | 14 | 4 |
-| `attack-trigger` | 18 / 34 | 53% | 14 | 3 | 1 |
+| `attack-trigger` | 19 / 34 | 56% | 15 | 3 | 1 |
 | `death-trigger` | 34 / 34 | 100% | 20 | 9 | 5 |
 | `mana-artifact` | 34 / 34 | 100% | 22 | 10 | 2 |
 | `activated-tap` | 9 / 27 | 33% | 8 | 0 | 1 |
@@ -233,6 +233,7 @@ tyvar_jubilant_brawler: // TODO: static — creatures you control can activate a
 ## Recent card-touching commits
 
 ```
+2beaba4f W6-prim: PB-OS7 — author silumgar_the_drifting_death.rs (Complete)
 bd15b45b W6-prim: PB-OS6 review LOW — soften delver 'strictly beneficial' comment wording
 969ef404 W6-prim: PB-OS6 wire bump (PROTOCOL 20->21, HASH 57->58) + card defs
 8c31c1fd W6-prim: PB-OS5 (OOS-EF4-1) — dynamic relative-count EffectAmount
@@ -257,12 +258,11 @@ bd43762b scutemob-108: PB-EF7 card fixes — Goblin Cratermaker + Cankerbloom to
 a4319e8d scutemob-108: PB-EF7 corpus-wide modes: None, on Activated ability defs (mechanical)
 7f6d5082 scutemob-107: PB-EF6 card-def fixups — vengeful_bloodwitch comment, forbidden_orchard revert
 b5305f41 scutemob-107: PB-EF6 card defs — TargetOpponent flips + fixes (EF-W-PB2-2)
-5ddc2067 scutemob-106: PB-EF5 /review fixes + closeout — TransformSelf
 ```
 
 ## Missing card-defs sidecar
 
-The full list of 136 plan cards still missing on disk is at 
+The full list of 135 plan cards still missing on disk is at 
 `docs/authoring-status-missing.txt` (tab-separated `group<TAB>name`, sorted by group). 
 Use it as a batch-author worklist.
 

@@ -475,3 +475,18 @@ count deferred → **OOS-OS6-1** (Westvale); (d) folded into PB-OS8 as planned. 
 PB-EF5 regression guards updated partial→complete. Single batched PROTOCOL 20→**21** /
 HASH 57→**58**, append-only history verified. Review: clean bill (1 LOW). Tests **3538**;
 coverage **1,124/1,802 = 62.4%**. Next: PB-OS7.
+
+## 2026-07-19 — PB-OS7 collected (`scutemob-137`, merge `e2dd4c1f`) — OOS-EF3-1 CLOSED
+
+`EffectFilter::CreaturesControlledBy(PlayerId)` (discriminant 36), defending player captured
+at effect creation (layer system can't read EffectContext — PB-EF9 precedent).
+`silumgar_the_drifting_death` **Complete**: per-Dragon trigger, per-defender scope (4p
+bystander decoy), EOT expiry through PB-OS1's reversion machinery, same/different-defender
+stacking, SBA toughness-death scoping — 11 execution-probing tests. PROTOCOL 21→**22**
+(machine-forced — CC-W had put the filter struct in the wire closure at v14; worker
+stop-and-flagged the plan's no-bump misprediction, exemplary per reviewer) / HASH 58→**59**.
+Karazikar not authored → **OOS-OS7-1** (defending-player target-validation sibling +
+opponent-vs-opponent TriggerCondition; also unblocks kogla R1). **OOS-OS7-2** (doc-only
+MEDIUM): CR 611.2c entering/leaving-control edge is engine-wide and pre-existing. Review:
+no HIGH, initial needs-fix resolved (2 LOW fixed, negative tests added). Coverage
+**1,125/1,803 = 62.4%**. Next: PB-OS8.

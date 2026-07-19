@@ -1,10 +1,10 @@
 {
-  "generated": "2026-07-19 07:01 UTC",
-  "git_head": "63ca78ce",
-  "total_files": 1802,
+  "generated": "2026-07-19 07:51 UTC",
+  "git_head": "e2dd4c1f",
+  "total_files": 1803,
   "total_todos": 958,
   "file_buckets": {
-    "clean": 1124,
+    "clean": 1125,
     "todo": 525,
     "empty": 153
   },
@@ -64,8 +64,8 @@
   },
   "plan": {
     "total": 1636,
-    "authored": 1500,
-    "missing": 136,
+    "authored": 1501,
+    "missing": 135,
     "extras": 321
   }
 }
