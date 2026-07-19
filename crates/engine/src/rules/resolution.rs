@@ -1985,12 +1985,17 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             )
                         } else {
                             // Card registry fallback for plain AbilityDefinition::Triggered
-                            // and AbilityDefinition::SagaChapter (CR 714.2b).
+                            // and AbilityDefinition::SagaChapter (CR 714.2b). PB-OS4b
+                            // (CR 712.8d/e): index into the currently-visible face's
+                            // effective list ("is_transformed at consume time" contract).
                             let result = obj
                                 .card_id
                                 .as_ref()
                                 .and_then(|cid| state.card_registry.get(cid.clone()))
-                                .and_then(|def| def.abilities.get(ability_index))
+                                .and_then(|def| {
+                                    def.effective_abilities(obj.is_transformed)
+                                        .get(ability_index)
+                                })
                                 .and_then(|abil| {
                                     match abil {
                                         crate::cards::card_definition::AbilityDefinition::Triggered {
@@ -2013,11 +2018,16 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     } else {
                         // CardDefETB path: ability_index is into CardDef::abilities.
                         // Always use the card registry — never runtime triggered_abilities.
+                        // PB-OS4b (CR 712.8d/e): index into the currently-visible face's
+                        // effective list ("is_transformed at consume time" contract).
                         let result = obj
                             .card_id
                             .as_ref()
                             .and_then(|cid| state.card_registry.get(cid.clone()))
-                            .and_then(|def| def.abilities.get(ability_index))
+                            .and_then(|def| {
+                                def.effective_abilities(obj.is_transformed)
+                                    .get(ability_index)
+                            })
                             .and_then(|abil| match abil {
                                 crate::cards::card_definition::AbilityDefinition::Triggered {
                                     effect,
@@ -2044,13 +2054,18 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
             // chosen mode effects at resolution time. modes_chosen was set in
             // flush_pending_triggers (bot fallback: mode 0).
             let triggered_effect_opt: Option<crate::cards::card_definition::Effect> = {
-                // Look up the CardDef ability to get modes field.
+                // Look up the CardDef ability to get modes field. PB-OS4b
+                // (CR 712.8d/e): index into the currently-visible face's
+                // effective list ("is_transformed at consume time" contract).
                 let modes_opt = state
                     .objects
                     .get(&source_object)
-                    .and_then(|obj| obj.card_id.as_ref())
-                    .and_then(|cid| state.card_registry.get(cid.clone()))
-                    .and_then(|def| def.abilities.get(ability_index))
+                    .and_then(|obj| {
+                        let cid = obj.card_id.as_ref()?;
+                        let def = state.card_registry.get(cid.clone())?;
+                        def.effective_abilities(obj.is_transformed)
+                            .get(ability_index)
+                    })
                     .and_then(|abil| {
                         if let crate::cards::card_definition::AbilityDefinition::Triggered {
                             modes,

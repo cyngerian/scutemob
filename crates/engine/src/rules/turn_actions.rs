@@ -274,8 +274,14 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                 let card_id = obj.card_id.as_ref()?;
                 let def = registry.get(card_id.clone())?;
                 let controller = obj.controller;
+                // PB-OS4b (CR 712.8d/e): scan the currently-visible face's
+                // abilities -- a transformed permanent's upkeep triggers come
+                // from its back face, not the front face it no longer shows.
+                // `ability_index` below is a dense index into this effective
+                // list; the CardDefETB consumers re-derive against
+                // `effective_abilities(obj.is_transformed)` at resolution time.
                 let indices: Vec<usize> = def
-                    .abilities
+                    .effective_abilities(obj.is_transformed)
                     .iter()
                     .enumerate()
                     .filter_map(|(idx, abil)| {
