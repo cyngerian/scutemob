@@ -193,7 +193,24 @@ use crate::state::hash::HASH_SCHEMA_VERSION;
 ///   so the digest moves. (`PlayerState.attackers_declared_this_turn`, the
 ///   fourth new field in this batch, is inside `GameState`, not the wire
 ///   closure — HASH_SCHEMA_VERSION bump only, see `state::hash`.)
-pub const PROTOCOL_VERSION: u32 = 21;
+/// - 22: PB-OS7 (2026-07-19, OOS-EF3-1) — `EffectFilter` (reachable via
+///   `Effect::ApplyContinuousEffect(ContinuousEffectDef)` → the card DSL
+///   closure — the SAME `ContinuousEffectDef` struct whose sibling field
+///   `duration: EffectDuration` already put `EffectDuration` in the closure
+///   at v14/PB-EF9) gains a new unit variant `CreaturesControlledByDefendingPlayer`
+///   (CR 508.4/611.2a — DSL placeholder substituted into
+///   `CreaturesControlledBy(ctx.defending_player)` at execution time; Silumgar,
+///   the Drifting Death). **Correction to the PB-EF4 (v9) note above**: that note
+///   claimed `EffectFilter` was "off the wire closure" — true at PB-EF4 time, but
+///   PB-EF9 (v14) put `EffectFilter`'s sibling field `EffectDuration` in the same
+///   `ContinuousEffectDef` struct into the closure, which transitively pulled
+///   `EffectFilter` in too (the whole struct is reachable once one field is
+///   scanned, per how `ContinuousEffectDef` is parsed). The PB-OS7 plan assumed
+///   the stale v9 claim still held and predicted no bump; the machine gate
+///   disagreed — this closure's type count is unchanged (no new type joins;
+///   `ContinuousEffectDef`/`EffectFilter` were already reachable), but
+///   `EffectFilter`'s declared shape moved, so the digest moves.
+pub const PROTOCOL_VERSION: u32 = 22;
 
 /// Digest of the serialized shape of the wire-frame type closure
 /// (`Command`, `GameEvent`, [`ReplayLog`] and everything they reach).
@@ -211,7 +228,7 @@ pub const PROTOCOL_VERSION: u32 = 21;
 /// existing `u32` *means* does not. Semantic changes still require a manual
 /// [`PROTOCOL_VERSION`] bump.
 pub const PROTOCOL_SCHEMA_FINGERPRINT: &str =
-    "c617138c61188620e1276c9113efe11a2590682c926ee16381db93f1953dd2d6";
+    "cb8af22f82c4966d1e3fc971dc28ab60bbce2058468e4cc3e1798ee307e78508";
 
 /// One `(version, fingerprint)` row of the append-only protocol-schema history.
 ///
@@ -387,6 +404,12 @@ pub const PROTOCOL_HISTORY: &[ProtocolEpoch] = &[
         // YouAttackedWithNOrMore; Effect gained RemoveFromCombat; GameEvent gained
         // RemovedFromCombat (see the `- 21:` History line above).
         fingerprint: "c617138c61188620e1276c9113efe11a2590682c926ee16381db93f1953dd2d6",
+    },
+    ProtocolEpoch {
+        version: 22,
+        // PB-OS7 (2026-07-19, OOS-EF3-1): EffectFilter gained
+        // CreaturesControlledByDefendingPlayer (see the `- 22:` History line above).
+        fingerprint: "cb8af22f82c4966d1e3fc971dc28ab60bbce2058468e4cc3e1798ee307e78508",
     },
 ];
 
