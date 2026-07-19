@@ -8,7 +8,7 @@ the **front** face's, when `obj.is_transformed` is true.
 **Seed**: OOS-OS4-2 (`memory/primitives/ef-batch-plan-2026-07-17.md` §13; evidence in
 `memory/primitives/pb-review-OS4.md` E1/C1).
 **Task**: `scutemob-134`, branch `feat/pb-os4b-face-aware-ability-gathering-transformed-permanents-`.
-**Phase**: fix (review verdict needs-fix: E1 MEDIUM residual sweeps + E2 LOW deregister asymmetry)
+**Phase**: verify (E1/E2 fixed; worker running authoritative gates before signal-ready)
 
 ## Scope
 
