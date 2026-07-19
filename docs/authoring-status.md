@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-07-19 02:59 UTC  
-**Git:** `7ee96913` on `main`  
+**Generated:** 2026-07-19 05:43 UTC  
+**Git:** `de58b1cc` on `main`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -19,25 +19,25 @@ and what is intentionally NOT in it.**
 
 | Metric | Count | Δ since last run |
 | --- | ---: | ---: |
-| Card def files on disk | 1,799 | +1 |
+| Card def files on disk | 1,801 | +2 |
 | Authoring-plan target universe (snapshot 2026-03-10) | 1,636 | · |
-| Plan cards with a def file (any-face match) | 1,496 | +2 |
-| Plan cards still missing a def file | 140 | -2 |
+| Plan cards with a def file (any-face match) | 1,498 | +2 |
+| Plan cards still missing a def file | 138 | -2 |
 | Bonus defs (on disk, outside plan) | 321 | · |
-| Effective coverage vs plan target | **111%** (1,817 / 1,636) | — |
-| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 62.2% | 1,119 | · |
-| With TODO markers | 526 | +1 |
-| Empty `abilities: vec![]` placeholders | 154 | · |
-| Total TODO lines across all defs | 959 | +3 |
+| Effective coverage vs plan target | **111%** (1,819 / 1,636) | — |
+| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 62.2% | 1,121 | +2 |
+| With TODO markers | 527 | +1 |
+| Empty `abilities: vec![]` placeholders | 153 | -1 |
+| Total TODO lines across all defs | 958 | -1 |
 
 ## Authoring activity (git, by window)
 
 | Window | New files added | Existing files modified |
 | --- | ---: | ---: |
-| last 7 days | 52 | 1,765 |
-| last 30 days | 52 | 2,939 |
-| last 90 days | 52 | 2,975 |
-| last 1 year | 1,825 | 3,362 |
+| last 7 days | 54 | 1,765 |
+| last 30 days | 54 | 2,939 |
+| last 90 days | 54 | 2,975 |
+| last 1 year | 1,827 | 3,362 |
 
 ## Bonus defs outside the plan
 
@@ -77,7 +77,7 @@ are blocked on engine primitives.
 | `removal-destroy` | 56 / 56 | 100% | 35 | 17 | 4 |
 | `counters-plus` | 49 / 49 | 100% | 25 | 19 | 5 |
 | `land-fetch` | 45 / 45 | 100% | 27 | 14 | 4 |
-| `attack-trigger` | 16 / 34 | 47% | 12 | 2 | 2 |
+| `attack-trigger` | 18 / 34 | 53% | 14 | 3 | 1 |
 | `death-trigger` | 34 / 34 | 100% | 20 | 9 | 5 |
 | `mana-artifact` | 34 / 34 | 100% | 22 | 10 | 2 |
 | `activated-tap` | 9 / 27 | 33% | 8 | 0 | 1 |
@@ -162,27 +162,6 @@ you which kind of next-step work would unblock the group.
 | Vitalize | `vitalize` | clean |
 | Wilderness Reclamation | `wilderness_reclamation` | clean |
 
-#### `attack-trigger` — 16 / 34 (47%), authored split: 12 clean / 2 todo / 2 empty — **unwritten**
-
-| Card | Slug | Bucket |
-| --- | --- | --- |
-| Adriana, Captain of the Guard | `adriana_captain_of_the_guard` | clean |
-| Atarka, World Render | `atarka_world_render` | clean |
-| Aurelia, the Warleader | `aurelia_the_warleader` | clean |
-| Copperhorn Scout | `copperhorn_scout` | clean |
-| Etali, Primal Storm | `etali_primal_storm` | empty |
-| Fervent Charge | `fervent_charge` | clean |
-| Goblin Wardriver | `goblin_wardriver` | clean |
-| Hellrider | `hellrider` | clean |
-| Ojutai, Soul of Winter | `ojutai_soul_of_winter` | clean |
-| Raid Bombardment | `raid_bombardment` | clean |
-| Rhys the Exiled | `rhys_the_exiled` | clean |
-| Sanctum Seeker | `sanctum_seeker` | clean |
-| Shared Animosity | `shared_animosity` | empty |
-| Six | `six` | todo |
-| Skyhunter Strike Force | `skyhunter_strike_force` | todo |
-| Triumphant Adventurer | `triumphant_adventurer` | clean |
-
 ## TODO classification (top 25)
 
 Each TODO line is matched against engine-gap patterns. "OTHER" means unclassified — 
@@ -192,9 +171,9 @@ the next thing to triage when the classifier table is grown.
 
 | Gap bucket | TODO lines | Δ since last run |
 | --- | ---: | ---: |
-| OTHER (unclassified) | 588 | +2 |
-| DSL gap (unspecified) | 121 | · |
-| attack trigger (self / generic) | 26 | +1 |
+| OTHER (unclassified) | 587 | -1 |
+| DSL gap (unspecified) | 120 | -1 |
+| attack trigger (self / generic) | 26 | · |
 | TriggerCondition::* missing variant | 17 | · |
 | dynamic hexproof / protection | 17 | · |
 | replacement effect missing | 14 | · |
@@ -218,21 +197,21 @@ the next thing to triage when the classifier table is grown.
 | CDA / dynamic P/T | 4 | · |
 | devotion | 4 | · |
 
-_…and 27 more buckets totaling 46 lines._
+_…and 27 more buckets totaling 47 lines._
 
 ### Raw OTHER samples (read these to design new classifier buckets)
 
-Showing 12 of 588 
+Showing 12 of 587 
 unclassified TODO lines. If two or three of these have a common theme, that's a 
 new bucket to add to `TODO_BUCKETS` in `tools/authoring-report.py`. Sample is 
 deterministic (sorted by slug).
 
 ```
 abstergo_entertainment: // TODO: {3}, {T}, Exile Abstergo Entertainment: Return up to one target historic card
-blood_tribute: // TODO: "if kicked, gain life equal to life lost" needs conditional.
-deadly_tempest: // TODO: The "each player loses life equal to creatures they controlled" requires
-exuberant_fuseling: // TODO: "whenever another creature or artifact you control is put into a graveyard
-goblin_king: // TODO: AllCreaturesWithSubtype includes Goblin King itself — "other" semantics
+blood_tribute: // TODO: Kicker cost "tap a Vampire" is non-mana kicker.
+curse_of_opulence: // TODO: Gold token spec not a helper function.
+experimental_augury: // TODO: Interactive top-3 selection deferred to M10.
+go_for_the_throat: // TODO: "nonartifact creature" — no exclude_card_types on TargetFilter.
 jeskas_will: // TODO: Mode 2 needs impulse-draw (exile top 3, play this turn).
 marionette_apprentice: // ENGINE-BLOCKED: "Whenever another creature or artifact you control dies" — there is no
 out_of_the_tombs: // TODO: Upkeep counter + mill scaling with counter count not expressible.
@@ -256,6 +235,8 @@ tyvar_jubilant_brawler: // TODO: static — creatures you control can activate a
 ## Recent card-touching commits
 
 ```
+8c31c1fd W6-prim: PB-OS5 (OOS-EF4-1) — dynamic relative-count EffectAmount
+55664ad8 scutemob-134: PB-OS4b card-def message fixes + wip checklist
 be9f371c W6-prim: PB-OS4 /review nit — Fable back-face comment names OOS-OS4-2 non-functional status
 7945c975 W6-prim: PB-OS4 fix pass — fmt gate (scutemob-130)
 f5a44ab6 W6-prim: PB-OS4 fix pass — ship narrowed (scutemob-130)
@@ -279,13 +260,11 @@ b5305f41 scutemob-107: PB-EF6 card defs — TargetOpponent flips + fixes (EF-W-P
 5ddc2067 scutemob-106: PB-EF5 /review fixes + closeout — TransformSelf
 e3479962 scutemob-106: PB-EF5 card defs + tests — Effect::TransformSelf corpus usage
 db43d268 scutemob-105: PB-EF4 fix phase — apply 2 LOW review findings
-9f342f50 scutemob-105: PB-EF4 — EffectFilter::TriggeringCreature + DealDamage.source override (implement)
-43e73b32 scutemob-104: PB-EF3b — granted keyword-triggers fire (Melee/Battle Cry/Annihilator)
 ```
 
 ## Missing card-defs sidecar
 
-The full list of 140 plan cards still missing on disk is at 
+The full list of 138 plan cards still missing on disk is at 
 `docs/authoring-status-missing.txt` (tab-separated `group<TAB>name`, sorted by group). 
 Use it as a batch-author worklist.
 

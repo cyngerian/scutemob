@@ -453,3 +453,13 @@ non-DFC-noop. Reviewer E2 found the non-Static registration family is 10 variant
 — documented, not extended (no roster card reaches it). Edgar half deferred as
 **OOS-OS4-3** (re-add `ReturnSourceToBattlefieldTransformed`, 1 wire bump). Tests 3476 →
 **3512**. Reviews: 4/4 PASS, 1 LOW documented in source. Next: PB-OS5.
+
+## 2026-07-19 — PB-OS5 collected (`scutemob-135`, merge `de58b1cc`) — OOS-EF4-1 CLOSED
+
+`EffectAmount::OtherAttackersSharingCreatureType { relative_to }` (discriminant 24) —
+resolution-time, layer-resolved shared-type count, Changeling-safe, any-controller per oracle.
+`shared_animosity` inert→**Complete**; `goblin_piledriver` authored **Complete** (Sum of
+existing counts — zero extra wire surface); rabblemaster pump implemented (partial,
+forced-attack blocker); muxus attack-half authored (partial → PB-OS8 dig blocker). Single
+PROTOCOL 19→**20** / HASH 56→**57**. Reviewer clean bill. Coverage **1,121/1,801 = 62.2%**.
+Next: PB-OS6 (DFC flip-condition sub-batch, OOS-EF5-4).

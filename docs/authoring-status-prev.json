@@ -1,20 +1,20 @@
 {
-  "generated": "2026-07-19 02:59 UTC",
-  "git_head": "7ee96913",
-  "total_files": 1799,
-  "total_todos": 959,
+  "generated": "2026-07-19 05:43 UTC",
+  "git_head": "de58b1cc",
+  "total_files": 1801,
+  "total_todos": 958,
   "file_buckets": {
-    "clean": 1119,
-    "todo": 526,
-    "empty": 154
+    "clean": 1121,
+    "todo": 527,
+    "empty": 153
   },
   "todo_classes": {
-    "OTHER (unclassified)": 588,
+    "OTHER (unclassified)": 587,
     "replacement effect missing": 14,
     "TriggerCondition::* missing variant": 17,
     "attack trigger (self / generic)": 26,
     "compleated": 1,
-    "DSL gap (unspecified)": 121,
+    "DSL gap (unspecified)": 120,
     "can't / must block-attack": 7,
     "gain / exchange control": 2,
     "can't be countered": 7,
@@ -49,6 +49,7 @@
     "copy / retained-ability": 2,
     "chosen-color protection": 1,
     "activate-from-graveyard": 2,
+    "top-of-library lookahead": 3,
     "leaves-battlefield trigger": 3,
     "CDA / dynamic P/T": 4,
     "proliferate trigger": 2,
@@ -59,13 +60,12 @@
     "equipped/attached dies": 1,
     "you-sacrifice trigger": 1,
     "free-cast / non-hand cast": 1,
-    "top-of-library lookahead": 2,
     "no-maximum-hand-size": 1
   },
   "plan": {
     "total": 1636,
-    "authored": 1496,
-    "missing": 140,
+    "authored": 1498,
+    "missing": 138,
     "extras": 321
   }
 }
