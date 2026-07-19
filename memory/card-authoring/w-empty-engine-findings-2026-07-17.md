@@ -13,7 +13,8 @@ gaps, most already tracked.
 > carries `ActivationCost.sacrifice_exclude_self` (lowered from `Cost::Sacrifice`'s
 > `TargetFilter.exclude_self`) enforced in `handle_activate_ability`. `korvold` flipped
 > Complete; `disciple_of_freyalise` stayed `partial` on a *distinct* surviving blocker
-> (EF-EF1-A: `PowerOfSacrificedCreature` not captured in the optional-cost path).
+> (EF-EF1-A: `PowerOfSacrificedCreature` not captured in the optional-cost path — since
+> **CLOSED 2026-07-19 by PB-OS2 (`scutemob-128`)**, `disciple_of_freyalise` now `Complete`).
 > Regressions: `sacrifice_permanents_effect_excludes_source`,
 > `optional_cost_sacrifice_excludes_source`, `izoni_*`, `korvold_etb_*`.
 

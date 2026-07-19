@@ -657,6 +657,14 @@ owner prefers to avoid headline churn mid-campaign, **Option C** is the safe com
 ## 5. New finding filed by PB-EF1 (scutemob-99)
 
 ### EF-EF1-A (MEDIUM) — `PowerOfSacrificedCreature` is not captured in the optional-cost sacrifice path
+> ✅ **CLOSED 2026-07-19 by PB-OS2 (`scutemob-128`).** The optional-cost path now threads the
+> already-layer-resolved `Vec<SacrificedCreatureLki>` (returned by `sacrifice_permanents_for_player`)
+> up through `pay_optional_cost` → `try_pay_optional_cost` → the `Effect::MayPayThenEffect` executor,
+> which sets `ctx.sacrificed_creature_lki` / `ctx.sacrifice_fired` **before** running `then` — mirroring
+> the mandatory `Effect::SacrificePermanents` executor and the activated-cost site. `disciple_of_freyalise`
+> front face flipped `partial`→`Complete`. No new DSL type; **no PROTOCOL/HASH bump**. (Field name in the
+> original finding was `sacrificed_creature_powers`; it became `sacrificed_creature_lki` in PB-EF10.)
+
 `EffectAmount::PowerOfSacrificedCreature` reads `ctx.sacrificed_creature_powers`
 (`effects/mod.rs`), which is populated **only** at the activated-ability sacrifice-cost
 site (`handle_activate_ability` pushes `sacrificed_lki_powers`). The optional-cost

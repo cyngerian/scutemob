@@ -4,7 +4,7 @@ batch: OS2
 task: scutemob-128
 branch: feat/pb-os2-optional-cost-sacrifice-power-ef-ef1-a-maypaytheneffe
 started: 2026-07-19
-phase: implement
+phase: review
 
 Plan: `memory/primitives/pb-plan-OS2.md`. Review: `memory/primitives/pb-review-OS2.md`.
 
@@ -60,6 +60,6 @@ it; check w-pb2/pb-plan-EF10); update PB-OS2 entry in the retriage plan §3.
 - [x] 3. Flip disciple_of_freyalise front face → Complete — `crates/card-defs/src/defs/disciple_of_freyalise.rs` wired front-face ETB as `Triggered { WhenEntersBattlefield, MayPayThenEffect { Cost::Sacrifice(exclude_self:true creature), then: Sequence[GainLife, DrawCards] both PowerOfSacrificedCreature } }`; `completeness: Completeness::Complete`; header comment updated. `cargo check -p mtg-card-defs` clean.
 - [x] 4. Decoy test (anthem + wrong-creature) + decline-path test — `crates/engine/tests/primitives/pb_ef10_sacrifice_driven_amounts.rs`: `test_may_pay_sacrifice_captures_layer_resolved_power` (decoy, anthem+wrong-creature pin), `test_may_pay_sacrifice_declined_no_capture_no_leak` (decline + no-leak DECOY), `test_disciple_of_freyalise_front_face_gains_and_draws_power` (card-def integration). All 3 pass post-fix; revert-and-rerun confirmed decoy + card-integration tests FAIL against the pre-fix engine (decline test correctly passes both ways — it validates the negative path).
 - [x] 5. Confirm no PROTOCOL/HASH bump — untouched; `test_pb_ef10_version_sentinels` still asserts PROTOCOL_VERSION==18, HASH_SCHEMA_VERSION==55, unchanged, passing.
-- [ ] 6. Review — primitive-impl-reviewer → pb-review-OS2.md; fix findings (NEXT — not run by the implementer)
+- [x] 6. Review — primitive-impl-reviewer → pb-review-OS2.md; CLEAN BILL, zero HIGH/MEDIUM/LOW, 2 informational NITs (no fix). No fix phase needed.
 - [x] 7. Green gates: build/test/clippy/fmt + check-defs-fmt — `cargo build --workspace` clean; `cargo test --all` all-green (0 failed, incl. `core::card_defs_fmt`); `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --check` clean; `tools/check-defs-fmt.sh` clean (1798 defs). PROTOCOL/HASH sentinel tests (`core::protocol_schema`, `core::hash_schema`, 38 tests) all pass untouched — no version bump. TODO sweep on disciple_of_freyalise.rs: 0 remaining.
 - [ ] 8. Close EF-EF1-A in source docs + plan; /review; Completion Sequence (deferred to close-out — not run by the implementer per this task's scope)
