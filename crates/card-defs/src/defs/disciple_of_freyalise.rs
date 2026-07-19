@@ -5,10 +5,11 @@
 // Back:  Garden of Freyalise — Land. As this land enters, you may pay 3 life. If you
 //        don't, it enters tapped. {T}: Add {G}.
 //
-// Back face is fully authorable (mirrors Blood Crypt / Revitalizing Repast) and is
-// implemented below. The front-face ETB trigger is NOT implemented — see the
-// `completeness` note. PB-EF1 closed the "another creature" blocker; the surviving
-// blocker is that PowerOfSacrificedCreature is not captured in the optional-cost path.
+// Both faces are fully implemented. PB-EF1 (scutemob-99) closed the "another creature"
+// blocker (TargetFilter.exclude_self honored on the optional-cost sacrifice path).
+// PB-OS2 (EF-EF1-A) closed the surviving blocker: the optional-cost path now threads
+// the sacrificed creature's layer-resolved LKI into ctx.sacrificed_creature_lki before
+// `then` runs, so EffectAmount::PowerOfSacrificedCreature resolves correctly (CR 608.2h/i).
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -26,25 +27,36 @@ pub fn card() -> CardDefinition {
             .to_string(),
         power: Some(3),
         toughness: Some(3),
-        abilities: vec![
-            // "When this creature enters, you may sacrifice another creature. If you do,
-            // you gain X life and draw X cards, where X is that creature's power."
-            //
-            // PB-EF1 (scutemob-99) CLOSED the exclude_self blocker: the optional-cost
-            // sacrifice path (MayPayThenEffect → pay_optional_cost → eligible_sacrifice_targets)
-            // now threads the ability source and honors TargetFilter.exclude_self (CR 109.1),
-            // so "another creature" IS enforceable. BUT a SECOND blocker was found and this
-            // card is NOT shipped:
-            //
-            //   EffectAmount::PowerOfSacrificedCreature reads ctx.sacrificed_creature_lki
-            //   (effects/mod.rs), which is populated ONLY at the *activated-ability* sacrifice
-            //   cost site (handle_activate_ability pushes sacrificed_lki). The
-            //   optional-cost path used by MayPayThenEffect (sacrifice_permanents_for_player)
-            //   does NOT capture the sacrificed creature's power into ctx, so "gain X / draw X
-            //   where X = that creature's power" would resolve X = 0 — wrong game state, not a
-            //   missing clause (W5 policy: do not ship). Filed as PB-EF1 follow-up finding
-            //   EF-EF1-A (see memory/primitives/ef-batch-plan-2026-07-17.md).
-        ],
+        abilities: vec![AbilityDefinition::Triggered {
+            once_per_turn: false,
+            trigger_condition: TriggerCondition::WhenEntersBattlefield,
+            // CR 118.12 / 109.1: "you may sacrifice another creature. If you do, gain
+            // X life and draw X cards, X = its power." PB-OS2 (EF-EF1-A) makes the
+            // optional-cost path capture the sacrificed creature's layer-resolved LKI
+            // power (CR 608.2h/608.2i).
+            effect: Effect::MayPayThenEffect {
+                cost: Cost::Sacrifice(TargetFilter {
+                    has_card_type: Some(CardType::Creature),
+                    exclude_self: true, // "another creature" (CR 109.1)
+                    ..Default::default()
+                }),
+                payer: PlayerTarget::Controller,
+                then: Box::new(Effect::Sequence(vec![
+                    Effect::GainLife {
+                        player: PlayerTarget::Controller,
+                        amount: EffectAmount::PowerOfSacrificedCreature,
+                    },
+                    Effect::DrawCards {
+                        player: PlayerTarget::Controller,
+                        count: EffectAmount::PowerOfSacrificedCreature,
+                    },
+                ])),
+            },
+            intervening_if: None,
+            targets: vec![],
+            modes: None,
+            trigger_zone: None,
+        }],
         color_indicator: None,
         back_face: Some(CardFace {
             name: "Garden of Freyalise".to_string(),
@@ -92,17 +104,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-        completeness: Completeness::partial(
-            "Back face (Garden of Freyalise) is fully implemented and correct. Front-face ETB \
-             ('you may sacrifice another creature; if you do, gain X life and draw X cards, X = \
-             its power') is NOT implemented. PB-EF1 (scutemob-99) closed the original blocker — \
-             the optional-cost sacrifice path now honors TargetFilter.exclude_self (CR 109.1), so \
-             'another' is enforceable. The SURVIVING blocker: \
-             EffectAmount::PowerOfSacrificedCreature reads ctx.sacrificed_creature_lki, populated \
-             only at the activated-ability sacrifice-cost site — the MayPayThenEffect \
-             optional-cost path (sacrifice_permanents_for_player) never captures the sacrificed \
-             creature's power into ctx, so X would resolve to 0. Filed as PB-EF1 follow-up \
-             EF-EF1-A. Not shipped (W5 policy: wrong game state, not a missing clause).",
-        ),
+        completeness: Completeness::Complete,
     }
 }

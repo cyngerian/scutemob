@@ -97,6 +97,23 @@ fn anthem_toughness_effect(id: u64, amount: i32) -> ContinuousEffect {
     }
 }
 
+/// PB-OS2: mirror of `anthem_toughness_effect`, but modifies power. Used to pin that
+/// the optional-cost sacrifice path (`MayPayThenEffect`) captures LAYER-RESOLVED
+/// power, not printed/base power.
+fn anthem_power_effect(id: u64, amount: i32) -> ContinuousEffect {
+    ContinuousEffect {
+        id: EffectId(id),
+        source: None,
+        timestamp: 100,
+        layer: EffectLayer::PtModify,
+        duration: EffectDuration::Indefinite,
+        filter: EffectFilter::AllCreatures,
+        modification: LayerModification::ModifyPower(amount),
+        is_cda: false,
+        condition: None,
+    }
+}
+
 #[allow(dead_code)]
 fn add_library_cards(
     builder: GameStateBuilder,
@@ -1134,6 +1151,321 @@ fn test_victimize_one_illegal_target_still_sacs_and_returns_other() {
     assert!(
         !on_battlefield(&state, "Soon Gone Target"),
         "The target that left the graveyard should not be on the battlefield"
+    );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PB-OS2: optional-cost sacrifice power (EF-EF1-A)
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// CR 613.1d/608.2h — DECOY (layer resolution + wrong-creature pin): a +2/+0 anthem
+/// is in play. Two eligible sacrifice targets exist: "Fodder" (base 2/2, lower
+/// ObjectId, layer-resolved to 4/2) and "Decoy" (base 5/5, higher ObjectId,
+/// layer-resolved to 7/5) — Decoy is NOT sacrificed (deterministic selection picks
+/// the lowest eligible ObjectId, CR 701.21a). `MayPayThenEffect` with
+/// `Cost::Sacrifice(exclude_self: true, creature)` sacrifices Fodder; `then` reads
+/// `EffectAmount::PowerOfSacrificedCreature` for both GainLife and DrawCards. A
+/// result of 2 (base power, not layer-resolved) or 7/5 (the wrong creature) fails.
+#[test]
+fn test_may_pay_sacrifice_captures_layer_resolved_power() {
+    use mtg_engine::effects::{execute_effect, EffectContext};
+    use mtg_engine::{Cost, Effect, PlayerTarget, TargetFilter};
+
+    let p1 = p(1);
+    let p2 = p(2);
+
+    // Disciple is the effect's source; excluded from its own sacrifice via
+    // exclude_self, but it IS a creature so it must not be picked either way.
+    let disciple = ObjectSpec::creature(p1, "Disciple Source", 3, 3)
+        .with_card_id(CardId("disciple-source".to_string()))
+        .in_zone(ZoneId::Battlefield);
+    // Lower ObjectId (added first after Disciple) -- base 2/2, layer-resolved 4/2.
+    let fodder = ObjectSpec::creature(p1, "Fodder", 2, 2)
+        .with_card_id(CardId("os2-fodder".to_string()))
+        .in_zone(ZoneId::Battlefield);
+    // Higher ObjectId -- base 5/5, layer-resolved 7/5. Must NOT be sacrificed.
+    let decoy = ObjectSpec::creature(p1, "Decoy", 5, 5)
+        .with_card_id(CardId("os2-decoy".to_string()))
+        .in_zone(ZoneId::Battlefield);
+
+    let mut builder = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(CardRegistry::new(vec![]))
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .object(disciple)
+        .object(fodder)
+        .object(decoy)
+        .add_continuous_effect(anthem_power_effect(1, 2));
+    builder = add_library_cards(builder, p1, 6, "OS2Lib");
+
+    let mut state = builder.build().unwrap();
+    let disciple_id = find_obj(&state, "Disciple Source");
+
+    // Sanity: layer resolution actually boosts power as expected before we exercise
+    // the sacrifice path.
+    let fodder_id = find_obj(&state, "Fodder");
+    let decoy_id = find_obj(&state, "Decoy");
+    let fodder_chars = mtg_engine::calculate_characteristics(&state, fodder_id).unwrap();
+    let decoy_chars = mtg_engine::calculate_characteristics(&state, decoy_id).unwrap();
+    assert_eq!(
+        fodder_chars.power,
+        Some(4),
+        "anthem should boost Fodder to 4 power"
+    );
+    assert_eq!(
+        decoy_chars.power,
+        Some(7),
+        "anthem should boost Decoy to 7 power"
+    );
+
+    let life_before = state.players().get(&p1).map(|ps| ps.life_total).unwrap();
+    let lib_before = count_in_zone(&state, ZoneId::Library(p1));
+
+    let mut ctx = EffectContext::new(p1, disciple_id, vec![]);
+    let effect = Effect::MayPayThenEffect {
+        cost: Cost::Sacrifice(TargetFilter {
+            has_card_type: Some(mtg_engine::CardType::Creature),
+            exclude_self: true,
+            ..Default::default()
+        }),
+        payer: PlayerTarget::Controller,
+        then: Box::new(Effect::Sequence(vec![
+            Effect::GainLife {
+                player: PlayerTarget::Controller,
+                amount: EffectAmount::PowerOfSacrificedCreature,
+            },
+            Effect::DrawCards {
+                player: PlayerTarget::Controller,
+                count: EffectAmount::PowerOfSacrificedCreature,
+            },
+        ])),
+    };
+    let _events = execute_effect(&mut state, &effect, &mut ctx);
+
+    let life_after = state.players().get(&p1).map(|ps| ps.life_total).unwrap();
+    let lib_after = count_in_zone(&state, ZoneId::Library(p1));
+
+    assert!(
+        in_graveyard(&state, "Fodder", p1),
+        "the deterministically-chosen (lowest ObjectId) eligible creature should be sacrificed"
+    );
+    assert!(
+        on_battlefield(&state, "Decoy"),
+        "the wrong-creature Decoy must remain on the battlefield, not sacrificed"
+    );
+    assert_eq!(
+        life_after - life_before,
+        4,
+        "CR 613.1d/608.2h: life gained must equal Fodder's LAYER-RESOLVED power (4), \
+         not its base power (2) and not Decoy's power (7/5)"
+    );
+    assert_eq!(
+        lib_before - lib_after,
+        4,
+        "CR 613.1d/608.2h: cards drawn must equal Fodder's LAYER-RESOLVED power (4)"
+    );
+    assert!(
+        ctx.sacrifice_fired,
+        "ctx.sacrifice_fired should be latched true after a successful optional sacrifice"
+    );
+}
+
+/// CR 608.2c/118.12 — DECLINE path: the controller has NO other creature to
+/// sacrifice (only the "Disciple" source, excluded by `exclude_self`), so
+/// `can_pay_optional_cost` is false and `try_pay_optional_cost` returns `None`. The
+/// `then` arm must never run: no life gained, no cards drawn, and a SIBLING
+/// `GainLife{PowerOfSacrificedCreature}` placed after the `MayPayThenEffect` in the
+/// same `Sequence` must read 0 (proves `ctx.sacrificed_creature_lki` was not
+/// populated / no stale leak from a prior resolution). This is also the DECOY for
+/// "the executor writes ctx unconditionally": it fails if `ctx.sacrifice_fired` is
+/// set to `true` on the decline branch.
+#[test]
+fn test_may_pay_sacrifice_declined_no_capture_no_leak() {
+    use mtg_engine::effects::{execute_effect, EffectContext};
+    use mtg_engine::{Cost, Effect, PlayerTarget, TargetFilter};
+
+    let p1 = p(1);
+    let p2 = p(2);
+
+    // Only the source creature -- exclude_self leaves zero eligible targets.
+    let disciple = ObjectSpec::creature(p1, "Lonely Disciple", 3, 3)
+        .with_card_id(CardId("lonely-disciple".to_string()))
+        .in_zone(ZoneId::Battlefield);
+
+    let builder = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(CardRegistry::new(vec![]))
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .object(disciple);
+    let builder = add_library_cards(builder, p1, 3, "DeclineLib");
+
+    let mut state = builder.build().unwrap();
+    let disciple_id = find_obj(&state, "Lonely Disciple");
+
+    let life_before = state.players().get(&p1).map(|ps| ps.life_total).unwrap();
+    let lib_before = count_in_zone(&state, ZoneId::Library(p1));
+
+    let mut ctx = EffectContext::new(p1, disciple_id, vec![]);
+    let effect = Effect::Sequence(vec![
+        Effect::MayPayThenEffect {
+            cost: Cost::Sacrifice(TargetFilter {
+                has_card_type: Some(mtg_engine::CardType::Creature),
+                exclude_self: true,
+                ..Default::default()
+            }),
+            payer: PlayerTarget::Controller,
+            then: Box::new(Effect::Sequence(vec![
+                Effect::GainLife {
+                    player: PlayerTarget::Controller,
+                    amount: EffectAmount::PowerOfSacrificedCreature,
+                },
+                Effect::DrawCards {
+                    player: PlayerTarget::Controller,
+                    count: EffectAmount::PowerOfSacrificedCreature,
+                },
+            ])),
+        },
+        // Sibling effect reading the same amount -- must resolve 0 with no leaked LKI.
+        Effect::GainLife {
+            player: PlayerTarget::Controller,
+            amount: EffectAmount::PowerOfSacrificedCreature,
+        },
+    ]);
+    let _events = execute_effect(&mut state, &effect, &mut ctx);
+
+    let life_after = state.players().get(&p1).map(|ps| ps.life_total).unwrap();
+    let lib_after = count_in_zone(&state, ZoneId::Library(p1));
+
+    assert!(
+        !in_graveyard(&state, "Lonely Disciple", p1),
+        "with no eligible target, the source itself must not be sacrificed"
+    );
+    assert_eq!(
+        life_after - life_before,
+        0,
+        "CR 608.2c: decline path -- `then`'s GainLife must not run, AND the sibling \
+         GainLife{{PowerOfSacrificedCreature}} must read 0 (no stale LKI leak)"
+    );
+    assert_eq!(
+        lib_before - lib_after,
+        0,
+        "CR 608.2c: decline path -- `then`'s DrawCards must not run"
+    );
+    assert!(
+        !ctx.sacrifice_fired,
+        "DECOY: ctx.sacrifice_fired must remain false on the decline branch -- fails \
+         if the executor writes ctx unconditionally regardless of pay success"
+    );
+}
+
+/// CR 608.2h — card-def integration: the real `disciple_of_freyalise` front face ETB
+/// triggers, offers the optional sacrifice, auto-pays (deterministic pay-when-able)
+/// against a single eligible 3/3 fodder creature, and gains/draws 3 (the fodder's
+/// power). Proves the DSL wiring in `disciple_of_freyalise.rs` end-to-end, not just
+/// the direct-executor path.
+#[test]
+fn test_disciple_of_freyalise_front_face_gains_and_draws_power() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let p3 = p(3);
+    let p4 = p(4);
+    let players = [p1, p2, p3, p4];
+
+    use mtg_engine::CardDefinition;
+    use mtg_engine::{all_cards, card_name_to_id, enrich_spec_from_def};
+    use std::collections::HashMap;
+
+    let cards = all_cards();
+    let defs: HashMap<String, CardDefinition> =
+        cards.iter().map(|d| (d.name.clone(), d.clone())).collect();
+    let registry = CardRegistry::new(cards);
+
+    let disciple = enrich_spec_from_def(
+        ObjectSpec::card(p1, "Disciple of Freyalise")
+            .in_zone(ZoneId::Hand(p1))
+            .with_card_id(card_name_to_id("Disciple of Freyalise")),
+        &defs,
+    );
+
+    let fodder = ObjectSpec::creature(p1, "Freyalise Fodder", 3, 3)
+        .with_card_id(CardId("freyalise-fodder".to_string()))
+        .in_zone(ZoneId::Battlefield);
+
+    let mut builder = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .add_player(p3)
+        .add_player(p4)
+        .with_registry(registry)
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .object(disciple)
+        .object(fodder);
+    builder = add_library_cards(builder, p1, 5, "DiscipleLib");
+
+    let mut state = builder.build().unwrap();
+    if let Some(ps) = state.players_mut().get_mut(&p1) {
+        ps.mana_pool = ManaPool {
+            colorless: 3,
+            green: 3,
+            ..Default::default()
+        };
+    }
+
+    let disciple_id = find_obj(&state, "Disciple of Freyalise");
+
+    let life_before = state.players().get(&p1).map(|ps| ps.life_total).unwrap();
+    let lib_before = count_in_zone(&state, ZoneId::Library(p1));
+
+    let (state, _) = process_command(
+        state,
+        Command::CastSpell(Box::new(CastSpellData {
+            player: p1,
+            card: disciple_id,
+            targets: vec![],
+            modes_chosen: vec![],
+            x_value: 0,
+            kicker_times: 0,
+            additional_costs: vec![],
+            alt_cost: None,
+            convoke_creatures: vec![],
+            improvise_artifacts: vec![],
+            delve_cards: vec![],
+            prototype: false,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+            face_down_kind: None,
+        })),
+    )
+    .expect("Cast Disciple of Freyalise should succeed");
+
+    let state = drain_stack(state, &players);
+
+    assert!(
+        on_battlefield(&state, "Disciple of Freyalise"),
+        "Disciple should have resolved and stayed on the battlefield"
+    );
+    assert!(
+        in_graveyard(&state, "Freyalise Fodder", p1),
+        "the eligible fodder creature should have been sacrificed"
+    );
+
+    let life_after = state.players().get(&p1).map(|ps| ps.life_total).unwrap();
+    let lib_after = count_in_zone(&state, ZoneId::Library(p1));
+
+    assert_eq!(
+        life_after - life_before,
+        3,
+        "PB-OS2: Disciple's ETB should gain 3 life (the sacrificed 3/3's power)"
+    );
+    assert_eq!(
+        lib_before - lib_after,
+        3,
+        "PB-OS2: Disciple's ETB should draw 3 cards (the sacrificed 3/3's power)"
     );
 }
 

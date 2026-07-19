@@ -3405,8 +3405,20 @@ fn execute_effect_inner(
                 // PB-EF1 (CR 109.1): pass the effect source so an optional
                 // `Cost::Sacrifice(filter.exclude_self)` ("you may sacrifice another
                 // creature") excludes the source itself.
-                if try_pay_optional_cost(state, pid, cost, Some(ctx.source), events) {
+                if let Some(sacrificed) =
+                    try_pay_optional_cost(state, pid, cost, Some(ctx.source), events)
+                {
                     ctx.controller = pid;
+                    // PB-OS2 (CR 608.2c/608.2h, EF-EF1-A closed): the optional "if you
+                    // do" arm reads the LKI of what was just sacrificed. Set before
+                    // execute_effect_inner so EffectAmount::{Power,Toughness,ManaValue}
+                    // OfSacrificedCreature inside `then` resolve correctly. Empty for
+                    // non-sacrifice costs. Mirrors Effect::SacrificePermanents:
+                    // most-recent-sacrifice-wins, not restored after the loop (this is
+                    // per-resolution scratch); the decline branch (None) leaves ctx
+                    // untouched, so no stale value leaks to sibling effects.
+                    ctx.sacrifice_fired = !sacrificed.is_empty();
+                    ctx.sacrificed_creature_lki = sacrificed;
                     execute_effect_inner(state, then, ctx, events);
                 }
             }
@@ -8074,7 +8086,7 @@ fn can_pay_optional_cost(
                 if !can_pay_optional_cost(&scratch, pid, c, source) {
                     return false;
                 }
-                pay_optional_cost(&mut scratch, pid, c, source, &mut scratch_events);
+                let _ = pay_optional_cost(&mut scratch, pid, c, source, &mut scratch_events);
                 true
             })
         }
@@ -8092,7 +8104,10 @@ fn can_pay_optional_cost(
 /// CR 118.12 / 118.8: pay `cost` for `pid`, assuming `can_pay_optional_cost` already
 /// returned `true` for it. Mutates state and emits the same events the equivalent
 /// mandatory-cost effects emit (`LoseLife`, discard, sacrifice) so downstream watcher
-/// triggers behave identically to a mandatory payment of the same shape.
+/// triggers behave identically to a mandatory payment of the same shape. Returns the
+/// LKI of any creature(s) sacrificed to pay this cost (empty for all other cost kinds)
+/// so callers can thread it into `EffectContext::sacrificed_creature_lki` (PB-OS2,
+/// CR 608.2h/608.2i).
 fn pay_optional_cost(
     state: &mut GameState,
     pid: PlayerId,
@@ -8101,12 +8116,13 @@ fn pay_optional_cost(
     // `can_pay_optional_cost`); threaded into the sacrifice path for `exclude_self`.
     source: Option<ObjectId>,
     events: &mut Vec<GameEvent>,
-) {
+) -> Vec<crate::state::types::SacrificedCreatureLki> {
     match cost {
         Cost::Mana(mc) => {
             if let Some(ps) = state.expect_player_mut(pid) {
                 crate::rules::casting::pay_cost(&mut ps.mana_pool, mc);
             }
+            vec![]
         }
         Cost::PayLife(n) => {
             // CR 119.4: "If a player pays life, ... the player loses that much life" --
@@ -8123,28 +8139,24 @@ fn pay_optional_cost(
                 player: pid,
                 amount: final_loss,
             });
+            vec![]
         }
-        Cost::DiscardCard => discard_cards(state, pid, 1, events),
+        Cost::DiscardCard => {
+            discard_cards(state, pid, 1, events);
+            vec![]
+        }
         Cost::Sacrifice(filter) => {
-            // NOTE (EF-EF1-A, deferred per PB-EF10 Step 3.4): the optional-cost path
-            // does not thread the returned LKI into `ctx` — that would require
-            // widening this function's signature (and `try_pay_optional_cost`'s) to
-            // return `Vec<SacrificedCreatureLki>` for every cost kind. Left as the
-            // documented EF-EF1-A follow-up rather than risking the mandatory-cost
-            // core of this batch. `disciple_of_freyalise` stays partial.
-            let _ = sacrifice_permanents_for_player(
-                state,
-                pid,
-                1,
-                &Some(filter.clone()),
-                source,
-                events,
-            );
+            // PB-OS2 (CR 608.2h/608.2i, EF-EF1-A closed): thread the layer-resolved
+            // sacrifice LKI up so the MayPayThenEffect `then` arm can read
+            // EffectAmount::PowerOfSacrificedCreature (and its EF10 twins) correctly.
+            sacrifice_permanents_for_player(state, pid, 1, &Some(filter.clone()), source, events)
         }
         Cost::Sequence(costs) => {
+            let mut acc = Vec::new();
             for c in costs {
-                pay_optional_cost(state, pid, c, source, events);
+                acc.extend(pay_optional_cost(state, pid, c, source, events));
             }
+            acc
         }
         Cost::Tap
         | Cost::SacrificeSelf
@@ -8157,14 +8169,16 @@ fn pay_optional_cost(
         | Cost::Exert => {
             // Out of PB-AC2 scope -- can_pay_optional_cost never returns true for these,
             // so this arm is unreachable in practice.
+            vec![]
         }
     }
 }
 /// CR 118.12 / 118.8: attempt to pay an optional cost non-interactively (deterministic).
-/// Returns `true` and mutates state iff the cost was fully paid; returns `false` (no
-/// mutation) if the payer can't/doesn't pay. "Pay when able" is the deterministic
-/// default until M10+ adds interactive pay-vs-decline choice (architecture invariant
-/// #9 -- a legal, replayable game choice, not state corruption).
+/// Returns `Some(lki)` and mutates state iff the cost was fully paid (`lki` carries any
+/// sacrificed creature LKI, empty for non-sacrifice costs); returns `None` (no mutation)
+/// if the payer can't/doesn't pay. "Pay when able" is the deterministic default until
+/// M10+ adds interactive pay-vs-decline choice (architecture invariant #9 -- a legal,
+/// replayable game choice, not state corruption).
 fn try_pay_optional_cost(
     state: &mut GameState,
     pid: PlayerId,
@@ -8173,12 +8187,11 @@ fn try_pay_optional_cost(
     // into the sacrifice path so `exclude_self` ("sacrifice another") is honored.
     source: Option<ObjectId>,
     events: &mut Vec<GameEvent>,
-) -> bool {
+) -> Option<Vec<crate::state::types::SacrificedCreatureLki>> {
     if !can_pay_optional_cost(state, pid, cost, source) {
-        return false;
+        return None;
     }
-    pay_optional_cost(state, pid, cost, source, events);
-    true
+    Some(pay_optional_cost(state, pid, cost, source, events))
 }
 // ── Card draw helper ──────────────────────────────────────────────────────────
 /// Draw one card for a player (CR 121.1). Returns events.
