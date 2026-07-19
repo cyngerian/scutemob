@@ -171,15 +171,16 @@ pub fn card() -> CardDefinition {
              triggered ability attached to a created token. (b) Chapter II (\"You may discard up \
              to two cards. If you do, draw that many cards.\") is Effect::Nothing -- no DSL \
              primitive for a bounded optional discard whose count drives a matching draw \
-             (DiscardCards has no player-choice bound; WheelHand only disposes of the whole hand). \
-             (c) Chapter III (Effect::ExileSourceAndReturnTransformed, CR 400.7/712.18) IS fully \
-             wired and correct, but the back face's Reflection of Kiki-Jiki activated ability it \
-             returns as is NOT FUNCTIONAL: the engine's return-transformed path registers/queues \
-             abilities from the card's FRONT face only, and never gathers a transformed \
-             permanent's back-face activated/triggered/static abilities at all (OOS-OS4-2, a \
-             general transform-machinery gap, not a mere TargetFilter mis-filter). Front Saga \
-             chapter abilities are Triggered, not Static/ETB, so nothing wrongly re-registers on \
-             the returned Reflection -- the residual is inertness, not wrong game state.",
+             (DiscardCards has no player-choice bound; WheelHand only disposes of the whole \
+             hand). (c) Chapter III (Effect::ExileSourceAndReturnTransformed, CR 400.7/712.18) IS \
+             fully wired and correct, but the back face's Reflection of Kiki-Jiki activated \
+             ability it returns as is NOT FUNCTIONAL: the engine's return-transformed path \
+             registers/queues abilities from the card's FRONT face only, and never gathers a \
+             transformed permanent's back-face activated/triggered/static abilities at all \
+             (OOS-OS4-2, a general transform-machinery gap, not a mere TargetFilter mis-filter). \
+             Front Saga chapter abilities are Triggered, not Static/ETB, so nothing wrongly \
+             re-registers on the returned Reflection -- the residual is inertness, not wrong game \
+             state.",
         ),
     }
 }
