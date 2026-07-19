@@ -531,6 +531,7 @@ fn test_leaf_crowned_visionary_full_integration() {
         leaf_id,
         card_id.as_ref(),
         &registry,
+        false,
     );
 
     // Static buff: "Other Elves you control get +1/+1."

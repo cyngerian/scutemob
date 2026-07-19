@@ -1638,16 +1638,16 @@ pub fn enforce_daybound_nightbound(state: &mut GameState) -> Vec<GameEvent> {
         })
         .collect();
     for id in ids_to_transform {
-        // Disjoint borrow: the block reads and bumps `state.timestamp_counter` while
-        // `obj` is borrowed, so `expect_object_mut` (whole-`state` borrow) can't be used.
         // `id` came from `ids_to_transform`, collected from live `state.objects.iter()`
         // with no intervening zone change, so its absence is an engine bug (SR-4).
         debug_assert_object_live!(state, id);
-        if let Some(obj) = state.objects.get_mut(&id) {
-            let to_back_face = !obj.is_transformed;
-            obj.is_transformed = to_back_face;
-            obj.last_transform_timestamp = state.timestamp_counter;
-            state.timestamp_counter += 1;
+        let to_back_face = state.objects.get(&id).map(|obj| !obj.is_transformed);
+        if let Some(to_back_face) = to_back_face {
+            // PB-OS4b (CR 712.8d/e, 702.145c/f): route the flip through
+            // `apply_face_change` so it deregisters the old face's static
+            // continuous effects, rebuilds the Channel-A ability vectors from the
+            // new face, and registers the new face's static continuous effects.
+            crate::rules::face::apply_face_change(state, id, to_back_face);
             events.push(GameEvent::PermanentTransformed {
                 object_id: id,
                 to_back_face,

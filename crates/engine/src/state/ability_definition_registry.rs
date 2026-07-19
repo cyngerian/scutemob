@@ -91,6 +91,7 @@ pub fn handling(ability: &AbilityDefinition) -> AbilityHandling {
         },
         A::Static { .. } => AbilityHandling::Handled {
             sites: &[
+                "crates/engine/src/rules/face.rs",
                 "crates/engine/src/rules/replacement.rs",
                 "crates/engine/src/rules/resolution.rs",
             ],

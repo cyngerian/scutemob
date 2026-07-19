@@ -2034,11 +2034,19 @@ pub fn register_permanent_replacement_abilities(
 ///
 /// The `filter` field is used as-is; `EffectFilter::AttachedCreature` will resolve
 /// correctly at characteristic-calculation time via the source's `attached_to` field.
+///
+/// `is_transformed` (PB-OS4b, CR 712.8d/e): selects which face's abilities are
+/// registered -- pass the entering/current object's `is_transformed` value. `false`
+/// for a normal ETB (front face); `true` for a permanent entering already
+/// transformed (e.g. craft return, `ExileSourceAndReturnTransformed`) or when this
+/// is called from [`super::face::apply_face_change`] to register the newly-visible
+/// face at an in-place transform boundary.
 pub fn register_static_continuous_effects(
     state: &mut GameState,
     new_id: ObjectId,
     card_id: Option<&crate::state::player::CardId>,
     registry: &crate::cards::registry::CardRegistry,
+    is_transformed: bool,
 ) {
     use crate::cards::card_definition::AbilityDefinition;
     use crate::state::continuous_effect::{ContinuousEffect, EffectId};
@@ -2054,7 +2062,7 @@ pub fn register_static_continuous_effects(
         .expect_object(new_id)
         .map(|obj| obj.controller)
         .unwrap_or_else(|| crate::state::player::PlayerId(0));
-    for ability in &def.abilities {
+    for ability in def.effective_abilities(is_transformed) {
         match ability {
             AbilityDefinition::Static { continuous_effect } => {
                 let eff_id = state.next_object_id().0;

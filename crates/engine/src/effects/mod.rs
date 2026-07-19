@@ -1651,6 +1651,7 @@ fn execute_effect_inner(
                         new_id,
                         card_id.as_ref(),
                         &registry,
+                        false,
                     );
                     // Emit PermanentEnteredBattlefield for ETB triggers (CR 603.6a).
                     events.push(GameEvent::PermanentEnteredBattlefield {
@@ -4285,21 +4286,18 @@ fn execute_effect_inner(
             else {
                 return;
             };
-            let ts = state.timestamp_counter;
-            state.timestamp_counter += 1;
             if let Some(obj) = state.expect_object_mut(battlefield_id) {
                 obj.controller = owner;
-                obj.is_transformed = true;
-                obj.last_transform_timestamp = ts;
             }
             ctx.source = battlefield_id;
+            // PB-OS4b (CR 400.7/712.18/712.8d/e): route the enter-transformed flip
+            // through `apply_face_change` — it rebuilds the Channel-A ability
+            // vectors from the back face and registers the back face's static
+            // continuous effects, superseding the previous standalone
+            // `register_static_continuous_effects` call here (which registered the
+            // FRONT face's statics, a C1-class leak this PB fixes).
+            crate::rules::face::apply_face_change(state, battlefield_id, true);
             let registry = std::sync::Arc::clone(&state.card_registry);
-            crate::rules::replacement::register_static_continuous_effects(
-                state,
-                battlefield_id,
-                card_id_opt.as_ref(),
-                &registry,
-            );
             let etb_events = crate::rules::replacement::queue_carddef_etb_triggers(
                 state,
                 battlefield_id,
@@ -5437,6 +5435,7 @@ fn execute_effect_inner(
                                 new_bf_id,
                                 card_id_opt.as_ref(),
                                 &registry,
+                                false,
                             );
                             // Queue CardDef ETB triggers (CR 603.3).
                             let controller = state
@@ -5762,6 +5761,7 @@ fn execute_effect_inner(
                         new_land_id,
                         card_id.as_ref(),
                         &registry,
+                        false,
                     );
                     // CR 305.4: Do NOT emit LandPlayed — this is not "playing a land."
                     // Emit PermanentEnteredBattlefield for landfall and other ETB triggers.
@@ -6001,6 +6001,7 @@ fn execute_effect_inner(
                         new_id,
                         card_id.as_ref(),
                         &registry,
+                        false,
                     );
                     // Emit PermanentEnteredBattlefield for ETB triggers (CR 603.6a).
                     events.push(GameEvent::PermanentEnteredBattlefield {
@@ -6283,6 +6284,7 @@ fn execute_effect_inner(
                             new_id,
                             card_id.as_ref(),
                             &registry,
+                            false,
                         );
                         events.push(GameEvent::PermanentEnteredBattlefield {
                             player: owner,

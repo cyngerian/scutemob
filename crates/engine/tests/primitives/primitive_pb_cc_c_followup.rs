@@ -203,6 +203,7 @@ fn test_vishgraz_scales_with_opponent_poison_counters() {
         vishgraz_id,
         card_id.as_ref(),
         &registry,
+        false,
     );
 
     // Step 1: 0 poison on all players. Vishgraz's CDA contributes +0/+0.
@@ -330,6 +331,7 @@ fn test_exuberant_fuseling_power_scales_with_oil_counters() {
         fuseling_id,
         card_id.as_ref(),
         &registry,
+        false,
     );
 
     // Zero oil counters explicitly to make this test deterministic
