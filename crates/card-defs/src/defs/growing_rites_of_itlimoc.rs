@@ -12,7 +12,10 @@
 // hand, rest to bottom in any order" effect is not modeled -- no primitive expresses
 // selective-draw-from-a-look (only Scry/Surveil exist, which reorder rather than
 // selectively draw a matching card to hand). The end-step transform-if-4-creatures
-// clause IS wired via TransformSelf (PB-EF5). See OOS-EF5-4(f).
+// clause IS wired via TransformSelf (PB-EF5). PB-OS6 evaluated closing this gap
+// (sub-primitive (d)) and deferred it to PB-OS8's general
+// Effect::LookAtTopThenPlace family (count 4, filter creature, destination hand,
+// rest_to bottom, optional) -- see pb-plan-OS6.md "Scope decisions (d)".
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -55,7 +58,7 @@ pub fn card() -> CardDefinition {
             // TODO: ETB "look at top 4, may reveal a creature card and put it into your
             //   hand, rest to bottom in any order" -- no primitive for a selective look-
             //   and-take exists (only Scry/Surveil, which reorder rather than draw a
-            //   matching card). See OOS-EF5-4(f).
+            //   matching card). Closing primitive: PB-OS8 / Effect::LookAtTopThenPlace.
         ],
         color_indicator: None,
         back_face: Some(CardFace {
@@ -116,9 +119,11 @@ pub fn card() -> CardDefinition {
             "ETB 'look at top four cards, may reveal a creature card and put it into your hand, \
              rest to bottom in any order' not modeled -- no primitive expresses a selective \
              look-and-take (only Scry/Surveil exist, which reorder rather than selectively draw a \
-             matching card to hand; see OOS-EF5-4(f)). The end-step transform-if-4-creatures \
-             clause IS implemented via TransformSelf (PB-EF5); the back face's two mana abilities \
-             are fully implemented.",
+             matching card to hand). Closing primitive: PB-OS8 / Effect::LookAtTopThenPlace \
+             (count 4, filter creature, destination hand, rest_to bottom, optional) -- deferred \
+             out of PB-OS6, see pb-plan-OS6.md 'Scope decisions (d)'. The end-step \
+             transform-if-4-creatures clause IS implemented via TransformSelf (PB-EF5); the back \
+             face's two mana abilities are fully implemented.",
         ),
     }
 }

@@ -509,7 +509,18 @@
 ///   => { 24u8.hash_into(hasher); relative_to.hash_into(hasher); }`. `decl_fingerprint`
 ///   MOVES (the enum's declared shape changed — a new variant); `stream_fingerprint`
 ///   moves per the v40 mechanism.
-pub const HASH_SCHEMA_VERSION: u8 = 57;
+/// - 58: PB-OS6 (2026-07-19) — five new `HashInto` sites in one batch (DFC
+///   flip-condition sub-batch, OOS-EF5-4 a/b/g): `Condition` gains
+///   `TopCardIsInstantOrSorcery` (discriminant 49) and `YouAttackedWithNOrMore(u32)`
+///   (discriminant 50, CR 400.2/614.1c and CR 508.1/508.4 respectively); `Effect`
+///   gains `RemoveFromCombat { target: EffectTarget }` (discriminant 95, CR 506.4);
+///   `GameEvent` gains `RemovedFromCombat { object_id: ObjectId }` (discriminant
+///   128); `PlayerState` gains `attackers_declared_this_turn: u32`, hashed right
+///   after `attacked_this_turn`. Fed to `HashInto` in the matching new match arms
+///   plus the new `PlayerState` field line. `decl_fingerprint` MOVES (three enums'
+///   declared shapes changed plus a new struct field); `stream_fingerprint` moves
+///   per the v40 mechanism.
+pub const HASH_SCHEMA_VERSION: u8 = 58;
 
 /// One `(version, fingerprints)` row of the append-only hash-schema history.
 ///
@@ -753,6 +764,17 @@ pub const HASH_SCHEMA_HISTORY: &[HashSchemaEpoch] = &[
         // moves per the v40 mechanism.
         decl_fingerprint: "02fb46a2f98c8f8793e4f58469e44bd256abcc3f8fc4b85895be2547af78db43",
         stream_fingerprint: "31bfd0ed5d7d5d3bf64c1c5bb83b919849d5dd2908c3cd1d223ee73d4bfa62dc",
+    },
+    HashSchemaEpoch {
+        version: 58,
+        // PB-OS6 (2026-07-19): Condition gained TopCardIsInstantOrSorcery /
+        // YouAttackedWithNOrMore; Effect gained RemoveFromCombat; GameEvent gained
+        // RemovedFromCombat; PlayerState gained attackers_declared_this_turn (see
+        // the `- 58:` History line above). decl_fingerprint moves (genuine
+        // struct/enum-shape changes); stream_fingerprint moves per the v40
+        // mechanism.
+        decl_fingerprint: "9cb0bf12fdb38572f272b0f6f544e7a9421f2201cd6cb53c5cd9539ee7a9f954",
+        stream_fingerprint: "9c0797735dbdd18743134cc3816d02dfddeb4508dc69f2afa1afa263d0d87d2a",
     },
 ];
 

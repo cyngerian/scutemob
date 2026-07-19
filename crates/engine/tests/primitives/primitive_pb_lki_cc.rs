@@ -440,7 +440,7 @@ fn test_lki_counter_count_multi_type_returns_requested_counter_type_only() {
 #[test]
 fn test_pb_lki_cc_hash_schema_version_live_sentinel() {
     assert_eq!(
-        HASH_SCHEMA_VERSION, 57u8,
+        HASH_SCHEMA_VERSION, 58u8,
         "HASH_SCHEMA_VERSION drifted without this sentinel being updated. Bump this assertion and the state/hash.rs history block together; the authoritative check is the SR-17 machine gate in tests/core/hash_schema.rs."
     );
 }

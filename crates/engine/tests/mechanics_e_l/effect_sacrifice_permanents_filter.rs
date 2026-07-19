@@ -133,7 +133,7 @@ fn cast_test_sorcery(
 #[test]
 fn test_sft_hash_schema_version_live_sentinel() {
     assert_eq!(
-        HASH_SCHEMA_VERSION, 57u8,
+        HASH_SCHEMA_VERSION, 58u8,
         "HASH_SCHEMA_VERSION drifted without this sentinel being updated. Bump this assertion and the state/hash.rs history block together; the authoritative check is the SR-17 machine gate in tests/core/hash_schema.rs."
     );
 }

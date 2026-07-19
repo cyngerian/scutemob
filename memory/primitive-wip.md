@@ -60,10 +60,10 @@ Probe by execution (SR-34/36): each flipped card needs an executing test path.
 - [x] Change 2 — `Condition::YouAttackedWithNOrMore(u32)` + `PlayerState.attackers_declared_this_turn` (player.rs field, builder.rs init, combat.rs setter, turn_actions.rs reset, check_condition eval arm, hash.rs discriminant 50 + PlayerState field hash)
 - [x] Change 3 — `Effect::RemoveFromCombat{target}` + `GameEvent::RemovedFromCombat` + shared `remove_from_combat` helper (combat.rs helper factored out of apply_regeneration; execute_effect dispatch arm; hash.rs Effect discriminant 95 + GameEvent discriminant 128)
 - [x] Change 4 — exhaustive-match sweep: `cargo build --workspace` clean after Changes 1-3 (no tool/replay-viewer arms needed — verified no exhaustive Condition/Effect/GameEvent match outside hash.rs + effects/mod.rs)
-- [ ] Wire bump: PROTOCOL 20→21 + HASH 57→58 (batched)
-- [ ] Card defs: delver_of_secrets, thaumatic_compass → Complete
-- [ ] New card def: legions_landing.rs → Complete
-- [ ] Doc-only: growing_rites_of_itlimoc.rs re-point to PB-OS8
+- [x] Wire bump: PROTOCOL 20→21 + HASH 57→58 (batched) — both gate tests green, all `PROTOCOL_VERSION, 20`/`HASH_SCHEMA_VERSION, 57u8` sentinels bumped, FROZEN_HISTORY_PREFIX_DIGEST re-pinned in both gate test files
+- [x] Card defs: delver_of_secrets, thaumatic_compass → Complete
+- [x] New card def: legions_landing.rs → Complete
+- [x] Doc-only: growing_rites_of_itlimoc.rs re-point to PB-OS8
 - [ ] Tests: crates/engine/tests/primitives/pb_os6_dfc_flip_conditions.rs
 
 ## Plan output

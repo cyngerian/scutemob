@@ -180,7 +180,20 @@ use crate::state::hash::HASH_SCHEMA_VERSION;
 ///   205.3m/508.1 — count of other attacking creatures sharing a creature type
 ///   with the triggering creature; OOS-EF4-1, Shared Animosity). Closure type
 ///   count unchanged; `EffectAmount`'s declared shape moved, so the digest moves.
-pub const PROTOCOL_VERSION: u32 = 20;
+/// - 21: PB-OS6 (2026-07-19) — four closure-shape moves in one batch (DFC
+///   flip-condition sub-batch, OOS-EF5-4 a/b/g): `Condition` (already in the
+///   closure via `Effect::Conditional`) gains two new unit/tuple variants,
+///   `TopCardIsInstantOrSorcery` (CR 400.2/614.1c — delver_of_secrets upkeep
+///   flip) and `YouAttackedWithNOrMore(u32)` (CR 508.1/508.4 — legions_landing
+///   attack-count gate); `Effect` (already in the closure) gains a new variant
+///   `RemoveFromCombat { target: EffectTarget }` (CR 506.4 — thaumatic_compass /
+///   Spires of Orazca); `GameEvent` (a wire frame) gains a new variant
+///   `RemovedFromCombat { object_id: ObjectId }`. The closure's type count is
+///   unchanged (no new type joins it); all three types' declared shapes moved,
+///   so the digest moves. (`PlayerState.attackers_declared_this_turn`, the
+///   fourth new field in this batch, is inside `GameState`, not the wire
+///   closure — HASH_SCHEMA_VERSION bump only, see `state::hash`.)
+pub const PROTOCOL_VERSION: u32 = 21;
 
 /// Digest of the serialized shape of the wire-frame type closure
 /// (`Command`, `GameEvent`, [`ReplayLog`] and everything they reach).
@@ -198,7 +211,7 @@ pub const PROTOCOL_VERSION: u32 = 20;
 /// existing `u32` *means* does not. Semantic changes still require a manual
 /// [`PROTOCOL_VERSION`] bump.
 pub const PROTOCOL_SCHEMA_FINGERPRINT: &str =
-    "5243cffc75ff5357ce485988f43e4df781590d48605d0875e1230a3cd6f421b6";
+    "c617138c61188620e1276c9113efe11a2590682c926ee16381db93f1953dd2d6";
 
 /// One `(version, fingerprint)` row of the append-only protocol-schema history.
 ///
@@ -367,6 +380,13 @@ pub const PROTOCOL_HISTORY: &[ProtocolEpoch] = &[
         // PB-OS5 (2026-07-19): EffectAmount gained
         // OtherAttackersSharingCreatureType (see the `- 20:` History line above).
         fingerprint: "5243cffc75ff5357ce485988f43e4df781590d48605d0875e1230a3cd6f421b6",
+    },
+    ProtocolEpoch {
+        version: 21,
+        // PB-OS6 (2026-07-19): Condition gained TopCardIsInstantOrSorcery /
+        // YouAttackedWithNOrMore; Effect gained RemoveFromCombat; GameEvent gained
+        // RemovedFromCombat (see the `- 21:` History line above).
+        fingerprint: "c617138c61188620e1276c9113efe11a2590682c926ee16381db93f1953dd2d6",
     },
 ];
 

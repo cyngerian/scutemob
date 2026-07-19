@@ -608,7 +608,7 @@ fn test_damaged_player_hash_parity_all_variants() {
     // Hash sentinel bumped to 27 (BASELINE-LKI-01: GameEvent::CreatureDied.pre_death_characteristics,
     // CR 603.10a / CR 613.1d LKI snapshot for filtered death triggers).
     assert_eq!(
-        HASH_SCHEMA_VERSION, 57u8,
+        HASH_SCHEMA_VERSION, 58u8,
         "HASH_SCHEMA_VERSION drifted without this sentinel being updated. Bump this assertion and the state/hash.rs history block together; the authoritative check is the SR-17 machine gate in tests/core/hash_schema.rs."
     );
 
