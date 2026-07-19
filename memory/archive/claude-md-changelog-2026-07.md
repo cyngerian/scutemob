@@ -386,3 +386,14 @@ Doc audit (`memory/doc-audit-2026-07-18.md` F1-F8) remediated in one sitting aft
   stamps fixed; layer-bypass-audit disambiguated; `ability-wip.md` cleared to IDLE;
   ability-coverage stamped-and-deferred.
 - Cancelled-superseded: `scutemob-117`/`120`/`122`/`123`. One ~10s ESM outage mid-run, recovered.
+
+## 2026-07-18 — PB-OS2 collected (`scutemob-128`, merge `6fe4f140`)
+
+EF-EF1-A closed: `pay_optional_cost`/`try_pay_optional_cost` now return
+`Vec<SacrificedCreatureLki>` and the `MayPayThenEffect` executor threads
+`ctx.sacrificed_creature_lki`/`sacrifice_fired` before the `then` effect — pre-zone-move,
+layer-resolved (PB-EF10 `SacrificedCreatureLki` reused). `disciple_of_freyalise` front face
+authored `Complete` (+1, honest since W-EMPTY). Decoy pinned by anthem + wrong-creature and
+proven by revert-and-rerun; decline path proves no stale LKI leak. No PROTOCOL/HASH change
+(sentinels assert 18/55 untouched). Reviews: primitive-impl-reviewer clean, /review 4/4 ACs
+zero issues. Next: PB-OS3 (OOS-EF6-1 WhenTappedForMana target dispatch).
