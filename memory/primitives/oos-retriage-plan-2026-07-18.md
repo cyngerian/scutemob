@@ -224,6 +224,18 @@ ship = expected clean-`Complete` after the PB + its backfill authoring, at the h
   sacrifice threading in the same files).
 
 ### PB-OS3 — WhenTappedForMana target dispatch (OOS-EF6-1) · CORRECTNESS
+> ✅ **SHIPPED 2026-07-19 (`scutemob-129`).** Root cause was a `PendingTriggerKind`/ability-index
+> index-space mismatch: `fire_mana_triggered_abilities` queued the targeted mana trigger as
+> `PendingTriggerKind::Normal` with a raw `def.abilities` index, but the `Normal`-kind flush
+> auto-picker reads the runtime `characteristics.triggered_abilities` vec (never populated for
+> `WhenTappedForMana`). Fix = **Option B**: reclassify the queued kind to the existing
+> `PendingTriggerKind::CardDefETB` (whose flush lookup uses the raw `def.abilities` index the mana
+> path already holds). One-identifier change in `rules/mana.rs`; immediate-mana branch untouched.
+> `forbidden_orchard` `known_wrong`→**Complete** (recipient wired to `DeclaredTarget{0}`; both
+> halves compose — PB-EF12 colour + PB-OS3 target). 4-player decoy compose test (stack-object
+> target asserted, decoys prove recipient) + no-regression + `all_cards()` roster sweep (7 defs,
+> only forbidden_orchard targets). Non-vacuity proven (revert-to-Normal fails). **No PROTOCOL/HASH
+> bump.** OOS-EF6-1 CLOSED. Plan `pb-plan-OS3.md`, review `pb-review-OS3.md` (clean bill).
 - **Findings**: OOS-EF6-1 (+ partially unblocks forbidden_orchard alongside the already-shipped
   EF-W-PB2-3/PB-EF12 any-color fix).
 - **Fix**: mirror PB-EF3's EF-W-MISS-10 fix on the mana path — forward the def's
@@ -330,7 +342,7 @@ ship = expected clean-`Complete` after the PB + its backfill authoring, at the h
 | --- | --- | --- | --- | --- |
 | **PB-OS1** | OOS-EF9-1 | correctness (integrity) | 3+ fixes (0 new flips) | none |
 | ~~PB-OS2~~ ✅ SHIPPED `scutemob-128` | EF-EF1-A | correctness (micro) | 1 (disciple_of_freyalise) | none |
-| PB-OS3 | OOS-EF6-1 | correctness | ~1 | likely none |
+| ~~PB-OS3~~ ✅ SHIPPED `scutemob-129` | OOS-EF6-1 | correctness | 1 (forbidden_orchard) | none |
 | PB-OS4 | OOS-EF5-3 | capability | ~2-3 | PROTOCOL |
 | PB-OS5 | OOS-EF4-1 | capability | ~2 | PROTOCOL |
 | PB-OS6 | OOS-EF5-4 (a/b/c/d/g) | capability (sub-batch) | ~3 | PROTOCOL (some) |

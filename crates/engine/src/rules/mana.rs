@@ -706,10 +706,27 @@ fn fire_mana_triggered_abilities(
                 // Per Nyxbloom ruling: triggered mana abilities are NOT multiplied.
                 events.append(&mut mana_events);
             } else {
-                // Normal triggered ability with targets or non-mana effect: push to stack.
-                // CR 605.5a: this trigger is NOT a mana ability; goes on the stack normally.
-                let mut trigger =
-                    PendingTrigger::blank(trigger_source_id, player, PendingTriggerKind::Normal);
+                // Targeted / non-mana triggered ability: push to stack (CR 605.5a — an
+                // ability with a target is NOT a mana ability).
+                //
+                // OOS-EF6-1: `ability_idx` here is the RAW index into `def.abilities` (this
+                // loop iterates `def.abilities.iter().enumerate()` directly, never the
+                // runtime `characteristics.triggered_abilities` vec — `enrich_spec_from_def`
+                // has no `WhenTappedForMana` conversion block). `PendingTriggerKind::Normal`
+                // resolves targets by reading `characteristics.triggered_abilities[ability_index]`
+                // (a DIFFERENT, runtime index space), so a `Normal`-kind trigger here would
+                // find nothing and any declared `targets` (e.g. Forbidden Orchard's `target
+                // opponent`) would silently resolve to no target. `CardDefETB` is the sibling
+                // kind whose target-resolution and effect-resolution both read
+                // `def.abilities.get(trigger.ability_index)` — the raw index this loop already
+                // holds — so it is the correct kind here even though this is not an ETB event
+                // (mirrors the PB-EF3 / EF-W-MISS-10 index-space fix on the attack-trigger
+                // path). No new PendingTriggerKind variant; `CardDefETB` is pre-existing.
+                let mut trigger = PendingTrigger::blank(
+                    trigger_source_id,
+                    player,
+                    PendingTriggerKind::CardDefETB,
+                );
                 trigger.ability_index = ability_idx;
                 state.pending_triggers.push_back(trigger);
             }
