@@ -279,6 +279,33 @@ ship = expected clean-`Complete` after the PB + its backfill authoring, at the h
   mechanism, *not* a TransformSelf case).
 - **Discounted ship**: **~2-3** of 4 (Fable's Saga integration is the risk).
 
+### PB-OS4b — face-aware ability gathering (OOS-OS4-2) · CORRECTNESS · ✅ **SHIPPED** (`scutemob-134`, 2026-07-19)
+> ✅ **SHIPPED — closes OOS-OS4-2 (correctness; jumped OS5 per the correctness-first rule).** A
+> transformed permanent (`obj.is_transformed`, via in-place `TransformSelf` OR the OS4
+> return/enter-transformed path) now gathers its **back face's** non-keyword abilities and no longer
+> its front face's (CR 712.8d/e). Root cause was **two** front-only channels: **Channel A** (runtime
+> `characteristics.{triggered,activated,mana}_abilities`, lowered from front `def.abilities` at
+> construction and never rebuilt on transform) and **Channel B** (raw `def.abilities` direct-index
+> sites: static registration, ETB queue, upkeep/first-main/postcombat/end-step sweeps, mana-tap
+> sweep, Saga SBA, CardDefETB consumers). Fix: single `apply_face_change` choke point
+> (`rules/face.rs`) does deregister-old-statics → flip → Channel-A base-rebuild
+> (`build_face_ability_vectors`) → register-new-statics, routed through all 8 transform boundaries;
+> Channel B routes through new `CardDefinition::effective_abilities(is_transformed)`
+> (card-types) on producer + consumer, gated on live `is_transformed`.
+> **Probe-by-execution outcome**: `docent_of_perfection` + `bloodline_keeper` (PB-EF5 shipped
+> `Complete`) were **live-wrong pre-fix** (front cast-trigger/anthem leaked, back abilities dead) and
+> are now **verified correct + STAY `Complete`**, pinned by execution tests. `growing_rites_of_itlimoc`
+> + `thaumatic_compass` back mana/activated abilities now function (stay `partial`, unrelated DSL
+> gaps). `fable_of_the_mirror_breaker` Reflection-of-Kiki-Jiki activated ability now
+> **reachable/activatable** (message corrected; stays `partial` for ch. I/II + the Kiki-Jiki
+> nonlegendary-filter residual). **Wire: NONE** (behavior-only, branches existing state — PROTOCOL 19
+> / HASH 56 unchanged). Suite 3515 passing. **Deferred → OOS-OS4-3** (edgar_charmed_groom + re-add
+> `Effect::ReturnSourceToBattlefieldTransformed`, a real 1-bump; not worth bundling into a wire-neutral
+> correctness PB). **Documented latent (roster-unreachable) gap**: enter-transformed *replacement*
+> gathering (`apply_self_etb_from_definition` / `register_permanent_replacement_abilities`) is still
+> front-only — commented in source; no roster DFC back face declares an ETB/permanent replacement.
+> Record: `memory/primitives/pb-plan-OS4b.md`, `pb-review-OS4b.md`, ef-batch-plan §13.
+
 ### PB-OS5 — dynamic relative-count `EffectAmount` (OOS-EF4-1) · capability
 - **Findings**: OOS-EF4-1.
 - **Fix**: an `EffectAmount` variant counting battlefield objects matching a filter that can
@@ -365,6 +392,7 @@ ship = expected clean-`Complete` after the PB + its backfill authoring, at the h
 | ~~PB-OS2~~ ✅ SHIPPED `scutemob-128` | EF-EF1-A | correctness (micro) | 1 (disciple_of_freyalise) | none |
 | ~~PB-OS3~~ ✅ SHIPPED `scutemob-129` | OOS-EF6-1 | correctness | 1 (forbidden_orchard) | none |
 | ~~PB-OS4~~ ⚠️ SHIPPED NARROWED `scutemob-130` | OOS-EF5-3 (narrowed) | capability | 0 Complete + 1 partial (fable); blocked by new OOS-OS4-1/2 | PROTOCOL 18→19 / HASH 55→56 |
+| ~~PB-OS4b~~ ✅ SHIPPED `scutemob-134` | OOS-OS4-2 | correctness (cross-cutting) | 2 kept-`Complete` (docent, bloodline — were live-wrong); 3 partials made functional | none (behavior-only; 19/56 unchanged) |
 | PB-OS5 | OOS-EF4-1 | capability | ~2 | PROTOCOL |
 | PB-OS6 | OOS-EF5-4 (a/b/c/d/g) | capability (sub-batch) | ~3 | PROTOCOL (some) |
 | PB-OS7 | OOS-EF3-1 | capability | ~1-2 | PROTOCOL |

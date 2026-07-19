@@ -100,11 +100,19 @@ Two ability channels, BOTH front-only for transformed permanents:
   (its "fully implemented" claim is now true post-fix) — no edit needed. `thaumatic_compass.rs`
   left unchanged per plan. `beloved_beggar`/`brutal_cathar` spot-checked: keyword-only back
   faces, no regression risk, no marker change.
-- [ ] Docs (OOS-OS4-2 resolved banners) — deferred to close-out per runner brief.
-- [ ] Review (`pb-review-OS4b.md`): verify docent/bloodline stay Complete by execution; static
-  deregister correctness; PROTOCOL 19 / HASH 56 unchanged; front-only sites untouched.
-- [ ] Deferred follow-up: file OOS-OS4-3 (edgar_charmed_groom + re-add
-  `Effect::ReturnSourceToBattlefieldTransformed`, one wire bump).
+- [x] Docs (OOS-OS4-2 resolved banners): `oos-retriage-plan-2026-07-18.md` (PB-OS4b section + queue
+  row), `ef-batch-plan-2026-07-17.md` §13 (OOS-OS4-2 RESOLVED banner + OOS-OS4-3 filed),
+  `workstream-state.md` W6 row.
+- [x] Review (`pb-review-OS4b.md`): primitive-impl-reviewer → needs-fix (E1 MEDIUM + E2 LOW), both
+  addressed. `/review` (Opus) → all 4 criteria PASS + 1 LOW (enter-transformed replacement gathering
+  front-only) documented in source (`replacement.rs` `apply_self_etb_from_definition` /
+  `register_permanent_replacement_abilities`). docent/bloodline verified `Complete` by execution;
+  PROTOCOL 19 / HASH 56 unchanged.
+- [x] Deferred follow-up filed: **OOS-OS4-3** (edgar_charmed_groom + re-add
+  `Effect::ReturnSourceToBattlefieldTransformed`, one wire bump) in ef-batch-plan §13.
+
+**PHASE: DONE** — worker verified gates (build/clippy/fmt/check-defs clean; **3515 tests**, 0 failed;
+wire-neutral 19/56). Ready for signal-ready. Coordinator resets this file to IDLE at /collect.
 
 ## Fix phase (pb-review-OS4b.md)
 - [x] E1 (MEDIUM): first-main (`turn_actions.rs` precombat_main_actions), postcombat-main

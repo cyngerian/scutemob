@@ -1076,6 +1076,17 @@ the two planeswalker back faces (3 loyalty abilities each, some complex). Blocks
 the DSL — a second, smaller sub-blocker.)
 
 ### OOS-OS4-2 (correctness/capability, cross-cutting) — transformed permanents don't gather back-face non-keyword abilities
+> ✅ **RESOLVED — PB-OS4b, `scutemob-134`, 2026-07-19.** Ability gathering is now face-aware at every
+> battlefield site (two channels: runtime characteristics-vector base-rebuild at the `apply_face_change`
+> transform boundary + `CardDefinition::effective_abilities` for `def.abilities` direct-index sites).
+> `docent_of_perfection` + `bloodline_keeper` were live-wrong and now stay `Complete` (pinned by
+> execution); `growing_rites_of_itlimoc` + `thaumatic_compass` back abilities now function (stay
+> partial, unrelated gaps); `fable_of_the_mirror_breaker` Reflection ability now reachable (message
+> corrected, stays partial). Wire-neutral (PROTOCOL 19 / HASH 56). Latent roster-unreachable
+> enter-transformed *replacement*-gathering gap documented in source. Record:
+> `memory/primitives/pb-plan-OS4b.md` / `pb-review-OS4b.md`; queue row in
+> `oos-retriage-plan-2026-07-18.md` (PB-OS4b). **The edgar_charmed_groom half is spun out as OOS-OS4-3
+> below.**
 A permanent showing its **back face** (via in-place `TransformSelf` OR the new return-transformed
 path) does **not** use its back face's non-keyword abilities. `register_static_continuous_effects`
 (`rules/replacement.rs`), `queue_carddef_etb_triggers` (`rules/replacement.rs`), and the upkeep
@@ -1094,3 +1105,21 @@ the behavior of already-shipped TransformSelf cards). Blocks `edgar_charmed_groo
 without it) and the back-face activated ability of `fable_of_the_mirror_breaker`'s Reflection of
 Kiki-Jiki (both authored honestly around the gap by PB-OS4: edgar left unauthored, fable partial
 with the blocker named).
+
+### OOS-OS4-3 (capability, micro — filed by PB-OS4b, `scutemob-134`, 2026-07-19) — edgar_charmed_groom return-from-graveyard-transformed
+The face-aware-gathering blocker (OOS-OS4-2) that kept `edgar_charmed_groom` unauthored is now
+resolved, but the card still cannot ship: it dies and **returns from the graveyard transformed**
+(as Edgar Markov's Coffin), and the `Effect` that expresses this —
+`Effect::ReturnSourceToBattlefieldTransformed` (return **from graveyard**, distinct from the shipped
+`ExileSourceAndReturnTransformed`) — was **removed in the PB-OS4 narrowing** as unusable-before-OS4b.
+Re-adding it is a **genuine wire bump** (PROTOCOL 19→20, HASH 56→57: new `Effect` variant + `HashInto`
+arm + protocol History/epoch rows + re-pinned fingerprints/`FROZEN_HISTORY_PREFIX_DIGEST`/sentinels).
+PB-OS4b deliberately kept its mandatory scope wire-neutral and deferred this rather than bundle an
+unrelated bump into a correctness PB (per AC 5040 / one-bump-per-PB discipline). **Fix shape**: re-add
+the `Effect` variant (executor + wire) in its own commit + author `edgar_charmed_groom.rs` (front:
+Vampire anthem `Static` + `WhenDies → ReturnSourceToBattlefieldTransformed`; back Edgar Markov's
+Coffin: `AtBeginningOfYourUpkeep → create lifelink Vampire token + bloodline counter; if ≥3, remove
+and transform back`) + a full-lifecycle test (dies → returns as Coffin new object → upkeep makes a
+Vampire + counter, Coffin does NOT grant the front anthem → 3 counters transform back → anthem
+returns). The back-face upkeep loop now functions thanks to OS4b. CR 306.5b not needed (Edgar's back
+is not a planeswalker). Ships `edgar_charmed_groom` **Complete**. Micro-PB, ~1 flip.
