@@ -427,3 +427,14 @@ partial with real ch. III usage**; nicol_bolas/grist blocked on **OOS-OS4-1**
 divergence (edgar has no end-step clause) was caught against cards.sqlite mid-implement.
 Gates all green; 9 tests. DOCB-1 deferred items completed at this collect:
 primitive-wip reset to IDLE, authoring-report regenerated (1,799 defs, 62.2%).
+
+## 2026-07-19 — Audit #2 remediation complete (DOCB-1/2/3, `scutemob-131`/`132`/`133`)
+
+DOCB-1 (coordinator-inline, `888981f8`+`8154db85`+`299bb536`): full state resync — CLAUDE.md:17
+trimmed, workstream-state rotated with OOS/OS/DOC handoff, PB-OS1 ✅ banner backfilled
+(re-dispatch hazard dead), MEMORY.md fixed, audit files committed, authoring-report on main,
+primitive-wip reset at OS4 collect. DOCB-3 (`d3a04a3a` + `7b8efcaa`): 10 polish items (1
+worker-missed, coordinator-applied). DOCB-2 (`cf9535d6`, provisioned-override justified):
+/implement-primitive + /audit-cards rewired onto live sources, /start-work RETIRED with
+banner, /collect gained mandatory PB state-sync step (N4 root-cause fix); risk noted —
+esm update may clobber provisioned-skill customizations. PB dispatch gate LIFTED.
