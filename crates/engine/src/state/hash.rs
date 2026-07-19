@@ -6792,9 +6792,7 @@ impl HashInto for Effect {
             Effect::ExileSourceAndReturnTransformed => 94u8.hash_into(hasher),
             // PB-OS4 (OOS-EF5-3): ReturnSourceToBattlefieldTransformedNextEndStep
             // (discriminant 95) — CR 400.7 / 603.7.
-            Effect::ReturnSourceToBattlefieldTransformedNextEndStep => {
-                95u8.hash_into(hasher)
-            }
+            Effect::ReturnSourceToBattlefieldTransformedNextEndStep => 95u8.hash_into(hasher),
             // PB-OS4 (OOS-EF5-3): ReturnSourceToBattlefieldTransformed (discriminant
             // 96) — CR 400.7 / 712.18. Added when Edgar, Charmed Groom's real oracle
             // text turned out to return immediately (no delay), a third timing mode

@@ -24,6 +24,7 @@ mod outlast;
 mod overload;
 mod pain_lands;
 mod pb_ef5_transform_self;
+mod pb_os4_return_transformed;
 mod persist;
 mod play_from_graveyard;
 mod play_from_top;
