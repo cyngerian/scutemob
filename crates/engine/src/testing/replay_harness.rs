@@ -2055,6 +2055,1275 @@ pub fn parse_counter_type(s: &str) -> Option<CounterType> {
         _ => None,
     }
 }
+/// PB-OS4b (CR 712.8d/e): builds the three runtime ability vectors
+/// (`Characteristics.mana_abilities` / `activated_abilities` / `triggered_abilities`)
+/// from a single face's `AbilityDefinition` list.
+///
+/// Extracted from `enrich_spec_from_def` (which calls this for the front face at
+/// object construction) so `apply_face_change` can call it again for the *back*
+/// face's abilities at the transform boundary (CR 712.8d/e: a transformed
+/// permanent has only its currently-visible face's characteristics, including
+/// abilities). Using the identical lowering logic for both faces means base ==
+/// effective-face for these three vectors at all times, so every downstream
+/// reader (direct-base or `calculate_characteristics`-based) is correct with no
+/// per-reader auditing.
+///
+/// Preserves the mana/activated-ability disjointness (SR-34/SF-6): an ability
+/// lowered into `mana_abilities` is excluded from `activated_abilities`.
+pub(crate) fn build_face_ability_vectors(
+    abilities: &[AbilityDefinition],
+) -> (
+    imbl::Vector<ManaAbility>,
+    Vec<ActivatedAbility>,
+    Vec<TriggeredAbilityDef>,
+) {
+    let mut mana_abilities: imbl::Vector<ManaAbility> = imbl::Vector::new();
+    let mut activated_abilities: Vec<ActivatedAbility> = Vec::new();
+    let mut triggered_abilities: Vec<TriggeredAbilityDef> = Vec::new();
+    // SR-34 (CR 605.1a): convert mana-producing activated abilities into mana abilities.
+    // CR 605.1a classifies an ability as a mana ability by what it *does* (no target,
+    // could add mana, not a loyalty ability), not by what it costs — so this is no longer
+    // gated on `matches!(cost, Cost::Tap)`. `mana_ability_lowering` (below) is the single
+    // predicate deciding both this and the `activated_abilities` exclusion right below it,
+    // so the two can never disagree (SR-34 §3 step 5 — they previously did, silently, for
+    // `Effect::AddManaMatchingType`).
+    for ability in abilities {
+        if let AbilityDefinition::Activated {
+            cost,
+            effect,
+            targets: ab_targets,
+            activation_condition,
+            ..
+        } = ability
+        {
+            if let Some(ma) = mana_ability_lowering(ab_targets, cost, effect, activation_condition)
+            {
+                mana_abilities.push_back(ma);
+            }
+        }
+    }
+    // Populate non-mana activated abilities into characteristics.activated_abilities.
+    // This is required so that Command::ActivateAbility can look up the ability by index.
+    for ability in abilities {
+        if let AbilityDefinition::Activated {
+            cost,
+            effect,
+            timing_restriction,
+            targets: ab_targets,
+            activation_condition,
+            activation_zone,
+            once_per_turn,
+            modes,
+        } = ability
+        {
+            // Skip every ability the loop above registered as a ManaAbility (SR-34: no
+            // longer just bare-Tap fixed/any-color/scaled/filter-choice). Including it here
+            // too would shift ability_index for every non-mana activated ability that
+            // follows it (SF-6).
+            let is_tap_mana_ability =
+                mana_ability_lowering(ab_targets, cost, effect, activation_condition).is_some();
+            if !is_tap_mana_ability {
+                let activation_cost = cost_to_activation_cost(cost);
+                let ab = ActivatedAbility {
+                    cost: activation_cost,
+                    description: String::new(),
+                    effect: Some(effect.clone()),
+                    // CR 602.5d: Propagate timing restriction so sorcery-speed abilities
+                    // (e.g., Equip) are enforced in handle_activate_ability.
+                    sorcery_speed: matches!(
+                        timing_restriction,
+                        Some(TimingRestriction::SorcerySpeed)
+                    ),
+                    targets: ab_targets.clone(),
+                    // CR 602.5b: Propagate activation condition ("activate only if ...").
+                    activation_condition: activation_condition.clone(),
+                    // CR 602.2: Propagate activation zone for graveyard-activated abilities.
+                    activation_zone: activation_zone.clone(),
+                    // CR 602.5b: Propagate once-per-turn restriction.
+                    once_per_turn: *once_per_turn,
+                    // CR 700.2a: Propagate modal structure for modal activated abilities.
+                    modes: modes.clone(),
+                };
+                activated_abilities.push(ab);
+            }
+        }
+    }
+    // CR 603.6c / CR 700.4: Convert "When ~ dies" card-definition triggers into
+    // runtime TriggeredAbilityDef entries so check_triggers can dispatch them.
+    // This covers self-referential dies triggers (e.g. Solemn Simulacrum).
+    // CR 700.2b: For modal WhenDies triggers, use mode 0 as the bot fallback effect.
+    for ability in abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition: TriggerCondition::WhenDies,
+            effect,
+            modes,
+            targets,
+            ..
+        } = ability
+        {
+            // CR 700.2b: If modal, pre-select mode 0 as the bot fallback.
+            let resolved_effect = if let Some(m) = modes {
+                m.modes.first().cloned().unwrap_or_else(|| effect.clone())
+            } else {
+                effect.clone()
+            };
+            triggered_abilities.push(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
+                etb_filter: None,
+                death_filter: None,
+                combat_damage_filter: None,
+                triggering_creature_filter: None,
+                trigger_on: TriggerEvent::SelfDies,
+                intervening_if: None,
+                targets: targets.clone(),
+                description: "When ~ dies (CR 700.4)".to_string(),
+                effect: Some(resolved_effect),
+            });
+        }
+    }
+    // CR 508.1m / CR 508.3a: Convert "Whenever ~ attacks" card-definition triggers into
+    // runtime TriggeredAbilityDef entries so check_triggers can dispatch them.
+    // This covers self-referential attack triggers (e.g. Audacious Thief).
+    // Note: CR 508.4 — creatures put onto the battlefield attacking do NOT trigger
+    // "whenever ~ attacks"; they were never declared as attackers. The engine correctly
+    // dispatches SelfAttacks only from AttackersDeclared events (not from any other
+    // mechanism), so this enrichment path is safe.
+    for ability in abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition: TriggerCondition::WhenAttacks,
+            effect,
+            modes,
+            targets,
+            ..
+        } = ability
+        {
+            // CR 700.2b: If modal, pre-select mode 0 as the bot fallback.
+            let resolved_effect = if let Some(m) = modes {
+                m.modes.first().cloned().unwrap_or_else(|| effect.clone())
+            } else {
+                effect.clone()
+            };
+            triggered_abilities.push(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
+                etb_filter: None,
+                death_filter: None,
+                combat_damage_filter: None,
+                triggering_creature_filter: None,
+                trigger_on: TriggerEvent::SelfAttacks,
+                intervening_if: None,
+                targets: targets.clone(),
+                description: "Whenever ~ attacks (CR 508.3a)".to_string(),
+                effect: Some(resolved_effect),
+            });
+        }
+    }
+    // CR 509.1: Convert "Whenever ~ blocks" card-definition triggers into runtime
+    // TriggeredAbilityDef entries so check_triggers can dispatch them.
+    // This covers self-referential block triggers (e.g. a creature with "Whenever ~ blocks").
+    for ability in abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition: TriggerCondition::WhenBlocks,
+            effect,
+            targets,
+            ..
+        } = ability
+        {
+            triggered_abilities.push(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
+                etb_filter: None,
+                death_filter: None,
+                combat_damage_filter: None,
+                triggering_creature_filter: None,
+                trigger_on: TriggerEvent::SelfBlocks,
+                intervening_if: None,
+                targets: targets.clone(),
+                description: "Whenever ~ blocks (CR 509.1)".to_string(),
+                effect: Some(effect.clone()),
+            });
+        }
+    }
+    // CR 510.3a / CR 603.2: Convert "Whenever ~ deals combat damage to a player"
+    // card-definition triggers into runtime TriggeredAbilityDef entries so
+    // check_triggers can dispatch them via CombatDamageDealt events.
+    // intervening_if is None here: Condition and InterveningIf are separate types;
+    // conditional combat-damage triggers are rare and deferred.
+    for ability in abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition: TriggerCondition::WhenDealsCombatDamageToPlayer,
+            effect,
+            modes,
+            targets,
+            ..
+        } = ability
+        {
+            // CR 700.2b: If modal, pre-select mode 0 as the bot fallback.
+            let resolved_effect = if let Some(m) = modes {
+                m.modes.first().cloned().unwrap_or_else(|| effect.clone())
+            } else {
+                effect.clone()
+            };
+            triggered_abilities.push(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
+                etb_filter: None,
+                death_filter: None,
+                combat_damage_filter: None,
+                triggering_creature_filter: None,
+                trigger_on: TriggerEvent::SelfDealsCombatDamageToPlayer,
+                intervening_if: None,
+                targets: targets.clone(),
+                description: "Whenever ~ deals combat damage to a player (CR 510.3a)".to_string(),
+                effect: Some(resolved_effect),
+            });
+        }
+    }
+    // CR 207.2c / CR 120.3: Convert "Whenever ~ is dealt damage" (Enrage ability
+    // word) card-definition triggers into runtime TriggeredAbilityDef entries so
+    // check_triggers can dispatch them via CombatDamageDealt and DamageDealt events.
+    // Per ruling 2018-01-19, multiple simultaneous sources trigger only once per creature.
+    for ability in abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition: TriggerCondition::WhenDealtDamage,
+            effect,
+            targets,
+            ..
+        } = ability
+        {
+            triggered_abilities.push(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
+                etb_filter: None,
+                death_filter: None,
+                combat_damage_filter: None,
+                triggering_creature_filter: None,
+                trigger_on: TriggerEvent::SelfIsDealtDamage,
+                intervening_if: None,
+                targets: targets.clone(),
+                description: "Enrage -- Whenever this creature is dealt damage (CR 207.2c)"
+                    .to_string(),
+                effect: Some(effect.clone()),
+            });
+        }
+    }
+    // CR 603.2 / CR 102.2: Convert "Whenever an opponent casts a spell"
+    // card-definition triggers into runtime TriggeredAbilityDef entries so
+    // check_triggers can dispatch them via SpellCast events.
+    // The opponent check is done at trigger-collection time in abilities.rs,
+    // not here -- this only wires the TriggerEvent.
+    for ability in abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition:
+                TriggerCondition::WheneverOpponentCastsSpell {
+                    spell_type_filter,
+                    noncreature_only,
+                },
+            effect,
+            targets,
+            ..
+        } = ability
+        {
+            // Index-namespace fix (2026-07-09): carry spell_type_filter/noncreature_only
+            // on the runtime TriggeredAbilityDef itself (reusing TargetFilter's
+            // has_card_types/non_creature) instead of leaving the post-filter in
+            // rules/abilities.rs to re-look the ability up via CardDefinition::abilities
+            // (a different, non-dense index space -- see abilities.rs G-4 comment).
+            let spell_filter = if spell_type_filter.is_some() || *noncreature_only {
+                Some(TargetFilter {
+                    has_card_types: spell_type_filter.clone().unwrap_or_default(),
+                    non_creature: *noncreature_only,
+                    ..Default::default()
+                })
+            } else {
+                None
+            };
+            triggered_abilities.push(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
+                etb_filter: None,
+                death_filter: None,
+                combat_damage_filter: None,
+                triggering_creature_filter: spell_filter,
+                trigger_on: TriggerEvent::OpponentCastsSpell,
+                intervening_if: None,
+                targets: targets.clone(),
+                description: "Whenever an opponent casts a spell (CR 603.2)".to_string(),
+                effect: Some(effect.clone()),
+            });
+        }
+    }
+    // CR 701.25d: Convert "Whenever you surveil" card-definition triggers into
+    // runtime TriggeredAbilityDef entries so check_triggers can dispatch them
+    // via Surveilled events.
+    for ability in abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition: TriggerCondition::WheneverYouSurveil,
+            effect,
+            targets,
+            ..
+        } = ability
+        {
+            triggered_abilities.push(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
+                etb_filter: None,
+                death_filter: None,
+                combat_damage_filter: None,
+                triggering_creature_filter: None,
+                trigger_on: TriggerEvent::ControllerSurveils,
+                intervening_if: None,
+                targets: targets.clone(),
+                description: "Whenever you surveil (CR 701.25d)".to_string(),
+                effect: Some(effect.clone()),
+            });
+        }
+    }
+    // CR 701.50b: Convert "Whenever this creature connives" card-definition triggers
+    // into runtime TriggeredAbilityDef entries so check_triggers can dispatch them
+    // via Connived events. Fires even if the creature left the battlefield
+    // (Psychic Pickpocket ruling, 2022-04-29).
+    for ability in abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition: TriggerCondition::WhenConnives,
+            effect,
+            targets,
+            ..
+        } = ability
+        {
+            triggered_abilities.push(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
+                etb_filter: None,
+                death_filter: None,
+                combat_damage_filter: None,
+                triggering_creature_filter: None,
+                trigger_on: TriggerEvent::SourceConnives,
+                intervening_if: None,
+                targets: targets.clone(),
+                description: "Whenever this creature connives (CR 701.50b)".to_string(),
+                effect: Some(effect.clone()),
+            });
+        }
+    }
+    // CR 701.16a: Convert "Whenever you investigate" card-definition triggers into
+    // runtime TriggeredAbilityDef entries so check_triggers can dispatch them
+    // via Investigated events.
+    for ability in abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition: TriggerCondition::WheneverYouInvestigate,
+            effect,
+            targets,
+            ..
+        } = ability
+        {
+            triggered_abilities.push(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
+                etb_filter: None,
+                death_filter: None,
+                combat_damage_filter: None,
+                triggering_creature_filter: None,
+                trigger_on: TriggerEvent::ControllerInvestigates,
+                intervening_if: None,
+                targets: targets.clone(),
+                description: "Whenever you investigate (CR 701.16a)".to_string(),
+                effect: Some(effect.clone()),
+            });
+        }
+    }
+    // CR 603.2: Convert "Whenever you cast a spell" card-definition triggers into
+    // runtime TriggeredAbilityDef entries so check_triggers can dispatch them
+    // via SpellCast events. Covers Inexorable Tide and similar enchantments.
+    // The `during_opponent_turn` flag is not enforced here — turn filtering is
+    // done at trigger-collection time in abilities.rs via ControllerCastsSpell.
+    for ability in abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition:
+                TriggerCondition::WheneverYouCastSpell {
+                    spell_type_filter,
+                    noncreature_only,
+                    spell_subtype_filter,
+                    // The elided `chosen_subtype_filter` (CR 603.1 "of the chosen type",
+                    // Vanquisher's Banner only) is a dynamic per-source condition (compared
+                    // against the source's `chosen_creature_type` at trigger time) rather
+                    // than a static TargetFilter predicate, so it cannot be folded into
+                    // `triggering_creature_filter` below. It remains unenforced by this
+                    // conversion — same as before this fix — and is out of scope here
+                    // (see rules/abilities.rs G-4 comment; Vanquisher's Banner card-level
+                    // fix is explicitly deferred).
+                    ..
+                },
+            effect,
+            targets,
+            ..
+        } = ability
+        {
+            // Index-namespace fix (2026-07-09): carry spell_type_filter/
+            // noncreature_only/spell_subtype_filter on the runtime TriggeredAbilityDef
+            // itself (reusing TargetFilter's has_card_types/non_creature/has_subtypes)
+            // instead of leaving the post-filter in rules/abilities.rs to re-look the
+            // ability up via CardDefinition::abilities (a different, non-dense index
+            // space -- see abilities.rs G-4 comment; this was the root cause of the
+            // Monastery Mentor / Leaf-Crowned Visionary filter bypass bug).
+            let spell_filter = if spell_type_filter.is_some()
+                || *noncreature_only
+                || spell_subtype_filter.is_some()
+            {
+                Some(TargetFilter {
+                    has_card_types: spell_type_filter.clone().unwrap_or_default(),
+                    non_creature: *noncreature_only,
+                    has_subtypes: spell_subtype_filter.clone().unwrap_or_default(),
+                    ..Default::default()
+                })
+            } else {
+                None
+            };
+            triggered_abilities.push(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
+                etb_filter: None,
+                death_filter: None,
+                combat_damage_filter: None,
+                triggering_creature_filter: spell_filter,
+                trigger_on: TriggerEvent::ControllerCastsSpell,
+                intervening_if: None,
+                targets: targets.clone(),
+                description: "Whenever you cast a spell (CR 603.2)".to_string(),
+                effect: Some(effect.clone()),
+            });
+        }
+    }
+    // CR 207.2c / CR 603.2: Convert "Whenever [another] creature [you control] enters"
+    // card-definition triggers into runtime TriggeredAbilityDef entries so
+    // check_triggers can dispatch them via AnyPermanentEntersBattlefield events.
+    //
+    // Used by the Alliance ability word (Prosperous Innkeeper, etc.) and similar patterns
+    // (Impact Tremors uses the same TriggerCondition but is an enchantment, not a creature).
+    // The ETB filter is applied at trigger-collection time in collect_triggers_for_event.
+    //
+    // PB-XS-E: `exclude_self` is now per-card. Set to `true` on cards whose oracle
+    // text uses "another"/"other" (Alliance cards, Shadow Alley Denizen, Marwyn, etc.);
+    // leave `false` on cards that say "this or another X" (Risen Reef, Ayara,
+    // Bloomvine Regent, Satoru) and on simple "Whenever a creature enters under your
+    // control" cards (Witty Roastmaster). For non-creature trigger sources the
+    // value is irrelevant — the source can never be the entering creature — but
+    // it should still match the oracle text for clarity.
+    for ability in abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition:
+                TriggerCondition::WheneverCreatureEntersBattlefield {
+                    filter,
+                    exclude_self,
+                },
+            effect,
+            targets,
+            ..
+        } = ability
+        {
+            let etb_filter = ETBTriggerFilter {
+                creature_only: true,
+                controller_you: filter
+                    .as_ref()
+                    .is_some_and(|f| matches!(f.controller, TargetController::You)),
+                exclude_self: *exclude_self,
+                // Propagate color filter from TargetFilter to ETBTriggerFilter.
+                // e.g., Shadow Alley Denizen: "another black creature you control enters"
+                color_filter: filter
+                    .as_ref()
+                    .and_then(|f| f.colors.as_ref())
+                    .and_then(|colors| {
+                        if colors.len() == 1 {
+                            colors.iter().next().copied()
+                        } else {
+                            None
+                        }
+                    }),
+                // Alliance filter is always creature (the creature_only flag handles it);
+                // the explicit card_type_filter is not needed for this conversion.
+                card_type_filter: None,
+            };
+            triggered_abilities.push(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
+                trigger_on: TriggerEvent::AnyPermanentEntersBattlefield,
+                // Intervening-if conditions (card_definition::Condition) are a different
+                // type from runtime InterveningIf; conversion is deferred. None is safe
+                // for all known Alliance cards.
+                intervening_if: None,
+                description: "Alliance -- Whenever another creature you control enters (CR 207.2c)"
+                    .to_string(),
+                effect: Some(effect.clone()),
+                etb_filter: Some(etb_filter),
+                death_filter: None,
+                combat_damage_filter: None,
+                // PB-AC0 (CR 603.2 / CR 205.3 / CR 111.1): forward the full carddef
+                // TargetFilter as triggering_creature_filter so has_subtype /
+                // has_subtypes / is_nontoken / exclude_subtypes are honored on the
+                // creature-ETB trigger path. The ETBTriggerFilter above only carries
+                // creature_only / controller_you / exclude_self / color_filter /
+                // card_type_filter. Mirrors the death-trigger conversion. CR 603.2.
+                triggering_creature_filter: filter.clone(),
+                targets: targets.clone(),
+            });
+        }
+    }
+    // PB-L (CR 207.2c / CR 603.2): Convert "Whenever a permanent enters the battlefield"
+    // card-definition triggers into runtime TriggeredAbilityDef entries so check_triggers
+    // can dispatch them via AnyPermanentEntersBattlefield events.
+    //
+    // This is the battlefield-side counterpart to collect_graveyard_carddef_triggers
+    // (which handles the same TriggerCondition while the source is in the graveyard,
+    // e.g. Bloodghast).
+    //
+    // Covers Landfall (ability word, CR 207.2c) and all other
+    // "Whenever a [permanent type] [you control] enters" triggers:
+    //   - Lotus Cobra, Evolution Sage, Jaddi Offshoot (Land + You)
+    //   - Horn of Greed (Land, any controller)
+    //   - Warstorm Surge, Puresteel Paladin (non-Land filters)
+    //
+    // Unlike Alliance (WheneverCreatureEntersBattlefield) which historically
+    // hardcoded `exclude_self: true`, this variant has always defaulted to
+    // `exclude_self: false` (a land you just played can satisfy your own
+    // "whenever a land enters" trigger). PB-XS-E surfaces both as a per-card
+    // field so cards can opt into self-exclusion when oracle text says "another"
+    // for a filter that could match the source itself.
+    //
+    // Field mapping:
+    //   - `creature_only: false` unless the filter specifies Creature
+    //   - `card_type_filter: filter.has_card_type` (PB-L)
+    //   - `exclude_self: trigger_condition.exclude_self` (PB-XS-E)
+    //
+    // Skips abilities with `trigger_zone: Some(TriggerZone::Graveyard)` — those are
+    // handled by collect_graveyard_carddef_triggers at dispatch time and must NOT
+    // be added to the battlefield spec (the spec lives on the battlefield object,
+    // but these triggers fire only from the graveyard).
+    for ability in abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition:
+                TriggerCondition::WheneverPermanentEntersBattlefield {
+                    filter,
+                    exclude_self,
+                },
+            effect,
+            trigger_zone,
+            targets,
+            ..
+        } = ability
+        {
+            // Graveyard-zone triggers (Bloodghast) are dispatched separately.
+            if trigger_zone.is_some() {
+                continue;
+            }
+            let (creature_only, card_type_filter, controller_you, color_filter) = match filter {
+                Some(f) => {
+                    let creature_only = matches!(f.has_card_type, Some(CardType::Creature));
+                    // If the filter specifies a non-Creature card type, carry it in
+                    // card_type_filter. For Creature, the creature_only flag handles it.
+                    let card_type_filter = match f.has_card_type {
+                        Some(CardType::Creature) => None,
+                        other => other,
+                    };
+                    let controller_you = matches!(f.controller, TargetController::You);
+                    let color_filter = f.colors.as_ref().and_then(|colors| {
+                        if colors.len() == 1 {
+                            colors.iter().next().copied()
+                        } else {
+                            None
+                        }
+                    });
+                    (
+                        creature_only,
+                        card_type_filter,
+                        controller_you,
+                        color_filter,
+                    )
+                }
+                None => (false, None, false, None),
+            };
+            let etb_filter = ETBTriggerFilter {
+                creature_only,
+                controller_you,
+                // PB-XS-E (CR 109.1 / 603.2): per-card "another" gate. The default
+                // (`false`) keeps Landfall-style triggers firing for the entering
+                // land you just played. Setting `true` matches oracle text using
+                // "another [permanent type]" — used when the filter could match
+                // the trigger source itself (e.g. a creature with a layer-effect
+                // type addition matching its own filter).
+                exclude_self: *exclude_self,
+                color_filter,
+                card_type_filter,
+            };
+            triggered_abilities.push(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
+                trigger_on: TriggerEvent::AnyPermanentEntersBattlefield,
+                // card_definition::Condition ↔ runtime InterveningIf conversion is
+                // deferred (same rationale as Alliance). None is safe for all
+                // known simple Landfall cards; compound-conditional cases
+                // (Moraug, Omnath Locus of Creation) remain TODO-blocked.
+                intervening_if: None,
+                description: "Whenever a permanent enters the battlefield (CR 207.2c / CR 603.2)"
+                    .to_string(),
+                effect: Some(effect.clone()),
+                etb_filter: Some(etb_filter),
+                death_filter: None,
+                combat_damage_filter: None,
+                triggering_creature_filter: None,
+                targets: targets.clone(),
+            });
+        }
+    }
+    // CR 702.140d: Convert "Whenever this creature mutates" card-definition triggers
+    // into runtime TriggeredAbilityDef entries so check_triggers can dispatch them
+    // via CreatureMutated events. Only fires on the merged permanent itself (CR 729.2c).
+    for ability in abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition: TriggerCondition::WhenMutates,
+            effect,
+            targets,
+            ..
+        } = ability
+        {
+            triggered_abilities.push(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
+                etb_filter: None,
+                death_filter: None,
+                combat_damage_filter: None,
+                triggering_creature_filter: None,
+                trigger_on: TriggerEvent::SelfMutates,
+                intervening_if: None,
+                targets: targets.clone(),
+                description: "Whenever this creature mutates (CR 702.140d)".to_string(),
+                effect: Some(effect.clone()),
+            });
+        }
+    }
+    // "Whenever this permanent becomes tapped" — fires on any tap event (mana, combat,
+    // opponent effects). Used by City of Brass. Maps to TriggerEvent::SelfBecomesTapped
+    // which is already dispatched from GameEvent::PermanentTapped in check_triggers.
+    for ability in abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition: TriggerCondition::WhenSelfBecomesTapped,
+            effect,
+            targets,
+            ..
+        } = ability
+        {
+            triggered_abilities.push(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
+                etb_filter: None,
+                death_filter: None,
+                combat_damage_filter: None,
+                triggering_creature_filter: None,
+                trigger_on: TriggerEvent::SelfBecomesTapped,
+                intervening_if: None,
+                targets: targets.clone(),
+                description: "Whenever this permanent becomes tapped".to_string(),
+                effect: Some(effect.clone()),
+            });
+        }
+    }
+    // CR 502.3 / 603.2e (PB-AC1): Convert "Whenever a permanent becomes untapped" card-definition
+    // triggers into runtime TriggeredAbilityDef entries so check_triggers can dispatch them via
+    // AnyPermanentUntaps events. The optional filter is forwarded to `triggering_creature_filter`
+    // (a legacy field name reused for any triggering object, not just creatures) and applied at
+    // trigger-collection time in `collect_triggers_for_event`.
+    for ability in abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition: TriggerCondition::WheneverPermanentUntaps { filter },
+            effect,
+            once_per_turn,
+            targets,
+            ..
+        } = ability
+        {
+            triggered_abilities.push(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: *once_per_turn,
+                etb_filter: None,
+                death_filter: None,
+                combat_damage_filter: None,
+                triggering_creature_filter: filter.clone(),
+                trigger_on: TriggerEvent::AnyPermanentUntaps,
+                intervening_if: None,
+                targets: targets.clone(),
+                description: "Whenever a permanent becomes untapped (CR 502.3/603.2e)".to_string(),
+                effect: Some(effect.clone()),
+            });
+        }
+    }
+    // CR 122.6 / 122.7 (PB-AC1): Convert "When/Whenever counter(s) are put on [this
+    // permanent] / [a permanent you control]" card-definition triggers into runtime
+    // TriggeredAbilityDef entries so check_triggers can dispatch them via CounterPlaced
+    // events. `counter` and `on_self` are forwarded directly to the runtime `counter_filter` /
+    // `counter_on_self` fields; `filter` (for the on_self:false "a creature you control" case)
+    // is forwarded to `triggering_creature_filter`.
+    for ability in abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition:
+                TriggerCondition::WhenCounterPlaced {
+                    counter,
+                    filter,
+                    on_self,
+                },
+            effect,
+            once_per_turn,
+            targets,
+            ..
+        } = ability
+        {
+            triggered_abilities.push(TriggeredAbilityDef {
+                counter_filter: counter.clone(),
+                counter_on_self: *on_self,
+                once_per_turn: *once_per_turn,
+                etb_filter: None,
+                death_filter: None,
+                combat_damage_filter: None,
+                triggering_creature_filter: filter.clone(),
+                trigger_on: TriggerEvent::CounterPlaced,
+                intervening_if: None,
+                targets: targets.clone(),
+                description:
+                    "Whenever one or more counters are put on a permanent (CR 122.6/122.7)"
+                        .to_string(),
+                effect: Some(effect.clone()),
+            });
+        }
+    }
+    // CR 603.10a: Convert "Whenever [another] [nontoken] creature [you control / an opponent controls] dies"
+    // card-definition triggers into runtime TriggeredAbilityDef entries so check_triggers can
+    // dispatch them via AnyCreatureDies events.
+    //
+    // The controller filter, exclude_self, and nontoken_only fields are set on DeathTriggerFilter
+    // and applied at trigger-collection time in collect_triggers_for_event.
+    //
+    // CR 603.10a: Convert "Whenever [another] [nontoken] creature [you control / an opponent controls] dies"
+    // card-definition triggers into runtime TriggeredAbilityDef entries.
+    // The exclude_self and nontoken_only fields from the card def are forwarded directly to
+    // DeathTriggerFilter and applied at trigger-collection time.
+    for ability in abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition:
+                TriggerCondition::WheneverCreatureDies {
+                    controller,
+                    exclude_self,
+                    nontoken_only,
+                    filter,
+                },
+            effect,
+            once_per_turn,
+            targets,
+            ..
+        } = ability
+        {
+            let death_filter = DeathTriggerFilter {
+                controller_you: matches!(controller, Some(TargetController::You)),
+                controller_opponent: matches!(controller, Some(TargetController::Opponent)),
+                exclude_self: *exclude_self,
+                nontoken_only: *nontoken_only,
+            };
+            triggered_abilities.push(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                // CR 603.2c/603.2h (PB-AC1): forward "triggers only once each turn" (Morbid
+                // Opportunist) from the card def.
+                once_per_turn: *once_per_turn,
+                trigger_on: TriggerEvent::AnyCreatureDies,
+                intervening_if: None,
+                description: "Whenever a creature dies (CR 603.10a)".to_string(),
+                effect: Some(effect.clone()),
+                etb_filter: None,
+                death_filter: Some(death_filter),
+                combat_damage_filter: None,
+                // PB-N: forward the DSL subtype/color filter to the runtime field (CR 603.10a)
+                triggering_creature_filter: filter.clone(),
+                targets: targets.clone(),
+            });
+        }
+    }
+    // CR 508.1m / CR 603.2: Convert "Whenever a creature you control attacks" card-definition
+    // triggers into runtime TriggeredAbilityDef entries so check_triggers can dispatch them
+    // via AnyCreatureYouControlAttacks events.
+    //
+    // Controller filtering is applied at trigger-collection time by checking that the attacking
+    // creature's controller matches the trigger source's controller.
+    for ability in abilities {
+        if let AbilityDefinition::Triggered {
+            // PB-N: WheneverCreatureYouControlAttacks changed from unit to struct variant
+            trigger_condition: TriggerCondition::WheneverCreatureYouControlAttacks { filter },
+            effect,
+            targets,
+            ..
+        } = ability
+        {
+            triggered_abilities.push(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
+                trigger_on: TriggerEvent::AnyCreatureYouControlAttacks,
+                intervening_if: None,
+                description: "Whenever a creature you control attacks (CR 508.1m)".to_string(),
+                effect: Some(effect.clone()),
+                etb_filter: None,
+                death_filter: None,
+                combat_damage_filter: None,
+                // PB-N: forward the DSL subtype/color filter to the runtime field (CR 508.1m)
+                triggering_creature_filter: filter.clone(),
+                // PB-EF3 A1: forward the DSL declared targets (CR 601.2c) instead of
+                // dropping them — see abilities.rs A2 for the matching fallback fix.
+                targets: targets.clone(),
+            });
+        }
+    }
+    // CR 510.3a / CR 603.2: Convert "Whenever a creature you control deals combat damage to a
+    // player" card-definition triggers into runtime TriggeredAbilityDef entries so check_triggers
+    // can dispatch them via AnyCreatureYouControlDealsCombatDamageToPlayer events.
+    //
+    // Controller filtering is applied at trigger-collection time by checking that the source
+    // creature's controller matches the trigger source's controller.
+    for ability in abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition:
+                TriggerCondition::WheneverCreatureYouControlDealsCombatDamageToPlayer { filter },
+            effect,
+            targets,
+            ..
+        } = ability
+        {
+            triggered_abilities.push(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
+                trigger_on: TriggerEvent::AnyCreatureYouControlDealsCombatDamageToPlayer,
+                intervening_if: None,
+                description:
+                    "Whenever a creature you control deals combat damage to a player (CR 510.3a)"
+                        .to_string(),
+                effect: Some(effect.clone()),
+                etb_filter: None,
+                death_filter: None,
+                combat_damage_filter: filter.clone(),
+                triggering_creature_filter: None,
+                targets: targets.clone(),
+            });
+        }
+    }
+    // CR 510.3a / CR 603.2c: Convert "Whenever one or more creatures you control deal combat
+    // damage to a player" batch trigger into runtime TriggeredAbilityDef entries.
+    for ability in abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition:
+                TriggerCondition::WhenOneOrMoreCreaturesYouControlDealCombatDamageToPlayer { filter },
+            effect,
+            targets,
+            ..
+        } = ability
+        {
+            triggered_abilities.push(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
+                trigger_on: TriggerEvent::AnyCreatureYouControlBatchCombatDamage,
+                intervening_if: None,
+                description:
+                    "Whenever one or more creatures you control deal combat damage to a player (CR 510.3a)"
+                        .to_string(),
+                effect: Some(effect.clone()),
+                etb_filter: None,
+                death_filter: None,
+                combat_damage_filter: filter.clone(),
+                triggering_creature_filter: None,
+                targets: targets.clone(),
+            });
+        }
+    }
+    // CR 510.3a: Convert "Whenever equipped creature deals combat damage to a player" triggers.
+    for ability in abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition: TriggerCondition::WhenEquippedCreatureDealsCombatDamageToPlayer,
+            effect,
+            targets,
+            ..
+        } = ability
+        {
+            triggered_abilities.push(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
+                trigger_on: TriggerEvent::EquippedCreatureDealsCombatDamageToPlayer,
+                intervening_if: None,
+                description:
+                    "Whenever equipped creature deals combat damage to a player (CR 510.3a)"
+                        .to_string(),
+                effect: Some(effect.clone()),
+                etb_filter: None,
+                death_filter: None,
+                combat_damage_filter: None,
+                triggering_creature_filter: None,
+                targets: targets.clone(),
+            });
+        }
+    }
+    // CR 510.3a: Convert "Whenever enchanted creature deals damage to a player" triggers.
+    for ability in abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition: TriggerCondition::WhenEnchantedCreatureDealsDamageToPlayer { .. },
+            effect,
+            targets,
+            ..
+        } = ability
+        {
+            triggered_abilities.push(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
+                trigger_on: TriggerEvent::EnchantedCreatureDealsDamageToPlayer,
+                intervening_if: None,
+                description: "Whenever enchanted creature deals damage to a player (CR 510.3a)"
+                    .to_string(),
+                effect: Some(effect.clone()),
+                etb_filter: None,
+                death_filter: None,
+                combat_damage_filter: None,
+                triggering_creature_filter: None,
+                targets: targets.clone(),
+            });
+        }
+    }
+    // CR 510.3a / CR 603.2: Convert "Whenever a creature deals combat damage to one of your
+    // opponents" (Edric) triggers into runtime TriggeredAbilityDef entries.
+    for ability in abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition: TriggerCondition::WhenAnyCreatureDealsCombatDamageToOpponent,
+            effect,
+            targets,
+            ..
+        } = ability
+        {
+            triggered_abilities.push(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
+                trigger_on: TriggerEvent::AnyCreatureDealsCombatDamageToOpponent,
+                intervening_if: None,
+                description:
+                    "Whenever a creature deals combat damage to one of your opponents (CR 510.3a)"
+                        .to_string(),
+                effect: Some(effect.clone()),
+                etb_filter: None,
+                death_filter: None,
+                combat_damage_filter: None,
+                triggering_creature_filter: None,
+                targets: targets.clone(),
+            });
+        }
+    }
+    // CR 701.9a: Convert "Whenever you discard a card" triggers.
+    for ability in abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition: TriggerCondition::WheneverYouDiscard,
+            effect,
+            targets,
+            ..
+        } = ability
+        {
+            triggered_abilities.push(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
+                trigger_on: TriggerEvent::ControllerDiscards,
+                intervening_if: None,
+                description: "Whenever you discard a card (CR 701.9a)".to_string(),
+                effect: Some(effect.clone()),
+                etb_filter: None,
+                death_filter: None,
+                combat_damage_filter: None,
+                triggering_creature_filter: None,
+                targets: targets.clone(),
+            });
+        }
+    }
+    // CR 701.9a: Convert "Whenever an opponent discards a card" triggers.
+    for ability in abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition: TriggerCondition::WheneverOpponentDiscards,
+            effect,
+            targets,
+            ..
+        } = ability
+        {
+            triggered_abilities.push(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
+                trigger_on: TriggerEvent::OpponentDiscards,
+                intervening_if: None,
+                description: "Whenever an opponent discards a card (CR 701.9a)".to_string(),
+                effect: Some(effect.clone()),
+                etb_filter: None,
+                death_filter: None,
+                combat_damage_filter: None,
+                triggering_creature_filter: None,
+                targets: targets.clone(),
+            });
+        }
+    }
+    // CR 305.1: Convert "Whenever an opponent plays a land" triggers.
+    for ability in abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition: TriggerCondition::WheneverOpponentPlaysLand,
+            effect,
+            targets,
+            ..
+        } = ability
+        {
+            triggered_abilities.push(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
+                trigger_on: TriggerEvent::OpponentPlaysLand,
+                intervening_if: None,
+                etb_filter: None,
+                death_filter: None,
+                combat_damage_filter: None,
+                triggering_creature_filter: None,
+                targets: targets.clone(),
+                description: "Whenever an opponent plays a land (CR 305.1)".to_string(),
+                effect: Some(effect.clone()),
+            });
+        }
+    }
+    // CR 701.21a: Convert "Whenever you sacrifice a permanent" triggers.
+    // player_filter=None → ControllerSacrifices (fires only when controller sacrifices).
+    // player_filter=Some(Any) → ControllerSacrifices (any player; filtered at dispatch time).
+    for ability in abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition: TriggerCondition::WheneverYouSacrifice { .. },
+            effect,
+            targets,
+            ..
+        } = ability
+        {
+            triggered_abilities.push(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
+                trigger_on: TriggerEvent::ControllerSacrifices,
+                intervening_if: None,
+                description: "Whenever you sacrifice a permanent (CR 701.21a)".to_string(),
+                effect: Some(effect.clone()),
+                etb_filter: None,
+                death_filter: None,
+                combat_damage_filter: None,
+                triggering_creature_filter: None,
+                targets: targets.clone(),
+            });
+        }
+    }
+    // CR 508.1: Convert "Whenever you attack" triggers.
+    for ability in abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition: TriggerCondition::WheneverYouAttack,
+            effect,
+            targets,
+            ..
+        } = ability
+        {
+            triggered_abilities.push(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
+                trigger_on: TriggerEvent::ControllerAttacks,
+                intervening_if: None,
+                description: "Whenever you attack (CR 508.1)".to_string(),
+                effect: Some(effect.clone()),
+                etb_filter: None,
+                death_filter: None,
+                combat_damage_filter: None,
+                triggering_creature_filter: None,
+                targets: targets.clone(),
+            });
+        }
+    }
+    // CR 603.10a: Convert "When ~ leaves the battlefield" triggers.
+    for ability in abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition: TriggerCondition::WhenLeavesBattlefield,
+            effect,
+            targets,
+            ..
+        } = ability
+        {
+            triggered_abilities.push(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
+                trigger_on: TriggerEvent::SelfLeavesBattlefield,
+                intervening_if: None,
+                description: "When ~ leaves the battlefield (CR 603.10a)".to_string(),
+                effect: Some(effect.clone()),
+                etb_filter: None,
+                death_filter: None,
+                combat_damage_filter: None,
+                triggering_creature_filter: None,
+                targets: targets.clone(),
+            });
+        }
+    }
+    // CR 603.2: Convert "Whenever you draw a card" triggers (WheneverYouDrawACard).
+    // Maps to ControllerDrawsCard event — dispatched via CardDrawn.
+    for ability in abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition: TriggerCondition::WheneverYouDrawACard,
+            effect,
+            targets,
+            ..
+        } = ability
+        {
+            triggered_abilities.push(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
+                trigger_on: TriggerEvent::ControllerDrawsCard,
+                intervening_if: None,
+                description: "Whenever you draw a card (CR 603.2)".to_string(),
+                effect: Some(effect.clone()),
+                etb_filter: None,
+                death_filter: None,
+                combat_damage_filter: None,
+                triggering_creature_filter: None,
+                targets: targets.clone(),
+            });
+        }
+    }
+    // CR 603.2: Convert "Whenever a player draws a card" triggers (WheneverPlayerDrawsCard).
+    // player_filter=None → AnyPlayerDrawsCard, Some(Opponent) → OpponentDrawsCard,
+    // Some(You) → ControllerDrawsCard.
+    for ability in abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition: TriggerCondition::WheneverPlayerDrawsCard { player_filter },
+            effect,
+            targets,
+            ..
+        } = ability
+        {
+            let trigger_on = match player_filter {
+                Some(TargetController::Opponent) => TriggerEvent::OpponentDrawsCard,
+                Some(TargetController::You) => TriggerEvent::ControllerDrawsCard,
+                _ => TriggerEvent::AnyPlayerDrawsCard,
+            };
+            let desc = match player_filter {
+                Some(TargetController::Opponent) => "Whenever an opponent draws a card (CR 603.2)",
+                Some(TargetController::You) => "Whenever you draw a card (CR 603.2)",
+                _ => "Whenever a player draws a card (CR 603.2)",
+            };
+            triggered_abilities.push(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
+                trigger_on,
+                intervening_if: None,
+                description: desc.to_string(),
+                effect: Some(effect.clone()),
+                etb_filter: None,
+                death_filter: None,
+                combat_damage_filter: None,
+                triggering_creature_filter: None,
+                targets: targets.clone(),
+            });
+        }
+    }
+    // CR 603.2 / CR 118.4: Convert "Whenever you gain life" triggers.
+    // Maps to ControllerGainsLife — dispatched via LifeGained.
+    for ability in abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition: TriggerCondition::WheneverYouGainLife,
+            effect,
+            targets,
+            ..
+        } = ability
+        {
+            triggered_abilities.push(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
+                trigger_on: TriggerEvent::ControllerGainsLife,
+                intervening_if: None,
+                description: "Whenever you gain life (CR 603.2)".to_string(),
+                effect: Some(effect.clone()),
+                etb_filter: None,
+                death_filter: None,
+                combat_damage_filter: None,
+                triggering_creature_filter: None,
+                targets: targets.clone(),
+            });
+        }
+    }
+    // CR 603.2: WhenYouCastThisSpell is dispatched directly from the SpellCast arm
+    // in check_triggers using the CardDef ability_index. No TriggeredAbilityDef needed.
+    // PB-AC6 / CR 601.2c / 602.2b / 603.2: Convert "Whenever [this permanent / a <filter>
+    // you control] becomes the target of a spell [or ability] [an opponent controls]"
+    // card-definition triggers into runtime TriggeredAbilityDef entries. Only `trigger_on`
+    // carries the scope/by_opponent/include_abilities params -- the inline dispatch in
+    // `check_triggers`'s `GameEvent::PermanentTargeted` arm reads them directly from the
+    // `TriggerEvent::PermanentBecomesTarget` variant (NOT via the generic equality-based
+    // `collect_triggers_for_event`, since each card's params differ).
+    for ability in abilities {
+        if let AbilityDefinition::Triggered {
+            trigger_condition:
+                TriggerCondition::WhenBecomesTarget {
+                    scope,
+                    by_opponent,
+                    include_abilities,
+                },
+            effect,
+            targets,
+            ..
+        } = ability
+        {
+            triggered_abilities.push(TriggeredAbilityDef {
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
+                trigger_on: TriggerEvent::PermanentBecomesTarget {
+                    scope: scope.clone(),
+                    by_opponent: *by_opponent,
+                    include_abilities: *include_abilities,
+                },
+                intervening_if: None,
+                description: "Whenever ~ becomes the target of a spell/ability (CR 601.2c/602.2b)"
+                    .to_string(),
+                effect: Some(effect.clone()),
+                etb_filter: None,
+                death_filter: None,
+                combat_damage_filter: None,
+                triggering_creature_filter: None,
+                targets: targets.clone(),
+            });
+        }
+    }
+    (mana_abilities, activated_abilities, triggered_abilities)
+}
+
 /// Enrich an [`ObjectSpec`] with card type, mana cost, keyword, and mana-ability
 /// information from the card's definition, if available.
 ///
@@ -2128,73 +3397,23 @@ pub fn enrich_spec_from_def(
             spec = spec.with_keyword(kw.clone());
         }
     }
-    // SR-34 (CR 605.1a): convert mana-producing activated abilities into mana abilities.
-    // CR 605.1a classifies an ability as a mana ability by what it *does* (no target,
-    // could add mana, not a loyalty ability), not by what it costs — so this is no longer
-    // gated on `matches!(cost, Cost::Tap)`. `mana_ability_lowering` (below) is the single
-    // predicate deciding both this and the `activated_abilities` exclusion right below it,
-    // so the two can never disagree (SR-34 §3 step 5 — they previously did, silently, for
-    // `Effect::AddManaMatchingType`).
-    for ability in &def.abilities {
-        if let AbilityDefinition::Activated {
-            cost,
-            effect,
-            targets: ab_targets,
-            activation_condition,
-            ..
-        } = ability
-        {
-            if let Some(ma) = mana_ability_lowering(ab_targets, cost, effect, activation_condition)
-            {
-                spec = spec.with_mana_ability(ma);
-            }
-        }
+    // Face-aware ability gathering (CR 712.8d/e, PB-OS4b): the mana-ability lowering,
+    // non-mana activated-ability lowering, and triggered-ability lowering below are
+    // extracted into `build_face_ability_vectors` so `apply_face_change` can rebuild the
+    // same three vectors from the *back* face's abilities at the transform boundary,
+    // using byte-identical logic. This call lowers the *front* face (`def.abilities`).
+    // Front-face-only concerns that are NOT part of these three vectors (keyword
+    // markers, the Reconfigure/Outlast/Champion/Soulbond/Cipher/Gift keyword tags) stay
+    // inline below unchanged. The triggered-ability vector is applied further down, at
+    // the point the old inline loops used to begin, to preserve the original code's
+    // application order exactly.
+    let (front_mana_abilities, front_activated_abilities, front_triggered_abilities) =
+        build_face_ability_vectors(&def.abilities);
+    for ma in front_mana_abilities {
+        spec = spec.with_mana_ability(ma);
     }
-    // Populate non-mana activated abilities into characteristics.activated_abilities.
-    // This is required so that Command::ActivateAbility can look up the ability by index.
-    for ability in &def.abilities {
-        if let AbilityDefinition::Activated {
-            cost,
-            effect,
-            timing_restriction,
-            targets: ab_targets,
-            activation_condition,
-            activation_zone,
-            once_per_turn,
-            modes,
-        } = ability
-        {
-            // Skip every ability the loop above registered as a ManaAbility (SR-34: no
-            // longer just bare-Tap fixed/any-color/scaled/filter-choice). Including it here
-            // too would shift ability_index for every non-mana activated ability that
-            // follows it (SF-6).
-            let is_tap_mana_ability =
-                mana_ability_lowering(ab_targets, cost, effect, activation_condition).is_some();
-            if !is_tap_mana_ability {
-                let activation_cost = cost_to_activation_cost(cost);
-                let ab = ActivatedAbility {
-                    cost: activation_cost,
-                    description: String::new(),
-                    effect: Some(effect.clone()),
-                    // CR 602.5d: Propagate timing restriction so sorcery-speed abilities
-                    // (e.g., Equip) are enforced in handle_activate_ability.
-                    sorcery_speed: matches!(
-                        timing_restriction,
-                        Some(TimingRestriction::SorcerySpeed)
-                    ),
-                    targets: ab_targets.clone(),
-                    // CR 602.5b: Propagate activation condition ("activate only if ...").
-                    activation_condition: activation_condition.clone(),
-                    // CR 602.2: Propagate activation zone for graveyard-activated abilities.
-                    activation_zone: activation_zone.clone(),
-                    // CR 602.5b: Propagate once-per-turn restriction.
-                    once_per_turn: *once_per_turn,
-                    // CR 700.2a: Propagate modal structure for modal activated abilities.
-                    modes: modes.clone(),
-                };
-                spec = spec.with_activated_ability(ab);
-            }
-        }
+    for ab in front_activated_abilities {
+        spec = spec.with_activated_ability(ab);
     }
     // CR 702.72: AbilityDefinition::Champion { .. } adds KeywordAbility::Champion marker.
     // The champion filter is looked up at trigger time from the card registry.
@@ -2311,1178 +3530,10 @@ pub fn enrich_spec_from_def(
             spec = spec.with_activated_ability(ab);
         }
     }
-    // CR 603.6c / CR 700.4: Convert "When ~ dies" card-definition triggers into
-    // runtime TriggeredAbilityDef entries so check_triggers can dispatch them.
-    // This covers self-referential dies triggers (e.g. Solemn Simulacrum).
-    // CR 700.2b: For modal WhenDies triggers, use mode 0 as the bot fallback effect.
-    for ability in &def.abilities {
-        if let AbilityDefinition::Triggered {
-            trigger_condition: TriggerCondition::WhenDies,
-            effect,
-            modes,
-            targets,
-            ..
-        } = ability
-        {
-            // CR 700.2b: If modal, pre-select mode 0 as the bot fallback.
-            let resolved_effect = if let Some(m) = modes {
-                m.modes.first().cloned().unwrap_or_else(|| effect.clone())
-            } else {
-                effect.clone()
-            };
-            spec = spec.with_triggered_ability(TriggeredAbilityDef {
-                counter_filter: None,
-                counter_on_self: false,
-                once_per_turn: false,
-                etb_filter: None,
-                death_filter: None,
-                combat_damage_filter: None,
-                triggering_creature_filter: None,
-                trigger_on: TriggerEvent::SelfDies,
-                intervening_if: None,
-                targets: targets.clone(),
-                description: "When ~ dies (CR 700.4)".to_string(),
-                effect: Some(resolved_effect),
-            });
-        }
-    }
-    // CR 508.1m / CR 508.3a: Convert "Whenever ~ attacks" card-definition triggers into
-    // runtime TriggeredAbilityDef entries so check_triggers can dispatch them.
-    // This covers self-referential attack triggers (e.g. Audacious Thief).
-    // Note: CR 508.4 — creatures put onto the battlefield attacking do NOT trigger
-    // "whenever ~ attacks"; they were never declared as attackers. The engine correctly
-    // dispatches SelfAttacks only from AttackersDeclared events (not from any other
-    // mechanism), so this enrichment path is safe.
-    for ability in &def.abilities {
-        if let AbilityDefinition::Triggered {
-            trigger_condition: TriggerCondition::WhenAttacks,
-            effect,
-            modes,
-            targets,
-            ..
-        } = ability
-        {
-            // CR 700.2b: If modal, pre-select mode 0 as the bot fallback.
-            let resolved_effect = if let Some(m) = modes {
-                m.modes.first().cloned().unwrap_or_else(|| effect.clone())
-            } else {
-                effect.clone()
-            };
-            spec = spec.with_triggered_ability(TriggeredAbilityDef {
-                counter_filter: None,
-                counter_on_self: false,
-                once_per_turn: false,
-                etb_filter: None,
-                death_filter: None,
-                combat_damage_filter: None,
-                triggering_creature_filter: None,
-                trigger_on: TriggerEvent::SelfAttacks,
-                intervening_if: None,
-                targets: targets.clone(),
-                description: "Whenever ~ attacks (CR 508.3a)".to_string(),
-                effect: Some(resolved_effect),
-            });
-        }
-    }
-    // CR 509.1: Convert "Whenever ~ blocks" card-definition triggers into runtime
-    // TriggeredAbilityDef entries so check_triggers can dispatch them.
-    // This covers self-referential block triggers (e.g. a creature with "Whenever ~ blocks").
-    for ability in &def.abilities {
-        if let AbilityDefinition::Triggered {
-            trigger_condition: TriggerCondition::WhenBlocks,
-            effect,
-            targets,
-            ..
-        } = ability
-        {
-            spec = spec.with_triggered_ability(TriggeredAbilityDef {
-                counter_filter: None,
-                counter_on_self: false,
-                once_per_turn: false,
-                etb_filter: None,
-                death_filter: None,
-                combat_damage_filter: None,
-                triggering_creature_filter: None,
-                trigger_on: TriggerEvent::SelfBlocks,
-                intervening_if: None,
-                targets: targets.clone(),
-                description: "Whenever ~ blocks (CR 509.1)".to_string(),
-                effect: Some(effect.clone()),
-            });
-        }
-    }
-    // CR 510.3a / CR 603.2: Convert "Whenever ~ deals combat damage to a player"
-    // card-definition triggers into runtime TriggeredAbilityDef entries so
-    // check_triggers can dispatch them via CombatDamageDealt events.
-    // intervening_if is None here: Condition and InterveningIf are separate types;
-    // conditional combat-damage triggers are rare and deferred.
-    for ability in &def.abilities {
-        if let AbilityDefinition::Triggered {
-            trigger_condition: TriggerCondition::WhenDealsCombatDamageToPlayer,
-            effect,
-            modes,
-            targets,
-            ..
-        } = ability
-        {
-            // CR 700.2b: If modal, pre-select mode 0 as the bot fallback.
-            let resolved_effect = if let Some(m) = modes {
-                m.modes.first().cloned().unwrap_or_else(|| effect.clone())
-            } else {
-                effect.clone()
-            };
-            spec = spec.with_triggered_ability(TriggeredAbilityDef {
-                counter_filter: None,
-                counter_on_self: false,
-                once_per_turn: false,
-                etb_filter: None,
-                death_filter: None,
-                combat_damage_filter: None,
-                triggering_creature_filter: None,
-                trigger_on: TriggerEvent::SelfDealsCombatDamageToPlayer,
-                intervening_if: None,
-                targets: targets.clone(),
-                description: "Whenever ~ deals combat damage to a player (CR 510.3a)".to_string(),
-                effect: Some(resolved_effect),
-            });
-        }
-    }
-    // CR 207.2c / CR 120.3: Convert "Whenever ~ is dealt damage" (Enrage ability
-    // word) card-definition triggers into runtime TriggeredAbilityDef entries so
-    // check_triggers can dispatch them via CombatDamageDealt and DamageDealt events.
-    // Per ruling 2018-01-19, multiple simultaneous sources trigger only once per creature.
-    for ability in &def.abilities {
-        if let AbilityDefinition::Triggered {
-            trigger_condition: TriggerCondition::WhenDealtDamage,
-            effect,
-            targets,
-            ..
-        } = ability
-        {
-            spec = spec.with_triggered_ability(TriggeredAbilityDef {
-                counter_filter: None,
-                counter_on_self: false,
-                once_per_turn: false,
-                etb_filter: None,
-                death_filter: None,
-                combat_damage_filter: None,
-                triggering_creature_filter: None,
-                trigger_on: TriggerEvent::SelfIsDealtDamage,
-                intervening_if: None,
-                targets: targets.clone(),
-                description: "Enrage -- Whenever this creature is dealt damage (CR 207.2c)"
-                    .to_string(),
-                effect: Some(effect.clone()),
-            });
-        }
-    }
-    // CR 603.2 / CR 102.2: Convert "Whenever an opponent casts a spell"
-    // card-definition triggers into runtime TriggeredAbilityDef entries so
-    // check_triggers can dispatch them via SpellCast events.
-    // The opponent check is done at trigger-collection time in abilities.rs,
-    // not here -- this only wires the TriggerEvent.
-    for ability in &def.abilities {
-        if let AbilityDefinition::Triggered {
-            trigger_condition:
-                TriggerCondition::WheneverOpponentCastsSpell {
-                    spell_type_filter,
-                    noncreature_only,
-                },
-            effect,
-            targets,
-            ..
-        } = ability
-        {
-            // Index-namespace fix (2026-07-09): carry spell_type_filter/noncreature_only
-            // on the runtime TriggeredAbilityDef itself (reusing TargetFilter's
-            // has_card_types/non_creature) instead of leaving the post-filter in
-            // rules/abilities.rs to re-look the ability up via CardDefinition::abilities
-            // (a different, non-dense index space -- see abilities.rs G-4 comment).
-            let spell_filter = if spell_type_filter.is_some() || *noncreature_only {
-                Some(TargetFilter {
-                    has_card_types: spell_type_filter.clone().unwrap_or_default(),
-                    non_creature: *noncreature_only,
-                    ..Default::default()
-                })
-            } else {
-                None
-            };
-            spec = spec.with_triggered_ability(TriggeredAbilityDef {
-                counter_filter: None,
-                counter_on_self: false,
-                once_per_turn: false,
-                etb_filter: None,
-                death_filter: None,
-                combat_damage_filter: None,
-                triggering_creature_filter: spell_filter,
-                trigger_on: TriggerEvent::OpponentCastsSpell,
-                intervening_if: None,
-                targets: targets.clone(),
-                description: "Whenever an opponent casts a spell (CR 603.2)".to_string(),
-                effect: Some(effect.clone()),
-            });
-        }
-    }
-    // CR 701.25d: Convert "Whenever you surveil" card-definition triggers into
-    // runtime TriggeredAbilityDef entries so check_triggers can dispatch them
-    // via Surveilled events.
-    for ability in &def.abilities {
-        if let AbilityDefinition::Triggered {
-            trigger_condition: TriggerCondition::WheneverYouSurveil,
-            effect,
-            targets,
-            ..
-        } = ability
-        {
-            spec = spec.with_triggered_ability(TriggeredAbilityDef {
-                counter_filter: None,
-                counter_on_self: false,
-                once_per_turn: false,
-                etb_filter: None,
-                death_filter: None,
-                combat_damage_filter: None,
-                triggering_creature_filter: None,
-                trigger_on: TriggerEvent::ControllerSurveils,
-                intervening_if: None,
-                targets: targets.clone(),
-                description: "Whenever you surveil (CR 701.25d)".to_string(),
-                effect: Some(effect.clone()),
-            });
-        }
-    }
-    // CR 701.50b: Convert "Whenever this creature connives" card-definition triggers
-    // into runtime TriggeredAbilityDef entries so check_triggers can dispatch them
-    // via Connived events. Fires even if the creature left the battlefield
-    // (Psychic Pickpocket ruling, 2022-04-29).
-    for ability in &def.abilities {
-        if let AbilityDefinition::Triggered {
-            trigger_condition: TriggerCondition::WhenConnives,
-            effect,
-            targets,
-            ..
-        } = ability
-        {
-            spec = spec.with_triggered_ability(TriggeredAbilityDef {
-                counter_filter: None,
-                counter_on_self: false,
-                once_per_turn: false,
-                etb_filter: None,
-                death_filter: None,
-                combat_damage_filter: None,
-                triggering_creature_filter: None,
-                trigger_on: TriggerEvent::SourceConnives,
-                intervening_if: None,
-                targets: targets.clone(),
-                description: "Whenever this creature connives (CR 701.50b)".to_string(),
-                effect: Some(effect.clone()),
-            });
-        }
-    }
-    // CR 701.16a: Convert "Whenever you investigate" card-definition triggers into
-    // runtime TriggeredAbilityDef entries so check_triggers can dispatch them
-    // via Investigated events.
-    for ability in &def.abilities {
-        if let AbilityDefinition::Triggered {
-            trigger_condition: TriggerCondition::WheneverYouInvestigate,
-            effect,
-            targets,
-            ..
-        } = ability
-        {
-            spec = spec.with_triggered_ability(TriggeredAbilityDef {
-                counter_filter: None,
-                counter_on_self: false,
-                once_per_turn: false,
-                etb_filter: None,
-                death_filter: None,
-                combat_damage_filter: None,
-                triggering_creature_filter: None,
-                trigger_on: TriggerEvent::ControllerInvestigates,
-                intervening_if: None,
-                targets: targets.clone(),
-                description: "Whenever you investigate (CR 701.16a)".to_string(),
-                effect: Some(effect.clone()),
-            });
-        }
-    }
-    // CR 603.2: Convert "Whenever you cast a spell" card-definition triggers into
-    // runtime TriggeredAbilityDef entries so check_triggers can dispatch them
-    // via SpellCast events. Covers Inexorable Tide and similar enchantments.
-    // The `during_opponent_turn` flag is not enforced here — turn filtering is
-    // done at trigger-collection time in abilities.rs via ControllerCastsSpell.
-    for ability in &def.abilities {
-        if let AbilityDefinition::Triggered {
-            trigger_condition:
-                TriggerCondition::WheneverYouCastSpell {
-                    spell_type_filter,
-                    noncreature_only,
-                    spell_subtype_filter,
-                    // The elided `chosen_subtype_filter` (CR 603.1 "of the chosen type",
-                    // Vanquisher's Banner only) is a dynamic per-source condition (compared
-                    // against the source's `chosen_creature_type` at trigger time) rather
-                    // than a static TargetFilter predicate, so it cannot be folded into
-                    // `triggering_creature_filter` below. It remains unenforced by this
-                    // conversion — same as before this fix — and is out of scope here
-                    // (see rules/abilities.rs G-4 comment; Vanquisher's Banner card-level
-                    // fix is explicitly deferred).
-                    ..
-                },
-            effect,
-            targets,
-            ..
-        } = ability
-        {
-            // Index-namespace fix (2026-07-09): carry spell_type_filter/
-            // noncreature_only/spell_subtype_filter on the runtime TriggeredAbilityDef
-            // itself (reusing TargetFilter's has_card_types/non_creature/has_subtypes)
-            // instead of leaving the post-filter in rules/abilities.rs to re-look the
-            // ability up via CardDefinition::abilities (a different, non-dense index
-            // space -- see abilities.rs G-4 comment; this was the root cause of the
-            // Monastery Mentor / Leaf-Crowned Visionary filter bypass bug).
-            let spell_filter = if spell_type_filter.is_some()
-                || *noncreature_only
-                || spell_subtype_filter.is_some()
-            {
-                Some(TargetFilter {
-                    has_card_types: spell_type_filter.clone().unwrap_or_default(),
-                    non_creature: *noncreature_only,
-                    has_subtypes: spell_subtype_filter.clone().unwrap_or_default(),
-                    ..Default::default()
-                })
-            } else {
-                None
-            };
-            spec = spec.with_triggered_ability(TriggeredAbilityDef {
-                counter_filter: None,
-                counter_on_self: false,
-                once_per_turn: false,
-                etb_filter: None,
-                death_filter: None,
-                combat_damage_filter: None,
-                triggering_creature_filter: spell_filter,
-                trigger_on: TriggerEvent::ControllerCastsSpell,
-                intervening_if: None,
-                targets: targets.clone(),
-                description: "Whenever you cast a spell (CR 603.2)".to_string(),
-                effect: Some(effect.clone()),
-            });
-        }
-    }
-    // CR 207.2c / CR 603.2: Convert "Whenever [another] creature [you control] enters"
-    // card-definition triggers into runtime TriggeredAbilityDef entries so
-    // check_triggers can dispatch them via AnyPermanentEntersBattlefield events.
-    //
-    // Used by the Alliance ability word (Prosperous Innkeeper, etc.) and similar patterns
-    // (Impact Tremors uses the same TriggerCondition but is an enchantment, not a creature).
-    // The ETB filter is applied at trigger-collection time in collect_triggers_for_event.
-    //
-    // PB-XS-E: `exclude_self` is now per-card. Set to `true` on cards whose oracle
-    // text uses "another"/"other" (Alliance cards, Shadow Alley Denizen, Marwyn, etc.);
-    // leave `false` on cards that say "this or another X" (Risen Reef, Ayara,
-    // Bloomvine Regent, Satoru) and on simple "Whenever a creature enters under your
-    // control" cards (Witty Roastmaster). For non-creature trigger sources the
-    // value is irrelevant — the source can never be the entering creature — but
-    // it should still match the oracle text for clarity.
-    for ability in &def.abilities {
-        if let AbilityDefinition::Triggered {
-            trigger_condition:
-                TriggerCondition::WheneverCreatureEntersBattlefield {
-                    filter,
-                    exclude_self,
-                },
-            effect,
-            targets,
-            ..
-        } = ability
-        {
-            let etb_filter = ETBTriggerFilter {
-                creature_only: true,
-                controller_you: filter
-                    .as_ref()
-                    .is_some_and(|f| matches!(f.controller, TargetController::You)),
-                exclude_self: *exclude_self,
-                // Propagate color filter from TargetFilter to ETBTriggerFilter.
-                // e.g., Shadow Alley Denizen: "another black creature you control enters"
-                color_filter: filter
-                    .as_ref()
-                    .and_then(|f| f.colors.as_ref())
-                    .and_then(|colors| {
-                        if colors.len() == 1 {
-                            colors.iter().next().copied()
-                        } else {
-                            None
-                        }
-                    }),
-                // Alliance filter is always creature (the creature_only flag handles it);
-                // the explicit card_type_filter is not needed for this conversion.
-                card_type_filter: None,
-            };
-            spec = spec.with_triggered_ability(TriggeredAbilityDef {
-                counter_filter: None,
-                counter_on_self: false,
-                once_per_turn: false,
-                trigger_on: TriggerEvent::AnyPermanentEntersBattlefield,
-                // Intervening-if conditions (card_definition::Condition) are a different
-                // type from runtime InterveningIf; conversion is deferred. None is safe
-                // for all known Alliance cards.
-                intervening_if: None,
-                description: "Alliance -- Whenever another creature you control enters (CR 207.2c)"
-                    .to_string(),
-                effect: Some(effect.clone()),
-                etb_filter: Some(etb_filter),
-                death_filter: None,
-                combat_damage_filter: None,
-                // PB-AC0 (CR 603.2 / CR 205.3 / CR 111.1): forward the full carddef
-                // TargetFilter as triggering_creature_filter so has_subtype /
-                // has_subtypes / is_nontoken / exclude_subtypes are honored on the
-                // creature-ETB trigger path. The ETBTriggerFilter above only carries
-                // creature_only / controller_you / exclude_self / color_filter /
-                // card_type_filter. Mirrors the death-trigger conversion. CR 603.2.
-                triggering_creature_filter: filter.clone(),
-                targets: targets.clone(),
-            });
-        }
-    }
-    // PB-L (CR 207.2c / CR 603.2): Convert "Whenever a permanent enters the battlefield"
-    // card-definition triggers into runtime TriggeredAbilityDef entries so check_triggers
-    // can dispatch them via AnyPermanentEntersBattlefield events.
-    //
-    // This is the battlefield-side counterpart to collect_graveyard_carddef_triggers
-    // (which handles the same TriggerCondition while the source is in the graveyard,
-    // e.g. Bloodghast).
-    //
-    // Covers Landfall (ability word, CR 207.2c) and all other
-    // "Whenever a [permanent type] [you control] enters" triggers:
-    //   - Lotus Cobra, Evolution Sage, Jaddi Offshoot (Land + You)
-    //   - Horn of Greed (Land, any controller)
-    //   - Warstorm Surge, Puresteel Paladin (non-Land filters)
-    //
-    // Unlike Alliance (WheneverCreatureEntersBattlefield) which historically
-    // hardcoded `exclude_self: true`, this variant has always defaulted to
-    // `exclude_self: false` (a land you just played can satisfy your own
-    // "whenever a land enters" trigger). PB-XS-E surfaces both as a per-card
-    // field so cards can opt into self-exclusion when oracle text says "another"
-    // for a filter that could match the source itself.
-    //
-    // Field mapping:
-    //   - `creature_only: false` unless the filter specifies Creature
-    //   - `card_type_filter: filter.has_card_type` (PB-L)
-    //   - `exclude_self: trigger_condition.exclude_self` (PB-XS-E)
-    //
-    // Skips abilities with `trigger_zone: Some(TriggerZone::Graveyard)` — those are
-    // handled by collect_graveyard_carddef_triggers at dispatch time and must NOT
-    // be added to the battlefield spec (the spec lives on the battlefield object,
-    // but these triggers fire only from the graveyard).
-    for ability in &def.abilities {
-        if let AbilityDefinition::Triggered {
-            trigger_condition:
-                TriggerCondition::WheneverPermanentEntersBattlefield {
-                    filter,
-                    exclude_self,
-                },
-            effect,
-            trigger_zone,
-            targets,
-            ..
-        } = ability
-        {
-            // Graveyard-zone triggers (Bloodghast) are dispatched separately.
-            if trigger_zone.is_some() {
-                continue;
-            }
-            let (creature_only, card_type_filter, controller_you, color_filter) = match filter {
-                Some(f) => {
-                    let creature_only = matches!(f.has_card_type, Some(CardType::Creature));
-                    // If the filter specifies a non-Creature card type, carry it in
-                    // card_type_filter. For Creature, the creature_only flag handles it.
-                    let card_type_filter = match f.has_card_type {
-                        Some(CardType::Creature) => None,
-                        other => other,
-                    };
-                    let controller_you = matches!(f.controller, TargetController::You);
-                    let color_filter = f.colors.as_ref().and_then(|colors| {
-                        if colors.len() == 1 {
-                            colors.iter().next().copied()
-                        } else {
-                            None
-                        }
-                    });
-                    (
-                        creature_only,
-                        card_type_filter,
-                        controller_you,
-                        color_filter,
-                    )
-                }
-                None => (false, None, false, None),
-            };
-            let etb_filter = ETBTriggerFilter {
-                creature_only,
-                controller_you,
-                // PB-XS-E (CR 109.1 / 603.2): per-card "another" gate. The default
-                // (`false`) keeps Landfall-style triggers firing for the entering
-                // land you just played. Setting `true` matches oracle text using
-                // "another [permanent type]" — used when the filter could match
-                // the trigger source itself (e.g. a creature with a layer-effect
-                // type addition matching its own filter).
-                exclude_self: *exclude_self,
-                color_filter,
-                card_type_filter,
-            };
-            spec = spec.with_triggered_ability(TriggeredAbilityDef {
-                counter_filter: None,
-                counter_on_self: false,
-                once_per_turn: false,
-                trigger_on: TriggerEvent::AnyPermanentEntersBattlefield,
-                // card_definition::Condition ↔ runtime InterveningIf conversion is
-                // deferred (same rationale as Alliance). None is safe for all
-                // known simple Landfall cards; compound-conditional cases
-                // (Moraug, Omnath Locus of Creation) remain TODO-blocked.
-                intervening_if: None,
-                description: "Whenever a permanent enters the battlefield (CR 207.2c / CR 603.2)"
-                    .to_string(),
-                effect: Some(effect.clone()),
-                etb_filter: Some(etb_filter),
-                death_filter: None,
-                combat_damage_filter: None,
-                triggering_creature_filter: None,
-                targets: targets.clone(),
-            });
-        }
-    }
-    // CR 702.140d: Convert "Whenever this creature mutates" card-definition triggers
-    // into runtime TriggeredAbilityDef entries so check_triggers can dispatch them
-    // via CreatureMutated events. Only fires on the merged permanent itself (CR 729.2c).
-    for ability in &def.abilities {
-        if let AbilityDefinition::Triggered {
-            trigger_condition: TriggerCondition::WhenMutates,
-            effect,
-            targets,
-            ..
-        } = ability
-        {
-            spec = spec.with_triggered_ability(TriggeredAbilityDef {
-                counter_filter: None,
-                counter_on_self: false,
-                once_per_turn: false,
-                etb_filter: None,
-                death_filter: None,
-                combat_damage_filter: None,
-                triggering_creature_filter: None,
-                trigger_on: TriggerEvent::SelfMutates,
-                intervening_if: None,
-                targets: targets.clone(),
-                description: "Whenever this creature mutates (CR 702.140d)".to_string(),
-                effect: Some(effect.clone()),
-            });
-        }
-    }
-    // "Whenever this permanent becomes tapped" — fires on any tap event (mana, combat,
-    // opponent effects). Used by City of Brass. Maps to TriggerEvent::SelfBecomesTapped
-    // which is already dispatched from GameEvent::PermanentTapped in check_triggers.
-    for ability in &def.abilities {
-        if let AbilityDefinition::Triggered {
-            trigger_condition: TriggerCondition::WhenSelfBecomesTapped,
-            effect,
-            targets,
-            ..
-        } = ability
-        {
-            spec = spec.with_triggered_ability(TriggeredAbilityDef {
-                counter_filter: None,
-                counter_on_self: false,
-                once_per_turn: false,
-                etb_filter: None,
-                death_filter: None,
-                combat_damage_filter: None,
-                triggering_creature_filter: None,
-                trigger_on: TriggerEvent::SelfBecomesTapped,
-                intervening_if: None,
-                targets: targets.clone(),
-                description: "Whenever this permanent becomes tapped".to_string(),
-                effect: Some(effect.clone()),
-            });
-        }
-    }
-    // CR 502.3 / 603.2e (PB-AC1): Convert "Whenever a permanent becomes untapped" card-definition
-    // triggers into runtime TriggeredAbilityDef entries so check_triggers can dispatch them via
-    // AnyPermanentUntaps events. The optional filter is forwarded to `triggering_creature_filter`
-    // (a legacy field name reused for any triggering object, not just creatures) and applied at
-    // trigger-collection time in `collect_triggers_for_event`.
-    for ability in &def.abilities {
-        if let AbilityDefinition::Triggered {
-            trigger_condition: TriggerCondition::WheneverPermanentUntaps { filter },
-            effect,
-            once_per_turn,
-            targets,
-            ..
-        } = ability
-        {
-            spec = spec.with_triggered_ability(TriggeredAbilityDef {
-                counter_filter: None,
-                counter_on_self: false,
-                once_per_turn: *once_per_turn,
-                etb_filter: None,
-                death_filter: None,
-                combat_damage_filter: None,
-                triggering_creature_filter: filter.clone(),
-                trigger_on: TriggerEvent::AnyPermanentUntaps,
-                intervening_if: None,
-                targets: targets.clone(),
-                description: "Whenever a permanent becomes untapped (CR 502.3/603.2e)".to_string(),
-                effect: Some(effect.clone()),
-            });
-        }
-    }
-    // CR 122.6 / 122.7 (PB-AC1): Convert "When/Whenever counter(s) are put on [this
-    // permanent] / [a permanent you control]" card-definition triggers into runtime
-    // TriggeredAbilityDef entries so check_triggers can dispatch them via CounterPlaced
-    // events. `counter` and `on_self` are forwarded directly to the runtime `counter_filter` /
-    // `counter_on_self` fields; `filter` (for the on_self:false "a creature you control" case)
-    // is forwarded to `triggering_creature_filter`.
-    for ability in &def.abilities {
-        if let AbilityDefinition::Triggered {
-            trigger_condition:
-                TriggerCondition::WhenCounterPlaced {
-                    counter,
-                    filter,
-                    on_self,
-                },
-            effect,
-            once_per_turn,
-            targets,
-            ..
-        } = ability
-        {
-            spec = spec.with_triggered_ability(TriggeredAbilityDef {
-                counter_filter: counter.clone(),
-                counter_on_self: *on_self,
-                once_per_turn: *once_per_turn,
-                etb_filter: None,
-                death_filter: None,
-                combat_damage_filter: None,
-                triggering_creature_filter: filter.clone(),
-                trigger_on: TriggerEvent::CounterPlaced,
-                intervening_if: None,
-                targets: targets.clone(),
-                description:
-                    "Whenever one or more counters are put on a permanent (CR 122.6/122.7)"
-                        .to_string(),
-                effect: Some(effect.clone()),
-            });
-        }
-    }
-    // CR 603.10a: Convert "Whenever [another] [nontoken] creature [you control / an opponent controls] dies"
-    // card-definition triggers into runtime TriggeredAbilityDef entries so check_triggers can
-    // dispatch them via AnyCreatureDies events.
-    //
-    // The controller filter, exclude_self, and nontoken_only fields are set on DeathTriggerFilter
-    // and applied at trigger-collection time in collect_triggers_for_event.
-    //
-    // CR 603.10a: Convert "Whenever [another] [nontoken] creature [you control / an opponent controls] dies"
-    // card-definition triggers into runtime TriggeredAbilityDef entries.
-    // The exclude_self and nontoken_only fields from the card def are forwarded directly to
-    // DeathTriggerFilter and applied at trigger-collection time.
-    for ability in &def.abilities {
-        if let AbilityDefinition::Triggered {
-            trigger_condition:
-                TriggerCondition::WheneverCreatureDies {
-                    controller,
-                    exclude_self,
-                    nontoken_only,
-                    filter,
-                },
-            effect,
-            once_per_turn,
-            targets,
-            ..
-        } = ability
-        {
-            let death_filter = DeathTriggerFilter {
-                controller_you: matches!(controller, Some(TargetController::You)),
-                controller_opponent: matches!(controller, Some(TargetController::Opponent)),
-                exclude_self: *exclude_self,
-                nontoken_only: *nontoken_only,
-            };
-            spec = spec.with_triggered_ability(TriggeredAbilityDef {
-                counter_filter: None,
-                counter_on_self: false,
-                // CR 603.2c/603.2h (PB-AC1): forward "triggers only once each turn" (Morbid
-                // Opportunist) from the card def.
-                once_per_turn: *once_per_turn,
-                trigger_on: TriggerEvent::AnyCreatureDies,
-                intervening_if: None,
-                description: "Whenever a creature dies (CR 603.10a)".to_string(),
-                effect: Some(effect.clone()),
-                etb_filter: None,
-                death_filter: Some(death_filter),
-                combat_damage_filter: None,
-                // PB-N: forward the DSL subtype/color filter to the runtime field (CR 603.10a)
-                triggering_creature_filter: filter.clone(),
-                targets: targets.clone(),
-            });
-        }
-    }
-    // CR 508.1m / CR 603.2: Convert "Whenever a creature you control attacks" card-definition
-    // triggers into runtime TriggeredAbilityDef entries so check_triggers can dispatch them
-    // via AnyCreatureYouControlAttacks events.
-    //
-    // Controller filtering is applied at trigger-collection time by checking that the attacking
-    // creature's controller matches the trigger source's controller.
-    for ability in &def.abilities {
-        if let AbilityDefinition::Triggered {
-            // PB-N: WheneverCreatureYouControlAttacks changed from unit to struct variant
-            trigger_condition: TriggerCondition::WheneverCreatureYouControlAttacks { filter },
-            effect,
-            targets,
-            ..
-        } = ability
-        {
-            spec = spec.with_triggered_ability(TriggeredAbilityDef {
-                counter_filter: None,
-                counter_on_self: false,
-                once_per_turn: false,
-                trigger_on: TriggerEvent::AnyCreatureYouControlAttacks,
-                intervening_if: None,
-                description: "Whenever a creature you control attacks (CR 508.1m)".to_string(),
-                effect: Some(effect.clone()),
-                etb_filter: None,
-                death_filter: None,
-                combat_damage_filter: None,
-                // PB-N: forward the DSL subtype/color filter to the runtime field (CR 508.1m)
-                triggering_creature_filter: filter.clone(),
-                // PB-EF3 A1: forward the DSL declared targets (CR 601.2c) instead of
-                // dropping them — see abilities.rs A2 for the matching fallback fix.
-                targets: targets.clone(),
-            });
-        }
-    }
-    // CR 510.3a / CR 603.2: Convert "Whenever a creature you control deals combat damage to a
-    // player" card-definition triggers into runtime TriggeredAbilityDef entries so check_triggers
-    // can dispatch them via AnyCreatureYouControlDealsCombatDamageToPlayer events.
-    //
-    // Controller filtering is applied at trigger-collection time by checking that the source
-    // creature's controller matches the trigger source's controller.
-    for ability in &def.abilities {
-        if let AbilityDefinition::Triggered {
-            trigger_condition:
-                TriggerCondition::WheneverCreatureYouControlDealsCombatDamageToPlayer { filter },
-            effect,
-            targets,
-            ..
-        } = ability
-        {
-            spec = spec.with_triggered_ability(TriggeredAbilityDef {
-                counter_filter: None,
-                counter_on_self: false,
-                once_per_turn: false,
-                trigger_on: TriggerEvent::AnyCreatureYouControlDealsCombatDamageToPlayer,
-                intervening_if: None,
-                description:
-                    "Whenever a creature you control deals combat damage to a player (CR 510.3a)"
-                        .to_string(),
-                effect: Some(effect.clone()),
-                etb_filter: None,
-                death_filter: None,
-                combat_damage_filter: filter.clone(),
-                triggering_creature_filter: None,
-                targets: targets.clone(),
-            });
-        }
-    }
-    // CR 510.3a / CR 603.2c: Convert "Whenever one or more creatures you control deal combat
-    // damage to a player" batch trigger into runtime TriggeredAbilityDef entries.
-    for ability in &def.abilities {
-        if let AbilityDefinition::Triggered {
-            trigger_condition:
-                TriggerCondition::WhenOneOrMoreCreaturesYouControlDealCombatDamageToPlayer { filter },
-            effect,
-            targets,
-            ..
-        } = ability
-        {
-            spec = spec.with_triggered_ability(TriggeredAbilityDef {
-                counter_filter: None,
-                counter_on_self: false,
-                once_per_turn: false,
-                trigger_on: TriggerEvent::AnyCreatureYouControlBatchCombatDamage,
-                intervening_if: None,
-                description:
-                    "Whenever one or more creatures you control deal combat damage to a player (CR 510.3a)"
-                        .to_string(),
-                effect: Some(effect.clone()),
-                etb_filter: None,
-                death_filter: None,
-                combat_damage_filter: filter.clone(),
-                triggering_creature_filter: None,
-                targets: targets.clone(),
-            });
-        }
-    }
-    // CR 510.3a: Convert "Whenever equipped creature deals combat damage to a player" triggers.
-    for ability in &def.abilities {
-        if let AbilityDefinition::Triggered {
-            trigger_condition: TriggerCondition::WhenEquippedCreatureDealsCombatDamageToPlayer,
-            effect,
-            targets,
-            ..
-        } = ability
-        {
-            spec = spec.with_triggered_ability(TriggeredAbilityDef {
-                counter_filter: None,
-                counter_on_self: false,
-                once_per_turn: false,
-                trigger_on: TriggerEvent::EquippedCreatureDealsCombatDamageToPlayer,
-                intervening_if: None,
-                description:
-                    "Whenever equipped creature deals combat damage to a player (CR 510.3a)"
-                        .to_string(),
-                effect: Some(effect.clone()),
-                etb_filter: None,
-                death_filter: None,
-                combat_damage_filter: None,
-                triggering_creature_filter: None,
-                targets: targets.clone(),
-            });
-        }
-    }
-    // CR 510.3a: Convert "Whenever enchanted creature deals damage to a player" triggers.
-    for ability in &def.abilities {
-        if let AbilityDefinition::Triggered {
-            trigger_condition: TriggerCondition::WhenEnchantedCreatureDealsDamageToPlayer { .. },
-            effect,
-            targets,
-            ..
-        } = ability
-        {
-            spec = spec.with_triggered_ability(TriggeredAbilityDef {
-                counter_filter: None,
-                counter_on_self: false,
-                once_per_turn: false,
-                trigger_on: TriggerEvent::EnchantedCreatureDealsDamageToPlayer,
-                intervening_if: None,
-                description: "Whenever enchanted creature deals damage to a player (CR 510.3a)"
-                    .to_string(),
-                effect: Some(effect.clone()),
-                etb_filter: None,
-                death_filter: None,
-                combat_damage_filter: None,
-                triggering_creature_filter: None,
-                targets: targets.clone(),
-            });
-        }
-    }
-    // CR 510.3a / CR 603.2: Convert "Whenever a creature deals combat damage to one of your
-    // opponents" (Edric) triggers into runtime TriggeredAbilityDef entries.
-    for ability in &def.abilities {
-        if let AbilityDefinition::Triggered {
-            trigger_condition: TriggerCondition::WhenAnyCreatureDealsCombatDamageToOpponent,
-            effect,
-            targets,
-            ..
-        } = ability
-        {
-            spec = spec.with_triggered_ability(TriggeredAbilityDef {
-                counter_filter: None,
-                counter_on_self: false,
-                once_per_turn: false,
-                trigger_on: TriggerEvent::AnyCreatureDealsCombatDamageToOpponent,
-                intervening_if: None,
-                description:
-                    "Whenever a creature deals combat damage to one of your opponents (CR 510.3a)"
-                        .to_string(),
-                effect: Some(effect.clone()),
-                etb_filter: None,
-                death_filter: None,
-                combat_damage_filter: None,
-                triggering_creature_filter: None,
-                targets: targets.clone(),
-            });
-        }
-    }
-    // CR 701.9a: Convert "Whenever you discard a card" triggers.
-    for ability in &def.abilities {
-        if let AbilityDefinition::Triggered {
-            trigger_condition: TriggerCondition::WheneverYouDiscard,
-            effect,
-            targets,
-            ..
-        } = ability
-        {
-            spec = spec.with_triggered_ability(TriggeredAbilityDef {
-                counter_filter: None,
-                counter_on_self: false,
-                once_per_turn: false,
-                trigger_on: TriggerEvent::ControllerDiscards,
-                intervening_if: None,
-                description: "Whenever you discard a card (CR 701.9a)".to_string(),
-                effect: Some(effect.clone()),
-                etb_filter: None,
-                death_filter: None,
-                combat_damage_filter: None,
-                triggering_creature_filter: None,
-                targets: targets.clone(),
-            });
-        }
-    }
-    // CR 701.9a: Convert "Whenever an opponent discards a card" triggers.
-    for ability in &def.abilities {
-        if let AbilityDefinition::Triggered {
-            trigger_condition: TriggerCondition::WheneverOpponentDiscards,
-            effect,
-            targets,
-            ..
-        } = ability
-        {
-            spec = spec.with_triggered_ability(TriggeredAbilityDef {
-                counter_filter: None,
-                counter_on_self: false,
-                once_per_turn: false,
-                trigger_on: TriggerEvent::OpponentDiscards,
-                intervening_if: None,
-                description: "Whenever an opponent discards a card (CR 701.9a)".to_string(),
-                effect: Some(effect.clone()),
-                etb_filter: None,
-                death_filter: None,
-                combat_damage_filter: None,
-                triggering_creature_filter: None,
-                targets: targets.clone(),
-            });
-        }
-    }
-    // CR 305.1: Convert "Whenever an opponent plays a land" triggers.
-    for ability in &def.abilities {
-        if let AbilityDefinition::Triggered {
-            trigger_condition: TriggerCondition::WheneverOpponentPlaysLand,
-            effect,
-            targets,
-            ..
-        } = ability
-        {
-            spec = spec.with_triggered_ability(TriggeredAbilityDef {
-                counter_filter: None,
-                counter_on_self: false,
-                once_per_turn: false,
-                trigger_on: TriggerEvent::OpponentPlaysLand,
-                intervening_if: None,
-                etb_filter: None,
-                death_filter: None,
-                combat_damage_filter: None,
-                triggering_creature_filter: None,
-                targets: targets.clone(),
-                description: "Whenever an opponent plays a land (CR 305.1)".to_string(),
-                effect: Some(effect.clone()),
-            });
-        }
-    }
-    // CR 701.21a: Convert "Whenever you sacrifice a permanent" triggers.
-    // player_filter=None → ControllerSacrifices (fires only when controller sacrifices).
-    // player_filter=Some(Any) → ControllerSacrifices (any player; filtered at dispatch time).
-    for ability in &def.abilities {
-        if let AbilityDefinition::Triggered {
-            trigger_condition: TriggerCondition::WheneverYouSacrifice { .. },
-            effect,
-            targets,
-            ..
-        } = ability
-        {
-            spec = spec.with_triggered_ability(TriggeredAbilityDef {
-                counter_filter: None,
-                counter_on_self: false,
-                once_per_turn: false,
-                trigger_on: TriggerEvent::ControllerSacrifices,
-                intervening_if: None,
-                description: "Whenever you sacrifice a permanent (CR 701.21a)".to_string(),
-                effect: Some(effect.clone()),
-                etb_filter: None,
-                death_filter: None,
-                combat_damage_filter: None,
-                triggering_creature_filter: None,
-                targets: targets.clone(),
-            });
-        }
-    }
-    // CR 508.1: Convert "Whenever you attack" triggers.
-    for ability in &def.abilities {
-        if let AbilityDefinition::Triggered {
-            trigger_condition: TriggerCondition::WheneverYouAttack,
-            effect,
-            targets,
-            ..
-        } = ability
-        {
-            spec = spec.with_triggered_ability(TriggeredAbilityDef {
-                counter_filter: None,
-                counter_on_self: false,
-                once_per_turn: false,
-                trigger_on: TriggerEvent::ControllerAttacks,
-                intervening_if: None,
-                description: "Whenever you attack (CR 508.1)".to_string(),
-                effect: Some(effect.clone()),
-                etb_filter: None,
-                death_filter: None,
-                combat_damage_filter: None,
-                triggering_creature_filter: None,
-                targets: targets.clone(),
-            });
-        }
-    }
-    // CR 603.10a: Convert "When ~ leaves the battlefield" triggers.
-    for ability in &def.abilities {
-        if let AbilityDefinition::Triggered {
-            trigger_condition: TriggerCondition::WhenLeavesBattlefield,
-            effect,
-            targets,
-            ..
-        } = ability
-        {
-            spec = spec.with_triggered_ability(TriggeredAbilityDef {
-                counter_filter: None,
-                counter_on_self: false,
-                once_per_turn: false,
-                trigger_on: TriggerEvent::SelfLeavesBattlefield,
-                intervening_if: None,
-                description: "When ~ leaves the battlefield (CR 603.10a)".to_string(),
-                effect: Some(effect.clone()),
-                etb_filter: None,
-                death_filter: None,
-                combat_damage_filter: None,
-                triggering_creature_filter: None,
-                targets: targets.clone(),
-            });
-        }
-    }
-    // CR 603.2: Convert "Whenever you draw a card" triggers (WheneverYouDrawACard).
-    // Maps to ControllerDrawsCard event — dispatched via CardDrawn.
-    for ability in &def.abilities {
-        if let AbilityDefinition::Triggered {
-            trigger_condition: TriggerCondition::WheneverYouDrawACard,
-            effect,
-            targets,
-            ..
-        } = ability
-        {
-            spec = spec.with_triggered_ability(TriggeredAbilityDef {
-                counter_filter: None,
-                counter_on_self: false,
-                once_per_turn: false,
-                trigger_on: TriggerEvent::ControllerDrawsCard,
-                intervening_if: None,
-                description: "Whenever you draw a card (CR 603.2)".to_string(),
-                effect: Some(effect.clone()),
-                etb_filter: None,
-                death_filter: None,
-                combat_damage_filter: None,
-                triggering_creature_filter: None,
-                targets: targets.clone(),
-            });
-        }
-    }
-    // CR 603.2: Convert "Whenever a player draws a card" triggers (WheneverPlayerDrawsCard).
-    // player_filter=None → AnyPlayerDrawsCard, Some(Opponent) → OpponentDrawsCard,
-    // Some(You) → ControllerDrawsCard.
-    for ability in &def.abilities {
-        if let AbilityDefinition::Triggered {
-            trigger_condition: TriggerCondition::WheneverPlayerDrawsCard { player_filter },
-            effect,
-            targets,
-            ..
-        } = ability
-        {
-            let trigger_on = match player_filter {
-                Some(TargetController::Opponent) => TriggerEvent::OpponentDrawsCard,
-                Some(TargetController::You) => TriggerEvent::ControllerDrawsCard,
-                _ => TriggerEvent::AnyPlayerDrawsCard,
-            };
-            let desc = match player_filter {
-                Some(TargetController::Opponent) => "Whenever an opponent draws a card (CR 603.2)",
-                Some(TargetController::You) => "Whenever you draw a card (CR 603.2)",
-                _ => "Whenever a player draws a card (CR 603.2)",
-            };
-            spec = spec.with_triggered_ability(TriggeredAbilityDef {
-                counter_filter: None,
-                counter_on_self: false,
-                once_per_turn: false,
-                trigger_on,
-                intervening_if: None,
-                description: desc.to_string(),
-                effect: Some(effect.clone()),
-                etb_filter: None,
-                death_filter: None,
-                combat_damage_filter: None,
-                triggering_creature_filter: None,
-                targets: targets.clone(),
-            });
-        }
-    }
-    // CR 603.2 / CR 118.4: Convert "Whenever you gain life" triggers.
-    // Maps to ControllerGainsLife — dispatched via LifeGained.
-    for ability in &def.abilities {
-        if let AbilityDefinition::Triggered {
-            trigger_condition: TriggerCondition::WheneverYouGainLife,
-            effect,
-            targets,
-            ..
-        } = ability
-        {
-            spec = spec.with_triggered_ability(TriggeredAbilityDef {
-                counter_filter: None,
-                counter_on_self: false,
-                once_per_turn: false,
-                trigger_on: TriggerEvent::ControllerGainsLife,
-                intervening_if: None,
-                description: "Whenever you gain life (CR 603.2)".to_string(),
-                effect: Some(effect.clone()),
-                etb_filter: None,
-                death_filter: None,
-                combat_damage_filter: None,
-                triggering_creature_filter: None,
-                targets: targets.clone(),
-            });
-        }
-    }
-    // CR 603.2: WhenYouCastThisSpell is dispatched directly from the SpellCast arm
-    // in check_triggers using the CardDef ability_index. No TriggeredAbilityDef needed.
-    // PB-AC6 / CR 601.2c / 602.2b / 603.2: Convert "Whenever [this permanent / a <filter>
-    // you control] becomes the target of a spell [or ability] [an opponent controls]"
-    // card-definition triggers into runtime TriggeredAbilityDef entries. Only `trigger_on`
-    // carries the scope/by_opponent/include_abilities params -- the inline dispatch in
-    // `check_triggers`'s `GameEvent::PermanentTargeted` arm reads them directly from the
-    // `TriggerEvent::PermanentBecomesTarget` variant (NOT via the generic equality-based
-    // `collect_triggers_for_event`, since each card's params differ).
-    for ability in &def.abilities {
-        if let AbilityDefinition::Triggered {
-            trigger_condition:
-                TriggerCondition::WhenBecomesTarget {
-                    scope,
-                    by_opponent,
-                    include_abilities,
-                },
-            effect,
-            targets,
-            ..
-        } = ability
-        {
-            spec = spec.with_triggered_ability(TriggeredAbilityDef {
-                counter_filter: None,
-                counter_on_self: false,
-                once_per_turn: false,
-                trigger_on: TriggerEvent::PermanentBecomesTarget {
-                    scope: scope.clone(),
-                    by_opponent: *by_opponent,
-                    include_abilities: *include_abilities,
-                },
-                intervening_if: None,
-                description: "Whenever ~ becomes the target of a spell/ability (CR 601.2c/602.2b)"
-                    .to_string(),
-                effect: Some(effect.clone()),
-                etb_filter: None,
-                death_filter: None,
-                combat_damage_filter: None,
-                triggering_creature_filter: None,
-                targets: targets.clone(),
-            });
-        }
+    // Apply the front-face triggered-ability vector computed above by
+    // `build_face_ability_vectors` (extracted from what used to be inlined here).
+    for t in front_triggered_abilities {
+        spec = spec.with_triggered_ability(t);
     }
     spec
 }

@@ -169,6 +169,21 @@ pub struct CardDefinition {
     #[serde(default)]
     pub completeness: Completeness,
 }
+impl CardDefinition {
+    /// CR 712.8d/e: the abilities of this permanent's currently-visible face.
+    ///
+    /// Returns the back face's abilities when `is_transformed` is true and a back
+    /// face exists; otherwise returns the front face's abilities. Objects that are
+    /// off the battlefield always report `is_transformed == false` (CR 400.7 /
+    /// 712.8a — a new object with no memory of its transformed state), so this
+    /// returns the front list there automatically.
+    pub fn effective_abilities(&self, is_transformed: bool) -> &[AbilityDefinition] {
+        match (is_transformed, self.back_face.as_ref()) {
+            (true, Some(face)) => &face.abilities,
+            _ => &self.abilities,
+        }
+    }
+}
 /// How faithfully a `CardDefinition` implements its printed card (Architecture Invariant 9).
 ///
 /// This is the machine-readable form of the markers `tools/authoring-report.py` reads.
