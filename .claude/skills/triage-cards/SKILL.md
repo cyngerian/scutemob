@@ -5,8 +5,15 @@ description: Execute Phase 0 triage — scan card defs for TODOs, reclassify blo
 
 # Triage Cards
 
-Execute the Phase 0 triage steps from `docs/card-authoring-operations.md`. Establishes
-ground truth about what the DSL can express today and what needs fixing.
+Execute the Phase 0 triage steps. Establishes ground truth about what the DSL can express
+today and what needs fixing.
+
+> **Doc note (DOCB-2, `scutemob-132`):** `docs/card-authoring-operations.md` is bannered
+> **HISTORICAL**. Its **Implementation Order** / **Authoring Order** sections are the only
+> parts still cited as a live reference (per CLAUDE.md "Card Authoring Wave Process") — read
+> only those. Live status lives in `memory/card-authoring/campaign-plan-2026-05-16.md` (§0),
+> `memory/card-authoring/wave-progress.md`, and `docs/authoring-status.md`
+> (`python3 tools/authoring-report.py`).
 
 ## Arguments
 
@@ -18,7 +25,8 @@ ground truth about what the DSL can express today and what needs fixing.
 
 ### Step 0: Check Prerequisites
 
-Read `docs/card-authoring-operations.md` Implementation Order to verify:
+Read the **Implementation Order** section of `docs/card-authoring-operations.md` (HISTORICAL
+doc; that section only — CLAUDE.md-sanctioned live reference) to verify:
 - All I-* items are checked (infrastructure complete)
 - PB-22 is complete (all primitives available)
 
@@ -103,7 +111,9 @@ Write `memory/card-authoring/triage-summary.md` with:
 
 ### T-7: Check Off and Commit
 
-1. Check off T-1 through T-6 in `docs/card-authoring-operations.md`
+1. Record T-1 through T-6 completion in `memory/card-authoring/campaign-plan-2026-05-16.md`
+   §0 (live tracker). The T-* checkoff in HISTORICAL `docs/card-authoring-operations.md` may
+   be updated as a historical-reference courtesy but is not the live status source.
 2. Stage all new/changed files
 3. Commit: `W6-triage: refresh DSL gap audit, reclassify sessions, consolidated fix list`
 

@@ -89,11 +89,41 @@ esm task transition <task_id> done --agent primary \
   --attest merge_commit=<hash>
 ```
 
-### 7. Update project knowledge
+### 7. Sync queue-plan + workstream state (state-sync — do this even for a paused queue)
+
+If the collected task is a **primitive batch (PB-*) or any item drawn from a ranked queue
+plan**, the collect step MUST update the coordination state, because the worker's worktree
+had *old skill copies* and its edits only touched its own branch — the queue-plan banner and
+`memory/workstream-state.md` live on main and are the coordinator's to update.
+
+**Root cause this prevents** (`memory/doc-audit-2026-07-18b.md`, finding **N4**): PB-OS1 was
+collected *during* a doc-remediation interlude that paused the queue. Its plan-closure step
+was skipped, so `memory/primitives/oos-retriage-plan-2026-07-18.md` kept showing PB-OS1 as
+"RECOMMENDED FIRST DISPATCH" / un-struck while OS2/OS3 carried ✅ banners — a live
+**re-dispatch hazard** for the next dispatch loop. A paused or interrupted queue is exactly
+when this bookkeeping gets dropped, so it is mandatory here, not optional.
+
+For a PB/queue collection, after the merge:
+
+1. **Active queue-plan file** (the dated file under `memory/primitives/` named in CLAUDE.md
+   "Current State"): strike/✅-mark the collected batch's row in its "Queue summary" table,
+   flip its §-section header to `✅ SHIPPED` with the merge/task ref, and **remove any
+   "RECOMMENDED FIRST DISPATCH" / "next" banner** so the next dispatch can't re-pick it.
+2. **`memory/workstream-state.md`**: update the W6 row / Last Handoff to name the shipped
+   batch and the next queue target.
+3. **CLAUDE.md "Current State"**: make the leading active-queue bullet (~line 17) agree with
+   the queue — don't leave it a generation stale against the same section (audit #2 N1).
+4. If card defs changed, regenerate `docs/authoring-status.md` via
+   `python3 tools/authoring-report.py`. Never edit `docs/project-status.md` (RETIRED).
+
+If a full `/eot` will run right after this collection it rotates `workstream-state.md` for
+you — but the queue-plan banner (item 1) is never touched by `/eot`, so always do item 1 here.
+
+### 8. Update project knowledge
 
 Same as `/done`: check if this task established anything that future sessions should know. If so, update CLAUDE.md. If nothing new, skip.
 
-### 8. Report
+### 9. Report
 
 ```
 ## Task collected
@@ -116,3 +146,6 @@ Same as `/done`: check if this task established anything that future sessions sh
 - If the task is already `done`, report that and do nothing.
 - The `--no-ff` flag ensures a merge commit is created, keeping the branch history visible.
 - After collecting, run `esm worktree list` to show remaining active worktrees.
+- **Never skip step 7 for a PB/queue collection**, even mid-pause. The worker's worktree
+  carried old skill copies and could only edit its own branch; the queue-plan banner and
+  `workstream-state.md` on main are the coordinator's job. Dropping this is audit #2 N4.

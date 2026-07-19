@@ -1,119 +1,40 @@
 ---
 name: start-work
-description: Claim a workstream before starting work. Prevents parallel session collisions.
+description: RETIRED — the W1–W6 workstream-claim model is frozen. See the current flow below.
 ---
 
-# Start Work
+# Start Work — 🗄️ RETIRED (2026-07-18, DOCB-2 / `scutemob-132`)
 
-Claim a workstream so parallel sessions know it's taken. Run this after `/start-session`
-and before doing any actual work.
+> **This skill is retired. Do not use it to claim work.**
+>
+> `/start-work` was built on the **W1–W6 workstream-claim model**, which is **frozen**.
+> Collision-avoidance no longer works by editing an "Active Claims" table in
+> `memory/workstream-state.md`; it works by **git worktrees + ESM task locks** (each
+> dispatched worker gets its own worktree and an ESM task that only one agent owns).
+> The docs this skill used to read (`docs/project-status.md`, `docs/workstream-coordination.md`,
+> `docs/ability-batch-plan.md`, `docs/primitive-card-plan.md`) are all RETIRED or HISTORICAL.
 
-## Arguments
+## What to do instead — current flow
 
-- `W1`, `W1-B3`, `W1-B8.7`, etc. -- Claim W1 (abilities), optionally with batch detail
-- `W2` -- Claim W2 (TUI & simulator)
-- `W3` -- Claim W3 (LOW remediation)
-- `W4` -- Claim W4 (M10 networking)
-- `W5`, `W5-cards` -- Claim W5 (card authoring -- RETIRED, use W6)
-- `W6`, `W6-PB18`, `W6-cards` -- Claim W6 (primitive + card authoring)
-- No args -- Show current state and ask which workstream to claim
+1. **`/start`** — bootstrap ESM, load state (`esm project bootstrap` + auto-memory
+   `MEMORY.md`), and orient. This replaces the old "read the claims table" step.
+2. **Pick the next work item from the active queue plan** — the ranked queue lives in a
+   dated file under `memory/primitives/`, named in the **CLAUDE.md "Current State"** section
+   (as of 2026-07-18: `memory/primitives/oos-retriage-plan-2026-07-18.md`). Card-authoring
+   work is driven by `memory/card-authoring/campaign-plan-2026-05-16.md` (§0). Coverage/health
+   numbers come from `docs/authoring-status.md` (regenerate via `python3 tools/authoring-report.py`).
+3. **`/dispatch <title>`** — create the ESM task + worktree and launch a worker. This is the
+   real collision boundary: the worktree isolates the working tree and the ESM task lock
+   prevents two agents claiming the same work. Use `/spawn` if you want to launch the worker
+   by hand, or `/task` + `/done` for small self-assigned work.
+4. **`/collect`** — merge the finished worker's branch back to main and close the task.
 
-## Procedure
+For the pipeline mechanics of a single primitive batch, use **`/implement-primitive`**.
 
-### Step 1: Read state
+## Why it was retired
 
-Read `memory/workstream-state.md`. Display the Active Claims table.
-
-Also read `docs/project-status.md` to show current progress summary:
-- Primitive batch progress (done/active/planned counts)
-- Card health summary
-- Path to alpha status
-
-### Step 2: Validate
-
-Check the target workstream's current status:
-
-- **If `ACTIVE`**: STOP. Print a warning:
-  > **COLLISION WARNING**: W<N> is already ACTIVE (claimed <timestamp>).
-  > Another session may be working on it. Check with the other session before proceeding.
-  > To force-claim anyway, run `/start-work W<N> --force`.
-
-- **If `not-started`**: STOP. Print:
-  > W<N> is marked `not-started` (blocked or deferred). Check `docs/workstream-coordination.md`
-  > for prerequisites.
-
-- **If `available` or `paused`**: Proceed to Step 3.
-
-### Step 3: Claim
-
-Update `memory/workstream-state.md`:
-
-1. Set the target workstream's **Status** to `ACTIVE`
-2. Set **Task** to the specific task from `$ARGUMENTS` (e.g., "PB-18: Stax/restrictions")
-   or a general description if no detail given (e.g., "TUI hardening")
-3. Set **Claimed** to today's date and time
-4. Set **Notes** to any relevant context
-
-### Step 4: Load context
-
-Based on the workstream, load relevant files and report context:
-
-| Workstream | Auto-load |
-|------------|-----------|
-| W1 | `docs/ability-batch-plan.md` -- find the target batch |
-| W2 | `tools/tui/` source, `crates/simulator/` |
-| W3 | `docs/mtg-engine-low-issues-remediation.md` |
-| W4 | `docs/mtg-engine-roadmap.md` M10 section |
-| W5 | RETIRED -- redirect to W6 |
-| W6 | `docs/project-status.md` + `docs/primitive-card-plan.md` |
-
-#### W6-Specific Context Loading
-
-**If claiming W6 with a PB number** (e.g., `W6-PB18`):
-
-1. Read the PB-<N> section from `docs/primitive-card-plan.md`
-2. Read `docs/project-status.md` to check:
-   - PB-<N> status (should be `planned`)
-   - Any deferred items from prior PBs that apply
-   - Review backlog status
-3. Read `memory/workstream-state.md` "Last Handoff" for deferred items from the prior PB
-4. Check if `memory/primitive-wip.md` exists (WIP from a previous session)
-5. Report:
-   - Batch title and card count
-   - Dependencies (and whether they're met)
-   - Deferred items carried forward
-   - Whether `/implement-primitive` should be used (recommended for all remaining PBs)
-
-**If claiming W6 without a PB number** (e.g., just `W6`):
-
-1. Read `docs/project-status.md` to find the next `planned` PB batch
-2. Suggest claiming that specific batch
-3. If all PBs are `done`, suggest Phase 2 card authoring or Phase 3 audit
-
-**If claiming `W6-cards`** (Phase 2 bulk authoring):
-
-1. Read `docs/project-status.md` to verify all PBs are `done`
-2. Read `docs/primitive-card-plan.md` Phase 2 wave plan
-3. Report which authoring wave is next
-
-#### W1-Specific Context Loading (legacy)
-
-If claiming W1 with a batch number, also report:
-- Which abilities are in that batch
-- Whether any are already done
-- The previous handoff notes for W1 (if any)
-
-### Step 5: Report
-
-Print confirmation:
-> **Claimed W<N>**: <task description>
-> **Commit prefix**: `W6-prim:` (primitives) or `W6-cards:` (authoring) or `W<N>:`
-> **Recommended workflow**: `/implement-primitive` for PB batches
-> **Remember**: Run `/end-session` when done to release the claim and write a handoff.
-
-## Force-claim
-
-If `$ARGUMENTS` includes `--force`:
-- Skip the collision check in Step 2
-- Set the workstream to ACTIVE regardless of current status
-- Print a warning that the previous claim was overridden
+`memory/doc-audit-2026-07-18b.md` (Theme 2, S2) found this skill wired entirely to retired
+docs and built on the frozen W-model. The coordinator decision (DOCB-2) was **retire, not
+rewire**: the claim-table mechanism it encodes has been fully superseded by the
+worktree + ESM-task-lock model above, so there is nothing to rewire it onto. The file is kept
+(not deleted) so an invocation lands on this banner instead of a "skill not found" error.
