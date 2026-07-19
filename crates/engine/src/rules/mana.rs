@@ -232,6 +232,22 @@ pub fn handle_tap_for_mana(
             });
         }
     }
+    // 5b2. PB-OS11 (CR 602.2c / CR 118.3): remove-counter cost legality check. Pure
+    //     validation, before any mutation — mirrors the mana_cost / life_cost checks
+    //     above (an unaffordable Workhorse/Gemstone Array activation touches nothing).
+    if let Some((ref counter, count)) = ability.remove_counter {
+        let current = state
+            .objects
+            .get(&source)
+            .and_then(|o| o.counters.get(counter).copied())
+            .unwrap_or(0);
+        if current < count {
+            return Err(GameStateError::InvalidCommand(format!(
+                "mana ability requires removing {count} {counter:?} counter(s) but only \
+                 {current} present (CR 118.3)"
+            )));
+        }
+    }
     // 5c. SR-37 / SF-10 (CR 602.5b): "Activate only if [condition]". CR 605.1a keeps a
     //     conditioned ability a mana ability, so `mana_ability_lowering` still lowers it —
     //     but the restriction must be enforced here, exactly as `handle_activate_ability`
@@ -301,6 +317,27 @@ pub fn handle_tap_for_mana(
         events.push(GameEvent::LifeLost {
             player,
             amount: ability.life_cost,
+        });
+    }
+    // 6d. PB-OS11 (CR 602.2c / CR 118.3): pay a remove-counter cost for a mana
+    //     ability (Workhorse "Remove a +1/+1 counter: Add {C}"; also Gemstone
+    //     Array / Druids' Repository's "Remove a charge counter" — PB-OS11
+    //     backfill). Self-referential; no zone move — the source stays wherever it
+    //     was (battlefield). Legality already validated at step 5b2, before any
+    //     mutation.
+    if let Some((ref counter, count)) = ability.remove_counter {
+        let obj_mut = state.object_mut(source)?;
+        let current = obj_mut.counters.get(counter).copied().unwrap_or(0);
+        let new_count = current.saturating_sub(count);
+        if new_count == 0 {
+            obj_mut.counters.remove(counter);
+        } else {
+            obj_mut.counters.insert(counter.clone(), new_count);
+        }
+        events.push(GameEvent::CounterRemoved {
+            object_id: source,
+            counter: counter.clone(),
+            count,
         });
     }
     // 6c. SR-36 (CR 605.1a): resolve a dynamic mana amount (Gaea's Cradle, Elvish

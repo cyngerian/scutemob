@@ -71,7 +71,7 @@ pub fn card() -> CardDefinition {
             // those creatures later leave combat (ruling 2017-09-29).
             AbilityDefinition::Triggered {
                 once_per_turn: false,
-                trigger_condition: TriggerCondition::WheneverYouAttack,
+                trigger_condition: TriggerCondition::WheneverYouAttack { filter: None },
                 effect: Effect::Conditional {
                     condition: Condition::YouAttackedWithNOrMore(3),
                     if_true: Box::new(Effect::TransformSelf),

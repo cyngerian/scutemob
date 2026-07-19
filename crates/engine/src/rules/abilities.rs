@@ -6543,6 +6543,45 @@ fn collect_triggers_for_event(
                     }
                 }
             }
+            // PB-OS11 (CR 508.1 / CR 508.1m / CR 603.2c): WheneverYouAttack's optional
+            // attacker-set filter. This is a BATCH trigger — it fires ONCE per combat
+            // (the dispatch loop at L4147-4170 already calls collect_triggers_for_event
+            // once per controller-source, not once per attacker) iff at least one
+            // declared attacker controlled by this trigger's controller matches the
+            // filter. Distinct from AnyCreatureYouControlAttacks (WheneverCreatureYou
+            // ControlAttacks), which fires once PER matching attacker.
+            if event_type == TriggerEvent::ControllerAttacks {
+                if let Some(ref filter) = trigger_def.triggering_creature_filter {
+                    let any_match = state
+                        .combat
+                        .as_ref()
+                        .map(|combat| {
+                            combat.attackers.keys().any(|aid| {
+                                let Some(ao) = state.objects.get(aid) else {
+                                    return false;
+                                };
+                                if ao.controller != obj.controller {
+                                    return false;
+                                }
+                                // is_token / is_nontoken: GameObject runtime fields,
+                                // not visible to matches_filter — checked explicitly
+                                // (mirrors the ETB/death/combat-damage filter blocks).
+                                if filter.is_token && !ao.is_token {
+                                    return false;
+                                }
+                                if filter.is_nontoken && ao.is_token {
+                                    return false;
+                                }
+                                let ac = crate::rules::layers::expect_characteristics(state, *aid);
+                                crate::effects::matches_filter(&ac, filter)
+                            })
+                        })
+                        .unwrap_or(false);
+                    if !any_match {
+                        continue;
+                    }
+                }
+            }
             // CR 603.2 / CR 207.2c: Apply ETB filter for Alliance and similar
             // "whenever [another] [creature] [you control] enters" triggers.
             // All filter conditions must pass (AND logic).

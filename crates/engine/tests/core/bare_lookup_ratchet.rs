@@ -101,13 +101,27 @@ const SWEPT_FILES: &[(&str, usize)] = &[
     // engine bug; (2) `state.objects.get(&trigger.source)` in the new `has_ability_targets`
     // presence check, an exact duplicate of the pre-existing lookup inside the
     // Normal/CardDefETB target-selection branch a few lines below it.
-    ("src/rules/abilities.rs", 74),
+    // PB-OS11 (2026-07-19): 74 → 75. One new NONSWALLOW predicate read:
+    // `collect_triggers_for_event`'s new `ControllerAttacks` batch-filter branch reads
+    // `state.objects.get(aid)` for each declared attacker in `state.combat.attackers`
+    // inside an `.any(|aid| ...)` closure — a departed attacker (removed from the
+    // battlefield between attack declaration and trigger collection) legitimately
+    // answers the predicate `false` (does not match), the exact same shape as every
+    // other predicate-read site already ceilinged in this file.
+    ("src/rules/abilities.rs", 75),
     ("src/rules/casting.rs", 34),
     ("src/rules/combat.rs", 16),
     ("src/rules/sba.rs", 7),
     ("src/rules/replacement.rs", 24),
     ("src/rules/turn_actions.rs", 7),
-    ("src/rules/mana.rs", 7),
+    // PB-OS11 (2026-07-19): 7 → 8. One new NONSWALLOW predicate read:
+    // `handle_tap_for_mana`'s remove-counter legality pre-check (step 5b2) reads
+    // `state.objects.get(&source).and_then(|o| o.counters.get(counter).copied())
+    // .unwrap_or(0)` — `source` was already validated present a few lines above
+    // with no intervening zone change, so this cannot actually miss; the
+    // `unwrap_or(0)` is defensive, matching the shape of every other predicate
+    // read in this file.
+    ("src/rules/mana.rs", 8),
     ("src/rules/copy.rs", 4),
     // PB-EF5 (2026-07-18): 24 → 22. `transform_permanent_in_place` (extracted from
     // handle_transform's tail) uses `fizzle_object`/`fizzle_object_mut` (CR 400.7 --

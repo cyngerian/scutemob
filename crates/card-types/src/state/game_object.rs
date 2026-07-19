@@ -242,6 +242,16 @@ pub struct ManaAbility {
     /// `Cost::ExileSelfFromHand` by `mana_ability_lowering`. Defaults `false`.
     #[serde(default)]
     pub exile_self_from_hand: bool,
+    /// PB-OS11 (CR 605.1a / CR 602.2c): if `Some((counter, n))`, activating this
+    /// mana ability removes `n` counters of that type from the source permanent as
+    /// its activation cost (the source stays on the battlefield — no zone move,
+    /// unlike `sacrifice_self`). Self-referential (source = the TapForMana source
+    /// ObjectId). `handle_tap_for_mana` validates ≥ n present (CR 118.3) and pays
+    /// it. Lowered from `Cost::RemoveCounter` by `mana_ability_lowering`. `None`
+    /// for the overwhelming majority. Relaxes the no-tap guard (self-exhausting,
+    /// like `exile_self_from_hand`). Workhorse: `Some((PlusOnePlusOne, 1))`.
+    #[serde(default)]
+    pub remove_counter: Option<(crate::state::types::CounterType, u32)>,
 }
 impl ManaAbility {
     /// Convenience constructor: tap this permanent to add one mana of `color`.

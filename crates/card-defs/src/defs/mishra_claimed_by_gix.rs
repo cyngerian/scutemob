@@ -29,7 +29,7 @@ pub fn card() -> CardDefinition {
             // controller — mirrors throne_of_the_god_pharaoh.rs / keep_watch.rs pattern).
             AbilityDefinition::Triggered {
                 once_per_turn: false,
-                trigger_condition: TriggerCondition::WheneverYouAttack,
+                trigger_condition: TriggerCondition::WheneverYouAttack { filter: None },
                 effect: Effect::Sequence(vec![
                     Effect::LoseLife {
                         player: PlayerTarget::EachOpponent,

@@ -230,7 +230,22 @@ use crate::state::hash::HASH_SCHEMA_VERSION;
 ///   also gained a paired variant for OOS-EF7-1's any-recipient equipped-creature
 ///   combat-damage trigger, `umezawas_jitte`, but neither is in the wire closure —
 ///   that half of this batch is a HASH-only change, see `state::hash`.)
-pub const PROTOCOL_VERSION: u32 = 25;
+/// - 26: PB-OS11 (2026-07-19, final PB-OS batch — OOS-LKI-3 reframed): `ManaAbility`
+///   (reachable via `Characteristics.mana_abilities: Vec<ManaAbility>`, a
+///   [`CLOSURE_MUST_CONTAIN`] entry) gains `remove_counter: Option<(CounterType, u32)>`
+///   (CR 605.1a / CR 602.2c — a self-referential remove-counter mana-ability
+///   activation cost; Workhorse "Remove a +1/+1 counter: Add {C}", plus backfill
+///   Gemstone Array / Druids' Repository). `CounterType` was already in the closure
+///   (reachable via `Effect::AddCounter`/`RemoveCounter`), so the closure's type
+///   count is unchanged; `ManaAbility`'s declared shape moved, so the digest moves —
+///   exactly the SR-34/36/37 precedent (`ManaAbility` field additions bump the
+///   protocol digest even though the closure's type count does not grow). This
+///   batch's other half — `TriggerCondition::WheneverYouAttack` unit -> struct with
+///   `filter: Option<TargetFilter>` (CR 508.1/508.1m — Anim Pakal, General Kreat,
+///   Hermes) — does NOT move this digest: `TriggerCondition`/`TriggerEvent` are not
+///   in the wire closure (see the `- 25:` note above), so that half is HASH-only,
+///   see `state::hash`.
+pub const PROTOCOL_VERSION: u32 = 26;
 
 /// Digest of the serialized shape of the wire-frame type closure
 /// (`Command`, `GameEvent`, [`ReplayLog`] and everything they reach).
@@ -248,7 +263,7 @@ pub const PROTOCOL_VERSION: u32 = 25;
 /// existing `u32` *means* does not. Semantic changes still require a manual
 /// [`PROTOCOL_VERSION`] bump.
 pub const PROTOCOL_SCHEMA_FINGERPRINT: &str =
-    "a3f9bb05a3c8e784468ac6b0946e50bb1ae43bf9d75789ef24581cd42e04fd62";
+    "315a211a729431c5688f89d1d3517453cb2d5ffd9c3833c68cf8622387a01559";
 
 /// One `(version, fingerprint)` row of the append-only protocol-schema history.
 ///
@@ -449,6 +464,12 @@ pub const PROTOCOL_HISTORY: &[ProtocolEpoch] = &[
         // PB-OS10 (2026-07-19, OOS-XS-1 + OOS-EF7-1): TargetRequirement gained
         // TargetPermanentDistinctFrom (see the `- 25:` History line above).
         fingerprint: "a3f9bb05a3c8e784468ac6b0946e50bb1ae43bf9d75789ef24581cd42e04fd62",
+    },
+    ProtocolEpoch {
+        version: 26,
+        // PB-OS11 (2026-07-19, final PB-OS batch — OOS-LKI-3 reframed): ManaAbility
+        // gained remove_counter (see the `- 26:` History line above).
+        fingerprint: "315a211a729431c5688f89d1d3517453cb2d5ffd9c3833c68cf8622387a01559",
     },
 ];
 

@@ -3166,9 +3166,13 @@ pub(crate) fn build_face_ability_vectors(
         }
     }
     // CR 508.1: Convert "Whenever you attack" triggers.
+    // PB-OS11: the optional attacker-set filter maps onto the existing
+    // `triggering_creature_filter` runtime field (previously hardcoded None here) —
+    // `collect_triggers_for_event`'s `ControllerAttacks` branch reads it to decide
+    // whether ANY declared attacker matches (CR 508.1m/603.2c batch semantics).
     for ability in abilities {
         if let AbilityDefinition::Triggered {
-            trigger_condition: TriggerCondition::WheneverYouAttack,
+            trigger_condition: TriggerCondition::WheneverYouAttack { filter },
             effect,
             targets,
             ..
@@ -3185,7 +3189,7 @@ pub(crate) fn build_face_ability_vectors(
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
-                triggering_creature_filter: None,
+                triggering_creature_filter: filter.clone(),
                 targets: targets.clone(),
             });
         }
@@ -3774,6 +3778,10 @@ struct ManaAbilityCost {
     mana_cost: Option<ManaCost>,
     life_cost: u32,
     exile_self_from_hand: bool,
+    /// PB-OS11 (CR 605.1a / CR 602.2c): a `Cost::RemoveCounter` component — self-
+    /// referential (removes from the source), so it is lowerable exactly like
+    /// `exile_self_from_hand`. `(counter type, count)`.
+    remove_counter: Option<(CounterType, u32)>,
 }
 /// SR-34 (CR 605.1a): decompose a `Cost` into the components a mana ability can pay
 /// through `Command::TapForMana { player, source, ability_index, chosen_color }`. Returns `None` if
@@ -3837,12 +3845,25 @@ fn mana_ability_cost_components(cost: &Cost) -> Option<ManaAbilityCost> {
                 acc.exile_self_from_hand = true;
                 true
             }
+            // PB-OS11 (CR 605.1a / CR 602.2c): a remove-counter cost IS lowerable —
+            // it is self-referential, identified by `Command::TapForMana`'s `source`
+            // ObjectId, exactly like `SacrificeSelf` / `ExileSelfFromHand`. It removes
+            // counters from the source permanent, not from a caller-supplied target.
+            // One counter-cost component only (mirrors the second-Cost::Mana guard
+            // above): a second `RemoveCounter` in the same sequence declines rather
+            // than overwriting the first.
+            Cost::RemoveCounter { counter, count } => {
+                if acc.remove_counter.is_some() {
+                    return false;
+                }
+                acc.remove_counter = Some((counter.clone(), *count));
+                true
+            }
             // Not lowerable: needs a caller-supplied ObjectId (Sacrifice(filter),
-            // RemoveCounter, DiscardCard) or is a hand/self-exile alt-cost shape
+            // DiscardCard) or is a hand/self-exile alt-cost shape
             // (DiscardSelf, ExileSelf, ExileFromHand, Forage, Exert) that
             // `Command::TapForMana` has no payload for.
             Cost::Sacrifice(_)
-            | Cost::RemoveCounter { .. }
             | Cost::DiscardCard
             | Cost::DiscardSelf
             | Cost::Forage
@@ -3857,6 +3878,7 @@ fn mana_ability_cost_components(cost: &Cost) -> Option<ManaAbilityCost> {
         mana_cost: None,
         life_cost: 0,
         exile_self_from_hand: false,
+        remove_counter: None,
     };
     if !walk(cost, &mut acc) {
         return None;
@@ -3870,7 +3892,12 @@ fn mana_ability_cost_components(cost: &Cost) -> Option<ManaAbilityCost> {
     // so it cannot be activated again — so the seam does not apply. This relaxation is
     // scoped to *only* this flag: a `Cost::Mana`-only or `SacrificeSelf`-only no-tap
     // cost (Food Chain) is still declined below.
-    if !acc.requires_tap && !acc.exile_self_from_hand {
+    //
+    // PB-OS11 (CR 605.1a): a `remove_counter` cost is likewise relaxed — it is
+    // bounded by the counters actually present on the source (each activation
+    // consumes one) and is therefore self-exhausting, not free/repeatable/stackless.
+    // Scoped to only this flag, same as `exile_self_from_hand` above.
+    if !acc.requires_tap && !acc.exile_self_from_hand && acc.remove_counter.is_none() {
         // SR-34 review Finding 2: decline to lower a no-tap cost. See the doc comment
         // above for the seam this leaves closed and how to re-open it deliberately.
         return None;
@@ -3913,6 +3940,8 @@ fn mana_ability_lowering(
     ma.mana_cost = components.mana_cost;
     ma.life_cost = components.life_cost;
     ma.exile_self_from_hand = components.exile_self_from_hand;
+    // PB-OS11 (CR 605.1a / CR 602.2c): carry the remove-counter cost component.
+    ma.remove_counter = components.remove_counter.clone();
     // SR-37 / SF-10 (CR 605.1a + CR 602.5b): carry an "activate only if ..." restriction
     // into the ManaAbility. CR 605.1a keeps a conditioned ability a mana ability (so it is
     // still lowered), but the condition must be enforced at activation — `handle_tap_for_mana`

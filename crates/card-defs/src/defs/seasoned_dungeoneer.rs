@@ -52,7 +52,7 @@ pub fn card() -> CardDefinition {
             // Using WheneverYouAttack + VentureIntoDungeon as partial approximation.
             AbilityDefinition::Triggered {
                 once_per_turn: false,
-                trigger_condition: TriggerCondition::WheneverYouAttack,
+                trigger_condition: TriggerCondition::WheneverYouAttack { filter: None },
                 effect: Effect::VentureIntoDungeon,
                 intervening_if: None,
                 targets: vec![],

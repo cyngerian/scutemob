@@ -35,7 +35,7 @@ pub fn card() -> CardDefinition {
             // Partial: create Soldiers on attack as approximation of one modal option.
             AbilityDefinition::Triggered {
                 once_per_turn: false,
-                trigger_condition: TriggerCondition::WheneverYouAttack,
+                trigger_condition: TriggerCondition::WheneverYouAttack { filter: None },
                 effect: Effect::CreateToken {
                     spec: TokenSpec {
                         name: "Soldier".to_string(),

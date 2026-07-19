@@ -110,8 +110,8 @@ attacks (wrong cost; swapped colours) — both caught.
 | Voldaren Estate | act[0]: `restricted=[Colorless×1(SubtypeOnly(Vampire))]`, **life 40→40** | restriction honoured; colour wrong; **SF-9 victim** (life uncharged). `{T}: Add {C}` correct. |
 | Phyrexian Altar | `C5→C6` (colorless) via stack | prints "any color" |
 | Goldhound | `C5→C6` (colorless), sac'd self, **stack empty** | SR-34 lowered it (`sacrifice_self` already existed); mechanism now right, colour wrong |
-| Druids' Repository | 5 charge counters → `C5→C6` (colorless) via stack | `Cost::RemoveCounter` unlowerable; **no tap at all** — and every `try_as_tap_mana_ability` return site hardcodes `requires_tap: true`, so the `false` path is **unexercised corpus-wide** |
-| Gemstone Array | 5 charge counters → `C5→C6` (colorless) via stack | same; `{2}: Put a charge counter` is correct |
+| Druids' Repository | 5 charge counters → `C5→C6` (colorless) via stack | ✅ **RESOLVED PB-OS11 (2026-07-19) → Complete.** `Cost::RemoveCounter` is now lowerable to a true mana ability (new `ManaAbility.remove_counter`, no-tap guard relaxed for the self-exhausting cost), and the any-color effect resolves the chosen colour on the lowered `TapForMana` path (`test_druids_repository_any_color_lowered`). Was: unlowerable + no-tap `false` path unexercised. |
+| Gemstone Array | 5 charge counters → `C5→C6` (colorless) via stack | ✅ **RESOLVED PB-OS11 (2026-07-19) → Complete.** Same RemoveCounter lowering fix (`test_gemstone_array_any_color_lowered`); `{2}: Put a charge counter` was already correct. |
 | Three Tree City | ETB chose **"Soldier"**; `{2},{T}` → **2 mana for 2 creatures (amount correct)** but **colorless**, not a chosen colour | `AddManaOfAnyColorAmount` ignores colour choice outright. `{T}: Add {C}` correct. |
 | Maelstrom of the Spirit Dragon | `restricted=[Colorless×1(SubtypeOrSubtype(Dragon,Omen))]` | restriction honoured, colour wrong. `{T}: Add {C}` correct. |
 | Secluded Courtyard | `restricted=[Colorless×1(CreatureSpellsOnly)]` | ditto; "or activate an ability of…" also unenforced |

@@ -3554,7 +3554,17 @@ pub enum TriggerCondition {
     ///
     /// CR 508.1: fires at declare-attackers step, once per combat (not per creature).
     /// Distinct from WheneverCreatureYouControlAttacks which fires per-creature.
-    WheneverYouAttack,
+    WheneverYouAttack {
+        /// PB-OS11: optional filter on the DECLARED ATTACKER SET (layer-resolved
+        /// characteristics + is_token/is_nontoken). The trigger fires ONCE per combat
+        /// iff at least one attacker controlled by the trigger's controller matches.
+        /// `None` = any attack (legacy behaviour). Used for "Whenever you attack with
+        /// one or more non-Gnome creatures / Goblins / Birds" (CR 508.1/508.1m/603.2c).
+        /// Distinct from `WheneverCreatureYouControlAttacks{filter}` which fires per
+        /// matching attacker.
+        #[serde(default)]
+        filter: Option<TargetFilter>,
+    },
     /// "When ~ leaves the battlefield" -- fires when this permanent leaves for any reason.
     ///
     /// CR 603.10a: looks back in time. Covers death, exile, bounce, and sacrifice.

@@ -21,7 +21,7 @@ pub fn card() -> CardDefinition {
             // TODO: "with two or more creatures" condition not in DSL.
             AbilityDefinition::Triggered {
                 once_per_turn: false,
-                trigger_condition: TriggerCondition::WheneverYouAttack,
+                trigger_condition: TriggerCondition::WheneverYouAttack { filter: None },
                 effect: Effect::DrawCards {
                     player: PlayerTarget::Controller,
                     count: EffectAmount::Fixed(1),

@@ -91,13 +91,13 @@ fn attach(state: &mut GameState, equip_id: ObjectId, creature_id: ObjectId) {
 #[test]
 fn test_pb_os10_version_sentinel() {
     assert_eq!(
-        HASH_SCHEMA_VERSION, 62u8,
+        HASH_SCHEMA_VERSION, 63u8,
         "PB-OS10 added TargetRequirement::TargetPermanentDistinctFrom plus \
          TriggerEvent/TriggerCondition::(When)EquippedCreatureDealsCombatDamage \
          (HASH 61->62). Update this sentinel and the state/hash.rs history block together."
     );
     assert_eq!(
-        PROTOCOL_VERSION, 25,
+        PROTOCOL_VERSION, 26,
         "PB-OS10 added TargetRequirement::TargetPermanentDistinctFrom (PROTOCOL 24->25). \
          Update this sentinel and the rules/protocol.rs history block together."
     );

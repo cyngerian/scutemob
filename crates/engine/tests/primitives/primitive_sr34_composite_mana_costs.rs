@@ -1234,11 +1234,16 @@ fn sr34_roster_markers_match_the_reconciliation() {
     // any_color-mana-produces-Colorless defect (CR 106.1b) this batch fixed — their
     // any_color: true ManaAbility now resolves to a real chosen colour via
     // Command::TapForMana.chosen_color, so they are Complete. See birds_of_paradise.rs.
+    // PB-OS11 (2026-07-19): Druids' Repository and Gemstone Array removed from this
+    // roster for the SAME reason — their sole recorded blocker was the any-color→
+    // Colorless defect. This batch's Cost::RemoveCounter mana-ability lowering makes
+    // their "Remove a charge counter: Add one mana of any color" a true mana ability
+    // whose any-color effect now resolves the chosen colour on the lowered TapForMana
+    // path (execution-verified: test_gemstone_array_any_color_lowered /
+    // test_druids_repository_any_color_lowered), so both are Complete.
     let known_wrong = [
         "Voldaren Estate",
         "Phyrexian Altar",
-        "Druids' Repository",
-        "Gemstone Array",
         "Three Tree City",
         "Maelstrom of the Spirit Dragon",
         "Secluded Courtyard",

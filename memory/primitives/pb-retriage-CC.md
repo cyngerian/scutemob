@@ -400,18 +400,28 @@ micro-PB seeds, not failures.").
 
 ## OOS Seeds appended by PB-TS runner (scutemob-16, 2026-04-30)
 
-### OOS-TS-1: Anim Pakal attacker filter
+### OOS-TS-1: Anim Pakal attacker filter — ✅ RESOLVED (PB-OS11, scutemob-141, 2026-07-19)
+
+> **RESOLVED 2026-07-19.** Two corrections landed with the fix:
+> 1. **Oracle text below was STALE.** MCP-authoritative current text is *"Whenever you attack with
+>    one or more **non-Gnome** creatures, put a +1/+1 counter on Anim Pakal, then create X 1/1
+>    colorless Gnome artifact creature tokens that are tapped and attacking, where X is the number
+>    of +1/+1 counters on Anim Pakal."* — a **batch** trigger over **non-Gnome** attackers, not
+>    "nontoken". (The `TokenSpec.count` half was already unblocked by PB-TS.)
+> 2. **`exclude_subtypes` already existed and was enforced** in `matches_filter` — the surviving gap
+>    was that `TriggerCondition::WheneverYouAttack` was a filterless unit firing on every attack.
+>    Fix: unit→struct `{ filter: Option<TargetFilter> }`, fired **once per batch** via a new
+>    `ControllerAttacks` branch in `collect_triggers_for_event` reading `state.combat.attackers`.
+>    `anim_pakal_thousandth_moon` → **Complete** with `exclude_subtypes: [Gnome]` (created Gnome
+>    tokens self-exclude by subtype, and being tokens put onto the battlefield attacking they are
+>    never *declared* attackers, so they cannot re-trigger). Forced-add flips this batch:
+>    `general_kreat_the_boltbringer`, `hermes_overseer_of_elpis`.
 
 **Card**: Anim Pakal, Thousandth Moon
-**Oracle text**: "Whenever Anim Pakal or another nontoken creature you control attacks, create a
-1/1 colorless Gnome artifact creature token."
-**Gap**: The WheneverYouAttackWithNonTokenNonGnome trigger condition requires filtering by
-`is_token: false` AND `has_subtype != Gnome` for the attacking creature. The current
-`TriggerCondition::WhenAttacks` and `ETBTriggerFilter` do not cover this pattern. A new
-`TriggerCondition::WheneverYouControlledCreatureAttacks { filter: AttackTriggerFilter }` variant
-or an extension of the existing attacker-trigger path is needed.
-**Blocked on**: Attacker-trigger filter primitive (new `TriggerCondition` variant + dispatch in
-`check_triggers` over `CreatureAttacked` or `AttackersDeclared` events).
+**Oracle text (STALE — see banner)**: "Whenever Anim Pakal or another nontoken creature you control
+attacks, create a 1/1 colorless Gnome artifact creature token."
+**Gap (resolved)**: A once-per-batch attacker-trigger filter primitive was needed. Delivered as
+`TriggerCondition::WheneverYouAttack { filter }` + a `ControllerAttacks` dispatch branch.
 
 ### OOS-TS-2: Izoni sacrifice-another-creature activated ability — ✅ RESOLVED (PB-EF1, scutemob-99)
 
@@ -528,11 +538,25 @@ reviewer clarity.
 These are the seeds originally drafted by the planner in pb-plan-LKI-CC.md Step 4.
 The runner filed OOS-LKI-1/2 as no-interaction docs; these become OOS-LKI-3/4.
 
-### OOS-LKI-3: Cost-payment LKI counter snapshot for activated abilities
+### OOS-LKI-3: Cost-payment LKI counter snapshot for activated abilities — ✅ RESOLVED-BY-REFRAME (PB-OS11, scutemob-141, 2026-07-19)
 
-**Cards**: Workhorse (`{T}, sacrifice this: add X mana, X = number of +1/+1 counters on it`), and
-any activated ability that sacrifices its source as cost and reads the source's counter count
-for the effect.
+> **RESOLVED 2026-07-19 — the filed premise was STALE.** The Workhorse oracle below
+> (`{T}, sacrifice this: add X mana, X = +1/+1 counters`) matches **no printed card**. MCP-authoritative
+> current Workhorse = *"This creature enters with four +1/+1 counters on it. / Remove a +1/+1 counter
+> from this creature: Add {C}."* — **no sacrifice, no X-mana, no LKI snapshot involved.** Chain-verified
+> that PB-EF10's `SacrificedCreatureLki` carries only `{power, toughness, mana_value}` (no counters), so
+> **no counter-snapshot channel was built or duplicated** — the whole `sacrificed_creature_counters`
+> design here is MOOT. The real gap Workhorse exercises (and the AC's own "lowered mana-ability path"
+> requirement, SR-34/36) is that a `Cost::RemoveCounter` mana ability with no `{T}` couldn't be lowered
+> to a true mana ability (CR 605.1a). Fix: `ManaAbility.remove_counter` + accept `Cost::RemoveCounter`
+> in `mana_ability_cost_components` + relax the no-tap guard (self-exhausting, PB-EF8 template) + pay in
+> `handle_tap_for_mana` via the existing `GameEvent::CounterRemoved`. `workhorse` authored NEW →
+> **Complete** (fixed `{C}`); backfill flips `gemstone_array` + `druids_repository` (same lowering path,
+> their plain any-color now resolves the chosen colour — see `sr34-roster-reconciliation.md`).
+
+**Cards**: Workhorse (`{T}, sacrifice this: add X mana, X = number of +1/+1 counters on it` — **STALE
+oracle, see banner**), and any activated ability that sacrifices its source as cost and reads the
+source's counter count for the effect.
 **Oracle pattern**: "{cost incl. sacrifice this}: [effect] X = number of [counter] counters on this."
 **Gap**: PB-P (`PowerOfSacrificedCreature`) snapshots LKI power at cost-payment time
 (`EffectContext.sacrificed_creature_powers`) but does NOT snapshot LKI counters. PB-LKI-CC
