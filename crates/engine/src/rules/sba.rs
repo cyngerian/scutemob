@@ -835,9 +835,13 @@ fn check_saga_sbas(state: &mut GameState) -> Vec<GameEvent> {
         .filter_map(|(id, obj)| {
             let cid = obj.card_id.as_ref()?;
             let def = state.card_registry.get(cid.clone())?;
-            // Find the final chapter number (greatest chapter N among SagaChapter abilities).
+            // PB-OS4b (CR 712.8d/e, 714.4): scan the currently-visible face's
+            // abilities. A transformed Saga (e.g. Fable of the Mirror-Breaker's
+            // back face) is no longer a Saga once its back face has no
+            // SagaChapter abilities -- final_chapter becomes None, so it is
+            // correctly excluded from this sacrifice check.
             let final_chapter = def
-                .abilities
+                .effective_abilities(obj.is_transformed)
                 .iter()
                 .filter_map(|a| match a {
                     AbilityDefinition::SagaChapter { chapter, .. } => Some(*chapter),
@@ -868,14 +872,21 @@ fn check_saga_sbas(state: &mut GameState) -> Vec<GameEvent> {
                 if *source_object != saga_id {
                     return false;
                 }
-                // Check if the ability at this index is a SagaChapter.
-                state
-                    .objects
-                    .get(&saga_id)
-                    .and_then(|obj| obj.card_id.as_ref())
+                // Check if the ability at this index is a SagaChapter. PB-OS4b
+                // (CR 712.8d/e): index into the currently-visible face's effective
+                // list, matching the index space the producer (queue_carddef_etb_
+                // triggers-style trigger push) used when this stack object's
+                // ability_index was assigned.
+                let Some(saga_obj) = state.objects.get(&saga_id) else {
+                    return false;
+                };
+                let is_transformed = saga_obj.is_transformed;
+                saga_obj
+                    .card_id
+                    .as_ref()
                     .and_then(|cid| state.card_registry.get(cid.clone()))
                     .map(|def| {
-                        def.abilities
+                        def.effective_abilities(is_transformed)
                             .get(*ability_index)
                             .map(|a| matches!(a, AbilityDefinition::SagaChapter { .. }))
                             .unwrap_or(false)

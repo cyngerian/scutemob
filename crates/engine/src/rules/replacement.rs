@@ -1405,14 +1405,26 @@ pub fn queue_carddef_etb_triggers(
     let Some(def) = registry.get(cid.clone()) else {
         return Vec::new();
     };
-    // CR 702.104b: Retrieve tribute_was_paid status from the permanent for trigger condition check.
-    let tribute_was_paid = state
+    // CR 702.104b: Retrieve tribute_was_paid status from the permanent for trigger
+    // condition check. PB-OS4b (CR 712.8d/e): also read the entering object's live
+    // `is_transformed` here (single lookup, SR-25 ratchet) so a permanent that
+    // enters already showing its back face (craft, disturb,
+    // ExileSourceAndReturnTransformed) queues that face's ETB triggers, not the
+    // front face's. `ability_index` below is a dense index into the *effective*
+    // list; the CardDefETB consumers (rules/abilities.rs) re-derive against
+    // `effective_abilities(obj.is_transformed)` at resolution time using the same
+    // contract (see the Index-Stability discussion in the PB-OS4b plan).
+    let (tribute_was_paid, entering_is_transformed) = state
         .objects
         .get(&new_id)
-        .map(|o| o.tribute_was_paid)
-        .unwrap_or(false);
+        .map(|o| (o.tribute_was_paid, o.is_transformed))
+        .unwrap_or((false, false));
     let mut evts = Vec::new();
-    for (idx, ability) in def.abilities.iter().enumerate() {
+    for (idx, ability) in def
+        .effective_abilities(entering_is_transformed)
+        .iter()
+        .enumerate()
+    {
         match ability {
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,

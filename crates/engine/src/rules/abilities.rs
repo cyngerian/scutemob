@@ -722,13 +722,26 @@ pub fn handle_activate_ability(
         // which cannot be distinguished from the card def alone.
         // Refactoring to a stable ability identifier is deferred until a card def collides
         // (see get_self_activated_reduction doc comment for details).
-        if let Some(card_id) = state.expect_object(source).and_then(|o| o.card_id.clone()) {
-            if let Some(card_def) = state.card_registry.get(card_id) {
-                let amount = get_self_activated_reduction(card_def, ability_index)
-                    .map(|r| evaluate_self_activated_reduction(state, player, &r))
-                    .unwrap_or(0);
-                if amount > 0 {
-                    resolved_cost.generic = resolved_cost.generic.saturating_sub(amount);
+        // PB-OS4b (CR 712.8d/e): `activated_ability_cost_reductions` is keyed by
+        // index into the FRONT `CardDefinition`-level list. After the Channel-A
+        // fix, a transformed permanent's `activated_abilities` are back-face
+        // -derived, so a back-face activated ability at some index could collide
+        // with an unrelated front-face cost reduction keyed at the same index.
+        // The schema has no back-face cost reductions (a back face cannot declare
+        // one), so skip this lookup entirely when the source is transformed.
+        let source_is_transformed = state
+            .expect_object(source)
+            .map(|o| o.is_transformed)
+            .unwrap_or(false);
+        if !source_is_transformed {
+            if let Some(card_id) = state.expect_object(source).and_then(|o| o.card_id.clone()) {
+                if let Some(card_def) = state.card_registry.get(card_id) {
+                    let amount = get_self_activated_reduction(card_def, ability_index)
+                        .map(|r| evaluate_self_activated_reduction(state, player, &r))
+                        .unwrap_or(0);
+                    if amount > 0 {
+                        resolved_cost.generic = resolved_cost.generic.saturating_sub(amount);
+                    }
                 }
             }
         }
@@ -5995,11 +6008,23 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             return true;
                         }
                         // Look up the trigger source's CardDef triggered ability.
-                        let source_card_id =
-                            state.objects.get(&t.source).and_then(|o| o.card_id.clone());
+                        // PB-OS4b (CR 712.8d/e): index into the currently-visible
+                        // face's effective list -- "is_transformed at consume time"
+                        // contract (see plan Index-Stability discussion). Single
+                        // lookup captures both card_id and is_transformed so this
+                        // doesn't add a second bare `.objects.get` (SR-25 ratchet).
+                        let source_info = state
+                            .objects
+                            .get(&t.source)
+                            .map(|o| (o.is_transformed, o.card_id.clone()));
+                        let Some((source_is_transformed, source_card_id)) = source_info else {
+                            return true;
+                        };
                         let def = source_card_id.and_then(|cid| state.card_registry.get(cid));
                         let Some(def) = def else { return true };
-                        let ability = def.abilities.get(t.ability_index);
+                        let ability = def
+                            .effective_abilities(source_is_transformed)
+                            .get(t.ability_index);
                         let Some(ability) = ability else { return true };
                         match ability {
                             AbilityDefinition::Triggered {
@@ -6810,10 +6835,16 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                     None
                 };
                 from_runtime.unwrap_or_else(|| {
+                    // PB-OS4b (CR 712.8d/e): index into the currently-visible
+                    // face's effective list ("is_transformed at consume time"
+                    // contract).
                     obj.card_id
                         .as_ref()
                         .and_then(|cid| state.card_registry.get(cid.clone()))
-                        .and_then(|def| def.abilities.get(trigger.ability_index))
+                        .and_then(|def| {
+                            def.effective_abilities(obj.is_transformed)
+                                .get(trigger.ability_index)
+                        })
                         .map(|abil| {
                             matches!(
                                 abil,
@@ -6883,10 +6914,15 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                     .get(trigger.ability_index)
                     .is_some_and(|ab| !ab.targets.is_empty())
             } else {
+                // PB-OS4b (CR 712.8d/e): index into the currently-visible face's
+                // effective list ("is_transformed at consume time" contract).
                 obj.card_id
                     .as_ref()
                     .and_then(|cid| state.card_registry.get(cid.clone()))
-                    .and_then(|def| def.abilities.get(trigger.ability_index))
+                    .and_then(|def| {
+                        def.effective_abilities(obj.is_transformed)
+                            .get(trigger.ability_index)
+                    })
                     .is_some_and(|abil| {
                         matches!(
                             abil,
@@ -7003,13 +7039,18 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                             .map(|ab| ab.targets.clone())
                             .unwrap_or_default()
                     } else {
-                        // CardDefETB: `ability_index` correctly indexes `def.abilities`
-                        // here (see builder at ~6438/6504 above), so the raw-index
-                        // registry lookup is safe and remains the sole source.
+                        // CardDefETB: `ability_index` correctly indexes the
+                        // currently-visible face's effective ability list (see
+                        // builder at ~6438/6504 above; PB-OS4b: "is_transformed at
+                        // consume time" contract), so the raw-index registry
+                        // lookup is safe and remains the sole source.
                         obj.card_id
                             .as_ref()
                             .and_then(|cid| state.card_registry.get(cid.clone()))
-                            .and_then(|def| def.abilities.get(trigger.ability_index))
+                            .and_then(|def| {
+                                def.effective_abilities(obj.is_transformed)
+                                    .get(trigger.ability_index)
+                            })
                             .and_then(|abil| match abil {
                                 crate::cards::card_definition::AbilityDefinition::Triggered {
                                     targets,
@@ -8161,12 +8202,20 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                 ..
             } = &stack_obj.kind
             {
+                // PB-OS4b (CR 712.8d/e): index into the currently-visible face's
+                // effective list ("is_transformed at consume time" contract) --
+                // this modal-mode lookup is a CardDefETB consumer (also reached by
+                // Normal-kind triggers, which have their own separate pre-existing
+                // ability_index-namespace caveat, unchanged/out of scope here).
                 let modal_modes = state
                     .objects
                     .get(source_object)
-                    .and_then(|obj| obj.card_id.as_ref())
-                    .and_then(|cid| state.card_registry.get(cid.clone()))
-                    .and_then(|def| def.abilities.get(*ability_index))
+                    .and_then(|obj| {
+                        let cid = obj.card_id.as_ref()?;
+                        let def = state.card_registry.get(cid.clone())?;
+                        def.effective_abilities(obj.is_transformed)
+                            .get(*ability_index)
+                    })
                     .and_then(|abil| {
                         if let crate::cards::card_definition::AbilityDefinition::Triggered {
                             modes,

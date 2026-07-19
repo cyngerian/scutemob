@@ -657,9 +657,14 @@ fn fire_mana_triggered_abilities(
         .map(|o| o.id)
         .collect();
     for trigger_source_id in battlefield_ids {
-        // Get the card_id for registry lookup.
-        let card_id = match state.objects.get(&trigger_source_id) {
-            Some(o) => o.card_id.clone(),
+        // Get the card_id for registry lookup. PB-OS4b (CR 712.8d/e): also read
+        // `is_transformed` here (single lookup, SR-25 ratchet) -- a transformed
+        // permanent's WhenTappedForMana triggers come from its back face.
+        // `ability_idx` below is a dense index into the effective list; the
+        // CardDefETB consumer this pushes to re-derives against
+        // `effective_abilities(obj.is_transformed)` at resolution time.
+        let (card_id, source_is_transformed) = match state.objects.get(&trigger_source_id) {
+            Some(o) => (o.card_id.clone(), o.is_transformed),
             None => continue,
         };
         let card_id = match card_id {
@@ -672,7 +677,11 @@ fn fire_mana_triggered_abilities(
             Some(d) => d.clone(),
             None => continue,
         };
-        for (ability_idx, ability) in def.abilities.iter().enumerate() {
+        for (ability_idx, ability) in def
+            .effective_abilities(source_is_transformed)
+            .iter()
+            .enumerate()
+        {
             let (source_filter, effect, targets) = match ability {
                 AbilityDefinition::Triggered {
                     trigger_condition: TriggerCondition::WhenTappedForMana { source_filter },
