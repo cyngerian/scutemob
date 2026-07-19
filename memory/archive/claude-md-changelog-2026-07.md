@@ -397,3 +397,15 @@ authored `Complete` (+1, honest since W-EMPTY). Decoy pinned by anthem + wrong-c
 proven by revert-and-rerun; decline path proves no stale LKI leak. No PROTOCOL/HASH change
 (sentinels assert 18/55 untouched). Reviews: primitive-impl-reviewer clean, /review 4/4 ACs
 zero issues. Next: PB-OS3 (OOS-EF6-1 WhenTappedForMana target dispatch).
+
+## 2026-07-18 — PB-OS3 collected (`scutemob-129`, merge `fd922b74`) — CORRECTNESS GROUP COMPLETE
+
+OOS-EF6-1 closed: `fire_mana_triggered_abilities` deferred branch reclassified
+`PendingTriggerKind::Normal` → `CardDefETB` so the def raw-index lookup forwards
+WhenTappedForMana targets (PB-EF3's Option B pattern; CR 605.5a). `forbidden_orchard`
+`known_wrong` → **Complete** — both halves compose: PB-EF12 chosen-color mana + opponent-
+targeted token with `recipient: DeclaredTarget{0}`, 4-player decoy pins the recipient.
+Roster sweep test derived from `all_cards()`; doubler/immediate-branch regression pinned;
+non-vacuity by revert-and-rerun. No PROTOCOL/HASH change. Reviews clean (1 INFO, no action).
+**PB-OS1..OS3 (correctness group) all shipped.** Next: PB-OS4 (return-transformed /
+enters-transformed, capability, ~2-3 of 4 DFCs, PROTOCOL bump expected).
