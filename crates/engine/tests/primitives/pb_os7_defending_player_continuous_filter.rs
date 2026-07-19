@@ -689,12 +689,12 @@ fn test_os7_card_registered() {
 #[test]
 fn test_os7_version_sentinels() {
     assert_eq!(
-        HASH_SCHEMA_VERSION, 59u8,
+        HASH_SCHEMA_VERSION, 60u8,
         "HASH_SCHEMA_VERSION should be 59 after PB-OS7 (EffectFilter gained \
          CreaturesControlledByDefendingPlayer, discriminant 36)"
     );
     assert_eq!(
-        PROTOCOL_VERSION, 22,
+        PROTOCOL_VERSION, 23,
         "PROTOCOL_VERSION should be 22 after PB-OS7 -- see the protocol.rs `- 22:` \
          history line for why this moved despite the plan predicting no bump"
     );

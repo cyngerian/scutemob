@@ -423,7 +423,15 @@ Massacre, Silumgar, and any future card using a description-based `EffectFilter`
 instant/sorcery resolution). Deferred per implement-phase-default-to-defer; do NOT attempt in a
 single-card PB.
 
-### PB-OS8 — look-at-top-N-place-one (OOS-EF10-1) · capability
+### PB-OS8 — look-at-top-N-place-one (OOS-EF10-1) · capability ✅ SHIPPED `scutemob-138`
+- **CLOSED (2026-07-19)**: `Effect::LookAtTopThenPlace` (disc 96) + `TargetFilter.min_cmc_amount`
+  shipped exactly as scoped below. `birthing_ritual` (inert→Complete) and
+  `growing_rites_of_itlimoc` (partial→Complete, closes PB-OS6 deferred sub-primitive (d)) flipped.
+  `birthing_pod` did NOT flip: `min_cmc_amount` closes its dynamic-MV blocker, but a SECOND,
+  independent blocker (Phyrexian mana unsupported in the activated-ability payment path) was
+  discovered at implement time — filed **OOS-OS8-1**. `muxus_goblin_grandee`'s ETB was verified to
+  be a put-MULTIPLE `RevealAndRoute` instance, NOT this primitive — its marker was re-pointed and
+  the follow-up filed as **OOS-OS8-2**. PROTOCOL 22→23 / HASH 59→60.
 - **Findings**: OOS-EF10-1 (+ the unfiled `min_cmc_amount` Birthing Pod sub-blocker rides here).
 - **Fix**: `Effect::LookAtTopThenPlace { count: EffectAmount, filter: TargetFilter, destination,
   rest_to: BottomRandomOrder | Graveyard, optional: bool }` — scopes candidates to the looked-at
@@ -433,6 +441,30 @@ single-card PB.
 - **Candidates (2+)**: `birthing_ritual` (`inert`→Complete), `birthing_pod` (via `min_cmc_amount`),
   + impulse-style "look at top N, take one, rest bottomed" cards on sweep.
 - **Discounted ship**: **~2.**
+
+**New seed — OOS-OS8-1 (capability) — Phyrexian mana in an activated ability's cost.**
+Filed at PB-OS8 implement time. `birthing_pod.rs`'s `{1}{G/P}, {T}, Sacrifice a creature: ...`
+now has an expressible dynamic-MV filter (`SearchLibrary` with paired
+`max_cmc_amount`/`min_cmc_amount` both = `Sum(Fixed(1), ManaValueOfSacrificedCreature)`), but
+`rules/abilities.rs` has ZERO Phyrexian-mana references — the "{G/P} paid with 2 life"
+alternative lives only in `rules/casting.rs` (spell casting), and the activated-ability payment
+path pays strictly via `mana_pool.can_spend/spend`. Authoring the cost as plain `{1}{G}` would
+silently remove the 2-life payment option (legal-but-wrong game state). Fix shape (sketch, NOT
+scoped): thread the same Phyrexian-mana-or-life-payment choice `casting.rs` already offers spells
+into the activated-ability cost-payment path in `abilities.rs`. Candidates: `birthing_pod` +
+any future card with a Phyrexian pip in an activated (not cast) cost.
+
+**New seed — OOS-OS8-2 (capability) — Muxus, Goblin Grandee ETB via `RevealAndRoute`.**
+Verified at PB-OS8 implement time that `muxus_goblin_grandee.rs`'s ETB ("reveal the top six
+cards... Put all Goblin creature cards with mana value 5 or less from among them onto the
+battlefield and the rest on the bottom") is a put-MULTIPLE-by-filter dig — exactly the
+already-shipped `Effect::RevealAndRoute` (PB-22 S3), NOT `Effect::LookAtTopThenPlace`
+(PB-OS8's put-AT-MOST-ONE primitive). The card's completeness note previously misattributed
+this to "OOS-EF10/PB-OS8"; re-pointed to `RevealAndRoute` in this batch (doc-only, not
+authored). Authorable via `RevealAndRoute { count: 6, filter: { has_subtype: Goblin,
+has_card_type: Creature, max_cmc: Some(5) }, matched_dest: Battlefield{tapped:false},
+unmatched_dest: Library{Bottom} }` in a small follow-up. Candidates: `muxus_goblin_grandee`
+(attack-half already Complete via PB-OS5; this is the last remaining ETB half).
 
 ### PB-OS9 — Lieutenant / "you control your commander" condition (OOS-EF3b-1) · capability
 - **Findings**: OOS-EF3b-1.
@@ -477,7 +509,7 @@ single-card PB.
 | ~~PB-OS5~~ ✅ SHIPPED `scutemob-135` | OOS-EF4-1 | capability | 2 Complete (shared_animosity, goblin_piledriver) + 2 partial-improvements (rabblemaster pump, muxus attack-half) | PROTOCOL 19→20 / HASH 56→57 |
 | ~~PB-OS6~~ ✅ SHIPPED `scutemob-136` | OOS-EF5-4 (a/b/g shipped; c deferred to OOS-OS6-1, d deferred to PB-OS8) | capability (sub-batch) | 3 Complete (delver_of_secrets, legions_landing, thaumatic_compass) | PROTOCOL 20→21 / HASH 57→58 |
 | PB-OS7 | OOS-EF3-1 | capability | ~1-2 | PROTOCOL |
-| PB-OS8 | OOS-EF10-1 (+min_cmc) | capability | ~2 | PROTOCOL |
+| ~~PB-OS8~~ ✅ SHIPPED `scutemob-138` | OOS-EF10-1 (+min_cmc) | capability | 2 Complete (birthing_ritual, growing_rites_of_itlimoc); birthing_pod stays partial (new blocker OOS-OS8-1); muxus re-pointed (OOS-OS8-2) | PROTOCOL 22→23 / HASH 59→60 |
 | PB-OS9 | OOS-EF3b-1 | capability | ~1-2 | verify |
 | PB-OS10 | OOS-XS-1 + OOS-EF7-1 | capability (singletons) | ~2 | PROTOCOL |
 | PB-OS11 | OOS-LKI-3 + OOS-TS-1 | capability (singletons) | ~2 | PROTOCOL |

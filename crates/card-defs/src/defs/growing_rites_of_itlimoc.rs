@@ -8,14 +8,13 @@
 // Back:  Itlimoc, Cradle of the Sun — {T}: Add {G}. {T}: Add {G} for each creature you
 //        control.
 //
-// DSL gap: the ETB "look at top four cards, may reveal a creature and put it into your
-// hand, rest to bottom in any order" effect is not modeled -- no primitive expresses
-// selective-draw-from-a-look (only Scry/Surveil exist, which reorder rather than
-// selectively draw a matching card to hand). The end-step transform-if-4-creatures
-// clause IS wired via TransformSelf (PB-EF5). PB-OS6 evaluated closing this gap
-// (sub-primitive (d)) and deferred it to PB-OS8's general
-// Effect::LookAtTopThenPlace family (count 4, filter creature, destination hand,
-// rest_to bottom, optional) -- see pb-plan-OS6.md "Scope decisions (d)".
+// PB-OS8 (closes PB-OS6 deferred sub-primitive (d)): the ETB "look at top four
+// cards, may reveal a creature and put it into your hand, rest to bottom in any
+// order" effect is now modeled via Effect::LookAtTopThenPlace (count 4, filter
+// creature, destination hand, place_cost None, rest_to bottom, optional). The
+// end-step transform-if-4-creatures clause is wired via TransformSelf (PB-EF5).
+// "In any order" is realized as ObjectId-ascending deterministic placement (the
+// M7 precedent already used by RevealAndRoute/Scry/PutOnLibrary; NO rand).
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -55,10 +54,34 @@ pub fn card() -> CardDefinition {
                 modes: None,
                 trigger_zone: None,
             },
-            // TODO: ETB "look at top 4, may reveal a creature card and put it into your
-            //   hand, rest to bottom in any order" -- no primitive for a selective look-
-            //   and-take exists (only Scry/Surveil, which reorder rather than draw a
-            //   matching card). Closing primitive: PB-OS8 / Effect::LookAtTopThenPlace.
+            // CR 603.3: "When ~ enters, look at the top four cards of your library.
+            // You may reveal a creature card from among them and put it into your
+            // hand. Put the rest on the bottom of your library in any order."
+            AbilityDefinition::Triggered {
+                once_per_turn: false,
+                trigger_condition: TriggerCondition::WhenEntersBattlefield,
+                effect: Effect::LookAtTopThenPlace {
+                    player: PlayerTarget::Controller,
+                    count: EffectAmount::Fixed(4),
+                    place_cost: None,
+                    filter: TargetFilter {
+                        has_card_type: Some(CardType::Creature),
+                        ..Default::default()
+                    },
+                    destination: ZoneTarget::Hand {
+                        owner: PlayerTarget::Controller,
+                    },
+                    rest_to: ZoneTarget::Library {
+                        owner: PlayerTarget::Controller,
+                        position: LibraryPosition::Bottom,
+                    },
+                    optional: true,
+                },
+                intervening_if: None,
+                targets: vec![],
+                modes: None,
+                trigger_zone: None,
+            },
         ],
         color_indicator: None,
         back_face: Some(CardFace {
@@ -115,15 +138,6 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-        completeness: Completeness::partial(
-            "ETB 'look at top four cards, may reveal a creature card and put it into your hand, \
-             rest to bottom in any order' not modeled -- no primitive expresses a selective \
-             look-and-take (only Scry/Surveil exist, which reorder rather than selectively draw a \
-             matching card to hand). Closing primitive: PB-OS8 / Effect::LookAtTopThenPlace \
-             (count 4, filter creature, destination hand, rest_to bottom, optional) -- deferred \
-             out of PB-OS6, see pb-plan-OS6.md 'Scope decisions (d)'. The end-step \
-             transform-if-4-creatures clause IS implemented via TransformSelf (PB-EF5); the back \
-             face's two mana abilities are fully implemented.",
-        ),
+        completeness: Completeness::Complete,
     }
 }

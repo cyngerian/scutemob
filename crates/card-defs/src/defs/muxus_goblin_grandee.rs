@@ -63,15 +63,24 @@ pub fn card() -> CardDefinition {
                 modes: None,
                 trigger_zone: None,
             },
-            // TODO: ETB half — "reveal the top six cards of your library. Put all Goblin
-            // creature cards with mana value 5 or less from among them onto the battlefield
-            // and the rest on the bottom of your library in a random order." Blocked on a
-            // reveal-and-put-from-library primitive (OOS-EF10 / PB-OS8) — not authored here.
+            // TODO(OOS-OS8-2): ETB half — "reveal the top six cards of your library. Put all
+            // Goblin creature cards with mana value 5 or less from among them onto the
+            // battlefield and the rest on the bottom of your library in a random order." This
+            // is a put-MULTIPLE-by-filter dig (ALL matching Goblins, not at-most-one), which is
+            // exactly the ALREADY-SHIPPED Effect::RevealAndRoute (PB-22 S3) — NOT
+            // Effect::LookAtTopThenPlace (PB-OS8's new put-AT-MOST-ONE primitive). Authorable
+            // via RevealAndRoute { count: 6, filter: { has_subtype: Goblin, has_card_type:
+            // Creature, max_cmc: Some(5) }, matched_dest: Battlefield{tapped:false},
+            // unmatched_dest: Library{Bottom} } — not authored in this PB (out of declared
+            // scope; needs its own review pass).
         ],
         completeness: Completeness::partial(
             "PB-OS5: attack half authored (PermanentCount you-control + ModifyBothDynamic). ETB \
-             reveal-top-six/put-Goblins-onto-battlefield blocked on reveal-and-put-from-library \
-             primitive — OOS-EF10 / PB-OS8.",
+             reveal-top-six/put-Goblins-onto-battlefield is a put-MULTIPLE-by-filter dig — this \
+             is Effect::RevealAndRoute (already shipped, PB-22 S3), NOT \
+             Effect::LookAtTopThenPlace (PB-OS8, put-AT-MOST-ONE). Re-pointed from the earlier \
+             misattributed OOS-EF10/PB-OS8 marker; filed as OOS-OS8-2 (authorable in a small \
+             follow-up using RevealAndRoute).",
         ),
         ..Default::default()
     }

@@ -528,7 +528,19 @@
 ///   `EffectFilter::CreaturesControlledByDefendingPlayer => 36u8.hash_into(hasher)`.
 ///   `decl_fingerprint` MOVES (the enum's declared shape changed — a new variant);
 ///   `stream_fingerprint` moves per the v40 mechanism.
-pub const HASH_SCHEMA_VERSION: u8 = 59;
+/// - 60: PB-OS8 (2026-07-19, OOS-EF10-1 + min_cmc_amount rider) — `Effect` gains one
+///   new variant, `LookAtTopThenPlace { player, count, filter, place_cost, destination,
+///   rest_to, optional }` (discriminant 96, CR 120/601.2/118.12/202.3/400.7 — look at
+///   the top N cards of a library, optionally pay an interposed cost, place at most
+///   one matching card, send the rest to the bottom; the put-≤1 sibling of
+///   `RevealAndRoute`; Birthing Ritual, Growing Rites of Itlimoc). `TargetFilter`
+///   gains a new field `min_cmc_amount: Option<Box<EffectAmount>>` (runtime lower-
+///   bound mana-value cap, mirror of `max_cmc_amount`). Fed to `HashInto` as
+///   `Effect::LookAtTopThenPlace { .. } => { 96u8.hash_into(hasher); ...each field }`
+///   and `self.min_cmc_amount.hash_into(hasher)` right after `max_cmc_amount` on
+///   `TargetFilter`. `decl_fingerprint` MOVES (both types' declared shapes changed);
+///   `stream_fingerprint` moves per the v40 mechanism.
+pub const HASH_SCHEMA_VERSION: u8 = 60;
 
 /// One `(version, fingerprints)` row of the append-only hash-schema history.
 ///
@@ -792,6 +804,15 @@ pub const HASH_SCHEMA_HISTORY: &[HashSchemaEpoch] = &[
         // moves per the v40 mechanism.
         decl_fingerprint: "109b4d5a6cc67f924434b7b15dc2429ea12237a559162e6574fcb661e978c299",
         stream_fingerprint: "e1fd5db827a553417419db080b7e2b659fc371bab277e8ccff5822e7325c5ae8",
+    },
+    HashSchemaEpoch {
+        version: 60,
+        // PB-OS8 (2026-07-19, OOS-EF10-1 + min_cmc_amount rider): Effect gained
+        // LookAtTopThenPlace; TargetFilter gained min_cmc_amount (see the `- 60:`
+        // History line above). decl_fingerprint moves (genuine struct/enum-shape
+        // changes); stream_fingerprint moves per the v40 mechanism.
+        decl_fingerprint: "73e6f285645f087b7aa2346b0b84ba0394f51c6d9ebfff6c18cafc926f665728",
+        stream_fingerprint: "55fa8a7776b413a2bb66ffda61d0d51bf52687e450ae12cd36e697879ff351c1",
     },
 ];
 
@@ -5244,6 +5265,8 @@ impl HashInto for TargetFilter {
         self.is_untapped.hash_into(hasher);
         // PB-EF10: runtime-computed max mana value cap (CR 202.3/608.2h).
         self.max_cmc_amount.hash_into(hasher);
+        // PB-OS8: runtime-computed min mana value cap (CR 202.3/608.2h).
+        self.min_cmc_amount.hash_into(hasher);
     }
 }
 impl HashInto for TargetRequirement {
@@ -6840,6 +6863,25 @@ impl HashInto for Effect {
             Effect::RemoveFromCombat { target } => {
                 95u8.hash_into(hasher);
                 target.hash_into(hasher);
+            }
+            // PB-OS8: LookAtTopThenPlace (discriminant 96) — CR 120/601.2/118.12/202.3/400.7.
+            Effect::LookAtTopThenPlace {
+                player,
+                count,
+                filter,
+                place_cost,
+                destination,
+                rest_to,
+                optional,
+            } => {
+                96u8.hash_into(hasher);
+                player.hash_into(hasher);
+                count.hash_into(hasher);
+                filter.hash_into(hasher);
+                place_cost.hash_into(hasher);
+                destination.hash_into(hasher);
+                rest_to.hash_into(hasher);
+                optional.hash_into(hasher);
             }
         }
     }

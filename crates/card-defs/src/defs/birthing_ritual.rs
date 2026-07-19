@@ -5,21 +5,19 @@
 //  the battlefield, where X is 1 plus the sacrificed creature's mana value. Put
 //  the rest on the bottom of your library in a random order."
 //
-// PB-EF10 chain-verify: the trigger (AtBeginningOfYourEndStep), intervening-if
-// (YouControlPermanent(creature)), optional sacrifice (MayPayThenEffect +
-// Cost::Sacrifice), and the runtime mana-value cap (Sum(Fixed(1),
-// ManaValueOfSacrificedCreature) via TargetFilter.max_cmc_amount) are ALL now
-// expressible after this PB. The remaining, and ONLY, blocker is the DIG itself:
-// "look at the top seven, you may put ONE creature with MV <= X *from among
-// those seven* onto the battlefield, put the rest on the bottom in a RANDOM
-// order." No existing Effect expresses "scope candidates to a looked-at top-N
-// subset of the library (not the whole library), place at most one matching a
-// runtime cap, then send the remainder to the bottom in randomized order."
-// `SearchLibrary` searches the WHOLE library (not a top-7 subset) and has no
-// bottom-randomize destination — using it here would be legal-but-wrong (ignores
-// the top-7 restriction and the bottom-random remainder), so it is NOT used.
-// Filed as OOS-EF10-1 (memory/card-authoring/w-miss-engine-findings-2026-07-17.md,
-// EF-W-MISS-7 section): a new `Effect::LookAtTopThenPlace` primitive is needed.
+// PB-OS8 (closes OOS-EF10-1): the "look at the top seven, put at most one matching
+// creature from that subset onto the battlefield, rest to bottom" dig is now
+// expressible via Effect::LookAtTopThenPlace. `place_cost: Cost::Sacrifice(creature)`
+// is the interposed "you may sacrifice a creature" (CR 118.12) — paid AFTER the
+// look, BEFORE placing, and its LKI parameterizes `filter.max_cmc_amount = 1 +
+// ManaValueOfSacrificedCreature` (CR 202.3/608.2h). Deterministic "pay when able"
+// (architecture invariant #9): the sacrifice fires whenever a creature is
+// available, even into a whiff, same as every other MayPayThenEffect-shaped
+// Complete card. The intervening-if re-check at resolution (CR 603.4) and the
+// {X}=0 mana-value rule for X-cost cards among the seven are handled by existing
+// infrastructure (TriggerCondition/ManaValueOfSacrificedCreature). Rest-to-bottom
+// "in a random order" is realized as ObjectId-ascending deterministic placement,
+// the M7 precedent already used by RevealAndRoute/Scry/PutOnLibrary (NO rand).
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -39,23 +37,46 @@ pub fn card() -> CardDefinition {
                       mana value. Put the rest on the bottom of your library in a random order."
             .to_string(),
         abilities: vec![
-            // TODO(OOS-EF10-1): the end-step trigger, "if you control a creature"
-            // intervening-if, optional sacrifice, and runtime MV cap (1 + sacrificed
-            // creature's mana value) are all expressible post-PB-EF10. Blocked ONLY on
-            // the "look at top seven -> place at most one matching card from that
-            // subset -> rest to bottom in random order" dig, which has no primitive.
-            // Do not approximate with a whole-library SearchLibrary (legal-but-wrong:
-            // ignores the top-7 scoping and the bottom-random remainder).
+            // CR 603.3/603.4: "At the beginning of your end step, if you control a
+            // creature" — end-step trigger with intervening-if.
+            AbilityDefinition::Triggered {
+                once_per_turn: false,
+                trigger_condition: TriggerCondition::AtBeginningOfYourEndStep,
+                intervening_if: Some(Condition::YouControlNOrMoreWithFilter {
+                    count: 1,
+                    filter: TargetFilter {
+                        has_card_type: Some(CardType::Creature),
+                        ..Default::default()
+                    },
+                }),
+                effect: Effect::LookAtTopThenPlace {
+                    player: PlayerTarget::Controller,
+                    count: EffectAmount::Fixed(7),
+                    place_cost: Some(Box::new(Cost::Sacrifice(TargetFilter {
+                        has_card_type: Some(CardType::Creature),
+                        ..Default::default()
+                    }))),
+                    filter: TargetFilter {
+                        has_card_type: Some(CardType::Creature),
+                        max_cmc_amount: Some(Box::new(EffectAmount::Sum(
+                            Box::new(EffectAmount::Fixed(1)),
+                            Box::new(EffectAmount::ManaValueOfSacrificedCreature),
+                        ))),
+                        ..Default::default()
+                    },
+                    destination: ZoneTarget::Battlefield { tapped: false },
+                    rest_to: ZoneTarget::Library {
+                        owner: PlayerTarget::Controller,
+                        position: LibraryPosition::Bottom,
+                    },
+                    optional: true,
+                },
+                targets: vec![],
+                modes: None,
+                trigger_zone: None,
+            },
         ],
-        completeness: Completeness::inert(
-            "Blocked on OOS-EF10-1: 'look at the top seven, put at most one matching card from \
-             that subset onto the battlefield (runtime MV cap = 1 + sacrificed creature's mana \
-             value), put the rest on the bottom in a random order' has no Effect primitive. \
-             SearchLibrary searches the whole library (not a top-7 subset) and has no \
-             bottom-randomize destination -- using it would ship wrong game state. The trigger, \
-             intervening-if, optional sacrifice, and runtime MV cap are ALL otherwise expressible \
-             after PB-EF10 (TargetFilter.max_cmc_amount / ManaValueOfSacrificedCreature).",
-        ),
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

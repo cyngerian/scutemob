@@ -1089,6 +1089,15 @@ value) are expressible after PB-EF10 — this dig is the only remaining blocker.
   exact-match runtime filter would close it; small, but out of this PB's declared scope
   (`Implement-phase default-to-defer`, `memory/conventions.md`).
 
+**CLOSED by PB-OS8** (`scutemob-138`, 2026-07-19): shipped `Effect::LookAtTopThenPlace`
+(disc 96) exactly as scoped above (place_cost + destination + rest_to + optional; the
+"random order" remainder realized as ObjectId-ascending deterministic placement, M7
+precedent). `birthing_ritual` flipped inert -> Complete. The paired `min_cmc_amount` noted
+above also shipped (`TargetFilter.min_cmc_amount: Option<Box<EffectAmount>>`), but
+`birthing_pod` did NOT flip — a second, independent blocker (Phyrexian mana unsupported in
+the activated-ability payment path) was discovered at implement time; filed as new seed
+**OOS-OS8-1**.
+
 ---
 
 ## 13. New seeds filed by PB-OS4 (scutemob-130)
