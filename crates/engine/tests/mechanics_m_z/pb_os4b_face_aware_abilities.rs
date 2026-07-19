@@ -913,6 +913,117 @@ fn test_back_upkeep_trigger_fires_only_when_transformed() {
     );
 }
 
+// ── DECOY: back-face end-step trigger fires only when transformed (E1) ──────
+
+/// Front: creature with no triggers. Back: creature with an
+/// `AtBeginningOfYourEndStep` trigger. Mirrors `mock_upkeep_dfc_def` but for
+/// the `end_step_actions` sweep (`turn_actions.rs`), which -- unlike the
+/// upkeep sweep -- was found (PB-OS4b review E1) to still index the FRONT
+/// `def.abilities` on the producer side even though the shared CardDefETB
+/// consumer was already face-aware.
+fn mock_end_step_dfc_def() -> CardDefinition {
+    CardDefinition {
+        card_id: CardId("mock-os4b-endstep-dfc".to_string()),
+        name: "Mock OS4b EndStep Front".to_string(),
+        mana_cost: None,
+        types: TypeLine {
+            card_types: [CardType::Creature].into_iter().collect(),
+            ..Default::default()
+        },
+        oracle_text: "".to_string(),
+        abilities: vec![AbilityDefinition::Keyword(KeywordAbility::Transform)],
+        power: Some(2),
+        toughness: Some(2),
+        color_indicator: None,
+        back_face: Some(CardFace {
+            name: "Mock OS4b EndStep Back".to_string(),
+            mana_cost: None,
+            types: TypeLine {
+                card_types: [CardType::Creature].into_iter().collect(),
+                ..Default::default()
+            },
+            oracle_text: "".to_string(),
+            abilities: vec![AbilityDefinition::Triggered {
+                once_per_turn: false,
+                trigger_condition: TriggerCondition::AtBeginningOfYourEndStep,
+                effect: Effect::GainLife {
+                    player: mtg_engine::PlayerTarget::Controller,
+                    amount: mtg_engine::EffectAmount::Fixed(1),
+                },
+                intervening_if: None,
+                targets: vec![],
+                modes: None,
+                trigger_zone: None,
+            }],
+            power: Some(2),
+            toughness: Some(2),
+            color_indicator: None,
+        }),
+        ..Default::default()
+    }
+}
+
+fn build_end_step_decoy_state(pretransform: bool) -> (GameState, ObjectId) {
+    let p1 = p(1);
+    let p2 = p(2);
+    let registry = registry_with(vec![mock_end_step_dfc_def()]);
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .object(
+            ObjectSpec::card(p1, "Mock OS4b EndStep Front")
+                .in_zone(ZoneId::Battlefield)
+                .with_card_id(CardId("mock-os4b-endstep-dfc".to_string()))
+                .with_types(vec![CardType::Creature]),
+        )
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+    let id = find_by_name(&state, "Mock OS4b EndStep Front");
+    if !pretransform {
+        let mut ctx = EffectContext::new(p1, id, vec![]);
+        let _ = execute_effect(&mut state, &Effect::TransformSelf, &mut ctx);
+        assert!(state.objects()[&id].is_transformed);
+    }
+    (state, id)
+}
+
+/// CR 712.8d/e decoy: while showing the FRONT face, no end-step trigger fires --
+/// the front declares none.
+#[test]
+fn test_front_end_step_no_trigger() {
+    let (state, _) = build_end_step_decoy_state(true);
+    let p1 = p(1);
+    let life_before = state.players()[&p1].life_total;
+    let state = advance_to_step(state, Step::End);
+    let state = resolve_stack(state, &[p1, p(2)]);
+    assert_eq!(
+        state.players()[&p1].life_total,
+        life_before,
+        "front face has no end-step trigger -- life must not change"
+    );
+}
+
+/// CR 712.8d/e decoy (E1 fix): once transformed, the BACK face's end-step
+/// trigger fires (pins the `end_step_actions` producer sweep + `abilities.rs`
+/// CardDefETB consumer index parity, "is_transformed at consume time" -- the
+/// same class of bug the PB fixed for the upkeep sweep, now fixed here too).
+#[test]
+fn test_back_end_step_trigger_fires_only_when_transformed() {
+    let (state, _) = build_end_step_decoy_state(false);
+    let p1 = p(1);
+    let life_before = state.players()[&p1].life_total;
+    let state = advance_to_step(state, Step::End);
+    let state = resolve_stack(state, &[p1, p(2)]);
+    assert_eq!(
+        state.players()[&p1].life_total,
+        life_before + 1,
+        "back face's end-step trigger should gain 1 life once transformed"
+    );
+}
+
 // ── DECOY: transformed Saga with no back-face SagaChapter is not sacrificed ──
 
 /// Front: Enchantment Saga with a chapter III ability. Back: Creature, no

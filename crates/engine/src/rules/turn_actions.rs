@@ -436,8 +436,11 @@ fn precombat_main_actions(state: &mut GameState) -> Vec<GameEvent> {
                 if controller != active {
                     return None;
                 }
+                // PB-OS4b (CR 712.8d/e): scan the currently-visible face's
+                // abilities -- a transformed permanent's first-main triggers come
+                // from its back face, not the front face it no longer shows.
                 let indices: Vec<usize> = def
-                    .abilities
+                    .effective_abilities(obj.is_transformed)
                     .iter()
                     .enumerate()
                     .filter_map(|(idx, abil)| {
@@ -497,8 +500,11 @@ fn postcombat_main_actions(state: &mut GameState) -> Vec<GameEvent> {
                 if controller != active {
                     return None;
                 }
+                // PB-OS4b (CR 712.8d/e): scan the currently-visible face's
+                // abilities -- a transformed permanent's postcombat-main triggers
+                // come from its back face, not the front face it no longer shows.
                 let indices: Vec<usize> = def
-                    .abilities
+                    .effective_abilities(obj.is_transformed)
                     .iter()
                     .enumerate()
                     .filter_map(|(idx, abil)| {
@@ -697,8 +703,11 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
                 let card_id = obj.card_id.as_ref()?;
                 let def = registry.get(card_id.clone())?;
                 let controller = obj.controller;
+                // PB-OS4b (CR 712.8d/e): scan the currently-visible face's
+                // abilities -- a transformed permanent's end-step triggers come
+                // from its back face, not the front face it no longer shows.
                 let indices: Vec<usize> = def
-                    .abilities
+                    .effective_abilities(obj.is_transformed)
                     .iter()
                     .enumerate()
                     .filter_map(|(idx, abil)| {
