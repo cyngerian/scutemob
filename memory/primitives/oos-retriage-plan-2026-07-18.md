@@ -188,7 +188,14 @@ ship = expected clean-`Complete` after the PB + its backfill authoring, at the h
 > `PROTOCOL_VERSION` bump and usually `HASH_SCHEMA_VERSION`**. Behaviour-only fixes (honor an
 > existing field; wire an existing helper) do **not**. Flagged per-PB below.
 
-### PB-OS1 — gain-control reversion (OOS-EF9-1) · CORRECTNESS · **RECOMMENDED FIRST DISPATCH**
+### PB-OS1 — gain-control reversion (OOS-EF9-1) · CORRECTNESS · ✅ **SHIPPED** (`scutemob-116`, merge `db49a0b2`, 2026-07-18)
+
+> ✅ **SHIPPED** — roster proved **2** cards (sarkhan_vol, zealous_conscripts), not 3: karrthus's
+> `Indefinite` duration is CR-correct permanent control (611.2a — reviewer overturned the plan's
+> claim, no seed filed). No wire bump. WhileSourceOnBattlefield half of OOS-EF9-1 deferred (SBA
+> path, own reconcile site). Canary `test_gain_control_until_eot_expires` de-vacuoused.
+> *(Banner backfilled by DOCB-1/`scutemob-131` — OS1 was collected during the DOC interlude and
+> the close step was skipped; OS2/OS3 closed their own.)*
 - **Findings**: OOS-EF9-1. **The only live-wrong `Complete` group in the backlog.**
 - **Fix**: wire the **already-existing** `recompute_object_controller` into
   `expire_end_of_turn_effects` and `expire_until_next_turn_effects` for each removed
@@ -340,7 +347,7 @@ ship = expected clean-`Complete` after the PB + its backfill authoring, at the h
 
 | PB | Seed(s) | Class | Discounted ship | Wire bump |
 | --- | --- | --- | --- | --- |
-| **PB-OS1** | OOS-EF9-1 | correctness (integrity) | 3+ fixes (0 new flips) | none |
+| ~~**PB-OS1**~~ ✅ | OOS-EF9-1 | correctness (integrity) | SHIPPED `scutemob-116`: 2 fixes (karrthus CR-correct) | none (confirmed) |
 | ~~PB-OS2~~ ✅ SHIPPED `scutemob-128` | EF-EF1-A | correctness (micro) | 1 (disciple_of_freyalise) | none |
 | ~~PB-OS3~~ ✅ SHIPPED `scutemob-129` | OOS-EF6-1 | correctness | 1 (forbidden_orchard) | none |
 | PB-OS4 | OOS-EF5-3 | capability | ~2-3 | PROTOCOL |
@@ -370,7 +377,7 @@ color-subset mechanism the engine lacks today).
 
 ---
 
-## 4. PB-OS1 — fully specified & dispatchable (AC 4937)
+## 4. PB-OS1 — spec (✅ SHIPPED `scutemob-116` — retained as historical record, do NOT re-dispatch)
 
 > ✅ **COLLECTED — `scutemob-116`, 2026-07-18.** Shipped exactly as specified: wired the idle
 > `recompute_object_controller` into `expire_end_of_turn_effects` + `expire_until_next_turn_effects`
