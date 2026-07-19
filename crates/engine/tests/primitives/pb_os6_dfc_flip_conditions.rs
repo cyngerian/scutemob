@@ -871,11 +871,11 @@ fn test_os6_cards_registered() {
 #[test]
 fn test_os6_version_sentinels() {
     assert_eq!(
-        PROTOCOL_VERSION, 22,
+        PROTOCOL_VERSION, 23,
         "PROTOCOL_VERSION should be 21 after PB-OS6"
     );
     assert_eq!(
-        HASH_SCHEMA_VERSION, 59u8,
+        HASH_SCHEMA_VERSION, 60u8,
         "HASH_SCHEMA_VERSION should be 58 after PB-OS6"
     );
 }

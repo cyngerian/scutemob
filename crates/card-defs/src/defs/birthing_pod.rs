@@ -3,13 +3,16 @@
 //   1 plus the sacrificed creature's mana value, put that card onto the battlefield, then shuffle.
 //   Activate only as a sorcery.
 //
-// PB-EF10 sweep (2026-07-18): PB-EF10 added EffectAmount::ManaValueOfSacrificedCreature and
-// TargetFilter.max_cmc_amount (a runtime UPPER-BOUND cap: "mana value X or less"). Birthing
-// Pod needs mana value EQUAL TO 1 + the sacrificed creature's MV, not "or less" — a runtime
-// max_cmc_amount alone would wrongly accept any cheaper creature too (legal-but-wrong). This
-// needs a runtime EXACT-mana-value filter (or a paired min_cmc_amount set to the same
-// EffectAmount) which is out of this PB's declared scope. Still blocked; recorded as a
-// follow-up alongside OOS-EF10-1.
+// PB-OS8: TargetFilter.min_cmc_amount (runtime LOWER-BOUND cap, mirror of the existing
+// max_cmc_amount) now ships, so the "mana value EQUAL TO 1 + the sacrificed creature's MV"
+// filter IS expressible (max_cmc_amount == min_cmc_amount == Sum(Fixed(1),
+// ManaValueOfSacrificedCreature)) — the PB-EF10-era blocker above is CLOSED. A SECOND,
+// independent blocker remains: this activated ability's cost is {1}{G/P} (a Phyrexian pip),
+// and Phyrexian mana is NOT handled in the activated-ability payment path (rules/abilities.rs
+// has zero Phyrexian references; the "{G/P} paid with 2 life" alternative lives only in
+// rules/casting.rs, for spell casting). Authoring the cost as plain {1}{G} would ship wrong
+// game state (silently removes the 2-life payment option). Still blocked; recorded as
+// OOS-OS8-1 (Phyrexian mana in activated-ability costs).
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -28,14 +31,20 @@ pub fn card() -> CardDefinition {
                       battlefield, then shuffle. Activate only as a sorcery."
             .to_string(),
         abilities: vec![
-            // TODO: {1}{G/P}, {T}, Sacrifice a creature: search for creature with MV = sacrificed MV + 1
-            //   (needs dynamic MV filter on SearchLibrary; Phyrexian mana cost gap; sacrifice-as-cost with reference)
+            // TODO(OOS-OS8-1): {1}{G/P}, {T}, Sacrifice a creature: search for a creature with
+            //   MV = sacrificed MV + 1 (now expressible via SearchLibrary's paired
+            //   max_cmc_amount/min_cmc_amount, PB-OS8). Blocked on Phyrexian mana in an
+            //   ACTIVATED ability's cost — unsupported in rules/abilities.rs's payment path.
         ],
         completeness: Completeness::inert(
-            "Blocked on a dynamic mana-value filter for SearchLibrary: MV must equal 1 + the \
-             sacrificed creature's MV, and TargetFilter only has static max_cmc/min_cmc. \
-             Phyrexian mana and Cost::Sacrifice are available (already used in this def's \
-             mana_cost).",
+            "Two blockers were tracked here; ONE is now closed. CLOSED (PB-OS8): the dynamic \
+             mana-value filter — SearchLibrary now honors a paired max_cmc_amount/min_cmc_amount \
+             (both = Sum(Fixed(1), ManaValueOfSacrificedCreature)) to express 'MV equal to 1 plus \
+             the sacrificed creature's MV'. STILL BLOCKED (OOS-OS8-1): this ability's activation \
+             cost is {1}{G/P} (Phyrexian mana), and Phyrexian mana is not handled in the \
+             activated-ability payment path (rules/abilities.rs has zero Phyrexian references; \
+             the 2-life alternative lives only in rules/casting.rs for spell casting). Authoring \
+             the cost as plain {1}{G} would ship wrong game state.",
         ),
         ..Default::default()
     }

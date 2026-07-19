@@ -1228,6 +1228,14 @@ pub struct SoulbondGrant {
 }
 // ── Cost ─────────────────────────────────────────────────────────────────────
 /// The cost to activate an ability or cast a spell (CR 118).
+///
+/// PB-OS8: `Sacrifice(TargetFilter)` crossed clippy's `large_enum_variant` threshold once
+/// `TargetFilter` gained `min_cmc_amount` (its size vs. `Mana(ManaCost)`, the next-largest
+/// variant, moved from exactly-at to just-over the 200-byte gap). Boxing `TargetFilter` here
+/// would touch ~84 `Cost::Sacrifice(TargetFilter { .. })` call sites across the codebase, far
+/// outside this batch's scope; `#[allow]` matches the existing precedent at
+/// `rules/events.rs`/`testing/script_schema.rs` for the same lint.
+#[allow(clippy::large_enum_variant)]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Cost {
     /// Pay a mana cost (CR 202).
@@ -2023,6 +2031,31 @@ pub enum Effect {
         filter: TargetFilter,
         matched_dest: ZoneTarget,
         unmatched_dest: ZoneTarget,
+    },
+    /// CR 120/601.2 + CR 202.3/608.2h: Look at the top `count` cards of `player`'s library,
+    /// optionally pay an interposed `place_cost` (CR 118.12), place AT MOST ONE card matching
+    /// `filter` (honoring runtime `max_cmc_amount`/`min_cmc_amount`) to `destination`, and send
+    /// the remaining looked-at cards to `rest_to`. The put-≤1 sibling of `Effect::RevealAndRoute`
+    /// (which routes ALL matches and has no cost/gate); distinct from `Effect::SearchLibrary`
+    /// (whole library, not a top-N subset).
+    LookAtTopThenPlace {
+        player: PlayerTarget,
+        count: EffectAmount,
+        filter: TargetFilter,
+        /// Optional cost paid AFTER the look, BEFORE placing (deterministic "pay when able",
+        /// CR 118.12). When Some, placement happens only if paid; a `Cost::Sacrifice` here
+        /// populates `ctx.sacrificed_creature_lki` so `filter`'s `*_cmc_amount = 1 + sac MV`
+        /// resolves (Birthing Ritual). None = no interposed cost (Growing Rites).
+        place_cost: Option<Box<Cost>>,
+        /// Placed-card destination. Battlefield{tapped} → emits PermanentEnteredBattlefield
+        /// (ETB triggers fire). Hand{owner} for "into your hand".
+        destination: ZoneTarget,
+        /// Remainder destination — `ZoneTarget::Library { owner, position: Bottom }`.
+        /// Deterministic ObjectId-ascending order approximates "in a random order"/"in any order".
+        rest_to: ZoneTarget,
+        /// Whether placing is a "may" (M7 fallback places the best candidate when one exists;
+        /// reserved for M10+ interactive decline).
+        optional: bool,
     },
     /// Exile target permanent, then return it to the battlefield under its
     /// owner's control (CR 400.7: the returned permanent is a new object).
@@ -3045,6 +3078,13 @@ pub struct TargetFilter {
     /// Min mana value (inclusive). None = no restriction.
     #[serde(default)]
     pub min_cmc: Option<u32>,
+    /// Runtime-computed MIN mana value cap (inclusive). None = no runtime floor. CR 202.3/608.2h.
+    /// Mirror of `max_cmc_amount`: resolved from `EffectContext` at execution, therefore honored
+    /// ONLY by executors that hold `ctx` (`Effect::SearchLibrary`, `Effect::LookAtTopThenPlace`),
+    /// NOT by `matches_filter`. Paired with `max_cmc_amount` set to the SAME amount, expresses
+    /// "mana value EQUAL TO N + the sacrificed creature's mana value" (Birthing Pod).
+    #[serde(default)]
+    pub min_cmc_amount: Option<Box<EffectAmount>>,
     /// Card type constraint (OR semantics — must have at least one of these types).
     /// Used for "instant or sorcery card" (Mystical Tutor), "artifact or enchantment" (Enlightened Tutor).
     /// When both `has_card_type` and `has_card_types` are set, BOTH must be satisfied.

@@ -79,7 +79,12 @@ const SWEPT_FILES: &[(&str, usize)] = &[
     // .get(&ctx.controller).map(..).unwrap_or(false)` -- identical idiom to
     // `YouAttackedThisTurn` / `ControllerLifeAtLeast` / half the other `Condition`
     // arms in this file (a missing controller answers the predicate `false`).
-    ("src/effects/mod.rs", 109),
+    // PB-OS8 (2026-07-19): 109 → 110. One new NONSWALLOW predicate read:
+    // `Effect::LookAtTopThenPlace`'s `state.zones.get(&lib_zone).map(|z| z.object_ids())
+    // .unwrap_or_default()` -- an exact copy of the pre-existing `Effect::RevealAndRoute`
+    // idiom a few lines above it (an empty/missing library legitimately yields an empty
+    // top-N window, which falls through to `continue`, not an engine bug).
+    ("src/effects/mod.rs", 110),
     // PB-OS4b (2026-07-19): 102 → 101. `apply_face_change` replaced several raw
     // `state.objects.get_mut(&id)` transform-flip sites with a single call, and one
     // `debug_assert_object_live!` + bare-lookup pair collapsed into a plain

@@ -2954,6 +2954,13 @@ fn execute_effect_inner(
                 .max_cmc_amount
                 .as_ref()
                 .map(|a| resolve_amount(state, a, ctx));
+            // PB-OS8 (CR 202.3/608.2h): resolve the runtime minimum mana-value floor once,
+            // mirroring `runtime_cap` above. Both may be set to the SAME amount to express
+            // "mana value EQUAL TO N" (Birthing Pod).
+            let runtime_min_cap: Option<i32> = filter
+                .min_cmc_amount
+                .as_ref()
+                .map(|a| resolve_amount(state, a, ctx));
             let players = resolve_player_target_list(state, player, ctx);
             for p in players {
                 // CR 701.23 / CR 614.1: Check search restriction replacements.
@@ -2985,6 +2992,16 @@ fn execute_effect_inner(
                                     .map(|c| c.mana_value() as i32)
                                     .unwrap_or(0)
                                     <= cap
+                            })
+                            // PB-OS8: runtime mana-value floor — same "invisible to
+                            // matches_filter" contract as runtime_cap above.
+                            && runtime_min_cap.is_none_or(|cap| {
+                                obj.characteristics
+                                    .mana_cost
+                                    .as_ref()
+                                    .map(|c| c.mana_value() as i32)
+                                    .unwrap_or(0)
+                                    >= cap
                             })
                     })
                     .map(|(id, _)| *id)
@@ -5017,6 +5034,138 @@ fn execute_effect_inner(
                     if let Some((new_id, _)) = state.expect_move_object_to_zone(*id, unmatched_zone)
                     {
                         let event = zone_move_event(ctx.controller, *id, new_id, unmatched_zone);
+                        events.push(event);
+                    }
+                }
+            }
+        }
+        // CR 120/601.2/118.12/202.3/400.7: look at the top `count` cards, optionally pay an
+        // interposed `place_cost`, place AT MOST ONE matching card to `destination`, and send
+        // the rest to `rest_to`. Modeled directly on `Effect::RevealAndRoute` above (same
+        // `object_ids().take(n)` top-N convention and ObjectId-ascending determinism), plus an
+        // interposed cost and a ≤1 cardinality. PB-OS8.
+        Effect::LookAtTopThenPlace {
+            player,
+            count,
+            filter,
+            place_cost,
+            destination,
+            rest_to,
+            // Review Finding 2 (PB-OS8, LOW): `optional` is not read by this M7 deterministic
+            // executor -- the "take when able" fallback (invariant #9) always places the best
+            // candidate when one exists, same as every other "may" effect at this milestone.
+            // Reserved for M10+ interactive decline; correctly hashed/wired now so a future
+            // interactive path has no wire migration to do. Currently inert, not a live gate.
+            optional: _,
+        } => {
+            let n = resolve_amount(state, count, ctx).max(0) as usize;
+            let players = resolve_player_target_list(state, player, ctx);
+            for p in players {
+                let lib_zone = ZoneId::Library(p);
+                // Collect the top N cards of the library (same convention as RevealAndRoute).
+                let top_ids: Vec<ObjectId> = state
+                    .zones
+                    .get(&lib_zone)
+                    .map(|z| z.object_ids())
+                    .unwrap_or_default()
+                    .into_iter()
+                    .take(n)
+                    .collect();
+                // Review Finding 1 (PB-OS8, LOW): an empty top-N `continue`s HERE, before the
+                // `place_cost` block below -- so an empty library never pays the interposed
+                // cost, whereas a non-empty-but-no-match top-N DOES pay it (deterministic
+                // "pay when able", invariant #9). This asymmetry is intentional, not a bug: an
+                // empty library is a guaranteed whiff, so skipping the cost there is arguably
+                // MORE correct than auto-sacrificing into a guaranteed whiff. Both lines are
+                // legal under CR 118.12's "may."
+                if top_ids.is_empty() {
+                    continue;
+                }
+                // CR 118.12: interposed cost, paid AFTER the look, BEFORE placing.
+                // Deterministic "pay when able" (invariant #9): the payer pays whenever
+                // able, even into a whiff. `None` (place_cost unset) = no gate.
+                let placement_allowed = match place_cost {
+                    Some(cost) => {
+                        match try_pay_optional_cost(state, p, cost, Some(ctx.source), events) {
+                            Some(sacrificed) => {
+                                // PB-OS2/EF10 (CR 608.2c/608.2h): populate the sacrificed-
+                                // creature LKI so `filter`'s `*_cmc_amount` referencing
+                                // `ManaValueOfSacrificedCreature` resolves (Birthing Ritual).
+                                ctx.sacrifice_fired = !sacrificed.is_empty();
+                                ctx.sacrificed_creature_lki = sacrificed;
+                                true
+                            }
+                            None => false,
+                        }
+                    }
+                    None => true,
+                };
+                // Resolve the runtime mana-value caps once (they don't depend on the candidate).
+                let max_cap: Option<i32> = filter
+                    .max_cmc_amount
+                    .as_ref()
+                    .map(|a| resolve_amount(state, a, ctx));
+                let min_cap: Option<i32> = filter
+                    .min_cmc_amount
+                    .as_ref()
+                    .map(|a| resolve_amount(state, a, ctx));
+                // Find the deterministic winner among top_ids matching `filter` + caps.
+                let mut placed_id: Option<ObjectId> = None;
+                if placement_allowed {
+                    placed_id = top_ids
+                        .iter()
+                        .copied()
+                        .filter(|&id| {
+                            if let Some(obj) = state.expect_object(id) {
+                                matches_filter(&obj.characteristics, filter)
+                                    && check_has_counter_type(obj, filter)
+                                    && max_cap.is_none_or(|cap| {
+                                        obj.characteristics
+                                            .mana_cost
+                                            .as_ref()
+                                            .map(|c| c.mana_value() as i32)
+                                            .unwrap_or(0)
+                                            <= cap
+                                    })
+                                    && min_cap.is_none_or(|cap| {
+                                        obj.characteristics
+                                            .mana_cost
+                                            .as_ref()
+                                            .map(|c| c.mana_value() as i32)
+                                            .unwrap_or(0)
+                                            >= cap
+                                    })
+                            } else {
+                                false
+                            }
+                        })
+                        .min_by_key(|id| id.0);
+                }
+                // Place the winner (if any) to `destination`.
+                if let Some(id) = placed_id {
+                    let dest_zone = resolve_zone_target(destination, state, ctx);
+                    let tapped = dest_tapped(destination);
+                    if let Some((new_id, _)) = state.expect_move_object_to_zone(id, dest_zone) {
+                        if let Some(tap) = tapped {
+                            if let Some(obj) = state.expect_object_mut(new_id) {
+                                obj.status.tapped = tap;
+                            }
+                        }
+                        let event = zone_move_event(ctx.controller, id, new_id, dest_zone);
+                        events.push(event);
+                    }
+                }
+                // Bottom the rest (CR 401): everything looked at except the placed card.
+                let rest_zone = resolve_zone_target(rest_to, state, ctx);
+                let mut rest_ids: Vec<ObjectId> = top_ids
+                    .iter()
+                    .copied()
+                    .filter(|&id| Some(id) != placed_id)
+                    .collect();
+                rest_ids.sort_by_key(|id| id.0);
+                for id in rest_ids {
+                    if let Some((new_id, _)) = state.expect_move_object_to_zone(id, rest_zone) {
+                        let event = zone_move_event(ctx.controller, id, new_id, rest_zone);
                         events.push(event);
                     }
                 }

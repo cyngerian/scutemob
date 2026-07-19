@@ -210,7 +210,14 @@ use crate::state::hash::HASH_SCHEMA_VERSION;
 ///   disagreed — this closure's type count is unchanged (no new type joins;
 ///   `ContinuousEffectDef`/`EffectFilter` were already reachable), but
 ///   `EffectFilter`'s declared shape moved, so the digest moves.
-pub const PROTOCOL_VERSION: u32 = 22;
+/// - 23: PB-OS8 (2026-07-19, OOS-EF10-1 + min_cmc_amount rider): `Effect` gains a new
+///   variant `LookAtTopThenPlace` (CR 120/601.2/118.12/202.3/400.7 — look at the top N
+///   cards, optionally pay an interposed cost, place at most one matching card,
+///   rest to bottom; Birthing Ritual, Growing Rites of Itlimoc) and `TargetFilter`
+///   gains a new field `min_cmc_amount` (runtime lower-bound mana-value cap, mirror
+///   of the existing `max_cmc_amount`). Both `Effect` and `TargetFilter` are already
+///   in the closure — type COUNT unchanged, declared shape moves, digest moves.
+pub const PROTOCOL_VERSION: u32 = 23;
 
 /// Digest of the serialized shape of the wire-frame type closure
 /// (`Command`, `GameEvent`, [`ReplayLog`] and everything they reach).
@@ -228,7 +235,7 @@ pub const PROTOCOL_VERSION: u32 = 22;
 /// existing `u32` *means* does not. Semantic changes still require a manual
 /// [`PROTOCOL_VERSION`] bump.
 pub const PROTOCOL_SCHEMA_FINGERPRINT: &str =
-    "cb8af22f82c4966d1e3fc971dc28ab60bbce2058468e4cc3e1798ee307e78508";
+    "553f2ff2e54c7de707209b79db7f8bca0fc0c37405871a0c1b31c431e6dedb32";
 
 /// One `(version, fingerprint)` row of the append-only protocol-schema history.
 ///
@@ -410,6 +417,13 @@ pub const PROTOCOL_HISTORY: &[ProtocolEpoch] = &[
         // PB-OS7 (2026-07-19, OOS-EF3-1): EffectFilter gained
         // CreaturesControlledByDefendingPlayer (see the `- 22:` History line above).
         fingerprint: "cb8af22f82c4966d1e3fc971dc28ab60bbce2058468e4cc3e1798ee307e78508",
+    },
+    ProtocolEpoch {
+        version: 23,
+        // PB-OS8 (2026-07-19, OOS-EF10-1 + min_cmc_amount rider): Effect gained
+        // LookAtTopThenPlace; TargetFilter gained min_cmc_amount (see the `- 23:`
+        // History line above).
+        fingerprint: "553f2ff2e54c7de707209b79db7f8bca0fc0c37405871a0c1b31c431e6dedb32",
     },
 ];
 
