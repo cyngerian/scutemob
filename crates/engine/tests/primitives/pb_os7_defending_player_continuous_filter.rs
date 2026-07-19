@@ -21,7 +21,18 @@
 //! constructs the effect and an `EffectContext` directly (mirrors
 //! `pb_os5_relative_attacker_count.rs::test_os5_scope_animosity_piledriver_any_controller`)
 //! because there is no real-command path to a trigger with `ctx.defending_player == None`
-//! — the guard is exercised at the `execute_effect` boundary instead.
+//! — the guard is exercised at the `execute_effect` boundary instead. 11 tests total
+//! (review Finding 3 added the non-Dragon-attacker negative and the planeswalker-attack
+//! scoping test).
+//!
+//! **Known limitation (review Finding 1, tracked as OOS-OS7-2, NOT fixed here):** the
+//! `CreaturesControlledBy(pid)` filter this primitive substitutes into re-evaluates
+//! *membership* live rather than locking the affected creature *set* at resolution per
+//! CR 611.2c. This is a pre-existing, engine-wide simplification shared by every
+//! resolution-generated mass P/T filter (Golgari Charm, Eyeblight Massacre) — PB-OS7
+//! correctly follows precedent rather than introducing a new divergence. All 11 tests
+//! below use static boards (no mid-turn control changes), so none of them are affected
+//! by or mask this limitation.
 
 use mtg_engine::effects::{execute_effect, EffectContext};
 use mtg_engine::{
@@ -497,7 +508,103 @@ fn test_os7_toughness_death_sba_defender_vs_bystander() {
     );
 }
 
-// ── Test 7: no defending player -> applies to nothing (footgun guard) ──────────
+// ── Test 7: non-Dragon attacker does not trigger the ability (subtype filter) ──
+
+/// CR 205.3m — a non-Dragon creature you control attacking does NOT trigger
+/// Silumgar's ability (the `WheneverCreatureYouControlAttacks { filter: has_subtype
+/// Dragon }` trigger condition). Silumgar itself (a Dragon) stays home; only the
+/// non-Dragon attacks. No trigger fires, so the defending player's creature is
+/// completely unaffected.
+#[test]
+fn test_os7_non_dragon_attacker_does_not_trigger() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let defs = load_defs();
+
+    let silumgar = place_card(p1, "Silumgar, the Drifting Death", &defs);
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(mtg_engine::CardRegistry::new(all_cards()))
+        .object(silumgar)
+        .object(ObjectSpec::creature(p1, "Non-Dragon Attacker", 2, 2))
+        .object(ObjectSpec::creature(p2, "Defender Creature", 3, 3))
+        .active_player(p1)
+        .at_step(Step::DeclareAttackers)
+        .build()
+        .unwrap();
+
+    let non_dragon_id = find_object(&state, "Non-Dragon Attacker");
+    let defender_id = find_object(&state, "Defender Creature");
+
+    // Silumgar (the only Dragon) does NOT attack; the non-Dragon does.
+    let state = declare_attackers(state, p1, vec![(non_dragon_id, AttackTarget::Player(p2))]);
+    let (state, _) = drain_stack(state, &[p1, p2]);
+
+    assert_eq!(
+        power(&state, defender_id),
+        Some(3),
+        "CR 205.3m: no Dragon attacked -- the trigger's subtype filter must not fire, \
+         so the defending player's creature stays at base power"
+    );
+    assert_eq!(
+        toughness(&state, defender_id),
+        Some(3),
+        "CR 205.3m: no Dragon attacked -- toughness must also stay at base"
+    );
+}
+
+// ── Test 8: Dragon attacks a planeswalker -> scopes to PW's controller ─────────
+
+/// CR 508.4 — a Dragon attacking a planeswalker resolves `defending_player` to that
+/// planeswalker's CONTROLLER (not the active player's chosen opponent, and not the
+/// planeswalker itself, which has no "creatures it controls"). Proves the
+/// `Some(pw.controller)` capture path (`abilities.rs:4107-4109`) feeds this
+/// primitive's substitution correctly.
+#[test]
+fn test_os7_planeswalker_attack_scopes_to_controller() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let defs = load_defs();
+
+    let silumgar = place_card(p1, "Silumgar, the Drifting Death", &defs);
+    let planeswalker = ObjectSpec::planeswalker(p2, "Test Planeswalker", 5)
+        .with_counter(mtg_engine::CounterType::Loyalty, 5);
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(mtg_engine::CardRegistry::new(all_cards()))
+        .object(silumgar)
+        .object(planeswalker)
+        .object(ObjectSpec::creature(p2, "Defender Creature", 3, 3))
+        .active_player(p1)
+        .at_step(Step::DeclareAttackers)
+        .build()
+        .unwrap();
+
+    let silumgar_id = find_object(&state, "Silumgar, the Drifting Death");
+    let pw_id = find_object(&state, "Test Planeswalker");
+    let defender_id = find_object(&state, "Defender Creature");
+
+    let state = declare_attackers(
+        state,
+        p1,
+        vec![(silumgar_id, AttackTarget::Planeswalker(pw_id))],
+    );
+    let (state, _) = drain_stack(state, &[p1, p2]);
+
+    assert_eq!(
+        power(&state, defender_id),
+        Some(2),
+        "CR 508.4: attacking a planeswalker resolves the defending player to that \
+         planeswalker's CONTROLLER -- p2's creature should get -1/-1 (3 base -> 2)"
+    );
+    assert_eq!(toughness(&state, defender_id), Some(2));
+}
+
+// ── Test 9: no defending player -> applies to nothing (footgun guard) ──────────
 
 /// CR 508.4 — the `None => return` skip path. Exercises `ApplyContinuousEffect` with
 /// `CreaturesControlledByDefendingPlayer` directly under an `EffectContext` whose
@@ -559,7 +666,7 @@ fn test_os7_no_defending_player_applies_to_nothing() {
     assert_eq!(toughness(&state, controller_creature_id), Some(3));
 }
 
-// ── Test 8: registration smoke test ─────────────────────────────────────────────
+// ── Test 10: registration smoke test ────────────────────────────────────────────
 
 /// `all_cards()` contains the new card def, and it loads without panicking.
 #[test]
@@ -571,7 +678,7 @@ fn test_os7_card_registered() {
     );
 }
 
-// ── Test 9: wire sentinels ───────────────────────────────────────────────────────
+// ── Test 11: wire sentinels ──────────────────────────────────────────────────────
 
 /// PB-OS7 bumped HASH_SCHEMA_VERSION 58 -> 59 (a single new `EffectFilter` variant,
 /// discriminant 36). PROTOCOL_VERSION ALSO moved 21 -> 22 -- a deviation from the

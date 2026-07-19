@@ -14,9 +14,42 @@ closure). Karazikar BLOCKED -> filed OOS-OS7-1; ship = 1 (silumgar). Plan: memor
 **PB**: PB-OS7 — defending-player-scoped continuous filter (OOS-EF3-1)
 **Task**: scutemob-137
 **Branch**: feat/pb-os7-defending-player-scoped-continuous-filter-oos-ef3-1-s
-**Phase**: review
+**Phase**: fix — DONE (all 3 review findings applied; ready for collect)
 
-## Verification checklist (ALL DONE — see plan's checklist section)
+## Fix phase (review pb-review-OS7.md: no HIGH, card ships; 1 MEDIUM doc-only + 2 LOW)
+
+- [x] **Finding 1 (MEDIUM, doc-only)**: corrected the plan's CR 611.2c mischaracterization
+  (`memory/primitives/pb-plan-OS7.md`, the "Membership semantics" design note + the "Membership
+  vs player capture" risk bullet) — the live-membership behavior is NOT CR-correct, it is a
+  pre-existing engine-wide simplification (Golgari Charm, Eyeblight Massacre share it). Filed
+  **OOS-OS7-2** (correctness) in `memory/primitives/oos-retriage-plan-2026-07-18.md` under the
+  PB-OS7 section: resolution-time affected-set snapshot semantics for one-shot continuous P/T
+  effects (CR 611.2c). Renumbered the plan's pre-existing, never-formally-filed
+  "optional adjacent seed OOS-OS7-2" (CreaturesControlledByTargetPlayer note) to OOS-OS7-3 to
+  avoid an id collision. No engine code changed (correctly out of scope per
+  implement-phase-default-to-defer).
+- [x] **Finding 2 (LOW)**: updated the stale `FROZEN_HISTORY_PREFIX_DIGEST` prose in both
+  `crates/engine/tests/core/protocol_schema.rs` (now describes the 21→22 bump, twenty-row prefix
+  `[2..21]`) and `crates/engine/tests/core/hash_schema.rs` (now describes the 58→59 bump). Digest
+  *values* were already correct (re-pinned during implement phase) — comment-only edit. Both
+  `frozen_prefix_is_pinned` gates re-run and confirmed green (not escalated to HIGH).
+- [x] **Finding 3 (LOW)**: added 2 tests to `pb_os7_defending_player_continuous_filter.rs`:
+  `test_os7_non_dragon_attacker_does_not_trigger` (CR 205.3m subtype-filter negative) and
+  `test_os7_planeswalker_attack_scopes_to_controller` (CR 508.4, `Some(pw.controller)` path).
+  Suite is now 11 tests (was 9), all pass first try. Renumbered subsequent `// ── Test N` headers.
+  Module docstring updated with test count + a note on the Finding-1 limitation's non-impact on
+  these tests (all use static boards).
+
+## Post-fix verification (ALL GREEN)
+
+- [x] `cargo build --workspace` clean
+- [x] `cargo test --all` — **3549 passed, 0 failed** (was 3547; +2 from Finding 3)
+- [x] `cargo clippy --workspace --all-targets -- -D warnings` — clean
+- [x] `cargo fmt --check` — clean
+- [x] `tools/check-defs-fmt.sh` — 1803 defs checked, clean
+- [x] `frozen_prefix_is_pinned` (both protocol_schema + hash_schema) — green
+
+## Pre-fix verification checklist (implement phase, superseded by post-fix above)
 
 - [x] `cargo build --workspace` clean
 - [x] `cargo test --all` — 3547 passed, 0 failed

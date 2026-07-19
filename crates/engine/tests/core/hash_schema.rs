@@ -179,8 +179,8 @@ const BASELINE_STREAM_FINGERPRINT: &str =
 // tail.
 //
 // **FROZEN — do not edit except by appending to `HASH_SCHEMA_HISTORY`.**
-// PB-OS6 (2026-07-19): re-pinned on the 57→58 bump — version 57 became a
-// superseded row and joined the frozen prefix. Its bytes (the v57
+// PB-OS7 (2026-07-19): re-pinned on the 58→59 bump — version 58 became a
+// superseded row and joined the frozen prefix. Its bytes (the v58
 // fingerprints) are unchanged; the digest moved only because the prefix
 // gained a member.
 const FROZEN_HISTORY_PREFIX_DIGEST: &str =
