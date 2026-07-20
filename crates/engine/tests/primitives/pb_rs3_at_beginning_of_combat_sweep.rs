@@ -466,7 +466,14 @@ fn test_siege_gang_lieutenant_intervening_if_fails_when_commander_removed() {
     );
 }
 
-// ── Test 5: APNAP / controller scoping (CR 101.4, 603.3b) ──────────────────
+// ── Test 5: controller scoping in a 4-player game (CR 101.4, 603.3b) ───────
+//
+// Named for what it actually asserts. AC 5126 asks for "APNAP multi-player
+// ordering"; this satisfies it in spirit, not literally, and the doc comment
+// below says exactly why -- cross-player APNAP ordering is VACUOUS for this
+// trigger condition, because the variant is active-player-only, so a
+// multi-controller batch cannot arise to be sorted. The stronger claim (p2's
+// trigger is never queued at all) is what gets asserted instead.
 
 /// CR 101.4 (APNAP order) + CR 603.2 (controller-scoped trigger condition):
 /// 4-player game. p1 (active) AND p2 (non-active) each control a Loyal

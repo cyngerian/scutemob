@@ -38,10 +38,14 @@ pub fn card() -> CardDefinition {
             // Defender, and CantAttackOwner -- it never reads GameRestriction::
             // CantAttackYouUnlessPay, even though that restriction IS fully enforced at
             // combat.rs:185-224 (a declaration the player can't pay the tax for is
-            // rejected there). With an opponent's Ghostly Prison/Propaganda out and no
-            // untapped mana, that makes declaring this creature's forced Goblin token
-            // illegal (tax check) AND omitting it illegal (must-attack check) --
-            // simultaneously, a genuine deadlock (CR 508.1d + the 2014-07-18 Rabblemaster
+            // rejected there). The precondition is narrower than "a Ghostly Prison is
+            // out": tax_per_attacker is keyed PER DEFENDING PLAYER (combat.rs:~200), so in
+            // 4-player Commander the forced token can simply attack an untaxed opponent.
+            // A deadlock needs EVERY remaining viable opponent taxed and the attacking
+            // player unable to pay -- realistic late-game, but not the common case. When
+            // that holds, declaring this creature's forced Goblin token is illegal (tax
+            // check) AND omitting it is illegal (must-attack check) simultaneously, which
+            // is a genuine deadlock (CR 508.1d + the 2014-07-18 Rabblemaster
             // ruling: "If there's a cost associated with having a creature attack, you're
             // not forced to pay that cost"). This is shared by every already-shipped
             // MustAttackEachCombat card, not new to this def, but this card manufactures a
