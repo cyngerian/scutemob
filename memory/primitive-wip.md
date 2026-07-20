@@ -6,7 +6,9 @@
 - **Task**: `scutemob-145`
 - **Branch**: `feat/pb-rs3-atbeginningofcombat-card-def-sweep-begincombat-collec`
 - **Class**: CORRECTNESS (live-wrong on a `Complete`-by-default card; Invariant #9)
-- **Phase**: plan
+- **Phase**: review (steps 0-8 done — engine sweep, card-def flips, mandatory tests 2-8,
+  roster sweep, wire/gate verification all complete; step 9 `primitive-impl-reviewer` pass
+  is the only remaining step)
 - **Binding spec**: `memory/primitives/rider-seed-triage-2026-07-19.md` §2.3 (chain notes) + §3 (R3 row)
 - **Plan file**: `memory/primitives/pb-plan-RS3.md`
 - **Review file**: `memory/primitives/pb-review-RS3.md`
@@ -116,14 +118,53 @@ seed if widespread**. This is a class-level integrity question, not a helm-speci
       `camellia_the_seedmiser.rs`, swapping the modification for `AddKeyword(MustAttackEachCombat)`)
       and flipped `partial` → `Complete` — **legitimate third flip**, per plan §5c authorization
       for a clean composition. `cargo check -p mtg-card-defs` clean.
-- [ ] 5. Mandatory tests: helm probe (inverted to permanent regression), lieutenant condition both
-      directions, APNAP multi-player ordering, emblem + card-def coexistence (no double / no drop),
-      extra-combat behavior with CR citation. **NOT done in this step — deferred per session scope
-      (card-def step only; Tests 2-8 + roster sweep are a later step's job).**
-- [ ] 6. Full `all_cards()` roster sweep for `AtBeginningOfCombat`; roster reported in close-out.
-- [ ] 7. PROTOCOL/HASH confirmed unchanged; `cargo build --workspace` clean.
-- [ ] 8. Full gates: `cargo test --all`, `clippy -D warnings`, `cargo fmt --check` **and**
-      `tools/check-defs-fmt.sh` (SR-35 — `cargo fmt` checks none of the 1,804 defs).
+- [x] 5. Mandatory tests 2-8 written in
+      `crates/engine/tests/primitives/pb_rs3_at_beginning_of_combat_sweep.rs` (registered,
+      already present, in `primitives/main.rs`): Test 2 index-space discriminator
+      (`test_loyal_apprentice_trigger_uses_carddef_ability_index_namespace`), Tests 3a/3b
+      siege_gang intervening-if both directions (holds / fails-when-commander-removed),
+      Test 5 APNAP/controller scoping (4-player), Test 6 emblem+card-def coexistence
+      (Basri Ket emblem + Helm, no double/no drop, queue-order pinned), Test 7 extra-combat
+      refire (CR 506.1/603.2), Test 8 unattached-Helm negative edge (CR 702.6). All 8 tests
+      in the file pass. `pb_os9_lieutenant_commander_control.rs`'s file-level doc comment and
+      the Siege-Gang test's doc comment corrected (sweep now shipped; that file's own tests
+      still isolate resolution-only, cross-referenced to the new end-to-end tests).
+      **Every new test's discrimination verified empirically** (temporarily broke the cited
+      production code, confirmed FAIL with the predicted message, reverted, confirmed PASS —
+      see close-out report for the full before/after transcript per test). One correction
+      made during verification: Test 7's doc comment originally claimed to guard the
+      `state.combat.is_none()` nesting trap (R2); empirically, nesting the sweep in that
+      guard does NOT reproduce a failure in this harness (because `end_combat` unconditionally
+      resets `state.combat = None` before the redirect), so the comment was corrected to
+      describe what was actually verified (an R4-shaped "skip on repeat entry" mutation, which
+      DOES fail the test as predicted).
+- [x] 6. Full `all_cards()` roster sweep written: `crates/engine/tests/core/pb_rs3_combat_trigger_roster.rs`
+      (registered in `core/main.rs`). Enumerates `all_cards()` (SR-36), walks
+      `serde_json::to_value(&def)` recursively, scoped to the `trigger_condition` JSON key
+      (a bare `contains_key`/string-value walk was tried first and found a real false
+      positive — Basri Ket's emblem `trigger_on: TriggerEvent::AtBeginningOfCombat` serializes
+      to the identical bare string as `TriggerCondition::AtBeginningOfCombat`; fixed by scoping
+      the match to the `trigger_condition` field name). **Roster: exactly 6**, matching the
+      plan's predicted roster: Helm of the Host, Loyal Apprentice, Siege-Gang Lieutenant,
+      Goblin Rabblemaster, Legion Warboss, Mirage Phalanx. Basri Ket confirmed excluded
+      (emblem path, not card-def path) — asserted directly. Completeness pinned per member:
+      **4 Complete** (Helm of the Host, Loyal Apprentice, Siege-Gang Lieutenant, **Goblin
+      Rabblemaster** — this last one is real information that diverges from the plan §7
+      table's prediction, which expected Rabblemaster to stay `partial`; step 4's F-Rabble
+      probe legitimately flipped it, a third flip beyond the plan's predicted two), 1 Partial
+      (Legion Warboss), 1 KnownWrong (Mirage Phalanx). Non-vacuity floor (`>= 6`) and all
+      completeness pins verified to discriminate (temporarily broke the field-name match,
+      confirmed roster collapses to 0 and the assertion fails with the predicted message,
+      reverted, confirmed pass).
+- [x] 7. PROTOCOL/HASH confirmed unchanged: PROTOCOL_VERSION == 27, HASH_SCHEMA_VERSION == 63
+      (grep-verified; `git diff --stat` on `protocol.rs`/`hash.rs` empty). `cargo build
+      --workspace` clean.
+- [x] 8. Full gates green: `cargo test --all` (all suites, 0 failed), `cargo clippy
+      --all-targets -- -D warnings` (clean), `cargo fmt --check` (clean — one file needed
+      `cargo fmt` applied, a multi-line `all.push(...)` call reformatted; re-verified clean
+      and re-ran the full suite after), `tools/check-defs-fmt.sh` (1804 defs, clean). No
+      remaining TODOs in the flipped card defs (helm_of_the_host, loyal_apprentice,
+      siege_gang_lieutenant, goblin_rabblemaster).
 - [ ] 9. `primitive-impl-reviewer` pass with every finding dispositioned.
 
 ## Prior state
