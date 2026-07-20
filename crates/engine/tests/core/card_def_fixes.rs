@@ -1,7 +1,7 @@
 //! Tests verifying M9.4 Session 1 and Session 2 card definition corrections.
 //!
 //! Session 1 covers:
-//! - Read the Bones: Scry 2 fires before drawing two cards (CR 701.18)
+//! - Read the Bones: Scry 2 fires before drawing two cards (CR 701.22)
 //! - Dimir Guildgate: modal color choice (CR 106.6)
 //! - Path to Exile: optional search via deterministic MayPayOrElse (CR 701.23)
 //! - Thought Vessel / Reliquary Tower: no-maximum-hand-size skips cleanup discard (CR 402.2)
@@ -46,10 +46,10 @@ fn pass_all(state: GameState, players: &[PlayerId]) -> (GameState, Vec<GameEvent
     (current, all_events)
 }
 
-// ── CR 701.18: Read the Bones — scry fires before draw ───────────────────────
+// ── CR 701.22: Read the Bones — scry fires before draw ───────────────────────
 
 #[test]
-/// CR 701.18 — Read the Bones: Scry 2 fires before drawing two cards.
+/// CR 701.22 — Read the Bones: Scry 2 fires before drawing two cards.
 /// Verifies the Scried event precedes the CardDrawn events in the event sequence.
 fn test_read_the_bones_scry_then_draw() {
     let p1 = PlayerId(1);
@@ -123,7 +123,7 @@ fn test_read_the_bones_scry_then_draw() {
 
     let (state, events) = pass_all(state, &[p1, p2]);
 
-    // CR 701.18: Scried event must appear before any CardDrawn events.
+    // CR 701.22: Scried event must appear before any CardDrawn events.
     let scried_pos = events
         .iter()
         .position(|e| matches!(e, GameEvent::Scried { player, .. } if *player == p1))

@@ -1,4 +1,4 @@
-# Primitive WIP — PB-RS1 (OOS-RS-1) · IN PROGRESS
+# Primitive WIP — PB-RS1 (OOS-RS-1) · FIX CYCLE COMPLETE
 
 <!-- last_updated: 2026-07-19 -->
 
@@ -6,12 +6,12 @@
 - **Task**: `scutemob-143`
 - **Branch**: `feat/pb-rs1-reconcile-library-topbottom-revealscry-family-reads-t`
 - **Class**: CORRECTNESS (Invariant #9 — live-wrong on shipped `Complete` defs)
-- **Phase**: review
+- **Phase**: fix (complete — see "Fix cycle" section below)
 - **Binding spec**: `memory/primitives/rider-seed-triage-2026-07-19.md` §5 (full spec), §2.1 (chain notes)
 - **Plan file**: `memory/primitives/pb-plan-RS1.md`
 - **Review file**: `memory/primitives/pb-review-RS1.md`
 - **Wire expectation**: NONE — no PROTOCOL/HASH bump. If a schema fingerprint must be
-  re-pinned, STOP and re-scope.
+  re-pinned, STOP and re-scope. **Confirmed unchanged after fix cycle: PROTOCOL 26 / HASH 63.**
 
 ## Steps
 
@@ -48,7 +48,10 @@
       warnings` clean, `cargo fmt --check` clean (after `cargo fmt` auto-fixed 2 new test files),
       `tools/check-defs-fmt.sh` clean (1804 defs), `cargo build --workspace` green (TUI +
       replay-viewer included, no exhaustive-match gaps — expected, no new enum variant added).
-- [ ] 10. Review by `primitive-impl-reviewer`; disposition findings.
+- [x] 10. Review by `primitive-impl-reviewer`; disposition findings. Verdict:
+      needs-fix (1 MEDIUM correctness, 1 MEDIUM citation, 4 LOW). Fix cycle
+      applied 2026-07-19 -- see "Fix cycle" section below. All gates re-green
+      after fixes; PROTOCOL 26 / HASH 63 unchanged.
 
 ## Notable fallout discovered and fixed during implementation
 
@@ -79,3 +82,152 @@
 THE PB-OS QUEUE IS COMPLETE (PB-OS1..OS11 + OS4b, `scutemob-116`..`141`). Rider-seed
 mini-triage DONE (`scutemob-142`); canonical ranked queue R1..R11 lives in
 `memory/primitives/rider-seed-triage-2026-07-19.md` §3.
+
+## Fix cycle (2026-07-19)
+
+Applied every finding from `memory/primitives/pb-review-RS1.md`. Every finding was
+fixed (none declined).
+
+### MEDIUM-1 (correctness) — a fifth top-N read, still inverted
+
+`RestrictSearchTopN` (`crates/engine/src/effects/mod.rs` -- `SearchLibrary`, the
+Aven Mindcensor search-restriction arm) computed "the top N" as the N *lowest*
+ObjectIds (`all_lib.sort(); .take(n)`), which decouples from library position
+after any shuffle/cascade-to-bottom/scry-to-bottom and, under this engine's
+declaration convention, is the BOTTOM N. Live-wrong on `aven_mindcensor.rs`,
+which is `Completeness::Complete`. **Fixed**: routed through
+`Zone::top_n(top_n as usize)`, deleted the false "ObjectId ascending" comment,
+cited CR 701.23/121.1. **Added a discriminating regression test**:
+`test_restrict_search_top_n_reads_true_top_not_object_id_order` in
+`crates/engine/tests/mechanics_m_z/library_ordering.rs` (Test 5) -- builds a
+real `Aven Mindcensor` from `all_cards()`, a 5-card opponent library with the
+only matching land (Swamp) at the TRUE bottom and 4 non-land fillers above it,
+executes the real `Effect::SearchLibrary` with the replacement ability
+registered, and asserts the search finds nothing (the Swamp stays in the
+library). **Verified it fails on revert**: temporarily restored the old
+ObjectId-proxy block, re-ran the test — it FAILED with exactly the expected
+message; restored the fix, re-ran — PASSED. All 6 tests in `library_ordering.rs`
+pass with the fix in place.
+
+Fixing this required bumping the `src/effects/mod.rs` SR-25 bare-lookup-ratchet
+ceiling in `crates/engine/tests/core/bare_lookup_ratchet.rs` from 110 to 111
+(one new `state.zones.get(&lib_id)` NONSWALLOW predicate read, same shape as
+the pre-existing PB-OS8 entry immediately above it in that file) — documented
+inline with a new dated comment block, per that file's established convention.
+
+### MEDIUM-2 (citation) — `GameEvent::Scried` still cites CR 701.18 (Play)
+
+Fixed at `crates/engine/src/rules/events.rs:766`: `701.18` → `701.22`.
+
+Per the fix-cycle brief, also grepped the whole workspace for remaining
+`701.18`/`701.19` cites attached to Scry and `701.16`/`701.19a` cites attached
+to Reveal/Search, and closed every one found in engine source, engine tests,
+and test-data scripts (kept the "zero card-def diffs" invariant intact --
+`crates/card-defs/` was NOT touched, even though several card-def files carry
+the same stale `701.18`/`701.16a` comments; those are pre-existing and out of
+this PB's scope per plan §7). Fixed, beyond the review's two explicit MEDIUM
+findings:
+- `crates/engine/src/effects/mod.rs:4969` (RevealAndRoute's own inline comment,
+  missed by the original implement pass): `701.16a` → `701.20a`.
+- `crates/engine/src/state/hash.rs:6396` (Scry hash-arm comment): `701.18` → `701.22`.
+- `crates/engine/src/state/hash.rs:6598` (RevealAndRoute hash-arm comment): `701.16a` → `701.20a`.
+- `crates/engine/tests/core/card_def_fixes.rs` (4 occurrences, module doc +
+  section header + test doc + inline comment): `701.18` → `701.22`.
+- `docs/mtg-engine-corner-case-audit.md` (living correctness ledger, 2 entries):
+  Read the Bones `701.18` → `701.22`; Path to Exile `701.19` → `701.23`.
+- `docs/mtg-engine-ability-coverage.md` (live coverage doc, 1 entry): Search
+  library's `701.19a` → `701.23a`.
+- Golden scripts (citation-only edits, verified no assertion touched — see
+  "Script diff verification" below): `baseline/009_read_the_bones_scry_draw.json`
+  (3 occurrences, `701.18`→`701.22`), `etb-triggers/205_nadaar_ventures_on_etb.json`
+  (`701.18`→`701.22`), `etb-triggers/002_solemn_simulacrum_fetches_land.json`
+  (`701.19`→`701.23`), `stack/199_sakura_tribe_elder_search.json` (3 occurrences:
+  search `701.19`→`701.23` x2, `701.19a`→`701.23a`, plus a same-script Shuffle
+  citation `701.19`→`701.24` found adjacent), `stack/034_brainstorm_then_fetch.json`
+  (Shuffle citation `701.16`→`701.24`, found adjacent to the search citation).
+
+**Explicitly left alone** (out of scope, disposition: found, not fixed):
+- `crates/card-defs/*.rs` stale `701.18`/`701.16a` comments (temple_of_*,
+  read_the_bones.rs, viscera_seer.rs, zhalfirin_void.rs) — fixing these would
+  violate the plan's "zero card-def diffs" hard constraint (§7) and the
+  fix-cycle's explicit gate #2 requiring that diff stay empty.
+- `test-data/generated-scripts/stack/004_swords_to_plowshares_exiles_creature.json`'s
+  `701.18` citation — attached to `exile_object`, not Scry/Reveal/Search; a
+  different pre-existing miscitation (should be 701.9, Exile), out of this
+  PB's citation family.
+- Widespread `CR 701.16: Sacrifice` miscitations (`altar_of_dementia.rs`,
+  `greater_good.rs`, `pbp_power_of_sacrificed_creature.rs`, `pb-plan-P.md`,
+  `card_definition.rs:1493`'s `TapPermanent` citation) — CR 701.16 is
+  Investigate, not Sacrifice (current Sacrifice is CR 701.21); this is a
+  large, unrelated pre-existing citation bug (already partially flagged in
+  `ability-review-investigate.md`'s own LOW finding) well outside PB-RS1's
+  Scry/Surveil/Reveal/Search scope. Not touched.
+- `docs/mtg-engine-milestone-reviews.md:991`'s `701.19` for SearchLibrary --
+  that whole historical table uses a uniformly stale CR numbering scheme
+  (`701.5`=Destroy, `701.6`=CreateToken, `701.7`=Discard, `701.13`=Mill,
+  `701.20`=Shuffle, all differ from the current CR text), consistent with it
+  being a point-in-time milestone snapshot rather than a live tracked doc;
+  patching one entry among many stale ones would create false precision
+  without fixing the pattern. Not touched.
+- `memory/primitives/rider-seed-triage-2026-07-19.md`'s own `701.19 (Scry)`
+  citations (the original triage brief's error, already fully diagnosed,
+  quoted verbatim, and superseded by the plan's §0.2/§2 correction) --
+  retroactively editing the source document would break the quote the plan's
+  Finding A is built on. Not touched.
+- `memory/primitives/pb-plan-RS1.md` / `pb-review-RS1.md` themselves and other
+  point-in-time plan/review artifacts (`ability-plan-*.md`, `pb-review-12.md`,
+  `pb-review-17.md`, `pb-plan-19.md`, `w-pb2-review-batch1.md`, archive files)
+  — historical records of what was cited/found at each point in time, not
+  live docs to retroactively rewrite.
+
+### LOW findings 3–6 — batched into the same fix pass
+
+- **LOW-3** (`crates/engine/src/rules/replacement.rs:340`): `701.19` → `701.23`
+  (Search, not Regenerate).
+- **LOW-4** (`crates/engine/tests/mechanics_m_z/reveal_and_route.rs:1`):
+  module doc `701.16a` → `701.20a` (Reveal, not Investigate).
+- **LOW-5** (bottom-dispatch asymmetry, `effects/mod.rs` `matched_dest` in
+  RevealAndRoute and `destination` in LookAtTopThenPlace): added explanatory
+  comments at both sites (no behavior change, per the review's "add a comment
+  recording the asymmetry" option) — both are currently latent (no card def
+  routes matched/placed cards to a library), and adding a live `matches!`
+  branch would be an unrequested behavior change outside a narrow fix cycle.
+- **LOW-6** (`crates/engine/tests/mechanics_m_z/library_ordering.rs:533-535`,
+  inverted comment rationale in `test_scry_two_to_bottom_lands_below_everything`):
+  rewrote the comment to correctly state Top1/Top2 are declared LAST (highest
+  ObjectIds) and explain the push_front processing order that lands them at
+  indices 0/1. The assertion itself was always correct; only the reasoning
+  in the comment was inverted.
+
+### Reviewer coverage gap — closed
+
+The reviewer had no Bash tool, so `git diff main...HEAD` and the test suite
+were never executed during review; this fix cycle closed that gap:
+
+1. `git diff main...HEAD --stat` and `git diff main...HEAD -- test-data/`
+   (plus `git diff` / `git status --porcelain` for the fix cycle's own
+   uncommitted script edits): confirmed the 5 disclosed scripts
+   (`etb-triggers/002`, `stack/012`, `stack/018`, `stack/199`, `stack/034`)
+   plus 2 more touched in THIS fix cycle for pure citation corrections
+   (`baseline/009`, `etb-triggers/205`) — every single diff line in every
+   touched script is a `cr_ref`/`cr_sections_tested`/`generation_notes`/`note`
+   string swap or (for the original 5) a setup/library-declaration reorder.
+   Read every diff hunk directly: zero assertion fields (`assertions`,
+   `expected`, counts, positions) were touched anywhere. No undisclosed
+   *assertion* edits found.
+2. `git diff main...HEAD -- crates/card-defs/` (and the fix cycle's own
+   `git diff -- crates/card-defs/`): both empty. Confirmed.
+3. `crates/card-types/src/cards/card_definition.rs`'s diff (implement +
+   fix cycle combined): two hunks, both pure `///` doc-comment edits (Scry's
+   CR cite, RevealAndRoute's CR cite + drift explanation). Confirmed
+   comment-only.
+
+### Gates (fix cycle)
+
+`cargo test --all`: 0 failures (confirmed twice, before and after `cargo fmt`
+auto-fixed one line in the new Test 5). `cargo clippy --all-targets -D
+warnings`: clean. `cargo fmt --check`: clean (after one `cargo fmt` pass).
+`tools/check-defs-fmt.sh`: clean (1804 defs). `cargo build --workspace`:
+clean (TUI + replay-viewer included). `PROTOCOL_VERSION` = 26,
+`HASH_SCHEMA_VERSION` = 63 — both confirmed unchanged by direct grep of the
+`pub const` declarations.

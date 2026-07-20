@@ -1,4 +1,4 @@
-/// Tests for Effect::RevealAndRoute (CR 701.16a) and Effect::Flicker (CR 400.7).
+/// Tests for Effect::RevealAndRoute (CR 701.20a) and Effect::Flicker (CR 400.7).
 ///
 /// RevealAndRoute reveals the top N cards of a player's library, then routes
 /// matching cards to one zone and non-matching cards to another.

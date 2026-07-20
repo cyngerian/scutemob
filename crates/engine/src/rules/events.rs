@@ -763,7 +763,7 @@ pub enum GameEvent {
     /// during a mandatory-action sequence (SBA + trigger cycles with no player choices).
     LoopDetected { description: String },
     // ── M9.4: Scry event ──────────────────────────────────────────────────
-    /// A player performed a scry action (CR 701.18).
+    /// A player performed a scry action (CR 701.22).
     ///
     /// Emitted by `Effect::Scry` when the player looks at the top N cards
     /// of their library and rearranges them (deterministic fallback: top cards

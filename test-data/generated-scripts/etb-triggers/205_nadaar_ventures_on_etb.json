@@ -234,8 +234,8 @@
               "effect": "scry",
               "player": "p1",
               "count": 1,
-              "cr_ref": "701.18",
-              "note": "CR 701.18: p1 scrys 1 — looks at top card of library (Plains) and puts it on bottom (deterministic fallback)."
+              "cr_ref": "701.22",
+              "note": "CR 701.22: p1 scrys 1 — looks at top card of library (Plains) and puts it on bottom (deterministic fallback)."
             }
           ],
           "note": "Scry 1 resolves: Plains stays in library (only 1 card, goes to bottom = same)."

@@ -4,7 +4,7 @@
     "id": "script_stack_199",
     "name": "Sakura-Tribe Elder — sacrifice to search for basic land",
     "description": "p1 has Sakura-Tribe Elder on the battlefield and two basic lands in library (Forest, Island). p1 activates the Elder's ability (sacrifice Sakura-Tribe Elder: search library for a basic land card, put it onto the battlefield tapped, then shuffle). Engine resolves SearchLibrary deterministically (minimum ObjectId = Forest). Tests sacrifice-cost activation, library search, tapped ETB, and shuffle.",
-    "cr_sections_tested": ["602.2", "605.5", "608.2", "700.4", "701.19"],
+    "cr_sections_tested": ["602.2", "605.5", "608.2", "700.4", "701.23"],
     "corner_case_ref": null,
     "tags": ["creature", "sacrifice", "search-library", "sakura-tribe-elder", "ramp"],
     "confidence": "high",
@@ -112,7 +112,7 @@
               "effect": "search_library_for_basic_land",
               "player": "p1",
               "found": "Forest",
-              "cr_ref": "701.19",
+              "cr_ref": "701.23",
               "note": "Engine picks minimum ObjectId matching basic land filter — Forest."
             },
             {
@@ -125,7 +125,7 @@
             {
               "effect": "shuffle_library",
               "player": "p1",
-              "cr_ref": "701.19",
+              "cr_ref": "701.24",
               "note": "Remaining library (Island) is shuffled."
             }
           ],
@@ -139,7 +139,7 @@
           "targets": [],
           "mana_paid": {},
           "mana_source": [],
-          "cr_ref": "701.19a",
+          "cr_ref": "701.23a",
           "note": "Documentation marker: engine already put Forest onto the battlefield. No Command issued (M10 will add Command::SelectLibraryCard)."
         },
         {

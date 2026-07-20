@@ -220,7 +220,7 @@
             {
               "effect": "shuffle_library",
               "player": "p1",
-              "cr_ref": "701.16",
+              "cr_ref": "701.24",
               "note": "Library is shuffled. The 2 cards put back by Brainstorm are now randomized."
             }
           ],

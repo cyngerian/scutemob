@@ -6393,7 +6393,7 @@ impl HashInto for Effect {
                 count.hash_into(hasher);
                 from.hash_into(hasher);
             }
-            // M9.4: Scry (discriminant 28) — CR 701.18
+            // M9.4: Scry (discriminant 28) — CR 701.22
             Effect::Scry { player, count } => {
                 28u8.hash_into(hasher);
                 player.hash_into(hasher);
@@ -6595,7 +6595,7 @@ impl HashInto for Effect {
                     effect.hash_into(hasher);
                 }
             }
-            // CR 701.16a: RevealAndRoute (discriminant 62)
+            // CR 701.20a: RevealAndRoute (discriminant 62)
             Effect::RevealAndRoute {
                 player,
                 count,

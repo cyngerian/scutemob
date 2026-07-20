@@ -17,6 +17,7 @@
 use mtg_engine::cards::card_definition::{TargetFilter, ZoneTarget};
 use mtg_engine::effects::{execute_effect, EffectContext};
 use mtg_engine::rules::command::CastSpellData;
+use mtg_engine::rules::replacement::register_permanent_replacement_abilities;
 use mtg_engine::rules::turn_actions::draw_card;
 use mtg_engine::state::game_object::ObjectId;
 use mtg_engine::state::turn::Step;
@@ -24,10 +25,11 @@ use mtg_engine::state::types::CardType;
 use mtg_engine::state::zone::ZoneId;
 use mtg_engine::state::{GameStateBuilder, ObjectSpec, PlayerId};
 use mtg_engine::{
-    process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, Command,
-    Completeness, Effect, EffectAmount, GameEvent, GameState, KeywordAbility, LibraryPosition,
-    ManaCost, PlayerTarget, TypeLine,
+    all_cards, card_name_to_id, enrich_spec_from_def, process_command, AbilityDefinition,
+    CardDefinition, CardId, CardRegistry, Command, Completeness, Effect, EffectAmount, GameEvent,
+    GameState, KeywordAbility, LibraryPosition, ManaCost, PlayerTarget, TypeLine,
 };
+use std::collections::HashMap;
 
 fn p(n: u64) -> PlayerId {
     PlayerId(n)
@@ -531,8 +533,12 @@ fn test_scry_two_to_bottom_lands_below_everything() {
     );
 
     // Deterministic fallback bottoms both looked-at cards, sorted by ObjectId
-    // ascending. Top1 and Top2 (declared first, so lower ObjectIds) must now
-    // occupy indices 0 and 1 -- below every pre-existing card.
+    // ascending, then pushed to the front one at a time (Zone::push_front).
+    // Top1 and Top2 are declared LAST (so they carry the two HIGHEST ObjectIds
+    // among the five). Ascending sort processes Top2 (lower id) first, so it is
+    // pushed to the front first; Top1 (higher id) is processed second and pushed
+    // last, landing at index 0. Net result: Top1 and Top2 occupy indices 0 and 1
+    // -- below every pre-existing card, as required by CR 701.22a.
     let lib_ids = state
         .zones()
         .get(&ZoneId::Library(p(1)))
@@ -569,5 +575,121 @@ fn test_scry_two_to_bottom_lands_below_everything() {
         name_of(&draw_state, hand_id),
         "Bottom3",
         "CR 121.1: draw_card must agree with Scry's write side on the new top"
+    );
+}
+
+// ── Test 5 — RestrictSearchTopN reads the true top N, not ObjectId order ──────
+// (PB-RS1 fix cycle, review Finding 1 / MEDIUM correctness)
+
+/// CR 701.23 / CR 701.23f (Search restriction) + CR 121.1 — Aven Mindcensor
+/// restricts an opponent's library search to the top 4 cards *by library
+/// position*, not by `ObjectId`. Before this fix, `RestrictSearchTopN` computed
+/// "the top N" as the N *lowest* ObjectIds via `all_lib.sort(); .take(n)` --
+/// under this engine's declaration convention (first-declared = lowest
+/// ObjectId = bottom, CR 121.1 / `Zone::top()`), that is the BOTTOM N, not the
+/// top N. This test builds a >4-card library with the only matching card (a
+/// Swamp) at the TRUE bottom and four non-land fillers above it, and asserts
+/// the search finds nothing -- it fails (finding the Swamp) if the restriction
+/// ever reverts to ObjectId-ascending.
+#[test]
+fn test_restrict_search_top_n_reads_true_top_not_object_id_order() {
+    let cards = all_cards();
+    let defs: HashMap<String, CardDefinition> =
+        cards.iter().map(|d| (d.name.clone(), d.clone())).collect();
+    let registry = CardRegistry::new(cards);
+
+    let p1 = p(1); // controls Aven Mindcensor
+    let p2 = p(2); // the searching opponent
+
+    let mindcensor = enrich_spec_from_def(
+        ObjectSpec::card(p1, "Aven Mindcensor")
+            .in_zone(ZoneId::Battlefield)
+            .with_card_id(card_name_to_id("Aven Mindcensor")),
+        &defs,
+    );
+
+    // p2's library, declared bottom-to-top (GameStateBuilder::object appends,
+    // so first-declared = lowest ObjectId = bottom under CR 121.1 / Zone::top()).
+    // "Swamp" -- the only card the search filter can match -- is declared
+    // FIRST, i.e. it is the TRUE bottom, with 4 non-land fillers above it.
+    let mut builder = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(mindcensor)
+        .object(
+            ObjectSpec::card(p2, "Swamp")
+                .in_zone(ZoneId::Library(p2))
+                .with_types(vec![CardType::Land]),
+        );
+    for i in 1..=4 {
+        builder = builder.object(
+            ObjectSpec::card(p2, &format!("Filler{i}"))
+                .in_zone(ZoneId::Library(p2))
+                .with_types(vec![CardType::Creature]),
+        );
+    }
+    let mut state = builder.with_registry(registry).build().unwrap();
+
+    // Register Aven Mindcensor's replacement ability -- this test builds the
+    // battlefield directly rather than via CastSpell/ETB, which is where
+    // production registration normally happens.
+    let reg = state.card_registry().clone();
+    let mindcensor_id = state
+        .objects()
+        .iter()
+        .find(|(_, o)| o.characteristics.name == "Aven Mindcensor")
+        .map(|(id, _)| *id)
+        .expect("Aven Mindcensor should be on the battlefield");
+    let mindcensor_card_id = state.objects().get(&mindcensor_id).unwrap().card_id.clone();
+    register_permanent_replacement_abilities(
+        &mut state,
+        mindcensor_id,
+        p1,
+        mindcensor_card_id.as_ref(),
+        &reg,
+    );
+
+    let source_id = ObjectId(999);
+    let mut ctx = ec(p2, source_id);
+    let filter = TargetFilter {
+        has_card_type: Some(CardType::Land),
+        ..Default::default()
+    };
+    execute_effect(
+        &mut state,
+        &Effect::SearchLibrary {
+            player: PlayerTarget::Controller,
+            filter,
+            reveal: false,
+            destination: ZoneTarget::Hand {
+                owner: PlayerTarget::Controller,
+            },
+            shuffle_before_placing: false,
+            also_search_graveyard: false,
+        },
+        &mut ctx,
+    );
+
+    // CR 701.23f: Aven Mindcensor restricts the search to the top 4 cards.
+    // The Swamp is at the true bottom (index 0) -- outside the top 4 -- so it
+    // must NOT be found. Pre-fix (ObjectId-ascending), the Swamp (declared
+    // first = lowest ObjectId) WOULD have been in the "restricted" set and
+    // would have been found instead of correctly being excluded.
+    let swamp_still_in_library = state
+        .objects()
+        .iter()
+        .any(|(_, o)| o.characteristics.name == "Swamp" && o.zone == ZoneId::Library(p2));
+    assert!(
+        swamp_still_in_library,
+        "CR 701.23f / CR 121.1: Aven Mindcensor restricts to the TRUE top 4 cards; \
+         the Swamp at the true bottom must not be findable and must remain in the library"
+    );
+    let anything_in_hand = state
+        .objects()
+        .iter()
+        .any(|(_, o)| o.zone == ZoneId::Hand(p2));
+    assert!(
+        !anything_in_hand,
+        "CR 701.23f: no card should have been found (no land among the true top 4 fillers)"
     );
 }

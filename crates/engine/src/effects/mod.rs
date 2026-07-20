@@ -3007,19 +3007,19 @@ fn execute_effect_inner(
                     })
                     .map(|(id, _)| *id)
                     .collect();
-                // If search is restricted to top N, sort by library position
-                // and truncate. Library order is by ObjectId ascending (deterministic).
+                // CR 701.23 / CR 121.1: if search is restricted to top N (e.g. Aven
+                // Mindcensor), restrict to the true top N cards by library position via
+                // `Zone::top_n` (PB-RS1) -- NOT ObjectId order, which decouples from
+                // library position after any shuffle, cascade-to-bottom, or scry-to-bottom.
                 // Search restriction only applies to library cards (not graveyard cards).
                 if let Some(top_n) = search_restriction {
-                    let mut all_lib: Vec<ObjectId> = state
-                        .objects
-                        .iter()
-                        .filter(|(_, obj)| obj.zone == lib_id)
-                        .map(|(id, _)| *id)
+                    let top_ids: std::collections::HashSet<ObjectId> = state
+                        .zones
+                        .get(&lib_id)
+                        .map(|z| z.top_n(top_n as usize))
+                        .unwrap_or_default()
+                        .into_iter()
                         .collect();
-                    all_lib.sort();
-                    let top_ids: std::collections::HashSet<ObjectId> =
-                        all_lib.into_iter().take(top_n as usize).collect();
                     // Only restrict library candidates; graveyard candidates are unrestricted.
                     candidates.retain(|id| {
                         if let Some(obj) = state.objects.get(id) {
@@ -4966,8 +4966,9 @@ fn execute_effect_inner(
             let power = get_creature_power(state, src_id);
             deal_creature_power_damage(state, src_id, tgt_id, power, events);
         }
-        // CR 701.16a: Reveal top N cards of a player's library, then route by filter.
+        // CR 701.20a: Reveal top N cards of a player's library, then route by filter.
         // Matched cards go to matched_dest, unmatched to unmatched_dest.
+        // (CR 701.16a is Investigate, not Reveal -- see card_definition.rs's RevealAndRoute doc.)
         Effect::RevealAndRoute {
             player,
             count,
@@ -5009,6 +5010,12 @@ fn execute_effect_inner(
                 matched_ids.sort_by_key(|id| id.0);
                 unmatched_ids.sort_by_key(|id| id.0);
                 // Move matched cards to their destination.
+                // NOTE (PB-RS1 review Finding 5): unlike `unmatched_dest` below, this arm
+                // has no `LibraryPosition::Bottom` branch -- a `matched_dest` of
+                // `Library{Bottom}` would silently append to the top instead. Currently
+                // latent: no card def routes matched cards to a library at all (every
+                // RevealAndRoute user sends matches to hand/battlefield/graveyard/exile).
+                // If a future card needs it, mirror the `unmatched_to_bottom` dispatch below.
                 let matched_zone = resolve_zone_target(matched_dest, state, ctx);
                 let matched_tapped = dest_tapped(matched_dest);
                 for id in &matched_ids {
@@ -5150,6 +5157,11 @@ fn execute_effect_inner(
                         .min_by_key(|id| id.0);
                 }
                 // Place the winner (if any) to `destination`.
+                // NOTE (PB-RS1 review Finding 5): unlike `rest_to` below, this arm has no
+                // `LibraryPosition::Bottom` branch -- a `destination` of `Library{Bottom}`
+                // would silently append to the top instead. Currently latent: no card def
+                // places the matched card into a library. If a future card needs it,
+                // mirror the `rest_to_bottom` dispatch below.
                 if let Some(id) = placed_id {
                     let dest_zone = resolve_zone_target(destination, state, ctx);
                     let tapped = dest_tapped(destination);

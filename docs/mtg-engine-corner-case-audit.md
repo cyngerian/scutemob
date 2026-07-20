@@ -82,11 +82,11 @@ All 12 card definition gaps addressed in M9.4. No remaining simplifications or n
 |---------|-----|----------|--------|--------|
 | Lightning Greaves, Swiftfoot Boots | Equipment doesn't grant keywords via continuous effects | HIGH | 702.11, 702.10 | **FIXED** M9.4 S2 |
 | Alela, Cunning Conqueror | Goad is `DrawCards(0)` no-op placeholder | HIGH | 701.38 | **FIXED** M9.4 S1 |
-| Read the Bones | Scry simplified to nothing | MEDIUM | 701.18 | **FIXED** M9.4 S1 |
+| Read the Bones | Scry simplified to nothing | MEDIUM | 701.22 | **FIXED** M9.4 S1 |
 | Dimir Guildgate | Modal color choice simplified to colorless | MEDIUM | 106.6 | **FIXED** M9.4 S1 |
 | Rogue's Passage | "Can't be blocked" effect not implemented | MEDIUM | 509.1a | **FIXED** M9.4 S2 |
 | Thought Vessel, Reliquary Tower | "No maximum hand size" not implemented | MEDIUM | 402.2 | **FIXED** M9.4 S1 |
-| Path to Exile | Optional search is unconditional | MEDIUM | 701.19 | **FIXED** M9.4 S1 |
+| Path to Exile | Optional search is unconditional | MEDIUM | 701.23 | **FIXED** M9.4 S1 |
 | Rhystic Study | Payment choice deferred — draw always fires | MEDIUM | — | **FIXED** M9.4 S2 |
 | Rest in Peace | ETB "exile all graveyards" not implemented | MEDIUM | — | **FIXED** M9.4 S2 |
 | Leyline of the Void | Opening hand rule not modeled | LOW | 113.6b | **FIXED** M9.4 S3 |
