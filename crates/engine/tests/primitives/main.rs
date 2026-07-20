@@ -37,6 +37,7 @@ mod pb_l_landfall;
 mod pb_os10_singleton_cleanup;
 mod pb_os11_batch_filtered_attack_trigger;
 mod pb_os11_remove_counter_mana_ability;
+mod pb_rs2_activated_pip_payment;
 mod pb_os1_gain_control_reversion;
 mod pb_os5_relative_attacker_count;
 mod pb_os6_dfc_flip_conditions;
