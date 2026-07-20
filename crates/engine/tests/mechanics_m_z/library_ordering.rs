@@ -383,7 +383,12 @@ fn test_cascade_bottomed_card_is_not_seen_by_next_scry() {
         .unwrap();
 
     let mut state = state;
-    state.players_mut().get_mut(&p1).unwrap().mana_pool.colorless = 5;
+    state
+        .players_mut()
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .colorless = 5;
 
     let cascade_hand_id = state
         .objects()

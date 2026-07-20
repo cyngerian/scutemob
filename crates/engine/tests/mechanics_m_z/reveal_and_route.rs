@@ -38,14 +38,34 @@ fn ec_with_target(controller: PlayerId, source: ObjectId, target_id: ObjectId) -
 // ── RevealAndRoute Tests ─────────────────────────────────────────────────────
 
 #[test]
-/// CR 701.16a — all cards match the filter: all go to matched_dest.
-/// Source: Goblin Ringleader pattern where library top 4 are all Goblins.
+/// CR 121.1: "top" is the end draw_card takes. CR 701.20a (Reveal) — all
+/// examined cards match the filter: all go to matched_dest, and a decoy card
+/// sitting at the true bottom (below the examined top N) is left completely
+/// untouched. Library is 5 cards, `count: 4` — strictly longer than the
+/// examined window, so a top/bottom read-end inversion would pull in the
+/// decoy (a non-matching card) instead of the true top 4, changing both the
+/// hand count and its contents. Source: Goblin Ringleader pattern.
 fn test_reveal_and_route_all_match() {
     let mut state = GameStateBuilder::new()
         .add_player(p(1))
         .add_player(p(2))
+        // Bottom decoy: non-Goblin. If the read end were inverted, this card
+        // would be examined instead of "Goblin A" and would NOT match,
+        // shrinking the hand count from 4 to 3.
         .object(
-            ObjectSpec::card(p(1), "Goblin A")
+            ObjectSpec::card(p(1), "Untouched Elf")
+                .in_zone(ZoneId::Library(p(1)))
+                .with_subtypes(vec![SubType("Elf".to_string())])
+                .with_types(vec![CardType::Creature]),
+        )
+        .object(
+            ObjectSpec::card(p(1), "Goblin D")
+                .in_zone(ZoneId::Library(p(1)))
+                .with_subtypes(vec![SubType("Goblin".to_string())])
+                .with_types(vec![CardType::Creature]),
+        )
+        .object(
+            ObjectSpec::card(p(1), "Goblin C")
                 .in_zone(ZoneId::Library(p(1)))
                 .with_subtypes(vec![SubType("Goblin".to_string())])
                 .with_types(vec![CardType::Creature]),
@@ -56,7 +76,20 @@ fn test_reveal_and_route_all_match() {
                 .with_subtypes(vec![SubType("Goblin".to_string())])
                 .with_types(vec![CardType::Creature]),
         )
+        .object(
+            ObjectSpec::card(p(1), "Goblin A")
+                .in_zone(ZoneId::Library(p(1)))
+                .with_subtypes(vec![SubType("Goblin".to_string())])
+                .with_types(vec![CardType::Creature]),
+        )
         .build()
+        .unwrap();
+
+    let decoy_id = state
+        .objects()
+        .iter()
+        .find(|(_, o)| o.characteristics.name == "Untouched Elf")
+        .map(|(id, _)| *id)
         .unwrap();
 
     let source_id = ObjectId(999);
@@ -80,39 +113,70 @@ fn test_reveal_and_route_all_match() {
 
     let events = execute_effect(&mut state, &effect, &mut ctx);
 
-    // Both cards should be in hand now.
-    let hand_count = state
+    // All 4 Goblins (the true top 4) should be in hand -- by name, not just count.
+    let mut hand_names: Vec<String> = state
         .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p(1)))
-        .count();
-    assert_eq!(hand_count, 2, "all Goblins should be routed to hand");
+        .map(|o| o.characteristics.name.clone())
+        .collect();
+    hand_names.sort();
+    assert_eq!(
+        hand_names,
+        vec![
+            "Goblin A".to_string(),
+            "Goblin B".to_string(),
+            "Goblin C".to_string(),
+            "Goblin D".to_string(),
+        ],
+        "CR 121.1: the true top 4 (all Goblins) should be routed to hand"
+    );
 
-    // Library should be empty (only had 2 cards, both matched).
-    let lib_count = state
+    // Library should hold exactly the untouched decoy.
+    let lib_ids = state
         .zones()
         .get(&ZoneId::Library(p(1)))
-        .map(|z| z.len())
-        .unwrap_or(0);
-    assert_eq!(lib_count, 0, "library should be empty");
+        .unwrap()
+        .object_ids();
+    assert_eq!(
+        lib_ids,
+        vec![decoy_id],
+        "the bottom decoy must be the only card left in library, with its \
+         ObjectId unchanged (never read or moved)"
+    );
 
-    // Should have ObjectReturnedToHand events.
     let hand_events = events
         .iter()
         .filter(|e| matches!(e, GameEvent::ObjectReturnedToHand { .. }))
         .count();
-    assert_eq!(hand_events, 2, "should emit 2 ObjectReturnedToHand events");
+    assert_eq!(hand_events, 4, "should emit 4 ObjectReturnedToHand events");
 }
 
 #[test]
-/// CR 701.16a — no cards match the filter: all go to unmatched_dest.
-/// Source: Goblin Ringleader pattern where library top has no Goblins.
+/// CR 121.1, CR 701.20a — no examined card matches the filter: all go to
+/// unmatched_dest. The decoy at the true bottom is a Goblin (WOULD match if
+/// the read end were inverted and it were pulled into the examined window),
+/// while the examined top 4 are Elves (none match). Discriminates a
+/// read-end inversion via hand contents, not just counts.
 fn test_reveal_and_route_none_match() {
     let mut state = GameStateBuilder::new()
         .add_player(p(1))
         .add_player(p(2))
+        // Bottom decoy: a Goblin. If wrongly examined, it would land in hand.
         .object(
-            ObjectSpec::card(p(1), "Elf A")
+            ObjectSpec::card(p(1), "Untouched Goblin")
+                .in_zone(ZoneId::Library(p(1)))
+                .with_subtypes(vec![SubType("Goblin".to_string())])
+                .with_types(vec![CardType::Creature]),
+        )
+        .object(
+            ObjectSpec::card(p(1), "Elf D")
+                .in_zone(ZoneId::Library(p(1)))
+                .with_subtypes(vec![SubType("Elf".to_string())])
+                .with_types(vec![CardType::Creature]),
+        )
+        .object(
+            ObjectSpec::card(p(1), "Elf C")
                 .in_zone(ZoneId::Library(p(1)))
                 .with_subtypes(vec![SubType("Elf".to_string())])
                 .with_types(vec![CardType::Creature]),
@@ -123,7 +187,20 @@ fn test_reveal_and_route_none_match() {
                 .with_subtypes(vec![SubType("Elf".to_string())])
                 .with_types(vec![CardType::Creature]),
         )
+        .object(
+            ObjectSpec::card(p(1), "Elf A")
+                .in_zone(ZoneId::Library(p(1)))
+                .with_subtypes(vec![SubType("Elf".to_string())])
+                .with_types(vec![CardType::Creature]),
+        )
         .build()
+        .unwrap();
+
+    let decoy_id = state
+        .objects()
+        .iter()
+        .find(|(_, o)| o.characteristics.name == "Untouched Goblin")
+        .map(|(id, _)| *id)
         .unwrap();
 
     let source_id = ObjectId(999);
@@ -147,51 +224,62 @@ fn test_reveal_and_route_none_match() {
 
     let events = execute_effect(&mut state, &effect, &mut ctx);
 
-    // Both cards should remain in library (moved to bottom).
-    let lib_count = state
-        .zones()
-        .get(&ZoneId::Library(p(1)))
-        .map(|z| z.len())
-        .unwrap_or(0);
-    assert_eq!(lib_count, 2, "non-matching cards should stay in library");
-
-    // Hand should be empty.
+    // Hand must be empty -- if the decoy Goblin were wrongly examined, it
+    // would have ended up here instead.
     let hand_count = state
         .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p(1)))
         .count();
-    assert_eq!(hand_count, 0, "no cards should be in hand");
+    assert_eq!(
+        hand_count, 0,
+        "CR 121.1: the true top 4 (all Elves) don't match; the bottom decoy \
+         Goblin must not have been examined"
+    );
 
-    // Should have ObjectPutOnLibrary events.
+    // All 5 cards remain in library; the decoy's identity is unchanged
+    // (it was never a member of top_ids, only displaced by insertions).
+    let lib_ids = state
+        .zones()
+        .get(&ZoneId::Library(p(1)))
+        .unwrap()
+        .object_ids();
+    assert_eq!(lib_ids.len(), 5, "no cards should be lost");
+    assert!(
+        lib_ids.contains(&decoy_id),
+        "the decoy's ObjectId must still be present (untouched, not re-moved)"
+    );
+
     let lib_events = events
         .iter()
         .filter(|e| matches!(e, GameEvent::ObjectPutOnLibrary { .. }))
         .count();
-    assert_eq!(lib_events, 2, "should emit 2 ObjectPutOnLibrary events");
+    assert_eq!(lib_events, 4, "should emit 4 ObjectPutOnLibrary events");
 }
 
 #[test]
-/// CR 701.16a — partial match: matching cards go to one zone, rest to another.
+/// CR 121.1, CR 701.20a — partial match: matching cards go to one zone, rest
+/// to another, and a non-matching decoy at the true bottom is left alone.
 /// Source: Goblin Ringleader ETB with mixed library top.
 fn test_reveal_and_route_partial_match() {
     let mut state = GameStateBuilder::new()
         .add_player(p(1))
         .add_player(p(2))
+        // Bottom decoy: non-Goblin, must never be examined or moved.
         .object(
-            ObjectSpec::card(p(1), "Goblin A")
-                .in_zone(ZoneId::Library(p(1)))
-                .with_subtypes(vec![SubType("Goblin".to_string())])
-                .with_types(vec![CardType::Creature]),
-        )
-        .object(
-            ObjectSpec::card(p(1), "Elf A")
+            ObjectSpec::card(p(1), "Untouched Elf")
                 .in_zone(ZoneId::Library(p(1)))
                 .with_subtypes(vec![SubType("Elf".to_string())])
                 .with_types(vec![CardType::Creature]),
         )
         .object(
-            ObjectSpec::card(p(1), "Goblin B")
+            ObjectSpec::card(p(1), "Elf D")
+                .in_zone(ZoneId::Library(p(1)))
+                .with_subtypes(vec![SubType("Elf".to_string())])
+                .with_types(vec![CardType::Creature]),
+        )
+        .object(
+            ObjectSpec::card(p(1), "Goblin C")
                 .in_zone(ZoneId::Library(p(1)))
                 .with_subtypes(vec![SubType("Goblin".to_string())])
                 .with_types(vec![CardType::Creature]),
@@ -202,7 +290,20 @@ fn test_reveal_and_route_partial_match() {
                 .with_subtypes(vec![SubType("Elf".to_string())])
                 .with_types(vec![CardType::Creature]),
         )
+        .object(
+            ObjectSpec::card(p(1), "Goblin A")
+                .in_zone(ZoneId::Library(p(1)))
+                .with_subtypes(vec![SubType("Goblin".to_string())])
+                .with_types(vec![CardType::Creature]),
+        )
         .build()
+        .unwrap();
+
+    let decoy_id = state
+        .objects()
+        .iter()
+        .find(|(_, o)| o.characteristics.name == "Untouched Elf")
+        .map(|(id, _)| *id)
         .unwrap();
 
     let source_id = ObjectId(999);
@@ -226,25 +327,35 @@ fn test_reveal_and_route_partial_match() {
 
     execute_effect(&mut state, &effect, &mut ctx);
 
-    // 2 Goblins should be in hand.
-    let hand_count = state
+    // Exactly Goblin A and Goblin C should be in hand.
+    let mut hand_names: Vec<String> = state
         .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Hand(p(1)))
-        .count();
-    assert_eq!(hand_count, 2, "2 Goblins should be in hand");
+        .map(|o| o.characteristics.name.clone())
+        .collect();
+    hand_names.sort();
+    assert_eq!(
+        hand_names,
+        vec!["Goblin A".to_string(), "Goblin C".to_string()],
+        "CR 121.1: exactly the true top 4's Goblins should be in hand"
+    );
 
-    // 2 Elves should be in library (bottom).
-    let lib_count = state
+    // Library holds the decoy plus the 2 bottomed Elves.
+    let lib_ids = state
         .zones()
         .get(&ZoneId::Library(p(1)))
-        .map(|z| z.len())
-        .unwrap_or(0);
-    assert_eq!(lib_count, 2, "2 non-Goblins should be in library");
+        .unwrap()
+        .object_ids();
+    assert_eq!(lib_ids.len(), 3, "decoy + 2 bottomed Elves");
+    assert!(
+        lib_ids.contains(&decoy_id),
+        "the decoy's ObjectId must still be present (untouched)"
+    );
 }
 
 #[test]
-/// CR 701.16a — empty library: effect does nothing.
+/// CR 701.20a — empty library: effect does nothing.
 fn test_reveal_and_route_empty_library() {
     let mut state = GameStateBuilder::new()
         .add_player(p(1))
@@ -276,19 +387,35 @@ fn test_reveal_and_route_empty_library() {
 }
 
 #[test]
-/// CR 701.16a + CR 110.4a — Chaos Warp pattern: reveal top 1, permanent card
-/// goes to battlefield, non-permanent stays on top.
+/// CR 121.1, CR 701.20a + CR 110.4a — Chaos Warp pattern: reveal top 1,
+/// permanent card goes to battlefield, non-permanent stays on top. A
+/// non-permanent decoy sits at the true bottom (below the examined card) --
+/// if the read end were inverted, the decoy (an instant) would be examined
+/// instead, and nothing would reach the battlefield.
 /// Source: Chaos Warp card definition pattern.
 fn test_reveal_and_route_permanent_card_to_battlefield() {
     let mut state = GameStateBuilder::new()
         .add_player(p(1))
         .add_player(p(2))
+        // Bottom decoy: a non-permanent (Instant). Must never be examined.
+        .object(
+            ObjectSpec::card(p(1), "Untouched Instant")
+                .in_zone(ZoneId::Library(p(1)))
+                .with_types(vec![CardType::Instant]),
+        )
         .object(
             ObjectSpec::card(p(1), "Creature Card")
                 .in_zone(ZoneId::Library(p(1)))
                 .with_types(vec![CardType::Creature]),
         )
         .build()
+        .unwrap();
+
+    let decoy_id = state
+        .objects()
+        .iter()
+        .find(|(_, o)| o.characteristics.name == "Untouched Instant")
+        .map(|(id, _)| *id)
         .unwrap();
 
     let source_id = ObjectId(999);
@@ -316,13 +443,33 @@ fn test_reveal_and_route_permanent_card_to_battlefield() {
 
     let events = execute_effect(&mut state, &effect, &mut ctx);
 
-    // Creature should be on the battlefield.
-    let bf_count = state
+    // The true top card (Creature Card) should be on the battlefield.
+    let bf_objects: Vec<_> = state
         .objects()
         .values()
         .filter(|o| o.zone == ZoneId::Battlefield)
-        .count();
-    assert_eq!(bf_count, 1, "permanent card should be on battlefield");
+        .collect();
+    assert_eq!(
+        bf_objects.len(),
+        1,
+        "permanent card should be on battlefield"
+    );
+    assert_eq!(
+        bf_objects[0].characteristics.name, "Creature Card",
+        "CR 121.1: the examined card must be the true top, not the bottom decoy"
+    );
+
+    // The decoy must still be in library, untouched (same ObjectId).
+    let lib_ids = state
+        .zones()
+        .get(&ZoneId::Library(p(1)))
+        .unwrap()
+        .object_ids();
+    assert_eq!(
+        lib_ids,
+        vec![decoy_id],
+        "the bottom decoy must remain, unmoved (never examined)"
+    );
 
     // Should emit PermanentEnteredBattlefield.
     let etb_events = events

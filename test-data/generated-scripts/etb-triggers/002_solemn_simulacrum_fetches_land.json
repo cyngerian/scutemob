@@ -21,7 +21,7 @@
     "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
-    "generation_notes": "Solemn Simulacrum ETB: search library for basic land, put it onto battlefield tapped. The fetched land also ETBs tapped. After: Simulacrum + Forest (tapped) on battlefield.",
+    "generation_notes": "Solemn Simulacrum ETB: search library for basic land, put it onto battlefield tapped. The fetched land also ETBs tapped. After: Simulacrum + Forest (tapped) on battlefield. PB-RS1: library order below is declared TOP-TO-BOTTOM (CR 121.1); the harness now reverses it on insert so the first-declared card is the true top. SearchLibrary's deterministic fallback picks the lowest-ObjectId match, which correlates with harness push order -- Island is declared first (pushed last = higher id) and Forest last (pushed first = lower id) so Forest keeps winning the fetch tie-break, matching this script's assertions.",
     "disputes": []
   },
   "initial_state": {
@@ -70,12 +70,12 @@
       "library": {
         "p1": [
           {
-            "card": "Forest",
+            "card": "Island",
             "is_commander": false,
             "owner": null
           },
           {
-            "card": "Island",
+            "card": "Forest",
             "is_commander": false,
             "owner": null
           }

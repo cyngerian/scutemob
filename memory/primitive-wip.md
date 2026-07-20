@@ -6,7 +6,7 @@
 - **Task**: `scutemob-143`
 - **Branch**: `feat/pb-rs1-reconcile-library-topbottom-revealscry-family-reads-t`
 - **Class**: CORRECTNESS (Invariant #9 — live-wrong on shipped `Complete` defs)
-- **Phase**: implement
+- **Phase**: review
 - **Binding spec**: `memory/primitives/rider-seed-triage-2026-07-19.md` §5 (full spec), §2.1 (chain notes)
 - **Plan file**: `memory/primitives/pb-plan-RS1.md`
 - **Review file**: `memory/primitives/pb-review-RS1.md`
@@ -33,13 +33,40 @@
       rest_to (§5c Option 1, local dispatch on `LibraryPosition::Bottom`). Surveil has no
       bottom-write (writes to graveyard) -- no action, per Finding B.
 - [x] 5. Reconciled `testing/replay_harness.rs:207-212` comment + insert loop (`.iter().rev()`).
-- [ ] 6. Tests 2-5: de-vacuous `reveal_and_route.rs`, cascade round-trip, scry-to-bottom
-      ordering, golden-script reconciliation.
-- [ ] 7. Roster sweep from `all_cards()` (NOT grep) — report full affected set in close-out.
-- [ ] 8. File `ZoneTarget::Library { position }` gap as a follow-up seed (NOT fixed here).
-- [ ] 9. Gates: `cargo test --all`, `clippy -D warnings`, `cargo fmt --check` +
-      `tools/check-defs-fmt.sh`.
+- [x] 6. Tests 2-5: de-vacuous `reveal_and_route.rs` (4 tests rewritten with bottom
+      decoys + identity assertions), cascade round-trip (`test_cascade_bottomed_card_is_not_seen_by_next_scry`,
+      real cascade path via CastSpell), scry-to-bottom ordering (`test_scry_two_to_bottom_lands_below_everything`),
+      golden-script reconciliation (5 scripts fixed: 002, 012, 018, 199, 034 — see close-out for
+      the ObjectId-tiebreak mechanism; 2 harness_equivalence direct-builder fixtures also fixed:
+      delve, modal; 1 stale-convention rust test also fixed: pb_os8 truncation test).
+- [x] 7. Roster sweep from `all_cards()` (NOT grep) — 41 distinct cards (Scry 19, Surveil 9,
+      RevealAndRoute 12, LookAtTopThenPlace 2). Delta vs 47 grep baseline explained in close-out
+      (grep over-counts TODO/comment mentions on 6 blocked cards; enumeration is exact).
+- [x] 8. Filed `ZoneTarget::Library { position }` gap as **OOS-RS1-1** in
+      `memory/primitives/rider-seed-triage-2026-07-19.md` §1c. NOT fixed here.
+- [x] 9. Gates: `cargo test --all` green (0 failures across all suites), `clippy --all-targets -D
+      warnings` clean, `cargo fmt --check` clean (after `cargo fmt` auto-fixed 2 new test files),
+      `tools/check-defs-fmt.sh` clean (1804 defs), `cargo build --workspace` green (TUI +
+      replay-viewer included, no exhaustive-match gaps — expected, no new enum variant added).
 - [ ] 10. Review by `primitive-impl-reviewer`; disposition findings.
+
+## Notable fallout discovered and fixed during implementation
+
+- **5 golden scripts** flipped because ObjectId assignment order within libraries moved
+  (SR-9b expected fallout, §8 of the plan): `etb-triggers/002_solemn_simulacrum_fetches_land.json`,
+  `stack/012_cultivate_ramps_two_lands.json`, `stack/018_kodamas_reach_two_lands.json`,
+  `stack/199_sakura_tribe_elder_search.json`, `stack/034_brainstorm_then_fetch.json`. All were
+  ObjectId-ascending tie-break flips in `SearchLibrary`/`PutOnLibrary`'s deterministic fallback,
+  not top/bottom-read bugs themselves — fixed by reordering each script's declared library array
+  (documented per-script in `generation_notes`), never by touching assertions to match a wrong
+  outcome.
+- **2 `harness_equivalence.rs` direct-builder fixtures** (`delve_direct`, `modal_direct`) had to
+  have their library `.object()` push order reversed to match the harness's now-correct
+  top-to-bottom-declared convention.
+- **1 stale-convention Rust test** (`pb_os8_look_at_top_then_place.rs::test_look_place_truncates_at_top_n_leaves_out_of_window_match_untouched`)
+  had silently encoded the OLD (pre-fix) bottom-read convention in its setup — fixed by reversing
+  its push order and updating the doc comment, per the "a test that still passes is not evidence
+  of correctness" principle from `reveal_and_route.rs`'s own de-vacuous rationale.
 
 ## Explicitly out of scope
 

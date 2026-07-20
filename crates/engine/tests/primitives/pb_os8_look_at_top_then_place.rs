@@ -522,24 +522,29 @@ fn test_look_place_cost_declined_when_unpayable_skips_placement() {
 /// Review Finding 3 (MEDIUM, AC 5077) -- the core `LookAtTopThenPlace`-vs-`SearchLibrary`
 /// distinction: candidates are scoped strictly to the top-`count` window, NOT the whole
 /// library. Library has `count + 2` cards; a matching creature sits INSIDE the window
-/// (index 0) and a second matching creature sits at index `count` -- one position PAST the
-/// window (`take(count)` never reaches it). Assert the in-window match is placed, and the
-/// out-of-window match is completely UNTOUCHED: still in the library under its ORIGINAL
-/// ObjectId (not re-inserted as a new object via a bottoming move, CR 400.7), and no zone-move
-/// event (`ObjectPutOnLibrary`/`ObjectReturnedToHand`) was ever emitted referencing it. This
-/// would fail if the executor accidentally scanned the whole library (or `count + 1`/more)
-/// instead of `object_ids().take(count)`.
+/// (the true top, CR 121.1) and a second matching creature sits `count` positions down from
+/// the top -- one position PAST the window (`Zone::top_n(count)` never reaches it). Assert
+/// the in-window match is placed, and the out-of-window match is completely UNTOUCHED: still
+/// in the library under its ORIGINAL ObjectId (not re-inserted as a new object via a
+/// bottoming move, CR 400.7), and no zone-move event (`ObjectPutOnLibrary`/
+/// `ObjectReturnedToHand`) was ever emitted referencing it. This would fail if the executor
+/// accidentally scanned the whole library (or `count + 1`/more) instead of `top_n(count)`.
+///
+/// PB-RS1: card push order is bottom-to-top (`GameStateBuilder::object` appends, and
+/// `Zone::top()`/`top_n()` read from the LAST-pushed element -- CR 121.1). The in-window
+/// creature is pushed LAST (the true top); the out-of-window creature is pushed 4th
+/// (one position below the top-3 window, counting down from the top).
 #[test]
 fn test_look_place_truncates_at_top_n_leaves_out_of_window_match_untouched() {
     let p1 = p(1);
     let p2 = p(2);
 
-    // count = 3; library has count + 2 = 5 cards.
-    let in_window = creature_with_mv(p1, "In Window Creature", 2, ZoneId::Library(p1)); // index 0
-    let filler_a = land_card(p1, "Truncation Filler A", ZoneId::Library(p1)); // index 1
-    let filler_b = land_card(p1, "Truncation Filler B", ZoneId::Library(p1)); // index 2
-    let out_of_window = creature_with_mv(p1, "Out Of Window Creature", 2, ZoneId::Library(p1)); // index 3 == count
-    let filler_c = land_card(p1, "Truncation Filler C", ZoneId::Library(p1)); // index 4
+    // count = 3; library has count + 2 = 5 cards. Push order is bottom-to-top.
+    let filler_c = land_card(p1, "Truncation Filler C", ZoneId::Library(p1)); // true bottom
+    let out_of_window = creature_with_mv(p1, "Out Of Window Creature", 2, ZoneId::Library(p1)); // count+1 from the top -- outside the window
+    let filler_b = land_card(p1, "Truncation Filler B", ZoneId::Library(p1)); // 3rd from top
+    let filler_a = land_card(p1, "Truncation Filler A", ZoneId::Library(p1)); // 2nd from top
+    let in_window = creature_with_mv(p1, "In Window Creature", 2, ZoneId::Library(p1)); // true top
 
     let mut state = GameStateBuilder::new()
         .add_player(p1)
@@ -547,11 +552,11 @@ fn test_look_place_truncates_at_top_n_leaves_out_of_window_match_untouched() {
         .with_registry(CardRegistry::new(vec![]))
         .active_player(p1)
         .at_step(Step::PreCombatMain)
-        .object(in_window)
-        .object(filler_a)
-        .object(filler_b)
-        .object(out_of_window)
         .object(filler_c)
+        .object(out_of_window)
+        .object(filler_b)
+        .object(filler_a)
+        .object(in_window)
         .build()
         .unwrap();
 
