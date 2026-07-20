@@ -290,10 +290,14 @@ PB-OS11 precedent where filed premises did not match the printed card.
 
 > ✅ **PB-RS1 SHIPPED** (`scutemob-143`, merge `56697a00`, 2026-07-19) — do not re-dispatch.
 > ✅ **PB-RS2 (R2) SHIPPED** (`scutemob-144`, merge `86176ff7`, 2026-07-20) — do not re-dispatch.
-> Close-outs: `memory/primitive-wip.md` + `pb-plan-RS1/RS2.md` / `pb-review-RS1/RS2.md`.
-> **Next dispatch: R3** (`AtBeginningOfCombat` card-def sweep, OOS-OS9-1 — §2.3; no wire bump
-> expected; 2 CR-correct partials waiting — loyal_apprentice, siege_gang_lieutenant — plus
-> helm_of_the_host `Complete`-but-silent repair).
+> ✅ **PB-RS3 (R3) SHIPPED** (`scutemob-145`, merge `b1c21909`, 2026-07-20) — do not re-dispatch.
+> Close-outs: `memory/primitive-wip.md` + `pb-plan-RS1/RS2/RS3.md` / `pb-review-RS1/RS2/RS3.md`.
+> **QUEUE PAUSED after R3 by user instruction (2026-07-20)** — do not auto-chain further.
+> When resumed, next dispatch: **R4** (face-aware residuals, OOS-RS-3 — §2.4). Also weigh
+> **OOS-RS3-1** (CardDefETB sweeps skip queue-time intervening-if, CR 603.4 — §1c marks it
+> **rankable**, the shared helper `check_intervening_if` already exists) as an insert candidate,
+> and **OOS-RS2-1** (`TurnFaceUp` unflattened cost — fourth payment site, materially smaller
+> than R2) as a low-cost rider.
 
 ### PB-RS1 — library ordering reconciliation (OOS-RS-1) · **CORRECTNESS** · wide · ✅ SHIPPED
 

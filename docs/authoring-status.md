@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-07-20 05:12 UTC  
-**Git:** `7f00f3a6` on `feat/pb-rs3-atbeginningofcombat-card-def-sweep-begincombat-collec`  
+**Generated:** 2026-07-20 05:34 UTC  
+**Git:** `b1c21909` on `main`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -25,10 +25,10 @@ and what is intentionally NOT in it.**
 | Plan cards still missing a def file | 135 | · |
 | Bonus defs (on disk, outside plan) | 322 | · |
 | Effective coverage vs plan target | **111%** (1,823 / 1,636) | — |
-| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 63.1% | 1,139 | +3 |
-| With TODO markers | 514 | -3 |
+| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 63.1% | 1,139 | · |
+| With TODO markers | 514 | · |
 | Empty `abilities: vec![]` placeholders | 151 | · |
-| Total TODO lines across all defs | 947 | -1 |
+| Total TODO lines across all defs | 947 | · |
 
 ## Authoring activity (git, by window)
 
@@ -171,7 +171,7 @@ the next thing to triage when the classifier table is grown.
 
 | Gap bucket | TODO lines | Δ since last run |
 | --- | ---: | ---: |
-| OTHER (unclassified) | 580 | -1 |
+| OTHER (unclassified) | 580 | · |
 | DSL gap (unspecified) | 120 | · |
 | attack trigger (self / generic) | 23 | · |
 | TriggerCondition::* missing variant | 17 | · |
@@ -233,6 +233,8 @@ tyvar_jubilant_brawler: // TODO: static — creatures you control can activate a
 ## Recent card-touching commits
 
 ```
+36e64283 W6-prim: scutemob-145 — PB-RS3 /review nits: correct two overstated claims
+83e0f4e1 W6-prim: scutemob-145 — PB-RS3 fix cycle: all 7 review findings (0 HIGH, 3 MEDIUM, 4 LOW)
 95626742 W6-prim: scutemob-145 — PB-RS3 card-def roster: 3 flips + 1 integrity repair
 7d932614 W6-prim: scutemob-144 — PB-RS2 fix cycle: apply all 12 review findings (0 HIGH, 5 MEDIUM, 7 LOW)
 48cec52a W6-prim: scutemob-144 — PB-RS2: CR 119.4 combined-life fix, birthing_pod flip, roster sweep, simulator
@@ -256,8 +258,6 @@ a8eb45b5 scutemob-114: PB-EF12 — granted any_color ManaAbility color choice (E
 50a83faf scutemob-112: PB-EF11 COMMIT 2 — spell-only TargetSpellWithSingleTarget + Misdirection (PROTOCOL 17, HASH 55)
 135ef9e6 scutemob-112: PB-EF11 COMMIT 1 — WheelDraw::GreatestDiscarded + Windfall (PROTOCOL 16, HASH 54)
 9418011b scutemob-111: PB-EF10 COMMIT 3 — Condition::SacrificeFired + version bump (PROTOCOL 15, HASH 53)
-051887f2 scutemob-111: PB-EF10 COMMIT 2 — runtime search cap (max_cmc_amount + ManaValueOfSacrificedCreature)
-ad9755ff scutemob-111: PB-EF10 COMMIT 1 — SacrificedCreatureLki data-model migration + ToughnessOfSacrificedCreature
 ```
 
 ## Missing card-defs sidecar
