@@ -686,8 +686,11 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
             },
         ));
     }
-    // Fire AbilityDefinition::Triggered abilities with AtBeginningOfYourEndStep (for active
-    // player's permanents) or AtBeginningOfEachEndStep (for all players' permanents).
+    // Fire AbilityDefinition::Triggered abilities with AtBeginningOfYourEndStep for the
+    // active player's battlefield permanents. `TriggerCondition` has no
+    // `AtBeginningOfEachEndStep` variant -- only the active-player-scoped form exists
+    // in the corpus, and the controller filter below (`controller == active`) is
+    // what enforces that scope.
     //
     // Mirrors the carddef_upkeep_triggers sweep added in MR-B9-01. Catches all CardDef-defined
     // end-step triggers (e.g. Jadar's zombie token creation, future end-step triggers).
@@ -1685,6 +1688,69 @@ fn begin_combat(state: &mut GameState) -> Vec<GameEvent> {
     let active = state.turn.active_player;
     if state.combat.is_none() {
         state.combat = Some(CombatState::new(active));
+    }
+    // PB-RS3 / CR 603.2, 603.3: Fire AbilityDefinition::Triggered abilities with
+    // TriggerCondition::AtBeginningOfCombat for the active player's battlefield
+    // permanents (e.g. Helm of the Host, Loyal Apprentice, Siege Gang Lieutenant).
+    // The variant is documented as "at the beginning of combat on your turn"
+    // (card_definition.rs) -- there is no each-combat form in the corpus, so the
+    // controller filter below is not a simplification.
+    //
+    // `Step::BeginningOfCombat` occurs once per combat phase (CR 506.1), and extra
+    // combat phases from effects route through this same step (turn_structure.rs),
+    // so this sweep runs once per occurrence of the step by construction -- no
+    // per-turn dedup bookkeeping is needed (unlike a once-per-turn step, combat can
+    // recur).
+    //
+    // Mirrors the carddef_upkeep_triggers / carddef_postcombat_main_triggers /
+    // carddef_end_step_triggers sweeps so CardDef-defined combat triggers actually
+    // fire (OOS-OS9-1).
+    let carddef_begin_combat_triggers: Vec<(ObjectId, PlayerId, Vec<usize>)> = {
+        let registry = &state.card_registry;
+        state
+            .objects
+            .values()
+            .filter(|obj| obj.zone == crate::state::zone::ZoneId::Battlefield && obj.is_phased_in())
+            .filter_map(|obj| {
+                let card_id = obj.card_id.as_ref()?;
+                let def = registry.get(card_id.clone())?;
+                let controller = obj.controller;
+                if controller != active {
+                    return None;
+                }
+                // PB-OS4b (CR 712.8d/e): scan the currently-visible face's
+                // abilities -- a transformed permanent's combat triggers come
+                // from its back face, not the front face it no longer shows.
+                let indices: Vec<usize> = def
+                    .effective_abilities(obj.is_transformed)
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(idx, abil)| {
+                        let AbilityDefinition::Triggered {
+                            trigger_condition, ..
+                        } = abil
+                        else {
+                            return None;
+                        };
+                        matches!(trigger_condition, TriggerCondition::AtBeginningOfCombat)
+                            .then_some(idx)
+                    })
+                    .collect();
+                if indices.is_empty() {
+                    None
+                } else {
+                    Some((obj.id, controller, indices))
+                }
+            })
+            .collect()
+    };
+    for (obj_id, controller, indices) in carddef_begin_combat_triggers {
+        for ability_index in indices {
+            state.pending_triggers.push_back(PendingTrigger {
+                ability_index,
+                ..PendingTrigger::blank(obj_id, controller, PendingTriggerKind::CardDefETB)
+            });
+        }
     }
     // CR 114.4: Emblem triggers for AtBeginningOfCombat (e.g., Basri Ket emblem).
     // Scan emblems in the command zone for "at the beginning of combat on your turn" triggers.

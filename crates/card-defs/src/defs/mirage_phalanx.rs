@@ -62,7 +62,19 @@ pub fn card() -> CardDefinition {
              BOTH paired creatures; an unpaired Mirage Phalanx must not trigger. Also 'loses \
              soulbond' on the copy is not expressible. Blocker is the soulbond while-paired \
              ability grant, NOT CreateTokenCopy/delayed exile — both of those are already used in \
-             this file.",
+             this file.\n\nPB-RS3 UPDATE: this is now wrong in BOTH directions, not just one, now \
+             that the AtBeginningOfCombat card-def sweep (begin_combat) actually dispatches this \
+             trigger. UNPAIRED: Mirage Phalanx wrongly creates a haste copy of itself every \
+             combat -- pure card advantage from nothing (previously this was inert-by-accident; \
+             the trigger never fired at all pre-PB-RS3). PAIRED: still under-produces, because \
+             the grant to the OTHER paired creature is not modeled, so only Phalanx itself ever \
+             gets the trigger (and per the oracle, an unpaired-but-triggering Phalanx is wrong \
+             regardless). Containment is unchanged and sufficient: Completeness::known_wrong + \
+             validate_deck (SR-2) keep this card out of any real game; the containment is now \
+             understood to be deliberate rather than a lucky side effect of the sweep gap. \
+             Verified (PB-RS3): no golden script or test fixture constructs Mirage Phalanx \
+             directly via ObjectSpec, so nothing bypasses validate_deck's containment. Do not \
+             attempt the Soulbond while-paired ability grant here -- that is a separate primitive.",
         ),
         ..Default::default()
     }

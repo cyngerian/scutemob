@@ -58,6 +58,16 @@ pub fn card() -> CardDefinition {
                 modes: None,
             },
         ],
+        // PB-RS3: explicit marker. Previously had NO `completeness` field and was
+        // `Complete` only by `#[default]` (card_definition.rs:196-200) -- that
+        // implicitness is exactly why it shipped live-wrong (deck-legal, its only
+        // real ability silently never fired -- `begin_combat` had no card-def scan
+        // for TriggerCondition::AtBeginningOfCombat). Oracle-verified via MCP:
+        // "At the beginning of combat on your turn, create a token that's a copy of
+        // equipped creature, except the token isn't legendary. That token gains
+        // haste." -- a faithful, unmodified translation. Making the marker explicit
+        // converts a silent default into a reviewed assertion.
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

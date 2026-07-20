@@ -22,7 +22,50 @@ pub fn card() -> CardDefinition {
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
-            // TODO: "Other Goblins must attack" forced-attack restriction not in DSL.
+            // CR 508.1d / 613.1f: "Other Goblin creatures you control attack each combat
+            // if able." Layer 6 static grant, exactly the galadhrim_brigade.rs /
+            // camellia_the_seedmiser.rs OtherCreaturesYouControlWithSubtype idiom, swapping
+            // the modification for AddKeyword(MustAttackEachCombat). combat.rs's must-attack
+            // enforcement (:378-390) reads layer-resolved characteristics
+            // (expect_characteristics) for every battlefield object the active player
+            // controls, not just the source's own printed keyword list, so this composes
+            // cleanly for non-source objects -- probe-verified in
+            // tests/primitives/pb_rs3_rabblemaster_mustattack_probe.rs (PB-RS3 / F-Rabble).
+            //
+            // Accepted engine-wide limitation (PB-RS3 review Finding 1, inherited, not
+            // introduced here): combat.rs:421-424's must-attack "able" test computes
+            // `cannot_attack` from only tapped/vigilance, summoning-sickness/haste,
+            // Defender, and CantAttackOwner -- it never reads GameRestriction::
+            // CantAttackYouUnlessPay, even though that restriction IS fully enforced at
+            // combat.rs:185-224 (a declaration the player can't pay the tax for is
+            // rejected there). The precondition is narrower than "a Ghostly Prison is
+            // out": tax_per_attacker is keyed PER DEFENDING PLAYER (combat.rs:~200), so in
+            // 4-player Commander the forced token can simply attack an untaxed opponent.
+            // A deadlock needs EVERY remaining viable opponent taxed and the attacking
+            // player unable to pay -- realistic late-game, but not the common case. When
+            // that holds, declaring this creature's forced Goblin token is illegal (tax
+            // check) AND omitting it is illegal (must-attack check) simultaneously, which
+            // is a genuine deadlock (CR 508.1d + the 2014-07-18 Rabblemaster
+            // ruling: "If there's a cost associated with having a creature attack, you're
+            // not forced to pay that cost"). This is shared by every already-shipped
+            // MustAttackEachCombat card, not new to this def, but this card manufactures a
+            // forced attacker every single combat, so the gap is reachable every turn
+            // rather than only when a fixed forced-attacker happens to be present. Filed as
+            // OOS-RS3-4 (memory/primitives/rider-seed-triage-2026-07-19.md); not fixed
+            // here -- engine change is out of scope for this PB.
+            AbilityDefinition::Static {
+                continuous_effect: ContinuousEffectDef {
+                    layer: EffectLayer::Ability,
+                    modification: LayerModification::AddKeyword(
+                        KeywordAbility::MustAttackEachCombat,
+                    ),
+                    filter: EffectFilter::OtherCreaturesYouControlWithSubtype(SubType(
+                        "Goblin".to_string(),
+                    )),
+                    duration: EffectDuration::WhileSourceOnBattlefield,
+                    condition: None,
+                },
+            },
             AbilityDefinition::Triggered {
                 once_per_turn: false,
                 trigger_condition: TriggerCondition::AtBeginningOfCombat,
@@ -88,16 +131,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial(
-            "PB-OS5: the '+1/+0 for each other attacking Goblin' clause is now IMPLEMENTED \
-             (AttackingCreatureCount{controller: EachPlayer, filter: has_subtype Goblin, \
-             exclude_self} + ModifyPowerDynamic). Only the forced-attack clause remains blocked: \
-             'Other Goblin creatures you control attack each combat if able' has no \
-             GameRestriction (all existing variants are prohibitions; none is a subtype-filtered \
-             must-attack requirement). Needs a new subtype-filtered must-attack GameRestriction \
-             variant — out of PB-OS5 scope; tracked as its own seed. Combat token trigger is \
-             correct.",
-        ),
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

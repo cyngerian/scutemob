@@ -53,7 +53,18 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial("Mentor keyword not in DSL"),
+        completeness: Completeness::partial(
+            "TWO independent gaps, both live now that PB-RS3 closed the AtBeginningOfCombat sweep \
+             gap (the token-creation trigger now actually fires). (1) Mentor keyword not in DSL \
+             -- 0 matches for KeywordAbility::Mentor across the engine. (2) The created Goblin \
+             token's 'and attacks this combat if able' is unimplemented -- the token can decline \
+             to attack. Do NOT fix (2) by adding MustAttackEachCombat to TokenSpec.keywords: that \
+             would apply EACH combat, permanently, over-restricting the token on every later \
+             turn, whereas the oracle text scopes the requirement to the single combat it enters \
+             attacking. Needs a same-combat-only forced-attack primitive (e.g. a delayed/one-shot \
+             restriction keyed to the entering step), distinct from the evergreen \
+             MustAttackEachCombat keyword.",
+        ),
         ..Default::default()
     }
 }

@@ -14,29 +14,30 @@
 //! commander. `test_control_opponents_commander_only_still_off` pins this directly.
 //!
 //! **Genuine engine gap discovered during this batch (verified by execution, not
-//! just source-reading -- SR-34/36):** `TriggerCondition::AtBeginningOfCombat` has
-//! NO card-def sweep anywhere in the engine's turn-based-action machinery.
-//! `crates/engine/src/rules/turn_actions.rs` hardcodes a per-step sweep for
-//! AtBeginningOfYourUpkeep / AtBeginningOfFirstMainPhase / AtBeginningOfPostcombatMain
-//! / AtBeginningOfYourEndStep, but `begin_combat()` (the `Step::BeginningOfCombat`
-//! handler) only queues EMBLEM triggers (`collect_emblem_triggers_for_event`) --
-//! never card-defined `AbilityDefinition::Triggered { trigger_condition:
-//! TriggerCondition::AtBeginningOfCombat, .. }` abilities. Confirmed empirically: a
-//! battlefield object with this trigger condition produces ZERO pending triggers and
-//! ZERO stack objects when the game transitions into `BeginningOfCombat` via the real
-//! `Command::PassPriority` path. This is a PRE-EXISTING gap (also silently affects
-//! `legion_warboss.rs`, `goblin_rabblemaster.rs`, `mirage_phalanx.rs`,
-//! `helm_of_the_host.rs`), out of PB-OS9's scope to fix (see the "STILL BLOCKED"
-//! notes on `loyal_apprentice.rs` / `siege_gang_lieutenant.rs` for the full account).
-//! Because of this, `loyal_apprentice` and `siege_gang_lieutenant` stay
-//! `Completeness::partial` -- their Lieutenant DSL is CR-correct but currently inert
-//! in real gameplay. The tests below for those two cards deliberately isolate the
-//! part that IS this primitive's job (the intervening-if condition re-check AT
-//! RESOLUTION, CR 603.4, and the effect it gates) by queueing the exact
-//! `PendingTrigger` the missing sweep would produce, directly -- proving
-//! `Condition::YouControlYourCommander` and the CreateToken effect are wired
-//! correctly and are ready to fire the moment that sweep is added. They do NOT claim
-//! the trigger fires via a real `BeginningOfCombat` step transition (it does not).
+//! just source-reading -- SR-34/36), CLOSED by PB-RS3:** at the time this file was
+//! written, `TriggerCondition::AtBeginningOfCombat` had NO card-def sweep anywhere in
+//! the engine's turn-based-action machinery -- `begin_combat()` (the
+//! `Step::BeginningOfCombat` handler) queued only EMBLEM triggers
+//! (`collect_emblem_triggers_for_event`), never card-defined
+//! `AbilityDefinition::Triggered { trigger_condition: TriggerCondition::
+//! AtBeginningOfCombat, .. }` abilities. **PB-RS3 closed this gap**
+//! (`rules/turn_actions.rs`'s `begin_combat` now also scans the battlefield for
+//! card-def `AtBeginningOfCombat` triggers -- see
+//! `tests/primitives/pb_rs3_at_beginning_of_combat_sweep.rs` for the end-to-end
+//! tests that drive the trigger through the REAL `BeginningOfCombat` step
+//! transition, which is what this file's own tests, below, deliberately do NOT do).
+//! `loyal_apprentice` and `siege_gang_lieutenant` are now `Completeness::Complete`
+//! (their Lieutenant DSL fires in real gameplay); `legion_warboss`,
+//! `goblin_rabblemaster`, and `helm_of_the_host` also benefited (see
+//! `memory/card-authoring/review-pb-rs3-roster.md`).
+//!
+//! The tests below for `loyal_apprentice` / `siege_gang_lieutenant` still isolate
+//! only the part that was THIS primitive's (PB-OS9's) job -- the intervening-if
+//! condition re-check AT RESOLUTION (CR 603.4) and the CreateToken effect it gates --
+//! by queueing the exact `PendingTrigger` the (at the time, missing) sweep would
+//! produce, directly. They remain valid unit isolation of the resolution path and are
+//! kept for that reason, but they do NOT exercise a real `BeginningOfCombat` step
+//! transition (`pb_rs3_at_beginning_of_combat_sweep.rs`'s same-named tests do that).
 //!
 //! `skyhunter_strike_force`'s continuous-grant condition has no such dependency --
 //! it goes through `check_static_condition`'s layer-application-time re-evaluation
@@ -606,11 +607,13 @@ fn test_skyhunter_grant_off_when_commander_stolen() {
 
 // ── Tests 10-11: Siege-Gang Lieutenant intervening-if at resolution ────────────
 
-/// CR 903.3d/603.4: queues the exact `PendingTrigger` the (currently-missing)
-/// `AtBeginningOfCombat` card-def sweep would produce, directly -- proving
-/// `Condition::YouControlYourCommander`'s intervening-if re-check at resolution and
-/// the CreateToken effect are wired correctly, isolated from the separately-tracked
-/// engine gap (see the file-level doc comment).
+/// CR 903.3d/603.4: queues the exact `PendingTrigger` the `AtBeginningOfCombat`
+/// card-def sweep produces (the sweep itself shipped in PB-RS3 -- see the
+/// file-level doc comment), directly -- proving `Condition::
+/// YouControlYourCommander`'s intervening-if re-check at resolution and the
+/// CreateToken effect are wired correctly, isolated from the real step-transition
+/// path. `pb_rs3_at_beginning_of_combat_sweep.rs`'s same-named tests exercise the
+/// same claim end-to-end through the real `BeginningOfCombat` transition.
 #[test]
 fn test_siege_gang_lieutenant_intervening_if_creates_tokens() {
     let p1 = p(1);
