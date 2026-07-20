@@ -325,6 +325,16 @@ the PB-OS7 fix phase** (review Finding 1) — OOS-OS7-2 was reassigned to the CR
 resolution-time affected-set snapshot seed (a correctness finding, filed ahead of this
 still-unfiled, lower-priority capability note) to avoid an id collision.
 
+> ⚠️ **OOS-OS7-3 was NEVER FORMALLY FILED, and the ID is contested** (verified `scutemob-142`,
+> 2026-07-19). It appears in exactly two non-canonical places: this note, and `pb-review-OS7.md:118`
+> — which simultaneously proposed the *same* ID for the 611.2c content. The 611.2c content won and
+> shipped as OOS-OS7-2; this filter note was orphaned. The canonical inventory
+> `oos-retriage-plan-2026-07-18.md` has entries for OOS-OS7-1 (`:414-422`) and OOS-OS7-2
+> (`:424-444`) and **no OOS-OS7-3**. The underlying gap is real (2 cards, not 3 — `naya_charm` is
+> `inert` and needs a mass-*tap*, not a continuous filter, so this seed would not flip it).
+> **Refiled under a fresh, uncontested ID as OOS-RS-5**; do not reuse `OOS-OS7-3`.
+> See `memory/primitives/rider-seed-triage-2026-07-19.md` §1b / §3 (folded into rank R7).
+
 ---
 
 ## Unit Tests

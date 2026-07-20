@@ -35,11 +35,11 @@
 - **Totals**: coverage 62.1% → **62.9%** (1,135/1,804); tests 3476 → **3560+**; +18 flips, 4 Complete-but-wrong made right, 3 known_wrong redeemed; 2 seed premises falsified-and-reframed against oracle; every review clean or fixed.
 
 **Not done / deferred**:
-- **Rider-seed mini-triage** (8 seeds): OOS-OS4-3 (edgar), OS6-1 (Westvale), OS7-1 (Karazikar/kogla), OS7-2 (CR 611.2c edge), OS8-1 (Phyrexian mana / Birthing Pod), OS8-2 (muxus), OS9-1 (AtBeginningOfCombat gap, 2 CR-correct partials waiting), hidden_strings optionality.
+- ~~**Rider-seed mini-triage** (8 seeds)~~ ✅ **DONE `scutemob-142`** (2026-07-19) → `memory/primitives/rider-seed-triage-2026-07-19.md`. Was 8 seeds; actually 11 OS-series IDs (OOS-OS10-1 phantom, OOS-OS7-3 never filed) + OOS-OS4-1 restored + **4 new correctness seeds filed (OOS-RS-1..4) that outrank every filed seed**, 2 of them live-wrong on `Complete` cards. Ranked queue R1..R11; first dispatch **PB-RS1 (OOS-RS-1, library top/bottom inversion)** fully specified.
 - scutemob-127 (abilities-corpus distillation) still backlog; dormant/defer backlog (`oos-retriage-plan` §1c/§1d); retired-scripts worklist; M10.
 
 **Next session candidates** (highest-yield first):
-- Rider-seed mini-triage → next PB queue (scutemob-115 shape; OOS-OS9-1 likely first — 2 authored partials waiting on it).
+- **PB-RS1 — library top/bottom reconciliation (OOS-RS-1)**, spec'd in `rider-seed-triage-2026-07-19.md` §5. Correctness, **no wire bump**, gates the muxus authoring follow-up. (OOS-OS9-1 ranks R3, not first — two newly-found live correctness defects outrank it.)
 - M10 per strategic review (protocol machinery battle-tested: 8 bumps this queue, all machine-forced).
 - Retired-scripts worklist (61 scripts, each names its one blocker).
 
