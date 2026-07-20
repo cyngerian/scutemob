@@ -207,7 +207,7 @@ Discounted ship = expected clean-`Complete` after the PB, at the historical 2-3�
 
 | Rank | PB | Seed(s) | Class | Discounted ship | Wire bump |
 | --- | --- | --- | --- | --- | --- |
-| **R1** | library ordering reconciliation | **OOS-RS-1** | **correctness, wide** | 0 flips; repairs **47 files'** behavior incl. several `Complete` | **none** (scenario hashes move) |
+| ~~**R1**~~ ✅ **SHIPPED** (`scutemob-143`, merge `56697a00`) | library ordering reconciliation | **OOS-RS-1** | **correctness, wide** | shipped: 41-card roster repaired (all_cards() enumeration; grep's 47 over-counted), camp A (top=last) CR-confirmed, 5th inverted read caught in review, PROTOCOL 26 / HASH 63 unchanged; OOS-RS1-1 filed | **none** (as expected) |
 | **R2** | activated-cost pip payment | **OOS-RS-2** + OOS-OS8-1 | **correctness, live** | **1** (birthing_pod) + 7 lands correctly costed | PROTOCOL — **`Command::ActivateAbility` schema change**, see note |
 | **R3** | `AtBeginningOfCombat` sweep | **OOS-OS9-1** | **correctness** | **2** (loyal_apprentice, siege_gang_lieutenant) + helm_of_the_host repaired | **none** |
 | **R4** | face-aware residuals | **OOS-RS-3** | correctness, latent | 0 flips; closes 3 real deviations + a false doc claim | none expected |
@@ -269,7 +269,12 @@ PB-OS11 precedent where filed premises did not match the printed card.
 
 ## 5. First dispatchable PB — full spec
 
-### PB-RS1 — library ordering reconciliation (OOS-RS-1) · **CORRECTNESS** · wide
+> ✅ **PB-RS1 SHIPPED** (`scutemob-143`, merge `56697a00`, 2026-07-19) — do not re-dispatch.
+> Close-out: `memory/primitive-wip.md` + `memory/primitives/pb-plan-RS1.md` / `pb-review-RS1.md`.
+> **Next dispatch: R2** (activated-cost pip payment, OOS-RS-2 + OOS-OS8-1 — §2.2; note the
+> `Command::ActivateAbility` schema-change wire bump and the do-not-batch-with-R6 collision flag).
+
+### PB-RS1 — library ordering reconciliation (OOS-RS-1) · **CORRECTNESS** · wide · ✅ SHIPPED
 
 **Title**: `PB-RS1: reconcile library top/bottom — reveal/scry family reads the opposite end from draw (OOS-RS-1)`
 **Class**: CORRECTNESS (Invariant #9 — live-wrong on shipped `Complete` defs)
