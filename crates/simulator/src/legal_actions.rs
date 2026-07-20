@@ -7,8 +7,8 @@
 
 use mtg_engine::{
     AbilityDefinition, AttackTarget, CardType, CounterType, EffectDuration, FaceDownKind,
-    FlashGrantFilter, GameRestriction, GameState, KeywordAbility, ManaColor, ManaCost, ObjectId,
-    PlayerId, Step, TurnFaceUpMethod, ZoneId,
+    FlashGrantFilter, GameRestriction, GameState, HybridMana, HybridManaPayment, KeywordAbility,
+    ManaColor, ManaCost, ObjectId, PhyrexianMana, PlayerId, Step, TurnFaceUpMethod, ZoneId,
 };
 
 /// A legal action a player may take at this moment.
@@ -31,10 +31,26 @@ pub enum LegalAction {
         /// concrete legal colour (never `Colorless`) — a bot must never suggest a colour
         /// the engine rejects (SR-38 precedent).
         chosen_color: Option<ManaColor>,
+        /// PB-RS2 (CR 107.4e via CR 605.1a, SR-38 precedent): a fully-payable hybrid
+        /// payment plan for the ability's cost, if it has one. Empty when the cost has
+        /// no hybrid pips. When non-empty, always a plan the engine will accept — the
+        /// provider only offers this action at all if some plan is fully payable
+        /// (`resolve_hybrid_phyrexian_plan`).
+        hybrid_choices: Vec<HybridManaPayment>,
+        /// PB-RS2 (CR 107.4f via CR 605.1a, CR 104.3b): a fully-payable, non-suicidal
+        /// Phyrexian payment plan for the ability's cost, if it has one. Empty when the
+        /// cost has no Phyrexian pips.
+        phyrexian_life_payments: Vec<bool>,
     },
     ActivateAbility {
         source: ObjectId,
         ability_index: usize,
+        /// PB-RS2 (CR 107.4e via CR 602.2b, SR-38 precedent): mirrors
+        /// `TapForMana::hybrid_choices`.
+        hybrid_choices: Vec<HybridManaPayment>,
+        /// PB-RS2 (CR 107.4f via CR 602.2b, CR 104.3b): mirrors
+        /// `TapForMana::phyrexian_life_payments`.
+        phyrexian_life_payments: Vec<bool>,
     },
     DeclareAttackers {
         eligible: Vec<ObjectId>,
@@ -319,10 +335,33 @@ impl LegalActionProvider for StubProvider {
                     } else {
                         None
                     };
+                    // PB-RS2 (CR 107.4e/107.4f via CR 605.1a, SR-38): if the ability's
+                    // OWN mana_cost component (e.g. a filter land's {B/R}) has a hybrid
+                    // or Phyrexian pip, only offer this action if a fully-payable,
+                    // non-suicidal plan exists — the raw `ability.life_cost` check
+                    // above only covers the ability's non-Phyrexian life component.
+                    let has_pip_cost = ability
+                        .mana_cost
+                        .as_ref()
+                        .is_some_and(|mc| !mc.hybrid.is_empty() || !mc.phyrexian.is_empty());
+                    let (hybrid_choices, phyrexian_life_payments) = if has_pip_cost {
+                        let mc = ability
+                            .mana_cost
+                            .as_ref()
+                            .expect("has_pip_cost checked Some");
+                        match resolve_hybrid_phyrexian_plan(state, player, mc, ability.life_cost) {
+                            Some(plan) => plan,
+                            None => continue,
+                        }
+                    } else {
+                        (vec![], vec![])
+                    };
                     actions.push(LegalAction::TapForMana {
                         source: obj.id,
                         ability_index: idx,
                         chosen_color,
+                        hybrid_choices,
+                        phyrexian_life_payments,
                     });
                 }
             }
@@ -427,19 +466,49 @@ impl LegalActionProvider for StubProvider {
                 if ability.sorcery_speed && !(is_main_phase && stack_empty && is_active) {
                     continue;
                 }
-                // Basic mana check
-                if let Some(ref cost) = ability.cost.mana_cost {
-                    if !can_afford(state, player, cost) {
+                // PB-RS2 (CR 107.4e/107.4f via CR 602.2b, SR-38): if the ability's cost
+                // has a hybrid or Phyrexian pip, the raw-cost `can_afford` check below
+                // is WRONG in the offering direction — a pure hybrid pip's `white`/
+                // `blue`/etc. fields are all 0, so an unrelated pool total can pass it
+                // while the engine (which flattens first) correctly rejects the
+                // activation. Route through the same plan-resolution the mana-ability
+                // site uses instead, combining the life check with `ability.cost.life_cost`.
+                let has_pip_cost = ability
+                    .cost
+                    .mana_cost
+                    .as_ref()
+                    .is_some_and(|mc| !mc.hybrid.is_empty() || !mc.phyrexian.is_empty());
+                let (hybrid_choices, phyrexian_life_payments) = if has_pip_cost {
+                    let mc = ability
+                        .cost
+                        .mana_cost
+                        .as_ref()
+                        .expect("has_pip_cost checked Some");
+                    match resolve_hybrid_phyrexian_plan(state, player, mc, ability.cost.life_cost) {
+                        Some(plan) => plan,
+                        None => continue,
+                    }
+                } else {
+                    // Basic mana check (no hybrid/Phyrexian pips — the raw cost's
+                    // standard fields already fully describe what must be paid).
+                    if let Some(ref cost) = ability.cost.mana_cost {
+                        if !can_afford(state, player, cost) {
+                            continue;
+                        }
+                    }
+                    // SG-1 (CR 118.3 / CR 119.4b): a non-mana activated ability with a
+                    // life component the player cannot pay (fetchlands' "Pay 1 life",
+                    // Doom Whisperer's "Pay 2 life") is rejected by
+                    // `handle_activate_ability` (rules/abilities.rs) — don't offer it.
+                    // Mirrors the mana-ability check above. Skipped when `has_pip_cost`
+                    // because `resolve_hybrid_phyrexian_plan` already combined this with
+                    // the Phyrexian-life check (CR 119.4/602.2b — the components may be
+                    // paid in any order, so the check must be on the combined total).
+                    if ability.cost.life_cost > 0 && life_total < ability.cost.life_cost as i32 {
                         continue;
                     }
-                }
-                // SG-1 (CR 118.3 / CR 119.4b): a non-mana activated ability with a life
-                // component the player cannot pay (fetchlands' "Pay 1 life", Doom Whisperer's
-                // "Pay 2 life") is rejected by `handle_activate_ability` (rules/abilities.rs) —
-                // don't offer it. Mirrors the mana-ability check above.
-                if ability.cost.life_cost > 0 && life_total < ability.cost.life_cost as i32 {
-                    continue;
-                }
+                    (vec![], vec![])
+                };
                 // PB-18 review Finding 4: filter abilities blocked by active restrictions.
                 // Mirrors check_activate_restrictions in rules/abilities.rs.
                 if is_ability_restricted_by_stax(state, player, obj.id) {
@@ -448,6 +517,8 @@ impl LegalActionProvider for StubProvider {
                 actions.push(LegalAction::ActivateAbility {
                     source: obj.id,
                     ability_index: idx,
+                    hybrid_choices,
+                    phyrexian_life_payments,
                 });
             }
         }
@@ -897,6 +968,100 @@ impl LegalActionProvider for StubProvider {
     }
 }
 
+/// PB-RS2 (CR 107.4e/107.4f, SR-38 precedent — "a bot must never suggest a choice the
+/// engine rejects"). `can_afford`/the raw affordability checks above it check a cost's
+/// standard fields; a cost with hybrid/Phyrexian pips needs an actual PLAN (which half,
+/// mana-or-life) before it can be checked for affordability at all — the raw cost's
+/// `white`/`blue`/etc. fields don't carry that information, and `mana_value()` alone
+/// (used by `can_afford`'s pool-total fallback) can accept a pool that cannot actually
+/// pay the specific colors required.
+///
+/// Returns `Some((hybrid_choices, phyrexian_life_payments))` for a plan that is BOTH
+/// fully payable (mana + combined life, CR 119.4) AND non-suicidal (CR 104.3b — never
+/// offers a Phyrexian-life plan that would drop the player to 0 or below unless it is
+/// the only payable plan, in which case the whole action is not offered at all).
+/// Returns `None` if no such plan exists.
+///
+/// `other_life_cost` is any OTHER life component of the SAME activation cost (e.g.
+/// `ability_cost.life_cost` / `ManaAbility::life_cost`) that must be combined with a
+/// Phyrexian-life choice for the CR 119.4 legality check — mirrors the engine's own
+/// combined check in `rules/abilities.rs` / `rules/mana.rs` (§5.2 of the plan).
+fn resolve_hybrid_phyrexian_plan(
+    state: &GameState,
+    player: PlayerId,
+    cost: &ManaCost,
+    other_life_cost: u32,
+) -> Option<(Vec<HybridManaPayment>, Vec<bool>)> {
+    let player_state = state.player(player).ok()?;
+    let pool = &player_state.mana_pool;
+    let life_total = player_state.life_total;
+
+    // Plan-selection policy (deterministic, mirrors the flattener's own defaults so a
+    // caller that leaves these vectors empty gets the SAME plan this function would
+    // choose): prefer whichever half the pool can actually cover; for a monocolored
+    // hybrid, prefer the 1-mana colored option over 2 generic; for Phyrexian, prefer
+    // mana over life.
+    let mut hybrid_choices = Vec::with_capacity(cost.hybrid.len());
+    for h in &cost.hybrid {
+        match h {
+            HybridMana::ColorColor(a, b) => {
+                let choice = if pool.get(*a) > 0 || pool.get(*b) == 0 {
+                    *a
+                } else {
+                    *b
+                };
+                hybrid_choices.push(HybridManaPayment::Color(choice));
+            }
+            HybridMana::GenericColor(c) => {
+                if pool.get(*c) > 0 {
+                    hybrid_choices.push(HybridManaPayment::Color(*c));
+                } else {
+                    hybrid_choices.push(HybridManaPayment::Generic);
+                }
+            }
+        }
+    }
+
+    let mut phyrexian_life_payments = Vec::with_capacity(cost.phyrexian.len());
+    let mut any_pip_paid_with_life = false;
+    for ph in &cost.phyrexian {
+        let color = match ph {
+            PhyrexianMana::Single(c) => *c,
+            PhyrexianMana::Hybrid(c, _) => *c,
+        };
+        if pool.get(color) > 0 {
+            phyrexian_life_payments.push(false);
+        } else {
+            any_pip_paid_with_life = true;
+            phyrexian_life_payments.push(true);
+        }
+    }
+
+    let (flat, phyrexian_life) = cost
+        .flatten_hybrid_phyrexian(&hybrid_choices, &phyrexian_life_payments)
+        .ok()?;
+    if !can_afford(state, player, &flat) {
+        return None;
+    }
+    let combined_life_cost = other_life_cost + phyrexian_life;
+    if combined_life_cost > 0 {
+        // CR 119.4: legality. Distinct from the CR 104.3b policy check below on
+        // purpose — collapsing the two is the exact hazard §7.1 of the plan warns
+        // about (a future "simplification" reintroducing bot self-kill).
+        if life_total < combined_life_cost as i32 {
+            return None;
+        }
+        // CR 104.3b: policy. At life_total == combined_life_cost the payment is
+        // LEGAL (>=) but drops the player to exactly 0, which SBA converts into a
+        // loss — never offer that, only offer a plan that leaves the player alive.
+        if any_pip_paid_with_life && life_total - (combined_life_cost as i32) <= 0 {
+            return None;
+        }
+    }
+
+    Some((hybrid_choices, phyrexian_life_payments))
+}
+
 /// Mana affordability check: considers both mana pool and untapped sources.
 /// Uses the mana solver for precise color-aware checking.
 fn can_afford(state: &GameState, player: PlayerId, cost: &mtg_engine::ManaCost) -> bool {
@@ -1262,13 +1427,157 @@ mod tests {
             source: rock_id,
             ability_index: 0,
             chosen_color: *chosen_color,
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-};
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        };
         let result = mtg_engine::process_command(state, cmd);
         assert!(
             result.is_ok(),
             "the provider's offered TapForMana must be engine-legal: {:?}",
+            result.err()
+        );
+    }
+
+    /// A `ManaAbility` that taps for one colorless mana but COSTS a `{a/b}` hybrid pip
+    /// to activate (a synthetic filter-land-shaped source for isolated testing).
+    fn tap_for_colorless_costing_hybrid(
+        a: mtg_engine::ManaColor,
+        b: mtg_engine::ManaColor,
+    ) -> ManaAbility {
+        let mut ma = ManaAbility::tap_for(mtg_engine::ManaColor::Colorless);
+        ma.mana_cost = Some(ManaCost {
+            hybrid: vec![HybridMana::ColorColor(a, b)],
+            ..Default::default()
+        });
+        ma
+    }
+
+    /// A `ManaAbility` that taps for one colorless mana but COSTS a `{c/P}` Phyrexian
+    /// pip to activate.
+    fn tap_for_colorless_costing_phyrexian(c: mtg_engine::ManaColor) -> ManaAbility {
+        let mut ma = ManaAbility::tap_for(mtg_engine::ManaColor::Colorless);
+        ma.mana_cost = Some(ManaCost {
+            phyrexian: vec![PhyrexianMana::Single(c)],
+            ..Default::default()
+        });
+        ma
+    }
+
+    /// PB-RS2 §9.6 test 15 (SR-38 precedent, CR 107.4e): a `{B/R}` mana ability with an
+    /// EMPTY pool must not be offered — the raw-cost `can_afford` check (before this PB)
+    /// would have wrongly offered it, since a pure hybrid pip's standard fields are all
+    /// zero. Sibling of `legal_actions.rs`'s existing `chosen_color` test.
+    #[test]
+    fn provider_never_offers_an_unpayable_pip_ability() {
+        let state = GameStateBuilder::new()
+            .add_player(PlayerId(1))
+            .add_player(PlayerId(2))
+            .active_player(PlayerId(1))
+            .object(
+                ObjectSpec::land(PlayerId(1), "Test Filter Land")
+                    .in_zone(ZoneId::Battlefield)
+                    .with_mana_ability(tap_for_colorless_costing_hybrid(
+                        mtg_engine::ManaColor::Black,
+                        mtg_engine::ManaColor::Red,
+                    )),
+            )
+            .build()
+            .expect("state builds");
+
+        let actions = StubProvider.legal_actions(&state, PlayerId(1));
+        let id = id_of(&state, "Test Filter Land");
+        assert!(
+            !actions
+                .iter()
+                .any(|a| matches!(a, LegalAction::TapForMana { source, .. } if *source == id)),
+            "a {{B/R}}-cost mana ability with an EMPTY pool must NOT be offered (CR 107.4e; \
+             pre-PB-RS2, can_afford's raw-cost check would wrongly offer it): {actions:?}"
+        );
+    }
+
+    /// PB-RS2 §9.6 test 16 (CR 104.3b, CR 119.4): a `{G/P}` mana ability with no green
+    /// mana available must not be offered as a suicidal life payment. At exactly 2 life,
+    /// paying 2 life is LEGAL (CR 119.4, 2 >= 2) but drops the player to 0 — the provider
+    /// must not offer it. At 1 life, paying 2 life is ILLEGAL — not offered either, for a
+    /// different reason (never conflate the two checks). At 5 life, the plan is safe and
+    /// must be offered, engine-verified via `process_command`.
+    #[test]
+    fn provider_never_offers_a_suicidal_phyrexian_life_plan() {
+        let build = |life: i32| {
+            GameStateBuilder::new()
+                .add_player(PlayerId(1))
+                .add_player(PlayerId(2))
+                .active_player(PlayerId(1))
+                .player_life(PlayerId(1), life)
+                .object(
+                    ObjectSpec::land(PlayerId(1), "Test Phyrexian Land")
+                        .in_zone(ZoneId::Battlefield)
+                        .with_mana_ability(tap_for_colorless_costing_phyrexian(
+                            mtg_engine::ManaColor::Green,
+                        )),
+                )
+                .build()
+                .expect("state builds")
+        };
+
+        let offered = |life: i32| -> bool {
+            let state = build(life);
+            let id = id_of(&state, "Test Phyrexian Land");
+            StubProvider
+                .legal_actions(&state, PlayerId(1))
+                .iter()
+                .any(|a| matches!(a, LegalAction::TapForMana { source, .. } if *source == id))
+        };
+
+        assert!(
+            !offered(2),
+            "CR 104.3b: at exactly 2 life, a {{G/P}} ability with no green mana is legal but \
+             lethal (drops to 0) — the provider must never offer it"
+        );
+        assert!(
+            !offered(1),
+            "CR 119.4: at 1 life, paying 2 life for {{G/P}} is illegal — must not be offered"
+        );
+        assert!(
+            offered(5),
+            "at 5 life, a {{G/P}} ability with no green mana has a safe life-payment plan and \
+             must be offered"
+        );
+
+        // Prove the offered action at 5 life is engine-legal end-to-end.
+        let state = build(5);
+        let id = id_of(&state, "Test Phyrexian Land");
+        let action = StubProvider
+            .legal_actions(&state, PlayerId(1))
+            .into_iter()
+            .find(|a| matches!(a, LegalAction::TapForMana { source, .. } if *source == id))
+            .expect("offered at 5 life");
+        let LegalAction::TapForMana {
+            chosen_color,
+            hybrid_choices,
+            phyrexian_life_payments,
+            ..
+        } = action
+        else {
+            unreachable!("matched by discriminant above");
+        };
+        assert_eq!(
+            phyrexian_life_payments,
+            vec![true],
+            "with no green mana available, the plan must pay the Phyrexian pip with life"
+        );
+        let cmd = mtg_engine::Command::TapForMana {
+            player: PlayerId(1),
+            source: id,
+            ability_index: 0,
+            chosen_color,
+            hybrid_choices,
+            phyrexian_life_payments,
+        };
+        let result = mtg_engine::process_command(state, cmd);
+        assert!(
+            result.is_ok(),
+            "the provider's offered suicide-avoiding TapForMana must be engine-legal: {:?}",
             result.err()
         );
     }

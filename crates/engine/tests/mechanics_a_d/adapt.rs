@@ -172,9 +172,9 @@ fn test_adapt_basic_adds_counters() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     )
     .unwrap();
 
@@ -274,9 +274,9 @@ fn test_adapt_does_nothing_with_existing_counters() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     )
     .unwrap();
 
@@ -352,9 +352,9 @@ fn test_adapt_activation_always_legal() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     )
     .unwrap();
 
@@ -431,9 +431,9 @@ fn test_adapt_after_losing_counters() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     )
     .unwrap();
     let (mut state, _) = pass_all(state, &[p1, p2, p3, p4]);
@@ -487,9 +487,9 @@ fn test_adapt_after_losing_counters() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     )
     .unwrap();
     let (state, _) = pass_all(state, &[p1, p2, p3, p4]);
@@ -548,9 +548,9 @@ fn test_adapt_pays_mana_cost() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     )
     .unwrap();
 
@@ -613,9 +613,9 @@ fn test_adapt_counter_added_event_emitted() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     )
     .unwrap();
 

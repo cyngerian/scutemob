@@ -159,17 +159,24 @@ pub(crate) fn action_to_command(
             source,
             ability_index,
             chosen_color,
+            hybrid_choices,
+            phyrexian_life_payments,
         } => Command::TapForMana {
             player,
             source: *source,
             ability_index: *ability_index,
             chosen_color: *chosen_color,
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            // PB-RS2: pass through the fully-payable, non-suicidal plan the provider
+            // already resolved (`resolve_hybrid_phyrexian_plan`) — never re-derive it
+            // here, or the two could drift (the exact failure class OOS-RS-2 was).
+            hybrid_choices: hybrid_choices.clone(),
+            phyrexian_life_payments: phyrexian_life_payments.clone(),
+        },
         LegalAction::ActivateAbility {
             source,
             ability_index,
+            hybrid_choices,
+            phyrexian_life_payments,
         } => Command::ActivateAbility {
             player,
             source: *source,
@@ -180,9 +187,10 @@ pub(crate) fn action_to_command(
             x_value: None,
             // PB-EF7: bots don't yet choose modes; empty auto-selects mode 0.
             modes_chosen: Vec::new(),
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            // PB-RS2: see the TapForMana arm above.
+            hybrid_choices: hybrid_choices.clone(),
+            phyrexian_life_payments: phyrexian_life_payments.clone(),
+        },
         LegalAction::DeclareAttackers { eligible, targets } => {
             // Pick random subset
             if eligible.is_empty() || targets.is_empty() {

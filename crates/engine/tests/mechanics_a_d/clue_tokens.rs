@@ -250,9 +250,9 @@ fn test_clue_activate_draw_card() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     )
     .unwrap();
 
@@ -332,9 +332,9 @@ fn test_clue_uses_stack_not_mana_ability() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     )
     .unwrap();
 
@@ -388,9 +388,9 @@ fn test_clue_sacrifice_is_cost_not_effect() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     )
     .unwrap();
 
@@ -450,9 +450,9 @@ fn test_clue_tapped_can_still_activate() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     );
 
     assert!(
@@ -515,9 +515,9 @@ fn test_clue_not_affected_by_summoning_sickness() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     );
 
     assert!(
@@ -566,9 +566,9 @@ fn test_clue_token_ceases_to_exist_after_sba() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     )
     .unwrap();
 
@@ -641,9 +641,9 @@ fn test_clue_opponent_cannot_activate() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     );
 
     assert!(
@@ -696,9 +696,9 @@ fn test_clue_insufficient_mana_cannot_activate() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     );
 
     assert!(

@@ -25,6 +25,7 @@ mod keyword_registry;
 mod lki_diagnostics_scan;
 mod object_identity;
 mod pb_rs1_roster_sweep;
+mod pb_rs2_hybrid_phyrexian_activation_roster;
 mod pending_trigger_shape;
 mod priority;
 mod protocol_roundtrip;

@@ -109,9 +109,9 @@ fn tainted_field_colorless_arm_needs_no_swamp() {
             ability_index: COLORLESS_ARM,
 
             chosen_color: None,
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     )
     .expect("the unconditioned {C} arm must be legal with no Swamp");
     assert_eq!(
@@ -136,9 +136,9 @@ fn tainted_field_colored_arms_rejected_without_a_swamp() {
                 ability_index: arm,
 
                 chosen_color: None,
-                        hybrid_choices: vec![],
-            phyrexian_life_payments: vec![],
-},
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
+            },
         );
         assert!(
             result.is_err(),
@@ -162,9 +162,9 @@ fn tainted_field_colored_arms_work_with_a_swamp() {
                 ability_index: arm,
 
                 chosen_color: None,
-                        hybrid_choices: vec![],
-            phyrexian_life_payments: vec![],
-},
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
+            },
         )
         .unwrap_or_else(|e| panic!("arm {arm} must be legal while controlling a Swamp: {e:?}"));
         assert_eq!(

@@ -1046,9 +1046,9 @@ fn tap_for_mana_produces_each_printed_color_without_using_the_stack() {
                 ability_index: index,
 
                 chosen_color: None,
-                        hybrid_choices: vec![],
-            phyrexian_life_payments: vec![],
-},
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
+            },
         )
         .unwrap_or_else(|e| panic!("TapForMana index {index} should be legal: {e:?}"));
 
@@ -1094,9 +1094,9 @@ fn tap_for_mana_rejects_an_out_of_range_ability_index() {
                 ability_index: 2,
 
                 chosen_color: None,
-                        hybrid_choices: vec![],
-            phyrexian_life_payments: vec![],
-},
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
+            },
         )
         .is_err(),
         "index 2 does not exist on a two-colour land"

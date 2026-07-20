@@ -365,9 +365,9 @@ fn test_bloodline_back_token_ability_activatable_after_transform() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     )
     .unwrap_or_else(|e| panic!("back token ability should be activatable: {:?}", e));
     let state = resolve_stack(state, &[p(1), p(2)]);
@@ -396,9 +396,9 @@ fn test_bloodline_front_transform_ability_gone() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     );
     assert!(
         matches!(result, Err(GameStateError::InvalidAbilityIndex { .. })),
@@ -505,9 +505,9 @@ fn test_growing_rites_itlimoc_taps_for_mana_after_transform() {
             source: itlimoc_id,
             ability_index: 0,
             chosen_color: None,
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     )
     .unwrap_or_else(|e| {
         panic!(
@@ -564,9 +564,9 @@ fn test_thaumatic_compass_spires_taps_for_colorless_after_transform() {
             source: compass_id,
             ability_index: 0,
             chosen_color: None,
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     )
     .unwrap_or_else(|e| {
         panic!(
@@ -665,9 +665,9 @@ fn test_fable_reflection_activated_reachable_after_transform() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     );
     assert!(
         result.is_ok(),

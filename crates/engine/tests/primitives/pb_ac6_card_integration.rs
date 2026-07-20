@@ -399,9 +399,9 @@ fn test_bloodsoaked_champion_raid_reanimation_gated_by_attack() {
                 sacrifice_target: None,
                 x_value: None,
                 modes_chosen: vec![],
-                        hybrid_choices: vec![],
-            phyrexian_life_payments: vec![],
-},
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
+            },
         )
         .unwrap_or_else(|e| panic!("Raid activation should succeed when attacked: {:?}", e));
         let (state, _) = pass_all(state, &[p1, p2]);
@@ -455,9 +455,9 @@ fn test_bloodsoaked_champion_raid_reanimation_gated_by_attack() {
                 sacrifice_target: None,
                 x_value: None,
                 modes_chosen: vec![],
-                        hybrid_choices: vec![],
-            phyrexian_life_payments: vec![],
-},
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
+            },
         );
         assert!(
             result.is_err(),
@@ -528,9 +528,9 @@ fn test_idol_of_oblivion_draw_gated_by_created_token() {
                 sacrifice_target: None,
                 x_value: None,
                 modes_chosen: vec![],
-                        hybrid_choices: vec![],
-            phyrexian_life_payments: vec![],
-},
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
+            },
         )
         .unwrap_or_else(|e| {
             panic!(
@@ -579,9 +579,9 @@ fn test_idol_of_oblivion_draw_gated_by_created_token() {
                 sacrifice_target: None,
                 x_value: None,
                 modes_chosen: vec![],
-                        hybrid_choices: vec![],
-            phyrexian_life_payments: vec![],
-},
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
+            },
         );
         // Must be rejected by the `CreatedATokenThisTurn` activation condition, not
         // because the ability failed to resolve at all — an unenriched spec would

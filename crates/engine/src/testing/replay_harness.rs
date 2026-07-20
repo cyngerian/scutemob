@@ -1,7 +1,7 @@
 use crate::rules::command::CastSpellData;
 use crate::state::combat::AttackTarget;
-use crate::state::types::{AdditionalCost, AltCostKind, FaceDownKind, TurnFaceUpMethod};
 use crate::state::game_object::HybridManaPayment;
+use crate::state::types::{AdditionalCost, AltCostKind, FaceDownKind, TurnFaceUpMethod};
 use crate::state::{ActivatedAbility, ActivationCost, CounterType, SacrificeFilter};
 use crate::testing::script_schema::{
     ActionTarget, AttackerDeclaration, BlockerDeclaration, EnlistDeclaration, InitialState,

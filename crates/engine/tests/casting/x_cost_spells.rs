@@ -650,9 +650,9 @@ fn test_x_cost_activated_ability_double_x_treasure_vault() {
             sacrifice_target: None,
             x_value: Some(2),
             modes_chosen: vec![],
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     )
     .unwrap();
 

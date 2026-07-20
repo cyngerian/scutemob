@@ -259,9 +259,9 @@ fn test_blood_token_activation_basic() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     )
     .unwrap();
 
@@ -356,9 +356,9 @@ fn test_blood_token_discard_is_cost() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     )
     .unwrap();
 
@@ -433,9 +433,9 @@ fn test_blood_token_uses_stack() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     )
     .unwrap();
 
@@ -482,9 +482,9 @@ fn test_blood_token_activation_no_mana() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     );
 
     assert!(
@@ -541,9 +541,9 @@ fn test_blood_token_activation_already_tapped() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     );
 
     assert!(
@@ -597,9 +597,9 @@ fn test_blood_token_activation_no_cards_in_hand() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     );
 
     assert!(
@@ -653,9 +653,9 @@ fn test_blood_token_sba_ceases_to_exist() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     )
     .unwrap();
 
@@ -752,9 +752,9 @@ fn test_blood_token_not_affected_by_summoning_sickness() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     );
 
     assert!(
@@ -807,9 +807,9 @@ fn test_blood_token_only_controller_can_activate() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     );
 
     assert!(
@@ -918,9 +918,9 @@ fn test_blood_token_activation_sacrifice_removes_from_battlefield() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     )
     .unwrap();
 
@@ -973,9 +973,9 @@ fn test_blood_token_discard_must_be_from_hand() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     );
 
     assert!(

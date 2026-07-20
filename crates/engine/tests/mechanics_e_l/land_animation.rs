@@ -142,9 +142,9 @@ fn test_land_animation_adds_creature_type_and_pt() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     )
     .unwrap();
 

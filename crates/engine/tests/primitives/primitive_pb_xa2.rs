@@ -361,9 +361,9 @@ fn test_pbxa2_activated_target_is_blocking_non_blocker_rejected() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     );
 
     assert!(
@@ -423,9 +423,9 @@ fn test_pbxa2_activated_target_is_blocking_blocker_accepted() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     );
 
     assert!(
@@ -478,9 +478,9 @@ fn test_pbxa2_activated_target_is_tapped_untapped_rejected() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     );
 
     assert!(
@@ -543,9 +543,9 @@ fn test_pbxa2_activated_target_is_tapped_tapped_accepted() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     );
 
     assert!(
@@ -606,9 +606,9 @@ fn test_pbxa2_activated_target_is_untapped_tapped_rejected() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     );
 
     assert!(
@@ -662,9 +662,9 @@ fn test_pbxa2_activated_target_is_untapped_untapped_accepted() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     );
 
     assert!(
@@ -764,9 +764,9 @@ fn test_pbxa2_activated_target_attacking_or_blocking_accepts_attacker() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     );
 
     assert!(
@@ -825,9 +825,9 @@ fn test_pbxa2_activated_target_attacking_or_blocking_accepts_blocker() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     );
 
     assert!(
@@ -887,9 +887,9 @@ fn test_pbxa2_activated_target_attacking_or_blocking_rejects_non_combatant() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     );
 
     assert!(
@@ -1276,9 +1276,9 @@ fn test_pbxa2_graveyard_target_with_runtime_fields_rejects() {
                 sacrifice_target: None,
                 x_value: None,
                 modes_chosen: vec![],
-                        hybrid_choices: vec![],
-            phyrexian_life_payments: vec![],
-},
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
+            },
         );
 
         assert!(
@@ -1336,9 +1336,9 @@ fn test_pbxa2_graveyard_target_with_runtime_fields_rejects() {
                 sacrifice_target: None,
                 x_value: None,
                 modes_chosen: vec![],
-                        hybrid_choices: vec![],
-            phyrexian_life_payments: vec![],
-},
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
+            },
         );
 
         assert!(
@@ -1398,9 +1398,9 @@ fn test_pbxa2_graveyard_target_with_runtime_fields_rejects() {
                 sacrifice_target: None,
                 x_value: None,
                 modes_chosen: vec![],
-                        hybrid_choices: vec![],
-            phyrexian_life_payments: vec![],
-},
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
+            },
         );
 
         // Design-quirk behavior locked in: is_untapped=true on graveyard filter

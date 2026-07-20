@@ -40,8 +40,11 @@ pub fn card() -> CardDefinition {
              variant — 'Exile three creature cards from your graveyard' is not expressible as an \
              activation cost (AdditionalCost::EscapeExile is cast-time only); (2) CounterType has \
              no Indestructible variant, so the indestructible counter cannot be created. The \
-             {B/P}{B/P} cost (PB-9) and the AddCounter-on-Source effect are both already \
-             expressible.",
+             {B/P}{B/P} cost (PB-9) is expressible in the DSL, and (as of PB-RS2) actually \
+             charged at activation time rather than free (OOS-RS-2's fix reaches this card's cost \
+             shape too, even though the two blockers above still stop it from authoring). The \
+             AddCounter-on-Source effect is also already expressible. Neither blocker above is \
+             touched by PB-RS2; this card stays partial.",
         ),
         ..Default::default()
     }

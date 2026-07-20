@@ -166,9 +166,9 @@ fn signet_tap_for_mana_pays_generic_and_produces_two() {
             ability_index: 0,
 
             chosen_color: None,
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     )
     .expect("Boros Signet activation should succeed with {1} available (CR 118.3a)");
 
@@ -252,9 +252,9 @@ fn signet_tap_for_mana_does_not_use_the_stack() {
             ability_index: 0,
 
             chosen_color: None,
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     )
     .expect("activation should succeed");
 
@@ -282,9 +282,9 @@ fn signet_with_empty_pool_is_insufficient_mana() {
             ability_index: 0,
 
             chosen_color: None,
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     );
 
     assert!(
@@ -329,9 +329,9 @@ fn horizon_land_pays_life_and_at_exactly_one_life_is_legal() {
             ability_index: 0,
 
             chosen_color: None,
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     )
     .expect("paying exactly 1 life at 1 life must be legal (CR 119.4: '>=', not '>')");
 
@@ -382,9 +382,9 @@ fn horizon_land_at_zero_life_cannot_pay() {
             ability_index: 0,
 
             chosen_color: None,
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     );
 
     assert!(
@@ -480,9 +480,9 @@ fn mana_ability_funds_a_spell_in_the_same_priority_window() {
             ability_index: 0,
 
             chosen_color: None,
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     )
     .expect("tap Mountain for {R}");
     assert!(
@@ -499,9 +499,9 @@ fn mana_ability_funds_a_spell_in_the_same_priority_window() {
             ability_index: 0,
 
             chosen_color: None,
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     )
     .expect("Boros Signet's {1} is paid from the {R} the Mountain just added (CR 605.3a)");
     assert!(
@@ -552,9 +552,9 @@ fn signet_mana_cost_can_be_paid_from_another_mana_ability() {
             ability_index: 0,
 
             chosen_color: None,
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     )
     .expect("tap Mountain for {R} in the first Command");
 
@@ -567,9 +567,9 @@ fn signet_mana_cost_can_be_paid_from_another_mana_ability() {
             ability_index: 0,
 
             chosen_color: None,
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     )
     .expect("the Signet's {1} is already sitting in the pool from the prior Command");
 
@@ -737,9 +737,9 @@ fn composite_cost_mana_source_is_multiplied_by_a_mana_production_replacement() {
             ability_index: 0,
 
             chosen_color: None,
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     )
     .expect("Boros Signet activation should succeed");
 
@@ -824,9 +824,9 @@ fn composite_cost_mana_source_fires_a_when_tapped_for_mana_trigger() {
             ability_index: 0, // Fiery Islet's {U} arm — still a Land per CR 106.12a
 
             chosen_color: None,
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     )
     .expect("Fiery Islet activation should succeed");
 
@@ -1191,9 +1191,9 @@ fn sr34_certified_defs_produce_exactly_their_printed_mana() {
                 ability_index: 0,
 
                 chosen_color: None,
-                        hybrid_choices: vec![],
-            phyrexian_life_payments: vec![],
-},
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
+            },
         )
         .unwrap_or_else(|e| panic!("{name} TapForMana should succeed: {e:?}"));
 

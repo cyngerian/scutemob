@@ -148,9 +148,9 @@ fn gaea_cradle_zero_creatures_produces_zero_green() {
             ability_index: 0,
 
             chosen_color: None,
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     )
     .expect("Gaea's Cradle activation should succeed with zero creatures");
 
@@ -192,9 +192,9 @@ fn gaea_cradle_three_creatures_produces_three_green() {
             ability_index: 0,
 
             chosen_color: None,
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     )
     .expect("Gaea's Cradle activation should succeed");
 
@@ -251,9 +251,9 @@ fn gaea_cradle_scaled_amount_is_multiplied_by_a_mana_production_replacement() {
             ability_index: 0,
 
             chosen_color: None,
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     )
     .expect("Gaea's Cradle activation should succeed");
 
@@ -298,9 +298,9 @@ fn elvish_archdruid_counts_only_elves() {
             ability_index: 0,
 
             chosen_color: None,
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     )
     .expect("Elvish Archdruid activation should succeed");
 
@@ -367,9 +367,9 @@ fn cabal_coffers_is_a_real_mana_ability() {
             ability_index: 0,
 
             chosen_color: None,
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     )
     .expect("Cabal Coffers activation should succeed via TapForMana (CR 605.3b)");
 
@@ -434,9 +434,9 @@ fn fetchland_pays_life_on_activation() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     )
     .expect("Arid Mesa activation should succeed");
 
@@ -487,9 +487,9 @@ fn doom_whisperer_pays_life_for_repeatable_surveil() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     )
     .expect("Doom Whisperer's Pay 2 life ability should succeed at life 40");
 
@@ -540,9 +540,9 @@ fn staff_of_compleation_proliferate_pays_life() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     )
     .expect("Staff of Compleation's Pay 3 life: Proliferate should succeed at life 40");
 
@@ -592,9 +592,9 @@ fn staff_of_compleation_draw_pays_life() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     )
     .expect("Staff of Compleation's Pay 4 life: Draw a card should succeed at life 40");
 
@@ -658,9 +658,9 @@ fn non_mana_ability_life_cost_zero_is_legal_at_negative_life() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     )
     .expect(
         "a life_cost:0 ability must activate at any life total, including negative (CR 119.4b)",
@@ -707,9 +707,9 @@ fn non_mana_ability_insufficient_life_is_rejected() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     );
 
     assert!(
@@ -825,9 +825,9 @@ fn cabal_stronghold_counts_only_basic_swamps() {
             ability_index: 1,
 
             chosen_color: None,
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     )
     .expect("Cabal Stronghold's scaled arm should activate via TapForMana (CR 605.3b)");
 
@@ -910,9 +910,9 @@ fn crypt_of_agadeem_counts_only_black_creature_cards_in_graveyard() {
             ability_index: 1,
 
             chosen_color: None,
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     )
     .expect("Crypt of Agadeem's scaled arm should activate via TapForMana (CR 605.3b)");
 

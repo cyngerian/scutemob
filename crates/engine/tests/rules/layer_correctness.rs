@@ -303,9 +303,9 @@ fn test_w3lc_animated_land_summoning_sickness_blocks_mana() {
             ability_index: 0,
 
             chosen_color: None,
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     );
 
     assert!(
@@ -351,9 +351,9 @@ fn test_w3lc_fervor_grants_haste_allows_mana_tap() {
             ability_index: 0,
 
             chosen_color: None,
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     );
 
     assert!(
@@ -397,9 +397,9 @@ fn test_w3lc_non_animated_land_ignores_summoning_sickness() {
             ability_index: 0,
 
             chosen_color: None,
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     );
 
     assert!(
@@ -467,9 +467,9 @@ fn test_w3lc_sacrifice_mana_uses_layer_resolved_types() {
             ability_index: 0,
 
             chosen_color: None,
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     )
     .expect("sacrifice-for-mana should succeed");
 

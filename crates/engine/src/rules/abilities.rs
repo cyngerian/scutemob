@@ -686,7 +686,16 @@ pub fn handle_activate_ability(
     // double-charge a card SR-34 already fixed. CR 119.4b: a cost of 0 is always legal,
     // even at negative life — the check must short-circuit on `life_cost > 0` rather than
     // comparing unconditionally.
-    if ability_cost.life_cost > 0 {
+    //
+    // PB-RS2 (CR 119.4, CR 601.2h/602.2b): when `ability_cost.mana_cost` carries a
+    // Phyrexian pip paid with life, the check below must be against the COMBINED total
+    // of `life_cost` and that Phyrexian life — not this ability_cost.life_cost alone —
+    // because the components of a cost may be paid in any order and CR 119.4 gates "the
+    // amount of the payment" for the whole cost. That combined check happens inside the
+    // `mana_cost` branch below (after the flatten computes the Phyrexian life amount);
+    // this standalone check covers only the (much more common) case where there is no
+    // mana cost at all, where it is already the full, correct check.
+    if ability_cost.mana_cost.is_none() && ability_cost.life_cost > 0 {
         let player_state = state.player(player)?;
         if player_state.life_total < ability_cost.life_cost as i32 {
             return Err(GameStateError::InsufficientLife {
@@ -767,6 +776,24 @@ pub fn handle_activate_ability(
             } else {
                 (resolved_cost.clone(), 0)
             };
+        // CR 119.4, CR 601.2h/602.2b (PB-RS2): check the COMBINED total of
+        // `ability_cost.life_cost` and a Phyrexian pip paid with life against
+        // life_total ONCE, before ANY deduction (mana or life) below — not each
+        // independently. The cost's components (tap/mana/life/Phyrexian-life) may
+        // be paid in any order, and CR 119.4 gates "the amount of the payment" for
+        // the whole cost. A player at 3 life activating a "Pay 2 life" ability with
+        // a `{G/P}` paid with life may not pay a combined 4.
+        let combined_life_cost = ability_cost.life_cost + phyrexian_life;
+        if combined_life_cost > 0 {
+            let player_state = state.player(player)?;
+            if player_state.life_total < combined_life_cost as i32 {
+                return Err(GameStateError::InsufficientLife {
+                    player,
+                    required: combined_life_cost,
+                    actual: player_state.life_total,
+                });
+            }
+        }
         if flat_cost.mana_value() > 0 {
             let player_state = state.player_mut(player)?;
             if !player_state.mana_pool.can_spend(&flat_cost, None) {
@@ -774,17 +801,13 @@ pub fn handle_activate_ability(
             }
             player_state.mana_pool.spend(&flat_cost, None);
         }
-        // CR 107.4f + CR 119.4: pay life for Phyrexian pips paid with life. A
-        // sibling of the mana-payment block above, not nested inside it — see the
-        // pure-Phyrexian-paid-with-life case in the comment above.
+        // CR 107.4f: pay life for a Phyrexian pip paid with life. A sibling of the
+        // mana-payment block above, not nested inside it — see the
+        // pure-Phyrexian-paid-with-life case in the comment above. Legality
+        // (including the combined check with `ability_cost.life_cost`) was already
+        // validated above, before any mutation.
         if phyrexian_life > 0 {
             let player_state = state.player_mut(player)?;
-            if player_state.life_total < phyrexian_life as i32 {
-                return Err(GameStateError::InvalidCommand(
-                    "cannot pay Phyrexian life: life total is less than the payment (CR 119.4)"
-                        .into(),
-                ));
-            }
             player_state.life_total -= phyrexian_life as i32;
             events.push(GameEvent::LifeLost {
                 player,

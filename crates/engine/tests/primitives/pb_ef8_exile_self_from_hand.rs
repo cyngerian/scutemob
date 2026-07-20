@@ -108,9 +108,9 @@ fn simian_activates_from_hand_and_exiles_the_source() {
             ability_index: 0,
 
             chosen_color: None,
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     )
     .expect("Simian Spirit Guide should activate from hand (CR 605.1a)");
 
@@ -162,9 +162,9 @@ fn elvish_activates_from_hand_adds_green() {
             ability_index: 0,
 
             chosen_color: None,
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     )
     .expect("Elvish Spirit Guide should activate from hand (CR 605.1a)");
 
@@ -198,9 +198,9 @@ fn from_hand_mana_ability_does_not_reset_priority_or_players_passed() {
             ability_index: 0,
 
             chosen_color: None,
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     )
     .expect("activation should succeed");
 
@@ -242,9 +242,9 @@ fn decoy_a_same_card_on_battlefield_cannot_use_from_hand_ability() {
             ability_index: 0,
 
             chosen_color: None,
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     );
 
     assert!(
@@ -281,9 +281,9 @@ fn decoy_b_battlefield_only_mana_ability_cannot_be_activated_from_hand() {
             ability_index: 0,
 
             chosen_color: None,
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     );
 
     assert!(

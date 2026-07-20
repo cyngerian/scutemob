@@ -131,9 +131,9 @@ fn test_filter_land_produces_two_mana_fetid_heath() {
             ability_index: 1,
 
             chosen_color: None,
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     )
     .expect("filter land activation should succeed (CR 605.1a)");
 
@@ -205,9 +205,9 @@ fn test_filter_land_tap_required() {
             ability_index: 1, // the filter ability
 
             chosen_color: None,
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     );
 
     assert!(
@@ -249,9 +249,9 @@ fn test_all_filter_lands_produce_correct_colors() {
                 ability_index: 1, // the filter ability
 
                 chosen_color: None,
-                        hybrid_choices: vec![],
-            phyrexian_life_payments: vec![],
-},
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
+            },
         )
         .unwrap_or_else(|e| panic!("activating {} filter ability should succeed: {:?}", name, e));
 
@@ -361,9 +361,9 @@ fn test_add_mana_scaled_registered_as_mana_ability() {
             ability_index: 0,
 
             chosen_color: None,
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     )
     .expect("Gaea's Cradle activation should succeed");
 
@@ -429,9 +429,9 @@ fn test_add_mana_scaled_orphan_fix_all_cards() {
                 ability_index: 0,
 
                 chosen_color: None,
-                        hybrid_choices: vec![],
-            phyrexian_life_payments: vec![],
-},
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
+            },
         )
         .expect("Elvish Archdruid activation should succeed");
         assert_eq!(
@@ -468,9 +468,9 @@ fn test_add_mana_scaled_orphan_fix_all_cards() {
                 ability_index: 0,
 
                 chosen_color: None,
-                        hybrid_choices: vec![],
-            phyrexian_life_payments: vec![],
-},
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
+            },
         )
         .expect("Priest of Titania activation should succeed");
         assert_eq!(
@@ -505,9 +505,9 @@ fn test_add_mana_scaled_orphan_fix_all_cards() {
                 ability_index: 0,
 
                 chosen_color: None,
-                        hybrid_choices: vec![],
-            phyrexian_life_payments: vec![],
-},
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
+            },
         )
         .expect("Marwyn activation should succeed");
         assert_eq!(
@@ -542,9 +542,9 @@ fn test_add_mana_scaled_orphan_fix_all_cards() {
                 ability_index: 0,
 
                 chosen_color: None,
-                        hybrid_choices: vec![],
-            phyrexian_life_payments: vec![],
-},
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
+            },
         )
         .expect("Circle of Dreams Druid activation should succeed");
         assert_eq!(
@@ -578,9 +578,9 @@ fn test_add_mana_scaled_orphan_fix_all_cards() {
                 ability_index: 0,
 
                 chosen_color: None,
-                        hybrid_choices: vec![],
-            phyrexian_life_payments: vec![],
-},
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
+            },
         )
         .expect("Gaea's Cradle activation should succeed");
         assert_eq!(
@@ -619,9 +619,9 @@ fn test_add_mana_scaled_orphan_fix_all_cards() {
                 ability_index: 0,
 
                 chosen_color: None,
-                        hybrid_choices: vec![],
-            phyrexian_life_payments: vec![],
-},
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
+            },
         )
         .expect("Howlsquad Heavy activation should succeed");
         assert_eq!(

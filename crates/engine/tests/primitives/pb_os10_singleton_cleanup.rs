@@ -415,9 +415,9 @@ fn activate(
             sacrifice_target: None,
             x_value: None,
             modes_chosen,
-                hybrid_choices: vec![],
-        phyrexian_life_payments: vec![],
-},
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
     )
 }
 
