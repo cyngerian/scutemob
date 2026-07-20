@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-07-20 04:02 UTC  
-**Git:** `86176ff7` on `main`  
+**Generated:** 2026-07-20 05:12 UTC  
+**Git:** `7f00f3a6` on `feat/pb-rs3-atbeginningofcombat-card-def-sweep-begincombat-collec`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -25,10 +25,10 @@ and what is intentionally NOT in it.**
 | Plan cards still missing a def file | 135 | · |
 | Bonus defs (on disk, outside plan) | 322 | · |
 | Effective coverage vs plan target | **111%** (1,823 / 1,636) | — |
-| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 63.0% | 1,136 | +1 |
-| With TODO markers | 517 | · |
-| Empty `abilities: vec![]` placeholders | 151 | -1 |
-| Total TODO lines across all defs | 948 | -1 |
+| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 63.1% | 1,139 | +3 |
+| With TODO markers | 514 | -3 |
+| Empty `abilities: vec![]` placeholders | 151 | · |
+| Total TODO lines across all defs | 947 | -1 |
 
 ## Authoring activity (git, by window)
 
@@ -68,7 +68,7 @@ are blocked on engine primitives.
 | --- | ---: | ---: | ---: | ---: | ---: |
 | `combat-keyword` | 187 / 187 | 100% | 88 | 84 | 15 |
 | `draw` | 164 / 169 | 97% | 78 | 69 | 17 |
-| `token-create` | 148 / 155 | 95% | 83 | 49 | 16 |
+| `token-create` | 148 / 155 | 95% | 85 | 47 | 16 |
 | `land-etb-tapped` | 138 / 138 | 100% | 116 | 22 | 0 |
 | `other` | 108 / 131 | 82% | 70 | 31 | 7 |
 | `modal-choice` | 73 / 105 | 70% | 37 | 24 | 12 |
@@ -83,7 +83,7 @@ are blocked on engine primitives.
 | `activated-tap` | 9 / 27 | 33% | 8 | 0 | 1 |
 | `pump-buff` | 27 / 27 | 100% | 17 | 7 | 3 |
 | `cant-restriction` | 25 / 25 | 100% | 16 | 5 | 4 |
-| `removal-damage-target` | 23 / 23 | 100% | 10 | 11 | 2 |
+| `removal-damage-target` | 23 / 23 | 100% | 11 | 10 | 2 |
 | `activated-sacrifice` | 8 / 19 | 42% | 7 | 1 | 0 |
 | `mana-creature` | 19 / 19 | 100% | 14 | 5 | 0 |
 | `graveyard-recursion` | 18 / 18 | 100% | 8 | 6 | 4 |
@@ -171,7 +171,7 @@ the next thing to triage when the classifier table is grown.
 
 | Gap bucket | TODO lines | Δ since last run |
 | --- | ---: | ---: |
-| OTHER (unclassified) | 581 | -1 |
+| OTHER (unclassified) | 580 | -1 |
 | DSL gap (unspecified) | 120 | · |
 | attack trigger (self / generic) | 23 | · |
 | TriggerCondition::* missing variant | 17 | · |
@@ -201,7 +201,7 @@ _…and 27 more buckets totaling 47 lines._
 
 ### Raw OTHER samples (read these to design new classifier buckets)
 
-Showing 12 of 581 
+Showing 12 of 580 
 unclassified TODO lines. If two or three of these have a common theme, that's a 
 new bucket to add to `TODO_BUCKETS` in `tools/authoring-report.py`. Sample is 
 deterministic (sorted by slug).
@@ -213,28 +213,27 @@ deep_gnome_terramancer: // TODO: "lands enter under opponent's control without b
 fable_of_the_mirror_breaker: // ENGINE-BLOCKED: the token is created with correct P/T/color/subtypes but
 goblin_king: // TODO: AllCreaturesWithSubtype includes Goblin King itself — "other" semantics
 jeskas_will: // TODO: "choose both if commander" conditional entwine.
-marionette_apprentice: // ENGINE-BLOCKED: "Whenever another creature or artifact you control is put into
-out_of_the_tombs: // TODO: Upkeep counter + mill scaling with counter count not expressible.
+marisi_breaker_of_the_coil: // TODO: "Your opponents can't cast spells during combat" — phase-scoped CantCast not in DSL.
+out_of_the_tombs: // TODO: Both abilities too complex for DSL.
 ruthless_winnower: // TODO: "non-Elf creature" filter — SacrificePermanents has no subtype exclusion.
-sorin_imperious_bloodlord: // TODO: "If it's a Vampire, put a +1/+1 counter on it" — requires
+sorin_imperious_bloodlord: // TODO: "You may sacrifice a Vampire. When you do, [effects]" — optional sacrifice
 teferis_protection: // TODO: "All permanents you control phase out" — Effect::PhaseOut for all controller permanents.
 tyvar_jubilant_brawler: // TODO: static — creatures you control can activate abilities as though they had haste
 ```
 
 ## ⚠ Completeness-marker drift
 
-6 defs whose `completeness:` marker contradicts their comments. The marker is authoritative (it is what `validate_deck` reads), so fix whichever is stale.
+4 defs whose `completeness:` marker contradicts their comments. The marker is authoritative (it is what `validate_deck` reads), so fix whichever is stale.
 
 - `ashnods_altar` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `boggart_shenanigans` — marked partial but has no TODO / ENGINE-BLOCKED comment
-- `loyal_apprentice` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `phyrexian_tower` — marked partial but has no TODO / ENGINE-BLOCKED comment
-- `siege_gang_lieutenant` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `temple_of_the_dragon_queen` — marked partial but has no TODO / ENGINE-BLOCKED comment
 
 ## Recent card-touching commits
 
 ```
+95626742 W6-prim: scutemob-145 — PB-RS3 card-def roster: 3 flips + 1 integrity repair
 7d932614 W6-prim: scutemob-144 — PB-RS2 fix cycle: apply all 12 review findings (0 HIGH, 5 MEDIUM, 7 LOW)
 48cec52a W6-prim: scutemob-144 — PB-RS2: CR 119.4 combined-life fix, birthing_pod flip, roster sweep, simulator
 e29dd99f W6-prim: PB-OS11 review-fix — flip gemstone_array + druids_repository known_wrong→Complete
@@ -259,7 +258,6 @@ a8eb45b5 scutemob-114: PB-EF12 — granted any_color ManaAbility color choice (E
 9418011b scutemob-111: PB-EF10 COMMIT 3 — Condition::SacrificeFired + version bump (PROTOCOL 15, HASH 53)
 051887f2 scutemob-111: PB-EF10 COMMIT 2 — runtime search cap (max_cmc_amount + ManaValueOfSacrificedCreature)
 ad9755ff scutemob-111: PB-EF10 COMMIT 1 — SacrificedCreatureLki data-model migration + ToughnessOfSacrificedCreature
-eba28604 scutemob-110: PB-EF9 — EffectDuration::WhileYouControlSource (EF-W-PB2-5)
 ```
 
 ## Missing card-defs sidecar
