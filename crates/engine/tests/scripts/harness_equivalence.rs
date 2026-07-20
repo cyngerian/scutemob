@@ -47,16 +47,22 @@
 //! test would. `Command` derives `PartialEq`, so command inequality is asserted
 //! directly and is the diagnostic you actually want; the hash is the backstop.
 //!
-//! **Coverage is a tracked subset, ratcheted (SR-31).** Eleven of
-//! `translate_player_action`'s ~79 dispatch arms (more once the alt-cost
+//! **Coverage is a tracked subset, ratcheted (SR-31, extended PB-RS2).** Thirteen
+//! of `translate_player_action`'s ~79 dispatch arms (more once the alt-cost
 //! dimensions of `cast_spell` are counted separately) are driven here. The base
 //! six from SR-9b — `pass_priority`, `play_land`, `tap_for_mana`, `cast_spell`
 //! (single target), `activate_ability`, `declare_attackers` — plus five
 //! alternative-cost shapes added by SR-31: **convoke, delve, kicker, escape,
-//! modal**, chosen by what the golden-script corpus and the card base actually
-//! use. `CROSS_VALIDATED_SHAPES` records the covered set and
-//! `cross_validated_shape_coverage_is_ratcheted` enforces it exactly, so coverage
-//! can only grow, never regress silently — which is how it sat at six,
+//! modal**, plus two hybrid/Phyrexian payment-plan shapes added by PB-RS2:
+//! **`tap_for_mana:hybrid`** (Graven Cairns — the highest-value addition, since
+//! `tap_for_mana` had zero cross-validation before and it is the exact shape that
+//! shipped every filter land as a free "{T}: Add two mana" land, OOS-RS-2) and
+//! **`activate_ability:phyrexian`** (Birthing Pod — the closest real substitute
+//! for `activate_ability:hybrid`, since no card in the roster carries a hybrid pip
+//! in a stack-using activated ability). Chosen by what the golden-script corpus
+//! and the card base actually use. `CROSS_VALIDATED_SHAPES` records the covered
+//! set and `cross_validated_shape_coverage_is_ratcheted` enforces it exactly, so
+//! coverage can only grow, never regress silently — which is how it sat at six,
 //! undocumented, until SR-31. Still uncovered: improvise, bargain, emerge,
 //! casualty, assist, replicate, splice, escalate, squad, mutate, ninjutsu — a
 //! mis-populated field in any of those is invisible to this file. Adding a
@@ -170,8 +176,8 @@ use mtg_engine::testing::replay_harness::{build_initial_state, enrich_spec_from_
 use mtg_engine::testing::script_schema::{ActionTarget, AttackerDeclaration, InitialState};
 use mtg_engine::{
     all_cards, card_name_to_id, process_command, AdditionalCost, AltCostKind, CardDefinition,
-    CardRegistry, Command, GameState, GameStateBuilder, ManaPool, ObjectId, ObjectSpec, PlayerId,
-    Step, Target, ZoneId,
+    CardRegistry, Command, GameState, GameStateBuilder, HybridManaPayment, ManaColor, ManaPool,
+    ObjectId, ObjectSpec, PlayerId, Step, Target, ZoneId,
 };
 
 // ── Fingerprint ───────────────────────────────────────────────────────────────
@@ -239,6 +245,13 @@ enum Move {
     TapForMana {
         player: &'static str,
         land: &'static str,
+        /// PB-RS2: 0-indexed into `mana_abilities`. `0` (the default every
+        /// pre-PB-RS2 call site uses) is the common "basic land" case; a filter
+        /// land's `{Hybrid},{T}` ability is index 1.
+        ability_index: usize,
+        /// PB-RS2 (CR 107.4e via CR 605.1a): color names (e.g. `"black"`) for a
+        /// hybrid payment plan, in cost order. Empty for every non-hybrid move.
+        hybrid_choices: &'static [&'static str],
     },
     CastSpell {
         player: &'static str,
@@ -250,6 +263,12 @@ enum Move {
         source: &'static str,
         index: usize,
         targets: &'static [Tgt],
+        /// PB-RS2 (CR 107.4e via CR 602.2b): mirrors `TapForMana::hybrid_choices`.
+        hybrid_choices: &'static [&'static str],
+        /// PB-RS2 (CR 107.4f via CR 602.2b): true = pay 2 life, false = pay mana,
+        /// one entry per Phyrexian pip in cost order. Empty for every non-Phyrexian
+        /// move.
+        phyrexian_life_payments: &'static [bool],
     },
     DeclareAttackers {
         player: &'static str,
@@ -333,8 +352,28 @@ impl Move {
         match self {
             Move::Pass(_) => "pass_priority",
             Move::PlayLand { .. } => "play_land",
+            // PB-RS2: a hybrid payment plan gets its own label — the mana-ability
+            // path (`TapForMana`) was OOS-RS-2's live-wrong roster (7 shipped
+            // filter lands), and cross-validating it here is the highest-value
+            // addition in the PB (§7.4 of the plan): it is the shape that had no
+            // cross-validation and was free.
+            Move::TapForMana { hybrid_choices, .. } if !hybrid_choices.is_empty() => {
+                "tap_for_mana:hybrid"
+            }
             Move::TapForMana { .. } => "tap_for_mana",
             Move::CastSpell { .. } => "cast_spell",
+            // PB-RS2: no card in the roster carries a hybrid pip in a stack-using
+            // activated ability (only mana abilities do — see
+            // `pb_rs2_hybrid_phyrexian_activation_roster.rs`), so `activate_ability:
+            // hybrid` has no real scenario to build. Birthing Pod's Phyrexian pip
+            // exercises the SAME code path in `abilities.rs` (the flatten +
+            // combined-life-check block added by this PB does not distinguish
+            // hybrid from Phyrexian), so `activate_ability:phyrexian` is the
+            // closest real substitute and is what this file actually covers.
+            Move::ActivateAbility {
+                phyrexian_life_payments,
+                ..
+            } if !phyrexian_life_payments.is_empty() => "activate_ability:phyrexian",
             Move::ActivateAbility { .. } => "activate_ability",
             Move::DeclareAttackers { .. } => "declare_attackers",
             Move::CastAlt {
@@ -378,6 +417,11 @@ impl Move {
         };
         let ability_index = match self {
             Move::ActivateAbility { index, .. } => *index,
+            // PB-RS2: a filter land's hybrid ability is index 1 (index 0 is the
+            // plain {T}: Add {C} ability); TapForMana now honors an explicit index
+            // (was hardcoded to 0 pre-PB-RS2 — see replay_harness.rs's
+            // `"tap_for_mana"` arm).
+            Move::TapForMana { ability_index, .. } => *ability_index,
             _ => 0,
         };
         let targets: Vec<ActionTarget> = match self {
@@ -418,6 +462,20 @@ impl Move {
             ),
             _ => (vec![], vec![], vec![], false, vec![]),
         };
+        // PB-RS2: hybrid/Phyrexian payment plan inputs, empty for every move but
+        // TapForMana/ActivateAbility instances that carry one.
+        let hybrid_choices: Vec<String> = match self {
+            Move::TapForMana { hybrid_choices, .. }
+            | Move::ActivateAbility { hybrid_choices, .. } => to_strings(hybrid_choices),
+            _ => vec![],
+        };
+        let phyrexian_life_payments: Vec<bool> = match self {
+            Move::ActivateAbility {
+                phyrexian_life_payments,
+                ..
+            } => phyrexian_life_payments.to_vec(),
+            _ => vec![],
+        };
         translate(
             self.action_str(),
             players[self.actor()],
@@ -430,8 +488,8 @@ impl Move {
             &escape,
             kicked,
             modes,
-            &[],
-            &[],
+            &hybrid_choices,
+            &phyrexian_life_payments,
             state,
             players,
         )
@@ -452,13 +510,17 @@ impl Move {
                 player,
                 card: in_hand(state, player, card)?,
             }),
-            Move::TapForMana { land, .. } => Some(Command::TapForMana {
+            Move::TapForMana {
+                land,
+                ability_index,
+                hybrid_choices,
+                ..
+            } => Some(Command::TapForMana {
                 player,
                 source: on_battlefield(state, player, land)?,
-                ability_index: 0,
-
+                ability_index: *ability_index,
                 chosen_color: None,
-                hybrid_choices: vec![],
+                hybrid_choices: direct_hybrid_choices(hybrid_choices),
                 phyrexian_life_payments: vec![],
             }),
             Move::CastSpell { card, targets, .. } => {
@@ -484,6 +546,8 @@ impl Move {
                 source,
                 index,
                 targets,
+                hybrid_choices,
+                phyrexian_life_payments,
                 ..
             } => Some(Command::ActivateAbility {
                 player,
@@ -494,8 +558,8 @@ impl Move {
                 sacrifice_target: None,
                 x_value: None,
                 modes_chosen: vec![],
-                hybrid_choices: vec![],
-                phyrexian_life_payments: vec![],
+                hybrid_choices: direct_hybrid_choices(hybrid_choices),
+                phyrexian_life_payments: phyrexian_life_payments.to_vec(),
             }),
             Move::DeclareAttackers { attackers, .. } => {
                 let mut pairs = Vec::new();
@@ -571,6 +635,26 @@ impl Move {
             }
         }
     }
+}
+
+/// PB-RS2 (CR 107.4e): parse a `Move`'s hybrid-choice color names into
+/// `HybridManaPayment` the direct regime's `Command` literal can carry — the same
+/// parse `replay_harness.rs`'s `parse_hybrid_choices` performs for the harness
+/// regime, kept as an independent implementation here on purpose (SR-9b: the direct
+/// regime must not call into `replay_harness`).
+fn direct_hybrid_choices(names: &[&str]) -> Vec<HybridManaPayment> {
+    names
+        .iter()
+        .map(|name| match *name {
+            "white" => HybridManaPayment::Color(ManaColor::White),
+            "blue" => HybridManaPayment::Color(ManaColor::Blue),
+            "black" => HybridManaPayment::Color(ManaColor::Black),
+            "red" => HybridManaPayment::Color(ManaColor::Red),
+            "green" => HybridManaPayment::Color(ManaColor::Green),
+            "generic" => HybridManaPayment::Generic,
+            other => panic!("direct_hybrid_choices: unrecognized color name {other:?}"),
+        })
+        .collect()
 }
 
 fn to_action_target(t: &Tgt) -> ActionTarget {
@@ -906,6 +990,8 @@ const BOLT_MOVES: &[Move] = &[
     Move::TapForMana {
         player: "p1",
         land: "Mountain",
+        ability_index: 0,
+        hybrid_choices: &[],
     },
     Move::CastSpell {
         player: "p1",
@@ -957,6 +1043,8 @@ const EQUIP_MOVES: &[Move] = &[
         source: "Lightning Greaves",
         index: 0,
         targets: &[Tgt::Permanent("Llanowar Elves")],
+        hybrid_choices: &[],
+        phyrexian_life_payments: &[],
     },
     Move::Pass("p1"),
     Move::Pass("p2"),
@@ -1298,6 +1386,111 @@ const MODAL_MOVES: &[Move] = &[
     Move::Pass("p2"),
 ];
 
+/// PB-RS2 (CR 107.4e via CR 605.1a, §7.4 of the plan): tap Graven Cairns's
+/// `{B/R},{T}` filter ability, paying the hybrid pip with the primed Black mana.
+/// This is the highest-value addition in the file per the plan: `tap_for_mana` had
+/// NO cross-validation before this PB, and it is the exact shape that let every
+/// filter land ship as a free "{T}: Add two mana" land for the life of the project
+/// (OOS-RS-2).
+const FILTER_HYBRID_JSON: &str = r#"{
+  "format": "commander",
+  "turn_number": 3,
+  "active_player": "p1",
+  "phase": "precombat_main",
+  "priority": "p1",
+  "players": {
+    "p1": { "life": 40, "land_plays_remaining": 0, "mana_pool": { "black": 1 } },
+    "p2": { "life": 40, "land_plays_remaining": 0 }
+  },
+  "zones": {
+    "battlefield": {
+      "p1": [{ "card": "Graven Cairns" }]
+    }
+  }
+}"#;
+
+fn filter_hybrid_direct(defs: &HashMap<String, CardDefinition>) -> GameState {
+    GameStateBuilder::new()
+        .at_step(Step::PreCombatMain)
+        .active_player(P1)
+        .turn_number(3)
+        .with_registry(CardRegistry::new(all_cards()))
+        .add_player_with(P1, |p| {
+            p.life(40).land_plays(0).mana(ManaPool {
+                black: 1,
+                ..Default::default()
+            })
+        })
+        .add_player_with(P2, |p| p.life(40).land_plays(0))
+        .object(spec(defs, P1, "Graven Cairns", ZoneId::Battlefield))
+        .build()
+        .expect("filter_hybrid scenario builds")
+}
+
+const FILTER_HYBRID_MOVES: &[Move] = &[
+    Move::TapForMana {
+        player: "p1",
+        land: "Graven Cairns",
+        // {B/R},{T}: Add {B}{B}, {B}{R}, or {R}{R} — ability 0 is {T}: Add {C}.
+        ability_index: 1,
+        hybrid_choices: &["black"],
+    },
+    Move::Pass("p1"),
+    Move::Pass("p2"),
+];
+
+/// PB-RS2 (CR 107.4f via CR 602.2b, §7.4 of the plan): activate Birthing Pod's
+/// `{1}{G/P},{T},Sacrifice a creature` ability, choosing to pay the Phyrexian pip
+/// with life. No card in the roster carries a hybrid pip in a stack-using activated
+/// ability (only mana abilities do — the 7 filter lands, covered by `filter_hybrid`
+/// above; see `pb_rs2_hybrid_phyrexian_activation_roster.rs`'s roster sweep), so
+/// this is the closest real substitute for `activate_ability:hybrid` — it exercises
+/// the SAME `abilities.rs` flatten + combined-life-check block this PB added,
+/// differing only in pip kind. No sacrifice fodder is on the battlefield, so BOTH
+/// regimes build the identical `Command::ActivateAbility` (with
+/// `phyrexian_life_payments: [true]`, `sacrifice_target: None`) and get identically
+/// rejected for the missing sacrifice cost — which is still a real proof of the
+/// thesis (`translate_player_action` builds the same `Command` a hand-written test
+/// would), just not a success-path one.
+const BIRTHING_POD_JSON: &str = r#"{
+  "format": "commander",
+  "turn_number": 3,
+  "active_player": "p1",
+  "phase": "precombat_main",
+  "priority": "p1",
+  "players": {
+    "p1": { "life": 40, "land_plays_remaining": 0 },
+    "p2": { "life": 40, "land_plays_remaining": 0 }
+  },
+  "zones": {
+    "battlefield": {
+      "p1": [{ "card": "Birthing Pod" }]
+    }
+  }
+}"#;
+
+fn birthing_pod_direct(defs: &HashMap<String, CardDefinition>) -> GameState {
+    GameStateBuilder::new()
+        .at_step(Step::PreCombatMain)
+        .active_player(P1)
+        .turn_number(3)
+        .with_registry(CardRegistry::new(all_cards()))
+        .add_player_with(P1, |p| p.life(40).land_plays(0))
+        .add_player_with(P2, |p| p.life(40).land_plays(0))
+        .object(spec(defs, P1, "Birthing Pod", ZoneId::Battlefield))
+        .build()
+        .expect("birthing_pod scenario builds")
+}
+
+const BIRTHING_POD_MOVES: &[Move] = &[Move::ActivateAbility {
+    player: "p1",
+    source: "Birthing Pod",
+    index: 0,
+    targets: &[],
+    hybrid_choices: &[],
+    phyrexian_life_payments: &[true],
+}];
+
 const SCENARIOS: &[Scenario] = &[
     Scenario {
         name: "bolt",
@@ -1338,6 +1531,16 @@ const SCENARIOS: &[Scenario] = &[
         name: "modal",
         script_json: MODAL_JSON,
         direct: modal_direct,
+    },
+    Scenario {
+        name: "filter_hybrid",
+        script_json: FILTER_HYBRID_JSON,
+        direct: filter_hybrid_direct,
+    },
+    Scenario {
+        name: "birthing_pod",
+        script_json: BIRTHING_POD_JSON,
+        direct: birthing_pod_direct,
     },
 ];
 
@@ -1563,6 +1766,85 @@ fn equivalence_modal() {
     assert_equivalent(scenario("modal"), MODAL_MOVES);
 }
 
+/// PB-RS2 §7.4 (CR 107.4e via CR 605.1a) — the highest-value addition in this
+/// file: `tap_for_mana` had NO cross-validation before this PB, and it is the
+/// exact shape that let every filter land ship as a free "{T}: Add two mana" land
+/// (OOS-RS-2). Non-vacuous per the file's own bar (unlike `birthing_pod` below):
+/// the scenario ACCEPTS, spends the primed Black mana, and the pool ends
+/// different from where it started.
+#[test]
+fn equivalence_filter_hybrid() {
+    assert_equivalent(scenario("filter_hybrid"), FILTER_HYBRID_MOVES);
+
+    // Non-vacuity: the move must actually be accepted and move the mana pool —
+    // proving the hybrid payment plan was threaded all the way through, not just
+    // that the harness and direct regimes agreed on a rejection.
+    let init: InitialState = serde_json::from_str(scenario("filter_hybrid").script_json).unwrap();
+    let (state, players) = build_initial_state(&init);
+    let trace = drive(state, &players, FILTER_HYBRID_MOVES, |m, st, p| {
+        m.harness_command(st, p)
+    });
+    assert!(
+        matches!(trace.steps[0].1, Outcome::Accepted(_)),
+        "filter_hybrid move 0 (TapForMana with a hybrid payment plan) was not accepted: {:?}",
+        trace.steps[0].1
+    );
+    let cmd = trace.steps[0].0.as_ref().expect("translates");
+    match cmd {
+        Command::TapForMana { hybrid_choices, .. } => assert!(
+            !hybrid_choices.is_empty(),
+            "filter_hybrid's TapForMana command carries no hybrid_choices — it is a \
+             plain tap mislabeled, and would not exercise the payment plan it claims"
+        ),
+        other => panic!("expected Command::TapForMana, got {other:?}"),
+    }
+}
+
+/// PB-RS2 §7.4 (CR 107.4f via CR 602.2b) — the closest real substitute for
+/// `activate_ability:hybrid` (no card in the roster has a hybrid pip in a
+/// stack-using activated ability; see
+/// `pb_rs2_hybrid_phyrexian_activation_roster.rs`'s roster sweep). Both regimes
+/// build the identical `Command::ActivateAbility { phyrexian_life_payments:
+/// [true], sacrifice_target: None, .. }` and are identically rejected for the
+/// missing sacrifice cost. This is deliberately weaker than `equivalence_
+/// filter_hybrid`'s ACCEPT-path proof (the file's own doc note above warns a
+/// reject-only equivalence can be vacuous, per the historical `equip` bug) — the
+/// non-vacuity check below is therefore explicit: the compared `Command` must
+/// carry a non-empty `phyrexian_life_payments`, so the equality assertion in
+/// `assert_equivalent` is comparing a REAL populated field between the two
+/// regimes, not two equally-empty defaults (the shape of the historical
+/// vacuity). This is what distinguishes it from the `equip` failure mode.
+#[test]
+fn equivalence_birthing_pod() {
+    assert_equivalent(scenario("birthing_pod"), BIRTHING_POD_MOVES);
+
+    let init: InitialState = serde_json::from_str(scenario("birthing_pod").script_json).unwrap();
+    let (state, players) = build_initial_state(&init);
+    let trace = drive(state, &players, BIRTHING_POD_MOVES, |m, st, p| {
+        m.harness_command(st, p)
+    });
+    let cmd = trace.steps[0].0.as_ref().expect("translates");
+    match cmd {
+        Command::ActivateAbility {
+            phyrexian_life_payments,
+            ..
+        } => assert_eq!(
+            phyrexian_life_payments,
+            &vec![true],
+            "birthing_pod's ActivateAbility command must carry the Phyrexian payment plan \
+             it claims to test — otherwise the equality proof compares two empty defaults \
+             (the historical `equip` vacuity this file's doc note warns about)"
+        ),
+        other => panic!("expected Command::ActivateAbility, got {other:?}"),
+    }
+    assert!(
+        matches!(trace.steps[0].1, Outcome::Rejected(_)),
+        "birthing_pod move 0 was expected to be rejected (no sacrifice fodder on the \
+         battlefield): {:?}",
+        trace.steps[0].1
+    );
+}
+
 /// The alt-cost scenarios must be non-vacuous for the same reason the base ones
 /// are: an equivalence that both regimes *reject* identically proves nothing
 /// (the pre-SR-9b `equip` scenario was green precisely because both sides
@@ -1678,6 +1960,16 @@ const CROSS_VALIDATED_SHAPES: &[&str] = &[
     "cast_spell:kicker",
     "cast_spell_escape",
     "cast_spell_modal",
+    // Hybrid/Phyrexian payment-plan shapes (PB-RS2, §7.4). `tap_for_mana:hybrid`
+    // (Graven Cairns) is the highest-value addition in the file: `tap_for_mana` had
+    // NO cross-validation before this PB, and it is the exact shape that shipped
+    // every filter land as a free "{T}: Add two mana" land (OOS-RS-2).
+    // `activate_ability:phyrexian` (Birthing Pod) is the closest real substitute
+    // for `activate_ability:hybrid` — no card in the roster carries a hybrid pip in
+    // a stack-using activated ability (see
+    // `pb_rs2_hybrid_phyrexian_activation_roster.rs`).
+    "tap_for_mana:hybrid",
+    "activate_ability:phyrexian",
 ];
 
 /// A lower bound on the size of `translate_player_action`'s dispatch surface —
@@ -1705,6 +1997,8 @@ const ALL_VALIDATED_MOVE_SETS: &[&[Move]] = &[
     KICKER_MOVES,
     ESCAPE_MOVES,
     MODAL_MOVES,
+    FILTER_HYBRID_MOVES,
+    BIRTHING_POD_MOVES,
 ];
 
 /// SR-31 ratchet: the set of shapes actually driven through both regimes must
@@ -1919,6 +2213,8 @@ fn equivalence_unresolvable_target() {
         Move::TapForMana {
             player: "p1",
             land: "Mountain",
+            ability_index: 0,
+            hybrid_choices: &[],
         },
         Move::CastSpell {
             player: "p1",
@@ -1953,10 +2249,14 @@ const MOVE_POOL: &[Move] = &[
     Move::TapForMana {
         player: "p1",
         land: "Mountain",
+        ability_index: 0,
+        hybrid_choices: &[],
     },
     Move::TapForMana {
         player: "p1",
         land: "Forest",
+        ability_index: 0,
+        hybrid_choices: &[],
     }, // untranslatable until the Forest is on the battlefield
     Move::CastSpell {
         player: "p1",
@@ -1977,6 +2277,8 @@ const MOVE_POOL: &[Move] = &[
         source: "Mountain",
         index: 0,
         targets: &[],
+        hybrid_choices: &[],
+        phyrexian_life_payments: &[],
     }, // illegal: Mountain has no non-mana activated ability
 ];
 

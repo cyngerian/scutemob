@@ -713,7 +713,7 @@ fn test_os5_muxus_registers_and_pumps_zero_floor() {
 #[test]
 fn test_os5_version_sentinels() {
     assert_eq!(
-        PROTOCOL_VERSION, 26,
+        PROTOCOL_VERSION, 27,
         "PROTOCOL_VERSION should be 20 after PB-OS5 (EffectAmount gained \
          OtherAttackersSharingCreatureType)"
     );

@@ -696,7 +696,7 @@ fn test_os7_version_sentinels() {
          history block on every HASH change."
     );
     assert_eq!(
-        PROTOCOL_VERSION, 26,
+        PROTOCOL_VERSION, 27,
         "PROTOCOL_VERSION drifted from this live sentinel. PB-OS7 first moved it to 22 (see the \
          protocol.rs `- 22:` history line for why it moved despite the plan predicting no bump); \
          it is since 23 (PB-OS8 Effect::LookAtTopThenPlace). Bump this value with the protocol.rs \

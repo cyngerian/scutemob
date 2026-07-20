@@ -1173,7 +1173,7 @@ fn test_min_cmc_amount_hashes_distinctly() {
 #[test]
 fn test_pb_os8_version_sentinels() {
     assert_eq!(
-        PROTOCOL_VERSION, 26,
+        PROTOCOL_VERSION, 27,
         "PROTOCOL_VERSION should be 23 after PB-OS8 (Effect::LookAtTopThenPlace + \
          TargetFilter.min_cmc_amount)"
     );

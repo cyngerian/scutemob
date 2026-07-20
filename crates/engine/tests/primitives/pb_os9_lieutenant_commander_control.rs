@@ -881,7 +881,7 @@ fn test_check_static_condition_fallback_routes_you_control_your_commander() {
 #[test]
 fn test_pb_os9_version_sentinels() {
     assert_eq!(
-        PROTOCOL_VERSION, 26,
+        PROTOCOL_VERSION, 27,
         "PROTOCOL_VERSION should be 24 after PB-OS9 (Condition::YouControlYourCommander)"
     );
     assert_eq!(

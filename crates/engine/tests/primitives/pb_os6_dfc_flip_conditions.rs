@@ -873,7 +873,7 @@ fn test_os6_cards_registered() {
 #[test]
 fn test_os6_version_sentinels() {
     assert_eq!(
-        PROTOCOL_VERSION, 26,
+        PROTOCOL_VERSION, 27,
         "PROTOCOL_VERSION should be 21 after PB-OS6"
     );
     assert_eq!(
