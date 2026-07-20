@@ -270,6 +270,14 @@ impl ManaPool {
 ///
 /// This exact silence made every filter land a free "{T}: Add two mana" land for the
 /// life of the project (OOS-RS-2). PB-RS2.
+///
+/// **Release note (review finding #7):** `debug_assert!` compiles out entirely in a
+/// release build (`diagnostics.rs`'s "releases return `None`" tradeoff, applied here
+/// by mechanism even though this isn't a `state::diagnostics` call). In release, this
+/// guard fires NEVER — release correctness rests entirely on the three call sites
+/// (`abilities.rs`, `mana.rs`, `casting.rs`) actually flattening before they reach
+/// `can_spend`/`spend`, not on this assertion. Do not treat this guard as load-bearing
+/// for release correctness; it is a debug/test-time tripwire only.
 #[track_caller]
 fn debug_assert_flattened(cost: &crate::state::game_object::ManaCost) {
     debug_assert!(
@@ -549,5 +557,22 @@ mod tests {
             ..Default::default()
         };
         assert!(!pool.can_spend(&cost, None));
+    }
+
+    /// Review finding #17: the residue guard's `spend` copy (`player.rs:191`) had no
+    /// dedicated test — only `can_spend`'s copy was exercised above. `debug_assert_flattened`
+    /// is called separately at the top of each function, so a defect in ONE call site
+    /// (e.g. it being deleted from `spend` while staying in `can_spend`) would not be
+    /// caught by the `can_spend`-only tests. This test calls `spend` directly.
+    #[test]
+    #[should_panic(expected = "unflattened mana cost reached the payment path")]
+    fn unflattened_hybrid_cost_panics_in_debug_via_spend() {
+        let mut pool = ManaPool::default();
+        let cost = ManaCost {
+            hybrid: vec![HybridMana::ColorColor(ManaColor::Black, ManaColor::Red)],
+            ..Default::default()
+        };
+        // Never reached — the debug_assert! inside spend panics first.
+        pool.spend(&cost, None);
     }
 }

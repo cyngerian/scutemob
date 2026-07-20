@@ -238,7 +238,7 @@ fn hybrid_activated_cost_payable_with_either_half() {
         .mana_pool
         .add(ManaColor::Red, 1);
     let source = find_by_name(&state, "Test Filter Rock");
-    process_command(
+    let (state, _events) = process_command(
         state,
         Command::ActivateAbility {
             player: p(1),
@@ -254,6 +254,9 @@ fn hybrid_activated_cost_payable_with_either_half() {
         },
     )
     .expect("paying the red half of {B/R} with red mana must succeed");
+    // Review finding #18: the {R} branch asserted success but never asserted the pool
+    // drained, unlike the {B} branch above — added for symmetry.
+    assert_eq!(pool_amount(&state, p(1), ManaColor::Red), 0);
 
     // Only {B} in pool, choosing Red -> Err (wrong half).
     let mut state = GameStateBuilder::new()
@@ -402,32 +405,40 @@ fn hybrid_empty_choices_defaults_to_first_color() {
     );
 }
 
-/// CR 107.4e ("{2/B} ... either one black mana or two mana of any type"), CR 202.3f — a
-/// monocolored hybrid pip is payable as two generic mana.
-#[test]
-fn monocolored_hybrid_payable_as_two_generic() {
-    let source = ObjectSpec::artifact(p(1), "Test Monohybrid Rock").with_activated_ability(
-        ActivatedAbility {
-            cost: ActivationCost {
-                mana_cost: Some(ManaCost {
-                    hybrid: vec![HybridMana::GenericColor(ManaColor::Black)],
-                    ..Default::default()
-                }),
+fn monohybrid_rock_source(owner: PlayerId) -> ObjectSpec {
+    ObjectSpec::artifact(owner, "Test Monohybrid Rock").with_activated_ability(ActivatedAbility {
+        cost: ActivationCost {
+            mana_cost: Some(ManaCost {
+                hybrid: vec![HybridMana::GenericColor(ManaColor::Black)],
                 ..Default::default()
-            },
-            effect: Some(Effect::GainLife {
-                amount: EffectAmount::Fixed(1),
-                player: PlayerTarget::Controller,
             }),
             ..Default::default()
         },
-    );
+        effect: Some(Effect::GainLife {
+            amount: EffectAmount::Fixed(1),
+            player: PlayerTarget::Controller,
+        }),
+        ..Default::default()
+    })
+}
+
+/// CR 107.4e ("{2/B} ... either one black mana or two mana of any type"), CR 202.3f — a
+/// monocolored hybrid pip is payable as two generic mana, and the "two" is load-bearing:
+/// paying `{2/B}` with `Generic` must consume exactly 2 generic mana, not 1. (Review
+/// finding #14: the prior version of this test asserted only `Ok(_)` after priming 2
+/// colorless — changing `flatten_hybrid_phyrexian`'s `GenericColor` + `Generic` arm from
+/// `flat.generic += 2` to `+= 1` would still have passed, undercharging by exactly the
+/// amount CR 107.4e specifies. Now asserts the actual pool delta and adds the negative
+/// (1 colorless is NOT enough) and the "one black mana" (the other half of CR 107.4e)
+/// cases.)
+#[test]
+fn monocolored_hybrid_payable_as_two_generic() {
     let mut state = GameStateBuilder::new()
         .add_player(p(1))
         .add_player(p(2))
         .active_player(p(1))
         .at_step(Step::PreCombatMain)
-        .object(source)
+        .object(monohybrid_rock_source(p(1)))
         .build()
         .expect("state builds");
     state
@@ -437,7 +448,7 @@ fn monocolored_hybrid_payable_as_two_generic() {
         .mana_pool
         .add(ManaColor::Colorless, 2);
     let source = find_by_name(&state, "Test Monohybrid Rock");
-    process_command(
+    let (state, _events) = process_command(
         state,
         Command::ActivateAbility {
             player: p(1),
@@ -453,6 +464,96 @@ fn monocolored_hybrid_payable_as_two_generic() {
         },
     )
     .expect("{2/B} must be payable as 2 generic mana (CR 107.4e/202.3f)");
+    assert_eq!(
+        pool_amount(&state, p(1), ManaColor::Colorless),
+        0,
+        "{{2/B}} paid with Generic must consume exactly 2 colorless mana — the whole point \
+         of CR 107.4e's 'two mana of any type' clause"
+    );
+}
+
+/// CR 107.4e negative case: 1 colorless mana is NOT enough to pay `{2/B}` via the
+/// `Generic` option (it costs 2 generic, not 1). Sibling of
+/// `monocolored_hybrid_payable_as_two_generic` (review finding #14).
+#[test]
+fn monocolored_hybrid_one_generic_is_insufficient() {
+    let mut state = GameStateBuilder::new()
+        .add_player(p(1))
+        .add_player(p(2))
+        .active_player(p(1))
+        .at_step(Step::PreCombatMain)
+        .object(monohybrid_rock_source(p(1)))
+        .build()
+        .expect("state builds");
+    state
+        .players_mut()
+        .get_mut(&p(1))
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Colorless, 1);
+    let source = find_by_name(&state, "Test Monohybrid Rock");
+    let result = process_command(
+        state,
+        Command::ActivateAbility {
+            player: p(1),
+            source,
+            ability_index: 0,
+            targets: vec![],
+            discard_card: None,
+            sacrifice_target: None,
+            x_value: None,
+            modes_chosen: vec![],
+            hybrid_choices: vec![HybridManaPayment::Generic],
+            phyrexian_life_payments: vec![],
+        },
+    );
+    assert!(
+        matches!(result, Err(GameStateError::InsufficientMana)),
+        "{{2/B}} paid via Generic requires 2 mana; 1 colorless must be rejected: {result:?}"
+    );
+}
+
+/// CR 107.4e ("{2/B} ... either one black mana"), the other half of the monocolored
+/// hybrid pip: paying with the named color costs exactly 1 mana of that color. Sibling of
+/// `monocolored_hybrid_payable_as_two_generic` (review finding #14).
+#[test]
+fn monocolored_hybrid_payable_as_one_black() {
+    let mut state = GameStateBuilder::new()
+        .add_player(p(1))
+        .add_player(p(2))
+        .active_player(p(1))
+        .at_step(Step::PreCombatMain)
+        .object(monohybrid_rock_source(p(1)))
+        .build()
+        .expect("state builds");
+    state
+        .players_mut()
+        .get_mut(&p(1))
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Black, 1);
+    let source = find_by_name(&state, "Test Monohybrid Rock");
+    let (state, _events) = process_command(
+        state,
+        Command::ActivateAbility {
+            player: p(1),
+            source,
+            ability_index: 0,
+            targets: vec![],
+            discard_card: None,
+            sacrifice_target: None,
+            x_value: None,
+            modes_chosen: vec![],
+            hybrid_choices: vec![HybridManaPayment::Color(ManaColor::Black)],
+            phyrexian_life_payments: vec![],
+        },
+    )
+    .expect("{2/B} must be payable as 1 black mana (CR 107.4e)");
+    assert_eq!(
+        pool_amount(&state, p(1), ManaColor::Black),
+        0,
+        "{{2/B}} paid with Color(Black) must consume exactly 1 black mana"
+    );
 }
 
 // ── §9.3: Phyrexian — mana vs life ──────────────────────────────────────────────
@@ -880,32 +981,74 @@ fn filter_land_charges_its_hybrid_pip() {
             matches!(result, Err(GameStateError::InsufficientMana)),
             "{name}: only the wrong half in pool must reject: {result:?}"
         );
+
+        // Review finding #16: the table above only ever exercises half_a on the accept
+        // path (CR 107.4e allows paying with EITHER half). Prove half_b is payable too:
+        // half_b in pool, choice Color(half_b) -> Ok, half_b nets to 1 (spent then
+        // reproduced), half_a produced once.
+        let land = enrich(p(1), name, ZoneId::Battlefield, &defs);
+        let mut state = GameStateBuilder::new()
+            .add_player(p(1))
+            .add_player(p(2))
+            .with_registry(registry.clone())
+            .active_player(p(1))
+            .at_step(Step::PreCombatMain)
+            .object(land)
+            .build()
+            .unwrap_or_else(|e| panic!("{name}: state builds: {e:?}"));
+        state
+            .players_mut()
+            .get_mut(&p(1))
+            .unwrap()
+            .mana_pool
+            .add(half_b, 1);
+        let pool_before = state.player(p(1)).unwrap().mana_pool.total();
+        let source = find_by_name(&state, name);
+        let (state, _events) = process_command(
+            state,
+            Command::TapForMana {
+                player: p(1),
+                source,
+                ability_index: 1,
+                chosen_color: None,
+                hybrid_choices: vec![HybridManaPayment::Color(half_b)],
+                phyrexian_life_payments: vec![],
+            },
+        )
+        .unwrap_or_else(|e| panic!("{name}: paying half_b must succeed (CR 107.4e): {e:?}"));
+        let pool_after = state.player(p(1)).unwrap().mana_pool.total();
+        assert_eq!(
+            pool_amount(&state, p(1), half_b),
+            1,
+            "{name}: half_b nets to 1 (1 spent, then 1 reproduced by the filter effect)"
+        );
+        assert_eq!(
+            pool_amount(&state, p(1), half_a),
+            1,
+            "{name}: half_a (never paid) must be produced once by the filter effect"
+        );
+        assert_eq!(
+            pool_after as i64 - pool_before as i64,
+            1,
+            "{name}: net mana delta paying half_b must also be exactly +1 (2 produced - 1 \
+             paid), never +2"
+        );
     }
 }
 
 /// CR 107.4f, 602.2b — Birthing Pod's `{1}{G/P}` activation cost: mana-only case must
-/// reject an empty pool. Only runs if Birthing Pod is `Complete` (skips honestly rather
-/// than failing if the card def wasn't flipped this PB — see `memory/primitive-wip.md`
-/// for the disposition).
+/// reject an empty pool, and the positive paths below must charge real mana/life.
+/// This test does NOT self-skip if Birthing Pod regresses off `Complete` — the
+/// `Completeness` marker is a separate, dedicated ratchet
+/// (`birthing_pod_completeness_is_pinned_complete` in
+/// `crates/engine/tests/core/pb_rs2_hybrid_phyrexian_activation_roster.rs`), so a
+/// regression fails loudly in two places instead of this test silently passing with zero
+/// assertions (review finding #10/#13).
 #[test]
 fn birthing_pod_activation_charges_the_phyrexian_pip() {
-    let (defs, _registry) = build_defs_and_registry();
-    let Some(def) = defs.get("Birthing Pod") else {
-        panic!("Birthing Pod card def not found");
-    };
-    if !def.completeness.is_complete() {
-        eprintln!(
-            "birthing_pod_activation_charges_the_phyrexian_pip: Birthing Pod is not Complete \
-             (still {:?}) — see memory/primitive-wip.md's honest remaining-blocker note; \
-             skipping rather than failing.",
-            def.completeness
-        );
-        return;
-    }
-    // If Birthing Pod IS Complete, its activated ability must be at index 0 and must
-    // charge its {1}{G/P} cost correctly. This assertion is intentionally strict: a
-    // Complete Birthing Pod that doesn't pay real mana would be exactly the
-    // "legal-but-wrong" hazard `project_legal_but_wrong_gap` warns about.
+    // Assertion is intentionally strict: a Complete Birthing Pod that doesn't pay real
+    // mana would be exactly the "legal-but-wrong" hazard `project_legal_but_wrong_gap`
+    // warns about.
     let (defs, registry) = build_defs_and_registry();
     let pod = enrich(p(1), "Birthing Pod", ZoneId::Battlefield, &defs);
     let state = GameStateBuilder::new()
@@ -1109,16 +1252,53 @@ fn phyrexian_life_payment_emits_life_lost_event() {
     );
 }
 
-// ── §9.5: Residue-guard integration sentinel ────────────────────────────────────
+// ── Review finding #9: extraneous hybrid/Phyrexian choices are rejected ─────────
 
-/// The residue guard (`ManaPool::can_spend`/`spend`'s `debug_assert_flattened`) has
-/// its own dedicated test in `crates/card-types/src/state/player.rs`'s `#[cfg(test)]`
-/// module (§6.4 of the plan: an engine integration test cannot reach an unflattened
-/// cost once this PB's payment-path fix lands, since every real call site flattens
-/// first). This is a placeholder documenting that fact so a reader of this file finds
-/// the pointer rather than a missing test.
+/// Review finding #9: `chosen_color` supplied for a fixed-colour mana ability is
+/// rejected with `InvalidCommand` (`mana.rs`'s pre-existing strictness); before this
+/// fix, `hybrid_choices`/`phyrexian_life_payments` supplied for a mana ability whose
+/// cost carries no hybrid/Phyrexian pip were silently ignored instead of mirroring
+/// that same strictness. Graven Cairns's ability 0 (`{T}: Add {C}`) has neither pip;
+/// its ability 1 is the `{B/R}` filter ability tested elsewhere in this file.
 #[test]
-fn residue_guard_test_lives_in_card_types_player_rs() {
-    // See crates/card-types/src/state/player.rs: unflattened_hybrid_cost_panics_in_debug,
-    // unflattened_phyrexian_cost_panics_in_debug, flattened_cost_does_not_panic.
+fn extraneous_hybrid_choices_on_a_pip_free_mana_ability_is_rejected() {
+    let (defs, registry) = build_defs_and_registry();
+    let land = enrich(p(1), "Graven Cairns", ZoneId::Battlefield, &defs);
+    let state = GameStateBuilder::new()
+        .add_player(p(1))
+        .add_player(p(2))
+        .with_registry(registry)
+        .active_player(p(1))
+        .at_step(Step::PreCombatMain)
+        .object(land)
+        .build()
+        .expect("state builds");
+    let source = find_by_name(&state, "Graven Cairns");
+    let result = process_command(
+        state,
+        Command::TapForMana {
+            player: p(1),
+            source,
+            ability_index: 0, // plain {T}: Add {C} — no hybrid pip
+            chosen_color: None,
+            hybrid_choices: vec![HybridManaPayment::Color(ManaColor::Black)],
+            phyrexian_life_payments: vec![],
+        },
+    );
+    assert!(
+        matches!(result, Err(GameStateError::InvalidCommand(_))),
+        "hybrid_choices supplied for a pip-free mana ability must be rejected, mirroring \
+         chosen_color's strictness: {result:?}"
+    );
 }
+
+// ── §9.5: Residue-guard integration sentinel ────────────────────────────────────
+//
+// The residue guard (`ManaPool::can_spend`/`spend`'s `debug_assert_flattened`) has
+// its own dedicated test in `crates/card-types/src/state/player.rs`'s `#[cfg(test)]`
+// module (§6.4 of the plan: an engine integration test cannot reach an unflattened
+// cost once this PB's payment-path fix lands, since every real call site flattens
+// first): unflattened_hybrid_cost_panics_in_debug, unflattened_phyrexian_cost_panics_in_debug,
+// flattened_cost_does_not_panic. Review finding #15: this used to be a `#[test]` fn
+// with an empty body (asserting nothing, inflating the test count) — now a plain
+// module comment instead.

@@ -79,6 +79,30 @@ fn every_hybrid_or_phyrexian_pip_in_an_activation_cost_is_accounted_for() {
     );
 }
 
+/// PB-RS2's one coverage flip has no other ratchet: `birthing_pod_activation_charges_the_phyrexian_pip`
+/// (in `crates/engine/tests/primitives/pb_rs2_activated_pip_payment.rs`) exercises the card's
+/// activated ability directly and loudly, but that test proves *behavior*, not *the
+/// `Completeness` marker itself* — nothing in this file previously read `completeness` at all
+/// (a fact review finding #10 caught `memory/primitive-wip.md` misstating). This test pins the
+/// marker: if a future change reverts Birthing Pod to `inert`/`partial`, this fails loudly
+/// instead of the sibling test silently self-skipping.
+#[test]
+fn birthing_pod_completeness_is_pinned_complete() {
+    let defs = mtg_engine::all_cards();
+    let pod = defs
+        .iter()
+        .find(|d| d.name == "Birthing Pod")
+        .expect("Birthing Pod card def must exist in the corpus");
+    assert!(
+        pod.completeness.is_complete(),
+        "Birthing Pod's completeness regressed to {:?} — this is PB-RS2's only coverage flip \
+         (OOS-OS8-1). If this is intentional, also revert \
+         `birthing_pod_activation_charges_the_phyrexian_pip` back to a self-skip and update \
+         this assertion's comment accordingly; do not just delete this test.",
+        pod.completeness
+    );
+}
+
 /// Non-vacuity: the walk must actually reach real `AbilityDefinition::Activated` costs.
 /// If the corpus scan or the DSL shape changed such that this always returns empty, the
 /// exact-set assertion above would degrade into "expected == {} == found" only by both

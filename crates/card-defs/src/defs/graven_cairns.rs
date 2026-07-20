@@ -1,6 +1,8 @@
 // Graven Cairns — Filter land, {T}: Add {C}. {B/R},{T}: Add {B}{B}, {B}{R}, or {R}{R}.
 // CR 605.1a: AddManaFilterChoice produces 1{B}+1{R} (middle option). M10 for full choice.
-// PB-RS2: the input hybrid pip in the filter ability's activation cost is now correctly charged (CR 107.4e) -- was free (OOS-RS-2). The output-side fixed-mode simplification noted above is unrelated and remains open.
+// PB-RS2: the input hybrid pip in the filter ability's activation cost is now
+// correctly charged (CR 107.4e) -- was free (OOS-RS-2). The output-side fixed-mode
+// simplification noted above is unrelated and remains open.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {

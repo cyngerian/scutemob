@@ -184,6 +184,35 @@ impl ManaCost {
         hybrid_choices: &[HybridManaPayment],
         phyrexian_life_payments: &[bool],
     ) -> Result<(ManaCost, u32), String> {
+        // Review finding #2: `Command::ActivateAbility`/`TapForMana`'s doc comments say
+        // "length must match the hybrid pip count," but nothing enforced it — a
+        // caller-supplied vector LONGER than the pip count was silently ignored past
+        // the pip count (each entry is read positionally with `.get(i)`, so trailing
+        // entries are simply never indexed). A client sending
+        // `phyrexian_life_payments: [true]` against a cost with zero Phyrexian pips got
+        // a silent no-op instead of the `InvalidCommand` a bad `chosen_color` gets. Given
+        // this whole PB's thesis is "a silently-defaulting payment channel is how
+        // OOS-RS-2 happened," tolerate SHORT vectors (the documented default-per-pip
+        // contract above is deliberate and used by real callers that only know they want
+        // "default everything") but reject OVER-LONG ones loudly.
+        if hybrid_choices.len() > self.hybrid.len() {
+            return Err(format!(
+                "hybrid_choices has {} entries but this cost has only {} hybrid pip(s) — an \
+                 over-long choice vector is rejected rather than silently ignored past the \
+                 pip count (CR 107.4e)",
+                hybrid_choices.len(),
+                self.hybrid.len()
+            ));
+        }
+        if phyrexian_life_payments.len() > self.phyrexian.len() {
+            return Err(format!(
+                "phyrexian_life_payments has {} entries but this cost has only {} Phyrexian \
+                 pip(s) — an over-long choice vector is rejected rather than silently ignored \
+                 past the pip count (CR 107.4f)",
+                phyrexian_life_payments.len(),
+                self.phyrexian.len()
+            ));
+        }
         let mut flat = ManaCost {
             white: self.white,
             blue: self.blue,
@@ -1501,5 +1530,69 @@ impl GameObject {
     /// game purposes except rules that specifically mention phased-out permanents.
     pub fn is_phased_in(&self) -> bool {
         !self.status.phased_out
+    }
+}
+#[cfg(test)]
+mod flatten_hybrid_phyrexian_tests {
+    use super::*;
+
+    fn one_hybrid_pip_cost() -> ManaCost {
+        ManaCost {
+            hybrid: vec![HybridMana::ColorColor(ManaColor::Black, ManaColor::Red)],
+            ..Default::default()
+        }
+    }
+
+    fn one_phyrexian_pip_cost() -> ManaCost {
+        ManaCost {
+            phyrexian: vec![PhyrexianMana::Single(ManaColor::Green)],
+            ..Default::default()
+        }
+    }
+
+    /// A short (here: empty) `hybrid_choices` vector is a deliberate, documented
+    /// default — not an error.
+    #[test]
+    fn short_hybrid_choices_defaults_rather_than_errors() {
+        let cost = one_hybrid_pip_cost();
+        assert!(cost.flatten_hybrid_phyrexian(&[], &[]).is_ok());
+    }
+
+    /// Review finding #2: an over-long `hybrid_choices` vector (more entries than the
+    /// cost has hybrid pips) must be rejected, not silently ignored past the pip count.
+    #[test]
+    fn over_long_hybrid_choices_is_rejected() {
+        let cost = one_hybrid_pip_cost();
+        let choices = vec![
+            HybridManaPayment::Color(ManaColor::Black),
+            HybridManaPayment::Color(ManaColor::Red), // extra — no second pip exists
+        ];
+        let result = cost.flatten_hybrid_phyrexian(&choices, &[]);
+        assert!(
+            result.is_err(),
+            "an hybrid_choices vector longer than the pip count must be rejected: {result:?}"
+        );
+    }
+
+    /// Review finding #2, Phyrexian sibling: an over-long `phyrexian_life_payments`
+    /// vector must also be rejected, not silently ignored past the pip count.
+    #[test]
+    fn over_long_phyrexian_life_payments_is_rejected() {
+        let cost = one_phyrexian_pip_cost();
+        let payments = vec![false, true]; // extra — no second pip exists
+        let result = cost.flatten_hybrid_phyrexian(&[], &payments);
+        assert!(
+            result.is_err(),
+            "a phyrexian_life_payments vector longer than the pip count must be rejected: \
+             {result:?}"
+        );
+    }
+
+    /// A same-length vector is exactly at the boundary and must succeed.
+    #[test]
+    fn exact_length_hybrid_choices_succeeds() {
+        let cost = one_hybrid_pip_cost();
+        let choices = vec![HybridManaPayment::Color(ManaColor::Black)];
+        assert!(cost.flatten_hybrid_phyrexian(&choices, &[]).is_ok());
     }
 }

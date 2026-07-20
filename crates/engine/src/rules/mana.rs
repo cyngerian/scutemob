@@ -208,6 +208,32 @@ pub fn handle_tap_for_mana(
         }
     }
     let mut events = Vec::new();
+    // Review finding #9: mirror `chosen_color`'s strictness above (an extraneous
+    // `chosen_color` on a fixed-colour ability is a clean `InvalidCommand`, not a
+    // silent ignore) rather than silently dropping a caller-supplied `hybrid_choices`/
+    // `phyrexian_life_payments` when this ability's cost carries no such pip. A client
+    // that thinks it is naming a payment choice for a pip that doesn't exist has a bug
+    // worth surfacing, not swallowing.
+    let cost_has_hybrid_pip = ability
+        .mana_cost
+        .as_ref()
+        .is_some_and(|mc| !mc.hybrid.is_empty());
+    let cost_has_phyrexian_pip = ability
+        .mana_cost
+        .as_ref()
+        .is_some_and(|mc| !mc.phyrexian.is_empty());
+    if !cost_has_hybrid_pip && !hybrid_choices.is_empty() {
+        return Err(GameStateError::InvalidCommand(
+            "hybrid_choices was supplied for a mana ability whose cost has no hybrid pip".into(),
+        ));
+    }
+    if !cost_has_phyrexian_pip && !phyrexian_life_payments.is_empty() {
+        return Err(GameStateError::InvalidCommand(
+            "phyrexian_life_payments was supplied for a mana ability whose cost has no \
+             Phyrexian pip"
+                .into(),
+        ));
+    }
     // PB-RS2 (CR 107.4e/107.4f via CR 605.1a/602.2b): flatten hybrid/Phyrexian choices
     // ONCE, here, before any legality check — a mana ability's activation cost is its
     // analog to a spell's mana cost/an activated ability's activation cost, and it must
@@ -218,13 +244,16 @@ pub fn handle_tap_for_mana(
     // (OOS-RS-2, the live-wrong roster this PB exists to fix). Flattening once and
     // reusing the result at the payment site (step 6b) avoids the two sites drifting,
     // which is structurally how that bug arose.
+    // Review finding #8: call the inherent `ManaCost::flatten_hybrid_phyrexian`
+    // directly rather than reaching into `crate::rules::casting` from the mana-ability
+    // hot path — the plan's §4 explicitly called that a layering smell (AC 5119
+    // requires one implementation, not one call path). `legal_actions.rs:1044` and
+    // `abilities.rs` (review finding #8) already call the inherent method this way.
     let (flat_mana_cost, phyrexian_life) = match &ability.mana_cost {
         Some(mana_cost) if !mana_cost.hybrid.is_empty() || !mana_cost.phyrexian.is_empty() => {
-            let (flat, life) = crate::rules::casting::flatten_hybrid_phyrexian(
-                mana_cost,
-                &hybrid_choices,
-                &phyrexian_life_payments,
-            )?;
+            let (flat, life) = mana_cost
+                .flatten_hybrid_phyrexian(&hybrid_choices, &phyrexian_life_payments)
+                .map_err(GameStateError::InvalidCommand)?;
             (Some(flat), life)
         }
         Some(mana_cost) => (Some(mana_cost.clone()), 0),
@@ -329,7 +358,13 @@ pub fn handle_tap_for_mana(
     //     one that can" — true by construction rather than incidentally, for the next
     //     cost component that DOES move an object (e.g. Krark-Clan Ironworks, out of
     //     SR-34 scope — see SF-9 in the findings doc).
-    if let Some(ref flat_cost) = flat_mana_cost {
+    // Review finding #3: bind the ORIGINAL (unflattened) cost in the same `if let` as
+    // `flat_mana_cost` rather than re-deriving it with a provably-safe-but-avoidable
+    // `.expect()` on `ability.mana_cost` — `flat_mana_cost.is_some() <=>
+    // ability.mana_cost.is_some()` by construction (see the match above), but the
+    // compiler cannot see that invariant, so binding both from the same source removes
+    // the possibility entirely rather than asserting it at runtime.
+    if let (Some(ref flat_cost), Some(ref orig_cost)) = (&flat_mana_cost, &ability.mana_cost) {
         if flat_cost.mana_value() > 0 {
             let player_state = state.player_mut(player)?;
             player_state.mana_pool.spend(flat_cost, None);
@@ -338,10 +373,7 @@ pub fn handle_tap_for_mana(
                 // Emit the ORIGINAL (unflattened) cost for event consumers — mirrors
                 // casting.rs's ManaCostPaid emission, which carries hybrid/Phyrexian
                 // pip info rather than the flattened shape.
-                cost: ability
-                    .mana_cost
-                    .clone()
-                    .expect("flat_mana_cost is Some only when ability.mana_cost is Some"),
+                cost: orig_cost.clone(),
             });
         }
     }

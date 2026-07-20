@@ -195,8 +195,28 @@ fn test_filter_land_produces_two_mana_fetid_heath() {
 /// Tapping an already-tapped filter land (via `TapForMana`, post-SR-34 both of Fetid
 /// Heath's abilities are ManaAbilities — see `test_filter_land_produces_two_mana_fetid_heath`)
 /// returns `PermanentAlreadyTapped`.
+///
+/// PB-RS2 (review finding #12): `handle_tap_for_mana`'s mana-legality check (step 5b)
+/// runs BEFORE the tap check (step 6, `mana.rs:295-297`). Before this fix the test primed
+/// an EMPTY pool with `hybrid_choices: vec![]`, so the {W/B} pip's mana-legality check
+/// failed first and the test passed via `InsufficientMana` — never reaching the tapped-
+/// permanent path the doc comment claimed to cover. It was a duplicate of
+/// `hybrid_pip_in_mana_ability_cost_requires_mana` wearing a "tap required" label:
+/// reverting the tap check in `mana.rs` would NOT have failed it. Fixed by priming the
+/// pool with the White half (as the sibling tests in this file do) and passing a legal
+/// `hybrid_choices`, so the ONLY remaining reason to reject is the tapped permanent, and
+/// tightening the assertion to the specific error variant.
 fn test_filter_land_tap_required() {
     let mut state = build_with_filter_land("Fetid Heath");
+
+    // Prime the pool with the White half of the {W/B} pip so the mana-legality check
+    // (step 5b) passes and cannot mask the tap check (step 6) under test.
+    state
+        .players_mut()
+        .get_mut(&p(1))
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::White, 1);
 
     // Tap the land manually before trying to activate.
     let land_id = find_by_name(&state, "Fetid Heath");
@@ -210,14 +230,18 @@ fn test_filter_land_tap_required() {
             ability_index: 1, // the filter ability
 
             chosen_color: None,
-            hybrid_choices: vec![],
+            hybrid_choices: vec![mtg_engine::HybridManaPayment::Color(ManaColor::White)],
             phyrexian_life_payments: vec![],
         },
     );
 
     assert!(
-        result.is_err(),
-        "activating tapped filter land should return an error (CR 118.3)"
+        matches!(
+            result,
+            Err(mtg_engine::GameStateError::PermanentAlreadyTapped(_))
+        ),
+        "activating an already-tapped filter land with an otherwise-legal payment must \
+         return PermanentAlreadyTapped (CR 118.3), not a mana-legality error: {result:?}"
     );
 }
 

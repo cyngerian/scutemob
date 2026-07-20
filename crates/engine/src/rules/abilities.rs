@@ -766,13 +766,17 @@ pub fn handle_activate_ability(
         // entirely with life has raw mana_value()==1 but a flattened mana_value()
         // of 0, and the gate must correctly skip the mana check in that case while
         // the (sibling, not nested) life deduction below still fires.
+        // Review finding #8: call the inherent `ManaCost::flatten_hybrid_phyrexian`
+        // directly rather than routing through `super::casting::flatten_hybrid_phyrexian`
+        // — the plan's §4 explicitly flagged reaching into `casting` from a non-cast
+        // payment path as a layering smell (AC 5119 requires one implementation, not
+        // one call path). `legal_actions.rs:1044` already calls the inherent method
+        // this way; this call site now matches.
         let (flat_cost, phyrexian_life) =
             if !resolved_cost.hybrid.is_empty() || !resolved_cost.phyrexian.is_empty() {
-                super::casting::flatten_hybrid_phyrexian(
-                    &resolved_cost,
-                    &hybrid_choices,
-                    &phyrexian_life_payments,
-                )?
+                resolved_cost
+                    .flatten_hybrid_phyrexian(&hybrid_choices, &phyrexian_life_payments)
+                    .map_err(GameStateError::InvalidCommand)?
             } else {
                 (resolved_cost.clone(), 0)
             };

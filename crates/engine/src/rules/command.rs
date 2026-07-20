@@ -42,18 +42,25 @@ pub enum Command {
         #[serde(default)]
         chosen_color: Option<ManaColor>,
         /// CR 107.4e (via CR 605.1a/602.2b): for each hybrid pip in the mana
-        /// ability's resolved activation cost, how it was paid. Length must match
-        /// the hybrid pip count after cost calculation. Empty = default to the
-        /// first color option for each pip (`ManaCost::flatten_hybrid_phyrexian`).
-        /// PB-RS2: added because a mana ability's activation cost, like a spell's
-        /// mana cost or an activated ability's activation cost, can carry hybrid
-        /// pips (the 7 filter lands' `{B/R},{T}: ...` and siblings) that must
-        /// actually be paid, not charged as an all-zero cost (OOS-RS-2).
+        /// ability's resolved activation cost, how it was paid, in cost order. A
+        /// SHORT vector (or empty) is fine — each unindexed pip defaults to its
+        /// first color option (`ManaCost::flatten_hybrid_phyrexian`); this is the
+        /// deliberate contract, not a gap. A vector LONGER than the pip count is
+        /// rejected with `InvalidCommand` rather than silently ignored past the
+        /// pip count (review finding #2 — enforced in
+        /// `ManaCost::flatten_hybrid_phyrexian` itself, so every caller gets the
+        /// same guarantee). PB-RS2: added because a mana ability's activation
+        /// cost, like a spell's mana cost or an activated ability's activation
+        /// cost, can carry hybrid pips (the 7 filter lands' `{B/R},{T}: ...` and
+        /// siblings) that must actually be paid, not charged as an all-zero cost
+        /// (OOS-RS-2).
         #[serde(default)]
         hybrid_choices: Vec<crate::state::game_object::HybridManaPayment>,
-        /// CR 107.4f (via CR 605.1a/602.2b): for each Phyrexian pip, true = pay 2
-        /// life, false = pay mana. Empty = default to paying with mana for each
-        /// pip. PB-RS2.
+        /// CR 107.4f (via CR 605.1a/602.2b): for each Phyrexian pip, in cost
+        /// order, true = pay 2 life, false = pay mana. Empty = default to paying
+        /// with mana for each pip (deliberate short-vector default, mirroring
+        /// `hybrid_choices` above); a vector longer than the Phyrexian pip count
+        /// is rejected, not silently ignored. PB-RS2.
         #[serde(default)]
         phyrexian_life_payments: Vec<bool>,
     },
@@ -116,16 +123,22 @@ pub enum Command {
         #[serde(default)]
         modes_chosen: Vec<usize>,
         /// CR 107.4e (via CR 602.2b): for each hybrid pip in the resolved
-        /// activation cost, how it was paid. Length must match the hybrid pip
-        /// count after cost calculation. Empty = default to the first color
-        /// option for each hybrid pip. PB-RS2 (OOS-RS-2): mirrors
-        /// `CastSpellData::hybrid_choices` — CR 602.2b makes an activated
-        /// ability's activation cost the analog of a spell's mana cost, so a
-        /// hybrid/Phyrexian pip in it must be payable the same way.
+        /// activation cost, how it was paid, in cost order. A SHORT vector (or
+        /// empty) is fine — each unindexed pip defaults to its first color
+        /// option; a vector LONGER than the pip count is rejected with
+        /// `InvalidCommand` rather than silently ignored past the pip count
+        /// (review finding #2 — enforced once, in
+        /// `ManaCost::flatten_hybrid_phyrexian`, so this variant and
+        /// `TapForMana::hybrid_choices` share the same guarantee). PB-RS2
+        /// (OOS-RS-2): mirrors `CastSpellData::hybrid_choices` — CR 602.2b makes
+        /// an activated ability's activation cost the analog of a spell's mana
+        /// cost, so a hybrid/Phyrexian pip in it must be payable the same way.
         #[serde(default)]
         hybrid_choices: Vec<crate::state::game_object::HybridManaPayment>,
-        /// CR 107.4f (via CR 602.2b): for each Phyrexian pip, true = pay 2 life,
-        /// false = pay mana. Empty = default to paying with mana for each pip.
+        /// CR 107.4f (via CR 602.2b): for each Phyrexian pip, in cost order,
+        /// true = pay 2 life, false = pay mana. Empty = default to paying with
+        /// mana for each pip (deliberate short-vector default); a vector longer
+        /// than the Phyrexian pip count is rejected, not silently ignored.
         /// PB-RS2.
         #[serde(default)]
         phyrexian_life_payments: Vec<bool>,
@@ -660,14 +673,18 @@ pub struct CastSpellData {
     /// CR 107.3m: The value chosen for X in the spell's mana cost. 0 for non-X spells.
     #[serde(default)]
     pub x_value: u32,
-    /// CR 107.4e: For each hybrid pip in the resolved cost, how it was paid.
-    /// Length must match total hybrid pips after cost calculation.
-    /// Empty = default to first color option for each hybrid pip.
+    /// CR 107.4e: For each hybrid pip in the resolved cost, how it was paid, in
+    /// cost order. A SHORT vector (or empty) is fine — each unindexed pip
+    /// defaults to its first color option; a vector LONGER than the pip count is
+    /// rejected with `InvalidCommand` (enforced in
+    /// `ManaCost::flatten_hybrid_phyrexian`, shared with
+    /// `Command::ActivateAbility`/`TapForMana` — review finding #2/PB-RS2).
     #[serde(default)]
     pub hybrid_choices: Vec<crate::state::game_object::HybridManaPayment>,
-    /// CR 107.4f: For each Phyrexian pip, true = pay 2 life; false = pay mana.
-    /// Length must match total Phyrexian pips after cost calculation.
-    /// Empty = default to paying with mana for each pip.
+    /// CR 107.4f: For each Phyrexian pip, in cost order, true = pay 2 life;
+    /// false = pay mana. Empty = default to paying with mana for each pip
+    /// (deliberate short-vector default); a vector longer than the Phyrexian
+    /// pip count is rejected, not silently ignored.
     #[serde(default)]
     pub phyrexian_life_payments: Vec<bool>,
     /// CR 702.37c / 702.168b: Which face-down variant is being used when casting face-down.

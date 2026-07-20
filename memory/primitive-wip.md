@@ -1,4 +1,4 @@
-# Primitive WIP — PB-RS2 (OOS-RS-2 + OOS-OS8-1) · IMPLEMENT PHASE COMPLETE
+# Primitive WIP — PB-RS2 (OOS-RS-2 + OOS-OS8-1) · FIX CYCLE COMPLETE
 
 <!-- last_updated: 2026-07-20 -->
 
@@ -6,13 +6,16 @@
 - **Task**: `scutemob-144`
 - **Branch**: `feat/pb-rs2-activated-cost-hybridphyrexian-pip-payment-every-such`
 - **Class**: CORRECTNESS, LIVE (silent undercharge on 7 shipped filter lands; Invariant #9)
-- **Phase**: plan
+- **Phase**: fix (complete — see "Fix cycle" section below)
 - **Binding spec**: `memory/primitives/rider-seed-triage-2026-07-19.md` §2.2 (chain notes) + §3 (R2 row)
 - **Plan file**: `memory/primitives/pb-plan-RS2.md`
 - **Review file**: `memory/primitives/pb-review-RS2.md`
 - **Wire expectation**: **PROTOCOL bump EXPECTED and machine-forced** (SR-8) — `Command::ActivateAbility`
   gains fields. HASH: expected unchanged unless a hashed struct moves; any movement must be justified
-  in the plan, not silently re-pinned.
+  in the plan, not silently re-pinned. **Confirmed after fix cycle: PROTOCOL 27 / HASH 63** (grep +
+  `cargo test -p mtg-engine --test core protocol_schema`, all 17 tests green including
+  `protocol_schema_fingerprint_is_pinned` and `frozen_prefix_is_pinned` — the two 64-hex digests the
+  review flagged as unverified are confirmed correct, computed by the test itself, never hand-typed).
 - **Sequencing constraint**: **do NOT batch with R6** (independent-verification collision flag,
   triage §3 sequencing note).
 
@@ -175,9 +178,9 @@
       (one `redundant_pattern_matching` fixed in the new test file); `cargo fmt --check` clean;
       `tools/check-defs-fmt.sh` clean (1,804 defs, only the 9 touched by this PB reformatted).
       `PROTOCOL_VERSION` confirmed 27, `HASH_SCHEMA_VERSION` confirmed 63 via direct grep.
-- [ ] 10. `primitive-impl-reviewer` pass — **not run in this session**. This wip.md and the
-      implement-phase commits are the handoff; the reviewer agent is invoked as a separate phase
-      by the orchestrating `/implement-primitive` flow, not by the implement-phase runner.
+- [x] 10. `primitive-impl-reviewer` pass — completed 2026-07-20, `memory/primitives/pb-review-RS2.md`.
+      Verdict: needs-fix (0 HIGH, 5 MEDIUM, 7 LOW). Fix cycle applied 2026-07-20 — see "Fix cycle"
+      section below. All gates re-green after fixes; PROTOCOL 27 / HASH 63 unchanged.
 
 ## Deviations from the plan (all disclosed, none silent)
 
@@ -212,8 +215,16 @@
 
 ## Honest yield (per plan §10, confirmed post-implementation)
 
-- **Coverage flips: 1** (`birthing_pod`, `inert` → `Complete`). Confirmed, not just estimated —
-  `all_cards()` + `def.completeness.is_complete()` checked directly in the roster-sweep test.
+- **Coverage flips: 1** (`birthing_pod`, `inert` → `Complete`). **Correction (fix cycle, review
+  finding #10):** this sentence was factually wrong as originally written — as of the implement
+  phase, no test anywhere checked `def.completeness.is_complete()` for Birthing Pod; the roster
+  sweep only walked `AbilityDefinition::Activated` costs and never read `completeness`, and
+  `birthing_pod_activation_charges_the_phyrexian_pip` silently self-skipped (asserting nothing) if
+  the flip ever regressed. The fix cycle added a real, dedicated ratchet —
+  `birthing_pod_completeness_is_pinned_complete` in
+  `crates/engine/tests/core/pb_rs2_hybrid_phyrexian_activation_roster.rs` — and deleted the
+  self-skip from the sibling test so a regression now fails loudly in two places instead of
+  passing silently in one. The claim above is true NOW, not at the time it was first written.
 - **Filter lands: 0 flips**, as predicted. 7 integrity repairs (stop being free) + `casting.rs`'s
   CR 119.4 hole closed = 8 total integrity repairs, matching the plan's count exactly.
 - **Latent-defect closures: 2**, as predicted (the unvalidated hybrid-color choice; the 20-site
@@ -223,3 +234,193 @@
 
 PB-RS1 SHIPPED (`scutemob-143`, merge `56697a00`) — library top/bottom reconciliation. The R1..R11
 ranked queue lives in `memory/primitives/rider-seed-triage-2026-07-19.md` §3.
+
+## Fix cycle (2026-07-20)
+
+Applied every finding from `memory/primitives/pb-review-RS2.md` (needs-fix: 0 HIGH, 5 MEDIUM,
+7 LOW). Every finding was fixed — none declined. Every new/rewritten test was verified per the
+RS1 fix-cycle standard: production code temporarily reverted, test re-run to confirm FAILURE with
+the expected message, then restored and re-confirmed PASS. Verbatim results recorded below.
+
+### Items the review flagged as un-runnable — executed first
+
+1. **Protocol digests.** `cargo test -p mtg-engine --test core protocol_schema` — all 17 tests
+   pass, including `protocol_schema_fingerprint_is_pinned` and `frozen_prefix_is_pinned`. The two
+   64-hex digests the review could not verify by inspection are confirmed correct: the test
+   computes them itself and asserts equality against the pinned constants: no hand-typed value
+   drifted from what the code actually produces.
+2. **`card-types` `#[cfg(test)]` module + debug_assertions.** `cargo test --workspace` shows the
+   `mtg_card_types` unittest binary running **12** tests (not 0/0) including the three residue-guard
+   tests (`unflattened_hybrid_cost_panics_in_debug`, `unflattened_phyrexian_cost_panics_in_debug`,
+   `flattened_cost_does_not_panic` — plus `unflattened_hybrid_cost_panics_in_debug_via_spend`,
+   added this cycle, finding #17) and the new `flatten_hybrid_phyrexian_tests` module (4 tests,
+   finding #2). The 11 "0 passed; 0 failed" blocks the review flagged as a live concern are all
+   legitimately-empty crates/doc-test groups (`mtg_network`, `mtg_fuzzer`, `mtg_tui`,
+   `mtg_scryfall_import`, and doc-tests for crates with no doctests) — none of them are the
+   residue-guard suite. Confirmed `debug-assertions` is NOT overridden for the `dev`/`test` profile
+   in the workspace `Cargo.toml` (only `[profile.fuzz]` sets it explicitly, inheriting `release`),
+   so `cargo test`'s default profile has `debug_assertions` on and the guard is live under every
+   normal test invocation.
+3. **SR-6 freshness check.** Ran `cargo check -p mtg-engine` (baseline, all `Fresh`/clean), then
+   appended a trivial comment to `crates/engine/src/rules/abilities.rs` (engine-only file, no
+   `card-types` touch) and re-ran `cargo check -p mtg-engine -v`. Output: `Fresh mtg-card-types`,
+   `Fresh mtg-card-defs`, `Dirty mtg-engine: ... abilities.rs has changed`. Confirmed `mtg-card-defs`
+   stays `Fresh` on an engine-only edit post the `card-types` relocation. Probe edit reverted
+   (`git diff` on `abilities.rs` empty before the fix-cycle's real edits began).
+4. **`git diff main...HEAD --stat` audit.** Read the full diff. No `test-data/` golden script was
+   touched by the implement phase or by this fix cycle. `crates/card-defs/` carries exactly the 9
+   files the plan named (7 filter lands, `birthing_pod`, `drivnod_carnage_dominus`) plus the fix
+   cycle's cosmetic 7-file comment-wrap (finding #11) — no new card-def files, no assertion changes
+   in any def. No file outside the plan's declared scope was touched.
+5. **Golden scripts.** `run_all_scripts::run_all_approved_scripts` is part of the green
+   `cargo test --workspace` run (43/43 in that group) — confirmed passing both before and after
+   every fix in this cycle.
+
+### MEDIUM findings
+
+**Finding 10 — `birthing_pod`'s coverage flip had no ratchet, and the wip.md was factually wrong
+about it.** Two fixes: (i) added `birthing_pod_completeness_is_pinned_complete` to
+`crates/engine/tests/core/pb_rs2_hybrid_phyrexian_activation_roster.rs` — walks `all_cards()`,
+finds "Birthing Pod", asserts `completeness.is_complete()`. (ii) Deleted the
+`if !def.completeness.is_complete() { eprintln!(...); return; }` self-skip from
+`birthing_pod_activation_charges_the_phyrexian_pip` in
+`crates/engine/tests/primitives/pb_rs2_activated_pip_payment.rs` — it now asserts unconditionally.
+(iii) Corrected the "Honest yield" paragraph above (was: "confirmed... checked directly in the
+roster-sweep test" — false at the time; now true, with the correction disclosed inline rather
+than silently rewritten). Not independently re-verified with a revert/re-run cycle (a completeness
+assertion doesn't have production code to break in the usual sense — it directly reads a `const`
+default on the card def; reverting `birthing_pod.rs`'s `Completeness::Complete` back to `inert`
+would trivially fail it by construction).
+
+**Finding 12 — `test_filter_land_tap_required` passed for the wrong reason.** Rewrote
+`crates/engine/tests/casting/mana_filter.rs`'s `test_filter_land_tap_required`: primed the pool
+with 1 White (the `{W/B}` pip's payable half) and passed `hybrid_choices:
+vec![HybridManaPayment::Color(White)]`, so the mana-legality check at `mana.rs` step 5b can no
+longer mask the tap check at step 6. Tightened the assertion from `result.is_err()` to
+`matches!(result, Err(GameStateError::PermanentAlreadyTapped(_)))`. **Verified discrimination**:
+temporarily changed `mana.rs`'s tap check from `if obj.status.tapped` to `if false &&
+obj.status.tapped` — re-ran the test — FAILED with `Ok(...)` (an empty pool profit from the
+already-tapped land, exactly wrong) instead of the expected `PermanentAlreadyTapped`. Restored the
+guard — re-ran — PASSED, `git diff` on `mana.rs` empty.
+
+**Finding 14 — `monocolored_hybrid_payable_as_two_generic` was near-vacuous.** Split into three
+tests in `pb_rs2_activated_pip_payment.rs`: `monocolored_hybrid_payable_as_two_generic` (now
+asserts `pool_amount(..., Colorless) == 0` after activation, not just `Ok`),
+`monocolored_hybrid_one_generic_is_insufficient` (new negative case: 1 colorless →
+`InsufficientMana`), `monocolored_hybrid_payable_as_one_black` (new: the "one black mana" half of
+CR 107.4e, asserting the pool drains by exactly 1). **Verified discrimination**: temporarily
+changed `game_object.rs`'s `HybridMana::GenericColor` + `Generic` arm from `flat.generic += 2` to
+`+= 1` — re-ran all three — the two new tests FAILED (`left: 1, right: 0` and an unexpected `Ok`
+respectively), the untouched third passed. Restored `+= 2` — re-ran — all three PASSED, `git diff`
+on `game_object.rs` empty (verified with the length-enforcement code, finding #2, present
+throughout).
+
+**Finding 1 — `parse_hybrid_choices` positional shift.** Changed the return type from
+`Vec<HybridManaPayment>` to `Option<Vec<HybridManaPayment>>` (`.map` instead of `.filter_map`, so
+one unparseable entry now fails the whole parse instead of collapsing the vector and shifting
+every later pip's choice). Both call sites in `translate_player_action`
+(`replay_harness.rs`) now use `?` to reject the whole script action on `None`. Added a
+`#[cfg(test)] mod parse_hybrid_choices_tests` (private-function unit tests, matching the existing
+pattern in `diagnostics.rs`/`layers.rs`/`casting.rs`) with 3 tests. **Verified discrimination**:
+temporarily restored the old `filter_map`-based body (wrapped in `Some(...)`) — re-ran — the
+positional-shift test FAILED with `left: Some([Color(Red)]), right: None` (the exact silent
+shift the finding describes). Restored the fix — re-ran — all 3 PASSED.
+
+**Finding 2 — `Command`'s doc asserted an unenforced length invariant.** Added length enforcement
+INSIDE `ManaCost::flatten_hybrid_phyrexian` itself (`crates/card-types/src/state/game_object.rs`)
+rather than at each of the 3 call sites separately, so `Command::ActivateAbility`,
+`Command::TapForMana`, AND `CastSpellData` all get the same guarantee from one place: a
+`hybrid_choices`/`phyrexian_life_payments` vector SHORTER than the pip count still gets the
+documented per-pip default (unchanged, deliberate), but a vector LONGER than the pip count is now
+`Err`, not silently ignored past the pip count. Reworded all three doc comments (`command.rs`) to
+state the actual (now-enforced) contract instead of an aspirational one. Added 4 tests in a new
+`flatten_hybrid_phyrexian_tests` module in `game_object.rs`. **Verified discrimination**:
+temporarily deleted both new `if ... .len() > ... { return Err(...) }` blocks — re-ran — the two
+over-long tests FAILED with `Ok(...)` where `Err` was expected. Restored — re-ran — all 4 PASSED.
+
+### LOW findings
+
+- **Finding 3** — `mana.rs`'s `.expect("flat_mana_cost is Some only when ability.mana_cost is
+  Some")` replaced: bound the original `ability.mana_cost` in the same `if let` as `flat_mana_cost`
+  (`if let (Some(ref flat_cost), Some(ref orig_cost)) = (&flat_mana_cost, &ability.mana_cost)`)
+  instead of re-deriving it with an assertion. No `.expect()` remains on this path.
+- **Finding 4** — Both `.expect("has_pip_cost checked Some")` sites in `legal_actions.rs` replaced
+  with `let Some(mc) = ... else { continue };`, using the loop's existing `continue` escape hatch
+  instead of a runtime assertion.
+- **Finding 5** — `resolve_hybrid_phyrexian_plan`'s pool-only hybrid-half preference could produce
+  a false negative when the pool covers neither half but an untapped source can pay one of them
+  (the heuristic reads the pool; `can_afford` also consults untapped sources via the mana solver).
+  Refactored into `build_hybrid_choices(cost, pool, flip)` (the `flip` param inverts every
+  preference) + `try_hybrid_phyrexian_plan(...)` (the affordability/legality check, extracted so
+  it can be tried twice); `resolve_hybrid_phyrexian_plan` now tries the pool-preferred plan first,
+  then the flipped-hybrid-half plan as a fallback before giving up. Added
+  `provider_offers_the_payable_hybrid_half_when_only_the_other_is_in_pool_preference` (a `{B/R}`
+  filter land with an empty pool + an untapped Mountain — the Red half is payable via the
+  Mountain even though the pool-preference heuristic defaults to Black). **Verified
+  discrimination**: temporarily short-circuited the fallback branch to `None` — re-ran — the new
+  test FAILED (`action.is_some()` assertion, got `None`). Restored — re-ran — all 6
+  `mtg-simulator` lib tests PASSED.
+- **Finding 6** — Disclosure-only, no code change: the plan's §11.6 out-of-scope item
+  (`abilities.rs`'s missing CR 119.4 check on `life_cost`) was taken during implementation and is
+  disclosed here explicitly, since the original wip.md (step 3) disclosed only the
+  Phyrexian-combined half of that fix, not that the plain `life_cost` check was also newly added
+  in both `abilities.rs` branches (`:698-707`, `:786-796`). Correct and welcome per the review;
+  this entry closes the under-disclosure.
+- **Finding 7** — Added a "Release note" paragraph to `debug_assert_flattened`'s doc comment in
+  `crates/card-types/src/state/player.rs` stating explicitly that `debug_assert!` is a no-op in
+  release and that release correctness rests on the three call sites flattening, not on this guard.
+- **Finding 8** — `abilities.rs` and `mana.rs` now call the inherent
+  `ManaCost::flatten_hybrid_phyrexian` directly (mapping the `String` error to
+  `GameStateError::InvalidCommand` locally, as `legal_actions.rs` already did) instead of routing
+  through `super::casting::flatten_hybrid_phyrexian` / `crate::rules::casting::...`. The
+  `casting.rs` wrapper itself is untouched (still used by `casting.rs`'s own call site and by
+  `crates/engine/tests/casting/mana_costs.rs`, which imports it directly).
+- **Finding 9** — Mirrored `chosen_color`'s strictness in `handle_tap_for_mana`: a non-empty
+  `hybrid_choices`/`phyrexian_life_payments` supplied for a mana ability whose cost has no such pip
+  is now rejected with `InvalidCommand`, instead of silently ignored. (`abilities.rs`/
+  `ActivateAbility` has no `chosen_color` field to be asymmetric with, so no equivalent change was
+  needed there — the finding's cited asymmetry is specific to `mana.rs`.) Added
+  `extraneous_hybrid_choices_on_a_pip_free_mana_ability_is_rejected`. **Verified discrimination**:
+  temporarily removed both new guard blocks — re-ran — the new test FAILED (`Ok(...)` instead of
+  `InvalidCommand`). Restored — re-ran — PASSED, `git diff` on `mana.rs` clean before the finding's
+  real (retained) edit.
+- **Finding 11** — Wrapped the ~217-char single-line PB-RS2 comment in all 7 filter-land defs to
+  the files' prevailing ~85-char width (3 lines each). `tools/check-defs-fmt.sh` clean after.
+- **Finding 15** — Deleted the empty-bodied `#[test] fn
+  residue_guard_test_lives_in_card_types_player_rs() {}` from `pb_rs2_activated_pip_payment.rs`
+  and replaced it with a plain `//` module comment carrying the same pointer. Test count in that
+  file decreases by 1 (offset by the new tests added for other findings).
+- **Finding 16** — Added a fourth case to `filter_land_charges_its_hybrid_pip`'s per-land block:
+  `half_b` primed in pool, `hybrid_choices: [Color(half_b)]` → `Ok`, asserting the same +1 net-delta
+  invariant the `half_a` case already proved. Previously only `half_a` was exercised on the accept
+  path. **Verified discrimination**: temporarily forced the `ColorColor` flatten arm to ignore the
+  caller's choice and always pick `*a` — re-ran — the new half_b case FAILED with
+  `InsufficientMana` (Twilight Mire, first case in the table). Restored — re-ran — PASSED, `git
+  diff` on `game_object.rs` shows pure additions only (`git diff | grep '^-'` matches only the
+  diff header).
+- **Finding 17** — Added `unflattened_hybrid_cost_panics_in_debug_via_spend` to `player.rs`'s test
+  module — calls `ManaPool::spend` directly (the guard's other copy, previously untested in
+  isolation; only `can_spend`'s copy had a dedicated test). Confirmed the panic fires at
+  `player.rs:191` (inside `spend`, not `can_spend`), proving it exercises the intended call site.
+- **Finding 18** — Added `assert_eq!(pool_amount(&state, p(1), ManaColor::Red), 0)` to the `{R}`
+  half of `hybrid_activated_cost_payable_with_either_half`, matching the `{B}` half's existing
+  drain assertion.
+
+### Gates (final, all green)
+
+`cargo build --workspace` clean. `cargo test --workspace` all green (0 failures across every
+group; `mtg_card_types` lib 12 passed, `mtg_engine` lib 27 passed, `mtg_simulator` lib 6 passed,
+`primitives` group 705 passed 1 ignored, `core` group 428 passed, `casting` group 147 passed,
+`scripts` group 43 passed — full breakdown recorded in this session's `cargo test` output).
+`cargo clippy --all-targets -- -D warnings` clean (two `items-after-test-module` lints surfaced
+and fixed by relocating the two new `#[cfg(test)]` modules — `game_object.rs`'s
+`flatten_hybrid_phyrexian_tests` and `replay_harness.rs`'s `parse_hybrid_choices_tests` — to the
+end of their files, after the last non-test item, matching every other test module's position in
+those files). `cargo fmt --check` clean (after one `cargo fmt` pass; 3 files auto-reformatted:
+`mana.rs`, `replay_harness.rs`, `legal_actions.rs`). `tools/check-defs-fmt.sh` clean (1,804 defs).
+`PROTOCOL_VERSION` confirmed 27, `HASH_SCHEMA_VERSION` confirmed 63 via direct grep — unchanged by
+this fix cycle (no new `Command` field, no `HashInto`-reachable type touched).
+
+### Declined findings
+
+None. All 12 findings (5 MEDIUM + 7 LOW) were applied.

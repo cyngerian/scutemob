@@ -345,10 +345,14 @@ impl LegalActionProvider for StubProvider {
                         .as_ref()
                         .is_some_and(|mc| !mc.hybrid.is_empty() || !mc.phyrexian.is_empty());
                     let (hybrid_choices, phyrexian_life_payments) = if has_pip_cost {
-                        let mc = ability
-                            .mana_cost
-                            .as_ref()
-                            .expect("has_pip_cost checked Some");
+                        // Review finding #4: `let Some(...) else { continue }` instead of
+                        // `.expect()` — `has_pip_cost` being true implies `mana_cost` is
+                        // `Some` by construction, but this avoids asserting that at
+                        // runtime when a `continue` is already the natural escape hatch
+                        // in this loop.
+                        let Some(mc) = ability.mana_cost.as_ref() else {
+                            continue;
+                        };
                         match resolve_hybrid_phyrexian_plan(state, player, mc, ability.life_cost) {
                             Some(plan) => plan,
                             None => continue,
@@ -479,11 +483,11 @@ impl LegalActionProvider for StubProvider {
                     .as_ref()
                     .is_some_and(|mc| !mc.hybrid.is_empty() || !mc.phyrexian.is_empty());
                 let (hybrid_choices, phyrexian_life_payments) = if has_pip_cost {
-                    let mc = ability
-                        .cost
-                        .mana_cost
-                        .as_ref()
-                        .expect("has_pip_cost checked Some");
+                    // Review finding #4: `let Some(...) else { continue }` instead of
+                    // `.expect()` — see the sibling site above for the reasoning.
+                    let Some(mc) = ability.cost.mana_cost.as_ref() else {
+                        continue;
+                    };
                     match resolve_hybrid_phyrexian_plan(state, player, mc, ability.cost.life_cost) {
                         Some(plan) => plan,
                         None => continue,
@@ -996,24 +1000,68 @@ fn resolve_hybrid_phyrexian_plan(
     let pool = &player_state.mana_pool;
     let life_total = player_state.life_total;
 
-    // Plan-selection policy (deterministic, mirrors the flattener's own defaults so a
-    // caller that leaves these vectors empty gets the SAME plan this function would
-    // choose): prefer whichever half the pool can actually cover; for a monocolored
-    // hybrid, prefer the 1-mana colored option over 2 generic; for Phyrexian, prefer
-    // mana over life.
+    let phyrexian_choices = build_phyrexian_choices(cost, pool);
+
+    // Review finding #5: `can_afford` (called inside `try_hybrid_phyrexian_plan` below)
+    // consults BOTH the pool AND untapped sources via the mana solver, but the
+    // pool-preference heuristic in `build_hybrid_choices` only looks at the pool. When
+    // the pool covers NEITHER half of a pip, the heuristic arbitrarily defaults to the
+    // first half — and if only the OTHER half is payable via an untapped source, the
+    // primary plan fails `can_afford` even though a payable plan exists. This is a
+    // false negative (an action not offered though payable), never a false positive
+    // (no illegal/lethal action is ever offered either way) — but it degrades bot
+    // completeness. Fix: try the pool-preferred plan first (deterministic, matches the
+    // flattener's own default so an empty-vector caller gets the same plan), then fall
+    // back to the flipped-hybrid-half plan before giving up.
+    let primary_hybrid_choices = build_hybrid_choices(cost, pool, false);
+    if let Some(plan) = try_hybrid_phyrexian_plan(
+        state,
+        player,
+        cost,
+        primary_hybrid_choices,
+        phyrexian_choices.clone(),
+        other_life_cost,
+        life_total,
+    ) {
+        return Some(plan);
+    }
+    if cost.hybrid.is_empty() {
+        return None;
+    }
+    let alt_hybrid_choices = build_hybrid_choices(cost, pool, true);
+    try_hybrid_phyrexian_plan(
+        state,
+        player,
+        cost,
+        alt_hybrid_choices,
+        phyrexian_choices,
+        other_life_cost,
+        life_total,
+    )
+}
+
+/// Plan-selection policy for hybrid pips (deterministic, mirrors the flattener's own
+/// defaults so a caller that leaves `hybrid_choices` empty gets the SAME plan this
+/// function would choose when `flip == false`): prefer whichever half the pool can
+/// actually cover; for a monocolored hybrid, prefer the 1-mana colored option over 2
+/// generic. `flip == true` inverts every preference — the review finding #5 fallback,
+/// tried when the pool-preferred plan turns out not to be payable via untapped sources.
+fn build_hybrid_choices(
+    cost: &ManaCost,
+    pool: &mtg_engine::ManaPool,
+    flip: bool,
+) -> Vec<HybridManaPayment> {
     let mut hybrid_choices = Vec::with_capacity(cost.hybrid.len());
     for h in &cost.hybrid {
         match h {
             HybridMana::ColorColor(a, b) => {
-                let choice = if pool.get(*a) > 0 || pool.get(*b) == 0 {
-                    *a
-                } else {
-                    *b
-                };
+                let prefer_a = pool.get(*a) > 0 || pool.get(*b) == 0;
+                let choice = if prefer_a != flip { *a } else { *b };
                 hybrid_choices.push(HybridManaPayment::Color(choice));
             }
             HybridMana::GenericColor(c) => {
-                if pool.get(*c) > 0 {
+                let prefer_color = pool.get(*c) > 0;
+                if prefer_color != flip {
                     hybrid_choices.push(HybridManaPayment::Color(*c));
                 } else {
                     hybrid_choices.push(HybridManaPayment::Generic);
@@ -1021,22 +1069,40 @@ fn resolve_hybrid_phyrexian_plan(
             }
         }
     }
+    hybrid_choices
+}
 
+/// Plan-selection policy for Phyrexian pips: prefer mana over life. Unaffected by
+/// review finding #5 (that finding is specific to the hybrid-half preference).
+fn build_phyrexian_choices(cost: &ManaCost, pool: &mtg_engine::ManaPool) -> Vec<bool> {
     let mut phyrexian_life_payments = Vec::with_capacity(cost.phyrexian.len());
-    let mut any_pip_paid_with_life = false;
     for ph in &cost.phyrexian {
         let color = match ph {
             PhyrexianMana::Single(c) => *c,
             PhyrexianMana::Hybrid(c, _) => *c,
         };
-        if pool.get(color) > 0 {
-            phyrexian_life_payments.push(false);
-        } else {
-            any_pip_paid_with_life = true;
-            phyrexian_life_payments.push(true);
-        }
+        phyrexian_life_payments.push(pool.get(color) == 0);
     }
+    phyrexian_life_payments
+}
 
+/// Check a candidate `(hybrid_choices, phyrexian_life_payments)` plan for full
+/// payability (mana + combined life, CR 119.4) AND non-suicidality (CR 104.3b — never
+/// a plan that would drop the player to 0 or below). Returns the plan unchanged on
+/// success so the caller can hand it straight to `LegalAction`.
+#[allow(clippy::too_many_arguments)]
+fn try_hybrid_phyrexian_plan(
+    state: &GameState,
+    player: PlayerId,
+    cost: &ManaCost,
+    hybrid_choices: Vec<HybridManaPayment>,
+    phyrexian_life_payments: Vec<bool>,
+    other_life_cost: u32,
+    life_total: i32,
+) -> Option<(Vec<HybridManaPayment>, Vec<bool>)> {
+    let any_pip_paid_with_life = phyrexian_life_payments
+        .iter()
+        .any(|&paid_with_life| paid_with_life);
     let (flat, phyrexian_life) = cost
         .flatten_hybrid_phyrexian(&hybrid_choices, &phyrexian_life_payments)
         .ok()?;
@@ -1579,6 +1645,59 @@ mod tests {
             result.is_ok(),
             "the provider's offered suicide-avoiding TapForMana must be engine-legal: {:?}",
             result.err()
+        );
+    }
+
+    /// Review finding #5: the pool-only hybrid-half heuristic in
+    /// `build_hybrid_choices`/`resolve_hybrid_phyrexian_plan` must not produce a false
+    /// negative when the pool covers NEITHER half of a `{B/R}` pip but an UNTAPPED
+    /// source can pay one of the halves. The player controls a `{B/R}`-cost filter land
+    /// (empty pool, so the primary preference defaults to Black — the pip's first
+    /// listed color) and an untapped Mountain (produces Red, not Black). Before the
+    /// fix, the primary plan (Black) fails `can_afford` and the whole action is
+    /// withheld even though the Red half is payable via the Mountain. After the fix,
+    /// the fallback (flipped) plan tries Red and the action IS offered.
+    #[test]
+    fn provider_offers_the_payable_hybrid_half_when_only_the_other_is_in_pool_preference() {
+        let state = GameStateBuilder::new()
+            .add_player(PlayerId(1))
+            .add_player(PlayerId(2))
+            .active_player(PlayerId(1))
+            .object(
+                ObjectSpec::land(PlayerId(1), "Test Filter Land")
+                    .in_zone(ZoneId::Battlefield)
+                    .with_mana_ability(tap_for_colorless_costing_hybrid(
+                        mtg_engine::ManaColor::Black,
+                        mtg_engine::ManaColor::Red,
+                    )),
+            )
+            .object(
+                ObjectSpec::land(PlayerId(1), "Test Mountain")
+                    .in_zone(ZoneId::Battlefield)
+                    .with_mana_ability(ManaAbility::tap_for(mtg_engine::ManaColor::Red)),
+            )
+            .build()
+            .expect("state builds");
+
+        let id = id_of(&state, "Test Filter Land");
+        let action = StubProvider
+            .legal_actions(&state, PlayerId(1))
+            .into_iter()
+            .find(|a| matches!(a, LegalAction::TapForMana { source, .. } if *source == id));
+        assert!(
+            action.is_some(),
+            "a {{B/R}} filter land must be offered when an untapped Mountain can pay the \
+             Red half, even though the pool-preference heuristic defaults to Black \
+             (finding #5): {action:?}"
+        );
+        let LegalAction::TapForMana { hybrid_choices, .. } = action.expect("checked Some") else {
+            unreachable!("matched by discriminant above");
+        };
+        assert_eq!(
+            hybrid_choices,
+            vec![HybridManaPayment::Color(mtg_engine::ManaColor::Red)],
+            "the fallback plan must choose the payable half (Red), not the pool-preferred \
+             but unpayable half (Black)"
         );
     }
 }
