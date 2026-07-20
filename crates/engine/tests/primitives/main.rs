@@ -44,6 +44,7 @@ mod pb_os7_defending_player_continuous_filter;
 mod pb_os8_look_at_top_then_place;
 mod pb_os9_lieutenant_commander_control;
 mod pb_rs2_activated_pip_payment;
+mod pb_rs3_at_beginning_of_combat_sweep;
 mod pbd_damaged_player_filter;
 mod pbn_subtype_filtered_triggers;
 mod pbp_power_of_sacrificed_creature;
