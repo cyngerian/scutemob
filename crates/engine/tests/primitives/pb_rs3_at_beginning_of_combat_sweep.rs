@@ -14,11 +14,13 @@
 //! HEAD. No production code is touched in this commit.
 
 use mtg_engine::effects::{execute_effect, EffectContext};
+use mtg_engine::rules::replacement::register_static_continuous_effects;
 use mtg_engine::{
-    all_cards, enrich_spec_from_def, process_command, CardDefinition, CardEffectTarget, CardId,
-    CardRegistry, CardType, Color, Command, Effect, EffectAmount, GameEvent, GameState,
-    GameStateBuilder, ManaCost, ObjectId, ObjectSpec, Phase, PlayerId, Step, SubType, SuperType,
-    TokenSpec, TriggerEvent, TriggeredAbilityDef, TypeLine, ZoneId,
+    all_cards, enrich_spec_from_def, process_command, AttackTarget, CardDefinition,
+    CardEffectTarget, CardId, CardRegistry, CardType, Color, Command, Effect, EffectAmount,
+    GameEvent, GameState, GameStateBuilder, KeywordAbility, ManaCost, ObjectId, ObjectSpec, Phase,
+    PlayerId, Step, SubType, SuperType, TokenSpec, TriggerEvent, TriggeredAbilityDef, TypeLine,
+    ZoneId,
 };
 use std::collections::HashMap;
 
@@ -254,6 +256,19 @@ fn count_battlefield_tokens_named(state: &GameState, name: &str) -> usize {
 /// Triggered ability can. This test exists solely for that reason; do not
 /// "simplify" the sweep's enumerate-then-filter shape to look more like a
 /// plain filter -- doing so passes `cargo check` and breaks this test.
+///
+/// This test also catches the OTHER shape of plan §12's R1 hazard: an
+/// implementer "correcting" the sweep to index into the dense
+/// `characteristics.triggered_abilities` namespace (the one
+/// `collect_triggers_for_event` uses for the `Normal` trigger path) instead of
+/// `def.effective_abilities(is_transformed)` (the CardDefETB namespace
+/// `resolution.rs:2019-2020` always requires -- "Always use the card
+/// registry — never runtime triggered_abilities"). That dense namespace has
+/// no lowering arm for step-based conditions like `AtBeginningOfCombat` at
+/// all, so it would resolve to nothing and this test would observe 0
+/// Thopters, not just the wrong one. See also
+/// `tests/primitives/pb_ac7_ability_index_desync.rs`, which pins the same
+/// dense-vs-CardDefETB distinction for a different trigger family.
 #[test]
 fn test_loyal_apprentice_trigger_uses_carddef_ability_index_namespace() {
     let p1 = p(1);
@@ -886,5 +901,158 @@ fn test_helm_of_the_host_unattached_creates_no_token() {
         "CR 702.6: an unattached Equipment has no equipped creature -- \
          CreateTokenCopy should resolve to zero tokens, not panic, and not \
          create a token from some fallback source"
+    );
+}
+
+// ── Test 9: goblin_rabblemaster end-to-end (PB-RS3 review Finding 3) ───────
+//
+// Nothing prior to this test drives the REAL `goblin_rabblemaster` card def
+// through both of its load-bearing abilities at once.
+// `pb_rs3_rabblemaster_mustattack_probe.rs` proves the AddKeyword/
+// OtherCreaturesYouControlWithSubtype composition mechanism using a MOCK def,
+// and the roster sweep (`tests/core/pb_rs3_combat_trigger_roster.rs`) only
+// pins the `Completeness` MARKER, not behavior. Neither exercises the actual
+// interaction the oracle text describes (and the 2014-07-18 ruling confirms):
+// the token Rabblemaster's own `AtBeginningOfCombat` ability [1] creates is a
+// Goblin, so Rabblemaster's own Static ability [0] ("Other Goblin creatures
+// you control attack each combat if able") then forces THAT token to attack.
+
+/// CR 506.1/603.2 (the token-creation trigger fires at beginning of combat) +
+/// CR 508.1d (a creature with a granted "attacks each combat if able" keyword
+/// must attack if able) + the 2014-07-18 Goblin Rabblemaster ruling ("the
+/// token isn't affected by summoning sickness... it must attack because of
+/// Rabblemaster's other ability"). Drives the real `goblin_rabblemaster`
+/// card def (from `all_cards()`, not a mock) through the real `begin_combat`
+/// sweep AND the real `combat.rs` must-attack enforcement, so both this PB's
+/// mandatory-test class (real-def combat trigger, this file's Test 1-8
+/// pattern) and the probe's mechanism (real must-attack enforcement, that
+/// file's pattern) are proven together on the actual card rather than
+/// separately on a mock.
+#[test]
+fn test_goblin_rabblemaster_end_to_end() {
+    let p1 = p(1);
+    let p2 = p(2);
+
+    let all = all_cards();
+    let defs = load_defs_from(&all);
+    let registry = CardRegistry::new(all);
+
+    let rabblemaster = enrich_spec_from_def(
+        ObjectSpec::card(p1, "Goblin Rabblemaster")
+            .with_card_id(cid("goblin-rabblemaster"))
+            .in_zone(ZoneId::Battlefield),
+        &defs,
+    );
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry.clone())
+        .object(rabblemaster)
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+
+    let rabblemaster_id = find_object(&state, "Goblin Rabblemaster");
+
+    // GameStateBuilder does not replay ETB (same caveat as
+    // pb_rs3_rabblemaster_mustattack_probe.rs and
+    // pb_os4b_face_aware_abilities.rs) -- register the REAL "Goblin
+    // Rabblemaster" registry entry's Static grant manually. Unlike the probe,
+    // this looks up the actual card def by card_id rather than constructing a
+    // mock, so this is the first test to confirm the real def's
+    // `AbilityDefinition::Static` is picked up by
+    // `register_static_continuous_effects`.
+    let card_id = state.objects()[&rabblemaster_id].card_id.clone();
+    register_static_continuous_effects(
+        &mut state,
+        rabblemaster_id,
+        card_id.as_ref(),
+        &registry,
+        false,
+    );
+
+    // Real step transition: PreCombatMain -> BeginningOfCombat. This is the
+    // sweep this whole PB added -- it must queue and flush Rabblemaster's
+    // ability [1] (AtBeginningOfCombat -> CreateToken) onto the stack.
+    let (state, _) = pass_all(state, &[p1, p2]);
+    assert_eq!(state.turn().step, Step::BeginningOfCombat);
+
+    let (state, _) = drain_stack(state, &[p1, p2]);
+
+    let goblin_count = count_battlefield_tokens_named(&state, "Goblin");
+    assert_eq!(
+        goblin_count, 1,
+        "Rabblemaster's own AtBeginningOfCombat trigger should create exactly \
+         one 1/1 red Goblin token"
+    );
+
+    let goblin_id = find_object(&state, "Goblin");
+    let goblin_obj = state
+        .objects()
+        .get(&goblin_id)
+        .expect("the created Goblin token should exist");
+    assert_eq!(
+        goblin_obj.characteristics.power,
+        Some(1),
+        "oracle text: the created token is a 1/1"
+    );
+    assert_eq!(
+        goblin_obj.characteristics.toughness,
+        Some(1),
+        "oracle text: the created token is a 1/1"
+    );
+    assert!(
+        goblin_obj.characteristics.colors.contains(&Color::Red),
+        "oracle text: the created token is red"
+    );
+    assert!(
+        goblin_obj
+            .characteristics
+            .keywords
+            .contains(&KeywordAbility::Haste),
+        "oracle text: the created token has haste"
+    );
+
+    // Advance to DeclareAttackers -- no attacks have been declared yet.
+    let (state, _) = drive_to_step(state, Step::DeclareAttackers);
+
+    // CR 508.1d: the token just created is an "other Goblin creature" that
+    // p1 controls -- Rabblemaster's own Static ability [0] must force it to
+    // attack (it has haste, so summoning sickness does not shield it, per
+    // the 2014-07-18 ruling). Declaring NO attackers must be rejected.
+    let empty_result = process_command(
+        state.clone(),
+        Command::DeclareAttackers {
+            player: p1,
+            attackers: vec![],
+            enlist_choices: vec![],
+            exert_choices: vec![],
+        },
+    );
+    assert!(
+        empty_result.is_err(),
+        "CR 508.1d: Rabblemaster's own Goblin token must be forced to attack \
+         by Rabblemaster's own MustAttackEachCombat static grant -- declaring \
+         no attackers should be rejected: {:?}",
+        empty_result.ok().map(|_| ())
+    );
+
+    // Positive control: declaring the forced Goblin as an attacker must
+    // succeed.
+    let ok_result = process_command(
+        state,
+        Command::DeclareAttackers {
+            player: p1,
+            attackers: vec![(goblin_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
+            exert_choices: vec![],
+        },
+    );
+    assert!(
+        ok_result.is_ok(),
+        "declaring the forced Goblin as an attacker must be legal: {:?}",
+        ok_result.err()
     );
 }

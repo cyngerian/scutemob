@@ -23,10 +23,11 @@
 // queue time, though CR 603.4 requires both. Divergent case: you do NOT control your
 // commander at beginning of combat but regain control before the trigger resolves --
 // real MTG never triggers, this engine creates the Thopter. Reachable in 4-player
-// Commander (narrow). This is a pre-existing, engine-wide convention (documented at
-// the upkeep sweep, turn_actions.rs:265-266) affecting every intervening-if card
-// already shipped Complete, not a defect specific to this card. Filed as a seed
-// (rider-seed-triage-2026-07-19.md) rather than blocking this flip.
+// Commander (narrow). This is a pre-existing convention, engine-wide across the
+// card-def trigger sweeps (documented at the upkeep sweep, turn_actions.rs:265-266)
+// affecting every intervening-if card already shipped Complete, not a defect specific
+// to this card. Filed as a seed (rider-seed-triage-2026-07-19.md) rather than blocking
+// this flip.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {

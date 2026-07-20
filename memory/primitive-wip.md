@@ -116,8 +116,13 @@ seed if widespread**. This is a class-level integrity question, not a helm-speci
       confirmed the test fails (then restored). **No engine change needed.** Authored the real
       ability onto `goblin_rabblemaster.rs` (identical shape to `galadhrim_brigade.rs` /
       `camellia_the_seedmiser.rs`, swapping the modification for `AddKeyword(MustAttackEachCombat)`)
-      and flipped `partial` → `Complete` — **legitimate third flip**, per plan §5c authorization
-      for a clean composition. `cargo check -p mtg-card-defs` clean.
+      and flipped `partial` → `Complete` — **legitimate third flip**, authorized by the roster
+      reviewer's F-Rabble finding plus this purpose-built probe, NOT by plan §5c (§5c is titled
+      "The other three roster members — do NOT flip" and explicitly predicts Rabblemaster "stays
+      `partial`; the surviving blocker is the subtype-filtered forced-attack `GameRestriction`" —
+      the flip overrides that prediction, it does not follow from it; corrected per PB-RS3 review
+      Finding 4, which caught the original record citing an authority that said the opposite).
+      `cargo check -p mtg-card-defs` clean.
 - [x] 5. Mandatory tests 2-8 written in
       `crates/engine/tests/primitives/pb_rs3_at_beginning_of_combat_sweep.rs` (registered,
       already present, in `primitives/main.rs`): Test 2 index-space discriminator
@@ -165,7 +170,72 @@ seed if widespread**. This is a class-level integrity question, not a helm-speci
       and re-ran the full suite after), `tools/check-defs-fmt.sh` (1804 defs, clean). No
       remaining TODOs in the flipped card defs (helm_of_the_host, loyal_apprentice,
       siege_gang_lieutenant, goblin_rabblemaster).
-- [ ] 9. `primitive-impl-reviewer` pass with every finding dispositioned.
+- [x] 9. `primitive-impl-reviewer` pass with every finding dispositioned. Verdict: needs-fix
+      (0 HIGH, 3 MEDIUM, 4 LOW). `memory/primitives/pb-review-RS3.md`.
+
+## Fix cycle (post-review-9, all 7 findings applied)
+
+- **Finding 1 (MEDIUM, `combat.rs:421-424` inherited)** — APPLIED (record-only, per the
+  review's explicit directive not to touch the engine). Amended `goblin_rabblemaster.rs`'s
+  Static-ability comment to record that the granted `MustAttackEachCombat` is enforced by
+  an "able" test that ignores `GameRestriction::CantAttackYouUnlessPay` (a reachable
+  deadlock with an opponent's Ghostly Prison/Propaganda + no untapped mana, pre-existing
+  and shared by every already-shipped `MustAttackEachCombat` card, but newly reachable
+  every combat because Rabblemaster manufactures a forced attacker each time). Filed
+  **OOS-RS3-4** in `memory/primitives/rider-seed-triage-2026-07-19.md` §1c, same format as
+  the existing OOS-RS3-1/2/3 rows. No engine change made.
+- **Finding 2 (MEDIUM, seed-text correction)** — pre-fixed by the implementer before this
+  cycle (per the dispatch brief, the OOS-RS3-1 seed entry itself was NOT touched further).
+  Applied only the trailing sub-item: softened `loyal_apprentice.rs:26-27` and
+  `siege_gang_lieutenant.rs:21-22` from "a pre-existing, engine-wide convention" to "a
+  pre-existing convention, engine-wide across the card-def trigger sweeps," so the wording
+  no longer implies the emblem path (which DOES check intervening-if at queue time,
+  `abilities.rs:6798-6803`) shares the defect.
+- **Finding 3 (MEDIUM, no end-to-end test on the real def)** — APPLIED. Added
+  `test_goblin_rabblemaster_end_to_end` to
+  `crates/engine/tests/primitives/pb_rs3_at_beginning_of_combat_sweep.rs`: places the real
+  `goblin_rabblemaster` (from `all_cards()`), registers its Static grant via
+  `register_static_continuous_effects` (GameStateBuilder doesn't replay ETB), drives the
+  real `PreCombatMain -> BeginningOfCombat` transition, drains the stack, asserts exactly
+  one 1/1 red Goblin token with haste, then asserts (via the real `Command::
+  DeclareAttackers` path) that omitting the token is rejected (CR 508.1d) while declaring
+  it is accepted. **Discrimination verified empirically**: temporarily commented out the
+  `register_static_continuous_effects` call and re-ran under `RUSTFLAGS="-A warnings"`
+  (the file's `mut`/unused-import lints trip under `-D warnings` with the call removed) —
+  the test FAILED exactly as predicted:
+  `thread '...test_goblin_rabblemaster_end_to_end' panicked at .../pb_rs3_at_beginning_of_combat_sweep.rs:1019:5: CR 508.1d: Rabblemaster's own Goblin token must be forced to attack by Rabblemaster's own MustAttackEachCombat static grant -- declaring no attackers should be rejected: Some(())`.
+  Reverted; re-confirmed `test_goblin_rabblemaster_end_to_end ... ok`.
+- **Finding 4 (LOW, flip authority misattributed)** — APPLIED. Rewrote step 4's
+  Rabblemaster-flip authority clause in this file: no longer cites plan §5c (which
+  predicts the OPPOSITE — Rabblemaster "stays `partial`"); now cites the roster reviewer's
+  F-Rabble finding plus the purpose-built probe as the actual authority, and states
+  explicitly that the flip overrides §5c's prediction rather than following from it.
+- **Finding 5 (LOW, stale comment)** — APPLIED. `pb_os5_relative_attacker_count.rs:13`
+  updated from "(partial, pump clause implemented)" to "(Complete as of PB-RS3)".
+- **Finding 6 (LOW, roster walk recursion)** — APPLIED as a comment, not a recursion
+  change. Verified via grep that `trigger_condition` is the sole occurrence of that field
+  name across `card_definition.rs`, and that no `TriggerCondition` variant's own fields
+  could nest another `trigger_condition` key — the current non-recursing behavior on a
+  keyed match is therefore already correct for every value this schema can produce, and
+  adding recursion there would be a permanent no-op. Documented that flat-value assumption
+  directly on the matched-key arm in `core/pb_rs3_combat_trigger_roster.rs`, including the
+  condition under which it would need revisiting (a future nested/modal `TriggerCondition`).
+- **Finding 7 (LOW, Test 2 doc incomplete)** — APPLIED. Added a paragraph to Test 2's doc
+  comment in `pb_rs3_at_beginning_of_combat_sweep.rs` naming the OTHER half of plan §12's
+  R1 hazard (switching to the dense `characteristics.triggered_abilities` namespace instead
+  of `def.effective_abilities()`), citing `resolution.rs:2019-2020` and
+  `tests/primitives/pb_ac7_ability_index_desync.rs`.
+
+**Gates re-run after all 7 fixes**: `cargo build --workspace` clean; `cargo test --all`
+0 failed across all 29 suites; `cargo clippy --all-targets -- -D warnings` clean; `cargo
+fmt --check` clean (one file needed `cargo fmt` — the new test's multi-line
+`.characteristics.keywords.contains(...)` chain — re-verified clean and full suite re-run
+green after); `tools/check-defs-fmt.sh` clean (1804 defs). **PROTOCOL_VERSION == 27,
+HASH_SCHEMA_VERSION == 63 — both unchanged** (grep-verified; `git diff --stat` on
+`protocol.rs`/`hash.rs` empty), as expected for a fix cycle that touched only comments,
+one card-def note, and test files.
+
+No finding was declined.
 
 ## Prior state
 

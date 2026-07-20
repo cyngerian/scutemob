@@ -36,6 +36,19 @@ use mtg_engine::cards::card_definition::Completeness;
 /// variant, an object keyed by `variant`).
 fn contains_field_with_variant(v: &serde_json::Value, field: &str, variant: &str) -> bool {
     match v {
+        // PB-RS3 review Finding 6: when `k == field`, this arm returns the match
+        // result for `child` and does NOT recurse further into it. This is safe
+        // ONLY because `trigger_condition` is a flat-value field: it is the sole
+        // occurrence of that field name anywhere in `card_definition.rs` (grep-
+        // confirmed, single hit at `AbilityDefinition::Triggered`'s
+        // `trigger_condition: TriggerCondition` field), and every `TriggerCondition`
+        // variant's own fields (spell/subtype/controller filters, bools) contain no
+        // field named `trigger_condition` -- there is no schema path for a
+        // `TriggerCondition` value to nest another `trigger_condition` key inside
+        // itself. If a future DSL change ever adds a modal or wrapped condition that
+        // embeds a nested `trigger_condition` inside a `TriggerCondition` variant's
+        // own payload, this flat-value assumption breaks and this arm must also
+        // recurse into `child` after checking the direct match.
         serde_json::Value::Object(map) => map.iter().any(|(k, child)| {
             if k == field {
                 match child {

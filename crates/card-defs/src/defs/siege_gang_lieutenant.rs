@@ -18,9 +18,10 @@
 // Accepted engine-wide limitation (F3, `memory/card-authoring/review-pb-rs3-roster.md`):
 // `intervening_if` is checked only at resolution (resolution.rs:2125-2135), never at
 // queue time, though CR 603.4 requires both. See loyal_apprentice.rs's top-of-file
-// comment for the full account -- a pre-existing, engine-wide convention (documented
-// at the upkeep sweep, turn_actions.rs:265-266), not a defect specific to this card.
-// Filed as a seed (rider-seed-triage-2026-07-19.md) rather than blocking this flip.
+// comment for the full account -- a pre-existing convention, engine-wide across the
+// card-def trigger sweeps (documented at the upkeep sweep, turn_actions.rs:265-266),
+// not a defect specific to this card. Filed as a seed (rider-seed-triage-2026-07-19.md)
+// rather than blocking this flip.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {

@@ -10,7 +10,7 @@
 //! - Goblin Piledriver (new -> Complete): reuses `AttackingCreatureCount` with a fixed
 //!   Goblin subtype filter, `Sum(count, count)` for the x2 multiplier -- NOT this new
 //!   variant, included here as the piledriver-family exclude-self/scope decoy.
-//! - Goblin Rabblemaster (partial, pump clause implemented): same `AttackingCreatureCount`
+//! - Goblin Rabblemaster (Complete as of PB-RS3): same `AttackingCreatureCount`
 //!   shape as Piledriver without the `Sum` doubling.
 //! - Muxus, Goblin Grandee (new -> partial, attack half only): reuses `PermanentCount`
 //!   (you-control scope, NOT attacking-only) -- included as the 4-player you-control
