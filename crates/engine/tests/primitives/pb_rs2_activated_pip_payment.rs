@@ -663,7 +663,7 @@ fn phyrexian_and_explicit_life_cost_check_combined_total() {
         },
     );
     assert!(
-        matches!(result, Err(_)),
+        result.is_err(),
         "CR 119.4: 3 life cannot pay a combined 4-life cost: {result:?}"
     );
 
