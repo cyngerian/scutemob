@@ -93,7 +93,9 @@ fn battlefield_forge_colorless_tap_no_damage() {
             ability_index: 0, // first ability: {T}: Add {C}
 
             chosen_color: None,
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     )
     .expect("tap for colorless should succeed");
 
@@ -131,7 +133,9 @@ fn battlefield_forge_colored_tap_deals_damage() {
             ability_index: 1, // second ability: {T}: Add {W} + damage
 
             chosen_color: None,
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     )
     .expect("tap for colored mana should succeed");
 
@@ -163,7 +167,9 @@ fn battlefield_forge_second_colored_tap_deals_damage() {
             ability_index: 2, // third ability: {T}: Add {R} + damage
 
             chosen_color: None,
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     )
     .expect("tap for red mana should succeed");
 
@@ -205,7 +211,9 @@ fn all_pain_lands_deal_damage_on_colored_tap() {
                 ability_index: 1, // first colored ability
 
                 chosen_color: None,
-            },
+                        hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+},
         )
         .unwrap_or_else(|e| panic!("{}: colored tap failed: {:?}", name, e));
 
@@ -253,7 +261,9 @@ fn all_pain_lands_deal_damage_on_second_colored_tap() {
                 ability_index: 2, // second colored ability
 
                 chosen_color: None,
-            },
+                        hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+},
         )
         .unwrap_or_else(|e| panic!("{}: second colored tap failed: {:?}", name, e));
 
@@ -291,7 +301,9 @@ fn city_of_brass_tap_produces_mana() {
             source: land_id,
             ability_index: 0,
             chosen_color: Some(ManaColor::Green),
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     )
     .expect("tap City of Brass should succeed");
 
@@ -337,7 +349,9 @@ fn shivan_reef_produces_exactly_one_blue_or_red() {
             ability_index: 1, // {T}: Add {U}
 
             chosen_color: None,
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     )
     .expect("tap for blue mana should succeed");
 
@@ -369,7 +383,9 @@ fn shivan_reef_produces_exactly_one_blue_or_red() {
             ability_index: 2, // {T}: Add {R}
 
             chosen_color: None,
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     )
     .expect("tap for red mana should succeed");
 

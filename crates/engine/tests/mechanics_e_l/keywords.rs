@@ -2045,7 +2045,9 @@ fn test_509_1b_cant_be_blocked_via_continuous_effect() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     )
     .expect("ActivateAbility should succeed");
 

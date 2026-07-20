@@ -167,6 +167,8 @@ fn test_harness_declare_attackers_basic() {
         &[],    // exert_names: not used for combat harness actions
         None,   // pitch_exile_card_name: not used for combat harness actions
         None,   // chosen_color_name: not used for combat harness actions
+        &[],    // hybrid_choices: not used for combat harness actions
+        &[],    // phyrexian_life_payments: not used for combat harness actions
         &state,
         &players,
     );
@@ -255,6 +257,8 @@ fn test_harness_declare_attackers_empty() {
         &[],    // exert_names: not used for combat harness actions
         None,   // pitch_exile_card_name: not used for combat harness actions
         None,   // chosen_color_name: not used for combat harness actions
+        &[],    // hybrid_choices: not used for combat harness actions
+        &[],    // phyrexian_life_payments: not used for combat harness actions
         &state,
         &players,
     );
@@ -383,6 +387,8 @@ fn test_harness_declare_blockers_basic() {
         &[],    // exert_names: not used for combat harness actions
         None,   // pitch_exile_card_name: not used for combat harness actions
         None,   // chosen_color_name: not used for combat harness actions
+        &[],    // hybrid_choices: not used for combat harness actions
+        &[],    // phyrexian_life_payments: not used for combat harness actions
         &state,
         &players,
     );
@@ -479,6 +485,8 @@ fn test_harness_declare_blockers_empty() {
         &[],    // exert_names: not used for combat harness actions
         None,   // pitch_exile_card_name: not used for combat harness actions
         None,   // chosen_color_name: not used for combat harness actions
+        &[],    // hybrid_choices: not used for combat harness actions
+        &[],    // phyrexian_life_payments: not used for combat harness actions
         &state,
         &players,
     );
@@ -561,6 +569,8 @@ fn test_harness_full_combat_unblocked_damage() {
         &[],    // exert_names: not used for combat harness actions
         None,   // pitch_exile_card_name: not used for combat harness actions
         None,   // chosen_color_name: not used for combat harness actions
+        &[],    // hybrid_choices: not used for combat harness actions
+        &[],    // phyrexian_life_payments: not used for combat harness actions
         &state,
         &players,
     )
@@ -611,6 +621,8 @@ fn test_harness_full_combat_unblocked_damage() {
         &[],    // exert_names: not used for combat harness actions
         None,   // pitch_exile_card_name: not used for combat harness actions
         None,   // chosen_color_name: not used for combat harness actions
+        &[],    // hybrid_choices: not used for combat harness actions
+        &[],    // phyrexian_life_payments: not used for combat harness actions
         &state,
         &players,
     )
@@ -689,6 +701,8 @@ fn test_harness_declare_attackers_default_target() {
         &[],    // exert_names: not used for combat harness actions
         None,   // pitch_exile_card_name: not used for combat harness actions
         None,   // chosen_color_name: not used for combat harness actions
+        &[],    // hybrid_choices: not used for combat harness actions
+        &[],    // phyrexian_life_payments: not used for combat harness actions
         &state,
         &players,
     );

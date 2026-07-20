@@ -140,7 +140,9 @@ fn test_fortify_basic_attaches_to_land() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     )
     .unwrap();
 
@@ -219,7 +221,9 @@ fn test_fortify_sorcery_speed_only() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     );
 
     assert!(
@@ -277,7 +281,9 @@ fn test_fortify_target_must_be_land() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     );
 
     assert!(
@@ -336,7 +342,9 @@ fn test_fortify_requires_controller_ownership() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     );
 
     assert!(
@@ -409,7 +417,9 @@ fn test_fortify_moves_between_lands() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     )
     .unwrap();
 
@@ -590,7 +600,9 @@ fn test_fortify_static_ability_grants_to_land() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     )
     .unwrap();
 

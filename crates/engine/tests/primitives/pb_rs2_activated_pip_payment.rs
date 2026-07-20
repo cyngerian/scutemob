@@ -70,7 +70,9 @@ fn probe_hybrid_pip_is_currently_free_activated_ability() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     );
 
     assert!(
@@ -114,7 +116,9 @@ fn probe_hybrid_pip_is_currently_free_mana_ability() {
             source,
             ability_index: 1, // {B/R},{T}: Add {B}{B}/{B}{R}/{R}{R} — ability 0 is {T}: Add {C}
             chosen_color: None,
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     );
 
     let pool_total = result

@@ -140,7 +140,9 @@ fn handle_normal_mode(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result<()> {
                         ability_index: *ability_index,
 
                         chosen_color: None,
-                    };
+                                        hybrid_choices: vec![],
+                    phyrexian_life_payments: vec![],
+};
                     app.execute_command(cmd)?;
                 } else {
                     app.status_message = Some(format!(
@@ -195,7 +197,9 @@ fn handle_normal_mode(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result<()> {
                         x_value: None,
                         // PB-EF7: TUI doesn't yet prompt for mode choice; empty auto-selects mode 0.
                         modes_chosen: Vec::new(),
-                    };
+                                        hybrid_choices: vec![],
+                    phyrexian_life_payments: vec![],
+};
                     app.execute_command(cmd)?;
                 } else {
                     app.status_message =

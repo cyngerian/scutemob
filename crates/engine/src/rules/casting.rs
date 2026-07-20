@@ -3988,7 +3988,7 @@ pub fn handle_cast_spell(
     if let Some(ref cost) = mana_cost {
         // CR 107.4e/107.4f: Flatten hybrid and Phyrexian choices into a standard cost.
         let (flat_cost, phyrexian_life) = if !cost.hybrid.is_empty() || !cost.phyrexian.is_empty() {
-            flatten_hybrid_phyrexian(cost, &hybrid_choices, &phyrexian_life_payments)
+            flatten_hybrid_phyrexian(cost, &hybrid_choices, &phyrexian_life_payments)?
         } else {
             (cost.clone(), 0)
         };
@@ -4012,9 +4012,19 @@ pub fn handle_cast_spell(
             );
         }
         // CR 107.4f: Pay life for Phyrexian mana symbols paid with life.
+        // CR 119.4 (PB-RS2 repair — the pre-fix comment here asserted the OPPOSITE of what
+        // CR 119.4 says): "the player may do so only if their life total is greater than
+        // or equal to the amount of the payment." A player below `phyrexian_life` may not
+        // choose to pay it — mirrors the Bolas's Citadel guard 12 lines below and
+        // `mana.rs`'s existing `life_cost` check.
         if phyrexian_life > 0 {
             let player_state = state.player_mut(player)?;
-            // CR 119.4: Life payment is a cost. Life can go below 0 (SBA handles death).
+            if player_state.life_total < phyrexian_life as i32 {
+                return Err(GameStateError::InvalidCommand(
+                    "cannot pay Phyrexian life: life total is less than the payment (CR 119.4)"
+                        .into(),
+                ));
+            }
             player_state.life_total -= phyrexian_life as i32;
             events.push(GameEvent::LifeLost {
                 player,
@@ -6490,118 +6500,20 @@ fn validate_object_satisfies_requirement(
 }
 /// CR 601.2f: Resolve hybrid and Phyrexian payment choices into a flat ManaCost.
 ///
-/// Hybrid pips become colored or generic pips based on choices.
-/// Phyrexian pips paid with life are removed from the mana cost (life deducted separately).
-/// Phyrexian pips paid with mana become colored pips.
-///
-/// Returns (flattened mana cost with only standard fields, life to pay for Phyrexian).
-/// If `hybrid_choices` or `phyrexian_life_payments` are shorter than the pip count,
-/// defaults apply: first color for hybrid, mana payment for Phyrexian.
+/// PB-RS2: this is now a thin wrapper over `ManaCost::flatten_hybrid_phyrexian`
+/// (relocated to `card-types/src/state/game_object.rs`, plan §4 — the logic
+/// references no engine type and belongs beside `ManaCost`), translating its
+/// plain-`String` error (`card-types` cannot reference `GameStateError`, SR-6)
+/// into `GameStateError::InvalidCommand` for engine callers. Kept under this name
+/// and in this module so `casting.rs`'s existing call site, and any external
+/// caller, keep compiling unchanged.
 pub fn flatten_hybrid_phyrexian(
     cost: &crate::state::game_object::ManaCost,
     hybrid_choices: &[crate::state::game_object::HybridManaPayment],
     phyrexian_life_payments: &[bool],
-) -> (crate::state::game_object::ManaCost, u32) {
-    use crate::state::game_object::{HybridMana, HybridManaPayment, PhyrexianMana};
-    use crate::state::types::ManaColor;
-    let mut flat = crate::state::game_object::ManaCost {
-        white: cost.white,
-        blue: cost.blue,
-        black: cost.black,
-        red: cost.red,
-        green: cost.green,
-        colorless: cost.colorless,
-        generic: cost.generic,
-        hybrid: vec![],
-        phyrexian: vec![],
-        x_count: cost.x_count,
-    };
-    // Resolve hybrid pips
-    for (i, h) in cost.hybrid.iter().enumerate() {
-        let choice = hybrid_choices.get(i);
-        match h {
-            HybridMana::ColorColor(a, b) => {
-                // Default: pay with the first color
-                let color = match choice {
-                    Some(HybridManaPayment::Color(c)) => *c,
-                    _ => *a,
-                };
-                match color {
-                    ManaColor::White => flat.white += 1,
-                    ManaColor::Blue => flat.blue += 1,
-                    ManaColor::Black => flat.black += 1,
-                    ManaColor::Red => flat.red += 1,
-                    ManaColor::Green => flat.green += 1,
-                    ManaColor::Colorless => flat.colorless += 1,
-                }
-                // Validate: chosen color must be one of a or b
-                let _ = (a, b); // used above via default
-            }
-            HybridMana::GenericColor(c) => {
-                match choice {
-                    Some(HybridManaPayment::Generic) => {
-                        // Pay with 2 generic mana
-                        flat.generic += 2;
-                    }
-                    Some(HybridManaPayment::Color(color)) => {
-                        // Pay with the colored option
-                        match color {
-                            ManaColor::White => flat.white += 1,
-                            ManaColor::Blue => flat.blue += 1,
-                            ManaColor::Black => flat.black += 1,
-                            ManaColor::Red => flat.red += 1,
-                            ManaColor::Green => flat.green += 1,
-                            ManaColor::Colorless => flat.colorless += 1,
-                        }
-                    }
-                    _ => {
-                        // Default: pay with color (cheaper)
-                        match c {
-                            ManaColor::White => flat.white += 1,
-                            ManaColor::Blue => flat.blue += 1,
-                            ManaColor::Black => flat.black += 1,
-                            ManaColor::Red => flat.red += 1,
-                            ManaColor::Green => flat.green += 1,
-                            ManaColor::Colorless => flat.colorless += 1,
-                        }
-                    }
-                }
-            }
-        }
-    }
-    // Resolve Phyrexian pips
-    let mut life_cost = 0u32;
-    for (i, p) in cost.phyrexian.iter().enumerate() {
-        let pay_life = phyrexian_life_payments.get(i).copied().unwrap_or(false);
-        if pay_life {
-            life_cost += 2;
-        } else {
-            // Pay with mana — add to the appropriate color slot
-            match p {
-                PhyrexianMana::Single(c) => match c {
-                    ManaColor::White => flat.white += 1,
-                    ManaColor::Blue => flat.blue += 1,
-                    ManaColor::Black => flat.black += 1,
-                    ManaColor::Red => flat.red += 1,
-                    ManaColor::Green => flat.green += 1,
-                    ManaColor::Colorless => flat.colorless += 1,
-                },
-                PhyrexianMana::Hybrid(a, _b) => {
-                    // For hybrid Phyrexian paid with mana, default to first color.
-                    // A more precise choice would need a separate field.
-                    match a {
-                        ManaColor::White => flat.white += 1,
-                        ManaColor::Blue => flat.blue += 1,
-                        ManaColor::Black => flat.black += 1,
-                        ManaColor::Red => flat.red += 1,
-                        ManaColor::Green => flat.green += 1,
-                        ManaColor::Colorless => flat.colorless += 1,
-                    }
-                }
-            }
-        }
-    }
-    (flat, life_cost)
+) -> Result<(crate::state::game_object::ManaCost, u32), GameStateError> {
+    cost.flatten_hybrid_phyrexian(hybrid_choices, phyrexian_life_payments)
+        .map_err(GameStateError::InvalidCommand)
 }
 /// Returns true if the mana pool can cover the mana cost.
 ///

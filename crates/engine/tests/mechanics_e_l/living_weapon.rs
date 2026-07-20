@@ -625,7 +625,9 @@ fn test_living_weapon_equip_to_other_creature_germ_dies() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     )
     .unwrap_or_else(|e| panic!("ActivateAbility (Equip) failed: {:?}", e));
 

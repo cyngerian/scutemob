@@ -162,7 +162,9 @@ fn test_treasure_sacrifice_for_mana() {
             source: treasure_id,
             ability_index: 0,
             chosen_color: Some(ManaColor::Green),
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     )
     .unwrap();
 
@@ -253,7 +255,9 @@ fn test_treasure_mana_resolves_immediately_no_stack() {
             source: treasure_id,
             ability_index: 0,
             chosen_color: Some(ManaColor::Green),
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     )
     .unwrap();
 
@@ -307,7 +311,9 @@ fn test_treasure_sacrifice_multiple_in_sequence() {
             source: id_a,
             ability_index: 0,
             chosen_color: Some(ManaColor::Green),
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     )
     .unwrap();
 
@@ -318,7 +324,9 @@ fn test_treasure_sacrifice_multiple_in_sequence() {
             source: id_b,
             ability_index: 0,
             chosen_color: Some(ManaColor::Green),
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     )
     .unwrap();
 
@@ -329,7 +337,9 @@ fn test_treasure_sacrifice_multiple_in_sequence() {
             source: id_c,
             ability_index: 0,
             chosen_color: Some(ManaColor::Green),
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     )
     .unwrap();
 
@@ -373,7 +383,9 @@ fn test_treasure_already_tapped_cannot_activate() {
             source: treasure_id,
             ability_index: 0,
             chosen_color: Some(ManaColor::Green),
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     );
 
     assert!(
@@ -428,7 +440,9 @@ fn test_treasure_not_affected_by_summoning_sickness() {
             source: treasure_id,
             ability_index: 0,
             chosen_color: Some(ManaColor::Green),
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     );
 
     assert!(
@@ -464,7 +478,9 @@ fn test_treasure_token_ceases_to_exist_after_sba() {
             source: treasure_id,
             ability_index: 0,
             chosen_color: Some(ManaColor::Green),
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     )
     .unwrap();
 
@@ -525,7 +541,9 @@ fn test_treasure_cannot_be_activated_by_opponent() {
             source: treasure_id,
             ability_index: 0,
             chosen_color: Some(ManaColor::Green),
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     );
 
     assert!(

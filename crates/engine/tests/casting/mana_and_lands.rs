@@ -343,7 +343,9 @@ fn test_tap_for_mana_adds_to_pool() {
             ability_index: 0,
 
             chosen_color: None,
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     )
     .unwrap();
 
@@ -388,7 +390,9 @@ fn test_tap_for_mana_taps_permanent() {
             ability_index: 0,
 
             chosen_color: None,
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     )
     .unwrap();
 
@@ -428,7 +432,9 @@ fn test_tap_already_tapped_land_fails() {
             ability_index: 0,
 
             chosen_color: None,
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     );
 
     assert!(matches!(
@@ -463,7 +469,9 @@ fn test_tap_for_mana_opponent_land_fails() {
             ability_index: 0,
 
             chosen_color: None,
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     );
 
     assert!(matches!(result, Err(GameStateError::NotController { .. })));
@@ -496,7 +504,9 @@ fn test_tap_for_mana_player_retains_priority() {
             ability_index: 0,
 
             chosen_color: None,
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     )
     .unwrap();
 
@@ -540,7 +550,9 @@ fn test_tap_multiple_lands_accumulates_mana() {
             ability_index: 0,
 
             chosen_color: None,
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     )
     .unwrap();
     let (s2, _) = mtg_engine::process_command(
@@ -551,7 +563,9 @@ fn test_tap_multiple_lands_accumulates_mana() {
             ability_index: 0,
 
             chosen_color: None,
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     )
     .unwrap();
     let (s3, _) = mtg_engine::process_command(
@@ -562,7 +576,9 @@ fn test_tap_multiple_lands_accumulates_mana() {
             ability_index: 0,
 
             chosen_color: None,
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     )
     .unwrap();
 
@@ -665,7 +681,9 @@ fn test_tap_for_mana_invalid_ability_index_fails() {
             ability_index: 5, // out of range
 
             chosen_color: None,
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     );
 
     assert!(matches!(
@@ -701,7 +719,9 @@ fn test_tap_for_mana_non_battlefield_fails() {
             ability_index: 0,
 
             chosen_color: None,
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     );
 
     assert!(matches!(

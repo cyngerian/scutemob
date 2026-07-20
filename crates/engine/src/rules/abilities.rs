@@ -137,6 +137,8 @@ pub fn handle_activate_ability(
     sacrifice_target: Option<ObjectId>,
     x_value: Option<u32>,
     mut modes_chosen: Vec<usize>,
+    hybrid_choices: Vec<crate::state::game_object::HybridManaPayment>,
+    phyrexian_life_payments: Vec<bool>,
 ) -> Result<Vec<GameEvent>, GameStateError> {
     // CR 602.2: Activating requires priority.
     if state.turn.priority_holder != Some(player) {
@@ -745,12 +747,54 @@ pub fn handle_activate_ability(
                 }
             }
         }
-        if resolved_cost.mana_value() > 0 {
+        // CR 107.4e/107.4f (via CR 602.2b): flatten hybrid/Phyrexian choices before
+        // payment. An activated ability's activation cost is its analog to a
+        // spell's mana cost (CR 602.2b), so it must go through the same flatten
+        // step `casting.rs` uses for spells — pre-PB-RS2 this called `can_spend`/
+        // `spend` on the RAW cost, so a pure `{B/R}` (mana_value()==1, passing the
+        // gate below) was charged as an all-zero cost (OOS-RS-2). The flatten must
+        // happen BEFORE the `mana_value() > 0` gate: a pure Phyrexian pip paid
+        // entirely with life has raw mana_value()==1 but a flattened mana_value()
+        // of 0, and the gate must correctly skip the mana check in that case while
+        // the (sibling, not nested) life deduction below still fires.
+        let (flat_cost, phyrexian_life) =
+            if !resolved_cost.hybrid.is_empty() || !resolved_cost.phyrexian.is_empty() {
+                super::casting::flatten_hybrid_phyrexian(
+                    &resolved_cost,
+                    &hybrid_choices,
+                    &phyrexian_life_payments,
+                )?
+            } else {
+                (resolved_cost.clone(), 0)
+            };
+        if flat_cost.mana_value() > 0 {
             let player_state = state.player_mut(player)?;
-            if !player_state.mana_pool.can_spend(&resolved_cost, None) {
+            if !player_state.mana_pool.can_spend(&flat_cost, None) {
                 return Err(GameStateError::InsufficientMana);
             }
-            player_state.mana_pool.spend(&resolved_cost, None);
+            player_state.mana_pool.spend(&flat_cost, None);
+        }
+        // CR 107.4f + CR 119.4: pay life for Phyrexian pips paid with life. A
+        // sibling of the mana-payment block above, not nested inside it — see the
+        // pure-Phyrexian-paid-with-life case in the comment above.
+        if phyrexian_life > 0 {
+            let player_state = state.player_mut(player)?;
+            if player_state.life_total < phyrexian_life as i32 {
+                return Err(GameStateError::InvalidCommand(
+                    "cannot pay Phyrexian life: life total is less than the payment (CR 119.4)"
+                        .into(),
+                ));
+            }
+            player_state.life_total -= phyrexian_life as i32;
+            events.push(GameEvent::LifeLost {
+                player,
+                amount: phyrexian_life,
+            });
+        }
+        if flat_cost.mana_value() > 0 || phyrexian_life > 0 {
+            // Emit the ORIGINAL (unflattened) cost for event consumers — mirrors
+            // casting.rs's ManaCostPaid emission, which carries hybrid/Phyrexian
+            // pip info rather than the flattened shape.
             events.push(GameEvent::ManaCostPaid {
                 player,
                 cost: resolved_cost,

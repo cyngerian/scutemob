@@ -1262,7 +1262,9 @@ mod tests {
             source: rock_id,
             ability_index: 0,
             chosen_color: *chosen_color,
-        };
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+};
         let result = mtg_engine::process_command(state, cmd);
         assert!(
             result.is_ok(),

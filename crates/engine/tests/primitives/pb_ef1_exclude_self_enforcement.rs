@@ -395,7 +395,9 @@ fn sacrifice_permanents_effect_excludes_source() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     )
     .expect("activate sacrifice-effect ability");
     let (state, _) = pass_all(state, &[p1, p2]);
@@ -483,7 +485,9 @@ fn optional_cost_sacrifice_excludes_source() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     )
     .expect("activate optional-cost ability");
     let (state, _) = pass_all(state, &[p1, p2]);
@@ -670,7 +674,9 @@ fn izoni_cannot_sacrifice_itself_to_its_own_cost() {
             sacrifice_target: Some(izoni_id), // sacrifice ITSELF — illegal ("another")
             x_value: None,
             modes_chosen: vec![],
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     );
     assert!(
         result.is_err(),
@@ -723,7 +729,9 @@ fn izoni_sacrifices_another_creature_and_resolves() {
             sacrifice_target: Some(fodder_id),
             x_value: None,
             modes_chosen: vec![],
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     )
     .expect("sacrificing ANOTHER creature is legal");
     let (state, _) = pass_all(state, &[p1, p2]);
@@ -775,7 +783,9 @@ fn yawgmoth_cannot_sacrifice_itself() {
             sacrifice_target: Some(yawg_id), // itself — illegal
             x_value: None,
             modes_chosen: vec![],
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     );
     assert!(
         result.is_err(),
@@ -823,7 +833,9 @@ fn yawgmoth_sacrifices_another_creature_and_resolves() {
             sacrifice_target: Some(victim_id), // ANOTHER creature — legal
             x_value: None,
             modes_chosen: vec![],
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     )
     .expect("Yawgmoth sacrificing another creature is legal");
     let (state, _) = pass_all(state, &[p1, p2]);
@@ -891,7 +903,9 @@ fn commissar_cannot_sacrifice_itself() {
             sacrifice_target: Some(commissar_id),
             x_value: None,
             modes_chosen: vec![],
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     );
     assert!(
         result.is_err(),
@@ -938,7 +952,9 @@ fn commissar_sacrifices_another_creature_and_resolves() {
             sacrifice_target: Some(guardsman_id), // ANOTHER creature — legal
             x_value: None,
             modes_chosen: vec![],
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     )
     .expect("Commissar sacrificing another creature is legal");
     let (state, _) = pass_all(state, &[p1, p2]);

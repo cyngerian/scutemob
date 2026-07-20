@@ -430,6 +430,8 @@ impl Move {
             &escape,
             kicked,
             modes,
+            &[],
+            &[],
             state,
             players,
         )
@@ -456,6 +458,8 @@ impl Move {
                 ability_index: 0,
 
                 chosen_color: None,
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
             }),
             Move::CastSpell { card, targets, .. } => {
                 Some(Command::CastSpell(Box::new(CastSpellData {
@@ -490,6 +494,8 @@ impl Move {
                 sacrifice_target: None,
                 x_value: None,
                 modes_chosen: vec![],
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
             }),
             Move::DeclareAttackers { attackers, .. } => {
                 let mut pairs = Vec::new();
@@ -584,7 +590,7 @@ fn to_action_target(t: &Tgt) -> ActionTarget {
     }
 }
 
-/// `translate_player_action` with the 28 arguments this file never uses filled
+/// `translate_player_action` with the arguments this file never uses filled
 /// in. Kept as one call site so a signature change fails here loudly rather
 /// than silently shifting a positional argument.
 #[allow(clippy::too_many_arguments)]
@@ -600,6 +606,8 @@ fn translate(
     escape: &[String],
     kicked: bool,
     modes_chosen: Vec<usize>,
+    hybrid_choices: &[String],
+    phyrexian_life_payments: &[bool],
     state: &GameState,
     players: &HashMap<String, PlayerId>,
 ) -> Option<Command> {
@@ -640,6 +648,8 @@ fn translate(
         &[],   // exert
         None,  // pitch_exile_card
         None,  // chosen_color
+        hybrid_choices,
+        phyrexian_life_payments,
         state,
         players,
     )

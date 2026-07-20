@@ -150,6 +150,7 @@ impl ManaPool {
         cost: &crate::state::game_object::ManaCost,
         spell: Option<&SpellContext>,
     ) -> bool {
+        debug_assert_flattened(cost);
         let available = |color: ManaColor| -> u32 {
             self.get(color) + spell.map_or(0, |s| self.restricted_available(color, s))
         };
@@ -187,6 +188,7 @@ impl ManaPool {
         cost: &crate::state::game_object::ManaCost,
         spell: Option<&SpellContext>,
     ) {
+        debug_assert_flattened(cost);
         // Spend a required amount of a color, using restricted mana first.
         let spend_color = |pool: &mut ManaPool, color: ManaColor, required: u32| {
             let mut remaining = required;
@@ -247,6 +249,37 @@ impl ManaPool {
     pub fn is_empty(&self) -> bool {
         self.total() == 0 && self.restricted.is_empty()
     }
+}
+/// CR 107.4e/107.4f: hybrid and Phyrexian pips are **not** payable here. A caller
+/// must resolve them into standard pips with `ManaCost::flatten_hybrid_phyrexian`
+/// first (CR 601.2f for spells, CR 602.2b for activation costs, CR 605.1a for mana
+/// abilities).
+///
+/// Reaching this with a non-empty `hybrid`/`phyrexian` is an **engine bug**, not an
+/// LKI fizzle (SR-4 classification, `docs/engine-invariants.md`): a hybrid/Phyrexian
+/// pip names a real cost, so a payment routine that ignores it silently
+/// *undercharges* the player — there is no game state or CR rule under which that is
+/// correct. This is deliberately a plain `debug_assert!`, not the `state::diagnostics`
+/// `expect_*` family SR-4 otherwise prescribes for engine-bug classifications: (1)
+/// SR-4's swept surface is `effects/mod.rs` + `rules/resolution.rs`
+/// (`docs/engine-invariants.md`: "the rest of `rules/` is not yet swept"), and (2) the
+/// `expect_*` family is a set of `GameState` methods (`crates/engine/src/state/
+/// diagnostics.rs`), and this function lives in `card-types`, which SR-6 bars from
+/// referencing `GameState`. The classification is SR-4's; the mechanism is a direct
+/// `debug_assert!` because the vocabulary's home crate is unreachable from here.
+///
+/// This exact silence made every filter land a free "{T}: Add two mana" land for the
+/// life of the project (OOS-RS-2). PB-RS2.
+#[track_caller]
+fn debug_assert_flattened(cost: &crate::state::game_object::ManaCost) {
+    debug_assert!(
+        cost.hybrid.is_empty() && cost.phyrexian.is_empty(),
+        "unflattened mana cost reached the payment path: {} hybrid + {} Phyrexian pip(s) would \
+         be paid for free (CR 107.4e/107.4f). Call ManaCost::flatten_hybrid_phyrexian first. \
+         cost = {cost:?}",
+        cost.hybrid.len(),
+        cost.phyrexian.len(),
+    );
 }
 /// Check if a mana restriction matches the spell being cast.
 pub fn restriction_matches(restriction: &ManaRestriction, spell: &SpellContext) -> bool {
@@ -465,4 +498,56 @@ pub struct PlayerState {
     /// (see OOS-AC6-1 in `memory/primitives/pb-plan-AC6.md`).
     #[serde(default)]
     pub spells_cast_this_game_turn: u32,
+}
+// PB-RS2 §6.4: this test intentionally lives HERE, not in `crates/engine/tests/`
+// (the project's normal black-box test location, `memory/conventions.md`). Once the
+// PB-RS2 payment-path fix lands, no engine integration test can reach an unflattened
+// `ManaCost` at `can_spend`/`spend` — every real call site flattens first — so testing
+// the guard from the engine's public API would require constructing an artificial
+// bypass. This module exercises `ManaPool::can_spend` directly, the one place that can
+// still observe the guard firing.
+#[cfg(all(test, debug_assertions))]
+mod tests {
+    use super::*;
+    use crate::state::game_object::{HybridMana, ManaCost};
+
+    /// CR 107.4e — `debug_assert_flattened` (SR-4 engine-bug classification) panics
+    /// when a hybrid pip reaches `can_spend` unflattened, proving an unflattened cost
+    /// cannot silently pass through the payment path.
+    #[test]
+    #[should_panic(expected = "unflattened mana cost reached the payment path")]
+    fn unflattened_hybrid_cost_panics_in_debug() {
+        let pool = ManaPool::default();
+        let cost = ManaCost {
+            hybrid: vec![HybridMana::ColorColor(ManaColor::Black, ManaColor::Red)],
+            ..Default::default()
+        };
+        // Never reached — the debug_assert! inside can_spend panics first.
+        let _ = pool.can_spend(&cost, None);
+    }
+
+    /// CR 107.4f — same guard, Phyrexian pip.
+    #[test]
+    #[should_panic(expected = "unflattened mana cost reached the payment path")]
+    fn unflattened_phyrexian_cost_panics_in_debug() {
+        let pool = ManaPool::default();
+        let cost = ManaCost {
+            phyrexian: vec![crate::state::game_object::PhyrexianMana::Single(
+                ManaColor::Green,
+            )],
+            ..Default::default()
+        };
+        let _ = pool.can_spend(&cost, None);
+    }
+
+    /// A flattened cost (the normal case) does not panic.
+    #[test]
+    fn flattened_cost_does_not_panic() {
+        let pool = ManaPool::default();
+        let cost = ManaCost {
+            black: 1,
+            ..Default::default()
+        };
+        assert!(!pool.can_spend(&cost, None));
+    }
 }

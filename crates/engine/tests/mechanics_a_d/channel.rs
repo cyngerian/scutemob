@@ -149,7 +149,9 @@ fn test_channel_activate_from_hand_basic() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     )
     .unwrap();
 
@@ -267,7 +269,9 @@ fn test_channel_cannot_activate_from_battlefield() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     );
 
     assert!(
@@ -326,7 +330,9 @@ fn test_channel_only_owner_can_activate() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     );
 
     assert!(
@@ -385,7 +391,9 @@ fn test_channel_insufficient_mana_fails() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     );
 
     assert!(result.is_err(), "should fail with insufficient mana");
@@ -444,7 +452,9 @@ fn test_channel_ability_uses_stack() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     )
     .unwrap();
 

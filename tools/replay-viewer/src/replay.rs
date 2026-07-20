@@ -280,6 +280,8 @@ impl ReplaySession {
                                 &[],  // exert_names — not yet wired in replay viewer UI
                                 None, // pitch_exile_card_name — not yet wired in replay viewer UI
                                 None, // chosen_color_name — not yet wired in replay viewer UI
+                                &[],  // hybrid_choices — not yet wired in replay viewer UI
+                                &[],  // phyrexian_life_payments — not yet wired in replay viewer UI
                                 &current_state,
                                 &player_map,
                             );

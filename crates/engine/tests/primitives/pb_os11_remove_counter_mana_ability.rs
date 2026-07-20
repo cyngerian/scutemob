@@ -208,7 +208,9 @@ fn test_workhorse_remove_counter_adds_colorless() {
             source: id,
             ability_index: 0,
             chosen_color: None,
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     )
     .expect("Workhorse's remove-counter mana ability should activate");
 
@@ -306,7 +308,9 @@ fn test_workhorse_last_counter_removal_then_dies() {
                 source: id,
                 ability_index: 0,
                 chosen_color: None,
-            },
+                        hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+},
         )
         .expect("removing a counter while >=1 remain must succeed");
         state = s;
@@ -321,7 +325,9 @@ fn test_workhorse_last_counter_removal_then_dies() {
             source: id,
             ability_index: 0,
             chosen_color: None,
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     )
     .expect("removing the last counter must still succeed and produce mana");
 
@@ -380,7 +386,9 @@ fn test_workhorse_insufficient_counters_rejected() {
                 source: id,
                 ability_index: 0,
                 chosen_color: None,
-            },
+                        hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+},
         )
         .expect("first four activations must succeed");
         state = s;
@@ -395,7 +403,9 @@ fn test_workhorse_insufficient_counters_rejected() {
             source: id,
             ability_index: 0,
             chosen_color: None,
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     );
 
     assert!(
@@ -461,7 +471,9 @@ fn test_remove_counter_mana_ability_reads_source_counters_only() {
             source: source_a,
             ability_index: 0,
             chosen_color: None,
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     )
     .expect("activating Workhorse A's mana ability must succeed");
 
@@ -636,7 +648,9 @@ fn test_gemstone_array_any_color_lowered() {
             source: id,
             ability_index: 0,
             chosen_color: Some(ManaColor::Green),
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     )
     .expect("Gemstone Array's remove-counter mana ability should activate");
 
@@ -690,7 +704,9 @@ fn test_druids_repository_any_color_lowered() {
             source: id,
             ability_index: 0,
             chosen_color: Some(ManaColor::Blue),
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     )
     .expect("Druids' Repository's remove-counter mana ability should activate");
 

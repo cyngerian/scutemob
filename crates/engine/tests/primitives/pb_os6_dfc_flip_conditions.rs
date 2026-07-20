@@ -534,7 +534,9 @@ fn test_thaumatic_spires_untaps_and_removes_from_combat() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     )
     .expect("Spires' untap-and-remove ability should activate");
     let state = resolve_stack(state, &[p(1), p(2)]);

@@ -539,7 +539,9 @@ fn test_caged_sun_doubles_chosen_color_land_mana() {
             ability_index,
 
             chosen_color: None,
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     )
     .expect("TapForMana on Plains should succeed");
 
@@ -613,7 +615,9 @@ fn test_caged_sun_does_not_double_other_color_mana() {
             ability_index: 0,
 
             chosen_color: None,
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     )
     .expect("TapForMana on Mountain should succeed");
 

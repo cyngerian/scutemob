@@ -789,7 +789,9 @@ fn test_exile_self_cost_moves_source_to_exile() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     )
     .expect("activate exile-self ability should succeed");
 
@@ -882,7 +884,9 @@ fn test_exile_self_ability_resolves_after_source_gone() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     )
     .expect("activate");
 
@@ -966,7 +970,9 @@ fn test_exile_self_with_mana_fails_without_mana() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     );
 
     assert!(
@@ -1234,7 +1240,9 @@ fn test_balthor_activated_reanimates_black_and_red() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     )
     .expect("Balthor activation should succeed");
 

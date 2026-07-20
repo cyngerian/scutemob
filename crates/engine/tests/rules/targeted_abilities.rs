@@ -91,7 +91,9 @@ fn targeted_activated_ability_valid_creature_target() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     );
     assert!(
         result.is_ok(),
@@ -171,7 +173,9 @@ fn targeted_activated_ability_rejects_non_creature() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     );
     assert!(
         matches!(result, Err(GameStateError::InvalidTarget(_))),
@@ -243,7 +247,9 @@ fn targeted_activated_ability_target_player() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     );
     assert!(
         result.is_ok(),
@@ -313,7 +319,9 @@ fn activated_ability_no_targets_backward_compatible() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     );
     assert!(
         result.is_ok(),
@@ -520,7 +528,9 @@ fn targeted_activated_ability_rejects_player_for_creature_requirement() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     );
     assert!(
         matches!(result, Err(GameStateError::InvalidTarget(_))),
@@ -592,7 +602,9 @@ fn targeted_activated_ability_rejects_wrong_target_count() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     );
     assert!(
         result.is_err(),

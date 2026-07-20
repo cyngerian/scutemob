@@ -90,10 +90,19 @@ pub fn process_command(
             source,
             ability_index,
             chosen_color,
+            hybrid_choices,
+            phyrexian_life_payments,
         } => {
             validate_player_active(&state, player)?;
-            let events =
-                mana::handle_tap_for_mana(&mut state, player, source, ability_index, chosen_color)?;
+            let events = mana::handle_tap_for_mana(
+                &mut state,
+                player,
+                source,
+                ability_index,
+                chosen_color,
+                hybrid_choices,
+                phyrexian_life_payments,
+            )?;
             all_events.extend(events);
         }
         Command::PlayLand { player, card } => {
@@ -155,6 +164,8 @@ pub fn process_command(
             sacrifice_target,
             x_value,
             modes_chosen,
+            hybrid_choices,
+            phyrexian_life_payments,
         } => {
             validate_player_active(&state, player)?;
             // CR 104.4b: activating an ability is a meaningful player choice; reset loop detection.
@@ -169,6 +180,8 @@ pub fn process_command(
                 sacrifice_target,
                 x_value,
                 modes_chosen,
+                hybrid_choices,
+                phyrexian_life_payments,
             )?;
             check_and_flush_triggers(&mut state, &mut events);
             all_events.extend(events);

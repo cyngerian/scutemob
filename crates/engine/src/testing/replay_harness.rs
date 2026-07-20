@@ -1,6 +1,7 @@
 use crate::rules::command::CastSpellData;
 use crate::state::combat::AttackTarget;
 use crate::state::types::{AdditionalCost, AltCostKind, FaceDownKind, TurnFaceUpMethod};
+use crate::state::game_object::HybridManaPayment;
 use crate::state::{ActivatedAbility, ActivationCost, CounterType, SacrificeFilter};
 use crate::testing::script_schema::{
     ActionTarget, AttackerDeclaration, BlockerDeclaration, EnlistDeclaration, InitialState,
@@ -306,6 +307,26 @@ pub fn build_initial_state_checked(
     crate::rules::engine::check_all_defs_complete(&state)?;
     Ok((state, player_map))
 }
+/// PB-RS2 (CR 107.4e via CR 602.2b/605.1a): parse a script's `hybrid_choices` string
+/// list into `Vec<HybridManaPayment>`. An entry that isn't a recognized color name and
+/// isn't `"generic"` is silently dropped (mirrors `chosen_color`'s permissive parse
+/// at the `tap_for_mana` site) — the engine still validates the resulting choice
+/// against the actual pip shape (CR 107.4e) and rejects a bad one loudly.
+fn parse_hybrid_choices(names: &[String]) -> Vec<HybridManaPayment> {
+    names
+        .iter()
+        .filter_map(|name| match name.to_lowercase().as_str() {
+            "white" => Some(HybridManaPayment::Color(ManaColor::White)),
+            "blue" => Some(HybridManaPayment::Color(ManaColor::Blue)),
+            "black" => Some(HybridManaPayment::Color(ManaColor::Black)),
+            "red" => Some(HybridManaPayment::Color(ManaColor::Red)),
+            "green" => Some(HybridManaPayment::Color(ManaColor::Green)),
+            "colorless" => Some(HybridManaPayment::Color(ManaColor::Colorless)),
+            "generic" => Some(HybridManaPayment::Generic),
+            _ => None,
+        })
+        .collect()
+}
 /// Map a script `PlayerAction` string and its parameters to a [`Command`].
 ///
 /// Returns `None` for unrecognized action strings (future-proof: new actions
@@ -402,6 +423,16 @@ pub fn translate_player_action(
     // ability. One of "white"/"blue"/"black"/"red"/"green" (case-insensitive). `None` for
     // fixed-colour sources or all other action types.
     chosen_color_name: Option<&str>,
+    // PB-RS2 (CR 107.4e via CR 602.2b/605.1a): For `activate_ability` or `tap_for_mana`
+    // on a source with a hybrid pip in its activation cost. One entry per hybrid pip, in
+    // cost order: a color name to pay with that color, or "generic" to pay a monocolored
+    // hybrid with 2 generic mana. Empty for non-hybrid costs or all other action types.
+    hybrid_choice_names: &[String],
+    // PB-RS2 (CR 107.4f via CR 602.2b/605.1a): For `activate_ability` or `tap_for_mana`
+    // on a source with a Phyrexian pip in its activation cost. One entry per Phyrexian
+    // pip, in cost order: true = pay 2 life, false = pay mana. Empty for non-Phyrexian
+    // costs or all other action types.
+    phyrexian_life_payment_choices: &[bool],
     state: &GameState,
     players: &HashMap<String, PlayerId>,
 ) -> Option<Command> {
@@ -660,12 +691,18 @@ pub fn translate_player_action(
                 "green" => Some(ManaColor::Green),
                 _ => None,
             });
-            // Assume ability index 0 for basic mana abilities.
+            // PB-RS2: honor an explicit ability_index (e.g. a filter land's
+            // {Hybrid},{T} ability at index 1) rather than always assuming the
+            // basic {T}: Add {C} ability at index 0 — a script that omits
+            // ability_index still defaults to 0 (PlayerAction's #[serde(default)]),
+            // preserving every existing script's behavior.
             Some(Command::TapForMana {
                 player,
                 source: source_id,
-                ability_index: 0,
+                ability_index,
                 chosen_color,
+                hybrid_choices: parse_hybrid_choices(hybrid_choice_names),
+                phyrexian_life_payments: phyrexian_life_payment_choices.to_vec(),
             })
         }
         "activate_ability" => {
@@ -697,6 +734,8 @@ pub fn translate_player_action(
                 // CR 700.2a/601.2b: mode indices chosen for a modal activated ability
                 // (PB-EF7). Empty = non-modal, or auto-select mode 0.
                 modes_chosen: modes_chosen.clone(),
+                hybrid_choices: parse_hybrid_choices(hybrid_choice_names),
+                phyrexian_life_payments: phyrexian_life_payment_choices.to_vec(),
             })
         }
         // CR 606: Activate a loyalty ability on a planeswalker.

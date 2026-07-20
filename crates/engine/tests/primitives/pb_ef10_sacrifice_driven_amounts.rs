@@ -261,7 +261,9 @@ fn test_toughness_of_sacrificed_creature_reads_layer_resolved() {
             sacrifice_target: Some(bear_id),
             x_value: None,
             modes_chosen: vec![],
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     )
     .expect("Miren activation should succeed");
 

@@ -41,6 +41,21 @@ pub enum Command {
         ability_index: usize,
         #[serde(default)]
         chosen_color: Option<ManaColor>,
+        /// CR 107.4e (via CR 605.1a/602.2b): for each hybrid pip in the mana
+        /// ability's resolved activation cost, how it was paid. Length must match
+        /// the hybrid pip count after cost calculation. Empty = default to the
+        /// first color option for each pip (`ManaCost::flatten_hybrid_phyrexian`).
+        /// PB-RS2: added because a mana ability's activation cost, like a spell's
+        /// mana cost or an activated ability's activation cost, can carry hybrid
+        /// pips (the 7 filter lands' `{B/R},{T}: ...` and siblings) that must
+        /// actually be paid, not charged as an all-zero cost (OOS-RS-2).
+        #[serde(default)]
+        hybrid_choices: Vec<crate::state::game_object::HybridManaPayment>,
+        /// CR 107.4f (via CR 605.1a/602.2b): for each Phyrexian pip, true = pay 2
+        /// life, false = pay mana. Empty = default to paying with mana for each
+        /// pip. PB-RS2.
+        #[serde(default)]
+        phyrexian_life_payments: Vec<bool>,
     },
     /// Play a land from hand to battlefield (CR 305.1).
     ///
@@ -100,6 +115,20 @@ pub enum Command {
         /// Validated in `handle_activate_ability`.
         #[serde(default)]
         modes_chosen: Vec<usize>,
+        /// CR 107.4e (via CR 602.2b): for each hybrid pip in the resolved
+        /// activation cost, how it was paid. Length must match the hybrid pip
+        /// count after cost calculation. Empty = default to the first color
+        /// option for each hybrid pip. PB-RS2 (OOS-RS-2): mirrors
+        /// `CastSpellData::hybrid_choices` — CR 602.2b makes an activated
+        /// ability's activation cost the analog of a spell's mana cost, so a
+        /// hybrid/Phyrexian pip in it must be payable the same way.
+        #[serde(default)]
+        hybrid_choices: Vec<crate::state::game_object::HybridManaPayment>,
+        /// CR 107.4f (via CR 602.2b): for each Phyrexian pip, true = pay 2 life,
+        /// false = pay mana. Empty = default to paying with mana for each pip.
+        /// PB-RS2.
+        #[serde(default)]
+        phyrexian_life_payments: Vec<bool>,
     },
     // ── M6: Combat commands ───────────────────────────────────────────────
     /// Declare attacking creatures and their targets (CR 508.1).

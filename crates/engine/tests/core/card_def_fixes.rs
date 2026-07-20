@@ -259,7 +259,9 @@ fn test_dimir_guildgate_produces_each_printed_color() {
                 ability_index: index,
 
                 chosen_color: None,
-            },
+                        hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+},
         )
         .unwrap_or_else(|e| panic!("TapForMana index {index} must be legal: {e:?}"));
 

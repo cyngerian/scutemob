@@ -122,7 +122,9 @@ fn test_mana_trigger_land_adds_extra_mana() {
             ability_index: 0,
 
             chosen_color: None,
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     )
     .unwrap();
 
@@ -192,7 +194,9 @@ fn test_mana_trigger_swamp_subtype_filter() {
             ability_index: 0,
 
             chosen_color: None,
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     )
     .unwrap();
 
@@ -211,7 +215,9 @@ fn test_mana_trigger_swamp_subtype_filter() {
             ability_index: 0,
 
             chosen_color: None,
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     )
     .unwrap();
 
@@ -275,7 +281,9 @@ fn test_mana_trigger_creature_filter() {
             ability_index: 0,
 
             chosen_color: None,
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     )
     .unwrap();
 
@@ -294,7 +302,9 @@ fn test_mana_trigger_creature_filter() {
             ability_index: 0,
 
             chosen_color: None,
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     )
     .unwrap();
 
@@ -363,7 +373,9 @@ fn test_mana_trigger_enchanted_land() {
             ability_index: 0,
 
             chosen_color: None,
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     )
     .unwrap();
 
@@ -382,7 +394,9 @@ fn test_mana_trigger_enchanted_land() {
             ability_index: 0,
 
             chosen_color: None,
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     )
     .unwrap();
 
@@ -436,7 +450,9 @@ fn test_mana_multiplier_double() {
             ability_index: 0,
 
             chosen_color: None,
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     )
     .unwrap();
 
@@ -500,7 +516,9 @@ fn test_mana_multiplier_triple() {
             ability_index: 0,
 
             chosen_color: None,
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     )
     .unwrap();
 
@@ -555,7 +573,9 @@ fn test_mana_multiplier_stacks_multiplicatively() {
             ability_index: 0,
 
             chosen_color: None,
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     )
     .unwrap();
 
@@ -625,7 +645,9 @@ fn test_mana_multiplier_does_not_affect_triggered_mana() {
             ability_index: 0,
 
             chosen_color: None,
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     )
     .unwrap();
 
@@ -698,7 +720,9 @@ fn test_zendikar_resurgent_registered_on_battlefield() {
             ability_index: 0,
 
             chosen_color: None,
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     )
     .unwrap();
 
@@ -771,7 +795,9 @@ fn test_mana_trigger_only_fires_on_tap_abilities() {
             ability_index: 0,
 
             chosen_color: None,
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     )
     .unwrap();
 
@@ -846,7 +872,9 @@ fn test_mana_trigger_forbidden_orchard() {
             source: orchard_id,
             ability_index: 0,
             chosen_color: Some(ManaColor::White),
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     )
     .unwrap();
 
@@ -951,7 +979,9 @@ fn test_sac_land_fires_when_tapped_for_mana() {
             ability_index: 0,
 
             chosen_color: None,
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     )
     .unwrap();
 
@@ -1037,7 +1067,9 @@ fn test_caged_sun_applies_to_sacrificed_land() {
             ability_index: 0,
 
             chosen_color: None,
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     )
     .unwrap();
 
@@ -1105,7 +1137,9 @@ fn test_forbidden_orchard_token_goes_to_declared_opponent_4player() {
             source: orchard_id,
             ability_index: 0,
             chosen_color: Some(ManaColor::White),
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     )
     .unwrap();
 
@@ -1256,7 +1290,9 @@ fn test_mana_doubler_when_tapped_for_mana_no_regression() {
             source: forest_id,
             ability_index: 0,
             chosen_color: None,
-        },
+                hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+},
     )
     .unwrap();
 
