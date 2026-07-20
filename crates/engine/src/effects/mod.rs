@@ -20,8 +20,9 @@
 //! and reduces life for players. Death from lethal damage is handled by SBAs
 //! AFTER the effect resolves — the caller (resolution.rs) runs SBA checks.
 use crate::cards::card_definition::{
-    Condition, Cost, Effect, EffectAmount, EffectTarget, ForEachTarget, ManaRestriction,
-    PlayerTarget, TargetController, TargetFilter, WheelDisposal, WheelDraw, ZoneTarget,
+    Condition, Cost, Effect, EffectAmount, EffectTarget, ForEachTarget, LibraryPosition,
+    ManaRestriction, PlayerTarget, TargetController, TargetFilter, WheelDisposal, WheelDraw,
+    ZoneTarget,
 };
 use crate::rules::events::{CombatDamageTarget, GameEvent};
 use crate::state::game_object::{
@@ -3072,7 +3073,7 @@ fn execute_effect_inner(
                 }
             }
         }
-        // CR 701.18: Scry N — deterministic fallback: put top N cards on bottom
+        // CR 701.22: Scry N — deterministic fallback: put top N cards on bottom
         // in ObjectId ascending order (interactive ordering deferred to M10+).
         Effect::Scry { player, count } => {
             let n = resolve_amount(state, count, ctx).max(0) as usize;
@@ -3083,18 +3084,17 @@ fn execute_effect_inner(
                 let top_ids: Vec<ObjectId> = state
                     .zones
                     .get(&lib_zone)
-                    .map(|z| z.object_ids())
-                    .unwrap_or_default()
-                    .into_iter()
-                    .take(n)
-                    .collect();
+                    .map(|z| z.top_n(n))
+                    .unwrap_or_default();
                 // Deterministic fallback: sort by ObjectId and move to bottom.
                 let mut to_bottom = top_ids.clone();
                 to_bottom.sort_by_key(|id| id.0);
                 for id in to_bottom {
-                    // Move to bottom by removing and re-inserting at the bottom
-                    // (library zones are Ordered, so we use move_to_zone back).
-                    let _ = state.expect_move_object_to_zone(id, lib_zone);
+                    // CR 701.22a: scried cards go on the BOTTOM. The bottom is
+                    // Zone::push_front (PB-RS1 / CR 121.1: top = last element,
+                    // bottom = index 0) -- `expect_move_object_to_zone` appends
+                    // (the top end), which is wrong here.
+                    let _ = state.expect_move_object_to_bottom_of_zone(id, lib_zone);
                 }
                 events.push(GameEvent::Scried {
                     player: p,
@@ -3118,11 +3118,8 @@ fn execute_effect_inner(
                 let top_ids: Vec<ObjectId> = state
                     .zones
                     .get(&lib_zone)
-                    .map(|z| z.object_ids())
-                    .unwrap_or_default()
-                    .into_iter()
-                    .take(n)
-                    .collect();
+                    .map(|z| z.top_n(n))
+                    .unwrap_or_default();
                 // Deterministic fallback: move all looked-at cards to graveyard.
                 // Sort by ObjectId ascending for determinism.
                 let mut to_graveyard = top_ids.clone();
@@ -4986,11 +4983,8 @@ fn execute_effect_inner(
                 let top_ids: Vec<ObjectId> = state
                     .zones
                     .get(&lib_zone)
-                    .map(|z| z.object_ids())
-                    .unwrap_or_default()
-                    .into_iter()
-                    .take(n)
-                    .collect();
+                    .map(|z| z.top_n(n))
+                    .unwrap_or_default();
                 if top_ids.is_empty() {
                     continue;
                 }
@@ -5029,10 +5023,26 @@ fn execute_effect_inner(
                     }
                 }
                 // Move unmatched cards to their destination.
+                // CR 121.1 / 401.4 (PB-RS1, OOS-RS1-1): a Library{Bottom} destination
+                // means the FRONT of the ordered vector (Zone::push_front), not the
+                // append end. `resolve_zone_target` erases `position` (a known gap --
+                // filed as OOS-RS1-1), so this arm reads it directly. Narrow, local
+                // read; the general LibraryPosition capability gap is out of scope here.
                 let unmatched_zone = resolve_zone_target(unmatched_dest, state, ctx);
+                let unmatched_to_bottom = matches!(
+                    unmatched_dest,
+                    ZoneTarget::Library {
+                        position: LibraryPosition::Bottom,
+                        ..
+                    }
+                );
                 for id in &unmatched_ids {
-                    if let Some((new_id, _)) = state.expect_move_object_to_zone(*id, unmatched_zone)
-                    {
+                    let moved = if unmatched_to_bottom {
+                        state.expect_move_object_to_bottom_of_zone(*id, unmatched_zone)
+                    } else {
+                        state.expect_move_object_to_zone(*id, unmatched_zone)
+                    };
+                    if let Some((new_id, _)) = moved {
                         let event = zone_move_event(ctx.controller, *id, new_id, unmatched_zone);
                         events.push(event);
                     }
@@ -5042,7 +5052,7 @@ fn execute_effect_inner(
         // CR 120/601.2/118.12/202.3/400.7: look at the top `count` cards, optionally pay an
         // interposed `place_cost`, place AT MOST ONE matching card to `destination`, and send
         // the rest to `rest_to`. Modeled directly on `Effect::RevealAndRoute` above (same
-        // `object_ids().take(n)` top-N convention and ObjectId-ascending determinism), plus an
+        // `Zone::top_n` top-N convention and ObjectId-ascending determinism -- PB-RS1), plus an
         // interposed cost and a ≤1 cardinality. PB-OS8.
         Effect::LookAtTopThenPlace {
             player,
@@ -5062,15 +5072,13 @@ fn execute_effect_inner(
             let players = resolve_player_target_list(state, player, ctx);
             for p in players {
                 let lib_zone = ZoneId::Library(p);
-                // Collect the top N cards of the library (same convention as RevealAndRoute).
+                // Collect the top N cards of the library (Zone::top_n -- same
+                // convention as RevealAndRoute, PB-RS1).
                 let top_ids: Vec<ObjectId> = state
                     .zones
                     .get(&lib_zone)
-                    .map(|z| z.object_ids())
-                    .unwrap_or_default()
-                    .into_iter()
-                    .take(n)
-                    .collect();
+                    .map(|z| z.top_n(n))
+                    .unwrap_or_default();
                 // Review Finding 1 (PB-OS8, LOW): an empty top-N `continue`s HERE, before the
                 // `place_cost` block below -- so an empty library never pays the interposed
                 // cost, whereas a non-empty-but-no-match top-N DOES pay it (deterministic
@@ -5155,8 +5163,21 @@ fn execute_effect_inner(
                         events.push(event);
                     }
                 }
-                // Bottom the rest (CR 401): everything looked at except the placed card.
+                // Send the rest to `rest_to`: everything looked at except the placed
+                // card (CR 401). CR 121.1 / 401.4 (PB-RS1, OOS-RS1-1): a
+                // Library{Bottom} destination means the FRONT of the ordered
+                // vector (Zone::push_front), not the append end.
+                // `resolve_zone_target` erases `position` (a known gap -- filed as
+                // OOS-RS1-1), so this arm reads it directly. Narrow, local read;
+                // the general LibraryPosition capability gap is out of scope here.
                 let rest_zone = resolve_zone_target(rest_to, state, ctx);
+                let rest_to_bottom = matches!(
+                    rest_to,
+                    ZoneTarget::Library {
+                        position: LibraryPosition::Bottom,
+                        ..
+                    }
+                );
                 let mut rest_ids: Vec<ObjectId> = top_ids
                     .iter()
                     .copied()
@@ -5164,7 +5185,12 @@ fn execute_effect_inner(
                     .collect();
                 rest_ids.sort_by_key(|id| id.0);
                 for id in rest_ids {
-                    if let Some((new_id, _)) = state.expect_move_object_to_zone(id, rest_zone) {
+                    let moved = if rest_to_bottom {
+                        state.expect_move_object_to_bottom_of_zone(id, rest_zone)
+                    } else {
+                        state.expect_move_object_to_zone(id, rest_zone)
+                    };
+                    if let Some((new_id, _)) = moved {
                         let event = zone_move_event(ctx.controller, id, new_id, rest_zone);
                         events.push(event);
                     }

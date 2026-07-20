@@ -1655,7 +1655,7 @@ pub enum Effect {
         controller_override: Option<PlayerTarget>,
     },
     // ── Library ─────────────────────────────────────────────────────────────
-    /// CR 701.18: Scry N — look at top N cards of your library, then put any
+    /// CR 701.22: Scry N — look at top N cards of your library, then put any
     /// number on the bottom and the rest on top in any order.
     ///
     /// M9.4 deterministic fallback: looks at top N cards of the library and

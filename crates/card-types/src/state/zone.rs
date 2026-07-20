@@ -162,6 +162,22 @@ impl Zone {
             Zone::Unordered(_) => None,
         }
     }
+    /// Get the top `n` objects of an ordered zone, ordered from the top down.
+    ///
+    /// Index 0 of the returned vector is the topmost card — the same card
+    /// `Zone::top()` returns and the same card a draw takes (CR 121.1).
+    /// Because ordered zones store the top at the LAST index, this walks the
+    /// backing vector in reverse.
+    ///
+    /// Returns fewer than `n` entries if the zone is smaller (CR 401.7-adjacent:
+    /// callers must tolerate a short read). Returns empty for unordered zones,
+    /// matching `top()`.
+    pub fn top_n(&self, n: usize) -> Vec<ObjectId> {
+        match self {
+            Zone::Ordered(v) => v.iter().rev().take(n).copied().collect(),
+            Zone::Unordered(_) => Vec::new(),
+        }
+    }
     /// Insert an object at the front (position 0) of an ordered zone.
     ///
     /// For ordered zones this places the object at the "bottom" (the end
@@ -175,5 +191,44 @@ impl Zone {
                 s.insert(id);
             }
         }
+    }
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn ordered(ids: &[u64]) -> Zone {
+        Zone::Ordered(ids.iter().map(|&n| ObjectId(n)).collect())
+    }
+
+    #[test]
+    /// CR 121.1: `top_n(1)` must agree with `top()` -- both identify the same
+    /// card as "the top" of the library.
+    fn test_top_n_agrees_with_top() {
+        let z = ordered(&[1, 2, 3]);
+        assert_eq!(z.top_n(1), z.top().into_iter().collect::<Vec<_>>());
+    }
+
+    #[test]
+    /// Index 0 of `top_n`'s result is the topmost card; the vector is ordered
+    /// top-down (CR 121.1).
+    fn test_top_n_orders_top_first() {
+        let z = ordered(&[1, 2, 3]);
+        // Vector storage: [1, 2, 3] -- last element (3) is the top.
+        assert_eq!(z.top_n(3), vec![ObjectId(3), ObjectId(2), ObjectId(1)]);
+    }
+
+    #[test]
+    /// `n > len` must saturate to `len` entries, not panic or pad.
+    fn test_top_n_over_length_saturates() {
+        let z = ordered(&[1, 2]);
+        assert_eq!(z.top_n(5), vec![ObjectId(2), ObjectId(1)]);
+    }
+
+    #[test]
+    /// Unordered zones return empty, consistent with `top()` returning `None`.
+    fn test_top_n_unordered_is_empty() {
+        let z = Zone::Unordered(OrdSet::unit(ObjectId(1)));
+        assert!(z.top_n(1).is_empty());
     }
 }
