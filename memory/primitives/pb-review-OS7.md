@@ -118,6 +118,13 @@ does not claim set-locking, so it is acceptable, but add one line noting the ent
 edge case is a tracked 611.2c limitation. (3) File a tracking seed (e.g. OOS-OS7-3) for resolution-time
 affected-set snapshot semantics covering the whole class of resolution-generated P/T effects.
 
+> ℹ️ **Resolution (verified `scutemob-142`, 2026-07-19):** this step's content was filed as
+> **OOS-OS7-2**, not OOS-OS7-3 — `pb-plan-OS7.md:321` had concurrently renumbered the unrelated
+> `CreaturesControlledByTargetPlayer` note into `OOS-OS7-3`, so the ID was double-proposed. The
+> 611.2c seed is canonical at `oos-retriage-plan-2026-07-18.md:424-444`. **`OOS-OS7-3` was never
+> formally filed and must not be reused**; the orphaned filter note is refiled as **OOS-RS-5**.
+> See `memory/primitives/rider-seed-triage-2026-07-19.md` §1b.
+
 #### Finding 2: Stale frozen-prefix digest comments (LOW)
 
 **Severity**: LOW

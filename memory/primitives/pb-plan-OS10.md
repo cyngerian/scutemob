@@ -334,6 +334,15 @@ AbilityDefinition::Activated {
   - Mode 2 selected → controller gains 2 life (proves an untargeted mode with an EMPTY `mode_targets` slice — verify the engine tolerates a `vec![]` mode-target slice; pb_ac4 is the reference).
 - **If mode 0's `AttachedCreature` does not resolve in the activated-modal context, or an empty `mode_targets` slice is rejected**: keep `known_wrong`, note which clause blocks, and file a follow-up seed (OOS-OS10-1). Do NOT ship a partial-but-Complete card.
 
+> 🚫 **OOS-OS10-1 was NEVER FILED — it is a phantom ID** (verified `scutemob-142`, 2026-07-19).
+> This branch was conditional and the condition never triggered: `umezawas_jitte.rs:109` is
+> `Completeness::Complete` and `pb-review-OS10.md:78` confirms the flip was justified (0 TODOs, no
+> gated stub). A corpus-wide grep for `OOS-OS10-1` returns only the three conditional mentions in
+> this plan file (originally `:335`, `:405`, `:431`) — the instruction itself, never an actual seed;
+> it appears nowhere in the canonical inventory, in `crates/`, or in pre-branch git history.
+> **Do not carry it forward in any seed list.**
+> Inventory: `memory/primitives/rider-seed-triage-2026-07-19.md` §1b.
+
 ---
 
 ## New Card Definitions

@@ -152,3 +152,34 @@ out-of-window one is untouched (still in library, original ObjectId, no move eve
 2. **LOW (Finding 4)** — add a zero-count / empty-library edge test (nothing placed/bottomed,
    `place_cost` unpaid).
 3. **LOW (Findings 1, 2)** — optional documentation-only clarifications; no code change required.
+
+---
+
+## ⚠️ OOS-OS8-1 diagnosis correction (`scutemob-142`, 2026-07-19)
+
+The seed as filed above ("`{1}{G/P}` Phyrexian-in-activated-cost is unimplemented — a capability
+gap") is **true but is the wrong diagnosis, and the real defect is worse.** Chain-verified:
+
+- `casting.rs:3990-3991` flattens hybrid/phyrexian **before** payment; life deducted `:4015-4021`.
+  **The cast path is correct.**
+- `abilities.rs:748-758` gates on `resolved_cost.mana_value() > 0`, then calls `can_spend`/`spend`
+  on the **raw** cost — **no flatten**.
+- `card-types/src/state/player.rs:148-175` (`can_spend`) and `:185-206` (`spend`) read **only** the
+  six colors + generic. **`cost.hybrid` and `cost.phyrexian` are never read.**
+- `game_object.rs:133-153` — `mana_value()` *does* count hybrid/phyrexian, so a pure `{B/R}` cost
+  has mv=1, clears the `> 0` gate, then `can_spend` sees an all-zero cost → `remaining >= 0` →
+  **always true**; `spend` deducts nothing.
+
+**Every hybrid or Phyrexian pip in an activated cost is therefore free today** — not merely
+inexpressible. Live in **7 filter lands** (`twilight_mire.rs:30-31`, `graven_cairns.rs:30-31`,
+`sunken_ruins.rs:30-31`, `flooded_grove.rs:30-31`, `rugged_prairie.rs:30-31`, `fetid_heath.rs:32-33`,
+`cascade_bluffs.rs:30-31`), each currently a "{T}: Add two mana" land. They are `known_wrong` for an
+*unrelated* reason (fixed-mode simplification, `graven_cairns.rs:49-52`); this defect is undocumented.
+
+**Also corrected**: `drivnod_carnage_dominus.rs:43-44` claims its `{B/P}{B/P}` cost is "already
+expressible (PB-9)" — **false** per the chain above. (Left unedited here: card-def changes are out of
+scope for a triage task.)
+
+Re-classified **correctness, not capability**, and refiled as **OOS-RS-2** (rank R2) in
+`memory/primitives/rider-seed-triage-2026-07-19.md` §2.2. Honest yield: 1 flip (`birthing_pod`) plus
+7 lands correctly costed. `drivnod`, `tekuthal`, `skrelv` do **not** flip (unrelated blockers).

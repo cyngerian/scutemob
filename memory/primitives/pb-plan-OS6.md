@@ -74,6 +74,17 @@ stale "OOS-EF5-4(f)"). No behavioral change; keep `partial`.
 **Decision: DEFER.** Do NOT implement a multi-count sacrifice *cost* in PB-OS6. westvale_abbey stays
 UNAUTHORED (no def file — its honest current state).
 
+> ⚠️ **Scope + yield correction (`scutemob-142`, 2026-07-19).** This recon keyed on the string
+> "Sacrifice five" and **missed "three" / "ten"**: `teysa_orzhov_scion.rs:5-7,72-75` and
+> `bolass_citadel.rs:37-44` carry the **identical** blocker, and `kellogg_dangerous_mind.rs:51-59`
+> names the sacrifice count as its *only* remaining blocker post-PB-EF9. **Honest yield is 4, not
+> 1-2** (teysa, bolass_citadel, kellogg, westvale). NOT flipped: `priest_of_forgotten_gods` (its
+> marker is explicit — "blocked on the effect, not the cost") and `dread_return` (Flashback is an
+> alt-*cast* cost, a different chain). **Hazard flagged**: `mcp__mtg-rules__lookup_card` does not
+> flatten `card_faces` and returns **empty oracle text** for both Westvale Abbey and Ormendahl —
+> re-source both faces from `cards.sqlite` / `.scryfall-cache` before authoring.
+> Ranked **R8** in `memory/primitives/rider-seed-triage-2026-07-19.md` §3.
+
 **Reasoning (grounded in source)**: Westvale's transform ability is a normal activated ability
 (CR 602, goes on the stack) whose cost is `{5}, {T}, Sacrifice five creatures`. A *correct*
 implementation needs BOTH:

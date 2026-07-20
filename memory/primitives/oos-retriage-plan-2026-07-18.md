@@ -519,7 +519,21 @@ missing from `begin_combat()`.** Verified by execution (SR-34/36) + independentl
 (`collect_emblem_triggers_for_event`, CR 114.4) and returns `Vec::new()` — there is **no** card-def
 `AbilityDefinition::Triggered { trigger_condition: AtBeginningOfCombat, .. }` sweep, unlike the
 upkeep / first-main / postcombat-main / end-step steps which each have one. So any battlefield
-permanent's `AtBeginningOfCombat` triggered ability silently never fires. **Blocks**:
+permanent's `AtBeginningOfCombat` triggered ability silently never fires.
+
+> ⚠️ **Yield + class correction (`scutemob-142`, 2026-07-19).** (1) Filed yield "~4-6 flips" is the
+> usual 2-3× overcount; **honest count is 2** — `loyal_apprentice` and `siege_gang_lieutenant`.
+> `legion_warboss` (Mentor + forced-attack), `goblin_rabblemaster` (forced-attack) and
+> `mirage_phalanx` (Soulbond, CR 702.94a) each carry surviving independent blockers.
+> (2) **This is a stronger correctness case than filed**: `helm_of_the_host.rs` has **no
+> `completeness` field ⇒ `Complete` by `#[default]`** (`card_definition.rs:199-200`), and its only
+> non-Equip ability is the `AtBeginningOfCombat` `CreateTokenCopy` at `:27-42` — so it passes
+> `validate_deck` (SR-2), enters real games, and silently does nothing (Invariant #9, corrupted
+> replay history). (3) **Wire-neutral**: reuses `PendingTriggerKind::CardDefETB` (already in the
+> closure, `state/hash.rs:2949`); PROTOCOL stays 26, HASH stays 63.
+> Ranked **R3** in `memory/primitives/rider-seed-triage-2026-07-19.md` §3.
+
+**Blocks**:
 `loyal_apprentice`, `siege_gang_lieutenant` (this batch, kept partial); also pre-existing silent
 gaps for `legion_warboss`, `goblin_rabblemaster`, `mirage_phalanx`, `helm_of_the_host` (not touched
 here). Fix = add the per-step card-def sweep in `begin_combat()` mirroring the upkeep sweep
@@ -576,7 +590,7 @@ done: ~4-6 flips. Candidate for a near-term correctness PB.
 | ~~PB-OS2~~ ✅ SHIPPED `scutemob-128` | EF-EF1-A | correctness (micro) | 1 (disciple_of_freyalise) | none |
 | ~~PB-OS3~~ ✅ SHIPPED `scutemob-129` | OOS-EF6-1 | correctness | 1 (forbidden_orchard) | none |
 | ~~PB-OS4~~ ⚠️ SHIPPED NARROWED `scutemob-130` | OOS-EF5-3 (narrowed) | capability | 0 Complete + 1 partial (fable); blocked by new OOS-OS4-1/2 | PROTOCOL 18→19 / HASH 55→56 |
-| ~~PB-OS4b~~ ✅ SHIPPED `scutemob-134` | OOS-OS4-2 | correctness (cross-cutting) | 2 kept-`Complete` (docent, bloodline — were live-wrong); 3 partials made functional | none (behavior-only; 19/56 unchanged) |
+| ~~PB-OS4b~~ ⚠️ SHIPPED **PARTIAL** `scutemob-134` | OOS-OS4-2 (**not fully closed** — see note) | correctness (cross-cutting) | 2 kept-`Complete` (docent, bloodline — were live-wrong); 3 partials made functional | none (behavior-only; 19/56 unchanged) |
 | ~~PB-OS5~~ ✅ SHIPPED `scutemob-135` | OOS-EF4-1 | capability | 2 Complete (shared_animosity, goblin_piledriver) + 2 partial-improvements (rabblemaster pump, muxus attack-half) | PROTOCOL 19→20 / HASH 56→57 |
 | ~~PB-OS6~~ ✅ SHIPPED `scutemob-136` | OOS-EF5-4 (a/b/g shipped; c deferred to OOS-OS6-1, d deferred to PB-OS8) | capability (sub-batch) | 3 Complete (delver_of_secrets, legions_landing, thaumatic_compass) | PROTOCOL 20→21 / HASH 57→58 |
 | PB-OS7 | OOS-EF3-1 | capability | ~1-2 | PROTOCOL |
@@ -584,6 +598,16 @@ done: ~4-6 flips. Candidate for a near-term correctness PB.
 | ~~PB-OS9~~ ✅ SHIPPED `scutemob-139` | OOS-EF3b-1 | capability | 1 Complete (skyhunter_strike_force); loyal_apprentice + siege_gang_lieutenant authored CR-correct but stay partial (new blocker OOS-OS9-1: AtBeginningOfCombat sweep gap) | PROTOCOL 23→24 / HASH 60→61 |
 | ~~PB-OS10~~ ✅ IMPLEMENTED `scutemob-140` (pending merge) | OOS-XS-1 + OOS-EF7-1 | capability (singletons) | 1 Complete (umezawas_jitte) + distinctness primitive pinned (hidden_strings stays known_wrong) | PROTOCOL 24→25 / HASH 61→62 |
 | ~~PB-OS11~~ ✅ SHIPPED `scutemob-141` | OOS-LKI-3 + OOS-TS-1 | capability (singletons) | **6 Complete** (workhorse new, anim_pakal, general_kreat, hermes, gemstone_array, druids_repository) — both premises reframed vs MCP | PROTOCOL 25→26 / HASH 62→63 |
+
+> ⚠️ **OOS-OS4-2 correction (`scutemob-142`, 2026-07-19).** The PB-OS4b row above previously read
+> as a flat close. The ability-*gathering* paths were genuinely fixed (`rules/face.rs:1` + readers
+> across turn_actions/resolution/mana/sba/engine), but **three CR 712.8d/e deviations survive
+> in-source**: `rules/replacement.rs:1180-1191` and `:1907-1913` (both read FRONT `def.abilities`;
+> both self-labelled "PB-OS4b limitation (OOS-OS4-2)"), and `rules/face.rs:118-148`
+> (`deregister_face_statics` handles only `Static`; **nine** other registered families are never
+> deregistered on transform — a documented, deliberate deferral, not an oversight). All three are
+> latent on today's roster and guaranteed to bite the first DFC with a back-face ETB replacement.
+> Tracked as **OOS-RS-3** in `memory/primitives/rider-seed-triage-2026-07-19.md` §2.4 (rank R4).
 
 **Total discounted ship across the queue: ~19-22 clean flips** + the PB-OS1 integrity correction
 on 3 already-`Complete` cards. Correctness group (PB-OS1..OS3) first, then capability by yield.
