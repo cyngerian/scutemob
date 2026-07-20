@@ -10,15 +10,17 @@
 // (same rationale as loyal_apprentice.rs / DSL has no ApplyContinuousEffect scoped to
 // "the permanents I just created").
 //
-// STILL BLOCKED (newly discovered during PB-OS9, verified by execution -- see
-// loyal_apprentice.rs's top-of-file comment for the full account):
-// `TriggerCondition::AtBeginningOfCombat` has no card-def sweep anywhere in the
-// engine's turn-based-action machinery (`begin_combat()` only queues EMBLEM
-// triggers). Confirmed empirically: the trigger never queues. Pre-existing engine
-// gap, out of PB-OS9 scope to fix; also affects legion_warboss.rs,
-// goblin_rabblemaster.rs, mirage_phalanx.rs, helm_of_the_host.rs. The Lieutenant DSL
-// below is CR-correct and ready to fire once that sweep is added; the {2}, Sacrifice a
-// Goblin activated ability is unaffected and fully functional.
+// PB-RS3: the sweep gap is CLOSED -- `begin_combat` (turn_actions.rs) now scans the
+// battlefield for card-def AtBeginningOfCombat triggers (in addition to the
+// pre-existing emblem-only scan), so this ability fires. Flipped to Complete. The
+// {2}, Sacrifice a Goblin activated ability is unaffected and remains fully functional.
+//
+// Accepted engine-wide limitation (F3, `memory/card-authoring/review-pb-rs3-roster.md`):
+// `intervening_if` is checked only at resolution (resolution.rs:2125-2135), never at
+// queue time, though CR 603.4 requires both. See loyal_apprentice.rs's top-of-file
+// comment for the full account -- a pre-existing, engine-wide convention (documented
+// at the upkeep sweep, turn_actions.rs:265-266), not a defect specific to this card.
+// Filed as a seed (rider-seed-triage-2026-07-19.md) rather than blocking this flip.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -96,16 +98,7 @@ pub fn card() -> CardDefinition {
                 modes: None,
             },
         ],
-        completeness: Completeness::partial(
-            "PB-OS9: the Lieutenant CONDITION half is now correctly modeled -- intervening_if: \
-             Condition::YouControlYourCommander on the AtBeginningOfCombat trigger (CR \
-             903.3d/603.4). STILL BLOCKED: TriggerCondition::AtBeginningOfCombat has no card-def \
-             sweep anywhere in the engine (begin_combat() only queues emblem triggers), confirmed \
-             by execution -- the trigger never queues, so this ability is currently inert (not \
-             wrong game state, just non-firing). Pre-existing engine gap, also affects \
-             legion_warboss/goblin_rabblemaster/mirage_phalanx/helm_of_the_host. The {2}, \
-             Sacrifice a Goblin activated ability IS fully modeled and functional.",
-        ),
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

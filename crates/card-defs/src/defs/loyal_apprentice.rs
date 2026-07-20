@@ -14,25 +14,19 @@
 // fallback (a token's haste is unobservable after the turn it is created -- it loses
 // summoning sickness anyway; same pattern as legion_warboss.rs).
 //
-// STILL BLOCKED (newly discovered during PB-OS9, verified by execution --
-// probe_at_beginning_of_combat, PB-OS9 runner session): `TriggerCondition::
-// AtBeginningOfCombat` has NO card-def sweep anywhere in the engine.
-// `crates/engine/src/rules/turn_actions.rs` has a hardcoded per-step sweep for
-// AtBeginningOfYourUpkeep, AtBeginningOfFirstMainPhase, AtBeginningOfPostcombatMain,
-// and AtBeginningOfYourEndStep (each scans battlefield objects' card-registry
-// abilities and pushes a PendingTrigger) -- but `begin_combat()` (the
-// Step::BeginningOfCombat handler) only queues EMBLEM triggers
-// (`collect_emblem_triggers_for_event`), never card-defined `AbilityDefinition::
-// Triggered { trigger_condition: TriggerCondition::AtBeginningOfCombat, .. }`
-// abilities. Confirmed empirically: transitioning a battlefield object with this
-// trigger condition into BeginningOfCombat produces ZERO pending triggers and ZERO
-// stack objects. This is a pre-existing engine gap (also silently affects
-// legion_warboss.rs, goblin_rabblemaster.rs, mirage_phalanx.rs, helm_of_the_host.rs --
-// out of PB-OS9 scope to touch), not something PB-OS9's plan anticipated or scoped.
-// The DSL below is the CR-correct translation and is ready to fire once that sweep is
-// added; it is inert (never queued) until then, so this does NOT produce wrong game
-// state -- just incomplete. Flagged as a new seed for a future PB (recommend:
-// "card-def AtBeginningOfCombat sweep in begin_combat()").
+// PB-RS3: the sweep gap is CLOSED -- `begin_combat` (turn_actions.rs) now scans the
+// battlefield for card-def AtBeginningOfCombat triggers (in addition to the
+// pre-existing emblem-only scan), so this ability fires. Flipped to Complete.
+//
+// Accepted engine-wide limitation (F3, `memory/card-authoring/review-pb-rs3-roster.md`):
+// `intervening_if` is checked only at resolution (resolution.rs:2125-2135), never at
+// queue time, though CR 603.4 requires both. Divergent case: you do NOT control your
+// commander at beginning of combat but regain control before the trigger resolves --
+// real MTG never triggers, this engine creates the Thopter. Reachable in 4-player
+// Commander (narrow). This is a pre-existing, engine-wide convention (documented at
+// the upkeep sweep, turn_actions.rs:265-266) affecting every intervening-if card
+// already shipped Complete, not a defect specific to this card. Filed as a seed
+// (rider-seed-triage-2026-07-19.md) rather than blocking this flip.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -89,16 +83,7 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial(
-            "PB-OS9: the Lieutenant CONDITION half is now correctly modeled -- intervening_if: \
-             Condition::YouControlYourCommander on the AtBeginningOfCombat trigger (CR \
-             903.3d/603.4). STILL BLOCKED: TriggerCondition::AtBeginningOfCombat has no card-def \
-             sweep anywhere in the engine (begin_combat() only queues emblem triggers), confirmed \
-             by execution -- the trigger never queues, so this ability is currently inert (not \
-             wrong game state, just non-firing). Pre-existing engine gap, also affects \
-             legion_warboss/goblin_rabblemaster/mirage_phalanx/helm_of_the_host. Token spec \
-             (Thopter, flying, permanent-haste fallback) is correct and ready.",
-        ),
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

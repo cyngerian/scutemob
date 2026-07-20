@@ -71,12 +71,55 @@ seed if widespread**. This is a class-level integrity question, not a helm-speci
       `hash.rs` or `protocol.rs`). **Card-def completeness flips (helm_of_the_host,
       loyal_apprentice, siege_gang_lieutenant) and the remaining mandatory tests (Tests 2-8,
       roster sweep) are NOT done by this step — deferred to the next step per session scope.**
-- [ ] 3. `helm_of_the_host` verified vs oracle via MCP; explicit completeness marker added.
-- [ ] 4. `loyal_apprentice` + `siege_gang_lieutenant` verified vs oracle, flipped `partial` →
-      `Complete`, each with an end-to-end behavior test citing CR.
+- [x] 3. `helm_of_the_host` — oracle re-verified via MCP (faithful, unmodified translation);
+      explicit `completeness: Completeness::Complete,` added (was `Complete` only by
+      `#[default]`). Reviewer-endorsed (`memory/card-authoring/review-pb-rs3-roster.md`).
+- [x] 4. `loyal_apprentice` + `siege_gang_lieutenant` — oracle re-verified via MCP; flipped
+      `partial` → `Complete`. Stale "STILL BLOCKED" comment blocks replaced with a PB-RS3
+      closure note on each file; haste-fallback rationale preserved. Both flips are
+      reviewer-endorsed **conditional on F3** (MEDIUM, engine-wide, pre-existing): `intervening_if`
+      is checked only at resolution (`resolution.rs:2125-2135`), never at queue time, though CR
+      603.4 requires both — this is a standing engine-wide convention (documented at
+      `turn_actions.rs:265-266`), affects every already-shipped `Complete` intervening-if card, and
+      is explicitly recorded in both card notes rather than silently overclaimed. Filed as a seed
+      per the review (not fixed here — out of PB-RS3 scope, touches every trigger sweep).
+      **End-to-end behavior tests for these two cards are deferred to step 5/6 (Tests 2-8 + roster
+      sweep), per this session's explicit scope boundary — not written in this step.**
+      `legion_warboss` note amended to name BOTH live gaps (Mentor keyword absent; token's
+      "attacks this combat if able" unimplemented) — explicitly did NOT add
+      `MustAttackEachCombat` to `TokenSpec.keywords` (would over-restrict every later combat).
+      Stays `partial`. `mirage_phalanx` `known_wrong` note amended: now wrong in BOTH directions
+      (unpaired → wrongly self-copies every combat; paired → still under-produces, grant to the
+      OTHER paired creature not modeled). Verified via grep: no golden script or test fixture
+      constructs Mirage Phalanx via `ObjectSpec` (only a comment reference in
+      `pb_os9_lieutenant_commander_control.rs`) — containment via `known_wrong` + `validate_deck`
+      (SR-2) holds, zero exposure. Stays `known_wrong`.
+      **`goblin_rabblemaster` PROBE (F-Rabble, HIGH finding)**: the def's stated blocker ("needs a
+      new subtype-filtered must-attack `GameRestriction` variant") was misframed — the engine
+      already implements must-attack via `KeywordAbility::MustAttackEachCombat`, read from
+      layer-resolved characteristics (`expect_characteristics`) at `combat.rs:378-390`, not the
+      object's own printed keyword list. Wrote probe test
+      `crates/engine/tests/primitives/pb_rs3_rabblemaster_mustattack_probe.rs`
+      (`test_addkeyword_mustattack_grant_composes_for_non_source_object`): built a mock
+      Rabblemaster-shaped `Static` ability (`AddKeyword(MustAttackEachCombat)` +
+      `OtherCreaturesYouControlWithSubtype("Goblin")` + `WhileSourceOnBattlefield`), registered it
+      via `register_static_continuous_effects` (the `pb_os4b_face_aware_abilities.rs` pattern,
+      since `GameStateBuilder` does not replay ETB), and drove it through the FULL enforcement
+      path (`Command::DeclareAttackers`), not just a characteristics snapshot. **PROBE RESULT:
+      YES, it composes cleanly** — the granted keyword reaches the non-source Goblin's
+      layer-resolved characteristics, the source itself correctly does NOT get the keyword (CR
+      "other"), and `DeclareAttackers` correctly rejects a declaration that omits the forced
+      Goblin while accepting one that includes it. Sanity-checked the probe itself is
+      non-vacuous: temporarily disabled the `register_static_continuous_effects` call and
+      confirmed the test fails (then restored). **No engine change needed.** Authored the real
+      ability onto `goblin_rabblemaster.rs` (identical shape to `galadhrim_brigade.rs` /
+      `camellia_the_seedmiser.rs`, swapping the modification for `AddKeyword(MustAttackEachCombat)`)
+      and flipped `partial` → `Complete` — **legitimate third flip**, per plan §5c authorization
+      for a clean composition. `cargo check -p mtg-card-defs` clean.
 - [ ] 5. Mandatory tests: helm probe (inverted to permanent regression), lieutenant condition both
       directions, APNAP multi-player ordering, emblem + card-def coexistence (no double / no drop),
-      extra-combat behavior with CR citation.
+      extra-combat behavior with CR citation. **NOT done in this step — deferred per session scope
+      (card-def step only; Tests 2-8 + roster sweep are a later step's job).**
 - [ ] 6. Full `all_cards()` roster sweep for `AtBeginningOfCombat`; roster reported in close-out.
 - [ ] 7. PROTOCOL/HASH confirmed unchanged; `cargo build --workspace` clean.
 - [ ] 8. Full gates: `cargo test --all`, `clippy -D warnings`, `cargo fmt --check` **and**
