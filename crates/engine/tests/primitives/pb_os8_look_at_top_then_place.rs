@@ -228,6 +228,107 @@ fn test_look_place_creature_to_hand_growing_rites() {
     );
 }
 
+/// CR 121.1 / OOS-RS-1 review gap: `rest_to: Library { Bottom }`'s positional
+/// write is undiscriminated by every other test in this file — they all
+/// assert membership/count (`in_library`, `count_in_zone`), which pass
+/// identically whether the bottom-write dispatch correctly routes through
+/// `move_object_to_bottom_of_zone` (push_front) or silently falls back to a
+/// top-append (`move_object_to_zone`/push_back). This test uses a library
+/// LONGER than the examined window, with a decoy card below it, and asserts
+/// exact `object_ids()` positions to discriminate the two.
+///
+/// Setup (build/add order, lowest-to-highest ObjectId, matching
+/// `Zone::insert`'s push_back-on-add + `Zone::object_ids()`'s low-to-high
+/// walk): Decoy (bottom, never examined) < Land A < Land B < Land C <
+/// Creature X (top, examined window is exactly these last 4). Creature X is
+/// the only creature -> placed to hand. Land A/B/C are bottomed. Correct
+/// behavior (`push_front`, each new bottom card inserted at index 0) shifts
+/// the decoy from index 0 up to the last index — it ends up the sole
+/// survivor still "above" the freshly-bottomed trio once they're all
+/// beneath it.
+#[test]
+fn test_look_place_rest_to_bottom_positional_order() {
+    let p1 = p(1);
+    let p2 = p(2);
+
+    let decoy = land_card(p1, "Decoy Land", ZoneId::Library(p1));
+    let land_a = land_card(p1, "Land A", ZoneId::Library(p1));
+    let land_b = land_card(p1, "Land B", ZoneId::Library(p1));
+    let land_c = land_card(p1, "Land C", ZoneId::Library(p1));
+    let creature_x = creature_with_mv(p1, "Creature X", 2, ZoneId::Library(p1));
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(CardRegistry::new(vec![]))
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .object(decoy)
+        .object(land_a)
+        .object(land_b)
+        .object(land_c)
+        .object(creature_x)
+        .build()
+        .unwrap();
+
+    let decoy_id = find_obj(&state, "Decoy Land");
+
+    let effect = Effect::LookAtTopThenPlace {
+        player: PlayerTarget::Controller,
+        count: EffectAmount::Fixed(4),
+        filter: TargetFilter {
+            has_card_type: Some(CardType::Creature),
+            ..Default::default()
+        },
+        place_cost: None,
+        destination: ZoneTarget::Hand {
+            owner: PlayerTarget::Controller,
+        },
+        rest_to: ZoneTarget::Library {
+            owner: PlayerTarget::Controller,
+            position: LibraryPosition::Bottom,
+        },
+        optional: true,
+    };
+    let mut ctx = EffectContext::new(p1, ObjectId(9999), vec![]);
+    let _events = execute_effect(&mut state, &effect, &mut ctx);
+
+    assert!(
+        in_hand(&state, "Creature X", p1),
+        "sanity: the sole matching creature must be placed into hand"
+    );
+
+    let lib_ids = state
+        .zones()
+        .get(&ZoneId::Library(p1))
+        .unwrap()
+        .object_ids();
+    assert_eq!(
+        lib_ids.len(),
+        4,
+        "decoy + 3 bottomed lands should remain in the library"
+    );
+    assert_eq!(
+        lib_ids[3], decoy_id,
+        "CR 121.1: the decoy — the library's original bottom card, never in \
+         the examined window — must sit at the last index (the top) once \
+         the 3 rest-cards are correctly bottomed BELOW it via push_front. If \
+         `rest_to`'s bottom dispatch silently fell back to a top-append \
+         (push_back), the decoy would remain stranded at index 0 instead."
+    );
+    let land_ids: std::collections::HashSet<ObjectId> = ["Land A", "Land B", "Land C"]
+        .iter()
+        .map(|name| find_obj(&state, name))
+        .collect();
+    let bottomed_lands: std::collections::HashSet<ObjectId> =
+        lib_ids[0..3].iter().copied().collect();
+    assert_eq!(
+        bottomed_lands, land_ids,
+        "the 3 bottomed lands (post-move, CR 400.7 new-object identities) \
+         must occupy indices 0..3, all strictly below the decoy at index 3"
+    );
+}
+
 /// DECOY: top 4 has NO creature. Nothing is placed; all 4 are bottomed; hand unchanged.
 #[test]
 fn test_look_place_no_match_leaves_all_bottomed() {

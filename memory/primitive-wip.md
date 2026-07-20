@@ -1,4 +1,4 @@
-# Primitive WIP — PB-RS1 (OOS-RS-1) · FIX CYCLE COMPLETE
+# Primitive WIP — PB-RS1 (OOS-RS-1) · FIX CYCLE COMPLETE + TEST-GAP CLOSED
 
 <!-- last_updated: 2026-07-19 -->
 
@@ -231,3 +231,69 @@ warnings`: clean. `cargo fmt --check`: clean (after one `cargo fmt` pass).
 clean (TUI + replay-viewer included). `PROTOCOL_VERSION` = 26,
 `HASH_SCHEMA_VERSION` = 63 — both confirmed unchanged by direct grep of the
 `pub const` declarations.
+
+## Test-coverage gap closure (2026-07-19, post-`/review`)
+
+`/review` re-pass found all 5 ACs PASS and golden scripts clean, but flagged
+one residual gap: the two new bottom-write dispatches
+(`effects/mod.rs` RevealAndRoute `unmatched_dest`, LookAtTopThenPlace
+`rest_to`) had no test that discriminates `expect_move_object_to_bottom_of_zone`
+(correct, `push_front`) from `expect_move_object_to_zone` (wrong, `push_back`/
+append) — every existing assertion on those paths checked membership/count,
+not position, so reverting either dispatch would leave the whole suite green.
+
+**Fix**: added positional (`object_ids()` index) coverage for both, citing
+CR 121.1 (top = `Zone::top()` = `v.last()`; the last index of `object_ids()`
+is the top of the library).
+
+1. `crates/engine/tests/mechanics_m_z/reveal_and_route.rs` —
+   `test_reveal_and_route_none_match` strengthened: replaced the old
+   `lib_ids.contains(&decoy_id)` membership check with `lib_ids[4] ==
+   decoy_id` (the decoy — the library's sole card pre-effect, hence its
+   bottom — must land at the top/last index once the 4 unmatched Elves are
+   bottomed beneath it) plus a set-equality check that the 4 Elves (fetched
+   post-move by name, since CR 400.7 gives them new ObjectIds) occupy indices
+   `0..4`.
+2. `crates/engine/tests/primitives/pb_os8_look_at_top_then_place.rs` — new
+   test `test_look_place_rest_to_bottom_positional_order`: 5-card library
+   (1 bottom decoy land + a 4-card examined window: 3 lands + 1 creature),
+   `count: 4`, creature placed to hand, 3 lands sent to `rest_to:
+   Library{Bottom}`. Asserts `lib_ids[3] == decoy_id` (decoy shifted from
+   index 0 to the top/last index once 3 rest-cards are bottomed beneath it)
+   plus set-equality that the 3 bottomed lands occupy indices `0..3`.
+
+**Verified both tests actually discriminate** — reverted each dispatch's
+`if`/`else` arms in `effects/mod.rs` (swapped which branch calls
+`expect_move_object_to_bottom_of_zone` vs `expect_move_object_to_zone`,
+keeping the `matches!` condition itself untouched so no unused-variable
+warning), re-ran, confirmed FAILURE, then restored and confirmed PASS:
+
+- RevealAndRoute (`unmatched_dest`, `effects/mod.rs:5046-5051`): reverted →
+  `test_reveal_and_route_none_match` FAILED with `left: ObjectId(9) right:
+  ObjectId(1)` at the `lib_ids[4] == decoy_id` assertion. Restored → all 5
+  `reveal_and_route::*` tests pass.
+- LookAtTopThenPlace (`rest_to`, `effects/mod.rs:5199-5204`): reverted →
+  `test_look_place_rest_to_bottom_positional_order` FAILED with `left:
+  ObjectId(9) right: ObjectId(1)` at the `lib_ids[3] == decoy_id` assertion.
+  Restored → all 10 `pb_os8_look_at_top_then_place::*` tests pass.
+
+**Roster-floor note (reviewer's minor, non-blocking item)** — left
+`pb_rs1_roster_sweep.rs`'s `>= 30` floor unchanged (not tightened to an exact
+41). Judgment: unlike `pb_os1_gain_control_reversion_roster`'s exact-count
+pin (2 cards, one narrow historically-fixed combination), this roster covers
+4 of the engine's most common library-read primitives during an ACTIVE
+card-authoring campaign — an exact pin would need routine unrelated updates
+as new defs are authored and would erode into "just bump the number."
+Documented the reasoning + the reviewer's original finding inline in the
+test file's comment (measured count 41 as of 2026-07-19, cited).
+
+### Gates (test-gap closure)
+
+`cargo test --all`: 0 failures. `cargo clippy --all-targets -D warnings`:
+clean. `cargo fmt --check`: clean. `tools/check-defs-fmt.sh`: clean (1804
+defs). `cargo build --workspace`: clean. `PROTOCOL_VERSION` = 26,
+`HASH_SCHEMA_VERSION` = 63 — unchanged (grep-confirmed). `git diff
+main..HEAD -- crates/card-defs/` — empty (0 lines). Only 3 files touched:
+`crates/engine/tests/core/pb_rs1_roster_sweep.rs`,
+`crates/engine/tests/mechanics_m_z/reveal_and_route.rs`,
+`crates/engine/tests/primitives/pb_os8_look_at_top_then_place.rs`.

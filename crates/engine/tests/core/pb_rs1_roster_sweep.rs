@@ -74,6 +74,23 @@ fn pb_rs1_roster_sweep_reports_affected_cards() {
     // remove them) -- assert a conservative floor well below 47 so a real corpus change
     // (e.g. authoring wave demotions) does not make this gate flaky, while still catching
     // "the walk silently found nothing."
+    //
+    // DELIBERATELY a floor, not an exact-count pin (contrast
+    // `pb_os1_gain_control_reversion_roster`, which pins an exact 2-card set): that
+    // roster covers one narrow, historically-fixed combination (GainControl +
+    // UntilEndOfTurn/UntilYourNextTurn duration) unlikely to grow via routine
+    // authoring. This roster covers four of the engine's most common library-read
+    // primitives (Scry/Surveil/RevealAndRoute/LookAtTopThenPlace) during an ACTIVE
+    // card-authoring campaign -- the measured count (41 as of 2026-07-19, see
+    // `memory/primitive-wip.md`) is expected to keep climbing as new defs are
+    // authored, so an exact pin would need routine unrelated updates and would
+    // erode into "just bump the number," defeating its own purpose. Reviewed and
+    // recorded (not filed) in `memory/primitives/pb-review-RS1.md` item 12: "the
+    // test asserts a floor of >= 30 rather than the measured 41, so a real 41->31
+    // regression would pass silently -- acceptable anti-flake tradeoff." Left as a
+    // floor, per that call; a large regression (e.g. an authoring wave silently
+    // dropping Scry usage on a dozen defs) would still need to cross the >= 30 line
+    // to go undetected, which is a coarse but real backstop.
     assert!(
         sorted.len() >= 30,
         "roster sweep reports only {} affected cards -- expected at least 30 (grep baseline \

@@ -239,15 +239,50 @@ fn test_reveal_and_route_none_match() {
 
     // All 5 cards remain in library; the decoy's identity is unchanged
     // (it was never a member of top_ids, only displaced by insertions).
+    //
+    // CR 121.1 / OOS-RS-1 review gap: the count/membership checks above pass
+    // identically whether `unmatched_dest`'s Library{Bottom} branch routes
+    // through `move_object_to_bottom_of_zone` (push_front, correct) or
+    // through plain `move_object_to_zone` (push_back/append, i.e. bottomed
+    // cards silently land on TOP instead). Only a positional assertion on
+    // `object_ids()` discriminates the two. `Zone::object_ids()` walks the
+    // ordered vector low-to-high index, and index len-1 is the top (`top()` =
+    // `v.last()`). The decoy was the library's *sole* card before this
+    // effect ran (at index 0, the bottom). Four cards being correctly
+    // bottomed BELOW it (via `push_front`, each insert at index 0) shifts it
+    // to the last index — i.e. the decoy ends up TOPMOST once four unmatched
+    // cards go under it.
     let lib_ids = state
         .zones()
         .get(&ZoneId::Library(p(1)))
         .unwrap()
         .object_ids();
     assert_eq!(lib_ids.len(), 5, "no cards should be lost");
-    assert!(
-        lib_ids.contains(&decoy_id),
-        "the decoy's ObjectId must still be present (untouched, not re-moved)"
+    assert_eq!(
+        lib_ids[4], decoy_id,
+        "CR 121.1: the decoy — the library's sole card before this effect, \
+         hence its bottom — must sit at index 4 (the top) once the 4 \
+         unmatched Elves are correctly bottomed BELOW it via push_front. If \
+         the bottom-write dispatch silently fell back to a top-append \
+         (push_back), the decoy would remain stranded at index 0 instead."
+    );
+    let elf_ids: std::collections::HashSet<ObjectId> = ["Elf A", "Elf B", "Elf C", "Elf D"]
+        .iter()
+        .map(|name| {
+            state
+                .objects()
+                .iter()
+                .find(|(_, o)| o.characteristics.name == *name)
+                .map(|(id, _)| *id)
+                .unwrap()
+        })
+        .collect();
+    let bottomed_elves: std::collections::HashSet<ObjectId> =
+        lib_ids[0..4].iter().copied().collect();
+    assert_eq!(
+        bottomed_elves, elf_ids,
+        "the 4 bottomed Elves (post-move, CR 400.7 new-object identities) \
+         must occupy indices 0..4, all strictly below the decoy at index 4"
     );
 
     let lib_events = events
