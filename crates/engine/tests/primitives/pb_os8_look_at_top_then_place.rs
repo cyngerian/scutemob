@@ -228,6 +228,107 @@ fn test_look_place_creature_to_hand_growing_rites() {
     );
 }
 
+/// CR 121.1 / OOS-RS-1 review gap: `rest_to: Library { Bottom }`'s positional
+/// write is undiscriminated by every other test in this file — they all
+/// assert membership/count (`in_library`, `count_in_zone`), which pass
+/// identically whether the bottom-write dispatch correctly routes through
+/// `move_object_to_bottom_of_zone` (push_front) or silently falls back to a
+/// top-append (`move_object_to_zone`/push_back). This test uses a library
+/// LONGER than the examined window, with a decoy card below it, and asserts
+/// exact `object_ids()` positions to discriminate the two.
+///
+/// Setup (build/add order, lowest-to-highest ObjectId, matching
+/// `Zone::insert`'s push_back-on-add + `Zone::object_ids()`'s low-to-high
+/// walk): Decoy (bottom, never examined) < Land A < Land B < Land C <
+/// Creature X (top, examined window is exactly these last 4). Creature X is
+/// the only creature -> placed to hand. Land A/B/C are bottomed. Correct
+/// behavior (`push_front`, each new bottom card inserted at index 0) shifts
+/// the decoy from index 0 up to the last index — it ends up the sole
+/// survivor still "above" the freshly-bottomed trio once they're all
+/// beneath it.
+#[test]
+fn test_look_place_rest_to_bottom_positional_order() {
+    let p1 = p(1);
+    let p2 = p(2);
+
+    let decoy = land_card(p1, "Decoy Land", ZoneId::Library(p1));
+    let land_a = land_card(p1, "Land A", ZoneId::Library(p1));
+    let land_b = land_card(p1, "Land B", ZoneId::Library(p1));
+    let land_c = land_card(p1, "Land C", ZoneId::Library(p1));
+    let creature_x = creature_with_mv(p1, "Creature X", 2, ZoneId::Library(p1));
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(CardRegistry::new(vec![]))
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .object(decoy)
+        .object(land_a)
+        .object(land_b)
+        .object(land_c)
+        .object(creature_x)
+        .build()
+        .unwrap();
+
+    let decoy_id = find_obj(&state, "Decoy Land");
+
+    let effect = Effect::LookAtTopThenPlace {
+        player: PlayerTarget::Controller,
+        count: EffectAmount::Fixed(4),
+        filter: TargetFilter {
+            has_card_type: Some(CardType::Creature),
+            ..Default::default()
+        },
+        place_cost: None,
+        destination: ZoneTarget::Hand {
+            owner: PlayerTarget::Controller,
+        },
+        rest_to: ZoneTarget::Library {
+            owner: PlayerTarget::Controller,
+            position: LibraryPosition::Bottom,
+        },
+        optional: true,
+    };
+    let mut ctx = EffectContext::new(p1, ObjectId(9999), vec![]);
+    let _events = execute_effect(&mut state, &effect, &mut ctx);
+
+    assert!(
+        in_hand(&state, "Creature X", p1),
+        "sanity: the sole matching creature must be placed into hand"
+    );
+
+    let lib_ids = state
+        .zones()
+        .get(&ZoneId::Library(p1))
+        .unwrap()
+        .object_ids();
+    assert_eq!(
+        lib_ids.len(),
+        4,
+        "decoy + 3 bottomed lands should remain in the library"
+    );
+    assert_eq!(
+        lib_ids[3], decoy_id,
+        "CR 121.1: the decoy — the library's original bottom card, never in \
+         the examined window — must sit at the last index (the top) once \
+         the 3 rest-cards are correctly bottomed BELOW it via push_front. If \
+         `rest_to`'s bottom dispatch silently fell back to a top-append \
+         (push_back), the decoy would remain stranded at index 0 instead."
+    );
+    let land_ids: std::collections::HashSet<ObjectId> = ["Land A", "Land B", "Land C"]
+        .iter()
+        .map(|name| find_obj(&state, name))
+        .collect();
+    let bottomed_lands: std::collections::HashSet<ObjectId> =
+        lib_ids[0..3].iter().copied().collect();
+    assert_eq!(
+        bottomed_lands, land_ids,
+        "the 3 bottomed lands (post-move, CR 400.7 new-object identities) \
+         must occupy indices 0..3, all strictly below the decoy at index 3"
+    );
+}
+
 /// DECOY: top 4 has NO creature. Nothing is placed; all 4 are bottomed; hand unchanged.
 #[test]
 fn test_look_place_no_match_leaves_all_bottomed() {
@@ -522,24 +623,29 @@ fn test_look_place_cost_declined_when_unpayable_skips_placement() {
 /// Review Finding 3 (MEDIUM, AC 5077) -- the core `LookAtTopThenPlace`-vs-`SearchLibrary`
 /// distinction: candidates are scoped strictly to the top-`count` window, NOT the whole
 /// library. Library has `count + 2` cards; a matching creature sits INSIDE the window
-/// (index 0) and a second matching creature sits at index `count` -- one position PAST the
-/// window (`take(count)` never reaches it). Assert the in-window match is placed, and the
-/// out-of-window match is completely UNTOUCHED: still in the library under its ORIGINAL
-/// ObjectId (not re-inserted as a new object via a bottoming move, CR 400.7), and no zone-move
-/// event (`ObjectPutOnLibrary`/`ObjectReturnedToHand`) was ever emitted referencing it. This
-/// would fail if the executor accidentally scanned the whole library (or `count + 1`/more)
-/// instead of `object_ids().take(count)`.
+/// (the true top, CR 121.1) and a second matching creature sits `count` positions down from
+/// the top -- one position PAST the window (`Zone::top_n(count)` never reaches it). Assert
+/// the in-window match is placed, and the out-of-window match is completely UNTOUCHED: still
+/// in the library under its ORIGINAL ObjectId (not re-inserted as a new object via a
+/// bottoming move, CR 400.7), and no zone-move event (`ObjectPutOnLibrary`/
+/// `ObjectReturnedToHand`) was ever emitted referencing it. This would fail if the executor
+/// accidentally scanned the whole library (or `count + 1`/more) instead of `top_n(count)`.
+///
+/// PB-RS1: card push order is bottom-to-top (`GameStateBuilder::object` appends, and
+/// `Zone::top()`/`top_n()` read from the LAST-pushed element -- CR 121.1). The in-window
+/// creature is pushed LAST (the true top); the out-of-window creature is pushed 4th
+/// (one position below the top-3 window, counting down from the top).
 #[test]
 fn test_look_place_truncates_at_top_n_leaves_out_of_window_match_untouched() {
     let p1 = p(1);
     let p2 = p(2);
 
-    // count = 3; library has count + 2 = 5 cards.
-    let in_window = creature_with_mv(p1, "In Window Creature", 2, ZoneId::Library(p1)); // index 0
-    let filler_a = land_card(p1, "Truncation Filler A", ZoneId::Library(p1)); // index 1
-    let filler_b = land_card(p1, "Truncation Filler B", ZoneId::Library(p1)); // index 2
-    let out_of_window = creature_with_mv(p1, "Out Of Window Creature", 2, ZoneId::Library(p1)); // index 3 == count
-    let filler_c = land_card(p1, "Truncation Filler C", ZoneId::Library(p1)); // index 4
+    // count = 3; library has count + 2 = 5 cards. Push order is bottom-to-top.
+    let filler_c = land_card(p1, "Truncation Filler C", ZoneId::Library(p1)); // true bottom
+    let out_of_window = creature_with_mv(p1, "Out Of Window Creature", 2, ZoneId::Library(p1)); // count+1 from the top -- outside the window
+    let filler_b = land_card(p1, "Truncation Filler B", ZoneId::Library(p1)); // 3rd from top
+    let filler_a = land_card(p1, "Truncation Filler A", ZoneId::Library(p1)); // 2nd from top
+    let in_window = creature_with_mv(p1, "In Window Creature", 2, ZoneId::Library(p1)); // true top
 
     let mut state = GameStateBuilder::new()
         .add_player(p1)
@@ -547,11 +653,11 @@ fn test_look_place_truncates_at_top_n_leaves_out_of_window_match_untouched() {
         .with_registry(CardRegistry::new(vec![]))
         .active_player(p1)
         .at_step(Step::PreCombatMain)
-        .object(in_window)
-        .object(filler_a)
-        .object(filler_b)
-        .object(out_of_window)
         .object(filler_c)
+        .object(out_of_window)
+        .object(filler_b)
+        .object(filler_a)
+        .object(in_window)
         .build()
         .unwrap();
 

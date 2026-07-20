@@ -23,7 +23,7 @@
     "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
-    "generation_notes": "This is a two-part script. Step 1: cast Brainstorm for {U}, draw 3, put 2 back on top of library. Step 2: activate Evolving Wilds (tap, sacrifice) — this ability puts a basic land on battlefield tapped AND shuffles the library, randomizing the two cards put back by Brainstorm. After: p1 has 1 card in hand (net: cast Brainstorm -1 + draw 3 + put 2 back = 1 card), Evolving Wilds in graveyard, Forest on battlefield tapped, library shuffled. Initial: p1 has {U}, Brainstorm + Evolving Wilds on battlefield, 3 cards in library.",
+    "generation_notes": "This is a two-part script. Step 1: cast Brainstorm for {U}, draw 3, put 2 back on top of library. Step 2: activate Evolving Wilds (tap, sacrifice) — this ability puts a basic land on battlefield tapped AND shuffles the library, randomizing the two cards put back by Brainstorm. After: p1 has 1 card in hand (net: cast Brainstorm -1 + draw 3 + put 2 back = 1 card), Evolving Wilds in graveyard, Forest on battlefield tapped, library shuffled. Initial: p1 has {U}, Brainstorm + Evolving Wilds on battlefield, 3 cards in library. PB-RS1: library declared TOP-TO-BOTTOM (CR 121.1) and reversed on harness insert, so draws happen in declared order (Forest, Lightning Bolt, Counterspell). The M7 deterministic PutOnLibrary fallback keeps the highest-ObjectId card in hand (Counterspell, drawn last) and puts the other two (Forest, Lightning Bolt) back; Evolving Wilds' search then finds Forest (the only basic land among them) regardless of which specific card was kept -- only the library-membership of Forest at search time matters for this script's assertions.",
     "disputes": []
   },
   "initial_state": {
@@ -81,17 +81,17 @@
       "library": {
         "p1": [
           {
+            "card": "Forest",
+            "is_commander": false,
+            "owner": null
+          },
+          {
             "card": "Lightning Bolt",
             "is_commander": false,
             "owner": null
           },
           {
             "card": "Counterspell",
-            "is_commander": false,
-            "owner": null
-          },
-          {
-            "card": "Forest",
             "is_commander": false,
             "owner": null
           }
@@ -155,15 +155,15 @@
               "player": "p1",
               "amount": 3,
               "cr_ref": "120.2",
-              "note": "p1 draws 3 cards (Lightning Bolt, Counterspell, Forest)."
+              "note": "p1 draws 3 cards (Forest, Lightning Bolt, Counterspell -- CR 121.1 draw order, PB-RS1)."
             },
             {
               "effect": "put_cards_on_top_of_library",
               "player": "p1",
               "amount": 2,
-              "choice": "p1 puts Counterspell and Lightning Bolt back (keeping Forest)",
+              "choice": "p1 puts Forest and Lightning Bolt back (keeping Counterspell)",
               "cr_ref": "701.17",
-              "note": "p1 puts 2 cards on top of library. Hand: 1 card (Forest)."
+              "note": "p1 puts 2 cards on top of library. Hand: 1 card (Counterspell)."
             }
           ],
           "note": "Brainstorm resolves."
@@ -220,7 +220,7 @@
             {
               "effect": "shuffle_library",
               "player": "p1",
-              "cr_ref": "701.16",
+              "cr_ref": "701.24",
               "note": "Library is shuffled. The 2 cards put back by Brainstorm are now randomized."
             }
           ],

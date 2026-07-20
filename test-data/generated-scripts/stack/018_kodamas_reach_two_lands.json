@@ -21,7 +21,7 @@
     "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
-    "generation_notes": "Kodama's Reach oracle: 'Search your library for up to two basic land cards, reveal those cards, put one onto the battlefield tapped and the other into your hand, then shuffle.' Cost {2}{G} (Arcane sorcery). Identical to Cultivate functionally. p1 finds Island and Swamp: Island onto battlefield tapped, Swamp to hand.",
+    "generation_notes": "Kodama's Reach oracle: 'Search your library for up to two basic land cards, reveal those cards, put one onto the battlefield tapped and the other into your hand, then shuffle.' Cost {2}{G} (Arcane sorcery). Identical to Cultivate functionally. p1 finds Island and Swamp: Island onto battlefield tapped, Swamp to hand. PB-RS1: library declared TOP-TO-BOTTOM (CR 121.1) and reversed on harness insert; the two sequential SearchLibrary calls each pick the lowest-ObjectId match, so Swamp is declared first (pushed last = higher id) and Island last (pushed first = lower id) to keep Island winning the first (battlefield) search and Swamp the second (hand) search, matching this script's assertions.",
     "disputes": []
   },
   "initial_state": {
@@ -71,12 +71,12 @@
       "library": {
         "p1": [
           {
-            "card": "Island",
+            "card": "Swamp",
             "is_commander": false,
             "owner": null
           },
           {
-            "card": "Swamp",
+            "card": "Island",
             "is_commander": false,
             "owner": null
           }

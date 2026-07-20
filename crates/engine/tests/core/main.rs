@@ -24,6 +24,7 @@ mod invariants;
 mod keyword_registry;
 mod lki_diagnostics_scan;
 mod object_identity;
+mod pb_rs1_roster_sweep;
 mod pending_trigger_shape;
 mod priority;
 mod protocol_roundtrip;

@@ -204,10 +204,13 @@ pub fn build_initial_state(init: &InitialState) -> (GameState, HashMap<String, P
         }
         builder = builder.object(spec);
     }
-    // Add library cards (top-to-bottom order).
+    // Add library cards. Scripts declare libraries TOP-TO-BOTTOM, but ordered
+    // zones store the top at the LAST index (Zone::top(), CR 121.1) -- so
+    // insert in reverse to make the first-declared card the one draw_card
+    // yields (PB-RS1).
     for (owner_name, lib_cards) in sorted_zone_entries(&init.zones.library) {
         if let Some(&owner) = player_map.get(owner_name) {
-            for card in lib_cards {
+            for card in lib_cards.iter().rev() {
                 builder = builder.object(make_spec(owner, &card.card, ZoneId::Library(owner)));
             }
         }

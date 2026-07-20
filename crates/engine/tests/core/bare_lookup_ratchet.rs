@@ -84,7 +84,14 @@ const SWEPT_FILES: &[(&str, usize)] = &[
     // .unwrap_or_default()` -- an exact copy of the pre-existing `Effect::RevealAndRoute`
     // idiom a few lines above it (an empty/missing library legitimately yields an empty
     // top-N window, which falls through to `continue`, not an engine bug).
-    ("src/effects/mod.rs", 110),
+    // PB-RS1 fix cycle (2026-07-19): 110 → 111. One new NONSWALLOW predicate read:
+    // `RestrictSearchTopN`'s `state.zones.get(&lib_id).map(|z| z.top_n(top_n as usize))
+    // .unwrap_or_default()`, replacing the old `state.objects.iter().filter(..)`
+    // ObjectId-proxy scan (Finding 1 of pb-review-RS1.md). Exact same idiom as the
+    // PB-OS8 entry directly above: a missing/empty library legitimately yields an
+    // empty top-N restriction set, which falls through to "nothing found," not an
+    // engine bug.
+    ("src/effects/mod.rs", 111),
     // PB-OS4b (2026-07-19): 102 → 101. `apply_face_change` replaced several raw
     // `state.objects.get_mut(&id)` transform-flip sites with a single call, and one
     // `debug_assert_object_live!` + bare-lookup pair collapsed into a plain

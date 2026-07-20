@@ -1103,9 +1103,13 @@ fn delve_direct(defs: &HashMap<String, CardDefinition>) -> GameState {
         .object(spec(defs, P1, "Island", ZoneId::Graveyard(P1)))
         .object(spec(defs, P1, "Swamp", ZoneId::Graveyard(P1)))
         .object(spec(defs, P1, "Mountain", ZoneId::Graveyard(P1)))
-        .object(spec(defs, P1, "Forest", ZoneId::Library(P1)))
-        .object(spec(defs, P1, "Plains", ZoneId::Library(P1)))
+        // PB-RS1: library entries are pushed bottom-to-top to match the (now
+        // fixed) harness, which reverses the script's top-to-bottom
+        // declaration ("Forest", "Plains", "Sol Ring") so the first-declared
+        // card (Forest) ends up as the true top (CR 121.1).
         .object(spec(defs, P1, "Sol Ring", ZoneId::Library(P1)))
+        .object(spec(defs, P1, "Plains", ZoneId::Library(P1)))
+        .object(spec(defs, P1, "Forest", ZoneId::Library(P1)))
         .build()
         .expect("delve scenario builds")
 }
@@ -1259,8 +1263,10 @@ fn modal_direct(defs: &HashMap<String, CardDefinition>) -> GameState {
         .add_player_with(P1, |p| p.life(40).land_plays(0).mana(pool(0, 3, 0, 0, 0)))
         .add_player_with(P2, |p| p.life(40).land_plays(0))
         .object(spec(defs, P1, "Archmage's Charm", ZoneId::Hand(P1)))
-        .object(spec(defs, P1, "Forest", ZoneId::Library(P1)))
+        // PB-RS1: library entries pushed bottom-to-top (Forest ends up the true
+        // top, matching the script's top-to-bottom declaration -- CR 121.1).
         .object(spec(defs, P1, "Plains", ZoneId::Library(P1)))
+        .object(spec(defs, P1, "Forest", ZoneId::Library(P1)))
         .build()
         .expect("modal scenario builds")
 }

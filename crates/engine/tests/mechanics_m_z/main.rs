@@ -5,6 +5,7 @@
 //! `docs/sr-9a-test-consolidation.md`. `tests/no_stray_test_binaries.rs` fails
 //! the suite if a top-level `tests/*.rs` file reappears.
 
+mod library_ordering;
 mod madness;
 mod mass_bounce;
 mod mass_destroy;

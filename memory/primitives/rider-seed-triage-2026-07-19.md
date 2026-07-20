@@ -84,6 +84,7 @@ but 0 reachable yield. **NEVER-FILED** = the ID appears only in a conditional or
 | **OOS-RS-4** | Anim Pakal live-counter-vs-LKI deviation on a `Complete` card | correctness | R5 |
 | **OOS-RS-5** | `EffectFilter::CreaturesControlledByTargetPlayer` (replaces contested OOS-OS7-3) | capability | folded into R7 |
 | **OOS-RS-6** | Dynamic-X counter-removal cost (crucible) | capability | dormant |
+| **OOS-RS1-1** | `ZoneTarget::Library { position }` is inert — `resolve_zone_target` discards `position` (`effects/mod.rs:7856`, was `:7830` pre-PB); `LibraryPosition` has zero engine read sites outside the two narrow local dispatches PB-RS1 added in `RevealAndRoute`/`LookAtTopThenPlace`. Filed by PB-RS1 (`scutemob-143`), per its plan §9. Every `position: LibraryPosition::Bottom` in every OTHER card def (Scry-family writes routed through PB-RS1's fix are fine; this is about the general `ZoneTarget::Library` capability used by `Effect::MoveZone`/`to:`-style destinations, e.g. `mortuary_mire`, `vampiric_tutor`, `noxious_revival`, `teferi_hero_of_dominaria`, `hall_of_heliods_generosity`) is inert decoration for anything the two narrow dispatches don't cover. **Consequence**: Muxus's "rest on the bottom in a random order" remains inexpressible — OOS-OS8-2 (muxus authoring) stays gated even after PB-RS1. | **capability** | not ranked (files the gap PB-RS1's narrow §5c fix left standing) |
 
 ---
 

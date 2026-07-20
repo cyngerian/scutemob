@@ -4,14 +4,14 @@
     "id": "script_stack_199",
     "name": "Sakura-Tribe Elder — sacrifice to search for basic land",
     "description": "p1 has Sakura-Tribe Elder on the battlefield and two basic lands in library (Forest, Island). p1 activates the Elder's ability (sacrifice Sakura-Tribe Elder: search library for a basic land card, put it onto the battlefield tapped, then shuffle). Engine resolves SearchLibrary deterministically (minimum ObjectId = Forest). Tests sacrifice-cost activation, library search, tapped ETB, and shuffle.",
-    "cr_sections_tested": ["602.2", "605.5", "608.2", "700.4", "701.19"],
+    "cr_sections_tested": ["602.2", "605.5", "608.2", "700.4", "701.23"],
     "corner_case_ref": null,
     "tags": ["creature", "sacrifice", "search-library", "sakura-tribe-elder", "ramp"],
     "confidence": "high",
     "review_status": "approved",
     "reviewed_by": "ability-impl-runner",
     "review_date": "2026-03-08",
-    "generation_notes": "Sakura-Tribe Elder oracle: 'Sacrifice Sakura-Tribe Elder: Search your library for a basic land card, put it onto the battlefield tapped, then shuffle.' CR 602.2: Activated ability, cost is sacrifice self. CR 605.5: Not a mana ability — goes on the stack. Engine picks minimum ObjectId matching basic_land_filter(); Forest is placed first in library (lower ObjectId). After resolution: STE in graveyard, Forest on battlefield tapped, Island still in library, stack empty. search_library action is a documentation marker (CR 701.19a) — no Command issued.",
+    "generation_notes": "Sakura-Tribe Elder oracle: 'Sacrifice Sakura-Tribe Elder: Search your library for a basic land card, put it onto the battlefield tapped, then shuffle.' CR 602.2: Activated ability, cost is sacrifice self. CR 605.5: Not a mana ability — goes on the stack. Engine picks minimum ObjectId matching basic_land_filter(). After resolution: STE in graveyard, Forest on battlefield tapped, Island still in library, stack empty. search_library action is a documentation marker (CR 701.23a, was mis-cited 701.19a -- 701.19 is Regenerate) — no Command issued. PB-RS1: library declared TOP-TO-BOTTOM (CR 121.1) and reversed on harness insert; Island is declared first (pushed last = higher id) and Forest last (pushed first = lower id) so Forest keeps winning the ObjectId-ascending search tie-break, matching this script's assertions.",
     "disputes": []
   },
   "initial_state": {
@@ -53,8 +53,8 @@
       "command_zone": {},
       "library": {
         "p1": [
-          { "card": "Forest", "is_commander": false, "owner": null },
-          { "card": "Island", "is_commander": false, "owner": null }
+          { "card": "Island", "is_commander": false, "owner": null },
+          { "card": "Forest", "is_commander": false, "owner": null }
         ]
       },
       "stack": []
@@ -112,7 +112,7 @@
               "effect": "search_library_for_basic_land",
               "player": "p1",
               "found": "Forest",
-              "cr_ref": "701.19",
+              "cr_ref": "701.23",
               "note": "Engine picks minimum ObjectId matching basic land filter — Forest."
             },
             {
@@ -125,7 +125,7 @@
             {
               "effect": "shuffle_library",
               "player": "p1",
-              "cr_ref": "701.19",
+              "cr_ref": "701.24",
               "note": "Remaining library (Island) is shuffled."
             }
           ],
@@ -139,7 +139,7 @@
           "targets": [],
           "mana_paid": {},
           "mana_source": [],
-          "cr_ref": "701.19a",
+          "cr_ref": "701.23a",
           "note": "Documentation marker: engine already put Forest onto the battlefield. No Command issued (M10 will add Command::SelectLibraryCard)."
         },
         {

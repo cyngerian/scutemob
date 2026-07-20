@@ -22,7 +22,7 @@
     "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
-    "generation_notes": "Cultivate oracle: 'Search your library for up to two basic land cards, reveal those cards, put one onto the battlefield tapped and the other into your hand, then shuffle.' Cost {2}{G}. Library has a Forest and a Plains. After resolution: Forest enters battlefield tapped, Plains goes to hand. Library is shuffled (now empty). Initial: p1 has Cultivate in hand with {2}{G} in pool; library has Forest and Plains.",
+    "generation_notes": "Cultivate oracle: 'Search your library for up to two basic land cards, reveal those cards, put one onto the battlefield tapped and the other into your hand, then shuffle.' Cost {2}{G}. Library has a Forest and a Plains. After resolution: Forest enters battlefield tapped, Plains goes to hand. Library is shuffled (now empty). Initial: p1 has Cultivate in hand with {2}{G} in pool; library has Forest and Plains. PB-RS1: library declared TOP-TO-BOTTOM (CR 121.1) and reversed on harness insert; the two sequential SearchLibrary calls each pick the lowest-ObjectId match, so Plains is declared first (pushed last = higher id) and Forest last (pushed first = lower id) to keep Forest winning the first (battlefield) search and Plains the second (hand) search, matching this script's assertions.",
     "disputes": []
   },
   "initial_state": {
@@ -72,12 +72,12 @@
       "library": {
         "p1": [
           {
-            "card": "Forest",
+            "card": "Plains",
             "is_commander": false,
             "owner": null
           },
           {
-            "card": "Plains",
+            "card": "Forest",
             "is_commander": false,
             "owner": null
           }

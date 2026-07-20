@@ -1655,7 +1655,7 @@ pub enum Effect {
         controller_override: Option<PlayerTarget>,
     },
     // ── Library ─────────────────────────────────────────────────────────────
-    /// CR 701.18: Scry N — look at top N cards of your library, then put any
+    /// CR 701.22: Scry N — look at top N cards of your library, then put any
     /// number on the bottom and the rest on top in any order.
     ///
     /// M9.4 deterministic fallback: looks at top N cards of the library and
@@ -2017,7 +2017,9 @@ pub enum Effect {
     },
     /// Reveal the top N cards of a player's library, then route them by filter.
     /// Cards matching the filter go to `matched_dest`; non-matching cards go to
-    /// `unmatched_dest`. All revealed cards are visible to all players (CR 701.16a).
+    /// `unmatched_dest`. All revealed cards are visible to all players (CR 701.20a,
+    /// "Reveal" -- PB-RS1: the prior citation, CR 701.16a, is Investigate, not
+    /// Reveal, and was drift).
     ///
     /// Used by Goblin Ringleader (Goblins → hand, rest → bottom of library),
     /// Chaos Warp (permanent card → battlefield, non-permanent stays on top),

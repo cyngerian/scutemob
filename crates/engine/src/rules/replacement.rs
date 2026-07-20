@@ -337,7 +337,7 @@ fn trigger_matches(
                 controller_filter: evt_filter,
             },
         ) => event_player_matches_filter(evt_filter, eff_filter),
-        // CR 701.19/614.1: Library search replacement matching.
+        // CR 701.23/614.1: Library search replacement matching.
         (
             ReplacementTrigger::WouldSearchLibrary {
                 searcher_filter: eff_filter,

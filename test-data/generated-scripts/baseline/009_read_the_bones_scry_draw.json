@@ -7,7 +7,7 @@
     "cr_sections_tested": [
       "601.2",
       "608.2",
-      "701.18",
+      "701.22",
       "120.2",
       "119.1"
     ],
@@ -23,7 +23,7 @@
     "review_status": "approved",
     "reviewed_by": "claude-sonnet-4-6",
     "review_date": "2026-02-23",
-    "generation_notes": "Read the Bones oracle: 'Scry 2, then draw two cards. You lose 2 life.' Cost {2}{B}. CR 701.18: Scry N means look at top N cards; put any number on bottom in any order, rest on top in any order. After scry, draw 2, lose 2. Library has 4 cards; p1 scrys 2 (keeps both on top), draws 2. Initial hand: 1 card (Read the Bones). After cast: 0. After draw 2: 2. Life: 40 \u2192 38.",
+    "generation_notes": "Read the Bones oracle: 'Scry 2, then draw two cards. You lose 2 life.' Cost {2}{B}. CR 701.22: Scry N means look at top N cards; put any number on bottom in any order, rest on top in any order. After scry, draw 2, lose 2. Library has 4 cards; p1 scrys 2 (keeps both on top), draws 2. Initial hand: 1 card (Read the Bones). After cast: 0. After draw 2: 2. Life: 40 \u2192 38.",
     "disputes": []
   },
   "initial_state": {
@@ -156,8 +156,8 @@
               "player": "p1",
               "amount": 2,
               "choice": "p1 keeps both cards on top",
-              "cr_ref": "701.18",
-              "note": "CR 701.18: p1 scrys 2 \u2014 looks at Lightning Bolt and Forest, keeps both on top."
+              "cr_ref": "701.22",
+              "note": "CR 701.22: p1 scrys 2 \u2014 looks at Lightning Bolt and Forest, keeps both on top."
             },
             {
               "effect": "draw_cards",
