@@ -245,7 +245,19 @@ use crate::state::hash::HASH_SCHEMA_VERSION;
 ///   Hermes) — does NOT move this digest: `TriggerCondition`/`TriggerEvent` are not
 ///   in the wire closure (see the `- 25:` note above), so that half is HASH-only,
 ///   see `state::hash`.
-pub const PROTOCOL_VERSION: u32 = 26;
+/// - 27: PB-RS2 (2026-07-20, OOS-RS-2): `Command::ActivateAbility` and
+///   `Command::TapForMana` (both wire frames) each gain two fields —
+///   `hybrid_choices: Vec<HybridManaPayment>` and
+///   `phyrexian_life_payments: Vec<bool>` (CR 107.4e/107.4f via CR 602.2b/605.1a
+///   — an activated ability's activation cost, and a mana ability's activation
+///   cost, are the analogs of a spell's mana cost and must be able to express a
+///   hybrid/Phyrexian payment choice the same way `CastSpellData` already does;
+///   fixes the free-pip bug on all 7 shipped filter lands and any activated
+///   ability with a hybrid/Phyrexian pip). `HybridManaPayment` was already in the
+///   closure (via `CastSpellData::hybrid_choices`). The closure's type count is
+///   unchanged; `Command`'s declared shape moved (twice, in the same commit), so
+///   the digest moves.
+pub const PROTOCOL_VERSION: u32 = 27;
 
 /// Digest of the serialized shape of the wire-frame type closure
 /// (`Command`, `GameEvent`, [`ReplayLog`] and everything they reach).
@@ -263,7 +275,7 @@ pub const PROTOCOL_VERSION: u32 = 26;
 /// existing `u32` *means* does not. Semantic changes still require a manual
 /// [`PROTOCOL_VERSION`] bump.
 pub const PROTOCOL_SCHEMA_FINGERPRINT: &str =
-    "315a211a729431c5688f89d1d3517453cb2d5ffd9c3833c68cf8622387a01559";
+    "f035e7973cc3b33a6048fe7b38b7de71f4be8d8411c719af85d6deba1c30fe3e";
 
 /// One `(version, fingerprint)` row of the append-only protocol-schema history.
 ///
@@ -470,6 +482,13 @@ pub const PROTOCOL_HISTORY: &[ProtocolEpoch] = &[
         // PB-OS11 (2026-07-19, final PB-OS batch — OOS-LKI-3 reframed): ManaAbility
         // gained remove_counter (see the `- 26:` History line above).
         fingerprint: "315a211a729431c5688f89d1d3517453cb2d5ffd9c3833c68cf8622387a01559",
+    },
+    ProtocolEpoch {
+        version: 27,
+        // PB-RS2 (2026-07-20, OOS-RS-2): Command::ActivateAbility and
+        // Command::TapForMana each gained hybrid_choices/phyrexian_life_payments
+        // (see the `- 27:` History line above).
+        fingerprint: "f035e7973cc3b33a6048fe7b38b7de71f4be8d8411c719af85d6deba1c30fe3e",
     },
 ];
 

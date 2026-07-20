@@ -1859,6 +1859,8 @@ fn test_activated_ability_self_cost_reduction_per_legendary() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("CR 602.2b: ability should cost 2 generic with 2 legendary creatures");
@@ -1949,6 +1951,8 @@ fn test_activated_ability_self_cost_reduction_floor_zero() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("CR 601.2f: cost should floor at {0}, not go negative");
@@ -2070,6 +2074,8 @@ fn test_activated_ability_self_cost_reduction_vampires() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("CR 602.2b: Blood token ability should cost {2} with 3 Vampires");

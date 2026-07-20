@@ -181,6 +181,8 @@ fn test_animated_artifact_sacrifice_self_emits_creature_died() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("ActivateAbility with sacrifice_self should succeed");
@@ -303,6 +305,8 @@ fn test_animated_artifact_sacrifice_filter_emits_creature_died() {
             sacrifice_target: Some(fodder_id),
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("ActivateAbility with sacrifice_filter should succeed");

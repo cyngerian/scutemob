@@ -120,7 +120,7 @@ fn test_hybrid_payment_first_color() {
     };
     let choices = vec![HybridManaPayment::Color(ManaColor::Green)];
     let phyrexian = vec![];
-    let (flat, life) = flatten_hybrid_phyrexian(&cost, &choices, &phyrexian);
+    let (flat, life) = flatten_hybrid_phyrexian(&cost, &choices, &phyrexian).unwrap();
     assert_eq!(flat.green, 1, "Hybrid paid with green");
     assert_eq!(flat.white, 0, "White not used");
     assert_eq!(flat.generic, 1, "Generic preserved");
@@ -135,7 +135,7 @@ fn test_hybrid_payment_second_color() {
         ..Default::default()
     };
     let choices = vec![HybridManaPayment::Color(ManaColor::White)];
-    let (flat, _) = flatten_hybrid_phyrexian(&cost, &choices, &[]);
+    let (flat, _) = flatten_hybrid_phyrexian(&cost, &choices, &[]).unwrap();
     assert_eq!(flat.white, 1, "Hybrid paid with white");
     assert_eq!(flat.green, 0, "Green not used");
 }
@@ -148,7 +148,7 @@ fn test_hybrid_generic_color_pay_generic() {
         ..Default::default()
     };
     let choices = vec![HybridManaPayment::Generic];
-    let (flat, _) = flatten_hybrid_phyrexian(&cost, &choices, &[]);
+    let (flat, _) = flatten_hybrid_phyrexian(&cost, &choices, &[]).unwrap();
     assert_eq!(flat.generic, 2, "{{2/W}} paid as 2 generic");
     assert_eq!(flat.white, 0, "White not used");
 }
@@ -161,7 +161,7 @@ fn test_hybrid_generic_color_pay_color() {
         ..Default::default()
     };
     let choices = vec![HybridManaPayment::Color(ManaColor::White)];
-    let (flat, _) = flatten_hybrid_phyrexian(&cost, &choices, &[]);
+    let (flat, _) = flatten_hybrid_phyrexian(&cost, &choices, &[]).unwrap();
     assert_eq!(flat.white, 1, "{{2/W}} paid as 1 white");
     assert_eq!(flat.generic, 0, "No generic cost");
 }
@@ -173,7 +173,7 @@ fn test_phyrexian_payment_mana() {
         phyrexian: vec![PhyrexianMana::Single(ManaColor::Blue)],
         ..Default::default()
     };
-    let (flat, life) = flatten_hybrid_phyrexian(&cost, &[], &[false]);
+    let (flat, life) = flatten_hybrid_phyrexian(&cost, &[], &[false]).unwrap();
     assert_eq!(flat.blue, 1, "Phyrexian paid with blue mana");
     assert_eq!(life, 0, "No life cost");
 }
@@ -185,7 +185,7 @@ fn test_phyrexian_payment_life() {
         phyrexian: vec![PhyrexianMana::Single(ManaColor::Blue)],
         ..Default::default()
     };
-    let (flat, life) = flatten_hybrid_phyrexian(&cost, &[], &[true]);
+    let (flat, life) = flatten_hybrid_phyrexian(&cost, &[], &[true]).unwrap();
     assert_eq!(flat.blue, 0, "No blue mana when paying life");
     assert_eq!(life, 2, "2 life paid for Phyrexian");
 }
@@ -201,7 +201,7 @@ fn test_phyrexian_mixed_payment() {
         ..Default::default()
     };
     // First: pay with mana, second: pay with life
-    let (flat, life) = flatten_hybrid_phyrexian(&cost, &[], &[false, true]);
+    let (flat, life) = flatten_hybrid_phyrexian(&cost, &[], &[false, true]).unwrap();
     assert_eq!(flat.red, 1, "One red from mana payment");
     assert_eq!(life, 2, "2 life from second pip");
 }

@@ -193,6 +193,8 @@ fn test_forage_sacrifice_food() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("forage activate with Food available should succeed");
@@ -272,6 +274,8 @@ fn test_forage_exile_three_from_graveyard() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("forage activate with 3 graveyard cards should succeed (no Food needed)");
@@ -348,6 +352,8 @@ fn test_forage_insufficient_resources() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -390,6 +396,8 @@ fn test_forage_requires_mana_cost_too() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -439,6 +447,8 @@ fn test_forage_food_is_artifact_subtype_not_just_token() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("ruling 2024-11-08: non-token Food artifact should qualify for forage");
@@ -493,6 +503,8 @@ fn test_forage_non_food_artifact_rejected() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -539,6 +551,8 @@ fn test_forage_prefers_food_when_both_available() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("forage with both options available should succeed");

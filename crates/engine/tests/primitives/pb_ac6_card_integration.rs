@@ -399,6 +399,8 @@ fn test_bloodsoaked_champion_raid_reanimation_gated_by_attack() {
                 sacrifice_target: None,
                 x_value: None,
                 modes_chosen: vec![],
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
             },
         )
         .unwrap_or_else(|e| panic!("Raid activation should succeed when attacked: {:?}", e));
@@ -453,6 +455,8 @@ fn test_bloodsoaked_champion_raid_reanimation_gated_by_attack() {
                 sacrifice_target: None,
                 x_value: None,
                 modes_chosen: vec![],
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
             },
         );
         assert!(
@@ -524,6 +528,8 @@ fn test_idol_of_oblivion_draw_gated_by_created_token() {
                 sacrifice_target: None,
                 x_value: None,
                 modes_chosen: vec![],
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
             },
         )
         .unwrap_or_else(|e| {
@@ -573,6 +579,8 @@ fn test_idol_of_oblivion_draw_gated_by_created_token() {
                 sacrifice_target: None,
                 x_value: None,
                 modes_chosen: vec![],
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
             },
         );
         // Must be rejected by the `CreatedATokenThisTurn` activation condition, not

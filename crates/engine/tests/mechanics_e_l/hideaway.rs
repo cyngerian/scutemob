@@ -676,6 +676,8 @@ fn test_hideaway_play_exiled_card() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("ActivateAbility failed: {:?}", e));

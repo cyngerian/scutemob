@@ -5,14 +5,17 @@
 //
 // PB-OS8: TargetFilter.min_cmc_amount (runtime LOWER-BOUND cap, mirror of the existing
 // max_cmc_amount) now ships, so the "mana value EQUAL TO 1 + the sacrificed creature's MV"
-// filter IS expressible (max_cmc_amount == min_cmc_amount == Sum(Fixed(1),
-// ManaValueOfSacrificedCreature)) — the PB-EF10-era blocker above is CLOSED. A SECOND,
-// independent blocker remains: this activated ability's cost is {1}{G/P} (a Phyrexian pip),
-// and Phyrexian mana is NOT handled in the activated-ability payment path (rules/abilities.rs
-// has zero Phyrexian references; the "{G/P} paid with 2 life" alternative lives only in
-// rules/casting.rs, for spell casting). Authoring the cost as plain {1}{G} would ship wrong
-// game state (silently removes the 2-life payment option). Still blocked; recorded as
-// OOS-OS8-1 (Phyrexian mana in activated-ability costs).
+// filter is expressible (max_cmc_amount == min_cmc_amount == Sum(Fixed(1),
+// ManaValueOfSacrificedCreature); reference shape: eldritch_evolution.rs, birthing_ritual.rs).
+//
+// PB-RS2 (closes OOS-OS8-1): the second blocker -- Phyrexian mana in an ACTIVATED ability's
+// cost was unsupported in rules/abilities.rs's payment path (it paid the RAW ManaCost, so a
+// {G/P} pip's mana_value() > 0 passed the payment gate but can_spend/spend never read
+// cost.phyrexian, charging it for free) -- is now closed. handle_activate_ability flattens
+// hybrid/Phyrexian choices via ManaCost::flatten_hybrid_phyrexian before paying, exactly as
+// rules/casting.rs already did for spells; a `false` in phyrexian_life_payments pays {G/P}
+// with green mana, `true` pays it with 2 life (CR 107.4f, CR 119.4). Both blockers are now
+// closed; this card flips to Complete.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -30,22 +33,58 @@ pub fn card() -> CardDefinition {
                       1 plus the sacrificed creature's mana value, put that card onto the \
                       battlefield, then shuffle. Activate only as a sorcery."
             .to_string(),
-        abilities: vec![
-            // TODO(OOS-OS8-1): {1}{G/P}, {T}, Sacrifice a creature: search for a creature with
-            //   MV = sacrificed MV + 1 (now expressible via SearchLibrary's paired
-            //   max_cmc_amount/min_cmc_amount, PB-OS8). Blocked on Phyrexian mana in an
-            //   ACTIVATED ability's cost — unsupported in rules/abilities.rs's payment path.
-        ],
-        completeness: Completeness::inert(
-            "Two blockers were tracked here; ONE is now closed. CLOSED (PB-OS8): the dynamic \
-             mana-value filter — SearchLibrary now honors a paired max_cmc_amount/min_cmc_amount \
-             (both = Sum(Fixed(1), ManaValueOfSacrificedCreature)) to express 'MV equal to 1 plus \
-             the sacrificed creature's MV'. STILL BLOCKED (OOS-OS8-1): this ability's activation \
-             cost is {1}{G/P} (Phyrexian mana), and Phyrexian mana is not handled in the \
-             activated-ability payment path (rules/abilities.rs has zero Phyrexian references; \
-             the 2-life alternative lives only in rules/casting.rs for spell casting). Authoring \
-             the cost as plain {1}{G} would ship wrong game state.",
-        ),
+        abilities: vec![AbilityDefinition::Activated {
+            // {1}{G/P}, {T}, Sacrifice a creature.
+            cost: Cost::Sequence(vec![
+                Cost::Mana(ManaCost {
+                    generic: 1,
+                    phyrexian: vec![PhyrexianMana::Single(ManaColor::Green)],
+                    ..Default::default()
+                }),
+                Cost::Tap,
+                Cost::Sacrifice(TargetFilter {
+                    has_card_type: Some(CardType::Creature),
+                    ..Default::default()
+                }),
+            ]),
+            // Search for a creature card with mana value EQUAL TO 1 plus the sacrificed
+            // creature's mana value (PB-OS8: paired max_cmc_amount/min_cmc_amount), put it
+            // onto the battlefield, then shuffle (CR 601.2f-style explicit Shuffle, mirroring
+            // eldritch_evolution.rs -- SearchLibrary's own shuffle_before_placing only
+            // shuffles BEFORE placing, not after).
+            effect: Effect::Sequence(vec![
+                Effect::SearchLibrary {
+                    player: PlayerTarget::Controller,
+                    filter: TargetFilter {
+                        has_card_type: Some(CardType::Creature),
+                        max_cmc_amount: Some(Box::new(EffectAmount::Sum(
+                            Box::new(EffectAmount::Fixed(1)),
+                            Box::new(EffectAmount::ManaValueOfSacrificedCreature),
+                        ))),
+                        min_cmc_amount: Some(Box::new(EffectAmount::Sum(
+                            Box::new(EffectAmount::Fixed(1)),
+                            Box::new(EffectAmount::ManaValueOfSacrificedCreature),
+                        ))),
+                        ..Default::default()
+                    },
+                    reveal: false,
+                    destination: ZoneTarget::Battlefield { tapped: false },
+                    shuffle_before_placing: false,
+                    also_search_graveyard: false,
+                },
+                Effect::Shuffle {
+                    player: PlayerTarget::Controller,
+                },
+            ]),
+            // "Activate only as a sorcery."
+            timing_restriction: Some(TimingRestriction::SorcerySpeed),
+            targets: vec![],
+            activation_condition: None,
+            activation_zone: None,
+            once_per_turn: false,
+            modes: None,
+        }],
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

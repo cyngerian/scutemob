@@ -1,5 +1,6 @@
 use crate::rules::command::CastSpellData;
 use crate::state::combat::AttackTarget;
+use crate::state::game_object::HybridManaPayment;
 use crate::state::types::{AdditionalCost, AltCostKind, FaceDownKind, TurnFaceUpMethod};
 use crate::state::{ActivatedAbility, ActivationCost, CounterType, SacrificeFilter};
 use crate::testing::script_schema::{
@@ -306,6 +307,35 @@ pub fn build_initial_state_checked(
     crate::rules::engine::check_all_defs_complete(&state)?;
     Ok((state, player_map))
 }
+/// PB-RS2 (CR 107.4e via CR 602.2b/605.1a): parse a script's `hybrid_choices` string
+/// list into `Vec<HybridManaPayment>`.
+///
+/// Returns `None` — rejecting the whole action, not just the one bad entry — if ANY
+/// entry isn't a recognized color name or `"generic"`. (Review finding #1: this used to
+/// `filter_map`-drop an unparseable entry, which *positionally shifts* every later
+/// pip's choice, since `flatten_hybrid_phyrexian` indexes `hybrid_choices` by position
+/// (`game_object.rs`'s `hybrid_choices.get(i)`). A two-pip cost scripted as
+/// `["bogus", "red"]` would silently become `[Color(Red)]`, applying "red" to pip 0
+/// instead of pip 1 — a silent-wrong-payment footgun of exactly the class this PB
+/// exists to eliminate, not a harmless drop the way an unparseable `chosen_color`
+/// scalar is. `chosen_color` stays permissive because it is a single scalar with no
+/// position to shift.)
+fn parse_hybrid_choices(names: &[String]) -> Option<Vec<HybridManaPayment>> {
+    names
+        .iter()
+        .map(|name| match name.to_lowercase().as_str() {
+            "white" => Some(HybridManaPayment::Color(ManaColor::White)),
+            "blue" => Some(HybridManaPayment::Color(ManaColor::Blue)),
+            "black" => Some(HybridManaPayment::Color(ManaColor::Black)),
+            "red" => Some(HybridManaPayment::Color(ManaColor::Red)),
+            "green" => Some(HybridManaPayment::Color(ManaColor::Green)),
+            "colorless" => Some(HybridManaPayment::Color(ManaColor::Colorless)),
+            "generic" => Some(HybridManaPayment::Generic),
+            _ => None,
+        })
+        .collect()
+}
+
 /// Map a script `PlayerAction` string and its parameters to a [`Command`].
 ///
 /// Returns `None` for unrecognized action strings (future-proof: new actions
@@ -402,6 +432,16 @@ pub fn translate_player_action(
     // ability. One of "white"/"blue"/"black"/"red"/"green" (case-insensitive). `None` for
     // fixed-colour sources or all other action types.
     chosen_color_name: Option<&str>,
+    // PB-RS2 (CR 107.4e via CR 602.2b/605.1a): For `activate_ability` or `tap_for_mana`
+    // on a source with a hybrid pip in its activation cost. One entry per hybrid pip, in
+    // cost order: a color name to pay with that color, or "generic" to pay a monocolored
+    // hybrid with 2 generic mana. Empty for non-hybrid costs or all other action types.
+    hybrid_choice_names: &[String],
+    // PB-RS2 (CR 107.4f via CR 602.2b/605.1a): For `activate_ability` or `tap_for_mana`
+    // on a source with a Phyrexian pip in its activation cost. One entry per Phyrexian
+    // pip, in cost order: true = pay 2 life, false = pay mana. Empty for non-Phyrexian
+    // costs or all other action types.
+    phyrexian_life_payment_choices: &[bool],
     state: &GameState,
     players: &HashMap<String, PlayerId>,
 ) -> Option<Command> {
@@ -660,12 +700,18 @@ pub fn translate_player_action(
                 "green" => Some(ManaColor::Green),
                 _ => None,
             });
-            // Assume ability index 0 for basic mana abilities.
+            // PB-RS2: honor an explicit ability_index (e.g. a filter land's
+            // {Hybrid},{T} ability at index 1) rather than always assuming the
+            // basic {T}: Add {C} ability at index 0 — a script that omits
+            // ability_index still defaults to 0 (PlayerAction's #[serde(default)]),
+            // preserving every existing script's behavior.
             Some(Command::TapForMana {
                 player,
                 source: source_id,
-                ability_index: 0,
+                ability_index,
                 chosen_color,
+                hybrid_choices: parse_hybrid_choices(hybrid_choice_names)?,
+                phyrexian_life_payments: phyrexian_life_payment_choices.to_vec(),
             })
         }
         "activate_ability" => {
@@ -697,6 +743,8 @@ pub fn translate_player_action(
                 // CR 700.2a/601.2b: mode indices chosen for a modal activated ability
                 // (PB-EF7). Empty = non-modal, or auto-select mode 0.
                 modes_chosen: modes_chosen.clone(),
+                hybrid_choices: parse_hybrid_choices(hybrid_choice_names)?,
+                phyrexian_life_payments: phyrexian_life_payment_choices.to_vec(),
             })
         }
         // CR 606: Activate a loyalty ability on a planeswalker.
@@ -4156,5 +4204,52 @@ fn parse_mana_color(s: &str) -> Option<ManaColor> {
         "colorless" | "c" => Some(ManaColor::Colorless),
         "generic" | "any" => Some(ManaColor::Colorless),
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod parse_hybrid_choices_tests {
+    use super::*;
+
+    /// CR 107.4e — all-legal entries parse in order, position preserved.
+    #[test]
+    fn all_legal_entries_parse_in_order() {
+        let names = vec![
+            "black".to_string(),
+            "generic".to_string(),
+            "red".to_string(),
+        ];
+        assert_eq!(
+            parse_hybrid_choices(&names),
+            Some(vec![
+                HybridManaPayment::Color(ManaColor::Black),
+                HybridManaPayment::Generic,
+                HybridManaPayment::Color(ManaColor::Red),
+            ])
+        );
+    }
+
+    /// Review finding #1: an unparseable entry must reject the WHOLE vector (`None`),
+    /// not silently drop just that entry. Before the fix, `["bogus", "red"]` for a
+    /// two-pip cost produced `Some(vec![Color(Red)])` — a single-element vector that
+    /// `flatten_hybrid_phyrexian` (indexing by position) would apply to pip 0, silently
+    /// leaving pip 1 at its default. That is a positional shift, not a harmless drop,
+    /// and this test pins the fix: the whole action must be rejected instead.
+    #[test]
+    fn an_unparseable_entry_rejects_the_whole_vector_not_just_itself() {
+        let names = vec!["bogus".to_string(), "red".to_string()];
+        assert_eq!(
+            parse_hybrid_choices(&names),
+            None,
+            "an unrecognized token must reject the whole `hybrid_choices` vector so no \
+             later pip's choice is positionally shifted onto an earlier pip"
+        );
+    }
+
+    /// Empty input parses to an empty (non-`None`) vector — no pips means no choices to
+    /// validate, distinct from "one bad entry."
+    #[test]
+    fn empty_input_parses_to_empty_vector() {
+        assert_eq!(parse_hybrid_choices(&[]), Some(vec![]));
     }
 }

@@ -450,6 +450,22 @@ pub enum ScriptAction {
         /// Example: "green"
         #[serde(default)]
         chosen_color: Option<String>,
+        /// PB-RS2 (CR 107.4e via CR 602.2b/605.1a): For `activate_ability` or
+        /// `tap_for_mana` on a source with a hybrid pip in its activation cost. One
+        /// entry per hybrid pip, in cost order: `"white"`/`"blue"`/`"black"`/`"red"`/
+        /// `"green"`/`"colorless"` to pay with that color, or `"generic"` to pay a
+        /// monocolored hybrid (`{2/W}`) with 2 generic mana. Empty = default to the
+        /// first color option for each pip.
+        /// Example: ["black"]
+        #[serde(default)]
+        hybrid_choices: Vec<String>,
+        /// PB-RS2 (CR 107.4f via CR 602.2b/605.1a): For `activate_ability` or
+        /// `tap_for_mana` on a source with a Phyrexian pip in its activation cost.
+        /// One entry per Phyrexian pip, in cost order: `true` = pay 2 life, `false` =
+        /// pay mana. Empty = default to paying with mana for each pip.
+        /// Example: [true]
+        #[serde(default)]
+        phyrexian_life_payments: Vec<bool>,
         cr_ref: Option<String>,
         note: Option<String>,
     },

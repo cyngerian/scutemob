@@ -182,6 +182,8 @@ fn test_reconfigure_attach_removes_creature_type() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -283,6 +285,8 @@ fn test_reconfigure_unattach_restores_creature_type() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -320,6 +324,8 @@ fn test_reconfigure_unattach_restores_creature_type() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -410,6 +416,8 @@ fn test_reconfigure_sorcery_speed_only() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -465,6 +473,8 @@ fn test_reconfigure_cant_attach_to_self() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -543,6 +553,8 @@ fn test_reconfigure_equipped_creature_leaves_battlefield() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -637,6 +649,8 @@ fn test_reconfigure_unattach_rejected_when_not_attached() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -697,6 +711,8 @@ fn test_reconfigure_cant_attach_to_opponents_creature() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -765,6 +781,8 @@ fn test_reconfigure_artifact_type_retained_while_attached() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();

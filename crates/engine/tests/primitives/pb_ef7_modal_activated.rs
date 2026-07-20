@@ -96,6 +96,8 @@ fn activate(
             sacrifice_target: None,
             x_value: None,
             modes_chosen,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
 }
@@ -239,7 +241,7 @@ fn test_ef7_hash_and_protocol_versions() {
          (HASH 49->50). Update this sentinel and the state/hash.rs history block together."
     );
     assert_eq!(
-        PROTOCOL_VERSION, 26,
+        PROTOCOL_VERSION, 27,
         "PB-EF7 added Command::ActivateAbility.modes_chosen (PROTOCOL 11->12). Update this \
          sentinel and the rules/protocol.rs history block together."
     );

@@ -581,6 +581,8 @@ fn test_olivia_voldaren_steal_returns_when_olivia_stolen() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("activate Olivia's {3}{B}{B} ability");
@@ -653,6 +655,8 @@ fn test_olivia_voldaren_steal_returns_when_olivia_dies() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("activate Olivia's {3}{B}{B} ability");

@@ -152,6 +152,163 @@ impl ManaCost {
         // CR 202.3e: X is 0 off stack (x_count not counted here)
         base + hybrid_mv + phyrexian_mv
     }
+    /// CR 601.2f (spells) / CR 602.2b (activated abilities) / CR 605.1a (mana
+    /// abilities): resolve hybrid and Phyrexian payment choices into a flat
+    /// `ManaCost`.
+    ///
+    /// Hybrid pips become colored or generic pips based on `hybrid_choices`.
+    /// Phyrexian pips paid with life are removed from the mana cost (the life is
+    /// deducted separately by the caller); Phyrexian pips paid with mana become
+    /// colored pips.
+    ///
+    /// Returns `Ok((flattened cost with only standard fields, life to pay for
+    /// Phyrexian))`. If `hybrid_choices` or `phyrexian_life_payments` are shorter
+    /// than the pip count, defaults apply: first color for hybrid, mana payment
+    /// for Phyrexian (see `casting.rs`'s pre-PB-RS2 doc comment on the original
+    /// free function, which this replaces).
+    ///
+    /// PB-RS2 (`memory/primitives/pb-plan-RS2.md` §4): relocated here from
+    /// `crates/engine/src/rules/casting.rs` so `mana.rs` and `abilities.rs` can
+    /// call it without reaching into the `casting` module (a layering smell), and
+    /// so it lives beside the types it operates on (SR-6: this crate may not
+    /// reference `GameState`/the engine).
+    ///
+    /// Returns `Err` (a plain `String`, not `GameStateError` — that type lives in
+    /// the `mtg-engine` crate, which this crate cannot depend on per SR-6) when a
+    /// `HybridManaPayment` choice names a color or shape that pip cannot actually
+    /// be paid with (CR 107.4e: "can be paid in one of two ways, as represented by
+    /// the two halves of the symbol"). Callers in `crates/engine` map this to
+    /// `GameStateError::InvalidCommand`.
+    pub fn flatten_hybrid_phyrexian(
+        &self,
+        hybrid_choices: &[HybridManaPayment],
+        phyrexian_life_payments: &[bool],
+    ) -> Result<(ManaCost, u32), String> {
+        // Review finding #2: `Command::ActivateAbility`/`TapForMana`'s doc comments say
+        // "length must match the hybrid pip count," but nothing enforced it — a
+        // caller-supplied vector LONGER than the pip count was silently ignored past
+        // the pip count (each entry is read positionally with `.get(i)`, so trailing
+        // entries are simply never indexed). A client sending
+        // `phyrexian_life_payments: [true]` against a cost with zero Phyrexian pips got
+        // a silent no-op instead of the `InvalidCommand` a bad `chosen_color` gets. Given
+        // this whole PB's thesis is "a silently-defaulting payment channel is how
+        // OOS-RS-2 happened," tolerate SHORT vectors (the documented default-per-pip
+        // contract above is deliberate and used by real callers that only know they want
+        // "default everything") but reject OVER-LONG ones loudly.
+        if hybrid_choices.len() > self.hybrid.len() {
+            return Err(format!(
+                "hybrid_choices has {} entries but this cost has only {} hybrid pip(s) — an \
+                 over-long choice vector is rejected rather than silently ignored past the \
+                 pip count (CR 107.4e)",
+                hybrid_choices.len(),
+                self.hybrid.len()
+            ));
+        }
+        if phyrexian_life_payments.len() > self.phyrexian.len() {
+            return Err(format!(
+                "phyrexian_life_payments has {} entries but this cost has only {} Phyrexian \
+                 pip(s) — an over-long choice vector is rejected rather than silently ignored \
+                 past the pip count (CR 107.4f)",
+                phyrexian_life_payments.len(),
+                self.phyrexian.len()
+            ));
+        }
+        let mut flat = ManaCost {
+            white: self.white,
+            blue: self.blue,
+            black: self.black,
+            red: self.red,
+            green: self.green,
+            colorless: self.colorless,
+            generic: self.generic,
+            hybrid: vec![],
+            phyrexian: vec![],
+            x_count: self.x_count,
+        };
+        fn add_color(flat: &mut ManaCost, color: ManaColor) {
+            match color {
+                ManaColor::White => flat.white += 1,
+                ManaColor::Blue => flat.blue += 1,
+                ManaColor::Black => flat.black += 1,
+                ManaColor::Red => flat.red += 1,
+                ManaColor::Green => flat.green += 1,
+                ManaColor::Colorless => flat.colorless += 1,
+            }
+        }
+        // Resolve hybrid pips (CR 107.4e).
+        for (i, h) in self.hybrid.iter().enumerate() {
+            let choice = hybrid_choices.get(i);
+            match h {
+                HybridMana::ColorColor(a, b) => {
+                    let color = match choice {
+                        Some(HybridManaPayment::Color(c)) => {
+                            // CR 107.4e: the chosen color must be one of the
+                            // pip's two halves.
+                            if c != a && c != b {
+                                return Err(format!(
+                                    "hybrid pip {{{a:?}/{b:?}}} cannot be paid with {c:?}: must \
+                                     be one of the pip's two halves (CR 107.4e)"
+                                ));
+                            }
+                            *c
+                        }
+                        Some(HybridManaPayment::Generic) => {
+                            return Err(format!(
+                                "hybrid pip {{{a:?}/{b:?}}} cannot be paid with generic mana: \
+                                 it is a color/color hybrid, not a color/generic hybrid (CR \
+                                 107.4e)"
+                            ));
+                        }
+                        None => *a, // default: pay with the first color
+                    };
+                    add_color(&mut flat, color);
+                }
+                HybridMana::GenericColor(c) => match choice {
+                    Some(HybridManaPayment::Generic) => {
+                        // Pay with 2 generic mana.
+                        flat.generic += 2;
+                    }
+                    Some(HybridManaPayment::Color(color)) => {
+                        if color != c {
+                            return Err(format!(
+                                "hybrid pip {{2/{c:?}}} cannot be paid with {color:?}: the \
+                                 colored option is {c:?} (CR 107.4e)"
+                            ));
+                        }
+                        add_color(&mut flat, *color);
+                    }
+                    None => {
+                        // Default: pay with the colored option (cheaper).
+                        add_color(&mut flat, *c);
+                    }
+                },
+            }
+        }
+        // Resolve Phyrexian pips (CR 107.4f).
+        let mut life_cost = 0u32;
+        for (i, ph) in self.phyrexian.iter().enumerate() {
+            let pay_life = phyrexian_life_payments.get(i).copied().unwrap_or(false);
+            if pay_life {
+                life_cost += 2;
+            } else {
+                match ph {
+                    PhyrexianMana::Single(c) => add_color(&mut flat, *c),
+                    PhyrexianMana::Hybrid(a, _b) => {
+                        // PB-RS2 §4: a hybrid-Phyrexian pip's second color choice
+                        // is not yet representable — `hybrid_choices` covers plain
+                        // hybrid pips only. Defaults to the first color. No card
+                        // on the roster carries a hybrid-Phyrexian pip in an
+                        // *activation* cost (only a card's printed mana_cost,
+                        // e.g. ajani_sleeper_agent), so this is safe today; a
+                        // future card that does would need a third choice field
+                        // (documented, not silently widened, per plan §11.3).
+                        add_color(&mut flat, *a);
+                    }
+                }
+            }
+        }
+        Ok((flat, life_cost))
+    }
 }
 /// A mana ability: an activated ability that produces mana (CR 605).
 ///
@@ -1373,5 +1530,69 @@ impl GameObject {
     /// game purposes except rules that specifically mention phased-out permanents.
     pub fn is_phased_in(&self) -> bool {
         !self.status.phased_out
+    }
+}
+#[cfg(test)]
+mod flatten_hybrid_phyrexian_tests {
+    use super::*;
+
+    fn one_hybrid_pip_cost() -> ManaCost {
+        ManaCost {
+            hybrid: vec![HybridMana::ColorColor(ManaColor::Black, ManaColor::Red)],
+            ..Default::default()
+        }
+    }
+
+    fn one_phyrexian_pip_cost() -> ManaCost {
+        ManaCost {
+            phyrexian: vec![PhyrexianMana::Single(ManaColor::Green)],
+            ..Default::default()
+        }
+    }
+
+    /// A short (here: empty) `hybrid_choices` vector is a deliberate, documented
+    /// default — not an error.
+    #[test]
+    fn short_hybrid_choices_defaults_rather_than_errors() {
+        let cost = one_hybrid_pip_cost();
+        assert!(cost.flatten_hybrid_phyrexian(&[], &[]).is_ok());
+    }
+
+    /// Review finding #2: an over-long `hybrid_choices` vector (more entries than the
+    /// cost has hybrid pips) must be rejected, not silently ignored past the pip count.
+    #[test]
+    fn over_long_hybrid_choices_is_rejected() {
+        let cost = one_hybrid_pip_cost();
+        let choices = vec![
+            HybridManaPayment::Color(ManaColor::Black),
+            HybridManaPayment::Color(ManaColor::Red), // extra — no second pip exists
+        ];
+        let result = cost.flatten_hybrid_phyrexian(&choices, &[]);
+        assert!(
+            result.is_err(),
+            "an hybrid_choices vector longer than the pip count must be rejected: {result:?}"
+        );
+    }
+
+    /// Review finding #2, Phyrexian sibling: an over-long `phyrexian_life_payments`
+    /// vector must also be rejected, not silently ignored past the pip count.
+    #[test]
+    fn over_long_phyrexian_life_payments_is_rejected() {
+        let cost = one_phyrexian_pip_cost();
+        let payments = vec![false, true]; // extra — no second pip exists
+        let result = cost.flatten_hybrid_phyrexian(&[], &payments);
+        assert!(
+            result.is_err(),
+            "a phyrexian_life_payments vector longer than the pip count must be rejected: \
+             {result:?}"
+        );
+    }
+
+    /// A same-length vector is exactly at the boundary and must succeed.
+    #[test]
+    fn exact_length_hybrid_choices_succeeds() {
+        let cost = one_hybrid_pip_cost();
+        let choices = vec![HybridManaPayment::Color(ManaColor::Black)];
+        assert!(cost.flatten_hybrid_phyrexian(&choices, &[]).is_ok());
     }
 }

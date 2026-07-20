@@ -328,6 +328,8 @@ fn test_split_second_blocks_activated_abilities() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -508,6 +510,8 @@ fn test_split_second_allows_mana_abilities() {
             ability_index: 0,
 
             chosen_color: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 

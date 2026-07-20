@@ -193,6 +193,8 @@ fn test_pbxs_activated_target_self_is_rejected() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -243,6 +245,8 @@ fn test_pbxs_activated_target_another_creature_is_accepted() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -328,6 +332,8 @@ fn test_pbxs_activated_target_permanent_exclude_self_rejects_source() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
     assert!(
@@ -446,6 +452,8 @@ fn test_pbxs_graveyard_filter_excludes_source() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
     assert!(
@@ -469,6 +477,8 @@ fn test_pbxs_graveyard_filter_excludes_source() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
     assert!(

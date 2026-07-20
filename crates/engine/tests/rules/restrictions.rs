@@ -461,6 +461,8 @@ fn test_restriction_artifact_abilities_blocked() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -883,6 +885,8 @@ fn test_restriction_stony_silence_blocks_artifact_mana_ability() {
             ability_index: 0,
 
             chosen_color: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
     assert!(
@@ -934,6 +938,8 @@ fn test_restriction_stony_silence_does_not_block_land_mana_ability() {
             ability_index: 0,
 
             chosen_color: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
     assert!(

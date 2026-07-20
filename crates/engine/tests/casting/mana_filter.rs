@@ -25,18 +25,15 @@
 //! mana abilities** and this file's tests activate them via `Command::TapForMana`, not
 //! `Command::ActivateAbility`.
 //!
-//! **What is still NOT fixed, and this file must not claim otherwise (SR-34 §8 item 6):**
-//! `ManaPool::can_spend` / `ManaPool::spend` (`card-types/src/state/player.rs`) read only
-//! the fixed-color and generic fields of a `ManaCost` — `hybrid` and `phyrexian` are
-//! ignored entirely, before and after SR-34. A filter land's `ManaCost { hybrid: [{W/B}],
-//! ..Default::default() }` has `mana_value() == 1` (CR 202.3f counts a `ColorColor` hybrid
-//! symbol as 1), so `handle_tap_for_mana`'s cost-legality check DOES run `can_spend` —
-//! but `can_spend` only ever reads `white`/`blue`/`black`/`red`/`green`/`colorless`/
-//! `generic`, every one of which is 0 on a pure-hybrid cost, so it returns `true`
-//! unconditionally regardless of pool contents, and `spend()` then deducts nothing.
-//! Filter lands genuinely improved (off the stack, usable mid-cast, CR 605.3b) but their
-//! printed `{W/B}` cost is paid for free. This is a pre-existing P4 item, unchanged by
-//! SR-34.
+//! **PB-RS2 (2026-07-20, OOS-RS-2) — the hybrid cost is now actually charged.** The note
+//! above (SR-34 §8 item 6) described `ManaPool::can_spend`/`spend` ignoring
+//! `ManaCost.hybrid`/`.phyrexian` entirely, so a filter land's `{W/B}` pip was paid for
+//! free — every filter land was a live "{T}: Add two mana" land. `handle_tap_for_mana`
+//! now flattens hybrid/Phyrexian choices via `ManaCost::flatten_hybrid_phyrexian` (mirroring
+//! `casting.rs`'s spell-cost path) before paying, and `can_spend`/`spend` `debug_assert!` if
+//! an unflattened cost ever reaches them. `Command::TapForMana` gained
+//! `hybrid_choices`/`phyrexian_life_payments` to carry the payment choice — this file's
+//! tests below now prime the pool with one half of the pip and pass the matching choice.
 //! CR 602.2 — activated abilities cost must be paid before the ability resolves.
 
 use std::collections::HashMap;
@@ -112,12 +109,20 @@ fn build_with_filter_land(name: &str) -> GameState {
 /// (CR 605.3b). Effect::AddManaFilterChoice produces 1 white + 1 black (middle option
 /// of 3 choices). Starting with an empty mana pool, activation should yield white:1 +
 /// black:1.
-/// NOTE: Hybrid mana enforcement is a pre-existing limitation (SR-34 §8 item 6); the
-/// hybrid activation cost is structurally correct in the ability definition but not
-/// validated or deducted at activation time — see the module doc comment.
+/// PB-RS2 (CR 107.4e): Fetid Heath's `{W/B}` filter pip is now actually charged, so the
+/// pool must be primed with one half (here: White) before activation, and
+/// `hybrid_choices` must name it.
 fn test_filter_land_produces_two_mana_fetid_heath() {
-    let state = build_with_filter_land("Fetid Heath");
+    let mut state = build_with_filter_land("Fetid Heath");
     let land_id = find_by_name(&state, "Fetid Heath");
+    // Prime the pool with the White half of the {W/B} pip (PB-RS2: the pip is no
+    // longer free — CR 107.4e).
+    state
+        .players_mut()
+        .get_mut(&p(1))
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::White, 1);
 
     // Fetid Heath abilities (post-SR-34, both are ManaAbilities, neither is in
     // activated_abilities):
@@ -131,9 +136,11 @@ fn test_filter_land_produces_two_mana_fetid_heath() {
             ability_index: 1,
 
             chosen_color: None,
+            hybrid_choices: vec![mtg_engine::HybridManaPayment::Color(ManaColor::White)],
+            phyrexian_life_payments: vec![],
         },
     )
-    .expect("filter land activation should succeed (CR 605.1a)");
+    .expect("filter land activation should succeed (CR 605.1a) when the {W/B} pip is paid");
 
     // No stack (CR 605.3b): a mana ability resolves immediately.
     assert!(
@@ -141,16 +148,16 @@ fn test_filter_land_produces_two_mana_fetid_heath() {
         "a mana ability must not use the stack (CR 605.3b)"
     );
 
-    // After activation: p(1) should have 1 white and 1 black mana added.
+    // After activation: the primed White pays the pip (-1), AddManaFilterChoice then
+    // adds 1 white + 1 black, netting white back to 1 and black to 1 (PB-RS2: the
+    // pip's own color nets back via the effect's own production — see
+    // `pb_rs2_activated_pip_payment.rs`'s `filter_land_charges_its_hybrid_pip`).
     let pool = &state_resolved.players()[&p(1)].mana_pool;
     assert_eq!(
         pool.white, 1,
-        "AddManaFilterChoice should add 1 white mana to empty pool"
+        "White pip spent (-1), then AddManaFilterChoice adds 1 white back"
     );
-    assert_eq!(
-        pool.black, 1,
-        "AddManaFilterChoice should add 1 black mana to empty pool"
-    );
+    assert_eq!(pool.black, 1, "AddManaFilterChoice should add 1 black mana");
     assert_eq!(pool.blue, 0, "no blue mana should be added");
     assert_eq!(pool.red, 0, "no red mana should be added");
     assert_eq!(pool.green, 0, "no green mana should be added");
@@ -188,8 +195,28 @@ fn test_filter_land_produces_two_mana_fetid_heath() {
 /// Tapping an already-tapped filter land (via `TapForMana`, post-SR-34 both of Fetid
 /// Heath's abilities are ManaAbilities — see `test_filter_land_produces_two_mana_fetid_heath`)
 /// returns `PermanentAlreadyTapped`.
+///
+/// PB-RS2 (review finding #12): `handle_tap_for_mana`'s mana-legality check (step 5b)
+/// runs BEFORE the tap check (step 6, `mana.rs:295-297`). Before this fix the test primed
+/// an EMPTY pool with `hybrid_choices: vec![]`, so the {W/B} pip's mana-legality check
+/// failed first and the test passed via `InsufficientMana` — never reaching the tapped-
+/// permanent path the doc comment claimed to cover. It was a duplicate of
+/// `hybrid_pip_in_mana_ability_cost_requires_mana` wearing a "tap required" label:
+/// reverting the tap check in `mana.rs` would NOT have failed it. Fixed by priming the
+/// pool with the White half (as the sibling tests in this file do) and passing a legal
+/// `hybrid_choices`, so the ONLY remaining reason to reject is the tapped permanent, and
+/// tightening the assertion to the specific error variant.
 fn test_filter_land_tap_required() {
     let mut state = build_with_filter_land("Fetid Heath");
+
+    // Prime the pool with the White half of the {W/B} pip so the mana-legality check
+    // (step 5b) passes and cannot mask the tap check (step 6) under test.
+    state
+        .players_mut()
+        .get_mut(&p(1))
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::White, 1);
 
     // Tap the land manually before trying to activate.
     let land_id = find_by_name(&state, "Fetid Heath");
@@ -203,12 +230,18 @@ fn test_filter_land_tap_required() {
             ability_index: 1, // the filter ability
 
             chosen_color: None,
+            hybrid_choices: vec![mtg_engine::HybridManaPayment::Color(ManaColor::White)],
+            phyrexian_life_payments: vec![],
         },
     );
 
     assert!(
-        result.is_err(),
-        "activating tapped filter land should return an error (CR 118.3)"
+        matches!(
+            result,
+            Err(mtg_engine::GameStateError::PermanentAlreadyTapped(_))
+        ),
+        "activating an already-tapped filter land with an otherwise-legal payment must \
+         return PermanentAlreadyTapped (CR 118.3), not a mana-legality error: {result:?}"
     );
 }
 
@@ -218,6 +251,14 @@ fn test_filter_land_tap_required() {
 /// color) by checking the mana pool delta from an empty starting state, activating via
 /// `TapForMana` (each filter land's filter ability is `mana_abilities[1]`; index 0 is its
 /// plain `{T}: Add {C}` ability — see `test_filter_land_produces_two_mana_fetid_heath`).
+///
+/// PB-RS2 (CR 107.4e): the `{color_a/color_b}` pip is no longer free, so the pool is
+/// primed with 1 `color_a` before activation and `hybrid_choices` names it. The net
+/// delta from the TRUE (pre-priming) baseline is therefore +1, not +2: 2 mana produced
+/// minus 1 spent on the pip. `color_a` itself nets to 1 (primed, spent, then
+/// reproduced by the effect); `color_b` nets to 1 (produced only). See
+/// `pb_rs2_activated_pip_payment.rs`'s `filter_land_charges_its_hybrid_pip` for the
+/// same invariant pinned per-land with empty/wrong-half negative cases too.
 fn test_all_filter_lands_produce_correct_colors() {
     // (name, expected_color_a, expected_color_b)
     let filter_lands: &[(&str, ManaColor, ManaColor)] = &[
@@ -231,11 +272,18 @@ fn test_all_filter_lands_produce_correct_colors() {
     ];
 
     for (name, color_a, color_b) in filter_lands {
-        let state = build_with_filter_land(name);
+        let mut state = build_with_filter_land(name);
         let land_id = find_by_name(&state, name);
 
-        // Capture pool before activation.
-        let pool_before = state.players()[&p(1)].mana_pool.clone();
+        // Prime the pool with the color_a half of the pip (PB-RS2: no longer free),
+        // then capture the pool immediately before activation as the delta baseline.
+        state
+            .players_mut()
+            .get_mut(&p(1))
+            .unwrap()
+            .mana_pool
+            .add(*color_a, 1);
+        let pool_before_activation = state.players()[&p(1)].mana_pool.clone();
 
         let (state_resolved, _) = process_command(
             state,
@@ -245,17 +293,34 @@ fn test_all_filter_lands_produce_correct_colors() {
                 ability_index: 1, // the filter ability
 
                 chosen_color: None,
+                hybrid_choices: vec![mtg_engine::HybridManaPayment::Color(*color_a)],
+                phyrexian_life_payments: vec![],
             },
         )
         .unwrap_or_else(|e| panic!("activating {} filter ability should succeed: {:?}", name, e));
 
         let pool_after = &state_resolved.players()[&p(1)].mana_pool;
 
-        // Compute delta (mana added - mana spent; pre-existing hybrid enforcement gap means
-        // the hybrid cost is NOT deducted from the pool, so delta is purely the AddManaFilterChoice).
-        let delta_a = get_color(pool_after, *color_a) - get_color(&pool_before, *color_a);
-        let delta_b = get_color(pool_after, *color_b) - get_color(&pool_before, *color_b);
-        let total_added: i32 = [
+        // Absolute final values: color_a nets to 1 (primed, spent on the pip, then
+        // reproduced by AddManaFilterChoice); color_b nets to 1 (produced only).
+        assert_eq!(
+            get_color(pool_after, *color_a),
+            1,
+            "{}: {:?} should be 1 after activation",
+            name,
+            color_a
+        );
+        assert_eq!(
+            get_color(pool_after, *color_b),
+            1,
+            "{}: {:?} should be 1 after activation",
+            name,
+            color_b
+        );
+
+        // Total delta from immediately-before-activation should be exactly +1 (2
+        // produced - 1 paid), never +2 (that would be OOS-RS-2's free-pip bug).
+        let total_net: i32 = [
             ManaColor::White,
             ManaColor::Blue,
             ManaColor::Black,
@@ -264,22 +329,12 @@ fn test_all_filter_lands_produce_correct_colors() {
             ManaColor::Colorless,
         ]
         .iter()
-        .map(|c| get_color(pool_after, *c) as i32 - get_color(&pool_before, *c) as i32)
+        .map(|c| get_color(pool_after, *c) as i32 - get_color(&pool_before_activation, *c) as i32)
         .sum();
-
         assert_eq!(
-            delta_a, 1,
-            "{}: AddManaFilterChoice should add exactly 1 {:?} mana",
-            name, color_a
-        );
-        assert_eq!(
-            delta_b, 1,
-            "{}: AddManaFilterChoice should add exactly 1 {:?} mana",
-            name, color_b
-        );
-        assert_eq!(
-            total_added, 2,
-            "{}: total mana delta should be exactly +2 (AddManaFilterChoice produces 2 mana)",
+            total_net, 1,
+            "{}: net mana delta from immediately-before-activation should be exactly +1 (2 \
+             produced - 1 paid), never +2 (that would be OOS-RS-2's free-pip bug)",
             name
         );
     }
@@ -355,6 +410,8 @@ fn test_add_mana_scaled_registered_as_mana_ability() {
             ability_index: 0,
 
             chosen_color: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("Gaea's Cradle activation should succeed");
@@ -421,6 +478,8 @@ fn test_add_mana_scaled_orphan_fix_all_cards() {
                 ability_index: 0,
 
                 chosen_color: None,
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
             },
         )
         .expect("Elvish Archdruid activation should succeed");
@@ -458,6 +517,8 @@ fn test_add_mana_scaled_orphan_fix_all_cards() {
                 ability_index: 0,
 
                 chosen_color: None,
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
             },
         )
         .expect("Priest of Titania activation should succeed");
@@ -493,6 +554,8 @@ fn test_add_mana_scaled_orphan_fix_all_cards() {
                 ability_index: 0,
 
                 chosen_color: None,
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
             },
         )
         .expect("Marwyn activation should succeed");
@@ -528,6 +591,8 @@ fn test_add_mana_scaled_orphan_fix_all_cards() {
                 ability_index: 0,
 
                 chosen_color: None,
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
             },
         )
         .expect("Circle of Dreams Druid activation should succeed");
@@ -562,6 +627,8 @@ fn test_add_mana_scaled_orphan_fix_all_cards() {
                 ability_index: 0,
 
                 chosen_color: None,
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
             },
         )
         .expect("Gaea's Cradle activation should succeed");
@@ -601,6 +668,8 @@ fn test_add_mana_scaled_orphan_fix_all_cards() {
                 ability_index: 0,
 
                 chosen_color: None,
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
             },
         )
         .expect("Howlsquad Heavy activation should succeed");

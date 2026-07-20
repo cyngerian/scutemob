@@ -141,6 +141,8 @@ fn test_equip_basic_attaches_to_creature() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -219,6 +221,8 @@ fn test_equip_sorcery_speed_only() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -276,6 +280,8 @@ fn test_equip_sorcery_speed_not_active_player() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -403,6 +409,8 @@ fn test_equip_sorcery_speed_stack_not_empty() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -467,6 +475,8 @@ fn test_equip_target_opponent_creature_rejected_at_activation() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -541,6 +551,8 @@ fn test_equip_reequip_detaches_from_previous() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -635,6 +647,8 @@ fn test_equip_cannot_equip_self() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -714,6 +728,8 @@ fn test_equip_already_attached_to_same_target_no_op() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -805,6 +821,8 @@ fn test_equip_pays_mana_cost() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -878,6 +896,8 @@ fn test_equip_insufficient_mana_rejected() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -939,6 +959,8 @@ fn test_equip_protection_blocks_targeting() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -998,6 +1020,8 @@ fn test_equip_fizzles_if_target_not_on_battlefield() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -1072,6 +1096,8 @@ fn test_equip_zero_cost_succeeds() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -1190,6 +1216,8 @@ fn test_equip_grants_keywords_via_layer_system() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -1332,6 +1360,8 @@ fn test_reequip_retimestamps_continuous_effects_layer_order_flip() {
                 sacrifice_target: None,
                 x_value: None,
                 modes_chosen: vec![],
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
             },
         )
         .unwrap();

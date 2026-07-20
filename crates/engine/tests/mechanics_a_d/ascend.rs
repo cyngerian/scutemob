@@ -638,6 +638,8 @@ fn test_condition_has_citys_blessing() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("ActivateAbility should succeed");
@@ -672,6 +674,8 @@ fn test_condition_has_citys_blessing() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("ActivateAbility should succeed");

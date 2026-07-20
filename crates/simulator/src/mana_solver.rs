@@ -89,6 +89,8 @@ pub fn solve_mana_payment(
                 source: sources[idx].object_id,
                 ability_index: sources[idx].ability_index,
                 chosen_color,
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
             });
             remaining.pay_colored(*color);
         }
@@ -111,6 +113,8 @@ pub fn solve_mana_payment(
             source: sources[idx].object_id,
             ability_index: sources[idx].ability_index,
             chosen_color: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         });
         remaining.colorless -= 1;
     }
@@ -133,6 +137,8 @@ pub fn solve_mana_payment(
             source: sources[idx].object_id,
             ability_index: sources[idx].ability_index,
             chosen_color,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         });
         remaining.generic -= 1;
     }

@@ -183,6 +183,8 @@ fn test_granted_mana_ability_taps_and_produces_mana() {
             source: bear_id,
             ability_index: 0,
             chosen_color: Some(ManaColor::Blue),
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("TapForMana via granted ability should succeed (CR 605.1a)");
@@ -321,6 +323,8 @@ fn test_two_cryptolith_rites_grant_two_abilities_but_one_tap() {
             source: bear_id,
             ability_index: 0,
             chosen_color: Some(ManaColor::Blue),
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("first TapForMana should succeed");
@@ -338,6 +342,8 @@ fn test_two_cryptolith_rites_grant_two_abilities_but_one_tap() {
             source: bear_id,
             ability_index: 1,
             chosen_color: Some(ManaColor::Blue),
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
     assert!(
@@ -560,6 +566,8 @@ fn test_granted_mana_ability_respects_summoning_sickness() {
             ability_index: 0,
 
             chosen_color: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
     assert!(
@@ -806,6 +814,8 @@ fn test_granted_once_per_turn_activated_ability_is_preserved_and_enforced() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("first activation of granted once-per-turn ability should succeed");
@@ -833,6 +843,8 @@ fn test_granted_once_per_turn_activated_ability_is_preserved_and_enforced() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
     assert!(

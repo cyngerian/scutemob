@@ -98,6 +98,8 @@ fn test_ef12_any_color_choice_produces_each_legal_color() {
                 source,
                 ability_index: 0,
                 chosen_color: Some(color),
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
             },
         )
         .unwrap_or_else(|e| panic!("TapForMana with chosen_color {color:?} should succeed: {e:?}"));
@@ -205,6 +207,8 @@ fn test_ef12_granted_any_color_choice_end_to_end() {
             source: bear_id,
             ability_index: 0,
             chosen_color: Some(ManaColor::Red),
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("TapForMana on the granted ability with chosen_color Some(Red) should succeed");
@@ -258,6 +262,8 @@ fn test_ef12_decoy_colorless_choice_rejected() {
             source,
             ability_index: 0,
             chosen_color: Some(ManaColor::Colorless),
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -294,6 +300,8 @@ fn test_ef12_decoy_missing_choice_rejected() {
             source,
             ability_index: 0,
             chosen_color: None,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -340,6 +348,8 @@ fn test_ef12_decoy_fixed_color_source_rejects_a_choice() {
             source: forest,
             ability_index: 0,
             chosen_color: Some(ManaColor::Green),
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -360,7 +370,7 @@ fn test_ef12_decoy_fixed_color_source_rejects_a_choice() {
 #[test]
 fn test_ef12_protocol_version_sentinel() {
     assert_eq!(
-        PROTOCOL_VERSION, 26,
+        PROTOCOL_VERSION, 27,
         "PROTOCOL_VERSION changed. Update this sentinel and the History list in \
          rules/protocol.rs."
     );

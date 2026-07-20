@@ -193,6 +193,8 @@ fn test_altar_of_dementia_mills_by_sacrificed_power() {
             sacrifice_target: Some(goblin_id),
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("Altar of Dementia activation should succeed");
@@ -296,6 +298,8 @@ fn test_greater_good_draws_by_sacrificed_power_then_discards_three() {
             sacrifice_target: Some(hippo_id),
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("Greater Good activation should succeed");
@@ -563,6 +567,8 @@ fn test_lki_correctness_anthem_boosted_creature_sacrifice() {
             sacrifice_target: Some(bear_id),
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("Altar of Dementia activation should succeed");
@@ -684,6 +690,8 @@ fn test_zero_power_creature_sacrifice_mills_zero() {
             sacrifice_target: Some(wall_id),
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("Altar of Dementia activation should succeed");
@@ -1050,6 +1058,8 @@ fn test_sacrifice_negative_power_creature_mills_zero() {
             sacrifice_target: Some(cursed_id),
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("Altar activation should succeed");

@@ -151,6 +151,8 @@ fn test_activate_ability_tap_places_on_stack() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -223,6 +225,8 @@ fn test_activate_ability_tap_cost_taps_source() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -273,6 +277,8 @@ fn test_activate_ability_pays_mana_cost() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -328,6 +334,8 @@ fn test_activate_ability_not_priority_holder_fails() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
     assert!(matches!(
@@ -374,6 +382,8 @@ fn test_activate_ability_wrong_controller_fails() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
     assert!(matches!(result, Err(GameStateError::NotController { .. })));
@@ -413,6 +423,8 @@ fn test_activate_ability_invalid_index_fails() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
     assert!(matches!(
@@ -456,6 +468,8 @@ fn test_activate_ability_already_tapped_fails() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
     assert!(matches!(
@@ -507,6 +521,8 @@ fn test_activate_ability_insufficient_mana_fails() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
     assert!(matches!(result, Err(GameStateError::InsufficientMana)));
@@ -555,6 +571,8 @@ fn test_activated_ability_resolves_after_all_pass() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -1129,6 +1147,8 @@ fn test_sacrifice_as_cost_full_flow_draw_card() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -1268,6 +1288,8 @@ fn test_sacrifice_filter_creature_valid() {
             sacrifice_target: Some(creature_id),
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -1362,6 +1384,8 @@ fn test_sacrifice_filter_creature_rejects_artifact() {
             sacrifice_target: Some(artifact_id),
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -1444,6 +1468,8 @@ fn test_sacrifice_filter_rejects_opponent_creature() {
             sacrifice_target: Some(opp_creature_id),
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -1515,6 +1541,8 @@ fn test_sacrifice_filter_missing_target_errors() {
             sacrifice_target: None, // no target provided — should fail
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -1884,6 +1912,8 @@ fn test_dies_trigger_fires_on_sacrifice() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();

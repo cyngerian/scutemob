@@ -1101,6 +1101,8 @@ fn test_transmute_searches_equal_mana_value() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("transmute activation should succeed: {:?}", e));
@@ -1175,6 +1177,8 @@ fn test_transmute_only_from_hand() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
     assert!(
@@ -1253,6 +1257,8 @@ fn test_transmute_sorcery_timing() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
     assert!(
@@ -1328,6 +1334,8 @@ fn test_transmute_discards_self() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -1545,6 +1553,8 @@ fn test_exert_twice_expires_same_step() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("second exert (activation) should succeed: {:?}", e));
@@ -1664,6 +1674,8 @@ fn test_exert_arena_of_glory_activation() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("exert activation should succeed: {:?}", e));
@@ -1718,6 +1730,8 @@ fn test_exert_cannot_exert_off_battlefield() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
     assert!(

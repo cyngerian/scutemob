@@ -560,6 +560,8 @@ fn test_cant_be_sacrificed_activation_cost_cannot_pay() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -618,6 +620,8 @@ fn test_cant_be_sacrificed_activation_cost_sacrifice_filter_cannot_pay() {
             sacrifice_target: Some(bear),
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 

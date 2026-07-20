@@ -40,6 +40,8 @@ pub fn handle_tap_for_mana(
     source: ObjectId,
     ability_index: usize,
     chosen_color: Option<ManaColor>,
+    hybrid_choices: Vec<crate::state::game_object::HybridManaPayment>,
+    phyrexian_life_payments: Vec<bool>,
 ) -> Result<Vec<GameEvent>, GameStateError> {
     // 1. Validate player has priority (CR 605.3b).
     if state.turn.priority_holder != Some(player) {
@@ -206,28 +208,83 @@ pub fn handle_tap_for_mana(
         }
     }
     let mut events = Vec::new();
+    // Review finding #9: mirror `chosen_color`'s strictness above (an extraneous
+    // `chosen_color` on a fixed-colour ability is a clean `InvalidCommand`, not a
+    // silent ignore) rather than silently dropping a caller-supplied `hybrid_choices`/
+    // `phyrexian_life_payments` when this ability's cost carries no such pip. A client
+    // that thinks it is naming a payment choice for a pip that doesn't exist has a bug
+    // worth surfacing, not swallowing.
+    let cost_has_hybrid_pip = ability
+        .mana_cost
+        .as_ref()
+        .is_some_and(|mc| !mc.hybrid.is_empty());
+    let cost_has_phyrexian_pip = ability
+        .mana_cost
+        .as_ref()
+        .is_some_and(|mc| !mc.phyrexian.is_empty());
+    if !cost_has_hybrid_pip && !hybrid_choices.is_empty() {
+        return Err(GameStateError::InvalidCommand(
+            "hybrid_choices was supplied for a mana ability whose cost has no hybrid pip".into(),
+        ));
+    }
+    if !cost_has_phyrexian_pip && !phyrexian_life_payments.is_empty() {
+        return Err(GameStateError::InvalidCommand(
+            "phyrexian_life_payments was supplied for a mana ability whose cost has no \
+             Phyrexian pip"
+                .into(),
+        ));
+    }
+    // PB-RS2 (CR 107.4e/107.4f via CR 605.1a/602.2b): flatten hybrid/Phyrexian choices
+    // ONCE, here, before any legality check — a mana ability's activation cost is its
+    // analog to a spell's mana cost/an activated ability's activation cost, and it must
+    // go through the same flatten `casting.rs` uses for spells. Pre-PB-RS2, this legality
+    // check and the payment site below both read `ability.mana_cost` RAW, so a pure
+    // `{B/R}` pip (mana_value()==1, passing the `> 0` gate) was charged as an all-zero
+    // cost — every filter land's `{B/R},{T}: ...` ability was a free "Add two mana"
+    // (OOS-RS-2, the live-wrong roster this PB exists to fix). Flattening once and
+    // reusing the result at the payment site (step 6b) avoids the two sites drifting,
+    // which is structurally how that bug arose.
+    // Review finding #8: call the inherent `ManaCost::flatten_hybrid_phyrexian`
+    // directly rather than reaching into `crate::rules::casting` from the mana-ability
+    // hot path — the plan's §4 explicitly called that a layering smell (AC 5119
+    // requires one implementation, not one call path). `legal_actions.rs:1044` and
+    // `abilities.rs` (review finding #8) already call the inherent method this way.
+    let (flat_mana_cost, phyrexian_life) = match &ability.mana_cost {
+        Some(mana_cost) if !mana_cost.hybrid.is_empty() || !mana_cost.phyrexian.is_empty() => {
+            let (flat, life) = mana_cost
+                .flatten_hybrid_phyrexian(&hybrid_choices, &phyrexian_life_payments)
+                .map_err(GameStateError::InvalidCommand)?;
+            (Some(flat), life)
+        }
+        Some(mana_cost) => (Some(mana_cost.clone()), 0),
+        None => (None, 0),
+    };
     // 5b. SR-34: cost legality check (CR 118.3, 119.4). Pure validation, no mutation —
     //     an unaffordable Signet/horizon-land activation touches nothing (CR 732 is free
     //     here regardless, since `process_command` takes `GameState` by value and only
     //     returns it on `Ok`, but validating first keeps the transaction visibly clean).
-    if let Some(ref mana_cost) = ability.mana_cost {
-        if mana_cost.mana_value() > 0 {
+    if let Some(ref flat_cost) = flat_mana_cost {
+        if flat_cost.mana_value() > 0 {
             let player_state = state.player(player)?;
-            if !player_state.mana_pool.can_spend(mana_cost, None) {
+            if !player_state.mana_pool.can_spend(flat_cost, None) {
                 return Err(GameStateError::InsufficientMana);
             }
         }
     }
     // CR 119.4b: players can always pay 0 life, no matter what their life total is — so
-    // the check must short-circuit on `life_cost > 0` rather than reading `>=` unguarded.
-    // `life_cost` is `u32`; every mana ability with no life component takes this branch
-    // (as a no-op) on every activation.
-    if ability.life_cost > 0 {
+    // the check must short-circuit on `combined_life_cost > 0` rather than reading `>=`
+    // unguarded. CR 119.4 + CR 601.2h/602.2b (PB-RS2): check the COMBINED total of
+    // `ability.life_cost` and a Phyrexian pip paid with life against life_total ONCE, not
+    // each independently — the cost's components may be paid in any order, and CR 119.4
+    // gates "the amount of the payment" for the whole cost. A player at 3 life activating
+    // a "Pay 2 life" ability with a `{G/P}` paid with life may not pay a combined 4.
+    let combined_life_cost = ability.life_cost + phyrexian_life;
+    if combined_life_cost > 0 {
         let player_state = state.player(player)?;
-        if player_state.life_total < ability.life_cost as i32 {
+        if player_state.life_total < combined_life_cost as i32 {
             return Err(GameStateError::InsufficientLife {
                 player,
-                required: ability.life_cost,
+                required: combined_life_cost,
                 actual: player_state.life_total,
             });
         }
@@ -301,13 +358,22 @@ pub fn handle_tap_for_mana(
     //     one that can" — true by construction rather than incidentally, for the next
     //     cost component that DOES move an object (e.g. Krark-Clan Ironworks, out of
     //     SR-34 scope — see SF-9 in the findings doc).
-    if let Some(ref mana_cost) = ability.mana_cost {
-        if mana_cost.mana_value() > 0 {
+    // Review finding #3: bind the ORIGINAL (unflattened) cost in the same `if let` as
+    // `flat_mana_cost` rather than re-deriving it with a provably-safe-but-avoidable
+    // `.expect()` on `ability.mana_cost` — `flat_mana_cost.is_some() <=>
+    // ability.mana_cost.is_some()` by construction (see the match above), but the
+    // compiler cannot see that invariant, so binding both from the same source removes
+    // the possibility entirely rather than asserting it at runtime.
+    if let (Some(ref flat_cost), Some(ref orig_cost)) = (&flat_mana_cost, &ability.mana_cost) {
+        if flat_cost.mana_value() > 0 {
             let player_state = state.player_mut(player)?;
-            player_state.mana_pool.spend(mana_cost, None);
+            player_state.mana_pool.spend(flat_cost, None);
             events.push(GameEvent::ManaCostPaid {
                 player,
-                cost: mana_cost.clone(),
+                // Emit the ORIGINAL (unflattened) cost for event consumers — mirrors
+                // casting.rs's ManaCostPaid emission, which carries hybrid/Phyrexian
+                // pip info rather than the flattened shape.
+                cost: orig_cost.clone(),
             });
         }
     }
@@ -317,6 +383,17 @@ pub fn handle_tap_for_mana(
         events.push(GameEvent::LifeLost {
             player,
             amount: ability.life_cost,
+        });
+    }
+    // CR 107.4f (PB-RS2): pay life for a Phyrexian pip paid with life. Legality
+    // (including the combined check with `ability.life_cost`) was already validated
+    // above, before any mutation.
+    if phyrexian_life > 0 {
+        let player_state = state.player_mut(player)?;
+        player_state.life_total -= phyrexian_life as i32;
+        events.push(GameEvent::LifeLost {
+            player,
+            amount: phyrexian_life,
         });
     }
     // 6d. PB-OS11 (CR 602.2c / CR 118.3): pay a remove-counter cost for a mana

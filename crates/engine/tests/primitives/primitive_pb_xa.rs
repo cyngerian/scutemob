@@ -196,6 +196,8 @@ fn test_pbxa_activated_target_creature_not_attacking_rejected() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -252,6 +254,8 @@ fn test_pbxa_activated_target_creature_attacking_accepted() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -342,6 +346,8 @@ fn test_pbxa_activated_target_permanent_not_attacking_rejected() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -396,6 +402,8 @@ fn test_pbxa_activated_target_permanent_attacking_accepted() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -494,6 +502,8 @@ fn test_pbxa_graveyard_target_with_is_attacking_always_rejected() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 

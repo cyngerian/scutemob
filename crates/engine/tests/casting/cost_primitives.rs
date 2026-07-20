@@ -88,6 +88,8 @@ fn test_remove_counter_cost_basic() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("activate with remove-counter cost should succeed (CR 602.2)");
@@ -162,6 +164,8 @@ fn test_remove_counter_cost_insufficient() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
     assert!(
@@ -211,6 +215,8 @@ fn test_remove_counter_cost_exact_zero() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("activate should succeed when removing last counter");
@@ -280,6 +286,8 @@ fn test_remove_counter_cost_in_sequence() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("activate with tap + remove-counter cost should succeed (CR 601.2h)");

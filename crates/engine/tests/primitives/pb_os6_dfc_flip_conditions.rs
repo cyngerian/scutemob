@@ -534,6 +534,8 @@ fn test_thaumatic_spires_untaps_and_removes_from_combat() {
             sacrifice_target: None,
             x_value: None,
             modes_chosen: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("Spires' untap-and-remove ability should activate");
@@ -871,7 +873,7 @@ fn test_os6_cards_registered() {
 #[test]
 fn test_os6_version_sentinels() {
     assert_eq!(
-        PROTOCOL_VERSION, 26,
+        PROTOCOL_VERSION, 27,
         "PROTOCOL_VERSION should be 21 after PB-OS6"
     );
     assert_eq!(

@@ -143,10 +143,10 @@ const BASELINE_FINGERPRINT: &str =
 // prefix and its bytes lock here. On every bump you append a row AND re-pin this.
 //
 // **FROZEN — do not edit except by appending to `PROTOCOL_HISTORY`.**
-// PB-OS11 (2026-07-19): re-pinned on the 25→26 bump — version 25 (the former
-// tail) joined the frozen prefix when version 26 shipped.
+// PB-RS2 (2026-07-20): re-pinned on the 26→27 bump — version 26 (the former
+// tail) joined the frozen prefix when version 27 shipped.
 const FROZEN_HISTORY_PREFIX_DIGEST: &str =
-    "392afffdeab885156e36225842e9470f124442a2d354c386fee17cd0622404ce";
+    "efadf86379879542e9dde196a62ee98578ae7240eaa08f9a99160719129e5ebf";
 
 /// The `PROTOCOL_HISTORY` row pinning the current `PROTOCOL_VERSION`.
 fn current_epoch() -> ProtocolEpoch {
@@ -865,7 +865,7 @@ fn protocol_schema_fingerprint_is_pinned() {
 #[test]
 fn protocol_version_sentinel() {
     assert_eq!(
-        PROTOCOL_VERSION, 26,
+        PROTOCOL_VERSION, 27,
         "PROTOCOL_VERSION changed. Update this sentinel and the History list in \
          rules/protocol.rs. If you bumped it *without* protocol_schema_fingerprint_is_pinned \
          failing, the wire shape did not change — make sure the bump is a deliberate semantic \
