@@ -11,8 +11,9 @@ HASH 62→63; both seed premises verified stale vs oracle and reframed before bu
 **`memory/primitives/rider-seed-triage-2026-07-19.md`** — read that, not the old 8-seed list.
 
 Triage found 11 OS-series IDs (not 8; **OOS-OS10-1 is a phantom**, **OOS-OS7-3 was never filed**),
-restored the dropped **OOS-OS4-1**, and filed **4 new correctness seeds that outrank every filed
-seed** — two of them live on cards currently marked `Complete` (Invariant #9):
+restored the dropped **OOS-OS4-1**, and filed **6 new seeds (OOS-RS-1..6), of which these 4 are
+correctness-class and outrank every previously-filed seed** — two live on cards currently marked
+`Complete` (Invariant #9):
 
 - **OOS-RS-1** — library top/bottom **inverted** between the draw path and the reveal/scry family;
   Scry/`RevealAndRoute`/`LookAtTopThenPlace` read the opposite end from `draw_card`. ~52 files.

@@ -337,8 +337,10 @@ AbilityDefinition::Activated {
 > 🚫 **OOS-OS10-1 was NEVER FILED — it is a phantom ID** (verified `scutemob-142`, 2026-07-19).
 > This branch was conditional and the condition never triggered: `umezawas_jitte.rs:109` is
 > `Completeness::Complete` and `pb-review-OS10.md:78` confirms the flip was justified (0 TODOs, no
-> gated stub). A corpus-wide grep for `OOS-OS10-1` returns only this line and `:405` — the
-> instruction itself, never an actual seed. **Do not carry it forward in any seed list.**
+> gated stub). A corpus-wide grep for `OOS-OS10-1` returns only the three conditional mentions in
+> this plan file (originally `:335`, `:405`, `:431`) — the instruction itself, never an actual seed;
+> it appears nowhere in the canonical inventory, in `crates/`, or in pre-branch git history.
+> **Do not carry it forward in any seed list.**
 > Inventory: `memory/primitives/rider-seed-triage-2026-07-19.md` §1b.
 
 ---
