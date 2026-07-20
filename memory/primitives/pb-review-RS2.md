@@ -30,7 +30,13 @@
 
 ---
 
-## Verdict: **needs-fix** (0 HIGH · 5 MEDIUM · 7 LOW)
+## Verdict: **needs-fix** (0 HIGH · 6 MEDIUM · 12 LOW = 18 findings)
+
+> **Count correction (2026-07-20, post-`/review`)**: this header originally read
+> "0 HIGH · 5 MEDIUM · 7 LOW" and the fix commit repeated "12 findings", but the tables below
+> enumerate **18** rows (6 MEDIUM including the #10/#13 cross-reference, 12 LOW). The fix cycle
+> applied all 18 — no work was missing — only the headline was wrong. Corrected here so a future
+> reader does not trust the smaller number.
 
 The core of this PB is **correct and well-executed**. I independently re-walked every hop of
 the defect chain and every hop of the fix, and the load-bearing claims hold up:

@@ -328,7 +328,7 @@ shift the finding describes). Restored the fix — re-ran — all 3 PASSED.
 
 **Finding 2 — `Command`'s doc asserted an unenforced length invariant.** Added length enforcement
 INSIDE `ManaCost::flatten_hybrid_phyrexian` itself (`crates/card-types/src/state/game_object.rs`)
-rather than at each of the 3 call sites separately, so `Command::ActivateAbility`,
+rather than at each of the 3 routed call sites separately, so `Command::ActivateAbility`,
 `Command::TapForMana`, AND `CastSpellData` all get the same guarantee from one place: a
 `hybrid_choices`/`phyrexian_life_payments` vector SHORTER than the pip count still gets the
 documented per-pip default (unchanged, deliberate), but a vector LONGER than the pip count is now
@@ -424,3 +424,33 @@ this fix cycle (no new `Command` field, no `HashInto`-reachable type touched).
 ### Declined findings
 
 None. All 12 findings (5 MEDIUM + 7 LOW) were applied.
+
+## Post-`/review` record correction (2026-07-20) — a FOURTH unflattened payment site survives
+
+`/review` (Opus, all 5 ACs PASS) found that this PB's narrative of "one flatten
+implementation, three call paths, all routed through it" is **incomplete**. There is a
+fourth `can_spend`/`spend` call site that this PB did NOT route through the helper:
+
+**`crates/engine/src/rules/engine.rs:1582-1587` (`TurnFaceUp`)** pays a **raw**
+`def.mana_cost` (or morph cost) with no flatten — the identical OOS-RS-2 bug class.
+
+**Verified reachable, not theoretical**: `TurnFaceUpMethod::ManaCost` lets a Manifested or
+Cloaked permanent be turned face up for its mana cost, and that card can be any creature card.
+`crates/card-defs/src/defs/kitchen_finks.rs:8-15` is a `Completeness`-shipped creature whose
+`mana_cost` is `{1}{G/W}{G/W}` (two `HybridMana::ColorColor` pips). Manifested and flipped for
+its mana cost today, both hybrid pips are charged **free** — the player pays `{1}`.
+
+The AC 5120 residue guard *would* catch this, but only under `debug_assertions` and only if a
+test drives that path; none does, so it stays silent in release.
+
+**Disposition: found, NOT fixed — deliberately out of scope.** It is outside all five ACs
+(which name `ActivateAbility` and, by the plan's §0.2 correction, `TapForMana`), it is
+pre-existing rather than introduced here, and folding a third command's payment path into this
+PB after the review + fix cycle had already closed would be exactly the unrequested scope creep
+the RS1 close-out warned against. **Filed as OOS-RS2-1** in
+`memory/primitives/rider-seed-triage-2026-07-19.md` §1c.
+
+**The corrected claim of record**: PB-RS2 routes **three of four** engine payment sites through
+the single `ManaCost::flatten_hybrid_phyrexian` implementation. `TurnFaceUp` is the fourth and
+is deferred to OOS-RS2-1. Anyone reading "no second open-coded copy" (AC 5119) as "every
+payment site in the engine now flattens" is misreading it.
