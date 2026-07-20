@@ -40,7 +40,8 @@
 
 **Next session candidates** (highest-yield first):
 - ~~**PB-RS1**~~ ✅ **SHIPPED `scutemob-143`** (2026-07-19, merge `56697a00`): camp A (top=last) CR-confirmed; `Zone::top_n` shared helper across all 4 arms + a 5th inverted read caught in review; bottom-writes rerouted; 41-card roster repaired via `all_cards()` (grep's 47 over-counted); 5 golden scripts + 2 harness fixtures + 1 stale-convention test reconciled; PROTOCOL 26 / HASH 63 unchanged; OOS-RS1-1 filed (`ZoneTarget::Library` position inert — muxus/OOS-OS8-2 STILL gated).
-- **PB-RS2 — activated-cost pip payment (OOS-RS-2 + OOS-OS8-1)**, R2 in `rider-seed-triage-2026-07-19.md` §3/§2.2. Correctness-live (7 filter lands give free mana today); **wire bump: `Command::ActivateAbility` schema change**; do NOT batch with R6 (flagged collision).
+- ~~**PB-RS2**~~ ✅ **SHIPPED `scutemob-144`** (2026-07-20, merge `86176ff7`): `Command::ActivateAbility` **and** `TapForMana` gain hybrid/Phyrexian payment fields (PROTOCOL 26→**27**, machine-forced; HASH 63); flatten relocated to `card-types` as shared method; fail-loud residue guard in `can_spend`/`spend`; simulator plan-resolution (non-suicidal, CR 104.3b); **birthing_pod inert→Complete (OOS-OS8-1 CLOSED)**; 7 filter lands stop being free (stay `known_wrong`, output-side mode issue remains); self-caught CR 119.4 combined-life bug + pre-existing casting.rs 119.4 hole fixed; coverage **1,136/1,804 = 63.0%**.
+- **PB-RS3 — `AtBeginningOfCombat` card-def sweep (OOS-OS9-1)**, R3 in `rider-seed-triage-2026-07-19.md` §3/§2.3. Correctness; no wire bump expected; flips loyal_apprentice + siege_gang_lieutenant (CR-correct partials waiting) and repairs helm_of_the_host (`Complete` but its only real ability never fires).
 - M10 per strategic review (protocol machinery battle-tested: 8 bumps this queue, all machine-forced).
 - Retired-scripts worklist (61 scripts, each names its one blocker).
 

@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-07-19 14:41 UTC  
-**Git:** `bd220b00` on `main`  
+**Generated:** 2026-07-20 04:02 UTC  
+**Git:** `86176ff7` on `main`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -19,16 +19,16 @@ and what is intentionally NOT in it.**
 
 | Metric | Count | Δ since last run |
 | --- | ---: | ---: |
-| Card def files on disk | 1,804 | +1 |
+| Card def files on disk | 1,804 | · |
 | Authoring-plan target universe (snapshot 2026-03-10) | 1,636 | · |
 | Plan cards with a def file (any-face match) | 1,501 | · |
 | Plan cards still missing a def file | 135 | · |
-| Bonus defs (on disk, outside plan) | 322 | +1 |
+| Bonus defs (on disk, outside plan) | 322 | · |
 | Effective coverage vs plan target | **111%** (1,823 / 1,636) | — |
-| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 62.9% | 1,135 | +6 |
-| With TODO markers | 517 | -5 |
-| Empty `abilities: vec![]` placeholders | 152 | · |
-| Total TODO lines across all defs | 949 | -4 |
+| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 63.0% | 1,136 | +1 |
+| With TODO markers | 517 | · |
+| Empty `abilities: vec![]` placeholders | 151 | -1 |
+| Total TODO lines across all defs | 948 | -1 |
 
 ## Authoring activity (git, by window)
 
@@ -84,7 +84,7 @@ are blocked on engine primitives.
 | `pump-buff` | 27 / 27 | 100% | 17 | 7 | 3 |
 | `cant-restriction` | 25 / 25 | 100% | 16 | 5 | 4 |
 | `removal-damage-target` | 23 / 23 | 100% | 10 | 11 | 2 |
-| `activated-sacrifice` | 8 / 19 | 42% | 6 | 1 | 1 |
+| `activated-sacrifice` | 8 / 19 | 42% | 7 | 1 | 0 |
 | `mana-creature` | 19 / 19 | 100% | 14 | 5 | 0 |
 | `graveyard-recursion` | 18 / 18 | 100% | 8 | 6 | 4 |
 | `removal-damage-each` | 17 / 17 | 100% | 12 | 4 | 1 |
@@ -138,13 +138,13 @@ you which kind of next-step work would unblock the group.
 | Timberwatch Elf | `timberwatch_elf` | clean |
 | Wellwisher | `wellwisher` | clean |
 
-#### `activated-sacrifice` — 8 / 19 (42%), authored split: 6 clean / 1 todo / 1 empty — **unwritten**
+#### `activated-sacrifice` — 8 / 19 (42%), authored split: 7 clean / 1 todo / 0 empty — **unwritten**
 
 | Card | Slug | Bucket |
 | --- | --- | --- |
 | Altar of Dementia | `altar_of_dementia` | clean |
 | An Offer You Can't Refuse | `an_offer_you_cant_refuse` | clean |
-| Birthing Pod | `birthing_pod` | empty |
+| Birthing Pod | `birthing_pod` | clean |
 | Bolas's Citadel | `bolass_citadel` | todo |
 | Goblin Chirurgeon | `goblin_chirurgeon` | clean |
 | Goblin Lookout | `goblin_lookout` | clean |
@@ -171,9 +171,9 @@ the next thing to triage when the classifier table is grown.
 
 | Gap bucket | TODO lines | Δ since last run |
 | --- | ---: | ---: |
-| OTHER (unclassified) | 582 | -1 |
+| OTHER (unclassified) | 581 | -1 |
 | DSL gap (unspecified) | 120 | · |
-| attack trigger (self / generic) | 23 | -3 |
+| attack trigger (self / generic) | 23 | · |
 | TriggerCondition::* missing variant | 17 | · |
 | dynamic hexproof / protection | 17 | · |
 | replacement effect missing | 14 | · |
@@ -201,18 +201,18 @@ _…and 27 more buckets totaling 47 lines._
 
 ### Raw OTHER samples (read these to design new classifier buckets)
 
-Showing 12 of 582 
+Showing 12 of 581 
 unclassified TODO lines. If two or three of these have a common theme, that's a 
 new bucket to add to `TODO_BUCKETS` in `tools/authoring-report.py`. Sample is 
 deterministic (sorted by slug).
 
 ```
 abstergo_entertainment: // TODO: {3}, {T}, Exile Abstergo Entertainment: Return up to one target historic card
-bloodchief_ascension: // TODO: Both abilities are complex — end-step conditional counter placement needs
+bloodghast: // TODO: Oracle says "you may return" — currently non-optional (bot always returns).
 deep_gnome_terramancer: // TODO: "lands enter under opponent's control without being played" trigger condition
-exuberant_fuseling: // TODO: "whenever another creature or artifact you control is put into a graveyard
+fable_of_the_mirror_breaker: // ENGINE-BLOCKED: the token is created with correct P/T/color/subtypes but
 goblin_king: // TODO: AllCreaturesWithSubtype includes Goblin King itself — "other" semantics
-jeskas_will: // TODO: Mode 2 needs impulse-draw (exile top 3, play this turn).
+jeskas_will: // TODO: "choose both if commander" conditional entwine.
 marionette_apprentice: // ENGINE-BLOCKED: "Whenever another creature or artifact you control is put into
 out_of_the_tombs: // TODO: Upkeep counter + mill scaling with counter count not expressible.
 ruthless_winnower: // TODO: "non-Elf creature" filter — SacrificePermanents has no subtype exclusion.
@@ -235,6 +235,8 @@ tyvar_jubilant_brawler: // TODO: static — creatures you control can activate a
 ## Recent card-touching commits
 
 ```
+7d932614 W6-prim: scutemob-144 — PB-RS2 fix cycle: apply all 12 review findings (0 HIGH, 5 MEDIUM, 7 LOW)
+48cec52a W6-prim: scutemob-144 — PB-RS2: CR 119.4 combined-life fix, birthing_pod flip, roster sweep, simulator
 e29dd99f W6-prim: PB-OS11 review-fix — flip gemstone_array + druids_repository known_wrong→Complete
 69768559 W6-prim: PB-OS11 — final PB-OS batch: RemoveCounter mana-ability lowering + batch filtered-attack trigger
 d876d19b W6-prim: PB-OS10 — inter-target distinctness + Jitte any-recipient combat trigger
@@ -258,8 +260,6 @@ a8eb45b5 scutemob-114: PB-EF12 — granted any_color ManaAbility color choice (E
 051887f2 scutemob-111: PB-EF10 COMMIT 2 — runtime search cap (max_cmc_amount + ManaValueOfSacrificedCreature)
 ad9755ff scutemob-111: PB-EF10 COMMIT 1 — SacrificedCreatureLki data-model migration + ToughnessOfSacrificedCreature
 eba28604 scutemob-110: PB-EF9 — EffectDuration::WhileYouControlSource (EF-W-PB2-5)
-a7ae66ce scutemob-109: PB-EF8 /review LOW — elvish_spirit_guide oracle_text card→creature
-3a5f1678 scutemob-109: PB-EF8 — Cost::ExileSelfFromHand (activation from hand)
 ```
 
 ## Missing card-defs sidecar
