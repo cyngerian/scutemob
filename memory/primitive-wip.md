@@ -1,244 +1,271 @@
-# Primitive WIP — PB-RS3 (OOS-OS9-1) · PLAN
+# Primitive WIP — PB-RS4 (OOS-RS-3 / OOS-OS4-2 residuals) · PLAN
 
-<!-- last_updated: 2026-07-20 -->
+<!-- last_updated: 2026-07-26 -->
 
-- **PB**: PB-RS3 — `AtBeginningOfCombat` card-def sweep (`begin_combat` collects emblem triggers only)
-- **Task**: `scutemob-145`
-- **Branch**: `feat/pb-rs3-atbeginningofcombat-card-def-sweep-begincombat-collec`
-- **Class**: CORRECTNESS (live-wrong on a `Complete`-by-default card; Invariant #9)
-- **Phase**: review (steps 0-8 done — engine sweep, card-def flips, mandatory tests 2-8,
-  roster sweep, wire/gate verification all complete; step 9 `primitive-impl-reviewer` pass
-  is the only remaining step)
-- **Binding spec**: `memory/primitives/rider-seed-triage-2026-07-19.md` §2.3 (chain notes) + §3 (R3 row)
-- **Plan file**: `memory/primitives/pb-plan-RS3.md`
-- **Review file**: `memory/primitives/pb-review-RS3.md`
-- **Wire expectation**: **NO PROTOCOL bump, NO HASH bump.** This PB adds a collection call inside an
-  existing turn-based action; it introduces no `Command` field, no `Effect` variant, no
-  `HashInto`-reachable shape change. If a bump IS forced by the machine gate, that is a
-  **stop-and-re-scope signal** (AC 5127) — do not silently re-pin the fingerprint.
+- **PB**: PB-RS4 — face-aware residuals: close the 3 surviving CR 712.8d/e deviations
+- **Task**: `scutemob-146`
+- **Branch**: `feat/pb-rs4-face-aware-residuals-close-the-3-surviving-cr-7128de-`
+- **Class**: CORRECTNESS (latent — unreachable on today's roster, guaranteed to bite the
+  first DFC with a back-face ETB replacement)
+- **Phase**: implement (steps 0-8 complete; review/close-out not yet run)
+- **Binding spec**: `memory/primitives/rider-seed-triage-2026-07-19.md` §2.4 (chain notes) + §3 (R4 row)
+- **Plan file**: `memory/primitives/pb-plan-RS4.md`
+- **Review file**: `memory/primitives/pb-review-RS4.md`
+- **Wire expectation**: **NO PROTOCOL bump, NO HASH bump** (PROTOCOL 27 / HASH 63 unchanged).
+  This PB changes *which face's* ability list two existing gathering loops read, and extends an
+  existing deregistration helper. It introduces no `Command` field, no `Effect` variant, no
+  `HashInto`-reachable shape change. **If the planner finds a schema fingerprint must be
+  re-pinned, STOP and re-scope** (explicit task-description directive) — do not silently re-pin.
 
-## The chain (from triage §2.3 — verify each hop before acting)
+## The three deviations (from triage §2.4 — verify each in-source before acting)
 
-Exactly **one** broken hop. Hops 6-8 all work and are exercised by four sibling sweeps.
+1. **`rules/replacement.rs:1160-1191`** — `apply_self_etb_from_definition` iterates
+   `&def.abilities` (FRONT face) unconditionally instead of
+   `def.effective_abilities(is_transformed)`. The comment at :1180-1191 self-labels this
+   "PB-OS4b limitation (OOS-OS4-2)". Affects enter-transformed paths (craft / disturb /
+   exile-return): a permanent entering back-face-up gathers the FRONT face's self-ETB
+   replacements (enters-tapped / enters-with-counters), contra CR 712.8d/e.
+2. **`rules/replacement.rs:1892-1913`** — `register_permanent_replacement_abilities`, same
+   front-face read for non-self permanent replacement abilities; comment at :1907-1912.
+3. **`rules/face.rs:104-171`** — `deregister_face_statics` handles only
+   `AbilityDefinition::Static`. **Nine** other families registered by
+   `register_static_continuous_effects` are never deregistered on transform:
+   `TriggerDoubling`, `SuppressCreatureETBTriggers`, `StaticRestriction`,
+   `CdaPowerToughness`, `CdaModifyPowerToughness` (up to TWO entries per ability),
+   `AdditionalLandPlays`, `StaticFlashGrant`, `StaticPlayFromGraveyard`, `StaticPlayFromTop`.
+   This was a **deliberate, well-argued deferral**, not an oversight (see the existing doc
+   comment) — the plan must either extend symmetrically to all nine or justify a subset and
+   re-file the remainder as an explicit seed (AC 5457 permits either).
 
-1. Engine-side `AtBeginningOfCombat` occurrences are only two `HashInto` arms
-   (`state/hash.rs:3175`, `:5726`) and the emblem call at `rules/turn_actions.rs:1689-1698`.
-2. **BROKEN**: `begin_combat` (`turn_actions.rs:1684-1703`) builds `CombatState`, collects
-   **emblem** triggers only (CR 114.4), and returns `Vec::new()`. **There is no card-def scan.**
-3. Queue → stack: `abilities.rs:8251-8258` — works.
-4. Resolution + intervening-if: `resolution.rs:2018-2048`, `:2185-2219` — works.
-5. `Condition::YouControlYourCommander` — works (shipped by PB-OS9).
+## Known mechanism anchors (verify, don't trust)
 
-**Four-times-proven sibling template** (the repair is a fifth copy):
-`turn_actions.rs:296-301`, `:443-455`, `:507-519`, `:710-722`.
+- `register_static_continuous_effects` (`replacement.rs:2074`) already takes an explicit
+  `is_transformed: bool` parameter — the established threading pattern for face awareness.
+  `apply_face_change` (`face.rs:96-102`) passes it. The two replacement.rs sites take
+  `new_id: ObjectId` + `card_id` + `registry` but no face signal.
+- `def.effective_abilities(is_transformed)` is the face-selection accessor.
+- **Index-parity hazard (PB-OS4b)**: any producer/consumer pair that keys on an ability index
+  must agree on which ability list the index is relative to. Check whether either replacement
+  site's output is index-keyed before changing the iteration source.
 
-## Cards in scope (triage §3 R3 row — verify against `all_cards()`, never grep, per SR-36)
+## Scope boundaries (task description, binding)
 
-- **`helm_of_the_host.rs`** — has **no `completeness` field** ⇒ `Complete` by `#[default]`
-  (`card_definition.rs:199-200`). Its only non-Equip ability is the `AtBeginningOfCombat`
-  `CreateTokenCopy` at `:27-42`. **It enters real games and silently does nothing** — a corrupted
-  replay history per Invariant #9. This is the live-wrong card; the probe test targets it.
-- **`loyal_apprentice.rs`** — `partial` → `Complete` expected.
-- **`siege_gang_lieutenant.rs`** — `partial` → `Complete` expected. Carries the intervening-if
-  condition (test both directions).
-
-Triage §3 discounted ship: **2 flips + helm_of_the_host repaired.** Honor
-`feedback_pb_yield_calibration` — do not inflate.
-
-## Standing hazard to assess (AC 5127)
-
-`helm_of_the_host` was live-wrong *because* an omitted `completeness` field defaults to `Complete`.
-Assess how widespread that pattern is across the corpus (defs with no explicit marker) and **file a
-seed if widespread**. This is a class-level integrity question, not a helm-specific one.
+- **NOT in scope**: OOS-RS3-1 (queue-time intervening-if) and OOS-RS2-1 (TurnFaceUp cost).
+  Separately rankable — **file seeds if touched, do not widen**.
+- Expected: **0 coverage flips**. Honor `feedback_pb_yield_calibration` — do not inflate.
 
 ## Steps
 
-- [x] 0. Probe test written FIRST (helm_of_the_host token copy at begin combat), verified FAILING
-      against pre-fix HEAD (`left: 0, right: 1`, no tokens created), before any production edit.
-      Test: `crates/engine/tests/primitives/pb_rs3_at_beginning_of_combat_sweep.rs`.
-- [x] 1. Plan phase (`primitive-impl-planner`) → `memory/primitives/pb-plan-RS3.md`.
-- [x] 2. Card-def `AtBeginningOfCombat` sweep added to `begin_combat` (ENGINE SWEEP step, this
-      session). `crates/engine/src/rules/turn_actions.rs` — sweep adapted verbatim from S3
-      (`postcombat_main_actions`), inserted between the `CombatState` init and the existing emblem
-      block, ordered before it, and placed **outside** the `if state.combat.is_none()` guard.
-      `ability_index` enumerates `def.effective_abilities(obj.is_transformed)` (CardDefETB
-      namespace, not the dense `triggered_abilities` namespace — §3c trap avoided). Controller
-      filter: early `return None` when `controller != active`. Push via
-      `PendingTrigger { ability_index, ..PendingTrigger::blank(obj_id, controller,
-      PendingTriggerKind::CardDefETB) }` (SR-7 compliant). Incidental comment defect at
-      `turn_actions.rs:689-690` (aspirational `AtBeginningOfEachEndStep` claim) also fixed per §1a
-      — no behavior change. Probe test now PASSES. `cargo build --workspace` clean (no exhaustive-
-      match gaps — this PB adds no enum variant). Full `cargo test --workspace` green, 0 failures,
-      0 regressions. PROTOCOL 27 / HASH 63 confirmed unchanged (grep-verified, no touch to
-      `hash.rs` or `protocol.rs`). **Card-def completeness flips (helm_of_the_host,
-      loyal_apprentice, siege_gang_lieutenant) and the remaining mandatory tests (Tests 2-8,
-      roster sweep) are NOT done by this step — deferred to the next step per session scope.**
-- [x] 3. `helm_of_the_host` — oracle re-verified via MCP (faithful, unmodified translation);
-      explicit `completeness: Completeness::Complete,` added (was `Complete` only by
-      `#[default]`). Reviewer-endorsed (`memory/card-authoring/review-pb-rs3-roster.md`).
-- [x] 4. `loyal_apprentice` + `siege_gang_lieutenant` — oracle re-verified via MCP; flipped
-      `partial` → `Complete`. Stale "STILL BLOCKED" comment blocks replaced with a PB-RS3
-      closure note on each file; haste-fallback rationale preserved. Both flips are
-      reviewer-endorsed **conditional on F3** (MEDIUM, engine-wide, pre-existing): `intervening_if`
-      is checked only at resolution (`resolution.rs:2125-2135`), never at queue time, though CR
-      603.4 requires both — this is a standing engine-wide convention (documented at
-      `turn_actions.rs:265-266`), affects every already-shipped `Complete` intervening-if card, and
-      is explicitly recorded in both card notes rather than silently overclaimed. Filed as a seed
-      per the review (not fixed here — out of PB-RS3 scope, touches every trigger sweep).
-      **End-to-end behavior tests for these two cards are deferred to step 5/6 (Tests 2-8 + roster
-      sweep), per this session's explicit scope boundary — not written in this step.**
-      `legion_warboss` note amended to name BOTH live gaps (Mentor keyword absent; token's
-      "attacks this combat if able" unimplemented) — explicitly did NOT add
-      `MustAttackEachCombat` to `TokenSpec.keywords` (would over-restrict every later combat).
-      Stays `partial`. `mirage_phalanx` `known_wrong` note amended: now wrong in BOTH directions
-      (unpaired → wrongly self-copies every combat; paired → still under-produces, grant to the
-      OTHER paired creature not modeled). Verified via grep: no golden script or test fixture
-      constructs Mirage Phalanx via `ObjectSpec` (only a comment reference in
-      `pb_os9_lieutenant_commander_control.rs`) — containment via `known_wrong` + `validate_deck`
-      (SR-2) holds, zero exposure. Stays `known_wrong`.
-      **`goblin_rabblemaster` PROBE (F-Rabble, HIGH finding)**: the def's stated blocker ("needs a
-      new subtype-filtered must-attack `GameRestriction` variant") was misframed — the engine
-      already implements must-attack via `KeywordAbility::MustAttackEachCombat`, read from
-      layer-resolved characteristics (`expect_characteristics`) at `combat.rs:378-390`, not the
-      object's own printed keyword list. Wrote probe test
-      `crates/engine/tests/primitives/pb_rs3_rabblemaster_mustattack_probe.rs`
-      (`test_addkeyword_mustattack_grant_composes_for_non_source_object`): built a mock
-      Rabblemaster-shaped `Static` ability (`AddKeyword(MustAttackEachCombat)` +
-      `OtherCreaturesYouControlWithSubtype("Goblin")` + `WhileSourceOnBattlefield`), registered it
-      via `register_static_continuous_effects` (the `pb_os4b_face_aware_abilities.rs` pattern,
-      since `GameStateBuilder` does not replay ETB), and drove it through the FULL enforcement
-      path (`Command::DeclareAttackers`), not just a characteristics snapshot. **PROBE RESULT:
-      YES, it composes cleanly** — the granted keyword reaches the non-source Goblin's
-      layer-resolved characteristics, the source itself correctly does NOT get the keyword (CR
-      "other"), and `DeclareAttackers` correctly rejects a declaration that omits the forced
-      Goblin while accepting one that includes it. Sanity-checked the probe itself is
-      non-vacuous: temporarily disabled the `register_static_continuous_effects` call and
-      confirmed the test fails (then restored). **No engine change needed.** Authored the real
-      ability onto `goblin_rabblemaster.rs` (identical shape to `galadhrim_brigade.rs` /
-      `camellia_the_seedmiser.rs`, swapping the modification for `AddKeyword(MustAttackEachCombat)`)
-      and flipped `partial` → `Complete` — **legitimate third flip**, authorized by the roster
-      reviewer's F-Rabble finding plus this purpose-built probe, NOT by plan §5c (§5c is titled
-      "The other three roster members — do NOT flip" and explicitly predicts Rabblemaster "stays
-      `partial`; the surviving blocker is the subtype-filtered forced-attack `GameRestriction`" —
-      the flip overrides that prediction, it does not follow from it; corrected per PB-RS3 review
-      Finding 4, which caught the original record citing an authority that said the opposite).
-      `cargo check -p mtg-card-defs` clean.
-- [x] 5. Mandatory tests 2-8 written in
-      `crates/engine/tests/primitives/pb_rs3_at_beginning_of_combat_sweep.rs` (registered,
-      already present, in `primitives/main.rs`): Test 2 index-space discriminator
-      (`test_loyal_apprentice_trigger_uses_carddef_ability_index_namespace`), Tests 3a/3b
-      siege_gang intervening-if both directions (holds / fails-when-commander-removed),
-      Test 5 APNAP/controller scoping (4-player), Test 6 emblem+card-def coexistence
-      (Basri Ket emblem + Helm, no double/no drop, queue-order pinned), Test 7 extra-combat
-      refire (CR 506.1/603.2), Test 8 unattached-Helm negative edge (CR 702.6). All 8 tests
-      in the file pass. `pb_os9_lieutenant_commander_control.rs`'s file-level doc comment and
-      the Siege-Gang test's doc comment corrected (sweep now shipped; that file's own tests
-      still isolate resolution-only, cross-referenced to the new end-to-end tests).
-      **Every new test's discrimination verified empirically** (temporarily broke the cited
-      production code, confirmed FAIL with the predicted message, reverted, confirmed PASS —
-      see close-out report for the full before/after transcript per test). One correction
-      made during verification: Test 7's doc comment originally claimed to guard the
-      `state.combat.is_none()` nesting trap (R2); empirically, nesting the sweep in that
-      guard does NOT reproduce a failure in this harness (because `end_combat` unconditionally
-      resets `state.combat = None` before the redirect), so the comment was corrected to
-      describe what was actually verified (an R4-shaped "skip on repeat entry" mutation, which
-      DOES fail the test as predicted).
-- [x] 6. Full `all_cards()` roster sweep written: `crates/engine/tests/core/pb_rs3_combat_trigger_roster.rs`
-      (registered in `core/main.rs`). Enumerates `all_cards()` (SR-36), walks
-      `serde_json::to_value(&def)` recursively, scoped to the `trigger_condition` JSON key
-      (a bare `contains_key`/string-value walk was tried first and found a real false
-      positive — Basri Ket's emblem `trigger_on: TriggerEvent::AtBeginningOfCombat` serializes
-      to the identical bare string as `TriggerCondition::AtBeginningOfCombat`; fixed by scoping
-      the match to the `trigger_condition` field name). **Roster: exactly 6**, matching the
-      plan's predicted roster: Helm of the Host, Loyal Apprentice, Siege-Gang Lieutenant,
-      Goblin Rabblemaster, Legion Warboss, Mirage Phalanx. Basri Ket confirmed excluded
-      (emblem path, not card-def path) — asserted directly. Completeness pinned per member:
-      **4 Complete** (Helm of the Host, Loyal Apprentice, Siege-Gang Lieutenant, **Goblin
-      Rabblemaster** — this last one is real information that diverges from the plan §7
-      table's prediction, which expected Rabblemaster to stay `partial`; step 4's F-Rabble
-      probe legitimately flipped it, a third flip beyond the plan's predicted two), 1 Partial
-      (Legion Warboss), 1 KnownWrong (Mirage Phalanx). Non-vacuity floor (`>= 6`) and all
-      completeness pins verified to discriminate (temporarily broke the field-name match,
-      confirmed roster collapses to 0 and the assertion fails with the predicted message,
-      reverted, confirmed pass).
-- [x] 7. PROTOCOL/HASH confirmed unchanged: PROTOCOL_VERSION == 27, HASH_SCHEMA_VERSION == 63
-      (grep-verified; `git diff --stat` on `protocol.rs`/`hash.rs` empty). `cargo build
-      --workspace` clean.
-- [x] 8. Full gates green: `cargo test --all` (all suites, 0 failed), `cargo clippy
-      --all-targets -- -D warnings` (clean), `cargo fmt --check` (clean — one file needed
-      `cargo fmt` applied, a multi-line `all.push(...)` call reformatted; re-verified clean
-      and re-ran the full suite after), `tools/check-defs-fmt.sh` (1804 defs, clean). No
-      remaining TODOs in the flipped card defs (helm_of_the_host, loyal_apprentice,
-      siege_gang_lieutenant, goblin_rabblemaster).
-- [x] 9. `primitive-impl-reviewer` pass with every finding dispositioned. Verdict: needs-fix
-      (0 HIGH, 3 MEDIUM, 4 LOW). `memory/primitives/pb-review-RS3.md`.
-
-## Fix cycle (post-review-9, all 7 findings applied)
-
-- **Finding 1 (MEDIUM, `combat.rs:421-424` inherited)** — APPLIED (record-only, per the
-  review's explicit directive not to touch the engine). Amended `goblin_rabblemaster.rs`'s
-  Static-ability comment to record that the granted `MustAttackEachCombat` is enforced by
-  an "able" test that ignores `GameRestriction::CantAttackYouUnlessPay` (a reachable
-  deadlock with an opponent's Ghostly Prison/Propaganda + no untapped mana, pre-existing
-  and shared by every already-shipped `MustAttackEachCombat` card, but newly reachable
-  every combat because Rabblemaster manufactures a forced attacker each time). Filed
-  **OOS-RS3-4** in `memory/primitives/rider-seed-triage-2026-07-19.md` §1c, same format as
-  the existing OOS-RS3-1/2/3 rows. No engine change made.
-- **Finding 2 (MEDIUM, seed-text correction)** — pre-fixed by the implementer before this
-  cycle (per the dispatch brief, the OOS-RS3-1 seed entry itself was NOT touched further).
-  Applied only the trailing sub-item: softened `loyal_apprentice.rs:26-27` and
-  `siege_gang_lieutenant.rs:21-22` from "a pre-existing, engine-wide convention" to "a
-  pre-existing convention, engine-wide across the card-def trigger sweeps," so the wording
-  no longer implies the emblem path (which DOES check intervening-if at queue time,
-  `abilities.rs:6798-6803`) shares the defect.
-- **Finding 3 (MEDIUM, no end-to-end test on the real def)** — APPLIED. Added
-  `test_goblin_rabblemaster_end_to_end` to
-  `crates/engine/tests/primitives/pb_rs3_at_beginning_of_combat_sweep.rs`: places the real
-  `goblin_rabblemaster` (from `all_cards()`), registers its Static grant via
-  `register_static_continuous_effects` (GameStateBuilder doesn't replay ETB), drives the
-  real `PreCombatMain -> BeginningOfCombat` transition, drains the stack, asserts exactly
-  one 1/1 red Goblin token with haste, then asserts (via the real `Command::
-  DeclareAttackers` path) that omitting the token is rejected (CR 508.1d) while declaring
-  it is accepted. **Discrimination verified empirically**: temporarily commented out the
-  `register_static_continuous_effects` call and re-ran under `RUSTFLAGS="-A warnings"`
-  (the file's `mut`/unused-import lints trip under `-D warnings` with the call removed) —
-  the test FAILED exactly as predicted:
-  `thread '...test_goblin_rabblemaster_end_to_end' panicked at .../pb_rs3_at_beginning_of_combat_sweep.rs:1019:5: CR 508.1d: Rabblemaster's own Goblin token must be forced to attack by Rabblemaster's own MustAttackEachCombat static grant -- declaring no attackers should be rejected: Some(())`.
-  Reverted; re-confirmed `test_goblin_rabblemaster_end_to_end ... ok`.
-- **Finding 4 (LOW, flip authority misattributed)** — APPLIED. Rewrote step 4's
-  Rabblemaster-flip authority clause in this file: no longer cites plan §5c (which
-  predicts the OPPOSITE — Rabblemaster "stays `partial`"); now cites the roster reviewer's
-  F-Rabble finding plus the purpose-built probe as the actual authority, and states
-  explicitly that the flip overrides §5c's prediction rather than following from it.
-- **Finding 5 (LOW, stale comment)** — APPLIED. `pb_os5_relative_attacker_count.rs:13`
-  updated from "(partial, pump clause implemented)" to "(Complete as of PB-RS3)".
-- **Finding 6 (LOW, roster walk recursion)** — APPLIED as a comment, not a recursion
-  change. Verified via grep that `trigger_condition` is the sole occurrence of that field
-  name across `card_definition.rs`, and that no `TriggerCondition` variant's own fields
-  could nest another `trigger_condition` key — the current non-recursing behavior on a
-  keyed match is therefore already correct for every value this schema can produce, and
-  adding recursion there would be a permanent no-op. Documented that flat-value assumption
-  directly on the matched-key arm in `core/pb_rs3_combat_trigger_roster.rs`, including the
-  condition under which it would need revisiting (a future nested/modal `TriggerCondition`).
-- **Finding 7 (LOW, Test 2 doc incomplete)** — APPLIED. Added a paragraph to Test 2's doc
-  comment in `pb_rs3_at_beginning_of_combat_sweep.rs` naming the OTHER half of plan §12's
-  R1 hazard (switching to the dense `characteristics.triggered_abilities` namespace instead
-  of `def.effective_abilities()`), citing `resolution.rs:2019-2020` and
-  `tests/primitives/pb_ac7_ability_index_desync.rs`.
-
-**Gates re-run after all 7 fixes**: `cargo build --workspace` clean; `cargo test --all`
-0 failed across all 29 suites; `cargo clippy --all-targets -- -D warnings` clean; `cargo
-fmt --check` clean (one file needed `cargo fmt` — the new test's multi-line
-`.characteristics.keywords.contains(...)` chain — re-verified clean and full suite re-run
-green after); `tools/check-defs-fmt.sh` clean (1804 defs). **PROTOCOL_VERSION == 27,
-HASH_SCHEMA_VERSION == 63 — both unchanged** (grep-verified; `git diff --stat` on
-`protocol.rs`/`hash.rs` empty), as expected for a fix cycle that touched only comments,
-one card-def note, and test files.
-
-No finding was declined.
+- [x] 1. Plan phase (`primitive-impl-planner`) → `memory/primitives/pb-plan-RS4.md`.
+      Plan file was already present at session start (detailed, step-numbered,
+      file:line targets verified accurate against source during implementation —
+      no line-number drift found in replacement.rs/face.rs/turn_actions.rs/
+      ability_definition_registry.rs).
+- [x] 2. Probe tests written FIRST and verified FAILING against pre-fix HEAD where the defect
+      is reachable (AC 5458 explicitly requires fail-before/pass-after).
+      **Step 0 orientation probe** (plan §6 Step 0): added a temporary `eprintln!` at
+      the top of `apply_self_etb_from_definition` reading
+      `state.objects.get(&new_id).map(|o| o.is_transformed)`, ran
+      `cargo test -p mtg-engine --test mechanics_a_d disturb::test_disturb_enters_transformed -- --nocapture`.
+      Observed `PB-RS4 STEP0 PROBE: is_transformed = Some(true)` — confirmed the
+      plan's "already true at the call" claim empirically. Reverted the probe
+      before any production edit.
+      **17 probe tests** written in
+      `crates/engine/tests/primitives/pb_rs4_face_aware_residuals.rs` (registered
+      via `mod pb_rs4_face_aware_residuals;` in `tests/primitives/main.rs`), run
+      against pre-fix HEAD with `cargo test -p mtg-engine --test primitives pb_rs4 -- --nocapture`.
+      **All 17 failed** (verbatim panic messages, one per test):
+      1. `test_disturb_back_face_self_etb_replacement_applies` — `"back face's
+         self-ETB 'enters tapped' replacement must be gathered and applied when
+         the permanent enters back-face-up (CR 614.12 / 712.8e)"`
+      2. `test_disturb_front_face_self_etb_replacement_does_not_apply` —
+         `assertion `left == right` failed: the FRONT face's 'enters with
+         counters' self-ETB replacement must NOT apply once the permanent enters
+         back-face-up (CR 712.8e); got 2 counters — left: 2, right: 0`
+      3. `test_disturb_back_face_permanent_replacement_is_registered` —
+         `assertion `left == right` failed: the back face's non-self permanent
+         replacement ability must be registered (CR 614, 712.8e); found 0
+         matching entries — left: 0, right: 1`
+      4. `test_disturb_front_face_permanent_replacement_is_not_registered` —
+         `assertion `left == right` failed: the FRONT face's non-self permanent
+         replacement ability must NOT be registered once the permanent enters
+         back-face-up (CR 712.8e); found 1 matching entries — left: 1, right: 0`
+      5. `test_transformed_saga_stops_accruing_lore_counters` —
+         `assertion `left == right` failed: a transformed Saga with no back-face
+         SagaChapter abilities must not accrue another lore counter at precombat
+         main (CR 714.3b / 712.8e) — left: 1, right: 0` (first attempt hit a
+         test-setup bug, not the defect: "no priority holder" at the Draw step
+         because the mock player's library was empty — fixed by adding two
+         filler library cards, matching the pb_os4b test file's own pattern; the
+         fixed version reproduces the intended CR 714.3b defect cleanly)
+      6. `test_saga_chapter_trigger_index_matches_effective_face` — pending
+         trigger produced when none should be: `pending_triggers: [PendingTrigger
+         { source: ObjectId(1), ability_index: 1, ... }]` (assertion
+         `state.pending_triggers().is_empty()` failed)
+      7. `test_transform_deregisters_trigger_doubling` — `"the front's
+         TriggerDoubling must be deregistered once transformed away from it (CR
+         603.2d / 604.1)"`
+      8. `test_transform_deregisters_etb_suppressor` — `"the front's
+         SuppressCreatureETBTriggers must be deregistered once transformed away
+         from it (CR 614.16a)"`
+      9. `test_transform_deregisters_static_restriction` — `"the front's
+         StaticRestriction must be deregistered once transformed away from it
+         (CR 604.1)"`
+      10. `test_transform_deregisters_cda_power_toughness` — `assertion `left ==
+          right` failed: ... back face's printed power is 2 — left: Some(5),
+          right: Some(2)`
+      11. `test_transform_deregisters_cda_modify_both_entries` — `assertion
+          `left == right` failed: both CdaModifyPowerToughness entries must be
+          deregistered (power) — left: Some(5), right: Some(2)`
+      12. `test_transform_deregisters_additional_land_plays` — `"the front's
+          AdditionalLandPlays must be deregistered once transformed away from it
+          (CR 305.2)"`
+      13. `test_transform_deregisters_static_flash_grant` — `"the front's
+          StaticFlashGrant must be deregistered once transformed away from it
+          (CR 601.3b)"`
+      14. `test_transform_deregisters_play_from_graveyard` — `"the front's
+          StaticPlayFromGraveyard must be deregistered once transformed away
+          from it (CR 601.3 / 305.1)"`
+      15. `test_transform_deregisters_play_from_top` — `"the front's
+          StaticPlayFromTop must be deregistered once transformed away from it
+          (CR 601.3)"`
+      16. `test_transform_there_and_back_restores_all_nine_families` —
+          `assertion `left == right` failed: all nine families must be
+          deregistered on the way out — left: 9, right: 0`
+      17. `test_transform_does_not_remove_other_sources_registrations` —
+          `assertion `left == right` failed: exactly one entry (the front's own
+          count:1) must be removed, leaving the same-source count:5 entry alone;
+          found [.. count: 1, .. count: 5] — left: 2, right: 1`. Note (deviation
+          from the plan's prediction): plan §7.3 predicted this regression guard
+          would "trivially pass" pre-fix; it did not — pre-fix
+          `deregister_face_statics` removes nothing at all, so BOTH the front's
+          own entry AND the injected same-source entry survive (2, not the
+          asserted 1). That is real information consistent with — not
+          contradictory to — deviation #3 (nothing is removed pre-fix), so the
+          test was kept as written and its doc comment corrected to describe
+          the actual (also-a-probe) pre-fix behavior rather than the predicted
+          trivial-pass.
+      No probe came up unexpectedly GREEN pre-fix.
+- [x] 3. `apply_self_etb_from_definition` made face-aware; call sites threaded; limitation
+      comment removed/updated.
+      `crates/engine/src/rules/replacement.rs`: added a live `fizzle_object`
+      read of `entering_is_transformed` right after the `def` guard; swapped
+      `&def.abilities` → `def.effective_abilities(entering_is_transformed)` for
+      the self-ETB-replacement gather loop, the `has_saga_chapters` scan, and
+      the `has_class_levels` scan; replaced the stale "PB-OS4b limitation
+      (OOS-OS4-2)" comment with an accurate PB-RS4 one; added a one-line pointer
+      on `starting_loyalty` recording it stays front-only (OOS-OS4-1 / R10,
+      deliberately out of scope). No call-site edits needed (plan verified
+      both call sites — `resolution.rs:1673` disturb, `resolution.rs:7279`
+      craft — already hold `is_transformed == true` before the call; confirmed
+      by the Step 0 probe and by `cargo check` compiling clean with no other
+      call sites touched).
+- [x] 4. `register_permanent_replacement_abilities` made face-aware; call sites threaded;
+      limitation comment removed/updated.
+      `crates/engine/src/rules/replacement.rs`: same live-read pattern; swapped
+      `&def.abilities` → `def.effective_abilities(entering_is_transformed)`;
+      replaced the "PB-OS4b limitation (OOS-OS4-2)" comment with an accurate
+      PB-RS4 one. Also (plan §6 Step 3) added the deviation-#4.2 fix inside
+      `fire_saga_chapter_triggers`: added a live `fizzle_object` read of
+      `is_transformed` on `saga_id` (no parameter — the fn is `pub` and has an
+      external caller in `turn_actions.rs` plus a direct test caller in
+      `saga_class.rs`, both already hold a live object) and swapped
+      `def.abilities.iter().enumerate()` →
+      `def.effective_abilities(is_transformed).iter().enumerate()`, plus a doc
+      addition recording the index-namespace contract the three consumers
+      (`resolution.rs:1996`/`:2028`, `sba.rs:889`) already rely on.
+- [x] 5. `deregister_face_statics` extended per plan (all nine, or justified subset + seed);
+      doc comment rewritten to match reality.
+      `crates/engine/src/rules/turn_actions.rs`: `precombat_main_actions`'s CR
+      714.3b Saga sweep swapped `def.abilities.iter().any(..)` →
+      `def.effective_abilities(obj.is_transformed).iter().any(..)` (no new state
+      lookup — `obj` is already the closure's bound `&GameObject`; SR-25
+      ratchet for this file unaffected, confirmed by `bare_lookup_ratchet`
+      staying green at its existing ceiling of 7). Added the CR 714.3b/712.8e
+      citation inline.
+      `crates/engine/src/rules/face.rs`: fully rewrote `deregister_face_statics`
+      (now a thin loop) plus a new private `remove_one_registration` covering
+      all TEN families (`Static` + the nine PB-RS4 additions:
+      `TriggerDoubling`, `SuppressCreatureETBTriggers`, `StaticRestriction`,
+      `CdaPowerToughness`, `CdaModifyPowerToughness` [up to two entries, built
+      the same `modifications` vec the registration side builds],
+      `AdditionalLandPlays`, `StaticFlashGrant`, `StaticPlayFromGraveyard`,
+      `StaticPlayFromTop`), each arm doing first-`position()`-match +
+      `remove()` (never a bulk `retain`-by-source purge). Fully-qualified
+      `AbilityDefinition::X` patterns throughout (no aliasing import) per the
+      SR-15 scanner requirement. Rewrote both the module-level doc comment and
+      `deregister_face_statics`'s own doc comment to state the CR 604.1/613/
+      712.8e/712.18 basis, the "remove at most the registered count" rule, the
+      three same-source-but-safe registrants (Class level-up, emblem
+      permission, `GrantFlash`), and pointed at the new parity gate — no
+      surviving PB-OS4b deferral prose. `deregister_face_statics`'s exported
+      name and call site (`face.rs:73` inside `apply_face_change`) unchanged.
+      **Parity gate** written at `crates/engine/tests/core/face_dereg_parity.rs`
+      (registered via `mod face_dereg_parity;` in `tests/core/main.rs`,
+      alphabetically between `emblem_tests` and `hash_schema` — the plan's
+      "after :10" line reference didn't match the file's actual current
+      layout, so I inserted by alphabetical rule instead, consistent with the
+      surrounding list's ordering convention). Brace-matches
+      `register_static_continuous_effects`'s body out of `replacement.rs` and
+      `remove_one_registration`'s body out of `face.rs`, strips `//` comments
+      (same technique as `bare_lookup_ratchet.rs`), collects every
+      `AbilityDefinition::<Name>` token with a word-boundary check (same
+      technique as `ability_definition_registry.rs`), and asserts the two
+      `BTreeSet<String>`s are equal plus a non-vacuity floor (`>= 10` names in
+      each). Both `registration_and_deregistration_cover_the_same_ability_families`
+      and `parity_scan_is_not_vacuous` pass.
+- [x] 6. Regression tests: back-face ETB replacement gathered correctly after transform;
+      one deregistration test per newly handled family.
+      Covered by the 17-test file from step 2 (all now GREEN post-fix): 4
+      disturb-path tests for deviations #1/#2 (back-face self-ETB replacement
+      applies / front-face does not; back-face permanent replacement
+      registers / front-face does not), 1 Saga lore-counter test + 1 index-
+      parity test for deviation #4, 9 deregistration tests (one per family,
+      `test_transform_deregisters_<family>`), 1 there-and-back round-trip test
+      covering all nine at once, and 1 regression guard proving deregistration
+      removes exactly the registered count (not a bulk source purge, not zero).
+- [x] 7. PROTOCOL 27 / HASH 63 confirmed unchanged.
+      `grep "pub const PROTOCOL_VERSION"` → `rules/protocol.rs:260` = `27`.
+      `grep "pub const HASH_SCHEMA_VERSION"` → `state/hash.rs:578` = `63`. No
+      `Command`/`GameEvent`/`Effect`/`AbilityDefinition`/struct-field shape
+      changed — only which entries are pushed to/removed from existing
+      collections, and which ability list two existing loops iterate. No gate
+      forced a bump; nothing was silently re-pinned.
+- [x] 8. Full gates: `cargo test --all`, `cargo clippy --all-targets -- -D warnings`,
+      `cargo fmt --check`, `tools/check-defs-fmt.sh`.
+      `cargo build --workspace` clean (no `view_model.rs`/`stack_view.rs` match-
+      arm gaps — expected, no new `StackObjectKind`/`KeywordAbility` variant).
+      `cargo test --all`: 29/29 test binaries `test result: ok`, 3696 total
+      tests run, 0 failures (includes the new 17 + 2 parity-gate tests).
+      `cargo clippy --all-targets -- -D warnings`: clean, zero warnings.
+      `cargo fmt --check`: 7 formatting diffs surfaced after the engine edits
+      (line-length wraps in `face.rs` and the new test file); ran `cargo fmt`,
+      re-checked clean (exit 0).
+      `tools/check-defs-fmt.sh`: `card-defs fmt gate: 1804 defs checked / clean`
+      (0 card defs touched by this PB, as predicted).
+      `python3 tools/authoring-report.py`: coverage unchanged at
+      `1,139/1,804 = 63.1%` (0 flips, matching the plan's yield prediction);
+      reverted the regenerated `docs/authoring-status*` files afterward since
+      they only carry a self-dating timestamp/git-head bump, not a substantive
+      change, to keep the diff scoped to PB-RS4's actual work.
+- [ ] 9. `primitive-impl-reviewer` pass with every finding dispositioned.
+- [ ] 10. Close-out: flip OOS-OS4-2 to fully closed in `CLAUDE.md`,
+      `memory/primitives/oos-retriage-plan-2026-07-18.md`,
+      `memory/primitives/rider-seed-triage-2026-07-19.md` §5 banner, and
+      `memory/workstream-state.md`; file any new seeds.
+      Not run in this session (implement-phase scope was Steps 0-8 per the
+      task brief). Seeds OOS-RS4-1 (stack craft / ExileSourceAndReturnTransformed
+      never register permanent replacement abilities or queue ETB triggers) and
+      OOS-RS4-2 (MDFC back faces are unplayable — 4 `Complete` MDFC lands have
+      an unreachable back-face replacement) filed in
+      `memory/primitives/rider-seed-triage-2026-07-19.md` §1c per the task
+      instructions; OOS-RS4-3 cross-referenced to OOS-OS4-1/R10 rather than
+      duplicated.
 
 ## Prior state
 
 PB-RS1 SHIPPED (`scutemob-143`, merge `56697a00`). PB-RS2 SHIPPED (`scutemob-144`, merge
-`86176ff7`; PROTOCOL 26→27, HASH 63; filed OOS-RS2-1 post-`/review`). The R1..R11 ranked queue
-lives in `memory/primitives/rider-seed-triage-2026-07-19.md` §3.
+`86176ff7`; PROTOCOL 26→27). PB-RS3 SHIPPED (`scutemob-145`, merge `b1c21909`; 3 flips +
+helm_of_the_host integrity repair; seeds OOS-RS3-1..4 filed). Queue was PAUSED after R3 by the
+user on 2026-07-20 and resumed here at R4. The R1..R11 ranked queue lives in
+`memory/primitives/rider-seed-triage-2026-07-19.md` §3.
