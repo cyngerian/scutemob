@@ -1,4 +1,12 @@
-# Primitive WIP — PB-DP7 (DP-3: cleanup discard has no `Command`) · PLAN
+# Primitive WIP — PB-DP7 (DP-3: cleanup discard has no `Command`) · SHIPPED
+
+> **SHIPPED, pending collection.** PROTOCOL 27 → **28**, HASH 64 → **65**, tests 3,809 →
+> **3,837**, 0 card-def edits, 0 completeness flips. Two fix cycles ran: one against
+> `memory/primitives/pb-review-DP7.md` (18 findings), one against the closing `/review`
+> (6 issues). All 5 ESM criteria satisfied. The durable record is
+> `docs/audits/decision-point-audit.md` §5 DP-3 + §8 + §8.1 (seeds **OOS-DP7-1..12**) —
+> **this file is rotated wholesale by the next `/implement-primitive` run**, so nothing here
+> is the source of truth.
 
 <!-- last_updated: 2026-07-26 -->
 
@@ -18,7 +26,7 @@
 - **Branch**: `feat/pb-dp7-cleanup-discard-command-pilot-for-blocking-pending-de`
 - **Class**: CORRECTNESS (Tier 0, class **B**). Rank 7 of the PB-DP suite, and the **first
   wire change** of the suite.
-- **Phase**: fix
+- **Phase**: SHIPPED (plan → implement → review → fix → /review → fix)
 - **Binding spec**: `docs/audits/decision-point-audit.md`
   - §4.11 table, **line 400** — the "Hand-size discard | 514.1 | **B**" row
   - §5 **line 449** (DP-3 row) — the finding proper, with both cited sites
