@@ -1,9 +1,11 @@
 //! Tests for PB-EF8: `Cost::ExileSelfFromHand` (+ decorative `ActivationZone::Hand`).
 //!
 //! Simian Spirit Guide / Elvish Spirit Guide each print "Exile this card from your
-//! hand: Add {mana}." By CR 605.1a this IS a mana ability (no target, could add mana,
-//! not a loyalty ability). Per CR 605.3b it must resolve stacklessly, and per CR 605.5
-//! it must not reset priority or `players_passed`. The engine routes it through the
+//! hand: Add {mana}." By CR 605.1a this IS a mana ability (an activated ability, not a
+//! CR 116.2 special action; CR 605.5 only defines what does NOT qualify as one). Per
+//! CR 605.3b it must resolve stacklessly, and it must not disturb the priority holder
+//! (CR 117.3b's "other than a mana ability" parenthetical) or reset `players_passed`
+//! (a known, deliberate CR 117.4 deviation -- see OOS-DP1-4). The engine routes it through the
 //! same `mana_ability_lowering` -> `handle_tap_for_mana` path as any other mana
 //! ability, never `handle_activate_ability`. See
 //! `memory/primitives/pb-plan-EF8.md` for the full design.
@@ -179,10 +181,12 @@ fn elvish_activates_from_hand_adds_green() {
     );
 }
 
-// ── T3 — stackless invariant (CR 605.5) ───────────────────────────────────────────
+// ── T3 — stackless invariant (CR 605.1a / 117.3b / 117.4) ─────────────────────────
 
-/// CR 605.5: activating a mana ability is a special action — it does not reset
-/// priority or `players_passed`, even from the from-hand branch.
+/// CR 605.1a / 605.3b: a mana ability is an activated ability, not a CR 116.2 special
+/// action, and does not disturb the priority holder (CR 117.3b's parenthetical). Its
+/// `players_passed` non-reset is a separate, known CR 117.4 deviation (OOS-DP1-4),
+/// even from the from-hand branch.
 #[test]
 fn from_hand_mana_ability_does_not_reset_priority_or_players_passed() {
     let defs = defs_map();
@@ -206,7 +210,7 @@ fn from_hand_mana_ability_does_not_reset_priority_or_players_passed() {
 
     assert!(
         state.turn().players_passed.contains(&p(2)),
-        "CR 605.5: players_passed must be unchanged by a mana ability activation"
+        "known CR 117.4 deviation (OOS-DP1-4): players_passed must be unchanged by a mana ability activation"
     );
     assert_eq!(
         state.turn().players_passed.len(),
@@ -216,7 +220,7 @@ fn from_hand_mana_ability_does_not_reset_priority_or_players_passed() {
     assert_eq!(
         state.turn().priority_holder,
         Some(p(1)),
-        "CR 605.5: the activating player retains priority"
+        "CR 117.3b parenthetical / 605.3b: the activating player retains priority"
     );
 }
 

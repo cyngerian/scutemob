@@ -21,7 +21,7 @@ use crate::state::GameState;
 ///
 /// Validates all CR 305.1 conditions. After the land enters the battlefield,
 /// `players_passed` is reset (CR 117.4 — an action was taken between passes) and the
-/// **acting** player retains priority (CR 116.2a / 116.3). The `:31` guard proves the
+/// **acting** player retains priority (CR 116.2a / 116.3). The `:32` guard proves the
 /// actor already held it, so no write is needed here.
 pub fn handle_play_land(
     state: &mut GameState,
@@ -417,7 +417,7 @@ pub fn handle_play_land(
     }
     // 11. CR 117.4: Reset players_passed — an action was taken between passes, so the
     //     priority round starts fresh. CR 116.3: the acting player retains priority (the
-    //     `:31` guard already proved they held it before playing the land; CR 117.3b is
+    //     `:32` guard already proved they held it before playing the land; CR 117.3b is
     //     the wrong rule here — that governs priority after a resolution, not a special
     //     action).
     state.turn.players_passed = imbl::OrdSet::new();

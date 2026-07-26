@@ -1502,6 +1502,14 @@ fn handle_turn_face_up(
     use crate::state::types::{FaceDownKind, TurnFaceUpMethod};
     use crate::state::zone::ZoneId;
     let mut events = Vec::new();
+    // CR 116.2b: turning a face-down permanent face up is a special action; the player
+    // must have priority to take it.
+    if state.turn.priority_holder != Some(player) {
+        return Err(GameStateError::NotPriorityHolder {
+            expected: state.turn.priority_holder,
+            actual: player,
+        });
+    }
     // Validate: permanent exists, on battlefield, face-down, controlled by player.
     let obj = state
         .objects
@@ -1644,13 +1652,17 @@ fn handle_turn_face_up(
     // Queue "when turned face up" triggered abilities as TurnFaceUpTrigger stack objects.
     // (The actual dispatch happens in abilities::check_triggers when it sees PermanentTurnedFaceUp.)
     // CR 116.2b / CR 116.3: turning a face-down permanent face up is a special action;
-    // the player who took it receives priority afterward.
+    // the player who took it receives priority afterward. The entry guard above proves
+    // `priority_holder == Some(player)` already, so this write is a true identity write
+    // (same shape as the Group-A AP-gated sites) -- it is kept explicit so the site
+    // stays correct if the guard is ever loosened.
     // CR 117.4: an action was taken between passes, so the pass-round restarts.
     state.turn.players_passed = imbl::OrdSet::new();
-    state.turn.priority_holder = Some(player);
-    // CR 704.3: Check SBAs after the special action.
+    // CR 704.3: Check SBAs after the special action, before the priority grant --
+    // matches craft's ordering (engine.rs handle_activate_craft) and closes review LOW 6.
     let sba_events = sba::check_and_apply_sbas(state);
     events.extend(sba_events);
+    state.turn.priority_holder = Some(player);
     Ok(events)
 }
 /// Handle a PassPriority command.
@@ -2491,6 +2503,13 @@ fn handle_activate_loyalty_ability(
     use crate::state::types::CounterType;
     use crate::state::zone::ZoneId;
     let mut events = Vec::new();
+    // CR 606.3: activating a loyalty ability requires the player to have priority.
+    if state.turn.priority_holder != Some(player) {
+        return Err(GameStateError::NotPriorityHolder {
+            expected: state.turn.priority_holder,
+            actual: player,
+        });
+    }
     // CR 606.3: Main phase, stack empty, once per permanent per turn.
     let is_main_phase = matches!(state.turn.step, Step::PreCombatMain | Step::PostCombatMain);
     if !is_main_phase {
@@ -2680,7 +2699,9 @@ fn handle_activate_loyalty_ability(
     };
     state.stack_objects.push_back(stack_obj);
     // CR 606.1 -> 602.2b -> 601.2i / CR 117.3c: activating a loyalty ability is
-    // activating an ability, so the activating player receives priority afterward.
+    // activating an ability, so the activating player receives priority afterward. The
+    // entry guard above proves `priority_holder == Some(player)` already, so this write
+    // is a true identity write (same shape as the Group-A AP-gated sites).
     // CR 117.4: reset the pass-round.
     state.turn.players_passed = imbl::OrdSet::new();
     state.turn.priority_holder = Some(player);
@@ -2704,6 +2725,13 @@ fn handle_level_up_class(
 ) -> Result<Vec<GameEvent>, GameStateError> {
     use crate::cards::card_definition::AbilityDefinition;
     let mut events = Vec::new();
+    // CR 716.2a: leveling up a Class requires the player to have priority.
+    if state.turn.priority_holder != Some(player) {
+        return Err(GameStateError::NotPriorityHolder {
+            expected: state.turn.priority_holder,
+            actual: player,
+        });
+    }
     // Validate the source is on the battlefield and controlled by the player.
     let obj = state
         .objects
@@ -2843,7 +2871,9 @@ fn handle_level_up_class(
         stack_object_id: stack_id,
     });
     // CR 716.2a -> 602.2b -> 601.2i / CR 117.3c: leveling up a Class is activating an
-    // ability, so the activating player receives priority afterward. CR 117.4: reset
+    // ability, so the activating player receives priority afterward. The entry guard
+    // above proves `priority_holder == Some(player)` already, so this write is a true
+    // identity write (same shape as the Group-A AP-gated sites). CR 117.4: reset
     // the pass-round.
     state.turn.players_passed = imbl::OrdSet::new();
     state.turn.priority_holder = Some(player);

@@ -5172,7 +5172,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 // CR 117.4: an action was taken between passes, so the pass-round restarts.
                 // CR 601.2i: the cipher copy is cast DURING resolution -- its controller did not
                 // have priority before casting it, so they do NOT get priority. The active player
-                // gets it when the trigger finishes resolving (CR 117.3b, resolution.rs:7744).
+                // gets it when the trigger finishes resolving (CR 117.3b, resolution.rs:7751).
                 state.turn.players_passed = imbl::OrdSet::new();
                 let active = state.turn.active_player;
                 state.turn.priority_holder = Some(active);

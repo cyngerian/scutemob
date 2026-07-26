@@ -184,7 +184,7 @@
             "p1"
           ],
           "result": "all_pass",
-          "note": "CR 117.3b parenthetical: the mana-ability tap does not disturb the priority holder or reset players_passed, so p2's earlier pass still stands; p1's single pass here completes the all-pass round (p2, then p1). Krosan Grip is the only object on the stack and resolves."
+          "note": "The mana-ability tap does not disturb the priority holder, and -- as a known, deliberate engine deviation from CR 117.4's 'without taking any actions in between passing' (see OOS-DP1-4) -- it also does not reset players_passed, so p2's earlier pass still stands; p1's single pass here completes the all-pass round (p2, then p1). Krosan Grip is the only object on the stack and resolves."
         },
         {
           "type": "stack_resolve",

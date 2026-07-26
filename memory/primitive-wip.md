@@ -1,4 +1,4 @@
-# Primitive WIP — PB-DP1 (DP-1 · priority after cast/activate/special action) · IMPLEMENT (steps 1-14 of 16 done)
+# Primitive WIP — PB-DP1 (DP-1 · priority after cast/activate/special action) · FIX CYCLE COMPLETE
 
 <!-- last_updated: 2026-07-26 -->
 
@@ -7,11 +7,14 @@
 - **Task**: `scutemob-149`
 - **Branch**: `feat/pb-dp1-priority-after-castactivatespecial-action-goes-to-the`
 - **Class**: CORRECTNESS (live-wrong, core-reachable — no card required)
-- **Phase**: IMPLEMENT — plan steps 1-14 of 16 complete (probes + Group A/B/C/D +
-  mana.rs comment, all 9 probes green; full-suite fallout triage — 19 unit tests + 15
-  golden scripts fixed, 0 real regressions; simulator verified green with evidence);
-  **steps 15-16 remain** (gates re-run for clippy/fmt/build --workspace, then review +
-  close-out) and are dispatched separately, not part of this session
+- **Phase**: FIX — review findings applied (0 HIGH / 3 MEDIUM / 8 LOW, all 11
+  dispositioned below). Implement phase (plan steps 1-14) was complete before this
+  cycle; this cycle also completed plan step 16 (audit doc close-out, seeds filed) as
+  directed by review LOW 11. Full gates re-run clean: `cargo test --all --no-fail-fast`
+  3,721/3,721 passed (baseline 3,713 + 8 net-new fix-cycle probes), `cargo clippy
+  --workspace --all-targets -- -D warnings` clean, `cargo build --workspace` clean,
+  `cargo fmt --check` clean, `tools/check-defs-fmt.sh` clean (1,804 defs). PROTOCOL 27 /
+  HASH 63 confirmed unchanged (`protocol_schema`/`hash_schema` gates green).
 - **Binding spec**: `docs/audits/decision-point-audit.md` §4.1, §4.12, §5 Tier 0 (DP-1 row), §8 (PB-DP1 row)
 - **Plan file**: `memory/primitives/pb-plan-DP1.md`
 - **Review file**: `memory/primitives/pb-review-DP1.md`
@@ -139,8 +142,12 @@ and trace baselines will move — expected and correct; update knowingly, with c
       failures. `cargo clippy --workspace --all-targets -- -D warnings`, `cargo build
       --workspace`, `cargo fmt --check` deferred to the fix/review-close session per
       the task's scope (test + script triage only) — not run this session.
-- [ ] 10. `primitive-impl-reviewer` pass, findings dispositioned — **OUT OF SCOPE** (next session)
-- [ ] 11. Close-out: audit doc §5/§8 rows shipped; seeds filed — **OUT OF SCOPE** (next session)
+- [x] 10. `primitive-impl-reviewer` pass, findings dispositioned — **DONE**. 0 HIGH / 3
+      MEDIUM / 8 LOW, verdict needs-fix. All 11 applied this fix cycle — see
+      "Fix cycle" section below.
+- [x] 11. Close-out: audit doc §5/§8 rows shipped; seeds filed — **DONE**. See "Fix
+      cycle" section below (this doubles as plan step 16, per review LOW 11's
+      directive to run it).
 
 ## Steps 12-14 triage session — scutemob-149 (test + golden-script fallout)
 
@@ -557,6 +564,205 @@ higher-level checklist / plan steps 15-16).
 2. `b0b2212c` — Steps 5-7 (Group B ruling, Group D-a, Group D-b).
 3. `7851da58` — Step 8 (Group D-c, separately revertable per the plan's escape hatch).
 4. `1bb13118` — Steps 9-10 (Group C citations, mana.rs comment).
+
+## Fix cycle — scutemob-149 (review findings applied, all 11 dispositioned)
+
+Review: `memory/primitives/pb-review-DP1.md` (0 HIGH / 3 MEDIUM / 8 LOW, verdict
+needs-fix). Every finding applied this cycle; none declined.
+
+### MEDIUM 1 — Group D-c write-without-guard → **APPLIED (add guard, ruled)**
+
+Added the entry priority guard (identical shape to `foretell.rs:48-53` —
+`if state.turn.priority_holder != Some(player) { return Err(NotPriorityHolder { .. }) }`)
+to all three `engine.rs` handlers: `handle_turn_face_up`, `handle_activate_loyalty_ability`,
+`handle_level_up_class`. Each guard is its own hunk; the tail `priority_holder = Some(player)`
+write is now a true identity write (same shape as the Group-A AP-gated sites), and the
+comments were updated to say so. Also fixed LOW 6 in the same edit (moved
+`handle_turn_face_up`'s write to after the SBA check, matching craft's ordering).
+Scope respected: no CR 606.3 "their own turn" sorcery-timing check was added (that stays
+DP-21's scope) — verified by re-reading `handle_activate_loyalty_ability` /
+`handle_level_up_class` after the edit: neither checks `state.turn.active_player`.
+
+**Fallout**: none. Full suite stayed at 3,721/3,721 (3,713 baseline + 8 new fix-cycle
+probes) after adding all three guards — no pre-existing test or script drove a
+non-priority-holding actor through `TurnFaceUp`, `ActivateLoyaltyAbility`, or
+`LevelUpClass`. No revert was needed; the escape hatch in the plan's §5 was not invoked.
+
+### MEDIUM 2 — D-c zero test coverage → **APPLIED (8 new probes)**
+
+Added P10-P17 to `crates/engine/tests/primitives/pb_dp1_actor_priority.rs` (17 probes
+total, up from 9):
+- P10 `test_dp1_turn_face_up_rejects_non_priority_holder` — guard probe.
+- P11 `test_dp1_loyalty_activation_grants_actor_priority` — positive; p2 (non-active)
+  controls the planeswalker and holds priority on p1's turn (loyalty has no "their own
+  turn" gate today — OOS-DP1-2), so this is a genuine flip, not an identity write.
+- P12 `test_dp1_loyalty_activation_rejects_non_priority_holder` — guard probe.
+- P13 `test_dp1_level_up_class_grants_actor_priority` — positive, same shape as P11 for
+  Class level-up.
+- P14 `test_dp1_level_up_class_rejects_non_priority_holder` — guard probe.
+- P15/P16/P17 — LOW 7's D-b coverage gap (plot / suspend / bring_companion
+  `players_passed` reset, foretell was the only one tested before).
+
+**Verified by construction, not by assertion** (every guard/reset probe, temporarily
+reverting the corresponding engine line, confirming RED, restoring, confirming GREEN):
+- Reverted the `handle_turn_face_up` guard → P10 FAILED:
+  `TurnFaceUp should fail when the actor does not hold priority` (16 passed; 1 failed).
+  Restored → 17/17 green.
+- Reverted the `handle_activate_loyalty_ability` guard → P12 FAILED:
+  `ActivateLoyaltyAbility should fail when the actor does not hold priority`
+  (16 passed; 1 failed). Restored → 17/17 green.
+- Reverted the `handle_level_up_class` guard → P14 FAILED:
+  `LevelUpClass should fail when the actor does not hold priority` (16 passed; 1
+  failed). Restored → 17/17 green.
+- Reverted `plot.rs`'s `players_passed = imbl::OrdSet::new()` → P15 FAILED:
+  `CR 117.4: an action was taken between passes, so the pass-round must restart`
+  (0 passed; 1 failed, filtered run). Restored → green.
+- Reverted `suspend.rs`'s reset → P16 FAILED with the identical message. Restored → green.
+- Reverted `commander.rs::handle_bring_companion`'s reset → P17 FAILED with the identical
+  message. Restored → green.
+
+P9 (the original vacuous probe) was kept and its doc comment rewritten to explain why it
+is no longer vacuous *in effect* (the guard now proves the precondition the tail write
+merely echoes) while pointing at P10 as the actually-discriminating probe for the guard
+itself — per the review's own framing ("Whichever way Finding 1 is dispositioned, this
+probe must exist and must fail against the other disposition").
+
+### MEDIUM 3 — mana-ability CR 117.4 citation → **APPLIED (citation fixed, seed filed)**
+
+PRESERVE kept — zero behavioural change to `mana.rs` or the mana-ability path. Fixed the
+citation in three places to stop attributing the `players_passed` non-reset to CR 117.3b
+(which says nothing about `players_passed`):
+- `crates/engine/src/rules/mana.rs` — both the module-level doc comment (`:35-46`) and
+  the inline `:630-639` comment now name CR 117.4 explicitly as the rule being deviated
+  from, and point at OOS-DP1-4.
+- `test-data/generated-scripts/stack/066_krosan_grip_split_second_blocks_counterspell.json:187`
+  — note rewritten to stop citing "CR 117.3b parenthetical" as authority for the
+  `players_passed` non-reset; now describes it as a known engine deviation with a
+  pointer to OOS-DP1-4.
+- `crates/engine/tests/primitives/pb_dp1_actor_priority.rs` (P7) — doc comment and one
+  assertion message reworded to separate the two claims (CR 117.3b governs the priority
+  holder; the `players_passed` non-reset is the separate, deliberate CR 117.4 deviation).
+- Bonus (same root cause, found while fixing LOW 9): `pb_ef8_exile_self_from_hand.rs`
+  had the same miscitation baked in four places (module doc + T3's doc comment + two
+  assertion messages) — same fix applied there.
+
+**Seed filed**: **OOS-DP1-4** — "a mana ability's `players_passed` non-reset is a known,
+deliberate deviation from CR 117.4 ('without taking any actions in between passing'),
+not something CR 117.3b's parenthetical authorizes (that rule governs only who receives
+priority, not `players_passed`). PRESERVE'd verbatim by PB-DP1 and pinned by
+`test_dp1_mana_ability_does_not_reset_players_passed`. Closing it (making a mana
+activation restart the pass-round) is a genuine behaviour change with test/script
+fallout across the corpus and is not this PB's scope." Cross-referenced from
+`docs/audits/decision-point-audit.md` via the PB-DP1 §8 row update below.
+
+### LOW 4 — `commander.rs:1022-1026` non-sequitur → **APPLIED**
+
+Reworded: "being the active player does NOT imply the player held priority (the active
+player can pass and still be the active player)"; the unconditional `players_passed`
+reset is correct only when the actor did hold priority, and the missing guard remains
+OOS-DP1-2.
+
+### LOW 5 — stale line refs → **APPLIED**
+
+- `resolution.rs:5175` (cipher free-cast comment): `resolution.rs:7744` → `:7751` (the
+  actual `priority_holder = Some(active)` write, verified live at that line).
+- `lands.rs:24` and `:419-420`: `` `:31` guard `` → `` `:32` guard `` (the guard's `if`
+  is at `:32`; `:31` is the comment line above it).
+
+### LOW 6 — write-before-SBAs vs craft's write-after → **APPLIED (ruled: the ordering
+matters, fixed to match craft)**
+
+Moved `handle_turn_face_up`'s `priority_holder = Some(player)` write to after
+`check_and_apply_sbas`, matching `handle_activate_craft`'s order (SBA check, then
+`players_passed` reset, then priority write). Ruling: the pre-SBA position is reachable
+in principle (INV-PI-02 would catch a priority_holder left on a since-departed player)
+even though no current code path in `sba.rs` reassigns `priority_holder` — free to fix,
+so fixed rather than argued as safe-by-luck.
+
+### LOW 7 — D-b coverage 1-of-4 → **APPLIED**
+
+Added P15 (`test_dp1_plot_resets_players_passed`), P16
+(`test_dp1_suspend_resets_players_passed`), P17
+(`test_dp1_bring_companion_resets_players_passed`) — see MEDIUM 2 above for the
+verify-by-construction evidence (all three RED when their handler's reset is reverted).
+
+### LOW 8 — residual "Active player retains priority" prose → **APPLIED**
+
+Reworded all four sites to CR 117.3c/116.3 framing, noting the actor and the active
+player coincide in these specific tests (so the assertion value is unchanged, only the
+prose):
+- `crates/engine/tests/casting/casting.rs:87`
+- `crates/engine/tests/rules/abilities.rs:189`
+- `crates/engine/tests/casting/mana_and_lands.rs:96` (doc comment) and `:118` (inline)
+
+### LOW 9 — `pb_ef8_exile_self_from_hand.rs` mana ability called "a special action (CR
+605.5)" → **APPLIED**
+
+Fixed all 4 occurrences (`:5` module doc, `:184` test doc comment, `:209` and `:219`
+assertion messages) to the same correction PB-DP1 already made in `mana.rs`: a mana
+ability is an activated ability (CR 605.1a), not a CR 116.2 special action; CR 605.5
+only defines what does NOT qualify as a mana ability (verified verbatim against the CR
+text: "Abilities that don't meet the criteria specified in rules 605.1a-b and spells
+aren't mana abilities" — says nothing about special actions). Also folded in MEDIUM 3's
+citation fix here since the same file conflated the priority-holder claim (CR 117.3b)
+with the `players_passed` claim (CR 117.4 deviation, OOS-DP1-4).
+
+### LOW 10 — `pb_ef2_create_token_recipient.rs:311-315` comment/code mismatch →
+**APPLIED**
+
+The comment said "same shape as the happy-path test above" implying `[p2, p1]`, but the
+call is `pass_all(&[p2, p1, p1, p2])` (and so is the happy-path test's own call, at
+`:288` — its comment already correctly explains the 4-pass shape). Rewrote the decoy
+test's comment to spell out the `[actor, other, other, actor]` reasoning explicitly
+(single resolution counters AND removes the target, emptying the stack, so CR 117.3b
+hands priority to the active player for the remaining pass round) instead of pointing at
+the happy-path comment without restating it.
+
+### LOW 11 — plan step 16 not done → **APPLIED**
+
+Ran plan step 16:
+- `docs/audits/decision-point-audit.md` §5 Tier-0 **DP-1** row: marked
+  `SHIPPED (PB-DP1, scutemob-149)`, corrected the site list to the verified breakdown
+  (14 Group A / 3 Group B / 8 Group D / 5 confirmed false positives — the five being
+  `engine.rs:1759`/`:1805`, `combat.rs:1373` which are CR 117.3a, and the two
+  `handle_activate_loyalty_ability`/`handle_level_up_class` sites the original roster
+  missed entirely), and noted the fix-cycle guard addition.
+- §8 **PB-DP1** row: marked `SHIPPED (scutemob-149)`.
+- Seeds filed (this file, and cross-referenced from the audit doc rows above):
+  - **OOS-DP1-1** — echo / cumulative-upkeep / recover reassign priority to the AP out
+    of band (Group B); correct fix is the DP-11 pause, owned by PB-DP4. No engine change
+    made — comment-only, per the plan's ruling.
+  - **OOS-DP1-2** — `handle_activate_craft` and `handle_bring_companion` still have no
+    entry priority guard (craft is AP-gated by construction so this is lower-severity
+    than the three D-c handlers, which now DO have a guard after this fix cycle);
+    `handle_activate_loyalty_ability` and `handle_level_up_class` also lack the CR 606.3
+    /  716.2a "their own turn" sorcery-timing check (a SEPARATE gap from priority,
+    explicitly out of this PB's scope per the task's ruling — DP-21's scope). Partially
+    closed by this fix cycle (the priority guard on 3-of-5 handlers); the "their own
+    turn" gaps and craft/companion's missing priority guards remain open.
+  - **OOS-DP1-3** — stale pre-renumber CR citations (`116.3a/b/c/d` for what is now
+    `117.3a-d` / `117.4`) survive in ~60 golden-script `"note"` fields, one
+    `cr_sections_tested` array, `docs/mtg-engine-milestone-reviews.md:326-327`, and
+    seven `memory/abilities/*.md` records. Cosmetic; batch into a doc pass, not a PB.
+  - **OOS-DP1-4** — see MEDIUM 3 above (mana-ability `players_passed` non-reset is a
+    known CR 117.4 deviation, not CR 117.3b's).
+
+### Final gate re-run (post fix-cycle)
+
+- `cargo test --all --no-fail-fast` → **3,721 passed / 0 failed** (baseline 3,713 + 8
+  net-new probes P10-P17; P9 kept, doc comment only changed).
+- `cargo clippy --workspace --all-targets -- -D warnings` → clean.
+- `cargo build --workspace` → clean.
+- `cargo fmt --check` → clean (after running `cargo fmt` once to normalize the new
+  probe file's line-wrapping — verified `git diff --stat` afterward showed only
+  whitespace/wrapping changes, no logic).
+- `tools/check-defs-fmt.sh` → clean, 1,804 defs checked.
+- `crates/engine/tests/core/protocol_schema.rs` (17 tests) and
+  `crates/engine/tests/core/hash_schema.rs` (21 tests) → green;
+  `PROTOCOL_VERSION == 27` (`rules/protocol.rs:260`), `HASH_SCHEMA_VERSION == 63`
+  (`state/hash.rs:578`) confirmed unmoved.
+- `git diff --stat` — no file under `crates/card-defs/`, no change to
+  `docs/authoring-status.md`. Coverage unchanged at 1,139/1,804 = 63.1%.
 
 ### Prior state
 

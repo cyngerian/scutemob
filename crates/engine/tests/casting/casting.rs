@@ -84,7 +84,8 @@ fn test_cast_spell_sorcery_speed_happy_path() {
         .iter()
         .any(|e| matches!(e, GameEvent::PriorityGiven { player } if *player == p1)));
 
-    // Active player retains priority.
+    // CR 117.3c: the caster (p1, who here also happens to be the active player)
+    // retains priority.
     assert_eq!(new_state.turn().priority_holder, Some(p1));
     // players_passed reset.
     assert!(new_state.turn().players_passed.is_empty());

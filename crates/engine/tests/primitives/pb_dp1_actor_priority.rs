@@ -14,9 +14,10 @@
 
 use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::{
-    process_command, AbilityDefinition, ActivatedAbility, ActivationCost, CardDefinition, CardId,
-    CardRegistry, CardType, Command, FaceDownKind, GameState, GameStateBuilder, KeywordAbility,
-    ManaAbility, ManaColor, ManaCost, ObjectId, ObjectSpec, PlayerId, Step, SubType,
+    process_command, AbilityDefinition, ActivatedAbility, ActivationCost, AltCostKind,
+    CardDefinition, CardId, CardRegistry, CardType, Command, CounterType, Effect, EffectAmount,
+    FaceDownKind, GameState, GameStateBuilder, GameStateError, KeywordAbility, LoyaltyCost,
+    ManaAbility, ManaColor, ManaCost, ObjectId, ObjectSpec, PlayerId, PlayerTarget, Step, SubType,
     TurnFaceUpMethod, ZoneId,
 };
 
@@ -403,10 +404,14 @@ fn test_dp1_active_player_casting_still_holds_priority() {
 
 #[test]
 /// CR 605.3a/b, CR 117.3b parenthetical — a mana ability does not use the
-/// stack, does not reset `players_passed`, and does not disturb the current
-/// priority holder. This is the PRESERVE regression pin: it must stay green
-/// both before and after the fix. Never weaken this test to make another
-/// probe pass.
+/// stack and does not disturb the current priority holder. The
+/// `players_passed` non-reset is a SEPARATE claim: it pins a known,
+/// deliberate CR 117.4 deviation (CR 117.4 requires the all-pass round to
+/// restart when "an action" is taken between passes; a mana activation is
+/// such an action, but this engine intentionally does not restart the round
+/// for it — see OOS-DP1-4). This is the PRESERVE regression pin: it must
+/// stay green both before and after the fix. Never weaken this test to make
+/// another probe pass.
 fn test_dp1_mana_ability_does_not_reset_players_passed() {
     let p1 = p(1);
     let p2 = p(2);
@@ -440,7 +445,7 @@ fn test_dp1_mana_ability_does_not_reset_players_passed() {
 
     assert!(
         state.turn().players_passed.contains(&p1),
-        "CR 117.3b parenthetical: a mana ability must not reset players_passed"
+        "known CR 117.4 deviation (see OOS-DP1-4): a mana ability must not reset players_passed"
     );
     assert_eq!(
         state.turn().players_passed.len(),
@@ -540,8 +545,13 @@ fn test_dp1_foretell_resets_players_passed() {
 #[test]
 /// CR 116.2b, CR 116.3 — turning a face-down permanent face up is a special
 /// action; the player who took it receives priority afterward, and
-/// `players_passed` is empty (already true today; this pins the invariant
-/// against Step 8's fix).
+/// `players_passed` is empty. Since the fix-cycle review (pb-review-DP1.md
+/// Finding 1) added an entry priority guard to `handle_turn_face_up`
+/// (`rules/engine.rs`), this postcondition now holds *because* the guard
+/// already proved `priority_holder == Some(player)` on entry — the tail write
+/// is a true identity write, the same shape as the Group-A AP-gated sites.
+/// The genuinely discriminating probe for the guard itself is
+/// `test_dp1_turn_face_up_rejects_non_priority_holder` below (Finding 2).
 fn test_dp1_special_action_actor_holds_priority_after_turn_face_up() {
     let p1 = p(1);
     let p2 = p(2);
@@ -600,5 +610,568 @@ fn test_dp1_special_action_actor_holds_priority_after_turn_face_up() {
         state.turn().priority_holder,
         Some(p2),
         "CR 116.3: the player who took the special action receives priority afterward"
+    );
+}
+
+// ── P10 — fix-cycle: TurnFaceUp guard rejects a non-priority-holder ──────────
+
+#[test]
+/// CR 116.2b — turning a face-down permanent face up requires the player to
+/// have priority. Fix-cycle addition (pb-review-DP1.md Finding 1/2): p2
+/// controls the manifested creature but does NOT hold priority (p1 does);
+/// the command must be rejected, not silently grant p2 priority.
+///
+/// Verified by construction: with the `handle_turn_face_up` entry guard
+/// temporarily removed, this probe went RED — `process_command` returned
+/// `Ok(..)` instead of `Err`, so `result.is_err()` failed with
+/// `assertion failed: result.is_err()`. Restored, it is GREEN.
+fn test_dp1_turn_face_up_rejects_non_priority_holder() {
+    let p1 = p(1);
+    let p2 = p(2);
+
+    let manifest_def = CardDefinition {
+        card_id: CardId("dp1-manifested-creature-2".to_string()),
+        name: "DP1 Manifested Creature 2".to_string(),
+        mana_cost: Some(ManaCost::default()),
+        types: mtg_engine::TypeLine {
+            card_types: [CardType::Creature].into_iter().collect(),
+            ..Default::default()
+        },
+        power: Some(2),
+        toughness: Some(2),
+        ..Default::default()
+    };
+    let registry = CardRegistry::new(vec![manifest_def]);
+
+    let spec = ObjectSpec::card(p2, "DP1 Manifested Creature 2")
+        .in_zone(ZoneId::Battlefield)
+        .with_card_id(CardId("dp1-manifested-creature-2".to_string()))
+        .with_types(vec![CardType::Creature]);
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .object(spec)
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+
+    let face_down_id = find_object(&state, "DP1 Manifested Creature 2");
+    if let Some(obj) = state.objects_mut().get_mut(&face_down_id) {
+        obj.status.face_down = true;
+        obj.face_down_as = Some(FaceDownKind::Manifest);
+    }
+    // p1 holds priority, NOT p2 (p2 owns/controls the permanent).
+    state.turn_mut().priority_holder = Some(p1);
+
+    let result = process_command(
+        state,
+        Command::TurnFaceUp {
+            player: p2,
+            permanent: face_down_id,
+            method: TurnFaceUpMethod::ManaCost,
+        },
+    );
+
+    assert!(
+        result.is_err(),
+        "TurnFaceUp should fail when the actor does not hold priority"
+    );
+    assert!(
+        matches!(
+            result.unwrap_err(),
+            GameStateError::NotPriorityHolder { .. }
+        ),
+        "error should be NotPriorityHolder"
+    );
+}
+
+// ── P11/P12 — fix-cycle: loyalty ability activation grant + guard ───────────
+
+/// Shared planeswalker definition for P11/P12: one `Plus(1)` loyalty ability.
+fn dp1_loyalty_pw_def(card_id: &str) -> CardDefinition {
+    CardDefinition {
+        card_id: CardId(card_id.to_string()),
+        name: "DP1 Loyalty Walker".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 3,
+            ..Default::default()
+        }),
+        types: mtg_engine::TypeLine {
+            card_types: [CardType::Planeswalker].into_iter().collect(),
+            ..Default::default()
+        },
+        abilities: vec![AbilityDefinition::LoyaltyAbility {
+            cost: LoyaltyCost::Plus(1),
+            effect: Effect::GainLife {
+                player: PlayerTarget::Controller,
+                amount: EffectAmount::Fixed(1),
+            },
+            targets: vec![],
+        }],
+        starting_loyalty: Some(3),
+        ..Default::default()
+    }
+}
+
+#[test]
+/// CR 606.1 -> 602.2b -> 601.2i / CR 117.3c — activating a loyalty ability is
+/// activating an ability, so the activating player receives priority
+/// afterward. Fix-cycle addition (pb-review-DP1.md Finding 2): no probe
+/// existed for `handle_activate_loyalty_ability` at all. p2 controls the
+/// planeswalker on p1's (the active player's) turn and holds priority; the
+/// engine has no "their own turn" gate on loyalty activation (CR 606.3 is
+/// under-enforced -- tracked as OOS-DP1-2, out of this PB's scope), so this
+/// is a genuine non-active-player flip, not merely an identity write.
+///
+/// Verified by construction: with the entry guard temporarily removed, this
+/// probe stayed green (the pre-existing tail write already granted p2
+/// priority) -- so this probe alone does not discriminate the guard. It is
+/// kept as the positive/legal-case pin; `test_dp1_loyalty_activation_rejects_non_priority_holder`
+/// below is the discriminating guard probe.
+fn test_dp1_loyalty_activation_grants_actor_priority() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let registry = CardRegistry::new(vec![dp1_loyalty_pw_def("dp1-loyalty-pw")]);
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .object(
+            ObjectSpec::card(p2, "DP1 Loyalty Walker")
+                .with_card_id(CardId("dp1-loyalty-pw".to_string()))
+                .with_types(vec![CardType::Planeswalker])
+                .with_counter(CounterType::Loyalty, 3)
+                .in_zone(ZoneId::Battlefield),
+        )
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+
+    // p2 (not the active player) holds priority; simulate p1 having passed.
+    state.turn_mut().priority_holder = Some(p2);
+    state.turn_mut().players_passed.insert(p1);
+
+    let pw_id = find_object(&state, "DP1 Loyalty Walker");
+    let (state, _) = process_command(
+        state,
+        Command::ActivateLoyaltyAbility {
+            player: p2,
+            source: pw_id,
+            ability_index: 0,
+            targets: vec![],
+            x_value: None,
+        },
+    )
+    .expect("CR 606.1: p2 should be able to activate their own planeswalker's loyalty ability");
+
+    assert_eq!(
+        state.turn().priority_holder,
+        Some(p2),
+        "CR 117.3c: p2 retains priority after activating their loyalty ability"
+    );
+    assert!(
+        state.turn().players_passed.is_empty(),
+        "CR 117.4: an action was taken between passes, so the pass-round must restart"
+    );
+}
+
+#[test]
+/// CR 606.3 — activating a loyalty ability requires the player to have
+/// priority. Fix-cycle addition (pb-review-DP1.md Finding 1/2): p1 controls
+/// the planeswalker but does NOT hold priority (p2 does); the command must be
+/// rejected outright, not silently grant p1 priority.
+///
+/// Verified by construction: with the `handle_activate_loyalty_ability` entry
+/// guard temporarily removed, this probe went RED — `process_command`
+/// returned `Ok(..)` and the pre-existing tail write handed p1 priority it
+/// never held, so `result.is_err()` failed. Restored, it is GREEN.
+fn test_dp1_loyalty_activation_rejects_non_priority_holder() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let registry = CardRegistry::new(vec![dp1_loyalty_pw_def("dp1-loyalty-pw-2")]);
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .object(
+            ObjectSpec::card(p1, "DP1 Loyalty Walker")
+                .with_card_id(CardId("dp1-loyalty-pw-2".to_string()))
+                .with_types(vec![CardType::Planeswalker])
+                .with_counter(CounterType::Loyalty, 3)
+                .in_zone(ZoneId::Battlefield),
+        )
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+
+    // p2 holds priority, NOT p1 (p1 owns/controls the planeswalker).
+    state.turn_mut().priority_holder = Some(p2);
+
+    let pw_id = find_object(&state, "DP1 Loyalty Walker");
+    let result = process_command(
+        state,
+        Command::ActivateLoyaltyAbility {
+            player: p1,
+            source: pw_id,
+            ability_index: 0,
+            targets: vec![],
+            x_value: None,
+        },
+    );
+
+    assert!(
+        result.is_err(),
+        "ActivateLoyaltyAbility should fail when the actor does not hold priority"
+    );
+    assert!(
+        matches!(
+            result.unwrap_err(),
+            GameStateError::NotPriorityHolder { .. }
+        ),
+        "error should be NotPriorityHolder"
+    );
+}
+
+// ── P13/P14 — fix-cycle: level-up-a-Class grant + guard ─────────────────────
+
+/// Shared Class definition for P13/P14: one level-2 `ClassLevel` ability.
+fn dp1_class_def(card_id: &str) -> CardDefinition {
+    CardDefinition {
+        card_id: CardId(card_id.to_string()),
+        name: "DP1 Test Class".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            ..Default::default()
+        }),
+        types: mtg_engine::TypeLine {
+            card_types: [CardType::Enchantment].into_iter().collect(),
+            subtypes: [SubType("Class".to_string())].into_iter().collect(),
+            ..Default::default()
+        },
+        abilities: vec![AbilityDefinition::ClassLevel {
+            level: 2,
+            cost: ManaCost {
+                generic: 1,
+                ..Default::default()
+            },
+            abilities: vec![],
+        }],
+        ..Default::default()
+    }
+}
+
+#[test]
+/// CR 716.2a -> 602.2b -> 601.2i / CR 117.3c — leveling up a Class is
+/// activating an ability, so the activating player receives priority
+/// afterward. Fix-cycle addition (pb-review-DP1.md Finding 2): no probe
+/// existed for `handle_level_up_class` at all. p2 controls the Class on p1's
+/// (the active player's) turn and holds priority; like loyalty abilities,
+/// `handle_level_up_class` has no "their own turn" gate (OOS-DP1-2), so this
+/// is a genuine non-active-player flip.
+fn test_dp1_level_up_class_grants_actor_priority() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let registry = CardRegistry::new(vec![dp1_class_def("dp1-class")]);
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .object(
+            ObjectSpec::card(p2, "DP1 Test Class")
+                .with_card_id(CardId("dp1-class".to_string()))
+                .with_types(vec![CardType::Enchantment])
+                .in_zone(ZoneId::Battlefield),
+        )
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+
+    let class_id = find_object(&state, "DP1 Test Class");
+    if let Some(obj) = state.objects_mut().get_mut(&class_id) {
+        obj.class_level = 1;
+    }
+    if let Some(ps) = state.players_mut().get_mut(&p2) {
+        ps.mana_pool.add(ManaColor::Colorless, 1);
+    }
+    // p2 (not the active player) holds priority; simulate p1 having passed.
+    state.turn_mut().priority_holder = Some(p2);
+    state.turn_mut().players_passed.insert(p1);
+
+    let (state, _) = process_command(
+        state,
+        Command::LevelUpClass {
+            player: p2,
+            source: class_id,
+            target_level: 2,
+        },
+    )
+    .expect("CR 716.2a: p2 should be able to level up their own Class");
+
+    assert_eq!(
+        state.turn().priority_holder,
+        Some(p2),
+        "CR 117.3c: p2 retains priority after leveling up their Class"
+    );
+    assert!(
+        state.turn().players_passed.is_empty(),
+        "CR 117.4: an action was taken between passes, so the pass-round must restart"
+    );
+}
+
+#[test]
+/// CR 716.2a — leveling up a Class requires the player to have priority.
+/// Fix-cycle addition (pb-review-DP1.md Finding 1/2): p1 controls the Class
+/// but does NOT hold priority (p2 does); the command must be rejected.
+///
+/// Verified by construction: with the `handle_level_up_class` entry guard
+/// temporarily removed, this probe went RED — `process_command` returned
+/// `Ok(..)` and the pre-existing tail write handed p1 priority it never
+/// held, so `result.is_err()` failed. Restored, it is GREEN.
+fn test_dp1_level_up_class_rejects_non_priority_holder() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let registry = CardRegistry::new(vec![dp1_class_def("dp1-class-2")]);
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .object(
+            ObjectSpec::card(p1, "DP1 Test Class")
+                .with_card_id(CardId("dp1-class-2".to_string()))
+                .with_types(vec![CardType::Enchantment])
+                .in_zone(ZoneId::Battlefield),
+        )
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+
+    let class_id = find_object(&state, "DP1 Test Class");
+    if let Some(obj) = state.objects_mut().get_mut(&class_id) {
+        obj.class_level = 1;
+    }
+    if let Some(ps) = state.players_mut().get_mut(&p1) {
+        ps.mana_pool.add(ManaColor::Colorless, 1);
+    }
+    // p2 holds priority, NOT p1 (p1 owns/controls the Class).
+    state.turn_mut().priority_holder = Some(p2);
+
+    let result = process_command(
+        state,
+        Command::LevelUpClass {
+            player: p1,
+            source: class_id,
+            target_level: 2,
+        },
+    );
+
+    assert!(
+        result.is_err(),
+        "LevelUpClass should fail when the actor does not hold priority"
+    );
+    assert!(
+        matches!(
+            result.unwrap_err(),
+            GameStateError::NotPriorityHolder { .. }
+        ),
+        "error should be NotPriorityHolder"
+    );
+}
+
+// ── P15/P16/P17 — fix-cycle: D-b `players_passed` reset coverage ────────────
+//
+// pb-review-DP1.md LOW 7: D-b coverage was 1-of-4 (foretell only). These three
+// probes close plot / suspend / bring_companion.
+
+#[test]
+/// CR 116.2k, CR 116.3, CR 117.4 — plotting a card is a special action; the
+/// pass-round restarts because an action was taken between passes.
+fn test_dp1_plot_resets_players_passed() {
+    let p1 = p(1);
+
+    let plot_def = CardDefinition {
+        card_id: CardId("dp1-plot-card".to_string()),
+        name: "DP1 Plot Card".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            ..Default::default()
+        }),
+        types: mtg_engine::TypeLine {
+            card_types: [CardType::Sorcery].into_iter().collect(),
+            ..Default::default()
+        },
+        abilities: vec![
+            AbilityDefinition::Keyword(KeywordAbility::Plot),
+            AbilityDefinition::AltCastAbility {
+                kind: AltCostKind::Plot,
+                details: None,
+                cost: ManaCost {
+                    generic: 1,
+                    ..Default::default()
+                },
+            },
+        ],
+        ..Default::default()
+    };
+    let registry = CardRegistry::new(vec![plot_def]);
+
+    let card = ObjectSpec::card(p1, "DP1 Plot Card")
+        .with_card_id(CardId("dp1-plot-card".to_string()))
+        .with_keyword(KeywordAbility::Plot)
+        .with_types(vec![CardType::Sorcery])
+        .in_zone(ZoneId::Hand(p1));
+
+    let mut state = GameStateBuilder::four_player()
+        .with_registry(registry)
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .object(card)
+        .build()
+        .unwrap();
+
+    state
+        .players_mut()
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Colorless, 1);
+    state.turn_mut().priority_holder = Some(p1);
+    state.turn_mut().players_passed.insert(p(2));
+    state.turn_mut().players_passed.insert(p(3));
+
+    let card_id = find_object(&state, "DP1 Plot Card");
+    let (state, _) = process_command(
+        state,
+        Command::PlotCard {
+            player: p1,
+            card: card_id,
+        },
+    )
+    .expect("plot should succeed");
+
+    assert!(
+        state.turn().players_passed.is_empty(),
+        "CR 117.4: an action was taken between passes, so the pass-round must restart"
+    );
+    assert_eq!(state.turn().priority_holder, Some(p1));
+}
+
+#[test]
+/// CR 116.2f, CR 116.3, CR 117.4 — suspending a card is a special action; the
+/// pass-round restarts because an action was taken between passes.
+fn test_dp1_suspend_resets_players_passed() {
+    let p1 = p(1);
+
+    let suspend_def = CardDefinition {
+        card_id: CardId("dp1-suspend-card".to_string()),
+        name: "DP1 Suspend Card".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            ..Default::default()
+        }),
+        types: mtg_engine::TypeLine {
+            card_types: [CardType::Sorcery].into_iter().collect(),
+            ..Default::default()
+        },
+        abilities: vec![
+            AbilityDefinition::Keyword(KeywordAbility::Suspend),
+            AbilityDefinition::Suspend {
+                cost: ManaCost {
+                    generic: 1,
+                    ..Default::default()
+                },
+                time_counters: 2,
+            },
+        ],
+        ..Default::default()
+    };
+    let registry = CardRegistry::new(vec![suspend_def]);
+
+    let card = ObjectSpec::card(p1, "DP1 Suspend Card")
+        .with_card_id(CardId("dp1-suspend-card".to_string()))
+        .with_keyword(KeywordAbility::Suspend)
+        .with_types(vec![CardType::Sorcery])
+        .in_zone(ZoneId::Hand(p1));
+
+    let mut state = GameStateBuilder::four_player()
+        .with_registry(registry)
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .object(card)
+        .build()
+        .unwrap();
+
+    state
+        .players_mut()
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Colorless, 1);
+    state.turn_mut().priority_holder = Some(p1);
+    state.turn_mut().players_passed.insert(p(2));
+    state.turn_mut().players_passed.insert(p(3));
+
+    let card_id = find_object(&state, "DP1 Suspend Card");
+    let (state, _) = process_command(
+        state,
+        Command::SuspendCard {
+            player: p1,
+            card: card_id,
+        },
+    )
+    .expect("suspend should succeed");
+
+    assert!(
+        state.turn().players_passed.is_empty(),
+        "CR 117.4: an action was taken between passes, so the pass-round must restart"
+    );
+    assert_eq!(state.turn().priority_holder, Some(p1));
+}
+
+#[test]
+/// CR 702.139a, CR 116.3, CR 117.4 — bringing a companion to hand is a
+/// special action; the pass-round restarts because an action was taken
+/// between passes.
+fn test_dp1_bring_companion_resets_players_passed() {
+    let p1 = p(1);
+
+    let companion_card = ObjectSpec::card(p1, "DP1 Companion")
+        .with_card_id(CardId("dp1-companion".to_string()))
+        .in_zone(ZoneId::Command(p1));
+
+    let mut state = GameStateBuilder::four_player()
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .object(companion_card)
+        .build()
+        .unwrap();
+
+    state
+        .players_mut()
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Colorless, 3);
+    state.players_mut().get_mut(&p1).unwrap().companion = Some(CardId("dp1-companion".to_string()));
+    state.turn_mut().priority_holder = Some(p1);
+    state.turn_mut().players_passed.insert(p(2));
+    state.turn_mut().players_passed.insert(p(3));
+
+    let (state, _) = process_command(state, Command::BringCompanion { player: p1 })
+        .expect("companion should succeed");
+
+    assert!(
+        state.turn().players_passed.is_empty(),
+        "CR 117.4: an action was taken between passes, so the pass-round must restart"
     );
 }

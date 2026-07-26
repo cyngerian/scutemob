@@ -39,6 +39,14 @@ use crate::state::GameState;
 /// priority and `players_passed` is not reset — a deliberate, long-standing engine
 /// choice (it keeps floating mana from restarting the pass-round), preserved verbatim
 /// by PB-DP1 and pinned by `test_dp1_mana_ability_does_not_reset_players_passed`.
+///
+/// **Known CR 117.4 deviation, not CR 117.3b's**: CR 117.4 says an all-pass round
+/// completes only "if all players pass without taking any actions in between passing".
+/// Activating a mana ability between two passes IS an action, so a strict reading
+/// requires the round to restart. This engine intentionally does not do that (see
+/// OOS-DP1-4) — CR 117.3b's parenthetical explains the priority-holder behavior above,
+/// it says nothing about `players_passed`, so it is not cited as authority for the
+/// non-reset.
 pub fn handle_tap_for_mana(
     state: &mut GameState,
     player: PlayerId,
@@ -625,9 +633,11 @@ pub fn handle_tap_for_mana(
     //     guard proves they already held it, so this is a no-op by construction.
     //     CR 117.3b's parenthetical ("other than a mana ability") is why a mana ability
     //     does not hand priority back to the active player the way a resolution does.
-    //     The `players_passed` non-reset is a deliberate, long-standing engine choice
-    //     (it keeps floating mana from restarting the pass-round); PB-DP1 preserves it
-    //     verbatim and pins it with `test_dp1_mana_ability_does_not_reset_players_passed`.
+    //     The `players_passed` non-reset is a SEPARATE, deliberate engine choice and a
+    //     known CR 117.4 deviation (not CR 117.3b's — that rule says nothing about
+    //     `players_passed`; see OOS-DP1-4). It keeps floating mana from restarting the
+    //     pass-round; PB-DP1 preserves it verbatim and pins it with
+    //     `test_dp1_mana_ability_does_not_reset_players_passed`.
     Ok(events)
 }
 /// CR 106.12b / CR 106.6a: Check for mana production replacement effects.

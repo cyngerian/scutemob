@@ -186,7 +186,8 @@ fn test_activate_ability_tap_places_on_stack() {
         .iter()
         .any(|e| matches!(e, GameEvent::PriorityGiven { player } if *player == p1)));
 
-    // Active player gets priority; players_passed reset.
+    // CR 117.3c: the activating player (p1, who here also happens to be the active
+    // player) gets priority; players_passed reset.
     assert_eq!(new_state.turn().priority_holder, Some(p1));
     assert!(new_state.turn().players_passed.is_empty());
 }

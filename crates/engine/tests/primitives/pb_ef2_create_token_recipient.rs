@@ -310,8 +310,11 @@ fn test_swan_song_decoy_bird_is_not_controlled_by_swan_songs_caster() {
     let state = counter_scenario(p1, p2, "Swan Song");
     // CR 117.3c: p2 had priority when they cast the counterspell, so p2 (the
     // caster, not the active player p1) retains priority afterward -- pass_all
-    // must start with the actor p2, then p1 (same shape as the happy-path test
-    // above).
+    // must start with the actor p2. The single resolution counters AND removes
+    // the target, emptying the whole stack at once, so CR 117.3b then hands
+    // priority back to the active player p1 for the remaining pass round --
+    // hence the `[p2, p1, p1, p2]` shape, not `[p2, p1]` (same shape as the
+    // happy-path test above).
     let (state, _) = pass_all(state, &[p2, p1, p1, p2]);
 
     assert_eq!(
