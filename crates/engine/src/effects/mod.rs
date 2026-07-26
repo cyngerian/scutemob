@@ -655,10 +655,8 @@ fn execute_effect_inner(
             let n = resolve_amount(state, count, ctx).max(0) as usize;
             let players = resolve_player_target_list(state, player, ctx);
             for p in players {
-                for _ in 0..n {
-                    let draw_evts = draw_one_card(state, p);
-                    events.extend(draw_evts);
-                }
+                let draw_evts = draw_cards_for_player(state, p, n);
+                events.extend(draw_evts);
             }
         }
         Effect::DiscardCards { player, count } => {
@@ -712,10 +710,8 @@ fn execute_effect_inner(
                     }
                     let max_draw = counts.iter().copied().max().unwrap_or(0);
                     for p in players {
-                        for _ in 0..max_draw {
-                            let draw_evts = draw_one_card(state, p);
-                            events.extend(draw_evts);
-                        }
+                        let draw_evts = draw_cards_for_player(state, p, max_draw);
+                        events.extend(draw_evts);
                     }
                 }
                 WheelDraw::ThatMany | WheelDraw::Fixed(_) => {
@@ -747,10 +743,8 @@ fn execute_effect_inner(
                                 "handled in the GreatestDiscarded two-pass branch above"
                             ),
                         };
-                        for _ in 0..n {
-                            let draw_evts = draw_one_card(state, p);
-                            events.extend(draw_evts);
-                        }
+                        let draw_evts = draw_cards_for_player(state, p, n);
+                        events.extend(draw_evts);
                     }
                 }
             }
@@ -4757,10 +4751,8 @@ fn execute_effect_inner(
                         .map(|obj| obj.controller)
                         .unwrap_or(ctx.controller);
                     // Step 1: Draw N cards (CR 701.50e).
-                    for _ in 0..n {
-                        let draw_evts = draw_one_card(state, controller);
-                        events.extend(draw_evts);
-                    }
+                    let draw_evts = draw_cards_for_player(state, controller, n);
+                    events.extend(draw_evts);
                     // Step 2: Discard N cards and count nonland discards.
                     // Cannot reuse discard_cards helper — we need per-card type info
                     // to determine the counter count. Inline the discard logic here.
@@ -8543,63 +8535,45 @@ fn try_pay_optional_cost(
     Some(pay_optional_cost(state, pid, cost, source, events))
 }
 // ── Card draw helper ──────────────────────────────────────────────────────────
-/// Draw one card for a player (CR 121.1). Returns events.
-fn draw_one_card(state: &mut GameState, player: PlayerId) -> Vec<GameEvent> {
-    // CR 614.11: Check WouldDraw replacement effects before performing the draw.
-    // Shared logic lives in `replacement::check_would_draw_replacement` (MR-M8-07).
-    // CR 702.52: Also checks for dredge-eligible cards in the graveyard.
-    {
-        use crate::rules::replacement::{self, DrawAction};
-        match replacement::check_would_draw_replacement(state, player) {
-            DrawAction::Proceed => {}
-            DrawAction::Skip(event) => return vec![event],
-            DrawAction::NeedsChoice(event) => {
-                // CR 616.1: Multiple WouldDraw replacements apply — defer the draw.
-                return vec![event];
-            }
-            DrawAction::DredgeAvailable(event) => {
-                // CR 702.52: Dredge options available — pause for player choice.
-                return vec![event];
-            }
+/// Draw `n` cards for a player (CR 121.1 / 121.2), stopping the sequence if a
+/// draw is deferred by a CR 616.1 multi-replacement choice or the library
+/// empties (PB-DP5; formerly `draw_one_card`, which drew exactly one card and
+/// had no way to tell its `for _ in 0..n` callers that a draw had deferred —
+/// they kept iterating, so `Effect::DrawCards { count: 3 }` emitted three
+/// unanswerable prompts and drew zero cards. See PB-DP5 plan §1.2/§9 W5).
+///
+/// CR 614.11a: "If an effect replaces a draw within a sequence of card draws,
+/// all actions required by the replacement are completed, if possible, before
+/// resuming the sequence." The sequence STOPS at the deferred draw — the
+/// remaining count is recorded on the `PendingDraw` entry `perform_one_draw`
+/// pushes, and performed by `resolve_pending_draw` once the player answers
+/// `Command::OrderReplacements`.
+///
+/// `sets_has_drawn_for_turn: false` preserves this path's pre-existing
+/// divergence from `turn_actions::draw_card` / `draw_card_skipping_dredge`
+/// (see `perform_one_draw`'s doc comment) rather than silently unifying it.
+fn draw_cards_for_player(state: &mut GameState, player: PlayerId, n: usize) -> Vec<GameEvent> {
+    use crate::rules::replacement::{perform_one_draw, DrawStepOutcome};
+    let mut events = Vec::new();
+    for i in 0..n {
+        let remaining_after = (n - 1 - i) as u32;
+        let (evts, outcome) = perform_one_draw(
+            state,
+            player,
+            true,
+            false,
+            std::collections::HashSet::new(),
+            remaining_after,
+        );
+        events.extend(evts);
+        if matches!(
+            outcome,
+            DrawStepOutcome::Deferred | DrawStepOutcome::LostToEmptyLibrary
+        ) {
+            break;
         }
     }
-    let lib_id = ZoneId::Library(player);
-    let top = state.zones.get(&lib_id).and_then(|z| z.top());
-    match top {
-        None => {
-            // CR 104.3b: drawing from empty library causes loss.
-            if let Some(ps) = state.expect_player_mut(player) {
-                ps.has_lost = true;
-            }
-            vec![GameEvent::PlayerLost {
-                player,
-                reason: crate::rules::events::LossReason::LibraryEmpty,
-            }]
-        }
-        Some(card_id) => {
-            if let Some((new_id, _)) =
-                state.expect_move_object_to_zone(card_id, ZoneId::Hand(player))
-            {
-                // CR 121.1: increment per-turn draw counter for Sylvan Library and similar effects.
-                if let Some(ps) = state.expect_player_mut(player) {
-                    ps.cards_drawn_this_turn += 1;
-                }
-                let mut events = vec![GameEvent::CardDrawn {
-                    player,
-                    new_object_id: new_id,
-                }];
-                // CR 702.94a: Check if the just-drawn card has miracle and is the first draw.
-                if let Some(miracle_event) =
-                    crate::rules::miracle::check_miracle_eligible(state, player, new_id)
-                {
-                    events.push(miracle_event);
-                }
-                events
-            } else {
-                vec![]
-            }
-        }
-    }
+    events
 }
 /// Discard `n` cards from a player's hand (first by ObjectId, deterministic).
 ///

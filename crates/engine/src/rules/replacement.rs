@@ -14,8 +14,8 @@ use crate::state::error::GameStateError;
 use crate::state::game_object::ObjectId;
 use crate::state::player::PlayerId;
 use crate::state::replacement_effect::{
-    DamageTargetFilter, ObjectFilter, PendingZoneChange, PlayerFilter, ReplacementEffect,
-    ReplacementId, ReplacementModification, ReplacementTrigger,
+    DamageTargetFilter, ObjectFilter, PendingDraw, PendingZoneChange, PlayerFilter,
+    ReplacementEffect, ReplacementId, ReplacementModification, ReplacementTrigger,
 };
 use crate::state::types::{CardType, CounterType};
 use crate::state::zone::ZoneId;
@@ -126,16 +126,35 @@ pub fn determine_action(
 /// This is a networked player command and therefore a **trust boundary** (invariant
 /// #3): the sender is untrusted. It is rejected unless
 ///
-/// 1. a pending zone change exists whose affected player (the CR 616.1 chooser —
-///    the object's controller, owner-fallback) is `player`, and
+/// 1. a pending zone change OR a pending draw (PB-DP5) exists whose affected
+///    player (the CR 616.1 chooser) is `player`, and
 /// 2. every id in `ids` is a replacement that is **currently applicable** to that
 ///    pending event (checked via [`find_applicable`], not by mere existence in
 ///    `state.replacement_effects`).
 ///
 /// Without (1) a player could order another player's choice; without (2) a hostile
 /// or buggy client could apply an arbitrary registered replacement's modification to
-/// an event it does not apply to (e.g. redirect an unrelated dies event). The first
-/// id is then applied and the zone move completed (with CR 616.1f re-checking).
+/// an event it does not apply to (e.g. redirect an unrelated dies event).
+///
+/// # Routing between a pending zone change and a pending draw (PB-DP5)
+///
+/// Two kinds of pending event can be outstanding for the same player at the same
+/// time — a zone change (`PendingZoneChange`) and a draw (`PendingDraw`) — and
+/// `Command::OrderReplacements` carries no discriminator naming which one an
+/// answer is for. Routing is by **applicability**, which is total:
+/// [`trigger_matches`] requires the effect's trigger and the event's trigger to
+/// be the SAME [`ReplacementTrigger`] variant, so a `WouldChangeZone`
+/// replacement can never be applicable to a draw and vice versa — the two
+/// candidate sets are provably disjoint. A well-formed answer therefore names
+/// exactly one of the two, and the check that decides "is this a legal answer"
+/// is the same check that decides "which question is this answering" — no new
+/// trust surface.
+///
+/// Order of evaluation: zone change first, then draw. This is pure preservation
+/// of pre-PB-DP5 behavior — byte-for-byte for any existing test — and, because
+/// the two candidate sets are disjoint, can never actually misroute a
+/// well-formed draw answer: it simply fails the zone-change applicability check
+/// and falls through to the draw arm below.
 pub fn handle_order_replacements(
     state: &mut GameState,
     player: PlayerId,
@@ -156,40 +175,62 @@ pub fn handle_order_replacements(
             )));
         }
     }
-    // CR 616.1: the sender must be the affected chooser of a pending event. Ordering
-    // is only meaningful in response to a `ReplacementChoiceRequired`, which always
-    // corresponds to a pending zone change. Merely controlling a listed effect (with
-    // no pending choice) is not a licence to apply it.
-    let pending_idx = state
+    // ── 1. Try a pending zone change (byte-for-byte pre-PB-DP5 behavior). ──
+    let zone_change_idx = state
         .pending_zone_changes
         .iter()
-        .position(|p| p.affected_player == player)
-        .ok_or_else(|| {
-            GameStateError::InvalidCommand(format!(
-                "player {:?} is not the affected player of any pending replacement choice",
-                player
-            ))
-        })?;
-    // CR 616.1/614.5: every ordered id must be applicable to THIS pending event,
-    // taking into account replacements already applied in this chain. Reconstruct
-    // the pending event's trigger and consult `find_applicable`.
-    let pending = &state.pending_zone_changes[pending_idx];
-    let already_applied: HashSet<ReplacementId> = pending.already_applied.iter().copied().collect();
-    let event_trigger = ReplacementTrigger::WouldChangeZone {
-        from: Some(pending.original_from),
-        to: pending.original_destination,
-        filter: ObjectFilter::SpecificObject(pending.object_id),
-    };
-    let applicable = find_applicable(state, &event_trigger, &already_applied);
-    if let Some(bad) = ids.iter().find(|id| !applicable.contains(id)) {
+        .position(|p| p.affected_player == player);
+    if let Some(pending_idx) = zone_change_idx {
+        // CR 616.1/614.5: every ordered id must be applicable to THIS pending
+        // event, taking into account replacements already applied in this
+        // chain. Reconstruct the pending event's trigger and consult
+        // `find_applicable`.
+        let pending = &state.pending_zone_changes[pending_idx];
+        let already_applied: HashSet<ReplacementId> =
+            pending.already_applied.iter().copied().collect();
+        let event_trigger = ReplacementTrigger::WouldChangeZone {
+            from: Some(pending.original_from),
+            to: pending.original_destination,
+            filter: ObjectFilter::SpecificObject(pending.object_id),
+        };
+        let applicable = find_applicable(state, &event_trigger, &already_applied);
+        if ids.iter().all(|id| applicable.contains(id)) {
+            // All checks passed — resolve the pending zone change with the
+            // chosen order.
+            let first_id = ids[0];
+            return resolve_pending_zone_change(state, first_id, pending_idx);
+        }
+    }
+    // ── 2. Try a pending draw (PB-DP5, CR 616.1 / 614.11). ──
+    let draw_idx = state.pending_draws.iter().position(|p| p.player == player);
+    if let Some(pending_idx) = draw_idx {
+        let pending = &state.pending_draws[pending_idx];
+        let already_applied: HashSet<ReplacementId> =
+            pending.already_applied.iter().copied().collect();
+        let event_trigger = ReplacementTrigger::WouldDraw {
+            player_filter: PlayerFilter::Specific(pending.player),
+        };
+        let applicable = find_applicable(state, &event_trigger, &already_applied);
+        if ids.iter().all(|id| applicable.contains(id)) {
+            let first_id = ids[0];
+            return resolve_pending_draw(state, first_id, pending_idx);
+        }
+    }
+    // ── 3. Neither pending kind accepted every ordered id. ──
+    if zone_change_idx.is_none() && draw_idx.is_none() {
         return Err(GameStateError::InvalidCommand(format!(
-            "replacement effect {:?} is not applicable to the pending event for player {:?}",
-            bad, player
+            "player {:?} is not the affected player of any pending replacement choice",
+            player
         )));
     }
-    // All checks passed — resolve the pending zone change with the chosen order.
-    let first_id = ids[0];
-    resolve_pending_zone_change(state, first_id, pending_idx)
+    Err(GameStateError::InvalidCommand(format!(
+        "none of the ordered replacement ids {:?} are applicable to player {:?}'s pending \
+         replacement choice (zone change pending: {}, draw pending: {})",
+        ids,
+        player,
+        zone_change_idx.is_some(),
+        draw_idx.is_some()
+    )))
 }
 /// Check whether a replacement effect is currently active based on its duration.
 ///
@@ -590,9 +631,22 @@ pub enum DrawAction {
 /// replacements. If the player declines dredge, the normal draw path re-checks
 /// other WouldDraw replacements.
 ///
-/// Called from both `draw_card` (turn_actions.rs) and `draw_one_card`
-/// (effects/mod.rs) to keep the two draw paths consistent.
-pub fn check_would_draw_replacement(state: &GameState, player: PlayerId) -> DrawAction {
+/// Called (via `perform_one_draw`) from `turn_actions::draw_card`,
+/// `effects::draw_cards_for_player` (renamed from `draw_one_card` in PB-DP5),
+/// and `replacement::draw_card_skipping_dredge` to keep all draw paths
+/// consistent.
+///
+/// `already_applied` (CR 614.5) is threaded in so a CR 616.1f re-check (from
+/// `resolve_pending_draw`) does not re-offer an effect already applied to this
+/// draw event. `offer_dredge` is `false` on a resume (PB-DP5 §3.3): re-offering
+/// dredge mid-chain would restart a CR 616.1 application the player already
+/// began, and there is nowhere to record a second pause.
+pub fn check_would_draw_replacement(
+    state: &GameState,
+    player: PlayerId,
+    already_applied: &HashSet<ReplacementId>,
+    offer_dredge: bool,
+) -> DrawAction {
     use crate::state::replacement_effect::{
         PlayerFilter, ReplacementModification, ReplacementTrigger,
     };
@@ -601,75 +655,257 @@ pub fn check_would_draw_replacement(state: &GameState, player: PlayerId) -> Draw
     // A card is eligible if:
     //   1. It has KeywordAbility::Dredge(n) in its keywords.
     //   2. The player has >= n cards in their library (CR 702.52b).
-    let graveyard_zone = ZoneId::Graveyard(player);
-    let library_zone = ZoneId::Library(player);
-    // SR-14: the library zone is built before turn 1 and never removed (ground truth 2).
-    let library_count = state
-        .expect_zone(&library_zone)
-        .map(|z| z.len())
-        .unwrap_or(0);
-    let mut dredge_options: Vec<(ObjectId, u32)> = state
-        .objects
-        .values()
-        .filter(|obj| obj.zone == graveyard_zone)
-        .filter_map(|obj| {
-            obj.characteristics.keywords.iter().find_map(|kw| {
-                if let KeywordAbility::Dredge(n) = kw {
-                    if (*n as usize) <= library_count {
-                        Some((obj.id, *n))
+    if offer_dredge {
+        let graveyard_zone = ZoneId::Graveyard(player);
+        let library_zone = ZoneId::Library(player);
+        // SR-14: the library zone is built before turn 1 and never removed (ground truth 2).
+        let library_count = state
+            .expect_zone(&library_zone)
+            .map(|z| z.len())
+            .unwrap_or(0);
+        let mut dredge_options: Vec<(ObjectId, u32)> = state
+            .objects
+            .values()
+            .filter(|obj| obj.zone == graveyard_zone)
+            .filter_map(|obj| {
+                obj.characteristics.keywords.iter().find_map(|kw| {
+                    if let KeywordAbility::Dredge(n) = kw {
+                        if (*n as usize) <= library_count {
+                            Some((obj.id, *n))
+                        } else {
+                            None
+                        }
                     } else {
                         None
                     }
-                } else {
-                    None
-                }
-            })
-        })
-        .collect();
-    // Sort for determinism (by ObjectId).
-    dredge_options.sort_by_key(|(id, _)| *id);
-    if !dredge_options.is_empty() {
-        // CR 702.52a: Dredge options available — pause for player choice.
-        return DrawAction::DredgeAvailable(GameEvent::DredgeChoiceRequired {
-            player,
-            options: dredge_options,
-        });
-    }
-    let trigger = ReplacementTrigger::WouldDraw {
-        player_filter: PlayerFilter::Specific(player),
-    };
-    let applicable = find_applicable(state, &trigger, &std::collections::HashSet::new());
-    let action = determine_action(state, &applicable, player, "draw a card");
-    match action {
-        ReplacementResult::NoApplicable => DrawAction::Proceed,
-        ReplacementResult::AutoApply(id) => {
-            let modification = state
-                .replacement_effects
-                .iter()
-                .find(|e| e.id == id)
-                .map(|e| e.modification.clone());
-            if matches!(modification, Some(ReplacementModification::SkipDraw)) {
-                // CR 614.10: Replace the draw with nothing — no card moved, no CardDrawn.
-                DrawAction::Skip(GameEvent::ReplacementEffectApplied {
-                    effect_id: id,
-                    description: "skip that draw".to_string(),
                 })
-            } else {
-                // Other modifications are not applicable to draws — proceed normally.
-                DrawAction::Proceed
+            })
+            .collect();
+        // Sort for determinism (by ObjectId).
+        dredge_options.sort_by_key(|(id, _)| *id);
+        if !dredge_options.is_empty() {
+            // CR 702.52a: Dredge options available — pause for player choice.
+            return DrawAction::DredgeAvailable(GameEvent::DredgeChoiceRequired {
+                player,
+                options: dredge_options,
+            });
+        }
+    }
+    // CR 616.1f: "Once the chosen effect has been applied, this process is
+    // repeated ... until there are no more left to apply." A single
+    // `determine_action` dispatch is NOT always terminal: CR 616.1a forces an
+    // `AutoApply` when exactly one applicable replacement is a
+    // self-replacement, even if 2+ replacements are applicable overall (PB-DP5
+    // review Finding 1). If that auto-applied replacement is not `SkipDraw`
+    // (the only modification this path honours), the pre-fix code returned
+    // `Proceed` immediately and silently dropped every other applicable
+    // replacement — including a `SkipDraw` that CR 616.1f says must then be
+    // applied, which would mean no card is drawn at all. Mirror the
+    // `check_zone_change_replacement` loop (`:984-1032`) so the same class of
+    // effect is repeated and excluded (`applied.insert`) rather than dispatched
+    // once. Bounded: `applied` strictly grows each iteration and
+    // `find_applicable` excludes its members, so this runs at most
+    // `state.replacement_effects.len()` times.
+    let mut applied: HashSet<ReplacementId> = already_applied.clone();
+    loop {
+        let trigger = ReplacementTrigger::WouldDraw {
+            player_filter: PlayerFilter::Specific(player),
+        };
+        let applicable = find_applicable(state, &trigger, &applied);
+        let action = determine_action(state, &applicable, player, "draw a card");
+        match action {
+            ReplacementResult::NoApplicable => return DrawAction::Proceed,
+            ReplacementResult::AutoApply(id) => {
+                let modification = state
+                    .replacement_effects
+                    .iter()
+                    .find(|e| e.id == id)
+                    .map(|e| e.modification.clone());
+                if matches!(modification, Some(ReplacementModification::SkipDraw)) {
+                    // CR 614.10: Replace the draw with nothing — no card moved, no CardDrawn.
+                    return DrawAction::Skip(GameEvent::ReplacementEffectApplied {
+                        effect_id: id,
+                        description: "skip that draw".to_string(),
+                    });
+                } else {
+                    // CR 614.5 / 616.1f: this replacement has no draw-level
+                    // effect today (only `SkipDraw` is honoured, OOS-DP5-6/8),
+                    // but it still applied — mark it so it is excluded from the
+                    // re-check, then repeat with only what is NOW applicable.
+                    applied.insert(id);
+                    continue;
+                }
+            }
+            ReplacementResult::NeedsChoice {
+                player,
+                choices,
+                event_description,
+            } => {
+                // CR 616.1: Multiple WouldDraw replacements apply — player must choose order.
+                return DrawAction::NeedsChoice(GameEvent::ReplacementChoiceRequired {
+                    player,
+                    event_description,
+                    choices,
+                });
             }
         }
-        ReplacementResult::NeedsChoice {
-            player,
-            choices,
-            event_description,
-        } => {
-            // CR 616.1: Multiple WouldDraw replacements apply — player must choose order.
-            DrawAction::NeedsChoice(GameEvent::ReplacementChoiceRequired {
+    }
+}
+/// What happened to one attempted draw (CR 121.1 / 614.11 / 616.1).
+pub(crate) enum DrawStepOutcome {
+    /// A card moved to hand.
+    Completed,
+    /// A replacement (CR 614.10 `SkipDraw`) consumed the draw. No card moved.
+    Replaced,
+    /// CR 616.1: 2+ replacements applied; a `PendingDraw` was pushed and a
+    /// `ReplacementChoiceRequired` emitted. The caller MUST stop the sequence
+    /// (CR 614.11a) — see `PendingDraw.remaining`.
+    Deferred,
+    /// CR 702.52a: a `DredgeChoiceRequired` was emitted. Behaviour unchanged from
+    /// pre-PB-DP5: the caller does NOT stop (dredge is only ever offered with
+    /// `offer_dredge: true`, i.e. never mid-resume — see PB-DP5 plan §3.3).
+    DredgeOffered,
+    /// CR 104.3b: the library was empty; `PlayerLost` emitted.
+    LostToEmptyLibrary,
+}
+/// CR 121.1 / 121.2 / 614.11 / 616.1: perform ONE card draw for `player`.
+///
+/// This is the single completion body shared by `turn_actions::draw_card`,
+/// `effects::draw_cards_for_player` (the sequence loop, formerly `draw_one_card`),
+/// `replacement::draw_card_skipping_dredge`, and `resolve_pending_draw`'s resume
+/// path — replacing three near-duplicate bodies (PB-DP5).
+///
+/// `already_applied` (CR 614.5) and `remaining_after` (CR 614.11a / 121.2, the
+/// count of further draws in this player's current sequence) are threaded
+/// through to `PendingDraw` if a `NeedsChoice` is hit.
+///
+/// **Known gap (OOS-DP5-9), inherited from the sibling zone-change path.** What is
+/// threaded is the `already_applied` this function was *called* with, not any id
+/// that `check_would_draw_replacement`'s own CR 616.1f re-check auto-applied on
+/// the way to the `NeedsChoice`. So for an applicable set of
+/// `{S: a non-SkipDraw self-replacement, X, Y}` — `determine_action` returns
+/// `AutoApply(S)` under CR 616.1a, the re-check then yields `NeedsChoice` on
+/// `{X, Y}` — the pushed `PendingDraw.already_applied` is empty, and on resume
+/// `find_applicable` re-offers `S`. A client can therefore submit an id that was
+/// never in the offered `choices` and have `S` applied twice. Unobservable today:
+/// every non-`SkipDraw` draw modification is a game-state no-op (OOS-DP5-6 /
+/// OOS-DP5-8), so "applied twice" and "applied once" are indistinguishable.
+/// `check_zone_change_replacement` has the identical gap, documented there as the
+/// registered M10 follow-up. Closing it means threading the re-check's local
+/// `applied` set out of `check_would_draw_replacement` — folded into OOS-DP5-6,
+/// which is where a draw modification first becomes observable.
+///
+/// `sets_has_drawn_for_turn` preserves a pre-existing, currently-unobservable
+/// divergence between the three original bodies rather than silently unifying
+/// it: `PlayerState::has_drawn_for_turn` is write-only dead state (never read by
+/// any engine logic) but IS fed to the public state hash, so unifying the write
+/// would move real game hashes for zero behavioural gain. `true` for
+/// `turn_actions::draw_card` and `draw_card_skipping_dredge` (which both set it
+/// today); `false` for the effect-draw path (which never has).
+///
+/// No internal loop *here*: like `resolve_pending_zone_change`'s single call to
+/// `check_zone_change_replacement`, a `NeedsChoice` here defers to a *future*
+/// `Command::OrderReplacements` round-trip rather than looping in-process — the
+/// termination argument is the same one that function relies on: each round
+/// strictly grows `already_applied`, `find_applicable` excludes elements of it,
+/// so the total number of rounds is bounded by `state.replacement_effects.len()`.
+/// The CR 616.1f re-check *within* one `NeedsChoice`-free dispatch is not this
+/// function's job either: `check_would_draw_replacement` runs its own internal
+/// loop (mirroring `check_zone_change_replacement`'s) so that a CR 616.1a
+/// self-replacement `AutoApply` — which is not always terminal, since 2+
+/// replacements can still be applicable overall — is followed by a re-check of
+/// the remainder before this function ever sees a final `DrawAction` (PB-DP5
+/// review Finding 1; fixed in the fix cycle, not left as a documented gap).
+pub(crate) fn perform_one_draw(
+    state: &mut GameState,
+    player: PlayerId,
+    offer_dredge: bool,
+    sets_has_drawn_for_turn: bool,
+    already_applied: HashSet<ReplacementId>,
+    remaining_after: u32,
+) -> (Vec<GameEvent>, DrawStepOutcome) {
+    match check_would_draw_replacement(state, player, &already_applied, offer_dredge) {
+        DrawAction::DredgeAvailable(event) => (vec![event], DrawStepOutcome::DredgeOffered),
+        DrawAction::Skip(event) => (vec![event], DrawStepOutcome::Replaced),
+        DrawAction::NeedsChoice(event) => {
+            // CR 616.1e: 2+ replacements apply — record the pending state so a
+            // future `Command::OrderReplacements` (routed by
+            // `handle_order_replacements` to `resolve_pending_draw`) can resume
+            // this exact draw.
+            //
+            // Determinism (SR-9b): sort by ReplacementId before storing.
+            // `HashSet` iteration order is not stable and this field is hashed —
+            // this is load-bearing, not cosmetic.
+            let mut sorted: Vec<ReplacementId> = already_applied.into_iter().collect();
+            sorted.sort_by_key(|id| id.0);
+            state.pending_draws.push_back(PendingDraw {
                 player,
-                event_description,
-                choices,
-            })
+                already_applied: sorted,
+                remaining: remaining_after,
+                sets_has_drawn_for_turn,
+            });
+            (vec![event], DrawStepOutcome::Deferred)
+        }
+        DrawAction::Proceed => {
+            // CR 121.1: perform the draw. The eliminated/conceded guard runs
+            // before this is reached at three of this function's four
+            // callers: `turn_actions::draw_card`, `draw_card_skipping_dredge`,
+            // and `resolve_pending_draw` (indirectly — `engine.rs` runs
+            // `validate_player_active` on the `OrderReplacements` sender, and
+            // the draw arm only routes to the player named by the pending
+            // entry). `effects::draw_cards_for_player` has no such guard —
+            // not a regression (the pre-PB-DP5 `draw_one_card` had none
+            // either, review Finding 6) but worth flagging rather than
+            // asserting a blanket guarantee that does not hold everywhere.
+            let library_zone = ZoneId::Library(player);
+            // SR-14: the library zone is built pre-turn-1 and never removed
+            // (ground truth 2); `top()` returning `None` is the legal CR 104.3b
+            // empty case, not an absence.
+            let top_id = match state.expect_zone(&library_zone).and_then(|z| z.top()) {
+                Some(id) => id,
+                None => {
+                    // CR 104.3b: drawing from an empty library causes loss.
+                    // SR-14: players are never removed from state.players
+                    // (ground truth 1).
+                    if let Some(p) = state.expect_player_mut(player) {
+                        p.has_lost = true;
+                    }
+                    return (
+                        vec![GameEvent::PlayerLost {
+                            player,
+                            reason: crate::rules::events::LossReason::LibraryEmpty,
+                        }],
+                        DrawStepOutcome::LostToEmptyLibrary,
+                    );
+                }
+            };
+            // SR-14: `top_id` was just read from the live library top — the move
+            // cannot fail.
+            let new_id = match state.expect_move_object_to_zone(top_id, ZoneId::Hand(player)) {
+                Some((new_id, _)) => new_id,
+                None => return (vec![], DrawStepOutcome::Completed),
+            };
+            // SR-14: players are never removed (ground truth 1).
+            if let Some(p) = state.expect_player_mut(player) {
+                // CR 121.1: track draws-per-turn for Sylvan Library and similar
+                // effects (CC#33).
+                p.cards_drawn_this_turn += 1;
+                if sets_has_drawn_for_turn {
+                    p.has_drawn_for_turn = true;
+                }
+            }
+            let mut events = vec![GameEvent::CardDrawn {
+                player,
+                new_object_id: new_id,
+            }];
+            // CR 702.94a: check if the just-drawn card has miracle and is the
+            // first draw.
+            if let Some(miracle_event) =
+                crate::rules::miracle::check_miracle_eligible(state, player, new_id)
+            {
+                events.push(miracle_event);
+            }
+            (events, DrawStepOutcome::Completed)
         }
     }
 }
@@ -1049,6 +1285,127 @@ pub fn resolve_pending_zone_change(
                 event_description,
                 choices,
             });
+        }
+    }
+    Ok(events)
+}
+/// Complete a pending draw after a player has chosen the replacement order
+/// (PB-DP5, CR 616.1 / 614.11). Modelled on [`resolve_pending_zone_change`].
+///
+/// Applies the chosen replacement (emitting `ReplacementEffectApplied` for it
+/// **before anything else** — this is the order discriminator: with two
+/// `SkipDraw` replacements the resulting game state is identical either way,
+/// but the event stream names the effect the player actually chose, so a test
+/// can prove the chosen order was honoured rather than an arbitrary one). Then
+/// re-checks for remaining applicable replacements (CR 616.1f) via a single
+/// call to [`perform_one_draw`], and if the sequence this draw belonged to has
+/// further draws (CR 614.11a, `PendingDraw.remaining`), resumes it.
+///
+/// # Termination
+///
+/// No unbounded loop: like `resolve_pending_zone_change`, a further
+/// `NeedsChoice` here defers to a *future* `Command::OrderReplacements`
+/// round-trip rather than looping in-process. `already_applied` strictly grows
+/// by `chosen_id` on entry, and `find_applicable` excludes every id already in
+/// it, so the number of rounds across the whole chain is bounded by
+/// `state.replacement_effects.len()`. The `remaining` resume loop (step 2
+/// below) is a `for i in 0..pending.remaining` over a `u32` captured before the
+/// loop starts, so it terminates in exactly `pending.remaining` iterations or
+/// fewer (it `break`s early on a further deferral or an empty library). There
+/// is no mutual recursion: this function calls `perform_one_draw`, never the
+/// reverse.
+pub fn resolve_pending_draw(
+    state: &mut GameState,
+    chosen_id: ReplacementId,
+    pending_idx: usize,
+) -> Result<Vec<GameEvent>, GameStateError> {
+    let pending = state.pending_draws[pending_idx].clone();
+    let mut events = Vec::new();
+    // Apply the chosen replacement.
+    let modification = state
+        .replacement_effects
+        .iter()
+        .find(|e| e.id == chosen_id)
+        .map(|e| e.modification.clone())
+        .ok_or_else(|| {
+            GameStateError::InvalidCommand(format!("replacement effect {:?} not found", chosen_id))
+        })?;
+    let mut already_applied: HashSet<ReplacementId> =
+        pending.already_applied.iter().copied().collect();
+    already_applied.insert(chosen_id);
+    events.push(GameEvent::ReplacementEffectApplied {
+        effect_id: chosen_id,
+        description: format!("{:?}", modification),
+    });
+    // Remove the pending entry now — a re-defer below (CR 616.1f finding 2+
+    // still applicable) pushes a FRESH entry via `perform_one_draw` rather than
+    // mutating this one in place, mirroring `resolve_pending_zone_change`.
+    state.pending_draws.remove(pending_idx);
+    let outcome = if matches!(modification, ReplacementModification::SkipDraw) {
+        // CR 614.10 + CR 616.1f: the draw event has been replaced by nothing,
+        // so there is no longer an event for a remaining replacement to
+        // modify — "taking into account only replacement effects that would
+        // NOW be applicable" yields the empty set. The chain ends here. No
+        // card moves; `cards_drawn_this_turn` is NOT incremented (a replaced
+        // draw is not a draw, CR 121.1).
+        DrawStepOutcome::Replaced
+    } else {
+        // CR 616.1f re-check: this single call to `perform_one_draw` (which
+        // calls `check_would_draw_replacement` with the grown
+        // `already_applied`) IS the re-check — not because a non-`SkipDraw`
+        // modification is a no-op (it is, but that alone would not close the
+        // CR 616.1a self-replacement hole, PB-DP5 review Finding 1),
+        // but because `check_would_draw_replacement` itself now runs its own
+        // internal CR 616.1f loop over `determine_action` before returning a
+        // final `DrawAction`, so whatever it hands back here already reflects
+        // every applicable self-replacement having been excluded in turn.
+        // Outcomes: `NoApplicable`/exhausted `AutoApply` chain → the draw is
+        // performed (`Completed`); the chain ends on `AutoApply(SkipDraw)` →
+        // stop, no draw (`Replaced`); `NeedsChoice` → a NEW `PendingDraw` is
+        // pushed carrying the grown `already_applied` and the SAME
+        // `remaining`, a second `ReplacementChoiceRequired` is emitted, and
+        // this returns `Deferred`.
+        let (evts, outcome) = perform_one_draw(
+            state,
+            pending.player,
+            false, // offer_dredge: never re-offer mid-resume, PB-DP5 plan §3.3.
+            pending.sets_has_drawn_for_turn,
+            already_applied,
+            pending.remaining,
+        );
+        events.extend(evts);
+        outcome
+    };
+    // CR 614.11a: "all actions required by the replacement are completed, if
+    // possible, before resuming the sequence." The replacement is complete
+    // (not itself deferred) — if the sequence this draw belonged to has
+    // further draws, resume it now. `LostToEmptyLibrary` must also stop the
+    // resume (review Finding 5): `draw_cards_for_player`'s sequence loop
+    // (`effects/mod.rs`) breaks on it too, and without this guard a second
+    // iteration would hit the same empty library and emit a second
+    // `GameEvent::PlayerLost` (CR 104.3b already resolved the loss once).
+    if !matches!(
+        outcome,
+        DrawStepOutcome::Deferred | DrawStepOutcome::LostToEmptyLibrary
+    ) && pending.remaining > 0
+    {
+        for i in 0..pending.remaining {
+            let remaining_after = pending.remaining - 1 - i;
+            let (evts, out) = perform_one_draw(
+                state,
+                pending.player,
+                false,
+                pending.sets_has_drawn_for_turn,
+                HashSet::new(),
+                remaining_after,
+            );
+            events.extend(evts);
+            if matches!(
+                out,
+                DrawStepOutcome::Deferred | DrawStepOutcome::LostToEmptyLibrary
+            ) {
+                break;
+            }
         }
     }
     Ok(events)
@@ -2624,15 +2981,19 @@ pub fn handle_choose_dredge(
 ///
 /// Called when a player declines dredge (`ChooseDredge { card: None }`). We
 /// re-check other WouldDraw replacement effects (SkipDraw etc.) but do NOT
-/// re-offer dredge (the player just chose not to dredge this draw).
+/// re-offer dredge (the player just chose not to dredge this draw) — hence
+/// `offer_dredge: false` into `perform_one_draw`. `sets_has_drawn_for_turn:
+/// true` mirrors this function's pre-PB-DP5 behavior (it always set the flag).
 ///
-/// Mirrors the logic of `turn_actions::draw_card` but skips the dredge
-/// portion of `check_would_draw_replacement`.
+/// PB-DP5: if 2+ `WouldDraw` replacements now apply, a `PendingDraw` is pushed
+/// and `Command::OrderReplacements` can resume the draw (see
+/// `resolve_pending_draw`) — pre-PB-DP5 this returned a
+/// `ReplacementChoiceRequired` that could never be answered (this is emit site
+/// #3 of DP-5, the one the original audit did not name).
 fn draw_card_skipping_dredge(
     state: &mut GameState,
     player: PlayerId,
 ) -> Result<Vec<GameEvent>, GameStateError> {
-    use crate::rules::events::LossReason;
     // Eliminated / conceded players cannot draw.
     // SR-14: players are never removed from state.players (ground truth 1).
     if let Some(p) = state.expect_player(player) {
@@ -2640,77 +3001,7 @@ fn draw_card_skipping_dredge(
             return Ok(vec![]);
         }
     }
-    // Check non-dredge WouldDraw replacement effects.
-    use crate::state::replacement_effect::{
-        PlayerFilter, ReplacementModification, ReplacementTrigger,
-    };
-    let trigger = ReplacementTrigger::WouldDraw {
-        player_filter: PlayerFilter::Specific(player),
-    };
-    let applicable = find_applicable(state, &trigger, &HashSet::new());
-    let action = determine_action(state, &applicable, player, "draw a card");
-    match action {
-        ReplacementResult::AutoApply(id) => {
-            let modification = state
-                .replacement_effects
-                .iter()
-                .find(|e| e.id == id)
-                .map(|e| e.modification.clone());
-            if matches!(modification, Some(ReplacementModification::SkipDraw)) {
-                return Ok(vec![GameEvent::ReplacementEffectApplied {
-                    effect_id: id,
-                    description: "skip that draw".to_string(),
-                }]);
-            }
-        }
-        ReplacementResult::NeedsChoice {
-            player,
-            choices,
-            event_description,
-        } => {
-            return Ok(vec![GameEvent::ReplacementChoiceRequired {
-                player,
-                event_description,
-                choices,
-            }]);
-        }
-        ReplacementResult::NoApplicable => {}
-    }
-    // Perform the actual draw.
-    let library_zone = ZoneId::Library(player);
-    // SR-14: the library zone is never removed (ground truth 2); `z.top()` returning
-    // None is the legal empty-library case, handled below as CR 104.3b loss.
-    let top_id = match state.expect_zone(&library_zone).and_then(|z| z.top()) {
-        Some(id) => id,
-        None => {
-            // Library empty — player loses (CR 104.3b).
-            // SR-14: players are never removed (ground truth 1).
-            if let Some(p) = state.expect_player_mut(player) {
-                p.has_lost = true;
-            }
-            return Ok(vec![GameEvent::PlayerLost {
-                player,
-                reason: LossReason::LibraryEmpty,
-            }]);
-        }
-    };
-    let (new_id, _) = state.move_object_to_zone(top_id, ZoneId::Hand(player))?;
-    // SR-14: players are never removed (ground truth 1).
-    if let Some(p) = state.expect_player_mut(player) {
-        p.has_drawn_for_turn = true;
-        p.cards_drawn_this_turn += 1;
-    }
-    let mut events = vec![GameEvent::CardDrawn {
-        player,
-        new_object_id: new_id,
-    }];
-    // CR 702.94a: Check if the just-drawn card has miracle and is the first draw.
-    // (After the player declined dredge, this is a normal draw and miracle applies.)
-    if let Some(miracle_event) =
-        crate::rules::miracle::check_miracle_eligible(state, player, new_id)
-    {
-        events.push(miracle_event);
-    }
+    let (events, _outcome) = perform_one_draw(state, player, false, true, HashSet::new(), 0);
     Ok(events)
 }
 // ── Regeneration helpers (CR 701.19) ─────────────────────────────────────

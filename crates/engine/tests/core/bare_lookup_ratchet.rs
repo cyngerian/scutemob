@@ -91,7 +91,11 @@ const SWEPT_FILES: &[(&str, usize)] = &[
     // PB-OS8 entry directly above: a missing/empty library legitimately yields an
     // empty top-N restriction set, which falls through to "nothing found," not an
     // engine bug.
-    ("src/effects/mod.rs", 111),
+    // PB-DP5 (2026-07-26): 111 → 110. `draw_one_card`'s three bare lookups were
+    // consolidated into `replacement::perform_one_draw` (which already used
+    // `expect_*` throughout); `draw_cards_for_player` now just calls it in a
+    // loop, netting one fewer bare lookup site in this file.
+    ("src/effects/mod.rs", 110),
     // PB-OS4b (2026-07-19): 102 → 101. `apply_face_change` replaced several raw
     // `state.objects.get_mut(&id)` transform-flip sites with a single call, and one
     // `debug_assert_object_live!` + bare-lookup pair collapsed into a plain

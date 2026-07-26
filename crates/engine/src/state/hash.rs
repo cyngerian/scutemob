@@ -575,7 +575,20 @@
 ///   SR-8 wire closure (protocol.rs v25/PB-OS10 note; ManaAbility field
 ///   additions are HASH-only by precedent, SR-34 v41 / PB-EF8 v51), so PROTOCOL
 ///   stays unchanged at 25 — HASH-only bump.
-pub const HASH_SCHEMA_VERSION: u8 = 63;
+/// - 64: PB-DP5 (2026-07-26, DP-5 — the `WouldDraw` multi-replacement prompt was
+///   unanswerable): `GameState` gains `pending_draws: Vector<PendingDraw>`, a new
+///   `pub(crate)` field recording a card draw deferred by CR 616.1e until the
+///   drawing player answers `Command::OrderReplacements` (mirrors the existing
+///   `pending_zone_changes` field). New struct `PendingDraw { player, already_applied,
+///   remaining, sets_has_drawn_for_turn }` (`card-types/src/state/replacement_effect.rs`).
+///   Fed to `HashInto` as `self.pending_draws.hash_into(&mut hasher)` in
+///   `public_state_hash`, and mirrored into `loop_detection.rs`'s mandatory-state
+///   fingerprint. `decl_fingerprint` MOVES (new field + new struct in the `GameState`
+///   serde closure); `stream_fingerprint` moves per the v40 mechanism. `PendingDraw`
+///   is reachable only from `GameState`, never from `Command`/`GameEvent`/`ReplayLog`
+///   (SR-8's `PROTOCOL_SCHEMA_FINGERPRINT` is rooted there, not in `GameState`), so
+///   PROTOCOL stays unchanged at 27 — HASH-only bump.
+pub const HASH_SCHEMA_VERSION: u8 = 64;
 
 /// One `(version, fingerprints)` row of the append-only hash-schema history.
 ///
@@ -876,6 +889,15 @@ pub const HASH_SCHEMA_HISTORY: &[HashSchemaEpoch] = &[
         decl_fingerprint: "b9d2f3313251bdec0a601996416e779f062e5810262e2992a044a1d808fd530c",
         stream_fingerprint: "04bbac494da8ff26fc83b57a91cfd3637470ac0c0b616aaf356c7edf11fcd007",
     },
+    HashSchemaEpoch {
+        version: 64,
+        // PB-DP5 (2026-07-26, DP-5): GameState gains `pending_draws: Vector<PendingDraw>`
+        // (see the `- 64:` History line above). decl_fingerprint moves (new field +
+        // new struct in the GameState serde closure); stream_fingerprint moves per
+        // the v40 mechanism.
+        decl_fingerprint: "193a661ed9c17b36527fafc5c66027eb079974710dc7de7eb205ae7b7e09abd5",
+        stream_fingerprint: "bbd2148a8c8f8443cf34aa79e76ac60489be57bdb9697ddc60127ebece747bf1",
+    },
 ];
 
 use super::combat::{AttackTarget, CombatState};
@@ -890,8 +912,8 @@ use super::game_object::{
 };
 use super::player::{CardId, ManaPool, PlayerId, PlayerState, RestrictedMana};
 use super::replacement_effect::{
-    DamageTargetFilter, ObjectFilter, PendingZoneChange, PlayerFilter, ReplacementEffect,
-    ReplacementId, ReplacementModification, ReplacementTrigger,
+    DamageTargetFilter, ObjectFilter, PendingDraw, PendingZoneChange, PlayerFilter,
+    ReplacementEffect, ReplacementId, ReplacementModification, ReplacementTrigger,
 };
 use super::stack::{StackObject, StackObjectKind, TriggerData, UpkeepCostKind};
 use super::stubs::{
@@ -2939,6 +2961,17 @@ impl HashInto for PendingZoneChange {
         for id in &self.already_applied {
             id.hash_into(hasher);
         }
+    }
+}
+impl HashInto for PendingDraw {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        self.player.hash_into(hasher);
+        (self.already_applied.len() as u64).hash_into(hasher);
+        for id in &self.already_applied {
+            id.hash_into(hasher);
+        }
+        self.remaining.hash_into(hasher);
+        self.sets_has_drawn_for_turn.hash_into(hasher);
     }
 }
 impl HashInto for crate::state::stubs::PendingTriggerKind {
@@ -7701,6 +7734,9 @@ impl GameState {
         self.delayed_triggers.hash_into(&mut hasher);
         self.replacement_effects.hash_into(&mut hasher);
         self.pending_zone_changes.hash_into(&mut hasher);
+        // CR 616.1 / 614.11: pending draws (PB-DP5) are live game state — hash them so
+        // "before the prompt" and "after the prompt" states don't collide.
+        self.pending_draws.hash_into(&mut hasher);
         for (owner, oid) in self.pending_commander_zone_choices.iter() {
             owner.hash_into(&mut hasher);
             oid.hash_into(&mut hasher);

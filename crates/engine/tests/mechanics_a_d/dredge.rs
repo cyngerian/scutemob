@@ -796,7 +796,7 @@ fn test_dredge_decline_does_not_reoffer() {
 
 #[test]
 /// CR 702.52a — "if you would draw a card" includes draws from any source, not
-/// only the draw step. This test exercises the `effects/mod.rs::draw_one_card`
+/// only the draw step. This test exercises the `effects/mod.rs::draw_cards_for_player`
 /// code path (DrawCards effect) to ensure DredgeChoiceRequired fires there too.
 /// Source: Finding 1 — plan test #6.
 fn test_dredge_during_effect_draw_not_just_draw_step() {
@@ -836,7 +836,7 @@ fn test_dredge_during_effect_draw_not_just_draw_step() {
     // Get the dredge card's ObjectId before executing the effect.
     let dredge_card_id = find_object(&state, "Dredge Two");
 
-    // Execute a DrawCards(1) effect — this goes through effects/mod.rs::draw_one_card.
+    // Execute a DrawCards(1) effect — this goes through effects/mod.rs::draw_cards_for_player.
     let draw_effect = Effect::DrawCards {
         player: PlayerTarget::Controller,
         count: EffectAmount::Fixed(1),
@@ -854,7 +854,7 @@ fn test_dredge_during_effect_draw_not_just_draw_step() {
     });
     assert!(
         choice_event.is_some(),
-        "CR 702.52a: DredgeChoiceRequired must be emitted via effect-based draw (draw_one_card). \
+        "CR 702.52a: DredgeChoiceRequired must be emitted via effect-based draw (draw_cards_for_player). \
          This tests the effects/mod.rs path, not the draw step path. Events: {:?}",
         events
     );

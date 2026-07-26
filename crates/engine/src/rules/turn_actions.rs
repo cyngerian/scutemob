@@ -1,6 +1,6 @@
 //! Turn-based actions: untap, draw, cleanup, mana pool emptying, combat (CR 500-514).
 use super::abilities::collect_emblem_triggers_for_event;
-use super::events::{GameEvent, LossReason};
+use super::events::GameEvent;
 use crate::cards::card_definition::{AbilityDefinition, TriggerCondition};
 use crate::state::combat::CombatState;
 use crate::state::diagnostics::debug_assert_object_live;
@@ -1178,56 +1178,19 @@ pub fn draw_card(
             return Ok(vec![]);
         }
     }
-    // CR 614.11: Check WouldDraw replacement effects before performing the draw.
-    // Shared logic lives in `replacement::check_would_draw_replacement` (MR-M8-07).
-    // CR 702.52: Also checks for dredge-eligible cards in the graveyard.
-    {
-        use crate::rules::replacement::{self, DrawAction};
-        match replacement::check_would_draw_replacement(state, player) {
-            DrawAction::Proceed => {}
-            DrawAction::Skip(event) => return Ok(vec![event]),
-            DrawAction::NeedsChoice(event) => {
-                // CR 616.1: Multiple WouldDraw replacements apply — defer the draw.
-                return Ok(vec![event]);
-            }
-            DrawAction::DredgeAvailable(event) => {
-                // CR 702.52: Dredge options available — pause for player choice.
-                return Ok(vec![event]);
-            }
-        }
-    }
-    let library_zone = ZoneId::Library(player);
-    let library = state.zone(&library_zone)?;
-    let top_id = match library.top() {
-        Some(id) => id,
-        None => {
-            // Library empty — player loses (CR 104.3b)
-            if let Some(p) = state.expect_player_mut(player) {
-                p.has_lost = true;
-            }
-            return Ok(vec![GameEvent::PlayerLost {
-                player,
-                reason: LossReason::LibraryEmpty,
-            }]);
-        }
-    };
-    let hand_zone = ZoneId::Hand(player);
-    let (new_id, _old_obj) = state.move_object_to_zone(top_id, hand_zone)?;
-    // Mark that this player has drawn for the turn and increment draw counter.
-    if let Some(p) = state.expect_player_mut(player) {
-        p.has_drawn_for_turn = true;
-        // CR 121.1: track draws-per-turn for Sylvan Library and similar effects (CC#33).
-        p.cards_drawn_this_turn += 1;
-    }
-    let mut events = vec![GameEvent::CardDrawn {
+    // CR 614.11 / 616.1 / 702.52: shared draw body lives in
+    // `replacement::perform_one_draw` (PB-DP5) — offers dredge, checks WouldDraw
+    // replacements, and on 2+ applicable replacements pushes a `PendingDraw` so
+    // `Command::OrderReplacements` can resume this exact draw instead of the
+    // pre-PB-DP5 unanswerable `ReplacementChoiceRequired`.
+    let (events, _outcome) = crate::rules::replacement::perform_one_draw(
+        state,
         player,
-        new_object_id: new_id,
-    }];
-    // CR 702.94a: Check if the just-drawn card has miracle and is the first draw.
-    // If so, emit MiracleRevealChoiceRequired so the player can choose to reveal.
-    if let Some(miracle_event) = super::miracle::check_miracle_eligible(state, player, new_id) {
-        events.push(miracle_event);
-    }
+        true,
+        true,
+        std::collections::HashSet::new(),
+        0,
+    );
     Ok(events)
 }
 /// CR 514.1: "First, if the active player's hand contains more cards than their
