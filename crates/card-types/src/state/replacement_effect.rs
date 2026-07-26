@@ -377,3 +377,29 @@ pub struct PendingZoneChange {
     /// Replacement effects already applied in this chain (CR 614.5).
     pub already_applied: Vec<ReplacementId>,
 }
+/// Tracks a card draw that is waiting for the drawing player to choose which
+/// `WouldDraw` replacement effect to apply first (CR 616.1 / 614.11).
+///
+/// When 2+ `WouldDraw` replacements apply to one draw, the draw does not happen
+/// and this entry records everything the resume needs. Resolved by
+/// `Command::OrderReplacements`; see `resolve_pending_draw`.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PendingDraw {
+    /// CR 616.1: the affected player — the player who would draw. They are the
+    /// chooser. Unlike a zone change there is no controller/owner split to get
+    /// wrong: a draw has exactly one affected player.
+    pub player: PlayerId,
+    /// CR 614.5: replacement effects already applied to THIS draw event. Threaded
+    /// into `find_applicable` on resume so an effect cannot apply twice.
+    pub already_applied: Vec<ReplacementId>,
+    /// CR 614.11a / 121.2: how many further draws remain in the sequence this draw
+    /// belongs to ("draw three cards" = three individual draws). Performed after
+    /// this draw resolves, before the sequence is considered finished.
+    pub remaining: u32,
+    /// Which draw path raised this, so the resume writes the same bookkeeping.
+    /// `true` for `turn_actions::draw_card` and `replacement::draw_card_skipping_dredge`
+    /// (both set `PlayerState::has_drawn_for_turn`), `false` for `effects::draw_one_card`
+    /// (which does not). Preserves an existing divergence rather than silently
+    /// unifying it (CLAUDE.md write-only dead-state note; see PB-DP5 plan §2.4).
+    pub sets_has_drawn_for_turn: bool,
+}

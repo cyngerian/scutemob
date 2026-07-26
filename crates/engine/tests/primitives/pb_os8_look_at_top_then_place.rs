@@ -1178,7 +1178,7 @@ fn test_pb_os8_version_sentinels() {
          TargetFilter.min_cmc_amount)"
     );
     assert_eq!(
-        HASH_SCHEMA_VERSION, 63u8,
+        HASH_SCHEMA_VERSION, 64u8,
         "HASH_SCHEMA_VERSION should be 60 after PB-OS8"
     );
 }

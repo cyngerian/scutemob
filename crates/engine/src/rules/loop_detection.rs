@@ -99,6 +99,7 @@ pub fn reset_loop_detection(state: &mut GameState) {
 /// - Pending triggers (abilities waiting to go on stack)
 /// - Active continuous effects
 /// - Pending zone changes
+/// - Pending draws (CR 616.1 / 614.11)
 /// - Turn state (phase/step/priority — passive to track where we are)
 ///
 /// Library and hand contents are EXCLUDED: they are hidden information and
@@ -141,6 +142,11 @@ fn compute_mandatory_state_hash(state: &GameState) -> u64 {
     // 6. Pending zone changes
     for pzc in &state.pending_zone_changes {
         pzc.hash_into(&mut hasher);
+    }
+    // 7. Pending draws (CR 616.1 / 614.11) — a deferred draw is live state; two
+    //    states differing only in it are not the same position.
+    for pd in &state.pending_draws {
+        pd.hash_into(&mut hasher);
     }
     // Extract the first 8 bytes as a u64 (truncated hash for compact storage)
     let full_hash = hasher.finalize();

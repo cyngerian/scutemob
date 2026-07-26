@@ -32,8 +32,8 @@ pub use game_object::{
 };
 pub use player::{CardId, ManaPool, PlayerId, PlayerState};
 pub use replacement_effect::{
-    DamageTargetFilter, ObjectFilter, PendingZoneChange, PlayerFilter, ReplacementEffect,
-    ReplacementId, ReplacementModification, ReplacementTrigger,
+    DamageTargetFilter, ObjectFilter, PendingDraw, PendingZoneChange, PlayerFilter,
+    ReplacementEffect, ReplacementId, ReplacementModification, ReplacementTrigger,
 };
 pub use stack::{StackObject, StackObjectKind, TriggerData, UpkeepCostKind};
 pub use stubs::{

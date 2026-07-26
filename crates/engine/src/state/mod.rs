@@ -42,8 +42,9 @@ pub use mtg_card_types::state::{
     EnchantControllerConstraint, EnchantFilter, EnchantTarget, FaceDownKind, FlashGrant,
     FlashGrantFilter, GameObject, GameRestriction, HybridMana, HybridManaPayment, InterveningIf,
     KeywordAbility, LandwalkType, LayerModification, ManaAbility, ManaColor, ManaCost, ManaPool,
-    MergedComponent, ObjectFilter, ObjectId, ObjectStatus, PendingTrigger, PendingZoneChange,
-    PhyrexianMana, PlayFromGraveyardPermission, PlayFromTopFilter, PlayFromTopPermission,
+    MergedComponent, ObjectFilter, ObjectId, ObjectStatus, PendingDraw, PendingTrigger,
+    PendingZoneChange, PhyrexianMana, PlayFromGraveyardPermission, PlayFromTopFilter,
+    PlayFromTopPermission,
     PlayerFilter, PlayerId, PlayerState, ProtectionQuality, ReplacementEffect, ReplacementId,
     ReplacementModification, ReplacementTrigger, RoomDef, RoomIndex, SacrificeFilter,
     SacrificedCreatureLki, SpellTarget, StackObject, StackObjectKind, SubType, SuperType, Target,
@@ -136,6 +137,10 @@ pub struct GameState {
     /// Zone changes waiting for player choice among replacement effects (CR 616.1).
     /// SBA loop skips objects with pending entries; resolved by `OrderReplacements`.
     pub(crate) pending_zone_changes: Vector<PendingZoneChange>,
+    /// Card draws waiting for the drawing player to choose among applicable
+    /// `WouldDraw` replacements (CR 616.1 / 614.11). Resolved by `OrderReplacements`.
+    #[serde(default)]
+    pub(crate) pending_draws: Vector<PendingDraw>,
     /// Commanders awaiting the owner's zone-return choice (CR 903.9a).
     ///
     /// Each entry is `(owner, object_id)`. The SBA skips commanders already in
@@ -437,6 +442,11 @@ impl GameState {
         &self.pending_zone_changes
     }
 
+    /// Read-only access to the `pending_draws` field.
+    pub fn pending_draws(&self) -> &Vector<PendingDraw> {
+        &self.pending_draws
+    }
+
     /// Read-only access to the `pending_commander_zone_choices` field.
     pub fn pending_commander_zone_choices(&self) -> &Vector<(PlayerId, ObjectId)> {
         &self.pending_commander_zone_choices
@@ -716,6 +726,11 @@ impl GameState {
     /// Escape hatch: mutable access to `pending_zone_changes`. See [module docs](GameState#escape-hatches).
     pub fn pending_zone_changes_mut(&mut self) -> &mut Vector<PendingZoneChange> {
         &mut self.pending_zone_changes
+    }
+
+    /// Escape hatch: mutable access to `pending_draws`. See [module docs](GameState#escape-hatches).
+    pub fn pending_draws_mut(&mut self) -> &mut Vector<PendingDraw> {
+        &mut self.pending_draws
     }
 
     /// Escape hatch: mutable access to `pending_commander_zone_choices`. See [module docs](GameState#escape-hatches).
