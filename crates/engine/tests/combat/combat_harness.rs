@@ -169,6 +169,7 @@ fn test_harness_declare_attackers_basic() {
         None,   // chosen_color_name: not used for combat harness actions
         &[],    // hybrid_choices: not used for combat harness actions
         &[],    // phyrexian_life_payments: not used for combat harness actions
+        &[],    // discard_cards: not used for combat harness actions
         &state,
         &players,
     );
@@ -259,6 +260,7 @@ fn test_harness_declare_attackers_empty() {
         None,   // chosen_color_name: not used for combat harness actions
         &[],    // hybrid_choices: not used for combat harness actions
         &[],    // phyrexian_life_payments: not used for combat harness actions
+        &[],    // discard_cards: not used for combat harness actions
         &state,
         &players,
     );
@@ -389,6 +391,7 @@ fn test_harness_declare_blockers_basic() {
         None,   // chosen_color_name: not used for combat harness actions
         &[],    // hybrid_choices: not used for combat harness actions
         &[],    // phyrexian_life_payments: not used for combat harness actions
+        &[],    // discard_cards: not used for combat harness actions
         &state,
         &players,
     );
@@ -487,6 +490,7 @@ fn test_harness_declare_blockers_empty() {
         None,   // chosen_color_name: not used for combat harness actions
         &[],    // hybrid_choices: not used for combat harness actions
         &[],    // phyrexian_life_payments: not used for combat harness actions
+        &[],    // discard_cards: not used for combat harness actions
         &state,
         &players,
     );
@@ -571,6 +575,7 @@ fn test_harness_full_combat_unblocked_damage() {
         None,   // chosen_color_name: not used for combat harness actions
         &[],    // hybrid_choices: not used for combat harness actions
         &[],    // phyrexian_life_payments: not used for combat harness actions
+        &[],    // discard_cards: not used for combat harness actions
         &state,
         &players,
     )
@@ -623,6 +628,7 @@ fn test_harness_full_combat_unblocked_damage() {
         None,   // chosen_color_name: not used for combat harness actions
         &[],    // hybrid_choices: not used for combat harness actions
         &[],    // phyrexian_life_payments: not used for combat harness actions
+        &[],    // discard_cards: not used for combat harness actions
         &state,
         &players,
     )
@@ -703,6 +709,7 @@ fn test_harness_declare_attackers_default_target() {
         None,   // chosen_color_name: not used for combat harness actions
         &[],    // hybrid_choices: not used for combat harness actions
         &[],    // phyrexian_life_payments: not used for combat harness actions
+        &[],    // discard_cards: not used for combat harness actions
         &state,
         &players,
     );

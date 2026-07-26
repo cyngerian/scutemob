@@ -87,7 +87,20 @@ impl From<HaltReason> for GameDriverError {
 }
 
 /// CR 117.3 (priority), CR 103.5 (mulligan), CR 903.9a (commander zone-change choice),
-/// CR 508.1 / 509.1 (combat declarations) — what kind of decision a human seat faces.
+/// CR 508.1 / 509.1 (combat declarations), CR 514.1 (cleanup discard, PB-DP7 / DP-3) —
+/// what kind of decision a human seat faces.
+///
+/// This enumerates command-submission-time decisions AND the out-of-band
+/// engine-blocking decisions introduced by PB-DP7's `BlockingDecision`
+/// mechanism (`rules::engine::blocking_decision`). It does NOT yet reach the
+/// trigger-time (PB-DP8, CR 603.3d) or mid-resolution (PB-DP9, CR
+/// 701.22a/701.23/701.25a) decision classes -- see
+/// `docs/audits/decision-point-audit.md` §9.4 rec 1 and the PB-DP7 plan's §1.5/1.6.
+///
+/// `#[non_exhaustive]`: audit §9.4 rec 1. This enum is no longer "the complete
+/// set of decisions reachable by this architecture" (contrast the old claim at
+/// audit §9.2), so a downstream exhaustive match must add a wildcard arm.
+#[non_exhaustive]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DecisionKind {
     Priority,
@@ -95,6 +108,11 @@ pub enum DecisionKind {
     CommanderZoneChoice,
     DeclareAttackers,
     DeclareBlockers,
+    /// CR 514.1 (PB-DP7 / DP-3): the active player must discard to hand size.
+    /// Unlike every other variant, this is not a priority-window choice --
+    /// CR 514.3 grants no priority in cleanup, so it is the engine's first
+    /// out-of-band BLOCKING decision (`rules::engine::BlockingDecision`).
+    CleanupDiscard,
 }
 
 /// A decision a human-occupied seat must make before the game can advance further.
@@ -303,8 +321,22 @@ impl<P: LegalActionProvider> LocalGame<P> {
             // moving: a deadlock with no safety valve. `StubProvider` cannot produce that
             // state today (it always offers the priority holder `PassPriority`), but
             // Session 3 replaces the provider.
-            let (acting_player, forced_kind) = if let Some(pending) =
-                self.state.pending_commander_zone_choices().iter().next()
+            // PB-DP7 / DP-3 (CR 514.1): the outstanding cleanup discard, if any,
+            // MUST be resolved before the commander-zone branch below --
+            // the engine's admission gate (`rules::engine::process_command`)
+            // rejects `ReturnCommanderToCommandZone` while a cleanup discard is
+            // blocking, so offering that first would produce a command the
+            // engine refuses and `advance()` would return
+            // `Halted(EngineError)`.
+            // Fix-cycle Finding 4 (MEDIUM): read the liveness-filtered
+            // predicate, not the raw `pending_cleanup_discard()` field -- a
+            // dead active player's stale entry must not make `LocalGame`
+            // resolve `acting_player` to a player who can never answer.
+            let (acting_player, forced_kind) = if let Some(decision) =
+                self.state.blocking_decision()
+            {
+                (decision.player(), Some(DecisionKind::CleanupDiscard))
+            } else if let Some(pending) = self.state.pending_commander_zone_choices().iter().next()
             {
                 (pending.0, Some(DecisionKind::CommanderZoneChoice))
             } else if let Some(priority) = self.state.turn().priority_holder {
@@ -628,5 +660,13 @@ mod tests {
             card: ObjectId(17),
         };
         assert_eq!(command_player(&play_land), Some(PlayerId(4)));
+
+        // PB-DP7 / DP-3: DiscardToHandSize { player, cards } follows the same
+        // `{"VariantName": {"player": ..}}` shape.
+        let discard = Command::DiscardToHandSize {
+            player: PlayerId(1),
+            cards: vec![ObjectId(5), ObjectId(6)],
+        };
+        assert_eq!(command_player(&discard), Some(PlayerId(1)));
     }
 }

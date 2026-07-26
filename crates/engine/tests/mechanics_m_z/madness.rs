@@ -235,7 +235,9 @@ fn test_madness_discard_goes_to_exile() {
         builder = builder.object(filler);
     }
 
-    // Add Fiery Temper last (highest ObjectId = last() picks it for discard).
+    // Add Fiery Temper last. Its ObjectId order no longer matters: PB-DP7 /
+    // DP-3 (CR 514.1) makes the cleanup discard a player CHOICE, not an
+    // auto-pick, so the test explicitly names Fiery Temper below.
     let temper = ObjectSpec::card(p1, "Fiery Temper")
         .in_zone(ZoneId::Hand(p1))
         .with_card_id(CardId("fiery-temper".to_string()))
@@ -244,11 +246,26 @@ fn test_madness_discard_goes_to_exile() {
 
     let state = builder.build().unwrap();
 
-    // Pass both players in End step to trigger the transition to Cleanup.
+    // Pass both players in End step to trigger the transition to Cleanup,
+    // which now PAUSES with a CleanupDiscardChoiceRequired.
     let (state, events_p1) = process_command(state, Command::PassPriority { player: p1 }).unwrap();
-    let (state_after, events_p2) =
-        process_command(state, Command::PassPriority { player: p2 }).unwrap();
-    let all_events: Vec<_> = events_p1.into_iter().chain(events_p2).collect();
+    let (state, events_p2) = process_command(state, Command::PassPriority { player: p2 }).unwrap();
+
+    // CR 514.1 / CR 701.9b: the active player chooses to discard Fiery Temper.
+    let temper_id = find_object(&state, "Fiery Temper");
+    let (state_after, events_p3) = process_command(
+        state,
+        Command::DiscardToHandSize {
+            player: p1,
+            cards: vec![temper_id],
+        },
+    )
+    .unwrap();
+    let all_events: Vec<_> = events_p1
+        .into_iter()
+        .chain(events_p2)
+        .chain(events_p3)
+        .collect();
 
     // Fiery Temper should be in exile (madness replacement).
     let in_exile = state_after
@@ -304,7 +321,8 @@ fn test_madness_non_madness_card_goes_to_graveyard() {
         builder = builder.object(filler);
     }
 
-    // Add Plain Instant last (highest ObjectId = last() picks it for discard).
+    // Add Plain Instant last. PB-DP7 / DP-3 (CR 514.1): the discard is a
+    // player CHOICE now, not an auto-pick, so the test explicitly names it.
     let plain = ObjectSpec::card(p1, "Plain Instant")
         .in_zone(ZoneId::Hand(p1))
         .with_card_id(CardId("plain-instant".to_string()))
@@ -313,10 +331,20 @@ fn test_madness_non_madness_card_goes_to_graveyard() {
 
     let state = builder.build().unwrap();
 
-    // Pass both players to trigger cleanup.
+    // Pass both players to trigger cleanup, which now PAUSES.
     let (state, _) = process_command(state, Command::PassPriority { player: p1 }).unwrap();
-    let (state_after, _events) =
-        process_command(state, Command::PassPriority { player: p2 }).unwrap();
+    let (state, _) = process_command(state, Command::PassPriority { player: p2 }).unwrap();
+
+    // CR 514.1 / CR 701.9b: the active player chooses to discard Plain Instant.
+    let plain_id = find_object(&state, "Plain Instant");
+    let (state_after, _events) = process_command(
+        state,
+        Command::DiscardToHandSize {
+            player: p1,
+            cards: vec![plain_id],
+        },
+    )
+    .unwrap();
 
     // Plain Instant should be in graveyard (no madness).
     let in_grave = state_after.objects().values().any(|o| {
@@ -366,7 +394,8 @@ fn test_madness_trigger_on_stack_after_discard() {
         builder = builder.object(filler);
     }
 
-    // Fiery Temper last — highest ObjectId, picked by obj_ids.last().
+    // Fiery Temper last. PB-DP7 / DP-3 (CR 514.1): the discard is a player
+    // CHOICE now, not an auto-pick, so the test explicitly names it below.
     let temper = ObjectSpec::card(p1, "Fiery Temper")
         .in_zone(ZoneId::Hand(p1))
         .with_card_id(CardId("fiery-temper".to_string()))
@@ -375,10 +404,22 @@ fn test_madness_trigger_on_stack_after_discard() {
 
     let state = builder.build().unwrap();
 
-    // Pass both players to trigger cleanup.
+    // Pass both players to trigger cleanup, which now PAUSES.
     let (state, _) = process_command(state, Command::PassPriority { player: p1 }).unwrap();
-    let (state_after, _events) =
-        process_command(state, Command::PassPriority { player: p2 }).unwrap();
+    let (state, _) = process_command(state, Command::PassPriority { player: p2 }).unwrap();
+
+    // CR 514.1 / CR 701.9b: the active player chooses to discard Fiery Temper.
+    // `enter_step`'s resume flushes the resulting PendingTrigger onto the stack
+    // in the same call (plan §4.3 "Path 2"), so it is visible in state_after.
+    let temper_id = find_object(&state, "Fiery Temper");
+    let (state_after, _events) = process_command(
+        state,
+        Command::DiscardToHandSize {
+            player: p1,
+            cards: vec![temper_id],
+        },
+    )
+    .unwrap();
 
     // A MadnessTrigger should be on the stack.
     let has_madness_trigger = state_after
@@ -587,7 +628,8 @@ fn test_madness_decline_goes_to_graveyard() {
         builder = builder.object(filler);
     }
 
-    // Fiery Temper last — highest ObjectId, picked by obj_ids.last().
+    // Fiery Temper last. PB-DP7 / DP-3 (CR 514.1): the discard is a player
+    // CHOICE now, not an auto-pick, so the test explicitly names it below.
     let temper = ObjectSpec::card(p1, "Fiery Temper")
         .in_zone(ZoneId::Hand(p1))
         .with_card_id(CardId("fiery-temper".to_string()))
@@ -596,10 +638,21 @@ fn test_madness_decline_goes_to_graveyard() {
 
     let state = builder.build().unwrap();
 
-    // Pass both players in End step → triggers Cleanup → Fiery Temper discarded → exiled.
+    // Pass both players in End step → Cleanup now PAUSES with a pending discard.
     let (state, _) = process_command(state, Command::PassPriority { player: p1 }).unwrap();
-    let (state_after_cleanup, _) =
-        process_command(state, Command::PassPriority { player: p2 }).unwrap();
+    let (state, _) = process_command(state, Command::PassPriority { player: p2 }).unwrap();
+
+    // CR 514.1 / CR 701.9b: the active player chooses to discard Fiery Temper
+    // → exiled → MadnessTrigger flushed onto the stack (plan §4.3 "Path 2").
+    let temper_id = find_object(&state, "Fiery Temper");
+    let (state_after_cleanup, _) = process_command(
+        state,
+        Command::DiscardToHandSize {
+            player: p1,
+            cards: vec![temper_id],
+        },
+    )
+    .unwrap();
 
     // Now resolve the MadnessTrigger by having all players pass priority.
     // MVP: the trigger auto-declines and moves the card to graveyard.

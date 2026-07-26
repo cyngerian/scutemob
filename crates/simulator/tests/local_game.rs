@@ -21,8 +21,8 @@ use mtg_engine::{
     GameState, GameStateBuilder, ObjectId, ObjectSpec, PlayerId, ZoneId,
 };
 use mtg_simulator::{
-    build_registry, AdvanceOutcome, Bot, DeckConfig, GameDriver, HaltReason, HumanChoice,
-    LegalAction, LocalGame, LocalGameError, LocalGameLimits, RandomBot, StubProvider,
+    build_registry, AdvanceOutcome, Bot, DecisionKind, DeckConfig, GameDriver, HaltReason,
+    HumanChoice, LegalAction, LocalGame, LocalGameError, LocalGameLimits, RandomBot, StubProvider,
 };
 
 /// A fixed, low-complexity deck: 99 Plains plus the first `Complete` legendary
@@ -572,4 +572,192 @@ fn test_local_game_max_consecutive_passes_halts() {
         AdvanceOutcome::Halted(HaltReason::InfiniteLoop { .. }) => {}
         other => panic!("expected Halted(InfiniteLoop), got {:?}", other),
     }
+}
+
+// ── PB-DP7 / DP-3 (CR 514.1): T14/T15, the cleanup discard reaches LocalGame ─
+
+/// A 2-player un-started `GameState` with P1 active and 8 filler cards
+/// already in P1's hand (over the default max hand size of 7). No library
+/// cards are needed: CR 103.8a's 2-player first-turn draw-skip
+/// (`state.turn.is_first_turn_of_game && state.players.len() <= 2`) means P1
+/// never draws before reaching Cleanup, so the hand stays at 8 and Cleanup
+/// pauses on turn 1 -- the fastest deterministic route to the pending
+/// decision, without threading a full deck/library setup through it.
+fn state_with_oversized_hand_for_p1() -> GameState {
+    let mut builder = GameStateBuilder::new()
+        .add_player(PlayerId(1))
+        .add_player(PlayerId(2))
+        .active_player(PlayerId(1));
+    for i in 0..8u32 {
+        builder = builder.object(
+            ObjectSpec::card(PlayerId(1), &format!("Filler {i}"))
+                .in_zone(ZoneId::Hand(PlayerId(1))),
+        );
+    }
+    builder.build().expect("oversized-hand state should build")
+}
+
+/// Drive `game` forward, answering every ordinary `Priority` decision with
+/// `PassPriority`, until the `CleanupDiscard` decision (PB-DP7 / DP-3)
+/// appears. Panics if the game ends or halts first -- that would mean the
+/// fixture stopped producing the pause this test exists to observe.
+fn drive_to_cleanup_discard<P: mtg_simulator::LegalActionProvider>(
+    game: &mut LocalGame<P>,
+) -> mtg_simulator::PendingDecision {
+    loop {
+        match game.advance() {
+            AdvanceOutcome::AwaitingHuman(d) if d.kind == DecisionKind::CleanupDiscard => {
+                return d;
+            }
+            AdvanceOutcome::AwaitingHuman(d) => {
+                game.submit(
+                    d.seq,
+                    HumanChoice::Command(Command::PassPriority { player: d.player }),
+                )
+                .unwrap_or_else(|e| panic!("PassPriority submit failed: {:?}", e));
+            }
+            other => panic!(
+                "expected to reach CleanupDiscard, got a terminal outcome instead: {:?}",
+                other
+            ),
+        }
+    }
+}
+
+/// T14: CR 117.3a-style stop, but for the engine's first BLOCKING decision
+/// (CR 514.1, PB-DP7 / DP-3). A human seat is offered exactly one
+/// `DiscardToHandSize` action; a second `advance()` returns the SAME `seq`
+/// (S1's idempotence guard); `submit` rejects a command naming another seat
+/// (`BadParams`) and a stale `seq` (`StaleDecision`); the correct `submit`
+/// lets the game proceed.
+#[test]
+fn test_dp7_local_game_awaits_human_on_cleanup_discard() {
+    let state = state_with_oversized_hand_for_p1();
+    let human_seats: BTreeSet<PlayerId> = [PlayerId(1)].into_iter().collect();
+    let mut bots: HashMap<PlayerId, Box<dyn Bot>> = HashMap::new();
+    bots.insert(
+        PlayerId(2),
+        Box::new(RandomBot::new(1, "Bot-2".to_string())),
+    );
+    let (mut game, _start_events) = LocalGame::start(
+        state,
+        1,
+        StubProvider,
+        bots,
+        human_seats,
+        small_limits(5),
+        true,
+    )
+    .expect("game should start");
+
+    let decision = drive_to_cleanup_discard(&mut game);
+    assert_eq!(decision.player, PlayerId(1));
+    assert_eq!(decision.actions.len(), 1);
+    let cards = match &decision.actions[0] {
+        LegalAction::DiscardToHandSize { count, hand, cards } => {
+            assert_eq!(*count, 1);
+            assert_eq!(hand.len(), 8);
+            assert_eq!(cards.len(), 1);
+            cards.clone()
+        }
+        other => panic!("expected DiscardToHandSize, got {:?}", other),
+    };
+
+    // Idempotence (S1's guard): a second advance() with the decision still
+    // outstanding returns the SAME seq, not a freshly issued one.
+    match game.advance() {
+        AdvanceOutcome::AwaitingHuman(d2) => assert_eq!(d2.seq, decision.seq),
+        other => panic!("expected the same AwaitingHuman again, got {:?}", other),
+    }
+
+    // submit() naming another seat -> BadParams.
+    let wrong_seat = game.submit(
+        decision.seq,
+        HumanChoice::Command(Command::DiscardToHandSize {
+            player: PlayerId(2),
+            cards: cards.clone(),
+        }),
+    );
+    assert!(matches!(wrong_seat, Err(LocalGameError::BadParams(_))));
+
+    // submit() with a stale seq -> StaleDecision.
+    let stale = game.submit(
+        decision.seq + 100,
+        HumanChoice::Command(Command::DiscardToHandSize {
+            player: PlayerId(1),
+            cards: cards.clone(),
+        }),
+    );
+    assert!(matches!(
+        stale,
+        Err(LocalGameError::StaleDecision { expected, got })
+            if expected == decision.seq && got == decision.seq + 100
+    ));
+
+    // Correct submit -> the game proceeds (no error, and the decision clears).
+    let ok = game.submit(
+        decision.seq,
+        HumanChoice::Command(Command::DiscardToHandSize {
+            player: PlayerId(1),
+            cards,
+        }),
+    );
+    assert!(
+        ok.is_ok(),
+        "the correct answer must be accepted: {:?}",
+        ok.err()
+    );
+}
+
+/// T15: a bot-only game does not halt at a cleanup discard -- `RandomBot`
+/// (via its new `LegalAction::DiscardToHandSize` arm) submits the provider's
+/// deterministic default subset, exactly as SR-38 requires (the provider
+/// never offers an action the engine rejects), and the game keeps running.
+#[test]
+fn test_dp7_local_game_bot_seat_auto_answers() {
+    let state = state_with_oversized_hand_for_p1();
+    let mut bots: HashMap<PlayerId, Box<dyn Bot>> = HashMap::new();
+    bots.insert(
+        PlayerId(1),
+        Box::new(RandomBot::new(1, "Bot-1".to_string())),
+    );
+    bots.insert(
+        PlayerId(2),
+        Box::new(RandomBot::new(2, "Bot-2".to_string())),
+    );
+    let (mut game, _start_events) = LocalGame::start(
+        state,
+        7,
+        StubProvider,
+        bots,
+        BTreeSet::new(),
+        small_limits(3),
+        true,
+    )
+    .expect("game should start");
+
+    let outcome = game.advance();
+    // The regression this guards is a bot game halting (or looping) because
+    // a rejected/impossible cleanup-discard command left both the action and
+    // its PassPriority fallback failing. `EngineError`/`NoLegalActions` are
+    // exactly that failure mode; `MaxTurns`/`InfiniteLoop` or a natural
+    // `GameOver` (P2's empty library, CR 104.3b) are unrelated, benign stops.
+    assert!(
+        !matches!(
+            outcome,
+            AdvanceOutcome::Halted(HaltReason::EngineError(_))
+                | AdvanceOutcome::Halted(HaltReason::NoLegalActions { .. })
+        ),
+        "a bot-only game must not halt because of a rejected cleanup discard: {:?}",
+        outcome
+    );
+    // At least one DiscardToHandSize command must have been applied and
+    // journalled -- the regression this test guards is a bot game silently
+    // halting (or looping) at cleanup instead of answering.
+    assert!(
+        game.journal()
+            .iter()
+            .any(|r| matches!(r.command, Command::DiscardToHandSize { .. })),
+        "the journal must record at least one DiscardToHandSize command"
+    );
 }

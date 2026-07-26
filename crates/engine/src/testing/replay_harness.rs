@@ -442,6 +442,11 @@ pub fn translate_player_action(
     // pip, in cost order: true = pay 2 life, false = pay mana. Empty for non-Phyrexian
     // costs or all other action types.
     phyrexian_life_payment_choices: &[bool],
+    // CR 514.1 (PB-DP7 / DP-3): For `discard_to_hand_size`, names of the cards
+    // to discard, answering an outstanding `CleanupDiscardChoiceRequired`.
+    // Empty = fall back to `turn_actions::default_cleanup_discard`. Ignored
+    // for all other action types.
+    discard_cards: &[String],
     state: &GameState,
     players: &HashMap<String, PlayerId>,
 ) -> Option<Command> {
@@ -894,6 +899,31 @@ pub fn translate_player_action(
                 player,
                 card: card_id,
             })
+        }
+        // CR 514.1 (PB-DP7 / DP-3): Answer an outstanding cleanup discard.
+        // discard_cards names the cards to discard; if empty, falls back to
+        // the deterministic default (the highest-ObjectId subset), matching
+        // pre-PB-DP7 script behaviour.
+        //
+        // NAME COLLISION WARNING: this string is also a documented value of
+        // `ScriptAction::TurnBasedAction.action` (`script_schema.rs`), which is
+        // purely informational and dispatches no `Command` at all. This match
+        // arm is reached ONLY when the action came in via `ScriptAction::PlayerAction`
+        // -- see `script_schema.rs`'s doc comments on both variants' `action`
+        // fields for the full cross-reference. A script using the
+        // `TurnBasedAction` spelling instead of this one would silently fail
+        // to answer the block, and every subsequent action would come back
+        // `CommandRejected` (`BlockedByPendingDecision`).
+        "discard_to_hand_size" => {
+            let cards: Vec<crate::state::ObjectId> = if discard_cards.is_empty() {
+                crate::rules::turn_actions::default_cleanup_discard(state, player)
+            } else {
+                discard_cards
+                    .iter()
+                    .map(|name| find_in_hand(state, player, name))
+                    .collect::<Option<Vec<_>>>()?
+            };
+            Some(Command::DiscardToHandSize { player, cards })
         }
         // CR 702.52a: Choose to use dredge instead of drawing. card_name is the
         // dredge card to return from graveyard; if absent, declines dredge (draws normally).

@@ -1227,14 +1227,20 @@ fn test_dp5_unanswered_pending_draw_does_not_deadlock() {
 /// `GameState.pending_draws` field; PROTOCOL_VERSION unchanged at 27 (`PendingDraw` is
 /// reachable only from `GameState`, never `Command`/`GameEvent`/`ReplayLog`).
 fn test_dp5_wire_version_sentinels() {
+    // PB-DP5 bumped HASH_SCHEMA_VERSION to 64 and left PROTOCOL_VERSION at 27
+    // (pending_draws never touches the wire closure). PB-DP7 (2026-07-26)
+    // bumped both again -- HASH to 65 (pending_cleanup_discard) and PROTOCOL
+    // to 28 (Command::DiscardToHandSize / GameEvent::CleanupDiscardChoiceRequired).
+    // This sentinel pins the LIVE version, like every other scattered sentinel
+    // in the suite; it moves on the next wire/hash-affecting PB too.
     assert_eq!(
         mtg_engine::HASH_SCHEMA_VERSION,
-        64u8,
-        "HASH_SCHEMA_VERSION should be 64 after PB-DP5's pending_draws field"
+        65u8,
+        "HASH_SCHEMA_VERSION live sentinel"
     );
     assert_eq!(
         mtg_engine::PROTOCOL_VERSION,
-        27,
-        "PROTOCOL_VERSION must be unchanged -- pending_draws never touches the wire closure"
+        28,
+        "PROTOCOL_VERSION live sentinel"
     );
 }

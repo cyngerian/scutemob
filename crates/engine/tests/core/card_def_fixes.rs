@@ -464,10 +464,32 @@ fn test_no_thought_vessel_discards_to_hand_size() {
         },
     )
     .unwrap();
-    let (state, events) = process_command(
+    let (state, _) = process_command(
         state,
         Command::PassPriority {
             player: PlayerId(4),
+        },
+    )
+    .unwrap();
+
+    // Cleanup now PAUSES (PB-DP7 / DP-3, CR 514.1) with a pending discard
+    // instead of auto-discarding; the active player answers with 2 chosen ids.
+    let entry = state
+        .pending_cleanup_discard()
+        .expect("cleanup discard should be pending for p1");
+    assert_eq!(entry.count, 2);
+    let chosen: Vec<_> = state
+        .zone(&ZoneId::Hand(p1))
+        .unwrap()
+        .object_ids()
+        .into_iter()
+        .take(2)
+        .collect();
+    let (state, events) = process_command(
+        state,
+        Command::DiscardToHandSize {
+            player: p1,
+            cards: chosen,
         },
     )
     .unwrap();
@@ -551,7 +573,31 @@ fn test_thought_vessel_only_affects_its_controller_other_players_discard() {
         },
     )
     .unwrap();
-    let (state, events) = process_command(state, Command::PassPriority { player: p1 }).unwrap();
+    let (state, _) = process_command(state, Command::PassPriority { player: p1 }).unwrap();
+
+    // Cleanup now PAUSES (PB-DP7 / DP-3, CR 514.1) with a pending discard for
+    // P2 (the ACTIVE player) instead of auto-discarding — CR 514.1 names only
+    // the active player, which is the whole point of this test.
+    let entry = state
+        .pending_cleanup_discard()
+        .expect("cleanup discard should be pending for p2");
+    assert_eq!(entry.player, p2);
+    assert_eq!(entry.count, 2);
+    let chosen: Vec<_> = state
+        .zone(&ZoneId::Hand(p2))
+        .unwrap()
+        .object_ids()
+        .into_iter()
+        .take(2)
+        .collect();
+    let (state, events) = process_command(
+        state,
+        Command::DiscardToHandSize {
+            player: p2,
+            cards: chosen,
+        },
+    )
+    .unwrap();
 
     // P2 (without Thought Vessel, 9 cards, ACTIVE player) MUST discard during cleanup.
     let p2_discards: Vec<_> = events

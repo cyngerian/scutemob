@@ -57,6 +57,9 @@ export function formatEvent(event) {
       case 'DiscardedToHandSize':
         return `${data.player} discarded to hand size`;
 
+      case 'CleanupDiscardChoiceRequired':
+        return `${data.player} must discard ${data.count} card(s) to hand size (CR 514.1)`;
+
       case 'PlayerLost':
         return `${data.player} lost the game (${formatLossReason(data.reason)})`;
 
@@ -432,6 +435,7 @@ export function eventCategory(event) {
     case 'CountersAnnihilated':
     case 'LegendaryRuleApplied':
     case 'DiscardedToHandSize':
+    case 'CleanupDiscardChoiceRequired':
       return 'zone';
 
     case 'AttackersDeclared':

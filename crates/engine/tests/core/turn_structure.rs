@@ -9,6 +9,27 @@ fn pass(state: GameState, player: PlayerId) -> (GameState, Vec<GameEvent>) {
     process_command(state, Command::PassPriority { player }).unwrap()
 }
 
+/// CR 514.1 (PB-DP7 / DP-3): if a cleanup discard is pending, answer it with
+/// the deterministic default (the `count` highest `ObjectId`s -- reproduces
+/// the engine's pre-PB-DP7 auto-pick), returning the resulting state and
+/// events. `None` if nothing was pending, so callers can distinguish "the
+/// game is blocked on a real decision I answered" from "priority_holder is
+/// None for some other reason" (which would be an actual bug).
+fn answer_pending_cleanup_discard(state: GameState) -> Option<(GameState, Vec<GameEvent>)> {
+    let entry = state.pending_cleanup_discard()?.clone();
+    let cards = mtg_engine::rules::turn_actions::default_cleanup_discard(&state, entry.player);
+    Some(
+        process_command(
+            state,
+            Command::DiscardToHandSize {
+                player: entry.player,
+                cards,
+            },
+        )
+        .unwrap(),
+    )
+}
+
 /// Build a 4-player state with enough library cards that nobody decks out.
 fn four_player_with_libraries(cards_per_player: usize) -> GameState {
     let mut builder = GameStateBuilder::four_player();
@@ -163,7 +184,18 @@ fn test_ten_full_turn_cycles() {
     while state.turn().turn_number <= target_turns {
         let holder = match state.turn().priority_holder {
             Some(h) => h,
-            None => panic!("no priority holder at turn {}", state.turn().turn_number),
+            None => {
+                // PB-DP7 / DP-3 (CR 514.1): with a 15-card library and a draw
+                // every turn, a hand can exceed 7 cards and cleanup now PAUSES
+                // instead of auto-discarding -- `priority_holder` is genuinely
+                // `None` during that pause (CR 514.3: no priority in cleanup).
+                // Answer it deterministically and keep going; anything else
+                // absent a pending discard is a real bug, so still panic.
+                let (new_state, _) = answer_pending_cleanup_discard(state)
+                    .unwrap_or_else(|| panic!("no priority holder and no pending cleanup discard"));
+                state = new_state;
+                continue;
+            }
         };
         let (new_state, _) = pass(state, holder);
         state = new_state;

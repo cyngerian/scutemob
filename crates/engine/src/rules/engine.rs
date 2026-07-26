@@ -60,6 +60,91 @@ fn check_and_flush_triggers(state: &mut GameState, events: &mut Vec<GameEvent>) 
     let trigger_events = abilities::flush_pending_triggers(state);
     events.extend(trigger_events);
 }
+/// The one decision, if any, that is currently gating the game (PB-DP7 / DP-3).
+///
+/// CR 514.1 is the only kind today. PB-DP8 (CR 603.3d trigger targets) and
+/// PB-DP9 (CR 701.22a/701.23/701.25a) are expected to append variants.
+///
+/// **What genuinely generalises, and what does not (fix-cycle Findings 3+4):**
+/// the PROGRESS gate (`enter_step`'s consult at the bottom of this file) is
+/// written against this enum, not the field it wraps, so a new variant needs
+/// no new progress-gate site -- that part of the original claim holds. It is
+/// **not** true of every consult site: the ADMISSION gate below
+/// (`process_command`) hard-codes `Command::DiscardToHandSize` in its
+/// allow-list, and a new variant's answering command must be added there
+/// explicitly. Consumers outside this crate (the simulator, the TUI) must go
+/// through `GameState::blocking_decision()` -- which applies the same
+/// liveness filter this type's constructor does -- rather than reading
+/// `pending_cleanup_discard()` or any future per-kind field directly; reading
+/// the raw field bypasses the filter and can disagree with the engine's own
+/// gate (see `handle_concede`'s dead-player note). See the plan's §1 for the
+/// full design ("The blocking pending-decision mechanism") and its §1.5,
+/// which this comment amends.
+///
+/// **Second fix-cycle addition (closing /review, Issue 6, LOW): the admission
+/// gate is not the only per-variant obligation a new variant hits.** Two more,
+/// both keyed on the field's NAME rather than on this enum, so adding a
+/// variant to an existing per-kind field is free but a genuinely NEW per-kind
+/// field is not:
+/// - `handle_concede` (below, near its `pending_cleanup_discard = None`
+///   assignment) clears the raw field explicitly on concede -- a new per-kind
+///   field needs the same clear-on-concede treatment, or a stale entry
+///   outlives the player who owned it (see the dead-player note above).
+/// - The field is hashed BY NAME in two places: `rules/loop_detection.rs`'s
+///   mandatory-state fingerprint (`state.pending_cleanup_discard.hash_into(..)`)
+///   and `state/hash.rs`'s `public_state_hash`
+///   (`self.pending_cleanup_discard.hash_into(&mut hasher)`) -- a new
+///   per-kind field needs its own line in both, by the same HASH-bump
+///   procedure this field's own addition followed (`state/hash.rs`'s History
+///   comment).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum BlockingDecision {
+    /// CR 514.1: `player` must discard `count` cards to reach their maximum
+    /// hand size before the cleanup step can complete.
+    CleanupDiscard { player: PlayerId, count: u32 },
+}
+impl BlockingDecision {
+    /// The player whose answer would clear this decision.
+    pub fn player(&self) -> PlayerId {
+        match self {
+            BlockingDecision::CleanupDiscard { player, .. } => *player,
+        }
+    }
+}
+impl std::fmt::Display for BlockingDecision {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BlockingDecision::CleanupDiscard { player, count } => {
+                write!(
+                    f,
+                    "CR 514.1 cleanup discard: player {:?} must discard {} card(s)",
+                    player, count
+                )
+            }
+        }
+    }
+}
+/// Read the one pending decision (if any) currently gating the game.
+///
+/// Returns `None` if the entry's player is no longer alive (`has_lost ||
+/// has_conceded`) -- a dead player's entry cannot block anyone (see
+/// `handle_concede`, which also clears the field itself so it does not
+/// pollute the state hash).
+pub(crate) fn blocking_decision(state: &GameState) -> Option<BlockingDecision> {
+    let entry = state.pending_cleanup_discard()?;
+    let alive = state
+        .players()
+        .get(&entry.player)
+        .map(|p| !p.has_lost && !p.has_conceded)
+        .unwrap_or(false);
+    if !alive {
+        return None;
+    }
+    Some(BlockingDecision::CleanupDiscard {
+        player: entry.player,
+        count: entry.count,
+    })
+}
 /// Process a player command against the current game state.
 ///
 /// Returns the new game state and a list of events describing what happened.
@@ -73,6 +158,23 @@ pub fn process_command(
     // Validate: game not over
     if is_game_over(&state) {
         return Err(GameStateError::GameAlreadyOver);
+    }
+    // PB-DP7 / DP-3 admission gate (CR 514.3: no player has priority in
+    // cleanup, so no spell can be cast and no ability activated while a
+    // BlockingDecision is outstanding). Only the answering command from the
+    // named player, and `Concede` from any player, are legal -- see the
+    // plan's §1.4. Mana abilities are NOT exempted, unlike PB-DP4's payment
+    // deadlines: CR 605.3a requires priority to activate one, and nobody has
+    // priority here.
+    if let Some(decision) = blocking_decision(&state) {
+        let allowed = matches!(&command, Command::Concede { .. })
+            || matches!(&command, Command::DiscardToHandSize { player, .. } if *player == decision.player());
+        if !allowed {
+            return Err(GameStateError::BlockedByPendingDecision {
+                player: decision.player(),
+                decision: decision.to_string(),
+            });
+        }
     }
     match command {
         Command::PassPriority { player } => {
@@ -324,6 +426,50 @@ pub fn process_command(
             loop_detection::reset_loop_detection(&mut state);
             let mut events = miracle::handle_choose_miracle(&mut state, player, card, reveal)?;
             check_and_flush_triggers(&mut state, &mut events);
+            all_events.extend(events);
+        }
+        // ── Cleanup discard (CR 514.1, PB-DP7 / DP-3) ────────────────────
+        Command::DiscardToHandSize { player, cards } => {
+            // validate_player_exists, NOT validate_player_active: the entry's
+            // player is by construction the active player, who is by
+            // construction alive (a dead player's entry is dropped in
+            // blocking_decision). Precedent: ChooseDredge above.
+            validate_player_exists(&state, player)?;
+            // CR 104.4b: a cleanup discard is a meaningful player choice.
+            loop_detection::reset_loop_detection(&mut state);
+            let mut events = turn_actions::handle_discard_to_hand_size(&mut state, player, cards)?;
+            // Fix-cycle Finding 7 (LOW): the events above (including
+            // `GameEvent::DiscardedToHandSize`) are never passed through
+            // `abilities::check_triggers` / `check_and_flush_triggers` -- this
+            // is harmless ONLY because `check_triggers` has no
+            // `DiscardedToHandSize` arm today, so nothing is watching for it.
+            // If a "whenever you discard a card" trigger arm is ever added
+            // there (seed OOS-DP7-10 -- Waste Not, Bone Miser, Containment
+            // Construct), this call site will need one too, or those
+            // abilities will silently never fire off a CR 514.1 discard.
+            // Resume the cleanup step: `cleanup_actions` is idempotent once the
+            // hand is at max size (the pause is taken before any discard), so
+            // this second pass completes CR 514.2 / CR 500.5 / CleanupPerformed
+            // normally -- the same shape the CR 514.3a extra-round machinery
+            // already relies on. `enter_step` also runs the SBA/trigger/priority
+            // logic that a plain `check_and_flush_triggers` would not.
+            //
+            // Fix-cycle Finding 2 (HIGH): `handle_discard_to_hand_size` above
+            // now rejects the command outright unless `state.turn.step ==
+            // Step::Cleanup`, so mutation can never happen out of step and
+            // this resume is already unreachable when it should not run.
+            // Guarded explicitly here too, defense-in-depth, so a future
+            // change to the handler's validation order cannot silently
+            // resurrect the hazard the handler's own check exists to close.
+            debug_assert_eq!(
+                state.turn.step,
+                crate::state::turn::Step::Cleanup,
+                "handle_discard_to_hand_size must have rejected this command otherwise"
+            );
+            if state.turn.step == crate::state::turn::Step::Cleanup {
+                let enter_events = enter_step(&mut state)?;
+                events.extend(enter_events);
+            }
             all_events.extend(events);
         }
         // ── Crew (CR 702.122) ────────────────────────────────────────────
@@ -1999,6 +2145,17 @@ fn enter_step(state: &mut GameState) -> Result<Vec<GameEvent>, GameStateError> {
             events.extend(game_over_events);
             return Ok(events);
         }
+        // PB-DP7 / DP-3 progress gate: if a BlockingDecision is now outstanding
+        // (today, only CR 514.1's cleanup discard), STOP here. Do not run an
+        // SBA/trigger round against a half-performed turn-based action, and do
+        // not auto-advance past the unanswered question. `process_command`'s
+        // admission gate keeps every other command out in the meantime; the
+        // `Command::DiscardToHandSize` handler re-enters this function on the
+        // resume pass, at which point this check is false and the loop
+        // continues normally.
+        if blocking_decision(state).is_some() {
+            return Ok(events);
+        }
         // CR 514.3a: After cleanup turn-based actions, check SBAs and triggers.
         // If any events are produced, grant priority to the active player.
         // The active player (and others) then pass; `handle_all_passed` will
@@ -2126,6 +2283,26 @@ fn handle_concede(
     } else {
         return Err(GameStateError::PlayerNotFound(player));
     }
+    // PB-DP7 / DP-3: clear a stale cleanup-discard entry belonging to the
+    // conceding player. `blocking_decision` already treats a dead player's
+    // entry as absent (so this is not load-bearing for correctness), but the
+    // field must still be cleared here or it pollutes the state hash forever.
+    //
+    // Fix-cycle Finding 5 (MEDIUM): record WHETHER an entry existed for this
+    // player before clearing it. If one did, CR 514.1 had paused before any
+    // of CR 514.2 (damage clear / "until end of turn" expiry) ran -- see
+    // `cleanup_actions`'s pause point. Conceding must not abandon CR 514.2 for
+    // the turn (CR 800.4j: the turn continues to completion even without an
+    // active player), so the turn-advance branch below re-runs
+    // `cleanup_actions` once to finish it before advancing.
+    let had_pending_discard_for_conceding_player = state
+        .pending_cleanup_discard
+        .as_ref()
+        .map(|e| e.player == player)
+        .unwrap_or(false);
+    if had_pending_discard_for_conceding_player {
+        state.pending_cleanup_discard = None;
+    }
     events.push(GameEvent::PlayerConceded { player });
     // CR 611.2b: Expire any UntilYourNextTurn continuous effects belonging to the
     // conceding player. If the player's turn never arrives, these effects would
@@ -2176,6 +2353,26 @@ fn handle_concede(
         }
         // If it was the conceding player's turn, advance to next turn
         if state.turn.active_player == player {
+            // Fix-cycle Finding 5 (MEDIUM), CR 800.4j / CR 514.2: the
+            // conceding player's own abandoned cleanup step must still
+            // complete CR 514.2 before the turn advances. This can only be
+            // reachable when `state.turn.step == Step::Cleanup` (the entry is
+            // recorded exclusively by `cleanup_actions`, which only ever runs
+            // in that step), so the step check is a defensive mirror, not
+            // load-bearing. `cleanup_actions` is safe to call again here even
+            // though the entry is already cleared and the player is already
+            // marked conceded: with Finding 1's `active_is_alive` guard in
+            // place, it will not try to re-record anything -- it will simply
+            // fall straight through to `clear_damage` / the saddle clear /
+            // `expire_end_of_turn_effects` / `empty_all_mana_pools` /
+            // `CleanupPerformed`, exactly the CR 514.2 completion this
+            // abandoned turn is owed.
+            if had_pending_discard_for_conceding_player
+                && state.turn.step == crate::state::turn::Step::Cleanup
+            {
+                let cleanup_events = turn_actions::cleanup_actions(state);
+                events.extend(cleanup_events);
+            }
             // MR-M2-15: Clear stale combat state so the next player doesn't
             // inherit an in-progress combat from the conceded turn.
             state.combat = None;

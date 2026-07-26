@@ -319,6 +319,7 @@ impl GameStateBuilder {
             next_replacement_id: 0,
             pending_zone_changes: Vector::new(),
             pending_draws: Vector::new(),
+            pending_cleanup_discard: None,
             pending_commander_zone_choices: Vector::new(),
             prevention_counters: OrdMap::new(),
             pending_triggers: Vector::new(),

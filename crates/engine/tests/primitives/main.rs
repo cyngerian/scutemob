@@ -24,6 +24,7 @@ mod pb_dp3_modal_mode_announcement;
 mod pb_dp4_attack_tax_and_payment_deadline;
 mod pb_dp5_pending_draw_choice;
 mod pb_dp6_intervening_if_queue_time;
+mod pb_dp7_cleanup_discard;
 mod pb_ef10_sacrifice_driven_amounts;
 mod pb_ef11_spell_single_target;
 mod pb_ef11_wheel_greatest_discarded;

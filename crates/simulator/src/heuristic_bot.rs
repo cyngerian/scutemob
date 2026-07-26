@@ -104,6 +104,11 @@ impl HeuristicBot {
                     2
                 }
             }
+            // PB-DP7 / DP-3 (CR 514.1): it is the ONLY legal action while a
+            // cleanup discard is outstanding (the provider offers nothing
+            // else), so any score works -- scored high to document that it is
+            // not optional.
+            LegalAction::DiscardToHandSize { .. } => 100,
         }
     }
 }

@@ -741,3 +741,19 @@ pub struct AdditionalLandPlaySource {
     /// Number of extra land plays granted per turn.
     pub count: u32,
 }
+/// CR 514.1 (PB-DP7 / DP-3): the outstanding cleanup-step discard-to-hand-size
+/// decision, if any.
+///
+/// At most one can ever be outstanding: CR 514.1 gives the discard to the
+/// active player only, once per cleanup step. Recorded by `cleanup_actions`
+/// when the active player's hand exceeds their maximum hand size, and cleared
+/// by `handle_discard_to_hand_size` (or `handle_concede`, if the entry's
+/// player concedes while it is outstanding). See `rules::engine::blocking_decision`
+/// for how this gates game progress.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PendingCleanupDiscard {
+    /// The active player who must discard.
+    pub player: PlayerId,
+    /// How many cards must be discarded to reach maximum hand size.
+    pub count: u32,
+}

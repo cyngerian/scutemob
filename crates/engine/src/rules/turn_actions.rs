@@ -8,7 +8,7 @@ use crate::state::error::GameStateError;
 use crate::state::game_object::{Designations, ObjectId, TriggerEvent};
 use crate::state::player::PlayerId;
 use crate::state::stack::TriggerData;
-use crate::state::stubs::{PendingTrigger, PendingTriggerKind};
+use crate::state::stubs::{PendingCleanupDiscard, PendingTrigger, PendingTriggerKind};
 use crate::state::turn::Step;
 use crate::state::types::AltCostKind;
 use crate::state::types::{CounterType, CumulativeUpkeepCost, KeywordAbility};
@@ -1259,7 +1259,13 @@ pub fn draw_card(
 /// Then CR 514.2: "remove all damage from permanents and end 'until end of turn'
 /// and 'this turn' effects."
 ///
-/// M2: auto-discards from end of hand (no player choice). M3+ adds choice.
+/// PB-DP7 (DP-3): the CR 514.1 discard is a player choice (`Command::DiscardToHandSize`),
+/// not an auto-pick. This function PAUSES and returns a single
+/// `GameEvent::CleanupDiscardChoiceRequired` when a discard is needed; the actual
+/// discard is performed by `rules::engine::handle_discard_to_hand_size` when the
+/// answer arrives, and `enter_step` re-enters this function to complete CR 514.2 /
+/// CR 500.5 / `CleanupPerformed`. See the plan's §3 for why this is the correct
+/// pause point.
 pub fn cleanup_actions(state: &mut GameState) -> Vec<GameEvent> {
     let active = state.turn.active_player;
     let mut events = Vec::new();
@@ -1301,76 +1307,54 @@ pub fn cleanup_actions(state: &mut GameState) -> Vec<GameEvent> {
         .map(|p| p.max_hand_size)
         .unwrap_or(7);
     let hand_zone = ZoneId::Hand(active);
-    let graveyard_zone = ZoneId::Graveyard(active);
-    loop {
-        if no_max {
-            break;
-        }
+    // Fix-cycle Finding 1 (HIGH): a dead or conceded active player must NEVER
+    // get a pending cleanup-discard entry. CR 514.1 names "the active player";
+    // a player who has left the game (CR 800.4a) performs no turn-based
+    // action and has nothing to discard from. Without this guard, an active
+    // player who lost to an SBA (or conceded) earlier in their own turn --
+    // reachable via a lethal spell or an empty-library draw -- would get a
+    // permanently stale entry: `blocking_decision`'s liveness filter stops the
+    // *engine* from hanging on it, but nothing ever clears the field, CR 514.2
+    // is skipped for the turn (violating CR 800.4j, which requires the turn
+    // to complete), and every out-of-engine consumer that reads the raw field
+    // pins on the dead player forever. Skipping this whole block, rather than
+    // just the recording branch, lets the function fall straight through to
+    // CR 514.2 below -- exactly per CR 800.4j.
+    let active_is_alive = state
+        .expect_player(active)
+        .map(|p| !p.has_lost && !p.has_conceded)
+        .unwrap_or(false);
+    // CR 514.1 / CR 701.9b (PB-DP7 / DP-3): if the active player's hand exceeds
+    // their maximum hand size, PAUSE here and ask which cards to discard --
+    // do not auto-pick. This is the ONLY place cleanup_actions can pause: the
+    // CR 402.2 recompute above has already run (hard constraint 9 -- a
+    // Reliquary Tower / Thought Vessel player is never asked), and nothing of
+    // CR 514.2 (damage clear / "until end of turn" expiry) or CR 500.5 (mana
+    // pool empty) has run yet (hard constraint 7). The resume is cheap: once
+    // the answer clears `pending_cleanup_discard`, `enter_step` re-enters this
+    // function, the hand is already at max size, this branch is skipped, and
+    // everything below runs exactly once. See plan §3.
+    if !no_max && active_is_alive {
         let hand_size = state.expect_zone(&hand_zone).map(|z| z.len()).unwrap_or(0);
-        if hand_size <= max_hand_size {
-            break;
-        }
-        // Pick the last object in the hand (arbitrary in M2 — hand is unordered)
-        let obj_ids = state
-            .expect_zone(&hand_zone)
-            .map(|z| z.object_ids())
-            .unwrap_or_default();
-        if let Some(&discard_id) = obj_ids.last() {
-            // MR-M2-06: Use the old hand ObjectId, not the new graveyard ID.
-            // `discard_id` identifies the card while it was in hand; callers
-            // (triggers, UI) correlate by the hand identity, not the new zone ID.
-            // CR 702.35a: If the discarded card has Madness, exile it instead of graveyard.
-            let cleanup_card_id_opt = state
-                .expect_object(discard_id)
-                .and_then(|o| o.card_id.clone());
-            let has_madness = state
-                .expect_object(discard_id)
-                .map(|obj| {
-                    obj.characteristics
-                        .keywords
-                        .contains(&KeywordAbility::Madness)
-                })
-                .unwrap_or(false);
-            let destination = if has_madness {
-                ZoneId::Exile
-            } else {
-                graveyard_zone
-            };
-            if let Some((new_id, _)) = state.expect_move_object_to_zone(discard_id, destination) {
-                events.push(GameEvent::DiscardedToHandSize {
-                    player: active,
-                    object_id: discard_id,
-                    zone_from: hand_zone,
-                    zone_to: destination,
-                });
-                // CR 702.35a: Queue the madness trigger via pending_triggers so that
-                // flush_pending_triggers properly signals priority granting in cleanup.
-                if has_madness {
-                    let madness_cost = cleanup_card_id_opt.as_ref().and_then(|cid| {
-                        state.card_registry.get(cid.clone()).and_then(|def| {
-                            def.abilities.iter().find_map(|a| {
-                                if let AbilityDefinition::Madness { cost } = a {
-                                    Some(cost.clone())
-                                } else {
-                                    None
-                                }
-                            })
-                        })
-                    });
-                    state.pending_triggers.push_back(PendingTrigger {
-                        data: Some(TriggerData::Madness {
-                            exiled_card: new_id,
-                            cost: madness_cost.unwrap_or_default(),
-                        }),
-                        ..PendingTrigger::blank(new_id, active, PendingTriggerKind::Madness)
-                    });
-                }
-            }
-        } else {
-            break;
+        if hand_size > max_hand_size {
+            let count = (hand_size - max_hand_size) as u32;
+            let hand: Vec<ObjectId> = state
+                .expect_zone(&hand_zone)
+                .map(|z| z.object_ids())
+                .unwrap_or_default();
+            state.pending_cleanup_discard = Some(PendingCleanupDiscard {
+                player: active,
+                count,
+            });
+            events.push(GameEvent::CleanupDiscardChoiceRequired {
+                player: active,
+                count,
+                hand,
+            });
+            return events;
         }
     }
-    // Clear damage from all permanents (CR 514.1)
+    // Clear damage from all permanents (CR 514.2)
     clear_damage(state);
     events.push(GameEvent::DamageCleared);
     // CR 702.171b: Clear saddled designation from all battlefield permanents.
@@ -1393,7 +1377,7 @@ pub fn cleanup_actions(state: &mut GameState) -> Vec<GameEvent> {
     }
     // Remove "until end of turn" continuous effects (CR 514.2).
     super::layers::expire_end_of_turn_effects(state);
-    // Empty mana pools (CR 500.4). `empty_all_mana_pools` returns a conditional
+    // Empty mana pools (CR 500.5 / 703.4q). `empty_all_mana_pools` returns a conditional
     // `ManaPoolsEmptied` event only when at least one pool was actually non-empty
     // (MR-M2-16). By the time cleanup runs, pools were already emptied at the
     // End→Cleanup step transition, so this is normally a no-op and pushes nothing.
@@ -1401,7 +1385,193 @@ pub fn cleanup_actions(state: &mut GameState) -> Vec<GameEvent> {
     events.push(GameEvent::CleanupPerformed);
     events
 }
-/// CR 500.4: Empty all players' mana pools at step transitions.
+/// CR 514.1 (PB-DP7 / DP-3): the deterministic default cleanup-discard subset --
+/// the `count` highest `ObjectId`s in `player`'s hand, ascending. This reproduces
+/// the pre-PB-DP7 auto-pick exactly (`obj_ids.last()` on an ascending `OrdSet`,
+/// taken one at a time), so a bot game's command trace and the fuzzer baseline do
+/// not churn (SR-9b).
+///
+/// The ENGINE NEVER CALLS THIS on a decision path -- `cleanup_actions` always
+/// pauses and asks. It exists so the simulator's `StubProvider`, the replay
+/// harness and the TUI cannot drift from one another.
+pub fn default_cleanup_discard(state: &GameState, player: PlayerId) -> Vec<ObjectId> {
+    let hand_zone = ZoneId::Hand(player);
+    let mut ids: Vec<ObjectId> = state
+        .expect_zone(&hand_zone)
+        .map(|z| z.object_ids())
+        .unwrap_or_default();
+    // `object_ids()` on an Unordered (OrdSet) zone already iterates ascending;
+    // sort defensively so this helper's contract does not depend on that.
+    ids.sort();
+    let count = state
+        .pending_cleanup_discard()
+        .filter(|e| e.player == player)
+        .map(|e| e.count as usize)
+        .unwrap_or(0);
+    let start = ids.len().saturating_sub(count);
+    ids[start..].to_vec()
+}
+/// CR 514.1 / CR 701.9b (PB-DP7 / DP-3): apply the active player's chosen
+/// cleanup discard, answering the `pending_cleanup_discard` entry recorded by
+/// `cleanup_actions`.
+///
+/// Validation (plan §2.4), each a distinct `InvalidCommand`/typed error:
+/// there IS an outstanding entry; the entry's `player` equals `player` (the
+/// SR-29 trust-boundary check -- without it, any seat could discard the
+/// active player's cards); `cards.len()` equals the entry's `count` exactly;
+/// no duplicate ids; every id exists; every id is in the SENDER'S OWN hand
+/// (not merely "some hand" -- the OOS-DP2-1 failure mode).
+///
+/// Discards are performed in ASCENDING `ObjectId` order regardless of the
+/// order supplied in `cards` (plan §2.3): this keeps the engine's behaviour,
+/// and therefore the state hash, independent of a cosmetic client detail
+/// (SR-9b), and keeps DP-14's future same-controller trigger-ordering fix the
+/// single owner of CR 603.3b madness-trigger order.
+pub fn handle_discard_to_hand_size(
+    state: &mut GameState,
+    player: PlayerId,
+    cards: Vec<ObjectId>,
+) -> Result<Vec<GameEvent>, GameStateError> {
+    // Fix-cycle Finding 2 (HIGH): CR 514.1 / CR 703.4n -- this discard is only
+    // ever legal during the cleanup step. Without this check, a stale
+    // `pending_cleanup_discard` entry (constructed by calling
+    // `cleanup_actions` directly outside `Step::Cleanup` -- exactly what the
+    // pre-fix `provider_offers_only_the_discard_while_blocked` simulator test
+    // did, at `Step::End`) would let `process_command`'s unconditional
+    // `enter_step` resume re-run whatever turn-based actions belong to the
+    // CURRENT step a second time. This check is the first thing that runs,
+    // before the entry lookup below, so it fires even in the degenerate case
+    // where an entry exists but the step has since moved on.
+    if state.turn.step != Step::Cleanup {
+        return Err(GameStateError::InvalidCommand(
+            "cleanup discard is only legal during the cleanup step (CR 514.1)".to_string(),
+        ));
+    }
+    let entry = state.pending_cleanup_discard.clone().ok_or_else(|| {
+        GameStateError::InvalidCommand("no cleanup discard is pending".to_string())
+    })?;
+    if entry.player != player {
+        return Err(GameStateError::InvalidCommand(format!(
+            "cleanup discard is pending for {:?}, not {:?}",
+            entry.player, player
+        )));
+    }
+    if cards.len() as u32 != entry.count {
+        return Err(GameStateError::InvalidCommand(format!(
+            "cleanup discard requires exactly {} card(s), got {}",
+            entry.count,
+            cards.len()
+        )));
+    }
+    let unique: std::collections::BTreeSet<ObjectId> = cards.iter().copied().collect();
+    if unique.len() != cards.len() {
+        return Err(GameStateError::InvalidCommand(
+            "cleanup discard cards must not contain duplicates".to_string(),
+        ));
+    }
+    let hand_zone = ZoneId::Hand(player);
+    for &id in &cards {
+        // SR-4: `cards` is untrusted player input (a command field), so a
+        // missing id is a reachable, player-facing condition -- NOT an engine
+        // invariant violation. Use the fallible `object()` accessor, not
+        // `expect_object` (which `debug_assert`s and is reserved for sites
+        // that require the id to already be known-live).
+        state
+            .object(id)
+            .map_err(|_| GameStateError::ObjectNotFound(id))?;
+        let in_hand = state
+            .expect_zone(&hand_zone)
+            .map(|z| z.object_ids().contains(&id))
+            .unwrap_or(false);
+        if !in_hand {
+            return Err(GameStateError::ObjectNotInZone(id, hand_zone));
+        }
+    }
+    // Defensive re-derivation (SR-4): nothing can change the hand while
+    // blocked (the admission gate rejects every other command), so a
+    // mismatch here is an engine bug, not a player-facing condition.
+    let max_hand_size = state
+        .expect_player(player)
+        .map(|p| p.max_hand_size)
+        .unwrap_or(7);
+    let hand_len = state.expect_zone(&hand_zone).map(|z| z.len()).unwrap_or(0);
+    debug_assert_eq!(
+        hand_len.saturating_sub(max_hand_size) as u32,
+        entry.count,
+        "cleanup discard count mismatch: hand {} max {} entry.count {}",
+        hand_len,
+        max_hand_size,
+        entry.count
+    );
+    let mut ordered: Vec<ObjectId> = cards;
+    ordered.sort();
+    let mut events = Vec::new();
+    let graveyard_zone = ZoneId::Graveyard(player);
+    for discard_id in ordered {
+        // MR-M2-06: Use the old hand ObjectId, not the new graveyard ID.
+        // `discard_id` identifies the card while it was in hand; callers
+        // (triggers, UI) correlate by the hand identity, not the new zone ID.
+        // CR 702.35a: If the discarded card has Madness, exile it instead of graveyard.
+        let cleanup_card_id_opt = state
+            .expect_object(discard_id)
+            .and_then(|o| o.card_id.clone());
+        // Fix-cycle Finding 8 (LOW, note-only): this reads BASE
+        // `characteristics.keywords`, not layer-resolved (the W3-LC pattern
+        // this codebase otherwise follows for battlefield permanents). Not a
+        // new defect -- it was moved verbatim from the pre-PB-DP7 auto-pick
+        // loop, which had the same gap. A hand card whose Madness is granted
+        // only by a continuous effect (rather than printed) would be missed
+        // here; no such card exists in the corpus today. Left as-is
+        // (out-of-scope per the fix-cycle disposition); tracked as a seed for
+        // the coordinator rather than converted to `layers::expect_characteristics`.
+        let has_madness = state
+            .expect_object(discard_id)
+            .map(|obj| {
+                obj.characteristics
+                    .keywords
+                    .contains(&KeywordAbility::Madness)
+            })
+            .unwrap_or(false);
+        let destination = if has_madness {
+            ZoneId::Exile
+        } else {
+            graveyard_zone
+        };
+        if let Some((new_id, _)) = state.expect_move_object_to_zone(discard_id, destination) {
+            events.push(GameEvent::DiscardedToHandSize {
+                player,
+                object_id: discard_id,
+                zone_from: hand_zone,
+                zone_to: destination,
+            });
+            // CR 702.35a: Queue the madness trigger via pending_triggers so that
+            // flush_pending_triggers properly signals priority granting in cleanup.
+            if has_madness {
+                let madness_cost = cleanup_card_id_opt.as_ref().and_then(|cid| {
+                    state.card_registry.get(cid.clone()).and_then(|def| {
+                        def.abilities.iter().find_map(|a| {
+                            if let AbilityDefinition::Madness { cost } = a {
+                                Some(cost.clone())
+                            } else {
+                                None
+                            }
+                        })
+                    })
+                });
+                state.pending_triggers.push_back(PendingTrigger {
+                    data: Some(TriggerData::Madness {
+                        exiled_card: new_id,
+                        cost: madness_cost.unwrap_or_default(),
+                    }),
+                    ..PendingTrigger::blank(new_id, player, PendingTriggerKind::Madness)
+                });
+            }
+        }
+    }
+    state.pending_cleanup_discard = None;
+    Ok(events)
+}
+/// CR 500.5 / 703.4q: Empty all players' mana pools at step transitions.
 pub fn empty_all_mana_pools(state: &mut GameState) -> Vec<GameEvent> {
     let player_ids: Vec<PlayerId> = state
         .players
@@ -1419,7 +1589,7 @@ pub fn empty_all_mana_pools(state: &mut GameState) -> Vec<GameEvent> {
     }
     vec![GameEvent::ManaPoolsEmptied]
 }
-/// Set `damage_marked = 0` and clear `deathtouch_damage` on all battlefield permanents (CR 514.1).
+/// Set `damage_marked = 0` and clear `deathtouch_damage` on all battlefield permanents (CR 514.2).
 pub fn clear_damage(state: &mut GameState) {
     let ids: Vec<ObjectId> = state
         .objects
