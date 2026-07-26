@@ -346,7 +346,9 @@ fn test_entwine_not_paid_only_first_mode() {
             kicker_times: 0,
             alt_cost: None,
             prototype: false,
-            modes_chosen: vec![],
+            // CR 601.2b: the mode is announced explicitly; the engine no longer picks
+            // mode 0 (PB-DP3).
+            modes_chosen: vec![0],
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],

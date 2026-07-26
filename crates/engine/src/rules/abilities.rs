@@ -385,12 +385,36 @@ pub fn handle_activate_ability(
             }
         }
     } else if let Some(ms) = &ability_modes {
-        // Empty modes_chosen on a modal ability -> auto-select mode 0 (backward
-        // compat / bots), mirroring the Spell/Triggered modal fallback.
-        if !ms.modes.is_empty() {
-            vec![0]
-        } else {
+        // CR 700.2a / 602.2b (PB-DP3 / DP-4): the controller chooses the mode(s) "as part of …
+        // activating that ability". The engine may not pick for them.
+        if ms.min_modes == 0 {
+            // "Choose up to N" -- announcing zero modes is legal (CR 700.2a). Unlike the Spell
+            // path in casting.rs, this IS representable here: with validated_modes_chosen
+            // empty, the `if !validated_modes_chosen.is_empty()` guard below leaves
+            // `embedded_effect` as the ability's own base effect -- which is the correct
+            // "no mode chosen" behaviour ONLY because a modal activated ability's base
+            // `effect` is `Effect::Nothing` (or unset) by authoring convention. A modal
+            // ability authored with a non-trivial base `effect` would execute it
+            // unconditionally on a zero-mode activation. No shipped card has this shape
+            // today; the debug_assert below catches a future one at test/CI time
+            // (review Finding 6).
+            debug_assert!(
+                matches!(
+                    embedded_effect,
+                    None | Some(crate::cards::card_definition::Effect::Nothing)
+                ),
+                "a modal activated ability with min_modes: 0 must have Effect::Nothing (or no \
+                 effect) as its base `effect`, so a zero-mode activation is a true no-op \
+                 rather than silently firing this ability's own base effect -- got {:?}",
+                embedded_effect
+            );
             vec![]
+        } else {
+            return Err(GameStateError::InvalidCommand(format!(
+                "modal ability requires an explicit mode choice: at least {} mode(s) must be \
+                 announced as part of activating it (CR 602.2b/700.2a); none were",
+                ms.min_modes
+            )));
         }
     } else {
         // Non-modal ability.
@@ -399,10 +423,11 @@ pub fn handle_activate_ability(
     // CR 700.2c/700.2f (PB-EF7, mirrors PB-AC4): If the ability has per-mode target
     // requirements (`ModeSelection.mode_targets` is `Some`), targets are announced/
     // validated ONLY for the chosen mode's requirements -- not the flat union of every
-    // mode's targets. `validated_modes_chosen` already incorporates the auto-select-
-    // mode-0 fallback above, so no separate indices recomputation is needed here (unlike
-    // the Spell path in casting.rs, which computes cast-time indices before validated_modes_chosen
-    // exists in its final form).
+    // mode's targets. Post-PB-DP3, `validated_modes_chosen` is either the explicit
+    // fully-validated choice or (for a `min_modes: 0` ability) legitimately empty -- there is
+    // no more auto-select-mode-0 fallback to account for here (unlike the Spell path in
+    // casting.rs, which retains a fail-safe `vec![0]` arm for a different reason -- see
+    // Change 2 there).
     let mode_targets_active: Option<Vec<crate::cards::card_definition::TargetRequirement>> =
         ability_modes.as_ref().and_then(|ms| {
             ms.mode_targets.as_ref().map(|mt| {

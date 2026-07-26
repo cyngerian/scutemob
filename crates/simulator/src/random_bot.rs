@@ -127,7 +127,7 @@ impl Bot for RandomBot {
 /// Convert a LegalAction into a Command the engine can process.
 pub(crate) fn action_to_command(
     rng: &mut StdRng,
-    _state: &GameState,
+    state: &GameState,
     player: PlayerId,
     action: &LegalAction,
 ) -> Command {
@@ -148,7 +148,10 @@ pub(crate) fn action_to_command(
             kicker_times: 0,
             alt_cost: None,
             prototype: false,
-            modes_chosen: Vec::new(),
+            // CR 601.2b/700.2a (PB-DP3): the engine no longer auto-selects mode 0 — a
+            // modal cast with no announced modes is rejected. Announce the first
+            // `min_modes` modes in printed order; a no-op for non-modal cards.
+            modes_chosen: crate::legal_actions::spell_default_modes(state, *card),
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
@@ -185,8 +188,14 @@ pub(crate) fn action_to_command(
             discard_card: None,
             sacrifice_target: None,
             x_value: None,
-            // PB-EF7: bots don't yet choose modes; empty auto-selects mode 0.
-            modes_chosen: Vec::new(),
+            // CR 602.2b/700.2a (PB-DP3): the engine no longer auto-selects mode 0 for a
+            // modal activated ability either — announce the first `min_modes` modes in
+            // printed order (layer-resolved index; see `ability_default_modes`'s doc).
+            modes_chosen: crate::legal_actions::ability_default_modes(
+                state,
+                *source,
+                *ability_index,
+            ),
             // PB-RS2: see the TapForMana arm above.
             hybrid_choices: hybrid_choices.clone(),
             phyrexian_life_payments: phyrexian_life_payments.clone(),
@@ -287,7 +296,10 @@ pub(crate) fn action_to_command(
             kicker_times: 0,
             alt_cost: Some(AltCostKind::Mutate),
             prototype: false,
-            modes_chosen: Vec::new(),
+            // CR 601.2b (PB-DP3): returns vec![] for every non-modal card, so this is a
+            // no-op today (no modal card in the corpus has Mutate) and cannot regress;
+            // applying it uniformly removes the trap for a future modal+Mutate card.
+            modes_chosen: crate::legal_actions::spell_default_modes(state, *card),
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![AdditionalCost::Mutate {
@@ -313,7 +325,9 @@ pub(crate) fn action_to_command(
                 kicker_times: 0,
                 alt_cost: Some(AltCostKind::Morph),
                 prototype: false,
-                modes_chosen: Vec::new(),
+                // CR 601.2b (PB-DP3): see the Mutate arm above — a no-op for non-modal
+                // cards, applied uniformly.
+                modes_chosen: crate::legal_actions::spell_default_modes(state, *card),
                 x_value: 0,
                 face_down_kind: None,
                 additional_costs: vec![],

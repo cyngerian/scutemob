@@ -2934,7 +2934,8 @@ pub fn handle_cast_spell(
     // additional cost to the total mana cost. Spree requires at least one mode to be chosen.
     // CR 118.8d: Additional costs don't change the spell's mana value, only what is paid.
     // Note: `modes_chosen` is the raw (not-yet-validated) list; invalid indices return None
-    // from `costs.get(idx)` and are safely skipped. Validation happens below at line ~2874.
+    // from `costs.get(idx)` and are safely skipped. Validation happens below, at the
+    // `validated_modes_chosen` match.
     let mana_cost = if chars.keywords.contains(&KeywordAbility::Spree) {
         // CR 702.172a: Spree requires at least one mode to be chosen.
         // When entwine_paid is true all modes are chosen; otherwise modes_chosen must be non-empty.
@@ -3504,14 +3505,78 @@ pub fn handle_cast_spell(
                 })
             })
         });
-    let validated_modes_chosen: Vec<usize> = if !modes_chosen.is_empty() && !entwine_paid {
+    // CR 601.2b / 700.2a (PB-DP3 / DP-4): a modal spell's controller announces the mode(s) as
+    // part of casting, before costs are determined (CR 601.2f) or paid (CR 601.2h). There is
+    // no default mode and the engine may not pick one.
+    let validated_modes_chosen: Vec<usize> = if entwine_paid {
+        // CR 702.42a: entwine chooses ALL modes "instead of just the number specified", so
+        // min_modes/max_modes are overridden by the keyword itself and modes_chosen is ignored
+        // (resolution.rs:313-316 expands to 0..modes.len()). Pass through unchanged and
+        // UNSORTED, exactly as before — `rules/modal.rs::test_modal_entwine_overrides_modes_chosen`
+        // pins that entwine + modes_chosen=[0] still executes every mode.
+        modes_chosen
+    } else {
         match &mode_selection_opt {
             None => {
-                return Err(GameStateError::InvalidCommand(
-                    "modes_chosen specified but spell has no modal structure (modes: Some(...)) (CR 700.2a)".into(),
-                ));
+                if !modes_chosen.is_empty() {
+                    // PRESERVED VERBATIM from the old `:3509-3513` arm — do not reword; the
+                    // message is asserted by
+                    // rules/modal.rs::test_modal_non_modal_spell_with_modes_chosen_rejected and
+                    // primitives/pb_ef7_modal_activated.rs's sibling test.
+                    return Err(GameStateError::InvalidCommand(
+                        "modes_chosen specified but spell has no modal structure (modes: Some(...)) (CR 700.2a)".into(),
+                    ));
+                }
+                modes_chosen // non-modal spell, nothing announced: unchanged
+            }
+            Some(ms) if modes_chosen.is_empty() => {
+                // --- the DP-4 fix ---
+                if escalate_modes > 0 {
+                    // CR 702.120a exemption (see pb-plan-DP3.md §3.4). The count IS announced
+                    // via AdditionalCost::EscalateModes; resolution derives 0..=escalate_modes
+                    // (resolution.rs:321-334). Validate the DERIVED count against the printed
+                    // bounds so escalate cannot smuggle an illegal mode count through.
+                    let derived = ((escalate_modes as usize) + 1).min(ms.modes.len());
+                    if derived < ms.min_modes {
+                        return Err(GameStateError::InvalidCommand(format!(
+                            "escalate chose {} mode(s); at least {} required (CR 702.120a/700.2a)",
+                            derived, ms.min_modes
+                        )));
+                    }
+                    if derived > ms.max_modes {
+                        return Err(GameStateError::InvalidCommand(format!(
+                            "escalate chose {} mode(s); at most {} allowed (CR 702.120a/700.2a)",
+                            derived, ms.max_modes
+                        )));
+                    }
+                    modes_chosen // stays empty; the escalate backward-compat path owns it
+                } else if ms.min_modes == 0 {
+                    // Fail-safe hard reject (CR 601.2b/700.2a). "Choose up to N" legitimately
+                    // permits announcing zero modes, but this engine cannot REPRESENT that on a
+                    // spell: resolution.rs:335-338 turns an empty modes_chosen on a Spell stack
+                    // object into vec![0], and it cannot distinguish "controller chose zero"
+                    // from a cascade/discover free-cast that never announced anything
+                    // (copy.rs:430, :646). Accepting the cast would silently resolve mode 0 —
+                    // wrong game state. No shipped card has this shape (the corpus's only
+                    // min_modes: 0 object is a TRIGGERED ability, hullbreaker_horror.rs:59).
+                    // Tracked as OOS-DP3-2.
+                    return Err(GameStateError::InvalidCommand(
+                        "a modal spell with min_modes: 0 cast with no modes announced is not \
+                         representable: resolution would auto-select mode 0 (CR 601.2b/700.2a) — \
+                         see OOS-DP3-2"
+                            .into(),
+                    ));
+                } else {
+                    return Err(GameStateError::InvalidCommand(format!(
+                        "modal spell requires an explicit mode choice: at least {} mode(s) must be \
+                         announced as part of casting (CR 601.2b/700.2a); none were",
+                        ms.min_modes
+                    )));
+                }
             }
             Some(ms) => {
+                // UNCHANGED from the old `:3516-3553` arm — range (CR 700.2a), duplicates
+                // (CR 700.2d), min_modes / max_modes (CR 700.2a), ascending sort (CR 700.2a).
                 // CR 700.2a: Each chosen index must be within range.
                 for &idx in &modes_chosen {
                     if idx >= ms.modes.len() {
@@ -3553,10 +3618,6 @@ pub fn handle_cast_spell(
                 modes_chosen
             }
         }
-    } else {
-        // Empty = non-modal spell or auto-select mode[0] (backward compatible).
-        // Also used when entwine_paid overrides mode selection.
-        modes_chosen
     };
     // Look up target requirements and cant_be_countered from the card definition (CR 601.2c).
     // CR 702.127a + CR 709.3a: When casting the aftermath half, use the aftermath half's
@@ -3618,13 +3679,13 @@ pub fn handle_cast_spell(
     // mode, including unchosen ones).
     //
     // NOTE: Escalate + per-mode targets is not a combination any AC4-scoped card uses; the
-    // active-mode computation below only covers Entwine (all modes), explicit
-    // `validated_modes_chosen`, and the auto-select-mode-0 backward-compat path — it has NO
-    // Escalate branch, while resolution's `chosen_mode_indices` (resolution.rs) DOES. The
-    // combination is hard-rejected below (PB-AC4 fix-phase Finding 1, MEDIUM) rather than
-    // silently under-resolving escalated modes with empty target slices. A future spell
-    // combining Escalate with `mode_targets` needs both ladders extended together (flag, do
-    // not silently extend — see `memory/conventions.md` "implement-phase default-to-defer").
+    // active-mode computation below only covers Entwine (all modes) and the (post-PB-DP3)
+    // fully-validated `validated_modes_chosen` — it has NO Escalate branch, while resolution's
+    // `chosen_mode_indices` (resolution.rs) DOES. The combination is hard-rejected below
+    // (PB-AC4 fix-phase Finding 1, MEDIUM) rather than silently under-resolving escalated
+    // modes with empty target slices. A future spell combining Escalate with `mode_targets`
+    // needs both ladders extended together (flag, do not silently extend — see
+    // `memory/conventions.md` "implement-phase default-to-defer").
     let mode_targets_active: Option<Vec<TargetRequirement>> = if casting_with_aftermath {
         None
     } else {
@@ -3643,11 +3704,21 @@ pub fn handle_cast_spell(
                     mt.len(),
                     ms.modes.len()
                 );
+                // Post-PB-DP3: an empty `validated_modes_chosen` here no longer means
+                // "auto-select mode 0 for any modal spell" — Change 1 rejects that case before
+                // this point is ever reached. The `!ms.modes.is_empty() { vec![0] }` arm below
+                // is reachable only when `mode_targets.is_some()` AND `validated_modes_chosen`
+                // is empty, which after Change 1 means the escalate exemption fired
+                // (`escalate_modes > 0`) — and that combination is hard-rejected 16 lines below
+                // at the Escalate + `mode_targets` guard. So this arm is UNREACHABLE IN
+                // PRACTICE but retained as a fail-safe (do not delete — PB-DP3 plan §3, Change
+                // 2).
                 let indices: Vec<usize> = if entwine_paid {
                     (0..ms.modes.len()).collect()
                 } else if !validated_modes_chosen.is_empty() {
                     validated_modes_chosen.clone()
                 } else if !ms.modes.is_empty() {
+                    // Fail-safe only — see comment above. Not reachable by any shipped card.
                     vec![0]
                 } else {
                     vec![]

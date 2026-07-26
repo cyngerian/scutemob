@@ -15,7 +15,7 @@
 | W3: LOW Remediation | — | available | — | LOW Sweep campaign COMPLETE 2026-05-16 (`scutemob-31..38`): 36 LOWs closed, LOW-OPEN 45→6. 6 remain (honestly deferred). Plan: `memory/archive/2026-07/low-sweep-plan.md` (archived 2026-07-18). |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | `scutemob-151` | ACTIVE (worker in flight) | 2026-07-26 | **PB-OS queue COMPLETE** (OS1..OS11 + OS4b, `scutemob-116..141`). **Rider-seed queue**: RS1..RS4 SHIPPED (`scutemob-143..146`); plan `memory/primitives/rider-seed-triage-2026-07-19.md`, resume at **R5** per its §5 banner (weigh OOS-RS3-1 insert + OOS-RS2-1 rider). **The PB-DP suite now runs FIRST** (user directive 2026-07-26) — queue `docs/audits/decision-point-audit.md` §8, from the decision-point audit (`scutemob-148`). **PB-DP1 SHIPPED** (`scutemob-149`, merged `f7651bb5`): priority after cast/activate/special action goes to the ACTOR per CR 117.3c; 14 Group-A sites + 8 Group-D sites; entry priority guards added to `handle_turn_face_up`/`handle_activate_loyalty_ability`/`handle_level_up_class`; 19 tests + 15 golden scripts reconciled; PROTOCOL 27 / HASH 63 unchanged; 3,721 tests green. Seeds **OOS-DP1-1..4** filed in the audit doc **§8.1** (durable inventory for this suite — not in `primitive-wip.md`, which the next PB overwrites). Suite tasked out `scutemob-150..158` = PB-DP2..DP10. **PB-DP2 SHIPPED** (`scutemob-150`, commit `f902010f`): mulligan content no-op + bottom-to-top, **CR 103.5/103.5c** (the brief's "103.4b" is a stale cite — see the handoff below); **OOS-M11-1 CLOSED**; 4 probes; PROTOCOL 27 / HASH 63 unchanged; tests 3,721 → **3,725**. Seeds **OOS-DP2-1..6** filed in the audit doc **§8.1**. **PB-DP3 dispatched** (`scutemob-151`, DP-4 `min_modes` floor, CR 601.2b/700.2a). |
+| W6: Primitive + Card Authoring | `scutemob-151` | ACTIVE (worker in flight) | 2026-07-26 | **PB-OS queue COMPLETE** (OS1..OS11 + OS4b, `scutemob-116..141`). **Rider-seed queue**: RS1..RS4 SHIPPED (`scutemob-143..146`); plan `memory/primitives/rider-seed-triage-2026-07-19.md`, resume at **R5** per its §5 banner (weigh OOS-RS3-1 insert + OOS-RS2-1 rider). **The PB-DP suite now runs FIRST** (user directive 2026-07-26) — queue `docs/audits/decision-point-audit.md` §8, from the decision-point audit (`scutemob-148`). **PB-DP1 SHIPPED** (`scutemob-149`, merged `f7651bb5`): priority after cast/activate/special action goes to the ACTOR per CR 117.3c; 14 Group-A sites + 8 Group-D sites; entry priority guards added to `handle_turn_face_up`/`handle_activate_loyalty_ability`/`handle_level_up_class`; 19 tests + 15 golden scripts reconciled; PROTOCOL 27 / HASH 63 unchanged; 3,721 tests green. Seeds **OOS-DP1-1..4** filed in the audit doc **§8.1** (durable inventory for this suite — not in `primitive-wip.md`, which the next PB overwrites). Suite tasked out `scutemob-150..158` = PB-DP2..DP10. **PB-DP2 SHIPPED** (`scutemob-150`, commit `f902010f`): mulligan content no-op + bottom-to-top, **CR 103.5/103.5c** (the brief's "103.4b" is a stale cite — see the handoff below); **OOS-M11-1 CLOSED**; 4 probes; PROTOCOL 27 / HASH 63 unchanged; tests 3,721 → **3,725**. Seeds **OOS-DP2-1..6** filed in the audit doc **§8.1**. **PB-DP3 SHIPPED** (`scutemob-151`, DP-4 `min_modes` floor, **CR 601.2b/700.2a**): mode announcement is now mandatory — the fix is a **lift** of the range/duplicate/`min_modes`/`max_modes` checks out of the `!modes_chosen.is_empty()` gate, not the audit's prescribed Spree-guard mirror, so it fixed **40** modal defs (3 commands + 37 `min_modes: 1`) rather than the 3 the row predicted, plus the identical activated-ability bypass in `abilities.rs` (audit §4.2). Narrow CR 702.120a escalate exemption; `resolution.rs`'s `vec![0]` fallback **retained** (4 free-cast producers bypass `handle_cast_spell`). PROTOCOL 27 / HASH 63 unchanged; 0 card-def edits; tests 3,725 → **3,747**. Seeds **OOS-DP3-1..8** filed in the audit doc **§8.1**. **Next: PB-DP4** (`scutemob-152`, DP-10 + DP-11 attack tax debit + echo/cumulative-upkeep/recover enforcement). |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
@@ -116,6 +116,92 @@ for correctness.
   **OOS-DP2-5** (bots' empty `cards_to_bottom`, latent until M11-local S2), **OOS-DP2-6** (the
   engine defers CR 103.5's bottoming from take-time to keep-time — behaviourally equivalent,
   record-only).
+
+**PB-DP3** (`scutemob-151`, 2026-07-26) — **SHIPPED**. DP-4 from
+`docs/audits/decision-point-audit.md` §5 (Tier 0, class D). **Mode announcement is now
+mandatory** (CR 601.2b / 700.2a).
+
+- **The defect.** `rules/casting.rs` gated *all* mode validation behind
+  `if !modes_chosen.is_empty()`. Range (700.2a), duplicates (700.2d), `min_modes` and
+  `max_modes` were checked correctly — but only if you supplied modes at all. Supply none and
+  the empty vector fell through, and both consumers re-derived `vec![0]`. **Cryptic Command,
+  Austere Command and Incendiary Command** (`min_modes: 2, max_modes: 2`, all `Complete`) paid
+  full cost and resolved exactly **one** mode, silently.
+- **The fix is a LIFT, not the audit's prescribed "mirror the Spree guard".** The checks moved
+  out of the emptiness gate into a three-way match on
+  `(entwine_paid, mode_selection_opt, modes_chosen.is_empty())`, so validation runs whenever
+  the object is modal. **That made the yield much larger than the audit row predicted**: not 3
+  cards but **40** — the 3 commands plus the **37** `min_modes: 1` defs that had all been
+  accepting an unannounced cast. The Spree guard (`casting.rs:2938-2945`) was deliberately
+  **kept**: it fires earlier, during cost computation, and owns the CR 702.172a message that
+  `spree.rs:854` asserts. **Reusable lesson**: when a validation block is gated on "did the
+  caller supply anything", the bug is usually the gate, not a missing check inside it — lifting
+  beats bolting on, and the real blast radius is every card the gate was silently excusing.
+- **Scope widened in planning, twice, both same-root-cause.** (1) `rules/abilities.rs` had the
+  identical bypass for modal **activated** abilities (audit §4.2 line 214 said so); folded in at
+  **zero** test/script cost, since every in-repo activation already passed explicit modes.
+  (2) The `min_modes: 0` "choose up to N" shape: on the **activated** path it now correctly
+  resolves *no* mode; on the **Spell** path it is **unrepresentable** (`StackObject.modes_chosen`
+  is a bare `Vec<usize>` with no way to distinguish "chose zero" from a free-cast that never
+  announced) and is hard-rejected fail-safe. That asymmetry is deliberate and documented at both
+  code sites — see **OOS-DP3-2**.
+- **The escalate exemption is the load-bearing judgement call.** Escalate's backward-compat path
+  casts with an empty `modes_chosen` and derives `0..=count` at resolution. A naive hard reject
+  would have killed it. PB-DP3 exempts `escalate_modes > 0` on CR 702.120a grounds — electing to
+  pay the additional cost *is* an announcement of the mode **count** — and bounds-checks the
+  derived count against `min_modes`/`max_modes`. Only the mode **identities** stay
+  engine-derived (**OOS-DP3-1**). The reviewer upheld this with a stronger argument than the
+  plan's: both escalate defs are `Completeness::partial`, so `validate_deck` blocks them and
+  **no `Complete` card is live-wrong through that path**.
+- **`resolution.rs`'s `vec![0]` fallback was RETAINED, and this is the highest-risk thing to get
+  wrong here.** It looks like dead code after the fix and is not: four producers build
+  `StackObjectKind::Spell` with an empty `modes_chosen` *without* calling `handle_cast_spell` —
+  `copy.rs:386` cascade, `copy.rs:614` discover, `resolution.rs:5167` cipher copy,
+  `resolution.rs:5837` suspend. Deleting it would make every suspended or ciphered modal spell
+  resolve nothing. **The plan's original producer list was wrong in both directions** (it named
+  four `engine.rs` sites that build Ring/Room/Loyalty/ClassLevel objects and can never reach the
+  arm, and missed the two `trigger_default` ones); the review caught it and the corrected list is
+  now in the code comment and in **OOS-DP3-3**.
+- **No wire change: PROTOCOL 27 / HASH 63 unmoved**, as the audit §8 row predicted. No
+  `Command`/`GameEvent`/`Effect` variant, no `GameState` field.
+- **Blast radius, enumerated not estimated**: 3 engine test lines, 2 golden scripts (`stack/147`
+  entwine, `stack/148` escalate — both stay `approved`, both now cite CR 601.2b), 1 replay-harness
+  line (`cast_spell` now *forwards* `modes_chosen` instead of silently discarding the script's
+  `modes` field), new `spell_default_modes`/`ability_default_modes` helpers in
+  `crates/simulator/src/legal_actions.rs` wired into 4 `random_bot.rs` sites and 2
+  `tools/tui/src/play/input.rs` sites, and **0 card-def edits**. `heuristic_bot` needed nothing —
+  it routes through the single `action_to_command` chokepoint.
+- **One un-enumerated gate fired** (the plan's §4.7 negative-space clause working as intended):
+  the SR-15 `ability_definition_registry` gate failed because `spell_default_modes` is a new real
+  dispatch site on `AbilityDefinition::Spell`. Declaring the site is the gate's *purpose*, so it
+  was declared, not worked around.
+- **Tests**: new `crates/engine/tests/primitives/pb_dp3_modal_mode_announcement.rs` (18 tests,
+  `mod` line registered per SR-9a) + 4 simulator unit tests. **8 probes verified failing on
+  pristine code** by reverting the guard — the two most telling: Austere Command's empty-mode
+  cast simply *succeeded*, and the modal activated ability's mode 0 fired (life 40→43 where it
+  should have stayed 40). `ability_default_modes` is tested against Umezawa's Jitte specifically
+  because its `def.abilities[0]` is **not** the activated ability, so a `def.abilities`-indexed
+  implementation fails the test — the PB-RS4 index-namespace bug class, pinned.
+  **3,725 → 3,747 passing / 0 failing**; clippy `-D warnings`, `cargo fmt --check` and
+  `tools/check-defs-fmt.sh` (1,804 defs) all clean.
+- **Review**: 0 HIGH / 2 MEDIUM / 6 LOW, verdict "ship after fixes"; all dispositioned (5 fixed,
+  1 declined-with-reason as seed-text-only, 2 folded into seeds). Both MEDIUMs were about the
+  *record* rather than the behaviour — the wrong producer list above, and zero coverage on the
+  two new escalate bounds branches (now covered by synthetic-card probes).
+- **Seeds filed — `docs/audits/decision-point-audit.md` §8.1**: **OOS-DP3-1** (escalate derives
+  contiguous mode identities), **OOS-DP3-2** (`min_modes: 0` Spell unrepresentable ⇒ HASH bump),
+  **OOS-DP3-3** (4 free-cast producers bypass announcement — DP-20 scope, and DP-20's §5 row now
+  cross-references it), **OOS-DP3-4** (modal *triggered* abilities auto-select mode 0; the
+  "choose up to one" branch is literally `if x { vec![0] } else { vec![0] }` — bundle with
+  PB-DP8), **OOS-DP3-5** (cast-time `ModeSelection` lookup is neither face- nor
+  aftermath-aware — OOS-OS4-2/RS-3 root-cause class), **OOS-DP3-6** (escalate count over-payment
+  is clamped, not rejected), **OOS-DP3-7** (~28 alt-cost harness cast arms can no longer cast a
+  modal card at all), **OOS-DP3-8** (the entwine arm is now the only unvalidated one).
+- **Audit rows updated**: §4.1 line 186 **D → A**, §4.2 line 214 **B → A**, §5 DP-4 SHIPPED,
+  §5 DP-20 cross-reference, §8 PB-DP3 SHIPPED, §8.1 eight seeds, §9 recommendation 4 marked
+  **superseded** (the M11 play server no longer needs a compensating check — it needs a
+  mode-selection **UI**, and the simulator's default-modes helpers are the placeholder session 7
+  must replace).
 
 ---
 

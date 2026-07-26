@@ -102,7 +102,13 @@ fn handle_normal_mode(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result<()> {
                         kicker_times: 0,
                         alt_cost: None,
                         prototype: false,
-                        modes_chosen: Vec::new(),
+                        // CR 601.2b (PB-DP3): the engine no longer auto-selects mode 0 for
+                        // a modal spell — announce the first `min_modes` modes in printed
+                        // order so the TUI can still cast a modal object at all (a proper
+                        // mode-choice prompt is M11/M13 work, not this PB).
+                        modes_chosen: mtg_simulator::legal_actions::spell_default_modes(
+                            &app.state, *obj_id,
+                        ),
                         x_value: 0,
                         face_down_kind: None,
                         additional_costs: vec![],
@@ -195,8 +201,15 @@ fn handle_normal_mode(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result<()> {
                         discard_card: None,
                         sacrifice_target: None,
                         x_value: None,
-                        // PB-EF7: TUI doesn't yet prompt for mode choice; empty auto-selects mode 0.
-                        modes_chosen: Vec::new(),
+                        // CR 602.2b (PB-DP3): the engine no longer auto-selects mode 0 for
+                        // a modal activated ability — announce the first `min_modes` modes
+                        // in printed order (layer-resolved index; a real mode prompt is
+                        // M11/M13 work, not this PB).
+                        modes_chosen: mtg_simulator::legal_actions::ability_default_modes(
+                            &app.state,
+                            *obj_id,
+                            *ability_index,
+                        ),
                         hybrid_choices: vec![],
                         phyrexian_life_payments: vec![],
                     };

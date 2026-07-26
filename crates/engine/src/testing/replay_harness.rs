@@ -488,7 +488,17 @@ pub fn translate_player_action(
                     None
                 },
                 prototype: false,
-                modes_chosen: vec![],
+                // CR 601.2b / 700.2a (PB-DP3): `cast_spell` now honours the script's `modes`
+                // field for modal cards, instead of silently discarding it. Previously this
+                // was hard-coded to `vec![]`, which meant a script's declared mode choice for
+                // a modal card cast via the plain `cast_spell` action was accepted-and-
+                // discarded (the DP-24 class) — the engine auto-selected mode[0] regardless of
+                // what the script said. `cast_spell_modal` already forwarded `modes_chosen`
+                // correctly (see below); this brings `cast_spell` into parity. The ~28 other,
+                // alt-cost cast arms below (flashback, evoke, escape, foretell, dash, etc.)
+                // still hard-code `modes_chosen: vec![]` and are knowingly mode-blind — post-
+                // PB-DP3 that means they can no longer cast a modal card at all (OOS-DP3-7).
+                modes_chosen: modes_chosen.clone(),
                 // CR 107.3m: Propagate x_value from the script action to CastSpell.
                 x_value,
                 face_down_kind: None,

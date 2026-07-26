@@ -4,7 +4,7 @@
     "id": "script_stack_147",
     "name": "Promise of Power: normal cast then entwine cast",
     "description": "Demonstrates CR 702.42 Entwine with two sequential casts of Promise of Power. First cast chooses only Mode 0 (draw 5, lose 5 life) without paying the entwine cost. Second cast pays the entwine additional cost {4}, executing both modes: draw 5 cards and lose 5 life AND create a 5/5 black Demon token with flying. Verifies that entwine_paid=false executes only the selected mode, while entwine_paid=true executes all modes.",
-    "cr_sections_tested": ["702.42", "702.42a", "601.2", "608.2", "118.2", "111.1"],
+    "cr_sections_tested": ["702.42", "702.42a", "601.2", "601.2b", "608.2", "118.2", "111.1"],
     "corner_case_ref": null,
     "tags": ["stack", "sorcery", "modal", "entwine", "promise-of-power", "draw", "token"],
     "confidence": "high",
@@ -91,10 +91,11 @@
           "action": "cast_spell",
           "card": "Promise of Power",
           "targets": [],
+          "modes": [0],
           "mana_paid": { "colorless": 2, "black": 3 },
           "mana_source": [],
           "cr_ref": "601.2",
-          "note": "CR 601.2: p1 casts Promise of Power paying {2}{B}{B}{B}. Mode 0 selected (draw 5, lose 5 life). Entwine cost not paid."
+          "note": "CR 601.2: p1 casts Promise of Power paying {2}{B}{B}{B}. Mode 0 selected (draw 5, lose 5 life). Entwine cost not paid. CR 601.2b: the mode is announced at cast time (PB-DP3); the engine no longer auto-selects mode 0."
         },
         {
           "type": "assert_state",

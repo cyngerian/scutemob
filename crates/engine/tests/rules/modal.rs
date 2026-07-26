@@ -10,7 +10,8 @@
 //! - CR 700.2d: Same mode cannot be chosen twice (unless allow_duplicate_modes).
 //! - CR 700.2g / 707.10: Copies of a modal spell copy the mode(s) chosen.
 //! - CR 702.42b: Entwine overrides modes_chosen — all modes execute.
-//! - Backward compat: empty modes_chosen auto-selects mode[0].
+//! - CR 601.2b (PB-DP3 / DP-4): there is no default mode — an empty modes_chosen on a
+//!   modal spell is rejected before any cost is paid, not auto-select-mode[0].
 
 use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::CardType;
@@ -520,21 +521,22 @@ fn test_modal_choose_two_modes() {
     );
 }
 
-// ── Test 5: Empty modes_chosen auto-selects mode[0] (backward compat) ────────
+// ── Test 5: Empty modes_chosen is rejected (PB-DP3 / DP-4) ───────────────────
 
-/// CR 700.2a — When modes_chosen is empty, the engine auto-selects mode[0].
-/// This is backward-compatible with all existing tests that pre-date this feature.
+/// CR 601.2b / 700.2a — The controller announces the mode(s) as part of casting a modal
+/// spell, before costs are determined or paid. There is no default mode; the engine may
+/// not auto-select mode[0]. PB-DP3 (DP-4) closed this bypass — a cast with an empty
+/// `modes_chosen` on a modal spell is now rejected before any mana is paid.
 #[test]
-fn test_modal_default_auto_selects_mode_zero() {
+fn test_601_2b_modal_empty_modes_chosen_rejected() {
     let p1 = p(1);
-    let p2 = p(2);
+    let _p2 = p(2);
     let registry = modal_registry();
     let state = build_state_with_modal_spell(registry);
-    let initial_life = state.players()[&p1].life_total;
 
     let spell_id = find_object(&state, "Modal Test Spell");
 
-    let (state, _) = process_command(
+    let result = process_command(
         state,
         Command::CastSpell(Box::new(CastSpellData {
             player: p1,
@@ -546,23 +548,27 @@ fn test_modal_default_auto_selects_mode_zero() {
             kicker_times: 0,
             alt_cost: None,
             prototype: false,
-            modes_chosen: vec![], // Empty → auto-select mode[0]
+            modes_chosen: vec![], // Empty — no mode announced.
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
         })),
-    )
-    .unwrap_or_else(|e| panic!("cast with empty modes_chosen failed: {:?}", e));
+    );
 
-    let (state, _) = pass_all(state, &[p1, p2]);
-
-    // Mode 0 (GainLife 3) auto-selected and fired.
-    assert_eq!(
-        state.players()[&p1].life_total,
-        initial_life + 3,
-        "Backward compat: empty modes_chosen auto-selects mode[0] (GainLife 3)"
+    assert!(
+        result.is_err(),
+        "CR 601.2b/700.2a: an omitted mode announcement on a modal spell must be rejected"
+    );
+    let err = format!("{:?}", result.unwrap_err());
+    assert!(
+        err.contains("at least 1 mode"),
+        "Error message should mention 'at least 1 mode', got: {err}"
+    );
+    assert!(
+        err.contains("601.2b"),
+        "Error message should cite CR 601.2b, got: {err}"
     );
 }
 

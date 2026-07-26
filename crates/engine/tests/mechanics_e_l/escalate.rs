@@ -241,7 +241,10 @@ fn test_escalate_single_mode_no_extra_cost() {
             kicker_times: 0,
             alt_cost: None,
             prototype: false,
-            modes_chosen: vec![],
+            // CR 601.2b: the mode is announced explicitly; the engine no longer picks
+            // mode 0 (PB-DP3). escalate_modes == 0 here, so the escalate exemption in
+            // casting.rs does not apply and an explicit mode is required.
+            modes_chosen: vec![0],
             x_value: 0,
             face_down_kind: None,
             additional_costs: vec![],

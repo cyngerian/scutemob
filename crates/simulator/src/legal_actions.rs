@@ -1288,6 +1288,62 @@ fn is_cast_restricted_by_stax(state: &GameState, player: PlayerId) -> bool {
     false
 }
 
+/// CR 601.2b / 602.2b / 700.2a (PB-DP3): the engine no longer auto-selects mode 0, so a
+/// bot must announce a legal mode set. Choose the first `min_modes` distinct indices in
+/// printed order — always legal (never duplicates, never out of range, never over
+/// `max_modes` since `min_modes <= max_modes`). Returns empty for a non-modal object,
+/// which is exactly what a non-modal cast/activation wants.
+pub fn default_modes_chosen(ms: &mtg_engine::ModeSelection) -> Vec<usize> {
+    (0..ms.min_modes.min(ms.modes.len())).collect()
+}
+
+/// Mirrors `casting.rs:3495-3506`'s `AbilityDefinition::Spell { modes: Some(..) }` lookup.
+/// Returns `vec![]` for a non-modal card (a no-op for every non-modal cast).
+pub fn spell_default_modes(state: &GameState, card: ObjectId) -> Vec<usize> {
+    let Some(obj) = state.objects().get(&card) else {
+        return vec![];
+    };
+    let Some(cid) = obj.card_id.clone() else {
+        return vec![];
+    };
+    let Some(def) = state.card_registry().get(cid) else {
+        return vec![];
+    };
+    def.abilities
+        .iter()
+        .find_map(|a| {
+            if let AbilityDefinition::Spell { modes: Some(m), .. } = a {
+                Some(default_modes_chosen(m))
+            } else {
+                None
+            }
+        })
+        .unwrap_or_default()
+}
+
+/// Mirrors `abilities.rs:313-331` — indexes the LAYER-RESOLVED `activated_abilities` list
+/// (CR 613.1f), not `def.abilities`. Getting this wrong is an index-namespace bug of
+/// exactly the class PB-RS4 spent a session closing.
+pub fn ability_default_modes(
+    state: &GameState,
+    source: ObjectId,
+    ability_index: usize,
+) -> Vec<usize> {
+    let chars = match mtg_engine::rules::layers::calculate_characteristics(state, source) {
+        Some(c) => c,
+        None => match state.objects().get(&source) {
+            Some(o) => o.characteristics.clone(),
+            None => return vec![],
+        },
+    };
+    chars
+        .activated_abilities
+        .get(ability_index)
+        .and_then(|ab| ab.modes.as_ref())
+        .map(default_modes_chosen)
+        .unwrap_or_default()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1645,6 +1701,151 @@ mod tests {
             result.is_ok(),
             "the provider's offered suicide-avoiding TapForMana must be engine-legal: {:?}",
             result.err()
+        );
+    }
+
+    // ── PB-DP3 (DP-4): `spell_default_modes` / `ability_default_modes` ─────────────
+    //
+    // CR 601.2b / 602.2b / 700.2a: the engine no longer auto-selects mode 0 for a modal
+    // spell or activated ability with an empty `modes_chosen` — a bot must announce a
+    // legal mode set itself, or every modal cast/activation it attempts is silently
+    // rejected (`driver.rs` answers a rejected command with a silent `PassPriority`, so
+    // this would otherwise be an invisible regression in bot action coverage).
+
+    fn dp3_registry() -> std::sync::Arc<mtg_engine::CardRegistry> {
+        mtg_engine::CardRegistry::new(mtg_engine::all_cards())
+    }
+
+    /// CR 700.2a — `spell_default_modes` returns the first `min_modes` indices in
+    /// printed order for a `min_modes: 2` modal spell (Cryptic Command).
+    #[test]
+    fn test_dp3_spell_default_modes_cryptic_command() {
+        let p1 = PlayerId(1);
+        let p2 = PlayerId(2);
+        let defs = mtg_engine::all_cards()
+            .iter()
+            .map(|d| (d.name.clone(), d.clone()))
+            .collect::<std::collections::HashMap<_, _>>();
+        let spell = mtg_engine::enrich_spec_from_def(
+            ObjectSpec::card(p1, "Cryptic Command")
+                .with_card_id(mtg_engine::CardId("cryptic-command".to_string()))
+                .in_zone(ZoneId::Hand(p1)),
+            &defs,
+        );
+        let state = GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(p2)
+            .with_registry(dp3_registry())
+            .object(spell)
+            .active_player(p1)
+            .build()
+            .expect("state builds");
+        let card_id = id_of(&state, "Cryptic Command");
+        assert_eq!(
+            spell_default_modes(&state, card_id),
+            vec![0, 1],
+            "min_modes: 2 must default to the first two modes in printed order"
+        );
+    }
+
+    /// CR 700.2a — `spell_default_modes` returns `[0]` for a `min_modes: 1` modal spell
+    /// (Crux of Fate).
+    #[test]
+    fn test_dp3_spell_default_modes_min_one() {
+        let p1 = PlayerId(1);
+        let p2 = PlayerId(2);
+        let defs = mtg_engine::all_cards()
+            .iter()
+            .map(|d| (d.name.clone(), d.clone()))
+            .collect::<std::collections::HashMap<_, _>>();
+        let spell = mtg_engine::enrich_spec_from_def(
+            ObjectSpec::card(p1, "Crux of Fate")
+                .with_card_id(mtg_engine::CardId("crux-of-fate".to_string()))
+                .in_zone(ZoneId::Hand(p1)),
+            &defs,
+        );
+        let state = GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(p2)
+            .with_registry(dp3_registry())
+            .object(spell)
+            .active_player(p1)
+            .build()
+            .expect("state builds");
+        let card_id = id_of(&state, "Crux of Fate");
+        assert_eq!(
+            spell_default_modes(&state, card_id),
+            vec![0],
+            "min_modes: 1 must default to mode 0"
+        );
+    }
+
+    /// CR 601.2b — `spell_default_modes` returns `[]` for a non-modal card, so the
+    /// PB-DP3 change is a no-op for every non-modal cast (Lightning Bolt has no
+    /// `ModeSelection` at all).
+    #[test]
+    fn test_dp3_spell_default_modes_non_modal_is_empty() {
+        let p1 = PlayerId(1);
+        let p2 = PlayerId(2);
+        let defs = mtg_engine::all_cards()
+            .iter()
+            .map(|d| (d.name.clone(), d.clone()))
+            .collect::<std::collections::HashMap<_, _>>();
+        let spell = mtg_engine::enrich_spec_from_def(
+            ObjectSpec::card(p1, "Lightning Bolt")
+                .with_card_id(mtg_engine::CardId("lightning-bolt".to_string()))
+                .in_zone(ZoneId::Hand(p1)),
+            &defs,
+        );
+        let state = GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(p2)
+            .with_registry(dp3_registry())
+            .object(spell)
+            .active_player(p1)
+            .build()
+            .expect("state builds");
+        let card_id = id_of(&state, "Lightning Bolt");
+        assert_eq!(
+            spell_default_modes(&state, card_id),
+            Vec::<usize>::new(),
+            "a non-modal card must yield an empty mode list (no-op for non-modal casts)"
+        );
+    }
+
+    /// CR 613.1f / 700.2a — `ability_default_modes` reads the LAYER-RESOLVED
+    /// `activated_abilities` list (via `calculate_characteristics`), not `def.abilities`
+    /// directly. Umezawa's Jitte's sole activated ability is modal (`min_modes: 1`) and
+    /// sits at layer-resolved index 0 (`JITTE_MODAL_ABILITY_INDEX` in
+    /// `pb_os10_singleton_cleanup.rs`).
+    #[test]
+    fn test_dp3_ability_default_modes_uses_layer_resolved_index() {
+        let p1 = PlayerId(1);
+        let p2 = PlayerId(2);
+        let defs = mtg_engine::all_cards()
+            .iter()
+            .map(|d| (d.name.clone(), d.clone()))
+            .collect::<std::collections::HashMap<_, _>>();
+        let jitte = mtg_engine::enrich_spec_from_def(
+            ObjectSpec::artifact(p1, "Umezawa's Jitte")
+                .with_card_id(mtg_engine::CardId("umezawas-jitte".to_string()))
+                .in_zone(ZoneId::Battlefield),
+            &defs,
+        );
+        let state = GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(p2)
+            .with_registry(dp3_registry())
+            .object(jitte)
+            .active_player(p1)
+            .build()
+            .expect("state builds");
+        let source = id_of(&state, "Umezawa's Jitte");
+        const JITTE_MODAL_ABILITY_INDEX: usize = 0;
+        assert_eq!(
+            ability_default_modes(&state, source, JITTE_MODAL_ABILITY_INDEX),
+            vec![0],
+            "min_modes: 1 must default to mode 0, read via calculate_characteristics"
         );
     }
 
