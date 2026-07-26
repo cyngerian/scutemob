@@ -167,6 +167,14 @@ templates:
   # NOT drift-tracked here — a docs/audits/** trigger would self-flag them on every edit
   # to any audit.
   # ================================================================
+  audits-decision-point:
+    file: audits/decision-point-audit.md
+    description: Decision-point surface audit (player choices vs engine hooks; §10 lists its own re-audit triggers)
+    triggers:
+    - crates/engine/src/rules/**
+    - crates/engine/src/effects/**
+    frequency: session
+
   audits-layer-bypass:
     file: audits/layer-bypass-audit.md
     description: Layer-bypass audit (9 HIGH = its own M10-scheduled class, not live bugs)
