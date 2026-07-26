@@ -166,8 +166,10 @@ fn test_608_1_instant_resolves_to_graveyard() {
     )
     .unwrap();
 
-    // After CastSpell, active player (p1) gets priority. All four pass.
-    let (final_state, events) = pass_all_four(state, [p(1), p(2), p(3), p(4)]);
+    // CR 117.3c: p2 had priority when they cast the spell, so p2 (the caster)
+    // retains priority afterward -- pass_all_four must start with the actor and
+    // wrap in APNAP order (p2, p3, p4, p1), not the active player p1.
+    let (final_state, events) = pass_all_four(state, [p(2), p(3), p(4), p(1)]);
 
     assert!(final_state.stack_objects().is_empty());
     assert_eq!(
@@ -377,10 +379,16 @@ fn test_608_1_priority_goes_to_active_player_after_resolution() {
     )
     .unwrap();
 
-    // After cast, p1 (active player) gets priority. All four pass to resolve.
-    let (final_state, _events) = pass_all_four(state, [p(1), p(2), p(3), p(4)]);
+    // CR 117.3c: p2 had priority when they cast the spell, so p2 (the caster)
+    // retains priority afterward -- pass_all_four must start with the actor and
+    // wrap in APNAP order (p2, p3, p4, p1), not the active player p1. This is
+    // purely a pass-sequence fix; the assertion below (CR 117.3b, after
+    // resolution) is untouched by PB-DP1 and stays correct.
+    let (final_state, _events) = pass_all_four(state, [p(2), p(3), p(4), p(1)]);
 
-    // After resolution, p1 (active player) should hold priority.
+    // CR 117.3b: after resolution, the active player (p1) receives priority.
+    // This is Group C behavior -- unchanged by PB-DP1 (which only redirects
+    // priority after a cast/activate/special action, not after a resolution).
     assert_eq!(final_state.turn().priority_holder, Some(p1));
     // players_passed has been reset.
     assert!(final_state.turn().players_passed.is_empty());

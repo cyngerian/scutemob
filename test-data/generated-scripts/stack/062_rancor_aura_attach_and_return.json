@@ -273,11 +273,11 @@
         {
           "type": "priority_round",
           "players": [
-            "p1",
-            "p2"
+            "p2",
+            "p1"
           ],
           "result": "all_pass",
-          "note": "CR 116.3: Both players pass priority — Doom Blade resolves."
+          "note": "CR 117.3c: p2 had priority when they cast Doom Blade, so p2 (the caster, not the active player p1) retains priority afterward -- the all-pass round starts with p2. Doom Blade resolves."
         },
         {
           "type": "stack_resolve",

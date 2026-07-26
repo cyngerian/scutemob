@@ -553,8 +553,14 @@ fn test_buyback_paid_spell_countered_goes_to_graveyard() {
     )
     .unwrap_or_else(|e| panic!("Counterspell cast failed: {:?}", e));
 
-    // Both players pass — Counterspell resolves (counters Searing Touch), then Counterspell resolves.
-    let (state, resolve_events) = pass_all(state, &[p1, p2, p1, p2]);
+    // CR 117.3c: p2 had priority when they cast Counterspell, so p2 (the caster,
+    // not the active player p1) retains priority afterward. pass_all must start
+    // with the actor (p2), then the other active player (p1) to complete the
+    // all-pass round: Counterspell resolves, countering Searing Touch in the
+    // same resolution -- the stack is now empty, so CR 117.3b hands priority to
+    // the active player p1 for the next round; the remaining two passes (p1,
+    // p2) just drain that empty-stack round.
+    let (state, resolve_events) = pass_all(state, &[p2, p1, p1, p2]);
 
     // SpellCountered event emitted for Searing Touch.
     assert!(

@@ -911,8 +911,11 @@ fn test_warp_countered_spell_not_exiled() {
     )
     .unwrap();
 
-    // Resolve Mock Counter -> counters the warp spell.
-    let (state, _) = pass_all(state, &[p1, p2]);
+    // CR 117.3c: p2 had priority when they cast Mock Counter, so p2 (the
+    // caster, not the active player p1) retains priority afterward -- pass_all
+    // must start with the actor p2, then p1, to resolve Mock Counter (which
+    // counters the warp spell).
+    let (state, _) = pass_all(state, &[p2, p1]);
     assert!(
         in_graveyard(&state, "Warp Test Creature", p1),
         "countered warp spell should go to the graveyard (never became a permanent)"
@@ -2563,8 +2566,10 @@ fn test_force_of_negation_counters_and_exiles() {
     )
     .unwrap_or_else(|e| panic!("Force of Negation pitch cast should succeed: {:?}", e));
 
-    // CR 601.2i: CastSpell resets priority to the ACTIVE player (p2 here), not the caster.
-    let (state, _) = pass_all(state, &[p2, p1]);
+    // CR 117.3c: p1 had priority when they cast Force of Negation, so p1 (the
+    // caster, not the active player p2) retains priority afterward -- pass_all
+    // must start with the actor p1, then p2.
+    let (state, _) = pass_all(state, &[p1, p2]);
 
     assert!(
         find_in_zone(&state, "Mock Bolt", ZoneId::Exile).is_some(),

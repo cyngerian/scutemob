@@ -526,8 +526,14 @@ fn test_flashback_exile_on_counter() {
     )
     .unwrap();
 
-    // Both players pass — Counterspell resolves (counters Think Twice), then Counterspell itself resolves.
-    let (state, resolve_events) = pass_all(state, &[p1, p2, p1, p2]);
+    // CR 117.3c: p2 had priority when they cast Counterspell, so p2 (the caster,
+    // not the active player p1) retains priority afterward. pass_all must start
+    // with the actor (p2), then the other active player (p1) to complete the
+    // all-pass round: Counterspell resolves, countering Think Twice in the same
+    // resolution -- the stack is now empty, so CR 117.3b hands priority to the
+    // active player p1 for the next round; the remaining two passes (p1, p2)
+    // just drain that empty-stack round.
+    let (state, resolve_events) = pass_all(state, &[p2, p1, p1, p2]);
 
     // SpellCountered event emitted for Think Twice.
     assert!(

@@ -149,11 +149,11 @@
         {
           "type": "priority_round",
           "players": [
-            "p1",
-            "p2"
+            "p2",
+            "p1"
           ],
           "result": "all_pass",
-          "note": "Both pass — Swan Song resolves."
+          "note": "CR 117.3c: p2 had priority when they cast Swan Song, so p2 (the caster, not the active player p1) retains priority afterward -- the all-pass round starts with p2. Both pass — Swan Song resolves."
         },
         {
           "type": "stack_resolve",

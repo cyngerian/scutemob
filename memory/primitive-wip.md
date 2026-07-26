@@ -1,4 +1,4 @@
-# Primitive WIP — PB-DP1 (DP-1 · priority after cast/activate/special action) · IMPLEMENT (steps 1-11 of 16 done)
+# Primitive WIP — PB-DP1 (DP-1 · priority after cast/activate/special action) · IMPLEMENT (steps 1-14 of 16 done)
 
 <!-- last_updated: 2026-07-26 -->
 
@@ -7,10 +7,11 @@
 - **Task**: `scutemob-149`
 - **Branch**: `feat/pb-dp1-priority-after-castactivatespecial-action-goes-to-the`
 - **Class**: CORRECTNESS (live-wrong, core-reachable — no card required)
-- **Phase**: IMPLEMENT — plan steps 1-11 of 16 complete (probes + Group A/B/C/D +
-  mana.rs comment, all 9 probes green); **steps 12-16 remain** (full-suite fallout
-  triage, golden scripts, simulator, gates, review, close-out) and are dispatched
-  separately, not part of this session
+- **Phase**: IMPLEMENT — plan steps 1-14 of 16 complete (probes + Group A/B/C/D +
+  mana.rs comment, all 9 probes green; full-suite fallout triage — 19 unit tests + 15
+  golden scripts fixed, 0 real regressions; simulator verified green with evidence);
+  **steps 15-16 remain** (gates re-run for clippy/fmt/build --workspace, then review +
+  close-out) and are dispatched separately, not part of this session
 - **Binding spec**: `docs/audits/decision-point-audit.md` §4.1, §4.12, §5 Tier 0 (DP-1 row), §8 (PB-DP1 row)
 - **Plan file**: `memory/primitives/pb-plan-DP1.md`
 - **Review file**: `memory/primitives/pb-review-DP1.md`
@@ -128,14 +129,181 @@ and trace baselines will move — expected and correct; update knowingly, with c
 - [x] 5. Group A fixes: engine.rs craft; Group B ruling applied; Group D disposition
 - [x] 6. Regression tests (non-active caster; respond to own spell; mana-ability preservation)
       — covered by probes P1/P2/P7 in the Step-1 probe file (all green post-fix)
-- [ ] 7. Test + golden-script fallout triage, every update citing CR 117.3c — **OUT OF
-      SCOPE for this invocation** (plan step 12/13; dispatched separately)
-- [ ] 8. Simulator / LocalGame baselines updated knowingly — **OUT OF SCOPE** (plan step 14)
-- [~] 9. PROTOCOL 27 / HASH 63 confirmed unchanged (wire sentinels green — see below);
-      **full gate suite (clippy/fmt/`cargo test --all`) NOT run** — that requires the
-      fallout triage (step 7/plan-step-12) first, which is out of scope here
-- [ ] 10. `primitive-impl-reviewer` pass, findings dispositioned — **OUT OF SCOPE**
-- [ ] 11. Close-out: audit doc §5/§8 rows shipped; seeds filed — **OUT OF SCOPE**
+- [x] 7. Test + golden-script fallout triage, every update citing CR 117.3c — **DONE**
+      this session (`scutemob-149`, plan steps 12-14). Full triage recorded below.
+- [x] 8. Simulator / LocalGame baselines updated knowingly — **DONE**. No baseline
+      needed rewriting; verified WHY by reading the two derive-from-`priority_holder`
+      sites (see plan-step-14 section below).
+- [x] 9. PROTOCOL 27 / HASH 63 confirmed unchanged (wire sentinels green); **full gate
+      suite now run**: `cargo test --all --no-fail-fast` → 271/271 targets green, 0
+      failures. `cargo clippy --workspace --all-targets -- -D warnings`, `cargo build
+      --workspace`, `cargo fmt --check` deferred to the fix/review-close session per
+      the task's scope (test + script triage only) — not run this session.
+- [ ] 10. `primitive-impl-reviewer` pass, findings dispositioned — **OUT OF SCOPE** (next session)
+- [ ] 11. Close-out: audit doc §5/§8 rows shipped; seeds filed — **OUT OF SCOPE** (next session)
+
+## Steps 12-14 triage session — scutemob-149 (test + golden-script fallout)
+
+**Starting fallout** (from `cargo test --all --no-fail-fast` run at session start): 19 unit
+test failures across `casting`, `core`, `mechanics_a_d`, `mechanics_e_l`, `mechanics_m_z`,
+`primitives`, plus 15 golden-script failures in `run_all_approved_scripts` (1 corpus-wide
+test). All 19 unit-test failures and all 15 script failures were **test-encoded-the-bug**
+per the plan §9.4 rule — **zero real regressions**.
+
+### Root-cause cluster: countered-spell tests/scripts (the dominant failure mode)
+
+10 of 19 unit-test failures (`aftermath`, `buyback`, `flashback`, `jump_start`, `madness`,
+`retrace`, `pb_ac5_alt_costs` ×2, `pb_ef2_create_token_recipient` ×3 — one file had 3
+affected tests) plus 12 of 15 script failures share ONE root cause: a non-active player
+casts a counterspell (or any instant) in response, and the test/script's hardcoded
+`pass_all`/`priority_round` player list started with the ACTIVE player (the old,
+buggy hand-off target) instead of the ACTUAL actor. Per CR 117.3c the actor now
+correctly retains priority, so the first `PassPriority` in these lists failed with
+`NotPriorityHolder`.
+
+**Fix pattern** (verified empirically via debug prints on `aftermath::test_aftermath_exile_on_counter`
+before generalizing — see evidence below): reorder the pass list to start with the
+actor, then the other active player(s) in APNAP order. For a 2-object stack where the
+top resolution removes BOTH objects (e.g., Counterspell resolving counters and removes
+its target too), the correct 4-pass shape is `[actor, other, other, actor]` — NOT
+`[actor, other, actor, other]` — because after the single resolution empties the whole
+stack, CR 117.3b (Group C, untouched by PB-DP1) hands priority back to the ACTIVE
+player, and the remaining two passes drain that now-empty-stack round starting from
+the active player, not the actor.
+
+**Evidence of the empirical verification** (not just theory): added temporary
+`eprintln!` debug prints to `aftermath::test_aftermath_exile_on_counter`'s `pass_all`
+loop, which showed `priority_holder` was correctly `Some(PlayerId(2))` right after the
+Counterspell cast, then flipped to `Some(PlayerId(1))` after the SECOND pass in the
+sequence (once the top-of-stack resolution completed and Group C's CR 117.3b handoff
+fired) — confirming the `[p2, p1, p1, p2]` shape empirically, not just by inference.
+Debug prints were removed before committing.
+
+Fixed files (unit tests): `crates/engine/tests/mechanics_a_d/aftermath.rs`,
+`crates/engine/tests/mechanics_a_d/buyback.rs`, `crates/engine/tests/mechanics_e_l/flashback.rs`,
+`crates/engine/tests/mechanics_e_l/jump_start.rs`, `crates/engine/tests/mechanics_m_z/madness.rs`
+(2-player, single-pass-per-side shape `[actor, other]`, not 4-pass — no second stack
+object), `crates/engine/tests/mechanics_m_z/retrace.rs` (only the FIRST of two
+`pass_all` calls needed reordering — the second, post-resolution round was already
+correct since Group C restores AP priority), `crates/engine/tests/primitives/pb_ac5_alt_costs.rs`
+(`test_force_of_negation_counters_and_exiles` — its OWN comment cited the pre-fix rule
+verbatim: `"CR 601.2i: CastSpell resets priority to the ACTIVE player"` — direct textual
+proof this test encoded the bug; `test_warp_countered_spell_not_exiled` — same shape),
+`crates/engine/tests/primitives/pb_ef2_create_token_recipient.rs` (3 tests, all
+`counter_scenario`-based, all fixed with the same `[p2, p1, p1, p2]` reorder),
+`crates/engine/tests/primitives/pbt_up_to_n_targets.rs` (4-player variant —
+`[p2, p3, p4, p1]` for the first round; the SECOND round in the same test was already
+correct as `[p1, p2, p3, p4]` since it runs after a resolution, Group C), and
+`crates/engine/tests/primitives/pb_ac4_per_mode_targeting.rs` (2 tests — only the FIRST
+`pass_all` per test needed reordering to `[p2, p1]`; Modal Strike stays on the stack
+after the response resolves, so the SECOND round is Group C, unaffected).
+
+Fixed scripts (golden corpus, `test-data/generated-scripts/`): `tokens/001_swan_song_creates_bird.json`,
+`baseline/019_pass_priority_with_stack_item.json`, `stack/030_counterspell_counters_wrath.json`,
+`stack/002_counterspell_counters_spell.json`, `stack/010_negate_counters_noncreature.json`,
+`stack/015_supreme_verdict_uncounterable.json`, `stack/045_swan_song_counters_damnation.json`,
+`stack/044_negate_counters_harmonize.json`, `stack/043_two_spells_lifo_order.json`,
+`stack/062_rancor_aura_attach_and_return.json`, `stack/006_arcane_denial_counters_spell.json`,
+`stack/165_umbra_armor_hyena_umbra.json`, `stack/198_morph_face_down_creature_dies_reveal.json`,
+`layers/081_bestow_aura_then_falls_off.json` — all fixed by reordering the single
+`priority_round`'s `players` list to start with the actual actor, each with a new
+`note` citing CR 117.3c. Any SECOND `priority_round` in the same script (post-resolution,
+Group C) was left unchanged, with a clarifying-only comment added in a couple of cases
+(`015`, `043`) to record why it didn't need reordering.
+
+### The one script needing more than a reorder: `stack/066_krosan_grip_split_second_blocks_counterspell.json`
+
+This script does not fit the simple reorder pattern. p2 casts Krosan Grip
+(split second) in response to nothing — p2 is the actor, priority correctly stays
+with p2 (CR 117.3c). The script's ORIGINAL sequence then has p1 (who does NOT hold
+priority) immediately activate Sol Ring's mana ability. `rules/mana.rs::handle_tap_for_mana`
+requires `state.turn.priority_holder == Some(player)` (CR 605.3b, unchanged by this PB
+— PRESERVE) — a real, pre-existing engine gate, not something PB-DP1 introduced. Under
+the pre-fix (buggy) engine, priority had incorrectly reverted to the active player p1
+immediately after p2's cast, which is exactly why p1's mana-tap "worked" before. Under
+the CR-correct fix, p1 does not hold priority at that point and genuinely cannot
+activate a mana ability yet.
+
+**Fix**: inserted an explicit `p2` `priority_pass` action between the Krosan Grip cast
+and P1's mana-tap (p2 must actively hand priority to p1 before p1 can act), then
+reduced the trailing `priority_round` from `[p1, p2]` to `[p1]` alone — since p2's
+explicit pass already contributed to `players_passed` (CR 117.3b parenthetical: a mana
+ability does not disturb `priority_holder` or reset `players_passed`), only p1's own
+pass is needed to complete the all-pass round. This is still functionally a
+test-encoded-the-bug fix (the old sequence relied on the bug to let p1 act), just one
+that needed an inserted action rather than a bare reorder. Verified: script passes,
+0 remaining script failures.
+
+### Group C presumption discharge: `resolution::test_608_1_priority_goes_to_active_player_after_resolution`
+
+Per the task's flagged concern, this test carries a presumption of being a real
+regression (it asserts Group C / CR 117.3b behavior, which PB-DP1 does not touch).
+**Presumption discharged, not a real regression**: the test's SETUP casts an instant as
+p2 (a non-active-player cast) and then drives the stack to resolution via
+`pass_all_four(state, [p1, p2, p3, p4])` — a hardcoded 4-player pass list that, pre-fix,
+"worked" only because priority incorrectly reverted to the active player p1 right after
+the cast. Post-fix, the actor p2 correctly retains priority (CR 117.3c), so the pass
+list needed reordering to `[p2, p3, p4, p1]` (actor first, then APNAP wrap). The
+test's actual ASSERTION — `final_state.turn().priority_holder == Some(p1)` AFTER all
+four players pass and the stack resolves — is CR 117.3b (Group C) and is byte-identical
+in meaning before and after this fix; it was never touched. Only the pass-sequence
+SETUP needed to change, and only because of the (in-scope) Group A cast-priority fix
+upstream of it, not because Group C's own logic moved. Sibling test
+`test_608_1_instant_resolves_to_graveyard` in the same file had the identical shape and
+received the identical fix (`[p1,p2,p3,p4]` → `[p2,p3,p4,p1]`).
+
+### `casting.rs` cluster (test-encoded-the-bug, most direct)
+
+`casting::test_cast_spell_instant_during_opponents_upkeep` and
+`casting::test_cast_spell_priority_resets_to_active_player` both had p2 (non-active,
+holding priority via a manually-seeded `state.turn_mut().priority_holder = Some(p2)`)
+cast an instant and then assert `priority_holder == Some(p1)` afterward — the bug,
+verbatim. Fixed both assertions to `Some(p2)`, cited CR 117.3c, and renamed the second
+test from `test_cast_spell_priority_resets_to_active_player` to
+`test_cast_spell_priority_retained_by_actor_after_casting` (the old name described the
+bug's behavior as the intended one).
+
+### Simulator / LocalGame (plan step 14) — verified, not just reported green
+
+`cargo test -p mtg-simulator` was green with NO changes needed. Verified the plan's
+claimed explanation by reading both sites directly (not just trusting the plan):
+- `crates/simulator/src/legal_actions.rs:191-192`: `if state.turn().priority_holder !=
+  Some(player) { return actions; }` — gates legal-action enumeration purely off
+  `priority_holder`, with no active-player special-casing anywhere in the function.
+- `crates/simulator/src/local_game.rs:310`: `else if let Some(priority) =
+  self.state.turn().priority_holder { (priority, None) }` — derives the acting seat
+  directly from `priority_holder` in `advance()`'s seat-resolution chain.
+
+Both sites treat `priority_holder` as the single source of truth for "who acts next"
+and contain no hardcoded assumption that it's the active player. This confirms the
+plan's forecast: since PB-DP1 only changes WHICH `PlayerId` gets written into
+`priority_holder` (not the field's meaning or type), both call sites automatically
+followed the fix with zero code changes needed. `test_local_game_bot_only_matches_game_driver_for_fixed_seeds`
+(the self-referential `GameDriver` vs `LocalGame` parity test) stayed green because
+BOTH paths move identically under the fix (same underlying `process_command` logic).
+
+### PRESERVE gate — confirmed intact
+
+`test_dp1_mana_ability_does_not_reset_players_passed` (P7) was NOT touched and was
+green throughout this session (confirmed in the probe re-runs during the implement
+phase and never revisited here). No code in `mana.rs` changed during this triage
+session — only script `066`'s ACTION SEQUENCE (adding an explicit p2 pass before p1's
+mana tap) changed, never the mana-ability activation gate itself.
+
+### Final tally
+
+- **19 tests updated (bug-encoded) / 15 scripts updated (bug-encoded) / 0 real
+  regressions.**
+- Full suite: `cargo test --all --no-fail-fast` → **271/271 targets green, 0 failures**
+  (271 = the workspace's full binary count including doc-tests; grepped for
+  `FAILED`/`error[` in the captured log — zero hits).
+- Golden scripts: `run_all_approved_scripts` → 211/271 discovered scripts ran and
+  passed, 60 retired (pre-existing, unrelated to this PB — reasons unchanged), 0
+  skipped silently.
+- `cargo test -p mtg-simulator` → all green, 0 changes needed (9 `local_game.rs` tests
+  + others).
+- PROTOCOL 27 / HASH 63 unchanged — no sentinel re-pinned; no wire-shape file touched.
+- No file under `crates/card-defs/` touched; `docs/authoring-status.md` untouched.
 
 ## Implement session (plan `pb-plan-DP1.md` steps 1-11) — scutemob-149
 

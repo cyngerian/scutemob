@@ -1097,8 +1097,11 @@ fn test_pbt_up_to_n_partial_fizzle_on_zone_change() {
     )
     .expect("M9: P2 casts Destroy Creature targeting Creature A");
 
-    // Step 3: All players pass priority → "Destroy Creature" resolves; Creature A dies.
-    let (state, _) = pass_all(state, &players);
+    // CR 117.3c: p2 had priority when they cast Destroy Creature, so p2 (the
+    // caster, not the active player p1) retains priority afterward -- the
+    // all-pass round must start with the actor p2 and wrap in APNAP order
+    // (p2, p3, p4, p1) to resolve Destroy Creature; Creature A dies.
+    let (state, _) = pass_all(state, &[p2, p3, p4, p1]);
 
     // Verify Creature A is dead after Destroy resolves (zone change per CR 400.7).
     assert!(
@@ -1110,7 +1113,10 @@ fn test_pbt_up_to_n_partial_fizzle_on_zone_change() {
         "M9: Creature B must still be on battlefield"
     );
 
-    // Step 4: All players pass priority → "Tap Up To Two" resolves.
+    // Step 4: CR 117.3b hands priority to the active player (p1) after Destroy
+    // Creature's resolution -- Group C, unaffected by PB-DP1 -- so this
+    // all-pass round in the original [p1, p2, p3, p4] order is unchanged and
+    // resolves "Tap Up To Two".
     // CR 608.2b: Creature A is no longer on battlefield → illegal target → dropped.
     // Creature B is still legal → tapped.
     let (state, _) = pass_all(state, &players);
