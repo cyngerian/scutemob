@@ -100,14 +100,16 @@ are `partial` or `inert`.
 
 ### 2.3 Corpus-impact method
 
-Counts below come from a regex sweep over `crates/card-defs/src/defs/*.rs`
-(1,805 files). A def is "effectively `Complete`" if it says `Completeness::Complete` **or**
-carries no `completeness:` line at all (the DSL default) — 1,140 files, which agrees with
-`tools/authoring-report.py`'s 1,139 to within one. This is an *approximation*: it is a source
-regex, not the serde walk `effect_choose_gate.rs` uses, so it will miss a variant reached
-only through a deeply nested generated ability and will over-count a variant that appears
-only in a comment. Reproduction script:
-`/tmp/claude-1000/.../scratchpad/count-classb.py` (method reproduced inline in §3.1).
+Counts below come from a regex sweep over `crates/card-defs/src/defs/*.rs`, **excluding
+`defs/mod.rs`** (the module file, which is caught by the glob but is not a card) — 1,804 def
+files. A def is "effectively `Complete`" if it says `Completeness::Complete` **or** carries no
+`completeness:` line at all (the DSL default) — **1,139 files, exactly matching
+`tools/authoring-report.py`.**
+
+This is an *approximation*: it is a source regex, not the serde walk `effect_choose_gate.rs`
+uses, so it will miss a variant reached only through a deeply nested generated ability and
+will over-count a variant that appears only in a comment. Word boundaries matter — `Discover\b`
+is the mechanic (CR 701.57) and deliberately does not match the card name *Kindred Discovery*.
 
 ---
 
@@ -120,7 +122,7 @@ only in a comment. Reproduction script:
 | targeted triggered ability (CR 603.3d) | 104 | **84** |
 | `SearchLibrary` (CR 701.23) | 108 | **74** |
 | `Proliferate` (CR 701.34a) | 35 | 25 |
-| `DiscardCards` / `WheelHand` (CR 701.8) | 32 | 23 |
+| `DiscardCards` / `WheelHand` / `WheelDraw` (CR 701.8) | 32 | 23 |
 | `Effect::Scry` (CR 701.22a) | 20 | 16 |
 | `SacrificePermanents` (CR 701.21a) | 21 | 11 |
 | `MayPayThenEffect` (CR 118.12) | 19 | 11 |
@@ -139,7 +141,7 @@ only in a comment. Reproduction script:
 | `Effect::Choose` | 0 | **0** ← gated, unused |
 | `TheRingTemptsYou` (CR 701.54) | 2 | **0** |
 
-> **272 of 1,140 effectively-`Complete` defs — 23.9% — contain at least one decision the
+> **277 of 1,139 effectively-`Complete` defs — 24.3% — contain at least one decision the
 > engine makes for the player.**
 
 The three gated rows at the bottom are the control group: the SR-33 gate works exactly as
@@ -174,8 +176,10 @@ Each row cites the site verified by reading. `crates/engine/src/` is elided from
 | Additional costs, 2nd and later | 118.8 | **D** | `rules/casting.rs:3307-3309` — only `required_costs[0]` is validated, despite the comment claiming otherwise |
 | Convoke / Improvise / Delve membership | 702.51 / 702.126 / 702.66 | **A** | `rules/casting.rs:5429-5542`, `:5561-5650`, `:5666-5726`. Empty vec = no reduction; no auto-tap |
 | Which pip a convoke creature pays | 702.51a | **B** | `rules/casting.rs:5493-5522` — colored-first, first match in WUBRG order, generic only as fallback |
-| Hybrid pip payment | 107.4e | **B** by design | `crates/card-types/src/state/game_object.rs:238-284` — unindexed `{A/B}` → first colour `A`; `{2/C}` → the coloured half |
-| Phyrexian pip payment | 107.4f | **B** by design | `game_object.rs:287-309` — `unwrap_or(false)` ⇒ pay with mana, not life |
+| Hybrid pip payment, **supplied** | 107.4e | **A** | `CastSpellData::hybrid_choices` (`rules/command.rs:683`) → `rules/casting.rs:3991` `flatten_hybrid_phyrexian(cost, &hybrid_choices, &phyrexian_life_payments)?`. Same hook on `ActivateAbility` (`command.rs:137`) via `abilities.rs:775-782` and on `TapForMana` (`command.rs:58`) via `rules/mana.rs:252-261`. Shipped by PB-RS2 for OOS-RS-2 |
+| Hybrid pip payment, **omitted** | 107.4e | **B** by design | `crates/card-types/src/state/game_object.rs:238-284` — an unindexed `{A/B}` defaults to first colour `A`; `{2/C}` to the coloured half. A short vector is the deliberate contract; an over-long one is rejected (`:216-235`) |
+| Phyrexian pip payment, **supplied** | 107.4f | **A** | `CastSpellData::phyrexian_life_payments` (`rules/command.rs:689`), same three call sites as above |
+| Phyrexian pip payment, **omitted** | 107.4f | **B** by design | `game_object.rs:287-309` — `unwrap_or(false)` ⇒ pay with mana, not life. Phyrexian-**hybrid** `{A/B/P}` paid with mana always takes colour `A`; no choice channel exists for that sub-case (`:297-304`) |
 | Which pool mana pays a generic pip | 601.2h | **B** | `crates/card-types/src/state/player.rs:203-244` — coloured pips first, restricted before unrestricted, then generic in fixed order C→G→R→B→U→W |
 | `face_down_kind` | 702.37c | **D** | `rules/casting.rs:67` binds `_face_down_kind` and never reads it; the kind is re-derived from the def at `:4661-4683` (Disguise > Megamorph > Morph) |
 | Target **division** ("divided as you choose") | **601.2d** | **D** | Nothing anywhere: no `CastSpellData` field, no `Effect` variant, no resolution path. Sole in-corpus card `crates/card-defs/src/defs/fire_covenant.rs:25-37` is `Effect::Nothing`, marked `partial` |
@@ -329,6 +333,7 @@ effect-choice; the `Command` enum has no general `MakeChoice`.
 | **Surveil** keep-or-graveyard | **701.25a** | **B** | `effects/mod.rs:3123-3130` — **all** looked-at cards are milled. Surveil N ≡ Mill N. 8 `Complete` defs |
 | Library search pick | 701.23 | **B** | `effects/mod.rs:3032` — `candidates.iter().min_by_key(\|&&id\| id.0)`, i.e. **lowest `ObjectId`** among filter matches. 74 `Complete` defs |
 | Discard-as-effect | 701.8 | **B** | `effects/mod.rs:8611-8619` `discard_cards` — lowest `ObjectId` in hand, repeated. "Reveal your hand, opponent chooses" has no representation at all |
+| `WheelDraw` (wheels: Windfall, Wheel of Fortune, …) | 701.8 | **A** — no choice exists | `Effect::WheelHand` (`card_definition.rs:2505-2545`) discards the player's **whole** hand, so the `discard_cards` pick order above is unobservable. The `WheelDraw` enum (`:2538`) only sizes the redraw (`Fixed` / `ThatMany` / `GreatestDiscarded`) — it is a count, not a player choice. Executed at `effects/mod.rs:698`, `:730`. 10 defs. Listed because the task brief named it; there is nothing to hook |
 | Sacrifice-as-effect / edicts | 701.21a | **B** | `effects/mod.rs:8193-8206` `sacrifice_permanents_for_player` — `n` lowest `ObjectId`s. Under `EachPlayer` this systematically takes each player's earliest-entering permanent |
 | Cascade "you **may** cast" | 702.85a | **B** | `rules/copy.rs:366-368` — no decline branch; the `if` is only the legality test. The free-cast also gets `targets: vec![]` (`copy.rs:389`) and `modes_chosen: vec![]` ⇒ mode 0 (`copy.rs:430`) |
 | Discover "you may cast" | 701.57 | **B** | `effects/mod.rs:3837-3848` — always casts |
@@ -383,11 +388,20 @@ is wrong. See **DP-1**.
 
 ## 5. Ranked B/D findings
 
+One row — **DP-32** — is marked `A*`. Its *choice* is class A (honoured, never defaulted); it
+is listed here because the surrounding machinery is not, and a reader ranking work items needs
+to see it next to the rest. It is the only non-B/D row in this section.
+
 Ranking dimension is **human-play impact**: how often a human at one seat of a 4-player
 Commander game hits the site × how far the engine's pick is from what a player would choose ×
 whether it ships in `Complete` cards or in core rules.
 
-### Tier 0 — reachable every game, no card required
+### Tier 0 — correctness class: the engine's behaviour diverges from the CR
+
+All five are class **D**, i.e. wrong rather than merely un-consulted. DP-1, DP-2 and DP-3 are
+also core-reachable (no card required); DP-4 needs one of three specific `Complete` cards in
+the deck and DP-5 needs two `WouldDraw` replacements on the board. The core-reachable set is
+§3.2's six, which is deliberately not the same list as this tier.
 
 | id | class | finding | CR | site |
 |---|---|---|---|---|
@@ -458,10 +472,14 @@ Stated so a re-audit knows where the edges are.
 Explicitly requested. **`memory/primitives/rider-seed-triage-2026-07-19.md` was not modified**
 — that queue is paused at PB-RS4 and belongs to the coordinator.
 
-### OOS-M11-1 — mulligan no-shuffle: **CONFIRMED, and understated**
+### OOS-M11-1 — mulligan no-shuffle: **CONFIRMED as filed; covers one of two defects**
 
-The seed (M11 plan §8 R2) says a mulligan "returns a near-identical hand". It returns the
-**identical** hand. `Zone::insert` on an ordered zone is `push_back`
+The seed itself is exact. `m11-session-plan.md:800` (§8 R2, the seed text) reads "A mulligan
+today returns the same hand — a live-wrong rules path (CR 103.5 requires a shuffle)", and this
+audit confirms it verbatim. (The plan's §1 fact 1, at `:82`, hedges to "near-identical"; the
+seed does not, and the seed is right.)
+
+`Zone::insert` on an ordered zone is `push_back`
 (`crates/card-types/src/state/zone.rs:109`) and `Zone::top` is `v.last()` (`:159-164`), so the
 seven cards moved hand→library are the seven cards drawn back. No RNG is invoked — the engine
 *does* have a deterministic seeded PRNG (`effects/mod.rs:8697-8703`, `:3049`, `:3148`, seeded
@@ -469,7 +487,8 @@ from `state.timestamp_counter`), and `handle_take_mulligan` calls none of it. Th
 `GameEvent::LibraryShuffled` is a phantom, which is an Architecture Invariant 4 problem in its
 own right ("events are the single source of truth for what happened").
 
-**Widen the seed.** It has a second, independent, cheaper half: `handle_keep_hand`
+**Widen the seed.** What the seed does *not* cover is a second, independent, cheaper defect on
+the same command pair — this audit's genuinely new contribution here: `handle_keep_hand`
 (`rules/commander.rs:886-890`) puts `cards_to_bottom` on the **top** of the library. That half
 is a one-line `push_front` fix with no wire impact and it is a strictly-wrong rules path today.
 Recommended rank: **Tier 0**, above every RS-queue item, on the same "live-wrong on a
@@ -525,7 +544,7 @@ Ordered correctness-first, matching the RS queue's own convention that a live-wr
 | **PB-DP7** | **DP-3** — cleanup discard hook (CR 514.1) | **new `Command` ⇒ PROTOCOL bump** | The first finding that needs new wire surface. Smallest possible pilot for the pending-decision pattern: one player, one list, one moment |
 | **PB-DP8** | **DP-6 / OOS-M11-3** — trigger-target hook (CR 603.3d) | **new `Command` + pending state ⇒ PROTOCOL + HASH bump** | The big one: 84 `Complete` defs. Should follow PB-DP7 so the pending-decision shape is already proven |
 | **PB-DP9** | **DP-7 / DP-8 / DP-9** — search, scry, surveil hooks | **new `Command`(s)** | 98 `Complete` defs between them. Scry and surveil are the two whose auto-choice actively inverts the printed mechanic |
-| **PB-DP10** | **gate widening** — extend `effect_choose_gate.rs` beyond its three variants, or add a `Completeness` marker distinguishing "correct" from "correct only if the engine's guess matches the player's" | none (test-only) | Without it, the 272-def figure in §3.1 grows silently with every new card. This is the invariant-level fix; the rest are instances |
+| **PB-DP10** | **gate widening** — extend `effect_choose_gate.rs` beyond its three variants, or add a `Completeness` marker distinguishing "correct" from "correct only if the engine's guess matches the player's" | none (test-only) | Without it, the 277-def figure in §3.1 grows silently with every new card. This is the invariant-level fix; the rest are instances |
 
 **Sequencing note.** PB-DP1..PB-DP6 need no wire change at all and could ship inside the
 existing paused-queue cadence. PB-DP7..PB-DP9 are a coherent block that should be planned
@@ -684,7 +703,8 @@ Per [methodology.md](methodology.md) "When to Re-Audit":
 - Any new `Command` variant — check whether it closes a §5 finding or is another
   accepted-and-discarded field (**DP-24**).
 - After **PB-DP7** or any first pending-decision-that-blocks lands — re-run §3.1's sweep and
-  re-derive the 272 figure.
+  re-derive the 277 figure. Exclude `defs/mod.rs`, and remember the union must include the
+  modal-triggered-ability row — omitting it is how the first pass of this audit undercounted by 5.
 - After a `Zone` API change — **DP-2** is a top/bottom inversion of exactly the kind PB-RS1
   swept; the sweep's roster did not include the mulligan, and a future roster should be
   derived from `Zone::push_front` call sites rather than hand-listed.
