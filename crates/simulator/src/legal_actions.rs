@@ -117,6 +117,30 @@ pub enum LegalAction {
         /// The alt-cost kind to use (always AltCostKind::Morph).
         face_down_kind: FaceDownKind,
     },
+    /// CR 702.30a (PB-DP4 / DP-11): answer an outstanding echo payment. `pay: false` is
+    /// always offered (declining is always legal -- CR 118.12a); `pay: true` is offered
+    /// only when `casting::can_pay_cost` says the engine will accept it, mirroring
+    /// `handle_pay_echo`'s own check (SR-38 precedent: never offer a payment the engine
+    /// rejects).
+    PayEcho {
+        permanent: ObjectId,
+        pay: bool,
+    },
+    /// CR 702.24a (PB-DP4 / DP-11): answer an outstanding cumulative upkeep payment. The
+    /// total is `per_counter_cost` x the permanent's age counters (CR 702.24b counts ALL
+    /// age counters on the permanent, not per-ability). `pay: true` is gated on the mana
+    /// pool for `CumulativeUpkeepCost::Mana` and on the life total for `::Life`
+    /// (CR 119.4).
+    PayCumulativeUpkeep {
+        permanent: ObjectId,
+        pay: bool,
+    },
+    /// CR 702.59a (PB-DP4 / DP-11): answer an outstanding recover payment. `pay: false`
+    /// exiles the card; declining is always legal.
+    PayRecover {
+        recover_card: ObjectId,
+        pay: bool,
+    },
 }
 
 /// Trait for enumerating legal actions from a game state.
@@ -199,13 +223,6 @@ impl LegalActionProvider for StubProvider {
         // The human player can still quit via 'q'.)
         actions.push(LegalAction::PassPriority);
 
-        let is_main_phase = matches!(
-            state.turn().step,
-            Step::PreCombatMain | Step::PostCombatMain
-        );
-        let stack_empty = state.stack_objects().is_empty();
-        let is_active = state.turn().active_player == player;
-
         // SG-1 (SR-38, CR 118.3 / CR 119.4): the activating player's life total, used to
         // gate life-cost activations below. SR-34 gave `ManaAbility` a `life_cost` (horizon
         // lands, Mana Confluence) and SR-36 gave `ActivationCost` a `life_cost` (fetchlands,
@@ -216,6 +233,98 @@ impl LegalActionProvider for StubProvider {
         // bot's legal-action list stays a subset of what the engine will accept. CR 119.4b makes
         // a cost of 0 always payable, so every check short-circuits on `life_cost > 0`.
         let life_total = state.player(player).map(|p| p.life_total).unwrap_or(0);
+
+        // PB-DP4 / DP-11: an outstanding pay-or-lose-it payment. Offered as ordinary
+        // priority-window actions rather than a separate blocking decision, because the
+        // engine's deadline is the end of this priority round
+        // (rules/engine.rs::force_resolve_overdue_payments) and because CR 608.2g lets the
+        // player activate mana abilities first -- so TapForMana must stay available
+        // alongside these. Appending (not early-returning) is deliberate: the commander-zone
+        // and mulligan blocks above early-return because those decisions genuinely exclude
+        // everything else, but a payment must not -- the engine's payment path reads only
+        // the pool (it never auto-taps), so early-returning would make `pay: true` reachable
+        // only when the pool happens to already be funded.
+        //
+        // Not answering is a legal decline (CR 118.12a); the engine applies it at the
+        // boundary. `pay: false` is always offered; `pay: true` is gated on affordability
+        // (SR-38: never offer a payment the engine will reject).
+        let pool = state
+            .player(player)
+            .map(|p| p.mana_pool.clone())
+            .unwrap_or_default();
+        for (owing, permanent, cost) in state.pending_echo_payments().iter() {
+            if *owing != player {
+                continue;
+            }
+            actions.push(LegalAction::PayEcho {
+                permanent: *permanent,
+                pay: false,
+            });
+            if mtg_engine::rules::casting::can_pay_cost(&pool, cost) {
+                actions.push(LegalAction::PayEcho {
+                    permanent: *permanent,
+                    pay: true,
+                });
+            }
+        }
+        for (owing, permanent, per_counter_cost) in
+            state.pending_cumulative_upkeep_payments().iter()
+        {
+            if *owing != player {
+                continue;
+            }
+            actions.push(LegalAction::PayCumulativeUpkeep {
+                permanent: *permanent,
+                pay: false,
+            });
+            // CR 702.24b: the total is per_counter_cost x ALL age counters currently on
+            // the permanent (not per-ability).
+            let age_count = state
+                .object(*permanent)
+                .ok()
+                .and_then(|obj| obj.counters.get(&CounterType::Age).copied())
+                .unwrap_or(0);
+            let affordable = match per_counter_cost {
+                mtg_engine::CumulativeUpkeepCost::Mana(mc) => {
+                    mtg_engine::rules::casting::can_pay_cost(
+                        &pool,
+                        &multiply_mana_cost(mc, age_count),
+                    )
+                }
+                // CR 119.4 / 119.4b: mirrors engine.rs Change 2e's affordability gate.
+                mtg_engine::CumulativeUpkeepCost::Life(amount) => {
+                    life_total >= (amount * age_count) as i32
+                }
+            };
+            if affordable {
+                actions.push(LegalAction::PayCumulativeUpkeep {
+                    permanent: *permanent,
+                    pay: true,
+                });
+            }
+        }
+        for (owing, recover_card, cost) in state.pending_recover_payments().iter() {
+            if *owing != player {
+                continue;
+            }
+            actions.push(LegalAction::PayRecover {
+                recover_card: *recover_card,
+                pay: false,
+            });
+            if mtg_engine::rules::casting::can_pay_cost(&pool, cost) {
+                actions.push(LegalAction::PayRecover {
+                    recover_card: *recover_card,
+                    pay: true,
+                });
+            }
+        }
+
+        let is_main_phase = matches!(
+            state.turn().step,
+            Step::PreCombatMain | Step::PostCombatMain
+        );
+        let stack_empty = state.stack_objects().is_empty();
+        let is_active = state.turn().active_player == player;
 
         // Play lands: hand lands, main phase, stack empty, active player,
         // land plays remaining
@@ -1128,6 +1237,37 @@ fn try_hybrid_phyrexian_plan(
     Some((hybrid_choices, phyrexian_life_payments))
 }
 
+/// Multiply a mana cost by a scalar (PB-DP4 / DP-11, CR 702.24b: cumulative upkeep's total
+/// is per_counter_cost x the permanent's age counter count).
+///
+/// Deliberately mirrors `rules/engine.rs::multiply_mana_cost` EXACTLY, including
+/// hybrid/phyrexian/x_count -- that function is private to `engine.rs`, so this is a
+/// necessary duplicate (seed OOS-DP4-7), not a stylistic choice. If this copy ever drifts
+/// from the engine's, the SR-38 "only offer what the engine accepts" contract breaks
+/// silently: a bot's `PayCumulativeUpkeep { pay: true }` would start getting rejected via
+/// `driver.rs`'s `PassPriority` fallback.
+fn multiply_mana_cost(cost: &ManaCost, multiplier: u32) -> ManaCost {
+    ManaCost {
+        white: cost.white * multiplier,
+        blue: cost.blue * multiplier,
+        black: cost.black * multiplier,
+        red: cost.red * multiplier,
+        green: cost.green * multiplier,
+        colorless: cost.colorless * multiplier,
+        generic: cost.generic * multiplier,
+        hybrid: cost
+            .hybrid
+            .iter()
+            .flat_map(|h| std::iter::repeat_n(h.clone(), multiplier as usize))
+            .collect(),
+        phyrexian: cost
+            .phyrexian
+            .iter()
+            .flat_map(|p| std::iter::repeat_n(p.clone(), multiplier as usize))
+            .collect(),
+        x_count: cost.x_count * multiplier,
+    }
+}
 /// Mana affordability check: considers both mana pool and untapped sources.
 /// Uses the mana solver for precise color-aware checking.
 fn can_afford(state: &GameState, player: PlayerId, cost: &mtg_engine::ManaCost) -> bool {
@@ -1900,5 +2040,363 @@ mod tests {
             "the fallback plan must choose the payable half (Red), not the pool-preferred \
              but unpayable half (Black)"
         );
+    }
+
+    // ── PB-DP4 / DP-11: payment LegalActions ────────────────────────────────────────
+
+    /// CR 702.30a (PB-DP4 / DP-11): both `pay: true` and `pay: false` are offered for an
+    /// affordable outstanding echo payment.
+    #[test]
+    fn provider_offers_both_echo_branches_when_the_cost_is_affordable() {
+        let p1 = PlayerId(1);
+        let p2 = PlayerId(2);
+        let mut state = GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(p2)
+            .active_player(p1)
+            .object(ObjectSpec::creature(p1, "Echo Permanent", 2, 2).in_zone(ZoneId::Battlefield))
+            .build()
+            .expect("state builds");
+        let perm = id_of(&state, "Echo Permanent");
+        state.pending_echo_payments_mut().push_back((
+            p1,
+            perm,
+            ManaCost {
+                generic: 2,
+                ..Default::default()
+            },
+        ));
+        state.players_mut().get_mut(&p1).unwrap().mana_pool = mtg_engine::ManaPool {
+            colorless: 2,
+            ..Default::default()
+        };
+
+        let actions = StubProvider.legal_actions(&state, p1);
+        assert!(
+            actions.iter().any(
+                |a| matches!(a, LegalAction::PayEcho { permanent, pay: true } if *permanent == perm)
+            ),
+            "an affordable echo payment must offer pay: true"
+        );
+        assert!(
+            actions.iter().any(
+                |a| matches!(a, LegalAction::PayEcho { permanent, pay: false } if *permanent == perm)
+            ),
+            "declining is always legal (CR 118.12a)"
+        );
+    }
+
+    /// SR-38: the provider must never offer `PayEcho { pay: true }` when the engine would
+    /// reject it for insufficient mana.
+    #[test]
+    fn provider_omits_echo_pay_when_the_cost_is_unaffordable() {
+        let p1 = PlayerId(1);
+        let p2 = PlayerId(2);
+        let mut state = GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(p2)
+            .active_player(p1)
+            .object(ObjectSpec::creature(p1, "Echo Permanent", 2, 2).in_zone(ZoneId::Battlefield))
+            .build()
+            .expect("state builds");
+        let perm = id_of(&state, "Echo Permanent");
+        state.pending_echo_payments_mut().push_back((
+            p1,
+            perm,
+            ManaCost {
+                generic: 2,
+                ..Default::default()
+            },
+        ));
+        // Pool is empty by default.
+
+        let actions = StubProvider.legal_actions(&state, p1);
+        assert!(
+            !actions.iter().any(
+                |a| matches!(a, LegalAction::PayEcho { permanent, pay: true } if *permanent == perm)
+            ),
+            "SR-38: must not offer a payment the engine would reject"
+        );
+        assert!(
+            actions.iter().any(
+                |a| matches!(a, LegalAction::PayEcho { permanent, pay: false } if *permanent == perm)
+            ),
+            "decline must still be offered"
+        );
+    }
+
+    /// CR 702.24b (PB-DP4 / DP-11): the cumulative upkeep mana gate multiplies
+    /// `per_counter_cost` by the permanent's TOTAL age counter count, not a fixed amount.
+    #[test]
+    fn provider_gates_cumulative_upkeep_mana_on_age_counter_multiple() {
+        let p1 = PlayerId(1);
+        let p2 = PlayerId(2);
+        let build = |pool_colorless: u32| {
+            let mut state = GameStateBuilder::new()
+                .add_player(p1)
+                .add_player(p2)
+                .active_player(p1)
+                .object(
+                    ObjectSpec::creature(p1, "CU Permanent", 2, 2)
+                        .in_zone(ZoneId::Battlefield)
+                        .with_counter(CounterType::Age, 3),
+                )
+                .build()
+                .expect("state builds");
+            let perm = id_of(&state, "CU Permanent");
+            state.pending_cumulative_upkeep_payments_mut().push_back((
+                p1,
+                perm,
+                mtg_engine::CumulativeUpkeepCost::Mana(ManaCost {
+                    generic: 1,
+                    ..Default::default()
+                }),
+            ));
+            state.players_mut().get_mut(&p1).unwrap().mana_pool = mtg_engine::ManaPool {
+                colorless: pool_colorless,
+                ..Default::default()
+            };
+            (state, perm)
+        };
+
+        let (state_underfunded, perm) = build(2);
+        let actions = StubProvider.legal_actions(&state_underfunded, p1);
+        assert!(
+            !actions.iter().any(
+                |a| matches!(a, LegalAction::PayCumulativeUpkeep { permanent, pay: true } if *permanent == perm)
+            ),
+            "3 age counters x {{1}} = {{3}}; a pool of 2 must not offer pay: true"
+        );
+
+        let (state_funded, perm2) = build(3);
+        let actions2 = StubProvider.legal_actions(&state_funded, p1);
+        assert!(
+            actions2.iter().any(
+                |a| matches!(a, LegalAction::PayCumulativeUpkeep { permanent, pay: true } if *permanent == perm2)
+            ),
+            "a pool of exactly 3 must offer pay: true"
+        );
+    }
+
+    /// CR 119.4 (PB-DP4 / DP-11): the cumulative upkeep life gate mirrors
+    /// `engine.rs`'s Change 2e affordability check.
+    #[test]
+    fn provider_gates_cumulative_upkeep_life_on_life_total() {
+        let p1 = PlayerId(1);
+        let p2 = PlayerId(2);
+        let build = |life_total: i32| {
+            let mut state = GameStateBuilder::new()
+                .add_player(p1)
+                .add_player(p2)
+                .active_player(p1)
+                .player_life(p1, life_total)
+                .object(
+                    ObjectSpec::creature(p1, "CU Life Permanent", 2, 2)
+                        .in_zone(ZoneId::Battlefield)
+                        .with_counter(CounterType::Age, 2),
+                )
+                .build()
+                .expect("state builds");
+            let perm = id_of(&state, "CU Life Permanent");
+            state.pending_cumulative_upkeep_payments_mut().push_back((
+                p1,
+                perm,
+                mtg_engine::CumulativeUpkeepCost::Life(3),
+            ));
+            (state, perm)
+        };
+
+        // 2 age counters x 3 life = 6 owed.
+        let (state_poor, perm) = build(5);
+        let actions = StubProvider.legal_actions(&state_poor, p1);
+        assert!(
+            !actions.iter().any(
+                |a| matches!(a, LegalAction::PayCumulativeUpkeep { permanent, pay: true } if *permanent == perm)
+            ),
+            "CR 119.4: 5 life cannot pay a 6-life cost"
+        );
+
+        let (state_rich, perm2) = build(6);
+        let actions2 = StubProvider.legal_actions(&state_rich, p1);
+        assert!(
+            actions2.iter().any(
+                |a| matches!(a, LegalAction::PayCumulativeUpkeep { permanent, pay: true } if *permanent == perm2)
+            ),
+            "6 life exactly covers a 6-life cost"
+        );
+    }
+
+    /// CR 702.59a (PB-DP4 / DP-11): decline is always offered for a recover payment,
+    /// regardless of affordability.
+    #[test]
+    fn provider_offers_recover_decline_always() {
+        let p1 = PlayerId(1);
+        let p2 = PlayerId(2);
+        let mut state = GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(p2)
+            .active_player(p1)
+            .object(ObjectSpec::card(p1, "Recover Card").in_zone(ZoneId::Graveyard(p1)))
+            .build()
+            .expect("state builds");
+        let card = id_of(&state, "Recover Card");
+        state.pending_recover_payments_mut().push_back((
+            p1,
+            card,
+            ManaCost {
+                generic: 2,
+                ..Default::default()
+            },
+        ));
+        // Pool is empty by default -- pay: true must be absent.
+
+        let actions = StubProvider.legal_actions(&state, p1);
+        assert!(
+            actions.iter().any(
+                |a| matches!(a, LegalAction::PayRecover { recover_card, pay: false } if *recover_card == card)
+            ),
+            "decline must always be offered"
+        );
+        assert!(
+            !actions.iter().any(
+                |a| matches!(a, LegalAction::PayRecover { recover_card, pay: true } if *recover_card == card)
+            ),
+            "SR-38: pay: true must not be offered when unaffordable"
+        );
+    }
+
+    /// CR 608.2g (PB-DP4 / DP-11): a pending payment does not exclude ordinary
+    /// priority-window actions like TapForMana -- the player may fund the payment first.
+    #[test]
+    fn provider_still_offers_tap_for_mana_alongside_a_pending_payment() {
+        let p1 = PlayerId(1);
+        let p2 = PlayerId(2);
+        let mut state = GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(p2)
+            .active_player(p1)
+            .object(ObjectSpec::creature(p1, "Echo Permanent", 2, 2).in_zone(ZoneId::Battlefield))
+            .object(
+                ObjectSpec::land(p1, "Untapped Land")
+                    .in_zone(ZoneId::Battlefield)
+                    .with_mana_ability(ManaAbility::tap_for(mtg_engine::ManaColor::Colorless)),
+            )
+            .build()
+            .expect("state builds");
+        let perm = id_of(&state, "Echo Permanent");
+        state.pending_echo_payments_mut().push_back((
+            p1,
+            perm,
+            ManaCost {
+                generic: 1,
+                ..Default::default()
+            },
+        ));
+
+        let actions = StubProvider.legal_actions(&state, p1);
+        assert!(
+            actions
+                .iter()
+                .any(|a| matches!(a, LegalAction::PayEcho { permanent, .. } if *permanent == perm)),
+            "the payment must be offered"
+        );
+        assert!(
+            actions
+                .iter()
+                .any(|a| matches!(a, LegalAction::TapForMana { .. })),
+            "CR 608.2g: TapForMana must remain available alongside a pending payment"
+        );
+    }
+
+    /// A player's pending payment must not leak into another player's legal-action list.
+    #[test]
+    fn provider_offers_no_payment_action_to_a_player_who_owes_nothing() {
+        let p1 = PlayerId(1);
+        let p2 = PlayerId(2);
+        let mut state = GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(p2)
+            .active_player(p2)
+            .object(ObjectSpec::creature(p1, "Echo Permanent", 2, 2).in_zone(ZoneId::Battlefield))
+            .build()
+            .expect("state builds");
+        let perm = id_of(&state, "Echo Permanent");
+        state.pending_echo_payments_mut().push_back((
+            p1,
+            perm,
+            ManaCost {
+                generic: 2,
+                ..Default::default()
+            },
+        ));
+        state.turn_mut().priority_holder = Some(p2);
+
+        let actions = StubProvider.legal_actions(&state, p2);
+        assert!(
+            !actions
+                .iter()
+                .any(|a| matches!(a, LegalAction::PayEcho { .. })),
+            "p1's pending echo payment must not appear in p2's legal-action list"
+        );
+    }
+
+    /// `action_to_command` must round-trip all three payment `LegalAction`s to the
+    /// matching `Command`, preserving the `pay` flag.
+    #[test]
+    fn action_to_command_round_trips_the_three_payment_actions() {
+        use rand::SeedableRng;
+        let p1 = PlayerId(1);
+        let p2 = PlayerId(2);
+        let state = GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(p2)
+            .active_player(p1)
+            .build()
+            .expect("state builds");
+        let permanent = ObjectId(1);
+        let recover_card = ObjectId(2);
+        let mut rng = rand::rngs::StdRng::seed_from_u64(1);
+
+        let echo_cmd = crate::random_bot::action_to_command(
+            &mut rng,
+            &state,
+            p1,
+            &LegalAction::PayEcho {
+                permanent,
+                pay: true,
+            },
+        );
+        assert!(matches!(
+            echo_cmd,
+            mtg_engine::Command::PayEcho { player, permanent: perm, pay: true } if player == p1 && perm == permanent
+        ));
+
+        let cu_cmd = crate::random_bot::action_to_command(
+            &mut rng,
+            &state,
+            p1,
+            &LegalAction::PayCumulativeUpkeep {
+                permanent,
+                pay: false,
+            },
+        );
+        assert!(matches!(
+            cu_cmd,
+            mtg_engine::Command::PayCumulativeUpkeep { player, permanent: perm, pay: false } if player == p1 && perm == permanent
+        ));
+
+        let recover_cmd = crate::random_bot::action_to_command(
+            &mut rng,
+            &state,
+            p1,
+            &LegalAction::PayRecover {
+                recover_card,
+                pay: true,
+            },
+        );
+        assert!(matches!(
+            recover_cmd,
+            mtg_engine::Command::PayRecover { player, recover_card: rc, pay: true } if player == p1 && rc == recover_card
+        ));
     }
 }

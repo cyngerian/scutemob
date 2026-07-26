@@ -21,7 +21,8 @@
 - **Task**: `scutemob-152`
 - **Branch**: `feat/pb-dp4-costs-checked-but-never-collected-propaganda-attack-t`
 - **Class**: CORRECTNESS (Tier 1, class **D** both). Rank 4 of the PB-DP suite.
-- **Phase**: implement — plan APPROVED by the coordinator 2026-07-26. Two load-bearing claims
+- **Phase**: review — implementation complete 2026-07-26 (see "Implementation complete
+  (runner close-out)" at the end of this file). Two load-bearing claims
   spot-verified independently before approval: (a) `resolution.rs:7768-7772` really does clear
   `players_passed` and grant priority to the active player at the end of every resolution, so
   the owing player is guaranteed a window (and Change 2d's deletions are identity writes for
@@ -188,3 +189,155 @@
 - `cargo check --workspace` clean after Change 2.
 - Card-def comment edit: `goblin_rabblemaster.rs` accepted-limitation paragraph replaced
   with a one-line "CLOSED by PB-DP4" note (the one card-def edit this PB makes, per plan §9).
+- [x] Change 3a — three new `LegalAction` variants (`PayEcho`, `PayCumulativeUpkeep`,
+      `PayRecover`) appended to `crates/simulator/src/legal_actions.rs` after
+      `CastMorphFaceDown`.
+- [x] Change 3b — `StubProvider::legal_actions` enumerates all three, appended after
+      `PassPriority` (not early-returning, so `TapForMana` stays available per CR 608.2g).
+      `pay: false` always offered; `pay: true` gated via `casting::can_pay_cost` (echo,
+      recover) or a new private `multiply_mana_cost` mirroring `engine.rs`'s (CU mana) /
+      the CR 119.4 life check (CU life). `life_total` hoisted earlier in the function to
+      be usable by the new block (it was previously computed later).
+- [x] Change 3c — `random_bot.rs::action_to_command` given the three new arms (compile
+      error until added — the match has no catchall, confirmed working as the gate).
+- [x] Change 3d — no change to `local_game.rs` (confirmed: the three actions arrive
+      through the existing `PendingDecision` / `DecisionKind::Priority` path).
+- [x] Change 3e — no TUI keybinding added (out of scope, per plan's "runner's call, but
+      no more than this"; criterion 5529 names `LegalActionProvider` and the bots, not
+      the TUI).
+
+## Implementation complete (runner close-out)
+
+**Summary**: All of §3 Changes 1a-1d, 2a-2f, 3a-3e implemented as specified. 22 new
+engine tests (`crates/engine/tests/primitives/pb_dp4_attack_tax_and_payment_deadline.rs`,
+registered in `primitives/main.rs`) + 8 new simulator tests
+(`crates/simulator/src/legal_actions.rs`'s `mod tests`, plus 1 in the same module for
+`action_to_command`). Tests: **3,747 → 3,777** (+30 = 22 + 8), 0 failing.
+`cargo build --workspace`, `cargo clippy --workspace --all-targets -- -D warnings`,
+`cargo fmt --check`, `tools/check-defs-fmt.sh` all clean. `PROTOCOL_VERSION == 27`,
+`HASH_SCHEMA_VERSION == 63` — read directly from source, confirmed unmoved, not edited.
+
+### §4.7 negative-space clause — 2 un-enumerated sites hit, both fixed minimally
+
+1. **`crates/engine/tests/core/bare_lookup_ratchet.rs::bare_lookup_counts_are_pinned`
+   (SR-25 ratchet), `combat.rs` ceiling.** Change 1c's `has_uncosted_attack_target`
+   deduplicates the two copy-pasted `has_cant_attack_owner` bare
+   `state.restrictions.iter().any(|r| ... state.objects.get(&r.source) ...)` lookups (the
+   goad block and the `MustAttackEachCombat` block) into one site, so `combat.rs`'s count
+   dropped from the pinned 16 to 15. The gate fails on ANY change, up or down (it is a
+   ratchet, not a ceiling-only check), with the "down" message asking to lower the ceiling
+   to lock in the gain. Fixed: `SWEPT_FILES` entry changed to `("src/rules/combat.rs", 15)`
+   with a dated changelog comment, matching the file's own established convention.
+2. **Same gate, `engine.rs` ceiling.** Went from 22 to 24 (up, not down) — two new bare
+   `.players.get(` sites: (a) the CR 119.4 life-cost gate (Change 2e) reads
+   `state.players.get(&player).ok_or(GameStateError::PlayerNotFound(player))?.life_total`,
+   the identical idiom the sibling `CumulativeUpkeepCost::Mana` arm a few lines above
+   already uses for `.mana_pool`; (b) the boundary-sweep hook (Change 2b) reads
+   `state.players.get(&active).map(|p| !p.has_lost && !p.has_conceded).unwrap_or(false)`
+   to decide who gets priority for the extra round — a verbatim copy of `enter_step`'s
+   existing `is_alive` predicate read a few dozen lines below in the same file. Both are
+   NONSWALLOW predicate reads exactly matching the ratchet's own documented residue
+   class (module doc: "predicate reads... where a departed object legitimately answers the
+   predicate `false`"), not new silent-failure patterns. Fixed: `SWEPT_FILES` entry raised
+   to `("src/rules/engine.rs", 24)` with a dated changelog comment classifying both sites
+   (not a blind ceiling bump — each site is named and justified against an existing
+   sibling idiom in the same file).
+
+No other un-enumerated site fired: `cargo build --workspace` caught no TUI/replay-viewer
+match-arm gaps (§4.6's prediction of "no change" held); `keyword_registry` and
+`ability_definition_registry` gates passed clean on the first run (the sweep and the
+provider never name `KeywordAbility::Echo`/`::CumulativeUpkeep`/`::Recover` — §4.5's
+"lesson PB-DP3 paid for" was heeded); `crates/simulator/tests/local_game.rs` (9 tests,
+not edited) stayed green; the golden scripts `stack/152` and `stack/153` both still show
+"1 of 271 discovered scripts ran and passed" with no diff needed.
+
+**One test-infrastructure change beyond the plan's enumerated files, self-contained to
+test-only build config:** `crates/simulator/Cargo.toml` gained a
+`[dev-dependencies] mtg-engine = { path = "../engine", features = ["test-util"] }` line.
+The 8 new simulator tests need the `pending_*_payments_mut()` / `players_mut()` /
+`turn_mut()` `GameState` escape hatches to seed payment scenarios directly (mirroring the
+pattern `crates/engine/tests/mechanics_e_l/echo.rs` etc. already use), but those hatches
+are gated `#[cfg(any(test, feature = "test-util"))]` on the whole `impl GameState` block,
+and `crates/simulator`'s existing `mtg-engine` dependency doesn't carry that feature. This
+is the exact same self-dependency trick `crates/engine/Cargo.toml` already uses for its
+own integration tests (`[dev-dependencies] mtg-engine = { path = ".", features =
+["test-util"] }`) — copied verbatim to `crates/simulator`, resolver-2-scoped so it only
+activates for `cargo test -p mtg-simulator` builds, never the normal library/fuzzer-binary
+build. This is a build-config-only change (zero engine behavior, zero wire surface); it
+was not enumerated in the plan (which assumed simulator tests would build payment
+scenarios through the full cast/resolve chain) and is reported here per §4.7 rather than
+applied silently.
+
+### Fail-before / pass-after verification — actual observed pre-fix behaviour
+
+Both `crates/engine/src/rules/combat.rs` and `crates/engine/src/rules/engine.rs` were
+temporarily reverted to their pre-PB-DP4 committed state (`git show 5c463339~1:<path>`),
+the full `pb_dp4_attack_tax_and_payment_deadline.rs` suite was run against that pre-fix
+pair, then both files were restored byte-identical (`git diff` empty after restore) and
+the suite re-run to confirm 22/22 green again. Pre-fix run: **16 of 22 failed**, 6 passed.
+Every failure matches its plan-predicted pre-fix behaviour exactly:
+
+| test | plan probe | pre-fix observed |
+|---|---|---|
+| `test_508_1j_attack_tax_is_debited_from_the_pool` | #1 | `Ok`; `mana_pool.total() == 2` (not 0) — assertion `left: 2, right: 0` |
+| `test_508_1h_attack_tax_colour_is_not_flattened_to_generic` | #2 | `Ok` (expected `Err`) — the `{W}{W}` restriction was satisfied by `{C}{C}` |
+| `test_508_1j_coloured_attack_tax_paid_with_correct_colours` | #2b | `Ok`; `mana_pool.white == 2` (not 0) — declaration succeeded but nothing was spent |
+| `test_106_6_restricted_mana_cannot_pay_an_attack_tax` | #3 | `Ok` (expected `Err`) — `total_with_restricted()` counted the restricted mana as affordable |
+| `test_508_1h_attack_tax_sums_per_defender_and_per_attacker` | #4 | `Ok`; `mana_pool.total() == 6` (not 0) — assertion `left: 6, right: 0` |
+| `test_107_4e_hybrid_attack_tax_is_rejected_not_paid_free` | #6 | `Ok` (expected `Err`) — the hybrid pip was invisible to the old field-sum, tax computed as 0 |
+| `test_508_1d_must_attack_creature_is_not_forced_to_pay_an_attack_tax` | #7 | empty declaration returned `Err("...must attack each combat if able (CR 508.1d)")` — the deadlock itself |
+| `test_508_1d_goaded_creature_is_not_forced_to_pay_an_attack_tax` | #8 | empty declaration returned `Err("Goaded creature ... must attack (CR 701.15b)")` — same deadlock shape |
+| `test_702_30a_unanswered_echo_is_sacrificed_at_the_round_boundary` | #11 | permanent still on battlefield after the boundary pass; no sacrifice |
+| `test_702_24a_unanswered_cumulative_upkeep_is_sacrificed_at_the_round_boundary` | #12 | permanent still on battlefield; no sacrifice |
+| `test_702_59a_unanswered_recover_card_is_exiled_at_the_round_boundary` | #13 | card still in graveyard, not exiled |
+| `test_101_4_multiple_outstanding_payments_resolve_in_apnap_order` | #16 | neither payment resolved (both `CreatureDied` and `RecoverDeclined` absent from the event stream) |
+| `test_dp11_answering_a_payment_does_not_reassign_priority` | #17 (OOS-DP1-1) | `priority_holder` became `Some(PlayerId(1))` (the active player), not the pre-existing `Some(PlayerId(2))` — the exact bodge the seed describes |
+| `test_119_4_cumulative_upkeep_life_cost_beyond_life_total_is_rejected` | #18 | `PayCumulativeUpkeep { pay: true }` returned `Ok` (expected `Err(InsufficientLife)`) — no affordability check existed on the `Life` arm |
+| `test_702_24b_two_cumulative_upkeep_instances_both_reach_the_boundary` | (not on the mandatory list, but exercises the same mechanism) | permanent survives; both entries stranded |
+| `test_dp11_boundary_sweep_does_not_deadlock_the_priority_round` | (see note below) | step had already advanced to `Draw` at the point my test asserts it should still be `Upkeep` — the plan characterized this probe as a "vacuous pre-fix guard"; as *implemented* it is a genuine fail-before probe (see next paragraph) |
+
+**Deviation from the plan's guard/probe split, noted per instructions**: the plan's §7.2
+table and §8 checklist list probe #15
+(`test_dp11_boundary_sweep_does_not_deadlock_the_priority_round`) as one of "the 6
+regression guards" that should pass both before and after. As implemented, this test adds
+an intermediate assertion the plan's one-line probe description didn't specify — that the
+step is *still* `Upkeep` immediately after the boundary-crossing pass (i.e., the sweep
+re-grants priority in the same step rather than falling through to an advance) — before
+doing one more round and checking the terminating advance to `Draw`. That intermediate
+assertion is false pre-fix (there is no sweep, so the very first boundary-crossing pass
+already advances to `Draw`), so the test as written is a genuine fail-before probe, not a
+vacuous guard. This is a strictly stronger test than the plan's minimal description (it
+additionally pins that the sweep doesn't prematurely advance), not a deviation in
+intent — flagged here because the plan's own accounting (§8's "6 regression guards")
+undercounts by one: **the actual split is 5 guards (§7.1 #5, 9, 10; §7.2 #14, 20) + 15
+fail-before probes** (the plan's 14 plus this one), all independently confirmed above.
+The 5 true guards (`test_508_1c_planeswalker_attack_is_not_taxed`,
+`test_508_1d_must_attack_still_forced_when_an_untaxed_opponent_exists`,
+`test_508_1d_must_attack_still_forced_when_only_an_opponent_planeswalker_is_untaxed`,
+`test_702_30a_echo_paid_before_the_boundary_still_survives`,
+`test_608_2g_mana_ability_during_the_payment_window_still_funds_the_payment`) all passed
+identically pre- and post-fix, confirmed in the same before/after run.
+
+### Fuzzer smoke test (§7.4, record-only, not a gate)
+
+`cargo run --release --bin mtg-fuzzer -- --games 5 --seed 1`: Wins 4, Draws 0, Errors 1,
+avg turns 193.6. All violations are `[stack_consistency]` (pre-existing, OOS-DP3-9 class —
+reproduces on `main` and here). No new `InvalidCommand` rejection mentioning "attack tax",
+"echo", "upkeep", or "recover" appeared in the output; per the plan's own caveat,
+`driver.rs`'s silent `PassPriority` fallback on a rejected command means a bot-side
+regression here would be invisible anyway — the 30 unit/integration tests above are the
+real gate, not this run.
+
+### Deviations from the plan otherwise
+
+None beyond the two negative-space items and the guard/probe accounting note above. Every
+named file, line range, and CR citation in §3/§4 matched the source as read; no design
+decision in §0/§2.0 was revisited.
+
+### Remaining / deferred (unchanged from the plan, not filed by this runner)
+
+Seeds OOS-DP4-1 through OOS-DP4-9 (§9) and the audit bookkeeping (§10) are explicitly
+**not** filed/edited by this runner per the coordinator's instruction — that is close-out
+bookkeeping for after the review cycle. `docs/audits/decision-point-audit.md`,
+`memory/primitives/rider-seed-triage-2026-07-19.md` (OOS-RS3-4 status marker), and
+`CLAUDE.md` "Current State" / "Last Updated" are all untouched by this session.

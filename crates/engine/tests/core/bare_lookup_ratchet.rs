@@ -117,7 +117,11 @@ const SWEPT_FILES: &[(&str, usize)] = &[
     // other predicate-read site already ceilinged in this file.
     ("src/rules/abilities.rs", 75),
     ("src/rules/casting.rs", 34),
-    ("src/rules/combat.rs", 16),
+    // PB-DP4 (2026-07-26): 16 -> 15. `has_uncosted_attack_target` (new, CR 508.1d)
+    // deduplicates the two copy-pasted `has_cant_attack_owner` bare
+    // `state.restrictions.iter().any(|r| ... state.objects.get(&r.source) ...)` lookups
+    // (the goad block and the MustAttackEachCombat block) into a single site.
+    ("src/rules/combat.rs", 15),
     ("src/rules/sba.rs", 7),
     ("src/rules/replacement.rs", 24),
     ("src/rules/turn_actions.rs", 7),
@@ -135,7 +139,20 @@ const SWEPT_FILES: &[(&str, usize)] = &[
     // the source may have left its zone) instead of bare `.objects.get[_mut]`, and
     // collapses the old duplicate `.objects.get` re-read (used only to re-check
     // `is_transformed`) into a single upfront snapshot.
-    ("src/rules/engine.rs", 22),
+    // PB-DP4 (2026-07-26): 22 → 24. Two new bare `.players.get(` sites, both exact
+    // duplicates of already-classified shapes in this same file: (1) the CR 119.4
+    // life-cost gate added to `CumulativeUpkeepCost::Life`'s pay arm reads
+    // `state.players.get(&player).ok_or(GameStateError::PlayerNotFound(player))?
+    // .life_total` -- the identical idiom the sibling `::Mana` arm a few lines above
+    // already uses for `.mana_pool` (a player is never removed from `state.players`,
+    // only marked `has_lost`, so this cannot actually miss in practice); (2) the new
+    // `force_resolve_overdue_payments` boundary-sweep hook in `handle_all_passed`
+    // reads `state.players.get(&active).map(|p| !p.has_lost && !p.has_conceded)
+    // .unwrap_or(false)` to decide who gets priority for the extra round -- a
+    // verbatim copy of `enter_step`'s existing `is_alive` predicate read a few dozen
+    // lines below (same file), the canonical NONSWALLOW predicate-read shape this
+    // ratchet's own module doc calls out.
+    ("src/rules/engine.rs", 24),
     ("src/rules/lands.rs", 3),
     // SR-25
     // PB-EF9 (2026-07-18): 51 → 54. Three new NONSWALLOW-shaped reads in

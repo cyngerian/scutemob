@@ -29,7 +29,11 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
 [dev-dependencies]
-# Tests only
+# Tests only. PB-DP4: unlocks the `GameState` `_mut()` / `test-util` escape hatches
+# (`pending_echo_payments_mut()` etc.) for the `#[cfg(test)] mod tests` in
+# `src/legal_actions.rs`, mirroring the same self-dependency trick `crates/engine`
+# uses for its own integration tests (`crates/engine/Cargo.toml`).
+mtg-engine = { path = "../engine", features = ["test-util"] }
 
 [lints]
 workspace = true

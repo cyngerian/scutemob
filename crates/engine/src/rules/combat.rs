@@ -238,9 +238,7 @@ pub fn handle_declare_attackers(
                     )));
                 }
                 let defending_player = restriction.controller;
-                let entry = tax_per_creature
-                    .entry(defending_player)
-                    .or_insert_with(ManaCost::default);
+                let entry = tax_per_creature.entry(defending_player).or_default();
                 add_mana_cost(entry, cost_per_creature, 1);
             }
         }

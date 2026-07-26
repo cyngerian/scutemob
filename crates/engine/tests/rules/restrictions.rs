@@ -14,8 +14,8 @@ use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::stubs::ActiveRestriction;
 use mtg_engine::{
     process_command, AttackTarget, CardDefinition, CardId, CardRegistry, CardType, Command, Effect,
-    GameRestriction, GameStateBuilder, ManaAbility, ManaColor, ManaCost, ManaPool, ObjectId,
-    ObjectSpec, PlayerId, Step, TypeLine, ZoneId,
+    GameEvent, GameRestriction, GameStateBuilder, ManaAbility, ManaColor, ManaCost, ManaPool,
+    ObjectId, ObjectSpec, PlayerId, Step, TypeLine, ZoneId,
 };
 
 fn p1() -> PlayerId {
@@ -734,10 +734,23 @@ fn test_restriction_cant_attack_you_unless_pay_allows_funded_attacker() {
         state,
         declare_cmd(p2(), vec![(bear, AttackTarget::Player(p1()))]),
     );
+    let (new_state, events) = result.expect("attacker with 2 mana should satisfy Propaganda's tax");
+    // PB-DP4 / DP-10 (CR 508.1j): the tax is a real DEBIT, not just an affordability
+    // check. Pre-fix, the pool was read once and never spent, so this assertion fails
+    // against the pre-fix engine (mana_pool.total() == 2).
+    assert_eq!(
+        new_state.player(p2()).unwrap().mana_pool.total(),
+        0,
+        "the {{2}} attack tax must be debited from the attacking player's pool (CR 508.1j)"
+    );
     assert!(
-        result.is_ok(),
-        "attacker with 2 mana should satisfy Propaganda's tax: {:?}",
-        result.err()
+        events.iter().any(|e| matches!(
+            e,
+            GameEvent::ManaCostPaid { player, cost }
+                if *player == p2() && cost.generic == 2
+        )),
+        "a ManaCostPaid event for the {{2}} attack tax should be emitted; got {:?}",
+        events
     );
 }
 
