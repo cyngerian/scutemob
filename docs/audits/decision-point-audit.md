@@ -577,6 +577,20 @@ together, because they all need the same missing machinery: a pending-decision t
 `pending_zone_changes` genuinely blocks. **The generalisable design work is "make a pending
 decision actually block", not "add another pending vector".**
 
+### 8.1 Seeds filed by shipped PB-DP work
+
+Durable inventory for seeds this suite discovers. `memory/primitive-wip.md` is rewritten
+wholesale by the next `/implement-primitive` run, so a seed recorded only there is lost —
+seeds land **here**, in the suite's own binding spec. Same role §1c plays for the RS queue in
+`memory/primitives/rider-seed-triage-2026-07-19.md`.
+
+| seed | finding | class | status |
+|---|---|---|---|
+| **OOS-DP1-1** | **Echo / cumulative upkeep / recover reassign priority to the active player out of band.** `rules/engine.rs` `handle_pay_echo` / `handle_pay_cumulative_upkeep` / `handle_pay_recover` write `priority_holder = Some(active_player)` at *resolution* time, when no player holds priority — so CR 117.3c's antecedent is false and PB-DP1 correctly left the behaviour alone (comment-only fix). The write is a bodge standing in for the payment pause **DP-11** says was never implemented. Correct fix is the pause itself, owned by **PB-DP4**. | correctness, deferred | filed by PB-DP1 (`scutemob-149`) |
+| **OOS-DP1-2** | **Residual missing entry priority guards, and the separate CR 606.3 sorcery-timing gap.** PB-DP1's fix cycle added an entry priority guard to `handle_turn_face_up`, `handle_activate_loyalty_ability` and `handle_level_up_class`. Still unguarded: `handle_activate_craft` (AP-gated by construction, so lower severity) and `handle_bring_companion` (its `:941` sorcery-speed gate does not imply the actor held priority; it resets `players_passed` unconditionally, so an active player who already passed can restart the pass round). **Separately**, loyalty and level-up still lack the CR 606.3 / 716.2a "only during their own main phase, stack empty" check — that is a timing gap, not a priority gap, and belongs to **DP-21**. Two PB-DP1 probes (`test_dp1_loyalty_activation_grants_actor_priority`, `test_dp1_level_up_class_grants_actor_priority`) exercise p2 acting on p1's turn and will need rewriting when that gate lands. | correctness, partial | partially closed by PB-DP1 (3 of 5 guards) |
+| **OOS-DP1-3** | **Stale pre-renumber CR citations survive corpus-wide.** `116.3a/b/c/d` is the pre-renumber name of today's `117.3a-d` / `117.4`. PB-DP1 fixed every in-engine occurrence; ~60 golden-script `"note"` fields, one `cr_sections_tested` array, `docs/mtg-engine-milestone-reviews.md:326-327` and seven `memory/abilities/*.md` records still carry it. Cosmetic — batch into a doc pass, not a PB. | cosmetic | filed by PB-DP1 (`scutemob-149`) |
+| **OOS-DP1-4** | **Mana abilities do not reset `players_passed` — a real CR 117.4 deviation, deliberately preserved.** CR 117.4 ends a pass round only when players pass "without taking any actions in between," and activating a mana ability *is* an action, so the non-reset is a genuine deviation rather than the settled behaviour CR 117.3b's parenthetical was cited for. Preserved under PB-DP1's explicit PRESERVE directive and now **pinned in two places**: probe `test_dp1_mana_ability_does_not_reset_players_passed` and golden script `stack/066_krosan_grip_split_second_blocks_counterspell.json`, whose all-pass round completes only because of it. Whoever closes this must edit both. | correctness, deviation | filed by PB-DP1 (`scutemob-149`) fix cycle |
+
 ---
 
 ## 9. M11-local decision-loop extensibility assessment

@@ -728,7 +728,10 @@ Ran plan step 16:
   `handle_activate_loyalty_ability`/`handle_level_up_class` sites the original roster
   missed entirely), and noted the fix-cycle guard addition.
 - §8 **PB-DP1** row: marked `SHIPPED (scutemob-149)`.
-- Seeds filed (this file, and cross-referenced from the audit doc rows above):
+- Seeds filed. **Durable home: `docs/audits/decision-point-audit.md` §8.1** — this file is
+  rewritten wholesale by the next `/implement-primitive` run, so the copies below are a
+  working record, not the inventory. §8.1 is to the PB-DP suite what
+  `rider-seed-triage-2026-07-19.md` §1c is to the RS queue. Summaries:
   - **OOS-DP1-1** — echo / cumulative-upkeep / recover reassign priority to the AP out
     of band (Group B); correct fix is the DP-11 pause, owned by PB-DP4. No engine change
     made — comment-only, per the plan's ruling.
