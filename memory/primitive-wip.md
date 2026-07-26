@@ -1,389 +1,431 @@
-# Primitive WIP — PB-DP5 (DP-5: the `WouldDraw` multi-replacement prompt is unanswerable) · PLAN
+# Primitive WIP — PB-DP6 (DP-15: intervening-if not checked at queue time) · PLAN
 
 <!-- last_updated: 2026-07-26 -->
 
-> Previous occupant: **PB-DP4 (DP-10 attack tax never debited · DP-11 echo/CU/recover never
-> enforce the "otherwise") — SHIPPED** `scutemob-152`, merge `799dcc0a`, tests 3,781. Its
-> record lives in `docs/audits/decision-point-audit.md` §5 DP-10/DP-11 + §8,
-> `memory/primitives/pb-plan-DP4.md` + `pb-review-DP4.md`, and the CLAUDE.md changelog entry.
+> Previous occupant: **PB-DP5 (DP-5: the `WouldDraw` multi-replacement prompt is
+> unanswerable) — SHIPPED** `scutemob-153`, merge `922252f7`, HASH 63→**64**, tests **3,797**.
+> Its record lives in `docs/audits/decision-point-audit.md` §5 DP-5 + §8,
+> `memory/primitives/pb-plan-DP5.md` + `pb-review-DP5.md`, and the CLAUDE.md changelog entry.
 
-- **PB**: PB-DP5 — **DP-5** (CR **616.1** / **614.11**). The engine asks a question it cannot
-  accept an answer to, and the draw is silently destroyed.
-  - `replacement::check_would_draw_replacement` returns `DrawAction::NeedsChoice(
-    GameEvent::ReplacementChoiceRequired { .. })` when 2+ `WouldDraw` replacements apply.
-  - Every caller emits that event and returns early **recording no pending state** — there is
-    no draw-pending field on `GameState` at all.
-  - `handle_order_replacements` (`rules/replacement.rs:163-172`) hard-requires a matching
-    `pending_zone_changes` entry and errors without one. So the `Command::OrderReplacements`
-    the player is being asked for is **rejected**, and the draw can never complete.
-  - Net effect: the draw is eaten. Reachable with any two `WouldDraw` replacements, including
-    in the draw step.
-- **Task**: `scutemob-153`
-- **Branch**: `feat/pb-dp5-woulddraw-multi-replacement-prompt-is-unanswerable-th`
-- **Class**: CORRECTNESS (Tier 0, class **D**). Rank 5 of the PB-DP suite.
-- **Phase**: plan
+- **PB**: PB-DP6 — **DP-15** (CR **603.4**). A triggered ability with an intervening-if
+  clause **does not trigger at all** unless the condition is true at the moment the event
+  occurs. This engine only checks the condition at **resolution** on nearly every path, so
+  a trigger whose condition is false at event time is still **queued and put on the stack**
+  — a false-positive trigger. (The false-negative direction is already handled correctly by
+  the resolution-time re-check, which must be **retained**.)
+- **Task**: `scutemob-154`
+- **Branch**: `feat/pb-dp6-intervening-if-not-checked-at-queue-time-false-positi`
+- **Class**: CORRECTNESS (Tier 2, class **D**, promoted into the no-wire block by audit §8).
+  Rank 6 of the PB-DP suite.
+- **Phase**: implement
 - **Binding spec**: `docs/audits/decision-point-audit.md`
-  - §4 table, **line 383** — "`WouldDraw` multi-replacement | **D** | `rules/turn_actions.rs:1186-1189` (and the twin at `effects/mod.rs:8553-8564`) — see **DP-5**"
-  - §5 **line 432** (DP-5 row) — the finding proper
-  - §8 **line 581** (PB-DP5 row) — *"**HASH bump** (new `GameState` field); no new `Command`
-    if it reuses `OrderReplacements`"*
+  - §4.8 table, **line 333** — "Intervening-if at **queue time** | **D** | Only two paths
+    check it: ETB (`rules/replacement.rs:1446-1456`) and graveyard-zone triggers
+    (`rules/abilities.rs:6910-6916`). `turn_actions.rs` and `combat.rs` contain zero
+    occurrences of `intervening_if`."
+  - §4.8 prose, **lines 335-337** — the false-positive framing
+  - §5 **line 460** (DP-15 row) — the finding proper
+  - §8 **line 590** (PB-DP6 row) — *"wire impact: **none**; already accepted as a known
+    limitation in the defs; closing it retires a whole class of def-level caveats"*
   - §8.1 — where new seeds get filed
-- **Plan file**: `memory/primitives/pb-plan-DP5.md`
-- **Review file**: `memory/primitives/pb-review-DP5.md`
+- **Plan file**: `memory/primitives/pb-plan-DP6.md`
+- **Review file**: `memory/primitives/pb-review-DP6.md`
 
-## Acceptance criteria (ESM `scutemob-153`)
+## Acceptance criteria (ESM `scutemob-154`)
 
-1. (5531) With 2+ `WouldDraw` replacements, the draw records pending state,
-   `OrderReplacements` is accepted, and the draw completes through the chosen order; test
-   citing CR 616.1/614.11 covers **both** emit sites.
-2. (5532) The strengthened `replacement_effects` test asserts the draw **actually completes**
-   (card in hand / replacement applied), not merely deferred.
-3. (5533) `HASH_SCHEMA_VERSION` bumped for the new `GameState` field per the SR-17 gate;
-   PROTOCOL 27 unchanged.
-4. (5534) `cargo test --all`, clippy, `cargo fmt --check` **and** `tools/check-defs-fmt.sh`
-   clean; audit DP-5 row + PB-DP5 row updated.
+1. (5535) Every trigger-queue path evaluates the intervening-if at queue time (condition
+   false ⇒ trigger never queued), with tests citing **CR 603.4** covering at least the three
+   audited sites **plus** resolution-time re-check retained.
+2. (5536) Card-def caveats that cited the queue-time gap are cleared where this fix retires
+   them; **list produced by the planner**.
+3. (5537) `cargo test --all`, clippy, `cargo fmt --check` **and** `tools/check-defs-fmt.sh`
+   clean; **PROTOCOL 27 / HASH 64 unchanged** (note: the task text says "HASH 63" — that is
+   **stale**, PB-DP5 bumped it to **64** the same day; the binding requirement is
+   *unchanged from this branch's parent*, not a literal 63).
+4. (5538) Audit DP-15 row + PB-DP6 row updated.
 
 ## Hard constraints
 
-1. **No new `Command` variant, no new `GameEvent` variant, no new `Effect` variant.** Reuse
-   `Command::OrderReplacements` and the existing `GameEvent::ReplacementChoiceRequired`.
-   PROTOCOL **27** must be unchanged. **If the design appears to require a PROTOCOL bump, STOP
-   and say so in the plan rather than bumping** — that is a re-scope decision, not a worker
-   call.
-2. **HASH bump is expected and allowed**: a new `pub(crate)` field on `GameState` requires
-   `HASH_SCHEMA_VERSION` 63 → 64 per the SR-17 gate, with a `HASH_SCHEMA_HISTORY` entry.
-   Confirm empirically (the gate test will tell you) rather than assuming — PB-DP2's predicted
-   bump was **falsified**, and PB-DP3's and PB-DP4's "no change" predictions both held. Do not
-   bump a constant the gate does not demand.
-3. **Do not hang the game.** A deferred draw that nobody ever answers must not deadlock a
-   sequential effect (`ForEach::EachPlayer` draws, etc.) or a fuzzer/simulator seat that never
-   sends `OrderReplacements`. Whatever the resume design, state the chosen semantics
-   explicitly and defend them. PB-DP4's constraint (b) is the precedent: hanging the game is
-   strictly worse than the status quo.
-4. Architecture invariants #2/#3: `GameState` is sealed `pub(crate)` (SR-3); mutation only
-   through commands. A new field needs builder init + accessor (+ a `_mut` escape hatch only
-   if genuinely needed, gated the way its siblings are) + `hash_into` in `state/hash.rs`.
+1. **No wire change expected**: no new `Command`, `GameEvent`, or `Effect` variant, and no
+   new hashed `GameState` field. `PROTOCOL_VERSION` **27** and `HASH_SCHEMA_VERSION` **64**
+   must both be unchanged. **If the design appears to require either bump, STOP and say so
+   in the plan** — that is a re-scope decision, not a worker call. (PB-DP2's predicted bump
+   was falsified; PB-DP3/DP4's "no change" held; PB-DP5's bump was real. Confirm
+   empirically via the gate test; never hand-bump.)
+2. **The resolution-time re-check stays.** CR 603.4 requires the condition to be checked in
+   *both* places. Do not "optimize away" `resolution.rs:~2119-2235` on the theory that the
+   queue-time gate makes it redundant — it does not (state changes between queueing and
+   resolution).
+3. **Do not silently drop triggers.** Every site that gains a gate must be traced: a
+   condition that cannot be correctly evaluated at queue time (because the needed context
+   isn't available at that point) must **not** be defaulted to `false`. State the chosen
+   default per site and defend it. Wrongly suppressing a trigger is worse than the status
+   quo, which only over-fires.
+4. Architecture invariants #2/#3 (`GameState` sealed `pub(crate)`, mutation only through
+   commands) and SR-7 (`PendingTrigger` built through `PendingTrigger::blank` only).
 5. SR-4: any new silent-failure site in `effects/mod.rs` / `rules/resolution.rs` must pick a
    side (`expect_*` vs `lki_*`).
-6. `crates/simulator`, `tools/tui` and `tools/replay-viewer` have exhaustive matches that break
-   on new enum variants — run `cargo build --workspace` after every phase.
+6. `crates/simulator`, `tools/tui`, `tools/replay-viewer` have exhaustive matches — run
+   `cargo build --workspace` after every phase.
+7. **Distinct from DP-12** (costless "you may" triggers have no DSL representation). DP-12
+   is explicitly **NOT in scope**.
 
 ## Coordinator pre-survey (a hypothesis for the planner to **falsify**, not a fact base)
 
-> PB-DP3's and PB-DP4's wip files both record pre-survey bullets that were wrong in *both*
-> directions. Verify every line below against the source as it exists on this branch, and
-> record in the plan which bullets turned out to be wrong.
+> PB-DP3's, PB-DP4's and PB-DP5's wip files all recorded pre-survey bullets that were wrong
+> in *both* directions (PB-DP3's yield went 3 → 40; PB-DP5 had a third emit site the audit
+> never named). Verify every line below against the source **as it exists on this branch**,
+> and record in the plan which bullets turned out to be wrong.
 
-**Emit sites — the task description names two; I believe there are three.**
+### A. There appear to be **two** distinct intervening-if mechanisms, not one
 
-- `crates/engine/src/rules/turn_actions.rs` — `draw_card`, `DrawAction::NeedsChoice` arm
-  (~`:1186`). Returns `Result<Vec<GameEvent>, GameStateError>`.
-- `crates/engine/src/effects/mod.rs` — `draw_one_card`, same arm (~`:8553`). Returns a plain
-  `Vec<GameEvent>` — **no `Result`**, which constrains any error-returning helper shared
-  between the two.
-- `crates/engine/src/rules/replacement.rs` — `draw_card_skipping_dredge` (~`:2666`) has the
-  **same** `ReplacementResult::NeedsChoice` early return with no pending state. This is the
-  post-dredge path. **The audit did not name it.** Confirm whether it is a genuine third
-  instance of the same bug and include it if so; if it is unreachable, say why.
+The audit's §4.8 row conflates them. Confirm or refute:
 
-**The answer path.**
+1. **Card-def `Option<Condition>`** — `AbilityDefinition::Triggered { intervening_if:
+   Option<Condition>, .. }` at `crates/card-types/src/cards/card_definition.rs:342`.
+   Evaluated with `crate::effects::check_condition(state, cond, &ctx)`.
+   - Queue-time check exists at exactly **one** place I found:
+     `rules/replacement.rs:~1829-1839` (the `WhenEntersBattlefield` arm), plus a hardcoded
+     sibling for `TriggerCondition::TributeNotPaid` just below it (`~:1862-1874`).
+   - Resolution-time check: `rules/resolution.rs:~2001-2060`.
+2. **Runtime `Option<InterveningIf>`** — `TriggeredAbility { intervening_if:
+   Option<InterveningIf> }`, a **2-variant** enum at
+   `crates/card-types/src/state/game_object.rs:817-827` (`ControllerLifeAtLeast`,
+   `SourceHadNoCounterOfType`). Evaluated with `abilities::check_intervening_if`
+   (`rules/abilities.rs:9058-9077`).
+   - **14** call sites, all in `rules/abilities.rs`; **1** in `rules/resolution.rs:~2226`.
 
-- `handle_order_replacements` (`rules/replacement.rs:~139`) does, in order: (a) reject empty
-  `ids`; (b) reject unknown ids; (c) find a `pending_zone_changes` entry whose
-  `affected_player == player`, else **error** — this is the rejection DP-5 is about;
-  (d) rebuild a `WouldChangeZone` trigger from that pending entry and require every ordered id
-  to be in `find_applicable(...)`; (e) call `resolve_pending_zone_change(state, ids[0],
-  pending_idx)`.
-- Steps (c)–(e) are all zone-change-specific. The draw case needs a parallel arm keyed off the
-  new pending-draw state, rebuilding a `ReplacementTrigger::WouldDraw { player_filter:
-  PlayerFilter::Specific(player) }` instead. **Keep both security checks** the existing
-  doc-comment argues for: the sender must be the affected chooser, and every ordered id must be
-  *currently applicable* (not merely registered) — a hostile client must not be able to apply
-  an arbitrary registered replacement.
-- Precedence question the plan must answer: what if a player has **both** a pending zone change
-  and a pending draw? Pick a rule and defend it against CR.
+If this two-mechanism reading is right, then the audit's "only two paths check it" is
+**wrong about mechanism 2** (which is checked in 14 places, mostly death/graveyard sweeps)
+and **right about mechanism 1** (ETB only). The plan must say which mechanism DP-15 is
+actually about, and whether the sweep covers one or both. My hypothesis: **mechanism 1 is
+the real gap**; mechanism 2 may have its own, smaller holes worth auditing.
 
-**What "complete the draw through the chosen order" means (CR 616.1 / 616.1f).**
+### B. The queue-site roster is much larger than the audit's three
 
-- Apply `ids[0]`, add it to an `already_applied` set, then **re-check** the remaining
-  applicable replacements against that set (CR 616.1f). The zone-change path already does this
-  inside `resolve_pending_zone_change` — read it and mirror the shape rather than inventing a
-  second one. Possible outcomes: another `NeedsChoice` (pending state persists, a second
-  `ReplacementChoiceRequired` is emitted), a single auto-apply, or nothing left → perform the
-  draw.
-- Today the only `ReplacementModification` the draw path honours is `SkipDraw` — the else-branch
-  in `check_would_draw_replacement` says *"other modifications are not applicable to draws —
-  proceed normally"*. So with two `SkipDraw`s, applying either yields a skipped draw and the
-  chosen order is **unobservable**. **Do not let that make criterion 5532 vacuous**: find or
-  construct a scenario where the two branches are *distinguishable*, so a test can prove the
-  **chosen** replacement was honoured rather than an arbitrary one. If no such scenario exists
-  without widening the draw path beyond `SkipDraw`, say so explicitly and propose the minimum
-  that makes the criterion meaningful — that is a scope call to surface in the plan, not to
-  make silently.
-- The draw-completion body currently lives inline in three places. Factor it once if that is
-  the clean move — but note `draw_card` also sets `has_drawn_for_turn`, increments
-  `cards_drawn_this_turn` and runs the CR 702.94a miracle check, while `draw_one_card` does a
-  subset. That difference is either a real distinction or a latent bug; decide which and say
-  so.
+`PendingTrigger::blank` appears **82** times in `crates/engine/src/`:
 
-**Tests.**
+| file | count |
+|---|---|
+| `rules/abilities.rs` | 46 |
+| `rules/turn_actions.rs` | 22 |
+| `rules/resolution.rs` | 6 |
+| `rules/replacement.rs` | 3 |
+| `effects/mod.rs` | 2 |
+| `rules/casting.rs`, `rules/mana.rs`, `rules/miracle.rs` | 1 each |
 
-- `crates/engine/tests/rules/replacement_effects.rs:~2984-3000` —
-  `test_draw_needs_choice_emits_replacement_choice_required` currently asserts only
-  "deferred": event emitted, library still 1, hand still 0. Strengthen it per criterion 5532.
-- SR-9a: integration tests are 9 targets under `crates/engine/tests/<group>/` with a `mod`
-  line in the group's `main.rs`. **Never** add a top-level `tests/*.rs`; a missing `mod` line
-  silently deletes coverage.
-- Every new test cites CR 616.1 and/or 614.11 (architecture invariant #8).
-- Fail-before/pass-after evidence is expected: run the new suite against the pre-fix source
-  (`git show`-restore the touched files, run, restore byte-identical) and record actual
-  observed pre-fix behaviour per test, the way PB-DP4's close-out does.
-- Watch the SR-25 `bare_lookup_ratchet` gate (`crates/engine/tests/core/bare_lookup_ratchet.rs`)
-  — it fires on any change up **or** down in the swept files, and `replacement.rs` may be one
-  of them.
+Not all 82 are card-def-driven — many are hardcoded keyword triggers (Suspend, Vanishing,
+Echo, Madness, Backup…) with no `intervening_if` to read at all. **The plan must partition
+the 82** into (a) sites that read an `AbilityDefinition::Triggered` from the card registry
+and therefore *have* an `intervening_if` field in hand, (b) sites that don't, and (c) any
+site where the field is in hand and *deliberately* ignored. Only (a) and (c) are in scope.
+The audit's three named sites are a **starting roster, not the full set** — the task
+description says so explicitly.
 
-**Out of scope — file as seeds in the plan's seed section, do not fix here:**
+Known self-documentation of the gap at `rules/turn_actions.rs:264-266`:
 
-- Giving `OrderReplacements` a `LegalAction` so a bot / M11-local seat can answer at all
-  (this is the same class as PB-DP4's §9 recommendation).
-- Widening the draw replacement path beyond `SkipDraw` modifications, unless the 5532 argument
-  above forces a minimal widening.
-- The §9 recommendation that `advance()` yield `AwaitingHuman` for a non-empty pending vector.
+> `// CR 603.4: Intervening-if conditions (if any) are checked at resolution via the Normal`
+> `// trigger dispatch path, consistent with all other CardDef trigger handling.`
+
+That comment sits on the **generic CardDef upkeep trigger sweep** and is the clearest
+in-source admission. `turn_actions.rs` also owns draw-step, end-step, begin-combat and
+several ETB-adjacent sweeps; `combat.rs` owns attack/block/damage triggers. Sweep them all.
+
+### C. Card-def exposure — 25 defs, ~2 explicit caveats
+
+- **25** files contain `intervening_if: Some(...)`. Full list obtainable with
+  `grep -rln "intervening_if: Some" crates/card-defs/src/defs/`. The planner must classify
+  each by its `TriggerCondition` — an ETB-condition def is **already correct** (mechanism 1's
+  one existing gate covers it); a non-ETB one (upkeep, combat, attack, end-step) is
+  **live-wrong today**. Expect the live-wrong set to be materially smaller than 25.
+  Spot-checks suggesting non-ETB and therefore live-wrong: `loyal_apprentice.rs` and
+  `siege_gang_lieutenant.rs` (`AtBeginningOfCombat` + `YouControlYourCommander`),
+  `land_tax.rs` (upkeep + `OpponentControlsMoreLandsThanYou`),
+  `dragonmaster_outcast.rs` (upkeep + `YouControlNOrMoreWithFilter`),
+  `raiders_wake.rs` / `searslicer_goblin.rs` (`YouAttackedThisTurn`),
+  `karlach_fury_of_avernus.rs` / `aurelia_the_warleader.rs` (`IsFirstCombatPhase`),
+  `simic_ascendancy.rs` / `ingenious_prodigy.rs` (`SourceHasCounters`),
+  `revel_in_riches.rs`, `hellkite_tyrant.rs`, `birthing_ritual.rs`,
+  `growing_rites_of_itlimoc.rs`, `thaumatic_compass.rs`,
+  `tatyova_steward_of_tides.rs`, `case_of_the_locked_hothouse.rs`,
+  `acererak_the_archlich.rs`, `contaminant_grafter.rs`, `vivisection_evangelist.rs`.
+  **Verify every one — do not trust this list.**
+- **Criterion 5536's caveat set.** Two defs carry a caveat that names the queue-time gap in
+  so many words and are the clearest candidates for clearing:
+  - `crates/card-defs/src/defs/loyal_apprentice.rs:19-30` — *"`intervening_if` is checked
+    only at resolution (resolution.rs:2125-2135), never at queue time, though CR 603.4
+    requires both. Divergent case: you do NOT control your commander…"*
+  - `crates/card-defs/src/defs/siege_gang_lieutenant.rs:19-20` — same text, cross-references
+    loyal_apprentice's top-of-file note.
+  Several other defs say *"re-checked at resolution (CR 603.4)"* in a way that is **still
+  accurate after the fix** (the resolution re-check is retained) — do **not** blanket-delete
+  those. The criterion is "cleared **where this fix retires them**". Produce an explicit
+  keep/clear table with a reason per row.
+- **A separate class exists and is OUT OF SCOPE**: defs whose caveat says the *`Condition`
+  DSL lacks the needed variant* (`dwynen_s_elite.rs:22`, `ophiomancer.rs:22`,
+  `guardian_project.rs:6`, `emeria_the_sky_ruin.rs:42`, `inventors_fair.rs:6`,
+  `garruks_uprising.rs:23`, `vampire_socialite.rs:28`, `thousand_faced_shadow.rs:6`,
+  `jadar_ghoulcaller_of_nephalia.rs:33`). Those are DSL-gap seeds, **not** queue-time-gap
+  caveats. This fix does not retire them. **File them as a seed; do not author new
+  `Condition` variants here.** Distinguishing the two classes cleanly is a required plan
+  deliverable.
+
+### D. Traps to check before writing code
+
+- **`check_condition`'s context.** The ETB gate builds
+  `EffectContext::new(controller, new_id, vec![])`. Each new gate site needs the *correct*
+  source object and controller — a sweep that iterates `state.objects` has the object in
+  hand, but a sweep keyed off an event may not. Getting the source wrong turns a correct
+  condition into a silently wrong one.
+- **Layer resolution.** Per the W3-LC audit, battlefield reads must go through
+  `calculate_characteristics()`, not `obj.characteristics.X`. If `check_condition` (or any
+  helper the new gates call) reads raw characteristics, the queue-time answer can differ
+  from the resolution-time answer for reasons that have nothing to do with CR 603.4.
+  Confirm which one `check_condition` uses and note it.
+- **Face-awareness (PB-OS4b / PB-RS4, CR 712.8d/e).** Several sweeps already call
+  `effective_abilities(obj.is_transformed)` to read the active face. A new gate must read
+  the intervening-if from the **same** face the ability came from, and must use the same
+  `ability_index` namespace. `turn_actions.rs:~277-279` shows the established pattern.
+- **`Condition` variants that are inherently event-relative.** `WasCast`, `WasKicked`,
+  `SourceHasCounters`, `IsFirstCombatPhase`, `YouAttackedThisTurn` — each must be checked
+  for "does this evaluate meaningfully at the moment the event occurs?" `WasCast`/`WasKicked`
+  in particular are ETB-shaped and may already be fine.
+- **SR-25 `bare_lookup_ratchet`** (`crates/engine/tests/core/bare_lookup_ratchet.rs`) fires
+  on any change **up or down** in the swept files; `abilities.rs`/`turn_actions.rs` are
+  likely swept. Expect to re-pin, and say so.
+- **Existing tests/scripts may assert the false positive.** The task text warns of this.
+  `crates/engine/tests/mechanics_e_l/evolve.rs:1002`
+  (`test_evolve_intervening_if_fails_at_resolution`),
+  `crates/engine/tests/mechanics_e_l/graft.rs:857`
+  (`test_graft_resolution_recheck_intervening_if`) and
+  `crates/engine/tests/primitives/pb_ac8_restrictions_and_wingame.rs:332`
+  (`test_wingame_via_intervening_if_upkeep_trigger`) are the obvious candidates. Any test
+  that has to change is **evidence the fix is real** — but each change must be justified
+  against CR 603.4 in the plan, not adjusted to fit.
+
+### E. Yield calibration
+
+Per `feedback_pb_yield_calibration`, discount any card-yield estimate 2–3×. Also note the
+audit's §8 note: this PB is expected to produce **behaviour flips, not `Complete` flips** —
+the affected defs are mostly already `Complete` and merely *over-fire*. A def that stops
+over-firing does not change its completeness marker. Predict the flip count explicitly and
+be prepared for it to be **0**.
+
+## Out of scope — file as seeds in the plan's seed section, do not fix here
+
+- DP-12 (costless "you may" on triggers has no DSL representation) — a different finding.
+- Authoring new `Condition` variants to close the DSL gaps in §C's third bullet.
+- Mechanism 2's (`InterveningIf`, the 2-variant runtime enum) own coverage holes, if the
+  plan finds any that are not part of DP-15 proper — seed them.
+- DP-14 (same-controller trigger ordering).
 
 ## Plan phase output required
 
-`memory/primitives/pb-plan-DP5.md` containing:
+`memory/primitives/pb-plan-DP6.md` containing:
 
-1. Verified site inventory with line numbers **as they exist on this branch** (not the audit's).
-2. The pending-state shape and the argument for it (what the resume needs; why a `Vector` vs a
-   single `Option`; whether more than one player can have a deferred draw at once).
-3. The resume algorithm written against CR 616.1 / 616.1f, including the re-check loop.
-4. The precedence rule vs `pending_zone_changes`.
-5. The deadlock-avoidance answer for hard constraint 3, with the deviation stated explicitly.
-6. The exact hash/protocol gate expectation, and what will falsify it.
-7. The test list with per-test fail-before predictions.
+1. Which mechanism(s) DP-15 is about, with the §A hypothesis confirmed or refuted.
+2. The **full partitioned inventory** of the 82 `PendingTrigger::blank` sites with line
+   numbers **as they exist on this branch** — in-scope / not-applicable / deliberately-ignored.
+3. The fix shape: one shared helper vs. per-site gates, with the argument. Include how the
+   helper gets the right `EffectContext` and the right face.
+4. The per-site default for a condition that cannot be evaluated at queue time (hard
+   constraint 3), stated site by site.
+5. The card-def classification table: all 25 `intervening_if: Some` defs → ETB (already
+   correct) / non-ETB (live-wrong, fixed here), and the separate keep/clear caveat table for
+   criterion 5536.
+6. The exact hash/protocol gate expectation and what would falsify it.
+7. The test list with **per-test fail-before predictions**, including which existing tests
+   are predicted to change and why each change is CR-justified.
 8. An explicit list of every pre-survey bullet above that turned out to be **wrong**.
 9. A seed list for the out-of-scope items.
 
 ## Implementation complete (runner close-out)
 
-**Status: SHIPPED (pending review).** All three phases + tests landed, all gates green.
+**Status: SHIPPED (pending review).** All 14 Category-A sites wired, 12 new tests, all
+gates green.
 
 ### Change summary
 
-- **Phase 1** (`8f184175`) — `GameState.pending_draws: Vector<PendingDraw>` (new
-  `pub(crate)` field, next to `pending_zone_changes`) + the new `PendingDraw` struct in
-  `crates/card-types/src/state/replacement_effect.rs` (`player`, `already_applied`,
-  `remaining`, `sets_has_drawn_for_turn`). Builder init, `pending_draws()` /
-  `pending_draws_mut()` accessors (SR-3), `HashInto` impl, `public_state_hash` feed, and
-  a `loop_detection.rs` mirror block. `HASH_SCHEMA_VERSION` 63 → 64 (confirmed empirically
-  by the gate test, not hand-bumped — both `declaration_fingerprint_is_pinned` and
-  `stream_fingerprint_is_pinned` moved as predicted), `HASH_SCHEMA_HISTORY` v64 row
-  appended, `FROZEN_HISTORY_PREFIX_DIGEST` re-pinned, all 42 `HASH_SCHEMA_VERSION` sentinels
-  bumped (41 files under `tests/primitives/` + `tests/casting/` + `tests/mechanics_e_l/` +
-  `tests/rules/`, plus the local `hash_schema_version_sentinel`). `PROTOCOL_VERSION`
-  unchanged at 27 (confirmed: `PROTOCOL_SCHEMA_FINGERPRINT` never moved).
-- **Phase 2** (`b3e8e435`) — factored the three near-duplicate draw-completion bodies into
-  `replacement::perform_one_draw` (+ `DrawStepOutcome` enum), parameterizing
-  `check_would_draw_replacement` on `already_applied: &HashSet<ReplacementId>` (CR 614.5
-  threading) and `offer_dredge: bool` (never re-offered on resume, §3.3). On
-  `NeedsChoice`, `perform_one_draw` pushes a `PendingDraw` (with `already_applied` sorted
-  by `ReplacementId` for hash determinism, SR-9b) and returns `Deferred` instead of
-  emitting an unanswerable event into the void. Rewired all three emit sites:
-  `turn_actions::draw_card` (`crates/engine/src/rules/turn_actions.rs`), the third,
-  previously-unnamed site `replacement::draw_card_skipping_dredge` (reached via
-  `Command::ChooseDredge { card: None }`), and `effects::draw_one_card` — renamed
-  `draw_cards_for_player(state, player, n)` and now **owning** the CR 614.11a sequence
-  loop, **breaking** on `Deferred`/`LostToEmptyLibrary` instead of continuing to iterate
-  (pre-fix this loop kept calling the old `draw_one_card` after a deferral, so
-  `Effect::DrawCards { count: 3 }` emitted three unanswerable prompts and drew zero
-  cards — confirmed live in the fail-before probe, see below). SR-25
-  `bare_lookup_ratchet`: `effects/mod.rs` ceiling re-pinned 111 → 110.
-- **Phase 3** (`724a2c67`) — `handle_order_replacements` grows a second routing arm:
-  tries a pending zone change first (byte-for-byte pre-PB-DP5 behavior, so no existing
-  test regresses), then falls through to a pending draw. Routing is by applicability,
-  which `trigger_matches` makes total (a `WouldChangeZone` replacement is never
-  applicable to a `WouldDraw` event and vice versa — the two candidate sets are provably
-  disjoint), so a well-formed answer can never be misrouted. New
-  `resolve_pending_draw` (modelled on `resolve_pending_zone_change`): applies the chosen
-  replacement (emitting `ReplacementEffectApplied` for it first — the order
-  discriminator), `SkipDraw` ends the chain (CR 614.10/616.1f), anything else re-checks
-  via a single `perform_one_draw` call (which **is** the CR 616.1f re-check — no
-  additional loop needed, since `check_would_draw_replacement`'s own `AutoApply`
-  dispatch is already terminal per call), and if the entry's `remaining` sequence count
-  is nonzero, resumes the rest of the sequence (CR 614.11a). Both SR-29 trust-boundary
-  checks (affected-chooser, currently-applicable) preserved in the new arm.
-- **Tests** (`3bd7a029`) — 13 new tests in
-  `crates/engine/tests/primitives/pb_dp5_pending_draw_choice.rs` (T1–T13; `mod` line
-  added to `tests/primitives/main.rs`) + the existing
-  `test_draw_needs_choice_emits_replacement_choice_required` in
-  `crates/engine/tests/rules/replacement_effects.rs` strengthened in place (T0):
-  added `pending_draws()` state assertions and drove the choice through
-  `Command::OrderReplacements` to prove the chain actually resolves end to end
-  (satisfying acceptance criterion 5532's "replacement applied" branch — this
-  particular scenario is two `SkipDraw` effects, so the card-in-hand branch is proven
-  by the separate `test_dp5_draw_completes_through_chosen_order`). All 13 new tests +
-  the strengthened T0 passed on the **first** run against post-fix source — no debug
-  cycle needed. `PendingDraw` re-exported from the crate root alongside its
-  `PendingZoneChange` sibling for test-file convenience.
+- **Phase 1** (`460e7f4e`) — `effects::condition_is_queue_time_evaluable(&Condition) ->
+  bool` (`crates/engine/src/effects/mod.rs`, immediately after `check_condition`):
+  exhaustive, no `_` arm, 7 `false` variants (`TargetIsLegal`, `WasOverloaded`,
+  `WasBargained`, `WasCleaved`, `EvidenceWasCollected`, `GiftWasGiven`,
+  `SacrificeFired`), `Not`/`And`/`Or` propagate conservatively (one unanswerable arm
+  makes the whole clause unanswerable), every other variant `true`. And
+  `abilities::carddef_intervening_if_holds_at_queue_time(state, intervening_if,
+  controller, source) -> bool` (`crates/engine/src/rules/abilities.rs`, immediately
+  before `check_intervening_if`): `pub(crate)`, `EffectContext::new_with_kicker` +
+  `x_value` via `state.fizzle_object(source)` (SR-25, not a bare lookup), defaults
+  `true` on `None` or an unanswerable condition. Wired all 14 Category-A sites exactly
+  per the plan's §2 table: `turn_actions.rs` A1 (upkeep, `:267-320`), A2 (first main),
+  A3 (postcombat main), A4 (end step), A5 (begin combat) — all five destructures grow
+  `intervening_if` and a `let sref: &GameState = state;` rebind per §3.4 (the
+  borrow-checker workaround was never actually needed — `cargo check` passed on the
+  first try at every site, no restructuring); `mana.rs` A6/A6b (`WhenTappedForMana`,
+  one gate shared by the immediate-resolution and stack branches, ahead of the
+  `targets.is_empty() && is_mana_producing_effect` split); `replacement.rs` A7 (ETB —
+  replaces the inline `if let Some(cond)` with the helper, which also repairs the
+  `EffectContext::new` → `new_with_kicker` zero-fill bug the plan's §3.3 predicted) and
+  A8 (`TributeNotPaid` — AND'd with the hardcoded `!tribute_was_paid` check, later
+  refactored to a match guard for clippy's `collapsible_match`); `abilities.rs` A9
+  (`WhenYouCastThisSpell`, with an in-source comment on the stack-object-source
+  caveat), A10 (`WhenExertedAsAttacks`), A11 (`WhenDealsCombatDamageToPlayer`), A12
+  (`WhenTurnedFaceUp`), A13 (`WheneverRingTemptsYou`), and A14 (the graveyard-zone
+  sweep, refactored onto the shared helper, behaviour-neutral). **Not** wired:
+  `abilities.rs`'s `WheneverYouSacrifice` `retain` post-filter (Category C,
+  index-namespace mismatch — OOS-DP6-2, unchanged). Cleared the two caveats
+  (`loyal_apprentice.rs:21-30`, `siege_gang_lieutenant.rs:18-23`) per §5.2's CLEAR row;
+  the ~20 "re-checked at resolution" caveats left untouched.
+- **Phase 2** (`4bdaecfc`, fixed by `c3ff8038`) — 12 new tests in
+  `crates/engine/tests/primitives/pb_dp6_intervening_if_queue_time.rs` (registered in
+  `tests/primitives/main.rs`), covering the plan's §7 table T1–T12. Also fixed a
+  clippy `collapsible_match` on the A8 site (match guard, no behaviour change) and
+  de-staled `pb_ac6_card_integration.rs`'s Land Tax test — its OOS-AC6-2 comment
+  ("the stack should stay empty here per CR 603.4 but doesn't") documented exactly the
+  gap this PB closes; the comment now says so and the test gained a direct
+  `stack_objects().is_empty()` assertion instead of only the observable-outcome
+  fallback it had settled for.
+- **Fix cycle** (`c3ff8038`, discovered by the runner's own fail-before verification,
+  not a review finding) — T4, T5, T7 originally asserted only the **final token
+  count**, which the pre-existing, RETAINED resolution-time re-check (CR 603.4's
+  second sentence, unmodified by this PB) already drives to zero on a false
+  condition — a trigger wrongly queued and then fizzled at resolution is
+  observationally identical, at the token-count level, to a trigger never queued at
+  all. Running the mandated fail-before revert (see below) surfaced that all three
+  **passed pre-fix**, i.e. they were silent-skip tests of exactly the pattern
+  `conventions.md`'s "Test-validity MEDIUMs are fix-phase HIGHs" section warns about.
+  Fixed by adding a direct `state.stack_objects().is_empty()` assertion immediately at
+  the step transition, before any resolution occurs, in all three. Re-verified against
+  the reverted pre-fix engine a second time: all three now correctly FAIL pre-fix.
+
+### A second, pre-existing bug found (not fixed here — out of scope)
+
+Building T1 (Nullpriest of Oblivion, kicked ETB) surfaced that **even after the
+queue-time fix**, the reanimation effect still does not execute: the
+**resolution-time re-check** (`resolution.rs`, the `condition_holds` closure inside
+the `is_carddef_etb` `TriggeredAbility` resolution arm) builds its `EffectContext` via
+`EffectContext::new(...)` — the exact same zero-fills-`kicker_times_paid` bug the plan
+diagnosed and fixed at the ETB **queue-time** gate (§3.3) — so `Condition::WasKicked`
+reads false at resolution even for a genuinely-kicked permanent. This is a **different
+call site** than anything in the plan's 14-site roster (hard constraint 2 requires the
+resolution-time re-check be RETAINED, not touched, and the plan never audited its
+internal `EffectContext` construction). Per the standing "implement-phase
+default-to-defer" rule (`conventions.md`) — new engine surface beyond the declared
+scope gets flagged, not silently fixed — this was **not** fixed in this PB. T1's
+assertion was narrowed to match the plan's literal wording (queuing only; see the
+in-file `NOTE` on the test) rather than asserting the full reanimation. **New seed for
+the coordinator to file**: `resolution.rs`'s `condition_holds` closure (in the
+`is_carddef_etb` branch) should build its context the same way the main effect
+execution path a few lines below it already does (`EffectContext::new_with_kicker` +
+propagated `x_value`), not `EffectContext::new`. Live corpus exposure: at minimum
+`nullpriest_of_oblivion.rs` and `thieving_skydiver.rs` (both `WhenEntersBattlefield` +
+`Condition::WasKicked`) — neither has ever actually reanimated/drawn in the engine,
+queue-time bug or not, until this second bug is also fixed.
 
 ### Fail-before / pass-after evidence (OBSERVED, not predicted)
 
-Method: reverted the 10 touched engine/card-types source files to `9fb09fc4` (the
-pre-PB-DP5 parent commit) via `git checkout 9fb09fc4 -- <files>`, kept the new/modified
-test files as committed, wrote a throwaway probe file
-(`zzz_dp5_failbefore_probe.rs`, deleted before this close-out) using only
-pre-fix-stable API signatures (`draw_card`, `execute_effect`, `process_command`,
-`Command::OrderReplacements`/`ChooseDredge` — none of these signatures changed) so it
-would compile against the reverted source, ran it with `--nocapture`, then restored all
-10 files with `git checkout HEAD -- <files>` and confirmed `git diff` was empty before
-re-running the full gate suite.
+Method: reverted the 7 touched engine/card-def source files
+(`crates/engine/src/effects/mod.rs`, `crates/engine/src/rules/{abilities,turn_actions,
+mana,replacement}.rs`, `crates/card-defs/src/defs/{loyal_apprentice,
+siege_gang_lieutenant}.rs`) to `2deb0402` (the parent commit) via `git checkout
+2deb0402 -- <files>`, kept the test file as committed except for two mechanical
+compile-only shims needed because the pre-fix engine has no `Condition`-evaluability
+API at all: (a) dropped the `condition_is_queue_time_evaluable` import, (b) wrapped
+T12 in `#[cfg(any())]` (it is a pure unit test of a function that does not exist
+pre-fix — the correct "prediction" for T12 is "does not compile", which is what
+happened on the very first attempt before the shim). Ran `cargo test -p mtg-engine
+--test primitives pb_dp6`, recorded every pass/fail and panic message, then restored
+all 7 files with `git checkout HEAD -- <files>` and confirmed `git diff` was empty
+(only `memory/primitive-wip.md`, this close-out edit, showed as modified) before
+re-running the full gate suite. This was done **twice** — the first pass caught the
+T4/T5/T7 silent-skip bug (see "Fix cycle" above); the table below is from the second,
+final pass against the corrected test file.
 
 | # | test | OBSERVED pre-fix behavior | plan's prediction | match? |
 |---|---|---|---|---|
-| T0 | strengthened `test_draw_needs_choice_...` | **does not compile** — `error[E0599]: no method named `pending_draws` found for struct `GameState`** (19 such errors across the file, confirmed by compiling the real committed test files against reverted source) | "does not compile pre-fix (new API)" | ✅ |
-| T1 | order-answering | `Err(InvalidCommand("player PlayerId(1) is not the affected player of any pending replacement choice"))` | exact match | ✅ |
-| T2 | chosen order [601,600] | `Err(InvalidCommand("player PlayerId(1) is not the affected player of any pending replacement choice"))`, zero `ReplacementEffectApplied` events | "FAILS: command rejected, zero events" | ✅ |
-| T3 | mirrored [600,601] | same `Err` as T2 | "FAILS: as T2" | ✅ |
-| T4 | draw completes | `Err(...)`; hand stayed empty, library stayed 1 | "FAILS: command rejected; hand empty, library 1" | ✅ |
-| T5 | effect-draw path | `execute_effect` emitted `ReplacementChoiceRequired`; the paired `OrderReplacements` probe returned the same `Err` as T1 | "paired probe: rejected identically to T1" | ✅ |
-| T6 | sequence stop/resume | **3** `ReplacementChoiceRequired` events, **0** cards drawn to hand | "FAILS loudly: three prompts, zero cards" | ✅ |
-| T7 | dredge-decline (3rd emit site) | `DredgeChoiceRequired` then `ReplacementChoiceRequired`(the same bug on this site); `OrderReplacements` → same `Err` as T1 | "the prompt is emitted, the OrderReplacements is rejected" | ✅ |
-| T8 | wrong player (p2) | `Err(InvalidCommand("player PlayerId(2) is not the affected player of any pending replacement choice"))` | "passes pre-fix for the wrong reason" | ✅ (rejects, but for "no pending event at all" not "not applicable") |
-| T9 | inapplicable id | `Err(InvalidCommand("player PlayerId(1) is not the affected player ..."))` — i.e. rejected via the **same** "no pending event" class as T8, not an applicability message | "passes pre-fix for the wrong reason" | ✅ |
-| T10 | precedence | zone-change answer: `Ok` (`ReplacementEffectApplied` + `CommanderZoneRedirect`) — pre-existing path unaffected; draw answer: `Err(...)` same as T1 | "first command passes; second FAILS" | ✅ |
-| T11 | 616.1f re-check | both submission orders (B-first, A-first) returned `Err(...)` — no `ReplacementEffectApplied` at all | "FAILS: both commands rejected" | ✅ |
-| T12 | no-deadlock | `PassPriority` for both players succeeded with no error — this is a **regression guard**, so it was expected (and observed) to pass pre-fix too, for the reason stated in the plan (nothing to deadlock on) | "passes pre-fix — this is a regression guard" | ✅ |
-| T13 | wire sentinels | `HASH_SCHEMA_VERSION=63, PROTOCOL_VERSION=27` — the `assert_eq!(.., 64u8)` half fails | n/a (assertion mismatch, not a behavior prediction) | ✅ |
+| T1 | ETB WasKicked gate | `assertion left == right failed`: `stack_objects().len()` was **0**, expected 1 — the kicked ETB trigger never queued at all | "FAILS before — the kicked case queues nothing today" | ✅ |
+| T2 | upkeep false | panics: "equal land counts (condition false) must never queue the upkeep trigger" — trigger was queued (stack non-empty) | "FAILS before — trigger is queued" | ✅ |
+| T3 | upkeep true | `ok` | "Passes before and after (non-regression)" | ✅ |
+| T4 | end step false | panics: "...must not even be queued (not merely fizzle at resolution)" — trigger was queued pre-fix, then fizzled at the (pre-existing) resolution re-check, landing on 0 tokens either way | "FAILS before" | ✅ (only after the T4 fix — see "Fix cycle"; the original final-token-count-only T4 passed pre-fix, a silent-skip false positive) |
+| T5 | begin combat, no commander | panics: "...must not even be queued at the beginning of combat" — same pattern as T4 | "FAILS before — this is the exact divergence loyal_apprentice.rs:23-26 documents" | ✅ (same caveat as T4) |
+| T6 | resolution recheck retained | `ok` | "Passes before and after — the pin that hard constraint 2 was honoured" | ✅ |
+| T7 | first-main / postcombat-main gates | panics on the first-main assertion: "...must not even queue the first-main-phase trigger" | "FAILS before" | ✅ (same caveat as T4/T5) |
+| T8 | unevaluable condition | `ok` | "Passes before (nothing gates) and must still pass after" | ✅ |
+| T9 | graveyard gate unchanged | `ok` | "Passes before and after — proves the A14 refactor is behaviour-neutral" | ✅ |
+| T10 | Tribute AND-in | panics: "...tribute was not paid but the def's own intervening-if is false -- the trigger must still not queue" — `pending_triggers` contained the source pre-fix | "FAILS before (A8's field is ignored)" | ✅ |
+| T11 | face-aware back-face condition | `ok` (both `FrontToken`/`BackToken` counts land at 0, for the pre-existing reason that PB-OS4b/RS4's face selection already reads the back face for the *sweep itself* — the intervening_if gate is simply absent, so the back face's false condition is only caught at resolution) | "Passes before *vacuously* (nothing gates); must pass after" | ✅ |
+| T12 | predicate exhaustiveness | **does not compile** — `error[E0432]: unresolved import` `condition_is_queue_time_evaluable` does not exist in `effects` (confirmed before applying the compile-only shim) | n/a in the plan's table (function didn't exist when the plan was written); the only honest fail-before is "cannot compile" | ✅ |
 
-All 14 rows (T0–T13) match the plan's per-test prediction exactly, including the two
-"passes pre-fix for the wrong reason" cases (T8/T9) where the OBSERVED error was
-specifically the "not the affected player of any pending replacement choice" class, not
-an applicability-class message — confirming the fix-phase's test-validity requirement
-that T9 must show a **different** error class post-fix (verified: post-fix T9 returns
-`"none of the ordered replacement ids [...] are applicable to player PlayerId(1)'s
-pending replacement choice (zone change pending: false, draw pending: true)"`).
+**11 of 12 observed rows matched the plan's literal prediction on the first attempt.**
+The one miss was the runner's own construction, not the plan's: **T4, T5, and T7 as
+originally written passed pre-fix** (contradicting the plan's "FAILS before" for all
+three) because they asserted only the final token count, which the retained
+resolution-time re-check already zeroes out regardless of whether the trigger was
+queued. This is flagged above as its own fix-cycle entry, not folded silently into the
+table, per the task's instruction to say which predictions were wrong. The plan's
+*prediction itself* (that these sites over-fire pre-fix) was never wrong — only the
+first-draft test's ability to detect it.
 
 ### Test counts
 
-- Parent pin (PB-DP4 collect): **3,781** passing, 0 failing.
-- After PB-DP5 (13 new + 1 strengthened in place, net +13): **3,794** passing, 0 failing.
+- Parent pin (PB-DP5 collect, `2deb0402`): **3,797** passing, 0 failing.
+- After PB-DP6 (12 new): **3,809** passing, 0 failing.
 
 ### Wire check (read directly from source after the change)
 
-- `crates/engine/src/state/hash.rs`: `pub const HASH_SCHEMA_VERSION: u8 = 64;`
-- `crates/engine/src/rules/protocol.rs`: `PROTOCOL_VERSION` unchanged at **27**
-  (verified via `test_dp5_wire_version_sentinels` and by the fact
-  `PROTOCOL_SCHEMA_FINGERPRINT` never moved in any gate run).
+- `crates/engine/src/rules/protocol.rs`: `pub const PROTOCOL_VERSION: u32 = 27;` — unchanged.
+- `crates/engine/src/state/hash.rs`: `pub const HASH_SCHEMA_VERSION: u8 = 64;` — unchanged.
+- `bare_lookup_ratchet` (`crates/engine/tests/core/`): green with **no** ceiling edits,
+  exactly as predicted (§6: "the helper's only lookup is `state.fizzle_object(source)`,
+  which the counter does not count as bare").
 
 ### Plan deviations
 
-None. The plan's §3 Phases 1–3, §7 test list (with T0 strengthened per the explicit
-runner brief), and §11 verification checklist were followed as written. One
-implementation-level simplification versus the plan's literal §3.2 pseudocode: the
-plan describes `resolve_pending_draw`'s CR 616.1f re-check as an explicit loop with a
-termination proof; the actual implementation makes a **single** call to
-`perform_one_draw` (which itself makes a single call to `check_would_draw_replacement`)
-because `check_would_draw_replacement`'s own `AutoApply` dispatch is already terminal
-per call (it only ever fires when exactly one replacement remains applicable, so there
-is nothing left to loop over afterward) — behaviorally identical to an explicit loop in
-every traced scenario (T4, T6, T11 all pass), just without a redundant `loop {}`
-construct. This is documented in the doc comments on both `perform_one_draw` and
-`resolve_pending_draw` (mirroring `resolve_pending_zone_change`'s own single-call
-shape, which the plan explicitly said to model this on).
+1. **§3.4's borrow-checker workaround was never triggered.** The plan predicted the
+   five `turn_actions.rs` closures might fight the borrow checker over `state: &mut
+   GameState` and prescribed a `let sref: &GameState = state;` rebind as the fix. The
+   rebind was applied preemptively at all five sites and `cargo check` passed
+   immediately every time — no actual borrow conflict was ever hit, so it is unclear
+   whether the rebind was load-bearing or just harmless-and-consistent. Left in place
+   per the plan's explicit instruction (do not restructure into collect-then-check).
+2. **A8's `if` was converted to a match guard**, not left as the plan's §3.4 literal
+   "keep `if !tribute_was_paid` and AND the helper in" — `cargo clippy`'s
+   `collapsible_match` lint (new in this toolchain's lint set, not anticipated by the
+   plan) required collapsing the nested `if` into the `match` arm's guard. Behaviour
+   is identical (re-verified against T10); the `_ => {}` catch-all arm still receives
+   control when the guard is false.
+3. **T1, T4, T5, T7 needed a fix cycle** the plan did not anticipate — covered above
+   under "Fix cycle" and in the observed-vs-predicted table.
+4. **T1's scope was narrowed at the assertion level** (queuing only, not full
+   reanimation) because of the second pre-existing bug described above — the plan's
+   T1 wording ("Kicked Nullpriest-shaped ETB trigger **is queued**") is honored
+   literally; the plan did not ask for a full end-to-end reanimation assertion, and
+   attempting one surfaced scope the plan did not authorize fixing.
 
 ### Un-enumerated sites hit
 
-None beyond the plan's own inventory. `cargo build --workspace` was run after every
-phase; `tools/tui`, `tools/replay-viewer`, and `crates/simulator` had zero occurrences
-of `Command::OrderReplacements` (confirmed by the plan's §1.7) and needed no changes —
-this held true throughout implementation.
+None beyond the plan's own inventory. The runner note in the coordinator's brief
+(re-derive B1/B2 mechanically via `rg -n "AbilityDefinition::Triggered"
+crates/engine/src --glob '!testing/*'`) was followed: the grep returned the same 15
+non-`testing` destructure sites the plan's §2 already accounted for (14 Category-A +
+1 Category-C), confirming no B1 line needed promotion to Category A.
 
 ### Gates (all green)
 
-`cargo build --workspace`, `cargo test --all` (3,794/0), `cargo clippy --workspace
---all-targets -- -D warnings`, `cargo fmt --check`, `tools/check-defs-fmt.sh` (1,804
-defs clean), and `cargo test -p mtg-engine --test scripts run_all_scripts` (8/8,
-including `replacement/014_golgari_grave_troll_dredge.json`).
+`cargo build --workspace`, `cargo test --all` (3,809/0, up from 3,797), `cargo clippy
+--workspace --all-targets -- -D warnings`, `cargo fmt --check`, `tools/check-defs-fmt.sh`
+(1,804 defs clean), `bare_lookup_ratchet` (no ceiling edits), and a golden-script grep
+for all 15 flipping card names (§11 risk 5) — zero hits, no churn to justify.
 
-**0 card-def edits** — as predicted (§11 checklist), the corpus has zero `WouldDraw`
-replacement registrations (§1.4 / seed W1), so no card definition needed touching.
+**0 card-def source edits required by the engine change** — as predicted (§5.1: "Zero
+card-def source edits are required by the engine change"); the two caveat edits are
+documentation-only.
 
-## Fix cycle (runner close-out)
+### Seeds for the coordinator (in addition to the plan's OOS-DP6-1..8)
 
-**Status: FIXES APPLIED, gates green.** Worked findings 1 and 3–12 from
-`memory/primitives/pb-review-DP5.md`; **Finding 2 (HIGH, the audit-doc update + OOS-DP5-1..8
-seed filing) was explicitly skipped per coordinator instruction** — that is being done
-separately, in parallel, by the coordinator. `docs/audits/decision-point-audit.md` and
-`CLAUDE.md` were not touched by this fix cycle.
-
-### Finding 1 (MEDIUM) — genuinely fixed, not just caveated
-
-The coordinator asked whether restoring an explicit loop in `resolve_pending_draw` closes the
-hole, or whether it lives inside `check_would_draw_replacement`'s `AutoApply` dispatch and the
-loop is orthogonal. **Answer: the hole is inside `check_would_draw_replacement`.** A CR 616.1a
-self-replacement `AutoApply` maps straight to `DrawStepOutcome::Completed` (the draw happens),
-never `Deferred`, so a loop around `resolve_pending_draw`'s calls to `perform_one_draw` would
-never re-fire — it only loops on `Deferred`. The fix instead restores the CR 616.1f re-check
-*inside* `check_would_draw_replacement` itself (mirroring the sibling `WouldChangeZone` path's
-own internal `loop { }` at `rules/replacement.rs:~984-1046`, which was the confirming precedent):
-on an `AutoApply(id)` whose modification isn't `SkipDraw`, insert `id` into a local `applied` set
-and re-run `find_applicable`/`determine_action`, bounded by `state.replacement_effects.len()`.
-This closes the hole completely — including the concrete divergence the reviewer constructed
-(`{S: self-replacement RedirectToZone, X: non-self SkipDraw}` — CR 616.1a forces S, 616.1f then
-finds X and stops the draw; pre-fix the engine wrongly drew a card). Two doc comments that had
-asserted the false "already terminal per call" equivalence were rewritten to state the true
-shape. New regression test `test_dp5_self_replacement_autoapply_still_rechecks_remainder` (T15),
-fail-before verified against the reviewed pre-fix code (observed: `CardDrawn` wrongly emitted).
-**No seed needed for Finding 1 itself** — see full writeup in `pb-review-DP5.md`'s "Fix cycle"
-section.
-
-### Other dispositions
-
-- **Finding 3** (MEDIUM, dead `pending_draws_mut()`): **deleted** (SR-3 — do not widen the seal
-  for zero consumers). Finding 4's new test doesn't need it (built through real commands/effect
-  execution).
-- **Finding 4** (MEDIUM, test hole): **fixed** — added T14
-  (`test_dp5_third_effect_forces_second_choice_with_nonempty_already_applied`), a 3-effect chain
-  that forces a genuine second `NeedsChoice` with `already_applied` non-empty on the re-pushed
-  `PendingDraw`. Verified non-vacuous by breaking the code (`already_applied: vec![]` on
-  re-defer), confirming the test fails with the exact predicted mismatch, then restoring
-  byte-identically and confirming green again.
-- **Finding 5** (LOW): fixed — resume guard now also stops on `LostToEmptyLibrary`.
-- **Finding 6** (LOW): fixed — corrected the false "every call site" guard claim.
-- **Finding 7** (LOW): fixed — renamed stale `draw_one_card` references in two doc comments
-  (left the two *historical* "formerly/pre-PB-DP5" references alone — those are accurate).
-- **Finding 8** (LOW): fixed — appended the PB-DP5 63→64 re-pin attribution line.
-- **Finding 9** (LOW): declined, no code change (review's own directive); the Phase 2 commit
-  message doesn't explicitly call out the `draw_card` `?`→`expect_*` error-surface change, but
-  amending a landed commit message is out of scope — both items belong in the DP-5 audit row
-  (Finding 2's parallel track).
-- **Finding 10** (LOW): fixed — added T10b
-  (`test_dp5_precedence_draw_first_falls_through_to_draw_arm`), submitting the draw answer first
-  while a zone change is also pending, exercising the fall-through the original T10 never hit.
-- **Finding 11 / 12** (LOW): declined, no code change (review's own directive — both explicitly
-  say "note in the plan / seed it," not "fix it here"). Left for Finding 2's parallel track.
-
-### Gates (all green, post-fix-cycle)
-
-`cargo build --workspace` clean · `cargo test --all`: **3,797 passing, 0 failing** (3,794 + 3 new:
-T14, T15, T10b) · `cargo clippy --workspace --all-targets -- -D warnings` clean · `cargo fmt
---check` clean · `tools/check-defs-fmt.sh` clean (1,804 defs) · golden scripts 8/8. Wire
-unchanged: `HASH_SCHEMA_VERSION` **64**, `PROTOCOL_VERSION` **27** (read from source — this fix
-cycle added no new hashed field).
-
-### Files touched
-
-`crates/engine/src/rules/replacement.rs`, `crates/engine/src/state/mod.rs`,
-`crates/card-types/src/state/replacement_effect.rs`, `crates/engine/tests/core/hash_schema.rs`,
-`crates/engine/tests/primitives/pb_dp5_pending_draw_choice.rs` (13 → 16 tests).
-
-### Note on a mid-session accident (transparency, not a seed)
-
-While generating fail-before evidence for T15, a `git checkout -- <file>` was used to try to
-revert a single-file probe and instead reverted the entire uncommitted `replacement.rs` fix
-cycle to the last commit (since none of this cycle's work had been committed yet). Caught
-immediately by re-reading the file, and the three replacement.rs edits (Finding 1's loop, the
-two doc-comment corrections) were redone from the plan/review text and re-verified. No data
-loss; flagging so a future runner uses a scratch-diff/patch approach instead of `git checkout --`
-when reverting a single change inside a file with other uncommitted edits.
+- **New**: the resolution-time `is_carddef_etb` `condition_holds` closure in
+  `resolution.rs` builds `EffectContext::new` instead of `EffectContext::new_with_kicker`,
+  so `Condition::WasKicked`/`XValueAtLeast` at resolution read a zero-filled context —
+  the same bug class §3.3 fixed at the queue-time ETB gate, at a sibling call site the
+  plan did not audit. See "A second, pre-existing bug found" above for the full
+  writeup and corpus exposure (`nullpriest_of_oblivion.rs`, `thieving_skydiver.rs`).
