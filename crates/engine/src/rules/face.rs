@@ -307,10 +307,11 @@ fn remove_one_registration(state: &mut GameState, obj_id: ObjectId, ability: &Ab
         }
         // CR 601.3 / 305.1: a static play-from-graveyard permission.
         AbilityDefinition::StaticPlayFromGraveyard { filter, condition } => {
+            // Hoisted out of the closure: unboxing clones the `Condition`, and doing
+            // it inside `position()` would re-clone once per scanned entry.
+            let want_condition = condition.as_ref().map(|c| *c.clone());
             if let Some(pos) = state.play_from_graveyard_permissions.iter().position(|pm| {
-                pm.source == obj_id
-                    && pm.filter == *filter
-                    && pm.condition == condition.as_ref().map(|c| *c.clone())
+                pm.source == obj_id && pm.filter == *filter && pm.condition == want_condition
             }) {
                 state.play_from_graveyard_permissions.remove(pos);
             }
@@ -324,13 +325,15 @@ fn remove_one_registration(state: &mut GameState, obj_id: ObjectId, ability: &Ab
             condition,
             on_cast_effect,
         } => {
+            // Hoisted out of the closure for the same reason as the arm above.
+            let want_condition = condition.as_ref().map(|c| *c.clone());
             if let Some(pos) = state.play_from_top_permissions.iter().position(|pm| {
                 pm.source == obj_id
                     && pm.filter == *filter
                     && pm.look_at_top == *look_at_top
                     && pm.reveal_top == *reveal_top
                     && pm.pay_life_instead == *pay_life_instead
-                    && pm.condition == condition.as_ref().map(|c| *c.clone())
+                    && pm.condition == want_condition
                     && pm.on_cast_effect == *on_cast_effect
             }) {
                 state.play_from_top_permissions.remove(pos);
