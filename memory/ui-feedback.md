@@ -31,4 +31,9 @@ What happened / what was expected. One entry per distinct observation.
 
 ## Entries
 
-(none yet — first playable build not landed)
+### 2026-07-26 — Pre-build preference: legal-targets dropdown is the right model   [status: queued]
+User (before first build, reviewing the Session 7 design): likes "playing a spell and
+getting a drop-down menu that only consists of legal targets you need to choose from."
+The planned `TargetPicker` (one selector per slot, engine-enumerated legal candidates
+only) matches this. Implication for M13: Arena-style drag-arrows are a lower-priority
+polish item than previously assumed — the picker is the endorsed interaction model.
