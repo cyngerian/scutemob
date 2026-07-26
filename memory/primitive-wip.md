@@ -1,4 +1,4 @@
-# Primitive WIP — PB-DP1 (DP-1 · priority after cast/activate/special action) · PLAN
+# Primitive WIP — PB-DP1 (DP-1 · priority after cast/activate/special action) · IMPLEMENT (steps 1-11 of 16 done)
 
 <!-- last_updated: 2026-07-26 -->
 
@@ -7,7 +7,10 @@
 - **Task**: `scutemob-149`
 - **Branch**: `feat/pb-dp1-priority-after-castactivatespecial-action-goes-to-the`
 - **Class**: CORRECTNESS (live-wrong, core-reachable — no card required)
-- **Phase**: PLAN
+- **Phase**: IMPLEMENT — plan steps 1-11 of 16 complete (probes + Group A/B/C/D +
+  mana.rs comment, all 9 probes green); **steps 12-16 remain** (full-suite fallout
+  triage, golden scripts, simulator, gates, review, close-out) and are dispatched
+  separately, not part of this session
 - **Binding spec**: `docs/audits/decision-point-audit.md` §4.1, §4.12, §5 Tier 0 (DP-1 row), §8 (PB-DP1 row)
 - **Plan file**: `memory/primitives/pb-plan-DP1.md`
 - **Review file**: `memory/primitives/pb-review-DP1.md`
@@ -122,13 +125,17 @@ and trace baselines will move — expected and correct; update knowingly, with c
 - [x] 2. Probe tests written FIRST, verified FAILING pre-fix
 - [x] 3. Group A fixes: casting.rs + CR 601.2i citation
 - [x] 4. Group A fixes: abilities.rs + CR 602.2e → 602.2b citation
-- [ ] 5. Group A fixes: engine.rs craft; Group B ruling applied; Group D disposition
-- [ ] 6. Regression tests (non-active caster; respond to own spell; mana-ability preservation)
-- [ ] 7. Test + golden-script fallout triage, every update citing CR 117.3c
-- [ ] 8. Simulator / LocalGame baselines updated knowingly
-- [ ] 9. PROTOCOL 27 / HASH 63 confirmed unchanged; full gates green
-- [ ] 10. `primitive-impl-reviewer` pass, findings dispositioned
-- [ ] 11. Close-out: audit doc §5/§8 rows shipped; seeds filed
+- [x] 5. Group A fixes: engine.rs craft; Group B ruling applied; Group D disposition
+- [x] 6. Regression tests (non-active caster; respond to own spell; mana-ability preservation)
+      — covered by probes P1/P2/P7 in the Step-1 probe file (all green post-fix)
+- [ ] 7. Test + golden-script fallout triage, every update citing CR 117.3c — **OUT OF
+      SCOPE for this invocation** (plan step 12/13; dispatched separately)
+- [ ] 8. Simulator / LocalGame baselines updated knowingly — **OUT OF SCOPE** (plan step 14)
+- [~] 9. PROTOCOL 27 / HASH 63 confirmed unchanged (wire sentinels green — see below);
+      **full gate suite (clippy/fmt/`cargo test --all`) NOT run** — that requires the
+      fallout triage (step 7/plan-step-12) first, which is out of scope here
+- [ ] 10. `primitive-impl-reviewer` pass, findings dispositioned — **OUT OF SCOPE**
+- [ ] 11. Close-out: audit doc §5/§8 rows shipped; seeds filed — **OUT OF SCOPE**
 
 ## Implement session (plan `pb-plan-DP1.md` steps 1-11) — scutemob-149
 
@@ -221,11 +228,28 @@ AP-gated), `handle_ninjutsu` (flip), `handle_embalm_card` (no-op, AP-gated),
 `player`, and — for the 8 AP-gated sites — an appended note naming the actual gate line
 that makes today's write an identity write. All 12 bogus `CR 602.2e` / `CR 116.3b`
 citations replaced with `CR 602.2b -> 601.2i / CR 117.3c` (+ `CR 117.4` for the reset).
-Verification gates run clean: `rg "PriorityGiven \{ player: active \}" crates/engine/src`
-→ 0 hits; `rg "let active = state.turn.active_player" crates/engine/src/rules/abilities.rs`
-→ 0 hits (the one remaining `let active = state.turn.active_player` in the file is
-`apnap_order`, `:8453`, unrelated — verified not one of the 12 handlers); `rg "602\.2e"` /
-`rg "116\.3b"` under `crates/engine/src` both → 0 hits.
+Verification, scoped to `abilities.rs` (the 12 sites): `rg "PriorityGiven \{ player:
+active \}" crates/engine/src/rules/abilities.rs` → 0 hits; `rg "let active =
+state.turn.active_player" crates/engine/src/rules/abilities.rs` → 0 hits (the one
+remaining `let active = state.turn.active_player` in the file is `apnap_order`,
+`:8453`, unrelated — verified not one of the 12 handlers).
+
+**Deviation from the plan's §14 checklist, noted and justified**: the checklist says
+`rg "602\.2e"` / `rg "116\.3[abcd]"` under **all of** `crates/engine/src` should return
+0. After Step 9 (Group C), this is **not** literally true: 2 hits remain in
+`abilities.rs` (lines 8803/9014) and 1 in the fn doc at `:129` — but all three are our
+*own* explanatory asides quoting the bogus numbers to say they don't exist, in the
+exact phrasing the plan's own §4 table prescribes for line 8788 ("(Neither "CR 602.2e"
+nor "CR 116.3b" exists.)"). No live citation anywhere uses the bogus numbers as if they
+were real. Similarly, `rg "PriorityGiven \{ player: active \}"` across all of
+`crates/engine/src` returns 4 hits after Step 9 — `priority.rs:88`
+(`grant_initial_priority`, CR 117.3a step-start grant), `resolution.rs:115/7752/7991`
+(fizzle / after-resolution / after-countering, CR 117.3b) — all four are Group C sites
+that the plan explicitly requires to stay byte-identical; they legitimately keep the
+`active`-named binding and event. The plan's own checklist bullets are scoped too
+broadly (should have read "scoped to Group A" rather than "crates/engine/src"); this is
+a plan-internal inconsistency, not a fix-phase gap. Verified each of the 4 sites by
+reading it in context (see Step 9 section below).
 
 ### Plan step 4 — Group A: `engine.rs` craft (1 site, no-op)
 
@@ -239,6 +263,132 @@ change).
 After steps 1-4: `cargo check -p mtg-engine` clean; probe re-run shows only P8
 (foretell, Group D-b, not yet touched) still red — 8/9 green. Commit
 `W6-prim: scutemob-149 -- PB-DP1 steps 1-4` (probes + Group A casting/abilities/craft).
+
+### Plan step 5 — Group B ruling (echo / cumulative upkeep / recover), comment-only
+
+`handle_pay_echo`/`handle_pay_cumulative_upkeep`/`handle_pay_recover` (`engine.rs`):
+applied the plan's ruling verbatim — leave the AP-priority-reassignment behavior
+exactly as-is (these are resolution-time choices; CR 117.3c's antecedent is false, no
+player holds priority mid-resolution) and fix only the misleading "Grant priority to
+the active player." comment at each of the 3 sites, citing CR 702.30a/702.24a/702.59a
+respectively and pointing at OOS-DP1-1 (real fix is the DP-11 pause, PB-DP4's scope).
+Verified logic byte-identical via `git diff` (comment lines only, confirmed by reading
+the full diff — no `+`/`-` on any non-comment line). Staged and committed *separately*
+from the Group D-c hunks in the same file using `git add -p` (verified the split with
+`git stash push --keep-index` + a clean `cargo check` on the stash-held index before
+popping back).
+
+### Plan steps 6-8 — Group D dispositions
+
+- **D-a** (`lands.rs`, comment-only): `handle_play_land` was already CR 116.3-correct
+  by construction (`:31` priority guard, `:417` `players_passed` reset). Fixed 2 stale
+  comments (module fn-doc + the `:417` inline comment) that described the *active*
+  player retaining priority and cited CR 117.3b (wrong rule — that governs priority
+  after a resolution, not a special action). Zero logic change, confirmed via diff.
+- **D-b** (`foretell.rs`, `plot.rs`, `suspend.rs`, `commander.rs::handle_bring_companion`):
+  added `state.turn.players_passed = imbl::OrdSet::new();` at the tail of each handler,
+  immediately before `Ok(events)`, per the plan's exact template. `foretell.rs`/`plot.rs`/
+  `suspend.rs` all have an entry priority guard (`:48`, `:55`, `:59` respectively,
+  verified live at those lines) so the comment reads "no write is needed here."
+  `handle_bring_companion` has **no** priority guard of its own — the CR 702.139a
+  sorcery-speed gate (`:941`, `state.turn.active_player != player`) forces
+  `player == active_player`, so the reset is still correct, and the missing guard is
+  tracked as OOS-DP1-2, not fixed here (per plan §5 "Why not add the missing entry
+  priority guards?" — new enforcement surface is DP-21's scope, out of this PB). Used
+  `imbl::OrdSet::new()` fully-qualified in all four files (no new `use` added), per the
+  plan's import-risk note.
+- **D-c** (`engine.rs::handle_turn_face_up` / `handle_activate_loyalty_ability` /
+  `handle_level_up_class`, SEPARATELY REVERTABLE): added the explicit
+  `state.turn.priority_holder = Some(player);` write (previously absent) alongside the
+  existing `players_passed` reset, with a corrected CR citation at all three
+  (`handle_turn_face_up`'s old comment — "CR 116.2b: Special action; reset priority to
+  active player." — was aspirationally wrong: no such write existed). None of the three
+  has an entry priority guard, so this is not a strict identity write the way the
+  Group-A AP-gated sites are — hence kept in **its own commit**
+  (`7851da58`) per the plan's D-c escape hatch, so it can be reverted independently if
+  the (out-of-scope, dispatched-separately) full-suite triage in plan step 12 traces a
+  failure to one of these three specifically.
+
+Verification after steps 5-8: `cargo check -p mtg-engine` clean at each incremental
+step; full probe re-run after Group D-b showed all 9 green (P8 flipped from red to
+green — verbatim: `test pb_dp1_actor_priority::test_dp1_foretell_resets_players_passed
+... ok`).
+
+### Plan step 9 — Group C citation fixes (comment-only, zero logic)
+
+Fixed all 8 sites the plan's §6 table lists: `resolution.rs` module doc (`:8`),
+`resolve_top_of_stack` fn doc (`:35`), cipher free-cast comment (`:5172`, now with the
+CR 601.2i "controller did not have priority before casting" explanation added), suspend
+free-cast comment (`:5836`, same shape, CR 702.62a), the after-resolution-and-triggers
+comment (`:7748`), `priority.rs`'s `pass_priority` fn doc (`:14`) and
+`next_priority_player` fn doc (`:50`), and `combat.rs`'s `handle_declare_blockers`
+(`:1370`, CR 509.1 turn-based-action framing prepended, existing rationale kept intact)
+and `handle_declare_attackers` (`:678`, CR 508.1/117.3a framing + `:46` guard
+citation). Verified byte-identical logic via full `git diff` read (reproduced in this
+session's transcript) — every hunk only adds/replaces comment lines. Re-ran the full
+probe suite after: still 9/9 green (Group C changes cannot affect probe outcomes since
+none of the 9 probes exercise a Group C code path).
+
+### Plan step 10 — `mana.rs` comment-only fix (OPTIONAL — taken, not skipped)
+
+Applied both comment corrections from the plan (module-level `handle_tap_for_mana` doc
+at `:35-36`, and the `:622-623` inline "11." comment), replacing the mis-citation "CR
+605.5" (mana abilities are activated abilities per CR 605.1a, not CR 116.2 special
+actions) with CR 605.3b/117.3c/117.3b-parenthetical framing and an explicit pointer at
+`test_dp1_mana_ability_does_not_reset_players_passed` (P7) as the pin. One correction
+to the plan's suggested text: the plan said "the `:47` guard proves..." but the actual
+priority guard in the current source is at `:52` (`if state.turn.priority_holder !=
+Some(player)`) — used the verified line number instead of the plan's stale one.
+**Zero code lines changed** — confirmed via `git diff` (every changed line begins with
+`///` or `//`). Did not skip this step; the PRESERVE risk was assessed as near-zero
+(pure doc-comment rewrite, no logic touched) and confirmed by re-running P7
+(`test_dp1_mana_ability_does_not_reset_players_passed`) green immediately after.
+
+### Plan step 11 — probe tests GREEN
+
+Full probe suite, final state, run after Steps 5-10 (transcript below is the actual
+`cargo test` output at the end of this session):
+
+```
+running 9 tests
+test pb_dp1_actor_priority::test_dp1_mana_ability_does_not_reset_players_passed ... ok
+test pb_dp1_actor_priority::test_dp1_foretell_resets_players_passed ... ok
+test pb_dp1_actor_priority::test_dp1_non_active_player_casting_instant_retains_priority ... ok
+test pb_dp1_actor_priority::test_dp1_non_active_player_crewing_retains_priority ... ok
+test pb_dp1_actor_priority::test_dp1_active_player_casting_still_holds_priority ... ok
+test pb_dp1_actor_priority::test_dp1_non_active_player_cycling_retains_priority ... ok
+test pb_dp1_actor_priority::test_dp1_actor_can_respond_to_own_activated_ability ... ok
+test pb_dp1_actor_priority::test_dp1_special_action_actor_holds_priority_after_turn_face_up ... ok
+test pb_dp1_actor_priority::test_dp1_actor_can_respond_to_own_spell ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 735 filtered out
+```
+
+Also ran (both outside the plan's strict step-1-11 scope, but cheap and directly
+relevant confirmations that nothing in scope broke the standing gates):
+- `cargo build --workspace` — clean. Confirms plan §8's prediction that no exhaustive
+  match (`state/hash.rs`, `view_model.rs`, `stack_view.rs`, simulator) needed a new arm,
+  since no enum/struct shape changed.
+- `crates/engine/tests/core/protocol_schema.rs` (17 tests) and
+  `crates/engine/tests/core/hash_schema.rs` (21 tests) — both fully green. PROTOCOL 27 /
+  HASH 63 confirmed unmoved; no sentinel needed re-pinning.
+
+**NOT run** (explicitly out of scope for steps 1-11, per the task's stop directive):
+`cargo test --all` (full suite — would surface the plan's forecast fallout in
+`split_second.rs`, `casting.rs`, `cycling.rs`, `crew.rs`, `bloodrush.rs`, `ninjutsu.rs`,
+`plot.rs`/`foretell.rs`/`suspend.rs`, and the golden-script corpus, all of which the
+plan assigns to step 12/13, dispatched separately), `cargo clippy -D warnings` /
+`cargo fmt --check` / `tools/check-defs-fmt.sh` (plan step 15, gated behind the
+full-suite triage), `cargo test -p mtg-simulator` (plan step 14), and the
+`primitive-impl-reviewer` + close-out steps (plan steps 10-11 of the WIP's own
+higher-level checklist / plan steps 15-16).
+
+**Commits this session** (4, each independently reviewable):
+1. `794ea037` — Steps 1-4 (probes RED→partial-GREEN, Group A casting.rs/abilities.rs/
+   craft).
+2. `b0b2212c` — Steps 5-7 (Group B ruling, Group D-a, Group D-b).
+3. `7851da58` — Step 8 (Group D-c, separately revertable per the plan's escape hatch).
+4. `1bb13118` — Steps 9-10 (Group C citations, mana.rs comment).
 
 ### Prior state
 
