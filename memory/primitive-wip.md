@@ -269,3 +269,283 @@ names.
    CR-justified.
 9. An explicit list of every pre-survey bullet above that turned out to be **wrong**.
 10. A seed list for the out-of-scope items.
+
+---
+
+## Implementation complete (runner close-out)
+
+**Branch**: `feat/pb-dp7-cleanup-discard-command-pilot-for-blocking-pending-de`
+**Commits**: `5cf24dd6` (plan, pre-existing), `9a4f990c` (phases 1-3: engine core, wire
+bump, consumers, 9 existing-test fixes), `97995583` (phase 4: 21 new tests).
+Base commit: `1854d3b9` (PB-DP6 collected, 3,809 tests).
+
+### Phase summaries
+
+**Phase 1 — engine core** (`9a4f990c`):
+- `Command::DiscardToHandSize { player, cards: Vec<ObjectId> }` —
+  `crates/engine/src/rules/command.rs` (after `ChooseMiracle`).
+- `GameEvent::CleanupDiscardChoiceRequired { player, count: u32, hand: Vec<ObjectId> }` —
+  `crates/engine/src/rules/events.rs` (end of enum, discriminant 129).
+- `GameState.pending_cleanup_discard: Option<PendingCleanupDiscard>` — `pub(crate)`,
+  `#[serde(default)]`, read accessor `pending_cleanup_discard()`, **no** `_mut` accessor
+  (SR-3). New struct `PendingCleanupDiscard { player, count }` in
+  `crates/card-types/src/state/stubs.rs`, re-exported through both
+  `card-types/src/state/mod.rs` and `engine/src/state/mod.rs`.
+- `rules::engine::BlockingDecision` (`CleanupDiscard { player, count }`, `Display` impl for
+  the error message) + `blocking_decision(&GameState) -> Option<BlockingDecision>` — treats a
+  dead entry-player (`has_lost || has_conceded`) as absent.
+- Progress gate: `enter_step` (`engine.rs`), inserted after the `is_game_over` check and
+  before the CR 514.3a cleanup-SBA block — `if blocking_decision(state).is_some() { return
+  Ok(events); }`.
+- Admission gate: `process_command` (`engine.rs`), inserted right after the existing
+  `is_game_over` check and before `match command` — rejects everything except the named
+  player's `DiscardToHandSize` and anyone's `Concede`.
+- Clear-on-concede: `handle_concede` (`engine.rs`), clears a stale entry belonging to the
+  conceding player before the rest of the concede logic runs.
+- `cleanup_actions` (`turn_actions.rs`) now pauses: after the CR 402.2 no-max recompute, if
+  `hand_size > max_hand_size`, it records the entry, emits the one
+  `CleanupDiscardChoiceRequired` event, and returns immediately — the old auto-discard `loop`
+  is gone entirely (its madness-exile logic moved into the new handler below).
+- `turn_actions::handle_discard_to_hand_size(state, player, cards)` — the §2.4 validation
+  list (pending exists, sender matches, exact count, no duplicates, every id exists and is in
+  the sender's own hand, a `debug_assert_eq!` re-derivation), discards in **ascending
+  `ObjectId` order** regardless of the order supplied (plan §2.3), performs the same
+  madness-exile-and-queue logic the old loop had, clears the entry.
+- `turn_actions::default_cleanup_discard(state, player) -> Vec<ObjectId>` — the `count`
+  highest ids ascending; the engine itself never calls it (bots/harness/TUI only).
+- `GameStateError::BlockedByPendingDecision { player, decision: String }` —
+  **deviation from the plan**: the plan's §1.4 sketch used `decision: BlockingDecision`
+  (the enum itself); I used `decision: String` (the `Display` rendering) instead, because
+  `state/error.rs` is data and does not depend on `rules::engine` (module direction
+  convention) — embedding the enum type would have created exactly the reverse dependency
+  the codebase's `state`/`rules` split avoids. Not part of the SR-8 wire closure either way.
+- Hash: `impl HashInto for PendingCleanupDiscard` (both fields), folded into
+  `public_state_hash` via `self.pending_cleanup_discard.hash_into(&mut hasher)` (blanket
+  `Option<T>` impl), and mirrored into `rules/loop_detection.rs`'s mandatory-state
+  fingerprint (defensive — `blocking_decision` already prevents SBAs from running while
+  blocked, so that fingerprint is never actually computed in the `Some` state, but the plan
+  asked for the mirror and it costs nothing).
+- `GameEvent` hashing match in `state/hash.rs` gained the `129u8` arm for
+  `CleanupDiscardChoiceRequired` (no `_` arm exists there, so a miss would have been a
+  compile error).
+
+**Phase 2 — wire bump** (`9a4f990c`): `PROTOCOL_VERSION` 27→28, `HASH_SCHEMA_VERSION` 64→65.
+Both `PROTOCOL_HISTORY`/`HASH_SCHEMA_HISTORY` rows **appended**, never edited. All four
+fingerprints (`PROTOCOL_SCHEMA_FINGERPRINT`, the new `ProtocolEpoch.fingerprint`, and both
+`HashSchemaEpoch.decl_fingerprint`/`stream_fingerprint`) were read **verbatim from the
+failing gate tests' panic text**, never hand-invented, per the hard constraint. Both frozen
+prefix digests (`protocol_schema.rs::FROZEN_HISTORY_PREFIX_DIGEST`,
+`hash_schema.rs::FROZEN_HISTORY_PREFIX_DIGEST`) were re-pinned the same way. All 4 gate tests
+(`protocol_schema_fingerprint_is_pinned`, `frozen_prefix_is_pinned` ×2,
+`history_is_append_only` ×2, `history_tail_matches_the_fingerprint_const`,
+`protocol_version_sentinel`, `hash_schema_version_sentinel`, `declaration_fingerprint_is_pinned`,
+`stream_fingerprint_is_pinned`) pass.
+
+**Phase 3 — consumers** (`9a4f990c`):
+- `LegalAction::DiscardToHandSize { count, hand, cards }` — `crates/simulator/src/legal_actions.rs`.
+  `StubProvider::legal_actions`'s new **first** branch (ahead of the commander-zone check),
+  forced by the admission gate's ordering exactly as the plan predicted.
+- `random_bot::action_to_command` and `heuristic_bot`'s scorer both gained the compile-forced
+  arm (heuristic scores it 100 — the only legal action while blocked).
+- `DecisionKind::CleanupDiscard` + `#[non_exhaustive]` on the enum (audit §9.4 rec 1) —
+  `crates/simulator/src/local_game.rs`. `LocalGame::advance`'s acting-player resolution
+  chain gained the forced-first branch ahead of the commander-zone branch, same ordering
+  reason as `StubProvider`.
+- `replay_harness::translate_player_action` gained a `discard_cards: &[String]` trailing
+  parameter and a `"discard_to_hand_size"` match arm (falls back to
+  `default_cleanup_discard` when the script supplies no names);
+  `script_schema::PlayerAction` gained `#[serde(default)] discard_cards: Vec<String>`. All 5
+  call sites updated (`crates/engine/tests/scripts/script_replay.rs`,
+  `harness_equivalence.rs`, `crates/engine/tests/combat/combat_harness.rs` ×7,
+  `tools/replay-viewer/src/replay.rs`).
+- TUI (`tools/tui/src/play/app.rs`): `acting_player`'s forced-first branch (same ordering
+  reason); a `CleanupDiscardChoiceRequired` display arm in the event formatter.
+  (`tools/tui/src/play/input.rs`): a `'d'` key that submits the offered default subset
+  verbatim — the plan's "minimum viable" answer (seed OOS-DP7-6 covers a real picker).
+- `tools/replay-viewer/frontend/src/lib/eventFormat.js`: a display case and a `'zone'`
+  category entry for `CleanupDiscardChoiceRequired` (JS has no compile gate, so this is an
+  easy silent miss — verified by reading, not by a build failure).
+- 9 existing tests updated to answer the new pending decision instead of relying on the
+  auto-pick (`turn_actions.rs` ×2, `card_def_fixes.rs` ×2, `madness.rs` ×4 — comments at the
+  cited lines rewritten per the plan, not deleted) — see §8.1 table below for detail.
+- **Un-enumerated fallout, not in the plan's §8.1 list**: `turn_structure.rs::test_ten_full_turn_cycles`
+  (a bare `priority_holder.expect("no priority holder")`-style loop over 40 turns with
+  15-card libraries) started panicking once a hand legitimately exceeded 7 cards partway
+  through the run. The plan's §8.1 closing paragraph flagged this exact hazard by name
+  ("`turn_structure.rs:227`'s `state.turn().priority_holder.unwrap()`... it panics on a
+  `None`, which is now a reachable state during cleanup... verify rather than assume") —
+  it just undercounted by one occurrence (there are two such loops in that file; only this
+  one actually got exercised into the failure). Fixed with a
+  `answer_pending_cleanup_discard` helper that answers deterministically and continues.
+- **~40 scattered `HASH_SCHEMA_VERSION`/`PROTOCOL_VERSION` sentinel tests** across
+  `crates/engine/tests/primitives/*.rs` and a few others re-pinned to the live values —
+  this is the exact "guarded only by scattered `assert_eq!`" debt SR-17's doc comment
+  describes as the disease it was designed to cure for the two *headline* sentinels; it
+  never claimed to eliminate the older per-PB sentinels each batch leaves behind, and this
+  list is now measurably longer than it was at SR-17 time. **Flagging per scope discipline
+  convention rather than silently fixing further**: this is a standing, unbounded-growth
+  maintenance tax on every future PROTOCOL/HASH bump and is a good candidate for a small
+  follow-up (either delete the redundant per-PB copies in favor of the two canonical gate
+  tests, or generate them). Not fixed here beyond the mechanical re-pin required to reach
+  green — see seed OOS-DP7-8 below.
+- **Fold-in fix, found writing T8**: `handle_discard_to_hand_size`'s existence check used
+  `state.expect_object(id)` — an SR-4 `debug_assert`-backed accessor reserved for sites that
+  require the id to already be known-live (an *engine* invariant). `cards` is untrusted
+  command input, so an unknown id is a reachable, player-facing condition, not an engine
+  bug; the debug build panicked instead of returning `ObjectNotFound`. Fixed to the fallible
+  `state.object(id)` accessor. This is exactly the SR-4 classification the standing
+  invariant exists to force, caught by writing the validation test rather than by review —
+  recorded here as a genuine (small) defect in the phase-1 code, not a plan deviation.
+
+**Phase 4 — tests** (`97995583`): 18 tests in the new
+`crates/engine/tests/primitives/pb_dp7_cleanup_discard.rs` (registered in
+`crates/engine/tests/primitives/main.rs`, SR-9a), covering the plan's T1-T13 + T17-T18 (T9
+split into 3 tests for the three `no_max_hand_size` sources; T18 split into 2 tests — see
+deviation below). T14/T15 in `crates/simulator/tests/local_game.rs` (the existing
+`LocalGame` acceptance-test file, not an inline `mod tests` — see deviation below). T16 in
+`crates/simulator/src/legal_actions.rs`'s existing `mod tests`.
+
+**Deviation — T18 (serde round-trip)**: the plan's T18 asked for "serde round-trip of a
+blocked `GameState` preserves the entry; a pre-PB-DP7 snapshot without the field decodes."
+`serde_json::to_string(&GameState)` does not work **at all** in this codebase —
+`GameState` has several `OrdMap`s keyed by non-string newtypes (`ObjectId`, `PlayerId`,
+`ZoneId`, ...), and `serde_json` requires string map keys. This is a pre-existing structural
+property (confirmed: no other test anywhere round-trips a whole `GameState` through
+`serde_json`; the established pattern, `test_replacement_effect_serde_roundtrip_*` in
+`tests/rules/replacement_effects.rs`, round-trips individual structs). Rewrote T18 as two
+tests at the struct level: `test_dp7_pending_cleanup_discard_serde_roundtrip` (mirrors that
+established pattern) and `test_dp7_pending_cleanup_discard_defaults_when_absent` (a minimal
+stand-in struct with the identical `#[serde(default)] pending_cleanup_discard:
+Option<PendingCleanupDiscard>` field declaration, proving the exact mechanism the plan's
+§5.2 relies on for old snapshots, without the impossible full-`GameState` premise).
+
+**Deviation — T14/T15 location**: the plan's §8 header says these live in
+"`crates/simulator/src/local_game.rs`'s `mod tests`". That module has exactly one existing
+test (`test_command_player_extracts_acting_player`, extended in phase 3 with the new
+variant) and no `GameStateBuilder`-driven fixture helpers; the established location for
+exactly this kind of `LocalGame`/`advance`/`submit` behavioral test is the sibling
+integration file `crates/simulator/tests/local_game.rs` (10 pre-existing tests of the same
+shape, including `test_local_game_halts_awaiting_human_at_first_priority`, T14's closest
+precedent). Placed T14/T15 there instead.
+
+**Deviation — T15 driving mechanism**: building a full deck/library `LocalGame` fixture
+(the file's existing `build_state`/`fixed_deck` helpers) makes it hard to force an oversized
+hand deterministically in one turn. Instead built a minimal 2-player state directly via
+`GameStateBuilder` with P1's hand pre-populated at 8 cards and an empty library for both
+players, relying on CR 103.8a's 2-player first-turn draw-skip
+(`is_first_turn_of_game && players.len() <= 2`, which `start_game_allowing_incomplete`
+always sets regardless of builder input) to guarantee the hand stays at 8 through turn 1's
+Cleanup — the fastest deterministic route to the pause, and the same shape the plan's T9/T10
+fixtures in the engine-side file already use. T15's game naturally concludes shortly after
+(P2 draws from an empty library on turn 2 and loses, CR 104.3b) rather than running to
+`max_turns`; the assertion was written against the actual regression class (`EngineError`/
+`NoLegalActions` halts from a rejected/impossible discard command), not against "never
+halts", so this is not fragile to that natural early conclusion.
+
+### Fail-before probe evidence (mandatory, T1/T2/T5/T6/T10)
+
+Per the runner brief's "PB-DP6 hit a real hazard" warning, probes were run in an **isolated
+`git worktree`** pinned at the base commit (`1854d3b9`, PB-DP6 collected) — `/tmp/scutemob-dp7-probe`
+— rather than via in-place `git checkout <parent> -- <files>` on this working tree, to make
+clobbering structurally impossible rather than merely avoided by care. The probe files were
+never committed; the worktree was removed after collecting results
+(`git worktree remove --force`), and `git status`/`git diff --stat HEAD` on this worktree
+were confirmed clean immediately after.
+
+Each probe asserts the POST-FIX-predicted outcome using only pre-existing (pre-PB-DP7) API,
+so a probe that panics on the base commit demonstrates the defect the fix corrects.
+
+| # | probe | predicted (plan §8) | observed on `1854d3b9` | match |
+|---|---|---|---|---|
+| T1 | `state.turn().step == Cleanup` after 4 passes (9-card hand) | fails — actually `Untap` of P2's turn | **FAILED**: `left: Upkeep, right: Cleanup` (P1 auto-discarded and the game ran clear through to P2's Upkeep, not merely P2's Untap — see note below) | plan's *direction* correct; the plan's own stated post-4-pass step (`Untap`) was one step optimistic — the fifth (Upkeep-entry) auto-advance also completes with no priority window in a 4-player empty board |
+| T2 | a further `PassPriority` errors | fails — it succeeds today | **FAILED**: the follow-on pass for the (new) active player's priority holder returned `Ok`, confirming no block exists | matches |
+| T5 | the two chosen LOWEST ids end up discarded | fails — the two HIGHEST go | **FAILED**: the two lowest ids were still asserted-present in hand pre-fix is false, i.e. they were NOT discarded (the two highest were, as predicted) | matches |
+| T6 | Fiery Temper (highest id) stays in hand when a filler is "chosen" instead | fails — Temper is exiled regardless | **FAILED**: Temper was not in hand post-cleanup (it was involuntarily exiled) | matches |
+| T10 | damage_marked > 0 right after entering Cleanup | fails — already 0 | **FAILED**: `damage_marked` was already 0 after the 4-pass sequence returned | matches |
+
+**Predictions that were WRONG**: only T1's exact landing step. The plan's §8 table says the
+probe "fails today (it is `Step::Untap` of P2's turn)" — on this branch's actual base
+commit, a 4-player empty-board 4-pass sequence from `Step::End` runs the *entire* auto-
+cascade (cleanup → next turn's Untap → auto-advance through Untap since it has no priority →
+Upkeep, which DOES grant priority) in the same 4 `PassPriority` calls, landing at `Upkeep`,
+not `Untap`. This does not change the probe's verdict (it still demonstrates "no pause
+exists" exactly as intended) — recorded because the instruction is to report predictions
+that were wrong, not just ones whose overall verdict differed.
+
+### Wire sentinels (read directly from source after the change)
+
+- `crates/engine/src/rules/protocol.rs:268` — `pub const PROTOCOL_VERSION: u32 = 28;`
+- `crates/engine/src/rules/protocol.rs:285-286` — `PROTOCOL_SCHEMA_FINGERPRINT =
+  "bf5f5dded64029f15272c4151edd847c340793ff7ebe7d4ee32ef51be81114b4"`
+- `crates/engine/src/state/hash.rs:607` — `pub const HASH_SCHEMA_VERSION: u8 = 65;`
+
+### Test counts
+
+- Base (PB-DP6 collect): **3,809** passing / 0 failing.
+- After phases 1-3 (9 existing-test fixes, 0 new tests): **3,809** passing / 0 failing
+  (unchanged count, as expected — only fixes, no additions yet).
+- After phase 4 (+21 new tests: 18 engine-side + 2 `LocalGame` + 1 `StubProvider`): **3,830**
+  passing / 0 failing.
+- `cargo build --workspace`: clean (0 warnings under the workspace's `warnings = "deny"`
+  lint policy).
+- `cargo clippy --workspace --all-targets -- -D warnings`: clean.
+- `cargo fmt --check`: clean. `tools/check-defs-fmt.sh`: clean (1,804 defs checked).
+- `crates/engine/tests/core/bare_lookup_ratchet.rs` (SR-25): all 3 tests pass unchanged — no
+  re-pin needed; the counter it tracks did not move.
+- Golden-script suite (`cargo test -p mtg-engine --test scripts run_all_scripts`): 8/8 green,
+  including `no_script_is_awaiting_triage` and
+  `approved_scripts_only_use_allowlisted_untranslatable_actions` (SR-9c) — 0 new skips.
+- Fuzzer A/B: **not completed as a clean A/B**. `mtg-fuzzer --games 10 --seed 1` (release,
+  full 1,804-card pool) hit the pre-existing **OOS-DP3-9** stack overflow before completing
+  even 10 games. Per the plan's explicit instruction ("do not chase it here"), no bisection
+  against `main` was attempted; flagging honestly rather than claiming a clean A/B that
+  wasn't actually run. The controlled, deterministic bot-only regression this PB specifically
+  needs (a bot game not halting because of the new discard command) IS covered directly by
+  T15, which does not depend on the large card pool.
+
+### Card-def flip count
+
+**0 completeness-marker flips**, exactly as the plan predicted (§Yield calibration / Fold-in
+section). No card-def source files were edited. The plan's live-wrong claim (three
+`Complete` Madness defs — `fiery_temper.rs`, `stensia_masquerade.rs`, `markov_baron.rs` —
+were involuntarily exile-able pre-fix) is now corrected by the engine change alone; T6/T7
+pin the corrected behavior at the engine level using a local test-only Fiery Temper
+definition (matching `mechanics_m_z/madness.rs`'s own pattern), not the real card def files.
+
+### Seeds for the coordinator
+
+All seven of the plan's proposed seeds (§10) are still accurate and unfiled by this runner
+(filing them in `docs/audits/decision-point-audit.md` §8.1 is explicitly the coordinator's
+lane per the dispatch brief) — reproduced here for convenience, plus one new one found during
+implementation:
+
+- **OOS-DP7-1** — retrofit `pending_commander_zone_choices` onto `blocking_decision`
+  (narrowed list: this one entry only, not all six).
+- **OOS-DP7-2** — `DredgeChoiceRequired`/`MiracleRevealChoiceRequired` doc comments assert a
+  pause the engine does not implement (dredge path confirmed by source reading this session;
+  miracle not verified).
+- **OOS-DP7-3** — `GameEvent::DiscardedToHandSize.reveals_hidden_info()` returns `false`,
+  inconsistent with sibling `CardDiscarded`'s `true`.
+- **OOS-DP7-4** — let the `cards` subset order carry CR 603.3b same-controller madness-trigger
+  order once DP-14 lands (deliberately NOT done here — ascending sort is the safe interim).
+- **OOS-DP7-5** — `PendingDecision.actions: Vec<LegalAction>` is the last decision class that
+  fits without a `payload: DecisionPayload` reshape (audit §9.4 rec 2); M11-local Session
+  3/5's call.
+- **OOS-DP7-6** — the TUI's `'d'` key submits the deterministic default only; no real subset
+  picker exists yet (M11-local Session 7).
+- **OOS-DP7-7** — the audit's §10 re-audit trigger ("re-derive the 277 figure") is now due,
+  plus the §5/DP-24 "accepted-and-discarded field" check on the new `Command` (answer: no —
+  every field of `DiscardToHandSize` is validated, §2.4).
+- **OOS-DP7-8** (new, filed by this runner's implementation, not the plan) — the scattered
+  per-PB `HASH_SCHEMA_VERSION`/`PROTOCOL_VERSION` sentinel-test pattern SR-17 was supposed to
+  retire has instead kept growing (~40 occurrences as of this PB, up from "~29" at SR-17
+  time); each future wire/hash bump now pays a larger mechanical tax re-pinning them. A
+  follow-up should either delete them in favor of the two canonical gate tests
+  (`protocol_version_sentinel`/`hash_schema_version_sentinel` and their fingerprint
+  siblings) or generate/derive them so they cannot drift out of a single source of truth.
+
+Also due per the plan's audit cross-reference list (§10, second paragraph — coordinator's
+lane, not filed here): §4.11 line 400 (B → A), §5 DP-3 row (SHIPPED banner), §8 PB-DP7 row
+(wire prediction confirmed: **both** PROTOCOL and HASH moved, matching the row's prediction),
+§8 sequencing note (point PB-DP8/DP9 at this plan's §1.5/§1.6), §9.3 and §9.4 rec 1
+(`DecisionKind` now `#[non_exhaustive]` — done), §9.4 rec 5 (subset shape confirmed).
