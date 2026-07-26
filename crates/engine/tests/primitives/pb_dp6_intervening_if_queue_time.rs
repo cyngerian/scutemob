@@ -474,11 +474,23 @@ fn test_dp6_end_step_trigger_not_queued_when_condition_false() {
     // No attackers declared -- `advance_step` auto-skips DeclareBlockers/
     // CombatDamage straight to EndOfCombat, then on to EndStep.
     let state = advance_to_step(state, Step::End);
+    // Check QUEUING directly, right at the step transition, before resolving
+    // anything. This is load-bearing: the pre-existing resolution-time
+    // re-check (retained, unmodified by this PB) would ALSO catch a false
+    // `YouAttackedThisTurn` and produce 0 tokens even if the trigger had been
+    // wrongly queued -- so a final-token-count-only assertion cannot tell
+    // "never queued" apart from "queued, then fizzled at resolution" and
+    // would silently pass both pre-fix and post-fix.
+    assert!(
+        state.stack_objects().is_empty(),
+        "CR 603.4: with no attack declared this turn, the end-step trigger must \
+         not even be queued (not merely fizzle at resolution)"
+    );
     let state = resolve_stack(state, &[p1, p2]);
     assert_eq!(
         count_tokens(&state, "DP6EndStepToken"),
         0,
-        "CR 603.4: with no attack declared this turn, the end-step trigger must not queue"
+        "CR 603.4: with no attack declared this turn, no token should ever be created"
     );
 }
 
@@ -513,12 +525,21 @@ fn test_dp6_begin_combat_trigger_not_queued_without_commander() {
     state.turn_mut().priority_holder = Some(p1);
 
     let state = advance_to_step(state, Step::BeginningOfCombat);
+    // Check QUEUING directly (see T4's comment for why a final-token-count-only
+    // assertion would silently pass both pre-fix and post-fix here too: the
+    // pre-existing, retained resolution-time re-check would already catch a
+    // false YouControlYourCommander and produce 0 tokens even if the trigger
+    // had been wrongly queued).
+    assert!(
+        state.stack_objects().is_empty(),
+        "CR 903.3d/603.4: with no commander at all, YouControlYourCommander is \
+         false -- the trigger must not even be queued at the beginning of combat"
+    );
     let state = resolve_stack(state, &[p1, p2]);
     assert_eq!(
         count_tokens(&state, "DP6CombatToken"),
         0,
-        "CR 903.3d/603.4: with no commander at all, YouControlYourCommander is \
-         false -- the trigger must not queue at the beginning of combat"
+        "CR 903.3d/603.4: no token should ever be created"
     );
 }
 
@@ -650,16 +671,27 @@ fn test_dp6_first_main_and_postcombat_main_gates() {
     let mut state = b.active_player(p1).at_step(Step::Untap).build().unwrap();
     state.turn_mut().priority_holder = Some(p1);
 
-    // Drive all the way through to PostCombatMain. `advance_to_step` resolves
-    // any (incorrectly) queued triggers along the way via ordinary priority
-    // passing, so a false count of 0 at the far end is conclusive.
+    // Check QUEUING directly at each step transition -- a final-token-count-only
+    // assertion would silently pass both pre-fix and post-fix here, because the
+    // pre-existing, retained resolution-time re-check already catches a false
+    // `OpponentControlsMoreLandsThanYou` and produces 0 tokens even if the
+    // trigger had been wrongly queued (see T4's comment for the full argument).
+    let state = advance_to_step(state, Step::PreCombatMain);
+    assert!(
+        state.stack_objects().is_empty(),
+        "CR 603.4: equal land counts must not even queue the first-main-phase trigger"
+    );
     let state = advance_to_step(state, Step::PostCombatMain);
+    assert!(
+        state.stack_objects().is_empty(),
+        "CR 603.4: equal land counts must not even queue the postcombat-main-phase trigger"
+    );
     let state = resolve_stack(state, &[p1, p2]);
 
     assert_eq!(
         count_tokens(&state, "DP6FirstMainToken"),
         0,
-        "CR 603.4: equal land counts must never queue the first-main-phase trigger"
+        "CR 603.4: no token should ever be created from the first-main-phase trigger"
     );
     assert_eq!(
         count_tokens(&state, "DP6PostcombatToken"),
