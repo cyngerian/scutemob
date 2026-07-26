@@ -1455,10 +1455,12 @@ fn handle_activate_craft(
     // CR 704.3: Check SBAs after craft resolution.
     let sba_events = sba::check_and_apply_sbas(state);
     events.extend(sba_events);
-    // Grant priority to the active player after craft.
+    // CR 702.167a: craft is an activated ability (CR 602.2b -> 601.2i), so the activating
+    // player receives priority (CR 117.3c). Identity write today: :1272 already requires
+    // player == active_player ("activate only as a sorcery"). CR 117.4: reset the
+    // pass-round.
     state.turn.players_passed = imbl::OrdSet::new();
-    let active = state.turn.active_player;
-    state.turn.priority_holder = Some(active);
+    state.turn.priority_holder = Some(player);
     Ok(events)
 }
 /// CR 702.37e / 702.168d / 701.40b / 701.58b: Turn a face-down permanent face up.

@@ -125,7 +125,8 @@ fn check_activate_restrictions(
 /// in full, and the ability is placed on the stack. Unlike mana abilities, activated
 /// abilities DO use the stack and must be responded to before resolving.
 ///
-/// After activation, the active player receives priority (CR 116.3b).
+/// CR 602.2b -> 601.2i: after activation, the player who activated the ability receives
+/// priority (CR 117.3c). "CR 116.3b" does not exist; the priority rules live in CR 117.3.
 #[allow(clippy::too_many_arguments)]
 pub fn handle_activate_ability(
     state: &mut GameState,
@@ -1381,10 +1382,10 @@ pub fn handle_activate_ability(
             obj.abilities_activated_this_turn = obj.abilities_activated_this_turn.saturating_add(1);
         }
     }
-    // CR 602.2e: After activating, the active player receives priority.
+    // CR 602.2b -> 601.2i / CR 117.3c: the activating player receives priority afterward.
+    // CR 117.4: reset the pass-round; an action was taken between passes.
     state.turn.players_passed = OrdSet::new();
-    let active = state.turn.active_player;
-    state.turn.priority_holder = Some(active);
+    state.turn.priority_holder = Some(player);
     events.push(GameEvent::AbilityActivated {
         player,
         source_object_id: source,
@@ -1401,7 +1402,7 @@ pub fn handle_activate_ability(
             targeting_controller: player,
         });
     }
-    events.push(GameEvent::PriorityGiven { player: active });
+    events.push(GameEvent::PriorityGiven { player });
     Ok(events)
 }
 // ---------------------------------------------------------------------------
@@ -1546,16 +1547,16 @@ pub fn handle_cycle_card(
         },
     );
     state.stack_objects.push_back(stack_obj);
-    // 8. Reset priority (CR 602.2e): active player gets priority.
+    // 8. CR 602.2b -> 601.2i / CR 117.3c: the activating player gets priority (CR 117.4:
+    //    reset the pass-round).
     state.turn.players_passed = OrdSet::new();
-    let active = state.turn.active_player;
-    state.turn.priority_holder = Some(active);
+    state.turn.priority_holder = Some(player);
     events.push(GameEvent::AbilityActivated {
         player,
         source_object_id: card,
         stack_object_id: stack_id,
     });
-    events.push(GameEvent::PriorityGiven { player: active });
+    events.push(GameEvent::PriorityGiven { player });
     Ok(events)
 }
 /// CR 702.29a: Look up the cycling cost from the card's `AbilityDefinition`.
@@ -1747,16 +1748,18 @@ pub fn handle_activate_forecast(
     );
     stack_obj.targets = spell_targets;
     state.stack_objects.push_back(stack_obj);
-    // 12. Reset priority (CR 602.2e): active player gets priority.
+    // 12. CR 602.2b -> 601.2i / CR 117.3c: the activating player gets priority (CR 117.4:
+    //     reset the pass-round). (This handler is AP-gated above — owner's upkeep, CR
+    //     702.57b — so this is an identity write today; it is written as `player` so the
+    //     site stays correct if the gate is ever relaxed.)
     state.turn.players_passed = OrdSet::new();
-    let active = state.turn.active_player;
-    state.turn.priority_holder = Some(active);
+    state.turn.priority_holder = Some(player);
     events.push(GameEvent::AbilityActivated {
         player,
         source_object_id: card,
         stack_object_id: stack_id,
     });
-    events.push(GameEvent::PriorityGiven { player: active });
+    events.push(GameEvent::PriorityGiven { player });
     Ok(events)
 }
 // ---------------------------------------------------------------------------
@@ -1961,10 +1964,11 @@ pub fn handle_activate_bloodrush(
         zone_at_cast: state.expect_object(target).map(|o| o.zone),
     }];
     state.stack_objects.push_back(stack_obj);
-    // 9. Reset priority (CR 602.2e): active player gets priority.
+    // 9. CR 602.2b -> 601.2i / CR 117.3c: the activating player gets priority (CR 117.4:
+    //    reset the pass-round). Bloodrush (CR 702.94a) has no active-player gate, so this
+    //    flips: a non-active player who activates it retains priority afterward.
     state.turn.players_passed = OrdSet::new();
-    let active = state.turn.active_player;
-    state.turn.priority_holder = Some(active);
+    state.turn.priority_holder = Some(player);
     events.push(GameEvent::AbilityActivated {
         player,
         source_object_id: card,
@@ -1979,7 +1983,7 @@ pub fn handle_activate_bloodrush(
         targeting_stack_id: stack_id,
         targeting_controller: player,
     });
-    events.push(GameEvent::PriorityGiven { player: active });
+    events.push(GameEvent::PriorityGiven { player });
     Ok(events)
 }
 // ---------------------------------------------------------------------------
@@ -2096,16 +2100,18 @@ pub fn handle_unearth_card(
         },
     );
     state.stack_objects.push_back(stack_obj);
-    // 9. Reset priority (CR 602.2e): active player gets priority.
+    // 9. CR 602.2b -> 601.2i / CR 117.3c: the activating player gets priority (CR 117.4:
+    //    reset the pass-round). (This handler is AP-gated above -- "activate only as a
+    //    sorcery", CR 702.84a -- so this is an identity write today; it is written as
+    //    `player` so the site stays correct if the gate is ever relaxed.)
     state.turn.players_passed = OrdSet::new();
-    let active = state.turn.active_player;
-    state.turn.priority_holder = Some(active);
+    state.turn.priority_holder = Some(player);
     events.push(GameEvent::AbilityActivated {
         player,
         source_object_id: card,
         stack_object_id: stack_id,
     });
-    events.push(GameEvent::PriorityGiven { player: active });
+    events.push(GameEvent::PriorityGiven { player });
     Ok(events)
 }
 /// CR 702.84a: Look up the unearth cost from the card's `AbilityDefinition`.
@@ -2335,16 +2341,18 @@ pub fn handle_ninjutsu(
         },
     );
     state.stack_objects.push_back(stack_obj);
-    // 13. Reset priority (CR 602.2e): active player gets priority.
+    // 13. CR 602.2b -> 601.2i / CR 117.3c: the activating player gets priority (CR 117.4:
+    //     reset the pass-round). Ninjutsu (CR 702.49a) has no active-player gate, so this
+    //     flips in principle (in practice it needs an unblocked attacker you control, so
+    //     it is effectively AP already, but the write follows the actor, not the gate).
     state.turn.players_passed = OrdSet::new();
-    let active = state.turn.active_player;
-    state.turn.priority_holder = Some(active);
+    state.turn.priority_holder = Some(player);
     events.push(GameEvent::AbilityActivated {
         player,
         source_object_id: ninja_card,
         stack_object_id: stack_id,
     });
-    events.push(GameEvent::PriorityGiven { player: active });
+    events.push(GameEvent::PriorityGiven { player });
     Ok(events)
 }
 /// CR 702.49a: Look up the ninjutsu cost from the card's `AbilityDefinition`.
@@ -2498,16 +2506,18 @@ pub fn handle_embalm_card(
         StackObjectKind::EmbalmAbility { source_card_id },
     );
     state.stack_objects.push_back(stack_obj);
-    // 11. Reset priority (CR 602.2e): active player gets priority.
+    // 11. CR 602.2b -> 601.2i / CR 117.3c: the activating player gets priority (CR 117.4:
+    //     reset the pass-round). (This handler is AP-gated above -- "activate only as a
+    //     sorcery", CR 702.128a -- so this is an identity write today; it is written as
+    //     `player` so the site stays correct if the gate is ever relaxed.)
     state.turn.players_passed = OrdSet::new();
-    let active = state.turn.active_player;
-    state.turn.priority_holder = Some(active);
+    state.turn.priority_holder = Some(player);
     events.push(GameEvent::AbilityActivated {
         player,
         source_object_id: card,
         stack_object_id: stack_id,
     });
-    events.push(GameEvent::PriorityGiven { player: active });
+    events.push(GameEvent::PriorityGiven { player });
     Ok(events)
 }
 /// CR 702.128a: Look up the embalm cost from the card's `AbilityDefinition`.
@@ -2675,16 +2685,18 @@ pub fn handle_eternalize_card(
         },
     );
     state.stack_objects.push_back(stack_obj);
-    // 11. Reset priority (CR 602.2e): active player gets priority.
+    // 11. CR 602.2b -> 601.2i / CR 117.3c: the activating player gets priority (CR 117.4:
+    //     reset the pass-round). (This handler is AP-gated above -- "activate only as a
+    //     sorcery", CR 702.129a -- so this is an identity write today; it is written as
+    //     `player` so the site stays correct if the gate is ever relaxed.)
     state.turn.players_passed = OrdSet::new();
-    let active = state.turn.active_player;
-    state.turn.priority_holder = Some(active);
+    state.turn.priority_holder = Some(player);
     events.push(GameEvent::AbilityActivated {
         player,
         source_object_id: card,
         stack_object_id: stack_id,
     });
-    events.push(GameEvent::PriorityGiven { player: active });
+    events.push(GameEvent::PriorityGiven { player });
     Ok(events)
 }
 /// CR 702.129a: Look up the eternalize cost from the card's `AbilityDefinition`.
@@ -2851,16 +2863,18 @@ pub fn handle_encore_card(
         },
     );
     state.stack_objects.push_back(stack_obj);
-    // 11. Reset priority (CR 602.2e): active player gets priority.
+    // 11. CR 602.2b -> 601.2i / CR 117.3c: the activating player gets priority (CR 117.4:
+    //     reset the pass-round). (This handler is AP-gated above -- "activate only as a
+    //     sorcery", CR 702.141a -- so this is an identity write today; it is written as
+    //     `player` so the site stays correct if the gate is ever relaxed.)
     state.turn.players_passed = OrdSet::new();
-    let active = state.turn.active_player;
-    state.turn.priority_holder = Some(active);
+    state.turn.priority_holder = Some(player);
     events.push(GameEvent::AbilityActivated {
         player,
         source_object_id: card,
         stack_object_id: stack_id,
     });
-    events.push(GameEvent::PriorityGiven { player: active });
+    events.push(GameEvent::PriorityGiven { player });
     Ok(events)
 }
 /// CR 702.141a: Look up the encore cost from the card's `AbilityDefinition`.
@@ -8785,16 +8799,18 @@ pub fn handle_crew_vehicle(
         },
     );
     state.stack_objects.push_back(stack_obj);
-    // CR 602.2e / CR 116.3b: After activating, the active player receives priority.
+    // CR 602.2b -> 601.2i / CR 117.3c: the activating player receives priority afterward.
+    // (Neither "CR 602.2e" nor "CR 116.3b" exists.) Crew (CR 702.122a) has no
+    // active-player gate, so this flips: a non-active player who crews retains
+    // priority afterward. CR 117.4: reset the pass-round.
     state.turn.players_passed = OrdSet::new();
-    let active = state.turn.active_player;
-    state.turn.priority_holder = Some(active);
+    state.turn.priority_holder = Some(player);
     events.push(GameEvent::AbilityActivated {
         player,
         source_object_id: vehicle,
         stack_object_id: stack_id,
     });
-    events.push(GameEvent::PriorityGiven { player: active });
+    events.push(GameEvent::PriorityGiven { player });
     Ok(events)
 }
 /// CR 702.171a: Handle the `SaddleMount` command.
@@ -8994,16 +9010,19 @@ pub fn handle_saddle_mount(
         },
     );
     state.stack_objects.push_back(stack_obj);
-    // CR 602.2e / CR 116.3b: After activating, the active player receives priority.
+    // CR 602.2b -> 601.2i / CR 117.3c: the activating player receives priority afterward.
+    // (Neither "CR 602.2e" nor "CR 116.3b" exists.) (This handler is AP-gated above --
+    // "activate only as a sorcery", CR 702.171a -- so this is an identity write today; it
+    // is written as `player` so the site stays correct if the gate is ever relaxed.)
+    // CR 117.4: reset the pass-round.
     state.turn.players_passed = OrdSet::new();
-    let active = state.turn.active_player;
-    state.turn.priority_holder = Some(active);
+    state.turn.priority_holder = Some(player);
     events.push(GameEvent::AbilityActivated {
         player,
         source_object_id: mount,
         stack_object_id: stack_id,
     });
-    events.push(GameEvent::PriorityGiven { player: active });
+    events.push(GameEvent::PriorityGiven { player });
     Ok(events)
 }
 /// Evaluate an intervening-if condition against the current game state (CR 603.4).
@@ -9196,16 +9215,18 @@ pub fn handle_scavenge_card(
         zone_at_cast: Some(ZoneId::Battlefield),
     }];
     state.stack_objects.push_back(stack_obj);
-    // 12. Reset priority (CR 602.2e): active player gets priority.
+    // 12. CR 602.2b -> 601.2i / CR 117.3c: the activating player gets priority (CR 117.4:
+    //     reset the pass-round). (This handler is AP-gated above -- "activate only as a
+    //     sorcery", CR 702.97a -- so this is an identity write today; it is written as
+    //     `player` so the site stays correct if the gate is ever relaxed.)
     state.turn.players_passed = OrdSet::new();
-    let active = state.turn.active_player;
-    state.turn.priority_holder = Some(active);
+    state.turn.priority_holder = Some(player);
     events.push(crate::rules::events::GameEvent::AbilityActivated {
         player,
         source_object_id: card,
         stack_object_id: stack_id,
     });
-    events.push(crate::rules::events::GameEvent::PriorityGiven { player: active });
+    events.push(crate::rules::events::GameEvent::PriorityGiven { player });
     Ok(events)
 }
 /// CR 702.97a: Look up the scavenge cost from the card's `AbilityDefinition`.

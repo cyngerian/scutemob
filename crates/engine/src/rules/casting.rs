@@ -2,7 +2,8 @@
 //!
 //! A spell is cast by moving a card from the caster's hand to the Stack zone
 //! and placing a `StackObject` onto `GameState::stack_objects`. After casting,
-//! the active player receives priority (CR 601.2i).
+//! the caster receives priority (CR 601.2i / CR 117.3c) — not necessarily the
+//! active player.
 //!
 //! Casting speed (CR 601.3):
 //! - **Instant speed**: Instants, and any spell with Flash (CR 702.36), may be
@@ -41,8 +42,8 @@ use imbl::OrdSet;
 /// Handle a CastSpell command: move a card from hand to the stack.
 ///
 /// Validates the casting window, validates targets, pays the mana cost, moves
-/// the card to `ZoneId::Stack`, creates a `StackObject`, resets priority to
-/// the active player (CR 601.2i), and returns the events produced.
+/// the card to `ZoneId::Stack`, creates a `StackObject`, gives priority back to
+/// the caster (CR 601.2i / CR 117.3c), and returns the events produced.
 ///
 /// `convoke_creatures` is a list of creature ObjectIds to tap for convoke cost
 /// reduction (CR 702.51). Pass an empty vec for non-convoke spells.
@@ -4709,10 +4710,13 @@ pub fn handle_cast_spell(
     // This is necessary because CR 400.7: the stack ObjectId becomes invalid after resolution,
     // so a continuous effect targeting the stack ObjectId would never reach the battlefield permanent.
     // Pattern mirrors was_dashed / was_blitzed (resolution.rs lines 608-614).
-    // CR 601.2i: "Then the active player receives priority."
-    // Reset the priority round — a game action occurred.
+    // CR 601.2i: "If the spell's controller had priority before casting it, they get
+    // priority." The `:214` guard proves `player` held priority on entry, so the
+    // antecedent holds and `player` — not necessarily the active player — gets it back
+    // (CR 117.3c).
+    // CR 117.4: an action was taken between passes, so the pass-round restarts.
     state.turn.players_passed = OrdSet::new();
-    state.turn.priority_holder = Some(state.turn.active_player);
+    state.turn.priority_holder = Some(player);
     events.push(GameEvent::SpellCast {
         player,
         stack_object_id: stack_entry_id,
@@ -4904,9 +4908,7 @@ pub fn handle_cast_spell(
             });
         }
     }
-    events.push(GameEvent::PriorityGiven {
-        player: state.turn.active_player,
-    });
+    events.push(GameEvent::PriorityGiven { player });
     Ok(events)
 }
 /// CR 702.34a / CR 118.9: Look up the flashback cost from the card's `AbilityDefinition`.
