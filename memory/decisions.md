@@ -52,3 +52,18 @@
   prefix glob). `card-fix-applicator`'s own read glob is unchanged.
 **Why**: the corpus rules exist for the agents that read them; retention should track
 actual readership, not blanket-quarantine 86% of memory/.
+
+## 2026-07-26 — M11-local dispatched in parallel with RS queue; UI is WEB-FIRST (action item 6 resolved)
+
+**Decision** (user, 2026-07-26): begin the playability track now, in parallel with the
+paused-then-resumed RS correctness queue (PB-RS4 in flight).
+- **Track**: **M11-local first** (web UI + simulator bots + local play, no networking),
+  per the strategic review's revised critical path — M10a follows later, in parallel.
+- **UI stack**: **web-first** — extend the axum + Svelte 5 stack the replay viewer
+  already uses (shared components, single UI framework, becomes the M10a server UI).
+  Tauri v2 remains a later packaging wrapper option, not a parallel framework.
+**Why**: shortest path to a human playing a game; 1,139 Complete cards + validate_deck
+already support legal curated decks; simulator (GameDriver/bots/LegalActionProvider)
+exists and needs only a human-input bridge. Note: the review's "headless Debian can't
+build Tauri" premise is stale (dev is now skylarch, full desktop) — the web-first call
+was made on iteration-speed and single-stack grounds, not the environment constraint.
