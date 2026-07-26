@@ -777,8 +777,23 @@ pub(crate) enum DrawStepOutcome {
 ///
 /// `already_applied` (CR 614.5) and `remaining_after` (CR 614.11a / 121.2, the
 /// count of further draws in this player's current sequence) are threaded
-/// through to `PendingDraw` if a `NeedsChoice` is hit, so a resume via
-/// `resolve_pending_draw` sees exactly the state this call left behind.
+/// through to `PendingDraw` if a `NeedsChoice` is hit.
+///
+/// **Known gap (OOS-DP5-9), inherited from the sibling zone-change path.** What is
+/// threaded is the `already_applied` this function was *called* with, not any id
+/// that `check_would_draw_replacement`'s own CR 616.1f re-check auto-applied on
+/// the way to the `NeedsChoice`. So for an applicable set of
+/// `{S: a non-SkipDraw self-replacement, X, Y}` — `determine_action` returns
+/// `AutoApply(S)` under CR 616.1a, the re-check then yields `NeedsChoice` on
+/// `{X, Y}` — the pushed `PendingDraw.already_applied` is empty, and on resume
+/// `find_applicable` re-offers `S`. A client can therefore submit an id that was
+/// never in the offered `choices` and have `S` applied twice. Unobservable today:
+/// every non-`SkipDraw` draw modification is a game-state no-op (OOS-DP5-6 /
+/// OOS-DP5-8), so "applied twice" and "applied once" are indistinguishable.
+/// `check_zone_change_replacement` has the identical gap, documented there as the
+/// registered M10 follow-up. Closing it means threading the re-check's local
+/// `applied` set out of `check_would_draw_replacement` — folded into OOS-DP5-6,
+/// which is where a draw modification first becomes observable.
 ///
 /// `sets_has_drawn_for_turn` preserves a pre-existing, currently-unobservable
 /// divergence between the three original bodies rather than silently unifying

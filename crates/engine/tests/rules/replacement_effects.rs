@@ -2868,7 +2868,7 @@ fn test_zone_change_events_enchantment_emits_permanent_destroyed() {
 // ── MR-M8-07: shared draw path via DrawCards effect ──────────────────────
 
 #[test]
-/// CR 614.10 / CR 614.11 — SkipDraw via DrawCards effect (draw_one_card path)
+/// CR 614.10 / CR 614.11 — SkipDraw via DrawCards effect (draw_cards_for_player path)
 /// is handled identically to the turn-draw path (draw_card).
 /// Source: MR-M8-07 — both draw paths use check_would_draw_replacement.
 fn test_draw_cards_effect_respects_skip_draw_replacement() {
@@ -2912,24 +2912,24 @@ fn test_draw_cards_effect_respects_skip_draw_replacement() {
     assert_eq!(
         state.zone(&ZoneId::Library(p1)).unwrap().len(),
         1,
-        "draw_one_card path: library should still have 1 card when SkipDraw applies"
+        "draw_cards_for_player path: library should still have 1 card when SkipDraw applies"
     );
     assert_eq!(
         state.zone(&ZoneId::Hand(p1)).unwrap().len(),
         0,
-        "draw_one_card path: hand should still be empty when SkipDraw applies"
+        "draw_cards_for_player path: hand should still be empty when SkipDraw applies"
     );
     assert!(
         !events
             .iter()
             .any(|e| matches!(e, GameEvent::CardDrawn { .. })),
-        "draw_one_card path: CardDrawn should NOT be emitted when SkipDraw applies"
+        "draw_cards_for_player path: CardDrawn should NOT be emitted when SkipDraw applies"
     );
     assert!(
         events.iter().any(
             |e| matches!(e, GameEvent::ReplacementEffectApplied { effect_id, .. } if *effect_id == ReplacementId(500))
         ),
-        "draw_one_card path: ReplacementEffectApplied should be emitted for SkipDraw"
+        "draw_cards_for_player path: ReplacementEffectApplied should be emitted for SkipDraw"
     );
 }
 
