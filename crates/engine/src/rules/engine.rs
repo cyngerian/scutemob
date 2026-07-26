@@ -1643,8 +1643,11 @@ fn handle_turn_face_up(
     events.push(GameEvent::PermanentTurnedFaceUp { player, permanent });
     // Queue "when turned face up" triggered abilities as TurnFaceUpTrigger stack objects.
     // (The actual dispatch happens in abilities::check_triggers when it sees PermanentTurnedFaceUp.)
-    // CR 116.2b: Special action; reset priority to active player.
-    state.turn.players_passed.clear();
+    // CR 116.2b / CR 116.3: turning a face-down permanent face up is a special action;
+    // the player who took it receives priority afterward.
+    // CR 117.4: an action was taken between passes, so the pass-round restarts.
+    state.turn.players_passed = imbl::OrdSet::new();
+    state.turn.priority_holder = Some(player);
     // CR 704.3: Check SBAs after the special action.
     let sba_events = sba::check_and_apply_sbas(state);
     events.extend(sba_events);
@@ -2676,8 +2679,11 @@ fn handle_activate_loyalty_ability(
         defending_player: None,
     };
     state.stack_objects.push_back(stack_obj);
-    // Reset priority since a new object is on the stack.
+    // CR 606.1 -> 602.2b -> 601.2i / CR 117.3c: activating a loyalty ability is
+    // activating an ability, so the activating player receives priority afterward.
+    // CR 117.4: reset the pass-round.
     state.turn.players_passed = imbl::OrdSet::new();
+    state.turn.priority_holder = Some(player);
     events.push(GameEvent::AbilityActivated {
         player,
         source_object_id: source,
@@ -2836,7 +2842,10 @@ fn handle_level_up_class(
         source_object_id: source,
         stack_object_id: stack_id,
     });
-    // Reset priority since this is a game action.
+    // CR 716.2a -> 602.2b -> 601.2i / CR 117.3c: leveling up a Class is activating an
+    // ability, so the activating player receives priority afterward. CR 117.4: reset
+    // the pass-round.
     state.turn.players_passed = imbl::OrdSet::new();
+    state.turn.priority_holder = Some(player);
     Ok(events)
 }
