@@ -2802,7 +2802,14 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         // since the beginning of your last upkeep, sacrifice it unless you pay [cost]."
         //
         // On resolution: emit EchoPaymentRequired and add to pending_echo_payments.
-        // The game pauses until a Command::PayEcho is received.
+        // PB-DP4 / DP-11: this is a DEADLINE, not a block -- `rules/engine.rs::
+        // force_resolve_overdue_payments` applies CR 702.30a's "otherwise" (sacrifice) at
+        // the first subsequent priority round boundary that leaves the stack empty (fix
+        // cycle, E9: not unconditionally "the round" -- a non-empty stack postpones the
+        // boundary, seed OOS-DP4-12) if no Command::PayEcho arrives by then (CR 608.2d
+        // deviation: the CR would decide this during resolution; the engine defers to the
+        // round boundary so the player keeps a CR 608.2g mana-ability window and so no
+        // seat that never answers can hang the game).
         // If the permanent has left the battlefield (CR 400.7), trigger does nothing.
         // echo_pending is cleared only in the PayEcho handler (not here), so that if
         // the trigger is countered (Stifle), it fires again on the next upkeep.
@@ -2823,7 +2830,10 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 .map(|obj| obj.zone == ZoneId::Battlefield)
                 .unwrap_or(false);
             if still_on_battlefield {
-                // Emit the payment required event and pause for player choice.
+                // Queue the choice; the deadline is applied by
+                // `rules/engine.rs::force_resolve_overdue_payments` (fix cycle, T9: this
+                // used to say "pause for player choice", but nothing here pauses
+                // anything -- the pause is a boundary sweep, not a block).
                 events.push(GameEvent::EchoPaymentRequired {
                     player: controller,
                     permanent: echo_permanent,
@@ -2850,7 +2860,13 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         // 1. Check if permanent is still on the battlefield (CR 400.7).
         // 2. Add one age counter to the permanent.
         // 3. Emit CumulativeUpkeepPaymentRequired with the age count.
-        // 4. Add to pending_cumulative_upkeep_payments.
+        // 4. Add to pending_cumulative_upkeep_payments. PB-DP4 / DP-11: this is a
+        //    DEADLINE, not a block -- `rules/engine.rs::force_resolve_overdue_payments`
+        //    applies CR 702.24a's "if you don't, sacrifice it" at the first subsequent
+        //    priority round boundary that leaves the stack empty (fix cycle, E9: a
+        //    non-empty stack postpones the boundary, seed OOS-DP4-12) if no
+        //    Command::PayCumulativeUpkeep arrives by then (CR 608.2d deviation, same
+        //    reasoning as echo above).
         // If countered (Stifle), no age counter is added -- the trigger fires again
         // next upkeep with the same counter count.
         StackObjectKind::KeywordTrigger {
@@ -2909,6 +2925,12 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         //
         // On resolution: check if recover_card is still in the graveyard (CR 400.7).
         // If yes, emit RecoverPaymentRequired and add to pending_recover_payments.
+        // PB-DP4 / DP-11: this is a DEADLINE, not a block -- `rules/engine.rs::
+        // force_resolve_overdue_payments` applies CR 702.59a's "otherwise, exile this
+        // card" at the first subsequent priority round boundary that leaves the stack
+        // empty (fix cycle, E9: a non-empty stack postpones the boundary, seed
+        // OOS-DP4-12) if no Command::PayRecover arrives by then (CR 608.2d deviation,
+        // same reasoning as echo above).
         // If not, do nothing (card is a new object elsewhere).
         StackObjectKind::KeywordTrigger {
             source_object: _,
@@ -2927,7 +2949,10 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                 .map(|obj| matches!(obj.zone, ZoneId::Graveyard(_)))
                 .unwrap_or(false);
             if still_in_graveyard {
-                // Emit the payment required event and pause for player choice.
+                // Queue the choice; the deadline is applied by
+                // `rules/engine.rs::force_resolve_overdue_payments` (fix cycle, T9: this
+                // used to say "pause for player choice", but nothing here pauses
+                // anything -- the pause is a boundary sweep, not a block).
                 events.push(GameEvent::RecoverPaymentRequired {
                     player: controller,
                     recover_card,

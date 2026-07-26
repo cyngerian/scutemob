@@ -345,5 +345,22 @@ pub(crate) fn action_to_command(
             targets: Vec::new(),
             x_value: None,
         },
+        // PB-DP4 / DP-11 (CR 702.30a/702.24a/702.59a): answer an outstanding
+        // echo / cumulative upkeep / recover payment.
+        LegalAction::PayEcho { permanent, pay } => Command::PayEcho {
+            player,
+            permanent: *permanent,
+            pay: *pay,
+        },
+        LegalAction::PayCumulativeUpkeep { permanent, pay } => Command::PayCumulativeUpkeep {
+            player,
+            permanent: *permanent,
+            pay: *pay,
+        },
+        LegalAction::PayRecover { recover_card, pay } => Command::PayRecover {
+            player,
+            recover_card: *recover_card,
+            pay: *pay,
+        },
     }
 }

@@ -751,18 +751,32 @@ fn handle_pay_echo(
     // CR 704.3: Check SBAs after echo resolution.
     let sba_events = sba::check_and_apply_sbas(state);
     events.extend(sba_events);
-    // CR 702.30a: paying (or declining) echo is a choice made while the echo triggered
-    // ability RESOLVES. No player holds priority at that moment, so CR 117.3c does not
-    // apply and there is no actor to hand priority to.
+    // CR 702.30a / CR 608.2d / CR 117.3c -- PB-DP4, closes OOS-DP1-1.
     //
-    // The engine has no pause at that point (see DP-11 in docs/audits/decision-point-audit.md
-    // -> PB-DP4): `Command::PayEcho` is accepted out of band, whenever it arrives. This
-    // block re-establishes a clean CR 117.3b priority round (active player, fresh pass set)
-    // so the out-of-band command does not leave the round half-passed. It is deliberately
-    // NOT the CR 117.3c actor rule, and PB-DP1 left it alone on purpose.
-    state.turn.players_passed = imbl::OrdSet::new();
-    let active = state.turn.active_player;
-    state.turn.priority_holder = Some(active);
+    // Paying or declining is a resolution-time cost choice (CR 118.12 / 608.2d), not an
+    // action that grants priority, so there is no actor for CR 117.3c to hand priority to.
+    // This site used to write `priority_holder = Some(active_player)` and clear
+    // `players_passed` as a bodge standing in for the payment pause DP-11 said was never
+    // implemented (PB-DP1 correctly left it alone; it is exactly the OOS-DP1-1 seed). The
+    // pause now exists as a DEADLINE (`force_resolve_overdue_payments`), so the bodge is
+    // gone: the controller of an echo trigger IS the active player (the trigger reads "at
+    // the beginning of YOUR upkeep"), and `resolve_top_of_stack`
+    // (rules/resolution.rs:~2799-2841) already cleared `players_passed` and granted
+    // priority to the active player before this command could arrive. Removing the write
+    // is an identity write in the common case where no priority-granting action has
+    // intervened since resolution (fix cycle, E4: the pre-fix comment overstated this as
+    // an unconditional no-op). Post-PB-DP1, priority follows the actor (CR 117.3c) --
+    // if a RESPONDER cast a spell or activated an ability during the window between
+    // resolution and this command, priority now sits with that responder, and the
+    // deleted write would have yanked it to the active player instead. So the deletion
+    // is a fix in that case too, exactly like recover below, just less commonly
+    // triggered (echo/CU only fire on the controller's own upkeep, before most
+    // responses have had a chance to happen).
+    //
+    // CR 117.4 is not engaged: answering an out-of-band resolution-time payment is not
+    // "taking an action" between passes, so the pass set is left exactly as it is. Leaving
+    // it alone is also what makes the deadline work -- a player must send `Pay*` BEFORE
+    // passing, and a spurious pass-set reset would silently buy them an extra round.
     Ok(events)
 }
 /// CR 702.24a: Handle the player's cumulative upkeep payment choice.
@@ -859,6 +873,25 @@ fn handle_pay_cumulative_upkeep(
             CumulativeUpkeepCost::Life(amount) => {
                 // CR 702.24a: Pay amount * age_count life.
                 let total_life = amount * age_count;
+                // CR 119.4: a life payment greater than 0 is legal only if
+                // life_total >= the amount (CR 119.4b: 0 is always payable). PB-DP4: the
+                // mana arm above already checked affordability; this one did not, so a
+                // declined-by-inability upkeep silently drove the controller below 0
+                // instead of sacrificing the permanent (CR 702.24a's "if you don't").
+                if total_life > 0 {
+                    // Fix cycle (E2): the primitive accessor `state.player(..)?` is not a
+                    // bare `.players.get(` lookup (SR-25 ratchet) -- it is the vocabulary
+                    // the ratchet steers new code toward, and it is byte-for-byte what the
+                    // sibling `Mana` arm above uses for `.mana_pool`.
+                    let life_total = state.player(player)?.life_total;
+                    if (life_total as i64) < (total_life as i64) {
+                        return Err(GameStateError::InsufficientLife {
+                            player,
+                            required: total_life,
+                            actual: life_total,
+                        });
+                    }
+                }
                 if let Some(p) = state.expect_player_mut(player) {
                     p.life_lost_this_turn += total_life;
                     p.life_total -= total_life as i32;
@@ -960,18 +993,32 @@ fn handle_pay_cumulative_upkeep(
     // CR 704.3: Check SBAs after cumulative upkeep resolution.
     let sba_events = sba::check_and_apply_sbas(state);
     events.extend(sba_events);
-    // CR 702.24a: paying (or declining) cumulative upkeep is a choice made while the
-    // cumulative upkeep triggered ability RESOLVES. No player holds priority at that
-    // moment, so CR 117.3c does not apply and there is no actor to hand priority to.
+    // CR 702.24a / CR 608.2d / CR 117.3c -- PB-DP4, closes OOS-DP1-1.
     //
-    // The engine has no pause at that point (see DP-11 in docs/audits/decision-point-audit.md
-    // -> PB-DP4): `Command::PayCumulativeUpkeep` is accepted out of band, whenever it
-    // arrives. This block re-establishes a clean CR 117.3b priority round (active player,
-    // fresh pass set) so the out-of-band command does not leave the round half-passed. It
-    // is deliberately NOT the CR 117.3c actor rule, and PB-DP1 left it alone on purpose.
-    state.turn.players_passed = imbl::OrdSet::new();
-    let active = state.turn.active_player;
-    state.turn.priority_holder = Some(active);
+    // Paying or declining is a resolution-time cost choice (CR 118.12 / 608.2d), not an
+    // action that grants priority, so there is no actor for CR 117.3c to hand priority to.
+    // This site used to write `priority_holder = Some(active_player)` and clear
+    // `players_passed` as a bodge standing in for the payment pause DP-11 said was never
+    // implemented (PB-DP1 correctly left it alone; it is exactly the OOS-DP1-1 seed). The
+    // pause now exists as a DEADLINE (`force_resolve_overdue_payments`), so the bodge is
+    // gone: the controller of a cumulative-upkeep trigger IS the active player (the
+    // trigger reads "at the beginning of YOUR upkeep"), and `resolve_top_of_stack`
+    // (rules/resolution.rs:~2843-2902) already cleared `players_passed` and granted
+    // priority to the active player before this command could arrive. Removing the write
+    // is an identity write in the common case where no priority-granting action has
+    // intervened since resolution (fix cycle, E4: the pre-fix comment overstated this as
+    // an unconditional no-op). Post-PB-DP1, priority follows the actor (CR 117.3c) -- if
+    // a RESPONDER cast a spell or activated an ability during the window between
+    // resolution and this command, priority now sits with that responder, and the
+    // deleted write would have yanked it to the active player instead. So the deletion
+    // is a fix in that case too, exactly like recover below, just less commonly
+    // triggered (echo/CU only fire on the controller's own upkeep, before most
+    // responses have had a chance to happen).
+    //
+    // CR 117.4 is not engaged: answering an out-of-band resolution-time payment is not
+    // "taking an action" between passes, so the pass set is left exactly as it is. Leaving
+    // it alone is also what makes the deadline work -- a player must send `Pay*` BEFORE
+    // passing, and a spurious pass-set reset would silently buy them an extra round.
     Ok(events)
 }
 /// Multiply a mana cost by a scalar, used for cumulative upkeep cost calculation.
@@ -1071,30 +1118,167 @@ fn handle_pay_recover(
             new_hand_id,
         });
     } else {
-        // CR 702.59a: Player declines -- exile the card from the graveyard.
-        let (new_exile_id, _old) = state.move_object_to_zone(recover_card, ZoneId::Exile)?;
-        events.push(GameEvent::RecoverDeclined {
-            player,
-            recover_card,
-            new_exile_id,
-        });
+        // CR 702.59a: the player declined -- exile the card from the graveyard.
+        // SR-4 (engine-bug side): the card was proven to be in a graveyard above (the
+        // `card_info` guard, CR 400.7), and zones are never removed, so every error
+        // variant here is corrupted state, not a CR 400.7 fizzle. `expect_move_object_to_zone`
+        // debug-asserts and returns None in release. Making this branch infallible is
+        // load-bearing for PB-DP4's forced sweep (`force_resolve_overdue_payments`): the
+        // pending entry is already removed at this point, so a `None` here (release
+        // build) would silently abandon the exile -- the card stays in the graveyard
+        // un-exiled with no error and no pending entry to retry it, a silent rules
+        // failure, not a deadlock. (Fix cycle, E3: `force_resolve_overdue_payments`
+        // swallows every handler `Err` into a `debug_assert!` and never propagates it,
+        // so an `Err` here cannot reach `handle_pass_priority` / `process_command` and
+        // cannot produce the deadlock the pre-fix comment described.)
+        if let Some((new_exile_id, _old)) =
+            state.expect_move_object_to_zone(recover_card, ZoneId::Exile)
+        {
+            events.push(GameEvent::RecoverDeclined {
+                player,
+                recover_card,
+                new_exile_id,
+            });
+        }
     }
     // CR 704.3: Check SBAs after recover resolution.
     let sba_events = sba::check_and_apply_sbas(state);
     events.extend(sba_events);
-    // CR 702.59a: paying (or declining) recover is a choice made while the recover
-    // triggered ability RESOLVES. No player holds priority at that moment, so CR 117.3c
-    // does not apply and there is no actor to hand priority to.
+    // CR 702.59a / CR 608.2d / CR 117.3c -- PB-DP4, closes OOS-DP1-1.
     //
-    // The engine has no pause at that point (see DP-11 in docs/audits/decision-point-audit.md
-    // -> PB-DP4): `Command::PayRecover` is accepted out of band, whenever it arrives. This
-    // block re-establishes a clean CR 117.3b priority round (active player, fresh pass set)
-    // so the out-of-band command does not leave the round half-passed. It is deliberately
-    // NOT the CR 117.3c actor rule, and PB-DP1 left it alone on purpose.
-    state.turn.players_passed = imbl::OrdSet::new();
-    let active = state.turn.active_player;
-    state.turn.priority_holder = Some(active);
+    // Paying or declining is a resolution-time cost choice (CR 118.12 / 608.2d), not an
+    // action that grants priority, so there is no actor for CR 117.3c to hand priority to.
+    // This site used to write `priority_holder = Some(active_player)` and clear
+    // `players_passed` as a bodge standing in for the payment pause DP-11 said was never
+    // implemented (PB-DP1 correctly left it alone; it is exactly the OOS-DP1-1 seed). The
+    // pause now exists as a DEADLINE (`force_resolve_overdue_payments`), so the bodge is
+    // gone. UNLIKE echo/cumulative upkeep, recover's controller can be a NON-active player
+    // ("when a creature is put into YOUR graveyard" fires on any player's turn), so the old
+    // write yanked priority away from whoever legitimately held it and restarted the pass
+    // round -- removing it here is a FIX, not a no-op.
+    //
+    // CR 117.4 is not engaged: answering an out-of-band resolution-time payment is not
+    // "taking an action" between passes, so the pass set is left exactly as it is. Leaving
+    // it alone is also what makes the deadline work -- a player must send `Pay*` BEFORE
+    // passing, and a spurious pass-set reset would silently buy them an extra round.
     Ok(events)
+}
+/// CR 702.30a / 702.24a / 702.59a + CR 118.12a: close out any pay-or-lose-it payment that
+/// was not answered before the game left this priority round.
+///
+/// PB-DP4 / DP-11. Before this, the three `pending_*` vectors were inert queues: nothing in
+/// `rules/priority.rs`, `handle_all_passed`, `rules/turn_structure.rs` or `rules/sba.rs`
+/// consulted them, so passing priority left an echo permanent neither paid for nor
+/// sacrificed, a cumulative-upkeep permanent accruing age counters forever, and a recover
+/// card sitting un-exiled in its graveyard. `rules/resolution.rs`'s claim that "the game
+/// pauses until a Command::PayEcho is received" described a pause that did not exist.
+///
+/// **Why decline and not auto-pay.** CR 118.12a: "[Do something] unless [a player does
+/// something else]" means "[a player may do something else]. If [that player doesn't], [do
+/// something]." Not answering is "doesn't". Auto-paying an affordable cost would spend mana
+/// or life the player never elected to spend -- the DP-19 (`MayPayThenEffect`) bug class.
+///
+/// **Deviation from CR 608.2d, deliberate.** The CR makes this choice during the ability's
+/// resolution. This engine defers it to the end of the FIRST SUBSEQUENT priority round that
+/// terminates with an empty stack (fix cycle, E9: not "the following round" unconditionally --
+/// see the precise boundary and its consequence below), which is the earliest boundary
+/// reachable without a new `Command` (SR-8) and without a design that can hang a fuzzer, the
+/// `GameDriver`, a golden script or an M11-local seat that never sends the command. The
+/// permanent therefore survives, observably, until that boundary. The outcome at the
+/// boundary is CR-correct. See `memory/primitives/pb-plan-DP4.md` §3 2.0 for the rejected
+/// alternatives.
+///
+/// **The boundary can be postponed (seed OOS-DP4-12).** "The first subsequent round that
+/// ends with an empty stack" is not the same as "the very next round": if any player casts a
+/// spell or activates a non-mana ability before everyone passes, the stack is non-empty when
+/// priority would otherwise leave the round, `handle_all_passed` takes the stack-non-empty
+/// branch instead of this one, and the deadline does not fire. A player (any player, not just
+/// the one who owes the payment) can therefore keep the permanent/card in its pre-consequence
+/// state indefinitely, bounded only by their ability to keep putting something on the stack.
+/// The eventual outcome is still CR-correct once the stack does empty; only the timing is
+/// deferred further than "one extra round" might suggest.
+///
+/// **Ordering.** Players are visited in APNAP order (CR 101.4, `abilities::apnap_order`);
+/// within a player, echo then cumulative upkeep then recover, each in insertion order
+/// (which is the order the triggers resolved). Deterministic, as SR-9b requires.
+///
+/// **Termination.** Every call drains every entry. A new entry needs a new trigger to
+/// resolve, which needs a permanent to leave the battlefield or a creature to reach a
+/// graveyard, so the extra-round chain is bounded by the object count.
+///
+/// SR-4 classification: every `Err` from the three handlers is an **engine bug**, not an LKI
+/// fizzle -- the entry was read out of the vector one statement earlier, and each handler
+/// removes it before any fallible step, so a failure cannot loop and cannot be a legal
+/// CR 400.7 fizzle (the handlers already return `Ok(vec![])` for that case). Mechanism is a
+/// `debug_assert!`, mirroring `state::diagnostics`' `expect_*` family.
+///
+/// Do not name `KeywordAbility::Echo` / `::CumulativeUpkeep` / `::Recover` here (or in
+/// `crates/simulator/src/legal_actions.rs`): `crates/engine/tests/core/keyword_registry.rs`
+/// scans `crates/simulator/src` too, and neither variant declares this file (or the
+/// simulator) as a site (§4.5 of the plan). Read the payment kind and cost from the pending
+/// vectors, which already carry everything needed.
+fn force_resolve_overdue_payments(state: &mut GameState) -> Vec<GameEvent> {
+    let mut events = Vec::new();
+    if state.pending_echo_payments.is_empty()
+        && state.pending_cumulative_upkeep_payments.is_empty()
+        && state.pending_recover_payments.is_empty()
+    {
+        return events;
+    }
+    for owing in abilities::apnap_order(state) {
+        // Snapshot before mutating: each handler removes its own entry from the vector.
+        let echoes: Vec<crate::state::game_object::ObjectId> = state
+            .pending_echo_payments
+            .iter()
+            .filter(|(p, _, _)| *p == owing)
+            .map(|(_, obj, _)| *obj)
+            .collect();
+        for permanent in echoes {
+            match handle_pay_echo(state, owing, permanent, false) {
+                Ok(evs) => events.extend(evs),
+                Err(e) => debug_assert!(
+                    false,
+                    "engine invariant: forced echo decline for {owing:?}/{permanent:?} failed \
+                     ({e}); the entry was read from pending_echo_payments one statement earlier"
+                ),
+            }
+        }
+        let cumulative_upkeeps: Vec<crate::state::game_object::ObjectId> = state
+            .pending_cumulative_upkeep_payments
+            .iter()
+            .filter(|(p, _, _)| *p == owing)
+            .map(|(_, obj, _)| *obj)
+            .collect();
+        for permanent in cumulative_upkeeps {
+            match handle_pay_cumulative_upkeep(state, owing, permanent, false) {
+                Ok(evs) => events.extend(evs),
+                Err(e) => debug_assert!(
+                    false,
+                    "engine invariant: forced cumulative upkeep decline for \
+                     {owing:?}/{permanent:?} failed ({e}); the entry was read from \
+                     pending_cumulative_upkeep_payments one statement earlier"
+                ),
+            }
+        }
+        let recovers: Vec<crate::state::game_object::ObjectId> = state
+            .pending_recover_payments
+            .iter()
+            .filter(|(p, _, _)| *p == owing)
+            .map(|(_, obj, _)| *obj)
+            .collect();
+        for recover_card in recovers {
+            match handle_pay_recover(state, owing, recover_card, false) {
+                Ok(evs) => events.extend(evs),
+                Err(e) => debug_assert!(
+                    false,
+                    "engine invariant: forced recover decline for {owing:?}/{recover_card:?} \
+                     failed ({e}); the entry was read from pending_recover_payments one \
+                     statement earlier"
+                ),
+            }
+        }
+    }
+    events
 }
 /// CR 701.27a: Transform a double-faced permanent to its other face.
 ///
@@ -1713,6 +1897,57 @@ fn handle_all_passed(state: &mut GameState) -> Result<Vec<GameEvent>, GameStateE
         // SR-13: with the stack empty at a priority boundary (and no pending trigger),
         // no departed source's LKI can be needed; drop any lingering snapshots.
         state.maybe_clear_lki_objects();
+        // PB-DP4 / DP-11 (CR 702.30a / 702.24a / 702.59a, CR 118.12a): a pay-or-lose-it
+        // payment must not survive this boundary -- the first subsequent priority round
+        // that terminates with an EMPTY stack (fix cycle, E9: not "the round in which it
+        // resolved" -- a player can postpone the boundary by keeping the stack non-empty,
+        // seed OOS-DP4-12). Every player has had priority since the entry was created --
+        // `resolve_top_of_stack` re-grants it with an empty pass set -- so an unanswered
+        // payment is a decline.
+        //
+        // This runs only in the stack-EMPTY branch, so it can never fire in the same
+        // `handle_all_passed` call that created the entry (that call takes the stack-non-
+        // empty branch above and returns). That disjointness is what keeps
+        // `mechanics_e_l/echo.rs`, `mechanics_a_d/cumulative_upkeep.rs`,
+        // `mechanics_m_z/recover.rs` and golden script stack/153 green: all of them send
+        // `Pay*` immediately after the resolving pass round.
+        let mut payment_events = force_resolve_overdue_payments(state);
+        if !payment_events.is_empty() {
+            // The sacrifice/exile can produce dies-triggers. They belong on the stack in
+            // THIS step, so re-grant priority here instead of advancing -- the same "run
+            // another round, don't advance" shape `enter_step` uses for CR 514.3a.
+            check_and_flush_triggers(state, &mut payment_events);
+            events.extend(payment_events);
+            if is_game_over(state) {
+                events.extend(check_game_over(state));
+                return Ok(events);
+            }
+            // CR 117.3b: grant priority to the active player (if still alive) for the new
+            // round. Same idiom as `enter_step` (above, the has_priority() branch).
+            //
+            // Fix cycle (E2): `expect_player` (a NONSWALLOW predicate read, per
+            // `state::diagnostics`) replaces the bare `.players.get(` lookup -- a
+            // departed player legitimately answers `is_alive == false` here, so this is
+            // exactly the vocabulary the SR-25 ratchet steers new code toward.
+            let active = state.turn.active_player;
+            let is_alive = state
+                .expect_player(active)
+                .map(|p| !p.has_lost && !p.has_conceded)
+                .unwrap_or(false);
+            if is_alive {
+                let (passed, priority_events) = priority::grant_initial_priority(state);
+                state.turn.players_passed = passed;
+                state.turn.priority_holder = Some(active);
+                events.extend(priority_events);
+            } else if let Some(next) = priority::next_priority_player(state, active) {
+                state.turn.players_passed = imbl::OrdSet::new();
+                state.turn.priority_holder = Some(next);
+                events.push(GameEvent::PriorityGiven { player: next });
+            } else {
+                state.turn.priority_holder = None;
+            }
+            return Ok(events);
+        }
         // Empty mana pools at step transition (CR 500.4)
         let mana_events = turn_actions::empty_all_mana_pools(state);
         events.extend(mana_events);

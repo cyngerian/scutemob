@@ -144,7 +144,7 @@ impl ManaPool {
     /// Check if the pool has enough mana to pay a cost (CR 118.3).
     ///
     /// When a `SpellContext` is provided, restricted mana matching the spell
-    /// is included in the available total (CR 106.12).
+    /// is included in the available total (CR 106.6).
     pub fn can_spend(
         &self,
         cost: &crate::state::game_object::ManaCost,
@@ -178,7 +178,7 @@ impl ManaPool {
     /// `can_spend` first.
     ///
     /// When a `SpellContext` is provided, restricted mana matching the spell
-    /// is spent first (CR 106.12), then unrestricted mana fills the remainder.
+    /// is spent first (CR 106.6), then unrestricted mana fills the remainder.
     ///
     /// For generic mana, remaining mana is taken in order: colorless, green,
     /// red, black, blue, white. The specific order doesn't affect correctness

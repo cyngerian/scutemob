@@ -254,18 +254,29 @@ pub struct GameState {
     /// CR 702.30a: Pending echo payment choices.
     ///
     /// When a KeywordTrigger (Echo) resolves, the controller must choose to pay or sacrifice.
-    /// The game pauses until a `Command::PayEcho` is received for each entry.
+    /// PB-DP4 / DP-11: this is a DEADLINE, not a block -- `rules/engine.rs::
+    /// force_resolve_overdue_payments` applies CR 702.30a's "otherwise" at the first
+    /// subsequent priority round boundary that leaves the stack empty if no
+    /// `Command::PayEcho` arrives by then (fix cycle, E9: NOT unconditionally "the round
+    /// in which the trigger resolved" -- a non-empty stack postpones the boundary, seed
+    /// OOS-DP4-12).
     /// Each entry is `(player, permanent_id, echo_cost)`.
     ///
-    /// Only one echo payment can be pending at a time (triggers resolve one at a time
-    /// from the stack), but using `Vector` is consistent with other pending-choice patterns.
+    /// Two echo permanents queue two separate triggers at the same upkeep, and each
+    /// resolution pushes its own entry, so **more than one echo payment CAN be pending at
+    /// once** (mirrors CR 702.24b for cumulative upkeep, pinned for CU by
+    /// `tests/mechanics_a_d/cumulative_upkeep.rs:631-691`). `Vector` is the right shape for
+    /// exactly this reason, not merely "consistent with other pending-choice patterns".
     #[serde(default)]
     pub(crate) pending_echo_payments: imbl::Vector<(PlayerId, ObjectId, ManaCost)>,
     /// CR 702.24a: Pending cumulative upkeep payment choices.
     ///
     /// When a KeywordTrigger (CumulativeUpkeep) resolves (after adding the age counter), the
-    /// controller must choose to pay or sacrifice. The game pauses until a
-    /// `Command::PayCumulativeUpkeep` is received for each entry.
+    /// controller must choose to pay or sacrifice. PB-DP4 / DP-11: this is a DEADLINE, not a
+    /// block -- `rules/engine.rs::force_resolve_overdue_payments` applies CR 702.24a's "if
+    /// you don't, sacrifice it" at the first subsequent priority round boundary that leaves
+    /// the stack empty if no `Command::PayCumulativeUpkeep` arrives by then (fix cycle, E9:
+    /// a non-empty stack postpones the boundary, seed OOS-DP4-12).
     /// Each entry is `(player, permanent_id, per_counter_cost)`.
     #[serde(default)]
     pub(crate) pending_cumulative_upkeep_payments: imbl::Vector<(
@@ -276,8 +287,11 @@ pub struct GameState {
     /// CR 702.59a: Pending recover payment choices.
     ///
     /// When a RecoverTrigger resolves, the controller must choose to pay the
-    /// recover cost or exile the card. The game pauses until a
-    /// `Command::PayRecover` is received for each entry.
+    /// recover cost or exile the card. PB-DP4 / DP-11: this is a DEADLINE, not a block --
+    /// `rules/engine.rs::force_resolve_overdue_payments` applies CR 702.59a's "otherwise,
+    /// exile this card" at the first subsequent priority round boundary that leaves the
+    /// stack empty if no `Command::PayRecover` arrives by then (fix cycle, E9: a non-empty
+    /// stack postpones the boundary, seed OOS-DP4-12).
     /// Each entry is `(player, recover_card_id, recover_cost)`.
     #[serde(default)]
     pub(crate) pending_recover_payments: imbl::Vector<(PlayerId, ObjectId, ManaCost)>,

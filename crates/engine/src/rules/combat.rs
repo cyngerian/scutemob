@@ -7,11 +7,12 @@
 //! - Combat damage (CR 510): simultaneous damage, trample, deathtouch, first/double strike
 //! - Commander damage tracking (CR 903.10a)
 use super::abilities;
+use super::casting;
 use super::events::{CombatDamageAssignment, CombatDamageTarget, GameEvent};
 use super::layers::calculate_characteristics;
 use crate::state::combat::{AttackTarget, CombatState};
 use crate::state::error::GameStateError;
-use crate::state::game_object::{Designations, ObjectId};
+use crate::state::game_object::{Designations, ManaCost, ObjectId};
 use crate::state::player::{CardId, PlayerId};
 use crate::state::stubs::GameRestriction;
 use crate::state::turn::Step;
@@ -21,6 +22,7 @@ use crate::state::types::{
 use crate::state::zone::ZoneId;
 use crate::state::GameState;
 use imbl::{OrdMap, OrdSet};
+use std::collections::{BTreeMap, BTreeSet};
 // ---------------------------------------------------------------------------
 // Declare Attackers
 // ---------------------------------------------------------------------------
@@ -182,25 +184,43 @@ pub fn handle_declare_attackers(
         }
         attacker_vigilance.push((*attacker_id, has_vigilance));
     }
-    // CR 508.1 / PB-18 review Finding 1: CantAttackYouUnlessPay enforcement.
+    // CR 508.1c / 508.1h / 508.1j: attack-cost restrictions (Propaganda, Ghostly Prison).
     //
-    // Propaganda / Ghostly Prison: "Creatures can't attack you unless their
-    // controller pays {N} for each creature they control that's attacking you."
+    // "Creatures can't attack you unless their controller pays {N} for each creature they
+    // control that's attacking you" is a RESTRICTION (CR 508.1c), not an optional cost
+    // (CR 508.1g -- that rule covers exert-style "as it attacks" costs). The payment
+    // machinery is CR 508.1h (determine the total, lock it in), CR 508.1i (mana-ability
+    // window) and CR 508.1j ("they pay all costs in any order. Partial payments are not
+    // allowed"). Costs from multiple sources are cumulative (Propaganda ruling).
     //
-    // Per ruling: payments are made during the declare attackers step. Costs are
-    // cumulative: if multiple Propaganda-type effects are active, the cost per
-    // attacker is the sum of all of them (ruling: "the cost is cumulative").
+    // Affordability is checked HERE, before any state is mutated, so an unaffordable
+    // declaration is rejected with the game untouched (CR 508.1 / CR 732: "the declaration
+    // is illegal; the game returns to the moment before the declaration"). The DEBIT
+    // happens after the tapping loop below, matching CR 508.1f -> 508.1j order.
     //
-    // Alpha implementation: reject the declaration if the attacking player's mana
-    // pool (already-present mana, not counting untapped sources) cannot cover the
-    // total cumulative attack tax. This is a conservative check — it cannot accept
-    // an attacker declaration that taxes beyond current mana. Interactive payment
-    // is deferred to post-alpha (requires a new DeclareAttackers command field).
-    {
-        // For each defending player, compute the cumulative per-creature tax.
-        // Build a map: defending_player -> total ManaCost per attacker.
-        let mut tax_per_attacker: std::collections::HashMap<PlayerId, u32> =
-            std::collections::HashMap::new();
+    // PB-DP4 / DP-10: before this, the pool was READ ONCE (total_with_restricted) and
+    // never debited, and the cost was flattened to a u32 generic total so colour was
+    // lost. CR 508.1i (a mana-ability window between "total determined" and "total paid")
+    // is NOT honoured here -- the engine determines and pays the total inside this single
+    // command, so the tax must already be floating; that is a pre-existing deviation,
+    // recorded as OOS-DP4-2, not fixed by this change.
+    //
+    // Fix cycle (E1): the hybrid/Phyrexian/X rejection below is scoped to defenders an
+    // attacker actually targets, not to the mere existence of a restriction anywhere on
+    // the battlefield. The pre-fix version rejected the WHOLE declaration -- including an
+    // attack against a different, untaxed defender, a planeswalker-only attack, or an
+    // empty `attackers: vec![]` -- whenever such a restriction existed at all.
+    let (attack_tax, taxed_defenders): (Option<ManaCost>, BTreeSet<PlayerId>) = {
+        // CR 508.1h: per-defender per-creature cost, as a real ManaCost (not a u32).
+        // BTreeMap, not HashMap: iteration order feeds the summed cost and the error
+        // message, and SR-9b requires determinism.
+        let mut tax_per_creature: BTreeMap<PlayerId, ManaCost> = BTreeMap::new();
+        // CR 107.4e/107.4f: defenders whose tax includes a hybrid/Phyrexian/X pip that
+        // cannot be flattened. Command::DeclareAttackers carries no payment-choice
+        // field, so the engine cannot ask which half to pay. Recorded here, not
+        // rejected immediately (E1 fix) -- the rejection fires below, only if a
+        // declared attacker actually targets one of these defenders.
+        let mut unpayable_tax_defenders: BTreeSet<PlayerId> = BTreeSet::new();
         for restriction in state.restrictions.iter() {
             // Skip if source is no longer on the battlefield.
             let source_on_bf = state
@@ -215,54 +235,113 @@ pub fn handle_declare_attackers(
                 &restriction.restriction
             {
                 let defending_player = restriction.controller;
-                // Only generic mana cost is supported for attack tax (Propaganda/Ghostly Prison
-                // both use generic mana). More complex costs are deferred.
-                let entry = tax_per_attacker.entry(defending_player).or_insert(0);
-                *entry += cost_per_creature.generic
-                    + cost_per_creature.white
-                    + cost_per_creature.blue
-                    + cost_per_creature.black
-                    + cost_per_creature.red
-                    + cost_per_creature.green
-                    + cost_per_creature.colorless;
+                if !cost_per_creature.hybrid.is_empty()
+                    || !cost_per_creature.phyrexian.is_empty()
+                    || cost_per_creature.x_count > 0
+                {
+                    unpayable_tax_defenders.insert(defending_player);
+                    continue;
+                }
+                // E7 fix: a {0} restriction (all fields zero) is unconditionally
+                // payable (CR 118.5) and must not mark its defender as "taxed" --
+                // has_uncosted_attack_target (Change 1c) treats any taxed_defenders
+                // member as a costed target, so a free restriction would wrongly
+                // close off an otherwise-uncosted must-attack target.
+                if *cost_per_creature == ManaCost::default() {
+                    continue;
+                }
+                let entry = tax_per_creature.entry(defending_player).or_default();
+                add_mana_cost(entry, cost_per_creature, 1);
             }
         }
-        if !tax_per_attacker.is_empty() {
-            // Count attackers targeting each defended player.
-            let mut attackers_per_player: std::collections::HashMap<PlayerId, u32> =
-                std::collections::HashMap::new();
-            for (_, target) in &attackers {
-                if let AttackTarget::Player(defending_pid) = target {
-                    if tax_per_attacker.contains_key(defending_pid) {
-                        *attackers_per_player.entry(*defending_pid).or_insert(0) += 1;
-                    }
-                }
-            }
-            // Compute total tax owed by the attacking player.
-            let mut total_tax: u32 = 0;
-            for (defending_pid, attacker_count) in &attackers_per_player {
-                if let Some(cost_per) = tax_per_attacker.get(defending_pid) {
-                    total_tax += cost_per * attacker_count;
-                }
-            }
-            if total_tax > 0 {
-                // Check if attacking player has enough mana in their pool.
-                let available_mana = state
-                    .expect_player(player)
-                    .map(|ps| ps.mana_pool.total_with_restricted())
-                    .unwrap_or(0);
-                if available_mana < total_tax {
+        // CR 508.1c: attackers per taxed defender. Only player-attacks are taxed. A
+        // creature attacking a planeswalker is attacking that planeswalker, not its
+        // controller, so Propaganda does not apply (CR 508.1c + the Propaganda
+        // ruling). Keep this narrow.
+        //
+        // E1 fix: the CR 107.4e/107.4f rejection lives HERE, not in the restriction
+        // scan above -- it only fires when a declared attacker actually targets an
+        // unpayably-taxed defender, so an attack against a different defender (or an
+        // empty declaration) is never blocked by a restriction it doesn't engage.
+        let mut attackers_per_player: BTreeMap<PlayerId, u32> = BTreeMap::new();
+        for (_, target) in &attackers {
+            if let AttackTarget::Player(defending_pid) = target {
+                if unpayable_tax_defenders.contains(defending_pid) {
                     return Err(GameStateError::InvalidCommand(format!(
-                        "attack tax: attacking player must pay {} mana ({} per attacker) \
-                         but only has {} mana available (CR 508.1, Propaganda/Ghostly Prison)",
-                        total_tax,
-                        total_tax / attackers_per_player.values().sum::<u32>().max(1),
-                        available_mana
+                        "attack tax: a hybrid, Phyrexian or X attack cost against defender \
+                         {:?} is not payable -- Command::DeclareAttackers carries no \
+                         payment-choice field, so the engine cannot ask which half to pay \
+                         (CR 107.4e/107.4f via CR 508.1h); see OOS-DP4-1.",
+                        defending_pid
                     )));
                 }
+                if tax_per_creature.contains_key(defending_pid) {
+                    *attackers_per_player.entry(*defending_pid).or_insert(0) += 1;
+                }
             }
         }
-    }
+        // Built from BOTH the flattenable-cost map and the unpayable set: CR 508.1d
+        // needs to know which players are taxed at all -- payably or not, and whether
+        // or not anyone is currently declared against them (used by
+        // has_uncosted_attack_target below). An unpayable tax is, if anything, an even
+        // stronger case for "not required to pay that cost" than a payable one.
+        let taxed_defenders: BTreeSet<PlayerId> = tax_per_creature
+            .keys()
+            .copied()
+            .chain(unpayable_tax_defenders.iter().copied())
+            .collect();
+        // CR 508.1h: total cost. Attack taxes from multiple sources are cumulative
+        // (Propaganda ruling), and a defender's total is cost_per_creature x the
+        // number of creatures attacking that defender.
+        let mut total = ManaCost::default();
+        for (defending_pid, attacker_count) in &attackers_per_player {
+            if let Some(cost_per) = tax_per_creature.get(defending_pid) {
+                add_mana_cost(&mut total, cost_per, *attacker_count);
+            }
+        }
+        // CR 508.1h/508.1j: affordability, checked before any mutation so an
+        // unaffordable declaration leaves the game untouched (CR 732).
+        if total != ManaCost::default() {
+            let (affordable, available) = state
+                .expect_player(player)
+                .map(|ps| {
+                    (
+                        casting::can_pay_cost(&ps.mana_pool, &total),
+                        ps.mana_pool.total(),
+                    )
+                })
+                .unwrap_or((false, 0));
+            if !affordable {
+                // CR 106.6 (fix cycle, E5): restricted mana cannot pay a non-spell
+                // cost in this engine -- every `ManaRestriction` variant is
+                // spell-scoped (see `player.rs::restriction_matches`) -- so
+                // `can_pay_cost` above already excludes it, and `available` below is
+                // already the unrestricted total. That is engine-internal reasoning,
+                // not a fact a player needs in an error string, so it stays in this
+                // comment. The message below states the required cost and the
+                // available quantity WITHOUT asserting "not enough" as the cause --
+                // the shortfall can be a colour mismatch (required and available
+                // totals equal) as easily as a quantity shortfall, and the old
+                // message's blanket "no ManaRestriction ... matches a non-spell
+                // cost" sentence used to print on every failure regardless of which
+                // one it actually was.
+                return Err(GameStateError::InvalidCommand(format!(
+                    "attack tax: the attacking player cannot pay the required {:?} for the \
+                     declared attackers from their mana pool (CR 508.1h/508.1j, \
+                     Propaganda/Ghostly Prison); {} unrestricted mana available.",
+                    total, available
+                )));
+            }
+        }
+        (
+            if total == ManaCost::default() {
+                None
+            } else {
+                Some(total)
+            },
+            taxed_defenders,
+        )
+    };
     // CR 701.15b: A goaded creature must attack each combat if able.
     // For each creature on the battlefield controlled by the active player
     // that has at least one goading player in goaded_by: if the creature can
@@ -296,29 +375,18 @@ pub fn handle_declare_attackers(
             let is_tapped = obj.status.tapped;
             let has_sickness = obj.has_summoning_sickness;
             // CR 508.1d: a requirement is obeyed only to the extent it doesn't
-            // violate a restriction. If this creature also has CantAttackOwner
-            // (CR 508.1c) and its owner is the only legal opposing player left,
-            // it has no legal attack target at all -- it is not "able" to
-            // attack, so goad's must-attack requirement does not force it.
-            // Mirrors the MustAttackEachCombat owner-exclusion below.
-            let has_cant_attack_owner = state.restrictions.iter().any(|r| {
-                r.source == goaded_id
-                    && matches!(r.restriction, GameRestriction::CantAttackOwner)
-                    && state
-                        .objects
-                        .get(&r.source)
-                        .map(|o| o.zone == ZoneId::Battlefield)
-                        .unwrap_or(false)
-            });
-            let no_legal_target = has_cant_attack_owner
-                && !state.players.keys().any(|pid| {
-                    *pid != player
-                        && *pid != obj.owner
-                        && state
-                            .expect_player(*pid)
-                            .map(|p| !p.has_lost && !p.has_conceded)
-                            .unwrap_or(false)
-                });
+            // violate a restriction -- including a CantAttackOwner exclusion (CR
+            // 508.1c) AND a "not required to pay an attack cost" carve-out (CR
+            // 508.1d itself: "If a creature can't attack unless a player pays a
+            // cost, that player is not required to pay that cost"). If every
+            // uncosted target is closed off, the creature has no legal attack
+            // target at all -- it is not "able" to attack, so goad's must-attack
+            // requirement does not force it. Mirrors the MustAttackEachCombat
+            // block below. PB-DP4, closes OOS-RS3-4 (2014-07-18 Goblin
+            // Rabblemaster ruling: "If there's a cost associated with having a
+            // creature attack, you're not forced to pay that cost.").
+            let no_legal_target =
+                !has_uncosted_attack_target(state, player, goaded_id, &taxed_defenders);
             // Creature cannot attack if: tapped and no vigilance, or summoning sickness
             // and no haste, or has Defender, or (CR 508.1d) no legal attack target.
             let cannot_attack = (is_tapped && !has_vigilance)
@@ -396,28 +464,18 @@ pub fn handle_declare_attackers(
             let is_tapped = obj.status.tapped;
             let has_sickness = obj.has_summoning_sickness;
             // CR 508.1d: a requirement is obeyed only to the extent it doesn't
-            // violate a restriction. If this creature has CantAttackOwner (CR
-            // 508.1c) and its owner is the only legal opposing player left, it
-            // has no legal attack target at all -- it is not "able" to attack,
-            // so the must-attack requirement does not force it. (Alexios.)
-            let has_cant_attack_owner = state.restrictions.iter().any(|r| {
-                r.source == *obj_id
-                    && matches!(r.restriction, GameRestriction::CantAttackOwner)
-                    && state
-                        .objects
-                        .get(&r.source)
-                        .map(|o| o.zone == ZoneId::Battlefield)
-                        .unwrap_or(false)
-            });
-            let no_legal_target = has_cant_attack_owner
-                && !state.players.keys().any(|pid| {
-                    *pid != player
-                        && *pid != obj.owner
-                        && state
-                            .expect_player(*pid)
-                            .map(|p| !p.has_lost && !p.has_conceded)
-                            .unwrap_or(false)
-                });
+            // violate a restriction -- including a CantAttackOwner exclusion (CR
+            // 508.1c) AND a "not required to pay an attack cost" carve-out (CR
+            // 508.1d itself: "that player is not required to pay that cost, even
+            // if attacking with that creature would increase the number of
+            // requirements being obeyed"). If every uncosted target is closed
+            // off, the creature has no legal attack target at all -- it is not
+            // "able" to attack, so the must-attack requirement does not force
+            // it. (Alexios; also PB-DP4, closes OOS-RS3-4 for Goblin Rabblemaster
+            // -- 2014-07-18 ruling: "If there's a cost associated with having a
+            // creature attack, you're not forced to pay that cost.")
+            let no_legal_target =
+                !has_uncosted_attack_target(state, player, *obj_id, &taxed_defenders);
             let cannot_attack = (is_tapped && !has_vigilance)
                 || (has_sickness && !has_haste)
                 || has_defender
@@ -610,6 +668,32 @@ pub fn handle_declare_attackers(
             object_id: *enlisted_id,
         });
     }
+    // CR 508.1j: pay all attack costs. Partial payments are not allowed, and the
+    // total was locked in during validation (CR 508.1h) before any state was
+    // mutated, so this cannot fail. Placed after the CR 508.1f tapping loops to
+    // match the CR's own step order (508.1f tap -> 508.1h total -> 508.1i mana
+    // abilities -> 508.1j pay).
+    //
+    // CR 508.1i is NOT honoured: the engine determines and pays the total inside
+    // a single DeclareAttackers command, so the player has no window to activate
+    // mana abilities between the two. The tax must already be floating.
+    // Pre-existing deviation, preserved (fixing it needs a two-phase declaration
+    // = a new Command). Seed OOS-DP4-2.
+    if let Some(tax) = &attack_tax {
+        // Fix cycle (E6): the event push lives INSIDE the `if let Some(ps)` -- a
+        // missing player must not produce a `ManaCostPaid` event describing a
+        // payment that didn't happen (Architecture Invariant 4: events describe
+        // what happened, not what was attempted).
+        if let Some(ps) = state.expect_player_mut(player) {
+            casting::pay_cost(&mut ps.mana_pool, tax);
+            // Architecture Invariant 4: a pool debit is a state change and must be
+            // evented. Reuses the existing universal payment event -- no wire change.
+            events.push(GameEvent::ManaCostPaid {
+                player,
+                cost: tax.clone(),
+            });
+        }
+    }
     // Record attackers in combat state.
     if let Some(combat) = state.combat.as_mut() {
         for (attacker_id, target) in &attackers {
@@ -682,6 +766,90 @@ pub fn handle_declare_attackers(
     state.turn.priority_holder = Some(player);
     events.push(GameEvent::PriorityGiven { player });
     Ok(events)
+}
+/// CR 508.1d: can a must-attack requirement actually force `creature` to attack?
+///
+/// "If a creature can't attack unless a player pays a cost, that player is not required to
+/// pay that cost, even if attacking with that creature would increase the number of
+/// requirements being obeyed." (CR 508.1d; Goblin Rabblemaster ruling 2014-07-18: "If
+/// there's a cost associated with having a creature attack, you're not forced to pay that
+/// cost.") So a requirement is only *obeyable* if some attack target exists that costs the
+/// controller nothing.
+///
+/// Returns true iff at least one such target exists:
+///   * a live opponent that is neither this creature's owner-under-CantAttackOwner
+///     (CR 508.1c) nor a member of `taxed_defenders`, OR
+///   * any opponent-controlled planeswalker on the battlefield -- attacking a planeswalker
+///     is not "attacking you", so a CantAttackYouUnlessPay tax never applies to it
+///     (CR 508.1c + the Propaganda ruling), and CantAttackOwner is about players.
+///
+/// Generalises the two hand-copied `no_legal_target` computations PB-DP4 replaced
+/// (`handle_declare_attackers`, the goad block and the MustAttackEachCombat block).
+/// PB-DP4 / DP-10, closes OOS-RS3-4.
+fn has_uncosted_attack_target(
+    state: &GameState,
+    player: PlayerId,
+    creature: ObjectId,
+    taxed_defenders: &BTreeSet<PlayerId>,
+) -> bool {
+    let has_cant_attack_owner = state.restrictions.iter().any(|r| {
+        r.source == creature
+            && matches!(r.restriction, GameRestriction::CantAttackOwner)
+            && state
+                .objects
+                .get(&r.source)
+                .map(|o| o.zone == ZoneId::Battlefield)
+                .unwrap_or(false)
+    });
+    let owner = state.expect_object(creature).map(|o| o.owner);
+    let has_live_opponent_target = state.players.keys().any(|pid| {
+        *pid != player
+            && (!has_cant_attack_owner || Some(*pid) != owner)
+            && !taxed_defenders.contains(pid)
+            && state
+                .expect_player(*pid)
+                .map(|p| !p.has_lost && !p.has_conceded)
+                .unwrap_or(false)
+    });
+    if has_live_opponent_target {
+        return true;
+    }
+    // Any opponent-controlled planeswalker is an uncosted target: CantAttackYouUnlessPay
+    // is scoped to "attack you" (a player), so it never applies to a planeswalker attack,
+    // and CantAttackOwner is likewise scoped to the owning player. Layer-resolved
+    // (W3-LC contract, CR 613.1f): an animated planeswalker or a Humility'd one must be
+    // judged on its CURRENT types, never `obj.characteristics` directly.
+    state.objects.values().any(|o| {
+        o.zone == ZoneId::Battlefield
+            && o.controller != player
+            && crate::rules::layers::expect_characteristics(state, o.id)
+                .card_types
+                .contains(&CardType::Planeswalker)
+    })
+}
+/// CR 508.1h: accumulate `addend` x `times` into `total`, field by field.
+///
+/// Attack taxes from multiple sources are cumulative (Propaganda ruling), and a defender's
+/// total is `cost_per_creature` x the number of creatures attacking that defender. Hybrid,
+/// Phyrexian and X components are rejected by the caller before this is reached
+/// (CR 107.4e/107.4f) and are debug-asserted here so the guard cannot drift.
+///
+/// Deliberately NOT the `multiply_mana_cost` helper in `rules/engine.rs` (cumulative
+/// upkeep): that one multiplies hybrid/Phyrexian/X too (correct for CU), which would be
+/// wrong here (an attack tax rejects those fields before payment). Deduplicating the two
+/// is seed OOS-DP4-7.
+fn add_mana_cost(total: &mut ManaCost, addend: &ManaCost, times: u32) {
+    debug_assert!(
+        addend.hybrid.is_empty() && addend.phyrexian.is_empty() && addend.x_count == 0,
+        "unflattened / X attack tax reached add_mana_cost: {addend:?}"
+    );
+    total.white += addend.white * times;
+    total.blue += addend.blue * times;
+    total.black += addend.black * times;
+    total.red += addend.red * times;
+    total.green += addend.green * times;
+    total.colorless += addend.colorless * times;
+    total.generic += addend.generic * times;
 }
 /// CR 506.4: Remove a permanent from combat.
 ///

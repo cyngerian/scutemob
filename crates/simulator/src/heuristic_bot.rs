@@ -89,6 +89,21 @@ impl HeuristicBot {
             LegalAction::CastMorphFaceDown { .. } => 30,
             // Loyalty ability: important — planeswalker abilities are high value.
             LegalAction::ActivateLoyaltyAbility { .. } => 60,
+            // PB-DP4 / DP-11: an outstanding echo / cumulative upkeep / recover payment.
+            // Paying keeps the permanent (or returns the card to hand) and is offered only
+            // when affordable, so treat it like a worthwhile activated ability. Declining
+            // is a legal but usually-undesirable last resort — score it just above passing
+            // so the bot doesn't reflexively give away a permanent/card it could afford to
+            // keep, but still exercises the decline path when it can't afford `pay: true`.
+            LegalAction::PayEcho { pay, .. }
+            | LegalAction::PayCumulativeUpkeep { pay, .. }
+            | LegalAction::PayRecover { pay, .. } => {
+                if *pay {
+                    45
+                } else {
+                    2
+                }
+            }
         }
     }
 }

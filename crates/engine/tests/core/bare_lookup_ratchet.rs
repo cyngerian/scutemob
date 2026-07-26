@@ -117,7 +117,11 @@ const SWEPT_FILES: &[(&str, usize)] = &[
     // other predicate-read site already ceilinged in this file.
     ("src/rules/abilities.rs", 75),
     ("src/rules/casting.rs", 34),
-    ("src/rules/combat.rs", 16),
+    // PB-DP4 (2026-07-26): 16 -> 15. `has_uncosted_attack_target` (new, CR 508.1d)
+    // deduplicates the two copy-pasted `has_cant_attack_owner` bare
+    // `state.restrictions.iter().any(|r| ... state.objects.get(&r.source) ...)` lookups
+    // (the goad block and the MustAttackEachCombat block) into a single site.
+    ("src/rules/combat.rs", 15),
     ("src/rules/sba.rs", 7),
     ("src/rules/replacement.rs", 24),
     ("src/rules/turn_actions.rs", 7),
@@ -135,6 +139,20 @@ const SWEPT_FILES: &[(&str, usize)] = &[
     // the source may have left its zone) instead of bare `.objects.get[_mut]`, and
     // collapses the old duplicate `.objects.get` re-read (used only to re-check
     // `is_transformed`) into a single upfront snapshot.
+    // PB-DP4 (2026-07-26): 22 → 24 during implement, then 24 → 22 in the fix cycle
+    // (review finding E2). The implement phase added two bare `.players.get(` sites
+    // where a non-bare equivalent was already in use elsewhere in this same PB: (1)
+    // the CR 119.4 life-cost gate in `CumulativeUpkeepCost::Life`'s pay arm now reads
+    // `state.player(player)?.life_total` -- `player()` is a primitive accessor (not
+    // matched by the `.players.get(` needle), the same idiom `resolution.rs` uses
+    // throughout; (2) the `force_resolve_overdue_payments` boundary-sweep hook in
+    // `handle_all_passed` now reads `state.expect_player(active).map(|p| !p.has_lost
+    // && !p.has_conceded).unwrap_or(false)` -- `expect_player` is the NONSWALLOW
+    // predicate-read idiom this PB's own `combat.rs:` `has_uncosted_attack_target`
+    // already uses for an identical "departed player answers false" read. Neither
+    // conversion changes behavior (both are the same `state.players` lookup under a
+    // different name); the ceiling is restored to 22 to lock in the reduction, per
+    // the ratchet's own rule that a gate exists to stop a raise it can avoid.
     ("src/rules/engine.rs", 22),
     ("src/rules/lands.rs", 3),
     // SR-25
