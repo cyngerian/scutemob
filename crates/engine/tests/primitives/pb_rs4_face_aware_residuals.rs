@@ -33,13 +33,15 @@ use mtg_engine::rules::replacement::{
     fire_saga_chapter_triggers, register_static_continuous_effects,
 };
 use mtg_engine::state::stubs::{ActiveRestriction, AdditionalLandPlaySource};
+use mtg_engine::state::test_util;
 use mtg_engine::{
-    all_cards, calculate_characteristics, AbilityDefinition, AltCostKind, CardDefinition, CardFace,
-    CardId, CardRegistry, CardType, Command, CounterType, Effect, EffectAmount, FlashGrantFilter,
-    GameEvent, GameRestriction, GameState, GameStateBuilder, KeywordAbility, ManaColor, ManaCost,
-    ObjectFilter, ObjectId, ObjectSpec, PlayFromTopFilter, PlayerFilter, PlayerId, PlayerTarget,
-    ReplacementModification, ReplacementTrigger, Step, SubType, TriggerCondition,
-    TriggerDoublerFilter, TypeLine, ZoneId,
+    all_cards, calculate_characteristics, AbilityDefinition, AltCostKind, CardContinuousEffectDef,
+    CardDefinition, CardFace, CardId, CardRegistry, CardType, Command, Condition, ContinuousEffect,
+    CounterType, Effect, EffectAmount, EffectDuration, EffectFilter, EffectId, EffectLayer,
+    FlashGrantFilter, GameEvent, GameRestriction, GameState, GameStateBuilder, KeywordAbility,
+    LayerModification, ManaColor, ManaCost, ObjectFilter, ObjectId, ObjectSpec, PlayFromTopFilter,
+    PlayerFilter, PlayerId, PlayerTarget, ReplacementModification, ReplacementTrigger, Step,
+    SubType, TriggerCondition, TriggerDoublerFilter, TypeLine, ZoneId,
 };
 use std::collections::HashMap;
 
@@ -466,6 +468,15 @@ fn test_transformed_saga_stops_accruing_lore_counters() {
         state.stack_objects().is_empty(),
         "no chapter trigger should have been queued for the transformed permanent"
     );
+    assert!(
+        !state
+            .pending_triggers()
+            .iter()
+            .any(|t| t.source == fable_id),
+        "no chapter trigger sourced from the transformed Fable should be pending \
+         (CR 714.3b / 712.8e); pending_triggers: {:?}",
+        state.pending_triggers()
+    );
 }
 
 // ── Test 6: fire_saga_chapter_triggers producer/consumer index parity (deviation #4.2) ──
@@ -534,7 +545,9 @@ fn mock_saga_index_parity_def() -> CardDefinition {
 
 /// CR 714.2b / 712.8d/e: `fire_saga_chapter_triggers`'s producer must index into
 /// the currently-visible face's *effective* ability list, matching the namespace
-/// the three consumers (`resolution.rs:1996`/`:2028`, `sba.rs:889`) already use. A
+/// every CardDef-ability-index consumer already uses (eight sites, e.g.
+/// `resolution.rs:1996`/`:2028`, `sba.rs:889` -- see `replacement.rs`'s doc comment
+/// on `fire_saga_chapter_triggers` for the full list). A
 /// transformed permanent whose back face has no `SagaChapter` abilities must
 /// produce NO chapter trigger at all when the front-face lore-crossing math would
 /// otherwise have fired one at front-index 1.
@@ -574,6 +587,129 @@ fn test_saga_chapter_trigger_index_matches_effective_face() {
          threshold must not queue any trigger once transformed (CR 714.2b / 712.8d/e); \
          pending_triggers: {:?}",
         state.pending_triggers()
+    );
+}
+
+/// Front: `SagaChapter { chapter: 1 }` at index 1 (index 0 is the Transform keyword).
+/// Back: a non-`SagaChapter` filler ability at index 0, THEN `SagaChapter { chapter: 1 }`
+/// at index 2 -- the back face's chapter lives at a DIFFERENT position than the
+/// front's, so a test that merely asserts "some/no trigger fired" (like
+/// `test_saga_chapter_trigger_index_matches_effective_face`) cannot distinguish a
+/// correctly-reindexed producer from one that got lucky because the back face had
+/// no `SagaChapter` at all.
+fn mock_saga_index_parity_back_chapter_def() -> CardDefinition {
+    CardDefinition {
+        card_id: CardId("mock-rs4-saga-index-parity-back-chapter".to_string()),
+        name: "Mock RS4 Saga Index Parity Back-Chapter Front".to_string(),
+        mana_cost: None,
+        types: TypeLine {
+            card_types: [CardType::Enchantment].into_iter().collect(),
+            subtypes: [SubType("Saga".to_string())].into_iter().collect(),
+            ..Default::default()
+        },
+        oracle_text: "".to_string(),
+        abilities: vec![
+            AbilityDefinition::Keyword(KeywordAbility::Transform), // index 0
+            AbilityDefinition::SagaChapter {
+                chapter: 1,
+                effect: Effect::Nothing,
+                targets: vec![],
+            }, // index 1
+        ],
+        power: None,
+        toughness: None,
+        color_indicator: None,
+        back_face: Some(CardFace {
+            name: "Mock RS4 Saga Index Parity Back-Chapter Back".to_string(),
+            mana_cost: None,
+            types: TypeLine {
+                card_types: [CardType::Enchantment].into_iter().collect(),
+                subtypes: [SubType("Saga".to_string())].into_iter().collect(),
+                ..Default::default()
+            },
+            oracle_text: "".to_string(),
+            abilities: vec![
+                AbilityDefinition::Triggered {
+                    once_per_turn: false,
+                    trigger_condition: TriggerCondition::AtBeginningOfYourUpkeep,
+                    effect: Effect::GainLife {
+                        player: PlayerTarget::Controller,
+                        amount: EffectAmount::Fixed(1),
+                    },
+                    intervening_if: None,
+                    targets: vec![],
+                    modes: None,
+                    trigger_zone: None,
+                }, // index 0 -- filler, NOT a SagaChapter
+                AbilityDefinition::Keyword(KeywordAbility::Transform), // index 1 -- filler
+                AbilityDefinition::SagaChapter {
+                    chapter: 1,
+                    effect: Effect::Nothing,
+                    targets: vec![],
+                }, // index 2 -- the back face's real chapter, at a DIFFERENT
+                                                                       // position than the front's index-1 chapter
+            ],
+            power: None,
+            toughness: None,
+            color_indicator: None,
+        }),
+        ..Default::default()
+    }
+}
+
+/// CR 714.2b / 712.8d/e (review finding #10): `fire_saga_chapter_triggers`'s
+/// producer must resolve `ability_index` against the back face's OWN position for
+/// its `SagaChapter`, not merely detect presence/absence of one. Proves index
+/// PARITY (a wrong-but-present index would still slip past
+/// `test_saga_chapter_trigger_index_matches_effective_face`'s presence-only check).
+#[test]
+fn test_saga_chapter_trigger_index_resolves_to_back_faces_chapter_position() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let def = mock_saga_index_parity_back_chapter_def();
+    let registry = registry_with(vec![def.clone()]);
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .object(
+            ObjectSpec::card(p1, "Mock RS4 Saga Index Parity Back-Chapter Front")
+                .in_zone(ZoneId::Battlefield)
+                .with_card_id(CardId(
+                    "mock-rs4-saga-index-parity-back-chapter".to_string(),
+                ))
+                .with_types(vec![CardType::Enchantment]),
+        )
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+    let saga_id = find_by_name(&state, "Mock RS4 Saga Index Parity Back-Chapter Front");
+    // Flip to the back face directly (bypassing TransformSelf's own preconditions --
+    // this test isolates fire_saga_chapter_triggers, not the flip mechanism).
+    if let Some(obj) = state.objects_mut().get_mut(&saga_id) {
+        obj.is_transformed = true;
+    }
+    *state.pending_triggers_mut() = imbl::Vector::new();
+
+    let _events = fire_saga_chapter_triggers(&mut state, saga_id, p1, 0, 1, &def);
+
+    let pending: Vec<_> = state.pending_triggers().iter().collect();
+    assert_eq!(
+        pending.len(),
+        1,
+        "exactly one chapter trigger should fire for the back face's chapter-1 \
+         crossing; pending_triggers: {:?}",
+        pending
+    );
+    assert_eq!(
+        pending[0].ability_index, 2,
+        "the produced ability_index must resolve to the BACK face's SagaChapter \
+         position (index 2, behind a non-SagaChapter filler ability at index 0 and \
+         the Transform keyword at index 1), not the FRONT face's position (index \
+         1) -- proves index parity, not just face-awareness (CR 714.2b / \
+         712.8d/e); got ability_index {}",
+        pending[0].ability_index
     );
 }
 
@@ -691,8 +827,10 @@ fn test_transform_deregisters_trigger_doubling() {
     );
 }
 
-/// CR 614.16a: a Torpor Orb-style `SuppressCreatureETBTriggers` ability must be
-/// deregistered once the permanent transforms away from the face that declared it.
+/// CR 604.1 / 603.2: a Torpor Orb-style `SuppressCreatureETBTriggers` ability must
+/// be deregistered once the permanent transforms away from the face that declared
+/// it. (CR 614.16 governs token/counter-creation replacement effects, not ETB-
+/// trigger suppression -- there is no dedicated CR subrule for this pattern.)
 #[test]
 fn test_transform_deregisters_etb_suppressor() {
     let p1 = p(1);
@@ -723,7 +861,7 @@ fn test_transform_deregisters_etb_suppressor() {
     assert!(
         !state.etb_suppressors().iter().any(|s| s.source == id),
         "the front's SuppressCreatureETBTriggers must be deregistered once \
-         transformed away from it (CR 614.16a)"
+         transformed away from it (CR 604.1 / 603.2)"
     );
 }
 
@@ -802,9 +940,121 @@ fn test_transform_deregisters_cda_power_toughness() {
         after.power,
         Some(2),
         "the front's CdaPowerToughness must be deregistered once transformed away \
-         from it (CR 604.3 / 613.4a); back face's printed power is 2"
+         from it (CR 604.3 / 613.4a); the object's base 2/2 is restored once the \
+         CDA is deregistered"
     );
     assert_eq!(after.toughness, Some(2));
+}
+
+/// CR 604.1 / 604.3 / 613.4a (review finding #5, constructible collision case): a
+/// `Static { layer: PtCda, modification: SetPtDynamic{..} }` ability's removal
+/// predicate must NOT match a structurally-identical `is_cda: true` entry. Without
+/// `!e.is_cda` in the `Static` arm's predicate, a `Static` ability sharing every
+/// other field (layer/duration/modification/filter/condition) with a
+/// `CdaPowerToughness`-shaped registration would remove the WRONG entry, leaving
+/// the actual `Static` registration to leak past the transform while the
+/// `CdaPowerToughness`-shaped entry (which this permanent does not even declare --
+/// it is seeded directly to isolate the `Static` arm) is wrongly deleted.
+///
+/// Seeded directly rather than via a real `CdaPowerToughness` ability, because a
+/// real co-declared `CdaPowerToughness` ability would register (and later
+/// deregister) its OWN entry via its own -- already `is_cda`-qualified -- arm in
+/// the same declaration order as the `Static` ability, self-correcting the
+/// collision by construction (both channels always process in identical
+/// declare/register/deregister order). Directly seeding an extra CDA-shaped entry
+/// isolates the `Static` arm's predicate from that ordering coincidence and proves
+/// the fix on its own terms.
+#[test]
+fn test_static_removal_does_not_match_cda_shaped_entry() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let ability = AbilityDefinition::Static {
+        continuous_effect: CardContinuousEffectDef {
+            layer: EffectLayer::PtCda,
+            modification: LayerModification::SetPtDynamic {
+                power: Box::new(EffectAmount::Fixed(5)),
+                toughness: Box::new(EffectAmount::Fixed(5)),
+            },
+            filter: EffectFilter::Source,
+            duration: EffectDuration::WhileSourceOnBattlefield,
+            condition: None,
+        },
+    };
+    let def = mock_family_def(
+        "mock-rs4-static-cda-collision",
+        "Mock RS4 StaticCdaCollision",
+        ability,
+    );
+    let registry = registry_with(vec![def]);
+    let mut state = build_family_state(
+        registry.clone(),
+        p1,
+        p2,
+        "Mock RS4 StaticCdaCollision",
+        "mock-rs4-static-cda-collision",
+    );
+    let id = find_by_name(&state, "Mock RS4 StaticCdaCollision");
+    let card_id = state.objects()[&id].card_id.clone();
+
+    // Seed a phantom CDA-shaped entry FIRST (so it sits earlier in
+    // `state.continuous_effects` than the real Static entry registered below),
+    // matching every field the (pre-fix) Static removal predicate compared except
+    // `is_cda`.
+    let phantom_eff_id = test_util::next_object_id(&mut state).0;
+    *state.timestamp_counter_mut() += 1;
+    let phantom_ts = state.timestamp_counter();
+    state.continuous_effects_mut().push_back(ContinuousEffect {
+        id: EffectId(phantom_eff_id),
+        source: Some(id),
+        timestamp: phantom_ts,
+        layer: EffectLayer::PtCda,
+        duration: EffectDuration::WhileSourceOnBattlefield,
+        filter: EffectFilter::SingleObject(id),
+        modification: LayerModification::SetPtDynamic {
+            power: Box::new(EffectAmount::Fixed(5)),
+            toughness: Box::new(EffectAmount::Fixed(5)),
+        },
+        is_cda: true,
+        condition: None,
+    });
+
+    register_static_continuous_effects(&mut state, id, card_id.as_ref(), &registry, false);
+
+    let cda_before = state
+        .continuous_effects()
+        .iter()
+        .filter(|e| e.source == Some(id) && e.is_cda)
+        .count();
+    let static_before = state
+        .continuous_effects()
+        .iter()
+        .filter(|e| e.source == Some(id) && !e.is_cda)
+        .count();
+    assert_eq!(cda_before, 1, "sanity: phantom CDA-shaped entry present");
+    assert_eq!(static_before, 1, "sanity: real Static entry registered");
+
+    transform(&mut state, p1, id);
+
+    let cda_after = state
+        .continuous_effects()
+        .iter()
+        .filter(|e| e.source == Some(id) && e.is_cda)
+        .count();
+    let static_after = state
+        .continuous_effects()
+        .iter()
+        .filter(|e| e.source == Some(id) && !e.is_cda)
+        .count();
+    assert_eq!(
+        static_after, 0,
+        "the real (is_cda: false) Static entry must be the one removed on transform"
+    );
+    assert_eq!(
+        cda_after, 1,
+        "the phantom (is_cda: true) CDA-shaped entry must survive -- the Static \
+         arm's predicate must not match an is_cda: true entry even when every \
+         other field is structurally identical (CR 604.1 / 604.3 / 613.4a)"
+    );
 }
 
 /// CR 604.3 / 613.4c: a `CdaModifyPowerToughness` ability with BOTH power and
@@ -952,13 +1202,29 @@ fn test_transform_deregisters_static_flash_grant() {
 
 /// CR 601.3 / 305.1: a `StaticPlayFromGraveyard` permission must be deregistered
 /// once the permanent transforms away from the face that declared it.
+///
+/// Review finding #9 (MEDIUM): a single-entry probe with a non-default `condition`
+/// is NOT actually discriminating on its own -- verified by inspection: when only
+/// one entry with this `source` exists, `position()` finds it regardless of
+/// whether `condition` is compared at all, so a prior version of this test with
+/// `condition: None` (and even this version, if it only checked "some entry
+/// removed") would still pass after a future edit dropped the `condition`
+/// comparison from `remove_one_registration`'s `StaticPlayFromGraveyard` arm. The
+/// real guard is a SECOND, same-source entry seeded with a DIFFERENT `condition`
+/// value and placed EARLIER in `state.play_from_graveyard_permissions` than the
+/// real registration -- a `position()`-based removal that ignores `condition`
+/// would grab the phantom (wrong) entry first and leave the real one stale. This
+/// is the negative case the review's Fix directive calls out as optional; it is
+/// made mandatory here because it is the only shape that can actually fail if the
+/// comparison regresses (verified by breaking the comparison and observing the
+/// predicted failure, then reverting).
 #[test]
 fn test_transform_deregisters_play_from_graveyard() {
     let p1 = p(1);
     let p2 = p(2);
     let ability = AbilityDefinition::StaticPlayFromGraveyard {
         filter: PlayFromTopFilter::All,
-        condition: None,
+        condition: Some(Box::new(Condition::ControllerLifeAtLeast(7))),
     };
     let def = mock_family_def("mock-rs4-pfg", "Mock RS4 PlayFromGraveyard", ability);
     let registry = registry_with(vec![def]);
@@ -971,41 +1237,90 @@ fn test_transform_deregisters_play_from_graveyard() {
     );
     let id = find_by_name(&state, "Mock RS4 PlayFromGraveyard");
     let card_id = state.objects()[&id].card_id.clone();
+
+    // Seed a phantom entry FIRST (earlier in the collection than the real
+    // registration below): same source + filter, but a DIFFERENT condition.
+    state.play_from_graveyard_permissions_mut().push_back(
+        mtg_engine::PlayFromGraveyardPermission {
+            source: id,
+            controller: p1,
+            filter: PlayFromTopFilter::All,
+            condition: None,
+        },
+    );
+
     register_static_continuous_effects(&mut state, id, card_id.as_ref(), &registry, false);
 
-    assert!(
-        state
-            .play_from_graveyard_permissions()
-            .iter()
-            .any(|pm| pm.source == id),
-        "sanity: front StaticPlayFromGraveyard should be registered"
-    );
+    let real_before = state
+        .play_from_graveyard_permissions()
+        .iter()
+        .filter(|pm| pm.source == id && pm.condition == Some(Condition::ControllerLifeAtLeast(7)))
+        .count();
+    let phantom_before = state
+        .play_from_graveyard_permissions()
+        .iter()
+        .filter(|pm| pm.source == id && pm.condition.is_none())
+        .count();
+    assert_eq!(real_before, 1, "sanity: real registration present");
+    assert_eq!(phantom_before, 1, "sanity: phantom entry present");
 
     transform(&mut state, p1, id);
 
-    assert!(
-        !state
-            .play_from_graveyard_permissions()
-            .iter()
-            .any(|pm| pm.source == id),
-        "the front's StaticPlayFromGraveyard must be deregistered once \
-         transformed away from it (CR 601.3 / 305.1)"
+    let real_after = state
+        .play_from_graveyard_permissions()
+        .iter()
+        .filter(|pm| pm.source == id && pm.condition == Some(Condition::ControllerLifeAtLeast(7)))
+        .count();
+    let phantom_after = state
+        .play_from_graveyard_permissions()
+        .iter()
+        .filter(|pm| pm.source == id && pm.condition.is_none())
+        .count();
+    assert_eq!(
+        real_after, 0,
+        "the front's StaticPlayFromGraveyard (condition: Some(ControllerLifeAtLeast(7))) \
+         must be deregistered once transformed away from it (CR 601.3 / 305.1)"
+    );
+    assert_eq!(
+        phantom_after, 1,
+        "the phantom entry (condition: None), which this permanent does NOT \
+         declare, must survive -- the removal predicate must match on `condition`, \
+         not just `source`/`filter`"
     );
 }
 
 /// CR 601.3: a `StaticPlayFromTop` permission must be deregistered once the
 /// permanent transforms away from the face that declared it.
+///
+/// Review finding #9 (MEDIUM): a single-entry probe -- even with every field set
+/// to a non-default value -- is NOT actually discriminating, verified by
+/// inspection: with only one entry sharing this `source`, `position()` finds it
+/// regardless of which fields the predicate compares. The real guard is a SECOND,
+/// same-source entry with the OLD all-default shape
+/// (`look_at_top`/`reveal_top`/`pay_life_instead: false`, `condition`/`on_cast_effect: None`),
+/// seeded EARLIER in `state.play_from_top_permissions` than the real
+/// (non-default) registration -- a `position()`-based removal that drops any of
+/// those field comparisons would grab the phantom (wrong, default-shaped) entry
+/// first and leave the real one stale. This is the negative case the review's Fix
+/// directive calls out as optional; it is made mandatory here because it is the
+/// only shape that can actually fail if a comparison regresses (verified by
+/// breaking one such comparison and observing the predicted failure, then
+/// reverting).
 #[test]
 fn test_transform_deregisters_play_from_top() {
     let p1 = p(1);
     let p2 = p(2);
+    let bonus_effect = Effect::GainLife {
+        player: PlayerTarget::Controller,
+        amount: EffectAmount::Fixed(1),
+    };
     let ability = AbilityDefinition::StaticPlayFromTop {
         filter: PlayFromTopFilter::All,
-        look_at_top: false,
-        reveal_top: false,
-        pay_life_instead: false,
-        condition: None,
-        on_cast_effect: None,
+        look_at_top: true,
+        reveal_top: true,
+        pay_life_instead: true,
+        condition: Some(Box::new(Condition::ControllerLifeAtLeast(7))),
+        on_cast_effect: Some(Box::new(bonus_effect.clone())),
     };
     let def = mock_family_def("mock-rs4-pft", "Mock RS4 PlayFromTop", ability);
     let registry = registry_with(vec![def]);
@@ -1018,25 +1333,84 @@ fn test_transform_deregisters_play_from_top() {
     );
     let id = find_by_name(&state, "Mock RS4 PlayFromTop");
     let card_id = state.objects()[&id].card_id.clone();
+
+    // Seed a phantom, all-default-shaped entry FIRST (earlier in the collection
+    // than the real, non-default registration below): same source + filter, every
+    // other field at its old degenerate default.
+    state
+        .play_from_top_permissions_mut()
+        .push_back(mtg_engine::PlayFromTopPermission {
+            source: id,
+            controller: p1,
+            filter: PlayFromTopFilter::All,
+            look_at_top: false,
+            reveal_top: false,
+            pay_life_instead: false,
+            condition: None,
+            on_cast_effect: None,
+        });
+
     register_static_continuous_effects(&mut state, id, card_id.as_ref(), &registry, false);
 
-    assert!(
+    let is_real = |pm: &&mtg_engine::PlayFromTopPermission| {
+        pm.source == id
+            && pm.look_at_top
+            && pm.reveal_top
+            && pm.pay_life_instead
+            && pm.condition == Some(Condition::ControllerLifeAtLeast(7))
+            && pm.on_cast_effect == Some(Box::new(bonus_effect.clone()))
+    };
+    let is_phantom = |pm: &&mtg_engine::PlayFromTopPermission| {
+        pm.source == id
+            && !pm.look_at_top
+            && !pm.reveal_top
+            && !pm.pay_life_instead
+            && pm.condition.is_none()
+            && pm.on_cast_effect.is_none()
+    };
+
+    assert_eq!(
         state
             .play_from_top_permissions()
             .iter()
-            .any(|pm| pm.source == id),
-        "sanity: front StaticPlayFromTop should be registered"
+            .filter(is_real)
+            .count(),
+        1,
+        "sanity: real (non-default) registration present"
+    );
+    assert_eq!(
+        state
+            .play_from_top_permissions()
+            .iter()
+            .filter(is_phantom)
+            .count(),
+        1,
+        "sanity: phantom (all-default) entry present"
     );
 
     transform(&mut state, p1, id);
 
-    assert!(
-        !state
+    assert_eq!(
+        state
             .play_from_top_permissions()
             .iter()
-            .any(|pm| pm.source == id),
-        "the front's StaticPlayFromTop must be deregistered once transformed away \
-         from it (CR 601.3)"
+            .filter(is_real)
+            .count(),
+        0,
+        "the front's StaticPlayFromTop (non-default field values) must be \
+         deregistered once transformed away from it (CR 601.3)"
+    );
+    assert_eq!(
+        state
+            .play_from_top_permissions()
+            .iter()
+            .filter(is_phantom)
+            .count(),
+        1,
+        "the phantom (all-default) entry, which this permanent does NOT declare, \
+         must survive -- the removal predicate must match on every field \
+         (look_at_top/reveal_top/pay_life_instead/condition/on_cast_effect), not \
+         just source/filter"
     );
 }
 

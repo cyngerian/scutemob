@@ -6,14 +6,29 @@
 //! registration later (a new arm in `register_static_continuous_effects`) would
 //! silently reopen the CR 604.1/712.18 static-leak hole this PB closed unless
 //! something forces the two lists to stay in lockstep. This is a source-scan gate
-//! in the SR-5/SR-8/SR-15 style: brace-match each function's body out of its file,
-//! strip comments, collect every `AbilityDefinition::<Name>` token the body names,
-//! and assert the two `BTreeSet<String>`s are equal.
+//! in the SR-5/SR-8/SR-15 style: strip comments from the whole source file FIRST
+//! (so a `//` comment containing a stray `{`/`}` cannot desync the brace count),
+//! THEN brace-match each function's body out of the stripped text, collect every
+//! `AbilityDefinition::<Name>` token the body names, and assert the two
+//! `BTreeSet<String>`s are equal.
 //!
 //! Same proven stripping technique as `bare_lookup_ratchet.rs` (line-comment strip
 //! only) and the same word-boundary token scan as
 //! `tests/core/ability_definition_registry.rs` (so `Static` does not match inside
 //! `StaticRestriction`).
+//!
+//! **Known blind spots** (both accepted as out-of-scope for this gate, not fixed
+//! here — PB-RS4 review finding #6): (1) a family moved out of
+//! `register_static_continuous_effects` into a helper function it calls would drop
+//! out of `registration_families()`'s scan (which only brace-matches the one named
+//! function) without dropping out of `deregistration_families()`'s scan, producing
+//! a false "extra in dereg" failure rather than silently passing — fails loud, not
+//! silent, so this is a false-positive risk rather than a coverage hole. (2) an arm
+//! that merely *names* a family (e.g. a stray comment mentioning
+//! `AbilityDefinition::Foo` inside the body, or a `matches!(..., AbilityDefinition::Foo)`
+//! guard that never actually registers or removes anything) would be counted as
+//! "covered" by this token-presence scan even though no registration/removal logic
+//! exists for it — the gate proves name-set parity, not behavioral parity.
 
 use std::collections::BTreeSet;
 use std::fs;
@@ -24,10 +39,12 @@ fn engine_src(rel: &str) -> String {
     fs::read_to_string(&path).unwrap_or_else(|e| panic!("cannot read {}: {e}", path.display()))
 }
 
-/// Strip `//`-to-end-of-line comments (matches `bare_lookup_ratchet.rs`'s technique
-/// -- sufficient here because every `AbilityDefinition::<Name>` mention inside these
-/// two function bodies that we must NOT count lives in a `///` or `//` comment, and
-/// there are no block comments or string literals naming a variant in either body).
+/// Strip `//`-to-end-of-line comments from the WHOLE source file, before any
+/// brace-matching happens (finding #6 -- matches `bare_lookup_ratchet.rs`'s
+/// technique). Sufficient here because every `AbilityDefinition::<Name>` mention
+/// inside either target function's body that we must NOT count lives in a `///` or
+/// `//` comment, and there are no block comments or string literals naming a
+/// variant in either body.
 fn strip_line_comments(src: &str) -> String {
     src.lines()
         .map(|line| match line.find("//") {
@@ -94,16 +111,19 @@ fn ability_definition_names(code: &str) -> BTreeSet<String> {
 
 fn registration_families() -> BTreeSet<String> {
     let src = engine_src("src/rules/replacement.rs");
-    let body = extract_fn_body(&src, "register_static_continuous_effects");
-    let code = strip_line_comments(&body);
-    ability_definition_names(&code)
+    // Strip comments BEFORE brace-matching (finding #6): a `//` comment containing
+    // a stray `{` or `}` (e.g. an example snippet) would otherwise desync
+    // `extract_fn_body`'s depth count.
+    let stripped = strip_line_comments(&src);
+    let body = extract_fn_body(&stripped, "register_static_continuous_effects");
+    ability_definition_names(&body)
 }
 
 fn deregistration_families() -> BTreeSet<String> {
     let src = engine_src("src/rules/face.rs");
-    let body = extract_fn_body(&src, "remove_one_registration");
-    let code = strip_line_comments(&body);
-    ability_definition_names(&code)
+    let stripped = strip_line_comments(&src);
+    let body = extract_fn_body(&stripped, "remove_one_registration");
+    ability_definition_names(&body)
 }
 
 /// The drift guard: the two family sets must be identical.

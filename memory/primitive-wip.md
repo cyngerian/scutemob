@@ -248,7 +248,153 @@
       reverted the regenerated `docs/authoring-status*` files afterward since
       they only carry a self-dating timestamp/git-head bump, not a substantive
       change, to keep the diff scoped to PB-RS4's actual work.
-- [ ] 9. `primitive-impl-reviewer` pass with every finding dispositioned.
+- [x] 9. `primitive-impl-reviewer` pass with every finding dispositioned. Verdict: needs-fix
+      (0 HIGH, 1 MEDIUM, 11 LOW). `memory/primitives/pb-review-RS4.md`.
+
+## Fix cycle (post-review-9, all 12 findings dispositioned)
+
+primitive-impl-reviewer verdict was needs-fix with 0 HIGH, 1 MEDIUM, 11 LOW — reviewer
+called the correctness core clean and every finding documentation/test-coverage only. All
+12 applied; none declined outright, though Finding 8 was confirmed no-action (matching the
+review's own explicit recommendation) and Finding 4 was seeded rather than fixed (matching
+the review's own explicit "seed, do not fix" directive).
+
+- **Finding 1 (LOW, `rules/face.rs:201` + 2× test file + `replacement.rs:2158` — CR
+  614.16a does not exist)** — APPLIED. Independently confirmed via the rules MCP-backed CR
+  text file (`.scryfall-cache/MagicCompRules.txt`): `614.16` exists and governs
+  token/counter-creation replacement effects, has no `a` subrule, and is unrelated to
+  ETB-trigger suppression. Replaced all four occurrences (`face.rs:201`'s dereg arm,
+  `replacement.rs:2158`'s registration arm, and both mentions in
+  `pb_rs4_face_aware_residuals.rs`, doc comment + assertion message) with `CR 604.1 /
+  603.2` plus an inline note that there is no dedicated CR subrule for the Torpor Orb
+  pattern and that CR 614.16 should not be cited. Did NOT touch the other pre-existing
+  `614.16a` mentions the review did not name (`state/mod.rs:159`, `replacement.rs:1340`/
+  `:1406`, `state/hash.rs:7425`/`:7715`, `tests/rules/etb_trigger_suppression.rs`) — out of
+  the four-occurrence scope the finding's Fix directive specified.
+- **Finding 2 (LOW, `face.rs:13-17` — "nine sibling collections" lists seven)** —
+  APPLIED. Reworded to "seven sibling collections" plus a parenthetical explaining that
+  nine of the ten `AbilityDefinition` families this PB deregisters are non-`Static`, and
+  two of those nine (`CdaPowerToughness`, `CdaModifyPowerToughness`) write into
+  `continuous_effects` alongside `Static` rather than into a collection of their own — so
+  nine families span exactly seven sibling collections plus `continuous_effects`.
+- **Finding 3 (LOW, `replacement.rs:1291-1296` + test file — under-enumerated
+  consumers)** — APPLIED. Rewrote `fire_saga_chapter_triggers`'s doc comment to state
+  "every consumer that resolves a CardDef ability index resolves it against
+  `effective_abilities(obj.is_transformed)`" and listed all eight sites
+  (`resolution.rs:1996`/`:2028`/`:2066`, `sba.rs:889`, `abilities.rs:7004`/`:7082`/
+  `:7210`/`:8379`), naming the SagaChapter-specific ones as examples rather than the
+  complete set. Corrected the same "three consumers" phrase in
+  `test_saga_chapter_trigger_index_matches_effective_face`'s doc comment (the only other
+  place it appeared, per grep). Did not edit `memory/primitive-wip.md`'s own historical
+  step-4 entry — that is a log of what was done at the time, not a live doc claim.
+- **Finding 4 (LOW, `replacement.rs:1291-1326` — residual CR 113.7a index-namespace
+  hazard, contract-level, pre-existing)** — SEEDED, not fixed, per the review's own
+  explicit disposition ("Seed, do not fix"). Filed **OOS-RS4-4** in
+  `memory/primitives/rider-seed-triage-2026-07-19.md` §1c, same row format as OOS-RS4-1/2:
+  a transform between a Saga chapter trigger being queued and it resolving can desync the
+  CardDef-ability-index namespace `fire_saga_chapter_triggers` writes into, contradicting
+  CR 113.7a's "ability exists independently of its source once triggered"; unreachable
+  today (the only roster Saga DFC, `fable_of_the_mirror_breaker`, is `partial` and its own
+  chapter III uses the new-object-producing `ExileSourceAndReturnTransformed`, not an
+  in-place transform); pre-existing PB-OS4b contract, not introduced by PB-RS4. No engine
+  change made.
+- **Finding 5 (LOW→treated as load-bearing, `face.rs:173-187`/`:287-295` — `Static` and
+  `StaticFlashGrant` removal predicates narrower than registration)** — APPLIED. Added
+  `&& !e.is_cda && e.condition == continuous_effect.condition` to the `Static` arm and
+  `&& f.duration == EffectDuration::WhileSourceOnBattlefield` to the `StaticFlashGrant`
+  arm. Added a regression test, `test_static_removal_does_not_match_cda_shaped_entry`:
+  seeds a phantom `is_cda: true` continuous-effect entry (structurally identical to a
+  `Static` ability's own registration in every field except `is_cda`) EARLIER in
+  `state.continuous_effects` than the real `Static` registration, then asserts the real
+  (non-CDA) entry is the one removed on transform and the phantom survives. **Discrimination
+  verified**: temporarily dropped `!e.is_cda` from the `Static` arm's predicate and re-ran
+  — failed with `assertion `left == right` failed: the real (is_cda: false) Static entry
+  must be the one removed on transform` / `left: 1` / `right: 0` (verbatim). Reverted;
+  re-confirmed `test_static_removal_does_not_match_cda_shaped_entry ... ok`.
+- **Finding 6 (LOW, `tests/core/face_dereg_parity.rs:44-70` — brace-matched over
+  un-stripped source)** — APPLIED. Reordered the pipeline in both
+  `registration_families()`/`deregistration_families()` to strip `//` comments from the
+  WHOLE source file FIRST, then brace-match the target function's body out of the
+  already-stripped text (previously: brace-match first, strip second) — so a `//` comment
+  containing a stray `{`/`}` cannot desync `extract_fn_body`'s depth count. Documented both
+  named blind spots (a family moved into a registration helper; an arm that merely
+  *names* a family without removing/registering anything) directly in the module doc,
+  per the finding's Fix directive. Re-ran `registration_and_deregistration_cover_the_same_ability_families`
+  and `parity_scan_is_not_vacuous` — both still pass post-reorder.
+- **Finding 7 (LOW, `face.rs:322` — `pm.on_cast_effect == on_cast_effect.clone()`
+  allocates a clone per comparison)** — APPLIED. Changed to
+  `pm.on_cast_effect == *on_cast_effect` (dereference instead of clone).
+- **Finding 8 (LOW, `replacement.rs:1178-1181` vs `:1240`/`:1260`/`:1278` — SR-4
+  classification internally inconsistent, `fizzle_object` vs `expect_object_mut`)** — NO
+  ACTION, matching the review's own explicit "No action" disposition: the finding itself
+  states `fizzle_object` at the top of the function is the CORRECT SR-4 choice and no fix
+  is required for RS4; the noted asymmetry with the three later `expect_object_mut` reads
+  is flagged only as an optional future follow-up, not a defect this PB introduced or must
+  fix.
+- **Finding 9 (MEDIUM, `pb_rs4_face_aware_residuals.rs:955-1041` + siblings — degenerate
+  per-family probe values can't catch a field-comparison regression)** — APPLIED, and
+  strengthened beyond the finding's literal Fix directive after verification showed the
+  literal directive was insufficient. First applied the directive as written (non-default
+  `look_at_top`/`reveal_top`/`pay_life_instead`/`condition`/`on_cast_effect` on
+  `StaticPlayFromTop`, `Some(condition)` on `StaticPlayFromGraveyard`) and ran the
+  discrimination check the fix-cycle brief requires (temporarily drop a field comparison,
+  confirm failure) — **both tests still PASSED** with the comparison dropped, because with
+  only ONE entry sharing that `source` in the collection, `position()` finds it regardless
+  of which fields the predicate compares; non-default values alone prove the entry was
+  *registered* correctly, not that *removal* discriminates on those fields. Rebuilt both
+  tests around the review's own "optional" negative case (made mandatory here, since it is
+  the only shape that can actually fail): seed a phantom same-source entry with the OLD
+  degenerate/default field values EARLIER in the collection than the real (non-default)
+  registration, then assert the real entry is removed and the phantom survives.
+  **Discrimination verified for both**:
+  - `test_transform_deregisters_play_from_graveyard` — dropped the `condition` comparison
+    from the `StaticPlayFromGraveyard` arm; failed with `assertion `left == right` failed:
+    the front's StaticPlayFromGraveyard (condition: Some(ControllerLifeAtLeast(7))) must be
+    deregistered once transformed away from it (CR 601.3 / 305.1)` / `left: 1` / `right: 0`
+    (verbatim). Reverted; re-confirmed passing.
+  - `test_transform_deregisters_play_from_top` — a single dropped field
+    (`pay_life_instead`) did NOT fail it (the phantom differs on four other fields too, so
+    those remain discriminating on their own); collapsing the whole `StaticPlayFromTop`
+    predicate to `source`/`filter` only (the review's own named regression scenario, "someone
+    simplifies the arm to compare only source and filter") DID fail, with `assertion `left
+    == right` failed: the front's StaticPlayFromTop (non-default field values) must be
+    deregistered once transformed away from it (CR 601.3)` / `left: 1` / `right: 0`
+    (verbatim). Reverted; re-confirmed passing. Noted here rather than silently: an
+    individual-field isolation break was not performed for each of the five
+    `StaticPlayFromTop` fields separately (the phantom-vs-real fixture differs on all five
+    at once, so a single dropped comparison is not guaranteed to be individually
+    load-bearing) — the verified guarantee is against the review's actual named failure
+    mode, not against every possible partial regression.
+- **Finding 10 (LOW, `:542-578` — index-matches test proves face-awareness, not index
+  parity)** — APPLIED. Added `mock_saga_index_parity_back_chapter_def` (front:
+  `SagaChapter{chapter:1}` at index 1; back: a non-`SagaChapter` filler Triggered ability
+  at index 0, `Transform` keyword at index 1, THEN `SagaChapter{chapter:1}` at index 2 —
+  the back's chapter sits at a different position than the front's) and
+  `test_saga_chapter_trigger_index_resolves_to_back_faces_chapter_position`, which asserts
+  the produced `PendingTrigger.ability_index == 2` (the back's real position), not 1 (the
+  front's) or any other value — proving the producer resolves to the correct position, not
+  merely that it detects presence/absence of a `SagaChapter` on the back face.
+- **Finding 11 (LOW, `:800-807` — assertion message wrongly claims `apply_face_change`
+  rewrites base P/T)** — APPLIED. Reworded to "the object's base 2/2 is restored once the
+  CDA is deregistered."
+- **Finding 12 (LOW, `:465-468` — weak/possibly-vacuous `stack_objects().is_empty()`
+  secondary assertion)** — APPLIED. Added a second assertion filtering
+  `state.pending_triggers()` to `source == fable_id`, asserting none are pending for the
+  transformed Fable, in addition to (not replacing) the existing stack-emptiness check.
+
+**Gates re-run after all 12 dispositions**: `cargo build --workspace` clean; `cargo test
+--all` 0 failed across all 29 suites (`primitives` suite: 734 passed, 1 ignored — up from
+732 pre-fix-cycle with the 2 new tests); `cargo clippy --all-targets -- -D warnings` clean;
+`cargo fmt --check` needed one `cargo fmt` pass (the new/rewritten test-file blocks),
+re-verified clean and full suite re-run green after; `tools/check-defs-fmt.sh` clean (1804
+defs, 0 card defs touched, as predicted). **PROTOCOL_VERSION == 27, HASH_SCHEMA_VERSION ==
+63 — both unchanged** (grep-verified against `rules/protocol.rs:260` /
+`state/hash.rs:578`), as expected for a fix cycle that touched only comments, one CR
+citation family, two removal-predicate field lists, and test files.
+
+No finding was declined outright; Finding 4 was seeded per its own explicit directive and
+Finding 8 confirmed no-action per its own explicit directive.
+
 - [ ] 10. Close-out: flip OOS-OS4-2 to fully closed in `CLAUDE.md`,
       `memory/primitives/oos-retriage-plan-2026-07-18.md`,
       `memory/primitives/rider-seed-triage-2026-07-19.md` §5 banner, and

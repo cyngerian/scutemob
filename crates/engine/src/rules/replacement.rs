@@ -1289,11 +1289,16 @@ pub fn apply_self_etb_from_definition(
 /// Chapters that trigger are those where `old_count < chapter && new_count >= chapter`.
 ///
 /// CR 712.8d/e (PB-RS4): `ability_index` is a dense index into the currently-visible
-/// face's *effective* ability list — the same namespace the three consumers use
-/// (`resolution.rs:1996`/`:2028`, `sba.rs:889`). The face signal is read live from
-/// `saga_id`'s `is_transformed` flag (not threaded as a parameter): this fn is `pub`
-/// and called from `turn_actions.rs` and directly from tests, and every existing
-/// caller already holds a live, up-to-date object at call time.
+/// face's *effective* ability list — the same namespace every consumer that resolves
+/// a CardDef ability index resolves it against (`effective_abilities(obj.is_transformed)`).
+/// That is eight sites in the tree, not just the SagaChapter-specific ones: e.g.
+/// `resolution.rs:1996`/`:2028` (SagaChapter effect lookup), `resolution.rs:2066`
+/// (modal-trigger `modes` lookup), `sba.rs:889` (CR 714.4 "chapter still on the
+/// stack" guard), `abilities.rs:7004`/`:7082`/`:7210`/`:8379` (`once_per_turn`,
+/// `has_ability_targets`, `ability_targets`, flush-time lookup). The face signal is
+/// read live from `saga_id`'s `is_transformed` flag (not threaded as a parameter):
+/// this fn is `pub` and called from `turn_actions.rs` and directly from tests, and
+/// every existing caller already holds a live, up-to-date object at call time.
 pub fn fire_saga_chapter_triggers(
     state: &mut GameState,
     saga_id: ObjectId,
@@ -2155,7 +2160,10 @@ pub fn register_static_continuous_effects(
                         additional_triggers: *additional_triggers,
                     });
             }
-            // CR 614.16a: Register a Torpor Orb-style ETB trigger suppressor.
+            // CR 604.1 / 603.2: Register a Torpor Orb-style ETB trigger suppressor
+            // (no dedicated CR subrule for this pattern; CR 614.16 governs
+            // token/counter-creation replacement effects, not ETB-trigger
+            // suppression -- do not cite it, see face.rs's deregistration arm).
             AbilityDefinition::SuppressCreatureETBTriggers { filter } => {
                 state
                     .etb_suppressors

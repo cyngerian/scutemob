@@ -10,12 +10,17 @@
 //!   vectors, lowered once at object construction by
 //!   `testing::replay_harness::build_face_ability_vectors` and otherwise read directly
 //!   (bypassing the layer system) by activation/trigger dispatch.
-//! - **Channel B** -- static registrations (`state.continuous_effects` and the nine
+//! - **Channel B** -- static registrations (`state.continuous_effects` and the seven
 //!   sibling collections `register_static_continuous_effects` also writes --
 //!   `trigger_doublers`, `etb_suppressors`, `restrictions`,
 //!   `additional_land_play_sources`, `flash_grants`,
 //!   `play_from_graveyard_permissions`, `play_from_top_permissions`), registered
-//!   once at ETB and never automatically re-derived on transform.
+//!   once at ETB and never automatically re-derived on transform. (Nine of the ten
+//!   `AbilityDefinition` families this PB deregisters are non-`Static`; two of those
+//!   nine -- `CdaPowerToughness`, `CdaModifyPowerToughness` -- write into
+//!   `continuous_effects` alongside `Static` rather than into a collection of their
+//!   own, so nine families span exactly these seven sibling collections plus
+//!   `continuous_effects`.)
 //!
 //! [`apply_face_change`] is the single choke point that keeps both channels correct:
 //! deregister the OLD face's statics, flip `is_transformed`, rebuild the Channel-A
@@ -177,10 +182,12 @@ fn remove_one_registration(state: &mut GameState, obj_id: ObjectId, ability: &Ab
             };
             if let Some(pos) = state.continuous_effects.iter().position(|e| {
                 e.source == Some(obj_id)
+                    && !e.is_cda
                     && e.layer == continuous_effect.layer
                     && e.duration == continuous_effect.duration
                     && e.modification == continuous_effect.modification
                     && e.filter == resolved_filter
+                    && e.condition == continuous_effect.condition
             }) {
                 state.continuous_effects.remove(pos);
             }
@@ -198,7 +205,11 @@ fn remove_one_registration(state: &mut GameState, obj_id: ObjectId, ability: &Ab
                 state.trigger_doublers.remove(pos);
             }
         }
-        // CR 614.16a: a Torpor Orb-style ETB trigger suppressor.
+        // CR 604.1 / 603.2: a Torpor Orb-style ETB trigger suppressor -- a static
+        // ability generating a continuous effect that stops creature-ETB abilities
+        // from triggering. There is no dedicated CR subrule for this pattern (CR
+        // 614.16 exists but governs token/counter-creation replacement effects, not
+        // ETB-trigger suppression -- confirmed via the rules MCP; do not cite it).
         AbilityDefinition::SuppressCreatureETBTriggers { filter } => {
             if let Some(pos) = state
                 .etb_suppressors
@@ -285,11 +296,12 @@ fn remove_one_registration(state: &mut GameState, obj_id: ObjectId, ability: &Ab
         }
         // CR 601.3b: a static flash grant (Yeva-style).
         AbilityDefinition::StaticFlashGrant { filter } => {
-            if let Some(pos) = state
-                .flash_grants
-                .iter()
-                .position(|f| f.source == Some(obj_id) && f.filter == *filter)
-            {
+            if let Some(pos) = state.flash_grants.iter().position(|f| {
+                f.source == Some(obj_id)
+                    && f.filter == *filter
+                    && f.duration
+                        == crate::state::continuous_effect::EffectDuration::WhileSourceOnBattlefield
+            }) {
                 state.flash_grants.remove(pos);
             }
         }
@@ -319,7 +331,7 @@ fn remove_one_registration(state: &mut GameState, obj_id: ObjectId, ability: &Ab
                     && pm.reveal_top == *reveal_top
                     && pm.pay_life_instead == *pay_life_instead
                     && pm.condition == condition.as_ref().map(|c| *c.clone())
-                    && pm.on_cast_effect == on_cast_effect.clone()
+                    && pm.on_cast_effect == *on_cast_effect
             }) {
                 state.play_from_top_permissions.remove(pos);
             }
