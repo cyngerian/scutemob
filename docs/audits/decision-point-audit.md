@@ -11,7 +11,7 @@ carries the player's answer.
 test change. The only files this task writes are this document and its index line in
 [README.md](README.md).
 **Motivation**: the 2026-07-26 finding that triggered-ability targets are auto-selected
-engine-side (`abilities.rs:7174-7500`, proposed seed OOS-M11-3), plus M11-local building a
+engine-side (`abilities.rs:7174-7500`, proposed seed OOS-M11-4; renumbered from OOS-M11-3 at collection — scutemob-147 independently claimed OOS-M11-3 for fuzzer long-game nondeterminism), plus M11-local building a
 human-input game loop whose decision surface must be known to be complete before the loop is
 designed around it.
 
@@ -435,7 +435,7 @@ core-reachable set is §3.2's six.
 
 | id | class | finding | CR | `Complete` defs | site |
 |---|---|---|---|---:|---|
-| **DP-6** | B | Triggered-ability targets auto-selected by first-match (**OOS-M11-3**) | 603.3d | **84** | `rules/abilities.rs:7174-7500` |
+| **DP-6** | B | Triggered-ability targets auto-selected by first-match (**OOS-M11-4**) | 603.3d | **84** | `rules/abilities.rs:7174-7500` |
 | **DP-7** | B | Library search picks the lowest `ObjectId` — every tutor fetches for you | 701.23 | **74** | `effects/mod.rs:3032` |
 | **DP-8** | B | Scry sends **all** cards to the bottom; "keep on top" is unreachable | 701.22a | 16 | `effects/mod.rs:3089-3098` |
 | **DP-9** | B | Surveil sends **all** cards to the graveyard; Surveil N ≡ Mill N | 701.25a | 8 | `effects/mod.rs:3123-3130` |
@@ -531,7 +531,7 @@ authoritative — `solve_mana_payment` returns a `Vec<Command>` of real `TapForM
 in the primitive queue, which is for engine correctness. Recommended rank: below every class-D
 finding in §5.
 
-### OOS-M11-3 — triggered-ability targets: **CONFIRMED; reclassify B, not D**
+### OOS-M11-4 (né OOS-M11-3; renumbered — ID taken by scutemob-147's fuzzer-nondeterminism seed) — triggered-ability targets: **CONFIRMED; reclassify B, not D**
 
 Verified at `rules/abilities.rs:7174-7500`. The fallback is **CR 603.3d-compliant**: it uses
 layer-resolved characteristics (`layers::expect_characteristics`, `:7434`), honours
@@ -564,7 +564,7 @@ Ordered correctness-first, matching the RS queue's own convention that a live-wr
 | **PB-DP5** | **DP-5** — `WouldDraw` pending-choice state | **HASH bump** (new `GameState` field); no new `Command` if it reuses `OrderReplacements` | The engine currently asks a question it cannot accept an answer to and silently eats a draw |
 | **PB-DP6** | **DP-15** — intervening-if at queue time (CR 603.4) | **none** | Already accepted as a known limitation in the defs; closing it retires a whole class of def-level caveats |
 | **PB-DP7** | **DP-3** — cleanup discard hook (CR 514.1) | **new `Command` ⇒ PROTOCOL bump** | The first finding that needs new wire surface. Smallest possible pilot for the pending-decision pattern: one player, one list, one moment |
-| **PB-DP8** | **DP-6 / OOS-M11-3** — trigger-target hook (CR 603.3d) | **new `Command` + pending state ⇒ PROTOCOL + HASH bump** | The big one: 84 `Complete` defs. Should follow PB-DP7 so the pending-decision shape is already proven |
+| **PB-DP8** | **DP-6 / OOS-M11-4** — trigger-target hook (CR 603.3d) | **new `Command` + pending state ⇒ PROTOCOL + HASH bump** | The big one: 84 `Complete` defs. Should follow PB-DP7 so the pending-decision shape is already proven |
 | **PB-DP9** | **DP-7 / DP-8 / DP-9** — search, scry, surveil hooks | **new `Command`(s)** | 98 `Complete` defs between them. Scry and surveil are the two whose auto-choice actively inverts the printed mechanic |
 | **PB-DP10** | **gate widening** — extend `effect_choose_gate.rs` beyond its three variants, or add a `Completeness` marker distinguishing "correct" from "correct only if the engine's guess matches the player's" | none (test-only) | Without it, the 277-def figure in §3.1 grows silently with every new card. This is the invariant-level fix; the rest are instances |
 
