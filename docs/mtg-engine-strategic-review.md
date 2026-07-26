@@ -74,8 +74,15 @@ This could be the M10 server and M11 UI in a single crate.
 - Buildable on the current dev environment
 - Faster iteration (no Tauri rebuild cycle)
 
-**Decision required**: This is a significant architectural pivot. The user should decide
-whether to pursue web-only, Tauri-only, or web-first-then-Tauri.
+**Decision (2026-07-26, user) — WEB-FIRST**: extend the axum + Svelte 5 replay-viewer stack.
+Tauri v2 remains a later *packaging wrapper* option, not a parallel UI framework. Recorded in
+`memory/decisions.md`; applied to `docs/mtg-engine-roadmap.md` (M11-local).
+
+> **Correction to this finding's premise**: "the Tauri app cannot build on the current dev
+> environment (headless Debian)" is **stale** — development moved to a full desktop
+> (skylarch) and Tauri builds fine there. The web-first call was made on *iteration speed*
+> and *single-stack* grounds, not on the environment constraint. The rest of the finding
+> stands.
 
 **Files to update** (if web-first chosen):
 - `docs/mtg-engine-architecture.md` — update Section 1 system architecture diagram
@@ -238,14 +245,16 @@ Transform/Morph and type consolidation are complete — M10a/M11-local are ready
 
 ## Action Items
 
-| # | Action | Priority | Blocks |
-|---|--------|----------|--------|
-| 1 | Commit outstanding working tree changes | Immediate | Clean baseline |
-| 2 | Update roadmap: decouple M11 from M10 | High | M11 start |
-| 3 | Update roadmap: split M10 into M10a/M10b | High | M10 planning |
-| 4 | Update roadmap: downscope M12 | Medium | M12 planning |
-| 5 | Record decisions in `memory/decisions.md` | High | Future sessions |
-| 6 | Decide: web-first vs Tauri-first vs both | High | M11 architecture |
-| 7 | ~~Schedule Transform/Morph in ability plan~~ DONE | Medium | 9 ability batches |
-| 8 | Update CLAUDE.md current state and milestone | Medium | Session orientation |
-| 9 | Update workstream-coordination.md | Medium | Parallel work |
+All nine are now closed (the last five on 2026-07-26, `scutemob-147`).
+
+| # | Action | Priority | Blocks | Status |
+|---|--------|----------|--------|--------|
+| 1 | Commit outstanding working tree changes | Immediate | Clean baseline | ✅ DONE (2026-03-07) |
+| 2 | Update roadmap: decouple M11 from M10 | High | M11 start | ✅ DONE 2026-07-26 — M11 is now **M11-local**, dependencies are M9 + M9.5 only |
+| 3 | Update roadmap: split M10 into M10a/M10b | High | M10 planning | ✅ DONE 2026-07-26 — plus an M10-pre engine-correctness block |
+| 4 | Update roadmap: downscope M12 | Medium | M12 planning | ✅ DONE 2026-07-26 — pipeline crate cancelled; continuous agent-authoring track; original design kept in a collapsed HISTORICAL block |
+| 5 | Record decisions in `memory/decisions.md` | High | Future sessions | ✅ DONE 2026-07-26 (commit `f50eabba`) |
+| 6 | Decide: web-first vs Tauri-first vs both | High | M11 architecture | ✅ DONE 2026-07-26 — **web-first**, see Finding 2 above |
+| 7 | ~~Schedule Transform/Morph in ability plan~~ | Medium | 9 ability batches | ✅ DONE (2026-03-08) |
+| 8 | Update CLAUDE.md current state and milestone | Medium | Session orientation | ✅ DONE 2026-07-26 — Current State shows M11-local ACTIVE (web-first) |
+| 9 | Update workstream-coordination.md | Medium | Parallel work | ✅ N/A — that doc was retired 2026-03-08 (the W1–W6 model is historical); work selection now lives in CLAUDE.md → Current State |
