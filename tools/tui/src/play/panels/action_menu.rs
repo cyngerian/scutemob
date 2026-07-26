@@ -141,6 +141,13 @@ fn build_normal_actions(app: &PlayApp) -> Line<'static> {
         _ => None,
     });
 
+    // CR 603.3d (PB-DP8 / DP-6): same shape as the cleanup discard above --
+    // while a trigger-target announcement blocks the game, every other `has_*`
+    // probe comes back empty and `[p]ass` is rejected by the admission gate.
+    let trigger_targets = legal
+        .iter()
+        .any(|a| matches!(a, LegalAction::ChooseTriggerTargets { .. }));
+
     let mut spans: Vec<Span<'static>> = vec![Span::raw(" ")];
 
     if let Some(count) = discard {
@@ -150,6 +157,12 @@ fn build_normal_actions(app: &PlayApp) -> Line<'static> {
         spans.push(Span::raw(format!(
             "iscard {count} to hand size (CR 514.1) "
         )));
+    } else if trigger_targets {
+        // Blocked on a CR 603.3d announcement: CR 603.3 grants priority only
+        // once the whole CR 603.3b batch is on the stack, so `[p]ass` is not a
+        // legal move here either.
+        spans.push(Span::styled("[n]", Style::default().fg(Color::Yellow)));
+        spans.push(Span::raw("announce trigger targets (CR 603.3d) "));
     } else {
         // Always show pass and quit
         spans.push(Span::styled("[p]", Style::default().fg(Color::Cyan)));

@@ -634,6 +634,13 @@ fn format_event(event: &GameEvent, state: &GameState) -> String {
                 player.0, count
             )
         }
+        GameEvent::TriggerTargetChoiceRequired { player, slots, .. } => {
+            format!(
+                "P{} must announce {} trigger target slot(s) (CR 603.3d) — press 'n'",
+                player.0,
+                slots.len()
+            )
+        }
         _ => String::new(), // Skip verbose events
     }
 }

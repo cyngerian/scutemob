@@ -761,3 +761,289 @@ fn test_dp7_local_game_bot_seat_auto_answers() {
         "the journal must record at least one DiscardToHandSize command"
     );
 }
+
+// ── PB-DP8 / DP-6 (CR 603.3d): T16/T17/T18 — trigger targets reach LocalGame ──
+
+/// A 2-player un-started `GameState` where P1 controls an enchantment whose
+/// triggered ability declares one `TargetCreature` slot, plus TWO legal creature
+/// targets, and one `PendingTrigger` already queued for it.
+///
+/// Queuing the `PendingTrigger` directly (rather than staging a real ETB) is the
+/// deterministic route to the CR 603.3d pause: `LocalGame` drives whole turns, and
+/// the first thing that flushes pending triggers puts the announcement in front of
+/// the acting seat. Two creatures means two legal choices, so CR 601.2c's
+/// forced-choice narrowing does NOT apply and the engine must ask.
+fn state_with_pending_targeted_trigger() -> (GameState, ObjectId) {
+    use mtg_engine::cards::card_definition::TargetRequirement;
+    use mtg_engine::state::stubs::{PendingTrigger, PendingTriggerKind};
+    use mtg_engine::{CardEffectTarget, Effect, EffectAmount, TriggerEvent, TriggeredAbilityDef};
+
+    let zapper = ObjectSpec::enchantment(PlayerId(1), "DP8 Zapper").with_triggered_ability(
+        TriggeredAbilityDef {
+            trigger_on: TriggerEvent::AnyPermanentEntersBattlefield,
+            intervening_if: None,
+            description: "PB-DP8 fixture: deal 2 damage to the declared target".to_string(),
+            effect: Some(Effect::DealDamage {
+                source: None,
+                target: CardEffectTarget::DeclaredTarget { index: 0 },
+                amount: EffectAmount::Fixed(2),
+            }),
+            etb_filter: None,
+            death_filter: None,
+            combat_damage_filter: None,
+            triggering_creature_filter: None,
+            targets: vec![TargetRequirement::TargetCreature],
+            counter_filter: None,
+            counter_on_self: false,
+            once_per_turn: false,
+        },
+    );
+
+    let mut state = GameStateBuilder::new()
+        .add_player(PlayerId(1))
+        .add_player(PlayerId(2))
+        .active_player(PlayerId(1))
+        .object(zapper)
+        .object(ObjectSpec::creature(PlayerId(1), "Target A", 2, 2))
+        .object(ObjectSpec::creature(PlayerId(1), "Target B", 2, 2))
+        .build()
+        .expect("PB-DP8 fixture should build");
+
+    let zapper_id = state
+        .objects()
+        .iter()
+        .find(|(_, o)| o.characteristics.name == "DP8 Zapper")
+        .map(|(id, _)| *id)
+        .expect("zapper must exist");
+
+    state
+        .pending_triggers_mut()
+        .push_back(PendingTrigger::blank(
+            zapper_id,
+            PlayerId(1),
+            PendingTriggerKind::Normal,
+        ));
+    (state, zapper_id)
+}
+
+/// T16: CR 603.3d reaches `LocalGame` as its OWN `DecisionKind`.
+///
+/// The `kind == TriggerTargets` assertion is the point: before PB-DP8,
+/// `advance()`'s acting-player chain hard-coded `DecisionKind::CleanupDiscard`
+/// for every `BlockingDecision`, so a browser client would have been handed the
+/// wrong picker. Also re-pins S1's idempotence guard, the foreign-seat rejection
+/// and the stale-`seq` rejection against the new decision class.
+#[test]
+fn test_dp8_local_game_awaits_human_on_trigger_targets() {
+    let (state, _zapper) = state_with_pending_targeted_trigger();
+    let human_seats: BTreeSet<PlayerId> = [PlayerId(1)].into_iter().collect();
+    let mut bots: HashMap<PlayerId, Box<dyn Bot>> = HashMap::new();
+    bots.insert(
+        PlayerId(2),
+        Box::new(RandomBot::new(1, "Bot-2".to_string())),
+    );
+    let (mut game, _start_events) = LocalGame::start(
+        state,
+        1,
+        StubProvider,
+        bots,
+        human_seats,
+        small_limits(20),
+        true,
+    )
+    .expect("game should start");
+
+    let decision = loop {
+        match game.advance() {
+            AdvanceOutcome::AwaitingHuman(d) if d.kind == DecisionKind::TriggerTargets => break d,
+            AdvanceOutcome::AwaitingHuman(d) => {
+                game.submit(
+                    d.seq,
+                    HumanChoice::Command(Command::PassPriority { player: d.player }),
+                )
+                .unwrap_or_else(|e| panic!("PassPriority submit failed: {:?}", e));
+            }
+            other => panic!("expected to reach TriggerTargets, got {:?}", other),
+        }
+    };
+
+    assert_eq!(decision.player, PlayerId(1), "CR 603.3a: the controller");
+    assert_eq!(
+        decision.actions.len(),
+        1,
+        "exactly one action is legal while the CR 603.3b batch is suspended"
+    );
+    let (choice_id, targets) = match &decision.actions[0] {
+        LegalAction::ChooseTriggerTargets {
+            choice_id,
+            slots,
+            targets,
+            ..
+        } => {
+            assert_eq!(slots.len(), 1, "one TargetCreature slot");
+            assert_eq!(
+                slots[0].candidates.len(),
+                2,
+                "CR 601.2c: both creatures are legal choices"
+            );
+            assert_eq!(targets.len(), slots.len());
+            (*choice_id, targets.clone())
+        }
+        other => panic!("expected ChooseTriggerTargets, got {:?}", other),
+    };
+
+    // S1 idempotence: a second advance() returns the SAME seq.
+    match game.advance() {
+        AdvanceOutcome::AwaitingHuman(d2) => assert_eq!(d2.seq, decision.seq),
+        other => panic!("expected the same AwaitingHuman again, got {:?}", other),
+    }
+
+    // A command naming another seat -> BadParams.
+    let wrong_seat = game.submit(
+        decision.seq,
+        HumanChoice::Command(Command::ChooseTriggerTargets {
+            player: PlayerId(2),
+            choice_id,
+            targets: targets.clone(),
+        }),
+    );
+    assert!(matches!(wrong_seat, Err(LocalGameError::BadParams(_))));
+
+    // A stale seq -> StaleDecision.
+    let stale = game.submit(
+        decision.seq + 100,
+        HumanChoice::Command(Command::ChooseTriggerTargets {
+            player: PlayerId(1),
+            choice_id,
+            targets: targets.clone(),
+        }),
+    );
+    assert!(matches!(stale, Err(LocalGameError::StaleDecision { .. })));
+
+    // The correct answer is accepted.
+    let ok = game.submit(
+        decision.seq,
+        HumanChoice::Command(Command::ChooseTriggerTargets {
+            player: PlayerId(1),
+            choice_id,
+            targets,
+        }),
+    );
+    assert!(ok.is_ok(), "SR-38: {:?}", ok.err());
+}
+
+/// T17: a bot-only game never halts on a CR 603.3d announcement.
+///
+/// This is the guard against `driver.rs`'s `unreachable!()`: a provider gap on a
+/// blocking decision turns a recoverable state into a dead game
+/// (`Halted(EngineError)` via the `PassPriority` fallback, OOS-DP7-12).
+#[test]
+fn test_dp8_bot_game_never_halts_on_a_trigger_target() {
+    let (state, _zapper) = state_with_pending_targeted_trigger();
+    let mut bots: HashMap<PlayerId, Box<dyn Bot>> = HashMap::new();
+    bots.insert(
+        PlayerId(1),
+        Box::new(RandomBot::new(1, "Bot-1".to_string())),
+    );
+    bots.insert(
+        PlayerId(2),
+        Box::new(RandomBot::new(2, "Bot-2".to_string())),
+    );
+    let (mut game, _start_events) = LocalGame::start(
+        state,
+        7,
+        StubProvider,
+        bots,
+        BTreeSet::new(),
+        small_limits(60),
+        true,
+    )
+    .expect("game should start");
+
+    // `advance()` runs bot seats until a terminal outcome, so one call suffices;
+    // the assertion is that the outcome is never `AwaitingHuman` and never an
+    // engine error.
+    match game.advance() {
+        AdvanceOutcome::AwaitingHuman(d) => {
+            panic!("a bot-only game must never await a human: {:?}", d)
+        }
+        AdvanceOutcome::Halted(HaltReason::EngineError(e)) => {
+            panic!("bot game halted on an engine error: {e}")
+        }
+        AdvanceOutcome::Halted(_) | AdvanceOutcome::GameOver { .. } => {}
+    }
+
+    let answered = game
+        .journal()
+        .iter()
+        .filter(|r| matches!(r.command, Command::ChooseTriggerTargets { .. }))
+        .count();
+    assert!(
+        answered >= 1,
+        "the bot must have answered the CR 603.3d announcement at least once"
+    );
+}
+
+/// T18: SR-38 — while a CR 603.3d announcement is outstanding, `StubProvider`
+/// offers the blocked player exactly one action and every other player none, and
+/// the offered default is ACCEPTED by `process_command`.
+#[test]
+fn test_dp8_stub_provider_offers_only_the_answer() {
+    use mtg_engine::process_command;
+    use mtg_simulator::LegalActionProvider;
+
+    let (state, _zapper) = state_with_pending_targeted_trigger();
+    // Flush the trigger through the engine so the announcement is outstanding.
+    // `pending_triggers` are flushed on step entry (CR 603.3), so pass priority
+    // around until the step advances and the flush suspends.
+    let mut state = state;
+    for _ in 0..8 {
+        if state.blocking_decision().is_some() {
+            break;
+        }
+        let holder = state
+            .turn()
+            .priority_holder
+            .unwrap_or(state.turn().active_player);
+        let (s, _events) =
+            process_command(state, Command::PassPriority { player: holder }).unwrap();
+        state = s;
+    }
+    assert!(
+        state.blocking_decision().is_some(),
+        "the fixture must reach a CR 603.3d announcement"
+    );
+
+    let p1_actions = StubProvider.legal_actions(&state, PlayerId(1));
+    let p2_actions = StubProvider.legal_actions(&state, PlayerId(2));
+    assert_eq!(p1_actions.len(), 1);
+    assert!(
+        p2_actions.is_empty(),
+        "no other seat may act while the batch is suspended"
+    );
+
+    let (choice_id, targets, slots) = match &p1_actions[0] {
+        LegalAction::ChooseTriggerTargets {
+            choice_id,
+            targets,
+            slots,
+            ..
+        } => (*choice_id, targets.clone(), slots.clone()),
+        other => panic!("expected ChooseTriggerTargets, got {:?}", other),
+    };
+    assert_eq!(targets.len(), slots.len());
+
+    let accepted = process_command(
+        state,
+        Command::ChooseTriggerTargets {
+            player: PlayerId(1),
+            choice_id,
+            targets,
+        },
+    );
+    assert!(
+        accepted.is_ok(),
+        "SR-38: the engine must accept the action its own provider offered: {:?}",
+        accepted.err()
+    );
+}

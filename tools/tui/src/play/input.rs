@@ -61,6 +61,35 @@ fn handle_normal_mode(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result<()> {
             }
         }
 
+        // CR 603.3d / CR 601.2c (PB-DP8 / DP-6): announce the targets of a
+        // triggered ability being put on the stack.
+        // `LegalAction::ChooseTriggerTargets::targets` is the deterministic
+        // default (`abilities::default_trigger_targets`), so a human seat can
+        // clear the block with a single key. A real per-slot picker is
+        // M11-local Session 7 (seed OOS-DP8-2) -- this is the minimum viable
+        // answer that keeps the game from hanging.
+        //
+        // NOTE the key is 'n' (a[n]nounce, CR 601.2c), not the plan's 't':
+        // 't' is already bound to "tap for mana" above and 'g' to the
+        // graveyard browser.
+        KeyCode::Char('n') => {
+            if let Some(LegalAction::ChooseTriggerTargets {
+                choice_id, targets, ..
+            }) = legal
+                .iter()
+                .find(|a| matches!(a, LegalAction::ChooseTriggerTargets { .. }))
+            {
+                let cmd = Command::ChooseTriggerTargets {
+                    player: app.human_player,
+                    choice_id: *choice_id,
+                    targets: targets.clone(),
+                };
+                app.execute_command(cmd)?;
+            } else {
+                app.status_message = Some("No trigger-target choice is pending".into());
+            }
+        }
+
         // Play selected land — only if legal
         KeyCode::Char('l') => {
             let hand = app.hand_objects();

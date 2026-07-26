@@ -291,7 +291,8 @@ pub const PROTOCOL_VERSION: u32 = 29;
 /// variant, or adding `#[serde(skip)]` all move it, but redefining what an
 /// existing `u32` *means* does not. Semantic changes still require a manual
 /// [`PROTOCOL_VERSION`] bump.
-pub const PROTOCOL_SCHEMA_FINGERPRINT: &str = "afdb3aebb512568b22879d5f1df6e4659378edb40a2d02e16f11f475a7bd7d48";
+pub const PROTOCOL_SCHEMA_FINGERPRINT: &str =
+    "afdb3aebb512568b22879d5f1df6e4659378edb40a2d02e16f11f475a7bd7d48";
 
 /// One `(version, fingerprint)` row of the append-only protocol-schema history.
 ///

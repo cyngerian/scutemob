@@ -351,7 +351,9 @@ fn parse_hybrid_choices(names: &[String]) -> Option<Vec<HybridManaPayment>> {
 /// rejection -- which would mean the default the engine itself supplied is not
 /// accepted by the engine, i.e. an SR-38 violation -- the pre-command state is
 /// returned and a `debug_assert` fires.
-pub fn auto_answer_blocking_decisions(state: GameState) -> (GameState, Vec<crate::rules::GameEvent>) {
+pub fn auto_answer_blocking_decisions(
+    state: GameState,
+) -> (GameState, Vec<crate::rules::GameEvent>) {
     use crate::rules::engine::BlockingDecision;
     const MAX_ROUNDS: usize = 256;
     let mut state = state;
