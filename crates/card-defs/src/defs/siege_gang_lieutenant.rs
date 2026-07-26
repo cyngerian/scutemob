@@ -15,13 +15,9 @@
 // pre-existing emblem-only scan), so this ability fires. Flipped to Complete. The
 // {2}, Sacrifice a Goblin activated ability is unaffected and remains fully functional.
 //
-// Accepted engine-wide limitation (F3, `memory/card-authoring/review-pb-rs3-roster.md`):
-// `intervening_if` is checked only at resolution (resolution.rs:2125-2135), never at
-// queue time, though CR 603.4 requires both. See loyal_apprentice.rs's top-of-file
-// comment for the full account -- a pre-existing convention, engine-wide across the
-// card-def trigger sweeps (documented at the upkeep sweep, turn_actions.rs:265-266),
-// not a defect specific to this card. Filed as a seed (rider-seed-triage-2026-07-19.md)
-// rather than blocking this flip.
+// PB-DP6 (`scutemob-154`): queue-time gate added (CR 603.4's other half); both
+// halves of CR 603.4 now hold. See loyal_apprentice.rs's top-of-file comment for
+// the full account of the divergent case this closes.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {

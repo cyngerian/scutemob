@@ -818,13 +818,14 @@ fn fire_mana_triggered_abilities(
             .iter()
             .enumerate()
         {
-            let (source_filter, effect, targets) = match ability {
+            let (source_filter, effect, targets, intervening_if) = match ability {
                 AbilityDefinition::Triggered {
                     trigger_condition: TriggerCondition::WhenTappedForMana { source_filter },
                     effect,
                     targets,
+                    intervening_if,
                     ..
-                } => (source_filter, effect, targets),
+                } => (source_filter, effect, targets, intervening_if),
                 _ => continue,
             };
             // Check if the tapped source matches the filter.
@@ -834,6 +835,20 @@ fn fire_mana_triggered_abilities(
                 trigger_source_id,
                 source_filter,
                 source_pre_cost_chars,
+            ) {
+                continue;
+            }
+            // CR 603.4 (PB-DP6, sites A6/A6b): gate BEFORE the immediate-resolution
+            // vs. stack split below, so a triggered *mana* ability (CR 605.4a, which
+            // never uses the stack) and a targeted/non-mana ability both respect the
+            // same intervening-if. `player` is the tapper, which is the trigger
+            // source's controller on this path (the `battlefield_ids` scan above
+            // filters `o.controller == player`).
+            if !super::abilities::carddef_intervening_if_holds_at_queue_time(
+                state,
+                intervening_if.as_ref(),
+                player,
+                trigger_source_id,
             ) {
                 continue;
             }

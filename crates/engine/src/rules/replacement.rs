@@ -1826,16 +1826,22 @@ pub fn queue_carddef_etb_triggers(
                 intervening_if,
                 ..
             } => {
-                // CR 603.4: Check intervening-if condition at trigger time.
-                // Delegate to the shared check_condition function in effects/mod.rs,
-                // which handles all Condition variants correctly (MR-B12-07/08 fix:
-                // eliminates the inline duplicate that only handled OpponentHasPoisonCounters
-                // and silently passed all other Condition variants via `_ => true`).
-                if let Some(cond) = intervening_if {
-                    let ctx = crate::effects::EffectContext::new(controller, new_id, vec![]);
-                    if !crate::effects::check_condition(state, cond, &ctx) {
-                        continue;
-                    }
+                // CR 603.4 (PB-DP6, scutemob-154): check intervening-if at trigger
+                // time via the shared queue-time helper (MR-B12-07/08 fixed the
+                // original inline duplicate that only handled OpponentHasPoisonCounters
+                // and silently passed all other Condition variants via `_ => true`;
+                // PB-DP6 additionally repairs the `EffectContext` this site built --
+                // `EffectContext::new` zero-filled `kicker_times_paid`/`x_value`, so
+                // `WasKicked`/`XValueAtLeast` were unconditionally false here even
+                // though the entering object's fields were set well before this
+                // point in resolution -- see the helper's doc comment).
+                if !crate::rules::abilities::carddef_intervening_if_holds_at_queue_time(
+                    state,
+                    intervening_if.as_ref(),
+                    controller,
+                    new_id,
+                ) {
+                    continue;
                 }
                 // CR 603.3: Queue as PendingTrigger; flush_pending_triggers places it on the stack.
                 // Use PendingTriggerKind::CardDefETB so resolution looks up the effect from
@@ -1854,14 +1860,24 @@ pub fn queue_carddef_etb_triggers(
                     ..PendingTrigger::blank(new_id, controller, PendingTriggerKind::CardDefETB)
                 });
             }
-            #[allow(clippy::collapsible_match)]
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::TributeNotPaid,
+                intervening_if,
                 ..
             } => {
                 // CR 702.104b: "When ~ enters, if tribute wasn't paid, ..."
-                // CR 603.4: Intervening-if — only queue trigger if tribute was not paid.
-                if !tribute_was_paid {
+                // CR 603.4: Intervening-if — only queue trigger if tribute was not
+                // paid AND (PB-DP6) the def's own `intervening_if`, if any, also
+                // holds at queue time. Neither check alone is sufficient; both must
+                // pass for the trigger to be queued.
+                if !tribute_was_paid
+                    && crate::rules::abilities::carddef_intervening_if_holds_at_queue_time(
+                        state,
+                        intervening_if.as_ref(),
+                        controller,
+                        new_id,
+                    )
+                {
                     state.pending_triggers.push_back(PendingTrigger {
                         ability_index: idx,
                         triggering_event: Some(

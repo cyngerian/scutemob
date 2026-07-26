@@ -9331,6 +9331,88 @@ pub fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectCon
         },
     }
 }
+/// CR 603.4: can this condition be evaluated faithfully at the moment the trigger
+/// event occurs, i.e. before the ability is put on the stack and before targets or
+/// cast-time flags are available on an `EffectContext`?
+///
+/// `false` means "the engine cannot answer honestly here" — NOT "the condition is
+/// false". Callers must treat `false` as *do not suppress the trigger* (PB-DP6 hard
+/// constraint 3: wrongly suppressing a trigger is worse than over-firing).
+///
+/// EXHAUSTIVE ON PURPOSE — no `_` arm. A new `Condition` variant must be classified
+/// here before it compiles (the SR-5 idiom).
+pub fn condition_is_queue_time_evaluable(cond: &Condition) -> bool {
+    match cond {
+        // `ctx.targets` is empty until targets are chosen in `flush_pending_triggers`;
+        // answering here would suppress a trigger CR 603.4 says must fire.
+        Condition::TargetIsLegal { .. } => false,
+        // `ctx.was_overloaded` / `.was_bargained` / `.was_cleaved` /
+        // `.evidence_collected` / `.gift_was_given` are never propagated into a
+        // triggered ability's context, not even at resolution
+        // (`resolution.rs:2165-2194` sets 8 fields and none of these — OOS-DP6-6).
+        // Gating on them at queue time would be *stricter than resolution*.
+        Condition::WasOverloaded => false,
+        Condition::WasBargained => false,
+        Condition::WasCleaved => false,
+        Condition::EvidenceWasCollected => false,
+        Condition::GiftWasGiven => false,
+        // `ctx.sacrifice_fired` is per-*resolution* state (CR 608.2c/608.2h); it has
+        // no meaning before the ability is on the stack.
+        Condition::SacrificeFired => false,
+        // Conservative: one unanswerable arm makes the whole clause unanswerable.
+        Condition::Not(a) => condition_is_queue_time_evaluable(a),
+        Condition::And(a, b) => {
+            condition_is_queue_time_evaluable(a) && condition_is_queue_time_evaluable(b)
+        }
+        Condition::Or(a, b) => {
+            condition_is_queue_time_evaluable(a) && condition_is_queue_time_evaluable(b)
+        }
+        // Every other variant reads state (battlefield, life totals, graveyard,
+        // counters, etc.) that is meaningfully queryable at event time.
+        Condition::ControllerLifeAtLeast(_)
+        | Condition::SourceOnBattlefield
+        | Condition::YouControlPermanent(_)
+        | Condition::OpponentControlsPermanent(_)
+        | Condition::SourceHasCounters { .. }
+        | Condition::SourceHasNoCountersOfType { .. }
+        | Condition::Always
+        | Condition::WasKicked
+        | Condition::OpponentHasPoisonCounters(_)
+        | Condition::CompletedADungeon
+        | Condition::CompletedSpecificDungeon(_)
+        | Condition::RingHasTemptedYou(_)
+        | Condition::ControlLandWithSubtypes(_)
+        | Condition::ControlAtMostNOtherLands(_)
+        | Condition::HaveTwoOrMoreOpponents
+        | Condition::CanRevealFromHandWithSubtype(_)
+        | Condition::ControlBasicLandsAtLeast(_)
+        | Condition::ControlAtLeastNOtherLands(_)
+        | Condition::ControlAtLeastNOtherLandsWithSubtype { .. }
+        | Condition::ControlLegendaryCreature
+        | Condition::ControlCreatureWithSubtype(_)
+        | Condition::HasCitysBlessing
+        | Condition::IsFirstCombatPhase
+        | Condition::CardTypesInGraveyardAtLeast(_)
+        | Condition::OpponentLifeAtMost(_)
+        | Condition::SourceIsUntapped
+        | Condition::IsYourTurn
+        | Condition::YouControlNOrMoreWithFilter { .. }
+        | Condition::DevotionToColorsLessThan { .. }
+        | Condition::XValueAtLeast(_)
+        | Condition::WasCast
+        | Condition::SourceIsSolved
+        | Condition::TopCardIsCreatureOfChosenType
+        | Condition::ControllerGainedLifeThisTurn
+        | Condition::YouAttackedThisTurn
+        | Condition::CreatedATokenThisTurn
+        | Condition::OpponentCastNSpells(_)
+        | Condition::SpellMastery
+        | Condition::OpponentControlsMoreLandsThanYou
+        | Condition::TopCardIsInstantOrSorcery
+        | Condition::YouAttackedWithNOrMore(_)
+        | Condition::YouControlYourCommander => true,
+    }
+}
 /// Evaluate a condition in a static ability context (no EffectContext available).
 ///
 /// CR 604.2: Called at layer-application time for conditional continuous effects.
