@@ -12,6 +12,7 @@ use crate::state::turn::Step;
 use crate::state::zone::{ZoneId, ZoneType};
 use crate::state::GameState;
 use crate::state::{CardId, CardType, Color, ManaCost, SuperType};
+use rand::SeedableRng;
 // ── Deck Validation ───────────────────────────────────────────────────────────
 /// Result of validating a Commander deck (CR 903.5).
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -790,8 +791,14 @@ fn is_time_lord_doctor(def: &CardDefinition) -> bool {
 /// mulligans require the player to put N-1 cards on the bottom when keeping
 /// (where N is the total number of mulligans taken).
 ///
-/// This function handles drawing 7 cards after shuffling. The "put N-1 on bottom"
-/// step happens when the player sends `KeepHand`.
+/// This function performs the CR 103.5 shuffle itself: after the hand is moved into
+/// the library, the library is permuted with a seeded Fisher-Yates shuffle
+/// (`Zone::shuffle`), the seed derived deterministically from `timestamp_counter`
+/// (MR-M7-17 / SR-9b — same idiom as `effects/mod.rs:8697-8703`), so replay stays
+/// deterministic. `GameEvent::LibraryShuffled` is emitted only after that real
+/// permutation has happened — it is not a phantom event (Architecture Invariant 4).
+/// This function also handles drawing 7 cards after shuffling. The "put N-1 on
+/// bottom" step happens when the player sends `KeepHand`.
 pub fn handle_take_mulligan(
     state: &mut GameState,
     player: PlayerId,
@@ -820,7 +827,22 @@ pub fn handle_take_mulligan(
     for obj_id in hand_objects {
         state.move_object_to_zone(obj_id, lib_zone_id)?;
     }
-    // Shuffle library (represented by event; order is not tracked in state)
+    // CR 103.5: taking a mulligan shuffles the hand *into* the library — the library
+    // must actually be permuted, or the same seven cards come straight back off the top.
+    // MR-M7-17 / PB-DP2: seed from `timestamp_counter` (not entropy) so replay is
+    // deterministic (SR-9b). Same idiom as `effects/mod.rs:8697-8703`.
+    let seed = state.timestamp_counter;
+    state.timestamp_counter += 1;
+    // SR-25: `expect_zone_mut` (not a bare `.zones.get_mut(..)`) so the diagnostics
+    // vocabulary's engine-bug `debug_assert!` fires in tests, while `.ok_or(..)?`
+    // still propagates in release builds (MR-M9-12) instead of silently skipping the
+    // shuffle and re-emitting a phantom `LibraryShuffled` event.
+    let library = state
+        .expect_zone_mut(&lib_zone_id)
+        .ok_or(GameStateError::ZoneNotFound(lib_zone_id))?;
+    let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
+    library.shuffle(&mut rng);
+    // The shuffle above is what makes this event non-phantom (Architecture Invariant 4).
     events.push(GameEvent::LibraryShuffled { player });
     // Draw 7 cards for the new hand.
     // MR-M9-05: Do not use draw_card here — it triggers PlayerLost on empty library.
@@ -861,8 +883,11 @@ pub fn handle_take_mulligan(
 /// `cards_to_bottom` must be empty. For the second mulligan, 1 card must go
 /// to the bottom, and so on.
 ///
-/// `cards_to_bottom` lists the ObjectIds to put on the bottom of the library
-/// in order (index 0 = placed first, ends up above later entries).
+/// `cards_to_bottom` lists the ObjectIds to put on the bottom of the library in the
+/// player's chosen order (CR 103.5: "in any order"). Index 0 is placed first and
+/// therefore ends up ABOVE later entries: the LAST entry is the bottom-most card in
+/// the library. Implemented with `move_object_to_bottom_of_zone` (`push_front`), so
+/// the pre-existing library — including its top card — is untouched.
 pub fn handle_keep_hand(
     state: &mut GameState,
     player: PlayerId,
@@ -886,7 +911,7 @@ pub fn handle_keep_hand(
     // Move each card from hand to bottom of library
     let lib_zone_id = ZoneId::Library(player);
     for obj_id in cards_to_bottom.iter() {
-        state.move_object_to_zone(*obj_id, lib_zone_id)?;
+        state.move_object_to_bottom_of_zone(*obj_id, lib_zone_id)?;
     }
     events.push(GameEvent::MulliganKept {
         player,

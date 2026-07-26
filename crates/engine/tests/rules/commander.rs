@@ -1745,6 +1745,246 @@ fn test_mulligan_three_times_escalating_bottom_count() {
     );
 }
 
+// ── PB-DP2: mulligan shuffle + bottom-write correctness (CR 103.5 / 103.5c) ──
+
+/// Card names of an ordered zone, BOTTOM-first (index 0 == bottom of library).
+fn zone_names(state: &mtg_engine::GameState, z: &ZoneId) -> Vec<String> {
+    state
+        .zone(z)
+        .unwrap()
+        .object_ids()
+        .into_iter()
+        .map(|id| state.object(id).unwrap().characteristics.name.clone())
+        .collect()
+}
+
+#[test]
+/// CR 103.5 — "…then puts a number of those cards equal to the number of times that
+/// player has taken a mulligan **on the bottom of their library in any order**."
+///
+/// NOTE ON THE CITE: task `scutemob-150` criterion 5519 cites "CR 103.4b". That is
+/// stale — 103.4b is the *Vanguard starting life total*. The mulligan bottoming step
+/// lives in CR 103.5 (verified against the live CR, 2026-07-26, PB-DP2). The test name
+/// keeps the criterion's number so the criterion stays greppable; the rule text above
+/// is the authoritative one.
+fn test_dp2_cards_to_bottom_land_on_library_bottom_cr_103_4b() {
+    let p1 = p(1);
+    let state = build_state_with_library(p1, 40);
+
+    // Take 3 mulligans: required_bottom = 3 - 1 = 2 (CR 103.5c free-first).
+    let (state, _) = process_command(state, Command::TakeMulligan { player: p1 }).unwrap();
+    let (state, _) = process_command(
+        state,
+        Command::KeepHand {
+            player: p1,
+            cards_to_bottom: vec![],
+        },
+    )
+    .unwrap();
+    let (state, _) = process_command(state, Command::TakeMulligan { player: p1 }).unwrap();
+    let card_to_bottom_2 = state.zone(&ZoneId::Hand(p1)).unwrap().object_ids()[0];
+    let (state, _) = process_command(
+        state,
+        Command::KeepHand {
+            player: p1,
+            cards_to_bottom: vec![card_to_bottom_2],
+        },
+    )
+    .unwrap();
+    let (state, _) = process_command(state, Command::TakeMulligan { player: p1 }).unwrap();
+
+    let lib_before = zone_names(&state, &ZoneId::Library(p1));
+    let hand = state.zone(&ZoneId::Hand(p1)).unwrap().object_ids();
+    let (a_id, b_id) = (hand[0], hand[1]);
+    let name_a = state.object(a_id).unwrap().characteristics.name.clone();
+    let name_b = state.object(b_id).unwrap().characteristics.name.clone();
+
+    let (state, _) = process_command(
+        state,
+        Command::KeepHand {
+            player: p1,
+            cards_to_bottom: vec![a_id, b_id],
+        },
+    )
+    .unwrap();
+
+    let lib_after = zone_names(&state, &ZoneId::Library(p1));
+    assert_eq!(lib_after.len(), 35);
+    // CR 103.5: bottom means bottom, and the LAST cards_to_bottom entry is deepest.
+    assert_eq!(
+        lib_after[0], name_b,
+        "last cards_to_bottom entry is the bottom-most card"
+    );
+    assert_eq!(
+        lib_after[1], name_a,
+        "index-0 entry sits ABOVE later entries"
+    );
+    assert_eq!(
+        &lib_after[2..],
+        &lib_before[..],
+        "pre-existing library must be untouched and in order"
+    );
+    // The next card drawn must NOT be a bottomed card.
+    let top = state.zone(&ZoneId::Library(p1)).unwrap().top().unwrap();
+    let top_name = state.object(top).unwrap().characteristics.name.clone();
+    assert_eq!(top_name, *lib_before.last().unwrap());
+    assert_ne!(top_name, name_a);
+    assert_ne!(top_name, name_b);
+    assert_eq!(state.zone(&ZoneId::Hand(p1)).unwrap().len(), 5);
+}
+
+#[test]
+/// CR 103.5 — "…shuffles the cards in their hand back into their library…". The
+/// library must actually be permuted, not merely re-labeled.
+///
+/// Non-flaky by construction: the seed is a pure function of the deterministic
+/// command sequence from `build_initial_state` (SR-9b), so this test either always
+/// passes or always fails on a given codebase — it cannot flap. The assertion also
+/// targets the whole 40-card permutation (not just a 7-card hand), so even the
+/// hypothetical coincidence probability is astronomically small.
+fn test_dp2_mulligan_actually_permutes_the_library_cr_103_5() {
+    let p1 = p(1);
+    let state = build_state_with_library(p1, 40); // hand empty
+    let pre = zone_names(&state, &ZoneId::Library(p1));
+
+    let (state, events) = process_command(state, Command::TakeMulligan { player: p1 }).unwrap();
+
+    let lib_after = zone_names(&state, &ZoneId::Library(p1));
+    // Draw order: draw #1 took the top, #2 the next, ... Recover drawn cards in
+    // draw order from the CardDrawn events.
+    let drawn: Vec<String> = events
+        .iter()
+        .filter_map(|e| match e {
+            GameEvent::CardDrawn {
+                player,
+                new_object_id,
+            } if *player == p1 => Some(
+                state
+                    .object(*new_object_id)
+                    .unwrap()
+                    .characteristics
+                    .name
+                    .clone(),
+            ),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(drawn.len(), 7);
+
+    // Reconstruct the full post-shuffle library order, bottom-first: the hand was
+    // drawn off the top in draw order, so draw #7 is nearer the bottom than draw #1.
+    let mut full = lib_after.clone();
+    full.extend(drawn.iter().rev().cloned());
+    assert_eq!(full.len(), 40);
+
+    // (1) nothing was lost or duplicated -- it really is a permutation.
+    let (mut s_full, mut s_pre) = (full.clone(), pre.clone());
+    s_full.sort();
+    s_pre.sort();
+    assert_eq!(
+        s_full, s_pre,
+        "shuffle must be a permutation, not a rewrite"
+    );
+
+    // (2) CR 103.5: the library was actually permuted.
+    assert_ne!(
+        full, pre,
+        "CR 103.5: taking a mulligan must shuffle the library"
+    );
+
+    // (3) the sharpest fail-before form: pre-fix the draw is EXACTLY the top 7 in order.
+    let unshuffled_top7: Vec<String> = pre.iter().rev().take(7).cloned().collect();
+    assert_ne!(
+        drawn, unshuffled_top7,
+        "pre-fix the mulligan drew the untouched top 7 in order (CR 103.5 violation)"
+    );
+
+    // (4) the event is no longer phantom.
+    assert!(events
+        .iter()
+        .any(|e| matches!(e, GameEvent::LibraryShuffled { player } if *player == p1)));
+}
+
+#[test]
+/// CR 103.5 / OOS-M11-1 — the literal headline finding: a mulligan must not simply
+/// return the same seven cards (reversed). Compares hand contents as a set, not a
+/// sequence, since pre-fix the hand comes back reversed but identical as a set — a
+/// sequence comparison would pass pre-fix and destroy the fail-before property.
+fn test_dp2_mulligan_returns_a_different_hand_cr_103_5() {
+    let p1 = p(1);
+    let mut builder = GameStateBuilder::four_player()
+        .active_player(p1)
+        .at_step(Step::PreCombatMain);
+    for i in 0..7 {
+        builder =
+            builder.object(ObjectSpec::card(p1, &format!("H{}", i)).in_zone(ZoneId::Hand(p1)));
+    }
+    for i in 0..40 {
+        builder = builder
+            .object(ObjectSpec::card(p1, &format!("Card {}", i)).in_zone(ZoneId::Library(p1)));
+    }
+    let state = builder.build().unwrap();
+
+    let hand_before: std::collections::BTreeSet<String> = state
+        .zone(&ZoneId::Hand(p1))
+        .unwrap()
+        .object_ids()
+        .into_iter()
+        .map(|id| state.object(id).unwrap().characteristics.name.clone())
+        .collect();
+
+    let (state, _) = process_command(state, Command::TakeMulligan { player: p1 }).unwrap();
+
+    assert_eq!(state.zone(&ZoneId::Hand(p1)).unwrap().len(), 7);
+    let hand_after: std::collections::BTreeSet<String> = state
+        .zone(&ZoneId::Hand(p1))
+        .unwrap()
+        .object_ids()
+        .into_iter()
+        .map(|id| state.object(id).unwrap().characteristics.name.clone())
+        .collect();
+    assert_ne!(
+        hand_after, hand_before,
+        "CR 103.5: a mulligan shuffles the hand into a 47-card library; the same \
+         seven cards must not come straight back (OOS-M11-1)"
+    );
+    assert_eq!(state.zone(&ZoneId::Library(p1)).unwrap().len(), 40);
+}
+
+#[test]
+/// SR-9b — the mulligan shuffle is seeded from `timestamp_counter`, so two runs from
+/// the same start state must produce the same permutation. This probe passes both
+/// before and after the fix (a no-op is trivially deterministic); its job is to pin
+/// the property against a future entropy-seeded regression, satisfying acceptance
+/// criterion 5520's "deterministic per seed" clause — not to demonstrate fail-before.
+fn test_dp2_mulligan_permutation_is_deterministic_cr_103_5() {
+    let p1 = p(1);
+    let base = build_state_with_library(p1, 40);
+
+    let (s1, _) = process_command(base.clone(), Command::TakeMulligan { player: p1 }).unwrap();
+    let (s2, _) = process_command(base.clone(), Command::TakeMulligan { player: p1 }).unwrap();
+
+    assert_eq!(
+        zone_names(&s1, &ZoneId::Library(p1)),
+        zone_names(&s2, &ZoneId::Library(p1)),
+        "SR-9b: the mulligan shuffle is seeded from timestamp_counter, so two runs \
+         from the same start state must produce the same permutation"
+    );
+    let hand_names_sorted = |s: &mtg_engine::GameState| -> Vec<String> {
+        let mut names: Vec<String> = s
+            .zone(&ZoneId::Hand(p1))
+            .unwrap()
+            .object_ids()
+            .into_iter()
+            .map(|id| s.object(id).unwrap().characteristics.name.clone())
+            .collect();
+        names.sort();
+        names
+    };
+    assert_eq!(hand_names_sorted(&s1), hand_names_sorted(&s2));
+    assert_eq!(s1.timestamp_counter(), s2.timestamp_counter());
+}
+
 // ── Session 5: Companion (CR 702.139a) ───────────────────────────────────────
 
 #[test]
