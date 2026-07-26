@@ -608,9 +608,14 @@ fn test_107_4e_hybrid_attack_tax_is_rejected_not_paid_free() {
     let err = result
         .expect_err("CR 107.4e/107.4f: a hybrid attack tax must be rejected, not silently free");
     let msg = format!("{:?}", err);
+    // Closing `/review` finding 3: this used to assert the message contained the literal
+    // seed id "OOS-DP4-1". A seed id is bookkeeping, not behaviour — renaming or renumbering
+    // the seed would have broken a green test for no correctness reason. Assert instead that
+    // the rejection names the tax and the unpayable pip shape, which is what a player (and a
+    // future reader) actually needs to see.
     assert!(
-        msg.contains("attack tax") && msg.contains("OOS-DP4-1"),
-        "message should mention attack tax and the seed: {msg}"
+        msg.contains("attack tax") && (msg.contains("hybrid") || msg.contains("Phyrexian")),
+        "message should name the attack tax and the unpayable pip shape: {msg}"
     );
 }
 
@@ -827,10 +832,18 @@ fn test_508_1d_must_attack_still_forced_when_an_untaxed_opponent_exists() {
     state.turn_mut().priority_holder = Some(p(2));
 
     let empty_result = process_command(state, declare_cmd(p(2), vec![]));
+    let err = empty_result
+        .expect_err("CR 508.1d: with p3/p4 untaxed, the must-attack requirement is obeyable");
+    // Closing `/review` finding 2: a bare `is_err()` here would pass against ANY unrelated
+    // rejection — and this is the direction where a false pass matters most, because a
+    // `has_uncosted_attack_target` that returned a blanket `false` would silently disable
+    // must-attack enforcement engine-wide and this guard is what is supposed to catch it.
+    // Pin the actual cause, mirroring the T5 hardening applied to the sibling probe above.
+    let msg = format!("{:?}", err);
     assert!(
-        empty_result.is_err(),
-        "CR 508.1d: with p3/p4 untaxed, the must-attack requirement is still obeyable \
-         and must be forced"
+        msg.contains("must attack each combat if able"),
+        "the rejection must be the must-attack requirement itself (CR 508.1d), not some \
+         other reason: {msg}"
     );
 }
 
@@ -868,10 +881,16 @@ fn test_508_1d_must_attack_still_forced_when_only_an_opponent_planeswalker_is_un
     state.turn_mut().priority_holder = Some(p(2));
 
     let empty_result = process_command(state, declare_cmd(p(2), vec![]));
+    let err = empty_result.expect_err(
+        "CR 508.1c: the untaxed planeswalker is a free target, so the requirement is obeyable",
+    );
+    // Closing `/review` finding 2 — see the sibling guard above for why a bare `is_err()`
+    // is not good enough here.
+    let msg = format!("{:?}", err);
     assert!(
-        empty_result.is_err(),
-        "CR 508.1c: attacking the untaxed planeswalker is a free target, so the \
-         must-attack requirement is still obeyable and must be forced"
+        msg.contains("must attack each combat if able"),
+        "the rejection must be the must-attack requirement itself (CR 508.1d), not some \
+         other reason: {msg}"
     );
 }
 
@@ -1429,11 +1448,20 @@ fn test_119_4b_cumulative_upkeep_zero_life_cost_is_always_payable() {
 }
 
 #[test]
-/// CR 702.24b — when a permanent has two outstanding cumulative-upkeep entries, the
-/// sweep's snapshot-then-mutate discipline drains BOTH: the first forced decline
-/// sacrifices the permanent, and the second entry is consumed silently (CR 400.7 --
-/// the permanent has already left).
-fn test_702_24b_two_cumulative_upkeep_instances_both_reach_the_boundary() {
+/// CR 400.7 (+ CR 702.24a's "otherwise, sacrifice it") — when a permanent has two
+/// outstanding cumulative-upkeep entries, the sweep's snapshot-then-mutate discipline
+/// drains BOTH: the first forced decline sacrifices the permanent, and the second entry
+/// is consumed silently because the permanent has already left (CR 400.7).
+///
+/// Closing `/review` finding 6: this doc comment used to cite **CR 702.24b** (multiple
+/// instances of cumulative upkeep are separate abilities, each counting all age counters
+/// on the permanent). That rule is *not* what this test exercises — it seeds two entries
+/// into the pending vector directly and pins the sweep's drain discipline, never the
+/// age-counter arithmetic. The cite is corrected rather than the test rewritten, because
+/// the drain discipline is the property worth pinning here (it is plan risk 13: a sweep
+/// that iterated the live vector while the handlers mutate it would skip entries).
+/// CR 702.24b's own arithmetic remains covered by the cumulative-upkeep mechanics suite.
+fn test_400_7_two_cumulative_upkeep_entries_both_reach_the_boundary() {
     let p1 = p(1);
     let p2 = p(2);
     let mut state = GameStateBuilder::new()
