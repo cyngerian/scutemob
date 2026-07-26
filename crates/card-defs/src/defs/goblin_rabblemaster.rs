@@ -32,27 +32,11 @@ pub fn card() -> CardDefinition {
             // cleanly for non-source objects -- probe-verified in
             // tests/primitives/pb_rs3_rabblemaster_mustattack_probe.rs (PB-RS3 / F-Rabble).
             //
-            // Accepted engine-wide limitation (PB-RS3 review Finding 1, inherited, not
-            // introduced here): combat.rs:421-424's must-attack "able" test computes
-            // `cannot_attack` from only tapped/vigilance, summoning-sickness/haste,
-            // Defender, and CantAttackOwner -- it never reads GameRestriction::
-            // CantAttackYouUnlessPay, even though that restriction IS fully enforced at
-            // combat.rs:185-224 (a declaration the player can't pay the tax for is
-            // rejected there). The precondition is narrower than "a Ghostly Prison is
-            // out": tax_per_attacker is keyed PER DEFENDING PLAYER (combat.rs:~200), so in
-            // 4-player Commander the forced token can simply attack an untaxed opponent.
-            // A deadlock needs EVERY remaining viable opponent taxed and the attacking
-            // player unable to pay -- realistic late-game, but not the common case. When
-            // that holds, declaring this creature's forced Goblin token is illegal (tax
-            // check) AND omitting it is illegal (must-attack check) simultaneously, which
-            // is a genuine deadlock (CR 508.1d + the 2014-07-18 Rabblemaster
-            // ruling: "If there's a cost associated with having a creature attack, you're
-            // not forced to pay that cost"). This is shared by every already-shipped
-            // MustAttackEachCombat card, not new to this def, but this card manufactures a
-            // forced attacker every single combat, so the gap is reachable every turn
-            // rather than only when a fixed forced-attacker happens to be present. Filed as
-            // OOS-RS3-4 (memory/primitives/rider-seed-triage-2026-07-19.md); not fixed
-            // here -- engine change is out of scope for this PB.
+            // CR 508.1d must-attack-vs-attack-tax deadlock (OOS-RS3-4): CLOSED by PB-DP4
+            // (`scutemob-152`) -- combat.rs's must-attack "able" test now honours the
+            // CR 508.1d "not required to pay an attack cost" carve-out via
+            // has_uncosted_attack_target, so a forced Goblin token can decline an attack
+            // taxed beyond the attacking player's means.
             AbilityDefinition::Static {
                 continuous_effect: ContinuousEffectDef {
                     layer: EffectLayer::Ability,

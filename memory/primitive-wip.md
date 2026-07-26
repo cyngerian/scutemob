@@ -1,119 +1,190 @@
-# Primitive WIP — PB-DP3 (DP-4 · empty `modes_chosen` bypasses `min_modes`) · SHIPPED
+# Primitive WIP — PB-DP4 (DP-10 attack tax never debited · DP-11 echo/CU/recover never enforce the "otherwise") · PLAN
 
 <!-- last_updated: 2026-07-26 -->
 
-- **PB**: PB-DP3 — a modal spell cast with an empty `modes_chosen` skips every mode
-  legality check and silently resolves mode 0 at full price. **CR 601.2b** (modes are
-  announced as part of casting, before costs) + **CR 700.2a** (the caster chooses; the
-  count must satisfy the printed "choose N").
-- **Task**: `scutemob-151`
-- **Branch**: `feat/pb-dp3-empty-modeschosen-bypasses-minmodes-modal-spells-reso`
-- **Class**: CORRECTNESS (live-wrong on 3 `Complete` cards; Tier 0)
-- **Phase**: fix — COMPLETE. Review cycle closed 2026-07-26: **0 HIGH, 2 MEDIUM, 6 LOW**,
-  verdict "ship after fixes"; all fixes applied (5 fixed, 1 declined-with-reason as
-  seed-text-only, 2 folded into seeds). See `memory/primitives/pb-review-DP3.md` §317 for the
-  fix list and the dispositions. Tests 3,725 → **3,747**; PROTOCOL 27 / HASH 63 unmoved.
-  Seeds **OOS-DP3-1..9** filed in `docs/audits/decision-point-audit.md` §8.1; audit rows
-  §4.1 L186 (D→A), §4.2 L214 (B→A), §5 DP-4, §5 DP-20, §8, §8.1, §9 rec 4 all updated.
-- **Binding spec**: `docs/audits/decision-point-audit.md` §4.1 (mode-announcement rows,
-  lines 185-186), §4.2 (line 214, activated-ability modal, class B, "same `min_modes`
-  bypass as DP-4"), §5 (DP-4 row, line ~431), §8 (PB-DP3 row, line ~572), §9
-  recommendation 4 (line ~702, the M11-local play-server consequence)
-- **Plan file**: `memory/primitives/pb-plan-DP3.md`
-- **Review file**: `memory/primitives/pb-review-DP3.md`
+> Previous occupant: **PB-DP3 (DP-4, modal mode announcement) — SHIPPED** `scutemob-151`,
+> merge `3b04bd17`. Its record lives in `docs/audits/decision-point-audit.md` §5 DP-4 / §8,
+> `memory/primitives/pb-plan-DP3.md` + `pb-review-DP3.md`, and the CLAUDE.md changelog entry.
 
-## The defect (as filed by the audit)
+- **PB**: PB-DP4 — two "the cost is checked but never collected" bugs of the same shape.
+  - **DP-10** (CR **508.1g**): the Propaganda/Ghostly Prison attack tax is *inspected* once
+    (`rules/combat.rs:250-253`) and **never debited** anywhere in the 600-line handler. Float
+    the mana, attack free, keep the mana. The cost's colour is also flattened to a generic
+    `u32` total (`:218-227`), so a coloured tax can be paid with the wrong colours.
+  - **DP-11** (CR **702.30a** / **702.24a** / **702.59a**): echo, cumulative upkeep and
+    recover. `resolution.rs:2785` asserts "The game pauses until a `Command::PayEcho` is
+    received"; **no code implements that pause.** The three `pending_*` vectors are read only
+    by their own handlers, by `state/hash.rs` and by `replay_harness.rs` — never by priority,
+    SBA or step advancement (verified by grep, below). Pass priority and the permanent is
+    neither paid for nor sacrificed. Compounding: none of the three has a `LegalAction`, so a
+    bot / M11-local seat never sends the command at all.
+- **Task**: `scutemob-152`
+- **Branch**: `feat/pb-dp4-costs-checked-but-never-collected-propaganda-attack-t`
+- **Class**: CORRECTNESS (Tier 1, class **D** both). Rank 4 of the PB-DP suite.
+- **Phase**: implement — plan APPROVED by the coordinator 2026-07-26. Two load-bearing claims
+  spot-verified independently before approval: (a) `resolution.rs:7768-7772` really does clear
+  `players_passed` and grant priority to the active player at the end of every resolution, so
+  the owing player is guaranteed a window (and Change 2d's deletions are identity writes for
+  echo/CU); (b) `handle_all_passed`'s two branches at `engine.rs:1694-1711` / `:1711+` really
+  are disjoint and the non-empty branch returns early, so the sweep cannot fire in the call
+  that created the entry. **One scope note for the reviewer**: Change 1c
+  (`has_uncosted_attack_target`, CR 508.1d, closes OOS-RS3-4) fixes a *pre-existing* deadlock
+  that PB-DP4 does not create. It is accepted into scope because it is the same
+  hang-the-game failure class that hard constraint (b) forbids for DP-11, and because it is
+  directly adjacent to the code Change 1a rewrites — but it is the one item in this PB that a
+  reviewer could reasonably call scope creep, and it should be judged on that basis rather
+  than waved through.
+- **Binding spec**: `docs/audits/decision-point-audit.md`
+  - §4.5 combat table, **line 266** — "Attack cost (Propaganda) | 508.1g | **D** | `rules/combat.rs:248-263`"
+  - §4.11 cleanup table, **line 393** — "Echo / cumulative upkeep / recover pay-or-sacrifice | 702.30a / 702.24a / 702.59a | **A** plumbing, **D** enforcement"
+  - §5 **line 442** (DP-10 row), **line 443** (DP-11 row)
+  - §8 **line 573** (PB-DP4 row) — *"Wire: **none** if the "otherwise" is applied at
+    resolution rather than gated on priority"*
+  - §8.1 **line 599** (**OOS-DP1-1**) — echo/CU/recover `handle_pay_*` write
+    `priority_holder = Some(active_player)` at *resolution* time, when no player holds
+    priority. PB-DP1 correctly left it alone (comment-only). *"The write is a bodge standing
+    in for the payment pause DP-11 says was never implemented. Correct fix is the pause
+    itself, owned by **PB-DP4**."* — **this seed is in scope for this PB.**
+  - §9 recommendation 3 (**line ~709**) and recommendation 6 (**line ~734**) — the M11-local
+    consequence: `advance()` should yield `AwaitingHuman` for a non-empty pending-payment
+    vector, and the three commands currently have no `LegalAction` at all.
+- **Plan file**: `memory/primitives/pb-plan-DP4.md`
+- **Review file**: `memory/primitives/pb-review-DP4.md`
 
-`crates/engine/src/rules/casting.rs:3507` gates **all** mode validation behind
-`if !modes_chosen.is_empty() && !entwine_paid`. Inside that branch, range (`:3516-3524`),
-duplicates (`:3526-3536`), `min_modes` (`:3539-3544`) and `max_modes` (`:3545-3550`) are
-all checked correctly. The `else` arm (`:3556-3560`) passes the empty vector straight
-through as "non-modal spell or auto-select mode[0] (backward compatible)".
+## Coordinator pre-survey (a hypothesis for the planner to falsify, **not** a fact base)
 
-Downstream, both consumers re-derive `vec![0]` from the empty vector:
+> The PB-DP3 wip file records that three of its five pre-survey "facts" were wrong in both
+> directions. Treat every bullet below as something to verify, and correct it in the plan.
 
-- cast-time per-mode target slicing — `casting.rs:3646-3654`
-- resolution — `resolution.rs:335-341`
+**DP-10 sites and API**
 
-So `Command::CastSpell { modes_chosen: vec![], .. }` on **Cryptic Command**
-(`min_modes: 2, max_modes: 2`), **Austere Command** or **Incendiary Command** — all three
-`Complete` — pays the full mana cost and resolves exactly one mode.
+- `rules/combat.rs:~199-263` is the whole tax block. It builds
+  `HashMap<PlayerId, u32> tax_per_attacker` by summing `generic + white + blue + black + red +
+  green + colorless` of `cost_per_creature`, counts attackers per taxed defender, sums a
+  `total_tax: u32`, compares it against `ps.mana_pool.total_with_restricted()`, and **returns
+  `Ok` without touching the pool**. The in-code comment openly states the deferral:
+  *"Interactive payment is deferred to post-alpha (requires a new DeclareAttackers command
+  field)."* That premise needs testing — a full auto-debit needs no new command field.
+- Payment API already exists and is what the echo handler uses:
+  `casting::can_pay_cost(pool, &cost)` / `casting::pay_cost(&mut pool, &cost)`, over
+  `ManaPool::can_spend` / `ManaPool::spend` (`crates/card-types/src/state/player.rs:148,177`).
+  `spend` takes an `Option<&SpellContext>` for restricted mana (CR 106.12) — an attack tax is
+  **not** a spell, so what happens to restricted mana here is a real design question, not a
+  detail: `total_with_restricted()` currently *counts* restricted mana toward affordability.
+- `ManaPool::spend`/`can_spend` `debug_assert_flattened(cost)`: a hybrid/Phyrexian
+  `cost_per_creature` must be flattened first (PB-RS2 precedent, CR 107.4e/f).
+- Three defs carry `GameRestriction::CantAttackYouUnlessPay`: `propaganda.rs`,
+  `ghostly_prison.rs`, `goblin_rabblemaster.rs` (the last only mentions it in a comment —
+  confirm). Both real ones are `{2}` generic, so **expect 0 card-def edits**; the colour bug
+  is latent, not live-wrong, and the tests must create the coloured case synthetically.
+- ⚠ **Known adjacent hazard, already documented in-corpus**:
+  `crates/card-defs/src/defs/goblin_rabblemaster.rs:35-52` carries a long accepted-limitation
+  note from the PB-RS3 review — `combat.rs:421-424`'s must-attack "able" test never reads
+  `CantAttackYouUnlessPay`, so a forced attacker + an unpayable tax on every viable opponent
+  is a genuine deadlock. Per the 2014-07-18 Rabblemaster ruling and **CR 508.1d**, *"if
+  there's a cost associated with having a creature attack, you're not forced to pay that
+  cost."* Making the tax a real debit does not create this, but it does make it matter more.
+  Decide explicitly: fix it here, or restate it as a seed. Do not silently inherit it.
 
-The Spree path already hard-rejects an empty `modes_chosen`
-(`casting.rs:2941-2945`, CR 702.172a); the general modal path has no equivalent.
+**DP-11 sites and the "no pause" claim**
 
-## Known adjacent facts (coordinator survey, pre-plan)
+- Verified by grep — the only readers of the three vectors outside their own handlers are
+  `state/hash.rs:7736-7748` (hashing), `state/builder.rs:337-339` (init),
+  `state/mod.rs:535-549,774-792` (accessors + escape hatches) and
+  `testing/replay_harness.rs:912`. **Nothing** in `rules/priority.rs`,
+  `rules/engine.rs::handle_all_passed`, `rules/turn_structure.rs` or `rules/sba.rs` consults
+  them. The audit's claim holds.
+- Producers: `rules/resolution.rs` — echo `:2800-2845`, cumulative upkeep `:2846-2900`,
+  recover `:2901-2960`. Each checks the CR 400.7 still-in-zone condition, emits
+  `*PaymentRequired`, pushes the pending entry, and emits `AbilityResolved`.
+- Consumers: `rules/engine.rs` — `handle_pay_echo:590`, `handle_pay_cumulative_upkeep:779`,
+  `handle_pay_recover:1013`. Each removes the pending entry, and already implements **both**
+  branches (`pay: true` ⇒ debit + keep; `pay: false` ⇒ sacrifice / exile, bypassing
+  indestructible per CR 701.21a). **The consequence logic exists and is believed correct — the
+  missing piece is only that nothing ever calls it.** Prefer reusing these handlers over
+  writing a second copy of the consequence.
+- Design question the plan must settle, with the §8 "no wire change" constraint binding:
+  1. **Gate advancement** — refuse to leave the priority round / step while a pending payment
+     is outstanding. Most CR-faithful, but a fuzzer or a script that never sends `Pay*`
+     **deadlocks**, which is strictly worse than today's free survival. If chosen, it needs a
+     forced-resolution backstop.
+  2. **Auto-resolve at the advancement boundary** — when the game would leave the point where
+     the payment was created, treat an unanswered payment as declined and run the existing
+     `pay: false` path (or auto-pay if trivially affordable). No deadlock, no wire change; the
+     deviation is that a player may hold priority with the payment outstanding.
+  3. **Resolve inside trigger resolution** — never push a pending entry; decide immediately.
+     Zero deadlock risk, but it deletes the player's agency and makes `Command::PayEcho`
+     unreachable, which contradicts acceptance criterion 3.
+  The audit's own wording ("applied at resolution rather than gating priority") leans away
+  from (1). Pick one, argue it against CR, and state the deviation explicitly.
+- **OOS-DP1-1 is in scope**: whatever mechanism is chosen must remove the need for the three
+  `priority_holder = Some(active_player)` bodges in the `handle_pay_*` handlers, or explain
+  why they survive.
+- Existing tests that will constrain the design (read them before designing):
+  `crates/engine/tests/mechanics_e_l/echo.rs`,
+  `crates/engine/tests/mechanics_a_d/cumulative_upkeep.rs`,
+  `crates/engine/tests/mechanics_m_z/recover.rs`,
+  `crates/engine/tests/rules/restrictions.rs` (attack tax),
+  and the golden script `test-data/generated-scripts/stack/153_recover_grim_harvest.json`.
+- Affected defs: echo — `mogg_war_marshal.rs`, `avalanche_riders.rs`; cumulative upkeep —
+  `tombstone_stairwell.rs` (`partial`), `mystic_remora.rs` (`known_wrong`); recover —
+  `grim_harvest.rs`, `bala_ged_recovery.rs`. Check whether any completeness marker can be
+  *upgraded* by this fix, and whether any `Complete` card is live-wrong today.
 
-> ⚠️ **Three of these were corrected by the planner — kept verbatim to show the drift.**
-> (1) Script `169_modal_choice_abzan_charm.json` is **not** the only script naming a modal card,
-> and needed no edit anyway (it is `retired` and already supplies explicit modes); the two that
-> actually broke were `stack/147` and `stack/148`, both `approved`, both casting a modal card via
-> plain `cast_spell`. (2) The `min_modes: 0` object being a *triggered* ability is what makes the
-> cast path safe to harden strictly — there is **no** `min_modes: 0` modal Spell or Activated
-> ability anywhere in the corpus. (3) The 9 `ModeSelection` test files were 3 lines of edits, not
-> 9 files' worth. Lesson: a coordinator pre-survey is a starting hypothesis for the planner to
-> falsify, not a fact base to build on.
+**Acceptance criteria (ESM `scutemob-152`)**
 
-- 41 card defs carry `min_modes`: **37** `min_modes: 1`, **3** `min_modes: 2` (the three
-  commands), **1** `min_modes: 0` (`hullbreaker_horror` — a modal *triggered* ability,
-  "choose up to one", so empty is legal there and must stay legal).
-- Two backward-compat paths deliberately send an empty `modes_chosen` and must not
-  regress: **entwine** (`entwine_paid` ⇒ all modes) and **escalate**
-  (`resolution.rs:321-334` derives `0..=escalate_modes_paid`).
-- Golden scripts: `test-data/generated-scripts/stack/169_modal_choice_abzan_charm.json`
-  is the only script naming a modal card; the harness surfaces `modes_chosen` only on
-  the `cast_spell_modal` action (`replay_harness.rs:745`) — every other cast action
-  hard-codes `vec![]`.
-- Tests constructing `ModeSelection` directly: `rules/modal.rs`, `rules/modal_triggers.rs`,
-  `primitives/pb_ac4_card_integration.rs`, `primitives/pb_ac4_per_mode_targeting.rs`,
-  `primitives/pb_ef7_modal_activated.rs`, `primitives/pb_os1_gain_control_reversion.rs`,
-  `mechanics_e_l/entwine.rs`, `mechanics_e_l/escalate.rs`, `mechanics_m_z/spree.rs`.
-- **No wire change expected** — PROTOCOL 27 / HASH 63 must be unmoved. Stop and re-scope
-  if that is contradicted.
+1. (5527) Attack tax actually debited with correct colours on declaration; tests cite CR
+   508.1g; declaring without payable tax is rejected.
+2. (5528) Echo / CU / recover: failing to pay reaches the CR-mandated consequence
+   (sacrifice / exile per 702.59a); the permanent can no longer survive unpaid by passing
+   priority; tests cite CR 702.30a / 702.24a / 702.59a.
+3. (5529) `LegalActionProvider` exposes the pay/decline choice for all three payment kinds;
+   bots make legal choices.
+4. (5530) `cargo test --all`, clippy, `cargo fmt --check` **and** `tools/check-defs-fmt.sh`
+   clean; **no wire change (PROTOCOL 27 / HASH 63)** or a documented re-scope; audit
+   DP-10/DP-11 rows + the PB-DP4 row updated.
 
-## Implementation complete (runner close-out)
+**Hard constraints**
 
-All five engine changes (§3), all six blast-radius edits (§4.2-§4.6), and all 20 unit
-tests (§7: 7 fail-before/pass-after probes + 9 positive regression guards in
-`crates/engine/tests/primitives/pb_dp3_modal_mode_announcement.rs`, + 4 simulator tests
-in `crates/simulator/src/legal_actions.rs`) are done, per the plan exactly:
+- **No new `Command` or `GameEvent` variant and no new field on either.** PROTOCOL 27 /
+  HASH 63 must be unmoved. `PayEcho`, `PayCumulativeUpkeep`, `PayRecover` and the three
+  `*PaymentRequired` events all already exist. New `LegalAction` variants are
+  simulator-internal and are **not** a wire change (PB-RS2 / PB-DP3 precedent).
+  If the design genuinely requires a wire change, **stop and re-scope** in a task comment
+  rather than bumping the constants unilaterally.
+- SR-4: any new silent-failure site in `effects/mod.rs` / `rules/resolution.rs` must pick a
+  side (`expect_*` vs `lki_*`).
+- `crates/simulator`, `tools/tui` and `tools/replay-viewer` have exhaustive matches that break
+  on new enum variants — `cargo build --workspace` after every phase.
+- `state/mod.rs` is sealed `pub(crate)` (SR-3); the pending vectors already have accessors and
+  `_mut` escape hatches — prefer the accessors, and do not widen the seal.
 
-- **Change 1** (`casting.rs`): the emptiness gate is lifted into a 3-way match on
-  `(entwine_paid, mode_selection_opt, modes_chosen.is_empty())`, with the escalate
-  count-derivation exemption and the `min_modes == 0` fail-safe reject, as specified.
-- **Change 2** (`casting.rs` `mode_targets_active`): comment-only reconciliation; the
-  `vec![0]` arm is retained as a documented fail-safe.
-- **Change 3** (`resolution.rs:335-341`): comment-only; the `vec![0]` fallback is
-  **retained**. ⚠️ **This line originally read "six free-cast producers — cascade / discover /
-  4×`engine.rs`", which is wrong** and was corrected by the review (Finding 1, MEDIUM): the
-  four `engine.rs` sites build Ring / Room / Loyalty / ClassLevel stack objects and can never
-  reach the arm, while two real Spell producers were missing. **True list: `copy.rs:386`
-  (cascade), `copy.rs:614` (discover), `resolution.rs:5167` (cipher copy), `resolution.rs:5837`
-  (suspend)** — the last two via `StackObject::trigger_default`, which zero-fills
-  `modes_chosen`. The in-code comment and OOS-DP3-3 now carry the corrected list.
-- **Change 4** (`abilities.rs`): the modal-activated lift, with the `min_modes == 0`
-  legal-no-op branch (representable here, unlike the Spell side).
-- **Change 5** (Spree guard, `casting.rs:2938-2945`): verified unchanged, still fires
-  first and owns its own CR 702.172a message.
-- **§4.2-4.6**: 3 engine test edits, 2 golden scripts (147, 148) + `cr_sections_tested`
-  additions, 1 replay-harness line (`cast_spell` now honours `modes`), 2 new simulator
-  helpers (`spell_default_modes` / `ability_default_modes`) wired into 4 `random_bot.rs`
-  call sites + 2 `tools/tui/src/play/input.rs` call sites.
-- **Un-enumerated finding (§4.7)**: `crates/engine/tests/core/ability_definition_registry.rs`
-  (SR-15 gate) failed after the simulator edit — `legal_actions.rs::spell_default_modes`
-  is a new real dispatch site on `AbilityDefinition::Spell` that the plan's §4 blast-radius
-  table did not enumerate. Fixed by adding the site to the `Spell` declaration in
-  `crates/engine/src/state/ability_definition_registry.rs` (the registry's own documented
-  purpose is to force exactly this kind of edit — treated as a required companion edit,
-  not a silent patch). Flagging here per the plan's §4.7 negative-space clause for the
-  reviewer's visibility.
-- **Test count**: 3,725 (pin) → 3,745 at implement, → **3,747** after the fix cycle added the
-  two escalate derived-count probes (18 engine tests in `pb_dp3_modal_mode_announcement.rs`
-  + 4 simulator tests in `legal_actions.rs`), all green. `cargo build --workspace`,
-  `cargo clippy --workspace --all-targets -- -D warnings`, `cargo fmt --check`,
-  `tools/check-defs-fmt.sh` all clean. **PROTOCOL 27 / HASH 63 unmoved**, confirmed by
-  reading the constants directly, matching the plan's prediction exactly.
-- **7 fail-before probes**: each was verified failing against the pre-fix engine by
-  temporarily reverting Change 1 (`casting.rs`) and/or Change 4 (`abilities.rs`) and
-  re-running the affected test; see the task/session report for the observed pre-fix
-  behaviour table.
+## Runner progress log
+
+- [x] Change 1a — `combat.rs` attack-tax block rewritten as bound
+      `(Option<ManaCost>, BTreeSet<PlayerId>)` expression, hybrid/Phyrexian/X rejected,
+      `BTreeMap` determinism, affordability via `casting::can_pay_cost` (`spell: None`).
+      `cargo check -p mtg-engine` clean.
+- [x] Change 1b — debit + `GameEvent::ManaCostPaid` inserted after the enlist-tap loop,
+      before "Record attackers in combat state".
+- [x] Change 1c — `has_uncosted_attack_target` helper added; both goad and
+      `MustAttackEachCombat` `no_legal_target` computations replaced with calls to it.
+      Closes OOS-RS3-4.
+- [x] Change 1d — `add_mana_cost` helper added (rejects hybrid/Phyrexian/X via
+      `debug_assert!`), kept separate from `engine.rs::multiply_mana_cost` (OOS-DP4-7).
+- [x] Change 2a — `force_resolve_overdue_payments` added in `engine.rs` after
+      `handle_pay_recover`. Reads the pending vectors only; does not name
+      `KeywordAbility::Echo`/`::CumulativeUpkeep`/`::Recover` (registry-gate safe).
+- [x] Change 2b — hooked into `handle_all_passed`'s stack-EMPTY branch, before
+      `empty_all_mana_pools`. Guard is `!payment_events.is_empty()`; extra-round branch
+      returns (does not fall through).
+- [x] Change 2c — recover decline branch now uses `expect_move_object_to_zone` (infallible).
+- [x] Change 2d — deleted all three `priority_holder = Some(active)` / `players_passed =
+      OrdSet::new()` bodges (echo, CU, recover), replaced with explanatory comments.
+      Closes OOS-DP1-1.
+- [x] Change 2e — CR 119.4 life-total gate added to `CumulativeUpkeepCost::Life` pay arm.
+- [x] Change 2f — comment corrections in `resolution.rs` (3 sites), `state/mod.rs` (3
+      fields), `card-types/src/state/player.rs` (2 sites, CR 106.12 -> 106.6).
+- `cargo check --workspace` clean after Change 2.
+- Card-def comment edit: `goblin_rabblemaster.rs` accepted-limitation paragraph replaced
+  with a one-line "CLOSED by PB-DP4" note (the one card-def edit this PB makes, per plan §9).
