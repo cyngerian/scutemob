@@ -18,16 +18,11 @@
 // battlefield for card-def AtBeginningOfCombat triggers (in addition to the
 // pre-existing emblem-only scan), so this ability fires. Flipped to Complete.
 //
-// Accepted engine-wide limitation (F3, `memory/card-authoring/review-pb-rs3-roster.md`):
-// `intervening_if` is checked only at resolution (resolution.rs:2125-2135), never at
-// queue time, though CR 603.4 requires both. Divergent case: you do NOT control your
-// commander at beginning of combat but regain control before the trigger resolves --
-// real MTG never triggers, this engine creates the Thopter. Reachable in 4-player
-// Commander (narrow). This is a pre-existing convention, engine-wide across the
-// card-def trigger sweeps (documented at the upkeep sweep, turn_actions.rs:265-266)
-// affecting every intervening-if card already shipped Complete, not a defect specific
-// to this card. Filed as a seed (rider-seed-triage-2026-07-19.md) rather than blocking
-// this flip.
+// PB-DP6 (`scutemob-154`): queue-time gate added (CR 603.4's other half); both
+// halves of CR 603.4 now hold. The divergent case previously documented here (you
+// do NOT control your commander at beginning of combat but regain control before
+// the trigger resolves) is fixed -- the trigger is no longer queued at all when
+// the condition is false at the moment of the event.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {

@@ -3745,11 +3745,56 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             for (idx, ability) in def.abilities.iter().enumerate() {
                                 if let AbilityDefinition::Triggered {
                                     trigger_condition: TriggerCondition::WhenYouCastThisSpell,
+                                    intervening_if,
                                     ..
                                 } = ability
                                 {
+                                    // CR 603.4 (PB-DP6): queue-time gate. NOTE — the
+                                    // source here is the spell's STACK object, not a
+                                    // permanent (`source` is `*source_object_id`, the
+                                    // stack object read via `fizzle_object` above).
+                                    // `SourceOnBattlefield`/`SourceHasCounters`-style
+                                    // conditions would (correctly) answer false while
+                                    // the spell is on the stack — CR 603.4 asks the
+                                    // question against the game state as it actually
+                                    // is, and the spell genuinely is not a permanent
+                                    // yet, so this is not a bug.
+                                    //
+                                    // `WasKicked`/`XValueAtLeast` are a DIFFERENT,
+                                    // wrong-in-the-suppression-direction case (PB-DP6
+                                    // fix-cycle finding, LOW 1): `kicker_times_paid`/
+                                    // `x_value` are `GameObject` fields written once,
+                                    // at `resolution.rs:619`/`:628`, when the spell
+                                    // *resolves into a permanent* — they are still 0
+                                    // on the stack object at this site, so a
+                                    // hypothetical "when you cast this spell, if it
+                                    // was kicked" would read false and the trigger
+                                    // would be wrongly suppressed even though the
+                                    // spell genuinely was kicked. Not defensible the
+                                    // way `SourceOnBattlefield` is: the engine just
+                                    // stores the fact on the wrong object at this
+                                    // moment. Zero corpus exposure today (no def
+                                    // pairs `WhenYouCastThisSpell` with any
+                                    // `intervening_if`). The site IS gated below like
+                                    // every other Category-A site; what was left alone
+                                    // is the `WasKicked`/`XValueAtLeast` carve-out —
+                                    // they stay classified queue-time-evaluable rather
+                                    // than being special-cased here, because a real
+                                    // fix needs either
+                                    // `StackObject.kicker_times_paid`/`x_value` or to
+                                    // write those fields onto the spell's
+                                    // `GameObject` at cast time — both bigger than a
+                                    // gate tweak. Seeded as an OOS-DP6 finding for the
+                                    // coordinator to file.
+                                    if !carddef_intervening_if_holds_at_queue_time(
+                                        state,
+                                        intervening_if.as_ref(),
+                                        caster,
+                                        *source_object_id,
+                                    ) {
+                                        continue;
+                                    }
                                     // Push the cast-trigger using the stack object as source.
-                                    // Condition check (if any) is deferred to resolution.
                                     // PB-EF3 A2 (CR 601.2c/603.3d): `idx` here is a raw index
                                     // into `def.abilities` (this trigger is never lowered into
                                     // runtime `characteristics.triggered_abilities` — it fires
@@ -4048,6 +4093,9 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         .as_ref()
                                         .and_then(|cid| state.card_registry.get(cid.clone()))
                                     {
+                                        // CR 603.4 (PB-DP6): gate at queue time. The
+                                        // guard above already requires
+                                        // `zone == Battlefield && is_phased_in()`.
                                         let carddef_indices: Vec<usize> = def
                                             .abilities
                                             .iter()
@@ -4056,8 +4104,15 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                                 AbilityDefinition::Triggered {
                                                     trigger_condition:
                                                         TriggerCondition::WhenExertedAsAttacks,
+                                                    intervening_if,
                                                     ..
-                                                } => Some(idx),
+                                                } => carddef_intervening_if_holds_at_queue_time(
+                                                    state,
+                                                    intervening_if.as_ref(),
+                                                    controller,
+                                                    source_id,
+                                                )
+                                                .then_some(idx),
                                                 _ => None,
                                             })
                                             .collect();
@@ -5019,6 +5074,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         .as_ref()
                                         .and_then(|cid| state.card_registry.get(cid.clone()))
                                     {
+                                        // CR 603.4 (PB-DP6): gate at queue time. LKI
+                                        // source read via `fizzle_object` above.
                                         let carddef_indices: Vec<usize> = def
                                             .abilities
                                             .iter()
@@ -5027,8 +5084,15 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                                 AbilityDefinition::Triggered {
                                                     trigger_condition:
                                                         TriggerCondition::WhenDealsCombatDamageToPlayer,
+                                                    intervening_if,
                                                     ..
-                                                } => Some(idx),
+                                                } => carddef_intervening_if_holds_at_queue_time(
+                                                    state,
+                                                    intervening_if.as_ref(),
+                                                    controller,
+                                                    source_id,
+                                                )
+                                                .then_some(idx),
                                                 _ => None,
                                             })
                                             .collect();
@@ -5899,9 +5963,21 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         for (idx, ability) in def.abilities.iter().enumerate() {
                             if let AbilityDefinition::Triggered {
                                 trigger_condition: TriggerCondition::WhenTurnedFaceUp,
+                                intervening_if,
                                 ..
                             } = ability
                             {
+                                // CR 603.4 (PB-DP6): queue-time gate. The permanent
+                                // was just turned face up (CR 708.8) — full
+                                // characteristics are already available.
+                                if !carddef_intervening_if_holds_at_queue_time(
+                                    state,
+                                    intervening_if.as_ref(),
+                                    ctrl,
+                                    *permanent,
+                                ) {
+                                    continue;
+                                }
                                 triggers.push(PendingTrigger {
                                     ability_index: idx,
                                     ..PendingTrigger::blank(
@@ -5942,9 +6018,21 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     for (idx, ability) in def.abilities.iter().enumerate() {
                         if let AbilityDefinition::Triggered {
                             trigger_condition: TriggerCondition::WheneverRingTemptsYou,
+                            intervening_if,
                             ..
                         } = ability
                         {
+                            // CR 603.4 (PB-DP6): queue-time gate. `*tempted_player`
+                            // is the controller passed here, which the guard above
+                            // has already equated to `obj.controller`.
+                            if !carddef_intervening_if_holds_at_queue_time(
+                                state,
+                                intervening_if.as_ref(),
+                                *tempted_player,
+                                obj_id,
+                            ) {
+                                continue;
+                            }
                             // PB-EF3 A2 (CR 601.2c/603.3d): `idx` is a raw index into
                             // `def.abilities` (not converted to runtime
                             // `characteristics.triggered_abilities`). CardDefETB kind keeps
@@ -6946,12 +7034,19 @@ fn collect_graveyard_carddef_triggers(
             if !fires {
                 continue;
             }
-            // CR 603.4: Check intervening-if at trigger time.
-            if let Some(cond) = intervening_if {
-                let ctx = crate::effects::EffectContext::new(owner, obj_id, vec![]);
-                if !crate::effects::check_condition(state, cond, &ctx) {
-                    continue;
-                }
+            // CR 603.4 (PB-DP6): queue-time gate via the shared helper. Behaviour-
+            // neutral refactor of the pre-existing inline check (same site the
+            // audit named as one of the two already-correct gates); `owner` stays
+            // the controller argument and `obj_id` the source, unchanged from
+            // before. `SourceOnBattlefield` correctly answers false here since
+            // this trigger's source lives in the Graveyard.
+            if !carddef_intervening_if_holds_at_queue_time(
+                state,
+                intervening_if.as_ref(),
+                owner,
+                obj_id,
+            ) {
+                continue;
             }
             triggers.push(PendingTrigger {
                 ability_index: idx,
@@ -9049,6 +9144,48 @@ pub fn handle_saddle_mount(
     });
     events.push(GameEvent::PriorityGiven { player });
     Ok(events)
+}
+/// CR 603.4: evaluate a **card-definition** intervening-if at the moment the trigger
+/// event occurs. `true` = queue the trigger; `false` = the ability does not trigger
+/// at all.
+///
+/// `intervening_if` MUST be handed in by the caller, taken from the same
+/// `AbilityDefinition::Triggered` the caller matched on. Do NOT re-derive it by
+/// index inside this helper: the callers iterate three different index spaces
+/// (`def.abilities`, `def.effective_abilities(is_transformed)`, and the runtime
+/// vec), and face-awareness (CR 712.8d/e, PB-OS4b/PB-RS4) is inherited from
+/// whichever list the caller walked.
+///
+/// The context mirrors `rules/resolution.rs:2160-2177` for the fields that exist
+/// before the ability reaches the stack; `targets` is necessarily empty, which is
+/// why `condition_is_queue_time_evaluable` exists.
+pub(crate) fn carddef_intervening_if_holds_at_queue_time(
+    state: &GameState,
+    intervening_if: Option<&crate::cards::card_definition::Condition>,
+    controller: PlayerId,
+    source: ObjectId,
+) -> bool {
+    let Some(cond) = intervening_if else {
+        return true;
+    };
+    if !crate::effects::condition_is_queue_time_evaluable(cond) {
+        return true; // hard constraint 3: never suppress on an unanswerable condition
+    }
+    // CR 113.7a: several callers legitimately hold an LKI source (combat damage,
+    // cast triggers, graveyard triggers) — `fizzle_object`, not a bare lookup
+    // (SR-25 ratchet), and a vanished source simply contributes 0/0.
+    let (kicker_times_paid, x_value) = state
+        .fizzle_object(source)
+        .map(|o| (o.kicker_times_paid, o.x_value))
+        .unwrap_or((0, 0));
+    let mut ctx = crate::effects::EffectContext::new_with_kicker(
+        controller,
+        source,
+        vec![],
+        kicker_times_paid,
+    );
+    ctx.x_value = x_value;
+    crate::effects::check_condition(state, cond, &ctx)
 }
 /// Evaluate an intervening-if condition against the current game state (CR 603.4).
 ///

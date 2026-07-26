@@ -262,12 +262,15 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
     // handled by the blocks above; this sweep catches all other CardDef-defined upkeep triggers
     // (e.g., Dreadhorde Invasion's life-loss + amass, Champion's paired trigger, etc.).
     //
-    // CR 603.4: Intervening-if conditions (if any) are checked at resolution via the Normal
-    // trigger dispatch path, consistent with all other CardDef trigger handling.
+    // CR 603.4: Intervening-if conditions are checked HERE, at queue time (PB-DP6,
+    // scutemob-154), in addition to the resolution-time re-check on the Normal
+    // trigger dispatch path. A false condition means the ability does not trigger
+    // at all; queueing it anyway would put a trigger on the stack that CR 603.4
+    // says never fires.
     let carddef_upkeep_triggers: Vec<(ObjectId, PlayerId, Vec<usize>)> = {
-        let registry = &state.card_registry;
-        state
-            .objects
+        let sref: &GameState = state;
+        let registry = &sref.card_registry;
+        sref.objects
             .values()
             .filter(|obj| obj.zone == ZoneId::Battlefield && !obj.status.phased_out)
             .filter_map(|obj| {
@@ -286,7 +289,9 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                     .enumerate()
                     .filter_map(|(idx, abil)| {
                         let AbilityDefinition::Triggered {
-                            trigger_condition, ..
+                            trigger_condition,
+                            intervening_if,
+                            ..
                         } = abil
                         else {
                             return None;
@@ -299,7 +304,18 @@ fn upkeep_actions(state: &mut GameState) -> Vec<GameEvent> {
                                 trigger_condition,
                                 TriggerCondition::AtBeginningOfEachUpkeep
                             );
-                        fires.then_some(idx)
+                        if !fires {
+                            return None;
+                        }
+                        if !super::abilities::carddef_intervening_if_holds_at_queue_time(
+                            sref,
+                            intervening_if.as_ref(),
+                            controller,
+                            obj.id,
+                        ) {
+                            return None;
+                        }
+                        Some(idx)
                     })
                     .collect();
                 if indices.is_empty() {
@@ -427,9 +443,9 @@ fn precombat_main_actions(state: &mut GameState) -> Vec<GameEvent> {
     // Mirrors the carddef_upkeep_triggers / carddef_end_step_triggers sweeps
     // (MR-B9-01 / B14) so CardDef-defined first-main triggers actually fire.
     let carddef_first_main_triggers: Vec<(ObjectId, PlayerId, Vec<usize>)> = {
-        let registry = &state.card_registry;
-        state
-            .objects
+        let sref: &GameState = state;
+        let registry = &sref.card_registry;
+        sref.objects
             .values()
             .filter(|obj| obj.zone == crate::state::zone::ZoneId::Battlefield && obj.is_phased_in())
             .filter_map(|obj| {
@@ -448,16 +464,31 @@ fn precombat_main_actions(state: &mut GameState) -> Vec<GameEvent> {
                     .enumerate()
                     .filter_map(|(idx, abil)| {
                         let AbilityDefinition::Triggered {
-                            trigger_condition, ..
+                            trigger_condition,
+                            intervening_if,
+                            ..
                         } = abil
                         else {
                             return None;
                         };
-                        matches!(
+                        if !matches!(
                             trigger_condition,
                             TriggerCondition::AtBeginningOfFirstMainPhase
-                        )
-                        .then_some(idx)
+                        ) {
+                            return None;
+                        }
+                        // CR 603.4 (PB-DP6): queue-time gate. Kept after the
+                        // controller filter above so a false condition on an
+                        // irrelevant permanent costs nothing.
+                        if !super::abilities::carddef_intervening_if_holds_at_queue_time(
+                            sref,
+                            intervening_if.as_ref(),
+                            controller,
+                            obj.id,
+                        ) {
+                            return None;
+                        }
+                        Some(idx)
                     })
                     .collect();
                 if indices.is_empty() {
@@ -491,9 +522,9 @@ fn precombat_main_actions(state: &mut GameState) -> Vec<GameEvent> {
 fn postcombat_main_actions(state: &mut GameState) -> Vec<GameEvent> {
     let active = state.turn.active_player;
     let carddef_postcombat_main_triggers: Vec<(ObjectId, PlayerId, Vec<usize>)> = {
-        let registry = &state.card_registry;
-        state
-            .objects
+        let sref: &GameState = state;
+        let registry = &sref.card_registry;
+        sref.objects
             .values()
             .filter(|obj| obj.zone == crate::state::zone::ZoneId::Battlefield && obj.is_phased_in())
             .filter_map(|obj| {
@@ -512,16 +543,30 @@ fn postcombat_main_actions(state: &mut GameState) -> Vec<GameEvent> {
                     .enumerate()
                     .filter_map(|(idx, abil)| {
                         let AbilityDefinition::Triggered {
-                            trigger_condition, ..
+                            trigger_condition,
+                            intervening_if,
+                            ..
                         } = abil
                         else {
                             return None;
                         };
-                        matches!(
+                        if !matches!(
                             trigger_condition,
                             TriggerCondition::AtBeginningOfPostcombatMain
-                        )
-                        .then_some(idx)
+                        ) {
+                            return None;
+                        }
+                        // CR 603.4 (PB-DP6): queue-time gate, after the controller
+                        // filter above.
+                        if !super::abilities::carddef_intervening_if_holds_at_queue_time(
+                            sref,
+                            intervening_if.as_ref(),
+                            controller,
+                            obj.id,
+                        ) {
+                            return None;
+                        }
+                        Some(idx)
                     })
                     .collect();
                 if indices.is_empty() {
@@ -698,11 +743,12 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
     // Mirrors the carddef_upkeep_triggers sweep added in MR-B9-01. Catches all CardDef-defined
     // end-step triggers (e.g. Jadar's zombie token creation, future end-step triggers).
     //
-    // CR 603.4: Intervening-if conditions are checked at resolution via the Normal trigger path.
+    // CR 603.4: Intervening-if conditions are checked HERE, at queue time (PB-DP6),
+    // and re-checked at resolution via the Normal trigger path.
     let carddef_end_step_triggers: Vec<(ObjectId, PlayerId, Vec<usize>)> = {
-        let registry = &state.card_registry;
-        state
-            .objects
+        let sref: &GameState = state;
+        let registry = &sref.card_registry;
+        sref.objects
             .values()
             .filter(|obj| obj.zone == ZoneId::Battlefield && !obj.status.phased_out)
             .filter_map(|obj| {
@@ -718,7 +764,9 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
                     .enumerate()
                     .filter_map(|(idx, abil)| {
                         let AbilityDefinition::Triggered {
-                            trigger_condition, ..
+                            trigger_condition,
+                            intervening_if,
+                            ..
                         } = abil
                         else {
                             return None;
@@ -727,7 +775,18 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
                             trigger_condition,
                             TriggerCondition::AtBeginningOfYourEndStep
                         ) && controller == active;
-                        fires.then_some(idx)
+                        if !fires {
+                            return None;
+                        }
+                        if !super::abilities::carddef_intervening_if_holds_at_queue_time(
+                            sref,
+                            intervening_if.as_ref(),
+                            controller,
+                            obj.id,
+                        ) {
+                            return None;
+                        }
+                        Some(idx)
                     })
                     .collect();
                 if indices.is_empty() {
@@ -1671,10 +1730,13 @@ fn begin_combat(state: &mut GameState) -> Vec<GameEvent> {
     // Mirrors the carddef_upkeep_triggers / carddef_postcombat_main_triggers /
     // carddef_end_step_triggers sweeps so CardDef-defined combat triggers actually
     // fire (OOS-OS9-1).
+    // CR 603.4 (PB-DP6): the queue-time intervening-if gate lives here, after the
+    // controller filter, so a false condition on an irrelevant permanent costs
+    // nothing. Resolution-time re-check is retained (resolution.rs).
     let carddef_begin_combat_triggers: Vec<(ObjectId, PlayerId, Vec<usize>)> = {
-        let registry = &state.card_registry;
-        state
-            .objects
+        let sref: &GameState = state;
+        let registry = &sref.card_registry;
+        sref.objects
             .values()
             .filter(|obj| obj.zone == crate::state::zone::ZoneId::Battlefield && obj.is_phased_in())
             .filter_map(|obj| {
@@ -1693,13 +1755,25 @@ fn begin_combat(state: &mut GameState) -> Vec<GameEvent> {
                     .enumerate()
                     .filter_map(|(idx, abil)| {
                         let AbilityDefinition::Triggered {
-                            trigger_condition, ..
+                            trigger_condition,
+                            intervening_if,
+                            ..
                         } = abil
                         else {
                             return None;
                         };
-                        matches!(trigger_condition, TriggerCondition::AtBeginningOfCombat)
-                            .then_some(idx)
+                        if !matches!(trigger_condition, TriggerCondition::AtBeginningOfCombat) {
+                            return None;
+                        }
+                        if !super::abilities::carddef_intervening_if_holds_at_queue_time(
+                            sref,
+                            intervening_if.as_ref(),
+                            controller,
+                            obj.id,
+                        ) {
+                            return None;
+                        }
+                        Some(idx)
                     })
                     .collect();
                 if indices.is_empty() {
