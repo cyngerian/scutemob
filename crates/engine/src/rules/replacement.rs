@@ -14,8 +14,8 @@ use crate::state::error::GameStateError;
 use crate::state::game_object::ObjectId;
 use crate::state::player::PlayerId;
 use crate::state::replacement_effect::{
-    DamageTargetFilter, ObjectFilter, PendingZoneChange, PlayerFilter, ReplacementEffect,
-    ReplacementId, ReplacementModification, ReplacementTrigger,
+    DamageTargetFilter, ObjectFilter, PendingDraw, PendingZoneChange, PlayerFilter,
+    ReplacementEffect, ReplacementId, ReplacementModification, ReplacementTrigger,
 };
 use crate::state::types::{CardType, CounterType};
 use crate::state::zone::ZoneId;
@@ -592,7 +592,18 @@ pub enum DrawAction {
 ///
 /// Called from both `draw_card` (turn_actions.rs) and `draw_one_card`
 /// (effects/mod.rs) to keep the two draw paths consistent.
-pub fn check_would_draw_replacement(state: &GameState, player: PlayerId) -> DrawAction {
+///
+/// `already_applied` (CR 614.5) is threaded in so a CR 616.1f re-check (from
+/// `resolve_pending_draw`) does not re-offer an effect already applied to this
+/// draw event. `offer_dredge` is `false` on a resume (PB-DP5 §3.3): re-offering
+/// dredge mid-chain would restart a CR 616.1 application the player already
+/// began, and there is nowhere to record a second pause.
+pub fn check_would_draw_replacement(
+    state: &GameState,
+    player: PlayerId,
+    already_applied: &HashSet<ReplacementId>,
+    offer_dredge: bool,
+) -> DrawAction {
     use crate::state::replacement_effect::{
         PlayerFilter, ReplacementModification, ReplacementTrigger,
     };
@@ -601,44 +612,46 @@ pub fn check_would_draw_replacement(state: &GameState, player: PlayerId) -> Draw
     // A card is eligible if:
     //   1. It has KeywordAbility::Dredge(n) in its keywords.
     //   2. The player has >= n cards in their library (CR 702.52b).
-    let graveyard_zone = ZoneId::Graveyard(player);
-    let library_zone = ZoneId::Library(player);
-    // SR-14: the library zone is built before turn 1 and never removed (ground truth 2).
-    let library_count = state
-        .expect_zone(&library_zone)
-        .map(|z| z.len())
-        .unwrap_or(0);
-    let mut dredge_options: Vec<(ObjectId, u32)> = state
-        .objects
-        .values()
-        .filter(|obj| obj.zone == graveyard_zone)
-        .filter_map(|obj| {
-            obj.characteristics.keywords.iter().find_map(|kw| {
-                if let KeywordAbility::Dredge(n) = kw {
-                    if (*n as usize) <= library_count {
-                        Some((obj.id, *n))
+    if offer_dredge {
+        let graveyard_zone = ZoneId::Graveyard(player);
+        let library_zone = ZoneId::Library(player);
+        // SR-14: the library zone is built before turn 1 and never removed (ground truth 2).
+        let library_count = state
+            .expect_zone(&library_zone)
+            .map(|z| z.len())
+            .unwrap_or(0);
+        let mut dredge_options: Vec<(ObjectId, u32)> = state
+            .objects
+            .values()
+            .filter(|obj| obj.zone == graveyard_zone)
+            .filter_map(|obj| {
+                obj.characteristics.keywords.iter().find_map(|kw| {
+                    if let KeywordAbility::Dredge(n) = kw {
+                        if (*n as usize) <= library_count {
+                            Some((obj.id, *n))
+                        } else {
+                            None
+                        }
                     } else {
                         None
                     }
-                } else {
-                    None
-                }
+                })
             })
-        })
-        .collect();
-    // Sort for determinism (by ObjectId).
-    dredge_options.sort_by_key(|(id, _)| *id);
-    if !dredge_options.is_empty() {
-        // CR 702.52a: Dredge options available — pause for player choice.
-        return DrawAction::DredgeAvailable(GameEvent::DredgeChoiceRequired {
-            player,
-            options: dredge_options,
-        });
+            .collect();
+        // Sort for determinism (by ObjectId).
+        dredge_options.sort_by_key(|(id, _)| *id);
+        if !dredge_options.is_empty() {
+            // CR 702.52a: Dredge options available — pause for player choice.
+            return DrawAction::DredgeAvailable(GameEvent::DredgeChoiceRequired {
+                player,
+                options: dredge_options,
+            });
+        }
     }
     let trigger = ReplacementTrigger::WouldDraw {
         player_filter: PlayerFilter::Specific(player),
     };
-    let applicable = find_applicable(state, &trigger, &std::collections::HashSet::new());
+    let applicable = find_applicable(state, &trigger, already_applied);
     let action = determine_action(state, &applicable, player, "draw a card");
     match action {
         ReplacementResult::NoApplicable => DrawAction::Proceed,
@@ -670,6 +683,137 @@ pub fn check_would_draw_replacement(state: &GameState, player: PlayerId) -> Draw
                 event_description,
                 choices,
             })
+        }
+    }
+}
+/// What happened to one attempted draw (CR 121.1 / 614.11 / 616.1).
+pub(crate) enum DrawStepOutcome {
+    /// A card moved to hand.
+    Completed,
+    /// A replacement (CR 614.10 `SkipDraw`) consumed the draw. No card moved.
+    Replaced,
+    /// CR 616.1: 2+ replacements applied; a `PendingDraw` was pushed and a
+    /// `ReplacementChoiceRequired` emitted. The caller MUST stop the sequence
+    /// (CR 614.11a) — see `PendingDraw.remaining`.
+    Deferred,
+    /// CR 702.52a: a `DredgeChoiceRequired` was emitted. Behaviour unchanged from
+    /// pre-PB-DP5: the caller does NOT stop (dredge is only ever offered with
+    /// `offer_dredge: true`, i.e. never mid-resume — see PB-DP5 plan §3.3).
+    DredgeOffered,
+    /// CR 104.3b: the library was empty; `PlayerLost` emitted.
+    LostToEmptyLibrary,
+}
+/// CR 121.1 / 121.2 / 614.11 / 616.1: perform ONE card draw for `player`.
+///
+/// This is the single completion body shared by `turn_actions::draw_card`,
+/// `effects::draw_cards_for_player` (the sequence loop, formerly `draw_one_card`),
+/// `replacement::draw_card_skipping_dredge`, and `resolve_pending_draw`'s resume
+/// path — replacing three near-duplicate bodies (PB-DP5).
+///
+/// `already_applied` (CR 614.5) and `remaining_after` (CR 614.11a / 121.2, the
+/// count of further draws in this player's current sequence) are threaded
+/// through to `PendingDraw` if a `NeedsChoice` is hit, so a resume via
+/// `resolve_pending_draw` sees exactly the state this call left behind.
+///
+/// `sets_has_drawn_for_turn` preserves a pre-existing, currently-unobservable
+/// divergence between the three original bodies rather than silently unifying
+/// it: `PlayerState::has_drawn_for_turn` is write-only dead state (never read by
+/// any engine logic) but IS fed to the public state hash, so unifying the write
+/// would move real game hashes for zero behavioural gain. `true` for
+/// `turn_actions::draw_card` and `draw_card_skipping_dredge` (which both set it
+/// today); `false` for the effect-draw path (which never has).
+///
+/// No internal loop: like `resolve_pending_zone_change`'s single call to
+/// `check_zone_change_replacement`, a `NeedsChoice` here defers to a *future*
+/// `Command::OrderReplacements` round-trip rather than looping in-process — the
+/// termination argument is the same one that function relies on: each round
+/// strictly grows `already_applied`, `find_applicable` excludes elements of it,
+/// so the total number of rounds is bounded by `state.replacement_effects.len()`.
+/// `check_would_draw_replacement`'s own single-effect dispatch (`AutoApply`) is
+/// already terminal per-call (it never needs a second look before returning),
+/// so no additional loop is needed inside this function either.
+pub(crate) fn perform_one_draw(
+    state: &mut GameState,
+    player: PlayerId,
+    offer_dredge: bool,
+    sets_has_drawn_for_turn: bool,
+    already_applied: HashSet<ReplacementId>,
+    remaining_after: u32,
+) -> (Vec<GameEvent>, DrawStepOutcome) {
+    match check_would_draw_replacement(state, player, &already_applied, offer_dredge) {
+        DrawAction::DredgeAvailable(event) => (vec![event], DrawStepOutcome::DredgeOffered),
+        DrawAction::Skip(event) => (vec![event], DrawStepOutcome::Replaced),
+        DrawAction::NeedsChoice(event) => {
+            // CR 616.1e: 2+ replacements apply — record the pending state so a
+            // future `Command::OrderReplacements` (routed by
+            // `handle_order_replacements` to `resolve_pending_draw`) can resume
+            // this exact draw.
+            //
+            // Determinism (SR-9b): sort by ReplacementId before storing.
+            // `HashSet` iteration order is not stable and this field is hashed —
+            // this is load-bearing, not cosmetic.
+            let mut sorted: Vec<ReplacementId> = already_applied.into_iter().collect();
+            sorted.sort_by_key(|id| id.0);
+            state.pending_draws.push_back(PendingDraw {
+                player,
+                already_applied: sorted,
+                remaining: remaining_after,
+                sets_has_drawn_for_turn,
+            });
+            (vec![event], DrawStepOutcome::Deferred)
+        }
+        DrawAction::Proceed => {
+            // CR 121.1: perform the draw. The eliminated/conceded guard runs in
+            // every call site before this is reached.
+            let library_zone = ZoneId::Library(player);
+            // SR-14: the library zone is built pre-turn-1 and never removed
+            // (ground truth 2); `top()` returning `None` is the legal CR 104.3b
+            // empty case, not an absence.
+            let top_id = match state.expect_zone(&library_zone).and_then(|z| z.top()) {
+                Some(id) => id,
+                None => {
+                    // CR 104.3b: drawing from an empty library causes loss.
+                    // SR-14: players are never removed from state.players
+                    // (ground truth 1).
+                    if let Some(p) = state.expect_player_mut(player) {
+                        p.has_lost = true;
+                    }
+                    return (
+                        vec![GameEvent::PlayerLost {
+                            player,
+                            reason: crate::rules::events::LossReason::LibraryEmpty,
+                        }],
+                        DrawStepOutcome::LostToEmptyLibrary,
+                    );
+                }
+            };
+            // SR-14: `top_id` was just read from the live library top — the move
+            // cannot fail.
+            let new_id = match state.expect_move_object_to_zone(top_id, ZoneId::Hand(player)) {
+                Some((new_id, _)) => new_id,
+                None => return (vec![], DrawStepOutcome::Completed),
+            };
+            // SR-14: players are never removed (ground truth 1).
+            if let Some(p) = state.expect_player_mut(player) {
+                // CR 121.1: track draws-per-turn for Sylvan Library and similar
+                // effects (CC#33).
+                p.cards_drawn_this_turn += 1;
+                if sets_has_drawn_for_turn {
+                    p.has_drawn_for_turn = true;
+                }
+            }
+            let mut events = vec![GameEvent::CardDrawn {
+                player,
+                new_object_id: new_id,
+            }];
+            // CR 702.94a: check if the just-drawn card has miracle and is the
+            // first draw.
+            if let Some(miracle_event) =
+                crate::rules::miracle::check_miracle_eligible(state, player, new_id)
+            {
+                events.push(miracle_event);
+            }
+            (events, DrawStepOutcome::Completed)
         }
     }
 }
@@ -2624,15 +2768,19 @@ pub fn handle_choose_dredge(
 ///
 /// Called when a player declines dredge (`ChooseDredge { card: None }`). We
 /// re-check other WouldDraw replacement effects (SkipDraw etc.) but do NOT
-/// re-offer dredge (the player just chose not to dredge this draw).
+/// re-offer dredge (the player just chose not to dredge this draw) — hence
+/// `offer_dredge: false` into `perform_one_draw`. `sets_has_drawn_for_turn:
+/// true` mirrors this function's pre-PB-DP5 behavior (it always set the flag).
 ///
-/// Mirrors the logic of `turn_actions::draw_card` but skips the dredge
-/// portion of `check_would_draw_replacement`.
+/// PB-DP5: if 2+ `WouldDraw` replacements now apply, a `PendingDraw` is pushed
+/// and `Command::OrderReplacements` can resume the draw (see
+/// `resolve_pending_draw`) — pre-PB-DP5 this returned a
+/// `ReplacementChoiceRequired` that could never be answered (this is emit site
+/// #3 of DP-5, the one the original audit did not name).
 fn draw_card_skipping_dredge(
     state: &mut GameState,
     player: PlayerId,
 ) -> Result<Vec<GameEvent>, GameStateError> {
-    use crate::rules::events::LossReason;
     // Eliminated / conceded players cannot draw.
     // SR-14: players are never removed from state.players (ground truth 1).
     if let Some(p) = state.expect_player(player) {
@@ -2640,77 +2788,8 @@ fn draw_card_skipping_dredge(
             return Ok(vec![]);
         }
     }
-    // Check non-dredge WouldDraw replacement effects.
-    use crate::state::replacement_effect::{
-        PlayerFilter, ReplacementModification, ReplacementTrigger,
-    };
-    let trigger = ReplacementTrigger::WouldDraw {
-        player_filter: PlayerFilter::Specific(player),
-    };
-    let applicable = find_applicable(state, &trigger, &HashSet::new());
-    let action = determine_action(state, &applicable, player, "draw a card");
-    match action {
-        ReplacementResult::AutoApply(id) => {
-            let modification = state
-                .replacement_effects
-                .iter()
-                .find(|e| e.id == id)
-                .map(|e| e.modification.clone());
-            if matches!(modification, Some(ReplacementModification::SkipDraw)) {
-                return Ok(vec![GameEvent::ReplacementEffectApplied {
-                    effect_id: id,
-                    description: "skip that draw".to_string(),
-                }]);
-            }
-        }
-        ReplacementResult::NeedsChoice {
-            player,
-            choices,
-            event_description,
-        } => {
-            return Ok(vec![GameEvent::ReplacementChoiceRequired {
-                player,
-                event_description,
-                choices,
-            }]);
-        }
-        ReplacementResult::NoApplicable => {}
-    }
-    // Perform the actual draw.
-    let library_zone = ZoneId::Library(player);
-    // SR-14: the library zone is never removed (ground truth 2); `z.top()` returning
-    // None is the legal empty-library case, handled below as CR 104.3b loss.
-    let top_id = match state.expect_zone(&library_zone).and_then(|z| z.top()) {
-        Some(id) => id,
-        None => {
-            // Library empty — player loses (CR 104.3b).
-            // SR-14: players are never removed (ground truth 1).
-            if let Some(p) = state.expect_player_mut(player) {
-                p.has_lost = true;
-            }
-            return Ok(vec![GameEvent::PlayerLost {
-                player,
-                reason: LossReason::LibraryEmpty,
-            }]);
-        }
-    };
-    let (new_id, _) = state.move_object_to_zone(top_id, ZoneId::Hand(player))?;
-    // SR-14: players are never removed (ground truth 1).
-    if let Some(p) = state.expect_player_mut(player) {
-        p.has_drawn_for_turn = true;
-        p.cards_drawn_this_turn += 1;
-    }
-    let mut events = vec![GameEvent::CardDrawn {
-        player,
-        new_object_id: new_id,
-    }];
-    // CR 702.94a: Check if the just-drawn card has miracle and is the first draw.
-    // (After the player declined dredge, this is a normal draw and miracle applies.)
-    if let Some(miracle_event) =
-        crate::rules::miracle::check_miracle_eligible(state, player, new_id)
-    {
-        events.push(miracle_event);
-    }
+    let (events, _outcome) =
+        perform_one_draw(state, player, false, true, HashSet::new(), 0);
     Ok(events)
 }
 // ── Regeneration helpers (CR 701.19) ─────────────────────────────────────
