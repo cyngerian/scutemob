@@ -245,7 +245,8 @@ Transform/Morph and type consolidation are complete — M10a/M11-local are ready
 
 ## Action Items
 
-All nine are now closed (the last five on 2026-07-26, `scutemob-147`).
+All nine are now resolved — eight done, one (#9) obsoleted by a doc retirement. The last
+five were closed on 2026-07-26 (`scutemob-147`).
 
 | # | Action | Priority | Blocks | Status |
 |---|--------|----------|--------|--------|

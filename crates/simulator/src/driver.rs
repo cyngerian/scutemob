@@ -7,8 +7,16 @@
 //! (`local_game.rs`) with `human_seats` empty — `LocalGame::advance()` never
 //! returns `AwaitingHuman` in that configuration, so every step here is either
 //! `GameOver` or `Halted`. This is the single loop `LocalGame` and `GameDriver`
-//! now share; behaviour is unchanged (verified against a pre-refactor fuzzer
-//! baseline, see `memory/m11-session-plan.md` §4 Session 1 items 1 and 8).
+//! now share.
+//!
+//! **Evidence for behavioural parity**, stated precisely because the obvious check
+//! is not currently available: the port was verified by a byte-identical *single-seed*
+//! command-trace replay across the refactor, plus a statement-by-statement review of
+//! the counters, the tracked/untracked invariant-check asymmetry, the pass-count reset,
+//! every error variant, the `CastSpell` auto-tap pre-pass and the sequence `break`.
+//! A full fuzzer-baseline diff is **not** currently a usable oracle: the fuzzer is not
+//! run-to-run deterministic for very long games, and that reproduces on pristine
+//! pre-refactor code — see `OOS-M11-3` in `memory/m11-session-plan.md` §4 Session 1.
 
 use std::collections::{BTreeSet, HashMap};
 
@@ -16,7 +24,7 @@ use mtg_engine::{GameState, PlayerId};
 
 use crate::bot::Bot;
 use crate::legal_actions::LegalActionProvider;
-use crate::local_game::{AdvanceOutcome, LocalGame, LocalGameLimits};
+use crate::local_game::{AdvanceOutcome, LocalGame, LocalGameError, LocalGameLimits};
 use crate::report::{GameDriverError, GameResult};
 
 /// Drives a complete game, alternating between legal action enumeration
@@ -64,6 +72,9 @@ impl<P: LegalActionProvider> GameDriver<P> {
             max_turns,
             max_commands,
             max_consecutive_passes: 500, // Safety: break infinite pass loops
+            // The fuzzer discards events and runs thousands of long games in parallel;
+            // journalling every command would retain memory the pre-M11 driver never did.
+            record_journal: false,
         };
 
         let mut game = match LocalGame::start(
@@ -77,13 +88,20 @@ impl<P: LegalActionProvider> GameDriver<P> {
         ) {
             Ok((game, _start_events)) => game,
             Err(e) => {
+                // Unwrap `LocalGameError::Engine` so crash reports keep the pre-M11
+                // shape — `EngineError("IncompleteCardsInGame { … }")`, not
+                // `EngineError("Engine(IncompleteCardsInGame { … })")`.
+                let message = match e {
+                    LocalGameError::Engine(inner) => format!("{:?}", inner),
+                    other => format!("{:?}", other),
+                };
                 return GameResult {
                     seed,
                     winner: None,
                     turn_count: 0,
                     total_commands: 0,
                     violations: Vec::new(),
-                    error: Some(GameDriverError::EngineError(format!("{:?}", e))),
+                    error: Some(GameDriverError::EngineError(message)),
                 };
             }
         };

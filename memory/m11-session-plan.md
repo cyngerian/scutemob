@@ -377,11 +377,47 @@ seat, the game ends, or a limit trips. Default bot is `HeuristicBot` for the web
 `AdvanceOutcome`/`HaltReason`/`PendingDecision`/`DecisionKind`/`CommandRecord`/
 `LocalGameError`/`HumanChoice` live in `crates/simulator/src/local_game.rs` (new);
 `GameDriver::run_game` re-expressed on top of it in `driver.rs`; all 6 named tests
-pass in `crates/simulator/tests/local_game.rs` (new); `cargo build --workspace
+pass (10 after the review pass below) in `crates/simulator/tests/local_game.rs` (new); `cargo build --workspace
 --all-targets`, `cargo test --all`, `cargo clippy --all-targets -- -D warnings`,
 `cargo fmt --check`, and `tools/check-defs-fmt.sh` are all green; PROTOCOL 27 /
 HASH 63 confirmed unmoved via `core::protocol_schema::protocol_version_sentinel`
 and `core::hash_schema::hash_schema_version_sentinel`.
+
+**Review pass (2026-07-26) — 4 MEDIUM API hazards found and fixed before Session 5 puts
+HTTP on this surface.** All four were design hazards rather than bugs in the port itself
+(the port's behavioural fidelity was verified statement-by-statement and holds):
+
+1. **`advance()` was not idempotent while a decision was outstanding.** It never inspected
+   `self.pending`, so a second call re-enumerated actions, bumped `decision_seq` and
+   replaced the decision — silently invalidating the `seq` the client was holding, which
+   would then fail with `StaleDecision { expected: <a seq it never saw> }`. A poll or
+   keepalive endpoint, or a browser refresh, was enough to trip it. Now `advance()` returns
+   the outstanding decision unchanged. **Sessions 5-6 may rely on this**: `advance()` is
+   safe to call on every request.
+2. **A human seat could deadlock on an empty action list.** The `human_seats` check ran
+   *before* the empty-legal-actions auto-pass, so a human in a state with no legal actions
+   got an `AwaitingHuman` with nothing to click, re-issued forever, with no counter moving.
+   `StubProvider` cannot produce that state, but **Session 3 replaces the provider** — the
+   seat is now resolved first and the auto-pass applies to humans too.
+3. **`submit()` checked only `seq`, not the acting player.** A client could answer its own
+   decision with a command naming a different seat. Now refused via `command_player()`.
+   **Session 3 should make this structural rather than checked**: once `submit` takes an
+   `action_index` into `pending.actions` and builds the `Command` itself for
+   `pending.player`, a cross-seat command becomes unrepresentable and the guard is belt-
+   and-braces.
+4. **The journal was unconditional, including on the fuzzer path**, where the pre-M11
+   driver retained nothing — up to `max_turns * 200` records per in-flight game, each with
+   a cloned `Vec<GameEvent>`, across thousands of parallel games. Now gated by
+   `LocalGameLimits::record_journal`, `false` for `GameDriver`, `true` for the play server.
+
+Also fixed: the `start_game` failure string regained its pre-M11 shape; the module
+docstring no longer advertises CR 103.5 mulligan coverage that is not reachable until
+Session 2; and the "behaviour is unchanged" claims in `driver.rs` and `CLAUDE.md` were
+reworded to state the actual evidence (see the OOS-M11-3 note below).
+
+Session 1's test count went 6 → 10: `test_local_game_repeated_advance_preserves_pending_decision`,
+`test_local_game_submit_rejects_command_for_another_seat`, `test_local_game_journal_can_be_disabled`,
+and a `command_player` serialization-shape unit test in `local_game.rs`.
 
 **Deviations from the plan text** (all deliberate, none scope-expanding):
 

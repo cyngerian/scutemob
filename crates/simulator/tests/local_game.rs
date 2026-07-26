@@ -112,6 +112,9 @@ fn small_limits(max_turns: u32) -> LocalGameLimits {
         max_turns,
         max_commands: max_turns * 200,
         max_consecutive_passes: 500,
+        // On for tests: the journal assertions below depend on it, and this is the
+        // configuration the play server will use. `GameDriver` sets it `false`.
+        record_journal: true,
     }
 }
 
@@ -247,6 +250,150 @@ fn test_local_game_halts_awaiting_human_at_first_priority() {
         }
         other => panic!("expected AwaitingHuman, got {:?}", other),
     }
+}
+
+/// `advance()` is idempotent while a decision is outstanding. A play server will call
+/// it from a poll or keepalive endpoint, and a browser refresh will call it again; if
+/// each call minted a fresh `seq`, the `seq` the client is holding would be silently
+/// invalidated and its `submit()` would fail against a `seq` it never saw.
+#[test]
+fn test_local_game_repeated_advance_preserves_pending_decision() {
+    let registry = build_registry();
+    let cards = all_cards();
+    let state = build_state(2, &registry, &cards);
+
+    let human_seats: BTreeSet<PlayerId> = [PlayerId(1)].into_iter().collect();
+    let (mut game, _start_events) = LocalGame::start(
+        state,
+        99,
+        StubProvider,
+        bots_for(2, 99),
+        human_seats,
+        small_limits(10),
+        true,
+    )
+    .expect("game should start");
+
+    let first = match game.advance() {
+        AdvanceOutcome::AwaitingHuman(d) => d,
+        other => panic!("expected AwaitingHuman, got {:?}", other),
+    };
+    let commands_after_first = game.command_count();
+
+    for call in 0..3 {
+        match game.advance() {
+            AdvanceOutcome::AwaitingHuman(again) => {
+                assert_eq!(
+                    again.seq, first.seq,
+                    "advance() call {} minted a new seq for an unanswered decision",
+                    call
+                );
+                assert_eq!(again.player, first.player);
+                assert_eq!(again.actions.len(), first.actions.len());
+            }
+            other => panic!("expected AwaitingHuman, got {:?}", other),
+        }
+        assert_eq!(
+            game.command_count(),
+            commands_after_first,
+            "a re-entrant advance() must not apply any command"
+        );
+    }
+
+    // The seq handed out first is still the one that works.
+    let pass = Command::PassPriority {
+        player: PlayerId(1),
+    };
+    game.submit(first.seq, HumanChoice::Command(pass))
+        .expect("the originally-issued seq must still be valid");
+}
+
+/// The seat that was asked is the only seat that may answer. A client holding a valid
+/// `seq` for its own decision must not be able to submit a command naming a different
+/// player — Architecture Invariant 7 once this sits behind HTTP.
+#[test]
+fn test_local_game_submit_rejects_command_for_another_seat() {
+    let registry = build_registry();
+    let cards = all_cards();
+    let state = build_state(2, &registry, &cards);
+
+    let human_seats: BTreeSet<PlayerId> = [PlayerId(1)].into_iter().collect();
+    let (mut game, _start_events) = LocalGame::start(
+        state,
+        11,
+        StubProvider,
+        bots_for(2, 11),
+        human_seats,
+        small_limits(10),
+        true,
+    )
+    .expect("game should start");
+
+    let decision = match game.advance() {
+        AdvanceOutcome::AwaitingHuman(d) => d,
+        other => panic!("expected AwaitingHuman, got {:?}", other),
+    };
+    assert_eq!(decision.player, PlayerId(1));
+
+    let commands_before = game.command_count();
+
+    // A legal-looking command, but for the *other* seat.
+    let cross_seat = Command::PassPriority {
+        player: PlayerId(2),
+    };
+    let result = game.submit(decision.seq, HumanChoice::Command(cross_seat));
+
+    assert!(
+        matches!(result, Err(LocalGameError::BadParams(_))),
+        "expected BadParams for a cross-seat command, got {:?}",
+        result
+    );
+    assert_eq!(
+        game.command_count(),
+        commands_before,
+        "a cross-seat submit must not apply anything"
+    );
+    assert_eq!(
+        game.pending_decision().map(|d| d.seq),
+        Some(decision.seq),
+        "a rejected cross-seat submit must not consume the decision"
+    );
+}
+
+/// `LocalGameLimits::record_journal` gates the journal. The play server needs it; the
+/// fuzzer must not pay for it (`GameDriver` runs thousands of long games in parallel
+/// and discards events, where the pre-M11 driver retained nothing).
+#[test]
+fn test_local_game_journal_can_be_disabled() {
+    let registry = build_registry();
+    let cards = all_cards();
+    let state = build_state(2, &registry, &cards);
+
+    let mut limits = small_limits(3);
+    limits.record_journal = false;
+
+    let (mut game, _start_events) = LocalGame::start(
+        state,
+        21,
+        StubProvider,
+        bots_for(2, 21),
+        BTreeSet::new(),
+        limits,
+        true,
+    )
+    .expect("game should start");
+
+    let _ = game.advance();
+
+    assert!(
+        game.command_count() > 0,
+        "the game must actually have run commands for this test to mean anything"
+    );
+    assert!(
+        game.journal().is_empty(),
+        "journal must stay empty when record_journal is false"
+    );
+    assert!(game.journal_since(0).is_empty());
 }
 
 /// `submit` never falls back to `PassPriority`: an illegal command is reported as
@@ -415,6 +562,7 @@ fn test_local_game_max_consecutive_passes_halts() {
         max_turns: 200,
         max_commands: 100_000,
         max_consecutive_passes: 5,
+        record_journal: true,
     };
     let (mut game, _start_events) =
         LocalGame::start(state, 42, StubProvider, bots, BTreeSet::new(), limits, true)

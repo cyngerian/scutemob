@@ -7,8 +7,11 @@
 //! the pre-existing bot-only driver — `GameDriver::run_game` is re-expressed on top of
 //! it in this same file.
 //!
-//! CR 117.3 governs priority; CR 103.5 mulligans; CR 903.9a the commander zone-change
-//! choice; CR 508.1 / 509.1 combat declarations. See `memory/m11-session-plan.md` §3-4.
+//! CR 117.3 governs priority and CR 903.9a the commander zone-change choice; both are
+//! reachable today. `DecisionKind` also declares `Mulligan` (CR 103.5) and the combat
+//! declarations (CR 508.1 / 509.1), but **mulligans are not actually reachable yet** —
+//! see `decision_kind_for` below. Session 2 owns pregame setup and mulligans.
+//! See `memory/m11-session-plan.md` §3-4.
 
 use std::collections::{BTreeSet, HashMap};
 
@@ -30,6 +33,15 @@ pub struct LocalGameLimits {
     pub max_turns: u32,
     pub max_commands: u32,
     pub max_consecutive_passes: u32,
+    /// Whether to retain a `CommandRecord` per applied command (see `journal()`).
+    ///
+    /// The play server needs this — it is the event feed and the bug-report export.
+    /// The fuzzer does not: `GameDriver::run_game` discards events, and at its
+    /// defaults (`max_commands = max_turns * 200`, thousands of games in parallel) an
+    /// unconditional journal would retain up to tens of thousands of records per
+    /// in-flight game, each holding a cloned `Vec<GameEvent>`, where the pre-M11 driver
+    /// retained nothing. `GameDriver` therefore sets this `false`.
+    pub record_journal: bool,
 }
 
 /// The outcome of a single `LocalGame::advance()` call.
@@ -215,6 +227,7 @@ impl<P: LegalActionProvider> LocalGame<P> {
     }
 
     /// Every `CommandRecord` recorded since `cursor` (an index into `journal()`).
+    /// Empty when `LocalGameLimits::record_journal` is `false`.
     pub fn journal_since(&self, cursor: usize) -> &[CommandRecord] {
         if cursor >= self.journal.len() {
             &[]
@@ -231,10 +244,19 @@ impl<P: LegalActionProvider> LocalGame<P> {
     /// Advance the game: run bot seats autonomously (identically to the old
     /// `GameDriver::run_game` loop body) until the game ends, a human-occupied seat
     /// must act, or a safety valve trips.
+    /// `advance()` is **idempotent while a decision is outstanding**: if a previous call
+    /// returned `AwaitingHuman` and no `submit()` has answered it, this returns that same
+    /// `PendingDecision` — same `seq`, same actions — rather than issuing a new one.
+    /// Without that, a poll/keepalive endpoint or a browser refresh would silently
+    /// invalidate the `seq` the client is holding, and the client's `submit()` would fail
+    /// with `StaleDecision { expected: <a seq it never saw> }`.
     pub fn advance(&mut self) -> AdvanceOutcome {
         loop {
             if is_game_over(&self.state) {
                 let winner = find_winner(&self.state);
+                // A finished game has no outstanding decision — do not keep reporting one
+                // from `pending_decision()`, and do not let `submit()` accept it.
+                self.pending = None;
                 return AdvanceOutcome::GameOver(GameResult {
                     seed: self.seed,
                     winner,
@@ -243,6 +265,12 @@ impl<P: LegalActionProvider> LocalGame<P> {
                     violations: self.violations.clone(),
                     error: None,
                 });
+            }
+
+            // Re-entrancy guard (see the doc comment above). Placed after the game-over
+            // check so a concluded game reports `GameOver`, not a stale decision.
+            if let Some(pending) = &self.pending {
+                return AdvanceOutcome::AwaitingHuman(pending.clone());
             }
 
             if self.state.turn().turn_number > self.limits.max_turns {
@@ -266,22 +294,21 @@ impl<P: LegalActionProvider> LocalGame<P> {
 
             // Determine acting player (CR 903.9a commander zone choice, then CR 117.3
             // priority holder, then a structural pass to advance between steps).
-            let acting_player = if let Some(pending) =
+            //
+            // Human seats are NOT branched on here. The seat is resolved first, legal
+            // actions are enumerated for it, and only then does a human seat stop the
+            // loop — so a human hits the same empty-legal-actions auto-pass a bot does.
+            // Stopping earlier would hand a human an `AwaitingHuman` carrying an empty
+            // action list, with every later `advance()` re-issuing it and no counter
+            // moving: a deadlock with no safety valve. `StubProvider` cannot produce that
+            // state today (it always offers the priority holder `PassPriority`), but
+            // Session 3 replaces the provider.
+            let (acting_player, forced_kind) = if let Some(pending) =
                 self.state.pending_commander_zone_choices().iter().next()
             {
-                let player = pending.0;
-                if self.human_seats.contains(&player) {
-                    let actions = self.provider.legal_actions(&self.state, player);
-                    return self.await_human(player, DecisionKind::CommanderZoneChoice, actions);
-                }
-                player
+                (pending.0, Some(DecisionKind::CommanderZoneChoice))
             } else if let Some(priority) = self.state.turn().priority_holder {
-                if self.human_seats.contains(&priority) {
-                    let actions = self.provider.legal_actions(&self.state, priority);
-                    let kind = decision_kind_for(&self.state, &actions);
-                    return self.await_human(priority, kind, actions);
-                }
-                priority
+                (priority, None)
             } else {
                 // No one has priority and no pending choices — pass to advance. This
                 // can happen between steps; issue PassPriority for active player.
@@ -298,11 +325,12 @@ impl<P: LegalActionProvider> LocalGame<P> {
                 }
             };
 
-            // Get legal actions for the (bot) acting player.
+            // Get legal actions for the acting player, human or bot.
             let legal = self.provider.legal_actions(&self.state, acting_player);
 
             if legal.is_empty() {
-                // No legal actions — pass priority to advance.
+                // No legal actions — pass priority to advance. Deliberately ahead of the
+                // human-seat check: there is nothing for a human to choose here either.
                 let cmd = Command::PassPriority {
                     player: acting_player,
                 };
@@ -318,6 +346,12 @@ impl<P: LegalActionProvider> LocalGame<P> {
                         });
                     }
                 }
+            }
+
+            // A human-occupied seat must act: stop and hand the decision out.
+            if self.human_seats.contains(&acting_player) {
+                let kind = forced_kind.unwrap_or_else(|| decision_kind_for(&self.state, &legal));
+                return self.await_human(acting_player, kind, legal);
             }
 
             // Bot chooses an action.
@@ -404,7 +438,32 @@ impl<P: LegalActionProvider> LocalGame<P> {
             });
         }
 
+        let expected_player = pending.player;
         let HumanChoice::Command(command) = choice;
+
+        // The seat that was asked is the only seat that may answer. Without this, a
+        // client holding a valid `seq` for its own decision could submit a command
+        // naming a *different* player and have it applied if the engine happened to
+        // accept it — an Architecture Invariant 7 problem the moment this is behind
+        // HTTP. Session 3 makes this structural rather than checked: `submit` will take
+        // an `action_index` into `pending.actions` and build the `Command` itself for
+        // `pending.player`, so a cross-seat command becomes unrepresentable.
+        match command_player(&command) {
+            Some(p) if p != expected_player => {
+                return Err(LocalGameError::BadParams(format!(
+                    "command names player {:?} but the pending decision belongs to {:?}",
+                    p, expected_player
+                )));
+            }
+            Some(_) => {}
+            None => {
+                // Every `Command` variant carries a player, so this is unreachable in
+                // practice; refuse rather than silently waive the check if that changes.
+                return Err(LocalGameError::BadParams(
+                    "could not determine the acting player of the submitted command".into(),
+                ));
+            }
+        }
 
         match process_command(self.state.clone(), command.clone()) {
             Ok((new_state, events)) => {
@@ -420,11 +479,13 @@ impl<P: LegalActionProvider> LocalGame<P> {
                 self.prev_turn = new_state.turn().turn_number;
                 self.state = new_state;
                 self.command_count += 1;
-                self.journal.push(CommandRecord {
-                    command,
-                    events: events.clone(),
-                    turn: self.state.turn().turn_number,
-                });
+                if self.limits.record_journal {
+                    self.journal.push(CommandRecord {
+                        command,
+                        events: events.clone(),
+                        turn: self.state.turn().turn_number,
+                    });
+                }
                 self.pending = None;
                 Ok(events)
             }
@@ -453,11 +514,13 @@ impl<P: LegalActionProvider> LocalGame<P> {
                 }
                 self.state = new_state;
                 self.command_count += 1;
-                self.journal.push(CommandRecord {
-                    command,
-                    events: events.clone(),
-                    turn: self.state.turn().turn_number,
-                });
+                if self.limits.record_journal {
+                    self.journal.push(CommandRecord {
+                        command,
+                        events: events.clone(),
+                        turn: self.state.turn().turn_number,
+                    });
+                }
                 Ok(events)
             }
             Err(e) => Err(e),
@@ -482,9 +545,33 @@ impl<P: LegalActionProvider> LocalGame<P> {
     }
 }
 
-/// CR 117.3 (priority), CR 103.5 (mulligan), CR 508.1 / 509.1 (combat declarations) —
-/// classify what a priority-holding human seat is actually being asked to do, from the
-/// legal actions the provider already computed for them.
+/// Every `Command` variant carries the acting player; extract it generically rather
+/// than with a 42-arm match that would have to be extended for each new variant (and
+/// would silently mis-handle one that was added without updating it).
+///
+/// `Command` is a wire type (`Serialize`, externally tagged), so a variant serializes
+/// as `{"VariantName": { …fields… }}` and `PlayerId(pub u64)` as a bare number. That
+/// makes `["<variant>"]["player"]` a total lookup across all 42 variants today,
+/// including tuple variants like `CastSpell(CastSpellData)` whose payload struct
+/// carries `player` at the same depth. Returns `None` if that ever stops holding — the
+/// caller refuses rather than waiving the check. Pinned by
+/// `test_command_player_extracts_acting_player`.
+fn command_player(command: &Command) -> Option<PlayerId> {
+    let value = serde_json::to_value(command).ok()?;
+    let (_variant, fields) = value.as_object()?.iter().next()?;
+    Some(PlayerId(fields.get("player")?.as_u64()?))
+}
+
+/// CR 117.3 (priority), CR 508.1 / 509.1 (combat declarations) — classify what a
+/// priority-holding human seat is actually being asked to do, from the legal actions
+/// the provider already computed for them.
+///
+/// The `Mulligan` arm (CR 103.5) is **currently unreachable**: it needs
+/// `turn_number == 0` (mirroring `StubProvider`'s own mulligan gate), but
+/// `GameStateBuilder` defaults `turn_number` to 1 and nothing in the tree sets it to 0.
+/// Mulligans also need per-player resolution, whereas `advance()` derives the acting
+/// seat from `priority_holder` alone. Session 2 owns pregame setup and will make this
+/// reachable; it is kept here so the enum and this classifier stay in step.
 fn decision_kind_for(state: &GameState, actions: &[LegalAction]) -> DecisionKind {
     if state.turn().is_first_turn_of_game && state.turn().turn_number == 0 {
         return DecisionKind::Mulligan;
@@ -517,5 +604,29 @@ fn find_winner(state: &GameState) -> Option<PlayerId> {
         Some(alive[0])
     } else {
         None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use mtg_engine::ObjectId;
+
+    /// Pins the serialization shape `command_player` relies on: externally-tagged
+    /// variant name at the top level, `player` as a bare number inside the payload.
+    /// If `Command`'s serde representation ever changes, this fails here rather than
+    /// silently turning `submit`'s cross-seat guard into a refusal of everything.
+    #[test]
+    fn test_command_player_extracts_acting_player() {
+        let pass = Command::PassPriority {
+            player: PlayerId(2),
+        };
+        assert_eq!(command_player(&pass), Some(PlayerId(2)));
+
+        let play_land = Command::PlayLand {
+            player: PlayerId(4),
+            card: ObjectId(17),
+        };
+        assert_eq!(command_player(&play_land), Some(PlayerId(4)));
     }
 }
