@@ -2939,6 +2939,21 @@ fn test_draw_cards_effect_respects_skip_draw_replacement() {
 /// CR 616.1 — Multiple WouldDraw replacements cause ReplacementChoiceRequired
 /// to be emitted; the draw is deferred rather than proceeding silently.
 /// Source: MR-M8-08 — NeedsChoice handled in check_would_draw_replacement.
+///
+/// Strengthened by PB-DP5 (acceptance criterion 5532): the ORIGINAL three
+/// assertions below (event emitted, library unchanged, hand unchanged) pass
+/// identically whether or not the deferred draw can ever be resolved — that is
+/// exactly the vacuity 5532 targets, and it is why pre-PB-DP5 this test could not
+/// catch that `Command::OrderReplacements` unconditionally rejected the very
+/// answer this event asks for. The added assertions require the new
+/// `GameState.pending_draws` API (so this test does not even COMPILE against
+/// pre-PB-DP5 source) and drive the choice all the way through
+/// `Command::OrderReplacements` to prove the draw's replacement chain actually
+/// resolves (CR 616.1's "replacement applied" outcome — both effects here are
+/// `SkipDraw`, so the card is never drawn either way; see the separate
+/// `test_dp5_draw_completes_through_chosen_order` in `tests/primitives/
+/// pb_dp5_pending_draw_choice.rs` for the card-in-hand half of 5532's "card in
+/// hand / replacement applied" pair).
 fn test_draw_needs_choice_emits_replacement_choice_required() {
     let p1 = PlayerId(1);
     let p2 = PlayerId(2);
@@ -2999,6 +3014,60 @@ fn test_draw_needs_choice_emits_replacement_choice_required() {
         0,
         "hand should be empty when draw is deferred"
     );
+
+    // PB-DP5: a PendingDraw entry must actually have been recorded, not just an
+    // unanswerable event emitted into the void.
+    assert_eq!(
+        state.pending_draws().len(),
+        1,
+        "PB-DP5: a PendingDraw entry should be recorded for the deferred draw"
+    );
+    let pending = &state.pending_draws()[0];
+    assert_eq!(
+        pending.player, p1,
+        "the pending draw's affected player is p1"
+    );
+    assert_eq!(
+        pending.remaining, 0,
+        "this is a single draw, not part of a multi-draw sequence"
+    );
+    assert!(
+        pending.already_applied.is_empty(),
+        "no replacement has been applied to this draw yet"
+    );
+
+    // PB-DP5 / acceptance criterion 5532: the draw's replacement chain must
+    // actually be resolvable — drive it through Command::OrderReplacements and
+    // confirm it COMPLETES (here: "replacement applied", CR 616.1's other
+    // satisfying outcome — both effects are SkipDraw so no card is ever drawn).
+    // Pre-PB-DP5, OrderReplacements unconditionally rejected this with "player
+    // PlayerId(1) is not the affected player of any pending replacement choice".
+    let (state, resolve_events) = mtg_engine::process_command(
+        state,
+        Command::OrderReplacements {
+            player: p1,
+            ids: vec![ReplacementId(601), ReplacementId(600)],
+        },
+    )
+    .expect("PB-DP5: OrderReplacements answering the deferred draw must be accepted");
+    assert!(
+        resolve_events.iter().any(|e| matches!(
+            e,
+            GameEvent::ReplacementEffectApplied { effect_id, .. } if *effect_id == ReplacementId(601)
+        )),
+        "the chosen replacement (601) should be applied. Events: {:?}",
+        resolve_events
+    );
+    assert!(
+        state.pending_draws().is_empty(),
+        "the pending draw should be cleared once its replacement chain resolves"
+    );
+    assert_eq!(
+        state.zone(&ZoneId::Library(p1)).unwrap().len(),
+        1,
+        "SkipDraw: the card is never drawn, so it stays in the library"
+    );
+    assert_eq!(state.zone(&ZoneId::Hand(p1)).unwrap().len(), 0);
 }
 
 // ── MR-M8-09: Leyline of the Void opponent-only filter ───────────────────

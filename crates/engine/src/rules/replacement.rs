@@ -2936,8 +2936,7 @@ fn draw_card_skipping_dredge(
             return Ok(vec![]);
         }
     }
-    let (events, _outcome) =
-        perform_one_draw(state, player, false, true, HashSet::new(), 0);
+    let (events, _outcome) = perform_one_draw(state, player, false, true, HashSet::new(), 0);
     Ok(events)
 }
 // ── Regeneration helpers (CR 701.19) ─────────────────────────────────────
