@@ -3775,8 +3775,12 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                     // stores the fact on the wrong object at this
                                     // moment. Zero corpus exposure today (no def
                                     // pairs `WhenYouCastThisSpell` with any
-                                    // `intervening_if`); left ungated rather than
-                                    // special-cased because a real fix needs either
+                                    // `intervening_if`). The site IS gated below like
+                                    // every other Category-A site; what was left alone
+                                    // is the `WasKicked`/`XValueAtLeast` carve-out —
+                                    // they stay classified queue-time-evaluable rather
+                                    // than being special-cased here, because a real
+                                    // fix needs either
                                     // `StackObject.kicker_times_paid`/`x_value` or to
                                     // write those fields onto the spell's
                                     // `GameObject` at cast time — both bigger than a

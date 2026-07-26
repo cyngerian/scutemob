@@ -465,16 +465,22 @@ tree** (report only, not filed by this runner):
   `XValueAtLeast`). Worth its own row: real fix is either `StackObject.kicker_times_paid`/
   `x_value` or writing those fields onto the spell's `GameObject` at cast time.
 
-**Aurelia probe (OOS-DP6-1 lowering-drop claim) — disposition: NOT run, disclosed
-plainly.** This fix cycle did not execute the plan §1 / review finding-2(e) throwaway
-probe (Aurelia-shaped def, extra combat phase, assert the untap/token fires when it
-must not). The seed as filed rests on source reading only: `build_face_ability_vectors`
-is confirmed (by both the original runner and independently by the reviewer) to be
-called from `rules/resolution.rs:720` and `rules/face.rs:104` on the live
-permanent-creation path, and it hardcodes `intervening_if: None` at all 34 push sites —
-but no test was executed in this cycle to observe the predicted over-fire in a running
-game. This is out of scope for the fix cycle's HIGH/MEDIUM work list; recorded here so
-the claim does not silently become "confirmed by execution" when it is not.
+**Aurelia probe (OOS-DP6-1 lowering-drop claim) — NOT run by this fix cycle; RUN BY THE
+COORDINATOR AT CLOSE-OUT, and CONFIRMED.** This fix cycle did not execute the plan §1 /
+review finding-2(e) throwaway probe, and said so. The coordinator then ran it before
+filing the seed, precisely so the claim would not ship as "confirmed" on source reading
+alone. **Result: CONFIRMED, and worse than the claim.** Using the real
+`aurelia_the_warleader` def with no state pokes: Aurelia attacked, the `WhenAttacks`
+trigger fired legitimately in combat 1 (`IsFirstCombatPhase` true) granting an extra
+combat; the **engine itself** then set `in_extra_combat = true` and reached
+`DeclareAttackers` of that extra combat; Aurelia attacked again and the trigger fired a
+**second** time (`additional_phases 0 → 1`), granting a third combat — an unbounded
+loop. A paired control/probe setting `in_extra_combat` directly produced byte-identical
+results in both arms, ruling out "consulted but mis-evaluated". `aurelia_the_warleader`
+carries no `completeness` field, so it defaults to `Complete` and `validate_deck` admits
+it. The probe file was deleted and `git status` restored. Full evidence in the
+**OOS-DP6-1** row of `docs/audits/decision-point-audit.md` §8.1, which is the durable
+record — this wip file is rotated by the next PB.
 
 ### Fail-before / pass-after evidence (this fix cycle)
 
