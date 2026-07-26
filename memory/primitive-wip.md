@@ -714,3 +714,142 @@ value."
 `crates/simulator/src/legal_actions.rs`, `crates/simulator/src/local_game.rs`,
 `tools/tui/src/play/app.rs`. `docs/audits/decision-point-audit.md` and `CLAUDE.md` intentionally
 NOT touched (coordinator's lane).
+
+---
+
+## Second fix cycle (closing /review)
+
+**Review**: independent closing `/review` (Opus), separate from `primitive-impl-reviewer`.
+Passed all five ESM acceptance criteria; found 6 issues (2 MEDIUM required before collect,
+1 real regression, others LOW/no-op). **Base**: `23b9e645` (first fix cycle collected).
+All changes below are staged, uncommitted, in this worktree only.
+
+### Disposition table
+
+| Issue | Sev | Disposition | Where |
+|---|-----|-------------|-------|
+| 1(a) | MEDIUM | **Fixed.** `impl HashInto for crate::state::stubs::PendingCleanupDiscard` → `impl HashInto for PendingCleanupDiscard`, with the type pulled into scope via the existing `use super::stubs::{ ActiveRestriction, DelayedTrigger, ETBSuppressFilter, ETBSuppressor, GameRestriction, PendingTrigger, TriggerDoubler, TriggerDoublerFilter }` block (added `PendingCleanupDiscard` to it). The reviewer's claim was independently re-derived and confirmed TRUE before acting: `hash_schema.rs`'s `every_hashed_struct_field_is_hashed_or_allowlisted` gate looks up `bodies.get(ty)` with the bare struct name (`:1538`), but `hashinto_impl_bodies()` (`:1281-1316`) keys impls by the exact type token as written, so the path-qualified impl was invisible to the gate — a miss falls into `continue` at `:1539` ("struct without a HashInto impl — out of this gate's scope"), not a failure. | `crates/engine/src/state/hash.rs` |
+| 1(b) | MEDIUM (test) | **Fixed.** Added `test_dp7_pending_cleanup_discard_struct_hash` — constructs `PendingCleanupDiscard` values differing in exactly one field (`count`, then `player`) and asserts their `HashInto` outputs differ, via the public `mtg_engine::state::hash::HashInto` trait, with **no** `GameState` involved. This closes the OTHER half of the first fix cycle's Finding-11 justification, which was also wrong: it isn't true that "no black-box fixture can isolate a single-field delta without a `GameState`-wide comparison" — `PendingCleanupDiscard` is directly constructible and `HashInto` is public, so a two-value, single-field-delta test is trivially expressible (same shape as the existing precedent `test_sacrificed_creature_lki_struct_hash`, `pb_ef10_sacrifice_driven_amounts.rs:1514`). This restores black-box coverage alongside (not instead of) the SR-19 gate. | `crates/engine/tests/primitives/pb_dp7_cleanup_discard.rs` |
+| 2 | MEDIUM | **Fixed.** `should_stop_auto_pass()` (`tools/tui/src/play/app.rs`) now returns `true` immediately if `self.state.blocking_decision().is_some()`, before the `is_active && is_main && stack_empty` check. Also corrected the aspirationally-wrong comment at `acting_player()` (~`app.rs:240`), which claimed the spin hazard was handled "see `execute_bot_turn`/`execute_command`" — that claim was true only for the bot-turn path; the auto-pass loop in `play/mod.rs` never calls `acting_player()` at all and had its own, separate livelock, which this issue's fix (not that claim) actually closes. | `tools/tui/src/play/app.rs` |
+| 3 | LOW | **Fixed.** `build_normal_actions` (`action_menu.rs`) gained a `LegalAction::DiscardToHandSize` probe; while a discard is pending it shows `[d]iscard N to hand size (CR 514.1)` and **suppresses** `[p]ass` (which the engine would reject with `BlockedByPendingDecision` — CR 514.3, no priority in cleanup). No test added (LOW, minimal-fix directive); verified by `cargo build`/`clippy` and by tracing the match against `LegalAction::DiscardToHandSize`'s shape. | `tools/tui/src/play/panels/action_menu.rs` |
+| 4 | LOW | **Fixed** (doc cross-refs + test; no golden script, per the directive). Added an explicit cross-reference at BOTH `script_schema.rs` doc sites (`ScriptAction::PlayerAction.action`'s doc, and `ScriptAction::TurnBasedAction.action`'s doc) naming the other and stating which one (`PlayerAction`) actually answers CR 514.1 via `translate_player_action`, and a matching note at the harness match arm itself (`replay_harness.rs`). Added `test_dp7_translate_player_action_discard_named_cards` and `test_dp7_translate_player_action_discard_empty_falls_back_to_default` (both call `translate_player_action` directly, following the `harness_equivalence.rs`/`combat_harness.rs` full-positional-args pattern) — the named-cards path resolves specific `ObjectId`s and the empty-`discard_cards` path falls back to `turn_actions::default_cleanup_discard` exactly. | `crates/engine/src/testing/script_schema.rs`, `crates/engine/src/testing/replay_harness.rs`, `crates/engine/tests/primitives/pb_dp7_cleanup_discard.rs` |
+| 6 | LOW | **Fixed.** Appended two more per-variant obligations to `BlockingDecision`'s doc comment (`rules/engine.rs`): `handle_concede` clears the raw field explicitly on concede (a new per-kind field needs the same clear-on-concede treatment or leaves a stale entry outliving its owner), and the field is hashed BY NAME in two places (`rules/loop_detection.rs`'s mandatory-state fingerprint and `state/hash.rs`'s `public_state_hash`) — a new per-kind field needs its own line in both. | `crates/engine/src/rules/engine.rs` |
+| 7 | LOW | **No code change, as directed.** Reported below for seeding. | — |
+
+### Mandatory demonstrations — OBSERVED
+
+**Issue 1(a) — the gate hole, demonstrated both ways.** Using in-place temporary edits on this
+worktree (not a separate probe worktree — the edit is a one-line rename with no downstream
+consequences, restored immediately after each observation):
+
+1. **Pre-fix (path-qualified impl), field broken**: reverted the impl to
+   `impl HashInto for crate::state::stubs::PendingCleanupDiscard` (removing the
+   `PendingCleanupDiscard` `use` to avoid an unused-import failure under the workspace's
+   `warnings = deny` policy) and deleted `self.count.hash_into(hasher)` from the body. Ran
+   `cargo test -p mtg-engine --test core every_hashed_struct_field_is_hashed_or_allowlisted`.
+   **OBSERVED**: `test result: ok. 1 passed; 0 failed` — the gate did **not** notice `count` was
+   never hashed. This is the hole, demonstrated directly rather than taken on the reviewer's word.
+2. **Post-fix (bare-name impl), same field broken**: with the impl renamed to
+   `impl HashInto for PendingCleanupDiscard` (the `use` restored) and `self.count.hash_into(hasher)`
+   still removed, ran the same test. **OBSERVED**: `FAILED` —
+   `These struct fields are declared but never fed to their type's HashInto impl ... PendingCleanupDiscard.count`.
+   The gate now genuinely covers the struct. Both edits were then restored to the final state
+   (`self.player.hash_into(hasher); self.count.hash_into(hasher);`, bare-name impl) and the full
+   gate suite (`hash_schema`, `protocol_schema`) re-run clean, confirming PROTOCOL 28 / HASH 65
+   unmoved by the rename.
+
+**Issue 2 — the TUI livelock, demonstrated before fixing.** Added
+`test_dp7_should_stop_auto_pass_true_while_blocked` (`tools/tui/src/play/app.rs`'s new
+`#[cfg(test)] mod tests`) — builds a real 2-player `GameState` via `GameStateBuilder`, drives it
+through two `PassPriority` calls into the blocked `Cleanup` pause (mirrors the engine test file's
+`build_oversized_hand`/`advance_to_cleanup_block` fixture, minus the 4-player/Madness machinery),
+wraps it in a `PlayApp` built via a struct literal (a `mod tests` inside `app.rs` is a descendant
+module and can see `PlayApp`'s private fields), and asserts `app.should_stop_auto_pass()`.
+Ran it against the code **before** this cycle's fix to `should_stop_auto_pass`. **OBSERVED**:
+`FAILED` — `assertion failed: app.should_stop_auto_pass()`, i.e. `should_stop_auto_pass()`
+returned `false` for a `PlayApp` whose state is genuinely blocked on a cleanup discard for the
+human seat. This confirms the livelock precisely as the review described: the auto-pass loop in
+`play/mod.rs` would have kept issuing `PassPriority` (rejected every time with
+`BlockedByPendingDecision`, swallowed into `status_message`) with no way to reach the `d` key
+without first manually toggling auto-pass off with `z`. After applying the fix (`should_stop_auto_pass`
+now short-circuits `true` when `self.state.blocking_decision().is_some()`), the same test passes,
+and a second test (`test_dp7_should_stop_auto_pass_unaffected_when_not_blocked`) confirms the
+pre-existing main-phase/empty-stack behaviour is untouched outside a block.
+
+### Path-qualified `impl HashInto for <T>` structs hidden from the SR-19 gate — accurate count
+
+Grepped `state/hash.rs` for every `impl HashInto for ` line containing `::` (15 total: 9 enums,
+6 named-field structs), then checked each type's own `pub struct`/`pub enum` declaration to
+separate structs (in scope of `named_field_structs()`/the gate) from enums (out of scope by
+construction — the scanner only parses `pub struct`). **6 structs are path-qualified; excluding
+`PendingCleanupDiscard` (fixed this cycle), 5 others remain hidden from the gate the same way**:
+
+- `MergedComponent` — `crate::state::game_object::MergedComponent` (`hash.rs:2055`)
+- `FlashGrant` — `crate::state::stubs::FlashGrant` (`hash.rs:2600`)
+- `PlayFromTopPermission` — `crate::state::stubs::PlayFromTopPermission` (`hash.rs:2626`)
+- `PlayFromGraveyardPermission` — `crate::state::stubs::PlayFromGraveyardPermission` (`hash.rs:2646`)
+- `SacrificedCreatureLki` — `crate::state::types::SacrificedCreatureLki` (`hash.rs:4132`)
+
+All five are confirmed named-field `pub struct`s under the gate's `SCAN_ROOTS`
+(`crates/engine/src`, `crates/card-types/src`), so each is silently outside
+`every_hashed_struct_field_is_hashed_or_allowlisted`'s coverage today, exactly like
+`PendingCleanupDiscard` was. **Not fixed here** (out of this fix cycle's scope; only
+`PendingCleanupDiscard` was named in the finding) — seeding for the coordinator below. Note this
+count is the enumerated ground truth from re-deriving the scanner's own logic, not the reviewer's
+informal "~11" estimate in the parent brief — the ~11 figure appears to conflate the 9
+path-qualified **enum** impls (which the struct-field gate never covered by design, since it
+only parses `pub struct`) with the struct count; the struct-only figure is 5 (6 including the
+one fixed).
+
+### New seed found this cycle — for the coordinator to file
+
+- **A pre-existing SR-19 gate hole**: `every_hashed_struct_field_is_hashed_or_allowlisted`
+  (`crates/engine/tests/core/hash_schema.rs`) silently skips any struct whose
+  `impl HashInto for <T>` is written path-qualified (`impl HashInto for crate::...::T`), because
+  `hashinto_impl_bodies()` keys impls by the exact token as written while `named_field_structs()`
+  keys by bare name. Five structs are affected today (list above): `MergedComponent`,
+  `FlashGrant`, `PlayFromTopPermission`, `PlayFromGraveyardPermission`, `SacrificedCreatureLki`.
+  A real (not merely theoretical) fix would either (a) normalize both scanners to compare on the
+  struct's bare name (strip any leading `path::segments::` before the final `::`), which is a
+  small, mechanical change to `hashinto_impl_bodies()`'s key-construction step; or (b) rewrite
+  the 5 affected impls to the bare-name form the way this cycle did for `PendingCleanupDiscard`.
+  Recommend (a): it closes the hole for all path-qualified impls going forward (including any
+  future ones), not just today's 5, and needs no HASH bump (the fix touches gate-scanning code
+  in `tests/core/hash_schema.rs`, not `state/hash.rs`'s byte stream).
+- Issue 7 (**LocalGame halts with `Halted(NoLegalActions)` if a provider offers nothing while
+  blocked**, `crates/simulator/src/local_game.rs:361-379`): confirmed correct-by-construction
+  with `StubProvider` (it always offers exactly the discard action while blocked, per Finding 17
+  of the first fix cycle / SR-38). M11-local Session 3 replaces the provider; that session should
+  re-verify this invariant holds for whatever provider it lands. No code change made, per the
+  brief's explicit "report it back for seeding; do not change it."
+
+### Gates (post-second-fix-cycle)
+
+- `cargo build --workspace`: clean, 0 warnings.
+- `cargo test --all`: **3,837 passing / 0 failing** (was 3,832 at first-fix-cycle collect; net
+  +5 = 1 struct-hash test [Issue 1(b)] + 2 TUI tests [Issue 2, `mtg-tui`'s first-ever tests] +
+  2 harness-level translate tests [Issue 4]).
+- `cargo clippy --workspace --all-targets -- -D warnings`: clean.
+- `cargo fmt --check`: clean (after running `cargo fmt`, which reformatted line-wrapping in
+  `pb_dp7_cleanup_discard.rs` and `tools/tui/src/play/app.rs` — no logic changes).
+- `tools/check-defs-fmt.sh`: clean, 1,804 defs checked.
+- Wire fingerprints: **PROTOCOL 28 / HASH 65 — both unmoved**, confirmed by reading
+  `protocol.rs:268` (`= 28`) / `hash.rs:607` (`= 65`) directly and by re-running the full
+  `hash_schema`/`protocol_schema` gate suite (38 tests, all `ok`) after the Issue 1(a) rename.
+  No new `Command`/`GameEvent` variant or `GameState` field this cycle; the rename only changes
+  how `state/hash.rs` is *written*, not the `HashInto` byte stream any replay depends on, and the
+  TUI/action-menu/script-doc changes touch neither `Command`/`GameEvent`/`ReplayLog` nor
+  `GameState`'s field set.
+
+### Files touched this cycle
+
+`crates/engine/src/rules/engine.rs` (Issue 6 comment), `crates/engine/src/state/hash.rs` (Issue
+1(a)), `crates/engine/src/testing/replay_harness.rs` (Issue 4 doc + match-arm comment),
+`crates/engine/src/testing/script_schema.rs` (Issue 4 doc cross-refs),
+`crates/engine/tests/primitives/pb_dp7_cleanup_discard.rs` (Issues 1(b) + 4 tests),
+`tools/tui/src/play/app.rs` (Issue 2 fix + comment correction + new test module),
+`tools/tui/src/play/panels/action_menu.rs` (Issue 3). `docs/audits/decision-point-audit.md`
+shows as modified in `git status` from a **concurrent edit by the coordinator's own session**
+(per the dispatch brief, "mine, being edited concurrently") — not touched by this cycle; verified
+by never opening or editing that file in this session. `CLAUDE.md` also not touched. All changes
+above are **staged in the working tree, not committed**, per the dispatch brief.

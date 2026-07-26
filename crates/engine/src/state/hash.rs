@@ -944,7 +944,7 @@ use super::replacement_effect::{
 use super::stack::{StackObject, StackObjectKind, TriggerData, UpkeepCostKind};
 use super::stubs::{
     ActiveRestriction, DelayedTrigger, ETBSuppressFilter, ETBSuppressor, GameRestriction,
-    PendingTrigger, TriggerDoubler, TriggerDoublerFilter,
+    PendingCleanupDiscard, PendingTrigger, TriggerDoubler, TriggerDoublerFilter,
 };
 use super::targeting::{SpellTarget, Target};
 use super::turn::{Phase, Step, TurnState};
@@ -3000,7 +3000,7 @@ impl HashInto for PendingDraw {
         self.sets_has_drawn_for_turn.hash_into(hasher);
     }
 }
-impl HashInto for crate::state::stubs::PendingCleanupDiscard {
+impl HashInto for PendingCleanupDiscard {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.player.hash_into(hasher);
         self.count.hash_into(hasher);

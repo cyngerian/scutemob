@@ -904,6 +904,16 @@ pub fn translate_player_action(
         // discard_cards names the cards to discard; if empty, falls back to
         // the deterministic default (the highest-ObjectId subset), matching
         // pre-PB-DP7 script behaviour.
+        //
+        // NAME COLLISION WARNING: this string is also a documented value of
+        // `ScriptAction::TurnBasedAction.action` (`script_schema.rs`), which is
+        // purely informational and dispatches no `Command` at all. This match
+        // arm is reached ONLY when the action came in via `ScriptAction::PlayerAction`
+        // -- see `script_schema.rs`'s doc comments on both variants' `action`
+        // fields for the full cross-reference. A script using the
+        // `TurnBasedAction` spelling instead of this one would silently fail
+        // to answer the block, and every subsequent action would come back
+        // `CommandRejected` (`BlockedByPendingDecision`).
         "discard_to_hand_size" => {
             let cards: Vec<crate::state::ObjectId> = if discard_cards.is_empty() {
                 crate::rules::turn_actions::default_cleanup_discard(state, player)

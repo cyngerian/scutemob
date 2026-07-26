@@ -1154,28 +1154,82 @@ fn test_dp7_default_pick_reproduces_pre_pb_behaviour() {
 
 // ── T17: the pending entry participates in the state hash ───────────────────
 //
-// Fix-cycle Finding 11 (MEDIUM, test-validity): this test used to compare
-// `advance_to_cleanup_block(state.clone())` against a FRESHLY BUILT state,
-// which differs in `turn.step`, `turn.priority_holder`, `turn.players_passed`
-// and whatever else the four passes moved -- not just `pending_cleanup_discard`.
-// It would have passed unchanged even if
-// `self.pending_cleanup_discard.hash_into(&mut hasher)` were deleted from
-// `public_state_hash`, i.e. it was vacuous.
+// Second fix-cycle correction (closing /review, MEDIUM): the comment that used
+// to stand here (from Finding 11 of the first fix cycle) claimed the SR-19
+// `every_hashed_struct_field_is_hashed_or_allowlisted` gate
+// (`crates/engine/tests/core/hash_schema.rs`) "walks `PendingCleanupDiscard`'s
+// field list and fails the build if either field is added without a matching
+// `hash_into` line". **That was false as shipped.** The gate looks up
+// `bodies.get(ty)` with the BARE struct name (`hash_schema.rs:1538`), but
+// `hashinto_impl_bodies()` (`:1281-1316`) keys impls by the exact type token
+// as written in `state/hash.rs`, and the impl had been written
+// path-qualified: `impl HashInto for crate::state::stubs::PendingCleanupDiscard`.
+// The lookup returned `None`, the loop `continue`d (treating the struct as
+// "out of this gate's scope"), and `PendingCleanupDiscard` was silently
+// outside the gate the whole time -- verified this cycle by temporarily
+// deleting `self.count.hash_into(hasher)` from the impl: the gate reported
+// `ok`, not a violation. `state/hash.rs`'s impl is now written bare
+// (`impl HashInto for PendingCleanupDiscard`, with the type pulled into scope
+// via the existing `use super::stubs::{ ... }` block), which was re-verified
+// the same way: with the bare impl, deleting `self.count.hash_into(hasher)`
+// makes the gate fail with `PendingCleanupDiscard.count` named in the
+// violation list. Wire fingerprints (PROTOCOL 28 / HASH 65) were confirmed
+// unmoved by this rename -- it touches how `state/hash.rs` is *written*, not
+// the `HashInto` byte stream any replay depends on.
 //
-// No black-box (`crates/engine/tests/`) fixture can isolate JUST this one
-// field without either (a) a test-only mutator that would widen the crate's
-// public surface for no production reason, or (b) comparing two states built
-// by two independent call sequences, which reintroduces exactly the
-// multi-field-delta problem above. Rather than ship a second vacuous variant,
-// this is deleted in favor of the gate that already machine-proves the
-// property with a single-field guarantee no integration test can match: the
-// SR-19 `every_hashed_struct_field_is_hashed_or_allowlisted` gate
-// (`crates/engine/tests/core/hash_schema.rs`, `NOT_HASHED` allowlist empty)
-// walks `PendingCleanupDiscard`'s own field list and fails the build if
-// either `player` or `count` is ever added without a matching `hash_into`
-// line -- which is strictly stronger than a two-state hash inequality check,
-// and it fails at compile/reflection time rather than depending on a
-// hand-built fixture staying in sync.
+// The gate covering the property does NOT mean a black-box struct-hash test
+// is redundant, though -- the first fix cycle's other justification (that no
+// such test can isolate a single-field delta without a `GameState`-wide
+// fixture) was ALSO wrong: `HashInto` is `pub` (`mtg_engine::state::hash::HashInto`)
+// and `PendingCleanupDiscard` is constructible directly, so two hand-built
+// values differing in exactly one field can be hashed and compared with no
+// `GameState` involved at all -- the same shape as
+// `test_sacrificed_creature_lki_struct_hash`
+// (`crates/engine/tests/primitives/pb_ef10_sacrifice_driven_amounts.rs:1514`).
+// That test is written below, restoring the black-box coverage the first
+// fix cycle deleted, alongside (not instead of) the SR-19 gate.
+#[test]
+fn test_dp7_pending_cleanup_discard_struct_hash() {
+    use blake3::Hasher;
+    use mtg_engine::state::hash::HashInto;
+    use mtg_engine::state::stubs::PendingCleanupDiscard;
+
+    let hash_entry = |e: &PendingCleanupDiscard| -> [u8; 32] {
+        let mut hasher = Hasher::new();
+        e.hash_into(&mut hasher);
+        *hasher.finalize().as_bytes()
+    };
+
+    let base = PendingCleanupDiscard {
+        player: p(1),
+        count: 2,
+    };
+    let diff_count = PendingCleanupDiscard {
+        player: p(1),
+        count: 3,
+    };
+    let diff_player = PendingCleanupDiscard {
+        player: p(2),
+        count: 2,
+    };
+
+    let h_base = hash_entry(&base);
+    let h_diff_count = hash_entry(&diff_count);
+    let h_diff_player = hash_entry(&diff_player);
+
+    assert_ne!(
+        h_base, h_diff_count,
+        "PendingCleanupDiscard entries differing only in `count` must hash distinctly"
+    );
+    assert_ne!(
+        h_base, h_diff_player,
+        "PendingCleanupDiscard entries differing only in `player` must hash distinctly"
+    );
+    assert_ne!(
+        h_diff_count, h_diff_player,
+        "the two single-field deltas must not collide with each other either"
+    );
+}
 
 // ── T18: serde round-trip ────────────────────────────────────────────────────
 
@@ -1224,4 +1278,149 @@ fn test_dp7_pending_cleanup_discard_defaults_when_absent() {
     let decoded: Stand = serde_json::from_str(pre_dp7_json)
         .expect("a pre-PB-DP7 snapshot without the key must still decode");
     assert!(decoded.pending_cleanup_discard.is_none());
+}
+
+// ── T19: harness-level coverage of the `discard_to_hand_size` PlayerAction arm ──
+//
+// Second fix-cycle addition (closing /review, Issue 4, LOW): the
+// `"discard_to_hand_size"` arm added to
+// `testing::replay_harness::translate_player_action` had ZERO test coverage
+// -- neither the named-cards path nor the empty-`discard_cards` fallback to
+// `default_cleanup_discard` was ever exercised by any script or unit test. A
+// full golden script is not required for this fix; these two tests call the
+// public `translate_player_action` function directly, the same shape
+// `crates/engine/tests/scripts/harness_equivalence.rs`'s own `translate`
+// wrapper and `crates/engine/tests/combat/combat_harness.rs`'s call sites
+// use for the rest of this function's action arms.
+//
+// This also documents the name collision the fix cycle's Issue 4 fixed at
+// both `script_schema.rs` doc sites and this file's `"discard_to_hand_size"`
+// match arm: `ScriptAction::TurnBasedAction.action` has an identically-named,
+// purely informational value that dispatches no `Command` -- only
+// `ScriptAction::PlayerAction`'s `"discard_to_hand_size"`, exercised here via
+// `translate_player_action` directly, actually answers the block.
+
+/// Every positional argument of `translate_player_action` this test doesn't
+/// use, filled in with the same "not used for these actions" placeholders
+/// `harness_equivalence.rs`'s `translate` wrapper and `combat_harness.rs`'s
+/// call sites use -- kept as one call site so a signature change fails here
+/// loudly rather than silently shifting a positional argument.
+#[allow(clippy::too_many_arguments)]
+fn translate_discard(
+    player: PlayerId,
+    discard_cards: &[String],
+    state: &GameState,
+) -> Option<Command> {
+    mtg_engine::translate_player_action(
+        "discard_to_hand_size",
+        player,
+        None, // card_name
+        0,    // ability_index
+        &[],  // targets
+        &[],  // attackers_decl
+        &[],  // blockers_decl
+        &[],  // convoke_names
+        &[],  // improvise_names
+        &[],  // delve_names
+        &[],  // escape_names
+        false,
+        false,
+        &[],    // enlist_decls
+        None,   // attacker_name
+        None,   // discard_land_name
+        None,   // discard_card_name
+        None,   // bargain_sacrifice_name
+        None,   // emerge_sacrifice_name
+        None,   // casualty_sacrifice_name
+        None,   // assist_player_name
+        0,      // assist_amount
+        0,      // replicate_count
+        &[],    // splice_card_names
+        0,      // escalate_modes
+        vec![], // modes_chosen
+        None,   // target_creature_name
+        0,      // x_value
+        &[],    // collect_evidence_names
+        0,      // squad_count
+        false,  // mutate_on_top
+        None,   // gift_opponent_name
+        None,   // sacrifice_card_name
+        &[],    // exert_names
+        None,   // pitch_exile_card_name
+        None,   // chosen_color_name
+        &[],    // hybrid_choice_names
+        &[],    // phyrexian_life_payment_choices
+        discard_cards,
+        state,
+        &std::collections::HashMap::new(), // players -- unused (discard has no ActionTarget)
+    )
+}
+
+/// The named-cards path: a script naming specific cards translates to a
+/// `Command::DiscardToHandSize` carrying exactly those `ObjectId`s.
+#[test]
+fn test_dp7_translate_player_action_discard_named_cards() {
+    let state = build_oversized_hand(9, false);
+    let (state, _events) = advance_to_cleanup_block(state);
+    assert!(
+        state.pending_cleanup_discard().is_some(),
+        "fixture must reach the blocked cleanup pause"
+    );
+
+    let filler_0 = find_object(&state, "Filler 0");
+    let filler_1 = find_object(&state, "Filler 1");
+
+    let cmd = translate_discard(
+        p(1),
+        &["Filler 0".to_string(), "Filler 1".to_string()],
+        &state,
+    )
+    .expect("translate_player_action should resolve both named cards");
+
+    match cmd {
+        Command::DiscardToHandSize { player, cards } => {
+            assert_eq!(player, p(1));
+            let mut sorted = cards.clone();
+            sorted.sort_by_key(|id| id.0);
+            let mut expected = vec![filler_0, filler_1];
+            expected.sort_by_key(|id| id.0);
+            assert_eq!(sorted, expected);
+        }
+        other => panic!("expected DiscardToHandSize, got {:?}", other),
+    }
+}
+
+/// The empty-`discard_cards` fallback: naming no cards falls back to
+/// `turn_actions::default_cleanup_discard` -- the same deterministic
+/// highest-`ObjectId` subset the pre-PB-DP7 auto-pick used (plan §6),
+/// matching pre-PB-DP7 script behaviour exactly.
+#[test]
+fn test_dp7_translate_player_action_discard_empty_falls_back_to_default() {
+    let state = build_oversized_hand(9, false);
+    let (state, _events) = advance_to_cleanup_block(state);
+    let entry = state
+        .pending_cleanup_discard()
+        .expect("fixture must reach the blocked cleanup pause");
+    assert_eq!(entry.count, 2);
+
+    let expected = mtg_engine::rules::turn_actions::default_cleanup_discard(&state, p(1));
+    assert_eq!(
+        expected.len(),
+        2,
+        "default_cleanup_discard must return exactly `count` ids"
+    );
+
+    let cmd = translate_discard(p(1), &[], &state)
+        .expect("translate_player_action should fall back to the deterministic default");
+
+    match cmd {
+        Command::DiscardToHandSize { player, cards } => {
+            assert_eq!(player, p(1));
+            assert_eq!(
+                cards, expected,
+                "empty discard_cards must fall back to default_cleanup_discard exactly"
+            );
+        }
+        other => panic!("expected DiscardToHandSize, got {:?}", other),
+    }
 }

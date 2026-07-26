@@ -128,12 +128,33 @@ fn build_normal_actions(app: &PlayApp) -> Line<'static> {
     let has_ability = legal
         .iter()
         .any(|a| matches!(a, LegalAction::ActivateAbility { .. }));
+    // PB-DP7 / DP-3 (CR 514.1), fix cycle Issue 3 (closing /review, LOW):
+    // while a cleanup discard blocks the game, `[p]ass` is the ONLY thing
+    // this menu used to advertise (every other `has_*` probe above comes
+    // back empty, since the admission gate rejects everything but
+    // `DiscardToHandSize`/`Concede` -- see `rules::engine::process_command`'s
+    // admission gate), and the engine rejects that pass with
+    // `BlockedByPendingDecision`. There was no `[d]` hint at all, because
+    // this match never had a `LegalAction::DiscardToHandSize` arm.
+    let discard = legal.iter().find_map(|a| match a {
+        LegalAction::DiscardToHandSize { count, .. } => Some(*count),
+        _ => None,
+    });
 
     let mut spans: Vec<Span<'static>> = vec![Span::raw(" ")];
 
-    // Always show pass and quit
-    spans.push(Span::styled("[p]", Style::default().fg(Color::Cyan)));
-    spans.push(Span::raw("ass "));
+    if let Some(count) = discard {
+        // Blocked on a cleanup discard: `[p]ass` is not a legal move here
+        // (CR 514.3 -- no priority in cleanup), so it must not be advertised.
+        spans.push(Span::styled("[d]", Style::default().fg(Color::Yellow)));
+        spans.push(Span::raw(format!(
+            "iscard {count} to hand size (CR 514.1) "
+        )));
+    } else {
+        // Always show pass and quit
+        spans.push(Span::styled("[p]", Style::default().fg(Color::Cyan)));
+        spans.push(Span::raw("ass "));
+    }
 
     if has_land {
         spans.push(Span::styled("[l]", Style::default().fg(Color::Green)));

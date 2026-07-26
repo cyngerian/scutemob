@@ -258,6 +258,17 @@ pub enum ScriptAction {
         /// effects deterministically by minimum ObjectId; M10 will add interactive search),
         /// `discard_to_hand_size` (CR 514.1, PB-DP7 / DP-3 — answers an outstanding
         /// `CleanupDiscardChoiceRequired`; see `discard_cards`).
+        ///
+        /// **This is THIS variant's `discard_to_hand_size`, not `TurnBasedAction`'s.**
+        /// `ScriptAction::TurnBasedAction` (below) documents an *identically-named*
+        /// `action` string value, which is purely informational and dispatches no
+        /// `Command` at all. Only THIS one (`ScriptAction::PlayerAction`) is
+        /// translated by `testing::replay_harness::translate_player_action` into a
+        /// real `Command::DiscardToHandSize` that actually answers the block. A
+        /// script author who reaches for `TurnBasedAction { action:
+        /// "discard_to_hand_size", .. }` instead of this variant would silently
+        /// fail to answer the pending decision, and every later action in the
+        /// script would then come back `CommandRejected` (`BlockedByPendingDecision`).
         action: String,
         card: Option<String>,
         #[serde(default)]
@@ -536,6 +547,17 @@ pub enum ScriptAction {
     TurnBasedAction {
         /// One of: `untap_all`, `draw_card`, `empty_mana_pool`, `remove_until_eot`,
         /// `discard_to_hand_size`.
+        ///
+        /// **`discard_to_hand_size` here is NOT the same thing as
+        /// `ScriptAction::PlayerAction`'s `discard_to_hand_size` (above).** THIS
+        /// one is purely informational, per the "Empty-string contract" note
+        /// below -- no driver dispatches a `Command` off this field at all. To
+        /// actually answer an outstanding `CleanupDiscardChoiceRequired` (CR
+        /// 514.1, PB-DP7 / DP-3), a script must use `ScriptAction::PlayerAction {
+        /// action: "discard_to_hand_size", .. }`, which
+        /// `testing::replay_harness::translate_player_action` translates into a
+        /// real `Command::DiscardToHandSize`. Using this variant's identically-named
+        /// value instead would silently fail to answer the block.
         ///
         /// **Empty-string contract:** `#[serde(default)]` makes this field optional;
         /// when absent from JSON (or explicitly `""`) it deserializes to the empty

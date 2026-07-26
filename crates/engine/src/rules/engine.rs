@@ -80,6 +80,23 @@ fn check_and_flush_triggers(state: &mut GameState, events: &mut Vec<GameEvent>) 
 /// gate (see `handle_concede`'s dead-player note). See the plan's §1 for the
 /// full design ("The blocking pending-decision mechanism") and its §1.5,
 /// which this comment amends.
+///
+/// **Second fix-cycle addition (closing /review, Issue 6, LOW): the admission
+/// gate is not the only per-variant obligation a new variant hits.** Two more,
+/// both keyed on the field's NAME rather than on this enum, so adding a
+/// variant to an existing per-kind field is free but a genuinely NEW per-kind
+/// field is not:
+/// - `handle_concede` (below, near its `pending_cleanup_discard = None`
+///   assignment) clears the raw field explicitly on concede -- a new per-kind
+///   field needs the same clear-on-concede treatment, or a stale entry
+///   outlives the player who owned it (see the dead-player note above).
+/// - The field is hashed BY NAME in two places: `rules/loop_detection.rs`'s
+///   mandatory-state fingerprint (`state.pending_cleanup_discard.hash_into(..)`)
+///   and `state/hash.rs`'s `public_state_hash`
+///   (`self.pending_cleanup_discard.hash_into(&mut hasher)`) -- a new
+///   per-kind field needs its own line in both, by the same HASH-bump
+///   procedure this field's own addition followed (`state/hash.rs`'s History
+///   comment).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum BlockingDecision {
     /// CR 514.1: `player` must discard `count` cards to reach their maximum

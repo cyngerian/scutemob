@@ -236,8 +236,16 @@ impl PlayApp {
         // resolved first -- the engine's admission gate rejects
         // ReturnCommanderToCommandZone (and everything else except
         // DiscardToHandSize/Concede) while it is blocking, so offering the
-        // commander-zone choice first would produce a rejected command and
-        // the TUI would spin (see `execute_bot_turn` / `execute_command`).
+        // commander-zone choice first would produce a rejected command.
+        // `execute_bot_turn` / `execute_command` handle that rejected-command
+        // case gracefully (the error is swallowed into `status_message`, not
+        // a panic), but note that is NOT the same as avoiding a spin: this
+        // ordering only prevents `execute_bot_turn` from repeatedly offering
+        // the WRONG action while blocked. It does nothing for the human seat's
+        // auto-pass loop in `play/mod.rs`, which never calls `acting_player`
+        // at all and drove its own livelock -- see the second fix cycle's
+        // Issue 2 fix on `should_stop_auto_pass` below, which is the actual
+        // guard against that spin.
         // Fix-cycle Finding 4 (MEDIUM): read the liveness-filtered predicate,
         // not the raw `pending_cleanup_discard()` field -- a dead active
         // player's stale entry must not pin `acting_player` on a player who
@@ -334,8 +342,24 @@ impl PlayApp {
 
     /// Should auto-pass stop and give control back to the human?
     /// Stops at the human's own main phases (where they can play lands/spells).
+    ///
+    /// Fix-cycle Issue 2 (closing /review, MEDIUM): also stops whenever a
+    /// `BlockingDecision` is outstanding (PB-DP7 / DP-3 and onward --
+    /// `rules::engine::BlockingDecision`). Without this, a human seat blocked
+    /// on (e.g.) a cleanup discard never reaches a main phase with an empty
+    /// stack, so `is_main` stays permanently `false` and the auto-pass loop in
+    /// `play/mod.rs` livelocks: it keeps issuing `PassPriority`, the engine
+    /// rejects every one of them with `BlockedByPendingDecision`, and the
+    /// human can never reach the `d` key (which answers the block) without
+    /// first manually toggling auto-pass off with `z`. A blocking decision
+    /// has no priority window at all (CR 514.3 for the cleanup-discard case),
+    /// so stopping here is strictly more conservative than requiring a main
+    /// phase, not a narrower carve-out of it.
     pub fn should_stop_auto_pass(&self) -> bool {
         use mtg_engine::Step;
+        if self.state.blocking_decision().is_some() {
+            return true;
+        }
         let is_active = self.state.turn().active_player == self.human_player;
         let is_main = matches!(
             self.state.turn().step,
@@ -611,5 +635,170 @@ fn format_event(event: &GameEvent, state: &GameState) -> String {
             )
         }
         _ => String::new(), // Skip verbose events
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use mtg_engine::Step;
+
+    /// Build a minimal 2-player state where P1 (the "human" seat in these
+    /// tests) reaches the blocked Cleanup pause (PB-DP7 / DP-3, CR 514.1) with
+    /// an oversized hand, using only the public engine API `tools/tui`
+    /// already depends on -- mirrors
+    /// `crates/engine/tests/primitives/pb_dp7_cleanup_discard.rs`'s
+    /// `build_oversized_hand`/`advance_to_cleanup_block` fixture, minus the
+    /// 4-player/Madness machinery this test doesn't need.
+    fn blocked_cleanup_state_for_p1() -> GameState {
+        let mut builder = GameStateBuilder::new()
+            .add_player(PlayerId(1))
+            .add_player(PlayerId(2))
+            .active_player(PlayerId(1))
+            .at_step(Step::End);
+        for i in 0..9u32 {
+            builder = builder.object(
+                ObjectSpec::card(PlayerId(1), &format!("Filler {i}"))
+                    .in_zone(ZoneId::Hand(PlayerId(1)))
+                    .with_types(vec![CardType::Instant]),
+            );
+        }
+        let state = builder.build().expect("oversized-hand state should build");
+        let (state, _events) = process_command(
+            state,
+            Command::PassPriority {
+                player: PlayerId(1),
+            },
+        )
+        .expect("P1's pass out of End should succeed");
+        let (state, _events) = process_command(
+            state,
+            Command::PassPriority {
+                player: PlayerId(2),
+            },
+        )
+        .expect("P2's pass out of End should succeed");
+        assert!(
+            state.blocking_decision().is_some(),
+            "fixture must actually reach the blocked cleanup pause -- if this \
+             fails, the fixture itself is broken, not the code under test"
+        );
+        state
+    }
+
+    /// A minimal `PlayApp` wrapping a given `state`, for exercising
+    /// state-inspecting methods (`should_stop_auto_pass`, `acting_player`)
+    /// without the full `PlayApp::new()` random-deck machinery. Constructed
+    /// via a struct literal (this `mod tests` is a descendant of the module
+    /// that defines `PlayApp`, so its private fields -- `_registry`/
+    /// `log_file` -- are visible here). `log_file` still needs a real,
+    /// openable `File` (it is a `BufWriter<File>`, not an `impl Write`), so
+    /// this opens one discardable temp file per call rather than one per
+    /// real game.
+    fn minimal_app(state: GameState, human_player: PlayerId) -> PlayApp {
+        let cards = all_cards();
+        let registry = CardRegistry::new(cards);
+        let log_path = std::env::temp_dir().join(format!(
+            "mtg-tui-test-{}-{:?}.log",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let log_file = BufWriter::new(File::create(&log_path).expect("temp log file"));
+        PlayApp {
+            state,
+            human_player,
+            provider: StubProvider,
+            bots: HashMap::new(),
+            should_quit: false,
+            mode: InputMode::Normal,
+            event_log: Vec::new(),
+            log_scroll: 0,
+            selected_hand_idx: 0,
+            hand_scroll_offset: 0,
+            selected_bf_idx: 0,
+            focus_zone: FocusZone::Hand,
+            focused_player: human_player,
+            bot_delay_ms: 0,
+            status_message: None,
+            auto_pass: true,
+            consecutive_passes: 0,
+            _player_count: 2,
+            log_path,
+            _registry: registry,
+            log_file,
+        }
+    }
+
+    /// Issue 2 (closing /review, MEDIUM): demonstrate, then close, the
+    /// TUI auto-pass livelock on a cleanup-discard block.
+    ///
+    /// `tools/tui/src/play/mod.rs`'s auto-pass loop calls
+    /// `should_stop_auto_pass()` and, while it returns `false`, issues
+    /// `PassPriority` for the human seat every ~50ms forever. Pre-fix,
+    /// `should_stop_auto_pass()` only checked `is_active && is_main &&
+    /// stack_empty` -- during `Step::Cleanup` `is_main` is always `false`, so
+    /// a human blocked on a cleanup discard could never stop auto-pass, and
+    /// the only two keys the auto-pass poll handles (`q`/`Ctrl-C`/`z`) do not
+    /// include `d` (the key that actually answers the block) -- a real
+    /// livelock, not merely a wasted `PassPriority`.
+    ///
+    /// OBSERVED (pre-fix, this exact assertion run against the code before
+    /// this fix cycle's edit to `should_stop_auto_pass`): the assertion
+    /// FAILED --
+    /// `assertion failed: app.should_stop_auto_pass()` -- confirming
+    /// `should_stop_auto_pass()` returned `false` for a `PlayApp` whose state
+    /// is blocked on a cleanup discard for the human seat, i.e. the auto-pass
+    /// loop would spin `PassPriority` (rejected every time with
+    /// `BlockedByPendingDecision`, swallowed into `status_message` by
+    /// `execute_command`) with no way for the human to reach the `d` key
+    /// without first manually toggling auto-pass off with `z`.
+    #[test]
+    fn test_dp7_should_stop_auto_pass_true_while_blocked() {
+        let state = blocked_cleanup_state_for_p1();
+        let app = minimal_app(state, PlayerId(1));
+
+        assert!(
+            app.should_stop_auto_pass(),
+            "should_stop_auto_pass() must return true while the human seat is \
+             blocked on a pending decision (PB-DP7 / DP-3), or the auto-pass \
+             loop in play/mod.rs livelocks issuing a PassPriority the engine \
+             will always reject"
+        );
+    }
+
+    /// The pre-PB-DP7 behaviour this method exists for is unaffected: outside
+    /// a blocking decision, auto-pass still stops only at the human's own
+    /// main phase with an empty stack, exactly as before.
+    #[test]
+    fn test_dp7_should_stop_auto_pass_unaffected_when_not_blocked() {
+        let state = GameStateBuilder::new()
+            .add_player(PlayerId(1))
+            .add_player(PlayerId(2))
+            .active_player(PlayerId(1))
+            .at_step(Step::PreCombatMain)
+            .build()
+            .expect("simple state should build");
+        assert!(state.blocking_decision().is_none());
+        let app = minimal_app(state, PlayerId(1));
+        assert!(
+            app.should_stop_auto_pass(),
+            "must still stop at the human's own main phase with an empty stack"
+        );
+
+        let state_untap = GameStateBuilder::new()
+            .add_player(PlayerId(1))
+            .add_player(PlayerId(2))
+            .active_player(PlayerId(1))
+            .at_step(Step::Untap)
+            .build()
+            .expect("simple state should build");
+        let app_untap = minimal_app(state_untap, PlayerId(1));
+        assert!(
+            !app_untap.should_stop_auto_pass(),
+            "must NOT stop outside a main phase when nothing is blocking"
+        );
     }
 }
