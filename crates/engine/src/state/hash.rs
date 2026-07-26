@@ -588,7 +588,23 @@
 ///   is reachable only from `GameState`, never from `Command`/`GameEvent`/`ReplayLog`
 ///   (SR-8's `PROTOCOL_SCHEMA_FINGERPRINT` is rooted there, not in `GameState`), so
 ///   PROTOCOL stays unchanged at 27 — HASH-only bump.
-pub const HASH_SCHEMA_VERSION: u8 = 64;
+/// - 65: PB-DP7 (2026-07-26, DP-3 — cleanup discard is now a player choice, and the
+///   engine's first pending decision that genuinely blocks progress, CR 514.1):
+///   `GameState` gains `pending_cleanup_discard: Option<PendingCleanupDiscard>`, a
+///   new `pub(crate)` field recording the outstanding cleanup-step discard, if any.
+///   New struct `PendingCleanupDiscard { player, count }`
+///   (`card-types/src/state/stubs.rs`). Fed to `HashInto` as
+///   `self.pending_cleanup_discard.hash_into(&mut hasher)` in `public_state_hash`
+///   (via the blanket `impl<T: HashInto> HashInto for Option<T>`), and mirrored
+///   into `loop_detection.rs`'s mandatory-state fingerprint. Also:
+///   `GameEvent` gains `CleanupDiscardChoiceRequired { player, count, hand }`
+///   (discriminant 129 — see the `GameEvent` hashing match). `decl_fingerprint`
+///   MOVES (new field + new struct in the `GameState` serde closure, plus a new
+///   `GameEvent` variant); `stream_fingerprint` moves per the v40 mechanism.
+///   `PendingCleanupDiscard` is reachable only from `GameState`; `GameEvent` IS in
+///   the SR-8 wire closure, so this bump is paired with `PROTOCOL_VERSION` 27 → 28
+///   (`Command::DiscardToHandSize` also lands in this same commit).
+pub const HASH_SCHEMA_VERSION: u8 = 65;
 
 /// One `(version, fingerprints)` row of the append-only hash-schema history.
 ///
@@ -897,6 +913,16 @@ pub const HASH_SCHEMA_HISTORY: &[HashSchemaEpoch] = &[
         // the v40 mechanism.
         decl_fingerprint: "193a661ed9c17b36527fafc5c66027eb079974710dc7de7eb205ae7b7e09abd5",
         stream_fingerprint: "bbd2148a8c8f8443cf34aa79e76ac60489be57bdb9697ddc60127ebece747bf1",
+    },
+    HashSchemaEpoch {
+        version: 65,
+        // PB-DP7 (2026-07-26, DP-3): GameState gains
+        // `pending_cleanup_discard: Option<PendingCleanupDiscard>`; GameEvent gains
+        // `CleanupDiscardChoiceRequired` (see the `- 65:` History line above).
+        // decl_fingerprint moves (new field + new struct + new GameEvent variant);
+        // stream_fingerprint moves per the v40 mechanism.
+        decl_fingerprint: "e6e14af459d5c4aaafa4692d5a216d2976f433f6e672975d0014a62f1779099a",
+        stream_fingerprint: "5428ec27b0d97f3c058a83b729a8330012b715667d95d1f255d8c2408716fde4",
     },
 ];
 
@@ -2972,6 +2998,12 @@ impl HashInto for PendingDraw {
         }
         self.remaining.hash_into(hasher);
         self.sets_has_drawn_for_turn.hash_into(hasher);
+    }
+}
+impl HashInto for crate::state::stubs::PendingCleanupDiscard {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        self.player.hash_into(hasher);
+        self.count.hash_into(hasher);
     }
 }
 impl HashInto for crate::state::stubs::PendingTriggerKind {
@@ -5305,6 +5337,17 @@ impl HashInto for GameEvent {
             GameEvent::RemovedFromCombat { object_id } => {
                 128u8.hash_into(hasher);
                 object_id.hash_into(hasher);
+            }
+            // PB-DP7: CleanupDiscardChoiceRequired -- CR 514.1 (discriminant 129)
+            GameEvent::CleanupDiscardChoiceRequired {
+                player,
+                count,
+                hand,
+            } => {
+                129u8.hash_into(hasher);
+                player.hash_into(hasher);
+                count.hash_into(hasher);
+                hand.hash_into(hasher);
             }
         }
     }
@@ -7737,6 +7780,10 @@ impl GameState {
         // CR 616.1 / 614.11: pending draws (PB-DP5) are live game state — hash them so
         // "before the prompt" and "after the prompt" states don't collide.
         self.pending_draws.hash_into(&mut hasher);
+        // CR 514.1 (PB-DP7 / DP-3): the outstanding cleanup discard is live game
+        // state — a blocked cleanup is a distinct position, so hash it. Public
+        // information (player + count), so no `NOT_HASHED` allowlist entry needed.
+        self.pending_cleanup_discard.hash_into(&mut hasher);
         for (owner, oid) in self.pending_commander_zone_choices.iter() {
             owner.hash_into(&mut hasher);
             oid.hash_into(&mut hasher);

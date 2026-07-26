@@ -38,8 +38,9 @@ pub use replacement_effect::{
 pub use stack::{StackObject, StackObjectKind, TriggerData, UpkeepCostKind};
 pub use stubs::{
     ActiveRestriction, AdditionalLandPlaySource, DelayedTrigger, ETBSuppressFilter, ETBSuppressor,
-    FlashGrant, FlashGrantFilter, GameRestriction, PendingTrigger, PlayFromGraveyardPermission,
-    PlayFromTopFilter, PlayFromTopPermission, TriggerDoubler, TriggerDoublerFilter,
+    FlashGrant, FlashGrantFilter, GameRestriction, PendingCleanupDiscard, PendingTrigger,
+    PlayFromGraveyardPermission, PlayFromTopFilter, PlayFromTopPermission, TriggerDoubler,
+    TriggerDoublerFilter,
 };
 pub use targeting::{SpellTarget, Target};
 pub use types::{

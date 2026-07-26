@@ -141,6 +141,18 @@ pub enum LegalAction {
         recover_card: ObjectId,
         pay: bool,
     },
+    /// CR 514.1 / CR 701.9b (PB-DP7 / DP-3): answer the outstanding cleanup
+    /// discard. `count` is how many must go and `hand` is the full candidate
+    /// set, so a human client can render a real subset picker. `cards` is the
+    /// deterministic default
+    /// (`mtg_engine::rules::turn_actions::default_cleanup_discard`) -- exactly
+    /// `count` distinct ids from `hand`, so a bot that submits it verbatim is
+    /// always accepted (SR-38: never offer an action the engine rejects).
+    DiscardToHandSize {
+        count: u32,
+        hand: Vec<ObjectId>,
+        cards: Vec<ObjectId>,
+    },
 }
 
 /// Trait for enumerating legal actions from a game state.
@@ -194,6 +206,35 @@ pub struct StubProvider;
 impl LegalActionProvider for StubProvider {
     fn legal_actions(&self, state: &GameState, player: PlayerId) -> Vec<LegalAction> {
         let mut actions = Vec::new();
+
+        // PB-DP7 / DP-3 (CR 514.1): answer the outstanding cleanup discard
+        // first -- nothing else is legal while it is pending (CR 514.3: no
+        // player has priority in cleanup). Must be checked BEFORE the
+        // commander-zone block below: the engine's admission gate
+        // (`rules::engine::process_command`) rejects
+        // `ReturnCommanderToCommandZone` while blocked, so offering it first
+        // would offer a command the engine refuses. Also must be checked
+        // before the `priority_holder != Some(player)` early return further
+        // down, which would otherwise return an empty list for the blocked
+        // player too (nobody holds priority during cleanup).
+        if let Some(entry) = state.pending_cleanup_discard() {
+            if entry.player == player {
+                let cards = mtg_engine::rules::turn_actions::default_cleanup_discard(state, player);
+                let hand: Vec<ObjectId> = state
+                    .zones()
+                    .get(&ZoneId::Hand(player))
+                    .map(|z| z.object_ids())
+                    .unwrap_or_default();
+                actions.push(LegalAction::DiscardToHandSize {
+                    count: entry.count,
+                    hand,
+                    cards,
+                });
+            }
+            // Every other player (and the entry's own player, once the action
+            // above is pushed) gets exactly this and nothing else.
+            return actions;
+        }
 
         // Handle pending commander zone choices first
         if let Some((_pending_player, obj_id)) = state

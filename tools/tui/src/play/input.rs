@@ -40,6 +40,27 @@ fn handle_normal_mode(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result<()> {
             app.execute_command(cmd)?;
         }
 
+        // CR 514.1 (PB-DP7 / DP-3): answer an outstanding cleanup discard.
+        // `LegalAction::DiscardToHandSize::cards` is the deterministic default
+        // (`turn_actions::default_cleanup_discard`), so a human seat can clear
+        // the block with a single key. A real subset picker is a later TUI
+        // session's work (seed OOS-DP7-6) -- this is the minimum viable
+        // answer that keeps the game from hanging.
+        KeyCode::Char('d') => {
+            if let Some(LegalAction::DiscardToHandSize { cards, .. }) = legal
+                .iter()
+                .find(|a| matches!(a, LegalAction::DiscardToHandSize { .. }))
+            {
+                let cmd = Command::DiscardToHandSize {
+                    player: app.human_player,
+                    cards: cards.clone(),
+                };
+                app.execute_command(cmd)?;
+            } else {
+                app.status_message = Some("No cleanup discard is pending".into());
+            }
+        }
+
         // Play selected land — only if legal
         KeyCode::Char('l') => {
             let hand = app.hand_objects();

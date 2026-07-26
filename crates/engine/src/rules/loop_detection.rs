@@ -148,6 +148,12 @@ fn compute_mandatory_state_hash(state: &GameState) -> u64 {
     for pd in &state.pending_draws {
         pd.hash_into(&mut hasher);
     }
+    // 8. Pending cleanup discard (CR 514.1, PB-DP7 / DP-3) — a blocked cleanup is
+    //    a distinct position. (In practice `blocking_decision` prevents SBAs from
+    //    running while this is outstanding, so this hash is never actually
+    //    computed while it is `Some` — mirrored anyway for hash-consistency, the
+    //    same reasoning as `pending_draws` above.)
+    state.pending_cleanup_discard.hash_into(&mut hasher);
     // Extract the first 8 bytes as a u64 (truncated hash for compact storage)
     let full_hash = hasher.finalize();
     let bytes = full_hash.as_bytes();

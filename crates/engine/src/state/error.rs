@@ -87,4 +87,17 @@ pub enum GameStateError {
         required: u32,
         actual: i32,
     },
+    /// CR 514.3 (PB-DP7 / DP-3): a command was rejected because a pending
+    /// decision (`rules::engine::BlockingDecision`) is outstanding and blocking
+    /// the game. Only the answering command from `player`, and `Concede` from
+    /// any player, are accepted while blocked -- see
+    /// `rules::engine::blocking_decision`. `decision` is a human-readable
+    /// description of what is pending (not the `BlockingDecision` enum itself:
+    /// `state/error.rs` is data, not behavior, and does not depend on `rules`).
+    ///
+    /// Not part of the SR-8 wire closure (`GameStateError` is reachable from
+    /// none of `Command`/`GameEvent`/`ReplayLog`) -- adding this variant is
+    /// not a protocol change.
+    #[error("player {player:?} may not act -- blocked by a pending decision ({decision})")]
+    BlockedByPendingDecision { player: PlayerId, decision: String },
 }

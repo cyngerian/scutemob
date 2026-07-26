@@ -326,6 +326,28 @@ pub enum Command {
         /// True = reveal and put miracle trigger on stack. False = decline (normal draw).
         reveal: bool,
     },
+    // ── Cleanup discard (CR 514.1) ────────────────────────────────────────
+    /// CR 514.1 / CR 701.9b (PB-DP7 / DP-3): the active player's answer to the
+    /// cleanup-step discard-to-hand-size turn-based action.
+    ///
+    /// Sent in response to a `GameEvent::CleanupDiscardChoiceRequired`. `cards` is
+    /// the COMPLETE subset the player discards, not one card at a time: CR 514.1 is
+    /// a single turn-based action ("discard enough cards to reduce their hand size
+    /// to that number"), and CR 703.4n confirms it is performed as one action
+    /// immediately after the cleanup step begins. `cards.len()` must equal the
+    /// outstanding entry's `count` exactly; over- and under-supply are both
+    /// rejected (a player may not discard extra cards, CR 514.1).
+    ///
+    /// The engine performs the discards in ascending `ObjectId` order regardless of
+    /// the order given here (see `rules::turn_actions::default_cleanup_discard`'s
+    /// doc comment).
+    DiscardToHandSize {
+        player: PlayerId,
+        /// The complete set of cards to discard. Must equal the outstanding
+        /// `pending_cleanup_discard` entry's `count`, all present in the sender's
+        /// own hand, with no duplicates.
+        cards: Vec<ObjectId>,
+    },
     // ── Crew (CR 702.122) ────────────────────────────────────────────────
     /// Crew a Vehicle by tapping creatures (CR 702.122a).
     ///

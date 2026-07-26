@@ -257,7 +257,15 @@ use crate::state::hash::HASH_SCHEMA_VERSION;
 ///   closure (via `CastSpellData::hybrid_choices`). The closure's type count is
 ///   unchanged; `Command`'s declared shape moved (twice, in the same commit), so
 ///   the digest moves.
-pub const PROTOCOL_VERSION: u32 = 27;
+/// - 28: PB-DP7 (2026-07-26, DP-3 — the cleanup discard becomes a player choice,
+///   the engine's first pending decision that genuinely blocks progress, CR
+///   514.1): two new wire-frame types append -- `Command::DiscardToHandSize {
+///   player, cards: Vec<ObjectId> }` and `GameEvent::CleanupDiscardChoiceRequired
+///   { player, count: u32, hand: Vec<ObjectId> }`. Both field types (`PlayerId`,
+///   `Vec<ObjectId>`, `u32`) are already in the closure, so the closure's type
+///   count is unchanged; `Command`'s and `GameEvent`'s declared shapes moved, so
+///   the digest moves.
+pub const PROTOCOL_VERSION: u32 = 28;
 
 /// Digest of the serialized shape of the wire-frame type closure
 /// (`Command`, `GameEvent`, [`ReplayLog`] and everything they reach).
@@ -275,7 +283,7 @@ pub const PROTOCOL_VERSION: u32 = 27;
 /// existing `u32` *means* does not. Semantic changes still require a manual
 /// [`PROTOCOL_VERSION`] bump.
 pub const PROTOCOL_SCHEMA_FINGERPRINT: &str =
-    "f035e7973cc3b33a6048fe7b38b7de71f4be8d8411c719af85d6deba1c30fe3e";
+    "bf5f5dded64029f15272c4151edd847c340793ff7ebe7d4ee32ef51be81114b4";
 
 /// One `(version, fingerprint)` row of the append-only protocol-schema history.
 ///
@@ -489,6 +497,13 @@ pub const PROTOCOL_HISTORY: &[ProtocolEpoch] = &[
         // Command::TapForMana each gained hybrid_choices/phyrexian_life_payments
         // (see the `- 27:` History line above).
         fingerprint: "f035e7973cc3b33a6048fe7b38b7de71f4be8d8411c719af85d6deba1c30fe3e",
+    },
+    ProtocolEpoch {
+        version: 28,
+        // PB-DP7 (2026-07-26, DP-3): Command::DiscardToHandSize and
+        // GameEvent::CleanupDiscardChoiceRequired appended (see the `- 28:`
+        // History line above).
+        fingerprint: "bf5f5dded64029f15272c4151edd847c340793ff7ebe7d4ee32ef51be81114b4",
     },
 ];
 

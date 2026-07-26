@@ -1346,6 +1346,28 @@ pub enum GameEvent {
         /// The targets after the change.
         new_targets: Vec<crate::state::targeting::SpellTarget>,
     },
+    /// CR 514.1 (PB-DP7 / DP-3): the active player has more cards in hand than
+    /// their maximum hand size and must choose which to discard. The engine
+    /// BLOCKS — no step or turn advancement, and `process_command` rejects
+    /// every command except `Command::DiscardToHandSize` from `player` and
+    /// `Command::Concede` — until the answer arrives. Unlike
+    /// `DredgeChoiceRequired`, whose identical claim is not implemented (seed
+    /// OOS-DP7-2), this one is enforced; see `rules::engine::blocking_decision`.
+    ///
+    /// `count` is how many cards must go. `hand` is the full set of candidate
+    /// `ObjectId`s at the moment of the pause; it is public information at the
+    /// `ObjectId` level (identities are not carried) and is supplied so a
+    /// client can render the choice without a second query.
+    ///
+    /// Discriminant: 129.
+    CleanupDiscardChoiceRequired {
+        /// The active player who must discard.
+        player: crate::state::player::PlayerId,
+        /// How many cards must be discarded.
+        count: u32,
+        /// The full candidate set of `ObjectId`s in the player's hand.
+        hand: Vec<crate::state::game_object::ObjectId>,
+    },
 }
 impl GameEvent {
     /// Returns `true` if this event reveals or commits to hidden information.

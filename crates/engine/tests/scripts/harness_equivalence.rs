@@ -734,6 +734,7 @@ fn translate(
         None,  // chosen_color
         hybrid_choices,
         phyrexian_life_payments,
+        &[], // discard_cards
         state,
         players,
     )

@@ -42,8 +42,8 @@ pub use mtg_card_types::state::{
     EnchantControllerConstraint, EnchantFilter, EnchantTarget, FaceDownKind, FlashGrant,
     FlashGrantFilter, GameObject, GameRestriction, HybridMana, HybridManaPayment, InterveningIf,
     KeywordAbility, LandwalkType, LayerModification, ManaAbility, ManaColor, ManaCost, ManaPool,
-    MergedComponent, ObjectFilter, ObjectId, ObjectStatus, PendingDraw, PendingTrigger,
-    PendingZoneChange, PhyrexianMana, PlayFromGraveyardPermission, PlayFromTopFilter,
+    MergedComponent, ObjectFilter, ObjectId, ObjectStatus, PendingCleanupDiscard, PendingDraw,
+    PendingTrigger, PendingZoneChange, PhyrexianMana, PlayFromGraveyardPermission, PlayFromTopFilter,
     PlayFromTopPermission, PlayerFilter, PlayerId, PlayerState, ProtectionQuality,
     ReplacementEffect, ReplacementId, ReplacementModification, ReplacementTrigger, RoomDef,
     RoomIndex, SacrificeFilter, SacrificedCreatureLki, SpellTarget, StackObject, StackObjectKind,
@@ -140,6 +140,15 @@ pub struct GameState {
     /// `WouldDraw` replacements (CR 616.1 / 614.11). Resolved by `OrderReplacements`.
     #[serde(default)]
     pub(crate) pending_draws: Vector<PendingDraw>,
+    /// CR 514.1 (PB-DP7 / DP-3): the outstanding cleanup-step discard-to-hand-size
+    /// decision, if any. At most one can ever be outstanding (CR 514.1 names only
+    /// the active player). This is the engine's first pending decision that
+    /// genuinely BLOCKS game progress -- see `rules::engine::blocking_decision`
+    /// and `rules::engine::BlockingDecision`. Cleared by
+    /// `handle_discard_to_hand_size` or by `handle_concede` if the entry's
+    /// player concedes while it is outstanding.
+    #[serde(default)]
+    pub(crate) pending_cleanup_discard: Option<PendingCleanupDiscard>,
     /// Commanders awaiting the owner's zone-return choice (CR 903.9a).
     ///
     /// Each entry is `(owner, object_id)`. The SBA skips commanders already in
@@ -444,6 +453,14 @@ impl GameState {
     /// Read-only access to the `pending_draws` field.
     pub fn pending_draws(&self) -> &Vector<PendingDraw> {
         &self.pending_draws
+    }
+
+    /// Read-only access to the `pending_cleanup_discard` field.
+    ///
+    /// CR 514.1 (PB-DP7 / DP-3). No `_mut` accessor exists -- mutation happens
+    /// only through `process_command` (SR-3).
+    pub fn pending_cleanup_discard(&self) -> Option<&PendingCleanupDiscard> {
+        self.pending_cleanup_discard.as_ref()
     }
 
     /// Read-only access to the `pending_commander_zone_choices` field.

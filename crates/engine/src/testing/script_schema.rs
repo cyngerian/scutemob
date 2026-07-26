@@ -255,7 +255,9 @@ pub enum ScriptAction {
         /// `declare_blockers`, `assign_damage`, `choose_option`, `order_triggers`,
         /// `special_action`, `concede`, `mulligan_decision`, `search_library`
         /// (documentation marker — no Command issued; engine resolves SearchLibrary
-        /// effects deterministically by minimum ObjectId; M10 will add interactive search).
+        /// effects deterministically by minimum ObjectId; M10 will add interactive search),
+        /// `discard_to_hand_size` (CR 514.1, PB-DP7 / DP-3 — answers an outstanding
+        /// `CleanupDiscardChoiceRequired`; see `discard_cards`).
         action: String,
         card: Option<String>,
         #[serde(default)]
@@ -466,6 +468,14 @@ pub enum ScriptAction {
         /// Example: [true]
         #[serde(default)]
         phyrexian_life_payments: Vec<bool>,
+        /// CR 514.1 (PB-DP7 / DP-3): For `discard_to_hand_size`. Names of the cards
+        /// in the player's hand to discard, answering an outstanding
+        /// `CleanupDiscardChoiceRequired`. Empty = fall back to
+        /// `turn_actions::default_cleanup_discard` (the deterministic highest-id
+        /// pick), which preserves pre-PB-DP7 script behaviour.
+        /// Example: ["Lightning Bolt", "Mountain"]
+        #[serde(default)]
+        discard_cards: Vec<String>,
         cr_ref: Option<String>,
         note: Option<String>,
     },

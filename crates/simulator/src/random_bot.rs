@@ -362,5 +362,12 @@ pub(crate) fn action_to_command(
             recover_card: *recover_card,
             pay: *pay,
         },
+        // PB-DP7 / DP-3 (CR 514.1): answer the outstanding cleanup discard
+        // with the deterministic default subset the provider already
+        // computed (SR-38: always accepted).
+        LegalAction::DiscardToHandSize { cards, .. } => Command::DiscardToHandSize {
+            player,
+            cards: cards.clone(),
+        },
     }
 }

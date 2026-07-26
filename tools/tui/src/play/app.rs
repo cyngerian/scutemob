@@ -232,6 +232,15 @@ impl PlayApp {
     }
 
     pub fn acting_player(&self) -> PlayerId {
+        // PB-DP7 / DP-3 (CR 514.1): an outstanding cleanup discard MUST be
+        // resolved first -- the engine's admission gate rejects
+        // ReturnCommanderToCommandZone (and everything else except
+        // DiscardToHandSize/Concede) while it is blocking, so offering the
+        // commander-zone choice first would produce a rejected command and
+        // the TUI would spin (see `execute_bot_turn` / `execute_command`).
+        if let Some(entry) = self.state.pending_cleanup_discard() {
+            return entry.player;
+        }
         // Check pending commander zone choices
         if let Some((pid, _)) = self.state.pending_commander_zone_choices().iter().next() {
             return *pid;
@@ -590,6 +599,12 @@ fn format_event(event: &GameEvent, state: &GameState) -> String {
                 .map(|obj| obj.characteristics.name.clone())
                 .unwrap_or_else(|_| "???".to_string());
             format!("P{} discards {}", player.0, name)
+        }
+        GameEvent::CleanupDiscardChoiceRequired { player, count, .. } => {
+            format!(
+                "P{} must discard {} card(s) to hand size (CR 514.1) — press 'd'",
+                player.0, count
+            )
         }
         _ => String::new(), // Skip verbose events
     }

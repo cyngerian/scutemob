@@ -190,11 +190,28 @@ fn test_cleanup_discards_to_hand_size() {
     }
     let state = builder.build().unwrap();
 
-    // Pass through End step to reach Cleanup (which auto-advances)
+    // Pass through End step to reach Cleanup, which now PAUSES (PB-DP7 / DP-3,
+    // CR 514.1) with a CleanupDiscardChoiceRequired instead of auto-discarding.
     let (state, _) = pass(state, PlayerId(1));
     let (state, _) = pass(state, PlayerId(2));
     let (state, _) = pass(state, PlayerId(3));
-    let (state, events) = pass(state, PlayerId(4));
+    let (state, _) = pass(state, PlayerId(4));
+
+    // CR 514.1 / CR 701.9b: the active player chooses which 2 cards to discard.
+    let entry = state
+        .pending_cleanup_discard()
+        .expect("cleanup discard should be pending");
+    assert_eq!(entry.count, 2);
+    let hand = state.zone(&ZoneId::Hand(p1)).unwrap().object_ids();
+    let chosen: Vec<_> = hand.into_iter().take(2).collect();
+    let (state, events) = process_command(
+        state,
+        Command::DiscardToHandSize {
+            player: p1,
+            cards: chosen,
+        },
+    )
+    .unwrap();
 
     // Should have discard events
     let discard_events: Vec<_> = events
@@ -334,16 +351,40 @@ fn test_cleanup_discard_event_uses_hand_id() {
         .copied()
         .collect();
 
-    // Pass through End step to trigger cleanup
+    // Pass through End step to trigger cleanup, which now PAUSES (PB-DP7 /
+    // DP-3, CR 514.1) instead of auto-discarding.
     let (state, events) = pass(state, PlayerId(1));
     let (state, events2) = pass(state, PlayerId(2));
     let (state, events3) = pass(state, PlayerId(3));
-    let (_state, events4) = pass(state, PlayerId(4));
+    let (state, events4) = pass(state, PlayerId(4));
+
+    // CR 514.1 / CR 701.9b: the active player chooses the 1 card to discard.
+    let entry = state
+        .pending_cleanup_discard()
+        .expect("cleanup discard should be pending");
+    assert_eq!(entry.count, 1);
+    let chosen = state
+        .zone(&ZoneId::Hand(p1))
+        .unwrap()
+        .object_ids()
+        .into_iter()
+        .take(1)
+        .collect::<Vec<_>>();
+    let (_state, events5) = process_command(
+        state,
+        Command::DiscardToHandSize {
+            player: p1,
+            cards: chosen,
+        },
+    )
+    .unwrap();
+
     let all_events: Vec<_> = events
         .iter()
         .chain(events2.iter())
         .chain(events3.iter())
         .chain(events4.iter())
+        .chain(events5.iter())
         .collect();
 
     let discard_events: Vec<_> = all_events
