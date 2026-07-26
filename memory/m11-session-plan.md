@@ -36,6 +36,20 @@ server, and the human can play a game from turn 1 to a natural conclusion.
 deliverable checklist below it still contains those four bullets plus the two engine
 features. Session 8 moves them to the M10b / primitive-queue sections.
 
+### Standing user-feedback channel
+
+`memory/ui-feedback.md` (on `main`, added 2026-07-26 — not present on this task's branch
+until merge) is the inbox for the user's hands-on notes about the play UI. **Read it at the
+start of every UI session (5, 6, 7, 8)** and honour anything `queued` there.
+
+One entry is already binding on this plan: the user endorsed the **legal-targets dropdown**
+as the target-selection model — "playing a spell and getting a drop-down menu that only
+consists of legal targets you need to choose from." That is exactly what Session 3's
+`legal_targets_per_slot` + Session 7's `TargetPicker` (one selector per slot, engine-
+enumerated candidates only) provide, so no plan change is needed — but it does mean
+Arena-style drag-arrows are **lower** priority than M13 previously assumed, and the picker
+must not be treated as a placeholder for them.
+
 ### Source citations for the decisions this plan encodes
 
 - `docs/mtg-engine-strategic-review.md` **Finding 1** (decouple M11 from M10 — the M10
@@ -403,6 +417,24 @@ This is in `crates/engine`, in very long (150-200+ turn) games, and is out of sc
 for a `crates/simulator`-only session. It matters beyond the fuzzer: Tier 1 state
 hashing and M10a's authoritative server both assume determinism. Rank it with
 `OOS-M11-1` / `OOS-M11-2` at collection.
+
+*Independently reproduced during review* (2026-07-26, coordinator): two consecutive
+runs of the **same** post-refactor binary, `--games 40 --threads 1 --seed 424242
+--bot random`, differed — 30 wins/10 errors vs 29 wins/11 errors, 70719 vs 70692
+violations, and a reordered/extra `stack_consistency` violation at turn 157. Single
+-threaded with a fixed seed rules out thread scheduling and RNG seeding.
+
+**Lead for whoever picks up the seed** (not chased further here): `crates/engine`
+has ~110 uses of std `HashMap`/`HashSet`. `std`'s `RandomState` is seeded **per
+process**, so any site where iteration order feeds a decision is nondeterministic
+across runs by construction — while `imbl::OrdMap`/`Vector` (which `GameState`
+mostly uses, and which `CLAUDE.md`'s risk register credits for determinism) are
+ordered. The acting-player path in `advance()` was checked and is clean:
+`pending_commander_zone_choices` is an `imbl::Vector`, so its `.iter().next()` is
+deterministic. The two positional `.iter().next()` calls on a `HashSet` found in a
+scan are both in `testing/replay_harness.rs` (test-only). Start the hunt at the
+other ~108 sites, weighted toward SBA and trigger-ordering code, since the observed
+divergence was a stack-consistency violation.
 
 **Crate**: `crates/simulator` **only**. No engine change, no HTTP, no async.
 **Files**: `crates/simulator/src/local_game.rs` (new), `src/lib.rs`, `src/driver.rs`,
