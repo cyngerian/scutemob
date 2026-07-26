@@ -15,6 +15,7 @@ pub mod driver;
 pub mod heuristic_bot;
 pub mod invariants;
 pub mod legal_actions;
+pub mod local_game;
 pub mod mana_solver;
 pub mod random_bot;
 pub mod report;
@@ -26,6 +27,10 @@ pub use driver::GameDriver;
 pub use heuristic_bot::HeuristicBot;
 pub use invariants::{check_all as check_invariants, InvariantViolation};
 pub use legal_actions::{LegalAction, LegalActionProvider, StubProvider};
+pub use local_game::{
+    AdvanceOutcome, CommandRecord, DecisionKind, HaltReason, HumanChoice, LocalGame,
+    LocalGameError, LocalGameLimits, PendingDecision,
+};
 pub use mana_solver::solve_mana_payment;
 pub use random_bot::RandomBot;
 pub use report::{CrashReport, GameDriverError, GameResult};

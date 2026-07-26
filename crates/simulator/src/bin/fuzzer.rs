@@ -371,7 +371,7 @@ fn run_single_game(
     }
 
     // Run game
-    let mut driver = GameDriver::new(StubProvider, bots, max_turns, seed);
+    let driver = GameDriver::new(StubProvider, bots, max_turns, seed);
     driver.run_game(state, seed)
 }
 

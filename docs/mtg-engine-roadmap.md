@@ -1,12 +1,16 @@
 # MTG Commander Rules Engine: Development Roadmap
 
-<!-- last_updated: 2026-07-18 -->
+<!-- last_updated: 2026-07-26 -->
 
 > **Current milestone**: this roadmap defines the milestone *sequence*, not the live
 > position. For where the project actually is, see **CLAUDE.md → Current State**
-> (as of 2026-07-18: **M9.5 DONE**, Card Authoring Campaign active). This document
-> is not updated per-milestone; treat milestone completion signals as belonging to
-> CLAUDE.md.
+> (as of 2026-07-26: **M9.5 DONE**, **M11-local ACTIVE (web-first)**, Card Authoring
+> Campaign continuous). This document is not updated per-milestone; treat milestone
+> completion signals as belonging to CLAUDE.md.
+>
+> **Restructured 2026-07-26** to apply the 2026-03-07 strategic review: M11 decoupled
+> from M10 and redefined as **M11-local**, M10 split into **M10a/M10b**, **M12
+> downscoped** to a continuous track, and the UI stack decided as **web-first**.
 
 ## Purpose of This Document
 
@@ -18,19 +22,26 @@ The Game Script Generation & Validation Strategy (`mtg-engine-game-scripts.md`) 
 
 ---
 
-## Strategic Review (2026-03-07)
+## Strategic Review (2026-03-07) — APPLIED 2026-07-26
 
 > A full project review identified changes to compress the time-to-playable.
 > See `docs/mtg-engine-strategic-review.md` for full findings.
 >
-> **Key changes pending**:
-> 1. Decouple M11 (UI) from M10 (networking) — UI works locally with bots first
-> 2. Split M10 into M10a (basic multiplayer) and M10b (resilience/social features)
-> 3. Downscope M12 — agent-based card scaling replaces the pipeline crate
-> 4. Prioritize Transform/Morph to unblock 9 ability batches
-> 5. Evaluate web-first UI (extend replay viewer) vs Tauri — decision pending
+> **All five changes are now applied to this document**:
+> 1. ✅ **Decouple M11 from M10** — the UI milestone is now **M11-local** (web client +
+>    3 bots, no networking) and lists M10 nowhere in its dependencies.
+> 2. ✅ **Split M10** into **M10a** (basic multiplayer server) and **M10b** (resilience /
+>    social features), with an M10-pre engine correctness block ahead of both.
+> 3. ✅ **Downscope M12** — the pipeline crate is cancelled; agent-based card scaling is a
+>    continuous track, and the one engine-shaped deliverable (deck-builder enforcement) has
+>    already shipped.
+> 4. ✅ Transform/Morph prioritized — completed 2026-03-08, unblocking 9 ability batches.
+> 5. ✅ **Web-first decided** (action item 6, user decision 2026-07-26): the client extends
+>    the existing axum + Svelte 5 replay-viewer stack. Tauri v2 is a later packaging
+>    wrapper option, not a parallel UI framework. See `memory/decisions.md`.
 >
-> **These changes must be finalized before M10 work begins.**
+> **Revised critical path**: M11-local (first playable) ∥ M10a → M10b → M13+M14 → M15,
+> with card scaling running continuously alongside.
 
 ---
 
@@ -62,10 +73,16 @@ M9: Commander Rules Integration                 (~2-3 weeks)
     ENGINE CORE COMPLETE — Playable via tests
 ───────────────────────────────────────────────────────────
 M9.5: Game State Stepper (Dev Replay Viewer)      (~2-3 weeks)
-M10: Networking Layer (Centralized Server)         (~2-3 weeks)
+───────────────────────────────────────────────────────────
+    These two run IN PARALLEL — M11-local has no networking dependency
+───────────────────────────────────────────────────────────
+M11-local: Web Client & Local Play (1 human + 3 bots)  (~3-4 weeks)  ← FIRST PLAYABLE
+M10-pre: Engine correctness pass (layer bypass, LKI)   (~1-2 weeks)
+M10a: Basic Multiplayer Server                         (~2-3 weeks)
+M10b: Resilience & Social Features                     (~2-3 weeks)
+───────────────────────────────────────────────────────────
 M10.5: P2P Distributed Verification (DEFERRED)    (unscheduled)
-M11: Tauri App Shell & Basic UI                  (~3-4 weeks)
-M12: Card Definition Pipeline (Bulk Generation)  (~3-4 weeks)
+M12: Card Scaling (DOWNSCOPED — continuous track, not a milestone)
 M13: Full UI — Battlefield, Stack, Targeting     (~4-6 weeks)
 M14: Card Asset Management & Polish              (~2-3 weeks)
 M15: Alpha — End-to-End Commander Games          (~2-3 weeks)
@@ -76,6 +93,9 @@ M16+: Post-Alpha (ongoing)
 ```
 
 Estimated total to Alpha: **~9-12 months** of active development. Time estimates assume Claude Code is the primary development tool with significant velocity gains over manual coding.
+
+**A human can play a game after M11-local**, months before alpha — that is the point of the
+2026-03-07 strategic review's restructuring (applied 2026-07-26, see the section below).
 
 ---
 
@@ -618,7 +638,7 @@ At this point, the engine can run a complete Commander game programmatically. Al
 
 ### M9.5: Game State Stepper (Developer Replay Viewer)
 
-**Goal**: Build a visual developer tool that loads game scripts and lets the developer step through them action-by-action, watching the full game state at every point. This validates engine correctness with human eyes before networking adds complexity, and produces reusable Svelte components for the main Tauri app at M11.
+**Goal**: Build a visual developer tool that loads game scripts and lets the developer step through them action-by-action, watching the full game state at every point. This validates engine correctness with human eyes before networking adds complexity, and produces reusable Svelte components for the interactive web client at M11-local.
 
 See `docs/mtg-engine-replay-viewer.md` for full architecture design.
 
@@ -648,7 +668,7 @@ See `docs/mtg-engine-replay-viewer.md` for full architecture design.
 - [x] State diff highlighting: visual indicator of what changed between consecutive steps
 - [x] Assertion result display: pass/fail badges on steps with `assert_state` actions
 
-**Shared component strategy**: All Svelte components in `frontend/src/lib/` accept data via props, not internal fetch. At M11, the Tauri app imports the same components — only the data source changes (`fetch('/api/...')` → Tauri `invoke()`).
+**Shared component strategy**: All Svelte components in `frontend/src/lib/` accept data via props, not internal fetch. At M11-local, the interactive web client imports the same components — only the data source changes (the stepper's `fetch('/api/step/:n')` becomes the play client's live game-session endpoint). *(Written before the 2026-07-26 web-first decision, which said "→ Tauri `invoke()`"; the props-not-fetch discipline is what mattered, and it carries over unchanged.)*
 
 **Tests**:
 - [x] Backend: axum endpoints return correct JSON for a known script (unit test)
@@ -737,7 +757,7 @@ corrupt state from reaching clients. Must exist before the first playable game.
 
 ---
 
-### M10: Networking Layer (Centralized Server)
+### M10: Networking Layer (Centralized Server) — split into M10a + M10b
 
 **Goal**: Implement a lightweight centralized WebSocket game server. One server instance (runnable on a ~$5-10/mo VPS) hosts games for a trusted playgroup. The server runs the engine authoritatively, filters hidden information per player, and broadcasts events. P2P distributed verification is preserved in `docs/mtg-engine-network-security.md` as a documented future upgrade path.
 
@@ -746,22 +766,61 @@ corrupt state from reaching clients. Must exist before the first playable game.
 > for no benefit in a trusted playgroup. Centralized server is simpler, cheaper, solves
 > the timing/reconnection problems cleanly. See `memory/decisions.md`.
 
-**Crate**: `crates/server/` — standalone binary, depends on `crates/engine` as a library. No engine changes required.
+> **Split (2026-07-26, strategic review Finding 6)**: M10's original scope was 6-8 weeks in
+> a single milestone. It is now **M10a** (basic multiplayer — the thing that makes networked
+> play exist) and **M10b** (resilience and social features — the polish). If time is tight,
+> M10b can ship during alpha without blocking multiplayer play.
+>
+> **M10a runs in parallel with M11-local**, not before it. M11-local (local play vs bots)
+> has no networking dependency; M10a upgrades the same web client to multiplayer.
+
+**Crate**: `crates/server/` — standalone binary, depends on `crates/engine` as a library. Reuses the axum stack and Svelte components from the web client (see M11-local). No engine changes required beyond the `private_to()` addition noted in M10b.
+
+#### M10-pre: Engine Correctness Pass (prerequisite for M10a)
+
+These are engine fixes that must land before an authoritative server broadcasts state to real clients. They are independent of both M10a and M11-local and may be scheduled against either.
+
+- [ ] **Layer bypass audit fixes** (9 HIGH sites — see `docs/audits/layer-bypass-audit.md`): Engine code reads static `CardDefinition` instead of layer-resolved state for battlefield objects. Under ability-removing effects (Humility, Dress Down, Blood Moon), the bypassed behavior incorrectly persists. Sites: spell cost modifiers (casting.rs), Exploit/Flanking/Ingest/Renown/Poisonous keyword counts (abilities.rs), Backup ability snapshot (abilities.rs), Champion filter lookup (abilities.rs), Saga SBA chapter count (sba.rs). Uniform fix: use `calculate_characteristics()` instead of `card_registry.get()` at each site.
+- [ ] **Diagnostic events** (Phase 1 — see `docs/audits/event-log-diagnosability.md`): Add `SBAFired`, `CostCalculated`, and `TriggerEvaluated` diagnostic events to support debugging "legal-but-wrong" states. Emit alongside each layer bypass fix.
+- [ ] **Stress test scripts** (P1 scenarios — see `docs/audits/stress-test-scenarios.md`): Write game scripts for S-01 through S-05 (ability removal interactions) to validate layer bypass fixes. Scripts go in `test-data/generated-scripts/stress-tests/`.
+- [ ] Resolution suspension: `ChoiceRequest` / `PendingResolution` for mid-resolution player choices. Unblocks "target opponent chooses" effects, Fact or Fiction, Council's Judgment, etc.
+- [ ] Formal LKI snapshot system (CR 608.2g/608.2h): snapshot layer-resolved characteristics on zone changes. Current fallback (`obj.characteristics.power` for non-battlefield objects) covers ~95% of cases but breaks on Oblivion Ring chains, flicker timing, and other Commander-common patterns. Edge case tests should be written during PB work *before* this fix lands.
+
+#### M10a: Basic Multiplayer Server (~2-3 weeks)
+
+**Goal**: Networked multiplayer exists. Real humans in different places play one game.
 
 **Deliverables**:
-- [ ] **Engine correctness pass** (before networking — from architecture review):
-  - [ ] **Layer bypass audit fixes** (9 HIGH sites — see `docs/audits/layer-bypass-audit.md`): Engine code reads static `CardDefinition` instead of layer-resolved state for battlefield objects. Under ability-removing effects (Humility, Dress Down, Blood Moon), the bypassed behavior incorrectly persists. Sites: spell cost modifiers (casting.rs), Exploit/Flanking/Ingest/Renown/Poisonous keyword counts (abilities.rs), Backup ability snapshot (abilities.rs), Champion filter lookup (abilities.rs), Saga SBA chapter count (sba.rs). Uniform fix: use `calculate_characteristics()` instead of `card_registry.get()` at each site.
-  - [ ] **Diagnostic events** (Phase 1 — see `docs/audits/event-log-diagnosability.md`): Add `SBAFired`, `CostCalculated`, and `TriggerEvaluated` diagnostic events to support debugging "legal-but-wrong" states. Emit alongside each layer bypass fix.
-  - [ ] **Stress test scripts** (P1 scenarios — see `docs/audits/stress-test-scenarios.md`): Write game scripts for S-01 through S-05 (ability removal interactions) to validate layer bypass fixes. Scripts go in `test-data/generated-scripts/stress-tests/`.
-  - [ ] Resolution suspension: `ChoiceRequest` / `PendingResolution` for mid-resolution player choices. Unblocks "target opponent chooses" effects, Fact or Fiction, Council's Judgment, etc.
-  - [ ] Formal LKI snapshot system (CR 608.2g/608.2h): snapshot layer-resolved characteristics on zone changes. Current fallback (`obj.characteristics.power` for non-battlefield objects) covers ~95% of cases but breaks on Oblivion Ring chains, flicker timing, and other Commander-common patterns. Edge case tests should be written during PB work *before* this fix lands.
 - [ ] WebSocket server (tokio + axum) accepting player connections
 - [ ] Room manager: create game (returns room code), join game by code, 2-6 player slots
 - [ ] One engine instance per active game room, running authoritatively on the server
 - [ ] Command ingestion: accept `Command` from the acting player only; reject out-of-turn commands
+- [ ] Message protocol: `ClientMessage` (command) and `ServerMessage` (event, state sync, error) — serde JSON for simplicity, MessagePack optional upgrade
+- [ ] Command relay and event broadcast to all clients in a room
+- [ ] Deck admission: every deck submitted to a room passes `validate_deck` (Architecture Invariant 9) before the room can start
+- [ ] Web client connects to a room instead of driving a local engine (the M11-local client, repointed)
+
+**Tests** (minimum):
+- [ ] Server starts, 4 clients connect to a room, game begins
+- [ ] Command round-trip: acting client sends command, server processes, all clients receive correct events
+- [ ] Out-of-turn command rejected by server
+- [ ] Room lifecycle: create by code, join by code, reject join when full
+- [ ] Deck containing a non-`Complete` card is rejected at room admission
+- [ ] 6-player game completes a full turn cycle without errors
+
+**Acceptance Criteria**:
+- 4-6 player Commander game playable over LAN/internet via WebSocket clients
+- Runs as a single statically-linked binary with no external dependencies
+
+**Dependencies**: M9 (engine core complete), M10-pre. Shares the web client with M11-local but does not depend on M11-local completing.
+
+#### M10b: Resilience & Social Features (~2-3 weeks)
+
+**Goal**: The server survives real conditions — dropped connections, hidden-information leaks, rules disputes.
+
+**Deliverables**:
 - [ ] Extend `GameEvent` with `private_to() -> Option<PlayerId>` (engine crate, small addition alongside existing `reveals_hidden_info()`) to identify which player a private event belongs to
 - [ ] Hidden information filtering: broadcast public events to all clients; private events (draw, scry peek, hand reveal) sent only to the player returned by `private_to()`; all others receive a redacted version
-- [ ] Message protocol: `ClientMessage` (command) and `ServerMessage` (event, state sync, error) — serde JSON for simplicity, MessagePack optional upgrade
 - [ ] Reconnection: reconnecting client receives full public state dump + their own private state (hand, known library cards)
 - [ ] **State history ring buffer**: server retains last N `GameState` snapshots (O(1) via im-rs structural sharing); keyed by turn + step + priority sequence number
 - [ ] **Safe checkpoint identification**: use `GameEvent::reveals_hidden_info()` (from M9) to mark snapshots before hidden-info events as safe rewind targets
@@ -774,24 +833,20 @@ corrupt state from reaching clients. Must exist before the first playable game.
   - [ ] Bug report serialization: on integrity error or player report, capture full event log + state diff + failing command as a loadable JSON reproduction case
 
 **Tests** (minimum):
-- [ ] Server starts, 4 clients connect to a room, game begins
-- [ ] Command round-trip: acting client sends command, server processes, all clients receive correct events
 - [ ] Hidden info: draw event sent only to drawing player; all others see `PlayerDrewCard { count: 1 }` only
-- [ ] Out-of-turn command rejected by server
 - [ ] Reconnect: client disconnects, rejoins, receives correct public + private state sync
 - [ ] Pause: client sends Pause, server freezes, no further Commands processed
 - [ ] Resume: all clients send Resume, game continues
 - [ ] Rewind accepted: all clients accept, state restored and rebroadcast
 - [ ] Rewind rejected: one client dissents, game continues from current state
-- [ ] 6-player game completes a full turn cycle without errors
+- [ ] Invariant violation triggers auto-rollback and does not broadcast the corrupt state
 
 **Acceptance Criteria**:
-- 4-6 player Commander game playable over LAN/internet via WebSocket clients
 - Hidden information never leaked to wrong client
 - Reconnection restores correct state
-- Runs as a single statically-linked binary with no external dependencies
+- A rules dispute can be paused, discussed, and rewound without abandoning the game
 
-**Dependencies**: M9 (engine core complete)
+**Dependencies**: M10a
 
 ---
 
@@ -800,17 +855,51 @@ corrupt state from reaching clients. Must exist before the first playable game.
 **Goal**: Upgrade from centralized server to peer-to-peer distributed verification for untrusted play — no trusted server required, all peers run the engine independently, hidden information protected via Mental Poker.
 
 > Full design preserved in `docs/mtg-engine-network-security.md` (Tiers 2 and 3).
-> This milestone is intentionally unscheduled. Revisit after M11 if there is demand
+> This milestone is intentionally unscheduled. Revisit after M10b if there is demand
 > for trustless play beyond the trusted playgroup model.
 
 ---
 
-### M11: Tauri App Shell & Basic UI
+### M11-local: Web Client & Local Play (1 Human + 3 Bots) — FIRST PLAYABLE
 
-**Goal**: Build the Tauri application with a functional but minimal UI. Players can see the game and interact, even if it's not polished.
+**Goal**: A human plays a full Commander game against three bots, in a browser, with no
+networking involved. This is the first milestone whose output is "a person played a game."
+
+> **Decoupled from M10 (2026-07-26, strategic review Finding 1)**: the old M11 listed
+> "M10 (networking for multi-window testing)" as a dependency. That was a soft dependency —
+> a client can drive the engine in-process. M11-local has **no networking dependency** and
+> runs in parallel with M10a.
+>
+> **UI stack: WEB-FIRST (2026-07-26, strategic review Finding 2, action item 6 — decided)**.
+> The client extends the **axum + Svelte 5** stack the replay viewer already uses
+> (`tools/replay-viewer/`), reusing its state-rendering components rather than building a
+> second UI framework. The same stack becomes the M10a server UI. **Tauri v2 remains a
+> later packaging wrapper option, not a parallel framework** — M11-local adds no Tauri IPC.
+> (Finding 2's stated rationale — "Tauri cannot build on headless Debian" — is stale; dev
+> is now a full desktop. The decision was made on iteration speed and single-stack grounds.
+> See `memory/decisions.md` 2026-07-26.)
+>
+> **Bots already exist**: `crates/simulator/` provides `RandomBot`, `HeuristicBot`,
+> `GameDriver`, `LegalActionProvider`, `mana_solver`, and a `Complete`-only random deck
+> builder (strategic review Finding 5). What is missing is the **human input bridge** — a
+> way for a human to occupy one seat in a driver-run game, receiving state views and
+> submitting `Command`s. That bridge is the first increment.
+
+**Session plan**: `memory/m11-session-plan.md`.
+
+**Scope boundary — M11-local is NOT**: networking, rooms, reconnection, rewind UI, pause
+consent, manual state adjustment, or Tauri packaging. Those are M10a/M10b/M13.
 
 **Deliverables**:
-- [ ] Tauri IPC bridge: Rust commands exposed to Svelte frontend
+- [ ] **Human input bridge**: a human occupies one seat in a `GameDriver` game; the driver
+      advances through bot seats autonomously and yields when the human seat must act
+- [ ] Engine purity preserved: all async/HTTP lives in the client binary crate, never in
+      `crates/engine` (Architecture Invariant 1)
+- [ ] axum server skeleton for interactive play (separate route surface from the replay
+      viewer's read-only stepper; shared view-model code where it fits)
+- [ ] Local game setup: pick or generate a `Complete`-only Commander deck, seat 1 human +
+      3 bots, start the game. Deck admission goes through `validate_deck` — no
+      non-`Complete` card may enter a game (Architecture Invariant 9)
 - [ ] Game state rendering: display all zones, players, life totals
 - [ ] Card display: render cards from cached images, fallback to text-only
 - [ ] Hand display: player's cards in hand, clickable to select
@@ -820,44 +909,80 @@ corrupt state from reaching clients. Must exist before the first playable game.
 - [ ] Priority indicator: whose turn to act
 - [ ] Basic input: click to cast spell, click to pass priority, click to select targets
 - [ ] Life total display and commander damage tracker per opponent
-- [ ] **Engine feature additions** (from architecture review):
-  - [ ] Turn control override (Mindslaver, Emrakul the Promised End): `turn_controller_override: Option<(PlayerId, PlayerId)>` on `TurnState`; Command routing redirects controlled player's decisions to controller; hand revealed to controller
-  - [ ] Step skipping (Necropotence, Stasis): `skip_steps: HashSet<(PlayerId, Step)>` on `TurnState`; turn structure advances past skipped steps; effects register/remove skips
-- [ ] **Rewind UI**: show a timeline of recent safe checkpoints (turn/step labels); any player can propose a rewind by clicking a checkpoint; all players see a consent prompt; unanimous accept → state rolls back; any decline → proposal dismissed
-- [ ] **"Pause for rules discussion" button**: one click sends the Pause command to all peers; all players see "Game paused — discussing rules" overlay with a Resume button; game is frozen until all players resume
-- [ ] **Manual state adjustment mode** (active only while paused): players can collaboratively edit the current game state — adjust life totals, move permanents between zones, add/remove counters. Changes are applied locally and broadcast as a proposed new state hash. All peers must accept before the adjusted state becomes official and automation resumes.
-- [ ] Clear visual indicator when a proposed rewind would cross a hidden-information boundary (e.g., "Note: a card was drawn after this checkpoint — rewinding requires good faith")
-- [ ] **Integrity error display**: when the server detects an invariant violation, show players what happened, the auto-rollback, and options (retry / skip / save & quit)
+- [ ] Bot seats: 3 `HeuristicBot`/`RandomBot` opponents driven server-side; their decisions
+      resolve without human interaction
+- [ ] Hidden-information filtering in the view model: the human's client receives its own
+      hand and nothing of the bots' hands or library order (Architecture Invariant 7).
+      `GameEvent::private_to()` does not exist yet (it is an M10b deliverable), so for
+      M11-local the filter lives in the client's view-model layer
 - [ ] **"Report Bug" button**: captures full game state + event log + player description, serialized as a reproducible JSON file (see `docs/mtg-engine-runtime-integrity.md`)
 
-**Tests**: UI tests are manual at this stage. Checklist:
-- [ ] Launch app, connect to local host, see game state
+**Deferred out of M11-local** (kept here so they are not lost):
+- Turn control override (Mindslaver, Emrakul the Promised End): `turn_controller_override: Option<(PlayerId, PlayerId)>` on `TurnState`; Command routing redirects controlled player's decisions to controller; hand revealed to controller → **engine work, schedule with M13**
+- Step skipping (Necropotence, Stasis): `skip_steps: HashSet<(PlayerId, Step)>` on `TurnState`; turn structure advances past skipped steps; effects register/remove skips → **engine work, schedule with M13**
+- Rewind UI, "Pause for rules discussion", manual state adjustment mode, the hidden-info-boundary rewind warning, and the integrity-error display all require the server-side machinery in **M10b** → moved to M13 (see M13 deliverables)
+
+**Tests**: the human-input bridge, the local-game session type, and the view model are
+covered by ordinary Rust tests (no running HTTP server required — see the replay-viewer OOM
+note in `memory/gotchas-infra.md`). Browser interaction is checked manually:
+- [ ] Launch the client, start a local game, see game state
 - [ ] Cast a spell from hand by clicking it
 - [ ] Pass priority
-- [ ] See stack update when opponents cast spells
+- [ ] See stack update when bots cast spells
 - [ ] See battlefield update when permanents enter/leave
-- [ ] Pause button freezes the game for all connected players
-- [ ] Rewind proposal appears on all peers' screens; accepting rolls state back; declining dismisses
-- [ ] Manual life total adjustment while paused is reflected on all peers after unanimous accept
+- [ ] Play a game to completion against 3 bots
 
 **Acceptance Criteria**:
-- A human player can play a simplified Commander game through the UI (against programmatic opponents or other humans on localhost)
-- All game information is visible and actionable
+- A human player can play a Commander game to completion through the browser against 3 bots, locally, with no server-to-server networking
+- All game information the human is entitled to see is visible and actionable; no bot hand or library order is ever sent to the client
+- `crates/engine` gains no IO, network, or async dependency
+- No `Command`/`GameEvent` wire change (PROTOCOL_VERSION / PROTOCOL_SCHEMA_FINGERPRINT unchanged), or an explicit bump if one proves unavoidable
 
-**Dependencies**: M10 (networking for multi-window testing), M0 (Tauri scaffold)
+**Dependencies**: M9 (engine core complete), M9.5 (replay viewer components to reuse). **Not** M10 — that decoupling is the point of this milestone.
 
 ---
 
-### M12: Card Definition Pipeline (Bulk Generation)
+### M12: Card Scaling (DOWNSCOPED — no pipeline crate)
 
-**Goal**: Scale from 50 hand-authored cards to the full Commander card pool using a scripted
-conversion pipeline. Every card that can appear in a game must have a `CardDefinition` before
-that game can start — no mid-game discovery, no graceful degradation during play.
+**Goal**: Grow the playable card pool toward the full Commander pool. Every card that can
+appear in a game must have a `CardDefinition` before that game can start — no mid-game
+discovery, no graceful degradation during play.
 
-**Core constraint**: The deck builder enforces that all cards in all decks have a `CardDefinition`
-before a game begins. This is non-negotiable: the rewind/replay/pause system relies on a
-complete and accurate state history from turn 1. A card whose abilities silently never fired
-produces a corrupted history that cannot be rewound to correctly.
+> **Downscoped (2026-07-26, strategic review Finding 3)**: M12 was "build a three-stage
+> pipeline crate (scripted converter → LLM fallback → human review)". That milestone is
+> **cancelled as a milestone**. Card scaling is already happening — and outpacing what the
+> pipeline promised — through the agent-based authoring campaign: ~1,800 card definitions
+> exist, of which ~1,139 are `Complete`, produced by the `card-definition-author` /
+> `bulk-card-author` agents plus `tools/generate_skeleton.py`. The scripted converter's
+> claimed 70-80% coverage was optimistic against the DSL gaps that the PB queues have been
+> closing one at a time.
+>
+> **What M12 becomes**: a **continuous track**, not a milestone with a start and an end.
+> It runs in parallel with everything else and does not gate M11-local, M10a, or alpha.
+> Live status is `docs/authoring-status.md` (generated by `tools/authoring-report.py`);
+> the active plan is `memory/card-authoring/campaign-plan-2026-05-16.md`.
+
+**Continuous-track deliverables** (replacing the pipeline build):
+- [x] Deck builder enforcement: `validate_deck` (`crates/engine/src/rules/commander.rs`) rejects any deck containing a non-`Complete` card, and `start_game` returns `GameStateError::IncompleteCardsInGame`. **Done** — this was the only genuinely engine-shaped piece of old M12, and it is a small feature, not a milestone.
+- [ ] Close DSL gaps in the engine as they block cards (the PB queues: EF, OS, RS, and successors)
+- [ ] Keep improving the `card-definition-author` / `bulk-card-author` agent prompts as review findings recur
+- [ ] Batch-run the authoring agents against high-priority cards (EDHREC popularity order)
+- [ ] Unimplemented-card UX: the deck builder shows which cards aren't supported, with clear messaging (client-side work — lands with M11-local or M14's deck builder)
+- [ ] Coverage reporting: `tools/authoring-report.py` regenerates `docs/authoring-status.md` (**already in place**)
+
+**Acceptance Criteria** (continuous, re-evaluated at alpha):
+- Enough `Complete` cards to build the decks the playgroup actually wants to play
+- Deck builder enforces the no-undefined-cards constraint (**met**)
+- Coverage is reported from source, not hand-maintained (**met**)
+
+**Dependencies**: none blocking. Runs alongside all other work.
+
+**Post-alpha revisit**: the pattern library / scripted converter below is preserved as a
+design record. Revisit only if agent-based generation proves too slow or too expensive at
+the 27k-card scale.
+
+<details>
+<summary>Original M12 pipeline design (HISTORICAL — not scheduled)</summary>
 
 **Pipeline architecture** (three stages):
 
@@ -885,36 +1010,26 @@ produces a corrupted history that cannot be rewound to correctly.
    - Cards with unique mechanics that appear on 1-2 cards ever (e.g., Chaos Orb)
    - Output is either a corrected definition or a new pattern added to stage 1
 
-**Deliverables**:
-- [ ] Scripted converter in `card-pipeline` crate: structured Scryfall fields → `CardDefinition` JSON
-- [ ] Pattern library with initial 50+ patterns covering common ability templates
-- [ ] LLM fallback integration: sends unmatched cards to Claude, extracts new patterns from successes
-- [ ] Validation harness: each generated definition runs against a game script
-- [ ] Deck builder enforcement: reject game start if any card lacks a `CardDefinition`
-- [ ] Unimplemented card UX: deck builder shows which cards aren't supported with clear messaging
-- [ ] Priority queue: cards ordered by EDHREC popularity (Commander staples first)
-- [ ] DB storage: pipeline writes definitions to `card_definitions` SQLite table; engine loads at startup
-- [ ] Coverage report: percentage of Commander-legal cards with validated definitions
-- [ ] New set workflow: documented process for processing a new set before it becomes playable
+*Original deliverables* (not scheduled):
+- Scripted converter in `card-pipeline` crate: structured Scryfall fields → `CardDefinition` JSON
+- Pattern library with initial 50+ patterns covering common ability templates
+- LLM fallback integration: sends unmatched cards to Claude, extracts new patterns from successes
+- Validation harness: each generated definition runs against a game script
+- Deck builder enforcement: reject game start if any card lacks a `CardDefinition` *(this one shipped — see the live deliverables above)*
+- Unimplemented card UX: deck builder shows which cards aren't supported with clear messaging *(retained above)*
+- Priority queue: cards ordered by EDHREC popularity (Commander staples first) *(retained above)*
+- DB storage: pipeline writes definitions to `card_definitions` SQLite table; engine loads at startup *(superseded — defs are Rust source in `crates/card-defs/`, compiled in, per SR-6)*
+- Coverage report: percentage of Commander-legal cards with validated definitions *(shipped as `tools/authoring-report.py`)*
+- New set workflow: documented process for processing a new set before it becomes playable
 
-**Tests**:
-- [ ] Scripted converter reproduces the original 50 hand-authored definitions exactly (regression)
-- [ ] Pattern library handles the 20 most common oracle text templates correctly
-- [ ] Deck builder rejects a game containing a card with no `CardDefinition`
-- [ ] Deck builder allows a game where all cards have definitions
-- [ ] Generated definitions for 500+ cards pass individual game script validation
-- [ ] New game scripts for card interactions pass through replay harness
+*Original acceptance criteria*: 500+ validated definitions in the DB; pattern library handles
+≥70% of cards without LLM involvement; LLM fallback failure rate <10%. Superseded — the
+first was passed long ago by agent authoring, and the other two only make sense for a
+pipeline that is no longer being built.
 
-**Acceptance Criteria**:
-- 500+ cards with validated definitions stored in the DB
-- Deck builder enforces the no-undefined-cards constraint
-- Pattern library handles ≥70% of cards without LLM involvement
-- Documented new-set workflow: pipeline runs offline before players can use new cards
-- Failure rate for LLM fallback stage <10% (definitions that fail game script validation)
+*Architecture doc references*: Section 5.3 (Card Definition Pipeline).
 
-**Dependencies**: M7 (card definition framework), M9 (engine can execute cards), M11 (deck builder UI)
-
-**Architecture doc references**: Section 5.3 (Card Definition Pipeline)
+</details>
 
 ---
 
@@ -933,6 +1048,14 @@ produces a corrupted history that cannot be rewound to correctly.
 - [ ] Game log: scrollable log of all game events in natural language
 - [ ] Turn history: step back through turn states (using immutable snapshots)
 - [ ] Responsive layout: works on various screen sizes
+- [ ] **Moved from the old M11** (they need M10b's server machinery, so they follow it):
+  - [ ] **Rewind UI**: show a timeline of recent safe checkpoints (turn/step labels); any player can propose a rewind by clicking a checkpoint; all players see a consent prompt; unanimous accept → state rolls back; any decline → proposal dismissed
+  - [ ] Clear visual indicator when a proposed rewind would cross a hidden-information boundary (e.g., "Note: a card was drawn after this checkpoint — rewinding requires good faith")
+  - [ ] **"Pause for rules discussion" button**: one click sends the Pause command to all players; everyone sees a "Game paused — discussing rules" overlay with a Resume button; the game is frozen until all players resume
+  - [ ] **Manual state adjustment mode** (active only while paused): players can collaboratively edit the current game state — adjust life totals, move permanents between zones, add/remove counters. Changes are proposed to the server; all players must accept before the adjusted state becomes official and automation resumes.
+  - [ ] **Integrity error display**: when the server detects an invariant violation, show players what happened, the auto-rollback, and options (retry / skip / save & quit)
+  - [ ] Turn control override (Mindslaver, Emrakul the Promised End): `turn_controller_override: Option<(PlayerId, PlayerId)>` on `TurnState`; Command routing redirects the controlled player's decisions to the controller; hand revealed to the controller *(engine change — wire impact: bump PROTOCOL_VERSION if `Command` routing changes shape)*
+  - [ ] Step skipping (Necropotence, Stasis): `skip_steps: HashSet<(PlayerId, Step)>` on `TurnState`; turn structure advances past skipped steps; effects register/remove skips
 
 **Tests**: Manual testing with real gameplay sessions. Automated screenshot regression tests if feasible.
 
@@ -941,7 +1064,7 @@ produces a corrupted history that cannot be rewound to correctly.
 - All player decisions are accessible through the UI
 - No game information is hidden that should be visible
 
-**Dependencies**: M11 (basic UI), M10 (networking)
+**Dependencies**: M11-local (web client), M10a + M10b (networking, pause/rewind machinery)
 
 ---
 
@@ -988,7 +1111,7 @@ produces a corrupted history that cannot be rewound to correctly.
 - Installable builds for all three platforms
 - 200+ approved game scripts passing
 
-**Dependencies**: M10-M14
+**Dependencies**: M11-local, M10a, M10b, M13, M14
 
 ---
 
@@ -1063,24 +1186,43 @@ These are not scheduled but represent the next directions after alpha:
 
 ```
 M0 ──→ M1 ──→ M2 ──→ M3 ──→ M4 ──→ M5 ──→ M6 ──→ M7 ──→ M8 ──→ M9
- │                    │Tier1│      │      │      │              │
- │                    │hash │      │      │      │              ├──→ M9.5
- │                    └──┬──┘      ▼      ▼      ▼              │    (stepper)
- │                       │       scripts scripts scripts    scripts  │
- │                       │       (base)  (layer) (combat)   (cmdr)   │
- │                       │                        (replay+           │
- │                       │                         cards)            │
- │                       │                           │               │
- └────────────────────────────────────────────────→ M11 ←── components
-                                                     │          │
-                                                     ▼       M10 ←── Tier1
-                                        M7 ──→ M12  M13       │
-                                                │    │  ←── M10.5
-                                                ▼    ▼
-                                                M14 ←┘
-                                                  │
-                                                  ▼
-                                                 M15
+                      │Tier1│      │      │      │              │
+                      │hash │      │      │      │              ▼
+                      └──┬──┘      ▼      ▼      ▼            M9.5
+                         │       scripts scripts scripts    (stepper)
+                         │       (base)  (layer) (combat)       │
+                         │                        (replay+      │ axum + Svelte
+                         │                         cards)       │ components
+                         │                                      │
+                         │              ┌───────────────────────┴──────────┐
+                         │              │                                  │
+                         │              ▼                                  ▼
+                         │       M11-local  ← FIRST PLAYABLE          M10-pre
+                         │       (web UI +     (no networking)      (layer bypass,
+                         │        3 bots)            │               LKI, ChoiceReq)
+                         │              │            │                    │
+                         └──────────────┘            │                    ▼
+                                                     │                  M10a
+                                                     │            (basic multiplayer)
+                                                     │                    │
+                                                     │                    ▼
+                                                     │                  M10b ←── M10.5
+                                                     │           (resilience, rewind)  (deferred)
+                                                     └──────────┬─────────┘
+                                                                ▼
+                                                               M13
+                                                                │
+                                                                ▼
+                                                               M14
+                                                                │
+                                                                ▼
+                                                               M15
+
+M12 (card scaling) — continuous track, parallel to everything, gates nothing.
 ```
 
-Engine milestones (M0-M9) are strictly sequential — each builds on the prior. Tier 1 state hashing is implemented during M3 and is a prerequisite for M10 distributed verification. The `GameScript` schema is defined in M5 so it evolves under the compiler; all script generation happens in M7 and M8-M9 when the replay harness exists to run them immediately. M9.5 (Game State Stepper) validates the complete engine visually and produces Svelte components reused in M11 Tauri app. M10.5 (Mental Poker) depends on M10 and adds cryptographic hidden information protection. UI and networking (M10-M14) can partially overlap once the engine core is complete. M12 (card pipeline) can run in parallel with UI work since it's primarily a data generation effort.
+Engine milestones (M0-M9) are strictly sequential — each builds on the prior. Tier 1 state hashing is implemented during M3 and is a prerequisite for M10.5 distributed verification. The `GameScript` schema is defined in M5 so it evolves under the compiler; all script generation happens in M7 and M8-M9 when the replay harness exists to run them immediately.
+
+M9.5 (Game State Stepper) validates the complete engine visually and produces the axum + Svelte 5 stack and components that **M11-local** extends into an interactive client (web-first decision, 2026-07-26).
+
+**M11-local and the M10 line are independent.** M11-local drives the engine in-process — a human plus three simulator bots, no server — so it does not wait on networking. M10-pre → M10a → M10b proceeds in parallel; M10a repoints the same web client at a server. M13 needs both (it adds rewind/pause UI, which requires M10b's machinery). M10.5 (Mental Poker) is a deferred upgrade on top of M10b. M12 is no longer a milestone: card scaling runs continuously via the authoring agents and blocks nothing.
