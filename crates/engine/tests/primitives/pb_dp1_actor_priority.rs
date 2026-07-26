@@ -15,9 +15,9 @@
 use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::{
     process_command, AbilityDefinition, ActivatedAbility, ActivationCost, CardDefinition, CardId,
-    CardRegistry, CardType, Command, FaceDownKind, GameState, GameStateBuilder,
-    KeywordAbility, ManaAbility, ManaColor, ManaCost, ObjectId, ObjectSpec, PlayerId, Step,
-    SubType, TurnFaceUpMethod, ZoneId,
+    CardRegistry, CardType, Command, FaceDownKind, GameState, GameStateBuilder, KeywordAbility,
+    ManaAbility, ManaColor, ManaCost, ObjectId, ObjectSpec, PlayerId, Step, SubType,
+    TurnFaceUpMethod, ZoneId,
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -87,7 +87,13 @@ fn cast(player: PlayerId, card: ObjectId) -> Command {
 }
 
 /// Build a Vehicle ObjectSpec (mirrors `mechanics_a_d/crew.rs::vehicle_spec`).
-fn vehicle_spec(owner: PlayerId, name: &str, power: i32, toughness: i32, crew_n: u32) -> ObjectSpec {
+fn vehicle_spec(
+    owner: PlayerId,
+    name: &str,
+    power: i32,
+    toughness: i32,
+    crew_n: u32,
+) -> ObjectSpec {
     let mut spec = ObjectSpec::artifact(owner, name)
         .with_subtypes(vec![SubType("Vehicle".to_string())])
         .with_keyword(KeywordAbility::Crew(crew_n));
@@ -405,9 +411,8 @@ fn test_dp1_mana_ability_does_not_reset_players_passed() {
     let p1 = p(1);
     let p2 = p(2);
 
-    let forest = ObjectSpec::land(p2, "Probe Forest").with_mana_ability(ManaAbility::tap_for(
-        ManaColor::Green,
-    ));
+    let forest = ObjectSpec::land(p2, "Probe Forest")
+        .with_mana_ability(ManaAbility::tap_for(ManaColor::Green));
 
     let mut state = GameStateBuilder::four_player()
         .active_player(p1)
