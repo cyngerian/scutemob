@@ -11,9 +11,11 @@ pub enum PriorityResult {
     /// All active players have passed in succession.
     AllPassed,
 }
-/// CR 116.3d: "If all players pass in succession (that is, if all players pass
-/// without any player taking an action in between passing), the spell or ability
-/// on top of the stack resolves or, if the stack is empty, the phase or step ends."
+/// CR 117.4: "If all players pass in succession (that is, if all players pass
+/// without taking any actions in between passing), the spell or ability on top of the
+/// stack resolves or, if the stack is empty, the phase or step ends."
+/// CR 117.3d: the passing player announces floating mana, then the next player in turn
+/// order receives priority.
 ///
 /// Validates that `player` is the current priority holder, adds them to
 /// the passed set, and determines what happens next.
@@ -47,7 +49,8 @@ pub fn pass_priority(
         Ok((PriorityResult::PlayerHasPriority { player: next }, events))
     }
 }
-/// CR 116.3: "Which player has priority is determined by the following rules:"
+/// CR 117.3: "Which player has priority is determined by the following rules:"
+/// CR 117.3d: the next player in turn order receives priority.
 /// Priority passes in APNAP order (Active Player, Non-Active Player).
 ///
 /// In multiplayer, APNAP order is: active player, then clockwise from active.

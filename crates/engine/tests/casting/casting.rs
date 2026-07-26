@@ -84,7 +84,8 @@ fn test_cast_spell_sorcery_speed_happy_path() {
         .iter()
         .any(|e| matches!(e, GameEvent::PriorityGiven { player } if *player == p1)));
 
-    // Active player retains priority.
+    // CR 117.3c: the caster (p1, who here also happens to be the active player)
+    // retains priority.
     assert_eq!(new_state.turn().priority_holder, Some(p1));
     // players_passed reset.
     assert!(new_state.turn().players_passed.is_empty());
@@ -195,8 +196,9 @@ fn test_cast_spell_instant_during_opponents_upkeep() {
     assert!(events
         .iter()
         .any(|e| matches!(e, GameEvent::SpellCast { player, .. } if *player == p2)));
-    // CR 601.2i: active player (p1) gets priority.
-    assert_eq!(new_state.turn().priority_holder, Some(p1));
+    // CR 117.3c: p2 had priority when they cast the spell, so p2 (the caster,
+    // not the active player p1) retains priority afterward.
+    assert_eq!(new_state.turn().priority_holder, Some(p2));
 }
 
 #[test]
@@ -676,8 +678,9 @@ fn test_cast_spell_card_not_in_hand_fails() {
 }
 
 #[test]
-/// CR 601.2i — after casting, players_passed resets and active player gets priority
-fn test_cast_spell_priority_resets_to_active_player() {
+/// CR 117.3c / 117.4 — after casting, players_passed resets (an action was taken
+/// between passes) and the ACTOR (not necessarily the active player) retains priority
+fn test_cast_spell_priority_retained_by_actor_after_casting() {
     let p1 = p(1);
     let p2 = p(2);
     let instant = ObjectSpec::card(p2, "Counterspell")
@@ -725,7 +728,9 @@ fn test_cast_spell_priority_resets_to_active_player() {
     )
     .unwrap();
 
-    // Active player (p1) gets priority; passed set is empty.
-    assert_eq!(new_state.turn().priority_holder, Some(p1));
+    // CR 117.3c: p2 had priority when they cast the spell, so p2 (the caster)
+    // retains priority afterward -- not necessarily the active player p1.
+    // CR 117.4: an action was taken between passes, so the pass-round restarts.
+    assert_eq!(new_state.turn().priority_holder, Some(p2));
     assert!(new_state.turn().players_passed.is_empty());
 }

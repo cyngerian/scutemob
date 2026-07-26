@@ -547,8 +547,13 @@ fn test_608_2b_modal_partial_illegal_target_skips_only_that_mode() {
     )
     .expect("P2 casts Mandatory Destroy Creature targeting the creature");
 
-    // All pass: Mandatory Destroy Creature resolves first (LIFO stack) — creature dies.
-    let (state, _) = pass_all(state, &players);
+    // CR 117.3c: p2 had priority when they cast Mandatory Destroy Creature, so
+    // p2 (the caster, not the active player p1) retains priority afterward --
+    // the all-pass round must start with the actor p2. Mandatory Destroy
+    // Creature resolves first (LIFO stack) — creature dies. Modal Strike is
+    // still on the stack, so after this resolution CR 117.3b (Group C, not
+    // affected by PB-DP1) hands priority to the active player p1.
+    let (state, _) = pass_all(state, &[p2, p1]);
     assert!(
         obj_in_graveyard(&state, "Doomed Creature", p2),
         "the response spell must have destroyed the creature first"
@@ -617,8 +622,11 @@ fn test_608_2b_modal_all_targets_illegal_fizzles() {
     )
     .expect("P2 casts Mandatory Destroy Creature targeting the same creature");
 
+    // CR 117.3c: p2 had priority when they cast Mandatory Destroy Creature, so
+    // p2 (the caster, not the active player p1) retains priority afterward --
+    // the all-pass round must start with the actor p2.
     // Resolve the response: creature dies.
-    let (state, _) = pass_all(state, &players);
+    let (state, _) = pass_all(state, &[p2, p1]);
     assert!(obj_in_graveyard(&state, "Sole Target Creature", p2));
 
     // Resolve Modal Strike: its only target is now illegal — full fizzle.

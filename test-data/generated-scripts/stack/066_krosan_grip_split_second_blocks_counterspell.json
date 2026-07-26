@@ -153,6 +153,11 @@
           "note": "Krosan Grip is on the stack. Split second now prevents all players from casting spells or activating non-mana abilities (CR 702.61a)."
         },
         {
+          "type": "priority_pass",
+          "player": "p2",
+          "note": "CR 117.3c: p2 had priority when they cast Krosan Grip, so p2 (the caster, not the active player p1) retained priority afterward. p2 now passes so p1 receives priority -- P1 must hold priority to activate Sol Ring's mana ability (`handle_tap_for_mana` requires `priority_holder == Some(player)`)."
+        },
+        {
           "type": "player_action",
           "player": "p1",
           "action": "tap_for_mana",
@@ -176,11 +181,10 @@
         {
           "type": "priority_round",
           "players": [
-            "p1",
-            "p2"
+            "p1"
           ],
           "result": "all_pass",
-          "note": "CR 116.3: Both players pass priority. Krosan Grip is the only object on the stack and resolves."
+          "note": "The mana-ability tap does not disturb the priority holder, and -- as a known, deliberate engine deviation from CR 117.4's 'without taking any actions in between passing' (see OOS-DP1-4) -- it also does not reset players_passed, so p2's earlier pass still stands; p1's single pass here completes the all-pass round (p2, then p1). Krosan Grip is the only object on the stack and resolves."
         },
         {
           "type": "stack_resolve",

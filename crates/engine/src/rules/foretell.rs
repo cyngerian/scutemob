@@ -116,5 +116,9 @@ pub fn handle_foretell_card(
         object_id: card,
         new_exile_id,
     });
+    // CR 116.3: the acting player receives priority afterward. The `:48` guard already
+    // proves `priority_holder == Some(player)`, so no write is needed -- but CR 117.4
+    // requires the pass-round to restart, because an action was taken between passes.
+    state.turn.players_passed = imbl::OrdSet::new();
     Ok(events)
 }

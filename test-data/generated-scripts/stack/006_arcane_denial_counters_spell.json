@@ -188,11 +188,11 @@
         {
           "type": "priority_round",
           "players": [
-            "p1",
-            "p2"
+            "p2",
+            "p1"
           ],
           "result": "all_pass",
-          "note": "CR 116.3: Both pass \u2014 Arcane Denial resolves first (top of stack)."
+          "note": "CR 117.3c: p2 had priority when they cast Arcane Denial, so p2 (the caster, not the active player p1) retains priority afterward -- the all-pass round starts with p2. Both pass \u2014 Arcane Denial resolves first (top of stack)."
         },
         {
           "type": "stack_resolve",

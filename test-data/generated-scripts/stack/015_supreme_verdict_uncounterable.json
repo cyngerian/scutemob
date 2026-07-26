@@ -167,11 +167,11 @@
         {
           "type": "priority_round",
           "players": [
-            "p1",
-            "p2"
+            "p2",
+            "p1"
           ],
           "result": "all_pass",
-          "note": "Both pass \u2014 Counterspell resolves first."
+          "note": "CR 117.3c: p2 had priority when they cast Counterspell, so p2 (the caster, not the active player p1) retains priority afterward -- the all-pass round starts with p2. Both pass \u2014 Counterspell resolves first."
         },
         {
           "type": "stack_resolve",
@@ -212,7 +212,7 @@
             "p2"
           ],
           "result": "all_pass",
-          "note": "Both pass \u2014 Supreme Verdict resolves."
+          "note": "CR 117.3b: after Counterspell's resolution, the active player (p1) receives priority (Group C, unaffected by PB-DP1) -- this round is unchanged. Both pass \u2014 Supreme Verdict resolves."
         },
         {
           "type": "stack_resolve",

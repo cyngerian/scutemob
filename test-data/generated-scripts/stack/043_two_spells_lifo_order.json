@@ -164,11 +164,11 @@
         {
           "type": "priority_round",
           "players": [
-            "p1",
-            "p2"
+            "p2",
+            "p1"
           ],
           "result": "all_pass",
-          "note": "Both pass \u2014 top of stack (p2's Bolt) resolves."
+          "note": "CR 117.3c: p2 had priority when they cast their Bolt, so p2 (the caster, not the active player p1) retains priority afterward -- the all-pass round starts with p2. Both pass \u2014 top of stack (p2's Bolt) resolves."
         },
         {
           "type": "stack_resolve",
@@ -205,7 +205,7 @@
             "p2"
           ],
           "result": "all_pass",
-          "note": "Both pass \u2014 p1's Bolt resolves."
+          "note": "CR 117.3b: after p2's Bolt resolves, the active player (p1) receives priority (Group C, unaffected by PB-DP1) -- this round is unchanged. Both pass \u2014 p1's Bolt resolves."
         },
         {
           "type": "stack_resolve",

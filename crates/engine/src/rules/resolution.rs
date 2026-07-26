@@ -5,7 +5,7 @@
 //!
 //! Instants and sorceries: card moves to owner's graveyard (CR 608.2n).
 //! Permanents: card enters the battlefield under spell's controller (CR 608.3a).
-//! After resolution: priority resets to the active player (CR 116.3b).
+//! After resolution: priority resets to the active player (CR 117.3b).
 //!
 //! **Fizzle rule (CR 608.2b)**: If ALL targets are illegal at resolution time,
 //! the spell is removed from the stack and its card goes to the graveyard without
@@ -32,7 +32,7 @@ use imbl::OrdSet;
 ///
 /// Called when all players pass priority in succession with a non-empty stack.
 /// The top object (last in `stack_objects`) resolves via LIFO ordering.
-/// After resolution, the active player receives priority (CR 116.3b).
+/// After resolution, the active player receives priority (CR 117.3b).
 pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, GameStateError> {
     let mut events = Vec::new();
     // Pop the top of the stack (LIFO — last pushed, first resolved).
@@ -5169,7 +5169,10 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     // PB-AC6: all-players-reset "this game turn" spell count.
                     ps.spells_cast_this_game_turn = ps.spells_cast_this_game_turn.saturating_add(1);
                 }
-                // CR 116.3b: Casting a spell resets priority (all players must pass again).
+                // CR 117.4: an action was taken between passes, so the pass-round restarts.
+                // CR 601.2i: the cipher copy is cast DURING resolution -- its controller did not
+                // have priority before casting it, so they do NOT get priority. The active player
+                // gets it when the trigger finishes resolving (CR 117.3b, resolution.rs:7751).
                 state.turn.players_passed = imbl::OrdSet::new();
                 let active = state.turn.active_player;
                 state.turn.priority_holder = Some(active);
@@ -5830,8 +5833,12 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         // so resolution.rs can clear summoning sickness on ETB.
                         suspend_stack_obj.was_suspended = true;
                         state.stack_objects.push_back(suspend_stack_obj);
-                        // CR 116.3b: Casting a spell resets priority. All players must
-                        // pass again before the newly-cast suspend spell resolves.
+                        // CR 117.4: an action was taken between passes, so the pass-round
+                        // restarts. CR 601.2i: the suspend free-cast (CR 702.62a) happens
+                        // DURING resolution of the suspend trigger -- its owner did not have
+                        // priority before casting it, so no priority_holder write follows;
+                        // only the pass-round reset does. The active player gets priority
+                        // when the trigger finishes resolving (CR 117.3b).
                         state.turn.players_passed = imbl::OrdSet::new();
                         // CR 702.62a: suspend triggers "whenever you cast a spell".
                         if let Some(ps) = state.expect_player_mut(owner) {
@@ -7738,7 +7745,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
     // Flush any pending triggers onto the stack before granting priority (CR 603.3).
     let trigger_events = abilities::flush_pending_triggers(state);
     events.extend(trigger_events);
-    // CR 116.3b: After resolution (and trigger flushing), the active player receives priority.
+    // CR 117.3b: After resolution (and trigger flushing), the active player receives priority.
     state.turn.players_passed = OrdSet::new();
     let active = state.turn.active_player;
     state.turn.priority_holder = Some(active);

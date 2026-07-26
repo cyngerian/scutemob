@@ -11,48 +11,17 @@
 | Workstream | Task | Status | Claimed | Notes |
 |------------|------|--------|---------|-------|
 | W1: Abilities | — | available | — | B16 complete (Dungeon + Ring); all abilities done |
-| W2: TUI & Simulator | — | available | — | Phase 1 done; 6 UX fixes done; hardening pending. **M11-local ACTIVE (web-first)**: S1 `LocalGame` shipped (`scutemob-147`); S2+ HELD until PB-DP suite done. Plan: `memory/m11-session-plan.md` |
+| W2: TUI & Simulator | — | available | — | Phase 1 done; 6 UX fixes done; hardening pending |
 | W3: LOW Remediation | — | available | — | LOW Sweep campaign COMPLETE 2026-05-16 (`scutemob-31..38`): 36 LOWs closed, LOW-OPEN 45→6. 6 remain (honestly deferred). Plan: `memory/archive/2026-07/low-sweep-plan.md` (archived 2026-07-18). |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | scutemob-149 | ACTIVE (worker in flight) | worker | **PB-DP suite ACTIVE** (user directive 2026-07-26: DP1..DP10 before RS5/M11-S2; queue `docs/audits/decision-point-audit.md` §8): **PB-DP1 dispatched** (`scutemob-149`, priority-to-actor CR 117.3c). RS queue: RS1..RS4 SHIPPED (`scutemob-143..146`), **HELD after RS4** pending the DP suite + seed re-rank (OOS-M11-1/2/4, OOS-RS3-1, OOS-RS2-1, OOS-RS4-1/2/4 vs RS5..RS11). |
+| W6: Primitive + Card Authoring | `scutemob-149` | ACTIVE (in_review) | 2026-07-26 | **PB-OS queue COMPLETE** (OS1..OS11 + OS4b, `scutemob-116..141`). **Rider-seed queue**: RS1..RS4 SHIPPED (`scutemob-143..146`); plan `memory/primitives/rider-seed-triage-2026-07-19.md`, resume at **R5** per its §5 banner (weigh OOS-RS3-1 insert + OOS-RS2-1 rider). **The PB-DP suite now runs FIRST** (user directive 2026-07-26) — queue `docs/audits/decision-point-audit.md` §8, from the decision-point audit (`scutemob-148`). **PB-DP1 SHIPPED** (`scutemob-149`, in_review): priority after cast/activate/special action goes to the ACTOR per CR 117.3c; 14 Group-A sites + 8 Group-D sites; entry priority guards added to `handle_turn_face_up`/`handle_activate_loyalty_ability`/`handle_level_up_class`; 19 tests + 15 golden scripts reconciled; PROTOCOL 27 / HASH 63 unchanged; 3,721 tests green. Seeds **OOS-DP1-1..4** filed in the audit doc **§8.1** (durable inventory for this suite — not in `primitive-wip.md`, which the next PB overwrites). Next: **PB-DP2**. |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
 `RETIRED` (replaced by another workstream)
 
 ## Last Handoff
-
-**Date**: 2026-07-26 (oversight session — RS resume, parallel-track expansion, DP pivot; /eot same day)
-**Workstream**: W6 (PB-RS4 → **PB-DP suite**) + M11-local playability track (opened)
-**Task**: 3 parallel workers dispatched+collected (`scutemob-146/147/148`); PB-DP1 (`scutemob-149`) **in flight at close**.
-
-**Completed**:
-- **PB-RS4** (`scutemob-146`, merge `9419d0e9`): face-aware residuals — **OOS-RS-3 + OOS-OS4-2 fully closed**; `deregister_face_statics` 1→all 10 families via `remove_one_registration` + source-scan parity gate; 4th same-root-cause Saga-sweep deviation found in planning, fixed; 0 flips, 2 integrity repairs, 17 fail-before/pass-after probes; PROTOCOL 27 / HASH 63; seeds OOS-RS4-1/2/4 filed.
-- **M11-local kickoff** (`scutemob-147`, merge `375ffb67`): user decisions recorded 2026-07-26 (**M11-local first, WEB-FIRST**; `memory/decisions.md`); roadmap restructured (M11-local defined sans networking, M10→pre/a/b, M12→continuous track; strategic-review action items 9/9 closed); `memory/m11-session-plan.md` (8 sessions; **no new wire variants the whole milestone**); **S1 SHIPPED** — `LocalGame` steppable human bridge in `crates/simulator`, `GameDriver::run_game` re-expressed on it, 10 tests, 4 API hazards fixed in review. **S2+ HELD until DP suite done.**
-- **Decision-point surface audit** (`scutemob-148`, merge `06bb165c`): `docs/audits/decision-point-audit.md` — DP-1..DP-32; **277/1,139 Complete defs (24.3%) contain an engine-made choice**; 5 Tier-0 correctness findings (**DP-1 priority-after-cast CR 117.3c ~20 sites**, DP-2 mulligan content no-op, DP-4 `min_modes` bypass on 3 Complete cards, DP-5 WouldDraw draw destroyed, DP-10/11 costs checked-never-charged); ranked **PB-DP1..DP10**; M11-loop verdict: `DecisionKind`'s 5 variants are the *complete* reachable set — S3/S5/S7 recommendations 1-11 in §9.4.
-- Coordination: OOS-M11-3 ID collision resolved (audit's trigger-target seed → **OOS-M11-4**, `ea5cb314`); `memory/ui-feedback.md` ledger created (user endorses legal-target picker; drag-arrows demoted); combined main verified green post-3-merge (full `cargo test --all`, pipefail-checked); CLAUDE.md 3-way Current State conflict reconciled at 147 collect (took branch structure + re-applied RS4 facts).
-- **PB-DP1 DISPATCHED** (`scutemob-149`): priority-to-actor fix, CR 117.3c.
-
-**Not done / deferred**:
-- **USER DIRECTIVE 2026-07-26: run PB-DP1..DP10 to completion before RS5 and M11-S2.** Chain sequentially (shared engine files); DP7..DP9 planned together (pending-decision-that-blocks machinery — audit §8 sequencing note); DP10 gate-widening closes.
-- Unranked seed pool for the post-suite re-rank: OOS-M11-1/2/4, OOS-RS3-1, OOS-RS2-1, OOS-RS4-1/2/4, vs RS5..RS11.
-- `scutemob-127` (abilities-corpus distillation) still backlog.
-
-**Next session candidates**:
-- **Collect PB-DP1** (`scutemob-149` — check `esm task get` / worker tab), then chain PB-DP2..DP10 per `docs/audits/decision-point-audit.md` §8, marking each row shipped there at collect.
-- After the suite: re-rank RS queue vs seed pool; resume M11 S2 with audit §9.4 recommendations in the dispatch brief.
-
-**Hazards** (carrying forward):
-- **DP1 has the suite's widest test blast radius** — many tests/scripts encode active-player priority; every update must cite CR 117.3c; reviewer must catch scripts silently keeping the inversion (PB-RS1 precedent).
-- Auto-memory MEMORY.md gotcha "CastSpell resets priority to ACTIVE player" becomes **stale the moment PB-DP1 lands** — flip it at collection.
-- Parallel workers editing CLAUDE.md Current State will conflict at collect — expected; coordinator reconciles (branch structure + latest facts).
-- Audit §10 re-audit triggers are live: new Effect choice-fields, new Commands, `Zone` API changes, Complete-count jumps.
-
-**Commit prefix used**: merge: / chore: / W6-prim: / scutemob-147:
-
-## Previous Handoff (preserved for chain context)
-
 
 **Date**: 2026-07-19..20 (oversight session — autonomous coordinator chain, user-directed "stop dispatching after PB-RS3"; /eot 2026-07-26)
 **Workstream**: W6 (rider-seed queue PB-RS1..RS11) — **RS1..RS3 SHIPPED, QUEUE PAUSED**
@@ -84,6 +53,7 @@
 
 ---
 
+## Previous Handoff (preserved for chain context)
 
 **Date**: 2026-07-19 (oversight session — fully autonomous coordinator chain, user-directed "stop after PB-OS11")
 **Workstream**: W6 (PB-OS queue) — **QUEUE COMPLETE**
@@ -207,9 +177,7 @@
 
 ---
 
-## Handoff History
-
-### 2026-07-16..17 (oversight — marker sweep + SR-33..38 + W-waves + EF triage) [rotated] — rotated to History 2026-07-26
+### 2026-07-16..17 (oversight — marker sweep + SR-33..38 + W-waves + EF triage) [rotated]
 
 **Date**: 2026-07-16..17 (oversight session — coordinator dispatching, user-authorized autonomous chaining)
 **Workstream**: W6: Primitive + Card Authoring (+ SR follow-on chain)
@@ -252,6 +220,7 @@
 
 ---
 
+## Handoff History
 
 ### 2026-07-08..10 (oversight session; /eot 2026-07-16) — W6: PB-AC chain close (AC0..AC9 complete)
 
@@ -271,3 +240,9 @@
 ### 2026-07-07 (coordinator session — campaign launch) — W6: Primitive + Card Authoring
 
 - **Campaign triage + 2 derisking batches + PB-AC0** (`scutemob-39..42` + chore, 5 merges): DSL gap audit + campaign plan written (~435 authorable-now estimate, falsified next session at 17% measured clean); W-NOW-1 batches 1-2 (4 CLEAN / 13 PARTIAL / 7 BLOCKED over 24 cards); **PB-AC0** creature-ETB filter forwarding (`df997fd2`, +13 tests, 2860→**2873**); `authoring-report.py` taught to count `// ENGINE-BLOCKED` (true clean 928 / 53.1%). Deferred at close: origin 14 ahead (pushed next session), plan recalibration (done next session as §0).
+
+### 2026-05-16 (coordinator session — LOW Sweep campaign) — W3: LOW Remediation
+
+- **8 fix sessions** (`scutemob-31..38`, plan `memory/low-sweep-plan.md`): 36 of 42 open LOWs closed, LOW-OPEN 45→**6** (4 M10-gated: MR-M8-11, MR-B16-04/05/06; 2 permanent perf: MR-M1-18, MR-M6-14). New DSL: `Effect::DestroyAndReanimate`, `Effect::PreventNextUntap`, `ProtectionQuality::{FromSuperType, FromName, FromPlayer}`; BASELINE-LKI-01 fixed (`pre_death_characteristics` snapshot, CR 603.10a/613.1e). Tests 2819→**2860**; HASH 24→**27**. Origin hazards recorded: 4 parallel worktrees filled the disk to 100% (hence strictly-sequential rule); attestation-vs-real-branch-name drift causes false `esm worktree check` conflicts.
+
+

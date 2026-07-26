@@ -1046,8 +1046,10 @@ fn test_madness_effect_discard_goes_to_exile() {
     )
     .unwrap();
 
-    // Both players pass priority → spell resolves.
-    let (state_after_resolve, _) = pass_all(state_after_cast, &[p1, p2]);
+    // CR 117.3c: p2 had priority when they cast Discard Spell, so p2 (the
+    // caster, not the active player p1) retains priority afterward -- pass_all
+    // must start with the actor p2, then p1, to complete the all-pass round.
+    let (state_after_resolve, _) = pass_all(state_after_cast, &[p2, p1]);
 
     // Fiery Temper should be in exile (madness replacement on effect-based discard).
     let in_exile = state_after_resolve

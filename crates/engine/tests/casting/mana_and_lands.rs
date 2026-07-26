@@ -93,7 +93,7 @@ fn test_play_land_decrements_land_plays() {
 
 #[test]
 /// CR 305.1 — playing a land resets players_passed (game action occurred).
-/// Active player retains priority.
+/// CR 116.3: the acting player (here also the active player) retains priority.
 fn test_play_land_resets_priority_round() {
     let state = GameStateBuilder::new()
         .add_player(PlayerId(1))
@@ -115,7 +115,8 @@ fn test_play_land_resets_priority_round() {
     )
     .unwrap();
 
-    // Active player still has priority
+    // CR 116.3: the acting player still has priority (it is an identity write here
+    // since the actor is also the active player).
     assert_eq!(new_state.turn().priority_holder, Some(PlayerId(1)));
     // Priority round reset
     assert!(new_state.turn().players_passed.is_empty());

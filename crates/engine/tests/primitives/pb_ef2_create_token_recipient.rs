@@ -278,7 +278,14 @@ fn test_swan_song_bird_goes_to_countered_spells_controller() {
     let p1 = p(1);
     let p2 = p(2);
     let state = counter_scenario(p1, p2, "Swan Song");
-    let (state, events) = pass_all(state, &[p1, p2, p1, p2]);
+    // CR 117.3c: p2 had priority when they cast the counterspell, so p2 (the
+    // caster, not the active player p1) retains priority afterward -- pass_all
+    // must start with the actor p2, then p1, to complete the all-pass round
+    // that resolves the counterspell (which counters the victim and creates
+    // its token(s) in the same resolution). The stack is then empty, so CR
+    // 117.3b hands priority to the active player p1 for the next round; the
+    // remaining two passes (p1, p2) just drain that empty-stack round.
+    let (state, events) = pass_all(state, &[p2, p1, p1, p2]);
 
     assert!(
         events
@@ -301,7 +308,14 @@ fn test_swan_song_decoy_bird_is_not_controlled_by_swan_songs_caster() {
     let p1 = p(1);
     let p2 = p(2);
     let state = counter_scenario(p1, p2, "Swan Song");
-    let (state, _) = pass_all(state, &[p1, p2, p1, p2]);
+    // CR 117.3c: p2 had priority when they cast the counterspell, so p2 (the
+    // caster, not the active player p1) retains priority afterward -- pass_all
+    // must start with the actor p2. The single resolution counters AND removes
+    // the target, emptying the whole stack at once, so CR 117.3b then hands
+    // priority back to the active player p1 for the remaining pass round --
+    // hence the `[p2, p1, p1, p2]` shape, not `[p2, p1]` (same shape as the
+    // happy-path test above).
+    let (state, _) = pass_all(state, &[p2, p1, p1, p2]);
 
     assert_eq!(
         count_on_battlefield_for(&state, "Bird", p2),
@@ -389,7 +403,14 @@ fn test_an_offer_you_cant_refuse_creates_two_treasures_for_countered_spells_cont
     let p1 = p(1);
     let p2 = p(2);
     let state = counter_scenario(p1, p2, "An Offer You Can't Refuse");
-    let (state, events) = pass_all(state, &[p1, p2, p1, p2]);
+    // CR 117.3c: p2 had priority when they cast the counterspell, so p2 (the
+    // caster, not the active player p1) retains priority afterward -- pass_all
+    // must start with the actor p2, then p1, to complete the all-pass round
+    // that resolves the counterspell (which counters the victim and creates
+    // its token(s) in the same resolution). The stack is then empty, so CR
+    // 117.3b hands priority to the active player p1 for the next round; the
+    // remaining two passes (p1, p2) just drain that empty-stack round.
+    let (state, events) = pass_all(state, &[p2, p1, p1, p2]);
 
     assert!(
         events

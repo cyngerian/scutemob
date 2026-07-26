@@ -522,9 +522,15 @@ fn test_retrace_card_returns_to_graveyard_when_countered() {
     )
     .unwrap();
 
-    // Both players pass priority to resolve Counterspell (which counters Flame Jab).
-    let (state, _) = pass_all(state, &[p1, p2]);
-    // Resolve the Counterspell itself.
+    // CR 117.3c: p2 had priority when they cast Counterspell, so p2 (the
+    // caster, not the active player p1) retains priority afterward -- pass_all
+    // must start with the actor p2, then p1, to complete the all-pass round
+    // that resolves Counterspell (which counters and exiles Flame Jab in the
+    // same resolution).
+    let (state, _) = pass_all(state, &[p2, p1]);
+    // Stack is now empty; CR 117.3b hands priority to the active player (p1)
+    // after resolution, so this second all-pass round (which just advances
+    // past the empty stack) is unaffected by PB-DP1.
     let (state, _) = pass_all(state, &[p1, p2]);
 
     // Flame Jab should be back in p1's graveyard (not exiled).

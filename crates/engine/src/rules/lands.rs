@@ -20,8 +20,9 @@ use crate::state::GameState;
 /// Handle a PlayLand command: move a land from hand to battlefield.
 ///
 /// Validates all CR 305.1 conditions. After the land enters the battlefield,
-/// `players_passed` is reset (a game action occurred), but the active player
-/// retains priority.
+/// `players_passed` is reset (CR 117.4 — an action was taken between passes) and the
+/// **acting** player retains priority (CR 116.2a / 116.3). The `:32` guard proves the
+/// actor already held it, so no write is needed here.
 pub fn handle_play_land(
     state: &mut GameState,
     player: PlayerId,
@@ -414,8 +415,11 @@ pub fn handle_play_land(
         let player_state = state.player_mut(player)?;
         player_state.land_plays_remaining -= 1;
     }
-    // 11. Reset players_passed — a game action occurred, so the priority round
-    //     starts fresh. The active player retains priority (CR 117.3b).
+    // 11. CR 117.4: Reset players_passed — an action was taken between passes, so the
+    //     priority round starts fresh. CR 116.3: the acting player retains priority (the
+    //     `:32` guard already proved they held it before playing the land; CR 117.3b is
+    //     the wrong rule here — that governs priority after a resolution, not a special
+    //     action).
     state.turn.players_passed = imbl::OrdSet::new();
     Ok(events)
 }

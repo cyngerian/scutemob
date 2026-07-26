@@ -1019,6 +1019,14 @@ pub fn handle_bring_companion(
         player,
         card_id: companion_card_id,
     });
+    // CR 116.3: the acting player receives priority afterward. This handler has no
+    // priority guard of its own -- the `:941` sorcery-speed gate (CR 702.139a) only
+    // forces player == active_player, which does NOT imply player held priority (the
+    // active player can pass and still be the active player). This unconditional
+    // `players_passed` reset is therefore correct only when the actor did hold
+    // priority; the missing entry guard is tracked as OOS-DP1-2. CR 117.4 requires the
+    // pass-round to restart, because an action was taken between passes.
+    state.turn.players_passed = imbl::OrdSet::new();
     Ok(events)
 }
 /// Add colors present in a mana cost to the accumulator.
