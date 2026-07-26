@@ -675,7 +675,9 @@ pub fn handle_declare_attackers(
     // Flush triggers before granting priority (CR 603.3).
     let trigger_events = abilities::flush_pending_triggers(state);
     events.extend(trigger_events);
-    // Grant priority to the active player (combat actions reset priority).
+    // CR 508.1 / CR 117.3a: declaring attackers is a turn-based action; the declaring
+    // player is the active player (enforced at :46), so `Some(player)` is the active
+    // player here. CR 117.4: reset the pass-round.
     state.turn.players_passed = OrdSet::new();
     state.turn.priority_holder = Some(player);
     events.push(GameEvent::PriorityGiven { player });
@@ -1367,6 +1369,8 @@ pub fn handle_declare_blockers(
     // resolve BEFORE combat damage is dealt, which is correct per MTG rules.
     let trigger_events = abilities::flush_pending_triggers(state);
     events.extend(trigger_events);
+    // CR 509.1: declaring blockers is a turn-based action; CR 117.3a gives the ACTIVE
+    // player priority after it -- not the defending player who issued the command.
     // Grant priority to the active player so players can respond to triggers
     // (including Flanking triggers) before combat damage is dealt.
     state.turn.players_passed = OrdSet::new();
