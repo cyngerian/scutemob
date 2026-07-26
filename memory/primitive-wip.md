@@ -21,8 +21,8 @@
 - **Task**: `scutemob-152`
 - **Branch**: `feat/pb-dp4-costs-checked-but-never-collected-propaganda-attack-t`
 - **Class**: CORRECTNESS (Tier 1, class **D** both). Rank 4 of the PB-DP suite.
-- **Phase**: review — implementation complete 2026-07-26 (see "Implementation complete
-  (runner close-out)" at the end of this file). Two load-bearing claims
+- **Phase**: fix cycle COMPLETE 2026-07-26 — review closed 2026-07-26 (0 HIGH / 5 MEDIUM / 13 LOW, verdict "ship after fixes"; see `memory/primitives/pb-review-DP4.md`). All 5 MEDIUMs fixed (T1/T2/T3/E1/E2); of 13 LOWs, 8 fixed and 5 declined-with-reason (3 folded into new seeds OOS-DP4-10/11/12 for the coordinator to file). See "Fix cycle complete (runner close-out)" at the end of this file for the full summary; the review file's own "## Fix cycle (runner)" section has the per-finding detail. Implementation complete 2026-07-26 (see "Implementation complete
+  (runner close-out)" earlier in this file). Two load-bearing claims
   spot-verified independently before approval: (a) `resolution.rs:7768-7772` really does clear
   `players_passed` and grant priority to the active player at the end of every resolution, so
   the owing player is guaranteed a window (and Change 2d's deletions are identity writes for
@@ -308,15 +308,23 @@ assertion is false pre-fix (there is no sweep, so the very first boundary-crossi
 already advances to `Draw`), so the test as written is a genuine fail-before probe, not a
 vacuous guard. This is a strictly stronger test than the plan's minimal description (it
 additionally pins that the sweep doesn't prematurely advance), not a deviation in
-intent — flagged here because the plan's own accounting (§8's "6 regression guards")
-undercounts by one: **the actual split is 5 guards (§7.1 #5, 9, 10; §7.2 #14, 20) + 15
-fail-before probes** (the plan's 14 plus this one), all independently confirmed above.
-The 5 true guards (`test_508_1c_planeswalker_attack_is_not_taxed`,
+intent.
+**[Fix cycle correction, T8]**: the paragraph below originally miscounted this split as
+"5 guards + 15 fail-before probes" (= 20, not 22, and inconsistent with this section's own
+"16 of 22 failed, 6 passed" two paragraphs above). The correct split, re-derived from the
+before/after run above (16 rows in that table = 16 fail-before probes; 22 − 16 = 6 passed
+pre-fix = 6 guards): **6 guards (§7.1 #5, 9, 10; §7.2 #14, 18b, 20) + 16 fail-before
+probes**. The sixth guard is `test_119_4b_cumulative_upkeep_zero_life_cost_is_always_payable`
+— pre-fix, the `Life` arm had no affordability check at all, so a `total_life == 0` payment
+already succeeded unconditionally; there was nothing for Change 2e to fix in that specific
+case, so it is a guard (passes identically both sides), not a probe. The 6 true guards
+(`test_508_1c_planeswalker_attack_is_not_taxed`,
 `test_508_1d_must_attack_still_forced_when_an_untaxed_opponent_exists`,
 `test_508_1d_must_attack_still_forced_when_only_an_opponent_planeswalker_is_untaxed`,
 `test_702_30a_echo_paid_before_the_boundary_still_survives`,
-`test_608_2g_mana_ability_during_the_payment_window_still_funds_the_payment`) all passed
-identically pre- and post-fix, confirmed in the same before/after run.
+`test_608_2g_mana_ability_during_the_payment_window_still_funds_the_payment`,
+`test_119_4b_cumulative_upkeep_zero_life_cost_is_always_payable`) all passed identically
+pre- and post-fix, confirmed in the same before/after run.
 
 ### Fuzzer smoke test (§7.4, record-only, not a gate)
 
@@ -341,3 +349,90 @@ Seeds OOS-DP4-1 through OOS-DP4-9 (§9) and the audit bookkeeping (§10) are exp
 bookkeeping for after the review cycle. `docs/audits/decision-point-audit.md`,
 `memory/primitives/rider-seed-triage-2026-07-19.md` (OOS-RS3-4 status marker), and
 `CLAUDE.md` "Current State" / "Last Updated" are all untouched by this session.
+
+## Fix cycle complete (runner close-out)
+
+**Summary**: applied every finding in `memory/primitives/pb-review-DP4.md`. All 5 MEDIUMs
+fixed: **T1** (APNAP test inverted so it discriminates per-player-outer-loop from
+kind-grouped-globally — verified by a temporary reversal experiment that made the
+strengthened assertion fail, then reverted byte-identical), **T2** (OOS-DP1-1 probe now
+seeds and asserts a non-empty `players_passed`, closing the vacuous half), **T3** (new
+`test_dp11_all_no_op_sweep_falls_through_and_advances` pins the guard on plan risk 4's
+highest-consequence failure shape), **E1** (hybrid/Phyrexian/X attack-tax rejection rescoped
+to only fire when a declared attacker targets the unpayably-taxed defender; two new tests),
+**E2** (`engine.rs`'s two new bare `.players.get(` sites converted to `state.player(..)?`
+and `state.expect_player(..)`; `bare_lookup_ratchet.rs` ceiling restored to 22).
+
+**Accuracy note on the LOW count itself**: the review's verdict banner says "13 LOW", but
+the Engine Change Findings + Test Findings tables actually list **17** LOW rows (E3–E13 = 11,
+T4–T9 = 6). This runner dispositioned all 17, not just 13 — the discrepancy is in the
+review's own header count (the same class of self-inconsistency T8 caught elsewhere in this
+file), left for the coordinator to correct in the review file's banner if desired; this
+runner did not edit that banner line since the instruction was to work the findings, not
+audit the review's own arithmetic.
+
+Of the 17 LOWs: **9 fixed cleanly** (E3, E4, E5, E6, E7, T5, T7, T8, T9), **1 fixed AND
+folded into a new seed** (E9 — the wording is corrected everywhere, and the postponability
+consequence it describes is also filed as a seed since it is a real, undischarged behavior,
+not just a documentation gap), **6 declined with a stated reason** (E8, E11, T4, T6, plus
+E10 and E12 which are declined-and-folded into new seeds), and **1 needs no fix** (E13 — the
+review's own verdict already calls it "a judgement note, not a defect" with "Fix: none
+required"). **3 new seeds drafted** for the coordinator to file against
+`docs/audits/decision-point-audit.md` §8.1 (not filed directly by this runner, per
+instruction): **OOS-DP4-10** (folds E10, `ActiveRestriction.controller` staleness),
+**OOS-DP4-11** (folds E12, forced-decline `ChooseReplacement` dead-end), **OOS-DP4-12**
+(folds E9's underlying consequence — the DP-11 deadline can be postponed indefinitely by
+keeping the stack non-empty). Full per-finding disposition table and seed text:
+`memory/primitives/pb-review-DP4.md` § "Fix cycle (runner)".
+
+**Files touched in the fix cycle** (beyond the implement-phase diff):
+- `crates/engine/src/rules/combat.rs` — E1/E7 restructure of the attack-tax block (scoped
+  hybrid/Phyrexian/X rejection, `{0}`-cost skip), E5 (error message), E6 (event-push
+  placement).
+- `crates/engine/src/rules/engine.rs` — E2 (two bare-lookup conversions), E3 (Change 2c
+  comment), E4 (Change 2d comments, echo + CU), E9 (deadline-boundary wording, 2 sites).
+- `crates/engine/src/rules/resolution.rs` — E9 (3 producer comment blocks), T9 (2 "pause"
+  reworded to "queue").
+- `crates/engine/src/state/mod.rs` — E9 (3 `pending_*_payments` field doc comments).
+- `crates/simulator/src/legal_actions.rs` — T7 (CU life-cost provider short-circuit) + 1
+  new test.
+- `crates/engine/tests/core/bare_lookup_ratchet.rs` — E2 (ceiling restored to 22, changelog
+  comment rewritten).
+- `crates/engine/tests/primitives/pb_dp4_attack_tax_and_payment_deadline.rs` — T1 (inverted
+  APNAP test), T2 (non-vacuous pass-set assertion), T3 (new all-no-op probe), E1 (2 new
+  tests), T5 (strengthened assertion), plus the `test_106_6_...` message-format update
+  required by the E5 fix.
+- `memory/primitives/pb-review-DP4.md` — new "## Fix cycle (runner)" section (this file's
+  companion).
+- `memory/primitive-wip.md` — T8 (guard/probe accounting correction in the implement-phase
+  close-out section) + this section.
+
+**Test count**: 3,747 (parent-branch `main` pin) → 3,777 (implement-phase close) → **3,781**
+(fix cycle: +4 new tests — T3's fall-through probe, E1's 2 scoping tests, T7's provider
+parity test; T1/T2/T5 strengthened existing tests without adding new ones). `cargo test
+--all`: **3,781 passed, 0 failed.** `cargo clippy --workspace --all-targets -- -D warnings`:
+clean. `cargo build --workspace`: clean. `cargo fmt --check`: clean. `tools/check-defs-fmt.sh`:
+clean (1,804 defs, no new TODOs in any of the 8 cards this PB's plan named as affected).
+
+**Wire check (re-confirmed post-fix-cycle)**: `PROTOCOL_VERSION == 27`
+(`crates/engine/src/rules/protocol.rs:260`), `HASH_SCHEMA_VERSION == 63`
+(`crates/engine/src/state/hash.rs:578`) — both read directly from source, unmoved. No new
+`Command` / `GameEvent` / `GameState` variant or field introduced in the fix cycle. SR-3
+seal on `state/mod.rs` not widened (only doc comments changed there). No
+`KeywordAbility::Echo` / `::CumulativeUpkeep` / `::Recover` named in executable code in the
+sweep or `crates/simulator/src` (unchanged from implement phase — no new dispatch logic was
+added in the fix cycle that could have reintroduced this).
+
+**Deviations from the review's prescriptions**: none. Every MEDIUM fix matches its
+"Fix:" directive; every LOW is either fixed as directed or declined with a reason recorded
+in the review file's per-finding table (not silently dropped). The one piece of judgement
+exercised: E5's fix statement said "state the total and the shortfall" — the runner
+interpreted "shortfall" as "the two comparison quantities" (required cost, available
+unrestricted mana) rather than a literal numeric difference, because a literal difference
+would be misleading in the colour-mismatch case (required total mana value can equal
+available total while still being unpayable due to colour) — this is explained in the
+fix's own code comment and the review's E5 row.
+
+**Not filed by this runner** (coordinator close-out, per standing instruction): the 3 new
+seed drafts above, the audit rows this PB's own §10 checklist names, and any `CLAUDE.md`
+/ `docs/audits/decision-point-audit.md` edits.

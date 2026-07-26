@@ -444,9 +444,15 @@ fn test_106_6_restricted_mana_cannot_pay_an_attack_tax() {
 
     let err = result.expect_err("CR 106.6: restricted mana cannot pay a non-spell attack tax");
     let msg = format!("{:?}", err);
+    // Fix cycle (E5): the message states the observable shortfall (0 unrestricted mana
+    // available, despite p2's restricted-mana pool) rather than asserting the
+    // engine-internal CR 106.6 rationale ("no ManaRestriction matches a non-spell cost")
+    // as a player-facing fact. That rationale now lives in a code comment at the
+    // rejection site (combat.rs), not in this string.
     assert!(
-        msg.contains("attack tax") && msg.contains("106.6"),
-        "message should cite both attack tax and CR 106.6: {msg}"
+        msg.contains("attack tax") && msg.contains("0 unrestricted mana"),
+        "message should cite attack tax and the observed (zero) unrestricted mana \
+         available: {msg}"
     );
 }
 
@@ -609,6 +615,86 @@ fn test_107_4e_hybrid_attack_tax_is_rejected_not_paid_free() {
 }
 
 #[test]
+/// CR 508.1c/107.4e (fix cycle, E1) — a hybrid/Phyrexian/X attack tax on ONE defender
+/// must not block a declaration that doesn't attack that defender at all. Pre-fix: the
+/// rejection fired unconditionally whenever such a restriction existed anywhere on the
+/// battlefield, even for an attack against a different, untaxed defender.
+fn test_107_4e_hybrid_tax_does_not_block_attacks_on_other_defenders() {
+    let mut state = GameStateBuilder::four_player()
+        .active_player(p(2))
+        .at_step(Step::DeclareAttackers)
+        .object(ObjectSpec::creature(p(1), "Propaganda", 0, 4).in_zone(ZoneId::Battlefield))
+        .object(ObjectSpec::creature(p(2), "Bear", 2, 2).in_zone(ZoneId::Battlefield))
+        .build()
+        .unwrap(); // p2 has zero mana -- irrelevant, since p2 never attacks p1
+
+    let propaganda = find_by_name(&state, "Propaganda");
+    add_restriction(
+        &mut state,
+        propaganda,
+        p(1),
+        GameRestriction::CantAttackYouUnlessPay {
+            cost_per_creature: ManaCost {
+                hybrid: vec![HybridMana::GenericColor(ManaColor::White)],
+                ..Default::default()
+            },
+        },
+    );
+    state.turn_mut().priority_holder = Some(p(2));
+
+    let bear = find_by_name(&state, "Bear");
+    // Attack p3 (untaxed), not p1 (the hybrid-tax defender).
+    let result = process_command(
+        state,
+        declare_cmd(p(2), vec![(bear, AttackTarget::Player(p(3)))]),
+    );
+    assert!(
+        result.is_ok(),
+        "E1: an unrelated hybrid-tax restriction on a different defender must not block \
+         an attack against p3: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+/// CR 508.1c/107.4e (fix cycle, E1) — an empty attack declaration must not be blocked by
+/// an unrelated hybrid/Phyrexian/X attack-tax restriction that no declared attacker
+/// engages. Pre-fix: the rejection fired on the mere existence of the restriction.
+fn test_107_4e_hybrid_tax_does_not_block_an_empty_declaration() {
+    let mut state = GameStateBuilder::new()
+        .add_player(p(1))
+        .add_player(p(2))
+        .active_player(p(2))
+        .at_step(Step::DeclareAttackers)
+        .object(ObjectSpec::creature(p(1), "Propaganda", 0, 4).in_zone(ZoneId::Battlefield))
+        .object(ObjectSpec::creature(p(2), "Bear", 2, 2).in_zone(ZoneId::Battlefield))
+        .build()
+        .unwrap(); // p2 has zero mana
+
+    let propaganda = find_by_name(&state, "Propaganda");
+    add_restriction(
+        &mut state,
+        propaganda,
+        p(1),
+        GameRestriction::CantAttackYouUnlessPay {
+            cost_per_creature: ManaCost {
+                hybrid: vec![HybridMana::GenericColor(ManaColor::White)],
+                ..Default::default()
+            },
+        },
+    );
+    state.turn_mut().priority_holder = Some(p(2));
+
+    let result = process_command(state, declare_cmd(p(2), vec![]));
+    assert!(
+        result.is_ok(),
+        "E1: an empty declaration must not be rejected by a hybrid-tax restriction no \
+         declared attacker engages: {:?}",
+        result.err()
+    );
+}
+
+#[test]
 /// CR 508.1d — a must-attack requirement can never force a payment. Pre-fix: BOTH the
 /// empty declaration and the paying declaration return Err, which IS the deadlock.
 fn test_508_1d_must_attack_creature_is_not_forced_to_pay_an_attack_tax() {
@@ -656,9 +742,15 @@ fn test_508_1d_must_attack_creature_is_not_forced_to_pay_an_attack_tax() {
         state,
         declare_cmd(p(2), vec![(goblin, AttackTarget::Player(p(1)))]),
     );
+    let attack_err =
+        attack_result.expect_err("attacking with no mana to pay the tax should still be rejected");
+    // Fix cycle (T5): the pre-fix assertion only checked `is_err()`, which would pass
+    // against ANY unrelated rejection reason. Pin the actual cause.
+    let attack_msg = format!("{:?}", attack_err);
     assert!(
-        attack_result.is_err(),
-        "attacking with no mana to pay the tax should still be rejected"
+        attack_msg.contains("attack tax"),
+        "rejection must be the attack-tax affordability check, not some other reason: \
+         {attack_msg}"
     );
 }
 
@@ -1046,8 +1138,79 @@ fn test_dp11_boundary_sweep_does_not_deadlock_the_priority_round() {
 }
 
 #[test]
+/// CR 400.7 (fix cycle, T3; plan risk 4) — an all-no-op sweep (every outstanding entry's
+/// permanent/card has already left its zone by the time the sweep runs) must fall
+/// through and advance the step normally, NOT re-grant priority for another round. The
+/// guard in `handle_all_passed` is `!payment_events.is_empty()`, not "an entry was
+/// consumed" -- a no-op decline consumes the entry from the pending vector but produces
+/// zero events (`handle_pay_echo` / `handle_pay_recover` both short-circuit to
+/// `Ok(vec![])` when the permanent/card is no longer where the trigger left it). Getting
+/// this backwards produces an infinite priority round with no error (the plan's own
+/// characterization of the highest-consequence failure this design must avoid). Every
+/// probe elsewhere in this file exercises the CASE WHERE THE SWEEP PRODUCES EVENTS
+/// (probe 19's second, no-op entry rides along with a first entry that DOES produce
+/// events) -- this is the first probe where the sweep produces NONE.
+fn test_dp11_all_no_op_sweep_falls_through_and_advances() {
+    let p1 = p(1);
+    let p2 = p(2);
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .active_player(p1)
+        .at_step(Step::Upkeep)
+        .object(ObjectSpec::card(p1, "DP4 Echo Already Gone").in_zone(ZoneId::Graveyard(p1)))
+        .object(ObjectSpec::card(p1, "DP4 Library Filler").in_zone(ZoneId::Library(p1)))
+        .build()
+        .unwrap();
+
+    // The permanent already left the battlefield (CR 400.7) -- `handle_pay_echo`'s
+    // `source_info` guard finds it absent from `ZoneId::Battlefield` and returns
+    // `Ok(vec![])` without emitting anything. The pending entry is still consumed
+    // (removed from the vector), but that consumption produces zero events.
+    let gone = find_by_name(&state, "DP4 Echo Already Gone");
+    state.pending_echo_payments_mut().push_back((
+        p1,
+        gone,
+        ManaCost {
+            generic: 1,
+            ..Default::default()
+        },
+    ));
+    state.turn_mut().priority_holder = Some(p1);
+
+    let (state, _) = pass_all(state, &[p1, p2]);
+
+    assert!(
+        state.pending_echo_payments().is_empty(),
+        "the no-op entry must still be consumed (removed) even though it produced no events"
+    );
+    assert_eq!(
+        state.turn().step,
+        Step::Draw,
+        "T3 / plan risk 4: an all-no-op sweep must fall through to the normal step \
+         advance, not re-grant priority for another round in Upkeep -- doing the latter \
+         with a guard that never empties again is an infinite priority round with no error"
+    );
+    assert_eq!(state.turn().priority_holder, Some(p1));
+}
+
+#[test]
 /// CR 101.4 — when multiple players simultaneously owe a pay-or-lose-it payment, the
 /// sweep resolves them in APNAP order.
+///
+/// Fix cycle (T1): the ownership is INVERTED relative to the pre-fix version of this
+/// test (which had p1 -- first in APNAP -- owe the ECHO, the first kind the sweep's
+/// per-player loop visits, and p3 -- later in APNAP -- owe the RECOVER, the last kind
+/// visited). That assignment could not discriminate a true per-player-APNAP-outer-loop
+/// implementation from a hypothetical kind-grouped-globally one (process every player's
+/// echo first in APNAP order, then every cumulative upkeep, then every recover): both
+/// would have produced CreatureDied before RecoverDeclined. Here p3 owes the ECHO and
+/// p1 owes the RECOVER, so the two hypotheses predict OPPOSITE orders --
+/// per-player-APNAP visits p1 (recover) before p3 (echo), so RecoverDeclined must
+/// precede CreatureDied; kind-grouped-globally would visit all echoes (p3's) before any
+/// recovers (p1's), producing CreatureDied first. The assertion below fails under the
+/// kind-grouped hypothesis and passes under the real (per-player-outer) implementation.
 fn test_101_4_multiple_outstanding_payments_resolve_in_apnap_order() {
     let p1 = p(1);
     let p2 = p(2);
@@ -1057,18 +1220,18 @@ fn test_101_4_multiple_outstanding_payments_resolve_in_apnap_order() {
     let mut state = GameStateBuilder::four_player()
         .active_player(p1)
         .at_step(Step::PreCombatMain)
-        .object(ObjectSpec::creature(p1, "DP4 Echo Owed By P1", 2, 2).in_zone(ZoneId::Battlefield))
-        .object(ObjectSpec::card(p3, "DP4 Recover Owed By P3").in_zone(ZoneId::Graveyard(p3)))
+        .object(ObjectSpec::creature(p3, "DP4 Echo Owed By P3", 2, 2).in_zone(ZoneId::Battlefield))
+        .object(ObjectSpec::card(p1, "DP4 Recover Owed By P1").in_zone(ZoneId::Graveyard(p1)))
         .build()
         .unwrap();
 
-    let echo_perm = find_by_name(&state, "DP4 Echo Owed By P1");
-    let recover_card = find_by_name(&state, "DP4 Recover Owed By P3");
+    let echo_perm = find_by_name(&state, "DP4 Echo Owed By P3");
+    let recover_card = find_by_name(&state, "DP4 Recover Owed By P1");
 
     // Seed both pending payments directly -- both outstanding simultaneously, exactly
     // the scenario the sweep must resolve in one pass, APNAP order (CR 101.4).
     state.pending_echo_payments_mut().push_back((
-        p1,
+        p3,
         echo_perm,
         ManaCost {
             generic: 1,
@@ -1076,7 +1239,7 @@ fn test_101_4_multiple_outstanding_payments_resolve_in_apnap_order() {
         },
     ));
     state.pending_recover_payments_mut().push_back((
-        p3,
+        p1,
         recover_card,
         ManaCost {
             generic: 1,
@@ -1088,26 +1251,28 @@ fn test_101_4_multiple_outstanding_payments_resolve_in_apnap_order() {
     let (state, events) = pass_all(state, &[p1, p2, p3, p4]);
 
     assert!(
-        !on_battlefield(&state, "DP4 Echo Owed By P1"),
-        "p1's unanswered echo must be sacrificed"
+        !on_battlefield(&state, "DP4 Echo Owed By P3"),
+        "p3's unanswered echo must be sacrificed"
     );
     assert!(
-        in_exile(&state, "DP4 Recover Owed By P3"),
-        "p3's unanswered recover must be exiled"
+        in_exile(&state, "DP4 Recover Owed By P1"),
+        "p1's unanswered recover must be exiled"
     );
 
     let creature_died_idx = events
         .iter()
         .position(|e| matches!(e, GameEvent::CreatureDied { .. }))
-        .expect("CreatureDied for p1's echo");
+        .expect("CreatureDied for p3's echo");
     let recover_declined_idx = events
         .iter()
         .position(|e| matches!(e, GameEvent::RecoverDeclined { .. }))
-        .expect("RecoverDeclined for p3's recover");
+        .expect("RecoverDeclined for p1's recover");
     assert!(
-        creature_died_idx < recover_declined_idx,
-        "CR 101.4: APNAP order visits p1 before p3, so p1's decline event must precede \
-         p3's in the returned event vector"
+        recover_declined_idx < creature_died_idx,
+        "CR 101.4: APNAP order visits p1 before p3, so p1's RecoverDeclined must precede \
+         p3's CreatureDied in the returned event vector. (This is the discriminating \
+         direction -- see the test doc comment for why the pre-fix assignment could not \
+         tell APNAP-outer-loop apart from kind-grouped-globally.)"
     );
 
     assert!(state.pending_echo_payments().is_empty());
@@ -1139,9 +1304,15 @@ fn test_dp11_answering_a_payment_does_not_reassign_priority() {
         },
     ));
 
-    // p2 (non-active, not the owing player) currently holds priority, mid-round.
+    // p2 (non-active, not the owing player) currently holds priority, mid-round. p1
+    // has already passed to reach p2 -- players_passed is seeded NON-EMPTY (fix
+    // cycle, T2: the pre-fix version seeded `OrdSet::new()` and then asserted
+    // `is_empty()`, which the deleted bodge (`players_passed = OrdSet::new()`) would
+    // ALSO have produced -- that half of the assertion was vacuous. Seeding {p1}
+    // and asserting it survives UNCHANGED is the discriminating form: the bodge
+    // would have wiped it to empty).
     state.turn_mut().priority_holder = Some(p2);
-    state.turn_mut().players_passed = imbl::OrdSet::new();
+    state.turn_mut().players_passed = imbl::OrdSet::unit(p1);
 
     let (state, _) = process_command(
         state,
@@ -1159,9 +1330,11 @@ fn test_dp11_answering_a_payment_does_not_reassign_priority() {
         "CR 117.3c/OOS-DP1-1: answering an out-of-band resolution-time payment must not \
          reassign priority"
     );
-    assert!(
-        state.turn().players_passed.is_empty(),
-        "the pass set must be left exactly as it was"
+    assert_eq!(
+        state.turn().players_passed,
+        imbl::OrdSet::unit(p1),
+        "the pass set must survive UNCHANGED -- the deleted bodge wrote \
+         players_passed = OrdSet::new(), which would have wiped p1's pass out of the set"
     );
 }
 

@@ -255,8 +255,11 @@ pub struct GameState {
     ///
     /// When a KeywordTrigger (Echo) resolves, the controller must choose to pay or sacrifice.
     /// PB-DP4 / DP-11: this is a DEADLINE, not a block -- `rules/engine.rs::
-    /// force_resolve_overdue_payments` applies CR 702.30a's "otherwise" at the end of the
-    /// priority round in which the trigger resolved if no `Command::PayEcho` arrives first.
+    /// force_resolve_overdue_payments` applies CR 702.30a's "otherwise" at the first
+    /// subsequent priority round boundary that leaves the stack empty if no
+    /// `Command::PayEcho` arrives by then (fix cycle, E9: NOT unconditionally "the round
+    /// in which the trigger resolved" -- a non-empty stack postpones the boundary, seed
+    /// OOS-DP4-12).
     /// Each entry is `(player, permanent_id, echo_cost)`.
     ///
     /// Two echo permanents queue two separate triggers at the same upkeep, and each
@@ -271,8 +274,9 @@ pub struct GameState {
     /// When a KeywordTrigger (CumulativeUpkeep) resolves (after adding the age counter), the
     /// controller must choose to pay or sacrifice. PB-DP4 / DP-11: this is a DEADLINE, not a
     /// block -- `rules/engine.rs::force_resolve_overdue_payments` applies CR 702.24a's "if
-    /// you don't, sacrifice it" at the end of the priority round if no
-    /// `Command::PayCumulativeUpkeep` arrives first.
+    /// you don't, sacrifice it" at the first subsequent priority round boundary that leaves
+    /// the stack empty if no `Command::PayCumulativeUpkeep` arrives by then (fix cycle, E9:
+    /// a non-empty stack postpones the boundary, seed OOS-DP4-12).
     /// Each entry is `(player, permanent_id, per_counter_cost)`.
     #[serde(default)]
     pub(crate) pending_cumulative_upkeep_payments: imbl::Vector<(
@@ -285,8 +289,9 @@ pub struct GameState {
     /// When a RecoverTrigger resolves, the controller must choose to pay the
     /// recover cost or exile the card. PB-DP4 / DP-11: this is a DEADLINE, not a block --
     /// `rules/engine.rs::force_resolve_overdue_payments` applies CR 702.59a's "otherwise,
-    /// exile this card" at the end of the priority round if no `Command::PayRecover`
-    /// arrives first.
+    /// exile this card" at the first subsequent priority round boundary that leaves the
+    /// stack empty if no `Command::PayRecover` arrives by then (fix cycle, E9: a non-empty
+    /// stack postpones the boundary, seed OOS-DP4-12).
     /// Each entry is `(player, recover_card_id, recover_cost)`.
     #[serde(default)]
     pub(crate) pending_recover_payments: imbl::Vector<(PlayerId, ObjectId, ManaCost)>,

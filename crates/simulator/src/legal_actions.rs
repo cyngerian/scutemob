@@ -292,8 +292,15 @@ impl LegalActionProvider for StubProvider {
                     )
                 }
                 // CR 119.4 / 119.4b: mirrors engine.rs Change 2e's affordability gate.
+                // Fix cycle (T7): short-circuit on a total of 0 BEFORE comparing against
+                // life_total, matching engine.rs's `if total_life > 0 { check }` guard
+                // exactly. Without this, a Life(0) cost at a negative life_total (itself
+                // reachable -- nothing clamps life_total at 0) was withheld here even
+                // though the engine always accepts it -- a real divergence from the
+                // engine this provider claims to mirror (SR-38).
                 mtg_engine::CumulativeUpkeepCost::Life(amount) => {
-                    life_total >= (amount * age_count) as i32
+                    let total = amount * age_count;
+                    total == 0 || life_total >= total as i32
                 }
             };
             if affordable {
@@ -2223,6 +2230,43 @@ mod tests {
                 |a| matches!(a, LegalAction::PayCumulativeUpkeep { permanent, pay: true } if *permanent == perm2)
             ),
             "6 life exactly covers a 6-life cost"
+        );
+    }
+
+    /// CR 119.4b (fix cycle, T7): a `Life(0)` cost is offered as `pay: true` even at a
+    /// negative life total, matching engine.rs's `if total_life > 0 { check }` guard
+    /// (which never runs the affordability check at all for a zero-cost payment).
+    /// Pre-fix: `life_total >= (amount * age_count) as i32` compared -1 >= 0, rejecting
+    /// a payment the engine always accepts -- a real divergence, not a conservative one.
+    #[test]
+    fn provider_offers_cumulative_upkeep_zero_life_cost_even_at_negative_life_total() {
+        let p1 = PlayerId(1);
+        let p2 = PlayerId(2);
+        let mut state = GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(p2)
+            .active_player(p1)
+            .player_life(p1, -3)
+            .object(
+                ObjectSpec::creature(p1, "CU Zero Life Permanent", 2, 2)
+                    .in_zone(ZoneId::Battlefield)
+                    .with_counter(CounterType::Age, 5),
+            )
+            .build()
+            .expect("state builds");
+        let perm = id_of(&state, "CU Zero Life Permanent");
+        state.pending_cumulative_upkeep_payments_mut().push_back((
+            p1,
+            perm,
+            mtg_engine::CumulativeUpkeepCost::Life(0),
+        ));
+
+        let actions = StubProvider.legal_actions(&state, p1);
+        assert!(
+            actions.iter().any(
+                |a| matches!(a, LegalAction::PayCumulativeUpkeep { permanent, pay: true } if *permanent == perm)
+            ),
+            "CR 119.4b: a life cost of 0 is always payable, even at a negative life total"
         );
     }
 
