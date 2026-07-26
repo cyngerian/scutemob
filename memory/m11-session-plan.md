@@ -359,6 +359,51 @@ seat, the game ends, or a limit trips. Default bot is `HeuristicBot` for the web
 
 ### Session 1: Steppable local-game core (8 items)
 
+**STATUS (2026-07-26): all 8 items shipped.** `LocalGame`/`LocalGameLimits`/
+`AdvanceOutcome`/`HaltReason`/`PendingDecision`/`DecisionKind`/`CommandRecord`/
+`LocalGameError`/`HumanChoice` live in `crates/simulator/src/local_game.rs` (new);
+`GameDriver::run_game` re-expressed on top of it in `driver.rs`; all 6 named tests
+pass in `crates/simulator/tests/local_game.rs` (new); `cargo build --workspace
+--all-targets`, `cargo test --all`, `cargo clippy --all-targets -- -D warnings`,
+`cargo fmt --check`, and `tools/check-defs-fmt.sh` are all green; PROTOCOL 27 /
+HASH 63 confirmed unmoved via `core::protocol_schema::protocol_version_sentinel`
+and `core::hash_schema::hash_schema_version_sentinel`.
+
+**Deviations from the plan text** (all deliberate, none scope-expanding):
+
+1. `LocalGame::start(state, seed, provider, bots, human_seats, limits,
+   check_invariants)` takes the pieces directly rather than a `LocalGameConfig` —
+   that type is introduced by Session 2's `setup.rs` and does not exist yet.
+   Session 2 should add a `LocalGameConfig`-taking constructor alongside it.
+2. `GameDriver::run_game` now takes `self` **by value**, not `&mut self`, because
+   `LocalGame` owns `provider` and `bots`. Its only caller (`mtg-fuzzer`'s
+   `run_single_game`) builds a fresh `GameDriver` per game and never reuses it, so
+   the change cost exactly one `mut` removal in `fuzzer.rs`. `GameResult`'s shape is
+   unchanged.
+3. The item-1/item-8 fuzzer baseline was captured with `--games 50 --threads 1
+   --seed 424242` under `RUST_MIN_STACK=536870912`, **not** the plan's literal
+   `--games 200`. Reason in the finding below.
+
+**Item-8 finding — proposed seed `OOS-M11-3` (pre-existing, out of scope here)**
+
+Two separate problems surfaced while establishing fuzzer parity, both reproducing on
+**pristine, pre-refactor code** (verified via `git stash`):
+
+- `--games 200` stack-overflows even unmodified: some long games build resolution
+  chains deeper than the default thread stack. Hence the reduced-and-stack-raised
+  baseline above.
+- **The fuzzer is not run-to-run deterministic for long games.** Running the *same
+  unmodified binary* twice with identical CLI args produced different outcomes for
+  seeds 424250, 424280 and 424287. An isolated single-game replay of seed 424250
+  produced a byte-for-byte identical command trace before and after the refactor, so
+  the 2/50 divergence observed between baseline and post-refactor runs is this
+  nondeterminism, **not** a regression from the port.
+
+This is in `crates/engine`, in very long (150-200+ turn) games, and is out of scope
+for a `crates/simulator`-only session. It matters beyond the fuzzer: Tier 1 state
+hashing and M10a's authoritative server both assume determinism. Rank it with
+`OOS-M11-1` / `OOS-M11-2` at collection.
+
 **Crate**: `crates/simulator` **only**. No engine change, no HTTP, no async.
 **Files**: `crates/simulator/src/local_game.rs` (new), `src/lib.rs`, `src/driver.rs`,
 `crates/simulator/tests/local_game.rs` (new — note the SR-9a no-stray-binaries gate is

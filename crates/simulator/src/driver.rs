@@ -2,15 +2,21 @@
 //!
 //! `GameDriver<P>` is generic over the `LegalActionProvider`, allowing
 //! both the stub provider (Phase 1) and full provider (Phase 4).
+//!
+//! M11-local Session 1: `run_game` is re-expressed on top of `LocalGame`
+//! (`local_game.rs`) with `human_seats` empty — `LocalGame::advance()` never
+//! returns `AwaitingHuman` in that configuration, so every step here is either
+//! `GameOver` or `Halted`. This is the single loop `LocalGame` and `GameDriver`
+//! now share; behaviour is unchanged (verified against a pre-refactor fuzzer
+//! baseline, see `memory/m11-session-plan.md` §4 Session 1 items 1 and 8).
 
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 
-use mtg_engine::{process_command, start_game, Command, GameState, PlayerId};
+use mtg_engine::{GameState, PlayerId};
 
 use crate::bot::Bot;
-use crate::invariants;
 use crate::legal_actions::LegalActionProvider;
-use crate::mana_solver;
+use crate::local_game::{AdvanceOutcome, LocalGame, LocalGameLimits};
 use crate::report::{GameDriverError, GameResult};
 
 /// Drives a complete game, alternating between legal action enumeration
@@ -40,14 +46,36 @@ impl<P: LegalActionProvider> GameDriver<P> {
     }
 
     /// Run a complete game from initial state to conclusion.
-    pub fn run_game(&mut self, initial_state: GameState, seed: u64) -> GameResult {
-        let mut violations = Vec::new();
-        let mut total_commands: usize = 0;
-        let mut command_count: u32 = 0;
+    ///
+    /// Consumes `self`: `LocalGame` owns `provider` and `bots`, and this driver is a
+    /// single-use "run one game" object (its sole caller, `mtg-fuzzer`'s
+    /// `run_single_game`, constructs a fresh `GameDriver` per game and never reuses it
+    /// after calling `run_game`).
+    pub fn run_game(self, initial_state: GameState, seed: u64) -> GameResult {
+        let GameDriver {
+            provider,
+            bots,
+            max_turns,
+            max_commands,
+            check_invariants,
+        } = self;
 
-        // Start the game
-        let (mut state, _start_events) = match start_game(initial_state) {
-            Ok(result) => result,
+        let limits = LocalGameLimits {
+            max_turns,
+            max_commands,
+            max_consecutive_passes: 500, // Safety: break infinite pass loops
+        };
+
+        let mut game = match LocalGame::start(
+            initial_state,
+            seed,
+            provider,
+            bots,
+            BTreeSet::new(), // No human seats: this is the pure-bot driver.
+            limits,
+            check_invariants,
+        ) {
+            Ok((game, _start_events)) => game,
             Err(e) => {
                 return GameResult {
                     seed,
@@ -60,223 +88,22 @@ impl<P: LegalActionProvider> GameDriver<P> {
             }
         };
 
-        let mut prev_turn = state.turn().turn_number;
-        let mut pass_count: u32 = 0;
-        let max_consecutive_passes = 500; // Safety: break infinite pass loops
-
-        loop {
-            // Check game over
-            if is_game_over(&state) {
-                let winner = find_winner(&state);
-                return GameResult {
-                    seed,
-                    winner,
-                    turn_count: state.turn().turn_number,
-                    total_commands,
-                    violations,
-                    error: None,
-                };
-            }
-
-            // Check turn limit
-            if state.turn().turn_number > self.max_turns {
-                return GameResult {
-                    seed,
-                    winner: None,
-                    turn_count: state.turn().turn_number,
-                    total_commands,
-                    violations,
-                    error: Some(GameDriverError::MaxTurnsReached(self.max_turns)),
-                };
-            }
-
-            // Check command limit (infinite loop protection)
-            if command_count >= self.max_commands {
-                return GameResult {
-                    seed,
-                    winner: None,
-                    turn_count: state.turn().turn_number,
-                    total_commands,
-                    violations,
-                    error: Some(GameDriverError::InfiniteLoop {
-                        turn: state.turn().turn_number,
-                    }),
-                };
-            }
-
-            // Consecutive pass limit (stuck game protection)
-            if pass_count >= max_consecutive_passes {
-                return GameResult {
-                    seed,
-                    winner: None,
-                    turn_count: state.turn().turn_number,
-                    total_commands,
-                    violations,
-                    error: Some(GameDriverError::InfiniteLoop {
-                        turn: state.turn().turn_number,
-                    }),
-                };
-            }
-
-            // Determine acting player
-            let acting_player =
-                if let Some(pending) = state.pending_commander_zone_choices().iter().next() {
-                    pending.0
-                } else if let Some(priority) = state.turn().priority_holder {
-                    priority
-                } else {
-                    // No one has priority and no pending choices — pass to advance
-                    // This can happen between steps; issue PassPriority for active player
-                    let active = state.turn().active_player;
-                    let cmd = Command::PassPriority { player: active };
-                    match process_command(state.clone(), cmd) {
-                        Ok((new_state, _events)) => {
-                            state = new_state;
-                            command_count += 1;
-                            total_commands += 1;
-                            pass_count += 1;
-                            continue;
-                        }
-                        Err(e) => {
-                            return GameResult {
-                                seed,
-                                winner: None,
-                                turn_count: state.turn().turn_number,
-                                total_commands,
-                                violations,
-                                error: Some(GameDriverError::EngineError(format!("{:?}", e))),
-                            };
-                        }
-                    }
-                };
-
-            // Get legal actions
-            let legal = self.provider.legal_actions(&state, acting_player);
-
-            if legal.is_empty() {
-                // No legal actions — pass priority to advance
-                let cmd = Command::PassPriority {
-                    player: acting_player,
-                };
-                match process_command(state.clone(), cmd) {
-                    Ok((new_state, _events)) => {
-                        state = new_state;
-                        command_count += 1;
-                        total_commands += 1;
-                        pass_count += 1;
-                        continue;
-                    }
-                    Err(_) => {
-                        return GameResult {
-                            seed,
-                            winner: None,
-                            turn_count: state.turn().turn_number,
-                            total_commands,
-                            violations,
-                            error: Some(GameDriverError::NoLegalActions {
-                                player: acting_player,
-                                turn: state.turn().turn_number,
-                            }),
-                        };
-                    }
-                }
-            }
-
-            // Bot chooses an action
-            let cmd = if let Some(bot) = self.bots.get_mut(&acting_player) {
-                bot.choose_action(&state, acting_player, &legal)
-            } else {
-                // No bot assigned — pass priority
-                Command::PassPriority {
-                    player: acting_player,
-                }
-            };
-
-            // Track passes for loop detection
-            if matches!(cmd, Command::PassPriority { .. }) {
-                pass_count += 1;
-            } else {
-                pass_count = 0;
-            }
-
-            // If the command is CastSpell, auto-tap mana sources first
-            let commands = if let Command::CastSpell(cast) = &cmd {
-                if let Ok(obj) = state.object(cast.card) {
-                    if let Some(ref cost) = obj.characteristics.mana_cost {
-                        let mut cmds = mana_solver::solve_mana_payment(&state, cast.player, cost)
-                            .unwrap_or_default();
-                        cmds.push(cmd.clone());
-                        cmds
-                    } else {
-                        vec![cmd.clone()]
-                    }
-                } else {
-                    vec![cmd.clone()]
-                }
-            } else {
-                vec![cmd.clone()]
-            };
-
-            // Execute all commands in sequence (tap commands + the action)
-            for c in commands {
-                match process_command(state.clone(), c) {
-                    Ok((new_state, _events)) => {
-                        if self.check_invariants {
-                            let new_violations = invariants::check_all(&new_state, Some(prev_turn));
-                            violations.extend(new_violations);
-                        }
-                        prev_turn = new_state.turn().turn_number;
-                        state = new_state;
-                        command_count += 1;
-                        total_commands += 1;
-                    }
-                    Err(e) => {
-                        // Command rejected — not necessarily fatal. The stub provider
-                        // may produce invalid actions. Log and try passing instead.
-                        let fallback = Command::PassPriority {
-                            player: acting_player,
-                        };
-                        match process_command(state.clone(), fallback) {
-                            Ok((new_state, _)) => {
-                                state = new_state;
-                                command_count += 1;
-                                total_commands += 1;
-                                pass_count += 1;
-                            }
-                            Err(e2) => {
-                                return GameResult {
-                                    seed,
-                                    winner: None,
-                                    turn_count: state.turn().turn_number,
-                                    total_commands,
-                                    violations,
-                                    error: Some(GameDriverError::EngineError(format!(
-                                        "Both action and fallback failed: {:?}, {:?}",
-                                        e, e2
-                                    ))),
-                                };
-                            }
-                        }
-                        break; // Don't continue the sequence if a command failed
-                    }
-                }
-            }
+        // A single `advance()` call runs the whole game to conclusion: with
+        // `human_seats` empty it never yields `AwaitingHuman`, so `advance()`'s own
+        // internal loop only stops at `GameOver` or `Halted`.
+        match game.advance() {
+            AdvanceOutcome::GameOver(result) => result,
+            AdvanceOutcome::Halted(reason) => GameResult {
+                seed,
+                winner: None,
+                turn_count: game.state().turn().turn_number,
+                total_commands: game.command_count() as usize,
+                violations: game.violations().to_vec(),
+                error: Some(reason.into()),
+            },
+            AdvanceOutcome::AwaitingHuman(_) => unreachable!(
+                "human_seats is empty; LocalGame::advance() must never yield AwaitingHuman"
+            ),
         }
-    }
-}
-
-/// Check if the game is over (one or zero players remain).
-fn is_game_over(state: &GameState) -> bool {
-    let alive = state.active_players();
-    alive.len() <= 1
-}
-
-/// Find the winner (last player standing), if any.
-fn find_winner(state: &GameState) -> Option<PlayerId> {
-    let alive = state.active_players();
-    if alive.len() == 1 {
-        Some(alive[0])
-    } else {
-        None
     }
 }
