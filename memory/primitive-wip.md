@@ -2,12 +2,18 @@
 
 <!-- last_updated: 2026-07-26 -->
 
-- **PB**: PB-DP2 — a mulligan must actually shuffle (CR 103.5) and `cards_to_bottom`
-  must land on the library **bottom** (CR 103.4b)
+- **PB**: PB-DP2 — a mulligan must actually shuffle and `cards_to_bottom` must land on
+  the library **bottom**. Both halves are **CR 103.5** (one sentence), with 103.5c
+  supplying the multiplayer free-first-mulligan adjustment. The task title and criterion
+  5519 cite "CR 103.4b" — that is stale; live CR 103.4b is the Vanguard starting life
+  total. Verified against the live CR twice (plan + review).
 - **Task**: `scutemob-150`
 - **Branch**: `feat/pb-dp2-mulligan-is-a-content-no-op-bottomed-cards-go-to-libr`
 - **Class**: CORRECTNESS (live-wrong, core-reachable — no card required; Tier 0)
-- **Phase**: PLAN
+- **Phase**: fix — COMPLETE. Review cycle closed 2026-07-26: 0 HIGH, 1 MEDIUM (filed as
+  seed `OOS-DP2-7`), 6 LOW (2 filed as seeds `OOS-DP2-8` and an `OOS-DP2-4` addendum,
+  2 doc/comment fixes applied, 1 declined-with-reason, 1 audit §4.4 cite fix). See
+  `memory/primitives/pb-review-DP2.md` "Fix-cycle dispositions" for the full table.
 - **Binding spec**: `docs/audits/decision-point-audit.md` §5 (DP-2 row, line ~429),
   §7 (OOS-M11-1 assessment, line ~495), §8 (PB-DP2 row, line ~561), §9 re-audit
   trigger "After a `Zone` API change" (line ~744)

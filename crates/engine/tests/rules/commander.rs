@@ -1957,6 +1957,11 @@ fn test_dp2_mulligan_returns_a_different_hand_cr_103_5() {
 /// before and after the fix (a no-op is trivially deterministic); its job is to pin
 /// the property against a future entropy-seeded regression, satisfying acceptance
 /// criterion 5520's "deterministic per seed" clause — not to demonstrate fail-before.
+/// This deliberately pins seeding-from-state, not the literal resulting permutation:
+/// a hard-coded golden order would be brittle against `StdRng`'s lack of algorithm
+/// stability across `rand` major versions (see OOS-DP2-4), converting a real
+/// cross-version hazard into an opaque test failure. Pinning the permutation itself
+/// is deliberately not done here.
 fn test_dp2_mulligan_permutation_is_deterministic_cr_103_5() {
     let p1 = p(1);
     let base = build_state_with_library(p1, 40);
