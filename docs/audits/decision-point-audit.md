@@ -108,8 +108,22 @@ files. A def is "effectively `Complete`" if it says `Completeness::Complete` **o
 
 This is an *approximation*: it is a source regex, not the serde walk `effect_choose_gate.rs`
 uses, so it will miss a variant reached only through a deeply nested generated ability and
-will over-count a variant that appears only in a comment. Word boundaries matter — `Discover\b`
-is the mechanic (CR 701.57) and deliberately does not match the card name *Kindred Discovery*.
+will over-count a variant that appears only in a comment. (`Effect::Choose` is the live example
+of both traps at once: the bare string appears in 119 files, **all** of them prose in doc
+comments; actual code use — `Effect::Choose {` — is zero.) Word boundaries matter too:
+`Discover\b` is the mechanic (CR 701.57) and deliberately does not match the card name
+*Kindred Discovery*, which is unrelated and `inert` besides.
+
+**Method, so §10's re-derivation instruction is actionable.** Each §3.1 row is a regex over the
+file's source text; a def counts once per row it matches. Nineteen rows are a plain match on the
+variant name as written in the table. Two are compound predicates on the same variant and must
+both be included in the union:
+
+- *targeted triggered ability* = `AbilityDefinition::Triggered` **and** `targets:\s*vec!\[\s*TargetRequirement::`
+- *modal triggered ability* = `AbilityDefinition::Triggered` **and** `modes:\s*Some`
+
+Runnable script: `scratchpad/count-classb.py` from this task's session
+(`/tmp/claude-1000/-home-skydude-projects-scutemob--worktrees-scutemob-148/…/scratchpad/`).
 
 ---
 
@@ -144,9 +158,11 @@ is the mechanic (CR 701.57) and deliberately does not match the card name *Kindr
 > **277 of 1,139 effectively-`Complete` defs — 24.3% — contain at least one decision the
 > engine makes for the player.**
 
-The three gated rows at the bottom are the control group: the SR-33 gate works exactly as
-designed for the variants it names, and zero `Complete` defs reach them. The gate simply
-does not name the other seventeen rows.
+The four zero-`Complete` rows at the bottom are the control group, and they get there two
+different ways. `MayPayOrElse` and `Effect::Choose` are held out by the SR-33 gate, which works
+exactly as designed for the variants it names. `AddManaFilterChoice`'s seven filter lands are
+held out by hand, marked `known_wrong` in PB-RS2. `TheRingTemptsYou` is simply not used by any
+`Complete` def yet. The gate does not name the other seventeen rows at all.
 
 ### 3.2 Decisions that need no card at all
 
@@ -177,7 +193,7 @@ Each row cites the site verified by reading. `crates/engine/src/` is elided from
 | Convoke / Improvise / Delve membership | 702.51 / 702.126 / 702.66 | **A** | `rules/casting.rs:5429-5542`, `:5561-5650`, `:5666-5726`. Empty vec = no reduction; no auto-tap |
 | Which pip a convoke creature pays | 702.51a | **B** | `rules/casting.rs:5493-5522` — colored-first, first match in WUBRG order, generic only as fallback |
 | Hybrid pip payment, **supplied** | 107.4e | **A** | `CastSpellData::hybrid_choices` (`rules/command.rs:683`) → `rules/casting.rs:3991` `flatten_hybrid_phyrexian(cost, &hybrid_choices, &phyrexian_life_payments)?`. Same hook on `ActivateAbility` (`command.rs:137`) via `abilities.rs:775-782` and on `TapForMana` (`command.rs:58`) via `rules/mana.rs:252-261`. Shipped by PB-RS2 for OOS-RS-2 |
-| Hybrid pip payment, **omitted** | 107.4e | **B** by design | `crates/card-types/src/state/game_object.rs:238-284` — an unindexed `{A/B}` defaults to first colour `A`; `{2/C}` to the coloured half. A short vector is the deliberate contract; an over-long one is rejected (`:216-235`) |
+| Hybrid pip payment, **omitted** | 107.4e | **B** by design | `crates/card-types/src/state/game_object.rs:238-284` — an unindexed `{A/B}` defaults to first colour `A`; `{2/C}` to the coloured half. A short vector is the deliberate contract; an over-long one is rejected loudly (`:198-206` hybrid, `:207-215` Phyrexian, with the rationale at `:187-197`) |
 | Phyrexian pip payment, **supplied** | 107.4f | **A** | `CastSpellData::phyrexian_life_payments` (`rules/command.rs:689`), same three call sites as above |
 | Phyrexian pip payment, **omitted** | 107.4f | **B** by design | `game_object.rs:287-309` — `unwrap_or(false)` ⇒ pay with mana, not life. Phyrexian-**hybrid** `{A/B/P}` paid with mana always takes colour `A`; no choice channel exists for that sub-case (`:297-304`) |
 | Which pool mana pays a generic pip | 601.2h | **B** | `crates/card-types/src/state/player.rs:203-244` — coloured pips first, restricted before unrestricted, then generic in fixed order C→G→R→B→U→W |
@@ -333,7 +349,7 @@ effect-choice; the `Command` enum has no general `MakeChoice`.
 | **Surveil** keep-or-graveyard | **701.25a** | **B** | `effects/mod.rs:3123-3130` — **all** looked-at cards are milled. Surveil N ≡ Mill N. 8 `Complete` defs |
 | Library search pick | 701.23 | **B** | `effects/mod.rs:3032` — `candidates.iter().min_by_key(\|&&id\| id.0)`, i.e. **lowest `ObjectId`** among filter matches. 74 `Complete` defs |
 | Discard-as-effect | 701.8 | **B** | `effects/mod.rs:8611-8619` `discard_cards` — lowest `ObjectId` in hand, repeated. "Reveal your hand, opponent chooses" has no representation at all |
-| `WheelDraw` (wheels: Windfall, Wheel of Fortune, …) | 701.8 | **A** — no choice exists | `Effect::WheelHand` (`card_definition.rs:2505-2545`) discards the player's **whole** hand, so the `discard_cards` pick order above is unobservable. The `WheelDraw` enum (`:2538`) only sizes the redraw (`Fixed` / `ThatMany` / `GreatestDiscarded`) — it is a count, not a player choice. Executed at `effects/mod.rs:698`, `:730`. 10 defs. Listed because the task brief named it; there is nothing to hook |
+| `WheelDraw` (wheels: Windfall, Wheel of Fortune, …) | 701.8 | **A** — no choice exists | `Effect::WheelHand` (`card_definition.rs:2503-2511`) discards the player's **whole** hand — `effects/mod.rs:698` and `:730` both call `discard_cards(state, p, hand_size, events)` — so the lowest-`ObjectId` pick order in the row above is unobservable. The `WheelDraw` enum (`:2538-2550`) only sizes the redraw (`ThatMany` / `Fixed` / `GreatestDiscarded`) — a count, not a player choice. 10 defs. Listed because the task brief named it; there is nothing to hook |
 | Sacrifice-as-effect / edicts | 701.21a | **B** | `effects/mod.rs:8193-8206` `sacrifice_permanents_for_player` — `n` lowest `ObjectId`s. Under `EachPlayer` this systematically takes each player's earliest-entering permanent |
 | Cascade "you **may** cast" | 702.85a | **B** | `rules/copy.rs:366-368` — no decline branch; the `if` is only the legality test. The free-cast also gets `targets: vec![]` (`copy.rs:389`) and `modes_chosen: vec![]` ⇒ mode 0 (`copy.rs:430`) |
 | Discover "you may cast" | 701.57 | **B** | `effects/mod.rs:3837-3848` — always casts |
@@ -398,10 +414,14 @@ whether it ships in `Complete` cards or in core rules.
 
 ### Tier 0 — correctness class: the engine's behaviour diverges from the CR
 
-All five are class **D**, i.e. wrong rather than merely un-consulted. DP-1, DP-2 and DP-3 are
-also core-reachable (no card required); DP-4 needs one of three specific `Complete` cards in
-the deck and DP-5 needs two `WouldDraw` replacements on the board. The core-reachable set is
-§3.2's six, which is deliberately not the same list as this tier.
+Four of the five are class **D** — wrong, not merely un-consulted. **DP-3 is class B**, and
+sits here because it is the only decision in the whole audit with *no `Command` at all* on a
+turn-based action every human hits.
+
+Reachability differs from severity and the two are deliberately not the same list: DP-1, DP-2
+and DP-3 are core-reachable (no card required), while DP-4 needs one of three specific
+`Complete` cards in the deck and DP-5 needs two `WouldDraw` replacements on the board. The
+core-reachable set is §3.2's six.
 
 | id | class | finding | CR | site |
 |---|---|---|---|---|
@@ -474,10 +494,12 @@ Explicitly requested. **`memory/primitives/rider-seed-triage-2026-07-19.md` was 
 
 ### OOS-M11-1 — mulligan no-shuffle: **CONFIRMED as filed; covers one of two defects**
 
-The seed itself is exact. `m11-session-plan.md:800` (§8 R2, the seed text) reads "A mulligan
-today returns the same hand — a live-wrong rules path (CR 103.5 requires a shuffle)", and this
-audit confirms it verbatim. (The plan's §1 fact 1, at `:82`, hedges to "near-identical"; the
-seed does not, and the seed is right.)
+The seed itself is exact. The **§8 risk table, row R2** — the row that proposes the id
+`OOS-M11-1`, at `m11-session-plan.md:800` as committed at the time of this audit and `:814` in
+that worktree's working copy, so grep for `OOS-M11-1` rather than trusting the line — reads
+"A mulligan today returns the same hand — a live-wrong rules path (CR 103.5 requires a
+shuffle)", and this audit confirms it verbatim. (The plan's §1 fact 1 hedges to
+"near-identical"; the seed does not, and the seed is right.)
 
 `Zone::insert` on an ordered zone is `push_back`
 (`crates/card-types/src/state/zone.rs:109`) and `Zone::top` is `v.last()` (`:159-164`), so the
