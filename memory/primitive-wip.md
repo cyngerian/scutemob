@@ -308,3 +308,82 @@ including `replacement/014_golgari_grave_troll_dredge.json`).
 
 **0 card-def edits** — as predicted (§11 checklist), the corpus has zero `WouldDraw`
 replacement registrations (§1.4 / seed W1), so no card definition needed touching.
+
+## Fix cycle (runner close-out)
+
+**Status: FIXES APPLIED, gates green.** Worked findings 1 and 3–12 from
+`memory/primitives/pb-review-DP5.md`; **Finding 2 (HIGH, the audit-doc update + OOS-DP5-1..8
+seed filing) was explicitly skipped per coordinator instruction** — that is being done
+separately, in parallel, by the coordinator. `docs/audits/decision-point-audit.md` and
+`CLAUDE.md` were not touched by this fix cycle.
+
+### Finding 1 (MEDIUM) — genuinely fixed, not just caveated
+
+The coordinator asked whether restoring an explicit loop in `resolve_pending_draw` closes the
+hole, or whether it lives inside `check_would_draw_replacement`'s `AutoApply` dispatch and the
+loop is orthogonal. **Answer: the hole is inside `check_would_draw_replacement`.** A CR 616.1a
+self-replacement `AutoApply` maps straight to `DrawStepOutcome::Completed` (the draw happens),
+never `Deferred`, so a loop around `resolve_pending_draw`'s calls to `perform_one_draw` would
+never re-fire — it only loops on `Deferred`. The fix instead restores the CR 616.1f re-check
+*inside* `check_would_draw_replacement` itself (mirroring the sibling `WouldChangeZone` path's
+own internal `loop { }` at `rules/replacement.rs:~984-1046`, which was the confirming precedent):
+on an `AutoApply(id)` whose modification isn't `SkipDraw`, insert `id` into a local `applied` set
+and re-run `find_applicable`/`determine_action`, bounded by `state.replacement_effects.len()`.
+This closes the hole completely — including the concrete divergence the reviewer constructed
+(`{S: self-replacement RedirectToZone, X: non-self SkipDraw}` — CR 616.1a forces S, 616.1f then
+finds X and stops the draw; pre-fix the engine wrongly drew a card). Two doc comments that had
+asserted the false "already terminal per call" equivalence were rewritten to state the true
+shape. New regression test `test_dp5_self_replacement_autoapply_still_rechecks_remainder` (T15),
+fail-before verified against the reviewed pre-fix code (observed: `CardDrawn` wrongly emitted).
+**No seed needed for Finding 1 itself** — see full writeup in `pb-review-DP5.md`'s "Fix cycle"
+section.
+
+### Other dispositions
+
+- **Finding 3** (MEDIUM, dead `pending_draws_mut()`): **deleted** (SR-3 — do not widen the seal
+  for zero consumers). Finding 4's new test doesn't need it (built through real commands/effect
+  execution).
+- **Finding 4** (MEDIUM, test hole): **fixed** — added T14
+  (`test_dp5_third_effect_forces_second_choice_with_nonempty_already_applied`), a 3-effect chain
+  that forces a genuine second `NeedsChoice` with `already_applied` non-empty on the re-pushed
+  `PendingDraw`. Verified non-vacuous by breaking the code (`already_applied: vec![]` on
+  re-defer), confirming the test fails with the exact predicted mismatch, then restoring
+  byte-identically and confirming green again.
+- **Finding 5** (LOW): fixed — resume guard now also stops on `LostToEmptyLibrary`.
+- **Finding 6** (LOW): fixed — corrected the false "every call site" guard claim.
+- **Finding 7** (LOW): fixed — renamed stale `draw_one_card` references in two doc comments
+  (left the two *historical* "formerly/pre-PB-DP5" references alone — those are accurate).
+- **Finding 8** (LOW): fixed — appended the PB-DP5 63→64 re-pin attribution line.
+- **Finding 9** (LOW): declined, no code change (review's own directive); the Phase 2 commit
+  message doesn't explicitly call out the `draw_card` `?`→`expect_*` error-surface change, but
+  amending a landed commit message is out of scope — both items belong in the DP-5 audit row
+  (Finding 2's parallel track).
+- **Finding 10** (LOW): fixed — added T10b
+  (`test_dp5_precedence_draw_first_falls_through_to_draw_arm`), submitting the draw answer first
+  while a zone change is also pending, exercising the fall-through the original T10 never hit.
+- **Finding 11 / 12** (LOW): declined, no code change (review's own directive — both explicitly
+  say "note in the plan / seed it," not "fix it here"). Left for Finding 2's parallel track.
+
+### Gates (all green, post-fix-cycle)
+
+`cargo build --workspace` clean · `cargo test --all`: **3,797 passing, 0 failing** (3,794 + 3 new:
+T14, T15, T10b) · `cargo clippy --workspace --all-targets -- -D warnings` clean · `cargo fmt
+--check` clean · `tools/check-defs-fmt.sh` clean (1,804 defs) · golden scripts 8/8. Wire
+unchanged: `HASH_SCHEMA_VERSION` **64**, `PROTOCOL_VERSION` **27** (read from source — this fix
+cycle added no new hashed field).
+
+### Files touched
+
+`crates/engine/src/rules/replacement.rs`, `crates/engine/src/state/mod.rs`,
+`crates/card-types/src/state/replacement_effect.rs`, `crates/engine/tests/core/hash_schema.rs`,
+`crates/engine/tests/primitives/pb_dp5_pending_draw_choice.rs` (13 → 16 tests).
+
+### Note on a mid-session accident (transparency, not a seed)
+
+While generating fail-before evidence for T15, a `git checkout -- <file>` was used to try to
+revert a single-file probe and instead reverted the entire uncommitted `replacement.rs` fix
+cycle to the last commit (since none of this cycle's work had been committed yet). Caught
+immediately by re-reading the file, and the three replacement.rs edits (Finding 1's loop, the
+two doc-comment corrections) were redone from the plan/review text and re-verified. No data
+loss; flagging so a future runner uses a scratch-diff/patch approach instead of `git checkout --`
+when reverting a single change inside a file with other uncommitted edits.

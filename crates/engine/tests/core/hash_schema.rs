@@ -183,6 +183,8 @@ const BASELINE_STREAM_FINGERPRINT: &str =
 // superseded row and joined the frozen prefix. Its bytes (the v62
 // fingerprints) are unchanged; the digest moved only because the prefix
 // gained a member.
+// PB-DP5 (2026-07-26): re-pinned on the 63→64 bump — version 63 became a
+// superseded row and joined the frozen prefix.
 const FROZEN_HISTORY_PREFIX_DIGEST: &str =
     "b7dfea875ef54b0e82de42ca32866c45254a89b9193f9352c5bb1e84edd315e2";
 

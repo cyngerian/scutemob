@@ -727,11 +727,6 @@ impl GameState {
         &mut self.pending_zone_changes
     }
 
-    /// Escape hatch: mutable access to `pending_draws`. See [module docs](GameState#escape-hatches).
-    pub fn pending_draws_mut(&mut self) -> &mut Vector<PendingDraw> {
-        &mut self.pending_draws
-    }
-
     /// Escape hatch: mutable access to `pending_commander_zone_choices`. See [module docs](GameState#escape-hatches).
     pub fn pending_commander_zone_choices_mut(&mut self) -> &mut Vector<(PlayerId, ObjectId)> {
         &mut self.pending_commander_zone_choices

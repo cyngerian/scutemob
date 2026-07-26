@@ -631,8 +631,10 @@ pub enum DrawAction {
 /// replacements. If the player declines dredge, the normal draw path re-checks
 /// other WouldDraw replacements.
 ///
-/// Called from both `draw_card` (turn_actions.rs) and `draw_one_card`
-/// (effects/mod.rs) to keep the two draw paths consistent.
+/// Called (via `perform_one_draw`) from `turn_actions::draw_card`,
+/// `effects::draw_cards_for_player` (renamed from `draw_one_card` in PB-DP5),
+/// and `replacement::draw_card_skipping_dredge` to keep all draw paths
+/// consistent.
 ///
 /// `already_applied` (CR 614.5) is threaded in so a CR 616.1f re-check (from
 /// `resolve_pending_draw`) does not re-offer an effect already applied to this
@@ -689,41 +691,63 @@ pub fn check_would_draw_replacement(
             });
         }
     }
-    let trigger = ReplacementTrigger::WouldDraw {
-        player_filter: PlayerFilter::Specific(player),
-    };
-    let applicable = find_applicable(state, &trigger, already_applied);
-    let action = determine_action(state, &applicable, player, "draw a card");
-    match action {
-        ReplacementResult::NoApplicable => DrawAction::Proceed,
-        ReplacementResult::AutoApply(id) => {
-            let modification = state
-                .replacement_effects
-                .iter()
-                .find(|e| e.id == id)
-                .map(|e| e.modification.clone());
-            if matches!(modification, Some(ReplacementModification::SkipDraw)) {
-                // CR 614.10: Replace the draw with nothing — no card moved, no CardDrawn.
-                DrawAction::Skip(GameEvent::ReplacementEffectApplied {
-                    effect_id: id,
-                    description: "skip that draw".to_string(),
-                })
-            } else {
-                // Other modifications are not applicable to draws — proceed normally.
-                DrawAction::Proceed
+    // CR 616.1f: "Once the chosen effect has been applied, this process is
+    // repeated ... until there are no more left to apply." A single
+    // `determine_action` dispatch is NOT always terminal: CR 616.1a forces an
+    // `AutoApply` when exactly one applicable replacement is a
+    // self-replacement, even if 2+ replacements are applicable overall (PB-DP5
+    // review Finding 1). If that auto-applied replacement is not `SkipDraw`
+    // (the only modification this path honours), the pre-fix code returned
+    // `Proceed` immediately and silently dropped every other applicable
+    // replacement — including a `SkipDraw` that CR 616.1f says must then be
+    // applied, which would mean no card is drawn at all. Mirror the
+    // `check_zone_change_replacement` loop (`:984-1032`) so the same class of
+    // effect is repeated and excluded (`applied.insert`) rather than dispatched
+    // once. Bounded: `applied` strictly grows each iteration and
+    // `find_applicable` excludes its members, so this runs at most
+    // `state.replacement_effects.len()` times.
+    let mut applied: HashSet<ReplacementId> = already_applied.clone();
+    loop {
+        let trigger = ReplacementTrigger::WouldDraw {
+            player_filter: PlayerFilter::Specific(player),
+        };
+        let applicable = find_applicable(state, &trigger, &applied);
+        let action = determine_action(state, &applicable, player, "draw a card");
+        match action {
+            ReplacementResult::NoApplicable => return DrawAction::Proceed,
+            ReplacementResult::AutoApply(id) => {
+                let modification = state
+                    .replacement_effects
+                    .iter()
+                    .find(|e| e.id == id)
+                    .map(|e| e.modification.clone());
+                if matches!(modification, Some(ReplacementModification::SkipDraw)) {
+                    // CR 614.10: Replace the draw with nothing — no card moved, no CardDrawn.
+                    return DrawAction::Skip(GameEvent::ReplacementEffectApplied {
+                        effect_id: id,
+                        description: "skip that draw".to_string(),
+                    });
+                } else {
+                    // CR 614.5 / 616.1f: this replacement has no draw-level
+                    // effect today (only `SkipDraw` is honoured, OOS-DP5-6/8),
+                    // but it still applied — mark it so it is excluded from the
+                    // re-check, then repeat with only what is NOW applicable.
+                    applied.insert(id);
+                    continue;
+                }
             }
-        }
-        ReplacementResult::NeedsChoice {
-            player,
-            choices,
-            event_description,
-        } => {
-            // CR 616.1: Multiple WouldDraw replacements apply — player must choose order.
-            DrawAction::NeedsChoice(GameEvent::ReplacementChoiceRequired {
+            ReplacementResult::NeedsChoice {
                 player,
-                event_description,
                 choices,
-            })
+                event_description,
+            } => {
+                // CR 616.1: Multiple WouldDraw replacements apply — player must choose order.
+                return DrawAction::NeedsChoice(GameEvent::ReplacementChoiceRequired {
+                    player,
+                    event_description,
+                    choices,
+                });
+            }
         }
     }
 }
@@ -764,15 +788,19 @@ pub(crate) enum DrawStepOutcome {
 /// `turn_actions::draw_card` and `draw_card_skipping_dredge` (which both set it
 /// today); `false` for the effect-draw path (which never has).
 ///
-/// No internal loop: like `resolve_pending_zone_change`'s single call to
+/// No internal loop *here*: like `resolve_pending_zone_change`'s single call to
 /// `check_zone_change_replacement`, a `NeedsChoice` here defers to a *future*
 /// `Command::OrderReplacements` round-trip rather than looping in-process — the
 /// termination argument is the same one that function relies on: each round
 /// strictly grows `already_applied`, `find_applicable` excludes elements of it,
 /// so the total number of rounds is bounded by `state.replacement_effects.len()`.
-/// `check_would_draw_replacement`'s own single-effect dispatch (`AutoApply`) is
-/// already terminal per-call (it never needs a second look before returning),
-/// so no additional loop is needed inside this function either.
+/// The CR 616.1f re-check *within* one `NeedsChoice`-free dispatch is not this
+/// function's job either: `check_would_draw_replacement` runs its own internal
+/// loop (mirroring `check_zone_change_replacement`'s) so that a CR 616.1a
+/// self-replacement `AutoApply` — which is not always terminal, since 2+
+/// replacements can still be applicable overall — is followed by a re-check of
+/// the remainder before this function ever sees a final `DrawAction` (PB-DP5
+/// review Finding 1; fixed in the fix cycle, not left as a documented gap).
 pub(crate) fn perform_one_draw(
     state: &mut GameState,
     player: PlayerId,
@@ -804,8 +832,16 @@ pub(crate) fn perform_one_draw(
             (vec![event], DrawStepOutcome::Deferred)
         }
         DrawAction::Proceed => {
-            // CR 121.1: perform the draw. The eliminated/conceded guard runs in
-            // every call site before this is reached.
+            // CR 121.1: perform the draw. The eliminated/conceded guard runs
+            // before this is reached at three of this function's four
+            // callers: `turn_actions::draw_card`, `draw_card_skipping_dredge`,
+            // and `resolve_pending_draw` (indirectly — `engine.rs` runs
+            // `validate_player_active` on the `OrderReplacements` sender, and
+            // the draw arm only routes to the player named by the pending
+            // entry). `effects::draw_cards_for_player` has no such guard —
+            // not a regression (the pre-PB-DP5 `draw_one_card` had none
+            // either, review Finding 6) but worth flagging rather than
+            // asserting a blanket guarantee that does not hold everywhere.
             let library_zone = ZoneId::Library(player);
             // SR-14: the library zone is built pre-turn-1 and never removed
             // (ground truth 2); `top()` returning `None` is the legal CR 104.3b
@@ -1299,15 +1335,21 @@ pub fn resolve_pending_draw(
         // draw is not a draw, CR 121.1).
         DrawStepOutcome::Replaced
     } else {
-        // CR 616.1f re-check: every non-`SkipDraw` modification is a no-op on
-        // a draw today (`check_would_draw_replacement`'s else-branch), so this
-        // single call to `perform_one_draw` (which itself calls
-        // `check_would_draw_replacement` with the grown `already_applied`) IS
-        // the re-check: `NoApplicable`/silent-no-op AutoApply → the draw is
-        // performed (`Completed`); `AutoApply(SkipDraw)` → stop, no draw
-        // (`Replaced`); `NeedsChoice` → a NEW `PendingDraw` is pushed carrying
-        // the grown `already_applied` and the SAME `remaining`, a second
-        // `ReplacementChoiceRequired` is emitted, and this returns `Deferred`.
+        // CR 616.1f re-check: this single call to `perform_one_draw` (which
+        // calls `check_would_draw_replacement` with the grown
+        // `already_applied`) IS the re-check — not because a non-`SkipDraw`
+        // modification is a no-op (it is, but that alone would not close the
+        // CR 616.1a self-replacement hole, PB-DP5 review Finding 1),
+        // but because `check_would_draw_replacement` itself now runs its own
+        // internal CR 616.1f loop over `determine_action` before returning a
+        // final `DrawAction`, so whatever it hands back here already reflects
+        // every applicable self-replacement having been excluded in turn.
+        // Outcomes: `NoApplicable`/exhausted `AutoApply` chain → the draw is
+        // performed (`Completed`); the chain ends on `AutoApply(SkipDraw)` →
+        // stop, no draw (`Replaced`); `NeedsChoice` → a NEW `PendingDraw` is
+        // pushed carrying the grown `already_applied` and the SAME
+        // `remaining`, a second `ReplacementChoiceRequired` is emitted, and
+        // this returns `Deferred`.
         let (evts, outcome) = perform_one_draw(
             state,
             pending.player,
@@ -1322,8 +1364,16 @@ pub fn resolve_pending_draw(
     // CR 614.11a: "all actions required by the replacement are completed, if
     // possible, before resuming the sequence." The replacement is complete
     // (not itself deferred) — if the sequence this draw belonged to has
-    // further draws, resume it now.
-    if !matches!(outcome, DrawStepOutcome::Deferred) && pending.remaining > 0 {
+    // further draws, resume it now. `LostToEmptyLibrary` must also stop the
+    // resume (review Finding 5): `draw_cards_for_player`'s sequence loop
+    // (`effects/mod.rs`) breaks on it too, and without this guard a second
+    // iteration would hit the same empty library and emit a second
+    // `GameEvent::PlayerLost` (CR 104.3b already resolved the loss once).
+    if !matches!(
+        outcome,
+        DrawStepOutcome::Deferred | DrawStepOutcome::LostToEmptyLibrary
+    ) && pending.remaining > 0
+    {
         for i in 0..pending.remaining {
             let remaining_after = pending.remaining - 1 - i;
             let (evts, out) = perform_one_draw(

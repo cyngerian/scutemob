@@ -15,9 +15,9 @@
 
 use mtg_engine::{
     process_command, Command, Effect, EffectAmount, EffectDuration, GameEvent, GameState,
-    GameStateBuilder, KeywordAbility, ObjectSpec, PlayerFilter, PlayerId, PlayerTarget,
-    ReplacementEffect, ReplacementId, ReplacementModification, ReplacementTrigger, ZoneId,
-    ZoneType,
+    GameStateBuilder, GameStateError, KeywordAbility, ObjectSpec, PlayerFilter, PlayerId,
+    PlayerTarget, ReplacementEffect, ReplacementId, ReplacementModification, ReplacementTrigger,
+    ZoneId, ZoneType,
 };
 
 fn p(n: u64) -> PlayerId {
@@ -734,6 +734,150 @@ fn test_dp5_precedence_zone_change_and_draw_coexist() {
     assert!(state.pending_draws().is_empty());
 }
 
+// ── T10b ────────────────────────────────────────────────────────────────────
+
+#[test]
+/// CR 616.1 — PB-DP5 review Finding 10: T10 above only ever submits the
+/// zone-change answer FIRST, so by the time the draw ids are submitted
+/// `pending_zone_changes` is already empty and `handle_order_replacements`'
+/// fall-through from arm 1 (zone change) to arm 2 (draw) is never actually
+/// exercised — arm 1 is simply skipped because `zone_change_idx` still exists
+/// but nothing pins that the ids failed ITS applicability check and fell
+/// through, rather than never being tried. This test submits the DRAW answer
+/// FIRST while a zone change is ALSO still pending, so the ids must fail arm
+/// 1's `find_applicable` (they are `WouldDraw` ids, not `WouldChangeZone` ids)
+/// and fall through to arm 2 before resolving.
+fn test_dp5_precedence_draw_first_falls_through_to_draw_arm() {
+    use mtg_engine::state::replacement_effect::PendingZoneChange;
+
+    let p1 = p(1);
+    let p2 = p(2);
+
+    let zc1 = ReplacementEffect {
+        id: ReplacementId(1004),
+        source: None,
+        controller: p1,
+        duration: EffectDuration::Indefinite,
+        is_self_replacement: false,
+        trigger: ReplacementTrigger::WouldChangeZone {
+            from: Some(ZoneType::Battlefield),
+            to: ZoneType::Graveyard,
+            filter: mtg_engine::ObjectFilter::Any,
+        },
+        modification: ReplacementModification::RedirectToZone(ZoneType::Exile),
+    };
+    let zc2 = ReplacementEffect {
+        id: ReplacementId(1005),
+        source: None,
+        controller: p1,
+        duration: EffectDuration::Indefinite,
+        is_self_replacement: false,
+        trigger: ReplacementTrigger::WouldChangeZone {
+            from: Some(ZoneType::Battlefield),
+            to: ZoneType::Graveyard,
+            filter: mtg_engine::ObjectFilter::Any,
+        },
+        modification: ReplacementModification::RedirectToZone(ZoneType::Command),
+    };
+    let dr1 = ReplacementEffect {
+        id: ReplacementId(1006),
+        source: None,
+        controller: p2,
+        duration: EffectDuration::Indefinite,
+        is_self_replacement: false,
+        trigger: ReplacementTrigger::WouldDraw {
+            player_filter: PlayerFilter::Specific(p1),
+        },
+        modification: ReplacementModification::SkipDraw,
+    };
+    let dr2 = ReplacementEffect {
+        id: ReplacementId(1007),
+        source: None,
+        controller: p2,
+        duration: EffectDuration::Indefinite,
+        is_self_replacement: false,
+        trigger: ReplacementTrigger::WouldDraw {
+            player_filter: PlayerFilter::Specific(p1),
+        },
+        modification: ReplacementModification::SkipDraw,
+    };
+
+    let mut state = GameStateBuilder::four_player()
+        .object(ObjectSpec::creature(p1, "Creature", 2, 2))
+        .object(ObjectSpec::card(p1, "Island").in_zone(ZoneId::Library(p1)))
+        .with_replacement_effect(zc1)
+        .with_replacement_effect(zc2)
+        .with_replacement_effect(dr1)
+        .with_replacement_effect(dr2)
+        .build()
+        .unwrap();
+
+    let creature_id = state
+        .objects_in_zone(&ZoneId::Battlefield)
+        .first()
+        .unwrap()
+        .id;
+    state
+        .pending_zone_changes_mut()
+        .push_back(PendingZoneChange {
+            object_id: creature_id,
+            original_from: ZoneType::Battlefield,
+            original_destination: ZoneType::Graveyard,
+            affected_player: p1,
+            already_applied: Vec::new(),
+        });
+
+    let _ = mtg_engine::rules::turn_actions::draw_card(&mut state, p1).unwrap();
+    assert_eq!(state.pending_zone_changes().len(), 1);
+    assert_eq!(state.pending_draws().len(), 1);
+
+    // Submit the DRAW ids FIRST, while the zone change is still pending. Arm 1
+    // (zone change) must reject these ids on applicability and fall through to
+    // arm 2 (draw) rather than erroring or misrouting.
+    let (state, dr_events) = process_command(
+        state,
+        Command::OrderReplacements {
+            player: p1,
+            ids: vec![ReplacementId(1007), ReplacementId(1006)],
+        },
+    )
+    .unwrap();
+    assert!(
+        dr_events.iter().any(
+            |e| matches!(e, GameEvent::ReplacementEffectApplied { effect_id, .. } if *effect_id == ReplacementId(1007))
+        ),
+        "the draw answer should resolve the draw via fall-through. Events: {:?}",
+        dr_events
+    );
+    assert!(
+        state.pending_draws().is_empty(),
+        "the draw should now be resolved"
+    );
+    assert_eq!(
+        state.pending_zone_changes().len(),
+        1,
+        "the zone change must be UNTOUCHED by resolving the draw first"
+    );
+
+    // The zone change can still be answered afterward.
+    let (state, zc_events) = process_command(
+        state,
+        Command::OrderReplacements {
+            player: p1,
+            ids: vec![ReplacementId(1005), ReplacementId(1004)],
+        },
+    )
+    .unwrap();
+    assert!(
+        zc_events.iter().any(
+            |e| matches!(e, GameEvent::ReplacementEffectApplied { effect_id, .. } if *effect_id == ReplacementId(1005))
+        ),
+        "the zone-change answer should still resolve. Events: {:?}",
+        zc_events
+    );
+    assert!(state.pending_zone_changes().is_empty());
+}
+
 // ── T11 ─────────────────────────────────────────────────────────────────────
 
 #[test]
@@ -833,6 +977,221 @@ fn test_dp5_616_1f_recheck_stops_at_skip_draw() {
     );
     assert_eq!(state.zone(&ZoneId::Library(p1)).unwrap().len(), 1);
     assert!(state.pending_draws().is_empty());
+}
+
+// ── T14 ─────────────────────────────────────────────────────────────────────
+
+#[test]
+/// CR 614.5 / 616.1f — PB-DP5 review Finding 4: nothing in the original 13 tests
+/// ever built a `PendingDraw` with a non-empty `already_applied`, because every
+/// scenario had exactly two applicable replacements (one choice always exhausts
+/// the set). Here THREE non-self `WouldDraw` replacements apply
+/// (RedirectToZone(A), RedirectToZone(B), SkipDraw(C)); choosing A first leaves
+/// {B, C} applicable, forcing a SECOND `NeedsChoice` whose pushed `PendingDraw`
+/// carries the grown `already_applied = [A]` — exercising the re-defer branch and
+/// the SR-9b determinism sort (`replacement.rs`'s `perform_one_draw`) for the
+/// first time. A wrong-but-plausible implementation that dropped
+/// `already_applied` on re-defer (`already_applied: vec![]`) would let the player
+/// re-submit A and have it re-applied, and would pass every other test in this
+/// file -- the third assertion below is the one that catches exactly that bug.
+fn test_dp5_third_effect_forces_second_choice_with_nonempty_already_applied() {
+    let make_state = || {
+        let p1 = p(1);
+        let p2 = p(2);
+        let redirect_a = ReplacementEffect {
+            id: ReplacementId(1200),
+            source: None,
+            controller: p2,
+            duration: EffectDuration::Indefinite,
+            is_self_replacement: false,
+            trigger: ReplacementTrigger::WouldDraw {
+                player_filter: PlayerFilter::Specific(p1),
+            },
+            modification: ReplacementModification::RedirectToZone(ZoneType::Exile),
+        };
+        let redirect_b = ReplacementEffect {
+            id: ReplacementId(1201),
+            source: None,
+            controller: p2,
+            duration: EffectDuration::Indefinite,
+            is_self_replacement: false,
+            trigger: ReplacementTrigger::WouldDraw {
+                player_filter: PlayerFilter::Specific(p1),
+            },
+            modification: ReplacementModification::RedirectToZone(ZoneType::Exile),
+        };
+        let skip_c = ReplacementEffect {
+            id: ReplacementId(1202),
+            source: None,
+            controller: p2,
+            duration: EffectDuration::Indefinite,
+            is_self_replacement: false,
+            trigger: ReplacementTrigger::WouldDraw {
+                player_filter: PlayerFilter::Specific(p1),
+            },
+            modification: ReplacementModification::SkipDraw,
+        };
+        let state = GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(p2)
+            .object(ObjectSpec::card(p1, "Island").in_zone(ZoneId::Library(p1)))
+            .with_replacement_effect(redirect_a)
+            .with_replacement_effect(redirect_b)
+            .with_replacement_effect(skip_c)
+            .build()
+            .unwrap();
+        (state, p1)
+    };
+
+    // Choose A (1200) first from the initial 3-way prompt.
+    let (mut state, p1) = make_state();
+    let _ = mtg_engine::rules::turn_actions::draw_card(&mut state, p1).unwrap();
+    let (state, events) = process_command(
+        state,
+        Command::OrderReplacements {
+            player: p1,
+            ids: vec![ReplacementId(1200)],
+        },
+    )
+    .unwrap();
+
+    // A second ReplacementChoiceRequired was emitted, and it does NOT re-offer A.
+    let second_choices = events.iter().find_map(|e| match e {
+        GameEvent::ReplacementChoiceRequired { choices, .. } => Some(choices.clone()),
+        _ => None,
+    });
+    assert_eq!(
+        second_choices,
+        Some(vec![ReplacementId(1201), ReplacementId(1202)]),
+        "the re-defer must offer exactly {{B, C}}, excluding the already-applied A. Events: {:?}",
+        events
+    );
+
+    // The re-pushed PendingDraw carries the grown already_applied = [A], not empty.
+    assert_eq!(state.pending_draws().len(), 1);
+    assert_eq!(
+        state.pending_draws()[0].already_applied,
+        vec![ReplacementId(1200)],
+        "CR 614.5: the re-deferred PendingDraw must remember A was already applied"
+    );
+
+    // Re-submitting the already-applied id (A) is rejected: it is no longer
+    // applicable to the pending draw (CR 614.5 — an effect applies at most once).
+    let reject_result = process_command(
+        state.clone(),
+        Command::OrderReplacements {
+            player: p1,
+            ids: vec![ReplacementId(1200)],
+        },
+    );
+    match reject_result {
+        Err(GameStateError::InvalidCommand(msg)) => {
+            assert!(
+                msg.contains("not applicable") || msg.contains("none of the ordered"),
+                "expected an applicability rejection, got: {}",
+                msg
+            );
+        }
+        other => panic!(
+            "re-submitting an already-applied replacement must be rejected, got: {:?}",
+            other
+        ),
+    }
+
+    // Answering the second prompt with the SkipDraw id (C) terminates the chain:
+    // no CardDrawn, no further choice, pending draw cleared.
+    let (state, events) = process_command(
+        state,
+        Command::OrderReplacements {
+            player: p1,
+            ids: vec![ReplacementId(1202), ReplacementId(1201)],
+        },
+    )
+    .unwrap();
+    assert!(
+        !events
+            .iter()
+            .any(|e| matches!(e, GameEvent::CardDrawn { .. })),
+        "CR 614.10: SkipDraw ends the chain with no CardDrawn. Events: {:?}",
+        events
+    );
+    assert!(state.pending_draws().is_empty());
+    assert_eq!(
+        state.zone(&ZoneId::Library(p1)).unwrap().len(),
+        1,
+        "the card should still be in the library -- it was never drawn"
+    );
+}
+
+// ── T15 ─────────────────────────────────────────────────────────────────────
+
+#[test]
+/// CR 616.1a / 616.1f — PB-DP5 review Finding 1: `determine_action` returns
+/// `AutoApply` when exactly one applicable replacement is a self-replacement,
+/// even with 2+ replacements applicable overall (CR 616.1a forces the
+/// self-replacement to be chosen first, it does not mean nothing else applies).
+/// Applicable = {S: self-replacement, RedirectToZone(Exile); X: non-self,
+/// SkipDraw}. CR 616.1a forces S; CR 616.1f then repeats and finds X
+/// applicable; X is SkipDraw, so the draw is replaced by nothing — no card is
+/// drawn. Before the fix cycle, `check_would_draw_replacement`'s `AutoApply`
+/// dispatch returned `Proceed` as soon as S (non-`SkipDraw`) was auto-applied,
+/// silently dropping X and drawing a card anyway.
+fn test_dp5_self_replacement_autoapply_still_rechecks_remainder() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let self_redirect = ReplacementEffect {
+        id: ReplacementId(1300),
+        source: None,
+        controller: p1,
+        duration: EffectDuration::Indefinite,
+        is_self_replacement: true,
+        trigger: ReplacementTrigger::WouldDraw {
+            player_filter: PlayerFilter::Specific(p1),
+        },
+        modification: ReplacementModification::RedirectToZone(ZoneType::Exile),
+    };
+    let skip = ReplacementEffect {
+        id: ReplacementId(1301),
+        source: None,
+        controller: p2,
+        duration: EffectDuration::Indefinite,
+        is_self_replacement: false,
+        trigger: ReplacementTrigger::WouldDraw {
+            player_filter: PlayerFilter::Specific(p1),
+        },
+        modification: ReplacementModification::SkipDraw,
+    };
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(ObjectSpec::card(p1, "Island").in_zone(ZoneId::Library(p1)))
+        .with_replacement_effect(self_redirect)
+        .with_replacement_effect(skip)
+        .build()
+        .unwrap();
+
+    // determine_action sees applicable = [S, X] with exactly one self-replacement
+    // (S) -> AutoApply(S) directly from the FIRST check, with no player prompt at
+    // all (CR 616.1a: a single self-replacement is auto-applied, not chosen).
+    let events = mtg_engine::rules::turn_actions::draw_card(&mut state, p1).unwrap();
+
+    assert!(
+        !events
+            .iter()
+            .any(|e| matches!(e, GameEvent::CardDrawn { .. })),
+        "CR 616.1f: after S auto-applies, the re-check must find X (SkipDraw) \
+         still applicable and stop the draw. Events: {:?}",
+        events
+    );
+    assert_eq!(
+        state.zone(&ZoneId::Library(p1)).unwrap().len(),
+        1,
+        "the card must still be in the library -- the draw was replaced by nothing"
+    );
+    assert!(
+        state.pending_draws().is_empty(),
+        "no player choice was ever required -- both replacements resolved by AutoApply"
+    );
 }
 
 // ── T12 ─────────────────────────────────────────────────────────────────────
