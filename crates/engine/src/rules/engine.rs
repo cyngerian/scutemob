@@ -751,7 +751,15 @@ fn handle_pay_echo(
     // CR 704.3: Check SBAs after echo resolution.
     let sba_events = sba::check_and_apply_sbas(state);
     events.extend(sba_events);
-    // Grant priority to the active player.
+    // CR 702.30a: paying (or declining) echo is a choice made while the echo triggered
+    // ability RESOLVES. No player holds priority at that moment, so CR 117.3c does not
+    // apply and there is no actor to hand priority to.
+    //
+    // The engine has no pause at that point (see DP-11 in docs/audits/decision-point-audit.md
+    // -> PB-DP4): `Command::PayEcho` is accepted out of band, whenever it arrives. This
+    // block re-establishes a clean CR 117.3b priority round (active player, fresh pass set)
+    // so the out-of-band command does not leave the round half-passed. It is deliberately
+    // NOT the CR 117.3c actor rule, and PB-DP1 left it alone on purpose.
     state.turn.players_passed = imbl::OrdSet::new();
     let active = state.turn.active_player;
     state.turn.priority_holder = Some(active);
@@ -952,7 +960,15 @@ fn handle_pay_cumulative_upkeep(
     // CR 704.3: Check SBAs after cumulative upkeep resolution.
     let sba_events = sba::check_and_apply_sbas(state);
     events.extend(sba_events);
-    // Grant priority to the active player.
+    // CR 702.24a: paying (or declining) cumulative upkeep is a choice made while the
+    // cumulative upkeep triggered ability RESOLVES. No player holds priority at that
+    // moment, so CR 117.3c does not apply and there is no actor to hand priority to.
+    //
+    // The engine has no pause at that point (see DP-11 in docs/audits/decision-point-audit.md
+    // -> PB-DP4): `Command::PayCumulativeUpkeep` is accepted out of band, whenever it
+    // arrives. This block re-establishes a clean CR 117.3b priority round (active player,
+    // fresh pass set) so the out-of-band command does not leave the round half-passed. It
+    // is deliberately NOT the CR 117.3c actor rule, and PB-DP1 left it alone on purpose.
     state.turn.players_passed = imbl::OrdSet::new();
     let active = state.turn.active_player;
     state.turn.priority_holder = Some(active);
@@ -1066,7 +1082,15 @@ fn handle_pay_recover(
     // CR 704.3: Check SBAs after recover resolution.
     let sba_events = sba::check_and_apply_sbas(state);
     events.extend(sba_events);
-    // Grant priority to the active player.
+    // CR 702.59a: paying (or declining) recover is a choice made while the recover
+    // triggered ability RESOLVES. No player holds priority at that moment, so CR 117.3c
+    // does not apply and there is no actor to hand priority to.
+    //
+    // The engine has no pause at that point (see DP-11 in docs/audits/decision-point-audit.md
+    // -> PB-DP4): `Command::PayRecover` is accepted out of band, whenever it arrives. This
+    // block re-establishes a clean CR 117.3b priority round (active player, fresh pass set)
+    // so the out-of-band command does not leave the round half-passed. It is deliberately
+    // NOT the CR 117.3c actor rule, and PB-DP1 left it alone on purpose.
     state.turn.players_passed = imbl::OrdSet::new();
     let active = state.turn.active_player;
     state.turn.priority_holder = Some(active);
