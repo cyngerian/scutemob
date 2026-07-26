@@ -1171,24 +1171,26 @@ pub fn apply_self_etb_from_definition(
     let Some(def) = registry.get(cid.clone()) else {
         return Vec::new();
     };
+    // PB-RS4 (CR 614.12 / 712.8e): gather from the face that is actually showing.
+    // CR 400.7: an earlier same-batch ETB replacement (or a harness call) may leave
+    // no live object for this id -- a departed permanent has no face, which is a
+    // legal fizzle, not an engine bug. Mirrors `queue_carddef_etb_triggers`'s guard.
+    let entering_is_transformed = state
+        .fizzle_object(new_id)
+        .map(|o| o.is_transformed)
+        .unwrap_or(false);
     use crate::state::continuous_effect::EffectDuration;
     let mut evts = Vec::new();
     // MR-M8-12: register each self-ETB WouldEnterBattlefield replacement into
     // `state.replacement_effects` so it is applied through the framework below
     // (rather than inline) — participating in CR 614.15 ordering / CR 614.5.
     //
-    // PB-OS4b limitation (OOS-OS4-2): this reads the FRONT `def.abilities`
-    // unconditionally, not `def.effective_abilities(obj.is_transformed)`. On the
-    // enter-transformed paths (craft/disturb/exile-return, e.g. `resolution.rs`
-    // craft ETB), a permanent that enters back-face-up therefore gathers its
-    // FRONT face's self-ETB replacements (enters-tapped / enters-with-counters),
-    // not the visible back face's — contrary to CR 712.8d/e. No roster DFC/craft/
-    // disturb back face declares a WouldEnterBattlefield self-replacement, so this
-    // is unreachable today; it is left front-only deliberately (making it
-    // face-aware needs the same producer/consumer index-parity handling as the
-    // rest of PB-OS4b and has zero roster benefit — W6 no-speculative-machinery).
-    // A future DFC whose BACK face enters tapped / with counters must revisit this.
-    for ability in &def.abilities {
+    // PB-RS4 (CR 614.12 / 712.8d/e, OOS-RS-3): gather from the face that is
+    // actually showing. A permanent entering back-face-up (disturb --
+    // resolution.rs:665; stack craft -- resolution.rs:7276) has only its back
+    // face's characteristics, so only that face's self-ETB replacements apply.
+    // Closes the PB-OS4b-era limitation this comment used to describe.
+    for ability in def.effective_abilities(entering_is_transformed) {
         if let AbilityDefinition::Replacement {
             trigger: ReplacementTrigger::WouldEnterBattlefield { .. },
             modification,
@@ -1230,6 +1232,8 @@ pub fn apply_self_etb_from_definition(
     ));
     // CR 306.5b: "This permanent enters with a number of loyalty counters on it
     // equal to its printed loyalty number." This is an intrinsic replacement effect.
+    // CR 306.5b: back-face starting loyalty is OOS-OS4-1 / rider-seed queue item R10
+    // -- deliberately front-only here (PB-RS4 does not widen into it).
     if let Some(loyalty) = def.starting_loyalty {
         if loyalty > 0 {
             // SR-14: new_id is the permanent that just entered — live here.
@@ -1245,8 +1249,10 @@ pub fn apply_self_etb_from_definition(
     }
     // CR 714.3a: As a Saga enters the battlefield, its controller puts a lore counter on it.
     // This is a turn-based action that happens as part of the ETB event.
+    // PB-RS4 (CR 714.3a / 712.8d/e): only the face that is actually showing can make
+    // this permanent a Saga.
     let has_saga_chapters = def
-        .abilities
+        .effective_abilities(entering_is_transformed)
         .iter()
         .any(|a| matches!(a, AbilityDefinition::SagaChapter { .. }));
     if has_saga_chapters {
@@ -1261,8 +1267,10 @@ pub fn apply_self_etb_from_definition(
         evts.extend(chapter_evts);
     }
     // CR 716.2d: When a Class enters the battlefield, set its level to 1.
+    // PB-RS4: face-aware for internal consistency; Classes are not DFCs today, so
+    // this swap is a no-op in practice (entering_is_transformed is always false).
     let has_class_levels = def
-        .abilities
+        .effective_abilities(entering_is_transformed)
         .iter()
         .any(|a| matches!(a, AbilityDefinition::ClassLevel { .. }));
     if has_class_levels {
@@ -1279,6 +1287,13 @@ pub fn apply_self_etb_from_definition(
 /// number of lore counters on it was less than N and became at least N, [effect]."
 ///
 /// Chapters that trigger are those where `old_count < chapter && new_count >= chapter`.
+///
+/// CR 712.8d/e (PB-RS4): `ability_index` is a dense index into the currently-visible
+/// face's *effective* ability list — the same namespace the three consumers use
+/// (`resolution.rs:1996`/`:2028`, `sba.rs:889`). The face signal is read live from
+/// `saga_id`'s `is_transformed` flag (not threaded as a parameter): this fn is `pub`
+/// and called from `turn_actions.rs` and directly from tests, and every existing
+/// caller already holds a live, up-to-date object at call time.
 pub fn fire_saga_chapter_triggers(
     state: &mut GameState,
     saga_id: ObjectId,
@@ -1289,8 +1304,14 @@ pub fn fire_saga_chapter_triggers(
 ) -> Vec<GameEvent> {
     use crate::cards::card_definition::AbilityDefinition;
     use crate::state::stubs::{PendingTrigger, PendingTriggerKind};
+    // CR 400.7: `saga_id` may have departed its zone since the caller looked it up
+    // (a legal fizzle, not an engine bug) -- default to front-face indexing.
+    let is_transformed = state
+        .fizzle_object(saga_id)
+        .map(|o| o.is_transformed)
+        .unwrap_or(false);
     let evts = Vec::new();
-    for (ability_index, ability) in def.abilities.iter().enumerate() {
+    for (ability_index, ability) in def.effective_abilities(is_transformed).iter().enumerate() {
         if let AbilityDefinition::SagaChapter { chapter, .. } = ability {
             // CR 714.2b: Trigger fires if count crossed the chapter threshold.
             if old_count < *chapter && new_count >= *chapter {
@@ -1904,13 +1925,15 @@ pub fn register_permanent_replacement_abilities(
     let Some(def) = registry.get(cid.clone()) else {
         return;
     };
-    // PB-OS4b limitation (OOS-OS4-2): reads FRONT `def.abilities`, not
-    // `def.effective_abilities(is_transformed)`. A permanent entering back-face-up
-    // (craft/disturb/exile-return) registers its FRONT face's permanent
-    // replacement abilities, not its back face's (CR 712.8d/e). No roster DFC back
-    // face declares a non-self permanent replacement, so unreachable today; left
-    // front-only for the same reason as `apply_self_etb_from_definition` above.
-    for ability in &def.abilities {
+    // PB-RS4 (CR 614 / 712.8d/e, OOS-RS-3): gather from the face that is actually
+    // showing. A permanent entering back-face-up (craft/disturb/exile-return)
+    // registers that face's permanent replacement abilities, not the front's.
+    // Closes the PB-OS4b-era limitation this comment used to describe.
+    let entering_is_transformed = state
+        .fizzle_object(new_id)
+        .map(|o| o.is_transformed)
+        .unwrap_or(false);
+    for ability in def.effective_abilities(entering_is_transformed) {
         if let AbilityDefinition::Replacement {
             trigger,
             modification,

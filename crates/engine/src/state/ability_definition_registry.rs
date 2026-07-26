@@ -120,10 +120,16 @@ pub fn handling(ability: &AbilityDefinition) -> AbilityHandling {
             sites: &["crates/engine/src/rules/engine.rs"],
         },
         A::TriggerDoubling { .. } => AbilityHandling::Handled {
-            sites: &["crates/engine/src/rules/replacement.rs"],
+            sites: &[
+                "crates/engine/src/rules/face.rs",
+                "crates/engine/src/rules/replacement.rs",
+            ],
         },
         A::SuppressCreatureETBTriggers { .. } => AbilityHandling::Handled {
-            sites: &["crates/engine/src/rules/replacement.rs"],
+            sites: &[
+                "crates/engine/src/rules/face.rs",
+                "crates/engine/src/rules/replacement.rs",
+            ],
         },
         A::AltCastAbility { .. } => AbilityHandling::Handled {
             sites: &[
@@ -349,28 +355,47 @@ pub fn handling(ability: &AbilityDefinition) -> AbilityHandling {
             ],
         },
         A::StaticRestriction { .. } => AbilityHandling::Handled {
-            sites: &["crates/engine/src/rules/replacement.rs"],
+            sites: &[
+                "crates/engine/src/rules/face.rs",
+                "crates/engine/src/rules/replacement.rs",
+            ],
         },
         A::CdaPowerToughness { .. } => AbilityHandling::Handled {
-            sites: &["crates/engine/src/rules/replacement.rs"],
+            sites: &[
+                "crates/engine/src/rules/face.rs",
+                "crates/engine/src/rules/replacement.rs",
+            ],
         },
         A::CdaModifyPowerToughness { .. } => AbilityHandling::Handled {
-            sites: &["crates/engine/src/rules/replacement.rs"],
+            sites: &[
+                "crates/engine/src/rules/face.rs",
+                "crates/engine/src/rules/replacement.rs",
+            ],
         },
         A::AdditionalLandPlays { .. } => AbilityHandling::Handled {
             sites: &[
+                "crates/engine/src/rules/face.rs",
                 "crates/engine/src/rules/replacement.rs",
                 "crates/engine/src/rules/resolution.rs",
             ],
         },
         A::StaticFlashGrant { .. } => AbilityHandling::Handled {
-            sites: &["crates/engine/src/rules/replacement.rs"],
+            sites: &[
+                "crates/engine/src/rules/face.rs",
+                "crates/engine/src/rules/replacement.rs",
+            ],
         },
         A::StaticPlayFromTop { .. } => AbilityHandling::Handled {
-            sites: &["crates/engine/src/rules/replacement.rs"],
+            sites: &[
+                "crates/engine/src/rules/face.rs",
+                "crates/engine/src/rules/replacement.rs",
+            ],
         },
         A::StaticPlayFromGraveyard { .. } => AbilityHandling::Handled {
-            sites: &["crates/engine/src/rules/replacement.rs"],
+            sites: &[
+                "crates/engine/src/rules/face.rs",
+                "crates/engine/src/rules/replacement.rs",
+            ],
         },
         A::CastSelfFromGraveyard { .. } => AbilityHandling::Handled {
             sites: &["crates/engine/src/rules/casting.rs"],
