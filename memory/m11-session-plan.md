@@ -910,7 +910,7 @@ From the roadmap's M11-local section, minus the carved-out bullets:
 | # | Risk / question | Assessment | Recommendation |
 |---|---|---|---|
 | R1 | **Targeted spells are currently uncastable by a human.** The TUI proves it: `input.rs` always sends `targets: Vec::new()`, so any spell with a `TargetRequirement` is rejected at `casting.rs:3708`. | This, not the loop, is the real blocker for "a person played a game". | Session 3 is the crux of the milestone. If `legal_targets_per_slot` grows past one session, split it: requirements lookup first, candidate enumeration second. |
-| R2 | **`handle_take_mulligan` emits `LibraryShuffled` while permuting nothing** (engine has no RNG). A mulligan today returns the same hand — a live-wrong rules path (CR 103.5 requires a shuffle). | Real correctness finding, discovered while planning. Out of M11-local's scope to fix properly (a caller-supplied permutation would be a new `Command` → wire change). | File as a primitive seed (proposed id **OOS-M11-1**) against the RS/OS queue. M11-local routes around it with pregame `redeal` (Session 2 item 4). |
+| R2 | ~~**`handle_take_mulligan` emits `LibraryShuffled` while permuting nothing** (engine has no RNG). A mulligan today returns the same hand — a live-wrong rules path (CR 103.5 requires a shuffle).~~ ✅ **CLOSED by PB-DP2 (`scutemob-150`, 2026-07-26)**, widened per decision-point-audit §7 to also cover `handle_keep_hand` bottoming to the library TOP. | Real correctness finding, discovered while planning. ~~Out of M11-local's scope to fix properly (a caller-supplied permutation would be a new `Command` → wire change).~~ **This assessment was FALSIFIED.** No wire change was needed at all: the engine already had a deterministic seeded PRNG (`StdRng::seed_from_u64(state.timestamp_counter)`, the MR-M7-17 idiom at `effects/mod.rs:8697-8703`), so `handle_take_mulligan` could just permute the library in place with `Zone::shuffle`. PROTOCOL 27 / HASH 63 unmoved. **Reusable lesson: check for an existing in-engine deterministic seed source before concluding a permutation needs a caller-supplied `Command`.** | ~~File as a primitive seed (proposed id **OOS-M11-1**)~~ — filed, ranked into the PB-DP suite, and **shipped as PB-DP2**. Session 2's pregame `redeal` workaround is **no longer load-bearing for correctness** (mulligans are now CR 103.5-faithful); keep it only if Session 2 wants it for UX. |
 | R3 | **`solve_mana_payment` ignores the mana pool and reads non-layer-resolved `characteristics.mana_abilities`.** A human who taps manually then casts gets over-tapped; an animated land or a Cryptolith-Rite-granted ability is invisible to auto-tap. | The second is a standing-gotcha violation (dispatch sites must use `calculate_characteristics`). Simulator-side, not engine-side. | Session 3 item 7 fixes the pool half (cheap). File the layer-resolution half as **OOS-M11-2**; note that the *engine* payment paths are already layer-correct, so this is a suggestion-quality bug, not a wrong-game-state bug. |
 | R4 | **`StubProvider` gaps**: no Adventure (documented TODO at `legal_actions.rs:158`), no alt-costs (Spectacle/Surge/Escape/Flashback…), no modes, no Convoke/Improvise/Delve. A human will hit these. | Expected; the provider is the bot's move generator, not a rules-complete action enumerator. | Ship v1 provider-driven. Open question for the user: add a dev-only "raw command" escape hatch (submit a hand-built `Command` and let the engine judge) so a play-tester can exercise paths the provider misses? Recommend yes, behind `--dev` |
 | R5 | **Bot play quality.** `RandomBot` makes nonsense plays; games look broken to a human even when the engine is right. | Cosmetic but affects "is this playable" judgement. | Default the web client to `HeuristicBot`; keep `RandomBot` as a `--bot random` option |
@@ -945,6 +945,18 @@ From the roadmap's M11-local section, minus the carved-out bullets:
   **live-wrong rules path** (CR 103.5 requires a shuffle; `handle_take_mulligan` emits
   `GameEvent::LibraryShuffled` while permuting nothing), which is the class that outranks
   everything else in that queue.
+  - **Update 2026-07-26 — `OOS-M11-1` is CLOSED by PB-DP2 (`scutemob-150`).** It was ranked
+    into the PB-DP suite (decision-point audit §5 **DP-2**, Tier 0) rather than the RS queue,
+    and shipped as two edits in `rules/commander.rs`: `handle_keep_hand` now bottoms with
+    `move_object_to_bottom_of_zone` (`push_front`), and `handle_take_mulligan` now runs a
+    real seeded Fisher-Yates `Zone::shuffle` before the `LibraryShuffled` event and the
+    draws, so the event is no longer phantom (Architecture Invariant 4). **The row's
+    "would be a new `Command` → wire change" premise was falsified** — the existing
+    `state.timestamp_counter` was a sufficient seed source, PROTOCOL 27 / HASH 63 unmoved.
+    4 probes; tests 3,721 → 3,725. Correct cite is **CR 103.5** (+ 103.5c for the free first
+    mulligan); "CR 103.4b" as it appears in the task criteria and older notes is stale —
+    live 103.4b is the *Vanguard starting life total*. `OOS-M11-2` remains open and
+    unranked.
 
 ---
 

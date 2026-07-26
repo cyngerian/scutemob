@@ -15,7 +15,7 @@
 | W3: LOW Remediation | — | available | — | LOW Sweep campaign COMPLETE 2026-05-16 (`scutemob-31..38`): 36 LOWs closed, LOW-OPEN 45→6. 6 remain (honestly deferred). Plan: `memory/archive/2026-07/low-sweep-plan.md` (archived 2026-07-18). |
 | W4: M10 Networking | — | not-started | — | After W1 completes |
 | W5: Card Authoring | — | **RETIRED** | — | Replaced by W6. See `docs/primitive-card-plan.md` |
-| W6: Primitive + Card Authoring | `scutemob-150` | ACTIVE (worker in flight) | 2026-07-26 | **PB-OS queue COMPLETE** (OS1..OS11 + OS4b, `scutemob-116..141`). **Rider-seed queue**: RS1..RS4 SHIPPED (`scutemob-143..146`); plan `memory/primitives/rider-seed-triage-2026-07-19.md`, resume at **R5** per its §5 banner (weigh OOS-RS3-1 insert + OOS-RS2-1 rider). **The PB-DP suite now runs FIRST** (user directive 2026-07-26) — queue `docs/audits/decision-point-audit.md` §8, from the decision-point audit (`scutemob-148`). **PB-DP1 SHIPPED** (`scutemob-149`, merged `f7651bb5`): priority after cast/activate/special action goes to the ACTOR per CR 117.3c; 14 Group-A sites + 8 Group-D sites; entry priority guards added to `handle_turn_face_up`/`handle_activate_loyalty_ability`/`handle_level_up_class`; 19 tests + 15 golden scripts reconciled; PROTOCOL 27 / HASH 63 unchanged; 3,721 tests green. Seeds **OOS-DP1-1..4** filed in the audit doc **§8.1** (durable inventory for this suite — not in `primitive-wip.md`, which the next PB overwrites). Suite tasked out `scutemob-150..158` = PB-DP2..DP10. **PB-DP2 dispatched** (`scutemob-150`, mulligan content no-op + bottom-to-top, CR 103.4b/103.5). |
+| W6: Primitive + Card Authoring | `scutemob-150` | ACTIVE (worker in flight) | 2026-07-26 | **PB-OS queue COMPLETE** (OS1..OS11 + OS4b, `scutemob-116..141`). **Rider-seed queue**: RS1..RS4 SHIPPED (`scutemob-143..146`); plan `memory/primitives/rider-seed-triage-2026-07-19.md`, resume at **R5** per its §5 banner (weigh OOS-RS3-1 insert + OOS-RS2-1 rider). **The PB-DP suite now runs FIRST** (user directive 2026-07-26) — queue `docs/audits/decision-point-audit.md` §8, from the decision-point audit (`scutemob-148`). **PB-DP1 SHIPPED** (`scutemob-149`, merged `f7651bb5`): priority after cast/activate/special action goes to the ACTOR per CR 117.3c; 14 Group-A sites + 8 Group-D sites; entry priority guards added to `handle_turn_face_up`/`handle_activate_loyalty_ability`/`handle_level_up_class`; 19 tests + 15 golden scripts reconciled; PROTOCOL 27 / HASH 63 unchanged; 3,721 tests green. Seeds **OOS-DP1-1..4** filed in the audit doc **§8.1** (durable inventory for this suite — not in `primitive-wip.md`, which the next PB overwrites). Suite tasked out `scutemob-150..158` = PB-DP2..DP10. **PB-DP2 SHIPPED** (`scutemob-150`, commit `f902010f`): mulligan content no-op + bottom-to-top, **CR 103.5/103.5c** (the brief's "103.4b" is a stale cite — see the handoff below); **OOS-M11-1 CLOSED**; 4 probes; PROTOCOL 27 / HASH 63 unchanged; tests 3,721 → **3,725**. Seeds **OOS-DP2-1..6** filed in the audit doc **§8.1**. **Next: PB-DP3** (`scutemob-151`, DP-4 `min_modes` floor). |
 
 **Status values**: `available` (free to claim), `ACTIVE` (session working on it),
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
@@ -50,6 +50,72 @@
 - **Reviews keep catching real misses** (RS1's 5th inverted read, RS2's 12 findings, RS3's seed-scope corrections) — never skip the reviewer pass even on "template" PBs.
 
 **Commit prefix used**: worker `scutemob-N:`/`W6-prim:`, `merge:`, coordinator `chore:`.
+
+### PB-DP suite — worker close-outs appended since this handoff
+
+**PB-DP2** (`scutemob-150`, commit `f902010f`, 2026-07-26) — **SHIPPED**. DP-2 from
+`docs/audits/decision-point-audit.md` §5 (Tier 0, class D). Two edits in
+`crates/engine/src/rules/commander.rs`:
+
+- **(a) `handle_keep_hand` bottomed to the TOP.** `move_object_to_zone` is `Zone::insert` =
+  `push_back`, and `Zone::top()` is `v.last()` — so the cards a player bottomed during the
+  London mulligan were the next cards they drew. Now uses `move_object_to_bottom_of_zone`
+  (`push_front`). Index 0 of `cards_to_bottom` ends up **above** later entries (the documented
+  convention, preserved — **no reversal was needed**), and the pre-existing library including
+  its top card is untouched.
+- **(b) `handle_take_mulligan` never permuted.** It moved hand→library, emitted a **phantom**
+  `GameEvent::LibraryShuffled`, then drew 7 off the top — the same seven cards came back,
+  reversed. Now runs a real seeded Fisher-Yates `Zone::shuffle` after the moves and **before**
+  both the event and the draws, so the event is no longer phantom (Architecture Invariant 4).
+
+**Closes OOS-M11-1** (filed in `memory/m11-session-plan.md` §8 row R2), widened per audit §7 to
+cover the (a) half. M11-local Session 2's pregame `redeal` workaround is no longer load-bearing
+for correctness.
+
+- **No wire change: PROTOCOL 27 / HASH 63 unmoved.** The audit §8 PB-DP2 row predicted (b)
+  "needs a seed on `GameState` ⇒ HASH bump" — **falsified**. The existing `state.timestamp_counter`
+  sufficed (`StdRng::seed_from_u64`, the MR-M7-17 idiom already used at three sites in
+  `effects/mod.rs`), so replay determinism (SR-9b) holds with no new field. Reusable lesson:
+  check for an existing in-engine deterministic seed source before concluding a permutation
+  needs a caller-supplied `Command`.
+- **CR-numbering correction.** ESM criterion 5519 and the audit's DP-2 row both cited
+  "CR 103.4b". That is stale — live **CR 103.4b is the Vanguard starting life total**. Both the
+  shuffle and the bottoming live in a single sentence of **CR 103.5**; **CR 103.5c** is the
+  multiplayer free-first-mulligan adjustment. The engine's own source comments already cited
+  103.5 correctly. The bottom-placement probe keeps `cr_103_4b` in its **name** so criterion
+  5519 stays greppable, and carries the correction in its doc comment. Both audit rows are now
+  corrected. (The one matching golden script, `commander/cc32_mulligan_to_six.json`, carries the
+  same wrong cite — cosmetic, OOS-DP1-3 class, left alone; it is `review_status: "retired"` and
+  does not execute, so **there was nothing to reconcile**.)
+- **SR-25 note the plan did not anticipate**: the shuffle uses `expect_zone_mut(..).ok_or(..)?`
+  rather than a bare `.zones.get_mut(..)`, which keeps this file's `bare_lookup_ratchet` ceiling
+  at 6 while still **propagating in release builds** per MR-M9-12 (`expect_*` alone is
+  `debug_assert!` + `None`, i.e. release-silent — using it would have let a release build skip
+  the shuffle and re-emit the phantom event).
+- **Simulator-unreachability finding**: the whole defect class is **unreachable from the
+  simulator today** — `crates/simulator/src/local_game.rs:569-574` documents that mulligans
+  cannot fire because `GameStateBuilder` defaults `turn_number` to 1 while the gate needs 0.
+  It goes live the moment **M11-local Session 2** sets `turn_number = 0`, which is also when
+  OOS-DP2-5 (bots send an empty `cards_to_bottom` unconditionally) becomes a real bug.
+- **Tests**: 4 new probes in `crates/engine/tests/rules/commander.rs` —
+  `test_dp2_cards_to_bottom_land_on_library_bottom_cr_103_4b`,
+  `test_dp2_mulligan_actually_permutes_the_library_cr_103_5`,
+  `test_dp2_mulligan_returns_a_different_hand_cr_103_5`,
+  `test_dp2_mulligan_permutation_is_deterministic_cr_103_5`. 3 of 4 fail on pristine code; the
+  determinism probe passes pre-fix because a no-op is trivially deterministic (its job is to pin
+  the property against a future entropy-seeded regression). **3,721 → 3,725 passing / 0
+  failing**; clippy `-D warnings`, `cargo fmt --check` and `tools/check-defs-fmt.sh` (1,804
+  defs) all clean.
+- **Seeds filed — `docs/audits/decision-point-audit.md` §8.1** (the suite's durable inventory;
+  `memory/primitive-wip.md` is rewritten wholesale by the next PB): **OOS-DP2-1**
+  (`handle_keep_hand` never checks that `cards_to_bottom` entries are in the player's hand —
+  a hostile `KeepHand` can bottom another player's card), **OOS-DP2-2** (starting hand size
+  hard-coded to 7; fixing it is a HASH bump), **OOS-DP2-3** (all engine shuffles are predictable
+  from public state — Architecture Invariant 7 / M10 hidden-info), **OOS-DP2-4** (the
+  seeded-shuffle idiom is copy-pasted at 4 sites; deliberately not extracted here),
+  **OOS-DP2-5** (bots' empty `cards_to_bottom`, latent until M11-local S2), **OOS-DP2-6** (the
+  engine defers CR 103.5's bottoming from take-time to keep-time — behaviourally equivalent,
+  record-only).
 
 ---
 
