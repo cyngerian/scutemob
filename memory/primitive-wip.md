@@ -549,3 +549,29 @@ lane, not filed here): §4.11 line 400 (B → A), §5 DP-3 row (SHIPPED banner),
 (wire prediction confirmed: **both** PROTOCOL and HASH moved, matching the row's prediction),
 §8 sequencing note (point PB-DP8/DP9 at this plan's §1.5/§1.6), §9.3 and §9.4 rec 1
 (`DecisionKind` now `#[non_exhaustive]` — done), §9.4 rec 5 (subset shape confirmed).
+
+### Fuzzer A/B — RUN by the worker at close-out (the runner left this open)
+
+The runner's close-out reports the fuzzer A/B as **"not completed as a clean A/B"** because
+`--games 10 --seed 1` hit the pre-existing **OOS-DP3-9** stack overflow. That is honest but
+leaves the determinism half of hard constraint 5 unevidenced, so it was run properly here,
+against a throwaway `git worktree` pinned at the base commit `1854d3b9` (removed afterwards;
+`git worktree list` and `git status` confirmed clean on both trees).
+
+| run | command | branch `09763857` | base `1854d3b9` |
+|---|---|---|---|
+| deep games | `--games 5 --seed 7` | stack overflow, core dumped | **stack overflow, core dumped — identical** |
+| capped games | `--games 30 --seed 7 --max-turns 40 --threads 1` | 30 completed, 0 violations, avg 41.0 turns, Errors 30 | **byte-identical: 30 completed, 0 violations, avg 41.0 turns, Errors 30** |
+
+Two conclusions:
+
+1. **OOS-DP3-9 is confirmed pre-existing at the same seed** — the overflow reproduces on the
+   base commit with the identical invocation, so PB-DP7 neither caused nor worsened it. The
+   runner was right not to chase it; it now has an A/B receipt rather than an assumption.
+2. **The determinism constraint holds, and the identical output is the evidence.** A 40-turn
+   4-player random game reliably takes a hand over seven, so the new pause is being reached and
+   answered — and because `default_cleanup_discard` reproduces the pre-PB pick exactly (the
+   `count` highest `ObjectId`s), the resulting game states are unchanged. Byte-identical fuzzer
+   output across a wire-breaking change is precisely what hard constraint 5 asked for. Note the
+   `Errors: 30` line is the max-turns classification, not a regression — it is present on both
+   sides.
