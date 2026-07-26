@@ -203,6 +203,66 @@ mandatory** (CR 601.2b / 700.2a).
   mode-selection **UI**, and the simulator's default-modes helpers are the placeholder session 7
   must replace).
 
+**PB-DP4** (`scutemob-152`, 2026-07-26) — **SHIPPED**. DP-10 + DP-11 from
+`docs/audits/decision-point-audit.md` §5, bundled because they are the same bug shape: *an
+affordability check is not a payment*. Both fixes amount to **making the check and the payment
+the same predicate**. Commits `5c463339` (engine), `b213aeec` (simulator + tests), `084477ef`
+(fix cycle).
+
+- **DP-10 — the attack tax was inspected and never charged** (CR **508.1c** restriction,
+  **508.1h/i/j** payment; the audit's "508.1g" cite was wrong — that rule is *optional* "as it
+  attacks" costs like exert). `combat.rs` summed `cost_per_creature`'s six colour fields into a
+  `u32`, compared it against `total_with_restricted()`, and returned `Ok` without touching the
+  pool. Now a real per-defender summed `ManaCost` debited via `casting::pay_cost` in the
+  mutation section, colour preserved, reusing `GameEvent::ManaCostPaid`. **Restricted mana no
+  longer counts toward affordability** (CR **106.6** — every `ManaRestriction` variant is
+  spell-scoped, so `spell: None` is correct; this is a deliberate behaviour flip and a player
+  whose only mana is restricted can no longer attack past a Propaganda). Hybrid/Phyrexian/X
+  taxes are **rejected** rather than silently contributing 0 (they were free before — the
+  OOS-RS-2 class). The in-code claim that interactive payment *"requires a new
+  `DeclareAttackers` command field"* is **falsified and deleted**.
+- **DP-11 — the "otherwise, sacrifice" was never enforced** (CR 702.30a / 702.24a / 702.59a).
+  `resolution.rs` claimed "the game pauses until a `Command::PayEcho` is received"; nothing
+  implemented that pause, and the three `pending_*` vectors were inert queues no priority, SBA
+  or step-advancement code ever read. **The design decision is the substance of this PB**: the
+  fix is a **deadline, not a gate**. `force_resolve_overdue_payments` runs in
+  `handle_all_passed`'s **stack-empty** branch and applies the CR 118.12a "didn't pay" branch to
+  any unanswered payment. Gating priority was rejected because it **deadlocks** — `driver.rs`
+  answers a rejected command with a silent `PassPriority`, so a refused pass is an infinite
+  retry with no error, strictly worse than the bug. Deciding at resolution was rejected because
+  it destroys the CR 608.2d/608.2g choice and makes `Command::PayEcho` unreachable. Auto-
+  **decline**, never auto-pay (auto-pay is DP-19's bug class). Accepted deviation: the choice is
+  deferred by one priority round, stated in-code and in the audit.
+- **Yield larger than filed**: **5 `Complete` defs were live-wrong and are made right with 0
+  card-def edits** (`propaganda`, `ghostly_prison`, `mogg_war_marshal`, `avalanche_riders`,
+  `grim_harvest`); `mystic_remora`'s `known_wrong` note becomes accurate. The one card-def edit
+  is a **comment** in `goblin_rabblemaster.rs`.
+- **Two seeds closed**: **OOS-DP1-1** by *deletion* — all three `priority_holder =
+  Some(active_player)` bodges are gone; they were identity writes for echo/CU (whose controller
+  is the active player) but for **recover** the controller can be non-active and the write was
+  actively yanking priority. **OOS-RS3-4** by Change 1c — `has_uncosted_attack_target` (CR
+  508.1d) in both must-attack blocks, ending the "declaring is illegal AND omitting is illegal"
+  deadlock.
+- **Two bugs the audit had not filed**, found in planning/review: an unguarded life subtraction
+  in the cumulative-upkeep `Life` arm (CR **119.4** — `PayCumulativeUpkeep{pay:true}` could
+  drive a player to negative life), and §4.5's "Attack requirements" row being **mis-rated A**.
+- **No wire change: PROTOCOL 27 / HASH 63 unmoved**, as predicted. Three new `LegalAction`
+  variants are simulator-internal. Notably, audit §9 rec 3's `advance()` work turned out
+  **unnecessary** — the payments arrive inside the existing `PendingDecision` as
+  `DecisionKind::Priority`, so `local_game.rs` needed no edit at all.
+- Review 0 HIGH / 5 MEDIUM / 17 LOW (banner said 13; the tables list 17 — discrepancy noted in
+  the review), verdict "ship after fixes"; all 5 MEDIUM fixed, 10 LOW fixed, 6 declined with
+  reasons, 1 no-fix-needed. Two of the MEDIUMs were **tests that could not discriminate** (an
+  APNAP probe both orderings satisfied; a vacuous `players_passed` assertion) — the fix cycle
+  strengthened both and verified the strengthened versions fail against a deliberately wrong
+  implementation. Tests 3,747 → **3,781**.
+- **Audit rows updated**: §4.5 attack-cost row **D → A** + CR cite corrected, §4.5
+  attack-requirements row **mis-rated A → A since PB-DP4**, §4.11 echo row **D → A** enforcement,
+  §5 DP-10 and DP-11 **SHIPPED**, §8 PB-DP4 **SHIPPED**, §8.1 OOS-DP1-1 **CLOSED** + twelve
+  `OOS-DP4-*` seeds appended, §9 recs 3 and 6 annotated, §7 OOS-M11-2 rider. Cross-queue:
+  `memory/primitives/rider-seed-triage-2026-07-19.md` marks **OOS-RS3-4 CLOSED** (status marker
+  only — the RS queue's ordering and its §5 pause banner are untouched).
+
 ---
 
 ## Previous Handoff (preserved for chain context)
