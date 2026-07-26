@@ -377,8 +377,11 @@ fn precombat_main_actions(state: &mut GameState) -> Vec<GameEvent> {
         .filter_map(|(id, obj)| {
             let cid = obj.card_id.as_ref()?;
             let def = state.card_registry.get(cid.clone())?;
+            // CR 714.3b / 712.8e: "each Saga they control with one or more chapter
+            // abilities" -- a permanent showing a non-Saga back face is not a Saga
+            // (matches rules/sba.rs:843).
             let has_chapters = def
-                .abilities
+                .effective_abilities(obj.is_transformed)
                 .iter()
                 .any(|a| matches!(a, AbilityDefinition::SagaChapter { .. }));
             if has_chapters {

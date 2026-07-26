@@ -590,7 +590,7 @@ done: ~4-6 flips. Candidate for a near-term correctness PB.
 | ~~PB-OS2~~ ✅ SHIPPED `scutemob-128` | EF-EF1-A | correctness (micro) | 1 (disciple_of_freyalise) | none |
 | ~~PB-OS3~~ ✅ SHIPPED `scutemob-129` | OOS-EF6-1 | correctness | 1 (forbidden_orchard) | none |
 | ~~PB-OS4~~ ⚠️ SHIPPED NARROWED `scutemob-130` | OOS-EF5-3 (narrowed) | capability | 0 Complete + 1 partial (fable); blocked by new OOS-OS4-1/2 | PROTOCOL 18→19 / HASH 55→56 |
-| ~~PB-OS4b~~ ⚠️ SHIPPED **PARTIAL** `scutemob-134` | OOS-OS4-2 (**not fully closed** — see note) | correctness (cross-cutting) | 2 kept-`Complete` (docent, bloodline — were live-wrong); 3 partials made functional | none (behavior-only; 19/56 unchanged) |
+| ~~PB-OS4b~~ ✅ SHIPPED `scutemob-134` **+ completed by PB-RS4 `scutemob-146`** | OOS-OS4-2 (**FULLY CLOSED** as of PB-RS4 — see note) | correctness (cross-cutting) | 2 kept-`Complete` (docent, bloodline — were live-wrong); 3 partials made functional | none (behavior-only; 19/56 unchanged) |
 | ~~PB-OS5~~ ✅ SHIPPED `scutemob-135` | OOS-EF4-1 | capability | 2 Complete (shared_animosity, goblin_piledriver) + 2 partial-improvements (rabblemaster pump, muxus attack-half) | PROTOCOL 19→20 / HASH 56→57 |
 | ~~PB-OS6~~ ✅ SHIPPED `scutemob-136` | OOS-EF5-4 (a/b/g shipped; c deferred to OOS-OS6-1, d deferred to PB-OS8) | capability (sub-batch) | 3 Complete (delver_of_secrets, legions_landing, thaumatic_compass) | PROTOCOL 20→21 / HASH 57→58 |
 | PB-OS7 | OOS-EF3-1 | capability | ~1-2 | PROTOCOL |
@@ -608,6 +608,24 @@ done: ~4-6 flips. Candidate for a near-term correctness PB.
 > deregistered on transform — a documented, deliberate deferral, not an oversight). All three are
 > latent on today's roster and guaranteed to bite the first DFC with a back-face ETB replacement.
 > Tracked as **OOS-RS-3** in `memory/primitives/rider-seed-triage-2026-07-19.md` §2.4 (rank R4).
+>
+> ✅ **RESOLVED — OOS-OS4-2 is now FULLY CLOSED** (PB-RS4, `scutemob-146`, 2026-07-26). All three
+> deviations above are fixed: both `replacement.rs` sites now read
+> `def.effective_abilities(entering_is_transformed)` via a live object read, and
+> `deregister_face_statics` was extended from `Static`-only to **all ten** registered families
+> through a new `remove_one_registration` helper that mirrors
+> `register_static_continuous_effects` arm for arm, guarded against future drift by a source-scan
+> parity gate (`crates/engine/tests/core/face_dereg_parity.rs`). Planning found a **fourth**
+> deviation with the same CR 712.8d/e root cause — the CR 714.3b precombat-main Saga lore sweep
+> and `fire_saga_chapter_triggers`'s `ability_index` namespace both read the front face, the
+> latter disagreeing with all eight of its consumers — and PB-RS4 fixed that too. 0 coverage
+> flips (as predicted), 2 integrity repairs, 17 fail-before/pass-after probes, PROTOCOL 27 /
+> HASH 63 unchanged. Close-out: `memory/primitives/pb-plan-RS4.md` + `pb-review-RS4.md`.
+> Residual seeds filed, **not** part of this closure: OOS-RS4-1 (stack craft /
+> `ExileSourceAndReturnTransformed` never register permanent replacements or queue ETB triggers),
+> OOS-RS4-2 (4 `Complete` MDFC lands have permanently-unreachable back faces — no MDFC
+> face-selection path exists), OOS-RS4-4 (transform between trigger queue and resolution can
+> desync a CardDef ability index, CR 113.7a — pre-existing PB-OS4b contract, unreachable today).
 
 **Total discounted ship across the queue: ~19-22 clean flips** + the PB-OS1 integrity correction
 on 3 already-`Complete` cards. Correctness group (PB-OS1..OS3) first, then capability by yield.

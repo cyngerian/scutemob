@@ -19,6 +19,7 @@ mod corner_case_gaps;
 mod deck_validation;
 mod effect_choose_gate;
 mod emblem_tests;
+mod face_dereg_parity;
 mod hash_schema;
 mod invariants;
 mod keyword_registry;

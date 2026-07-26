@@ -1,4 +1,5 @@
-//! PB-OS4b: face-aware ability gathering for transformed permanents (CR 712.8d/e).
+//! PB-OS4b / PB-RS4: face-aware ability gathering for transformed permanents
+//! (CR 712.8d/e).
 //!
 //! A double-faced permanent showing its back face has only that face's
 //! characteristics -- including its abilities (CR 712.8d/e). Two independent
@@ -9,14 +10,30 @@
 //!   vectors, lowered once at object construction by
 //!   `testing::replay_harness::build_face_ability_vectors` and otherwise read directly
 //!   (bypassing the layer system) by activation/trigger dispatch.
-//! - **Channel B** -- static continuous effects (`state.continuous_effects`), which are
-//!   registered once at ETB and never automatically re-derived on transform.
+//! - **Channel B** -- static registrations (`state.continuous_effects` and the seven
+//!   sibling collections `register_static_continuous_effects` also writes --
+//!   `trigger_doublers`, `etb_suppressors`, `restrictions`,
+//!   `additional_land_play_sources`, `flash_grants`,
+//!   `play_from_graveyard_permissions`, `play_from_top_permissions`), registered
+//!   once at ETB and never automatically re-derived on transform. (Nine of the ten
+//!   `AbilityDefinition` families this PB deregisters are non-`Static`; two of those
+//!   nine -- `CdaPowerToughness`, `CdaModifyPowerToughness` -- write into
+//!   `continuous_effects` alongside `Static` rather than into a collection of their
+//!   own, so nine families span exactly these seven sibling collections plus
+//!   `continuous_effects`.)
 //!
 //! [`apply_face_change`] is the single choke point that keeps both channels correct:
 //! deregister the OLD face's statics, flip `is_transformed`, rebuild the Channel-A
 //! vectors from the NEW face, then register the NEW face's statics. Every site in the
 //! engine that flips `is_transformed` on a battlefield permanent must route through
 //! this function -- no other code should mutate `is_transformed` directly.
+//!
+//! PB-OS4b shipped Channel B deregistration for `AbilityDefinition::Static` only,
+//! deliberately deferring the other nine `register_static_continuous_effects`
+//! families (documented as a known gap, OOS-OS4-2 / OOS-RS-3). PB-RS4 closes that
+//! gap: [`deregister_face_statics`] now covers all ten families symmetrically via
+//! [`remove_one_registration`], with a source-scan drift guard
+//! (`tests/core/face_dereg_parity.rs`) keeping the two functions in lockstep.
 use crate::cards::card_definition::AbilityDefinition;
 use crate::state::continuous_effect::EffectFilter;
 use crate::state::game_object::ObjectId;
@@ -101,71 +118,227 @@ pub(crate) fn apply_face_change(state: &mut GameState, obj_id: ObjectId, new_is_
         new_is_transformed,
     );
 }
-/// CR 613 / 604: remove the OLD face's static continuous effects from
-/// `state.continuous_effects` when a permanent transforms away from that face.
+/// CR 604.1 / 613 / 712.8e / 712.18: remove the OLD face's static registrations
+/// from state when a permanent transforms away from that face (CR 712.18: this is
+/// an in-place flip -- the object never changes zones, so nothing else ever cleans
+/// these up while the permanent stays on the battlefield).
 ///
-/// `ContinuousEffect` carries no origin-face tag (adding one would be a
-/// HASH-affecting change, out of PB-OS4b's wire-neutral mandatory scope), so this
-/// does a **structural match**: for each `AbilityDefinition::Static` in the old
-/// face's ability list, remove exactly one entry from `state.continuous_effects`
-/// where `source == Some(obj_id)` and `(layer, duration, modification,
-/// resolved_filter)` match -- resolving `EffectFilter::Source ->
-/// SingleObject(obj_id)` the same way `register_static_continuous_effects` does,
-/// so the comparison is apples-to-apples. Removing at most one entry per static
-/// ability avoids disturbing any other continuous effect the object happens to own
-/// (e.g. a temporary effect granted by a different source).
+/// The structural inverse of [`super::replacement::register_static_continuous_effects`]
+/// for **all ten** families that function registers, arm for arm, in the same order.
+/// None of `ContinuousEffect` / `TriggerDoubler` / `ActiveRestriction` / etc. carry an
+/// origin-face tag (adding one would be a HASH-affecting wire change, out of scope),
+/// so removal is a **structural match**: for each ability in the old face's list,
+/// remove AT MOST the number of entries that ability's registration arm would have
+/// created (one, or two for `CdaModifyPowerToughness`) via first-`position()`-match +
+/// `remove()`. See [`remove_one_registration`] for the per-family match.
 ///
-/// Non-`Static` abilities are intentionally NOT deregistered here in the mandatory
-/// scope -- no roster card's back face declares any of them, and each lives in its
-/// own `state.*` collection with its own shape (some registering more than one
-/// entry per ability, e.g. `CdaModifyPowerToughness`). As of this writing
-/// `register_static_continuous_effects` (`replacement.rs`) also registers, from the
-/// *effective* face, the following, none of which this function removes:
-/// - `AbilityDefinition::TriggerDoubling` -> `state.trigger_doublers`
-/// - `AbilityDefinition::SuppressCreatureETBTriggers` -> `state.etb_suppressors`
-/// - `AbilityDefinition::StaticRestriction` -> `state.restrictions`
-/// - `AbilityDefinition::CdaPowerToughness` -> `state.continuous_effects` (Layer 7a, `is_cda: true`)
-/// - `AbilityDefinition::CdaModifyPowerToughness` -> `state.continuous_effects` (Layer 7c,
-///   `is_cda: true`; up to TWO entries per ability, one per Some(power)/Some(toughness))
-/// - `AbilityDefinition::AdditionalLandPlays` -> `state.additional_land_play_sources`
-/// - `AbilityDefinition::StaticFlashGrant` -> `state.flash_grants`
-/// - `AbilityDefinition::StaticPlayFromGraveyard` -> `state.play_from_graveyard_permissions`
-/// - `AbilityDefinition::StaticPlayFromTop` -> `state.play_from_top_permissions`
+/// **Never bulk-purge by source** (e.g. `retain(|e| e.source != obj_id)`). At least
+/// three other registrants share a source `ObjectId` with a transforming permanent
+/// without being part of this deregistration:
+/// - `resolution.rs:7447-7470` (Class level-up) pushes both a `ContinuousEffect` and
+///   an `AdditionalLandPlaySource` with `source: <the Class permanent>` -- a bulk
+///   purge on that permanent's own transform (were Classes ever DFCs) would delete
+///   the level-up grant too.
+/// - `effects/mod.rs:5574` (emblem `PlayFromGraveyardPermission`) uses a *different*
+///   `ObjectId` (the emblem), so it cannot collide by construction.
+/// - `effects/mod.rs:6084-6091` (`Effect::GrantFlash`) registers with `source: None`,
+///   so it cannot collide with a `Some(obj_id)` match either.
 ///
-/// (PB-OS4b review E2 named only the first four of these; re-reading
-/// `register_static_continuous_effects` for this fix turned up five more --
-/// `CdaModifyPowerToughness`, `AdditionalLandPlays`, `StaticFlashGrant`,
-/// `StaticPlayFromGraveyard`, `StaticPlayFromTop` -- that were also missing from
-/// that enumeration. The full family is materially larger and more heterogeneous
-/// than a `Static`-shaped symmetric extension: several of these collections key on
-/// different field shapes (`Option<ObjectId>` vs `ObjectId` source, 1-or-2 entries
-/// per ability, no shared `(layer, duration, modification, filter)` tuple to compare
-/// against outside `state.continuous_effects`), so a precise structural remove for
-/// all nine is a distinctly larger and riskier change than the one this function
-/// already does for `Static`. Deferred rather than attempted opportunistically here;
-/// if a future DFC back face declares any of the nine, extend this function
-/// symmetrically with `register_static_continuous_effects`, collection by
-/// collection, at that time.
+/// Where a same-source duplicate genuinely could exist (Class level-up sharing a
+/// source with the transforming permanent's own registration), first-match removal
+/// picks a match closest to the removed ability's own shape (see
+/// [`remove_one_registration`]'s per-arm comparisons); where the two entries happen
+/// to be field-identical, removing either is observationally identical.
+///
+/// Ordering invariant preserved by [`apply_face_change`] (do not reorder): deregister
+/// OLD (this function, reads the old face) -> flip `is_transformed` -> rebuild
+/// Channel-A -> register NEW.
+///
+/// Drift guard: `tests/core/face_dereg_parity.rs` source-scans this function's body
+/// against `register_static_continuous_effects`'s and asserts the same
+/// `AbilityDefinition::<Name>` set appears in both, so a family added to one and not
+/// the other fails the build rather than silently reopening this hole.
 pub(crate) fn deregister_face_statics(
     state: &mut GameState,
     obj_id: ObjectId,
     old_face_abilities: &[AbilityDefinition],
 ) {
     for ability in old_face_abilities {
-        if let AbilityDefinition::Static { continuous_effect } = ability {
+        remove_one_registration(state, obj_id, ability);
+    }
+}
+/// The exact inverse of one `register_static_continuous_effects` match arm.
+/// Removes AT MOST the number of entries that arm would have registered (one, or
+/// two for `CdaModifyPowerToughness`), matching structurally on `source == obj_id`
+/// plus that family's identifying fields. Arms are in the same order as
+/// `register_static_continuous_effects`'s match.
+fn remove_one_registration(state: &mut GameState, obj_id: ObjectId, ability: &AbilityDefinition) {
+    match ability {
+        // CR 604.1 / 613: a plain static continuous effect.
+        AbilityDefinition::Static { continuous_effect } => {
             let resolved_filter = match &continuous_effect.filter {
                 EffectFilter::Source => EffectFilter::SingleObject(obj_id),
                 other => other.clone(),
             };
             if let Some(pos) = state.continuous_effects.iter().position(|e| {
                 e.source == Some(obj_id)
+                    && !e.is_cda
                     && e.layer == continuous_effect.layer
                     && e.duration == continuous_effect.duration
                     && e.modification == continuous_effect.modification
                     && e.filter == resolved_filter
+                    && e.condition == continuous_effect.condition
             }) {
                 state.continuous_effects.remove(pos);
             }
         }
+        // CR 603.2d: a Panharmonicon-style trigger-doubling effect.
+        AbilityDefinition::TriggerDoubling {
+            filter,
+            additional_triggers,
+        } => {
+            if let Some(pos) = state.trigger_doublers.iter().position(|d| {
+                d.source == obj_id
+                    && d.filter == *filter
+                    && d.additional_triggers == *additional_triggers
+            }) {
+                state.trigger_doublers.remove(pos);
+            }
+        }
+        // CR 604.1 / 603.2: a Torpor Orb-style ETB trigger suppressor -- a static
+        // ability generating a continuous effect that stops creature-ETB abilities
+        // from triggering. There is no dedicated CR subrule for this pattern (CR
+        // 614.16 exists but governs token/counter-creation replacement effects, not
+        // ETB-trigger suppression -- confirmed via the rules MCP; do not cite it).
+        AbilityDefinition::SuppressCreatureETBTriggers { filter } => {
+            if let Some(pos) = state
+                .etb_suppressors
+                .iter()
+                .position(|s| s.source == obj_id && s.filter == *filter)
+            {
+                state.etb_suppressors.remove(pos);
+            }
+        }
+        // CR 604.1: a stax/action restriction (Rule of Law, Propaganda, etc.).
+        AbilityDefinition::StaticRestriction { restriction } => {
+            if let Some(pos) = state
+                .restrictions
+                .iter()
+                .position(|r| r.source == obj_id && r.restriction == *restriction)
+            {
+                state.restrictions.remove(pos);
+            }
+        }
+        // CR 604.3 / 613.4a: CDA Layer 7a continuous effect for dynamic P/T (sets).
+        AbilityDefinition::CdaPowerToughness { power, toughness } => {
+            let modification = crate::state::continuous_effect::LayerModification::SetPtDynamic {
+                power: Box::new(power.clone()),
+                toughness: Box::new(toughness.clone()),
+            };
+            if let Some(pos) = state.continuous_effects.iter().position(|e| {
+                e.source == Some(obj_id)
+                    && e.is_cda
+                    && e.layer == crate::state::continuous_effect::EffectLayer::PtCda
+                    && e.duration
+                        == crate::state::continuous_effect::EffectDuration::WhileSourceOnBattlefield
+                    && e.filter == EffectFilter::SingleObject(obj_id)
+                    && e.modification == modification
+            }) {
+                state.continuous_effects.remove(pos);
+            }
+        }
+        // CR 604.3 / 613.4c: CDA Layer 7c continuous effect(s) for dynamic P/T
+        // (modifies) -- up to TWO entries, one per Some(power)/Some(toughness).
+        // Build the same `modifications` vector `register_static_continuous_effects`
+        // builds and remove one entry per element.
+        AbilityDefinition::CdaModifyPowerToughness { power, toughness } => {
+            let mut modifications: Vec<crate::state::continuous_effect::LayerModification> =
+                Vec::new();
+            if let Some(p) = power {
+                modifications.push(
+                    crate::state::continuous_effect::LayerModification::ModifyPowerDynamic {
+                        amount: Box::new(p.clone()),
+                        negate: false,
+                    },
+                );
+            }
+            if let Some(t) = toughness {
+                modifications.push(
+                    crate::state::continuous_effect::LayerModification::ModifyToughnessDynamic {
+                        amount: Box::new(t.clone()),
+                        negate: false,
+                    },
+                );
+            }
+            for modification in modifications {
+                if let Some(pos) = state.continuous_effects.iter().position(|e| {
+                    e.source == Some(obj_id)
+                        && e.is_cda
+                        && e.layer == crate::state::continuous_effect::EffectLayer::PtModify
+                        && e.duration
+                            == crate::state::continuous_effect::EffectDuration::WhileSourceOnBattlefield
+                        && e.filter == EffectFilter::SingleObject(obj_id)
+                        && e.modification == modification
+                }) {
+                    state.continuous_effects.remove(pos);
+                }
+            }
+        }
+        // CR 305.2: an additional-land-play source.
+        AbilityDefinition::AdditionalLandPlays { count } => {
+            if let Some(pos) = state
+                .additional_land_play_sources
+                .iter()
+                .position(|s| s.source == obj_id && s.count == *count)
+            {
+                state.additional_land_play_sources.remove(pos);
+            }
+        }
+        // CR 601.3b: a static flash grant (Yeva-style).
+        AbilityDefinition::StaticFlashGrant { filter } => {
+            if let Some(pos) = state.flash_grants.iter().position(|f| {
+                f.source == Some(obj_id)
+                    && f.filter == *filter
+                    && f.duration
+                        == crate::state::continuous_effect::EffectDuration::WhileSourceOnBattlefield
+            }) {
+                state.flash_grants.remove(pos);
+            }
+        }
+        // CR 601.3 / 305.1: a static play-from-graveyard permission.
+        AbilityDefinition::StaticPlayFromGraveyard { filter, condition } => {
+            // Hoisted out of the closure: unboxing clones the `Condition`, and doing
+            // it inside `position()` would re-clone once per scanned entry.
+            let want_condition = condition.as_ref().map(|c| *c.clone());
+            if let Some(pos) = state.play_from_graveyard_permissions.iter().position(|pm| {
+                pm.source == obj_id && pm.filter == *filter && pm.condition == want_condition
+            }) {
+                state.play_from_graveyard_permissions.remove(pos);
+            }
+        }
+        // CR 601.3: a static play-from-top-of-library permission.
+        AbilityDefinition::StaticPlayFromTop {
+            filter,
+            look_at_top,
+            reveal_top,
+            pay_life_instead,
+            condition,
+            on_cast_effect,
+        } => {
+            // Hoisted out of the closure for the same reason as the arm above.
+            let want_condition = condition.as_ref().map(|c| *c.clone());
+            if let Some(pos) = state.play_from_top_permissions.iter().position(|pm| {
+                pm.source == obj_id
+                    && pm.filter == *filter
+                    && pm.look_at_top == *look_at_top
+                    && pm.reveal_top == *reveal_top
+                    && pm.pay_life_instead == *pay_life_instead
+                    && pm.condition == want_condition
+                    && pm.on_cast_effect == *on_cast_effect
+            }) {
+                state.play_from_top_permissions.remove(pos);
+            }
+        }
+        _ => {}
     }
 }
