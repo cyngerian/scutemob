@@ -1860,34 +1860,32 @@ pub fn queue_carddef_etb_triggers(
                     ..PendingTrigger::blank(new_id, controller, PendingTriggerKind::CardDefETB)
                 });
             }
+            // CR 702.104b: "When ~ enters, if tribute wasn't paid, ..."
+            // CR 603.4: Intervening-if — only queue the trigger if tribute was not
+            // paid AND (PB-DP6) the def's own `intervening_if`, if any, also holds
+            // at queue time. Neither check alone is sufficient; both must pass for
+            // the trigger to be queued.
             AbilityDefinition::Triggered {
                 trigger_condition: TriggerCondition::TributeNotPaid,
                 intervening_if,
                 ..
-            } => {
-                // CR 702.104b: "When ~ enters, if tribute wasn't paid, ..."
-                // CR 603.4: Intervening-if — only queue trigger if tribute was not
-                // paid AND (PB-DP6) the def's own `intervening_if`, if any, also
-                // holds at queue time. Neither check alone is sufficient; both must
-                // pass for the trigger to be queued.
-                if !tribute_was_paid
-                    && crate::rules::abilities::carddef_intervening_if_holds_at_queue_time(
-                        state,
-                        intervening_if.as_ref(),
-                        controller,
-                        new_id,
-                    )
-                {
-                    state.pending_triggers.push_back(PendingTrigger {
-                        ability_index: idx,
-                        triggering_event: Some(
-                            crate::state::game_object::TriggerEvent::SelfEntersBattlefield,
-                        ),
-                        // CR 603.2d: Set entering_object_id for trigger doubling type checks.
-                        entering_object_id: Some(new_id),
-                        ..PendingTrigger::blank(new_id, controller, PendingTriggerKind::CardDefETB)
-                    });
-                }
+            } if !tribute_was_paid
+                && crate::rules::abilities::carddef_intervening_if_holds_at_queue_time(
+                    state,
+                    intervening_if.as_ref(),
+                    controller,
+                    new_id,
+                ) =>
+            {
+                state.pending_triggers.push_back(PendingTrigger {
+                    ability_index: idx,
+                    triggering_event: Some(
+                        crate::state::game_object::TriggerEvent::SelfEntersBattlefield,
+                    ),
+                    // CR 603.2d: Set entering_object_id for trigger doubling type checks.
+                    entering_object_id: Some(new_id),
+                    ..PendingTrigger::blank(new_id, controller, PendingTriggerKind::CardDefETB)
+                });
             }
             _ => {}
         }

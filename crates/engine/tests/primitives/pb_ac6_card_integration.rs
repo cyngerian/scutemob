@@ -802,14 +802,17 @@ fn test_land_tax_upkeep_search_gated_by_opponent_lands() {
         // step and pull "Basic Unused" into hand for an unrelated reason, which would
         // make the assertion below meaningless.
         //
-        // NOTE (OOS-AC6-2): strictly, CR 603.4 says an intervening-if ability does not
-        // trigger *at all* when its condition is false, so the stack should stay empty
-        // here. The engine's generic upkeep sweep instead queues the trigger
-        // unconditionally and evaluates `intervening_if` at resolution. That is
-        // pre-existing sweep behavior shared by every `AtBeginningOfYourUpkeep` CardDef
-        // trigger, not something PB-AC6 introduced, so this test asserts the observable
-        // game state (no search occurred) rather than the stack contents.
+        // OOS-AC6-2 CLOSED by PB-DP6 (`scutemob-154`, CR 603.4): the generic upkeep
+        // sweep now checks `intervening_if` at QUEUE time (not only at resolution),
+        // so the trigger never reaches the stack at all when the condition is false
+        // -- exactly what CR 603.4's first sentence requires. The stack-emptiness
+        // assertion below is now the CR-correct claim, not merely the observable
+        // game-state fallback the old comment settled for.
         let state = advance_to_step(state, Step::Upkeep);
+        assert!(
+            state.stack_objects().is_empty(),
+            "CR 603.4: equal land counts must never even queue the trigger"
+        );
         let state = resolve_stack(state, &[p1, p2]);
 
         assert!(
