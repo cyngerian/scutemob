@@ -108,9 +108,13 @@ pub fn handling(ability: &AbilityDefinition) -> AbilityHandling {
             ],
         },
         A::Spell { .. } => AbilityHandling::Handled {
+            // PB-DP3: `crates/simulator/src/legal_actions.rs::spell_default_modes` matches
+            // on `AbilityDefinition::Spell { modes: Some(m), .. }` to derive a bot's default
+            // mode announcement (CR 601.2b/700.2a) -- real dispatch, not just a name mention.
             sites: &[
                 "crates/engine/src/rules/casting.rs",
                 "crates/engine/src/rules/resolution.rs",
+                "crates/simulator/src/legal_actions.rs",
             ],
         },
         A::Replacement { .. } => AbilityHandling::Handled {

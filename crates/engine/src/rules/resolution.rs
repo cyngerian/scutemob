@@ -333,8 +333,28 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                             ((escalate_count as usize) + 1).min(modes.modes.len());
                                         (0..count).collect()
                                     } else if !modes.modes.is_empty() {
-                                        // Auto-select first mode (default for bots and backward
-                                        // compat with existing scripts/tests).
+                                        // Post-PB-DP3: this is NOT a bot/backward-compat
+                                        // default anymore — `handle_cast_spell` (casting.rs,
+                                        // Change 1) now rejects an empty `modes_chosen` on any
+                                        // modal Spell before mana is paid (CR 601.2b/700.2a).
+                                        // This arm survives ONLY because four producers build a
+                                        // `StackObjectKind::Spell` with `modes_chosen: vec![]`
+                                        // WITHOUT ever calling `handle_cast_spell`, so PB-DP3's
+                                        // cast-time guard cannot reach them: cascade free-cast
+                                        // (copy.rs:386), discover free-cast (copy.rs:614), cipher
+                                        // copy free-cast (resolution.rs:5167) and suspend
+                                        // free-cast (resolution.rs:5837) — the latter two both go
+                                        // through `StackObject::trigger_default`
+                                        // (crates/card-types/src/state/stack.rs:517-555), which
+                                        // zero-fills `modes_chosen`. (The four `engine.rs` stack
+                                        // builds at :2068/:2132/:2649/:2817 build RingAbility /
+                                        // RoomAbility / LoyaltyAbility / ClassLevelAbility, NOT
+                                        // Spell — they cannot reach this match arm at all.)
+                                        // Deleting this arm would silently make every cascaded,
+                                        // discovered, ciphered or suspended modal spell resolve
+                                        // NOTHING. Tracked as DP-20 / OOS-DP3-3 — that is where
+                                        // the eventual fix (announcing modes for those four
+                                        // producers too) belongs, not here.
                                         vec![0]
                                     } else {
                                         vec![]

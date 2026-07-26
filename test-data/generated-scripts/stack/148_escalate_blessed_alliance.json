@@ -4,7 +4,7 @@
     "id": "script_stack_148",
     "name": "Escalate — Blessed Alliance modes 0 and 0+1",
     "description": "Tests the Escalate keyword (CR 702.120) using Blessed Alliance. Scenario 1: cast with no escalate payment — only mode 0 fires (target player gains 4 life), costing {1}{W}. Scenario 2: cast with escalate_modes=1 — modes 0 and 1 both fire (target player gains 4 life, then two creatures are untapped), costing {1}{W} plus the escalate cost {2} = {3}{W} total. p2 has two tapped Llanowar Elves that serve as untap targets for mode 1. All four declared targets are provided in both casts as required by the card definition's shared target list.",
-    "cr_sections_tested": ["601.2", "608.2", "118.2", "702.120"],
+    "cr_sections_tested": ["601.2", "601.2b", "608.2", "118.2", "702.120"],
     "corner_case_ref": null,
     "tags": ["stack", "instant", "escalate", "modal", "life-gain", "untap"],
     "confidence": "high",
@@ -89,10 +89,11 @@
             { "type": "creature", "player": null, "card": "Llanowar Elves", "controller": "p2" },
             { "type": "player", "player": "p2", "card": null, "controller": null }
           ],
+          "modes": [0],
           "mana_paid": { "colorless": 1, "white": 1 },
           "mana_source": [],
           "cr_ref": "601.2",
-          "note": "CR 601.2: p1 casts Blessed Alliance for {1}{W} (no escalate). Mode 0 selected: target p1 gains 4 life. All 4 shared targets declared per card definition."
+          "note": "CR 601.2: p1 casts Blessed Alliance for {1}{W} (no escalate). Mode 0 selected: target p1 gains 4 life. All 4 shared targets declared per card definition. CR 601.2b: the mode is announced at cast time (PB-DP3); the engine no longer auto-selects mode 0."
         },
         {
           "type": "assert_state",
