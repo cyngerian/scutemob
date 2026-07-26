@@ -328,10 +328,14 @@ impl<P: LegalActionProvider> LocalGame<P> {
             // blocking, so offering that first would produce a command the
             // engine refuses and `advance()` would return
             // `Halted(EngineError)`.
-            let (acting_player, forced_kind) = if let Some(entry) =
-                self.state.pending_cleanup_discard()
+            // Fix-cycle Finding 4 (MEDIUM): read the liveness-filtered
+            // predicate, not the raw `pending_cleanup_discard()` field -- a
+            // dead active player's stale entry must not make `LocalGame`
+            // resolve `acting_player` to a player who can never answer.
+            let (acting_player, forced_kind) = if let Some(decision) =
+                self.state.blocking_decision()
             {
-                (entry.player, Some(DecisionKind::CleanupDiscard))
+                (decision.player(), Some(DecisionKind::CleanupDiscard))
             } else if let Some(pending) = self.state.pending_commander_zone_choices().iter().next()
             {
                 (pending.0, Some(DecisionKind::CommanderZoneChoice))

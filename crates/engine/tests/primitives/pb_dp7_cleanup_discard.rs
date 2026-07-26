@@ -233,15 +233,86 @@ fn test_dp7_unrelated_command_rejected_while_blocked() {
     );
 }
 
+/// CR 514.1 / CR 703.4n (fix-cycle Finding 2, HIGH): `Command::DiscardToHandSize`
+/// must be rejected outside `Step::Cleanup`, even if a `pending_cleanup_discard`
+/// entry happens to exist (a state that should be unreachable post-Finding-1,
+/// but the handler must not rely on that alone -- defense in depth). Without
+/// this check, a stale entry recorded outside cleanup would let
+/// `process_command`'s unconditional `enter_step` resume re-run whatever
+/// turn-based actions belong to whatever step is CURRENTLY active.
+#[test]
+fn test_dp7_discard_rejected_outside_cleanup_step() {
+    let state = build_oversized_hand(9, false);
+    let (mut state, _) = advance_to_cleanup_block(state);
+    assert_eq!(state.turn().step, Step::Cleanup);
+    let hand = state.zone(&ZoneId::Hand(p(1))).unwrap().object_ids();
+
+    // Force the step to something other than Cleanup while the entry is
+    // still outstanding -- the unreachable-in-practice state the handler's
+    // own check must guard against regardless.
+    state.turn_mut().step = Step::End;
+    let hash_before = state.public_state_hash();
+
+    let handler_result = mtg_engine::rules::turn_actions::handle_discard_to_hand_size(
+        &mut state.clone(),
+        p(1),
+        hand[..2].to_vec(),
+    );
+    assert!(
+        matches!(handler_result, Err(GameStateError::InvalidCommand(_))),
+        "the handler must reject a discard offered outside Step::Cleanup: {:?}",
+        handler_result
+    );
+    assert_eq!(
+        state.public_state_hash(),
+        hash_before,
+        "a rejected discard must leave the state untouched"
+    );
+}
+
 // ── T4: Concede clears the entry ─────────────────────────────────────────────
 
 /// CR 104.3a / PB-DP7 §1.4: `Concede` is accepted at all times, even while
 /// blocked -- refusing it would make a blocked game unquittable.
+///
+/// Fix-cycle Finding 5 (MEDIUM): also asserts that conceding while blocked
+/// does NOT abandon the rest of CR 514.2 for the conceded turn (CR 800.4j)
+/// -- the damage clear must still run and an `UntilEndOfTurn` effect
+/// registered on that turn must still expire.
 #[test]
 fn test_dp7_concede_while_blocked_clears_entry() {
-    let state = build_oversized_hand(9, false);
+    let mut builder = GameStateBuilder::new()
+        .add_player(p(1))
+        .add_player(p(2))
+        .add_player(p(3))
+        .add_player(p(4))
+        .active_player(p(1))
+        .at_step(Step::End)
+        .object(ObjectSpec::creature(p(1), "Damaged Bear", 4, 4).in_zone(ZoneId::Battlefield));
+    for i in 0..9u32 {
+        builder = builder
+            .object(ObjectSpec::card(p(1), &format!("Card {i}")).in_zone(ZoneId::Hand(p(1))));
+    }
+    let mut state = builder.build().unwrap();
+    let bear = find_object(&state, "Damaged Bear");
+    state.objects_mut().get_mut(&bear).unwrap().damage_marked = 3;
+    state.continuous_effects_mut().push_back(ContinuousEffect {
+        id: EffectId(1),
+        source: Some(bear),
+        timestamp: 10,
+        layer: EffectLayer::Ability,
+        duration: EffectDuration::UntilEndOfTurn,
+        filter: EffectFilter::SingleObject(bear),
+        modification: LayerModification::ModifyPower(1),
+        is_cda: false,
+        condition: None,
+    });
+
     let (state, _) = advance_to_cleanup_block(state);
     assert!(state.pending_cleanup_discard().is_some());
+    // CR 514.2 must not have run yet -- this is the premise Finding 5 checks.
+    assert_eq!(state.objects().get(&bear).unwrap().damage_marked, 3);
+    assert_eq!(state.continuous_effects().len(), 1);
 
     let (state, events) = process_command(state, Command::Concede { player: p(1) })
         .expect("Concede must be accepted while blocked");
@@ -253,9 +324,78 @@ fn test_dp7_concede_while_blocked_clears_entry() {
     assert!(events
         .iter()
         .any(|e| matches!(e, GameEvent::PlayerConceded { player } if *player == p(1))));
+    assert!(
+        events.iter().any(|e| matches!(e, GameEvent::DamageCleared)),
+        "CR 514.2's damage clear must still run for the abandoned turn (CR 800.4j)"
+    );
+    assert_eq!(
+        state.objects().get(&bear).unwrap().damage_marked,
+        0,
+        "damage must have been cleared even though the active player conceded"
+    );
+    assert!(
+        state.continuous_effects().is_empty(),
+        "the UntilEndOfTurn effect registered on the conceded turn must have expired"
+    );
     // The game must not hang: the next player's turn should now be active
     // (or the game concluded), never a dangling block.
     assert!(state.turn().active_player != p(1) || state.active_players().len() <= 1);
+}
+
+// ── Finding 1 coverage: a dead active player never gets an entry ────────────
+
+/// CR 800.4j / CR 514.1 (fix-cycle Finding 1, HIGH): a dead active player
+/// must NEVER get a pending cleanup-discard entry -- CR 514.2 (damage clear,
+/// "until end of turn" expiry) must still run for the turn, and the turn
+/// must still complete, exactly as CR 800.4j requires ("that turn continues
+/// to its completion without an active player").
+#[test]
+fn test_dp7_dead_active_player_no_entry_and_turn_completes() {
+    let mut builder = GameStateBuilder::new()
+        .add_player(p(1))
+        .add_player(p(2))
+        .add_player(p(3))
+        .add_player(p(4))
+        .active_player(p(1))
+        .at_step(Step::End);
+    for i in 0..9u32 {
+        builder = builder
+            .object(ObjectSpec::card(p(1), &format!("Card {i}")).in_zone(ZoneId::Hand(p(1))));
+    }
+    let mut state = builder.build().unwrap();
+    // p(1) has already lost (e.g. an empty-library draw earlier this turn),
+    // and priority has already moved off them per `enter_step`'s
+    // is-active-player-alive branch -- simulate that by handing priority to
+    // the next player directly, matching the state `enter_step` would have
+    // already produced.
+    state.players_mut().get_mut(&p(1)).unwrap().has_lost = true;
+    state.turn_mut().priority_holder = Some(p(2));
+
+    let (state, events) = pass_all(state, &[p(2), p(3), p(4)]);
+
+    assert!(
+        state.pending_cleanup_discard().is_none(),
+        "a dead active player must never get a pending cleanup discard entry"
+    );
+    assert!(!events
+        .iter()
+        .any(|e| matches!(e, GameEvent::CleanupDiscardChoiceRequired { .. })));
+    assert!(
+        events.iter().any(|e| matches!(e, GameEvent::DamageCleared)),
+        "CR 514.2 must still run for the abandoned turn"
+    );
+    let cleanup_performed_count = events
+        .iter()
+        .filter(|e| matches!(e, GameEvent::CleanupPerformed))
+        .count();
+    assert_eq!(
+        cleanup_performed_count, 1,
+        "CR 514.2 must run exactly once for the abandoned turn"
+    );
+    assert!(
+        state.turn().turn_number > 1,
+        "the turn must complete even without a living active player (CR 800.4j)"
+    );
 }
 
 // ── T5: chosen cards are discarded, not the auto-pick ────────────────────────
@@ -314,6 +454,21 @@ fn test_dp7_chosen_cards_are_discarded_not_the_highest_ids() {
 fn test_dp7_madness_does_not_fire_on_an_unchosen_card() {
     let state = build_oversized_hand(8, true);
     let (state, _) = advance_to_cleanup_block(state);
+
+    // Fix-cycle Finding 13 (MEDIUM, test-validity): this test only
+    // discriminates the fix from the old auto-pick if Fiery Temper holds the
+    // HIGHEST `ObjectId` in P1's hand (`build_oversized_hand` adds it last,
+    // per its own doc comment, but nothing asserted that). Self-guard the
+    // premise the way T5 does, so a future change to `GameStateBuilder`'s id
+    // assignment cannot make this test pass vacuously.
+    let temper_id = find_object(&state, "Fiery Temper");
+    let mut hand_ids = state.zone(&ZoneId::Hand(p(1))).unwrap().object_ids();
+    hand_ids.sort();
+    assert_eq!(
+        temper_id,
+        *hand_ids.last().unwrap(),
+        "T6 only discriminates the fix if Fiery Temper is the pre-fix auto-pick target (the highest ObjectId)"
+    );
 
     let filler_id = find_object(&state, "Filler 0");
     let (state, _) = process_command(
@@ -387,20 +542,30 @@ fn test_dp7_madness_fires_on_a_chosen_card() {
             .any(|o| o.characteristics.name == "Fiery Temper" && o.zone == ZoneId::Exile),
         "Fiery Temper must be exiled (CR 702.35a)"
     );
-    let madness_trigger = state
+    // Fix-cycle Finding 15 (LOW): `is_some() || on_stack` only proved "at
+    // least one somewhere", which is also satisfied by a bug that queues TWO
+    // triggers (one pending, one already flushed). Count both locations and
+    // assert the total is EXACTLY one.
+    let madness_trigger_count = state
         .pending_triggers()
         .iter()
-        .find(|t| t.kind == PendingTriggerKind::Madness);
+        .filter(|t| t.kind == PendingTriggerKind::Madness)
+        .count();
     // By the time this call returns, `enter_step` has already flushed the
     // trigger onto the stack (plan §4.3 "Path 2"), so check the stack too.
-    let on_stack = state
+    let on_stack_count = state
         .stack_objects()
         .iter()
-        .any(|so| matches!(&so.kind, StackObjectKind::MadnessTrigger { .. }));
-    assert!(
-        madness_trigger.is_some() || on_stack,
-        "exactly one Madness trigger must be queued or on the stack"
+        .filter(|so| matches!(&so.kind, StackObjectKind::MadnessTrigger { .. }))
+        .count();
+    assert_eq!(
+        madness_trigger_count + on_stack_count,
+        1,
+        "exactly one Madness trigger must be queued or on the stack, got {} pending + {} on stack",
+        madness_trigger_count,
+        on_stack_count
     );
+    let on_stack = on_stack_count == 1;
     if on_stack {
         let cost = state.stack_objects().iter().find_map(|so| {
             if let StackObjectKind::MadnessTrigger { madness_cost, .. } = &so.kind {
@@ -423,6 +588,16 @@ fn test_dp7_madness_fires_on_a_chosen_card() {
 
 /// CR 514.1 (plan §2.4): every validation failure is rejected and leaves the
 /// state untouched.
+///
+/// Fix-cycle Finding 12 (MEDIUM, test-validity): every case now asserts the
+/// DISTINCT error variant, not merely `is_err()` -- an `is_err()`-only
+/// assertion cannot tell an admission-gate rejection from a handler-level
+/// validation rejection, which is exactly how case 7 (wrong sender) went
+/// unnoticed for reaching only the ADMISSION gate
+/// (`GameStateError::BlockedByPendingDecision`) and never the handler's own
+/// SR-29 sender check (`GameStateError::InvalidCommand`). Case 7b below now
+/// exercises that handler-level check directly. Case 4 (an id in a DIFFERENT
+/// player's hand) is also no longer skipped.
 #[test]
 fn test_dp7_answer_validation() {
     let state = build_oversized_hand(9, false);
@@ -441,7 +616,11 @@ fn test_dp7_answer_validation() {
             cards: vec![id_a],
         },
     );
-    assert!(r.is_err(), "under-supply must be rejected");
+    assert!(
+        matches!(r, Err(GameStateError::InvalidCommand(_))),
+        "under-supply must be rejected with InvalidCommand: {:?}",
+        r
+    );
 
     // 2. Wrong count, too high (3 instead of 2).
     let id_c = hand_ids[2];
@@ -452,7 +631,11 @@ fn test_dp7_answer_validation() {
             cards: vec![id_a, id_b, id_c],
         },
     );
-    assert!(r.is_err(), "over-supply must be rejected");
+    assert!(
+        matches!(r, Err(GameStateError::InvalidCommand(_))),
+        "over-supply must be rejected with InvalidCommand: {:?}",
+        r
+    );
 
     // 3. Duplicate id.
     let r = process_command(
@@ -462,11 +645,51 @@ fn test_dp7_answer_validation() {
             cards: vec![id_a, id_a],
         },
     );
-    assert!(r.is_err(), "duplicate ids must be rejected");
+    assert!(
+        matches!(r, Err(GameStateError::InvalidCommand(_))),
+        "duplicate ids must be rejected with InvalidCommand: {:?}",
+        r
+    );
 
-    // 4. An id from a DIFFERENT player's hand (SR-29 / OOS-DP2-1 shape).
-    // p(2) has no hand cards here, so use a synthetic id that does not
-    // resolve to an object -- covered together with case 6.
+    // 4. An id from a DIFFERENT player's hand (SR-29 / OOS-DP2-1 shape) --
+    // genuinely exercised now, not skipped: give p(2) a hand card and try to
+    // discard it as part of p(1)'s answer. Must be rejected as "not in the
+    // SENDER's own hand" (`ObjectNotInZone`), not merely "the id exists
+    // somewhere".
+    let state_with_p2_hand = {
+        let mut b = GameStateBuilder::new()
+            .add_player(p(1))
+            .add_player(p(2))
+            .add_player(p(3))
+            .add_player(p(4))
+            .active_player(p(1))
+            .at_step(Step::End)
+            .object(ObjectSpec::card(p(2), "P2 Card").in_zone(ZoneId::Hand(p(2))));
+        for i in 0..9u32 {
+            b = b
+                .object(ObjectSpec::card(p(1), &format!("Filler {i}")).in_zone(ZoneId::Hand(p(1))));
+        }
+        b.build().unwrap()
+    };
+    let (state_with_p2_hand, _) = advance_to_cleanup_block(state_with_p2_hand);
+    let p2_card_id = find_object(&state_with_p2_hand, "P2 Card");
+    let one_p1_hand_id = state_with_p2_hand
+        .zone(&ZoneId::Hand(p(1)))
+        .unwrap()
+        .object_ids()[0];
+    let r = process_command(
+        state_with_p2_hand.clone(),
+        Command::DiscardToHandSize {
+            player: p(1),
+            cards: vec![p2_card_id, one_p1_hand_id],
+        },
+    );
+    assert!(
+        matches!(&r, Err(GameStateError::ObjectNotInZone(id, zone))
+            if *id == p2_card_id && *zone == ZoneId::Hand(p(1))),
+        "an id from a DIFFERENT player's hand must be rejected as not in the sender's own hand: {:?}",
+        r
+    );
 
     // 5. An id on the battlefield, not in hand.
     let state_with_bf = {
@@ -497,7 +720,12 @@ fn test_dp7_answer_validation() {
             cards: vec![bear_id, one_hand_id],
         },
     );
-    assert!(r.is_err(), "a battlefield object id must be rejected");
+    assert!(
+        matches!(&r, Err(GameStateError::ObjectNotInZone(id, zone))
+            if *id == bear_id && *zone == ZoneId::Hand(p(1))),
+        "a battlefield object id must be rejected as not in hand: {:?}",
+        r
+    );
 
     // 6. Unknown ObjectId.
     let r = process_command(
@@ -507,9 +735,19 @@ fn test_dp7_answer_validation() {
             cards: vec![id_a, ObjectId(999_999_999)],
         },
     );
-    assert!(r.is_err(), "an unknown ObjectId must be rejected");
+    assert!(
+        matches!(
+            r,
+            Err(GameStateError::ObjectNotFound(ObjectId(999_999_999)))
+        ),
+        "an unknown ObjectId must be rejected with ObjectNotFound: {:?}",
+        r
+    );
 
-    // 7. Wrong sender (p(2) tries to answer p(1)'s pending discard).
+    // 7. Wrong sender via `process_command` (p(2) tries to answer p(1)'s
+    // pending discard). This is intercepted by the ADMISSION gate
+    // (`process_command`'s `blocking_decision` check), which never lets the
+    // command reach the handler at all.
     let r = process_command(
         state.clone(),
         Command::DiscardToHandSize {
@@ -517,7 +755,26 @@ fn test_dp7_answer_validation() {
             cards: vec![id_a, id_b],
         },
     );
-    assert!(r.is_err(), "a non-active-player sender must be rejected");
+    assert!(
+        matches!(r, Err(GameStateError::BlockedByPendingDecision { .. })),
+        "a non-active-player sender must be rejected by the admission gate: {:?}",
+        r
+    );
+
+    // 7b. Wrong sender reaching the HANDLER's own SR-29 check directly,
+    // bypassing `process_command`'s admission gate entirely -- this is the
+    // check case 7 could never exercise.
+    let mut handler_state = state.clone();
+    let handler_result = mtg_engine::rules::turn_actions::handle_discard_to_hand_size(
+        &mut handler_state,
+        p(2),
+        vec![id_a, id_b],
+    );
+    assert!(
+        matches!(handler_result, Err(GameStateError::InvalidCommand(_))),
+        "the handler's own sender check must reject a mismatched player with InvalidCommand: {:?}",
+        handler_result
+    );
 
     assert_eq!(
         state.public_state_hash(),
@@ -590,6 +847,9 @@ fn test_dp7_no_max_hand_size_never_pauses_layer_granted() {
         .iter()
         .any(|e| matches!(e, GameEvent::CleanupDiscardChoiceRequired { .. })));
     assert_eq!(state.zone(&ZoneId::Hand(p(1))).unwrap().len(), 10);
+    // Fix-cycle Finding 16 (LOW): T9(a) asserted the turn advanced; T9(b)
+    // did not, though the setup is otherwise identical in intent.
+    assert!(state.turn().turn_number > 1, "turn must have advanced");
 }
 
 /// CR 402.2 (c): the persistent `no_max_hand_size_permanent` designation
@@ -618,6 +878,9 @@ fn test_dp7_no_max_hand_size_never_pauses_persistent_designation() {
         .iter()
         .any(|e| matches!(e, GameEvent::CleanupDiscardChoiceRequired { .. })));
     assert_eq!(state.zone(&ZoneId::Hand(p(1))).unwrap().len(), 10);
+    // Fix-cycle Finding 16 (LOW): T9(a) asserted the turn advanced; T9(c)
+    // did not, though the setup is otherwise identical in intent.
+    assert!(state.turn().turn_number > 1, "turn must have advanced");
 }
 
 // ── T10: CR 514.2 is deferred until the answer (hard constraint 7) ──────────
@@ -720,8 +983,22 @@ fn test_dp7_madness_discard_runs_an_extra_cleanup_round() {
     // 514.3a's non-advance guard); a SECOND cleanup round (with an empty
     // stack) is required before the turn finally advances. One `pass_all`
     // cycle resolves the stack object; a second drains the resulting round.
+    //
+    // Fix-cycle Finding 14 (LOW): the loop below used to only assert the
+    // EVENTUAL turn advance, never the non-advance the comment above claims
+    // for round 1 -- so a regression that advanced the turn a round early
+    // would have passed silently. Round 1 is unrolled explicitly to assert
+    // CR 514.3a's non-advance behaviour before falling into the loop for the
+    // (predicted, per plan §4.3) single remaining round.
+    let (state, _) = pass_all(state, &[p(1), p(2), p(3), p(4)]);
+    assert_eq!(
+        state.turn().turn_number,
+        1,
+        "CR 514.3a: the turn must NOT advance on the round that merely resolves the MadnessTrigger"
+    );
+
     let mut state = state;
-    let mut rounds = 0;
+    let mut rounds = 1;
     while state.turn().turn_number == 1 && rounds < 10 {
         let (new_state, _) = pass_all(state, &[p(1), p(2), p(3), p(4)]);
         state = new_state;
@@ -731,6 +1008,100 @@ fn test_dp7_madness_discard_runs_an_extra_cleanup_round() {
         state.turn().turn_number > 1,
         "the turn must advance once round 2 finds nothing left to do"
     );
+    assert_eq!(
+        rounds, 2,
+        "plan §4.3 predicts exactly one extra cleanup round after the discard round"
+    );
+}
+
+// ── T11b: a SECOND pause within the same turn (Finding 18 coverage gap) ─────
+
+/// CR 514.3a / CR 514.1 (fix-cycle Finding 18): CR 514.3a says "another
+/// cleanup step begins" whenever SBAs/triggers fire during cleanup -- and
+/// each such re-entry into `cleanup_actions` legitimately re-applies CR 514.1
+/// from scratch. If the hand is oversized AGAIN when that happens (e.g. a
+/// "draw a card" trigger resolving mid-cleanup), the engine must pause a
+/// SECOND time in the same turn, not assume the discard is a one-shot event.
+/// No test exercised this before the fix cycle.
+#[test]
+fn test_dp7_second_pause_within_the_same_turn() {
+    let state = build_oversized_hand(9, false);
+    let (mut state, _) = advance_to_cleanup_block(state);
+    let turn_after_first_pause = state.turn().turn_number;
+
+    // Answer the first pause via the HANDLER directly (not `process_command`):
+    // `process_command`'s dispatch arm also resumes `enter_step`, and with
+    // nothing else pending that resume auto-advances all the way past
+    // Cleanup (CR 514.3: no priority there) to the next turn's first
+    // priority-granting step -- which would make this test's own premise
+    // (a second pause in the SAME turn) impossible to set up. Calling the
+    // handler directly answers CR 514.1 without triggering that resume, the
+    // same "hold the moment still to test it" technique T16's rebuild and
+    // `test_dp7_discard_rejected_outside_cleanup_step` both use.
+    let hand = state.zone(&ZoneId::Hand(p(1))).unwrap().object_ids();
+    let _events = mtg_engine::rules::turn_actions::handle_discard_to_hand_size(
+        &mut state,
+        p(1),
+        hand[..2].to_vec(),
+    )
+    .unwrap();
+    assert!(state.pending_cleanup_discard().is_none());
+    assert_eq!(state.zone(&ZoneId::Hand(p(1))).unwrap().len(), 7);
+    assert_eq!(
+        state.turn().turn_number,
+        turn_after_first_pause,
+        "still the same turn after the first answer (no resume was triggered)"
+    );
+
+    // Simulate an extra CR 514.3a round leaving the hand oversized again
+    // (e.g. a "draw a card" trigger resolving off the stack mid-cleanup) by
+    // adding two objects directly to the hand and re-invoking
+    // `cleanup_actions` -- the same direct-call pattern §4.2 already
+    // establishes as safe for isolated `cleanup_actions` coverage
+    // (PB-AC8/PB-AC9's precedent, and this file's own T16 rebuild).
+    for i in 0..2 {
+        let extra = mtg_engine::effects::make_token(
+            &mtg_engine::cards::card_definition::TokenSpec {
+                name: format!("Extra Card {i}"),
+                ..Default::default()
+            },
+            p(1),
+        );
+        mtg_engine::state::test_util::add_object(&mut state, extra, ZoneId::Hand(p(1)))
+            .expect("add extra hand card");
+    }
+    assert_eq!(state.zone(&ZoneId::Hand(p(1))).unwrap().len(), 9);
+
+    let events = mtg_engine::rules::turn_actions::cleanup_actions(&mut state);
+    let entry = state.pending_cleanup_discard().expect(
+        "a SECOND cleanup discard must be pending -- CR 514.3a legitimately \
+         re-applies CR 514.1 every time a new cleanup step begins",
+    );
+    assert_eq!(entry.player, p(1));
+    assert_eq!(entry.count, 2);
+    assert!(events
+        .iter()
+        .any(|e| matches!(e, GameEvent::CleanupDiscardChoiceRequired { .. })));
+    assert_eq!(
+        state.turn().turn_number,
+        turn_after_first_pause,
+        "the second pause must still be within the SAME turn"
+    );
+
+    // Answer the second pause too, proving the SAME machinery (not a
+    // one-shot) resolves it.
+    let hand2 = state.zone(&ZoneId::Hand(p(1))).unwrap().object_ids();
+    let events2 = mtg_engine::rules::turn_actions::handle_discard_to_hand_size(
+        &mut state,
+        p(1),
+        hand2[..2].to_vec(),
+    )
+    .unwrap();
+    assert!(state.pending_cleanup_discard().is_none());
+    assert!(events2
+        .iter()
+        .any(|e| matches!(e, GameEvent::DiscardedToHandSize { .. })));
+    assert_eq!(state.zone(&ZoneId::Hand(p(1))).unwrap().len(), 7);
 }
 
 // ── T12: three discards, one command (hard constraint 8) ────────────────────
@@ -782,24 +1153,29 @@ fn test_dp7_default_pick_reproduces_pre_pb_behaviour() {
 }
 
 // ── T17: the pending entry participates in the state hash ───────────────────
-
-/// SR-9b: two states differing only in `pending_cleanup_discard` must hash
-/// differently, so hidden-decision states cannot collide.
-#[test]
-fn test_dp7_pending_entry_is_hashed() {
-    let state = build_oversized_hand(9, false);
-    let (blocked, _) = advance_to_cleanup_block(state.clone());
-    assert!(blocked.pending_cleanup_discard().is_some());
-
-    // A same-shape state that never entered cleanup has no pending entry.
-    let unblocked = build_oversized_hand(9, false);
-
-    assert_ne!(
-        blocked.public_state_hash(),
-        unblocked.public_state_hash(),
-        "a blocked and an unblocked state must not hash identically"
-    );
-}
+//
+// Fix-cycle Finding 11 (MEDIUM, test-validity): this test used to compare
+// `advance_to_cleanup_block(state.clone())` against a FRESHLY BUILT state,
+// which differs in `turn.step`, `turn.priority_holder`, `turn.players_passed`
+// and whatever else the four passes moved -- not just `pending_cleanup_discard`.
+// It would have passed unchanged even if
+// `self.pending_cleanup_discard.hash_into(&mut hasher)` were deleted from
+// `public_state_hash`, i.e. it was vacuous.
+//
+// No black-box (`crates/engine/tests/`) fixture can isolate JUST this one
+// field without either (a) a test-only mutator that would widen the crate's
+// public surface for no production reason, or (b) comparing two states built
+// by two independent call sequences, which reintroduces exactly the
+// multi-field-delta problem above. Rather than ship a second vacuous variant,
+// this is deleted in favor of the gate that already machine-proves the
+// property with a single-field guarantee no integration test can match: the
+// SR-19 `every_hashed_struct_field_is_hashed_or_allowlisted` gate
+// (`crates/engine/tests/core/hash_schema.rs`, `NOT_HASHED` allowlist empty)
+// walks `PendingCleanupDiscard`'s own field list and fails the build if
+// either `player` or `count` is ever added without a matching `hash_into`
+// line -- which is strictly stronger than a two-state hash inequality check,
+// and it fails at compile/reflection time rather than depending on a
+// hand-built fixture staying in sync.
 
 // ── T18: serde round-trip ────────────────────────────────────────────────────
 

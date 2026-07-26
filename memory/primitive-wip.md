@@ -18,7 +18,7 @@
 - **Branch**: `feat/pb-dp7-cleanup-discard-command-pilot-for-blocking-pending-de`
 - **Class**: CORRECTNESS (Tier 0, class **B**). Rank 7 of the PB-DP suite, and the **first
   wire change** of the suite.
-- **Phase**: implement
+- **Phase**: fix
 - **Binding spec**: `docs/audits/decision-point-audit.md`
   - §4.11 table, **line 400** — the "Hand-size discard | 514.1 | **B**" row
   - §5 **line 449** (DP-3 row) — the finding proper, with both cited sites
@@ -575,3 +575,142 @@ Two conclusions:
    output across a wire-breaking change is precisely what hard constraint 5 asked for. Note the
    `Errors: 30` line is the max-turns classification, not a regression — it is present on both
    sides.
+
+---
+
+## Fix cycle (runner close-out)
+
+**Review**: `memory/primitives/pb-review-DP7.md` (18 findings, verdict *needs-fix*).
+**Base for this cycle**: `c47f0469` (implementation + fuzzer-receipt commits collected).
+All 18 findings dispositioned; every FIX directive applied. Wire fingerprints **unmoved**
+(PROTOCOL 28 / HASH 65 — no new `Command`/`GameEvent` variant, no new `GameState` field; only
+visibility changes to the pre-existing `BlockingDecision` type, which is outside the SR-8 wire
+closure).
+
+### Disposition table
+
+| # | Sev | Disposition | Where |
+|---|-----|-------------|-------|
+| 1 | HIGH | **Fixed.** `cleanup_actions` now guards the recording branch on `active_is_alive` (`!p.has_lost && !p.has_conceded`); a dead/conceded active player is skipped entirely and the function falls through to CR 514.2. | `turn_actions.rs::cleanup_actions` |
+| 2 | HIGH | **Fixed.** `handle_discard_to_hand_size` rejects with `InvalidCommand` unless `state.turn.step == Step::Cleanup`, as the very first check. `process_command`'s `enter_step` resume also gained a defense-in-depth `debug_assert_eq!` + explicit step guard. | `turn_actions.rs::handle_discard_to_hand_size`, `engine.rs::process_command` |
+| 3 | MEDIUM | **Fixed.** `BlockingDecision`'s doc comment rewritten to state precisely which sites are variant-generic (the progress gate) and which are not (the admission gate's allow-list; consumer sites). | `engine.rs` |
+| 4 | MEDIUM | **Fixed.** `BlockingDecision` + `BlockingDecision::player()` promoted `pub`; new `GameState::blocking_decision()` liveness-aware accessor added; all three consumers (`StubProvider::legal_actions`, `LocalGame::advance`, `PlayApp::acting_player`) rewired onto it. | `engine.rs`, `state/mod.rs`, `legal_actions.rs`, `local_game.rs`, `tools/tui/src/play/app.rs` |
+| 5 | MEDIUM | **Fixed.** `handle_concede` now records whether an entry existed for the conceding player *before* clearing it; if so (and `state.turn.step == Cleanup`), it re-runs `turn_actions::cleanup_actions` once before the turn-advance block, completing CR 514.2 for the abandoned turn (CR 800.4j). Relies on Finding 1's `active_is_alive` guard to make the re-run a no-op for recording. | `engine.rs::handle_concede` |
+| 6 | LOW | **Fixed**, verified against local CR-text cache (`.scryfall-cache/MagicCompRules.txt`, same underlying source the `mtg-rules` MCP serves — direct MCP tool calls are not in this runner's toolset, so the cache was read directly and quoted verbatim below) rather than taken on the reviewer's word: CR 500.4 is "effects that last until a step/phase *begins*, expire" — unrelated to mana pools. CR 500.5 / 703.4q is the actual pool-empty rule. CR 514.1 is the discard only; CR 514.2 is the damage-clear/until-EOT-expiry action. All 5 identified mana-pool-empty miscitations fixed (`turn_actions.rs` doc + 2 inline comments + `empty_all_mana_pools` doc; `engine.rs`'s dispatch-arm comment) plus `clear_damage`'s doc (514.1→514.2). Two pre-existing, unrelated general step-transition comments elsewhere in `engine.rs` (not part of this review, not touched by PB-DP7's diff) were left alone — out of this finding's named scope. | `turn_actions.rs`, `engine.rs` |
+| 7 | LOW | **Fixed** with a comment (not a `check_and_flush_triggers` call, per the directive) at the `DiscardToHandSize` dispatch arm naming the dependency and citing seed OOS-DP7-10. | `engine.rs` |
+| 8 | LOW | **Note-only, as directed** — not converted to layer-resolved. Comment added explaining the pre-existing nature and the (currently empty) risk class. | `turn_actions.rs::handle_discard_to_hand_size` |
+| 9 | LOW | **Fixed** with a doc-note citing Architecture Invariant 7 and naming the actual mechanism this codebase has today (`reveals_hidden_info()`) rather than inventing a nonexistent `private_to()` call — the first draft of this note cited a method that doesn't exist anywhere in the crate and was corrected before landing (an aspirationally-wrong comment would have been exactly the hazard `memory/conventions.md` warns about). | `events.rs::CleanupDiscardChoiceRequired` |
+| 10 | LOW | **No code change**, as directed. Reported below. | — |
+| 11 | MEDIUM (test) | **Fixed.** `test_dp7_pending_entry_is_hashed` deleted; replaced with a comment citing the SR-19 `every_hashed_struct_field_is_hashed_or_allowlisted` gate, which machine-proves the property this test could only approximate. Justification: no black-box fixture can isolate a single-field delta without either a test-only mutator (widening prod surface) or two independently-built states (reintroducing the multi-field-delta problem the finding identified). | `pb_dp7_cleanup_discard.rs` |
+| 12 | MEDIUM (test) | **Fixed.** Every case in `test_dp7_answer_validation` now asserts the distinct `GameStateError` variant. Case 4 (id in a different player's hand) is now genuinely exercised (was skipped). Case 7 is now explicitly labeled as exercising only the ADMISSION gate; a new case 7b calls `turn_actions::handle_discard_to_hand_size` directly to exercise the handler's own SR-29 sender check. | `pb_dp7_cleanup_discard.rs` |
+| 13 | MEDIUM (test) | **Fixed.** `test_dp7_madness_does_not_fire_on_an_unchosen_card` now asserts the premise (Fiery Temper's `ObjectId` is the max of the hand) before proceeding, mirroring T5's self-guard pattern. | `pb_dp7_cleanup_discard.rs` |
+| 14 | LOW (test) | **Fixed.** `test_dp7_madness_discard_runs_an_extra_cleanup_round`'s round-1 `pass_all` is now unrolled and explicitly asserts `turn_number == 1` (non-advance) before the loop for the remaining round(s); the loop's exit also asserts `rounds == 2`, matching plan §4.3's prediction. | `pb_dp7_cleanup_discard.rs` |
+| 15 | LOW (test) | **Fixed.** `test_dp7_madness_fires_on_a_chosen_card` now counts pending-trigger and on-stack Madness occurrences separately and asserts their **sum equals exactly 1**, rather than `is_some() || on_stack`. | `pb_dp7_cleanup_discard.rs` |
+| 16 | LOW (test) | **Fixed.** T9(b) and T9(c) (`_layer_granted`, `_persistent_designation`) both gained the `turn_number > 1` assertion T9(a) already had. | `pb_dp7_cleanup_discard.rs` |
+| 17 | LOW (test) | **Fixed.** `provider_offers_only_the_discard_while_blocked` rebuilt to reach the pause by driving two real `PassPriority` commands through `Step::End` into `Step::Cleanup`, rather than calling `cleanup_actions` directly at `Step::End` (a state the engine can never produce). This exercise now implicitly also proves Finding 2's fix holds at the simulator boundary. | `crates/simulator/src/legal_actions.rs` |
+| 18 | LOW (coverage) | **Fixed.** New test `test_dp7_second_pause_within_the_same_turn`: answers the first pause via the handler directly (not `process_command`, whose resume would auto-advance past Cleanup with nothing else pending — discovered as a **fail-before finding while writing this test**, see below), adds two hand objects via `test_util::add_object`, re-invokes `cleanup_actions` directly, and asserts a second `CleanupDiscardChoiceRequired`/entry is produced in the SAME turn, then answers it too. | `pb_dp7_cleanup_discard.rs` |
+
+### Fail-before probe evidence (mandatory: Findings 1, 2, 5) — OBSERVED, not predicted
+
+Method: `git worktree add --detach /tmp/scutemob-dp7-fix-probe c47f0469` (isolated, no in-place
+`git checkout` on this working tree). Copied the CURRENT (post-fix) test file
+`crates/engine/tests/primitives/pb_dp7_cleanup_discard.rs` into that worktree verbatim — since
+the fix cycle changed no function signatures the fixed test bodies already construct exactly the
+states these three findings describe and assert the POST-fix outcome, so running them against
+the PRE-fix engine at `c47f0469` is the probe. Ran only the three target tests:
+
+```
+cargo test -p mtg-engine --test primitives -- \
+  test_dp7_dead_active_player_no_entry_and_turn_completes \
+  test_dp7_discard_rejected_outside_cleanup_step \
+  test_dp7_concede_while_blocked_clears_entry
+```
+
+**All three FAILED against `c47f0469`** (verbatim panic output):
+
+```
+---- pb_dp7_cleanup_discard::test_dp7_concede_while_blocked_clears_entry stdout ----
+thread '...' panicked at crates/engine/tests/primitives/pb_dp7_cleanup_discard.rs:327:5:
+CR 514.2's damage clear must still run for the abandoned turn (CR 800.4j)
+
+---- pb_dp7_cleanup_discard::test_dp7_dead_active_player_no_entry_and_turn_completes stdout ----
+thread '...' panicked at crates/engine/tests/primitives/pb_dp7_cleanup_discard.rs:376:5:
+a dead active player must never get a pending cleanup discard entry
+
+---- pb_dp7_cleanup_discard::test_dp7_discard_rejected_outside_cleanup_step stdout ----
+thread '...' panicked at crates/engine/tests/primitives/pb_dp7_cleanup_discard.rs:261:5:
+the handler must reject a discard offered outside Step::Cleanup: Ok([DiscardedToHandSize
+{ player: PlayerId(1), object_id: ObjectId(1), zone_from: Hand(PlayerId(1)), zone_to:
+Graveyard(PlayerId(1)) }, DiscardedToHandSize { player: PlayerId(1), object_id: ObjectId(2),
+zone_from: Hand(PlayerId(1)), zone_to: Graveyard(PlayerId(1)) }])
+
+test result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 840 filtered out
+```
+
+Interpretation, per finding:
+
+- **F1** — the dead-active-player entry assertion fired: pre-fix, `cleanup_actions` recorded a
+  `pending_cleanup_discard` entry for the dead `p1` exactly as Finding 1 describes.
+- **F2** — the handler did NOT reject the command outside `Step::Cleanup`; it went ahead and
+  performed BOTH discards (`Ok([DiscardedToHandSize x2])`) — direct evidence the pre-fix handler
+  had no step guard at all, matching Finding 2's claim precisely.
+- **F5** — the damage-clear assertion fired: pre-fix, conceding while blocked left CR 514.2
+  undone (no `DamageCleared`, damage/effect still present), matching Finding 5's claim.
+
+Worktree removed after collection (`git worktree remove --force`); `git worktree list` and
+`git status --short` on this worktree confirmed clean immediately after, and again just before
+writing this record.
+
+All three probes' post-fix re-run (the same three tests, run against THIS worktree's actual
+shipped code as part of the full suite below) now PASS.
+
+### Finding 10 — reported back verbatim, no code change
+
+The reviewer's point, precisely: `Command::DiscardToHandSize`'s `cards` field is not merely
+"accepted and validated" — its **ordering** is accepted, then silently discarded (the handler
+sorts ascending regardless of the order supplied, per plan §2.3). That is narrower than "no
+field of this command is accepted-and-discarded" (the DP-24 class generally) — every VALUE in
+`cards` is validated and used, but the ORDER a client supplies is thrown away. This is a
+deliberate, CR-argued design choice (plan §2.3, seed OOS-DP7-4 tracks the eventual CR 603.3b
+madness-order refinement), not a defect — filing this distinction is the whole ask; the audit's
+§5/DP-24 check should record the answer as "yes, narrowly: the `cards` order, not any field
+value."
+
+### New seed found during this fix cycle
+
+- **OOS-DP7-FIX-1** — while writing the Finding 18 test, discovered that
+  `process_command(Command::DiscardToHandSize)`'s `enter_step` resume auto-advances the turn
+  immediately past `Step::Cleanup` whenever nothing else is pending (no SBAs/triggers) — i.e. a
+  non-Madness cleanup discard's answer is NOT a "pause-and-wait" moment from the caller's
+  perspective, it fully completes and advances the game in one round-trip. This is CORRECT
+  behavior (matches plan §3.3's stated idempotent-resume design) and not a defect, but it means
+  any future PB-DP8/DP9 test author reaching for "answer via `process_command`, then inspect an
+  intermediate state" must use the direct-handler-call technique this fix cycle's T18/T2b tests
+  established, not `process_command`, when the intermediate moment needs to be held still.
+
+### Gates (post-fix)
+
+- `cargo build --workspace`: clean, 0 warnings.
+- `cargo test --all`: **3,832 passing / 0 failing** (was 3,830 at collect; net +2 = +3 new tests
+  [Finding 1's dead-active-player test, Finding 2's out-of-step test, Finding 18's second-pause
+  test] − 1 deleted vacuous test [Finding 11]). All findings' new/updated tests pass, including
+  all 3 fail-before probes' post-fix re-runs.
+- `cargo clippy --workspace --all-targets -- -D warnings`: clean.
+- `cargo fmt --check`: clean (after running `cargo fmt`, which reformatted line-wrapping in
+  `pb_dp7_cleanup_discard.rs` and `local_game.rs` — no logic changes).
+- `tools/check-defs-fmt.sh`: clean, 1,804 defs checked.
+- `crates/engine/tests/core/bare_lookup_ratchet.rs`: all 3 tests pass unchanged, counter did not
+  move.
+- Wire fingerprints: **PROTOCOL 28 / HASH 65 — both unmoved**, confirmed by reading
+  `protocol.rs:268` / `hash.rs:607` directly (no new `Command`/`GameEvent` variant or `GameState`
+  field was added this cycle; only visibility promotions on the pre-existing `BlockingDecision`
+  type, which was never part of the SR-8 wire closure).
+
+### Files touched
+
+`crates/engine/src/rules/engine.rs`, `crates/engine/src/rules/events.rs`,
+`crates/engine/src/rules/turn_actions.rs`, `crates/engine/src/state/mod.rs`,
+`crates/engine/tests/primitives/pb_dp7_cleanup_discard.rs`,
+`crates/simulator/src/legal_actions.rs`, `crates/simulator/src/local_game.rs`,
+`tools/tui/src/play/app.rs`. `docs/audits/decision-point-audit.md` and `CLAUDE.md` intentionally
+NOT touched (coordinator's lane).

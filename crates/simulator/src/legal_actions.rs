@@ -217,19 +217,27 @@ impl LegalActionProvider for StubProvider {
         // before the `priority_holder != Some(player)` early return further
         // down, which would otherwise return an empty list for the blocked
         // player too (nobody holds priority during cleanup).
-        if let Some(entry) = state.pending_cleanup_discard() {
-            if entry.player == player {
-                let cards = mtg_engine::rules::turn_actions::default_cleanup_discard(state, player);
-                let hand: Vec<ObjectId> = state
-                    .zones()
-                    .get(&ZoneId::Hand(player))
-                    .map(|z| z.object_ids())
-                    .unwrap_or_default();
-                actions.push(LegalAction::DiscardToHandSize {
-                    count: entry.count,
-                    hand,
-                    cards,
-                });
+        // Fix-cycle Finding 4 (MEDIUM): read the liveness-filtered predicate,
+        // not the raw `pending_cleanup_discard()` field -- a dead active
+        // player's stale entry must not make this provider offer (or gate on)
+        // an action for a player who can never answer it.
+        if let Some(decision) = state.blocking_decision() {
+            match decision {
+                mtg_engine::rules::engine::BlockingDecision::CleanupDiscard {
+                    player: entry_player,
+                    count,
+                } => {
+                    if entry_player == player {
+                        let cards =
+                            mtg_engine::rules::turn_actions::default_cleanup_discard(state, player);
+                        let hand: Vec<ObjectId> = state
+                            .zones()
+                            .get(&ZoneId::Hand(player))
+                            .map(|z| z.object_ids())
+                            .unwrap_or_default();
+                        actions.push(LegalAction::DiscardToHandSize { count, hand, cards });
+                    }
+                }
             }
             // Every other player (and the entry's own player, once the action
             // above is pushed) gets exactly this and nothing else.
@@ -2492,6 +2500,17 @@ mod tests {
     /// `count` cards drawn from `hand`), every other player is offered
     /// nothing, and the offered `cards` is accepted by `process_command`
     /// verbatim (SR-38: never offer an action the engine rejects).
+    ///
+    /// Fix-cycle Finding 17 (LOW): rebuilt to reach the pause LEGITIMATELY by
+    /// driving real `PassPriority` commands through `Step::End` into
+    /// `Step::Cleanup`. The old version called `cleanup_actions` directly at
+    /// `Step::End`, which recorded an entry in a state the engine can never
+    /// actually produce (`turn.step == End` with `pending_cleanup_discard`
+    /// set) -- and then submitted `DiscardToHandSize`, which was ACCEPTED and
+    /// re-entered `enter_step` at `Step::End`, silently exercising exactly the
+    /// hazard fix-cycle Finding 2 closed (a command that re-runs whatever
+    /// turn-based actions belong to the CURRENT step, not the step the entry
+    /// was recorded in).
     #[test]
     fn provider_offers_only_the_discard_while_blocked() {
         let p1 = PlayerId(1);
@@ -2505,11 +2524,16 @@ mod tests {
             builder = builder
                 .object(ObjectSpec::card(p1, &format!("Card {i}")).in_zone(ZoneId::Hand(p1)));
         }
-        let mut state = builder.build().expect("state builds");
+        let state = builder.build().expect("state builds");
 
-        // Directly invoke cleanup_actions (mirrors PB-AC8's precedent test) to
-        // record the pending entry without driving a full priority round.
-        let _events = mtg_engine::rules::turn_actions::cleanup_actions(&mut state);
+        let (state, _) =
+            mtg_engine::process_command(state, mtg_engine::Command::PassPriority { player: p1 })
+                .expect("p1 passes at End");
+        let (state, _) =
+            mtg_engine::process_command(state, mtg_engine::Command::PassPriority { player: p2 })
+                .expect("p2 passes at End");
+
+        assert_eq!(state.turn().step, mtg_engine::Step::Cleanup);
         let entry = state
             .pending_cleanup_discard()
             .expect("cleanup discard should be pending");

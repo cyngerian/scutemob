@@ -238,8 +238,12 @@ impl PlayApp {
         // DiscardToHandSize/Concede) while it is blocking, so offering the
         // commander-zone choice first would produce a rejected command and
         // the TUI would spin (see `execute_bot_turn` / `execute_command`).
-        if let Some(entry) = self.state.pending_cleanup_discard() {
-            return entry.player;
+        // Fix-cycle Finding 4 (MEDIUM): read the liveness-filtered predicate,
+        // not the raw `pending_cleanup_discard()` field -- a dead active
+        // player's stale entry must not pin `acting_player` on a player who
+        // can never answer it.
+        if let Some(decision) = self.state.blocking_decision() {
+            return decision.player();
         }
         // Check pending commander zone choices
         if let Some((pid, _)) = self.state.pending_commander_zone_choices().iter().next() {

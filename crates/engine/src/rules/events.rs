@@ -1359,6 +1359,16 @@ pub enum GameEvent {
     /// `ObjectId` level (identities are not carried) and is supplied so a
     /// client can render the choice without a second query.
     ///
+    /// Fix-cycle Finding 9 (LOW, Architecture Invariant 7): even though this
+    /// event carries only `ObjectId`s and no card identities (so
+    /// `reveals_hidden_info()` correctly stays `false` for it), it still
+    /// broadcasts the exact composition of `player`'s hand at this moment.
+    /// M10's not-yet-built network-layer event filter MUST treat this as
+    /// private-to-`player` when it is built, the same way it must for any
+    /// other event that names hand contents by `ObjectId`, even before those
+    /// ids are ever correlated with card identity by a later reveal. There is
+    /// no network layer today, so this is a doc-note, not a behavior change.
+    ///
     /// Discriminant: 129.
     CleanupDiscardChoiceRequired {
         /// The active player who must discard.

@@ -1264,7 +1264,7 @@ pub fn draw_card(
 /// `GameEvent::CleanupDiscardChoiceRequired` when a discard is needed; the actual
 /// discard is performed by `rules::engine::handle_discard_to_hand_size` when the
 /// answer arrives, and `enter_step` re-enters this function to complete CR 514.2 /
-/// CR 500.4 / `CleanupPerformed`. See the plan's §3 for why this is the correct
+/// CR 500.5 / `CleanupPerformed`. See the plan's §3 for why this is the correct
 /// pause point.
 pub fn cleanup_actions(state: &mut GameState) -> Vec<GameEvent> {
     let active = state.turn.active_player;
@@ -1307,17 +1307,34 @@ pub fn cleanup_actions(state: &mut GameState) -> Vec<GameEvent> {
         .map(|p| p.max_hand_size)
         .unwrap_or(7);
     let hand_zone = ZoneId::Hand(active);
+    // Fix-cycle Finding 1 (HIGH): a dead or conceded active player must NEVER
+    // get a pending cleanup-discard entry. CR 514.1 names "the active player";
+    // a player who has left the game (CR 800.4a) performs no turn-based
+    // action and has nothing to discard from. Without this guard, an active
+    // player who lost to an SBA (or conceded) earlier in their own turn --
+    // reachable via a lethal spell or an empty-library draw -- would get a
+    // permanently stale entry: `blocking_decision`'s liveness filter stops the
+    // *engine* from hanging on it, but nothing ever clears the field, CR 514.2
+    // is skipped for the turn (violating CR 800.4j, which requires the turn
+    // to complete), and every out-of-engine consumer that reads the raw field
+    // pins on the dead player forever. Skipping this whole block, rather than
+    // just the recording branch, lets the function fall straight through to
+    // CR 514.2 below -- exactly per CR 800.4j.
+    let active_is_alive = state
+        .expect_player(active)
+        .map(|p| !p.has_lost && !p.has_conceded)
+        .unwrap_or(false);
     // CR 514.1 / CR 701.9b (PB-DP7 / DP-3): if the active player's hand exceeds
     // their maximum hand size, PAUSE here and ask which cards to discard --
     // do not auto-pick. This is the ONLY place cleanup_actions can pause: the
     // CR 402.2 recompute above has already run (hard constraint 9 -- a
     // Reliquary Tower / Thought Vessel player is never asked), and nothing of
-    // CR 514.2 (damage clear / "until end of turn" expiry) or CR 500.4 (mana
+    // CR 514.2 (damage clear / "until end of turn" expiry) or CR 500.5 (mana
     // pool empty) has run yet (hard constraint 7). The resume is cheap: once
     // the answer clears `pending_cleanup_discard`, `enter_step` re-enters this
     // function, the hand is already at max size, this branch is skipped, and
     // everything below runs exactly once. See plan §3.
-    if !no_max {
+    if !no_max && active_is_alive {
         let hand_size = state.expect_zone(&hand_zone).map(|z| z.len()).unwrap_or(0);
         if hand_size > max_hand_size {
             let count = (hand_size - max_hand_size) as u32;
@@ -1360,7 +1377,7 @@ pub fn cleanup_actions(state: &mut GameState) -> Vec<GameEvent> {
     }
     // Remove "until end of turn" continuous effects (CR 514.2).
     super::layers::expire_end_of_turn_effects(state);
-    // Empty mana pools (CR 500.4). `empty_all_mana_pools` returns a conditional
+    // Empty mana pools (CR 500.5 / 703.4q). `empty_all_mana_pools` returns a conditional
     // `ManaPoolsEmptied` event only when at least one pool was actually non-empty
     // (MR-M2-16). By the time cleanup runs, pools were already emptied at the
     // End→Cleanup step transition, so this is normally a no-op and pushes nothing.
@@ -1415,6 +1432,21 @@ pub fn handle_discard_to_hand_size(
     player: PlayerId,
     cards: Vec<ObjectId>,
 ) -> Result<Vec<GameEvent>, GameStateError> {
+    // Fix-cycle Finding 2 (HIGH): CR 514.1 / CR 703.4n -- this discard is only
+    // ever legal during the cleanup step. Without this check, a stale
+    // `pending_cleanup_discard` entry (constructed by calling
+    // `cleanup_actions` directly outside `Step::Cleanup` -- exactly what the
+    // pre-fix `provider_offers_only_the_discard_while_blocked` simulator test
+    // did, at `Step::End`) would let `process_command`'s unconditional
+    // `enter_step` resume re-run whatever turn-based actions belong to the
+    // CURRENT step a second time. This check is the first thing that runs,
+    // before the entry lookup below, so it fires even in the degenerate case
+    // where an entry exists but the step has since moved on.
+    if state.turn.step != Step::Cleanup {
+        return Err(GameStateError::InvalidCommand(
+            "cleanup discard is only legal during the cleanup step (CR 514.1)".to_string(),
+        ));
+    }
     let entry = state.pending_cleanup_discard.clone().ok_or_else(|| {
         GameStateError::InvalidCommand("no cleanup discard is pending".to_string())
     })?;
@@ -1483,6 +1515,15 @@ pub fn handle_discard_to_hand_size(
         let cleanup_card_id_opt = state
             .expect_object(discard_id)
             .and_then(|o| o.card_id.clone());
+        // Fix-cycle Finding 8 (LOW, note-only): this reads BASE
+        // `characteristics.keywords`, not layer-resolved (the W3-LC pattern
+        // this codebase otherwise follows for battlefield permanents). Not a
+        // new defect -- it was moved verbatim from the pre-PB-DP7 auto-pick
+        // loop, which had the same gap. A hand card whose Madness is granted
+        // only by a continuous effect (rather than printed) would be missed
+        // here; no such card exists in the corpus today. Left as-is
+        // (out-of-scope per the fix-cycle disposition); tracked as a seed for
+        // the coordinator rather than converted to `layers::expect_characteristics`.
         let has_madness = state
             .expect_object(discard_id)
             .map(|obj| {
@@ -1530,7 +1571,7 @@ pub fn handle_discard_to_hand_size(
     state.pending_cleanup_discard = None;
     Ok(events)
 }
-/// CR 500.4: Empty all players' mana pools at step transitions.
+/// CR 500.5 / 703.4q: Empty all players' mana pools at step transitions.
 pub fn empty_all_mana_pools(state: &mut GameState) -> Vec<GameEvent> {
     let player_ids: Vec<PlayerId> = state
         .players
@@ -1548,7 +1589,7 @@ pub fn empty_all_mana_pools(state: &mut GameState) -> Vec<GameEvent> {
     }
     vec![GameEvent::ManaPoolsEmptied]
 }
-/// Set `damage_marked = 0` and clear `deathtouch_damage` on all battlefield permanents (CR 514.1).
+/// Set `damage_marked = 0` and clear `deathtouch_damage` on all battlefield permanents (CR 514.2).
 pub fn clear_damage(state: &mut GameState) {
     let ids: Vec<ObjectId> = state
         .objects

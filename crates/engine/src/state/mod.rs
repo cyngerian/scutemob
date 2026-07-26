@@ -460,8 +460,32 @@ impl GameState {
     ///
     /// CR 514.1 (PB-DP7 / DP-3). No `_mut` accessor exists -- mutation happens
     /// only through `process_command` (SR-3).
+    ///
+    /// **Fix-cycle Findings 3+4**: this is the RAW field, not
+    /// liveness-filtered. Consumers outside this crate (the simulator, the
+    /// TUI) must use [`GameState::blocking_decision`] instead -- reading this
+    /// field directly can disagree with the engine's own progress gate for a
+    /// dead or conceded player's stale entry (see `rules::engine::blocking_decision`
+    /// and `handle_concede`'s clear-on-concede note). This accessor remains
+    /// public because `rules::turn_actions::default_cleanup_discard` and the
+    /// handler's own re-derivation both need the raw `count`/`player` without
+    /// the liveness filter applied.
     pub fn pending_cleanup_discard(&self) -> Option<&PendingCleanupDiscard> {
         self.pending_cleanup_discard.as_ref()
+    }
+
+    /// The one decision, if any, that is currently gating game progress
+    /// (PB-DP7 / DP-3, fix-cycle Findings 3+4). Liveness-filtered: a dead or
+    /// conceded player's stale `pending_cleanup_discard` entry does not block
+    /// (see `rules::engine::blocking_decision`, which this delegates to).
+    ///
+    /// This is the accessor every consumer OUTSIDE this crate must read --
+    /// the simulator's `StubProvider`/`LocalGame` and the TUI's `PlayApp` all
+    /// rewired onto this in the fix cycle after Finding 4 found them each
+    /// reading the raw `pending_cleanup_discard()` field instead, which could
+    /// disagree with the engine's own progress gate.
+    pub fn blocking_decision(&self) -> Option<crate::rules::engine::BlockingDecision> {
+        crate::rules::engine::blocking_decision(self)
     }
 
     /// Read-only access to the `pending_commander_zone_choices` field.
