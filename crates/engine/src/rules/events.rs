@@ -1378,6 +1378,42 @@ pub enum GameEvent {
         /// The full candidate set of `ObjectId`s in the player's hand.
         hand: Vec<crate::state::game_object::ObjectId>,
     },
+    /// CR 603.3d (PB-DP8 / DP-6): the controller of a triggered ability must
+    /// announce its targets before it goes on the stack. The engine BLOCKS — the
+    /// CR 603.3b batch is suspended, no priority is granted, and `process_command`
+    /// rejects every command except `Command::ChooseTriggerTargets` from `player`
+    /// and `Command::Concede` — until the answer arrives.
+    ///
+    /// `slots` is one `TriggerTargetOption` per `TargetRequirement`, in declaration
+    /// order, each carrying the full legal candidate set (so a client can render
+    /// the picker with no second query) and the engine's deterministic default (so
+    /// a bot, the replay harness or a minimal TUI can answer in one step, SR-38).
+    ///
+    /// Emitted only when the choice is real: a slot with no legal candidate removes
+    /// the trigger instead (CR 603.3d), and a fully forced choice is placed
+    /// directly (CR 601.2c — an announcement with exactly one legal answer is
+    /// determined).
+    ///
+    /// Hidden information (Architecture Invariant 7): unlike
+    /// `CleanupDiscardChoiceRequired`, every id here names a public-zone object
+    /// (the battlefield or a graveyard) or a player, so `reveals_hidden_info()` is
+    /// `false` and no M10 private-to filter is owed. (`GameEvent::private_to()`,
+    /// which Architecture Invariant 7 names as the mechanism, does not exist —
+    /// seed OOS-DP8-6.)
+    ///
+    /// Discriminant: 130.
+    TriggerTargetChoiceRequired {
+        /// CR 603.3a: the trigger's controller, and the only player who may answer.
+        player: crate::state::player::PlayerId,
+        /// The moment guard. Must be echoed by `Command::ChooseTriggerTargets`.
+        choice_id: u64,
+        /// The permanent whose triggered ability is being put on the stack.
+        source_object_id: crate::state::game_object::ObjectId,
+        /// The ability index on `source_object_id` (see `PendingTrigger`).
+        ability_index: usize,
+        /// One entry per `TargetRequirement`, in declaration order.
+        slots: Vec<crate::state::stubs::TriggerTargetOption>,
+    },
 }
 impl GameEvent {
     /// Returns `true` if this event reveals or commits to hidden information.

@@ -257,7 +257,9 @@ pub enum ScriptAction {
         /// (documentation marker — no Command issued; engine resolves SearchLibrary
         /// effects deterministically by minimum ObjectId; M10 will add interactive search),
         /// `discard_to_hand_size` (CR 514.1, PB-DP7 / DP-3 — answers an outstanding
-        /// `CleanupDiscardChoiceRequired`; see `discard_cards`).
+        /// `CleanupDiscardChoiceRequired`; see `discard_cards`),
+        /// `choose_trigger_targets` (CR 603.3d, PB-DP8 / DP-6 — answers an
+        /// outstanding `TriggerTargetChoiceRequired`; see `trigger_targets`).
         ///
         /// **This is THIS variant's `discard_to_hand_size`, not `TurnBasedAction`'s.**
         /// `ScriptAction::TurnBasedAction` (below) documents an *identically-named*
@@ -487,6 +489,17 @@ pub enum ScriptAction {
         /// Example: ["Lightning Bolt", "Mountain"]
         #[serde(default)]
         discard_cards: Vec<String>,
+        /// CR 603.3d (PB-DP8 / DP-6): For `choose_trigger_targets`. One entry per
+        /// offered slot, in the same order as the outstanding
+        /// `TriggerTargetChoiceRequired`'s `slots`, answering the trigger's
+        /// target announcement. Empty = fall back to
+        /// `abilities::default_trigger_targets` (the deterministic first-match
+        /// pick), which preserves pre-PB-DP8 script behaviour byte-for-byte.
+        /// A required slot takes exactly one entry; an "up to" slot takes zero
+        /// or one (CR 601.2c).
+        /// Example: [[{"target_type": "creature", "card": "Grizzly Bears"}]]
+        #[serde(default)]
+        trigger_targets: Vec<Vec<ActionTarget>>,
         cr_ref: Option<String>,
         note: Option<String>,
     },

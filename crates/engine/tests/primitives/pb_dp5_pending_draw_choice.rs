@@ -1231,16 +1231,19 @@ fn test_dp5_wire_version_sentinels() {
     // (pending_draws never touches the wire closure). PB-DP7 (2026-07-26)
     // bumped both again -- HASH to 65 (pending_cleanup_discard) and PROTOCOL
     // to 28 (Command::DiscardToHandSize / GameEvent::CleanupDiscardChoiceRequired).
+    // PB-DP8 (2026-07-26) bumped both once more -- HASH to 66
+    // (pending_trigger_targets) and PROTOCOL to 29
+    // (Command::ChooseTriggerTargets / GameEvent::TriggerTargetChoiceRequired).
     // This sentinel pins the LIVE version, like every other scattered sentinel
     // in the suite; it moves on the next wire/hash-affecting PB too.
     assert_eq!(
         mtg_engine::HASH_SCHEMA_VERSION,
-        65u8,
+        66u8,
         "HASH_SCHEMA_VERSION live sentinel"
     );
     assert_eq!(
         mtg_engine::PROTOCOL_VERSION,
-        28,
+        29,
         "PROTOCOL_VERSION live sentinel"
     );
 }

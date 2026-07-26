@@ -45,12 +45,13 @@ pub use state::{
     GameRestriction, GameState, GameStateBuilder, GameStateError, HybridMana, HybridManaPayment,
     KeywordAbility, LandwalkType, LayerModification, ManaAbility, ManaColor, ManaCost, ManaPool,
     MergedComponent, ObjectFilter, ObjectId, ObjectSpec, ObjectStatus, PendingDraw,
-    PendingZoneChange, Phase, PhyrexianMana, PlayFromGraveyardPermission, PlayFromTopFilter,
+    PendingTriggerTargets, PendingZoneChange, Phase, PhyrexianMana, PlayFromGraveyardPermission,
+    PlayFromTopFilter,
     PlayFromTopPermission, PlayerBuilder, PlayerFilter, PlayerId, PlayerState, ProtectionQuality,
     ReplacementEffect, ReplacementId, ReplacementModification, ReplacementTrigger,
     SacrificedCreatureLki, SpellTarget, StackObject, StackObjectKind, Step, SubType, SuperType,
-    Target, TriggerData, TriggerDoubler, TriggerDoublerFilter, TriggerEvent, TriggeredAbilityDef,
-    TurnFaceUpMethod, TurnState, UpkeepCostKind, Zone, ZoneId, ZoneType,
+    Target, TriggerData, TriggerDoubler, TriggerDoublerFilter, TriggerEvent, TriggerTargetOption,
+    TriggeredAbilityDef, TurnFaceUpMethod, TurnState, UpkeepCostKind, Zone, ZoneId, ZoneType,
 };
 pub use testing::replay_harness::{
     build_initial_state, build_initial_state_checked, card_name_to_id, enrich_spec_from_def,

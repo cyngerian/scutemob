@@ -236,6 +236,7 @@ pub fn replay_script(script: &GameScript) -> Vec<ReplayResult> {
                     hybrid_choices,
                     phyrexian_life_payments,
                     discard_cards,
+                    trigger_targets,
                     ..
                 } => {
                     if let Some(&pid) = players.get(player.as_str()) {
@@ -279,6 +280,7 @@ pub fn replay_script(script: &GameScript) -> Vec<ReplayResult> {
                             hybrid_choices,
                             phyrexian_life_payments,
                             discard_cards,
+                            trigger_targets,
                             &state,
                             &players,
                         );
@@ -344,6 +346,36 @@ pub fn replay_script(script: &GameScript) -> Vec<ReplayResult> {
                 | ScriptAction::PhaseTransition { .. }
                 | ScriptAction::TurnBasedAction { .. } => {
                     state_slot = Some(state);
+                }
+            }
+
+            // CR 603.3d / CR 514.1 (PB-DP8 / PB-DP7): a blocking pending decision
+            // stops the engine dead -- every later command comes back
+            // `BlockedByPendingDecision`. An existing golden script has no way to
+            // answer one, so pump it with the engine's OWN default, which is
+            // byte-identical to the pre-PB-DP8 auto-pick. Skipped when the very
+            // next action IS the answer, so a script that wants to choose can.
+            let next_answers_the_block = step
+                .actions
+                .get(action_idx + 1)
+                .map(|a| {
+                    matches!(
+                        a,
+                        ScriptAction::PlayerAction { action, .. }
+                            if action == "choose_trigger_targets"
+                                || action == "discard_to_hand_size"
+                    )
+                })
+                .unwrap_or(false);
+            if !next_answers_the_block {
+                if let Some(s) = state_slot.take() {
+                    if s.blocking_decision().is_some() {
+                        let (s, _evs) =
+                            mtg_engine::testing::replay_harness::auto_answer_blocking_decisions(s);
+                        state_slot = Some(s);
+                    } else {
+                        state_slot = Some(s);
+                    }
                 }
             }
         }

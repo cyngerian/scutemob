@@ -348,6 +348,25 @@ pub enum Command {
         /// own hand, with no duplicates.
         cards: Vec<ObjectId>,
     },
+    // ── Triggered-ability targets (CR 603.3d) ─────────────────────────────
+    /// CR 603.3d / CR 601.2c (PB-DP8 / DP-6): the trigger's controller announces
+    /// its targets as it is put on the stack.
+    ///
+    /// Sent in response to `GameEvent::TriggerTargetChoiceRequired`. `choice_id`
+    /// must equal the outstanding entry's — it is the MOMENT guard, so an answer
+    /// to a superseded question in the same CR 603.3b batch is rejected rather
+    /// than applied to the wrong trigger.
+    ///
+    /// `targets` has exactly one inner `Vec` per slot of the offered `slots`, in
+    /// the same order: exactly one `Target` for a required slot, zero or one for
+    /// an `optional` slot (CR 601.2c "up to"). Only the `Target` identity is
+    /// carried; the engine re-derives `zone_at_cast` from its own candidate set,
+    /// so a client cannot tamper with it.
+    ChooseTriggerTargets {
+        player: PlayerId,
+        choice_id: u64,
+        targets: Vec<Vec<Target>>,
+    },
     // ── Crew (CR 702.122) ────────────────────────────────────────────────
     /// Crew a Vehicle by tapping creatures (CR 702.122a).
     ///

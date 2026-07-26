@@ -5,6 +5,7 @@
 use super::game_object::ObjectId;
 use super::player::PlayerId;
 use super::stack::TriggerData;
+use super::targeting::SpellTarget;
 use serde::{Deserialize, Serialize};
 // ContinuousEffect has moved to `state/continuous_effect.rs` (M5).
 /// A delayed trigger waiting for a condition (CR 603.7).
@@ -756,4 +757,79 @@ pub struct PendingCleanupDiscard {
     pub player: PlayerId,
     /// How many cards must be discarded to reach maximum hand size.
     pub count: u32,
+}
+/// CR 603.3d / CR 601.2c (PB-DP8 / DP-6): one target slot of a triggered ability
+/// whose controller must announce a choice as it is put on the stack.
+///
+/// Reachable from `GameEvent::TriggerTargetChoiceRequired`, so this type IS in the
+/// SR-8 wire closure.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TriggerTargetOption {
+    /// True iff the requirement is `TargetRequirement::UpToN` — CR 601.2c's
+    /// "up to": the slot may legally be answered with zero targets.
+    pub optional: bool,
+    /// Every legal choice for this slot, derived with the SAME predicates the
+    /// CR 603.3d auto-fallback uses (see `rules::abilities::trigger_target_candidates`).
+    /// Deterministic order: `state.objects` is an `OrdMap` (ascending `ObjectId`)
+    /// and `state.turn.turn_order` is a `Vec` in seat order.
+    pub candidates: Vec<SpellTarget>,
+    /// The pre-PB-DP8 auto-pick for this slot, byte-identical to what the
+    /// first-match fallback produced. `None` only for an `optional` slot the old
+    /// code skipped. When `Some(t)`, `t` is always present in `candidates`
+    /// (debug-asserted). This is NOT always `candidates[0]`: for player-targeting
+    /// requirements the old code preferred the first live OPPONENT and only then
+    /// fell back to the controller, while `candidates` legally contains every live
+    /// player (CR 601.2c) — which is exactly the agency this batch restores.
+    pub default: Option<SpellTarget>,
+}
+/// CR 603.3d / CR 603.3b (PB-DP8 / DP-6): the suspended trigger flush.
+///
+/// Reachable only from `GameState` — never from `Command`/`GameEvent`/`ReplayLog`
+/// — so it contributes nothing to `PROTOCOL_SCHEMA_FINGERPRINT` (the `PendingDraw`
+/// and `PendingCleanupDiscard` precedent).
+///
+/// Deviation from `pb-plan-DP8.md` §2.1: the plan declares `PartialEq, Eq` here.
+/// `PendingTrigger` derives neither (it is the SR-7-gated struct and its 16-field
+/// set is pinned by `tests/core/pending_trigger_shape.rs`), so those derives are
+/// unavailable without changing that struct. Nothing in this batch compares the
+/// entry structurally — equality of two suspended flushes is exactly what
+/// `public_state_hash` answers — so the derives are dropped rather than widened.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct PendingTriggerTargets {
+    /// Monotonic, unique for the whole game. Taken by incrementing
+    /// `GameState.timestamp_counter` at the moment the flush suspends (the same
+    /// counter `next_object_id` uses). The answering command must quote it: this
+    /// is the MOMENT guard, not a payload guard.
+    pub choice_id: u64,
+    /// CR 603.3a: the controller of `trigger`, and the ONLY player who may answer.
+    pub player: PlayerId,
+    /// The source permanent of `trigger`, echoed for display/`BlockingDecision`.
+    pub source: ObjectId,
+    /// The trigger being put on the stack right now. It is NOT in
+    /// `GameState.pending_triggers` while this entry exists — the entry owns it.
+    pub trigger: PendingTrigger,
+    /// CR 603.3b: the rest of THIS batch, already APNAP-sorted, none of which has
+    /// been put on the stack. The resume continues through these in order.
+    pub remaining: imbl::Vector<PendingTrigger>,
+    /// One entry per `TargetRequirement` of the trigger's ability, in declaration
+    /// order.
+    pub slots: imbl::Vector<TriggerTargetOption>,
+    /// CR 603.3 / CR 117.3a: does the suspended call site owe a priority grant
+    /// once the batch completes?
+    ///
+    /// Not in `pb-plan-DP8.md` -- the plan's §4.1 prescribes `return Ok(events)`
+    /// at the four priority-granting call sites and never says who grants the
+    /// priority those sites were about to grant. Without this, a flush that
+    /// suspends inside `enter_step` / `handle_declare_attackers` /
+    /// `handle_declare_blockers` / the resolution tail resumes into a game where
+    /// nobody has priority, i.e. a hang. It cannot be inferred at resume time
+    /// either: the fifth call site (`check_and_flush_triggers`, on all 29
+    /// `process_command` paths) owes NOTHING, because PB-DP1 moved priority
+    /// assignment into the handlers ahead of the flush -- granting there would
+    /// hand priority to the active player when the actor was someone else.
+    ///
+    /// Set to `true` by the four guards; `false` at creation; inherited when the
+    /// same batch suspends again on a later trigger.
+    #[serde(default)]
+    pub grant_priority_on_resume: bool,
 }

@@ -8,7 +8,8 @@
 use mtg_engine::{
     AbilityDefinition, AttackTarget, CardType, CounterType, EffectDuration, FaceDownKind,
     FlashGrantFilter, GameRestriction, GameState, HybridMana, HybridManaPayment, KeywordAbility,
-    ManaColor, ManaCost, ObjectId, PhyrexianMana, PlayerId, Step, TurnFaceUpMethod, ZoneId,
+    ManaColor, ManaCost, ObjectId, PhyrexianMana, PlayerId, Step, Target, TriggerTargetOption,
+    TurnFaceUpMethod, ZoneId,
 };
 
 /// A legal action a player may take at this moment.
@@ -153,9 +154,29 @@ pub enum LegalAction {
         hand: Vec<ObjectId>,
         cards: Vec<ObjectId>,
     },
+    /// CR 603.3d / CR 601.2c (PB-DP8 / DP-6): announce the targets of a triggered
+    /// ability being put on the stack. `slots` is the full per-slot candidate set
+    /// so a human client can render a real picker; `targets` is the deterministic
+    /// default (`mtg_engine::rules::abilities::default_trigger_targets`), which
+    /// the engine is guaranteed to accept (SR-38: never offer an action the engine
+    /// rejects).
+    ChooseTriggerTargets {
+        choice_id: u64,
+        source: ObjectId,
+        slots: Vec<TriggerTargetOption>,
+        targets: Vec<Vec<Target>>,
+    },
 }
 
 /// Trait for enumerating legal actions from a game state.
+///
+/// **Obligation (PB-DP7 / PB-DP8):** a provider MUST offer an answer for every
+/// `mtg_engine::rules::engine::BlockingDecision` variant. While one is
+/// outstanding the engine's admission gate rejects every other command, so a
+/// provider that offers nothing (or offers something else) converts a
+/// recoverable state into a dead game -- `LocalGame`'s bot-command-rejected
+/// fallback issues `PassPriority`, which the gate refuses, yielding
+/// `Halted(EngineError)`. See OOS-DP7-12.
 pub trait LegalActionProvider: Send + Sync {
     fn legal_actions(&self, state: &GameState, player: PlayerId) -> Vec<LegalAction>;
 }
@@ -236,6 +257,29 @@ impl LegalActionProvider for StubProvider {
                             .map(|z| z.object_ids())
                             .unwrap_or_default();
                         actions.push(LegalAction::DiscardToHandSize { count, hand, cards });
+                    }
+                }
+                // PB-DP8 / DP-6 (CR 603.3d): announce the trigger's targets. The
+                // raw accessor is correct here -- `blocking_decision()` already
+                // applied the liveness filter to decide we are blocked at all.
+                mtg_engine::rules::engine::BlockingDecision::TriggerTargets {
+                    player: entry_player,
+                    choice_id,
+                    source,
+                } => {
+                    if entry_player == player {
+                        if let Some(entry) = state.pending_trigger_targets() {
+                            let slots: Vec<TriggerTargetOption> =
+                                entry.slots.iter().cloned().collect();
+                            let targets =
+                                mtg_engine::rules::abilities::default_trigger_targets(&slots);
+                            actions.push(LegalAction::ChooseTriggerTargets {
+                                choice_id,
+                                source,
+                                slots,
+                                targets,
+                            });
+                        }
                     }
                 }
             }

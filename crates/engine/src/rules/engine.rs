@@ -24,7 +24,7 @@ use super::turn_actions;
 use super::turn_structure;
 use crate::state::diagnostics::debug_assert_object_live;
 use crate::state::error::GameStateError;
-use crate::state::game_object::Designations;
+use crate::state::game_object::{Designations, ObjectId};
 use crate::state::player::PlayerId;
 use crate::state::GameState;
 /// CR 603.3: Check for triggered abilities arising from events and flush
@@ -60,10 +60,12 @@ fn check_and_flush_triggers(state: &mut GameState, events: &mut Vec<GameEvent>) 
     let trigger_events = abilities::flush_pending_triggers(state);
     events.extend(trigger_events);
 }
-/// The one decision, if any, that is currently gating the game (PB-DP7 / DP-3).
+/// The one decision, if any, that is currently gating the game (PB-DP7 / DP-3,
+/// PB-DP8 / DP-6).
 ///
-/// CR 514.1 is the only kind today. PB-DP8 (CR 603.3d trigger targets) and
-/// PB-DP9 (CR 701.22a/701.23/701.25a) are expected to append variants.
+/// Two kinds today: CR 514.1's cleanup discard and CR 603.3d's triggered-ability
+/// target announcement. PB-DP9 (CR 701.22a/701.23/701.25a) is expected to append
+/// more.
 ///
 /// **What genuinely generalises, and what does not (fix-cycle Findings 3+4):**
 /// the PROGRESS gate (`enter_step`'s consult at the bottom of this file) is
@@ -81,33 +83,46 @@ fn check_and_flush_triggers(state: &mut GameState, events: &mut Vec<GameEvent>) 
 /// full design ("The blocking pending-decision mechanism") and its §1.5,
 /// which this comment amends.
 ///
-/// **Second fix-cycle addition (closing /review, Issue 6, LOW): the admission
-/// gate is not the only per-variant obligation a new variant hits.** Two more,
-/// both keyed on the field's NAME rather than on this enum, so adding a
-/// variant to an existing per-kind field is free but a genuinely NEW per-kind
-/// field is not:
-/// - `handle_concede` (below, near its `pending_cleanup_discard = None`
-///   assignment) clears the raw field explicitly on concede -- a new per-kind
-///   field needs the same clear-on-concede treatment, or a stale entry
-///   outlives the player who owned it (see the dead-player note above).
-/// - The field is hashed BY NAME in two places: `rules/loop_detection.rs`'s
-///   mandatory-state fingerprint (`state.pending_cleanup_discard.hash_into(..)`)
-///   and `state/hash.rs`'s `public_state_hash`
-///   (`self.pending_cleanup_discard.hash_into(&mut hasher)`) -- a new
-///   per-kind field needs its own line in both, by the same HASH-bump
-///   procedure this field's own addition followed (`state/hash.rs`'s History
-///   comment).
+/// **What a SECOND variant actually cost (PB-DP8 measured it; this replaces
+/// PB-DP7's aspirational "no new consult site" claim).** Four per-variant
+/// obligations, none of them compile-forced by this enum alone:
+/// 1. The ADMISSION gate's allow-list in `process_command` below -- the
+///    answering `Command` must be named there explicitly or the engine rejects
+///    its own answer.
+/// 2. `handle_concede` must clear the new per-kind field, or a stale entry
+///    outlives the player who owned it (see the dead-player note above). For
+///    PB-DP8 that clear is not a mere `= None`: CR 800.4d drops the conceding
+///    player's un-placed trigger and CR 603.3b/800.4j require the REST of the
+///    batch to still be placed, so `handle_concede` resumes the flush.
+/// 3. The field is hashed BY NAME in two places -- `rules/loop_detection.rs`'s
+///    mandatory-state fingerprint and `state/hash.rs`'s `public_state_hash` --
+///    and the `HashInto` impl for its payload struct must use the BARE type
+///    name, or SR-19's `every_hashed_struct_field_is_hashed_or_allowlisted`
+///    gate silently skips it (OOS-DP7-11).
+/// 4. `crates/simulator/src/local_game.rs`'s `advance()` maps the decision to a
+///    `DecisionKind` for the client. Before PB-DP8 it hard-coded
+///    `DecisionKind::CleanupDiscard` without matching the variant; it is now an
+///    exhaustive `match`, which makes THIS obligation compile-forced for every
+///    future variant (this enum is deliberately not `#[non_exhaustive]`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum BlockingDecision {
     /// CR 514.1: `player` must discard `count` cards to reach their maximum
     /// hand size before the cleanup step can complete.
     CleanupDiscard { player: PlayerId, count: u32 },
+    /// CR 603.3d (PB-DP8 / DP-6): `player` must announce the targets of the
+    /// triggered ability from `source` before the CR 603.3b batch can continue.
+    TriggerTargets {
+        player: PlayerId,
+        choice_id: u64,
+        source: ObjectId,
+    },
 }
 impl BlockingDecision {
     /// The player whose answer would clear this decision.
     pub fn player(&self) -> PlayerId {
         match self {
             BlockingDecision::CleanupDiscard { player, .. } => *player,
+            BlockingDecision::TriggerTargets { player, .. } => *player,
         }
     }
 }
@@ -121,6 +136,18 @@ impl std::fmt::Display for BlockingDecision {
                     player, count
                 )
             }
+            BlockingDecision::TriggerTargets {
+                player,
+                choice_id,
+                source,
+            } => {
+                write!(
+                    f,
+                    "CR 603.3d trigger targets: player {:?} must announce targets \
+                     for the triggered ability from {:?} (choice {})",
+                    player, source, choice_id
+                )
+            }
         }
     }
 }
@@ -131,13 +158,30 @@ impl std::fmt::Display for BlockingDecision {
 /// `handle_concede`, which also clears the field itself so it does not
 /// pollute the state hash).
 pub(crate) fn blocking_decision(state: &GameState) -> Option<BlockingDecision> {
+    fn alive(state: &GameState, p: PlayerId) -> bool {
+        state
+            .players()
+            .get(&p)
+            .map(|pl| !pl.has_lost && !pl.has_conceded)
+            .unwrap_or(false)
+    }
+    // CR 603.3d (PB-DP8): a suspended trigger flush outranks a cleanup discard --
+    // the two cannot legally coexist (the cleanup discard is recorded by
+    // `cleanup_actions`, which the progress gate stops before it can run while a
+    // flush is suspended), but if they ever did, the flush is the one the engine
+    // is mid-way through and must finish first (CR 603.3b).
+    if let Some(entry) = state.pending_trigger_targets() {
+        if alive(state, entry.player) {
+            return Some(BlockingDecision::TriggerTargets {
+                player: entry.player,
+                choice_id: entry.choice_id,
+                source: entry.source,
+            });
+        }
+        return None;
+    }
     let entry = state.pending_cleanup_discard()?;
-    let alive = state
-        .players()
-        .get(&entry.player)
-        .map(|p| !p.has_lost && !p.has_conceded)
-        .unwrap_or(false);
-    if !alive {
+    if !alive(state, entry.player) {
         return None;
     }
     Some(BlockingDecision::CleanupDiscard {
@@ -168,7 +212,11 @@ pub fn process_command(
     // priority here.
     if let Some(decision) = blocking_decision(&state) {
         let allowed = matches!(&command, Command::Concede { .. })
-            || matches!(&command, Command::DiscardToHandSize { player, .. } if *player == decision.player());
+            || matches!(&command, Command::DiscardToHandSize { player, .. } if *player == decision.player())
+            // CR 603.3d (PB-DP8 / DP-6): the trigger's controller announcing its
+            // targets. CR 603.3 gives priority only AFTER the whole batch is on
+            // the stack, so nothing else is legal mid-flush either.
+            || matches!(&command, Command::ChooseTriggerTargets { player, .. } if *player == decision.player());
         if !allowed {
             return Err(GameStateError::BlockedByPendingDecision {
                 player: decision.player(),
@@ -469,6 +517,32 @@ pub fn process_command(
             if state.turn.step == crate::state::turn::Step::Cleanup {
                 let enter_events = enter_step(&mut state)?;
                 events.extend(enter_events);
+            }
+            all_events.extend(events);
+        }
+        // ── Triggered-ability targets (CR 603.3d) ─────────────────────────
+        Command::ChooseTriggerTargets {
+            player,
+            choice_id,
+            targets,
+        } => {
+            // validate_player_exists, NOT validate_player_active: the entry's
+            // player is by construction alive (a dead player's entry is dropped
+            // in blocking_decision, and the flush never asks a dead controller).
+            // Precedent: ChooseDredge / DiscardToHandSize above.
+            validate_player_exists(&state, player)?;
+            // CR 104.4b: announcing a target is a meaningful player choice.
+            loop_detection::reset_loop_detection(&mut state);
+            let mut events =
+                abilities::handle_choose_trigger_targets(&mut state, player, choice_id, targets)?;
+            // CR 603.3: the batch may have completed, in which case the abilities
+            // just placed can themselves have triggered something (e.g. a
+            // Panharmonicon-style watcher on `AbilityTriggered`). Run the normal
+            // post-command trigger sweep -- but ONLY if the flush did not suspend
+            // again on the next trigger of the same batch, because
+            // `check_and_flush_triggers` would then re-enter a suspended flush.
+            if state.pending_trigger_targets.is_none() {
+                check_and_flush_triggers(&mut state, &mut events);
             }
             all_events.extend(events);
         }
@@ -2168,6 +2242,14 @@ fn enter_step(state: &mut GameState) -> Result<Vec<GameEvent>, GameStateError> {
             events.extend(sba_events.clone());
             let trigger_events = abilities::flush_pending_triggers(state);
             events.extend(trigger_events.clone());
+            // CR 603.3 / CR 603.3d (PB-DP8): the batch suspended on a target choice.
+            // CR 603.3b gives priority only AFTER every triggered ability of this
+            // batch is on the stack, so stop here without granting it, and record
+            // that this site owes the grant. `handle_choose_trigger_targets` resumes.
+            if state.pending_trigger_targets.is_some() {
+                abilities::mark_flush_owes_priority(state);
+                return Ok(events);
+            }
             let had_events = !sba_events.is_empty() || !trigger_events.is_empty();
             if had_events && state.turn.cleanup_sba_rounds < MAX_CLEANUP_SBA_ROUNDS {
                 state.turn.cleanup_sba_rounds += 1;
@@ -2209,6 +2291,14 @@ fn enter_step(state: &mut GameState) -> Result<Vec<GameEvent>, GameStateError> {
             // Flush any pending triggers before granting priority (CR 603.3).
             let trigger_events = abilities::flush_pending_triggers(state);
             events.extend(trigger_events.clone());
+            // CR 603.3 / CR 603.3d (PB-DP8): the batch suspended on a target choice.
+            // CR 603.3b gives priority only AFTER every triggered ability of this
+            // batch is on the stack, so stop here without granting it, and record
+            // that this site owes the grant. `handle_choose_trigger_targets` resumes.
+            if state.pending_trigger_targets.is_some() {
+                abilities::mark_flush_owes_priority(state);
+                return Ok(events);
+            }
             // CR 104.4b / CR 726: After each mandatory SBA + trigger batch,
             // check for a recurring board state indicating a mandatory infinite loop.
             if !trigger_events.is_empty() {
@@ -2302,6 +2392,17 @@ fn handle_concede(
         .unwrap_or(false);
     if had_pending_discard_for_conceding_player {
         state.pending_cleanup_discard = None;
+    }
+    // PB-DP8 / DP-6 (CR 800.4d / 603.3b / 800.4j): if the conceding player was
+    // mid-announcement of a triggered ability's targets, that ability is NOT put
+    // on the stack ("If a triggered ability that would be controlled by a player
+    // who has left the game would be put onto the stack, it isn't put on the
+    // stack"), and neither is any other trigger of the suspended batch they
+    // controlled. The REST of the CR 603.3b batch must still be placed -- CR
+    // 800.4j: the turn continues to its completion -- so the flush resumes here,
+    // and may legitimately suspend again on a different player's trigger.
+    if let Some(resume_events) = abilities::drop_conceded_trigger_flush(state, player) {
+        events.extend(resume_events);
     }
     events.push(GameEvent::PlayerConceded { player });
     // CR 611.2b: Expire any UntilYourNextTurn continuous effects belonging to the

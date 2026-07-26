@@ -6,6 +6,72 @@
 //! for each target the spell requires."
 //! CR 603.3b: the CR 603.3b batch is placed in APNAP order, one ability at a time.
 
+use mtg_engine::rules::abilities::default_trigger_targets;
+use mtg_engine::{process_command, Command, GameEvent, GameState, TriggerTargetOption};
+
+/// Answer any outstanding CR 603.3d target choice with the engine's own default,
+/// through `process_command`.
+///
+/// **Panics if nothing is pending** -- so it can never mask a missing block (the
+/// `answer_pending_cleanup_discard` precedent from PB-DP7).
+#[allow(dead_code)] // TEMP-DP8
+pub fn answer_pending_trigger_targets(state: GameState) -> (GameState, Vec<GameEvent>) {
+    let entry = state
+        .pending_trigger_targets()
+        .expect("no CR 603.3d trigger-target choice is pending");
+    let player = entry.player;
+    let choice_id = entry.choice_id;
+    let slots: Vec<TriggerTargetOption> = entry.slots.iter().cloned().collect();
+    let targets = default_trigger_targets(&slots);
+    process_command(
+        state,
+        Command::ChooseTriggerTargets {
+            player,
+            choice_id,
+            targets,
+        },
+    )
+    .expect("the engine must accept its own default answer (SR-38)")
+}
+
+/// The in-place twin, for the tests that drive `flush_pending_triggers` directly
+/// (a `&mut GameState` API) rather than through `process_command`.
+///
+/// Answers with the engine's own default, which is byte-identical to the
+/// pre-PB-DP8 first-match auto-pick, so a test written before this batch keeps
+/// pinning exactly what it was written to pin. Returns how many questions were
+/// answered; `0` means the flush never suspended.
+pub fn answer_pending_trigger_targets_in_place(state: &mut GameState) -> usize {
+    let mut n = 0;
+    while let Some(entry) = state.pending_trigger_targets() {
+        let player = entry.player;
+        let choice_id = entry.choice_id;
+        let slots: Vec<TriggerTargetOption> = entry.slots.iter().cloned().collect();
+        let targets = default_trigger_targets(&slots);
+        mtg_engine::rules::abilities::handle_choose_trigger_targets(
+            state, player, choice_id, targets,
+        )
+        .expect("the engine must accept its own default answer (SR-38)");
+        n += 1;
+        assert!(n < 256, "trigger-target answers did not converge");
+    }
+    n
+}
+
+/// Answer every outstanding CR 603.3d target choice with the engine's default,
+/// looping until the CR 603.3b batch completes. Returns the number answered.
+#[allow(dead_code)] // TEMP-DP8
+pub fn answer_all_pending_trigger_targets(state: GameState) -> (GameState, usize) {
+    let mut state = state;
+    let mut n = 0;
+    while state.pending_trigger_targets().is_some() {
+        let (s, _) = answer_pending_trigger_targets(state);
+        state = s;
+        n += 1;
+        assert!(n < 256, "trigger-target answers did not converge");
+    }
+    (state, n)
+}
 use mtg_card_defs::all_cards;
 use mtg_card_types::cards::card_definition::{AbilityDefinition, Completeness};
 

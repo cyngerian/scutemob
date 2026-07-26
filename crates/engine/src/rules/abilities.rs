@@ -25,7 +25,8 @@ use crate::state::game_object::{InterveningIf, ManaCost, ObjectId, TriggerEvent}
 use crate::state::player::{CardId, PlayerId};
 use crate::state::stack::{StackObject, StackObjectKind, TriggerData};
 use crate::state::stubs::{
-    PendingTrigger, PendingTriggerKind, TriggerDoubler, TriggerDoublerFilter,
+    PendingTrigger, PendingTriggerKind, PendingTriggerTargets, TriggerDoubler, TriggerDoublerFilter,
+    TriggerTargetOption,
 };
 use crate::state::targeting::{SpellTarget, Target};
 use crate::state::types::AltCostKind;
@@ -7068,6 +7069,491 @@ fn collect_graveyard_carddef_triggers(
 // ---------------------------------------------------------------------------
 /// Place all pending triggered abilities onto the stack in APNAP order (CR 603.3).
 ///
+// ---------------------------------------------------------------------------
+// PB-DP8 (DP-6): CR 603.3d triggered-ability target announcement
+// ---------------------------------------------------------------------------
+/// CR 603.3d / CR 601.2c: does the battlefield object `obj` satisfy `req` as a
+/// target for `trigger`?
+///
+/// This predicate is the pre-PB-DP8 first-match auto-selector's battlefield scan,
+/// extracted VERBATIM (`.find(pred)` became `.filter(pred)`). It is deliberately
+/// not re-implemented: PB-DP8's answer validation is membership in the candidate
+/// set this predicate builds, so a fork here would let the engine reject a target
+/// it had just offered (SR-38).
+///
+/// `req` is the requirement with any `UpToN` wrapper already unwrapped, so the
+/// nested `UpToN` arm below is reached only for a (currently unauthored) nested
+/// `UpToN { inner: UpToN { .. } }`.
+fn trigger_battlefield_target_matches(
+    state: &GameState,
+    trigger: &PendingTrigger,
+    req: &crate::cards::card_definition::TargetRequirement,
+    obj: &crate::state::game_object::GameObject,
+    src_chars_ref: Option<&crate::state::game_object::Characteristics>,
+) -> bool {
+    use crate::cards::card_definition::TargetRequirement;
+    use crate::state::types::CardType as CT;
+    if obj.zone != ZoneId::Battlefield || !obj.is_phased_in() {
+        return false;
+    }
+    // CR 613.1f: Use layer-resolved keywords for
+    // hexproof/shroud/protection (Humility removes them).
+    let chars =
+        crate::rules::layers::expect_characteristics(state, obj.id);
+    // Check protection/hexproof/shroud (CR 603.3d).
+    if super::validate_target_protection(
+        &chars.keywords,
+        obj.controller,
+        trigger.controller,
+        src_chars_ref,
+    )
+    .is_err()
+    {
+        return false;
+    }
+    let is_creature =
+        chars.card_types.contains(&CT::Creature);
+    let is_artifact =
+        chars.card_types.contains(&CT::Artifact);
+    let is_enchantment =
+        chars.card_types.contains(&CT::Enchantment);
+    let is_land = chars.card_types.contains(&CT::Land);
+    let is_planeswalker =
+        chars.card_types.contains(&CT::Planeswalker);
+    match req {
+        TargetRequirement::TargetCreature => is_creature,
+        TargetRequirement::TargetPermanent => true,
+        // CR 601.2c ("another target"): type-legality identical
+        // to TargetPermanent; distinctness enforced at declaration
+        // validation (casting.rs), not here.
+        TargetRequirement::TargetPermanentDistinctFrom(_) => true,
+        TargetRequirement::TargetArtifact => is_artifact,
+        TargetRequirement::TargetEnchantment => is_enchantment,
+        TargetRequirement::TargetLand => is_land,
+        TargetRequirement::TargetPlaneswalker => is_planeswalker,
+        TargetRequirement::TargetCreatureOrPlayer => is_creature,
+        TargetRequirement::TargetCreatureWithFilter(f) => {
+            if !is_creature {
+                return false;
+            }
+            let passes =
+                crate::effects::matches_filter(&chars, f);
+            let ctrl_ok = match f.controller {
+                crate::cards::card_definition::TargetController::Any => true,
+                crate::cards::card_definition::TargetController::You => {
+                    obj.controller == trigger.controller
+                }
+                crate::cards::card_definition::TargetController::Opponent => {
+                    obj.controller != trigger.controller
+                }
+                // PB-D: CR 510.3a, 601.2c — target must be
+                // controlled by the player dealt combat damage in
+                // the triggering event. Falls through to false if
+                // no damaged_player is set (non-combat trigger).
+                crate::cards::card_definition::TargetController::DamagedPlayer => {
+                    trigger.damaged_player
+                        .is_some_and(|dp| obj.controller == dp)
+                }
+            };
+            // PB-XS: CR 109.1 / 601.2c — "another target X" exclusion.
+            let passes_self = !f.exclude_self || obj.id != trigger.source;
+            // PB-XA2: CR 508.1k / 509.1c / 601.2c — combat-role check.
+            let passes_combat_role = match (f.is_attacking, f.is_blocking) {
+                (false, false) => true,
+                (true, false) => state.combat.as_ref().is_some_and(|c| c.attackers.contains_key(&obj.id)),
+                (false, true) => state.combat.as_ref().is_some_and(|c| c.is_blocking(obj.id)),
+                (true, true) => state.combat.as_ref().is_some_and(|c| {
+                    c.attackers.contains_key(&obj.id) || c.is_blocking(obj.id)
+                }),
+            };
+            // PB-XA2: CR 701.20a / 701.21a — tapped/untapped.
+            let passes_tapped = !f.is_tapped || obj.status.tapped;
+            let passes_untapped = !f.is_untapped || !obj.status.tapped;
+            passes && ctrl_ok && passes_self && passes_combat_role && passes_tapped && passes_untapped
+        }
+        TargetRequirement::TargetPermanentWithFilter(f) => {
+            let passes =
+                crate::effects::matches_filter(&chars, f);
+            let ctrl_ok = match f.controller {
+                crate::cards::card_definition::TargetController::Any => true,
+                crate::cards::card_definition::TargetController::You => {
+                    obj.controller == trigger.controller
+                }
+                crate::cards::card_definition::TargetController::Opponent => {
+                    obj.controller != trigger.controller
+                }
+                // PB-D: CR 510.3a, 601.2c — target must be
+                // controlled by the player dealt combat damage in
+                // the triggering event. Falls through to false if
+                // no damaged_player is set (non-combat trigger).
+                crate::cards::card_definition::TargetController::DamagedPlayer => {
+                    trigger.damaged_player
+                        .is_some_and(|dp| obj.controller == dp)
+                }
+            };
+            // PB-XS: CR 109.1 / 601.2c — "another target X" exclusion.
+            let passes_self = !f.exclude_self || obj.id != trigger.source;
+            // PB-XA2: CR 508.1k / 509.1c / 601.2c — combat-role check.
+            let passes_combat_role = match (f.is_attacking, f.is_blocking) {
+                (false, false) => true,
+                (true, false) => state.combat.as_ref().is_some_and(|c| c.attackers.contains_key(&obj.id)),
+                (false, true) => state.combat.as_ref().is_some_and(|c| c.is_blocking(obj.id)),
+                (true, true) => state.combat.as_ref().is_some_and(|c| {
+                    c.attackers.contains_key(&obj.id) || c.is_blocking(obj.id)
+                }),
+            };
+            // PB-XA2: CR 701.20a / 701.21a — tapped/untapped.
+            let passes_tapped = !f.is_tapped || obj.status.tapped;
+            let passes_untapped = !f.is_untapped || !obj.status.tapped;
+            passes && ctrl_ok && passes_self && passes_combat_role && passes_tapped && passes_untapped
+        }
+        // Player-only reqs are handled above — no objects.
+        TargetRequirement::TargetPlayer
+        | TargetRequirement::TargetOpponent => false,
+        // Spell targets not applicable for triggered abilities.
+        TargetRequirement::TargetSpell
+        | TargetRequirement::TargetSpellWithFilter(_) => false,
+        // Graveyard reqs handled above.
+        TargetRequirement::TargetCardInYourGraveyard(_)
+        | TargetRequirement::TargetCardInGraveyard(_) => false,
+        TargetRequirement::TargetAny => {
+            is_creature || is_planeswalker
+        }
+        TargetRequirement::TargetPlayerOrPlaneswalker => {
+            is_planeswalker
+        }
+        // TargetSpellOrAbilityWithSingleTarget targets
+        // stack objects, not battlefield permanents.
+        TargetRequirement::TargetSpellOrAbilityWithSingleTarget => {
+            false
+        }
+        // TargetSpellWithSingleTarget targets stack
+        // objects (spells only), not battlefield permanents.
+        TargetRequirement::TargetSpellWithSingleTarget => false,
+        // CR 601.2c / 115.1b: UpToN delegates to inner.
+        TargetRequirement::UpToN { inner, .. } => {
+            let is_creature =
+                chars.card_types.contains(&CT::Creature);
+            let is_artifact =
+                chars.card_types.contains(&CT::Artifact);
+            let is_enchantment =
+                chars.card_types.contains(&CT::Enchantment);
+            let is_land = chars.card_types.contains(&CT::Land);
+            let is_planeswalker =
+                chars.card_types.contains(&CT::Planeswalker);
+            match inner.as_ref() {
+                TargetRequirement::TargetCreature => is_creature,
+                TargetRequirement::TargetPermanent => true,
+                TargetRequirement::TargetArtifact => is_artifact,
+                TargetRequirement::TargetEnchantment => is_enchantment,
+                TargetRequirement::TargetLand => is_land,
+                TargetRequirement::TargetPlaneswalker => is_planeswalker,
+                TargetRequirement::TargetCreatureOrPlayer => is_creature,
+                TargetRequirement::TargetAny => is_creature || is_planeswalker,
+                TargetRequirement::TargetPlayerOrPlaneswalker => is_planeswalker,
+                TargetRequirement::TargetCreatureWithFilter(f) => {
+                    if !is_creature { false } else {
+                        let passes = crate::effects::matches_filter(&chars, f);
+                        let ctrl_ok = match f.controller {
+                            crate::cards::card_definition::TargetController::Any => true,
+                            crate::cards::card_definition::TargetController::You => obj.controller == trigger.controller,
+                            crate::cards::card_definition::TargetController::Opponent => obj.controller != trigger.controller,
+                            crate::cards::card_definition::TargetController::DamagedPlayer => trigger.damaged_player.is_some_and(|dp| obj.controller == dp),
+                        };
+                        // PB-XS: CR 109.1 / 601.2c — "another target X" exclusion.
+                        let passes_self = !f.exclude_self || obj.id != trigger.source;
+                        // PB-XA2: CR 508.1k / 509.1c / 601.2c — combat-role check.
+                        let passes_combat_role = match (f.is_attacking, f.is_blocking) {
+                            (false, false) => true,
+                            (true, false) => state.combat.as_ref().is_some_and(|c| c.attackers.contains_key(&obj.id)),
+                            (false, true) => state.combat.as_ref().is_some_and(|c| c.is_blocking(obj.id)),
+                            (true, true) => state.combat.as_ref().is_some_and(|c| {
+                                c.attackers.contains_key(&obj.id) || c.is_blocking(obj.id)
+                            }),
+                        };
+                        // PB-XA2: CR 701.20a / 701.21a — tapped/untapped.
+                        let passes_tapped = !f.is_tapped || obj.status.tapped;
+                        let passes_untapped = !f.is_untapped || !obj.status.tapped;
+                        passes && ctrl_ok && passes_self && passes_combat_role && passes_tapped && passes_untapped
+                    }
+                }
+                TargetRequirement::TargetPermanentWithFilter(f) => {
+                    let passes = crate::effects::matches_filter(&chars, f);
+                    let ctrl_ok = match f.controller {
+                        crate::cards::card_definition::TargetController::Any => true,
+                        crate::cards::card_definition::TargetController::You => obj.controller == trigger.controller,
+                        crate::cards::card_definition::TargetController::Opponent => obj.controller != trigger.controller,
+                        crate::cards::card_definition::TargetController::DamagedPlayer => trigger.damaged_player.is_some_and(|dp| obj.controller == dp),
+                    };
+                    // PB-XS: CR 109.1 / 601.2c — "another target X" exclusion.
+                    let passes_self = !f.exclude_self || obj.id != trigger.source;
+                    // PB-XA2: CR 508.1k / 509.1c / 601.2c — combat-role check.
+                    let passes_combat_role = match (f.is_attacking, f.is_blocking) {
+                        (false, false) => true,
+                        (true, false) => state.combat.as_ref().is_some_and(|c| c.attackers.contains_key(&obj.id)),
+                        (false, true) => state.combat.as_ref().is_some_and(|c| c.is_blocking(obj.id)),
+                        (true, true) => state.combat.as_ref().is_some_and(|c| {
+                            c.attackers.contains_key(&obj.id) || c.is_blocking(obj.id)
+                        }),
+                    };
+                    // PB-XA2: CR 701.20a / 701.21a — tapped/untapped.
+                    let passes_tapped = !f.is_tapped || obj.status.tapped;
+                    let passes_untapped = !f.is_untapped || !obj.status.tapped;
+                    passes && ctrl_ok && passes_self && passes_combat_role && passes_tapped && passes_untapped
+                }
+                // Nested UpToN, graveyard targets, spell targets: not applicable for auto-target on triggers.
+                _ => false,
+            }
+        }
+    }
+}
+/// CR 603.3d / CR 601.2c: every legal choice for one target slot of a triggered
+/// ability, plus the pre-PB-DP8 auto-pick.
+///
+/// This is the SAME code the first-match fallback used, refactored from
+/// `.find(<pred>)` into `.filter(<pred>).collect()` + an explicitly-computed
+/// `default`. Validation of a submitted answer is membership in `candidates` --
+/// the predicate is never re-implemented and never re-run against a
+/// possibly-different state.
+///
+/// **The player-arm / object-arm union is a deliberate, CR-correct widening.**
+/// Before PB-DP8 the player arm returned first for `TargetCreatureOrPlayer` /
+/// `TargetAny` / `TargetPlayerOrPlaneswalker`, so the object arm's matching
+/// branches were unreachable. CR 601.2c makes both kinds legal, so a controller
+/// choosing must be offered both. `default` still comes from the player arm, so
+/// no bot behaviour changes.
+pub(crate) fn trigger_target_candidates(
+    state: &GameState,
+    trigger: &PendingTrigger,
+    req: &crate::cards::card_definition::TargetRequirement,
+) -> TriggerTargetOption {
+    use crate::cards::card_definition::TargetRequirement;
+    // CR 601.2c "up to": an `UpToN` slot may legally be answered with zero
+    // targets. Unwrap to the inner requirement for candidate derivation --
+    // before PB-DP8 the `UpToN` arm hand-routed player-inner requirements to the
+    // player picker and returned `None` for everything else.
+    let optional = matches!(req, TargetRequirement::UpToN { .. });
+    let req: &TargetRequirement = match req {
+        TargetRequirement::UpToN { inner, .. } => inner.as_ref(),
+        other => other,
+    };
+    let source_chars = state
+        .objects
+        .get(&trigger.source)
+        .map(|o| o.characteristics.clone());
+    let src_chars_ref = source_chars.as_ref();
+    let alive = |p: crate::state::player::PlayerId| {
+        state
+            .expect_player(p)
+            .map(|pl| !pl.has_lost && !pl.has_conceded)
+            .unwrap_or(false)
+    };
+    let player_family = matches!(
+        req,
+        TargetRequirement::TargetPlayer
+            | TargetRequirement::TargetCreatureOrPlayer
+            | TargetRequirement::TargetAny
+            | TargetRequirement::TargetPlayerOrPlaneswalker
+    );
+    let mut candidates: Vec<SpellTarget> = Vec::new();
+    match req {
+        // CR 601.2c: every live player is a legal choice for a player-targeting
+        // requirement. (The pre-PB-DP8 auto-pick preferred an opponent; that
+        // preference survives as `default` below.)
+        TargetRequirement::TargetPlayer
+        | TargetRequirement::TargetCreatureOrPlayer
+        | TargetRequirement::TargetAny
+        | TargetRequirement::TargetPlayerOrPlaneswalker => {
+            for &p in state.turn.turn_order.iter() {
+                if alive(p) {
+                    candidates.push(SpellTarget {
+                        target: Target::Player(p),
+                        zone_at_cast: None,
+                    });
+                }
+            }
+        }
+        // PB-EF6: CR 102.3/601.2c -- opponents only, NEVER the controller.
+        TargetRequirement::TargetOpponent => {
+            for &p in state.turn.turn_order.iter() {
+                if p != trigger.controller && alive(p) {
+                    candidates.push(SpellTarget {
+                        target: Target::Player(p),
+                        zone_at_cast: None,
+                    });
+                }
+            }
+        }
+        // Graveyard card targets: scan objects in the appropriate graveyard.
+        TargetRequirement::TargetCardInYourGraveyard(filter) => {
+            let controller_gy = ZoneId::Graveyard(trigger.controller);
+            let combat_ref = state.combat.as_ref();
+            candidates.extend(
+                state
+                    .objects
+                    .iter()
+                    .filter(|(_, obj)| {
+                    // PB-XA2: CR 508.1k / 509.1c — graveyard objects are never in
+                    // combat roles. passes_combat_role rejects correctly for all branches.
+                    let role_ok = match (filter.is_attacking, filter.is_blocking) {
+                        (false, false) => true,
+                        (true, false) => combat_ref
+                            .is_some_and(|c| c.attackers.contains_key(&obj.id)),
+                        (false, true) => {
+                            combat_ref.is_some_and(|c| c.is_blocking(obj.id))
+                        }
+                        (true, true) => combat_ref.is_some_and(|c| {
+                            c.attackers.contains_key(&obj.id)
+                                || c.is_blocking(obj.id)
+                        }),
+                    };
+                    // PB-XA2: CR 701.20a / 701.21a — tapped/untapped state.
+                    let tapped_ok = !filter.is_tapped || obj.status.tapped;
+                    let untapped_ok = !filter.is_untapped || !obj.status.tapped;
+                    obj.zone == controller_gy
+                        && crate::effects::matches_filter(
+                            &obj.characteristics,
+                            filter,
+                        )
+                        // PB-XS: CR 109.1 / 601.2c — "another target X" exclusion.
+                        // Death triggers like Elderfang Ritualist scan the graveyard
+                        // where the trigger source's post-death object lives.
+                        && (!filter.exclude_self || obj.id != trigger.source)
+                        && role_ok && tapped_ok && untapped_ok
+                    })
+                    .map(|(id, obj)| SpellTarget {
+                        target: Target::Object(*id),
+                        zone_at_cast: Some(obj.zone),
+                    }),
+            );
+        }
+        TargetRequirement::TargetCardInGraveyard(filter) => {
+            let combat_ref2 = state.combat.as_ref();
+            candidates.extend(
+                state
+                    .objects
+                    .iter()
+                    .filter(|(_, obj)| {
+                    // PB-XA2: CR 508.1k / 509.1c — graveyard objects are never in
+                    // combat roles (same rationale as T1 above).
+                    let role_ok = match (filter.is_attacking, filter.is_blocking) {
+                        (false, false) => true,
+                        (true, false) => combat_ref2.is_some_and(|c| c.attackers.contains_key(&obj.id)),
+                        (false, true) => combat_ref2.is_some_and(|c| c.is_blocking(obj.id)),
+                        (true, true) => combat_ref2.is_some_and(|c| {
+                            c.attackers.contains_key(&obj.id) || c.is_blocking(obj.id)
+                        }),
+                    };
+                    // PB-XA2: CR 701.20a / 701.21a — tapped/untapped state.
+                    let tapped_ok = !filter.is_tapped || obj.status.tapped;
+                    let untapped_ok = !filter.is_untapped || !obj.status.tapped;
+                    matches!(obj.zone, ZoneId::Graveyard(_))
+                        && crate::effects::matches_filter(&obj.characteristics, filter)
+                        // PB-XS: CR 109.1 / 601.2c — "another target X" exclusion.
+                        && (!filter.exclude_self || obj.id != trigger.source)
+                        && role_ok && tapped_ok && untapped_ok
+                    })
+                    .map(|(id, obj)| SpellTarget {
+                        target: Target::Object(*id),
+                        zone_at_cast: Some(obj.zone),
+                    }),
+            );
+        }
+        _ => {}
+    }
+    // The battlefield scan runs for EVERY family: its own match returns `false`
+    // for the player-only, graveyard-only and spell-only requirements, so this
+    // adds nothing to those and supplies the whole candidate set for the rest.
+    // For the three player/permanent hybrid requirements it is the half that was
+    // dead code before PB-DP8.
+    candidates.extend(
+        state
+            .objects
+            .iter()
+            .filter(|(_, obj)| {
+                trigger_battlefield_target_matches(state, trigger, req, obj, src_chars_ref)
+            })
+            .map(|(id, obj)| SpellTarget {
+                target: Target::Object(*id),
+                zone_at_cast: Some(obj.zone),
+            }),
+    );
+    // CR 603.3d: the pre-PB-DP8 auto-pick, reproduced exactly.
+    //  * player families: first live OPPONENT, else the controller if alive;
+    //  * `TargetOpponent`: first live opponent, no self-fallback (PB-EF6);
+    //  * an `optional` (`UpToN`) slot with a non-player inner: `None` -- the old
+    //    code contributed no target for it;
+    //  * everything else: the first match of the same scan, i.e. `candidates[0]`.
+    let first_opponent = || {
+        state
+            .turn
+            .turn_order
+            .iter()
+            .copied()
+            .find(|&p| p != trigger.controller && alive(p))
+            .map(|p| SpellTarget {
+                target: Target::Player(p),
+                zone_at_cast: None,
+            })
+    };
+    let default: Option<SpellTarget> = if player_family {
+        first_opponent().or_else(|| {
+            if alive(trigger.controller) {
+                Some(SpellTarget {
+                    target: Target::Player(trigger.controller),
+                    zone_at_cast: None,
+                })
+            } else {
+                None
+            }
+        })
+    } else if matches!(req, TargetRequirement::TargetOpponent) {
+        first_opponent()
+    } else if optional {
+        None
+    } else {
+        candidates.first().cloned()
+    };
+    debug_assert!(
+        default
+            .as_ref()
+            .map(|d| candidates.contains(d))
+            .unwrap_or(true),
+        "PB-DP8: a slot default must be a member of its own candidate set"
+    );
+    TriggerTargetOption {
+        optional,
+        candidates,
+        default,
+    }
+}
+/// CR 603.3d (PB-DP8): the deterministic default answer -- byte-identical to the
+/// pre-PB-DP8 first-match auto-pick, because each slot's `default` IS the value
+/// the old `candidate` expression produced.
+///
+/// **The engine never calls this on a decision path.** It exists so the
+/// simulator's `StubProvider`, the replay harness and the TUI cannot drift from
+/// one another (SR-38): each of them submits this as a real `Command`, which is
+/// what keeps the replay log a complete record of every choice
+/// (Architecture Invariant 1 -- the engine must not know which seats are human).
+pub fn default_trigger_targets(slots: &[TriggerTargetOption]) -> Vec<Vec<Target>> {
+    slots
+        .iter()
+        .map(|s| match &s.default {
+            Some(t) => vec![t.target.clone()],
+            None => Vec::new(),
+        })
+        .collect()
+}
+/// CR 601.2c: an announcement with exactly one legal answer is determined.
+///
+/// When every slot is required and has exactly one candidate there is nothing for
+/// the controller to decide, so the engine places the trigger directly rather than
+/// spending a wire round trip on a question with one answer. An `optional` slot is
+/// excluded because "choose zero" is a genuine second answer.
+fn trigger_target_choice_is_forced(slots: &[TriggerTargetOption]) -> bool {
+    slots.iter().all(|s| !s.optional && s.candidates.len() == 1)
+}
 /// Called immediately before a player would receive priority. If no pending
 /// triggers exist, this is a no-op.
 ///
@@ -7081,7 +7567,21 @@ fn collect_graveyard_carddef_triggers(
 ///
 /// Returns events for each ability placed on the stack. Does NOT emit
 /// `PriorityGiven` — the caller is responsible for granting priority after.
+/// **PB-DP8 (CR 603.3d)**: the batch may now SUSPEND. If this returns with
+/// `state.pending_trigger_targets` `Some`, the CR 603.3b batch is INCOMPLETE and
+/// the caller must not grant priority or advance -- see the four guarded call
+/// sites (`enter_step`'s two branches, `handle_declare_attackers`,
+/// `handle_declare_blockers`, and the resolution tail).
 pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
+    // A suspended flush must never be re-entered: the caller's guard should have
+    // prevented it, so this is an engine bug, not a rules-correct fizzle (SR-4).
+    debug_assert!(
+        state.pending_trigger_targets.is_none(),
+        "flush_pending_triggers re-entered while a CR 603.3d target choice is outstanding"
+    );
+    if state.pending_trigger_targets.is_some() {
+        return Vec::new();
+    }
     if state.pending_triggers.is_empty() {
         return Vec::new();
     }
@@ -7107,8 +7607,31 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
             .position(|&p| p == t.controller)
             .unwrap_or(usize::MAX)
     });
+    flush_sorted(state, sorted, None)
+}
+/// CR 603.3b / CR 603.3d: place an already-APNAP-sorted batch on the stack, one
+/// ability at a time.
+///
+/// `head_targets`, when `Some`, are the answered targets for `sorted[0]` (the
+/// resume path). Every later trigger derives its own normally, which is what
+/// CR 603.3d requires -- targets are chosen "as [the ability] goes on the stack",
+/// so the earlier abilities of the batch being on the stack already is correct
+/// information for the later chooser, not a hazard.
+///
+/// This function NEVER touches `state.pending_triggers` and NEVER re-sorts: both
+/// belong to the public entry point, so a pause preserves the batch's CR 603.3b
+/// order byte-for-byte.
+fn flush_sorted(
+    state: &mut GameState,
+    sorted: Vec<PendingTrigger>,
+    head_targets: Option<Vec<SpellTarget>>,
+) -> Vec<GameEvent> {
+    let mut head_targets = head_targets;
     let mut events = Vec::new();
-    for trigger in sorted {
+    let mut next_index = 0usize;
+    while next_index < sorted.len() {
+        let trigger = sorted[next_index].clone();
+        next_index += 1;
         // CR 603.2c/603.2h (PB-AC1): once-per-turn gate. Determine whether this
         // trigger's ability is marked `once_per_turn` (card text "This ability
         // triggers only once each turn"). Look up the layer-resolved runtime
@@ -7361,439 +7884,78 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
                 // No targets required — proceed normally with empty targets.
                 Some(vec![])
             } else {
-                // CR 603.3d: Auto-select one legal target per requirement (deterministic
-                // first-match). If no legal candidate for any requirement, skip trigger.
-                let source_chars = state
-                    .objects
-                    .get(&trigger.source)
-                    .map(|o| o.characteristics.clone());
-                let mut selected: Vec<SpellTarget> = Vec::new();
-                let mut all_satisfied = true;
-                for req in &ability_targets {
-                    use crate::cards::card_definition::TargetRequirement;
-                    use crate::state::types::CardType as CT;
-                    let candidate: Option<SpellTarget> = match req {
-                        // Player-targeting requirements: pick the first active opponent,
-                        // falling back to the controller if no opponent is available.
-                        TargetRequirement::TargetPlayer
-                        | TargetRequirement::TargetCreatureOrPlayer
-                        | TargetRequirement::TargetAny
-                        | TargetRequirement::TargetPlayerOrPlaneswalker => {
-                            // Try opponents first, then self.
-                            let pid = state
-                                .turn
-                                .turn_order
-                                .iter()
-                                .find(|&&p| {
-                                    p != trigger.controller
-                                        && state
-                                            .expect_player(p)
-                                            .map(|pl| !pl.has_lost && !pl.has_conceded)
-                                            .unwrap_or(false)
-                                })
-                                .copied()
-                                .or_else(|| {
-                                    state
-                                        .expect_player(trigger.controller)
-                                        .filter(|pl| !pl.has_lost && !pl.has_conceded)
-                                        .map(|_| trigger.controller)
-                                });
-                            pid.map(|p| SpellTarget {
-                                target: Target::Player(p),
-                                zone_at_cast: None,
-                            })
-                        }
-                        // PB-EF6: CR 603.3d — pick the first active opponent; if the source has
-                        // NO opponent, contribute no candidate (None) so the trigger is removed
-                        // from the stack. NEVER fall back to trigger.controller (that would be
-                        // an illegal self-target, CR 102.3/601.2c).
-                        TargetRequirement::TargetOpponent => state
-                            .turn
-                            .turn_order
-                            .iter()
-                            .find(|&&p| {
-                                p != trigger.controller
-                                    && state
-                                        .expect_player(p)
-                                        .map(|pl| !pl.has_lost && !pl.has_conceded)
-                                        .unwrap_or(false)
-                            })
-                            .copied()
-                            .map(|p| SpellTarget {
-                                target: Target::Player(p),
-                                zone_at_cast: None,
-                            }),
-                        // Graveyard card targets: scan objects in the appropriate graveyard.
-                        TargetRequirement::TargetCardInYourGraveyard(filter) => {
-                            let controller_gy = ZoneId::Graveyard(trigger.controller);
-                            let combat_ref = state.combat.as_ref();
-                            state
-                                .objects
-                                .iter()
-                                .find(|(_, obj)| {
-                                    // PB-XA2: CR 508.1k / 509.1c — graveyard objects are never in
-                                    // combat roles. passes_combat_role rejects correctly for all branches.
-                                    let role_ok = match (filter.is_attacking, filter.is_blocking) {
-                                        (false, false) => true,
-                                        (true, false) => combat_ref
-                                            .is_some_and(|c| c.attackers.contains_key(&obj.id)),
-                                        (false, true) => {
-                                            combat_ref.is_some_and(|c| c.is_blocking(obj.id))
-                                        }
-                                        (true, true) => combat_ref.is_some_and(|c| {
-                                            c.attackers.contains_key(&obj.id)
-                                                || c.is_blocking(obj.id)
-                                        }),
-                                    };
-                                    // PB-XA2: CR 701.20a / 701.21a — tapped/untapped state.
-                                    let tapped_ok = !filter.is_tapped || obj.status.tapped;
-                                    let untapped_ok = !filter.is_untapped || !obj.status.tapped;
-                                    obj.zone == controller_gy
-                                        && crate::effects::matches_filter(
-                                            &obj.characteristics,
-                                            filter,
-                                        )
-                                        // PB-XS: CR 109.1 / 601.2c — "another target X" exclusion.
-                                        // Death triggers like Elderfang Ritualist scan the graveyard
-                                        // where the trigger source's post-death object lives.
-                                        && (!filter.exclude_self || obj.id != trigger.source)
-                                        && role_ok && tapped_ok && untapped_ok
-                                })
-                                .map(|(id, obj)| SpellTarget {
-                                    target: Target::Object(*id),
-                                    zone_at_cast: Some(obj.zone),
-                                })
-                        }
-                        TargetRequirement::TargetCardInGraveyard(filter) => {
-                            let combat_ref2 = state.combat.as_ref();
-                            state
-                                .objects
-                                .iter()
-                                .find(|(_, obj)| {
-                                    // PB-XA2: CR 508.1k / 509.1c — graveyard objects are never in
-                                    // combat roles (same rationale as T1 above).
-                                    let role_ok = match (filter.is_attacking, filter.is_blocking) {
-                                        (false, false) => true,
-                                        (true, false) => combat_ref2.is_some_and(|c| c.attackers.contains_key(&obj.id)),
-                                        (false, true) => combat_ref2.is_some_and(|c| c.is_blocking(obj.id)),
-                                        (true, true) => combat_ref2.is_some_and(|c| {
-                                            c.attackers.contains_key(&obj.id) || c.is_blocking(obj.id)
-                                        }),
-                                    };
-                                    // PB-XA2: CR 701.20a / 701.21a — tapped/untapped state.
-                                    let tapped_ok = !filter.is_tapped || obj.status.tapped;
-                                    let untapped_ok = !filter.is_untapped || !obj.status.tapped;
-                                    matches!(obj.zone, ZoneId::Graveyard(_))
-                                        && crate::effects::matches_filter(&obj.characteristics, filter)
-                                        // PB-XS: CR 109.1 / 601.2c — "another target X" exclusion.
-                                        && (!filter.exclude_self || obj.id != trigger.source)
-                                        && role_ok && tapped_ok && untapped_ok
-                                })
-                                .map(|(id, obj)| SpellTarget {
-                                    target: Target::Object(*id),
-                                    zone_at_cast: Some(obj.zone),
-                                })
-                        }
-                        // UpToN: auto-target is optional (contribute 0 targets by returning None).
-                        // If inner is a player-targeting requirement, route to player-picker so
-                        // that UpToN{inner=TargetPlayer} finds players rather than battlefield
-                        // objects (E2 fix — CR 601.2c; player-target lookup is independent of
-                        // battlefield scan). For permanent-inner UpToN, None is correct:
-                        // triggers with optional targeting auto-target 0 (skip optional slots).
-                        TargetRequirement::UpToN { inner, .. } => {
-                            match inner.as_ref() {
-                                TargetRequirement::TargetPlayer
-                                | TargetRequirement::TargetCreatureOrPlayer
-                                | TargetRequirement::TargetAny
-                                | TargetRequirement::TargetPlayerOrPlaneswalker => {
-                                    // Route to player-picker for player-inner UpToN.
-                                    let pid = state
-                                        .turn
-                                        .turn_order
-                                        .iter()
-                                        .find(|&&p| {
-                                            p != trigger.controller
-                                                && state
-                                                    .expect_player(p)
-                                                    .map(|pl| !pl.has_lost && !pl.has_conceded)
-                                                    .unwrap_or(false)
-                                        })
-                                        .copied()
-                                        .or_else(|| {
-                                            state
-                                                .expect_player(trigger.controller)
-                                                .filter(|pl| !pl.has_lost && !pl.has_conceded)
-                                                .map(|_| trigger.controller)
-                                        });
-                                    pid.map(|p| SpellTarget {
-                                        target: Target::Player(p),
-                                        zone_at_cast: None,
-                                    })
-                                }
-                                // PB-EF6: CR 603.3d — opponent-only inner requirement. Pick the
-                                // first active opponent; NO self-fallback (UpToN contributes 0
-                                // targets if the source has no opponent — correct for optional
-                                // targeting, CR 601.2c).
-                                TargetRequirement::TargetOpponent => state
-                                    .turn
-                                    .turn_order
-                                    .iter()
-                                    .find(|&&p| {
-                                        p != trigger.controller
-                                            && state
-                                                .expect_player(p)
-                                                .map(|pl| !pl.has_lost && !pl.has_conceded)
-                                                .unwrap_or(false)
-                                    })
-                                    .copied()
-                                    .map(|p| SpellTarget {
-                                        target: Target::Player(p),
-                                        zone_at_cast: None,
-                                    }),
-                                // For permanent-inner UpToN, skip (contribute 0 targets).
-                                // Triggers with optional targeting auto-select 0 for UpToN slots.
-                                _ => None,
-                            }
-                        }
-                        // Battlefield object targets: scan battlefield objects.
-                        _ => {
-                            let src_chars_ref = source_chars.as_ref();
-                            state
-                                    .objects
-                                    .iter()
-                                    .find(|(_, obj)| {
-                                        if obj.zone != ZoneId::Battlefield || !obj.is_phased_in() {
-                                            return false;
-                                        }
-                                        // CR 613.1f: Use layer-resolved keywords for
-                                        // hexproof/shroud/protection (Humility removes them).
-                                        let chars =
-                                            crate::rules::layers::expect_characteristics(state, obj.id);
-                                        // Check protection/hexproof/shroud (CR 603.3d).
-                                        if super::validate_target_protection(
-                                            &chars.keywords,
-                                            obj.controller,
-                                            trigger.controller,
-                                            src_chars_ref,
-                                        )
-                                        .is_err()
-                                        {
-                                            return false;
-                                        }
-                                        let is_creature =
-                                            chars.card_types.contains(&CT::Creature);
-                                        let is_artifact =
-                                            chars.card_types.contains(&CT::Artifact);
-                                        let is_enchantment =
-                                            chars.card_types.contains(&CT::Enchantment);
-                                        let is_land = chars.card_types.contains(&CT::Land);
-                                        let is_planeswalker =
-                                            chars.card_types.contains(&CT::Planeswalker);
-                                        match req {
-                                            TargetRequirement::TargetCreature => is_creature,
-                                            TargetRequirement::TargetPermanent => true,
-                                            // CR 601.2c ("another target"): type-legality identical
-                                            // to TargetPermanent; distinctness enforced at declaration
-                                            // validation (casting.rs), not here.
-                                            TargetRequirement::TargetPermanentDistinctFrom(_) => true,
-                                            TargetRequirement::TargetArtifact => is_artifact,
-                                            TargetRequirement::TargetEnchantment => is_enchantment,
-                                            TargetRequirement::TargetLand => is_land,
-                                            TargetRequirement::TargetPlaneswalker => is_planeswalker,
-                                            TargetRequirement::TargetCreatureOrPlayer => is_creature,
-                                            TargetRequirement::TargetCreatureWithFilter(f) => {
-                                                if !is_creature {
-                                                    return false;
-                                                }
-                                                let passes =
-                                                    crate::effects::matches_filter(&chars, f);
-                                                let ctrl_ok = match f.controller {
-                                                    crate::cards::card_definition::TargetController::Any => true,
-                                                    crate::cards::card_definition::TargetController::You => {
-                                                        obj.controller == trigger.controller
-                                                    }
-                                                    crate::cards::card_definition::TargetController::Opponent => {
-                                                        obj.controller != trigger.controller
-                                                    }
-                                                    // PB-D: CR 510.3a, 601.2c — target must be
-                                                    // controlled by the player dealt combat damage in
-                                                    // the triggering event. Falls through to false if
-                                                    // no damaged_player is set (non-combat trigger).
-                                                    crate::cards::card_definition::TargetController::DamagedPlayer => {
-                                                        trigger.damaged_player
-                                                            .is_some_and(|dp| obj.controller == dp)
-                                                    }
-                                                };
-                                                // PB-XS: CR 109.1 / 601.2c — "another target X" exclusion.
-                                                let passes_self = !f.exclude_self || obj.id != trigger.source;
-                                                // PB-XA2: CR 508.1k / 509.1c / 601.2c — combat-role check.
-                                                let passes_combat_role = match (f.is_attacking, f.is_blocking) {
-                                                    (false, false) => true,
-                                                    (true, false) => state.combat.as_ref().is_some_and(|c| c.attackers.contains_key(&obj.id)),
-                                                    (false, true) => state.combat.as_ref().is_some_and(|c| c.is_blocking(obj.id)),
-                                                    (true, true) => state.combat.as_ref().is_some_and(|c| {
-                                                        c.attackers.contains_key(&obj.id) || c.is_blocking(obj.id)
-                                                    }),
-                                                };
-                                                // PB-XA2: CR 701.20a / 701.21a — tapped/untapped.
-                                                let passes_tapped = !f.is_tapped || obj.status.tapped;
-                                                let passes_untapped = !f.is_untapped || !obj.status.tapped;
-                                                passes && ctrl_ok && passes_self && passes_combat_role && passes_tapped && passes_untapped
-                                            }
-                                            TargetRequirement::TargetPermanentWithFilter(f) => {
-                                                let passes =
-                                                    crate::effects::matches_filter(&chars, f);
-                                                let ctrl_ok = match f.controller {
-                                                    crate::cards::card_definition::TargetController::Any => true,
-                                                    crate::cards::card_definition::TargetController::You => {
-                                                        obj.controller == trigger.controller
-                                                    }
-                                                    crate::cards::card_definition::TargetController::Opponent => {
-                                                        obj.controller != trigger.controller
-                                                    }
-                                                    // PB-D: CR 510.3a, 601.2c — target must be
-                                                    // controlled by the player dealt combat damage in
-                                                    // the triggering event. Falls through to false if
-                                                    // no damaged_player is set (non-combat trigger).
-                                                    crate::cards::card_definition::TargetController::DamagedPlayer => {
-                                                        trigger.damaged_player
-                                                            .is_some_and(|dp| obj.controller == dp)
-                                                    }
-                                                };
-                                                // PB-XS: CR 109.1 / 601.2c — "another target X" exclusion.
-                                                let passes_self = !f.exclude_self || obj.id != trigger.source;
-                                                // PB-XA2: CR 508.1k / 509.1c / 601.2c — combat-role check.
-                                                let passes_combat_role = match (f.is_attacking, f.is_blocking) {
-                                                    (false, false) => true,
-                                                    (true, false) => state.combat.as_ref().is_some_and(|c| c.attackers.contains_key(&obj.id)),
-                                                    (false, true) => state.combat.as_ref().is_some_and(|c| c.is_blocking(obj.id)),
-                                                    (true, true) => state.combat.as_ref().is_some_and(|c| {
-                                                        c.attackers.contains_key(&obj.id) || c.is_blocking(obj.id)
-                                                    }),
-                                                };
-                                                // PB-XA2: CR 701.20a / 701.21a — tapped/untapped.
-                                                let passes_tapped = !f.is_tapped || obj.status.tapped;
-                                                let passes_untapped = !f.is_untapped || !obj.status.tapped;
-                                                passes && ctrl_ok && passes_self && passes_combat_role && passes_tapped && passes_untapped
-                                            }
-                                            // Player-only reqs are handled above — no objects.
-                                            TargetRequirement::TargetPlayer
-                                            | TargetRequirement::TargetOpponent => false,
-                                            // Spell targets not applicable for triggered abilities.
-                                            TargetRequirement::TargetSpell
-                                            | TargetRequirement::TargetSpellWithFilter(_) => false,
-                                            // Graveyard reqs handled above.
-                                            TargetRequirement::TargetCardInYourGraveyard(_)
-                                            | TargetRequirement::TargetCardInGraveyard(_) => false,
-                                            TargetRequirement::TargetAny => {
-                                                is_creature || is_planeswalker
-                                            }
-                                            TargetRequirement::TargetPlayerOrPlaneswalker => {
-                                                is_planeswalker
-                                            }
-                                            // TargetSpellOrAbilityWithSingleTarget targets
-                                            // stack objects, not battlefield permanents.
-                                            TargetRequirement::TargetSpellOrAbilityWithSingleTarget => {
-                                                false
-                                            }
-                                            // TargetSpellWithSingleTarget targets stack
-                                            // objects (spells only), not battlefield permanents.
-                                            TargetRequirement::TargetSpellWithSingleTarget => false,
-                                            // CR 601.2c / 115.1b: UpToN delegates to inner.
-                                            TargetRequirement::UpToN { inner, .. } => {
-                                                let is_creature =
-                                                    chars.card_types.contains(&CT::Creature);
-                                                let is_artifact =
-                                                    chars.card_types.contains(&CT::Artifact);
-                                                let is_enchantment =
-                                                    chars.card_types.contains(&CT::Enchantment);
-                                                let is_land = chars.card_types.contains(&CT::Land);
-                                                let is_planeswalker =
-                                                    chars.card_types.contains(&CT::Planeswalker);
-                                                match inner.as_ref() {
-                                                    TargetRequirement::TargetCreature => is_creature,
-                                                    TargetRequirement::TargetPermanent => true,
-                                                    TargetRequirement::TargetArtifact => is_artifact,
-                                                    TargetRequirement::TargetEnchantment => is_enchantment,
-                                                    TargetRequirement::TargetLand => is_land,
-                                                    TargetRequirement::TargetPlaneswalker => is_planeswalker,
-                                                    TargetRequirement::TargetCreatureOrPlayer => is_creature,
-                                                    TargetRequirement::TargetAny => is_creature || is_planeswalker,
-                                                    TargetRequirement::TargetPlayerOrPlaneswalker => is_planeswalker,
-                                                    TargetRequirement::TargetCreatureWithFilter(f) => {
-                                                        if !is_creature { false } else {
-                                                            let passes = crate::effects::matches_filter(&chars, f);
-                                                            let ctrl_ok = match f.controller {
-                                                                crate::cards::card_definition::TargetController::Any => true,
-                                                                crate::cards::card_definition::TargetController::You => obj.controller == trigger.controller,
-                                                                crate::cards::card_definition::TargetController::Opponent => obj.controller != trigger.controller,
-                                                                crate::cards::card_definition::TargetController::DamagedPlayer => trigger.damaged_player.is_some_and(|dp| obj.controller == dp),
-                                                            };
-                                                            // PB-XS: CR 109.1 / 601.2c — "another target X" exclusion.
-                                                            let passes_self = !f.exclude_self || obj.id != trigger.source;
-                                                            // PB-XA2: CR 508.1k / 509.1c / 601.2c — combat-role check.
-                                                            let passes_combat_role = match (f.is_attacking, f.is_blocking) {
-                                                                (false, false) => true,
-                                                                (true, false) => state.combat.as_ref().is_some_and(|c| c.attackers.contains_key(&obj.id)),
-                                                                (false, true) => state.combat.as_ref().is_some_and(|c| c.is_blocking(obj.id)),
-                                                                (true, true) => state.combat.as_ref().is_some_and(|c| {
-                                                                    c.attackers.contains_key(&obj.id) || c.is_blocking(obj.id)
-                                                                }),
-                                                            };
-                                                            // PB-XA2: CR 701.20a / 701.21a — tapped/untapped.
-                                                            let passes_tapped = !f.is_tapped || obj.status.tapped;
-                                                            let passes_untapped = !f.is_untapped || !obj.status.tapped;
-                                                            passes && ctrl_ok && passes_self && passes_combat_role && passes_tapped && passes_untapped
-                                                        }
-                                                    }
-                                                    TargetRequirement::TargetPermanentWithFilter(f) => {
-                                                        let passes = crate::effects::matches_filter(&chars, f);
-                                                        let ctrl_ok = match f.controller {
-                                                            crate::cards::card_definition::TargetController::Any => true,
-                                                            crate::cards::card_definition::TargetController::You => obj.controller == trigger.controller,
-                                                            crate::cards::card_definition::TargetController::Opponent => obj.controller != trigger.controller,
-                                                            crate::cards::card_definition::TargetController::DamagedPlayer => trigger.damaged_player.is_some_and(|dp| obj.controller == dp),
-                                                        };
-                                                        // PB-XS: CR 109.1 / 601.2c — "another target X" exclusion.
-                                                        let passes_self = !f.exclude_self || obj.id != trigger.source;
-                                                        // PB-XA2: CR 508.1k / 509.1c / 601.2c — combat-role check.
-                                                        let passes_combat_role = match (f.is_attacking, f.is_blocking) {
-                                                            (false, false) => true,
-                                                            (true, false) => state.combat.as_ref().is_some_and(|c| c.attackers.contains_key(&obj.id)),
-                                                            (false, true) => state.combat.as_ref().is_some_and(|c| c.is_blocking(obj.id)),
-                                                            (true, true) => state.combat.as_ref().is_some_and(|c| {
-                                                                c.attackers.contains_key(&obj.id) || c.is_blocking(obj.id)
-                                                            }),
-                                                        };
-                                                        // PB-XA2: CR 701.20a / 701.21a — tapped/untapped.
-                                                        let passes_tapped = !f.is_tapped || obj.status.tapped;
-                                                        let passes_untapped = !f.is_untapped || !obj.status.tapped;
-                                                        passes && ctrl_ok && passes_self && passes_combat_role && passes_tapped && passes_untapped
-                                                    }
-                                                    // Nested UpToN, graveyard targets, spell targets: not applicable for auto-target on triggers.
-                                                    _ => false,
-                                                }
-                                            }
-                                        }
-                                    })
-                                    .map(|(id, obj)| SpellTarget {
-                                        target: Target::Object(*id),
-                                        zone_at_cast: Some(obj.zone),
-                                    })
-                        }
-                    };
-                    if let Some(st) = candidate {
-                        selected.push(st);
-                    } else {
-                        // CR 603.3d: No legal target — skip this trigger.
-                        all_satisfied = false;
-                        break;
-                    }
-                }
-                if all_satisfied {
-                    Some(selected)
-                } else {
+                // CR 603.3d / CR 601.2c (PB-DP8 / DP-6): the controller ANNOUNCES
+                // the targets. Derive every legal choice per slot with the same
+                // predicates the pre-PB-DP8 first-match auto-pick used, then
+                // decide whether a question is owed.
+                let slots: Vec<TriggerTargetOption> = ability_targets
+                    .iter()
+                    .map(|req| trigger_target_candidates(state, &trigger, req))
+                    .collect();
+                // CR 603.3d: "if a choice is required when the triggered ability
+                // goes on the stack but no legal choices can be made for it ...
+                // the ability is simply removed from the stack." An `optional`
+                // (CR 601.2c "up to") slot always has a legal choice -- zero
+                // targets -- so only a REQUIRED slot with an empty candidate set
+                // removes the trigger.
+                if slots
+                    .iter()
+                    .any(|s| !s.optional && s.candidates.is_empty())
+                {
                     None
+                } else if let Some(pre) = head_targets.take() {
+                    // CR 603.3d resume: this is the head of a suspended batch and
+                    // its controller has already answered. Every LATER trigger in
+                    // the batch derives its own targets at its own turn, which is
+                    // what CR 603.3d requires ("as it goes on the stack").
+                    Some(pre)
+                } else if trigger_target_choice_is_forced(&slots) {
+                    // CR 601.2c: one legal answer is not a choice.
+                    Some(
+                        slots
+                            .iter()
+                            .map(|s| s.candidates[0].clone())
+                            .collect::<Vec<_>>(),
+                    )
+                } else if !state
+                    .expect_player(trigger.controller)
+                    .map(|pl| !pl.has_lost && !pl.has_conceded)
+                    .unwrap_or(false)
+                {
+                    // CR 800.4d neighbourhood: never ask a player who has left the
+                    // game -- nobody could answer and the game would hang. Use the
+                    // engine's own default, i.e. today's behaviour unchanged.
+                    // (Actually DROPPING the trigger per CR 800.4d is a behaviour
+                    // flip this batch is not chartered to make: seed OOS-DP8-5.)
+                    Some(default_spell_targets(&slots))
+                } else {
+                    // Suspend the CR 603.3b batch. The entry owns this trigger AND
+                    // the un-flushed tail; `handle_choose_trigger_targets` resumes.
+                    let choice_id = state.next_choice_id();
+                    let ability_index = trigger.ability_index;
+                    let source = trigger.source;
+                    let player = trigger.controller;
+                    let remaining: imbl::Vector<PendingTrigger> =
+                        sorted[next_index..].iter().cloned().collect();
+                    events.push(GameEvent::TriggerTargetChoiceRequired {
+                        player,
+                        choice_id,
+                        source_object_id: source,
+                        ability_index,
+                        slots: slots.clone(),
+                    });
+                    state.pending_trigger_targets = Some(PendingTriggerTargets {
+                        choice_id,
+                        player,
+                        source,
+                        trigger: trigger.clone(),
+                        remaining,
+                        slots: slots.into_iter().collect(),
+                        // Set by the caller's guard if this call site owed a
+                        // priority grant (see `mark_flush_owes_priority`).
+                        grant_priority_on_resume: false,
+                    });
+                    return events;
                 }
             }
         } else {
@@ -8562,6 +8724,276 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
         state.turn.players_passed = OrdSet::new();
     }
     events
+}
+/// CR 603.3d (PB-DP8): continue a suspended batch once its head trigger's
+/// controller has announced targets.
+///
+/// Called only by `handle_choose_trigger_targets`, after every validation.
+pub(crate) fn resume_trigger_flush(
+    state: &mut GameState,
+    chosen: Vec<SpellTarget>,
+) -> Vec<GameEvent> {
+    let entry = match state.pending_trigger_targets.take() {
+        Some(e) => e,
+        // The caller validates the entry exists; a `None` here is an engine bug,
+        // not a rules-correct fizzle (SR-4).
+        None => {
+            debug_assert!(false, "resume_trigger_flush with no outstanding entry");
+            return Vec::new();
+        }
+    };
+    let owed = entry.grant_priority_on_resume;
+    let mut sorted = vec![entry.trigger];
+    sorted.extend(entry.remaining.iter().cloned());
+    let mut events = flush_sorted(state, sorted, Some(chosen));
+    finish_resumed_flush(state, owed, &mut events);
+    events
+}
+/// CR 603.3 / CR 117.3a (PB-DP8): after a suspended batch resumes, either carry
+/// the priority obligation forward (the batch suspended again on a later trigger)
+/// or discharge it.
+///
+/// The four guarded call sites were each about to grant priority when the flush
+/// suspended; all five priority-granting sites converge on "the active player
+/// receives priority" (`combat.rs`'s declare-attackers site writes
+/// `Some(player)`, but its own entry check proves `player` is the active player),
+/// so one shape reproduces all of them. `enter_step`'s dead-active-player
+/// fallback is folded in.
+fn finish_resumed_flush(state: &mut GameState, owed: bool, events: &mut Vec<GameEvent>) {
+    if let Some(entry) = state.pending_trigger_targets.as_mut() {
+        // Suspended again on a later trigger of the SAME CR 603.3b batch --
+        // the obligation belongs to the batch, not to any one question.
+        entry.grant_priority_on_resume = owed;
+        return;
+    }
+    if !owed {
+        return;
+    }
+    let active = state.turn.active_player;
+    let is_alive = state
+        .players()
+        .get(&active)
+        .map(|p| !p.has_lost && !p.has_conceded)
+        .unwrap_or(false);
+    if is_alive {
+        state.turn.players_passed = OrdSet::new();
+        state.turn.priority_holder = Some(active);
+        events.push(GameEvent::PriorityGiven { player: active });
+    } else if let Some(next) = crate::rules::priority::next_priority_player(state, active) {
+        state.turn.players_passed = OrdSet::new();
+        state.turn.priority_holder = Some(next);
+        events.push(GameEvent::PriorityGiven { player: next });
+    } else {
+        state.turn.priority_holder = None;
+    }
+}
+/// CR 603.3 / CR 117.3a (PB-DP8): record that the call site whose
+/// `flush_pending_triggers` just suspended owes a priority grant once the batch
+/// completes.
+///
+/// Called by exactly the four guards named in the `BlockingDecision` doc block.
+/// The fifth call site (`check_and_flush_triggers`) must NOT call this: PB-DP1
+/// moved priority assignment into the command handlers, ahead of the flush, so
+/// priority is already correctly held by the actor there.
+pub(crate) fn mark_flush_owes_priority(state: &mut GameState) {
+    if let Some(entry) = state.pending_trigger_targets.as_mut() {
+        entry.grant_priority_on_resume = true;
+    }
+}
+/// CR 800.4d / CR 603.3b / CR 800.4j (PB-DP8): a player concedes while their
+/// trigger-target announcement is outstanding.
+///
+/// CR 800.4d -- "If a triggered ability that would be controlled by a player who
+/// has left the game would be put onto the stack, it isn't put on the stack." --
+/// so the conceding player's un-placed trigger is DROPPED, along with every other
+/// trigger of the suspended batch they controlled. CR 800.4j requires the turn to
+/// continue, so the REST of the batch is still placed; that continuation may
+/// legitimately suspend again on a different player's trigger.
+///
+/// Returns `None` if no entry belonged to `player` (the caller then leaves the
+/// field alone -- another player's outstanding question still blocks).
+pub(crate) fn drop_conceded_trigger_flush(
+    state: &mut GameState,
+    player: PlayerId,
+) -> Option<Vec<GameEvent>> {
+    let belongs = state
+        .pending_trigger_targets
+        .as_ref()
+        .map(|e| e.player == player)
+        .unwrap_or(false);
+    if !belongs {
+        return None;
+    }
+    let entry = state.pending_trigger_targets.take()?;
+    let owed = entry.grant_priority_on_resume;
+    // CR 800.4d: `entry.trigger` is dropped outright -- it was never put on the
+    // stack. Same for every remaining trigger this player controls.
+    let sorted: Vec<PendingTrigger> = entry
+        .remaining
+        .iter()
+        .filter(|t| t.controller != player)
+        .cloned()
+        .collect();
+    let mut events = flush_sorted(state, sorted, None);
+    finish_resumed_flush(state, owed, &mut events);
+    Some(events)
+}
+/// CR 603.3d / CR 601.2c (PB-DP8 / DP-6): the trigger's controller answers the
+/// outstanding target announcement, and the CR 603.3b batch resumes.
+///
+/// Every check runs BEFORE any mutation. `process_command` takes `GameState` by
+/// value and discards the locally-mutated copy on `Err`, so an `Err` here leaves
+/// the caller's state byte-identical -- but only because nothing below mutates
+/// before the last validation passes.
+pub fn handle_choose_trigger_targets(
+    state: &mut GameState,
+    player: PlayerId,
+    choice_id: u64,
+    targets: Vec<Vec<Target>>,
+) -> Result<Vec<GameEvent>, GameStateError> {
+    // (2) An entry must exist.
+    let entry = match state.pending_trigger_targets.as_ref() {
+        Some(e) => e,
+        None => {
+            return Err(GameStateError::InvalidCommand(
+                "no trigger-target choice is pending (CR 603.3d)".to_string(),
+            ))
+        }
+    };
+    // (3) CR 603.3a: only the trigger's controller may answer. SR-29 trust
+    // boundary. `process_command`'s admission gate rejects a foreign sender with
+    // `BlockedByPendingDecision` before reaching here, so this check is only
+    // reachable by a direct handler call -- which is exactly the hole PB-DP7's
+    // review Finding 12 found.
+    if entry.player != player {
+        return Err(GameStateError::InvalidCommand(format!(
+            "trigger-target choice belongs to {:?}, not {:?} (CR 603.3a)",
+            entry.player, player
+        )));
+    }
+    // (4) The MOMENT guard: an answer to question k of a CR 603.3b batch must not
+    // be applied to question k+1.
+    if entry.choice_id != choice_id {
+        return Err(GameStateError::InvalidCommand(format!(
+            "stale trigger-target choice: expected {}, got {}",
+            entry.choice_id, choice_id
+        )));
+    }
+    // (5) One inner Vec per offered slot, in order.
+    if targets.len() != entry.slots.len() {
+        return Err(GameStateError::InvalidCommand(format!(
+            "trigger-target choice has {} slot(s), expected {} (CR 601.2c)",
+            targets.len(),
+            entry.slots.len()
+        )));
+    }
+    let mut chosen: Vec<SpellTarget> = Vec::new();
+    for (i, slot) in entry.slots.iter().enumerate() {
+        let submitted = &targets[i];
+        // (6) CR 601.2c: exactly one target for a required slot; zero or one for
+        // an "up to" slot.
+        let limit_ok = if slot.optional {
+            submitted.len() <= 1
+        } else {
+            submitted.len() == 1
+        };
+        if !limit_ok {
+            return Err(GameStateError::InvalidCommand(format!(
+                "trigger-target slot {} got {} target(s); expected {} (CR 601.2c)",
+                i,
+                submitted.len(),
+                if slot.optional { "0 or 1" } else { "exactly 1" }
+            )));
+        }
+        // (7) CR 603.3d legality: membership in the candidate set the engine
+        // itself offered. The engine takes `zone_at_cast` from the candidate,
+        // never from the wire.
+        for t in submitted {
+            match slot.candidates.iter().find(|c| &c.target == t) {
+                Some(c) => chosen.push(c.clone()),
+                None => {
+                    return Err(GameStateError::InvalidCommand(format!(
+                        "target is not a legal choice for slot {i} (CR 603.3d)"
+                    )))
+                }
+            }
+        }
+    }
+    // (8) Cross-slot distinctness, narrow: CR 601.2c's "the same target can't be
+    // chosen multiple times for any one instance of the word 'target'" is
+    // per-slot and covered by (6). This covers the one cross-slot case the DSL
+    // can express, `TargetPermanentDistinctFrom`. Zero corpus exposure today; the
+    // auto-fallback keeps the defect (OOS-DP8-4).
+    {
+        let reqs = trigger_ability_target_requirements(state, &entry.trigger);
+        for a in 0..entry.slots.len() {
+            for b in (a + 1)..entry.slots.len() {
+                let distinct = matches!(
+                    (reqs.get(a), reqs.get(b)),
+                    (
+                        Some(crate::cards::card_definition::TargetRequirement::TargetPermanentDistinctFrom(_)),
+                        Some(crate::cards::card_definition::TargetRequirement::TargetPermanentDistinctFrom(_)),
+                    )
+                );
+                if distinct && !targets[a].is_empty() && targets[a] == targets[b] {
+                    return Err(GameStateError::InvalidCommand(format!(
+                        "slots {a} and {b} both require distinct permanents but name the same one (CR 601.2c)"
+                    )));
+                }
+            }
+        }
+    }
+    // (1) The player must exist. Deliberately last of the cheap checks and still
+    // before any mutation: the entry's own `player` field is the authority on who
+    // may answer, and (3) already compared against it.
+    state.player(player)?;
+    // (9) Only now: resume the CR 603.3b batch.
+    Ok(resume_trigger_flush(state, chosen))
+}
+/// The `TargetRequirement` list of the ability behind `trigger`, re-derived the
+/// same way `flush_sorted` derives it. Used only by the cross-slot distinctness
+/// check (CR 601.2c).
+fn trigger_ability_target_requirements(
+    state: &GameState,
+    trigger: &PendingTrigger,
+) -> Vec<crate::cards::card_definition::TargetRequirement> {
+    // CR 113.7a: the trigger's source may already have left the battlefield by
+    // the time its trigger flushes -- a rules-correct LKI fizzle, not an engine
+    // bug (SR-4/SR-14/SR-25).
+    let obj = match state.fizzle_object(trigger.source) {
+        Some(o) => o,
+        None => return Vec::new(),
+    };
+    if trigger.kind == PendingTriggerKind::Normal {
+        obj.characteristics
+            .triggered_abilities
+            .get(trigger.ability_index)
+            .map(|ab| ab.targets.clone())
+            .unwrap_or_default()
+    } else {
+        obj.card_id
+            .as_ref()
+            .and_then(|cid| state.card_registry.get(cid.clone()))
+            .and_then(|def| {
+                def.effective_abilities(obj.is_transformed)
+                    .get(trigger.ability_index)
+            })
+            .and_then(|abil| match abil {
+                crate::cards::card_definition::AbilityDefinition::Triggered { targets, .. } => {
+                    Some(targets.clone())
+                }
+                _ => None,
+            })
+            .unwrap_or_default()
+    }
+}
+/// CR 603.3d (PB-DP8): the deterministic default as `SpellTarget`s, i.e. exactly
+/// the value the pre-PB-DP8 first-match chain produced for the whole slot list.
+///
+/// The `SpellTarget` twin of the exported [`default_trigger_targets`], used on the
+/// engine's own dead-controller path where there is nobody to ask.
+fn default_spell_targets(slots: &[TriggerTargetOption]) -> Vec<SpellTarget> {
+    slots.iter().filter_map(|s| s.default.clone()).collect()
 }
 // ---------------------------------------------------------------------------
 // Helpers

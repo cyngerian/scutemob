@@ -102,6 +102,13 @@ fn enter_battlefield(state: &mut GameState, entering_id: ObjectId, controller: P
         state.pending_triggers_mut().push_back(t);
     }
     let _ = flush_pending_triggers(state);
+    // PB-DP8 (CR 603.3d): a targeted trigger now suspends the CR 603.3b batch on
+    // a real target choice (e.g. Warstorm Surge's `TargetAny` now offers both
+    // players AND every creature/planeswalker, CR 601.2c). This helper drives
+    // `flush_pending_triggers` directly, so it answers with the engine's OWN
+    // default -- byte-identical to the pre-PB-DP8 first-match auto-pick -- and
+    // these tests keep pinning exactly what they were written to pin.
+    crate::pb_dp8_trigger_target_choice::answer_pending_trigger_targets_in_place(state);
 }
 
 // ── Decoy 1: EffectFilter::TriggeringCreature selects exactly the entering creature ──

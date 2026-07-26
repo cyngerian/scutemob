@@ -735,6 +735,7 @@ fn translate(
         hybrid_choices,
         phyrexian_life_payments,
         &[], // discard_cards
+        &[], // trigger_targets
         state,
         players,
     )
