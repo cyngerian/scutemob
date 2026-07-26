@@ -7,7 +7,7 @@
 - **Branch**: `feat/pb-rs4-face-aware-residuals-close-the-3-surviving-cr-7128de-`
 - **Class**: CORRECTNESS (latent — unreachable on today's roster, guaranteed to bite the
   first DFC with a back-face ETB replacement)
-- **Phase**: implement (steps 0-8 complete; review/close-out not yet run)
+- **Phase**: CLOSED (steps 0-10 complete — implement, review, fix cycle, and close-out all done)
 - **Binding spec**: `memory/primitives/rider-seed-triage-2026-07-19.md` §2.4 (chain notes) + §3 (R4 row)
 - **Plan file**: `memory/primitives/pb-plan-RS4.md`
 - **Review file**: `memory/primitives/pb-review-RS4.md`
@@ -395,18 +395,26 @@ citation family, two removal-predicate field lists, and test files.
 No finding was declined outright; Finding 4 was seeded per its own explicit directive and
 Finding 8 confirmed no-action per its own explicit directive.
 
-- [ ] 10. Close-out: flip OOS-OS4-2 to fully closed in `CLAUDE.md`,
+- [x] 10. Close-out DONE (2026-07-26): OOS-OS4-2 flipped to **fully closed** in `CLAUDE.md`
+      (Current State PB-OS4b parenthetical + RS-chain entry + "Last Updated" line),
+      `memory/primitives/oos-retriage-plan-2026-07-18.md` (the PB-OS4b table row at :593 and a
+      new ✅ RESOLVED block appended to the `scutemob-142` correction note), the
+      `rider-seed-triage-2026-07-19.md` §5 banner (PB-RS4 SHIPPED row; next dispatch R5), and
+      `memory/workstream-state.md` (PB-OS4b line corrected + a full PB-RS4 entry + next-session
+      pointer). Original step text follows:
+      Close-out: flip OOS-OS4-2 to fully closed in `CLAUDE.md`,
       `memory/primitives/oos-retriage-plan-2026-07-18.md`,
       `memory/primitives/rider-seed-triage-2026-07-19.md` §5 banner, and
       `memory/workstream-state.md`; file any new seeds.
-      Not run in this session (implement-phase scope was Steps 0-8 per the
-      task brief). Seeds OOS-RS4-1 (stack craft / ExileSourceAndReturnTransformed
+      Seeds OOS-RS4-1 (stack craft / ExileSourceAndReturnTransformed
       never register permanent replacement abilities or queue ETB triggers) and
       OOS-RS4-2 (MDFC back faces are unplayable — 4 `Complete` MDFC lands have
       an unreachable back-face replacement) filed in
       `memory/primitives/rider-seed-triage-2026-07-19.md` §1c per the task
       instructions; OOS-RS4-3 cross-referenced to OOS-OS4-1/R10 rather than
-      duplicated.
+      duplicated. **OOS-RS4-4** (transform between trigger queue and resolution
+      can desync a CardDef ability index, CR 113.7a) filed in the fix cycle per
+      review finding #4.
 
 ## Prior state
 

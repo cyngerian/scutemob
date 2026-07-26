@@ -1,6 +1,6 @@
 # Rider-Seed Mini-Triage — 2026-07-19 (task `scutemob-142`)
 
-<!-- last_updated: 2026-07-19 -->
+<!-- last_updated: 2026-07-26 -->
 
 **Scope**: the rider seeds filed by the PB-OS4..OS11 wave (`scutemob-115`..`141`), chain-verified
 against the current engine at `PROTOCOL_VERSION = 26` (`crates/engine/src/rules/protocol.rs:248`) /
@@ -295,9 +295,19 @@ PB-OS11 precedent where filed premises did not match the printed card.
 > ✅ **PB-RS1 SHIPPED** (`scutemob-143`, merge `56697a00`, 2026-07-19) — do not re-dispatch.
 > ✅ **PB-RS2 (R2) SHIPPED** (`scutemob-144`, merge `86176ff7`, 2026-07-20) — do not re-dispatch.
 > ✅ **PB-RS3 (R3) SHIPPED** (`scutemob-145`, merge `b1c21909`, 2026-07-20) — do not re-dispatch.
-> Close-outs: `memory/primitive-wip.md` + `pb-plan-RS1/RS2/RS3.md` / `pb-review-RS1/RS2/RS3.md`.
-> **QUEUE PAUSED after R3 by user instruction (2026-07-20)** — do not auto-chain further.
-> When resumed, next dispatch: **R4** (face-aware residuals, OOS-RS-3 — §2.4). Also weigh
+> ✅ **PB-RS4 (R4) SHIPPED** (`scutemob-146`, 2026-07-26) — do not re-dispatch. **OOS-RS-3 CLOSED,
+> and with it OOS-OS4-2 is now fully closed.** All three §2.4 deviations fixed, plus a fourth
+> found in planning (CR 714.3b Saga lore sweep + `fire_saga_chapter_triggers` `ability_index`
+> namespace, same CR 712.8d/e root cause, inside deviation #1's own function). Delivered as
+> predicted: **0 flips**, no wire bump (PROTOCOL 27 / HASH 63). `deregister_face_statics` went
+> from `Static`-only to all **ten** registered families via a `remove_one_registration` inverse
+> helper + a source-scan parity gate (`tests/core/face_dereg_parity.rs`) — the AC's "subset +
+> re-filed seed" escape hatch was not needed. New seeds: **OOS-RS4-1**, **OOS-RS4-2**,
+> **OOS-RS4-4** (§1c).
+> Close-outs: `memory/primitive-wip.md` + `pb-plan-RS1/RS2/RS3/RS4.md` /
+> `pb-review-RS1/RS2/RS3/RS4.md`.
+> **The R1-R3 pause (user instruction, 2026-07-20) was lifted for R4.** Next dispatch: **R5**
+> (Anim Pakal LKI counters, OOS-RS-4 — §3). Also weigh
 > **OOS-RS3-1** (CardDefETB sweeps skip queue-time intervening-if, CR 603.4 — §1c marks it
 > **rankable**, the shared helper `check_intervening_if` already exists) as an insert candidate,
 > and **OOS-RS2-1** (`TurnFaceUp` unflattened cost — fourth payment site, materially smaller
