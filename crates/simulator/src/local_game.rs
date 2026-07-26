@@ -332,8 +332,7 @@ impl<P: LegalActionProvider> LocalGame<P> {
                 self.state.pending_cleanup_discard()
             {
                 (entry.player, Some(DecisionKind::CleanupDiscard))
-            } else if let Some(pending) =
-                self.state.pending_commander_zone_choices().iter().next()
+            } else if let Some(pending) = self.state.pending_commander_zone_choices().iter().next()
             {
                 (pending.0, Some(DecisionKind::CommanderZoneChoice))
             } else if let Some(priority) = self.state.turn().priority_holder {

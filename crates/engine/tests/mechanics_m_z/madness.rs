@@ -249,8 +249,7 @@ fn test_madness_discard_goes_to_exile() {
     // Pass both players in End step to trigger the transition to Cleanup,
     // which now PAUSES with a CleanupDiscardChoiceRequired.
     let (state, events_p1) = process_command(state, Command::PassPriority { player: p1 }).unwrap();
-    let (state, events_p2) =
-        process_command(state, Command::PassPriority { player: p2 }).unwrap();
+    let (state, events_p2) = process_command(state, Command::PassPriority { player: p2 }).unwrap();
 
     // CR 514.1 / CR 701.9b: the active player chooses to discard Fiery Temper.
     let temper_id = find_object(&state, "Fiery Temper");

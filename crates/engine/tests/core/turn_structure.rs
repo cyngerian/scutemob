@@ -191,9 +191,8 @@ fn test_ten_full_turn_cycles() {
                 // `None` during that pause (CR 514.3: no priority in cleanup).
                 // Answer it deterministically and keep going; anything else
                 // absent a pending discard is a real bug, so still panic.
-                let (new_state, _) = answer_pending_cleanup_discard(state).unwrap_or_else(|| {
-                    panic!("no priority holder and no pending cleanup discard")
-                });
+                let (new_state, _) = answer_pending_cleanup_discard(state)
+                    .unwrap_or_else(|| panic!("no priority holder and no pending cleanup discard"));
                 state = new_state;
                 continue;
             }

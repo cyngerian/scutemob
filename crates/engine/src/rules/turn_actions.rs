@@ -1439,9 +1439,14 @@ pub fn handle_discard_to_hand_size(
     }
     let hand_zone = ZoneId::Hand(player);
     for &id in &cards {
+        // SR-4: `cards` is untrusted player input (a command field), so a
+        // missing id is a reachable, player-facing condition -- NOT an engine
+        // invariant violation. Use the fallible `object()` accessor, not
+        // `expect_object` (which `debug_assert`s and is reserved for sites
+        // that require the id to already be known-live).
         state
-            .expect_object(id)
-            .ok_or(GameStateError::ObjectNotFound(id))?;
+            .object(id)
+            .map_err(|_| GameStateError::ObjectNotFound(id))?;
         let in_hand = state
             .expect_zone(&hand_zone)
             .map(|z| z.object_ids().contains(&id))

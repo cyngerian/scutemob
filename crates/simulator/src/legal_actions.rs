@@ -2484,4 +2484,65 @@ mod tests {
             mtg_engine::Command::PayRecover { player, recover_card: rc, pay: true } if player == p1 && rc == recover_card
         ));
     }
+
+    // ── PB-DP7 / DP-3 (T16): StubProvider offers only the discard while blocked ──
+
+    /// CR 514.1 (PB-DP7 / DP-3): while a cleanup discard is pending, the
+    /// blocked player is offered EXACTLY one action (`DiscardToHandSize`,
+    /// `count` cards drawn from `hand`), every other player is offered
+    /// nothing, and the offered `cards` is accepted by `process_command`
+    /// verbatim (SR-38: never offer an action the engine rejects).
+    #[test]
+    fn provider_offers_only_the_discard_while_blocked() {
+        let p1 = PlayerId(1);
+        let p2 = PlayerId(2);
+        let mut builder = GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(p2)
+            .active_player(p1)
+            .at_step(mtg_engine::Step::End);
+        for i in 0..9u32 {
+            builder = builder
+                .object(ObjectSpec::card(p1, &format!("Card {i}")).in_zone(ZoneId::Hand(p1)));
+        }
+        let mut state = builder.build().expect("state builds");
+
+        // Directly invoke cleanup_actions (mirrors PB-AC8's precedent test) to
+        // record the pending entry without driving a full priority round.
+        let _events = mtg_engine::rules::turn_actions::cleanup_actions(&mut state);
+        let entry = state
+            .pending_cleanup_discard()
+            .expect("cleanup discard should be pending");
+        assert_eq!(entry.player, p1);
+        assert_eq!(entry.count, 2);
+
+        // The blocked player gets exactly one action.
+        let p1_actions = StubProvider.legal_actions(&state, p1);
+        assert_eq!(p1_actions.len(), 1);
+        let (count, hand, cards) = match &p1_actions[0] {
+            LegalAction::DiscardToHandSize { count, hand, cards } => {
+                (*count, hand.clone(), cards.clone())
+            }
+            other => panic!("expected DiscardToHandSize, got {other:?}"),
+        };
+        assert_eq!(count, 2);
+        assert_eq!(cards.len(), 2);
+        for id in &cards {
+            assert!(hand.contains(id), "every offered card must be in `hand`");
+        }
+
+        // Every other player gets nothing (CR 514.3: no priority in cleanup).
+        assert!(StubProvider.legal_actions(&state, p2).is_empty());
+
+        // The offered subset is accepted by process_command verbatim.
+        let result = mtg_engine::process_command(
+            state,
+            mtg_engine::Command::DiscardToHandSize { player: p1, cards },
+        );
+        assert!(
+            result.is_ok(),
+            "the provider's offered action must be accepted: {:?}",
+            result.err()
+        );
+    }
 }
