@@ -102,7 +102,14 @@ const SWEPT_FILES: &[(&str, usize)] = &[
     // `state.objects.get(&id).map(..)` NONSWALLOW read (turn_actions-style) at the
     // TransformTrigger/DayboundTransformTrigger/craft-return boundary sites — net one
     // fewer bare lookup in this file.
-    ("src/rules/resolution.rs", 101),
+    // PB-DP6 fix cycle (2026-07-26): 101 → 100. The `is_carddef_etb` resolution-time
+    // intervening-if re-check's `condition_holds` closure and the effect-execution
+    // context just below it each had their own `state.objects.get(&source_object)`
+    // for `kicker_times_paid`/`x_value`; hoisted into one shared
+    // `state.objects.get(&source_object).map(|o| (o.kicker_times_paid, o.x_value))`
+    // read above both, fixing the closure's `EffectContext::new` zero-fill bug
+    // (review finding 1) at zero net new lookups.
+    ("src/rules/resolution.rs", 100),
     // SR-14
     // PB-EF3 (2026-07-18): 72 → 74. Two new NONSWALLOW predicate reads, both matching the
     // file's existing residue shape exactly: (1) `state.objects.get(pw_id).map(|obj| obj

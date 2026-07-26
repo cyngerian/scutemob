@@ -9361,6 +9361,12 @@ pub fn condition_is_queue_time_evaluable(cond: &Condition) -> bool {
         Condition::SacrificeFired => false,
         // Conservative: one unanswerable arm makes the whole clause unanswerable.
         Condition::Not(a) => condition_is_queue_time_evaluable(a),
+        // Deliberately stricter than CR 603.4 requires: an And whose first arm is
+        // evaluable-and-false is definitively false regardless of the second arm, so
+        // suppression would be CR-correct there too. Left unshort-circuited because
+        // the conservatism errs toward over-firing (the safe direction under hard
+        // constraint 3), costs nothing today (no corpus def combines an unevaluable
+        // variant with And), and keeps this predicate trivially auditable.
         Condition::And(a, b) => {
             condition_is_queue_time_evaluable(a) && condition_is_queue_time_evaluable(b)
         }

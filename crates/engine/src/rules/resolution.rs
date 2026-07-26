@@ -2142,14 +2142,31 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                     // Use check_condition() from effects/mod.rs which correctly handles
                     // all Condition variants including Condition::Not (e.g. Acererak's
                     // "if you haven't completed Tomb of Annihilation").
+                    //
+                    // CR 702.33d/107.3m (PB-DP6 fix cycle, finding 1): read
+                    // kicker_times_paid/x_value once here so both the intervening-if
+                    // re-check below and the effect-execution context further down agree.
+                    // Before this fix this closure built a zero-filled EffectContext::new,
+                    // so Condition::WasKicked/XValueAtLeast always read false here even for
+                    // a genuinely kicked/X-valued permanent -- the PB-DP6 queue-time gate
+                    // let the trigger reach the stack, but this resolution-time re-check
+                    // then fizzled it every time (Nullpriest of Oblivion, Thieving
+                    // Skydiver never reanimated/gained control, kicked or not).
+                    let (kicker_times_paid, x_value) = state
+                        .objects
+                        .get(&source_object)
+                        .map(|o| (o.kicker_times_paid, o.x_value))
+                        .unwrap_or((0, 0));
                     let condition_holds = triggered_carddef_iif
                         .as_ref()
                         .map(|cond| {
-                            let ctx = EffectContext::new(
+                            let mut ctx = EffectContext::new_with_kicker(
                                 stack_obj.controller,
                                 source_object,
                                 stack_obj.targets.clone(),
+                                kicker_times_paid,
                             );
+                            ctx.x_value = x_value;
                             check_condition(state, cond, &ctx)
                         })
                         .unwrap_or(true);
@@ -2157,11 +2174,6 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                         if let Some(effect) = triggered_effect_opt {
                             // CR 702.33d: Propagate kicker_times_paid from the source permanent so
                             // kicker-conditional ETB effects (e.g., Torch Slinger) work correctly.
-                            let kicker_times_paid = state
-                                .objects
-                                .get(&source_object)
-                                .map(|o| o.kicker_times_paid)
-                                .unwrap_or(0);
                             let mut ctx = EffectContext::new_with_kicker(
                                 stack_obj.controller,
                                 source_object,
@@ -2170,11 +2182,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                             );
                             // CR 107.3m: Propagate x_value from the permanent so ETB effects
                             // using EffectAmount::XValue resolve correctly.
-                            ctx.x_value = state
-                                .objects
-                                .get(&source_object)
-                                .map(|o| o.x_value)
-                                .unwrap_or(0);
+                            ctx.x_value = x_value;
                             // CR 510.3a: Propagate combat damage data from StackObject.
                             ctx.damaged_player = stack_obj.damaged_player;
                             ctx.combat_damage_amount = stack_obj.combat_damage_amount;

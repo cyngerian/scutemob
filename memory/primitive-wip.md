@@ -17,7 +17,7 @@
 - **Branch**: `feat/pb-dp6-intervening-if-not-checked-at-queue-time-false-positi`
 - **Class**: CORRECTNESS (Tier 2, class **D**, promoted into the no-wire block by audit §8).
   Rank 6 of the PB-DP suite.
-- **Phase**: implement
+- **Phase**: fix
 - **Binding spec**: `docs/audits/decision-point-audit.md`
   - §4.8 table, **line 333** — "Intervening-if at **queue time** | **D** | Only two paths
     check it: ETB (`rules/replacement.rs:1446-1456`) and graveyard-zone triggers
@@ -429,3 +429,98 @@ documentation-only.
   the same bug class §3.3 fixed at the queue-time ETB gate, at a sibling call site the
   plan did not audit. See "A second, pre-existing bug found" above for the full
   writeup and corpus exposure (`nullpriest_of_oblivion.rs`, `thieving_skydiver.rs`).
+
+## Fix cycle (runner close-out)
+
+**Review**: `memory/primitives/pb-review-DP6.md` (1 HIGH, 2 MEDIUM, 3 LOW). Every
+numbered finding's disposition:
+
+| # | Severity | Disposition |
+|---|----------|--------------|
+| 1 | HIGH | **FIXED HERE.** `resolution.rs`'s `is_carddef_etb` `condition_holds` closure hoisted `kicker_times_paid`/`x_value` into one shared `state.objects.get(&source_object)` read (immediately above the closure) and both the closure's and the effect-execution context's `EffectContext` construction now use `new_with_kicker(...)` + `ctx.x_value = x_value`, mirroring the shape `carddef_intervening_if_holds_at_queue_time` already used. This is the same bug class as §3.3's queue-time fix, at the sibling resolution-time call site the plan never audited. Confirmed the closure is shared by both `is_carddef_etb` and the non-ETB registry-fallback branch, as the review noted (the fix applies to the shared site, so both paths are corrected). T1 restored to its full end-to-end assertion (kicked Nullpriest actually returns "GY Fodder" to the battlefield, not merely queues) and its stale `NOTE` block deleted. |
+| 2 | MEDIUM | **DECLINED HERE, PER INSTRUCTION — coordinator's parallel lane.** `docs/audits/decision-point-audit.md` is off limits this cycle; observed it already carries the coordinator's own in-flight edits (OOS-DP6-2..9 rows) at the time this fix cycle started. Not touched, not re-touched. |
+| 3 | MEDIUM | **FIXED HERE.** T11 gained a `state.stack_objects().is_empty()` assertion immediately after `advance_to_step(state, Step::Upkeep)` and before `resolve_stack`, mirroring T4/T8's idiom, so the back-token half of the test can no longer be satisfied by "queued, then fizzled at the retained resolution re-check." Re-verified fail-before against the pre-original-PB-DP6 engine (see evidence below): the new assertion FAILS pre-fix, confirming T11 now actually pins the A-site gate rather than passing vacuously. |
+| 4 | LOW | **Comment extended, seed left to coordinator.** A9's in-source comment (`abilities.rs:3752` region) now names `WasKicked`/`XValueAtLeast` explicitly, states they read 0 at this site because the object-level fields are written at `resolution.rs:619`/`:628` (not at cast), explains why that is a suppression risk unlike the `SourceOnBattlefield` case the original comment covered, and states zero corpus exposure. Not filed as an audit-doc seed here (out of scope, see finding 2's disposition) — flagged below for the coordinator to file. |
+| 5 | LOW | **Note only, per review disposition.** No plan/wip text edited (the plan file is historical once shipped); the correct destructure count (24, not 15) and the `resolution.rs:5351` Haunt gap are reported below for the coordinator to seed — not filed by this runner (audit doc off limits). |
+| 6 | LOW | **Note only, code unchanged, per review disposition.** Added one sentence to the `Condition::And` arm's comment in `condition_is_queue_time_evaluable` (`effects/mod.rs`) acknowledging the conservatism is deliberate (an evaluable-false first arm could safely suppress, but the current shape errs toward over-firing, which is the safe direction, and costs nothing today). No logic change — did **not** short-circuit into the unsafe direction. |
+
+**Items explicitly NOT touched here (coordinator's parallel lane, per instruction):**
+
+- `docs/audits/decision-point-audit.md` §4.8/§5/§8 rows and the OOS-DP6-1..9 seed
+  filing in §8.1 — observed already in flight on this branch's working tree when this
+  fix cycle began (7 seed rows present: OOS-DP6-2..9, i.e. finding 2's seed list plus a
+  9th, OOS-DP6-9, that already captures the Haunt/`resolution.rs:5351` gap and the
+  "24 not 15" destructure correction from finding 5). Not re-verified in detail by this
+  runner (out of scope by instruction) beyond confirming the file was not further
+  modified by this fix cycle.
+- `CLAUDE.md` — untouched.
+
+**New seeds for the coordinator, beyond what's already in the audit doc's working
+tree** (report only, not filed by this runner):
+
+- Finding 4 (A9 `WasKicked`/`XValueAtLeast` false-negative risk at the
+  `WhenYouCastThisSpell` cast-trigger site) does not yet have a dedicated OOS-DP6 row
+  distinct from OOS-DP6-6 (which covers a different set of variants — `WasBargained`/
+  `EvidenceWasCollected`/`GiftWasGiven`/`WasOverloaded`/`WasCleaved` — not `WasKicked`/
+  `XValueAtLeast`). Worth its own row: real fix is either `StackObject.kicker_times_paid`/
+  `x_value` or writing those fields onto the spell's `GameObject` at cast time.
+
+**Aurelia probe (OOS-DP6-1 lowering-drop claim) — disposition: NOT run, disclosed
+plainly.** This fix cycle did not execute the plan §1 / review finding-2(e) throwaway
+probe (Aurelia-shaped def, extra combat phase, assert the untap/token fires when it
+must not). The seed as filed rests on source reading only: `build_face_ability_vectors`
+is confirmed (by both the original runner and independently by the reviewer) to be
+called from `rules/resolution.rs:720` and `rules/face.rs:104` on the live
+permanent-creation path, and it hardcodes `intervening_if: None` at all 34 push sites —
+but no test was executed in this cycle to observe the predicted over-fire in a running
+game. This is out of scope for the fix cycle's HIGH/MEDIUM work list; recorded here so
+the claim does not silently become "confirmed by execution" when it is not.
+
+### Fail-before / pass-after evidence (this fix cycle)
+
+Method for both rows: reverted only the file(s) needed to isolate the claim, kept the
+edited test file in place, ran the specific test, then restored via `git checkout -- `
+and confirmed `git status`/`git diff --stat` matched the pre-experiment state before
+resuming (the A9/And comment edits in `abilities.rs`/`effects/mod.rs` were caught and
+reapplied after being clobbered by the second experiment's restore step — see below).
+
+| test | method | OBSERVED pre-fix result | match? |
+|---|---|---|---|
+| T1 (restored full assertion) | Stashed only `resolution.rs` (back to this branch's pre-fix-cycle HEAD, `ba035bcb`); kept the fixed test file. | `assertion failed` at the new "GY Fodder … battlefield" assertion — the trigger queued (original PB-DP6 gate already fixed that) but the reanimation effect never executed, exactly finding 1's predicted symptom. | ✅ |
+| T1 (after restoring the fix) | Restored `resolution.rs` via `git stash pop`. | `ok` — the full end-to-end reanimation now passes. | ✅ |
+| T11 (new pre-resolution assertion) | `git checkout 2deb0402 --` on the 5 original-PB-DP6 engine files + 2 card defs (the same method the original close-out used), kept the edited test file with two compile-only shims (dropped the `condition_is_queue_time_evaluable` import, `#[cfg(any())]`'d T12 — neither function exists pre-PB-DP6). | `panicked` at the new `state.stack_objects().is_empty()` assertion — the back-face trigger *was* on the stack pre-fix (no queue-time gate existed at all), confirming T11 now has real fail-before signal instead of the vacuous pass the review found. | ✅ |
+| T11 (after restoring) | `git checkout HEAD --` on the same 7 files, restored the un-shimmed test file from a scratchpad copy. | `ok` — all 12 tests pass. | ✅ |
+
+**Bookkeeping hazard hit and corrected during this cycle**: the `git checkout HEAD --`
+restore step for the T11 experiment also reverted `abilities.rs` and `effects/mod.rs`
+to their pre-this-fix-cycle state, silently discarding the finding-4 (A9 comment) and
+finding-6 (`And` comment) edits made earlier in this same session. Caught by re-reading
+the files before running the full test suite; both edits were reapplied and verified
+present in the final diff.
+
+### Test counts
+
+- Before this fix cycle (PB-DP6 implement, `ba035bcb`): 3,809 passing, 0 failing.
+- After this fix cycle: **3,809 passing, 0 failing** (no new `#[test]` functions —
+  T1 and T11 were strengthened in place, not added to).
+
+### Gates (all green, this fix cycle)
+
+- `cargo build --workspace` — clean.
+- `cargo test --all` — 3,809/0, all 30 test binaries green (including golden scripts:
+  `cargo test -p mtg-engine --test scripts` — 43/43, no card-name churn).
+- `cargo clippy --workspace --all-targets -- -D warnings` — clean.
+- `cargo fmt --check` — clean.
+- `tools/check-defs-fmt.sh` — 1,804 defs clean.
+- `bare_lookup_ratchet` — **moved**, as the HIGH fix predicted it might: merging the
+  closure's and the effect-execution context's separate `state.objects.get(&source_object)`
+  reads into one shared read took `src/rules/resolution.rs` from 101 → **100** bare
+  lookups. Ceiling lowered to 100 in `crates/engine/tests/core/bare_lookup_ratchet.rs`
+  with a dated comment, per the ratchet's own instruction ("good, you converted some —
+  lower the ceiling to lock in the gain"). All other four ceilings
+  (`effects/mod.rs` 110, `abilities.rs` 75, `replacement.rs` 24, `turn_actions.rs` 7,
+  `mana.rs` 8) unmoved.
+- Wire sentinels, read directly from source after all fixes:
+  `crates/engine/src/rules/protocol.rs:260` → `PROTOCOL_VERSION: u32 = 27` (unchanged).
+  `crates/engine/src/state/hash.rs:591` → `HASH_SCHEMA_VERSION: u8 = 64` (unchanged).
+  `protocol_schema`/`state_hashing` gate tests both green with no hand edit.

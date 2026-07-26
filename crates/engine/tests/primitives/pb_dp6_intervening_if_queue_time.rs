@@ -200,14 +200,14 @@ fn empty_cast_spell_data(player: PlayerId, card: ObjectId, kicker_times: u32) ->
 /// the trigger never even reached the stack. Cast kicked (should queue) and
 /// unkicked (should not queue) through the real cast/resolve path.
 ///
-/// NOTE: this test asserts QUEUING only, matching the plan's T1 wording. A
-/// separate, pre-existing bug at the resolution-time re-check
-/// (`resolution.rs`'s `condition_holds` closure builds `EffectContext::new`,
-/// which *also* zero-fills `kicker_times_paid`) means the reanimation effect
-/// itself still does not fire even once queuing is fixed here. That bug is
-/// outside this PB's 14-site roster (it is the resolution-time re-check hard
-/// constraint 2 requires be RETAINED, not touched) and is reported as a new
-/// finding rather than fixed in this PB.
+/// This asserts the full end-to-end reanimation, not just queuing: the
+/// resolution-time re-check (`resolution.rs`'s `condition_holds` closure) had
+/// its own, sibling zero-fill bug -- it also built `EffectContext::new`, so
+/// even after the queue-time gate was fixed the trigger would queue and then
+/// immediately fizzle at resolution, and GY Fodder would never actually
+/// return to the battlefield. That resolution-time bug is fixed in the same
+/// fix cycle as this test (PB-DP6 fix cycle finding 1), so both halves of CR
+/// 603.4 now agree and the reanimation is observable end to end.
 #[test]
 fn test_dp6_etb_waskicked_gate_uses_object_kicker_count() {
     let nullpriest_def = all_cards()
@@ -289,6 +289,30 @@ fn test_dp6_etb_waskicked_gate_uses_object_kicker_count() {
         assert!(
             target_is_gy_fodder,
             "the queued trigger's auto-selected target should be GY Fodder"
+        );
+
+        // CR 702.33d/603.4 (fix cycle finding 1): resolve the stack and confirm
+        // GY Fodder actually returns to the battlefield -- the resolution-time
+        // re-check must agree with the queue-time gate that this permanent was
+        // kicked, not fizzle the ability on a zero-filled kicker count.
+        let state = resolve_stack(state, &[p1, p2]);
+        assert!(
+            state
+                .objects()
+                .values()
+                .any(|o| o.characteristics.name == "GY Fodder" && o.zone == ZoneId::Battlefield),
+            "CR 702.33d: kicked Nullpriest's reanimation effect should actually \
+             return GY Fodder to the battlefield -- pre-fix, the resolution-time \
+             re-check's zero-filled EffectContext::new made WasKicked read false \
+             and fizzled the ability even after the queue-time gate let it \
+             through"
+        );
+        assert!(
+            !state
+                .objects()
+                .values()
+                .any(|o| o.characteristics.name == "GY Fodder" && o.zone == ZoneId::Graveyard(p1)),
+            "GY Fodder should have left the graveyard"
         );
     }
 
@@ -1044,6 +1068,17 @@ fn test_dp6_face_aware_gate_reads_back_face_condition() {
     state.turn_mut().priority_holder = Some(p1);
 
     let state = advance_to_step(state, Step::Upkeep);
+    // Check QUEUING directly, before anything resolves. A post-resolution
+    // token count cannot distinguish "the back face's own condition gated at
+    // queue time" from "queued anyway, then fizzled at the pre-existing,
+    // retained resolution-time re-check" -- both land on 0 tokens either way
+    // (see T4's comment for the full argument; this is the same pattern).
+    assert!(
+        state.stack_objects().is_empty(),
+        "CR 712.8d/e + 603.4: the back face's own false condition must gate at \
+         QUEUE time -- nothing may reach the stack (a post-resolution token \
+         count cannot distinguish this from a resolution-time fizzle)"
+    );
     let state = resolve_stack(state, &[p1, p2]);
 
     assert_eq!(

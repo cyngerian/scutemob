@@ -3755,12 +3755,33 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                     // stack object read via `fizzle_object` above).
                                     // `SourceOnBattlefield`/`SourceHasCounters`-style
                                     // conditions would (correctly) answer false while
-                                    // the spell is on the stack. No corpus def pairs
-                                    // `WhenYouCastThisSpell` with an `intervening_if`
-                                    // today (unreachable in practice); left ungated
-                                    // per-condition rather than special-cased because
-                                    // CR 603.4 asks the question against the game
-                                    // state as it actually is.
+                                    // the spell is on the stack — CR 603.4 asks the
+                                    // question against the game state as it actually
+                                    // is, and the spell genuinely is not a permanent
+                                    // yet, so this is not a bug.
+                                    //
+                                    // `WasKicked`/`XValueAtLeast` are a DIFFERENT,
+                                    // wrong-in-the-suppression-direction case (PB-DP6
+                                    // fix-cycle finding, LOW 1): `kicker_times_paid`/
+                                    // `x_value` are `GameObject` fields written once,
+                                    // at `resolution.rs:619`/`:628`, when the spell
+                                    // *resolves into a permanent* — they are still 0
+                                    // on the stack object at this site, so a
+                                    // hypothetical "when you cast this spell, if it
+                                    // was kicked" would read false and the trigger
+                                    // would be wrongly suppressed even though the
+                                    // spell genuinely was kicked. Not defensible the
+                                    // way `SourceOnBattlefield` is: the engine just
+                                    // stores the fact on the wrong object at this
+                                    // moment. Zero corpus exposure today (no def
+                                    // pairs `WhenYouCastThisSpell` with any
+                                    // `intervening_if`); left ungated rather than
+                                    // special-cased because a real fix needs either
+                                    // `StackObject.kicker_times_paid`/`x_value` or to
+                                    // write those fields onto the spell's
+                                    // `GameObject` at cast time — both bigger than a
+                                    // gate tweak. Seeded as an OOS-DP6 finding for the
+                                    // coordinator to file.
                                     if !carddef_intervening_if_holds_at_queue_time(
                                         state,
                                         intervening_if.as_ref(),
