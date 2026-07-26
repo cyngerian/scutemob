@@ -1,4 +1,4 @@
-# Primitive WIP — PB-DP3 (DP-4 · empty `modes_chosen` bypasses `min_modes`) · PLAN
+# Primitive WIP — PB-DP3 (DP-4 · empty `modes_chosen` bypasses `min_modes`) · SHIPPED
 
 <!-- last_updated: 2026-07-26 -->
 
@@ -13,7 +13,7 @@
   verdict "ship after fixes"; all fixes applied (5 fixed, 1 declined-with-reason as
   seed-text-only, 2 folded into seeds). See `memory/primitives/pb-review-DP3.md` §317 for the
   fix list and the dispositions. Tests 3,725 → **3,747**; PROTOCOL 27 / HASH 63 unmoved.
-  Seeds **OOS-DP3-1..8** filed in `docs/audits/decision-point-audit.md` §8.1; audit rows
+  Seeds **OOS-DP3-1..9** filed in `docs/audits/decision-point-audit.md` §8.1; audit rows
   §4.1 L186 (D→A), §4.2 L214 (B→A), §5 DP-4, §5 DP-20, §8, §8.1, §9 rec 4 all updated.
 - **Binding spec**: `docs/audits/decision-point-audit.md` §4.1 (mode-announcement rows,
   lines 185-186), §4.2 (line 214, activated-ability modal, class B, "same `min_modes`
@@ -43,6 +43,16 @@ The Spree path already hard-rejects an empty `modes_chosen`
 (`casting.rs:2941-2945`, CR 702.172a); the general modal path has no equivalent.
 
 ## Known adjacent facts (coordinator survey, pre-plan)
+
+> ⚠️ **Three of these were corrected by the planner — kept verbatim to show the drift.**
+> (1) Script `169_modal_choice_abzan_charm.json` is **not** the only script naming a modal card,
+> and needed no edit anyway (it is `retired` and already supplies explicit modes); the two that
+> actually broke were `stack/147` and `stack/148`, both `approved`, both casting a modal card via
+> plain `cast_spell`. (2) The `min_modes: 0` object being a *triggered* ability is what makes the
+> cast path safe to harden strictly — there is **no** `min_modes: 0` modal Spell or Activated
+> ability anywhere in the corpus. (3) The 9 `ModeSelection` test files were 3 lines of edits, not
+> 9 files' worth. Lesson: a coordinator pre-survey is a starting hypothesis for the planner to
+> falsify, not a fact base to build on.
 
 - 41 card defs carry `min_modes`: **37** `min_modes: 1`, **3** `min_modes: 2` (the three
   commands), **1** `min_modes: 0` (`hullbreaker_horror` — a modal *triggered* ability,
@@ -74,7 +84,13 @@ in `crates/simulator/src/legal_actions.rs`) are done, per the plan exactly:
 - **Change 2** (`casting.rs` `mode_targets_active`): comment-only reconciliation; the
   `vec![0]` arm is retained as a documented fail-safe.
 - **Change 3** (`resolution.rs:335-341`): comment-only; the `vec![0]` fallback is
-  **retained** (six free-cast producers depend on it — cascade/discover/4×engine.rs).
+  **retained**. ⚠️ **This line originally read "six free-cast producers — cascade / discover /
+  4×`engine.rs`", which is wrong** and was corrected by the review (Finding 1, MEDIUM): the
+  four `engine.rs` sites build Ring / Room / Loyalty / ClassLevel stack objects and can never
+  reach the arm, while two real Spell producers were missing. **True list: `copy.rs:386`
+  (cascade), `copy.rs:614` (discover), `resolution.rs:5167` (cipher copy), `resolution.rs:5837`
+  (suspend)** — the last two via `StackObject::trigger_default`, which zero-fills
+  `modes_chosen`. The in-code comment and OOS-DP3-3 now carry the corrected list.
 - **Change 4** (`abilities.rs`): the modal-activated lift, with the `min_modes == 0`
   legal-no-op branch (representable here, unlike the Spell side).
 - **Change 5** (Spree guard, `casting.rs:2938-2945`): verified unchanged, still fires
@@ -91,8 +107,9 @@ in `crates/simulator/src/legal_actions.rs`) are done, per the plan exactly:
   purpose is to force exactly this kind of edit — treated as a required companion edit,
   not a silent patch). Flagging here per the plan's §4.7 negative-space clause for the
   reviewer's visibility.
-- **Test count**: 3,725 (pin) → **3,745** (+16 engine `pb_dp3_modal_mode_announcement.rs`
-  + 4 simulator `legal_actions.rs`), all green. `cargo build --workspace`,
+- **Test count**: 3,725 (pin) → 3,745 at implement, → **3,747** after the fix cycle added the
+  two escalate derived-count probes (18 engine tests in `pb_dp3_modal_mode_announcement.rs`
+  + 4 simulator tests in `legal_actions.rs`), all green. `cargo build --workspace`,
   `cargo clippy --workspace --all-targets -- -D warnings`, `cargo fmt --check`,
   `tools/check-defs-fmt.sh` all clean. **PROTOCOL 27 / HASH 63 unmoved**, confirmed by
   reading the constants directly, matching the plan's prediction exactly.
