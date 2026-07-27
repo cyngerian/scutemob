@@ -400,6 +400,54 @@ pub fn default_effect_choice_answer(q: &EffectChoiceQuestion) -> EffectChoiceAns
         },
     }
 }
+/// CR 701.23b vs CR 701.23d (PB-DP9): does this search filter state a **quality**
+/// of the card being looked for?
+///
+/// CR 701.23b: "If a player is searching a hidden zone for cards with a stated
+/// quality, such as a card with a certain card type or color, that player isn't
+/// required to find some or all of those cards even if they're present in that
+/// zone." CR 701.23d: a search "simply for a quantity of cards" must find as many
+/// as possible. So this predicate decides whether declining ("fail to find") is a
+/// legal answer.
+///
+/// The predicate is deliberately **conservative in one direction**: anything
+/// non-default that is not on the exclusion list below counts as a quality, so a
+/// field added to `TargetFilter` tomorrow defaults to *allowing* the decline. That
+/// is the safe default (it never forces a card the player must not be forced to
+/// find) and it is why this is a subtraction from `!= TargetFilter::default()`
+/// rather than an enumeration of the quality fields.
+///
+/// # The exclusion list (closing-review LOW-5)
+///
+/// `TargetFilter` is shared with battlefield/target contexts, so some of its
+/// fields are **runtime board properties rather than card qualities**: a card in
+/// a library has no controller, is not a token, is not attacking or blocking, and
+/// is not "the source". CR 701.23b's "stated quality" means a characteristic
+/// (`such as a card with a certain card type or color`), so none of these
+/// qualifies. They are also exactly the fields `matches_filter` cannot see -- each
+/// is documented at its declaration as "silently ignored by `matches_filter()`" --
+/// so setting one does **not** narrow the candidate list. A def that set one on an
+/// otherwise unrestricted search would therefore have gained a CR 701.23d-
+/// forbidden decline over the full library while matching every card in it.
+///
+/// No def in the corpus does this today, so this is a latent hole rather than a
+/// live bug: the change is behaviour-neutral over `all_cards()` and is pinned by
+/// `test_dp9_may_fail_to_find_ignores_non_quality_filter_axes` instead.
+/// `is_tapped` / `is_untapped` / `has_counter_type` are the same class of runtime
+/// property but are NOT excluded, because those three *are* checked against
+/// library cards (`check_has_counter_type` directly, the tapped pair via
+/// `matches_filter`) and so empty the candidate list rather than reaching the
+/// question at all. Residual axis recorded on seed **OOS-DP9-5**.
+fn filter_states_a_quality(filter: &TargetFilter) -> bool {
+    let mut qualities = filter.clone();
+    qualities.controller = TargetController::default();
+    qualities.exclude_self = false;
+    qualities.is_token = false;
+    qualities.is_nontoken = false;
+    qualities.is_attacking = false;
+    qualities.is_blocking = false;
+    qualities != TargetFilter::default()
+}
 /// CR 608.2d (PB-DP9): ask `player` a resolution-time question, or consume the
 /// answer already banked for it by an earlier pass of this same resolution.
 ///
@@ -3439,7 +3487,7 @@ fn execute_effect_inner(
             // OOS-DP9-9: `reveal` is still destructured away -- CR 701.23e means
             // the found card is revealed only when the effect says so, and the
             // engine never reveals. Pre-existing, out of scope.
-            let may_fail_to_find = *filter != TargetFilter::default();
+            let may_fail_to_find = filter_states_a_quality(filter);
             // PB-EF10 (CR 202.3/608.2h): resolve the runtime mana-value cap once,
             // outside the per-player loop (it does not depend on `p`).
             let runtime_cap: Option<i32> = filter

@@ -2746,6 +2746,32 @@ fn handle_concede(
     // deadlock one step further out. The backstop at the end of this function is
     // what now makes the claim true; see the note there. Nothing is skipped here
     // that is not picked up either there or at the resume.
+    //
+    // CLOSING-REVIEW HIGH-1 (PB-DP9): the gate reads `blocking_decision`, so it
+    // also skips this block for an outstanding CR 608.2d *effect* choice, and
+    // PB-DP8's transferable rule (i) demands that each skipped part be named
+    // along with where it is picked up. There are exactly two:
+    //
+    //  * The priority advance. A NO-OP by construction, not a debt: it is
+    //    guarded on `priority_holder == Some(player)`, and while a CR 608.2d
+    //    entry stands `priority_holder` is `None` (the roll-back restores the
+    //    state `resolve_top_of_stack` was entered with, and both of its callers
+    //    set the field to `None` immediately beforehand). Asserted in
+    //    `abilities::repair_departed_priority_holder`.
+    //  * `advance_turn`, when the conceder is the ACTIVE player. Genuinely
+    //    skipped, and it MUST be: `discharge_effect_choice_on_concede` has just
+    //    put the suspended object back on the stack, and advancing a turn out
+    //    from under a mid-resolution spell is exactly the corruption the gate
+    //    exists to prevent. It is also not owed: CR 800.4j says the turn
+    //    "continues to its completion without an active player" -- the immediate
+    //    `advance_turn` below is a shortcut the CR does not require. What CR
+    //    800.4j DOES require -- that the departed active player never receive
+    //    priority -- is discharged at every grant site that could hand it to
+    //    them: `resolution::grant_priority_after_resolution` (both sites, fixed
+    //    by closing-review HIGH-1), `enter_step`'s two grants, and the
+    //    forced-payment branch of `handle_all_passed`. Probe:
+    //    `test_dp9_active_player_concedes_under_a_foreign_block`, which drives a
+    //    step boundary past the concede to pin it.
     if !is_game_over(state) && blocking_decision(state).is_none() {
         // If the conceding player held priority, advance priority
         if state.turn.priority_holder == Some(player) {

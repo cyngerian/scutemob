@@ -9255,13 +9255,36 @@ pub(crate) fn repair_departed_priority_holder(state: &mut GameState, events: &mu
         // forbids a grant. The next resume repairs it.
         return;
     }
-    // CR 608.2d (PB-DP9): same reasoning for a rolled-back resolution. Nobody
-    // has priority while a resolution-time choice is outstanding (CR 608.1: the
-    // spell is still resolving), and granting it here would step over the
-    // engine's own admission gate. `handle_answer_effect_choice`'s tail --
-    // `resolve_top_of_stack`'s own grant -- and `handle_concede`'s discharge
-    // are the two sites that pick this up.
+    // CR 608.2d (PB-DP9): same reasoning for a rolled-back resolution. Granting
+    // priority while a resolution-time choice is outstanding would step over the
+    // engine's own admission gate (CR 608.1: the spell is still resolving).
+    //
+    // CLOSING-REVIEW HIGH-1 corrects what this comment used to claim. It named
+    // "`handle_answer_effect_choice`'s tail -- `resolve_top_of_stack`'s own
+    // grant -- and `handle_concede`'s discharge" as the two sites that pick the
+    // skipped repair up, and `resolve_top_of_stack_inner`'s tail granted
+    // priority to `turn.active_player` UNCONDITIONALLY, so it could not repair a
+    // stranded holder when the departed seat WAS the active player -- it created
+    // one. The accurate statement is in two parts:
+    //
+    //  * There is nothing to repair while the entry stands. `priority_holder` is
+    //    `None` by construction: the roll-back restores the state
+    //    `resolve_top_of_stack` was entered with, and both callers of
+    //    `handle_all_passed` set `priority_holder = None` immediately before it
+    //    (`rules/engine.rs`, the `AllPassed` arm and `handle_concede`'s
+    //    all-others-passed branch). The `debug_assert!` below would fire if that
+    //    ever stopped holding, because `gone` would then be a real value.
+    //  * When the entry clears, the holder is assigned by
+    //    `resolution::grant_priority_after_resolution`, which IS liveness-aware
+    //    (CR 800.4j). That is the repair, and it covers all three callers of
+    //    `resolve_top_of_stack`, not just the answer path.
     if state.pending_effect_choice.is_some() {
+        debug_assert!(
+            state.turn.priority_holder.is_none(),
+            "CR 608.2d: nobody may hold priority while a resolution-time choice \
+             is outstanding, but {:?} does",
+            state.turn.priority_holder
+        );
         return;
     }
     let gone = match state.turn.priority_holder {

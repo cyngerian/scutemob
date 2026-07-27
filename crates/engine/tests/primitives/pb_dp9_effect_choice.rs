@@ -264,6 +264,15 @@ fn library_creature(owner: PlayerId, name: &str) -> ObjectSpec {
     ObjectSpec::creature(owner, name, 1, 1).in_zone(ZoneId::Library(owner))
 }
 
+/// A library creature carrying a real CR 205.4a stated quality (the Legendary
+/// supertype), for the CR 701.23b half of
+/// `test_dp9_may_fail_to_find_ignores_non_quality_filter_axes`.
+fn legendary_library_creature(owner: PlayerId, name: &str) -> ObjectSpec {
+    ObjectSpec::creature(owner, name, 1, 1)
+        .with_supertypes(vec![mtg_engine::SuperType::Legendary])
+        .in_zone(ZoneId::Library(owner))
+}
+
 /// "Search your library for a creature card and put it into your hand."
 /// A STATED-QUALITY search (CR 701.23b), so failing to find is legal.
 fn creature_tutor() -> CardDefinition {
@@ -1694,10 +1703,369 @@ fn test_dp9_foreign_concede_invalidates_a_non_empty_bank() {
             "{name}: the surviving player's own announcement is applied"
         );
     }
+    // CR 800.4a vs CR 704.5a (closing-review LOW-4, seed OOS-DP9-18): this pins a
+    // KNOWN DEVIATION, not correct behaviour. `ask_or_consume_effect_choice`
+    // treats `has_lost || has_conceded` as "announces nothing, take the default",
+    // but `resolve_player_target_list` filters only on `has_lost` -- so a
+    // *conceded* player is still in the effect's player list and still has the
+    // effect applied to them. CR 800.4a says all objects owned by a departed
+    // player leave the game, so there should be no library left to search and no
+    // hand to put a card into. The engine has no CR 800.4a object sweep at all
+    // (it marks `has_conceded` and leaves the board alone), so this assertion
+    // records what the engine does today.
     assert!(
         matches!(zone_of(&state, "P1 Alpha"), Some(ZoneId::Hand(_))),
-        "p1's search took the DEFAULT (lowest ObjectId), not the answer it banked \
-         before conceding"
+        "DEVIATION (OOS-DP9-18): p1 has left the game, yet its library is still \
+         searched and a card still lands in its hand -- with the DEFAULT pick, \
+         not the answer it banked before conceding"
+    );
+
+    // ...and the hazardous state itself. p1 is the ACTIVE player of `fixture_3p`,
+    // so this sequence is closing-review HIGH-1's: the resolution's CR 117.3b
+    // tail used to grant priority to `turn.active_player` unconditionally, i.e.
+    // to a seat that had already left the game (CR 800.4j).
+    assert_recoverable(&state, "after an active-player concede under p2's block");
+}
+
+/// CR 800.4j / CR 104.3a — the three assertions every "somebody left the game"
+/// test in this file owes: priority names a LIVE seat, and that seat can act.
+///
+/// Factored out because closing-review HIGH-1 was reachable only because
+/// `test_dp9_foreign_concede_invalidates_a_non_empty_bank` built the exact
+/// hazardous state and then asserted nothing about it (PB-DP8's transferable
+/// rule (ii)).
+fn assert_recoverable(state: &GameState, label: &str) {
+    let holder = state.turn().priority_holder.unwrap_or_else(|| {
+        panic!("{label}: a live player must hold priority -- this is the deadlock assertion")
+    });
+    assert!(
+        state
+            .players()
+            .get(&holder)
+            .map(|pl| !pl.has_lost && !pl.has_conceded)
+            .unwrap_or(false),
+        "{label}: CR 800.4j -- priority must not name a seat that has left the \
+         game (holder {holder:?})"
+    );
+    process_command(state.clone(), Command::PassPriority { player: holder }).unwrap_or_else(|e| {
+        panic!("{label}: the holder must be able to act -- this is the deadlock assertion: {e:?}")
+    });
+}
+
+#[test]
+/// CR 800.4j / CR 117.3b / CR 608.2d — the **ACTIVE** player concedes while a
+/// FOREIGN seat's resolution-time choice is outstanding.
+///
+/// Closing-review HIGH-1, fail-before probe. The fourth appearance of the
+/// "a guard that skips work inherits the obligation of what it skipped" class in
+/// this suite; PB-DP7 and PB-DP8 each shipped it twice.
+///
+/// The sequence, all of it legal:
+///
+/// 1. p2's CR 608.2d question is outstanding, so `priority_holder` is `None` and
+///    `players_passed` is full (the roll-back restored the resolving moment).
+/// 2. p1 -- the ACTIVE player -- concedes. `Concede` is always admitted
+///    (CR 104.3a). `discharge_effect_choice_on_concede` re-drives, p2 is re-asked,
+///    so `blocking_decision` is `Some(EffectChoice)` again.
+/// 3. `handle_concede`'s `blocking_decision(state).is_none()` gate therefore skips
+///    its whole priority/turn block -- including `advance_turn` for p1's own turn.
+/// 4. p2 (and p3) answer, the resolution completes, and
+///    `resolve_top_of_stack_inner`'s CR 117.3b tail granted priority to
+///    `turn.active_player` **unconditionally** -- i.e. to p1, who has left.
+///
+/// `blocking_decision` is then `None`, so `PassPriority` is *admitted* -- and
+/// answers `PlayerEliminated` from p1 and `NotPriorityHolder` from everyone else.
+/// Every driving loop (`LocalGame::advance`, `GameDriver`, the TUI auto-pass, the
+/// fuzzer) dies there; only another `Concede` unsticks it.
+///
+/// The fix is CR 800.4j itself -- "If the active player would receive priority,
+/// instead the next player in turn order receives priority" -- applied at the
+/// grant, which is the same idiom `enter_step` has used at its two grant sites all
+/// along. See `resolution::grant_priority_after_resolution`.
+///
+/// This probe uses an **empty** answer bank (p1 owns no creature card, so it is
+/// never asked) to keep it disjoint from the bank-invalidation probe above.
+fn test_dp9_active_player_concedes_under_a_foreign_block() {
+    let def = spell_def(
+        "Everyone Tutors",
+        "dp9-everyone-tutors-active-concede",
+        Effect::SearchLibrary {
+            player: PlayerTarget::EachPlayer,
+            filter: TargetFilter {
+                has_card_type: Some(CardType::Creature),
+                ..Default::default()
+            },
+            reveal: false,
+            destination: ZoneTarget::Hand {
+                owner: PlayerTarget::Controller,
+            },
+            shuffle_before_placing: false,
+            also_search_graveyard: false,
+        },
+    );
+    // p1 (the active player and the caster) has NO creature card, so its own
+    // search finds no candidates and asks no question: the bank stays empty and
+    // the first and only outstanding entry belongs to a FOREIGN seat.
+    let state = fixture_3p(
+        def,
+        vec![
+            library_creature(p(2), "P2 Alpha"),
+            library_creature(p(2), "P2 Beta"),
+            library_creature(p(3), "P3 Alpha"),
+            library_creature(p(3), "P3 Beta"),
+        ],
+    );
+    assert_eq!(state.turn().active_player, p(1), "sanity: p1 is active");
+    let (state, _) = cast_and_resolve_3p(state, "Everyone Tutors");
+    assert_eq!(
+        state.pending_effect_choice().unwrap().player,
+        p(2),
+        "sanity: the block belongs to a seat OTHER than the active player"
+    );
+    assert!(
+        state.effect_choice_answers().is_empty(),
+        "sanity: the bank is empty, so this probe is disjoint from the \
+         bank-invalidation one"
+    );
+    assert_eq!(
+        state.turn().priority_holder,
+        None,
+        "sanity: nobody holds priority while a CR 608.2d choice is outstanding"
+    );
+
+    let (state, _) = process_command(state, Command::Concede { player: p(1) })
+        .expect("CR 104.3a: a concede is always admitted");
+    assert!(
+        state.pending_effect_choice().is_some(),
+        "the foreign block survives the concede (re-asked against the new board)"
+    );
+
+    // p2 and p3 answer to completion.
+    let mut state = state;
+    let mut guard = 0;
+    while state.pending_effect_choice().is_some() {
+        let (s, _) = answer_pending_effect_choice(state);
+        state = s;
+        guard += 1;
+        assert!(guard < 8, "the per-player questions did not converge");
+    }
+    assert!(state.stack_objects().is_empty(), "the resolution completed");
+
+    // FAIL-BEFORE: this is `Some(p(1))` on the pre-fix engine.
+    assert_recoverable(&state, "after the resolution completed");
+
+    // ...and the next step boundary must not re-strand it either: `enter_step`'s
+    // grant has been CR 800.4j-aware since long before this batch, and this pins
+    // that the skipped `advance_turn` (step 3 above) does not turn into a
+    // deadlock one boundary out -- CR 800.4j: the turn continues without an
+    // active player.
+    let live: Vec<PlayerId> = state
+        .players()
+        .iter()
+        .filter(|(_, pl)| !pl.has_lost && !pl.has_conceded)
+        .map(|(id, _)| *id)
+        .collect();
+    assert_eq!(live, vec![p(2), p(3)], "sanity: two seats remain");
+    let step_before = state.turn().step;
+    let (state, _) = pass_all(state, &live);
+    assert_ne!(
+        state.turn().step,
+        step_before,
+        "the step must advance once both live seats pass"
+    );
+    assert_recoverable(&state, "after the step boundary");
+}
+
+#[test]
+/// CR 800.4j / CR 117.3b / CR 704.5a — the SAME defect as
+/// `test_dp9_active_player_concedes_under_a_foreign_block`, reached with **no
+/// CR 608.2d choice anywhere in the sequence**.
+///
+/// Closing-review HIGH-1 offered two candidate fixes: call
+/// `abilities::repair_departed_priority_holder` at the tail of
+/// `Command::AnswerEffectChoice`, or make the resolution's grant liveness-aware.
+/// This probe is why the second one is the right one and the first would have
+/// been a patch on one of three call sites.
+///
+/// `resolve_top_of_stack_inner` runs `sba::check_and_apply_sbas` a few lines
+/// before it grants priority, so a resolution that kills the ACTIVE player
+/// reaches the grant with `active.has_lost` already true. Here p1 -- the active
+/// player and the caster -- resolves its own "you lose 99 life": CR 704.5a marks
+/// it as having lost during the resolution, and the CR 117.3b tail then handed
+/// priority straight back to it. No concede, no effect choice, no
+/// `AnswerEffectChoice` command; nothing PB-DP9 added is on this path, which
+/// makes it the evidence that the bug is the grant's and not the batch's.
+///
+/// Fail-before: `holder` is `Some(p(1))` on the pre-fix engine.
+fn test_dp9_resolution_grant_skips_an_active_player_killed_by_an_sba() {
+    let def = spell_def(
+        "Terminal Introspection",
+        "dp9-active-player-sba-death",
+        Effect::LoseLife {
+            player: PlayerTarget::Controller,
+            amount: EffectAmount::Fixed(99),
+        },
+    );
+    let state = fixture_3p(def, vec![]);
+    assert_eq!(state.turn().active_player, p(1), "sanity: p1 is active");
+    let (state, _) = cast_and_resolve_3p(state, "Terminal Introspection");
+
+    assert!(
+        state
+            .players()
+            .get(&p(1))
+            .map(|pl| pl.has_lost)
+            .unwrap_or(false),
+        "CR 704.5a: the active player lost during its own spell's resolution"
+    );
+    assert!(
+        state.pending_effect_choice().is_none(),
+        "sanity: this path has no CR 608.2d choice on it at all"
+    );
+    assert_recoverable(
+        &state,
+        "after an SBA killed the active player mid-resolution",
+    );
+}
+
+#[test]
+/// CR 701.23b / CR 701.23d — a `TargetFilter` field that is a runtime BOARD
+/// property, not a card quality, must not buy the searcher a fail-to-find.
+///
+/// Closing-review LOW-5, fail-before probe. `may_fail_to_find` was
+/// `*filter != TargetFilter::default()`, i.e. *any* non-default field counted as
+/// a "stated quality" in CR 701.23b's sense. `controller`, `exclude_self`,
+/// `is_token`, `is_nontoken`, `is_attacking` and `is_blocking` are not
+/// characteristics of a card — a card in a library has no controller and is not a
+/// token, an attacker or the source — and each is documented at its declaration
+/// as invisible to `matches_filter()`. So setting one narrowed nothing and yet
+/// flipped the search from CR 701.23d ("find as many as possible", declining is
+/// ILLEGAL) to CR 701.23b (declining is legal), over the entire library.
+///
+/// Both halves are asserted, because the value of the fix is that the two
+/// otherwise-identical filters now disagree:
+///
+///   * `TargetFilter { controller: You, .. }`  → quantity-only, MUST find.
+///   * `TargetFilter { legendary: true, .. }`  → stated quality, MAY decline.
+///
+/// No `all_cards()` def sets one of the six on a `SearchLibrary` filter today
+/// (`test_dp9_roster_enumeration` walks that corpus), so this is the only place
+/// the narrowing is observable.
+fn test_dp9_may_fail_to_find_ignores_non_quality_filter_axes() {
+    use mtg_engine::cards::card_definition::TargetController;
+
+    // Half 1: a non-quality axis. CR 701.23d — the decline must be REFUSED.
+    let def = spell_def(
+        "Controller Tutor",
+        "dp9-controller-tutor",
+        Effect::SearchLibrary {
+            player: PlayerTarget::Controller,
+            filter: TargetFilter {
+                controller: TargetController::You,
+                exclude_self: true,
+                is_nontoken: true,
+                ..Default::default()
+            },
+            reveal: false,
+            destination: ZoneTarget::Hand {
+                owner: PlayerTarget::Controller,
+            },
+            shuffle_before_placing: false,
+            also_search_graveyard: false,
+        },
+    );
+    let state = fixture(
+        def,
+        vec![
+            library_creature(p(1), "Alpha"),
+            library_creature(p(1), "Beta"),
+        ],
+    );
+    let (state, _) = cast_and_resolve(state, "Controller Tutor");
+    match outstanding_question(&state) {
+        EffectChoiceQuestion::SearchLibrary {
+            candidates,
+            may_fail_to_find,
+        } => {
+            assert_eq!(
+                candidates.len(),
+                2,
+                "sanity: none of the three fields narrowed anything -- \
+                 `matches_filter` cannot see any of them"
+            );
+            assert!(
+                !may_fail_to_find,
+                "CR 701.23d: `controller` / `exclude_self` / `is_nontoken` are \
+                 board properties, not stated qualities, so this is still a \
+                 quantity-only search"
+            );
+        }
+        other => panic!("expected a search question, got {other:?}"),
+    }
+    let (asker, choice_id) = {
+        let entry = state.pending_effect_choice().expect("a choice is pending");
+        (entry.player, entry.choice_id)
+    };
+    let err = process_command(
+        state,
+        Command::AnswerEffectChoice {
+            player: asker,
+            choice_id,
+            answer: EffectChoiceAnswer::SearchLibrary { found: None },
+        },
+    )
+    .expect_err("CR 701.23d: declining must be rejected");
+    assert!(
+        format!("{err:?}").contains("701.23d"),
+        "expected the CR 701.23d rejection, got {err:?}"
+    );
+
+    // Half 2: a real stated quality on the same shape. CR 701.23b — the decline
+    // is LEGAL, so the narrowing has not simply disabled fail-to-find.
+    let def = spell_def(
+        "Legend Tutor",
+        "dp9-legend-tutor",
+        Effect::SearchLibrary {
+            player: PlayerTarget::Controller,
+            filter: TargetFilter {
+                controller: TargetController::You,
+                legendary: true,
+                ..Default::default()
+            },
+            reveal: false,
+            destination: ZoneTarget::Hand {
+                owner: PlayerTarget::Controller,
+            },
+            shuffle_before_placing: false,
+            also_search_graveyard: false,
+        },
+    );
+    let state = fixture(
+        def,
+        vec![
+            legendary_library_creature(p(1), "Legend One"),
+            legendary_library_creature(p(1), "Legend Two"),
+        ],
+    );
+    let (state, _) = cast_and_resolve(state, "Legend Tutor");
+    match outstanding_question(&state) {
+        EffectChoiceQuestion::SearchLibrary {
+            may_fail_to_find, ..
+        } => assert!(
+            may_fail_to_find,
+            "CR 701.23b: `legendary` IS a stated quality, so the decline stays legal"
+        ),
+        other => panic!("expected a search question, got {other:?}"),
+    }
+    let (state, _) = answer_with(state, EffectChoiceAnswer::SearchLibrary { found: None });
+    assert!(
+        state.stack_objects().is_empty(),
+        "CR 701.23b: the decline resolves the search with nothing found"
+    );
+    assert_eq!(
+        zone_of(&state, "Legend One"),
+        Some(ZoneId::Library(p(1))),
+        "nothing may move on a legal fail-to-find"
     );
 }
 
