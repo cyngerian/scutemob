@@ -604,7 +604,36 @@
 ///   `PendingCleanupDiscard` is reachable only from `GameState`; `GameEvent` IS in
 ///   the SR-8 wire closure, so this bump is paired with `PROTOCOL_VERSION` 27 → 28
 ///   (`Command::DiscardToHandSize` also lands in this same commit).
-pub const HASH_SCHEMA_VERSION: u8 = 65;
+/// - 66: PB-DP8 (2026-07-26, DP-6 — triggered-ability targets are now announced by
+///   the trigger's controller, CR 603.3d/601.2c): `GameState` gains
+///   `pending_trigger_targets: Option<PendingTriggerTargets>`, a new `pub(crate)`
+///   field recording a CR 603.3b trigger flush suspended mid-batch on a target
+///   announcement. Two new structs, `TriggerTargetOption { optional, candidates,
+///   default }` and `PendingTriggerTargets { choice_id, player, source, trigger,
+///   remaining, slots }` (`card-types/src/state/stubs.rs`). Fed to `HashInto` as
+///   `self.pending_trigger_targets.hash_into(&mut hasher)` in `public_state_hash`
+///   (via the blanket `impl<T: HashInto> HashInto for Option<T>`), and mirrored
+///   into `loop_detection.rs`'s mandatory-state fingerprint. Also: `GameEvent`
+///   gains `TriggerTargetChoiceRequired { player, choice_id, source_object_id,
+///   ability_index, slots }` (discriminant 130 — see the `GameEvent` hashing
+///   match). `decl_fingerprint` MOVES (new field + two new structs in the
+///   `GameState` serde closure, plus a new `GameEvent` variant);
+///   `stream_fingerprint` moves per the v40 mechanism. `PendingTriggerTargets` is
+///   reachable only from `GameState`; `GameEvent` IS in the SR-8 wire closure, so
+///   this bump is paired with `PROTOCOL_VERSION` 28 → 29
+///   (`Command::ChooseTriggerTargets` also lands in this same commit).
+/// - 67: PB-DP8 fix cycle (2026-07-26, review Findings 2+3+4+6). Two shape moves
+///   inside the v66 structs, neither of which adds a `GameState` field:
+///   `TriggerTargetOption` gains `max: u32` (CR 601.2c's declared slot width -- the
+///   v66 shape dropped `UpToN`'s `count` and capped every "up to N" announcement at
+///   one target), and `PendingTriggerTargets.grant_priority_on_resume: bool` becomes
+///   `resume_site: FlushResumeSite` (a 31st `check_and_flush_triggers` call site was
+///   found, and the two `enter_step` guards owed a CR 726 loop check plus a
+///   `cleanup_sba_rounds` ratchet that a bool could not express). `decl_fingerprint`
+///   MOVES (changed field + new enum in the `GameState` serde closure);
+///   `stream_fingerprint` moves per the v40 mechanism. `TriggerTargetOption` is in
+///   the SR-8 wire closure, so this bump is paired with `PROTOCOL_VERSION` 29 -> 30.
+pub const HASH_SCHEMA_VERSION: u8 = 67;
 
 /// One `(version, fingerprints)` row of the append-only hash-schema history.
 ///
@@ -924,6 +953,26 @@ pub const HASH_SCHEMA_HISTORY: &[HashSchemaEpoch] = &[
         decl_fingerprint: "e6e14af459d5c4aaafa4692d5a216d2976f433f6e672975d0014a62f1779099a",
         stream_fingerprint: "5428ec27b0d97f3c058a83b729a8330012b715667d95d1f255d8c2408716fde4",
     },
+    HashSchemaEpoch {
+        version: 66,
+        // PB-DP8 (2026-07-26, DP-6): GameState gains
+        // `pending_trigger_targets: Option<PendingTriggerTargets>`; GameEvent gains
+        // `TriggerTargetChoiceRequired` (see the `- 66:` History line above).
+        // decl_fingerprint moves (new field + two new structs + new GameEvent
+        // variant); stream_fingerprint moves per the v40 mechanism.
+        decl_fingerprint: "2887e0d5cfb2fdce00281de4f5c355a7ba5c321bdb4835d2fcf5578fe643b6e5",
+        stream_fingerprint: "a727e6182d118338dc065f30b0646ec289ead7850be32835209244593e07bb17",
+    },
+    HashSchemaEpoch {
+        version: 67,
+        // PB-DP8 fix cycle (2026-07-26, review Findings 2+3+4+6):
+        // `TriggerTargetOption` gains `max`; `PendingTriggerTargets`'s
+        // `grant_priority_on_resume: bool` becomes `resume_site: FlushResumeSite`
+        // (see the `- 67:` History line above). decl_fingerprint moves (changed
+        // field + new enum); stream_fingerprint moves per the v40 mechanism.
+        decl_fingerprint: "408eb2d15bf58c5fb8669ff7c84373ed826fd4d979eddac8e682179b4ab33dd3",
+        stream_fingerprint: "b52fe5acedc079789aa85ad07dac61487c144b01ed48326dcbf4c9332a70db79",
+    },
 ];
 
 use super::combat::{AttackTarget, CombatState};
@@ -944,7 +993,8 @@ use super::replacement_effect::{
 use super::stack::{StackObject, StackObjectKind, TriggerData, UpkeepCostKind};
 use super::stubs::{
     ActiveRestriction, DelayedTrigger, ETBSuppressFilter, ETBSuppressor, GameRestriction,
-    PendingCleanupDiscard, PendingTrigger, TriggerDoubler, TriggerDoublerFilter,
+    PendingCleanupDiscard, PendingTrigger, PendingTriggerTargets, TriggerDoubler,
+    TriggerDoublerFilter, TriggerTargetOption,
 };
 use super::targeting::{SpellTarget, Target};
 use super::turn::{Phase, Step, TurnState};
@@ -3004,6 +3054,43 @@ impl HashInto for PendingCleanupDiscard {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.player.hash_into(hasher);
         self.count.hash_into(hasher);
+    }
+}
+// CR 603.3d (PB-DP8 / DP-6). SR-19 / OOS-DP7-11: these two impls are written
+// with BARE struct names on purpose. `tests/core/hash_schema.rs`'s
+// `every_hashed_struct_field_is_hashed_or_allowlisted` looks impl bodies up by
+// the bare name, so `impl HashInto for crate::state::stubs::Foo` silently falls
+// out of the gate with no diagnostic. Verified by the delete-a-field
+// demonstration during the implement phase (both impls failed the gate by name).
+impl HashInto for TriggerTargetOption {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        self.optional.hash_into(hasher);
+        self.candidates.hash_into(hasher);
+        self.default.hash_into(hasher);
+        self.max.hash_into(hasher);
+    }
+}
+// CR 601.2c / CR 726 (PB-DP8 fix cycle, Findings 3+4): the resume obligation.
+impl HashInto for crate::state::stubs::FlushResumeSite {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        use crate::state::stubs::FlushResumeSite as S;
+        match self {
+            S::None => 0u8.hash_into(hasher),
+            S::GrantPriority => 1u8.hash_into(hasher),
+            S::EnterStepPriority => 2u8.hash_into(hasher),
+            S::EnterStepCleanup => 3u8.hash_into(hasher),
+        }
+    }
+}
+impl HashInto for PendingTriggerTargets {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        self.choice_id.hash_into(hasher);
+        self.player.hash_into(hasher);
+        self.source.hash_into(hasher);
+        self.trigger.hash_into(hasher);
+        self.remaining.hash_into(hasher);
+        self.slots.hash_into(hasher);
+        self.resume_site.hash_into(hasher);
     }
 }
 impl HashInto for crate::state::stubs::PendingTriggerKind {
@@ -5348,6 +5435,21 @@ impl HashInto for GameEvent {
                 player.hash_into(hasher);
                 count.hash_into(hasher);
                 hand.hash_into(hasher);
+            }
+            // PB-DP8: TriggerTargetChoiceRequired -- CR 603.3d (discriminant 130)
+            GameEvent::TriggerTargetChoiceRequired {
+                player,
+                choice_id,
+                source_object_id,
+                ability_index,
+                slots,
+            } => {
+                130u8.hash_into(hasher);
+                player.hash_into(hasher);
+                choice_id.hash_into(hasher);
+                source_object_id.hash_into(hasher);
+                ability_index.hash_into(hasher);
+                slots.hash_into(hasher);
             }
         }
     }
@@ -7784,6 +7886,10 @@ impl GameState {
         // state — a blocked cleanup is a distinct position, so hash it. Public
         // information (player + count), so no `NOT_HASHED` allowlist entry needed.
         self.pending_cleanup_discard.hash_into(&mut hasher);
+        // CR 603.3d (PB-DP8 / DP-6): a suspended CR 603.3b trigger flush is a
+        // distinct game position -- the batch's un-flushed tail lives here and
+        // nowhere else. Blanket `Option` impl.
+        self.pending_trigger_targets.hash_into(&mut hasher);
         for (owner, oid) in self.pending_commander_zone_choices.iter() {
             owner.hash_into(&mut hasher);
             oid.hash_into(&mut hasher);

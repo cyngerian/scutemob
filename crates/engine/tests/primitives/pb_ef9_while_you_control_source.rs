@@ -77,11 +77,17 @@ fn real_card_spec(
 /// Pass priority once for every player in the list (resolves the top stack item or
 /// advances the turn).
 fn pass_all(state: GameState, players: &[PlayerId]) -> GameState {
-    let mut current = state;
+    // PB-DP8 (CR 603.3d): a targeted trigger now suspends the CR 603.3b batch on a
+    // real target choice, and the admission gate rejects PassPriority until it is
+    // answered. Answer with the engine's OWN default, which is byte-identical to the
+    // pre-PB-DP8 first-match auto-pick, so this test keeps pinning what it was
+    // written to pin.
+    let mut current =
+        crate::pb_dp8_trigger_target_choice::answer_all_pending_trigger_targets(state).0;
     for &pl in players {
         let (s, _) = process_command(current, Command::PassPriority { player: pl })
             .unwrap_or_else(|e| panic!("PassPriority by {:?} failed: {:?}", pl, e));
-        current = s;
+        current = crate::pb_dp8_trigger_target_choice::answer_all_pending_trigger_targets(s).0;
     }
     current
 }

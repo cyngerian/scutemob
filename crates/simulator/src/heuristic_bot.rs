@@ -109,6 +109,10 @@ impl HeuristicBot {
             // else), so any score works -- scored high to document that it is
             // not optional.
             LegalAction::DiscardToHandSize { .. } => 100,
+            // CR 603.3d (PB-DP8 / DP-6): the one action offered while the CR
+            // 603.3b batch is suspended -- same precedent and rationale as
+            // DiscardToHandSize above.
+            LegalAction::ChooseTriggerTargets { .. } => 100,
         }
     }
 }

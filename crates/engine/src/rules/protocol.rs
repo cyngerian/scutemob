@@ -265,7 +265,25 @@ use crate::state::hash::HASH_SCHEMA_VERSION;
 ///   `Vec<ObjectId>`, `u32`) are already in the closure, so the closure's type
 ///   count is unchanged; `Command`'s and `GameEvent`'s declared shapes moved, so
 ///   the digest moves.
-pub const PROTOCOL_VERSION: u32 = 28;
+/// - 29: PB-DP8 (2026-07-26, DP-6 — triggered-ability targets become a player
+///   choice, CR 603.3d/601.2c): two new wire-frame variants append --
+///   `Command::ChooseTriggerTargets { player, choice_id: u64, targets:
+///   Vec<Vec<Target>> }` and `GameEvent::TriggerTargetChoiceRequired { player,
+///   choice_id: u64, source_object_id, ability_index: usize, slots:
+///   Vec<TriggerTargetOption> }`. Unlike v28, the closure's **type count changes**:
+///   `TriggerTargetOption` is new, and through it `SpellTarget` (which `command.rs`
+///   never referenced -- it carried bare `Target`) enters the closure for the first
+///   time. Both declared shapes moved, so the digest moves.
+/// - 30: PB-DP8 fix cycle (2026-07-26, review Findings 2+6, CR 601.2c): the wire
+///   type `TriggerTargetOption` gains `max: u32`, the slot's declared width. The
+///   shipped v29 shape dropped `TargetRequirement::UpToN`'s `count` and enforced a
+///   hard `<= 1`, so Elder Deep-Fiend ("tap up to **four** target permanents") and
+///   Cloud of Faeries ("untap up to **two** lands") -- both `Complete` -- could
+///   still announce at most one target, and an under-filled slot shifted every
+///   later slot's `EffectTarget::DeclaredTarget { index }` down by one. The
+///   closure's type count is unchanged (94); `TriggerTargetOption`'s declared shape
+///   moved, so the digest moves.
+pub const PROTOCOL_VERSION: u32 = 30;
 
 /// Digest of the serialized shape of the wire-frame type closure
 /// (`Command`, `GameEvent`, [`ReplayLog`] and everything they reach).
@@ -283,7 +301,7 @@ pub const PROTOCOL_VERSION: u32 = 28;
 /// existing `u32` *means* does not. Semantic changes still require a manual
 /// [`PROTOCOL_VERSION`] bump.
 pub const PROTOCOL_SCHEMA_FINGERPRINT: &str =
-    "bf5f5dded64029f15272c4151edd847c340793ff7ebe7d4ee32ef51be81114b4";
+    "70faee7c16cd09f491ce60fcaad972edd42107e441b0058fd205801955e7ea79";
 
 /// One `(version, fingerprint)` row of the append-only protocol-schema history.
 ///
@@ -504,6 +522,19 @@ pub const PROTOCOL_HISTORY: &[ProtocolEpoch] = &[
         // GameEvent::CleanupDiscardChoiceRequired appended (see the `- 28:`
         // History line above).
         fingerprint: "bf5f5dded64029f15272c4151edd847c340793ff7ebe7d4ee32ef51be81114b4",
+    },
+    ProtocolEpoch {
+        version: 29,
+        // PB-DP8 (2026-07-26, DP-6): Command::ChooseTriggerTargets and
+        // GameEvent::TriggerTargetChoiceRequired appended, and TriggerTargetOption
+        // + SpellTarget enter the closure (see the `- 29:` History line above).
+        fingerprint: "afdb3aebb512568b22879d5f1df6e4659378edb40a2d02e16f11f475a7bd7d48",
+    },
+    ProtocolEpoch {
+        version: 30,
+        // PB-DP8 fix cycle (2026-07-26, review Findings 2+6): TriggerTargetOption
+        // gained `max` (see the `- 30:` History line above).
+        fingerprint: "70faee7c16cd09f491ce60fcaad972edd42107e441b0058fd205801955e7ea79",
     },
 ];
 

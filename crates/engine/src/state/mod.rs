@@ -43,13 +43,13 @@ pub use mtg_card_types::state::{
     FlashGrantFilter, GameObject, GameRestriction, HybridMana, HybridManaPayment, InterveningIf,
     KeywordAbility, LandwalkType, LayerModification, ManaAbility, ManaColor, ManaCost, ManaPool,
     MergedComponent, ObjectFilter, ObjectId, ObjectStatus, PendingCleanupDiscard, PendingDraw,
-    PendingTrigger, PendingZoneChange, PhyrexianMana, PlayFromGraveyardPermission,
-    PlayFromTopFilter, PlayFromTopPermission, PlayerFilter, PlayerId, PlayerState,
-    ProtectionQuality, ReplacementEffect, ReplacementId, ReplacementModification,
+    PendingTrigger, PendingTriggerTargets, PendingZoneChange, PhyrexianMana,
+    PlayFromGraveyardPermission, PlayFromTopFilter, PlayFromTopPermission, PlayerFilter, PlayerId,
+    PlayerState, ProtectionQuality, ReplacementEffect, ReplacementId, ReplacementModification,
     ReplacementTrigger, RoomDef, RoomIndex, SacrificeFilter, SacrificedCreatureLki, SpellTarget,
     StackObject, StackObjectKind, SubType, SuperType, Target, TriggerData, TriggerDoubler,
-    TriggerDoublerFilter, TriggerEvent, TriggeredAbilityDef, TurnFaceUpMethod, UpkeepCostKind,
-    Zone, ZoneId, ZoneType,
+    TriggerDoublerFilter, TriggerEvent, TriggerTargetOption, TriggeredAbilityDef, TurnFaceUpMethod,
+    UpkeepCostKind, Zone, ZoneId, ZoneType,
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -150,6 +150,12 @@ pub struct GameState {
     /// player concedes while it is outstanding.
     #[serde(default)]
     pub(crate) pending_cleanup_discard: Option<PendingCleanupDiscard>,
+    /// CR 603.3d (PB-DP8 / DP-6): the suspended trigger flush, if any. At most one
+    /// can be outstanding -- CR 603.3b's batch is answered as a SEQUENCE of
+    /// round-trips, one at a time, and this entry carries the un-flushed tail.
+    /// See `rules::engine::blocking_decision`.
+    #[serde(default)]
+    pub(crate) pending_trigger_targets: Option<PendingTriggerTargets>,
     /// Commanders awaiting the owner's zone-return choice (CR 903.9a).
     ///
     /// Each entry is `(owner, object_id)`. The SBA skips commanders already in
@@ -472,6 +478,18 @@ impl GameState {
     /// the liveness filter applied.
     pub fn pending_cleanup_discard(&self) -> Option<&PendingCleanupDiscard> {
         self.pending_cleanup_discard.as_ref()
+    }
+
+    /// Read-only access to the `pending_trigger_targets` field (CR 603.3d, PB-DP8).
+    ///
+    /// No `_mut` accessor (SR-3). Consumers OUTSIDE this crate must read
+    /// [`GameState::blocking_decision`] instead -- the liveness-filtered
+    /// predicate -- per PB-DP7's fix-cycle Finding 4. This accessor stays public
+    /// because a consumer that is ALREADY blocked (the simulator's
+    /// `StubProvider`, the replay-harness pump) needs the raw `slots` payload to
+    /// build the answer.
+    pub fn pending_trigger_targets(&self) -> Option<&PendingTriggerTargets> {
+        self.pending_trigger_targets.as_ref()
     }
 
     /// The one decision, if any, that is currently gating game progress
@@ -943,6 +961,16 @@ impl GameState {
     }
     /// Returns the current timestamp value (for continuous effect ordering).
     pub fn current_timestamp(&self) -> u64 {
+        self.timestamp_counter
+    }
+    /// CR 603.3d (PB-DP8): mint a monotonic, game-unique id for a pending
+    /// decision, used as the MOMENT guard on the answering `Command`.
+    ///
+    /// Drawn from the same `timestamp_counter` `next_object_id` uses, so an id is
+    /// never reused and never collides with an `ObjectId`'s numeric value in a way
+    /// that could make a stale answer look fresh.
+    pub(crate) fn next_choice_id(&mut self) -> u64 {
+        self.timestamp_counter += 1;
         self.timestamp_counter
     }
     /// Re-timestamp an Aura/Equipment/Fortification and its static-ability

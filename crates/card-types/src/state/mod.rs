@@ -39,8 +39,8 @@ pub use stack::{StackObject, StackObjectKind, TriggerData, UpkeepCostKind};
 pub use stubs::{
     ActiveRestriction, AdditionalLandPlaySource, DelayedTrigger, ETBSuppressFilter, ETBSuppressor,
     FlashGrant, FlashGrantFilter, GameRestriction, PendingCleanupDiscard, PendingTrigger,
-    PlayFromGraveyardPermission, PlayFromTopFilter, PlayFromTopPermission, TriggerDoubler,
-    TriggerDoublerFilter,
+    PendingTriggerTargets, PlayFromGraveyardPermission, PlayFromTopFilter, PlayFromTopPermission,
+    TriggerDoubler, TriggerDoublerFilter, TriggerTargetOption,
 };
 pub use targeting::{SpellTarget, Target};
 pub use types::{

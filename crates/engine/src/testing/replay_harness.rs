@@ -336,6 +336,74 @@ fn parse_hybrid_choices(names: &[String]) -> Option<Vec<HybridManaPayment>> {
         .collect()
 }
 
+/// CR 603.3d / CR 514.1 (PB-DP8 / PB-DP7): answer every outstanding blocking
+/// decision with the engine's own deterministic default, until none remains.
+///
+/// Used by the golden-script driver so an existing script that reaches a targeted
+/// trigger keeps its pre-PB-DP8 behaviour byte-for-byte. A script that wants to
+/// CHOOSE uses `ScriptAction::PlayerAction { action: "choose_trigger_targets", .. }`
+/// instead; the driver skips this pump when that is the next action.
+///
+/// Answers go through `process_command`, not the handlers directly, so the pump
+/// exercises exactly the path a real client does (including the admission gate).
+///
+/// Returns the (possibly unchanged) state and the events produced. On an engine
+/// rejection -- which would mean the default the engine itself supplied is not
+/// accepted by the engine, i.e. an SR-38 violation -- the pre-command state is
+/// returned and a `debug_assert` fires.
+pub fn auto_answer_blocking_decisions(
+    state: GameState,
+) -> (GameState, Vec<crate::rules::GameEvent>) {
+    use crate::rules::engine::BlockingDecision;
+    const MAX_ROUNDS: usize = 256;
+    let mut state = state;
+    let mut events = Vec::new();
+    let mut rounds = 0usize;
+    while let Some(decision) = state.blocking_decision() {
+        rounds += 1;
+        debug_assert!(
+            rounds <= MAX_ROUNDS,
+            "auto_answer_blocking_decisions did not converge -- a default answer is not clearing its own decision"
+        );
+        if rounds > MAX_ROUNDS {
+            break;
+        }
+        let cmd = match decision {
+            BlockingDecision::CleanupDiscard { player, .. } => Command::DiscardToHandSize {
+                player,
+                cards: crate::rules::turn_actions::default_cleanup_discard(&state, player),
+            },
+            BlockingDecision::TriggerTargets {
+                player, choice_id, ..
+            } => {
+                let slots: Vec<crate::state::TriggerTargetOption> = state
+                    .pending_trigger_targets()
+                    .map(|e| e.slots.iter().cloned().collect())
+                    .unwrap_or_default();
+                Command::ChooseTriggerTargets {
+                    player,
+                    choice_id,
+                    targets: crate::rules::abilities::default_trigger_targets(&slots),
+                }
+            }
+        };
+        let snapshot = state.clone();
+        match crate::rules::engine::process_command(state, cmd) {
+            Ok((s, evs)) => {
+                state = s;
+                events.extend(evs);
+            }
+            Err(_e) => {
+                debug_assert!(
+                    false,
+                    "auto_answer_blocking_decisions: the engine rejected its own default answer ({_e:?})"
+                );
+                return (snapshot, events);
+            }
+        }
+    }
+    (state, events)
+}
 /// Map a script `PlayerAction` string and its parameters to a [`Command`].
 ///
 /// Returns `None` for unrecognized action strings (future-proof: new actions
@@ -447,6 +515,11 @@ pub fn translate_player_action(
     // Empty = fall back to `turn_actions::default_cleanup_discard`. Ignored
     // for all other action types.
     discard_cards: &[String],
+    // CR 603.3d (PB-DP8 / DP-6): For `choose_trigger_targets`, one entry per
+    // offered slot, answering an outstanding `TriggerTargetChoiceRequired`.
+    // Empty = fall back to `abilities::default_trigger_targets`. Ignored for all
+    // other action types.
+    trigger_targets: &[Vec<ActionTarget>],
     state: &GameState,
     players: &HashMap<String, PlayerId>,
 ) -> Option<Command> {
@@ -924,6 +997,31 @@ pub fn translate_player_action(
                     .collect::<Option<Vec<_>>>()?
             };
             Some(Command::DiscardToHandSize { player, cards })
+        }
+        // CR 603.3d (PB-DP8 / DP-6): answer an outstanding triggered-ability
+        // target announcement. `trigger_targets` is one entry per offered slot;
+        // an EMPTY `trigger_targets` (the common case) falls back to the engine's
+        // own deterministic default, i.e. the pre-PB-DP8 auto-pick, so a script
+        // that does not care keeps its old behaviour byte-for-byte.
+        "choose_trigger_targets" => {
+            let entry = state.pending_trigger_targets()?;
+            let choice_id = entry.choice_id;
+            let slots: Vec<crate::state::TriggerTargetOption> =
+                entry.slots.iter().cloned().collect();
+            let targets = if trigger_targets.is_empty() {
+                crate::rules::abilities::default_trigger_targets(&slots)
+            } else {
+                let mut out: Vec<Vec<crate::state::Target>> = Vec::new();
+                for slot in trigger_targets.iter() {
+                    out.push(resolve_targets(slot, state, players)?);
+                }
+                out
+            };
+            Some(Command::ChooseTriggerTargets {
+                player,
+                choice_id,
+                targets,
+            })
         }
         // CR 702.52a: Choose to use dredge instead of drawing. card_name is the
         // dredge card to return from graveyard; if absent, declines dredge (draws normally).

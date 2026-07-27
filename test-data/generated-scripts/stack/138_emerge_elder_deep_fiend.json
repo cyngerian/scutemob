@@ -3,7 +3,7 @@
   "metadata": {
     "id": "script_stack_138",
     "name": "Emerge — Elder Deep-Fiend cast by sacrificing Scroll Thief (MV 3)",
-    "description": "P1 casts Elder Deep-Fiend ({8}, Emerge {5}{U}{U}) using the Emerge alternative cost (CR 702.119a), sacrificing Scroll Thief ({2}{U}, MV 3) to reduce the Emerge cost by 3. The reduced cost is {5}{U}{U} minus 3 generic = {2}{U}{U}. CR 702.119b: the total cost is reduced by the sacrificed creature's mana value. The sacrifice occurs at cost-payment time (CR 601.2f-h) — Scroll Thief moves to p1's graveyard before Elder Deep-Fiend goes on the stack. Both players pass priority; Elder Deep-Fiend resolves and enters the battlefield as a 5/6 Eldrazi Octopus under p1's control. The cast trigger ('tap up to four target permanents') is stubbed in the card def (TODO: WhenCast trigger not yet implemented) and therefore does not fire. Script confirms: sacrifice at cast time, cost reduction, ETB into correct zone, stack empty after resolution.",
+    "description": "P1 casts Elder Deep-Fiend ({8}, Emerge {5}{U}{U}) using the Emerge alternative cost (CR 702.119a), sacrificing Scroll Thief ({2}{U}, MV 3) to reduce the Emerge cost by 3. The reduced cost is {5}{U}{U} minus 3 generic = {2}{U}{U}. CR 702.119b: the total cost is reduced by the sacrificed creature's mana value. The sacrifice occurs at cost-payment time (CR 601.2f-h) — Scroll Thief moves to p1's graveyard before Elder Deep-Fiend goes on the stack. Both players pass priority; Elder Deep-Fiend resolves and enters the battlefield as a 5/6 Eldrazi Octopus under p1's control. PB-DP8 (2026-07-26, CR 603.3d/601.2c) CORRECTED this script: the cast trigger ('tap up to four target permanents') is NOT stubbed -- elder_deep_fiend.rs declares it with `targets: vec![UpToN { count: 4, inner: TargetPermanent }]` and the def is Complete. Before PB-DP8 the engine's first-match auto-selector returned `None` for a permanent-inner `UpToN` slot and the surrounding loop treated `None` as 'no legal target', so the trigger was REMOVED from the stack every time. CR 601.2c's 'up to' means zero targets is itself a legal announcement, so CR 603.3d's removal clause does not apply: the trigger now goes on the stack above the spell and resolves first (tapping nothing, since the default announcement is zero targets). Hence stack.count 1 -> 2 after the cast and a second priority round before the spell resolves. Script confirms: sacrifice at cast time, cost reduction, ETB into correct zone, stack empty after resolution.",
     "cr_sections_tested": [
       "702.119a",
       "702.119b",
@@ -31,10 +31,10 @@
         "step_index": null,
         "action_index": null,
         "raised_by": "claude-sonnet-4-6",
-        "description": "Elder Deep-Fiend's cast trigger ('When you cast this spell, tap up to four target permanents') is not implemented in the card def (TODO comment at elder_deep_fiend.rs:23-26). The trigger requires TriggerCondition::WhenCast (self-cast trigger) and a multi-target tap effect, neither of which exists in the current DSL. Script does not test this trigger. Will need a separate script once WhenCast triggers are implemented.",
-        "resolution": null,
-        "resolved_by": null,
-        "resolved_date": null
+        "description": "Elder Deep-Fiend's cast trigger ('When you cast this spell, tap up to four target permanents') was recorded here as unimplemented. It is implemented: TriggerCondition::WhenCast exists and the def declares TargetRequirement::UpToN { count: 4, inner: TargetPermanent }. Two engine defects hid it. (1) Before PB-DP8 the CR 603.3d auto-target chain returned None for a permanent-inner UpToN and the caller read None as 'no legal target', so the whole trigger was removed from the stack (CR 601.2c makes zero targets a LEGAL announcement, so CR 603.3d's removal clause does not apply). (2) PB-DP8 as shipped then capped the announcement at one target; its fix cycle carries UpToN's count through as TriggerTargetOption.max. The trigger now goes on the stack and this script's steps record it.",
+        "resolution": "RESOLVED. The premise was wrong in both directions: the trigger is implemented in the card def, and the engine was what dropped it. Fixed by PB-DP8 (CR 603.3d target announcement) and its fix cycle (CR 601.2c 'up to N' cardinality). The script's steps now describe the trigger on the stack.",
+        "resolved_by": "PB-DP8 fix cycle (scutemob-156)",
+        "resolved_date": "2026-07-26"
       }
     ]
   },
@@ -142,7 +142,7 @@
           "description": "After casting: Elder Deep-Fiend on stack; Scroll Thief in p1 graveyard (sacrificed at cast time); p1 hand empty",
           "assertions": {
             "zones.hand.p1.count": 0,
-            "zones.stack.count": 1,
+            "zones.stack.count": 2,
             "zones.graveyard.p1": {
               "includes": [
                 {
@@ -152,7 +152,7 @@
             },
             "zones.battlefield.p1.count": 0
           },
-          "note": "CR 601.2f-h: Scroll Thief was sacrificed as part of the Emerge cost payment — it is in p1's graveyard before the spell lands on the stack. Elder Deep-Fiend is on the stack. P1's battlefield is empty."
+          "note": "CR 601.2f-h: Scroll Thief was sacrificed as part of the Emerge cost payment — it is in p1's graveyard before the spell lands on the stack. Elder Deep-Fiend is on the stack. P1's battlefield is empty. PB-DP8 (CR 603.3d/601.2c): the stack holds TWO objects -- Elder Deep-Fiend and its 'when you cast' trigger, which announces zero targets for its 'up to four' slot."
         },
         {
           "type": "priority_round",
@@ -161,7 +161,16 @@
             "p2"
           ],
           "result": "all_pass",
-          "note": "CR 116.3: Both players pass priority — top of stack (Elder Deep-Fiend) resolves."
+          "note": "CR 116.3 / CR 601.2b: Both players pass priority -- the top of the stack is now Elder Deep-Fiend's cast trigger, not the spell."
+        },
+        {
+          "type": "priority_round",
+          "players": [
+            "p1",
+            "p2"
+          ],
+          "result": "all_pass",
+          "note": "PB-DP8 (CR 603.3d / 601.2b): the cast trigger sits ABOVE the spell, so this round resolves the trigger (it taps nothing -- zero targets announced for its 'up to four' slot). The next round resolves Elder Deep-Fiend itself."
         },
         {
           "type": "stack_resolve",
@@ -172,10 +181,10 @@
               "card": "Elder Deep-Fiend",
               "controller": "p1",
               "cr_ref": "608.2",
-              "note": "CR 608.2: Elder Deep-Fiend resolves and enters the battlefield under p1's control as a 5/6 Eldrazi Octopus. The cast trigger (tap up to four permanents) is stubbed as TODO in the card def and does not fire."
+              "note": "CR 608.2: Elder Deep-Fiend resolves and enters the battlefield under p1's control as a 5/6 Eldrazi Octopus. Its CR 603.2 cast trigger ('tap up to four target permanents') was put on the stack ABOVE the spell at cast time, so it resolved FIRST -- in the preceding priority round -- tapping nothing, because zero targets were announced for its 'up to four' slot (CR 601.2c/603.3d, PB-DP8)."
             }
           ],
-          "note": "CR 608.2: Elder Deep-Fiend resolves as a creature spell — it enters the battlefield. No on-cast trigger fires (WhenCast not yet implemented). Stack becomes empty."
+          "note": "CR 608.2: Elder Deep-Fiend resolves as a creature spell — it enters the battlefield. Its on-cast trigger was placed above it at cast time (CR 603.2/603.3b) and has ALREADY resolved in the preceding round, so this resolution is what empties the stack."
         },
         {
           "type": "assert_state",

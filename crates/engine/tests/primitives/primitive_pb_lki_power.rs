@@ -65,12 +65,18 @@ fn on_battlefield(state: &GameState, name: &str) -> bool {
 /// Pass priority for all listed players once (resolves top of stack if all pass).
 fn pass_all(state: GameState, players: &[PlayerId]) -> (GameState, Vec<GameEvent>) {
     let mut all_events = Vec::new();
-    let mut current = state;
+    // PB-DP8 (CR 603.3d): a targeted trigger now suspends the CR 603.3b batch on a
+    // real target choice, and the admission gate rejects PassPriority until it is
+    // answered. Answer with the engine's OWN default, which is byte-identical to the
+    // pre-PB-DP8 first-match auto-pick, so this test keeps pinning what it was
+    // written to pin.
+    let mut current =
+        crate::pb_dp8_trigger_target_choice::answer_all_pending_trigger_targets(state).0;
     for &pl in players {
         let (s, ev) = process_command(current, Command::PassPriority { player: pl })
             .unwrap_or_else(|e| panic!("PassPriority by {:?} failed: {:?}", pl, e));
-        current = s;
         all_events.extend(ev);
+        current = crate::pb_dp8_trigger_target_choice::answer_all_pending_trigger_targets(s).0;
     }
     (current, all_events)
 }
@@ -386,7 +392,7 @@ fn test_pb_lki_power_hash_schema_version_and_determinism() {
 
     // Sub-assertion 1: HASH_SCHEMA_VERSION sentinel.
     assert_eq!(
-        HASH_SCHEMA_VERSION, 65u8,
+        HASH_SCHEMA_VERSION, 67u8,
         "HASH_SCHEMA_VERSION drifted without this sentinel being updated. Bump this assertion and the state/hash.rs history block together; the authoritative check is the SR-17 machine gate in tests/core/hash_schema.rs."
     );
 

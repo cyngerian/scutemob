@@ -283,6 +283,7 @@ impl ReplaySession {
                                 &[],  // hybrid_choices — not yet wired in replay viewer UI
                                 &[],  // phyrexian_life_payments — not yet wired in replay viewer UI
                                 &[],  // discard_cards — not yet wired in replay viewer UI
+                                &[],  // trigger_targets — not yet wired in replay viewer UI
                                 &current_state,
                                 &player_map,
                             );

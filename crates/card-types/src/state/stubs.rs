@@ -5,6 +5,7 @@
 use super::game_object::ObjectId;
 use super::player::PlayerId;
 use super::stack::TriggerData;
+use super::targeting::SpellTarget;
 use serde::{Deserialize, Serialize};
 // ContinuousEffect has moved to `state/continuous_effect.rs` (M5).
 /// A delayed trigger waiting for a condition (CR 603.7).
@@ -756,4 +757,137 @@ pub struct PendingCleanupDiscard {
     pub player: PlayerId,
     /// How many cards must be discarded to reach maximum hand size.
     pub count: u32,
+}
+/// CR 603.3d / CR 601.2c (PB-DP8 / DP-6): one target slot of a triggered ability
+/// whose controller must announce a choice as it is put on the stack.
+///
+/// Reachable from `GameEvent::TriggerTargetChoiceRequired`, so this type IS in the
+/// SR-8 wire closure.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TriggerTargetOption {
+    /// True iff the requirement is `TargetRequirement::UpToN` — CR 601.2c's
+    /// "up to": the slot may legally be answered with zero targets.
+    pub optional: bool,
+    /// Every legal choice for this slot, derived with the SAME predicates the
+    /// CR 603.3d auto-fallback uses (see `rules::abilities::trigger_target_candidates`).
+    /// Deterministic order: `state.objects` is an `OrdMap` (ascending `ObjectId`)
+    /// and `state.turn.turn_order` is a `Vec` in seat order.
+    pub candidates: Vec<SpellTarget>,
+    /// The pre-PB-DP8 auto-pick for this slot, byte-identical to what the
+    /// first-match fallback produced. `None` only for an `optional` slot the old
+    /// code skipped. When `Some(t)`, `t` is always present in `candidates`
+    /// (debug-asserted). This is NOT always `candidates[0]`: for player-targeting
+    /// requirements the old code preferred the first live OPPONENT and only then
+    /// fell back to the controller, while `candidates` legally contains every live
+    /// player (CR 601.2c) — which is exactly the agency this batch restores.
+    pub default: Option<SpellTarget>,
+    /// CR 601.2c ("If the spell has a variable number of targets, the player
+    /// announces how many targets they will choose"): the slot's declared width.
+    ///
+    /// `TargetRequirement::UpToN { count, .. }` contributes `count`; every other
+    /// requirement contributes `1`. An `optional` slot accepts 0..=`max` distinct
+    /// targets, a required slot accepts exactly one.
+    ///
+    /// It is also the slot's fixed **width** in the flat `SpellTarget` list a
+    /// triggered ability carries on the stack: slot *i* occupies indices
+    /// `sum(max[..i]) .. sum(max[..=i])`, so `EffectTarget::DeclaredTarget { index }`
+    /// keeps naming the clause its card def meant even when an earlier "up to"
+    /// slot is answered with fewer than `max` targets.
+    ///
+    /// Fix-cycle Findings 2 and 6: before this field the cardinality check was a
+    /// hard `<= 1` (so Elder Deep-Fiend's "tap up to **four**" and Cloud of
+    /// Faeries' "untap up to **two**" could announce at most one) and the flat list
+    /// was a bare concatenation (so `[[], [artifact]]` put the artifact at index 0,
+    /// i.e. under the *planeswalker* clause).
+    pub max: u32,
+}
+/// CR 603.3d / CR 603.3b (PB-DP8 / DP-6): the suspended trigger flush.
+///
+/// Reachable only from `GameState` — never from `Command`/`GameEvent`/`ReplayLog`
+/// — so it contributes nothing to `PROTOCOL_SCHEMA_FINGERPRINT` (the `PendingDraw`
+/// and `PendingCleanupDiscard` precedent).
+///
+/// Deviation from `pb-plan-DP8.md` §2.1: the plan declares `PartialEq, Eq` here.
+/// `PendingTrigger` derives neither (it is the SR-7-gated struct and its 16-field
+/// set is pinned by `tests/core/pending_trigger_shape.rs`), so those derives are
+/// unavailable without changing that struct. Nothing in this batch compares the
+/// entry structurally — equality of two suspended flushes is exactly what
+/// `public_state_hash` answers — so the derives are dropped rather than widened.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct PendingTriggerTargets {
+    /// Monotonic, unique for the whole game. Taken by incrementing
+    /// `GameState.timestamp_counter` at the moment the flush suspends (the same
+    /// counter `next_object_id` uses). The answering command must quote it: this
+    /// is the MOMENT guard, not a payload guard.
+    pub choice_id: u64,
+    /// CR 603.3a: the controller of `trigger`, and the ONLY player who may answer.
+    pub player: PlayerId,
+    /// The source permanent of `trigger`, echoed for display/`BlockingDecision`.
+    pub source: ObjectId,
+    /// The trigger being put on the stack right now. It is NOT in
+    /// `GameState.pending_triggers` while this entry exists — the entry owns it.
+    pub trigger: PendingTrigger,
+    /// CR 603.3b: the rest of THIS batch, already APNAP-sorted, none of which has
+    /// been put on the stack. The resume continues through these in order.
+    pub remaining: imbl::Vector<PendingTrigger>,
+    /// One entry per `TargetRequirement` of the trigger's ability, in declaration
+    /// order.
+    pub slots: imbl::Vector<TriggerTargetOption>,
+    /// CR 603.3 / CR 117.3a: does the suspended call site owe a priority grant
+    /// once the batch completes?
+    ///
+    /// Not in `pb-plan-DP8.md` -- the plan's §4.1 prescribes `return Ok(events)`
+    /// at the four priority-granting call sites and never says who grants the
+    /// priority those sites were about to grant. Without this, a flush that
+    /// suspends inside `enter_step` / `handle_declare_attackers` /
+    /// `handle_declare_blockers` / the resolution tail resumes into a game where
+    /// nobody has priority, i.e. a hang. It cannot be inferred at resume time
+    /// either: the 30 `check_and_flush_triggers` sites inside `process_command`'s
+    /// `match` owe NOTHING, because PB-DP1 moved priority assignment into the
+    /// handlers ahead of the flush -- granting there would hand priority to the
+    /// active player when the actor was someone else. The **31st**
+    /// `check_and_flush_triggers` site, in `handle_all_passed`'s
+    /// forced-overdue-payment branch, is not in that match and DOES grant priority
+    /// afterwards (fix-cycle Finding 3).
+    ///
+    /// Set by the guards; [`FlushResumeSite::None`] at creation; inherited when the
+    /// same batch suspends again on a later trigger.
+    ///
+    /// Fix-cycle Findings 3 and 4 widened this from a bare `bool`: a 31st
+    /// `check_and_flush_triggers` call site was found (`handle_all_passed`'s
+    /// overdue-payment branch), and the two `enter_step` guards owed a CR 726 loop
+    /// check — and the Cleanup one a `cleanup_sba_rounds` ratchet — that the bool
+    /// could not express.
+    #[serde(default)]
+    pub resume_site: FlushResumeSite,
+}
+/// CR 603.3 / CR 117.3a / CR 726 (PB-DP8): what the call site whose
+/// `flush_pending_triggers` suspended still owes once the CR 603.3b batch
+/// completes.
+///
+/// A suspended flush returns control to the statement after the
+/// `flush_pending_triggers` call, and each guard then returns early — so whatever
+/// that site was about to do has to be reproduced by
+/// `rules::abilities::finish_resumed_flush` instead. This enum names it.
+///
+/// Reachable only from `GameState` (through `PendingTriggerTargets`), never from
+/// `Command`/`GameEvent`/`ReplayLog`, so it is outside the SR-8 wire closure.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum FlushResumeSite {
+    /// Nothing is owed. This is the 30 `check_and_flush_triggers` sites inside
+    /// `process_command`'s `match`: PB-DP1 moved priority assignment into the
+    /// handlers *ahead* of the flush, so priority is already correctly held by the
+    /// actor, and granting on resume would hand it to the active player instead.
+    #[default]
+    None,
+    /// Grant priority to the active player (routing past a dead one), nothing
+    /// else. `handle_declare_attackers`, `handle_declare_blockers`, the resolution
+    /// tail, and `handle_all_passed`'s forced-overdue-payment branch.
+    GrantPriority,
+    /// CR 726: run the mandatory-loop check over the batch just placed, then grant
+    /// priority. `enter_step`'s has-priority branch.
+    EnterStepPriority,
+    /// CR 514.3a / CR 726: advance `cleanup_sba_rounds`, run the mandatory-loop
+    /// check, then grant priority. `enter_step`'s Cleanup branch.
+    EnterStepCleanup,
 }

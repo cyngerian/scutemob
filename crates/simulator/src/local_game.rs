@@ -92,10 +92,10 @@ impl From<HaltReason> for GameDriverError {
 ///
 /// This enumerates command-submission-time decisions AND the out-of-band
 /// engine-blocking decisions introduced by PB-DP7's `BlockingDecision`
-/// mechanism (`rules::engine::blocking_decision`). It does NOT yet reach the
-/// trigger-time (PB-DP8, CR 603.3d) or mid-resolution (PB-DP9, CR
-/// 701.22a/701.23/701.25a) decision classes -- see
-/// `docs/audits/decision-point-audit.md` §9.4 rec 1 and the PB-DP7 plan's §1.5/1.6.
+/// mechanism (`rules::engine::blocking_decision`). PB-DP8 added the trigger-time
+/// class (CR 603.3d). It does NOT yet reach the mid-resolution class (PB-DP9, CR
+/// 701.22a/701.23/701.25a) -- see `docs/audits/decision-point-audit.md` §9.4 rec
+/// 1 and the PB-DP7 plan's §1.5/1.6.
 ///
 /// `#[non_exhaustive]`: audit §9.4 rec 1. This enum is no longer "the complete
 /// set of decisions reachable by this architecture" (contrast the old claim at
@@ -113,6 +113,11 @@ pub enum DecisionKind {
     /// CR 514.3 grants no priority in cleanup, so it is the engine's first
     /// out-of-band BLOCKING decision (`rules::engine::BlockingDecision`).
     CleanupDiscard,
+    /// CR 603.3d (PB-DP8 / DP-6): the controller of a triggered ability must
+    /// announce its targets before it goes on the stack. Like `CleanupDiscard`
+    /// this is an out-of-band BLOCKING decision, not a priority-window choice --
+    /// CR 603.3 grants priority only once the whole CR 603.3b batch is placed.
+    TriggerTargets,
 }
 
 /// A decision a human-occupied seat must make before the game can advance further.
@@ -335,7 +340,19 @@ impl<P: LegalActionProvider> LocalGame<P> {
             let (acting_player, forced_kind) = if let Some(decision) =
                 self.state.blocking_decision()
             {
-                (decision.player(), Some(DecisionKind::CleanupDiscard))
+                // PB-DP8: an EXHAUSTIVE match, not a hard-coded kind. Before
+                // PB-DP8 this branch mapped every `BlockingDecision` to
+                // `DecisionKind::CleanupDiscard`, which would have handed a
+                // browser client the wrong picker the moment a second variant
+                // existed. `BlockingDecision` is deliberately not
+                // `#[non_exhaustive]`, so this is now compile-forced for every
+                // future variant.
+                use mtg_engine::rules::engine::BlockingDecision;
+                let kind = match decision {
+                    BlockingDecision::CleanupDiscard { .. } => DecisionKind::CleanupDiscard,
+                    BlockingDecision::TriggerTargets { .. } => DecisionKind::TriggerTargets,
+                };
+                (decision.player(), Some(kind))
             } else if let Some(pending) = self.state.pending_commander_zone_choices().iter().next()
             {
                 (pending.0, Some(DecisionKind::CommanderZoneChoice))

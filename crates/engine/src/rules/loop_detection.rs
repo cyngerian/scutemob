@@ -154,6 +154,9 @@ fn compute_mandatory_state_hash(state: &GameState) -> u64 {
     //    computed while it is `Some` — mirrored anyway for hash-consistency, the
     //    same reasoning as `pending_draws` above.)
     state.pending_cleanup_discard.hash_into(&mut hasher);
+    // CR 603.3d (PB-DP8 / DP-6): a suspended trigger flush is a distinct
+    // mandatory-state position (the batch cannot progress until it is answered).
+    state.pending_trigger_targets.hash_into(&mut hasher);
     // Extract the first 8 bytes as a u64 (truncated hash for compact storage)
     let full_hash = hasher.finalize();
     let bytes = full_hash.as_bytes();

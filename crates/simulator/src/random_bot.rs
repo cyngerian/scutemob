@@ -369,5 +369,16 @@ pub(crate) fn action_to_command(
             player,
             cards: cards.clone(),
         },
+        // CR 603.3d (PB-DP8 / DP-6): submit the engine's OWN default verbatim, do
+        // not randomise. Randomising would be a legitimate improvement to bot play
+        // and a disaster for this batch: it would change fuzzer outcomes on every
+        // seed and destroy the pre/post A/B oracle. Seeded as OOS-DP8-1.
+        LegalAction::ChooseTriggerTargets {
+            choice_id, targets, ..
+        } => Command::ChooseTriggerTargets {
+            player,
+            choice_id: *choice_id,
+            targets: targets.clone(),
+        },
     }
 }

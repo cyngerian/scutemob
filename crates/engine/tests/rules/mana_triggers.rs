@@ -1173,6 +1173,31 @@ fn test_forbidden_orchard_token_goes_to_declared_opponent_4player() {
     // effect (a bug that produced the right effect for the wrong recipient would still pass
     // an end-effect-only assertion).
     let (state, _) = pass_all(state, &[p1, p2, p3, p4]);
+    // PB-DP8 (CR 603.3d / 601.2c): `TargetOpponent` in a 4-player game offers
+    // THREE legal opponents, so the flush now suspends and asks p1 to announce
+    // instead of silently taking the first. Answer with the engine's own default
+    // -- byte-identical to the pre-PB-DP8 first-match pick -- so the target
+    // assertion below still pins real dispatch.
+    let entry = state
+        .pending_trigger_targets()
+        .expect("CR 603.3d: 3 legal opponents is a real choice; the flush must suspend");
+    let (choice_player, choice_id) = (entry.player, entry.choice_id);
+    let slots: Vec<mtg_engine::TriggerTargetOption> = entry.slots.iter().cloned().collect();
+    assert_eq!(
+        slots[0].candidates.len(),
+        3,
+        "CR 601.2c: all three live opponents are legal choices for TargetOpponent"
+    );
+    let targets = mtg_engine::rules::abilities::default_trigger_targets(&slots);
+    let (state, _) = process_command(
+        state,
+        Command::ChooseTriggerTargets {
+            player: choice_player,
+            choice_id,
+            targets,
+        },
+    )
+    .unwrap();
     assert_eq!(
         state.stack_objects().len(),
         1,

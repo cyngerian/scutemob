@@ -60,6 +60,13 @@ export function formatEvent(event) {
       case 'CleanupDiscardChoiceRequired':
         return `${data.player} must discard ${data.count} card(s) to hand size (CR 514.1)`;
 
+      // PB-DP8 / DP-6 (CR 603.3d): the trigger's controller must announce its
+      // targets before it goes on the stack; the engine blocks until they do.
+      case 'TriggerTargetChoiceRequired': {
+        const n = (data.slots || []).length;
+        return `${data.player} must announce ${n} trigger target slot(s) for ${data.source_object_id} (CR 603.3d)`;
+      }
+
       case 'PlayerLost':
         return `${data.player} lost the game (${formatLossReason(data.reason)})`;
 
@@ -396,6 +403,9 @@ export function eventCategory(event) {
     case 'ManaCostPaid':
     case 'AbilityActivated':
     case 'AbilityTriggered':
+    // PB-DP8 (CR 603.3d): a triggered ability's target announcement is part of
+    // putting it on the stack, so it belongs with the other stack events.
+    case 'TriggerTargetChoiceRequired':
     case 'AbilityResolved':
     case 'CascadeExiled':
     case 'CascadeCast':
