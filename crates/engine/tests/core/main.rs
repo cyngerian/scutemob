@@ -16,6 +16,8 @@ mod cda_tests;
 mod completeness_deviation_scan;
 mod concede;
 mod corner_case_gaps;
+mod decision_gate;
+mod decision_site_walk;
 mod deck_validation;
 mod effect_choose_gate;
 mod emblem_tests;
