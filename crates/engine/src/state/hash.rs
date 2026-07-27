@@ -3122,7 +3122,14 @@ impl HashInto for crate::state::stubs::FlushResumeSite {
 // written with BARE type names on purpose, for the same reason the two above
 // are -- a path-qualified `impl HashInto for crate::state::stubs::Foo` falls out
 // of `every_hashed_struct_field_is_hashed_or_allowlisted` with no diagnostic.
-// Verified by the delete-a-field demonstration during the implement phase.
+//
+// Verified by the delete-a-field demonstration during the implement phase, which
+// also found the gate's own limit (**OOS-DP9-13**): deleting a field from either
+// STRUCT impl below fails the gate by name, but the gate scans structs only, so
+// an ENUM arm rewritten as `{ candidates, .. }` with its feed dropped passes
+// every gate green. The two enum impls below are therefore held by review and by
+// `stream_fingerprint`, not by the SR-19 scan -- do not read the gate as covering
+// them.
 impl HashInto for EffectChoiceQuestion {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {

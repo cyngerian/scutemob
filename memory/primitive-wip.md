@@ -107,7 +107,13 @@ Recorded because the plan's own §9 exists for exactly this.
     to be checked for outcome-affecting iteration. Workspace-wide there are exactly three
     `insert(idx, new_id)` sites (`effects/mod.rs:1975`, `:2020`, `:2847`) and one `get(&idx)`
     (`:6699`). **Nothing iterates it.** SR-9b is safe; the seed stays hygiene-class.
-12. **The benchmark obligation is discharged with no regression.** Measured on `48353a36` in a
+12. **SR-19's delete-a-field demonstration was RUN, and it found a gate gap (`OOS-DP9-13`).**
+    Deleting `PendingEffectChoice.index` or `AnsweredEffectChoice.answer` from their `HashInto`
+    impls fails `every_hashed_struct_field_is_hashed_or_allowlisted` **by name**, as designed.
+    But the gate covers **structs only**: rewriting the `EffectChoiceQuestion::SearchLibrary`
+    arm as `{ candidates, .. }` and dropping the `may_fail_to_find` feed passes **every gate in
+    the suite green**. Same family as OOS-DP7-11. `NOT_HASHED` is `&[]` and stays empty.
+13. **The benchmark obligation is discharged with no regression.** Measured on `48353a36` in a
     throwaway worktree vs this branch: `full_turn_4p` **253.10 µs → 229.31 µs**,
     `priority_cycle_4p` **25.68 → 25.34 µs**, `sba_check` **17.80 → 15.53 µs**. The
     unconditional `GameState::clone()` per resolution costs nothing measurable — `imbl`
