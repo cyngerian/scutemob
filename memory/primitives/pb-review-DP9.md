@@ -690,3 +690,159 @@ Very little; it was accurate on every reproduction. Two corrections:
    `priority_holder == None` with `players_passed` full. Those four are pre-existing,
    their reachability was **not** proven, and each needs its own fail-before probe;
    filed as **OOS-DP9-19** rather than fixed blind.
+
+---
+
+## Second closing review (1 HIGH + 1 MEDIUM + 1 LOW)
+
+A read-only `/review` pass over the post-closing-review branch. It verified the
+CR 800.4j grant fix as correct, correctly placed and fail-before-proven, and then
+found that it ships **two false completeness claims** and leaves a **reachable
+sibling deadlock**. All three findings dispositioned; **no wire type changed, so
+PROTOCOL 31 / HASH 68 are unmoved.** Tests **3,909 → 3,910** (+1 probe; the LOW-3
+coverage was added as a third half of an existing test rather than a new one).
+
+| # | Sev | Finding | Disposition |
+|---|-----|---------|-------------|
+| HIGH-1 | HIGH | `combat.rs`'s `handle_declare_blockers` tail is a fifth unconditional active-player grant, and reproduces the identical unrecoverable deadlock on a production path | **FIXED**, fail-before probe first |
+| MEDIUM-2 | MEDIUM | Two false completeness claims about the set of unconditional grants, written in the same commit that fixed the last HIGH | **CORRECTED**, inventory mechanically enumerated; one more site fixed, one argued benign |
+| LOW-3 | LOW | The stated reason for keeping `is_tapped`/`is_untapped` out of the CR 701.23b exclusion list is false | **FIXED** (partition + comment), fail-before probe |
+
+### HIGH-1 — the fifth grant, fixed at the grant again
+
+Reproduced before fixing, exactly as the finding describes and with no PB-DP9
+machinery on the path at all:
+
+```
+CR 800.4j: priority must not name a seat that has left the game (holder PlayerId(1))
+```
+
+Probe `test_509_declare_blockers_grant_skips_a_departed_active_player`
+(`crates/engine/tests/combat/combat.rs`): three seats, p1 active, p1 attacks, p1's
+life is taken to 0 mid-combat-phase, CR 704.5a eliminates it on the way into
+DeclareBlockers (`enter_step`'s ordinary grant does carry the liveness test, so
+priority correctly lands on a live seat *there*), then p2 declares an **empty**
+blocker set and `handle_declare_blockers`'s CR 509.1 / 117.3a tail hands priority
+straight back to the departed p1. The probe's last statement is the deadlock
+assertion — the named holder must be able to `PassPriority` — because asserting only
+on the field would pass on a state nobody can act from.
+
+**The helper moved rather than being duplicated.**
+`resolution::grant_priority_after_resolution` became
+**`rules::priority::grant_priority_to_active_player`** (`pub(crate)`), which is
+where both callers can reach it and where `next_priority_player` already lives. Its
+doc block carries the merged CR 117.3a / 117.3b / 800.4j rationale and the
+inventory below. Four production sites now route through it; the two `resolution.rs`
+ones are unchanged in behaviour.
+
+Fallout on a pre-existing path was **zero** — 3,910 tests and 211 golden scripts
+green, no script edits — which is what one expects: the fix only changes behaviour
+when the active player is already gone, and no existing test builds that position.
+
+### MEDIUM-2 — the fifth appearance of "a comment asserting a property the code lacks"
+
+Both claims were false and are rewritten. The set was enumerated mechanically, not
+by inspection:
+
+```
+grep -rn 'priority_holder = ' crates/*/src tools/*/src
+```
+
+That command (every production write of the field in the workspace) is now quoted
+**inside** the helper's doc block, next to the classification it produced, so the
+claim can be re-derived rather than trusted. The classification:
+
+* **Through the helper (CR 800.4j honoured)** — `resolution.rs`'s two
+  `resolve_top_of_stack_inner` grants; `combat.rs`'s `handle_declare_blockers` tail
+  (HIGH-1); `resolution.rs`'s `counter_stack_object` tail.
+* **A second, independent implementation of the same test** —
+  `abilities::grant_priority_after_batch` (PB-DP8's CR 603.3b batch grant). Left
+  separate: it resets `players_passed` only on its granting branches.
+* **Already conditional inline** — `handle_all_passed`'s forced-payment re-grant
+  and `enter_step`'s *ordinary* step grant.
+* **Grants to the ACTOR** (`= Some(player)`, PB-DP1's CR 117.3c rule) — ~20 sites
+  across `engine.rs`, `combat.rs`, `abilities.rs`, `casting.rs`. Not this rule's
+  business.
+* **Still unconditional** — `enter_step`'s **cleanup-SBA-round** grant (open,
+  reachability unproven, needs its own probe) and the cipher-copy grant (benign).
+
+Two corrections to the previously shipped text, beyond the two claims themselves:
+
+1. The closing review said `enter_step`'s grants "all carried the liveness test".
+   `enter_step` has **three** grants and the cleanup-SBA-round one does not.
+2. `resolution.rs`'s helper was described as covering "the only place in the
+   engine". It covered two of six.
+
+**`counter_stack_object`'s tail: FIXED, not seeded.** It is structurally the exact
+bug just fixed — an unconditional active-player grant preceded by
+`check_and_apply_sbas`, which can eliminate the active player two lines above. It is
+latent only because the function has no production caller today (`pub`, two callers,
+both in `tests/core/resolution.rs`). Seeding it would ship a known deadlock for a
+future caller to inherit; the fix is one line and behaviour-neutral while the active
+player is alive.
+
+**The cipher-copy grant: benign, argued in-source, not routed.** Its arm falls
+through to the CR 117.3b tail, which overwrites the field before the command
+returns, and the write pushes no `PriorityGiven` — so routing it through the helper
+would *add* an event to the stream for no behavioural gain.
+
+Seed items (2)-(4) were re-verified **accurate as filed**: the three grant-nothing
+early returns are `resolution.rs:4352` (a stack object with no recorded target — a
+defensive branch, consistent with "reachability not proven"), `:5066` and `:5316`
+(the CR 603.4 Offspring / Gift intervening-if failures). Left untouched.
+**OOS-DP9-19 rewritten** to carry the whole inventory and its own correction notice.
+
+Three stale references to the removed `resolution::grant_priority_after_resolution`
+were repointed (`abilities.rs`'s `repair_departed_priority_holder` doc,
+`engine.rs`'s `handle_concede` gate comment, and the PB-DP9 probe's doc), and the
+`handle_concede` comment now also names the cleanup-SBA-round grant as the one site
+that is *not* covered.
+
+### LOW-3 — the false reason, and the hole it left open
+
+Verified: `matches_filter` (`effects/mod.rs`) takes a `&Characteristics` and
+contains **zero** occurrences of `is_tapped` or `is_untapped` — both are documented
+at their `TargetFilter` declarations as "NOT checked inside `matches_filter()`" —
+so the search's candidate derivation (`matches_filter` + `check_has_counter_type` +
+the two runtime mana-value caps) cannot see tapped state. `has_counter_type` is
+genuinely the only one of the three that empties the list, via
+`check_has_counter_type` and CR 122.2.
+
+Both fields are now subtracted in `filter_states_a_quality`, and the doc says what
+is actually true, including the falsified claim it replaces. Pinned by a third half
+of `test_dp9_may_fail_to_find_ignores_non_quality_filter_axes`, which asserts
+against the **hazardous state** rather than around it: `candidates.len() == 2` (the
+filter narrowed nothing) *and* the CR 701.23d rejection of the decline. Fail-before
+confirmed by reverting the two lines:
+
+```
+CR 701.23d: `is_tapped` is a runtime board property, not a stated quality, so this
+is still a quantity-only search and the decline must be illegal
+```
+
+The six-field partition and OOS-DP9-5's widened text were re-verified correct and
+left alone beyond adding the two fields; the seed's residual (a per-field human
+judgement with no gate) is unchanged and still open.
+
+### What this review got wrong
+
+Almost nothing — all three findings reproduced as described. Two refinements:
+
+1. **HIGH-1's "one line" is one line at the call site but not in total**, because
+   the helper had to move out of `resolution.rs` to be reachable from `combat.rs`.
+   The review anticipated this and authorised it.
+2. **MEDIUM-2 lists the complete set as "beyond the two already fixed:
+   `combat.rs`, `resolution.rs:5431`, `resolution.rs:8252`".** That is right for
+   *unconditional active-player* grants, but the enumeration also surfaced a fact
+   neither review stated: `enter_step` has **three** grants, not two, and its
+   cleanup-SBA-round one is the still-open unconditional site. The previously
+   shipped "the last unconditional one in the engine" was false in the other
+   direction too — it was neither the last nor uniquely unconditional.
+
+### Gates after the second closing-review cycle
+
+`cargo build --workspace`, `cargo test --all` (**3,910 / 0 failing**),
+`cargo clippy --all-targets --workspace -- -D warnings`, `cargo fmt --check`,
+`tools/check-defs-fmt.sh` (1,804 defs) — all clean. **PROTOCOL 31 / HASH 68
+unmoved**: no wire type changed (the helper is internal, the partition change is a
+predicate, and the one new event ordering is unchanged).

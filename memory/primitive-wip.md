@@ -11,13 +11,14 @@
 - **Class**: AGENCY + CORRECTNESS (Tier 1, class **B** ×3 → **A** ×3). Rank 9 of the PB-DP
   suite; the suite's **third** wire change.
 - **Phase**: **fix — COMPLETE** (review findings 1-14 dispositioned; **closing-review
-  cycle also COMPLETE** — 1 HIGH + 4 LOW dispositioned, see the Closing-review section)
+  cycle COMPLETE** — 1 HIGH + 4 LOW; **second closing-review cycle COMPLETE** —
+  1 HIGH + 1 MEDIUM + 1 LOW, see the Second-closing-review section)
 - **Plan**: `memory/primitives/pb-plan-DP9.md`
 - **Review file**: `memory/primitives/pb-review-DP9.md`
 - **Baseline**: PROTOCOL **30**, HASH **67**, tests **3,878**
 - **Shipped**: PROTOCOL **31**, HASH **68**, tests **3,905** → **3,906** after the fix cycle
-  → **3,909** after the closing-review cycle (neither cycle changed a wire type, so both
-  versions are unmoved throughout)
+  → **3,909** after the closing-review cycle → **3,910** after the second closing-review
+  cycle (no cycle changed a wire type, so both versions are unmoved throughout)
 
 ## What shipped
 
@@ -330,7 +331,9 @@ The fourth appearance of the suite's recurring class. Reproduced before fixing: 
 The review offered two candidate fixes. **Neither `repair_departed_priority_holder`
 at `Command::AnswerEffectChoice`'s tail nor any other repair call was added**; the
 CR **800.4j** liveness test was put on the *grant* instead
-(`resolution::grant_priority_after_resolution`, used at **both** unconditional grant
+(`resolution::grant_priority_after_resolution` -- **renamed and moved** to
+`rules::priority::grant_priority_to_active_player` by the second closing review, used at
+**both** unconditional grant
 sites in `resolve_top_of_stack_inner` — the CR 117.3b tail and the CR 608.2b fizzle
 path).
 
@@ -412,3 +415,89 @@ all; **reachability not proven**, left for their own probes). **OOS-DP9-5** wide
 `cargo build --workspace`, `cargo test --all` (**3,909 / 0 failing**),
 `cargo clippy --all-targets --workspace -- -D warnings`, `cargo fmt --check`,
 `tools/check-defs-fmt.sh` (1,804 defs) — all clean.
+
+## Second closing-review cycle (`pb-review-DP9.md` -> "Second closing review", 1 HIGH + 1 MEDIUM + 1 LOW)
+
+**All 3 dispositioned; all 3 fixed.** No wire type changed, so **PROTOCOL 31 / HASH 68
+stay put**; tests 3,909 -> **3,910** (1 new probe; the LOW-3 coverage was added as a
+third half of an existing test).
+
+The previous cycle's CR 800.4j grant fix was verified correct, correctly placed and
+fail-before-proven -- and found to ship **two false completeness claims** plus a
+**reachable sibling deadlock**.
+
+### HIGH-1 -- `combat.rs`'s `handle_declare_blockers` tail was the fifth unconditional grant
+
+Reproduced before fixing, with **no PB-DP9 machinery on the path at all**: p1 (active)
+attacks, is eliminated by a CR 704.5a SBA during its own combat phase, and p2's
+declare-blockers (even an empty one) hands priority straight back to the departed seat.
+`PassPriority` then answers `PlayerEliminated` from p1 and `NotPriorityHolder` from
+everyone else. Pre-existing on `main`; the branch's only prior `combat.rs` change was an
+unrelated `HashMap`->`BTreeMap` hygiene fix.
+
+Probe `test_509_declare_blockers_grant_skips_a_departed_active_player`
+(`crates/engine/tests/combat/combat.rs`), whose last statement is the deadlock assertion
+(the named holder must be able to act) rather than a field check.
+
+**The helper moved rather than being duplicated**: `resolution::grant_priority_after_resolution`
+-> **`rules::priority::grant_priority_to_active_player`** (`pub(crate)`), which is where
+`next_priority_player` already lives and where both callers can reach it. Fallout on this
+pre-existing path was **zero** -- 211 golden scripts and every existing test green, no
+script edits -- as expected, since the fix only changes behaviour when the active player
+is already gone.
+
+### MEDIUM-2 -- the two false claims, corrected against a mechanical enumeration
+
+Both were false:
+
+- `resolution.rs`'s new helper doc claimed its two sites were "the only place in the
+  engine" granting unconditionally. It was two of six.
+- OOS-DP9-19 called `enter_step`'s cleanup-SBA-round grant "the last unconditional one in
+  the engine", contradicting the source comment written in the same commit.
+
+The set is now enumerated by a command that is **quoted inside the helper's doc block**
+next to the classification it produced:
+
+```
+grep -rn 'priority_holder = ' crates/*/src tools/*/src
+```
+
+A third correction the review did not state: **`enter_step` has three grants, not two**,
+and the cleanup-SBA-round one is the still-open unconditional site.
+
+- **`resolution.rs`'s `counter_stack_object` tail: FIXED, not seeded.** Structurally the
+  exact bug just fixed (unconditional grant preceded by `check_and_apply_sbas`), latent
+  only because the function has no production caller today. Seeding it would ship a
+  deadlock for a future caller to inherit.
+- **The cipher-copy grant: benign, argued in-source, not routed.** Its arm falls through
+  to the CR 117.3b tail, which overwrites the field before the command returns, and the
+  write pushes no `PriorityGiven` -- routing it would add an event for no gain.
+- **Seed items (2)-(4) re-verified accurate as filed** (`resolution.rs:4352 / 5066 / 5316`)
+  and left alone. **OOS-DP9-19 rewritten** to carry the whole inventory.
+
+Three stale references to the removed helper name were repointed
+(`abilities.rs::repair_departed_priority_holder`, `engine.rs::handle_concede`, and the
+PB-DP9 probe's doc); the `handle_concede` comment now also names the one grant site that
+is *not* covered.
+
+### LOW-3 -- `is_tapped`/`is_untapped` were kept out of the CR 701.23b exclusion list for a false reason
+
+`matches_filter` takes a `&Characteristics` and contains **zero** occurrences of either
+field (both are documented at their declarations as "NOT checked inside
+`matches_filter()`"), so it structurally cannot see tapped state -- a `SearchLibrary` with
+`is_tapped: true` produced an **unnarrowed** candidate list *plus* a CR 701.23d-forbidden
+decline over the whole library. `has_counter_type` is genuinely the only one of the three
+that empties the list (`check_has_counter_type`, CR 122.2).
+
+Both fields subtracted in `effects::filter_states_a_quality`; the doc rewritten to say
+what is true and to name the claim it replaces. Pinned by a third half of
+`test_dp9_may_fail_to_find_ignores_non_quality_filter_axes` that asserts `candidates.len()
+== 2` **and** the CR 701.23d rejection -- i.e. against the hazardous state, not around it.
+Behaviour-neutral over `all_cards()`. The six-field partition and OOS-DP9-5's widened text
+were re-verified correct and otherwise untouched.
+
+### Gates after the second closing-review cycle
+
+`cargo build --workspace`, `cargo test --all` (**3,910 / 0 failing**),
+`cargo clippy --all-targets --workspace -- -D warnings`, `cargo fmt --check`,
+`tools/check-defs-fmt.sh` (1,804 defs) -- all clean.
