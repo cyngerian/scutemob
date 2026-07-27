@@ -10,11 +10,11 @@
 - **Branch**: `feat/pb-dp9-search-scry-surveil-player-choice-auto-pick-inverts-t`
 - **Class**: AGENCY + CORRECTNESS (Tier 1, class **B** ×3 → **A** ×3). Rank 9 of the PB-DP
   suite; the suite's **third** wire change.
-- **Phase**: **implement — COMPLETE** (awaiting review)
+- **Phase**: **fix — COMPLETE** (review findings 1-14 all dispositioned; re-review pending)
 - **Plan**: `memory/primitives/pb-plan-DP9.md`
 - **Review file**: `memory/primitives/pb-review-DP9.md`
 - **Baseline**: PROTOCOL **30**, HASH **67**, tests **3,878**
-- **Shipped**: PROTOCOL **31**, HASH **68**, tests **3,905**
+- **Shipped**: PROTOCOL **31**, HASH **68**, tests **3,905** → **3,906** after the fix cycle (the fix cycle changed no wire type, so both versions are unmoved)
 
 ## What shipped
 
@@ -38,11 +38,22 @@ string.
 
 ## Roster (SR-36, enumerated from `all_cards()`, recursive `Effect`-tree walk)
 
-| effect | audit claimed | **enumerated** | non-`Complete` |
-|---|---:|---:|---:|
-| `SearchLibrary` | 74 | **69** | +23 |
-| `Scry` | 16 | **16** | +1 |
-| `Surveil` | 8 | **7** | +0 |
+| effect | audit claimed | implement phase | **fix cycle (final)** | non-`Complete` |
+|---|---:|---:|---:|---:|
+| `SearchLibrary` | 74 | ~~69~~ | **73** | +25 |
+| `Scry` | 16 | 16 | **16** | +3 |
+| `Surveil` | 8 | ~~7~~ | **8** | +1 |
+
+**The implement phase's own numbers were wrong** (review Finding 5). The walk was a
+hand-written `match` that never descended into `AbilityDefinition::{Spell,Triggered,Activated}::modes`,
+never visited `AbilityDefinition::{SagaChapter,LoyaltyAbility}` or split-card halves at
+all, and omitted `Effect::CoinFlip` while claiming to cover it. Ten defs were missing:
+Binding the Old Gods, Evolution Charm, Insatiable Avarice, Thirsting Roots,
+Connive // Concoct (`Complete`); Tooth and Nail, Urza's Saga, Retreat to Coralhelm,
+Wrenn and Seven, Kaito Bane of Nightmares (non-`Complete`). Replaced with a
+**structurally complete serde walk** of the serialized `CardDefinition` — every field of
+every variant at every depth, by construction, and it cannot rot as the DSL grows.
+(The review said all four mode-nested defs were `Complete`; `tooth_and_nail` is `partial`.)
 
 **0 card-def source edits, 0 completeness flips**, as predicted.
 
@@ -71,10 +82,18 @@ Recorded because the plan's own §9 exists for exactly this.
    the wrapper truncates the restored bank to the good prefix and the stale tail is dropped.
 4. **`MAX_EFFECT_CHOICES_PER_RESOLUTION` is enforced in the ANSWER HANDLER, not at the ask
    site.** §1.4 says "exceeding it applies defaults for the remainder", which the ask site
-   cannot do without a fifth `GameState` field to carry a force-default flag. Bounding the
-   *bank's growth* in `handle_answer_effect_choice` achieves the same thing (it can only be
-   reached if the engine is replaying nondeterministically, i.e. an engine bug) and turns an
-   unbounded ask/re-ask cycle into one diagnosable rejection.
+   cannot do without a fifth `GameState` field to carry a force-default flag.
+   **The claimed equivalence was FALSE and the review (Finding 3) was right to reject it.**
+   Bounding the bank's *growth* does NOT bound the ask/re-ask cycle: on a question-equality
+   mismatch at index `i` the arm suspends without consuming, the wrapper computes
+   `consumed == i` and truncates the restored bank back to `i`, so the bank oscillates
+   between `i` and `i+1` and can never reach 64 on precisely the path the ceiling was
+   written for. Fixed in the fix cycle by a **strict-progress** check instead: banking an
+   answer for index `i` must make the replay reach `i+1` or finish, so a re-ask at
+   `index <= i` is rejected on its FIRST occurrence — no counter, no new `GameState` field,
+   no second round trip. The constant is retained for what it actually bounds (bank growth
+   from distinct choice points, plus `execute_effect_answering`'s loop) and its doc now
+   says so.
 5. **The mana-ability gate does NOT `debug_assert!`.** §1.3 prescribes one. CR 605.4a leaves no
    room for an announcement inside a mana ability, so applying the default *is* the defined
    behaviour rather than a swallowed failure — and an assertion there makes the branch
@@ -103,10 +122,19 @@ Recorded because the plan's own §9 exists for exactly this.
     casts the real `Opt`, i.e. a scry) and `pb_ac6_card_integration` (Land Tax — the block
     made a later `PassPriority` return `BlockedByPendingDecision`, which is the loud failure
     mode, not a silent one).
-11. **`EffectContext.target_remaps` audit (OOS-DP9-10): CLEAN.** The plan required every read
-    to be checked for outcome-affecting iteration. Workspace-wide there are exactly three
-    `insert(idx, new_id)` sites (`effects/mod.rs:1975`, `:2020`, `:2847`) and one `get(&idx)`
-    (`:6699`). **Nothing iterates it.** SR-9b is safe; the seed stays hygiene-class.
+11. **`EffectContext.target_remaps` audit (OOS-DP9-10): CLEAN — but the AUDIT WAS
+    MIS-SCOPED.** The `target_remaps` half is right: exactly three `insert(idx, new_id)`
+    sites (`effects/mod.rs:1975`, `:2020`, `:2847`) and one `get(&idx)` (`:6699`), nothing
+    iterates it. **The scope was the error** (review Finding 4): the replay re-executes the
+    *whole resolution*, not the asking effect's candidate derivation, so the premise is
+    resolution-scoped and every statement in it matters. The widened workspace audit ran in
+    the fix cycle and fixed five sites — `Effect::ChooseCreatureType` + its ETB twin
+    (`max_by_key` over a `HashMap`, ties are the common case), `abilities.rs`'s combat-damage
+    batch map and `turn_actions.rs`'s CR 603.7b delayed-trigger map (**both queued triggers
+    in map order, i.e. CR 603.3b stack order**), and `replacement.rs:1281`'s
+    `PendingZoneChange.already_applied`, built from a `HashSet` without the sort its own
+    sibling site documents as "load-bearing, not cosmetic" — and that field is hashed.
+    OOS-DP9-10 is now rankable, not hygiene.
 12. **SR-19's delete-a-field demonstration was RUN, and it found a gate gap (`OOS-DP9-13`).**
     Deleting `PendingEffectChoice.index` or `AnsweredEffectChoice.answer` from their `HashInto`
     impls fails `every_hashed_struct_field_is_hashed_or_allowlisted` **by name**, as designed.
@@ -172,10 +200,13 @@ grep -rn 'resolve_top_of_stack' crates/*/src
   (`discharge_departed_effect_choice`, §1.5's exit-2/4 discharge). The wrapper is still the
   only suspension-aware site, and `handle_all_passed`'s two post-statements carry the argued
   no-guard comment (factored into `finish_stack_resolution`, which both resume sites call).
-- **Guards added (§3, robustness only):** 5 loop sites in `resolution.rs` (3 modal, 1
-  `effects_to_run`, 1 splice) and 4 in `effects/mod.rs` (`Sequence`, `Repeat`, both `ForEach`
-  arms). The single-call recursion sites (`Conditional` branches, `Choose`, `MayPay*`,
-  coin-flip, dice) got none: nothing loops after them, so a guard would add no protection.
+- **Guards added (§3, robustness only):** ~~5~~ **4** loop sites in `resolution.rs` (3 modal,
+  1 `effects_to_run`; the "splice" one was miscounted — grep confirms 4) and **5** in
+  `effects/mod.rs` (`Sequence`, `Repeat`, both `ForEach` arms, and `MayPayThenEffect`'s
+  `for pid in payer_ids` loop, added in the fix cycle per review Finding 10 — the original
+  justification for omitting it, "nothing loops after them", was simply wrong about that
+  site). The single-call recursion sites (`Conditional` branches, `Choose`, `MayPayOrElse`,
+  coin-flip, dice) still get none: nothing loops after them.
 - **No new wire sentinel** was added in the PB-DP9 test file (OOS-DP7-8 is a standing complaint
   about exactly that growth).
 - **Golden corpus**: 211 approved ran and passed, 60 retired, **0 skipped silently** (SR-9c).
@@ -185,6 +216,7 @@ grep -rn 'resolve_top_of_stack' crates/*/src
 ## Phase log
 
 - 2026-07-27 — plan phase opened.
+- 2026-07-27 — fix phase complete (see the Fix cycle section above).
 - 2026-07-27 — implement phase complete. Three commits:
   `75ee3b92` engine, `bfb8916b` tests + plumbing + roster, `f4696e09` audit + seeds + script.
   Gates: `cargo build --workspace`, `cargo test --all` (3,905 / 0 failing),
@@ -196,3 +228,84 @@ grep -rn 'resolve_top_of_stack' crates/*/src
   (2,080 base vs 1,993 here) — OOS-DP3-9 / OOS-M11-3, not chased. **No A/B-vs-`main` trace
   comparison was run or presented as an oracle** (PB-DP8 established that an extra `Command`
   shifts `RandomBot`'s RNG stream, so divergence there is structural).
+
+## Fix cycle (review `pb-review-DP9.md`, 14 findings)
+
+**All 2 HIGH + 5 MEDIUM + 7 LOW dispositioned; 13 fixed, 1 documented-and-seeded.**
+No wire type changed, so **PROTOCOL 31 / HASH 68 are unmoved**; tests 3,905 → **3,906**
+(one net new test; two existing concede tests rebuilt rather than added to).
+
+### The two HIGHs, both on the concede exit
+
+- **F1 (test vacuity)** — `test_dp9_owner_concedes_mid_choice` ran on the 2-player
+  `fixture()`, so the concede ended the game and the discharge returned at its
+  `is_game_over` early exit: the "drive the rolled-back resolution, do not merely clear it"
+  behaviour had **zero** coverage while the test's doc comment claimed the opposite.
+  Rebuilt on a new `fixture_3p` + `cast_and_resolve_3p`, with the `if !over { … }` escape
+  hatch deleted and every assertion unconditional — including a sanity assertion that two
+  seats survive, so the test cannot silently go vacuous again.
+- **F2 (stale answer bank on a foreign concede)** — reproduced first: the shipped code
+  panicked at `effects/mod.rs:463` (`replay determinism violation -- banked question
+  SearchLibrary { candidates: [2, 3] } but the replay recomputed [4, 5]`) on a legal
+  three-command sequence. **The rule was re-derived, not patched.** The abort-and-replay is
+  sound only while the board the questions were asked against is the board the replay
+  re-executes; the admission gate admits exactly two commands while blocked — the answer
+  (the mechanism) and `Concede` — and a concede always mutates the board. So the
+  invalidation condition is "a concede happened", by anybody, and
+  `discharge_departed_effect_choice` → **`discharge_effect_choice_on_concede`** drops the
+  entry AND the bank unconditionally and re-drives. Its call site also **moved**, from
+  before `PlayerConceded` to after `check_game_over`: the re-drive records a fresh question,
+  and recording it before the CR 611.2b expiry / CR 725.4 initiative transfer would have
+  reproduced the same defect one step out.
+  Side effect worth keeping: the mismatch `debug_assert!`'s SR-4 engine-bug classification
+  is now **honest** — no legal command sequence can reach it.
+
+### MEDIUMs
+
+- **F3** — strict-progress check in `handle_answer_effect_choice` (see falsified premise 4).
+- **F4** — 5 determinism sites fixed, audit re-run workspace-wide (see premise 11).
+  Two review claims corrected: `replacement.rs:2128` (`ChooseColor`) was **already**
+  deterministic, and the audit found three sites the review did not.
+- **F5** — roster walk replaced with a serde walk (see the Roster table).
+- **F6** — both stale "a `debug_assert` records if it fires" comments rewritten to name the
+  real discharge (`test_dp9_mana_ability_gate`'s roster assertion).
+- **F7** — exit-4 claim removed. The doc now states plainly that SBA-elimination-while-
+  blocked is **unreachable** (the admission gate admits nothing that runs an SBA) rather
+  than covered, names `blocking_decision`'s filter as defence-in-depth that does not clear
+  the field, and seeds the residual trap state as **OOS-DP9-14**.
+
+### LOWs
+
+- **F8** fixed — `events.rs`'s "`private_to()` … does not exist" rewritten; OOS-DP8-6's
+  declaration half recorded closed, its consumer half still open.
+- **F9** fixed — `Zone::reposition_within` `debug_assert!`s its membership precondition.
+- **F10** fixed — guard added to `MayPayThenEffect`'s payer loop; the record corrected
+  (4 `resolution.rs` guard sites, not 5).
+- **F11** fixed — `next_action_answers_the_block` case (e) covers `EffectChoice` in both
+  directions against both other kinds.
+- **F12** **documented, not changed**, and seeded as **OOS-DP9-15**: `Scried.count` is the
+  requested N, `Surveilled.count` the actual. Neither is CR-wrong (701.22d/701.25d fire
+  regardless), and reporting the requested N keeps `Scry 3` on an empty library
+  distinguishable from `Scry 0`. Both arms now say so; changing one side in isolation is
+  the trap.
+- **F13** fixed — the re-drive runs on a clone committed only on success, so a resolution
+  error can no longer make a player permanently unable to concede.
+- **F14** fixed — CR 608.2m named in `resolve_top_of_stack`'s doc, with the argument for why
+  the deviation is unobservable through legal commands.
+
+### New seeds
+
+**OOS-DP9-14** (dead-owner entry is a latent trap; exit 4 unreachable-not-handled),
+**OOS-DP9-15** (`Scried`/`Surveilled` count asymmetry),
+**OOS-DP9-16** (CR 603.7b delayed triggers keyed by `target_object` COLLAPSE when two share
+a target — found while making that map's iteration order deterministic; ordering fixed,
+collapse deliberately not).
+
+### Gates after the fix cycle
+
+`cargo build --workspace`, `cargo test --all` (**3,906 / 0 failing**),
+`cargo clippy --all-targets --workspace -- -D warnings`, `cargo fmt --check`,
+`tools/check-defs-fmt.sh` (1,804 defs) — all clean. Fuzzer re-run (3 games x 4 players x
+200 turns, seed 20260727, single-threaded): **0 errors, 3 wins, 1,993 violations** —
+byte-identical to the pre-fix-cycle measurement on this branch, i.e. no regression from the
+concede rewrite (the violations are the pre-existing OOS-DP3-9 / OOS-M11-3 class).
