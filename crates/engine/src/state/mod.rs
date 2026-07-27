@@ -34,15 +34,16 @@ use imbl::{OrdMap, Vector};
 pub use mtg_card_types::state::dungeon::get_dungeon;
 pub use mtg_card_types::state::{
     AbilityInstance, ActivatedAbility, ActivationCost, ActiveRestriction, AdditionalCost,
-    AdditionalLandPlaySource, AffinityTarget, AltCostKind, AttackTarget, BlockingExceptionFilter,
-    CardId, CardType, ChampionFilter, Characteristics, Color, CombatState, ContinuousEffect,
-    CounterType, CumulativeUpkeepCost, DamageTargetFilter, DayNight, DeathTriggerFilter,
-    DelayedTrigger, Designations, DungeonDef, DungeonId, DungeonState, ETBSuppressFilter,
-    ETBSuppressor, ETBTriggerFilter, EffectDuration, EffectFilter, EffectId, EffectLayer,
-    EnchantControllerConstraint, EnchantFilter, EnchantTarget, FaceDownKind, FlashGrant,
-    FlashGrantFilter, GameObject, GameRestriction, HybridMana, HybridManaPayment, InterveningIf,
-    KeywordAbility, LandwalkType, LayerModification, ManaAbility, ManaColor, ManaCost, ManaPool,
-    MergedComponent, ObjectFilter, ObjectId, ObjectStatus, PendingCleanupDiscard, PendingDraw,
+    AdditionalLandPlaySource, AffinityTarget, AltCostKind, AnsweredEffectChoice, AttackTarget,
+    BlockingExceptionFilter, CardId, CardType, ChampionFilter, Characteristics, Color, CombatState,
+    ContinuousEffect, CounterType, CumulativeUpkeepCost, DamageTargetFilter, DayNight,
+    DeathTriggerFilter, DelayedTrigger, Designations, DungeonDef, DungeonId, DungeonState,
+    ETBSuppressFilter, ETBSuppressor, ETBTriggerFilter, EffectChoiceAnswer, EffectChoiceQuestion,
+    EffectDuration, EffectFilter, EffectId, EffectLayer, EnchantControllerConstraint,
+    EnchantFilter, EnchantTarget, FaceDownKind, FlashGrant, FlashGrantFilter, GameObject,
+    GameRestriction, HybridMana, HybridManaPayment, InterveningIf, KeywordAbility, LandwalkType,
+    LayerModification, ManaAbility, ManaColor, ManaCost, ManaPool, MergedComponent, ObjectFilter,
+    ObjectId, ObjectStatus, PendingCleanupDiscard, PendingDraw, PendingEffectChoice,
     PendingTrigger, PendingTriggerTargets, PendingZoneChange, PhyrexianMana,
     PlayFromGraveyardPermission, PlayFromTopFilter, PlayFromTopPermission, PlayerFilter, PlayerId,
     PlayerState, ProtectionQuality, ReplacementEffect, ReplacementId, ReplacementModification,
@@ -156,6 +157,33 @@ pub struct GameState {
     /// See `rules::engine::blocking_decision`.
     #[serde(default)]
     pub(crate) pending_trigger_targets: Option<PendingTriggerTargets>,
+    /// CR 608.2d (PB-DP9 / DP-7/8/9): the one resolution-time choice the engine
+    /// is currently blocked on, if any.
+    ///
+    /// Recorded on a state that has been RESTORED to the moment before
+    /// `resolve_top_of_stack` began, so nothing of the aborted resolution
+    /// survives it. See `rules::resolution::resolve_top_of_stack` (the
+    /// abort-and-replay wrapper) and `rules::engine::blocking_decision`.
+    #[serde(default)]
+    pub(crate) pending_effect_choice: Option<PendingEffectChoice>,
+    /// CR 608.2d (PB-DP9): answers already given for THIS resolution, in the
+    /// order the engine asked for them.
+    ///
+    /// Consumed positionally by the replay (PB-DP8's HIGH-1 lesson: bind
+    /// positionally, never lazily). Cleared when a resolution completes, aborts
+    /// with an error, or is abandoned by a concede.
+    #[serde(default)]
+    pub(crate) effect_choice_answers: Vector<AnsweredEffectChoice>,
+    /// CR 608.2d (PB-DP9): monotone source of `PendingEffectChoice::choice_id`
+    /// moment guards.
+    ///
+    /// Deliberately SEPARATE from `timestamp_counter`: that counter seeds
+    /// shuffles and coin flips and is consumed by `next_object_id`, so bumping
+    /// it between an abort and its replay would change what the replay
+    /// executes and silently break the abort-and-replay determinism premise
+    /// (SR-9b). Nothing but `next_effect_choice_id` reads or writes this field.
+    #[serde(default)]
+    pub(crate) next_effect_choice_id: u64,
     /// Commanders awaiting the owner's zone-return choice (CR 903.9a).
     ///
     /// Each entry is `(owner, object_id)`. The SBA skips commanders already in
@@ -490,6 +518,23 @@ impl GameState {
     /// build the answer.
     pub fn pending_trigger_targets(&self) -> Option<&PendingTriggerTargets> {
         self.pending_trigger_targets.as_ref()
+    }
+
+    /// Read-only access to the `pending_effect_choice` field (CR 608.2d, PB-DP9).
+    ///
+    /// No `_mut` accessor (SR-3). Same contract as
+    /// [`GameState::pending_trigger_targets`]: consumers outside this crate read
+    /// [`GameState::blocking_decision`] to learn *whether* the engine is blocked,
+    /// and this accessor only to read the raw `question` payload once they know
+    /// they are (the simulator's `StubProvider`, the replay-harness pump).
+    pub fn pending_effect_choice(&self) -> Option<&PendingEffectChoice> {
+        self.pending_effect_choice.as_ref()
+    }
+
+    /// Read-only access to the CR 608.2d answer bank for the resolution
+    /// currently in progress (PB-DP9). Empty outside a suspended resolution.
+    pub fn effect_choice_answers(&self) -> &Vector<AnsweredEffectChoice> {
+        &self.effect_choice_answers
     }
 
     /// The one decision, if any, that is currently gating game progress
@@ -972,6 +1017,20 @@ impl GameState {
     pub(crate) fn next_choice_id(&mut self) -> u64 {
         self.timestamp_counter += 1;
         self.timestamp_counter
+    }
+    /// CR 608.2d (PB-DP9): mint a monotonic moment guard for a resolution-time
+    /// choice.
+    ///
+    /// **Not** [`GameState::next_choice_id`], and the distinction is
+    /// load-bearing. That one draws from `timestamp_counter`, which seeds every
+    /// `Zone::shuffle`, every coin flip and every `next_object_id`. PB-DP9's
+    /// suspension aborts the resolution and REPLAYS it from the restored state,
+    /// so a counter bump between the abort and the replay would change what the
+    /// replay executes -- silently breaking the determinism premise the replay
+    /// rests on (SR-9b). This counter is read and written by nothing else.
+    pub(crate) fn next_effect_choice_id(&mut self) -> u64 {
+        self.next_effect_choice_id += 1;
+        self.next_effect_choice_id
     }
     /// Re-timestamp an Aura/Equipment/Fortification and its static-ability
     /// continuous effects when it becomes attached to a new object (SR-30).

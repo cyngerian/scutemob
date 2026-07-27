@@ -89,6 +89,17 @@ fn pass_all(state: GameState, players: &[PlayerId]) -> (GameState, Vec<GameEvent
         current = s;
         all_events.extend(ev);
     }
+    // CR 701.23a / CR 608.2d (PB-DP9 / DP-7): a library search now blocks on the
+    // searching player's announcement, and until it is answered the resolution
+    // is ROLLED BACK -- so the rest of the pass, and every later `PassPriority`,
+    // is rejected. Answer with the engine's own deterministic default, which is
+    // byte-identical to the pre-PB-DP9 lowest-`ObjectId` auto-pick: these tests
+    // assert what the FILTER admits (mana-value caps and floors, alt-cost
+    // gating), not which of several legal cards a player would pick, and every
+    // one of them is built so the filter leaves exactly one right answer.
+    let (current, pump_events) =
+        mtg_engine::testing::replay_harness::auto_answer_blocking_decisions(current);
+    all_events.extend(pump_events);
     (current, all_events)
 }
 

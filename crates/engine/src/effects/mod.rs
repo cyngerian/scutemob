@@ -25,12 +25,16 @@ use crate::cards::card_definition::{
     ZoneTarget,
 };
 use crate::rules::events::{CombatDamageTarget, GameEvent};
+use crate::state::error::GameStateError;
 use crate::state::game_object::{
     Characteristics, Designations, GameObject, HybridMana, ObjectId, ObjectStatus, PhyrexianMana,
 };
 use crate::state::player::PlayerId;
 use crate::state::stack::TriggerData;
-use crate::state::stubs::{PendingTrigger, PendingTriggerKind};
+use crate::state::stubs::{
+    AnsweredEffectChoice, EffectChoiceAnswer, EffectChoiceQuestion, PendingEffectChoice,
+    PendingTrigger, PendingTriggerKind,
+};
 use crate::state::targeting::{SpellTarget, Target};
 use crate::state::turn::Phase;
 use crate::state::types::{CardType, Color, KeywordAbility, ManaColor, SubType, SuperType};
@@ -46,6 +50,11 @@ use std::collections::HashMap;
 /// (e.g. Swords to Plowshares: exile creature, then gain life equal to its power —
 /// the "its" refers to the creature after it left the battlefield, so we track the
 /// new ObjectId in exile for power lookup).
+///
+/// `Clone` since PB-DP9: [`execute_effect_answering`] restarts an effect from a
+/// pristine context on each replay pass, mirroring what
+/// `rules::resolution::resolve_top_of_stack` does to the whole `GameState`.
+#[derive(Clone)]
 pub struct EffectContext {
     /// Controller of the spell or ability.
     pub controller: PlayerId,
@@ -178,6 +187,23 @@ pub struct EffectContext {
     /// (e.g. inside a `Sequence` or `Conditional`, which reuse the same `&mut ctx`)
     /// is then ignored. Latched only when a flip actually occurs.
     pub source_transformed_this_resolution: bool,
+    /// CR 605.1b / CR 605.4a (PB-DP9): when `true`, a CR 608.2d resolution-time
+    /// choice reached by this effect applies its deterministic default instead
+    /// of suspending the resolution.
+    ///
+    /// Set by exactly one caller, `rules::mana::handle_tap_for_mana`'s triggered
+    /// mana ability path (`mana.rs`). A mana ability resolves immediately,
+    /// outside the stack (CR 605.4a), so there is no stack object to roll back
+    /// to and PB-DP9's abort-and-replay mechanism cannot apply. A
+    /// `Sequence([AddMana, Scry])` would pass `is_mana_producing_effect`, so the
+    /// exclusion is a runtime fact rather than a type fact; a `debug_assert`
+    /// records if it ever actually fires and
+    /// `tests/primitives/pb_dp9_effect_choice.rs` asserts no `Complete` card def
+    /// puts one of the three asking effects inside a mana ability.
+    ///
+    /// Deliberately on the context, not on `GameState`: it never crosses a
+    /// command boundary.
+    pub effect_choice_gate_closed: bool,
 }
 impl EffectContext {
     /// Build a basic context from resolution data.
@@ -211,6 +237,7 @@ impl EffectContext {
             countered_spell_controller: None,
             defending_player: None,
             source_transformed_this_resolution: false,
+            effect_choice_gate_closed: false,
         }
     }
     /// Build a context with kicker status (CR 702.33d).
@@ -249,6 +276,7 @@ impl EffectContext {
             countered_spell_controller: None,
             defending_player: None,
             source_transformed_this_resolution: false,
+            effect_choice_gate_closed: false,
         }
     }
     /// Resolve a declared target to a player (if it's a player target).
@@ -277,6 +305,386 @@ pub fn execute_effect(
     let mut events = Vec::new();
     execute_effect_inner(state, effect, ctx, &mut events);
     events
+}
+// ── CR 608.2d resolution-time choices (PB-DP9 / DP-7/8/9) ────────────────────
+/// CR 608.2d (PB-DP9): the deterministic default answer for a library search.
+///
+/// `Some(candidates[0])` — the lowest `ObjectId`, byte-identical to the
+/// pre-PB-DP9 `candidates.iter().min_by_key(|&&id| id.0)` auto-pick, so the
+/// search half of PB-DP9 is zero-churn. `None` only when there is nothing to
+/// find.
+///
+/// **This function is called by nobody in the engine.** The engine never
+/// auto-picks on a decision path (Architecture Invariant 1: it knows nothing
+/// about seat kind); the *caller* — a bot, the replay-harness pump, the TUI —
+/// submits a real `Command::AnswerEffectChoice`. It is exported so those
+/// callers can offer an answer the engine is guaranteed to accept (SR-38).
+pub fn default_search_answer(q: &EffectChoiceQuestion) -> EffectChoiceAnswer {
+    match q {
+        EffectChoiceQuestion::SearchLibrary { candidates, .. } => {
+            EffectChoiceAnswer::SearchLibrary {
+                found: candidates.first().copied(),
+            }
+        }
+        // A caller that asks for the wrong default gets the identity, which is
+        // legal for every question shape. `default_effect_choice_answer` is the
+        // dispatcher that cannot get this wrong.
+        _ => default_effect_choice_answer(q),
+    }
+}
+/// CR 608.2d / CR 701.22a (PB-DP9): the deterministic default answer for a scry
+/// — the **identity**: keep every looked-at card on top, order unchanged.
+///
+/// **This is NOT the pre-PB-DP9 behaviour**, which put every scried card on the
+/// bottom (i.e. inverted the printed mechanic into a forced Bottom-N). Both are
+/// CR-legal under 701.22a's "any number", but "all to the bottom" is the
+/// systematically maximal-harm legal answer, and the engine's default should be
+/// what a player who declines to engage would say — for a choice that is
+/// optional in every direction, the null action. Pinned by
+/// `test_dp9_defaults_reproduce_the_stated_behaviour`.
+///
+/// Called by nobody in the engine; see [`default_search_answer`].
+pub fn default_scry_answer(q: &EffectChoiceQuestion) -> EffectChoiceAnswer {
+    match q {
+        EffectChoiceQuestion::Scry { looked_at } => EffectChoiceAnswer::Scry {
+            bottom: Vec::new(),
+            top: looked_at.clone(),
+        },
+        _ => default_effect_choice_answer(q),
+    }
+}
+/// CR 608.2d / CR 701.25a (PB-DP9): the deterministic default answer for a
+/// surveil — the **identity**: keep every looked-at card on top, order
+/// unchanged.
+///
+/// **This is NOT the pre-PB-DP9 behaviour**, which put every surveilled card
+/// into the graveyard (i.e. `Surveil N` was exactly `Mill N`). Beyond the
+/// agency loss, surveil-as-mill removes cards from the library and so can
+/// contribute to a CR 704.5b deck-out the player never agreed to.
+///
+/// Called by nobody in the engine; see [`default_search_answer`].
+pub fn default_surveil_answer(q: &EffectChoiceQuestion) -> EffectChoiceAnswer {
+    match q {
+        EffectChoiceQuestion::Surveil { looked_at } => EffectChoiceAnswer::Surveil {
+            graveyard: Vec::new(),
+            top: looked_at.clone(),
+        },
+        _ => default_effect_choice_answer(q),
+    }
+}
+/// CR 608.2d (PB-DP9): the deterministic default answer for any resolution-time
+/// question — the dispatcher every caller should actually use.
+///
+/// A pure function of the question, and the question is a pure function of
+/// `GameState`, so a bot that submits this verbatim preserves the class of
+/// determinism SR-9b requires.
+pub fn default_effect_choice_answer(q: &EffectChoiceQuestion) -> EffectChoiceAnswer {
+    match q {
+        EffectChoiceQuestion::SearchLibrary { candidates, .. } => {
+            EffectChoiceAnswer::SearchLibrary {
+                found: candidates.first().copied(),
+            }
+        }
+        EffectChoiceQuestion::Scry { looked_at } => EffectChoiceAnswer::Scry {
+            bottom: Vec::new(),
+            top: looked_at.clone(),
+        },
+        EffectChoiceQuestion::Surveil { looked_at } => EffectChoiceAnswer::Surveil {
+            graveyard: Vec::new(),
+            top: looked_at.clone(),
+        },
+    }
+}
+/// CR 608.2d (PB-DP9): ask `player` a resolution-time question, or consume the
+/// answer already banked for it by an earlier pass of this same resolution.
+///
+/// Returns `Some(answer)` when the effect may proceed and `None` when it must
+/// **return immediately without applying anything**. On `None` the entry has
+/// been recorded on `state.pending_effect_choice`, and
+/// `rules::resolution::resolve_top_of_stack`'s wrapper rolls the entire
+/// resolution back to the moment before it began and emits the question.
+///
+/// `choice_id` and `index` on the recorded entry are placeholders here: only the
+/// wrapper, working on the RESTORED state, can mint an id that survives the
+/// roll-back or count how many answers this pass actually consumed.
+fn ask_or_consume_effect_choice(
+    state: &mut GameState,
+    ctx: &EffectContext,
+    player: PlayerId,
+    question: EffectChoiceQuestion,
+) -> Option<EffectChoiceAnswer> {
+    // CR 605.1b / 605.4a: a mana ability resolves outside the stack. There is no
+    // stack object to roll back to, so the choice cannot be offered; the default
+    // applies. See `EffectContext::effect_choice_gate_closed`.
+    if ctx.effect_choice_gate_closed {
+        debug_assert!(
+            false,
+            "CR 605.4a: a mana ability reached a CR 608.2d choice ({question:?}); \
+             the default was applied because the resolution cannot be suspended"
+        );
+        return Some(default_effect_choice_answer(&question));
+    }
+    // CR 104.3a / 800.4: a player who has left the game announces nothing, so
+    // the effect proceeds with the default rather than blocking forever. This is
+    // also §1.5's exit 2/4 discharge: `handle_concede` clears the entry and the
+    // bank and re-drives the resolution, which lands here.
+    let alive = state
+        .players()
+        .get(&player)
+        .map(|p| !p.has_lost && !p.has_conceded)
+        .unwrap_or(false);
+    if !alive {
+        return Some(default_effect_choice_answer(&question));
+    }
+    // An earlier effect in this same pass already suspended. Do nothing more --
+    // the whole pass is about to be discarded, and only the FIRST question may
+    // be recorded (the rest are re-derived by the replay).
+    if state.pending_effect_choice.is_some() {
+        return None;
+    }
+    // Consume the banked answer for this position. Consumption is destructive
+    // (`pop_front`), which is what makes the position implicit: the wrapper
+    // recovers this choice's index as `restart_bank_len - remaining_bank_len`.
+    // The roll-back restores the full bank, so nothing is lost on the abort path.
+    if let Some(front) = state.effect_choice_answers.front().cloned() {
+        if front.question == question {
+            state.effect_choice_answers.pop_front();
+            return Some(front.answer);
+        }
+        // SR-4, engine-bug side: the replay reached a DIFFERENT question at this
+        // position than the one that was answered, i.e. execution is not a
+        // deterministic function of `(GameState, Command)` and the whole
+        // abort-and-replay premise is violated.
+        debug_assert!(
+            false,
+            "CR 608.2d (PB-DP9): replay determinism violation -- banked question \
+             {:?} but the replay recomputed {:?}",
+            front.question, question
+        );
+        // Release: fall through and re-ask. The wrapper truncates the restored
+        // bank to the number of answers this pass actually consumed, dropping
+        // the stale tail, so this cannot loop on the same bad entry.
+    }
+    state.pending_effect_choice = Some(PendingEffectChoice {
+        choice_id: 0,
+        player,
+        source: ctx.source,
+        question,
+        index: 0,
+    });
+    None
+}
+/// CR 608.2d (PB-DP9): how many resolution-time choices one resolution may bank
+/// before the engine stops accepting answers.
+///
+/// A bound, not a game rule: no real card comes close (k is 1 or 2 across the
+/// whole corpus). Reaching it means the replay is asking a fresh question every
+/// pass, i.e. execution is not deterministic -- an engine bug (SR-4). Refusing
+/// the answer turns an unbounded ask/re-ask cycle into one diagnosable rejection.
+pub const MAX_EFFECT_CHOICES_PER_RESOLUTION: usize = 64;
+/// CR 608.2d (PB-DP9): validate and record the player's answer to the
+/// outstanding resolution-time choice, then re-run the suspended resolution.
+///
+/// **Every check runs before any mutation.** `process_command` takes `GameState`
+/// by value and every `?` discards the local copy, so "state untouched on
+/// rejection" holds by construction *provided* this function validates first.
+/// The engine trusts nothing positional from the wire: every id is re-checked
+/// against the question the engine itself recorded.
+pub fn handle_answer_effect_choice(
+    state: &mut GameState,
+    player: PlayerId,
+    choice_id: u64,
+    answer: EffectChoiceAnswer,
+) -> Result<Vec<GameEvent>, GameStateError> {
+    // 1. An entry must exist.
+    let entry = state.pending_effect_choice.clone().ok_or_else(|| {
+        GameStateError::InvalidCommand("no resolution-time choice is pending".into())
+    })?;
+    // 2. SR-29 trust boundary: only the named player may answer. The admission
+    //    gate in `process_command` catches the wire path first, so this is
+    //    reachable only by a direct handler call -- which is exactly the hole
+    //    PB-DP7's review Finding 12 found, so it is checked here too.
+    if entry.player != player {
+        return Err(GameStateError::InvalidCommand(format!(
+            "CR 608.2d: the resolution-time choice belongs to {:?}, not {:?}",
+            entry.player, player
+        )));
+    }
+    // 3. The MOMENT guard. Binds this answer to THIS question, not "a" question.
+    if entry.choice_id != choice_id {
+        return Err(GameStateError::InvalidCommand(format!(
+            "CR 608.2d: stale choice id {} (expected {})",
+            choice_id, entry.choice_id
+        )));
+    }
+    // 4. Variant agreement: a `Scry` answer to a `Surveil` question is not
+    //    merely wrong, it is a different rule.
+    let variants_agree = matches!(
+        (&entry.question, &answer),
+        (
+            EffectChoiceQuestion::SearchLibrary { .. },
+            EffectChoiceAnswer::SearchLibrary { .. }
+        ) | (
+            EffectChoiceQuestion::Scry { .. },
+            EffectChoiceAnswer::Scry { .. }
+        ) | (
+            EffectChoiceQuestion::Surveil { .. },
+            EffectChoiceAnswer::Surveil { .. }
+        )
+    );
+    if !variants_agree {
+        return Err(GameStateError::InvalidCommand(format!(
+            "CR 608.2d: answer {:?} does not answer question {:?}",
+            answer, entry.question
+        )));
+    }
+    // 5. Per-variant legality, against the recorded question only.
+    match (&entry.question, &answer) {
+        (
+            EffectChoiceQuestion::SearchLibrary {
+                candidates,
+                may_fail_to_find,
+            },
+            EffectChoiceAnswer::SearchLibrary { found },
+        ) => match found {
+            Some(id) => {
+                if !candidates.contains(id) {
+                    return Err(GameStateError::InvalidCommand(format!(
+                        "CR 701.23a: {id:?} is not among the cards this search found"
+                    )));
+                }
+            }
+            None => {
+                // CR 701.23b vs 701.23d.
+                if !*may_fail_to_find {
+                    return Err(GameStateError::InvalidCommand(
+                        "CR 701.23d: this search must find a card".into(),
+                    ));
+                }
+            }
+        },
+        (EffectChoiceQuestion::Scry { looked_at }, EffectChoiceAnswer::Scry { bottom, top }) => {
+            validate_partition(looked_at, bottom, top, "CR 701.22a")?;
+        }
+        (
+            EffectChoiceQuestion::Surveil { looked_at },
+            EffectChoiceAnswer::Surveil { graveyard, top },
+        ) => {
+            validate_partition(looked_at, graveyard, top, "CR 701.25a")?;
+        }
+        // Unreachable: check 4 established variant agreement.
+        _ => unreachable!("variant agreement checked above"),
+    }
+    // 6. The bank must not grow without bound (see the constant's doc).
+    if state.effect_choice_answers.len() >= MAX_EFFECT_CHOICES_PER_RESOLUTION {
+        return Err(GameStateError::InvalidCommand(format!(
+            "CR 608.2d: this resolution has already asked {MAX_EFFECT_CHOICES_PER_RESOLUTION} \
+             choices -- the engine is not replaying deterministically"
+        )));
+    }
+    // ── All checks passed; mutation starts here. ─────────────────────────────
+    state.effect_choice_answers.push_back(AnsweredEffectChoice {
+        question: entry.question,
+        answer,
+    });
+    state.pending_effect_choice = None;
+    // Re-run the suspended resolution from the top. It retraces the identical
+    // deterministic path and consumes the banked answer at the choice point; a
+    // LATER choice in the same resolution simply suspends again.
+    crate::rules::resolution::resolve_top_of_stack(state)
+}
+/// CR 701.22a / CR 701.25a (PB-DP9): `a` and `b` must PARTITION `whole` -- same
+/// multiset, no duplicates within or across them, nothing else.
+///
+/// The *order* of each half is a payload the player chooses (CR 401.4); the
+/// *multiset* is a constraint the engine enforces.
+fn validate_partition(
+    whole: &[ObjectId],
+    a: &[ObjectId],
+    b: &[ObjectId],
+    cr: &str,
+) -> Result<(), GameStateError> {
+    if a.len() + b.len() != whole.len() {
+        return Err(GameStateError::InvalidCommand(format!(
+            "{cr}: every looked-at card must be placed exactly once ({} given, {} looked at)",
+            a.len() + b.len(),
+            whole.len()
+        )));
+    }
+    let mut seen: Vec<ObjectId> = Vec::with_capacity(whole.len());
+    for id in a.iter().chain(b.iter()) {
+        if seen.contains(id) {
+            return Err(GameStateError::InvalidCommand(format!(
+                "{cr}: {id:?} appears more than once"
+            )));
+        }
+        if !whole.contains(id) {
+            return Err(GameStateError::InvalidCommand(format!(
+                "{cr}: {id:?} is not one of the cards looked at"
+            )));
+        }
+        seen.push(*id);
+    }
+    Ok(())
+}
+/// CR 608.2d (PB-DP9): execute an effect outside the stack-resolution path,
+/// answering every resolution-time choice it raises with `answer_fn`.
+///
+/// **For tests and tools, not for the engine.** In a real game the suspension is
+/// owned by `rules::resolution::resolve_top_of_stack`, which rolls the whole
+/// resolution back and hands the question to a client as a `Command`. A test
+/// that calls [`execute_effect`] directly has no such wrapper, so the effect
+/// would simply record the question and do nothing. This helper reproduces the
+/// same abort-and-replay loop over one effect: on each suspension it asks
+/// `answer_fn`, banks the answer, restores the pre-effect state AND context, and
+/// re-runs.
+///
+/// Pass [`default_effect_choice_answer`] to reproduce the engine's deterministic
+/// default; pass a closure over the question to make a real choice. Note the
+/// scry/surveil defaults are the IDENTITY, not the pre-PB-DP9
+/// bottom-everything/mill-everything -- a test asserting the old outcome must
+/// answer explicitly.
+pub fn execute_effect_answering(
+    state: &mut GameState,
+    effect: &Effect,
+    ctx: &mut EffectContext,
+    answer_fn: &mut dyn FnMut(&EffectChoiceQuestion) -> EffectChoiceAnswer,
+) -> Vec<GameEvent> {
+    let restart_state = state.clone();
+    let restart_ctx = ctx.clone();
+    let mut bank: imbl::Vector<AnsweredEffectChoice> = imbl::Vector::new();
+    for _ in 0..=MAX_EFFECT_CHOICES_PER_RESOLUTION {
+        *state = restart_state.clone();
+        *ctx = restart_ctx.clone();
+        state.pending_effect_choice = None;
+        state.effect_choice_answers = bank.clone();
+        let events = execute_effect(state, effect, ctx);
+        let Some(pending) = state.pending_effect_choice.clone() else {
+            state.effect_choice_answers = imbl::Vector::new();
+            return events;
+        };
+        // Same index arithmetic the resolution wrapper does: drop any tail the
+        // pass did not consume, so a question-equality mismatch cannot loop.
+        let consumed = bank.len().saturating_sub(state.effect_choice_answers.len());
+        bank = bank.take(consumed);
+        let answer = answer_fn(&pending.question);
+        bank.push_back(AnsweredEffectChoice {
+            question: pending.question,
+            answer,
+        });
+    }
+    panic!(
+        "execute_effect_answering: more than {MAX_EFFECT_CHOICES_PER_RESOLUTION} CR 608.2d          choices in one effect -- the answer function is not clearing them"
+    );
+}
+/// CR 608.2d (PB-DP9): [`execute_effect_answering`] with the engine's own
+/// deterministic default for every choice. See that function's caveats.
+pub fn execute_effect_with_default_choices(
+    state: &mut GameState,
+    effect: &Effect,
+    ctx: &mut EffectContext,
+) -> Vec<GameEvent> {
+    execute_effect_answering(state, effect, ctx, &mut |q| default_effect_choice_answer(q))
 }
 fn execute_effect_inner(
     state: &mut GameState,
@@ -2941,8 +3349,27 @@ fn execute_effect_inner(
             shuffle_before_placing,
             also_search_graveyard,
         } => {
-            // M9+: interactive card search. For M7, deterministic fallback:
-            // find the first matching card (by ObjectId, ascending) in the library.
+            // CR 701.23a / CR 608.2d (PB-DP9 / DP-7): the searching player names
+            // the card found. Before PB-DP9 the engine picked the lowest
+            // `ObjectId` itself, so every tutor in the corpus fetched for you.
+            //
+            // CR 701.23b vs 701.23d -- the fail-to-find carve-out. A search for
+            // a card "with a stated quality" (a type, colour, name, mana-value
+            // bound, ...) may legally find nothing even when a match is present;
+            // a search "simply for a quantity of cards" ("a card") MUST find.
+            // `TargetFilter::default()` is the engine's all-permissive filter, so
+            // the predicate is exactly `*filter == TargetFilter::default()`.
+            //
+            // OOS-DP9-5: CR 701.23b is scoped to a HIDDEN zone. With
+            // `also_search_graveyard` the search spans a hidden zone and a public
+            // one and strictly the decline applies only to the library half; the
+            // conservative reading (allow the decline whenever the filter states
+            // a quality) is taken deliberately and seeded, not silently.
+            //
+            // OOS-DP9-9: `reveal` is still destructured away -- CR 701.23e means
+            // the found card is revealed only when the effect says so, and the
+            // engine never reveals. Pre-existing, out of scope.
+            let may_fail_to_find = *filter != TargetFilter::default();
             // PB-EF10 (CR 202.3/608.2h): resolve the runtime mana-value cap once,
             // outside the per-player loop (it does not depend on `p`).
             let runtime_cap: Option<i32> = filter
@@ -3023,7 +3450,48 @@ fn execute_effect_inner(
                         }
                     });
                 }
-                if let Some(&card_id) = candidates.iter().min_by_key(|&&id| id.0) {
+                // CR 701.23a / 608.2d: candidates are already in ascending
+                // `ObjectId` order -- `state.objects` is an `imbl::OrdMap` and
+                // `retain` preserves order -- which is the same order the
+                // pre-PB-DP9 `min_by_key` scanned, so `candidates[0]` IS the old
+                // auto-pick. Deterministic, which the replay depends on.
+                debug_assert!(
+                    candidates.windows(2).all(|w| w[0].0 < w[1].0),
+                    "CR 608.2d: search candidates must be in ascending ObjectId order \
+                     -- the replay's question-equality check depends on it"
+                );
+                let found: Option<ObjectId> = if candidates.is_empty() {
+                    // CR 701.23d "as many as possible": nothing to find, no
+                    // question, no-op -- exactly as before PB-DP9.
+                    None
+                } else if !may_fail_to_find && candidates.len() == 1 {
+                    // CR 701.23d: a quantity-only search with exactly one
+                    // candidate has exactly one legal answer, so the
+                    // announcement is determined (CR 601.2c's principle) and no
+                    // choice is offered.
+                    Some(candidates[0])
+                } else {
+                    let question = EffectChoiceQuestion::SearchLibrary {
+                        candidates: candidates.clone(),
+                        may_fail_to_find,
+                    };
+                    match ask_or_consume_effect_choice(state, ctx, p, question) {
+                        Some(EffectChoiceAnswer::SearchLibrary { found }) => found,
+                        Some(other) => {
+                            debug_assert!(
+                                false,
+                                "CR 608.2d: variant mismatch answering a search: {other:?}"
+                            );
+                            None
+                        }
+                        // Suspended. Apply NOTHING -- the wrapper rolls the whole
+                        // resolution back. The `for p in players` loop must not
+                        // continue either: every later player's question is
+                        // re-derived by the replay.
+                        None => return,
+                    }
+                };
+                if let Some(card_id) = found {
                     // Track whether the found card was in the library (to decide if we shuffle).
                     let found_in_library = state
                         .objects
@@ -3067,60 +3535,126 @@ fn execute_effect_inner(
                 }
             }
         }
-        // CR 701.22: Scry N — deterministic fallback: put top N cards on bottom
-        // in ObjectId ascending order (interactive ordering deferred to M10+).
+        // CR 701.22a (PB-DP9 / DP-8): "look at the top N cards of your library,
+        // then put ANY NUMBER of them on the bottom of your library in any order
+        // and THE REST ON TOP in any order." Before PB-DP9 the engine put every
+        // scried card on the bottom, which inverted the printed mechanic into a
+        // forced Bottom-N -- keeping a card on top was unreachable.
         Effect::Scry { player, count } => {
             let n = resolve_amount(state, count, ctx).max(0) as usize;
+            // CR 701.22b: "If a player is instructed to scry 0, no scry event
+            // occurs." Pre-PB-DP9 this arm emitted `Scried { count: 0 }` anyway
+            // (the surveil arm already had the mirror-image CR 701.25c guard);
+            // a scry-triggered ability would therefore have fired off a scry 0.
+            if n == 0 {
+                return;
+            }
             let players = resolve_player_target_list(state, player, ctx);
             for p in players {
                 let lib_zone = ZoneId::Library(p);
-                // Collect the top N cards of the library (ordered from top).
-                let top_ids: Vec<ObjectId> = state
+                // CR 701.22a: the top N, top-first (`Zone::top_n`'s own order,
+                // PB-RS1). Deterministic -- the replay depends on it.
+                let looked_at: Vec<ObjectId> = state
                     .zones
                     .get(&lib_zone)
                     .map(|z| z.top_n(n))
                     .unwrap_or_default();
-                // Deterministic fallback: sort by ObjectId and move to bottom.
-                let mut to_bottom = top_ids.clone();
-                to_bottom.sort_by_key(|id| id.0);
-                for id in to_bottom {
-                    // CR 701.22a: scried cards go on the BOTTOM. The bottom is
-                    // Zone::push_front (PB-RS1 / CR 121.1: top = last element,
-                    // bottom = index 0) -- `expect_move_object_to_zone` appends
-                    // (the top end), which is wrong here.
-                    let _ = state.expect_move_object_to_bottom_of_zone(id, lib_zone);
+                if !looked_at.is_empty() {
+                    let question = EffectChoiceQuestion::Scry {
+                        looked_at: looked_at.clone(),
+                    };
+                    let answer = match ask_or_consume_effect_choice(state, ctx, p, question) {
+                        Some(a) => a,
+                        // Suspended: apply nothing, for this player or any later
+                        // one. The replay re-derives them all.
+                        None => return,
+                    };
+                    let (bottom, top) = match answer {
+                        EffectChoiceAnswer::Scry { bottom, top } => (bottom, top),
+                        other => {
+                            debug_assert!(
+                                false,
+                                "CR 608.2d: variant mismatch answering a scry: {other:?}"
+                            );
+                            (Vec::new(), looked_at.clone())
+                        }
+                    };
+                    // CR 400.7 / CR 401.4: the cards never leave the library, so
+                    // they must NOT be renumbered. `move_object_to_zone` /
+                    // `move_object_to_bottom_of_zone` both mint a fresh
+                    // `ObjectId` unconditionally, which is what pre-PB-DP9
+                    // scry-to-bottom did (and which also consumed
+                    // `timestamp_counter`, the shuffle seed source). Permute the
+                    // `Zone` instead. Seed OOS-DP9-11 sweeps the other
+                    // same-zone callers.
+                    if let Some(zone) = state.expect_zone_mut(&lib_zone) {
+                        zone.reposition_within(&top, &bottom);
+                    }
                 }
+                // CR 701.22d: the event fires after the process completes, even
+                // if some or all of the actions were impossible (a library with
+                // fewer than N cards).
                 events.push(GameEvent::Scried {
                     player: p,
                     count: n as u32,
                 });
             }
         }
-        // CR 701.25: Surveil N -- deterministic fallback: put top N cards into graveyard
-        // (interactive selection deferred to M10+).
+        // CR 701.25a (PB-DP9 / DP-9): "look at the top N cards of your library,
+        // then put ANY NUMBER of them into your graveyard and THE REST ON TOP of
+        // your library in any order." Before PB-DP9 the engine put every
+        // surveilled card into the graveyard, making `Surveil N` exactly
+        // `Mill N` -- and, unlike scry, that can contribute to a CR 704.5b
+        // deck-out the player never agreed to.
         Effect::Surveil { player, count } => {
             let n = resolve_amount(state, count, ctx).max(0) as usize;
+            // CR 701.25c: surveil 0 produces no event.
+            if n == 0 {
+                return;
+            }
             let players = resolve_player_target_list(state, player, ctx);
             for p in players {
-                // CR 701.25c: surveil 0 produces no event
-                if n == 0 {
-                    continue;
-                }
                 let lib_zone = ZoneId::Library(p);
                 let graveyard_zone = ZoneId::Graveyard(p);
-                // Collect the top N cards of the library (ordered from top).
-                let top_ids: Vec<ObjectId> = state
+                // CR 701.25a: the top N, top-first (`Zone::top_n`, PB-RS1).
+                let looked_at: Vec<ObjectId> = state
                     .zones
                     .get(&lib_zone)
                     .map(|z| z.top_n(n))
                     .unwrap_or_default();
-                // Deterministic fallback: move all looked-at cards to graveyard.
-                // Sort by ObjectId ascending for determinism.
-                let mut to_graveyard = top_ids.clone();
-                to_graveyard.sort_by_key(|id| id.0);
-                let actual_count = to_graveyard.len();
-                for id in to_graveyard {
-                    let _ = state.expect_move_object_to_zone(id, graveyard_zone);
+                let actual_count = looked_at.len();
+                if !looked_at.is_empty() {
+                    let question = EffectChoiceQuestion::Surveil {
+                        looked_at: looked_at.clone(),
+                    };
+                    let answer = match ask_or_consume_effect_choice(state, ctx, p, question) {
+                        Some(a) => a,
+                        None => return,
+                    };
+                    let (graveyard, top) = match answer {
+                        EffectChoiceAnswer::Surveil { graveyard, top } => (graveyard, top),
+                        other => {
+                            debug_assert!(
+                                false,
+                                "CR 608.2d: variant mismatch answering a surveil: {other:?}"
+                            );
+                            (Vec::new(), looked_at.clone())
+                        }
+                    };
+                    // The graveyard half is a REAL zone change (CR 400.7: those
+                    // cards do become new objects), so it keeps
+                    // `move_object_to_zone`. CR 608.2f: the controller chooses
+                    // the relative order, which is the order `graveyard` gives.
+                    for id in &graveyard {
+                        let _ = state.expect_move_object_to_zone(*id, graveyard_zone);
+                    }
+                    // The kept cards never leave the library -- permute, do not
+                    // renumber (CR 400.7 / CR 401.4). See the scry arm.
+                    if !top.is_empty() {
+                        if let Some(zone) = state.expect_zone_mut(&lib_zone) {
+                            zone.reposition_within(&top, &[]);
+                        }
+                    }
                 }
                 // CR 701.25d: event fires even if some actions were impossible
                 // (e.g., library had fewer than N cards).
@@ -3297,6 +3831,13 @@ fn execute_effect_inner(
         Effect::Sequence(effects) => {
             for e in effects {
                 execute_effect_inner(state, e, ctx, events);
+                // CR 608.2d (PB-DP9): a nested effect suspended. Stop -- every
+                // later instruction is re-derived by the replay. Robustness
+                // only: the wrapper restores the whole state, so continuing
+                // could waste work or reach a panic, never corrupt.
+                if state.pending_effect_choice.is_some() {
+                    return;
+                }
             }
         }
         Effect::Conditional {
@@ -3355,8 +3896,17 @@ fn execute_effect_inner(
                             defending_player: ctx.defending_player,
                             source_transformed_this_resolution: ctx
                                 .source_transformed_this_resolution,
+                            // CR 605.4a (PB-DP9): inherited, so a mana ability's
+                            // gate is not lost when `ForEach` builds a sub-context.
+                            effect_choice_gate_closed: ctx.effect_choice_gate_closed,
                         };
                         execute_effect_inner(state, effect, &mut inner_ctx, events);
+                        // CR 608.2d (PB-DP9): see `Effect::Sequence`. This is
+                        // also the multi-player choice path -- the replay asks
+                        // the next player after this one is answered.
+                        if state.pending_effect_choice.is_some() {
+                            return;
+                        }
                     }
                 }
                 _ => {
@@ -3396,8 +3946,15 @@ fn execute_effect_inner(
                             defending_player: ctx.defending_player,
                             source_transformed_this_resolution: ctx
                                 .source_transformed_this_resolution,
+                            // CR 605.4a (PB-DP9): inherited, so a mana ability's
+                            // gate is not lost when `ForEach` builds a sub-context.
+                            effect_choice_gate_closed: ctx.effect_choice_gate_closed,
                         };
                         execute_effect_inner(state, effect, &mut inner_ctx, events);
+                        // CR 608.2d (PB-DP9): see `Effect::Sequence`.
+                        if state.pending_effect_choice.is_some() {
+                            return;
+                        }
                     }
                 }
             }
@@ -3408,6 +3965,10 @@ fn execute_effect_inner(
             let n = resolve_amount(state, count, ctx).max(0) as u32;
             for _ in 0..n {
                 execute_effect_inner(state, effect, ctx, events);
+                // CR 608.2d (PB-DP9): see `Effect::Sequence`.
+                if state.pending_effect_choice.is_some() {
+                    return;
+                }
             }
         }
         Effect::Choose { choices, .. } => {
@@ -9527,6 +10088,7 @@ pub fn check_static_condition(
                 countered_spell_controller: None,
                 defending_player: None,
                 source_transformed_this_resolution: false,
+                effect_choice_gate_closed: false,
             };
             check_condition(state, condition, &ctx)
         }

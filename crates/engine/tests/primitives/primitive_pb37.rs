@@ -69,6 +69,7 @@ fn make_ctx(state: &GameState, source: ObjectId) -> mtg_engine::effects::EffectC
         countered_spell_controller: None,
         defending_player: None,
         source_transformed_this_resolution: false,
+        effect_choice_gate_closed: false,
     }
 }
 

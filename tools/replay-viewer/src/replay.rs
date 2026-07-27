@@ -284,6 +284,7 @@ impl ReplaySession {
                                 &[],  // phyrexian_life_payments — not yet wired in replay viewer UI
                                 &[],  // discard_cards — not yet wired in replay viewer UI
                                 &[],  // trigger_targets — not yet wired in replay viewer UI
+                                None, // effect_choice (PB-DP9) — not yet wired in replay viewer UI
                                 &current_state,
                                 &player_map,
                             );

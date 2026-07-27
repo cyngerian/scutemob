@@ -238,6 +238,7 @@ pub fn replay_script(script: &GameScript) -> Vec<ReplayResult> {
                     phyrexian_life_payments,
                     discard_cards,
                     trigger_targets,
+                    effect_choice,
                     ..
                 } => {
                     if let Some(&pid) = players.get(player.as_str()) {
@@ -282,6 +283,7 @@ pub fn replay_script(script: &GameScript) -> Vec<ReplayResult> {
                             phyrexian_life_payments,
                             discard_cards,
                             trigger_targets,
+                            effect_choice.as_ref(),
                             &state,
                             &players,
                         );
@@ -407,6 +409,10 @@ fn next_action_answers_the_block(
     let wanted = match decision {
         BlockingDecision::TriggerTargets { .. } => "choose_trigger_targets",
         BlockingDecision::CleanupDiscard { .. } => "discard_to_hand_size",
+        // CR 608.2d (PB-DP9 / DP-7/8/9). OOS-DP8-14 predicted PB-DP9 would add
+        // THREE action strings here, one per effect; it adds ONE, because CR
+        // 608.2d is one rule and the command is unified. Correction recorded.
+        BlockingDecision::EffectChoice { .. } => "answer_effect_choice",
     };
     let next = steps
         .get(step_idx)

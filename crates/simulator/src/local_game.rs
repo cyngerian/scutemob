@@ -93,9 +93,9 @@ impl From<HaltReason> for GameDriverError {
 /// This enumerates command-submission-time decisions AND the out-of-band
 /// engine-blocking decisions introduced by PB-DP7's `BlockingDecision`
 /// mechanism (`rules::engine::blocking_decision`). PB-DP8 added the trigger-time
-/// class (CR 603.3d). It does NOT yet reach the mid-resolution class (PB-DP9, CR
-/// 701.22a/701.23/701.25a) -- see `docs/audits/decision-point-audit.md` §9.4 rec
-/// 1 and the PB-DP7 plan's §1.5/1.6.
+/// class (CR 603.3d) and PB-DP9 the MID-RESOLUTION class (CR 608.2d --
+/// 701.22a/701.23a/701.25a), which the PB-DP7 plan's §1.5/1.6 and audit §9.4
+/// rec 1 said this enum did not reach.
 ///
 /// `#[non_exhaustive]`: audit §9.4 rec 1. This enum is no longer "the complete
 /// set of decisions reachable by this architecture" (contrast the old claim at
@@ -118,6 +118,13 @@ pub enum DecisionKind {
     /// this is an out-of-band BLOCKING decision, not a priority-window choice --
     /// CR 603.3 grants priority only once the whole CR 603.3b batch is placed.
     TriggerTargets,
+    /// CR 608.2d (PB-DP9 / DP-7/8/9): a player must announce a resolution-time
+    /// choice -- which card a search finds, or how a scry/surveil splits the
+    /// cards looked at. Also an out-of-band BLOCKING decision, and the first one
+    /// that arises INSIDE a resolution: the engine has rolled the whole
+    /// resolution back to the moment before it began and will re-run it once the
+    /// answer arrives.
+    EffectChoice,
 }
 
 /// A decision a human-occupied seat must make before the game can advance further.
@@ -351,6 +358,7 @@ impl<P: LegalActionProvider> LocalGame<P> {
                 let kind = match decision {
                     BlockingDecision::CleanupDiscard { .. } => DecisionKind::CleanupDiscard,
                     BlockingDecision::TriggerTargets { .. } => DecisionKind::TriggerTargets,
+                    BlockingDecision::EffectChoice { .. } => DecisionKind::EffectChoice,
                 };
                 (decision.player(), Some(kind))
             } else if let Some(pending) = self.state.pending_commander_zone_choices().iter().next()

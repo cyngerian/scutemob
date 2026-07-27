@@ -891,3 +891,101 @@ pub enum FlushResumeSite {
     /// check, then grant priority. `enter_step`'s Cleanup branch.
     EnterStepCleanup,
 }
+/// CR 608.2d (PB-DP9 / DP-7/8/9): a resolution-time question the engine must ask
+/// before it can finish applying an effect, carrying its full legal answer space
+/// so a client can render a picker without a second query.
+///
+/// Reachable from `GameEvent::EffectChoiceRequired` **and** (through
+/// [`AnsweredEffectChoice`]) from `GameState`, so this type IS in the SR-8 wire
+/// closure.
+///
+/// **Hidden information (Architecture Invariant 7).** Every `ObjectId` in every
+/// variant names a card in a HIDDEN zone -- the library. That is why
+/// `GameEvent::EffectChoiceRequired::private_to()` returns `Some(player)`.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum EffectChoiceQuestion {
+    /// CR 701.23a: every card in the searched zone(s) matching the effect's
+    /// filter, in ascending `ObjectId` order (the order `state.objects`, an
+    /// `OrdMap`, yields -- the same order the pre-PB-DP9 `min_by_key` scanned).
+    SearchLibrary {
+        candidates: Vec<ObjectId>,
+        /// CR 701.23b vs CR 701.23d: `true` iff the effect's `TargetFilter`
+        /// states a quality, in which case the player may legally decline to
+        /// find even though a match exists. `false` for an unrestricted "search
+        /// your library for a card", where CR 701.23d makes finding MANDATORY.
+        may_fail_to_find: bool,
+    },
+    /// CR 701.22a: the top N cards, **top-first** (`Zone::top_n`'s own order).
+    Scry { looked_at: Vec<ObjectId> },
+    /// CR 701.25a: the top N cards, **top-first**.
+    Surveil { looked_at: Vec<ObjectId> },
+}
+/// CR 608.2d (PB-DP9): the player's answer to an [`EffectChoiceQuestion`].
+///
+/// Every variant's legality is checked against the engine's OWN recorded
+/// question (`effects::handle_answer_effect_choice`), never re-derived from the
+/// board and never trusted from the wire.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum EffectChoiceAnswer {
+    /// CR 701.23a/b: the found card, or `None` to fail to find.
+    SearchLibrary { found: Option<ObjectId> },
+    /// CR 701.22a. `bottom` and `top` PARTITION the question's `looked_at`
+    /// (same multiset, no duplicates, nothing else). `top` is top-first: after
+    /// the effect, `top[0]` is the library's top card. `bottom` is also
+    /// top-first among the bottomed cards, so `bottom.last()` ends up
+    /// bottom-most (CR 401.4: the owner arranges cards put in the same position
+    /// at the same time).
+    Scry {
+        bottom: Vec<ObjectId>,
+        top: Vec<ObjectId>,
+    },
+    /// CR 701.25a. `graveyard` + `top` partition `looked_at`; `top` is top-first.
+    /// `graveyard` is the order the cards are put there (CR 608.2f).
+    Surveil {
+        graveyard: Vec<ObjectId>,
+        top: Vec<ObjectId>,
+    },
+}
+/// CR 608.2d (PB-DP9): the one resolution-time choice the engine is currently
+/// blocked on.
+///
+/// Recorded on a state that has been RESTORED to the moment before
+/// `resolve_top_of_stack` began, so nothing of the aborted resolution survives
+/// it -- the spell or ability is still on the stack and no card has moved. See
+/// `rules::resolution::resolve_top_of_stack` for the abort-and-replay mechanism
+/// and `rules::engine::blocking_decision` for how it gates the game.
+///
+/// Reachable from `GameState` only; but its `question` field is also reachable
+/// from `GameEvent::EffectChoiceRequired`, so [`EffectChoiceQuestion`] is in the
+/// SR-8 wire closure while this struct itself is not.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PendingEffectChoice {
+    /// The moment guard. Must be echoed by `Command::AnswerEffectChoice`.
+    /// Minted from `GameState.next_effect_choice_id`, deliberately NOT from
+    /// `timestamp_counter` (which seeds shuffles and `next_object_id`, so
+    /// bumping it between an abort and its replay would change the replay).
+    pub choice_id: u64,
+    /// CR 608.2d: the player the effect names, and the ONLY player who may
+    /// answer. NOT necessarily the resolving object's controller ("each player
+    /// scries 1").
+    pub player: PlayerId,
+    /// The resolving spell or ability's source object, echoed for display and
+    /// for `BlockingDecision`.
+    pub source: ObjectId,
+    /// The question, with its full legal answer space.
+    pub question: EffectChoiceQuestion,
+    /// The 0-based index of this choice within the current resolution -- i.e.
+    /// `effect_choice_answers.len()` at the moment of the abort. The replay
+    /// compares it, so an answer can never be applied to a different choice.
+    pub index: usize,
+}
+/// CR 608.2d (PB-DP9): an answer already given during the current resolution,
+/// paired with the question it answered.
+///
+/// The replay asserts the recomputed question equals `question` before consuming
+/// `answer`; a mismatch is a determinism violation, i.e. an engine bug (SR-4).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AnsweredEffectChoice {
+    pub question: EffectChoiceQuestion,
+    pub answer: EffectChoiceAnswer,
+}

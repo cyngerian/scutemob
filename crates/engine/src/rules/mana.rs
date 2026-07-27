@@ -861,6 +861,18 @@ fn fire_mana_triggered_abilities(
                 let dummy_source = trigger_source_id;
                 let mut ctx = EffectContext::new(player, dummy_source, vec![]);
                 ctx.mana_produced = Some(mana_produced.to_vec());
+                // CR 605.1b / CR 605.4a (PB-DP9): a mana ability resolves
+                // immediately, OUTSIDE the stack, so there is no stack object
+                // for `resolve_top_of_stack` to roll back to and PB-DP9's
+                // abort-and-replay suspension cannot apply here. A
+                // `Sequence([AddMana, Scry])` would pass
+                // `is_mana_producing_effect`, so this is a runtime possibility
+                // rather than a type impossibility: close the gate, and a CR
+                // 608.2d choice reached from here takes its deterministic
+                // default (with a `debug_assert` recording that it happened).
+                // `tests/primitives/pb_dp9_effect_choice.rs` asserts no
+                // `Complete` card def actually does this.
+                ctx.effect_choice_gate_closed = true;
                 let mut mana_events = execute_effect(state, effect, &mut ctx);
                 // Tag ManaAdded events with no source (triggered mana is not the original tap).
                 // Per Nyxbloom ruling: triggered mana abilities are NOT multiplied.

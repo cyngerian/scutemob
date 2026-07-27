@@ -1414,6 +1414,37 @@ pub enum GameEvent {
         /// One entry per `TargetRequirement`, in declaration order.
         slots: Vec<crate::state::stubs::TriggerTargetOption>,
     },
+    /// CR 608.2d (PB-DP9 / DP-7/8/9): `player` must announce a resolution-time
+    /// choice before the resolving spell or ability can finish applying.
+    ///
+    /// The engine BLOCKS — and, unlike every other blocking decision, the
+    /// resolution has been **rolled back** to the moment before it began: the
+    /// spell/ability is still on the stack, no card has moved, no earlier effect
+    /// in its list has been applied. `process_command` rejects every command
+    /// except `Command::AnswerEffectChoice` from `player` and `Command::Concede`
+    /// until the answer arrives, at which point the resolution is re-run from the
+    /// top and the banked answer is consumed at the choice point.
+    ///
+    /// HIDDEN INFORMATION (Architecture Invariant 7). Unlike
+    /// `TriggerTargetChoiceRequired`, every id here names a card in a HIDDEN
+    /// zone: the library candidates that matched a search filter (CR 401.2) or
+    /// the top N a player is looking at (CR 701.22a / 701.25a). Knowing WHICH
+    /// ids match is itself hidden information even though no card identity is
+    /// carried. So `reveals_hidden_info()` is `true` AND
+    /// [`GameEvent::private_to`] returns `Some(player)`.
+    ///
+    /// Discriminant: 131.
+    EffectChoiceRequired {
+        /// CR 608.2d: the player the effect names, and the only player who may
+        /// answer. NOT necessarily the resolving object's controller.
+        player: crate::state::player::PlayerId,
+        /// The moment guard. Must be echoed by `Command::AnswerEffectChoice`.
+        choice_id: u64,
+        /// The resolving spell or ability's source object, for display.
+        source_object_id: crate::state::game_object::ObjectId,
+        /// The question, with its full legal answer space.
+        question: crate::state::stubs::EffectChoiceQuestion,
+    },
 }
 impl GameEvent {
     /// Returns `true` if this event reveals or commits to hidden information.
@@ -1446,8 +1477,36 @@ impl GameEvent {
             GameEvent::LibraryShuffled { .. } => true,
             // The companion moves from the command zone into hand (hidden zone).
             GameEvent::CompanionBroughtToHand { .. } => true,
+            // CR 608.2d (PB-DP9): the question names cards in a HIDDEN zone --
+            // the library candidates a search filter matched, or the top N a
+            // player is looking at. See `private_to` below.
+            GameEvent::EffectChoiceRequired { .. } => true,
             // All other events involve only public information.
             _ => false,
+        }
+    }
+
+    /// Architecture Invariant 7: the seat this event may be broadcast to, if it
+    /// is private. `None` means public — safe to broadcast to every seat.
+    ///
+    /// **This is a declaration, not an enforcement point.** The M10 centralized
+    /// server is the intended consumer and does not exist yet, so nothing in the
+    /// workspace calls this today except its tests. It closes the half of
+    /// OOS-DP8-6 that complained the invariant named a surface that did not
+    /// exist; the filter itself remains M10 work.
+    ///
+    /// Contrast [`GameEvent::reveals_hidden_info`], which answers a different
+    /// question ("is this a safe rewind checkpoint?") and cannot express
+    /// "for this seat only".
+    pub fn private_to(&self) -> Option<crate::state::player::PlayerId> {
+        match self {
+            // CR 608.2d (PB-DP9): the candidate list / looked-at cards are the
+            // searching or scrying player's information alone.
+            GameEvent::EffectChoiceRequired { player, .. } => Some(*player),
+            // CR 514.1 (PB-DP7): `hand` is the exact `ObjectId` composition of a
+            // hidden zone. Closes OOS-DP7-3(b)'s declaration half.
+            GameEvent::CleanupDiscardChoiceRequired { player, .. } => Some(*player),
+            _ => None,
         }
     }
 }

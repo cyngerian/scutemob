@@ -4,14 +4,15 @@ use crate::state::game_object::HybridManaPayment;
 use crate::state::types::{AdditionalCost, AltCostKind, FaceDownKind, TurnFaceUpMethod};
 use crate::state::{ActivatedAbility, ActivationCost, CounterType, SacrificeFilter};
 use crate::testing::script_schema::{
-    ActionTarget, AttackerDeclaration, BlockerDeclaration, EnlistDeclaration, InitialState,
+    ActionTarget, AttackerDeclaration, BlockerDeclaration, EffectChoiceScriptAnswer,
+    EnlistDeclaration, InitialState,
 };
 use crate::{
     all_cards, register_commander_zone_replacements, AbilityDefinition, CardDefinition,
     CardEffectTarget, CardId, CardRegistry, CardType, Color, Command, Condition, Cost,
     DeathTriggerFilter, Designations, ETBTriggerFilter, Effect, EffectAmount, GameState,
-    GameStateBuilder, GameStateError, KeywordAbility, ManaAbility, ManaColor, ManaCost, ObjectSpec,
-    PlayerId, PlayerTarget, Step, TargetController, TargetFilter, TargetRequirement,
+    GameStateBuilder, GameStateError, KeywordAbility, ManaAbility, ManaColor, ManaCost, ObjectId,
+    ObjectSpec, PlayerId, PlayerTarget, Step, TargetController, TargetFilter, TargetRequirement,
     TimingRestriction, TriggerCondition, TriggerEvent, TriggeredAbilityDef, ZoneId,
 };
 use imbl::OrdMap;
@@ -386,6 +387,25 @@ pub fn auto_answer_blocking_decisions(
                     targets: crate::rules::abilities::default_trigger_targets(&slots),
                 }
             }
+            // CR 608.2d (PB-DP9 / DP-7/8/9): answer the resolution-time choice
+            // with the engine's own default. NOTE that -- unlike PB-DP7's and
+            // PB-DP8's defaults -- the scry and surveil defaults are NOT the
+            // pre-PB-DP9 behaviour: they keep every looked-at card on top rather
+            // than bottoming/milling it. A golden script that wants the old
+            // outcome must say so with an explicit `answer_effect_choice` action.
+            BlockingDecision::EffectChoice {
+                player, choice_id, ..
+            } => {
+                let Some(entry) = state.pending_effect_choice() else {
+                    debug_assert!(false, "blocking_decision said EffectChoice but no entry");
+                    break;
+                };
+                Command::AnswerEffectChoice {
+                    player,
+                    choice_id,
+                    answer: crate::effects::default_effect_choice_answer(&entry.question),
+                }
+            }
         };
         let snapshot = state.clone();
         match crate::rules::engine::process_command(state, cmd) {
@@ -403,6 +423,55 @@ pub fn auto_answer_blocking_decisions(
         }
     }
     (state, events)
+}
+/// CR 608.2d (PB-DP9): find the id named `name` among `ids` (all of which are in
+/// a hidden zone, so a script can only refer to them by name).
+fn find_named_among(state: &GameState, ids: &[ObjectId], name: &str) -> Option<ObjectId> {
+    ids.iter()
+        .find(|id| {
+            state
+                .objects()
+                .get(id)
+                .map(|o| o.characteristics.name == name)
+                .unwrap_or(false)
+        })
+        .copied()
+}
+/// CR 701.22a / 701.25a (PB-DP9): split `looked_at` into the named `away` half
+/// (bottom, or graveyard) and the `top` half.
+///
+/// If `top` is empty it is derived as "everything not named in `away`", keeping
+/// `looked_at`'s top-first order -- so a script only has to name one half.
+/// Returns `None` if any name does not match a looked-at card, which surfaces as
+/// `ActionNotTranslated` rather than as a silently-wrong answer.
+fn split_looked_at(
+    state: &GameState,
+    looked_at: &[ObjectId],
+    away: &[String],
+    top: &[String],
+) -> Option<(Vec<ObjectId>, Vec<ObjectId>)> {
+    let mut remaining: Vec<ObjectId> = looked_at.to_vec();
+    let mut away_ids: Vec<ObjectId> = Vec::new();
+    for name in away {
+        let id = find_named_among(state, &remaining, name)?;
+        remaining.retain(|x| *x != id);
+        away_ids.push(id);
+    }
+    let top_ids: Vec<ObjectId> = if top.is_empty() {
+        remaining
+    } else {
+        let mut out = Vec::new();
+        for name in top {
+            let id = find_named_among(state, &remaining, name)?;
+            remaining.retain(|x| *x != id);
+            out.push(id);
+        }
+        // Anything the script did not name keeps its top-first order behind the
+        // named cards; the engine still requires a total partition.
+        out.extend(remaining);
+        out
+    };
+    Some((away_ids, top_ids))
 }
 /// Map a script `PlayerAction` string and its parameters to a [`Command`].
 ///
@@ -520,6 +589,11 @@ pub fn translate_player_action(
     // Empty = fall back to `abilities::default_trigger_targets`. Ignored for all
     // other action types.
     trigger_targets: &[Vec<ActionTarget>],
+    // CR 608.2d (PB-DP9 / DP-7/8/9): For `answer_effect_choice`, the script's
+    // answer to an outstanding `EffectChoiceRequired`. `None` (or an all-empty
+    // struct) = fall back to `effects::default_effect_choice_answer`. Ignored
+    // for all other action types.
+    effect_choice: Option<&EffectChoiceScriptAnswer>,
     state: &GameState,
     players: &HashMap<String, PlayerId>,
 ) -> Option<Command> {
@@ -1021,6 +1095,52 @@ pub fn translate_player_action(
                 player,
                 choice_id,
                 targets,
+            })
+        }
+        // CR 608.2d (PB-DP9 / DP-7/8/9): answer an outstanding resolution-time
+        // choice. Cards are named, not id'd -- every id in the question points
+        // into a hidden zone, so the script cannot know them.
+        "answer_effect_choice" => {
+            let entry = state.pending_effect_choice()?;
+            let choice_id = entry.choice_id;
+            let spec = effect_choice.cloned().unwrap_or_default();
+            let answer = match &entry.question {
+                crate::state::EffectChoiceQuestion::SearchLibrary { candidates, .. } => {
+                    if spec.fail_to_find {
+                        // CR 701.23b: decline. The engine rejects this for a
+                        // quantity-only search (CR 701.23d), which is the point.
+                        crate::state::EffectChoiceAnswer::SearchLibrary { found: None }
+                    } else if let Some(name) = spec.found.as_deref() {
+                        crate::state::EffectChoiceAnswer::SearchLibrary {
+                            found: Some(find_named_among(state, candidates, name)?),
+                        }
+                    } else {
+                        crate::effects::default_effect_choice_answer(&entry.question)
+                    }
+                }
+                crate::state::EffectChoiceQuestion::Scry { looked_at } => {
+                    if spec.bottom.is_empty() && spec.top.is_empty() {
+                        crate::effects::default_effect_choice_answer(&entry.question)
+                    } else {
+                        let (bottom, top) =
+                            split_looked_at(state, looked_at, &spec.bottom, &spec.top)?;
+                        crate::state::EffectChoiceAnswer::Scry { bottom, top }
+                    }
+                }
+                crate::state::EffectChoiceQuestion::Surveil { looked_at } => {
+                    if spec.graveyard.is_empty() && spec.top.is_empty() {
+                        crate::effects::default_effect_choice_answer(&entry.question)
+                    } else {
+                        let (graveyard, top) =
+                            split_looked_at(state, looked_at, &spec.graveyard, &spec.top)?;
+                        crate::state::EffectChoiceAnswer::Surveil { graveyard, top }
+                    }
+                }
+            };
+            Some(Command::AnswerEffectChoice {
+                player,
+                choice_id,
+                answer,
             })
         }
         // CR 702.52a: Choose to use dredge instead of drawing. card_name is the

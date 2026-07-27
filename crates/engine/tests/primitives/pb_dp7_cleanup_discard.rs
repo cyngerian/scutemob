@@ -1351,7 +1351,8 @@ fn translate_discard(
         &[],    // hybrid_choice_names
         &[],    // phyrexian_life_payment_choices
         discard_cards,
-        &[], // trigger_targets (PB-DP8) — not used by this PB-DP7 helper
+        &[],  // trigger_targets (PB-DP8) — not used by this PB-DP7 helper
+        None, // effect_choice (PB-DP9) — not used by this PB-DP7 helper
         state,
         &std::collections::HashMap::new(), // players -- unused (discard has no ActionTarget)
     )

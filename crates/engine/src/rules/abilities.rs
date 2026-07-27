@@ -287,6 +287,7 @@ pub fn handle_activate_ability(
                 countered_spell_controller: None,
                 defending_player: None,
                 source_transformed_this_resolution: false,
+                effect_choice_gate_closed: false,
             };
             if !crate::effects::check_condition(state, condition, &ctx) {
                 return Err(GameStateError::InvalidCommand(
@@ -9246,6 +9247,15 @@ pub(crate) fn repair_departed_priority_holder(state: &mut GameState, events: &mu
     if state.pending_trigger_targets.is_some() {
         // Suspended again: the batch is still incomplete, so CR 603.3b still
         // forbids a grant. The next resume repairs it.
+        return;
+    }
+    // CR 608.2d (PB-DP9): same reasoning for a rolled-back resolution. Nobody
+    // has priority while a resolution-time choice is outstanding (CR 608.1: the
+    // spell is still resolving), and granting it here would step over the
+    // engine's own admission gate. `handle_answer_effect_choice`'s tail --
+    // `resolve_top_of_stack`'s own grant -- and `handle_concede`'s discharge
+    // are the two sites that pick this up.
+    if state.pending_effect_choice.is_some() {
         return;
     }
     let gone = match state.turn.priority_holder {

@@ -321,6 +321,10 @@ impl GameStateBuilder {
             pending_draws: Vector::new(),
             pending_cleanup_discard: None,
             pending_trigger_targets: None,
+            // CR 608.2d (PB-DP9): no resolution is in progress at build time.
+            pending_effect_choice: None,
+            effect_choice_answers: Vector::new(),
+            next_effect_choice_id: 0,
             pending_commander_zone_choices: Vector::new(),
             prevention_counters: OrdMap::new(),
             pending_triggers: Vector::new(),

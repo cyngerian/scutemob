@@ -43,6 +43,16 @@ fn pass_all(state: GameState, players: &[PlayerId]) -> (GameState, Vec<GameEvent
         current = s;
         all_events.extend(ev);
     }
+    // CR 608.2d (PB-DP9 / DP-8): Read the Bones' Scry 2 now blocks on p1's
+    // announcement, so the resolution rolls back and the rest of the card
+    // (the two draws) has not happened yet. Answer with the engine's own
+    // default -- the IDENTITY (both cards stay on top, order unchanged), NOT
+    // the pre-PB-DP9 bottom-everything -- and the resolution completes. What
+    // this test asserts (Scried precedes CardDrawn, count 2, two draws, 2 life)
+    // is unaffected by which answer is given.
+    let (current, pump_events) =
+        mtg_engine::testing::replay_harness::auto_answer_blocking_decisions(current);
+    all_events.extend(pump_events);
     (current, all_events)
 }
 

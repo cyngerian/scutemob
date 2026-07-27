@@ -28,12 +28,107 @@ use crate::state::types::{
 use crate::state::zone::ZoneId;
 use crate::state::GameState;
 use imbl::OrdSet;
+/// CR 608.1 / CR 608.2d (PB-DP9): resolve the top object on the stack, with one
+/// exception -- if an effect needs a CR 608.2d resolution-time choice that has
+/// not been answered, the ENTIRE resolution is rolled back to the moment before
+/// it began, the question is recorded on `GameState.pending_effect_choice`, and
+/// the only event returned is `GameEvent::EffectChoiceRequired`.
+///
+/// # Why an abort, and not a resumable cursor
+///
+/// `pb-plan-DP7.md` §1.6 prescribed "a resumable effect-list cursor **on the
+/// stack object**". That is impossible: [`resolve_top_of_stack_inner`] **pops**
+/// the stack object before a single effect runs, so nothing living on it can
+/// carry a continuation. The abort is strictly better anyway:
+///
+/// * **No continuation data structure.** `Sequence`, `Conditional`, `ForEach`,
+///   `Repeat`, `MayPayThenEffect` and the per-player loops inside the asking
+///   effects are all handled with zero machinery, because the replay
+///   re-executes them from the top. They are pure functions of a state that has
+///   not changed, so re-deriving is *correct*, not merely convenient.
+/// * **No debt-discharge problem.** PB-DP8 shipped, then re-fixed twice, the bug
+///   class "a guard that returns early inherits the obligation of the statements
+///   it skipped". A total state restore has no debt: the post-suspension state
+///   is byte-identical to the pre-resolution state, so nothing was skipped.
+/// * **"The suspended object leaves the stack" is unreachable**, not merely
+///   guarded: the object was never removed (the restore put it back) and the
+///   admission gate admits only the answer and `Concede`.
+///
+/// The price: the resolution runs k+1 times for k choices (k is 1 or 2 across
+/// the whole corpus), one extra `GameState` clone per stack resolution, and a
+/// hard dependency on execution being a deterministic function of
+/// `(GameState, Command)` -- SR-9b, now load-bearing at runtime and not only in
+/// tests. `ask_or_consume_effect_choice`'s question-equality check is the
+/// detector.
+pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, GameStateError> {
+    debug_assert!(
+        state.pending_effect_choice.is_none(),
+        "CR 608.2d: resolve_top_of_stack re-entered while a resolution-time \
+         choice is outstanding"
+    );
+    let restart_point = state.clone();
+    let result = resolve_top_of_stack_inner(state);
+    match result {
+        Ok(events) => {
+            let Some(mut pending) = state.pending_effect_choice.clone() else {
+                // A completed resolution ends the answer bank's life.
+                state.effect_choice_answers = imbl::Vector::new();
+                return Ok(events);
+            };
+            // How many banked answers this pass actually consumed. On the normal
+            // path that is the whole bank; after a question-equality mismatch it
+            // is the length of the good prefix, and truncating to it drops the
+            // stale tail so the re-ask cannot loop on the same bad entry.
+            let consumed = restart_point
+                .effect_choice_answers
+                .len()
+                .saturating_sub(state.effect_choice_answers.len());
+            // ROLL BACK, wholesale. This also discards any PB-DP8 trigger
+            // suspension the inner pass reached after the aborted effect: the
+            // two pending fields are mutually exclusive at a command boundary
+            // BECAUSE of this restore, not by construction (the inner pass can
+            // set both).
+            *state = restart_point;
+            let good_prefix = state.effect_choice_answers.take(consumed);
+            state.effect_choice_answers = good_prefix;
+            // The moment guard is minted on the RESTORED state, from the
+            // dedicated counter. Taking it from `timestamp_counter` would either
+            // be read from the discarded probe or change the seeds every shuffle
+            // and `next_object_id` consumes in the replay -- silently breaking
+            // the determinism premise above. See `GameState::next_effect_choice_id`.
+            pending.choice_id = state.next_effect_choice_id();
+            pending.index = consumed;
+            let question_event = GameEvent::EffectChoiceRequired {
+                player: pending.player,
+                choice_id: pending.choice_id,
+                source_object_id: pending.source,
+                question: pending.question.clone(),
+            };
+            state.pending_effect_choice = Some(pending);
+            Ok(vec![question_event])
+        }
+        Err(e) => {
+            // `process_command` discards the mutated state on `?`, so no restore
+            // is owed here; but the harness and `LocalGame` both re-use a state
+            // across calls, so clear the flags rather than let a stale question
+            // escape on a path that does.
+            state.pending_effect_choice = None;
+            state.effect_choice_answers = imbl::Vector::new();
+            Err(e)
+        }
+    }
+}
 /// CR 608.1: Resolve the top object on the stack.
 ///
 /// Called when all players pass priority in succession with a non-empty stack.
 /// The top object (last in `stack_objects`) resolves via LIFO ordering.
 /// After resolution, the active player receives priority (CR 117.3b).
-pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, GameStateError> {
+///
+/// **Never call this directly** -- [`resolve_top_of_stack`] is the wrapper that
+/// owns the CR 608.2d roll-back. All 15 `execute_effect` call sites in this file
+/// live inside this one function, which is what makes the re-entrancy audit one
+/// unit instead of twenty.
+fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, GameStateError> {
     let mut events = Vec::new();
     // Pop the top of the stack (LIFO — last pushed, first resolved).
     let stack_obj = state
@@ -492,6 +587,15 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                                     execute_effect(state, effect, &mut ctx);
                                                 events.extend(effect_events);
                                             }
+                                            // CR 608.2d (PB-DP9): a mode
+                                            // suspended -- stop, the replay
+                                            // re-runs every mode. Robustness
+                                            // only (the wrapper restores the
+                                            // whole state), but continuing
+                                            // could spin or panic.
+                                            if state.pending_effect_choice.is_some() {
+                                                break;
+                                            }
                                             offset += slice_len;
                                         }
                                     } else {
@@ -499,12 +603,20 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                             let effect_events =
                                                 execute_effect(state, effect, &mut ctx);
                                             events.extend(effect_events);
+                                            // CR 608.2d (PB-DP9): see above.
+                                            if state.pending_effect_choice.is_some() {
+                                                break;
+                                            }
                                         }
                                     }
                                 } else {
                                     for effect in &effects_to_run {
                                         let effect_events = execute_effect(state, effect, &mut ctx);
                                         events.extend(effect_events);
+                                        // CR 608.2d (PB-DP9): see above.
+                                        if state.pending_effect_choice.is_some() {
+                                            break;
+                                        }
                                     }
                                 }
                                 // CR 702.47b: Execute spliced effects after the main spell effect.
@@ -529,6 +641,10 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
                                     let splice_events =
                                         execute_effect(state, spliced_effect, &mut splice_ctx);
                                     events.extend(splice_events);
+                                    // CR 608.2d (PB-DP9): see above.
+                                    if state.pending_effect_choice.is_some() {
+                                        break;
+                                    }
                                 }
                             }
                         } // close else { (non-fuse path)
