@@ -151,6 +151,37 @@ file is rewritten wholesale by the next `/implement-primitive` run). The two to 
 - **OOS-DP9-11** — the same-zone CR 400.7 renumber sweep across every other caller of
   `move_object_to_zone` / `move_object_to_bottom_of_zone`.
 
+## Mechanical verification (plan §3 / §12), recorded
+
+```
+grep -rn 'execute_effect('  crates/*/src   # 19 hits
+grep -rn 'resolve_top_of_stack' crates/*/src
+```
+
+- **`execute_effect(`: 19 hits = 17 production callers + the definition + one new
+  test/tool helper.** All **15** in `resolution.rs` are between `resolve_top_of_stack_inner`
+  (`:131`) and the next `fn` (`execute_gift_effect`, `:7945`) — i.e. inside one function, as
+  the plan's §1.3 claimed. The other two production callers are `mana.rs:876` (the CR 605.4a
+  triggered mana ability — **gated**) and `replacement.rs:1964` (a literal `Effect::CreateToken`
+  built two lines above — **provably unreachable**). The 19th is
+  `effects/mod.rs:666`, inside `execute_effect_answering`, the new test/tool helper.
+- **`resolve_top_of_stack` now has THREE production callers, not the plan's "exactly 2".** All
+  three are PB-DP9's own, and each is documented at its site: `engine.rs:2243`
+  (`handle_all_passed`, the pre-existing one), `effects/mod.rs:599`
+  (`handle_answer_effect_choice`, the resume) and `engine.rs:2574`
+  (`discharge_departed_effect_choice`, §1.5's exit-2/4 discharge). The wrapper is still the
+  only suspension-aware site, and `handle_all_passed`'s two post-statements carry the argued
+  no-guard comment (factored into `finish_stack_resolution`, which both resume sites call).
+- **Guards added (§3, robustness only):** 5 loop sites in `resolution.rs` (3 modal, 1
+  `effects_to_run`, 1 splice) and 4 in `effects/mod.rs` (`Sequence`, `Repeat`, both `ForEach`
+  arms). The single-call recursion sites (`Conditional` branches, `Choose`, `MayPay*`,
+  coin-flip, dice) got none: nothing loops after them, so a guard would add no protection.
+- **No new wire sentinel** was added in the PB-DP9 test file (OOS-DP7-8 is a standing complaint
+  about exactly that growth).
+- **Golden corpus**: 211 approved ran and passed, 60 retired, **0 skipped silently** (SR-9c).
+- **`git diff --stat -- crates/card-defs/`**: empty. 0 source edits, 0 completeness flips.
+- **`NOT_HASHED`**: `&[]`, unchanged.
+
 ## Phase log
 
 - 2026-07-27 — plan phase opened.
