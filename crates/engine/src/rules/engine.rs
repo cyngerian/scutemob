@@ -2480,10 +2480,21 @@ fn handle_concede(
     // `check_and_flush_triggers` calls, i.e. the common case -- which returns
     // without touching `priority_holder`. So a conceding PRIORITY HOLDER used to
     // leave the field naming a player who can never act again, and the game was
-    // unrecoverable once the batch resumed. The debt is now discharged by
+    // unrecoverable once the batch resumed. The debt is discharged by
     // `abilities::repair_departed_priority_holder` at the end of the resume, which
-    // is the earliest moment CR 603.3b allows a grant. Nothing is skipped here that
-    // is not picked up there.
+    // is the earliest moment CR 603.3b allows a grant.
+    //
+    // SECOND CLOSING-REVIEW Finding 1 (MEDIUM) corrects the *replacement* claim.
+    // "Nothing is skipped here that is not picked up there" was ALSO false: the
+    // resume is only reached when somebody ANSWERS, and a departure is the other
+    // way out of a suspended batch. `drop_departed_trigger_flush` above completes
+    // the batch without ever reaching `resume_trigger_flush`, and the block below
+    // can only repair a holder that is the CONCEDER (`priority_holder ==
+    // Some(player)`) -- never one stranded by an EARLIER departure. Two concedes
+    // in a row under one suspended batch therefore reproduced the identical
+    // deadlock one step further out. The backstop at the end of this function is
+    // what now makes the claim true; see the note there. Nothing is skipped here
+    // that is not picked up either there or at the resume.
     if !is_game_over(state) && blocking_decision(state).is_none() {
         // If the conceding player held priority, advance priority
         if state.turn.priority_holder == Some(player) {
@@ -2542,6 +2553,33 @@ fn handle_concede(
             let enter_events = enter_step(state)?;
             events.extend(enter_events);
         }
+    }
+    // CR 800.4 (second closing review, Finding 1 -- MEDIUM): the invariant is that
+    // no reachable state leaves `priority_holder` naming a departed player with no
+    // pending entry left to repair it. The block above cannot enforce it: its
+    // advance is guarded on `priority_holder == Some(player)`, so it only ever
+    // repairs holdership belonging to THIS conceder, and PB-DP8's
+    // `blocking_decision` gate can skip it entirely. A holder stranded by an
+    // earlier departure (a first concede under a suspended batch, whose advance the
+    // gate skipped) is invisible to every branch above.
+    //
+    // So it is caught here, last, after everything that legitimately reassigns
+    // priority has had its turn -- which is also why this cannot double-grant:
+    // if any branch above set a live holder, `repair_departed_priority_holder`
+    // sees one and no-ops. It also no-ops while a CR 603.3b batch is still
+    // suspended (a grant there is exactly what the gate exists to prevent); that
+    // case is picked up by the repair at the end of `resume_trigger_flush`, or by
+    // the next concede's pass through here.
+    //
+    // Placed at the END rather than immediately after `drop_departed_trigger_flush`
+    // (the review's suggested site) because there it would PREEMPT the block above
+    // on the ordinary concede path -- a conceding priority holder whose opponents
+    // have all passed reaches `next_priority_player() == None`, where the block
+    // above owes `handle_all_passed` (MR-M2-03) and the repair would instead grant
+    // the active player priority. Same invariant, no behaviour change to a path
+    // that was already correct.
+    if !is_game_over(state) {
+        abilities::repair_departed_priority_holder(state, &mut events);
     }
     Ok(events)
 }

@@ -135,8 +135,8 @@ use mtg_engine::rules::abilities::{check_triggers, flush_pending_triggers};
 use mtg_engine::state::error::GameStateError;
 use mtg_engine::state::stack::StackObjectKind;
 use mtg_engine::{
-    CardEffectTarget, CardRegistry, Effect, EffectAmount, GameStateBuilder, ObjectId, ObjectSpec,
-    PlayerId, Step, Target, TriggerEvent, TriggeredAbilityDef, ZoneId,
+    CardEffectTarget, CardRegistry, Effect, EffectAmount, GameStateBuilder, KeywordAbility,
+    ObjectId, ObjectSpec, PlayerId, Step, Target, TriggerEvent, TriggeredAbilityDef, ZoneId,
 };
 
 /// The `source_object` of every `TriggeredAbility` currently on the stack, in
@@ -1742,7 +1742,8 @@ fn test_dp8_under_filled_optional_slot_does_not_shift_later_indices() {
 /// CR 601.2c — an `optional` slot with NO candidates has exactly one legal answer
 /// ("choose zero"), so it is not a choice and must not be asked.
 ///
-/// Fix-cycle Finding 8 (LOW). `trigger_target_choice_is_forced` excluded every
+/// Fix-cycle Finding 8 (LOW). The forced-answer check (`forced_trigger_target_answer`
+/// since the second closing review; `trigger_target_choice_is_forced` then) excluded every
 /// `optional` slot unconditionally, so an "up to one target creature" trigger on an
 /// empty board spent a wire round trip on a question with one possible answer.
 ///
@@ -2528,4 +2529,268 @@ fn test_dp8_default_answer_satisfies_cross_slot_distinctness() {
     )
     .expect("SR-38: the engine must accept its own default answer");
     assert_eq!(trigger_sources(&state).len(), 1);
+}
+
+// ── T35 (second closing review, Finding 1 — MEDIUM) ───────────────────────────
+
+/// CR 800.4 / CR 603.3b — a SECOND concede must not leave priority stranded on a
+/// player who left the game earlier.
+///
+/// Second-closing-review Finding 1 (MEDIUM). The first closing review's HIGH was
+/// closed by `abilities::repair_departed_priority_holder` at the end of
+/// `resume_trigger_flush` -- but that choke point covers **answers**, not
+/// **concessions**. `handle_concede`'s own priority advance is gated on
+/// `state.turn.priority_holder == Some(player)`, so it can only repair holdership
+/// belonging to the CONCEDER; a holder stranded by an *earlier* departure is
+/// invisible to it, and `drop_departed_trigger_flush` (the path a concede takes
+/// when the outstanding entry is the conceder's own) never calls the repair.
+///
+/// The four steps below are the reachable sequence:
+///   1. p2 holds priority; the flush suspends on p1's trigger (`FlushResumeSite::None`).
+///   2. p2 concedes -- the fix-cycle Finding 5 gate skips the advance because
+///      p1's announcement is still outstanding, so `priority_holder` stays `Some(p2)`.
+///   3. p1 concedes *instead of answering* -- the entry is dropped, the batch
+///      completes, and neither `handle_concede` branch matches (the holder is p2,
+///      the active player is p3).
+///   4. `priority_holder == Some(p2)`, conceded, with no entry left to repair it.
+///
+/// **Fail-before** (run, not predicted): `priority must name a player who is still
+/// in the game, not PlayerId(2)` -- the identical unrecoverable deadlock the first
+/// closing review's HIGH described, one step further out. The assertion is placed
+/// on the holder rather than on the `PassPriority` that follows it so the failure
+/// names the stranded seat instead of the downstream `PlayerEliminated`.
+#[test]
+fn test_dp8_second_concede_does_not_strand_priority_from_an_earlier_departure() {
+    let mut state = GameStateBuilder::new()
+        .add_player(p(1))
+        .add_player(p(2))
+        .add_player(p(3))
+        .add_player(p(4))
+        .with_registry(CardRegistry::new(vec![]))
+        // The entry belongs to p1: it is p1's zapper that triggers. The active
+        // player is p3, so neither `handle_concede` branch can fire for p1.
+        .object(zapper(
+            p(1),
+            "Zapper P1",
+            vec![TargetRequirement::TargetPlayer],
+        ))
+        .object(ObjectSpec::creature(p(1), "Creature 0", 2, 2))
+        .object(ObjectSpec::enchantment(p(1), "Bystander"))
+        .active_player(p(3))
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+    let bystander = find_object(&state, "Bystander");
+    let _ = fire_etb(&mut state, bystander, p(1));
+
+    // (1) the suspension is on p1's trigger, and p2 holds priority (PB-DP1: the
+    // actor keeps it across an in-match `check_and_flush_triggers` suspension).
+    assert_eq!(
+        state.pending_trigger_targets().map(|e| e.player),
+        Some(p(1)),
+        "multiple live players make `TargetPlayer` a real CR 601.2c choice"
+    );
+    state.turn_mut().priority_holder = Some(p(2));
+
+    // (2) the priority HOLDER concedes while somebody else's question is open.
+    let (state, _) = process_command(state, Command::Concede { player: p(2) }).unwrap();
+    assert!(
+        state.pending_trigger_targets().is_some(),
+        "the foreign concede must leave the batch suspended (fix-cycle Finding 5)"
+    );
+    assert_eq!(
+        state.turn().priority_holder,
+        Some(p(2)),
+        "the gate deliberately skips the advance -- this is the state the repair owes"
+    );
+
+    // (3) the entry's OWNER concedes instead of answering: CR 800.4d drops their
+    // trigger, CR 800.4j places the rest of the batch, and the game continues with
+    // p3 and p4 still in it.
+    let (state, _) = process_command(state, Command::Concede { player: p(1) }).unwrap();
+    assert!(
+        state.pending_trigger_targets().is_none(),
+        "CR 800.4d: the departed owner's entry is dropped"
+    );
+    assert_eq!(state.active_players().len(), 2, "the game is not over");
+
+    // (4) the game must still be playable.
+    let holder = state
+        .turn()
+        .priority_holder
+        .expect("CR 603.3b: somebody must hold priority once the batch is complete");
+    assert!(
+        holder == p(3) || holder == p(4),
+        "priority must name a player who is still in the game, not {holder:?}"
+    );
+    let (_, _) = process_command(state.clone(), Command::PassPriority { player: holder })
+        .expect("the holder must be able to act -- otherwise the game is deadlocked");
+    for gone in [p(1), p(2)] {
+        let err =
+            process_command(state.clone(), Command::PassPriority { player: gone }).unwrap_err();
+        assert!(
+            matches!(err, GameStateError::PlayerEliminated(_)),
+            "a departed player can never act again: {err:?}"
+        );
+    }
+}
+
+// ── T36 (second closing review, Finding 2 — LOW) ──────────────────────────────
+
+/// CR 603.3d / CR 601.2c — two mutually-distinct slots whose only candidate is the
+/// SAME permanent have no legal announcement, so the ability is not put on the
+/// stack.
+///
+/// Second-closing-review Finding 2 (LOW). `default_trigger_targets`' "one
+/// exception" doc section named the wrong failure mode for half its cases: with at
+/// least one multi-candidate slot the handler's cross-slot check refuses the
+/// default (that half is real), but when BOTH slots have exactly one candidate the
+/// forced-answer path never consulted that check at all -- it read `candidates[0]`
+/// directly and placed the trigger with the same permanent in both slots,
+/// **silently violating CR 601.2c** instead of refusing.
+///
+/// CR 603.3d: "if a choice is required when the triggered ability goes on the stack
+/// but no legal choices can be made for it ... the ability is simply removed from
+/// the stack." That is the correct disposition here -- the constraint, not the
+/// candidate sets, is what has no solution.
+///
+/// **Fail-before**: `trigger_sources(&state).len()` was `1` (the trigger placed
+/// with slot 0 == slot 1), and `state.stack_objects()[0]`'s target list named
+/// `Only One` twice.
+#[test]
+fn test_dp8_forced_answer_that_breaks_distinctness_removes_the_trigger() {
+    let mut state = GameStateBuilder::new()
+        .add_player(p(1))
+        .add_player(p(2))
+        .with_registry(CardRegistry::new(vec![]))
+        // Shroud (CR 702.18a) keeps the fixture's own permanents out of both
+        // candidate sets, so `Only One` is the single legal choice for each slot.
+        .object(
+            zapper(
+                p(1),
+                "Twister",
+                vec![
+                    TargetRequirement::TargetPermanentDistinctFrom(1),
+                    TargetRequirement::TargetPermanentDistinctFrom(0),
+                ],
+            )
+            .with_keyword(KeywordAbility::Shroud),
+        )
+        .object(ObjectSpec::creature(p(1), "Only One", 2, 2))
+        .object(ObjectSpec::enchantment(p(1), "Bystander").with_keyword(KeywordAbility::Shroud))
+        .active_player(p(1))
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+    let bystander = find_object(&state, "Bystander");
+    let _ = fire_etb(&mut state, bystander, p(1));
+
+    assert!(
+        state.pending_trigger_targets().is_none(),
+        "one candidate per slot is not a choice -- nothing may be asked"
+    );
+    assert!(
+        trigger_sources(&state).is_empty(),
+        "CR 603.3d: no legal announcement exists, so the ability is not put on the stack \
+         -- placing it would name the same permanent for two mutually-distinct slots \
+         (CR 601.2c)"
+    );
+}
+
+// ── T37 (second closing review, Finding 3 — LOW / OOS-DP8-13) ─────────────────
+
+/// CR 514.3a / CR 726 — the reap drops only the reaped site's PRIORITY debt, and
+/// keeps its cleanup ratchet.
+///
+/// Second-closing-review Finding 3 (LOW). The first closing review's Finding 2 fix
+/// zeroed the reaped entry's whole `FlushResumeSite`, which is right for the
+/// priority half (a double grant inside the current caller's own flush is a real
+/// wire anomaly) but threw away the `cleanup_sba_rounds` ratchet and the CR 726
+/// mandatory-loop check with it -- and losing a *bound* is a different severity
+/// class from emitting a duplicate event (OOS-DP8-13). The two halves are now
+/// separated: the obligations run, the grant does not.
+///
+/// **Fail-before**: `cleanup_sba_rounds` stayed at `0` after the reap
+/// (`left: 0, right: 1`).
+#[test]
+fn test_dp8_reap_keeps_the_cleanup_ratchet_and_drops_only_the_priority_debt() {
+    use mtg_engine::state::stubs::FlushResumeSite;
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p(1))
+        .add_player(p(2))
+        .add_player(p(3))
+        .with_registry(CardRegistry::new(vec![]))
+        // The entry will belong to p2.
+        .object(zapper(
+            p(2),
+            "Zapper P2",
+            vec![TargetRequirement::TargetCreature],
+        ))
+        .object(ObjectSpec::creature(p(1), "Creature 0", 2, 2))
+        .object(ObjectSpec::creature(p(1), "Creature 1", 2, 2))
+        .object(ObjectSpec::enchantment(p(1), "Bystander"))
+        .active_player(p(1))
+        .at_step(Step::End)
+        .build()
+        .unwrap();
+    // Queue the trigger WITHOUT flushing, so the first flush that sees it is the
+    // one `enter_step` runs in the Cleanup branch.
+    let bystander = find_object(&state, "Bystander");
+    let triggers = check_triggers(
+        &state,
+        &[GameEvent::PermanentEnteredBattlefield {
+            object_id: bystander,
+            player: p(1),
+        }],
+    );
+    for t in triggers {
+        state.pending_triggers_mut().push_back(t);
+    }
+    state.turn_mut().priority_holder = Some(p(1));
+    state.turn_mut().players_passed = imbl::OrdSet::new();
+
+    // Pass the end step out: `handle_all_passed` -> `advance_step` -> Cleanup ->
+    // `enter_step`'s cleanup branch, whose flush suspends owing `EnterStepCleanup`.
+    let mut state = state;
+    for seat in [p(1), p(2), p(3)] {
+        let (s, _) = process_command(state, Command::PassPriority { player: seat }).unwrap();
+        state = s;
+        if state.pending_trigger_targets().is_some() {
+            break;
+        }
+    }
+    let entry = state
+        .pending_trigger_targets()
+        .expect("the cleanup-step flush must suspend on p2's trigger");
+    assert_eq!(entry.player, p(2));
+    assert_eq!(
+        entry.resume_site,
+        FlushResumeSite::EnterStepCleanup,
+        "the fixture must pin the site whose obligations this test is about"
+    );
+    let rounds_before = state.turn().cleanup_sba_rounds;
+
+    // p2 leaves by a route that is NOT `Command::Concede` (CR 704.5a), so nothing
+    // clears the entry -- the next flush reaps it.
+    state.players_mut().get_mut(&p(2)).unwrap().has_lost = true;
+    let reaped = flush_pending_triggers(&mut state);
+
+    assert!(
+        state.pending_trigger_targets().is_none(),
+        "CR 800.4d: the departed owner's entry is reaped"
+    );
+    assert_eq!(
+        state.turn().cleanup_sba_rounds,
+        rounds_before + 1,
+        "CR 514.3a: the reaped site's ratchet is a BOUND, not a notification -- \
+         dropping it turns a bounded cleanup loop into an unbounded one"
+    );
+    assert!(
+        !reaped
+            .iter()
+            .any(|e| matches!(e, GameEvent::PriorityGiven { .. })),
+        "CR 603.3b: the PRIORITY half of the reaped debt still belongs to a call \
+         site whose moment has passed (closing-review Finding 2)"
+    );
 }

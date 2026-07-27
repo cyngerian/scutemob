@@ -553,3 +553,52 @@ half of its closure argument was wrong and is now recorded as such, with the rea
 §8.1 **OOS-DP8-4** narrowed (the colliding-default half is closed, the no-alternative-candidate
 half is the residual); two new rows **OOS-DP8-13** (reaped debt dropped rather than merged) and
 **OOS-DP8-14** (harness pump-skip predicate keyed on vocabulary rather than on the decision).
+
+---
+
+## Second closing-review dispositions (2026-07-26, `scutemob-156`, third fix cycle)
+
+The second closing `/review` (independent Opus, read-only) **confirmed the reported HIGH closed**
+— the 4-step scenario is genuinely fixed, `repair_departed_priority_holder` fires on the
+`FlushResumeSite::None` path, no-ops on re-suspension / a live holder / a non-`None` resume site,
+`next_priority_player` can never return a departed seat, and it agreed with the previous cycle's
+decision to reject its own concede-site prescription — and filed **1 MEDIUM, 2 LOW**. All 3 are
+dispositioned below; **3 fixed, 0 deferred**.
+
+Post-cycle gates: `cargo build --workspace`, `cargo test --all` (**3,878 / 0**, up from 3,875),
+`cargo clippy --workspace --all-targets -- -D warnings`, `cargo fmt --check`,
+`tools/check-defs-fmt.sh` (1,804 defs) — all clean. **PROTOCOL 30 / HASH 67 unmoved** (no wire
+type changed; the engine's only new data is a `bool` return on a private helper). **0 card-def
+source edits, 0 completeness flips.** Golden corpus 210 approved, 0 new skips (SR-9c).
+
+All three probes were **run in the failing direction first**, and each asserts the thing that was
+broken rather than something adjacent to it — the correction the previous cycle earned.
+
+| # | Sev | Disposition |
+|---|-----|-------------|
+| 1 | **MEDIUM** | **FIXED, and the reviewer's diagnosis of the justification was right.** "`handle_concede` runs its own (ungated, because the field is now clear) advance straight afterwards" does not hold: that advance is guarded by `if state.turn.priority_holder == Some(player)` (`engine.rs:2479`), so it repairs holdership belonging to **the conceder** and nothing else. The batch can complete through `drop_departed_trigger_flush` without ever reaching `resume_trigger_flush`, so the choke point added by the previous cycle covers **answers**, not **concessions**, and the 4-step double-concede sequence reproduces the identical deadlock. **The prescribed site was evaluated and NOT used.** Calling `repair_departed_priority_holder` immediately after the drop block preempts the existing advance on the *ordinary* concede path: a conceding priority holder whose opponents have all passed reaches `next_priority_player() == None`, where the existing code owes `handle_all_passed` (MR-M2-03) and the repair would instead grant the active player priority — a behaviour change on a path that was already correct. The call is therefore placed **at the very end of `handle_concede`**, after every branch that legitimately reassigns priority has had its turn. That placement satisfies the reviewer's non-negotiable invariant, cannot double-grant (if any branch above set a live holder the repair sees one and no-ops), keeps the CR 603.3b guarantee (it no-ops while a batch is still suspended; that case is picked up at the resume or by the next concede), and additionally covers the *other* blocking decisions the same gate skips (a conceding priority holder under an outstanding PB-DP7 cleanup discard was stranded by the identical mechanism). `repair_departed_priority_holder` widened `fn` → `pub(crate) fn`; its "deliberately NOT called from `drop_departed_trigger_flush`'s side of the world" paragraph rewritten to say why that claim was false, and the `engine.rs:2475` comment's "Nothing is skipped here that is not picked up there" corrected in place rather than left standing next to a fixed body. New test `test_dp8_second_concede_does_not_strand_priority_from_an_earlier_departure` drives all four steps through `process_command` (4 players, active P3, entry owner P1, holder P2) and then asserts the resulting holder can actually `PassPriority` and that both departed seats get `PlayerEliminated`. **Fail-before run**: `priority must name a player who is still in the game, not PlayerId(2)`. |
+| 2 | LOW | **FIXED at the root, not just in the prose.** The doc's "one exception" was accurate only when at least one slot had ≥2 candidates. With **both** slots at exactly one candidate, `trigger_target_choice_is_forced` was satisfied — it consults `trigger_target_slot_forced_answer`, which reads `candidates[0]` and never `default`, and the forced path never reached check (8) — so the engine placed the trigger naming one permanent in two mutually-distinct slots: a **silent CR 601.2c violation**, not a refusal. Decision: `trigger_target_choice_is_forced` **should** consult the constraint, so it became `forced_trigger_target_answer` (returns the answer instead of a `bool`, because per-slot determinacy says nothing about the combination) plus `forced_answer_breaks_distinctness` (check (8)'s exact predicate). When every slot is determined *and* the combination is illegal there is no legal announcement at all, so CR 603.3d's removal clause applies — the trigger is not put on the stack, which is both the CR-correct disposition and the one that cannot hang (offering it would be a question with no acceptable answer). The doc section now states which half of the exception survives: only the *default-quality* half, where some slot has ≥2 candidates, a legal answer therefore exists, and `make_distinct_slot_defaults`' in-order greedy is not always it. New test `test_dp8_forced_answer_that_breaks_distinctness_removes_the_trigger` (Shroud on the fixture's own permanents leaves exactly one candidate per slot). **Fail-before run**: the trigger was placed — `trigger_sources(&state).len() == 1`. |
+| 3 | LOW | **DONE — the merge rule is implemented, and it was not three lines.** The reviewer is right that the residual is not symmetric with what the zeroing buys: a duplicate `PriorityGiven` is a wire anomaly, while the CR 726 check is what OOS-DP8-10's own closure called "the real bound on a genuinely repeating position". The obstacle to three lines is that the two halves were interleaved in one function body and the CR 726 branch **ends the game**, so it could not be gated in place — it is extracted as `run_flush_resume_obligations(state, owed, events) -> bool` (ratchet + loop check; `true` = the game ended in a CR 726 draw). `finish_resumed_flush` now calls it and grants only on `false`; the reap still zeroes `resume_site` (so nothing downstream can grant) and calls the obligations half explicitly with the reaped site. **Residual, now the whole of OOS-DP8-13**: a continuation that immediately re-suspends loses the reaped ratchet bump for that round, because CR 726 cannot be evaluated against a half-placed CR 603.3b batch and the two obligations are run together; the current caller's own `mark_flush_resume_site` carries its own copy of both, so the bound returns on the next completing round. New test `test_dp8_reap_keeps_the_cleanup_ratchet_and_drops_only_the_priority_debt` reaches a real `FlushResumeSite::EnterStepCleanup` suspension (asserted on the entry, not assumed), reaps it via a CR 704.5a-style elimination, and pins both halves. **Fail-before run**: `left: 0, right: 1` on `cleanup_sba_rounds`. |
+
+### The pattern this cycle names
+
+Three findings across two closing reviews all reduce to the same thing, and it is worth stating
+once: **a comment that justifies skipping work is a claim about reachability, and reachability
+claims need the same exhaustive enumeration a `match` does.** Three times in this batch a comment
+asserted a property the code did not have — the original gate comment ("the resume grants priority
+itself"), its replacement ("nothing is skipped here that is not picked up there", false for the
+*departure* exit from a suspended batch), and `default_trigger_targets`' "one exception" (which
+named the wrong failure mode for the both-slots-forced half). Each time the code was right about
+the case the author had in mind and silent about the exit they had not enumerated. OOS-DP7-11
+filed this as a gate-integrity seed; it is really an authoring rule. The concrete form for
+blocking decisions: **enumerate every exit** — answered, conceded, eliminated-by-SBA, re-suspended
+— and say where each one discharges the debt. A choke point on the "answered" path is not a choke
+point.
+
+### Audit rows updated by this cycle
+
+`docs/audits/decision-point-audit.md`: §8 PB-DP8 row (second closing-review paragraph, transferable
+rules (iv) and (v), tests → 3,878); §8.1 **OOS-DP8-4** narrowed again (the both-slots-forced
+sub-case is closed at the root; the default-quality half is the residual); §8.1 **OOS-DP8-13**
+mostly closed (merge rule implemented, with the reason it was not three lines and the
+re-suspension residual stated).

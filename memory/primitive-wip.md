@@ -1,4 +1,4 @@
-# Primitive WIP — PB-DP8 (DP-6 / OOS-M11-4: triggered-ability target choice) · SHIPPED (second fix cycle complete)
+# Primitive WIP — PB-DP8 (DP-6 / OOS-M11-4: triggered-ability target choice) · SHIPPED (third fix cycle complete)
 
 <!-- last_updated: 2026-07-26 -->
 
@@ -10,7 +10,8 @@
 - **Branch**: `feat/pb-dp8-triggered-ability-target-choice-surface-the-84-def-ag`
 - **Class**: AGENCY (Tier 1 top, class **B**). Rank 8 of the PB-DP suite; the suite's **second**
   wire change.
-- **Phase**: **implement → review → fix → closing review → SECOND FIX COMPLETE**
+- **Phase**: **implement → review → fix → closing review → second fix → second closing review →
+  THIRD FIX COMPLETE**
 - **Plan**: `memory/primitives/pb-plan-DP8.md`
 - **Review file**: `memory/primitives/pb-review-DP8.md`
 - **Baseline**: PROTOCOL **28**, HASH **65**, tests **3,837**
@@ -20,6 +21,8 @@
 - **Shipped (after CLOSING-review fix cycle)**: PROTOCOL **30**, HASH **67** (unmoved —
   nothing changed a wire type), tests **3,875**, still **0 card-def edits, 0 completeness
   flips**
+- **Shipped (after SECOND CLOSING-review fix cycle)**: PROTOCOL **30**, HASH **67** (unmoved
+  again), tests **3,878**, still **0 card-def edits, 0 completeness flips**
 
 ## What shipped
 
@@ -212,3 +215,62 @@ all clean. 210 approved golden scripts, 0 new skips (SR-9c).
 `script_replay::test_pump_skip_is_cross_step_and_kind_aware`; plus the missing priority
 assertion added to `test_dp8_foreign_concede_does_not_step_over_the_suspended_batch` and the
 rewrite of `test_dp8_illegal_target_rejected_state_untouched`.
+
+---
+
+## Third fix cycle — second closing `/review` (1 MEDIUM, 2 LOW)
+
+**All 3 findings dispositioned; 3 fixed, 0 deferred.** Per-finding detail, including the
+fail-before probe run for each, is in `memory/primitives/pb-review-DP8.md` under
+"Second closing-review dispositions".
+
+The reviewer **confirmed the previous cycle's HIGH closed** and then found **the same deadlock
+class one step further out**: the repair added at the end of `resume_trigger_flush` is a choke
+point on the *answered* path, and a **departure** is the other way out of a suspended batch.
+
+### What changed
+
+1. **MEDIUM — two concedes in a row under one suspended batch still deadlocked.**
+   `handle_concede`'s advance is guarded on `priority_holder == Some(player)`, so it can only
+   repair holdership belonging to *this* conceder — never one stranded by an earlier departure —
+   and `drop_departed_trigger_flush` completes the batch without ever reaching the resume.
+   `abilities::repair_departed_priority_holder` is now `pub(crate)` and called as an unconditional
+   backstop at the **end** of `handle_concede`. **Deliberately not at the review's prescribed site**
+   (immediately after the drop block): there it preempts the existing advance on the ordinary
+   concede path, where `next_priority_player() == None` owes `handle_all_passed` (MR-M2-03), not a
+   grant to the active player. The end placement also covers the PB-DP7 cleanup-discard case, which
+   the same gate skips for the same reason. Both false comments (`engine.rs:2475` and the repair's
+   own doc) corrected in place.
+2. **LOW — the forced-answer path bypassed the cross-slot distinctness check.**
+   `trigger_target_choice_is_forced` → `forced_trigger_target_answer` (returns the answer, because
+   per-slot determinacy says nothing about the combination) + `forced_answer_breaks_distinctness`.
+   Two mutually-distinct slots with one shared candidate used to be placed naming that permanent
+   twice — a silent CR 601.2c violation; now CR 603.3d's removal clause applies (there is no legal
+   announcement) and the ability is not put on the stack. `default_trigger_targets`' "one exception"
+   doc rewritten to name only the half that survives.
+3. **LOW / OOS-DP8-13 — the merge rule, implemented.** `run_flush_resume_obligations` split out of
+   `finish_resumed_flush` (CR 514.3a ratchet + CR 726 loop check, `-> bool` = the game ended); the
+   reap keeps zeroing the priority half and now runs the obligations half explicitly. Not the three
+   lines the review estimated — the halves were interleaved and the CR 726 branch ends the game, so
+   it had to be extracted rather than gated in place; the reason and the narrowed residual
+   (reap + immediate re-suspension) are recorded on the seed.
+
+### Wire
+
+**PROTOCOL 30 / HASH 67 unmoved.** No wire type changed; the only new engine signature is a
+private helper's `bool` return. No sentinel re-pin owed.
+
+### Gates
+
+`cargo build --workspace`, `cargo test --all` (**3,878 / 0**), `cargo clippy --workspace
+--all-targets -- -D warnings`, `cargo fmt --check`, `tools/check-defs-fmt.sh` (1,804 defs) —
+all clean. 210 approved golden scripts, 0 new skips (SR-9c).
+
+### Tests added (3, all fail-before-run)
+
+`test_dp8_second_concede_does_not_strand_priority_from_an_earlier_departure`
+(`priority must name a player who is still in the game, not PlayerId(2)`),
+`test_dp8_forced_answer_that_breaks_distinctness_removes_the_trigger`
+(the trigger was placed: `trigger_sources(&state).len() == 1`),
+`test_dp8_reap_keeps_the_cleanup_ratchet_and_drops_only_the_priority_debt`
+(`cleanup_sba_rounds` `left: 0, right: 1`).

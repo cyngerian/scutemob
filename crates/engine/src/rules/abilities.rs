@@ -7668,11 +7668,22 @@ fn flatten_slot_answers(
 /// engine offers, with exactly one exception, which is stated here rather than
 /// left implicit (closing-review Finding 3; OOS-DP7-2's failure mode was a doc
 /// comment asserting a property the code did not have): if two
-/// `TargetPermanentDistinctFrom` slots share a candidate set with **no** second
-/// member, both defaults name the one permanent there is and the handler's
+/// `TargetPermanentDistinctFrom` slots collide and slot *i*'s candidate set holds
+/// **no** member the earlier slot has not already taken, `make_distinct_slot_defaults`
+/// has nothing to swap in, both defaults name the same permanent, and the handler's
 /// cross-slot distinctness check (CR 601.2c) rejects it. Colliding defaults are
-/// otherwise resolved at offer time by `make_distinct_slot_defaults`. No def in
-/// the corpus reaches the exception (OOS-DP8-4).
+/// otherwise resolved at offer time. No def in the corpus reaches the exception
+/// (OOS-DP8-4).
+///
+/// The **sub-case where every slot has exactly one candidate is no longer part of
+/// that exception** (second closing review, Finding 2 -- LOW): those slot lists are
+/// never offered at all. Per-slot determinacy used to short-circuit straight past
+/// the cross-slot check, so the trigger was placed naming one permanent twice; now
+/// `forced_trigger_target_answer` + `forced_answer_breaks_distinctness` recognise
+/// that the constraint has no solution and CR 603.3d removes the ability instead.
+/// What survives is only the *default-quality* half: a slot list where some slot
+/// has two or more candidates always HAS a legal answer, and the first-match
+/// default is simply not always it.
 pub fn default_trigger_targets(slots: &[TriggerTargetOption]) -> Vec<Vec<Target>> {
     slots
         .iter()
@@ -7690,10 +7701,44 @@ pub fn default_trigger_targets(slots: &[TriggerTargetOption]) -> Vec<Vec<Target>
 /// excluded because "choose zero" is a genuine second answer -- **unless** it has
 /// no candidate at all, in which case "choose zero" is its only legal answer too
 /// (fix-cycle Finding 8).
-fn trigger_target_choice_is_forced(slots: &[TriggerTargetOption]) -> bool {
+///
+/// Returns the answer itself rather than a `bool` (second closing review,
+/// Finding 2 -- LOW) so the caller can check it against the CROSS-slot constraints,
+/// which are not a property of any one slot. Per-slot determinacy does not imply
+/// the combination is legal.
+fn forced_trigger_target_answer(slots: &[TriggerTargetOption]) -> Option<Vec<Vec<SpellTarget>>> {
     slots
         .iter()
-        .all(|s| trigger_target_slot_forced_answer(s).is_some())
+        .map(trigger_target_slot_forced_answer)
+        .collect()
+}
+/// CR 601.2c: `true` if a per-slot answer names the same permanent for two
+/// `TargetPermanentDistinctFrom` slots -- i.e. the announcement is illegal.
+///
+/// The exact predicate `handle_choose_trigger_targets`' check (8) applies to a
+/// submitted answer, applied here to the engine's own forced answer. Second
+/// closing review, Finding 2 (LOW): the forced path bypassed (8) entirely, so two
+/// mutually-distinct slots with one shared candidate were placed on the stack
+/// naming that permanent twice -- a silent CR 601.2c violation rather than a
+/// refusal.
+fn forced_answer_breaks_distinctness(
+    reqs: &[crate::cards::card_definition::TargetRequirement],
+    per_slot: &[Vec<SpellTarget>],
+) -> bool {
+    use crate::cards::card_definition::TargetRequirement as TR;
+    let is_distinct = |i: usize| matches!(reqs.get(i), Some(TR::TargetPermanentDistinctFrom(_)));
+    for a in 0..per_slot.len() {
+        for b in (a + 1)..per_slot.len() {
+            if is_distinct(a)
+                && is_distinct(b)
+                && !per_slot[a].is_empty()
+                && per_slot[a] == per_slot[b]
+            {
+                return true;
+            }
+        }
+    }
+    false
 }
 /// CR 601.2c: the sole legal answer for a slot, if it has exactly one.
 ///
@@ -7773,14 +7818,37 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
         // overwrite). The debt belongs to a call site whose moment has passed; the
         // current caller's own obligation is the one that is owed now, and it is
         // recorded by that caller's own `mark_flush_resume_site` if the
-        // continuation suspends again. Residual, deliberately accepted: an
-        // `EnterStepCleanup` debt loses its `cleanup_sba_rounds` ratchet bump --
-        // the next non-suspending cleanup round makes it (see OOS-DP8-10).
+        // continuation suspends again.
+        //
+        // SECOND CLOSING-REVIEW Finding 3 (LOW / OOS-DP8-13): only the PRIORITY
+        // half of the debt is dropped. Zeroing the whole `FlushResumeSite` also
+        // threw away the `cleanup_sba_rounds` ratchet and the CR 726 mandatory-loop
+        // check, and those are not the same severity class as a duplicate event --
+        // they are the bound on a genuinely repeating position. The site is still
+        // zeroed (so nothing downstream can grant), and its obligations are run
+        // here explicitly by `run_flush_resume_obligations`.
+        let reaped_site = state
+            .pending_trigger_targets
+            .as_ref()
+            .map(|e| e.resume_site)
+            .unwrap_or(FlushResumeSite::None);
         if let Some(e) = state.pending_trigger_targets.as_mut() {
             e.resume_site = FlushResumeSite::None;
         }
         if let Some(evs) = drop_departed_trigger_flush(state, player) {
             reaped = evs;
+        }
+        // Only once the reaped batch's continuation is COMPLETE: CR 726 cannot be
+        // evaluated against a half-placed CR 603.3b batch. Residual, now the whole
+        // of OOS-DP8-13: a continuation that immediately re-suspends loses the
+        // reaped site's ratchet bump for that round -- the current caller's own
+        // site (recorded by its `mark_flush_resume_site`) carries its own copy of
+        // both obligations, so the bound is restored on the next completing round.
+        if reaped_site != FlushResumeSite::None && state.pending_trigger_targets.is_none() {
+            let game_ended = run_flush_resume_obligations(state, reaped_site, &mut reaped);
+            if game_ended {
+                return reaped;
+            }
         }
     }
     // A suspended flush must never be re-entered: the caller's guard should have
@@ -8151,16 +8219,23 @@ fn flush_sorted(
                     // the batch derives its own targets at its own turn, which is
                     // what CR 603.3d requires ("as it goes on the stack").
                     Some(pre)
-                } else if trigger_target_choice_is_forced(&slots) {
+                } else if let Some(per_slot) = forced_trigger_target_answer(&slots) {
                     // CR 601.2c: one legal answer is not a choice.
-                    let per_slot: Vec<Vec<SpellTarget>> = slots
-                        .iter()
-                        .map(|s| {
-                            trigger_target_slot_forced_answer(s)
-                                .expect("`trigger_target_choice_is_forced` just said every slot has one answer")
-                        })
-                        .collect();
-                    Some(flatten_slot_answers(&slots, &per_slot))
+                    if forced_answer_breaks_distinctness(&ability_targets, &per_slot) {
+                        // CR 603.3d: "if a choice is required when the triggered
+                        // ability goes on the stack but no legal choices can be
+                        // made for it ... the ability is simply removed from the
+                        // stack." Every slot is determined AND the combination is
+                        // illegal, so there is no legal announcement -- the
+                        // constraint has no solution, not the candidate sets.
+                        // Asking would be a question with no acceptable answer;
+                        // placing it anyway (what this path used to do) is a
+                        // silent CR 601.2c violation. Second closing review,
+                        // Finding 2 (LOW); zero corpus exposure (OOS-DP8-4).
+                        None
+                    } else {
+                        Some(flatten_slot_answers(&slots, &per_slot))
+                    }
                 } else if !state
                     .expect_player(trigger.controller)
                     .map(|pl| !pl.has_lost && !pl.has_conceded)
@@ -9035,6 +9110,27 @@ fn finish_resumed_flush(state: &mut GameState, owed: FlushResumeSite, events: &m
     if owed == FlushResumeSite::None {
         return;
     }
+    if run_flush_resume_obligations(state, owed, events) {
+        return;
+    }
+    grant_priority_after_batch(state, events);
+}
+/// CR 514.3a / CR 726: the NON-priority half of what a suspended call site owed.
+///
+/// Split out of [`finish_resumed_flush`] by the second closing review's Finding 3
+/// (LOW / OOS-DP8-13). The two halves of a [`FlushResumeSite`] are not
+/// interchangeable: a duplicate `PriorityGiven` is a wire anomaly, while a dropped
+/// ratchet or mandatory-loop check removes a *bound* on a pathological position.
+/// `flush_pending_triggers`' reap has to discard the first half and must not
+/// discard the second, so it calls this directly.
+///
+/// Returns `true` if it ended the game (a CR 726 draw), in which case no priority
+/// is granted by anybody.
+fn run_flush_resume_obligations(
+    state: &mut GameState,
+    owed: FlushResumeSite,
+    events: &mut Vec<GameEvent>,
+) -> bool {
     // CR 514.3a: the cleanup ratchet the Cleanup guard returned before reaching.
     // Bumped unconditionally rather than under `cleanup_sba_rounds <
     // MAX_CLEANUP_SBA_ROUNDS`: the fall-through-at-max the original branch does is
@@ -9061,10 +9157,10 @@ fn finish_resumed_flush(state: &mut GameState, owed: FlushResumeSite, events: &m
                 }
             }
             events.extend(crate::rules::engine::check_game_over(state));
-            return;
+            return true;
         }
     }
-    grant_priority_after_batch(state, events);
+    false
 }
 /// CR 603.3b / CR 117.3a: "then the appropriate player gets priority" -- the active
 /// player, routed past a dead one.
@@ -9118,11 +9214,20 @@ fn player_is_alive(state: &GameState, p: PlayerId) -> bool {
 /// CR 603.3b's "the appropriate player gets priority" gives it to the active
 /// player with the pass count reset.
 ///
-/// Deliberately NOT called from `drop_departed_trigger_flush`'s side of the world:
-/// `handle_concede` runs its own (ungated, because the field is now clear) advance
-/// straight afterwards, and `flush_pending_triggers`' reap runs inside a caller
-/// that either holds correct priority already or grants it itself.
-fn repair_departed_priority_holder(state: &mut GameState, events: &mut Vec<GameEvent>) {
+/// The resume is not the only way out of a suspended batch, so it is not the only
+/// caller. `handle_concede` calls this too, as the LAST thing it does (second
+/// closing review, Finding 1 -- MEDIUM): a departure completes the batch through
+/// [`drop_departed_trigger_flush`] without ever reaching `resume_trigger_flush`,
+/// and `handle_concede`'s own advance is guarded on `priority_holder ==
+/// Some(player)` -- so it can only repair holdership belonging to the CONCEDER,
+/// never a holder stranded by an earlier departure. The claim that used to close
+/// this doc block ("`handle_concede` runs its own (ungated, because the field is
+/// now clear) advance straight afterwards") was false for exactly that reason.
+///
+/// Still deliberately NOT called from `flush_pending_triggers`' reap: that runs
+/// inside a caller which either holds correct priority already (the 30
+/// `check_and_flush_triggers` sites) or grants it itself (the six guards).
+pub(crate) fn repair_departed_priority_holder(state: &mut GameState, events: &mut Vec<GameEvent>) {
     if state.pending_trigger_targets.is_some() {
         // Suspended again: the batch is still incomplete, so CR 603.3b still
         // forbids a grant. The next resume repairs it.
