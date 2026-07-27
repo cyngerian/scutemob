@@ -13,8 +13,9 @@
 - **Task**: `scutemob-158`
 - **Branch**: `feat/pb-dp10-widen-the-decision-gate-stop-the-277-def-engine-gues`
 - **Class**: GATE / INVARIANT (test-only). Rank 10 of the PB-DP suite; **closes it**.
-- **Phase**: fix — review findings applied 2026-07-27 (all 14: 2 HIGH, 6 MEDIUM, 6 LOW). See
-  "Review + fix cycle" section below.
+- **Phase**: **closed** — plan → implement → review → fix → close all complete 2026-07-27.
+  Review findings applied in full (all 14: 2 HIGH, 6 MEDIUM, 6 LOW); see the
+  "Review + fix cycle" section below. **This closes the PB-DP suite (DP1..DP10).**
 - **Plan**: `memory/primitives/pb-plan-DP10.md`
 - **Review file**: `memory/primitives/pb-review-DP10.md`
 - **Baseline**: PROTOCOL **31**, HASH **68**, tests **3,910** (main at merge `d65e7f1e`)
