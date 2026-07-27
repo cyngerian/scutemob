@@ -287,6 +287,7 @@ pub fn handle_activate_ability(
                 countered_spell_controller: None,
                 defending_player: None,
                 source_transformed_this_resolution: false,
+                effect_choice_gate_closed: false,
             };
             if !crate::effects::check_condition(state, condition, &ctx) {
                 return Err(GameStateError::InvalidCommand(
@@ -5416,11 +5417,17 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 // fires ONCE per (controller, damaged_player) pair per combat damage step.
                 // "Whenever one or more creatures you control deal combat damage to a player."
                 {
-                    use std::collections::HashMap;
-                    let mut damaged_by_ctrl: HashMap<
+                    // `BTreeMap`, not `HashMap` (PB-DP9 fix-cycle Finding 4's
+                    // widened audit): the loop below pushes into `triggers` in
+                    // MAP ITERATION ORDER, so with a `HashMap` the relative
+                    // order of two batch triggers from different
+                    // (controller, damaged player) pairs varied run to run --
+                    // and that is CR 603.3b stack order, not cosmetics.
+                    use std::collections::BTreeMap;
+                    let mut damaged_by_ctrl: BTreeMap<
                         (crate::state::PlayerId, crate::state::PlayerId),
                         u32,
-                    > = HashMap::new();
+                    > = BTreeMap::new();
                     for assignment in assignments {
                         if assignment.amount == 0 {
                             continue;
@@ -9246,6 +9253,38 @@ pub(crate) fn repair_departed_priority_holder(state: &mut GameState, events: &mu
     if state.pending_trigger_targets.is_some() {
         // Suspended again: the batch is still incomplete, so CR 603.3b still
         // forbids a grant. The next resume repairs it.
+        return;
+    }
+    // CR 608.2d (PB-DP9): same reasoning for a rolled-back resolution. Granting
+    // priority while a resolution-time choice is outstanding would step over the
+    // engine's own admission gate (CR 608.1: the spell is still resolving).
+    //
+    // CLOSING-REVIEW HIGH-1 corrects what this comment used to claim. It named
+    // "`handle_answer_effect_choice`'s tail -- `resolve_top_of_stack`'s own
+    // grant -- and `handle_concede`'s discharge" as the two sites that pick the
+    // skipped repair up, and `resolve_top_of_stack_inner`'s tail granted
+    // priority to `turn.active_player` UNCONDITIONALLY, so it could not repair a
+    // stranded holder when the departed seat WAS the active player -- it created
+    // one. The accurate statement is in two parts:
+    //
+    //  * There is nothing to repair while the entry stands. `priority_holder` is
+    //    `None` by construction: the roll-back restores the state
+    //    `resolve_top_of_stack` was entered with, and both callers of
+    //    `handle_all_passed` set `priority_holder = None` immediately before it
+    //    (`rules/engine.rs`, the `AllPassed` arm and `handle_concede`'s
+    //    all-others-passed branch). The `debug_assert!` below would fire if that
+    //    ever stopped holding, because `gone` would then be a real value.
+    //  * When the entry clears, the holder is assigned by
+    //    `priority::grant_priority_to_active_player`, which IS liveness-aware
+    //    (CR 800.4j). That is the repair, and it covers all three callers of
+    //    `resolve_top_of_stack`, not just the answer path.
+    if state.pending_effect_choice.is_some() {
+        debug_assert!(
+            state.turn.priority_holder.is_none(),
+            "CR 608.2d: nobody may hold priority while a resolution-time choice \
+             is outstanding, but {:?} does",
+            state.turn.priority_holder
+        );
         return;
     }
     let gone = match state.turn.priority_holder {

@@ -283,7 +283,20 @@ use crate::state::hash::HASH_SCHEMA_VERSION;
 ///   later slot's `EffectTarget::DeclaredTarget { index }` down by one. The
 ///   closure's type count is unchanged (94); `TriggerTargetOption`'s declared shape
 ///   moved, so the digest moves.
-pub const PROTOCOL_VERSION: u32 = 30;
+/// - 31: PB-DP9 (2026-07-27, DP-7/DP-8/DP-9 — library search, scry and surveil
+///   become player choices, CR 608.2d / 701.23a / 701.22a / 701.25a): two new
+///   wire-frame variants append -- `Command::AnswerEffectChoice { player,
+///   choice_id: u64, answer: EffectChoiceAnswer }` and
+///   `GameEvent::EffectChoiceRequired { player, choice_id: u64,
+///   source_object_id, question: EffectChoiceQuestion }`. **One** command for
+///   all three effects, because CR 608.2d is one rule and 701.22a/701.23a/701.25a
+///   are three instances of it with identical timing, actor and validity
+///   condition. The closure's **type count changes**: `EffectChoiceQuestion` and
+///   `EffectChoiceAnswer` are both new and both reachable from both frames. Both
+///   declared shapes moved, so the digest moves. (`GameEvent::private_to()` and
+///   `reveals_hidden_info()` also land in this commit; they are METHODS, not
+///   declared shapes, and do not touch the digest.)
+pub const PROTOCOL_VERSION: u32 = 31;
 
 /// Digest of the serialized shape of the wire-frame type closure
 /// (`Command`, `GameEvent`, [`ReplayLog`] and everything they reach).
@@ -301,7 +314,7 @@ pub const PROTOCOL_VERSION: u32 = 30;
 /// existing `u32` *means* does not. Semantic changes still require a manual
 /// [`PROTOCOL_VERSION`] bump.
 pub const PROTOCOL_SCHEMA_FINGERPRINT: &str =
-    "70faee7c16cd09f491ce60fcaad972edd42107e441b0058fd205801955e7ea79";
+    "5c389360ca13beee2ff7de28a482ce99448e560d375723d4b3dbcd2380693b79";
 
 /// One `(version, fingerprint)` row of the append-only protocol-schema history.
 ///
@@ -535,6 +548,13 @@ pub const PROTOCOL_HISTORY: &[ProtocolEpoch] = &[
         // PB-DP8 fix cycle (2026-07-26, review Findings 2+6): TriggerTargetOption
         // gained `max` (see the `- 30:` History line above).
         fingerprint: "70faee7c16cd09f491ce60fcaad972edd42107e441b0058fd205801955e7ea79",
+    },
+    ProtocolEpoch {
+        version: 31,
+        // PB-DP9 (2026-07-27, DP-7/8/9): Command::AnswerEffectChoice and
+        // GameEvent::EffectChoiceRequired appended, and EffectChoiceQuestion +
+        // EffectChoiceAnswer enter the closure (see the `- 31:` History line above).
+        fingerprint: "5c389360ca13beee2ff7de28a482ce99448e560d375723d4b3dbcd2380693b79",
     },
 ];
 

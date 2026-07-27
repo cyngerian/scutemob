@@ -734,8 +734,9 @@ fn translate(
         None,  // chosen_color
         hybrid_choices,
         phyrexian_life_payments,
-        &[], // discard_cards
-        &[], // trigger_targets
+        &[],  // discard_cards
+        &[],  // trigger_targets
+        None, // effect_choice (PB-DP9)
         state,
         players,
     )

@@ -834,7 +834,14 @@ pub fn end_step_actions(state: &mut GameState) -> Vec<GameEvent> {
         use crate::state::stack::TriggerData;
         use crate::state::stubs::{DelayedTriggerTiming, PendingTriggerKind};
         let active = state.turn.active_player;
-        let owner_map: std::collections::HashMap<_, _> = state
+        // `BTreeMap`, not `HashMap` (PB-DP9 fix-cycle Finding 4's widened
+        // audit): the `for (target, ..) in owner_map` loop below QUEUES
+        // `PendingTrigger`s in map iteration order, which is CR 603.3b batch
+        // order and therefore stack order. With a `HashMap` that order varied
+        // run to run. (Separately, keying by `target_object` collapses two
+        // delayed triggers that share a target -- a pre-existing bug, seeded as
+        // **OOS-DP9-16**, deliberately not changed here.)
+        let owner_map: std::collections::BTreeMap<_, _> = state
             .delayed_triggers
             .iter()
             .filter(|dt| !dt.fired)

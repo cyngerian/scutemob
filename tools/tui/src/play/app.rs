@@ -641,6 +641,21 @@ fn format_event(event: &GameEvent, state: &GameState) -> String {
                 slots.len()
             )
         }
+        // CR 608.2d (PB-DP9 / DP-7/8/9). Deliberately does NOT print the ids or
+        // the count: every one of them names a card in a HIDDEN zone, and this
+        // formatter feeds a log panel that a spectator build could show to
+        // another seat. `GameEvent::private_to()` returns `Some(player)` for
+        // this event for the same reason.
+        GameEvent::EffectChoiceRequired {
+            player, question, ..
+        } => {
+            let kind = match question {
+                mtg_engine::EffectChoiceQuestion::SearchLibrary { .. } => "library search",
+                mtg_engine::EffectChoiceQuestion::Scry { .. } => "scry",
+                mtg_engine::EffectChoiceQuestion::Surveil { .. } => "surveil",
+            };
+            format!("P{} must answer a {kind} (CR 608.2d) — press 'r'", player.0)
+        }
         _ => String::new(), // Skip verbose events
     }
 }

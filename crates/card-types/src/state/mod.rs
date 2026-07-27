@@ -37,8 +37,9 @@ pub use replacement_effect::{
 };
 pub use stack::{StackObject, StackObjectKind, TriggerData, UpkeepCostKind};
 pub use stubs::{
-    ActiveRestriction, AdditionalLandPlaySource, DelayedTrigger, ETBSuppressFilter, ETBSuppressor,
-    FlashGrant, FlashGrantFilter, GameRestriction, PendingCleanupDiscard, PendingTrigger,
+    ActiveRestriction, AdditionalLandPlaySource, AnsweredEffectChoice, DelayedTrigger,
+    ETBSuppressFilter, ETBSuppressor, EffectChoiceAnswer, EffectChoiceQuestion, FlashGrant,
+    FlashGrantFilter, GameRestriction, PendingCleanupDiscard, PendingEffectChoice, PendingTrigger,
     PendingTriggerTargets, PlayFromGraveyardPermission, PlayFromTopFilter, PlayFromTopPermission,
     TriggerDoubler, TriggerDoublerFilter, TriggerTargetOption,
 };

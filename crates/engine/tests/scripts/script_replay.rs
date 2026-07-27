@@ -238,6 +238,7 @@ pub fn replay_script(script: &GameScript) -> Vec<ReplayResult> {
                     phyrexian_life_payments,
                     discard_cards,
                     trigger_targets,
+                    effect_choice,
                     ..
                 } => {
                     if let Some(&pid) = players.get(player.as_str()) {
@@ -282,6 +283,7 @@ pub fn replay_script(script: &GameScript) -> Vec<ReplayResult> {
                             phyrexian_life_payments,
                             discard_cards,
                             trigger_targets,
+                            effect_choice.as_ref(),
                             &state,
                             &players,
                         );
@@ -407,6 +409,10 @@ fn next_action_answers_the_block(
     let wanted = match decision {
         BlockingDecision::TriggerTargets { .. } => "choose_trigger_targets",
         BlockingDecision::CleanupDiscard { .. } => "discard_to_hand_size",
+        // CR 608.2d (PB-DP9 / DP-7/8/9). OOS-DP8-14 predicted PB-DP9 would add
+        // THREE action strings here, one per effect; it adds ONE, because CR
+        // 608.2d is one rule and the command is unified. Correction recorded.
+        BlockingDecision::EffectChoice { .. } => "answer_effect_choice",
     };
     let next = steps
         .get(step_idx)
@@ -1316,4 +1322,37 @@ fn test_pump_skip_is_cross_step_and_kind_aware() {
     // (d) nothing follows at all.
     let steps = vec![step(vec![player_action("cast_spell")])];
     assert!(!next_action_answers_the_block(&steps, 0, 0, &triggers));
+
+    // (e) CR 608.2d (PB-DP9, fix-cycle Finding 11): the third decision kind.
+    //     `answer_effect_choice` answers an `EffectChoice` block and nothing
+    //     else, and no other action string answers one.
+    let effect_choice = BlockingDecision::EffectChoice {
+        player: PlayerId(1),
+        choice_id: 1,
+        source: mtg_engine::ObjectId(1),
+    };
+    let steps = vec![step(vec![
+        player_action("cast_spell"),
+        player_action("answer_effect_choice"),
+    ])];
+    assert!(
+        next_action_answers_the_block(&steps, 0, 0, &effect_choice),
+        "CR 608.2d: `answer_effect_choice` answers an `EffectChoice` block"
+    );
+    assert!(
+        !next_action_answers_the_block(&steps, 0, 0, &triggers),
+        "...and does NOT answer a `TriggerTargets` block"
+    );
+    assert!(
+        !next_action_answers_the_block(&steps, 0, 0, &discard),
+        "...nor a `CleanupDiscard` block"
+    );
+    let steps = vec![step(vec![
+        player_action("cast_spell"),
+        player_action("choose_trigger_targets"),
+    ])];
+    assert!(
+        !next_action_answers_the_block(&steps, 0, 0, &effect_choice),
+        "...and a trigger-target announcement does not answer an `EffectChoice`"
+    );
 }

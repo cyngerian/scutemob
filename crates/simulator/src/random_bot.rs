@@ -380,5 +380,18 @@ pub(crate) fn action_to_command(
             choice_id: *choice_id,
             targets: targets.clone(),
         },
+        // CR 608.2d (PB-DP9 / DP-7/8/9): submit the engine's OWN default
+        // verbatim, for the same reason as ChooseTriggerTargets above --
+        // randomising would change every fuzzer seed's outcome. Note the
+        // scry/surveil defaults are the identity, so a random bot's scry is now
+        // a no-op rather than a self-mill: un-strategic but neutral, and a real
+        // library-aware answer is seeded as OOS-DP9-1.
+        LegalAction::AnswerEffectChoice {
+            choice_id, answer, ..
+        } => Command::AnswerEffectChoice {
+            player,
+            choice_id: *choice_id,
+            answer: answer.clone(),
+        },
     }
 }

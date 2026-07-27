@@ -116,6 +116,17 @@ fn pass_all(state: GameState, players: &[PlayerId]) -> (GameState, Vec<GameEvent
         current = s;
         all_events.extend(ev);
     }
+    // CR 608.2d / CR 701.22a (PB-DP9): the docent fixtures cast the real `Opt`
+    // ("Scry 1. Draw a card."), so the resolution now rolls back and blocks on
+    // p1's scry announcement. These tests are about FACE-AWARE ABILITY GATHERING
+    // (PB-OS4b) -- which of the two faces' triggers fire -- not about the scry,
+    // so they answer with the engine's own default. That default is the IDENTITY
+    // (the looked-at card stays on top), not the pre-PB-DP9 bottom-everything,
+    // which changes what `Opt` then draws; no assertion in this file looks at
+    // the library or the hand, so nothing here depends on it.
+    let (current, pump_events) =
+        mtg_engine::testing::replay_harness::auto_answer_blocking_decisions(current);
+    all_events.extend(pump_events);
     (current, all_events)
 }
 

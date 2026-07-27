@@ -1047,3 +1047,365 @@ fn test_dp8_stub_provider_offers_only_the_answer() {
         accepted.err()
     );
 }
+
+// ── PB-DP9 (DP-7 / DP-8 / DP-9): CR 608.2d resolution-time choices ───────────
+
+/// A two-player state with a "Scry 2" sorcery already **on the stack** for
+/// `PlayerId(1)`, plus a library to scry into.
+///
+/// The spell is put on the stack by casting it through `process_command`, so the
+/// stack object is built exactly the way a real cast builds it. `LocalGame` then
+/// starts from a state whose next event is the resolution — and therefore the
+/// CR 608.2d announcement.
+fn state_with_pending_scry() -> GameState {
+    use mtg_engine::cards::card_definition::PlayerTarget;
+    use mtg_engine::rules::command::CastSpellData;
+    use mtg_engine::state::turn::Step;
+    use mtg_engine::{
+        process_command, AbilityDefinition, CardType, Effect, EffectAmount, ManaColor, ManaCost,
+        TypeLine,
+    };
+
+    let def = CardDefinition {
+        name: "DP9 Scry Spell".to_string(),
+        card_id: CardId("dp9-sim-scry".to_string()),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            ..ManaCost::default()
+        }),
+        types: TypeLine {
+            card_types: [CardType::Sorcery].into_iter().collect(),
+            ..Default::default()
+        },
+        abilities: vec![AbilityDefinition::Spell {
+            effect: Effect::Scry {
+                player: PlayerTarget::Controller,
+                count: EffectAmount::Fixed(2),
+            },
+            targets: vec![],
+            modes: None,
+            cant_be_countered: false,
+        }],
+        ..Default::default()
+    };
+
+    let mut builder = GameStateBuilder::new()
+        .add_player(PlayerId(1))
+        .add_player(PlayerId(2))
+        .with_registry(CardRegistry::new(vec![def.clone()]))
+        .active_player(PlayerId(1))
+        .at_step(Step::PreCombatMain)
+        .object(
+            ObjectSpec::card(PlayerId(1), &def.name)
+                .with_card_id(def.card_id.clone())
+                .with_types(vec![CardType::Sorcery])
+                .with_mana_cost(ManaCost {
+                    generic: 1,
+                    ..ManaCost::default()
+                })
+                .in_zone(ZoneId::Hand(PlayerId(1))),
+        );
+    for name in ["Bottom", "Middle", "Top"] {
+        builder = builder.object(
+            ObjectSpec::creature(PlayerId(1), name, 1, 1).in_zone(ZoneId::Library(PlayerId(1))),
+        );
+    }
+    let mut state = builder.build().expect("PB-DP9 fixture should build");
+    state
+        .players_mut()
+        .get_mut(&PlayerId(1))
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Colorless, 5);
+    state.turn_mut().priority_holder = Some(PlayerId(1));
+
+    let spell_id = state
+        .objects()
+        .iter()
+        .find(|(_, o)| o.characteristics.name == "DP9 Scry Spell")
+        .map(|(id, _)| *id)
+        .expect("the spell must exist");
+    let (state, _) = process_command(
+        state,
+        Command::CastSpell(Box::new(CastSpellData {
+            player: PlayerId(1),
+            card: spell_id,
+            targets: vec![],
+            convoke_creatures: vec![],
+            improvise_artifacts: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
+            alt_cost: None,
+            prototype: false,
+            modes_chosen: vec![],
+            x_value: 0,
+            face_down_kind: None,
+            additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        })),
+    )
+    .expect("cast should succeed");
+    state
+}
+
+/// T-sim-1: CR 608.2d reaches `LocalGame` as its OWN `DecisionKind`.
+///
+/// The `kind == EffectChoice` assertion is the point: `advance()`'s acting-player
+/// chain matches `BlockingDecision` **exhaustively**, so a new variant is
+/// compile-forced rather than silently mapped to the wrong picker (the bug
+/// PB-DP8 had to fix). Also re-pins S1's idempotence guard, the foreign-seat
+/// rejection and the stale-`seq` rejection against the new decision class.
+#[test]
+fn test_dp9_local_game_awaits_human() {
+    let state = state_with_pending_scry();
+    let human_seats: BTreeSet<PlayerId> = [PlayerId(1)].into_iter().collect();
+    let mut bots: HashMap<PlayerId, Box<dyn Bot>> = HashMap::new();
+    bots.insert(
+        PlayerId(2),
+        Box::new(RandomBot::new(1, "Bot-2".to_string())),
+    );
+    let (mut game, _start_events) = LocalGame::start(
+        state,
+        1,
+        StubProvider,
+        bots,
+        human_seats,
+        small_limits(20),
+        true,
+    )
+    .expect("game should start");
+
+    let decision = loop {
+        match game.advance() {
+            AdvanceOutcome::AwaitingHuman(d) if d.kind == DecisionKind::EffectChoice => break d,
+            AdvanceOutcome::AwaitingHuman(d) => {
+                game.submit(
+                    d.seq,
+                    HumanChoice::Command(Command::PassPriority { player: d.player }),
+                )
+                .unwrap_or_else(|e| panic!("PassPriority submit failed: {:?}", e));
+            }
+            other => panic!("expected to reach EffectChoice, got {:?}", other),
+        }
+    };
+
+    assert_eq!(
+        decision.player,
+        PlayerId(1),
+        "CR 701.22a: the scrying player answers"
+    );
+    assert_eq!(
+        decision.actions.len(),
+        1,
+        "exactly one action is legal while the resolution is rolled back"
+    );
+    let (choice_id, answer) = match &decision.actions[0] {
+        LegalAction::AnswerEffectChoice {
+            choice_id,
+            question,
+            answer,
+            ..
+        } => {
+            match question {
+                mtg_engine::EffectChoiceQuestion::Scry { looked_at } => {
+                    assert_eq!(looked_at.len(), 2, "CR 701.22a: the top 2 were looked at");
+                }
+                other => panic!("expected a Scry question, got {:?}", other),
+            }
+            (*choice_id, answer.clone())
+        }
+        other => panic!("expected AnswerEffectChoice, got {:?}", other),
+    };
+
+    // S1 idempotence: a second advance() returns the SAME seq.
+    match game.advance() {
+        AdvanceOutcome::AwaitingHuman(d2) => assert_eq!(d2.seq, decision.seq),
+        other => panic!("expected the same AwaitingHuman again, got {:?}", other),
+    }
+
+    // A command naming another seat -> BadParams.
+    let wrong_seat = game.submit(
+        decision.seq,
+        HumanChoice::Command(Command::AnswerEffectChoice {
+            player: PlayerId(2),
+            choice_id,
+            answer: answer.clone(),
+        }),
+    );
+    assert!(matches!(wrong_seat, Err(LocalGameError::BadParams(_))));
+
+    // A stale seq -> StaleDecision.
+    let stale = game.submit(
+        decision.seq + 100,
+        HumanChoice::Command(Command::AnswerEffectChoice {
+            player: PlayerId(1),
+            choice_id,
+            answer: answer.clone(),
+        }),
+    );
+    assert!(matches!(stale, Err(LocalGameError::StaleDecision { .. })));
+
+    // The correct answer is accepted.
+    let ok = game.submit(
+        decision.seq,
+        HumanChoice::Command(Command::AnswerEffectChoice {
+            player: PlayerId(1),
+            choice_id,
+            answer,
+        }),
+    );
+    assert!(ok.is_ok(), "SR-38: {:?}", ok.err());
+}
+
+/// T-sim-2: a bot-only game never halts on a CR 608.2d announcement.
+///
+/// This is the guard against `driver.rs`'s `unreachable!()`: a provider gap on a
+/// blocking decision turns a recoverable state into a dead game
+/// (`Halted(EngineError)` via the `PassPriority` fallback, OOS-DP7-12).
+#[test]
+fn test_dp9_bot_game_never_halts_on_an_effect_choice() {
+    let state = state_with_pending_scry();
+    let mut bots: HashMap<PlayerId, Box<dyn Bot>> = HashMap::new();
+    bots.insert(
+        PlayerId(1),
+        Box::new(RandomBot::new(1, "Bot-1".to_string())),
+    );
+    bots.insert(
+        PlayerId(2),
+        Box::new(RandomBot::new(2, "Bot-2".to_string())),
+    );
+    let (mut game, _start_events) = LocalGame::start(
+        state,
+        7,
+        StubProvider,
+        bots,
+        BTreeSet::new(),
+        small_limits(30),
+        true,
+    )
+    .expect("game should start");
+
+    match game.advance() {
+        AdvanceOutcome::AwaitingHuman(d) => {
+            panic!("a bot-only game must never await a human: {:?}", d)
+        }
+        AdvanceOutcome::Halted(HaltReason::EngineError(e)) => {
+            panic!("bot game halted on an engine error: {e}")
+        }
+        AdvanceOutcome::Halted(_) | AdvanceOutcome::GameOver { .. } => {}
+    }
+
+    let answered = game
+        .journal()
+        .iter()
+        .filter(|r| matches!(r.command, Command::AnswerEffectChoice { .. }))
+        .count();
+    assert!(
+        answered >= 1,
+        "the bot must have answered the CR 608.2d choice at least once"
+    );
+}
+
+/// T-sim-3: SR-38 — while a CR 608.2d choice is outstanding, `StubProvider`
+/// offers the blocked player exactly one action and every other player none, and
+/// the offered default is ACCEPTED by `process_command`.
+#[test]
+fn test_dp9_stub_provider_offers_only_the_answer() {
+    use mtg_engine::process_command;
+    use mtg_simulator::LegalActionProvider;
+
+    let mut state = state_with_pending_scry();
+    for _ in 0..8 {
+        if state.blocking_decision().is_some() {
+            break;
+        }
+        let holder = state
+            .turn()
+            .priority_holder
+            .unwrap_or(state.turn().active_player);
+        let (s, _events) =
+            process_command(state, Command::PassPriority { player: holder }).unwrap();
+        state = s;
+    }
+    assert!(
+        state.blocking_decision().is_some(),
+        "the fixture must reach a CR 608.2d announcement"
+    );
+
+    let p1_actions = StubProvider.legal_actions(&state, PlayerId(1));
+    let p2_actions = StubProvider.legal_actions(&state, PlayerId(2));
+    assert_eq!(p1_actions.len(), 1);
+    assert!(
+        p2_actions.is_empty(),
+        "no other seat may act while the resolution is rolled back"
+    );
+
+    let (choice_id, answer) = match &p1_actions[0] {
+        LegalAction::AnswerEffectChoice {
+            choice_id, answer, ..
+        } => (*choice_id, answer.clone()),
+        other => panic!("expected AnswerEffectChoice, got {:?}", other),
+    };
+
+    let accepted = process_command(
+        state,
+        Command::AnswerEffectChoice {
+            player: PlayerId(1),
+            choice_id,
+            answer,
+        },
+    );
+    assert!(
+        accepted.is_ok(),
+        "SR-38: the engine must accept the action its own provider offered: {:?}",
+        accepted.err()
+    );
+}
+
+/// T-det-1: PB-DP9's abort-and-replay makes execution determinism a **runtime**
+/// requirement, not only a test one (SR-9b). Two bot-only games from the same
+/// seed must be byte-identical.
+///
+/// If this ever reddens, the mechanism itself is unsound: a banked answer could
+/// be applied to a question the engine never asked.
+#[test]
+fn test_dp9_same_seed_twice_is_byte_identical() {
+    fn run(seed: u64) -> (Vec<String>, [u8; 32]) {
+        let mut bots: HashMap<PlayerId, Box<dyn Bot>> = HashMap::new();
+        bots.insert(
+            PlayerId(1),
+            Box::new(RandomBot::new(seed, "Bot-1".to_string())),
+        );
+        bots.insert(
+            PlayerId(2),
+            Box::new(RandomBot::new(seed + 1, "Bot-2".to_string())),
+        );
+        let (mut game, _) = LocalGame::start(
+            state_with_pending_scry(),
+            seed,
+            StubProvider,
+            bots,
+            BTreeSet::new(),
+            small_limits(30),
+            true,
+        )
+        .expect("game should start");
+        let _ = game.advance();
+        let journal: Vec<String> = game
+            .journal()
+            .iter()
+            .map(|r| format!("{:?}", r.command))
+            .collect();
+        (journal, game.state().public_state_hash())
+    }
+
+    let (j1, h1) = run(4242);
+    let (j2, h2) = run(4242);
+    assert_eq!(j1, j2, "the same seed must produce the same command trace");
+    assert_eq!(h1, h2, "...and the same final public state hash");
+    assert!(
+        j1.iter().any(|c| c.contains("AnswerEffectChoice")),
+        "the run must actually have exercised a CR 608.2d choice; trace: {j1:?}"
+    );
+}

@@ -15,7 +15,7 @@
 //! These probe tests are kept permanently as regressions once the defect is fixed.
 
 use mtg_engine::cards::card_definition::{TargetFilter, ZoneTarget};
-use mtg_engine::effects::{execute_effect, EffectContext};
+use mtg_engine::effects::{execute_effect, execute_effect_answering, EffectContext};
 use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::rules::replacement::register_permanent_replacement_abilities;
 use mtg_engine::rules::turn_actions::draw_card;
@@ -26,8 +26,9 @@ use mtg_engine::state::zone::ZoneId;
 use mtg_engine::state::{GameStateBuilder, ObjectSpec, PlayerId};
 use mtg_engine::{
     all_cards, card_name_to_id, enrich_spec_from_def, process_command, AbilityDefinition,
-    CardDefinition, CardId, CardRegistry, Command, Completeness, Effect, EffectAmount, GameEvent,
-    GameState, KeywordAbility, LibraryPosition, ManaCost, PlayerTarget, TypeLine,
+    CardDefinition, CardId, CardRegistry, Command, Completeness, Effect, EffectAmount,
+    EffectChoiceAnswer, EffectChoiceQuestion, GameEvent, GameState, KeywordAbility,
+    LibraryPosition, ManaCost, PlayerTarget, TypeLine,
 };
 use std::collections::HashMap;
 
@@ -37,6 +38,32 @@ fn p(n: u64) -> PlayerId {
 
 fn ec(controller: PlayerId, source: ObjectId) -> EffectContext {
     EffectContext::new(controller, source, vec![])
+}
+
+/// CR 701.22a / CR 701.25a / CR 608.2d (PB-DP9): announce "every looked-at card
+/// leaves the top" -- to the bottom for a scry, to the graveyard for a surveil.
+///
+/// That was the pre-PB-DP9 engine default. It is now ONE legal answer among
+/// many (the engine's new default is the identity), so these probes announce it
+/// explicitly. Keeping them pointed at the bottom/graveyard end is exactly what
+/// preserves PB-RS1's orientation pin: the bottom is `Zone::push_front` (index
+/// 0) and the top is the last element, and a probe that kept everything on top
+/// could not tell the two ends apart.
+///
+/// `bottom` is TOP-FIRST, so `bottom.last()` finishes bottom-most (CR 401.4:
+/// the owner arranges cards put in the same position at the same time).
+fn answer_everything_off_the_top(q: &EffectChoiceQuestion) -> EffectChoiceAnswer {
+    match q {
+        EffectChoiceQuestion::Scry { looked_at } => EffectChoiceAnswer::Scry {
+            bottom: looked_at.clone(),
+            top: Vec::new(),
+        },
+        EffectChoiceQuestion::Surveil { looked_at } => EffectChoiceAnswer::Surveil {
+            graveyard: looked_at.clone(),
+            top: Vec::new(),
+        },
+        other => mtg_engine::effects::default_effect_choice_answer(other),
+    }
 }
 
 /// Build a 3-card library for `p(1)`: "Card Alpha", "Card Beta", "Card Gamma",
@@ -107,17 +134,19 @@ fn test_probe_draw_and_scry_agree_on_top() {
     let mut scry_state = three_card_library();
     let source_id = ObjectId(999);
     let mut ctx = ec(p(1), source_id);
-    execute_effect(
+    execute_effect_answering(
         &mut scry_state,
         &Effect::Scry {
             player: PlayerTarget::Controller,
             count: EffectAmount::Fixed(1),
         },
         &mut ctx,
+        &mut answer_everything_off_the_top,
     );
 
-    // Scry's deterministic fallback bottoms every card it looked at, so the
-    // card now at index 0 is the card Scry examined. It must be the drawn card.
+    // CR 608.2d (PB-DP9): the bottoming is now ANNOUNCED, not assumed -- see
+    // `answer_everything_off_the_top`. With that answer the card at index 0 is
+    // the card Scry examined, and it must be the drawn card.
     let lib_ids = scry_state
         .zones()
         .get(&ZoneId::Library(p(1)))
@@ -174,13 +203,17 @@ fn test_probe_surveil_mills_the_drawn_card() {
     let source_id = ObjectId(999);
     let mut ctx = ec(p(1), source_id);
 
-    execute_effect(
+    // CR 608.2d (PB-DP9): the mill is now ANNOUNCED. Before PB-DP9 `Surveil N`
+    // was unconditionally `Mill N`; this probe keeps asserting the mill because
+    // that is what discriminates the read END, and announces it explicitly.
+    execute_effect_answering(
         &mut state,
         &Effect::Surveil {
             player: PlayerTarget::Controller,
             count: EffectAmount::Fixed(1),
         },
         &mut ctx,
+        &mut answer_everything_off_the_top,
     );
 
     let gy_names: Vec<String> = state
@@ -523,22 +556,25 @@ fn test_scry_two_to_bottom_lands_below_everything() {
 
     let source_id = ObjectId(999);
     let mut ctx = ec(p(1), source_id);
-    execute_effect(
+    execute_effect_answering(
         &mut state,
         &Effect::Scry {
             player: PlayerTarget::Controller,
             count: EffectAmount::Fixed(2),
         },
         &mut ctx,
+        &mut answer_everything_off_the_top,
     );
 
-    // Deterministic fallback bottoms both looked-at cards, sorted by ObjectId
-    // ascending, then pushed to the front one at a time (Zone::push_front).
-    // Top1 and Top2 are declared LAST (so they carry the two HIGHEST ObjectIds
-    // among the five). Ascending sort processes Top2 (lower id) first, so it is
-    // pushed to the front first; Top1 (higher id) is processed second and pushed
-    // last, landing at index 0. Net result: Top1 and Top2 occupy indices 0 and 1
-    // -- below every pre-existing card, as required by CR 701.22a.
+    // CR 701.22a / CR 401.4 (PB-DP9): p1 announces that both looked-at cards go
+    // to the bottom, in the order the question offered them -- top-first, so
+    // `bottom` is [Top1, Top2] and `bottom.last()` (Top2) finishes bottom-most.
+    // Indices 0 and 1 are therefore [Top2, Top1]. What this test pins is that
+    // both scried cards land BELOW every pre-existing card (PB-RS1's write-end
+    // orientation: the bottom is index 0). The relative order WITHIN the
+    // bottomed pair is now the player's to choose (CR 401.4) rather than an
+    // ObjectId-sort artefact of the old auto-pick; the pre-PB-DP9 arrangement
+    // ([Top1, Top2]) is reachable by announcing `bottom` in the other order.
     let lib_ids = state
         .zones()
         .get(&ZoneId::Library(p(1)))
@@ -548,7 +584,7 @@ fn test_scry_two_to_bottom_lands_below_everything() {
     let names: Vec<String> = lib_ids.iter().map(|&id| name_of(&state, id)).collect();
     assert_eq!(
         &names[0..2],
-        &["Top1".to_string(), "Top2".to_string()],
+        &["Top2".to_string(), "Top1".to_string()],
         "CR 701.22a: both scried cards must land below every pre-existing card, got {names:?}"
     );
     assert_eq!(

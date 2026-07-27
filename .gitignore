@@ -45,3 +45,8 @@ logs/
 zz_scratch.md
 /claude_refactor
 codebase_analysis_*.md
+
+# Fuzzer / runtime-integrity crash artifacts (tools/mtg-fuzzer, docs/mtg-engine-runtime-integrity.md).
+# Generated output, never a deliverable -- three of these were committed by
+# f4696e09 and removed by PB-DP9's closing-review fix cycle (LOW-2).
+crash-reports/

@@ -6,10 +6,10 @@
 //! cases that a full engine implementation would catch.
 
 use mtg_engine::{
-    AbilityDefinition, AttackTarget, CardType, CounterType, EffectDuration, FaceDownKind,
-    FlashGrantFilter, GameRestriction, GameState, HybridMana, HybridManaPayment, KeywordAbility,
-    ManaColor, ManaCost, ObjectId, PhyrexianMana, PlayerId, Step, Target, TriggerTargetOption,
-    TurnFaceUpMethod, ZoneId,
+    AbilityDefinition, AttackTarget, CardType, CounterType, EffectChoiceAnswer,
+    EffectChoiceQuestion, EffectDuration, FaceDownKind, FlashGrantFilter, GameRestriction,
+    GameState, HybridMana, HybridManaPayment, KeywordAbility, ManaColor, ManaCost, ObjectId,
+    PhyrexianMana, PlayerId, Step, Target, TriggerTargetOption, TurnFaceUpMethod, ZoneId,
 };
 
 /// A legal action a player may take at this moment.
@@ -166,6 +166,25 @@ pub enum LegalAction {
         slots: Vec<TriggerTargetOption>,
         targets: Vec<Vec<Target>>,
     },
+    /// CR 608.2d (PB-DP9 / DP-7/8/9): answer an outstanding resolution-time
+    /// choice — a library search, a scry or a surveil. `question` carries the
+    /// full legal answer space so a human client can render a picker without a
+    /// second query; `answer` is the engine's own deterministic default
+    /// (`mtg_engine::effects::default_effect_choice_answer`), which the engine
+    /// is guaranteed to accept (SR-38: never offer an action the engine
+    /// rejects).
+    ///
+    /// Note the scry/surveil defaults are the IDENTITY (keep everything on
+    /// top), not the pre-PB-DP9 bottom-everything/mill-everything behaviour —
+    /// see the default helpers' docs. A bot that submits it verbatim therefore
+    /// plays a scry as a no-op, which is un-strategic but neutral; seed
+    /// OOS-DP9-1.
+    AnswerEffectChoice {
+        choice_id: u64,
+        source: ObjectId,
+        question: EffectChoiceQuestion,
+        answer: EffectChoiceAnswer,
+    },
 }
 
 /// Trait for enumerating legal actions from a game state.
@@ -278,6 +297,29 @@ impl LegalActionProvider for StubProvider {
                                 source,
                                 slots,
                                 targets,
+                            });
+                        }
+                    }
+                }
+                // PB-DP9 / DP-7/8/9 (CR 608.2d): answer the resolution-time
+                // choice. The raw accessor is correct here for the same reason
+                // as above -- `blocking_decision()` already applied the liveness
+                // filter to decide we are blocked at all.
+                mtg_engine::rules::engine::BlockingDecision::EffectChoice {
+                    player: entry_player,
+                    choice_id,
+                    source,
+                } => {
+                    if entry_player == player {
+                        if let Some(entry) = state.pending_effect_choice() {
+                            let question = entry.question.clone();
+                            let answer =
+                                mtg_engine::effects::default_effect_choice_answer(&question);
+                            actions.push(LegalAction::AnswerEffectChoice {
+                                choice_id,
+                                source,
+                                question,
+                                answer,
                             });
                         }
                     }

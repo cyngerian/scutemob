@@ -194,6 +194,58 @@ impl Zone {
             }
         }
     }
+    /// CR 400.7 / CR 401.4 (PB-DP9): permute cards **within** this zone without
+    /// any of them changing zones.
+    ///
+    /// `to_top` is top-first (`to_top[0]` finishes as the zone's top card);
+    /// `to_bottom` is also top-first among the bottomed cards, so
+    /// `to_bottom.last()` finishes bottom-most. Every id in either slice must
+    /// already be in this zone; ids not named are left where they are, keeping
+    /// their relative order.
+    ///
+    /// **Why this exists instead of `move_object_to_zone`.** Both of
+    /// `GameState`'s move helpers mint a fresh `ObjectId` unconditionally
+    /// (CR 400.7's "new object" rule), which is wrong for a card that never
+    /// leaves its zone: scry-to-bottom used to renumber every scried card and
+    /// consume `timestamp_counter` values (the shuffle/coin-flip seed source)
+    /// doing it. Seed OOS-DP9-11 sweeps the other same-zone callers.
+    ///
+    /// No-op for unordered zones (they have no order to permute).
+    pub fn reposition_within(&mut self, to_top: &[ObjectId], to_bottom: &[ObjectId]) {
+        let Zone::Ordered(v) = self else {
+            return;
+        };
+        let named: Vec<ObjectId> = to_top.iter().chain(to_bottom.iter()).copied().collect();
+        // PB-DP9 fix-cycle Finding 9 (LOW): the "already in this zone"
+        // precondition above is real -- an id that is NOT present is silently
+        // INSERTED by the rebuild below, conjuring a phantom entry. The engine's
+        // two callers cannot violate it (both partition a `Zone::top_n` list the
+        // engine itself produced, and `validate_partition` re-checks the wire
+        // answer against it), so this is an engine-bug assertion (SR-4), not a
+        // runtime rejection.
+        debug_assert!(
+            named.iter().all(|id| v.contains(id)),
+            "Zone::reposition_within: {:?} names ids not in this zone (have {:?})",
+            named,
+            v
+        );
+        // Everything not named keeps its position and relative order.
+        let rest: imbl::Vector<ObjectId> =
+            v.iter().copied().filter(|id| !named.contains(id)).collect();
+        let mut out: imbl::Vector<ObjectId> = imbl::Vector::new();
+        // Bottom end first (index 0 is the bottom). `to_bottom` is top-first, so
+        // reverse it: its last entry must end up at index 0.
+        for id in to_bottom.iter().rev() {
+            out.push_back(*id);
+        }
+        out.append(rest);
+        // Top end last (the final index is the top). `to_top` is top-first, so
+        // reverse it: `to_top[0]` must end up last.
+        for id in to_top.iter().rev() {
+            out.push_back(*id);
+        }
+        *v = out;
+    }
 }
 #[cfg(test)]
 mod tests {

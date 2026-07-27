@@ -117,6 +117,31 @@ fn check_and_flush_triggers(state: &mut GameState, events: &mut Vec<GameEvent>) 
 ///    a CR 726 mandatory-loop check, and its Cleanup guard a `cleanup_sba_rounds`
 ///    ratchet (fix-cycle Finding 4 / seed OOS-DP8-10). See
 ///    [`crate::state::stubs::FlushResumeSite`].
+///
+/// **What the THIRD variant cost (PB-DP9 measured it).** The list generalises --
+/// this is the first evidence of that -- and PB-DP9 discharged it as follows:
+/// (1) admission gate -- **yes**, one line;
+/// (2) `handle_concede` clear -- **yes**, and not a bare `= None`: see
+///     `discharge_departed_effect_choice`, which must also DRIVE the rolled-back
+///     resolution or the game deadlocks with `priority_holder == None` and every
+///     player already passed;
+/// (3) the two by-name hash sites -- **`public_state_hash` yes,
+///     `loop_detection` deliberately NO**; see obligation (7);
+/// (4) `LocalGame`'s exhaustive `match` -- compile-forced, as designed;
+/// (5) `handle_concede`'s foreign-decision gate -- **inherited free**, because it
+///     reads `blocking_decision(..)` rather than any one field;
+/// (6) resume-site debt -- **does not apply**. PB-DP9's suspension is a total
+///     state RESTORE, so nothing was skipped and there is no debt to reproduce.
+///     Its one residual, `handle_all_passed`'s two post-resolution statements,
+///     is factored into `finish_stack_resolution` so the two sites cannot drift.
+///
+/// **Obligation (7), added by PB-DP9**: a new blocking kind must STATE whether
+/// its pending state belongs in `rules/loop_detection.rs`'s mandatory-state
+/// fingerprint, and argue it. PB-DP7 and PB-DP8 both folded theirs in; PB-DP9
+/// deliberately does not, because its entry and its answer bank GROW between
+/// successive replays of the SAME resolution, so including them would make two
+/// structurally identical CR 726 positions fingerprint differently and could
+/// silently mask a mandatory loop.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum BlockingDecision {
     /// CR 514.1: `player` must discard `count` cards to reach their maximum
@@ -129,6 +154,15 @@ pub enum BlockingDecision {
         choice_id: u64,
         source: ObjectId,
     },
+    /// CR 608.2d (PB-DP9 / DP-7/8/9): `player` must announce a resolution-time
+    /// choice offered by the spell or ability resolving from `source` before
+    /// that resolution can be retried. The resolution has been rolled back --
+    /// see `rules::resolution::resolve_top_of_stack`.
+    EffectChoice {
+        player: PlayerId,
+        choice_id: u64,
+        source: ObjectId,
+    },
 }
 impl BlockingDecision {
     /// The player whose answer would clear this decision.
@@ -136,6 +170,7 @@ impl BlockingDecision {
         match self {
             BlockingDecision::CleanupDiscard { player, .. } => *player,
             BlockingDecision::TriggerTargets { player, .. } => *player,
+            BlockingDecision::EffectChoice { player, .. } => *player,
         }
     }
 }
@@ -158,6 +193,18 @@ impl std::fmt::Display for BlockingDecision {
                     f,
                     "CR 603.3d trigger targets: player {:?} must announce targets \
                      for the triggered ability from {:?} (choice {})",
+                    player, source, choice_id
+                )
+            }
+            BlockingDecision::EffectChoice {
+                player,
+                choice_id,
+                source,
+            } => {
+                write!(
+                    f,
+                    "CR 608.2d resolution-time choice: player {:?} must answer the \
+                     choice offered by {:?} (choice {})",
                     player, source, choice_id
                 )
             }
@@ -186,6 +233,24 @@ pub(crate) fn blocking_decision(state: &GameState) -> Option<BlockingDecision> {
     if let Some(entry) = state.pending_trigger_targets() {
         if alive(state, entry.player) {
             return Some(BlockingDecision::TriggerTargets {
+                player: entry.player,
+                choice_id: entry.choice_id,
+                source: entry.source,
+            });
+        }
+        return None;
+    }
+    // CR 608.2d (PB-DP9): a suspended resolution outranks a cleanup discard for
+    // the same reason -- it is the thing the engine is mid-way through. It and a
+    // suspended trigger flush are mutually exclusive AT A COMMAND BOUNDARY, but
+    // not by construction: the aborted inner pass CAN set both (its tail calls
+    // `flush_pending_triggers`), and it is `resolve_top_of_stack`'s whole-state
+    // restore that un-sets the trigger one. That is why the trigger lookup is
+    // still first -- if a state ever carried both, the flush is the older
+    // obligation.
+    if let Some(entry) = state.pending_effect_choice() {
+        if alive(state, entry.player) {
+            return Some(BlockingDecision::EffectChoice {
                 player: entry.player,
                 choice_id: entry.choice_id,
                 source: entry.source,
@@ -229,7 +294,11 @@ pub fn process_command(
             // CR 603.3d (PB-DP8 / DP-6): the trigger's controller announcing its
             // targets. CR 603.3 gives priority only AFTER the whole batch is on
             // the stack, so nothing else is legal mid-flush either.
-            || matches!(&command, Command::ChooseTriggerTargets { player, .. } if *player == decision.player());
+            || matches!(&command, Command::ChooseTriggerTargets { player, .. } if *player == decision.player())
+            // CR 608.2d (PB-DP9 / DP-7/8/9): the named player answering the
+            // resolution-time choice. The resolution is rolled back and the
+            // spell is still on the stack, so nothing else is legal either.
+            || matches!(&command, Command::AnswerEffectChoice { player, .. } if *player == decision.player());
         if !allowed {
             return Err(GameStateError::BlockedByPendingDecision {
                 player: decision.player(),
@@ -555,6 +624,41 @@ pub fn process_command(
             // again on the next trigger of the same batch, because
             // `check_and_flush_triggers` would then re-enter a suspended flush.
             if state.pending_trigger_targets.is_none() {
+                check_and_flush_triggers(&mut state, &mut events);
+            }
+            all_events.extend(events);
+        }
+        // ── Resolution-time choices (CR 608.2d) ──────────────────────────
+        Command::AnswerEffectChoice {
+            player,
+            choice_id,
+            answer,
+        } => {
+            // validate_player_exists, NOT validate_player_active: the entry's
+            // player is alive by construction (`blocking_decision` filters a dead
+            // one out and `ask_or_consume_effect_choice` never asks a departed
+            // player). Precedent: ChooseTriggerTargets / DiscardToHandSize.
+            validate_player_exists(&state, player)?;
+            // CR 104.4b: a resolution-time announcement is a meaningful player
+            // choice; reset loop detection.
+            loop_detection::reset_loop_detection(&mut state);
+            let mut events =
+                crate::effects::handle_answer_effect_choice(&mut state, player, choice_id, answer)?;
+            // CR 608.1: the resolution either completed or suspended again on a
+            // LATER choice of the same resolution. Either way this site inherits
+            // `handle_all_passed`'s two post-resolution statements (§1.5 exit 1)
+            // -- and on the suspended path both are provable no-ops, for the
+            // reason spelled out at that call site.
+            if finish_stack_resolution(&mut state, &mut events) {
+                return Ok((state, events));
+            }
+            // CR 603.3: a completed resolution can have produced triggers. Skip
+            // the sweep when the engine is blocked again -- on a later CR 608.2d
+            // choice (the stack object is back and its triggers have not
+            // happened) or on a CR 603.3d flush that `resolve_top_of_stack`'s
+            // tail suspended, where `check_and_flush_triggers` would re-enter a
+            // suspended flush. Mirrors `Command::ChooseTriggerTargets`'s guard.
+            if blocking_decision(&state).is_none() {
                 check_and_flush_triggers(&mut state, &mut events);
             }
             all_events.extend(events);
@@ -2103,6 +2207,31 @@ fn handle_pass_priority(
     }
     Ok(events)
 }
+/// CR 608.1 / CR 104.1 (PB-DP9): the two statements every completed stack
+/// resolution owes, factored so the two call sites cannot drift.
+///
+/// Returns `true` if the game ended (the caller must stop).
+///
+/// The sites are `handle_all_passed`'s stack-non-empty branch and
+/// `handle_answer_effect_choice`'s tail, which re-drives a resolution the
+/// engine had rolled back. Before PB-DP9 these two lines lived only in the
+/// former; §1.5's exit 1 is the whole of the debt this batch's suspension
+/// creates, and this is where it is discharged.
+fn finish_stack_resolution(state: &mut GameState, events: &mut Vec<GameEvent>) -> bool {
+    // SR-13: once the stack and pending-trigger queue are both empty, no ability
+    // can still reference a departed damage source, so drop the LKI snapshots
+    // captured in `move_object_to_zone` (a no-op unless both are drained).
+    state.maybe_clear_lki_objects();
+    // CR 104.1 / PB-AC8: a resolving effect (e.g. Effect::WinGame) may end the
+    // game immediately, independent of any SBA (CR 704.5: winning-by-effect is
+    // NOT a state-based action -- this is not an SBA check, it's the same
+    // finalize-if-decided poll used elsewhere in this file after SBAs run).
+    if is_game_over(state) {
+        events.extend(check_game_over(state));
+        return true;
+    }
+    false
+}
 /// Handle when all players have passed priority in succession.
 ///
 /// CR 608.1: If the stack is non-empty, resolve the top of the stack.
@@ -2113,16 +2242,15 @@ fn handle_all_passed(state: &mut GameState) -> Result<Vec<GameEvent>, GameStateE
         // CR 608.1: Stack is non-empty — resolve the top object.
         let resolve_events = resolution::resolve_top_of_stack(state)?;
         events.extend(resolve_events);
-        // SR-13: once the stack and pending-trigger queue are both empty, no ability
-        // can still reference a departed damage source, so drop the LKI snapshots
-        // captured in `move_object_to_zone` (a no-op unless both are drained).
-        state.maybe_clear_lki_objects();
-        // CR 104.1 / PB-AC8: a resolving effect (e.g. Effect::WinGame) may end the
-        // game immediately, independent of any SBA (CR 704.5: winning-by-effect is
-        // NOT a state-based action -- this is not an SBA check, it's the same
-        // finalize-if-decided poll used elsewhere in this file after SBAs run).
-        if is_game_over(state) {
-            events.extend(check_game_over(state));
+        // CR 608.2d (PB-DP9): NO GUARD is owed here, and the argument is a
+        // reachability claim, not a convenience. If `resolve_top_of_stack` rolled
+        // the resolution back on an unanswered CR 608.2d choice, both statements
+        // inside `finish_stack_resolution` are provable no-ops on the restored
+        // state: the stack is non-empty (the object was put back), so
+        // `maybe_clear_lki_objects` short-circuits; and `is_game_over` was false
+        // at `process_command`'s entry over a state this one is byte-identical to
+        // apart from the three PB-DP9 bookkeeping fields, which it does not read.
+        if finish_stack_resolution(state, &mut events) {
             return Ok(events);
         }
     } else {
@@ -2383,6 +2511,113 @@ fn enter_step(state: &mut GameState) -> Result<Vec<GameEvent>, GameStateError> {
         }
     }
 }
+/// CR 608.2d / CR 104.3a / CR 800.4j (PB-DP9): a concede happened while a
+/// resolution-time choice was outstanding. Abandon the suspended resolution's
+/// answer bank and re-drive it against the board as it now is.
+///
+/// # Why ANY concede, not just the entry owner's (fix-cycle Finding 2, HIGH)
+///
+/// `resolve_top_of_stack`'s abort-and-replay is sound on exactly one premise:
+/// the state the replay re-executes against is the state the banked questions
+/// were asked against. Nothing normally threatens it, because the admission gate
+/// (`process_command`, `blocking_decision`) rejects every command while the
+/// block stands -- **except two**: the answer itself, which is the mechanism,
+/// and `Concede`, which mutates the board (`has_conceded`, CR 611.2b
+/// `UntilYourNextTurn` expiry, `temporary_protection_qualities`, CR 725.4
+/// initiative, and via `check_game_over` the game's own liveness).
+///
+/// So the correct invalidation condition is **"has the board changed since the
+/// questions were asked"**, and the only admitted command that changes it is a
+/// concede -- by anybody. The first version of this function keyed on the
+/// ENTRY'S OWNER instead, which left a foreign concede holding a bank bound to a
+/// pre-concede board. That is not a theoretical gap: on
+/// `SearchLibrary { player: EachPlayer }` a departure shifts the question
+/// *positions*, so the next answer was compared against the previous player's
+/// banked question and `ask_or_consume_effect_choice`'s determinism
+/// `debug_assert!` fired -- a panic in every debug, test and fuzzer build,
+/// reached by a legal command sequence.
+///
+/// Dropping the bank is always safe and never loses a legal announcement: a
+/// still-live player is simply re-asked with a fresh `choice_id`, which is what
+/// CR 608.2d requires anyway ("the player announces these **while applying the
+/// effect**" -- i.e. against the state as it then is). It is also what keeps
+/// `ask_or_consume_effect_choice`'s mismatch `debug_assert!` an honest SR-4
+/// engine-bug classification: with this widened, a mismatch can no longer be
+/// produced by a legal command.
+///
+/// # Why it must also DRIVE the resolution, not merely clear it
+///
+/// At the block `priority_holder` is `None` and `players_passed` is full, so
+/// nobody can pass and nothing else drives `handle_all_passed`. Clearing the
+/// entry without re-driving deadlocks the game -- PB-DP8's exact bug class,
+/// which it shipped three times. `test_dp9_owner_concedes_mid_choice` is built
+/// on a **three-player** fixture precisely so this path executes.
+///
+/// # §1.5 exit 4 (elimination by an SBA rather than a concede)
+///
+/// **Not covered here, and unreachable rather than unhandled.** This function's
+/// only caller is [`handle_concede`]. An SBA elimination cannot happen while the
+/// block stands because no SBA runs while it stands: `process_command`'s
+/// admission gate rejects every command except the answer and `Concede`, and
+/// neither reaches `sba::check_state_based_actions` without first clearing the
+/// entry. `blocking_decision`'s liveness filter is defence in depth for the
+/// same case -- it stops a dead owner's entry from blocking the game, but it
+/// does NOT clear the field, so if a future admitted command ever did run an SBA
+/// here the residue would be a trap state (seed **OOS-DP9-14**). If that
+/// admission gate is ever widened, this function must gain a second caller.
+/// # Why the re-drive cannot fail the concede (fix-cycle Finding 13, LOW)
+///
+/// The re-drive used to be `resolve_top_of_stack(state)?`, so a resolution error
+/// propagated out of [`handle_concede`] and `process_command` discarded the whole
+/// state -- leaving the player marked as *not* conceded and blocked, i.e.
+/// **permanently unable to concede**. Conceding is the one action CR 104.3a
+/// always allows, so it must not be gated on a resolution succeeding. The
+/// resolution is therefore driven on a clone that is committed only on success;
+/// on failure the concede stands, the entry and bank stay cleared, and the
+/// unresolved stack object is picked up by the next ordinary priority round
+/// (`blocking_decision` is `None` by then, so one can happen).
+fn discharge_effect_choice_on_concede(state: &mut GameState, events: &mut Vec<GameEvent>) {
+    if state.pending_effect_choice.is_none() {
+        return;
+    }
+    state.pending_effect_choice = None;
+    state.effect_choice_answers = imbl::Vector::new();
+    // Nothing to resume into: `process_command` answers `GameAlreadyOver` from
+    // here on, and the cleared entry keeps the terminal hash clean (§1.5 exit 6).
+    if is_game_over(state) {
+        return;
+    }
+    // §1.5 exit 5 as a property rather than an assertion: the suspended object
+    // cannot have left the stack (the roll-back put it back, and no admitted
+    // command removes stack objects), so this is always non-empty here. Checked
+    // rather than `expect`ed so a future admitted command cannot turn a rules
+    // bug into a rejected concede.
+    if state.stack_objects.is_empty() {
+        return;
+    }
+    let mut probe = state.clone();
+    match resolution::resolve_top_of_stack(&mut probe) {
+        Ok(resume_events) => {
+            *state = probe;
+            events.extend(resume_events);
+            // §1.5 exit 1's debt, discharged at this site too. On the "suspended
+            // again on ANOTHER player's choice" path both statements are the
+            // same provable no-ops as at `handle_all_passed`.
+            finish_stack_resolution(state, events);
+        }
+        Err(_e) => {
+            // SR-4, engine-bug side: a stack resolution that errors is a rules
+            // bug, not a player-visible outcome -- but it must not cost the
+            // player their concede. Recorded loudly in debug, swallowed in
+            // release with the state left recoverable (see the doc above).
+            debug_assert!(
+                false,
+                "CR 608.2d (PB-DP9): re-driving the suspended resolution after a \
+                 concede failed: {_e:?}"
+            );
+        }
+    }
+}
 /// Handle a Concede command.
 fn handle_concede(
     state: &mut GameState,
@@ -2453,6 +2688,22 @@ fn handle_concede(
     // Check game over
     let game_over_events = check_game_over(state);
     events.extend(game_over_events);
+    // CR 608.2d / CR 104.3a / CR 800.4j (PB-DP9 / DP-7/8/9): the plan's §1.5
+    // exit 2. Placed HERE, and the placement is load-bearing in both directions:
+    //
+    //  * AFTER every board mutation this command performs (the `has_conceded`
+    //    mark, `drop_departed_trigger_flush`, the CR 611.2b `UntilYourNextTurn`
+    //    expiry + protection clear, the CR 725.4 initiative transfer,
+    //    `check_game_over`) -- because the discharge RE-DRIVES the suspended
+    //    resolution and records a fresh question. Running it earlier would
+    //    record that question against a board this same command then goes on to
+    //    change, which is the very defect (a banked question the state no longer
+    //    matches) the widened invalidation exists to prevent, one step out.
+    //  * BEFORE the priority/turn blocks below, which are gated on
+    //    `blocking_decision(state).is_none()` -- an outstanding entry would
+    //    otherwise skip them, and the conceding priority holder's repair with
+    //    them.
+    discharge_effect_choice_on_concede(state, &mut events);
     // PB-DP8 fix cycle, Finding 5 (CR 104.3a / 603.3b / 800.4j; seed OOS-DP8-9):
     // `drop_departed_trigger_flush` above has already dealt with an entry belonging
     // to the CONCEDING player. Anything still outstanding here therefore belongs to
@@ -2495,6 +2746,36 @@ fn handle_concede(
     // deadlock one step further out. The backstop at the end of this function is
     // what now makes the claim true; see the note there. Nothing is skipped here
     // that is not picked up either there or at the resume.
+    //
+    // CLOSING-REVIEW HIGH-1 (PB-DP9): the gate reads `blocking_decision`, so it
+    // also skips this block for an outstanding CR 608.2d *effect* choice, and
+    // PB-DP8's transferable rule (i) demands that each skipped part be named
+    // along with where it is picked up. There are exactly two:
+    //
+    //  * The priority advance. A NO-OP by construction, not a debt: it is
+    //    guarded on `priority_holder == Some(player)`, and while a CR 608.2d
+    //    entry stands `priority_holder` is `None` (the roll-back restores the
+    //    state `resolve_top_of_stack` was entered with, and both of its callers
+    //    set the field to `None` immediately beforehand). Asserted in
+    //    `abilities::repair_departed_priority_holder`.
+    //  * `advance_turn`, when the conceder is the ACTIVE player. Genuinely
+    //    skipped, and it MUST be: `discharge_effect_choice_on_concede` has just
+    //    put the suspended object back on the stack, and advancing a turn out
+    //    from under a mid-resolution spell is exactly the corruption the gate
+    //    exists to prevent. It is also not owed: CR 800.4j says the turn
+    //    "continues to its completion without an active player" -- the immediate
+    //    `advance_turn` below is a shortcut the CR does not require. What CR
+    //    800.4j DOES require -- that the departed active player never receive
+    //    priority -- is discharged at every grant site that could hand it to
+    //    them: `priority::grant_priority_to_active_player` (four sites: both
+    //    `resolve_top_of_stack_inner` grants, fixed by closing-review HIGH-1,
+    //    plus `handle_declare_blockers` and `counter_stack_object`, fixed by
+    //    the second closing review), `enter_step`'s ordinary step grant, and
+    //    the forced-payment branch of `handle_all_passed`. NOT `enter_step`'s
+    //    cleanup-SBA-round grant, which is still unconditional (OOS-DP9-19).
+    //    Probe:
+    //    `test_dp9_active_player_concedes_under_a_foreign_block`, which drives a
+    //    step boundary past the concede to pin it.
     if !is_game_over(state) && blocking_decision(state).is_none() {
         // If the conceding player held priority, advance priority
         if state.turn.priority_holder == Some(player) {

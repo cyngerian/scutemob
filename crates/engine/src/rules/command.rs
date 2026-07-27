@@ -7,6 +7,7 @@ use crate::state::combat::AttackTarget;
 use crate::state::game_object::ObjectId;
 use crate::state::player::PlayerId;
 use crate::state::replacement_effect::ReplacementId;
+use crate::state::stubs::EffectChoiceAnswer;
 use crate::state::targeting::Target;
 use crate::state::types::{AdditionalCost, AltCostKind, FaceDownKind, ManaColor, TurnFaceUpMethod};
 use serde::{Deserialize, Serialize};
@@ -366,6 +367,32 @@ pub enum Command {
         player: PlayerId,
         choice_id: u64,
         targets: Vec<Vec<Target>>,
+    },
+    // ── Resolution-time choices (CR 608.2d) ──────────────────────────────
+    /// CR 608.2d (PB-DP9 / DP-7/8/9): the player's answer to an outstanding
+    /// resolution-time choice — a library search, a scry, or a surveil.
+    ///
+    /// **One command for all three**, because CR 608.2d is one rule: "If an
+    /// effect of a spell or ability offers any choices other than choices
+    /// already made as part of casting the spell [...] the player announces
+    /// these while applying the effect. The player can't choose an option that's
+    /// illegal or impossible." CR 701.22a / 701.23a / 701.25a are three
+    /// *instances* of it with identical timing, actor and validity condition, so
+    /// they get one admission-gate entry, one `LegalAction`, one `DecisionKind`,
+    /// one `BlockingDecision` variant and one harness action string.
+    ///
+    /// Sent in response to `GameEvent::EffectChoiceRequired`. `choice_id` must
+    /// equal the outstanding entry's — the MOMENT guard, so an answer to a
+    /// superseded question in the same resolution is rejected rather than
+    /// applied to the wrong choice.
+    ///
+    /// The engine trusts no positional information in `answer`: every id is
+    /// re-checked against the question the engine itself recorded, never against
+    /// the wire.
+    AnswerEffectChoice {
+        player: PlayerId,
+        choice_id: u64,
+        answer: EffectChoiceAnswer,
     },
     // ── Crew (CR 702.122) ────────────────────────────────────────────────
     /// Crew a Vehicle by tapping creatures (CR 702.122a).

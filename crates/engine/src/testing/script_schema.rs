@@ -259,7 +259,12 @@ pub enum ScriptAction {
         /// `discard_to_hand_size` (CR 514.1, PB-DP7 / DP-3 — answers an outstanding
         /// `CleanupDiscardChoiceRequired`; see `discard_cards`),
         /// `choose_trigger_targets` (CR 603.3d, PB-DP8 / DP-6 — answers an
-        /// outstanding `TriggerTargetChoiceRequired`; see `trigger_targets`).
+        /// outstanding `TriggerTargetChoiceRequired`; see `trigger_targets`),
+        /// `answer_effect_choice` (CR 608.2d, PB-DP9 / DP-7/8/9 — answers an
+        /// outstanding `EffectChoiceRequired`; see `effect_choice`). Note that
+        /// `search_library` above is still a documentation marker only: PB-DP9
+        /// made the search a real choice, and `answer_effect_choice` is the
+        /// action that expresses it.
         ///
         /// **This is THIS variant's `discard_to_hand_size`, not `TurnBasedAction`'s.**
         /// `ScriptAction::TurnBasedAction` (below) documents an *identically-named*
@@ -500,6 +505,17 @@ pub enum ScriptAction {
         /// Example: [[{"target_type": "creature", "card": "Grizzly Bears"}]]
         #[serde(default)]
         trigger_targets: Vec<Vec<ActionTarget>>,
+        /// CR 608.2d (PB-DP9 / DP-7/8/9): For `answer_effect_choice`. Answers an
+        /// outstanding `EffectChoiceRequired` -- which card a library search
+        /// finds, or how a scry/surveil splits the cards looked at. Cards are
+        /// named, not id'd, because every one of them is in a hidden zone.
+        /// Absent = fall back to `effects::default_effect_choice_answer`.
+        ///
+        /// **The scry/surveil default is NOT the pre-PB-DP9 behaviour**: it
+        /// keeps every looked-at card on top rather than bottoming/milling it.
+        /// A script that wants the old outcome must say so explicitly.
+        #[serde(default)]
+        effect_choice: Option<EffectChoiceScriptAnswer>,
         cr_ref: Option<String>,
         note: Option<String>,
     },
@@ -589,6 +605,40 @@ pub enum ScriptAction {
     },
 }
 // ── Supporting types ──────────────────────────────────────────────────────────
+/// CR 608.2d (PB-DP9 / DP-7/8/9): a script's answer to an outstanding
+/// resolution-time choice.
+///
+/// Every field is optional and cards are named rather than id'd (they are all in
+/// a hidden zone). Whichever fields are relevant to the outstanding question are
+/// read; the rest are ignored. Leaving them all empty falls back to
+/// `effects::default_effect_choice_answer`.
+///
+/// For scry and surveil the two halves are complementary, so naming ONE of them
+/// is enough: the unnamed cards keep their top-first order in the other half.
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct EffectChoiceScriptAnswer {
+    /// CR 701.23a: for a search, the name of the card to find. It must be among
+    /// the candidates the engine offered.
+    #[serde(default)]
+    pub found: Option<String>,
+    /// CR 701.23b: for a search, explicitly decline to find. Legal only when the
+    /// search states a quality; rejected for a quantity-only search (CR 701.23d).
+    #[serde(default)]
+    pub fail_to_find: bool,
+    /// CR 701.22a: for a scry, the cards to put on the bottom, TOP-FIRST (the
+    /// last name given ends up bottom-most).
+    #[serde(default)]
+    pub bottom: Vec<String>,
+    /// CR 701.25a: for a surveil, the cards to put into the graveyard.
+    #[serde(default)]
+    pub graveyard: Vec<String>,
+    /// CR 701.22a / 701.25a: the cards kept on top, TOP-FIRST (`top[0]` ends up
+    /// the library's top card). May be omitted, in which case it is the
+    /// looked-at cards not named in `bottom` / `graveyard`, in top-first order.
+    #[serde(default)]
+    pub top: Vec<String>,
+}
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct ActionTarget {

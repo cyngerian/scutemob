@@ -148,6 +148,13 @@ fn build_normal_actions(app: &PlayApp) -> Line<'static> {
         .iter()
         .any(|a| matches!(a, LegalAction::ChooseTriggerTargets { .. }));
 
+    // CR 608.2d (PB-DP9 / DP-7/8/9): same shape again -- while a resolution-time
+    // choice blocks the game the resolution is rolled back, nobody has priority,
+    // and `[p]ass` is rejected by the admission gate.
+    let effect_choice = legal
+        .iter()
+        .any(|a| matches!(a, LegalAction::AnswerEffectChoice { .. }));
+
     let mut spans: Vec<Span<'static>> = vec![Span::raw(" ")];
 
     if let Some(count) = discard {
@@ -163,6 +170,11 @@ fn build_normal_actions(app: &PlayApp) -> Line<'static> {
         // legal move here either.
         spans.push(Span::styled("[n]", Style::default().fg(Color::Yellow)));
         spans.push(Span::raw("announce trigger targets (CR 603.3d) "));
+    } else if effect_choice {
+        // Blocked on a CR 608.2d announcement: the resolution has been rolled
+        // back and no priority exists, so `[p]ass` is not a legal move here.
+        spans.push(Span::styled("[r]", Style::default().fg(Color::Yellow)));
+        spans.push(Span::raw("answer search/scry/surveil (CR 608.2d) "));
     } else {
         // Always show pass and quit
         spans.push(Span::styled("[p]", Style::default().fg(Color::Cyan)));

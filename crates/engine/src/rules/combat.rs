@@ -1246,8 +1246,13 @@ pub fn handle_declare_blockers(
     // Check that no attacker with menace is being blocked by only one creature.
     {
         // Count how many blockers each attacker in this declaration has (summing over all declarations so far + this one).
-        use std::collections::HashMap;
-        let mut blocker_count_for_attacker: HashMap<ObjectId, usize> = HashMap::new();
+        // `BTreeMap`, not `HashMap` (PB-DP9 fix-cycle Finding 4's widened
+        // audit): the loop below returns on the FIRST menace violation it finds,
+        // so with two offending attackers the `ObjectId` named in the error
+        // message depended on iteration order. The accept/reject decision never
+        // did, which is why this is hygiene rather than a correctness fix.
+        use std::collections::BTreeMap;
+        let mut blocker_count_for_attacker: BTreeMap<ObjectId, usize> = BTreeMap::new();
         // Existing blockers already recorded in combat state.
         if let Some(combat) = state.combat.as_ref() {
             for (_, &att) in &combat.blockers {
@@ -1557,11 +1562,14 @@ pub fn handle_declare_blockers(
     // player priority after it -- not the defending player who issued the command.
     // Grant priority to the active player so players can respond to triggers
     // (including Flanking triggers) before combat damage is dealt.
-    state.turn.players_passed = OrdSet::new();
-    state.turn.priority_holder = Some(state.turn.active_player);
-    events.push(GameEvent::PriorityGiven {
-        player: state.turn.active_player,
-    });
+    //
+    // CR 800.4j (second-closing-review HIGH-1): unless the active player has left
+    // the game, in which case the next player in turn order receives it. This tail
+    // used to write `Some(state.turn.active_player)` unconditionally, and an active
+    // player eliminated during its own combat phase was handed priority back --
+    // an unrecoverable deadlock, reachable with no PB-DP9 machinery on the path.
+    // Probe: `test_509_declare_blockers_grant_skips_a_departed_active_player`.
+    crate::rules::priority::grant_priority_to_active_player(state, &mut events);
     Ok(events)
 }
 // ---------------------------------------------------------------------------

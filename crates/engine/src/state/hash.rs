@@ -633,7 +633,31 @@
 ///   MOVES (changed field + new enum in the `GameState` serde closure);
 ///   `stream_fingerprint` moves per the v40 mechanism. `TriggerTargetOption` is in
 ///   the SR-8 wire closure, so this bump is paired with `PROTOCOL_VERSION` 29 -> 30.
-pub const HASH_SCHEMA_VERSION: u8 = 67;
+/// - 68: PB-DP9 (2026-07-27, DP-7/8/9 — library search, scry and surveil become
+///   player choices, CR 608.2d/701.23a/701.22a/701.25a): `GameState` gains THREE
+///   `pub(crate)` fields — `pending_effect_choice: Option<PendingEffectChoice>`
+///   (a resolution rolled back on an unanswered CR 608.2d announcement),
+///   `effect_choice_answers: Vector<AnsweredEffectChoice>` (the per-resolution
+///   answer bank the abort-and-replay mechanism consumes positionally), and
+///   `next_effect_choice_id: u64` (the moment-guard source, deliberately
+///   separate from `timestamp_counter`, which seeds shuffles and
+///   `next_object_id` and so must not move between an abort and its replay).
+///   Four new hashed types in `card-types/src/state/stubs.rs`:
+///   `EffectChoiceQuestion`, `EffectChoiceAnswer`, `PendingEffectChoice`,
+///   `AnsweredEffectChoice`. All three fields are fed to `HashInto` in
+///   `public_state_hash`; **none** is mirrored into `loop_detection.rs`'s
+///   mandatory-state fingerprint, a deliberate deviation from the v65/v66
+///   precedent (they grow between successive replays of ONE resolution, so
+///   including them could mask a CR 726 mandatory loop). Also: `GameEvent`
+///   gains `EffectChoiceRequired { player, choice_id, source_object_id,
+///   question }` (discriminant 131 — see the `GameEvent` hashing match).
+///   `decl_fingerprint` MOVES (three new fields + four new types in the
+///   `GameState` serde closure, plus a new `GameEvent` variant);
+///   `stream_fingerprint` moves per the v40 mechanism. `EffectChoiceQuestion`
+///   and `EffectChoiceAnswer` are in the SR-8 wire closure, so this bump is
+///   paired with `PROTOCOL_VERSION` 30 -> 31 (`Command::AnswerEffectChoice`
+///   lands in the same commit).
+pub const HASH_SCHEMA_VERSION: u8 = 68;
 
 /// One `(version, fingerprints)` row of the append-only hash-schema history.
 ///
@@ -973,6 +997,17 @@ pub const HASH_SCHEMA_HISTORY: &[HashSchemaEpoch] = &[
         decl_fingerprint: "408eb2d15bf58c5fb8669ff7c84373ed826fd4d979eddac8e682179b4ab33dd3",
         stream_fingerprint: "b52fe5acedc079789aa85ad07dac61487c144b01ed48326dcbf4c9332a70db79",
     },
+    HashSchemaEpoch {
+        version: 68,
+        // PB-DP9 (2026-07-27, DP-7/8/9): GameState gains
+        // `pending_effect_choice`, `effect_choice_answers` and
+        // `next_effect_choice_id`; four new hashed types; GameEvent gains
+        // `EffectChoiceRequired` (see the `- 68:` History line above).
+        // decl_fingerprint moves (three new fields + four new types + new
+        // GameEvent variant); stream_fingerprint moves per the v40 mechanism.
+        decl_fingerprint: "cfe583121f256c677692133a5379ccb8c4280565026ebf85d760333600ca1c37",
+        stream_fingerprint: "fa56c48381755a1c6e97b52c1fd4f880cd99dfbe72fc3acc7ca55b76b56edd3f",
+    },
 ];
 
 use super::combat::{AttackTarget, CombatState};
@@ -992,8 +1027,9 @@ use super::replacement_effect::{
 };
 use super::stack::{StackObject, StackObjectKind, TriggerData, UpkeepCostKind};
 use super::stubs::{
-    ActiveRestriction, DelayedTrigger, ETBSuppressFilter, ETBSuppressor, GameRestriction,
-    PendingCleanupDiscard, PendingTrigger, PendingTriggerTargets, TriggerDoubler,
+    ActiveRestriction, AnsweredEffectChoice, DelayedTrigger, ETBSuppressFilter, ETBSuppressor,
+    EffectChoiceAnswer, EffectChoiceQuestion, GameRestriction, PendingCleanupDiscard,
+    PendingEffectChoice, PendingTrigger, PendingTriggerTargets, TriggerDoubler,
     TriggerDoublerFilter, TriggerTargetOption,
 };
 use super::targeting::{SpellTarget, Target};
@@ -3080,6 +3116,75 @@ impl HashInto for crate::state::stubs::FlushResumeSite {
             S::EnterStepPriority => 2u8.hash_into(hasher),
             S::EnterStepCleanup => 3u8.hash_into(hasher),
         }
+    }
+}
+// CR 608.2d (PB-DP9 / DP-7/8/9). SR-19 / OOS-DP7-11: these four impls are
+// written with BARE type names on purpose, for the same reason the two above
+// are -- a path-qualified `impl HashInto for crate::state::stubs::Foo` falls out
+// of `every_hashed_struct_field_is_hashed_or_allowlisted` with no diagnostic.
+//
+// Verified by the delete-a-field demonstration during the implement phase, which
+// also found the gate's own limit (**OOS-DP9-13**): deleting a field from either
+// STRUCT impl below fails the gate by name, but the gate scans structs only, so
+// an ENUM arm rewritten as `{ candidates, .. }` with its feed dropped passes
+// every gate green. The two enum impls below are therefore held by review and by
+// `stream_fingerprint`, not by the SR-19 scan -- do not read the gate as covering
+// them.
+impl HashInto for EffectChoiceQuestion {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        match self {
+            EffectChoiceQuestion::SearchLibrary {
+                candidates,
+                may_fail_to_find,
+            } => {
+                0u8.hash_into(hasher);
+                candidates.hash_into(hasher);
+                may_fail_to_find.hash_into(hasher);
+            }
+            EffectChoiceQuestion::Scry { looked_at } => {
+                1u8.hash_into(hasher);
+                looked_at.hash_into(hasher);
+            }
+            EffectChoiceQuestion::Surveil { looked_at } => {
+                2u8.hash_into(hasher);
+                looked_at.hash_into(hasher);
+            }
+        }
+    }
+}
+impl HashInto for EffectChoiceAnswer {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        match self {
+            EffectChoiceAnswer::SearchLibrary { found } => {
+                0u8.hash_into(hasher);
+                found.hash_into(hasher);
+            }
+            EffectChoiceAnswer::Scry { bottom, top } => {
+                1u8.hash_into(hasher);
+                bottom.hash_into(hasher);
+                top.hash_into(hasher);
+            }
+            EffectChoiceAnswer::Surveil { graveyard, top } => {
+                2u8.hash_into(hasher);
+                graveyard.hash_into(hasher);
+                top.hash_into(hasher);
+            }
+        }
+    }
+}
+impl HashInto for PendingEffectChoice {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        self.choice_id.hash_into(hasher);
+        self.player.hash_into(hasher);
+        self.source.hash_into(hasher);
+        self.question.hash_into(hasher);
+        (self.index as u64).hash_into(hasher);
+    }
+}
+impl HashInto for AnsweredEffectChoice {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        self.question.hash_into(hasher);
+        self.answer.hash_into(hasher);
     }
 }
 impl HashInto for PendingTriggerTargets {
@@ -5450,6 +5555,19 @@ impl HashInto for GameEvent {
                 source_object_id.hash_into(hasher);
                 ability_index.hash_into(hasher);
                 slots.hash_into(hasher);
+            }
+            // PB-DP9: EffectChoiceRequired -- CR 608.2d (discriminant 131)
+            GameEvent::EffectChoiceRequired {
+                player,
+                choice_id,
+                source_object_id,
+                question,
+            } => {
+                131u8.hash_into(hasher);
+                player.hash_into(hasher);
+                choice_id.hash_into(hasher);
+                source_object_id.hash_into(hasher);
+                question.hash_into(hasher);
             }
         }
     }
@@ -7890,6 +8008,23 @@ impl GameState {
         // distinct game position -- the batch's un-flushed tail lives here and
         // nowhere else. Blanket `Option` impl.
         self.pending_trigger_targets.hash_into(&mut hasher);
+        // CR 608.2d (PB-DP9 / DP-7/8/9): a rolled-back resolution waiting on a
+        // resolution-time announcement is a distinct game position, and so is
+        // the same resolution with one more answer banked. All three fields are
+        // real state and all three are hashed here. Public information (player,
+        // ids, counter), so no `NOT_HASHED` allowlist entry is needed -- that
+        // list stays empty.
+        //
+        // Deliberately NOT mirrored into `rules/loop_detection.rs`'s
+        // mandatory-state fingerprint, unlike PB-DP7's and PB-DP8's fields: the
+        // entry and the bank GROW between replay k and replay k+1 of the same
+        // resolution, so including them would make two structurally identical
+        // CR 726 positions fingerprint differently and could silently mask a
+        // mandatory loop. Pinned by
+        // `test_dp9_loop_detection_fingerprint_excludes_the_choice_state`.
+        self.pending_effect_choice.hash_into(&mut hasher);
+        self.effect_choice_answers.hash_into(&mut hasher);
+        self.next_effect_choice_id.hash_into(&mut hasher);
         for (owner, oid) in self.pending_commander_zone_choices.iter() {
             owner.hash_into(&mut hasher);
             oid.hash_into(&mut hasher);

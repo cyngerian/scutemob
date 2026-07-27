@@ -67,6 +67,24 @@ export function formatEvent(event) {
         return `${data.player} must announce ${n} trigger target slot(s) for ${data.source_object_id} (CR 603.3d)`;
       }
 
+      // PB-DP9 / DP-7/8/9 (CR 608.2d): a resolution-time announcement -- which
+      // card a library search finds, or how a scry/surveil splits the cards
+      // looked at. The engine has ROLLED THE RESOLUTION BACK and blocks until
+      // the answer arrives.
+      //
+      // The ids are deliberately not rendered: every one of them names a card
+      // in a HIDDEN zone (the library), which is why `GameEvent::private_to()`
+      // returns `Some(player)` for this event. A real picker belongs behind a
+      // per-seat view (M11-local Session 7, seed OOS-DP9-7).
+      case 'EffectChoiceRequired': {
+        const q = data.question || {};
+        let kind = 'resolution-time choice';
+        if (q.SearchLibrary) kind = 'library search (CR 701.23a)';
+        else if (q.Scry) kind = 'scry (CR 701.22a)';
+        else if (q.Surveil) kind = 'surveil (CR 701.25a)';
+        return `${data.player} must answer a ${kind} from ${data.source_object_id} (CR 608.2d)`;
+      }
+
       case 'PlayerLost':
         return `${data.player} lost the game (${formatLossReason(data.reason)})`;
 
@@ -406,6 +424,9 @@ export function eventCategory(event) {
     // PB-DP8 (CR 603.3d): a triggered ability's target announcement is part of
     // putting it on the stack, so it belongs with the other stack events.
     case 'TriggerTargetChoiceRequired':
+    // PB-DP9 (CR 608.2d): a resolution-time announcement happens while the spell
+    // or ability is resolving, so it belongs with the other stack events too.
+    case 'EffectChoiceRequired':
     case 'AbilityResolved':
     case 'CascadeExiled':
     case 'CascadeCast':

@@ -63,6 +63,17 @@ fn pass_all(state: GameState, players: &[PlayerId]) -> (GameState, Vec<GameEvent
         current = s;
         all_events.extend(ev);
     }
+    // CR 701.23a / CR 608.2d (PB-DP9 / DP-7): a library search now blocks on the
+    // searching player's announcement, and until it is answered the resolution
+    // is ROLLED BACK -- so the rest of the pass, and every later `PassPriority`,
+    // is rejected. Answer with the engine's own deterministic default, which is
+    // byte-identical to the pre-PB-DP9 lowest-`ObjectId` auto-pick: these tests
+    // assert what the FILTER admits (mana-value caps and floors, alt-cost
+    // gating), not which of several legal cards a player would pick, and every
+    // one of them is built so the filter leaves exactly one right answer.
+    let (current, pump_events) =
+        mtg_engine::testing::replay_harness::auto_answer_blocking_decisions(current);
+    all_events.extend(pump_events);
     (current, all_events)
 }
 
@@ -443,7 +454,7 @@ fn test_momentous_fall_draws_power_gains_toughness() {
 /// (cap 5). Library has a MV-5 and a MV-6 creature. Assert MV-5 found, MV-6 not.
 #[test]
 fn test_search_max_cmc_amount_caps_by_runtime_value() {
-    use mtg_engine::effects::{execute_effect, EffectContext};
+    use mtg_engine::effects::EffectContext;
     use mtg_engine::{Effect, ManaCost, PlayerTarget, TargetFilter, ZoneTarget};
 
     let p1 = p(1);
@@ -498,7 +509,15 @@ fn test_search_max_cmc_amount_caps_by_runtime_value() {
         also_search_graveyard: false,
     };
 
-    let _events = execute_effect(&mut state, &effect, &mut ctx);
+    // CR 701.23a / CR 608.2d (PB-DP9 / DP-7): the search is a player
+    // announcement now, so a bare `execute_effect` call would only record the
+    // question and apply nothing. `execute_effect_with_default_choices` runs the
+    // same abort-and-replay loop `resolve_top_of_stack` runs, answering with the
+    // engine's own default -- byte-identical to the pre-PB-DP9 lowest-id pick.
+    // This test asserts what the runtime mana-value bound ADMITS, not which of
+    // several legal cards a player would pick.
+    let _events =
+        mtg_engine::effects::execute_effect_with_default_choices(&mut state, &effect, &mut ctx);
 
     assert!(
         on_battlefield(&state, "Five Drop"),
@@ -515,7 +534,7 @@ fn test_search_max_cmc_amount_caps_by_runtime_value() {
 /// Pins both summands.
 #[test]
 fn test_search_cap_uses_both_terms() {
-    use mtg_engine::effects::{execute_effect, EffectContext};
+    use mtg_engine::effects::EffectContext;
     use mtg_engine::{Effect, ManaCost, PlayerTarget, TargetFilter, ZoneTarget};
 
     let p1 = p(1);
@@ -562,7 +581,15 @@ fn test_search_cap_uses_both_terms() {
         also_search_graveyard: false,
     };
 
-    let _events = execute_effect(&mut state, &effect, &mut ctx);
+    // CR 701.23a / CR 608.2d (PB-DP9 / DP-7): the search is a player
+    // announcement now, so a bare `execute_effect` call would only record the
+    // question and apply nothing. `execute_effect_with_default_choices` runs the
+    // same abort-and-replay loop `resolve_top_of_stack` runs, answering with the
+    // engine's own default -- byte-identical to the pre-PB-DP9 lowest-id pick.
+    // This test asserts what the runtime mana-value bound ADMITS, not which of
+    // several legal cards a player would pick.
+    let _events =
+        mtg_engine::effects::execute_effect_with_default_choices(&mut state, &effect, &mut ctx);
 
     assert!(
         on_battlefield(&state, "Exactly Five"),
@@ -1594,12 +1621,12 @@ fn test_sacrificed_creature_lki_struct_hash() {
 #[test]
 fn test_pb_ef10_version_sentinels() {
     assert_eq!(
-        PROTOCOL_VERSION, 30,
+        PROTOCOL_VERSION, 31,
         "PROTOCOL_VERSION should be 15 after PB-EF10 (TargetFilter.max_cmc_amount / \
          AdditionalCost::Sacrifice reshape)"
     );
     assert_eq!(
-        HASH_SCHEMA_VERSION, 67u8,
+        HASH_SCHEMA_VERSION, 68u8,
         "HASH_SCHEMA_VERSION should be 53 after PB-EF10"
     );
 }

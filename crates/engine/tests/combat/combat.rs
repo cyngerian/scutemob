@@ -3015,3 +3015,107 @@ fn test_sr_trm01_planeswalker_combat_damage_removes_loyalty() {
          it is not marked as damage on the object"
     );
 }
+
+// ---------------------------------------------------------------------------
+// CR 509.1 / CR 117.3a / CR 800.4j — the declare-blockers grant must skip a
+// departed active player (second-closing-review HIGH-1)
+// ---------------------------------------------------------------------------
+
+#[test]
+/// CR 509.1 / CR 117.3a / CR 800.4j — after blockers are declared the ACTIVE
+/// player receives priority, but CR 800.4j overrides that when the active player
+/// has left the game: "If the active player would receive priority, instead the
+/// next player in turn order receives priority."
+///
+/// Second-closing-review HIGH-1, fail-before probe. `handle_declare_blockers`'s
+/// tail wrote `priority_holder = Some(state.turn.active_player)` with no liveness
+/// test, so a player who was eliminated *during* the combat phase was handed
+/// priority back. `PassPriority` from them answers `PlayerEliminated` and from
+/// everyone else `NotPriorityHolder` — an unrecoverable deadlock for every
+/// driving loop.
+///
+/// Nothing in this sequence involves a resolution-time choice, a concede or any
+/// other PB-DP9 machinery: the active player attacks, dies to CR 704.5a while
+/// the combat phase is still running, and the surviving defender declares
+/// blockers. The defect is pre-existing.
+fn test_509_declare_blockers_grant_skips_a_departed_active_player() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+    let p3 = PlayerId(3);
+
+    // Three players, so p1's elimination does not end the game (CR 104.2b).
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .add_player(p3)
+        .object(ObjectSpec::creature(p1, "Bear", 2, 2))
+        .object(ObjectSpec::creature(p2, "Wall", 0, 4))
+        .at_step(Step::DeclareAttackers)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let attacker_id = state
+        .objects()
+        .values()
+        .find(|o| o.controller == p1)
+        .unwrap()
+        .id;
+
+    let (mut state, _) = process_command(
+        state,
+        Command::DeclareAttackers {
+            player: p1,
+            attackers: vec![(attacker_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
+            exert_choices: vec![],
+        },
+    )
+    .expect("declare attackers failed");
+
+    // p1 loses all its life during its own combat phase (any life-loss effect
+    // would do; the escape hatch keeps the probe free of card definitions).
+    state.players_mut().get_mut(&p1).unwrap().life_total = 0;
+
+    // DeclareAttackers → DeclareBlockers. CR 704.5a marks p1 as having lost on
+    // the way; `enter_step`'s grant already carries the CR 800.4j test, so
+    // priority correctly lands on a live seat here.
+    let (state, _) = pass_all(state, &[p1, p2, p3]);
+    assert_eq!(state.turn().step, Step::DeclareBlockers);
+    assert!(
+        state.players().get(&p1).map(|pl| pl.has_lost).unwrap(),
+        "CR 704.5a: p1 is at 0 life and must have left the game"
+    );
+    assert_eq!(
+        state.turn().active_player,
+        p1,
+        "CR 800.4j: the turn continues to its completion without an active player"
+    );
+
+    // p2 declares blockers (even an empty declaration reaches the grant).
+    let (state, _) = process_command(
+        state,
+        Command::DeclareBlockers {
+            player: p2,
+            blockers: vec![],
+        },
+    )
+    .expect("declare blockers failed");
+
+    let holder = state
+        .turn()
+        .priority_holder
+        .expect("CR 117.3a: some live player must hold priority after blockers");
+    assert!(
+        state
+            .players()
+            .get(&holder)
+            .map(|pl| !pl.has_lost && !pl.has_conceded)
+            .unwrap_or(false),
+        "CR 800.4j: priority must not name a seat that has left the game \
+         (holder {holder:?})"
+    );
+    // The deadlock assertion: the named holder must actually be able to act.
+    process_command(state, Command::PassPriority { player: holder })
+        .expect("CR 117.3a: the priority holder must be able to pass");
+}

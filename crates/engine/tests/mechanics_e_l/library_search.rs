@@ -26,6 +26,17 @@ fn pass_all(state: GameState, players: &[PlayerId]) -> (GameState, Vec<GameEvent
         current = s;
         all_events.extend(ev);
     }
+    // CR 701.23a / CR 608.2d (PB-DP9 / DP-7): a library search is now a real
+    // player announcement, so the resolution ROLLS BACK and blocks until the
+    // searching player answers. These tests are about the FILTER, not the
+    // choice: every one of them puts exactly the cards it means to find in the
+    // library and asserts which of them the filter admits. So the answer given
+    // here is the engine's own deterministic default, which is byte-identical
+    // to the pre-PB-DP9 lowest-`ObjectId` auto-pick -- the assertions are
+    // unchanged and still discriminate exactly what they used to.
+    let (current, pump_events) =
+        mtg_engine::testing::replay_harness::auto_answer_blocking_decisions(current);
+    all_events.extend(pump_events);
     (current, all_events)
 }
 

@@ -90,6 +90,41 @@ fn handle_normal_mode(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result<()> {
             }
         }
 
+        // CR 608.2d (PB-DP9 / DP-7/8/9): answer an outstanding resolution-time
+        // choice -- which card a library search finds, or how a scry/surveil
+        // splits the cards looked at.
+        // `LegalAction::AnswerEffectChoice::answer` is the engine's own
+        // deterministic default (`effects::default_effect_choice_answer`), so a
+        // human seat can clear the block with a single key. Note the default is
+        // NOT "play well": for scry and surveil it is the identity (keep
+        // everything on top). A real picker -- the single most valuable
+        // M11-local Session 7 widget, because a human meets it every game -- is
+        // seed OOS-DP9-7.
+        //
+        // **This key is not compile-forced.** The TUI probes `LegalAction` with
+        // `matches!` rather than an exhaustive `match`, so omitting it would
+        // have been a silent HANG, not a build failure (plan §11 item 9).
+        //
+        // The key is 'r' (answe[r]): 'n' is the CR 603.3d announcement above,
+        // 'e' is activate-ability, 'd' the cleanup discard.
+        KeyCode::Char('r') => {
+            if let Some(LegalAction::AnswerEffectChoice {
+                choice_id, answer, ..
+            }) = legal
+                .iter()
+                .find(|a| matches!(a, LegalAction::AnswerEffectChoice { .. }))
+            {
+                let cmd = Command::AnswerEffectChoice {
+                    player: app.human_player,
+                    choice_id: *choice_id,
+                    answer: answer.clone(),
+                };
+                app.execute_command(cmd)?;
+            } else {
+                app.status_message = Some("No resolution-time choice is pending".into());
+            }
+        }
+
         // Play selected land — only if legal
         KeyCode::Char('l') => {
             let hand = app.hand_objects();

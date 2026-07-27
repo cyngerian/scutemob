@@ -54,6 +54,14 @@ fn pass_all(state: GameState, players: &[PlayerId]) -> (GameState, Vec<GameEvent
         current = s;
         all_events.extend(ev);
     }
+    // CR 701.23a / CR 608.2d (PB-DP9 / DP-7): a library search now blocks on the
+    // searching player's announcement. These tests are about the ZONES a search
+    // spans (`also_search_graveyard`) and whether it shuffles, not about which
+    // card is picked -- each has exactly one plausible target -- so the answer
+    // is the engine's own default, byte-identical to the pre-PB-DP9 auto-pick.
+    let (current, pump_events) =
+        mtg_engine::testing::replay_harness::auto_answer_blocking_decisions(current);
+    all_events.extend(pump_events);
     (current, all_events)
 }
 

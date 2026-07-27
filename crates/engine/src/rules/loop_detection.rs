@@ -107,7 +107,20 @@ pub fn reset_loop_detection(state: &mut GameState) {
 /// false negatives.
 ///
 /// The loop_detection_hashes field itself is EXCLUDED (it's metadata, not game state).
-fn compute_mandatory_state_hash(state: &GameState) -> u64 {
+///
+/// CR 608.2d (PB-DP9): the three resolution-time-choice fields
+/// (`pending_effect_choice`, `effect_choice_answers`, `next_effect_choice_id`)
+/// are ALSO excluded, deliberately deviating from the PB-DP7/PB-DP8 precedent
+/// that folded their pending fields in. PB-DP9's suspension is an
+/// abort-and-REPLAY: the entry and the answer bank grow between replay k and
+/// replay k+1 of the *same* resolution, so including them would make two
+/// structurally identical CR 726 positions fingerprint differently and could
+/// silently mask a mandatory loop. They ARE in `public_state_hash` (they are
+/// real state); the two hashes answer different questions. Pinned by
+/// `tests/primitives/pb_dp9_effect_choice.rs::
+/// test_dp9_loop_detection_fingerprint_excludes_the_choice_state`, which is why
+/// this function is `pub`.
+pub fn compute_mandatory_state_hash(state: &GameState) -> u64 {
     let mut hasher = Hasher::new();
     // 1. Turn state (phase/step only, not priority pass state)
     state.turn.phase.hash_into(&mut hasher);

@@ -44,6 +44,55 @@ fn find_by_name_in_zone(
         .map(|(id, _)| *id)
 }
 
+/// CR 701.25a / CR 608.2d (PB-DP9 / DP-9): announce "put every surveilled card
+/// into the graveyard".
+///
+/// That was the engine's pre-PB-DP9 behaviour -- `Surveil N` was unconditionally
+/// `Mill N`, and keeping a card on top was unreachable. It is now one legal
+/// answer among 2^N, and the engine's own default is the OPPOSITE one (the
+/// identity: keep everything on top). These tests are about the surveil
+/// MECHANISM -- that the cards leave the library, that `Surveilled` fires with
+/// the right count, that the graveyard order is right -- so they announce the
+/// milling answer explicitly rather than inherit a default that no longer mills.
+fn answer_surveils_by_milling(
+    state: mtg_engine::GameState,
+) -> (mtg_engine::GameState, Vec<GameEvent>) {
+    use mtg_engine::rules::engine::BlockingDecision;
+    let mut current = state;
+    let mut events = Vec::new();
+    while let Some(BlockingDecision::EffectChoice {
+        player, choice_id, ..
+    }) = current.blocking_decision()
+    {
+        let question = current
+            .pending_effect_choice()
+            .expect("blocking_decision said EffectChoice")
+            .question
+            .clone();
+        let answer = match &question {
+            mtg_engine::EffectChoiceQuestion::Surveil { looked_at } => {
+                mtg_engine::EffectChoiceAnswer::Surveil {
+                    graveyard: looked_at.clone(),
+                    top: Vec::new(),
+                }
+            }
+            other => mtg_engine::effects::default_effect_choice_answer(other),
+        };
+        let (s, ev) = process_command(
+            current,
+            Command::AnswerEffectChoice {
+                player,
+                choice_id,
+                answer,
+            },
+        )
+        .unwrap_or_else(|e| panic!("AnswerEffectChoice failed: {:?}", e));
+        current = s;
+        events.extend(ev);
+    }
+    (current, events)
+}
+
 /// Pass priority for all listed players once.
 fn pass_all(
     state: mtg_engine::GameState,
@@ -57,6 +106,8 @@ fn pass_all(
         current = s;
         all_events.extend(ev);
     }
+    let (current, choice_events) = answer_surveils_by_milling(current);
+    all_events.extend(choice_events);
     (current, all_events)
 }
 
