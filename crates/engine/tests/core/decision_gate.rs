@@ -717,11 +717,40 @@ fn every_baseline_entry_is_live_and_necessary() {
             assert!(
                 reason_text.len() >= 30,
                 "BASELINE entry {name:?}'s post-freeze reason is too short ({} chars); a \
-                 reviewed acknowledgement needs a real sentence, not a stub",
+                 recorded acknowledgement needs a real sentence, not a stub",
                 reason_text.len()
             );
         }
     }
+
+    // The `Some(reason)` half of T4's message is a CONTRACT, so it needs an enforcer.
+    //
+    // T4's failure message tells an author that exit 2 is "add a `BASELINE` entry with the
+    // def's exact row set **and a written reason**". The `if let Some(..)` above only
+    // validates a reason that is already there, so without this check an author could append
+    // `("New Card", &["proliferate"], None)` and go green with no justification at all --
+    // and, worse, the new entry would be indistinguishable from the 2026-07-27 freeze, which
+    // is the ONLY thing `None` is documented to mean. (Found by the closing `/review`, which
+    // also noted the mitigation: T6's exact-equality ratchet forces a same-commit
+    // `MAX_AUTO_CHOSEN_COMPLETE_UNION` bump, so the addition could not have been *silent* --
+    // but "not silent" is a weaker property than "justified", and the message promises the
+    // stronger one. A message that states a requirement nothing enforces is the OOS-DP7-11
+    // class: a claim wearing a gate's authority.)
+    //
+    // The freeze is closed at exactly its measured size, so every LATER entry must carry
+    // `Some(reason)`. This deliberately does not grow: shrinking is fine (a def demoted or
+    // fixed just leaves), growing is not.
+    const FROZEN_2026_07_27: usize = 97;
+    let unexplained = BASELINE.iter().filter(|(_, _, r)| r.is_none()).count();
+    assert!(
+        unexplained <= FROZEN_2026_07_27,
+        "{unexplained} BASELINE entries carry no written reason, but only the \
+         {FROZEN_2026_07_27} entries of the 2026-07-27 PB-DP10 freeze are allowed to. Every \
+         entry added after that freeze is a deliberate act and must carry `Some(reason)` \
+         naming why this card ships with the engine choosing for the player -- that is what \
+         `no_complete_def_introduces_an_unrecorded_auto_chosen_decision`'s failure message \
+         promises an author, and this is where the promise is kept."
+    );
 }
 
 // ── T6: the union ratchet ──────────────────────────────────────────────────────
@@ -1293,6 +1322,19 @@ fn sr33_gated_variants_are_represented_in_the_row_table() {
         "may_pay_or_else's key must still be barred"
     );
 }
+
+// ── T15: DELIBERATELY NOT BUILT ────────────────────────────────────────────────
+//
+// The numbering skips 15 on purpose, so a reader of this file alone is not left wondering.
+// The plan's T15 was a roster digest (count + blake3 of the sorted variant-name lists of
+// `Effect` / `AbilityDefinition` / `ReplacementModification`) that would redden when a new
+// variant landed, with the message "classify it in `decision_site_walk.rs::ROWS`". It was
+// dropped for budget under the plan's own §12 R9 ranking, and the drop is argued rather than
+// merely admitted: a new variant of any of those three ALREADY forces a PROTOCOL and a HASH
+// bump, because all three are inside the SR-8 / SR-17 wire closures -- so the *notice* was
+// never the missing half. The missing half is the *obligation* to classify it here, which is
+// what the digest would have supplied. Tracked as **OOS-DP10-11**; its `GameEvent` sibling is
+// **OOS-DP10-7**. Audit §10's ledger counts both as feasible-but-not-built, not mechanized.
 
 // ── T16: named residual seeds still exist in the audit ────────────────────────
 

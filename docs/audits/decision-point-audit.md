@@ -191,6 +191,16 @@ Runnable script: `scratchpad/count-classb.py` from this task's session
 > Three deltas are left honestly unexplained rather than assigned a plausible-sounding
 > mechanism this suite has not verified — see §6's note on why an honest gap beats a
 > plausible story here.
+>
+> **And the headline figure, 277 → 267.** The two are *unions*, not sums, so the row deltas
+> above do not add up to the gap: a def matching three rows moves three row counts and one
+> union slot. The 10-def difference is the per-row drift **after de-duplication** — dominated
+> by `triggered_targets` (−7, the compound-row mechanism) and by the `put_on_library` (−2) and
+> `connive` (−1) note-string false positives, with the three ±1 residuals and the overlap
+> between rows accounting for the remainder. The honest statement is that **267 is measured
+> and 277 was estimated**; the mechanisms above explain the direction and the bulk of the
+> magnitude, and no attempt was made to force the two numbers to agree (plan §11 P6: the gate
+> is the instrument, the table is the estimate).
 
 | decision site | defs | effectively `Complete` |
 |---|---:|---:|
@@ -1102,11 +1112,17 @@ about which decisions it can currently reach.
 
 ## 10. Re-audit triggers
 
-> **PB-DP10 mechanization ledger (`scutemob-158`).** Of the triggers below, **3 of 8 are now
-> MECHANIZED** (a test computes and enforces the answer on every `cargo test`), **1 is
-> OPTIONAL-recommended and not taken**, and **4 stay human**. Write that ratio down rather
-> than a claim of coverage — this suite's recurring lesson (OOS-DP7-11; PB-DP8's meta-lesson
-> iii) is that *a gate cited as covering something is a claim like any other*.
+> **PB-DP10 mechanization ledger (`scutemob-158`).** Of the eight triggers below, **2 are now
+> MECHANIZED** (a test computes and enforces the answer on every `cargo test`), **2 are
+> feasible-but-not-built and now carry a seed** (the DSL-enum roster digest, **OOS-DP10-11**;
+> the `GameEvent` roster digest, **OOS-DP10-7**), and **4 stay human** (DP-24's
+> accepted-and-discarded-`Command`-field check, **OOS-DP10-4**; a new `BlockingDecision`
+> variant's seven obligations; a new same-zone `move_object_to_zone` caller, **OOS-DP9-11**;
+> a `Zone` API change). Write that ratio down rather than a claim of coverage — this suite's
+> recurring lesson (OOS-DP7-11; PB-DP8's meta-lesson iii) is that *a gate cited as covering
+> something is a claim like any other*, and **the first version of this very ledger said
+> "3 of 8" while its own body concluded the third one "stays NOT mechanized"** — caught by
+> the closing `/review`. Counting your own coverage is the same kind of claim.
 > **MECHANIZED**: the §3.1 re-derivation (below, `decision_site_reconciliation_report`); the
 > `docs/authoring-status.md` material-jump trigger (the same test prints the live
 > denominator and percentage every run, and `T6`'s exact ratchet catches the numerator).
@@ -1118,11 +1134,13 @@ about which decisions it can currently reach.
 > (count + blake3 of the sorted variant-name list) could supply — **not built in PB-DP10**
 > (budget; see **OOS-DP10-11**, filed by the closing review after the WIP's own record of
 > this drop was found to point at the wrong seeds), so this one stays **NOT mechanized**
-> below, unlike the other two. **STAYS HUMAN**: DP-24's accepted-and-discarded-`Command`-field
-> check (**OOS-DP10-4**); the `GameEvent` sibling-answer sweep, though its OWN roster digest
-> is optional-recommended and not taken (**OOS-DP10-7**); any new `BlockingDecision`
-> variant's seven obligations (only 2 of 7 are compile-forced, per PB-DP9's own count); any
-> new same-zone `move_object_to_zone` caller (OOS-DP9-11 already owns that sweep, unbuilt).
+> below — **feasible and seeded, not mechanized**. The `GameEvent` sibling-answer sweep is the
+> same instrument pointed at another enum and is in the same state (**OOS-DP10-7**).
+> **STAYS HUMAN**: DP-24's accepted-and-discarded-`Command`-field check (**OOS-DP10-4**); any
+> new `BlockingDecision` variant's seven obligations (only 2 of 7 are compile-forced, per
+> PB-DP9's own count); any new same-zone `move_object_to_zone` caller (OOS-DP9-11 already owns
+> that sweep, unbuilt); and a `Zone` API change, whose roster §10 already prescribes deriving
+> from `Zone::push_front` call sites by hand.
 
 Per [methodology.md](methodology.md) "When to Re-Audit":
 
