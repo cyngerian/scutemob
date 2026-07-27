@@ -9227,6 +9227,21 @@ fn player_is_alive(state: &GameState, p: PlayerId) -> bool {
 /// Still deliberately NOT called from `flush_pending_triggers`' reap: that runs
 /// inside a caller which either holds correct priority already (the 30
 /// `check_and_flush_triggers` sites) or grants it itself (the six guards).
+///
+/// That argument covers the CURRENT caller's priority, not a PRE-EXISTING stranded
+/// holder, so it is not sufficient on its own -- the combination is unreachable
+/// instead, and the second closing review asked for the reason to be written down
+/// rather than left implicit. A stranded holder requires a prior concede under a
+/// suspended batch; the reap requires the entry's owner to be `has_lost` /
+/// `has_conceded` by some route OTHER than `handle_concede`. While an entry is
+/// outstanding the admission gate admits only the answer and `Concede`, and
+/// `handle_concede` runs no SBA sweep -- so **no player can be marked `has_lost`
+/// while an entry exists**, and the reap is reachable only by direct state
+/// manipulation (which is exactly what its own test does).
+///
+/// **That last step is a scheduling accident, not a stated invariant.** If anything
+/// ever runs an SBA sweep while a blocking decision is outstanding, the reap becomes
+/// a real exit and this function must be called from it too. See OOS-DP8-13.
 pub(crate) fn repair_departed_priority_holder(state: &mut GameState, events: &mut Vec<GameEvent>) {
     if state.pending_trigger_targets.is_some() {
         // Suspended again: the batch is still incomplete, so CR 603.3b still
