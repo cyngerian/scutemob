@@ -16,6 +16,17 @@
 //! the_bound`, and the audit's own PB-DP10 row -- do not read this file as a closure of
 //! DP-INV).
 //!
+//! **And it can only see a decision the DSL encoded.** Every row in `decision_site_walk.rs`'s
+//! `ROWS` is a predicate over a *variant name*, so a card whose choice was dropped at
+//! authoring time -- a "you may X. If you do, Y" written as a bare `Effect::Sequence`, a
+//! "choose one" written as a single unconditional effect -- hits zero rows and passes T4/T6
+//! forever. Smuggler's Copter is exactly this: CR 118.12's "you may draw a card. If you do,
+//! discard a card" is authored as `Effect::Sequence(vec![DrawCards, DiscardCards])`, so the
+//! `may` is gone and the only reason it appears in `BASELINE` at all is the incidental
+//! `DiscardCards` in its second element. **That class is strictly worse than the class this
+//! file records, and this file does not detect it** (OOS-DP10-9). Detecting it needs an
+//! oracle-text-vs-DSL cross-check, a different instrument from a variant walk.
+//!
 //! No engine or wire change: PROTOCOL 31 / HASH 68 are unmoved by this batch (`crates/
 //! engine/tests/core/protocol_schema.rs` / `hash_schema.rs`'s `SCAN_ROOTS` never reach
 //! `crates/engine/tests/`).
@@ -343,6 +354,19 @@ fn prose_fields_do_not_trigger_a_unit_variant_row() {
 /// Measured by this batch's own `T9`/`decision_site_reconciliation_report`, NOT the audit's
 /// estimate (plan §11 P6: every §3.1 count is unverified until this gate prints it).
 /// Sorted by name.
+///
+/// **An entry asserts exactly one thing -- that this def hits these `AutoChosen` rows. It
+/// asserts NOTHING about whether the def is otherwise oracle-correct.** The 2026-07-27
+/// freeze populated this table mechanically from `T9`'s output; it was not cross-checked
+/// against oracle text def-by-def, and a spot-check found two members that are live-wrong,
+/// not merely un-consulted -- Smuggler's Copter (an unconditional `Sequence(DrawCards,
+/// DiscardCards)` for a CR 118.12 "you MAY draw a card. If you do, discard a card" -- see
+/// this file's module doc) and Shambling Ghast (a permanent `MinusOneMinusOne` counter for a
+/// printed "until end of turn" P/T change, plus a stored `oracle_text` that says "enters"
+/// against a `WhenDies` trigger, plus a granted `Decayed` keyword the printed card does not
+/// have at all). Both are recorded here as `&["discard_cards"]` / `&["modal_trigger"]`
+/// respectively, which is true but is not the defect -- see **OOS-DP10-8**. The remaining 95
+/// entries have not been triaged against oracle text.
 const BASELINE: &[(&str, &[&str], Option<&str>)] = &[
     ("Accursed Marauder", &["sacrifice_permanents"], None),
     ("Anowon, the Ruin Sage", &["sacrifice_permanents"], None),
@@ -468,17 +492,21 @@ fn baseline_map() -> HashMap<&'static str, BTreeSet<&'static str>> {
         .collect()
 }
 
-#[test]
-/// **The gate.** Every effectively-`Complete` def hitting >= 1 `AutoChosen` row must
-/// either be absent (offender) or present in `BASELINE` with an EXACT row-set match
-/// (offender on mismatch too -- a superset means the def gained a decision since the
-/// freeze, a subset means the entry should be tightened).
-fn no_complete_def_introduces_an_unrecorded_auto_chosen_decision() {
-    let baseline = baseline_map();
-    let defs = all_cards();
+/// **The gate's own offender-detection logic**, extracted so both `T4` and its
+/// non-vacuity probe (`t4_gate_logic_reddens_...`) drive the IDENTICAL code path (review
+/// finding PB-DP10 #3 -- the probe previously re-checked two predicates T1/T5 already
+/// cover and never executed this loop at all). Every effectively-`Complete` def hitting
+/// one or more `AutoChosen` rows must either be absent from `baseline` (offender) or
+/// present with an EXACT row-set match. A mismatch is also an offender: a superset of the
+/// recorded rows means the def gained a decision since the freeze, and a subset means the
+/// entry should be tightened.
+fn offenders(
+    defs: &[mtg_engine::CardDefinition],
+    baseline: &HashMap<&str, BTreeSet<&'static str>>,
+) -> Vec<String> {
     let mut offenders: Vec<String> = Vec::new();
 
-    for def in &defs {
+    for def in defs {
         if !is_effectively_complete(def) {
             continue;
         }
@@ -513,8 +541,14 @@ fn no_complete_def_introduces_an_unrecorded_auto_chosen_decision() {
         }
     }
 
-    assert!(
-        offenders.is_empty(),
+    offenders
+}
+
+/// `T4`'s failure message, extracted so `t4_failure_message_names_the_bound` (review
+/// finding PB-DP10 #5) can assert against it directly instead of the module doc citing a
+/// test that does not exist.
+fn t4_message(offenders: &[String]) -> String {
+    format!(
         "These effectively-Complete card defs contain a decision the CR gives to a \
          player and the engine still makes for them (audit DP-INV, \
          docs/audits/decision-point-audit.md §1). The decision is legal -- this is not a \
@@ -526,47 +560,130 @@ fn no_complete_def_introduces_an_unrecorded_auto_chosen_decision() {
             `completeness: Completeness::known_wrong(\"engine chooses which card is \
             discarded (CR 701.9b)\")`.\n\
          2. Add a BASELINE entry in this file with the def's exact row set AND a written \
-            reason -- a reviewed acknowledgement that this card ships with the engine \
+            reason -- a recorded acknowledgement that this card ships with the engine \
             choosing for the player until the owning PB lands.\n\n\
          Implementing the choice properly is NOT an exit for this batch: it needs the \
          owning engine PB (docs/audits/decision-point-audit.md §5, rows DP-13..DP-31), \
          not a card-def edit.\n\nOffenders:\n{}",
         offenders.join("\n")
-    );
+    )
 }
 
 #[test]
-/// T4 is not vacuously green: a synthetic `Complete` def hitting `proliferate` and
-/// absent from `BASELINE` must be flagged by the same offender-detection logic. Proven
-/// against an in-memory corpus, not the real one (this must never touch `all_cards()`'s
-/// gate).
-fn t4_gate_logic_reddens_on_a_new_unbaselined_auto_chosen_complete_def() {
-    let mut fake = mtg_engine::CardDefinition {
-        name: "PB-DP10 Synthetic Offender".to_string(),
-        oracle_text: "Proliferate.".to_string(),
-        abilities: vec![AbilityDefinition::Activated {
-            cost: Cost::Tap,
-            effect: Effect::Proliferate,
-            timing_restriction: None,
-            targets: vec![],
-            activation_condition: None,
-            activation_zone: None,
-            once_per_turn: false,
-            modes: None,
-        }],
-        ..Default::default()
-    };
-    fake.completeness = mtg_engine::cards::Completeness::Complete;
-
+/// **The gate.** See [`offenders`] and [`t4_message`] for what this asserts.
+fn no_complete_def_introduces_an_unrecorded_auto_chosen_decision() {
     let baseline = baseline_map();
+    let defs = all_cards();
+    let found = offenders(&defs, &baseline);
+    assert!(found.is_empty(), "{}", t4_message(&found));
+}
+
+#[test]
+/// `T4`'s own module doc claims a machine check against the R6 harm scenario ("the gate
+/// reading as a closure of DP-INV") by naming this test. Review finding PB-DP10 #5: the
+/// test did not exist. Written now: [`t4_message`]'s text must contain the four load-bearing
+/// phrases a reader needs to not mistake this gate for a closure -- the CANNOT-STOP-THE-
+/// GROWTH bound itself, and both of the two (and only two) legal exits.
+fn t4_failure_message_names_the_bound() {
+    let msg = t4_message(&[
+        "Fake Offender is NOT in BASELINE but hits {\"proliferate\"}. \
+                            Fake Offender hits proliferate (CR 701.34a, effects/mod.rs)"
+            .to_string(),
+    ]);
+    for phrase in [
+        "CANNOT STOP THE GROWTH",
+        "Mark the def non-Complete",
+        "Add a BASELINE entry",
+        "is NOT an exit for this batch",
+    ] {
+        assert!(
+            msg.contains(phrase),
+            "T4's failure message must contain {phrase:?} so a reader cannot mistake this \
+             gate for a closure of DP-INV (plan §12 R6); got:\n{msg}"
+        );
+    }
+}
+
+#[test]
+/// T4's gate logic is not vacuously green: this drives the SAME [`offenders`] function T4
+/// calls, against a synthetic three-def corpus, never touching `all_cards()`. Review
+/// finding PB-DP10 #3: the original probe re-checked two predicates T1/T5 already cover
+/// and never executed the offender loop at all -- in particular the `Some(recorded) if
+/// recorded != &hits` mismatch arm (half the ratchet's design rationale, plan §1.3) had NO
+/// coverage anywhere. This probe exercises all three outcomes the review named.
+fn t4_gate_logic_reddens_on_a_new_unbaselined_auto_chosen_complete_def() {
+    fn prolif_def(name: &str) -> mtg_engine::CardDefinition {
+        mtg_engine::CardDefinition {
+            name: name.to_string(),
+            oracle_text: "Proliferate.".to_string(),
+            abilities: vec![AbilityDefinition::Activated {
+                cost: Cost::Tap,
+                effect: Effect::Proliferate,
+                timing_restriction: None,
+                targets: vec![],
+                activation_condition: None,
+                activation_zone: None,
+                once_per_turn: false,
+                modes: None,
+            }],
+            ..Default::default()
+        }
+    }
+
+    // (a) An unbaselined Complete Proliferate def IS an offender.
+    let mut unbaselined = prolif_def("PB-DP10 Synthetic Offender (unbaselined)");
+    unbaselined.completeness = mtg_engine::cards::Completeness::Complete;
+
+    // (b) A def present in a synthetic baseline with a SMALLER recorded row set than it
+    // actually hits IS an offender, on the "tighten the entry" (subset) arm -- the
+    // previously-uncovered mismatch branch.
+    let mut mismatched = prolif_def("PB-DP10 Synthetic Offender (mismatched baseline)");
+    mismatched.completeness = mtg_engine::cards::Completeness::Complete;
+
+    // (c) A NON-Complete def carrying the identical site is NOT an offender.
+    let mut non_complete = prolif_def("PB-DP10 Synthetic Non-Offender (not Complete)");
+    non_complete.completeness = mtg_engine::cards::Completeness::partial("T4 probe, not real");
+
+    let baseline: HashMap<&str, BTreeSet<&'static str>> = [(
+        mismatched.name.as_str(),
+        ["proliferate", "discard_cards"].into_iter().collect(),
+    )]
+    .into_iter()
+    .collect();
     assert!(
-        !baseline.contains_key(fake.name.as_str()),
-        "test setup: the synthetic name must not collide with a real BASELINE entry"
+        !baseline.contains_key(unbaselined.name.as_str()),
+        "test setup: the unbaselined synthetic name must not collide"
     );
-    let hits = auto_chosen_row_hits(&fake);
+
+    let corpus = [
+        unbaselined.clone(),
+        mismatched.clone(),
+        non_complete.clone(),
+    ];
+    let found = offenders(&corpus, &baseline);
+
     assert!(
-        !hits.is_empty() && !baseline.contains_key(fake.name.as_str()),
-        "the synthetic def must be a genuine offender under the same predicate T4 uses"
+        found
+            .iter()
+            .any(|o| o.contains(unbaselined.name.as_str()) && o.contains("is NOT in BASELINE")),
+        "(a) an unbaselined Complete Proliferate def must be an offender: {found:?}"
+    );
+    assert!(
+        found
+            .iter()
+            .any(|o| o.contains(mismatched.name.as_str()) && o.contains("tighten the entry")),
+        "(b) a def baselined with a recorded row set that is a SUPERSET of its actual hits \
+         (the subset/tighten mismatch arm) must be an offender: {found:?}"
+    );
+    assert!(
+        !found.iter().any(|o| o.contains(non_complete.name.as_str())),
+        "(c) a non-Complete def must never be an offender, even carrying the identical \
+         site: {found:?}"
+    );
+    assert_eq!(
+        found.len(),
+        2,
+        "exactly two of the three synthetic defs are offenders: {found:?}"
     );
 }
 
@@ -675,13 +792,21 @@ fn auto_chosen_complete_union_is_ratcheted() {
 /// bars a DIFFERENT key, `AddManaChoice`, and does not reach `AddManaFilterChoice`).
 fn hard_zero_rows_have_no_complete_defs() {
     let defs = all_cards();
+    // Review finding PB-DP10 #14: serialize each def ONCE, not once per row (~1,804 vs
+    // ~3,600 serializations here -- the pattern is worse in T9, which is the same fix
+    // applied at scale).
+    let jsons: Vec<serde_json::Value> = defs
+        .iter()
+        .map(|d| serde_json::to_value(d).unwrap())
+        .collect();
     for id in ["add_mana_filter_choice", "the_ring_tempts_you"] {
         let row = ROWS.iter().find(|r| r.id == id).unwrap();
         let complete: Vec<String> = defs
             .iter()
-            .filter(|d| is_effectively_complete(d))
-            .filter(|d| (row.predicate)(&serde_json::to_value(*d).unwrap()))
-            .map(|d| d.name.clone())
+            .zip(&jsons)
+            .filter(|(d, _)| is_effectively_complete(d))
+            .filter(|(_, json)| (row.predicate)(json))
+            .map(|(d, _)| d.name.clone())
             .collect();
         assert!(
             complete.is_empty(),
@@ -728,7 +853,13 @@ fn served_rows_still_have_their_hooks() {
         "a fresh state has no outstanding CR 603.3d trigger-target choice"
     );
 
-    // Each Served row's roster floor is non-zero.
+    // Each Served row's roster floor is non-zero. Serialize once (Finding PB-DP10 #14),
+    // reused across the 4 rows checked below.
+    let defs = all_cards();
+    let jsons: Vec<serde_json::Value> = defs
+        .iter()
+        .map(|d| serde_json::to_value(d).unwrap())
+        .collect();
     for (id, min) in [
         ("triggered_targets", 1usize),
         ("search_library", 1),
@@ -740,10 +871,11 @@ fn served_rows_still_have_their_hooks() {
             matches!(row.class, DecisionClass::Served { .. }),
             "row {id:?} must be classified Served"
         );
-        let count = all_cards()
+        let count = defs
             .iter()
-            .filter(|d| is_effectively_complete(d))
-            .filter(|d| (row.predicate)(&serde_json::to_value(*d).unwrap()))
+            .zip(&jsons)
+            .filter(|(d, _)| is_effectively_complete(d))
+            .filter(|(_, json)| (row.predicate)(json))
             .count();
         assert!(
             count >= min,
@@ -763,12 +895,19 @@ fn served_rows_still_have_their_hooks() {
 /// unrelated authoring).
 fn decision_site_reconciliation_report() {
     let defs = all_cards();
+    // Review finding PB-DP10 #14: this test was the worst offender -- 22 rows x ~1,804
+    // defs re-serialized `CardDefinition` ~40,000 times where 1,804 does. Serialize once,
+    // index by position for every row below.
+    let jsons: Vec<serde_json::Value> = defs
+        .iter()
+        .map(|d| serde_json::to_value(d).unwrap())
+        .collect();
     println!("PB-DP10 decision-site reconciliation (enumerated from all_cards(), not grep):");
     for row in ROWS {
         let mut complete = 0usize;
         let mut other = 0usize;
-        for def in &defs {
-            if (row.predicate)(&serde_json::to_value(def).unwrap()) {
+        for (def, json) in defs.iter().zip(&jsons) {
+            if (row.predicate)(json) {
                 if is_effectively_complete(def) {
                     complete += 1;
                 } else {
@@ -831,12 +970,18 @@ fn decision_site_reconciliation_report() {
 /// targets and cannot share code across the SR-9a boundary).
 fn canonical_walk_reproduces_pb_dp9_rosters() {
     let defs = all_cards();
+    // Hoisted per Finding PB-DP10 #14: serialize once, reused across the 3 rows below.
+    let jsons: Vec<serde_json::Value> = defs
+        .iter()
+        .map(|d| serde_json::to_value(d).unwrap())
+        .collect();
     for (id, floor) in [("search_library", 73usize), ("scry", 16), ("surveil", 8)] {
         let row = ROWS.iter().find(|r| r.id == id).unwrap();
         let count = defs
             .iter()
-            .filter(|d| is_effectively_complete(d))
-            .filter(|d| (row.predicate)(&serde_json::to_value(*d).unwrap()))
+            .zip(&jsons)
+            .filter(|(d, _)| is_effectively_complete(d))
+            .filter(|(_, json)| (row.predicate)(json))
             .count();
         assert!(
             count >= floor,
@@ -852,7 +997,8 @@ fn canonical_walk_reproduces_pb_dp9_rosters() {
 /// against a known-good answer.
 fn canonical_walk_reproduces_pb_dp8_roster() {
     let row = ROWS.iter().find(|r| r.id == "triggered_targets").unwrap();
-    let count = all_cards()
+    let defs = all_cards();
+    let count = defs
         .iter()
         .filter(|d| is_effectively_complete(d))
         .filter(|d| (row.predicate)(&serde_json::to_value(d).unwrap()))
@@ -913,13 +1059,22 @@ fn count_variant_declaration_lines(src: &str, key: &str) -> usize {
 /// `SearchLibrary`/`Scry`/`Surveil` each have a "twin" declared in
 /// `state/stubs.rs`'s `EffectChoiceQuestion` / `EffectChoiceAnswer` -- GameState-facing
 /// wire types with NO structural path from `CardDefinition`, so they cannot inflate a
-/// `CardDefinition`-serialization walk regardless of the name collision.
+/// `CardDefinition`-serialization walk regardless of the name collision. **`ChooseColor`
+/// / `ChooseCreatureType`** (review finding PB-DP10 #11) are the ONE row whose predicate
+/// spans two enums BY DESIGN: `state/replacement_effect.rs`'s `ReplacementModification`
+/// declares `ChooseColor(Color)` and `ChooseCreatureType(SubType)` (the as-enters, CR
+/// 614.12a path), and `cards/card_definition.rs`'s `Effect` separately declares
+/// `ChooseCreatureType { default: SubType }` (the resolution-time, CR 608.2d path) --
+/// this is the row MOST exposed to a new declaration silently changing what the gate
+/// counts, and until this fix it was the only one left unguarded.
 fn pinned_collision_counts() -> &'static [(&'static str, usize)] {
     &[
         ("Discover", 2),
         ("SearchLibrary", 3),
         ("Scry", 3),
         ("Surveil", 3),
+        ("ChooseColor", 1),
+        ("ChooseCreatureType", 2),
     ]
 }
 
@@ -928,7 +1083,13 @@ fn row_variant_name_collision_inventory_is_pinned() {
     let card_definition_src = read_ct("crates/card-types/src/cards/card_definition.rs");
     let types_src = read_ct("crates/card-types/src/state/types.rs");
     let stubs_src = read_ct("crates/card-types/src/state/stubs.rs");
-    let combined = [&card_definition_src, &types_src, &stubs_src];
+    let replacement_effect_src = read_ct("crates/card-types/src/state/replacement_effect.rs");
+    let combined = [
+        &card_definition_src,
+        &types_src,
+        &stubs_src,
+        &replacement_effect_src,
+    ];
 
     for (key, expected) in pinned_collision_counts() {
         let total: usize = combined
@@ -961,7 +1122,16 @@ fn collision_scan_is_not_vacuous() {
 // ── T13: PROSE_FIELDS denylist completeness ────────────────────────────────────
 
 /// A field declaration line's `(name, type)` if its type is exactly `String`,
-/// `Option<String>` or `Vec<String>`.
+/// `Option<String>`, `Vec<String>`, or one of the two NEWTYPE-over-`String` types in
+/// `crates/card-types/src` (`SubType(pub String)`, `CardId(pub String)`) in any of their
+/// bare/`Option`/`Vec`/`Option<Vec<_>>` forms.
+///
+/// Review finding PB-DP10 #6: the original scan recognized only the three literal
+/// `String` shapes, but serde serializes a single-field newtype STRUCT transparently --
+/// `SubType("Human".to_string())` serializes to the bare JSON string `"Human"`, exactly
+/// like a literal `String` field would -- so a `SubType`/`CardId`-typed field is an
+/// EQUALLY real false-positive channel for the unit-variant rows and was silently
+/// excluded from the completeness proof this function backs.
 fn string_field_name(line: &str) -> Option<String> {
     let t = line.trim();
     let t = t.strip_prefix("pub ").unwrap_or(t);
@@ -972,7 +1142,18 @@ fn string_field_name(line: &str) -> Option<String> {
         return None;
     }
     let ty = type_part[1..].trim().trim_end_matches(',').trim();
-    if ty == "String" || ty == "Option<String>" || ty == "Vec<String>" {
+    if matches!(
+        ty,
+        "String"
+            | "Option<String>"
+            | "Vec<String>"
+            | "SubType"
+            | "Option<SubType>"
+            | "Vec<SubType>"
+            | "Option<Vec<SubType>>"
+            | "CardId"
+            | "Option<CardId>"
+    ) {
         Some(name.to_string())
     } else {
         None
@@ -980,11 +1161,15 @@ fn string_field_name(line: &str) -> Option<String> {
 }
 
 #[test]
-/// Every `String` / `Option<String>` / `Vec<String>` field declared on `CardDefinition`,
-/// `CardFace`, or the `AbilityDefinition` variants in `card_definition.rs`, plus
-/// `TriggeredAbilityDef` in `game_object.rs` (reachable via `Effect::CreateEmblem`), must
-/// be denylisted in `PROSE_FIELDS` -- a new prose field is a new false-positive channel
-/// for the unit-variant rows.
+/// Every `String` / `Option<String>` / `Vec<String>` field, AND every field typed as one
+/// of the two newtype-over-`String` types (`SubType`, `CardId`, in their bare/`Option`/
+/// `Vec` forms -- review finding PB-DP10 #6), declared on `CardDefinition`, `CardFace`,
+/// or the `AbilityDefinition` variants in `card_definition.rs`; `TriggeredAbilityDef` in
+/// `game_object.rs` (reachable via `Effect::CreateEmblem`); and the three further files
+/// that contribute types to the `CardDefinition` tree -- `state/types.rs`,
+/// `state/replacement_effect.rs`, `state/targeting.rs` -- must be denylisted in
+/// `PROSE_FIELDS`: a new prose field, or a new `SubType`/`CardId` field, is an equally
+/// real false-positive channel for the unit-variant rows.
 fn prose_field_denylist_covers_every_string_field_in_the_dsl() {
     let mut found: BTreeSet<String> = BTreeSet::new();
 
@@ -995,6 +1180,25 @@ fn prose_field_denylist_covers_every_string_field_in_the_dsl() {
     for line in strip_line_comments(&card_definition_src).lines() {
         if let Some(name) = string_field_name(line) {
             found.insert(name);
+        }
+    }
+
+    // Review finding PB-DP10 #6: these three files contribute types reachable from
+    // `CardDefinition` (`state/types.rs` supplies `TargetFilter` and the Enchant
+    // restriction shape; `state/replacement_effect.rs` supplies `ReplacementModification`,
+    // reachable via `AbilityDefinition::Replacement { modification, .. }`;
+    // `state/targeting.rs` supplies target-request types) and were not scanned before
+    // this fix -- scanned whole-file, same as card_definition.rs above.
+    for rel in [
+        "crates/card-types/src/state/types.rs",
+        "crates/card-types/src/state/replacement_effect.rs",
+        "crates/card-types/src/state/targeting.rs",
+    ] {
+        let src = read_ct(rel);
+        for line in strip_line_comments(&src).lines() {
+            if let Some(name) = string_field_name(line) {
+                found.insert(name);
+            }
         }
     }
 

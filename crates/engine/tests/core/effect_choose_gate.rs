@@ -221,7 +221,7 @@ fn no_complete_def_uses_an_any_color_mana_stub() {
 }
 
 /// Counts how many times `key` appears anywhere in the value tree as an object key
-/// (unlike [`contains_key`], which only asks whether it appears at all). Used to detect
+/// (unlike [`def_uses`], which only asks whether it appears at all). Used to detect
 /// a def with more than one `AddManaAnyColor` occurrence.
 fn count_key_occurrences(v: &serde_json::Value, key: &str) -> usize {
     match v {

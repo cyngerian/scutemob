@@ -64,6 +64,23 @@ pub const PROSE_FIELDS: &[&str] = &[
     "has_name",
     "card_id",
     "description",
+    // Review finding PB-DP10 #6: `string_field_name` (`decision_gate.rs`'s `T13`) originally
+    // recognized only literal `String`/`Option<String>`/`Vec<String>` field types, but
+    // `SubType` and `CardId` are BOTH newtype-over-`String` structs (`SubType(pub String)`,
+    // `CardId(pub String)` -- the only two such types in `crates/card-types/src`) and serde
+    // serializes a single-field newtype struct transparently, i.e. as the same bare JSON
+    // string a literal `String` field would produce. The eight entries below are every
+    // `SubType`/`CardId`-typed field T13 now finds reachable from `CardDefinition` (across
+    // `cards/card_definition.rs`, `state/types.rs`, `state/replacement_effect.rs`) that was
+    // NOT already covered by an existing entry above.
+    "pair_card_id",
+    "melded_card_id",
+    "onto_subtype",
+    "has_subtype",
+    "has_subtypes",
+    "exclude_subtypes",
+    "spell_subtype_filter",
+    "default",
     "Inert",
     "Partial",
     "KnownWrong",
@@ -312,7 +329,10 @@ pub static ROWS: &[Row] = &[
         cr: "701.9",
         site: "effects/mod.rs (WheelHand) -- discards the WHOLE hand",
         class: DecisionClass::NoDecision {
-            why: "the whole hand is discarded, so there is no pick order to observe or hook",
+            why: "the whole hand is discarded, so there is no 'which card' pick (CR 701.9b) \
+                  to hook. The CR 404.3 graveyard-order choice still exists and the engine \
+                  takes it by ascending ObjectId -- that is a separate, uncounted class-B \
+                  site (OOS-DP10-10), not this row",
         },
         predicate: p_wheel_hand,
     },
@@ -348,7 +368,7 @@ pub static ROWS: &[Row] = &[
     },
     Row {
         id: "choose_color_or_type",
-        cr: "106.12 (ChooseColor) / n/a (ChooseCreatureType)",
+        cr: "614.12a (as-enters, ReplacementModification) / 608.2d (resolution-time Effect)",
         site: "effects/mod.rs (ChooseCreatureType) + replacement.rs (ChooseColor) -- most common subtype/color among controller's own permanents",
         class: DecisionClass::AutoChosen {
             why_not_flagged_is_wrong:
@@ -362,7 +382,13 @@ pub static ROWS: &[Row] = &[
         site: "effects/mod.rs (LookAtTopThenPlace / RevealAndRoute) -- optional destructured away / deterministic routing",
         class: DecisionClass::AutoChosen {
             why_not_flagged_is_wrong:
-                "LookAtTopThenPlace's `optional` field is inert by construction (OOS-DP10-5) and RevealAndRoute routes deterministically; both are CR 608.2d choices the player should make",
+                "LookAtTopThenPlace's `optional` field is inert by construction (OOS-DP10-5); \
+                 RevealAndRoute covers BOTH real CR 608.2d/401.4 order choices (Goblin \
+                 Ringleader's Goblins 'in any order') AND defs whose routing the card itself \
+                 determines with no choice at all (Chaos Warp, Coiling Oracle: reveal one \
+                 card, deterministic destination on both branches) -- this row's count is \
+                 therefore an UPPER BOUND on real decisions, not an exact one (carried into \
+                 OOS-DP10-6's successor-queue ranking as a caveat)",
         },
         predicate: p_look_at_top_or_route,
     },

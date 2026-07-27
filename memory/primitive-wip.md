@@ -13,7 +13,8 @@
 - **Task**: `scutemob-158`
 - **Branch**: `feat/pb-dp10-widen-the-decision-gate-stop-the-277-def-engine-gues`
 - **Class**: GATE / INVARIANT (test-only). Rank 10 of the PB-DP suite; **closes it**.
-- **Phase**: implement
+- **Phase**: fix — review findings applied 2026-07-27 (all 14: 2 HIGH, 6 MEDIUM, 6 LOW). See
+  "Review + fix cycle" section below.
 - **Plan**: `memory/primitives/pb-plan-DP10.md`
 - **Review file**: `memory/primitives/pb-review-DP10.md`
 - **Baseline**: PROTOCOL **31**, HASH **68**, tests **3,910** (main at merge `d65e7f1e`)
@@ -95,7 +96,8 @@ still-open rows (DP-13/14/16/17/18/19/20/25/26/31) remain for.
       crates/card-types/src crates/card-defs/src` empty; PROTOCOL 31 / HASH 68 unmoved.
 - [x] 7. Audit §8 / §5 / §10 / §8.1 updates — done; PB-DP10 row SHIPPED, suite marked
       COMPLETE, §3.1/§4.9 CR-cite corrections, §6 bullet, §10 mechanization ledger (3/8
-      mechanized), §8.1 closes OOS-DP7-7 + files OOS-DP10-1..7.
+      mechanized), §8.1 closes OOS-DP7-7 + files OOS-DP10-1..7 (widened to **OOS-DP10-1..11**
+      by the review/fix cycle below).
 
 ## What shipped
 
@@ -123,10 +125,15 @@ is empty. PROTOCOL 31 / HASH 68 unmoved.
   `roster::json_contains_variant`'s unit-variant blindness, pointing at the canonical walk;
   no logic changed.
 - EDIT `docs/audits/decision-point-audit.md` — §3.1 (superseded-by note, two CR-cite fixes,
-  hard-zero framing correction), §4.9 (Bolster cite fix), §5 (baselined-rows note), §6
-  (superseded bullet), §8 (PB-DP10 row → SHIPPED, suite-COMPLETE banner), §8.1 (closes
-  OOS-DP7-7, files OOS-DP10-1..7), §10 (mechanization ledger: 3/8 mechanized, 1
-  optional-recommended-not-taken, 4 stay human).
+  hard-zero framing correction; widened by the fix cycle with the encoding-blindness
+  paragraph and the full per-row reconciliation delta table), §4.9 (Bolster cite fix), §5
+  (baselined-rows note), §6 (superseded bullet; widened with the two further mechanisms —
+  `Completeness`-note-string regex hits, the row-4 split), §8 (PB-DP10 row → SHIPPED,
+  suite-COMPLETE banner; widened with the fix-cycle summary and corrected test count), §8.1
+  (closes OOS-DP7-7, files **OOS-DP10-1..11** — the last four by the fix cycle; OOS-DP10-6
+  gains `put_on_library` and an upper-bound caveat), §10 (mechanization ledger: 3/8
+  mechanized, 1 optional-recommended-not-taken, 4 stay human; T15's dropped-digest pointer
+  corrected from OOS-DP10-4/7 to **OOS-DP10-11**).
 
 **Step 0 probe results** (via a throwaway `zz_dp10_probe.rs`, deleted before finalizing —
 its findings are captured here and in the doc comments of the shipped files instead):
@@ -177,21 +184,27 @@ its findings are captured here and in the doc comments of the shipped files inst
   `deck`). Followed `cargo fmt`, the authoritative source per SR-35's own convention.
 
 **Dropped from the plan's test list (budget).** None fully dropped — T1–T14 and T16 all
-shipped (17 tests total: T1, T2, T3, T4 + its own non-vacuity probe, T5, T6, T7, T8, T9, T10,
-T11, T12 + its non-vacuity probe, T13, T14, T16). **T15/T15b (the DSL-enum-declaration roster
-digest) were NOT shipped** — filed as the honest-framing note in §10's mechanization ledger
-and as seeds OOS-DP10-4 (Command accepted-and-discarded scan) and OOS-DP10-7 (`GameEvent`
-sibling-answer roster digest). Per the plan's own R9 risk note, T15/T15b were explicitly the
-first to drop if the batch ran long; the effort went to T12/T13/T14/T16 instead because each
-of those defends a mechanism this batch actually introduces (string matching, the denylist,
-the Gated-row drift check, the residual-seed honesty check), whereas T15's marginal value
-(per the plan's own §9 analysis) is the *obligation*, not the *notice* — `Effect` already
-forces a wire bump on a new variant regardless.
+shipped (17 tests total at implementation close: T1, T2, T3, T4 + its own non-vacuity probe,
+T5, T6, T7, T8, T9, T10, T11, T12 + its non-vacuity probe, T13, T14, T16; the review/fix
+cycle below adds an 18th, `t4_failure_message_names_the_bound`). **T15/T15b (the
+DSL-enum-declaration roster digest) were NOT shipped** — filed as the honest-framing note in
+§10's mechanization ledger. **Correction (review finding PB-DP10 #13, applied in the fix
+cycle):** the WIP's original record here claimed T15 was filed as seeds OOS-DP10-4 and
+OOS-DP10-7; that was wrong — OOS-DP10-4 is a `Command`-field scan (a different enum, a
+different instrument) and OOS-DP10-7 is the `GameEvent` digest (`T15b`, T15's sibling, not
+T15 itself). **T15's actual subject — the `Effect`/`AbilityDefinition`/
+`ReplacementModification` roster digest — had no owning seed at all** and is now filed as
+**OOS-DP10-11**. Per the plan's own R9 risk note, T15/T15b were explicitly the first to drop
+if the batch ran long; the effort went to T12/T13/T14/T16 instead because each of those
+defends a mechanism this batch actually introduces (string matching, the denylist, the
+Gated-row drift check, the residual-seed honesty check), whereas T15's marginal value (per
+the plan's own §9 analysis) is the *obligation*, not the *notice* — `Effect` already forces a
+wire bump on a new variant regardless.
 
 **Verification.**
 - `cargo build --workspace` — clean.
-- `cargo test --all` — **3,927 passing / 0 failing** (3,910 baseline + 17 new). All 30
-  workspace test binaries green.
+- `cargo test --all` — **3,928 passing / 0 failing** (3,910 baseline + 18 new, after the
+  review/fix cycle's 1 additional test). All 30 workspace test binaries green.
 - `cargo clippy --all-targets -- -D warnings` — clean (one doc-comment `doc_lazy_continuation`
   lint fixed: a wrapped line starting with `+` was read as a markdown list item; reworded).
 - `cargo fmt --check` — clean (after running `cargo fmt`, which reordered the two new `mod`
@@ -211,4 +224,53 @@ forces a wire bump on a new variant regardless.
 `modal_trigger` 4, `change_targets` 3, `put_on_library` 1, `bolster_amass` 3, `connive` 1,
 `discover` 1, `may_pay_or_else` 0, `add_mana_filter_choice` 0, `choose_stub` 0,
 `the_ring_tempts_you` 0. All-rows union **267**. Still-auto union / `BASELINE` size **97**.
-Live denominator **1,139 / 1,804 = 63.1%** effectively-`Complete`.
+Live denominator **1,139 / 1,804 = 63.1%** effectively-`Complete`. **All of these numbers are
+UNCHANGED by the review/fix cycle below** — no `ROWS` predicate, no `BASELINE` row set, and
+no `Completeness` marker was touched; the fixes are messaging, denylist-completeness, and
+gate-integrity, not measurement.
+
+---
+
+## Review + fix cycle (2026-07-27)
+
+`memory/primitives/pb-review-DP10.md` (commit `76b4f1cd`): 2 HIGH, 6 MEDIUM, 6 LOW. **All 14
+applied.** Hard constraints re-verified after the fix cycle: `git diff --name-only main --
+crates/engine/src crates/card-types/src crates/card-defs/src` still empty; PROTOCOL 31 /
+HASH 68 still unmoved; 0 card-def edits.
+
+| # | Sev | Finding | Disposition |
+|---|---|---|---|
+| 1 | HIGH | `BASELINE` launders class-D defs (Smuggler's Copter, Shambling Ghast) as class B; plan §5.3 triage never performed | **Fixed.** `BASELINE`'s doc comment now states explicitly that an entry asserts only "hits these rows," not oracle-correctness, and names both defs with the corrected, WORSE Shambling Ghast finding (three deviations, not two — see below). `T4`'s failure message: "reviewed acknowledgement" → "recorded acknowledgement." Filed **OOS-DP10-8** with the orchestrator's corrected facts: Smuggler's Copter is the 20th instance of audit §5's DP-12 class (19 already marked `known_wrong`), not a novel defect; Shambling Ghast has a THIRD deviation the review's own text missed — it grants `KeywordAbility::Decayed`, which the printed card does not have at all, in addition to the permanent-counter and stale-`oracle_text` issues the review found. **Neither card def edited** — per plan §5.3, file, do not demote. |
+| 2 | HIGH | The gate is blind to a decision the DSL never encoded (Smuggler's Copter is the live example) and criterion 5554's wording doesn't say so | **Fixed.** Added the bound in the three places the fix specified: `decision_gate.rs`'s module doc (new paragraph after the "cannot stop the growth" one), the audit §8 PB-DP10 row, and §3.1's superseded note. Filed **OOS-DP10-9**. |
+| 3 | MEDIUM (test-validity, treated as fix-phase HIGH per convention) | T4's non-vacuity probe never executed T4's offender loop, in particular the subset/superset mismatch arm | **Fixed properly, not minimally**, per the orchestrator's explicit instruction. Extracted `offenders()` (T4's exact logic) and `t4_message()` (T4's exact failure text) as standalone functions; T4 now calls both. Rewrote the probe to build a 3-def synthetic corpus and assert all three outcomes: (a) an unbaselined `Complete` Proliferate def is an offender; (b) a def baselined with a recorded row set that is a SUPERSET of its actual hits (the "tighten the entry" / subset arm — previously uncovered anywhere) is an offender; (c) a non-`Complete` def carrying the identical site is NOT an offender. **Verified non-vacuous by execution**: temporarily neutered the mismatch arm's guard (`Some(recorded) if false && recorded != &hits`), confirmed outcome (b)'s assertion goes red naming the exact synthetic def, restored, confirmed green again. |
+| 4 | MEDIUM | Wrong CR cite `106.12` for `ChooseColor` (that's the tap-for-mana definition) | **Fixed.** `decision_site_walk.rs`'s `choose_color_or_type` row now cites `"614.12a (as-enters, ReplacementModification) / 608.2d (resolution-time Effect)"`, applied verbatim per the orchestrator's own CR verification this session. |
+| 5 | MEDIUM | Module doc cites `t4_failure_message_names_the_bound`, which didn't exist | **Fixed by writing the test** (the review's preferred option). Extracted `t4_message()` so the new test can assert its text contains the four load-bearing phrases: "CANNOT STOP THE GROWTH," "Mark the def non-Complete," "Add a BASELINE entry," "is NOT an exit for this batch." **Verified non-vacuous by execution**: temporarily corrupted the "Add a BASELINE entry" phrase in `t4_message`'s format string, confirmed the new test goes red naming the missing phrase, restored, confirmed green again. This is the 18th test (+1 over the implementation phase's 17). |
+| 6 | MEDIUM | `PROSE_FIELDS`-completeness test recognized only literal `String` types, missing newtype-over-`String` (`SubType`, `CardId`) fields and 3 contributing files | **Fixed via option (a)** (widen, per the orchestrator's explicit preference over documenting the gap). `string_field_name` now recognizes `SubType`/`Option<SubType>`/`Vec<SubType>`/`Option<Vec<SubType>>`/`CardId`/`Option<CardId>` in addition to the three `String` shapes — `SubType`/`CardId` are the ONLY two newtype-over-`String` types in the whole `card-types` crate (verified by grepping every `pub struct X(pub String)` declaration), so this closes the channel completely, not partially. Scan extended to `state/types.rs`, `state/replacement_effect.rs`, `state/targeting.rs` (whole-file, matching the fix's own scope). Cross-checked with a standalone Python replica of the widened scan against all 5 files: found exactly `card_id`, `default`, `exclude_subtypes`, `has_name`, `has_subtype`, `has_subtypes`, `melded_card_id`, `name`, `onto_subtype`, `oracle_text`, `pair_card_id`, `prompt`, `spell_subtype_filter`, `subtype` — all 14 are now in `PROSE_FIELDS` (8 new: `pair_card_id`, `melded_card_id`, `onto_subtype`, `has_subtype`, `has_subtypes`, `exclude_subtypes`, `spell_subtype_filter`, `default`). Audit's over-claim sentence in the §8 row corrected to name the widened scope explicitly. |
+| 7 | MEDIUM | §3.1's reconciliation explains a minority of the drift; two mechanisms named, several deltas unexplained | **Fixed properly**, per the orchestrator's explicit instruction. Added the full per-row audit-vs-measured delta table to §3.1's superseded note (15 rows), with a mechanism per non-trivial delta. Two new mechanisms added to §6: (iii) the audit's regex counted variant names inside `Completeness` note strings (`connive` 2→1, `put_on_library` 3→1, both confirmed by finding the actual defs: only `raffines_informant.rs` / `brainstorm.rs` are real, `spymasters_vault.rs` / `witchs_cottage.rs` / `gravepurge.rs` mention the variant only in a note); (iv) the audit's row 4 bundled two predicates, and the split is exact (13 + 10 = 23). Per the orchestrator's explicit instruction, the three deltas with no established mechanism (`search_library` 74→73, `may_pay_then_effect` 11→10, `modal_trigger` 5→4) are written as **"unexplained, ±1, within regex noise"** rather than assigned an invented mechanism. |
+| 8 | MEDIUM | `look_at_top_or_route` over-includes (Chaos Warp, Coiling Oracle have no real choice); the row's own `why` claims otherwise | **Minimum fix applied**, per the orchestrator's explicit instruction (do not split the row; `MAX_AUTO_CHOSEN_COMPLETE_UNION`/`BASELINE` stay frozen against 97). `decision_site_walk.rs`'s row `why_not_flagged_is_wrong` rewritten to state the row is an UPPER BOUND, naming both the real-choice members (Goblin Ringleader) and the no-choice members (Chaos Warp, Coiling Oracle). Same caveat added to audit §8.1's **OOS-DP10-6**. |
+| 9 | LOW | `wheel_hand`'s NO-DECISION `why` overreaches (CR 404.3 graveyard order IS engine-chosen, just not the pick this row counts) | **Fixed.** Narrowed the `why` text to distinguish "no 'which card' pick (CR 701.9b)" from the still-real CR 404.3 graveyard-order choice, pointing at the new seed. Filed **OOS-DP10-10**. |
+| 10 | LOW | Stale doc reference to `contains_key` in `effect_choose_gate.rs` (deleted by the PB-DP10 rewire) | **Fixed.** Retargeted to `def_uses`. |
+| 11 | LOW | T12's collision inventory omits the one row whose predicate spans two enums by design (`choose_color_or_type`) and doesn't scan `replacement_effect.rs` | **Fixed.** Added `state/replacement_effect.rs` to the scanned set; pinned `("ChooseColor", 1)` and `("ChooseCreatureType", 2)`, both verified by direct grep before pinning (1 declaration in `replacement_effect.rs` for `ChooseColor`; one each in `card_definition.rs` and `replacement_effect.rs` for `ChooseCreatureType`). |
+| 12 | LOW | `OOS-DP10-6` omits `put_on_library` (measured 1) from the successor-queue ranking | **Fixed.** Added `put_on_library 1` to the ranked list in §8.1. |
+| 13 | LOW | The dropped T15 has no owning seed; the WIP's record pointed at the wrong two seeds | **Fixed.** Filed **OOS-DP10-11** owning T15's actual subject (the `Effect`/`AbilityDefinition`/`ReplacementModification` roster digest). Corrected the WIP's "Dropped" paragraph (above) and both §10 in-doc pointers that had said "OOS-DP10-4's sibling scope note." |
+| 14 | LOW | T9 (and T7/T8/T10/T11) re-serialize each `CardDefinition` once per row instead of once per def | **Fixed.** Hoisted `serde_json::to_value` out of the row loop in T7, T8, T9, T10, T11 — each now serializes the corpus once (`Vec<Value>`, zipped against `defs` for the row-by-row filter) and indexes into it. T9 alone drops from ~40,000 serializations to ~1,804. |
+
+**Seeds filed by this cycle**: **OOS-DP10-8, -9, -10, -11** in `docs/audits/decision-point-audit.md` §8.1, in the existing row format. Every place that counted the seeds (the §8 PB-DP10 row, this WIP's own step-7 line, and the file-inventory bullet) updated from "OOS-DP10-1..7" to "**OOS-DP10-1..11**".
+
+**Test count, re-derived after the fix cycle**: `decision_gate.rs` now has **18** `#[test]`s
+(17 at implementation close + 1 new: `t4_failure_message_names_the_bound`). Workspace total
+**3,928** (3,910 baseline + 18), verified by `awk` summing every `test result:` line across
+all 31 workspace test binaries — see Verification above.
+
+**Non-vacuity proof method** (both F3 and F5, per the orchestrator's explicit request):
+temporarily broke the mechanism each test defends, ran the single test, confirmed a red
+failure naming the exact defect, reverted, confirmed green again. Both `git diff`s were
+inspected after reverting to confirm no `TEMPORARY`/`if false` residue was left behind (see
+Verification's `git diff --name-only` line and the full `git diff` review before close).
+
+**What could not be done / deferred**: nothing from the review's 14 findings was deferred —
+all were applied. The review's own closing recommendation ("re-run the Finding 1 oracle
+spot-check across all 97 `BASELINE` entries") was **not** performed in this cycle — the
+orchestrator's brief scoped Finding 1's fix to the seed + doc-comment + message-wording
+triple, not a full 97-entry re-triage, and OOS-DP10-8 says so explicitly ("the remaining 95
+entries have not been triaged").
