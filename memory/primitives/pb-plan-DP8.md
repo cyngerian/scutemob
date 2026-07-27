@@ -1419,11 +1419,19 @@ recs 1/2/5/9, §10.
 - [ ] `rg 'flush_pending_triggers\(' crates/*/src` returns **6** sites; the four in §4.1 each carry
       the suspension guard immediately after; the `check_and_flush_triggers` site carries **none**
       and the reason is in a comment
-- [ ] `PROTOCOL_VERSION == 29`, fingerprint **gate-computed**, `PROTOCOL_HISTORY` row **appended**,
+- [ ] **`rg 'check_and_flush_triggers\(' crates/engine/src`** — and state, per site, what executes
+      after it. **CORRECTED BY THE FIX CYCLE (review Finding 3).** The line above is not sufficient:
+      it greps the *inner* function and therefore sees `check_and_flush_triggers`' single definition
+      site while missing every caller. There are **31** callers, not 30 — the 30 inside
+      `process_command`'s `match` (each followed by exactly `all_events.extend(events);` and the end
+      of the arm, so none needs a guard) **plus** `handle_all_passed`'s `force_resolve_overdue_payments`
+      branch (`engine.rs`, PB-DP4), which grants priority unconditionally afterwards and does need one.
+      That 31st site shipped unguarded because §4.2's derivation enumerated the `match` arms only.
+- [ ] `PROTOCOL_VERSION == 29` (**fix cycle: 30** — `TriggerTargetOption` gained `max`), fingerprint **gate-computed**, `PROTOCOL_HISTORY` row **appended**,
       `protocol_version_sentinel` + `FROZEN_HISTORY_PREFIX_DIGEST` re-pinned
-- [ ] `HASH_SCHEMA_VERSION == 66`, **both** fingerprints gate-computed, `HASH_SCHEMA_HISTORY` row
+- [ ] `HASH_SCHEMA_VERSION == 66` (**fix cycle: 67** — `TriggerTargetOption.max`, `resume_site`), **both** fingerprints gate-computed, `HASH_SCHEMA_HISTORY` row
       **appended**, sentinel + `FROZEN_HISTORY_PREFIX_DIGEST` re-pinned
-- [ ] all **53** scattered sentinels from §6.3 re-pinned; **no new sentinel added** (OOS-DP7-8)
+- [ ] all **53** scattered sentinels from §6.3 re-pinned (**implement phase found 54** — `pb_dp5_pending_draw_choice.rs` spells the constant `mtg_engine::HASH_SCHEMA_VERSION` and escaped the regex); **no new sentinel added** (OOS-DP7-8)
 - [ ] `state/hash.rs` `GameEvent` match gained a `130u8` arm (no `_` arm exists — a miss is a compile
       error, which is the point)
 - [ ] `HashInto for TriggerTargetOption` and `for PendingTriggerTargets` written with **bare** names;

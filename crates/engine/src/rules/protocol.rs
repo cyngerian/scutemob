@@ -274,7 +274,16 @@ use crate::state::hash::HASH_SCHEMA_VERSION;
 ///   `TriggerTargetOption` is new, and through it `SpellTarget` (which `command.rs`
 ///   never referenced -- it carried bare `Target`) enters the closure for the first
 ///   time. Both declared shapes moved, so the digest moves.
-pub const PROTOCOL_VERSION: u32 = 29;
+/// - 30: PB-DP8 fix cycle (2026-07-26, review Findings 2+6, CR 601.2c): the wire
+///   type `TriggerTargetOption` gains `max: u32`, the slot's declared width. The
+///   shipped v29 shape dropped `TargetRequirement::UpToN`'s `count` and enforced a
+///   hard `<= 1`, so Elder Deep-Fiend ("tap up to **four** target permanents") and
+///   Cloud of Faeries ("untap up to **two** lands") -- both `Complete` -- could
+///   still announce at most one target, and an under-filled slot shifted every
+///   later slot's `EffectTarget::DeclaredTarget { index }` down by one. The
+///   closure's type count is unchanged (94); `TriggerTargetOption`'s declared shape
+///   moved, so the digest moves.
+pub const PROTOCOL_VERSION: u32 = 30;
 
 /// Digest of the serialized shape of the wire-frame type closure
 /// (`Command`, `GameEvent`, [`ReplayLog`] and everything they reach).
@@ -292,7 +301,7 @@ pub const PROTOCOL_VERSION: u32 = 29;
 /// existing `u32` *means* does not. Semantic changes still require a manual
 /// [`PROTOCOL_VERSION`] bump.
 pub const PROTOCOL_SCHEMA_FINGERPRINT: &str =
-    "afdb3aebb512568b22879d5f1df6e4659378edb40a2d02e16f11f475a7bd7d48";
+    "70faee7c16cd09f491ce60fcaad972edd42107e441b0058fd205801955e7ea79";
 
 /// One `(version, fingerprint)` row of the append-only protocol-schema history.
 ///
@@ -520,6 +529,12 @@ pub const PROTOCOL_HISTORY: &[ProtocolEpoch] = &[
         // GameEvent::TriggerTargetChoiceRequired appended, and TriggerTargetOption
         // + SpellTarget enter the closure (see the `- 29:` History line above).
         fingerprint: "afdb3aebb512568b22879d5f1df6e4659378edb40a2d02e16f11f475a7bd7d48",
+    },
+    ProtocolEpoch {
+        version: 30,
+        // PB-DP8 fix cycle (2026-07-26, review Findings 2+6): TriggerTargetOption
+        // gained `max` (see the `- 30:` History line above).
+        fingerprint: "70faee7c16cd09f491ce60fcaad972edd42107e441b0058fd205801955e7ea79",
     },
 ];
 

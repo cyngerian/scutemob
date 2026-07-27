@@ -781,6 +781,25 @@ pub struct TriggerTargetOption {
     /// fell back to the controller, while `candidates` legally contains every live
     /// player (CR 601.2c) — which is exactly the agency this batch restores.
     pub default: Option<SpellTarget>,
+    /// CR 601.2c ("If the spell has a variable number of targets, the player
+    /// announces how many targets they will choose"): the slot's declared width.
+    ///
+    /// `TargetRequirement::UpToN { count, .. }` contributes `count`; every other
+    /// requirement contributes `1`. An `optional` slot accepts 0..=`max` distinct
+    /// targets, a required slot accepts exactly one.
+    ///
+    /// It is also the slot's fixed **width** in the flat `SpellTarget` list a
+    /// triggered ability carries on the stack: slot *i* occupies indices
+    /// `sum(max[..i]) .. sum(max[..=i])`, so `EffectTarget::DeclaredTarget { index }`
+    /// keeps naming the clause its card def meant even when an earlier "up to"
+    /// slot is answered with fewer than `max` targets.
+    ///
+    /// Fix-cycle Findings 2 and 6: before this field the cardinality check was a
+    /// hard `<= 1` (so Elder Deep-Fiend's "tap up to **four**" and Cloud of
+    /// Faeries' "untap up to **two**" could announce at most one) and the flat list
+    /// was a bare concatenation (so `[[], [artifact]]` put the artifact at index 0,
+    /// i.e. under the *planeswalker* clause).
+    pub max: u32,
 }
 /// CR 603.3d / CR 603.3b (PB-DP8 / DP-6): the suspended trigger flush.
 ///
@@ -823,13 +842,52 @@ pub struct PendingTriggerTargets {
     /// suspends inside `enter_step` / `handle_declare_attackers` /
     /// `handle_declare_blockers` / the resolution tail resumes into a game where
     /// nobody has priority, i.e. a hang. It cannot be inferred at resume time
-    /// either: the fifth call site (`check_and_flush_triggers`, on all 29
-    /// `process_command` paths) owes NOTHING, because PB-DP1 moved priority
-    /// assignment into the handlers ahead of the flush -- granting there would
-    /// hand priority to the active player when the actor was someone else.
+    /// either: the 30 `check_and_flush_triggers` sites inside `process_command`'s
+    /// `match` owe NOTHING, because PB-DP1 moved priority assignment into the
+    /// handlers ahead of the flush -- granting there would hand priority to the
+    /// active player when the actor was someone else. The **31st**
+    /// `check_and_flush_triggers` site, in `handle_all_passed`'s
+    /// forced-overdue-payment branch, is not in that match and DOES grant priority
+    /// afterwards (fix-cycle Finding 3).
     ///
-    /// Set to `true` by the four guards; `false` at creation; inherited when the
+    /// Set by the guards; [`FlushResumeSite::None`] at creation; inherited when the
     /// same batch suspends again on a later trigger.
+    ///
+    /// Fix-cycle Findings 3 and 4 widened this from a bare `bool`: a 31st
+    /// `check_and_flush_triggers` call site was found (`handle_all_passed`'s
+    /// overdue-payment branch), and the two `enter_step` guards owed a CR 726 loop
+    /// check — and the Cleanup one a `cleanup_sba_rounds` ratchet — that the bool
+    /// could not express.
     #[serde(default)]
-    pub grant_priority_on_resume: bool,
+    pub resume_site: FlushResumeSite,
+}
+/// CR 603.3 / CR 117.3a / CR 726 (PB-DP8): what the call site whose
+/// `flush_pending_triggers` suspended still owes once the CR 603.3b batch
+/// completes.
+///
+/// A suspended flush returns control to the statement after the
+/// `flush_pending_triggers` call, and each guard then returns early — so whatever
+/// that site was about to do has to be reproduced by
+/// `rules::abilities::finish_resumed_flush` instead. This enum names it.
+///
+/// Reachable only from `GameState` (through `PendingTriggerTargets`), never from
+/// `Command`/`GameEvent`/`ReplayLog`, so it is outside the SR-8 wire closure.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum FlushResumeSite {
+    /// Nothing is owed. This is the 30 `check_and_flush_triggers` sites inside
+    /// `process_command`'s `match`: PB-DP1 moved priority assignment into the
+    /// handlers *ahead* of the flush, so priority is already correctly held by the
+    /// actor, and granting on resume would hand it to the active player instead.
+    #[default]
+    None,
+    /// Grant priority to the active player (routing past a dead one), nothing
+    /// else. `handle_declare_attackers`, `handle_declare_blockers`, the resolution
+    /// tail, and `handle_all_passed`'s forced-overdue-payment branch.
+    GrantPriority,
+    /// CR 726: run the mandatory-loop check over the batch just placed, then grant
+    /// priority. `enter_step`'s has-priority branch.
+    EnterStepPriority,
+    /// CR 514.3a / CR 726: advance `cleanup_sba_rounds`, run the mandatory-loop
+    /// check, then grant priority. `enter_step`'s Cleanup branch.
+    EnterStepCleanup,
 }

@@ -25,7 +25,7 @@ use crate::state::game_object::{InterveningIf, ManaCost, ObjectId, TriggerEvent}
 use crate::state::player::{CardId, PlayerId};
 use crate::state::stack::{StackObject, StackObjectKind, TriggerData};
 use crate::state::stubs::{
-    PendingTrigger, PendingTriggerKind, PendingTriggerTargets, TriggerDoubler,
+    FlushResumeSite, PendingTrigger, PendingTriggerKind, PendingTriggerTargets, TriggerDoubler,
     TriggerDoublerFilter, TriggerTargetOption,
 };
 use crate::state::targeting::{SpellTarget, Target};
@@ -7366,6 +7366,15 @@ pub(crate) fn trigger_target_candidates(
     // before PB-DP8 the `UpToN` arm hand-routed player-inner requirements to the
     // player picker and returned `None` for everything else.
     let optional = matches!(req, TargetRequirement::UpToN { .. });
+    // CR 601.2c: "If the spell has a variable number of targets, the player
+    // announces how many targets they will choose before they announce those
+    // targets." `UpToN` declares that number; every other requirement is a
+    // one-target slot. (Fix-cycle Finding 2: this used to be dropped, capping
+    // Elder Deep-Fiend's "up to four" and Cloud of Faeries' "up to two" at one.)
+    let max: u32 = match req {
+        TargetRequirement::UpToN { count, .. } => (*count).max(1),
+        _ => 1,
+    };
     let req: &TargetRequirement = match req {
         TargetRequirement::UpToN { inner, .. } => inner.as_ref(),
         other => other,
@@ -7558,7 +7567,37 @@ pub(crate) fn trigger_target_candidates(
         optional,
         candidates,
         default,
+        max,
     }
+}
+/// CR 601.2c (PB-DP8 fix cycle, Finding 6): flatten a per-slot answer into the one
+/// `Vec<SpellTarget>` a stack object carries, preserving each slot's declared
+/// width.
+///
+/// `EffectTarget::DeclaredTarget { index }` reads that vector by absolute index, so
+/// slot *i* must start at `sum(slots[..i].max)` no matter how many targets slot *i*
+/// was actually answered with. Interior holes are filled with
+/// [`SpellTarget::unchosen_slot`]; trailing holes are omitted so an all-empty
+/// announcement still produces an EMPTY list (which is what keeps CR 608.2b's "all
+/// targets are illegal" fizzle from firing on a legally-empty "up to" answer).
+fn flatten_slot_answers(
+    slots: &[TriggerTargetOption],
+    per_slot: &[Vec<SpellTarget>],
+) -> Vec<SpellTarget> {
+    debug_assert_eq!(slots.len(), per_slot.len());
+    let mut flat: Vec<SpellTarget> = Vec::new();
+    let mut offset = 0usize;
+    for (slot, chosen) in slots.iter().zip(per_slot.iter()) {
+        if !chosen.is_empty() {
+            // Pad the earlier slots' holes, now that something real follows them.
+            while flat.len() < offset {
+                flat.push(SpellTarget::unchosen_slot());
+            }
+            flat.extend(chosen.iter().cloned());
+        }
+        offset += slot.max as usize;
+    }
+    flat
 }
 /// CR 603.3d (PB-DP8): the deterministic default answer -- byte-identical to the
 /// pre-PB-DP8 first-match auto-pick, because each slot's `default` IS the value
@@ -7583,9 +7622,32 @@ pub fn default_trigger_targets(slots: &[TriggerTargetOption]) -> Vec<Vec<Target>
 /// When every slot is required and has exactly one candidate there is nothing for
 /// the controller to decide, so the engine places the trigger directly rather than
 /// spending a wire round trip on a question with one answer. An `optional` slot is
-/// excluded because "choose zero" is a genuine second answer.
+/// excluded because "choose zero" is a genuine second answer -- **unless** it has
+/// no candidate at all, in which case "choose zero" is its only legal answer too
+/// (fix-cycle Finding 8).
 fn trigger_target_choice_is_forced(slots: &[TriggerTargetOption]) -> bool {
-    slots.iter().all(|s| !s.optional && s.candidates.len() == 1)
+    slots
+        .iter()
+        .all(|s| trigger_target_slot_forced_answer(s).is_some())
+}
+/// CR 601.2c: the sole legal answer for a slot, if it has exactly one.
+///
+/// A required slot with exactly one candidate is determined; an `optional` slot
+/// with NO candidates can only be answered with zero targets, so it is determined
+/// too (fix-cycle Finding 8 -- asking it was a question with one possible answer).
+/// Everything else is a real choice.
+fn trigger_target_slot_forced_answer(slot: &TriggerTargetOption) -> Option<Vec<SpellTarget>> {
+    if slot.optional {
+        if slot.candidates.is_empty() {
+            Some(Vec::new())
+        } else {
+            None
+        }
+    } else if slot.candidates.len() == 1 {
+        Some(vec![slot.candidates[0].clone()])
+    } else {
+        None
+    }
 }
 /// Called immediately before a player would receive priority. If no pending
 /// triggers exist, this is a no-op.
@@ -7602,21 +7664,55 @@ fn trigger_target_choice_is_forced(slots: &[TriggerTargetOption]) -> bool {
 /// `PriorityGiven` — the caller is responsible for granting priority after.
 /// **PB-DP8 (CR 603.3d)**: the batch may now SUSPEND. If this returns with
 /// `state.pending_trigger_targets` `Some`, the CR 603.3b batch is INCOMPLETE and
-/// the caller must not grant priority or advance -- see the four guarded call
+/// the caller must not grant priority or advance -- see the **six** guarded call
 /// sites (`enter_step`'s two branches, `handle_declare_attackers`,
-/// `handle_declare_blockers`, and the resolution tail).
+/// `handle_declare_blockers`, the resolution tail, and -- added by the fix cycle,
+/// review Finding 3 -- `handle_all_passed`'s forced-overdue-payment branch).
+/// What each of them still owes on resume is carried as
+/// [`crate::state::stubs::FlushResumeSite`].
 pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
+    // CR 800.4d (fix-cycle Finding 9, LOW): reconcile the liveness filter with the
+    // raw field. `rules::engine::blocking_decision` reports `None` for an entry
+    // whose player is no longer alive, but this function and the six in-crate
+    // guards read `state.pending_trigger_targets` directly. `handle_concede` clears
+    // its OWN player's entry; every other route to elimination (the CR 704.5a/b
+    // player-loss SBAs, a resolving effect, a replacement effect) does not -- so
+    // such an entry was invisible to the gate while permanently blocking every
+    // flush from here on. Reap it the CR 800.4d way at the one place the block
+    // actually bites.
+    let departed = state
+        .pending_trigger_targets
+        .as_ref()
+        .map(|e| e.player)
+        .filter(|p| {
+            // SR-25: `expect_player` (a NONSWALLOW predicate read) -- a departed
+            // player legitimately answers `alive == false` here, which is exactly
+            // the question being asked.
+            !state
+                .expect_player(*p)
+                .map(|pl| !pl.has_lost && !pl.has_conceded)
+                .unwrap_or(false)
+        });
+    let did_reap = departed.is_some();
+    let mut reaped = Vec::new();
+    if let Some(player) = departed {
+        if let Some(evs) = drop_departed_trigger_flush(state, player) {
+            reaped = evs;
+        }
+    }
     // A suspended flush must never be re-entered: the caller's guard should have
     // prevented it, so this is an engine bug, not a rules-correct fizzle (SR-4).
+    // An entry the reap above just created is not a re-entrance -- CR 603.3b's
+    // continuation may legitimately suspend again on a live player's trigger.
     debug_assert!(
-        state.pending_trigger_targets.is_none(),
+        did_reap || state.pending_trigger_targets.is_none(),
         "flush_pending_triggers re-entered while a CR 603.3d target choice is outstanding"
     );
     if state.pending_trigger_targets.is_some() {
-        return Vec::new();
+        return reaped;
     }
     if state.pending_triggers.is_empty() {
-        return Vec::new();
+        return reaped;
     }
     // CR 603.2d: Remove stale TriggerDoubler entries whose source left the battlefield.
     // This prevents accumulation of dead entries from permanents that left the battlefield.
@@ -7640,7 +7736,9 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
             .position(|&p| p == t.controller)
             .unwrap_or(usize::MAX)
     });
-    flush_sorted(state, sorted, None)
+    let mut events = reaped;
+    events.extend(flush_sorted(state, sorted, None));
+    events
 }
 /// CR 603.3b / CR 603.3d: place an already-APNAP-sorted batch on the stack, one
 /// ability at a time.
@@ -7662,9 +7760,35 @@ fn flush_sorted(
     let mut head_targets = head_targets;
     let mut events = Vec::new();
     let mut next_index = 0usize;
+    // CR 117.3d (fix-cycle Finding 10): did this call actually put anything on the
+    // stack? `events` cannot answer that on the suspend path, because it also
+    // carries the `TriggerTargetChoiceRequired` question.
+    let mut placed_any = false;
     while next_index < sorted.len() {
         let trigger = sorted[next_index].clone();
         next_index += 1;
+        // CR 603.3d / CR 601.2c: bind the resume answer POSITIONALLY to the head of
+        // the batch, here, before any `continue` or any branch that can exit the
+        // target-derivation chain early.
+        //
+        // Fix-cycle Finding 1 (HIGH): `head_targets` used to be consumed lazily,
+        // inside the `else if let Some(pre) = head_targets.take()` arm of the
+        // target chain -- which sits BEHIND both the CR 603.3d "a required slot has
+        // no candidates" removal and the `ability_targets.is_empty()` escape, and
+        // behind the CR 603.2c once-per-turn `continue`. If the head exited by any
+        // of those routes at resume time the answer survived to the NEXT trigger of
+        // the batch: a different ability, possibly a different controller, with
+        // entirely different `TargetRequirement`s, whose stack object then carried
+        // targets that were never validated against its own requirements.
+        //
+        // An answer belongs to exactly one trigger -- `sorted[0]`, the trigger the
+        // entry named -- so bind it by position and let it be dropped with the head
+        // if the head is removed.
+        let this_head = if next_index == 1 {
+            head_targets.take()
+        } else {
+            None
+        };
         // CR 603.2c/603.2h (PB-AC1): once-per-turn gate. Determine whether this
         // trigger's ability is marked `once_per_turn` (card text "This ability
         // triggers only once each turn"). Look up the layer-resolved runtime
@@ -7933,7 +8057,7 @@ fn flush_sorted(
                 // removes the trigger.
                 if slots.iter().any(|s| !s.optional && s.candidates.is_empty()) {
                     None
-                } else if let Some(pre) = head_targets.take() {
+                } else if let Some(pre) = this_head {
                     // CR 603.3d resume: this is the head of a suspended batch and
                     // its controller has already answered. Every LATER trigger in
                     // the batch derives its own targets at its own turn, which is
@@ -7941,12 +8065,14 @@ fn flush_sorted(
                     Some(pre)
                 } else if trigger_target_choice_is_forced(&slots) {
                     // CR 601.2c: one legal answer is not a choice.
-                    Some(
-                        slots
-                            .iter()
-                            .map(|s| s.candidates[0].clone())
-                            .collect::<Vec<_>>(),
-                    )
+                    let per_slot: Vec<Vec<SpellTarget>> = slots
+                        .iter()
+                        .map(|s| {
+                            trigger_target_slot_forced_answer(s)
+                                .expect("`trigger_target_choice_is_forced` just said every slot has one answer")
+                        })
+                        .collect();
+                    Some(flatten_slot_answers(&slots, &per_slot))
                 } else if !state
                     .expect_player(trigger.controller)
                     .map(|pl| !pl.has_lost && !pl.has_conceded)
@@ -7981,10 +8107,19 @@ fn flush_sorted(
                         trigger: trigger.clone(),
                         remaining,
                         slots: slots.into_iter().collect(),
-                        // Set by the caller's guard if this call site owed a
-                        // priority grant (see `mark_flush_owes_priority`).
-                        grant_priority_on_resume: false,
+                        // Set by the caller's guard if this call site owed
+                        // anything (see `mark_flush_resume_site`).
+                        resume_site: FlushResumeSite::None,
                     });
+                    // CR 117.3d (fix-cycle Finding 10): putting a triggered ability
+                    // on the stack is a game action, and the function's tail resets
+                    // the pass count for exactly that reason. The suspend return
+                    // skips that tail, so do it here for whatever this partial
+                    // batch already placed. `events` also holds the question, which
+                    // is why the flag rather than `!events.is_empty()` is the test.
+                    if placed_any {
+                        state.turn.players_passed = OrdSet::new();
+                    }
                     return events;
                 }
             }
@@ -8732,6 +8867,7 @@ fn flush_sorted(
                 }
             }
             state.stack_objects.push_back(stack_obj);
+            placed_any = true;
             events.push(GameEvent::AbilityTriggered {
                 controller: trigger.controller,
                 source_object_id: trigger.source,
@@ -8749,7 +8885,7 @@ fn flush_sorted(
             }
         }
     }
-    if !events.is_empty() {
+    if placed_any {
         // Triggers going on the stack is a game action — reset priority pass count.
         state.turn.players_passed = OrdSet::new();
     }
@@ -8772,7 +8908,7 @@ pub(crate) fn resume_trigger_flush(
             return Vec::new();
         }
     };
-    let owed = entry.grant_priority_on_resume;
+    let owed = entry.resume_site;
     let mut sorted = vec![entry.trigger];
     sorted.extend(entry.remaining.iter().cloned());
     let mut events = flush_sorted(state, sorted, Some(chosen));
@@ -8783,21 +8919,58 @@ pub(crate) fn resume_trigger_flush(
 /// the priority obligation forward (the batch suspended again on a later trigger)
 /// or discharge it.
 ///
-/// The four guarded call sites were each about to grant priority when the flush
-/// suspended; all five priority-granting sites converge on "the active player
-/// receives priority" (`combat.rs`'s declare-attackers site writes
-/// `Some(player)`, but its own entry check proves `player` is the active player),
-/// so one shape reproduces all of them. `enter_step`'s dead-active-player
-/// fallback is folded in.
-fn finish_resumed_flush(state: &mut GameState, owed: bool, events: &mut Vec<GameEvent>) {
+/// The guarded call sites were each about to do something when the flush
+/// suspended; all of the priority grants converge on "the active player receives
+/// priority" (`combat.rs`'s declare-attackers site writes `Some(player)`, but its
+/// own entry check proves `player` is the active player), so one shape reproduces
+/// all of them. `enter_step`'s dead-active-player fallback is folded in.
+///
+/// **Fix-cycle Finding 4**: the priority grant was not the only thing those sites
+/// owed. `enter_step`'s two guards both return *before*
+/// `loop_detection::check_for_mandatory_loop`, and the Cleanup one additionally
+/// before `state.turn.cleanup_sba_rounds += 1`. Skipping them turns two bounded
+/// pathological states into unbounded ones: CR 726's mandatory-loop draw is never
+/// declared for any batch that suspends, and the 100-round cleanup ratchet stops
+/// advancing so the cleanup step can never fall through to auto-advance. Both are
+/// reproduced here, selected by [`FlushResumeSite`].
+fn finish_resumed_flush(state: &mut GameState, owed: FlushResumeSite, events: &mut Vec<GameEvent>) {
     if let Some(entry) = state.pending_trigger_targets.as_mut() {
         // Suspended again on a later trigger of the SAME CR 603.3b batch --
         // the obligation belongs to the batch, not to any one question.
-        entry.grant_priority_on_resume = owed;
+        entry.resume_site = owed;
         return;
     }
-    if !owed {
+    if owed == FlushResumeSite::None {
         return;
+    }
+    // CR 514.3a: the cleanup ratchet the Cleanup guard returned before reaching.
+    // Bumped unconditionally rather than under `cleanup_sba_rounds <
+    // MAX_CLEANUP_SBA_ROUNDS`: the fall-through-at-max the original branch does is
+    // `enter_step`'s to make, and the next non-suspending cleanup round makes it.
+    // The CR 726 check below is the real bound on a genuinely repeating state.
+    if owed == FlushResumeSite::EnterStepCleanup {
+        state.turn.cleanup_sba_rounds = state.turn.cleanup_sba_rounds.saturating_add(1);
+    }
+    // CR 104.4b / CR 726: the mandatory-loop check both `enter_step` guards
+    // returned before reaching. The has-priority branch runs it only when the
+    // batch actually placed something, which `!events.is_empty()` reproduces.
+    if matches!(
+        owed,
+        FlushResumeSite::EnterStepPriority | FlushResumeSite::EnterStepCleanup
+    ) && !events.is_empty()
+    {
+        if let Some(loop_event) = crate::rules::loop_detection::check_for_mandatory_loop(state) {
+            events.push(loop_event);
+            // All active players lose — the game is a draw.
+            let active_players: Vec<_> = state.active_players();
+            for p in active_players {
+                if let Some(player) = state.expect_player_mut(p) {
+                    player.has_lost = true;
+                }
+            }
+            events.extend(crate::rules::engine::check_game_over(state));
+            return;
+        }
     }
     let active = state.turn.active_player;
     let is_alive = state
@@ -8817,32 +8990,33 @@ fn finish_resumed_flush(state: &mut GameState, owed: bool, events: &mut Vec<Game
         state.turn.priority_holder = None;
     }
 }
-/// CR 603.3 / CR 117.3a (PB-DP8): record that the call site whose
-/// `flush_pending_triggers` just suspended owes a priority grant once the batch
-/// completes.
+/// CR 603.3 / CR 117.3a / CR 726 (PB-DP8): record what the call site whose
+/// `flush_pending_triggers` just suspended still owes once the batch completes.
 ///
-/// Called by exactly the four guards named in the `BlockingDecision` doc block.
-/// The fifth call site (`check_and_flush_triggers`) must NOT call this: PB-DP1
-/// moved priority assignment into the command handlers, ahead of the flush, so
-/// priority is already correctly held by the actor there.
-pub(crate) fn mark_flush_owes_priority(state: &mut GameState) {
+/// Called by exactly the guards named in the `BlockingDecision` doc block. The 30
+/// `check_and_flush_triggers` sites inside `process_command`'s `match` must NOT
+/// call this: PB-DP1 moved priority assignment into the command handlers, ahead of
+/// the flush, so priority is already correctly held by the actor there. The 31st
+/// (`handle_all_passed`'s forced-overdue-payment branch, fix-cycle Finding 3) DOES
+/// grant priority afterwards, and passes [`FlushResumeSite::GrantPriority`].
+pub(crate) fn mark_flush_resume_site(state: &mut GameState, site: FlushResumeSite) {
     if let Some(entry) = state.pending_trigger_targets.as_mut() {
-        entry.grant_priority_on_resume = true;
+        entry.resume_site = site;
     }
 }
-/// CR 800.4d / CR 603.3b / CR 800.4j (PB-DP8): a player concedes while their
-/// trigger-target announcement is outstanding.
+/// CR 800.4d / CR 603.3b / CR 800.4j (PB-DP8): a player LEAVES THE GAME while
+/// their trigger-target announcement is outstanding.
 ///
 /// CR 800.4d -- "If a triggered ability that would be controlled by a player who
 /// has left the game would be put onto the stack, it isn't put on the stack." --
-/// so the conceding player's un-placed trigger is DROPPED, along with every other
+/// so the departed player's un-placed trigger is DROPPED, along with every other
 /// trigger of the suspended batch they controlled. CR 800.4j requires the turn to
 /// continue, so the REST of the batch is still placed; that continuation may
 /// legitimately suspend again on a different player's trigger.
 ///
 /// Returns `None` if no entry belonged to `player` (the caller then leaves the
 /// field alone -- another player's outstanding question still blocks).
-pub(crate) fn drop_conceded_trigger_flush(
+pub(crate) fn drop_departed_trigger_flush(
     state: &mut GameState,
     player: PlayerId,
 ) -> Option<Vec<GameEvent>> {
@@ -8855,7 +9029,7 @@ pub(crate) fn drop_conceded_trigger_flush(
         return None;
     }
     let entry = state.pending_trigger_targets.take()?;
-    let owed = entry.grant_priority_on_resume;
+    let owed = entry.resume_site;
     // CR 800.4d: `entry.trigger` is dropped outright -- it was never put on the
     // stack. Same for every remaining trigger this player controls.
     let sorted: Vec<PendingTrigger> = entry
@@ -8917,13 +9091,15 @@ pub fn handle_choose_trigger_targets(
             entry.slots.len()
         )));
     }
-    let mut chosen: Vec<SpellTarget> = Vec::new();
+    let mut per_slot: Vec<Vec<SpellTarget>> = Vec::with_capacity(entry.slots.len());
     for (i, slot) in entry.slots.iter().enumerate() {
         let submitted = &targets[i];
-        // (6) CR 601.2c: exactly one target for a required slot; zero or one for
-        // an "up to" slot.
+        // (6) CR 601.2c: exactly one target for a required slot; zero to `max` for
+        // an "up to" slot ("If the spell has a variable number of targets, the
+        // player announces how many targets they will choose"). Fix-cycle
+        // Finding 2: this bound used to be a hard `1`.
         let limit_ok = if slot.optional {
-            submitted.len() <= 1
+            submitted.len() <= slot.max as usize
         } else {
             submitted.len() == 1
         };
@@ -8932,15 +9108,31 @@ pub fn handle_choose_trigger_targets(
                 "trigger-target slot {} got {} target(s); expected {} (CR 601.2c)",
                 i,
                 submitted.len(),
-                if slot.optional { "0 or 1" } else { "exactly 1" }
+                if slot.optional {
+                    format!("0 to {}", slot.max)
+                } else {
+                    "exactly 1".to_string()
+                }
             )));
+        }
+        // (6b) CR 601.2c: "The same target can't be chosen multiple times for any
+        // one instance of the word 'target'." A slot IS one instance of the word,
+        // so its submitted targets must be pairwise distinct. Latent until
+        // Finding 2 raised the cap above one.
+        for a in 0..submitted.len() {
+            if submitted[a + 1..].contains(&submitted[a]) {
+                return Err(GameStateError::InvalidCommand(format!(
+                    "trigger-target slot {i} names the same target twice (CR 601.2c)"
+                )));
+            }
         }
         // (7) CR 603.3d legality: membership in the candidate set the engine
         // itself offered. The engine takes `zone_at_cast` from the candidate,
         // never from the wire.
+        let mut resolved: Vec<SpellTarget> = Vec::with_capacity(submitted.len());
         for t in submitted {
             match slot.candidates.iter().find(|c| &c.target == t) {
-                Some(c) => chosen.push(c.clone()),
+                Some(c) => resolved.push(c.clone()),
                 None => {
                     return Err(GameStateError::InvalidCommand(format!(
                         "target is not a legal choice for slot {i} (CR 603.3d)"
@@ -8948,6 +9140,7 @@ pub fn handle_choose_trigger_targets(
                 }
             }
         }
+        per_slot.push(resolved);
     }
     // (8) Cross-slot distinctness, narrow: CR 601.2c's "the same target can't be
     // chosen multiple times for any one instance of the word 'target'" is
@@ -8977,7 +9170,12 @@ pub fn handle_choose_trigger_targets(
     // before any mutation: the entry's own `player` field is the authority on who
     // may answer, and (3) already compared against it.
     state.player(player)?;
-    // (9) Only now: resume the CR 603.3b batch.
+    // (9) CR 601.2c (fix-cycle Finding 6): flatten to the stack object's flat
+    // target list, keeping each slot at its declared width so an under-filled
+    // "up to" slot does not shift the later clauses' `DeclaredTarget` indices.
+    let slots: Vec<TriggerTargetOption> = entry.slots.iter().cloned().collect();
+    let chosen = flatten_slot_answers(&slots, &per_slot);
+    // (10) Only now: resume the CR 603.3b batch.
     Ok(resume_trigger_flush(state, chosen))
 }
 /// The `TargetRequirement` list of the ability behind `trigger`, re-derived the
@@ -9022,8 +9220,16 @@ fn trigger_ability_target_requirements(
 ///
 /// The `SpellTarget` twin of the exported [`default_trigger_targets`], used on the
 /// engine's own dead-controller path where there is nobody to ask.
+///
+/// Fix-cycle Finding 6: goes through [`flatten_slot_answers`] rather than a bare
+/// `filter_map`, so a slot with no default does not shift the later slots'
+/// `EffectTarget::DeclaredTarget { index }` down.
 fn default_spell_targets(slots: &[TriggerTargetOption]) -> Vec<SpellTarget> {
-    slots.iter().filter_map(|s| s.default.clone()).collect()
+    let per_slot: Vec<Vec<SpellTarget>> = slots
+        .iter()
+        .map(|s| s.default.clone().into_iter().collect())
+        .collect();
+    flatten_slot_answers(slots, &per_slot)
 }
 // ---------------------------------------------------------------------------
 // Helpers

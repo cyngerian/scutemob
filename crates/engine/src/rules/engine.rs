@@ -26,6 +26,7 @@ use crate::state::diagnostics::debug_assert_object_live;
 use crate::state::error::GameStateError;
 use crate::state::game_object::{Designations, ObjectId};
 use crate::state::player::PlayerId;
+use crate::state::stubs::FlushResumeSite;
 use crate::state::GameState;
 /// CR 603.3: Check for triggered abilities arising from events and flush
 /// pending triggers to the stack. Extracted from per-command-arm boilerplate.
@@ -84,8 +85,9 @@ fn check_and_flush_triggers(state: &mut GameState, events: &mut Vec<GameEvent>) 
 /// which this comment amends.
 ///
 /// **What a SECOND variant actually cost (PB-DP8 measured it; this replaces
-/// PB-DP7's aspirational "no new consult site" claim).** Four per-variant
-/// obligations, none of them compile-forced by this enum alone:
+/// PB-DP7's aspirational "no new consult site" claim).** **Six** per-variant
+/// obligations, none of them compile-forced by this enum alone (the last two
+/// were found by PB-DP8's own review, after four shipped):
 /// 1. The ADMISSION gate's allow-list in `process_command` below -- the
 ///    answering `Command` must be named there explicitly or the engine rejects
 ///    its own answer.
@@ -104,6 +106,17 @@ fn check_and_flush_triggers(state: &mut GameState, events: &mut Vec<GameEvent>) 
 ///    `DecisionKind::CleanupDiscard` without matching the variant; it is now an
 ///    exhaustive `match`, which makes THIS obligation compile-forced for every
 ///    future variant (this enum is deliberately not `#[non_exhaustive]`).
+/// 5. `handle_concede` must ALSO refuse to advance priority or the turn while
+///    ANOTHER player's decision is outstanding (fix-cycle Finding 5 /
+///    seed OOS-DP8-9). Item 2 covers the conceder's own entry; a foreign concede
+///    otherwise walks straight into `handle_all_passed` -> resolution and, for
+///    PB-DP8, into `flush_pending_triggers`' re-entrancy `debug_assert!`.
+/// 6. Every site that RESUMES the blocked engine must reproduce what the guard
+///    it replaced was about to do -- not just "grant priority". PB-DP8 shipped a
+///    `bool` for that and it was too narrow: `enter_step`'s two guards also owed
+///    a CR 726 mandatory-loop check, and its Cleanup guard a `cleanup_sba_rounds`
+///    ratchet (fix-cycle Finding 4 / seed OOS-DP8-10). See
+///    [`crate::state::stubs::FlushResumeSite`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum BlockingDecision {
     /// CR 514.1: `player` must discard `count` cards to reach their maximum
@@ -2137,6 +2150,18 @@ fn handle_all_passed(state: &mut GameState) -> Result<Vec<GameEvent>, GameStateE
             // THIS step, so re-grant priority here instead of advancing -- the same "run
             // another round, don't advance" shape `enter_step` uses for CR 514.3a.
             check_and_flush_triggers(state, &mut payment_events);
+            // CR 603.3 / CR 603.3d (PB-DP8 fix cycle, Finding 3): the 31st
+            // `check_and_flush_triggers` call site, and the only one outside
+            // `process_command`'s `match`. A PB-DP4 forced echo / cumulative-upkeep /
+            // recover sacrifice can produce a targeted dies-trigger, so this flush can
+            // suspend -- and the priority grant below is unconditional. CR 603.3b gives
+            // priority only AFTER every triggered ability of the batch is on the stack,
+            // so stop here and record that this site owes the grant.
+            if state.pending_trigger_targets.is_some() {
+                abilities::mark_flush_resume_site(state, FlushResumeSite::GrantPriority);
+                events.extend(payment_events);
+                return Ok(events);
+            }
             events.extend(payment_events);
             if is_game_over(state) {
                 events.extend(check_game_over(state));
@@ -2247,7 +2272,7 @@ fn enter_step(state: &mut GameState) -> Result<Vec<GameEvent>, GameStateError> {
             // batch is on the stack, so stop here without granting it, and record
             // that this site owes the grant. `handle_choose_trigger_targets` resumes.
             if state.pending_trigger_targets.is_some() {
-                abilities::mark_flush_owes_priority(state);
+                abilities::mark_flush_resume_site(state, FlushResumeSite::EnterStepCleanup);
                 return Ok(events);
             }
             let had_events = !sba_events.is_empty() || !trigger_events.is_empty();
@@ -2296,7 +2321,7 @@ fn enter_step(state: &mut GameState) -> Result<Vec<GameEvent>, GameStateError> {
             // batch is on the stack, so stop here without granting it, and record
             // that this site owes the grant. `handle_choose_trigger_targets` resumes.
             if state.pending_trigger_targets.is_some() {
-                abilities::mark_flush_owes_priority(state);
+                abilities::mark_flush_resume_site(state, FlushResumeSite::EnterStepPriority);
                 return Ok(events);
             }
             // CR 104.4b / CR 726: After each mandatory SBA + trigger batch,
@@ -2401,7 +2426,7 @@ fn handle_concede(
     // controlled. The REST of the CR 603.3b batch must still be placed -- CR
     // 800.4j: the turn continues to its completion -- so the flush resumes here,
     // and may legitimately suspend again on a different player's trigger.
-    if let Some(resume_events) = abilities::drop_conceded_trigger_flush(state, player) {
+    if let Some(resume_events) = abilities::drop_departed_trigger_flush(state, player) {
         events.extend(resume_events);
     }
     events.push(GameEvent::PlayerConceded { player });
@@ -2428,7 +2453,28 @@ fn handle_concede(
     // Check game over
     let game_over_events = check_game_over(state);
     events.extend(game_over_events);
-    if !is_game_over(state) {
+    // PB-DP8 fix cycle, Finding 5 (CR 104.3a / 603.3b / 800.4j; seed OOS-DP8-9):
+    // `drop_departed_trigger_flush` above has already dealt with an entry belonging
+    // to the CONCEDING player. Anything still outstanding here therefore belongs to
+    // a DIFFERENT player, and the game is mid-way through placing a CR 603.3b batch.
+    // Neither of the blocks below may run under it:
+    //
+    //  * the priority-advance block can reach `handle_all_passed`, which resolves the
+    //    top of the stack; the resolution tail calls `flush_pending_triggers`, which
+    //    fires its "re-entered while a CR 603.3d target choice is outstanding"
+    //    `debug_assert!` (a panic in every test and fuzzer build) and, in release,
+    //    silently resolves a spell with the batch half-placed;
+    //  * the turn-advance block runs `advance_turn` + `enter_step`, which executes the
+    //    new step's turn-based actions before PB-DP7's progress gate stops it -- so the
+    //    previous turn's un-placed triggers would land in the NEXT turn.
+    //
+    // Skipping both cannot hang: the outstanding entry's player is alive by
+    // construction (`abilities::flush_sorted` never asks a departed controller), so
+    // the block always has an answerer, and the resume grants priority itself
+    // (`abilities::finish_resumed_flush`, which routes past a dead active player).
+    // CR 800.4j is satisfied by that ordinary priority round rather than by the
+    // shortcut here: the turn still continues to its completion.
+    if !is_game_over(state) && blocking_decision(state).is_none() {
         // If the conceding player held priority, advance priority
         if state.turn.priority_holder == Some(player) {
             let next = priority::next_priority_player(state, player);
@@ -2491,7 +2537,10 @@ fn handle_concede(
 }
 /// Check if the game is over (one or fewer active players).
 /// Returns GameOver event if applicable.
-fn check_game_over(state: &GameState) -> Vec<GameEvent> {
+///
+/// `pub(crate)` since PB-DP8's fix cycle: `abilities::finish_resumed_flush`
+/// reproduces `enter_step`'s CR 726 mandatory-loop branch, which ends here.
+pub(crate) fn check_game_over(state: &GameState) -> Vec<GameEvent> {
     let active = state.active_players();
     match active.len() {
         0 => vec![GameEvent::GameOver { winner: None }],

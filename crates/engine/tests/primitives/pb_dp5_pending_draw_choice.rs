@@ -1238,12 +1238,12 @@ fn test_dp5_wire_version_sentinels() {
     // in the suite; it moves on the next wire/hash-affecting PB too.
     assert_eq!(
         mtg_engine::HASH_SCHEMA_VERSION,
-        66u8,
+        67u8,
         "HASH_SCHEMA_VERSION live sentinel"
     );
     assert_eq!(
         mtg_engine::PROTOCOL_VERSION,
-        29,
+        30,
         "PROTOCOL_VERSION live sentinel"
     );
 }

@@ -1,4 +1,4 @@
-# Primitive WIP — PB-DP8 (DP-6 / OOS-M11-4: triggered-ability target choice) · SHIPPED
+# Primitive WIP — PB-DP8 (DP-6 / OOS-M11-4: triggered-ability target choice) · SHIPPED (fix cycle complete)
 
 <!-- last_updated: 2026-07-26 -->
 
@@ -10,12 +10,13 @@
 - **Branch**: `feat/pb-dp8-triggered-ability-target-choice-surface-the-84-def-ag`
 - **Class**: AGENCY (Tier 1 top, class **B**). Rank 8 of the PB-DP suite; the suite's **second**
   wire change.
-- **Phase**: **implement COMPLETE → review**
+- **Phase**: **implement → review → FIX COMPLETE**
 - **Plan**: `memory/primitives/pb-plan-DP8.md`
 - **Review file**: `memory/primitives/pb-review-DP8.md`
 - **Baseline**: PROTOCOL **28**, HASH **65**, tests **3,837**
-- **Shipped**: PROTOCOL **29**, HASH **66**, tests **3,858**, **0 card-def edits, 0 completeness
-  flips**
+- **Shipped (implement)**: PROTOCOL **29**, HASH **66**, tests **3,858**
+- **Shipped (after fix cycle)**: PROTOCOL **30**, HASH **67**, tests **3,871**, still
+  **0 card-def edits, 0 completeness flips**
 
 ## What shipped
 
@@ -90,3 +91,63 @@ check).
 --all-targets -- -D warnings`, `cargo fmt --check`, `tools/check-defs-fmt.sh` (1,804 defs) — all
 clean. 210 approved golden scripts, **0 new skips** (SR-9c); one script (`138_emerge_elder_deep_fiend`)
 corrected with its CR justification recorded in the script's own metadata.
+
+---
+
+## Fix cycle (review verdict `needs-fix`: 2 HIGH, 5 MEDIUM, 3 LOW engine + 2 HIGH, 2 LOW card)
+
+**All 12 findings dispositioned; 12 fixed, 0 deferred.** Per-finding detail, including the
+fail-before probe that was actually run for each, is in `memory/primitives/pb-review-DP8.md`
+under "Fix-cycle dispositions".
+
+### What changed
+
+1. **Finding 1 (HIGH) — the answer could land on the wrong trigger.** `flush_sorted` binds
+   `head_targets` **positionally** (`next_index == 1`) at the top of the loop body. Verified
+   sufficient, and strictly stronger than the review's minimum: it also covers the CR 603.2c
+   once-per-turn `continue`, which the lazy `take()` leaked through as well.
+2. **Finding 2 (HIGH) — `UpToN` was capped at one.** `TriggerTargetOption.max: u32`, a
+   `<= max` bound, and a per-slot CR 601.2c duplicate check (latent behind the old cap).
+   Elder Deep-Fiend's "up to four" and Cloud of Faeries' "up to two" work.
+3. **Finding 3 (MEDIUM) — the 31st `check_and_flush_triggers` site**
+   (`handle_all_passed`'s overdue-payment branch) is guarded, and the plan's §16 grep is
+   corrected with a statement of why it could not have found it.
+4. **Finding 4 (MEDIUM) + OOS-DP8-10 — CR 726 and the cleanup ratchet.**
+   `grant_priority_on_resume: bool` → `resume_site: FlushResumeSite`, so
+   `finish_resumed_flush` reproduces each site's own obligation, not just the priority grant.
+5. **Finding 5 (MEDIUM) + OOS-DP8-9 — a foreign concede stepped over the block.**
+   `handle_concede`'s priority/turn advance is gated on `blocking_decision().is_none()`.
+   The "gating risks a hang" argument is refuted in the source comment.
+6. **Finding 6 (MEDIUM) — positional index shift.** `flatten_slot_answers` keeps each slot at
+   its declared width. **Deviation:** `Vec<SpellTarget>` cannot hold a hole, so interior holes
+   carry the documented `SpellTarget::unchosen_slot()` placeholder; trailing holes are omitted
+   so an all-empty answer cannot trip CR 608.2b.
+7. **Finding 7 (MEDIUM) — all six guard sites now have a fail-before-run test**, plus the
+   dead-active-player fallback.
+8. **Findings 8, 9, 10 (LOW)** — empty optional slot is forced; a departed owner's entry is
+   reaped inside `flush_pending_triggers` (`drop_conceded_trigger_flush` renamed
+   `drop_departed_trigger_flush`); `players_passed` resets on the suspend return via a
+   `placed_any` flag.
+9. **Card findings** — 1/2/3 are engine-side (no def edit); script `138_emerge_elder_deep_fiend`
+   had both stale notes rewritten and its dispute **resolved**.
+
+### Wire
+
+**PROTOCOL 29 → 30, HASH 66 → 67.** Both forced by the gates, all three fingerprints and both
+`FROZEN_HISTORY_PREFIX_DIGEST`s taken from failure texts, both `*_HISTORY` arrays **appended**
+to with no row edited. The sentinel re-pin tax came back: **54** copies across **45** files
+(the plan's §6.3 list of 53 plus `pb_dp5_pending_draw_choice.rs`), all re-pinned; no new
+sentinel added (OOS-DP7-8).
+
+### Seeds
+
+**OOS-DP8-9 and OOS-DP8-10 CLOSED** in `docs/audits/decision-point-audit.md` §8.1, each row
+rewritten to record why the deferral was wrong. Two new rows filed: **OOS-DP8-11** (the same
+index shift survives on the spell path in `casting.rs`) and **OOS-DP8-12** (the padding
+sentinel has no display arm).
+
+### Gates
+
+`cargo build --workspace`, `cargo test --all` (**3,871 / 0**), `cargo clippy --workspace
+--all-targets -- -D warnings`, `cargo fmt --check`, `tools/check-defs-fmt.sh` (1,804 defs) —
+all clean. 210 approved golden scripts, 0 new skips (SR-9c).

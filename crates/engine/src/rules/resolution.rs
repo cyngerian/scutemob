@@ -19,7 +19,7 @@ use crate::state::diagnostics::debug_assert_object_live;
 use crate::state::error::GameStateError;
 use crate::state::game_object::{Designations, MergedComponent, ObjectId};
 use crate::state::stack::StackObjectKind;
-use crate::state::stubs::PendingTriggerKind;
+use crate::state::stubs::{FlushResumeSite, PendingTriggerKind};
 use crate::state::targeting::{SpellTarget, Target};
 use crate::state::types::{
     AdditionalCost, AltCostKind, CardType, ChampionFilter, Color, CounterType, EnchantTarget,
@@ -7803,7 +7803,7 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
     // batch is on the stack, so stop here without granting it, and record
     // that this site owes the grant. `handle_choose_trigger_targets` resumes.
     if state.pending_trigger_targets.is_some() {
-        abilities::mark_flush_owes_priority(state);
+        abilities::mark_flush_resume_site(state, FlushResumeSite::GrantPriority);
         return Ok(events);
     }
     // CR 117.3b: After resolution (and trigger flushing), the active player receives priority.

@@ -14,7 +14,7 @@ use crate::state::combat::{AttackTarget, CombatState};
 use crate::state::error::GameStateError;
 use crate::state::game_object::{Designations, ManaCost, ObjectId};
 use crate::state::player::{CardId, PlayerId};
-use crate::state::stubs::GameRestriction;
+use crate::state::stubs::{FlushResumeSite, GameRestriction};
 use crate::state::turn::Step;
 use crate::state::types::{
     BlockingExceptionFilter, CardType, Color, CounterType, KeywordAbility, LandwalkType, SuperType,
@@ -764,7 +764,7 @@ pub fn handle_declare_attackers(
     // batch is on the stack, so stop here without granting it, and record
     // that this site owes the grant. `handle_choose_trigger_targets` resumes.
     if state.pending_trigger_targets.is_some() {
-        abilities::mark_flush_owes_priority(state);
+        abilities::mark_flush_resume_site(state, FlushResumeSite::GrantPriority);
         return Ok(events);
     }
     // CR 508.1 / CR 117.3a: declaring attackers is a turn-based action; the declaring
@@ -1550,7 +1550,7 @@ pub fn handle_declare_blockers(
     // batch is on the stack, so stop here without granting it, and record
     // that this site owes the grant. `handle_choose_trigger_targets` resumes.
     if state.pending_trigger_targets.is_some() {
-        abilities::mark_flush_owes_priority(state);
+        abilities::mark_flush_resume_site(state, FlushResumeSite::GrantPriority);
         return Ok(events);
     }
     // CR 509.1: declaring blockers is a turn-based action; CR 117.3a gives the ACTIVE

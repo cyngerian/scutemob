@@ -31,10 +31,10 @@
         "step_index": null,
         "action_index": null,
         "raised_by": "claude-sonnet-4-6",
-        "description": "Elder Deep-Fiend's cast trigger ('When you cast this spell, tap up to four target permanents') is not implemented in the card def (TODO comment at elder_deep_fiend.rs:23-26). The trigger requires TriggerCondition::WhenCast (self-cast trigger) and a multi-target tap effect, neither of which exists in the current DSL. Script does not test this trigger. Will need a separate script once WhenCast triggers are implemented.",
-        "resolution": null,
-        "resolved_by": null,
-        "resolved_date": null
+        "description": "Elder Deep-Fiend's cast trigger ('When you cast this spell, tap up to four target permanents') was recorded here as unimplemented. It is implemented: TriggerCondition::WhenCast exists and the def declares TargetRequirement::UpToN { count: 4, inner: TargetPermanent }. Two engine defects hid it. (1) Before PB-DP8 the CR 603.3d auto-target chain returned None for a permanent-inner UpToN and the caller read None as 'no legal target', so the whole trigger was removed from the stack (CR 601.2c makes zero targets a LEGAL announcement, so CR 603.3d's removal clause does not apply). (2) PB-DP8 as shipped then capped the announcement at one target; its fix cycle carries UpToN's count through as TriggerTargetOption.max. The trigger now goes on the stack and this script's steps record it.",
+        "resolution": "RESOLVED. The premise was wrong in both directions: the trigger is implemented in the card def, and the engine was what dropped it. Fixed by PB-DP8 (CR 603.3d target announcement) and its fix cycle (CR 601.2c 'up to N' cardinality). The script's steps now describe the trigger on the stack.",
+        "resolved_by": "PB-DP8 fix cycle (scutemob-156)",
+        "resolved_date": "2026-07-26"
       }
     ]
   },
@@ -181,10 +181,10 @@
               "card": "Elder Deep-Fiend",
               "controller": "p1",
               "cr_ref": "608.2",
-              "note": "CR 608.2: Elder Deep-Fiend resolves and enters the battlefield under p1's control as a 5/6 Eldrazi Octopus. The cast trigger (tap up to four permanents) is stubbed as TODO in the card def and does not fire."
+              "note": "CR 608.2: Elder Deep-Fiend resolves and enters the battlefield under p1's control as a 5/6 Eldrazi Octopus. Its CR 603.2 cast trigger ('tap up to four target permanents') has already been put on the stack above the spell (see the earlier steps) and resolves after it."
             }
           ],
-          "note": "CR 608.2: Elder Deep-Fiend resolves as a creature spell — it enters the battlefield. No on-cast trigger fires (WhenCast not yet implemented). Stack becomes empty."
+          "note": "CR 608.2: Elder Deep-Fiend resolves as a creature spell — it enters the battlefield. Its on-cast trigger was placed above it at cast time (CR 603.2/603.3b) and is still on the stack. Stack becomes empty."
         },
         {
           "type": "assert_state",

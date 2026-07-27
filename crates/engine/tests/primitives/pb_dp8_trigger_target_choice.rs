@@ -136,8 +136,21 @@ use mtg_engine::state::error::GameStateError;
 use mtg_engine::state::stack::StackObjectKind;
 use mtg_engine::{
     CardEffectTarget, CardRegistry, Effect, EffectAmount, GameStateBuilder, ObjectId, ObjectSpec,
-    PlayerId, Step, Target, TriggerEvent, TriggeredAbilityDef,
+    PlayerId, Step, Target, TriggerEvent, TriggeredAbilityDef, ZoneId,
 };
+
+/// The `source_object` of every `TriggeredAbility` currently on the stack, in
+/// stack order.
+fn trigger_sources(state: &GameState) -> Vec<ObjectId> {
+    state
+        .stack_objects()
+        .iter()
+        .filter_map(|o| match o.kind {
+            StackObjectKind::TriggeredAbility { source_object, .. } => Some(source_object),
+            _ => None,
+        })
+        .collect()
+}
 
 fn p(n: u64) -> PlayerId {
     PlayerId(n)
@@ -1120,4 +1133,1064 @@ fn test_dp8_target_opponent_never_self_and_never_asks_when_alone() {
         .candidates
         .iter()
         .any(|c| c.target == Target::Player(p(1))));
+}
+
+// ── T20 (fix cycle, Finding 1) ────────────────────────────────────────────────
+
+/// CR 603.3d / CR 601.2c — an announced answer belongs to exactly ONE trigger.
+///
+/// Fix-cycle Finding 1 (HIGH). `head_targets` used to be consumed lazily, inside
+/// the `else if let Some(pre) = head_targets.take()` arm of the target chain --
+/// which sits behind the CR 603.3d "a required slot has no legal candidate"
+/// removal. If the head trigger was removed at resume time its answer survived to
+/// the NEXT trigger of the CR 603.3b batch: a different ability with different
+/// `TargetRequirement`s, whose stack object then carried a target that was never
+/// validated against its own requirements.
+///
+/// Here Zapper A ("target creature") is the head and Zapper B ("target player")
+/// is the tail. Both of A's candidates leave the battlefield between the offer and
+/// the answer, so A is correctly removed (CR 603.3d) -- and B must then make its
+/// OWN announcement rather than inherit A's creature into a player slot.
+///
+/// **Fail-before**: pre-fix, B was placed immediately with `Target::Object(creature)`
+/// and no second question was asked, so `pending_trigger_targets()` was `None`.
+#[test]
+fn test_dp8_answer_is_bound_to_its_own_trigger_not_the_next_one() {
+    let mut state = GameStateBuilder::new()
+        .add_player(p(1))
+        .add_player(p(2))
+        .with_registry(CardRegistry::new(vec![]))
+        .object(zapper(
+            p(1),
+            "Zapper A",
+            vec![TargetRequirement::TargetCreature],
+        ))
+        .object(zapper(
+            p(1),
+            "Zapper B",
+            vec![TargetRequirement::TargetPlayer],
+        ))
+        .object(ObjectSpec::creature(p(1), "Creature 0", 2, 2))
+        .object(ObjectSpec::creature(p(1), "Creature 1", 2, 2))
+        .object(ObjectSpec::enchantment(p(1), "Bystander"))
+        .active_player(p(1))
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+    let bystander = find_object(&state, "Bystander");
+    let _ = fire_etb(&mut state, bystander, p(1));
+
+    let zapper_a = find_object(&state, "Zapper A");
+    let zapper_b = find_object(&state, "Zapper B");
+    let creature0 = find_object(&state, "Creature 0");
+    let entry = state
+        .pending_trigger_targets()
+        .expect("Zapper A's required slot has two candidates -- a real choice");
+    assert_eq!(
+        entry.source, zapper_a,
+        "CR 603.3b: the head of the batch is asked first"
+    );
+    let choice_id = entry.choice_id;
+
+    // Both of the head's candidates leave the battlefield before the answer
+    // arrives. (`Command::Concede` from a third player is the production route to
+    // the same shape; this drives it directly so the probe stays deterministic and
+    // independent of the concede gate added by fix-cycle Finding 5.)
+    for name in ["Creature 0", "Creature 1"] {
+        let id = find_object(&state, name);
+        state.objects_mut().get_mut(&id).unwrap().zone = ZoneId::Graveyard(p(1));
+    }
+
+    // The answer is still ACCEPTED: CR 603.3d legality is membership in the frozen
+    // candidate set the engine itself offered (see the plan's §5.5 item 7).
+    let (state, _) = process_command(
+        state,
+        Command::ChooseTriggerTargets {
+            player: p(1),
+            choice_id,
+            targets: vec![vec![Target::Object(creature0)]],
+        },
+    )
+    .unwrap();
+
+    let placed = trigger_sources(&state);
+    assert!(
+        !placed.contains(&zapper_a),
+        "CR 603.3d: the head's required slot has no legal candidate at resume time, \
+         so its ability is removed from the stack"
+    );
+    assert!(
+        !placed.contains(&zapper_b),
+        "the answer belonged to Zapper A; Zapper B must not be placed with it"
+    );
+    let entry2 = state
+        .pending_trigger_targets()
+        .expect("CR 603.3d: Zapper B owes its OWN announcement -- two live players is a choice");
+    assert_eq!(entry2.source, zapper_b);
+
+    let (state, _) = answer_pending_trigger_targets(state);
+    let stack_obj = state
+        .stack_objects()
+        .iter()
+        .find(|o| matches!(o.kind, StackObjectKind::TriggeredAbility { source_object, .. } if source_object == zapper_b))
+        .expect("Zapper B is on the stack once it has announced");
+    assert!(
+        matches!(stack_obj.targets[0].target, Target::Player(_)),
+        "CR 601.2c: a `TargetPlayer` slot must hold a player, not the previous \
+         trigger's creature -- got {:?}",
+        stack_obj.targets[0].target
+    );
+}
+
+// ── T21 (fix cycle, Finding 5 / OOS-DP8-9) ────────────────────────────────────
+
+/// CR 104.3a / CR 603.3b / CR 800.4j — a **foreign** concede must not step over
+/// another player's outstanding announcement.
+///
+/// Fix-cycle Finding 5 (MEDIUM), closing seed OOS-DP8-9. `drop_departed_trigger_flush`
+/// only handles the case where the entry's OWN player concedes. When somebody else
+/// concedes, `handle_concede` used to run its full priority-advance and turn-advance
+/// logic with the CR 603.3b batch still suspended: it could reach `handle_all_passed`
+/// -> `resolve_top_of_stack` -> `flush_pending_triggers`, which fires the
+/// "re-entered while a CR 603.3d target choice is outstanding" `debug_assert!`, and
+/// it could advance a whole turn under the suspended batch.
+///
+/// **Fail-before**: pre-fix this test panicked inside `process_command` on that
+/// `debug_assert!` (`flush_pending_triggers re-entered ...`).
+#[test]
+fn test_dp8_foreign_concede_does_not_step_over_the_suspended_batch() {
+    let mut state = GameStateBuilder::new()
+        .add_player(p(1))
+        .add_player(p(2))
+        .add_player(p(3))
+        .with_registry(CardRegistry::new(vec![]))
+        .object(zapper(
+            p(1),
+            "Zapper",
+            vec![TargetRequirement::TargetCreature],
+        ))
+        .object(ObjectSpec::creature(p(1), "Creature 0", 2, 2))
+        .object(ObjectSpec::creature(p(1), "Creature 1", 2, 2))
+        .object(ObjectSpec::enchantment(p(1), "Bystander"))
+        .active_player(p(1))
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+    let bystander = find_object(&state, "Bystander");
+    let _ = fire_etb(&mut state, bystander, p(1));
+    // p2 holds priority, so the concede takes the priority-advance path.
+    state.turn_mut().priority_holder = Some(p(2));
+    state.turn_mut().players_passed = state.turn().players_passed.update(p(1));
+    state.turn_mut().players_passed = state.turn().players_passed.update(p(3));
+
+    let entry = state.pending_trigger_targets().unwrap();
+    assert_eq!(entry.player, p(1));
+    let choice_id = entry.choice_id;
+    let turn_before = state.turn().turn_number;
+    let step_before = state.turn().step;
+
+    let (state, events) = process_command(state, Command::Concede { player: p(2) }).unwrap();
+
+    assert_eq!(
+        state.pending_trigger_targets().map(|e| e.player),
+        Some(p(1)),
+        "a foreign concede must leave the outstanding announcement exactly where it was"
+    );
+    assert!(
+        !events
+            .iter()
+            .any(|e| matches!(e, GameEvent::PriorityGiven { .. })),
+        "CR 603.3b: no priority may be granted while the batch is suspended"
+    );
+    assert_eq!(
+        state.turn().turn_number,
+        turn_before,
+        "CR 603.3b: a turn must not advance under a suspended batch"
+    );
+    assert_eq!(state.turn().step, step_before);
+
+    // And the block still clears: its player is alive by construction.
+    let creature0 = find_object(&state, "Creature 0");
+    let (state, resume) = process_command(
+        state,
+        Command::ChooseTriggerTargets {
+            player: p(1),
+            choice_id,
+            targets: vec![vec![Target::Object(creature0)]],
+        },
+    )
+    .unwrap();
+    assert!(state.pending_trigger_targets().is_none());
+    assert_eq!(trigger_sources(&state).len(), 1);
+    let _ = resume;
+}
+
+// ── T22 (fix cycle, Finding 2 / card Findings 1+2) ────────────────────────────
+
+/// CR 601.2c — "If the spell has a variable number of targets, the player
+/// announces how many targets they will choose before they announce those
+/// targets." An `UpToN { count: N }` slot accepts **up to N**, not one.
+///
+/// Fix-cycle Finding 2 (HIGH). The shipped `TriggerTargetOption` dropped `count`
+/// and the cardinality check was a hard `submitted.len() <= 1`, so Elder Deep-Fiend
+/// ("tap up to **four** target permanents") and Cloud of Faeries ("untap up to
+/// **two** lands") -- both `Complete` -- could still announce at most one target.
+///
+/// **Fail-before**: `slot.max` did not exist, and the 4-target answer was rejected
+/// with "expected 0 or 1".
+#[test]
+fn test_dp8_up_to_n_accepts_n_targets_not_one() {
+    // The two oracle counts this fixes, read off the real defs (SR-36: enumerated,
+    // not grepped) so the fixture is the cards' own shape.
+    let mut oracle_counts: Vec<(String, u32)> = Vec::new();
+    for def in all_cards() {
+        if def.name != "Elder Deep-Fiend" && def.name != "Cloud of Faeries" {
+            continue;
+        }
+        for ability in &def.abilities {
+            if let AbilityDefinition::Triggered { targets, .. } = ability {
+                for req in targets {
+                    if let TargetRequirement::UpToN { count, .. } = req {
+                        oracle_counts.push((def.name.clone(), *count));
+                    }
+                }
+            }
+        }
+    }
+    oracle_counts.sort();
+    assert_eq!(
+        oracle_counts,
+        vec![
+            ("Cloud of Faeries".to_string(), 2),
+            ("Elder Deep-Fiend".to_string(), 4),
+        ],
+        "oracle: 'tap up to four target permanents' / 'untap up to two lands'"
+    );
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p(1))
+        .add_player(p(2))
+        .with_registry(CardRegistry::new(vec![]))
+        .object(zapper(
+            p(1),
+            "Zapper",
+            vec![TargetRequirement::UpToN {
+                count: 4,
+                inner: Box::new(TargetRequirement::TargetCreature),
+            }],
+        ))
+        .object(ObjectSpec::creature(p(1), "Creature 0", 2, 2))
+        .object(ObjectSpec::creature(p(1), "Creature 1", 2, 2))
+        .object(ObjectSpec::creature(p(1), "Creature 2", 2, 2))
+        .object(ObjectSpec::creature(p(1), "Creature 3", 2, 2))
+        .object(ObjectSpec::enchantment(p(1), "Bystander"))
+        .active_player(p(1))
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+    let bystander = find_object(&state, "Bystander");
+    let _ = fire_etb(&mut state, bystander, p(1));
+
+    let entry = state.pending_trigger_targets().unwrap();
+    let choice_id = entry.choice_id;
+    assert_eq!(
+        entry.slots[0].max, 4,
+        "CR 601.2c: the slot's declared width"
+    );
+    assert_eq!(entry.slots[0].candidates.len(), 4);
+    let ids: Vec<Target> = (0..4)
+        .map(|i| Target::Object(find_object(&state, &format!("Creature {i}"))))
+        .collect();
+
+    // Five targets in a four-wide slot: rejected.
+    let err = process_command(
+        state.clone(),
+        Command::ChooseTriggerTargets {
+            player: p(1),
+            choice_id,
+            targets: vec![ids
+                .iter()
+                .cloned()
+                .chain(ids[..1].iter().cloned())
+                .collect()],
+        },
+    )
+    .unwrap_err();
+    assert!(matches!(&err, GameStateError::InvalidCommand(m) if m.contains("0 to 4")));
+
+    // CR 601.2c: "The same target can't be chosen multiple times for any one
+    // instance of the word 'target'." Latent while the cap was 1.
+    let err2 = process_command(
+        state.clone(),
+        Command::ChooseTriggerTargets {
+            player: p(1),
+            choice_id,
+            targets: vec![vec![ids[0].clone(), ids[0].clone()]],
+        },
+    )
+    .unwrap_err();
+    assert!(
+        matches!(&err2, GameStateError::InvalidCommand(m) if m.contains("same target twice")),
+        "got {err2:?}"
+    );
+
+    // All four: accepted, and all four land on the stack object in order.
+    let (state, _) = process_command(
+        state,
+        Command::ChooseTriggerTargets {
+            player: p(1),
+            choice_id,
+            targets: vec![ids.clone()],
+        },
+    )
+    .unwrap();
+    let placed: Vec<Target> = state.stack_objects()[0]
+        .targets
+        .iter()
+        .map(|t| t.target.clone())
+        .collect();
+    assert_eq!(
+        placed, ids,
+        "CR 601.2c: 'up to four' means four are announceable"
+    );
+}
+
+// ── T23 (fix cycle, Finding 6 / card Finding 3) ───────────────────────────────
+
+/// CR 601.2c — an under-filled "up to" slot must not shift the LATER slots'
+/// `EffectTarget::DeclaredTarget { index }` down.
+///
+/// Fix-cycle Finding 6 (MEDIUM). `chosen` was a flat concatenation, so answering
+/// `[[], [player]]` produced `[player]` and `DeclaredTarget { index: 0 }` -- the
+/// first clause -- resolved to the *second* slot's target. Sword of Sinew and Steel
+/// ("destroy up to one target planeswalker **and** up to one target artifact") is
+/// correct today only because both of its clauses are `DestroyPermanent`.
+///
+/// **Fail-before**: `targets[0]` was the player and `targets.len()` was 1.
+#[test]
+fn test_dp8_under_filled_optional_slot_does_not_shift_later_indices() {
+    let mut state = GameStateBuilder::new()
+        .add_player(p(1))
+        .add_player(p(2))
+        .with_registry(CardRegistry::new(vec![]))
+        .object(zapper(
+            p(1),
+            "Zapper",
+            vec![
+                TargetRequirement::UpToN {
+                    count: 1,
+                    inner: Box::new(TargetRequirement::TargetCreature),
+                },
+                TargetRequirement::TargetPlayer,
+            ],
+        ))
+        .object(ObjectSpec::creature(p(1), "Creature 0", 2, 2))
+        .object(ObjectSpec::enchantment(p(1), "Bystander"))
+        .active_player(p(1))
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+    let bystander = find_object(&state, "Bystander");
+    let _ = fire_etb(&mut state, bystander, p(1));
+    let choice_id = state.pending_trigger_targets().unwrap().choice_id;
+
+    // Slot 0 declined, slot 1 answered.
+    let (state, _) = process_command(
+        state,
+        Command::ChooseTriggerTargets {
+            player: p(1),
+            choice_id,
+            targets: vec![vec![], vec![Target::Player(p(2))]],
+        },
+    )
+    .unwrap();
+
+    let targets = &state.stack_objects()[0].targets;
+    assert_eq!(
+        targets.len(),
+        2,
+        "the declined slot keeps its one-wide position"
+    );
+    assert!(
+        targets[0].is_unchosen_slot(),
+        "CR 601.2c: slot 0 was declined, so index 0 must name nothing -- got {:?}",
+        targets[0].target
+    );
+    assert_eq!(
+        targets[1].target,
+        Target::Player(p(2)),
+        "slot 1's target must stay at index 1, where its card def's \
+         `DeclaredTarget {{ index: 1 }}` reads it"
+    );
+
+    // And the all-empty answer still produces an EMPTY list, so CR 608.2b's
+    // "all targets are illegal" fizzle cannot fire on a legally-empty announcement.
+    let mut state2 = GameStateBuilder::new()
+        .add_player(p(1))
+        .add_player(p(2))
+        .with_registry(CardRegistry::new(vec![]))
+        .object(zapper(
+            p(1),
+            "Zapper",
+            vec![
+                TargetRequirement::UpToN {
+                    count: 2,
+                    inner: Box::new(TargetRequirement::TargetCreature),
+                },
+                TargetRequirement::UpToN {
+                    count: 2,
+                    inner: Box::new(TargetRequirement::TargetCreature),
+                },
+            ],
+        ))
+        .object(ObjectSpec::creature(p(1), "Creature 0", 2, 2))
+        .object(ObjectSpec::creature(p(1), "Creature 1", 2, 2))
+        .object(ObjectSpec::enchantment(p(1), "Bystander"))
+        .active_player(p(1))
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+    let b2 = find_object(&state2, "Bystander");
+    let _ = fire_etb(&mut state2, b2, p(1));
+    let cid2 = state2.pending_trigger_targets().unwrap().choice_id;
+    let (state2, _) = process_command(
+        state2,
+        Command::ChooseTriggerTargets {
+            player: p(1),
+            choice_id: cid2,
+            targets: vec![vec![], vec![]],
+        },
+    )
+    .unwrap();
+    assert!(
+        state2.stack_objects()[0].targets.is_empty(),
+        "a trailing hole is omitted, never padded"
+    );
+}
+
+// ── T24 (fix cycle, Finding 8) ────────────────────────────────────────────────
+
+/// CR 601.2c — an `optional` slot with NO candidates has exactly one legal answer
+/// ("choose zero"), so it is not a choice and must not be asked.
+///
+/// Fix-cycle Finding 8 (LOW). `trigger_target_choice_is_forced` excluded every
+/// `optional` slot unconditionally, so an "up to one target creature" trigger on an
+/// empty board spent a wire round trip on a question with one possible answer.
+///
+/// **Fail-before**: the flush suspended and `pending_trigger_targets()` was `Some`.
+#[test]
+fn test_dp8_optional_slot_with_no_candidates_asks_nothing() {
+    let mut state = GameStateBuilder::new()
+        .add_player(p(1))
+        .add_player(p(2))
+        .with_registry(CardRegistry::new(vec![]))
+        .object(zapper(
+            p(1),
+            "Zapper",
+            vec![TargetRequirement::UpToN {
+                count: 1,
+                inner: Box::new(TargetRequirement::TargetCreature),
+            }],
+        ))
+        .object(ObjectSpec::enchantment(p(1), "Bystander"))
+        .active_player(p(1))
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+    let bystander = find_object(&state, "Bystander");
+    let events = fire_etb(&mut state, bystander, p(1));
+
+    assert!(
+        state.pending_trigger_targets().is_none(),
+        "CR 601.2c: 'up to one' with nothing to choose from has one legal answer"
+    );
+    assert!(!events
+        .iter()
+        .any(|e| matches!(e, GameEvent::TriggerTargetChoiceRequired { .. })));
+    assert_eq!(
+        state.stack_objects().len(),
+        1,
+        "CR 603.3d: zero targets is a legal announcement for an 'up to' slot, so the \
+         ability is placed rather than removed"
+    );
+    assert!(state.stack_objects()[0].targets.is_empty());
+}
+
+// ── T25 (fix cycle, Finding 3) ────────────────────────────────────────────────
+
+/// CR 603.3b / CR 117.3b — the 31st `check_and_flush_triggers` call site.
+///
+/// Fix-cycle Finding 3 (MEDIUM). `handle_all_passed`'s
+/// `force_resolve_overdue_payments` branch (PB-DP4, CR 118.12a) flushes and then
+/// grants priority **unconditionally**. A forced echo decline sacrifices the
+/// permanent, which produces a dies-trigger, which can reach the CR 603.3d
+/// announcement -- so that flush can suspend, and the grant below it ran anyway.
+/// The plan's §16 mechanical check only grepped `flush_pending_triggers\(`, which
+/// does not see this site; it now greps `check_and_flush_triggers\(` too.
+///
+/// **Fail-before**: a `PriorityGiven` was emitted with the CR 603.3b batch
+/// half-placed, and answering emitted a second one.
+#[test]
+fn test_dp8_overdue_payment_branch_grants_no_priority_while_suspended() {
+    let mut state = GameStateBuilder::new()
+        .add_player(p(1))
+        .add_player(p(2))
+        .with_registry(CardRegistry::new(vec![]))
+        .object(
+            ObjectSpec::enchantment(p(1), "Reaper").with_triggered_ability(TriggeredAbilityDef {
+                trigger_on: TriggerEvent::AnyCreatureDies,
+                intervening_if: None,
+                description: "PB-DP8 fixture: on any creature dying, zap a creature".to_string(),
+                effect: Some(Effect::DealDamage {
+                    source: None,
+                    target: CardEffectTarget::DeclaredTarget { index: 0 },
+                    amount: EffectAmount::Fixed(2),
+                }),
+                etb_filter: None,
+                death_filter: None,
+                combat_damage_filter: None,
+                triggering_creature_filter: None,
+                targets: vec![TargetRequirement::TargetCreature],
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
+            }),
+        )
+        .object(ObjectSpec::creature(p(1), "Echoer", 1, 1))
+        .object(ObjectSpec::creature(p(1), "Creature 0", 2, 2))
+        .object(ObjectSpec::creature(p(1), "Creature 1", 2, 2))
+        .active_player(p(1))
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+    let echoer = find_object(&state, "Echoer");
+    // PB-DP4 (CR 702.30a): an unpaid echo whose deadline passes is a decline, and
+    // `force_resolve_overdue_payments` sacrifices the permanent.
+    state
+        .pending_echo_payments_mut()
+        .push_back((p(1), echoer, Default::default()));
+    state.turn_mut().priority_holder = Some(p(1));
+
+    let (state, e1) = process_command(state, Command::PassPriority { player: p(1) }).unwrap();
+    let (state, e2) = process_command(state, Command::PassPriority { player: p(2) }).unwrap();
+    let all: Vec<GameEvent> = e1.into_iter().chain(e2).collect();
+
+    assert!(
+        state.pending_trigger_targets().is_some(),
+        "the forced echo decline's dies-trigger has two legal creature targets, so \
+         the flush at `handle_all_passed`'s payment branch must suspend"
+    );
+    let after_ask = all
+        .iter()
+        .skip_while(|e| !matches!(e, GameEvent::TriggerTargetChoiceRequired { .. }))
+        .filter(|e| matches!(e, GameEvent::PriorityGiven { .. }))
+        .count();
+    assert_eq!(
+        after_ask, 0,
+        "CR 603.3b: this site grants priority unconditionally -- it must not do so \
+         while the batch is suspended"
+    );
+
+    // The obligation is discharged on resume, so the game does not hang.
+    let (state, resume) = answer_pending_trigger_targets(state);
+    assert!(state.pending_trigger_targets().is_none());
+    assert!(
+        resume
+            .iter()
+            .any(|e| matches!(e, GameEvent::PriorityGiven { .. })),
+        "CR 117.3b: the payment branch owed the grant; the resume must discharge it"
+    );
+    assert!(state.turn().priority_holder.is_some());
+}
+
+// ── T26 (fix cycle, Finding 4 / OOS-DP8-10) ───────────────────────────────────
+
+/// CR 514.3a / CR 726 — `enter_step`'s Cleanup guard owed more than a priority
+/// grant.
+///
+/// Fix-cycle Finding 4 (MEDIUM), closing seed OOS-DP8-10 and widening it. The guard
+/// returns before `state.turn.cleanup_sba_rounds += 1` **and** before
+/// `loop_detection::check_for_mandatory_loop`, so every cleanup round that suspended
+/// left the 100-round ratchet where it was (the cleanup step could then never fall
+/// through to auto-advance) and CR 726's mandatory-loop draw was never declared for
+/// any batch that suspends. `finish_resumed_flush` now reproduces both.
+///
+/// **Fail-before**: `cleanup_sba_rounds` was unchanged after the answer.
+#[test]
+fn test_dp8_suspended_cleanup_batch_still_advances_the_ratchet() {
+    let mut state = board_with_creatures(2, 2);
+    state.turn_mut().step = Step::Cleanup;
+    let bystander = find_object(&state, "Bystander");
+    let triggers = check_triggers(
+        &state,
+        &[GameEvent::PermanentEnteredBattlefield {
+            object_id: bystander,
+            player: p(1),
+        }],
+    );
+    for t in triggers {
+        state.pending_triggers_mut().push_back(t);
+    }
+    state.turn_mut().priority_holder = Some(p(1));
+    let rounds_before = state.turn().cleanup_sba_rounds;
+
+    let (state, _) = process_command(state, Command::PassPriority { player: p(1) }).unwrap();
+    let (state, _) = process_command(state, Command::PassPriority { player: p(2) }).unwrap();
+    assert!(
+        state.pending_trigger_targets().is_some(),
+        "the Cleanup-branch flush must suspend on the real choice"
+    );
+    assert_eq!(
+        state.turn().cleanup_sba_rounds,
+        rounds_before,
+        "the ratchet belongs to the resume, not the suspension"
+    );
+
+    let (state, _) = answer_pending_trigger_targets(state);
+    assert_eq!(
+        state.turn().cleanup_sba_rounds,
+        rounds_before + 1,
+        "CR 514.3a: the 100-round cleanup ratchet must keep advancing across a \
+         suspension, or the cleanup step can never fall through to auto-advance"
+    );
+    assert!(
+        state.turn().priority_holder.is_some(),
+        "CR 514.3a: the Cleanup branch also owed the priority grant"
+    );
+}
+
+// ── T27 (fix cycle, Finding 4 — the CR 726 half) ──────────────────────────────
+
+/// CR 104.4b / CR 726 — the mandatory-loop check is not skipped by a suspension.
+///
+/// Fix-cycle Finding 4, the half seed OOS-DP8-10 did not name. Both `enter_step`
+/// guards return *before* `loop_detection::check_for_mandatory_loop`, so a mandatory
+/// infinite loop involving a targeted triggered ability would never produce the
+/// `LoopDetected` draw -- the engine would simply cycle forever. `check_for_mandatory_loop`
+/// records the position it just examined, so its having run is observable:
+/// `Command::ChooseTriggerTargets` resets the table (CR 104.4b, a real choice) and
+/// the resume's check re-populates it with exactly the one position.
+///
+/// **Fail-before**: the table was empty after the resume.
+#[test]
+fn test_dp8_resume_runs_the_cr726_loop_check() {
+    let mut state = board_with_creatures(2, 2);
+    let bystander = find_object(&state, "Bystander");
+    let triggers = check_triggers(
+        &state,
+        &[GameEvent::PermanentEnteredBattlefield {
+            object_id: bystander,
+            player: p(1),
+        }],
+    );
+    for t in triggers {
+        state.pending_triggers_mut().push_back(t);
+    }
+    state.turn_mut().priority_holder = Some(p(1));
+
+    let (state, _) = process_command(state, Command::PassPriority { player: p(1) }).unwrap();
+    let (state, _) = process_command(state, Command::PassPriority { player: p(2) }).unwrap();
+    assert!(state.pending_trigger_targets().is_some());
+
+    let (state, _) = answer_pending_trigger_targets(state);
+    assert_eq!(
+        state.loop_detection_hashes().len(),
+        1,
+        "CR 726: `enter_step`'s has-priority guard returned before the mandatory-loop \
+         check, so the resume owes it"
+    );
+}
+
+// ── T28 (fix cycle, Finding 7 — the resolution-tail guard) ────────────────────
+
+/// CR 603.3b / CR 117.3b — the resolution tail's guard, which nothing tested.
+///
+/// A triggered ability resolves, its damage kills a creature, the resulting
+/// dies-trigger has two legal targets, and the flush at `resolution.rs`'s tail
+/// suspends. That tail resets `players_passed` and grants priority to the active
+/// player immediately after the flush.
+#[test]
+fn test_dp8_resolution_tail_guard_grants_no_priority_while_suspended() {
+    let mut state = GameStateBuilder::new()
+        .add_player(p(1))
+        .add_player(p(2))
+        .with_registry(CardRegistry::new(vec![]))
+        .object(zapper(
+            p(1),
+            "Zapper",
+            vec![TargetRequirement::TargetCreature],
+        ))
+        .object(
+            ObjectSpec::enchantment(p(1), "Reaper").with_triggered_ability(TriggeredAbilityDef {
+                trigger_on: TriggerEvent::AnyCreatureDies,
+                intervening_if: None,
+                description: "PB-DP8 fixture: on any creature dying, zap a creature".to_string(),
+                effect: Some(Effect::DealDamage {
+                    source: None,
+                    target: CardEffectTarget::DeclaredTarget { index: 0 },
+                    amount: EffectAmount::Fixed(1),
+                }),
+                etb_filter: None,
+                death_filter: None,
+                combat_damage_filter: None,
+                triggering_creature_filter: None,
+                targets: vec![TargetRequirement::TargetCreature],
+                counter_filter: None,
+                counter_on_self: false,
+                once_per_turn: false,
+            }),
+        )
+        .object(ObjectSpec::creature(p(1), "Fragile", 1, 1))
+        .object(ObjectSpec::creature(p(1), "Creature 0", 4, 4))
+        .object(ObjectSpec::creature(p(1), "Creature 1", 4, 4))
+        .active_player(p(1))
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+    let bystander_creature = find_object(&state, "Fragile");
+    let zapper_events = fire_etb(&mut state, bystander_creature, p(1));
+    let _ = zapper_events;
+
+    // Announce the Zapper's target: the 1/1, which its 2 damage will kill.
+    let choice_id = state.pending_trigger_targets().unwrap().choice_id;
+    let (state, _) = process_command(
+        state,
+        Command::ChooseTriggerTargets {
+            player: p(1),
+            choice_id,
+            targets: vec![vec![Target::Object(bystander_creature)]],
+        },
+    )
+    .unwrap();
+    assert_eq!(state.stack_objects().len(), 1);
+
+    // Resolve it. The 1/1 dies to SBAs, and the resulting dies-trigger has two
+    // legal targets (the two 4/4s), so the resolution tail's flush suspends.
+    let (state, e1) = process_command(state, Command::PassPriority { player: p(1) }).unwrap();
+    let (state, e2) = process_command(state, Command::PassPriority { player: p(2) }).unwrap();
+    let all: Vec<GameEvent> = e1.into_iter().chain(e2).collect();
+
+    assert!(
+        state.pending_trigger_targets().is_some(),
+        "the dies-trigger's flush at the resolution tail must suspend"
+    );
+    let after_ask = all
+        .iter()
+        .skip_while(|e| !matches!(e, GameEvent::TriggerTargetChoiceRequired { .. }))
+        .filter(|e| matches!(e, GameEvent::PriorityGiven { .. }))
+        .count();
+    assert_eq!(after_ask, 0, "CR 603.3b: no priority while suspended");
+
+    let (state, resume) = answer_pending_trigger_targets(state);
+    assert!(resume
+        .iter()
+        .any(|e| matches!(e, GameEvent::PriorityGiven { .. })));
+    assert!(state.turn().priority_holder.is_some());
+}
+
+// ── T29 (fix cycle, Finding 7 — `handle_declare_attackers`' guard) ────────────
+
+/// CR 508.1 / CR 603.3b — `handle_declare_attackers` flushes attack triggers and
+/// then unconditionally writes `priority_holder` + `PriorityGiven`. Its guard had
+/// no test.
+#[test]
+fn test_dp8_declare_attackers_guard_grants_no_priority_while_suspended() {
+    let attacker =
+        ObjectSpec::creature(p(1), "Vanguard", 2, 2).with_triggered_ability(TriggeredAbilityDef {
+            trigger_on: TriggerEvent::SelfAttacks,
+            intervening_if: None,
+            description: "PB-DP8 fixture: on attack, zap a creature".to_string(),
+            effect: Some(Effect::DealDamage {
+                source: None,
+                target: CardEffectTarget::DeclaredTarget { index: 0 },
+                amount: EffectAmount::Fixed(1),
+            }),
+            etb_filter: None,
+            death_filter: None,
+            combat_damage_filter: None,
+            triggering_creature_filter: None,
+            targets: vec![TargetRequirement::TargetCreature],
+            counter_filter: None,
+            counter_on_self: false,
+            once_per_turn: false,
+        });
+    let state = GameStateBuilder::new()
+        .add_player(p(1))
+        .add_player(p(2))
+        .with_registry(CardRegistry::new(vec![]))
+        .active_player(p(1))
+        .at_step(Step::DeclareAttackers)
+        .object(attacker)
+        .object(ObjectSpec::creature(p(2), "Blocker 0", 3, 3))
+        .object(ObjectSpec::creature(p(2), "Blocker 1", 3, 3))
+        .build()
+        .unwrap();
+    let vanguard = find_object(&state, "Vanguard");
+
+    let (state, events) = process_command(
+        state,
+        Command::DeclareAttackers {
+            player: p(1),
+            attackers: vec![(
+                vanguard,
+                mtg_engine::state::combat::AttackTarget::Player(p(2)),
+            )],
+            enlist_choices: vec![],
+            exert_choices: vec![],
+        },
+    )
+    .unwrap();
+
+    assert!(
+        state.pending_trigger_targets().is_some(),
+        "CR 508.1: the attack trigger has three legal creature targets -- a real choice"
+    );
+    let after_ask = events
+        .iter()
+        .skip_while(|e| !matches!(e, GameEvent::TriggerTargetChoiceRequired { .. }))
+        .filter(|e| matches!(e, GameEvent::PriorityGiven { .. }))
+        .count();
+    assert_eq!(after_ask, 0, "CR 603.3b: no priority while suspended");
+
+    let (state, resume) = answer_pending_trigger_targets(state);
+    assert!(
+        resume
+            .iter()
+            .any(|e| matches!(e, GameEvent::PriorityGiven { .. })),
+        "CR 117.3b: `handle_declare_attackers` owed the grant"
+    );
+    assert!(state.turn().priority_holder.is_some());
+}
+
+// ── T30 (fix cycle, Finding 7 — the dead-active-player fallback) ──────────────
+
+/// CR 800.4j — the one resume branch that grants priority to somebody other than
+/// the active player: the active player has left the game while the batch was
+/// suspended, so `finish_resumed_flush` routes to `next_priority_player`.
+#[test]
+fn test_dp8_resume_routes_past_a_dead_active_player() {
+    let mut state = GameStateBuilder::new()
+        .add_player(p(1))
+        .add_player(p(2))
+        .add_player(p(3))
+        .with_registry(CardRegistry::new(vec![]))
+        .object(zapper(
+            p(2),
+            "Zapper",
+            vec![TargetRequirement::TargetCreature],
+        ))
+        .object(ObjectSpec::creature(p(2), "Creature 0", 2, 2))
+        .object(ObjectSpec::creature(p(2), "Creature 1", 2, 2))
+        .object(ObjectSpec::enchantment(p(2), "Bystander"))
+        .active_player(p(1))
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+    let bystander = find_object(&state, "Bystander");
+    let triggers = check_triggers(
+        &state,
+        &[GameEvent::PermanentEnteredBattlefield {
+            object_id: bystander,
+            player: p(2),
+        }],
+    );
+    for t in triggers {
+        state.pending_triggers_mut().push_back(t);
+    }
+    state.turn_mut().priority_holder = Some(p(1));
+
+    // Drive `enter_step`'s has-priority branch: it suspends, owing a grant.
+    let (state, _) = process_command(state, Command::PassPriority { player: p(1) }).unwrap();
+    let (state, _) = process_command(state, Command::PassPriority { player: p(2) }).unwrap();
+    let (state, _) = process_command(state, Command::PassPriority { player: p(3) }).unwrap();
+    assert_eq!(
+        state.pending_trigger_targets().map(|e| e.player),
+        Some(p(2))
+    );
+
+    // The ACTIVE player leaves while p2's announcement is outstanding.
+    let (state, _) = process_command(state, Command::Concede { player: p(1) }).unwrap();
+    assert_eq!(
+        state.pending_trigger_targets().map(|e| e.player),
+        Some(p(2)),
+        "fix-cycle Finding 5: the foreign concede leaves the block alone"
+    );
+
+    let (state, resume) = answer_pending_trigger_targets(state);
+    let granted: Vec<PlayerId> = resume
+        .iter()
+        .filter_map(|e| match e {
+            GameEvent::PriorityGiven { player } => Some(*player),
+            _ => None,
+        })
+        .collect();
+    assert!(
+        !granted.contains(&p(1)),
+        "CR 800.4j: a departed active player must not be handed priority, got {granted:?}"
+    );
+    assert!(
+        state
+            .turn()
+            .priority_holder
+            .is_some_and(|h| h == p(2) || h == p(3)),
+        "the resume must hand priority to a live player, or the game hangs"
+    );
+}
+
+// ── T31 (fix cycle, Finding 7 — `handle_declare_blockers`' guard) ─────────────
+
+/// CR 509.1 / CR 603.3b — the last untested guard site.
+/// `handle_declare_blockers` flushes block triggers and then unconditionally
+/// resets `players_passed` and grants priority to the active player.
+#[test]
+fn test_dp8_declare_blockers_guard_grants_no_priority_while_suspended() {
+    let wall =
+        ObjectSpec::creature(p(2), "Wall", 0, 4).with_triggered_ability(TriggeredAbilityDef {
+            trigger_on: TriggerEvent::SelfBlocks,
+            intervening_if: None,
+            description: "PB-DP8 fixture: on block, zap a creature".to_string(),
+            effect: Some(Effect::DealDamage {
+                source: None,
+                target: CardEffectTarget::DeclaredTarget { index: 0 },
+                amount: EffectAmount::Fixed(1),
+            }),
+            etb_filter: None,
+            death_filter: None,
+            combat_damage_filter: None,
+            triggering_creature_filter: None,
+            targets: vec![TargetRequirement::TargetCreature],
+            counter_filter: None,
+            counter_on_self: false,
+            once_per_turn: false,
+        });
+    let state = GameStateBuilder::new()
+        .add_player(p(1))
+        .add_player(p(2))
+        .with_registry(CardRegistry::new(vec![]))
+        .active_player(p(1))
+        .at_step(Step::DeclareAttackers)
+        .object(ObjectSpec::creature(p(1), "Vanguard", 2, 2))
+        .object(wall)
+        .object(ObjectSpec::creature(p(1), "Bystander Creature", 2, 2))
+        .build()
+        .unwrap();
+    let vanguard = find_object(&state, "Vanguard");
+    let wall_id = find_object(&state, "Wall");
+
+    let (state, _) = process_command(
+        state,
+        Command::DeclareAttackers {
+            player: p(1),
+            attackers: vec![(
+                vanguard,
+                mtg_engine::state::combat::AttackTarget::Player(p(2)),
+            )],
+            enlist_choices: vec![],
+            exert_choices: vec![],
+        },
+    )
+    .unwrap();
+    let (state, _) = process_command(state, Command::PassPriority { player: p(1) }).unwrap();
+    let (state, _) = process_command(state, Command::PassPriority { player: p(2) }).unwrap();
+    assert_eq!(state.turn().step, Step::DeclareBlockers);
+
+    let (state, events) = process_command(
+        state,
+        Command::DeclareBlockers {
+            player: p(2),
+            blockers: vec![(wall_id, vanguard)],
+        },
+    )
+    .unwrap();
+
+    assert!(
+        state.pending_trigger_targets().is_some(),
+        "CR 509.1: the block trigger has three legal creature targets -- a real choice"
+    );
+    let after_ask = events
+        .iter()
+        .skip_while(|e| !matches!(e, GameEvent::TriggerTargetChoiceRequired { .. }))
+        .filter(|e| matches!(e, GameEvent::PriorityGiven { .. }))
+        .count();
+    assert_eq!(after_ask, 0, "CR 603.3b: no priority while suspended");
+
+    let (state, resume) = answer_pending_trigger_targets(state);
+    assert!(
+        resume
+            .iter()
+            .any(|e| matches!(e, GameEvent::PriorityGiven { .. })),
+        "CR 117.3b: `handle_declare_blockers` owed the grant"
+    );
+    assert!(state.turn().priority_holder.is_some());
+}
+
+// ── T32 (fix cycle, Finding 9) ────────────────────────────────────────────────
+
+/// CR 800.4d — the liveness filter and the raw-field guards must not disagree.
+///
+/// Fix-cycle Finding 9 (LOW). `blocking_decision()` reports `None` for an entry
+/// whose player is no longer alive, but `flush_pending_triggers` and the six
+/// in-crate guards read the raw field. `handle_concede` clears only its OWN
+/// player's entry, so a player eliminated by any other route (the CR 704.5a/b
+/// player-loss SBAs, a resolving effect, a replacement) left an entry that was
+/// invisible to the admission gate and yet blocked every subsequent flush forever.
+///
+/// **Fail-before**: the entry survived, `flush_pending_triggers` early-returned on
+/// it, and the rest of the CR 603.3b batch was never placed.
+#[test]
+fn test_dp8_entry_of_a_player_eliminated_outside_concede_is_reaped() {
+    let mut state = GameStateBuilder::new()
+        .add_player(p(1))
+        .add_player(p(2))
+        .add_player(p(3))
+        .with_registry(CardRegistry::new(vec![]))
+        .object(zapper(
+            p(2),
+            "Zapper P2",
+            vec![TargetRequirement::TargetCreature],
+        ))
+        .object(zapper(
+            p(1),
+            "Zapper P1",
+            vec![TargetRequirement::TargetCreature],
+        ))
+        .object(ObjectSpec::creature(p(1), "Creature 0", 2, 2))
+        .object(ObjectSpec::creature(p(1), "Creature 1", 2, 2))
+        .object(ObjectSpec::enchantment(p(1), "Bystander"))
+        .active_player(p(2))
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+    let bystander = find_object(&state, "Bystander");
+    let _ = fire_etb(&mut state, bystander, p(1));
+    let p2_zapper = find_object(&state, "Zapper P2");
+    let p1_zapper = find_object(&state, "Zapper P1");
+    assert_eq!(state.pending_trigger_targets().unwrap().player, p(2));
+
+    // p2 is eliminated by something that is NOT `Command::Concede` -- e.g. the
+    // CR 704.5a life-total SBA, which only writes `has_lost`.
+    state.players_mut().get_mut(&p(2)).unwrap().has_lost = true;
+    assert!(
+        state.blocking_decision().is_none(),
+        "the liveness filter already hides a dead owner's entry"
+    );
+
+    // The next flush must converge rather than early-return on the dead entry.
+    let events = flush_pending_triggers(&mut state);
+    assert!(
+        state.pending_trigger_targets().is_none()
+            || state.pending_trigger_targets().unwrap().player != p(2),
+        "CR 800.4d: a departed player's entry must not survive the flush"
+    );
+    let _ = events;
+    let (state, _) = answer_all_pending_trigger_targets(state);
+    let placed = trigger_sources(&state);
+    assert!(
+        !placed.contains(&p2_zapper),
+        "CR 800.4d: a departed player's triggered ability is not put on the stack"
+    );
+    assert!(
+        placed.contains(&p1_zapper),
+        "CR 800.4j / 603.3b: the rest of the batch is still placed"
+    );
 }

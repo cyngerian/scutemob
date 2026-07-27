@@ -622,7 +622,18 @@
 ///   reachable only from `GameState`; `GameEvent` IS in the SR-8 wire closure, so
 ///   this bump is paired with `PROTOCOL_VERSION` 28 → 29
 ///   (`Command::ChooseTriggerTargets` also lands in this same commit).
-pub const HASH_SCHEMA_VERSION: u8 = 66;
+/// - 67: PB-DP8 fix cycle (2026-07-26, review Findings 2+3+4+6). Two shape moves
+///   inside the v66 structs, neither of which adds a `GameState` field:
+///   `TriggerTargetOption` gains `max: u32` (CR 601.2c's declared slot width -- the
+///   v66 shape dropped `UpToN`'s `count` and capped every "up to N" announcement at
+///   one target), and `PendingTriggerTargets.grant_priority_on_resume: bool` becomes
+///   `resume_site: FlushResumeSite` (a 31st `check_and_flush_triggers` call site was
+///   found, and the two `enter_step` guards owed a CR 726 loop check plus a
+///   `cleanup_sba_rounds` ratchet that a bool could not express). `decl_fingerprint`
+///   MOVES (changed field + new enum in the `GameState` serde closure);
+///   `stream_fingerprint` moves per the v40 mechanism. `TriggerTargetOption` is in
+///   the SR-8 wire closure, so this bump is paired with `PROTOCOL_VERSION` 29 -> 30.
+pub const HASH_SCHEMA_VERSION: u8 = 67;
 
 /// One `(version, fingerprints)` row of the append-only hash-schema history.
 ///
@@ -951,6 +962,16 @@ pub const HASH_SCHEMA_HISTORY: &[HashSchemaEpoch] = &[
         // variant); stream_fingerprint moves per the v40 mechanism.
         decl_fingerprint: "2887e0d5cfb2fdce00281de4f5c355a7ba5c321bdb4835d2fcf5578fe643b6e5",
         stream_fingerprint: "a727e6182d118338dc065f30b0646ec289ead7850be32835209244593e07bb17",
+    },
+    HashSchemaEpoch {
+        version: 67,
+        // PB-DP8 fix cycle (2026-07-26, review Findings 2+3+4+6):
+        // `TriggerTargetOption` gains `max`; `PendingTriggerTargets`'s
+        // `grant_priority_on_resume: bool` becomes `resume_site: FlushResumeSite`
+        // (see the `- 67:` History line above). decl_fingerprint moves (changed
+        // field + new enum); stream_fingerprint moves per the v40 mechanism.
+        decl_fingerprint: "408eb2d15bf58c5fb8669ff7c84373ed826fd4d979eddac8e682179b4ab33dd3",
+        stream_fingerprint: "b52fe5acedc079789aa85ad07dac61487c144b01ed48326dcbf4c9332a70db79",
     },
 ];
 
@@ -3046,6 +3067,19 @@ impl HashInto for TriggerTargetOption {
         self.optional.hash_into(hasher);
         self.candidates.hash_into(hasher);
         self.default.hash_into(hasher);
+        self.max.hash_into(hasher);
+    }
+}
+// CR 601.2c / CR 726 (PB-DP8 fix cycle, Findings 3+4): the resume obligation.
+impl HashInto for crate::state::stubs::FlushResumeSite {
+    fn hash_into(&self, hasher: &mut Hasher) {
+        use crate::state::stubs::FlushResumeSite as S;
+        match self {
+            S::None => 0u8.hash_into(hasher),
+            S::GrantPriority => 1u8.hash_into(hasher),
+            S::EnterStepPriority => 2u8.hash_into(hasher),
+            S::EnterStepCleanup => 3u8.hash_into(hasher),
+        }
     }
 }
 impl HashInto for PendingTriggerTargets {
@@ -3056,7 +3090,7 @@ impl HashInto for PendingTriggerTargets {
         self.trigger.hash_into(hasher);
         self.remaining.hash_into(hasher);
         self.slots.hash_into(hasher);
-        self.grant_priority_on_resume.hash_into(hasher);
+        self.resume_site.hash_into(hasher);
     }
 }
 impl HashInto for crate::state::stubs::PendingTriggerKind {
