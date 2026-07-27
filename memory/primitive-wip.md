@@ -274,3 +274,24 @@ spot-check across all 97 `BASELINE` entries") was **not** performed in this cycl
 orchestrator's brief scoped Finding 1's fix to the seed + doc-comment + message-wording
 triple, not a full 97-entry re-triage, and OOS-DP10-8 says so explicitly ("the remaining 95
 entries have not been triaged").
+
+## Fail-closed proven end-to-end, on a real card def (orchestrator, 2026-07-27)
+
+The review and the fix cycle both proved T4's logic against a *synthetic* corpus. The
+acceptance criterion's claim is about the real one, so the orchestrator ran it end-to-end:
+`Effect::Proliferate` was temporarily added to `crates/card-defs/src/defs/lightning_bolt.rs`
+— a `Complete` def not in `BASELINE` — and `cargo test -p mtg-engine --test core
+decision_gate::` was run against the real `all_cards()`:
+
+```
+test decision_gate::no_complete_def_introduces_an_unrecorded_auto_chosen_decision ... FAILED
+test decision_gate::auto_chosen_complete_union_is_ratcheted ... FAILED
+  Lightning Bolt is NOT in BASELINE but hits {"proliferate"}. Lightning Bolt hits
+  proliferate (CR 701.34a, effects/mod.rs (Proliferate) -- auto-selects all eligible)
+test result: FAILED. 16 passed; 2 failed
+```
+
+The def was restored from a backup and the target went green again (18 passed / 0 failed),
+`git status` clean. **Two** tests catch the new instance, not one, and the message names the
+card, the row, the CR and the engine site — which is what criterion 5554 asks for. Recorded
+in audit §8's PB-DP10 row.
