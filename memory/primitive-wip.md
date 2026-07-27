@@ -1,4 +1,4 @@
-# Primitive WIP — PB-DP8 (DP-6 / OOS-M11-4: triggered-ability target choice) · SHIPPED (fix cycle complete)
+# Primitive WIP — PB-DP8 (DP-6 / OOS-M11-4: triggered-ability target choice) · SHIPPED (second fix cycle complete)
 
 <!-- last_updated: 2026-07-26 -->
 
@@ -10,13 +10,16 @@
 - **Branch**: `feat/pb-dp8-triggered-ability-target-choice-surface-the-84-def-ag`
 - **Class**: AGENCY (Tier 1 top, class **B**). Rank 8 of the PB-DP suite; the suite's **second**
   wire change.
-- **Phase**: **implement → review → FIX COMPLETE**
+- **Phase**: **implement → review → fix → closing review → SECOND FIX COMPLETE**
 - **Plan**: `memory/primitives/pb-plan-DP8.md`
 - **Review file**: `memory/primitives/pb-review-DP8.md`
 - **Baseline**: PROTOCOL **28**, HASH **65**, tests **3,837**
 - **Shipped (implement)**: PROTOCOL **29**, HASH **66**, tests **3,858**
 - **Shipped (after fix cycle)**: PROTOCOL **30**, HASH **67**, tests **3,871**, still
   **0 card-def edits, 0 completeness flips**
+- **Shipped (after CLOSING-review fix cycle)**: PROTOCOL **30**, HASH **67** (unmoved —
+  nothing changed a wire type), tests **3,875**, still **0 card-def edits, 0 completeness
+  flips**
 
 ## What shipped
 
@@ -151,3 +154,61 @@ sentinel has no display arm).
 `cargo build --workspace`, `cargo test --all` (**3,871 / 0**), `cargo clippy --workspace
 --all-targets -- -D warnings`, `cargo fmt --check`, `tools/check-defs-fmt.sh` (1,804 defs) —
 all clean. 210 approved golden scripts, 0 new skips (SR-9c).
+
+---
+
+## Second fix cycle — closing `/review` (1 HIGH, 1 MEDIUM, 6 LOW)
+
+**All 8 findings dispositioned; 8 fixed, 0 deferred.** Per-finding detail, including the
+fail-before probe run for each, is in `memory/primitives/pb-review-DP8.md` under
+"Closing-review dispositions".
+
+**The HIGH was a game-ending deadlock introduced by the FIRST fix cycle**, and the branch's own
+test built exactly that state and asserted the wrong thing about it. That is the lesson of the
+batch, not the trigger-target machinery.
+
+### What changed
+
+1. **HIGH — a concede under a suspended batch stranded priority on the conceded player.**
+   The first cycle's Finding-5 gate (`handle_concede`'s priority/turn advance gated on
+   `blocking_decision().is_none()`) is *kept* — it is what stops a concede stepping over a
+   half-placed CR 603.3b batch — but its justifying comment was false for
+   `FlushResumeSite::None`, the resume site of all 30 in-match `check_and_flush_triggers`
+   calls. The skipped debt is now discharged by `abilities::repair_departed_priority_holder`
+   at the end of `resume_trigger_flush`, the earliest moment CR 603.3b permits a grant.
+   The reviewer's "grant at the concede site" prescription was **evaluated and not applied**:
+   it emits `PriorityGiven` while the batch is still incomplete, and `next_priority_player`
+   can return `None`. `grant_priority_after_batch` factored out so the resume tail and the
+   repair cannot drift.
+2. **MEDIUM — the reap discharged the priority debt inside the caller's own flush.**
+   `flush_pending_triggers` zeroes the reaped entry's `resume_site` first. Principle:
+   *the debt belongs to a call site whose moment has passed.* Residual (the ratchet and the
+   CR 726 check that the same `FlushResumeSite` carried) filed as **OOS-DP8-13**.
+3. **LOW ×6** — the engine could refuse its own default answer for two mutually-distinct
+   slots (fixed in code *and* the doc guarantee corrected, OOS-DP8-4 narrowed); the golden
+   script driver's pump-skip is now kind-aware and cross-step (**OOS-DP8-14**); script 138's
+   two backwards prose notes rewritten; the PB-DP5 sentinel comment now records both PB-DP8
+   bumps; the ESM criterion-5545 test was **vacuous** and now drives
+   `handle_choose_trigger_targets(&mut state, ..)` once per rejection class, proven
+   non-vacuous by a mutate-before-validate probe; audit §8's "four guards" → **six** and
+   `grant_priority_on_resume` → `resume_site: FlushResumeSite`.
+
+### Wire
+
+**PROTOCOL 30 / HASH 67 unmoved.** No wire type changed — `make_distinct_slot_defaults` picks a
+different *value* for an existing field. No sentinel re-pin owed.
+
+### Gates
+
+`cargo build --workspace`, `cargo test --all` (**3,875 / 0**), `cargo clippy --workspace
+--all-targets -- -D warnings`, `cargo fmt --check`, `tools/check-defs-fmt.sh` (1,804 defs) —
+all clean. 210 approved golden scripts, 0 new skips (SR-9c).
+
+### Tests added (4, all fail-before-run)
+
+`test_dp8_concede_under_a_suspended_batch_does_not_strand_priority`,
+`test_dp8_reap_does_not_double_grant_priority_at_a_guarded_site`,
+`test_dp8_default_answer_satisfies_cross_slot_distinctness`,
+`script_replay::test_pump_skip_is_cross_step_and_kind_aware`; plus the missing priority
+assertion added to `test_dp8_foreign_concede_does_not_step_over_the_suspended_batch` and the
+rewrite of `test_dp8_illegal_target_rejected_state_untouched`.

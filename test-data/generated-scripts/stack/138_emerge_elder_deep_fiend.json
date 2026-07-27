@@ -181,10 +181,10 @@
               "card": "Elder Deep-Fiend",
               "controller": "p1",
               "cr_ref": "608.2",
-              "note": "CR 608.2: Elder Deep-Fiend resolves and enters the battlefield under p1's control as a 5/6 Eldrazi Octopus. Its CR 603.2 cast trigger ('tap up to four target permanents') has already been put on the stack above the spell (see the earlier steps) and resolves after it."
+              "note": "CR 608.2: Elder Deep-Fiend resolves and enters the battlefield under p1's control as a 5/6 Eldrazi Octopus. Its CR 603.2 cast trigger ('tap up to four target permanents') was put on the stack ABOVE the spell at cast time, so it resolved FIRST -- in the preceding priority round -- tapping nothing, because zero targets were announced for its 'up to four' slot (CR 601.2c/603.3d, PB-DP8)."
             }
           ],
-          "note": "CR 608.2: Elder Deep-Fiend resolves as a creature spell — it enters the battlefield. Its on-cast trigger was placed above it at cast time (CR 603.2/603.3b) and is still on the stack. Stack becomes empty."
+          "note": "CR 608.2: Elder Deep-Fiend resolves as a creature spell — it enters the battlefield. Its on-cast trigger was placed above it at cast time (CR 603.2/603.3b) and has ALREADY resolved in the preceding round, so this resolution is what empties the stack."
         },
         {
           "type": "assert_state",

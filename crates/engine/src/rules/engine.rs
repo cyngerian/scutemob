@@ -2470,10 +2470,20 @@ fn handle_concede(
     //
     // Skipping both cannot hang: the outstanding entry's player is alive by
     // construction (`abilities::flush_sorted` never asks a departed controller), so
-    // the block always has an answerer, and the resume grants priority itself
-    // (`abilities::finish_resumed_flush`, which routes past a dead active player).
-    // CR 800.4j is satisfied by that ordinary priority round rather than by the
-    // shortcut here: the turn still continues to its completion.
+    // the block always has an answerer. CR 800.4j is satisfied by an ordinary
+    // priority round on resume rather than by the shortcut here: the turn still
+    // continues to its completion.
+    //
+    // CLOSING-REVIEW Finding 1 (HIGH) corrects what this comment used to claim.
+    // "The resume grants priority itself (`abilities::finish_resumed_flush`)" is
+    // FALSE for `FlushResumeSite::None` -- the resume site of all 30 in-match
+    // `check_and_flush_triggers` calls, i.e. the common case -- which returns
+    // without touching `priority_holder`. So a conceding PRIORITY HOLDER used to
+    // leave the field naming a player who can never act again, and the game was
+    // unrecoverable once the batch resumed. The debt is now discharged by
+    // `abilities::repair_departed_priority_holder` at the end of the resume, which
+    // is the earliest moment CR 603.3b allows a grant. Nothing is skipped here that
+    // is not picked up there.
     if !is_game_over(state) && blocking_decision(state).is_none() {
         // If the conceding player held priority, advance priority
         if state.turn.priority_holder == Some(player) {

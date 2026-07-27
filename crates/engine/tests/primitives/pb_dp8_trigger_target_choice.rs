@@ -337,50 +337,98 @@ fn test_dp8_chosen_target_is_honoured_not_first_match() {
 
 // ── T3 ────────────────────────────────────────────────────────────────────────
 
-/// CR 603.3d / CR 601.2c — a target outside the offered candidate set is
-/// rejected, and the caller's state is byte-identical afterwards (ESM criterion
-/// 5545). `process_command` takes `GameState` by value, so this holds only
-/// because the handler validates before mutating.
+/// CR 603.3d / CR 601.2c — a rejected answer must leave the state byte-identical
+/// (ESM criterion 5545).
+///
+/// **Closing-review Finding 7 (LOW): this test used to be vacuous.** It captured
+/// `hash_before`, called `process_command(state.clone(), ..)`, and then compared
+/// `hash_before` against `state` -- the ORIGINAL, which had been cloned into the
+/// call and so could not have changed whatever the handler did. The property does
+/// hold at the `process_command` boundary for a structural reason (`GameState` is
+/// taken by value and every `?` discards the local copy), but that is not where it
+/// is at risk: `handle_choose_trigger_targets` takes `&mut GameState`, and it holds
+/// there only because **every** check runs before **any** mutation. So the test now
+/// drives the handler itself, once per rejection class, against one `&mut state`.
 #[test]
 fn test_dp8_illegal_target_rejected_state_untouched() {
+    use mtg_engine::rules::abilities::handle_choose_trigger_targets as answer;
+
     let mut state = board_with_creatures(2, 2);
     let bystander = find_object(&state, "Bystander");
     let _ = fire_etb(&mut state, bystander, p(1));
     let choice_id = state.pending_trigger_targets().unwrap().choice_id;
     let zapper_id = find_object(&state, "Zapper");
+    let creature0 = find_object(&state, "Creature 0");
     let hash_before = state.public_state_hash();
 
-    // The Zapper is an enchantment: not a legal `TargetCreature`.
-    let err = process_command(
-        state.clone(),
-        Command::ChooseTriggerTargets {
-            player: p(1),
+    // One case per validation branch that can reject, each against `&mut state`.
+    let cases: Vec<(&str, PlayerId, u64, Vec<Vec<Target>>)> = vec![
+        // (7) legality: the Zapper is an enchantment, not a legal `TargetCreature`.
+        (
+            "603.3d",
+            p(1),
             choice_id,
-            targets: vec![vec![Target::Object(zapper_id)]],
-        },
-    )
-    .unwrap_err();
-    assert!(
-        matches!(&err, GameStateError::InvalidCommand(m) if m.contains("603.3d")),
-        "expected a CR 603.3d legality rejection, got {err:?}"
-    );
-
-    // A player is not a legal `TargetCreature` either.
-    let err2 = process_command(
-        state.clone(),
-        Command::ChooseTriggerTargets {
-            player: p(1),
+            vec![vec![Target::Object(zapper_id)]],
+        ),
+        // (7) legality: a player is not a legal `TargetCreature` either.
+        ("603.3d", p(1), choice_id, vec![vec![Target::Player(p(2))]]),
+        // (3) CR 603.3a: the wrong player answers.
+        ("", p(2), choice_id, vec![vec![Target::Object(creature0)]]),
+        // (4) the moment guard: a stale `choice_id`.
+        (
+            "",
+            p(1),
+            choice_id.wrapping_add(7),
+            vec![vec![Target::Object(creature0)]],
+        ),
+        // (5) slot count.
+        ("", p(1), choice_id, vec![]),
+        // (6) cardinality: a required slot answered with two targets.
+        (
+            "601.2c",
+            p(1),
             choice_id,
-            targets: vec![vec![Target::Player(p(2))]],
-        },
-    )
-    .unwrap_err();
-    assert!(matches!(err2, GameStateError::InvalidCommand(_)));
+            vec![vec![
+                Target::Object(creature0),
+                Target::Object(find_object(&state, "Creature 1")),
+            ]],
+        ),
+    ];
+    for (needle, sender, cid, targets) in cases {
+        let err = answer(&mut state, sender, cid, targets.clone())
+            .expect_err("this answer must be rejected");
+        if !needle.is_empty() {
+            assert!(
+                format!("{err:?}").contains(needle),
+                "expected a CR {needle} rejection, got {err:?}"
+            );
+        }
+        assert_eq!(
+            hash_before,
+            state.public_state_hash(),
+            "a rejected answer must leave the state byte-identical -- \
+             `handle_choose_trigger_targets` mutated before it validated \
+             (sender {sender:?}, choice {cid}, targets {targets:?})"
+        );
+    }
 
+    // The block is still outstanding and still answerable from that same state.
     assert_eq!(
+        state.pending_trigger_targets().map(|e| e.choice_id),
+        Some(choice_id)
+    );
+    answer(
+        &mut state,
+        p(1),
+        choice_id,
+        vec![vec![Target::Object(creature0)]],
+    )
+    .expect("the legal answer still completes the batch");
+    assert_ne!(
         hash_before,
         state.public_state_hash(),
-        "a rejected answer must leave the state byte-identical"
+        "and an ACCEPTED answer does change the state -- otherwise the pin above \
+         would pass for the wrong reason"
     );
 }
 
@@ -1323,6 +1371,127 @@ fn test_dp8_foreign_concede_does_not_step_over_the_suspended_batch() {
     assert!(state.pending_trigger_targets().is_none());
     assert_eq!(trigger_sources(&state).len(), 1);
     let _ = resume;
+
+    // CLOSING-REVIEW Finding 1 (HIGH): the gate above skipped `handle_concede`'s
+    // priority advance, so the resume is the ONLY remaining chance to get priority
+    // off the departed player. This assertion was the one the fix cycle omitted --
+    // the test constructed exactly the deadlocking state and never looked at it.
+    let holder = state
+        .turn()
+        .priority_holder
+        .expect("CR 603.3b: the resumed batch must leave someone holding priority");
+    assert_ne!(
+        holder,
+        p(2),
+        "CR 800.4: priority must not stay pinned on a player who has left the game"
+    );
+    assert!(
+        state
+            .players()
+            .get(&holder)
+            .map(|pl| !pl.has_lost && !pl.has_conceded)
+            .unwrap_or(false),
+        "the priority holder after the resume must be a live player, got {holder:?}"
+    );
+}
+
+// ── T21b (closing review, Finding 1 — HIGH) ───────────────────────────────────
+
+/// CR 800.4 / CR 603.3b / CR 117.3c — a concede under a suspended batch must not
+/// strand priority on the conceded player.
+///
+/// Closing-review Finding 1 (HIGH), a **regression introduced by the fix cycle's
+/// own Finding-5 gate**. `handle_concede` skips its priority-advance block while a
+/// foreign `blocking_decision()` is outstanding; the gate's source comment claimed
+/// that could not hang because "the resume grants priority itself". That is false
+/// for `FlushResumeSite::None`, the resume site of all 30 in-match
+/// `check_and_flush_triggers` calls -- `finish_resumed_flush` returns without
+/// touching `priority_holder`. The game then has priority pinned on a conceded
+/// player: `PassPriority` from them is `PlayerEliminated`, from anyone else
+/// `NotPriorityHolder`, and nothing else reassigns the field. Unrecoverable.
+///
+/// This drives the reviewer's four-step scenario end to end and then proves the
+/// game can still be played.
+///
+/// **Fail-before**: `PassPriority` from every live player was rejected --
+/// `NotPriorityHolder { expected: Some(PlayerId(2)), .. }` -- with
+/// `priority_holder == Some(p2)`, the conceded seat.
+#[test]
+fn test_dp8_concede_under_a_suspended_batch_does_not_strand_priority() {
+    let mut state = GameStateBuilder::new()
+        .add_player(p(1))
+        .add_player(p(2))
+        .add_player(p(3))
+        .with_registry(CardRegistry::new(vec![]))
+        .object(zapper(
+            p(1),
+            "Zapper",
+            vec![TargetRequirement::TargetCreature],
+        ))
+        .object(ObjectSpec::creature(p(1), "Creature 0", 2, 2))
+        .object(ObjectSpec::creature(p(1), "Creature 1", 2, 2))
+        .object(ObjectSpec::enchantment(p(1), "Bystander"))
+        .active_player(p(1))
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+    let bystander = find_object(&state, "Bystander");
+    let _ = fire_etb(&mut state, bystander, p(1));
+
+    // (1) PB-DP1: the ACTOR holds priority across a `check_and_flush_triggers`
+    // suspension, and the suspension is on somebody else's trigger.
+    state.turn_mut().priority_holder = Some(p(2));
+    let entry = state.pending_trigger_targets().unwrap();
+    assert_eq!(entry.player, p(1));
+    let choice_id = entry.choice_id;
+
+    // (2) the priority holder concedes; 3 players, so the game is not over.
+    let (state, _) = process_command(state, Command::Concede { player: p(2) }).unwrap();
+    assert!(
+        state.pending_trigger_targets().is_some(),
+        "the foreign concede must leave the batch suspended (fix-cycle Finding 5)"
+    );
+
+    // (3) the entry's player answers and the batch completes.
+    let creature0 = find_object(&state, "Creature 0");
+    let (state, _) = process_command(
+        state,
+        Command::ChooseTriggerTargets {
+            player: p(1),
+            choice_id,
+            targets: vec![vec![Target::Object(creature0)]],
+        },
+    )
+    .unwrap();
+    assert!(state.pending_trigger_targets().is_none());
+    assert_eq!(trigger_sources(&state).len(), 1, "the batch was placed");
+
+    // (4) the game must still be playable. Pre-fix every one of these failed.
+    let holder = state
+        .turn()
+        .priority_holder
+        .expect("CR 603.3b: somebody must hold priority once the batch is complete");
+    assert_ne!(holder, p(2), "CR 800.4: not the conceded player");
+    let (_, _) = process_command(state.clone(), Command::PassPriority { player: holder })
+        .expect("the holder must be able to act -- otherwise the game is deadlocked");
+
+    // And the two rejections that make the deadlock unrecoverable are the ones
+    // this test would otherwise have hit.
+    let err = process_command(state.clone(), Command::PassPriority { player: p(2) }).unwrap_err();
+    assert!(
+        matches!(err, GameStateError::PlayerEliminated(_)),
+        "a conceded player can never act again: {err:?}"
+    );
+    for other in [p(1), p(3)] {
+        if other == holder {
+            continue;
+        }
+        let err = process_command(state.clone(), Command::PassPriority { player: other });
+        assert!(
+            matches!(err, Err(GameStateError::NotPriorityHolder { .. })),
+            "only the holder may pass"
+        );
+    }
 }
 
 // ── T22 (fix cycle, Finding 2 / card Findings 1+2) ────────────────────────────
@@ -2193,4 +2362,170 @@ fn test_dp8_entry_of_a_player_eliminated_outside_concede_is_reaped() {
         placed.contains(&p1_zapper),
         "CR 800.4j / 603.3b: the rest of the batch is still placed"
     );
+}
+
+// ── T33 (closing review, Finding 2 — MEDIUM) ──────────────────────────────────
+
+/// CR 603.3b / CR 117.3a — the reap must not discharge the priority debt inside
+/// the caller's own flush.
+///
+/// Closing-review Finding 2 (MEDIUM). `flush_pending_triggers` reaps a departed
+/// owner's entry (fix-cycle Finding 9) through `drop_departed_trigger_flush`,
+/// which itself calls `finish_resumed_flush(owed, ..)`. When `owed` was set by a
+/// guard -- here `FlushResumeSite::EnterStepPriority` -- priority was granted
+/// *inside* the flush; the flush then returned, the caller's guard saw
+/// `pending_trigger_targets == None` and granted priority **again**. Two
+/// `PriorityGiven` for one step entry, two `players_passed` resets, and a
+/// `priority_holder` overwrite if the two ever disagreed.
+///
+/// The debt belongs to a call site whose moment has passed; the CURRENT caller's
+/// own obligation is what is owed now, so the reap no longer discharges anything.
+///
+/// **Fail-before**: two `PriorityGiven` events after the reaping step entry
+/// (`left: 2, right: 1`).
+#[test]
+fn test_dp8_reap_does_not_double_grant_priority_at_a_guarded_site() {
+    let mut state = GameStateBuilder::new()
+        .add_player(p(1))
+        .add_player(p(2))
+        .add_player(p(3))
+        .with_registry(CardRegistry::new(vec![]))
+        // The entry will belong to p2: it is p2's zapper that triggers.
+        .object(zapper(
+            p(2),
+            "Zapper P2",
+            vec![TargetRequirement::TargetCreature],
+        ))
+        .object(ObjectSpec::creature(p(1), "Creature 0", 2, 2))
+        .object(ObjectSpec::creature(p(1), "Creature 1", 2, 2))
+        .object(ObjectSpec::enchantment(p(1), "Bystander"))
+        .active_player(p(1))
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+    let bystander = find_object(&state, "Bystander");
+    let triggers = check_triggers(
+        &state,
+        &[GameEvent::PermanentEnteredBattlefield {
+            object_id: bystander,
+            player: p(1),
+        }],
+    );
+    for t in triggers {
+        state.pending_triggers_mut().push_back(t);
+    }
+    state.turn_mut().priority_holder = Some(p(1));
+
+    // Suspend at `enter_step`'s has-priority branch, which owes
+    // `FlushResumeSite::EnterStepPriority`.
+    let mut state = state;
+    for seat in [p(1), p(2), p(3)] {
+        let (s, _) = process_command(state, Command::PassPriority { player: seat }).unwrap();
+        state = s;
+        if state.pending_trigger_targets().is_some() {
+            break;
+        }
+    }
+    assert_eq!(
+        state.pending_trigger_targets().map(|e| e.player),
+        Some(p(2)),
+        "the step-entry flush must suspend on p2's trigger"
+    );
+
+    // p2 is eliminated by a route that is NOT `Command::Concede` (CR 704.5a), so
+    // nothing clears the entry -- the next flush reaps it.
+    state.players_mut().get_mut(&p(2)).unwrap().has_lost = true;
+    state.turn_mut().priority_holder = Some(p(1));
+    state.turn_mut().players_passed = imbl::OrdSet::new();
+
+    // Drive a step entry: p1 and p3 pass, `handle_all_passed` advances the step and
+    // `enter_step` flushes -- reaping p2's entry on the way in.
+    let (state, _ev1) = process_command(state, Command::PassPriority { player: p(1) }).unwrap();
+    // p3's pass is the one that empties the priority round: `handle_all_passed` ->
+    // `advance_step` -> `enter_step`, whose flush does the reaping.
+    let (state, ev2) = process_command(state, Command::PassPriority { player: p(3) }).unwrap();
+    let grants = ev2
+        .iter()
+        .filter(|e| matches!(e, GameEvent::PriorityGiven { .. }))
+        .count();
+    assert!(
+        state.pending_trigger_targets().is_none(),
+        "CR 800.4d: the departed owner's entry is reaped"
+    );
+    assert_eq!(
+        grants, 1,
+        "CR 603.3b: one step entry grants priority exactly once -- the reaped entry's \
+         debt belongs to a call site whose moment has passed"
+    );
+    assert!(state.turn().priority_holder.is_some());
+}
+
+// ── T34 (closing review, Finding 3 — LOW) ─────────────────────────────────────
+
+/// CR 601.2c / SR-38 — the engine must accept its own default answer.
+///
+/// Closing-review Finding 3 (LOW). For two `TargetPermanentDistinctFrom` slots
+/// `trigger_target_candidates` handed both slots `default = candidates.first()`,
+/// so `default_trigger_targets` emitted the SAME permanent twice and the handler's
+/// own cross-slot distinctness check (8) rejected it. Everything that submits the
+/// offered default verbatim -- `StubProvider`, `RandomBot`, `HeuristicBot`, the
+/// replay harness's pump, the TUI's announce key -- would take the refusal, and
+/// `LocalGame` turns a refused fallback into a `Halted`. Zero corpus exposure
+/// today (OOS-DP8-4), but `default_trigger_targets`' doc comment GUARANTEES the
+/// engine accepts its output, so the code has to have the property the comment
+/// claims.
+///
+/// **Fail-before**: `InvalidCommand("slots 0 and 1 both require distinct permanents
+/// but name the same one (CR 601.2c)")` -- i.e. the engine refusing its own answer.
+#[test]
+fn test_dp8_default_answer_satisfies_cross_slot_distinctness() {
+    let mut state = GameStateBuilder::new()
+        .add_player(p(1))
+        .add_player(p(2))
+        .with_registry(CardRegistry::new(vec![]))
+        // Hidden Strings' shape: "tap/untap two target permanents" -- two slots,
+        // each of which must name a different permanent than the other.
+        .object(zapper(
+            p(1),
+            "Twister",
+            vec![
+                TargetRequirement::TargetPermanentDistinctFrom(1),
+                TargetRequirement::TargetPermanentDistinctFrom(0),
+            ],
+        ))
+        .object(ObjectSpec::creature(p(1), "Creature 0", 2, 2))
+        .object(ObjectSpec::creature(p(1), "Creature 1", 2, 2))
+        .object(ObjectSpec::enchantment(p(1), "Bystander"))
+        .active_player(p(1))
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+    let bystander = find_object(&state, "Bystander");
+    let _ = fire_etb(&mut state, bystander, p(1));
+
+    let entry = state
+        .pending_trigger_targets()
+        .expect("two multi-candidate required slots is a real announcement");
+    let slots: Vec<TriggerTargetOption> = entry.slots.iter().cloned().collect();
+    assert_eq!(slots.len(), 2);
+    let choice_id = entry.choice_id;
+    let player = entry.player;
+    let answer = default_trigger_targets(&slots);
+    assert_ne!(
+        answer[0], answer[1],
+        "CR 601.2c: the engine's own default must not name the same permanent for \
+         two mutually-distinct slots"
+    );
+
+    // The real contract: the engine accepts it.
+    let (state, _) = process_command(
+        state,
+        Command::ChooseTriggerTargets {
+            player,
+            choice_id,
+            targets: answer,
+        },
+    )
+    .expect("SR-38: the engine must accept its own default answer");
+    assert_eq!(trigger_sources(&state).len(), 1);
 }

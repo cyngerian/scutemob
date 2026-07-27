@@ -7570,6 +7570,59 @@ pub(crate) fn trigger_target_candidates(
         max,
     }
 }
+/// CR 601.2c (closing-review Finding 3, LOW / SR-38): reconcile the per-slot
+/// defaults with the cross-slot distinctness the answer handler enforces.
+///
+/// `trigger_target_candidates` computes each slot's `default` in isolation
+/// (`candidates.first()`), so two `TargetPermanentDistinctFrom` slots -- "another
+/// target permanent", Hidden Strings' shape -- both defaulted to the SAME
+/// permanent, and `handle_choose_trigger_targets`' check (8) then rejected the
+/// engine's own answer. Everything that submits the offered default verbatim
+/// (`StubProvider`, both bots, the replay-harness pump, the TUI announce key) took
+/// that refusal, and `LocalGame` converts a refused fallback into a `Halted`.
+///
+/// Only `TargetPermanentDistinctFrom` slots are touched, and only when they
+/// collide: CR 601.2c forbids repeating a target within ONE instance of the word
+/// "target", not across two independent instances, so two ordinary `TargetCreature`
+/// slots may legitimately name the same creature and keep the pre-PB-DP8
+/// first-match value.
+///
+/// **Residual** (OOS-DP8-4): if no distinct candidate exists the default is left
+/// as-is and the engine still refuses it. That position is a genuine CR 603.3d
+/// question ("no legal choices can be made") that this batch does not answer.
+fn make_distinct_slot_defaults(
+    reqs: &[crate::cards::card_definition::TargetRequirement],
+    slots: &mut [TriggerTargetOption],
+) {
+    use crate::cards::card_definition::TargetRequirement as TR;
+    let is_distinct = |i: usize| matches!(reqs.get(i), Some(TR::TargetPermanentDistinctFrom(_)));
+    for i in 0..slots.len() {
+        if !is_distinct(i) {
+            continue;
+        }
+        // Exactly the pairs the handler's cross-slot check examines.
+        let taken: Vec<SpellTarget> = (0..i)
+            .filter(|&j| is_distinct(j))
+            .filter_map(|j| slots[j].default.clone())
+            .collect();
+        let collides = slots[i]
+            .default
+            .as_ref()
+            .map(|d| taken.contains(d))
+            .unwrap_or(false);
+        if !collides {
+            continue;
+        }
+        if let Some(alt) = slots[i]
+            .candidates
+            .iter()
+            .find(|c| !taken.contains(c))
+            .cloned()
+        {
+            slots[i].default = Some(alt);
+        }
+    }
+}
 /// CR 601.2c (PB-DP8 fix cycle, Finding 6): flatten a per-slot answer into the one
 /// `Vec<SpellTarget>` a stack object carries, preserving each slot's declared
 /// width.
@@ -7608,6 +7661,18 @@ fn flatten_slot_answers(
 /// one another (SR-38): each of them submits this as a real `Command`, which is
 /// what keeps the replay log a complete record of every choice
 /// (Architecture Invariant 1 -- the engine must not know which seats are human).
+///
+/// # Acceptance guarantee, and its one exception
+///
+/// `handle_choose_trigger_targets` accepts this answer for every slot list the
+/// engine offers, with exactly one exception, which is stated here rather than
+/// left implicit (closing-review Finding 3; OOS-DP7-2's failure mode was a doc
+/// comment asserting a property the code did not have): if two
+/// `TargetPermanentDistinctFrom` slots share a candidate set with **no** second
+/// member, both defaults name the one permanent there is and the handler's
+/// cross-slot distinctness check (CR 601.2c) rejects it. Colliding defaults are
+/// otherwise resolved at offer time by `make_distinct_slot_defaults`. No def in
+/// the corpus reaches the exception (OOS-DP8-4).
 pub fn default_trigger_targets(slots: &[TriggerTargetOption]) -> Vec<Vec<Target>> {
     slots
         .iter()
@@ -7696,6 +7761,24 @@ pub fn flush_pending_triggers(state: &mut GameState) -> Vec<GameEvent> {
     let did_reap = departed.is_some();
     let mut reaped = Vec::new();
     if let Some(player) = departed {
+        // CLOSING-REVIEW Finding 2 (MEDIUM): drop the reaped entry's priority debt
+        // before reaping it. `drop_departed_trigger_flush` ends in
+        // `finish_resumed_flush`, which for any `resume_site` other than `None`
+        // GRANTS PRIORITY -- here, inside the current caller's own flush. That
+        // caller is either one of the six guards (which grants again the moment
+        // this function returns with no entry: two `PriorityGiven` for one step
+        // entry, two `players_passed` resets) or one of the 30
+        // `check_and_flush_triggers` sites (where PB-DP1 already left priority
+        // correctly with the actor, so a grant to the ACTIVE player would be an
+        // overwrite). The debt belongs to a call site whose moment has passed; the
+        // current caller's own obligation is the one that is owed now, and it is
+        // recorded by that caller's own `mark_flush_resume_site` if the
+        // continuation suspends again. Residual, deliberately accepted: an
+        // `EnterStepCleanup` debt loses its `cleanup_sba_rounds` ratchet bump --
+        // the next non-suspending cleanup round makes it (see OOS-DP8-10).
+        if let Some(e) = state.pending_trigger_targets.as_mut() {
+            e.resume_site = FlushResumeSite::None;
+        }
         if let Some(evs) = drop_departed_trigger_flush(state, player) {
             reaped = evs;
         }
@@ -8045,10 +8128,15 @@ fn flush_sorted(
                 // the targets. Derive every legal choice per slot with the same
                 // predicates the pre-PB-DP8 first-match auto-pick used, then
                 // decide whether a question is owed.
-                let slots: Vec<TriggerTargetOption> = ability_targets
+                let mut slots: Vec<TriggerTargetOption> = ability_targets
                     .iter()
                     .map(|req| trigger_target_candidates(state, &trigger, req))
                     .collect();
+                // CR 601.2c (closing-review Finding 3, LOW): a per-slot default is
+                // computed in isolation, so two mutually-distinct slots both got
+                // `candidates.first()` -- an answer the engine's own cross-slot
+                // check rejects. Reconcile them before anything can submit it.
+                make_distinct_slot_defaults(&ability_targets, &mut slots);
                 // CR 603.3d: "if a choice is required when the triggered ability
                 // goes on the stack but no legal choices can be made for it ...
                 // the ability is simply removed from the stack." An `optional`
@@ -8913,6 +9001,10 @@ pub(crate) fn resume_trigger_flush(
     sorted.extend(entry.remaining.iter().cloned());
     let mut events = flush_sorted(state, sorted, Some(chosen));
     finish_resumed_flush(state, owed, &mut events);
+    // CR 800.4 (closing-review Finding 1, HIGH): a concede that happened WHILE this
+    // batch was suspended left its priority-advance to us -- see
+    // `rules::engine::handle_concede`'s gate and the doc comment below.
+    repair_departed_priority_holder(state, &mut events);
     events
 }
 /// CR 603.3 / CR 117.3a (PB-DP8): after a suspended batch resumes, either carry
@@ -8972,13 +9064,16 @@ fn finish_resumed_flush(state: &mut GameState, owed: FlushResumeSite, events: &m
             return;
         }
     }
+    grant_priority_after_batch(state, events);
+}
+/// CR 603.3b / CR 117.3a: "then the appropriate player gets priority" -- the active
+/// player, routed past a dead one.
+///
+/// The shape every guarded call site was about to execute, factored out so
+/// [`finish_resumed_flush`] and [`repair_departed_priority_holder`] cannot drift.
+fn grant_priority_after_batch(state: &mut GameState, events: &mut Vec<GameEvent>) {
     let active = state.turn.active_player;
-    let is_alive = state
-        .players()
-        .get(&active)
-        .map(|p| !p.has_lost && !p.has_conceded)
-        .unwrap_or(false);
-    if is_alive {
+    if player_is_alive(state, active) {
         state.turn.players_passed = OrdSet::new();
         state.turn.priority_holder = Some(active);
         events.push(GameEvent::PriorityGiven { player: active });
@@ -8989,6 +9084,60 @@ fn finish_resumed_flush(state: &mut GameState, owed: FlushResumeSite, events: &m
     } else {
         state.turn.priority_holder = None;
     }
+}
+/// `true` if `p` is still in the game (SR-25: a departed player legitimately
+/// answers `false` here -- that is the question being asked, not a swallowed miss).
+fn player_is_alive(state: &GameState, p: PlayerId) -> bool {
+    state
+        .players()
+        .get(&p)
+        .map(|pl| !pl.has_lost && !pl.has_conceded)
+        .unwrap_or(false)
+}
+/// CR 800.4 / CR 603.3b (closing-review Finding 1, HIGH): a completed batch must
+/// never hand the game back with priority pinned on a player who has left it.
+///
+/// `handle_concede` deliberately SKIPS its priority-advance block while another
+/// player's announcement is outstanding (fix-cycle Finding 5: running it can
+/// resolve the top of the stack, or advance a whole turn, under a half-placed
+/// CR 603.3b batch). That gate's original comment claimed the resume would grant
+/// priority anyway -- true for every [`FlushResumeSite`] except
+/// [`FlushResumeSite::None`], which is the resume site of all 30 in-match
+/// `check_and_flush_triggers` calls and the most common suspension class by far.
+/// There, `finish_resumed_flush` returns without touching `priority_holder`, so a
+/// conceding priority holder left the field naming a player who can never act
+/// again: `PassPriority` from them is `PlayerEliminated`, from anyone else
+/// `NotPriorityHolder`, and nothing else reassigns it. Every driving loop
+/// (`LocalGame::advance`, `GameDriver`, the TUI auto-pass) dies there.
+///
+/// So the concede keeps its gate and the debt is discharged HERE, at the one
+/// moment CR 603.3b permits it -- after the batch is complete. The successor is
+/// the next player in APNAP order who has not passed (the actor's priority simply
+/// moves on, exactly as `handle_concede` would have moved it); if every remaining
+/// player has already passed, the batch just put objects on the stack, so
+/// CR 603.3b's "the appropriate player gets priority" gives it to the active
+/// player with the pass count reset.
+///
+/// Deliberately NOT called from `drop_departed_trigger_flush`'s side of the world:
+/// `handle_concede` runs its own (ungated, because the field is now clear) advance
+/// straight afterwards, and `flush_pending_triggers`' reap runs inside a caller
+/// that either holds correct priority already or grants it itself.
+fn repair_departed_priority_holder(state: &mut GameState, events: &mut Vec<GameEvent>) {
+    if state.pending_trigger_targets.is_some() {
+        // Suspended again: the batch is still incomplete, so CR 603.3b still
+        // forbids a grant. The next resume repairs it.
+        return;
+    }
+    let gone = match state.turn.priority_holder {
+        Some(p) if !player_is_alive(state, p) => p,
+        _ => return,
+    };
+    if let Some(next) = crate::rules::priority::next_priority_player(state, gone) {
+        state.turn.priority_holder = Some(next);
+        events.push(GameEvent::PriorityGiven { player: next });
+        return;
+    }
+    grant_priority_after_batch(state, events);
 }
 /// CR 603.3 / CR 117.3a / CR 726 (PB-DP8): record what the call site whose
 /// `flush_pending_triggers` just suspended still owes once the batch completes.

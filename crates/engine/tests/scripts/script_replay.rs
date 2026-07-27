@@ -56,10 +56,11 @@
 
 use std::collections::HashMap;
 
+use mtg_engine::rules::engine::BlockingDecision;
 use mtg_engine::testing::replay_harness::{
     build_initial_state, parse_counter_type, translate_player_action,
 };
-use mtg_engine::testing::script_schema::{GameScript, ScriptAction};
+use mtg_engine::testing::script_schema::{GameScript, ScriptAction, ScriptStep};
 use mtg_engine::{
     calculate_characteristics, process_command, Command, GameState, PlayerId, ZoneId,
 };
@@ -353,35 +354,71 @@ pub fn replay_script(script: &GameScript) -> Vec<ReplayResult> {
             // stops the engine dead -- every later command comes back
             // `BlockedByPendingDecision`. An existing golden script has no way to
             // answer one, so pump it with the engine's OWN default, which is
-            // byte-identical to the pre-PB-DP8 auto-pick. Skipped when the very
-            // next action IS the answer, so a script that wants to choose can.
-            let next_answers_the_block = step
-                .actions
-                .get(action_idx + 1)
-                .map(|a| {
-                    matches!(
-                        a,
-                        ScriptAction::PlayerAction { action, .. }
-                            if action == "choose_trigger_targets"
-                                || action == "discard_to_hand_size"
-                    )
-                })
-                .unwrap_or(false);
-            if !next_answers_the_block {
-                if let Some(s) = state_slot.take() {
-                    if s.blocking_decision().is_some() {
-                        let (s, _evs) =
-                            mtg_engine::testing::replay_harness::auto_answer_blocking_decisions(s);
-                        state_slot = Some(s);
-                    } else {
-                        state_slot = Some(s);
-                    }
+            // byte-identical to the pre-PB-DP8 auto-pick. Skipped when the next
+            // action IS the answer to THIS decision, so a script that wants to
+            // choose can.
+            if let Some(s) = state_slot.take() {
+                let pump = match s.blocking_decision() {
+                    None => false,
+                    Some(decision) => !next_action_answers_the_block(
+                        &script.script,
+                        step_idx,
+                        action_idx,
+                        &decision,
+                    ),
+                };
+                if pump {
+                    let (s, _evs) =
+                        mtg_engine::testing::replay_harness::auto_answer_blocking_decisions(s);
+                    state_slot = Some(s);
+                } else {
+                    state_slot = Some(s);
                 }
             }
         }
     }
 
     results
+}
+
+/// CR 603.3d / CR 514.1 — does the action immediately following
+/// `(step_idx, action_idx)` in script order answer **this** outstanding decision?
+///
+/// Closing-review Finding 4 (LOW). The predicate this replaces was wrong twice
+/// over:
+///
+/// * **step-local** — it only looked at `step.actions[action_idx + 1]`, so a script
+///   whose `choose_trigger_targets` is the FIRST action of the next step had its
+///   decision consumed by the pump and then silently skipped
+///   (`translate_player_action`'s `state.pending_trigger_targets()?` returns `None`,
+///   which is `ActionNotTranslated`, not a rejection);
+/// * **kind-blind** — it skipped the pump for `discard_to_hand_size` even when the
+///   outstanding decision was `TriggerTargets` (and vice versa), leaving the block
+///   un-pumped so the next command came back `BlockedByPendingDecision`.
+///
+/// Steps between the current one and the answer may legitimately be action-less,
+/// so the search walks forward until it finds an action or runs out of steps.
+fn next_action_answers_the_block(
+    steps: &[ScriptStep],
+    step_idx: usize,
+    action_idx: usize,
+    decision: &BlockingDecision,
+) -> bool {
+    let wanted = match decision {
+        BlockingDecision::TriggerTargets { .. } => "choose_trigger_targets",
+        BlockingDecision::CleanupDiscard { .. } => "discard_to_hand_size",
+    };
+    let next = steps
+        .get(step_idx)
+        .and_then(|s| s.actions.get(action_idx + 1))
+        .or_else(|| {
+            steps
+                .get(step_idx + 1..)
+                .unwrap_or(&[])
+                .iter()
+                .find_map(|s| s.actions.first())
+        });
+    matches!(next, Some(ScriptAction::PlayerAction { action, .. }) if action == wanted)
 }
 
 // ── Assertion checker ─────────────────────────────────────────────────────────
@@ -1199,4 +1236,84 @@ fn test_harness_end_to_end_priority_passes() {
         "Expected OK result; got {:?}",
         results
     );
+}
+
+/// CR 603.3d / CR 514.1 — the pump-skip predicate must look across the step
+/// boundary and must match the outstanding decision's KIND.
+///
+/// Closing-review Finding 4 (LOW). **Fail-before** for both halves, against the
+/// step-local, kind-blind predicate this replaces:
+///
+/// * a `choose_trigger_targets` that opens the next step read as "nobody answers"
+///   -> the pump consumed the decision and the script's own answer became an
+///   `ActionNotTranslated` no-op;
+/// * a `discard_to_hand_size` read as "answered" while the outstanding decision
+///   was `TriggerTargets` -> the block stayed up and the next command came back
+///   `BlockedByPendingDecision`.
+#[test]
+fn test_pump_skip_is_cross_step_and_kind_aware() {
+    use mtg_engine::testing::script_schema::{ScriptAction, ScriptStep};
+
+    fn player_action(action: &str) -> ScriptAction {
+        // Built from JSON so the fixture is the schema the corpus actually uses
+        // (and cannot drift from `PlayerAction`'s 40-odd optional fields).
+        serde_json::from_value(serde_json::json!({
+            "type": "player_action",
+            "player": "p1",
+            "action": action,
+        }))
+        .expect("player_action fixture must deserialize")
+    }
+    fn step(actions: Vec<ScriptAction>) -> ScriptStep {
+        ScriptStep {
+            step: "precombat_main".to_string(),
+            step_note: None,
+            actions,
+        }
+    }
+    let triggers = BlockingDecision::TriggerTargets {
+        player: PlayerId(1),
+        choice_id: 1,
+        source: mtg_engine::ObjectId(1),
+    };
+    let discard = BlockingDecision::CleanupDiscard {
+        player: PlayerId(1),
+        count: 1,
+    };
+
+    // (a) same step, next action answers.
+    let steps = vec![step(vec![
+        player_action("cast_spell"),
+        player_action("choose_trigger_targets"),
+    ])];
+    assert!(next_action_answers_the_block(&steps, 0, 0, &triggers));
+
+    // (b) ACROSS the step boundary -- and across an action-less step.
+    let steps = vec![
+        step(vec![player_action("cast_spell")]),
+        step(vec![]),
+        step(vec![player_action("choose_trigger_targets")]),
+    ];
+    assert!(
+        next_action_answers_the_block(&steps, 0, 0, &triggers),
+        "a `choose_trigger_targets` that opens a later step still answers the block"
+    );
+
+    // (c) kind-aware: a cleanup discard does NOT answer a trigger-target block.
+    let steps = vec![step(vec![
+        player_action("cast_spell"),
+        player_action("discard_to_hand_size"),
+    ])];
+    assert!(
+        !next_action_answers_the_block(&steps, 0, 0, &triggers),
+        "CR 603.3d: only `choose_trigger_targets` answers a `TriggerTargets` block"
+    );
+    assert!(
+        next_action_answers_the_block(&steps, 0, 0, &discard),
+        "CR 514.1: `discard_to_hand_size` answers a `CleanupDiscard` block"
+    );
+
+    // (d) nothing follows at all.
+    let steps = vec![step(vec![player_action("cast_spell")])];
+    assert!(!next_action_answers_the_block(&steps, 0, 0, &triggers));
 }
