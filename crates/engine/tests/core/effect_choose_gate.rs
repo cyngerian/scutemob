@@ -60,20 +60,18 @@ use mtg_engine::{
 
 // ── serde-tree helpers ────────────────────────────────────────────────────────
 
-/// True if `key` appears anywhere in the value tree as an object key.
-fn contains_key(v: &serde_json::Value, key: &str) -> bool {
-    match v {
-        serde_json::Value::Object(map) => map
-            .iter()
-            .any(|(k, child)| k == key || contains_key(child, key)),
-        serde_json::Value::Array(items) => items.iter().any(|i| contains_key(i, key)),
-        _ => false,
-    }
-}
-
+/// True if `def`'s serialized effect tree contains `variant` as an object key
+/// (struct/tuple variant).
+///
+/// PB-DP10 rewire: delegates to the canonical walk in `decision_site_walk.rs` rather than
+/// keeping a third private copy of this exact recursion (plan §2.3). Behavior-neutral for
+/// every key this file names -- `Choose`, `MayPayOrElse`, `AddManaChoice`,
+/// `AddManaAnyColor`, `AddManaAnyColorRestricted`, `AddManaOfAnyColorAmount` are all
+/// struct/tuple variants (verified by reading the declarations), so the canonical walk's
+/// EXTRA unit-variant string matching never fires for them; `stub_gates_are_not_vacuous`
+/// below still pins the exact same assertions as before the rewire.
 fn def_uses(def: &CardDefinition, variant: &str) -> bool {
-    let json = serde_json::to_value(def).expect("CardDefinition serializes");
-    contains_key(&json, variant)
+    crate::decision_site_walk::def_contains_variant(def, variant)
 }
 
 // ── The stub gates ────────────────────────────────────────────────────────────
@@ -223,7 +221,7 @@ fn no_complete_def_uses_an_any_color_mana_stub() {
 }
 
 /// Counts how many times `key` appears anywhere in the value tree as an object key
-/// (unlike [`contains_key`], which only asks whether it appears at all). Used to detect
+/// (unlike [`def_uses`], which only asks whether it appears at all). Used to detect
 /// a def with more than one `AddManaAnyColor` occurrence.
 fn count_key_occurrences(v: &serde_json::Value, key: &str) -> usize {
     match v {

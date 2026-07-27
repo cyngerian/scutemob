@@ -2331,6 +2331,18 @@ mod roster {
     use mtg_card_defs::all_cards;
     use mtg_card_types::cards::card_definition::Completeness;
 
+    /// **PB-DP10 note (OOS-DP10-1):** this walk matches OBJECT KEYS ONLY, so it is blind
+    /// to a UNIT `Effect` variant (`Effect::Proliferate`, `Effect::TheRingTemptsYou`
+    /// serialize as bare JSON strings, not object keys). Harmless here -- `SearchLibrary`,
+    /// `Scry` and `Surveil` are all struct variants, so this roster's own three targets are
+    /// unaffected -- but a hazard the moment this function is reused for a unit-variant
+    /// row. `crates/engine/tests/core/decision_site_walk.rs::json_contains_variant` is the
+    /// canonical, unit-variant-aware version of this exact walk; it cannot be shared
+    /// directly across the SR-9a integration-test-target boundary (a group `main.rs` may
+    /// declare only bare `mod x;` lines, no `#[path]`), so this copy is kept, documented,
+    /// and cross-checked BY VALUE against the canonical walk's own rosters
+    /// (`decision_gate::canonical_walk_reproduces_pb_dp9_rosters`) rather than by text.
+    ///
     /// Does this serialized subtree contain an externally-tagged enum variant
     /// named `variant`?
     ///

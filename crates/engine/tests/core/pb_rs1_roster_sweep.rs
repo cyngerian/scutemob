@@ -19,14 +19,12 @@ use mtg_engine::all_cards;
 /// True if `key` appears anywhere in the value tree as an object key (matches
 /// `effect_choose_gate.rs`'s `contains_key` helper -- `Effect` is externally tagged, so a
 /// variant name is an object key).
+///
+/// PB-DP10 rewire: delegates to the canonical walk in `decision_site_walk.rs` (plan §2.3).
+/// Behavior-neutral -- `Scry`, `Surveil`, `RevealAndRoute`, `LookAtTopThenPlace` are all
+/// struct variants, so the canonical walk's extra unit-variant matching never fires here.
 fn contains_key(v: &serde_json::Value, key: &str) -> bool {
-    match v {
-        serde_json::Value::Object(map) => map
-            .iter()
-            .any(|(k, child)| k == key || contains_key(child, key)),
-        serde_json::Value::Array(items) => items.iter().any(|i| contains_key(i, key)),
-        _ => false,
-    }
+    crate::decision_site_walk::json_contains_variant(v, key)
 }
 
 const EFFECTS: [&str; 4] = ["Scry", "Surveil", "RevealAndRoute", "LookAtTopThenPlace"];

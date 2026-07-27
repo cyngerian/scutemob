@@ -1,503 +1,298 @@
-# Primitive WIP — PB-DP9 (DP-7 / DP-8 / DP-9: search, scry, surveil player choice)
+# Primitive WIP — PB-DP10 (decision-gate widening: stop the 277-def figure growing silently)
 
 <!-- last_updated: 2026-07-27 -->
 
-> Previous occupant: **PB-DP8 (DP-6 / OOS-M11-4: triggered-ability target choice) — SHIPPED**
-> `scutemob-156`, merge `48353a36`, PROTOCOL 28 → **30**, HASH 65 → **67**, tests **3,878**.
+> Previous occupant: **PB-DP9 (DP-7 / DP-8 / DP-9: search, scry, surveil player choice) — SHIPPED**
+> `scutemob-157`, merge `d65e7f1e`, PROTOCOL 30 → **31**, HASH 67 → **68**, tests **3,910** on main.
+> Its WIP file is preserved verbatim at `memory/primitives/pb-wip-DP9-archive.md` (this file is
+> rewritten wholesale by each `/implement-primitive` run); its plan/review are
+> `memory/primitives/pb-plan-DP9.md` / `pb-review-DP9.md`, and its seeds are in
+> `docs/audits/decision-point-audit.md` §8.1.
 
-- **PB**: PB-DP9 — **DP-7 / DP-8 / DP-9** (CR **608.2d** / **701.23a** / **701.22a** / **701.25a**).
-- **Task**: `scutemob-157`
-- **Branch**: `feat/pb-dp9-search-scry-surveil-player-choice-auto-pick-inverts-t`
-- **Class**: AGENCY + CORRECTNESS (Tier 1, class **B** ×3 → **A** ×3). Rank 9 of the PB-DP
-  suite; the suite's **third** wire change.
-- **Phase**: **fix — COMPLETE** (review findings 1-14 dispositioned; **closing-review
-  cycle COMPLETE** — 1 HIGH + 4 LOW; **second closing-review cycle COMPLETE** —
-  1 HIGH + 1 MEDIUM + 1 LOW, see the Second-closing-review section)
-- **Plan**: `memory/primitives/pb-plan-DP9.md`
-- **Review file**: `memory/primitives/pb-review-DP9.md`
-- **Baseline**: PROTOCOL **30**, HASH **67**, tests **3,878**
-- **Shipped**: PROTOCOL **31**, HASH **68**, tests **3,905** → **3,906** after the fix cycle
-  → **3,909** after the closing-review cycle → **3,910** after the second closing-review
-  cycle (no cycle changed a wire type, so both versions are unmoved throughout)
+- **PB**: PB-DP10 — the **invariant-level** fix for the whole PB-DP suite. Audit §8's last row.
+- **Task**: `scutemob-158`
+- **Branch**: `feat/pb-dp10-widen-the-decision-gate-stop-the-277-def-engine-gues`
+- **Class**: GATE / INVARIANT (test-only). Rank 10 of the PB-DP suite; **closes it**.
+- **Phase**: **closed** — plan → implement → review → fix → close all complete 2026-07-27.
+  Review findings applied in full (all 14: 2 HIGH, 6 MEDIUM, 6 LOW); see the
+  "Review + fix cycle" section below. **This closes the PB-DP suite (DP1..DP10).**
+- **Plan**: `memory/primitives/pb-plan-DP10.md`
+- **Review file**: `memory/primitives/pb-review-DP10.md`
+- **Baseline**: PROTOCOL **31**, HASH **68**, tests **3,910** (main at merge `d65e7f1e`)
+- **Hard constraint**: **NO engine change, NO wire change.** PROTOCOL 31 / HASH 68 must be
+  unmoved and `crates/engine/src/` / `crates/card-types/src/` must be untouched. Card-def edits
+  are allowed only if a completeness marker/note is itself the deliverable, and each one must be
+  argued from oracle text. If the work appears to require an engine change, **stop and
+  re-scope** (task brief, explicit).
+
+## The problem
+
+`crates/engine/tests/core/effect_choose_gate.rs` (SR-33/34/37/38 + PB-EF12) bars exactly
+**three** DSL variants from `Complete` — `Effect::Choose`, `Effect::MayPayOrElse`,
+`Effect::AddManaChoice` (plus the any-color family). Audit §3.1 counts **twenty-one** decision
+sites across **277 of 1,139** effectively-`Complete` defs (24.3%) where the engine makes a
+player's choice for them. Seventeen of those rows the gate does not name at all, so the figure
+grows silently with every card authored. DP-INV (audit §1) is the invariant; the gate is
+narrower than the invariant, and PB-DP10 closes that difference *at the corpus level* — it
+cannot close it at the engine level, because that is what PB-DP1..DP9 were for and what the
+still-open rows (DP-13/14/16/17/18/19/20/25/26/31) remain for.
+
+## Acceptance criteria (ESM `scutemob-158`)
+
+1. **5554** — a machine gate enumerates every def containing an engine-made choice, fails on
+   unmarked new instances, and its count reconciles against §3.1's magnitude with discrepancies
+   explained.
+2. **5555** — decision classes fixed by PB-DP7..DP9 are distinguished from still-auto-chosen
+   classes in the gate/marker taxonomy.
+3. **5556** — no engine or wire change; PROTOCOL / HASH untouched; gate runs inside
+   `cargo test --all`.
+4. **5557** — audit PB-DP10 row updated + suite marked complete in §8; §10 re-audit triggers
+   updated where the gate mechanizes them.
+
+## Known assets to reuse (do not re-invent)
+
+- **`pb_dp9_effect_choice.rs`'s `roster` module** — a *structurally complete* serde walk of the
+  serialized `CardDefinition` (`contains_variant` / `collect`). It exists because PB-DP9's fix
+  cycle found a hand-written walk had skipped `AbilityDefinition::{Spell,Triggered,Activated}::modes`,
+  `{SagaChapter,LoyaltyAbility}`, split-card halves and `Effect::CoinFlip`. **A hand-written
+  tree walk is a reachability claim** (audit §8, PB-DP9 row) — reuse the serde walk, and if it
+  must be shared across test targets, share it rather than copying it.
+- **`effect_choose_gate.rs`'s `def_uses` / `count_key_occurrences`** — same technique, older,
+  plus the served-vs-unserved refinement (`registers_any_color_mana_ability`), which is the
+  precedent for criterion 5555: *the same variant can be served on one path and a stub on
+  another*, so a variant-name predicate alone is not a decision-class predicate.
+- **`Completeness`** (`crates/card-types/src/cards/`) — SR-2's marker, and note that adding a
+  variant to it is a `card-types` change, i.e. **inside the wire closure** — check the hash gate
+  before assuming a new marker variant is free.
+
+## Step Checklist
+
+- [x] 1. Decide gate-widening vs new marker (plan) — **gate-side name-keyed baseline + union
+      ratchet**; a new `Completeness` variant is wire-free (the WIP's own caution falsified,
+      plan §1.1) but rejected on Architecture-Invariant-9 grounds and by the hard constraint.
+      **Planning's headline finding**: the serde walk this batch inherits is **blind to unit
+      variants** (`Effect::Proliferate`, `Effect::TheRingTemptsYou` serialize as bare JSON
+      *strings*, and all three existing walks match object keys only), so a verbatim reuse
+      would report 0 for Proliferate's ~25 `Complete` defs while looking green — plan §2.1, T2.
+- [x] 2. Enumerate the decision-site taxonomy: served (DP7..DP9) / still-auto-chosen / gated —
+      `crates/engine/tests/core/decision_site_walk.rs::ROWS`, 22 rows (4 SERVED, 15
+      AUTO-CHOSEN, 2 GATED, 1 NO-DECISION; the plan's own tally sentence said "14 AUTO", the
+      table itself sums to 15 — a plan arithmetic slip, not a code bug, corrected here).
+- [x] 3. Implement the gate + fail-closed allowlist — `crates/engine/tests/core/
+      decision_gate.rs`: `BASELINE` (97 entries, name-keyed exact row-set) + `T4` (per-def
+      gate) + `T6` (union ratchet, `MAX_AUTO_CHOSEN_COMPLETE_UNION = 97`) + `T5` (allowlist
+      liveness) + `T7` (the two hard zeros).
+- [x] 4. Non-vacuity probes, both directions, including the nesting case — `T1` (per-row,
+      including a `Sequence(Sequence(Proliferate))` nesting probe), `T2` (the unit-variant
+      fail-before, pinned against the legacy object-key-only walk), `T3` (`PROSE_FIELDS`
+      denylist, both directions), `t4_gate_logic_reddens_on_a_new_unbaselined_auto_chosen_
+      complete_def` (T4's own non-vacuity, on a synthetic in-memory corpus, never touching
+      `all_cards()`).
+- [x] 5. §3.1 reconciliation, printed and explained — `T9`
+      (`decision_site_reconciliation_report`): per-row Complete/non-Complete counts,
+      all-rows union **267**, still-auto union **97**, live denominator **1,139/1,804
+      (63.1%)**. Closes OOS-DP7-7.
+- [x] 6. Build / test / clippy / fmt + `tools/check-defs-fmt.sh`; wire-neutrality proof — all
+      green (see "What shipped" below); `git diff --name-only main -- crates/engine/src
+      crates/card-types/src crates/card-defs/src` empty; PROTOCOL 31 / HASH 68 unmoved.
+- [x] 7. Audit §8 / §5 / §10 / §8.1 updates — done; PB-DP10 row SHIPPED, suite marked
+      COMPLETE, §3.1/§4.9 CR-cite corrections, §6 bullet, §10 mechanization ledger (3/8
+      mechanized), §8.1 closes OOS-DP7-7 + files OOS-DP10-1..7 (widened to **OOS-DP10-1..11**
+      by the review/fix cycle below).
 
 ## What shipped
 
-The engine's **first resolution-time decision channel**:
-`GameState.pending_effect_choice` + `GameEvent::EffectChoiceRequired` (discriminant 131) →
-`Command::AnswerEffectChoice`, backed by an **abort-and-replay** continuation for
-`resolve_top_of_stack` rather than a resumable effect-list cursor.
+**PB-DP10 SHIPPED** (this branch, 2026-07-27; task `scutemob-158`). TEST-ONLY, as scoped —
+`git diff --name-only main -- crates/engine/src crates/card-types/src crates/card-defs/src`
+is empty. PROTOCOL 31 / HASH 68 unmoved.
 
-`resolve_top_of_stack` clones the state at entry. An effect that needs an unanswered CR 608.2d
-choice records the *question* and returns without applying anything. The wrapper **restores the
-clone wholesale** — the stack object is back, no card has moved, no event has happened — records
-the pending entry on that restored state, and returns exactly one event: the question. The
-answer is appended to a per-resolution answer bank on `GameState` and `resolve_top_of_stack` is
-called **again from the top**; execution is deterministic, so it retraces the identical path and
-consumes the banked answer at the choice point.
+**Files.**
+- NEW `crates/engine/tests/core/decision_site_walk.rs` — the canonical walk
+  (`json_contains_variant`, `find_variant_nodes`, `PROSE_FIELDS`, `DecisionClass`, `ROWS` (22
+  entries), `row_hits`/`auto_chosen_row_hits`, `is_effectively_complete`). No `#[test]`, all
+  items `pub`, reached from sibling `core/` modules as `crate::decision_site_walk::…`.
+- NEW `crates/engine/tests/core/decision_gate.rs` — `BASELINE` (97 entries) + 17 `#[test]`s
+  (T1–T14, T16; T15/T15b dropped, see below).
+- EDIT `crates/engine/tests/core/main.rs` — `mod decision_gate;` / `mod decision_site_walk;`
+  added; `cargo fmt` sorted them BEFORE `mod deck_validation;` (its own alphabetical rule:
+  `deci` < `deck` — the plan's placement note had the two files reversed; `cargo fmt` is
+  authoritative and was applied).
+- EDIT `crates/engine/tests/core/effect_choose_gate.rs` — `contains_key`/`def_uses` rewired
+  onto the canonical walk (§2.3 rewire). Abort condition checked: same 14 tests, same
+  offender sets, before and after.
+- EDIT `crates/engine/tests/core/pb_rs1_roster_sweep.rs` — same rewire. Same 1 test, same
+  printed roster (41 cards, unchanged) before and after.
+- EDIT `crates/engine/tests/primitives/pb_dp9_effect_choice.rs` — doc-only note on
+  `roster::json_contains_variant`'s unit-variant blindness, pointing at the canonical walk;
+  no logic changed.
+- EDIT `docs/audits/decision-point-audit.md` — §3.1 (superseded-by note, two CR-cite fixes,
+  hard-zero framing correction; widened by the fix cycle with the encoding-blindness
+  paragraph and the full per-row reconciliation delta table), §4.9 (Bolster cite fix), §5
+  (baselined-rows note), §6 (superseded bullet; widened with the two further mechanisms —
+  `Completeness`-note-string regex hits, the row-4 split), §8 (PB-DP10 row → SHIPPED,
+  suite-COMPLETE banner; widened with the fix-cycle summary and corrected test count), §8.1
+  (closes OOS-DP7-7, files **OOS-DP10-1..11** — the last four by the fix cycle; OOS-DP10-6
+  gains `put_on_library` and an upper-bound caveat), §10 (mechanization ledger: 3/8
+  mechanized, 1 optional-recommended-not-taken, 4 stay human; T15's dropped-digest pointer
+  corrected from OOS-DP10-4/7 to **OOS-DP10-11**).
 
-**One command for all three effects.** CR 608.2d is one rule; CR 701.22a / 701.23a / 701.25a are
-three instances of it with identical timing, actor and validity condition. So one admission-gate
-entry, one `LegalAction`, one `DecisionKind`, one `BlockingDecision` variant, one harness action
-string.
+**Step 0 probe results** (via a throwaway `zz_dp10_probe.rs`, deleted before finalizing —
+its findings are captured here and in the doc comments of the shipped files instead):
+- **P0-a CONFIRMED**: `serde_json::to_value(Effect::Proliferate) == Value::String("Proliferate")`
+  and `to_value(Effect::TheRingTemptsYou) == Value::String("TheRingTemptsYou")`; `Effect::Scry{..}`
+  serializes to `{"Scry": {...}}`. Premise P4 holds exactly as predicted — the whole §2 design
+  is sound.
+- **P0-b CONFIRMED**: a real targeted `Triggered` node (Acidic Slime) serializes with
+  `targets` as a populated array and `modes: null` both visible (no `#[serde(default)]`
+  elision on serialize — confirmed separately: zero `skip_serializing_if` attributes anywhere
+  in `card_definition.rs` / `game_object.rs`). Premise P3 holds.
+- **P0-c**: not separately probed via Fuse/Saga (P0-b's positive was sufficient evidence
+  that the serde walk reaches populated fields on real corpus data); PB-DP9's own fix-cycle
+  finding that the walk reaches `modes`/`SagaChapter`/`LoyaltyAbility`/split halves was taken
+  as already-established precedent (`decision_site_walk.rs`'s design doc comment cites it).
+- **P0-d MEASURED** (this is what populated `BASELINE` and `MAX_AUTO_CHOSEN_COMPLETE_UNION`):
+  per-row Complete/non-Complete counts exactly as printed by `T9` (see the audit's updated
+  §3.1 and §8 PB-DP10 row for the full table). All-rows union **267**; still-auto union
+  (P2's ~110 estimate) **97**, below the ~150-item concern threshold in plan §11 P2 — no
+  fallback to ratchet-only needed.
+- **P0-e/P0-f MEASURED**: informed `T12`'s collision inventory (`Discover` × 2 declarations,
+  `SearchLibrary`/`Scry`/`Surveil` × 3 each) and `T13`'s `PROSE_FIELDS` completeness check —
+  T13 found ONE gap the plan's own list omitted (`Characteristics.rules_text`), which turned
+  out to be a false positive from an over-broad file-level scan of `game_object.rs` (that
+  file also declares the runtime `Characteristics` struct, NOT reachable from
+  `CardDefinition`); T13 was narrowed to scan only the `TriggeredAbilityDef` struct body
+  within that file, and the plan's original `PROSE_FIELDS` list needed no changes.
+- **P0-g/P0-h**: wire-neutrality confirmed empty both before and after; the rewire (§2.3)
+  changed neither `effect_choose_gate.rs`'s nor `pb_rs1_roster_sweep.rs`'s printed output —
+  abort condition not triggered, rewire kept.
 
-## Roster (SR-36, enumerated from `all_cards()`, recursive `Effect`-tree walk)
+**Falsified/corrected plan premises.**
+- The plan's §3 tally sentence ("14 AUTO") does not match its own table, which sums to 15
+  AUTO rows. Fixed by direct count; not a code defect, a documentation arithmetic slip in
+  the plan.
+- T13's design ("scan `card_definition.rs` + `game_object.rs` whole-file") produced ONE
+  false positive (`rules_text`) not anticipated by the plan, because `game_object.rs` also
+  declares `Characteristics` (a runtime type, not reachable from `CardDefinition`). Fixed by
+  brace-matching just the `TriggeredAbilityDef` struct body instead of the whole file.
+- The plan's cited reachability path for `TriggeredAbilityDef.description` was
+  `Effect::CreateToken { triggered_abilities }`; the actual field lives on
+  `Effect::CreateEmblem { triggered_abilities, .. }` (`card_definition.rs:2257`). Noted in
+  `T3`'s doc comment; `T3` itself tests the denylist mechanism via raw JSON literals rather
+  than building the full `CreateEmblem`/`TriggeredAbilityDef` chain, since the suppression
+  logic is a property of the parent-key string, independent of which Rust type produced it.
+- `mod` alphabetization: the plan said "between `deck_validation` and `effect_choose_gate`";
+  `cargo fmt` places `decision_gate`/`decision_site_walk` BEFORE `deck_validation` (`deci` <
+  `deck`). Followed `cargo fmt`, the authoritative source per SR-35's own convention.
 
-| effect | audit claimed | implement phase | **fix cycle (final)** | non-`Complete` |
-|---|---:|---:|---:|---:|
-| `SearchLibrary` | 74 | ~~69~~ | **73** | +25 |
-| `Scry` | 16 | 16 | **16** | +3 |
-| `Surveil` | 8 | ~~7~~ | **8** | +1 |
+**Dropped from the plan's test list (budget).** None fully dropped — T1–T14 and T16 all
+shipped (17 tests total at implementation close: T1, T2, T3, T4 + its own non-vacuity probe,
+T5, T6, T7, T8, T9, T10, T11, T12 + its non-vacuity probe, T13, T14, T16; the review/fix
+cycle below adds an 18th, `t4_failure_message_names_the_bound`). **T15/T15b (the
+DSL-enum-declaration roster digest) were NOT shipped** — filed as the honest-framing note in
+§10's mechanization ledger. **Correction (review finding PB-DP10 #13, applied in the fix
+cycle):** the WIP's original record here claimed T15 was filed as seeds OOS-DP10-4 and
+OOS-DP10-7; that was wrong — OOS-DP10-4 is a `Command`-field scan (a different enum, a
+different instrument) and OOS-DP10-7 is the `GameEvent` digest (`T15b`, T15's sibling, not
+T15 itself). **T15's actual subject — the `Effect`/`AbilityDefinition`/
+`ReplacementModification` roster digest — had no owning seed at all** and is now filed as
+**OOS-DP10-11**. Per the plan's own R9 risk note, T15/T15b were explicitly the first to drop
+if the batch ran long; the effort went to T12/T13/T14/T16 instead because each of those
+defends a mechanism this batch actually introduces (string matching, the denylist, the
+Gated-row drift check, the residual-seed honesty check), whereas T15's marginal value (per
+the plan's own §9 analysis) is the *obligation*, not the *notice* — `Effect` already forces a
+wire bump on a new variant regardless.
 
-**The implement phase's own numbers were wrong** (review Finding 5). The walk was a
-hand-written `match` that never descended into `AbilityDefinition::{Spell,Triggered,Activated}::modes`,
-never visited `AbilityDefinition::{SagaChapter,LoyaltyAbility}` or split-card halves at
-all, and omitted `Effect::CoinFlip` while claiming to cover it. Ten defs were missing:
-Binding the Old Gods, Evolution Charm, Insatiable Avarice, Thirsting Roots,
-Connive // Concoct (`Complete`); Tooth and Nail, Urza's Saga, Retreat to Coralhelm,
-Wrenn and Seven, Kaito Bane of Nightmares (non-`Complete`). Replaced with a
-**structurally complete serde walk** of the serialized `CardDefinition` — every field of
-every variant at every depth, by construction, and it cannot rot as the DSL grows.
-(The review said all four mode-nested defs were `Complete`; `tooth_and_nail` is `partial`.)
+**Verification.**
+- `cargo build --workspace` — clean.
+- `cargo test --all` — **3,928 passing / 0 failing** (3,910 baseline + 18 new, after the
+  review/fix cycle's 1 additional test). All 30 workspace test binaries green.
+- `cargo clippy --all-targets -- -D warnings` — clean (one doc-comment `doc_lazy_continuation`
+  lint fixed: a wrapped line starting with `+` was read as a markdown list item; reworded).
+- `cargo fmt --check` — clean (after running `cargo fmt`, which reordered the two new `mod`
+  lines and reflowed a handful of long `use`/`assert!` lines — no semantic change).
+- `tools/check-defs-fmt.sh` — clean, 1,804 defs checked, 0 edited.
+- `git diff --name-only main -- crates/engine/src crates/card-types/src crates/card-defs/src`
+  — **empty**.
+- `PROTOCOL_VERSION == 31`, `HASH_SCHEMA_VERSION == 68` — unmoved; `protocol_schema::` (17
+  tests) and `hash_schema::` (19 tests) both green; neither history table's append-only rule
+  was touched (T2/T4 checked by direct grep of the constants and by running both gate
+  targets standalone).
 
-**0 card-def source edits, 0 completeness flips**, as predicted.
+**Measured numbers, for the record** (2026-07-27, this branch): per-row Complete counts —
+`triggered_targets` 77, `search_library` 73, `proliferate` 25, `discard_cards` 13,
+`wheel_hand` 10, `scry` 16, `sacrifice_permanents` 11, `may_pay_then_effect` 10,
+`choose_color_or_type` 10, `look_at_top_or_route` 10, `surveil` 8, `counter_unless_pays` 7,
+`modal_trigger` 4, `change_targets` 3, `put_on_library` 1, `bolster_amass` 3, `connive` 1,
+`discover` 1, `may_pay_or_else` 0, `add_mana_filter_choice` 0, `choose_stub` 0,
+`the_ring_tempts_you` 0. All-rows union **267**. Still-auto union / `BASELINE` size **97**.
+Live denominator **1,139 / 1,804 = 63.1%** effectively-`Complete`. **All of these numbers are
+UNCHANGED by the review/fix cycle below** — no `ROWS` predicate, no `BASELINE` row set, and
+no `Completeness` marker was touched; the fixes are messaging, denylist-completeness, and
+gate-integrity, not measurement.
 
-## Plan premises FALSIFIED or corrected on the branch
+---
 
-Recorded because the plan's own §9 exists for exactly this.
+## Review + fix cycle (2026-07-27)
 
-1. **`GameState::next_choice_id()` ALREADY EXISTS** and draws from `timestamp_counter` (PB-DP8's,
-   `state/mod.rs:972`). The plan's §1.1 asks for a *new* field named `next_choice_id`, which
-   would have shadowed it in the most error-prone way possible (`self.next_choice_id` vs
-   `self.next_choice_id()`, different namespaces, no compile error). **Renamed the new field and
-   minter to `next_effect_choice_id`.** The plan's *reason* for a separate counter is exactly
-   right and load-bearing — `timestamp_counter` seeds every shuffle and feeds `next_object_id`,
-   so bumping it between an abort and its replay would change what the replay executes.
-2. **`Effect::Scry` had NO CR 701.22b guard.** The plan's T18 says "passes today; regression
-   guard". It did not: the scry arm emitted `Scried { count: 0 }` for a `Scry 0`, so a
-   "whenever you scry" trigger could have fired off one. (The *surveil* arm did have the
-   mirror-image CR 701.25c guard, which is presumably where the assumption came from.) Fixed
-   in scope; T18 is a real fix on the scry half.
-3. **The answer bank is consumed DESTRUCTIVELY (`pop_front`), not by a positional cursor.** The
-   plan's §1.4 describes indexing `bank[i]`, which needs a per-pass cursor field on
-   `GameState`. Popping is equivalent and needs no fourth field: the roll-back restores the
-   full bank, so nothing is lost on the abort path, and the wrapper recovers this choice's
-   `index` as `restart_bank_len - remaining_bank_len`. That arithmetic also handles the
-   question-mismatch case exactly as §1.4 prescribes — the arm suspends *without* consuming, so
-   the wrapper truncates the restored bank to the good prefix and the stale tail is dropped.
-4. **`MAX_EFFECT_CHOICES_PER_RESOLUTION` is enforced in the ANSWER HANDLER, not at the ask
-   site.** §1.4 says "exceeding it applies defaults for the remainder", which the ask site
-   cannot do without a fifth `GameState` field to carry a force-default flag.
-   **The claimed equivalence was FALSE and the review (Finding 3) was right to reject it.**
-   Bounding the bank's *growth* does NOT bound the ask/re-ask cycle: on a question-equality
-   mismatch at index `i` the arm suspends without consuming, the wrapper computes
-   `consumed == i` and truncates the restored bank back to `i`, so the bank oscillates
-   between `i` and `i+1` and can never reach 64 on precisely the path the ceiling was
-   written for. Fixed in the fix cycle by a **strict-progress** check instead: banking an
-   answer for index `i` must make the replay reach `i+1` or finish, so a re-ask at
-   `index <= i` is rejected on its FIRST occurrence — no counter, no new `GameState` field,
-   no second round trip. The constant is retained for what it actually bounds (bank growth
-   from distinct choice points, plus `execute_effect_answering`'s loop) and its doc now
-   says so.
-5. **The mana-ability gate does NOT `debug_assert!`.** §1.3 prescribes one. CR 605.4a leaves no
-   room for an announcement inside a mana ability, so applying the default *is* the defined
-   behaviour rather than a swallowed failure — and an assertion there makes the branch
-   untestable in every `cargo test` build, which would have left the guard's claim unverified.
-   Instead the branch **names where its skipped obligation is discharged**:
-   `test_dp9_mana_ability_gate`'s roster assertion, which proves no `Complete` def puts one of
-   the three asking effects inside a mana ability. (Plan §11 item 9 / PB-DP8's transferable
-   rule (i).)
-6. **`rules::loop_detection::compute_mandatory_state_hash` was private.** T21 as specified
-   ("two states differing only in the choice fields") is not constructible from an external
-   test, because the fields are `pub(crate)`. Made the function `pub` and re-pointed the test
-   at the one construction that DOES isolate them: a rolled-back blocked resolution has a board
-   byte-identical to the moment before the resolving pass, so it must have the **same**
-   mandatory-state fingerprint and a **different** `public_state_hash`. Both directions pinned.
-7. **OOS-DP8-14 predicted three new harness action strings.** One: `"answer_effect_choice"`.
-   Correction recorded in the audit's §8.1 row.
-8. **The golden-script fallout was ONE script, not the ~4 §8.1 listed.** 210 of 211 approved
-   scripts were absorbed by the pump extension unchanged. `stack/071_consider_surveil_then_draw`
-   needed the explicit answer (the plan called this one exactly);
-   `baseline/009_read_the_bones_scry_draw` did **not** fail but was given an explicit answer
-   anyway per §8.1, and its library list turned out to be **top-first**, not bottom-first —
-   worth knowing for any future script that reasons about library order.
-9. **`etb-triggers/205_nadaar_ventures_on_etb` was unaffected**, as §8.1 allowed for.
-10. **The unit-test fallout was 25 tests across 6 files**, against §8.1's list of 9 candidate
-    files. Two of the surprises are worth naming: `pb_os4b_face_aware_abilities` (its fixture
-    casts the real `Opt`, i.e. a scry) and `pb_ac6_card_integration` (Land Tax — the block
-    made a later `PassPriority` return `BlockedByPendingDecision`, which is the loud failure
-    mode, not a silent one).
-11. **`EffectContext.target_remaps` audit (OOS-DP9-10): CLEAN — but the AUDIT WAS
-    MIS-SCOPED.** The `target_remaps` half is right: exactly three `insert(idx, new_id)`
-    sites (`effects/mod.rs:1975`, `:2020`, `:2847`) and one `get(&idx)` (`:6699`), nothing
-    iterates it. **The scope was the error** (review Finding 4): the replay re-executes the
-    *whole resolution*, not the asking effect's candidate derivation, so the premise is
-    resolution-scoped and every statement in it matters. The widened workspace audit ran in
-    the fix cycle and fixed five sites — `Effect::ChooseCreatureType` + its ETB twin
-    (`max_by_key` over a `HashMap`, ties are the common case), `abilities.rs`'s combat-damage
-    batch map and `turn_actions.rs`'s CR 603.7b delayed-trigger map (**both queued triggers
-    in map order, i.e. CR 603.3b stack order**), and `replacement.rs:1281`'s
-    `PendingZoneChange.already_applied`, built from a `HashSet` without the sort its own
-    sibling site documents as "load-bearing, not cosmetic" — and that field is hashed.
-    OOS-DP9-10 is now rankable, not hygiene.
-12. **SR-19's delete-a-field demonstration was RUN, and it found a gate gap (`OOS-DP9-13`).**
-    Deleting `PendingEffectChoice.index` or `AnsweredEffectChoice.answer` from their `HashInto`
-    impls fails `every_hashed_struct_field_is_hashed_or_allowlisted` **by name**, as designed.
-    But the gate covers **structs only**: rewriting the `EffectChoiceQuestion::SearchLibrary`
-    arm as `{ candidates, .. }` and dropping the `may_fail_to_find` feed passes **every gate in
-    the suite green**. Same family as OOS-DP7-11. `NOT_HASHED` is `&[]` and stays empty.
-13. **The benchmark obligation is discharged with no regression.** Measured on `48353a36` in a
-    throwaway worktree vs this branch: `full_turn_4p` **253.10 µs → 229.31 µs**,
-    `priority_cycle_4p` **25.68 → 25.34 µs**, `sba_check` **17.80 → 15.53 µs**. The
-    unconditional `GameState::clone()` per resolution costs nothing measurable — `imbl`
-    persistent structures make a clone a handful of refcount bumps — so the `effect_may_ask`
-    pre-scan escape hatch was **not** added.
+`memory/primitives/pb-review-DP10.md` (commit `76b4f1cd`): 2 HIGH, 6 MEDIUM, 6 LOW. **All 14
+applied.** Hard constraints re-verified after the fix cycle: `git diff --name-only main --
+crates/engine/src crates/card-types/src crates/card-defs/src` still empty; PROTOCOL 31 /
+HASH 68 still unmoved; 0 card-def edits.
 
-## Deliberate deviations (argued in source, not silent)
+| # | Sev | Finding | Disposition |
+|---|---|---|---|
+| 1 | HIGH | `BASELINE` launders class-D defs (Smuggler's Copter, Shambling Ghast) as class B; plan §5.3 triage never performed | **Fixed.** `BASELINE`'s doc comment now states explicitly that an entry asserts only "hits these rows," not oracle-correctness, and names both defs with the corrected, WORSE Shambling Ghast finding (three deviations, not two — see below). `T4`'s failure message: "reviewed acknowledgement" → "recorded acknowledgement." Filed **OOS-DP10-8** with the orchestrator's corrected facts: Smuggler's Copter is the 20th instance of audit §5's DP-12 class (19 already marked `known_wrong`), not a novel defect; Shambling Ghast has a THIRD deviation the review's own text missed — it grants `KeywordAbility::Decayed`, which the printed card does not have at all, in addition to the permanent-counter and stale-`oracle_text` issues the review found. **Neither card def edited** — per plan §5.3, file, do not demote. |
+| 2 | HIGH | The gate is blind to a decision the DSL never encoded (Smuggler's Copter is the live example) and criterion 5554's wording doesn't say so | **Fixed.** Added the bound in the three places the fix specified: `decision_gate.rs`'s module doc (new paragraph after the "cannot stop the growth" one), the audit §8 PB-DP10 row, and §3.1's superseded note. Filed **OOS-DP10-9**. |
+| 3 | MEDIUM (test-validity, treated as fix-phase HIGH per convention) | T4's non-vacuity probe never executed T4's offender loop, in particular the subset/superset mismatch arm | **Fixed properly, not minimally**, per the orchestrator's explicit instruction. Extracted `offenders()` (T4's exact logic) and `t4_message()` (T4's exact failure text) as standalone functions; T4 now calls both. Rewrote the probe to build a 3-def synthetic corpus and assert all three outcomes: (a) an unbaselined `Complete` Proliferate def is an offender; (b) a def baselined with a recorded row set that is a SUPERSET of its actual hits (the "tighten the entry" / subset arm — previously uncovered anywhere) is an offender; (c) a non-`Complete` def carrying the identical site is NOT an offender. **Verified non-vacuous by execution**: temporarily neutered the mismatch arm's guard (`Some(recorded) if false && recorded != &hits`), confirmed outcome (b)'s assertion goes red naming the exact synthetic def, restored, confirmed green again. |
+| 4 | MEDIUM | Wrong CR cite `106.12` for `ChooseColor` (that's the tap-for-mana definition) | **Fixed.** `decision_site_walk.rs`'s `choose_color_or_type` row now cites `"614.12a (as-enters, ReplacementModification) / 608.2d (resolution-time Effect)"`, applied verbatim per the orchestrator's own CR verification this session. |
+| 5 | MEDIUM | Module doc cites `t4_failure_message_names_the_bound`, which didn't exist | **Fixed by writing the test** (the review's preferred option). Extracted `t4_message()` so the new test can assert its text contains the four load-bearing phrases: "CANNOT STOP THE GROWTH," "Mark the def non-Complete," "Add a BASELINE entry," "is NOT an exit for this batch." **Verified non-vacuous by execution**: temporarily corrupted the "Add a BASELINE entry" phrase in `t4_message`'s format string, confirmed the new test goes red naming the missing phrase, restored, confirmed green again. This is the 18th test (+1 over the implementation phase's 17). |
+| 6 | MEDIUM | `PROSE_FIELDS`-completeness test recognized only literal `String` types, missing newtype-over-`String` (`SubType`, `CardId`) fields and 3 contributing files | **Fixed via option (a)** (widen, per the orchestrator's explicit preference over documenting the gap). `string_field_name` now recognizes `SubType`/`Option<SubType>`/`Vec<SubType>`/`Option<Vec<SubType>>`/`CardId`/`Option<CardId>` in addition to the three `String` shapes — `SubType`/`CardId` are the ONLY two newtype-over-`String` types in the whole `card-types` crate (verified by grepping every `pub struct X(pub String)` declaration), so this closes the channel completely, not partially. Scan extended to `state/types.rs`, `state/replacement_effect.rs`, `state/targeting.rs` (whole-file, matching the fix's own scope). Cross-checked with a standalone Python replica of the widened scan against all 5 files: found exactly `card_id`, `default`, `exclude_subtypes`, `has_name`, `has_subtype`, `has_subtypes`, `melded_card_id`, `name`, `onto_subtype`, `oracle_text`, `pair_card_id`, `prompt`, `spell_subtype_filter`, `subtype` — all 14 are now in `PROSE_FIELDS` (8 new: `pair_card_id`, `melded_card_id`, `onto_subtype`, `has_subtype`, `has_subtypes`, `exclude_subtypes`, `spell_subtype_filter`, `default`). Audit's over-claim sentence in the §8 row corrected to name the widened scope explicitly. |
+| 7 | MEDIUM | §3.1's reconciliation explains a minority of the drift; two mechanisms named, several deltas unexplained | **Fixed properly**, per the orchestrator's explicit instruction. Added the full per-row audit-vs-measured delta table to §3.1's superseded note (15 rows), with a mechanism per non-trivial delta. Two new mechanisms added to §6: (iii) the audit's regex counted variant names inside `Completeness` note strings (`connive` 2→1, `put_on_library` 3→1, both confirmed by finding the actual defs: only `raffines_informant.rs` / `brainstorm.rs` are real, `spymasters_vault.rs` / `witchs_cottage.rs` / `gravepurge.rs` mention the variant only in a note); (iv) the audit's row 4 bundled two predicates, and the split is exact (13 + 10 = 23). Per the orchestrator's explicit instruction, the three deltas with no established mechanism (`search_library` 74→73, `may_pay_then_effect` 11→10, `modal_trigger` 5→4) are written as **"unexplained, ±1, within regex noise"** rather than assigned an invented mechanism. |
+| 8 | MEDIUM | `look_at_top_or_route` over-includes (Chaos Warp, Coiling Oracle have no real choice); the row's own `why` claims otherwise | **Minimum fix applied**, per the orchestrator's explicit instruction (do not split the row; `MAX_AUTO_CHOSEN_COMPLETE_UNION`/`BASELINE` stay frozen against 97). `decision_site_walk.rs`'s row `why_not_flagged_is_wrong` rewritten to state the row is an UPPER BOUND, naming both the real-choice members (Goblin Ringleader) and the no-choice members (Chaos Warp, Coiling Oracle). Same caveat added to audit §8.1's **OOS-DP10-6**. |
+| 9 | LOW | `wheel_hand`'s NO-DECISION `why` overreaches (CR 404.3 graveyard order IS engine-chosen, just not the pick this row counts) | **Fixed.** Narrowed the `why` text to distinguish "no 'which card' pick (CR 701.9b)" from the still-real CR 404.3 graveyard-order choice, pointing at the new seed. Filed **OOS-DP10-10**. |
+| 10 | LOW | Stale doc reference to `contains_key` in `effect_choose_gate.rs` (deleted by the PB-DP10 rewire) | **Fixed.** Retargeted to `def_uses`. |
+| 11 | LOW | T12's collision inventory omits the one row whose predicate spans two enums by design (`choose_color_or_type`) and doesn't scan `replacement_effect.rs` | **Fixed.** Added `state/replacement_effect.rs` to the scanned set; pinned `("ChooseColor", 1)` and `("ChooseCreatureType", 2)`, both verified by direct grep before pinning (1 declaration in `replacement_effect.rs` for `ChooseColor`; one each in `card_definition.rs` and `replacement_effect.rs` for `ChooseCreatureType`). |
+| 12 | LOW | `OOS-DP10-6` omits `put_on_library` (measured 1) from the successor-queue ranking | **Fixed.** Added `put_on_library 1` to the ranked list in §8.1. |
+| 13 | LOW | The dropped T15 has no owning seed; the WIP's record pointed at the wrong two seeds | **Fixed.** Filed **OOS-DP10-11** owning T15's actual subject (the `Effect`/`AbilityDefinition`/`ReplacementModification` roster digest). Corrected the WIP's "Dropped" paragraph (above) and both §10 in-doc pointers that had said "OOS-DP10-4's sibling scope note." |
+| 14 | LOW | T9 (and T7/T8/T10/T11) re-serialize each `CardDefinition` once per row instead of once per def | **Fixed.** Hoisted `serde_json::to_value` out of the row loop in T7, T8, T9, T10, T11 — each now serializes the corpus once (`Vec<Value>`, zipped against `defs` for the row-by-row filter) and indexes into it. T9 alone drops from ~40,000 serializations to ~1,804. |
 
-- **Scry and surveil defaults are the IDENTITY**, not the pre-PB-DP9 bottom-everything /
-  mill-everything. Search keeps its lowest-`ObjectId` default byte-for-byte (zero churn).
-  Argued in the helpers' docs and pinned in **both directions** by
-  `test_dp9_defaults_reproduce_the_stated_behaviour`.
-- **The three new fields are excluded from `loop_detection.rs`'s mandatory-state fingerprint**,
-  deviating from PB-DP7 and PB-DP8, because they grow between successive replays of one
-  resolution and could mask a CR 726 mandatory loop. Recorded as **obligation (7)** on the
-  `BlockingDecision` doc block — the first evidence PB-DP8's six-obligation list generalises
-  (PB-DP9 discharged 6/6 plus the new one).
-- **CR 400.7**: scry no longer renumbers. New `Zone::reposition_within` permutes in place.
-  Fallout was one test (`library_ordering`'s two-to-bottom probe), whose bottomed pair now
-  orders by the player's announcement (CR 401.4) rather than by an `ObjectId` sort artefact.
-- **OOS-DP9-8 not fixed**: multi-player resolution-time choices are asked in ascending
-  `PlayerId` order, not APNAP (CR 608.2e / 701.22c / 701.23i). Pre-existing in
-  `resolve_player_target_list` and far wider than this roster; PB-DP9 makes it *observable* for
-  the first time and pins the engine's actual behaviour in `test_dp9_choice_inside_for_each_each_player`.
+**Seeds filed by this cycle**: **OOS-DP10-8, -9, -10, -11** in `docs/audits/decision-point-audit.md` §8.1, in the existing row format. Every place that counted the seeds (the §8 PB-DP10 row, this WIP's own step-7 line, and the file-inventory bullet) updated from "OOS-DP10-1..7" to "**OOS-DP10-1..11**".
 
-## Seeds filed
+**Test count, re-derived after the fix cycle**: `decision_gate.rs` now has **18** `#[test]`s
+(17 at implementation close + 1 new: `t4_failure_message_names_the_bound`). Workspace total
+**3,928** (3,910 baseline + 18), verified by `awk` summing every `test result:` line across
+all 31 workspace test binaries — see Verification above.
 
-**OOS-DP9-1..12**, in `docs/audits/decision-point-audit.md` §8.1 (the durable inventory — this
-file is rewritten wholesale by the next `/implement-primitive` run). The two to rank first:
+**Non-vacuity proof method** (both F3 and F5, per the orchestrator's explicit request):
+temporarily broke the mechanism each test defends, ran the single test, confirmed a red
+failure naming the exact defect, reverted, confirmed green again. Both `git diff`s were
+inspected after reverting to confirm no `TEMPORARY`/`if false` residue was left behind (see
+Verification's `git diff --name-only` line and the full `git diff` review before close).
 
-- **OOS-DP9-3** — `Effect::SearchLibrary` finds exactly ONE card; CR 701.23 searches for "one or
-  more". ~7 `partial` defs say so in their own source. On PB-DP9's machinery this is a
-  `count: EffectAmount` + `found: Vec<ObjectId>` with **zero** new plumbing. **The largest
-  card-yield item adjacent to this batch.**
-- **OOS-DP9-11** — the same-zone CR 400.7 renumber sweep across every other caller of
-  `move_object_to_zone` / `move_object_to_bottom_of_zone`.
+**What could not be done / deferred**: nothing from the review's 14 findings was deferred —
+all were applied. The review's own closing recommendation ("re-run the Finding 1 oracle
+spot-check across all 97 `BASELINE` entries") was **not** performed in this cycle — the
+orchestrator's brief scoped Finding 1's fix to the seed + doc-comment + message-wording
+triple, not a full 97-entry re-triage, and OOS-DP10-8 says so explicitly ("the remaining 95
+entries have not been triaged").
 
-## Mechanical verification (plan §3 / §12), recorded
+## Fail-closed proven end-to-end, on a real card def (orchestrator, 2026-07-27)
 
-```
-grep -rn 'execute_effect('  crates/*/src   # 19 hits
-grep -rn 'resolve_top_of_stack' crates/*/src
-```
-
-- **`execute_effect(`: 19 hits = 17 production callers + the definition + one new
-  test/tool helper.** All **15** in `resolution.rs` are between `resolve_top_of_stack_inner`
-  (`:131`) and the next `fn` (`execute_gift_effect`, `:7945`) — i.e. inside one function, as
-  the plan's §1.3 claimed. The other two production callers are `mana.rs:876` (the CR 605.4a
-  triggered mana ability — **gated**) and `replacement.rs:1964` (a literal `Effect::CreateToken`
-  built two lines above — **provably unreachable**). The 19th is
-  `effects/mod.rs:666`, inside `execute_effect_answering`, the new test/tool helper.
-- **`resolve_top_of_stack` now has THREE production callers, not the plan's "exactly 2".** All
-  three are PB-DP9's own, and each is documented at its site: `engine.rs:2243`
-  (`handle_all_passed`, the pre-existing one), `effects/mod.rs:599`
-  (`handle_answer_effect_choice`, the resume) and `engine.rs:2574`
-  (`discharge_departed_effect_choice`, §1.5's exit-2/4 discharge). The wrapper is still the
-  only suspension-aware site, and `handle_all_passed`'s two post-statements carry the argued
-  no-guard comment (factored into `finish_stack_resolution`, which both resume sites call).
-- **Guards added (§3, robustness only):** ~~5~~ **4** loop sites in `resolution.rs` (3 modal,
-  1 `effects_to_run`; the "splice" one was miscounted — grep confirms 4) and **5** in
-  `effects/mod.rs` (`Sequence`, `Repeat`, both `ForEach` arms, and `MayPayThenEffect`'s
-  `for pid in payer_ids` loop, added in the fix cycle per review Finding 10 — the original
-  justification for omitting it, "nothing loops after them", was simply wrong about that
-  site). The single-call recursion sites (`Conditional` branches, `Choose`, `MayPayOrElse`,
-  coin-flip, dice) still get none: nothing loops after them.
-- **No new wire sentinel** was added in the PB-DP9 test file (OOS-DP7-8 is a standing complaint
-  about exactly that growth).
-- **Golden corpus**: 211 approved ran and passed, 60 retired, **0 skipped silently** (SR-9c).
-- **`git diff --stat -- crates/card-defs/`**: empty. 0 source edits, 0 completeness flips.
-- **`NOT_HASHED`**: `&[]`, unchanged.
-
-## Phase log
-
-- 2026-07-27 — plan phase opened.
-- 2026-07-27 — fix phase complete (see the Fix cycle section above).
-- 2026-07-27 — implement phase complete. Three commits:
-  `75ee3b92` engine, `bfb8916b` tests + plumbing + roster, `f4696e09` audit + seeds + script.
-  Gates: `cargo build --workspace`, `cargo test --all` (3,905 / 0 failing),
-  `cargo clippy --workspace --all-targets -- -D warnings`, `cargo fmt --check`,
-  `tools/check-defs-fmt.sh` (1,804 defs) — all clean.
-  Fuzzer run for crash surface only (3 games × 4 players × 200 turns, seed 20260727,
-  single-threaded): 0 errors, 3 wins, on **both** this branch and `48353a36`. The
-  `stack_consistency` violations in very long games are pre-existing and were measured on both
-  (2,080 base vs 1,993 here) — OOS-DP3-9 / OOS-M11-3, not chased. **No A/B-vs-`main` trace
-  comparison was run or presented as an oracle** (PB-DP8 established that an extra `Command`
-  shifts `RandomBot`'s RNG stream, so divergence there is structural).
-
-## Fix cycle (review `pb-review-DP9.md`, 14 findings)
-
-**All 2 HIGH + 5 MEDIUM + 7 LOW dispositioned; 13 fixed, 1 documented-and-seeded.**
-No wire type changed, so **PROTOCOL 31 / HASH 68 are unmoved**; tests 3,905 → **3,906**
-(one net new test; two existing concede tests rebuilt rather than added to).
-
-### The two HIGHs, both on the concede exit
-
-- **F1 (test vacuity)** — `test_dp9_owner_concedes_mid_choice` ran on the 2-player
-  `fixture()`, so the concede ended the game and the discharge returned at its
-  `is_game_over` early exit: the "drive the rolled-back resolution, do not merely clear it"
-  behaviour had **zero** coverage while the test's doc comment claimed the opposite.
-  Rebuilt on a new `fixture_3p` + `cast_and_resolve_3p`, with the `if !over { … }` escape
-  hatch deleted and every assertion unconditional — including a sanity assertion that two
-  seats survive, so the test cannot silently go vacuous again.
-- **F2 (stale answer bank on a foreign concede)** — reproduced first: the shipped code
-  panicked at `effects/mod.rs:463` (`replay determinism violation -- banked question
-  SearchLibrary { candidates: [2, 3] } but the replay recomputed [4, 5]`) on a legal
-  three-command sequence. **The rule was re-derived, not patched.** The abort-and-replay is
-  sound only while the board the questions were asked against is the board the replay
-  re-executes; the admission gate admits exactly two commands while blocked — the answer
-  (the mechanism) and `Concede` — and a concede always mutates the board. So the
-  invalidation condition is "a concede happened", by anybody, and
-  `discharge_departed_effect_choice` → **`discharge_effect_choice_on_concede`** drops the
-  entry AND the bank unconditionally and re-drives. Its call site also **moved**, from
-  before `PlayerConceded` to after `check_game_over`: the re-drive records a fresh question,
-  and recording it before the CR 611.2b expiry / CR 725.4 initiative transfer would have
-  reproduced the same defect one step out.
-  Side effect worth keeping: the mismatch `debug_assert!`'s SR-4 engine-bug classification
-  is now **honest** — no legal command sequence can reach it.
-
-### MEDIUMs
-
-- **F3** — strict-progress check in `handle_answer_effect_choice` (see falsified premise 4).
-- **F4** — 5 determinism sites fixed, audit re-run workspace-wide (see premise 11).
-  Two review claims corrected: `replacement.rs:2128` (`ChooseColor`) was **already**
-  deterministic, and the audit found three sites the review did not.
-- **F5** — roster walk replaced with a serde walk (see the Roster table).
-- **F6** — both stale "a `debug_assert` records if it fires" comments rewritten to name the
-  real discharge (`test_dp9_mana_ability_gate`'s roster assertion).
-- **F7** — exit-4 claim removed. The doc now states plainly that SBA-elimination-while-
-  blocked is **unreachable** (the admission gate admits nothing that runs an SBA) rather
-  than covered, names `blocking_decision`'s filter as defence-in-depth that does not clear
-  the field, and seeds the residual trap state as **OOS-DP9-14**.
-
-### LOWs
-
-- **F8** fixed — `events.rs`'s "`private_to()` … does not exist" rewritten; OOS-DP8-6's
-  declaration half recorded closed, its consumer half still open.
-- **F9** fixed — `Zone::reposition_within` `debug_assert!`s its membership precondition.
-- **F10** fixed — guard added to `MayPayThenEffect`'s payer loop; the record corrected
-  (4 `resolution.rs` guard sites, not 5).
-- **F11** fixed — `next_action_answers_the_block` case (e) covers `EffectChoice` in both
-  directions against both other kinds.
-- **F12** **documented, not changed**, and seeded as **OOS-DP9-15**: `Scried.count` is the
-  requested N, `Surveilled.count` the actual. Neither is CR-wrong (701.22d/701.25d fire
-  regardless), and reporting the requested N keeps `Scry 3` on an empty library
-  distinguishable from `Scry 0`. Both arms now say so; changing one side in isolation is
-  the trap.
-- **F13** fixed — the re-drive runs on a clone committed only on success, so a resolution
-  error can no longer make a player permanently unable to concede.
-- **F14** fixed — CR 608.2m named in `resolve_top_of_stack`'s doc, with the argument for why
-  the deviation is unobservable through legal commands.
-
-### New seeds
-
-**OOS-DP9-14** (dead-owner entry is a latent trap; exit 4 unreachable-not-handled),
-**OOS-DP9-15** (`Scried`/`Surveilled` count asymmetry),
-**OOS-DP9-16** (CR 603.7b delayed triggers keyed by `target_object` COLLAPSE when two share
-a target — found while making that map's iteration order deterministic; ordering fixed,
-collapse deliberately not).
-
-### Gates after the fix cycle
-
-`cargo build --workspace`, `cargo test --all` (**3,906 / 0 failing**),
-`cargo clippy --all-targets --workspace -- -D warnings`, `cargo fmt --check`,
-`tools/check-defs-fmt.sh` (1,804 defs) — all clean. Fuzzer re-run (3 games x 4 players x
-200 turns, seed 20260727, single-threaded): **0 errors, 3 wins, 1,993 violations** —
-byte-identical to the pre-fix-cycle measurement on this branch, i.e. no regression from the
-concede rewrite (the violations are the pre-existing OOS-DP3-9 / OOS-M11-3 class).
-
-## Closing-review cycle (`pb-review-DP9.md` → "Closing review", 1 HIGH + 4 LOW)
-
-**All 5 dispositioned; 3 fixed in-engine, 1 fixed in-repo, 1 seeded-not-changed.**
-No wire type changed, so **PROTOCOL 31 / HASH 68 stay put**; tests 3,906 → **3,909**
-(3 new probes, all confirmed fail-before).
-
-### HIGH-1 — the priority strand, fixed at the grant and not at the answer
-
-The fourth appearance of the suite's recurring class. Reproduced before fixing: an
-**active-player** concede under a *foreign* seat's CR 608.2d block left
-`priority_holder` naming the departed seat once the block cleared, and
-`blocking_decision` was `None` by then, so `PassPriority` was *admitted* and answered
-`PlayerEliminated` from the conceder and `NotPriorityHolder` from everyone else.
-
-The review offered two candidate fixes. **Neither `repair_departed_priority_holder`
-at `Command::AnswerEffectChoice`'s tail nor any other repair call was added**; the
-CR **800.4j** liveness test was put on the *grant* instead
-(`resolution::grant_priority_after_resolution` -- **renamed and moved** to
-`rules::priority::grant_priority_to_active_player` by the second closing review, used at
-**both** unconditional grant
-sites in `resolve_top_of_stack_inner` — the CR 117.3b tail and the CR 608.2b fizzle
-path).
-
-**The deciding evidence is a third probe with no CR 608.2d choice on it at all.**
-`resolve_top_of_stack_inner` runs `check_and_apply_sbas` a few lines above the grant,
-so a resolution that kills the active player (here: its own `LoseLife 99`) reaches the
-grant with `has_lost` already true and hands priority back to a dead seat. That path
-existed on `main`; **the bug is pre-existing and PB-DP9 only made it reachable by a
-legal three-command sequence.** No repair call at the answer arm could have covered
-it. Third reason: `enter_step`'s two grants and `handle_all_passed`'s forced-payment
-grant have carried this exact liveness test all along — the two fixed sites were the
-engine's only unconditional ones.
-
-**PB-DP8's transferable rule (i), discharged.** `handle_concede`'s
-`blocking_decision(state).is_none()` gate skips exactly two things under this block,
-and its comment now names both: the priority advance (**a no-op by construction** —
-`priority_holder` is `None` while the entry stands, now `debug_assert`ed at
-`repair_departed_priority_holder`'s early return) and `advance_turn` for the
-conceder's own turn (**not owed** — CR 800.4j says the turn "continues to its
-completion without an active player"; the immediate `advance_turn` on the ordinary
-concede path is a shortcut the CR does not require). The probe drives a whole step
-boundary past the concede to evidence the second claim rather than assert it.
-
-`repair_departed_priority_holder`'s doc block carried the false reachability claim
-that `resolve_top_of_stack`'s own grant would "pick this up"; rewritten.
-
-### The other four
-
-- **LOW-2 fixed** — `crash-reports/crash_2026072{7,8,9}.json` (fuzzer output committed
-  by `f4696e09`) removed and the directory `.gitignore`d. Rest of the branch's
-  added-file set checked: three legitimate files.
-- **LOW-3 seeded, behaviour unchanged** — **OOS-DP9-17**. The CR 726.1 argument for
-  resetting loop detection on an answer is sound (a player choice is not a mandatory
-  action); what is new is that the identity scry/surveil default lets a default-
-  answering client repeat a genuine no-op forever, so the loop now runs to
-  `MaxTurnsReached` instead of a draw. Ranks with OOS-DP9-1 (same root cause, bot end).
-- **LOW-4 seeded + comment corrected** — **OOS-DP9-18**. `ask_or_consume_effect_choice`
-  reads `has_lost || has_conceded`; `resolve_player_target_list` reads `has_lost` only,
-  so a conceded player's library is still searched (CR 800.4a says it should have left
-  the game). The pinning assertion's failure message now says plainly that it records a
-  known deviation. Wider than the finding framed it: the engine has **no** CR 800.4a
-  object sweep at all.
-- **LOW-5 NARROWED, not merely seeded** — `may_fail_to_find` was "any non-default
-  `TargetFilter` field is a CR 701.23b stated quality". Six runtime **board-property**
-  fields are now subtracted first (`controller`, `exclude_self`, `is_token`,
-  `is_nontoken`, and — on the identical argument, beyond the review's four —
-  `is_attacking`, `is_blocking`); all six are documented at their declarations as
-  invisible to `matches_filter`, so each narrowed nothing while buying a
-  CR 701.23d-forbidden decline over the whole library. `is_tapped` / `is_untapped` /
-  `has_counter_type` are deliberately **not** subtracted: those three *are* checked
-  against library cards and empty the candidate list instead. The predicate stays a
-  subtraction so a future field defaults to *allowing* the decline (the safe
-  direction); that residual keeps **OOS-DP9-5** open, whose text now carries both axes.
-
-### New tests (3, all fail-before verified)
-
-- `test_dp9_active_player_concedes_under_a_foreign_block` — HIGH-1's dedicated probe,
-  on an **empty** bank, plus a step boundary driven past the concede.
-- `test_dp9_resolution_grant_skips_an_active_player_killed_by_an_sba` — the same defect
-  with no CR 608.2d choice anywhere; the evidence for choosing the grant fix.
-- `test_dp9_may_fail_to_find_ignores_non_quality_filter_axes` — both CR 701.23b and
-  CR 701.23d directions on otherwise-identical filters.
-
-`test_dp9_foreign_concede_invalidates_a_non_empty_bank` — which built HIGH-1's exact
-state and asserted nothing about it — gained the three recoverability assertions,
-factored into `assert_recoverable` and shared with `test_dp9_owner_concedes_mid_choice`
-so the two cannot drift.
-
-### New seeds
-
-**OOS-DP9-17** (loop-detection reset × identity default), **OOS-DP9-18**
-(`has_conceded` vs `has_lost`, CR 800.4a), **OOS-DP9-19** (four further priority-grant
-sites that do not answer CR 800.4j — `enter_step`'s cleanup-SBA-round grant is still
-unconditional, and three early returns in `resolve_top_of_stack_inner` grant nothing at
-all; **reachability not proven**, left for their own probes). **OOS-DP9-5** widened.
-
-### Gates after the closing-review cycle
-
-`cargo build --workspace`, `cargo test --all` (**3,909 / 0 failing**),
-`cargo clippy --all-targets --workspace -- -D warnings`, `cargo fmt --check`,
-`tools/check-defs-fmt.sh` (1,804 defs) — all clean.
-
-## Second closing-review cycle (`pb-review-DP9.md` -> "Second closing review", 1 HIGH + 1 MEDIUM + 1 LOW)
-
-**All 3 dispositioned; all 3 fixed.** No wire type changed, so **PROTOCOL 31 / HASH 68
-stay put**; tests 3,909 -> **3,910** (1 new probe; the LOW-3 coverage was added as a
-third half of an existing test).
-
-The previous cycle's CR 800.4j grant fix was verified correct, correctly placed and
-fail-before-proven -- and found to ship **two false completeness claims** plus a
-**reachable sibling deadlock**.
-
-### HIGH-1 -- `combat.rs`'s `handle_declare_blockers` tail was the fifth unconditional grant
-
-Reproduced before fixing, with **no PB-DP9 machinery on the path at all**: p1 (active)
-attacks, is eliminated by a CR 704.5a SBA during its own combat phase, and p2's
-declare-blockers (even an empty one) hands priority straight back to the departed seat.
-`PassPriority` then answers `PlayerEliminated` from p1 and `NotPriorityHolder` from
-everyone else. Pre-existing on `main`; the branch's only prior `combat.rs` change was an
-unrelated `HashMap`->`BTreeMap` hygiene fix.
-
-Probe `test_509_declare_blockers_grant_skips_a_departed_active_player`
-(`crates/engine/tests/combat/combat.rs`), whose last statement is the deadlock assertion
-(the named holder must be able to act) rather than a field check.
-
-**The helper moved rather than being duplicated**: `resolution::grant_priority_after_resolution`
--> **`rules::priority::grant_priority_to_active_player`** (`pub(crate)`), which is where
-`next_priority_player` already lives and where both callers can reach it. Fallout on this
-pre-existing path was **zero** -- 211 golden scripts and every existing test green, no
-script edits -- as expected, since the fix only changes behaviour when the active player
-is already gone.
-
-### MEDIUM-2 -- the two false claims, corrected against a mechanical enumeration
-
-Both were false:
-
-- `resolution.rs`'s new helper doc claimed its two sites were "the only place in the
-  engine" granting unconditionally. It was two of six.
-- OOS-DP9-19 called `enter_step`'s cleanup-SBA-round grant "the last unconditional one in
-  the engine", contradicting the source comment written in the same commit.
-
-The set is now enumerated by a command that is **quoted inside the helper's doc block**
-next to the classification it produced:
+The review and the fix cycle both proved T4's logic against a *synthetic* corpus. The
+acceptance criterion's claim is about the real one, so the orchestrator ran it end-to-end:
+`Effect::Proliferate` was temporarily added to `crates/card-defs/src/defs/lightning_bolt.rs`
+— a `Complete` def not in `BASELINE` — and `cargo test -p mtg-engine --test core
+decision_gate::` was run against the real `all_cards()`:
 
 ```
-grep -rn 'priority_holder = ' crates/*/src tools/*/src
+test decision_gate::no_complete_def_introduces_an_unrecorded_auto_chosen_decision ... FAILED
+test decision_gate::auto_chosen_complete_union_is_ratcheted ... FAILED
+  Lightning Bolt is NOT in BASELINE but hits {"proliferate"}. Lightning Bolt hits
+  proliferate (CR 701.34a, effects/mod.rs (Proliferate) -- auto-selects all eligible)
+test result: FAILED. 16 passed; 2 failed
 ```
 
-A third correction the review did not state: **`enter_step` has three grants, not two**,
-and the cleanup-SBA-round one is the still-open unconditional site.
-
-- **`resolution.rs`'s `counter_stack_object` tail: FIXED, not seeded.** Structurally the
-  exact bug just fixed (unconditional grant preceded by `check_and_apply_sbas`), latent
-  only because the function has no production caller today. Seeding it would ship a
-  deadlock for a future caller to inherit.
-- **The cipher-copy grant: benign, argued in-source, not routed.** Its arm falls through
-  to the CR 117.3b tail, which overwrites the field before the command returns, and the
-  write pushes no `PriorityGiven` -- routing it would add an event for no gain.
-- **Seed items (2)-(4) re-verified accurate as filed** (`resolution.rs:4352 / 5066 / 5316`)
-  and left alone. **OOS-DP9-19 rewritten** to carry the whole inventory.
-
-Three stale references to the removed helper name were repointed
-(`abilities.rs::repair_departed_priority_holder`, `engine.rs::handle_concede`, and the
-PB-DP9 probe's doc); the `handle_concede` comment now also names the one grant site that
-is *not* covered.
-
-### LOW-3 -- `is_tapped`/`is_untapped` were kept out of the CR 701.23b exclusion list for a false reason
-
-`matches_filter` takes a `&Characteristics` and contains **zero** occurrences of either
-field (both are documented at their declarations as "NOT checked inside
-`matches_filter()`"), so it structurally cannot see tapped state -- a `SearchLibrary` with
-`is_tapped: true` produced an **unnarrowed** candidate list *plus* a CR 701.23d-forbidden
-decline over the whole library. `has_counter_type` is genuinely the only one of the three
-that empties the list (`check_has_counter_type`, CR 122.2).
-
-Both fields subtracted in `effects::filter_states_a_quality`; the doc rewritten to say
-what is true and to name the claim it replaces. Pinned by a third half of
-`test_dp9_may_fail_to_find_ignores_non_quality_filter_axes` that asserts `candidates.len()
-== 2` **and** the CR 701.23d rejection -- i.e. against the hazardous state, not around it.
-Behaviour-neutral over `all_cards()`. The six-field partition and OOS-DP9-5's widened text
-were re-verified correct and otherwise untouched.
-
-### Gates after the second closing-review cycle
-
-`cargo build --workspace`, `cargo test --all` (**3,910 / 0 failing**),
-`cargo clippy --all-targets --workspace -- -D warnings`, `cargo fmt --check`,
-`tools/check-defs-fmt.sh` (1,804 defs) -- all clean.
+The def was restored from a backup and the target went green again (18 passed / 0 failed),
+`git status` clean. **Two** tests catch the new instance, not one, and the message names the
+card, the row, the CR and the engine site — which is what criterion 5554 asks for. Recorded
+in audit §8's PB-DP10 row.
