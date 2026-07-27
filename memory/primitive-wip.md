@@ -10,11 +10,14 @@
 - **Branch**: `feat/pb-dp9-search-scry-surveil-player-choice-auto-pick-inverts-t`
 - **Class**: AGENCY + CORRECTNESS (Tier 1, class **B** ×3 → **A** ×3). Rank 9 of the PB-DP
   suite; the suite's **third** wire change.
-- **Phase**: **fix — COMPLETE** (review findings 1-14 all dispositioned; re-review pending)
+- **Phase**: **fix — COMPLETE** (review findings 1-14 dispositioned; **closing-review
+  cycle also COMPLETE** — 1 HIGH + 4 LOW dispositioned, see the Closing-review section)
 - **Plan**: `memory/primitives/pb-plan-DP9.md`
 - **Review file**: `memory/primitives/pb-review-DP9.md`
 - **Baseline**: PROTOCOL **30**, HASH **67**, tests **3,878**
-- **Shipped**: PROTOCOL **31**, HASH **68**, tests **3,905** → **3,906** after the fix cycle (the fix cycle changed no wire type, so both versions are unmoved)
+- **Shipped**: PROTOCOL **31**, HASH **68**, tests **3,905** → **3,906** after the fix cycle
+  → **3,909** after the closing-review cycle (neither cycle changed a wire type, so both
+  versions are unmoved throughout)
 
 ## What shipped
 
@@ -309,3 +312,103 @@ collapse deliberately not).
 200 turns, seed 20260727, single-threaded): **0 errors, 3 wins, 1,993 violations** —
 byte-identical to the pre-fix-cycle measurement on this branch, i.e. no regression from the
 concede rewrite (the violations are the pre-existing OOS-DP3-9 / OOS-M11-3 class).
+
+## Closing-review cycle (`pb-review-DP9.md` → "Closing review", 1 HIGH + 4 LOW)
+
+**All 5 dispositioned; 3 fixed in-engine, 1 fixed in-repo, 1 seeded-not-changed.**
+No wire type changed, so **PROTOCOL 31 / HASH 68 stay put**; tests 3,906 → **3,909**
+(3 new probes, all confirmed fail-before).
+
+### HIGH-1 — the priority strand, fixed at the grant and not at the answer
+
+The fourth appearance of the suite's recurring class. Reproduced before fixing: an
+**active-player** concede under a *foreign* seat's CR 608.2d block left
+`priority_holder` naming the departed seat once the block cleared, and
+`blocking_decision` was `None` by then, so `PassPriority` was *admitted* and answered
+`PlayerEliminated` from the conceder and `NotPriorityHolder` from everyone else.
+
+The review offered two candidate fixes. **Neither `repair_departed_priority_holder`
+at `Command::AnswerEffectChoice`'s tail nor any other repair call was added**; the
+CR **800.4j** liveness test was put on the *grant* instead
+(`resolution::grant_priority_after_resolution`, used at **both** unconditional grant
+sites in `resolve_top_of_stack_inner` — the CR 117.3b tail and the CR 608.2b fizzle
+path).
+
+**The deciding evidence is a third probe with no CR 608.2d choice on it at all.**
+`resolve_top_of_stack_inner` runs `check_and_apply_sbas` a few lines above the grant,
+so a resolution that kills the active player (here: its own `LoseLife 99`) reaches the
+grant with `has_lost` already true and hands priority back to a dead seat. That path
+existed on `main`; **the bug is pre-existing and PB-DP9 only made it reachable by a
+legal three-command sequence.** No repair call at the answer arm could have covered
+it. Third reason: `enter_step`'s two grants and `handle_all_passed`'s forced-payment
+grant have carried this exact liveness test all along — the two fixed sites were the
+engine's only unconditional ones.
+
+**PB-DP8's transferable rule (i), discharged.** `handle_concede`'s
+`blocking_decision(state).is_none()` gate skips exactly two things under this block,
+and its comment now names both: the priority advance (**a no-op by construction** —
+`priority_holder` is `None` while the entry stands, now `debug_assert`ed at
+`repair_departed_priority_holder`'s early return) and `advance_turn` for the
+conceder's own turn (**not owed** — CR 800.4j says the turn "continues to its
+completion without an active player"; the immediate `advance_turn` on the ordinary
+concede path is a shortcut the CR does not require). The probe drives a whole step
+boundary past the concede to evidence the second claim rather than assert it.
+
+`repair_departed_priority_holder`'s doc block carried the false reachability claim
+that `resolve_top_of_stack`'s own grant would "pick this up"; rewritten.
+
+### The other four
+
+- **LOW-2 fixed** — `crash-reports/crash_2026072{7,8,9}.json` (fuzzer output committed
+  by `f4696e09`) removed and the directory `.gitignore`d. Rest of the branch's
+  added-file set checked: three legitimate files.
+- **LOW-3 seeded, behaviour unchanged** — **OOS-DP9-17**. The CR 726.1 argument for
+  resetting loop detection on an answer is sound (a player choice is not a mandatory
+  action); what is new is that the identity scry/surveil default lets a default-
+  answering client repeat a genuine no-op forever, so the loop now runs to
+  `MaxTurnsReached` instead of a draw. Ranks with OOS-DP9-1 (same root cause, bot end).
+- **LOW-4 seeded + comment corrected** — **OOS-DP9-18**. `ask_or_consume_effect_choice`
+  reads `has_lost || has_conceded`; `resolve_player_target_list` reads `has_lost` only,
+  so a conceded player's library is still searched (CR 800.4a says it should have left
+  the game). The pinning assertion's failure message now says plainly that it records a
+  known deviation. Wider than the finding framed it: the engine has **no** CR 800.4a
+  object sweep at all.
+- **LOW-5 NARROWED, not merely seeded** — `may_fail_to_find` was "any non-default
+  `TargetFilter` field is a CR 701.23b stated quality". Six runtime **board-property**
+  fields are now subtracted first (`controller`, `exclude_self`, `is_token`,
+  `is_nontoken`, and — on the identical argument, beyond the review's four —
+  `is_attacking`, `is_blocking`); all six are documented at their declarations as
+  invisible to `matches_filter`, so each narrowed nothing while buying a
+  CR 701.23d-forbidden decline over the whole library. `is_tapped` / `is_untapped` /
+  `has_counter_type` are deliberately **not** subtracted: those three *are* checked
+  against library cards and empty the candidate list instead. The predicate stays a
+  subtraction so a future field defaults to *allowing* the decline (the safe
+  direction); that residual keeps **OOS-DP9-5** open, whose text now carries both axes.
+
+### New tests (3, all fail-before verified)
+
+- `test_dp9_active_player_concedes_under_a_foreign_block` — HIGH-1's dedicated probe,
+  on an **empty** bank, plus a step boundary driven past the concede.
+- `test_dp9_resolution_grant_skips_an_active_player_killed_by_an_sba` — the same defect
+  with no CR 608.2d choice anywhere; the evidence for choosing the grant fix.
+- `test_dp9_may_fail_to_find_ignores_non_quality_filter_axes` — both CR 701.23b and
+  CR 701.23d directions on otherwise-identical filters.
+
+`test_dp9_foreign_concede_invalidates_a_non_empty_bank` — which built HIGH-1's exact
+state and asserted nothing about it — gained the three recoverability assertions,
+factored into `assert_recoverable` and shared with `test_dp9_owner_concedes_mid_choice`
+so the two cannot drift.
+
+### New seeds
+
+**OOS-DP9-17** (loop-detection reset × identity default), **OOS-DP9-18**
+(`has_conceded` vs `has_lost`, CR 800.4a), **OOS-DP9-19** (four further priority-grant
+sites that do not answer CR 800.4j — `enter_step`'s cleanup-SBA-round grant is still
+unconditional, and three early returns in `resolve_top_of_stack_inner` grant nothing at
+all; **reachability not proven**, left for their own probes). **OOS-DP9-5** widened.
+
+### Gates after the closing-review cycle
+
+`cargo build --workspace`, `cargo test --all` (**3,909 / 0 failing**),
+`cargo clippy --all-targets --workspace -- -D warnings`, `cargo fmt --check`,
+`tools/check-defs-fmt.sh` (1,804 defs) — all clean.

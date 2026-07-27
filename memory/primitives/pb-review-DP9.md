@@ -526,3 +526,167 @@ changed.** No wire type changed, so **PROTOCOL 31 / HASH 68 are unmoved**. Tests
 
 Everything else in the review held up under implementation, including both HIGH
 reproductions.
+
+---
+
+## Closing review (2026-07-27) — 1 HIGH, 4 LOW
+
+A read-only `/review` pass over the post-fix-cycle branch. All five ESM acceptance
+criteria passed. Findings and dispositions below; **no wire type changed, so
+PROTOCOL 31 / HASH 68 are unmoved.** Tests **3,906 → 3,909** (+3 probes).
+
+| # | Sev | Finding | Disposition |
+|---|-----|---------|-------------|
+| HIGH-1 | HIGH | A concede by the **ACTIVE** player under a *foreign* seat's CR 608.2d block strands `priority_holder` on the departed seat | **FIXED at the root**, with two fail-before probes |
+| LOW-2 | LOW | Generated crash artifacts committed to the repo | **FIXED** — `git rm` + `.gitignore` |
+| LOW-3 | LOW | `Command::AnswerEffectChoice` resets loop detection | **SEEDED, behaviour unchanged** — OOS-DP9-17 |
+| LOW-4 | LOW | A departed player still has the effect applied with the default answer | **SEEDED + test comment corrected** — OOS-DP9-18 |
+| LOW-5 | LOW | `may_fail_to_find` treats every non-default `TargetFilter` field as a stated quality | **NARROWED (predicate fixed) + seed widened** — OOS-DP9-5 |
+
+### HIGH-1 — the choice between the two candidate fixes, and why the grant won
+
+Reproduced first, exactly as described. Two probes fail on the pre-fix engine with
+`holder PlayerId(1)`:
+
+* `test_dp9_foreign_concede_invalidates_a_non_empty_bank` — the existing test that
+  *already built this state and asserted nothing about it*, now extended with the
+  three recoverability assertions (factored into `assert_recoverable`, which
+  `test_dp9_owner_concedes_mid_choice` also uses so the two cannot drift).
+* `test_dp9_active_player_concedes_under_a_foreign_block` — the dedicated probe,
+  built on an **empty** answer bank (p1 owns no creature card, so it is never asked)
+  to keep it disjoint from the bank-invalidation probe.
+
+The review offered two candidates. **The grant is the right one, and the
+`repair_departed_priority_holder` call at `Command::AnswerEffectChoice`'s tail is
+not needed at all.** Three reasons, in order of weight:
+
+1. **The grant is reachable without PB-DP9.** `resolve_top_of_stack_inner` runs
+   `sba::check_and_apply_sbas` a few lines above the grant, so *any* resolution that
+   eliminates the active player — lethal damage, a mill-out, 21 commander damage —
+   arrives at the tail with `active.has_lost` already true and hands priority
+   straight back to them. There is no effect choice anywhere on that path and no
+   `AnswerEffectChoice` command, so no repair call at that arm could ever cover it.
+   This is pinned by a third probe,
+   `test_dp9_resolution_grant_skips_an_active_player_killed_by_an_sba`, which was
+   confirmed to fail on the pre-fix engine with the identical message. **So the bug
+   is pre-existing on `main` and PB-DP9 merely made it reachable by a legal
+   three-command sequence.**
+2. **CR 800.4j prescribes the fix verbatim** — "If the active player would receive
+   priority, instead the next player in turn order receives priority" — i.e. the
+   rule is about the *grant*, not about a later repair.
+3. **The engine already agrees with itself everywhere else.** `enter_step`'s two
+   grants and `handle_all_passed`'s forced-payment grant have carried this exact
+   liveness test for a long time ("Active player lost (e.g., drew from empty
+   library)"). `resolve_top_of_stack_inner`'s two grants were the odd ones out.
+   Fixing them removes a divergence rather than adding a mechanism.
+
+Implementation: `resolution::grant_priority_after_resolution` (new, ~25 lines),
+called from **both** grant sites in `resolve_top_of_stack_inner` — the CR 117.3b
+tail and the CR 608.2b fizzle path, which had the same unconditional two lines.
+
+`repair_departed_priority_holder`'s early return on `pending_effect_choice.is_some()`
+is **kept**, but its false reachability claim is replaced. The accurate statement is
+in two parts, and the first is now machine-checked:
+
+* Nothing needs repairing while the entry stands, because `priority_holder` is
+  `None` **by construction** — the roll-back restores the state
+  `resolve_top_of_stack` was entered with, and both callers of `handle_all_passed`
+  set the field to `None` immediately beforehand. A `debug_assert!` on that was
+  added at the early return, so if it ever stops holding the suite says so.
+* When the entry clears, the holder is assigned by
+  `grant_priority_after_resolution`, which covers all **three** callers of
+  `resolve_top_of_stack`, not just the answer path.
+
+**The skipped `advance_turn` (PB-DP8's transferable rule (i)).**
+`handle_concede`'s `blocking_decision(state).is_none()` gate skips exactly two
+things under a CR 608.2d block, and the gate's comment now enumerates both:
+
+* *The priority advance* — a **no-op by construction**, not a debt: it is guarded on
+  `priority_holder == Some(player)`, and that field is `None` while the entry
+  stands (above).
+* *`advance_turn`, when the conceder is the active player* — genuinely skipped, and
+  it **must** be: the discharge has just put the suspended object back on the stack,
+  and advancing a turn out from under a mid-resolution spell is precisely the
+  corruption the gate exists to prevent. **It is also not owed.** CR **800.4j** says
+  the turn "continues to its completion without an active player" — the immediate
+  `advance_turn` on the ordinary concede path is a shortcut the CR does not require.
+  What CR 800.4j *does* require, that the departed active player never receive
+  priority, is discharged at every grant site that could hand it to them. The probe
+  drives a full step boundary past the concede and asserts recoverability on the
+  other side of it, so this is evidenced rather than argued.
+
+### LOW-2 — generated artifacts
+
+`crash-reports/crash_2026072{7,8,9}.json` removed; `crash-reports/` added to
+`.gitignore` with a comment naming the commit that introduced them. The rest of the
+branch's added-file set was checked and is three legitimate files (the PB-DP9 test
+module, the plan, this review).
+
+### LOW-3 — loop-detection reset
+
+**Behaviour deliberately unchanged, seeded as OOS-DP9-17** with the CR 726.1
+argument stated: 726.1 declares a draw only for a loop of *mandatory* actions, and a
+CR 608.2d announcement is by definition not mandatory, so the reset is defensible on
+its own terms. What is new is the interaction — the identity scry/surveil default
+means a client answering with the default repeats a genuinely no-op answer forever,
+where the pre-PB-DP9 bottom-everything default changed the library every pass and
+self-terminated. The right fix is on the other side (a repeated *identical* answer is
+not a meaningful choice), which is why the seed ranks with OOS-DP9-1.
+
+### LOW-4 — `has_conceded` vs `has_lost`
+
+**Seeded as OOS-DP9-18**, and the test comment corrected. The assertion at the end of
+`test_dp9_foreign_concede_invalidates_a_non_empty_bank` now says in its own failure
+message that it **pins a known deviation, not correct behaviour**, and names CR
+800.4a and the seed. The gap is wider than the review framed it: the engine has *no*
+CR 800.4a object sweep at all — it marks the flag and leaves the board alone — so
+fixing it is its own batch, not a predicate tweak.
+
+### LOW-5 — narrowed, not merely seeded
+
+**The predicate is fixed** (`effects::filter_states_a_quality`) **and** the seed is
+widened. Narrowing was chosen over widening-only because it is cheap, safe and
+*testable*: six fields are subtracted before the `!= TargetFilter::default()`
+comparison — the review's `controller`, `exclude_self`, `is_token`, `is_nontoken`,
+plus `is_attacking` and `is_blocking` on the identical argument. All six are runtime
+board properties (a card in a library has no controller and is not a token, an
+attacker or the source) and all six are documented at their declarations as
+invisible to `matches_filter`, so setting one narrowed **nothing** while buying a
+CR 701.23d-forbidden decline over the whole library.
+
+Three fields of the same runtime class are **not** subtracted, deliberately:
+`is_tapped`, `is_untapped` and `has_counter_type` *are* checked against library
+cards, so they empty the candidate list and never reach the question.
+
+The predicate stays a **subtraction**, not an enumeration of quality fields, so a
+field added to `TargetFilter` tomorrow defaults to *allowing* the decline — the safe
+direction. That residual (a per-field human judgement with no gate) is what keeps
+OOS-DP9-5 open; its text now carries both axes.
+
+New test: `test_dp9_may_fail_to_find_ignores_non_quality_filter_axes`, asserting
+**both** directions on otherwise-identical filters — `controller`/`exclude_self`/
+`is_nontoken` must find (CR 701.23d, the decline is rejected), `legendary` may
+decline (CR 701.23b). Confirmed to fail on the old predicate. No `all_cards()` def
+sets one of the six on a search filter, so the change is behaviour-neutral over the
+corpus and this test is the only place it is observable.
+
+### What the closing review got wrong
+
+Very little; it was accurate on every reproduction. Two corrections:
+
+1. **HIGH-1's blast radius is larger than the finding states.** It presents the
+   defect as a PB-DP9 reachability problem with two candidate fixes. It is a
+   **pre-existing `main` bug** — the unconditional grant strands priority whenever
+   an SBA eliminates the active player during a resolution, with no effect choice
+   involved. The finding did ask the right question ("check whether the *other* one
+   is also needed, since the unconditional active-player grant is reachable from
+   paths other than an effect-choice answer"); the answer is that the *other*
+   candidate is not needed at all, and that the grant fix is not a PB-DP9 fix.
+2. **The unconditional grant is not unique to `resolution.rs:7953`.** The same two
+   lines appear at the CR 608.2b fizzle path earlier in the same function (fixed
+   here, same helper), and four further sites do not answer CR 800.4j either — the
+   cleanup-SBA-round grant in `enter_step`, and three early returns inside
+   `resolve_top_of_stack_inner` that grant *nothing at all*, leaving
+   `priority_holder == None` with `players_passed` full. Those four are pre-existing,
+   their reachability was **not** proven, and each needs its own fail-before probe;
+   filed as **OOS-DP9-19** rather than fixed blind.
