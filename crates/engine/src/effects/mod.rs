@@ -421,23 +421,35 @@ pub fn default_effect_choice_answer(q: &EffectChoiceQuestion) -> EffectChoiceAns
 ///
 /// `TargetFilter` is shared with battlefield/target contexts, so some of its
 /// fields are **runtime board properties rather than card qualities**: a card in
-/// a library has no controller, is not a token, is not attacking or blocking, and
-/// is not "the source". CR 701.23b's "stated quality" means a characteristic
-/// (`such as a card with a certain card type or color`), so none of these
-/// qualifies. They are also exactly the fields `matches_filter` cannot see -- each
-/// is documented at its declaration as "silently ignored by `matches_filter()`" --
-/// so setting one does **not** narrow the candidate list. A def that set one on an
-/// otherwise unrestricted search would therefore have gained a CR 701.23d-
-/// forbidden decline over the full library while matching every card in it.
+/// a library has no controller, is not tapped or untapped, is not a token, is not
+/// attacking or blocking, and is not "the source". CR 701.23b's "stated quality"
+/// means a characteristic (`such as a card with a certain card type or color`), so
+/// none of these qualifies. They are also exactly the fields `matches_filter`
+/// cannot see -- each is documented at its declaration as "silently ignored by
+/// `matches_filter()`" -- so setting one does **not** narrow the candidate list. A
+/// def that set one on an otherwise unrestricted search would therefore have
+/// gained a CR 701.23d-forbidden decline over the full library while matching
+/// every card in it.
 ///
 /// No def in the corpus does this today, so this is a latent hole rather than a
 /// live bug: the change is behaviour-neutral over `all_cards()` and is pinned by
 /// `test_dp9_may_fail_to_find_ignores_non_quality_filter_axes` instead.
-/// `is_tapped` / `is_untapped` / `has_counter_type` are the same class of runtime
-/// property but are NOT excluded, because those three *are* checked against
-/// library cards (`check_has_counter_type` directly, the tapped pair via
-/// `matches_filter`) and so empty the candidate list rather than reaching the
-/// question at all. Residual axis recorded on seed **OOS-DP9-5**.
+///
+/// `has_counter_type` is the same class of runtime property and is the **only**
+/// one that is genuinely NOT excluded: the search's candidate derivation calls
+/// `check_has_counter_type` alongside `matches_filter`, so per CR 122.2 (counters
+/// cease to exist on a zone change) it empties the candidate list and the question
+/// is never reached.
+///
+/// `is_tapped` / `is_untapped` were excluded in the second closing review
+/// (LOW-3): the claim that they behaved like `has_counter_type` was **false** --
+/// `matches_filter` takes a `&Characteristics` and contains no occurrence of
+/// either field, so it cannot see tapped state at all, and a `SearchLibrary` with
+/// `is_tapped: true` produced an *unnarrowed* candidate list plus a
+/// CR 701.23d-forbidden decline over the whole library.
+///
+/// The exclusion list is a **human judgement per field with no gate behind it**,
+/// which is what keeps seed **OOS-DP9-5** open.
 fn filter_states_a_quality(filter: &TargetFilter) -> bool {
     let mut qualities = filter.clone();
     qualities.controller = TargetController::default();
@@ -446,6 +458,8 @@ fn filter_states_a_quality(filter: &TargetFilter) -> bool {
     qualities.is_nontoken = false;
     qualities.is_attacking = false;
     qualities.is_blocking = false;
+    qualities.is_tapped = false;
+    qualities.is_untapped = false;
     qualities != TargetFilter::default()
 }
 /// CR 608.2d (PB-DP9): ask `player` a resolution-time question, or consume the

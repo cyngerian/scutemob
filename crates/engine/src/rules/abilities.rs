@@ -9275,7 +9275,7 @@ pub(crate) fn repair_departed_priority_holder(state: &mut GameState, events: &mu
     //    all-others-passed branch). The `debug_assert!` below would fire if that
     //    ever stopped holding, because `gone` would then be a real value.
     //  * When the entry clears, the holder is assigned by
-    //    `resolution::grant_priority_after_resolution`, which IS liveness-aware
+    //    `priority::grant_priority_to_active_player`, which IS liveness-aware
     //    (CR 800.4j). That is the repair, and it covers all three callers of
     //    `resolve_top_of_stack`, not just the answer path.
     if state.pending_effect_choice.is_some() {

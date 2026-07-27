@@ -1781,7 +1781,7 @@ fn assert_recoverable(state: &GameState, label: &str) {
 /// The fix is CR 800.4j itself -- "If the active player would receive priority,
 /// instead the next player in turn order receives priority" -- applied at the
 /// grant, which is the same idiom `enter_step` has used at its two grant sites all
-/// along. See `resolution::grant_priority_after_resolution`.
+/// along. See `rules::priority::grant_priority_to_active_player`.
 ///
 /// This probe uses an **empty** answer bank (p1 owns no creature card, so it is
 /// never asked) to keep it disjoint from the bank-invalidation probe above.
@@ -2066,6 +2066,76 @@ fn test_dp9_may_fail_to_find_ignores_non_quality_filter_axes() {
         zone_of(&state, "Legend One"),
         Some(ZoneId::Library(p(1))),
         "nothing may move on a legal fail-to-find"
+    );
+
+    // Half 3: `is_tapped`, added by the second closing review (LOW-3). The
+    // original exclusion list left it in on the stated grounds that the tapped
+    // pair "*are* checked against library cards ... via `matches_filter`" and so
+    // empty the candidate list. That was false: `matches_filter` takes a
+    // `&Characteristics` and contains zero occurrences of either field, so it
+    // cannot see tapped state -- the list came back UNNARROWED *and* carried a
+    // CR 701.23d-forbidden decline over the whole library.
+    let def = spell_def(
+        "Tapped Tutor",
+        "dp9-tapped-tutor",
+        Effect::SearchLibrary {
+            player: PlayerTarget::Controller,
+            filter: TargetFilter {
+                is_tapped: true,
+                ..Default::default()
+            },
+            reveal: false,
+            destination: ZoneTarget::Hand {
+                owner: PlayerTarget::Controller,
+            },
+            shuffle_before_placing: false,
+            also_search_graveyard: false,
+        },
+    );
+    let state = fixture(
+        def,
+        vec![
+            library_creature(p(1), "Alpha"),
+            library_creature(p(1), "Beta"),
+        ],
+    );
+    let (state, _) = cast_and_resolve(state, "Tapped Tutor");
+    match outstanding_question(&state) {
+        EffectChoiceQuestion::SearchLibrary {
+            candidates,
+            may_fail_to_find,
+        } => {
+            assert_eq!(
+                candidates.len(),
+                2,
+                "the hazardous state itself: `is_tapped` narrows NOTHING, because \
+                 `matches_filter` cannot see it -- both untapped library cards match"
+            );
+            assert!(
+                !may_fail_to_find,
+                "CR 701.23d: `is_tapped` is a runtime board property, not a stated \
+                 quality, so this is still a quantity-only search and the decline \
+                 must be illegal"
+            );
+        }
+        other => panic!("expected a search question, got {other:?}"),
+    }
+    let (asker, choice_id) = {
+        let entry = state.pending_effect_choice().expect("a choice is pending");
+        (entry.player, entry.choice_id)
+    };
+    let err = process_command(
+        state,
+        Command::AnswerEffectChoice {
+            player: asker,
+            choice_id,
+            answer: EffectChoiceAnswer::SearchLibrary { found: None },
+        },
+    )
+    .expect_err("CR 701.23d: declining must be rejected on an `is_tapped` filter");
+    assert!(
+        format!("{err:?}").contains("701.23d"),
+        "expected the CR 701.23d rejection, got {err:?}"
     );
 }
 

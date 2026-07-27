@@ -145,69 +145,13 @@ pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, Gam
         }
     }
 }
-/// CR 117.3b / CR 800.4j: the active player receives priority after a spell or
-/// ability resolves -- **unless the active player has left the game**, in which
-/// case "the next player in turn order receives priority" (CR 800.4j).
-///
-/// # Why this exists (closing-review HIGH-1)
-///
-/// Both grant sites in [`resolve_top_of_stack_inner`] wrote
-/// `priority_holder = Some(state.turn.active_player)` unconditionally. That is
-/// the only place in the engine that did: `enter_step`'s two grants and
-/// `handle_all_passed`'s forced-payment grant have all carried the liveness test
-/// for a long time ("Active player lost (e.g., drew from empty library)"), so
-/// this was the odd one out rather than a new hazard PB-DP9 introduced.
-///
-/// PB-DP9 made it *reachable by a legal three-command sequence*: the ACTIVE
-/// player concedes while a FOREIGN seat's CR 608.2d choice is outstanding, so
-/// `handle_concede`'s `blocking_decision(state).is_none()` gate skips its own
-/// priority/turn block, and when the foreign seat finally answers this tail hands
-/// priority to the seat that left. `PassPriority` is then admitted
-/// (`blocking_decision` is `None`) and answers `PlayerEliminated` from the
-/// departed seat and `NotPriorityHolder` from everyone else -- an unrecoverable
-/// deadlock for every driving loop. Probe:
-/// `test_dp9_active_player_concedes_under_a_foreign_block`.
-///
-/// It is reachable **without** PB-DP9 too, which is why the fix is here at the
-/// grant and not at `Command::AnswerEffectChoice`'s tail: `resolve_top_of_stack`
-/// runs `sba::check_and_apply_sbas` a few lines above this call, so a resolution
-/// that kills the active player (lethal damage, a mill-out, 21 commander damage)
-/// reaches this line with `active` already `has_lost`. That path has no effect
-/// choice anywhere in it and no `repair_departed_priority_holder` call could
-/// cover it.
-///
-/// `players_passed` is reset in every branch: a new priority round starts here
-/// whoever receives it.
-fn grant_priority_after_resolution(state: &mut GameState, events: &mut Vec<GameEvent>) {
-    state.turn.players_passed = OrdSet::new();
-    let active = state.turn.active_player;
-    // SR-25: a departed player legitimately answers `false` here -- that is the
-    // question being asked, not a swallowed miss.
-    let active_is_alive = state
-        .expect_player(active)
-        .map(|p| !p.has_lost && !p.has_conceded)
-        .unwrap_or(false);
-    if active_is_alive {
-        state.turn.priority_holder = Some(active);
-        events.push(GameEvent::PriorityGiven { player: active });
-    } else if let Some(next) = crate::rules::priority::next_priority_player(state, active) {
-        // CR 800.4j: "If the active player would receive priority, instead the
-        // next player in turn order receives priority."
-        state.turn.priority_holder = Some(next);
-        events.push(GameEvent::PriorityGiven { player: next });
-    } else {
-        // No live seat left to receive it. `check_game_over` (the caller's
-        // `finish_stack_resolution`, or the next SBA sweep) ends the game.
-        state.turn.priority_holder = None;
-    }
-}
 /// CR 608.1: Resolve the top object on the stack.
 ///
 /// Called when all players pass priority in succession with a non-empty stack.
 /// The top object (last in `stack_objects`) resolves via LIFO ordering.
 /// After resolution, the active player receives priority (CR 117.3b), or -- if
 /// they have left the game -- the next player in turn order (CR 800.4j). Both
-/// grant sites go through [`grant_priority_after_resolution`].
+/// grant sites go through [`crate::rules::priority::grant_priority_to_active_player`].
 ///
 /// **Never call this directly** -- [`resolve_top_of_stack`] is the wrapper that
 /// owns the CR 608.2d roll-back. All 15 `execute_effect` call sites in this file
@@ -291,7 +235,7 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                         // CR 117.3b / CR 800.4j: priority resets to the active
                         // player after a fizzle -- or, if they have left the
                         // game, to the next player in turn order.
-                        grant_priority_after_resolution(state, &mut events);
+                        crate::rules::priority::grant_priority_to_active_player(state, &mut events);
                         return Ok(events);
                     }
                 } else {
@@ -5426,6 +5370,15 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                 // CR 601.2i: the cipher copy is cast DURING resolution -- its controller did not
                 // have priority before casting it, so they do NOT get priority. The active player
                 // gets it when the trigger finishes resolving (CR 117.3b, resolution.rs:7751).
+                //
+                // Second-closing-review MEDIUM-2: this write is unconditional and does NOT
+                // carry the CR 800.4j liveness test, deliberately. It is benign because it is
+                // dead by the time the command returns -- this arm falls through to
+                // `finish_stack_resolution`'s tail, which calls
+                // `priority::grant_priority_to_active_player` and overwrites the field. It
+                // also pushes no `PriorityGiven` event, so routing it through the helper
+                // would ADD one to the event stream for no behavioural gain. Tracked on
+                // seed OOS-DP9-19.
                 state.turn.players_passed = imbl::OrdSet::new();
                 let active = state.turn.active_player;
                 state.turn.priority_holder = Some(active);
@@ -8009,9 +7962,10 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
     // CR 117.3b / CR 800.4j: after resolution (and trigger flushing) the active
     // player receives priority -- unless they have left the game, in which case
     // the next player in turn order does. See
-    // `grant_priority_after_resolution`'s doc for why the liveness test lives at
-    // the grant rather than at `Command::AnswerEffectChoice`'s tail.
-    grant_priority_after_resolution(state, &mut events);
+    // `crate::rules::priority::grant_priority_to_active_player`'s doc for why the
+    // liveness test lives at the grant rather than at
+    // `Command::AnswerEffectChoice`'s tail.
+    crate::rules::priority::grant_priority_to_active_player(state, &mut events);
     Ok(events)
 }
 /// CR 702.174d-i: Execute the gift effect for a specific opponent.
@@ -8246,10 +8200,16 @@ pub fn counter_stack_object(
     // CR 704.3: Check SBAs before granting priority.
     let sba_evts = sba::check_and_apply_sbas(state);
     events.extend(sba_evts);
-    // After countering, the active player receives priority (same as resolution).
-    state.turn.players_passed = OrdSet::new();
-    let active = state.turn.active_player;
-    state.turn.priority_holder = Some(active);
-    events.push(GameEvent::PriorityGiven { player: active });
+    // CR 117.3b / CR 800.4j: after countering, the active player receives
+    // priority -- same as a resolution, and with the same CR 800.4j exception.
+    //
+    // Second-closing-review MEDIUM-2: this tail was structurally the bug fixed at
+    // `resolve_top_of_stack_inner`'s tail -- an unconditional active-player grant
+    // preceded by `check_and_apply_sbas`, which can eliminate the active player
+    // two lines above. It is LATENT rather than live only because
+    // `counter_stack_object` has no production caller today (its two callers are
+    // in `tests/core/resolution.rs`); it is routed through the shared helper so a
+    // future caller does not inherit a shipped deadlock.
+    crate::rules::priority::grant_priority_to_active_player(state, &mut events);
     Ok(events)
 }

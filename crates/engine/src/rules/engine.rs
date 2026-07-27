@@ -2767,9 +2767,13 @@ fn handle_concede(
     //    `advance_turn` below is a shortcut the CR does not require. What CR
     //    800.4j DOES require -- that the departed active player never receive
     //    priority -- is discharged at every grant site that could hand it to
-    //    them: `resolution::grant_priority_after_resolution` (both sites, fixed
-    //    by closing-review HIGH-1), `enter_step`'s two grants, and the
-    //    forced-payment branch of `handle_all_passed`. Probe:
+    //    them: `priority::grant_priority_to_active_player` (four sites: both
+    //    `resolve_top_of_stack_inner` grants, fixed by closing-review HIGH-1,
+    //    plus `handle_declare_blockers` and `counter_stack_object`, fixed by
+    //    the second closing review), `enter_step`'s ordinary step grant, and
+    //    the forced-payment branch of `handle_all_passed`. NOT `enter_step`'s
+    //    cleanup-SBA-round grant, which is still unconditional (OOS-DP9-19).
+    //    Probe:
     //    `test_dp9_active_player_concedes_under_a_foreign_block`, which drives a
     //    step boundary past the concede to pin it.
     if !is_game_over(state) && blocking_decision(state).is_none() {
