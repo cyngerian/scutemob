@@ -1246,8 +1246,13 @@ pub fn handle_declare_blockers(
     // Check that no attacker with menace is being blocked by only one creature.
     {
         // Count how many blockers each attacker in this declaration has (summing over all declarations so far + this one).
-        use std::collections::HashMap;
-        let mut blocker_count_for_attacker: HashMap<ObjectId, usize> = HashMap::new();
+        // `BTreeMap`, not `HashMap` (PB-DP9 fix-cycle Finding 4's widened
+        // audit): the loop below returns on the FIRST menace violation it finds,
+        // so with two offending attackers the `ObjectId` named in the error
+        // message depended on iteration order. The accept/reject decision never
+        // did, which is why this is hygiene rather than a correctness fix.
+        use std::collections::BTreeMap;
+        let mut blocker_count_for_attacker: BTreeMap<ObjectId, usize> = BTreeMap::new();
         // Existing blockers already recorded in combat state.
         if let Some(combat) = state.combat.as_ref() {
             for (_, &att) in &combat.blockers {

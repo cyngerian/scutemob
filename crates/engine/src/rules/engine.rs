@@ -2511,57 +2511,81 @@ fn enter_step(state: &mut GameState) -> Result<Vec<GameEvent>, GameStateError> {
         }
     }
 }
-/// Handle a Concede command.
-/// CR 608.2d / CR 104.3a / CR 800.4j (PB-DP9): §1.5 exits 2 and 4 -- the player
-/// who owes a resolution-time choice has left the game.
+/// CR 608.2d / CR 104.3a / CR 800.4j (PB-DP9): a concede happened while a
+/// resolution-time choice was outstanding. Abandon the suspended resolution's
+/// answer bank and re-drive it against the board as it now is.
 ///
-/// **Without this the game deadlocks.** At the block `priority_holder` is `None`
-/// and `players_passed` is full, so nobody can pass and nothing else drives
-/// `handle_all_passed`: the entry has to be cleared *and the resolution driven*,
-/// not merely cleared. This is PB-DP8's exact bug class, which it shipped three
-/// times.
+/// # Why ANY concede, not just the entry owner's (fix-cycle Finding 2, HIGH)
 ///
-/// The **whole answer bank is dropped**, not kept: the concede mutated the
-/// board, so a banked answer may answer a question the replay no longer asks.
-/// The replay then re-derives every choice from the post-concede state, and
-/// `ask_or_consume_effect_choice` gives a departed player the default without
-/// asking (CR 608.2d: a player who has left the game announces nothing).
+/// `resolve_top_of_stack`'s abort-and-replay is sound on exactly one premise:
+/// the state the replay re-executes against is the state the banked questions
+/// were asked against. Nothing normally threatens it, because the admission gate
+/// (`process_command`, `blocking_decision`) rejects every command while the
+/// block stands -- **except two**: the answer itself, which is the mechanism,
+/// and `Concede`, which mutates the board (`has_conceded`, CR 611.2b
+/// `UntilYourNextTurn` expiry, `temporary_protection_qualities`, CR 725.4
+/// initiative, and via `check_game_over` the game's own liveness).
 ///
-/// Written against the LIVENESS predicate rather than "is it this conceder's
-/// entry", so it also covers exit 4 (elimination by an SBA rather than a
-/// concede). That path is unreachable while blocked -- no SBA runs, because the
-/// admission gate rejects everything that could run one -- but it is defended
-/// rather than asserted, which is the placement PB-DP8's *second* closing review
-/// earned.
-fn discharge_departed_effect_choice(
-    state: &mut GameState,
-    events: &mut Vec<GameEvent>,
-) -> Result<(), GameStateError> {
-    let Some(entry) = state.pending_effect_choice.clone() else {
-        return Ok(());
-    };
-    // SR-25: read through the accessor, the same form `blocking_decision`'s own
-    // liveness filter uses -- an absent player here is "not alive", never an
-    // engine-bug assertion, so neither `expect_player` nor a bare lookup fits.
-    let owner_alive = state
-        .players()
-        .get(&entry.player)
-        .map(|p| !p.has_lost && !p.has_conceded)
-        .unwrap_or(false);
-    if owner_alive {
-        // §1.5 exit 3: a FOREIGN concede. The entry survives and the block
-        // persists, correctly -- and the `blocking_decision(state).is_none()`
-        // gate on the priority/turn blocks below (PB-DP8's obligation 5) already
-        // stops the conceder from stepping over it, for free, because it reads
-        // the predicate rather than any one field.
-        return Ok(());
+/// So the correct invalidation condition is **"has the board changed since the
+/// questions were asked"**, and the only admitted command that changes it is a
+/// concede -- by anybody. The first version of this function keyed on the
+/// ENTRY'S OWNER instead, which left a foreign concede holding a bank bound to a
+/// pre-concede board. That is not a theoretical gap: on
+/// `SearchLibrary { player: EachPlayer }` a departure shifts the question
+/// *positions*, so the next answer was compared against the previous player's
+/// banked question and `ask_or_consume_effect_choice`'s determinism
+/// `debug_assert!` fired -- a panic in every debug, test and fuzzer build,
+/// reached by a legal command sequence.
+///
+/// Dropping the bank is always safe and never loses a legal announcement: a
+/// still-live player is simply re-asked with a fresh `choice_id`, which is what
+/// CR 608.2d requires anyway ("the player announces these **while applying the
+/// effect**" -- i.e. against the state as it then is). It is also what keeps
+/// `ask_or_consume_effect_choice`'s mismatch `debug_assert!` an honest SR-4
+/// engine-bug classification: with this widened, a mismatch can no longer be
+/// produced by a legal command.
+///
+/// # Why it must also DRIVE the resolution, not merely clear it
+///
+/// At the block `priority_holder` is `None` and `players_passed` is full, so
+/// nobody can pass and nothing else drives `handle_all_passed`. Clearing the
+/// entry without re-driving deadlocks the game -- PB-DP8's exact bug class,
+/// which it shipped three times. `test_dp9_owner_concedes_mid_choice` is built
+/// on a **three-player** fixture precisely so this path executes.
+///
+/// # §1.5 exit 4 (elimination by an SBA rather than a concede)
+///
+/// **Not covered here, and unreachable rather than unhandled.** This function's
+/// only caller is [`handle_concede`]. An SBA elimination cannot happen while the
+/// block stands because no SBA runs while it stands: `process_command`'s
+/// admission gate rejects every command except the answer and `Concede`, and
+/// neither reaches `sba::check_state_based_actions` without first clearing the
+/// entry. `blocking_decision`'s liveness filter is defence in depth for the
+/// same case -- it stops a dead owner's entry from blocking the game, but it
+/// does NOT clear the field, so if a future admitted command ever did run an SBA
+/// here the residue would be a trap state (seed **OOS-DP9-14**). If that
+/// admission gate is ever widened, this function must gain a second caller.
+/// # Why the re-drive cannot fail the concede (fix-cycle Finding 13, LOW)
+///
+/// The re-drive used to be `resolve_top_of_stack(state)?`, so a resolution error
+/// propagated out of [`handle_concede`] and `process_command` discarded the whole
+/// state -- leaving the player marked as *not* conceded and blocked, i.e.
+/// **permanently unable to concede**. Conceding is the one action CR 104.3a
+/// always allows, so it must not be gated on a resolution succeeding. The
+/// resolution is therefore driven on a clone that is committed only on success;
+/// on failure the concede stands, the entry and bank stay cleared, and the
+/// unresolved stack object is picked up by the next ordinary priority round
+/// (`blocking_decision` is `None` by then, so one can happen).
+fn discharge_effect_choice_on_concede(state: &mut GameState, events: &mut Vec<GameEvent>) {
+    if state.pending_effect_choice.is_none() {
+        return;
     }
     state.pending_effect_choice = None;
     state.effect_choice_answers = imbl::Vector::new();
     // Nothing to resume into: `process_command` answers `GameAlreadyOver` from
     // here on, and the cleared entry keeps the terminal hash clean (§1.5 exit 6).
     if is_game_over(state) {
-        return Ok(());
+        return;
     }
     // §1.5 exit 5 as a property rather than an assertion: the suspended object
     // cannot have left the stack (the roll-back put it back, and no admitted
@@ -2569,16 +2593,32 @@ fn discharge_departed_effect_choice(
     // rather than `expect`ed so a future admitted command cannot turn a rules
     // bug into a rejected concede.
     if state.stack_objects.is_empty() {
-        return Ok(());
+        return;
     }
-    let resume_events = resolution::resolve_top_of_stack(state)?;
-    events.extend(resume_events);
-    // §1.5 exit 1's debt, discharged at this site too. On the "suspended again
-    // on ANOTHER player's choice" path both statements are the same provable
-    // no-ops as at `handle_all_passed`.
-    finish_stack_resolution(state, events);
-    Ok(())
+    let mut probe = state.clone();
+    match resolution::resolve_top_of_stack(&mut probe) {
+        Ok(resume_events) => {
+            *state = probe;
+            events.extend(resume_events);
+            // §1.5 exit 1's debt, discharged at this site too. On the "suspended
+            // again on ANOTHER player's choice" path both statements are the
+            // same provable no-ops as at `handle_all_passed`.
+            finish_stack_resolution(state, events);
+        }
+        Err(_e) => {
+            // SR-4, engine-bug side: a stack resolution that errors is a rules
+            // bug, not a player-visible outcome -- but it must not cost the
+            // player their concede. Recorded loudly in debug, swallowed in
+            // release with the state left recoverable (see the doc above).
+            debug_assert!(
+                false,
+                "CR 608.2d (PB-DP9): re-driving the suspended resolution after a \
+                 concede failed: {_e:?}"
+            );
+        }
+    }
 }
+/// Handle a Concede command.
 fn handle_concede(
     state: &mut GameState,
     player: PlayerId,
@@ -2624,11 +2664,6 @@ fn handle_concede(
     if let Some(resume_events) = abilities::drop_departed_trigger_flush(state, player) {
         events.extend(resume_events);
     }
-    // CR 608.2d / CR 104.3a / CR 800.4j (PB-DP9 / DP-7/8/9): the plan's §1.5
-    // exits 2 and 4. Discharged BEFORE the priority/turn blocks below, because
-    // those are gated on `blocking_decision(state).is_none()` and the outstanding
-    // entry would otherwise skip them.
-    discharge_departed_effect_choice(state, &mut events)?;
     events.push(GameEvent::PlayerConceded { player });
     // CR 611.2b: Expire any UntilYourNextTurn continuous effects belonging to the
     // conceding player. If the player's turn never arrives, these effects would
@@ -2653,6 +2688,22 @@ fn handle_concede(
     // Check game over
     let game_over_events = check_game_over(state);
     events.extend(game_over_events);
+    // CR 608.2d / CR 104.3a / CR 800.4j (PB-DP9 / DP-7/8/9): the plan's §1.5
+    // exit 2. Placed HERE, and the placement is load-bearing in both directions:
+    //
+    //  * AFTER every board mutation this command performs (the `has_conceded`
+    //    mark, `drop_departed_trigger_flush`, the CR 611.2b `UntilYourNextTurn`
+    //    expiry + protection clear, the CR 725.4 initiative transfer,
+    //    `check_game_over`) -- because the discharge RE-DRIVES the suspended
+    //    resolution and records a fresh question. Running it earlier would
+    //    record that question against a board this same command then goes on to
+    //    change, which is the very defect (a banked question the state no longer
+    //    matches) the widened invalidation exists to prevent, one step out.
+    //  * BEFORE the priority/turn blocks below, which are gated on
+    //    `blocking_decision(state).is_none()` -- an outstanding entry would
+    //    otherwise skip them, and the conceding priority holder's repair with
+    //    them.
+    discharge_effect_choice_on_concede(state, &mut events);
     // PB-DP8 fix cycle, Finding 5 (CR 104.3a / 603.3b / 800.4j; seed OOS-DP8-9):
     // `drop_departed_trigger_flush` above has already dealt with an entry belonging
     // to the CONCEDING player. Anything still outstanding here therefore belongs to

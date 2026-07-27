@@ -1397,9 +1397,11 @@ pub enum GameEvent {
     /// Hidden information (Architecture Invariant 7): unlike
     /// `CleanupDiscardChoiceRequired`, every id here names a public-zone object
     /// (the battlefield or a graveyard) or a player, so `reveals_hidden_info()` is
-    /// `false` and no M10 private-to filter is owed. (`GameEvent::private_to()`,
-    /// which Architecture Invariant 7 names as the mechanism, does not exist —
-    /// seed OOS-DP8-6.)
+    /// `false` and `private_to()` returns `None` — no M10 filter is owed.
+    /// (PB-DP9 added `GameEvent::private_to()`, the mechanism Architecture
+    /// Invariant 7 names; OOS-DP8-6's *declaration* half is therefore closed.
+    /// What remains open is that no consumer filters on it — the M10 centralized
+    /// server does not exist yet.)
     ///
     /// Discriminant: 130.
     TriggerTargetChoiceRequired {

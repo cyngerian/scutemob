@@ -1278,7 +1278,17 @@ pub fn resolve_pending_zone_change(
                 original_from: pending.original_from,
                 original_destination: new_to,
                 affected_player: player,
-                already_applied: already_applied.into_iter().collect(),
+                // Determinism (SR-9b), PB-DP9 fix-cycle Finding 4's widened
+                // audit: this field is a `Vec` fed element-by-element into
+                // `HashInto` and it is built from a `HashSet`, whose iteration
+                // order is not stable. Sort, exactly as the sibling site in
+                // `pending_draws` (see the "load-bearing, not cosmetic" note
+                // there) already does -- this one had been missed.
+                already_applied: {
+                    let mut v: Vec<ReplacementId> = already_applied.into_iter().collect();
+                    v.sort_by_key(|id| id.0);
+                    v
+                },
             });
             events.push(GameEvent::ReplacementChoiceRequired {
                 player,
@@ -2085,11 +2095,17 @@ fn emit_etb_modification(
             // CR 106.12 support: "As this enters, choose a creature type."
             // Deterministic fallback: pick the most common creature subtype
             // among creatures the controller controls, or the default.
+            //
+            // `BTreeMap`, not `HashMap` — see `Effect::ChooseCreatureType` in
+            // `effects/mod.rs` for the full argument (PB-DP9 fix-cycle
+            // Finding 4): `max_by_key` breaks ties by iteration order, and
+            // `HashMap` iteration order varies between two maps in the same
+            // process, which PB-DP9's abort-and-replay cannot tolerate.
             let chosen = {
-                let mut type_counts: std::collections::HashMap<
+                let mut type_counts: std::collections::BTreeMap<
                     crate::state::types::SubType,
                     usize,
-                > = std::collections::HashMap::new();
+                > = std::collections::BTreeMap::new();
                 // CR 613.1d: Use layer-resolved types/subtypes for creature scan.
                 for obj in state.objects.values() {
                     if obj.controller == controller
@@ -2124,9 +2140,20 @@ fn emit_etb_modification(
             // permanent enters. Deterministic fallback (M10 deferred): scan battlefield
             // permanents controlled by this controller, count their layer-resolved colors
             // (CR 613.1e), pick the most common. Fall back to default_color if none.
+            //
+            // Unlike the two `ChooseCreatureType` sites, this one was ALREADY
+            // deterministic before PB-DP9's fix cycle: `max_count` comes from
+            // `.values().max()`, and the tie-break below picks the unique
+            // highest colour discriminant, so iteration order never reached the
+            // outcome. (The fix-cycle review listed it with the other two; that
+            // part of the finding was wrong.) It is a `BTreeMap` anyway, so the
+            // "`HashMap` iteration reaching an outcome" audit has no residue to
+            // re-examine here.
             let chosen = {
-                let mut color_counts: std::collections::HashMap<crate::state::types::Color, usize> =
-                    std::collections::HashMap::new();
+                let mut color_counts: std::collections::BTreeMap<
+                    crate::state::types::Color,
+                    usize,
+                > = std::collections::BTreeMap::new();
                 // CR 613.1d/e: Use layer-resolved characteristics for color scan.
                 for obj in state.objects.values() {
                     if obj.controller == controller

@@ -196,10 +196,15 @@ pub struct EffectContext {
     /// outside the stack (CR 605.4a), so there is no stack object to roll back
     /// to and PB-DP9's abort-and-replay mechanism cannot apply. A
     /// `Sequence([AddMana, Scry])` would pass `is_mana_producing_effect`, so the
-    /// exclusion is a runtime fact rather than a type fact; a `debug_assert`
-    /// records if it ever actually fires and
-    /// `tests/primitives/pb_dp9_effect_choice.rs` asserts no `Complete` card def
-    /// puts one of the three asking effects inside a mana ability.
+    /// exclusion is a runtime fact rather than a type fact.
+    ///
+    /// There is deliberately **no** `debug_assert` on the branch that reads this
+    /// (see `ask_or_consume_effect_choice`): CR 605.4a leaves no room for an
+    /// announcement, so the default IS the defined behaviour rather than a
+    /// swallowed failure (SR-4). The obligation the branch skips is discharged
+    /// instead by `tests/primitives/pb_dp9_effect_choice.rs`'s
+    /// `test_dp9_mana_ability_gate`, whose roster assertion proves no `Complete`
+    /// card def puts one of the three asking effects inside a mana ability.
     ///
     /// Deliberately on the context, not on `GameState`: it never crosses a
     /// command boundary.
@@ -460,6 +465,15 @@ fn ask_or_consume_effect_choice(
         // position than the one that was answered, i.e. execution is not a
         // deterministic function of `(GameState, Command)` and the whole
         // abort-and-replay premise is violated.
+        //
+        // The engine-bug classification is only honest because the STATE cannot
+        // legally change between an ask and its replay: the admission gate
+        // admits exactly two commands while the block stands, the answer (this
+        // mechanism) and `Concede` -- and `discharge_effect_choice_on_concede`
+        // abandons the whole bank on any concede, precisely so a legal command
+        // sequence cannot reach this line. (It could before the fix cycle: a
+        // FOREIGN concede kept the bank, and this assertion fired on the next
+        // answer. See fix-cycle Finding 2.)
         debug_assert!(
             false,
             "CR 608.2d (PB-DP9): replay determinism violation -- banked question \
@@ -468,7 +482,8 @@ fn ask_or_consume_effect_choice(
         );
         // Release: fall through and re-ask. The wrapper truncates the restored
         // bank to the number of answers this pass actually consumed, dropping
-        // the stale tail, so this cannot loop on the same bad entry.
+        // the stale tail, and `handle_answer_effect_choice`'s strict-progress
+        // check refuses the next answer, so this cannot livelock.
     }
     state.pending_effect_choice = Some(PendingEffectChoice {
         choice_id: 0,
@@ -479,13 +494,31 @@ fn ask_or_consume_effect_choice(
     });
     None
 }
-/// CR 608.2d (PB-DP9): how many resolution-time choices one resolution may bank
-/// before the engine stops accepting answers.
+/// CR 608.2d (PB-DP9): how many resolution-time choices one resolution may bank.
 ///
-/// A bound, not a game rule: no real card comes close (k is 1 or 2 across the
-/// whole corpus). Reaching it means the replay is asking a fresh question every
-/// pass, i.e. execution is not deterministic -- an engine bug (SR-4). Refusing
-/// the answer turns an unbounded ask/re-ask cycle into one diagnosable rejection.
+/// A ceiling, not a game rule: no real card comes close (k is 1 or 2 across the
+/// whole corpus). It bounds **bank growth from distinct, correctly-answered
+/// choice points** -- and nothing else.
+///
+/// # What it does NOT bound (fix-cycle Finding 3, MEDIUM)
+///
+/// It used to claim it turned "an unbounded ask/re-ask cycle into one
+/// diagnosable rejection". It could not: on a question-equality mismatch at bank
+/// index `i` the arm suspends *without* consuming, so
+/// `resolve_top_of_stack` computes `consumed == i` and truncates the restored
+/// bank back to length `i`. The bank therefore oscillates between `i` and `i+1`
+/// and can never reach this ceiling on precisely the path the ceiling was
+/// written for.
+///
+/// The ask/re-ask cycle is bounded instead by the **strict-progress** check in
+/// [`handle_answer_effect_choice`]: banking an answer for choice `i` must make
+/// the replay reach choice `i+1` or finish, so a re-ask at an index that is not
+/// strictly greater is rejected on its FIRST occurrence -- no counter, and no
+/// second round trip. See that check for the argument.
+///
+/// This constant also bounds [`execute_effect_answering`]'s loop, which is a
+/// test/tool driver with no `GameState` to roll back to and so needs an
+/// iteration ceiling of its own.
 pub const MAX_EFFECT_CHOICES_PER_RESOLUTION: usize = 64;
 /// CR 608.2d (PB-DP9): validate and record the player's answer to the
 /// outstanding resolution-time choice, then re-run the suspended resolution.
@@ -596,7 +629,39 @@ pub fn handle_answer_effect_choice(
     // Re-run the suspended resolution from the top. It retraces the identical
     // deterministic path and consumes the banked answer at the choice point; a
     // LATER choice in the same resolution simply suspends again.
-    crate::rules::resolution::resolve_top_of_stack(state)
+    let events = crate::rules::resolution::resolve_top_of_stack(state)?;
+    // 7. STRICT PROGRESS (fix-cycle Finding 3, MEDIUM). This is what actually
+    //    bounds the ask/re-ask cycle -- `MAX_EFFECT_CHOICES_PER_RESOLUTION`
+    //    cannot, because the wrapper's truncation stops the bank ever growing
+    //    to it (see that constant's doc).
+    //
+    //    Banking an answer for choice `index` must move the replay strictly
+    //    past it: either the resolution completes, or it suspends on choice
+    //    `index + 1` (or later). The ONLY way to land back at an index `<=`
+    //    this one is the question-equality mismatch path, where the arm
+    //    suspends without consuming and the wrapper truncates back --
+    //    i.e. execution is not a deterministic function of
+    //    `(GameState, Command)`, an engine bug (SR-4). Since the fix-cycle
+    //    widened `discharge_effect_choice_on_concede` to abandon the bank on
+    //    ANY concede, no legal command sequence can reach this any more; a
+    //    concede-induced divergence used to, which is why it is caught here
+    //    rather than merely `debug_assert`ed.
+    //
+    //    Rejecting discards the mutated state (`process_command` takes
+    //    `GameState` by value), so the block survives with the OLD entry and
+    //    the player can retry -- one diagnosable rejection instead of an
+    //    unbounded question/answer livelock in release.
+    if let Some(next) = state.pending_effect_choice.as_ref() {
+        if next.index <= entry.index {
+            return Err(GameStateError::InvalidCommand(format!(
+                "CR 608.2d: the replay re-asked at choice index {} after an answer \
+                 for index {} was banked -- the engine is not replaying \
+                 deterministically",
+                next.index, entry.index
+            )));
+        }
+    }
+    Ok(events)
 }
 /// CR 701.22a / CR 701.25a (PB-DP9): `a` and `b` must PARTITION `whole` -- same
 /// multiset, no duplicates within or across them, nothing else.
@@ -3599,6 +3664,18 @@ fn execute_effect_inner(
                 // CR 701.22d: the event fires after the process completes, even
                 // if some or all of the actions were impossible (a library with
                 // fewer than N cards).
+                //
+                // **`count` is the REQUESTED N here, and the ACTUAL number
+                // looked at in the surveil arm below.** (PB-DP9 fix-cycle
+                // Finding 12, LOW.) Deliberately left asymmetric rather than
+                // unified, because neither is CR-wrong and both readings are
+                // load-bearing somewhere: CR 701.22d/701.25d fire the event
+                // regardless of how many cards were actually seen, and no
+                // "whenever you scry/surveil" trigger in the corpus reads the
+                // count. Reporting the requested N also keeps `Scry 3` with an
+                // empty library distinguishable from `Scry 0` (which emits
+                // nothing at all, CR 701.22b). Unifying them is seeded as
+                // **OOS-DP9-15**; do not "fix" one side in isolation.
                 events.push(GameEvent::Scried {
                     player: p,
                     count: n as u32,
@@ -3662,7 +3739,9 @@ fn execute_effect_inner(
                     }
                 }
                 // CR 701.25d: event fires even if some actions were impossible
-                // (e.g., library had fewer than N cards).
+                // (e.g., library had fewer than N cards). `count` is the ACTUAL
+                // number looked at, unlike the scry arm's requested N -- see the
+                // note there (OOS-DP9-15).
                 events.push(GameEvent::Surveilled {
                     player: p,
                     count: actual_count as u32,
@@ -4001,6 +4080,19 @@ fn execute_effect_inner(
             // sibling effects in the same resolution see the original controller.
             let original_controller = ctx.controller;
             for pid in payer_ids {
+                // CR 608.2d (PB-DP9 fix-cycle Finding 10, LOW): stop paying on
+                // behalf of the remaining payers once an earlier iteration has
+                // suspended the resolution. Robustness only, exactly like the
+                // guards in `Sequence` / `Repeat` / both `ForEach` arms: the
+                // wrapper restores the whole state, so the extra iterations
+                // would be undone anyway -- but they can pay costs and emit
+                // events into a `Vec` that is about to be discarded, and the
+                // first one to reach a choice point would find
+                // `pending_effect_choice` already `Some(..)` and silently do
+                // nothing. Guarding is cheaper than reasoning about it.
+                if state.pending_effect_choice.is_some() {
+                    break;
+                }
                 // PB-EF1 (CR 109.1): pass the effect source so an optional
                 // `Cost::Sacrifice(filter.exclude_self)` ("you may sacrifice another
                 // creature") excludes the source itself.
@@ -4201,11 +4293,25 @@ fn execute_effect_inner(
         // CR 106.12 support: Set chosen_creature_type on the source permanent.
         // Deterministic fallback: picks the most common creature subtype among
         // creatures the controller controls, or the provided default.
+        //
+        // **`BTreeMap`, not `HashMap` (PB-DP9 fix-cycle Finding 4, MEDIUM).**
+        // `max_by_key` over an unordered iterator returns the LAST maximum in
+        // iteration order, so every tie -- and a tie is the common case, a lone
+        // Elf Warrior gives `Elf: 1, Warrior: 1` -- was broken by `HashMap`
+        // iteration order. Rust's `RandomState` derives a fresh key per
+        // `HashMap::new()` from a per-thread counter, so two structurally
+        // identical maps built at different moments in the SAME process iterate
+        // differently. That is not merely a cross-process replay hazard: since
+        // PB-DP9 the engine re-executes a whole resolution after each CR 608.2d
+        // answer and requires it to retrace an identical path
+        // (`rules::resolution::resolve_top_of_stack`, SR-9b at runtime). A
+        // `BTreeMap` makes the tie-break the greatest `SubType` in `Ord` order,
+        // which is stable across processes and across passes.
         Effect::ChooseCreatureType { default } => {
             let chosen = {
                 // Find the most common creature subtype among creatures the controller controls.
-                let mut type_counts: std::collections::HashMap<SubType, usize> =
-                    std::collections::HashMap::new();
+                let mut type_counts: std::collections::BTreeMap<SubType, usize> =
+                    std::collections::BTreeMap::new();
                 // CR 613.1d: Use layer-resolved types/subtypes for creature scan.
                 for obj in state.objects.values() {
                     if obj.controller == ctx.controller && matches!(obj.zone, ZoneId::Battlefield) {

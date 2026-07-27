@@ -5417,11 +5417,17 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 // fires ONCE per (controller, damaged_player) pair per combat damage step.
                 // "Whenever one or more creatures you control deal combat damage to a player."
                 {
-                    use std::collections::HashMap;
-                    let mut damaged_by_ctrl: HashMap<
+                    // `BTreeMap`, not `HashMap` (PB-DP9 fix-cycle Finding 4's
+                    // widened audit): the loop below pushes into `triggers` in
+                    // MAP ITERATION ORDER, so with a `HashMap` the relative
+                    // order of two batch triggers from different
+                    // (controller, damaged player) pairs varied run to run --
+                    // and that is CR 603.3b stack order, not cosmetics.
+                    use std::collections::BTreeMap;
+                    let mut damaged_by_ctrl: BTreeMap<
                         (crate::state::PlayerId, crate::state::PlayerId),
                         u32,
-                    > = HashMap::new();
+                    > = BTreeMap::new();
                     for assignment in assignments {
                         if assignment.amount == 0 {
                             continue;

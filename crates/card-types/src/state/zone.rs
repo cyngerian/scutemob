@@ -216,6 +216,19 @@ impl Zone {
             return;
         };
         let named: Vec<ObjectId> = to_top.iter().chain(to_bottom.iter()).copied().collect();
+        // PB-DP9 fix-cycle Finding 9 (LOW): the "already in this zone"
+        // precondition above is real -- an id that is NOT present is silently
+        // INSERTED by the rebuild below, conjuring a phantom entry. The engine's
+        // two callers cannot violate it (both partition a `Zone::top_n` list the
+        // engine itself produced, and `validate_partition` re-checks the wire
+        // answer against it), so this is an engine-bug assertion (SR-4), not a
+        // runtime rejection.
+        debug_assert!(
+            named.iter().all(|id| v.contains(id)),
+            "Zone::reposition_within: {:?} names ids not in this zone (have {:?})",
+            named,
+            v
+        );
         // Everything not named keeps its position and relative order.
         let rest: imbl::Vector<ObjectId> =
             v.iter().copied().filter(|id| !named.contains(id)).collect();

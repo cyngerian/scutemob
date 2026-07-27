@@ -60,6 +60,33 @@ use imbl::OrdSet;
 /// `(GameState, Command)` -- SR-9b, now load-bearing at runtime and not only in
 /// tests. `ask_or_consume_effect_choice`'s question-equality check is the
 /// detector.
+///
+/// # The determinism premise is RESOLUTION-scoped, not effect-scoped
+///
+/// (Fix-cycle Finding 4, MEDIUM.) The replay re-executes **every statement of
+/// the whole resolution**, not just the asking effect's candidate derivation.
+/// So it is not enough that the three asking effects derive their candidates
+/// deterministically: any statement anywhere in the resolution that reaches an
+/// outcome through `HashMap`/`HashSet` iteration order can diverge between
+/// passes -- and Rust's `RandomState` re-keys per map, so this diverges *within*
+/// one process, not merely across processes. The audit that shipped with PB-DP9
+/// was scoped to `EffectContext::target_remaps` (which genuinely never
+/// iterates) and missed `Effect::ChooseCreatureType` and its ETB-replacement
+/// twin; both are `BTreeMap`s now. There is no gate enforcing this, so a new
+/// unordered-iteration-to-outcome site is a live hazard the moment a card
+/// co-locates it with a search/scry/surveil.
+///
+/// # CR 608.2m, stated rather than left implicit
+///
+/// (Fix-cycle Finding 14, LOW.) CR 608.2m describes an object *removed* from the
+/// stack mid-resolution finishing its resolution anyway; it has no notion of a
+/// resolving object being **put back** on the stack, which is exactly what the
+/// roll-back does. The engine therefore deviates from the CR's model of
+/// resolution as an indivisible act. It is unobservable through legal commands:
+/// while the entry stands the admission gate admits only the answer and
+/// `Concede`, so no player can see, target, counter or otherwise interact with
+/// the re-stacked object, and no trigger or SBA runs against it. What the model
+/// buys is that a suspended resolution has no partial state to reconcile at all.
 pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, GameStateError> {
     debug_assert!(
         state.pending_effect_choice.is_none(),

@@ -1322,4 +1322,37 @@ fn test_pump_skip_is_cross_step_and_kind_aware() {
     // (d) nothing follows at all.
     let steps = vec![step(vec![player_action("cast_spell")])];
     assert!(!next_action_answers_the_block(&steps, 0, 0, &triggers));
+
+    // (e) CR 608.2d (PB-DP9, fix-cycle Finding 11): the third decision kind.
+    //     `answer_effect_choice` answers an `EffectChoice` block and nothing
+    //     else, and no other action string answers one.
+    let effect_choice = BlockingDecision::EffectChoice {
+        player: PlayerId(1),
+        choice_id: 1,
+        source: mtg_engine::ObjectId(1),
+    };
+    let steps = vec![step(vec![
+        player_action("cast_spell"),
+        player_action("answer_effect_choice"),
+    ])];
+    assert!(
+        next_action_answers_the_block(&steps, 0, 0, &effect_choice),
+        "CR 608.2d: `answer_effect_choice` answers an `EffectChoice` block"
+    );
+    assert!(
+        !next_action_answers_the_block(&steps, 0, 0, &triggers),
+        "...and does NOT answer a `TriggerTargets` block"
+    );
+    assert!(
+        !next_action_answers_the_block(&steps, 0, 0, &discard),
+        "...nor a `CleanupDiscard` block"
+    );
+    let steps = vec![step(vec![
+        player_action("cast_spell"),
+        player_action("choose_trigger_targets"),
+    ])];
+    assert!(
+        !next_action_answers_the_block(&steps, 0, 0, &effect_choice),
+        "...and a trigger-target announcement does not answer an `EffectChoice`"
+    );
 }

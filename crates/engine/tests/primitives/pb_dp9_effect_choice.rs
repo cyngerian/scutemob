@@ -210,6 +210,56 @@ fn fixture(def: CardDefinition, extra: Vec<ObjectSpec>) -> GameState {
     state
 }
 
+/// A **three-player** fixture, otherwise identical to [`fixture`].
+///
+/// Fix-cycle Finding 1 (HIGH): the concede tests cannot use the 2-player
+/// [`fixture`], because a concede there ends the game (CR 104.2b) and every
+/// post-concede code path takes its `is_game_over` early exit. A test built on
+/// it reads as coverage of the recovery path while executing none of it.
+fn fixture_3p(def: CardDefinition, extra: Vec<ObjectSpec>) -> GameState {
+    let mut builder = GameStateBuilder::new()
+        .add_player(p(1))
+        .add_player(p(2))
+        .add_player(p(3))
+        .with_registry(CardRegistry::new(vec![def.clone()]))
+        .active_player(p(1))
+        .at_step(Step::PreCombatMain)
+        .object(
+            ObjectSpec::card(p(1), &def.name)
+                .with_card_id(def.card_id.clone())
+                .with_types(vec![CardType::Sorcery])
+                .with_mana_cost(ManaCost {
+                    generic: 1,
+                    ..ManaCost::default()
+                })
+                .in_zone(ZoneId::Hand(p(1))),
+        );
+    for spec in extra {
+        builder = builder.object(spec);
+    }
+    let mut state = builder.build().unwrap();
+    state
+        .players_mut()
+        .get_mut(&p(1))
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Colorless, 5);
+    state.turn_mut().priority_holder = Some(p(1));
+    state
+}
+
+/// [`cast_and_resolve`] for [`fixture_3p`].
+fn cast_and_resolve_3p(state: GameState, spell_name: &str) -> (GameState, Vec<GameEvent>) {
+    let spell_id = state
+        .objects()
+        .iter()
+        .find(|(_, o)| o.characteristics.name == spell_name && o.zone == ZoneId::Hand(p(1)))
+        .map(|(id, _)| *id)
+        .expect("spell should be in p1's hand");
+    let (state, _) = process_command(state, cast(p(1), spell_id)).expect("cast should succeed");
+    pass_all(state, &[p(1), p(2), p(3)])
+}
+
 fn library_creature(owner: PlayerId, name: &str) -> ObjectSpec {
     ObjectSpec::creature(owner, name, 1, 1).in_zone(ZoneId::Library(owner))
 }
@@ -1367,19 +1417,48 @@ fn test_dp9_stale_choice_id_rejected() {
 /// `handle_all_passed`. This is PB-DP8's exact bug class, which it shipped three
 /// times — so this test asserts against the hazardous state (a live player can
 /// actually ACT), not merely that the entry is gone.
+///
+/// **Fix-cycle Finding 1 (HIGH): the fixture must be THREE-player.** On the
+/// 2-player `fixture()` the concede ends the game (CR 104.2b), so
+/// `discharge_effect_choice_on_concede` takes its `is_game_over` early exit and
+/// returns *before* `resolve_top_of_stack` — the whole "drive the rolled-back
+/// resolution, do not merely clear it" behaviour never executed, while the
+/// entry/bank/`blocking_decision` assertions all passed off the clear-only half.
+/// That is PB-DP8's transferable rule (ii) — a test that constructs a hazardous
+/// state and does not assert against it is worse than no test, because it reads
+/// as coverage. Every assertion below is now unconditional.
 fn test_dp9_owner_concedes_mid_choice() {
-    let state = fixture(
+    let state = fixture_3p(
         creature_tutor(),
         vec![
             library_creature(p(1), "Alpha"),
             library_creature(p(1), "Beta"),
         ],
     );
-    let (state, _) = cast_and_resolve(state, "Creature Tutor");
-    assert!(state.pending_effect_choice().is_some());
+    let (state, _) = cast_and_resolve_3p(state, "Creature Tutor");
+    assert_eq!(state.pending_effect_choice().unwrap().player, p(1));
+    let alpha = zone_of(&state, "Alpha").expect("Alpha exists");
+    assert_eq!(
+        alpha,
+        ZoneId::Library(p(1)),
+        "sanity: nothing has moved yet"
+    );
 
     let (state, _) =
         process_command(state, Command::Concede { player: p(1) }).expect("concede should succeed");
+
+    // The game SURVIVES the concede (p2 and p3 are still in), so the discharge's
+    // resolve-and-drive half really runs.
+    assert_eq!(
+        state
+            .players()
+            .values()
+            .filter(|pl| !pl.has_lost && !pl.has_conceded)
+            .count(),
+        2,
+        "sanity: with 3 seats, one concede does not end the game -- if this ever \
+         reddens the test has gone vacuous again"
+    );
 
     assert!(
         state.pending_effect_choice().is_none(),
@@ -1393,70 +1472,60 @@ fn test_dp9_owner_concedes_mid_choice() {
         state.blocking_decision().is_none(),
         "the game must not stay blocked on a player who has left"
     );
-    // With only p2 left the game is over (CR 104.2b), which is its own valid
-    // exit -- so assert the game is either over or genuinely playable, never
-    // deadlocked in between.
-    let over = state
-        .players()
-        .values()
-        .filter(|pl| !pl.has_lost && !pl.has_conceded)
-        .count()
-        <= 1;
-    if !over {
-        let holder = state
-            .turn()
-            .priority_holder
-            .expect("a live player must hold priority");
-        assert_ne!(holder, p(1), "priority must not name the conceded seat");
-        process_command(state, Command::PassPriority { player: holder })
-            .expect("the holder must be able to act -- this is the deadlock assertion");
-    }
+
+    // The resolution was DRIVEN, not merely unblocked.
+    assert!(
+        state.stack_objects().is_empty(),
+        "the suspended spell must actually finish resolving -- clearing the entry \
+         alone leaves it on the stack with nobody able to pass"
+    );
+    assert_eq!(
+        zone_of(&state, "Alpha"),
+        Some(ZoneId::Hand(p(1))),
+        "CR 104.3a: a departed player announces nothing, so the search applied \
+         the engine's default (the lowest-ObjectId candidate)"
+    );
+
+    // ...and the hazardous state itself: priority is RECOVERABLE.
+    let holder = state
+        .turn()
+        .priority_holder
+        .expect("a live player must hold priority -- this is the deadlock assertion");
+    assert_ne!(holder, p(1), "priority must not name the conceded seat");
+    assert!(
+        state
+            .players()
+            .get(&holder)
+            .map(|pl| !pl.has_lost && !pl.has_conceded)
+            .unwrap_or(false),
+        "the holder must be a live seat"
+    );
+    process_command(state, Command::PassPriority { player: holder })
+        .expect("the holder must be able to act -- this is the deadlock assertion");
 }
 
 #[test]
-/// CR 104.3a / CR 603.3b — a FOREIGN concede must not step over the block.
+/// CR 104.3a / CR 603.3b / CR 608.2d — a FOREIGN concede must not step over the
+/// block, and must RE-ASK rather than resume the old moment.
 ///
 /// This pins PB-DP8's obligation-5 gate generalising for free: `handle_concede`
 /// refuses to advance priority or the turn while `blocking_decision(state)` is
 /// `Some(..)`, and it reads the predicate rather than any one field.
+///
+/// Fix-cycle Finding 2 (HIGH) changed the *moment*: the concede mutated the
+/// board, so the outstanding question is abandoned with the rest of the bank and
+/// the still-live owner is re-asked with a fresh `choice_id` against the
+/// post-concede board (CR 608.2d: the announcement is made "while applying the
+/// effect"). The block itself persists, which is what this test guards.
 fn test_dp9_foreign_concede_does_not_step_over_the_block() {
-    let mut builder = GameStateBuilder::new()
-        .add_player(p(1))
-        .add_player(p(2))
-        .add_player(p(3))
-        .with_registry(CardRegistry::new(vec![creature_tutor()]))
-        .active_player(p(1))
-        .at_step(Step::PreCombatMain)
-        .object(
-            ObjectSpec::card(p(1), "Creature Tutor")
-                .with_card_id(CardId("dp9-creature-tutor".to_string()))
-                .with_types(vec![CardType::Sorcery])
-                .with_mana_cost(ManaCost {
-                    generic: 1,
-                    ..ManaCost::default()
-                })
-                .in_zone(ZoneId::Hand(p(1))),
-        );
-    for name in ["Alpha", "Beta"] {
-        builder = builder.object(library_creature(p(1), name));
-    }
-    let mut state = builder.build().unwrap();
-    state
-        .players_mut()
-        .get_mut(&p(1))
-        .unwrap()
-        .mana_pool
-        .add(ManaColor::Colorless, 5);
-    state.turn_mut().priority_holder = Some(p(1));
-
-    let spell_id = state
-        .objects()
-        .iter()
-        .find(|(_, o)| o.characteristics.name == "Creature Tutor")
-        .map(|(id, _)| *id)
-        .unwrap();
-    let (state, _) = process_command(state, cast(p(1), spell_id)).unwrap();
-    let (state, _) = pass_all(state, &[p(1), p(2), p(3)]);
+    let state = fixture_3p(
+        creature_tutor(),
+        vec![
+            library_creature(p(1), "Alpha"),
+            library_creature(p(1), "Beta"),
+        ],
+    );
+    let (state, _) = cast_and_resolve_3p(state, "Creature Tutor");
     let entry_id = state
         .pending_effect_choice()
         .expect("p1 must be asked")
@@ -1465,13 +1534,14 @@ fn test_dp9_foreign_concede_does_not_step_over_the_block() {
     let (state, events) = process_command(state, Command::Concede { player: p(2) })
         .expect("a foreign concede is always admitted");
 
-    assert_eq!(
-        state
-            .pending_effect_choice()
-            .expect("the entry survives a foreign concede")
-            .choice_id,
-        entry_id,
-        "the block persists, correctly"
+    let entry = state
+        .pending_effect_choice()
+        .expect("the BLOCK survives a foreign concede");
+    assert_eq!(entry.player, p(1), "still p1's choice to make");
+    assert_ne!(
+        entry.choice_id, entry_id,
+        "but a NEW moment: the pre-concede question was asked against a board \
+         that no longer exists (CR 608.2d)"
     );
     assert!(
         !events
@@ -1484,11 +1554,151 @@ fn test_dp9_foreign_concede_does_not_step_over_the_block() {
         1,
         "no stack resolution may happen either"
     );
+    // The re-ask is announced, so a client is never left holding a dead id.
+    assert!(
+        events.iter().any(
+            |e| matches!(e, GameEvent::EffectChoiceRequired { choice_id, .. } if *choice_id == entry.choice_id)
+        ),
+        "the fresh question must be emitted; got {events:?}"
+    );
 
     // ...and p1's answer still completes the resolution.
     let (state, _) = answer_pending_effect_choice(state);
     assert!(state.pending_effect_choice().is_none());
     assert!(state.stack_objects().is_empty());
+}
+
+#[test]
+/// CR 608.2d / CR 104.3a — a **foreign** concede invalidates the answer bank.
+///
+/// Fix-cycle Finding 2 (HIGH), fail-before probe. The abort-and-replay design
+/// banks each answer and re-executes the whole resolution against the state the
+/// questions were asked against. `Concede` is the only other command admitted
+/// while a choice is outstanding, and it MUTATES that state — so every banked
+/// answer stops being an answer to a question the replay still asks.
+///
+/// Before the fix the bank was dropped only when the ENTRY'S OWN player left, so
+/// this sequence survived with a stale bank and the replay compared p2's
+/// recomputed question against p1's banked answer:
+/// `debug_assert!(false, "replay determinism violation")` — a panic in every
+/// debug, test and fuzzer build, reached by a legal command sequence.
+fn test_dp9_foreign_concede_invalidates_a_non_empty_bank() {
+    let def = spell_def(
+        "Everyone Tutors Thrice",
+        "dp9-everyone-tutors-3p",
+        Effect::SearchLibrary {
+            player: PlayerTarget::EachPlayer,
+            filter: TargetFilter {
+                has_card_type: Some(CardType::Creature),
+                ..Default::default()
+            },
+            reveal: false,
+            destination: ZoneTarget::Hand {
+                owner: PlayerTarget::Controller,
+            },
+            shuffle_before_placing: false,
+            also_search_graveyard: false,
+        },
+    );
+    let state = fixture_3p(
+        def,
+        vec![
+            library_creature(p(1), "P1 Alpha"),
+            library_creature(p(1), "P1 Beta"),
+            library_creature(p(2), "P2 Alpha"),
+            library_creature(p(2), "P2 Beta"),
+            library_creature(p(3), "P3 Alpha"),
+            library_creature(p(3), "P3 Beta"),
+        ],
+    );
+    let (state, _) = cast_and_resolve_3p(state, "Everyone Tutors Thrice");
+
+    // 1. p1 is asked first (ascending PlayerId — the OOS-DP9-8 deviation) and
+    //    answers, so the bank is non-empty.
+    assert_eq!(state.pending_effect_choice().unwrap().player, p(1));
+    let p1_pick = match &outstanding_question(&state) {
+        EffectChoiceQuestion::SearchLibrary { candidates, .. } => candidates[1],
+        other => panic!("expected a search question, got {other:?}"),
+    };
+    let (state, _) = answer_with(
+        state,
+        EffectChoiceAnswer::SearchLibrary {
+            found: Some(p1_pick),
+        },
+    );
+    assert_eq!(
+        state.effect_choice_answers().len(),
+        1,
+        "the bank is non-empty"
+    );
+
+    // 2. p2's question is now outstanding...
+    let p2_choice_id = state.pending_effect_choice().unwrap().choice_id;
+    assert_eq!(state.pending_effect_choice().unwrap().player, p(2));
+
+    // 3. ...and p1 — whose answer is IN the bank, and who is not the outstanding
+    //    entry's owner — concedes.
+    let (state, _) = process_command(state, Command::Concede { player: p(1) })
+        .expect("a concede is always admitted while blocked");
+
+    assert!(
+        state.effect_choice_answers().is_empty(),
+        "CR 608.2d: the concede mutated the board, so every banked answer is \
+         abandoned -- the surviving players are re-asked against the board as it \
+         NOW is"
+    );
+    let re_asked = state
+        .pending_effect_choice()
+        .expect("the resolution is re-driven and p2 is re-asked");
+    assert_eq!(re_asked.player, p(2), "p2 still owes an answer");
+    assert_ne!(
+        re_asked.choice_id, p2_choice_id,
+        "the re-ask is a NEW moment: the stale choice_id must not be honoured"
+    );
+    assert_eq!(
+        re_asked.index, 0,
+        "with the bank dropped, p2's question is now the resolution's FIRST \
+         choice -- a departed player is skipped without consuming a bank slot"
+    );
+
+    // 4. The rest of the resolution completes, with no panic and no stale answer.
+    let mut state = state;
+    let mut asked: Vec<PlayerId> = Vec::new();
+    let mut guard = 0;
+    while let Some(entry) = state.pending_effect_choice() {
+        asked.push(entry.player);
+        let candidates = match &entry.question {
+            EffectChoiceQuestion::SearchLibrary { candidates, .. } => candidates.clone(),
+            other => panic!("expected a search question, got {other:?}"),
+        };
+        let (s, _) = answer_with(
+            state,
+            EffectChoiceAnswer::SearchLibrary {
+                found: Some(candidates[1]),
+            },
+        );
+        state = s;
+        guard += 1;
+        assert!(guard < 8, "the per-player questions did not converge");
+    }
+    assert_eq!(
+        asked,
+        vec![p(2), p(3)],
+        "only the SURVIVING players are asked; p1 takes the default without \
+         being asked (CR 104.3a: a player who has left announces nothing)"
+    );
+    assert!(state.stack_objects().is_empty(), "the resolution completed");
+    for name in ["P2 Beta", "P3 Beta"] {
+        assert!(
+            matches!(zone_of(&state, name), Some(ZoneId::Hand(_))),
+            "{name}: the surviving player's own announcement is applied"
+        );
+    }
+    assert!(
+        matches!(zone_of(&state, "P1 Alpha"), Some(ZoneId::Hand(_))),
+        "p1's search took the DEFAULT (lowest ObjectId), not the answer it banked \
+         before conceding"
+    );
 }
 
 // ── T17 — the defaults, and the deliberate flip ──────────────────────────────
@@ -1681,102 +1891,114 @@ fn test_dp9_loop_detection_fingerprint_excludes_the_choice_state() {
 
 mod roster {
     use mtg_card_defs::all_cards;
-    use mtg_card_types::cards::card_definition::{AbilityDefinition, Completeness, Effect};
+    use mtg_card_types::cards::card_definition::Completeness;
 
-    /// Walk an `Effect` tree, including every nesting combinator, and report
-    /// whether any node satisfies `pred`.
+    /// Does this serialized subtree contain an externally-tagged enum variant
+    /// named `variant`?
     ///
-    /// A flat scan UNDERCOUNTS: the three asking effects live inside `Sequence`,
-    /// `ForEach`, `Conditional`, `Repeat`, `MayPayThenEffect`, `Choose`, the
-    /// coin-flip arms and so on all over the corpus.
-    pub fn effect_contains(effect: &Effect, pred: &dyn Fn(&Effect) -> bool) -> bool {
-        if pred(effect) {
-            return true;
-        }
-        let mut kids: Vec<&Effect> = Vec::new();
-        match effect {
-            Effect::Sequence(v) => kids.extend(v.iter()),
-            Effect::Conditional {
-                if_true, if_false, ..
-            } => {
-                kids.push(if_true);
-                kids.push(if_false);
+    /// # Why a serde walk and not a hand-written `match` (fix-cycle Finding 5)
+    ///
+    /// The first version of this roster walked the tree by hand: an
+    /// `effect_contains` that matched `Sequence`/`Conditional`/`ForEach`/
+    /// `Repeat`/`Choose`/`MayPay*`/`RollDice`, and an `ability_effects` that
+    /// returned the single `effect` field of `Spell`/`Triggered`/`Activated`.
+    /// Both were incomplete, and the review found the misses:
+    /// `AbilityDefinition::{Spell,Triggered,Activated}::modes` — where every
+    /// modal card's real effects live — was never walked at all, and
+    /// `Effect::CoinFlip`'s two arms were missing while the doc comment claimed
+    /// they were covered. Four `Complete` defs carrying a mode-nested
+    /// `SearchLibrary` (`evolution_charm`, `insatiable_avarice`,
+    /// `thirsting_roots`, `tooth_and_nail`) were silently absent, and the
+    /// resulting counts were published into the audit as fact. That is exactly
+    /// the defect SR-36 exists to prevent, wearing an enumeration's authority
+    /// instead of a grep's.
+    ///
+    /// A hand-written match cannot be trusted here: `AbilityDefinition` has ~55
+    /// variants and `Effect` has hundreds, and neither is compiler-forced in a
+    /// `_ => {}`-shaped walk. Serializing the `CardDefinition` and searching the
+    /// resulting tree is **structurally complete by construction** — it visits
+    /// every field of every variant, at every nesting depth, and stays complete
+    /// as the DSL grows. `card_definition.rs` carries no `#[serde(skip)]` or
+    /// `skip_serializing*` attribute (checked), so nothing is hidden from it,
+    /// and serde's default externally-tagged representation makes an enum
+    /// variant an object key: `Effect::Scry { .. }` is `{"Scry": { .. }}`.
+    /// Field names are lowercase, so a variant-name key cannot collide with one,
+    /// and no other enum in the DSL has a `SearchLibrary`, `Scry` or `Surveil`
+    /// variant (checked; `TriggerCondition::WheneverYouSurveil` is a different
+    /// name).
+    fn json_contains_variant(v: &serde_json::Value, variant: &str) -> bool {
+        match v {
+            serde_json::Value::Object(map) => map
+                .iter()
+                .any(|(k, child)| k == variant || json_contains_variant(child, variant)),
+            serde_json::Value::Array(items) => {
+                items.iter().any(|c| json_contains_variant(c, variant))
             }
-            Effect::ForEach { effect, .. } => kids.push(effect),
-            Effect::Repeat { effect, .. } => kids.push(effect),
-            Effect::Choose { choices, .. } => kids.extend(choices.iter()),
-            Effect::MayPayOrElse { or_else, .. } => kids.push(or_else),
-            Effect::MayPayThenEffect { then, .. } => kids.push(then),
-            Effect::RollDice { results, .. } => {
-                kids.extend(results.iter().map(|(_, _, e)| e));
-            }
-            _ => {}
+            _ => false,
         }
-        kids.into_iter().any(|k| effect_contains(k, pred))
     }
 
-    /// Every `Effect` an `AbilityDefinition` can carry.
-    pub fn ability_effects(a: &AbilityDefinition) -> Vec<&Effect> {
-        match a {
-            AbilityDefinition::Spell { effect, .. }
-            | AbilityDefinition::Triggered { effect, .. }
-            | AbilityDefinition::Activated { effect, .. } => vec![effect],
-            _ => vec![],
-        }
+    /// [`json_contains_variant`] against any serializable DSL node.
+    pub fn contains_variant<T: serde::Serialize>(node: &T, variant: &str) -> bool {
+        let json = serde_json::to_value(node).expect("the card DSL is Serialize");
+        json_contains_variant(&json, variant)
     }
 
     pub struct Roster {
         pub complete: Vec<String>,
-        pub other: usize,
+        pub other_names: Vec<String>,
     }
 
-    pub fn collect(pred: &dyn Fn(&Effect) -> bool) -> Roster {
+    impl Roster {
+        pub fn other(&self) -> usize {
+            self.other_names.len()
+        }
+        pub fn contains(&self, name: &str) -> bool {
+            self.complete.iter().any(|n| n == name) || self.other_names.iter().any(|n| n == name)
+        }
+    }
+
+    /// Every def whose `CardDefinition` — including both faces, the adventure
+    /// face, every `modes` list and every nested effect arm — carries `variant`.
+    pub fn collect(variant: &str) -> Roster {
         let mut complete = Vec::new();
-        let mut other = 0usize;
+        let mut other_names = Vec::new();
         for def in all_cards() {
-            let mut faces = vec![&def.abilities];
-            if let Some(f) = def.back_face.as_ref() {
-                faces.push(&f.abilities);
-            }
-            if let Some(f) = def.adventure_face.as_ref() {
-                faces.push(&f.abilities);
-            }
-            let hit = faces.iter().any(|abilities| {
-                abilities.iter().any(|a| {
-                    ability_effects(a)
-                        .into_iter()
-                        .any(|e| effect_contains(e, pred))
-                })
-            });
-            if !hit {
+            if !contains_variant(&def, variant) {
                 continue;
             }
             if def.completeness == Completeness::Complete {
                 complete.push(def.name.clone());
             } else {
-                other += 1;
+                other_names.push(def.name.clone());
             }
         }
         complete.sort();
-        Roster { complete, other }
+        other_names.sort();
+        Roster {
+            complete,
+            other_names,
+        }
     }
 }
 
 #[test]
 /// SR-36 — the PB-DP9 rosters, ENUMERATED from `all_cards()` rather than grepped.
 ///
-/// The audit claims 74 search / 16 scry / 8 surveil `Complete` defs. PB-DP8's row
-/// records that both the audit's number and the planner's grep were wrong there,
-/// so these three printed counts are the deliverable: they become the fact.
+/// The audit claimed 74 search / 16 scry / 8 surveil `Complete` defs; PB-DP9 as
+/// shipped printed 69 / 16 / 7 and those went into the audit as fact. Both were
+/// wrong: the shipped walk skipped `AbilityDefinition::*::modes` and
+/// `Effect::CoinFlip` (fix-cycle Finding 5). These printed counts, from a
+/// structurally complete serde walk, are the deliverable — they become the fact.
 ///
 /// The assertions are `>=` on purpose — the authoring campaign adds cards
-/// continuously and an `==` pin would redden on unrelated work.
+/// continuously and an `==` pin would redden on unrelated work. The four
+/// mode-nested defs the old walk missed are pinned BY NAME, because "the walk
+/// reaches inside `modes`" is the property this test now guards.
 fn test_dp9_roster_enumeration() {
-    use mtg_card_types::cards::card_definition::Effect;
-
-    let search = roster::collect(&|e| matches!(e, Effect::SearchLibrary { .. }));
-    let scry = roster::collect(&|e| matches!(e, Effect::Scry { .. }));
-    let surveil = roster::collect(&|e| matches!(e, Effect::Surveil { .. }));
+    let search = roster::collect("SearchLibrary");
+    let scry = roster::collect("Scry");
+    let surveil = roster::collect("Surveil");
 
     println!(
         "PB-DP9 roster (SR-36, enumerated from all_cards()):\n  \
@@ -1784,11 +2006,11 @@ fn test_dp9_roster_enumeration() {
          Scry:          {} Complete (+{} non-Complete)\n  \
          Surveil:       {} Complete (+{} non-Complete)",
         search.complete.len(),
-        search.other,
+        search.other(),
         scry.complete.len(),
-        scry.other,
+        scry.other(),
         surveil.complete.len(),
-        surveil.other
+        surveil.other()
     );
     println!("  search roster: {:?}", search.complete);
     println!("  scry roster:   {:?}", scry.complete);
@@ -1809,6 +2031,33 @@ fn test_dp9_roster_enumeration() {
         "Surveil roster collapsed to {}",
         surveil.complete.len()
     );
+
+    // Fix-cycle Finding 5 regression guard: every one of these carries its
+    // `Effect::SearchLibrary` inside `AbilityDefinition::Spell { modes }`, so a
+    // walk that stops at the ability's own `effect` field misses all four.
+    //
+    // Three are `Complete`; `Tooth and Nail` is `partial` (its own note: "'up to
+    // two' search -- SearchLibrary finds one card", OOS-DP9-3), so it lands in
+    // `other_names`. The review recorded all four as `Complete` -- it was right
+    // that all four were MISSING, wrong about that one's marker, which is why
+    // this guard asserts roster membership rather than the `Complete` half.
+    for name in [
+        "Evolution Charm",
+        "Insatiable Avarice",
+        "Thirsting Roots",
+        "Tooth and Nail",
+    ] {
+        assert!(
+            search.contains(name),
+            "{name} carries a mode-nested SearchLibrary and must be in the roster"
+        );
+    }
+    for name in ["Evolution Charm", "Insatiable Avarice", "Thirsting Roots"] {
+        assert!(
+            search.complete.iter().any(|n| n == name),
+            "{name} is Complete and must be in the Complete half of the roster"
+        );
+    }
 }
 
 #[test]
@@ -1827,13 +2076,16 @@ fn test_dp9_roster_enumeration() {
 /// The behavioural half is asserted directly: with the gate closed the effect
 /// applies the default and records NO entry.
 fn test_dp9_mana_ability_gate() {
-    use mtg_card_types::cards::card_definition::Effect as CEffect;
-
     // (a) The roster obligation.
     // `ManaAbility` carries no `Effect` tree of its own, so the ONLY route into
     // the gated path is a `WhenTappedForMana` TRIGGERED ability whose effect is
     // mana-producing -- `rules::mana.rs`'s CR 605.4a branch, which is the single
     // site that closes the gate. Scan those.
+    //
+    // The subtree search is the same structurally-complete serde walk the roster
+    // uses (fix-cycle Finding 5): the old hand-written `effect_contains`
+    // inherited the `modes` / `CoinFlip` gap here too, so a mana trigger nesting
+    // a scry inside a coin flip would not have been found.
     let mut offenders: Vec<String> = Vec::new();
     for def in mtg_card_defs::all_cards() {
         let mut faces = vec![&def.abilities];
@@ -1844,7 +2096,6 @@ fn test_dp9_mana_ability_gate() {
             for a in abilities {
                 if let mtg_card_types::cards::card_definition::AbilityDefinition::Triggered {
                     trigger_condition,
-                    effect,
                     ..
                 } = a
                 {
@@ -1854,14 +2105,9 @@ fn test_dp9_mana_ability_gate() {
                     ) {
                         continue;
                     }
-                    let asks = roster::effect_contains(effect, &|e| {
-                        matches!(
-                            e,
-                            CEffect::SearchLibrary { .. }
-                                | CEffect::Scry { .. }
-                                | CEffect::Surveil { .. }
-                        )
-                    });
+                    let asks = ["SearchLibrary", "Scry", "Surveil"]
+                        .iter()
+                        .any(|v| roster::contains_variant(a, v));
                     if asks {
                         offenders.push(def.name.clone());
                     }

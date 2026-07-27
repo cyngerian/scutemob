@@ -869,8 +869,12 @@ fn fire_mana_triggered_abilities(
                 // `is_mana_producing_effect`, so this is a runtime possibility
                 // rather than a type impossibility: close the gate, and a CR
                 // 608.2d choice reached from here takes its deterministic
-                // default (with a `debug_assert` recording that it happened).
-                // `tests/primitives/pb_dp9_effect_choice.rs` asserts no
+                // default. There is deliberately NO `debug_assert` on that
+                // branch -- CR 605.4a leaves no room for an announcement, so the
+                // default is the defined behaviour, not a swallowed failure
+                // (SR-4). The skipped obligation is discharged by
+                // `tests/primitives/pb_dp9_effect_choice.rs`'s
+                // `test_dp9_mana_ability_gate` roster assertion, which proves no
                 // `Complete` card def actually does this.
                 ctx.effect_choice_gate_closed = true;
                 let mut mana_events = execute_effect(state, effect, &mut ctx);
