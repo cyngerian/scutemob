@@ -2,14 +2,16 @@
   "schema_version": "1.0.0",
   "metadata": {
     "id": "script_baseline_009",
-    "name": "Read the Bones \u2014 scry 2 then draw 2, lose 2 life",
+    "name": "Read the Bones — scry 2 then draw 2, lose 2 life",
     "description": "p1 casts Read the Bones ({2}{B}). On resolution: scry 2 (look at top 2 cards of library, put any on bottom), then draw 2 cards, then lose 2 life. Tests a multi-effect sorcery with both scry and draw components.",
     "cr_sections_tested": [
       "601.2",
       "608.2",
       "701.22",
       "120.2",
-      "119.1"
+      "119.1",
+      "608.2d",
+      "401.4"
     ],
     "corner_case_ref": null,
     "tags": [
@@ -23,7 +25,7 @@
     "review_status": "approved",
     "reviewed_by": "claude-sonnet-4-6",
     "review_date": "2026-02-23",
-    "generation_notes": "Read the Bones oracle: 'Scry 2, then draw two cards. You lose 2 life.' Cost {2}{B}. CR 701.22: Scry N means look at top N cards; put any number on bottom in any order, rest on top in any order. After scry, draw 2, lose 2. Library has 4 cards; p1 scrys 2 (keeps both on top), draws 2. Initial hand: 1 card (Read the Bones). After cast: 0. After draw 2: 2. Life: 40 \u2192 38.",
+    "generation_notes": "Read the Bones oracle: 'Scry 2, then draw two cards. You lose 2 life.' Cost {2}{B}. CR 701.22: Scry N means look at top N cards; put any number on bottom in any order, rest on top in any order. After scry, draw 2, lose 2. Library has 4 cards; p1 scrys 2 (keeps both on top), draws 2. Initial hand: 1 card (Read the Bones). After cast: 0. After draw 2: 2. Life: 40 → 38.",
     "disputes": []
   },
   "initial_state": {
@@ -145,7 +147,26 @@
             "p2"
           ],
           "result": "all_pass",
-          "note": "Both pass \u2014 Read the Bones resolves."
+          "note": "Both pass — Read the Bones resolves."
+        },
+        {
+          "type": "player_action",
+          "player": "p1",
+          "action": "answer_effect_choice",
+          "card": null,
+          "targets": [],
+          "mana_paid": null,
+          "mana_source": [],
+          "effect_choice": {
+            "bottom": [
+              "Lightning Bolt"
+            ],
+            "top": [
+              "Forest"
+            ]
+          },
+          "cr_ref": "701.22a",
+          "note": "CR 701.22a / CR 608.2d (PB-DP9): Scry 2 is a real player announcement now. The `library` list above is TOP-FIRST, so the top two cards are Lightning Bolt and Forest. p1 puts Lightning Bolt on the BOTTOM and keeps Forest on top, so the two draws take Forest then Plains. Without this action the engine applies its deterministic default -- the IDENTITY, which would draw Lightning Bolt and Forest -- and before PB-DP9 it put BOTH scried cards on the bottom, which no player had asked for. The choice is observable in this script's final hand."
         },
         {
           "type": "stack_resolve",
@@ -157,7 +178,7 @@
               "amount": 2,
               "choice": "p1 keeps both cards on top",
               "cr_ref": "701.22",
-              "note": "CR 701.22: p1 scrys 2 \u2014 looks at Lightning Bolt and Forest, keeps both on top."
+              "note": "CR 701.22: p1 scrys 2 — looks at Lightning Bolt and Forest, keeps both on top."
             },
             {
               "effect": "draw_cards",
@@ -171,7 +192,7 @@
               "player": "p1",
               "amount": 2,
               "cr_ref": "119.1",
-              "note": "CR 119.1: p1 loses 2 life (40 \u2192 38)."
+              "note": "CR 119.1: p1 loses 2 life (40 → 38)."
             }
           ],
           "note": "Read the Bones resolves: scry 2, draw 2, lose 2."
@@ -191,9 +212,19 @@
                   "card": "Read the Bones"
                 }
               ]
+            },
+            "zones.hand.p1": {
+              "includes": [
+                {
+                  "card": "Forest"
+                },
+                {
+                  "card": "Plains"
+                }
+              ]
             }
           },
-          "note": "Cast Read (-1=0), drew 2 (+2=2). Lost 2 life (38)."
+          "note": "Cast Read (-1=0), drew 2 (+2=2). Lost 2 life (38). PB-DP9: the two drawn cards are Forest and Plains BECAUSE p1 announced that Lightning Bolt goes to the bottom. With the engine's default (identity) they would have been Lightning Bolt and Forest; with the pre-PB-DP9 bottom-everything they would have been Plains and Swamp."
         }
       ]
     }

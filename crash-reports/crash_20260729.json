@@ -1,0 +1,12 @@
+{
+  "seed": 20260729,
+  "player_count": 4,
+  "violation": {
+    "check": "stack_consistency",
+    "description": "Object ObjectId(669) in stack_objects but not in Stack zone",
+    "turn_number": 142
+  },
+  "command_history": [],
+  "turn_number": 142,
+  "total_commands": 10194
+}
