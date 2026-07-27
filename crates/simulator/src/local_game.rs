@@ -693,5 +693,18 @@ mod tests {
             cards: vec![ObjectId(5), ObjectId(6)],
         };
         assert_eq!(command_player(&discard), Some(PlayerId(1)));
+
+        // PB-DP9 / DP-7/8/9 (CR 608.2d): AnswerEffectChoice { player, choice_id,
+        // answer } has the same externally-tagged shape, so `submit`'s
+        // foreign-seat guard covers it without any change.
+        let answer = Command::AnswerEffectChoice {
+            player: PlayerId(3),
+            choice_id: 42,
+            answer: mtg_engine::EffectChoiceAnswer::Scry {
+                bottom: vec![ObjectId(9)],
+                top: vec![],
+            },
+        };
+        assert_eq!(command_player(&answer), Some(PlayerId(3)));
     }
 }

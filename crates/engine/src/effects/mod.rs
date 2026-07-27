@@ -417,11 +417,16 @@ fn ask_or_consume_effect_choice(
     // stack object to roll back to, so the choice cannot be offered; the default
     // applies. See `EffectContext::effect_choice_gate_closed`.
     if ctx.effect_choice_gate_closed {
-        debug_assert!(
-            false,
-            "CR 605.4a: a mana ability reached a CR 608.2d choice ({question:?}); \
-             the default was applied because the resolution cannot be suspended"
-        );
+        // Not an assertion, deliberately. CR 605.4a leaves no room for an
+        // announcement here -- a mana ability resolves immediately and outside
+        // the stack -- so applying the default IS the defined behaviour, not a
+        // swallowed failure (SR-4). The obligation this branch skips (offering
+        // the choice) is discharged instead by
+        // `tests/primitives/pb_dp9_effect_choice.rs::test_dp9_mana_ability_gate`,
+        // which asserts no `Complete` card def puts one of the three asking
+        // effects inside a mana ability. If that assertion ever reddens, this
+        // branch has become live and the card in question needs a rules
+        // decision, not a silent default.
         return Some(default_effect_choice_answer(&question));
     }
     // CR 104.3a / 800.4: a player who has left the game announces nothing, so
