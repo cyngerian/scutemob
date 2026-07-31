@@ -1,6 +1,12 @@
-# Seed Re-rank — RS5..RS11 vs the PB-DP suite (2026-07-27, task `scutemob-159`)
+# Seed Re-rank — RS5..RS11 vs the PB-DP suite (2026-07-31, task `scutemob-159`)
 
-<!-- last_updated: 2026-07-27 -->
+<!-- last_updated: 2026-07-31 -->
+
+> **Note on the filename.** The work was done on **2026-07-31**; the `-2026-07-27` in the
+> filename is the path the task's acceptance criterion named and is kept so the AC, the ESM
+> record and the pointers in `CLAUDE.md` / the audit all resolve. Every date *inside* this
+> document is the real one. Do not "correct" the filename — correct nothing but this note if
+> the discrepancy ever confuses a reader.
 
 > **This document is the authoritative primitive queue.** It supersedes
 > `memory/primitives/rider-seed-triage-2026-07-19.md` §3/§5 (the paused PB-RS queue) as the
@@ -25,7 +31,7 @@
 >
 > **Engine baseline this triage was verified against**: PROTOCOL 31 / HASH 68, coverage
 > 1,139/1,804 = 63.1% (live figures from `decision_gate::decision_site_reconciliation_report`,
-> re-run 2026-07-27 — see §2.9).
+> re-run 2026-07-31 — see §2.9).
 
 ---
 
@@ -141,50 +147,80 @@ Filed here because a stale premise mis-ranks a seed in both directions.
 
 ### 1c. ACTIVE candidates — ranked into §4
 
-**Correctness, live-wrong on a `Complete`/deck-legal path (5)**: `OOS-DP6-1`, `OOS-DP5-7`,
+Counts below are **entries**, not seed IDs: an entry bundles seeds that must ship together, and
+one seed (`OOS-OS7-1`) is split across two entries because its R1 and R2+R3 halves rank
+differently. Counting IDs across these buckets therefore double-counts; count entries.
+**49 entries in total.**
+
+**Correctness, live-wrong on a `Complete`/deck-legal path — 5**: `OOS-DP6-1`, `OOS-DP5-7`,
 `OOS-OS7-2`, `OOS-DP10-8`, `OOS-RS2-1`.
 
-**Gate integrity (5)**: `OOS-DP7-11`, `OOS-DP9-13`, `OOS-DP10-9`, `OOS-DP10-1`,
+**Gate integrity — 5**: `OOS-DP7-11`, `OOS-DP9-13`, `OOS-DP10-9`, `OOS-DP10-1`,
 `OOS-DP9-10` (residual).
 
-**Cheap card yield (7)**: `OOS-DP6-3`, `OOS-DP9-3`, `OOS-DP5-6`, `OOS-OS6-1`, `OOS-OS7-1 R1`
-+ `OOS-RS-5`, `OOS-OS4-1` (+`OOS-RS4-3`), `OOS-OS4-3`.
+**Cheap card yield — 7 entries**: `OOS-DP6-3`; `OOS-DP9-3` (+riders `OOS-DP9-4`,
+`OOS-DP9-9`); `OOS-DP5-6` (+riders `OOS-DP5-8`, `OOS-DP5-9` — both are *blocked on* DP5-6 and
+must ship with it: DP5-8 is the silent `AutoApply` arm, DP5-9 the double-application that only
+becomes observable once draw modifications do anything); `OOS-OS6-1`; `OOS-OS7-1 R1` +
+`OOS-RS-5`; `OOS-OS4-1` (+`OOS-RS4-3`); `OOS-OS4-3`.
 
-**Agency / CR completion (6)**: `OOS-DP3-4` + `OOS-DP8-7` (PB-DP8b), `OOS-DP8-3`,
-`OOS-DP7-1`, `OOS-DP10-2`, `OOS-DP10-10`, `OOS-OS7-1 R2+R3`.
+**Agency / CR completion — 6 entries**: `OOS-DP3-4` + `OOS-DP8-7` (PB-DP8b),
+`OOS-DP8-3`, `OOS-DP7-1`, `OOS-DP10-2`, `OOS-DP10-10`, `OOS-OS7-1 R2+R3`.
 
-**Correctness sweeps / narrow (12, ride a batch)**: `OOS-DP1-2`, `OOS-DP2-1`, `OOS-DP2-7`,
-`OOS-DP2-8`, `OOS-DP3-1`+`OOS-DP3-6`, `OOS-DP4-3`, `OOS-DP4-10`, `OOS-DP6-2`, `OOS-DP6-5`,
-`OOS-DP6-6`+`OOS-DP6-10`, `OOS-DP6-9`, `OOS-DP7-9`, `OOS-DP7-10`, `OOS-DP8-11`, `OOS-DP8-13`,
-`OOS-DP9-8`, `OOS-DP9-9`, `OOS-DP9-11`, `OOS-DP9-14`, `OOS-DP9-16`, `OOS-DP9-19(b)(d)`,
-`OOS-DP10-5`, `OOS-DP4-1`.
+**Correctness sweeps / narrow — 23 entries (25 IDs), each rides a batch**: `OOS-DP1-2`,
+`OOS-DP2-1`, `OOS-DP2-7`, `OOS-DP2-8`, `OOS-DP3-1`+`OOS-DP3-6`, `OOS-DP4-1`, `OOS-DP4-3`,
+`OOS-DP4-9`, `OOS-DP4-10`, `OOS-DP6-2`, `OOS-DP6-5`, `OOS-DP6-6`+`OOS-DP6-10`, `OOS-DP6-9`,
+`OOS-DP7-9`, `OOS-DP7-10`, `OOS-DP8-11`, `OOS-DP8-13`, `OOS-DP9-8`, `OOS-DP9-11`, `OOS-DP9-14`,
+`OOS-DP9-16`, `OOS-DP9-19(b)(d)`, `OOS-DP10-5`.
 
-**Gate/bookkeeping mechanization (3)**: `OOS-DP10-4`, `OOS-DP10-7`, `OOS-DP10-11`.
+> **`OOS-DP4-9` is the one addition the closing `/review` forced into this bucket**, and it
+> belongs here rather than in §1d's cosmetic pile: `handle_pay_echo` and `handle_pay_recover`
+> debit the mana pool and emit **no `GameEvent::ManaCostPaid`**, which is an Architecture
+> Invariant 4 gap (a state change with no event), not a diagnosability nicety. Wire-neutral —
+> the variant already exists, PB-DP4 gave it to the attack tax — so it rides whichever batch
+> next opens those handlers (PB-DX2 touches neither; PB-DX18 does not either, so it is
+> currently unassigned and should be picked up by the first batch in `rules/engine.rs`'s
+> payment handlers).
+
+**Gate/bookkeeping mechanization — 3**: `OOS-DP10-4`, `OOS-DP10-7`, `OOS-DP10-11`.
 
 ### 1d. NOT the primitive queue — owned elsewhere
 
 The primitive queue is for **engine correctness**. These are real and open, and they belong to
 another track. Recorded so nobody re-ranks them into a PB.
 
-**Simulator / M11-local (13)** — `crates/simulator` or `tools/`, cannot produce a wrong game
-state: `OOS-M11-2` (see §2.8 — audit §7's exclusion **confirmed**), `OOS-DP2-5`, `OOS-DP4-8`,
+**Simulator / M11-local — 15**: `crates/simulator` or `tools/`, cannot produce a wrong game
+state — `OOS-M11-2` (see §2.8 — audit §7's exclusion **confirmed**), `OOS-DP2-5`, `OOS-DP4-8`,
 `OOS-DP4-11`, `OOS-DP5-1`, `OOS-DP5-2`, `OOS-DP7-5`, `OOS-DP7-6`, `OOS-DP7-12`, `OOS-DP8-1`,
-`OOS-DP8-2`, `OOS-DP9-1`, `OOS-DP9-7`, `OOS-DP9-17` (engine-side note only), `OOS-DP8-12`
-(replay-viewer/TUI display).
+`OOS-DP8-2`, `OOS-DP8-12` (replay-viewer/TUI display), `OOS-DP9-1`, `OOS-DP9-7`, `OOS-DP9-17`
+(engine-side note only).
 
-**M10 / hidden-information-gated (5)**: `OOS-DP2-3`, `OOS-DP7-3`, `OOS-DP8-6`, `OOS-DP9-6`,
-plus Architecture-Invariant-7 wording.
+**M10 / hidden-information-gated — 4**: `OOS-DP2-3`, `OOS-DP7-3`, `OOS-DP8-6`, `OOS-DP9-6`
+(plus Architecture-Invariant-7's wording, which is not itself a seed).
 
-**Tooling / fuzzer (2)**: `OOS-DP3-9` + `OOS-M11-3` — the same 150-200-turn regime, plausibly
+**Tooling / fuzzer — 2**: `OOS-DP3-9` + `OOS-M11-3` — the same 150-200-turn regime, plausibly
 one root cause; a tooling batch, not a primitive.
 
-**Cosmetic / stale-cite doc pass (8)**: `OOS-DP1-3`, `OOS-DP4-6`, `OOS-DP6-8`, `OOS-DP2-4`
-(refactor + the `StdRng`-stability addendum, which should ride §4 PB-DX18), `OOS-DP4-7`,
-`OOS-DP3-8`, `OOS-DP7-8`, `OOS-DP9-15`.
+**Cosmetic / stale-cite doc pass — 8**: `OOS-DP1-3`, `OOS-DP2-4` (refactor + the
+`StdRng`-stability addendum, which should ride §4 PB-DX18), `OOS-DP3-8`, `OOS-DP4-6`,
+`OOS-DP4-7`, `OOS-DP6-8`, `OOS-DP7-8`, `OOS-DP9-15`.
 
-**Documented deviations / bookkeeping-answered (10)**: `OOS-DP1-4`, `OOS-DP2-6`, `OOS-DP3-3`,
+**Test debt / test-infrastructure — 4**: `OOS-DP3-7` (~28 alt-cost cast arms in the replay
+harness hard-code `modes_chosen: vec![]`, so after PB-DP3 they can never cast a modal card at
+all — latent, no corpus card is both modal and alt-cost-castable), `OOS-DP4-4` (no `pay_echo` /
+`pay_cumulative_upkeep` harness action, so a golden script can never exercise the CR 702.30a /
+702.24a *payment* branch), `OOS-DP4-13` (three PB-DP4 hardening gaps — the sharpest is (a), that
+**nothing binds the simulator's `multiply_mana_cost` copy to the engine's**, so an SR-38
+divergence is silent: the provider offers a `PayCumulativeUpkeep { pay: true }` the engine
+rejects and `driver.rs` substitutes a `PassPriority`), `OOS-DP8-14` (the golden-script pump-skip
+predicate, fixed and pinned; kept here as the standing rule that the predicate is keyed on the
+decision, not the vocabulary). **None is a primitive**; DP4-13(a) is the one worth pulling
+forward on its own, because it is a parity gate that does not exist and the failure it guards
+is silent.
+
+**Documented deviations / bookkeeping-answered — 12**: `OOS-DP1-4`, `OOS-DP2-6`, `OOS-DP3-3`,
 `OOS-DP4-5`, `OOS-DP4-12`, `OOS-DP5-3`, `OOS-DP5-5` (**but see the note below**), `OOS-DP6-4`,
-`OOS-DP6-7`, `OOS-DP7-4`, `OOS-DP8-8`, `OOS-DP8-14`, `OOS-DP9-12`.
+`OOS-DP6-7`, `OOS-DP7-4`, `OOS-DP8-8`, `OOS-DP9-12`.
 
 > **OOS-DP5-5 is cheaper than it says it is.** Its filing reads "the alternative — suspending
 > mid-resolution — needs a suspendable effect resolver, i.e. exactly the pending-decision
@@ -230,9 +266,28 @@ PB-DP9's 74/16/8-vs-69/16/7); the honest move is to say which numbers are machin
 **Machine-derived (reproduce with the grep in §1's preamble + the `awk` row count over audit
 §8.1):**
 
+> **The recipe below must reproduce exactly, and the first version published here did not** —
+> the closing `/review` ran a looser regex (`OOS-[A-Za-z0-9-]+`, a character class that also
+> swallows trailing hyphens) with a different exclusion set and got 211. The exact command is
+> now given verbatim rather than described. If you get a different number, the corpus grew;
+> re-derive rather than trusting this row.
+>
+> ```sh
+> grep -rhoE 'OOS-[A-Za-z0-9]+(-[A-Za-z0-9]+)*' memory/ docs/ crates/ tools/ CLAUDE.md \
+>   | sort -u \
+>   | grep -vE '^OOS-(seed-name|confirmed|flagged|retriage)$' \
+>   | grep -vE '^OOS-(LKI|XA|XA2|EAT|EWC|EF5|EF3b|EF4|EF10|AC7|DP3|DP4|DP5|DP6|DP10|M11|RS2)$' \
+>   | grep -vE '\-N$' | grep -vE '^OOS-EF5-4[fg]$' | wc -l     # -> 209
+> ```
+>
+> The three exclusion passes are: template placeholders; bare umbrella/heading tokens (a
+> family name used as a heading, e.g. `OOS-DP4`, never a seed); the `-N` naming-convention
+> tokens; and `OOS-EF5-4f`/`4g`, which are sub-items of `OOS-EF5-4`, not seeds of their own.
+> The raw `sort -u` before any exclusion is **238**.
+
 | figure | value | method |
 |---|---|---|
-| Distinct `OOS-*` tokens across the repo | **209** | `grep -rhoE 'OOS-[A-Za-z0-9-]+' memory/ docs/ crates/ tools/ CLAUDE.md \| sort -u`, minus placeholders / umbrella tokens / `-N` naming tokens |
+| Distinct `OOS-*` tokens across the repo | **209** | the command above, run on this branch |
 | — the two known alias pairs | −2 | `OOS-XA-3`≡`OOS-XA2-3`, `OOS-AC9-MULTINAME`≡`OOS-AC9-SEARCHNAME` |
 | **Distinct seeds** | **207** | |
 | — phantoms, never filed | −3 | `OOS-OS10-1`, `OOS-OS7-3` (both struck by `scutemob-142`), **`OOS-RS1-2` (struck by this task)** |
@@ -247,9 +302,17 @@ PB-DP9's 74/16/8-vs-69/16/7); the honest move is to say which numbers are machin
 | **CLOSED in batch** (row-recorded, not re-verified) | OOS-DP8-9, OOS-DP8-10 | OOS-OS4-2, OOS-OS8-1, OOS-OS9-1, OOS-RS-1, OOS-RS-2 | — | 23 resolved/stale + 16 shipped as PB-OS1..OS11 | figures as stated by the owning doc |
 | **PARTIAL** | OOS-DP1-2, DP8-4, DP8-13, DP9-5, DP9-10, DP9-19 | OOS-RS4-3 (folded into OOS-OS4-1) | — | — | open residual, ranked or parked individually |
 | **STALE PREMISE, open** | 5 | 1 | — | 1 | §1b — 7 total |
-| **ACTIVE, ranked in §4** | 31 | 6 | — | — | §1c |
-| **NOT the primitive queue** | ~40 | — | OOS-M11-2, OOS-M11-3 | — | §1d — simulator/M11 15, M10 5, tooling 2, cosmetic 8, documented-deviation 13, wire-deferred 6 |
-| **PARKED** | ~18 latent | 8 | — | 31 (7 deferred + 24 dormant) | §1e / §5 |
+| **ACTIVE, ranked in §4** | — | — | — | — | §1c — **49 entries** (5 live-wrong + 5 gate + 7 yield + 6 agency + 23 sweeps + 3 mechanization). Counted as entries, not IDs: `OOS-OS7-1` is split across two of them. |
+| **NOT the primitive queue** | 49 | — | OOS-M11-2, OOS-M11-3 | — | §1d — **51 IDs**: simulator/M11 15 (incl. OOS-M11-2), M10 4, tooling 2 (incl. OOS-M11-3), cosmetic 8, test debt 4, documented-deviation 12, wire-deferred 6 |
+| **PARKED** | 18 latent | 8 | — | 31 (7 deferred + 24 dormant) | §1e / §5 |
+
+> **These four bucket counts are hand-counted from the lists in §1c-§1e, not machine-derived**,
+> and the first version of this table got three of them wrong (the closing `/review` caught it —
+> inside the paragraph that warns against exactly this). They are stated here because AC 5855
+> asks for a census, but **the lists are the deliverable and the counts are a summary of them**:
+> if a count and its list disagree, the list wins. Every seed ID in §1c-§1e was placed by hand
+> after reading its row; the DP-family total (109) and the token counts above are the only
+> figures in this document produced by a machine.
 
 *(Buckets overlap where one seed rides another — e.g. a latent DP seed listed as a rider in §4
 also appears under PARKED. The queue in §4 is the non-overlapping, dispatchable view.)*
@@ -423,7 +486,7 @@ noted and does not change the ownership. **M11-local Session 3 owns it.**
 
 ### 2.9 OOS-DP10-6 — the measured ranking input, re-read as instructed
 
-`decision_gate::decision_site_reconciliation_report` executed on this branch, 2026-07-27
+`decision_gate::decision_site_reconciliation_report` executed on this branch, 2026-07-31
 (`cargo test -p mtg-engine --test core decision_site_reconciliation_report -- --nocapture`):
 
 ```
@@ -559,7 +622,18 @@ just to save churn. **PB-DX3 can be dispatched at any time and blocks nothing** 
 authoring and could ride any batch as a rider. **PB-DX2 and PB-DX1 are independent** and may run
 concurrently with each other and with M11-local (which touches `crates/simulator` / `tools/`).
 
-### Dispatch briefs
+### Dispatch briefs — **full text for PB-DX1..DX8; DX9..DX18 are table-only, deliberately**
+
+Stated plainly rather than left to be discovered: the eight ranks most likely to be dispatched
+before this queue is itself re-ranked get a written brief below. **DX9..DX18 do not**, and the
+reason is not budget — it is that a brief written now for a batch dispatched three or four PBs
+from now is a *stale premise waiting to happen*, which is the failure this whole document exists
+to catch (OOS-RS3-1 was advertised as rankable for a week after it shipped). Each of DX9..DX18
+carries scope, class, discounted yield and a wire prediction in the table above, and its seed is
+fully specified in its filing row — `docs/audits/decision-point-audit.md` §8.1 for the DP-family
+items, `memory/primitives/rider-seed-triage-2026-07-19.md` §1a-§1c for the ex-RS items — with
+this task's corrections in §2/§3. **Write the brief at dispatch time from those sources, and
+re-verify the premise first.**
 
 **PB-DX1 — `PB-DX1: the intervening-if dropped in the runtime lowering (OOS-DP6-1)` · CORRECTNESS**
 `build_face_ability_vectors` (`crates/engine/src/testing/replay_harness.rs:2382`) lowers card-def
@@ -703,12 +777,7 @@ reminder text in parentheses, keyword reminder blocks). Test-only and feasible t
 noisy first run — the deliverable is the triaged list, not a green gate on day one, and the
 exception list must be argued per entry rather than tuned until quiet.
 
-*(PB-DX9 .. PB-DX18: the table above carries scope, class, discounted yield and wire prediction
-for each. Their seeds are fully specified in their own filing rows —
-`docs/audits/decision-point-audit.md` §8.1 for the DP-family items, and
-`memory/primitives/rider-seed-triage-2026-07-19.md` §1a-§1c for the ex-RS items — and each
-re-verification performed by this task is in §2 / §3 above. A dispatcher should write the
-one-page brief at dispatch time from those two sources plus this document's corrections.)*
+*(PB-DX9 .. PB-DX18 — see the note at the head of this subsection.)*
 
 ---
 

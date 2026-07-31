@@ -252,7 +252,7 @@ before close:
    silently inverted against the helper this PB just created.
 
    > ✅ **RESOLVED BY THE FIX BRANCH — `OOS-RS1-2` IS A PHANTOM, NEVER FILED.** Verified
-   > `scutemob-159` (2026-07-27): `crates/engine/src/effects/mod.rs:3568-3577` builds `top_ids`
+   > `scutemob-159` (2026-07-31): `crates/engine/src/effects/mod.rs:3568-3577` builds `top_ids`
    > from `z.top_n(top_n as usize)` and retains candidates against it, with the CR 701.23 /
    > CR 121.1 comment this finding asked for and the false "library order is by ObjectId
    > ascending" rationale gone. The conditional branch was not taken, so the seed has no row in
