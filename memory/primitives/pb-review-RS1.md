@@ -250,6 +250,15 @@ before close:
 1. **Finding 1** — fix `RestrictSearchTopN` to read via `Zone::top_n` (~4 lines + one test), **or**
    file it as **OOS-RS1-2** (class correctness, `aven_mindcensor` is `Complete`). Do not leave it
    silently inverted against the helper this PB just created.
+
+   > ✅ **RESOLVED BY THE FIX BRANCH — `OOS-RS1-2` IS A PHANTOM, NEVER FILED.** Verified
+   > `scutemob-159` (2026-07-27): `crates/engine/src/effects/mod.rs:3568-3577` builds `top_ids`
+   > from `z.top_n(top_n as usize)` and retains candidates against it, with the CR 701.23 /
+   > CR 121.1 comment this finding asked for and the false "library order is by ObjectId
+   > ascending" rationale gone. The conditional branch was not taken, so the seed has no row in
+   > `rider-seed-triage-2026-07-19.md` §1c or anywhere else. **Strike `OOS-RS1-2` from
+   > carry-forward lists** — same class as the `OOS-OS10-1` and `OOS-OS7-3` phantoms struck by
+   > `scutemob-142`.
 2. **Finding 2** — `events.rs:766` `701.18` → `701.22`.
 3. **Findings 3–6** — LOW, batch them into the same commit: `replacement.rs:340` `701.19` → `701.23`;
    `reveal_and_route.rs:1` `701.16a` → `701.20a`; a comment on the `matched_dest`/`destination`

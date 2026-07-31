@@ -1,6 +1,6 @@
 # Rider-Seed Mini-Triage — 2026-07-19 (task `scutemob-142`)
 
-<!-- last_updated: 2026-07-26 -->
+<!-- last_updated: 2026-07-27 -->
 
 **Scope**: the rider seeds filed by the PB-OS4..OS11 wave (`scutemob-115`..`141`), chain-verified
 against the current engine at `PROTOCOL_VERSION = 26` (`crates/engine/src/rules/protocol.rs:248`) /
@@ -86,7 +86,7 @@ but 0 reachable yield. **NEVER-FILED** = the ID appears only in a conditional or
 | **OOS-RS-6** | Dynamic-X counter-removal cost (crucible) | capability | dormant |
 | **OOS-RS1-1** | `ZoneTarget::Library { position }` is inert — `resolve_zone_target` discards `position` (`effects/mod.rs:7856`, was `:7830` pre-PB); `LibraryPosition` has zero engine read sites outside the two narrow local dispatches PB-RS1 added in `RevealAndRoute`/`LookAtTopThenPlace`. Filed by PB-RS1 (`scutemob-143`), per its plan §9. Every `position: LibraryPosition::Bottom` in every OTHER card def (Scry-family writes routed through PB-RS1's fix are fine; this is about the general `ZoneTarget::Library` capability used by `Effect::MoveZone`/`to:`-style destinations, e.g. `mortuary_mire`, `vampiric_tutor`, `noxious_revival`, `teferi_hero_of_dominaria`, `hall_of_heliods_generosity`) is inert decoration for anything the two narrow dispatches don't cover. **Consequence**: Muxus's "rest on the bottom in a random order" remains inexpressible — OOS-OS8-2 (muxus authoring) stays gated even after PB-RS1. | **capability** | not ranked (files the gap PB-RS1's narrow §5c fix left standing) |
 | **OOS-RS2-1** | **`TurnFaceUp` pays a raw, unflattened mana cost** — `rules/engine.rs:1582-1587` calls `can_spend`/`spend` on a raw `def.mana_cost` (or morph cost) with **no flatten**, the identical OOS-RS-2 bug class. PB-RS2 routed three of four engine payment sites (`ActivateAbility`, `TapForMana`, `CastSpellData`) through the single `ManaCost::flatten_hybrid_phyrexian` implementation; **this is the fourth and was left standing**, out of scope for all five of `scutemob-144`'s ACs and pre-existing rather than introduced there. **Verified reachable, not theoretical**: `TurnFaceUpMethod::ManaCost` turns a Manifested/Cloaked permanent face up for its mana cost, and that card can be any creature card — `kitchen_finks.rs:8-15` is a shipped creature with `{1}{G/W}{G/W}` (two `ColorColor` pips), so flipping it that way charges `{1}` and both hybrid pips are **free**. PB-RS2's AC-5120 residue guard would catch it, but only under `debug_assertions` and only if a test drove the path; none does, so it is silent in release. Filed by PB-RS2 (`scutemob-144`) after its `/review` pass. | **correctness, live** | not ranked (fix is a fourth call-site routing, materially smaller than R2 itself — no schema change: `TurnFaceUp` would need payment-choice fields only if a *hybrid* flip cost must be player-chosen; a Phyrexian-only fix needs none) |
-| **OOS-RS3-1** | **The `CardDefETB` card-def trigger sweeps never check intervening-if at queue time, only at resolution — CR 603.4 requires both.** **Scope corrected by PB-RS3's own review (finding #2) — the first draft of this seed said "no trigger sweep evaluates `intervening_if` before pushing", which is FALSE and would have kept this unranked longer than the evidence warrants.** The `TriggerEvent`/`Normal` path **does** implement CR 603.4's trigger-time half: `collect_emblem_triggers_for_event` (`abilities.rs:6798-6803`) calls `check_intervening_if` before pushing, three lines from where `begin_combat` calls it. The gap is confined to the five `PendingTriggerKind::CardDefETB` sweeps (upkeep / precombat main / postcombat main / end step / begin combat), where `resolution.rs:2125-2135` is the only check. Self-documented as a convention at `turn_actions.rs:265-266` — **not** introduced by PB-RS3 and **not** specific to any card. **Divergent case**: the condition is FALSE when the trigger would go on the stack but TRUE by the time it resolves (instant-speed control change, blink, phase-in). Real MTG never triggers; this engine fires. Reachable in 4-player Commander, but narrow. The reverse case (true at queue, false at resolution) is handled correctly. **Scope note**: this affects **every** already-shipped `Complete` def carrying an `intervening_if`, not just PB-RS3's two — `loyal_apprentice` and `siege_gang_lieutenant` were flipped to `Complete` with this limitation recorded explicitly in their completeness notes rather than silently overclaimed. Filed by PB-RS3 (`scutemob-145`), review finding F3; scope corrected by its review finding #2. | **correctness, card-def sweeps** | **rankable — materially cheaper than first assessed.** The original "not ranked" rationale ("must decide the shared-helper shape first") is unfounded: the shared helper **already exists and is already in use** — `check_intervening_if`, called from `abilities.rs:6798-6803`. The fix is to add that same call at each of the five `CardDefETB` sweep sites against a working in-repo reference implementation, not to design anything. Worth ranking into the R-queue rather than leaving dormant. |
+| **OOS-RS3-1** | **The `CardDefETB` card-def trigger sweeps never check intervening-if at queue time, only at resolution — CR 603.4 requires both.** **Scope corrected by PB-RS3's own review (finding #2) — the first draft of this seed said "no trigger sweep evaluates `intervening_if` before pushing", which is FALSE and would have kept this unranked longer than the evidence warrants.** The `TriggerEvent`/`Normal` path **does** implement CR 603.4's trigger-time half: `collect_emblem_triggers_for_event` (`abilities.rs:6798-6803`) calls `check_intervening_if` before pushing, three lines from where `begin_combat` calls it. The gap is confined to the five `PendingTriggerKind::CardDefETB` sweeps (upkeep / precombat main / postcombat main / end step / begin combat), where `resolution.rs:2125-2135` is the only check. Self-documented as a convention at `turn_actions.rs:265-266` — **not** introduced by PB-RS3 and **not** specific to any card. **Divergent case**: the condition is FALSE when the trigger would go on the stack but TRUE by the time it resolves (instant-speed control change, blink, phase-in). Real MTG never triggers; this engine fires. Reachable in 4-player Commander, but narrow. The reverse case (true at queue, false at resolution) is handled correctly. **Scope note**: this affects **every** already-shipped `Complete` def carrying an `intervening_if`, not just PB-RS3's two — `loyal_apprentice` and `siege_gang_lieutenant` were flipped to `Complete` with this limitation recorded explicitly in their completeness notes rather than silently overclaimed. Filed by PB-RS3 (`scutemob-145`), review finding F3; scope corrected by its review finding #2. | **correctness, card-def sweeps** | **✅ CLOSED by PB-DP6 (`scutemob-154`) — verified at source by `scutemob-159`, 2026-07-27.** All five `CardDefETB` sweep sites now call `super::abilities::carddef_intervening_if_holds_at_queue_time(...)` immediately before their `PendingTrigger::blank(..., CardDefETB)` push — `turn_actions.rs:310` (upkeep), `:483` (precombat main), `:561` (postcombat main), `:781` (end step), `:1945` (begin combat) — and the helper is used at **14** sites workspace-wide, paired with an exhaustive `effects::condition_is_queue_time_evaluable`. Audit §4.8's DP-15 row records the closure; this row did not, and §5's banner went on advertising the seed as an insert candidate for a week after it was fixed. *Prior status, retained for the record — "rankable, materially cheaper than first assessed; the original 'not ranked' rationale (must decide the shared-helper shape first) is unfounded: the shared helper already exists and is already in use (`check_intervening_if`, `abilities.rs:6798-6803`); the fix is to add that same call at each of the five sweep sites against a working in-repo reference implementation." That assessment was right, and PB-DP6 is what acted on it.* |
 | **OOS-RS3-2** | **8 effectively-`Complete` defs textually admit unimplemented behavior.** PB-RS3's Complete-by-default hazard measurement (plan §8) found the strict predicate (`// TODO:` / `ENGINE-BLOCKED` on a `Complete` def) yields **0**, but relaxing to any `TODO` mention yields **12**, of which 4 are stale/provenance notes and **8 are substantive**: `slayers_stronghold` (entire `{R}{W},{T}` ability marked TODO), `yavimaya_hollow` (entire regenerate ability TODO), `xenagos_the_reveler` (both `+1` and `-6` loyalty abilities "not in DSL"), `emeria_the_sky_ruin` (`intervening_if: None, // TODO DSL gap` — **trigger fires without its condition, live-wrong**), `vishgraz_the_doomhive` (CDA P/T), `archetype_of_endurance` + `archetype_of_imagination` (the "can't have or gain" prevention clauses), `mistblade_shinobi` ("you may" optionality). The first three are deck-legal `Complete` cards missing entire abilities; the fourth is a live-wrong trigger. Same failure shape as `helm_of_the_host`, but textually visible. **Not verified against oracle text** — the seed should scope a re-marking pass, not assume all 8 need engine work. | **MEDIUM, marker consistency** | not ranked (a marking/triage sweep, not a primitive; `emeria_the_sky_ruin` is the one live-wrong member and could be pulled forward on its own) |
 | **OOS-RS3-3** | **No `TargetRequirement::TargetCreatureYouControl` variant exists** (0 occurrences corpus-wide), so every Equip ability targets an unfiltered `TargetCreature` although CR 702.6a is "target creature **you control**". Mitigated at resolution — `AttachEquipment` (`effects/mod.rs:4490-4497`) requires `obj.controller == ctx.controller`, so attaching to an opponent's creature silently no-ops rather than producing wrong board state. **Residue is announcement legality only**: a player can announce a doomed activation. Does not block any `Complete` marker. Filed by PB-RS3 (`scutemob-145`), review finding F1. | **LOW, capability** | not ranked |
 | **OOS-RS3-4** | **Must-attack "able" test ignores `CantAttackYouUnlessPay`, and it is now reachable every combat.** `combat.rs:421-424` computes `cannot_attack` from exactly four inputs (tapped-without-vigilance, summoning-sick-without-haste, Defender, `CantAttackOwner`-no-legal-target) — it never reads `GameRestriction::CantAttackYouUnlessPay`, even though that restriction IS fully enforced at `combat.rs:185-224` (a declaration the player can't pay the attack tax for is rejected there). **Precondition corrected by `/review` (issue #1) — the first draft of this seed said "an opponent's Ghostly Prison/Propaganda in play and no untapped mana", which OVERSTATES reachability.** `tax_per_attacker` is keyed **per defending player** (`combat.rs:~200`), so in 4-player Commander a forced creature can simply attack an untaxed opponent and no deadlock arises. The real precondition is that **every remaining viable opponent is taxed** and the attacking player cannot pay — realistic late-game, but materially narrower than one Ghostly Prison. When it does hold, declaring a `MustAttackEachCombat` creature is rejected by the tax check while omitting it is rejected by the must-attack check — **both are illegal simultaneously; the player cannot legally declare attackers at all** (CR 508.1d + the 2014-07-18 Goblin Rabblemaster ruling: "If there's a cost associated with having a creature attack, you're not forced to pay that cost, so it doesn't have to attack in that case either"). **Pre-existing and shared by every already-shipped `MustAttackEachCombat` card** — not introduced by PB-RS3 — but `goblin_rabblemaster` (flipped to `Complete` this PB) manufactures a brand-new forced attacker every single combat, so it converts a rare gap into a recurring one — the forced attacker is now always present, and only the all-opponents-taxed precondition remains to be met, rather than needing a fixed forced-attacker to happen to coexist with a tax effect. Recorded in `goblin_rabblemaster.rs`'s completeness note. Also check whether goad enforcement (`combat.rs:340-373`) has the identical hole — likely yes, which would widen the class. Filed by PB-RS3 (`scutemob-145`) review finding #1; do **not** fix the engine here — out of scope. | **correctness, engine-wide** | **CLOSED by PB-DP4 (`scutemob-152`)** — was: not ranked (record + seed only, per the review's explicit fix directive). PB-DP4 added `has_uncosted_attack_target` (CR 508.1d), used by **both** the goad block and the `MustAttackEachCombat` block in `combat.rs`, so a must-attack requirement can no longer force a player to pay an attack cost and the simultaneous-illegality deadlock is gone. The seed's own "also check whether goad enforcement has the identical hole" rider was **half right**: the goad *ability* test was fixed here, but goad's separate **directional** check ("must attack a player other than the goading player if able") still has no cost carve-out — carried forward as **OOS-DP4-3** in `docs/audits/decision-point-audit.md` §8.1. Two guard probes pin that must-attack is not blanket-disabled (an untaxed opponent, and an untaxed opponent's planeswalker, still force the attack). |
@@ -224,6 +224,12 @@ the actual hazard.
 
 ## 3. Ranked mini-queue — correctness-first
 
+> 🚫 **SUPERSEDED 2026-07-27 (`scutemob-159`).** R1-R4 shipped; **R5-R11 were re-ranked** against
+> the PB-DP suite's seed inventory and now live in
+> `memory/primitives/seed-rerank-2026-07-27.md` §4 as PB-DX5/DX12/DX13/DX14/DX16/DX17 (and R5
+> retired outright). The table below is a historical record of the 2026-07-19 ranking. **Do not
+> claim a rank from it** — see the disposition table in §5's banner.
+
 Ordering rule (inherited from `oos-retriage-plan` §3): (1) live-wrong `Complete` defs first
 (integrity, Invariant #9); (2) other correctness bugs; (3) capability by discounted yield.
 Discounted ship = expected clean-`Complete` after the PB, at the historical 2-3× overcount discount.
@@ -292,6 +298,39 @@ PB-OS11 precedent where filed premises did not match the printed card.
 
 ## 5. First dispatchable PB — full spec
 
+> # 🚫 THIS QUEUE IS RETIRED — DO NOT CLAIM A RANK FROM IT
+>
+> **Superseded 2026-07-27 by `memory/primitives/seed-rerank-2026-07-27.md` (`scutemob-159`),
+> which is now the authoritative primitive queue.** RS1..RS4 shipped; **RS5..RS11 were re-ranked
+> against the PB-DP suite's 109-seed inventory and none of them retains its old rank.** This
+> document remains the canonical *filing record* for the OS/RS-wave seeds — §1a-§1c's rows are
+> still the source of truth for what those seeds say — but §3's rank table below is a historical
+> record, not a to-do list. The "Next dispatch: R5" instruction that used to live in this banner
+> was **wrong in both of its parts by the time it was read**: R5 itself is a LOW-severity 0-flip
+> item, and the insert candidate it told a dispatcher to weigh (OOS-RS3-1) had already shipped.
+> See the **R5** and **OOS-RS3-1** rows below.
+>
+> | old rank | seed(s) | disposition (2026-07-27) |
+> |---|---|---|
+> | **R5** | OOS-RS-4 (Anim Pakal LKI counters) | **RETIRED → PARKED.** `pb-review-OS11.md` Finding 2, severity **LOW**; 0 flips; and the obvious one-line fix is a trap — `EffectAmount::CounterCountAtLastKnownInformation` reads `ctx.lki_counters`, populated only for *leave-the-battlefield* triggers, and Anim Pakal's is `WheneverYouAttack`, so the swap would produce **zero** Gnomes. Needs a CR 608.2h/113.7a LKI-capture batch. |
+> | **R6** | OOS-OS7-2 (CR 611.2c affected-set snapshot) | **RE-RANKED UP → PB-DX5.** Its "0 flips; repairs golgari_charm + siblings" filing understates it: **7 `Complete` defs are live-wrong in ordinary play** (a creature entering after a mass -1/-1 wrongly gets it). |
+> | **R7** | OOS-OS7-1 R1 + OOS-RS-5 | **RE-RANKED → PB-DX13** (2 flips discounted from 3). |
+> | **R8** | OOS-OS6-1 (multi-count sacrifice cost) | **RE-RANKED → PB-DX12** (3 flips discounted from 4). |
+> | **R9** | OOS-OS4-3 (edgar return-transformed) | **RE-RANKED DOWN → PB-DX16** (1 flip; the seed's wire numbers are stale — live is PROTOCOL 31 / HASH 68). |
+> | **R10** | OOS-OS4-1 (+OOS-RS4-3) | **RE-RANKED → PB-DX14** (2 flips). |
+> | **R11** | OOS-OS7-1 R2+R3 | **RE-RANKED DOWN → PB-DX17** — and note `karazikar` has **no card def at all**, so its "1 flip" is a new authoring, not a marker flip. |
+> | *insert candidate* | **OOS-RS3-1** (CardDefETB queue-time intervening-if) | **CLOSED by PB-DP6 (`scutemob-154`) — do not dispatch.** All five sweep sites now gate at queue time (`turn_actions.rs:310`, `:483`, `:561`, `:781`, `:1945`), one of 14 gated sites workspace-wide. This banner advertised it as rankable for a week after it was fixed; §1c's row is corrected. |
+> | *rider* | **OOS-RS2-1** (`TurnFaceUp` unflattened cost) | **RE-RANKED UP → PB-DX6**, bundled with OOS-DP4-1. Verified still live: `can_spend`'s residue guard is `debug_assert`-only, so `kitchen_finks`'s two `{G/W}` pips are free in release. |
+>
+> Also carried forward: **OOS-OS8-2** (muxus) stays card-gated behind **OOS-RS1-1**;
+> **OOS-RS-6** and *hidden_strings* stay dormant (but hidden_strings' stated blocker — "the
+> missing M10+ interactive-decision channel" — **now exists**, built by PB-DP7/DP8/DP9, so
+> re-scope it rather than copy the dismissal forward); **`OOS-RS1-2` is a PHANTOM** — the
+> `pb-review-RS1.md` Finding 1 it was conditional on was *fixed*, not deferred, so the ID was
+> never filed. Strike it from carry-forward lists.
+>
+> ---
+>
 > ✅ **PB-RS1 SHIPPED** (`scutemob-143`, merge `56697a00`, 2026-07-19) — do not re-dispatch.
 > ✅ **PB-RS2 (R2) SHIPPED** (`scutemob-144`, merge `86176ff7`, 2026-07-20) — do not re-dispatch.
 > ✅ **PB-RS3 (R3) SHIPPED** (`scutemob-145`, merge `b1c21909`, 2026-07-20) — do not re-dispatch.
@@ -306,12 +345,13 @@ PB-OS11 precedent where filed premises did not match the printed card.
 > **OOS-RS4-4** (§1c).
 > Close-outs: `memory/primitive-wip.md` + `pb-plan-RS1/RS2/RS3/RS4.md` /
 > `pb-review-RS1/RS2/RS3/RS4.md`.
-> **The R1-R3 pause (user instruction, 2026-07-20) was lifted for R4.** Next dispatch: **R5**
-> (Anim Pakal LKI counters, OOS-RS-4 — §3). Also weigh
-> **OOS-RS3-1** (CardDefETB sweeps skip queue-time intervening-if, CR 603.4 — §1c marks it
-> **rankable**, the shared helper `check_intervening_if` already exists) as an insert candidate,
-> and **OOS-RS2-1** (`TurnFaceUp` unflattened cost — fourth payment site, materially smaller
-> than R2) as a low-cost rider.
+> ~~**The R1-R3 pause (user instruction, 2026-07-20) was lifted for R4.** Next dispatch: **R5**
+> (Anim Pakal LKI counters, OOS-RS-4 — §3). Also weigh **OOS-RS3-1** … as an insert candidate,
+> and **OOS-RS2-1** … as a low-cost rider.~~ — **STRUCK 2026-07-27 (`scutemob-159`). Do not
+> act on this paragraph.** R5 is retired, OOS-RS3-1 was already closed by PB-DP6, and OOS-RS2-1
+> is re-ranked to PB-DX6. The live queue is
+> **`memory/primitives/seed-rerank-2026-07-27.md`** — see the retirement banner at the top of
+> this section.
 
 ### PB-RS1 — library ordering reconciliation (OOS-RS-1) · **CORRECTNESS** · wide · ✅ SHIPPED
 
@@ -441,3 +481,13 @@ lies" opening.
 Nothing else needed a per-doc status change: **no rider seed was found resolved-stale.** That is
 itself a finding — unlike the `scutemob-115` retriage (which silently closed 10 of 65 seeds), this
 wave's riders were filed too recently for any later wave to have closed them.
+
+> **Addendum, 2026-07-27 (`scutemob-159`): that finding has an expiry date, and it expired.**
+> The re-rank against the PB-DP suite found **one** rider seed resolved-stale — **OOS-RS3-1**,
+> closed by PB-DP6 (`scutemob-154`) — and **one phantom ID**, `OOS-RS1-2`, conditional in
+> `pb-review-RS1.md` and never filed because the fix it was the fallback for was applied. The
+> mechanism is exactly the one the 2026-07-19 sentence ruled out on timing grounds: ten PB-DP
+> batches then ran across the same subsystems the RS queue was parked on. **The durable lesson
+> is that "filed too recently to be stale" is a statement about elapsed batches, not elapsed
+> days** — re-verify a parked queue against every batch that shipped while it was parked, not
+> against the calendar.
