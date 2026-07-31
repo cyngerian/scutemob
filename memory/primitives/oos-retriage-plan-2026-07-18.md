@@ -120,7 +120,10 @@ primitives that unblock zero cards"). Kept in the backlog, **not** in the PB que
 `OOS-LKI-Power-5` (non-creature SBA power LKI), `OOS-LKI-4` (AnyCreatureDies source-counter);
 `OOS-XS-E-1` (3 dies-side cards audit), `OOS-XS-E-2` (self-inclusive ETB regression sweep);
 `OOS-AC8-2` (can't-win/can't-lose guard); `OOS-AC9-SEARCHNAME`≡`OOS-AC9-MULTINAME` (multi-name
-search), `OOS-AC9-FILTERMANA` (3-way filter-land choice, M10), `OOS-AC9-ELSPETH` (live-filter vs
+search), `OOS-AC9-FILTERMANA` (3-way filter-land choice, M10 — **≡ `OOS-DP10-3`; the same gap was
+re-filed by PB-DP10 without noticing this row. Verified `scutemob-159`, 2026-07-31:
+`Effect::AddManaFilterChoice` (`effects/mod.rs:2823-2845`) adds one of *each* colour, so a filter
+land makes two mana instead of one chosen one. Track it under the DP id**), `OOS-AC9-ELSPETH` (live-filter vs
 fixed-set approximation, M10), `OOS-AC9-AMASSCHOICE` (deterministic Army pick, M10);
 `OOS-EF3b-2` (extend `derived_attack_trigger_for_keyword` to the full builder-synthesized
 keyword-trigger set — Dethrone/Training/Enlist/Persist/Undying + granted Myriad/Provoke; unblocks
