@@ -229,7 +229,7 @@ is silent.
 > A deferred draw could now stop the whole resolution the same way a search does. Re-scope the
 > seed before ranking it — it is no longer blocked on machinery that does not exist.
 
-**Deferred-on-wire, own PB when someone wants the shape (6)**: `OOS-DP2-2`, `OOS-DP3-2`,
+**Deferred-on-wire, own PB when someone wants the shape — 6**: `OOS-DP2-2`, `OOS-DP3-2`,
 `OOS-DP4-2`, `OOS-DP5-4`, `OOS-DP8-5` + `OOS-DP9-18` (the CR 800.4a object sweep — these two
 should ship together and are a batch of their own, not a rider).
 
