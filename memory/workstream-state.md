@@ -23,6 +23,34 @@
 
 ## Last Handoff
 
+**Date**: 2026-07-26..27 (oversight session — autonomous coordinator chain, user-directed "task out the PB suite and run autonomously", then "task it out and rerank"; /eot 2026-07-27)
+**Workstream**: W6 (PB-DP suite) — **DP1..DP10 ALL SHIPPED + seed re-rank DONE; queue handoff to PB-DX**
+**Task**: `scutemob-149..158` (suite) + `scutemob-159` (re-rank). Final merges `16ffcfd0` (DP10) and `0dd79b5d` (re-rank).
+
+**Completed**:
+- **THE PB-DP SUITE IS COMPLETE** — all 10 batches dispatched, collected, merge-verified (full test suite run on main after every merge). Tests 3,683 → **3,928 / 0**; PROTOCOL 27 → **31**; HASH 63 → **68**. All five Tier-0 correctness findings (DP-1..DP-5) closed. Per-batch detail: CLAUDE.md "Last Updated" entries + `docs/audits/decision-point-audit.md` §5/§8 rows (each marked SHIPPED with verified breakdowns) + git merges `f7651bb5`/`68172717`/`3b04bd17`/`799dcc0a`/`922252f7`/`d52fe5b6`/`8f890611`/`48353a36`/`d65e7f1e`/`16ffcfd0`.
+- **Seeds closed by the suite**: OOS-M11-1 (DP2), OOS-M11-4 (DP8), OOS-DP1-1 + OOS-RS3-4 (DP4), OOS-DP7-7 (DP10) — plus OOS-RS3-1, discovered closed by DP6 only during the re-rank census.
+- **Seed re-rank** (`scutemob-159`, merge `0dd79b5d`, docs-only): 204-seed census, 7 closures source-verified, RS5..RS11 dispositioned (only ex-RS6 gained rank; ex-RS5 demoted — its obvious fix is a trap), phantom seed OOS-RS1-2 struck. **Successor queue PB-DX1..DX18** in `memory/primitives/seed-rerank-2026-07-27.md` §4 (authoritative; rider-seed-triage §5 banner defused). Honest yield ~13-15 flips + ~15 integrity repairs + 3 gate-integrity fixes.
+
+**Not done / deferred**:
+- **PB-DX queue not started** (user: regroup, /eot, new session does the work). PB-DX1 (dropped intervening-if, OOS-DP6-1) is the ranked first dispatch.
+- M11-local S2 (pregame setup + mulligans) unblocked and parallel-safe; scutemob-127 (abilities-corpus distillation) still backlog; M10 line untouched.
+
+**Next session candidates** (highest-yield first):
+- **Dispatch PB-DX1** per `seed-rerank-2026-07-27.md` §4 brief (correctness, HASH bump predicted) — then chain DX2 (live free-card exploit, no wire) and DX3 (2 flips, 0 engine lines) under the standing autonomous-chaining rule.
+- M11-local S2 in parallel (`crates/simulator` only — disjoint from DX1/DX2 engine surface).
+
+**Hazards** (carrying forward):
+- All prior hazards stand (attestation verbatim, Monitor-not-poll-loops, `esm update` clobber, probe-first, never skip the reviewer).
+- **Merge conflicts in coordination files are routine** on worker branches that update CLAUDE.md/workstream-state (DP1, DP9): resolve by taking the worker's richer version, then reconcile counts in the collect chore commit. `git merge-tree --write-tree` remains the conflict arbiter (`esm worktree check` false-positives persist).
+- **Audit rosters are magnitudes, not rosters** — SR-36 enumeration beat the §3.1 regex every time (84→77, 74→73, 7→2). Trust only computed counts; DP10's gate now ratchets them.
+- **The CR 800.4 concede/departure priority-strand class bit three batches** before DP9's engine-wide backstop; watch for it in any new blocking-decision work (PB-DX10 adds one).
+- **Worker state-sync is inconsistent** — some workers update CLAUDE.md/workstream-state in-branch, some don't; the collect step must check and reconcile every time (N4).
+
+**Commit prefix used**: worker `W6-prim:`, `merge:`, coordinator `chore:`.
+
+## Previous Handoff (preserved for chain context)
+
 **Date**: 2026-07-19..20 (oversight session — autonomous coordinator chain, user-directed "stop dispatching after PB-RS3"; /eot 2026-07-26)
 **Workstream**: W6 (rider-seed queue PB-RS1..RS11) — **RS1..RS3 SHIPPED, QUEUE PAUSED**
 **Task**: rider-seed mini-triage + first three RS batches dispatched/collected (`scutemob-142..145`). Final merge `b1c21909`, close-out `52b59154`.
@@ -51,221 +79,17 @@
 
 **Commit prefix used**: worker `scutemob-N:`/`W6-prim:`, `merge:`, coordinator `chore:`.
 
-### PB-DP suite — worker close-outs appended since this handoff
 
-**PB-DP2** (`scutemob-150`, commit `f902010f`, 2026-07-26) — **SHIPPED**. DP-2 from
-`docs/audits/decision-point-audit.md` §5 (Tier 0, class D). Two edits in
-`crates/engine/src/rules/commander.rs`:
+### PB-DP suite — worker close-out detail
 
-- **(a) `handle_keep_hand` bottomed to the TOP.** `move_object_to_zone` is `Zone::insert` =
-  `push_back`, and `Zone::top()` is `v.last()` — so the cards a player bottomed during the
-  London mulligan were the next cards they drew. Now uses `move_object_to_bottom_of_zone`
-  (`push_front`). Index 0 of `cards_to_bottom` ends up **above** later entries (the documented
-  convention, preserved — **no reversal was needed**), and the pre-existing library including
-  its top card is untouched.
-- **(b) `handle_take_mulligan` never permuted.** It moved hand→library, emitted a **phantom**
-  `GameEvent::LibraryShuffled`, then drew 7 off the top — the same seven cards came back,
-  reversed. Now runs a real seeded Fisher-Yates `Zone::shuffle` after the moves and **before**
-  both the event and the draws, so the event is no longer phantom (Architecture Invariant 4).
+> Rotated out at /eot 2026-07-27. The per-batch close-outs (DP2..DP10 designs, deviations,
+> seed lists) live in: CLAUDE.md "Last Updated" (DP9/DP10 verbatim), the audit doc
+> `docs/audits/decision-point-audit.md` §5/§8/§8.1 (every row updated at ship time), and the
+> merge commits listed in the Last Handoff above.
 
-**Closes OOS-M11-1** (filed in `memory/m11-session-plan.md` §8 row R2), widened per audit §7 to
-cover the (a) half. M11-local Session 2's pregame `redeal` workaround is no longer load-bearing
-for correctness.
+## Handoff History
 
-- **No wire change: PROTOCOL 27 / HASH 63 unmoved.** The audit §8 PB-DP2 row predicted (b)
-  "needs a seed on `GameState` ⇒ HASH bump" — **falsified**. The existing `state.timestamp_counter`
-  sufficed (`StdRng::seed_from_u64`, the MR-M7-17 idiom already used at three sites in
-  `effects/mod.rs`), so replay determinism (SR-9b) holds with no new field. Reusable lesson:
-  check for an existing in-engine deterministic seed source before concluding a permutation
-  needs a caller-supplied `Command`.
-- **CR-numbering correction.** ESM criterion 5519 and the audit's DP-2 row both cited
-  "CR 103.4b". That is stale — live **CR 103.4b is the Vanguard starting life total**. Both the
-  shuffle and the bottoming live in a single sentence of **CR 103.5**; **CR 103.5c** is the
-  multiplayer free-first-mulligan adjustment. The engine's own source comments already cited
-  103.5 correctly. The bottom-placement probe keeps `cr_103_4b` in its **name** so criterion
-  5519 stays greppable, and carries the correction in its doc comment. Both audit rows are now
-  corrected. (The one matching golden script, `commander/cc32_mulligan_to_six.json`, carries the
-  same wrong cite — cosmetic, OOS-DP1-3 class, left alone; it is `review_status: "retired"` and
-  does not execute, so **there was nothing to reconcile**.)
-- **SR-25 note the plan did not anticipate**: the shuffle uses `expect_zone_mut(..).ok_or(..)?`
-  rather than a bare `.zones.get_mut(..)`, which keeps this file's `bare_lookup_ratchet` ceiling
-  at 6 while still **propagating in release builds** per MR-M9-12 (`expect_*` alone is
-  `debug_assert!` + `None`, i.e. release-silent — using it would have let a release build skip
-  the shuffle and re-emit the phantom event).
-- **Simulator-unreachability finding**: the whole defect class is **unreachable from the
-  simulator today** — `crates/simulator/src/local_game.rs:569-574` documents that mulligans
-  cannot fire because `GameStateBuilder` defaults `turn_number` to 1 while the gate needs 0.
-  It goes live the moment **M11-local Session 2** sets `turn_number = 0`, which is also when
-  OOS-DP2-5 (bots send an empty `cards_to_bottom` unconditionally) becomes a real bug.
-- **Tests**: 4 new probes in `crates/engine/tests/rules/commander.rs` —
-  `test_dp2_cards_to_bottom_land_on_library_bottom_cr_103_4b`,
-  `test_dp2_mulligan_actually_permutes_the_library_cr_103_5`,
-  `test_dp2_mulligan_returns_a_different_hand_cr_103_5`,
-  `test_dp2_mulligan_permutation_is_deterministic_cr_103_5`. 3 of 4 fail on pristine code; the
-  determinism probe passes pre-fix because a no-op is trivially deterministic (its job is to pin
-  the property against a future entropy-seeded regression). **3,721 → 3,725 passing / 0
-  failing**; clippy `-D warnings`, `cargo fmt --check` and `tools/check-defs-fmt.sh` (1,804
-  defs) all clean.
-- **Seeds filed — `docs/audits/decision-point-audit.md` §8.1** (the suite's durable inventory;
-  `memory/primitive-wip.md` is rewritten wholesale by the next PB): **OOS-DP2-1**
-  (`handle_keep_hand` never checks that `cards_to_bottom` entries are in the player's hand —
-  a hostile `KeepHand` can bottom another player's card), **OOS-DP2-2** (starting hand size
-  hard-coded to 7; fixing it is a HASH bump), **OOS-DP2-3** (all engine shuffles are predictable
-  from public state — Architecture Invariant 7 / M10 hidden-info), **OOS-DP2-4** (the
-  seeded-shuffle idiom is copy-pasted at 4 sites; deliberately not extracted here),
-  **OOS-DP2-5** (bots' empty `cards_to_bottom`, latent until M11-local S2), **OOS-DP2-6** (the
-  engine defers CR 103.5's bottoming from take-time to keep-time — behaviourally equivalent,
-  record-only).
-
-**PB-DP3** (`scutemob-151`, 2026-07-26) — **SHIPPED**. DP-4 from
-`docs/audits/decision-point-audit.md` §5 (Tier 0, class D). **Mode announcement is now
-mandatory** (CR 601.2b / 700.2a).
-
-- **The defect.** `rules/casting.rs` gated *all* mode validation behind
-  `if !modes_chosen.is_empty()`. Range (700.2a), duplicates (700.2d), `min_modes` and
-  `max_modes` were checked correctly — but only if you supplied modes at all. Supply none and
-  the empty vector fell through, and both consumers re-derived `vec![0]`. **Cryptic Command,
-  Austere Command and Incendiary Command** (`min_modes: 2, max_modes: 2`, all `Complete`) paid
-  full cost and resolved exactly **one** mode, silently.
-- **The fix is a LIFT, not the audit's prescribed "mirror the Spree guard".** The checks moved
-  out of the emptiness gate into a three-way match on
-  `(entwine_paid, mode_selection_opt, modes_chosen.is_empty())`, so validation runs whenever
-  the object is modal. **That made the yield much larger than the audit row predicted**: not 3
-  cards but **40** — the 3 commands plus the **37** `min_modes: 1` defs that had all been
-  accepting an unannounced cast. The Spree guard (`casting.rs:2938-2945`) was deliberately
-  **kept**: it fires earlier, during cost computation, and owns the CR 702.172a message that
-  `spree.rs:854` asserts. **Reusable lesson**: when a validation block is gated on "did the
-  caller supply anything", the bug is usually the gate, not a missing check inside it — lifting
-  beats bolting on, and the real blast radius is every card the gate was silently excusing.
-- **Scope widened in planning, twice, both same-root-cause.** (1) `rules/abilities.rs` had the
-  identical bypass for modal **activated** abilities (audit §4.2 line 214 said so); folded in at
-  **zero** test/script cost, since every in-repo activation already passed explicit modes.
-  (2) The `min_modes: 0` "choose up to N" shape: on the **activated** path it now correctly
-  resolves *no* mode; on the **Spell** path it is **unrepresentable** (`StackObject.modes_chosen`
-  is a bare `Vec<usize>` with no way to distinguish "chose zero" from a free-cast that never
-  announced) and is hard-rejected fail-safe. That asymmetry is deliberate and documented at both
-  code sites — see **OOS-DP3-2**.
-- **The escalate exemption is the load-bearing judgement call.** Escalate's backward-compat path
-  casts with an empty `modes_chosen` and derives `0..=count` at resolution. A naive hard reject
-  would have killed it. PB-DP3 exempts `escalate_modes > 0` on CR 702.120a grounds — electing to
-  pay the additional cost *is* an announcement of the mode **count** — and bounds-checks the
-  derived count against `min_modes`/`max_modes`. Only the mode **identities** stay
-  engine-derived (**OOS-DP3-1**). The reviewer upheld this with a stronger argument than the
-  plan's: both escalate defs are `Completeness::partial`, so `validate_deck` blocks them and
-  **no `Complete` card is live-wrong through that path**.
-- **`resolution.rs`'s `vec![0]` fallback was RETAINED, and this is the highest-risk thing to get
-  wrong here.** It looks like dead code after the fix and is not: four producers build
-  `StackObjectKind::Spell` with an empty `modes_chosen` *without* calling `handle_cast_spell` —
-  `copy.rs:386` cascade, `copy.rs:614` discover, `resolution.rs:5167` cipher copy,
-  `resolution.rs:5837` suspend. Deleting it would make every suspended or ciphered modal spell
-  resolve nothing. **The plan's original producer list was wrong in both directions** (it named
-  four `engine.rs` sites that build Ring/Room/Loyalty/ClassLevel objects and can never reach the
-  arm, and missed the two `trigger_default` ones); the review caught it and the corrected list is
-  now in the code comment and in **OOS-DP3-3**.
-- **No wire change: PROTOCOL 27 / HASH 63 unmoved**, as the audit §8 row predicted. No
-  `Command`/`GameEvent`/`Effect` variant, no `GameState` field.
-- **Blast radius, enumerated not estimated**: 3 engine test lines, 2 golden scripts (`stack/147`
-  entwine, `stack/148` escalate — both stay `approved`, both now cite CR 601.2b), 1 replay-harness
-  line (`cast_spell` now *forwards* `modes_chosen` instead of silently discarding the script's
-  `modes` field), new `spell_default_modes`/`ability_default_modes` helpers in
-  `crates/simulator/src/legal_actions.rs` wired into 4 `random_bot.rs` sites and 2
-  `tools/tui/src/play/input.rs` sites, and **0 card-def edits**. `heuristic_bot` needed nothing —
-  it routes through the single `action_to_command` chokepoint.
-- **One un-enumerated gate fired** (the plan's §4.7 negative-space clause working as intended):
-  the SR-15 `ability_definition_registry` gate failed because `spell_default_modes` is a new real
-  dispatch site on `AbilityDefinition::Spell`. Declaring the site is the gate's *purpose*, so it
-  was declared, not worked around.
-- **Tests**: new `crates/engine/tests/primitives/pb_dp3_modal_mode_announcement.rs` (18 tests,
-  `mod` line registered per SR-9a) + 4 simulator unit tests. **8 probes verified failing on
-  pristine code** by reverting the guard — the two most telling: Austere Command's empty-mode
-  cast simply *succeeded*, and the modal activated ability's mode 0 fired (life 40→43 where it
-  should have stayed 40). `ability_default_modes` is tested against Umezawa's Jitte specifically
-  because its `def.abilities[0]` is **not** the activated ability, so a `def.abilities`-indexed
-  implementation fails the test — the PB-RS4 index-namespace bug class, pinned.
-  **3,725 → 3,747 passing / 0 failing**; clippy `-D warnings`, `cargo fmt --check` and
-  `tools/check-defs-fmt.sh` (1,804 defs) all clean.
-- **Review**: 0 HIGH / 2 MEDIUM / 6 LOW, verdict "ship after fixes"; all dispositioned (5 fixed,
-  1 declined-with-reason as seed-text-only, 2 folded into seeds). Both MEDIUMs were about the
-  *record* rather than the behaviour — the wrong producer list above, and zero coverage on the
-  two new escalate bounds branches (now covered by synthetic-card probes).
-- **Seeds filed — `docs/audits/decision-point-audit.md` §8.1**: **OOS-DP3-1** (escalate derives
-  contiguous mode identities), **OOS-DP3-2** (`min_modes: 0` Spell unrepresentable ⇒ HASH bump),
-  **OOS-DP3-3** (4 free-cast producers bypass announcement — DP-20 scope, and DP-20's §5 row now
-  cross-references it), **OOS-DP3-4** (modal *triggered* abilities auto-select mode 0; the
-  "choose up to one" branch is literally `if x { vec![0] } else { vec![0] }` — bundle with
-  PB-DP8), **OOS-DP3-5** (cast-time `ModeSelection` lookup is neither face- nor
-  aftermath-aware — OOS-OS4-2/RS-3 root-cause class), **OOS-DP3-6** (escalate count over-payment
-  is clamped, not rejected), **OOS-DP3-7** (~28 alt-cost harness cast arms can no longer cast a
-  modal card at all), **OOS-DP3-8** (the entwine arm is now the only unvalidated one).
-- **Audit rows updated**: §4.1 line 186 **D → A**, §4.2 line 214 **B → A**, §5 DP-4 SHIPPED,
-  §5 DP-20 cross-reference, §8 PB-DP3 SHIPPED, §8.1 eight seeds, §9 recommendation 4 marked
-  **superseded** (the M11 play server no longer needs a compensating check — it needs a
-  mode-selection **UI**, and the simulator's default-modes helpers are the placeholder session 7
-  must replace).
-
-**PB-DP4** (`scutemob-152`, 2026-07-26) — **SHIPPED**. DP-10 + DP-11 from
-`docs/audits/decision-point-audit.md` §5, bundled because they are the same bug shape: *an
-affordability check is not a payment*. Both fixes amount to **making the check and the payment
-the same predicate**. Commits `5c463339` (engine), `b213aeec` (simulator + tests), `084477ef`
-(fix cycle).
-
-- **DP-10 — the attack tax was inspected and never charged** (CR **508.1c** restriction,
-  **508.1h/i/j** payment; the audit's "508.1g" cite was wrong — that rule is *optional* "as it
-  attacks" costs like exert). `combat.rs` summed `cost_per_creature`'s six colour fields into a
-  `u32`, compared it against `total_with_restricted()`, and returned `Ok` without touching the
-  pool. Now a real per-defender summed `ManaCost` debited via `casting::pay_cost` in the
-  mutation section, colour preserved, reusing `GameEvent::ManaCostPaid`. **Restricted mana no
-  longer counts toward affordability** (CR **106.6** — every `ManaRestriction` variant is
-  spell-scoped, so `spell: None` is correct; this is a deliberate behaviour flip and a player
-  whose only mana is restricted can no longer attack past a Propaganda). Hybrid/Phyrexian/X
-  taxes are **rejected** rather than silently contributing 0 (they were free before — the
-  OOS-RS-2 class). The in-code claim that interactive payment *"requires a new
-  `DeclareAttackers` command field"* is **falsified and deleted**.
-- **DP-11 — the "otherwise, sacrifice" was never enforced** (CR 702.30a / 702.24a / 702.59a).
-  `resolution.rs` claimed "the game pauses until a `Command::PayEcho` is received"; nothing
-  implemented that pause, and the three `pending_*` vectors were inert queues no priority, SBA
-  or step-advancement code ever read. **The design decision is the substance of this PB**: the
-  fix is a **deadline, not a gate**. `force_resolve_overdue_payments` runs in
-  `handle_all_passed`'s **stack-empty** branch and applies the CR 118.12a "didn't pay" branch to
-  any unanswered payment. Gating priority was rejected because it **deadlocks** — `driver.rs`
-  answers a rejected command with a silent `PassPriority`, so a refused pass is an infinite
-  retry with no error, strictly worse than the bug. Deciding at resolution was rejected because
-  it destroys the CR 608.2d/608.2g choice and makes `Command::PayEcho` unreachable. Auto-
-  **decline**, never auto-pay (auto-pay is DP-19's bug class). Accepted deviation: the choice is
-  deferred by one priority round, stated in-code and in the audit.
-- **Yield larger than filed**: **5 `Complete` defs were live-wrong and are made right with 0
-  card-def edits** (`propaganda`, `ghostly_prison`, `mogg_war_marshal`, `avalanche_riders`,
-  `grim_harvest`); `mystic_remora`'s `known_wrong` note becomes accurate. The one card-def edit
-  is a **comment** in `goblin_rabblemaster.rs`.
-- **Two seeds closed**: **OOS-DP1-1** by *deletion* — all three `priority_holder =
-  Some(active_player)` bodges are gone; they were identity writes for echo/CU (whose controller
-  is the active player) but for **recover** the controller can be non-active and the write was
-  actively yanking priority. **OOS-RS3-4** by Change 1c — `has_uncosted_attack_target` (CR
-  508.1d) in both must-attack blocks, ending the "declaring is illegal AND omitting is illegal"
-  deadlock.
-- **Two bugs the audit had not filed**, found in planning/review: an unguarded life subtraction
-  in the cumulative-upkeep `Life` arm (CR **119.4** — `PayCumulativeUpkeep{pay:true}` could
-  drive a player to negative life), and §4.5's "Attack requirements" row being **mis-rated A**.
-- **No wire change: PROTOCOL 27 / HASH 63 unmoved**, as predicted. Three new `LegalAction`
-  variants are simulator-internal. Notably, audit §9 rec 3's `advance()` work turned out
-  **unnecessary** — the payments arrive inside the existing `PendingDecision` as
-  `DecisionKind::Priority`, so `local_game.rs` needed no edit at all.
-- Review 0 HIGH / 5 MEDIUM / 17 LOW (banner said 13; the tables list 17 — discrepancy noted in
-  the review), verdict "ship after fixes"; all 5 MEDIUM fixed, 10 LOW fixed, 6 declined with
-  reasons, 1 no-fix-needed. Two of the MEDIUMs were **tests that could not discriminate** (an
-  APNAP probe both orderings satisfied; a vacuous `players_passed` assertion) — the fix cycle
-  strengthened both and verified the strengthened versions fail against a deliberately wrong
-  implementation. Tests 3,747 → **3,781**.
-- **Audit rows updated**: §4.5 attack-cost row **D → A** + CR cite corrected, §4.5
-  attack-requirements row **mis-rated A → A since PB-DP4**, §4.11 echo row **D → A** enforcement,
-  §5 DP-10 and DP-11 **SHIPPED**, §8 PB-DP4 **SHIPPED**, §8.1 OOS-DP1-1 **CLOSED** + twelve
-  `OOS-DP4-*` seeds appended, §9 recs 3 and 6 annotated, §7 OOS-M11-2 rider. Cross-queue:
-  `memory/primitives/rider-seed-triage-2026-07-19.md` marks **OOS-RS3-4 CLOSED** (status marker
-  only — the RS queue's ordering and its §5 pause banner are untouched).
-
----
-
-## Previous Handoff (preserved for chain context)
+### 2026-07-19 (oversight — PB-OS queue complete, OS4..OS11 + OS4b) [rotated]
 
 **Date**: 2026-07-19 (oversight session — fully autonomous coordinator chain, user-directed "stop after PB-OS11")
 **Workstream**: W6 (PB-OS queue) — **QUEUE COMPLETE**
@@ -433,8 +257,6 @@ the same predicate**. Commits `5c463339` (engine), `b213aeec` (simulator + tests
 
 ---
 
-## Handoff History
-
 ### 2026-07-08..10 (oversight session; /eot 2026-07-16) — W6: PB-AC chain close (AC0..AC9 complete)
 
 - PB-AC4..AC9 dispatched/collected (`scutemob-46/47/49/50/51/52`).
@@ -445,17 +267,4 @@ the same predicate**. Commits `5c463339` (engine), `b213aeec` (simulator + tests
 - **PB-AC8** (`a2aea440`): `CantAttackOwner`, `CantBeSacrificed` (both choke points), `Effect::WinGame` (worker corrected inverted CR 104.3h). Tests →3062.
 - **PB-AC9** (`a4750cdb`): `WheelHand` + `SetNoMaximumHandSize`; **token doubling rewired 2→13/13 sites** (doublers silently failing); Reforge stale-marker HIGH → both workers recommended the marker sweep (executed this session). Tests →3090; coverage 983 (56.2%) at chain close.
 - Hazards that stayed load-bearing: recon-first (2-3 primitives per PB already existed); HashInto omissions as review HIGHs (engineered out via mutation-verified hash tests in criteria); worker-overturns-brief 3×; `build --workspace` ≠ test compile but IS the seal gate; CR file bare `\r` — use MCP, never grep.
-
-### 2026-07-08 (oversight session) — W6: PB-AC1..AC3 + plan recalibration
-
-- **Recalibration** (`5c5dccb5`): §0 added — 4/24 clean (17%) falsified "~435 free cards"; PB-first sequencing. **PB-AC1** (`5cd9a662`): UntapAll, untap/counter triggers, once_per_turn, DoesNotUntap; 1 HIGH unhashed. **PB-AC2** (`4d819ef4`): `MayPayThenEffect` + `CounterUnlessPays` (CR 118.12). **PB-AC3** (`0bd7c7a3`): 3 EffectAmounts + `SetBothDynamic` Layer 7b; hash disc-26 collision fixed; 4 HIGH wrong-game-state PARTIALs fixed. Tests 2873→2940; coverage 951 (54.4%). Hazards: ~30G target/ per worktree → strictly sequential; false `esm worktree check` conflicts (verify merge-base); unlock after in_progress; phantom `.claude/skills` deletions.
-
-### 2026-07-07 (coordinator session — campaign launch) — W6: Primitive + Card Authoring
-
-- **Campaign triage + 2 derisking batches + PB-AC0** (`scutemob-39..42` + chore, 5 merges): DSL gap audit + campaign plan written (~435 authorable-now estimate, falsified next session at 17% measured clean); W-NOW-1 batches 1-2 (4 CLEAN / 13 PARTIAL / 7 BLOCKED over 24 cards); **PB-AC0** creature-ETB filter forwarding (`df997fd2`, +13 tests, 2860→**2873**); `authoring-report.py` taught to count `// ENGINE-BLOCKED` (true clean 928 / 53.1%). Deferred at close: origin 14 ahead (pushed next session), plan recalibration (done next session as §0).
-
-### 2026-05-16 (coordinator session — LOW Sweep campaign) — W3: LOW Remediation
-
-- **8 fix sessions** (`scutemob-31..38`, plan `memory/low-sweep-plan.md`): 36 of 42 open LOWs closed, LOW-OPEN 45→**6** (4 M10-gated: MR-M8-11, MR-B16-04/05/06; 2 permanent perf: MR-M1-18, MR-M6-14). New DSL: `Effect::DestroyAndReanimate`, `Effect::PreventNextUntap`, `ProtectionQuality::{FromSuperType, FromName, FromPlayer}`; BASELINE-LKI-01 fixed (`pre_death_characteristics` snapshot, CR 603.10a/613.1e). Tests 2819→**2860**; HASH 24→**27**. Origin hazards recorded: 4 parallel worktrees filled the disk to 100% (hence strictly-sequential rule); attestation-vs-real-branch-name drift causes false `esm worktree check` conflicts.
-
 
