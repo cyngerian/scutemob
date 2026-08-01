@@ -1,0 +1,436 @@
+//! Acceptance tests for `crates/simulator/src/setup.rs` (M11-local Session 2:
+//! deterministic pregame setup and mulligans).
+//!
+//! CR 103.5 / 402.1 (opening hand of seven), CR 103.5 / 103.5c (mulligan), CR 903.5a (100-card deck) /
+//! Architecture Invariant 9 (deck admission), CR 903.6 (commander to the command zone).
+
+use std::collections::BTreeSet;
+
+use mtg_engine::DeckViolation;
+use mtg_engine::{
+    all_cards, CardDefinition, CardId, CardType, PlayerId, ReplacementModification, SuperType,
+    ZoneId, ZoneType,
+};
+use mtg_simulator::{
+    build_initial_state, redeal, BotKind, DeckConfig, DeckSource, LocalGameConfig, LocalGameLimits,
+    SetupError,
+};
+
+/// Default `LocalGameLimits` for these tests — `build_initial_state`/`redeal` never
+/// read them (they only assemble a pregame `GameState`, they do not run a `LocalGame`),
+/// but `LocalGameConfig` carries the field for the sessions that do.
+fn unused_limits() -> LocalGameLimits {
+    LocalGameLimits {
+        max_turns: 1,
+        max_commands: 1,
+        max_consecutive_passes: 1,
+        record_journal: false,
+    }
+}
+
+fn random_cfg(player_count: u32, seed: u64) -> LocalGameConfig {
+    LocalGameConfig {
+        player_count,
+        human_seats: BTreeSet::new(),
+        bot_kind: BotKind::Random,
+        seed,
+        decks: DeckSource::RandomPerSeat,
+        limits: unused_limits(),
+    }
+}
+
+/// The first `Complete` legendary creature in `cards` — a deterministic pick (`all_cards`
+/// is a plain, statically-ordered `Vec`), matching the same pattern
+/// `crates/simulator/tests/local_game.rs::fixed_deck` uses for its fixed commander.
+fn fixed_commander(cards: &[CardDefinition]) -> &CardDefinition {
+    cards
+        .iter()
+        .find(|c| {
+            c.completeness.is_complete()
+                && c.types.supertypes.contains(&SuperType::Legendary)
+                && c.types.card_types.contains(&CardType::Creature)
+        })
+        .expect("at least one Complete legendary creature must exist in the card pool")
+}
+
+/// A real non-`Complete` `CardDefinition` from the live card pool — found by
+/// enumerating `all_cards()` and filtering on `completeness`, per the task's
+/// instruction not to hardcode an unverified card name (the corpus is ~63% `Complete`
+/// per `docs/authoring-status.md`, so plenty of inert/partial/known-wrong defs exist).
+fn first_non_complete_card(cards: &[CardDefinition]) -> &CardDefinition {
+    cards.iter().find(|c| !c.completeness.is_complete()).expect(
+        "at least one non-Complete CardDefinition must exist in the card pool for this \
+             test to be meaningful",
+    )
+}
+
+/// CR 103.5 / 402.1 — the engine deals no opening hand; `build_initial_state` must deal exactly
+/// seven cards to every seat's hand.
+#[test]
+fn test_setup_deals_seven_card_opening_hand_per_seat() {
+    let cfg = random_cfg(3, 100);
+    let (state, names) = build_initial_state(&cfg).expect("setup should succeed");
+
+    assert_eq!(names.len(), 3);
+    for i in 1..=3u64 {
+        let pid = PlayerId(i);
+        let hand = state.objects_in_zone(&ZoneId::Hand(pid));
+        assert_eq!(
+            hand.len(),
+            7,
+            "seat {i} must open with exactly 7 cards (CR 103.5)"
+        );
+    }
+}
+
+/// The opening hand holds *real, playable* cards — not name-only placeholders.
+///
+/// `ObjectSpec::card()` sets only `characteristics.name`; every other characteristic
+/// (card types, mana cost, subtypes, P/T) comes from `enrich_spec_from_def`, which is the
+/// project's documented #1 `ObjectSpec` gotcha. Dropping those calls from
+/// `build_initial_state` would leave every hand and library object typeless and
+/// costless — uncastable, and invisible to every type filter in the engine — while the
+/// hand *counts* stayed a perfect 7 and every other test in this file stayed green. This
+/// is the assertion that reddens instead.
+///
+/// Cross-checked against the real `CardDefinition` rather than just asserting
+/// "non-empty", so a hypothetical enrichment that filled in the wrong card also fails.
+#[test]
+fn test_setup_opening_hand_cards_are_enriched_from_their_definitions() {
+    let cards = all_cards();
+    let cfg = random_cfg(2, 606);
+    let (state, _names) = build_initial_state(&cfg).expect("setup should succeed");
+
+    for i in 1..=2u64 {
+        let pid = PlayerId(i);
+        for obj in state.objects_in_zone(&ZoneId::Hand(pid)) {
+            let def = cards
+                .iter()
+                .find(|c| c.name == obj.characteristics.name)
+                .unwrap_or_else(|| {
+                    panic!(
+                        "hand object {:?} must correspond to a real CardDefinition",
+                        obj.characteristics.name
+                    )
+                });
+            assert!(
+                !obj.characteristics.card_types.is_empty(),
+                "{}: card_types must be populated by enrich_spec_from_def — an object with \
+                 no card types is uncastable and invisible to every type filter",
+                def.name
+            );
+            assert_eq!(
+                obj.characteristics.card_types, def.types.card_types,
+                "{}: card types must match its CardDefinition",
+                def.name
+            );
+            assert_eq!(
+                obj.characteristics.mana_cost, def.mana_cost,
+                "{}: mana cost must match its CardDefinition",
+                def.name
+            );
+        }
+    }
+}
+
+/// Criterion 1's literal "human seat" case: a seat listed in `human_seats` is dealt the
+/// same real 7-card opening hand a bot seat gets (dealing is seat-agnostic), and is named
+/// as a human rather than a bot.
+#[test]
+fn test_setup_deals_a_human_seat_the_same_real_opening_hand() {
+    let cfg = LocalGameConfig {
+        human_seats: [PlayerId(1)].into_iter().collect(),
+        ..random_cfg(4, 20_260_731)
+    };
+    let (state, names) = build_initial_state(&cfg).expect("setup should succeed");
+
+    assert_eq!(
+        names.get(&PlayerId(1)).map(String::as_str),
+        Some("Human-1"),
+        "the human seat must be named as one"
+    );
+    assert_eq!(names.get(&PlayerId(2)).map(String::as_str), Some("Bot-2"));
+
+    let hand = state.objects_in_zone(&ZoneId::Hand(PlayerId(1)));
+    assert_eq!(
+        hand.len(),
+        7,
+        "the human seat opens with 7 cards (CR 103.5)"
+    );
+    assert_eq!(
+        state.objects_in_zone(&ZoneId::Command(PlayerId(1))).len(),
+        1,
+        "the human seat's commander starts in its command zone (CR 903.6)"
+    );
+}
+
+/// The remaining 92 main-deck cards (99 - 7 opening hand) land in the library, not
+/// dropped or duplicated.
+#[test]
+fn test_setup_library_holds_the_remainder() {
+    let cfg = random_cfg(2, 101);
+    let (state, _names) = build_initial_state(&cfg).expect("setup should succeed");
+
+    for i in 1..=2u64 {
+        let pid = PlayerId(i);
+        let library = state.objects_in_zone(&ZoneId::Library(pid));
+        assert_eq!(
+            library.len(),
+            92,
+            "seat {i}'s library must hold the 92 cards not dealt to the opening hand \
+             (random_deck's 99-card contract minus the 7-card hand)"
+        );
+    }
+}
+
+/// Determinism: the same seed reproduces byte-identical state. Every random draw
+/// (commander pick, deck assembly, shuffle) is taken from one `StdRng` seeded from
+/// `cfg.seed`, consumed in ascending `PlayerId` order, so nothing outside the config can
+/// perturb the result.
+#[test]
+fn test_setup_same_seed_same_state_hash() {
+    let cfg = random_cfg(4, 4242);
+    let (state_a, names_a) = build_initial_state(&cfg).expect("setup should succeed");
+    let (state_b, names_b) = build_initial_state(&cfg).expect("setup should succeed");
+
+    assert_eq!(
+        state_a.public_state_hash(),
+        state_b.public_state_hash(),
+        "the same seed must reproduce the same public state hash"
+    );
+    assert_eq!(names_a, names_b);
+}
+
+/// Two different seeds must not produce the same table.
+///
+/// This cannot flake: `RandomPerSeat` draws a commander from dozens of `Complete`
+/// legendary creatures and a ~60-card non-land pool from well over a thousand `Complete`
+/// cards per seat, all from one shared `StdRng` sequence keyed on `cfg.seed`. For two
+/// different seeds to land on the same public state hash would require either an actual
+/// hash collision or an implausible run of identical independent draws across every
+/// seat — not a scenario a finite retry budget needs to defend against.
+#[test]
+fn test_setup_different_seed_different_opening_hand() {
+    let cfg_a = random_cfg(2, 7);
+    let cfg_b = random_cfg(2, 70_000);
+    let (state_a, _) = build_initial_state(&cfg_a).expect("setup should succeed");
+    let (state_b, _) = build_initial_state(&cfg_b).expect("setup should succeed");
+
+    assert_ne!(
+        state_a.public_state_hash(),
+        state_b.public_state_hash(),
+        "different seeds must not produce the same table"
+    );
+
+    // A more targeted check on the specific claim the test name makes: seat 1's actual
+    // opening hand (by card name, since the library the deck is drawn from is shared) —
+    // this is the part of the state a "different opening hand" claim is actually about.
+    let hand_names = |state: &mtg_engine::GameState, pid: PlayerId| -> Vec<String> {
+        let mut names: Vec<String> = state
+            .objects_in_zone(&ZoneId::Hand(pid))
+            .iter()
+            .map(|obj| obj.characteristics.name.clone())
+            .collect();
+        names.sort();
+        names
+    };
+    assert_ne!(
+        hand_names(&state_a, PlayerId(1)),
+        hand_names(&state_b, PlayerId(1)),
+        "seat 1's opening hand must differ between the two seeds"
+    );
+}
+
+/// Architecture Invariant 9: a deck naming a non-`Complete` `CardDefinition` is refused
+/// by `validate_deck`, and `build_initial_state` propagates that as
+/// `SetupError::InvalidDeck` rather than building a corrupting game.
+#[test]
+fn test_setup_rejects_deck_with_non_complete_card() {
+    let cards = all_cards();
+    let bad_card = first_non_complete_card(&cards);
+    let commander = fixed_commander(&cards);
+
+    let mut main_deck: Vec<CardId> = (0..98).map(|_| CardId("plains".to_string())).collect();
+    main_deck.push(bad_card.card_id.clone());
+    let deck = DeckConfig {
+        commander: commander.card_id.clone(),
+        main_deck,
+    };
+
+    let cfg = LocalGameConfig {
+        player_count: 1,
+        human_seats: BTreeSet::new(),
+        bot_kind: BotKind::Random,
+        seed: 1,
+        decks: DeckSource::Fixed(vec![(PlayerId(1), deck)]),
+        limits: unused_limits(),
+    };
+
+    let result = build_initial_state(&cfg);
+    match result {
+        Err(SetupError::InvalidDeck { seat, violations }) => {
+            assert_eq!(seat, PlayerId(1));
+            assert!(
+                violations.iter().any(|v| matches!(
+                    v,
+                    DeckViolation::IncompleteCard { card_id, .. }
+                        if card_id == &bad_card.card_id.0
+                )),
+                "expected an IncompleteCard violation naming {:?}, got {:?}",
+                bad_card.card_id,
+                violations
+            );
+        }
+        other => panic!("expected InvalidDeck, got {:?}", other),
+    }
+}
+
+/// CR 103.5 — a re-deal produces a genuinely different hand for the mulliganing seat,
+/// not the same 7 cards back (the failure mode a naive seed perturbation — e.g. XOR'ing
+/// two terms that can cancel to zero — would silently reproduce; see `redeal_seed`'s doc
+/// comment in `setup.rs`). Not flake-prone for the same combinatorial reason as
+/// `test_setup_different_seed_different_opening_hand`.
+#[test]
+fn test_redeal_produces_a_different_hand() {
+    let cfg = random_cfg(2, 55);
+    let (state_before, _) = build_initial_state(&cfg).expect("setup should succeed");
+    let (state_after, _) =
+        redeal(&cfg, PlayerId(1), 1).expect("redeal should succeed for seat 1's first mulligan");
+
+    let hand_names = |state: &mtg_engine::GameState, pid: PlayerId| -> Vec<String> {
+        let mut names: Vec<String> = state
+            .objects_in_zone(&ZoneId::Hand(pid))
+            .iter()
+            .map(|obj| obj.characteristics.name.clone())
+            .collect();
+        names.sort();
+        names
+    };
+
+    assert_eq!(
+        state_after
+            .objects_in_zone(&ZoneId::Hand(PlayerId(1)))
+            .len(),
+        7,
+        "CR 103.5: a mulligan still draws a fresh 7-card hand (the London mulligan — \
+         bottoming happens after the draw, and is left to the caller per this module's \
+         doc comment)"
+    );
+    assert_ne!(
+        hand_names(&state_before, PlayerId(1)),
+        hand_names(&state_after, PlayerId(1)),
+        "seat 1's redealt hand must differ from its original opening hand"
+    );
+}
+
+/// CR 903.6 / 903.9b — the commander is not merely *placed* in the command zone, it is
+/// **registered** as a commander.
+///
+/// `PlayerState::commander_ids` is the field every commander rule keys off: commander tax
+/// (`rules/casting.rs`), the CR 903.9a/704.6d command-zone-return SBA and CR 903.10a
+/// commander damage (`rules/commander.rs`, `rules/combat.rs`), and the CR 903.9b
+/// hand/library redirects. A game with the object in the command zone but an empty
+/// `commander_ids` is legal-looking and silently not a Commander game — the commander is
+/// free to recast forever and deals no commander damage. The pre-Session-2 TUI setup this
+/// module was lifted from had exactly that gap, so this test is the regression pin.
+#[test]
+fn test_setup_registers_commanders_not_just_places_them() {
+    let cfg = random_cfg(3, 31_337);
+    let (state, _names) = build_initial_state(&cfg).expect("setup should succeed");
+
+    for i in 1..=3u64 {
+        let pid = PlayerId(i);
+        let player = state
+            .players()
+            .get(&pid)
+            .unwrap_or_else(|| panic!("seat {i} must exist"));
+        assert_eq!(
+            player.commander_ids.len(),
+            1,
+            "seat {i} must have exactly one registered commander, not just a card sitting \
+             in the command zone (CR 903.6)"
+        );
+        // The registered CardId must be the card actually in the command zone — a
+        // registration naming a different card would be worse than none.
+        let command_zone = state.objects_in_zone(&ZoneId::Command(pid));
+        assert_eq!(command_zone.len(), 1);
+        let registered = &player.commander_ids[0];
+        let placed_name = &command_zone[0].characteristics.name;
+        let cards = all_cards();
+        let registered_def = cards
+            .iter()
+            .find(|c| &c.card_id == registered)
+            .expect("the registered commander CardId must resolve to a CardDefinition");
+        assert_eq!(
+            &registered_def.name, placed_name,
+            "seat {i}'s registered commander must be the card in its command zone"
+        );
+    }
+
+    // CR 903.9b: two replacement effects per commander (would-go-to-hand and
+    // would-go-to-library, each redirecting to the command zone) must be registered
+    // before the game starts — they are replacements, not triggers, so nothing can add
+    // them later.
+    //
+    // Counts only the redirect-to-command-zone effects rather than
+    // `replacement_effects().len()`: a global count would redden for the wrong reason the
+    // first time any unrelated pregame replacement is registered.
+    let to_command = state
+        .replacement_effects()
+        .iter()
+        .filter(|r| {
+            matches!(
+                r.modification,
+                ReplacementModification::RedirectToZone(ZoneType::Command)
+            )
+        })
+        .count();
+    assert_eq!(
+        to_command, 6,
+        "CR 903.9b: 2 zone-change replacements per commander × 3 seats"
+    );
+}
+
+/// CR 903.6 — the commander starts face up in the command zone, not the library or hand.
+#[test]
+fn test_setup_commander_starts_in_command_zone() {
+    let cards = all_cards();
+    let cfg = random_cfg(2, 9001);
+    let (state, _names) = build_initial_state(&cfg).expect("setup should succeed");
+
+    for i in 1..=2u64 {
+        let pid = PlayerId(i);
+        let command_zone = state.objects_in_zone(&ZoneId::Command(pid));
+        assert_eq!(
+            command_zone.len(),
+            1,
+            "seat {i} must have exactly one card in the command zone"
+        );
+        let commander_obj = &command_zone[0];
+        // The commander is neither in the opening hand nor the library.
+        let in_hand = state
+            .objects_in_zone(&ZoneId::Hand(pid))
+            .iter()
+            .any(|o| o.characteristics.name == commander_obj.characteristics.name);
+        let in_library = state
+            .objects_in_zone(&ZoneId::Library(pid))
+            .iter()
+            .any(|o| o.characteristics.name == commander_obj.characteristics.name);
+        assert!(
+            !in_hand,
+            "the commander must not also appear in the opening hand"
+        );
+        assert!(
+            !in_library,
+            "the commander must not also appear in the library"
+        );
+        // Sanity: the object actually corresponds to a real, known CardDefinition (i.e.
+        // this isn't just an empty placeholder zone entry).
+        assert!(
+            cards
+                .iter()
+                .any(|c| c.name == commander_obj.characteristics.name),
+            "the command-zone object must be a real CardDefinition"
+        );
+    }
+}

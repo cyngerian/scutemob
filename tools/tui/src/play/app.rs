@@ -8,12 +8,18 @@ use std::sync::Arc;
 use std::time::SystemTime;
 
 use mtg_engine::{
-    all_cards, enrich_spec_from_def, process_command, start_game, AttackTarget, CardDefinition,
-    CardRegistry, CardType, Command, GameEvent, GameState, GameStateBuilder, ObjectId, ObjectSpec,
-    PlayerId, ZoneId,
+    all_cards, process_command, start_game, AttackTarget, CardRegistry, CardType, Command,
+    GameEvent, GameState, ObjectId, PlayerId, ZoneId,
 };
+// `GameStateBuilder`/`ObjectSpec` are only used by this module's `#[cfg(test)]` fixtures
+// (M11-local Session 2 moved the only non-test use — pregame setup — to
+// `mtg_simulator::build_initial_state`); importing them unconditionally would be an
+// unused-import warning in a non-test build (`[workspace.lints.rust] warnings = "deny"`).
+#[cfg(test)]
+use mtg_engine::{GameStateBuilder, ObjectSpec};
 use mtg_simulator::{
-    random_deck, Bot, HeuristicBot, LegalAction, LegalActionProvider, RandomBot, StubProvider,
+    Bot, BotKind, DeckSource, HeuristicBot, LegalAction, LegalActionProvider, LocalGameConfig,
+    LocalGameLimits, RandomBot, StubProvider,
 };
 use rand::prelude::*;
 
@@ -102,80 +108,57 @@ const MAX_CONSECUTIVE_PASSES: u32 = 500;
 
 impl PlayApp {
     pub fn new(player_count: u32, bot_type: &str) -> anyhow::Result<Self> {
-        let cards = all_cards();
-        let registry = CardRegistry::new(cards.clone());
+        // `_registry` is stored for the struct field below only -- nothing else in this
+        // impl reads it (see the field's doc history). `setup::build_initial_state`
+        // builds its own internal registry to admit decks through `validate_deck`; this
+        // one is kept only to preserve the pre-existing field, per the M11-local Session
+        // 2 call-site-swap scope (`memory/m11-session-plan.md` §4 Session 2 item 5).
+        let registry = CardRegistry::new(all_cards());
         let human_player = PlayerId(1);
-        let mut rng = StdRng::from_os_rng();
+        let mut os_rng = StdRng::from_os_rng();
 
-        // Build initial state with populated libraries
-        let mut builder = GameStateBuilder::new().with_registry(registry.clone());
-        let player_ids: Vec<PlayerId> = (1..=player_count).map(|i| PlayerId(i as u64)).collect();
-
-        for &pid in &player_ids {
-            builder = builder.add_player(pid);
-        }
-
-        // Build name→def lookup for enriching card specs
-        let card_defs: HashMap<String, CardDefinition> =
-            cards.iter().map(|c| (c.name.clone(), c.clone())).collect();
-
-        // Give each player a random deck: 7 cards in hand, rest in library
-        for &pid in &player_ids {
-            if let Some(mut deck) = random_deck(&mut rng, &cards) {
-                // Commander in command zone
-                if let Some(def) = cards.iter().find(|c| c.card_id == deck.commander) {
-                    let spec = ObjectSpec::card(pid, &def.name)
-                        .in_zone(ZoneId::Command(pid))
-                        .with_card_id(deck.commander.clone());
-                    let spec = enrich_spec_from_def(spec, &card_defs);
-                    builder = builder.object(spec);
-                }
-
-                // Shuffle the deck before splitting hand/library
-                deck.main_deck.shuffle(&mut rng);
-
-                // First 7 cards go to hand (opening hand)
-                let (hand_cards, library_cards) = if deck.main_deck.len() >= 7 {
-                    deck.main_deck.split_at(7)
-                } else {
-                    (deck.main_deck.as_slice(), &[] as &[_])
-                };
-
-                for card_id in hand_cards {
-                    if let Some(def) = cards.iter().find(|c| c.card_id == *card_id) {
-                        let spec = ObjectSpec::card(pid, &def.name)
-                            .in_zone(ZoneId::Hand(pid))
-                            .with_card_id(card_id.clone());
-                        let spec = enrich_spec_from_def(spec, &card_defs);
-                        builder = builder.object(spec);
-                    }
-                }
-
-                // Remaining cards in library
-                for card_id in library_cards {
-                    if let Some(def) = cards.iter().find(|c| c.card_id == *card_id) {
-                        let spec = ObjectSpec::card(pid, &def.name)
-                            .in_zone(ZoneId::Library(pid))
-                            .with_card_id(card_id.clone());
-                        let spec = enrich_spec_from_def(spec, &card_defs);
-                        builder = builder.object(spec);
-                    }
-                }
-            }
-        }
-
-        builder = builder.first_turn_of_game();
-        let state = builder.build()?;
+        let bot_kind = if bot_type == "heuristic" {
+            BotKind::Heuristic
+        } else {
+            BotKind::Random
+        };
+        let cfg = LocalGameConfig {
+            player_count,
+            human_seats: [human_player].into_iter().collect(),
+            bot_kind,
+            // The TUI still seeds from the OS at the entry point -- each launch gets a
+            // genuinely random game, exactly as before Session 2.
+            seed: os_rng.random(),
+            decks: DeckSource::RandomPerSeat,
+            // `PlayApp` never runs a `LocalGame` (it drives its own loop via
+            // `execute_bot_turn`/`execute_command`), so these limits are inert here --
+            // `LocalGameConfig` just always carries them.
+            limits: LocalGameLimits {
+                max_turns: u32::MAX,
+                max_commands: u32::MAX,
+                max_consecutive_passes: MAX_CONSECUTIVE_PASSES,
+                record_journal: false,
+            },
+        };
+        // CR 103.5/903.6 pregame setup, and Architecture Invariant 9 deck admission
+        // (`validate_deck`) for free -- unlike the setup logic this replaces, a seat
+        // whose `random_deck` could find no legendary commander is now a hard
+        // `SetupError` surfaced through `anyhow`, not a silently-skipped seat with no
+        // deck (a broken game masquerading as a graceful degradation).
+        let (state, _names) = mtg_simulator::build_initial_state(&cfg)?;
 
         // Create bots for non-human players
         let mut bots: HashMap<PlayerId, Box<dyn Bot>> = HashMap::new();
         for i in 2..=player_count {
             let pid = PlayerId(i as u64);
-            let seed = rng.random();
+            let seed = os_rng.random();
             let name = format!("Bot-{}", i);
-            let bot: Box<dyn Bot> = match bot_type {
-                "heuristic" => Box::new(HeuristicBot::new(seed, name)),
-                _ => Box::new(RandomBot::new(seed, name)),
+            // Constructed from `cfg.bot_kind`, not from the `bot_type` string a second
+            // time: two independent readings of the same input are two things that can
+            // drift. `bot_type` is parsed exactly once, above.
+            let bot: Box<dyn Bot> = match cfg.bot_kind {
+                BotKind::Heuristic => Box::new(HeuristicBot::new(seed, name)),
+                BotKind::Random => Box::new(RandomBot::new(seed, name)),
             };
             bots.insert(pid, bot);
         }

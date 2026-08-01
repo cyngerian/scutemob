@@ -521,6 +521,73 @@ zero HTTP involved in any test; fuzzer output unchanged.
 
 ### Session 2: Deterministic pregame setup and mulligans (7 items)
 
+**STATUS (2026-07-31, `scutemob-161`): all 7 items shipped.** `LocalGameConfig`/`DeckSource`/`BotKind`/
+`SetupError`/`build_initial_state`/`redeal` live in `crates/simulator/src/setup.rs` (new);
+re-exported from `crates/simulator/src/lib.rs`; `tools/tui/src/play/app.rs::PlayApp::new`
+rewired onto `build_initial_state`; `crates/simulator/src/deck.rs` and
+`crates/simulator/src/bin/fuzzer.rs` untouched, as required. 10 new tests in
+`crates/simulator/tests/setup.rs` — the 7 named below plus three additions (commander registration,
+spec enrichment, and the human-seat path); workspace tests
+3,928 → **3,938**; `cargo build --workspace`, `cargo clippy --workspace --all-targets -- -D
+warnings`, `cargo fmt --check`, and `tools/check-defs-fmt.sh` all green; PROTOCOL 31 /
+HASH 68 confirmed unmoved via the `core::protocol_schema`/`core::hash_schema` sentinel
+tests.
+
+**Premise update on item 4 (binding — see the item text below for what changed):** the
+plan's original mulligan rationale ("because `handle_take_mulligan` cannot shuffle") is
+**stale**. That gap was filed as `OOS-M11-1` and **closed by PB-DP2** (`scutemob-150`,
+2026-07-26) — `handle_take_mulligan` now runs a real seeded `Zone::shuffle` and
+`handle_keep_hand` bottoms correctly. `redeal` was implemented anyway, per Q1's pregame-UX
+rationale (mulligans before `start_game`, no command issued, no history invalidated), with
+the doc comment corrected to say so and to cite CR 103.5/103.5c rather than the stale
+"CR 103.4b" (that rule is the Vanguard starting life total, not mulligans).
+
+**A bug found and fixed during implementation, not in the plan text:** a naive
+`seed ^ mulligan_count ^ seat.0` perturbation for `redeal` collapses back to the
+*original* seed whenever the two terms are equal — which happens on the single most
+common case, seat 1's very first mulligan (`mulligan_count == 1 == seat.0`), silently
+re-dealing the identical hand the player just rejected. Fixed with a splitmix64-style mix
+(`redeal_seed` in `setup.rs`) that runs each term through a distinct odd multiplier before
+combining. Caught by writing `test_redeal_produces_a_different_hand` honestly rather than
+asserting a placeholder.
+
+**Deviation from item 4's literal text:** `redeal` performs only the "shuffle and draw a
+fresh 7" half of CR 103.5. The "let the caller nominate `mulligan_count - 1` cards for the
+bottom" half needs `ActionParams` (Session 3, not yet built) to express a card selection,
+so it is documented as the caller's responsibility once that lands, not implemented here.
+
+**A live correctness bug in the lifted logic, found and FIXED here (not seeded):** the
+pre-Session-2 `PlayApp::new` setup — and therefore the first cut of
+`build_initial_state` that lifted it verbatim — placed the commander's *object* in
+`ZoneId::Command` but never called `GameStateBuilder::player_commander()` or
+`register_commander_zone_replacements()`. `PlayerState::commander_ids` stayed **empty**
+for every TUI game, and would have for every `LocalGame`. That field is what every
+commander rule keys off: commander tax (`casting.rs:765`), the CR 903.9a/704.6d
+command-zone-return SBA (`commander.rs:364/488`), CR 903.10a commander-damage tracking
+(`combat.rs:1919`), and CR 903.9b's hand/library redirect replacements
+(`replacement.rs:477`, registered by `builder.rs:1198`). None of them fired. The result
+is a game that *looks* like Commander — there is a card in the command zone — while the
+commander is recastable for free forever, deals no commander damage, and is never
+returned to the command zone.
+
+This was initially written up as a seed on the grounds that item 2 scopes
+`build_initial_state` to lifting `app.rs`'s logic rather than improving on it. That was
+the wrong call and it is fixed instead: the milestone's entire purpose is a *playable
+Commander game* (Architecture Invariant 6), a pregame builder that does not register
+commanders does not deliver one, and the fix is two calls to existing public engine API
+(`builder.player_commander(pid, deck.commander)`, then
+`register_commander_zone_replacements(&mut state)` after `build()`) with **zero** engine
+edits — the same pairing `testing/replay_harness.rs:257-274` already uses on the script
+path. Pinned by an 8th test, `test_setup_registers_commanders_not_just_places_them`,
+which asserts one registered `commander_ids` entry per seat, that the registered `CardId`
+is the card actually in that seat's command zone, and that the 2-per-commander CR 903.9b
+replacements exist before the game starts.
+
+**This is also a TUI behaviour change**, and a deliberate one: `mtg-tui`'s play mode has
+been running non-Commander games under a Commander UI, and now runs real ones (tax
+applies, commander damage accrues, the commander returns to the command zone). Nothing
+else about the TUI's behaviour changed.
+
 **Crate**: `crates/simulator` (+ a call-site swap in `tools/tui`).
 **Files**: `crates/simulator/src/setup.rs` (new), `src/deck.rs`, `src/lib.rs`,
 `tools/tui/src/play/app.rs`, `crates/simulator/tests/setup.rs` (new).
@@ -529,7 +596,7 @@ zero HTTP involved in any test; fuzzer output unchanged.
    throughout — the same seed must reproduce the same game.
 2. `build_initial_state(cfg)` — for each seat: `random_deck` (already `Complete`-only per
    SR-12) or a fixed `DeckConfig`; commander → `ZoneId::Command`; **shuffle `main_deck`
-   with the seeded RNG**; first 7 → `ZoneId::Hand` (CR 103.4/402.1 — the engine deals no
+   with the seeded RNG**; first 7 → `ZoneId::Hand` (CR 103.5/402.1 — **corrected**, the plan originally said "CR 103.4", which is the starting LIFE TOTAL; the engine deals no
    opening hand, §1 fact 2); remainder → `ZoneId::Library`; every spec through
    `enrich_spec_from_def`; `first_turn_of_game()`. This is the TUI's `app.rs:122-165`
    logic, lifted and made testable.
@@ -539,11 +606,22 @@ zero HTTP involved in any test; fuzzer output unchanged.
    the 99+1 contract `random_deck` produces. `start_game`'s `check_all_defs_complete` stays
    as the second, independent line of defence.
 4. `redeal(cfg, seat, mulligan_count)` — the mulligan implementation (CR 103.5, CR 103.5c
-   free first mulligan in multiplayer). Because `handle_take_mulligan` cannot shuffle
-   (§1 fact 1), a mulligan is a **pregame rebuild**: re-shuffle with `seed ^
-   mulligan_count`, re-deal 7, and let the caller nominate `mulligan_count - 1` cards for
-   the bottom. This happens strictly before `start_game`, so no command has been issued
-   and no history is invalidated. File the engine-side observation as a seed (§8 R2).
+   free first mulligan in multiplayer). A mulligan is a **pregame rebuild**: re-shuffle
+   under a perturbed seed, re-deal 7, and let the caller nominate `mulligan_count - 1`
+   cards for the bottom. This happens strictly before `start_game`, so no command has been
+   issued and no history is invalidated.
+   > **Two premises in this item were dead by the time it shipped — corrected in place so
+   > they stop propagating.** (a) *"Because `handle_take_mulligan` cannot shuffle (§1 fact
+   > 1)"* — **false since PB-DP2** (`scutemob-150`), which is also what §8 R2 records; the
+   > engine's in-game mulligan is CR 103.5-faithful, and `redeal` is kept for the *pregame
+   > UX* reason in Q1 (mulligans before `start_game`), not as a correctness workaround. Do
+   > not re-file R2. (b) *"re-shuffle with `seed ^ mulligan_count`"* — **do not do this**:
+   > the two terms cancel whenever they are equal, and `seat 1 / mulligan 1` is the single
+   > most common case, so it silently re-deals the identical rejected hand. Shipped as
+   > `redeal_seed`, a splitmix64-style mix; see its doc comment. Also note the shipped
+   > `redeal` implements only the re-deal half — bottoming needs `ActionParams` (Session
+   > 3) — and carries two documented limitations of the whole-table rebuild (public
+   > command zone, and no representation of a partially-decided table).
 5. Rewire `tools/tui/src/play/app.rs::PlayApp::new` to call `setup::build_initial_state`
    — deletes ~45 lines of duplicated setup and gives the TUI deck validation for free.
    TUI behaviour otherwise unchanged.
@@ -551,7 +629,7 @@ zero HTTP involved in any test; fuzzer output unchanged.
    empty hands; changing that changes every fuzz result and invalidates recorded seeds.
    Add a comment in `setup.rs` saying so.
 7. **Tests** (`crates/simulator/tests/setup.rs`):
-   `test_setup_deals_seven_card_opening_hand_per_seat` (CR 103.4);
+   `test_setup_deals_seven_card_opening_hand_per_seat` (CR 103.5 — corrected from the plan's original "CR 103.4");
    `test_setup_library_holds_the_remainder`; `test_setup_same_seed_same_state_hash`;
    `test_setup_different_seed_different_opening_hand`;
    `test_setup_rejects_deck_with_non_complete_card` (Invariant 9);
@@ -964,7 +1042,7 @@ From the roadmap's M11-local section, minus the carved-out bullets:
 
 | CR | Summary | Session |
 |---|---|---|
-| 103.4 / 402.1 | Each player draws a starting hand of seven | 2 |
+| 103.5 / 402.1 | Each player draws a starting hand of seven (**corrected** — 103.4 is the starting *life total*, 103.4c = Commander's 40; do not cite it for the opening hand) | 2 |
 | 103.5 / 103.5c | Mulligan procedure; free first mulligan in multiplayer | 2, 8 |
 | 104.3a | A player who concedes leaves the game | 8 |
 | 117.3 / 117.3a–d | Who has priority; passing priority | 1, 6 |
