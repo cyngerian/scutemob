@@ -36,7 +36,7 @@
 | S3 action parameterization + engine target queries | `scutemob-163` | **SHIPPED** | the crux (plan §8 R1) is closed: a human can cast a targeted spell. See handoff below |
 | S4 view-model crate extraction + seat redaction | `scutemob-165` | **SHIPPED** | this session — `crates/view-model` (`mtg-view-model`); a seat view provably cannot leak another hand or any library order. See handoff below |
 | S5 play-server crate skeleton + REST API | `scutemob-167` | **SHIPPED** (+ 2 review cycles) | this session — `tools/play-server` (axum, port 3040), the only crate in this milestone with async or IO. 5 routes + `ServeDir`, **16 tests** (15 `oneshot` HTTP + the source gate, which is a plain `#[test]` and constructs no router), **no port ever bound and now machine-gated crate-wide**. See handoff below |
-| S6 play frontend — render and basic input | `scutemob-169` | **SHIPPED** | this session — `tools/play-server/frontend` (Svelte 5 + Vite 7), dev proxy to `127.0.0.1:3040`, `$viewer` alias importing the replay-viewer components **in place**. **Zero Rust**: `git diff main` over `crates/` + `tools/play-server/src` + `tools/replay-viewer/` is empty, PROTOCOL 32 / HASH 69 unmoved, tests **4,040 / 0**. See handoff below |
+| S6 play frontend — render and basic input | `scutemob-169` | **SHIPPED** | this session — `tools/play-server/frontend` (Svelte 5 + Vite 7), dev proxy to `127.0.0.1:3040`, `$viewer` alias importing the replay-viewer components **in place**. **Zero Rust**: `git diff main` over `crates/` + `tools/play-server/src` + `tools/play-server/Cargo.toml` is empty — **zero Rust anywhere**; the only change outside `tools/play-server` is one Svelte component, `tools/replay-viewer/frontend/src/lib/ZoneHand.svelte` (the review HIGH below). PROTOCOL 32 / HASH 69 unmoved, tests **4,040 / 0**. See handoff below |
 | S7 targeting, combat and choice UIs | — | **next** | Plan §4 Session 7. First session since S4 to touch Rust again (`tools/play-server/src/{view.rs,api.rs}` populate `target_slots` / `modes` from `mtg_engine::legal_targets_per_slot` + `spell_target_requirements`) plus four new picker components. Read the S6 handoff's `ZoneStack` and `auto_tap` notes before starting |
 
 **S6 handoff (2026-08-01, `scutemob-169`)**
@@ -73,8 +73,12 @@
   `PhaseIndicator`, while the production CSS bundle contains those components' scoped rules.
   Promotion to `tools/ui-shared/` stays deferred (plan §8 R8).
 - **Zero Rust, and the gate is the whole surface rather than the wire files.**
-  `git diff main -- crates/ tools/play-server/src tools/play-server/Cargo.toml
-  tools/replay-viewer/` is **empty**. PROTOCOL **32** / HASH **69** unmoved; workspace
+  `git diff main -- crates/ tools/play-server/src tools/play-server/Cargo.toml` is
+  **empty** — zero Rust anywhere. The **only** change outside `tools/play-server` is one
+  Svelte component, `tools/replay-viewer/frontend/src/lib/ZoneHand.svelte`, and it is the
+  review HIGH above; an earlier draft of this bullet claimed an empty `tools/replay-viewer/`
+  diff and the fix cycle falsified it in the same commit that introduced the fix.
+  PROTOCOL **32** / HASH **69** unmoved; workspace
   `cargo test --all` **4,040 / 0**; `clippy --workspace --all-targets -D warnings`, `cargo
   fmt --check` and `tools/check-defs-fmt.sh` (1,804 defs) all clean. The test count is
   unchanged from the merge base *by construction* — no Rust test target was added and the
@@ -120,6 +124,17 @@
   loudly. The buttons stay enabled (disabling would deadlock a combat where the declaration
   is the only offered action, and CR 508.1 makes "no attackers" legal) but are marked
   `declares none` with a tooltip, and the README says it plainly. S7's pickers are the fix.
+- **An activated ability's `{X}` is announced as 0, and the client cannot tell which
+  abilities have one** (second review cycle). `params.rs` maps default params to
+  `x_value: None`, read as `unwrap_or(0)`; `view.rs::action_needs_x` answers `CastSpell` only
+  (README Limitation 5), so `needs_x` is `false` regardless. Reachable and destructive on a
+  deck-legal card: **`mirror_entity`** declares no `completeness` field — `Complete` by the
+  `#[default]` derive, the same silent-defect generator PB-DX1 and PB-DX3b each hit — and its
+  activated ability has `x_count: 1`, so one click makes every creature 0/0 and the board
+  dies to SBAs, with no error to read. Annotated `X = 0` **unconditionally** on the kind
+  because there is no flag to branch on; the tag goes away when S7 closes Limitation 5.
+  **All three silent-degradation paths are the same hole — the client can only send
+  `params: {}` — and only the targeted-spell one fails loudly.**
 - **Three review LOWs applied**: `jsconfig.json`'s `$viewer/*` path was off by one directory
   (editor-only; `vite.config.js` was right, so the build never noticed); the "omit and take
   the CLI default" rationale did not hold for `players`, pre-seeded to `'4'` and therefore

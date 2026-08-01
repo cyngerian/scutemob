@@ -202,6 +202,21 @@ disabling it would deadlock the game, and CR 508.1 makes declaring no attackers 
 legal choice), but they are marked `declares none` and their tooltip says so. S7's
 `AttackerPicker` / `BlockerPicker` are what actually close it.
 
+**An activated ability's `{X}` is announced as 0, and the client cannot even tell
+which abilities have one.** `params.rs` maps `LegalAction::ActivateAbility` with
+default params to `x_value: None`, which `abilities.rs` reads as `unwrap_or(0)`;
+`action_needs_x` answers `CastSpell` only (Limitation 5), so `needs_x` is `false`
+here whether or not there is an `{X}` to announce. Reachable and destructive on a
+deck-legal card, not theoretical: `mirror_entity` is `Complete` (by the `#[default]`
+derive) and its activated ability has `x_count: 1`, so one click makes every
+creature 0/0 and the board dies to state-based actions with no error to read.
+Because there is no flag to branch on, the `X = 0` tag on those buttons is
+**unconditional** rather than conditional — noisier than it should be, and the
+right trade until S7 closes Limitation 5 and can populate `needs_x` for abilities.
+
+The three paragraphs above are the same underlying hole in three shapes: the
+client can only send `params: {}`. Only the first of them fails loudly.
+
 ### Manual checklist (plan item 7)
 
 There is no frontend test harness in this repo — Session 5's 16 API tests are the

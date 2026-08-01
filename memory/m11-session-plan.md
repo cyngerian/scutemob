@@ -1327,6 +1327,17 @@ without binding a port.
   combat where the declaration is the only offered action, and CR 508.1 makes "no attackers"
   legal) but are marked `declares none` with a tooltip saying so, and the README says it
   plainly. S7's pickers are the actual fix.
+- **MEDIUM (second review cycle): an activated ability's `{X}` is announced as 0, and the
+  client cannot tell which abilities even have one.** `params.rs` maps
+  `LegalAction::ActivateAbility` with default params to `x_value: None`, read as
+  `unwrap_or(0)`; `view.rs::action_needs_x` answers `CastSpell` **only** (README Limitation
+  5), so `needs_x` is `false` here whether or not there is an `{X}`. Reachable and
+  destructive on a deck-legal card: **`mirror_entity`** declares no `completeness` field —
+  `Complete` by the `#[default]` derive, the twice-demonstrated silent-defect generator from
+  PB-DX1/PB-DX3b — and its activated ability has `x_count: 1`, so one click makes every
+  creature 0/0 and the board dies to SBAs with no error to read. Same shape as the combat
+  MEDIUM, and quieter. Annotated `X = 0` **unconditionally** on the kind, because there is no
+  flag to branch on; the tag goes away when S7 closes Limitation 5.
 - Three LOWs: `jsconfig.json`'s `$viewer/*` path was off by one directory (editor-only —
   `vite.config.js` was right, so the build never noticed); the "omit and take the CLI
   default" rationale did not hold for `players`, which was pre-seeded to `'4'` and so
@@ -1334,8 +1345,12 @@ without binding a port.
   its `#each` on the array index against a front-truncating window, now keyed on a monotonic
   `seq` stamped at append.
 
-- **Zero Rust.** `git diff main -- crates/ tools/play-server/src tools/play-server/Cargo.toml
-  tools/replay-viewer/` is **empty**; PROTOCOL 32 / HASH 69 unmoved; workspace tests
+- **Zero Rust.** `git diff main -- crates/ tools/play-server/src tools/play-server/Cargo.toml`
+  is **empty** — zero Rust anywhere. The **only** change outside `tools/play-server` is one
+  Svelte component, `tools/replay-viewer/frontend/src/lib/ZoneHand.svelte`, and it is the
+  review HIGH above; an earlier draft of this bullet claimed an empty `tools/replay-viewer/`
+  diff, which the fix cycle falsified in the same commit that made the fix.
+  PROTOCOL 32 / HASH 69 unmoved; workspace tests
   **4,040 / 0** (unchanged from the merge base by construction — this session adds no Rust
   test target and no frontend test harness, exactly as item 7 says). `npm run build` is the
   gate and it is clean: 135 modules, 0 warnings.

@@ -39,7 +39,7 @@
    * hand card — every key there is still the object id, unchanged.
    */
   function eachKey(card, i) {
-    return card?.hidden ? `hidden-${i}` : card.object_id;
+    return card?.hidden ? `hidden-${i}` : card?.object_id;
   }
 
   function primaryType(cardTypes) {

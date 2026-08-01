@@ -70,6 +70,31 @@
     return EMPTY_SET_KINDS.includes(kind);
   }
 
+  /**
+   * An activated ability's `{X}` is announced as **0** by this session, silently,
+   * and the client cannot tell which abilities even have one.
+   *
+   * `params.rs` maps `LegalAction::ActivateAbility` with default params to
+   * `x_value: None`, and `abilities.rs` reads it as `unwrap_or(0)`. The server's
+   * `action_needs_x` answers `CastSpell` **only** — an activated ability's `{X}`
+   * lives in its `ActivationCost`, which `LegalAction::ActivateAbility` does not
+   * carry (`README.md` Limitation 5) — so `needs_x` is `false` here whether or not
+   * the ability has one, and there is no field to branch on.
+   *
+   * It is reachable and destructive, not theoretical: `mirror_entity` is
+   * deck-legal (`Complete` by the `#[default]` derive) and its activated ability
+   * has `x_count: 1`, so one click makes every creature 0/0 and the board dies to
+   * SBAs, with no error to read. Same shape as the combat case above and arguably
+   * worse, because there the label at least names a declaration.
+   *
+   * The tag is therefore **unconditional** on this kind rather than conditional on
+   * a flag that does not exist. It goes away when S7 closes Limitation 5 and can
+   * populate `needs_x` for abilities.
+   */
+  function announcesXAsZero(kind) {
+    return kind === 'ActivateAbility';
+  }
+
   function submit(option) {
     if (loading) return;
     onAct?.(option.index, {});
@@ -186,18 +211,21 @@
             {#each plays as option (option.index)}
               <button
                 class="action-btn kind-{option.kind}"
-                class:empty-set={declaresEmptySet(option.kind)}
+                class:empty-set={declaresEmptySet(option.kind) || announcesXAsZero(option.kind)}
                 disabled={loading}
                 title="{option.kind}{option.needs_x
                   ? ' — needs X (Session 7)'
                   : ''}{declaresEmptySet(option.kind)
                   ? ' — submits an EMPTY set: no attacker/blocker picker exists until Session 7, and the declaration is irreversible for this combat'
+                  : ''}{announcesXAsZero(option.kind)
+                  ? ' — announces X as 0. If this ability has {X} the effect resolves for zero, silently; the server cannot tell the client which abilities have one until Session 7 (README Limitation 5)'
                   : ''}"
                 onclick={() => submit(option)}
               >
                 {option.label}
                 {#if option.needs_x}<span class="needs-x">X</span>{/if}
                 {#if declaresEmptySet(option.kind)}<span class="empty-tag">declares none</span>{/if}
+                {#if announcesXAsZero(option.kind)}<span class="empty-tag">X = 0</span>{/if}
               </button>
             {/each}
           {/if}
