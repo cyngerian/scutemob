@@ -525,9 +525,10 @@ zero HTTP involved in any test; fuzzer output unchanged.
 `SetupError`/`build_initial_state`/`redeal` live in `crates/simulator/src/setup.rs` (new);
 re-exported from `crates/simulator/src/lib.rs`; `tools/tui/src/play/app.rs::PlayApp::new`
 rewired onto `build_initial_state`; `crates/simulator/src/deck.rs` and
-`crates/simulator/src/bin/fuzzer.rs` untouched, as required. 7 new tests in
-`crates/simulator/tests/setup.rs`, all named exactly as below; workspace tests
-3,928 → **3,935**; `cargo build --workspace`, `cargo clippy --workspace --all-targets -- -D
+`crates/simulator/src/bin/fuzzer.rs` untouched, as required. 8 new tests in
+`crates/simulator/tests/setup.rs` — the 7 named below plus a commander-registration
+regression pin (see below); workspace tests
+3,928 → **3,936**; `cargo build --workspace`, `cargo clippy --workspace --all-targets -- -D
 warnings`, `cargo fmt --check`, and `tools/check-defs-fmt.sh` all green; PROTOCOL 31 /
 HASH 68 confirmed unmoved via the `core::protocol_schema`/`core::hash_schema` sentinel
 tests.
@@ -555,21 +556,37 @@ fresh 7" half of CR 103.5. The "let the caller nominate `mulligan_count - 1` car
 bottom" half needs `ActionParams` (Session 3, not yet built) to express a card selection,
 so it is documented as the caller's responsibility once that lands, not implemented here.
 
-**Seed found, not fixed (out of scope for this session):** `build_initial_state` (and the
-`PlayApp::new` logic it replaces) never calls `.player_commander()` on
-`GameStateBuilder` or `register_commander_zone_replacements()` — so `PlayerState::
-commander_ids` stays empty for every `LocalGame`/TUI game. That field gates commander tax
-(`casting.rs:765`), the CR 903.9a/704.6d command-zone-return SBA (`commander.rs:364/488`),
-CR 903.9b's hand/library redirect replacement effects (`replacement.rs:477`,
-`register_commander_zone_replacements` at `builder.rs:1198`), and commander-damage
-tracking (`combat.rs:1919`) — none of which fire in a real game built this way. The
-correct pattern already exists at `testing/replay_harness.rs:257-274` (push each
-commander's `CardId` onto `ps.commander_ids`, then call
-`register_commander_zone_replacements`). Left unfixed here because item 2 explicitly
-scopes `build_initial_state` to lifting `app.rs`'s existing (also-affected) logic
-verbatim, not improving on it — but this is a live Commander-format correctness gap in
-the milestone's whole reason to exist, and should be ranked as a seed at the next
-retriage.
+**A live correctness bug in the lifted logic, found and FIXED here (not seeded):** the
+pre-Session-2 `PlayApp::new` setup — and therefore the first cut of
+`build_initial_state` that lifted it verbatim — placed the commander's *object* in
+`ZoneId::Command` but never called `GameStateBuilder::player_commander()` or
+`register_commander_zone_replacements()`. `PlayerState::commander_ids` stayed **empty**
+for every TUI game, and would have for every `LocalGame`. That field is what every
+commander rule keys off: commander tax (`casting.rs:765`), the CR 903.9a/704.6d
+command-zone-return SBA (`commander.rs:364/488`), CR 903.10a commander-damage tracking
+(`combat.rs:1919`), and CR 903.9b's hand/library redirect replacements
+(`replacement.rs:477`, registered by `builder.rs:1198`). None of them fired. The result
+is a game that *looks* like Commander — there is a card in the command zone — while the
+commander is recastable for free forever, deals no commander damage, and is never
+returned to the command zone.
+
+This was initially written up as a seed on the grounds that item 2 scopes
+`build_initial_state` to lifting `app.rs`'s logic rather than improving on it. That was
+the wrong call and it is fixed instead: the milestone's entire purpose is a *playable
+Commander game* (Architecture Invariant 6), a pregame builder that does not register
+commanders does not deliver one, and the fix is two calls to existing public engine API
+(`builder.player_commander(pid, deck.commander)`, then
+`register_commander_zone_replacements(&mut state)` after `build()`) with **zero** engine
+edits — the same pairing `testing/replay_harness.rs:257-274` already uses on the script
+path. Pinned by an 8th test, `test_setup_registers_commanders_not_just_places_them`,
+which asserts one registered `commander_ids` entry per seat, that the registered `CardId`
+is the card actually in that seat's command zone, and that the 2-per-commander CR 903.9b
+replacements exist before the game starts.
+
+**This is also a TUI behaviour change**, and a deliberate one: `mtg-tui`'s play mode has
+been running non-Commander games under a Commander UI, and now runs real ones (tax
+applies, commander damage accrues, the commander returns to the command zone). Nothing
+else about the TUI's behaviour changed.
 
 **Crate**: `crates/simulator` (+ a call-site swap in `tools/tui`).
 **Files**: `crates/simulator/src/setup.rs` (new), `src/deck.rs`, `src/lib.rs`,

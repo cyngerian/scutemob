@@ -8,7 +8,8 @@
 //! drifting copies. See `memory/m11-session-plan.md` §3-4 (Session 2).
 //!
 //! CR 103.4 (opening hand size), CR 103.5 / 103.5c (mulligans), CR 903.5a (100-card deck,
-//! commander included), CR 903.6 (commander to the command zone, library shuffled).
+//! commander included), CR 903.6 (commander to the command zone, library shuffled),
+//! CR 903.9b (the commander's hand/library-to-command-zone replacements).
 //!
 //! `crates/simulator/src/bin/fuzzer.rs` is deliberately **not** rewired onto this module:
 //! its games start every player with an empty hand (session plan §1 fact 2), and every
@@ -22,8 +23,9 @@ use rand::seq::SliceRandom;
 use rand::SeedableRng;
 
 use mtg_engine::{
-    all_cards, enrich_spec_from_def, validate_deck, CardDefinition, CardId, CardRegistry,
-    DeckViolation, GameState, GameStateBuilder, GameStateError, ObjectSpec, PlayerId, ZoneId,
+    all_cards, enrich_spec_from_def, register_commander_zone_replacements, validate_deck,
+    CardDefinition, CardId, CardRegistry, DeckViolation, GameState, GameStateBuilder,
+    GameStateError, ObjectSpec, PlayerId, ZoneId,
 };
 
 use crate::deck::{random_deck, DeckConfig};
@@ -234,11 +236,24 @@ pub fn build_initial_state(
         }
 
         // CR 903.6: commander to the command zone.
+        //
+        // Two separate steps, and BOTH are required. Placing the object in
+        // `ZoneId::Command` only puts a card there; `player_commander` is what records it
+        // in `PlayerState::commander_ids`, which is the field every commander rule keys
+        // off — commander tax (`rules/casting.rs`), the CR 903.9a/704.6d command-zone
+        // return SBA and CR 903.10a commander damage (`rules/commander.rs`,
+        // `rules/combat.rs`), and the CR 903.9b hand/library redirects registered below.
+        // A game built with the object but not the registration is not a Commander game:
+        // the commander is recastable for free forever and deals no commander damage.
+        // (The pre-Session-2 TUI setup this module lifts had exactly that gap; it is
+        // fixed here rather than carried forward. Same pairing as
+        // `testing/replay_harness.rs`'s script path.)
         let commander_def = find_def(&cards, pid, &deck.commander)?;
         let spec = ObjectSpec::card(pid, &commander_def.name)
             .in_zone(ZoneId::Command(pid))
             .with_card_id(deck.commander.clone());
         builder = builder.object(enrich_spec_from_def(spec, &card_defs));
+        builder = builder.player_commander(pid, deck.commander.clone());
 
         // CR 903.6: shuffle the remaining deck; CR 103.4: the first 7 become the opening
         // hand, and the rest form the library.
@@ -265,7 +280,14 @@ pub fn build_initial_state(
     }
 
     builder = builder.first_turn_of_game();
-    let state = builder.build().map_err(SetupError::Builder)?;
+    let mut state = builder.build().map_err(SetupError::Builder)?;
+
+    // CR 903.9b: a commander that would go to its owner's hand or library may go to the
+    // command zone instead. These are replacement effects, not triggers, so they must
+    // exist in `state.replacement_effects` before the game starts — `GameStateBuilder`
+    // does not derive them from `commander_ids` itself. Same call the script path makes
+    // (`testing/replay_harness.rs`).
+    register_commander_zone_replacements(&mut state);
 
     Ok((state, names))
 }

@@ -239,6 +239,61 @@ fn test_redeal_produces_a_different_hand() {
     );
 }
 
+/// CR 903.6 / 903.9b — the commander is not merely *placed* in the command zone, it is
+/// **registered** as a commander.
+///
+/// `PlayerState::commander_ids` is the field every commander rule keys off: commander tax
+/// (`rules/casting.rs`), the CR 903.9a/704.6d command-zone-return SBA and CR 903.10a
+/// commander damage (`rules/commander.rs`, `rules/combat.rs`), and the CR 903.9b
+/// hand/library redirects. A game with the object in the command zone but an empty
+/// `commander_ids` is legal-looking and silently not a Commander game — the commander is
+/// free to recast forever and deals no commander damage. The pre-Session-2 TUI setup this
+/// module was lifted from had exactly that gap, so this test is the regression pin.
+#[test]
+fn test_setup_registers_commanders_not_just_places_them() {
+    let cfg = random_cfg(3, 31_337);
+    let (state, _names) = build_initial_state(&cfg).expect("setup should succeed");
+
+    for i in 1..=3u64 {
+        let pid = PlayerId(i);
+        let player = state
+            .players()
+            .get(&pid)
+            .unwrap_or_else(|| panic!("seat {i} must exist"));
+        assert_eq!(
+            player.commander_ids.len(),
+            1,
+            "seat {i} must have exactly one registered commander, not just a card sitting \
+             in the command zone (CR 903.6)"
+        );
+        // The registered CardId must be the card actually in the command zone — a
+        // registration naming a different card would be worse than none.
+        let command_zone = state.objects_in_zone(&ZoneId::Command(pid));
+        assert_eq!(command_zone.len(), 1);
+        let registered = &player.commander_ids[0];
+        let placed_name = &command_zone[0].characteristics.name;
+        let cards = all_cards();
+        let registered_def = cards
+            .iter()
+            .find(|c| &c.card_id == registered)
+            .expect("the registered commander CardId must resolve to a CardDefinition");
+        assert_eq!(
+            &registered_def.name, placed_name,
+            "seat {i}'s registered commander must be the card in its command zone"
+        );
+    }
+
+    // CR 903.9b: two replacement effects per commander (would-go-to-hand and
+    // would-go-to-library, each redirecting to the command zone) must be registered
+    // before the game starts — they are replacements, not triggers, so nothing can add
+    // them later.
+    assert_eq!(
+        state.replacement_effects().len(),
+        6,
+        "CR 903.9b: 2 zone-change replacements per commander × 3 seats"
+    );
+}
+
 /// CR 903.6 — the commander starts face up in the command zone, not the library or hand.
 #[test]
 fn test_setup_commander_starts_in_command_zone() {
