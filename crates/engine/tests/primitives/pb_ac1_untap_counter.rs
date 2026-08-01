@@ -91,7 +91,7 @@ fn ctx_with_target(controller: PlayerId, source: ObjectId, target: ObjectId) -> 
 #[test]
 fn test_pb_ac1_hash_schema_version_live_sentinel() {
     assert_eq!(
-        HASH_SCHEMA_VERSION, 69u8,
+        HASH_SCHEMA_VERSION, 70u8,
         "PB-AC1 bumped HASH_SCHEMA_VERSION 27->28. If you bumped again, update this test."
     );
 }
@@ -965,6 +965,7 @@ fn test_does_not_untap_removed_by_humility() {
         duration: EffectDuration::WhileSourceOnBattlefield,
         timestamp: 1,
         is_cda: false,
+        affected_set: None,
         condition: None,
     });
 

@@ -99,6 +99,15 @@ fn get_copiable_values_inner(
 ///
 /// Uses `EffectFilter::SingleObject` semantics — copy effects target specific objects.
 /// Other filter types (AllCreatures, etc.) are not valid for Layer 1 copy effects.
+// NOTE (PB-DX5 fix-cycle Finding 5, widens OOS-DX5-1): this read site ignores
+// `effect.affected_set` entirely and matches `effect.filter` directly, with a
+// `_ => false` arm for anything other than `SingleObject`. A Layer-1 copy
+// effect created through `Effect::ApplyContinuousEffect` with any other filter
+// would be silently ignored here, locked or not. Measured: zero occurrences of
+// `EffectLayer::Copy` in `crates/card-defs/src/defs`, so no exposure today. If
+// a mass-filter copy effect is ever authored, this should consult
+// `effect.affected_set` first (CR 611.2c already computes the membership) and
+// fall back to `filter` only when it is `None` (CR 611.3a, a static source).
 fn copy_effect_applies_to(
     state: &GameState,
     effect: &ContinuousEffect,
@@ -738,6 +747,7 @@ pub fn create_copy_effect(
         filter: EffectFilter::SingleObject(copier_id),
         modification: LayerModification::CopyOf(source_id),
         is_cda: false,
+        affected_set: None,
         condition: None,
     }
 }

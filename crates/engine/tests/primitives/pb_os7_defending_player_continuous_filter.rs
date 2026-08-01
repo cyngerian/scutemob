@@ -25,14 +25,20 @@
 //! (review Finding 3 added the non-Dragon-attacker negative and the planeswalker-attack
 //! scoping test).
 //!
-//! **Known limitation (review Finding 1, tracked as OOS-OS7-2, NOT fixed here):** the
-//! `CreaturesControlledBy(pid)` filter this primitive substitutes into re-evaluates
-//! *membership* live rather than locking the affected creature *set* at resolution per
-//! CR 611.2c. This is a pre-existing, engine-wide simplification shared by every
-//! resolution-generated mass P/T filter (Golgari Charm, Eyeblight Massacre) — PB-OS7
-//! correctly follows precedent rather than introducing a new divergence. All 11 tests
-//! below use static boards (no mid-turn control changes), so none of them are affected
-//! by or mask this limitation.
+//! **CLOSED (was: review Finding 1 / OOS-OS7-2 — "the `CreaturesControlledBy(pid)`
+//! filter this primitive substitutes into re-evaluates membership live rather than
+//! locking the affected creature set at resolution per CR 611.2c").** CR 611.2c is
+//! implemented as of **PB-DX5** (`scutemob-170`) —
+//! `ContinuousEffect.affected_set: Option<OrdSet<ObjectId>>`, populated at
+//! `Effect::ApplyContinuousEffect` via `rules::layers::snapshot_affected_set` and
+//! consumed as pure membership in `effect_applies_to`. The
+//! `CreaturesControlledBy(pid)` filter this primitive substitutes into is a
+//! resolution-generated filter like any other and is now locked exactly like Golgari
+//! Charm / Eyeblight Massacre / the rest of the PB-DX5 mass-filter roster: a creature
+//! that enters defending-player control (or leaves it) after the trigger resolves is
+//! correctly unaffected either way. All 11 tests below use static boards (no mid-turn
+//! control changes), so none of them observe the difference between the locked and the
+//! live behaviour — they would pass identically under either.
 
 use mtg_engine::effects::{execute_effect, EffectContext};
 use mtg_engine::{
@@ -689,7 +695,7 @@ fn test_os7_card_registered() {
 #[test]
 fn test_os7_version_sentinels() {
     assert_eq!(
-        HASH_SCHEMA_VERSION, 69u8,
+        HASH_SCHEMA_VERSION, 70u8,
         "HASH_SCHEMA_VERSION drifted from this live sentinel. PB-OS7 first moved it to 59 \
          (EffectFilter gained CreaturesControlledByDefendingPlayer, discriminant 36); it is \
          since 60 (PB-OS8 TargetFilter.min_cmc_amount). Bump this value with the state/hash.rs \

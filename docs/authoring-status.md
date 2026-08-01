@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-08-01 11:48 UTC  
-**Git:** `320da1ca` on `main`  
+**Generated:** 2026-08-01 12:51 UTC  
+**Git:** `736493db` on `feat/pb-dx5-cr-6112c-lock-the-affected-set-of-a-resolution-genera`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 

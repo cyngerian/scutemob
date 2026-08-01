@@ -72,6 +72,7 @@ fn animate_all_permanents(eff_id: u64, ts: u64) -> ContinuousEffect {
         filter: EffectFilter::AllPermanents,
         modification: LayerModification::AddCardTypes(ordset![CardType::Creature]),
         is_cda: false,
+        affected_set: None,
         condition: None,
     }
 }

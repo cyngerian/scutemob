@@ -191,6 +191,7 @@ fn test_ef12_granted_any_color_choice_end_to_end() {
             ..Default::default()
         }),
         is_cda: false,
+        affected_set: None,
         condition: None,
     });
 

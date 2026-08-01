@@ -401,6 +401,7 @@ fn test_domain_count_dual_land() {
         filter: EffectFilter::SingleObject(nonbasic_id),
         modification: LayerModification::AddSubtypes(all_basic_subtypes),
         is_cda: false,
+        affected_set: None,
         condition: None,
     };
     state.continuous_effects_mut().push_back(layer4_effect);
@@ -511,6 +512,7 @@ fn test_territorial_maro_cda() {
             )),
         },
         is_cda: true,
+        affected_set: None,
         condition: None,
     };
     state.continuous_effects_mut().push_back(cda_effect);
@@ -584,6 +586,7 @@ fn test_territorial_maro_cda_zero_lands() {
             )),
         },
         is_cda: true,
+        affected_set: None,
         condition: None,
     };
     state.continuous_effects_mut().push_back(cda_effect);

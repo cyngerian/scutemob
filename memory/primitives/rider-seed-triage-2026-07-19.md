@@ -58,7 +58,7 @@ but 0 reachable yield. **NEVER-FILED** = the ID appears only in a conditional or
 | --- | --- | --- | --- | --- |
 | **OOS-OS9-1** | `oos-retriage-plan:516` | **CANDIDATE** | **correctness** | 2 flips + 1 `Complete`-but-inert repair |
 | **OOS-OS8-1** | `pb-review-OS8:115` | **CANDIDATE** | **correctness** (premise wrong — worse than filed) | 1 flip + 7 live-wrong lands |
-| **OOS-OS7-2** | `pb-plan-OS7:110` | **CANDIDATE** | **correctness** | 0 flips (repairs `Complete` cards) |
+| **OOS-OS7-2** | `pb-plan-OS7:110` | **✅ SHIPPED as `PB-DX5`** (`scutemob-170`, 2026-08-01) | **correctness** | 0 flips (repairs `Complete` cards) — actual re-measured yield 38 mass-filter defs, not the ~3 named here |
 | **OOS-OS7-1** | `pb-plan-OS7:295` | **CANDIDATE** (split R1 / R2+R3) | correctness (R1) + capability | 1 flip on R1; 2 for the full build |
 | **OOS-OS6-1** | `pb-plan-OS6:72` | **CANDIDATE** | capability | 4 flips (seed said 2) |
 | **OOS-OS4-3** | `ef-batch-plan:1163` | **CANDIDATE** | capability | 1 flip, oracle-gated |
@@ -241,7 +241,7 @@ Discounted ship = expected clean-`Complete` after the PB, at the historical 2-3�
 | ~~**R3**~~ ✅ **SHIPPED** (`scutemob-145`) | `AtBeginningOfCombat` sweep | **OOS-OS9-1** | **correctness** | shipped: **3 flips** (loyal_apprentice, siege_gang_lieutenant, **+ goblin_rabblemaster** — probe-earned, its "needs a new must-attack `GameRestriction`" note was misframed; must-attack is `KeywordAbility::MustAttackEachCombat` read from layer-resolved characteristics, and all three pieces already existed) + **1 integrity repair** (helm_of_the_host, `Complete`-by-`#[default]` → explicit). Roster from `all_cards()` is **6**, not 3 — the triage's "3" counted verification targets, not the roster; report roster/flips/repairs as three separate numbers. `mirage_phalanx` newly over-produces (was inert-by-accident), contained by `known_wrong` + `validate_deck`, note amended. Seeds filed: OOS-RS3-1/2/3. PROTOCOL 27 / HASH 63 unchanged, as predicted. | **none** (as predicted) |
 | **R4** | face-aware residuals | **OOS-RS-3** | correctness, latent | 0 flips; closes 3 real deviations + a false doc claim | none expected |
 | **R5** | Anim Pakal LKI counters | **OOS-RS-4** | correctness | 0 flips; repairs 1 `Complete` card | none expected |
-| **R6** | CR 611.2c set snapshot | **OOS-OS7-2** | correctness | 0 flips; repairs `golgari_charm` + siblings | PROTOCOL + HASH |
+| ~~**R6**~~ ✅ **SHIPPED as `PB-DX5`** (`scutemob-170`, 2026-08-01) | CR 611.2c set snapshot | **OOS-OS7-2** | correctness | shipped: 0 flips; repairs 38-def mass-filter roster (29 `Complete`, not just `golgari_charm` + siblings) — also closed a second, larger latent defect (source-relative filters on instants/sorceries applied to nobody post-resolution, CR 400.7) | **HASH only** (PROTOCOL confirmed unmoved at 32) |
 | **R7** | target-scoped filters (folded) | **OOS-OS7-1 R1** + **OOS-RS-5** | correctness + capability | **3** (kogla, polymorphists_jest, great_oak_guardian) | PROTOCOL + HASH (one shared bump) |
 | **R8** | multi-count sacrifice cost | **OOS-OS6-1** | capability | **4** (teysa, bolass_citadel, kellogg, westvale) | PROTOCOL + HASH |
 | **R9** | edgar return-transformed | **OOS-OS4-3** | capability | **1**, oracle-gated | PROTOCOL 26→27 / HASH 63→64 |

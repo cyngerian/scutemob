@@ -41,6 +41,7 @@ fn cryptolith_grant(eff_id: u64, source_obj: ObjectId, ts: u64) -> ContinuousEff
             ..Default::default()
         }),
         is_cda: false,
+        affected_set: None,
         condition: None,
     }
 }
@@ -63,6 +64,7 @@ fn lantern_grant(eff_id: u64, source_obj: ObjectId, ts: u64) -> ContinuousEffect
             ..Default::default()
         }),
         is_cda: false,
+        affected_set: None,
         condition: None,
     }
 }
@@ -78,6 +80,7 @@ fn humility_effect(eff_id: u64, ts: u64) -> ContinuousEffect {
         filter: EffectFilter::AllCreatures,
         modification: LayerModification::RemoveAllAbilities,
         is_cda: false,
+        affected_set: None,
         condition: None,
     }
 }
@@ -245,6 +248,7 @@ fn test_cryptolith_rite_grant_ends_when_source_leaves() {
             ..Default::default()
         }),
         is_cda: false,
+        affected_set: None,
         condition: None,
     };
     state.continuous_effects_mut().push_back(grant);
@@ -498,6 +502,7 @@ fn test_paradise_mantle_grants_only_equipped_creature() {
             ..Default::default()
         }),
         is_cda: false,
+        affected_set: None,
         condition: None,
     };
     state.continuous_effects_mut().push_back(grant);
@@ -777,6 +782,7 @@ fn test_granted_once_per_turn_activated_ability_is_preserved_and_enforced() {
         filter: EffectFilter::CreaturesYouControl,
         modification: LayerModification::AddActivatedAbility(Box::new(granted.clone())),
         is_cda: false,
+        affected_set: None,
         condition: None,
     });
 

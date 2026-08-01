@@ -1020,6 +1020,7 @@ fn test_fight_target_not_creature() {
             subtypes: OrdSet::new(),
         },
         is_cda: false,
+        affected_set: None,
         condition: None,
     });
 
@@ -1103,6 +1104,7 @@ fn test_bite_negative_power() {
         filter: EffectFilter::SingleObject(src_id_pre),
         modification: LayerModification::ModifyPower(-3),
         is_cda: false,
+        affected_set: None,
         condition: None,
     });
 

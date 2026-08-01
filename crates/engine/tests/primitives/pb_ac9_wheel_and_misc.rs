@@ -124,7 +124,7 @@ fn setup_hand_and_library(hand_n: usize, library_n: usize) -> GameState {
 #[test]
 fn test_pb_ac9_hash_schema_version_live_sentinel() {
     assert_eq!(
-        HASH_SCHEMA_VERSION, 69u8,
+        HASH_SCHEMA_VERSION, 70u8,
         "PB-AC9 bumped HASH_SCHEMA_VERSION 35->36 (Effect::WheelHand disc 91, \
          Effect::SetNoMaximumHandSize disc 92, PlayerState.no_max_hand_size_permanent). \
          If you bumped again, update this test."
@@ -546,6 +546,7 @@ fn test_set_no_max_hand_size_stacks_with_layer_granted_source() {
         filter: EffectFilter::SingleObject(bear),
         modification: LayerModification::AddKeyword(KeywordAbility::NoMaxHandSize),
         is_cda: false,
+        affected_set: None,
         condition: None,
     });
 

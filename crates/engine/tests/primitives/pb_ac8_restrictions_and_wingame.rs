@@ -162,7 +162,7 @@ fn sorcery_def(name: &str, card_id: &str, effect: Effect) -> CardDefinition {
 #[test]
 fn test_pb_ac8_hash_schema_version_live_sentinel() {
     assert_eq!(
-        HASH_SCHEMA_VERSION, 69u8,
+        HASH_SCHEMA_VERSION, 70u8,
         "PB-AC8 bumped HASH_SCHEMA_VERSION 34->35 (GameRestriction::CantAttackOwner disc 9, \
          GameRestriction::CantBeSacrificed disc 10, Effect::WinGame disc 90, \
          LossReason::OpponentWonGame disc 5). If you bumped again, update this test."
@@ -923,6 +923,7 @@ fn test_cleanup_layer_granted_no_max_hand_size_skips_discard() {
         filter: EffectFilter::SingleObject(bear),
         modification: LayerModification::AddKeyword(KeywordAbility::NoMaxHandSize),
         is_cda: false,
+        affected_set: None,
         condition: None,
     });
 

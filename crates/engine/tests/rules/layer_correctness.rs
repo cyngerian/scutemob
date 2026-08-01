@@ -31,6 +31,7 @@ fn humility_effect(id: u64, timestamp: u64) -> ContinuousEffect {
         filter: EffectFilter::AllCreatures,
         modification: LayerModification::RemoveAllAbilities,
         is_cda: false,
+        affected_set: None,
         condition: None,
     }
 }
@@ -46,6 +47,7 @@ fn animate_lands_effect(id: u64, timestamp: u64) -> ContinuousEffect {
         filter: EffectFilter::AllLands,
         modification: LayerModification::AddCardTypes(ordset![CardType::Creature]),
         is_cda: false,
+        affected_set: None,
         condition: None,
     }
 }
@@ -61,6 +63,7 @@ fn fervor_effect(id: u64, timestamp: u64) -> ContinuousEffect {
         filter: EffectFilter::AllCreatures,
         modification: LayerModification::AddKeyword(KeywordAbility::Haste),
         is_cda: false,
+        affected_set: None,
         condition: None,
     }
 }
@@ -83,6 +86,7 @@ fn anthem_effects(
             filter: EffectFilter::AllCreatures,
             modification: LayerModification::ModifyPower(power),
             is_cda: false,
+            affected_set: None,
             condition: None,
         },
         ContinuousEffect {
@@ -94,6 +98,7 @@ fn anthem_effects(
             filter: EffectFilter::AllCreatures,
             modification: LayerModification::ModifyToughness(toughness),
             is_cda: false,
+            affected_set: None,
             condition: None,
         },
     )
@@ -160,6 +165,7 @@ fn test_w3lc_toughness_of_uses_layer_resolved_under_humility() {
             toughness: 1,
         },
         is_cda: false,
+        affected_set: None,
         condition: None,
     };
 
@@ -424,6 +430,7 @@ fn test_w3lc_sacrifice_mana_uses_layer_resolved_types() {
         filter: EffectFilter::AllPermanents,
         modification: LayerModification::AddCardTypes(ordset![CardType::Creature]),
         is_cda: false,
+        affected_set: None,
         condition: None,
     };
 

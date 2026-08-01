@@ -104,6 +104,7 @@ fn anthem_toughness_effect(id: u64, amount: i32) -> ContinuousEffect {
         filter: EffectFilter::AllCreatures,
         modification: LayerModification::ModifyToughness(amount),
         is_cda: false,
+        affected_set: None,
         condition: None,
     }
 }
@@ -121,6 +122,7 @@ fn anthem_power_effect(id: u64, amount: i32) -> ContinuousEffect {
         filter: EffectFilter::AllCreatures,
         modification: LayerModification::ModifyPower(amount),
         is_cda: false,
+        affected_set: None,
         condition: None,
     }
 }
@@ -1626,7 +1628,7 @@ fn test_pb_ef10_version_sentinels() {
          AdditionalCost::Sacrifice reshape)"
     );
     assert_eq!(
-        HASH_SCHEMA_VERSION, 69u8,
+        HASH_SCHEMA_VERSION, 70u8,
         "HASH_SCHEMA_VERSION should be 53 after PB-EF10"
     );
 }

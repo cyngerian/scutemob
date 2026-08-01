@@ -305,6 +305,7 @@ fn test_dp7_concede_while_blocked_clears_entry() {
         filter: EffectFilter::SingleObject(bear),
         modification: LayerModification::ModifyPower(1),
         is_cda: false,
+        affected_set: None,
         condition: None,
     });
 
@@ -838,6 +839,7 @@ fn test_dp7_no_max_hand_size_never_pauses_layer_granted() {
         filter: EffectFilter::SingleObject(bear),
         modification: LayerModification::AddKeyword(KeywordAbility::NoMaxHandSize),
         is_cda: false,
+        affected_set: None,
         condition: None,
     });
 
@@ -913,6 +915,7 @@ fn test_dp7_cr_514_2_is_deferred_until_the_answer() {
         filter: EffectFilter::SingleObject(bear),
         modification: LayerModification::ModifyPower(1),
         is_cda: false,
+        affected_set: None,
         condition: None,
     });
 

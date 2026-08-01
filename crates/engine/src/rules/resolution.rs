@@ -3825,6 +3825,7 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                         modification:
                             crate::state::continuous_effect::LayerModification::ModifyBoth(-1),
                         is_cda: false,
+                        affected_set: None,
                         condition: None,
                     },
                 );
@@ -3874,6 +3875,7 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                                     bonus,
                                 ),
                             is_cda: false,
+                            affected_set: None,
                             condition: None,
                         },
                     );
@@ -4007,6 +4009,7 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                                     bonus,
                                 ),
                             is_cda: false,
+                            affected_set: None,
                             condition: None,
                         },
                     );
@@ -4078,6 +4081,7 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                                     enlisted_power,
                                 ),
                             is_cda: false,
+                            affected_set: None,
                             condition: None,
                         },
                     );
@@ -4793,6 +4797,7 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                                         ),
                                         timestamp: ts,
                                         is_cda: false,
+                                        affected_set: None,
                                         condition: None,
                                     });
                                     // Grant applies to the paired partner too.
@@ -4811,6 +4816,7 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                                         ),
                                         timestamp: ts2,
                                         is_cda: false,
+                                        affected_set: None,
                                         condition: None,
                                     });
                                 }
@@ -5258,6 +5264,7 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                         toughness: 1,
                     },
                     is_cda: false,
+                    affected_set: None,
                     condition: None,
                 };
                 state.continuous_effects.push_back(pt_override);
@@ -5697,6 +5704,7 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                         filter: EffectFilter::SingleObject(target_creature),
                         modification: LayerModification::ModifyBoth(power_boost),
                         is_cda: false,
+                        affected_set: None,
                         condition: None,
                     });
                 } else {
@@ -5710,6 +5718,7 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                         filter: EffectFilter::SingleObject(target_creature),
                         modification: LayerModification::ModifyPower(power_boost),
                         is_cda: false,
+                        affected_set: None,
                         condition: None,
                     });
                     let ts2 = state.timestamp_counter;
@@ -5724,6 +5733,7 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                         filter: EffectFilter::SingleObject(target_creature),
                         modification: LayerModification::ModifyToughness(toughness_boost),
                         is_cda: false,
+                        affected_set: None,
                         condition: None,
                     });
                 }
@@ -5743,6 +5753,7 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                         filter: EffectFilter::SingleObject(target_creature),
                         modification: LayerModification::AddKeywords(kw_set),
                         is_cda: false,
+                        affected_set: None,
                         condition: None,
                     });
                 }
@@ -5815,6 +5826,7 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                         filter: EffectFilter::SingleObject(target_creature),
                         duration: EffectDuration::UntilEndOfTurn,
                         is_cda: false,
+                        affected_set: None,
                         condition: None,
                         timestamp: ts,
                     };
@@ -7794,6 +7806,7 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                                         filter: continuous_effect.filter.clone(),
                                         modification: continuous_effect.modification.clone(),
                                         is_cda: false,
+                                        affected_set: None,
                                         condition: None,
                                     },
                                 );

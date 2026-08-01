@@ -38,6 +38,7 @@ fn effect(
         filter,
         modification,
         is_cda: false,
+        affected_set: None,
         condition: None,
     }
 }
@@ -59,6 +60,7 @@ fn eot_effect(
         filter,
         modification,
         is_cda: false,
+        affected_set: None,
         condition: None,
     }
 }
@@ -127,6 +129,7 @@ fn test_613_layer4_set_type_line_replaces_all() {
                 subtypes: ordset![SubType("Mountain".to_string())],
             },
             is_cda: false,
+            affected_set: None,
             condition: None,
         })
         .build()
@@ -325,6 +328,7 @@ fn test_613_layer5_set_colors() {
             filter: EffectFilter::AllCreatures,
             modification: LayerModification::SetColors(ordset![Color::Blue]),
             is_cda: false,
+            affected_set: None,
             condition: None,
         })
         .build()
@@ -434,6 +438,7 @@ fn test_613_layer7a_cda_applies_before_static_pt() {
                 toughness: 4,
             },
             is_cda: true,
+            affected_set: None,
             condition: None,
         })
         // Non-CDA in 7b with EARLIER timestamp: should apply after the CDA
@@ -449,6 +454,7 @@ fn test_613_layer7a_cda_applies_before_static_pt() {
                 toughness: 1,
             },
             is_cda: false,
+            affected_set: None,
             condition: None,
         })
         .build()
@@ -499,6 +505,7 @@ fn test_613_layer7a_set_pt_to_mana_value() {
             filter: EffectFilter::AllCreatures,
             modification: LayerModification::SetPtToManaValue,
             is_cda: false,
+            affected_set: None,
             condition: None,
         })
         .build()
@@ -605,6 +612,7 @@ fn test_613_effect_expires_when_source_leaves_battlefield() {
         filter: EffectFilter::AllCreatures,
         modification: LayerModification::ModifyBoth(5),
         is_cda: false,
+        affected_set: None,
         condition: None,
     });
 
@@ -665,6 +673,7 @@ fn test_613_until_end_of_turn_expires_at_cleanup() {
             filter: EffectFilter::AllCreatures,
             modification: LayerModification::ModifyBoth(1),
             is_cda: false,
+            affected_set: None,
             condition: None,
         })
         .build()
@@ -839,6 +848,7 @@ fn test_613_opalescence_makes_enchantments_into_creatures() {
             filter: EffectFilter::AllNonAuraEnchantments,
             modification: LayerModification::AddCardTypes(ordset![CardType::Creature]),
             is_cda: false,
+            affected_set: None,
             condition: None,
         })
         // Opalescence Layer 7b effect: P/T = mana value
@@ -851,6 +861,7 @@ fn test_613_opalescence_makes_enchantments_into_creatures() {
             filter: EffectFilter::AllNonAuraEnchantments,
             modification: LayerModification::SetPtToManaValue,
             is_cda: false,
+            affected_set: None,
             condition: None,
         })
         .build()
@@ -925,6 +936,7 @@ fn test_613_humility_plus_opalescence() {
             filter: EffectFilter::AllNonAuraEnchantments,
             modification: LayerModification::AddCardTypes(ordset![CardType::Creature]),
             is_cda: false,
+            affected_set: None,
             condition: None,
         })
         // Layer 7b: P/T = mana value (Opalescence, older)
@@ -937,6 +949,7 @@ fn test_613_humility_plus_opalescence() {
             filter: EffectFilter::AllNonAuraEnchantments,
             modification: LayerModification::SetPtToManaValue,
             is_cda: false,
+            affected_set: None,
             condition: None,
         })
         // Humility effects (timestamp 10 = entered after Opalescence):
@@ -950,6 +963,7 @@ fn test_613_humility_plus_opalescence() {
             filter: EffectFilter::AllCreatures,
             modification: LayerModification::RemoveAllAbilities,
             is_cda: false,
+            affected_set: None,
             condition: None,
         })
         // Layer 7b: all creatures are base 1/1 (Humility, newer — overrides Opalescence)
@@ -965,6 +979,7 @@ fn test_613_humility_plus_opalescence() {
                 toughness: 1,
             },
             is_cda: false,
+            affected_set: None,
             condition: None,
         })
         .build()
@@ -1037,6 +1052,7 @@ fn test_613_blood_moon_plus_urborg_blood_moon_newer() {
             filter: EffectFilter::AllLands,
             modification: LayerModification::AddSubtypes(ordset![SubType("Swamp".to_string())]),
             is_cda: false,
+            affected_set: None,
             condition: None,
         })
         // Blood Moon effect (timestamp 10, newer): set type to "Land — Mountain"
@@ -1053,6 +1069,7 @@ fn test_613_blood_moon_plus_urborg_blood_moon_newer() {
                 subtypes: ordset![SubType("Mountain".to_string())],
             },
             is_cda: false,
+            affected_set: None,
             condition: None,
         })
         .build()
@@ -1103,6 +1120,7 @@ fn test_613_blood_moon_plus_urborg_blood_moon_older_dependency_wins() {
                 subtypes: ordset![SubType("Mountain".to_string())],
             },
             is_cda: false,
+            affected_set: None,
             condition: None,
         })
         // Urborg effect (timestamp 10, NEWER): add Swamp subtype to all lands
@@ -1115,6 +1133,7 @@ fn test_613_blood_moon_plus_urborg_blood_moon_older_dependency_wins() {
             filter: EffectFilter::AllLands,
             modification: LayerModification::AddSubtypes(ordset![SubType("Swamp".to_string())]),
             is_cda: false,
+            affected_set: None,
             condition: None,
         })
         .build()
@@ -1162,6 +1181,7 @@ fn test_613_dependency_chain_three_effects() {
             filter: EffectFilter::AllLands,
             modification: LayerModification::AddCardTypes(ordset![CardType::Artifact]),
             is_cda: false,
+            affected_set: None,
             condition: None,
         })
         // Effect B (middle): AddSubtypes — adds Swamp
@@ -1174,6 +1194,7 @@ fn test_613_dependency_chain_three_effects() {
             filter: EffectFilter::AllLands,
             modification: LayerModification::AddSubtypes(ordset![SubType("Swamp".to_string())]),
             is_cda: false,
+            affected_set: None,
             condition: None,
         })
         // Effect A (newest): SetTypeLine — overrides everything
@@ -1190,6 +1211,7 @@ fn test_613_dependency_chain_three_effects() {
                 subtypes: ordset![SubType("Mountain".to_string())],
             },
             is_cda: false,
+            affected_set: None,
             condition: None,
         })
         .build()
@@ -1500,6 +1522,7 @@ fn test_cc6_humility_magus_of_moon_nondependency() {
                 subtypes: ordset![SubType("Mountain".to_string())],
             },
             is_cda: false,
+            affected_set: None,
             condition: None,
         })
         // Humility effect 1 — Layer 6: all creatures lose all abilities (CR 613.1f).
@@ -1512,6 +1535,7 @@ fn test_cc6_humility_magus_of_moon_nondependency() {
             filter: EffectFilter::AllCreatures,
             modification: LayerModification::RemoveAllAbilities,
             is_cda: false,
+            affected_set: None,
             condition: None,
         })
         // Humility effect 2 — Layer 7b: all creatures have base P/T 1/1 (CR 613.4b).
@@ -1527,6 +1551,7 @@ fn test_cc6_humility_magus_of_moon_nondependency() {
                 toughness: 1,
             },
             is_cda: false,
+            affected_set: None,
             condition: None,
         })
         .build()
@@ -1650,6 +1675,7 @@ fn test_cc7_opalescence_parallax_wave_zone_change() {
             filter: EffectFilter::AllNonAuraEnchantments,
             modification: LayerModification::AddCardTypes(ordset![CardType::Creature]),
             is_cda: false,
+            affected_set: None,
             condition: None,
         })
         // Opalescence layer 7b effect: P/T = mana value.
@@ -1662,6 +1688,7 @@ fn test_cc7_opalescence_parallax_wave_zone_change() {
             filter: EffectFilter::AllNonAuraEnchantments,
             modification: LayerModification::SetPtToManaValue,
             is_cda: false,
+            affected_set: None,
             condition: None,
         })
         .build()
@@ -1768,6 +1795,7 @@ fn test_cc4_yixlid_jailer_removes_anger_graveyard_ability() {
             filter: EffectFilter::AllCardsInGraveyards,
             modification: LayerModification::RemoveAllAbilities,
             is_cda: false,
+            affected_set: None,
             condition: None,
         })
         .build()
@@ -1875,6 +1903,7 @@ fn test_613_layer7b_cda_applies_before_noncda_same_sublayer() {
                 toughness: 2,
             },
             is_cda: true,
+            affected_set: None,
             condition: None,
         })
         // Non-CDA effect: timestamp=5 (earlier), sets P/T to 3/3.
@@ -1890,6 +1919,7 @@ fn test_613_layer7b_cda_applies_before_noncda_same_sublayer() {
                 toughness: 3,
             },
             is_cda: false,
+            affected_set: None,
             condition: None,
         })
         .build()

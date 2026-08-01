@@ -566,6 +566,7 @@ fn test_fortify_static_ability_grants_to_land() {
                 [KeywordAbility::Indestructible].into_iter().collect(),
             ),
             is_cda: false,
+            affected_set: None,
             condition: None,
         });
     }

@@ -72,6 +72,7 @@ fn anthem_power_effect(id: u64) -> ContinuousEffect {
         filter: EffectFilter::AllCreatures,
         modification: LayerModification::ModifyPower(1),
         is_cda: false,
+        affected_set: None,
         condition: None,
     }
 }
@@ -86,6 +87,7 @@ fn anthem_toughness_effect(id: u64) -> ContinuousEffect {
         filter: EffectFilter::AllCreatures,
         modification: LayerModification::ModifyToughness(1),
         is_cda: false,
+        affected_set: None,
         condition: None,
     }
 }
@@ -792,7 +794,7 @@ fn test_hash_parity_power_of_sacrificed_creature_distinct() {
     // Assert hash sentinel is exactly 15 (PB-LKI-CC bump from PB-TS's 14 for
     // EffectAmount::CounterCountAtLastKnownInformation, CR 603.10a / 113.7a).
     assert_eq!(
-        HASH_SCHEMA_VERSION, 69u8,
+        HASH_SCHEMA_VERSION, 70u8,
         "HASH_SCHEMA_VERSION drifted without this sentinel being updated. Bump this assertion and the state/hash.rs history block together; the authoritative check is the SR-17 machine gate in tests/core/hash_schema.rs."
     );
 
@@ -1007,6 +1009,7 @@ fn test_sacrifice_negative_power_creature_mills_zero() {
         filter: EffectFilter::AllCreatures,
         modification: LayerModification::ModifyPower(-3),
         is_cda: false,
+        affected_set: None,
         condition: None,
     };
 

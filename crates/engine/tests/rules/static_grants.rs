@@ -67,6 +67,7 @@ fn test_creatures_you_control_grants_keyword_to_own_creatures_only() {
         filter: EffectFilter::CreaturesYouControl,
         modification: LayerModification::AddKeyword(KeywordAbility::Haste),
         is_cda: false,
+        affected_set: None,
         condition: None,
     });
 
@@ -107,6 +108,7 @@ fn test_creatures_you_control_excludes_non_creatures() {
         filter: EffectFilter::CreaturesYouControl,
         modification: LayerModification::AddKeyword(KeywordAbility::Haste),
         is_cda: false,
+        affected_set: None,
         condition: None,
     });
 
@@ -147,6 +149,7 @@ fn test_other_creatures_you_control_excludes_source() {
         filter: EffectFilter::OtherCreaturesYouControl,
         modification: LayerModification::AddKeyword(KeywordAbility::Haste),
         is_cda: false,
+        affected_set: None,
         condition: None,
     });
 
@@ -216,6 +219,7 @@ fn test_other_creatures_with_subtype_filters_correctly() {
         filter: EffectFilter::OtherCreaturesYouControlWithSubtype(SubType("Vampire".to_string())),
         modification: LayerModification::ModifyBoth(1),
         is_cda: false,
+        affected_set: None,
         condition: None,
     });
 
@@ -268,6 +272,7 @@ fn test_creatures_you_control_no_source_matches_nothing() {
         filter: EffectFilter::CreaturesYouControl,
         modification: LayerModification::AddKeyword(KeywordAbility::Flying),
         is_cda: false,
+        affected_set: None,
         condition: None,
     });
 
@@ -306,6 +311,7 @@ fn test_multiple_controllers_grant_independently() {
         filter: EffectFilter::CreaturesYouControl,
         modification: LayerModification::AddKeyword(KeywordAbility::Haste),
         is_cda: false,
+        affected_set: None,
         condition: None,
     });
 
@@ -319,6 +325,7 @@ fn test_multiple_controllers_grant_independently() {
         filter: EffectFilter::CreaturesYouControl,
         modification: LayerModification::AddKeyword(KeywordAbility::Flying),
         is_cda: false,
+        affected_set: None,
         condition: None,
     });
 
@@ -363,6 +370,7 @@ fn test_creatures_opponents_control_debuff() {
         filter: EffectFilter::CreaturesOpponentsControl,
         modification: LayerModification::ModifyBoth(-2),
         is_cda: false,
+        affected_set: None,
         condition: None,
     });
 
@@ -422,6 +430,7 @@ fn test_creatures_opponents_control_multiplayer() {
         filter: EffectFilter::CreaturesOpponentsControl,
         modification: LayerModification::ModifyBoth(-2),
         is_cda: false,
+        affected_set: None,
         condition: None,
     });
 
@@ -475,6 +484,7 @@ fn test_attacking_creatures_you_control_grants_keyword() {
         filter: EffectFilter::AttackingCreaturesYouControl,
         modification: LayerModification::AddKeyword(KeywordAbility::Deathtouch),
         is_cda: false,
+        affected_set: None,
         condition: None,
     });
 
@@ -520,6 +530,7 @@ fn test_attacking_creatures_filter_outside_combat() {
         filter: EffectFilter::AttackingCreaturesYouControl,
         modification: LayerModification::AddKeyword(KeywordAbility::Deathtouch),
         is_cda: false,
+        affected_set: None,
         condition: None,
     });
 
@@ -567,6 +578,7 @@ fn test_creatures_you_control_with_subtype_includes_self() {
         filter: EffectFilter::CreaturesYouControlWithSubtype(SubType("Elf".to_string())),
         modification: LayerModification::ModifyBoth(3),
         is_cda: false,
+        affected_set: None,
         condition: None,
     });
 
@@ -618,6 +630,7 @@ fn test_creatures_you_control_with_supertype_legendary() {
         filter: EffectFilter::CreaturesYouControlWithSupertype(SuperType::Legendary),
         modification: LayerModification::ModifyPower(1),
         is_cda: false,
+        affected_set: None,
         condition: None,
     });
 
@@ -667,6 +680,7 @@ fn test_creatures_you_control_with_color_red() {
         filter: EffectFilter::CreaturesYouControlWithColor(Color::Red),
         modification: LayerModification::AddKeyword(KeywordAbility::FirstStrike),
         is_cda: false,
+        affected_set: None,
         condition: None,
     });
 
@@ -720,6 +734,7 @@ fn test_artifacts_you_control_grants_shroud() {
         filter: EffectFilter::ArtifactsYouControl,
         modification: LayerModification::AddKeyword(KeywordAbility::Shroud),
         is_cda: false,
+        affected_set: None,
         condition: None,
     });
 
@@ -787,6 +802,7 @@ fn test_other_creatures_excluding_subtype_non_human() {
         )),
         modification: LayerModification::ModifyBoth(1),
         is_cda: false,
+        affected_set: None,
         condition: None,
     });
 
@@ -846,6 +862,7 @@ fn test_creatures_excluding_subtype_spell_effect() {
         filter: EffectFilter::CreaturesYouControlExcludingSubtype(SubType("Human".to_string())),
         modification: LayerModification::ModifyBoth(3),
         is_cda: false,
+        affected_set: None,
         condition: None,
     });
 
@@ -923,6 +940,7 @@ fn test_attacking_creatures_with_subtype() {
         )),
         modification: LayerModification::AddKeyword(KeywordAbility::Deathtouch),
         is_cda: false,
+        affected_set: None,
         condition: None,
     });
 
@@ -985,6 +1003,7 @@ fn test_all_creatures_with_subtype_no_controller() {
         filter: EffectFilter::AllCreaturesWithSubtype(SubType("Dragon".to_string())),
         modification: LayerModification::ModifyBoth(1),
         is_cda: false,
+        affected_set: None,
         condition: None,
     });
 
@@ -1050,6 +1069,7 @@ fn test_other_creatures_with_subtypes_or() {
         ]),
         modification: LayerModification::ModifyBoth(1),
         is_cda: false,
+        affected_set: None,
         condition: None,
     });
 

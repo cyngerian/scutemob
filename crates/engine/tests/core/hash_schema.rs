@@ -69,10 +69,11 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
+use imbl::OrdSet;
 use mtg_engine::{
     CardType, Color, ContinuousEffect, CounterType, EffectDuration, EffectFilter, EffectId,
     EffectLayer, GameState, GameStateBuilder, HashSchemaEpoch, KeywordAbility, LayerModification,
-    ManaColor, ManaPool, ObjectSpec, PlayerId, Step, SubType, SuperType, ZoneId,
+    ManaColor, ManaPool, ObjectId, ObjectSpec, PlayerId, Step, SubType, SuperType, ZoneId,
     HASH_SCHEMA_HISTORY, HASH_SCHEMA_VERSION,
 };
 
@@ -189,10 +190,10 @@ const BASELINE_STREAM_FINGERPRINT: &str =
 // superseded row and joined the frozen prefix.
 // PB-DP8 fix cycle (2026-07-26): re-pinned on the 66→67 bump — versions 65 and 66
 // became superseded rows and joined the frozen prefix.
-// PB-DX1 (2026-08-01): re-pinned on the 68→69 bump — version 68 became a
+// PB-DX5 (2026-08-01): re-pinned on the 69→70 bump — version 69 became a
 // superseded row and joined the frozen prefix.
 const FROZEN_HISTORY_PREFIX_DIGEST: &str =
-    "7edda69b1a13e8c516498ef20bacaf20e7a1ff6e0fa2e29567ffab88e6905ed5";
+    "32b6926735a7366ef78f55c8ae5e5129514fbef87e6a52f6e322ac2c84234ff5";
 
 /// The workspace root: `crates/engine/` is two levels down from it.
 fn workspace_root() -> PathBuf {
@@ -762,6 +763,16 @@ fn canonical_fixture() -> GameState {
         .object(ObjectSpec::card(PlayerId(4), "Exiled Card").in_zone(ZoneId::Exile))
         // A continuous effect, so the `ContinuousEffect` HashInto family is in the
         // stream digest too (the builder can add this one without process_command).
+        //
+        // PB-DX5 / CR 611.2c: `affected_set` is populated `Some(..)` here
+        // ON PURPOSE, not left at the `None` every other pre-existing
+        // `ContinuousEffect` literal in the repo backfilled with -- a `None`
+        // fixture would still move both digests (a new hashed field always
+        // does) but would leave the new `HashInto` feed itself unexercised by
+        // the canonical fixture, the exact gap several prior
+        // `HASH_SCHEMA_HISTORY` rows had to admit. `ObjectId(1)` is an
+        // arbitrary id; this fixture never runs `process_command`, so nothing
+        // depends on it referring to a real object.
         .add_continuous_effect(ContinuousEffect {
             id: EffectId(1000),
             source: None,
@@ -774,6 +785,7 @@ fn canonical_fixture() -> GameState {
                 toughness: 3,
             },
             is_cda: false,
+            affected_set: Some(OrdSet::unit(ObjectId(1))),
             condition: None,
         })
         .build()
@@ -1199,7 +1211,7 @@ fn frozen_prefix_is_pinned() {
 #[test]
 fn hash_schema_version_sentinel() {
     assert_eq!(
-        HASH_SCHEMA_VERSION, 69,
+        HASH_SCHEMA_VERSION, 70,
         "HASH_SCHEMA_VERSION changed. Update this sentinel, append a HASH_SCHEMA_HISTORY row with \
          the new fingerprints, and add a `- N:` History line in state/hash.rs."
     );
