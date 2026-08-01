@@ -13,11 +13,20 @@
 - **Task**: `scutemob-160`
 - **Branch**: `feat/pb-dx1-the-intervening-if-dropped-in-the-runtime-lowering-oo`
 - **Class**: **CORRECTNESS** — live-wrong on a `Complete`, deck-legal def; unbounded loop.
-- **Phase**: plan
+- **Phase**: **closed** — plan → implement → review → fix → close all complete 2026-08-01.
+  Review findings applied in full (all 10: 1 HIGH, 5 MEDIUM, 4 LOW).
 - **Plan**: `memory/primitives/pb-plan-DX1.md`
 - **Review file**: `memory/primitives/pb-review-DX1.md`
-- **Wire prediction**: **HASH** bump if fix (a) is taken (`TriggeredAbilityDef` sits inside
-  `Characteristics`, `state/hash.rs:3337`). Prediction, not a licence — gate-compute.
+- **Wire**: predicted **HASH** only; **shipped PROTOCOL 31 → 32 AND HASH 68 → 69**. The prediction
+  was half wrong and *planning caught it before implementation*, stating the falsifier in advance:
+  `Characteristics` is in `protocol_schema.rs`'s `CLOSURE_MUST_CONTAIN` and
+  `Characteristics.triggered_abilities: Vec<TriggeredAbilityDef>`, so `TriggeredAbilityDef` and
+  `InterveningIf` were in the wire closure all along. **Carry-forward: any future prediction of
+  "HASH only" on a type reachable from `Characteristics` is wrong — it is a PROTOCOL bump too.**
+- **Result**: tests 3,928 → **3,945**, 0 failing. `OOS-DP6-1` CLOSED with both riders
+  (`OOS-DP6-5`, `OOS-DP6-9`). 1 completeness flip (`karlach_fury_of_avernus`
+  `known_wrong` → `Complete`). Seeds `OOS-DX1-1..6` filed in `docs/audits/decision-point-audit.md`
+  §8.1. Fix (a) taken as a **variant** (`InterveningIf::CardDef(Box<Condition>)`), not a field.
 
 ## Premise re-verification (done before planning, on current branch head `3d73763d`)
 

@@ -577,6 +577,39 @@ was waiting on, so its dismissal deserves a fresh look rather than another copy-
 
 ## 4. The successor queue — **PB-DX1 .. PB-DX18** (AC 5857)
 
+> ### 🚦 QUEUE STATUS — read this before claiming anything
+>
+> **PB-DX1 SHIPPED** — `scutemob-160`, 2026-08-01. **`OOS-DP6-1` is CLOSED**, together with both
+> its riders **`OOS-DP6-5`** and **`OOS-DP6-9`** (whose cites in `docs/audits/decision-point-audit.md`
+> §8.1 were *both* stale and were corrected on closure: `resolution.rs:7369`→`:7564`,
+> `:5351`→`:5494`). Do **not** claim OOS-DP6-1/-5/-9 from the table below or from the §"Dispatch
+> briefs" text — this banner exists precisely because the **N4 re-dispatch hazard** this document
+> was written to catch (OOS-RS3-1 advertised as "next dispatch" for a week after PB-DP6 closed it)
+> is a *documentation* failure, not a triage failure.
+>
+> **Wire prediction falsified — half wrong, and the correction generalises.** The PB-DX1 row and
+> its dispatch brief both predicted **HASH only**. The batch shipped **PROTOCOL 31 → 32 AND
+> HASH 68 → 69**: `Characteristics` is listed in `protocol_schema.rs`'s `CLOSURE_MUST_CONTAIN`,
+> and `Characteristics.triggered_abilities: Vec<TriggeredAbilityDef>`, so `TriggeredAbilityDef`
+> *and* `InterveningIf` were in the wire closure all along. **Any row in the table below predicting
+> a HASH bump on a type reachable from `Characteristics` should be assumed to be a PROTOCOL bump
+> too** — this affects PB-DX5's row directly (it already says "compute, do not assume"). The
+> §"Ordering rule" paragraph's standing instruction holds and was vindicated: gate-compute, treat
+> a mismatch as a signal to stop.
+>
+> **Two ranking premises to correct before the next dispatch.** (1) PB-DX1's "unblocks karlach +
+> tatyova" was **over-stated by one** — `tatyova_steward_of_tides` stays `partial`; its note names
+> two blockers this batch does not touch. Honest yield was **1 flip** (`karlach_fury_of_avernus`,
+> `known_wrong` → `Complete`, MCP ruling #11 verbatim). (2) The batch found and fixed a **second
+> field dropped by the same lowering** that no seed recorded: `once_per_turn` was hardcoded `false`
+> at 31 of 34 push sites, and three `Complete`, deck-legal defs over-fired
+> (`welcoming_vampire`, `elvish_warmaster`, `whispering_wizard` — the last a self-reinforcing token
+> cascade, since its own token re-qualifies the trigger). Wire-neutral, shipped in the same batch.
+>
+> **Next dispatch: `PB-DX2`** (OOS-DP5-7 + OOS-DP7-2 — `ChooseDredge` has no pending-state gate;
+> `card: None` is a free card for any player at any time; wire-neutral). **PB-DX3** after it
+> (2 flips, 0 engine lines). Both are independent of PB-DX1 and of M11-local.
+
 **Prefix**: `PB-DX` ("decision-suite eXtension"). Verified unclaimed — zero occurrences of
 `PB-DX` anywhere in `memory/`, `docs/` or `CLAUDE.md` before this document. `PB-SR*`, `PB-RS*`,
 `PB-OS*`, `PB-EF*`, `PB-AC*`, `PB-DP*` are all taken and `PB-Q2/Q3/Q5` are reserved.
@@ -592,7 +625,7 @@ bumps were falsified).
 
 | rank | batch | seed(s) | class | discounted ship | wire prediction |
 |---|---|---|---|---|---|
-| **PB-DX1** | the dropped intervening-if | **OOS-DP6-1** (+riders DP6-5, DP6-9) | **CORRECTNESS — live-wrong `Complete`, unbounded** | 0 flips; repairs `aurelia_the_warleader`, unblocks `karlach` + `tatyova` | **HASH** (field on `TriggeredAbilityDef`, inside `Characteristics`) |
+| ~~**PB-DX1**~~ **✅ SHIPPED `scutemob-160`** | the dropped intervening-if | **OOS-DP6-1** (+riders DP6-5, DP6-9) — **all three CLOSED** | **CORRECTNESS — live-wrong `Complete`, unbounded** | **1 flip** (`karlach`), not 2 — `tatyova` stays `partial`; `aurelia` repaired; +3 defs stop over-firing via the unpredicted `once_per_turn` half | **PROTOCOL 31→32 AND HASH 68→69** — the "HASH only" prediction was **half wrong** (see banner) |
 | **PB-DX2** | unguarded resolution-time commands | **OOS-DP5-7** + **OOS-DP7-2** (+riders DP2-1, DP9-14) | **CORRECTNESS — live exploit, trust boundary** | 0 flips; closes a free-card exploit + 2 lying doc comments | **none** |
 | **PB-DX3** | two stale blocker notes | **OOS-DP6-3** | **card yield, zero engine** | **2 flips** (`garruks_uprising`, `inventors_fair`) | **none** |
 | **PB-DX4** | the `BASELINE` triage sweep | **OOS-DP10-8** | **CORRECTNESS — marker integrity** | 0 flips; ≥2 known live-wrong `Complete` defs corrected, 95 entries triaged | **none** (test + card-def markers) |
