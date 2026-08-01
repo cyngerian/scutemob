@@ -9,11 +9,9 @@
       "603.1",
       "608.2",
       "702.147a",
-      "701.17a",
       "111.1",
       "111.5",
-      "116.3",
-      "704.3"
+      "116.3"
     ],
     "corner_case_ref": null,
     "tags": [
@@ -29,16 +27,16 @@
     "review_status": "approved",
     "reviewed_by": null,
     "review_date": null,
-    "generation_notes": "Jadar, Ghoulcaller of Nephalia (crates/card-defs/src/defs/jadar_ghoulcaller_of_nephalia.rs): {1}{B}, Legendary Creature — Human Wizard 1/1. AbilityDefinition::Triggered { trigger_condition: TriggerCondition::AtBeginningOfYourEndStep, effect: Effect::CreateToken { spec: zombie_decayed_token_spec(1) }, intervening_if: Some(Condition::Not(Box::new(Condition::YouControlNOrMoreWithFilter { count: 1, filter: TargetFilter { has_card_type: Some(CardType::Creature), has_keywords: [KeywordAbility::Decayed] } }))) }. STATUS AS OF PB-DX3b (2026-08-01): BOTH gaps this script originally documented are closed. (1) end_step_actions() in turn_actions.rs has a generic AtBeginningOfYourEndStep carddef sweep, gated at queue time by the intervening-if (PB-DP6, then wired to the def-level Condition::Not(YouControlNOrMoreWithFilter) shape by PB-DX3b — the printed card's real gate is 'no creatures with decayed', not the stale 'no tokens named Shambling Ghast' this def's oracle_text and blocker note previously claimed). (2) The resolution-time gap this script's disputes section named ('characteristics.triggered_abilities is never populated from CardDefinition.AbilityDefinition::Triggered, so the CreateToken effect never executes') was closed separately by B14's card-registry fallback in resolution.rs's TriggeredAbility branch (see the dispute resolution below) — well before PB-DX3b, which only touched the intervening-if. This script exercises the POSITIVE path: P1 controls no decayed creature throughout, so the trigger queues, survives the resolution-time re-check (InterveningIf::CardDef, PB-DX1), and genuinely creates the Zombie token. Step advancement: from PreCombatMain with empty stack, one priority_round advances one step. The path PreCombatMain→End requires 5 priority_rounds: (1)→BeginningOfCombat, (2)→DeclareAttackers, (3) no attackers→EndOfCombat (advance_step skips blockers/damage), (4)→PostCombatMain, (5)→End. Token card name per zombie_decayed_token_spec: 'Zombie'. Mana pool: { black: 1, colorless: 1 } for {1}{B} cost.",
+    "generation_notes": "Jadar, Ghoulcaller of Nephalia (crates/card-defs/src/defs/jadar_ghoulcaller_of_nephalia.rs): {1}{B}, Legendary Creature — Human Wizard 1/1. AbilityDefinition::Triggered { trigger_condition: TriggerCondition::AtBeginningOfYourEndStep, effect: Effect::CreateToken { spec: zombie_decayed_token_spec(1) }, intervening_if: Some(Condition::Not(Box::new(Condition::YouControlNOrMoreWithFilter { count: 1, filter: TargetFilter { has_card_type: Some(CardType::Creature), has_keywords: [KeywordAbility::Decayed] } }))) }. STATUS AS OF PB-DX3b (2026-08-01): BOTH gaps this script originally documented are closed. (1) end_step_actions() in turn_actions.rs has a generic AtBeginningOfYourEndStep carddef sweep, gated at queue time by the intervening-if (PB-DP6, then wired to the def-level Condition::Not(YouControlNOrMoreWithFilter) shape by PB-DX3b — the printed card's real gate is 'no creatures with decayed', not the stale 'no tokens named Shambling Ghast' this def's oracle_text and blocker note previously claimed). (2) The resolution-time gap this script's disputes section named ('characteristics.triggered_abilities is never populated from CardDefinition.AbilityDefinition::Triggered, so the CreateToken effect never executes') was closed separately by B14's card-registry fallback in resolution.rs's TriggeredAbility branch (see the dispute resolution below) — well before PB-DX3b, which only touched the intervening-if. This script exercises the POSITIVE path: P1 controls no decayed creature throughout, so the trigger queues, survives the resolution-time re-check (InterveningIf::CardDef, PB-DX1), and genuinely creates the Zombie token. Step advancement: from PreCombatMain with empty stack, one priority_round advances one step. The path PreCombatMain→End requires 5 priority_rounds: (1)→BeginningOfCombat, (2)→DeclareAttackers, (3) no attackers→EndOfCombat (advance_step skips blockers/damage), (4)→PostCombatMain, (5)→End. Token card name per zombie_decayed_token_spec: 'Zombie'. Mana pool: { black: 1, colorless: 1 } for {1}{B} cost. PB-DX3b fix cycle (review Finding 9): the file's own name ('..._eoc_sacrifice.json') and its cr_sections_tested previously claimed CR 701.17a (attacking) and CR 704.3 (multiple SBAs performed as one event) -- this script declares no attackers and reaches no combat damage step at all (DeclareAttackers is skipped straight to EndOfCombat with zero attackers), so Decayed's 'sacrifice at end of combat after attacking' clause is never exercised and neither CR section is actually tested. cr_sections_tested trimmed to what the script genuinely runs. The filename is left as-is (renaming a golden script file is out of this fix cycle's card-def-and-test-only scope) but should be read as aspirational, not descriptive -- a genuine eoc_sacrifice script for Decayed does not yet exist in this corpus.",
     "disputes": [
       {
         "step_index": 1,
         "action_index": 3,
         "raised_by": "game-script-generator",
         "description": "REMAINING ENGINE GAP (after partial fix): The resolution path for StackObjectKind::TriggeredAbility in resolution.rs (lines ~1773-1830) looks up the trigger effect from obj.characteristics.triggered_abilities.get(ability_index). This Vec is populated by the builder from spec.triggered_abilities and keyword expansions, but NOT from AbilityDefinition::Triggered entries in CardDefinition.abilities. enrich_spec_from_def() in replay_harness.rs also does not translate AbilityDefinition::Triggered into triggered_abilities on the spec. As a result, when Jadar's end-step trigger (ability_index=0 from the CardDef sweep) resolves, triggered_abilities[0] is None, triggered_effect is None, and the CreateToken effect is never executed. The Zombie token is never created. The stack.count=1 assertion (trigger IS placed on stack by the partial fix) passes. The zones.battlefield.p1 includes Zombie assertion fails. Fix: add a card_registry fallback in the TriggeredAbility resolution branch: when characteristics.triggered_abilities.get(ability_index) is None, look up obj.card_id in the card_registry and find the Nth AbilityDefinition::Triggered entry (ability_index is the index into the subset of Triggered AbilityDefinitions). Alternatively, populate characteristics.triggered_abilities from AbilityDefinition::Triggered in enrich_spec_from_def and the builder. CR basis: CR 603.1 — triggered ability fires when event occurs; CR 608.2 — ability resolves and effect executes.",
-        "resolution": null,
-        "resolved_by": null,
-        "resolved_date": null
+        "resolution": "CLOSED, pre-dating this file's second dispute entry. This gap was fixed by the B14 engine fix recorded in memory/gotchas-infra.md ('resolution.rs card registry fallback for TriggeredAbility SOK') — resolution.rs now falls back to state.card_registry.get(card_id)?.abilities[ability_index] and executes the AbilityDefinition::Triggered { effect, .. } directly when the characteristics.triggered_abilities lookup misses, exactly as this dispute's own 'Fix' paragraph proposed (the card-registry-fallback alternative). See the second dispute entry below (raised by PB-DX3b) for the full account of why this script had never been re-run against that fix, and PB-DX3b's own separate closure of this card's missing CR 603.4 intervening-if.",
+        "resolved_by": "primitive-impl-runner (PB-DX3b, scutemob-166)",
+        "resolved_date": "2026-08-01"
       },
       {
         "step_index": 1,
@@ -236,11 +234,11 @@
     },
     {
       "step": "ending",
-      "step_note": "P1's End step. Jadar's trigger is on the stack (PARTIAL FIX confirmed). Both players pass. Trigger resolves — but CreateToken effect is not executed due to remaining engine gap (resolution reads characteristics.triggered_abilities which is empty). See disputes.",
+      "step_note": "P1's End step. Jadar's trigger is on the stack, gated by its CR 603.4 intervening-if (PB-DX3b). Both players pass. The trigger resolves and the CreateToken effect genuinely executes -- both engine gaps this script originally documented (the resolution-time characteristics.triggered_abilities lookup, closed by the pre-existing B14 card-registry fallback; and Jadar's own missing intervening-if, closed by PB-DX3b) are closed. See disputes for the history.",
       "actions": [
         {
           "type": "assert_state",
-          "description": "Jadar end-step trigger on stack (count=1). PARTIAL FIX confirmed: end_step_actions() generic sweep places the trigger on the stack.",
+          "description": "Jadar end-step trigger on stack (count=1). end_step_actions()'s generic AtBeginningOfYourEndStep CardDef sweep places the trigger on the stack, gated at queue time by the CR 603.4 intervening-if (PB-DX3b).",
           "assertions": {
             "zones.stack.count": 1,
             "zones.battlefield.p1": {
@@ -251,7 +249,7 @@
               ]
             }
           },
-          "note": "CR 603.1: Jadar's triggered ability fires at the beginning of P1's End step. The generic AtBeginningOfYourEndStep sweep in end_step_actions() places the trigger on the stack. Stack count = 1 — this assertion PASSES with the partial engine fix."
+          "note": "CR 603.1: Jadar's triggered ability fires at the beginning of P1's End step. The generic AtBeginningOfYourEndStep sweep in end_step_actions() places the trigger on the stack, having already checked the CR 603.4 intervening-if. Stack count = 1."
         },
         {
           "type": "priority_round",

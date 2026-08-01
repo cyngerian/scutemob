@@ -10,7 +10,9 @@
 //! - `jadar_ghoulcaller_of_nephalia` — **`Complete`, live-wrong pre-fix.**
 //!   The stored `oracle_text` AND the blocker note both chased a filter the
 //!   printed card never had ("no tokens named Shambling Ghast"); MCP-verified
-//!   printed text is "if you control no creatures with decayed." T1-T4.
+//!   printed text is "if you control no creatures with decayed." T1-T4, T13
+//!   (opponent's decayed creature must not suppress -- fix cycle, review
+//!   Finding 2).
 //! - `ophiomancer` — `partial` -> `Complete`. Its own note already said
 //!   "Blocker stale". T5-T7.
 //! - `dwynen_s_elite` — `inert` (ability absent) -> `Complete`. Authored from
@@ -18,7 +20,8 @@
 //! - `emeria_the_sky_ruin` — **`Complete` only by `#[default]`, live-wrong
 //!   pre-fix** (found this batch, not named by the seed) -> explicit
 //!   `partial` (the "you may" clause remains genuinely unimplemented; see the
-//!   def's own completeness note). T11-T12.
+//!   def's own completeness note). T11-T12, T14 (opponent's Plains must not
+//!   count -- fix cycle, review Finding 7).
 //!
 //! ## Pre-fix observations (recorded before/alongside the card-def edits, per
 //! plan §3 -- and per the PB-DX3 fix-cycle MEDIUM: every "pre-fix, X happened"
@@ -246,13 +249,12 @@ fn count_snakes(state: &GameState, controller: PlayerId) -> usize {
     state
         .objects()
         .iter()
-        .filter(|(_, obj)| {
+        .filter(|(id, obj)| {
             obj.zone == ZoneId::Battlefield
                 && obj.controller == controller
-                && obj
-                    .characteristics
-                    .subtypes
-                    .contains(&SubType("Snake".to_string()))
+                && calculate_characteristics(state, **id)
+                    .map(|c| c.subtypes.contains(&SubType("Snake".to_string())))
+                    .unwrap_or(false)
         })
         .count()
 }
@@ -261,10 +263,12 @@ fn count_elf_warriors(state: &GameState, controller: PlayerId) -> usize {
     state
         .objects()
         .iter()
-        .filter(|(_, obj)| {
+        .filter(|(id, obj)| {
             obj.zone == ZoneId::Battlefield
                 && obj.controller == controller
-                && obj.characteristics.name == "Elf Warrior"
+                && calculate_characteristics(state, **id)
+                    .map(|c| c.name == "Elf Warrior")
+                    .unwrap_or(false)
         })
         .count()
 }
@@ -790,5 +794,113 @@ fn test_dx3b_emeria_seven_plains_reanimates() {
             .any(|o| o.characteristics.name == "Dead Beast" && o.zone == ZoneId::Graveyard(p(1))),
         "the graveyard copy should be gone (CR 400.7 -- new object on the \
          battlefield)"
+    );
+}
+
+// ── T13: Jadar -- an OPPONENT's decayed creature must not suppress ─────────
+
+/// CR 603.4: the printed clause is "if **you** control no creatures with
+/// decayed" -- an opponent's board is not consulted. Added per PB-DX3b review
+/// Finding 2: this is the single most load-bearing claim in the def's own
+/// comment (`TargetFilter.controller` is deliberately left at `Any` because
+/// the `YouControlNOrMoreWithFilter` evaluator does its own
+/// `obj.controller == controller` check, effects/mod.rs), and until this
+/// test, nothing pinned it -- mirrors T7's shape for Ophiomancer. p2 controls
+/// a decayed creature; p1 (Jadar's controller) does not, so the trigger must
+/// still queue and resolve at p1's end step.
+#[test]
+fn test_dx3b_jadar_opponents_decayed_creature_does_not_suppress() {
+    let def = card_def("Jadar, Ghoulcaller of Nephalia");
+    let registry = mtg_engine::CardRegistry::new(vec![def.clone()]);
+    let mut state = GameStateBuilder::new()
+        .add_player(p(1))
+        .add_player(p(2))
+        .with_registry(registry)
+        .object(place_on_battlefield(p(1), &def))
+        .object(
+            ObjectSpec::creature(p(2), "Opponent's Old Zombie", 2, 2)
+                .with_keyword(KeywordAbility::Decayed),
+        )
+        .active_player(p(1))
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+    state.turn_mut().priority_holder = Some(p(1));
+
+    let state = advance_to_step(state, Step::End);
+    assert_eq!(
+        state.stack_objects().len(),
+        1,
+        "CR 603.4: p2 (not Jadar's controller) controls a decayed creature -- \
+         p1 controls none, so Jadar's trigger must still queue at p1's end \
+         step; stack is {:?}",
+        state.stack_objects()
+    );
+    let state = resolve_stack(state, &[p(1), p(2)]);
+    assert_eq!(
+        count_decayed_creatures(&state, p(1)),
+        1,
+        "p1 should have exactly one decayed creature -- the newly created \
+         Zombie -- unaffected by p2's own decayed creature"
+    );
+    assert_eq!(
+        count_decayed_creatures(&state, p(2)),
+        1,
+        "p2's own decayed creature should be untouched (sanity: still \
+         exactly the one placed in the fixture)"
+    );
+}
+
+// ── T14: Emeria -- an OPPONENT's Plains must not count toward the 7 ────────
+
+/// CR 603.4: "if you control seven or more Plains" -- an opponent's Plains
+/// are not consulted. Added per PB-DX3b review Finding 7. p1 controls 6
+/// Plains (below the threshold) and p2 controls 2 Plains; the board-wide
+/// total is 8, but the trigger must not queue because p1's own count is
+/// still 6.
+#[test]
+fn test_dx3b_emeria_opponents_plains_do_not_count() {
+    let def = card_def("Emeria, the Sky Ruin");
+    let registry = mtg_engine::CardRegistry::new(vec![def.clone()]);
+    let mut builder = GameStateBuilder::new()
+        .add_player(p(1))
+        .add_player(p(2))
+        .with_registry(registry)
+        .object(place_on_battlefield(p(1), &def))
+        .object(ObjectSpec::creature(p(1), "Dead Beast", 2, 2).in_zone(ZoneId::Graveyard(p(1))));
+    for i in 0..6u32 {
+        builder = builder.object(
+            ObjectSpec::land(p(1), &format!("Plains {i}"))
+                .with_subtypes(vec![SubType("Plains".to_string())]),
+        );
+    }
+    for i in 0..2u32 {
+        builder = builder.object(
+            ObjectSpec::land(p(2), &format!("Opponent's Plains {i}"))
+                .with_subtypes(vec![SubType("Plains".to_string())]),
+        );
+    }
+    let mut state = builder
+        .active_player(p(1))
+        .at_step(Step::Untap)
+        .build()
+        .unwrap();
+    state.turn_mut().priority_holder = Some(p(1));
+
+    let state = advance_to_step(state, Step::Upkeep);
+    assert!(
+        state.stack_objects().is_empty(),
+        "CR 603.4: p1 controls only 6 Plains -- p2's 2 Plains must not count \
+         toward p1's threshold of 7; stack is {:?}",
+        state.stack_objects()
+    );
+    let state = resolve_stack(state, &[p(1), p(2)]);
+    assert!(
+        state
+            .objects()
+            .values()
+            .any(|o| o.characteristics.name == "Dead Beast" && o.zone == ZoneId::Graveyard(p(1))),
+        "the creature must still be in the graveyard -- no reanimation \
+         should have happened"
     );
 }

@@ -39,8 +39,14 @@ pub fn card() -> CardDefinition {
         // `ControllerGainedLifeThisTurn`, is the wrong side of the interaction (own life
         // gain, not opponent life loss). Both TODOs stand; DEFERRED, not fixed this batch.
         completeness: Completeness::partial(
-            "DSL gap — intervening-if 'if an opponent lost life this turn' \
-             (Condition::OpponentLostLifeThisTurn) does not exist",
+            "DSL gap (a) — intervening-if 'if an opponent lost life this turn' \
+             (Condition::OpponentLostLifeThisTurn) does not exist. DSL gap (b) — the printed \
+             static ability 'as long as an opponent lost life this turn, each other Vampire you \
+             control enters with an additional +1/+1 counter' needs a CONDITIONAL ETB replacement \
+             effect; AbilityDefinition::Replacement's unless_condition is an opt-OUT gate (active \
+             unless the condition holds), the wrong polarity for an 'active only if' gate, so it \
+             cannot express this even setting the missing Condition variant aside. Neither (a) \
+             nor (b) is implemented; this def is unauthored.",
         ),
         ..Default::default()
     }

@@ -308,10 +308,26 @@ fn the_marker_detector_is_not_vacuous() {
     // batches flip markers and nothing re-derives it -- the next batch that moves
     // this number should re-measure `all_cards()` directly rather than trust this
     // comment's arithmetic, exactly as this update did.
+    //
+    // PB-DX3b fix cycle (2026-08-01, review Finding 5): kept the exact pin (option (b)
+    // of the two the review offered) rather than restoring a margin -- the generalisable
+    // lesson above is still the point of pinning at the measured value -- but the
+    // FAILURE MESSAGE was wrong: it named only "MARKER_FRAGMENTS is broken" as the
+    // cause, when `decision_gate.rs:923-924` states the opposite convention explicitly
+    // ("Assertions are `>=` floors only ... an `==` pin reddens on unrelated
+    // authoring"). A `>=` pinned at the exact current value fails on the very next
+    // ordinary `Complete` flip, which has nothing to do with the detector. The message
+    // below now names both possible causes and tells the reader what to do in each case,
+    // rather than asserting the wrong one.
     assert!(
         marked >= 661,
-        "marker detector matched only {marked} files; the corpus has 661 non-Complete defs. \
-         MARKER_FRAGMENTS is broken and the gate would spuriously flag marked defs"
+        "marker detector matched {marked} files; expected >= 661. This assertion has NO \
+         margin (see the comment above) and can fail for two different reasons: (1) \
+         MARKER_FRAGMENTS stopped matching (a detector bug -- the gate would then spuriously \
+         flag marked defs) or, far more likely on an ordinary day, (2) a ROUTINE Complete \
+         flip from unrelated card-authoring work legitimately moved the corpus's non-Complete \
+         count. Re-measure the true count directly against all_cards() before assuming (1); \
+         if it is (2), update this floor with a dated derivation comment."
     );
 }
 

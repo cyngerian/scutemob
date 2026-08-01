@@ -1,4 +1,4 @@
-// Emeria, the Sky Ruin — Legendary Land
+// Emeria, the Sky Ruin — Land
 // This land enters tapped.
 // At the beginning of your upkeep, if you control seven or more Plains, you may
 // return target creature card from your graveyard to the battlefield.
@@ -10,7 +10,14 @@ pub fn card() -> CardDefinition {
         card_id: cid("emeria-the-sky-ruin"),
         name: "Emeria, the Sky Ruin".to_string(),
         mana_cost: None,
-        types: supertypes(&[SuperType::Legendary], &[CardType::Land]),
+        // PB-DX3b fix cycle (review Finding 1): NOT Legendary. MCP's type line is `Land`,
+        // not `Legendary Land` — verified independently three ways (this batch's own
+        // lookup_card, the reviewer's, and a control test: Gaea's Cradle is genuinely
+        // `Legendary Land`, Valakut, the Molten Pinnacle is genuinely `Land`; Emeria is in
+        // Valakut's Zendikar cycle, which is nonlegendary despite the comma name). A
+        // spurious `Legendary` supertype would wrongly apply CR 704.5j (legend rule) to a
+        // duplicate Emeria the real card permits.
+        types: types(&[CardType::Land]),
         oracle_text: "This land enters tapped.\nAt the beginning of your upkeep, if you control \
                       seven or more Plains, you may return target creature card from your \
                       graveyard to the battlefield.\n{T}: Add {W}."
@@ -38,9 +45,10 @@ pub fn card() -> CardDefinition {
             // creature every upkeep regardless of Plains count (this def was `Complete`
             // only by `#[default]` — see the completeness note below).
             //
-            // Emeria has no Plains subtype herself (Legendary Land, no basic land types),
-            // so she never counts toward her own threshold and `exclude_self` is
-            // unnecessary — deliberately left unset rather than set to a no-op true.
+            // Emeria has no Plains subtype herself (a plain Land, no basic land types,
+            // and — fix cycle Finding 1 — not Legendary either), so she never counts
+            // toward her own threshold and `exclude_self` is unnecessary — deliberately
+            // left unset rather than set to a no-op true.
             //
             // The printed "you MAY return" clause is still NOT implemented: there is no
             // free-optional effect in the DSL. `Effect::MayPayThenEffect` requires a
@@ -109,8 +117,12 @@ pub fn card() -> CardDefinition {
              because the DSL has no free-optional effect — MayPayThenEffect requires a Cost and a \
              free one would always trivially pay, which is not a real choice; MayPayOrElse is a \
              documented STUB (SR-33); PB-DP9's pending_effect_choice channel serves only \
-             search/scry/surveil. Same shape as OOS-DP10-8 (Smuggler's Copter's 'you may draw' \
-             authored as an unconditional Sequence).",
+             search/scry/surveil. ALSO fixed this fix cycle (review Finding 1): the def \
+             previously carried a spurious `Legendary` supertype not present on the MCP type line \
+             (`Land`, not `Legendary Land` — control-verified against Gaea's Cradle vs. Valakut, \
+             the Molten Pinnacle, Emeria's own Zendikar cycle-mate); `types` now reads \
+             `types(&[CardType::Land])`. Same shape as OOS-DP10-8 (Smuggler's Copter's 'you may \
+             draw' authored as an unconditional Sequence).",
         ),
         ..Default::default()
     }
