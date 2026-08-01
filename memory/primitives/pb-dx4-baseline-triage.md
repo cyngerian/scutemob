@@ -157,8 +157,8 @@ def, reviewed and allowlisted back in `scutemob-95`, and whose own note names `a
   landed seed 9001's seat 2 on Rograkh, Son of Rohgahh — the corpus's **only** colourless
   `Complete` legendary creature, so ~1% of draws hit it and no pinned seed ever had. Fixed the
   way the seed itself preferred (pad from the identity-legal colourless pool: measured 40
-  colourless nonbasic lands + 83 colourless nonlands = 123 singletons against the 99 a deck
-  needs) rather than by excluding colourless commanders, so they stay playable. **Both** Forest
+  colourless nonbasic lands + 82 colourless nonlands = 122 singletons against the 99 a deck
+  needs) rather than by excluding colourless commanders, so they stay playable. **The 122 was itself corrected before this document was final**: the first probe reported 123 because it counted Rograkh himself, and `random_deck`'s `eligible` closure excludes the commander. Off by one, harmless to the conclusion, and recorded because the failure mode — measuring a set slightly different from the one the code uses — is exactly the class this batch spent its day finding in other people's documents. **Both** Forest
   fallbacks were removed — the audit was right that there were two, and that each named Wastes
   in a comment and pushed `forest` anyway.
 

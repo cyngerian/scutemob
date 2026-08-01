@@ -121,7 +121,7 @@ pub fn random_deck(rng: &mut StdRng, cards: &[CardDefinition]) -> Option<DeckCon
         // The fix is the one OOS-M11-6 named as preferable: pad from the identity-legal
         // colorless cards already in `eligible`, needing no new card def and no `Complete`
         // flip. Viability was measured, not assumed — the `Complete` pool holds 40 colorless
-        // nonbasic lands and 83 colorless nonlands, 123 distinct singletons against the 99 a
+        // nonbasic lands and 82 colorless nonlands, 122 distinct singletons against the 99 a
         // deck needs. Basics are exempt from the CR 903.5b singleton rule and these are not,
         // so each is taken at most once; `None` if the pool ever cannot fill 99, which is a
         // refusal rather than the silent illegal deck this replaces.
