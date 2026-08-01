@@ -163,13 +163,25 @@ pub fn event_view_for(
             };
             (text, Some(*player))
         }
-        // CR 601.2: casting a spell puts it on the stack, a public zone.
+        // CR 405.1 / CR 601.2: casting a spell puts it on the stack, a public
+        // zone, so every seat may name it.
+        //
+        // `source_object_id`, NOT `stack_object_id`. The two ids are different
+        // objects and only one of them is reachable here: `handle_cast_spell`
+        // mints `stack_entry_id = state.next_object_id()` and uses it *solely*
+        // to build the `StackObject` it pushes onto `state.stack_objects()`
+        // (`rules/casting.rs:4401`, `:4529`) — that id is never inserted into
+        // `state.objects()`, so looking it up always misses and every cast
+        // would render as the name-free fallback. `source_object_id` is the
+        // card's new object in `ZoneId::Stack` (`casting.rs:4732`), which is in
+        // `state.objects()`. The moved `stack_kind_info` resolves the stack's
+        // `source_object` against `state.objects()` for exactly this reason.
         GameEvent::SpellCast {
             player,
-            stack_object_id,
+            source_object_id,
             ..
         } => {
-            let text = match card_name(*stack_object_id) {
+            let text = match card_name(*source_object_id) {
                 Some(n) => format!("{} casts {n}", name(*player)),
                 None => format!("{} casts a spell", name(*player)),
             };

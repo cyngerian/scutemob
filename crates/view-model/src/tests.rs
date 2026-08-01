@@ -507,3 +507,47 @@ fn test_seat_view_hides_face_down_permanent_name() {
         "bob owns his own foretold card"
     );
 }
+
+/// Regression guard: a spell cast must be named, and `SpellCast` carries two
+/// `ObjectId`s of which only one is resolvable.
+///
+/// `handle_cast_spell` mints `stack_entry_id = state.next_object_id()`
+/// (`rules/casting.rs:4401`) purely to build the `StackObject` it pushes onto
+/// `state.stack_objects()` (`:4529`); that id is **never** inserted into
+/// `state.objects()`. `source_object_id` is the card's new object in
+/// `ZoneId::Stack` (`:4732`) and *is* in `state.objects()`.
+///
+/// Rendering off `stack_object_id` therefore misses every time and silently
+/// degrades every cast to the name-free fallback — the name is never wrong, but
+/// it is never present either, which would make the Session 6 event feed useless
+/// for the most common action in the game. This test fails against that version.
+///
+/// Casting is public (CR 405.1, CR 601.2), so the name appears for every seat.
+#[test]
+fn test_event_view_names_a_cast_spell_from_the_source_object() {
+    let (state, names) = golden_fixture_state();
+    let alice = PlayerId(1);
+    let bob = PlayerId(2);
+
+    let bears = object_id_of(&state, "Grizzly Bears", &ZoneId::Battlefield);
+    let cast = GameEvent::SpellCast {
+        player: alice,
+        // The fixture's stack entry id, exactly as the engine mints it: a fresh
+        // id that names no entry in `state.objects()`.
+        stack_object_id: ObjectId(9_001),
+        source_object_id: bears,
+    };
+
+    for (viewer, label) in [
+        (Viewer::Seat(alice), "the caster"),
+        (Viewer::Seat(bob), "an opponent"),
+        (Viewer::Omniscient, "the developer tool"),
+    ] {
+        let view = event_view_for(&cast, &state, &names, viewer).expect("a cast is public");
+        assert_eq!(view.kind, "SpellCast");
+        assert_eq!(
+            view.text, "alice casts Grizzly Bears",
+            "{label} must see the spell's name (CR 405.1: the stack is public)"
+        );
+    }
+}
