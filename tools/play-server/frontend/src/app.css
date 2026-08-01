@@ -1,0 +1,32 @@
+/**
+ * app.css — global styles for the M11-local play surface.
+ *
+ * Deliberately thin. The `$viewer` components carry their own scoped styles and
+ * reference no CSS custom properties, so this file only has to set the page
+ * chrome the replay viewer sets in its own `App.svelte`. Keeping the two visually
+ * consistent is a convention, not a shared stylesheet — importing the viewer's
+ * much larger `app.css` would pull in variables nothing here reads.
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  background: #0d0d1a;
+  color: #ddd;
+  font-family: monospace;
+  font-size: 14px;
+}
+
+button {
+  font-family: monospace;
+}
