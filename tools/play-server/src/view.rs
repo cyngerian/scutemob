@@ -15,7 +15,13 @@
 //!   and no `Command`/`GameEvent`/`Effect` variant is added anywhere (plan §3,
 //!   "Wire-format impact — none");
 //! * a stale tab cannot act on a superseded action list — the `seq` check
-//!   catches it;
+//!   catches it. That holds *across a session rebuild* too, which needs more
+//!   than `LocalGame`'s own counter: `POST /api/game` and
+//!   `POST /api/game/mulligan` both call `LocalGame::start`, which restarts
+//!   `decision_seq` at 0, so the play server adds `PlaySession::seq_base` to
+//!   make the **wire** `seq` monotonic for the life of the process. A `seq` from
+//!   a superseded game is therefore strictly below the current base and is
+//!   rejected as stale rather than matched by coincidence (S5 review MEDIUM 1);
 //! * a command naming another seat is structurally unrepresentable.
 //!
 //! # Every name rendered here comes from the seat-redacted view
@@ -64,11 +70,24 @@ pub struct GameSummary {
     pub human: u64,
     /// `"Heuristic"` or `"Random"`.
     pub bot: String,
+    /// The **base** seed — `--seed`, or the `POST /api/game` override.
+    ///
+    /// S5 review LOW 7: this is *not* the seed the table in play was built from
+    /// once a mulligan has been taken. `PlaySession::mulligan` goes through
+    /// `setup::redeal`, which builds from `redeal_seed(seed, human_seat,
+    /// mulligan_count)` and leaves `cfg.seed` untouched. The table is still
+    /// exactly reproducible, but from **four** fields rather than one:
+    /// [`GameSummary::seed`], [`GameSummary::players`], [`GameSummary::bot`] and
+    /// [`GameSummary::mulligan_count`] — all four of which are right here, which
+    /// is why the effective seed is documented rather than duplicated (the
+    /// derivation is private to `mtg_simulator::setup` and recomputing it here
+    /// would be a copy that could silently drift from it).
     pub seed: u64,
     pub turn: u32,
     /// Commands applied so far — 0 exactly while the game is still pregame.
     pub command_count: u32,
-    /// CR 103.5: pregame redeals this seat has taken.
+    /// CR 103.5: pregame redeals this seat has taken. Part of the table's
+    /// reproduction key — see [`GameSummary::seed`].
     pub mulligan_count: u32,
     /// True while `POST /api/game/mulligan` is still accepted.
     pub pregame: bool,
@@ -517,8 +536,14 @@ fn action_needs_x(action: &LegalAction, state: &GameState) -> bool {
 }
 
 /// Render a `PendingDecision` for the wire.
+///
+/// `wire_seq` is supplied by the caller rather than read off `decision.seq`:
+/// `LocalGame`'s counter restarts at 0 on every rebuild, so the value a client
+/// may echo back is `PlaySession::wire_seq(decision.seq)` and nothing else. See
+/// `session::PlaySession::wire_seq`.
 pub fn decision_view(
     decision: &PendingDecision,
+    wire_seq: u64,
     state: &GameState,
     names: &NameIndex,
 ) -> DecisionView {
@@ -540,7 +565,7 @@ pub fn decision_view(
         .collect();
 
     DecisionView {
-        seq: decision.seq,
+        seq: wire_seq,
         kind: decision_kind_tag(decision.kind),
         player: decision.player.0,
         actions,

@@ -53,6 +53,13 @@ pub struct PlaySession {
     /// How many pregame redeals this seat has taken (CR 103.5). Additive to the
     /// plan's field list — see the struct doc.
     pub mulligan_count: u32,
+    /// Offset added to every `LocalGame` decision `seq` on its way out, and
+    /// subtracted on its way back in. See [`PlaySession::wire_seq`].
+    seq_base: u64,
+    /// The highest **wire** `seq` this session has ever handed a client. Only
+    /// ever grows; [`PlaySession::next_seq_base`] reads it when the session is
+    /// rebuilt.
+    highest_wire_seq: u64,
 }
 
 /// CLI-supplied fallbacks for `POST /api/game` when the request body omits a
@@ -182,7 +189,11 @@ fn bots_for(cfg: &LocalGameConfig) -> HashMap<PlayerId, Box<dyn Bot>> {
 /// (Architecture Invariant 9) before a single object is placed, and to
 /// `LocalGame::start`, which runs `check_all_defs_complete` as the independent
 /// second check. Neither gate is re-derived here.
-pub fn new_game(cfg: LocalGameConfig) -> Result<PlaySession, SessionError> {
+///
+/// `seq_base` is the caller's job because only the caller can see the session
+/// being replaced: pass the outgoing session's [`PlaySession::next_seq_base`], or
+/// `0` when there is none. See [`PlaySession::wire_seq`] for why.
+pub fn new_game(cfg: LocalGameConfig, seq_base: u64) -> Result<PlaySession, SessionError> {
     let (state, names) = setup::build_initial_state(&cfg).map_err(SessionError::Setup)?;
     let bots = bots_for(&cfg);
     let (game, _start_events) = LocalGame::start(
@@ -212,10 +223,58 @@ pub fn new_game(cfg: LocalGameConfig) -> Result<PlaySession, SessionError> {
         journal_cursor: 0,
         pending: None,
         mulligan_count: 0,
+        seq_base,
+        highest_wire_seq: seq_base,
     })
 }
 
 impl PlaySession {
+    /// Translate a `LocalGame` decision `seq` into the **wire** `seq` the client
+    /// sees.
+    ///
+    /// # Why this exists (S5 review MEDIUM 1)
+    ///
+    /// `LocalGame::decision_seq` restarts at 0 on every `LocalGame::start`, and
+    /// this server calls `start` again on **both** `POST /api/game` and
+    /// `POST /api/game/mulligan`. Without an offset, the first decision of every
+    /// game is `seq: 1`, so a tab still rendering game A's `seq: 1` could post
+    /// against game B and `LocalGame::submit` would match it — applying whatever
+    /// `action_index` meant in the *old* list to the *new* game. The 409 that
+    /// exists to prevent exactly that never fired. (Observed, not reasoned to: a
+    /// pre-fix run answered such a post with **200** and moved the new game's
+    /// `command_count` from 0 to 4.)
+    ///
+    /// The fix lives here rather than in `crates/simulator` because
+    /// `decision_seq` is private to `LocalGame` and the simulator crate is out of
+    /// this session's scope. `seq_base` is set on each rebuild to one past the
+    /// highest wire `seq` the *previous* session ever issued, so the wire `seq`
+    /// is monotonic across the whole process lifetime and a superseded `seq` is
+    /// always strictly below the current base.
+    ///
+    /// Saturating rather than wrapping: at `u64::MAX` the sequence stops growing
+    /// instead of wrapping around into values a client might still be holding.
+    /// That is 2^64 decisions away and unreachable, but wrapping would be the one
+    /// failure mode this function exists to prevent.
+    fn wire_seq(&self, local_seq: u64) -> u64 {
+        self.seq_base.saturating_add(local_seq)
+    }
+
+    /// The wire `seq` of the outstanding decision, if there is one.
+    pub fn pending_wire_seq(&self) -> Option<u64> {
+        self.pending.as_ref().map(|p| self.wire_seq(p.seq))
+    }
+
+    /// The `seq_base` a session replacing this one must start from: one past the
+    /// highest wire `seq` this session ever handed out.
+    ///
+    /// The wire sequence therefore **skips** a value at each rebuild (a game
+    /// whose last decision was 1 is followed by a game whose first is 3). That is
+    /// deliberate and harmless: the only property anything depends on is that a
+    /// superseded `seq` is never reissued, not that the sequence is dense.
+    pub fn next_seq_base(&self) -> u64 {
+        self.highest_wire_seq.saturating_add(1)
+    }
+
     /// Run bot seats until the human must act, the game ends, or a safety valve
     /// trips, and refresh [`PlaySession::pending`] from the outcome.
     ///
@@ -229,18 +288,53 @@ impl PlaySession {
             // A concluded or halted game has no outstanding decision.
             AdvanceOutcome::GameOver(_) | AdvanceOutcome::Halted(_) => None,
         };
+        // The only place a `seq` is minted, so the only place the high-water mark
+        // can move. `max` rather than a bare assignment because `advance()` is
+        // idempotent while a decision is outstanding and re-issues the same one.
+        if let Some(wire) = self.pending_wire_seq() {
+            self.highest_wire_seq = self.highest_wire_seq.max(wire);
+        }
         outcome
     }
 
-    /// Answer the outstanding decision. Thin pass-through: `LocalGame::submit`
-    /// owns the `seq` check, the `action_index` resolution and the atomic
-    /// application, and leaves the state untouched on any rejection.
+    /// Answer the outstanding decision, addressed by its **wire** `seq`.
+    ///
+    /// Near-thin pass-through: `LocalGame::submit` still owns the `action_index`
+    /// resolution and the atomic application and still leaves the state untouched
+    /// on any rejection. The only thing added here is the [`wire_seq`] translation
+    /// in both directions, so a `StaleDecision` a client reads always names wire
+    /// values it could actually have been holding.
+    ///
+    /// [`wire_seq`]: PlaySession::wire_seq
     pub fn submit(
         &mut self,
-        seq: u64,
+        wire_seq: u64,
         choice: HumanChoice,
     ) -> Result<Vec<GameEvent>, LocalGameError> {
-        let events = self.game.submit(seq, choice)?;
+        // `checked_sub`, never a bare `-`: `wire_seq` is client-supplied, and a
+        // value below `seq_base` is precisely the stale-tab case this guard
+        // exists for — a superseded game's `seq`, not an arithmetic error.
+        let Some(local_seq) = wire_seq.checked_sub(self.seq_base) else {
+            return Err(match self.pending_wire_seq() {
+                Some(expected) => LocalGameError::StaleDecision {
+                    expected,
+                    got: wire_seq,
+                },
+                None => LocalGameError::NoPendingDecision,
+            });
+        };
+
+        let events = self.game.submit(local_seq, choice).map_err(|err| {
+            // Re-express the one error that quotes `seq` values in wire terms;
+            // every other variant is `seq`-free and passes through untouched.
+            match err {
+                LocalGameError::StaleDecision { expected, .. } => LocalGameError::StaleDecision {
+                    expected: self.wire_seq(expected),
+                    got: wire_seq,
+                },
+                other => other,
+            }
+        })?;
         self.pending = None;
         Ok(events)
     }
@@ -291,6 +385,12 @@ impl PlaySession {
         self.journal_cursor = 0;
         self.pending = None;
         self.mulligan_count = next_count;
+        // `LocalGame::start` reset `decision_seq` to 0, so rebase before the next
+        // `advance()` mints a decision — otherwise the redealt table would reissue
+        // the `seq` the pre-mulligan tab is still rendering. See
+        // [`PlaySession::wire_seq`].
+        self.seq_base = self.next_seq_base();
+        self.highest_wire_seq = self.seq_base;
         Ok(())
     }
 

@@ -35,20 +35,41 @@
 | S2 deterministic pregame setup + mulligans | `scutemob-161` | **SHIPPED** | `setup.rs`: `build_initial_state` / `redeal` — see handoff below |
 | S3 action parameterization + engine target queries | `scutemob-163` | **SHIPPED** | the crux (plan §8 R1) is closed: a human can cast a targeted spell. See handoff below |
 | S4 view-model crate extraction + seat redaction | `scutemob-165` | **SHIPPED** | this session — `crates/view-model` (`mtg-view-model`); a seat view provably cannot leak another hand or any library order. See handoff below |
-| S5 play-server crate skeleton + REST API | `scutemob-167` | **SHIPPED** | this session — `tools/play-server` (axum, port 3040), the only crate in this milestone with async or IO. 5 routes + `ServeDir`, 8 `oneshot` tests, **no port ever bound**. See handoff below |
+| S5 play-server crate skeleton + REST API | `scutemob-167` | **SHIPPED** (+ review fixes) | this session — `tools/play-server` (axum, port 3040), the only crate in this milestone with async or IO. 5 routes + `ServeDir`, **15** `oneshot` tests, **no port ever bound and now machine-gated**. See handoff below |
 | S6 play frontend — render and basic input | — | **next** | Plan §4 Session 6. New `tools/play-server/frontend` (Svelte 5 + Vite), dev proxy to `127.0.0.1:3040`, `$viewer` alias importing the replay-viewer components rather than copying them. No Rust change beyond serving `dist/` |
 
 **S5 handoff (2026-08-01, `scutemob-167`)**
 
 - **A full game is now playable over `curl` alone.** `POST /api/game` → `GET /api/game` →
   `POST /api/game/action` → `POST /api/game/mulligan` → `GET /api/healthz`, plus a `ServeDir`
-  fallback to `dist/` for S6's frontend. Tests 4,008 → **4,016** (+8, all in the crate's
-  inline `mod tests`). `git diff main -- crates/engine/src crates/card-types/src
-  crates/card-defs/src` is **empty**; PROTOCOL **32** / HASH **69** unmoved; `crates/simulator`
-  and `crates/view-model` untouched — S5 needed nothing added to either.
-- **No port is ever bound.** `TcpListener` / `axum::serve` appear only inside `async_main`,
-  which no test calls; all 8 tests drive `build_router(state, &PathBuf::from("nonexistent_dist"))`
-  through `tower::ServiceExt::oneshot`. Plan §7 constraint 1 held.
+  fallback to `dist/` for S6's frontend. Tests 4,008 → 4,016 → **4,023** after the review fix
+  cycle (+15 in the crate's inline `mod tests`). `git diff main -- crates/engine/src
+  crates/card-types/src crates/card-defs/src` is **empty**; PROTOCOL **32** / HASH **69**
+  unmoved; `crates/simulator` and `crates/view-model` untouched — S5 needed nothing added to
+  either, **including its fix cycle**: MEDIUM 1's root cause is `LocalGame::decision_seq`
+  restarting at 0, and the fix is an offset in `PlaySession`, not an edit to the simulator.
+- **No port is ever bound, and that is now a gate rather than a promise.** `TcpListener` /
+  `axum::serve` appear only inside `async_main`, which no test calls; all 15 tests drive
+  `build_router(state, &PathBuf::from("nonexistent_dist"))` through
+  `tower::ServiceExt::oneshot`. `test_no_socket_symbol_appears_in_the_test_region` reads
+  `src/main.rs` with `include_str!`, cuts at `#[cfg(test)]` and fails on any of the four
+  symbols below the cut — needles assembled with `concat!` so it does not match its own
+  source, and proven non-vacuous by inserting one and watching it redden. Plan §7
+  constraint 1 is machine-held for S6/S7.
+- **Four review findings worth carrying into S6, because the client will encounter all
+  four.** (1) The wire `seq` is **not** `LocalGame`'s `seq`: `PlaySession::seq_base` makes it
+  monotonic across restarts and mulligans, because without it game B's first decision reused
+  game A's `seq: 1` and a stale tab's post was **accepted with 200** (observed — the new
+  game's `command_count` moved 0 → 4). (2) A body the extractor rejects is now **400 in the
+  JSON envelope**, not axum's bare `text/plain` **422** — the old behaviour collided with
+  this crate's own meaning for 422 ("the engine refused it"), so a client-side typo read as
+  an engine rejection; and `POST /api/game {"playerz":9}` used to answer **200 with a default
+  game** because `Option<T>`'s `FromRequest` is `.ok()`. An **absent** body still means "use
+  the CLI defaults". (3) `POST /api/game` — and only it — recovers from a poisoned session
+  mutex, so one engine panic no longer costs a process restart on the surface that exists to
+  find engine panics. (4) `GameSummary.seed` is the **base** seed; after a mulligan the table
+  came from `redeal_seed(seed, seat, count)`, so a reproducible bug report needs
+  `seed` + `players` + `bot` + `mulligan_count` — all four are already in every `GameSummary`.
 - **The multi-thread runtime flavor is a correctness requirement, not a performance choice.**
   `tokio::task::block_in_place` **panics** on a current-thread runtime — which is exactly what
   a plain `#[tokio::test]` builds. Every async test carries
@@ -89,7 +110,8 @@
   **400** rather than silently discarded, because `handle_keep_hand` checks it against a
   `PlayerState::mulligan_count` a rebuild always leaves at 0; `GET /api/game` calls the
   idempotent `advance()` and consumes `journal_cursor`; `target_slots` / `modes` are empty
-  until S7; `needs_x` answers `CastSpell` only; one game per process.
+  until S7; `needs_x` answers `CastSpell` only; one game per process; and (added by the fix
+  cycle) `GameSummary.seed` is the base seed, not the effective one after a mulligan.
 - **The no-WebSocket / no-SSE decision is recorded in the crate README with its reasoning**
   (bots act synchronously inside the human's own request, so the server never holds news the
   client is not already waiting on; a second human seat would break that premise; push is

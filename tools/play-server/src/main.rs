@@ -55,10 +55,14 @@ struct Cli {
     bot: BotArg,
 
     /// Seed for the deterministic pregame build. Fixed at 0 by default — a play
-    /// session should be reproducible from its command line, and a bug report
-    /// that says "seed 0, four players, heuristic" is replayable. Pass a
-    /// different value for a different table; `POST /api/game` can override it
-    /// per game.
+    /// session should be reproducible from its command line. Pass a different
+    /// value for a different table; `POST /api/game` can override it per game.
+    ///
+    /// A bug report needs the **mulligan count** as well as the seed (S5 review
+    /// LOW 7): a redeal builds from `setup::redeal_seed(seed, seat, count)` and
+    /// leaves this value untouched, so "seed 0, four players, heuristic" alone
+    /// stops describing the table the moment a mulligan is taken.
+    /// `GameSummary.mulligan_count` carries the missing term.
     #[arg(long, default_value = "0")]
     seed: u64,
 }
@@ -194,7 +198,13 @@ fn build_router(state: SharedState, dist_dir: &PathBuf) -> Router {
 /// [`async_main`], `tokio::net::TcpListener` or `axum::serve`. (An agent context
 /// that starts the real binary gets SIGKILL/137 — the replay-viewer note in
 /// `memory/gotchas-infra.md`.) The symbols `TcpListener`, `axum::serve`,
-/// `bind` and `async_main` must never appear below this line.
+/// `bind` and `async_main` must never appear below the `#[cfg(test)]` attribute
+/// on the next line.
+///
+/// That is **machine-enforced** (S5 review LOW 8), not a promise:
+/// `test_no_socket_symbol_appears_in_the_test_region` reads this file with
+/// `include_str!` and fails on any of the four. It cuts at the attribute rather
+/// than at this paragraph precisely because this paragraph names all four.
 ///
 /// # Seed-pinned
 ///
@@ -280,6 +290,27 @@ mod tests {
         let status = resp.status();
         let text = body_string(resp.into_body()).await;
         (status, serde_json::from_str(&text).expect("body is JSON"))
+    }
+
+    /// `POST` of a **raw** body, so a test can send something `serde_json`
+    /// would never produce: a malformed document, or no body and no
+    /// `Content-Type` at all. `content_type: None` omits the header.
+    async fn post_raw(
+        state: &SharedState,
+        uri: &str,
+        content_type: Option<&str>,
+        body: &'static str,
+    ) -> (StatusCode, String) {
+        let mut builder = Request::builder().method("POST").uri(uri);
+        if let Some(ct) = content_type {
+            builder = builder.header(header::CONTENT_TYPE, ct);
+        }
+        let resp = app(state.clone())
+            .oneshot(builder.body(Body::from(body)).unwrap())
+            .await
+            .expect("router is infallible");
+        let status = resp.status();
+        (status, body_string(resp.into_body()).await)
     }
 
     /// `POST /api/game` with the CLI defaults, asserting it worked.
@@ -580,6 +611,133 @@ mod tests {
         assert_eq!(command_count(&ok), 4);
     }
 
+    // ── 4b ────────────────────────────────────────────────────────────────────
+
+    /// **S5 review MEDIUM 1**: a `seq` from a game that has been *replaced* is
+    /// stale, and the 409 must fire.
+    ///
+    /// The whole anti-stale-tab guarantee rested on `seq` being unique to a
+    /// decision, and it was not: `LocalGame::start` restarts `decision_seq` at 0,
+    /// so game B's first decision reused game A's `seq: 1` and `submit` matched
+    /// it. Pre-fix, this exact sequence answered **200** and moved the new game's
+    /// `command_count` from 0 to 4 — read off a real run, not reasoned to.
+    ///
+    /// Session 6 ships `POST /api/game` as a "New Game" button, so a tab
+    /// rendering the old action list while someone restarts is an ordinary
+    /// accident, not a contrived one.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_seq_from_a_replaced_game_is_stale() {
+        let state = shared_state();
+        let a = new_game(&state).await;
+        let stale = seq(&a);
+        assert_eq!(stale, 1);
+
+        // Someone hits "New Game" while the first tab still shows game A.
+        let b = new_game(&state).await;
+        assert_eq!(command_count(&b), 0, "a fresh game has applied nothing");
+        assert!(
+            seq(&b) > stale,
+            "the wire seq must not restart: game A issued {stale}, game B issued {}",
+            seq(&b)
+        );
+
+        // The stale tab acts on its old render.
+        let (status, err) = post_json(
+            &state,
+            "/api/game/action",
+            json!({ "seq": stale, "action_index": 0 }),
+        )
+        .await;
+        assert_eq!(
+            status,
+            StatusCode::CONFLICT,
+            "a superseded seq must be a 409: {err}"
+        );
+        assert_eq!(err["kind"], "stale_decision");
+        // Truthful `expected`/`got`, so the client can resync in one round trip.
+        let message = err["error"].as_str().expect("an error message");
+        assert!(
+            message.contains(&format!("expected {}", seq(&b)))
+                && message.contains(&format!("got {stale}")),
+            "the message must name the CURRENT seq and the one sent: {message:?}"
+        );
+
+        // The point of the finding: game B was not acted on.
+        let (status, still) = get_json(&state, "/api/game").await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(
+            command_count(&still),
+            0,
+            "the stale post must not have applied a command to the new game"
+        );
+        assert_eq!(
+            seq(&still),
+            seq(&b),
+            "game B's decision is still outstanding"
+        );
+
+        // Non-vacuous: the *current* seq, same index, is still accepted — so the
+        // 409 was about the seq belonging to a dead game and nothing else.
+        let (status, ok) = post_json(
+            &state,
+            "/api/game/action",
+            json!({ "seq": seq(&b), "action_index": 0 }),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{ok}");
+        assert_eq!(command_count(&ok), 4);
+    }
+
+    /// The same guarantee across the **mulligan** rebuild (S5 review MEDIUM 1).
+    ///
+    /// `PlaySession::mulligan` calls `LocalGame::start` too, so it had the
+    /// identical collision: pre-fix the redealt table's first decision was again
+    /// `seq: 1` and the pre-mulligan tab's post was accepted with **200**,
+    /// applying a command to a table it had never seen.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_seq_from_before_a_mulligan_is_stale() {
+        let state = shared_state();
+        let before = new_game(&state).await;
+        let stale = seq(&before);
+        let first_hand = before["state"]["zones"]["hand"][HUMAN].clone();
+
+        let (status, after) =
+            post_json(&state, "/api/game/mulligan", json!({ "take": true })).await;
+        assert_eq!(status, StatusCode::OK, "{after}");
+        assert_eq!(after["summary"]["mulligan_count"], 1);
+        // Non-vacuous: the redeal really did rebuild the table (CR 103.5).
+        assert_ne!(
+            after["state"]["zones"]["hand"][HUMAN], first_hand,
+            "a redeal that returns the same hand would make this test meaningless"
+        );
+        assert!(seq(&after) > stale, "the wire seq must not restart");
+
+        let (status, err) = post_json(
+            &state,
+            "/api/game/action",
+            json!({ "seq": stale, "action_index": 0 }),
+        )
+        .await;
+        assert_eq!(
+            status,
+            StatusCode::CONFLICT,
+            "a pre-mulligan seq must be a 409: {err}"
+        );
+        assert_eq!(err["kind"], "stale_decision");
+
+        let (status, still) = get_json(&state, "/api/game").await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(
+            command_count(&still),
+            0,
+            "the stale post must not have applied a command to the redealt table"
+        );
+        assert_eq!(
+            still["summary"]["pregame"], true,
+            "and the game must still be mulliganable"
+        );
+    }
+
     // ── 5 ─────────────────────────────────────────────────────────────────────
 
     /// An `action_index` outside the list the server just sent is **400**: the
@@ -623,6 +781,215 @@ mod tests {
         )
         .await;
         assert_eq!(status, StatusCode::OK, "{ok}");
+    }
+
+    // ── 5b ────────────────────────────────────────────────────────────────────
+
+    /// **S5 review MEDIUM 2**: a body axum itself could not deserialize is a
+    /// **400** in this crate's JSON envelope — and explicitly **not** a 422.
+    ///
+    /// The collision is the finding. `JsonDataError`'s own status is 422, which
+    /// this crate documents as "the *engine* refused the command"; and axum
+    /// answers it directly, with a `text/plain` body carrying no `kind`. A
+    /// client posting `"target"` for `"targets"` — a typo, never seen by the
+    /// engine — read `kind: undefined` and a status its 422 branch would report
+    /// to the user as an engine rejection.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_malformed_action_body_returns_400_not_422() {
+        let state = shared_state();
+        let view = new_game(&state).await;
+        let at_seq = seq(&view);
+
+        // The finding's own example: `target` for `targets`, under
+        // `deny_unknown_fields`.
+        let (status, text) = post_raw(
+            &state,
+            "/api/game/action",
+            Some("application/json"),
+            r#"{"seq":1,"action_index":0,"params":{"target":[]}}"#,
+        )
+        .await;
+        assert_eq!(
+            status,
+            StatusCode::BAD_REQUEST,
+            "a client-side typo never reaches the engine: {text}"
+        );
+        assert_ne!(
+            status,
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "422 is reserved for an ENGINE rejection; reusing it here is the collision \
+             this test exists to prevent"
+        );
+        let err: Value = serde_json::from_str(&text).expect("the envelope is JSON, not text/plain");
+        assert_eq!(
+            err["kind"], "invalid_body",
+            "the client must be able to branch without parsing prose"
+        );
+        assert!(err["error"].as_str().is_some_and(|s| !s.is_empty()));
+
+        // A missing required field is the same class.
+        let (status, text) = post_raw(
+            &state,
+            "/api/game/action",
+            Some("application/json"),
+            r#"{"action_index":0}"#,
+        )
+        .await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{text}");
+        let err: Value = serde_json::from_str(&text).expect("the envelope is JSON");
+        assert_eq!(err["kind"], "invalid_body");
+
+        // Syntactically broken JSON keeps axum's 400 but gains a `kind`.
+        let (status, text) = post_raw(
+            &state,
+            "/api/game/action",
+            Some("application/json"),
+            r#"{"seq":1,"#,
+        )
+        .await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{text}");
+        let err: Value = serde_json::from_str(&text).expect("the envelope is JSON");
+        assert_eq!(err["kind"], "malformed_json");
+
+        // Non-vacuous: none of the three refusals touched the game, and a
+        // well-formed body at the same seq is still accepted.
+        let (status, ok) = post_json(
+            &state,
+            "/api/game/action",
+            json!({ "seq": at_seq, "action_index": 0 }),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{ok}");
+    }
+
+    /// **S5 review LOW 5**: `POST /api/game` with an unknown field is a 400 and
+    /// starts **no game** — it used to answer 200 with a default four-player one.
+    ///
+    /// `Option<T>`'s `FromRequest` impl is `T::from_request(..).ok()`, so it
+    /// mapped every rejection to `None` and `None` meant "use the CLI defaults".
+    /// The absent-body case still has to work, so both are asserted here.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_post_game_rejects_a_malformed_body_but_accepts_an_absent_one() {
+        let state = shared_state();
+
+        let (status, text) = post_raw(
+            &state,
+            "/api/game",
+            Some("application/json"),
+            r#"{"playerz":9}"#,
+        )
+        .await;
+        assert_eq!(
+            status,
+            StatusCode::BAD_REQUEST,
+            "a misspelled field must not silently yield a default game: {text}"
+        );
+        let err: Value = serde_json::from_str(&text).expect("the envelope is JSON");
+        assert_eq!(err["kind"], "invalid_body");
+
+        // The sharp half: no session was created by the rejected request.
+        let (status, missing) = get_json(&state, "/api/game").await;
+        assert_eq!(
+            status,
+            StatusCode::NOT_FOUND,
+            "the rejected POST must not have started a game"
+        );
+        assert_eq!(missing["kind"], "no_session");
+
+        // An ABSENT body is deliberate and supported: no body, no content type.
+        let (status, text) = post_raw(&state, "/api/game", None, "").await;
+        assert_eq!(
+            status,
+            StatusCode::OK,
+            "an omitted body still means 'use the CLI defaults': {text}"
+        );
+        let view: Value = serde_json::from_str(&text).expect("a seat view");
+        assert_eq!(view["summary"]["players"], PLAYERS);
+        assert_eq!(view["summary"]["seed"], SEED);
+        assert_eq!(view["summary"]["bot"], "Heuristic");
+    }
+
+    // ── 5c ────────────────────────────────────────────────────────────────────
+
+    /// **S5 review LOW 9**: `NoPendingDecision` -> **409**, the one error
+    /// semantic plan item 6 names that had no test.
+    ///
+    /// Reached the only way the HTTP surface can reach it, by playing a real game
+    /// to its end: `LocalGame::advance` clears `pending` on `AdvanceOutcome::
+    /// GameOver`, so the next `POST /api/game/action` takes that arm. Nothing here
+    /// reaches into `PlaySession` to manufacture the state — a two-seat table
+    /// (CR 104.2a: the last player standing wins) where the human answers every
+    /// decision with a pass is an ordinary game, just a short-lived human.
+    ///
+    /// **This test costs ~3 s**, which is why it is the only one that plays a
+    /// whole game. The alternatives were all worse: `HaltReason::MaxTurns` needs
+    /// 200 turns rather than ~110, and `LegalAction::Concede` is deliberately
+    /// never offered by the provider (`legal_actions.rs`: "bots should never
+    /// auto-concede"), so there is no shortcut that is still the same arm.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_post_action_after_game_over_returns_409() {
+        let state = shared_state();
+        let (status, mut view) = post_json(&state, "/api/game", json!({ "players": 2 })).await;
+        assert_eq!(status, StatusCode::OK, "{view}");
+
+        // Answer every decision with a pass until someone wins. The cap is ~5x
+        // the observed 1,016 actions; it exists so a rules change that makes the
+        // game unwinnable fails loudly instead of hanging.
+        let mut steps = 0u32;
+        while view["game_over"].is_null() {
+            steps += 1;
+            assert!(
+                steps <= 5_000,
+                "no game over after {steps} actions; last view {}",
+                view["summary"]
+            );
+            let index = action_indices(&view, "PassPriority")
+                .first()
+                .copied()
+                .unwrap_or(0);
+            let (status, next) = post_json(
+                &state,
+                "/api/game/action",
+                json!({ "seq": seq(&view), "action_index": index }),
+            )
+            .await;
+            assert_eq!(status, StatusCode::OK, "action {steps} failed: {next}");
+            view = next;
+        }
+        // CR 104.2a — and non-vacuity: a *halted* game would also fill
+        // `game_over`, and that is a different arm of `seat_view`.
+        assert_eq!(
+            view["game_over"]["halted"], false,
+            "this must be a real conclusion, not a safety valve: {}",
+            view["game_over"]
+        );
+        assert!(view["game_over"]["winner"].is_string());
+        assert!(
+            view["decision"].is_null(),
+            "a concluded game must offer no decision"
+        );
+
+        // The subject: an action posted against a game that has nothing left to
+        // decide. `seq` is irrelevant here — the pending decision is gone, so the
+        // `seq` check is never even reached.
+        let (status, err) = post_json(
+            &state,
+            "/api/game/action",
+            json!({ "seq": 1, "action_index": 0 }),
+        )
+        .await;
+        assert_eq!(status, StatusCode::CONFLICT, "{err}");
+        assert_eq!(err["kind"], "no_pending_decision");
+        assert!(err["error"]
+            .as_str()
+            .expect("an error message")
+            .contains("no decision"));
+
+        // And `GET` still answers, so the 409 is about the decision and not about
+        // the session having become unreadable.
+        let (status, still) = get_json(&state, "/api/game").await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(still["game_over"]["halted"], false);
     }
 
     // ── 6 ─────────────────────────────────────────────────────────────────────
@@ -821,6 +1188,83 @@ mod tests {
         }
     }
 
+    // ── 7b ────────────────────────────────────────────────────────────────────
+
+    /// **S5 review LOW 6**: `POST /api/game` — and only it — recovers from a
+    /// poisoned session mutex.
+    ///
+    /// Before this, one panic inside a handler cost a process restart, on the one
+    /// surface in the project that runs with `check_invariants: true` and live
+    /// debug assertions specifically so that engine panics surface. The route
+    /// that replaces the session wholesale is exactly the route that can recover:
+    /// it overwrites the `Option` and reads no game out of the poisoned value.
+    ///
+    /// Every other route keeps its 500, which is the half this test pins hardest
+    /// — a blanket `into_inner()` would be a silent "carry on with a half-mutated
+    /// game".
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_post_game_recovers_from_a_poisoned_lock() {
+        let state = shared_state();
+        let first = new_game(&state).await;
+        let first_seq = seq(&first);
+
+        // The only way a `std::sync::Mutex` becomes poisoned: a panic while the
+        // guard is held. The panic message and its stderr trace are EXPECTED
+        // output of this test, not a failure.
+        let handle = {
+            let session = state.session.clone();
+            std::thread::spawn(move || {
+                let _guard = session.lock().expect("not poisoned yet");
+                panic!("deliberate: poisoning the session lock for the recovery test");
+            })
+        };
+        assert!(
+            handle.join().is_err(),
+            "the helper thread must have panicked"
+        );
+        assert!(state.session.is_poisoned(), "the lock must now be poisoned");
+
+        // Every reading route is 500 — asserted BEFORE the recovery, because the
+        // recovery clears the flag.
+        let (status, err) = get_json(&state, "/api/game").await;
+        assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
+        assert_eq!(err["kind"], "session_poisoned");
+        let (status, err) = post_json(
+            &state,
+            "/api/game/action",
+            json!({ "seq": first_seq, "action_index": 0 }),
+        )
+        .await;
+        assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR, "{err}");
+        assert_eq!(err["kind"], "session_poisoned");
+        let (status, err) = post_json(&state, "/api/game/mulligan", json!({ "take": false })).await;
+        assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR, "{err}");
+        assert_eq!(err["kind"], "session_poisoned");
+
+        // The subject: a new game is still startable.
+        let (status, fresh) = post_json(&state, "/api/game", json!({})).await;
+        assert_eq!(
+            status,
+            StatusCode::OK,
+            "the one route that overwrites the session must recover: {fresh}"
+        );
+        assert_eq!(command_count(&fresh), 0);
+        // MEDIUM 1's guarantee survives the recovery: the two `u64` seq counters
+        // are the one thing read out of the poisoned session, precisely so a
+        // stale tab cannot be revived by a panic.
+        assert!(
+            seq(&fresh) > first_seq,
+            "the wire seq must still be monotonic across a poisoned rebuild"
+        );
+
+        // And the whole surface is usable again — the flag was cleared, not
+        // merely bypassed for one request.
+        assert!(!state.session.is_poisoned());
+        let (status, view) = get_json(&state, "/api/game").await;
+        assert_eq!(status, StatusCode::OK, "{view}");
+        assert_eq!(seq(&view), seq(&fresh));
+    }
+
     // ── 8 ─────────────────────────────────────────────────────────────────────
 
     /// `GET /api/healthz` answers without a session and without touching the
@@ -838,5 +1282,78 @@ mod tests {
         assert_eq!(status, StatusCode::OK);
         assert_eq!(health["status"], "ok");
         assert_eq!(health["service"], "play-server");
+    }
+
+    // ── 9 ─────────────────────────────────────────────────────────────────────
+
+    /// **S5 review LOW 8**: the no-socket rule, machine-enforced.
+    ///
+    /// Session plan §7 constraint 1 says no test in this crate may open a
+    /// listening socket — an agent context that starts the real server binary is
+    /// SIGKILLed (the replay-viewer 137 note in `memory/gotchas-infra.md`). Until
+    /// now that rule was prose in a doc comment, held by review alone, in a
+    /// project that machine-enforces its invariants everywhere else (SR-2, SR-3,
+    /// SR-5, SR-6, SR-9a…). Sessions 6 and 7 add tests to this very module.
+    ///
+    /// So: read this crate's own source and assert the forbidden symbols do not
+    /// appear below the test-module attribute.
+    ///
+    /// # Self-reference
+    ///
+    /// The gate lives *inside* the region it checks, so every needle would match
+    /// its own source if written plainly. Each is therefore assembled from two
+    /// halves with `concat!`, which produces the whole symbol at compile time
+    /// while the file itself contains only the halves. Keep any needle you add in
+    /// that form — a plainly-written one turns this test red against itself, and
+    /// the obvious "fix" is to delete the gate.
+    #[test]
+    fn test_no_socket_symbol_appears_in_the_test_region() {
+        let source = include_str!("main.rs");
+
+        // Split at the real test-module attribute. Same `concat!` trick, for the
+        // same reason: this line must not be the occurrence `find` locates.
+        let marker = concat!("#[cfg", "(test)]");
+        let cut = source
+            .find(marker)
+            .expect("this file has a test-module attribute");
+        let (above, region) = source.split_at(cut);
+
+        let forbidden = [
+            concat!("TcpLis", "tener"),
+            concat!("axum::", "serve"),
+            concat!("asyn", "c_main"),
+            concat!("bi", "nd"),
+        ];
+
+        for needle in forbidden {
+            assert!(
+                !region.contains(needle),
+                "session plan §7 constraint 1: {needle:?} must not appear below the \
+                 test-module attribute. Every HTTP test drives `build_router` through \
+                 `tower::ServiceExt::oneshot`; an agent context that starts the real \
+                 server executable is SIGKILLed."
+            );
+        }
+
+        // ── non-vacuity, both directions ──
+        // (a) The gate really is looking at a substantial region, so a `find`
+        //     that landed near the end of the file cannot pass silently.
+        assert!(
+            region.len() > source.len() / 4,
+            "the checked region is implausibly small: {} of {} bytes",
+            region.len(),
+            source.len()
+        );
+        // (b) Every needle DOES occur above the cut — `main`'s own serving path
+        //     uses all four. A needle that had been misspelled, or a `concat!`
+        //     that produced something no longer in the codebase, would be a gate
+        //     that can never fire, and this catches it.
+        for needle in forbidden {
+            assert!(
+                above.contains(needle),
+                "{needle:?} occurs nowhere in the production half of this file — \
+                 the gate would be vacuous"
+            );
+        }
     }
 }

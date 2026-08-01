@@ -878,16 +878,73 @@ cannot leak another player's hand or any library order.
 
 ### Session 5: play-server crate skeleton + REST API (8 items)
 
-**STATUS (2026-08-01, `scutemob-167`): SHIPPED — all 8 items done.**
+**STATUS (2026-08-01, `scutemob-167`): SHIPPED — all 8 items done, review fixes applied.**
 `tools/play-server` (package `play-server`) exists as a workspace member with
 `Cargo.toml`, `src/{main.rs,api.rs,session.rs,view.rs}` and `README.md`. All 8 named tests
 pass through `tower::ServiceExt::oneshot` and **no port is ever bound** —
-`TcpListener`/`axum::serve` appear only inside `async_main`, which no test calls.
+`TcpListener`/`axum::serve` appear only inside `async_main`, which no test calls, and that
+is now **machine-enforced** rather than reviewed (see the fix-cycle note below).
 `cargo build --workspace`, `cargo clippy --workspace --all-targets -- -D warnings`,
 `cargo fmt --check`, `tools/check-defs-fmt.sh` (1,804 defs) and `cargo test --workspace`
-are green; tests 4,008 → **4,016**. `git diff main -- crates/engine/src crates/card-types/src
-crates/card-defs/src` is **empty**; PROTOCOL 32 / HASH 69 unmoved; `crates/simulator` and
-`crates/view-model` are untouched — the session needed nothing added to either.
+are green; tests 4,008 → 4,016 → **4,023** after the fix cycle. `git diff main --
+crates/engine/src crates/card-types/src crates/card-defs/src` is **empty**;
+PROTOCOL 32 / HASH 69 unmoved; `crates/simulator` and `crates/view-model` are untouched —
+the session needed nothing added to either, and the fix cycle kept it that way even where
+the root cause lives in `LocalGame` (see MEDIUM 1).
+
+**Fix cycle (2026-08-01) — 2 MEDIUM / 5 LOW, all applied; 8 named tests unrenamed, +7 new.**
+
+- **MEDIUM 1 — the `seq` anti-stale-tab guarantee did not survive a session rebuild, and
+  that was the milestone's own claim.** `LocalGame::start` sets `decision_seq: 0`
+  unconditionally, and the play server calls it on **both** `POST /api/game` and
+  `POST /api/game/mulligan` — so game B's first decision reused game A's `seq: 1` and
+  `submit` *matched* it. **Observed, not reasoned to**: the pre-fix run answered a stale
+  tab's post with **200** and moved the new game's `command_count` 0 → 4, on both paths.
+  Fixed in the play server, not the simulator (`decision_seq` is private and
+  `crates/simulator` is out of scope): `PlaySession` gained a `seq_base`, set on each
+  rebuild to one past the highest **wire** `seq` the previous session ever issued, with
+  `checked_sub` on the way in — never a bare subtraction on a client-supplied `u64`. The
+  wire `seq` is now monotonic for the life of the process; it *skips* a value per rebuild,
+  which nothing depends on. `view::decision_view` takes the wire `seq` as a parameter
+  rather than reading `decision.seq`, so the translation cannot be forgotten at a call site.
+- **MEDIUM 2 + LOW 5 — axum's own extractor rejections bypassed the JSON envelope, and
+  collided with the documented meaning of 422.** `JsonDataError` is 422 with a
+  `text/plain` body and no `kind`; this crate documents 422 as "the *engine* refused the
+  command". **Observed**: `{"params":{"target":[]}}` (a typo) came back
+  `422 Failed to deserialize the JSON body into the target type: …` as plain text, and
+  `POST /api/game {"playerz":9}` came back **200 with a full default four-player game**,
+  because `Option<T>`'s `FromRequest` impl is `T::from_request(..).ok()`. All three
+  body-taking handlers now extract `Result<Json<T>, JsonRejection>` and re-wrap: data
+  errors → **400** `invalid_body`, syntax → 400 `malformed_json`, content-type → 415
+  `unsupported_media_type`. An **absent** body on `POST /api/game` still means "use the CLI
+  defaults" (that arm is `MissingJsonContentType`), and both halves are tested.
+- **LOW 4** — the `seat_view` comment claimed no omniscient entry point is "reachable from
+  this crate"; `main.rs`'s test module reaches `from_game_state` deliberately as test 7's
+  oracle. Now says "the **production paths** of this crate", matching the README.
+- **LOW 6** — `POST /api/game`, and only it, recovers from a poisoned session mutex
+  (`PoisonError::into_inner()` + `clear_poison()`). Sound because that handler overwrites
+  the `Option` wholesale; the one thing it reads out of the poisoned value is the two
+  plain `u64` seq counters, which is what keeps MEDIUM 1's guarantee true through a panic.
+  Every other route keeps its 500, asserted in the same test.
+- **LOW 7** — `GameSummary.seed` is the **base** seed and stops describing the table after
+  a mulligan (`setup::redeal` builds from `redeal_seed(seed, seat, count)`). The
+  reproduction key is `seed` + `players` + `bot` + `mulligan_count`, all four already in
+  every `GameSummary`; documented in the README and on the field rather than duplicating a
+  derivation that is private to `mtg_simulator::setup` and could drift.
+- **LOW 8** — the no-socket rule is now a gate:
+  `test_no_socket_symbol_appears_in_the_test_region` reads `src/main.rs` with
+  `include_str!`, cuts at the `#[cfg(test)]` attribute and fails on `TcpListener`,
+  `axum::serve`, `bind` or `async_main` below the cut. Needles are assembled with
+  `concat!` so the gate does not match its own source. **Proven non-vacuous by execution**:
+  inserting `let _gate_probe = "TcpListener";` into `test_healthz_ok` reddened it with the
+  symbol named in the message; removed, green. It also asserts each needle *does* occur
+  above the cut, so a misspelled needle cannot silently make the gate unfirable.
+- **LOW 9** — `NoPendingDecision` → 409 now has the test plan item 6 implied.
+  `test_post_action_after_game_over_returns_409` plays a two-seat table to a real CR 104.2a
+  conclusion (~1,000 human actions, ~3 s) because that is the **only** route the HTTP
+  surface has to that arm: `LegalAction::Concede` is deliberately never offered by the
+  provider, and `HaltReason::MaxTurns` needs 200 turns rather than ~110. Nothing reaches
+  into `PlaySession` to manufacture the state.
 
 **`block_in_place` is why the runtime flavor is load-bearing, not a performance choice.**
 The 8 MB worker stacks are inherited from `tools/replay-viewer/src/main.rs:52-66` (deep

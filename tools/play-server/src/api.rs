@@ -37,7 +37,7 @@
 //! `#[tokio::test(flavor = "multi_thread")]`.
 
 use axum::{
-    extract::State,
+    extract::{rejection::JsonRejection, State},
     http::StatusCode,
     response::{IntoResponse, Response},
     Json,
@@ -153,6 +153,42 @@ impl From<SessionError> for ApiFailure {
     }
 }
 
+/// Re-wrap one of **axum's own** extractor rejections into this crate's
+/// envelope (S5 review MEDIUM 2 / LOW 5).
+///
+/// Without this, a body axum could not deserialize escapes every handler before
+/// the handler runs and axum answers it directly — with a `text/plain` body and
+/// no `kind` field. Two things were wrong with that:
+///
+/// 1. It falsified the README's "one JSON envelope for every failure": a client
+///    branching on `err.kind` read `undefined`.
+/// 2. `JsonDataError`'s own status is **422**, which *collides* with this
+///    crate's documented meaning for 422 ("the **engine** refused the command").
+///    A client-side typo — `"target"` for `"targets"` — would be reported to the
+///    user as an engine rejection.
+///
+/// So a data error is remapped to **400**, per this crate's own stated rule: 400
+/// means the request never reached the engine, 422 means the engine looked at it
+/// and said no. A deserialization failure never reaches the engine. Syntax (400)
+/// and content-type (415) keep axum's status, which already agrees.
+fn json_rejection(rejection: JsonRejection) -> ApiFailure {
+    let (status, kind) = match &rejection {
+        // Syntactically valid JSON, wrong shape: a missing field, a wrong type,
+        // or — because every request DTO here is `deny_unknown_fields` — a
+        // misspelled one. axum says 422; this crate says 400.
+        JsonRejection::JsonDataError(_) => (StatusCode::BAD_REQUEST, "invalid_body"),
+        JsonRejection::JsonSyntaxError(_) => (StatusCode::BAD_REQUEST, "malformed_json"),
+        JsonRejection::MissingJsonContentType(_) => {
+            (StatusCode::UNSUPPORTED_MEDIA_TYPE, "unsupported_media_type")
+        }
+        // `JsonRejection` is `#[non_exhaustive]`, so this arm is mandatory rather
+        // than defensive. Anything else (a body that could not be read at all)
+        // keeps axum's own status and is still answered in the envelope.
+        _ => (rejection.status(), "invalid_body"),
+    };
+    ApiFailure::new(status, kind, rejection.body_text())
+}
+
 /// **404**, deliberately. "No game exists" is the absence of the resource the
 /// route names, which is what 404 means; 409 would imply the resource exists in
 /// a conflicting state. The client's remedy is `POST /api/game`.
@@ -182,7 +218,11 @@ fn poisoned() -> ApiFailure {
 /// Architecture Invariant 7 chokepoint: the state view is built with
 /// `from_game_state_for(.., Viewer::Seat(human))` and every event line through
 /// `event_view_for(.., Viewer::Seat(human))`. Neither omniscient entry point
-/// (`from_game_state`, `Viewer::Omniscient`) is reachable from this crate.
+/// (`from_game_state`, `Viewer::Omniscient`) is reachable from the **production
+/// paths** of this crate. (The qualifier is load-bearing and matches the README:
+/// `main.rs`'s test module does reach `from_game_state` deliberately, as the
+/// out-of-band oracle the seat-redaction test checks this payload against. A
+/// comment that claimed otherwise would be false.)
 fn seat_view(session: &mut PlaySession, outcome: &AdvanceOutcome) -> SeatView {
     let human = session.human;
     let viewer = Viewer::Seat(human);
@@ -193,6 +233,9 @@ fn seat_view(session: &mut PlaySession, outcome: &AdvanceOutcome) -> SeatView {
     // has since changed zones renders name-free rather than wrongly named.)
     let records = session.take_new_records();
     let state = session.game.state();
+    // The client-facing `seq`, which is NOT `pending.seq` — see
+    // `PlaySession::wire_seq`.
+    let wire_seq = session.pending_wire_seq();
     let events = records
         .iter()
         .flat_map(|record| record.events.iter())
@@ -202,10 +245,13 @@ fn seat_view(session: &mut PlaySession, outcome: &AdvanceOutcome) -> SeatView {
     let state_view = StateViewModel::from_game_state_for(state, &session.names, viewer);
     let names = NameIndex::from_view(&state_view);
 
+    // `zip` rather than two `unwrap`s: the pending decision and its wire `seq`
+    // are produced together and are structurally inseparable here.
     let decision = session
         .pending
         .as_ref()
-        .map(|pending| view::decision_view(pending, state, &names));
+        .zip(wire_seq)
+        .map(|(pending, seq)| view::decision_view(pending, seq, state, &names));
 
     let game_over = match outcome {
         AdvanceOutcome::AwaitingHuman(_) => None,
@@ -241,21 +287,67 @@ fn seat_view(session: &mut PlaySession, outcome: &AdvanceOutcome) -> SeatView {
 
 /// `POST /api/game` — start (or restart) the game.
 ///
-/// The body is optional and every field in it is optional; anything omitted
-/// falls back to the CLI defaults. `advance()` runs before returning, so the
-/// response already carries the human's first decision.
+/// An **absent** body means "use the CLI defaults", and every field of a present
+/// body is optional too. A *malformed* body is a 400 and no longer silently
+/// yields a default game — see the extractor comment below. `advance()` runs
+/// before returning, so the response already carries the human's first decision.
+///
+/// This is also the one route that **recovers from a poisoned session mutex** —
+/// see the comment on the lock below.
 pub async fn post_game(
     State(state): State<SharedState>,
-    body: Option<Json<NewGameRequest>>,
+    // `Result<_, JsonRejection>`, NOT `Option<Json<_>>` (S5 review LOW 5).
+    // `Option<T>`'s `FromRequest` impl is literally `T::from_request(..).ok()`,
+    // so it maps *every* rejection to `None` — `POST /api/game {"playerz": 9}`
+    // used to answer **200 with a default four-player game** instead of
+    // reporting the typo. A `Result` keeps the two apart.
+    body: Result<Json<NewGameRequest>, JsonRejection>,
 ) -> Result<Json<SeatView>, ApiFailure> {
-    let req = body.map(|Json(b)| b).unwrap_or_default();
+    let req = match body {
+        Ok(Json(b)) => b,
+        // The deliberate, tested case: no body at all. axum reports a request
+        // with no `Content-Type: application/json` as `MissingJsonContentType`,
+        // and a body-less POST carries no content type, so this arm *is* "the
+        // body was omitted". (A body sent under some other content type lands
+        // here too and is treated as omitted — the same thing the previous
+        // `Option<Json<_>>` did, so no behaviour is lost.) Every other rejection
+        // is now reported.
+        Err(JsonRejection::MissingJsonContentType(_)) => NewGameRequest::default(),
+        Err(rejection) => return Err(json_rejection(rejection)),
+    };
     let defaults = merge_defaults(state.defaults, &req)?;
     let cfg = session::config_for(defaults)?;
 
     // See the module doc: synchronous engine work, off the reactor.
     tokio::task::block_in_place(|| {
-        let mut guard = state.session.lock().map_err(|_| poisoned())?;
-        let mut play = session::new_game(cfg)?;
+        // **The one route that recovers from poisoning** (S5 review LOW 6).
+        //
+        // Every other handler answers 500 for the life of the process once a
+        // handler has panicked mid-mutation. That is right for them — they read
+        // the session and must not read a half-mutated one — but it means a
+        // single engine panic costs a process restart on a surface whose whole
+        // job is to *find* engine panics (`check_invariants: true` and debug
+        // `debug_assert!`s are live here).
+        //
+        // The asymmetry is sound because this handler **overwrites the `Option`
+        // wholesale** and never reads a game out of the poisoned value. The one
+        // thing it does read is `next_seq_base()` — two plain `u64` counters
+        // that are copies, not invariants, and that no panic can leave mutually
+        // inconsistent. Preserving them across the recovery is what keeps
+        // MEDIUM 1's monotonic-`seq` guarantee true through a panic, so reading
+        // them is a feature rather than a leak of corrupt state.
+        let mut guard = match state.session.lock() {
+            Ok(guard) => guard,
+            Err(poison) => {
+                // Clear the flag as well: the corrupt session is about to be
+                // dropped, so leaving every *later* request 500-ing would be
+                // reporting damage that no longer exists.
+                state.session.clear_poison();
+                poison.into_inner()
+            }
+        };
+        let seq_base = guard.as_ref().map_or(0, |prev| prev.next_seq_base());
+        let mut play = session::new_game(cfg, seq_base)?;
         let outcome = play.advance();
         let view = seat_view(&mut play, &outcome);
         *guard = Some(play);
@@ -290,8 +382,12 @@ pub async fn get_game(State(state): State<SharedState>) -> Result<Json<SeatView>
 /// on. This is why M11-local needs no push channel.
 pub async fn post_action(
     State(state): State<SharedState>,
-    Json(req): Json<ActionRequest>,
+    // `Result<_, JsonRejection>` so a body axum cannot deserialize is answered in
+    // this crate's envelope with a 400, not by axum with a bare `text/plain` 422
+    // that a client would read as an engine rejection (S5 review MEDIUM 2).
+    body: Result<Json<ActionRequest>, JsonRejection>,
 ) -> Result<Json<SeatView>, ApiFailure> {
+    let Json(req) = body.map_err(json_rejection)?;
     tokio::task::block_in_place(|| {
         let mut guard = state.session.lock().map_err(|_| poisoned())?;
         let play = guard.as_mut().ok_or_else(no_session)?;
@@ -336,8 +432,10 @@ pub async fn post_action(
 ///    discarded — loud, not silently wrong.
 pub async fn post_mulligan(
     State(state): State<SharedState>,
-    Json(req): Json<MulliganRequest>,
+    // See `post_action` — same reason (S5 review MEDIUM 2).
+    body: Result<Json<MulliganRequest>, JsonRejection>,
 ) -> Result<Json<SeatView>, ApiFailure> {
+    let Json(req) = body.map_err(json_rejection)?;
     if !req.cards_to_bottom.is_empty() {
         return Err(ApiFailure::new(
             StatusCode::BAD_REQUEST,
