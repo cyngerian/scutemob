@@ -2389,15 +2389,35 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                                         // source has since left the graveyard.
                                         // PB-DX1: source_object may itself be LKI (a
                                         // leave-the-battlefield trigger resolving) --
-                                        // `InterveningIfMoment::Resolution` reads it via
-                                        // `fizzle_object` inside the CardDef arm.
+                                        // `InterveningIfMoment::Resolution`/`ResolutionLookBack`
+                                        // read it via `fizzle_object` inside the CardDef arm.
+                                        // PB-DX1 review Finding 6: thread the resolving
+                                        // stack object's real targets, matching the
+                                        // registry path's `stack_obj.targets.clone()`
+                                        // a few dozen lines above.
+                                        // PB-DX1 review Finding 2: `def.trigger_on` identifies
+                                        // whether this ability is one of the 8 look-back queue
+                                        // sites' TriggerEvents (SelfDies/SelfLeavesBattlefield/
+                                        // SourceConnives, CR 603.10a) -- if so, the resolution
+                                        // recheck must NOT evaluate against the current state
+                                        // either (the source has legitimately left), matching
+                                        // the queue end's TriggerTimeLookBack carve-out.
+                                        let moment = match def.trigger_on {
+                                            crate::state::game_object::TriggerEvent::SelfDies
+                                            | crate::state::game_object::TriggerEvent::SelfLeavesBattlefield
+                                            | crate::state::game_object::TriggerEvent::SourceConnives => {
+                                                abilities::InterveningIfMoment::ResolutionLookBack
+                                            }
+                                            _ => abilities::InterveningIfMoment::Resolution,
+                                        };
                                         abilities::check_intervening_if(
                                             state,
                                             cond,
                                             stack_obj.controller,
                                             source_object,
                                             None,
-                                            abilities::InterveningIfMoment::Resolution,
+                                            moment,
+                                            &stack_obj.targets,
                                         )
                                     })
                                     .unwrap_or(true),

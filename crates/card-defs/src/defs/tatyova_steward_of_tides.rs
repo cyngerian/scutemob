@@ -28,7 +28,6 @@ pub fn card() -> CardDefinition {
             // card types (Land + Creature) which is not expressible as an EffectFilter.
             // CR 613.1d/f: Landfall — Whenever a land enters, if you control 7+ lands,
             // target land becomes a 3/3 Elemental creature with haste until end of turn.
-            // (Approximation: "7+ lands" → ControlAtLeastNOtherLands(6) intervening-if)
             AbilityDefinition::Triggered {
                 once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverPermanentEntersBattlefield {
@@ -86,7 +85,11 @@ pub fn card() -> CardDefinition {
                         }),
                     },
                 ]),
-                intervening_if: Some(Condition::ControlAtLeastNOtherLands(6)),
+                // CR 613.1d/f: "if you control seven or more lands." `ctx.source` is Tatyova
+                // herself (a Merfolk Druid, not a land), so `ControlAtLeastNOtherLands`'s
+                // source exclusion removes nothing from the land count — the correct argument
+                // for a non-land source is the printed number itself, 7.
+                intervening_if: Some(Condition::ControlAtLeastNOtherLands(7)),
                 targets: vec![TargetRequirement::TargetLand],
 
                 modes: None,
@@ -100,8 +103,11 @@ pub fn card() -> CardDefinition {
              You)}, not bare TargetLand. PB-DX1 (2026-08-01): the 'you control seven or more \
              lands' intervening-if on this trigger is now actually evaluated at both CR 603.4 \
              checkpoints (previously silently dropped by the runtime lowering, so the animate \
-             effect could fire under 7 lands) -- pure behavior repair, does NOT resolve either \
-             blocker named above; marker stays partial.",
+             effect could fire regardless of land count); review Finding 5 additionally caught \
+             the threshold itself reading 6 instead of 7 (ctx.source is Tatyova, a non-land, so \
+             the 'other lands' exclusion removed nothing and the value must equal the printed \
+             number) -- fixed to 7 in the same batch. Neither repair resolves either blocker \
+             named above; marker stays partial.",
         ),
         ..Default::default()
     }

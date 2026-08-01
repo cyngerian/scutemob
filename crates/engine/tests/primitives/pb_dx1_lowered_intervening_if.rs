@@ -115,23 +115,47 @@ fn count_aurelia_triggers(events: &[GameEvent], aurelia_id: ObjectId) -> usize {
         .count()
 }
 
-/// CR 603.4 (intervening-if, both ends) / CR 508.3a (whenever ~ attacks) / CR
-/// 500.8 (additional combat phase, CR 500.10a).
+/// CR 603.2h (once each turn) / CR 508.3a (whenever ~ attacks) / CR 500.8
+/// (additional combat phase, CR 500.10a).
 ///
 /// Aurelia, the Warleader: "Whenever Aurelia attacks for the first time each
 /// turn, untap all creatures you control. After this phase, there is an
-/// additional combat phase." Authored as `WhenAttacks` +
-/// `intervening_if: Some(Condition::IsFirstCombatPhase)` — a `Complete`,
-/// deck-legal def (`crates/card-defs/src/defs/aurelia_the_warleader.rs`).
+/// additional combat phase." Authored as `WhenAttacks` + `once_per_turn: true`,
+/// no `intervening_if` — a `Complete`, deck-legal def
+/// (`crates/card-defs/src/defs/aurelia_the_warleader.rs`).
+///
+/// PB-DX1 review Finding 1: this test was originally written against a
+/// `WhenAttacks` + `intervening_if: Some(Condition::IsFirstCombatPhase)`
+/// authoring, and its assertions (fires exactly once, one extra combat, no
+/// third) still hold byte-for-byte against the `once_per_turn: true`
+/// authoring the finding required — the suppression mechanism changed
+/// (CR 603.2h's once-per-turn gate, not CR 603.4's intervening-if gate) but
+/// the observable behavior this test pins does not. CR 603.4 is still
+/// exercised end-to-end elsewhere: T2/T3/T5/T12b.
 ///
 /// Drives the REAL card def through the REAL engine: `Command::DeclareAttackers`
 /// in the first combat, drain the stack (untap + grant one extra combat), drive
 /// priority through DeclareBlockers/CombatDamage/EndOfCombat into the extra
 /// combat's DeclareAttackers step, and declare Aurelia as an attacker again.
 ///
-/// Pre-fix: `intervening_if` is dropped at BOTH ends of the lowering, so the
-/// second declaration re-triggers the ability unconditionally — Aurelia grants
-/// herself a THIRD combat. This assertion must FAIL against pre-fix HEAD.
+/// Pre-PB-DX1: `intervening_if` was dropped at BOTH ends of the lowering (this
+/// card's ORIGINAL authoring, before the review fix), so the second declaration
+/// re-triggered the ability unconditionally — Aurelia granted herself a THIRD
+/// combat. Verified against pre-fix HEAD (`abilities.rs`/`resolution.rs`/
+/// `replay_harness.rs` reverted to before Phase 0-4 landed) — FAILED with:
+///
+/// ```text
+/// assertion `left == right` failed: Aurelia's WhenAttacks trigger must fire
+/// exactly ONCE across the whole turn (CR 603.4): pre-fix, the second attack
+/// (in the extra combat SHE granted) re-triggers it unconditionally because
+/// the lowering drops the intervening-if at both ends, producing an unbounded
+/// chain of extra combats
+///   left: 2
+///  right: 1
+/// ```
+///
+/// The once_per_turn gate now independently produces the same "exactly once"
+/// result for the correct CR 603.2h reason (review Finding 1).
 #[test]
 fn test_dx1_aurelia_attack_trigger_fires_exactly_once_per_turn() {
     let p1 = p(1);
@@ -220,17 +244,17 @@ fn test_dx1_aurelia_attack_trigger_fires_exactly_once_per_turn() {
     let (state, ev) = advance_until(state, 30, |s| s.stack_objects().is_empty());
     all_events.extend(ev);
 
-    // CR 603.4 sentence 1 (queue-time gate, post-fix): the trigger must NOT
-    // queue a second time — Aurelia's second attack this turn is not "the
-    // first time" per `Condition::IsFirstCombatPhase`.
+    // CR 603.2c/603.2h (once-per-turn gate): the trigger must NOT queue a
+    // second time — Aurelia already has an ability-fired mark for this turn
+    // from combat 1's attack.
     assert_eq!(
         count_aurelia_triggers(&all_events, aurelia_id),
         1,
         "Aurelia's WhenAttacks trigger must fire exactly ONCE across the whole \
-         turn (CR 603.4): pre-fix, the second attack (in the extra combat SHE \
-         granted) re-triggers it unconditionally because the lowering drops the \
-         intervening-if at both ends, producing an unbounded chain of extra \
-         combats"
+         turn (CR 603.2h): pre-PB-DX1, the second attack (in the extra combat \
+         SHE granted) re-triggered it unconditionally because the lowering \
+         dropped both intervening_if and once_per_turn, producing an unbounded \
+         chain of extra combats"
     );
     // CR 500.8 / 500.10a: no third combat should have been granted.
     assert_eq!(
@@ -238,6 +262,90 @@ fn test_dx1_aurelia_attack_trigger_fires_exactly_once_per_turn() {
         0,
         "no third combat phase should be queued -- Aurelia's second attack (in \
          the extra combat) must not re-trigger the ability"
+    );
+}
+
+/// PB-DX1 review Finding 1: the scenario the def's ORIGINAL `WhenAttacks` +
+/// `intervening_if: Some(Condition::IsFirstCombatPhase)` authoring got wrong.
+/// Aurelia's FIRST attack of the turn happens in an extra combat GRANTED BY
+/// ANOTHER SOURCE (Aggravated Assault / Moraug / World at War / Port Razer are
+/// real Commander-legal examples; simulated directly via `turn.in_extra_combat`
+/// -- mirrors the control-group idiom `tests/combat/additional_combat.rs` uses
+/// for exactly this "which mechanism granted the extra combat" question, and
+/// is the right tool here specifically because this probe is about Aurelia's
+/// own trigger's response to already being in an extra combat, independent of
+/// how the game got there).
+///
+/// Oracle: "Whenever Aurelia attacks for the first time each turn" -- this
+/// literally is her first attack this turn, so the real card triggers.
+/// `IsFirstCombatPhase` (`!turn.in_extra_combat`) instead asks "is this the
+/// turn's first combat phase at all" and would read false here, wrongly
+/// suppressing the trigger -- the exact HIGH finding. `once_per_turn: true`
+/// tracks Aurelia's own attack history, not which combat phase this is, and
+/// fires correctly.
+///
+/// Verified to FAIL against the old `IsFirstCombatPhase` authoring: reverted
+/// the card def to `once_per_turn: false` / `intervening_if:
+/// Some(Condition::IsFirstCombatPhase)` and re-ran -- the trigger never
+/// queues (`count == 0`), confirming this probe catches exactly Finding 1's
+/// failure mode.
+#[test]
+fn test_dx1_aurelia_first_attack_in_an_extra_combat_still_triggers() {
+    let p1 = p(1);
+    let p2 = p(2);
+
+    let all = all_cards();
+    let defs = load_defs_from(&all);
+    let registry = CardRegistry::new(all);
+
+    let aurelia_spec = enrich_spec_from_def(
+        ObjectSpec::card(p1, "Aurelia, the Warleader")
+            .with_card_id(cid("aurelia-the-warleader"))
+            .in_zone(ZoneId::Battlefield),
+        &defs,
+    );
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .object(aurelia_spec)
+        .active_player(p1)
+        .at_step(Step::DeclareAttackers)
+        .build()
+        .unwrap();
+    state.turn_mut().priority_holder = Some(p1);
+    // Some OTHER source already granted this combat as an extra combat, before
+    // Aurelia has attacked at all this turn.
+    state.turn_mut().in_extra_combat = true;
+
+    let aurelia_id = find_by_name(&state, "Aurelia, the Warleader");
+
+    let (state, declare_events) = process_command(
+        state,
+        Command::DeclareAttackers {
+            player: p1,
+            attackers: vec![(aurelia_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
+            exert_choices: vec![],
+        },
+    )
+    .unwrap_or_else(|e| panic!("DeclareAttackers failed: {e:?}"));
+
+    assert_eq!(
+        count_aurelia_triggers(&declare_events, aurelia_id),
+        1,
+        "Aurelia's first attack of the turn must trigger even when it happens \
+         in an extra combat granted by another source (CR 603.2h: 'for the \
+         first time each turn' tracks HER attack history, not which combat \
+         phase of the turn this is)"
+    );
+
+    let (state, _) = pass_all(state, &[p1, p2]);
+    assert_eq!(
+        state.turn().additional_phases.len(),
+        1,
+        "the trigger must still resolve and grant its own additional combat phase"
     );
 }
 
@@ -540,8 +648,9 @@ fn test_dx1_lookback_dies_trigger_not_suppressed() {
         .characteristics
         .toughness = Some(0);
 
+    let initial_life = life_of(&state, p1);
     let (state, ev1) = pass_all(state, &[p1, p2]);
-    let (_state, ev2) = pass_all(state, &[p1, p2]);
+    let (state, ev2) = pass_all(state, &[p1, p2]);
     let all_events: Vec<GameEvent> = ev1.into_iter().chain(ev2).collect();
 
     let triggered_count = all_events
@@ -554,14 +663,27 @@ fn test_dx1_lookback_dies_trigger_not_suppressed() {
          condition must still queue (CR 603.10a look-back carve-out; hard \
          constraint 3) -- events: {all_events:?}"
     );
+    // Review Finding 2: the queue end queuing the trigger is only half the
+    // claim -- the carve-out is only real end-to-end if the effect actually
+    // executes at resolution. `InterveningIfMoment::ResolutionLookBack`
+    // (below) makes this hold: a look-back trigger's card-def condition is
+    // never re-evaluated against the current (post-move) state, at EITHER
+    // end, mirroring the existing `SourceHadNoCounterOfType` precedent.
+    assert_eq!(
+        life_of(&state, p1),
+        initial_life + 2,
+        "the WhenDies trigger must not just queue but actually RESOLVE with its \
+         effect -- CR 603.10a's look-back carve-out is only real if it holds at \
+         BOTH ends, not just the one that puts the trigger on the stack"
+    );
 }
 
 /// Regression pin for Edit 2: the two LEGACY `InterveningIf` variants
 /// (`ControllerLifeAtLeast`, `SourceHadNoCounterOfType`) must answer
-/// IDENTICALLY at all three `InterveningIfMoment` values -- their match arms
+/// IDENTICALLY at all four `InterveningIfMoment` values -- their match arms
 /// never read `moment` at all, so this is the direct proof that adding
 /// `source`/`moment` to `check_intervening_if`'s signature did not change
-/// legacy behavior.
+/// legacy behavior. Includes `ResolutionLookBack` (review Finding 2).
 #[test]
 fn test_dx1_legacy_intervening_if_variants_unchanged() {
     let p1 = p(1);
@@ -578,6 +700,7 @@ fn test_dx1_legacy_intervening_if_variants_unchanged() {
         InterveningIfMoment::TriggerTime,
         InterveningIfMoment::TriggerTimeLookBack,
         InterveningIfMoment::Resolution,
+        InterveningIfMoment::ResolutionLookBack,
     ];
 
     for &m in &moments {
@@ -589,6 +712,7 @@ fn test_dx1_legacy_intervening_if_variants_unchanged() {
                 dummy_source,
                 None,
                 m,
+                &[],
             ),
             "life 40 >= 30 must hold at {m:?}"
         );
@@ -600,6 +724,7 @@ fn test_dx1_legacy_intervening_if_variants_unchanged() {
                 dummy_source,
                 None,
                 m,
+                &[],
             ),
             "life 40 >= 50 must NOT hold at {m:?}"
         );
@@ -611,6 +736,7 @@ fn test_dx1_legacy_intervening_if_variants_unchanged() {
     for &m in &[
         InterveningIfMoment::TriggerTime,
         InterveningIfMoment::TriggerTimeLookBack,
+        InterveningIfMoment::ResolutionLookBack,
     ] {
         assert!(
             !check_intervening_if(
@@ -620,6 +746,7 @@ fn test_dx1_legacy_intervening_if_variants_unchanged() {
                 dummy_source,
                 Some(&counters),
                 m,
+                &[],
             ),
             "the creature HAS +1/+1 counters, so 'had no counter' must be false at {m:?}"
         );
@@ -631,6 +758,7 @@ fn test_dx1_legacy_intervening_if_variants_unchanged() {
                 dummy_source,
                 Some(&counters),
                 m,
+                &[],
             ),
             "the creature has no Stun counters, so 'had no counter' must be true at {m:?}"
         );
@@ -638,14 +766,22 @@ fn test_dx1_legacy_intervening_if_variants_unchanged() {
 
     // At resolution, callers pass `None` for pre_death_counters by convention
     // (the source is in the graveyard with no counters) -- unconditionally true.
-    assert!(check_intervening_if(
-        &state,
-        &InterveningIf::SourceHadNoCounterOfType(CounterType::PlusOnePlusOne),
-        p1,
-        dummy_source,
-        None,
+    // Both Resolution and ResolutionLookBack must agree here (the legacy variant
+    // ignores `moment` entirely).
+    for &m in &[
         InterveningIfMoment::Resolution,
-    ));
+        InterveningIfMoment::ResolutionLookBack,
+    ] {
+        assert!(check_intervening_if(
+            &state,
+            &InterveningIf::SourceHadNoCounterOfType(CounterType::PlusOnePlusOne),
+            p1,
+            dummy_source,
+            None,
+            m,
+            &[],
+        ));
+    }
 }
 
 /// PB-OS4b/PB-RS4 contract, extended to the new lowering: a DFC's BACK face
@@ -867,27 +1003,31 @@ fn test_dx1_corpus_roster_is_enumerated_not_grepped() {
     assert_eq!(
         lowered_with_iif,
         vec![
-            "Aurelia, the Warleader".to_string(),
             "Karlach, Fury of Avernus".to_string(),
             "Tatyova, Steward of Tides".to_string(),
         ],
-        "plan §6.2's expected 3-def roster (aurelia/karlach/tatyova) on a LOWERED \
-         condition, derived by enumeration -- if this list changes, a card def was \
-         added or edited and §6's disposition table (and this test) needs review"
+        "plan §6.2's expected roster on a LOWERED condition, derived by \
+         enumeration, AMENDED by review Finding 1: aurelia_the_warleader.rs no \
+         longer carries an intervening_if (re-authored once_per_turn: true, no \
+         intervening_if -- see the card def's comment and T1/the new \
+         extra-combat probe) -- if this list changes, a card def was added or \
+         edited and §6's disposition table (and this test) needs review"
     );
 
     // once_per_turn on a LOWERED condition (§10 / Phase 7 of the plan -- FIXED,
     // separate commit): this is a census over the CARD-DEF-authored field, not
     // the runtime-propagated one, so it is unaffected by whether Phase 7's fix
-    // has landed. Six defs total: the 3 that always propagated correctly
-    // (rows 15/16/17 -- morbid_opportunist/spiteful_banditry/dusk_legion_duelist)
-    // plus the 3 Phase 7 repaired (welcoming_vampire/elvish_warmaster/
-    // whispering_wizard -- see T13-T15, which drive these 3 through the real
-    // engine and confirm the runtime now honors this field).
+    // has landed. Seven defs total: the 3 that always propagated correctly
+    // (rows 15/16/17 -- morbid_opportunist/spiteful_banditry/dusk_legion_duelist),
+    // the 3 Phase 7 repaired (welcoming_vampire/elvish_warmaster/
+    // whispering_wizard -- see T13-T15, which drive these through the real
+    // engine and confirm the runtime now honors this field), and Aurelia (review
+    // Finding 1's re-authoring, amended here after Phase 7 landed).
     eprintln!("LOWERED x once_per_turn=true roster: {lowered_with_once_per_turn:?}");
     assert_eq!(
         lowered_with_once_per_turn,
         vec![
+            "Aurelia, the Warleader".to_string(),
             "Dusk Legion Duelist".to_string(),
             "Elvish Warmaster".to_string(),
             "Morbid Opportunist".to_string(),
@@ -1159,6 +1299,20 @@ fn test_dx1_haunt_intervening_if_gated_at_both_ends() {
              HauntedCreatureDiesTrigger -- it must never reach the stack \
              (CR 603.4 s1, CR 702.55c); stack: {:?}",
             state.stack_objects()
+        );
+        // Review Finding 7: a suppressed trigger must still clear
+        // `haunting_target` (CR 702.55c) -- otherwise the exiled card keeps
+        // haunting a now-dead creature's ObjectId, the recycled-ObjectId
+        // hazard `resolution.rs`'s own clear exists to prevent.
+        let haunt_card_obj = state
+            .objects()
+            .values()
+            .find(|o| o.characteristics.name == "DX1 T11a Haunt Creature")
+            .unwrap_or_else(|| panic!("haunt card should still be in exile"));
+        assert_eq!(
+            haunt_card_obj.haunting_target, None,
+            "a suppressed HauntedCreatureDiesTrigger must still clear \
+             haunting_target on the exiled haunt card"
         );
     }
 

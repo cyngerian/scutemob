@@ -43,3 +43,18 @@ All four legs of OOS-DP6-1 confirmed against source:
    admits it.
 
 Conclusion: premise **holds**. Proceed to plan.
+
+## Bench numbers vs merge base (plan §7.3 / §13, review Finding 9)
+
+Measured via `cargo bench -p mtg-engine --bench engine_perf` in a throwaway worktree at
+merge base `3d73763d` (criterion, 100 samples each), compared against the same benchmarks
+on this branch (commit `03053182`, before the review-fix commit):
+
+| benchmark | `3d73763d` (merge base) | this branch | delta |
+|---|---|---|---|
+| `priority_cycle_4p` | 23.605 µs | 24.220 µs | +2.6% |
+| `sba_check` | 14.338 µs | 14.780 µs | +3.1% |
+| `full_turn_4p` | 214.59 µs | 217.44 µs | +1.3% |
+
+All three within the plan's 5% regression budget (§7.3: "A >5% regression is a
+stop-and-report"). No regression flagged.

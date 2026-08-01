@@ -26,32 +26,33 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Vigilance),
             AbilityDefinition::Keyword(KeywordAbility::Haste),
             // "Whenever Aurelia attacks for the first time each turn" maps to WhenAttacks
-            // with Condition::IsFirstCombatPhase (Karlach, Fury of Avernus uses the same
-            // IsFirstCombatPhase intervening-if, but on WheneverYouAttack instead of
-            // WhenAttacks -- her printed text is controller-scoped, "whenever you attack",
-            // not self-scoped like Aurelia's).
+            // with `once_per_turn: true` and NO intervening-if (CR 603.2c/603.2h) -- the
+            // per-(source, ability_index) `triggered_abilities_fired_this_turn` gate
+            // (`abilities.rs`'s `flush_pending_triggers`), reset every untap step
+            // (`layers.rs:1726-1744`), is an exact translation of "for the first time
+            // each turn": her first attack of the turn queues, resolves, and marks the
+            // ability fired; any later attack this same turn (any combat, any source of
+            // the extra combat) is gated before it ever reaches the stack.
             //
-            // OOS-DX1-5 (PB-DX1, 2026-08-01): `IsFirstCombatPhase` is a PROXY for "for the
-            // first time each turn", not a translation, and the two diverge. The printed
-            // card triggers the first time Aurelia herself attacks in a turn, however late;
-            // `IsFirstCombatPhase` instead asks "is this the turn's first combat phase at
-            // all" (`!state.turn.in_extra_combat`). They agree whenever Aurelia's first
-            // attack of the turn happens to be in the turn's first combat -- the overwhelming
-            // common case -- but diverge if she is blinked in (or otherwise made available to
-            // attack) only during a LATER combat phase granted by another source: the real
-            // card would still trigger on that first attack of hers, but this def's
-            // `IsFirstCombatPhase` reads false (already in an extra combat) and suppresses
-            // it. The faithful authoring is `once_per_turn: true` with no `intervening_if`
-            // (expressible since PB-DX1 §10 propagates `once_per_turn` through the lowering)
-            // -- deliberately NOT done here: re-authoring would change which mechanism T1
-            // (`test_dx1_aurelia_attack_trigger_fires_exactly_once_per_turn`,
-            // `crates/engine/tests/primitives/pb_dx1_lowered_intervening_if.rs`) exercises,
-            // and the substitution needs to be argued on its own oracle merits in a
-            // dedicated pass, not folded into the batch that made it possible.
+            // PB-DX1 review Finding 1 (2026-08-01, closed on arrival -- OOS-DX1-5 is
+            // filed as CLOSED, not open): this def previously used
+            // `intervening_if: Some(Condition::IsFirstCombatPhase)` (`!turn.in_extra_combat`)
+            // instead, which is a PROXY for "for the first time each turn", not a
+            // translation, and PB-DX1's own fix made the divergence live as a
+            // *suppressed* trigger on this `Complete`, deck-legal def -- the one
+            // direction hard constraint 3 forbids: if Aurelia's first attack of the turn
+            // happened in a LATER combat granted by another source (Aggravated Assault,
+            // Moraug, World at War, Port Razer), `IsFirstCombatPhase` read false and
+            // dropped the trigger the printed card requires to fire. `once_per_turn`
+            // fires correctly in exactly that scenario, because it tracks Aurelia's own
+            // attack history, not which combat phase of the turn this is. Karlach, Fury
+            // of Avernus is the genuinely different case: her printed text says "if it's
+            // the first combat phase of the turn" (controller-scoped `WheneverYouAttack`),
+            // so `IsFirstCombatPhase` is a correct translation for her, not a proxy.
             AbilityDefinition::Triggered {
-                once_per_turn: false,
+                once_per_turn: true,
                 trigger_condition: TriggerCondition::WhenAttacks,
-                intervening_if: Some(Condition::IsFirstCombatPhase),
+                intervening_if: None,
                 effect: Effect::Sequence(vec![
                     // Untap all creatures you control.
                     Effect::ForEach {
