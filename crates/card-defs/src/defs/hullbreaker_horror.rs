@@ -87,6 +87,37 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
+        // PB-DX4 fix cycle (2026-08-01, `scutemob-168`, review Finding 2):
+        // Complete (by the `#[default]` derive) -> partial.
+        //
+        // MCP-verified printed text: "Whenever you cast a spell, choose **up to one** —
+        // • Return target spell you don't control to its owner's hand. • Return target
+        // nonland permanent to its owner's hand."
+        //
+        // Both mode targets are declared FLAT on the trigger with `mode_targets: None`, so
+        // both are required whichever mode is chosen — and `rules/abilities.rs`'s CR 603.3d
+        // auto-target path skips a trigger outright when **any** required slot has no legal
+        // candidate ("If any required target has no legal candidate, skip this trigger").
+        // "Target spell you don't control" is unsatisfiable in the ordinary case: unless an
+        // opponent has a spell on the stack at the moment you cast yours, the WHOLE trigger
+        // is dropped, so the second mode — an unconditional bounce that is the card's main
+        // use — is unreachable too, and `min_modes: 0`'s "up to one" never gets to mean
+        // anything.
+        //
+        // This is the identical defect `shambling_ghast` was demoted for in the same batch,
+        // and it is dispositioned the same way rather than merely named: PB-DX4's original
+        // pass classified this def class-B and recorded the shape only in seed OOS-DX4-2,
+        // which is a description, not a marker. Closing it needs `mode_targets` honoured on
+        // the triggered-ability path (today every consumer is on the casting path), so it is
+        // an engine change and not a card-def edit.
+        completeness: Completeness::partial(
+            "Modal triggered ability declares both mode targets flat (ModeSelection.mode_targets \
+             is honoured only on the casting path, never for triggered abilities), so 'target \
+             spell you don't control' is required for BOTH modes. rules/abilities.rs skips a \
+             trigger when any required slot has no legal candidate, so with no opponent spell on \
+             the stack the whole trigger is dropped and the 'return target nonland permanent' \
+             mode is unreachable. See OOS-DX4-2.",
+        ),
         ..Default::default()
     }
 }

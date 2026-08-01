@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-08-01 08:40 UTC  
-**Git:** `6c1cff8c` on `feat/pb-dx3b-the-oos-dx3-1-insert-jadar-live-wrong-complete-ophio`  
+**Generated:** 2026-08-01 11:44 UTC  
+**Git:** `f3ab45d4` on `feat/pb-dx4-triage-the-97-entry-decision-baseline-against-oracle-`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -25,16 +25,16 @@ and what is intentionally NOT in it.**
 | Plan cards still missing a def file | 135 | · |
 | Bonus defs (on disk, outside plan) | 322 | · |
 | Effective coverage vs plan target | **111%** (1,823 / 1,636) | — |
-| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 63.4% | 1,143 | +1 |
-| With TODO markers | 511 | · |
-| Empty `abilities: vec![]` placeholders | 150 | -1 |
-| Total TODO lines across all defs | 940 | -2 |
+| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 63.0% | 1,137 | -1 |
+| With TODO markers | 517 | +1 |
+| Empty `abilities: vec![]` placeholders | 150 | · |
+| Total TODO lines across all defs | 940 | · |
 
 ## Authoring activity (git, by window)
 
 | Window | New files added | Existing files modified |
 | --- | ---: | ---: |
-| last 7 days | 0 | 8 |
+| last 7 days | 0 | 26 |
 | last 30 days | 57 | 2,943 |
 | last 90 days | 57 | 2,955 |
 | last 1 year | 1,830 | 3,366 |
@@ -66,8 +66,8 @@ are blocked on engine primitives.
 
 | Group | Auth / Total | % | Clean | TODO | Empty |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| `combat-keyword` | 187 / 187 | 100% | 89 | 83 | 15 |
-| `draw` | 164 / 169 | 97% | 79 | 68 | 17 |
+| `combat-keyword` | 187 / 187 | 100% | 88 | 84 | 15 |
+| `draw` | 164 / 169 | 97% | 78 | 69 | 17 |
 | `token-create` | 148 / 155 | 95% | 86 | 46 | 16 |
 | `land-etb-tapped` | 138 / 138 | 100% | 115 | 23 | 0 |
 | `other` | 108 / 131 | 82% | 70 | 31 | 7 |
@@ -95,7 +95,7 @@ are blocked on engine primitives.
 | `opponent-punish` | 12 / 12 | 100% | 5 | 2 | 5 |
 | `equipment` | 11 / 11 | 100% | 6 | 5 | 0 |
 | `tutor` | 11 / 11 | 100% | 9 | 1 | 1 |
-| `removal-bounce` | 10 / 10 | 100% | 6 | 3 | 1 |
+| `removal-bounce` | 10 / 10 | 100% | 5 | 4 | 1 |
 | `static-enchantment` | 1 / 8 | 12% | 1 | 0 | 0 |
 | `discard-effect` | 4 / 7 | 57% | 4 | 0 | 0 |
 | `scry-surveil` | 7 / 7 | 100% | 4 | 3 | 0 |
@@ -171,7 +171,7 @@ the next thing to triage when the classifier table is grown.
 
 | Gap bucket | TODO lines | Δ since last run |
 | --- | ---: | ---: |
-| OTHER (unclassified) | 576 | -2 |
+| OTHER (unclassified) | 576 | · |
 | DSL gap (unspecified) | 120 | · |
 | attack trigger (self / generic) | 23 | · |
 | TriggerCondition::* missing variant | 17 | · |
@@ -223,17 +223,25 @@ tyvar_jubilant_brawler: // TODO: Mill effect + conditional graveyard return with
 
 ## ⚠ Completeness-marker drift
 
-5 defs whose `completeness:` marker contradicts their comments. The marker is authoritative (it is what `validate_deck` reads), so fix whichever is stale.
+10 defs whose `completeness:` marker contradicts their comments. The marker is authoritative (it is what `validate_deck` reads), so fix whichever is stale.
 
 - `ashnods_altar` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `boggart_shenanigans` — marked partial but has no TODO / ENGINE-BLOCKED comment
+- `contaminant_grafter` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `emeria_the_sky_ruin` — marked partial but has no TODO / ENGINE-BLOCKED comment
+- `grateful_apparition` — marked partial but has no TODO / ENGINE-BLOCKED comment
+- `hullbreaker_horror` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `phyrexian_tower` — marked partial but has no TODO / ENGINE-BLOCKED comment
+- `shambling_ghast` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `temple_of_the_dragon_queen` — marked partial but has no TODO / ENGINE-BLOCKED comment
+- `thrasios_triton_hero` — marked partial but has no TODO / ENGINE-BLOCKED comment
 
 ## Recent card-touching commits
 
 ```
+e658c9d8 scutemob-168: PB-DX4 — triage the 97-entry decision BASELINE against oracle text (OOS-DP10-8)
+39d4902c scutemob-166: PB-DX3b fix cycle — apply review findings (5 MEDIUM / 7 LOW)
+bc035684 scutemob-166: PB-DX3b implement — OOS-DX3-1 bucket, 4 fixes / 3 dated defers
 8e336544 scutemob-164: PB-DX3 fix cycle -- apply review findings (1 MEDIUM / 5 LOW)
 f3e92ecc scutemob-164: PB-DX3 implement — two stale blocker notes closed (OOS-DP6-3)
 95c35f7a W6-prim: scutemob-160 — PB-DX1 review fixes
@@ -256,9 +264,6 @@ bd15b45b W6-prim: PB-OS6 review LOW — soften delver 'strictly beneficial' comm
 8c31c1fd W6-prim: PB-OS5 (OOS-EF4-1) — dynamic relative-count EffectAmount
 55664ad8 scutemob-134: PB-OS4b card-def message fixes + wip checklist
 be9f371c W6-prim: PB-OS4 /review nit — Fable back-face comment names OOS-OS4-2 non-functional status
-7945c975 W6-prim: PB-OS4 fix pass — fmt gate (scutemob-130)
-f5a44ab6 W6-prim: PB-OS4 fix pass — ship narrowed (scutemob-130)
-fc3ae4ef W6-prim: PB-OS4 card defs + tests — Fable + Edgar return-transformed
 ```
 
 ## Missing card-defs sidecar

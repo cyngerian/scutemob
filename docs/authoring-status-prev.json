@@ -1,11 +1,11 @@
 {
-  "generated": "2026-08-01 08:40 UTC",
-  "git_head": "6c1cff8c",
+  "generated": "2026-08-01 11:44 UTC",
+  "git_head": "f3ab45d4",
   "total_files": 1804,
   "total_todos": 940,
   "file_buckets": {
-    "clean": 1143,
-    "todo": 511,
+    "clean": 1137,
+    "todo": 517,
     "empty": 150
   },
   "todo_classes": {

@@ -457,6 +457,48 @@ pub async fn post_game(
                 (guard, base)
             }
         };
+        // PB-DX4 (2026-08-01, `scutemob-168`): the test-only rebuild-failure injection.
+        //
+        // The two tests that pin this block's atomicity
+        // (`test_poison_recovery_is_atomic_when_the_rebuild_fails`,
+        // `test_a_failed_rebuild_leaves_a_running_game_untouched`) need
+        // `session::new_game` to fail RIGHT HERE — after the lock is taken and after the
+        // poison recovery has run — because the subject is the `?` on this line skipping
+        // the `*guard = Some(play)` below. Until now their only trigger was OOS-M11-6, the
+        // CR 903.5c colorless-commander Forest padding, which PB-DX4 closed in
+        // `crates/simulator/src/deck.rs`. Their own maintenance note predicted exactly
+        // this ("whoever closes OOS-M11-6 needs a new way to fail a rebuild inside the
+        // lock; there is no other one today") and it was right: a probe of `players` 0 / 1
+        // / 2 / 5 / 200 and the previously-failing `seed: 17` finds only 400
+        // `bad_player_count` (checked BEFORE the lock, so it never reaches this line) or
+        // 200. No client input reaches this `?` any more.
+        //
+        // So the trigger is now explicit rather than incidental, and it is carried by the
+        // REQUEST rather than by process state. That second property was learned the hard
+        // way: the first version of this injection was a global `AtomicBool`, and because
+        // `cargo test` runs this binary's tests in parallel and many of them POST
+        // `/api/game`, a flag set by one test could be consumed by another's request —
+        // giving that test a spurious 422 and this one a 200. It passed under
+        // `-p play-server` and failed under `--workspace`, twice, before the cause was
+        // found. A sentinel seed has no such coupling: it is scoped to exactly the one
+        // request that carries it, so there is nothing to leak and nothing to serialize.
+        // Scope note (fix cycle, review Finding 12): this returns ABOVE `session::new_game`,
+        // so the two tests prove "a rebuild that fails anywhere between the recovery and the
+        // assignment leaves no readable corrupt session" rather than specifically "a rebuild
+        // that fails INSIDE `session::new_game` does". That is the property the block is
+        // written to have — the recovery `take()`s in the same straight-line stretch with no
+        // fallible step between — and every statement from here to `*guard = Some(play)` is
+        // covered by it. It is a slightly weaker statement than the test names suggest, and
+        // saying so is cheaper than moving the injection past a call whose failure modes are
+        // no longer client-reachable at all.
+        #[cfg(test)]
+        if cfg.seed == crate::tests::REBUILD_FAILURE_SEED {
+            return Err(ApiFailure::new(
+                StatusCode::UNPROCESSABLE_ENTITY,
+                "setup_failed",
+                "deliberate test-only rebuild failure (PB-DX4 injection point)",
+            ));
+        }
         let mut play = session::new_game(cfg, seq_base)?;
         let outcome = play.advance();
         let view = seat_view(&mut play, &outcome);

@@ -357,16 +357,29 @@ fn prose_fields_do_not_trigger_a_unit_variant_row() {
 ///
 /// **An entry asserts exactly one thing -- that this def hits these `AutoChosen` rows. It
 /// asserts NOTHING about whether the def is otherwise oracle-correct.** The 2026-07-27
-/// freeze populated this table mechanically from `T9`'s output; it was not cross-checked
-/// against oracle text def-by-def, and a spot-check found two members that are live-wrong,
-/// not merely un-consulted -- Smuggler's Copter (an unconditional `Sequence(DrawCards,
-/// DiscardCards)` for a CR 118.12 "you MAY draw a card. If you do, discard a card" -- see
-/// this file's module doc) and Shambling Ghast (a permanent `MinusOneMinusOne` counter for a
-/// printed "until end of turn" P/T change, plus a stored `oracle_text` that says "enters"
-/// against a `WhenDies` trigger, plus a granted `Decayed` keyword the printed card does not
-/// have at all). Both are recorded here as `&["discard_cards"]` / `&["modal_trigger"]`
-/// respectively, which is true but is not the defect -- see **OOS-DP10-8**. The remaining 95
-/// entries have not been triaged against oracle text.
+/// freeze populated this table mechanically from `T9`'s output, and was not cross-checked
+/// against oracle text def-by-def.
+///
+/// **PB-DX4 (2026-08-01, `scutemob-168`) performed that triage and this table is now
+/// oracle-read** -- all 97 frozen entries were read against MCP printed text and classified
+/// plan §5.3 class-B (the def is faithful; the engine merely auto-picks among legal options,
+/// which is the only thing an entry here claims) or class-D (the def is simply wrong). The
+/// split was **86 B / 11 D**, so PB-DP10's 2-of-5 spot-check overstated the D rate roughly
+/// fivefold -- the caution that "2-of-5 is a very noisy sample" was correct. Of the 11: five
+/// were repaired in place and stayed `Complete` (Metastatic Evangel, Grisly Salvage, Satyr
+/// Wayfinder, Sword of Truth and Justice, Radstorm); five were demoted and have therefore
+/// LEFT this table (Smuggler's Copter -> `known_wrong`; Contaminant Grafter, Grateful
+/// Apparition, Thrasios Triton Hero, Shambling Ghast -> `partial`); and one -- Staff of
+/// Compleation's "target permanent you own" authored as `TargetController::You` -- was
+/// deliberately left `Complete` and allowlisted in `completeness_deviation_scan.rs`, matching
+/// the shipped `nether_traitor` decision for the identical owner-vs-controller class
+/// (OOS-DX4-1 asks the corpus-wide question instead).
+/// Per-def findings with oracle citations: `memory/primitives/pb-dx4-baseline-triage.md`.
+///
+/// **What that triage does NOT convert this table into.** An entry still asserts only its row
+/// set. A def read as class-B on 2026-08-01 can drift afterwards, and nothing re-reads it --
+/// the same dated-claim problem PB-DX3/PB-DX3b found in blocker notes. Read the triage doc's
+/// date, not this table, when you need to know whether a def has been checked.
 const BASELINE: &[(&str, &[&str], Option<&str>)] = &[
     ("Accursed Marauder", &["sacrifice_permanents"], None),
     ("Anowon, the Ruin Sage", &["sacrifice_permanents"], None),
@@ -387,7 +400,6 @@ const BASELINE: &[(&str, &[&str], Option<&str>)] = &[
     ("Coiling Oracle", &["look_at_top_or_route"], None),
     ("Consign // Oblivion", &["discard_cards"], None),
     ("Contagion Clasp", &["proliferate"], None),
-    ("Contaminant Grafter", &["proliferate"], None),
     ("Contentious Plan", &["proliferate"], None),
     ("Crippling Fear", &["choose_color_or_type"], None),
     ("Crossway Troublemakers", &["may_pay_then_effect"], None),
@@ -410,13 +422,11 @@ const BASELINE: &[(&str, &[&str], Option<&str>)] = &[
     ("Geier Reach Sanitarium", &["discard_cards"], None),
     ("Geological Appraiser", &["discover"], None),
     ("Goblin Ringleader", &["look_at_top_or_route"], None),
-    ("Grateful Apparition", &["proliferate"], None),
     ("Grave Pact", &["sacrifice_permanents"], None),
     ("Greater Good", &["discard_cards"], None),
     ("Grisly Salvage", &["look_at_top_or_route"], None),
     ("Growing Rites of Itlimoc", &["look_at_top_or_route"], None),
     ("Hazoret's Monument", &["may_pay_then_effect"], None),
-    ("Hullbreaker Horror", &["modal_trigger"], None),
     ("Inexorable Tide", &["proliferate"], None),
     (
         "Izzet Charm",
@@ -450,8 +460,6 @@ const BASELINE: &[(&str, &[&str], Option<&str>)] = &[
     ("Roalesk, Apex Hybrid", &["proliferate"], None),
     ("Roiling Regrowth", &["sacrifice_permanents"], None),
     ("Satyr Wayfinder", &["look_at_top_or_route"], None),
-    ("Shambling Ghast", &["modal_trigger"], None),
-    ("Smuggler's Copter", &["discard_cards"], None),
     ("Spell Pierce", &["counter_unless_pays"], None),
     ("Springbloom Druid", &["may_pay_then_effect"], None),
     ("Staff of Compleation", &["proliferate"], None),
@@ -466,7 +474,6 @@ const BASELINE: &[(&str, &[&str], Option<&str>)] = &[
     ),
     ("Tezzeret's Gambit", &["proliferate"], None),
     ("Thirsting Roots", &["proliferate"], None),
-    ("Thrasios, Triton Hero", &["look_at_top_or_route"], None),
     ("Thrummingbird", &["proliferate"], None),
     ("Unnatural Restoration", &["proliferate"], None),
     ("Urza's Incubator", &["choose_color_or_type"], None),
@@ -479,7 +486,21 @@ const BASELINE: &[(&str, &[&str], Option<&str>)] = &[
 /// see the `bare_lookup_ratchet.rs` comment convention. `T9` reprints this number live on
 /// every run; if it changes, this constant must be updated in the SAME commit that changes
 /// it (either direction), per the ratchet's own rule.
-const MAX_AUTO_CHOSEN_COMPLETE_UNION: usize = 97;
+/// **PB-DX4 (2026-08-01, `scutemob-168`): lowered 97 -> 91**, and the six are named rather
+/// than merely counted: Smuggler's Copter (-> `known_wrong`), Contaminant Grafter, Grateful
+/// Apparition, Thrasios Triton Hero, Shambling Ghast and Hullbreaker Horror (-> `partial`)
+/// were demoted by the
+/// OOS-DP10-8 oracle-text triage of this very table, so they are no longer
+/// effectively-`Complete` and drop out of the union. Measured by running `T6` and reading the
+/// number it printed, not derived by arithmetic -- and that mattered THREE times: the first
+/// reading was 93 (Shambling Ghast was still `Complete`), then 92 once its fourth defect --
+/// the flat mode-target, OOS-DX4-2 -- was surfaced by fixing its first three, then 91 when the
+/// closing review found `hullbreaker_horror` carrying that same flat-mode-target defect and
+/// still `Complete`. A number that moved three times inside one batch is the argument for
+/// reading it off `T6` rather than computing it. The six defs the same triage REPAIRED
+/// (Metastatic Evangel, Grisly Salvage, Satyr Wayfinder, Sword of Truth and Justice, Radstorm,
+/// Risen Reef) stayed `Complete` and none of them changed row set, so they contribute 0 here.
+const MAX_AUTO_CHOSEN_COMPLETE_UNION: usize = 91;
 
 const MIN_ROWS: usize = 22;
 const MIN_BASELINE: usize = 50;
@@ -740,12 +761,24 @@ fn every_baseline_entry_is_live_and_necessary() {
     // The freeze is closed at exactly its measured size, so every LATER entry must carry
     // `Some(reason)`. This deliberately does not grow: shrinking is fine (a def demoted or
     // fixed just leaves), growing is not.
-    const FROZEN_2026_07_27: usize = 97;
+    // PB-DX4 fix cycle (2026-08-01, `scutemob-168`, review Finding 3): **92, not 97.**
+    //
+    // This ceiling is the enforcer for T4's promise that a post-freeze entry carries a written
+    // reason. PB-DX4 removed five frozen entries (the five defs it demoted), which left the
+    // ceiling five above the population it bounds — so the gate would have accepted five NEW
+    // `None` entries with no justification, silently, which is precisely what the comment
+    // below says it must not do ("this deliberately does not grow"). Lowering it in the same
+    // commit as the removals is what keeps the promise true. Derivation: 97 frozen entries
+    // minus `smugglers_copter`, `contaminant_grafter`, `grateful_apparition`,
+    // `thrasios_triton_hero`, `shambling_ghast` = 92, equal to `BASELINE.len()` because every
+    // surviving entry is still a freeze entry (this batch added none).
+    const FROZEN_2026_07_27: usize = 91;
     let unexplained = BASELINE.iter().filter(|(_, _, r)| r.is_none()).count();
     assert!(
         unexplained <= FROZEN_2026_07_27,
         "{unexplained} BASELINE entries carry no written reason, but only the \
-         {FROZEN_2026_07_27} entries of the 2026-07-27 PB-DP10 freeze are allowed to. Every \
+         {FROZEN_2026_07_27} surviving entries of the 2026-07-27 PB-DP10 freeze are allowed \
+         to. Every \
          entry added after that freeze is a deliberate act and must carry `Some(reason)` \
          naming why this card ships with the engine choosing for the player -- that is what \
          `no_complete_def_introduces_an_unrecorded_auto_chosen_decision`'s failure message \
@@ -1004,7 +1037,16 @@ fn canonical_walk_reproduces_pb_dp9_rosters() {
         .iter()
         .map(|d| serde_json::to_value(d).unwrap())
         .collect();
-    for (id, floor) in [("search_library", 73usize), ("scry", 16), ("surveil", 8)] {
+    // PB-DX4 (2026-08-01, `scutemob-168`): `scry` lowered 16 -> 15. Legitimate corpus
+    // movement, not detector drift, and the same shape as PB-DX3b's 77 -> 76 on the PB-DP8
+    // roster below: `thrasios_triton_hero` carries an `Effect::Scry` inside the activated
+    // ability whose OTHER half -- printed "Otherwise, draw a card", authored as
+    // `RevealAndRoute`'s `unmatched_dest: ZoneTarget::Hand`, a zone move that fires no draw
+    // event -- made it class-D in the OOS-DP10-8 triage, so it is now `partial` and no longer
+    // counts as `Complete`. Its scry half was always correct; it leaves this count for a
+    // reason that has nothing to do with scry. `search_library` and `surveil` are unmoved
+    // (verified by running this test, not assumed: only the scry arm reddened).
+    for (id, floor) in [("search_library", 73usize), ("scry", 15), ("surveil", 8)] {
         let row = ROWS.iter().find(|r| r.id == id).unwrap();
         let count = defs
             .iter()
@@ -1033,6 +1075,18 @@ fn canonical_walk_reproduces_pb_dp9_rosters() {
 /// `emeria_the_sky_ruin.rs`'s completeness note) — a correction, not a regression, of
 /// a count that was never actually verified card-by-card in the first place. Measured
 /// directly against `all_cards()` on this branch: `count == 76`.
+///
+/// **PB-DX4 (2026-08-01, `scutemob-168`): 76 -> 75**, and for the same reason a second time.
+/// `shambling_ghast` counted here because its modal `WhenDies` trigger carries
+/// `targets: vec![TargetRequirement::TargetCreatureWithFilter(..)]`; PB-DX4's OOS-DP10-8
+/// oracle triage demoted it to an explicit `partial`. Note WHICH defect the marker is for:
+/// the three deviations the triage went looking for (a phantom `Decayed` keyword, a permanent
+/// `MinusOneMinusOne` counter for a printed "until end of turn", a stored `oracle_text` naming
+/// "enters" against a `WhenDies` trigger) were all FIXED in place. The marker is for a fourth
+/// the fix surfaced -- the very `targets` field this row counts is declared flat rather than
+/// per-mode, so it is required whichever mode is chosen and a Ghast dying while no opponent
+/// controls a creature produces nothing at all (CR 603.3d). Measured directly against
+/// `all_cards()` on this branch: `count == 75`.
 fn canonical_walk_reproduces_pb_dp8_roster() {
     let row = ROWS.iter().find(|r| r.id == "triggered_targets").unwrap();
     let defs = all_cards();
@@ -1042,9 +1096,10 @@ fn canonical_walk_reproduces_pb_dp8_roster() {
         .filter(|d| (row.predicate)(&serde_json::to_value(d).unwrap()))
         .count();
     assert!(
-        count >= 76,
-        "triggered_targets has only {count} Complete defs, expected >= 76 (PB-DP8's \
-         enumerated number, corrected -1 by PB-DX3b for emeria_the_sky_ruin's marker fix)"
+        count >= 74,
+        "triggered_targets has only {count} Complete defs, expected >= 74 (PB-DP8's \
+         enumerated number, corrected -1 by PB-DX3b for emeria_the_sky_ruin's marker fix and \
+         -2 by PB-DX4 for shambling_ghast's and hullbreaker_horror's)"
     );
 }
 

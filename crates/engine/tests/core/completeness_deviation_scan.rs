@@ -137,6 +137,36 @@ const ALLOWLIST: &[(&str, &str)] = &[
          deviation — it is the only expression the DSL offers. (scutemob-95)",
     ),
     (
+        "sword_of_truth_and_justice",
+        "\"a second, unfixed deviation\" for oracle \"put a +1/+1 counter on a creature you \
+         control\", which carries NO \"target\" (CR 115.10) and is therefore chosen on \
+         resolution — authored as a real `TargetRequirement`, so hexproof / shroud / \
+         protection / \"can't be the target of\" all wrongly bite, and CR 608.2b fizzles the \
+         whole trigger (counter AND proliferate) if the chosen creature leaves, where the \
+         printed card would simply pick another. Real and reachable. Allowlisted rather than \
+         demoted on the same rule as `staff_of_compleation` and `nether_traitor` below: the \
+         DSL has no choose-on-resolution-without-targeting channel for this shape, and \
+         `frantic_search` ships `Complete` with the identical approximation (printed \"untap \
+         up to three lands\", no \"target\"), so demoting the member that happens to sit in \
+         PB-DP10's BASELINE would report a corpus class as one card. Filed as OOS-DX4-6. The \
+         note that trips this detector is new (PB-DX4 fix cycle, review Finding 6); the \
+         deviation is not. (scutemob-168)",
+    ),
+    (
+        "staff_of_compleation",
+        "\"corpus-wide approximation class\" for oracle \"Destroy target permanent YOU OWN\" \
+         (ownership, CR 108.3) authored as `TargetController::You` (control, CR 109.4). \
+         EXACTLY the `nether_traitor` case above and allowlisted for the same reason: \
+         `TargetFilter` has no owner axis at all, so controller is the only expression the \
+         DSL offers, and it is the corpus-standard one. Faithful in all play without a \
+         control-change effect. Added by PB-DX4's OOS-DP10-8 triage (`scutemob-168`), which \
+         found the deviation and wrote the note that trips this detector — the note is new, \
+         the deviation is not. Deliberately allowlisted rather than demoted so the class is \
+         decided as a class: OOS-DX4-1 asks how many `Complete` defs approximate an ownership \
+         clause this way, and demoting the two that happen to sit in PB-DP10's BASELINE would \
+         have reported a corpus class as a pair of cards. (scutemob-168)",
+    ),
+    (
         "delver_of_secrets",
         "PB-OS6(a): \"upkeep trigger modeled as an unconditional AtBeginningOfYourUpkeep \
          trigger\" describes the DSL shape (Effect::Conditional gated on \
@@ -319,9 +349,25 @@ fn the_marker_detector_is_not_vacuous() {
     // ordinary `Complete` flip, which has nothing to do with the detector. The message
     // below now names both possible causes and tells the reader what to do in each case,
     // rather than asserting the wrong one.
+    // PB-DX4 (2026-08-01, `scutemob-168`): threshold raised 661 -> 667. Five defs were
+    // demoted by the OOS-DP10-8 oracle-text triage of PB-DP10's 97-entry decision BASELINE
+    // — `smugglers_copter` (Complete -> known_wrong) and `contaminant_grafter`,
+    // `grateful_apparition`, `thrasios_triton_hero`, `shambling_ghast`, `hullbreaker_horror`
+    // (Complete -> partial) — and no def flipped the other way, so the corpus's non-Complete
+    // count rises by exactly 6. (Five of the six landed in the implement phase; the sixth,
+    // `hullbreaker_horror`, was found by the closing review carrying the SAME flat-mode-target
+    // defect `shambling_ghast` had just been demoted for, which is why this number was
+    // re-measured after the fix cycle rather than carried forward from it.) RE-MEASURED
+    // DIRECTLY against `all_cards()` rather than trusted from this arithmetic, as the PB-DX3b
+    // note below instructs the next batch to do: `all_cards()` reports 667 non-Complete /
+    // 1,137 Complete of 1,804, and a direct grep of MARKER_FRAGMENTS across
+    // `crates/card-defs/src/defs/*.rs` independently reports 667 — the detector still has no
+    // gap between the two counts. Pinned at the exact measured
+    // value, keeping PB-DX3b's convention and its reasoning (any fixed margin silently
+    // erodes as later batches flip markers and nothing re-derives it).
     assert!(
-        marked >= 661,
-        "marker detector matched {marked} files; expected >= 661. This assertion has NO \
+        marked >= 667,
+        "marker detector matched {marked} files; expected >= 667. This assertion has NO \
          margin (see the comment above) and can fail for two different reasons: (1) \
          MARKER_FRAGMENTS stopped matching (a detector bug -- the gate would then spuriously \
          flag marked defs) or, far more likely on an ordinary day, (2) a ROUTINE Complete \

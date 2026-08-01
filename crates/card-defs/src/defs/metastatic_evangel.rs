@@ -1,4 +1,4 @@
-// Metastatic Evangel — {2}{W}, Creature — Phyrexian Cleric 1/3
+// Metastatic Evangel — {1}{W}, Creature — Phyrexian Human Cleric 3/1
 // Whenever another nontoken creature you control enters, proliferate.
 // (Choose any number of permanents and/or players, then give each another counter of each kind already there.)
 use crate::cards::helpers::*;
@@ -8,31 +8,32 @@ pub fn card() -> CardDefinition {
         card_id: cid("metastatic-evangel"),
         name: "Metastatic Evangel".to_string(),
         mana_cost: Some(ManaCost {
-            generic: 2,
+            generic: 1,
             white: 1,
             ..Default::default()
         }),
-        types: creature_types(&["Phyrexian", "Cleric"]),
+        types: creature_types(&["Phyrexian", "Human", "Cleric"]),
         oracle_text: "Whenever another nontoken creature you control enters, proliferate. (Choose \
                       any number of permanents and/or players, then give each another counter of \
                       each kind already there.)"
             .to_string(),
-        power: Some(1),
-        toughness: Some(3),
+        power: Some(3),
+        toughness: Some(1),
         abilities: vec![
             // CR 603.6a: "Whenever another nontoken creature you control enters, proliferate."
             // WheneverCreatureEntersBattlefield with controller=You filter +
-            // exclude_self: true (PB-XS-E, CR 109.1 / 603.2). The "nontoken" qualifier
-            // uses is_token in TargetFilter — NOTE: is_token in TargetFilter is only
-            // checked in combat_damage_filter paths; for ETB trigger matching it is
-            // silently ignored. Minor inaccuracy: a token creature ETB would still fire
-            // this trigger today (until ETBTriggerFilter gains a token-only/nontoken-only
-            // axis). Tracked elsewhere.
+            // exclude_self: true (PB-XS-E, CR 109.1 / 603.2). The "nontoken" qualifier is
+            // honoured via `is_nontoken` on the creature-ETB path: `triggering_creature_filter`
+            // forwards the full TargetFilter (PB-AC0), and `rules/abilities.rs`'s
+            // WheneverCreatureEntersBattlefield arm checks `creature_filter.is_nontoken` against
+            // the entering GameObject before firing (CR 111.1 — is_token/is_nontoken are runtime
+            // GameObject properties, not Characteristics, so they can't live in matches_filter()).
             AbilityDefinition::Triggered {
                 once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield {
                     filter: Some(TargetFilter {
                         controller: TargetController::You,
+                        is_nontoken: true,
                         ..Default::default()
                     }),
                     exclude_self: true,
