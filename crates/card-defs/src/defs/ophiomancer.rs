@@ -19,8 +19,23 @@ pub fn card() -> CardDefinition {
         power: Some(2),
         toughness: Some(2),
         abilities: vec![
-            // TODO: "If you control no Snakes" intervening-if — Condition lacks
-            //   "you control no permanents with subtype X" variant.
+            // CR 603.4 (rulings 2013-10-17 #1/#2): "if you control no Snakes" is checked
+            // BOTH at queue time (rules/turn_actions.rs's AtBeginningOf{Your,Each}Upkeep
+            // CardDef sweep, PB-DP6) and re-checked at resolution
+            // (InterveningIf::CardDef, PB-DX1).
+            //
+            // PB-DX3b: the def's own former note was right that the DSL gap was stale, but
+            // wrong about which variant to use. `Condition::ControlCreatureWithSubtype`
+            // hard-requires CardType::Creature (effects/mod.rs) — CR reads "you control no
+            // **Snakes**" (permanents with the Snake subtype), a superset in principle,
+            // though 2013-era Snakes were all creatures so the ruling text and this
+            // TargetFilter agree in practice. `has_subtype` alone, with no
+            // `has_card_type` restriction, is the precise translation.
+            //
+            // `AtBeginningOfEachUpkeep` fires on every player's upkeep, but "if YOU control
+            // no Snakes" gates against Ophiomancer's *controller*
+            // (check_static_condition's `ctx.controller`), not the active player whose
+            // upkeep it is — pinned by T7.
             AbilityDefinition::Triggered {
                 once_per_turn: false,
                 trigger_condition: TriggerCondition::AtBeginningOfEachUpkeep,
@@ -43,21 +58,22 @@ pub fn card() -> CardDefinition {
                         ..Default::default()
                     },
                 },
-                intervening_if: None,
+                intervening_if: Some(Condition::Not(Box::new(
+                    Condition::YouControlNOrMoreWithFilter {
+                        count: 1,
+                        filter: TargetFilter {
+                            has_subtype: Some(SubType("Snake".to_string())),
+                            ..Default::default()
+                        },
+                    },
+                ))),
                 targets: vec![],
 
                 modes: None,
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::partial(
-            "Blocker stale: set intervening_if: \
-             Some(Condition::Not(Box::new(Condition::ControlCreatureWithSubtype(SubType(\"Snake\".\
-             into()))))) — Option<Condition> is the def-level type and check_condition handles \
-             Not + ControlCreatureWithSubtype (dispatched at resolution.rs:2073). Until rewired \
-             this def creates a Snake every upkeep regardless of board state; marker should be \
-             known_wrong, not partial.",
-        ),
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

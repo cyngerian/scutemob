@@ -1021,9 +1021,18 @@ fn canonical_walk_reproduces_pb_dp9_rosters() {
 }
 
 #[test]
-/// Reproduces PB-DP8's enumerated targeted-trigger `Complete` count (`>= 77`), exercising
-/// the compound predicate (a `Triggered` node qualified by its OWN `targets` field)
-/// against a known-good answer.
+/// Reproduces PB-DP8's enumerated targeted-trigger `Complete` count. Originally pinned
+/// at `>= 77`; **lowered to `>= 76` by PB-DX3b (2026-08-01)**, and the reason is
+/// legitimate corpus movement, not detector drift: `emeria_the_sky_ruin` had been
+/// counted in PB-DP8's 77 only because it was `Complete` by the
+/// `#[default] Completeness::Complete` derive trap (nobody had ever set an explicit
+/// marker on it), and its `AbilityDefinition::Triggered` upkeep ability DOES carry a
+/// `targets: vec![TargetRequirement::TargetCardInYourGraveyard(..)]` (so it matched
+/// this row's predicate). PB-DX3b demoted it to an explicit `Completeness::partial(..)`
+/// because its printed "you may return" clause is genuinely unimplemented (see
+/// `emeria_the_sky_ruin.rs`'s completeness note) — a correction, not a regression, of
+/// a count that was never actually verified card-by-card in the first place. Measured
+/// directly against `all_cards()` on this branch: `count == 76`.
 fn canonical_walk_reproduces_pb_dp8_roster() {
     let row = ROWS.iter().find(|r| r.id == "triggered_targets").unwrap();
     let defs = all_cards();
@@ -1033,9 +1042,9 @@ fn canonical_walk_reproduces_pb_dp8_roster() {
         .filter(|d| (row.predicate)(&serde_json::to_value(d).unwrap()))
         .count();
     assert!(
-        count >= 77,
-        "triggered_targets has only {count} Complete defs, expected >= 77 (PB-DP8's own \
-         enumerated number)"
+        count >= 76,
+        "triggered_targets has only {count} Complete defs, expected >= 76 (PB-DP8's \
+         enumerated number, corrected -1 by PB-DX3b for emeria_the_sky_ruin's marker fix)"
     );
 }
 

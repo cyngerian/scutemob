@@ -61,6 +61,15 @@ pub fn card() -> CardDefinition {
         ],
         power: Some(1),
         toughness: Some(1),
+        // PB-DX3b (OOS-DX3-1, 2026-08-01): RE-VERIFIED, still blocked, re-dated. Checked
+        // against the current Condition enum: no zone-of-origin variant exists (nothing
+        // like "entered from hand"), and no "the source itself is attacking" variant
+        // exists either (`TargetFilter.is_attacking` is confirmed still wired for TARGET
+        // filtering — PB-XA enforces it at validate sites + the auto-target picker, which
+        // this def already relies on for its own `is_attacking: true` target requirement
+        // — but that is a different mechanism from an intervening-if on the trigger
+        // SOURCE's own combat state). Both halves of the original blocker stand;
+        // DEFERRED, not fixed this batch.
         completeness: Completeness::partial(
             "'enters from your hand, if it's attacking' — intervening-if condition on ETB trigger \
              not fully expressible. Currently...",
