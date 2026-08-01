@@ -397,8 +397,8 @@ pub struct PendingDraw {
     /// this draw resolves, before the sequence is considered finished.
     pub remaining: u32,
     /// Which draw path raised this, so the resume writes the same bookkeeping.
-    /// `true` for `turn_actions::draw_card` and `replacement::draw_card_skipping_dredge`
-    /// (both set `PlayerState::has_drawn_for_turn`), `false` for
+    /// `true` for `turn_actions::draw_card` and `replacement::handle_choose_dredge`'s
+    /// decline arm (both set `PlayerState::has_drawn_for_turn`), `false` for
     /// `effects::draw_cards_for_player` (renamed from `draw_one_card` in
     /// PB-DP5, which does not). Preserves an existing divergence rather than silently
     /// unifying it (CLAUDE.md write-only dead-state note; see PB-DP5 plan §2.4).

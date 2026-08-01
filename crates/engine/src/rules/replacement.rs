@@ -633,8 +633,9 @@ pub enum DrawAction {
 ///
 /// Called (via `perform_one_draw`) from `turn_actions::draw_card`,
 /// `effects::draw_cards_for_player` (renamed from `draw_one_card` in PB-DP5),
-/// and `replacement::draw_card_skipping_dredge` to keep all draw paths
-/// consistent.
+/// and `replacement::handle_choose_dredge`'s decline arm (PB-DX2 removed the
+/// standalone helper this call used to go through and folded the call
+/// directly into the gated handler) to keep all draw paths consistent.
 ///
 /// `already_applied` (CR 614.5) is threaded in so a CR 616.1f re-check (from
 /// `resolve_pending_draw`) does not re-offer an effect already applied to this
@@ -772,8 +773,9 @@ pub(crate) enum DrawStepOutcome {
 ///
 /// This is the single completion body shared by `turn_actions::draw_card`,
 /// `effects::draw_cards_for_player` (the sequence loop, formerly `draw_one_card`),
-/// `replacement::draw_card_skipping_dredge`, and `resolve_pending_draw`'s resume
-/// path — replacing three near-duplicate bodies (PB-DP5).
+/// `replacement::handle_choose_dredge`'s decline arm, and
+/// `resolve_pending_draw`'s resume path — replacing three near-duplicate
+/// bodies (PB-DP5).
 ///
 /// `already_applied` (CR 614.5) and `remaining_after` (CR 614.11a / 121.2, the
 /// count of further draws in this player's current sequence) are threaded
@@ -800,8 +802,8 @@ pub(crate) enum DrawStepOutcome {
 /// it: `PlayerState::has_drawn_for_turn` is write-only dead state (never read by
 /// any engine logic) but IS fed to the public state hash, so unifying the write
 /// would move real game hashes for zero behavioural gain. `true` for
-/// `turn_actions::draw_card` and `draw_card_skipping_dredge` (which both set it
-/// today); `false` for the effect-draw path (which never has).
+/// `turn_actions::draw_card` and `handle_choose_dredge`'s decline arm (which
+/// both set it today); `false` for the effect-draw path (which never has).
 ///
 /// No internal loop *here*: like `resolve_pending_zone_change`'s single call to
 /// `check_zone_change_replacement`, a `NeedsChoice` here defers to a *future*
@@ -825,7 +827,47 @@ pub(crate) fn perform_one_draw(
     remaining_after: u32,
 ) -> (Vec<GameEvent>, DrawStepOutcome) {
     match check_would_draw_replacement(state, player, &already_applied, offer_dredge) {
-        DrawAction::DredgeAvailable(event) => (vec![event], DrawStepOutcome::DredgeOffered),
+        DrawAction::DredgeAvailable(event) => {
+            // CR 702.52a + 614.11a (PB-DX2, OOS-DP5-7): the offer REPLACES this
+            // draw, so the draw is now an outstanding obligation. Record it in
+            // the same `pending_draws` queue the CR 616.1 deferral uses — see
+            // `handle_choose_dredge`, which requires and CONSUMES an entry, and
+            // pb-plan-DX2.md §3.3 for why one undiscriminated queue is sound.
+            // Before PB-DX2 nothing was recorded, so `Command::ChooseDredge`
+            // had no gate at all and `card: None` minted a free card for any
+            // player at any time.
+            //
+            // Determinism (SR-9b): sort `already_applied` by ReplacementId
+            // before storing — `HashSet` iteration order is not stable and
+            // this field is hashed. Same reasoning as the `NeedsChoice` arm
+            // above.
+            let mut sorted: Vec<ReplacementId> = already_applied.into_iter().collect();
+            sorted.sort_by_key(|id| id.0);
+            match state.pending_draws.iter().position(|p| p.player == player) {
+                // At most ONE dredge-originated entry per player. A second
+                // draw for a player who already owes an answer FOLDS into the
+                // outstanding obligation (this draw, plus its own tail)
+                // instead of pushing. Two reasons, both real: (1)
+                // `pending_draws` is in
+                // `loop_detection::compute_mandatory_state_hash`, so an
+                // unbounded per-draw push would make two structurally
+                // identical CR 104.4b positions fingerprint differently and
+                // could mask a mandatory loop; (2) it conserves the draw,
+                // which today is simply destroyed (plan §1 P3).
+                Some(i) => {
+                    if let Some(entry) = state.pending_draws.get_mut(i) {
+                        entry.remaining += 1 + remaining_after;
+                    }
+                }
+                None => state.pending_draws.push_back(PendingDraw {
+                    player,
+                    already_applied: sorted,
+                    remaining: remaining_after,
+                    sets_has_drawn_for_turn,
+                }),
+            }
+            (vec![event], DrawStepOutcome::DredgeOffered)
+        }
         DrawAction::Skip(event) => (vec![event], DrawStepOutcome::Replaced),
         DrawAction::NeedsChoice(event) => {
             // CR 616.1e: 2+ replacements apply — record the pending state so a
@@ -849,8 +891,10 @@ pub(crate) fn perform_one_draw(
         DrawAction::Proceed => {
             // CR 121.1: perform the draw. The eliminated/conceded guard runs
             // before this is reached at three of this function's four
-            // callers: `turn_actions::draw_card`, `draw_card_skipping_dredge`,
-            // and `resolve_pending_draw` (indirectly — `engine.rs` runs
+            // callers: `turn_actions::draw_card`, `handle_choose_dredge`'s
+            // decline arm (PB-DX2 step 0 discharges a dead player's entry
+            // before the gate is even consulted), and `resolve_pending_draw`
+            // (indirectly — `engine.rs` runs
             // `validate_player_active` on the `OrderReplacements` sender, and
             // the draw arm only routes to the player named by the pending
             // entry). `effects::draw_cards_for_player` has no such guard —
@@ -1324,6 +1368,47 @@ pub fn resolve_pending_zone_change(
 /// fewer (it `break`s early on a further deferral or an empty library). There
 /// is no mutual recursion: this function calls `perform_one_draw`, never the
 /// reverse.
+/// CR 614.11a / 121.2: perform the `remaining` further draws of the sequence a
+/// deferred draw belonged to, stopping on a further deferral or an empty library.
+///
+/// Extracted from `resolve_pending_draw` by PB-DX2 so `handle_choose_dredge` can
+/// discharge the same obligation without duplicating it. Behaviour is byte-for-byte
+/// the pre-PB-DX2 loop, including `offer_dredge: false` (see OOS-DX2-2: each draw of
+/// a sequence is separately replaceable under CR 702.52a, and suppressing dredge for
+/// the whole tail is a pre-existing simplification this batch deliberately does not
+/// change).
+///
+/// Terminates in at most `remaining` iterations: `remaining` is a `u32` captured
+/// before the loop and `perform_one_draw` never calls back into this function.
+fn perform_remaining_draws(
+    state: &mut GameState,
+    player: PlayerId,
+    remaining: u32,
+    sets_has_drawn_for_turn: bool,
+) -> Vec<GameEvent> {
+    let mut events = Vec::new();
+    for i in 0..remaining {
+        let remaining_after = remaining - 1 - i;
+        let (evts, out) = perform_one_draw(
+            state,
+            player,
+            false,
+            sets_has_drawn_for_turn,
+            HashSet::new(),
+            remaining_after,
+        );
+        events.extend(evts);
+        if matches!(
+            out,
+            DrawStepOutcome::Deferred
+                | DrawStepOutcome::LostToEmptyLibrary
+                | DrawStepOutcome::DredgeOffered
+        ) {
+            break;
+        }
+    }
+    events
+}
 pub fn resolve_pending_draw(
     state: &mut GameState,
     chosen_id: ReplacementId,
@@ -1396,27 +1481,20 @@ pub fn resolve_pending_draw(
     // `GameEvent::PlayerLost` (CR 104.3b already resolved the loss once).
     if !matches!(
         outcome,
-        DrawStepOutcome::Deferred | DrawStepOutcome::LostToEmptyLibrary
+        DrawStepOutcome::Deferred
+            | DrawStepOutcome::LostToEmptyLibrary
+            | DrawStepOutcome::DredgeOffered // PB-DX2 / P3: a dredge offer now
+                                              // records its own entry with the
+                                              // correct `remaining`; resuming here
+                                              // would double-count it.
     ) && pending.remaining > 0
     {
-        for i in 0..pending.remaining {
-            let remaining_after = pending.remaining - 1 - i;
-            let (evts, out) = perform_one_draw(
-                state,
-                pending.player,
-                false,
-                pending.sets_has_drawn_for_turn,
-                HashSet::new(),
-                remaining_after,
-            );
-            events.extend(evts);
-            if matches!(
-                out,
-                DrawStepOutcome::Deferred | DrawStepOutcome::LostToEmptyLibrary
-            ) {
-                break;
-            }
-        }
+        events.extend(perform_remaining_draws(
+            state,
+            pending.player,
+            pending.remaining,
+            pending.sets_has_drawn_for_turn,
+        ));
     }
     Ok(events)
 }
@@ -2911,31 +2989,107 @@ pub fn apply_damage_prevention(
 ///
 /// Called from `engine.rs::process_command` when a `Command::ChooseDredge` is received.
 ///
+/// **The gate (PB-DX2 / OOS-DP5-7):** `Command::ChooseDredge` is legal ONLY
+/// while `player` has an outstanding `PendingDraw` entry (pushed by
+/// `perform_one_draw`'s `DredgeAvailable` arm at the offer site) and it
+/// CONSUMES that entry. Before PB-DX2 nothing was recorded anywhere on
+/// `GameState`, so `card: None` drew a free card for any player at any time
+/// and `card: Some(x)` dredged at will regardless of whether a draw was ever
+/// offered — see `pb-plan-DX2.md` §1 P1.
+///
+/// `Command::ChooseDredge` carries no discriminator between a dredge-offer
+/// entry and a CR 616.1 `NeedsChoice` entry (both are `WouldDraw` `PendingDraw`
+/// rows), and cannot gain one without a PROTOCOL bump. §3.3 of the plan argues
+/// this is sound: every possible pairing of {`OrderReplacements`,
+/// `ChooseDredge`} x {dredge entry, `NeedsChoice` entry} is a CR-legal outcome.
+/// FIFO (oldest entry for this player) matches `handle_order_replacements`.
+///
 /// If `card` is `Some(id)`:
 ///   1. Validate the card is in the player's graveyard with `KeywordAbility::Dredge(n)`.
 ///   2. Validate the player has >= n cards in library (CR 702.52b).
+///      (These two checks are byte-for-byte `check_would_draw_replacement`'s own
+///      eligibility predicate, so a gated `Some` answer can only ever name a
+///      card dredge law would itself have offered.)
 ///   3. Mill n cards from the top of the library (emitting `CardMilled` events).
 ///   4. Move the dredge card from graveyard to hand (CR 400.7: new ObjectId).
 ///   5. Emit `Dredged` event.
 ///   6. Do NOT increment `cards_drawn_this_turn` (dredge is NOT drawing — CR 702.52a).
+///   7. CR 614.11a: perform the entry's `remaining` further draws of the
+///      sequence this draw belonged to.
 ///
 /// If `card` is `None`:
-///   The player declined to dredge — perform the normal draw (re-checks other
-///   WouldDraw replacements including any registered replacement effects).
+///   The player declined to dredge — resume the replaced draw with the
+///   entry's own bookkeeping (re-checking other WouldDraw replacements, but
+///   NOT dredge again — CR 702.52a, the player just declined), then perform
+///   the entry's remaining draws (CR 614.11a).
 pub fn handle_choose_dredge(
     state: &mut GameState,
     player: PlayerId,
     card: Option<ObjectId>,
 ) -> Result<Vec<GameEvent>, GameStateError> {
     use crate::state::types::KeywordAbility;
+    // Step 0: dead-player discharge. Preserves the pre-PB-DX2
+    // has_lost/has_conceded guard, and additionally clears any outstanding
+    // entry so a departed player's obligation cannot sit in the hash forever
+    // (the OOS-DP9-14 lesson, applied prophylactically here — SR-14 ground
+    // truth 1: players are never removed from `state.players`).
+    if let Some(p) = state.expect_player(player) {
+        if p.has_lost || p.has_conceded {
+            if let Some(idx) = state.pending_draws.iter().position(|pd| pd.player == player) {
+                state.pending_draws.remove(idx);
+            }
+            return Ok(vec![]);
+        }
+    }
+    // THE GATE (CR 702.52a): `ChooseDredge` is legal only while an
+    // outstanding draw stands for `player`. FIFO — takes the OLDEST
+    // outstanding entry, matching `handle_order_replacements`'s `position()`.
+    let idx = state
+        .pending_draws
+        .iter()
+        .position(|pd| pd.player == player)
+        .ok_or_else(|| {
+            GameStateError::InvalidCommand(format!(
+                "ChooseDredge from player {:?} with no draw outstanding — CR 702.52a: dredge \
+                 replaces a draw, and the engine records the offer as a PendingDraw entry \
+                 (GameEvent::DredgeChoiceRequired). PB-DX2 / OOS-DP5-7.",
+                player
+            ))
+        })?;
     match card {
         None => {
-            // Player declined dredge — perform normal draw.
-            // CR 702.52a: "you may instead" — declining is always legal.
-            // Call draw_card which will re-check WouldDraw replacement effects
-            // (but NOT dredge — the player just declined).
-            // We temporarily call draw_card_without_dredge to avoid re-offering dredge.
-            draw_card_skipping_dredge(state, player)
+            // CONSUME the entry before resuming.
+            let pending = state.pending_draws[idx].clone();
+            state.pending_draws.remove(idx);
+            // Player declined dredge — resume the REPLACED draw with the
+            // entry's own bookkeeping. CR 702.52a: the player just declined
+            // for THIS draw, so `offer_dredge: false` (re-offering would loop
+            // — see `dredge.rs` test 10).
+            let (mut events, outcome) = perform_one_draw(
+                state,
+                player,
+                false,
+                pending.sets_has_drawn_for_turn,
+                pending.already_applied.iter().copied().collect(),
+                pending.remaining,
+            );
+            // CR 614.11a: if this draw completed (not itself deferred again),
+            // perform the rest of the sequence it belonged to.
+            if !matches!(
+                outcome,
+                DrawStepOutcome::Deferred
+                    | DrawStepOutcome::LostToEmptyLibrary
+                    | DrawStepOutcome::DredgeOffered
+            ) && pending.remaining > 0
+            {
+                events.extend(perform_remaining_draws(
+                    state,
+                    player,
+                    pending.remaining,
+                    pending.sets_has_drawn_for_turn,
+                ));
+            }
+            Ok(events)
         }
         Some(card_id) => {
             // Player chose to dredge card_id.
@@ -2982,6 +3136,10 @@ pub fn handle_choose_dredge(
                     card_id.0, library_count, dredge_n
                 )));
             }
+            // CONSUME the entry now that both validations passed (all
+            // validation precedes all mutation).
+            let pending = state.pending_draws[idx].clone();
+            state.pending_draws.remove(idx);
             let mut events = Vec::new();
             // Step 3: Mill n cards from the top of library.
             for _ in 0..dredge_n {
@@ -3014,36 +3172,19 @@ pub fn handle_choose_dredge(
                 card_new_id: new_hand_id,
                 milled: dredge_n,
             });
+            // Step 7 (CR 614.11a): `Dredged` does not set `has_drawn_for_turn`
+            // -- only the tail draws do, per the entry's own flag.
+            if pending.remaining > 0 {
+                events.extend(perform_remaining_draws(
+                    state,
+                    player,
+                    pending.remaining,
+                    pending.sets_has_drawn_for_turn,
+                ));
+            }
             Ok(events)
         }
     }
-}
-/// Perform a normal draw for `player`, bypassing the dredge check.
-///
-/// Called when a player declines dredge (`ChooseDredge { card: None }`). We
-/// re-check other WouldDraw replacement effects (SkipDraw etc.) but do NOT
-/// re-offer dredge (the player just chose not to dredge this draw) — hence
-/// `offer_dredge: false` into `perform_one_draw`. `sets_has_drawn_for_turn:
-/// true` mirrors this function's pre-PB-DP5 behavior (it always set the flag).
-///
-/// PB-DP5: if 2+ `WouldDraw` replacements now apply, a `PendingDraw` is pushed
-/// and `Command::OrderReplacements` can resume the draw (see
-/// `resolve_pending_draw`) — pre-PB-DP5 this returned a
-/// `ReplacementChoiceRequired` that could never be answered (this is emit site
-/// #3 of DP-5, the one the original audit did not name).
-fn draw_card_skipping_dredge(
-    state: &mut GameState,
-    player: PlayerId,
-) -> Result<Vec<GameEvent>, GameStateError> {
-    // Eliminated / conceded players cannot draw.
-    // SR-14: players are never removed from state.players (ground truth 1).
-    if let Some(p) = state.expect_player(player) {
-        if p.has_lost || p.has_conceded {
-            return Ok(vec![]);
-        }
-    }
-    let (events, _outcome) = perform_one_draw(state, player, false, true, HashSet::new(), 0);
-    Ok(events)
 }
 // ── Regeneration helpers (CR 701.19) ─────────────────────────────────────
 /// CR 701.19a/614.8: Check if a regeneration shield can replace destruction.

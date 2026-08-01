@@ -13,7 +13,7 @@
 - **Branch**: `feat/pb-dx2-gate-the-resolution-time-commands-nothing-gates-oos-d`
 - **Class**: **CORRECTNESS — live exploit, trust boundary.** `Command::ChooseDredge` has no
   pending-state gate; `card: None` is a free card for any player at any time.
-- **Phase**: plan
+- **Phase**: implement
 - **Plan**: `memory/primitives/pb-plan-DX2.md`
 - **Review file**: `memory/primitives/pb-review-DX2.md`
 - **Wire prediction**: the brief says wire-neutral (PROTOCOL 32 / HASH 69 unmoved). **Treat this as
@@ -37,3 +37,52 @@
 | Golden script `replacement/014` + `tests/mechanics_a_d/dredge.rs` reach `DredgeChoiceRequired` first | to be confirmed in plan/implement | — |
 
 **Nothing in the brief was falsified.** One line-number drift (OOS-DP2-1 → `commander.rs:891`).
+
+## Implementation progress (plan §11 step numbering)
+
+- [x] Step 1 — Phase 0 probes T1, T2, T5, T10 written in
+      `crates/engine/tests/primitives/pb_dx2_command_gates.rs`; all four FAIL
+      pre-fix as predicted (T1/T2: `ChooseDredge` succeeds with no gate; T5:
+      3 `DredgeChoiceRequired`, 0 `CardDrawn`; T10: p2's hand card moved to
+      p1's library bottom). Failure text captured in
+      `memory/primitives/pb-review-DX2.md` inputs (see runner report).
+- [x] Step 2 — Phase 0 T14 written in-src at the foot of
+      `crates/engine/src/rules/resolution.rs`
+      (`dx2_pending_effect_choice_reap_tests`); FAILS pre-fix with the entry
+      `debug_assert!` panic, exactly as predicted. T15 (live-owner
+      `#[should_panic]`) already passes pre-fix (its row says "passes before
+      and after").
+- [x] Step 3 — extracted `perform_remaining_draws` in `replacement.rs`;
+      `resolve_pending_draw`'s tail re-expressed on it, `DredgeOffered` added
+      to its `matches!` set. Pure refactor — full dredge/primitives corpus
+      stayed green.
+- [x] Step 4 — `DredgeAvailable` arm in `perform_one_draw` records a
+      `PendingDraw` with the fold guard (§4.2). T4 passes; T7 initially wrote
+      the wrong assertion (expected zero `DredgeChoiceRequired` on the second
+      offer instead of one folded-entry), corrected to assert exactly one
+      event + one entry + `remaining == 2`.
+- [x] Step 5 — `effects/mod.rs::draw_cards_for_player` break set gains
+      `DredgeOffered`. T5's "stops at first offer" half now passes.
+- [x] Step 6 — `handle_choose_dredge` rewritten per §4.4 (steps 0-4b);
+      `draw_card_skipping_dredge` deleted; `check_would_draw_replacement`'s
+      doc reference and every other prose mention of the deleted function
+      (7 more sites across `replacement.rs`, `effects/mod.rs`,
+      `card-types/.../replacement_effect.rs`, `dredge.rs`,
+      `pb_dp5_pending_draw_choice.rs`) updated so
+      `rg -n 'draw_card_skipping_dredge' crates/` → 0. T1, T2, T3, T6, T8, T9
+      all pass; full dredge/mechanics_e_l/primitives corpus green except T10
+      (KeepHand rider, Phase 3).
+- [x] Step 7 — `cargo build --workspace` clean (no exhaustive-match sites to
+      update — no enum variant changed).
+- [ ] Step 8 — Phase 2: reconcile all five §5 doc sites.
+- [ ] Step 9 — Phase 3: `commander.rs:891` `handle_keep_hand` per-entry hand
+      guard (§8.1). Run T10, T11, T12, T13; confirm `bare_lookup_ratchet`
+      unmoved.
+- [ ] Step 10 — Phase 4: `resolution.rs:90` reap above the entry
+      `debug_assert!` (§8.2). T14 should then pass; write and run T15.
+- [ ] Step 11 — Phase 5 gates: `core` test group green, no edits to
+      `rules/protocol.rs` / `state/hash.rs`. Add T16.
+- [ ] Step 12 — full suite / clippy / fmt / check-defs-fmt / workspace build
+      / golden scripts all green.
+- [ ] Step 13 — Phase 6: roster enumeration + bench check.
+- [ ] Step 14 — Phase 7: bookkeeping (seeds, closures, wip/workstream-state).

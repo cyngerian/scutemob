@@ -9284,8 +9284,9 @@ fn try_pay_optional_cost(
 /// `Command::OrderReplacements`.
 ///
 /// `sets_has_drawn_for_turn: false` preserves this path's pre-existing
-/// divergence from `turn_actions::draw_card` / `draw_card_skipping_dredge`
-/// (see `perform_one_draw`'s doc comment) rather than silently unifying it.
+/// divergence from `turn_actions::draw_card` / `handle_choose_dredge`'s
+/// decline arm (see `perform_one_draw`'s doc comment) rather than silently
+/// unifying it.
 fn draw_cards_for_player(state: &mut GameState, player: PlayerId, n: usize) -> Vec<GameEvent> {
     use crate::rules::replacement::{perform_one_draw, DrawStepOutcome};
     let mut events = Vec::new();
@@ -9300,9 +9301,17 @@ fn draw_cards_for_player(state: &mut GameState, player: PlayerId, n: usize) -> V
             remaining_after,
         );
         events.extend(evts);
+        // CR 614.11a (PB-DX2 / plan §1 P3): a dredge offer REPLACES this draw,
+        // so the sequence must stop here just like a `NeedsChoice` deferral --
+        // before this fix `DredgeOffered` was not in this break set, so the
+        // loop kept iterating, re-offered dredge for the SAME card on every
+        // remaining draw, and destroyed all but (at most) one of the `n`
+        // draws once a decline was answered.
         if matches!(
             outcome,
-            DrawStepOutcome::Deferred | DrawStepOutcome::LostToEmptyLibrary
+            DrawStepOutcome::Deferred
+                | DrawStepOutcome::LostToEmptyLibrary
+                | DrawStepOutcome::DredgeOffered
         ) {
             break;
         }

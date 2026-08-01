@@ -8316,3 +8316,176 @@ pub fn counter_stack_object(
     crate::rules::priority::grant_priority_to_active_player(state, &mut events);
     Ok(events)
 }
+
+#[cfg(test)]
+mod dx2_pending_effect_choice_reap_tests {
+    //! PB-DX2 (OOS-DP9-14): a `pending_effect_choice` whose owner has left the
+    //! game is a trap state, not a question (§8.2 of `pb-plan-DX2.md`). These
+    //! two tests are in-src because `GameState.pending_effect_choice` and
+    //! `PlayerState`'s `has_lost`/`has_conceded` writers used to construct the
+    //! trap fixture are `pub(crate)` (SR-3) and this state is unreachable
+    //! through any legal `Command` today (§8.2), so a black-box integration
+    //! test in `crates/engine/tests/` cannot build it. Precedent: three other
+    //! engine source files already carry in-src test modules
+    //! (`testing/replay_harness.rs`, `state/diagnostics.rs`, `rules/layers.rs`,
+    //! `rules/casting.rs`).
+    use super::*;
+    use crate::state::builder::{GameStateBuilder, ObjectSpec};
+    use crate::state::player::PlayerId;
+    use crate::state::stack::StackObject;
+    use crate::state::{EffectChoiceQuestion, PendingEffectChoice};
+
+    fn p(n: u64) -> PlayerId {
+        PlayerId(n)
+    }
+
+    /// A state with one resolvable stack object (a `TriggeredAbility` whose
+    /// source object no longer exists, so resolution falls back to the
+    /// captured `embedded_effect` -- CR 400.7/MR-B12-04, the same fallback
+    /// path a departed-source Enrage trigger takes) and a `pending_effect_choice`
+    /// naming `owner`.
+    fn state_with_trap_fixture(owner: PlayerId, owner_conceded: bool) -> GameState {
+        let p1 = p(1);
+        let p2 = p(2);
+        let mut state = GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(p2)
+            .add_player(PlayerId(3)) // 3 players: the game is not over if one concedes.
+            .object(ObjectSpec::card(p1, "Trap Fixture Card").in_zone(ZoneId::Battlefield))
+            .build()
+            .expect("builder is valid");
+
+        // A stack object whose source no longer exists (so resolution takes
+        // the `embedded_effect` fallback, requiring no card registry lookup).
+        let ghost_source = ObjectId(999_999);
+        let stack_id = ObjectId(999_998);
+        state.stack_objects.push_back(StackObject {
+            id: stack_id,
+            controller: p1,
+            kind: StackObjectKind::TriggeredAbility {
+                source_object: ghost_source,
+                ability_index: 0,
+                is_carddef_etb: false,
+                embedded_effect: Some(Box::new(
+                    crate::cards::card_definition::Effect::Sequence(vec![]),
+                )),
+            },
+            targets: vec![],
+            cant_be_countered: false,
+            is_copy: false,
+            cast_with_flashback: false,
+            kicker_times_paid: 0,
+            was_evoked: false,
+            was_bestowed: false,
+            cast_with_madness: false,
+            cast_with_miracle: false,
+            was_escaped: false,
+            cast_with_foretell: false,
+            was_buyback_paid: false,
+            was_suspended: false,
+            was_overloaded: false,
+            cast_with_jump_start: false,
+            cast_with_aftermath: false,
+            was_dashed: false,
+            was_warped: false,
+            was_blitzed: false,
+            was_plotted: false,
+            was_prototyped: false,
+            was_impended: false,
+            was_bargained: false,
+            was_surged: false,
+            was_casualty_paid: false,
+            was_cleaved: false,
+            was_cast_as_adventure: false,
+            spliced_effects: vec![],
+            spliced_card_ids: vec![],
+            modes_chosen: vec![],
+            x_value: 0,
+            evidence_collected: false,
+            is_cast_transformed: false,
+            additional_costs: vec![],
+            damaged_player: None,
+            combat_damage_amount: 0,
+            triggering_creature_id: None,
+            cast_from_top_with_bonus: false,
+            sacrificed_creature_lki: vec![],
+            lki_counters: imbl::OrdMap::new(),
+            lki_power: None,
+            defending_player: None,
+        });
+
+        state.pending_effect_choice = Some(PendingEffectChoice {
+            choice_id: 1,
+            player: owner,
+            source: ghost_source,
+            question: EffectChoiceQuestion::SearchLibrary {
+                candidates: vec![],
+                may_fail_to_find: true,
+            },
+            index: 0,
+        });
+
+        if owner_conceded {
+            if let Ok(pl) = state.player_mut(owner) {
+                pl.has_conceded = true;
+            }
+        }
+
+        state
+    }
+
+    #[test]
+    /// CR 608.2d (PB-DX2 / OOS-DP9-14) — a `pending_effect_choice` whose owner
+    /// has CONCEDED is reaped at the top of `resolve_top_of_stack`, and
+    /// resolution proceeds on the next line (no re-drive is owed: we are
+    /// already inside `resolve_top_of_stack`). Before this fix, the entry
+    /// `debug_assert!` at the top of this function would panic on re-entry.
+    fn test_dx2_reap_clears_a_dead_owners_pending_effect_choice() {
+        let owner = p(2);
+        let mut state = state_with_trap_fixture(owner, true);
+
+        let result = resolve_top_of_stack(&mut state);
+
+        assert!(
+            result.is_ok(),
+            "resolution should proceed once the dead owner's entry is reaped: {:?}",
+            result.err()
+        );
+        assert!(
+            state.pending_effect_choice.is_none(),
+            "the dead owner's pending_effect_choice entry must be cleared"
+        );
+        assert!(
+            state.effect_choice_answers.is_empty(),
+            "the answer bank must be cleared alongside the entry"
+        );
+        let events = result.unwrap();
+        assert!(
+            events
+                .iter()
+                .any(|e| matches!(e, GameEvent::AbilityResolved { .. })),
+            "resolution must have actually proceeded (AbilityResolved emitted), \
+             not merely returned Ok with nothing done: {:?}",
+            events
+        );
+    }
+
+    #[test]
+    #[cfg_attr(debug_assertions, should_panic)]
+    /// CR 608.2d (PB-DX2 / OOS-DP9-14) — the reap is narrow: an entry whose
+    /// owner is STILL ALIVE must NOT be cleared, and `resolve_top_of_stack`
+    /// must still trip its entry `debug_assert!` on re-entry. This is the test
+    /// that proves the reap did not make the assert vacuous (plan §8.2 / risk
+    /// 6). Only meaningful in debug builds (`debug_assert!` compiles out in
+    /// release) -- gated with `cfg_attr` rather than `#[cfg(debug_assertions)]`
+    /// so the test still exists (and is reported, not silently absent) in a
+    /// release test run.
+    fn test_dx2_reap_does_not_silence_a_live_owners_entry() {
+        let owner = p(2);
+        let mut state = state_with_trap_fixture(owner, false);
+
+        // Owner is alive: the reap must not fire, so the entry `debug_assert!`
+        // at the top of `resolve_top_of_stack` must trip on this direct re-entry.
+        let _ = resolve_top_of_stack(&mut state);
+    }
+}

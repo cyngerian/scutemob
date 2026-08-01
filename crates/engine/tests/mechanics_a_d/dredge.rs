@@ -721,8 +721,10 @@ fn test_dredge_invalid_command_card_not_in_graveyard() {
 
 #[test]
 /// CR 702.52a — "you may instead" — after the player declines dredge once, the
-/// normal draw proceeds without offering dredge again. `draw_card_skipping_dredge`
-/// bypasses the dredge check to avoid an infinite loop of choices.
+/// normal draw proceeds without offering dredge again. `handle_choose_dredge`'s
+/// decline arm passes `offer_dredge: false` to avoid an infinite loop of choices
+/// (PB-DX2: this arm also requires-and-consumes an outstanding `PendingDraw`
+/// entry, which the draw-step offer this test reaches first has recorded).
 fn test_dredge_decline_does_not_reoffer() {
     let p1 = p(1);
     let p2 = p(2);
