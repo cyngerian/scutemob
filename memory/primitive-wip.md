@@ -74,10 +74,15 @@
       (KeepHand rider, Phase 3).
 - [x] Step 7 — `cargo build --workspace` clean (no exhaustive-match sites to
       update — no enum variant changed).
-- [ ] Step 8 — Phase 2: reconcile all five §5 doc sites.
-- [ ] Step 9 — Phase 3: `commander.rs:891` `handle_keep_hand` per-entry hand
-      guard (§8.1). Run T10, T11, T12, T13; confirm `bare_lookup_ratchet`
-      unmoved.
+- [x] Step 8 — Phase 2: reconciled all five §5 doc sites (`replacement.rs`
+      `DredgeAvailable`/`DredgeOffered`, `events.rs` `DredgeChoiceRequired` /
+      `CleanupDiscardChoiceRequired` / `MiracleRevealChoiceRequired`). Verified
+      by reading: no surviving comment on the dredge or miracle path claims a
+      pause, a block, or a guarantee the code does not make.
+- [x] Step 9 — Phase 3: `commander.rs:891` `handle_keep_hand` per-entry hand
+      guard (§8.1). T10, T11, T12, T13 all pass; `bare_lookup_ratchet` green,
+      unmoved (`expect_zone`, not a bare lookup); full `commander::`/mulligan
+      suite (27 tests) green.
 - [ ] Step 10 — Phase 4: `resolution.rs:90` reap above the entry
       `debug_assert!` (§8.2). T14 should then pass; write and run T15.
 - [ ] Step 11 — Phase 5 gates: `core` test group green, no edits to

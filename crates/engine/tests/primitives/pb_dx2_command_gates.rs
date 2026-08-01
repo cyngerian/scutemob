@@ -514,3 +514,159 @@ fn test_dx2_dredge_offers_do_not_stack_entries() {
     );
     assert!(state.pending_draws().is_empty());
 }
+
+// ── T11 ─────────────────────────────────────────────────────────────────────
+
+#[test]
+/// CR 103.5 — as T10, but naming a permanent p1 CONTROLS on the battlefield
+/// rather than a card in another player's hand. Before PB-DX2 this too would
+/// have been "moved" to the bottom of p1's library.
+fn test_dx2_keep_hand_rejects_a_battlefield_permanent() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let mut builder = GameStateBuilder::four_player().active_player(p1);
+    for i in 0..20 {
+        builder =
+            builder.object(ObjectSpec::card(p1, &format!("Card {}", i)).in_zone(ZoneId::Library(p1)));
+    }
+    builder = builder.object(
+        ObjectSpec::creature(p1, "P1 Battlefield Bear", 2, 2).in_zone(ZoneId::Battlefield),
+    );
+    let state = builder.build().unwrap();
+    let (state, _) = process_command(state, Command::TakeMulligan { player: p1 }).unwrap();
+    let (state, _) = process_command(state, Command::TakeMulligan { player: p1 }).unwrap();
+    assert_eq!(state.players().get(&p1).unwrap().mulligan_count, 2);
+
+    let bear = find_object(&state, "P1 Battlefield Bear");
+
+    let result = process_command(
+        state,
+        Command::KeepHand {
+            player: p1,
+            cards_to_bottom: vec![bear],
+        },
+    );
+
+    match result {
+        Err(GameStateError::InvalidCommand(_)) => {}
+        Err(other) => panic!(
+            "expected GameStateError::InvalidCommand (CR 103.5: not a hand card), got {:?}",
+            other
+        ),
+        Ok((state, _events)) => {
+            assert!(
+                object_in_zone(&state, "P1 Battlefield Bear", ZoneId::Battlefield),
+                "CR 103.5: KeepHand must not be able to bottom a battlefield \
+                 permanent, but it succeeded and moved it"
+            );
+            panic!(
+                "CR 103.5: KeepHand naming a battlefield permanent must be \
+                 rejected, but process_command returned Ok"
+            );
+        }
+    }
+    let _ = p2;
+}
+
+// ── T12 ─────────────────────────────────────────────────────────────────────
+
+#[test]
+/// CR 103.5 / CR 400.7 — `cards_to_bottom: [a, a]` (the same object named
+/// twice) must be rejected, and the error MESSAGE must name the duplicate
+/// (not merely `is_err()` -- see plan §8.1: today `[a, a]` already errors via
+/// `ObjectNotFound` because the first move mints a new ObjectId (CR 400.7) so
+/// the second lookup misses. An `is_err()`-only assertion would therefore be
+/// VACUOUS -- it passes both before and after this fix for the wrong reason.
+/// This test asserts on the message to distinguish "rejected as a duplicate
+/// intent" (post-fix) from "rejected because the object already moved"
+/// (pre-fix, an accident of implementation order, not CR 103.5 -- and it
+/// would additionally have already bottomed ONE copy of the card by the time
+/// it errors, which the pre-fix code never validated against).
+fn test_dx2_keep_hand_rejects_duplicate_ids() {
+    let p1 = p(1);
+    let mut builder = GameStateBuilder::four_player().active_player(p1);
+    for i in 0..20 {
+        builder =
+            builder.object(ObjectSpec::card(p1, &format!("Card {}", i)).in_zone(ZoneId::Library(p1)));
+    }
+    let state = builder.build().unwrap();
+    let (state, _) = process_command(state, Command::TakeMulligan { player: p1 }).unwrap();
+    let (state, _) = process_command(state, Command::TakeMulligan { player: p1 }).unwrap();
+    let (state, _) = process_command(state, Command::TakeMulligan { player: p1 }).unwrap();
+    assert_eq!(
+        state.players().get(&p1).unwrap().mulligan_count,
+        3,
+        "3 mulligans -> required_bottom == 2"
+    );
+
+    let hand_ids = state.zone(&ZoneId::Hand(p1)).unwrap().object_ids();
+    let a = hand_ids[0];
+
+    let result = process_command(
+        state,
+        Command::KeepHand {
+            player: p1,
+            cards_to_bottom: vec![a, a],
+        },
+    );
+
+    match result {
+        Err(GameStateError::InvalidCommand(msg)) => {
+            assert!(
+                msg.contains("twice"),
+                "CR 103.5: the error message must name the duplicate as a \
+                 duplicate, not accidentally succeed via ObjectNotFound on the \
+                 second move. Message: {:?}",
+                msg
+            );
+        }
+        Err(other) => panic!(
+            "expected GameStateError::InvalidCommand naming the duplicate, got {:?}",
+            other
+        ),
+        Ok(_) => panic!("KeepHand with a duplicate id must be rejected, got Ok"),
+    }
+}
+
+// ── T13 ─────────────────────────────────────────────────────────────────────
+
+#[test]
+/// Non-regression: CR 103.5 / 103.5c — `KeepHand` naming the player's OWN hand
+/// cards must still succeed after the guard is added.
+fn test_dx2_keep_hand_still_accepts_the_players_own_hand_cards() {
+    let p1 = p(1);
+    let mut builder = GameStateBuilder::four_player().active_player(p1);
+    for i in 0..20 {
+        builder =
+            builder.object(ObjectSpec::card(p1, &format!("Card {}", i)).in_zone(ZoneId::Library(p1)));
+    }
+    let state = builder.build().unwrap();
+    let (state, _) = process_command(state, Command::TakeMulligan { player: p1 }).unwrap();
+    let (state, _) = process_command(state, Command::TakeMulligan { player: p1 }).unwrap();
+    assert_eq!(state.players().get(&p1).unwrap().mulligan_count, 2);
+
+    let card_to_bottom = state.zone(&ZoneId::Hand(p1)).unwrap().object_ids()[0];
+    let card_name = state.object(card_to_bottom).unwrap().characteristics.name.clone();
+
+    let (state, events) = process_command(
+        state,
+        Command::KeepHand {
+            player: p1,
+            cards_to_bottom: vec![card_to_bottom],
+        },
+    )
+    .unwrap();
+
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, GameEvent::MulliganKept { player, .. } if *player == p1)),
+        "MulliganKept should be emitted for a legitimate KeepHand"
+    );
+    // CR 400.7: the move mints a NEW ObjectId, so look up by name+zone rather
+    // than the pre-move id.
+    assert!(
+        object_in_zone(&state, &card_name, ZoneId::Library(p1)),
+        "the named card should be in p1's library after KeepHand bottoms it"
+    );
+}

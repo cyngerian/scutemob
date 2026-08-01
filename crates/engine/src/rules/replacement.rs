@@ -616,7 +616,13 @@ pub enum DrawAction {
     NeedsChoice(GameEvent),
     /// CR 702.52: One or more dredge cards in the player's graveyard can replace
     /// this draw. Contains the `DredgeChoiceRequired` event to emit.
-    /// The engine pauses until a `Command::ChooseDredge` is received.
+    ///
+    /// **The engine does NOT block on this** (PB-DX2, closing OOS-DP7-2's half
+    /// of the claim). The draw does not occur; the caller (`perform_one_draw`)
+    /// records a `PendingDraw` entry for the player and the draw SEQUENCE stops
+    /// (CR 614.11a). `Command::ChooseDredge` is legal ONLY while that entry
+    /// stands and CONSUMES it (`handle_choose_dredge`) — priority, SBAs and
+    /// step advancement all continue in the meantime.
     DredgeAvailable(GameEvent),
 }
 /// CR 614.11: Check WouldDraw replacement effects before performing a draw.
@@ -762,9 +768,14 @@ pub(crate) enum DrawStepOutcome {
     /// `ReplacementChoiceRequired` emitted. The caller MUST stop the sequence
     /// (CR 614.11a) — see `PendingDraw.remaining`.
     Deferred,
-    /// CR 702.52a: a `DredgeChoiceRequired` was emitted. Behaviour unchanged from
-    /// pre-PB-DP5: the caller does NOT stop (dredge is only ever offered with
-    /// `offer_dredge: true`, i.e. never mid-resume — see PB-DP5 plan §3.3).
+    /// CR 702.52a: a `DredgeChoiceRequired` was emitted and a `PendingDraw`
+    /// entry was recorded (PB-DX2, closing OOS-DP5-7). The caller MUST STOP
+    /// the sequence (CR 614.11a) — this reverses the pre-PB-DX2 behaviour,
+    /// under which the caller did NOT stop and a multi-draw sequence
+    /// destroyed every draw but the last-answered one. Dredge is only ever
+    /// offered with `offer_dredge: true`, i.e. never mid-resume (PB-DP5 plan
+    /// §3.3) — the resume paths pass `false` and thread the entry's own
+    /// `already_applied`/`remaining` instead.
     DredgeOffered,
     /// CR 104.3b: the library was empty; `PlayerLost` emitted.
     LostToEmptyLibrary,
