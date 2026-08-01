@@ -21,7 +21,10 @@
 - **Review file**: `memory/primitives/pb-review-DX3b.md`
 - **Wire prediction**: PROTOCOL **32** / HASH **69** unmoved. Falsifier is trivial — a non-empty
   `git diff` over `crates/engine/src` **or** `crates/card-types/src`.
-- **Baseline**: 3,998 / 0 on this branch (main pin at the `scutemob-164` merge).
+- **Baseline**: **4,008 / 0** on this branch's merge base (`0eb5a0d4`). *Not* the 3,998 pin from
+  the `scutemob-164` merge — `scutemob-165` (M11-local S4) merged after it and brought
+  `crates/view-model/src/tests.rs` with it, worth +10. Final: **4,022** (+14: T1..T12 from
+  implement, T13/T14 from the fix cycle).
 
 ## Scope, in one line each
 
