@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-08-01 11:44 UTC  
-**Git:** `f3ab45d4` on `feat/pb-dx4-triage-the-97-entry-decision-baseline-against-oracle-`  
+**Generated:** 2026-08-01 11:48 UTC  
+**Git:** `320da1ca` on `main`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -25,8 +25,8 @@ and what is intentionally NOT in it.**
 | Plan cards still missing a def file | 135 | · |
 | Bonus defs (on disk, outside plan) | 322 | · |
 | Effective coverage vs plan target | **111%** (1,823 / 1,636) | — |
-| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 63.0% | 1,137 | -1 |
-| With TODO markers | 517 | +1 |
+| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 63.0% | 1,137 | · |
+| With TODO markers | 517 | · |
 | Empty `abilities: vec![]` placeholders | 150 | · |
 | Total TODO lines across all defs | 940 | · |
 
@@ -34,7 +34,7 @@ and what is intentionally NOT in it.**
 
 | Window | New files added | Existing files modified |
 | --- | ---: | ---: |
-| last 7 days | 0 | 26 |
+| last 7 days | 0 | 28 |
 | last 30 days | 57 | 2,943 |
 | last 90 days | 57 | 2,955 |
 | last 1 year | 1,830 | 3,366 |
@@ -239,6 +239,7 @@ tyvar_jubilant_brawler: // TODO: Mill effect + conditional graveyard return with
 ## Recent card-touching commits
 
 ```
+869f09d6 scutemob-168: PB-DX4 fix cycle — 2 HIGH / 5 MEDIUM / 6 LOW from pb-review-DX4.md, all 13 applied
 e658c9d8 scutemob-168: PB-DX4 — triage the 97-entry decision BASELINE against oracle text (OOS-DP10-8)
 39d4902c scutemob-166: PB-DX3b fix cycle — apply review findings (5 MEDIUM / 7 LOW)
 bc035684 scutemob-166: PB-DX3b implement — OOS-DX3-1 bucket, 4 fixes / 3 dated defers
@@ -263,7 +264,6 @@ bd15b45b W6-prim: PB-OS6 review LOW — soften delver 'strictly beneficial' comm
 969ef404 W6-prim: PB-OS6 wire bump (PROTOCOL 20->21, HASH 57->58) + card defs
 8c31c1fd W6-prim: PB-OS5 (OOS-EF4-1) — dynamic relative-count EffectAmount
 55664ad8 scutemob-134: PB-OS4b card-def message fixes + wip checklist
-be9f371c W6-prim: PB-OS4 /review nit — Fable back-face comment names OOS-OS4-2 non-functional status
 ```
 
 ## Missing card-defs sidecar
