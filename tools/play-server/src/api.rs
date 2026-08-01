@@ -1,5 +1,9 @@
-//! Axum route handlers — the **only** async code in this crate, and the only
-//! place tokio is named.
+//! Axum route handlers — the **only** async code in this crate.
+//!
+//! This is not the only place tokio is *named* (`main.rs` builds the runtime and
+//! every inline test carries a `#[tokio::test]` attribute). The accurate
+//! statement is the one `session.rs` already makes: **nothing below `api.rs`
+//! references tokio.** (S5 re-review LOW 8.)
 //!
 //! M11-local Session 5, plan items 5 and 6 (`memory/m11-session-plan.md` §4).
 //!
@@ -99,7 +103,27 @@ impl IntoResponse for ApiFailure {
 /// | `UnknownAction(i)` | **400 Bad Request** | the index is not in the list the server just sent; the request itself is malformed. |
 /// | `Rejected(GameStateError)` | **422 Unprocessable Entity** | syntactically fine and semantically addressed to a real action, but the *engine* refused it (an illegal target, an unpayable cost). 422 is precisely "understood, but could not be processed". The `GameStateError` is rendered as text. |
 /// | `BadParams(String)` | **400 Bad Request** | the client supplied a param this action has no channel for (`ParamError::UnsupportedParam`) or omitted a required one. Nothing about the game state makes it invalid — it is wrong on its face, and would be wrong against any state. That is a client error, not an engine rejection, so it is 400 and not 422. |
-/// | `Engine(GameStateError)` | **500 Internal Server Error** | the engine failed while advancing *bot* seats. The human's request was valid; the failure is on the server's side of the boundary and the client can do nothing about it. Reporting it as 4xx would blame the caller for a server bug. |
+/// | `Engine(GameStateError)` | **500 Internal Server Error** | **currently unreachable through this impl** — see below. Kept as the correct mapping should it ever become reachable: the failure would be on the server's side of the boundary and the client could do nothing about it, so 4xx would blame the caller for a server bug. |
+///
+/// # `Engine` is unreachable here, and the row above must not be read as a live contract
+///
+/// S5 re-review MEDIUM 3, verified rather than assumed:
+///
+/// * `LocalGameError::Engine` is constructed at **exactly one** site in the
+///   workspace, `LocalGame::start`. The play server routes that through
+///   `SessionError::Start` -> **500 `start_failed`**, never through this impl.
+/// * The only expression in this crate that feeds `From<LocalGameError>` is the
+///   `play.submit(..)?` in [`post_action`]. `PlaySession::submit` delegates to
+///   `LocalGame::submit`, which returns only `NoPendingDecision`,
+///   `StaleDecision`, `UnknownAction`, `BadParams` and `Rejected`.
+/// * `LocalGame::advance` does not return a `Result` at all. An engine failure
+///   **while advancing a bot seat** — the thing the row used to describe — becomes
+///   `AdvanceOutcome::Halted(HaltReason::EngineError(..))`, which [`seat_view`]
+///   renders as `game_over { halted: true, .. }` and answers with **200**.
+///
+/// The arm stays because the `match` is exhaustive over a plain (non-`#[non_exhaustive]`)
+/// enum: dropping it would need a wildcard, which would silently swallow a variant
+/// added later. It is a compile-forced classification, not a route a client can take.
 impl From<LocalGameError> for ApiFailure {
     fn from(err: LocalGameError) -> Self {
         match err {
@@ -130,6 +154,7 @@ impl From<LocalGameError> for ApiFailure {
                 // Rendered as TEXT (`Display`), per plan item 6 — not `Debug`.
                 e.to_string(),
             ),
+            // Unreachable through this impl today — see the doc block above.
             LocalGameError::Engine(e) => ApiFailure::new(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "engine_error",
@@ -139,6 +164,31 @@ impl From<LocalGameError> for ApiFailure {
     }
 }
 
+/// `SessionError` -> HTTP.
+///
+/// # Why `Setup` is 422 and not 400 (S5 re-review MEDIUM 4)
+///
+/// The re-review flagged 422 here against the crate's previously-stated rule,
+/// *"400 means the request never reached the engine, 422 means the engine looked
+/// at it and said no"* — pregame deck assembly never calls `process_command`.
+/// The **rule** was the thing that was wrong, and it has been restated (here and
+/// in the README) rather than the status changed:
+///
+/// > **400 means this crate refused the request before any engine code judged
+/// > it. 422 means engine code looked at what the request asked for and said no
+/// > — `process_command` for a command, `validate_deck` for a pregame table.**
+///
+/// A `POST /api/game {"seed": 17}` is well-formed in every syntactic sense; the
+/// seed is a legal `u64` and nothing about the request is malformed on its face.
+/// It fails because the table that seed *builds* is illegal — `deck::
+/// basics_for_colors` pads a colourless commander's deck with Forests and
+/// `mtg_engine::validate_deck` refuses them under CR 903.5c. That is the textbook
+/// 422: understood, syntactically correct, semantically unprocessable. Reporting
+/// it as 400 would tell the client to fix its request shape, which is not the
+/// problem.
+///
+/// `BadPlayerCount` stays **400** and the contrast is the point: a count outside
+/// `2..=6` is wrong against every state and never reaches engine code at all.
 impl From<SessionError> for ApiFailure {
     fn from(err: SessionError) -> Self {
         let (status, kind) = match err {
@@ -167,10 +217,11 @@ impl From<SessionError> for ApiFailure {
 ///    A client-side typo — `"target"` for `"targets"` — would be reported to the
 ///    user as an engine rejection.
 ///
-/// So a data error is remapped to **400**, per this crate's own stated rule: 400
-/// means the request never reached the engine, 422 means the engine looked at it
-/// and said no. A deserialization failure never reaches the engine. Syntax (400)
-/// and content-type (415) keep axum's status, which already agrees.
+/// So a data error is remapped to **400**, per this crate's own stated rule:
+/// 400 means this crate refused the request before any engine code judged it;
+/// 422 means engine code looked at what it asked for and said no. A
+/// deserialization failure is refused by the extractor, before a handler exists.
+/// Syntax (400) and content-type (415) keep axum's status, which already agrees.
 fn json_rejection(rejection: JsonRejection) -> ApiFailure {
     let (status, kind) = match &rejection {
         // Syntactically valid JSON, wrong shape: a missing field, a wrong type,
@@ -322,31 +373,57 @@ pub async fn post_game(
     tokio::task::block_in_place(|| {
         // **The one route that recovers from poisoning** (S5 review LOW 6).
         //
-        // Every other handler answers 500 for the life of the process once a
-        // handler has panicked mid-mutation. That is right for them — they read
-        // the session and must not read a half-mutated one — but it means a
-        // single engine panic costs a process restart on a surface whose whole
-        // job is to *find* engine panics (`check_invariants: true` and debug
-        // `debug_assert!`s are live here).
+        // Every other handler that *takes the lock* answers 500 for the life of
+        // the process once a handler has panicked mid-mutation. That is right
+        // for them — they read the session and must not read a half-mutated one
+        // — but it means a single engine panic costs a process restart on a
+        // surface whose whole job is to *find* engine panics
+        // (`check_invariants: true` and debug `debug_assert!`s are live here).
         //
-        // The asymmetry is sound because this handler **overwrites the `Option`
-        // wholesale** and never reads a game out of the poisoned value. The one
-        // thing it does read is `next_seq_base()` — two plain `u64` counters
-        // that are copies, not invariants, and that no panic can leave mutually
-        // inconsistent. Preserving them across the recovery is what keeps
-        // MEDIUM 1's monotonic-`seq` guarantee true through a panic, so reading
-        // them is a feature rather than a leak of corrupt state.
-        let mut guard = match state.session.lock() {
-            Ok(guard) => guard,
+        // "That takes the lock" is the accurate qualifier (S5 re-review LOW 12):
+        // `get_healthz` never locks and keeps answering 200, and the checks that
+        // run *before* the lock — a rejected body, a bad `players`, an unknown
+        // `bot`, a non-empty `cards_to_bottom` — keep their 400.
+        //
+        // The asymmetry is sound because this handler **discards the corrupt
+        // session outright** and never plays on with it. The one thing it does
+        // read is `next_seq_base()` — a plain `u64` counter that is a copy, not
+        // an invariant, and that no panic can leave inconsistent. Preserving it
+        // across the recovery is what keeps MEDIUM 1's monotonic-`seq`
+        // guarantee true through a panic, so reading it is a feature rather
+        // than a leak of corrupt state.
+        //
+        // # The recovery is atomic (S5 re-review MEDIUM 1)
+        //
+        // The corrupt session is `take()`n out of the `Option` in the **same
+        // straight-line block** that clears the poison flag, with no fallible
+        // operation between the two. That is what makes "the flag is clear" and
+        // "there is no untrustworthy session left to read" one fact rather than
+        // two facts held together by statement order.
+        //
+        // The previous shape cleared the flag here and relied on the
+        // `*guard = Some(play)` at the bottom to remove the corrupt value — but
+        // `session::new_game` sits between them and is fallible on a
+        // **client-supplied seed** (`deck::basics_for_colors` pads a colourless
+        // commander's deck with Forests, whose green identity `validate_deck`
+        // refuses under CR 903.5c; a sweep found 7 such tables in 180
+        // `(players, seed)` pairs). Its `?` skipped the assignment and left the
+        // half-mutated session readable at 200.
+        // `test_poison_recovery_is_atomic_when_the_rebuild_fails` pins it.
+        let (mut guard, seq_base) = match state.session.lock() {
+            Ok(guard) => {
+                // Healthy: only *peek* at the counter. A rebuild that fails
+                // below must leave a running game exactly as it was.
+                let base = guard.as_ref().map_or(0, |prev| prev.next_seq_base());
+                (guard, base)
+            }
             Err(poison) => {
-                // Clear the flag as well: the corrupt session is about to be
-                // dropped, so leaving every *later* request 500-ing would be
-                // reporting damage that no longer exists.
+                let mut guard = poison.into_inner();
+                let base = guard.take().map_or(0, |corrupt| corrupt.next_seq_base());
                 state.session.clear_poison();
-                poison.into_inner()
+                (guard, base)
             }
         };
-        let seq_base = guard.as_ref().map_or(0, |prev| prev.next_seq_base());
         let mut play = session::new_game(cfg, seq_base)?;
         let outcome = play.advance();
         let view = seat_view(&mut play, &outcome);

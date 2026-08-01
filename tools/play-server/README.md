@@ -19,7 +19,7 @@ under `frontend/`, which this binary serves from `dist/`.
 |---|---|
 | `src/main.rs` | clap CLI, hand-built tokio runtime, `build_router`, the inline HTTP tests, the no-socket source gate |
 | `src/session.rs` | `PlaySession` lifecycle — build, advance, submit, mulligan. **Synchronous; knows nothing about tokio.** |
-| `src/api.rs` | the axum handlers — the only async code, and the only place tokio is named |
+| `src/api.rs` | the axum handlers — the only async code in the crate |
 | `src/view.rs` | wire DTOs and the server-side rendering that produces them |
 
 The async boundary is exactly one function deep: a handler takes the session
@@ -99,36 +99,72 @@ body extractor in front of them, is the same envelope:
 `{"error": "...", "kind": "..."}`. `kind` is a stable machine tag so a client can
 branch without parsing prose.
 
-Two residual exceptions, named rather than glossed and both verified by request:
-a path no route matches (**404**) and a wrong method on a routed path (**405**)
-are answered by axum's router itself, with an **empty body and no
-`Content-Type`**. Both are decided before any handler exists to answer them.
-Note the first is distinct from the enveloped `404 no_session` below: that one
-comes from a handler and does carry `kind`.
+Two residual exceptions, named rather than glossed: a path no route matches
+(**404**) and a wrong method on a routed path (**405**) are answered by axum's
+router itself, with an **empty body and no `Content-Type`**. Both are decided
+before any handler exists to answer them. Note the first is distinct from the
+enveloped `404 no_session` below: that one comes from a handler and does carry
+`kind`. (That statement is read off axum's routing behaviour, not held by a test
+in this crate — and it holds only in the configuration the inline tests build,
+where `dist/` is absent. In the configuration `main.rs` builds when `dist/`
+exists, an unmatched path is answered by the `ServeDir` fallback instead.)
 
 | Condition | Status | `kind` | Reasoning |
 |---|---|---|---|
 | `seq` does not match the outstanding decision | **409** | `stale_decision` | the client answered a superseded action list; retrying against the current `seq` will work. The message carries `expected` and `got` so the client can resync in one round trip. `seq` is monotonic for the life of the process, **across restarts and mulligans** — see Wire `seq` below. |
 | no decision is outstanding | **409** | `no_pending_decision` | well-formed, but conflicts with the current state of the resource |
+| `POST /api/game/mulligan` after a command has been applied | **409** | `not_pregame` | CR 103.5 is a pregame action; a rebuild would discard real play |
 | `action_index` is not in the list just sent | **400** | `unknown_action` | the request is malformed on its face |
-| a param the chosen action has no channel for | **400** | `bad_params` | `ParamError::UnsupportedParam` — wrong against *any* state, so a client error rather than an engine rejection. Refusing beats silently discarding a human's announced targets. |
+| a param the chosen action has no channel for | **400** | `bad_params` | `ParamError::UnsupportedParam` — wrong against *any* state, so a client error rather than an engine rejection. Refusing beats silently discarding a human's announced targets. **Also emitted by `POST /api/game/mulligan` for a non-empty `cards_to_bottom`**, which is refused in the handler and never goes near `LocalGame::submit` — see Limitation 2. |
+| `players` outside `2..=6` | **400** | `bad_player_count` | a range check this crate makes; wrong against every state and never reaches engine code |
+| `bot` is neither `"heuristic"` nor `"random"` | **400** | `bad_bot_kind` | likewise |
 | the **engine** refused the command | **422** | `rejected` | an illegal target, an unpayable cost. Understood, addressed to a real action, but unprocessable. The `GameStateError` is rendered as **text**. |
-| the engine failed while advancing a *bot* seat | **500** | `engine_error` | the human's request was fine; the fault is on the server's side of the boundary |
+| pregame assembly failed for the requested table | **422** | `setup_failed` | `validate_deck` refused a seat's deck (Architecture Invariant 9 / CR 903.5c), or no deck could be built. Reachable from a client-supplied `seed` — see the 400/422 rule below |
+| `start_game` refused the assembled table | **500** | `start_failed` | `check_all_defs_complete` rejecting a table *this server itself* put together is a server-side fault, not a bad request |
+| an engine failure reaches `From<LocalGameError>` | **500** | `engine_error` | **currently unreachable** — kept as the correct mapping, not as a live contract. See below. |
 | no game in progress | **404** | `no_session` | the absence of the resource the route names. Remedy: `POST /api/game`. |
 | the request body is not valid JSON | **400** | `malformed_json` | axum's own `JsonSyntaxError`, re-wrapped in the envelope |
 | the body is valid JSON of the wrong shape | **400** | `invalid_body` | a missing field, a wrong type, or — every request DTO is `deny_unknown_fields` — a misspelled one. **Remapped from axum's 422**, see below |
 | the body is not sent as `application/json` | **415** | `unsupported_media_type` | axum's own status, re-wrapped. Not applicable to `POST /api/game`, where an absent body is legal and means "use the CLI defaults" |
 | the session mutex was poisoned | **500** | `session_poisoned` | a previous handler panicked mid-mutation; the session is not trustworthy. **`POST /api/game` is the exception** — see below |
 
-The 400-vs-422 split is the one worth internalising: **400 means the request
-never reached the engine, 422 means the engine looked at it and said no.**
+The 400-vs-422 split is the one worth internalising:
 
-That rule is why a deserialization failure is reported as **400 even though
+> **400 means this crate refused the request before any engine code judged it.
+> 422 means engine code looked at what the request asked for and said no —
+> `process_command` for a command, `validate_deck` for a pregame table.**
+
+That is the rule restated (S5 re-review MEDIUM 4). The earlier form said "400
+means the request never reached the engine", and `setup_failed` broke it: a
+pregame deck-assembly failure never calls `process_command`. The status is right
+and the sentence was wrong. `POST /api/game {"seed": 17}` is syntactically
+perfect — a legal `u64`, nothing malformed on its face — and fails because the
+*table that seed builds* is illegal: `deck::basics_for_colors` pads a colourless
+commander's deck with Forests and `validate_deck` refuses them under CR 903.5c.
+That is the textbook 422. A sweep of 180 `(players, seed)` pairs found 7 such
+tables, so this is a route a client can take, not a theoretical one.
+
+The same rule is why a deserialization failure is reported as **400 even though
 axum's own `JsonDataError` is a 422**. Left alone it collided head-on with the
-row above it: a client-side typo (`"target"` for `"targets"`) came back as a 422
-with a `text/plain` body and no `kind`, and a client branching on 422 would tell
-the user the *engine* had rejected their play. The handlers therefore extract
-with `Result<Json<T>, JsonRejection>` and re-wrap.
+`rejected` row: a client-side typo (`"target"` for `"targets"`) came back as a
+422 with a `text/plain` body and no `kind`, and a client branching on 422 would
+tell the user the *engine* had rejected their play. The handlers therefore
+extract with `Result<Json<T>, JsonRejection>` and re-wrap.
+
+#### `engine_error` is unreachable, and is documented rather than removed
+
+`LocalGameError::Engine` is constructed at exactly one site in the workspace,
+`LocalGame::start`, which this crate routes through `SessionError::Start` to
+**500 `start_failed`**. The only expression feeding `From<LocalGameError>` is the
+`play.submit(..)?` in `post_action`, and `LocalGame::submit` returns only
+`NoPendingDecision`, `StaleDecision`, `UnknownAction`, `BadParams` and
+`Rejected`. Nor is the row's old description right about what *would* happen: an
+engine failure while advancing a bot seat becomes
+`AdvanceOutcome::Halted(HaltReason::EngineError(..))` — `LocalGame::advance`
+returns no `Result` at all — and is answered with **200** and
+`game_over.halted == true`. The match arm stays because the `match` is exhaustive
+over a plain enum and a wildcard would silently swallow a future variant
+(S5 re-review MEDIUM 3).
 
 The same change fixed a quieter one: `POST /api/game` used to take
 `Option<Json<NewGameRequest>>`, and `Option<T>`'s `FromRequest` impl is
@@ -138,15 +174,32 @@ defaults"; a malformed one is now a 400 and starts no game.
 
 ### Poisoning: `POST /api/game` recovers, everything else does not
 
-Once a handler has panicked while holding the session mutex, every route answers
-`500 session_poisoned` — except `POST /api/game`, which clears the poison and
-starts a new game. The asymmetry is deliberate: that handler overwrites the
-session wholesale and reads no game out of the poisoned value, and this surface
-runs with `check_invariants: true` and live debug assertions specifically so that
-engine panics show up, so costing a process restart per panic is the wrong price.
-The one thing it does read across the recovery is the two `u64` wire-`seq`
-counters, which are copies rather than invariants — that is what keeps the `seq`
-guarantee below true through a panic.
+Once a handler has panicked while holding the session mutex, every route that
+takes the lock answers `500 session_poisoned` — except `POST /api/game`, which
+clears the poison and starts a new game. (Two carve-outs: `GET /api/healthz`
+never takes the lock and keeps answering 200, and the pre-lock 400s —
+a body the extractor rejects, a `players` out of range, an unknown `bot`, a
+non-empty `cards_to_bottom` — are decided before the lock and keep their 400.)
+
+The asymmetry is deliberate: that handler discards the corrupt session outright
+and never plays on with it, and this surface runs with `check_invariants: true`
+and live debug assertions specifically so that engine panics show up, so costing
+a process restart per panic is the wrong price. The one thing it reads across the
+recovery is `next_seq_base()` — a single `u64` high-water mark, a copy rather
+than an invariant — which is what keeps the `seq` guarantee below true through a
+panic.
+
+**The recovery is atomic.** The corrupt session is `take()`n out of the `Option`
+in the same straight-line block that clears the flag, with no fallible operation
+between the two. The first fix cycle got this wrong: it cleared the flag and
+relied on the assignment at the *end* of the handler to remove the corrupt value,
+with the fallible `session::new_game` in between. Because `new_game` fails on a
+client-supplied seed (see the 400/422 rule above), `POST /api/game {"players": 2,
+"seed": 17}` against a poisoned lock left the half-mutated session in place with
+the flag cleared, and the next `GET /api/game` answered **200** with its full seat
+view — where before that "fix" it answered 500. Observed on a real run;
+`test_poison_recovery_is_atomic_when_the_rebuild_fails` pins it. A failed rebuild
+now leaves **no** session, so the next `GET` is `404 no_session`.
 
 ### Wire `seq` is not `LocalGame`'s `seq`
 
@@ -284,11 +337,25 @@ the `main` path. This is session plan §7 constraint 1; an agent context that
 starts the real binary gets SIGKILLed (the replay-viewer OOM/137 note in
 `memory/gotchas-infra.md`).
 
-That rule is **machine-enforced**, not merely stated:
-`test_no_socket_symbol_appears_in_the_test_region` reads `src/main.rs` with
-`include_str!`, cuts at the `#[cfg(test)]` attribute, and fails on any of the
-four symbols below the cut. Its own needles are assembled with `concat!` so the
-gate does not match its own source — keep any needle you add in that form.
+That rule is **machine-enforced across the whole crate**, not merely stated:
+`test_no_socket_symbol_appears_in_the_test_region` walks every `.rs` file under
+`src/` and `tests/` (rooted at `CARGO_MANIFEST_DIR`, so the walk does not depend
+on the process's working directory) and fails on any of the four symbols inside a
+test region. In a `src/` file the region starts at the first **line-anchored**
+`#[cfg(test)]` attribute; a `tests/` file is checked in full, because an
+integration test carries no such attribute. Its own needles are assembled with
+`concat!` so the gate does not match its own source — keep any needle you add in
+that form.
+
+Both widenings came from the S5 re-review and both were proven by execution
+rather than argued: a forbidden symbol inserted into a `#[cfg(test)]` module in
+`src/session.rs`, and into a new `tests/tmp_probe.rs`, each reddened the gate and
+named the offending file; both were removed again. The earlier version read
+`src/main.rs` alone **and** cut at the first textual `#[cfg(test)]`, which is the
+one written out in that file's own module doc comment — so the "test region"
+began at a paragraph of prose and the gate passed only because all four symbols
+happen to be typed to the left of the marker in that one sentence. Rewording the
+paragraph would have turned the gate red against its own documentation.
 
 Two further rules the tests depend on:
 

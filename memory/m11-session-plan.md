@@ -878,15 +878,16 @@ cannot leak another player's hand or any library order.
 
 ### Session 5: play-server crate skeleton + REST API (8 items)
 
-**STATUS (2026-08-01, `scutemob-167`): SHIPPED — all 8 items done, review fixes applied.**
+**STATUS (2026-08-01, `scutemob-167`): SHIPPED — all 8 items done, two review cycles applied.**
 `tools/play-server` (package `play-server`) exists as a workspace member with
 `Cargo.toml`, `src/{main.rs,api.rs,session.rs,view.rs}` and `README.md`. All 8 named tests
 pass through `tower::ServiceExt::oneshot` and **no port is ever bound** —
 `TcpListener`/`axum::serve` appear only inside `async_main`, which no test calls, and that
-is now **machine-enforced** rather than reviewed (see the fix-cycle note below).
+is now **machine-enforced across every `.rs` file in the crate** rather than reviewed (see
+fix cycle 2; fix cycle 1's gate read `main.rs` alone and cut in the wrong place).
 `cargo build --workspace`, `cargo clippy --workspace --all-targets -- -D warnings`,
 `cargo fmt --check`, `tools/check-defs-fmt.sh` (1,804 defs) and `cargo test --workspace`
-are green; tests 4,008 → 4,016 → **4,023** after the fix cycle. `git diff main --
+are green; tests 4,008 → 4,016 → 4,023 → **4,024** across the two fix cycles. `git diff main --
 crates/engine/src crates/card-types/src crates/card-defs/src` is **empty**;
 PROTOCOL 32 / HASH 69 unmoved; `crates/simulator` and `crates/view-model` are untouched —
 the session needed nothing added to either, and the fix cycle kept it that way even where
@@ -906,7 +907,10 @@ the root cause lives in `LocalGame` (see MEDIUM 1).
   `checked_sub` on the way in — never a bare subtraction on a client-supplied `u64`. The
   wire `seq` is now monotonic for the life of the process; it *skips* a value per rebuild,
   which nothing depends on. `view::decision_view` takes the wire `seq` as a parameter
-  rather than reading `decision.seq`, so the translation cannot be forgotten at a call site.
+  rather than reading `decision.seq`. *(Corrected by fix cycle 2, LOW 12: that is a
+  **convention**, not a guarantee — `wire_seq` is a bare `u64`, and nothing stops a caller
+  passing `decision.seq`. What holds it is that `api.rs::seat_view` is the sole caller and
+  builds the pair with a `zip`. Making it structural would need a newtype.)*
 - **MEDIUM 2 + LOW 5 — axum's own extractor rejections bypassed the JSON envelope, and
   collided with the documented meaning of 422.** `JsonDataError` is 422 with a
   `text/plain` body and no `kind`; this crate documents 422 as "the *engine* refused the
@@ -922,29 +926,101 @@ the root cause lives in `LocalGame` (see MEDIUM 1).
   this crate"; `main.rs`'s test module reaches `from_game_state` deliberately as test 7's
   oracle. Now says "the **production paths** of this crate", matching the README.
 - **LOW 6** — `POST /api/game`, and only it, recovers from a poisoned session mutex
-  (`PoisonError::into_inner()` + `clear_poison()`). Sound because that handler overwrites
-  the `Option` wholesale; the one thing it reads out of the poisoned value is the two
-  plain `u64` seq counters, which is what keeps MEDIUM 1's guarantee true through a panic.
-  Every other route keeps its 500, asserted in the same test.
+  (`PoisonError::into_inner()` + `clear_poison()`). Sound because that handler discards the
+  corrupt session outright; the one thing it reads out of the poisoned value is
+  `next_seq_base()`, which is what keeps MEDIUM 1's guarantee true through a panic. Every
+  other route that takes the lock keeps its 500, asserted in the same test. *(Two
+  corrections from fix cycle 2. The recovery as shipped here was **not atomic** — see fix
+  cycle 2 MEDIUM 1. And `next_seq_base()` reads **one** `u64`, `highest_wire_seq`, not two:
+  `seq_base` is never read across the recovery (LOW 9).)*
 - **LOW 7** — `GameSummary.seed` is the **base** seed and stops describing the table after
   a mulligan (`setup::redeal` builds from `redeal_seed(seed, seat, count)`). The
   reproduction key is `seed` + `players` + `bot` + `mulligan_count`, all four already in
   every `GameSummary`; documented in the README and on the field rather than duplicating a
   derivation that is private to `mtg_simulator::setup` and could drift.
 - **LOW 8** — the no-socket rule is now a gate:
-  `test_no_socket_symbol_appears_in_the_test_region` reads `src/main.rs` with
-  `include_str!`, cuts at the `#[cfg(test)]` attribute and fails on `TcpListener`,
-  `axum::serve`, `bind` or `async_main` below the cut. Needles are assembled with
-  `concat!` so the gate does not match its own source. **Proven non-vacuous by execution**:
-  inserting `let _gate_probe = "TcpListener";` into `test_healthz_ok` reddened it with the
-  symbol named in the message; removed, green. It also asserts each needle *does* occur
-  above the cut, so a misspelled needle cannot silently make the gate unfirable.
+  `test_no_socket_symbol_appears_in_the_test_region` fails on `TcpListener`, `axum::serve`,
+  `bind` or `async_main` inside a test region. Needles are assembled with `concat!` so the
+  gate does not match its own source. **Proven non-vacuous by execution**: inserting
+  `let _gate_probe = "TcpListener";` into `test_healthz_ok` reddened it with the symbol
+  named in the message; removed, green. *(Fix cycle 2 rewrote the mechanism, MEDIUM 2 /
+  LOW 5 / LOW 6: as shipped here it read `src/main.rs` alone via `include_str!` and cut at
+  the **first textual** `#[cfg(test)]`, which is the one written out in that file's own
+  module doc comment — so the region began at a paragraph of prose, and the "each needle
+  occurs above the cut" guard was satisfiable by that same paragraph. Both are fixed.)*
 - **LOW 9** — `NoPendingDecision` → 409 now has the test plan item 6 implied.
   `test_post_action_after_game_over_returns_409` plays a two-seat table to a real CR 104.2a
   conclusion (~1,000 human actions, ~3 s) because that is the **only** route the HTTP
   surface has to that arm: `LegalAction::Concede` is deliberately never offered by the
   provider, and `HaltReason::MaxTurns` needs 200 turns rather than ~110. Nothing reaches
   into `PlaySession` to manufacture the state.
+
+**Fix cycle 2 (2026-08-01) — a re-review: 4 MEDIUM / 6 LOW, all applied; 8 named tests
+unrenamed, +1 new (16 in the module).** All nine of fix cycle 1's findings were confirmed
+addressed; these are new, and the first is a **regression fix cycle 1 introduced**.
+
+- **MEDIUM 1 — the poison recovery was not atomic, and the "fix" made one route *worse*
+  than before it.** Fix cycle 1 called `clear_poison()` *before* `session::new_game(..)?`.
+  `new_game` is fallible on a **client-supplied seed**: `deck::basics_for_colors` pads a
+  colourless commander's deck with Forests, and `validate_deck` refuses them under CR
+  903.5c. Its `?` skipped `*guard = Some(play)`, so the half-mutated session survived with
+  the flag cleared and the next `GET /api/game` answered **200** — where before fix cycle 1
+  it answered 500. **Reproduced empirically before the fix was written**: a sweep found 7
+  failing tables in 180 `(players, seed)` pairs (`players: 2, seed: 17` among them), and the
+  new test, run against the pre-fix ordering, got a full 200 seat view of the poisoned
+  session. Fixed **structurally, not by reordering**: the recovery arm `take()`s the corrupt
+  session out of the `Option` in the same straight-line block that clears the flag, with no
+  fallible operation between, so "flag clear" and "no untrustworthy session left" are one
+  fact. The healthy arm still only *peeks*, so a failed rebuild does not destroy a running
+  game. Pinned by `test_poison_recovery_is_atomic_when_the_rebuild_fails`; four documents
+  that asserted the old (false) property are corrected.
+- **MEDIUM 2 + LOW 5 + LOW 6 — the no-socket gate cut at its own doc comment, read one
+  file, and had a prose-satisfiable non-vacuity guard.** The cut was a bare
+  `source.find("#[cfg(test)]")`, whose first match is the **prose** occurrence in the test
+  module's doc comment, not the attribute below it; it passed only because all four needles
+  happen to be typed to the left of the marker in that one sentence, so rewording the
+  paragraph would have turned the gate red against its own documentation. Now the cut is
+  **line-anchored** (first non-whitespace text on the line, which a `///` line can never
+  be), the gate walks **every `.rs` file** under `src/` and `tests/` rooted at
+  `CARGO_MANIFEST_DIR`, a `tests/` file is checked in full (an integration test has no
+  `#[cfg(test)]` attribute at all), and the non-vacuity guard searches
+  **comment-stripped** code. **Three mutation proofs, all observed**: (a) a needle inserted
+  into a `#[cfg(test)] mod` in `src/session.rs` — a file the old gate never read — reddened
+  it, naming the file; (b) a `tests/tmp_probe.rs` containing `axum::serve` stayed *green*
+  against an intermediate version that looked for the attribute everywhere, which is how the
+  `tests/`-is-whole-file rule was found, and reddened after; (c) renaming the serving entry
+  point in **code only**, leaving both prose mentions, reddened guard (c) — the old guard
+  would have stayed green. The gate also caught a plainly-written needle in a draft of its
+  own new doc comment, which was its first real find.
+- **MEDIUM 3 — a documented error row was unreachable.** See the "errors the plan does not
+  enumerate" bullet below: `engine_error` cannot be produced through
+  `From<LocalGameError>`, and the row's description of *what* would produce it was wrong
+  too. Kept and labelled rather than silently collapsed.
+- **MEDIUM 4 — `setup_failed` → 422 violated the crate's own 400/422 rule.** Resolved by
+  **restating the rule**, not by changing the status: *400 means this crate refused the
+  request before any engine code judged it; 422 means engine code looked at what the request
+  asked for and said no — `process_command` for a command, `validate_deck` for a pregame
+  table.* `POST /api/game {"seed": 17}` is syntactically perfect and fails on the *table the
+  seed builds*, which is the textbook 422; `bad_player_count` stays 400 and is the contrast.
+- **LOW 7** — five reachable `kind` values were missing from the README's branch contract
+  (`setup_failed`, `start_failed`, `bad_player_count`, `not_pregame`, `bad_bot_kind`), and
+  the `bad_params` row credited only `ParamError::UnsupportedParam` when `post_mulligan`
+  emits the same tag for a non-empty `cards_to_bottom` without going near `LocalGame::submit`.
+- **LOW 8** — "the only place tokio is named" was false and self-contradicting (`main.rs`
+  builds the runtime; every `#[tokio::test]` names it; the README row directly above said so).
+  Replaced with the formulation `session.rs` already used: **nothing below `api.rs`
+  references tokio.**
+- **LOW 9** — "the two `u64` wire-`seq` counters" is **one**: `next_seq_base()` reads only
+  `highest_wire_seq`; `seq_base` is never read across the recovery.
+- **LOW 10** — two stale test-count claims, both corrected by re-running rather than by
+  arithmetic. See the test-7 paragraph.
+- **LOW 11** — `OOS-M11-5`'s "no `target` anywhere in its oracle text" is false; corrected
+  in `docs/audits/decision-point-audit.md` §8.1.
+- **LOW 12** — smaller drifts: the "every route answers 500 when poisoned" claim (false for
+  `GET /api/healthz` and for the pre-lock 400 paths), the router-404 claim (true only in the
+  test configuration where `dist/` is absent, and held by no test — the "verified by request"
+  claim is dropped), the `decision_view` "cannot be forgotten" claim (a convention, not a
+  guarantee), and `DecisionView.player` missing from the deviations list.
 
 **`block_in_place` is why the runtime flavor is load-bearing, not a performance choice.**
 The 8 MB worker stacks are inherited from `tools/replay-viewer/src/main.rs:52-66` (deep
@@ -982,10 +1058,14 @@ cannot quietly empty the set and turn the search into a no-op. Each is searched 
 **raw response body string** of `GET /api/game`, not in the parsed `zones.hand` field — the
 S4 review HIGH ("redaction follows the rendering site, not the zone") applied forward.
 Opposite-direction guard: all seven of the human's own hand names are asserted **present**,
-so an empty payload fails. Proven non-vacuous by mutation: flipping `seat_view`'s
-`Viewer::Seat(human)` to `Viewer::Omniscient` reddens test 7 on `"Aggravated Assault"` while
-the other seven stay green (test 2 correctly stays green — it does not claim to be a
-redaction test).
+so an empty payload fails. Proven non-vacuous by mutation, **re-run against the current
+16-test module during fix cycle 2** (LOW 10 — the earlier wording said "the other seven
+stay green", which described the 8-test module the mutation was first run against and was
+never re-observed after the module grew): flipping `seat_view`'s `Viewer::Seat(human)` to
+`Viewer::Omniscient` reddens exactly `test_seat_view_over_http_contains_no_other_hand_card_names`,
+on `seat view leaked another player's hand card "Aggravated Assault" (CR 402.1)`, while
+**the other fifteen stay green** — test 2 among them, correctly, since it does not claim to
+be a redaction test.
 
 Deviations from the plan text, all recorded in source and in the crate README:
 
@@ -1021,9 +1101,19 @@ Deviations from the plan text, all recorded in source and in the crate README:
   does not model `Halted`, and the client's question ("is another decision coming?") is the
   same either way.
 - **Errors the plan does not enumerate**, chosen and reasoned in source: `BadParams` → **400**
-  (wrong against *any* state, so a client error, not an engine rejection), `Engine` → **500**
-  (the fault is on the server's side of the boundary), no session → **404**, a mulligan after
-  play began → **409**, a poisoned mutex → **500**.
+  (wrong against *any* state, so a client error, not an engine rejection), no session →
+  **404**, a mulligan after play began → **409** `not_pregame`, a poisoned mutex → **500**,
+  a bad `players` or `bot` → **400**, `SessionError::Setup` → **422** `setup_failed`,
+  `SessionError::Start` → **500** `start_failed`, `LocalGameError::Engine` → **500**
+  `engine_error` — the last of which fix cycle 2 (MEDIUM 3) established is **unreachable
+  through that impl**: `Engine` is built only in `LocalGame::start`, which this crate routes
+  through `SessionError::Start`, and the sole expression feeding `From<LocalGameError>` is
+  `play.submit(..)?`. A bot-seat engine failure is not a 500 at all — `LocalGame::advance`
+  returns no `Result`, so it surfaces as `Halted(HaltReason::EngineError)` and a **200** with
+  `game_over.halted`. The arm is kept (exhaustive match over a plain enum) and labelled
+  unreachable in both the source and the README.
+- **`DecisionView.player`** is additive to plan item 4's field list (fix cycle 2, LOW 12), so
+  a client need not infer the acting seat from `summary.human`.
 
 **Two facts recorded for Session 7.** (1) `mtg_view_model::redact::viewer_may_identify` is
 `pub(crate)` and not re-exported, so a play-server label physically *cannot* call it — every

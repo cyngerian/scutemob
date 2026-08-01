@@ -202,9 +202,17 @@ fn build_router(state: SharedState, dist_dir: &PathBuf) -> Router {
 /// on the next line.
 ///
 /// That is **machine-enforced** (S5 review LOW 8), not a promise:
-/// `test_no_socket_symbol_appears_in_the_test_region` reads this file with
-/// `include_str!` and fails on any of the four. It cuts at the attribute rather
-/// than at this paragraph precisely because this paragraph names all four.
+/// `test_no_socket_symbol_appears_in_the_test_region` reads **every `.rs` file
+/// in the crate** and fails on any of the four inside a `#[cfg(test)]` region.
+///
+/// The paragraph above deliberately names all four symbols and also writes the
+/// attribute inline. That is safe because the gate anchors on a *line-anchored*
+/// occurrence of the attribute — a line whose first non-whitespace text is the
+/// attribute itself — so a doc-comment line, which always starts with `///`, can
+/// never be mistaken for it. The previous gate used a bare `find`, which located
+/// **this paragraph** rather than the attribute below, and passed only because
+/// all four symbols happened to be typed to the left of the marker in that one
+/// sentence (S5 re-review MEDIUM 2).
 ///
 /// # Seed-pinned
 ///
@@ -1199,9 +1207,13 @@ mod tests {
     /// that replaces the session wholesale is exactly the route that can recover:
     /// it overwrites the `Option` and reads no game out of the poisoned value.
     ///
-    /// Every other route keeps its 500, which is the half this test pins hardest
-    /// — a blanket `into_inner()` would be a silent "carry on with a half-mutated
-    /// game".
+    /// Every other route **that takes the lock** keeps its 500, which is the half
+    /// this test pins hardest — a blanket `into_inner()` would be a silent "carry
+    /// on with a half-mutated game". (`GET /api/healthz` never locks and is
+    /// unaffected; the pre-lock 400 paths keep their 400. S5 re-review LOW 12.)
+    ///
+    /// The recovery's *atomicity* is a separate property, pinned by
+    /// `test_poison_recovery_is_atomic_when_the_rebuild_fails`.
     #[tokio::test(flavor = "multi_thread")]
     async fn test_post_game_recovers_from_a_poisoned_lock() {
         let state = shared_state();
@@ -1249,9 +1261,10 @@ mod tests {
             "the one route that overwrites the session must recover: {fresh}"
         );
         assert_eq!(command_count(&fresh), 0);
-        // MEDIUM 1's guarantee survives the recovery: the two `u64` seq counters
-        // are the one thing read out of the poisoned session, precisely so a
-        // stale tab cannot be revived by a panic.
+        // MEDIUM 1's guarantee survives the recovery: `next_seq_base()` — which
+        // reads the single `u64` high-water mark, and nothing else (re-review
+        // LOW 9) — is the one thing read out of the poisoned session, precisely
+        // so a stale tab cannot be revived by a panic.
         assert!(
             seq(&fresh) > first_seq,
             "the wire seq must still be monotonic across a poisoned rebuild"
@@ -1263,6 +1276,73 @@ mod tests {
         let (status, view) = get_json(&state, "/api/game").await;
         assert_eq!(status, StatusCode::OK, "{view}");
         assert_eq!(seq(&view), seq(&fresh));
+    }
+
+    // ── 7c ────────────────────────────────────────────────────────────────────
+
+    /// **S5 re-review MEDIUM 1**: the poison recovery is **atomic**.
+    ///
+    /// The first fix cycle cleared the poison flag *before* `session::new_game`,
+    /// and `new_game` is fallible on a **client-supplied seed**: `deck::
+    /// basics_for_colors` pads a colourless commander's deck with Forests, whose
+    /// green identity violates CR 903.5c, so `validate_deck` refuses the seat and
+    /// `SetupError::InvalidDeck` `?`s out of the handler. `*guard = Some(play)`
+    /// never ran, so the half-mutated session survived **with the flag cleared** —
+    /// the next `GET /api/game` answered 200 off a session the crate itself calls
+    /// untrustworthy, where before the "fix" it answered 500.
+    ///
+    /// Observed, not reasoned to. Against the pre-fix ordering this test's final
+    /// `GET` returned **200 OK** with `summary.command_count == 0` and a live
+    /// `decision`; the seed sweep that found the failing seeds reported 7 failures
+    /// in 180 `(players, seed)` pairs (`players=2, seed=17` among them).
+    ///
+    /// The fix is structural rather than an ordering convention: the recovery arm
+    /// `take()`s the corrupt session in the same straight-line block that clears
+    /// the flag, with no fallible operation between, so "the flag is clear" and
+    /// "there is no untrustworthy session left to read" cannot come apart.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_poison_recovery_is_atomic_when_the_rebuild_fails() {
+        let state = shared_state();
+        new_game(&state).await;
+
+        let handle = {
+            let session = state.session.clone();
+            std::thread::spawn(move || {
+                let _guard = session.lock().expect("not poisoned yet");
+                panic!("deliberate: poisoning the session lock for the atomicity test");
+            })
+        };
+        assert!(handle.join().is_err());
+        assert!(state.session.is_poisoned());
+
+        // A rebuild that fails *inside the lock*, after the recovery has run.
+        // Seed-pinned and observed: at `players: 2, seed: 17` seat 2 draws a
+        // colourless commander and `validate_deck` refuses the padded Forests.
+        let (status, err) =
+            post_json(&state, "/api/game", json!({ "players": 2, "seed": 17 })).await;
+        assert_eq!(
+            status,
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "the rebuild must fail here, or this test proves nothing: {err}"
+        );
+        assert_eq!(err["kind"], "setup_failed");
+
+        // The subject. The corrupt session must be gone, not merely unflagged.
+        let (status, after) = get_json(&state, "/api/game").await;
+        assert_ne!(
+            status,
+            StatusCode::OK,
+            "a failed rebuild must not leave the poisoned session readable: {after}"
+        );
+        assert_eq!(status, StatusCode::NOT_FOUND);
+        assert_eq!(after["kind"], "no_session");
+
+        // Non-vacuous, and the property the recovery exists for: the surface is
+        // still usable, and a *successful* rebuild still works.
+        assert!(!state.session.is_poisoned());
+        let (status, fresh) = post_json(&state, "/api/game", json!({})).await;
+        assert_eq!(status, StatusCode::OK, "{fresh}");
+        assert_eq!(command_count(&fresh), 0);
     }
 
     // ── 8 ─────────────────────────────────────────────────────────────────────
@@ -1286,21 +1366,49 @@ mod tests {
 
     // ── 9 ─────────────────────────────────────────────────────────────────────
 
-    /// **S5 review LOW 8**: the no-socket rule, machine-enforced.
+    /// **S5 review LOW 8**, widened by the re-review (**MEDIUM 2 / LOW 5 /
+    /// LOW 6**): the no-socket rule, machine-enforced across the whole crate.
     ///
     /// Session plan §7 constraint 1 says no test in this crate may open a
     /// listening socket — an agent context that starts the real server binary is
     /// SIGKILLed (the replay-viewer 137 note in `memory/gotchas-infra.md`). Until
-    /// now that rule was prose in a doc comment, held by review alone, in a
+    /// LOW 8 that rule was prose in a doc comment, held by review alone, in a
     /// project that machine-enforces its invariants everywhere else (SR-2, SR-3,
-    /// SR-5, SR-6, SR-9a…). Sessions 6 and 7 add tests to this very module.
+    /// SR-5, SR-6, SR-9a…). Sessions 6 and 7 add tests to this crate.
     ///
-    /// So: read this crate's own source and assert the forbidden symbols do not
-    /// appear below the test-module attribute.
+    /// # Three things the first version got wrong
+    ///
+    /// 1. **The cut landed in prose (MEDIUM 2).** It was a bare
+    ///    `source.find(marker)`, and the module doc comment above spells the
+    ///    attribute out — so the "test region" began at that *paragraph*, not at
+    ///    the attribute. It passed only because all four symbols are typed to the
+    ///    left of the marker inside that one sentence; rewording it would have
+    ///    turned the gate red against its own documentation, and the failure
+    ///    message would have made deleting the gate look like the fix. The cut is
+    ///    now **line-anchored** — see [`test_region`] — so a `///` line cannot be
+    ///    it.
+    /// 2. **It read one file (LOW 5).** The rule is crate-wide and the README
+    ///    called it crate-wide, but the gate read `main.rs` alone: a
+    ///    `#[cfg(test)] mod tests` in `api.rs`, `session.rs` or `view.rs`, or any
+    ///    file under `tests/`, was unchecked. It now walks **every `.rs` file**
+    ///    under the crate's `src/` and `tests/`, rooted at `CARGO_MANIFEST_DIR`
+    ///    (a compile-time constant, so the walk does not depend on the process's
+    ///    working directory) and recursively, so a file Session 6 or 7 adds is
+    ///    covered without editing this test. A file under `tests/` is checked
+    ///    **in full** — an integration test carries no `#[cfg(test)]` attribute
+    ///    because the whole file is already test code.
+    /// 3. **Its non-vacuity guard was itself satisfiable by prose (LOW 6).** It
+    ///    asserted each needle appeared *above* the cut — but "above" includes
+    ///    the paragraph naming all four, so renaming the serving entry point
+    ///    everywhere except that paragraph left the guard green while the needle
+    ///    matched nothing real. Guard (c) now searches **comment-stripped** code.
+    ///    (Note the phrasing of that sentence: this doc comment sits *below* the
+    ///    cut, so it may not spell any of the four out. The widened gate caught
+    ///    a draft of it that did — which is the first thing it ever found.)
     ///
     /// # Self-reference
     ///
-    /// The gate lives *inside* the region it checks, so every needle would match
+    /// The gate lives *inside* a region it checks, so every needle would match
     /// its own source if written plainly. Each is therefore assembled from two
     /// halves with `concat!`, which produces the whole symbol at compile time
     /// while the file itself contains only the halves. Keep any needle you add in
@@ -1308,15 +1416,16 @@ mod tests {
     /// the obvious "fix" is to delete the gate.
     #[test]
     fn test_no_socket_symbol_appears_in_the_test_region() {
-        let source = include_str!("main.rs");
-
-        // Split at the real test-module attribute. Same `concat!` trick, for the
-        // same reason: this line must not be the occurrence `find` locates.
-        let marker = concat!("#[cfg", "(test)]");
-        let cut = source
-            .find(marker)
-            .expect("this file has a test-module attribute");
-        let (above, region) = source.split_at(cut);
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let mut sources: Vec<(String, String)> = Vec::new();
+        collect_rs_files(&root.join("src"), &mut sources);
+        // `tests/` is separate because an **integration** test file carries no
+        // `#[cfg(test)]` attribute — the whole file is test code. Observed, not
+        // assumed: a `tests/tmp_probe.rs` containing a forbidden symbol was run
+        // against a version of this gate that looked for the attribute in every
+        // file, and it stayed green. Hence `whole_file`.
+        let mut integration: Vec<(String, String)> = Vec::new();
+        collect_rs_files(&root.join("tests"), &mut integration);
 
         let forbidden = [
             concat!("TcpLis", "tener"),
@@ -1325,35 +1434,139 @@ mod tests {
             concat!("bi", "nd"),
         ];
 
-        for needle in forbidden {
-            assert!(
-                !region.contains(needle),
-                "session plan §7 constraint 1: {needle:?} must not appear below the \
-                 test-module attribute. Every HTTP test drives `build_router` through \
-                 `tower::ServiceExt::oneshot`; an agent context that starts the real \
-                 server executable is SIGKILLed."
+        let regions = sources
+            .iter()
+            .map(|(path, source)| (path, test_region(source)))
+            .chain(
+                integration
+                    .iter()
+                    .map(|(path, source)| (path, source.as_str())),
             );
+
+        let mut files_with_a_region = 0;
+        for (path, region) in regions {
+            if region.is_empty() {
+                continue;
+            }
+            files_with_a_region += 1;
+            for needle in forbidden {
+                assert!(
+                    !region.contains(needle),
+                    "session plan §7 constraint 1: {needle:?} must not appear below a \
+                     test-module attribute, and it does in {path}. Every HTTP test drives \
+                     `build_router` through `tower::ServiceExt::oneshot`; an agent context \
+                     that starts the real server executable is SIGKILLed."
+                );
+            }
         }
 
-        // ── non-vacuity, both directions ──
-        // (a) The gate really is looking at a substantial region, so a `find`
-        //     that landed near the end of the file cannot pass silently.
-        assert!(
-            region.len() > source.len() / 4,
-            "the checked region is implausibly small: {} of {} bytes",
-            region.len(),
-            source.len()
-        );
-        // (b) Every needle DOES occur above the cut — `main`'s own serving path
-        //     uses all four. A needle that had been misspelled, or a `concat!`
-        //     that produced something no longer in the codebase, would be a gate
-        //     that can never fire, and this catches it.
-        for needle in forbidden {
+        // ── non-vacuity, three directions ──
+        // (a) The walk saw the files it is supposed to see. A path that silently
+        //     resolved to nothing would otherwise be a gate over zero bytes.
+        let seen: BTreeSet<&str> = sources
+            .iter()
+            .filter_map(|(p, _)| p.rsplit('/').next())
+            .collect();
+        for expected in ["main.rs", "api.rs", "session.rs", "view.rs"] {
             assert!(
-                above.contains(needle),
-                "{needle:?} occurs nowhere in the production half of this file — \
-                 the gate would be vacuous"
+                seen.contains(expected),
+                "the source walk missed {expected}; it saw {seen:?}"
             );
         }
+        assert!(
+            files_with_a_region >= 1,
+            "no file in the crate has a test-module attribute — the gate checked nothing"
+        );
+
+        // (b) The cut in THIS file landed on the attribute, not on the paragraph
+        //     above that spells it out. Asserted directly, because that mistake
+        //     is exactly what the re-review found and it is invisible in a green
+        //     run otherwise.
+        let main_src = sources
+            .iter()
+            .find(|(p, _)| p.ends_with("main.rs"))
+            .map(|(_, s)| s.as_str())
+            .expect("main.rs is in the walk");
+        let marker = concat!("#[cfg", "(test)]");
+        let region = test_region(main_src);
+        assert!(
+            region.starts_with(marker),
+            "the cut must land on the attribute itself, not inside prose"
+        );
+        let cut = main_src.len() - region.len();
+        let above = &main_src[..cut];
+        assert!(
+            above.contains(marker),
+            "this file's doc comment spells the attribute out above the cut; if that \
+             stops being true the line-anchored cut is no longer being exercised and \
+             this gate has stopped proving anything about MEDIUM 2"
+        );
+        assert!(
+            region.len() > main_src.len() / 4,
+            "the checked region of main.rs is implausibly small: {} of {} bytes",
+            region.len(),
+            main_src.len()
+        );
+
+        // (c) Every needle occurs above the cut in real CODE — `main`'s own
+        //     serving path uses all four. Comment lines are stripped first: the
+        //     doc comment above names all four, so an un-stripped search would
+        //     pass on prose alone (LOW 6). A misspelled needle, or a `concat!`
+        //     producing a symbol no longer in the codebase, fails here.
+        let code_above: String = above
+            .lines()
+            .filter(|line| !line.trim_start().starts_with("//"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        for needle in forbidden {
+            assert!(
+                code_above.contains(needle),
+                "{needle:?} occurs in no CODE line above the cut — the gate would be \
+                 vacuous (prose mentioning it does not count)"
+            );
+        }
+    }
+
+    /// Every `.rs` file under `dir`, recursively, as `(path, contents)`.
+    ///
+    /// A directory that does not exist contributes nothing: `tests/` is absent
+    /// today and Sessions 6/7 may add it, and the gate must cover it the moment
+    /// it appears without needing to be edited. Paths are sorted so a failure
+    /// message is reproducible.
+    fn collect_rs_files(dir: &std::path::Path, out: &mut Vec<(String, String)>) {
+        let Ok(entries) = std::fs::read_dir(dir) else {
+            return;
+        };
+        let mut paths: Vec<PathBuf> = entries.filter_map(|e| e.ok()).map(|e| e.path()).collect();
+        paths.sort();
+        for path in paths {
+            if path.is_dir() {
+                collect_rs_files(&path, out);
+            } else if path.extension().is_some_and(|ext| ext == "rs") {
+                let text = std::fs::read_to_string(&path)
+                    .unwrap_or_else(|e| panic!("{} is unreadable: {e}", path.display()));
+                out.push((path.display().to_string(), text));
+            }
+        }
+    }
+
+    /// The slice of `source` at and below its first **line-anchored**
+    /// `#[cfg(test)]` attribute, or `""` when the file has none.
+    ///
+    /// "Line-anchored" means the attribute is the first non-whitespace text on
+    /// its line, which is true of a real attribute and false of every mention
+    /// inside a `///`, `//!` or `//` comment. That distinction is the whole
+    /// repair for re-review MEDIUM 2. `starts_with` rather than equality so the
+    /// one-line `#[cfg(test)] mod tests {` form is caught too.
+    fn test_region(source: &str) -> &str {
+        let marker = concat!("#[cfg", "(test)]");
+        let mut offset = 0usize;
+        for line in source.split_inclusive('\n') {
+            if line.trim_start().starts_with(marker) {
+                return &source[offset..];
+            }
+            offset += line.len();
+        }
+        ""
     }
 }

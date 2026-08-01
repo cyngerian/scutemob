@@ -118,6 +118,11 @@ pub struct DecisionView {
     pub kind: String,
     /// Always the human seat — a decision is only ever handed out for a seat the
     /// server is holding.
+    ///
+    /// **Additive to plan item 4's field list** (S5 re-review LOW 12): the plan
+    /// names `{ seq, kind, actions }`. Kept because a client that renders "it is
+    /// *your* turn to act" should not have to infer the seat from `summary.human`
+    /// and trust that the two agree.
     pub player: u64,
     pub actions: Vec<ActionOptionView>,
 }
@@ -541,6 +546,13 @@ fn action_needs_x(action: &LegalAction, state: &GameState) -> bool {
 /// `LocalGame`'s counter restarts at 0 on every rebuild, so the value a client
 /// may echo back is `PlaySession::wire_seq(decision.seq)` and nothing else. See
 /// `session::PlaySession::wire_seq`.
+///
+/// **This is a convention, not a guarantee** (S5 re-review LOW 12). The parameter
+/// is a bare `u64`; nothing in the type system stops a caller passing
+/// `decision.seq`. What actually holds it is that `api.rs::seat_view` is the
+/// only caller and builds the `(pending, wire_seq)` pair with a `zip`, so the
+/// two are produced together or not at all. Making it structural would take a
+/// newtype, which this session did not add.
 pub fn decision_view(
     decision: &PendingDecision,
     wire_seq: u64,

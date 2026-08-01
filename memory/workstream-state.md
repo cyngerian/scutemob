@@ -35,27 +35,35 @@
 | S2 deterministic pregame setup + mulligans | `scutemob-161` | **SHIPPED** | `setup.rs`: `build_initial_state` / `redeal` — see handoff below |
 | S3 action parameterization + engine target queries | `scutemob-163` | **SHIPPED** | the crux (plan §8 R1) is closed: a human can cast a targeted spell. See handoff below |
 | S4 view-model crate extraction + seat redaction | `scutemob-165` | **SHIPPED** | this session — `crates/view-model` (`mtg-view-model`); a seat view provably cannot leak another hand or any library order. See handoff below |
-| S5 play-server crate skeleton + REST API | `scutemob-167` | **SHIPPED** (+ review fixes) | this session — `tools/play-server` (axum, port 3040), the only crate in this milestone with async or IO. 5 routes + `ServeDir`, **15** `oneshot` tests, **no port ever bound and now machine-gated**. See handoff below |
+| S5 play-server crate skeleton + REST API | `scutemob-167` | **SHIPPED** (+ 2 review cycles) | this session — `tools/play-server` (axum, port 3040), the only crate in this milestone with async or IO. 5 routes + `ServeDir`, **16 tests** (15 `oneshot` HTTP + the source gate, which is a plain `#[test]` and constructs no router), **no port ever bound and now machine-gated crate-wide**. See handoff below |
 | S6 play frontend — render and basic input | — | **next** | Plan §4 Session 6. New `tools/play-server/frontend` (Svelte 5 + Vite), dev proxy to `127.0.0.1:3040`, `$viewer` alias importing the replay-viewer components rather than copying them. No Rust change beyond serving `dist/` |
 
 **S5 handoff (2026-08-01, `scutemob-167`)**
 
 - **A full game is now playable over `curl` alone.** `POST /api/game` → `GET /api/game` →
   `POST /api/game/action` → `POST /api/game/mulligan` → `GET /api/healthz`, plus a `ServeDir`
-  fallback to `dist/` for S6's frontend. Tests 4,008 → 4,016 → **4,023** after the review fix
-  cycle (+15 in the crate's inline `mod tests`). `git diff main -- crates/engine/src
+  fallback to `dist/` for S6's frontend. Tests 4,008 → 4,016 → 4,023 → **4,024** across the two
+  review fix cycles (+16 in the crate's inline `mod tests`: 15 `oneshot` HTTP tests plus the
+  source gate, which is a plain `#[test]` and builds no router). `git diff main -- crates/engine/src
   crates/card-types/src crates/card-defs/src` is **empty**; PROTOCOL **32** / HASH **69**
   unmoved; `crates/simulator` and `crates/view-model` untouched — S5 needed nothing added to
   either, **including its fix cycle**: MEDIUM 1's root cause is `LocalGame::decision_seq`
   restarting at 0, and the fix is an offset in `PlaySession`, not an edit to the simulator.
-- **No port is ever bound, and that is now a gate rather than a promise.** `TcpListener` /
-  `axum::serve` appear only inside `async_main`, which no test calls; all 15 tests drive
+- **No port is ever bound, and that is now a gate rather than a promise — but the first
+  version of the gate cut in the wrong place.** `TcpListener` / `axum::serve` appear only
+  inside `async_main`, which no test calls; all 15 HTTP tests drive
   `build_router(state, &PathBuf::from("nonexistent_dist"))` through
-  `tower::ServiceExt::oneshot`. `test_no_socket_symbol_appears_in_the_test_region` reads
-  `src/main.rs` with `include_str!`, cuts at `#[cfg(test)]` and fails on any of the four
-  symbols below the cut — needles assembled with `concat!` so it does not match its own
-  source, and proven non-vacuous by inserting one and watching it redden. Plan §7
-  constraint 1 is machine-held for S6/S7.
+  `tower::ServiceExt::oneshot`. `test_no_socket_symbol_appears_in_the_test_region` now walks
+  **every `.rs` file** under the crate's `src/` and `tests/` (rooted at `CARGO_MANIFEST_DIR`,
+  so it does not depend on the working directory) and fails on any of the four symbols inside
+  a test region — line-anchored `#[cfg(test)]` in a `src/` file, the whole file for a
+  `tests/` one. Needles are assembled with `concat!` so it does not match its own source.
+  **As first shipped it read `main.rs` alone and cut at the first *textual* `#[cfg(test)]`,
+  which is the one spelled out in that file's own module doc comment** — the "test region"
+  therefore began at a paragraph of prose and the gate passed only because all four needles
+  happen to be typed to the left of the marker in that sentence; its non-vacuity guard was
+  satisfiable by the same paragraph. Both fixed in fix cycle 2, with three mutation proofs
+  run rather than argued. Plan §7 constraint 1 is machine-held crate-wide for S6/S7.
 - **Four review findings worth carrying into S6, because the client will encounter all
   four.** (1) The wire `seq` is **not** `LocalGame`'s `seq`: `PlaySession::seq_base` makes it
   monotonic across restarts and mulligans, because without it game B's first decision reused
@@ -67,7 +75,13 @@
   game** because `Option<T>`'s `FromRequest` is `.ok()`. An **absent** body still means "use
   the CLI defaults". (3) `POST /api/game` — and only it — recovers from a poisoned session
   mutex, so one engine panic no longer costs a process restart on the surface that exists to
-  find engine panics. (4) `GameSummary.seed` is the **base** seed; after a mulligan the table
+  find engine panics. **That recovery had to be made atomic in fix cycle 2**: as first
+  written it cleared the poison flag *before* the fallible rebuild, and `session::new_game`
+  fails on a client-supplied seed (a colourless commander's deck is padded with Forests,
+  which `validate_deck` refuses under CR 903.5c — 7 failing tables in 180 `(players, seed)`
+  pairs), so the `?` left the half-mutated session readable at **200** where the unfixed
+  code had answered 500. The corrupt session is now `take()`n in the same straight-line
+  block that clears the flag. (4) `GameSummary.seed` is the **base** seed; after a mulligan the table
   came from `redeal_seed(seed, seat, count)`, so a reproducible bug report needs
   `seed` + `players` + `bot` + `mulligan_count` — all four are already in every `GameSummary`.
 - **The multi-thread runtime flavor is a correctness requirement, not a performance choice.**
@@ -102,8 +116,10 @@
   searched for in the **raw response body string**, not the parsed `zones.hand` — S4's review
   HIGH ("redaction follows the rendering site, not the zone") applied forward. All seven of
   the human's own names are asserted **present**, so an empty payload fails. Proven by
-  mutation: flipping `seat_view` to `Viewer::Omniscient` reddens test 7 on
-  `"Aggravated Assault"` and nothing else.
+  mutation, **re-run against the current 16-test module in fix cycle 2**: flipping
+  `seat_view` to `Viewer::Omniscient` reddens exactly
+  `test_seat_view_over_http_contains_no_other_hand_card_names`, on `"Aggravated Assault"`,
+  while the other **fifteen** stay green.
 - **Two facts S7 needs.** (1) `mtg_view_model::redact::viewer_may_identify` is `pub(crate)`
   and not re-exported, so a play-server label physically cannot call it — every label goes
   through a `NameIndex` derived from the already-redacted `StateViewModel`, and an unidentified
