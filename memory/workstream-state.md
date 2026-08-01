@@ -43,7 +43,24 @@
   is gone; the file is `crates/view-model/src/lib.rs` (`git mv`, 91% similarity, additive
   changes only). `tools/replay-viewer` is a consumer and **its 15 tests pass unedited**.
   `crates/engine`/`card-types`/`card-defs` diff vs main is **empty**; PROTOCOL 32 / HASH 69
-  unmoved. Tests 3,988 → **3,995**.
+  unmoved. Tests 3,988 → **3,997**.
+- **Redaction follows the RENDERING SITE, not the zone — the review's HIGH, and the thing
+  most worth carrying into S5-S7.** The first cut redacted `zones.hand`,
+  `zones.battlefield` and `zones.exile`, which are the zones CR calls hidden, and stopped.
+  Four other sites read `obj.characteristics.name` **raw** — no layer pass, no entitlement
+  check — and each can be handed a face-down object: `StackItemView::source_name`,
+  `format_target`, `AttackerView::name` (and its planeswalker `target`), `BlockerView::name`.
+  A morph creature that attacks *is* on the battlefield, so the battlefield redaction
+  "covered" it in the zone sense while `combat.attackers[i].name` printed its name to the
+  whole table. `redact_stack` / `redact_combat` now route all four through the
+  already-correct `viewer_may_identify`. **S7 populates `ActionOptionView.target_slots` from
+  the engine query surface — those labels are a fifth rendering site and must come from the
+  seat-redacted view, not from `state.objects()` directly.**
+- **A single-seat leak scan is a blind leak scan.** Every scan viewed from alice, and alice
+  is the one player whose hand card the fixture also puts on the stack, so her own names
+  were never needles — which is why the HIGH above passed six whole-document scans. Fixed by
+  looping all four seats. With the new redactions disabled the all-seats test fails on
+  `seat 2: leaked "Lightning Bolt"` **while all six plan-named tests stay green**.
 - **The exhaustive-match gotcha moved with the file.** `stack_kind_info()`
   (`StackObjectKind`) and `format_keyword()` (`KeywordAbility`) now live in
   `crates/view-model/src/lib.rs`. `cargo build --workspace` is still the gate and is now a

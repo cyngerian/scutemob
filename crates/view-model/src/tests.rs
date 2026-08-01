@@ -428,6 +428,16 @@ fn test_event_view_redacts_other_seats_card_draw() {
 /// Compared as `serde_json::Value`, never as a string: `StateViewModel` uses
 /// `std::collections::HashMap` for `players` and the per-player zone maps, and
 /// its iteration order is randomized per process.
+///
+/// PROVENANCE, and its limit. The snapshot was committed in `56d44177`, before
+/// the move commit, by running `golden_fixture_state()` (copied verbatim into
+/// this file) through the untouched pre-move file and then restoring that file
+/// byte-for-byte. The capture harness itself is not in history, so this file
+/// alone does not *prove* its own provenance — the load-bearing evidence is the
+/// `git diff` of the move, which is a recorded rename whose only non-additive
+/// hunks are the `///`→`//!` header conversion and one `let mut` binding.
+/// Regenerated exactly once since, for the additive `hidden` field: 12 deltas,
+/// every one an added `"hidden": false`.
 #[test]
 fn test_omniscient_view_is_unchanged_for_fixture_state() {
     let (state, names) = golden_fixture_state();

@@ -35,7 +35,12 @@
 //! 3. The `_ =>` catch-all emits a **kind-only** line. The kind string is
 //!    derived from the serde variant discriminant, so it is structurally
 //!    incapable of interpolating a card name — there is no formatting of any
-//!    payload field anywhere on that path.
+//!    payload field anywhere on that path. Its `text` is therefore the bare
+//!    variant name (`"PermanentTapped"`), which is a correct redaction floor and
+//!    a poor sentence: S6's event feed will want a per-variant renderer for the
+//!    variants players actually care about. Adding one is safe as long as each
+//!    new arm routes any object id through `redact::viewer_may_identify` the way
+//!    the existing named arms do.
 //!
 //! The `Viewer::Omniscient` path skips rules 1 and 2 entirely and may name
 //! anything; it is a developer tool.
@@ -227,6 +232,13 @@ pub fn event_view_for(
 ///
 /// Only the key (or the bare string) is ever read — never a payload value — so
 /// this function cannot leak a card name by construction.
+///
+/// COST, for S5/S6 to weigh: this serializes the whole event payload to build a
+/// `Value` and then reads one key from it. Correct and leak-proof, but pure
+/// waste per call, and the play-server will call it for every event on every
+/// poll. If it shows up, replace it with a `match` returning a `&'static str` —
+/// but keep the property that the arm reads no payload field, or the leak-proof
+/// argument above stops holding.
 fn event_kind(ev: &GameEvent) -> String {
     match serde_json::to_value(ev) {
         // Unit variant: `"AllPlayersPassed"`.

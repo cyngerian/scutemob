@@ -756,7 +756,7 @@ makes the existing TUI bridge unusable for real play.
 `tests.rs` and `golden_omniscient_view.json`. All 6 named tests pass and each was proven
 non-vacuous by mutation. `cargo build --workspace`, `cargo clippy --all-targets -- -D
 warnings`, `cargo fmt --check`, `tools/check-defs-fmt.sh` and `cargo test --all` are green;
-tests 3,988 → **3,995**. `git diff main -- crates/engine crates/card-types crates/card-defs`
+tests 3,988 → **3,997**. `git diff main -- crates/engine crates/card-types crates/card-defs`
 is **empty**; PROTOCOL 32 / HASH 69 confirmed by the `core` sentinels.
 
 **The golden snapshot was captured BEFORE the move, from pristine code** (commit
@@ -806,6 +806,28 @@ Deviations from the plan text, all recorded in source:
   redaction produce the *same* output, so a lookup bug hides inside the privacy
   behaviour. Every `card_name` call site needs its id checked against the emission site,
   not just its entitlement rule reviewed.
+
+**Review cycle (1 HIGH / 1 MEDIUM / 4 LOW, all applied).** The HIGH is the durable one:
+**redaction follows the rendering site, not the zone.** The first cut redacted `zones.hand`,
+`zones.battlefield` and `zones.exile` — the zones CR calls hidden — and stopped. Four other
+sites in `lib.rs` read `obj.characteristics.name` **raw**, with no layer pass and no
+entitlement check, and each can be handed a face-down object: `StackItemView::source_name`,
+`format_target`, `AttackerView::name` (plus its planeswalker `target`), and
+`BlockerView::name`. A morph creature that attacks *is* on the battlefield, so the
+battlefield redaction "covered" it in the zone sense while `combat.attackers[i].name`
+printed its name to the whole table — the same CR 708.2 violation this session fixed one
+zone over, one surface across. `redact_stack` and `redact_combat` now route those four sites
+through the already-correct `redact::viewer_may_identify`.
+
+The MEDIUM is *why the HIGH was invisible*: every leak scan viewed from alice's seat, and
+alice is the one player whose hand card the fixture also puts on the stack, so her own card
+names were never needles. The whole-document-scan technique was right; its instantiation was
+one-sided. `test_no_seat_view_leaks_any_other_seats_hidden_card` now loops all four seats.
+Proven non-vacuous: with the two new redactions disabled it fails on `seat 2: leaked
+"Lightning Bolt"` **while all six plan-named tests stay green**, which is exactly the
+blindness. A second added test puts a face-down creature into combat, because the golden
+fixture has only face-up attackers and cannot be changed (it is pinned by the pre-move
+snapshot) — without it `redact_combat` would have been present, green and unexercised.
 
 **Item 6 (done)**: `memory/gotchas-infra.md` now points the two exhaustive matches
 (`StackObjectKind` in `stack_kind_info()`, `KeywordAbility` in `format_keyword()`) at
