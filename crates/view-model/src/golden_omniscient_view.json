@@ -318,6 +318,7 @@
           "card_types": [
             "Creature"
           ],
+          "hidden": false,
           "name": "Kenrith, the Returned King",
           "object_id": 27
         }
@@ -327,11 +328,13 @@
     "exile": [
       {
         "card_types": [],
+        "hidden": false,
         "name": "Oblivion Ring Target",
         "object_id": 25
       },
       {
         "card_types": [],
+        "hidden": false,
         "name": "Saw It Coming",
         "object_id": 26
       }
@@ -340,11 +343,13 @@
       "alice": [
         {
           "card_types": [],
+          "hidden": false,
           "name": "Shock",
           "object_id": 22
         },
         {
           "card_types": [],
+          "hidden": false,
           "name": "Ponder",
           "object_id": 23
         }
@@ -353,6 +358,7 @@
       "carol": [
         {
           "card_types": [],
+          "hidden": false,
           "name": "Doom Blade",
           "object_id": 24
         }
@@ -363,16 +369,19 @@
       "alice": [
         {
           "card_types": [],
+          "hidden": false,
           "name": "Lightning Bolt",
           "object_id": 9
         },
         {
           "card_types": [],
+          "hidden": false,
           "name": "Counterspell",
           "object_id": 10
         },
         {
           "card_types": [],
+          "hidden": false,
           "name": "Swords to Plowshares",
           "object_id": 11
         }
@@ -380,11 +389,13 @@
       "bob": [
         {
           "card_types": [],
+          "hidden": false,
           "name": "Wrath of God",
           "object_id": 12
         },
         {
           "card_types": [],
+          "hidden": false,
           "name": "Sol Ring",
           "object_id": 13
         }
@@ -392,6 +403,7 @@
       "carol": [
         {
           "card_types": [],
+          "hidden": false,
           "name": "Demonic Tutor",
           "object_id": 14
         }

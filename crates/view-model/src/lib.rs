@@ -1,10 +1,33 @@
-/// View model types for the replay viewer frontend.
-///
-/// This module converts `GameState` (engine internals) into a UI-friendly JSON
-/// shape. The frontend never sees raw `GameState`. This decoupling layer means
-/// engine internal type changes do not break the frontend.
-///
-/// The same view model shape is reused in the M11 Tauri app.
+//! View model types for the replay viewer frontend.
+//!
+//! This module converts `GameState` (engine internals) into a UI-friendly JSON
+//! shape. The frontend never sees raw `GameState`. This decoupling layer means
+//! engine internal type changes do not break the frontend.
+//!
+//! The same view model shape is reused in the M11 Tauri app.
+//!
+//! # Hosts
+//!
+//! Since M11-local Session 4 this is a workspace crate (`mtg-view-model`) with
+//! two hosts: `tools/replay-viewer` (an omniscient developer tool) and
+//! `tools/play-server` (the M11-local play client, one seat per browser). The
+//! seat-scoped host goes through [`Viewer::Seat`], which applies the
+//! Architecture Invariant 7 redactions in the private `redact` module.
+//!
+//! # Exhaustive matches live here now
+//!
+//! `stack_kind_info` matches `StackObjectKind` exhaustively and
+//! `format_keyword` matches `KeywordAbility` exhaustively. Adding a variant to
+//! either engine enum is a compile error here; `cargo build --workspace` is the
+//! gate. They used to live in `tools/replay-viewer/src/view_model.rs`.
+
+mod event_view;
+mod redact;
+#[cfg(test)]
+mod tests;
+
+pub use event_view::{event_view_for, EventView};
+
 use std::collections::HashMap;
 
 use mtg_engine::{
@@ -128,6 +151,12 @@ pub struct CardInZoneView {
     pub object_id: u64,
     pub name: String,
     pub card_types: Vec<String>,
+    /// Architecture Invariant 7: `true` when this entry is a *placeholder* the
+    /// viewer is not entitled to identify (another seat's hand card, CR 402.1;
+    /// a face-down card they do not own, CR 708.2). Always `false` in the
+    /// omniscient view. Additive, so the existing `ZoneHand.svelte` contract
+    /// (which reads `object_id` / `name` / `card_types`) is unchanged.
+    pub hidden: bool,
 }
 
 /// All zones in a UI-friendly format.
@@ -171,11 +200,45 @@ pub struct BlockerView {
     pub name: String,
 }
 
+// ── Viewer ────────────────────────────────────────────────────────────────────
+
+/// Who is looking at the game (Architecture Invariant 7).
+///
+/// The engine knows everything; the view model is where that knowledge is
+/// filtered before it leaves the process. `Omniscient` is the developer replay
+/// viewer — it is a **pure identity**, no redaction is applied at all, so the
+/// replay viewer's behaviour is byte-for-byte what it was before this crate
+/// existed. `Seat(p)` is one player's browser, and every rule that narrows what
+/// they may see lives in the private `redact` module.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Viewer {
+    /// See everything. Developer tools only — never ship this to a play client.
+    Omniscient,
+    /// See only what this player is entitled to see.
+    Seat(PlayerId),
+}
+
 // ── StateViewModel::from_game_state ───────────────────────────────────────────
 
 impl StateViewModel {
     /// Convert a `GameState` to a UI-friendly `StateViewModel`.
+    ///
+    /// Omniscient shim, kept so that no existing call site changes. Equivalent
+    /// to `from_game_state_for(state, player_names, Viewer::Omniscient)`.
     pub fn from_game_state(state: &GameState, player_names: &HashMap<PlayerId, String>) -> Self {
+        Self::from_game_state_for(state, player_names, Viewer::Omniscient)
+    }
+
+    /// Convert a `GameState` to a `StateViewModel` scoped to `viewer`.
+    ///
+    /// Architecture Invariant 7: for `Viewer::Seat(p)` this is the single
+    /// chokepoint where another player's hidden information is removed. See
+    /// `redact::redact_state_for_seat` for the rules and their CR citations.
+    pub fn from_game_state_for(
+        state: &GameState,
+        player_names: &HashMap<PlayerId, String>,
+        viewer: Viewer,
+    ) -> Self {
         let turn = build_turn_view(state, player_names);
         let players = build_players_view(state, player_names);
         let zones = build_zones_view(state, player_names);
@@ -184,12 +247,20 @@ impl StateViewModel {
             .as_ref()
             .map(|c| build_combat_view(c, state, player_names));
 
-        StateViewModel {
+        let mut view = StateViewModel {
             turn,
             players,
             zones,
             combat,
+        };
+
+        match viewer {
+            // Pure identity — no redaction whatsoever.
+            Viewer::Omniscient => {}
+            Viewer::Seat(seat) => redact::redact_state_for_seat(&mut view, state, seat),
         }
+
+        view
     }
 }
 
@@ -601,6 +672,8 @@ fn objects_in_zone_as_card_views(state: &GameState, zone_id: &ZoneId) -> Vec<Car
                 .iter()
                 .map(|t| format!("{t:?}"))
                 .collect(),
+            // Omniscient by construction; `redact` flips this for a seat view.
+            hidden: false,
         })
         .collect()
 }

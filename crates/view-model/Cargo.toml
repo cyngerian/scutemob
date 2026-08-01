@@ -1,0 +1,19 @@
+[package]
+name = "mtg-view-model"
+version = "0.1.0"
+edition.workspace = true
+
+[dependencies]
+mtg-engine = { path = "../engine" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# The golden fixture in `src/tests.rs` builds a `GameState` by hand and needs the
+# `*_mut()` escape hatches, which are gated behind `test-util` by the SR-3 seal.
+# This MUST stay a dev-dependency: `cargo build --workspace` is the seal gate and
+# must keep failing for any production consumer that reaches for them.
+[dev-dependencies]
+mtg-engine = { path = "../engine", features = ["test-util"] }
+
+[lints]
+workspace = true
