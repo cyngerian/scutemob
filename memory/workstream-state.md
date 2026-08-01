@@ -21,6 +21,63 @@
 `paused` (partially done, session ended mid-task), `not-started` (blocked/deferred),
 `RETIRED` (replaced by another workstream)
 
+## M11-local Track (parallel to W6 — `crates/simulator`, `tools/`, no engine surface)
+
+> Deliberately its own section, not a W-row: M11-local runs concurrently with the W6
+> primitive queue and touches a disjoint set of crates. Plan: `memory/m11-session-plan.md`
+> (8 sessions, authoritative). No new `Command`/`GameEvent` variant in the whole milestone
+> — PROTOCOL 31 / HASH 68 hold throughout.
+
+| Session | Task | Status | Notes |
+|---------|------|--------|-------|
+| S1 steppable local-game core | `scutemob-147` | **SHIPPED** | `LocalGame` in `crates/simulator/src/local_game.rs`; `GameDriver::run_game` re-expressed on top of it |
+| S2 deterministic pregame setup + mulligans | `scutemob-161` | **SHIPPED** | this session — see handoff below |
+| S3 action parameterization + engine target queries | — | next | Plan §4 Session 3. **The crux of the milestone** (plan §8 R1: a human cannot cast a targeted spell today). First session that touches `crates/engine` — coordinate against the live PB-DX batch |
+
+**S2 handoff (2026-07-31, `scutemob-161`)**
+
+- Shipped `crates/simulator/src/setup.rs`: `LocalGameConfig` / `DeckSource` / `BotKind` /
+  `SetupError` / `build_initial_state` / `redeal`, re-exported from the crate root. One
+  `StdRng` seeded from `cfg.seed`, consumed in ascending `PlayerId` order — same seed
+  reproduces the same `public_state_hash`. Deck admission runs through the **real**
+  `mtg_engine::validate_deck` and refuses on any `DeckViolation` (Architecture Invariant
+  9); `start_game`'s `check_all_defs_complete` stays as the independent second line.
+  `tools/tui/src/play/app.rs::PlayApp::new` rewired onto it (~55 duplicated lines gone);
+  `deck.rs` and `bin/fuzzer.rs` untouched by design. **10 tests** in
+  `crates/simulator/tests/setup.rs`; workspace **3,928 → 3,938 / 0**; PROTOCOL 31 / HASH
+  68 unmoved; engine + card-types + card-defs diff vs main **empty**.
+- **A live Commander bug was found in the lifted logic and FIXED, not seeded.** The old
+  TUI setup placed the commander *object* in `ZoneId::Command` but never called
+  `GameStateBuilder::player_commander`, so `PlayerState::commander_ids` was **empty** in
+  every game it built. That field gates commander tax, the CR 903.9a/704.6d
+  command-zone-return SBA, CR 903.10a commander damage, and CR 903.9b's hand/library
+  redirects — none of them fired. `mtg-tui`'s play mode had been running non-Commander
+  games under a Commander UI. Fixed with two calls to existing public engine API (zero
+  engine edits), pinned by `test_setup_registers_commanders_not_just_places_them`.
+- **CR cite correction, and it is the reusable lesson.** The session plan's own Session 2
+  text cites **CR 103.4** for the seven-card opening hand in items 2 and 7. That is wrong:
+  **103.4 is the starting life total** (103.4c = Commander's 40); the seven-card draw and
+  the mulligan are both **CR 103.5**, and CR 402.1 restates the draw. Verified against the
+  CR via MCP, corrected in six places across `setup.rs` and `tests/setup.rs`. This is the
+  *same* stale-cite family as the "CR 103.4b" the PB-DP2 handoff already flagged — the
+  plan text was never corrected, so the miscite propagated straight into new code.
+  **Anyone working Sessions 3-8 should treat the plan's CR cites as unverified.**
+- **`redeal` is a v1 UX path with two honest limitations**, documented in source rather
+  than papered over: it rebuilds the whole table, so (a) it re-rolls every seat's
+  commander — and the command zone is *public* (CR 903.6), so this is not invisible to
+  the other seats; and (b) a single `(seat, mulligan_count)` signature cannot represent a
+  partially-decided table, so it discards a hand another seat already kept (CR 103.5:
+  "once a player chooses not to take a mulligan, the remaining cards become that player's
+  opening hand"). A per-seat mulligan state fixes both and belongs with the Session 5
+  play-server pregame flow.
+- **Premise honored:** plan §8 R2 was **not** re-filed — `OOS-M11-1` was closed by PB-DP2
+  (`scutemob-150`), `handle_take_mulligan` really shuffles, and `redeal` is kept for the
+  pregame-UX reason in Q1, not as a correctness workaround.
+- **Still open from S1:** `OOS-M11-2` (mana solver ignores the pool, reads
+  non-layer-resolved `mana_abilities`) — S3 owns the pool half; the re-rank
+  (`scutemob-159`) confirmed its exclusion from the primitive queue. `OOS-M11-3` (fuzzer
+  nondeterminism in 150-200+ turn games) untouched.
+
 ## Last Handoff
 
 **Date**: 2026-07-26..27 (oversight session — autonomous coordinator chain, user-directed "task out the PB suite and run autonomously", then "task it out and rerank"; /eot 2026-07-27)

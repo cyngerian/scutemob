@@ -1,13 +1,16 @@
 //! Acceptance tests for `crates/simulator/src/setup.rs` (M11-local Session 2:
 //! deterministic pregame setup and mulligans).
 //!
-//! CR 103.4 (opening hand size), CR 103.5 (mulligan), CR 903.5a (100-card deck) /
+//! CR 103.5 / 402.1 (opening hand of seven), CR 103.5 / 103.5c (mulligan), CR 903.5a (100-card deck) /
 //! Architecture Invariant 9 (deck admission), CR 903.6 (commander to the command zone).
 
 use std::collections::BTreeSet;
 
 use mtg_engine::DeckViolation;
-use mtg_engine::{all_cards, CardDefinition, CardId, CardType, PlayerId, SuperType, ZoneId};
+use mtg_engine::{
+    all_cards, CardDefinition, CardId, CardType, PlayerId, ReplacementModification, SuperType,
+    ZoneId, ZoneType,
+};
 use mtg_simulator::{
     build_initial_state, redeal, BotKind, DeckConfig, DeckSource, LocalGameConfig, LocalGameLimits,
     SetupError,
@@ -61,7 +64,7 @@ fn first_non_complete_card(cards: &[CardDefinition]) -> &CardDefinition {
     )
 }
 
-/// CR 103.4 — the engine deals no opening hand; `build_initial_state` must deal exactly
+/// CR 103.5 / 402.1 — the engine deals no opening hand; `build_initial_state` must deal exactly
 /// seven cards to every seat's hand.
 #[test]
 fn test_setup_deals_seven_card_opening_hand_per_seat() {
@@ -75,9 +78,90 @@ fn test_setup_deals_seven_card_opening_hand_per_seat() {
         assert_eq!(
             hand.len(),
             7,
-            "seat {i} must open with exactly 7 cards (CR 103.4)"
+            "seat {i} must open with exactly 7 cards (CR 103.5)"
         );
     }
+}
+
+/// The opening hand holds *real, playable* cards — not name-only placeholders.
+///
+/// `ObjectSpec::card()` sets only `characteristics.name`; every other characteristic
+/// (card types, mana cost, subtypes, P/T) comes from `enrich_spec_from_def`, which is the
+/// project's documented #1 `ObjectSpec` gotcha. Dropping those calls from
+/// `build_initial_state` would leave every hand and library object typeless and
+/// costless — uncastable, and invisible to every type filter in the engine — while the
+/// hand *counts* stayed a perfect 7 and every other test in this file stayed green. This
+/// is the assertion that reddens instead.
+///
+/// Cross-checked against the real `CardDefinition` rather than just asserting
+/// "non-empty", so a hypothetical enrichment that filled in the wrong card also fails.
+#[test]
+fn test_setup_opening_hand_cards_are_enriched_from_their_definitions() {
+    let cards = all_cards();
+    let cfg = random_cfg(2, 606);
+    let (state, _names) = build_initial_state(&cfg).expect("setup should succeed");
+
+    for i in 1..=2u64 {
+        let pid = PlayerId(i);
+        for obj in state.objects_in_zone(&ZoneId::Hand(pid)) {
+            let def = cards
+                .iter()
+                .find(|c| c.name == obj.characteristics.name)
+                .unwrap_or_else(|| {
+                    panic!(
+                        "hand object {:?} must correspond to a real CardDefinition",
+                        obj.characteristics.name
+                    )
+                });
+            assert!(
+                !obj.characteristics.card_types.is_empty(),
+                "{}: card_types must be populated by enrich_spec_from_def — an object with \
+                 no card types is uncastable and invisible to every type filter",
+                def.name
+            );
+            assert_eq!(
+                obj.characteristics.card_types, def.types.card_types,
+                "{}: card types must match its CardDefinition",
+                def.name
+            );
+            assert_eq!(
+                obj.characteristics.mana_cost, def.mana_cost,
+                "{}: mana cost must match its CardDefinition",
+                def.name
+            );
+        }
+    }
+}
+
+/// Criterion 1's literal "human seat" case: a seat listed in `human_seats` is dealt the
+/// same real 7-card opening hand a bot seat gets (dealing is seat-agnostic), and is named
+/// as a human rather than a bot.
+#[test]
+fn test_setup_deals_a_human_seat_the_same_real_opening_hand() {
+    let cfg = LocalGameConfig {
+        human_seats: [PlayerId(1)].into_iter().collect(),
+        ..random_cfg(4, 20_260_731)
+    };
+    let (state, names) = build_initial_state(&cfg).expect("setup should succeed");
+
+    assert_eq!(
+        names.get(&PlayerId(1)).map(String::as_str),
+        Some("Human-1"),
+        "the human seat must be named as one"
+    );
+    assert_eq!(names.get(&PlayerId(2)).map(String::as_str), Some("Bot-2"));
+
+    let hand = state.objects_in_zone(&ZoneId::Hand(PlayerId(1)));
+    assert_eq!(
+        hand.len(),
+        7,
+        "the human seat opens with 7 cards (CR 103.5)"
+    );
+    assert_eq!(
+        state.objects_in_zone(&ZoneId::Command(PlayerId(1))).len(),
+        1,
+        "the human seat's commander starts in its command zone (CR 903.6)"
+    );
 }
 
 /// The remaining 92 main-deck cards (99 - 7 opening hand) land in the library, not
@@ -287,9 +371,22 @@ fn test_setup_registers_commanders_not_just_places_them() {
     // would-go-to-library, each redirecting to the command zone) must be registered
     // before the game starts — they are replacements, not triggers, so nothing can add
     // them later.
+    //
+    // Counts only the redirect-to-command-zone effects rather than
+    // `replacement_effects().len()`: a global count would redden for the wrong reason the
+    // first time any unrelated pregame replacement is registered.
+    let to_command = state
+        .replacement_effects()
+        .iter()
+        .filter(|r| {
+            matches!(
+                r.modification,
+                ReplacementModification::RedirectToZone(ZoneType::Command)
+            )
+        })
+        .count();
     assert_eq!(
-        state.replacement_effects().len(),
-        6,
+        to_command, 6,
         "CR 903.9b: 2 zone-change replacements per commander × 3 seats"
     );
 }

@@ -7,7 +7,7 @@
 //! testable, so the play server (Session 5) and the TUI share one pregame path instead of
 //! drifting copies. See `memory/m11-session-plan.md` §3-4 (Session 2).
 //!
-//! CR 103.4 (opening hand size), CR 103.5 / 103.5c (mulligans), CR 903.5a (100-card deck,
+//! CR 103.5 / 402.1 (opening hand of seven), CR 103.5 / 103.5c (mulligans), CR 903.5a (100-card deck,
 //! commander included), CR 903.6 (commander to the command zone, library shuffled),
 //! CR 903.9b (the commander's hand/library-to-command-zone replacements).
 //!
@@ -127,9 +127,13 @@ impl std::error::Error for SetupError {}
 /// `base` itself whenever the two perturbation terms are equal (e.g. seat 1 taking their
 /// very first mulligan: `mulligan_count == 1 == seat.0`), which would re-deal the
 /// mulliganing player the identical hand they just rejected. Each term is instead run
-/// through a distinct odd multiplier (splitmix64-style) before combining, so the only way
-/// two different `(seat, mulligan_count)` pairs collide is an actual hash collision, not
-/// an arithmetic identity.
+/// through a distinct odd multiplier (splitmix64-style) before combining. Both multipliers
+/// are odd and therefore invertible mod 2^64, so each `mulligan_count` has exactly one
+/// colliding `seat`, and for `mulligan_count` in 1..8 those seat numbers are all above
+/// 2×10^18 — unreachable at any real table. The one exception is the identity `(seat 0,
+/// mulligan 0)`, which returns `base` unchanged; `PlayerId(0)` is never allocated (seats
+/// start at 1, see `build_initial_state`) and mulligan 0 is not a redeal, so it is
+/// unreachable rather than handled.
 fn redeal_seed(base: u64, seat: PlayerId, mulligan_count: u32) -> u64 {
     let seat_term = seat.0.wrapping_mul(0x9E37_79B9_7F4A_7C15).wrapping_add(1);
     let mulligan_term = u64::from(mulligan_count)
@@ -148,24 +152,36 @@ fn seat_name(pid: PlayerId, human_seats: &BTreeSet<PlayerId>) -> String {
     }
 }
 
-/// Look up `card_id`'s `CardDefinition` in `cards`, or fail with
+/// Look up `card_id` in a prebuilt `CardId → CardDefinition` index, or fail with
 /// `SetupError::MissingCardDefinition`.
+///
+/// Indexed rather than a linear scan of `all_cards()`: this is called once per card
+/// placed, so a 4-seat table does 400 lookups over ~1,800 defs — 720k `CardId` string
+/// comparisons per build, and `redeal` pays it again on every mulligan.
 fn find_def<'a>(
-    cards: &'a [CardDefinition],
+    by_card_id: &HashMap<&CardId, &'a CardDefinition>,
     seat: PlayerId,
     card_id: &CardId,
 ) -> Result<&'a CardDefinition, SetupError> {
-    cards
-        .iter()
-        .find(|c| &c.card_id == card_id)
+    by_card_id
+        .get(card_id)
+        .copied()
         .ok_or_else(|| SetupError::MissingCardDefinition {
             seat,
             card_id: card_id.clone(),
         })
 }
 
-/// CR 103.4 (opening hand), CR 903.5a / 903.6 (commander to the command zone, deck
-/// admission, library shuffle) — build a full pregame `GameState`. **Not yet started**:
+/// CR 103.5 / 402.1 (opening hand), CR 903.5a / 903.6 (commander to the command zone, deck
+/// admission, library shuffle) — build a full pregame `GameState`.
+///
+/// **Name caution:** `mtg_engine` exports an unrelated `build_initial_state` (the
+/// replay-harness one, which builds a state from a *script's* initial-state block and
+/// takes entirely different arguments). Both are crate-root re-exports, so a consumer
+/// that imports both crates must qualify the call — `mtg_simulator::build_initial_state`
+/// — rather than bare-`use` either. `tools/tui/src/play/app.rs` does exactly that.
+///
+/// **Not yet started**:
 /// callers pass the result to `mtg_engine::start_game` (or `LocalGame::start`, which
 /// calls it), which runs `check_all_defs_complete` as the independent second line of
 /// defence Architecture Invariant 9 requires. Deck admission here does not replace that
@@ -182,6 +198,10 @@ pub fn build_initial_state(
     let registry = CardRegistry::new(cards.clone());
     let card_defs: HashMap<String, CardDefinition> =
         cards.iter().map(|c| (c.name.clone(), c.clone())).collect();
+    // Keyed by `CardId`, unlike `card_defs` above, which `enrich_spec_from_def` requires
+    // to be keyed by name. Built once; see `find_def`.
+    let by_card_id: HashMap<&CardId, &CardDefinition> =
+        cards.iter().map(|c| (&c.card_id, c)).collect();
 
     let mut rng = StdRng::seed_from_u64(cfg.seed);
 
@@ -248,28 +268,28 @@ pub fn build_initial_state(
         // (The pre-Session-2 TUI setup this module lifts had exactly that gap; it is
         // fixed here rather than carried forward. Same pairing as
         // `testing/replay_harness.rs`'s script path.)
-        let commander_def = find_def(&cards, pid, &deck.commander)?;
+        let commander_def = find_def(&by_card_id, pid, &deck.commander)?;
         let spec = ObjectSpec::card(pid, &commander_def.name)
             .in_zone(ZoneId::Command(pid))
             .with_card_id(deck.commander.clone());
         builder = builder.object(enrich_spec_from_def(spec, &card_defs));
         builder = builder.player_commander(pid, deck.commander.clone());
 
-        // CR 903.6: shuffle the remaining deck; CR 103.4: the first 7 become the opening
+        // CR 903.6: shuffle the remaining deck; CR 103.5: the first 7 become the opening
         // hand, and the rest form the library.
         deck.main_deck.shuffle(&mut rng);
         let split_at = deck.main_deck.len().min(7);
         let (hand_cards, library_cards) = deck.main_deck.split_at(split_at);
 
         for card_id in hand_cards {
-            let def = find_def(&cards, pid, card_id)?;
+            let def = find_def(&by_card_id, pid, card_id)?;
             let spec = ObjectSpec::card(pid, &def.name)
                 .in_zone(ZoneId::Hand(pid))
                 .with_card_id(card_id.clone());
             builder = builder.object(enrich_spec_from_def(spec, &card_defs));
         }
         for card_id in library_cards {
-            let def = find_def(&cards, pid, card_id)?;
+            let def = find_def(&by_card_id, pid, card_id)?;
             let spec = ObjectSpec::card(pid, &def.name)
                 .in_zone(ZoneId::Library(pid))
                 .with_card_id(card_id.clone());
@@ -310,9 +330,25 @@ pub fn build_initial_state(
 ///
 /// Rebuilds the **whole table** — every seat, not just `seat` — perturbing the seed by
 /// both `seat` and `mulligan_count` so two different seats mulliganing (or the same seat
-/// mulliganing twice) never collide on an identical redeal. This is safe pregame: no seat
-/// has observed any other seat's hand yet (Architecture Invariant 7 — hidden zones), so
-/// reshuffling seats that are not mulliganing changes nothing anyone has seen.
+/// mulliganing twice) never collide on an identical redeal.
+///
+/// **Two honest limitations of that shortcut**, both acceptable for the M11-local v1 UX
+/// path and neither of them "safe" in the way a first draft of this comment claimed:
+///
+/// 1. It is *not* invisible to the other seats. Hidden zones (Architecture Invariant 7)
+///    are indeed unobserved, but the command zone is **public** — CR 903.6 puts the
+///    commander there face up — and a whole-table rebuild re-rolls every seat's
+///    commander, mutating state the other players have already seen.
+/// 2. It cannot represent a partially-decided table. CR 103.5: "Once a player chooses not
+///    to take a mulligan, the remaining cards become that player's opening hand", and per
+///    CR 103.5c each player has their own mulligan count. A single
+///    `(seat, mulligan_count)` signature has nowhere to record that seat 2 already kept,
+///    so rebuilding discards that kept hand.
+///
+/// Both fall out of the same simplification — one seed reproduces one whole table. A
+/// per-seat mulligan state (each seat holding its own count and a `kept` flag, rebuilt
+/// independently) is the shape that fixes them, and belongs with the Session 5 play-server
+/// pregame flow that will actually offer mulligans seat by seat.
 pub fn redeal(
     cfg: &LocalGameConfig,
     seat: PlayerId,

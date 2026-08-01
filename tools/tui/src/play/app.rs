@@ -153,9 +153,12 @@ impl PlayApp {
             let pid = PlayerId(i as u64);
             let seed = os_rng.random();
             let name = format!("Bot-{}", i);
-            let bot: Box<dyn Bot> = match bot_type {
-                "heuristic" => Box::new(HeuristicBot::new(seed, name)),
-                _ => Box::new(RandomBot::new(seed, name)),
+            // Constructed from `cfg.bot_kind`, not from the `bot_type` string a second
+            // time: two independent readings of the same input are two things that can
+            // drift. `bot_type` is parsed exactly once, above.
+            let bot: Box<dyn Bot> = match cfg.bot_kind {
+                BotKind::Heuristic => Box::new(HeuristicBot::new(seed, name)),
+                BotKind::Random => Box::new(RandomBot::new(seed, name)),
             };
             bots.insert(pid, bot);
         }

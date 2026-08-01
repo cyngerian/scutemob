@@ -521,14 +521,14 @@ zero HTTP involved in any test; fuzzer output unchanged.
 
 ### Session 2: Deterministic pregame setup and mulligans (7 items)
 
-**STATUS (2026-07-31): all 7 items shipped.** `LocalGameConfig`/`DeckSource`/`BotKind`/
+**STATUS (2026-07-31, `scutemob-161`): all 7 items shipped.** `LocalGameConfig`/`DeckSource`/`BotKind`/
 `SetupError`/`build_initial_state`/`redeal` live in `crates/simulator/src/setup.rs` (new);
 re-exported from `crates/simulator/src/lib.rs`; `tools/tui/src/play/app.rs::PlayApp::new`
 rewired onto `build_initial_state`; `crates/simulator/src/deck.rs` and
-`crates/simulator/src/bin/fuzzer.rs` untouched, as required. 8 new tests in
-`crates/simulator/tests/setup.rs` — the 7 named below plus a commander-registration
-regression pin (see below); workspace tests
-3,928 → **3,936**; `cargo build --workspace`, `cargo clippy --workspace --all-targets -- -D
+`crates/simulator/src/bin/fuzzer.rs` untouched, as required. 10 new tests in
+`crates/simulator/tests/setup.rs` — the 7 named below plus three additions (commander registration,
+spec enrichment, and the human-seat path); workspace tests
+3,928 → **3,938**; `cargo build --workspace`, `cargo clippy --workspace --all-targets -- -D
 warnings`, `cargo fmt --check`, and `tools/check-defs-fmt.sh` all green; PROTOCOL 31 /
 HASH 68 confirmed unmoved via the `core::protocol_schema`/`core::hash_schema` sentinel
 tests.
@@ -596,7 +596,7 @@ else about the TUI's behaviour changed.
    throughout — the same seed must reproduce the same game.
 2. `build_initial_state(cfg)` — for each seat: `random_deck` (already `Complete`-only per
    SR-12) or a fixed `DeckConfig`; commander → `ZoneId::Command`; **shuffle `main_deck`
-   with the seeded RNG**; first 7 → `ZoneId::Hand` (CR 103.4/402.1 — the engine deals no
+   with the seeded RNG**; first 7 → `ZoneId::Hand` (CR 103.5/402.1 — **corrected**, the plan originally said "CR 103.4", which is the starting LIFE TOTAL; the engine deals no
    opening hand, §1 fact 2); remainder → `ZoneId::Library`; every spec through
    `enrich_spec_from_def`; `first_turn_of_game()`. This is the TUI's `app.rs:122-165`
    logic, lifted and made testable.
@@ -618,7 +618,7 @@ else about the TUI's behaviour changed.
    empty hands; changing that changes every fuzz result and invalidates recorded seeds.
    Add a comment in `setup.rs` saying so.
 7. **Tests** (`crates/simulator/tests/setup.rs`):
-   `test_setup_deals_seven_card_opening_hand_per_seat` (CR 103.4);
+   `test_setup_deals_seven_card_opening_hand_per_seat` (CR 103.5 — corrected from the plan's original "CR 103.4");
    `test_setup_library_holds_the_remainder`; `test_setup_same_seed_same_state_hash`;
    `test_setup_different_seed_different_opening_hand`;
    `test_setup_rejects_deck_with_non_complete_card` (Invariant 9);
@@ -1031,7 +1031,7 @@ From the roadmap's M11-local section, minus the carved-out bullets:
 
 | CR | Summary | Session |
 |---|---|---|
-| 103.4 / 402.1 | Each player draws a starting hand of seven | 2 |
+| 103.5 / 402.1 | Each player draws a starting hand of seven (**corrected** — 103.4 is the starting *life total*, 103.4c = Commander's 40; do not cite it for the opening hand) | 2 |
 | 103.5 / 103.5c | Mulligan procedure; free first mulligan in multiplayer | 2, 8 |
 | 104.3a | A player who concedes leaves the game | 8 |
 | 117.3 / 117.3a–d | Who has priority; passing priority | 1, 6 |
