@@ -2,7 +2,10 @@
   /**
    * ZoneHand — horizontal list of cards in a player's hand.
    *
-   * This is a dev tool, so all hands are visible.
+   * In the replay viewer this is a dev tool and all hands are visible. Since
+   * M11-local Session 6 it is ALSO rendered by `tools/play-server/frontend`
+   * against a **seat-redacted** view, where another player's hand is a row of
+   * anonymous placeholders. See `eachKey` below — that difference is load-bearing.
    *
    * Props:
    *   cards (CardInZoneView[]) — cards in this player's hand
@@ -10,6 +13,34 @@
    */
   import { cardTooltip } from './cardTooltip.js';
   const { cards = [], playerName, onCardClick = null } = $props();
+
+  /**
+   * Keyed-`#each` key. **Not** `card.object_id` alone, and the reason is a crash,
+   * not a preference.
+   *
+   * `mtg_view_model`'s `redact::redact_hands` replaces every card of a hand the
+   * viewer may not read with `redact::hidden_placeholder()`, which sets
+   * `object_id: 0` — the id itself is a handle onto a hidden object and is not
+   * the viewer's to hold. So a redacted 7-card hand is seven entries with the
+   * *same* key, and Svelte 5's keyed reconciler is not lenient about that: it
+   * evaluates `length > keys.size` and calls `each_key_duplicate`, which
+   * **throws in production as well as in DEV**
+   * (`svelte/src/internal/client/dom/blocks/each.js`, `errors.js`). With no
+   * `<svelte:boundary>` above it the throw escapes the effect flush and takes the
+   * whole mount down, so the play surface rendered nothing at all against a real
+   * 4-player payload. Measured on one: `Bot-2`/`Bot-3`/`Bot-4` each had
+   * `length 7, keys.size 1`; the seat's own hand had `length 7, keys.size 7`.
+   *
+   * Keying on `hidden` rather than on `object_id === 0` is deliberate: `hidden`
+   * is the flag the redactor actually sets, whereas 0 is a sentinel value that
+   * happens not to collide with a real id today.
+   *
+   * Inert for the replay viewer, which is omniscient and never sets `hidden` on a
+   * hand card — every key there is still the object id, unchanged.
+   */
+  function eachKey(card, i) {
+    return card?.hidden ? `hidden-${i}` : card?.object_id;
+  }
 
   function primaryType(cardTypes) {
     if (!cardTypes?.length) return 'unknown';
@@ -34,7 +65,7 @@
     <div class="empty-zone muted">— empty —</div>
   {:else}
     <div class="hand-cards">
-      {#each cards as card (card.object_id)}
+      {#each cards as card, i (eachKey(card, i))}
         <!-- svelte-ignore a11y_click_events_have_key_events -->
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div

@@ -1299,6 +1299,113 @@ without binding a port.
 
 ### Session 6: Play frontend — render and basic input (7 items)
 
+**STATUS (2026-08-01, `scutemob-169`): SHIPPED — all 7 items done, 1 review cycle applied
+(1 HIGH / 2 MEDIUM / 3 LOW).**
+
+- **The HIGH is the session's real lesson, and a green build had nothing to say about it.**
+  `tools/replay-viewer/frontend/src/lib/ZoneHand.svelte` keyed its `#each` on
+  `card.object_id` — correct for the omniscient viewer, **fatal** for a seat-redacted
+  payload, because `redact::redact_hands` replaces every unreadable hand card with
+  `hidden_placeholder()`, whose `object_id` is **0**. Three bot hands of seven cards each
+  therefore arrived with one distinct key apiece, Svelte 5's keyed reconciler evaluates
+  `length > keys.size` and calls `each_key_duplicate` — which **throws in production, not
+  only in DEV** — and with no `<svelte:boundary>` the throw escapes the effect flush and
+  takes the mount down. **The play surface rendered nothing at all**, and every gate this
+  session had (build clean, 135 modules, 0 warnings, zero Rust diff, 4,040 tests green) was
+  green while it did. Measured rather than argued: `Bot-2/3/4` each `length 7, keys.size 1`;
+  the human's own hand `length 7, keys.size 7`. Fixed **in the shared component** as
+  `card.hidden ? \`hidden-${i}\` : card.object_id` — keyed on the flag the redactor sets, not
+  on the sentinel 0 — which is inert for the viewer and is the whole reason not to copy the
+  component. `hidden_placeholder` has exactly one call site (`redact_hands`), so hands are
+  the only zone at risk; checked, not assumed. **Generalisation for S7: the replay viewer's
+  components were written against an omniscient view model, and every assumption they make
+  about id uniqueness is now a claim about the redacted one too.**
+- **MEDIUM: `DeclareAttackers` / `DeclareBlockers` submit an EMPTY set and nothing complains.**
+  `params.rs` maps default params straight to `Command::DeclareAttackers { attackers: vec![] }`
+  — legal, irreversible, and silent, which is *worse* than the targeted-spell case that at
+  least fails loudly with a 422. The buttons stay enabled (disabling them would deadlock a
+  combat where the declaration is the only offered action, and CR 508.1 makes "no attackers"
+  legal) but are marked `declares none` with a tooltip saying so, and the README says it
+  plainly. S7's pickers are the actual fix.
+- **MEDIUM (second review cycle): an activated ability's `{X}` is announced as 0, and the
+  client cannot tell which abilities even have one.** `params.rs` maps
+  `LegalAction::ActivateAbility` with default params to `x_value: None`, read as
+  `unwrap_or(0)`; `view.rs::action_needs_x` answers `CastSpell` **only** (README Limitation
+  5), so `needs_x` is `false` here whether or not there is an `{X}`. Reachable and
+  destructive on a deck-legal card: **`mirror_entity`** declares no `completeness` field —
+  `Complete` by the `#[default]` derive, the twice-demonstrated silent-defect generator from
+  PB-DX1/PB-DX3b — and its activated ability has `x_count: 1`, so one click makes every
+  creature 0/0 and the board dies to SBAs with no error to read. Same shape as the combat
+  MEDIUM, and quieter. Annotated `X = 0` **unconditionally** on the kind, because there is no
+  flag to branch on; the tag goes away when S7 closes Limitation 5.
+- Three LOWs: `jsconfig.json`'s `$viewer/*` path was off by one directory (editor-only —
+  `vite.config.js` was right, so the build never noticed); the "omit and take the CLI
+  default" rationale did not hold for `players`, which was pre-seeded to `'4'` and so
+  overrode a server started with `--players 6` on every New game; and the event feed keyed
+  its `#each` on the array index against a front-truncating window, now keyed on a monotonic
+  `seq` stamped at append.
+
+- **Zero Rust.** `git diff main -- crates/ tools/play-server/src tools/play-server/Cargo.toml`
+  is **empty** — zero Rust anywhere. The **only** change outside `tools/play-server` is one
+  Svelte component, `tools/replay-viewer/frontend/src/lib/ZoneHand.svelte`, and it is the
+  review HIGH above; an earlier draft of this bullet claimed an empty `tools/replay-viewer/`
+  diff, which the fix cycle falsified in the same commit that made the fix.
+  PROTOCOL 32 / HASH 69 unmoved; workspace tests
+  **4,040 / 0** (unchanged from the merge base by construction — this session adds no Rust
+  test target and no frontend test harness, exactly as item 7 says). `npm run build` is the
+  gate and it is clean: 135 modules, 0 warnings.
+- **`$viewer` resolves rather than copies, and that is checked rather than asserted.**
+  `find frontend/src -type f` lists **eight** files, none of them a `Zone*` or
+  `PhaseIndicator`, while the production CSS bundle contains the viewer components' scoped
+  rules. The alias is built with `fileURLToPath(new URL(..))` and not a bare relative
+  string, because a relative alias target resolves against the *importing* file and would
+  break for imports from `src/lib/`.
+- **The mulligan `LegalAction`s are unreachable on this surface, and the plan's item 5/6
+  sketch did not know it.** `legal_actions.rs` and `local_game.rs::decision_kind_for` both
+  gate `TakeMulligan`/`KeepHand` and `DecisionKind::Mulligan` on
+  `is_first_turn_of_game && turn_number == 0`, and `setup::build_initial_state` +
+  `GameStateBuilder` leave a fresh table already *in* turn 1 —
+  `session.rs::is_pregame`'s own doc says the condition is unsatisfiable. Confirmed in a
+  real payload: the pregame decision's `kind` is `Priority` and its only option is
+  `Pass priority`. The UI therefore gates its pregame block on `summary.pregame` alone and
+  uses the dedicated `POST /api/game/mulligan` route. **"Keep this hand" has no server-side
+  representation at all** (a `take: false` post only re-renders, and `pregame` is
+  `command_count == 0`), so it is a client-side flag — recorded in `PlayApp.svelte` rather
+  than hidden.
+- **The redactor rewrites a hidden card's `object_id` to 0, which click-through must refuse
+  rather than merely fail to match.** `redact::hidden_placeholder` emits
+  `{hidden: true, name: "Hidden card", object_id: 0}`; a seed-0 4-player playthrough carried
+  **569** such entries, all id 0, while the lowest id any `ActionOptionView` ever carried was
+  2. No collision today — but all seven of a bot's hand cards share one id, so one action
+  about object 0 would make all seven submit it. `PlayApp::isUnidentifiable` refuses them
+  before matching. Note the scope: `hidden` is a field of `CardInZoneView`, **not** of
+  `PermanentView` — an opponent's face-down permanent keeps its real id and is matched
+  normally, which is correct.
+- **`ZoneStack` declares `onCardClick` and never calls it.** A dead prop in the viewer,
+  found while wiring item 6. Harmless here (no `LegalAction` with an `object_id` names a
+  stack object — `view.rs::action_object`), but **Session 7 renders targets on stack items
+  and should know before it relies on it.**
+- **A targeted spell cast from this UI fails with a real 422**, because `target_slots` is
+  empty until S7 and the client sends `params: {}`. Observed verbatim:
+  `{"error":"invalid target: expected 1..=1 target(s) but got 0","kind":"rejected"}`. That
+  is correct S6 behaviour (CR 601.2c) and the error strip surfaces it rather than swallowing
+  it. It is the exact hole S7's `TargetPicker` closes.
+- **The manual checklist was actually run, not asserted.** A temporary `#[ignore]`d probe was
+  added to `main.rs`'s existing `mod tests`, driven through `tower::ServiceExt::oneshot`
+  (**binding no port**), and **removed again**; the frontend was then checked against the
+  dumped `SeatView` payloads. 7-card hand, land drop (hand 8→7, battlefield 0→1), 25 passes,
+  10–21 redacted event lines per response, a non-empty stack, and turn 4 reached — all
+  recorded in `tools/play-server/README.md` §"Manual checklist" with the two steps that are
+  genuinely unverifiable headless (launching the binary; keyboard and DOM events) marked as
+  such rather than glossed.
+- **One server-side oddity found and NOT fixed here** (it would be a Rust diff): `ActionRequest.params`
+  carries a plain `#[serde(default)]`, which routes through `ActionParamsDto`'s *derived*
+  `Default` where `auto_tap` is `false`, while an explicit `"params": {}` takes the field's
+  `#[serde(default = "default_auto_tap")]` and gets `true`. So omitting `params` and sending
+  `{}` are not equivalent. The client always sends `{}` explicitly, so it is unaffected.
+  Reasoned from the source, **not executed**, and nothing in `tools/play-server` pins it
+  either way — a one-test job for S7 or S8.
+
 **Crate**: `tools/play-server/frontend` (new Svelte 5 app). No Rust change beyond serving
 `dist/`.
 **Files**: `tools/play-server/frontend/{package.json,vite.config.js,index.html,

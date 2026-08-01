@@ -8,8 +8,8 @@ crate in M11-local with async or IO** (`memory/m11-session-plan.md` §3) —
 `crates/engine`, `crates/simulator` and `crates/view-model` stay pure, per
 Architecture Invariant 1.
 
-Built by M11-local **Session 5** (plan §4). Session 6 adds the Svelte frontend
-under `frontend/`, which this binary serves from `dist/`.
+Built by M11-local **Session 5** (plan §4); **Session 6** added the Svelte
+frontend under `frontend/`, which this binary serves from `dist/`.
 
 ---
 
@@ -21,6 +21,7 @@ under `frontend/`, which this binary serves from `dist/`.
 | `src/session.rs` | `PlaySession` lifecycle — build, advance, submit, mulligan. **Synchronous; knows nothing about tokio.** |
 | `src/api.rs` | the axum handlers — the only async code in the crate |
 | `src/view.rs` | wire DTOs and the server-side rendering that produces them |
+| `frontend/` | the Svelte 5 client (Session 6). Builds to `dist/`; **no Rust code and no test target** — see "The frontend" below |
 
 The async boundary is exactly one function deep: a handler takes the session
 mutex and runs the synchronous engine work inside `tokio::task::block_in_place`.
@@ -75,6 +76,183 @@ default in debug builds. The **multi-thread** flavor is load-bearing, not a
 performance choice — `block_in_place` panics on a current-thread runtime.
 
 Seat 1 is always the human (`Human-1`); the rest are `Bot-2`, `Bot-3`, ….
+
+---
+
+## The frontend (`frontend/`)
+
+Built by M11-local **Session 6** (plan §4). Vite + Svelte 5 (runes), the same
+versions as `tools/replay-viewer/frontend`: `svelte ^5.45`, `vite ^7.3`,
+`@sveltejs/vite-plugin-svelte ^6.2`.
+
+```sh
+cd tools/play-server/frontend
+npm install
+npm run build          # -> tools/play-server/dist/, which the ServeDir fallback mounts
+npm run dev            # Vite on :5173, proxying /api -> 127.0.0.1:3040
+```
+
+`npm run build` is the gate: `outDir` is `../dist`, and `build_router` mounts a
+`ServeDir` on that directory **only if it exists**, so a missing build is the
+difference between the play surface and a bare JSON API. The binary prints which
+of the three candidate `dist/` paths it found (or that it found none).
+
+| File | Role |
+|---|---|
+| `vite.config.js` | the `$viewer` alias, the dev proxy, `outDir: ../dist` |
+| `src/lib/api.js` | `newGame` / `getGame` / `submitAction` / `mulligan`; unwraps the `{error, kind}` envelope onto the thrown `Error` |
+| `src/lib/stores.js` | `seatView` / `decision` / `events` / `loading` / `error`, and the helpers that own every fetch |
+| `src/lib/PlayApp.svelte` | layout, pregame block, game-over banner, click-through |
+| `src/lib/ActionBar.svelte` | the decision as buttons, the error strip, the keyboard shortcuts |
+| `src/lib/EventFeed.svelte` | the rendered, already-redacted history lines |
+
+### `$viewer` imports the replay viewer's components, it does not copy them
+
+`vite.config.js` aliases `$viewer` → `tools/replay-viewer/frontend/src/lib`, so
+`PhaseIndicator` and `StateView` (and, through the latter, `PlayerPanel`,
+`ZoneHand`, `ZoneBattlefield`, `ZoneStack`, `ZoneGraveyard`, `ZoneExile`,
+`cardTooltip`) are compiled **in place** from the viewer's tree — 135 modules in
+the production build, against eight files of our own. This is the
+mechanism `docs/mtg-engine-replay-viewer.md` §"Import Mechanism" anticipated when
+it made those components props-based.
+
+A copy would fork. `crates/view-model`'s `stack_kind_info` / `format_keyword`
+matches are exhaustive over `StackObjectKind` and `KeywordAbility`, and the
+components downstream of them are written against those shapes; a duplicate would
+go stale on the next variant with nothing to make it fail. Promotion to a shared
+`tools/ui-shared/` package is deferred — plan §8 R8.
+
+The evidence that the alias resolves rather than silently falling back: the
+production bundle contains the viewer components' scoped CSS
+(`grep zone-battlefield dist/assets/*.css`), and
+`find frontend/src -type f` lists eight files, none of them a `Zone*` or
+`PhaseIndicator`.
+
+### Interaction
+
+- **Buttons** — every option in `decision.actions`, labelled server-side.
+  `PassPriority` and `Concede` are pulled into their own group so "pass" does not
+  move as the list grows. Every button is disabled while a request is in flight.
+- **Click-through** — clicking a card in the hand or on the battlefield matches
+  `decision.actions` by `object_id`. One match submits; several offer an inline
+  chooser; none explains, naming the card and listing what *is* offered. It
+  deliberately does **not** invent a rules reason, because the server does not
+  send one: a used land drop, an unpayable cost and a sorcery-speed restriction
+  are indistinguishable from the client.
+- **Keyboard** — `space` submits the `PassPriority` option (found by `kind`,
+  never by index), `Esc` cancels the chooser and dismisses the error strip. Both
+  are ignored while the focus is in an input, so typing a seed does not pass
+  priority.
+- **Errors** are shown, not logged. A 422 `rejected` reads as "the engine refused
+  this play" and carries the `GameStateError` text; a 409 `stale_decision`
+  re-reads `GET /api/game` on its own.
+
+### The one change this session made *outside* `tools/play-server`
+
+`tools/replay-viewer/frontend/src/lib/ZoneHand.svelte` keyed its `#each` on
+`card.object_id`. That is fine for the replay viewer, which is omniscient and
+gives every hand card a distinct id — and **fatal** for this app, because
+`mtg_view_model`'s `redact::redact_hands` replaces each card of a hand the seat
+may not read with `redact::hidden_placeholder()`, whose `object_id` is **0**. A
+redacted 4-player table therefore hands `ZoneHand` three seven-card hands with one
+distinct key each, and Svelte 5's keyed reconciler evaluates `length > keys.size`
+and calls `each_key_duplicate`, which **throws in production as well as in DEV**.
+With no `<svelte:boundary>` above it, the throw escapes the effect flush and takes
+the whole mount down: the play surface rendered *nothing at all*.
+
+Measured on a real payload rather than argued: `Bot-2`/`Bot-3`/`Bot-4` each came
+back `length 7, keys.size 1`; the seat's own hand `length 7, keys.size 7`. The
+key is now `card.hidden ? \`hidden-${i}\` : card.object_id` — keyed on the flag the
+redactor actually sets rather than on the sentinel value 0, and inert for the
+replay viewer, which never sets `hidden` on a hand card.
+
+`hidden_placeholder` is called from exactly one site (`redact_hands`), so hands
+are the only zone that can contain duplicate ids; the command zone is public
+(CR 903.6) and is not redacted this way. That was checked, not assumed.
+
+This is the shared-component tax that plan §8 R8 defers by keeping `$viewer` an
+alias rather than a package: a component with two consumers now has to be correct
+for both. Fixing it in the viewer rather than working around it here is the whole
+point of not copying.
+
+### Known limitations this session inherits from the server
+
+`ActionOptionView.target_slots` and `modes` are empty until **Session 7**
+(Limitation 4 above), and the client sends `params: {}`. So casting a *targeted*
+spell from this UI fails with a real 422 — observed verbatim during the
+verification below:
+
+```
+{"error":"invalid target: expected 1..=1 target(s) but got 0","kind":"rejected"}
+```
+
+That is the correct behaviour for S6 (the engine refused an under-specified
+announcement, CR 601.2c) and it is exactly what S7's `TargetPicker` closes. The
+error strip surfaces it rather than swallowing it, so the failure is legible
+instead of mysterious.
+
+**Combat is the same gap with the opposite failure mode, and it is the more
+dangerous one.** `params.rs` maps `LegalAction::DeclareAttackers` with default
+params straight to `Command::DeclareAttackers { attackers: vec![] }` — a legal,
+irreversible "I attack with nothing" for that combat — and likewise for blockers.
+Nothing refuses it, so unlike the targeted spell above there is no 422 to read;
+the human's combat step is simply gone. The buttons stay **enabled** (at a
+`DeclareAttackers` decision the declaration is usually the only option offered, so
+disabling it would deadlock the game, and CR 508.1 makes declaring no attackers a
+legal choice), but they are marked `declares none` and their tooltip says so. S7's
+`AttackerPicker` / `BlockerPicker` are what actually close it.
+
+**An activated ability's `{X}` is announced as 0, and the client cannot even tell
+which abilities have one.** `params.rs` maps `LegalAction::ActivateAbility` with
+default params to `x_value: None`, which `abilities.rs` reads as `unwrap_or(0)`;
+`action_needs_x` answers `CastSpell` only (Limitation 5), so `needs_x` is `false`
+here whether or not there is an `{X}` to announce. Reachable and destructive on a
+deck-legal card, not theoretical: `mirror_entity` is `Complete` (by the `#[default]`
+derive) and its activated ability has `x_count: 1`, so one click makes every
+creature 0/0 and the board dies to state-based actions with no error to read.
+Because there is no flag to branch on, the `X = 0` tag on those buttons is
+**unconditional** rather than conditional — noisier than it should be, and the
+right trade until S7 closes Limitation 5 and can populate `needs_x` for abilities.
+
+The three paragraphs above are the same underlying hole in three shapes: the
+client can only send `params: {}`. Only the first of them fails loudly.
+
+### Manual checklist (plan item 7)
+
+There is no frontend test harness in this repo — Session 5's 16 API tests are the
+automated coverage, and this session adds no test target. What follows is the
+checklist the plan asks for, with **each step marked by what was actually done**,
+not by what a browser would presumably show.
+
+**Method for the steps marked "payload".** A temporary `#[ignore]`d probe was
+added to `src/main.rs`'s existing `mod tests`, run, and **removed again** (`git
+diff` over `tools/play-server/src/` is empty). It drove `build_router(..)` through
+`tower::ServiceExt::oneshot` — **binding no port**, like every other test in this
+crate — with the checklist's own policy ("play a land if one is offered, else
+pass"), at the pinned `--seed 0 --players 4 --bot heuristic`, and dumped every
+`SeatView` to JSON. The frontend was then checked against those real payloads
+rather than against a written-down idea of them. A second run preferring
+`CastSpell` produced the stack observation and the 422 above.
+
+| # | Step | Status | What was actually established |
+|---|---|---|---|
+| 1 | Launch: `cargo run -p play-server`, open `http://127.0.0.1:3040` | **unverifiable headless** | Starting the binary binds a port. Forbidden by plan §7 constraint 1, and an agent context that starts a server like this gets SIGKILLed (the replay-viewer OOM/137 note in `memory/gotchas-infra.md`). Nothing was run. |
+| 2 | The page is served at all | **verified (build)**, and the rendering is **partly** checked | `npm run build` emits `dist/index.html` referencing `/assets/index-*.js` and `/assets/index-*.css`; `build_router` mounts `ServeDir::new(dist).append_index_html_on_directories(true)` as the path fallback when `dist/` exists. The bytes exist and the route that serves them is the one already tested in S5. **The rendering itself was never observed in a browser** — and this row is exactly where the session's one real bug hid: a green build says nothing about whether the components survive a *redacted* payload. See "The one change outside `tools/play-server`" above; it was caught by evaluating Svelte's own `length > keys.size` condition against the dumped hands (`7 > 1` for each bot seat, `7 > 7` false for the human's), not by a build and not by a browser. |
+| 3 | See a 7-card hand | **verified (payload)** | `POST /api/game` at the pinned seed returns `state.zones.hand["Human-1"]` with exactly 7 entries — Island, Mist Intruder, Misdirection, Nyxbloom Ancient, Accorder's Shield, Helm of the Host, Swan Song — each `hidden: false` with a real `object_id`. `PlayApp` passes that state to `$viewer/StateView`, which renders hands through `ZoneHand`. |
+| 4 | Play a land | **verified (payload)** | The decision offered `{index: 1, kind: "PlayLand", object_id: 2, label: "Play Island"}`. Submitting index 1 moved the hand 8 → 7 and the battlefield 0 → 1, and emitted `LandPlayed` + `PermanentEnteredBattlefield`. Click-through matches on that same `object_id: 2`, so the button path and the click path submit the identical index. |
+| 5 | Pass priority | **verified (payload)** | 25 `PassPriority` submissions, all 200, each returning the next decision with a fresh `seq`. |
+| 6 | Watch the bots act in the event feed | **verified (payload)** | Each response carried 10–21 `EventView` lines (`{kind, text, player}`), e.g. `[TurnStarted] Turn 2 — Bot-2`, `[PriorityPassed] Bot-3 passes`. All are pre-rendered and seat-redacted by `event_view_for(.., Viewer::Seat(human))`; `EventFeed` prints `text` and adds no formatting of its own. `stores.js` **accumulates** them, which matters because the server sends only what is new since the last read. |
+| 7 | See the battlefield update | **verified (payload)** | `state.zones.battlefield["Human-1"]` went 0 → 1 on the land drop; by turn 4 the bots' battlefields had grown too (`Bot-2: 1`, `Bot-3: 1`). |
+| 7b | See the stack update | **verified (payload, second run)** | The land-only policy never put anything on the stack in three turns, so the claim was re-established rather than assumed: a second run preferring `CastSpell` cast Accorder's Shield and the next payload carried `zones.stack: [{id: 404, kind: "spell", source_name: "Accorder's Shield", controller: "Human-1"}]`. `StateView` renders a non-empty stack through `ZoneStack`. |
+| 8 | Reach turn 3 | **verified (payload)** | Turn 3 reached after 16 submissions and turn **4** after 25, with `summary.turn` and `command_count` advancing monotonically. |
+| 9 | Error surfacing | **verified (payload)** | A real 422 was produced and its body is the `{error, kind}` envelope quoted above. `api.js` lifts `error` onto `Error.message` and `kind` onto `Error.kind`; `ActionBar` renders both. |
+| 10 | `space` = pass priority, `Esc` = cancel | **unverifiable headless** | Needs a browser event loop. The handler is bound on `window` in a `$effect` with cleanup, finds the pass option by `kind === 'PassPriority'` rather than by index, and returns early when the event target is an `input` / `textarea` / `select` / `contenteditable`. **Read, not observed.** |
+| 11 | Clicking a card actually fires | **unverifiable headless** | The wiring was read end to end — `StateView` threads `onCardClick` into `ZoneHand`, `ZoneBattlefield`, `ZoneGraveyard` and `ZoneExile`, each calling `onCardClick?.(card)` on a `div` inside an `#each` keyed by `card.object_id` — and the *matching* it feeds was checked against real payloads (step 4). The DOM event itself was never dispatched. **`ZoneStack` is the exception and it is not a bug here**: it declares `onCardClick` as a prop and never invokes it, so a stack item is inert. Nothing in S6 needs it — every `LegalAction` with an `object_id` names a card or a permanent, never a stack object (`view.rs::action_object`) — but S7, which does render targets on stack items, should know the prop is dead rather than discover it. |
+| 12 | Mulligan | **partly verified (payload)** | The route itself is S5's: `test_seq_from_before_a_mulligan_is_stale` posts `take: true`, and the `not_pregame` test posts `take: false`. What S6 established is which *path* the UI must use. The pregame block is gated on `summary.pregame` alone and **not** on `decision.kind === "Mulligan"`, because that kind is unreachable: `legal_actions.rs` and `local_game.rs::decision_kind_for` both gate the mulligan actions on `turn_number == 0`, and a freshly built table is already in turn 1 — `session.rs::is_pregame` says so in as many words. Confirmed in the payload: the pregame decision's `kind` is `Priority` and its only option is `Pass priority`. "Keep this hand" has **no server-side representation** (a `take: false` post only re-renders), so it is tracked client-side; that is recorded in `PlayApp.svelte` rather than hidden. |
+
+Two things the checklist deliberately does not claim: that the layout looks
+right, and that any of it works in a browser at all. Both need a human with the
+server running, which is exactly what the checklist is *for*.
 
 ---
 
