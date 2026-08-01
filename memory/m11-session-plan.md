@@ -8,6 +8,43 @@
 
 ---
 
+## ✅ STATUS: COMPLETE — all 8 sessions shipped, 2026-08-01
+
+| Session | Task | Merge |
+|---|---|---|
+| S1 steppable local-game core | `scutemob-147` | `f2a9647b` |
+| S2 deterministic pregame setup + mulligans | `scutemob-161` | shipped |
+| S3 action parameterization + engine target queries | `scutemob-163` | shipped |
+| S4 view-model crate extraction + seat redaction | `scutemob-165` | shipped |
+| S5 play-server crate skeleton + REST API | `scutemob-167` | shipped |
+| S6 play frontend — render and basic input | `scutemob-169` | `ffd35029` |
+| S7 targeting, combat and choice UIs | `scutemob-171` | `05849372` |
+| S8 playthrough hardening, docs, acceptance | `scutemob-173` | closes the milestone |
+
+**This document is now a historical record, not a queue.** The full close-out — including
+what shipped less than a bullet claimed — is in `docs/mtg-engine-roadmap.md`'s M11-local
+section and the S8 handoff in `memory/workstream-state.md`.
+
+**Three things the plan got wrong, worth carrying rather than quietly correcting:**
+
+1. **§4 Session 8 item 2's premise was stale before the milestone finished.** Echo,
+   Cumulative Upkeep and Recover are listed as needing new `LegalAction` variants;
+   PB-DP4 (`scutemob-152`) shipped all three on the *same day this plan was written*.
+   Only `OrderBlockers` (CR 509.2) was genuinely missing.
+2. **§8 R2's premise was falsified** (already recorded in-place there): a real mulligan
+   did **not** need a new `Command`, because the engine already had a deterministic
+   seeded PRNG. PB-DP2 shipped it wire-neutrally.
+3. **§8 R11's gate could not be run as written.** A 500-game `--profile fuzz` run at the
+   default 200-turn cap stack-overflows at the *merge base* (pre-existing OOS-DP3-9), so
+   S8 ran it at 40 turns and recorded the narrowing rather than the number
+   (`memory/m11/s8-fuzz-parity.md`).
+
+**Wire-neutrality held end to end**: no new `Command` / `GameEvent` / `Effect` variant in
+any of the 8 sessions, and an empty `git diff` over `crates/engine/src` for every session
+but S3 (whose only addition is the read-only `rules/queries.rs`).
+
+---
+
 ## 0. Goal and scope boundary
 
 **Goal**: a human sits at one seat of a 4-player Commander game in a browser, three
