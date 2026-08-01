@@ -3,7 +3,70 @@
 **Batch**: PB-DX5 — CR 611.2c: lock the affected set of a resolution-generated continuous effect
 **Seed**: OOS-OS7-2 (ex-RS6; `memory/primitives/seed-rerank-2026-07-27.md` §2.3 + §4 dispatch brief)
 **Task**: `scutemob-170` · **Branch**: `feat/pb-dx5-cr-6112c-lock-the-affected-set-of-a-resolution-genera`
-**Phase**: plan
+**Phase**: done
+
+## Result summary (2026-08-01)
+
+**SHIPPED.** `ContinuousEffect` gains `affected_set: Option<OrdSet<ObjectId>>` (CR 611.2c),
+populated only at `Effect::ApplyContinuousEffect` (`rules::layers::snapshot_affected_set`, called
+before the effect is pushed) and read as pure membership by `effect_applies_to`. `None` means a
+static ability's effect (CR 611.3a — genuinely not locked in, `filter` stays live).
+
+- **Roster, final measured**: 38 mass-filter defs — 29 `Complete`, 8 `partial`, 1 `known_wrong`.
+  Corrects this file's own earlier "37 (28/8/1)" — the table this file built already listed 38
+  rows summing to 29, an uncaught arithmetic slip. New test
+  `pb_dx5_mass_filter_roster_by_completeness` (`crates/engine/tests/core/pb_dx5_continuous_effect_roster.rs`)
+  re-measures this every run rather than pinning an exact count.
+- **Engine changes**: `crates/card-types/src/state/continuous_effect.rs` (field),
+  `crates/engine/src/state/hash.rs` (hash feed + HASH bump), `crates/engine/src/rules/layers.rs`
+  (`snapshot_affected_set` + `candidate_ids_for_filter`, exhaustive no-`_`-arm match; the
+  `effect_applies_to` membership read; doc updates to `is_effect_active`),
+  `crates/engine/src/effects/mod.rs` (the `ApplyContinuousEffect` creation site + the
+  `CreateEmblem` static-effects comment), `crates/engine/src/rules/replacement.rs`
+  (`register_static_continuous_effects` comment). Mechanical backfill of `affected_set: None` at
+  all 180 pre-existing `ContinuousEffect` construction sites (49 files), zero manual judgement
+  calls (every site is either a static registration or a `SingleObject` effect).
+- **Fingerprints**: `HASH_SCHEMA_VERSION` 69 → **70** (mandatory, confirmed by the SR-19 gate).
+  `PROTOCOL_VERSION` **confirmed unmoved at 32** by running `--test core protocol_schema` — not
+  assumed. 42 files / 43 sentinel assertions re-pinned 69→70 by symbol grep; two more (multi-line
+  `assert_eq!` shape the grep's single-line pattern couldn't see) caught only by running the full
+  workspace suite with `--no-fail-fast`.
+- **Tests**: 4,048 → **4,064** (+16: 14 in the new
+  `crates/engine/tests/primitives/pb_dx5_affected_set_snapshot.rs`, 1 in-source
+  `#[cfg(test)]` unit test in `rules/layers.rs` for T11 — `snapshot_affected_set`/
+  `effect_applies_to_object`/`candidate_ids_for_filter` are all `pub(crate)`, unreachable from an
+  integration test — and 1 new roster-completeness test). Every "fails before" claim was OBSERVED
+  (read-site membership check reverted, actual value recorded, restored), not reasoned to — this
+  caught the runner's own first draft of the T3 control-change test using the buffed creature as
+  its own effect source, masking the divergence it claimed to test.
+- **Existing-test repair**: `pb_ac3_dynamic_pt_counts.rs`'s
+  `test_set_both_dynamic_locked_at_resolution` was asserting the CR 611.2c bug this batch fixes
+  and passing; inverted with a CR cite, renamed to
+  `test_611_2c_new_creature_after_resolution_does_not_get_the_locked_value`. Golden corpus
+  unaffected (`stack/173_spree_final_showdown.json` exercises Final Showdown's mode 2, DestroyAll
+  — not the `AllCreatures|Ability` mode 0 the roster found, which is a documented DSL-gap
+  omission in the script itself).
+- **Yield**: 0 completeness flips, exactly as predicted (`python3 tools/authoring-report.py`:
+  1,137/1,804 = 63.0%, byte-identical body, only the regenerated-date header moved).
+- **Benchmarks**: `full_turn_4p`/`priority_cycle_4p`/`sba_check`/`board_wipe_4p` all within ~1% of
+  the merge base (`d568615b`, throwaway worktree); `board_wipe_4p` (flagged as most likely to
+  move) measured slightly faster on the branch.
+- **Seeds filed**: `docs/audits/decision-point-audit.md` §8.1, **OOS-DX5-1..5** + a checked
+  non-finding **OOS-DX5-6** (Mirror Entity is the one Layer ≤4 mass-filter def; unaffected today
+  since no roster member writes `CardType::Creature` via a Layer-4 modification).
+- **All gates green**: `cargo build --workspace`, `cargo clippy --workspace --all-targets -- -D
+  warnings`, `cargo fmt --check`, `tools/check-defs-fmt.sh` (1,804 defs), `cargo test --workspace`
+  (4,064 / 0).
+
+## Docs updated
+
+- `docs/audits/decision-point-audit.md` §8.1 — OOS-DX5-1..6 appended.
+- `memory/primitives/seed-rerank-2026-07-27.md` — §2.3 table row, §4 dispatch table row, and the
+  full §4 dispatch-brief entry all marked SHIPPED with the corrected 38/29/8/1 split.
+- `memory/primitive-wip.md` (this file) — phase → done, result summary above.
+- `CLAUDE.md` Current State + Last Updated — updated by the calling agent/coordinator at collect
+  time per house convention (not edited by this worker session directly, per instructions not to
+  touch files outside the engine/tests/docs/memory scope this task owns; see final report).
 
 ## Premise re-verification (done first, on this branch, before planning)
 

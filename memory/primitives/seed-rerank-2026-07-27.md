@@ -559,7 +559,7 @@ rank.** `rider-seed-triage-2026-07-19.md` §5's banner is updated to say so.
 | old rank | seed(s) | premise re-verified? | disposition |
 |---|---|---|---|
 | **R5** | **OOS-RS-4** — Anim Pakal live-counter-vs-LKI | **Yes, and it is weaker than filed** (§2.7): `pb-review-OS11.md` Finding 2, severity **LOW**; 0 flips; the natural one-line fix returns 0 Gnomes because `CounterCountAtLastKnownInformation` is LBA-only | **RETIRED from the queue → PARKED (§5).** Re-rank only if a second card needs non-LBA LKI capture, or alongside a CR 608.2h/113.7a LKI batch. |
-| **R6** | **OOS-OS7-2** — CR 611.2c affected-set snapshot | **Yes, and it is stronger than filed** (§2.3): not "0 flips", but **7 `Complete` defs live-wrong in ordinary play** | **RE-RANKED UP → PB-DX5** (highest-ranked ex-RS item) |
+| **R6** | **OOS-OS7-2** — CR 611.2c affected-set snapshot | **Yes, and it is stronger than filed** (§2.3): not "0 flips", but **7 `Complete` defs live-wrong in ordinary play** — re-measured again at implementation time as **38 mass-filter defs, 29 `Complete`** | **✅ SHIPPED as `PB-DX5`** (`scutemob-170`, 2026-08-01) — `ContinuousEffect.affected_set`, HASH 69→70, PROTOCOL confirmed unmoved at 32, 0 flips (pure correctness fix), tests 4,048→4,064. Seeds OOS-DX5-1..6 filed. |
 | **R7** | **OOS-OS7-1 R1** + **OOS-RS-5** — target-scoped filters | Yes — `EffectFilter::CreaturesControlledByDefendingPlayer` shipped in PB-OS7; `CreaturesControlledByTargetPlayer` still absent; `kogla_the_titan_ape` is `known_wrong` with the note naming the gap | **RE-RANKED → PB-DX13** (3 flips, capability, PROTOCOL+HASH) |
 | **R8** | **OOS-OS6-1** — multi-count sacrifice cost | Yes — `Cost::Sacrifice(TargetFilter)` (`card_definition.rs:1257`) has no count field; no sibling variant exists | **RE-RANKED → PB-DX12** (4 flips discounted to 3, capability, PROTOCOL+HASH). Its DFC oracle-sourcing hazard still applies — re-source Westvale/Ormendahl from `cards.sqlite`, `lookup_card` does not flatten `card_faces`. |
 | **R9** | **OOS-OS4-3** — edgar return-transformed | Yes — `Effect::ExileSourceAndReturnTransformed` exists (`card_definition.rs:2164`); the *from-graveyard* sibling `ReturnSourceToBattlefieldTransformed` does not | **RE-RANKED DOWN → PB-DX16** (1 flip, own wire bump; the wire numbers in the seed are stale — live is PROTOCOL 31 / HASH 68, not "19→20 / 56→57"). Same DFC oracle-sourcing hazard. |
@@ -714,6 +714,51 @@ was waiting on, so its dismissal deserves a fresh look rather than another copy-
 > mode-target, OOS-DX4-2), so budget for the yield to move mid-batch; and a card-def batch can
 > shift a seeded RNG — demoting one legendary creature re-dealt every seeded deck in the
 > workspace and broke six fixtures across two crates.
+>
+> **`PB-DX5` SHIPPED (`scutemob-170`, 2026-08-01) — OOS-OS7-2 CLOSED: `ContinuousEffect` gains
+> `affected_set: Option<OrdSet<ObjectId>>`, computed once by the new `rules::layers::
+> snapshot_affected_set` at `Effect::ApplyContinuousEffect` (never elsewhere) and read as pure
+> membership by `effect_applies_to`.** **The row's own roster figure was wrong before the batch
+> started too — the sixth consecutive time this has happened in this suite.** The dispatch row
+> said "7 `Complete` defs"; `all_cards()`, enumerated fresh on this branch, found **38** defs use
+> a mass filter at resolution (not 9, the original brief's grep-conjunction figure), and even the
+> premise-verification table's own corrected count (37, 28 `Complete`/8 `partial`/1
+> `known_wrong`) turned out to be off by one in BOTH the total and the `Complete` bucket — the
+> table it was derived from already listed 38 rows summing to 29, and nobody re-added them.
+> **Measured, final: 38 mass-filter defs, 29 `Complete`, 8 `partial`, 1 `known_wrong`** (new test
+> `pb_dx5_mass_filter_roster_by_completeness`, which re-measures rather than pins, on the theory
+> that authoring drift makes an exact pin flaky). **Yield: 0 completeness flips, exactly as
+> pre-committed** — this is a pure engine-correctness fix for defs already `Complete`; nothing
+> becomes newly authorable or newly unauthorable. Design: field, not an `EffectFilter` variant
+> (a variant would have moved PROTOCOL as well as HASH, and would have silently broken three
+> existing `match effect.filter` sites in `layers.rs`/`copy.rs` that must keep reading the raw
+> filter). Mechanical backfill of `affected_set: None` at all 180 pre-existing `ContinuousEffect`
+> construction sites (49 files) via a compiler-driven `is_cda:`-anchored script, zero manual
+> judgement calls — every pre-existing site is either a static-ability registration (CR 611.3a,
+> `None` is the RULE) or a `SingleObject` effect (locking `{id}` and live id-equality are the same
+> function). **Fingerprints, both computed, one confirmed and one falsified relative to the
+> dispatch row's OWN prediction, not the plan's**: `HASH_SCHEMA_VERSION` 69 → **70** (mandatory,
+> as predicted); `PROTOCOL_VERSION` **confirmed unmoved at 32** by actually running
+> `--test core protocol_schema` (`ContinuousEffect` is not in the SR-8 wire closure — `git diff`
+> over `rules/protocol.rs` empty). **Existing-test repair, exactly as flagged a hazard in
+> advance**: `pb_ac3_dynamic_pt_counts.rs`'s `test_set_both_dynamic_locked_at_resolution` was
+> asserting the CR 611.2c bug this batch fixes ("a creature entering after resolution still gets
+> the locked-in X=3") and had been passing; inverted with a CR 611.2c cite and renamed, not
+> silently weakened. Every "fails before" claim in the new 14-test probe module
+> (`pb_dx5_affected_set_snapshot.rs`) was OBSERVED by reverting the read-site membership check
+> and reading the actual value, not reasoned to — and the observation caught the runner's OWN
+> first draft of the control-change test (T3) using the buffed creature as its own effect
+> source, which made the intended CR 611.2c divergence a no-op under the live filter (source and
+> object moved together); fixed by giving the effect a separate, never-moved source. T11 (the
+> zone-scope shortcut vs. a brute-force scan) lives as an in-source `#[cfg(test)]` unit test in
+> `rules/layers.rs`, not in the integration test file, because `snapshot_affected_set` /
+> `effect_applies_to_object` / `candidate_ids_for_filter` are all `pub(crate)`. Benchmarks
+> (`full_turn_4p`, `priority_cycle_4p`, `sba_check`, `board_wipe_4p`) all within ~1% of the merge
+> base — `board_wipe_4p`, the one flagged as most likely to move, actually measured slightly
+> faster on the branch. Six new seeds **OOS-DX5-1..5** (plus a checked non-finding, OOS-DX5-6, on
+> whether any Layer ≤ 4 mass-filter def could see the snapshot's full-vs-partial-resolution
+> `chars` asymmetry — `mirror_entity` is the one Layer-4 member and its read is unaffected by any
+> mass-filter modification in the corpus today). Tests 4,048 → **4,064**.
 
 **Prefix**: `PB-DX` ("decision-suite eXtension"). Verified unclaimed — zero occurrences of
 `PB-DX` anywhere in `memory/`, `docs/` or `CLAUDE.md` before this document. `PB-SR*`, `PB-RS*`,
@@ -735,7 +780,7 @@ bumps were falsified).
 | ~~**PB-DX3**~~ **✅ SHIPPED `scutemob-164`** | two stale blocker notes | **OOS-DP6-3** — **CLOSED** | **card yield, zero engine** | **2 flips as predicted** (`garruks_uprising`, `inventors_fair`); `inventors_fair`'s upkeep trigger had to be **authored**, not merely gated — it did not exist in the def at all; successor seed OOS-DX3-1 names 6 more defs in the same bucket, one a **live-wrong `Complete`** | **none — PREDICTION HELD.** PROTOCOL 32 / HASH 69 unmoved; empty diff over all of `crates/engine/src` and `crates/card-types/src`, not merely `protocol.rs`/`hash.rs` |
 | ~~**PB-DX3b**~~ **✅ SHIPPED `scutemob-166`** *(insert, not in the original ranking)* | the rest of the stale-note bucket | **OOS-DX3-1** — **CLOSED** | **CORRECTNESS — 2 live-wrong `Complete` defs — + card yield, zero engine** | **2 flips up, 1 honest flip down (net +1, coverage 1,142 → 1,143)**; `dwynen_s_elite`'s ability had to be **authored**; **the seed itself mis-dispositioned `emeria_the_sky_ruin`**, a second live-wrong `Complete`-by-`#[default]` def; new seed OOS-DX3b-1 | **none — PREDICTION HELD.** PROTOCOL 32 / HASH 69 unmoved; empty diff over all of `crates/engine/src` and `crates/card-types/src` |
 | ~~**PB-DX4**~~ **✅ SHIPPED `scutemob-168`** | the `BASELINE` triage sweep | **OOS-DP10-8** — **CLOSED** (+ **OOS-M11-6** closed incidentally) | **CORRECTNESS — marker integrity** | **the "0 flips" estimate was wrong in the direction that matters: 6 demotions, coverage 1,143 → 1,137.** 13 class-D of 97 (not the ≥2 predicted); 6 repaired in place, 6 demoted, 1 allowlisted by class precedent; two of the thirteen were found by the closing review, not the triage | **none — PREDICTION HELD.** PROTOCOL 32 / HASH 69 unmoved; empty diff over all of `crates/engine/src` and `crates/card-types/src`. Note the batch DID touch `crates/simulator/src` (the OOS-M11-6 fix) and `tools/play-server` (seed re-pins) — neither is in the no-engine gate |
-| **PB-DX5** | CR 611.2c affected-set snapshot | **OOS-OS7-2** *(ex-R6)* | **CORRECTNESS — engine-wide, 7 `Complete` defs** | 0 flips; repairs 7 `Complete` + 2 `partial` defs | **HASH**, and **PROTOCOL** if `ContinuousEffect` is in the wire closure — compute, do not assume |
+| **PB-DX5** | CR 611.2c affected-set snapshot | **OOS-OS7-2** *(ex-R6)* | **✅ SHIPPED** (`scutemob-170`, 2026-08-01) — CORRECTNESS, engine-wide, 29 `Complete` + 8 `partial` + 1 `known_wrong` (measured 38, not 7/9) | 0 flips (predicted, confirmed) | **HASH 69→70**; **PROTOCOL confirmed unmoved at 32** (computed, not assumed) |
 | **PB-DX6** | the last unflattened pip sites | **OOS-RS2-1** + **OOS-DP4-1** | **CORRECTNESS — live undercharge (narrow)** | 0 flips; closes the OOS-RS-2 class at its 4th and 5th sites | **PROTOCOL** (`DeclareAttackers` gains the two payment-choice fields `ActivateAbility`/`TapForMana` already have) |
 | **PB-DX7** | SR-19 gate holes | **OOS-DP7-11** + **OOS-DP9-13** (+DP10-1, DP9-10 residual) | **gate integrity** | 0 flips; 5 structs + all hashed enums re-enter the gate | **none** (test-only) |
 | **PB-DX8** | oracle-text-vs-DSL cross-check | **OOS-DP10-9** | **gate integrity — the worst blind spot** | 0 flips; makes dropped "may"/"choose" clauses visible for the first time | **none** (test-only) |
@@ -867,6 +912,23 @@ PROTOCOL depends on whether `ContinuousEffect` is inside the wire closure. Manda
 discriminating probe: mass -1/-1, then a creature enters, then assert the newcomer is unmodified,
 citing CR 611.2c. Expect a large test-repair surface; every repair must be CR-justified, never by
 weakening an assertion (the PB-DP9 precedent).
+
+> **✅ SHIPPED as `PB-DX5` (`scutemob-170`, 2026-08-01).** This brief's own roster ("9 defs, 7
+> `Complete`") was wrong twice over, not once: `all_cards()`, enumerated fresh, found **116** defs
+> generating a resolution-time continuous effect at all, of which **38** use a mass filter (not
+> 9) — and even the corrected 37/28 figure the premise-verification step produced on the
+> implementation branch turned out to still be off by one against its OWN table (which already
+> listed 38 rows summing to 29 `Complete`). Final measured split: **38 mass-filter defs — 29
+> `Complete`, 8 `partial`, 1 `known_wrong`.** Design shipped as this brief scoped it (field on
+> `ContinuousEffect`, populated only at `Effect::ApplyContinuousEffect`, read in
+> `effect_applies_to`; `is_effect_active` deliberately untouched — it has no `object_id`
+> parameter, so a per-object locked set cannot live there, which this brief did not anticipate).
+> Both fingerprints computed as instructed: `HASH_SCHEMA_VERSION` 69→**70** (mandatory);
+> `PROTOCOL_VERSION` **confirmed unmoved at 32** by running `--test core protocol_schema`
+> (`ContinuousEffect` is not in the SR-8 wire closure). Yield **0 completeness flips** — this
+> fixes defs that were already `Complete`, correctly; nothing becomes newly authorable. Full
+> narrative: this file's own "Next dispatch: PB-DX5" entry above, and `pb-plan-DX5.md` /
+> `pb-review-DX5.md` (if a review phase ran) in `memory/primitives/`.
 
 **PB-DX6 — `PB-DX6: the last two unflattened mana-cost payment sites (OOS-RS2-1 + OOS-DP4-1)` · CORRECTNESS**
 PB-RS2 routed three of the engine's payment sites (`ActivateAbility`, `TapForMana`,
