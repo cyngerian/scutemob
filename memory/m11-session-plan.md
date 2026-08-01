@@ -750,6 +750,38 @@ makes the existing TUI bridge unusable for real play.
 
 ### Session 4: View-model crate extraction + seat redaction (6 items)
 
+**STATUS (2026-08-01, `scutemob-165`): items 1-5 shipped; item 6 is the coordinator's.**
+`crates/view-model` (package `mtg-view-model`) exists with `lib.rs` (git-recorded rename of
+`tools/replay-viewer/src/view_model.rs`, 91% similarity), `redact.rs`, `event_view.rs`,
+`tests.rs` and `golden_omniscient_view.json`. All 6 named tests pass and each was proven
+non-vacuous by mutation. `cargo build --workspace`, `cargo clippy --all-targets -- -D
+warnings`, `cargo fmt --check`, `tools/check-defs-fmt.sh` and `cargo test --all` are green;
+tests 3,988 → **3,994**. `git diff main -- crates/engine crates/card-types crates/card-defs`
+is **empty**; PROTOCOL 32 / HASH 69 confirmed by the `core` sentinels.
+
+Deviations from the plan text, all recorded in source:
+
+- **`event_view_for` takes a 4th parameter**, `player_names: &HashMap<PlayerId, String>`.
+  The plan's sketch is `(ev, state, viewer)`, but `GameState` carries `PlayerId`s only, so
+  every rendered line would read `player_2` and the caller would have to re-render — which
+  would put string formatting back *outside* the redaction chokepoint. Display names are
+  public, so the parameter carries no hidden data. (Same class as S3's `alt_cost`.)
+- **The face-down *battlefield* redaction is belt-and-braces, and the real leak was in
+  exile.** The golden snapshot captured from pristine pre-move code already shows the
+  face-down morph with `"name": ""`, because `build_zones_view` runs each permanent through
+  `calculate_characteristics` and the layer system applies the CR 708.2a override for
+  everyone. The face-down *exiled* card leaked its printed name, because
+  `objects_in_zone_as_card_views` reads `obj.characteristics.name` raw with no layer pass.
+  Both are redacted explicitly at the redact layer so Invariant 7 does not silently depend
+  on the layer system; the source records which of the two is live.
+- **The golden snapshot was regenerated exactly once**, for the additive `hidden` field. A
+  structural diff of old vs new is 12 differences, every one of them `ADDED hidden: false`
+  (one per `CardInZoneView` in the fixture) — no other delta.
+- **Item 3's plan text is right that the redaction keys on `obj.owner`**, and that is the
+  conservative choice rather than the strictly correct one for the battlefield: CR 708.5a
+  says a player who *controls* a face-down permanent may look at it, so a thief is denied a
+  name they are entitled to. Denying too much never leaks. Noted in `redact.rs`.
+
 **Crates**: new `crates/view-model`; `tools/replay-viewer` becomes a consumer.
 **Files**: `crates/view-model/Cargo.toml`, `src/lib.rs`, `src/redact.rs`,
 `src/event_view.rs`, `src/tests.rs`; `tools/replay-viewer/src/{main.rs,api.rs,replay.rs,
