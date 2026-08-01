@@ -1,0 +1,199 @@
+//! Read-only advisory query surface for UI/simulator callers (M11-local Session 3 §B).
+//!
+//! Everything here is a **query**, never an action: no function in this module mutates
+//! `GameState`, issues an `Event`, or has any side effect. `process_command` (via
+//! `crate::rules::engine`) remains the sole authority for changing game state
+//! (Architecture Invariants 1 and 3) — a browser client or bot calls the functions here
+//! to populate a UI (e.g. "here are your legal targets"), then still submits a `Command`
+//! through the normal path, which independently re-validates everything. A value returned
+//! from here can still be rejected at cast/activation time.
+//!
+//! Every function delegates to the same target-requirement lookups and target-legality
+//! checkers `rules::casting` uses for `handle_cast_spell` / `handle_activate_ability`
+//! (`card_def_target_requirements`, `spell_mode_selection`, `per_mode_target_requirements`,
+//! `validate_targets_inner`) rather than re-deriving any rule — re-deriving target legality
+//! outside the engine is exactly the drift class OOS-RS-2 was (see the M11-local session
+//! plan §1 fact 4).
+use crate::cards::TargetRequirement;
+use crate::rules::casting;
+use crate::rules::layers::calculate_characteristics;
+use crate::state::{AltCostKind, GameState, KeywordAbility, ObjectId, PlayerId, Target, ZoneId};
+
+/// CR 601.2c — the target requirements a spell cast from `card` announces, honouring
+/// Aftermath (CR 702.127a), Overload (CR 702.96b -> empty) and per-mode requirements
+/// (CR 700.2c/700.2f). Shares `casting.rs`'s helpers so the two cannot drift.
+///
+/// **Signature deviation from the M11-local session plan's §3 sketch**: this takes an
+/// `alt_cost: Option<AltCostKind>` parameter the plan's sketch omits. It is required —
+/// `casting_with_overload` (`casting.rs:1163`) and `casting_with_aftermath`
+/// (`casting.rs:533`) are both *caster-intent* flags derived from the `CastSpell`
+/// command's `alt_cost`, not from state alone, so without this parameter the Overload and
+/// Aftermath rules are unreachable here and the CR 702.96b test is unwritable.
+/// `AltCostKind` is already a public type (`crate::state::AltCostKind`, re-exported from
+/// `mtg-card-types`), so this does not introduce a new public type and cannot move the
+/// wire fingerprint (`PROTOCOL_SCHEMA_FINGERPRINT` closes over `Command`/`GameEvent`/
+/// `Effect`/`Characteristics`, not over free-function query parameters).
+///
+/// Missing object, missing `card_id`, or an unregistered card all yield `vec![]` — this
+/// function never panics and never unwraps.
+pub fn spell_target_requirements(
+    state: &GameState,
+    card: ObjectId,
+    modes_chosen: &[usize],
+    alt_cost: Option<AltCostKind>,
+) -> Vec<TargetRequirement> {
+    let Some(obj) = state.objects().get(&card) else {
+        return vec![];
+    };
+    let Some(chars) = calculate_characteristics(state, card) else {
+        return vec![];
+    };
+    let card_id = obj.card_id.as_ref();
+
+    // CR 702.96a/b: Overload is an alternative cost that replaces "target" with "each" —
+    // an overloaded spell has no targets. Eligibility is the *same call* `casting.rs:1203`
+    // makes to establish `casting_with_overload` — `get_overload_cost(...).is_some()`, i.e.
+    // the card def carries an `AbilityDefinition::Overload { cost }` — not a parallel
+    // re-derivation from the `KeywordAbility::Overload` marker. Delegating keeps this
+    // query and the cast path from drifting, which is the whole point of §A's shared
+    // helpers, and it leaves `KeywordAbility::Overload` a pure marker under SR-5.
+    let casting_with_overload = alt_cost == Some(AltCostKind::Overload)
+        && casting::get_overload_cost(&obj.card_id, &state.card_registry).is_some();
+    if casting_with_overload {
+        return vec![];
+    }
+
+    // CR 702.127a: Aftermath — same three conjuncts as `casting.rs:533-538`.
+    let casting_with_aftermath = alt_cost == Some(AltCostKind::Aftermath)
+        && matches!(obj.zone, ZoneId::Graveyard(_))
+        && chars.keywords.contains(&KeywordAbility::Aftermath);
+
+    let (requirements, _cant_be_countered) =
+        casting::card_def_target_requirements(state, card_id, casting_with_aftermath);
+
+    // CR 702.127a: aftermath suppresses per-mode targets (mirrors `casting.rs:3689`'s
+    // `if casting_with_aftermath { None } else { ... }`).
+    if casting_with_aftermath {
+        return requirements;
+    }
+
+    // CR 700.2c/700.2f: if the spell has per-mode target requirements, they replace the
+    // flat `Spell.targets` list for the chosen modes.
+    match casting::spell_mode_selection(state, card_id) {
+        Some(ms) => {
+            casting::per_mode_target_requirements(&ms, modes_chosen).unwrap_or(requirements)
+        }
+        None => requirements,
+    }
+}
+
+/// CR 602.2b — the target requirements an activated ability announces.
+///
+/// Reads `calculate_characteristics(state, source)` — **never `card_registry.get()`** —
+/// because `ability_index` indexes the *layer-resolved* `activated_abilities` list
+/// (`abilities.rs:315-334`); a registry read would bypass Humility/Dress Down removing
+/// abilities and Layer-6 `AddActivatedAbility` grants adding them.
+///
+/// A modal activated ability's per-mode target slice (`abilities.rs:433-458`) is **out of
+/// scope here** — this function has no chosen-mode input, so it always returns the
+/// printed `ActivatedAbility.targets`. `abilities.rs:433-458` itself hard-rejects
+/// combining multiple chosen modes with `ModeSelection.mode_targets`, so the flat list is
+/// the correct answer for the single-mode case and an incomplete one (documented, not
+/// silently wrong) for the rare multi-mode + `mode_targets` case.
+///
+/// Missing object or an out-of-range `ability_index` yield `vec![]`.
+pub fn ability_target_requirements(
+    state: &GameState,
+    source: ObjectId,
+    ability_index: usize,
+) -> Vec<TargetRequirement> {
+    let Some(chars) = calculate_characteristics(state, source) else {
+        return vec![];
+    };
+    chars
+        .activated_abilities
+        .get(ability_index)
+        .map(|ab| ab.targets.clone())
+        .unwrap_or_default()
+}
+
+/// Per-slot legal-target candidates, parallel to `requirements`.
+///
+/// **Advisory only**: each requirement is applied *independently* — inter-target
+/// distinctness (`TargetRequirement::TargetPermanentDistinctFrom`, CR 601.2c "another
+/// target") is NOT enforced across slots, nor is the collective target-count range.
+/// `process_command` remains authoritative and a target from this list can still be
+/// rejected at cast time (e.g. by `enforce_inter_target_distinctness`, `casting.rs:6192`).
+///
+/// Candidates are delegated to `casting::validate_targets_inner` one at a time — this
+/// function never re-derives hexproof/shroud/protection/type-restriction legality itself,
+/// exactly the delegation the M11-local session plan §1 fact 4 requires.
+///
+/// Candidate objects are drawn from `ZoneId::Battlefield`, `ZoneId::Stack`, and
+/// `ZoneId::Graveyard(_)` — the exact union of zones any arm of
+/// `casting::validate_object_satisfies_requirement` (`casting.rs:6253`+) can accept.
+/// `TargetCreature`/`TargetPermanent`/`TargetArtifact`/etc. require `Battlefield`;
+/// `TargetSpell`/`TargetSpellWithFilter`/`TargetSpellOrAbilityWithSingleTarget`/
+/// `TargetSpellWithSingleTarget` require `Stack`; `TargetCardInYourGraveyard`/
+/// `TargetCardInGraveyard` require a `Graveyard(_)`. No arm accepts any other zone, so
+/// this is a narrowing that only skips candidates the validator would reject anyway — kept
+/// so a full multiplayer game's hand/library/exile contents are not characteristic-
+/// resolved on every UI query.
+///
+/// Candidate players are every player in `state.turn.turn_order` still in the game (the
+/// same liveness test `trigger_target_candidates` uses, `abilities.rs:7525-7530`).
+///
+/// Iteration order is deterministic: players in seat order, then objects in ascending
+/// `ObjectId` order (`state.objects()` is an `imbl::OrdMap`) — players pushed first,
+/// matching `trigger_target_candidates`'s ordering (`abilities.rs:7496`).
+pub fn legal_targets_per_slot(
+    state: &GameState,
+    caster: PlayerId,
+    source: ObjectId,
+    requirements: &[TargetRequirement],
+) -> Vec<Vec<Target>> {
+    let source_chars = calculate_characteristics(state, source);
+
+    let mut candidates: Vec<Target> = Vec::new();
+    for &p in state.turn.turn_order.iter() {
+        if let Some(pl) = state.expect_player(p) {
+            if !pl.has_lost && !pl.has_conceded {
+                candidates.push(Target::Player(p));
+            }
+        }
+    }
+    for (id, obj) in state.objects().iter() {
+        if matches!(
+            obj.zone,
+            ZoneId::Battlefield | ZoneId::Stack | ZoneId::Graveyard(_)
+        ) {
+            candidates.push(Target::Object(*id));
+        }
+    }
+
+    requirements
+        .iter()
+        .map(|req| {
+            candidates
+                .iter()
+                .filter(|cand| {
+                    casting::validate_targets_inner(
+                        state,
+                        std::slice::from_ref(cand),
+                        std::slice::from_ref(req),
+                        caster,
+                        source_chars.as_ref(),
+                        Some(source),
+                    )
+                    .is_ok()
+                })
+                .cloned()
+                .collect()
+        })
+        .collect()
+}
+
+/// (min, max) target count for a requirement list (CR 601.2c).
+pub fn target_count_range(requirements: &[TargetRequirement]) -> (usize, usize) {
+    casting::target_count_range(requirements)
+}

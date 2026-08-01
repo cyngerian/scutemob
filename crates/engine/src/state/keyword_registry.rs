@@ -386,7 +386,15 @@ pub fn handling(keyword: &KeywordAbility) -> KeywordHandling {
         K::CommanderNinjutsu => KeywordHandling::Handled { sites: &["crates/engine/src/rules/abilities.rs"] },
         K::Retrace => KeywordHandling::Handled { sites: &["crates/engine/src/rules/casting.rs"] },
         K::JumpStart => KeywordHandling::Handled { sites: &["crates/engine/src/rules/casting.rs"] },
-        K::Aftermath => KeywordHandling::Handled { sites: &["crates/engine/src/rules/casting.rs"] },
+        // M11-local Session 3: `rules::queries::spell_target_requirements` also reads this
+        // marker, mirroring `casting.rs:533-538`'s `casting_with_aftermath` derivation, so
+        // the read-only query surface's Aftermath handling cannot drift from the cast path.
+        K::Aftermath => KeywordHandling::Handled {
+            sites: &[
+                "crates/engine/src/rules/casting.rs",
+                "crates/engine/src/rules/queries.rs",
+            ],
+        },
         K::Embalm => KeywordHandling::Handled { sites: &["crates/engine/src/rules/abilities.rs"] },
         K::Eternalize => KeywordHandling::Handled { sites: &["crates/engine/src/rules/abilities.rs"] },
         K::Encore => KeywordHandling::Handled {

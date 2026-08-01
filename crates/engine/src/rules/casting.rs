@@ -3494,17 +3494,7 @@ pub fn handle_cast_spell(
     // that ModeSelection.mode_targets is available below even for the auto-select-mode-0
     // and entwine backward-compat paths.
     let mode_selection_opt: Option<crate::cards::card_definition::ModeSelection> =
-        card_id.as_ref().and_then(|cid| {
-            state.card_registry.get(cid.clone()).and_then(|def| {
-                def.abilities.iter().find_map(|a| {
-                    if let AbilityDefinition::Spell { modes: Some(m), .. } = a {
-                        Some(m.clone())
-                    } else {
-                        None
-                    }
-                })
-            })
-        });
+        spell_mode_selection(state, card_id.as_ref());
     // CR 601.2b / 700.2a (PB-DP3 / DP-4): a modal spell's controller announces the mode(s) as
     // part of casting, before costs are determined (CR 601.2f) or paid (CR 601.2h). There is
     // no default mode and the engine may not pick one.
@@ -3622,42 +3612,8 @@ pub fn handle_cast_spell(
     // Look up target requirements and cant_be_countered from the card definition (CR 601.2c).
     // CR 702.127a + CR 709.3a: When casting the aftermath half, use the aftermath half's
     // target requirements instead of the first half's Spell targets.
-    let (requirements, cant_be_countered): (Vec<TargetRequirement>, bool) = {
-        let registry = state.card_registry.clone();
-        card_id
-            .clone()
-            .and_then(|cid| registry.get(cid))
-            .and_then(|def| {
-                if casting_with_aftermath {
-                    // Find the Aftermath ability's targets.
-                    def.abilities.iter().find_map(|a| {
-                        if let AbilityDefinition::Aftermath { targets, .. } = a {
-                            Some((targets.clone(), false))
-                        } else {
-                            None
-                        }
-                    })
-                } else {
-                    // CR 101.6: Check AbilityDefinition::Spell first, then fall back to
-                    // CardDefinition.cant_be_countered for creature/artifact spells that
-                    // have "This spell can't be countered" as a characteristic.
-                    let from_spell = def.abilities.iter().find_map(|a| {
-                        if let AbilityDefinition::Spell {
-                            targets,
-                            cant_be_countered,
-                            ..
-                        } = a
-                        {
-                            Some((targets.clone(), *cant_be_countered))
-                        } else {
-                            None
-                        }
-                    });
-                    Some(from_spell.unwrap_or_else(|| (vec![], def.cant_be_countered)))
-                }
-            })
-            .unwrap_or_default()
-    };
+    let (requirements, cant_be_countered): (Vec<TargetRequirement>, bool) =
+        card_def_target_requirements(state, card_id.as_ref(), casting_with_aftermath);
     // CR 702.96b: When overloaded, the spell has no targets.
     // Override requirements to empty so validate_targets doesn't require targets.
     let requirements = if casting_with_overload {
@@ -3690,44 +3646,26 @@ pub fn handle_cast_spell(
         None
     } else {
         mode_selection_opt.as_ref().and_then(|ms| {
-            ms.mode_targets.as_ref().map(|mt| {
-                // LOW #2 (PB-AC4 fix-phase): `mode_targets.len() == modes.len()` is a
-                // documented author invariant. Enforce it defensively — a debug_assert
-                // catches authoring bugs in tests/CI, while `unwrap_or_default()` keeps the
-                // release build fail-safe (a too-short mode_targets yields an empty slice for
-                // the missing mode, not a panic or a mis-slice).
-                debug_assert_eq!(
-                    mt.len(),
-                    ms.modes.len(),
-                    "ModeSelection.mode_targets.len() ({}) must equal modes.len() ({}) \
-                     (CR 700.2c author invariant)",
-                    mt.len(),
-                    ms.modes.len()
-                );
-                // Post-PB-DP3: an empty `validated_modes_chosen` here no longer means
-                // "auto-select mode 0 for any modal spell" — Change 1 rejects that case before
-                // this point is ever reached. The `!ms.modes.is_empty() { vec![0] }` arm below
-                // is reachable only when `mode_targets.is_some()` AND `validated_modes_chosen`
-                // is empty, which after Change 1 means the escalate exemption fired
-                // (`escalate_modes > 0`) — and that combination is hard-rejected 16 lines below
-                // at the Escalate + `mode_targets` guard. So this arm is UNREACHABLE IN
-                // PRACTICE but retained as a fail-safe (do not delete — PB-DP3 plan §3, Change
-                // 2).
-                let indices: Vec<usize> = if entwine_paid {
-                    (0..ms.modes.len()).collect()
-                } else if !validated_modes_chosen.is_empty() {
-                    validated_modes_chosen.clone()
-                } else if !ms.modes.is_empty() {
-                    // Fail-safe only — see comment above. Not reachable by any shipped card.
-                    vec![0]
-                } else {
-                    vec![]
-                };
-                indices
-                    .into_iter()
-                    .flat_map(|idx| mt.get(idx).cloned().unwrap_or_default())
-                    .collect::<Vec<TargetRequirement>>()
-            })
+            // Post-PB-DP3: an empty `validated_modes_chosen` here no longer means
+            // "auto-select mode 0 for any modal spell" — Change 1 rejects that case before
+            // this point is ever reached. The `!ms.modes.is_empty() { vec![0] }` arm below
+            // is reachable only when `mode_targets.is_some()` AND `validated_modes_chosen`
+            // is empty, which after Change 1 means the escalate exemption fired
+            // (`escalate_modes > 0`) — and that combination is hard-rejected 16 lines below
+            // at the Escalate + `mode_targets` guard. So this arm is UNREACHABLE IN
+            // PRACTICE but retained as a fail-safe (do not delete — PB-DP3 plan §3, Change
+            // 2).
+            let indices: Vec<usize> = if entwine_paid {
+                (0..ms.modes.len()).collect()
+            } else if !validated_modes_chosen.is_empty() {
+                validated_modes_chosen.clone()
+            } else if !ms.modes.is_empty() {
+                // Fail-safe only — see comment above. Not reachable by any shipped card.
+                vec![0]
+            } else {
+                vec![]
+            };
+            per_mode_target_requirements(ms, &indices)
         })
     };
     // CR 700.2c/702.120a (PB-AC4 fix-phase Finding 1, MEDIUM): Escalate + `mode_targets` is
@@ -5397,7 +5335,7 @@ fn get_dash_cost(
 ///
 /// Returns the `ManaCost` stored in `AbilityDefinition::Overload { cost }`, or `None`
 /// if the card has no definition or no overload ability defined.
-fn get_overload_cost(
+pub(crate) fn get_overload_cost(
     card_id: &Option<crate::state::CardId>,
     registry: &crate::cards::CardRegistry,
 ) -> Option<ManaCost> {
@@ -5411,6 +5349,105 @@ fn get_overload_cost(
                 }
             })
         })
+    })
+}
+/// CR 601.2c: The target requirements (and CR 101.6 `cant_be_countered` flag) a spell
+/// cast from `card_id` announces from its card definition, honouring Aftermath (CR
+/// 702.127a + CR 709.3a — use the aftermath half's targets, not the front face's).
+///
+/// Shared by `handle_cast_spell` and `rules::queries::spell_target_requirements` so the
+/// two cannot drift (M11-local Session 3 §A). `casting_with_aftermath` is a caster-intent
+/// flag (see `handle_cast_spell`'s Step 1h derivation), not something derivable from
+/// state alone — callers outside `handle_cast_spell` must compute it the same way (CR
+/// 702.127a: `cast_with_aftermath && casting_from_graveyard && has Aftermath keyword`).
+pub(crate) fn card_def_target_requirements(
+    state: &GameState,
+    card_id: Option<&crate::state::CardId>,
+    casting_with_aftermath: bool,
+) -> (Vec<TargetRequirement>, bool) {
+    let registry = state.card_registry.clone();
+    card_id
+        .and_then(|cid| registry.get(cid.clone()))
+        .and_then(|def| {
+            if casting_with_aftermath {
+                // Find the Aftermath ability's targets.
+                def.abilities.iter().find_map(|a| {
+                    if let AbilityDefinition::Aftermath { targets, .. } = a {
+                        Some((targets.clone(), false))
+                    } else {
+                        None
+                    }
+                })
+            } else {
+                // CR 101.6: Check AbilityDefinition::Spell first, then fall back to
+                // CardDefinition.cant_be_countered for creature/artifact spells that
+                // have "This spell can't be countered" as a characteristic.
+                let from_spell = def.abilities.iter().find_map(|a| {
+                    if let AbilityDefinition::Spell {
+                        targets,
+                        cant_be_countered,
+                        ..
+                    } = a
+                    {
+                        Some((targets.clone(), *cant_be_countered))
+                    } else {
+                        None
+                    }
+                });
+                Some(from_spell.unwrap_or_else(|| (vec![], def.cant_be_countered)))
+            }
+        })
+        .unwrap_or_default()
+}
+/// CR 700.2a: The `ModeSelection` a modal spell cast from `card_id` carries, if any.
+///
+/// Shared by `handle_cast_spell` and `rules::queries::spell_target_requirements` (M11-local
+/// Session 3 §A) so the two cannot drift.
+pub(crate) fn spell_mode_selection(
+    state: &GameState,
+    card_id: Option<&crate::state::CardId>,
+) -> Option<crate::cards::card_definition::ModeSelection> {
+    card_id.and_then(|cid| {
+        state.card_registry.get(cid.clone()).and_then(|def| {
+            def.abilities.iter().find_map(|a| {
+                if let AbilityDefinition::Spell { modes: Some(m), .. } = a {
+                    Some(m.clone())
+                } else {
+                    None
+                }
+            })
+        })
+    })
+}
+/// CR 700.2c/700.2f: Slice `ms.mode_targets` down to the requirements for the chosen
+/// `indices`, in the order given (ascending chosen-mode order at the `handle_cast_spell`
+/// call site). Returns `None` when the spell has no per-mode target requirements
+/// (`ms.mode_targets` is `None`) — the flat `Spell.targets` list applies instead.
+///
+/// Shared by `handle_cast_spell` and `rules::queries::spell_target_requirements` (M11-local
+/// Session 3 §A) so the two cannot drift.
+pub(crate) fn per_mode_target_requirements(
+    ms: &crate::cards::card_definition::ModeSelection,
+    indices: &[usize],
+) -> Option<Vec<TargetRequirement>> {
+    ms.mode_targets.as_ref().map(|mt| {
+        // LOW #2 (PB-AC4 fix-phase): `mode_targets.len() == modes.len()` is a
+        // documented author invariant. Enforce it defensively — a debug_assert
+        // catches authoring bugs in tests/CI, while `unwrap_or_default()` keeps the
+        // release build fail-safe (a too-short mode_targets yields an empty slice for
+        // the missing mode, not a panic or a mis-slice).
+        debug_assert_eq!(
+            mt.len(),
+            ms.modes.len(),
+            "ModeSelection.mode_targets.len() ({}) must equal modes.len() ({}) \
+             (CR 700.2c author invariant)",
+            mt.len(),
+            ms.modes.len()
+        );
+        indices
+            .iter()
+            .flat_map(|&idx| mt.get(idx).cloned().unwrap_or_default())
+            .collect::<Vec<TargetRequirement>>()
     })
 }
 /// CR 702.138a: Validate and exile cards for escape cost payment.
@@ -5875,7 +5912,7 @@ pub(crate) fn target_count_range(requirements: &[TargetRequirement]) -> (usize, 
     (min_total, max_total)
 }
 
-fn validate_targets_inner(
+pub(crate) fn validate_targets_inner(
     state: &GameState,
     targets: &[Target],
     requirements: &[TargetRequirement],
