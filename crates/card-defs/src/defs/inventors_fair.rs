@@ -1,6 +1,6 @@
 // Inventors' Fair — Legendary Land
-// {T}: Add {C}.
 // At the beginning of your upkeep, if you control three or more artifacts, you gain 1 life.
+// {T}: Add {C}.
 // {4}, {T}, Sacrifice: Search for artifact card, reveal, put into hand, shuffle.
 //   Activate only if you control three or more artifacts.
 use crate::cards::helpers::*;
@@ -70,6 +70,11 @@ pub fn card() -> CardDefinition {
                             has_card_type: Some(CardType::Artifact),
                             ..Default::default()
                         },
+                        // `reveal: true` is currently inert -- the engine destructures
+                        // `reveal: _` and never actually reveals the found card
+                        // (effects/mod.rs:3479, seeded as OOS-DP9-9, pre-existing and
+                        // out of scope for this batch). Printed "reveal it" clause is
+                        // therefore not yet implemented despite the Complete marker.
                         reveal: true,
                         destination: ZoneTarget::Hand {
                             owner: PlayerTarget::Controller,

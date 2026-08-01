@@ -202,7 +202,7 @@ condition, not bare `is_err()` — a wrong ability index or an unpayable cost wo
 - **Legal-but-wrong flip.** Both cards are `partial` today, so a wrong flip *ships* a broken
   card into legal decks. Mitigated by §1.1 (oracle text + all four rulings each) and by T4/T10,
   which pin the clauses this batch does **not** touch.
-- **`min_power` semantics.** `matches_filter` (`effects/mod.rs:9502`) treats `power: None` as
+- **`min_power` semantics.** `matches_filter` (`effects/mod.rs`, symbol `matches_filter`) treats `power: None` as
   *failing* `min_power`, so a `*/*` CDA creature never counts. Correct here (a creature with
   undefined power is not "power 4 or greater" until layers give it one) and T2 uses a printed
   4/4, but worth stating.

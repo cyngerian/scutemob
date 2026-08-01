@@ -42,35 +42,67 @@
 //!
 //! ## Pre-fix observations (recorded before the card-def edit, per plan §3)
 //!
-//! - **T1** (Garruk's Uprising, no power-4+ creature): PRE-FIX, the ETB
-//!   trigger queued unconditionally (`intervening_if: None`) and a card WAS
-//!   drawn even with no qualifying creature on the battlefield — the
-//!   `stack_objects().is_empty()` assertion failed (1 object queued, not 0)
-//!   and the post-resolution hand count was 1, not 0.
+//! **Fix-cycle note (MEDIUM-1, `pb-review-DX3.md`):** the review found T1's
+//! original hand-count claim below unreproducible, because the fixture at the
+//! time had NO library object, and drawing from an empty library sets
+//! `has_lost` (`replacement.rs:1035-1049`) rather than incrementing the hand
+//! — so the pre-fix "hand count was 1" could not have been observed against
+//! that fixture. The fix added a real "Library Filler" library card to T1
+//! (mirroring T2/T3) and RE-RAN the pre-fix scenario empirically —
+//! `garruks_uprising.rs`'s `intervening_if` temporarily reverted to `None`,
+//! the test's two panicking assertions temporarily replaced with `eprintln!`
+//! so execution could reach the hand-count read, run, observed, then both
+//! files restored. Every bullet below marked **RE-VERIFIED** was checked
+//! against this same standard (either an actual re-run against the reverted
+//! def, for the Garruk's Uprising / Inventors' Fair bullets whose def was
+//! temporarily reverted the same way, or against a fact directly readable
+//! from the pre-fix source with no dynamic claim attached).
+//!
+//! - **T1** (Garruk's Uprising, no power-4+ creature) — **RE-VERIFIED
+//!   EMPIRICALLY, corrected fixture.** With the library card present and
+//!   `intervening_if: None`, an actual re-run shows: the ETB trigger queued
+//!   unconditionally (`stack_objects()` held exactly 1 `TriggeredAbility`
+//!   object, not 0) and resolving it drew a card — hand count went from 0
+//!   (`hand_before`) to 1 (`hand_after`). This matches the original claim
+//!   exactly; it just hadn't been checked against a fixture where the number
+//!   was meaningful until now.
 //! - **T3** (Garruk's Uprising, creature present at queue time, removed
-//!   before resolution): PRE-FIX, the trigger still queued (as with T1's
-//!   sibling T2) but the RESOLUTION-time re-check also read `None` for
-//!   `intervening_if`, so the draw happened unconditionally regardless of
-//!   the creature's absence at resolution — a card was drawn even though the
-//!   qualifying creature had already left. Post-fix, no draw happens.
-//! - **T5** (Inventors' Fair, 2 artifacts, upkeep): PRE-FIX, the upkeep
-//!   trigger DID NOT EXIST AT ALL — no ability in `abilities` had
-//!   `TriggerCondition::AtBeginningOfYourUpkeep`. Advancing to Upkeep queued
-//!   nothing and life stayed unchanged for the "other reason" (missing
-//!   ability, not a correctly-gated one) — the same observable state as the
-//!   post-fix negative case, which is exactly why T6 (the positive case)
-//!   is the disambiguating probe (see below).
-//! - **T7** (Inventors' Fair, 3 artifacts then one leaves before
-//!   resolution): PRE-FIX, this probe was UNREACHABLE for the stated reason
-//!   — there was no upkeep trigger to queue at all (same root cause as T5),
-//!   so "no life gained" held vacuously, not because of a resolution-time
-//!   re-check. Post-fix, the trigger genuinely queues (3 artifacts) and then
-//!   genuinely fizzles at resolution (down to 2) — a real re-check, not an
-//!   absent ability.
+//!   before resolution) — **RE-VERIFIED, genuinely observed at implement
+//!   time.** PRE-FIX, the trigger still queued (as with T1's sibling T2) but
+//!   the RESOLUTION-time re-check also read `None` for `intervening_if`, so
+//!   the draw happened unconditionally regardless of the creature's absence
+//!   at resolution. The test's own `assert_eq!` genuinely failed pre-fix
+//!   (`left: 1, right: 0` — a card was drawn even though the qualifying
+//!   creature had already left; `hand_before` is 0). Post-fix, no draw
+//!   happens.
+//! - **T5** (Inventors' Fair, 2 artifacts, upkeep) — **RE-VERIFIED
+//!   EMPIRICALLY.** With the upkeep `AbilityDefinition::Triggered` block
+//!   temporarily removed from the def entirely (matching the pre-fix def,
+//!   which had NO ability with `TriggerCondition::AtBeginningOfYourUpkeep`),
+//!   an actual re-run PASSED — advancing to Upkeep queued nothing and life
+//!   stayed unchanged, the same observable state as the post-fix negative
+//!   case. Confirms the "vacuously satisfied" claim rather than a genuine
+//!   gate; T6 is the disambiguating probe (see below).
+//! - **T6** (Inventors' Fair, 3 artifacts, upkeep) — **RE-VERIFIED
+//!   EMPIRICALLY.** Same temporary removal as T5's re-run: the test's
+//!   `assert_eq!(state.stack_objects().len(), 1, ...)` genuinely FAILED
+//!   (`left: 0, right: 1`) — with no such ability, nothing ever queued.
+//! - **T7** (Inventors' Fair, 3 artifacts then one leaves before resolution)
+//!   — **RE-VERIFIED EMPIRICALLY.** Same temporary removal: the test's
+//!   `assert_eq!(state_after_queue.stack_objects().len(), 1, "the trigger
+//!   should have queued...")` genuinely FAILED (`left: 0, right: 1`) — there
+//!   was no upkeep trigger to queue at all (same root cause as T5/T6), so the
+//!   probe panics before it ever reaches the final "no life gained"
+//!   assertion; that assertion would have held vacuously had it been
+//!   reached, not because of a resolution-time re-check. Post-fix, the
+//!   trigger genuinely queues (3 artifacts) and then genuinely fizzles at
+//!   resolution (down to 2) — a real re-check, not an absent ability.
 //! - **T8** (Inventors' Fair, activate the search ability with only 2
-//!   artifacts): PRE-FIX, `activation_condition: None` meant the activation
-//!   was PERMITTED — `process_command` returned `Ok`, not `Err`. Post-fix it
-//!   returns `Err` with a message containing "activation condition not met".
+//!   artifacts) — **RE-VERIFIED EMPIRICALLY.** With `activation_condition`
+//!   temporarily reverted to `None` on the search ability, an actual re-run
+//!   shows `.expect_err(...)` genuinely PANICS — `process_command` returned
+//!   `Ok`, not `Err`, so the activation was permitted. Post-fix it returns
+//!   `Err` with a message containing "activation condition not met".
 //!
 //! T6/T9/T10 are non-regression / positive-direction pins: T6 disambiguates
 //! T5 (proves the upkeep trigger exists and fires correctly with 3
@@ -278,6 +310,11 @@ fn test_dx3_garruks_uprising_etb_no_qualifying_creature_no_trigger() {
         .object(place_in_hand(p(1), &def))
         // A creature that does NOT qualify (power 3, not 4+).
         .object(ObjectSpec::creature(p(1), "Small Beast", 3, 3))
+        // A real library card, so that IF a draw were to wrongly happen (see
+        // the module doc's empirically re-derived pre-fix observation) it
+        // would be observable rather than silently no-op-ing on an empty
+        // library.
+        .object(ObjectSpec::creature(p(1), "Library Filler", 1, 1).in_zone(ZoneId::Library(p(1))))
         .active_player(p(1))
         .at_step(Step::PreCombatMain)
         .build()
@@ -442,38 +479,171 @@ fn test_dx3_garruks_uprising_creature_leaves_before_resolution_no_draw() {
 
 // ── T4: Garruk's Uprising -- the untouched third ability still fires ─────────
 
-/// CR 603.4, regression guard: the third ability ("Whenever a creature you
-/// control with power 4 or greater enters, draw a card") is untouched by this
-/// batch's edit to the FIRST ability. Uses `check_triggers` directly on a
-/// `PermanentEnteredBattlefield` event, mirroring the T9 pattern in
-/// `pb_dp6_intervening_if_queue_time.rs`.
-#[test]
-fn test_dx3_garruks_uprising_third_ability_unaffected() {
-    let def = card_def("Garruk's Uprising");
-    let registry = mtg_engine::CardRegistry::new(vec![def.clone()]);
-    let state = GameStateBuilder::new()
+/// Build a plain vanilla, ability-less creature `CardDefinition` (4 generic,
+/// given power/toughness) for driving the third ability's ETB trigger through
+/// a REAL `Command::CastSpell` + `pass_all` resolution, rather than
+/// `check_triggers` on a synthetic event -- LOW-2's fix needs the effect that
+/// fires to be observably a draw, and needs `min_power`/`controller: You` to
+/// be genuinely exercised by the engine's own trigger-matching path.
+fn plain_creature_def(card_id: &str, name: &str, power: i32, toughness: i32) -> CardDefinition {
+    CardDefinition {
+        card_id: mtg_engine::CardId(card_id.to_string()),
+        name: name.to_string(),
+        mana_cost: Some(mtg_engine::ManaCost {
+            generic: 4,
+            ..Default::default()
+        }),
+        types: mtg_engine::TypeLine {
+            card_types: [mtg_engine::CardType::Creature].iter().cloned().collect(),
+            ..Default::default()
+        },
+        oracle_text: String::new(),
+        abilities: vec![],
+        power: Some(power),
+        toughness: Some(toughness),
+        ..Default::default()
+    }
+}
+
+/// Garruk's Uprising already resolved on p1's battlefield, plus a single
+/// creature card of `creature_def` in `caster`'s hand, with `caster` as the
+/// active player at PreCombatMain (so the creature cast is legal sorcery
+/// timing regardless of which of the two players is casting).
+fn garruks_uprising_third_ability_fixture(
+    uprising_def: &CardDefinition,
+    caster: PlayerId,
+    creature_def: &CardDefinition,
+) -> GameState {
+    let mut defs_map = HashMap::new();
+    defs_map.insert(uprising_def.name.clone(), uprising_def.clone());
+    defs_map.insert(creature_def.name.clone(), creature_def.clone());
+    let registry = mtg_engine::CardRegistry::new(vec![uprising_def.clone(), creature_def.clone()]);
+    let mut state = GameStateBuilder::new()
         .add_player(p(1))
         .add_player(p(2))
         .with_registry(registry)
-        .object(place_on_battlefield(p(1), &def))
-        .object(ObjectSpec::creature(p(1), "New Beast", 4, 4))
-        .active_player(p(1))
+        .object(enrich_spec_from_def(
+            ObjectSpec::card(p(1), &uprising_def.name)
+                .with_card_id(uprising_def.card_id.clone())
+                .in_zone(ZoneId::Battlefield),
+            &defs_map,
+        ))
+        .object(enrich_spec_from_def(
+            ObjectSpec::card(caster, &creature_def.name)
+                .with_card_id(creature_def.card_id.clone())
+                .in_zone(ZoneId::Hand(caster)),
+            &defs_map,
+        ))
+        // p1 controls Garruk's Uprising and is the one who would draw --
+        // give p1 a real library card so a genuine draw is observable rather
+        // than silently no-op-ing on an empty library (same gotcha as T1/T3).
+        .object(
+            ObjectSpec::creature(p(1), "T4 Library Filler", 1, 1).in_zone(ZoneId::Library(p(1))),
+        )
+        .active_player(caster)
         .at_step(Step::PreCombatMain)
         .build()
         .unwrap();
+    state
+        .players_mut()
+        .get_mut(&caster)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Colorless, 4);
+    state.turn_mut().priority_holder = Some(caster);
+    state
+}
 
-    let source_id = find_object(&state, "Garruk's Uprising");
-    let beast_id = find_object(&state, "New Beast");
-    let events = vec![GameEvent::PermanentEnteredBattlefield {
-        object_id: beast_id,
-        player: p(1),
-    }];
-    let triggers = mtg_engine::rules::abilities::check_triggers(&state, &events);
-    assert!(
-        triggers.iter().any(|t| t.source == source_id),
-        "the third ability (power-4+ ETB draw trigger) should still fire -- \
-         untouched by this batch's edit to the first ability"
-    );
+/// CR 603.4, regression guard: the third ability ("Whenever a creature you
+/// control with power 4 or greater enters, draw a card") is untouched by this
+/// batch's edit to the FIRST ability. Three sub-scenarios, each driven end to
+/// end through a real cast + resolution (not a synthetic `check_triggers`
+/// event):
+///   (a) a power-3 creature entering under the controller must NOT trigger
+///       (`min_power: Some(4)` is pinned);
+///   (b) a power-4 creature entering under the controller MUST trigger, and
+///       the effect that fires must actually be a draw -- proven by the net
+///       hand-count delta being zero (creature -1, draw +1), not merely that
+///       SOME trigger sourced from Garruk's Uprising queued;
+///   (c) a power-4+ creature entering under an OPPONENT's control must NOT
+///       trigger (`controller: You` is pinned -- Garruk's Uprising here is
+///       controlled by p1).
+#[test]
+fn test_dx3_garruks_uprising_third_ability_fires_only_for_qualifying_creature() {
+    let uprising = card_def("Garruk's Uprising");
+    let qualifying = plain_creature_def("dx3-t4-big", "DX3 T4 Big Beast", 4, 4);
+    let non_qualifying = plain_creature_def("dx3-t4-small", "DX3 T4 Small Beast", 3, 3);
+    let opponents_qualifying =
+        plain_creature_def("dx3-t4-enemy-big", "DX3 T4 Enemy Big Beast", 4, 4);
+
+    // (a) power-3 creature entering under the controller -- must NOT trigger.
+    {
+        let state = garruks_uprising_third_ability_fixture(&uprising, p(1), &non_qualifying);
+        let creature_id = find_object(&state, &non_qualifying.name);
+        let hand_before = hand_count(&state, p(1));
+        let (state, _) = process_command(state, empty_cast_spell_data(p(1), creature_id))
+            .expect("cast should succeed");
+        let (state, _) = pass_all(state, &[p(1), p(2)]);
+        assert!(
+            state.stack_objects().is_empty(),
+            "min_power: Some(4) must be enforced -- a power-3 creature entering \
+             must not trigger the third ability; stack is {:?}",
+            state.stack_objects()
+        );
+        assert_eq!(
+            hand_count(&state, p(1)),
+            hand_before - 1,
+            "no card should have been drawn -- the -1 is only the cast \
+             creature itself leaving the hand"
+        );
+    }
+
+    // (b) power-4 creature entering under the controller -- MUST trigger, and
+    // the fired effect must genuinely be a draw, resolved end to end.
+    {
+        let state = garruks_uprising_third_ability_fixture(&uprising, p(1), &qualifying);
+        let creature_id = find_object(&state, &qualifying.name);
+        let hand_before = hand_count(&state, p(1));
+        let (state, _) = process_command(state, empty_cast_spell_data(p(1), creature_id))
+            .expect("cast should succeed");
+        let (state, _) = pass_all(state, &[p(1), p(2)]);
+        assert_eq!(
+            state.stack_objects().len(),
+            1,
+            "min_power: Some(4) satisfied -- the third ability should be on \
+             the stack"
+        );
+        let state = resolve_stack(state, &[p(1), p(2)]);
+        assert_eq!(
+            hand_count(&state, p(1)),
+            hand_before,
+            "the creature leaving hand (-1) and the trigger's draw (+1) must \
+             net to zero -- proving the effect that fired is actually a draw"
+        );
+    }
+
+    // (c) power-4 creature entering under an OPPONENT's control -- must NOT
+    // trigger Garruk's Uprising, which p1 controls.
+    {
+        let state = garruks_uprising_third_ability_fixture(&uprising, p(2), &opponents_qualifying);
+        let creature_id = find_object(&state, &opponents_qualifying.name);
+        let hand_before_p1 = hand_count(&state, p(1));
+        let (state, _) = process_command(state, empty_cast_spell_data(p(2), creature_id))
+            .expect("cast should succeed");
+        let (state, _) = pass_all(state, &[p(2), p(1)]);
+        assert!(
+            state.stack_objects().is_empty(),
+            "controller: You must be enforced -- a power-4+ creature entering \
+             under an OPPONENT's control must not trigger Garruk's Uprising \
+             (controlled by p1); stack is {:?}",
+            state.stack_objects()
+        );
+        assert_eq!(
+            hand_count(&state, p(1)),
+            hand_before_p1,
+            "p1's hand must be unaffected by an opponent's creature entering"
+        );
+    }
 }
 
 // ── T5: Inventors' Fair -- upkeep with only 2 artifacts: no trigger, no life ──
@@ -694,15 +864,26 @@ fn test_dx3_inventors_fair_search_ability_end_to_end() {
         other => panic!("expected a search question, got {other:?}"),
     };
     assert_eq!(candidates.len(), 2, "both library artifacts should qualify");
+    // `candidates` is documented AND `debug_assert!`-enforced (effects/mod.rs:
+    // 3584-3590) to be in ascending ObjectId order, so `candidates[0]` IS the
+    // pre-PB-DP9 lowest-ObjectId auto-pick. Announcing `candidates[1]` instead
+    // therefore provably exercises the ANNOUNCED choice, not a value the old
+    // auto-pick would also have produced.
     let announced = candidates[1];
+    let not_chosen = candidates[0];
     let announced_name = state
         .objects()
         .get(&announced)
         .map(|o| o.characteristics.name.clone())
         .unwrap();
+    let not_chosen_name = state
+        .objects()
+        .get(&not_chosen)
+        .map(|o| o.characteristics.name.clone())
+        .unwrap();
     let player = entry.player;
     let choice_id = entry.choice_id;
-    let (state, _) = process_command(
+    let (state, events) = process_command(
         state,
         Command::AnswerEffectChoice {
             player,
@@ -712,7 +893,7 @@ fn test_dx3_inventors_fair_search_ability_end_to_end() {
             },
         },
     )
-    .expect("the announced answer should be accepted");
+    .expect("the answer should be accepted");
 
     assert!(
         state
@@ -720,6 +901,22 @@ fn test_dx3_inventors_fair_search_ability_end_to_end() {
             .values()
             .any(|o| o.characteristics.name == announced_name && o.zone == ZoneId::Hand(p(1))),
         "the ANNOUNCED artifact ({announced_name}) should be in hand"
+    );
+    assert!(
+        state
+            .objects()
+            .values()
+            .any(|o| o.characteristics.name == not_chosen_name && o.zone == ZoneId::Library(p(1))),
+        "the un-chosen candidate ({not_chosen_name}) should still be in the \
+         library, not swept along with the announced one"
+    );
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, GameEvent::LibraryShuffled { player } if *player == p(1))),
+        "the printed \"then shuffle\" must actually run -- a LibraryShuffled \
+         event must be in the resolution's returned events; events: {:?}",
+        events
     );
     assert!(
         state.stack_objects().is_empty(),
