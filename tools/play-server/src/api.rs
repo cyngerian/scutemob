@@ -482,6 +482,15 @@ pub async fn post_game(
         // `-p play-server` and failed under `--workspace`, twice, before the cause was
         // found. A sentinel seed has no such coupling: it is scoped to exactly the one
         // request that carries it, so there is nothing to leak and nothing to serialize.
+        // Scope note (fix cycle, review Finding 12): this returns ABOVE `session::new_game`,
+        // so the two tests prove "a rebuild that fails anywhere between the recovery and the
+        // assignment leaves no readable corrupt session" rather than specifically "a rebuild
+        // that fails INSIDE `session::new_game` does". That is the property the block is
+        // written to have — the recovery `take()`s in the same straight-line stretch with no
+        // fallible step between — and every statement from here to `*guard = Some(play)` is
+        // covered by it. It is a slightly weaker statement than the test names suggest, and
+        // saying so is cheaper than moving the injection past a call whose failure modes are
+        // no longer client-reachable at all.
         #[cfg(test)]
         if cfg.seed == crate::tests::REBUILD_FAILURE_SEED {
             return Err(ApiFailure::new(

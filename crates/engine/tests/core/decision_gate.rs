@@ -427,7 +427,6 @@ const BASELINE: &[(&str, &[&str], Option<&str>)] = &[
     ("Grisly Salvage", &["look_at_top_or_route"], None),
     ("Growing Rites of Itlimoc", &["look_at_top_or_route"], None),
     ("Hazoret's Monument", &["may_pay_then_effect"], None),
-    ("Hullbreaker Horror", &["modal_trigger"], None),
     ("Inexorable Tide", &["proliferate"], None),
     (
         "Izzet Charm",
@@ -487,18 +486,21 @@ const BASELINE: &[(&str, &[&str], Option<&str>)] = &[
 /// see the `bare_lookup_ratchet.rs` comment convention. `T9` reprints this number live on
 /// every run; if it changes, this constant must be updated in the SAME commit that changes
 /// it (either direction), per the ratchet's own rule.
-/// **PB-DX4 (2026-08-01, `scutemob-168`): lowered 97 -> 92**, and the five are named rather
+/// **PB-DX4 (2026-08-01, `scutemob-168`): lowered 97 -> 91**, and the six are named rather
 /// than merely counted: Smuggler's Copter (-> `known_wrong`), Contaminant Grafter, Grateful
-/// Apparition, Thrasios Triton Hero and Shambling Ghast (-> `partial`) were demoted by the
+/// Apparition, Thrasios Triton Hero, Shambling Ghast and Hullbreaker Horror (-> `partial`)
+/// were demoted by the
 /// OOS-DP10-8 oracle-text triage of this very table, so they are no longer
 /// effectively-`Complete` and drop out of the union. Measured by running `T6` and reading the
-/// number it printed, not derived by arithmetic -- and that mattered: the first reading was
-/// 93, because Shambling Ghast was still `Complete` at that point. Its fourth defect (the
-/// flat mode-target, OOS-DX4-2) was only surfaced by fixing its first three, so the number
-/// moved twice within this batch. The five defs the same triage REPAIRED (Metastatic Evangel,
-/// Grisly Salvage, Satyr Wayfinder, Sword of Truth and Justice, Radstorm) stayed `Complete`
-/// and none of them changed row set, so they contribute 0 to this delta.
-const MAX_AUTO_CHOSEN_COMPLETE_UNION: usize = 92;
+/// number it printed, not derived by arithmetic -- and that mattered THREE times: the first
+/// reading was 93 (Shambling Ghast was still `Complete`), then 92 once its fourth defect --
+/// the flat mode-target, OOS-DX4-2 -- was surfaced by fixing its first three, then 91 when the
+/// closing review found `hullbreaker_horror` carrying that same flat-mode-target defect and
+/// still `Complete`. A number that moved three times inside one batch is the argument for
+/// reading it off `T6` rather than computing it. The six defs the same triage REPAIRED
+/// (Metastatic Evangel, Grisly Salvage, Satyr Wayfinder, Sword of Truth and Justice, Radstorm,
+/// Risen Reef) stayed `Complete` and none of them changed row set, so they contribute 0 here.
+const MAX_AUTO_CHOSEN_COMPLETE_UNION: usize = 91;
 
 const MIN_ROWS: usize = 22;
 const MIN_BASELINE: usize = 50;
@@ -759,12 +761,24 @@ fn every_baseline_entry_is_live_and_necessary() {
     // The freeze is closed at exactly its measured size, so every LATER entry must carry
     // `Some(reason)`. This deliberately does not grow: shrinking is fine (a def demoted or
     // fixed just leaves), growing is not.
-    const FROZEN_2026_07_27: usize = 97;
+    // PB-DX4 fix cycle (2026-08-01, `scutemob-168`, review Finding 3): **92, not 97.**
+    //
+    // This ceiling is the enforcer for T4's promise that a post-freeze entry carries a written
+    // reason. PB-DX4 removed five frozen entries (the five defs it demoted), which left the
+    // ceiling five above the population it bounds — so the gate would have accepted five NEW
+    // `None` entries with no justification, silently, which is precisely what the comment
+    // below says it must not do ("this deliberately does not grow"). Lowering it in the same
+    // commit as the removals is what keeps the promise true. Derivation: 97 frozen entries
+    // minus `smugglers_copter`, `contaminant_grafter`, `grateful_apparition`,
+    // `thrasios_triton_hero`, `shambling_ghast` = 92, equal to `BASELINE.len()` because every
+    // surviving entry is still a freeze entry (this batch added none).
+    const FROZEN_2026_07_27: usize = 91;
     let unexplained = BASELINE.iter().filter(|(_, _, r)| r.is_none()).count();
     assert!(
         unexplained <= FROZEN_2026_07_27,
         "{unexplained} BASELINE entries carry no written reason, but only the \
-         {FROZEN_2026_07_27} entries of the 2026-07-27 PB-DP10 freeze are allowed to. Every \
+         {FROZEN_2026_07_27} surviving entries of the 2026-07-27 PB-DP10 freeze are allowed \
+         to. Every \
          entry added after that freeze is a deliberate act and must carry `Some(reason)` \
          naming why this card ships with the engine choosing for the player -- that is what \
          `no_complete_def_introduces_an_unrecorded_auto_chosen_decision`'s failure message \
@@ -1082,10 +1096,10 @@ fn canonical_walk_reproduces_pb_dp8_roster() {
         .filter(|d| (row.predicate)(&serde_json::to_value(d).unwrap()))
         .count();
     assert!(
-        count >= 75,
-        "triggered_targets has only {count} Complete defs, expected >= 75 (PB-DP8's \
+        count >= 74,
+        "triggered_targets has only {count} Complete defs, expected >= 74 (PB-DP8's \
          enumerated number, corrected -1 by PB-DX3b for emeria_the_sky_ruin's marker fix and \
-         -1 again by PB-DX4 for shambling_ghast's)"
+         -2 by PB-DX4 for shambling_ghast's and hullbreaker_horror's)"
     );
 }
 

@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-08-01 11:13 UTC  
-**Git:** `e658c9d8` on `feat/pb-dx4-triage-the-97-entry-decision-baseline-against-oracle-`  
+**Generated:** 2026-08-01 11:44 UTC  
+**Git:** `f3ab45d4` on `feat/pb-dx4-triage-the-97-entry-decision-baseline-against-oracle-`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -25,8 +25,8 @@ and what is intentionally NOT in it.**
 | Plan cards still missing a def file | 135 | · |
 | Bonus defs (on disk, outside plan) | 322 | · |
 | Effective coverage vs plan target | **111%** (1,823 / 1,636) | — |
-| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 63.1% | 1,138 | -5 |
-| With TODO markers | 516 | +5 |
+| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 63.0% | 1,137 | -1 |
+| With TODO markers | 517 | +1 |
 | Empty `abilities: vec![]` placeholders | 150 | · |
 | Total TODO lines across all defs | 940 | · |
 
@@ -95,7 +95,7 @@ are blocked on engine primitives.
 | `opponent-punish` | 12 / 12 | 100% | 5 | 2 | 5 |
 | `equipment` | 11 / 11 | 100% | 6 | 5 | 0 |
 | `tutor` | 11 / 11 | 100% | 9 | 1 | 1 |
-| `removal-bounce` | 10 / 10 | 100% | 6 | 3 | 1 |
+| `removal-bounce` | 10 / 10 | 100% | 5 | 4 | 1 |
 | `static-enchantment` | 1 / 8 | 12% | 1 | 0 | 0 |
 | `discard-effect` | 4 / 7 | 57% | 4 | 0 | 0 |
 | `scry-surveil` | 7 / 7 | 100% | 4 | 3 | 0 |
@@ -223,13 +223,14 @@ tyvar_jubilant_brawler: // TODO: Mill effect + conditional graveyard return with
 
 ## ⚠ Completeness-marker drift
 
-9 defs whose `completeness:` marker contradicts their comments. The marker is authoritative (it is what `validate_deck` reads), so fix whichever is stale.
+10 defs whose `completeness:` marker contradicts their comments. The marker is authoritative (it is what `validate_deck` reads), so fix whichever is stale.
 
 - `ashnods_altar` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `boggart_shenanigans` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `contaminant_grafter` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `emeria_the_sky_ruin` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `grateful_apparition` — marked partial but has no TODO / ENGINE-BLOCKED comment
+- `hullbreaker_horror` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `phyrexian_tower` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `shambling_ghast` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `temple_of_the_dragon_queen` — marked partial but has no TODO / ENGINE-BLOCKED comment

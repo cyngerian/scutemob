@@ -507,8 +507,11 @@ fn class_d_defs_without_a_dsl_expression_are_demoted() {
 /// all?" was named a cheap corpus-wide question nobody had asked.
 ///
 /// This batch asked it. The answer is **not a handful**: a clear majority of the corpus's
-/// `Complete` defs are `Complete` only because nobody wrote the field. Every one of this
-/// batch's eleven class-D defs was in that group.
+/// `Complete` defs are `Complete` only because nobody wrote the field. **Eleven of this
+/// batch's thirteen class-D defs were in that group** -- `smugglers_copter` and
+/// `shambling_ghast` are the two exceptions, and both had declared an explicit
+/// `Completeness::Complete`, so a human had looked at each and been wrong rather than silent.
+/// That distinction cuts against reading the default as the whole story.
 ///
 /// Pinned as a ratchet in the direction that matters. The number is large and will move
 /// with ordinary authoring, so this is a ceiling, not an equality: it fails if the
@@ -544,10 +547,20 @@ fn defs_that_never_declare_a_completeness_marker_are_ratcheted() {
          measuring almost nothing"
     );
 
-    // Measured on this branch at PB-DX4 close: 970 of 1,804 def files never mention
-    // `completeness` at all. (This batch's own five demotions each ADDED a marker, so the
-    // count fell by five from the 975 that would otherwise stand.)
-    const MAX_UNDECLARED: usize = 970;
+    // Measured on this branch at PB-DX4 close: **966** of the 1,804 def files walked above
+    // never mention `completeness` at all. On `main` (pre-batch) the same walk reports 970,
+    // so this batch lowered it by **4**.
+    //
+    // Four, not six, and the arithmetic is worth spelling out because the fix cycle caught an
+    // earlier version of this comment getting it wrong in two ways at once (review Finding 4:
+    // it pinned the PRE-batch 970 as if it were the post-batch number, and derived a "975 that
+    // would otherwise stand" from a five-demotion count). The batch demoted six defs, but
+    // `smugglers_copter` and `shambling_ghast` had ALREADY declared an explicit
+    // `Completeness::Complete`, so demoting them changed a marker rather than adding one. Only
+    // `contaminant_grafter`, `grateful_apparition`, `thrasios_triton_hero` and
+    // `hullbreaker_horror` moved a file out of the undeclared population. 970 - 4 = 966,
+    // measured directly against the filesystem in both states rather than computed.
+    const MAX_UNDECLARED: usize = 966;
     assert!(
         undeclared <= MAX_UNDECLARED,
         "{undeclared} of {total} card-def files never mention `completeness`, up from the \

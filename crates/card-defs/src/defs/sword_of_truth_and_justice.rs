@@ -69,6 +69,22 @@ pub fn card() -> CardDefinition {
                 intervening_if: None,
                 // CR 601.2c: "put a +1/+1 counter on a creature you control" — controller-
                 // restricted, not "another", so no exclude_self.
+                // PB-DX4 fixed the CONTROLLER axis here ("a creature **you control**"; this
+                // was a bare `TargetRequirement::TargetCreature`, so the counter could land on
+                // an opponent's creature).
+                //
+                // The TARGETING axis is a second, unfixed deviation and is recorded rather
+                // than left silent (fix cycle, review Finding 6): the printed clause is "put a
+                // +1/+1 counter on a creature you control" with **no "target"** (CR 115.10 —
+                // an effect only targets when it says so), so the choice is made on
+                // resolution, cannot be responded to, and is unaffected by hexproof, shroud,
+                // protection or a "can't be the target of" restriction. Authoring it as a real
+                // target makes all five of those bite, and lets CR 608.2b fizzle the whole
+                // trigger when the chosen creature leaves. The DSL has no
+                // choose-on-resolution-without-targeting channel for this shape, so it is not
+                // authorable today; filed as the class it is — **OOS-DX4-6**, whose second
+                // known member (`frantic_search`, printed "untap **up to three** lands" with
+                // no "target") this batch's own triage found independently.
                 targets: vec![TargetRequirement::TargetCreatureWithFilter(TargetFilter {
                     controller: TargetController::You,
                     ..Default::default()

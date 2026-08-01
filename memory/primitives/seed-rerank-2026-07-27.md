@@ -684,22 +684,25 @@ was waiting on, so its dismissal deserves a fresh look rather than another copy-
 >
 > **`PB-DX4` SHIPPED (`scutemob-168`, 2026-08-01) — OOS-DP10-8 CLOSED, and it closed
 > OOS-M11-6 by accident on the way.** All 97 `BASELINE` entries read against MCP printed text,
-> roster derived from the const array itself rather than from prose. **Split 86 class-B / 11
-> class-D**, so PB-DP10's 2-of-5 spot-check overstated the D rate roughly fivefold — its own
-> "very noisy sample" caution was right, and this is the fourth time in this suite a plausible
-> roster has been wrong when checked. 5 defs repaired in place and still `Complete`
+> roster derived from the const array itself rather than from prose. **Split 84 class-B / 13
+> class-D** — 86/11 as the seven parallel readers reported it, plus two more the closing review
+> caught (`risen_reef`, `hullbreaker_horror`). PB-DP10's 2-of-5 spot-check still overstated the
+> D rate substantially, and its own "very noisy sample" caution was right. **Read 84/13 as "at
+> least 13":** the readers split on the identical costless-"may" shape (batch 2 called it D on
+> `contaminant_grafter`, batch 6 called it B on `risen_reef`), so the sum is not a corpus
+> measurement — the standard should have been fixed in a plan file before the readers started. 5 defs repaired in place and still `Complete`
 > (`metastatic_evangel`, `grisly_salvage`, `satyr_wayfinder`, `sword_of_truth_and_justice`,
-> `radstorm`); 5 demoted with oracle citations (`smugglers_copter` → `known_wrong`;
+> `radstorm`); 6 demoted with oracle citations (`smugglers_copter` → `known_wrong`;
 > `contaminant_grafter`, `grateful_apparition`, `thrasios_triton_hero`, `shambling_ghast` →
 > `partial`); 1 (`staff_of_compleation`) deliberately left `Complete` and allowlisted, matching
 > the shipped `nether_traitor` decision for the identical owner-vs-controller class rather than
-> reporting a corpus class as a pair of cards. Coverage 1,143 → **1,138** (63.1%), tests 4,040 →
+> reporting a corpus class as a pair of cards. Coverage 1,143 → **1,137** (63.0%), tests 4,040 →
 > **4,048**, 0 engine lines, PROTOCOL 32 / HASH 69 unmoved. Durable record:
-> `memory/primitives/pb-dx4-baseline-triage.md`. New seeds **OOS-DX4-1..4**.
+> `memory/primitives/pb-dx4-baseline-triage.md`. New seeds **OOS-DX4-1..6**.
 >
 > **Both carried-forward items were answered, and both answered bigger than expected.** The
-> `#[default]` question: **970 of 1,804 def files never mention `completeness` at all** — a
-> clear majority of the `Complete` population, and *all eleven* class-D defs were in it. Now
+> `#[default]` question: **966 of 1,804 def files never mention `completeness` at all (970 before this batch)** — a
+> clear majority of the `Complete` population, and *eleven of the thirteen* class-D defs were in it. Now
 > ratcheted in the growth direction. The stale-note lesson: it recurred inside this batch by a
 > different route — `metastatic_evangel` carried a note claiming `is_token` is ignored on the
 > ETB path, which PB-AC0 had made false — so the class is wider than the note-shaped sweeps
@@ -731,7 +734,7 @@ bumps were falsified).
 | ~~**PB-DX2**~~ **✅ SHIPPED `scutemob-162`** | unguarded resolution-time commands | **OOS-DP5-7** + **OOS-DP7-2** (+riders DP2-1, DP9-14) — **all four CLOSED** | **CORRECTNESS — live exploit, trust boundary** | **0 flips as predicted** (corpus holds 1 dredge def, already `Complete`); closes the free-card exploit + **5** lying doc sites, not 2; +2 unbriefed CR 614.11a bugs fixed; seeds OOS-DX2-1..7 | **none — PREDICTION HELD.** PROTOCOL 32 / HASH 69 unmoved, empty diff on `protocol.rs`/`hash.rs`; achieved by reusing the existing `pending_draws` queue instead of the brief's new-entry design, which would have bumped HASH |
 | ~~**PB-DX3**~~ **✅ SHIPPED `scutemob-164`** | two stale blocker notes | **OOS-DP6-3** — **CLOSED** | **card yield, zero engine** | **2 flips as predicted** (`garruks_uprising`, `inventors_fair`); `inventors_fair`'s upkeep trigger had to be **authored**, not merely gated — it did not exist in the def at all; successor seed OOS-DX3-1 names 6 more defs in the same bucket, one a **live-wrong `Complete`** | **none — PREDICTION HELD.** PROTOCOL 32 / HASH 69 unmoved; empty diff over all of `crates/engine/src` and `crates/card-types/src`, not merely `protocol.rs`/`hash.rs` |
 | ~~**PB-DX3b**~~ **✅ SHIPPED `scutemob-166`** *(insert, not in the original ranking)* | the rest of the stale-note bucket | **OOS-DX3-1** — **CLOSED** | **CORRECTNESS — 2 live-wrong `Complete` defs — + card yield, zero engine** | **2 flips up, 1 honest flip down (net +1, coverage 1,142 → 1,143)**; `dwynen_s_elite`'s ability had to be **authored**; **the seed itself mis-dispositioned `emeria_the_sky_ruin`**, a second live-wrong `Complete`-by-`#[default]` def; new seed OOS-DX3b-1 | **none — PREDICTION HELD.** PROTOCOL 32 / HASH 69 unmoved; empty diff over all of `crates/engine/src` and `crates/card-types/src` |
-| ~~**PB-DX4**~~ **✅ SHIPPED `scutemob-168`** | the `BASELINE` triage sweep | **OOS-DP10-8** — **CLOSED** (+ **OOS-M11-6** closed incidentally) | **CORRECTNESS — marker integrity** | **the "0 flips" estimate was wrong in the direction that matters: 5 demotions, coverage 1,143 → 1,138.** 11 class-D of 97 (not the ≥2 predicted); 5 repaired in place, 5 demoted, 1 allowlisted by class precedent | **none — PREDICTION HELD.** PROTOCOL 32 / HASH 69 unmoved; empty diff over all of `crates/engine/src` and `crates/card-types/src`. Note the batch DID touch `crates/simulator/src` (the OOS-M11-6 fix) and `tools/play-server` (seed re-pins) — neither is in the no-engine gate |
+| ~~**PB-DX4**~~ **✅ SHIPPED `scutemob-168`** | the `BASELINE` triage sweep | **OOS-DP10-8** — **CLOSED** (+ **OOS-M11-6** closed incidentally) | **CORRECTNESS — marker integrity** | **the "0 flips" estimate was wrong in the direction that matters: 6 demotions, coverage 1,143 → 1,137.** 13 class-D of 97 (not the ≥2 predicted); 6 repaired in place, 6 demoted, 1 allowlisted by class precedent; two of the thirteen were found by the closing review, not the triage | **none — PREDICTION HELD.** PROTOCOL 32 / HASH 69 unmoved; empty diff over all of `crates/engine/src` and `crates/card-types/src`. Note the batch DID touch `crates/simulator/src` (the OOS-M11-6 fix) and `tools/play-server` (seed re-pins) — neither is in the no-engine gate |
 | **PB-DX5** | CR 611.2c affected-set snapshot | **OOS-OS7-2** *(ex-R6)* | **CORRECTNESS — engine-wide, 7 `Complete` defs** | 0 flips; repairs 7 `Complete` + 2 `partial` defs | **HASH**, and **PROTOCOL** if `ContinuousEffect` is in the wire closure — compute, do not assume |
 | **PB-DX6** | the last unflattened pip sites | **OOS-RS2-1** + **OOS-DP4-1** | **CORRECTNESS — live undercharge (narrow)** | 0 flips; closes the OOS-RS-2 class at its 4th and 5th sites | **PROTOCOL** (`DeclareAttackers` gains the two payment-choice fields `ActivateAbility`/`TapForMana` already have) |
 | **PB-DX7** | SR-19 gate holes | **OOS-DP7-11** + **OOS-DP9-13** (+DP10-1, DP9-10 residual) | **gate integrity** | 0 flips; 5 structs + all hashed enums re-enter the gate | **none** (test-only) |

@@ -13,8 +13,14 @@
 // — a permanent counter persists past cleanup, is proliferate-able, and pairs off against
 // +1/+1 counters under CR 122.3; and (3) a stored `oracle_text` asserting a Decayed reminder
 // and "When Shambling Ghast **enters**" against this def's own `TriggerCondition::WhenDies`.
-// Mode order is left as authored (Treasure first) — a mode's identity in Magic is its text,
-// not its index, so index order is an engine artifact and not an oracle deviation.
+// Mode order is left as authored (Treasure first) even though the printed bullets run the
+// other way (-1/-1 first, Treasure second). A mode's identity in Magic is its text, not its
+// index, so the order is not itself an oracle deviation — but it is not invisible either
+// (fix cycle, review Finding 10): anything that renders `ModeSelection.modes` positionally,
+// or that reports "mode 0" to a player, shows this card's two modes in the opposite order
+// from the printed card. Reordering would also silently repoint every existing
+// `modes_chosen: [0]` in tests and scripts, so it is recorded here rather than done in a
+// batch whose subject is markers.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {

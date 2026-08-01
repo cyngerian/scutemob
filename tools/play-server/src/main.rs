@@ -1202,7 +1202,7 @@ mod tests {
         // the value off a real run when it moves.)
         assert_eq!(
             secrets.len(),
-            15,
+            14,
             "guard against a vacuous pass: {secrets:?}"
         );
 
