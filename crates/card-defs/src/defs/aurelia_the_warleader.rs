@@ -26,7 +26,28 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::Vigilance),
             AbilityDefinition::Keyword(KeywordAbility::Haste),
             // "Whenever Aurelia attacks for the first time each turn" maps to WhenAttacks
-            // with Condition::IsFirstCombatPhase (same pattern as Karlach).
+            // with Condition::IsFirstCombatPhase (Karlach, Fury of Avernus uses the same
+            // IsFirstCombatPhase intervening-if, but on WheneverYouAttack instead of
+            // WhenAttacks -- her printed text is controller-scoped, "whenever you attack",
+            // not self-scoped like Aurelia's).
+            //
+            // OOS-DX1-5 (PB-DX1, 2026-08-01): `IsFirstCombatPhase` is a PROXY for "for the
+            // first time each turn", not a translation, and the two diverge. The printed
+            // card triggers the first time Aurelia herself attacks in a turn, however late;
+            // `IsFirstCombatPhase` instead asks "is this the turn's first combat phase at
+            // all" (`!state.turn.in_extra_combat`). They agree whenever Aurelia's first
+            // attack of the turn happens to be in the turn's first combat -- the overwhelming
+            // common case -- but diverge if she is blinked in (or otherwise made available to
+            // attack) only during a LATER combat phase granted by another source: the real
+            // card would still trigger on that first attack of hers, but this def's
+            // `IsFirstCombatPhase` reads false (already in an extra combat) and suppresses
+            // it. The faithful authoring is `once_per_turn: true` with no `intervening_if`
+            // (expressible since PB-DX1 §10 propagates `once_per_turn` through the lowering)
+            // -- deliberately NOT done here: re-authoring would change which mechanism T1
+            // (`test_dx1_aurelia_attack_trigger_fires_exactly_once_per_turn`,
+            // `crates/engine/tests/primitives/pb_dx1_lowered_intervening_if.rs`) exercises,
+            // and the substitution needs to be argued on its own oracle merits in a
+            // dedicated pass, not folded into the batch that made it possible.
             AbilityDefinition::Triggered {
                 once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenAttacks,

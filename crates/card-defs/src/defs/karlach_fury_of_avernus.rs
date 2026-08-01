@@ -3,10 +3,16 @@
 // creatures, grant first strike until end of turn, add an additional combat phase.
 // Choose a Background.
 //
-// NOTE: "Whenever you attack" means whenever you (the player) declare attackers.
-// The engine models this as WhenAttacks on Karlach itself, which is a known
-// simplification (DSL gap: no WhenYouDeclareAttackers condition). Karlach must
-// personally attack for the trigger to fire.
+// PB-DX1 (2026-08-01): "Whenever you attack" is CR 508.1's controller-scoped attack
+// trigger, NOT "whenever Karlach attacks". MCP ruling (2022-06-10, #11) is explicit:
+// "Karlach doesn't have to be among the attacking creatures." Fixed from `WhenAttacks`
+// (which required her to personally attack -- the exact defect the prior known_wrong
+// note named) to `WheneverYouAttack { filter: None }`, which PB-DX1 rows 2/29 both now
+// carry `intervening_if` through the runtime lowering, making this combination
+// expressible for the first time. `WheneverYouAttack` fires ONCE per combat for the
+// controller (abilities.rs's `GameEvent::AttackersDeclared` handler, "Fires per player
+// (not per creature), so runs once outside the per-attacker loop"), matching CR 508.1
+// exactly -- not once per attacking creature.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -38,7 +44,7 @@ pub fn card() -> CardDefinition {
             // 3. After this phase, there is an additional combat phase.
             AbilityDefinition::Triggered {
                 once_per_turn: false,
-                trigger_condition: TriggerCondition::WhenAttacks,
+                trigger_condition: TriggerCondition::WheneverYouAttack { filter: None },
                 intervening_if: Some(Condition::IsFirstCombatPhase),
                 effect: Effect::Sequence(vec![
                     // Untap all attacking creatures.
@@ -74,11 +80,17 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
         ],
-        completeness: Completeness::known_wrong(
-            "'whenever you attack' modelled as WhenAttacks on Karlach — she must attack \
-             personally; TriggerCondition::WheneverYouAttack now exists and is wired \
-             (replay_harness.rs:3250, abilities.rs:3897) and should be used",
-        ),
+        // PB-DX1: flipped from known_wrong to Complete (default). All four points of
+        // the plan's §6.4 verification hold: (1) every oracle clause -- untap all
+        // attacking creatures, grant first strike until end of turn, additional
+        // combat phase with NO extra main phase (MCP ruling #1: "doesn't give any
+        // additional main phases"), Choose a Background -- is implemented; (2)
+        // `WheneverYouAttack { filter: None }` fires once per combat for the
+        // controller, not once per attacker (verified in abilities.rs); (3) fail-
+        // before probe `test_karlach_fires_without_personally_attacking` /
+        // `test_karlach_extra_combat_once_per_turn` in
+        // `crates/engine/tests/primitives/pb_dx1_lowered_intervening_if.rs`; (4) no
+        // clause failed.
         ..Default::default()
     }
 }

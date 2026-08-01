@@ -1559,3 +1559,176 @@ fn test_dx1_once_per_turn_whispering_wizard() {
          token this turn even though two noncreature spells were cast"
     );
 }
+
+// ── T12: Karlach, Fury of Avernus (plan §6.4 -- known_wrong -> Complete) ────
+//
+// MCP ruling (2022-06-10, #11): "Karlach doesn't have to be among the
+// attacking creatures." Flipped from `WhenAttacks` (Karlach must personally
+// attack) to `WheneverYouAttack { filter: None }` (CR 508.1 -- any attack by
+// the controller), now expressible because PB-DX1 propagates `intervening_if`
+// through BOTH rows' lowering.
+
+/// MCP ruling #11 for Karlach, Fury of Avernus, driven through the REAL card
+/// def: a creature OTHER than Karlach attacks (Karlach does not attack), and
+/// her `WheneverYouAttack` trigger must still fire -- untapping the actual
+/// attacker, granting it first strike, and creating an additional combat
+/// phase. This is the exact defect the prior `known_wrong` note named; it is
+/// unreachable under the old `WhenAttacks` (Karlach-must-personally-attack)
+/// modelling.
+#[test]
+fn test_dx1_karlach_fires_without_personally_attacking() {
+    let p1 = p(1);
+    let p2 = p(2);
+
+    let all = all_cards();
+    let defs = load_defs_from(&all);
+    let registry = CardRegistry::new(all);
+
+    let karlach_spec = enrich_spec_from_def(
+        ObjectSpec::card(p1, "Karlach, Fury of Avernus")
+            .with_card_id(cid2("karlach-fury-of-avernus"))
+            .in_zone(ZoneId::Battlefield),
+        &defs,
+    );
+    let buddy_spec = ObjectSpec::creature(p1, "DX1 T12 Buddy", 2, 2);
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .object(karlach_spec)
+        .object(buddy_spec)
+        .active_player(p1)
+        .at_step(Step::DeclareAttackers)
+        .build()
+        .unwrap();
+    state.turn_mut().priority_holder = Some(p1);
+
+    let karlach_id = find_by_name(&state, "Karlach, Fury of Avernus");
+    let buddy_id = find_by_name(&state, "DX1 T12 Buddy");
+
+    // Declare ONLY the buddy creature as an attacker -- Karlach herself does
+    // not attack.
+    let (state, declare_events) = process_command(
+        state,
+        Command::DeclareAttackers {
+            player: p1,
+            attackers: vec![(buddy_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
+            exert_choices: vec![],
+        },
+    )
+    .unwrap_or_else(|e| panic!("DeclareAttackers failed: {e:?}"));
+
+    assert_eq!(
+        count_aurelia_triggers(&declare_events, karlach_id),
+        1,
+        "MCP ruling #11: Karlach's WheneverYouAttack trigger must fire even \
+         though she is not among the attacking creatures"
+    );
+
+    let (state, _) = pass_all(state, &[p1, p2]);
+    assert!(
+        !state.objects()[&buddy_id].status.tapped,
+        "the actual attacker (buddy) should be untapped by Karlach's effect"
+    );
+    assert_eq!(
+        state.turn().additional_phases.len(),
+        1,
+        "an additional combat phase should be granted"
+    );
+}
+
+/// Plan §6.4 T12: mirrors T1's Aurelia shape for Karlach. Combat 1: Karlach
+/// attacks personally (first combat phase this turn -> trigger fires, untaps
+/// herself, grants an extra combat). Combat 2 (the extra combat she granted):
+/// she attacks again (untapped by her own effect) -> the trigger must NOT
+/// fire a second time -- no third combat.
+#[test]
+fn test_dx1_karlach_extra_combat_once_per_turn() {
+    let p1 = p(1);
+    let p2 = p(2);
+
+    let all = all_cards();
+    let defs = load_defs_from(&all);
+    let registry = CardRegistry::new(all);
+
+    let karlach_spec = enrich_spec_from_def(
+        ObjectSpec::card(p1, "Karlach, Fury of Avernus")
+            .with_card_id(cid2("karlach-fury-of-avernus"))
+            .in_zone(ZoneId::Battlefield),
+        &defs,
+    );
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .object(karlach_spec)
+        .active_player(p1)
+        .at_step(Step::DeclareAttackers)
+        .build()
+        .unwrap();
+    state.turn_mut().priority_holder = Some(p1);
+
+    let karlach_id = find_by_name(&state, "Karlach, Fury of Avernus");
+
+    let (state, declare1_events) = process_command(
+        state,
+        Command::DeclareAttackers {
+            player: p1,
+            attackers: vec![(karlach_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
+            exert_choices: vec![],
+        },
+    )
+    .unwrap_or_else(|e| panic!("combat 1 DeclareAttackers failed: {e:?}"));
+
+    let mut all_events = declare1_events;
+    assert_eq!(
+        count_aurelia_triggers(&all_events, karlach_id),
+        1,
+        "Karlach's first attack this turn must queue the WheneverYouAttack trigger"
+    );
+
+    let (state, ev) = advance_until(state, 60, |s| {
+        s.turn().step == Step::DeclareAttackers
+            && s.turn().in_extra_combat
+            && s.stack_objects().is_empty()
+    });
+    all_events.extend(ev);
+    assert_eq!(
+        state.turn().additional_phases.len(),
+        0,
+        "the single extra combat should already be consumed by the time we \
+         reach its DeclareAttackers step"
+    );
+
+    let (state, declare2_events) = process_command(
+        state,
+        Command::DeclareAttackers {
+            player: p1,
+            attackers: vec![(karlach_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
+            exert_choices: vec![],
+        },
+    )
+    .unwrap_or_else(|e| panic!("combat 2 DeclareAttackers failed: {e:?}"));
+    all_events.extend(declare2_events);
+
+    let (state, ev) = advance_until(state, 30, |s| s.stack_objects().is_empty());
+    all_events.extend(ev);
+
+    assert_eq!(
+        count_aurelia_triggers(&all_events, karlach_id),
+        1,
+        "CR 603.4: Karlach's WheneverYouAttack trigger must fire exactly ONCE \
+         across the whole turn -- her second attack (in the extra combat she \
+         granted) must not re-trigger it"
+    );
+    assert_eq!(
+        state.turn().additional_phases.len(),
+        0,
+        "no third combat phase should be queued"
+    );
+}

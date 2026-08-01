@@ -97,7 +97,11 @@ pub fn card() -> CardDefinition {
             "DSL gap — no EffectFilter for 'land creatures you control' (EffectFilter cannot \
              intersect card types), so the flying grant is unimplemented. The landfall trigger IS \
              implemented, but its target should be UpToN{1, TargetLandWithFilter(controller: \
-             You)}, not bare TargetLand.",
+             You)}, not bare TargetLand. PB-DX1 (2026-08-01): the 'you control seven or more \
+             lands' intervening-if on this trigger is now actually evaluated at both CR 603.4 \
+             checkpoints (previously silently dropped by the runtime lowering, so the animate \
+             effect could fire under 7 lands) -- pure behavior repair, does NOT resolve either \
+             blocker named above; marker stays partial.",
         ),
         ..Default::default()
     }
