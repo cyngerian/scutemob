@@ -1,6 +1,6 @@
 # Runtime Integrity: Watchdog, Recovery, and Bug Reporting
 
-<!-- last_updated: 2026-03-22 -->
+<!-- last_updated: 2026-08-01 -->
 
 > **Purpose**: Ensure that when a rules bug occurs during a live game, it is caught
 > immediately, the game state is recoverable, and the bug is diagnosable. This is a
@@ -151,6 +151,34 @@ serializes bug reports.
 - Integrity error display with rollback prompt
 - "Report Bug" button
 - Manual state adjustment mode (already planned) as fallback for unrecoverable states
+
+> **Status 2026-08-01 (M11-local S8, `scutemob-173`)**: the **"Report Bug" button is
+> shipped** — `GET /api/game/report` plus an "Export report" button in
+> `tools/play-server/frontend`. It returns `{seed, config, protocol_version,
+> protocol_fingerprint, hash_schema_version, final public_state_hash, turn,
+> command_count, violations, journal (commands + events)}`, downloaded as a named JSON
+> file.
+>
+> **Two deliberate deviations from the spec above**, stated rather than glossed:
+> 1. **No player-description field.** The seed, the config and the command journal
+>    reproduce the game exactly, which is what Layer 3 exists for; a free-text box is UI
+>    with no consumer while there is no submission endpoint.
+> 2. **No "last known-good state" / "corrupt state" pair.** That is Layer 2's automatic
+>    capture, and Layer 2 (auto-rollback) is M10 work that does not exist yet. What ships
+>    is the *manual* capture: the full journal from game start, which replays to the same
+>    state hash.
+>
+> The other two Layer 3 bullets — the integrity-error display and manual state adjustment
+> — were **carved out of M11-local into M13** by the 2026-07-26 roadmap restructure,
+> because both need M10b's server-side machinery. See the roadmap's "Deferred out of
+> M11-local" block.
+>
+> **The privacy consideration below is NOT yet honoured, and that is a live obligation.**
+> `BugReportView` carries every seat's raw events, deliberately: a redacted repro is not
+> a repro, and M11-local is one human plus three bots in a single process with no
+> networking, so the only hidden information exposed belongs to simulator bots. **This
+> must be re-scoped at M10a** — see `tools/play-server/src/view.rs::BugReportView`, the
+> crate README, and `memory/decisions.md` (2026-08-01, entry 5).
 
 ---
 
