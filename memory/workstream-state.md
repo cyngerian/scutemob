@@ -35,7 +35,133 @@
 | S2 deterministic pregame setup + mulligans | `scutemob-161` | **SHIPPED** | `setup.rs`: `build_initial_state` / `redeal` — see handoff below |
 | S3 action parameterization + engine target queries | `scutemob-163` | **SHIPPED** | the crux (plan §8 R1) is closed: a human can cast a targeted spell. See handoff below |
 | S4 view-model crate extraction + seat redaction | `scutemob-165` | **SHIPPED** | this session — `crates/view-model` (`mtg-view-model`); a seat view provably cannot leak another hand or any library order. See handoff below |
-| S5 play-server crate skeleton + REST API | — | **next** | Plan §4 Session 5. New `tools/play-server` (axum, port 3040) — the only crate in this milestone with async or IO. Consumes `mtg-view-model` and `LocalGame`. **Never start the HTTP server to validate; use `tower::ServiceExt::oneshot`** |
+| S5 play-server crate skeleton + REST API | `scutemob-167` | **SHIPPED** (+ 2 review cycles) | this session — `tools/play-server` (axum, port 3040), the only crate in this milestone with async or IO. 5 routes + `ServeDir`, **16 tests** (15 `oneshot` HTTP + the source gate, which is a plain `#[test]` and constructs no router), **no port ever bound and now machine-gated crate-wide**. See handoff below |
+| S6 play frontend — render and basic input | — | **next** | Plan §4 Session 6. New `tools/play-server/frontend` (Svelte 5 + Vite), dev proxy to `127.0.0.1:3040`, `$viewer` alias importing the replay-viewer components rather than copying them. No Rust change beyond serving `dist/` |
+
+**S5 handoff (2026-08-01, `scutemob-167`)**
+
+- **A full game is now playable over `curl` alone.** `POST /api/game` → `GET /api/game` →
+  `POST /api/game/action` → `POST /api/game/mulligan` → `GET /api/healthz`, plus a `ServeDir`
+  fallback to `dist/` for S6's frontend. Tests 4,008 → 4,016 → 4,023 → **4,024** across the two
+  review fix cycles (+16 in the crate's inline `mod tests`: 15 `oneshot` HTTP tests plus the
+  source gate, which is a plain `#[test]` and builds no router). `git diff main -- crates/engine/src
+  crates/card-types/src crates/card-defs/src` is **empty**; PROTOCOL **32** / HASH **69**
+  unmoved; `crates/simulator` and `crates/view-model` untouched — S5 needed nothing added to
+  either, **including its fix cycle**: MEDIUM 1's root cause is `LocalGame::decision_seq`
+  restarting at 0, and the fix is an offset in `PlaySession`, not an edit to the simulator.
+- **No port is ever bound, and that is now a gate rather than a promise — but the first
+  version of the gate cut in the wrong place.** `TcpListener` / `axum::serve` appear only
+  inside `async_main`, which no test calls; all 15 HTTP tests drive
+  `build_router(state, &PathBuf::from("nonexistent_dist"))` through
+  `tower::ServiceExt::oneshot`. `test_no_socket_symbol_appears_in_the_test_region` now walks
+  **every `.rs` file** under the crate's `src/` and `tests/` (rooted at `CARGO_MANIFEST_DIR`,
+  so it does not depend on the working directory) and fails on any of the four symbols inside
+  a test region — line-anchored `#[cfg(test)]` in a `src/` file, the whole file for a
+  `tests/` one. Needles are assembled with `concat!` so it does not match its own source.
+  **As first shipped it read `main.rs` alone and cut at the first *textual* `#[cfg(test)]`,
+  which is the one spelled out in that file's own module doc comment** — the "test region"
+  therefore began at a paragraph of prose and the gate passed only because all four needles
+  happen to be typed to the left of the marker in that sentence; its non-vacuity guard was
+  satisfiable by the same paragraph. Both fixed in fix cycle 2, with three mutation proofs
+  run rather than argued. Plan §7 constraint 1 is machine-held crate-wide for S6/S7.
+- **Four review findings worth carrying into S6, because the client will encounter all
+  four.** (1) The wire `seq` is **not** `LocalGame`'s `seq`: `PlaySession::seq_base` makes it
+  monotonic across restarts and mulligans, because without it game B's first decision reused
+  game A's `seq: 1` and a stale tab's post was **accepted with 200** (observed — the new
+  game's `command_count` moved 0 → 4). (2) A body the extractor rejects is now **400 in the
+  JSON envelope**, not axum's bare `text/plain` **422** — the old behaviour collided with
+  this crate's own meaning for 422 ("the engine refused it"), so a client-side typo read as
+  an engine rejection; and `POST /api/game {"playerz":9}` used to answer **200 with a default
+  game** because `Option<T>`'s `FromRequest` is `.ok()`. An **absent** body still means "use
+  the CLI defaults". (3) `POST /api/game` — and only it — recovers from a poisoned session
+  mutex, so one engine panic no longer costs a process restart on the surface that exists to
+  find engine panics. **That recovery had to be made atomic in fix cycle 2**: as first
+  written it cleared the poison flag *before* the fallible rebuild, and `session::new_game`
+  fails on a client-supplied seed (a colourless commander's deck is padded with Forests,
+  which `validate_deck` refuses under CR 903.5c — 7 failing tables in 180 `(players, seed)`
+  pairs), so the `?` left the half-mutated session readable at **200** where the unfixed
+  code had answered 500. The corrupt session is now `take()`n in the same straight-line
+  block that clears the flag. (4) `GameSummary.seed` is the **base** seed; after a mulligan the table
+  came from `redeal_seed(seed, seat, count)`, so a reproducible bug report needs
+  `seed` + `players` + `bot` + `mulligan_count` — all four are already in every `GameSummary`.
+- **The multi-thread runtime flavor is a correctness requirement, not a performance choice.**
+  `tokio::task::block_in_place` **panics** on a current-thread runtime — which is exactly what
+  a plain `#[tokio::test]` builds. Every async test carries
+  `#[tokio::test(flavor = "multi_thread")]`. The 8 MB worker stacks are the separate,
+  inherited reason (`tools/replay-viewer/src/main.rs`'s `fn main` (`:50-65`): deep trigger chains overflow
+  tokio's 2 MB default in debug builds). Both facts are commented at the runtime builder and
+  in `api.rs`'s module doc — **S6/S7 must not "simplify" either one away.**
+- **New engine seed, found by a test refusing to lie about itself.** Writing
+  `test_post_action_illegal_target_returns_422` against the first castable spell at seed 0
+  (`Accorder's Shield`, a `{0}` artifact with no target requirements) returned **200**: the
+  engine **accepts a spurious `Player` target on a spell that requires none**, and records it
+  on the stack object. The test was rebuilt to drive three deterministic steps to
+  `Cast Dispel` ("counter target spell", CR 601.2c), where the target is genuinely refused →
+  `Rejected(GameStateError::InvalidTarget)` → 422, with the same params on `PassPriority`
+  asserted alongside as the **400** control (`ParamError::UnsupportedParam`, never reaches the
+  engine). **The excess-target acceptance is a real engine-side gap, out of scope for
+  M11-local, and is FILED as `OOS-M11-5`** (`docs/audits/decision-point-audit.md` §8.1) so the
+  next queue re-rank — which enumerates `OOS-*` tokens — actually sees it. Root cause read in
+  source: `validate_targets_inner` skips its entire requirement-matching pass when
+  `requirements.is_empty()`, an "existence-only" arm added for **aura/bestow** (which declares
+  a target while carrying no `TargetRequirement`) and never scoped to it. Zero exposure through
+  the bots — `params.rs` only forwards targets a human announced — so it became reachable only
+  when S3 gave a human a way to announce targets at all, which is why nine prior batches did
+  not see it.
+- **Invariant 7 at the HTTP boundary is pinned in both directions.** Omniscient truth is read
+  out of band from the session's `GameState`; after excluding the human's own hand and every
+  public zone (battlefield, graveyards, command zone per CR 903.6, exile, stack), **20
+  distinct other-seat hand card names** remain and the count is asserted **exactly**, so a
+  future change cannot quietly empty the set and turn the search into a no-op. Each name is
+  searched for in the **raw response body string**, not the parsed `zones.hand` — S4's review
+  HIGH ("redaction follows the rendering site, not the zone") applied forward. All seven of
+  the human's own names are asserted **present**, so an empty payload fails. Proven by
+  mutation, **re-run against the current 16-test module in fix cycle 2**: flipping
+  `seat_view` to `Viewer::Omniscient` reddens exactly
+  `test_seat_view_over_http_contains_no_other_hand_card_names`, on `"Aggravated Assault"`,
+  while the other **fifteen** stay green.
+- **Two facts S7 needs.** (1) `mtg_view_model::redact::viewer_may_identify` is `pub(crate)`
+  and not re-exported, so a play-server label physically cannot call it — every label goes
+  through a `NameIndex` derived from the already-redacted `StateViewModel`, and an unidentified
+  id renders `(hidden card)`. **S7's `target_slots` labels must use the same index**, not
+  `state.objects()`. (2) `event_view_for` takes **four** params (`ev, state, player_names,
+  viewer`), not the plan §3 sketch's three.
+- **Known limitations, all deliberate and documented in `tools/play-server/README.md`**: the
+  mulligan rebuilds the **whole table** (CR 903.6 makes the command zone public, so a redeal
+  is not invisible; and CR 103.5c's per-seat counts cannot be represented) — a per-seat model
+  needs each *bot* seat asked, i.e. a new decision channel; `cards_to_bottom` is refused with
+  **400** rather than silently discarded, because `handle_keep_hand` checks it against a
+  `PlayerState::mulligan_count` a rebuild always leaves at 0; `GET /api/game` calls the
+  idempotent `advance()` and consumes `journal_cursor`; `target_slots` / `modes` are empty
+  until S7; `needs_x` answers `CastSpell` only; one game per process; and (added by the fix
+  cycle) `GameSummary.seed` is the base seed, not the effective one after a mulligan.
+- **Second engine/simulator seed, `OOS-M11-6`, found while probing whether `new_game` is
+  client-reachably fallible — and it is.** `random_deck` (`crates/simulator/src/deck.rs`)
+  applies the CR 903.5c colour-identity filter correctly to the main deck and then **bypasses
+  that same filter 37 lines later** when padding to 99 with basics (filter predicate
+  `deck.rs:68`, padding loop `deck.rs:105-110`): `basics_for_colors`
+  falls back to **Forest** (identity `{Green}`) for a **colourless** commander, so such a deck
+  carries ~34 illegal Forests and `validate_deck` — which S2 deliberately routed
+  `build_initial_state` through — refuses the whole table. **Measured: 7 failures in a sweep of
+  180 `(players, seed)` pairs** (`players: 2, seed: 17` among them), so roughly one
+  client-supplied seed in 25 returns a deck-validation failure instead of a game. There are
+  **two** Forest fallbacks and the second is dead — the call site's own `if basics.is_empty()`
+  arm has a comment saying *"use Wastes (or just any basic)"* and pushes `forest`. **Not a
+  one-line fix**: no `wastes.rs` def exists, so it needs either Wastes authored or colourless
+  padding drawn from the identity-legal lands already in the pool (prefer the second — no new
+  def, no `Complete` flip). **The fuzzer half is CONFIRMED, not suspected** (checked in the
+  third audit): `driver.rs` has no deck reference at all, `validate_deck` appears in
+  `crates/simulator` only in `setup.rs`, and `bin/fuzzer.rs:296` calls `random_deck` and feeds
+  `GameStateBuilder` directly at `:309`+ from the same `all_cards()` pool. So those decks are
+  **played** there, not refused — the blast radius is a **silent CR 903.5c deviation in every
+  fuzz run that rolls a colourless commander**, not just a play-server 422. The two
+  poison-atomicity tests in `tools/play-server` use this bug as their only trigger; closing it
+  needs a replacement failure mode (they fail loudly, not vacuously).
+- **The no-WebSocket / no-SSE decision is recorded in the crate README with its reasoning**
+  (bots act synchronously inside the human's own request, so the server never holds news the
+  client is not already waiting on; a second human seat would break that premise; push is
+  M10a's problem). `memory/decisions.md` receives it at **S8**, per plan item 8 — deliberately
+  **not** written there yet.
 
 **S4 handoff (2026-08-01, `scutemob-165`)**
 

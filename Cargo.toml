@@ -12,6 +12,7 @@ members = [
     "tools/scryfall-import",
     "tools/mcp-server",
     "tools/replay-viewer",
+    "tools/play-server",
     "tools/tui",
 ]
 
