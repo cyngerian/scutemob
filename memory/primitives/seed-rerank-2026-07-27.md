@@ -631,8 +631,35 @@ was waiting on, so its dismissal deserves a fresh look rather than another copy-
 > the fix cycle, reproduced empirically, and **reopened**. A batch that closes doc-vs-code seeds
 > is exactly where a false proof is most costly.
 >
-> **Next dispatch: `PB-DX3`** (OOS-DP6-3 — two stale blocker notes; **2 flips, 0 engine lines**;
-> pure authoring, blocks nothing, and can ride any batch as a rider). Independent of M11-local.
+> **PB-DX3 SHIPPED** (`scutemob-164`, 2026-08-01) — **OOS-DP6-3 CLOSED, exactly as scoped**:
+> 2 flips (`garruks_uprising`, `inventors_fair`), `git diff` over `crates/engine/src` +
+> `crates/card-types/src` **empty**, PROTOCOL 32 / HASH 69 unmoved, coverage 1,140 → **1,142**
+> (63.2% → 63.3%), tests 3,988 → **3,998**. Review 0 HIGH / 1 MEDIUM / 5 LOW, all applied; both
+> flips ruled justified clause-by-clause against MCP oracle text and all eight rulings.
+> **Three things the row did not contain.** (1) `inventors_fair`'s upkeep trigger **did not exist
+> at all** — the seed and both blocker notes read as though it were present but ungated, so the
+> batch had to *author* the ability rather than add its `intervening_if`. (2) The runtime
+> `InterveningIf` enum both notes name now has **three** variants, not the two they cite: PB-DX1
+> added `InterveningIf::CardDef`. The notes were stale twice over, and the second staleness was
+> introduced by this very queue two batches earlier. (3) The MEDIUM was the batch reproducing its
+> own subject: it recorded a pre-fix observation for T1 that **could not have been observed**
+> against T1's own fixture (no library object, and an empty-library draw sets `has_lost` rather
+> than incrementing the hand), alongside a companion assertion that passed either way. Fixed by
+> giving T1 a real library card and **re-running the pre-fix scenario empirically** — reverting
+> `intervening_if` to `None` and reading the numbers — rather than repairing the prose. The
+> original claim turned out to be right; it had simply never been checked against a fixture where
+> the number meant anything, which is the distinction that matters. **Successor seed OOS-DX3-1**
+> (audit §8.1): the same stale-note bucket holds six more defs from `pb-plan-DP6.md:395`, and
+> **`jadar_ghoulcaller_of_nephalia` is a live-wrong `Complete` def** — `intervening_if: None`, so
+> it makes a 2/2 Zombie every end step unconditionally, and its stored `oracle_text` names a
+> token-name filter ("tokens named Shambling Ghast") the printed card never had (real text:
+> "creatures with decayed"). Expressible today via `Not(YouControlNOrMoreWithFilter{…Decayed})`.
+> `ophiomancer` and `dwynen_s_elite` are two more flips in the same shape.
+>
+> **Next dispatch: `PB-DX4`** (OOS-DP10-8 — triage the 97-entry decision `BASELINE` against
+> oracle text; test + card-def markers only, no engine lines, no wire). **Consider inserting
+> OOS-DX3-1's Jadar half ahead of it** — it is a live-wrong `Complete` def on the deck-legal
+> path, the tier that put PB-DX1 at rank 1, and it is card-def-only.
 
 **Prefix**: `PB-DX` ("decision-suite eXtension"). Verified unclaimed — zero occurrences of
 `PB-DX` anywhere in `memory/`, `docs/` or `CLAUDE.md` before this document. `PB-SR*`, `PB-RS*`,
@@ -651,7 +678,7 @@ bumps were falsified).
 |---|---|---|---|---|---|
 | ~~**PB-DX1**~~ **✅ SHIPPED `scutemob-160`** | the dropped intervening-if | **OOS-DP6-1** (+riders DP6-5, DP6-9) — **all three CLOSED** | **CORRECTNESS — live-wrong `Complete`, unbounded** | **1 flip** (`karlach`), not 2 — `tatyova` stays `partial`; `aurelia` repaired; +3 defs stop over-firing via the unpredicted `once_per_turn` half | **PROTOCOL 31→32 AND HASH 68→69** — the "HASH only" prediction was **half wrong** (see banner) |
 | ~~**PB-DX2**~~ **✅ SHIPPED `scutemob-162`** | unguarded resolution-time commands | **OOS-DP5-7** + **OOS-DP7-2** (+riders DP2-1, DP9-14) — **all four CLOSED** | **CORRECTNESS — live exploit, trust boundary** | **0 flips as predicted** (corpus holds 1 dredge def, already `Complete`); closes the free-card exploit + **5** lying doc sites, not 2; +2 unbriefed CR 614.11a bugs fixed; seeds OOS-DX2-1..7 | **none — PREDICTION HELD.** PROTOCOL 32 / HASH 69 unmoved, empty diff on `protocol.rs`/`hash.rs`; achieved by reusing the existing `pending_draws` queue instead of the brief's new-entry design, which would have bumped HASH |
-| **PB-DX3** | two stale blocker notes | **OOS-DP6-3** | **card yield, zero engine** | **2 flips** (`garruks_uprising`, `inventors_fair`) | **none** |
+| ~~**PB-DX3**~~ **✅ SHIPPED `scutemob-164`** | two stale blocker notes | **OOS-DP6-3** — **CLOSED** | **card yield, zero engine** | **2 flips as predicted** (`garruks_uprising`, `inventors_fair`); `inventors_fair`'s upkeep trigger had to be **authored**, not merely gated — it did not exist in the def at all; successor seed OOS-DX3-1 names 6 more defs in the same bucket, one a **live-wrong `Complete`** | **none — PREDICTION HELD.** PROTOCOL 32 / HASH 69 unmoved; empty diff over all of `crates/engine/src` and `crates/card-types/src`, not merely `protocol.rs`/`hash.rs` |
 | **PB-DX4** | the `BASELINE` triage sweep | **OOS-DP10-8** | **CORRECTNESS — marker integrity** | 0 flips; ≥2 known live-wrong `Complete` defs corrected, 95 entries triaged | **none** (test + card-def markers) |
 | **PB-DX5** | CR 611.2c affected-set snapshot | **OOS-OS7-2** *(ex-R6)* | **CORRECTNESS — engine-wide, 7 `Complete` defs** | 0 flips; repairs 7 `Complete` + 2 `partial` defs | **HASH**, and **PROTOCOL** if `ContinuousEffect` is in the wire closure — compute, do not assume |
 | **PB-DX6** | the last unflattened pip sites | **OOS-RS2-1** + **OOS-DP4-1** | **CORRECTNESS — live undercharge (narrow)** | 0 flips; closes the OOS-RS-2 class at its 4th and 5th sites | **PROTOCOL** (`DeclareAttackers` gains the two payment-choice fields `ActivateAbility`/`TapForMana` already have) |

@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-08-01 07:36 UTC  
-**Git:** `f572bada` on `feat/pb-dx3-two-stale-blocker-notes-garruksuprising-inventorsfair`  
+**Generated:** 2026-08-01 08:06 UTC  
+**Git:** `8e336544` on `feat/pb-dx3-two-stale-blocker-notes-garruksuprising-inventorsfair`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -25,16 +25,16 @@ and what is intentionally NOT in it.**
 | Plan cards still missing a def file | 135 | · |
 | Bonus defs (on disk, outside plan) | 322 | · |
 | Effective coverage vs plan target | **111%** (1,823 / 1,636) | — |
-| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 63.3% | 1,142 | +2 |
-| With TODO markers | 511 | -2 |
+| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 63.3% | 1,142 | · |
+| With TODO markers | 511 | · |
 | Empty `abilities: vec![]` placeholders | 151 | · |
-| Total TODO lines across all defs | 942 | -5 |
+| Total TODO lines across all defs | 942 | · |
 
 ## Authoring activity (git, by window)
 
 | Window | New files added | Existing files modified |
 | --- | ---: | ---: |
-| last 7 days | 0 | 6 |
+| last 7 days | 0 | 8 |
 | last 30 days | 57 | 2,943 |
 | last 90 days | 57 | 2,955 |
 | last 1 year | 1,830 | 3,366 |
@@ -171,7 +171,7 @@ the next thing to triage when the classifier table is grown.
 
 | Gap bucket | TODO lines | Δ since last run |
 | --- | ---: | ---: |
-| OTHER (unclassified) | 578 | -2 |
+| OTHER (unclassified) | 578 | · |
 | DSL gap (unspecified) | 120 | · |
 | attack trigger (self / generic) | 23 | · |
 | TriggerCondition::* missing variant | 17 | · |
@@ -233,6 +233,8 @@ tyvar_jubilant_brawler: // TODO: static — creatures you control can activate a
 ## Recent card-touching commits
 
 ```
+8e336544 scutemob-164: PB-DX3 fix cycle -- apply review findings (1 MEDIUM / 5 LOW)
+f3e92ecc scutemob-164: PB-DX3 implement — two stale blocker notes closed (OOS-DP6-3)
 95c35f7a W6-prim: scutemob-160 — PB-DX1 review fixes
 03053182 W6-prim: scutemob-160 — PB-DX1 phase 8: card def dispositions (§6.3, §6.4)
 460e7f4e W6-prim: scutemob-154 -- PB-DP6 phase 1: queue-time intervening-if gate (CR 603.4)
@@ -256,8 +258,6 @@ be9f371c W6-prim: PB-OS4 /review nit — Fable back-face comment names OOS-OS4-2
 7945c975 W6-prim: PB-OS4 fix pass — fmt gate (scutemob-130)
 f5a44ab6 W6-prim: PB-OS4 fix pass — ship narrowed (scutemob-130)
 fc3ae4ef W6-prim: PB-OS4 card defs + tests — Fable + Edgar return-transformed
-e16cd0c8 W6-prim: PB-OS3 — WhenTappedForMana trigger target dispatch (OOS-EF6-1)
-95c8a632 scutemob-128: PB-OS2 — thread sacrificed-creature LKI through the optional-cost path (EF-EF1-A)
 ```
 
 ## Missing card-defs sidecar
