@@ -495,7 +495,7 @@ fn build_zones_view(state: &GameState, player_names: &HashMap<PlayerId, String>)
 }
 
 /// Extract (kind_str, source_object_id) from a StackObjectKind.
-fn stack_kind_info(kind: &StackObjectKind) -> (&'static str, Option<ObjectId>) {
+pub(crate) fn stack_kind_info(kind: &StackObjectKind) -> (&'static str, Option<ObjectId>) {
     match kind {
         StackObjectKind::Spell { source_object } => ("spell", Some(*source_object)),
         StackObjectKind::ActivatedAbility { source_object, .. } => {

@@ -15,7 +15,23 @@
 //! | Library (any seat's, including the viewer's own) | never enumerated at all | CR 401.2 |
 //! | Battlefield | a face-down permanent the viewer does not own is name-redacted | CR 708.2 |
 //! | Exile | a face-down exiled card the viewer does not own is name-redacted | CR 708.2, CR 406.3 |
-//! | Graveyard, command zone, stack | public, untouched | CR 404.1, CR 903.6, CR 405.1 |
+//! | Stack | the *zone* is public, but a face-down spell's identity is not, and neither is a source or target the viewer may not identify | CR 405.1, CR 702.36b, CR 708.2 |
+//! | Combat | an attacker, a blocker or an attacked planeswalker the viewer may not identify is name-redacted | CR 508.1, CR 509.1, CR 708.2 |
+//! | Graveyard, command zone | public, untouched | CR 404.1, CR 903.6 |
+//!
+//! # Every surface that renders a card name must be listed above
+//!
+//! The first cut of this module redacted `hand`, `battlefield` and `exile` and
+//! stopped, because those are the zones CR calls hidden. That was the wrong unit
+//! of analysis: the leak follows the *rendering site*, not the zone. Four further
+//! sites in `lib.rs` read `obj.characteristics.name` **raw** — no layer pass, no
+//! entitlement check — and each of them can be handed a face-down object:
+//! `StackItemView::source_name`, `format_target`, `AttackerView::name` (and its
+//! planeswalker `target`), and `BlockerView::name`. A morph creature that attacks
+//! is on the battlefield, so the battlefield redaction "covers" it in the zone
+//! sense while `combat.attackers[i].name` prints "Exalted Angel" to the whole
+//! table. If a new field is added to `StateViewModel` that renders a name,
+//! it belongs here.
 //!
 //! # Ownership, not control
 //!
@@ -29,7 +45,7 @@
 
 use std::collections::HashMap;
 
-use mtg_engine::{GameState, ObjectId, PlayerId, ZoneId};
+use mtg_engine::{AttackTarget, GameState, ObjectId, PlayerId, Target, ZoneId};
 
 use crate::{CardInZoneView, StateViewModel};
 
@@ -47,6 +63,13 @@ pub(crate) const HIDDEN_CARD_NAME: &str = "Hidden card";
 /// they simply may not know which card it is.
 pub(crate) const FACE_DOWN_NAME: &str = "Face-down card";
 
+/// What a spell or ability target the viewer may not identify is called.
+///
+/// Keeps the `"<kind>:<label>"` shape the omniscient renderer uses
+/// (`format_target`), so a client parsing the prefix does not need a special
+/// case — it just gets a label it cannot resolve to a card.
+pub(crate) const HIDDEN_TARGET: &str = "object:Face-down card";
+
 /// Apply every Architecture Invariant 7 redaction for `seat`, in place.
 ///
 /// Called only from `StateViewModel::from_game_state_for`.
@@ -54,6 +77,9 @@ pub(crate) fn redact_state_for_seat(view: &mut StateViewModel, state: &GameState
     redact_hands(view, state, seat);
     redact_face_down_permanents(view, state, seat);
     redact_face_down_exile(view, state, seat);
+    redact_stack(view, state, seat);
+    redact_combat(view, state, seat);
+
     // Libraries: nothing to do, and that is the point. `ZonesView` has no
     // library field and `PlayerView::library_size` is a count, so library ORDER
     // and library CONTENTS are unrepresentable in this view model (CR 401.2).
@@ -122,6 +148,95 @@ fn redact_face_down_exile(view: &mut StateViewModel, state: &GameState, seat: Pl
             card.name = FACE_DOWN_NAME.to_string();
             card.card_types = vec![];
             card.hidden = true;
+        }
+    }
+}
+
+/// CR 405.1: the stack is a public zone, so *that* a spell is there is public —
+/// but CR 702.36b lets a spell be cast face down, and a source or a target can be
+/// any object at all, including a face-down permanent or (through a synthetic or
+/// mid-move state) a card in a hidden zone.
+///
+/// `StackItemView::source_name` and each entry of `targets` are built in
+/// `build_zones_view` from a raw `obj.characteristics.name` read, with no layer
+/// pass, so both keep the printed name of a face-down object.
+///
+/// Stack entries are matched back to their `StackObject` **by id, not by index**.
+/// The two are 1:1 and in order by construction today, but positional
+/// correspondence between two separately-derived lists is the trick that caused
+/// the Monastery Mentor filter-bypass bug (see the "Index-namespace fix" note in
+/// `testing/replay_harness.rs`); an id match cannot drift. Within a single
+/// `StackObject`, `targets` *is* index-correspondent — both the view's vector and
+/// the engine's are the same `so.targets`, mapped in place.
+fn redact_stack(view: &mut StateViewModel, state: &GameState, seat: PlayerId) {
+    for item in view.zones.stack.iter_mut() {
+        let Some(stack_object) = state.stack_objects().iter().find(|so| so.id.0 == item.id) else {
+            // No matching engine object: we cannot establish entitlement for
+            // anything on this entry, so deny both surfaces rather than guess.
+            item.source_name = FACE_DOWN_NAME.to_string();
+            for target in item.targets.iter_mut() {
+                *target = HIDDEN_TARGET.to_string();
+            }
+            continue;
+        };
+
+        let (_, source_id) = crate::stack_kind_info(&stack_object.kind);
+        if let Some(source_id) = source_id {
+            if !viewer_may_identify(state, source_id, seat) {
+                item.source_name = FACE_DOWN_NAME.to_string();
+            }
+        }
+
+        for (rendered, spell_target) in item.targets.iter_mut().zip(stack_object.targets.iter()) {
+            // A player target is always public (CR 108.1) — only object targets
+            // can carry an identity the viewer is not entitled to.
+            if let Target::Object(object_id) = spell_target.target {
+                if !viewer_may_identify(state, object_id, seat) {
+                    *rendered = HIDDEN_TARGET.to_string();
+                }
+            }
+        }
+    }
+}
+
+/// CR 508.1 / CR 509.1: which creatures are attacking and blocking is public, and
+/// so is which player or planeswalker is being attacked — but a face-down
+/// creature can attack and block (CR 708.2), and its identity stays hidden while
+/// it does.
+///
+/// `build_combat_view` reads `obj.characteristics.name` raw for the attacker, the
+/// attacked planeswalker and every blocker, so all three keep the printed name.
+///
+/// The attacked planeswalker's id is taken from `CombatState::attackers` rather
+/// than parsed back out of the rendered `"planeswalker:<name>"` string — parsing
+/// a display string to recover an id is how a redaction gets silently skipped by
+/// a name containing the separator.
+fn redact_combat(view: &mut StateViewModel, state: &GameState, seat: PlayerId) {
+    let Some(combat_view) = view.combat.as_mut() else {
+        return;
+    };
+    let engine_combat = state.combat().as_ref();
+
+    for attacker in combat_view.attackers.iter_mut() {
+        let attacker_id = ObjectId(attacker.object_id);
+        if !viewer_may_identify(state, attacker_id, seat) {
+            attacker.name = FACE_DOWN_NAME.to_string();
+        }
+
+        // CR 508.1a: an attack target may be a planeswalker, whose identity is
+        // hidden if it is face down.
+        if let Some(AttackTarget::Planeswalker(pw_id)) =
+            engine_combat.and_then(|c| c.attackers.get(&attacker_id))
+        {
+            if !viewer_may_identify(state, *pw_id, seat) {
+                attacker.target = format!("planeswalker:{FACE_DOWN_NAME}");
+            }
+        }
+
+        for blocker in attacker.blockers.iter_mut() {
+            if !viewer_may_identify(state, ObjectId(blocker.object_id), seat) {
+                blocker.name = FACE_DOWN_NAME.to_string();
+            }
         }
     }
 }

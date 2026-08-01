@@ -551,3 +551,187 @@ fn test_event_view_names_a_cast_spell_from_the_source_object() {
         );
     }
 }
+
+/// Every seat, every hidden card — the gate that would have caught the stack and
+/// combat leak the first cut of `redact.rs` shipped.
+///
+/// The six plan-named tests all view from alice's seat, and alice happens to be
+/// the one player whose hand card the fixture also puts on the stack, so her own
+/// card names were never needles. That made a whole class of leak invisible to a
+/// suite that otherwise scans whole documents: redaction covered `hand`,
+/// `battlefield` and `exile` while `zones.stack` and `combat` still rendered a
+/// raw `obj.characteristics.name`.
+///
+/// The fix is not a bigger fixture, it is a symmetric one: for each seat in turn,
+/// assert the absence of every card name that seat is not entitled to —
+/// every OTHER seat's hand (CR 402.1), every library (CR 401.2), and every
+/// face-down card they do not own (CR 708.2).
+#[test]
+fn test_no_seat_view_leaks_any_other_seats_hidden_card() {
+    let (state, names) = golden_fixture_state();
+
+    /// (seat, that seat's own hand, face-down cards that seat owns).
+    /// Anything not listed for a seat is a needle for that seat.
+    const SEATS: &[(u64, &[&str], &[&str])] = &[
+        (
+            1,
+            &["Lightning Bolt", "Counterspell", "Swords to Plowshares"],
+            &[],
+        ),
+        (
+            2,
+            &["Wrath of God", "Sol Ring"],
+            &["Exalted Angel", "Saw It Coming"],
+        ),
+        (3, &["Demonic Tutor"], &[]),
+        (4, &[], &[]),
+    ];
+
+    let all_hand_cards: Vec<&str> = SEATS
+        .iter()
+        .flat_map(|(_, own, _)| own.iter().copied())
+        .collect();
+
+    for (seat_num, own_hand, own_face_down) in SEATS {
+        let seat = PlayerId(*seat_num);
+        let view = StateViewModel::from_game_state_for(&state, &names, Viewer::Seat(seat));
+        let json = as_json_string(&view);
+
+        // Every other seat's hand card (CR 402.1).
+        let foreign_hand: Vec<&str> = all_hand_cards
+            .iter()
+            .filter(|c| !own_hand.contains(c))
+            .copied()
+            .collect();
+        assert_absent(
+            &json,
+            &foreign_hand,
+            &format!("seat {seat_num}: another hand"),
+        );
+
+        // Every library, including this seat's own (CR 401.2).
+        assert_absent(&json, LIBRARY_CARDS, &format!("seat {seat_num}: a library"));
+
+        // Every face-down card this seat does not own (CR 708.2).
+        let foreign_face_down: Vec<&str> = FACE_DOWN_CARDS
+            .iter()
+            .filter(|c| !own_face_down.contains(c))
+            .copied()
+            .collect();
+        assert_absent(
+            &json,
+            &foreign_face_down,
+            &format!("seat {seat_num}: a face-down card"),
+        );
+
+        // And the seat still sees its own hand, so the scan is not passing by
+        // redacting everything.
+        for card in *own_hand {
+            assert!(
+                json.contains(card),
+                "seat {seat_num} must still see its own hand card {card:?}"
+            );
+        }
+    }
+}
+
+/// The combat and stack surfaces, exercised with an object that is actually
+/// face down.
+///
+/// `golden_fixture_state()` cannot be changed — it is pinned byte-for-byte by
+/// `test_omniscient_view_is_unchanged_for_fixture_state` against a snapshot
+/// captured before the crate move. Its combat state has only face-UP attackers
+/// and blockers, so `redact_combat` would otherwise never be reached by any
+/// test: the code would be present, green, and unexercised, which is the same
+/// shape of false assurance as an unfalsifiable assertion.
+///
+/// So this derives a variant: it takes the golden state and puts bob's face-down
+/// morph creature into combat as an attacker and as a blocker, and makes it the
+/// target of the spell on the stack. CR 708.2 — a face-down creature can attack
+/// and block, and doing so does not reveal it.
+fn fixture_with_face_down_in_combat() -> (GameState, HashMap<PlayerId, String>) {
+    let (mut state, names) = golden_fixture_state();
+    let morph = object_id_of(&state, "Exalted Angel", &ZoneId::Battlefield);
+    let bears = object_id_of(&state, "Grizzly Bears", &ZoneId::Battlefield);
+
+    if let Some(combat) = state.combat_mut().as_mut() {
+        // The face-down creature attacks alice...
+        combat
+            .attackers
+            .insert(morph, AttackTarget::Player(PlayerId(1)));
+        // ...and also blocks alice's Grizzly Bears. (Not simultaneously legal in
+        // a real game; this is a rendering fixture, and it exercises both
+        // surfaces in one pass.)
+        combat.blockers.insert(morph, bears);
+    }
+
+    // And it is the first target of the spell on the stack.
+    if let Some(spell) = state.stack_objects_mut().front_mut() {
+        spell.targets[0] = SpellTarget {
+            target: Target::Object(morph),
+            zone_at_cast: Some(ZoneId::Battlefield),
+        };
+    }
+
+    (state, names)
+}
+
+#[test]
+fn test_seat_view_hides_a_face_down_attacker_blocker_and_target() {
+    let (state, names) = fixture_with_face_down_in_combat();
+    let alice = PlayerId(1);
+    let bob = PlayerId(2);
+
+    // Omniscient first: the needle really is present without redaction, so the
+    // absence assertions below are not vacuous.
+    let dev = StateViewModel::from_game_state_for(&state, &names, Viewer::Omniscient);
+    let dev_json = as_json_string(&dev);
+    assert!(
+        dev_json.contains("Exalted Angel"),
+        "the omniscient view must name the face-down creature in combat, or this \
+         test asserts the absence of something that was never there:\n{dev_json}"
+    );
+
+    // Alice does not own it (bob does), so no surface may name it.
+    let alice_json = as_json_string(&StateViewModel::from_game_state_for(
+        &state,
+        &names,
+        Viewer::Seat(alice),
+    ));
+    assert_absent(
+        &alice_json,
+        &["Exalted Angel"],
+        "alice's seat view (face-down attacker/blocker/target)",
+    );
+
+    // ...and the redaction is a substitution, not a deletion: the creature is
+    // still visibly there, attacking and blocking. CR 508.1/509.1 make the
+    // participation public even when the identity is not.
+    let alice_view = StateViewModel::from_game_state_for(&state, &names, Viewer::Seat(alice));
+    let combat = alice_view.combat.as_ref().expect("combat is public");
+    assert!(
+        combat.attackers.iter().any(
+            |a| a.name == FACE_DOWN_NAME || a.blockers.iter().any(|b| b.name == FACE_DOWN_NAME)
+        ),
+        "the face-down creature must still appear in combat, just unnamed"
+    );
+    assert!(
+        alice_view
+            .zones
+            .stack
+            .iter()
+            .any(|s| s.targets.iter().any(|t| t.contains(FACE_DOWN_NAME))),
+        "the spell must still show that it targets something, just not what"
+    );
+
+    // Bob owns it, so bob still sees it (CR 708.5a-adjacent: the owner knows).
+    let bob_json = as_json_string(&StateViewModel::from_game_state_for(
+        &state,
+        &names,
+        Viewer::Seat(bob),
+    ));
+    assert!(
+        bob_json.contains("Exalted Angel"),
+        "bob owns the face-down creature and must still see it named"
+    );
+}
