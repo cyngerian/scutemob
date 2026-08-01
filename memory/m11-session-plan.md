@@ -750,14 +750,21 @@ makes the existing TUI bridge unusable for real play.
 
 ### Session 4: View-model crate extraction + seat redaction (6 items)
 
-**STATUS (2026-08-01, `scutemob-165`): items 1-5 shipped; item 6 is the coordinator's.**
+**STATUS (2026-08-01, `scutemob-165`): SHIPPED — all 6 items done.**
 `crates/view-model` (package `mtg-view-model`) exists with `lib.rs` (git-recorded rename of
 `tools/replay-viewer/src/view_model.rs`, 91% similarity), `redact.rs`, `event_view.rs`,
 `tests.rs` and `golden_omniscient_view.json`. All 6 named tests pass and each was proven
 non-vacuous by mutation. `cargo build --workspace`, `cargo clippy --all-targets -- -D
 warnings`, `cargo fmt --check`, `tools/check-defs-fmt.sh` and `cargo test --all` are green;
-tests 3,988 → **3,994**. `git diff main -- crates/engine crates/card-types crates/card-defs`
+tests 3,988 → **3,995**. `git diff main -- crates/engine crates/card-types crates/card-defs`
 is **empty**; PROTOCOL 32 / HASH 69 confirmed by the `core` sentinels.
+
+**The golden snapshot was captured BEFORE the move, from pristine code** (commit
+`56d44177`), by running a deterministic 4-player fixture through the untouched
+`tools/replay-viewer/src/view_model.rs` and then restoring that file byte-for-byte. It is
+therefore a real regression guard rather than a post-hoc record of whatever the new code
+does. It is compared as `serde_json::Value`, never as a string, because `StateViewModel`
+uses `std::collections::HashMap` and its iteration order is randomized per process.
 
 Deviations from the plan text, all recorded in source:
 
@@ -781,6 +788,31 @@ Deviations from the plan text, all recorded in source:
   conservative choice rather than the strictly correct one for the battlefield: CR 708.5a
   says a player who *controls* a face-down permanent may look at it, so a thief is denied a
   name they are entitled to. Denying too much never leaks. Noted in `redact.rs`.
+- **`GameEvent::SpellCast` carries two `ObjectId`s and only one of them resolves.** The
+  first implementation rendered the spell's name from `stack_object_id`, which never
+  matches: `handle_cast_spell` mints `stack_entry_id = state.next_object_id()`
+  (`rules/casting.rs:4401`) solely to build the `StackObject` pushed onto
+  `state.stack_objects()` (`:4529`), and that id is never inserted into `state.objects()`.
+  The lookup missed every time, so **every** cast degraded to the name-free fallback
+  "alice casts a spell" — never wrong, never present, and indistinguishable from correct
+  redaction, which would have quietly made the Session 6 event feed useless for the most
+  common action in the game. Fixed to `source_object_id` (the card's new object in
+  `ZoneId::Stack`, `:4732`) and pinned by a test proven non-vacuous against the old
+  version. The three sibling arms that call `card_name` were audited the same way against
+  their emission sites and were already right: `CardDrawn.new_object_id` →
+  `Hand(player)` (`replacement.rs:1069`), `LandPlayed.new_land_id` → `Battlefield`
+  (`lands.rs:391`), `CardDiscarded.new_id` → `Graveyard(player)` (`casting.rs:4098`).
+  Generalisable: in an event-rendering layer, a failed id lookup and a deliberate
+  redaction produce the *same* output, so a lookup bug hides inside the privacy
+  behaviour. Every `card_name` call site needs its id checked against the emission site,
+  not just its entitlement rule reviewed.
+
+**Item 6 (done)**: `memory/gotchas-infra.md` now points the two exhaustive matches
+(`StackObjectKind` in `stack_kind_info()`, `KeywordAbility` in `format_keyword()`) at
+`crates/view-model/src/lib.rs`, with a MOVED note so a reader arriving from one of the
+several historical docs that still cite the replay-viewer path knows it is stale rather
+than that they misread. The same pointer in the session-loaded auto-memory index
+(outside the repo) was updated too.
 
 **Crates**: new `crates/view-model`; `tools/replay-viewer` becomes a consumer.
 **Files**: `crates/view-model/Cargo.toml`, `src/lib.rs`, `src/redact.rs`,
