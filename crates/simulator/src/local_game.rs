@@ -589,12 +589,31 @@ impl<P: LegalActionProvider> LocalGame<P> {
     /// reachable on a path where the pool is non-empty. Fixing it means teaching the
     /// solver about modifiers, which is the layer-resolution half of OOS-M11-2 that
     /// this session explicitly did not take.
+    ///
+    /// # `{X}` is now paid for — **OOS-M11-8 CLOSED** (S8, item 2)
+    ///
+    /// It was not, until here. This function read the *printed* `mana_cost` and knew
+    /// nothing about the announced `cast.x_value`, so a human casting `Fireball` with
+    /// X = 3 got the base cost tapped for and the engine then refused the whole cast
+    /// — observed by S7 as `422 "player does not have enough mana to pay the cost"`.
+    /// CR 107.3 / 601.2b: X is announced at cast time and is part of the cost from
+    /// that moment, so `x_value × mana_cost.x_count` generic is added to the cost
+    /// **before** both the pool check and the solve.
+    ///
+    /// `x_count`, not a bare `+ x_value`: a card printed `{X}{X}{R}` (Fireball is
+    /// `{X}{R}`, but e.g. Rolling Thunder is not the only two-X card) has
+    /// `x_count: 2` and costs 2X generic. The multiply is saturating so a hostile
+    /// `x_value: u32::MAX` cannot overflow into a small cost that then looks payable.
     fn auto_tap_commands_for(&self, command: &Command, player: PlayerId) -> Option<Vec<Command>> {
         let Command::CastSpell(cast) = command else {
             return None;
         };
         let obj = self.state.object(cast.card).ok()?;
-        let cost = obj.characteristics.mana_cost.clone()?;
+        let mut cost = obj.characteristics.mana_cost.clone()?;
+        // CR 107.3 / 601.2b — see the doc block above (OOS-M11-8).
+        cost.generic = cost
+            .generic
+            .saturating_add(cast.x_value.saturating_mul(cost.x_count));
         let pool = self.state.player(player).ok()?.mana_pool.clone();
         // `ManaPool::can_spend` debug-asserts the cost is already flattened (no
         // hybrid/Phyrexian pips) — flatten with the same all-default plan

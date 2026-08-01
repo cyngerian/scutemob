@@ -115,6 +115,36 @@ fn expect_decision(game: &mut LocalGame<StubProvider>) -> mtg_simulator::Pending
     }
 }
 
+/// Pass priority until the human is offered an action matching `pred`, or give up.
+///
+/// `start_game` resets the turn to `Step::Untap` (`reset_turn_state`), so a fixture
+/// cannot begin in a main phase — and `StubProvider` only offers `CastSpell` for a
+/// sorcery in a main phase with an empty stack (CR 307.1). Walking there through real
+/// priority passes is the honest way to reach it.
+fn drive_until(
+    game: &mut LocalGame<StubProvider>,
+    pred: impl Fn(&LegalAction) -> bool,
+) -> mtg_simulator::PendingDecision {
+    for _ in 0..200 {
+        let decision = expect_decision(game);
+        if decision.actions.iter().any(&pred) {
+            return decision;
+        }
+        let pass = index_of(&decision.actions, |a| {
+            matches!(a, LegalAction::PassPriority)
+        });
+        game.submit(
+            decision.seq,
+            HumanChoice {
+                action_index: pass,
+                params: ActionParams::default(),
+            },
+        )
+        .expect("passing priority is always legal at a priority window");
+    }
+    panic!("no decision offered a matching action within 200 priority windows");
+}
+
 fn index_of(actions: &[LegalAction], pred: impl Fn(&LegalAction) -> bool) -> usize {
     actions
         .iter()
@@ -486,6 +516,117 @@ fn test_s8_bot_seat_is_never_offered_concede() {
     assert!(
         !actions.iter().any(|a| matches!(a, LegalAction::Concede)),
         "StubProvider must not emit Concede; got {actions:?}"
+    );
+}
+
+// ── Item 2 pickup: OOS-M11-8, `{X}` is paid for ──────────────────────────────
+
+/// CR 107.3 / 601.2b — **OOS-M11-8**, filed by S7 and closed here.
+///
+/// `LocalGame::auto_tap_commands_for` read the spell's *printed* `mana_cost` and knew
+/// nothing about the announced `x_value`, so casting an `{X}` spell with `auto_tap`
+/// tapped for the base cost and the engine then refused the whole cast. S7 observed it
+/// as a `422 "player does not have enough mana to pay the cost"`. The S8 workstream
+/// handoff routed the seed into this session's item-2 audit; it is the same family as
+/// `OOS-M11-2`.
+///
+/// The fixture is a `{X}{1}` sorcery with four one-mana sources. X = 2 needs three
+/// mana, which is **more than the printed cost and less than the board**, so a pass
+/// that tapped only for the printed `{1}` would leave the cast unpayable and a pass
+/// that ignored the pool entirely would be indistinguishable from success.
+#[test]
+fn test_s8_x_value_is_included_in_the_auto_tap_plan() {
+    use mtg_engine::{
+        AbilityDefinition, CardDefinition, CardId, CardRegistry, CardType, Effect, EffectAmount,
+        ManaAbility, ManaColor, ManaCost, PlayerTarget, TypeLine,
+    };
+
+    let x_cost = ManaCost {
+        generic: 1,
+        x_count: 1,
+        ..ManaCost::default()
+    };
+    let def = CardDefinition {
+        name: "S8 Fireball".to_string(),
+        card_id: CardId("s8-fireball".to_string()),
+        mana_cost: Some(x_cost.clone()),
+        types: TypeLine {
+            card_types: [CardType::Sorcery].into_iter().collect(),
+            ..Default::default()
+        },
+        abilities: vec![AbilityDefinition::Spell {
+            // Targetless on purpose: this test is about paying, not about CR 601.2c.
+            effect: Effect::GainLife {
+                player: PlayerTarget::Controller,
+                amount: EffectAmount::Fixed(1),
+            },
+            targets: vec![],
+            modes: None,
+            cant_be_countered: false,
+        }],
+        ..Default::default()
+    };
+
+    let mut builder = GameStateBuilder::new()
+        .add_player(P1)
+        .add_player(P2)
+        .with_registry(CardRegistry::new(vec![def.clone()]))
+        .active_player(P1)
+        .object(
+            ObjectSpec::card(P1, &def.name)
+                .with_card_id(def.card_id.clone())
+                .with_types(vec![CardType::Sorcery])
+                .with_mana_cost(x_cost)
+                .in_zone(ZoneId::Hand(P1)),
+        );
+    // Four sources: enough for X = 2 (three mana) with one to spare, so the test
+    // distinguishes "tapped what the cost needs" from "tapped everything".
+    for i in 0..4 {
+        builder = builder.object(
+            ObjectSpec::land(P1, &format!("S8 Source {i}")).with_mana_ability(ManaAbility {
+                produces: [(ManaColor::Colorless, 1u32)].into_iter().collect(),
+                requires_tap: true,
+                ..Default::default()
+            }),
+        );
+    }
+    let state = builder.build().expect("X-cost fixture should build");
+
+    let mut game = start_human_game(state);
+    let decision = drive_until(&mut game, |a| matches!(a, LegalAction::CastSpell { .. }));
+    let idx = index_of(&decision.actions, |a| {
+        matches!(a, LegalAction::CastSpell { .. })
+    });
+
+    game.submit(
+        decision.seq,
+        HumanChoice {
+            action_index: idx,
+            params: ActionParams {
+                x_value: 2,
+                auto_tap: true,
+                ..ActionParams::default()
+            },
+        },
+    )
+    .expect("CR 107.3: the auto-tap plan must cover the announced X");
+
+    // The spell is on the stack with the announced X, and exactly three sources were
+    // tapped — not one (the printed cost) and not four (everything).
+    let tapped = game
+        .state()
+        .objects()
+        .iter()
+        .filter(|(_, o)| o.characteristics.name.starts_with("S8 Source") && o.status.tapped)
+        .count();
+    assert_eq!(
+        tapped, 3,
+        "X = 2 on a {{X}}{{1}} spell costs three mana, so three sources tap"
+    );
+    assert_eq!(
+        game.state().stack_objects().len(),
+        1,
+        "the spell reached the stack rather than being refused"
     );
 }
 
