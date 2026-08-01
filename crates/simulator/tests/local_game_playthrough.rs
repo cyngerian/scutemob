@@ -168,29 +168,30 @@ fn choose(state: &mtg_engine::GameState, decision: &PendingDecision) -> (usize, 
     //    this test exists to show does not happen. (Targeted casting by a human is
     //    already covered end to end by
     //    `local_game.rs::test_human_casts_targeted_spell_through_local_game`.)
-    let cheapest = actions
-        .iter()
-        .enumerate()
-        .filter_map(|(i, a)| {
-            let LegalAction::CastSpell { card, .. } = a else {
-                return None;
-            };
-            let obj = state.object(*card).ok()?;
-            let (min, _) = mtg_engine::target_count_range(
-                &mtg_engine::spell_target_requirements(state, *card, &[], None),
-            );
-            if min > 0 {
-                return None;
-            }
-            let mv = obj
-                .characteristics
-                .mana_cost
-                .as_ref()
-                .map(|c| c.mana_value())
-                .unwrap_or(0);
-            Some((mv, i))
-        })
-        .min();
+    let cheapest =
+        actions
+            .iter()
+            .enumerate()
+            .filter_map(|(i, a)| {
+                let LegalAction::CastSpell { card, .. } = a else {
+                    return None;
+                };
+                let obj = state.object(*card).ok()?;
+                let (min, _) = mtg_engine::target_count_range(
+                    &mtg_engine::spell_target_requirements(state, *card, &[], None),
+                );
+                if min > 0 {
+                    return None;
+                }
+                let mv = obj
+                    .characteristics
+                    .mana_cost
+                    .as_ref()
+                    .map(|c| c.mana_value())
+                    .unwrap_or(0);
+                Some((mv, i))
+            })
+            .min();
     if let Some((_, i)) = cheapest {
         // `auto_tap: true`, which is what a real client sends
         // (`ActionParamsDto`'s `default_auto_tap`) and NOT what

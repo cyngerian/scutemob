@@ -86,8 +86,9 @@ fn two_player_state(step: Step, objects: Vec<ObjectSpec>) -> GameState {
 fn start_human_game(state: GameState) -> LocalGame<StubProvider> {
     let human_seats: BTreeSet<PlayerId> = [P1].into_iter().collect();
     let bots: HashMap<PlayerId, Box<dyn Bot>> = HashMap::new();
-    let (game, _events) = LocalGame::start(state, 1, StubProvider, bots, human_seats, limits(), true)
-        .expect("game should start");
+    let (game, _events) =
+        LocalGame::start(state, 1, StubProvider, bots, human_seats, limits(), true)
+            .expect("game should start");
     game
 }
 
@@ -165,13 +166,9 @@ fn test_s8_echo_payment_reaches_a_human_seat() {
         .iter()
         .find(|a| matches!(a, LegalAction::PayEcho { pay: true, .. }))
         .unwrap();
-    let command = mtg_simulator::action_to_command_with_params(
-        &state,
-        P1,
-        action,
-        &ActionParams::default(),
-    )
-    .expect("PayEcho takes no params");
+    let command =
+        mtg_simulator::action_to_command_with_params(&state, P1, action, &ActionParams::default())
+            .expect("PayEcho takes no params");
     let (after, _events) =
         mtg_engine::process_command(state, command).expect("the engine must accept it");
     assert!(
@@ -188,9 +185,11 @@ fn test_s8_cumulative_upkeep_payment_reaches_a_human_seat() {
         vec![ObjectSpec::creature(P1, "Upkeep Permanent", 2, 2).in_zone(ZoneId::Battlefield)],
     );
     let perm = id_of(&state, "Upkeep Permanent");
-    state
-        .pending_cumulative_upkeep_payments_mut()
-        .push_back((P1, perm, mtg_engine::CumulativeUpkeepCost::Life(1)));
+    state.pending_cumulative_upkeep_payments_mut().push_back((
+        P1,
+        perm,
+        mtg_engine::CumulativeUpkeepCost::Life(1),
+    ));
 
     let actions = human_action_list(&state, P1);
     assert!(
@@ -260,7 +259,12 @@ fn order_action(state: &GameState) -> LegalAction {
     human_action_list(state, P1)
         .into_iter()
         .find(|a| matches!(a, LegalAction::OrderBlockers { .. }))
-        .unwrap_or_else(|| panic!("no OrderBlockers offered in {:?}", human_action_list(state, P1)))
+        .unwrap_or_else(|| {
+            panic!(
+                "no OrderBlockers offered in {:?}",
+                human_action_list(state, P1)
+            )
+        })
 }
 
 /// CR 509.2: the attacking human is offered a damage-assignment order for an
@@ -325,13 +329,9 @@ fn test_s8_default_blocker_order_submits_the_candidate_list_verbatim() {
     };
     let candidates = blockers.clone();
 
-    let command = mtg_simulator::action_to_command_with_params(
-        &state,
-        P1,
-        &action,
-        &ActionParams::default(),
-    )
-    .expect("default params are valid");
+    let command =
+        mtg_simulator::action_to_command_with_params(&state, P1, &action, &ActionParams::default())
+            .expect("default params are valid");
     let (after, _events) =
         mtg_engine::process_command(state, command).expect("the default order is complete");
     assert_eq!(
@@ -504,7 +504,9 @@ fn test_s8_an_unsupported_param_is_refused_not_discarded() {
     let state = two_player_state(Step::PreCombatMain, Vec::new());
     let mut game = start_human_game(state);
     let decision = expect_decision(&mut game);
-    let idx = index_of(&decision.actions, |a| matches!(a, LegalAction::PassPriority));
+    let idx = index_of(&decision.actions, |a| {
+        matches!(a, LegalAction::PassPriority)
+    });
 
     let commands_before = game.command_count();
     let err = game
