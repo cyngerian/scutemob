@@ -105,7 +105,9 @@ fn build_upkeep_state(
 
 #[test]
 /// CR 702.52a — During the draw step, if the player has a dredge card in graveyard
-/// with >= N cards in library, the engine emits DredgeChoiceRequired and pauses.
+/// with >= N cards in library, the engine emits DredgeChoiceRequired and records
+/// a `PendingDraw` obligation instead of drawing (PB-DX2: the engine does NOT
+/// block or pause -- see `GameEvent::DredgeChoiceRequired`'s doc).
 fn test_dredge_draw_step_emits_choice_required() {
     let p1 = p(1);
     let p2 = p(2);
@@ -147,7 +149,8 @@ fn test_dredge_draw_step_emits_choice_required() {
         events
     );
 
-    // No CardDrawn event (draw is paused waiting for ChooseDredge).
+    // No CardDrawn event (the draw is replaced by an outstanding PendingDraw
+    // obligation, not paused -- PB-DX2, the engine does not block here).
     assert!(
         !events
             .iter()
@@ -674,47 +677,85 @@ fn test_dredge_exact_library_count_is_eligible() {
 
 #[test]
 /// Error handling: ChooseDredge with a card that is not in the player's graveyard
-/// should return an error.
+/// should return an error, distinct from the entry-gate error.
+///
+/// (Fix-cycle Finding 5, `pb-review-DX2.md`: this test used to send
+/// `ChooseDredge` with NO offer outstanding at all, so it was rejected by
+/// PB-DX2's entry gate at `replacement.rs`, never reaching the graveyard-zone
+/// check this test exists to cover — the assertion was `is_err()` only, so it
+/// silently kept "passing" for the wrong reason and left `handle_choose_dredge`'s
+/// `Some`-arm validations with ZERO coverage repo-wide. Rewritten to reach a
+/// REAL offer first (so the gate is satisfied), then name a card that is not
+/// in the graveyard, and assert on the message so it cannot silently degrade
+/// into a gate rejection again.)
 fn test_dredge_invalid_command_card_not_in_graveyard() {
     let p1 = p(1);
     let p2 = p(2);
 
     let registry = CardRegistry::new(vec![dredge_card_def("dredge-3", "Dredge Three", 3)]);
 
-    // Dredge card is in the HAND (not graveyard) — used only to get the ObjectId.
-    let mut state = GameStateBuilder::new()
-        .add_player(p1)
-        .add_player(p2)
-        .with_registry(registry)
-        .object(
+    let state = build_upkeep_state(p1, p2, registry, |mut b| {
+        b = b.object(
             ObjectSpec::card(p1, "Dredge Three")
-                .in_zone(ZoneId::Hand(p1))
+                .in_zone(ZoneId::Graveyard(p1))
                 .with_card_id(CardId("dredge-3".to_string()))
                 .with_keyword(KeywordAbility::Dredge(3)),
-        )
-        .active_player(p1)
-        .at_step(Step::PreCombatMain)
-        .build()
-        .unwrap();
+        );
+        // A SECOND card, in HAND (not the graveyard), to name in the
+        // malformed answer below. It has no Dredge keyword either, so a
+        // stricter-than-necessary implementation would still reject it —
+        // but the point of this test is specifically the graveyard-zone
+        // check, so this card is named rather than a missing/nonexistent id.
+        b = b.object(ObjectSpec::card(p1, "Not In Graveyard").in_zone(ZoneId::Hand(p1)));
+        // Library needs >= 3 cards (CR 702.52b) for the offer to fire at all.
+        for i in 0..5 {
+            b = b.object(
+                ObjectSpec::card(p1, &format!("Library Card {}", i)).in_zone(ZoneId::Library(p1)),
+            );
+        }
+        b
+    });
 
-    state.turn_mut().priority_holder = Some(p1);
-    state.turn_mut().is_first_turn_of_game = false;
+    // Reach a REAL outstanding dredge offer first (CR 702.52a) -- satisfies
+    // PB-DX2's entry gate so this command reaches the `Some` arm's own
+    // validations rather than being rejected before it gets there.
+    let (state, events) = pass_all(state, &[p1, p2]);
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, GameEvent::DredgeChoiceRequired { player, .. } if *player == p1)),
+        "expected a real dredge offer to be outstanding before this test's own \
+         assertion. Events: {:?}",
+        events
+    );
 
-    let dredge_card_id = find_object(&state, "Dredge Three");
+    let not_in_graveyard_id = find_object(&state, "Not In Graveyard");
 
     // Attempt to dredge a card that is not in the graveyard.
     let result = process_command(
         state,
         Command::ChooseDredge {
             player: p1,
-            card: Some(dredge_card_id),
+            card: Some(not_in_graveyard_id),
         },
     );
 
-    assert!(
-        result.is_err(),
-        "ChooseDredge with card not in graveyard should return an error"
-    );
+    match result {
+        Err(mtg_engine::GameStateError::InvalidCommand(msg)) => {
+            assert!(
+                msg.contains("graveyard"),
+                "expected the graveyard-zone validation to name the reason \
+                 (not the entry-gate message), got: {:?}",
+                msg
+            );
+        }
+        Err(other) => panic!(
+            "expected GameStateError::InvalidCommand naming the graveyard \
+             check, got {:?}",
+            other
+        ),
+        Ok(_) => panic!("ChooseDredge with card not in graveyard should return an error"),
+    }
 }
 
 // ── Test 10: Declining dredge does not re-offer dredge ───────────────────────

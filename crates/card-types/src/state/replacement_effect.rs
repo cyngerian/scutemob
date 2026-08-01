@@ -377,30 +377,51 @@ pub struct PendingZoneChange {
     /// Replacement effects already applied in this chain (CR 614.5).
     pub already_applied: Vec<ReplacementId>,
 }
-/// Tracks a card draw that is waiting for the drawing player to choose which
-/// `WouldDraw` replacement effect to apply first (CR 616.1 / 614.11).
+/// Tracks a card draw that is waiting to be completed — either a CR 616.1
+/// multi-replacement choice or a CR 702.52a dredge offer (both register as
+/// the same `ReplacementTrigger::WouldDraw`, so they share this one queue).
 ///
-/// When 2+ `WouldDraw` replacements apply to one draw, the draw does not happen
-/// and this entry records everything the resume needs. Resolved by
-/// `Command::OrderReplacements`; see `resolve_pending_draw`.
+/// **Two producers** (PB-DX2 fix-cycle, Finding 2, `pb-review-DX2.md`):
+/// `perform_one_draw`'s `NeedsChoice` arm, when 2+ `WouldDraw` replacements
+/// apply to one draw and the draw does not happen; and its `DredgeAvailable`
+/// arm, when a dredge-eligible card sits in the drawing player's graveyard
+/// and the draw is replaced by the offer. `perform_one_draw` guarantees at
+/// most ONE entry per player exists at any time (see its doc's "Per-player
+/// invariant" section) — a second draw event for a player who already owes
+/// an answer DISCHARGES the outstanding entry (as a decline) rather than
+/// pushing a second one or folding into it.
+///
+/// **Two consumers**: `Command::OrderReplacements` → `resolve_pending_draw`
+/// (CR 616.1), and `Command::ChooseDredge` → `replacement::handle_choose_dredge`
+/// (CR 702.52a). Either command can legally answer an entry of EITHER origin
+/// — see `handle_order_replacements`'s doc for the four-case table.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PendingDraw {
-    /// CR 616.1: the affected player — the player who would draw. They are the
-    /// chooser. Unlike a zone change there is no controller/owner split to get
-    /// wrong: a draw has exactly one affected player.
+    /// CR 616.1 / 702.52a: the affected player — the player who would draw
+    /// (or dredge instead). They are the chooser. Unlike a zone change there
+    /// is no controller/owner split to get wrong: a draw has exactly one
+    /// affected player.
     pub player: PlayerId,
     /// CR 614.5: replacement effects already applied to THIS draw event. Threaded
-    /// into `find_applicable` on resume so an effect cannot apply twice.
+    /// into `find_applicable` on resume so an effect cannot apply twice. Empty
+    /// for a fresh dredge offer (dredge is checked before, not as part of, this
+    /// bookkeeping — `check_would_draw_replacement`).
     pub already_applied: Vec<ReplacementId>,
     /// CR 614.11a / 121.2: how many further draws remain in the sequence this draw
     /// belongs to ("draw three cards" = three individual draws). Performed after
     /// this draw resolves, before the sequence is considered finished.
     pub remaining: u32,
     /// Which draw path raised this, so the resume writes the same bookkeeping.
-    /// `true` for `turn_actions::draw_card` and `replacement::handle_choose_dredge`'s
-    /// decline arm (both set `PlayerState::has_drawn_for_turn`), `false` for
+    /// `true` for `turn_actions::draw_card` and an EXPLICIT decline via
+    /// `replacement::handle_choose_dredge`'s `None` arm (both set
+    /// `PlayerState::has_drawn_for_turn`), `false` for
     /// `effects::draw_cards_for_player` (renamed from `draw_one_card` in
-    /// PB-DP5, which does not). Preserves an existing divergence rather than silently
-    /// unifying it (CLAUDE.md write-only dead-state note; see PB-DP5 plan §2.4).
+    /// PB-DP5, which does not). Preserves an existing divergence rather than
+    /// silently unifying it (CLAUDE.md write-only dead-state note; see PB-DP5
+    /// plan §2.4). PB-DX2's fix-cycle `resolve_declined_pending_draw` (an
+    /// IMPLICIT decline, forced by a second draw arriving) replays THIS
+    /// entry's own flag rather than hardcoding `true` — the pre-PB-DX2
+    /// `draw_card_skipping_dredge` helper hardcoded `true` unconditionally,
+    /// which was itself a bug for the effect-draw path.
     pub sets_has_drawn_for_turn: bool,
 }

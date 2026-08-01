@@ -9280,8 +9280,11 @@ fn try_pay_optional_cost(
 /// all actions required by the replacement are completed, if possible, before
 /// resuming the sequence." The sequence STOPS at the deferred draw — the
 /// remaining count is recorded on the `PendingDraw` entry `perform_one_draw`
-/// pushes, and performed by `resolve_pending_draw` once the player answers
-/// `Command::OrderReplacements`.
+/// pushes. It is performed by `resolve_pending_draw` once the player answers
+/// `Command::OrderReplacements` (CR 616.1 multi-replacement deferral), OR by
+/// `replacement::handle_choose_dredge` once the player answers
+/// `Command::ChooseDredge` (CR 702.52a dredge offer, PB-DX2) — the entry does
+/// not distinguish which of the two raised it (`PendingDraw`'s own doc).
 ///
 /// `sets_has_drawn_for_turn: false` preserves this path's pre-existing
 /// divergence from `turn_actions::draw_card` / `handle_choose_dredge`'s

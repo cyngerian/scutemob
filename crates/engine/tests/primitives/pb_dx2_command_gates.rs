@@ -19,8 +19,9 @@
 
 use mtg_engine::{
     process_command, AbilityDefinition, CardDefinition, CardId, CardRegistry, CardType, Command,
-    Effect, EffectAmount, GameEvent, GameState, GameStateBuilder, GameStateError, KeywordAbility,
-    ObjectId, ObjectSpec, PlayerId, PlayerTarget, Step, TypeLine, ZoneId,
+    Effect, EffectAmount, EffectDuration, GameEvent, GameState, GameStateBuilder, GameStateError,
+    KeywordAbility, ObjectId, ObjectSpec, PlayerFilter, PlayerId, PlayerTarget, ReplacementEffect,
+    ReplacementId, ReplacementModification, ReplacementTrigger, Step, TypeLine, ZoneId,
 };
 
 // ── Helpers (copied from `tests/mechanics_a_d/dredge.rs`, SR-9a — do not
@@ -424,11 +425,18 @@ fn test_dx2_dredge_offer_records_a_pending_draw() {
 // ── T7 ──────────────────────────────────────────────────────────────────────
 
 #[test]
-/// CR 614.11a + 104.4b — a second draw for a player who already has an
-/// outstanding dredge offer FOLDS into the existing entry (`remaining` grows)
-/// rather than pushing a second entry (plan §4.2's fold guard). Declining the
-/// single offer must then discharge the WHOLE conserved obligation.
-fn test_dx2_dredge_offers_do_not_stack_entries() {
+/// Fix-cycle rewrite (Finding 1, `pb-review-DX2.md`). The original T7 pinned a
+/// FOLD design (`entry.remaining += 1 + remaining_after`) that the fix cycle
+/// replaced: a fold let the obligation accumulate WITHOUT BOUND across turns
+/// and be cashed in a single command at an arbitrary later moment (the
+/// review's scenario: seven cards drawn during another player's
+/// declare-blockers step). The new behaviour DISCHARGES the earlier entry
+/// (as though declined) the instant a second draw event arrives for the same
+/// player, THEN records a fresh entry for the new offer -- so the total draw
+/// count is still conserved (CR 614.11a), just split across two moments
+/// instead of banked into one, and `pending_draws` never holds more than the
+/// most recently offered draw's own remainder.
+fn test_dx2_second_dredge_offer_discharges_the_first_and_conserves_draws() {
     use mtg_engine::effects::{execute_effect, EffectContext};
 
     let p1 = p(1);
@@ -464,37 +472,50 @@ fn test_dx2_dredge_offers_do_not_stack_entries() {
     };
     let mut ctx = EffectContext::new(p1, ObjectId(998), vec![]);
     let events = execute_effect(&mut state, &effect, &mut ctx);
-    // CR 616.1e: each draw is separately replaceable, so the SECOND sequence's
-    // first draw is offered dredge again (its own `DredgeChoiceRequired` event
-    // fires) -- what must NOT happen is a second `PendingDraw` entry (plan
-    // §4.2's fold guard is about the STORED entry, not the emitted event).
+
+    // The FIRST (draw-step) offer is auto-discharged as a decline the moment
+    // this second draw is processed -- CR 702.52a: declining is always legal,
+    // "you may instead" supplies the default -- which draws it normally
+    // BEFORE the second sequence's own offer is even evaluated.
+    let discharge_drawn = events
+        .iter()
+        .filter(|e| matches!(e, GameEvent::CardDrawn { player, .. } if *player == p1))
+        .count();
+    assert_eq!(
+        discharge_drawn, 1,
+        "the stale draw-step entry must be discharged (drawn), not destroyed \
+         and not silently folded away. Events: {:?}",
+        events
+    );
+
+    // The second sequence's own first draw is ALSO offered dredge (CR 616.1e:
+    // each draw is separately replaceable) -- exactly one NEW offer.
     let dredge_offer_count = events
         .iter()
         .filter(|e| matches!(e, GameEvent::DredgeChoiceRequired { .. }))
         .count();
     assert_eq!(
         dredge_offer_count, 1,
-        "the second sequence's first draw is offered dredge again (CR 616.1e); \
-         it must fold into the EXISTING PendingDraw entry, not push a second \
-         one. Events: {:?}",
+        "the second sequence's first draw is offered dredge again (CR 616.1e). \
+         Events: {:?}",
         events
     );
 
     assert_eq!(
         state.pending_draws().len(),
         1,
-        "still exactly one entry -- the fold guard must not create a second"
+        "still exactly one entry -- discharge-then-push never leaves two"
     );
     assert_eq!(
         state.pending_draws()[0].remaining,
-        2,
-        "the folded entry must conserve BOTH the original draw-step draw and the \
-         2 further draws from the effect (1 + 2 = 3 total; 1 already accounted \
-         for by the offer itself, so 2 remain)"
+        1,
+        "the NEW entry carries only the SECOND sequence's own remainder (draw \
+         2 of 2 -- one further draw), NOT a sum with the discharged draw-step \
+         entry. This is the accumulation bound (fix-cycle Finding 1): the \
+         entry can never grow past a single offer's own remainder."
     );
 
-    // Declining the single offer must complete the WHOLE conserved obligation:
-    // draw-step draw (1) + effect draws (2) = 3 cards total.
+    // Declining the new offer completes the SECOND sequence's remainder.
     let (state, decline_events) = process_command(
         state,
         Command::ChooseDredge {
@@ -503,17 +524,26 @@ fn test_dx2_dredge_offers_do_not_stack_entries() {
         },
     )
     .unwrap();
-    let total_drawn = decline_events
+    let decline_drawn = decline_events
         .iter()
         .filter(|e| matches!(e, GameEvent::CardDrawn { player, .. } if *player == p1))
         .count();
     assert_eq!(
-        total_drawn, 3,
-        "CR 614.11a + 104.4b: declining must discharge the FULL conserved \
-         obligation -- 3 cards, not 1. Events: {:?}",
+        decline_drawn, 2,
+        "CR 614.11a: declining must complete the SECOND sequence's remaining \
+         two draws. Events: {:?}",
         decline_events
     );
     assert!(state.pending_draws().is_empty());
+
+    // CONSERVATION, end to end: draw-step draw (1, auto-discharged) + the
+    // second sequence's two draws (2, via decline) = 3 total. No draw was
+    // ever destroyed and none was ever banked past its own offer's window.
+    assert_eq!(
+        discharge_drawn + decline_drawn,
+        3,
+        "total cards drawn across the whole scenario must be exactly 3"
+    );
 }
 
 // ── T11 ─────────────────────────────────────────────────────────────────────
@@ -936,6 +966,259 @@ fn test_dx2_dead_players_dredge_entry_is_discharged() {
         state.pending_draws().is_empty(),
         "the dead player's entry must be discharged, not left outstanding"
     );
+}
+
+// ── T17 (fix cycle, Finding 4/case 1) ─────────────────────────────────────
+
+#[test]
+/// Trust boundary (Finding 4/case 1, `pb-review-DX2.md`): `handle_choose_dredge`'s
+/// gate is `position(|pd| pd.player == player)` -- a player can only consume
+/// THEIR OWN entry. This is the trust-boundary property of a trust-boundary
+/// batch, and its sibling on `OrderReplacements` IS pinned
+/// (`pb_dp5_pending_draw_choice.rs::test_dp5_order_replacements_rejects_non_affected_player`)
+/// but this one was not, before the fix cycle.
+fn test_dx2_choose_dredge_cannot_consume_another_players_entry() {
+    let p1 = p(1);
+    let p2 = p(2);
+
+    let registry = CardRegistry::new(vec![dredge_card_def(
+        "dredge-dx2-t17",
+        "Dredge T17 Card",
+        3,
+    )]);
+
+    let state = build_upkeep_state(p1, p2, registry, |mut b| {
+        b = b.object(
+            ObjectSpec::card(p1, "Dredge T17 Card")
+                .in_zone(ZoneId::Graveyard(p1))
+                .with_card_id(CardId("dredge-dx2-t17".to_string()))
+                .with_keyword(KeywordAbility::Dredge(3)),
+        );
+        for i in 0..5 {
+            b = b.object(
+                ObjectSpec::card(p1, &format!("Library Card {}", i)).in_zone(ZoneId::Library(p1)),
+            );
+        }
+        b
+    });
+
+    let (state, _events) = pass_all(state, &[p1, p2]);
+    assert_eq!(state.pending_draws().len(), 1);
+    assert_eq!(state.pending_draws()[0].player, p1);
+    let p2_hand_before = count_in_zone(&state, ZoneId::Hand(p2));
+
+    // p2 attempts to consume p1's entry.
+    let result = process_command(
+        state,
+        Command::ChooseDredge {
+            player: p2,
+            card: None,
+        },
+    );
+
+    match result {
+        Err(GameStateError::InvalidCommand(_)) => {}
+        Err(other) => panic!(
+            "expected InvalidCommand (CR 702.52a: no draw outstanding for p2), \
+             got {:?}",
+            other
+        ),
+        Ok((state, events)) => {
+            let p2_hand_after = count_in_zone(&state, ZoneId::Hand(p2));
+            panic!(
+                "p2 must not be able to consume p1's entry, but succeeded: p2 \
+                 hand {} -> {}. Events: {:?}",
+                p2_hand_before, p2_hand_after, events
+            );
+        }
+    }
+}
+
+// ── T18 (fix cycle, Finding 4/case 2, plan §3.3 row 2) ────────────────────
+
+#[test]
+/// CR 616.1e / plan §3.3 row 2 (Finding 4/case 2, `pb-review-DX2.md`):
+/// `Command::OrderReplacements` landing on a DREDGE-originated `PendingDraw`
+/// entry is a legal CR 616.1e choice, not a hole -- dredge is itself one of
+/// the applicable `WouldDraw` replacements for the draw, and the player may
+/// choose a DIFFERENT applicable replacement instead of dredging. Zero
+/// coverage before the fix cycle.
+fn test_dx2_order_replacements_can_answer_a_dredge_originated_entry() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let skip = ReplacementEffect {
+        id: ReplacementId(950),
+        source: None,
+        controller: p2,
+        duration: EffectDuration::Indefinite,
+        is_self_replacement: false,
+        trigger: ReplacementTrigger::WouldDraw {
+            player_filter: PlayerFilter::Specific(p1),
+        },
+        modification: ReplacementModification::SkipDraw,
+    };
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::card(p1, "Dredge Card")
+                .in_zone(ZoneId::Graveyard(p1))
+                .with_keyword(KeywordAbility::Dredge(3)),
+        )
+        .object(ObjectSpec::card(p1, "Library Card 0").in_zone(ZoneId::Library(p1)))
+        .object(ObjectSpec::card(p1, "Library Card 1").in_zone(ZoneId::Library(p1)))
+        .object(ObjectSpec::card(p1, "Library Card 2").in_zone(ZoneId::Library(p1)))
+        .with_replacement_effect(skip)
+        .build()
+        .unwrap();
+
+    // Dredge is checked FIRST when offer_dredge: true, so the entry that
+    // results here is dredge-originated, not NeedsChoice-originated.
+    let events = mtg_engine::rules::turn_actions::draw_card(&mut state, p1).unwrap();
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, GameEvent::DredgeChoiceRequired { player, .. } if *player == p1)),
+        "expected a dredge-originated entry. Events: {:?}",
+        events
+    );
+    assert_eq!(state.pending_draws().len(), 1);
+
+    let result = process_command(
+        state,
+        Command::OrderReplacements {
+            player: p1,
+            ids: vec![ReplacementId(950)],
+        },
+    );
+    assert!(
+        result.is_ok(),
+        "CR 616.1e: OrderReplacements naming a genuinely applicable \
+         replacement must be accepted even though the entry is \
+         dredge-originated, got {:?}",
+        result.err()
+    );
+    let (state, order_events) = result.unwrap();
+    assert!(
+        order_events.iter().any(
+            |e| matches!(e, GameEvent::ReplacementEffectApplied { effect_id, .. } if *effect_id == ReplacementId(950))
+        ),
+        "the chosen SkipDraw replacement should be applied. Events: {:?}",
+        order_events
+    );
+    assert!(
+        state.pending_draws().is_empty(),
+        "the SkipDraw chain terminates -- no further deferral"
+    );
+    assert!(
+        object_in_zone(&state, "Dredge Card", ZoneId::Graveyard(p1)),
+        "the dredge card was never dredged -- the player chose the OTHER \
+         applicable replacement instead (CR 616.1e)"
+    );
+}
+
+// ── T19 (fix cycle, Finding 4/case 3, plan §3.3 row 4; Finding 10) ────────
+
+#[test]
+/// CR 616.1e / plan §3.3 row 4 (Finding 4/case 3 and Finding 10,
+/// `pb-review-DX2.md`): `Command::ChooseDredge { Some }` landing on a
+/// NeedsChoice-originated entry (reached via a decline that re-defers because
+/// other WouldDraw replacements are still applicable) is a legal CR 616.1e
+/// choice. The decline is NOT sticky: the `Some` arm validates only that the
+/// named card is dredge-eligible against the player's OWN graveyard/library
+/// -- the same test dredge law itself uses -- regardless of which mechanism
+/// raised the entry. Zero coverage before the fix cycle.
+fn test_dx2_choose_dredge_some_can_answer_a_needschoice_originated_entry() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let skip_a = ReplacementEffect {
+        id: ReplacementId(960),
+        source: None,
+        controller: p2,
+        duration: EffectDuration::Indefinite,
+        is_self_replacement: false,
+        trigger: ReplacementTrigger::WouldDraw {
+            player_filter: PlayerFilter::Specific(p1),
+        },
+        modification: ReplacementModification::SkipDraw,
+    };
+    let skip_b = ReplacementEffect {
+        id: ReplacementId(961),
+        source: None,
+        controller: p2,
+        duration: EffectDuration::Indefinite,
+        is_self_replacement: false,
+        trigger: ReplacementTrigger::WouldDraw {
+            player_filter: PlayerFilter::Specific(p1),
+        },
+        modification: ReplacementModification::SkipDraw,
+    };
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::card(p1, "Dredge Card")
+                .in_zone(ZoneId::Graveyard(p1))
+                .with_keyword(KeywordAbility::Dredge(3)),
+        )
+        .object(ObjectSpec::card(p1, "Library Card 0").in_zone(ZoneId::Library(p1)))
+        .object(ObjectSpec::card(p1, "Library Card 1").in_zone(ZoneId::Library(p1)))
+        .object(ObjectSpec::card(p1, "Library Card 2").in_zone(ZoneId::Library(p1)))
+        .object(ObjectSpec::card(p1, "Library Card 3").in_zone(ZoneId::Library(p1)))
+        .with_replacement_effect(skip_a)
+        .with_replacement_effect(skip_b)
+        .build()
+        .unwrap();
+    let dredge_id = find_object(&state, "Dredge Card");
+
+    let events = mtg_engine::rules::turn_actions::draw_card(&mut state, p1).unwrap();
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, GameEvent::DredgeChoiceRequired { player, .. } if *player == p1)),
+        "dredge should be offered first. Events: {:?}",
+        events
+    );
+
+    // Decline dredge -- resume hits NeedsChoice (2 SkipDraw replacements
+    // still apply), pushing a FRESH, NeedsChoice-originated entry.
+    let (state, decline_events) = process_command(
+        state,
+        Command::ChooseDredge {
+            player: p1,
+            card: None,
+        },
+    )
+    .unwrap();
+    assert!(
+        decline_events.iter().any(
+            |e| matches!(e, GameEvent::ReplacementChoiceRequired { player, .. } if *player == p1)
+        ),
+        "declining dredge should re-check WouldDraw replacements and defer \
+         via ReplacementChoiceRequired. Events: {:?}",
+        decline_events
+    );
+    assert_eq!(state.pending_draws().len(), 1);
+
+    // The player may STILL dredge -- CR 616.1e, the decline is not sticky.
+    let (state, dredge_events) = process_command(
+        state,
+        Command::ChooseDredge {
+            player: p1,
+            card: Some(dredge_id),
+        },
+    )
+    .unwrap();
+    assert!(
+        dredge_events
+            .iter()
+            .any(|e| matches!(e, GameEvent::Dredged { player, .. } if *player == p1)),
+        "CR 616.1e: the player must still be able to dredge on the \
+         re-deferred entry. Events: {:?}",
+        dredge_events
+    );
+    assert!(state.pending_draws().is_empty());
+    assert!(object_in_zone(&state, "Dredge Card", ZoneId::Hand(p1)));
 }
 
 // ── T16 ─────────────────────────────────────────────────────────────────────

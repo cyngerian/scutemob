@@ -872,8 +872,24 @@ pub enum GameEvent {
     /// and "no answer" has a well-defined meaning (the block-vs-deadline test
     /// PB-DP4/PB-DP7 use); and `crates/simulator` constructs no `ChooseDredge`
     /// at all, so blocking would deadlock every bot game in which a dredge
-    /// card reaches a graveyard. An unanswered offer means the draw simply
-    /// never happens.
+    /// card reaches a graveyard.
+    ///
+    /// **The obligation does NOT accumulate** (fix-cycle Finding 1,
+    /// `pb-review-DX2.md` — an earlier version of this doc said "an unanswered
+    /// offer means the draw simply never happens", which was false: nothing
+    /// destroyed it, but nothing bounded it either, and it could be answered
+    /// in a single command at an arbitrary later moment covering every turn
+    /// since the offer). At most ONE entry can ever be outstanding for a
+    /// player (`replacement::perform_one_draw`'s per-player invariant): if
+    /// the SAME player faces another draw before answering this one, the
+    /// engine DISCHARGES the earlier obligation automatically, as though the
+    /// player had declined it (`replacement::resolve_declined_pending_draw`)
+    /// — the draw is never lost, only completed at a different moment than a
+    /// human answer would have chosen. What is NOT closed: a single
+    /// outstanding entry can still be answered, or auto-discharged, at an
+    /// arbitrary later moment with no priority or step check on
+    /// `Command::ChooseDredge` — that residual is `OOS-DP5-2`'s pre-existing
+    /// "no deadline for `pending_draws`" finding.
     ///
     /// `options` lists `(ObjectId, u32)` pairs of (dredge card, dredge amount).
     DredgeChoiceRequired {

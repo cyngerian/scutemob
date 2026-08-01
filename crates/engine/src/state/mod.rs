@@ -138,8 +138,11 @@ pub struct GameState {
     /// Zone changes waiting for player choice among replacement effects (CR 616.1).
     /// SBA loop skips objects with pending entries; resolved by `OrderReplacements`.
     pub(crate) pending_zone_changes: Vector<PendingZoneChange>,
-    /// Card draws waiting for the drawing player to choose among applicable
-    /// `WouldDraw` replacements (CR 616.1 / 614.11). Resolved by `OrderReplacements`.
+    /// Card draws waiting to be completed — either a CR 616.1 multi-replacement
+    /// choice (resolved by `Command::OrderReplacements`) or a CR 702.52a dredge
+    /// offer (resolved by `Command::ChooseDredge`, PB-DX2). At most one entry
+    /// per player (`replacement::perform_one_draw`'s per-player invariant); see
+    /// `PendingDraw`'s own doc for the two producers / two consumers.
     #[serde(default)]
     pub(crate) pending_draws: Vector<PendingDraw>,
     /// CR 514.1 (PB-DP7 / DP-3): the outstanding cleanup-step discard-to-hand-size

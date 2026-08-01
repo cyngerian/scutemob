@@ -13,7 +13,8 @@
 - **Branch**: `feat/pb-dx2-gate-the-resolution-time-commands-nothing-gates-oos-d`
 - **Class**: **CORRECTNESS — live exploit, trust boundary.** `Command::ChooseDredge` has no
   pending-state gate; `card: None` is a free card for any player at any time.
-- **Phase**: implement-complete
+- **Phase**: closed (fix cycle applied — see "Fix cycle" section at the foot of this file and
+  `memory/primitives/pb-review-DX2.md`'s "Fix cycle" appendix)
 - **Plan**: `memory/primitives/pb-plan-DX2.md`
 - **Review file**: `memory/primitives/pb-review-DX2.md`
 - **Wire prediction**: the brief says wire-neutral (PROTOCOL 32 / HASH 69 unmoved). **Treat this as
@@ -135,3 +136,56 @@
       State snapshot both updated. `Phase:` moved to `implement-complete`
       above (this batch's task instructions specify `implement-complete`,
       not `review` — no automatic review-phase handoff was requested).
+
+## Fix cycle (2026-08-01, same day)
+
+`memory/primitives/pb-review-DX2.md` — verdict **needs-fix**, 1 HIGH / 7 MEDIUM / 7 LOW.
+All 15 findings applied; full disposition table and argument for each is in that file's
+"Fix cycle" appendix. Summary:
+
+- **Finding 1 (HIGH)** — the implement-phase "fold guard" let an unanswered dredge offer
+  accumulate WITHOUT BOUND across turns and be cashed in one command at an arbitrary later
+  moment, out of priority, while `events.rs`'s own doc denied it. **Fixed by replacing the
+  fold with a discharge**: `replacement::perform_one_draw` now auto-resolves (as an implicit
+  decline, `resolve_declined_pending_draw`) any stale `PendingDraw` for a player the instant
+  another draw event arrives for them — unconditionally, before even examining what the new
+  draw needs. This bounds `pending_draws` to the single most-recently-offered draw's own
+  remainder (never a running sum), conserves every draw (nothing destroyed, only completed
+  at a different moment than a human answer would have chosen), and — found while designing
+  the fix, not prescribed by the review — closes **OOS-DX2-3** (two entries per player) as a
+  full side effect, since both `pending_draws.push_back` sites are now downstream of the
+  discharge. **Two early `return`s inside `perform_one_draw`'s `Proceed` arm had to be
+  restructured into nested `match` tail expressions** — a bare `return` there would have
+  skipped the new `events.extend(draw_events)` step and silently dropped the discharge's own
+  events; caught during implementation, not by a test.
+- **Findings 2, 3, 6, 7, 12** — doc-vs-code, all fixed. `PendingDraw`'s declaration doc and the
+  `GameState.pending_draws` field doc now name both producers and both consumers;
+  `handle_order_replacements` gained the four-case table from plan §3.3; `perform_remaining_draws`
+  relocated ABOVE `resolve_pending_draw`'s doc block (Rust attaches a doc comment to the
+  immediately following item — the bug was exactly this); `memory/gotchas-rules.md` rewritten
+  for the gated handler; `effects/mod.rs` names both consumers.
+- **Findings 4, 5** (test-validity MEDIUMs, treated as fix-phase HIGHs per
+  `memory/conventions.md`) — three new tests added (T17 cross-player rejection, T18/T19 the two
+  untested cross-kind cells of plan §3.3's four-case table), and `dredge.rs` test 9 rewritten to
+  reach a real offer first before naming an invalid card, restoring coverage of
+  `handle_choose_dredge`'s `Some`-arm validations.
+- **Findings 9, 10, 13, 14** — 9 (wrong CR 104.4b justification) and 13/14 (silent no-op /
+  discarded fields in the fold) are moot: the code they described no longer exists after
+  Finding 1's rewrite. 10 (decline not sticky) is genuinely a feature, not a bug — documented
+  in-source with a CR 616.1e citation and pinned by new test T19.
+- **Finding 11** — golden script `replacement/014`'s three surviving stale-prose sites (lines
+  6, 205, 216) reconciled.
+- **Finding 15** — (a) no action, already correctly documented; (b) `OOS-DX2-2`'s stale cite
+  corrected (`resolve_pending_draw:1402` → `perform_remaining_draws:1495`); (c) `dredge.rs:150`
+  and its enclosing test's doc comment corrected.
+
+**Extra, beyond the 15 findings**: two more "the engine pauses" sites the review did not name
+— `check_would_draw_replacement`'s own doc comment, and the top-level `perform_one_draw`
+doc's new "Per-player invariant" section — were found and fixed for consistency while
+reconciling the family Finding 1/2/3/7/12 all touch.
+
+**Verification**: wire-neutrality confirmed (`git diff --stat` over `rules/protocol.rs` +
+`state/hash.rs` empty; `protocol_schema` / `hash_schema` gates green). Tests 3,971 → **3,974**
+(+3: T17/T18/T19; T7 rewritten in place for the new discharge mechanism, not counted as new).
+`cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --check` and
+`tools/check-defs-fmt.sh` clean; `cargo build --workspace` clean.

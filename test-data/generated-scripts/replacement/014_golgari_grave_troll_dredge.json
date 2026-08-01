@@ -3,7 +3,7 @@
   "metadata": {
     "id": "script_replacement_014",
     "name": "Golgari Grave-Troll dredge replaces draw step draw",
-    "description": "P1 has Golgari Grave-Troll in their graveyard. It is P1's draw step (turn 2, so first-turn skip does not apply). P1 would draw a card. Because Golgari Grave-Troll has Dredge 6 and P1's library has 8 cards (>= 6), a DredgeChoiceRequired event is emitted. P1 chooses to dredge: the top 6 cards of the library are milled into the graveyard, and Golgari Grave-Troll returns from graveyard to hand (CR 702.52a). After dredge: P1's hand increases from 2 to 3 cards, library decreases from 8 to 2, graveyard gains 6 milled cards and loses the Grave-Troll. This tests the dredge replacement effect as a WouldDraw replacement (CR 614.1a) that fires during the draw step's turn-based action.",
+    "description": "P1 has Golgari Grave-Troll in their graveyard. The state starts in P1's Upkeep (turn 2, so first-turn skip does not apply); a leading priority_round (both players pass) drives the real Upkeep-to-Draw step transition and its draw turn-based action (CR 504.1), where P1 would draw a card. Because Golgari Grave-Troll has Dredge 6 and P1's library has 8 cards (>= 6), a DredgeChoiceRequired event is emitted and a PendingDraw obligation is recorded (PB-DX2) instead of a card being drawn. P1 chooses to dredge, answering that obligation: the top 6 cards of the library are milled into the graveyard, and Golgari Grave-Troll returns from graveyard to hand (CR 702.52a). After dredge: P1's hand increases from 2 to 3 cards, library decreases from 8 to 2, graveyard gains 6 milled cards and loses the Grave-Troll. This tests the dredge replacement effect as a WouldDraw replacement (CR 614.1a) that fires during the draw step's turn-based action.",
     "cr_sections_tested": [
       "614.1",
       "614.1a",
@@ -202,7 +202,7 @@
               "is_empty": true
             }
           },
-          "note": "CR 702.52a: The draw is replaced by a DredgeChoiceRequired event. No card drawn yet. GGT still in graveyard. The engine is paused waiting for ChooseDredge."
+          "note": "CR 702.52a: The draw is replaced by a DredgeChoiceRequired event and a PendingDraw obligation is recorded for p1. No card drawn yet. GGT still in graveyard. The engine does NOT pause or block (PB-DX2) -- priority, SBAs and step advancement all continue; ChooseDredge is legal only while the obligation stands and consumes it."
         },
         {
           "type": "player_action",
@@ -213,7 +213,7 @@
           "mana_paid": null,
           "mana_source": [],
           "cr_ref": "702.52a",
-          "note": "CR 702.52a: P1 chooses to dredge Golgari Grave-Troll (Dredge 6). Engine will: (1) mill 6 cards from top of P1's library into graveyard, (2) move GGT from graveyard to hand. This is NOT a draw \u2014 cards_drawn_this_turn is not incremented. DISPUTE: choose_dredge is not supported in translate_player_action \u2014 this action is silently skipped by the harness."
+          "note": "CR 702.52a: P1 chooses to dredge Golgari Grave-Troll (Dredge 6), answering the outstanding PendingDraw entry recorded in the previous step. Engine will: (1) mill 6 cards from top of P1's library into graveyard, (2) move GGT from graveyard to hand. This is NOT a draw \u2014 cards_drawn_this_turn is not incremented."
         },
         {
           "type": "assert_state",

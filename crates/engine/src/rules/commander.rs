@@ -888,6 +888,9 @@ pub fn handle_take_mulligan(
 /// therefore ends up ABOVE later entries: the LAST entry is the bottom-most card in
 /// the library. Implemented with `move_object_to_bottom_of_zone` (`push_front`), so
 /// the pre-existing library — including its top card — is untouched.
+///
+/// Every entry of `cards_to_bottom` must be a distinct object currently in
+/// `player`'s hand (PB-DX2 / OOS-DP2-1) — validated before any mutation.
 pub fn handle_keep_hand(
     state: &mut GameState,
     player: PlayerId,
