@@ -3,14 +3,12 @@
 //! Seeded RNG for reproducibility. Biased toward attacking (80/20)
 //! to ensure games progress toward a conclusion.
 
-use mtg_engine::rules::command::CastSpellData;
-use mtg_engine::{
-    AdditionalCost, AltCostKind, AttackTarget, Command, GameState, ObjectId, PlayerId,
-};
+use mtg_engine::{AttackTarget, Command, GameState, ObjectId, PlayerId};
 use rand::prelude::*;
 
 use crate::bot::Bot;
 use crate::legal_actions::LegalAction;
+use crate::params::{action_to_command_with_params, ActionParams};
 
 pub struct RandomBot {
     rng: StdRng,
@@ -125,91 +123,26 @@ impl Bot for RandomBot {
 }
 
 /// Convert a LegalAction into a Command the engine can process.
+///
+/// M11-local Session 3 (item 6): this is now a thin RNG-only wrapper over
+/// `action_to_command_with_params` (`params.rs`), the single `LegalAction` ->
+/// `Command` mapping table in the codebase. The RNG is used ONLY to fill
+/// `ActionParams::attackers`/`blockers` for `DeclareAttackers`/`DeclareBlockers` —
+/// every other field stays at its `ActionParams::default()`, and
+/// `action_to_command_with_params` itself is RNG-free and deterministic.
 pub(crate) fn action_to_command(
     rng: &mut StdRng,
     state: &GameState,
     player: PlayerId,
     action: &LegalAction,
 ) -> Command {
+    let mut params = ActionParams::default();
+
     match action {
-        LegalAction::PassPriority => Command::PassPriority { player },
-        LegalAction::Concede => Command::Concede { player },
-        LegalAction::PlayLand { card } => Command::PlayLand {
-            player,
-            card: *card,
-        },
-        LegalAction::CastSpell { card, .. } => Command::CastSpell(Box::new(CastSpellData {
-            player,
-            card: *card,
-            targets: Vec::new(),
-            convoke_creatures: Vec::new(),
-            improvise_artifacts: Vec::new(),
-            delve_cards: Vec::new(),
-            kicker_times: 0,
-            alt_cost: None,
-            prototype: false,
-            // CR 601.2b/700.2a (PB-DP3): the engine no longer auto-selects mode 0 — a
-            // modal cast with no announced modes is rejected. Announce the first
-            // `min_modes` modes in printed order; a no-op for non-modal cards.
-            modes_chosen: crate::legal_actions::spell_default_modes(state, *card),
-            x_value: 0,
-            face_down_kind: None,
-            additional_costs: vec![],
-            hybrid_choices: vec![],
-            phyrexian_life_payments: vec![],
-        })),
-        LegalAction::TapForMana {
-            source,
-            ability_index,
-            chosen_color,
-            hybrid_choices,
-            phyrexian_life_payments,
-        } => Command::TapForMana {
-            player,
-            source: *source,
-            ability_index: *ability_index,
-            chosen_color: *chosen_color,
-            // PB-RS2: pass through the fully-payable, non-suicidal plan the provider
-            // already resolved (`resolve_hybrid_phyrexian_plan`) — never re-derive it
-            // here, or the two could drift (the exact failure class OOS-RS-2 was).
-            hybrid_choices: hybrid_choices.clone(),
-            phyrexian_life_payments: phyrexian_life_payments.clone(),
-        },
-        LegalAction::ActivateAbility {
-            source,
-            ability_index,
-            hybrid_choices,
-            phyrexian_life_payments,
-        } => Command::ActivateAbility {
-            player,
-            source: *source,
-            ability_index: *ability_index,
-            targets: Vec::new(),
-            discard_card: None,
-            sacrifice_target: None,
-            x_value: None,
-            // CR 602.2b/700.2a (PB-DP3): the engine no longer auto-selects mode 0 for a
-            // modal activated ability either — announce the first `min_modes` modes in
-            // printed order (layer-resolved index; see `ability_default_modes`'s doc).
-            modes_chosen: crate::legal_actions::ability_default_modes(
-                state,
-                *source,
-                *ability_index,
-            ),
-            // PB-RS2: see the TapForMana arm above.
-            hybrid_choices: hybrid_choices.clone(),
-            phyrexian_life_payments: phyrexian_life_payments.clone(),
-        },
-        LegalAction::DeclareAttackers { eligible, targets } => {
-            // Pick random subset
-            if eligible.is_empty() || targets.is_empty() {
-                return Command::DeclareAttackers {
-                    player,
-                    attackers: Vec::new(),
-                    enlist_choices: Vec::new(),
-                    exert_choices: Vec::new(),
-                };
-            }
+        // Random subset of attackers (moved verbatim from the pre-Session-3 body).
+        LegalAction::DeclareAttackers { eligible, targets }
+            if !eligible.is_empty() && !targets.is_empty() =>
+        {
             let count = rng.random_range(0..=eligible.len());
             let mut shuffled = eligible.clone();
             shuffled.shuffle(rng);
@@ -221,18 +154,13 @@ pub(crate) fn action_to_command(
                     (id, target)
                 })
                 .collect();
-            Command::DeclareAttackers {
-                player,
-                attackers,
-                enlist_choices: Vec::new(),
-                exert_choices: Vec::new(),
-            }
+            params.attackers = attackers;
         }
+        // Random subset of blockers (moved verbatim from the pre-Session-3 body).
         LegalAction::DeclareBlockers {
             eligible,
             attackers,
         } => {
-            // Block with random subset
             let mut blocks = Vec::new();
             for &blocker in eligible {
                 if rng.random_bool(0.4) && !attackers.is_empty() {
@@ -240,158 +168,18 @@ pub(crate) fn action_to_command(
                     blocks.push((blocker, attacker));
                 }
             }
-            Command::DeclareBlockers {
-                player,
-                blockers: blocks,
-            }
+            params.blockers = blocks;
         }
-        LegalAction::TakeMulligan => Command::TakeMulligan { player },
-        LegalAction::KeepHand => {
-            // For simplicity, bottom nothing (London mulligan count = 0 for first keep)
-            Command::KeepHand {
-                player,
-                cards_to_bottom: Vec::new(),
-            }
-        }
-        LegalAction::ReturnCommanderToCommandZone { object_id } => {
-            Command::ReturnCommanderToCommandZone {
-                player,
-                object_id: *object_id,
-            }
-        }
-        LegalAction::LeaveCommanderInZone { object_id } => Command::LeaveCommanderInZone {
-            player,
-            object_id: *object_id,
-        },
-        // ── Bloodrush (CR 207.2c / B12) ─────────────────────────────────────────
-        // Activate the bloodrush ability: discard the card, target an attacking creature.
-        LegalAction::ActivateBloodrush { card, target } => Command::ActivateBloodrush {
-            player,
-            card: *card,
-            target: *target,
-        },
-        // ── Saddle (CR 702.171 / B13) ────────────────────────────────────────────
-        // Saddle a Mount by tapping the pre-selected creatures.
-        LegalAction::SaddleMount {
-            mount,
-            saddle_creatures,
-        } => Command::SaddleMount {
-            player,
-            mount: *mount,
-            saddle_creatures: saddle_creatures.clone(),
-        },
-        // ── Mutate (CR 702.140) ──────────────────────────────────────────────────
-        // Cast the card using its mutate alternative cost. Default: place on top (true)
-        // so the mutating spell's characteristics become the merged permanent's.
-        LegalAction::CastWithMutate {
-            card,
-            mutate_target,
-        } => Command::CastSpell(Box::new(CastSpellData {
-            player,
-            card: *card,
-            targets: Vec::new(),
-            convoke_creatures: Vec::new(),
-            improvise_artifacts: Vec::new(),
-            delve_cards: Vec::new(),
-            kicker_times: 0,
-            alt_cost: Some(AltCostKind::Mutate),
-            prototype: false,
-            // CR 601.2b (PB-DP3): returns vec![] for every non-modal card, so this is a
-            // no-op today (no modal card in the corpus has Mutate) and cannot regress;
-            // applying it uniformly removes the trap for a future modal+Mutate card.
-            modes_chosen: crate::legal_actions::spell_default_modes(state, *card),
-            x_value: 0,
-            face_down_kind: None,
-            additional_costs: vec![AdditionalCost::Mutate {
-                target: *mutate_target,
-                on_top: true,
-            }],
-            hybrid_choices: vec![],
-            phyrexian_life_payments: vec![],
-        })),
-        LegalAction::TurnFaceUp { permanent, method } => Command::TurnFaceUp {
-            player,
-            permanent: *permanent,
-            method: method.clone(),
-        },
-        LegalAction::CastMorphFaceDown { card, .. } => {
-            Command::CastSpell(Box::new(CastSpellData {
-                player,
-                card: *card,
-                targets: Vec::new(),
-                convoke_creatures: Vec::new(),
-                improvise_artifacts: Vec::new(),
-                delve_cards: Vec::new(),
-                kicker_times: 0,
-                alt_cost: Some(AltCostKind::Morph),
-                prototype: false,
-                // CR 601.2b (PB-DP3): see the Mutate arm above — a no-op for non-modal
-                // cards, applied uniformly.
-                modes_chosen: crate::legal_actions::spell_default_modes(state, *card),
-                x_value: 0,
-                face_down_kind: None,
-                additional_costs: vec![],
-                hybrid_choices: vec![],
-                phyrexian_life_payments: vec![],
-            }))
-        }
-        LegalAction::ActivateLoyaltyAbility {
-            source,
-            ability_index,
-        } => Command::ActivateLoyaltyAbility {
-            player,
-            source: *source,
-            ability_index: *ability_index,
-            targets: Vec::new(),
-            x_value: None,
-        },
-        // PB-DP4 / DP-11 (CR 702.30a/702.24a/702.59a): answer an outstanding
-        // echo / cumulative upkeep / recover payment.
-        LegalAction::PayEcho { permanent, pay } => Command::PayEcho {
-            player,
-            permanent: *permanent,
-            pay: *pay,
-        },
-        LegalAction::PayCumulativeUpkeep { permanent, pay } => Command::PayCumulativeUpkeep {
-            player,
-            permanent: *permanent,
-            pay: *pay,
-        },
-        LegalAction::PayRecover { recover_card, pay } => Command::PayRecover {
-            player,
-            recover_card: *recover_card,
-            pay: *pay,
-        },
-        // PB-DP7 / DP-3 (CR 514.1): answer the outstanding cleanup discard
-        // with the deterministic default subset the provider already
-        // computed (SR-38: always accepted).
-        LegalAction::DiscardToHandSize { cards, .. } => Command::DiscardToHandSize {
-            player,
-            cards: cards.clone(),
-        },
-        // CR 603.3d (PB-DP8 / DP-6): submit the engine's OWN default verbatim, do
-        // not randomise. Randomising would be a legitimate improvement to bot play
-        // and a disaster for this batch: it would change fuzzer outcomes on every
-        // seed and destroy the pre/post A/B oracle. Seeded as OOS-DP8-1.
-        LegalAction::ChooseTriggerTargets {
-            choice_id, targets, ..
-        } => Command::ChooseTriggerTargets {
-            player,
-            choice_id: *choice_id,
-            targets: targets.clone(),
-        },
-        // CR 608.2d (PB-DP9 / DP-7/8/9): submit the engine's OWN default
-        // verbatim, for the same reason as ChooseTriggerTargets above --
-        // randomising would change every fuzzer seed's outcome. Note the
-        // scry/surveil defaults are the identity, so a random bot's scry is now
-        // a no-op rather than a self-mill: un-strategic but neutral, and a real
-        // library-aware answer is seeded as OOS-DP9-1.
-        LegalAction::AnswerEffectChoice {
-            choice_id, answer, ..
-        } => Command::AnswerEffectChoice {
-            player,
-            choice_id: *choice_id,
-            answer: answer.clone(),
-        },
+        _ => {}
     }
+
+    // Unreachable in practice: the provider guarantees a `chosen_color` for
+    // every `any_color` `TapForMana` it offers
+    // (`legal_actions::resolve_hybrid_phyrexian_plan` / the `TapForMana`
+    // enumeration in `legal_actions.rs`), and no other `LegalAction` this bot
+    // sees can produce a `ParamError` from an all-default `ActionParams`. A
+    // pass is the safe, non-panicking answer for a fuzz run if that ever
+    // stops holding.
+    action_to_command_with_params(state, player, action, &params)
+        .unwrap_or(Command::PassPriority { player })
 }

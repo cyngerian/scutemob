@@ -29,6 +29,10 @@ pub use rules::protocol::{
     decode, decode_replay_log, encode, encode_replay_log, Envelope, ProtocolEpoch, ProtocolError,
     ReplayLog, PROTOCOL_HISTORY, PROTOCOL_SCHEMA_FINGERPRINT, PROTOCOL_VERSION,
 };
+pub use rules::queries::{
+    ability_target_requirements, legal_targets_per_slot, spell_target_requirements,
+    target_count_range,
+};
 pub use rules::sba::check_and_apply_sbas;
 pub use rules::{CastSpellData, Command, GameEvent, LossReason};
 pub use state::builder::register_commander_zone_replacements;

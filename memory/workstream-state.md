@@ -26,13 +26,83 @@
 > Deliberately its own section, not a W-row: M11-local runs concurrently with the W6
 > primitive queue and touches a disjoint set of crates. Plan: `memory/m11-session-plan.md`
 > (8 sessions, authoritative). No new `Command`/`GameEvent` variant in the whole milestone
-> — PROTOCOL 31 / HASH 68 hold throughout.
+> — the milestone's wire-neutrality claim holds; the current pins are PROTOCOL **32** /
+> HASH **69** (moved by PB-DX1 on the W6 track, not by M11-local).
 
 | Session | Task | Status | Notes |
 |---------|------|--------|-------|
 | S1 steppable local-game core | `scutemob-147` | **SHIPPED** | `LocalGame` in `crates/simulator/src/local_game.rs`; `GameDriver::run_game` re-expressed on top of it |
-| S2 deterministic pregame setup + mulligans | `scutemob-161` | **SHIPPED** | this session — see handoff below |
-| S3 action parameterization + engine target queries | — | next | Plan §4 Session 3. **The crux of the milestone** (plan §8 R1: a human cannot cast a targeted spell today). First session that touches `crates/engine` — coordinate against the live PB-DX batch |
+| S2 deterministic pregame setup + mulligans | `scutemob-161` | **SHIPPED** | `setup.rs`: `build_initial_state` / `redeal` — see handoff below |
+| S3 action parameterization + engine target queries | `scutemob-163` | **SHIPPED** | this session — the crux (plan §8 R1) is closed: a human can cast a targeted spell. See handoff below |
+| S4 view-model crate extraction + seat redaction | — | **next** | Plan §4 Session 4. New `crates/view-model`; `tools/replay-viewer` becomes a consumer. Carries the two exhaustive matches (`StackObjectKind`, `KeywordAbility`) runners miss ~50% of the time — `cargo build --workspace` after every phase |
+
+**S3 handoff (2026-08-01, `scutemob-163`)**
+
+- **The milestone's crux is closed.** The TUI always sent `targets: Vec::new()`, so any
+  spell with a `TargetRequirement` was rejected at `casting.rs:3708` — a human literally
+  could not cast Lightning Bolt. `test_human_casts_targeted_spell_through_local_game`
+  now casts a targeted spell through `LocalGame::submit` and asserts the damage
+  **resolved**, picking its target through the new engine query surface end-to-end.
+- **Engine half** — new `crates/engine/src/rules/queries.rs` (read-only, 4 fns,
+  re-exported from `lib.rs`, **no new public type**). `casting.rs` gains three shared
+  helpers extracted verbatim from `handle_cast_spell` (`card_def_target_requirements`,
+  `spell_mode_selection`, `per_mode_target_requirements`) so the query and the cast path
+  **cannot drift** — that shared extraction, not the query itself, is the load-bearing
+  part of plan item 1. `legal_targets_per_slot` delegates one
+  `casting::validate_targets_inner` call per candidate, which is what buys
+  hexproof/shroud/protection (`casting.rs:6160`) and player-hexproof (`:6114`) for free
+  instead of re-deriving them. SR-9a honoured: `tests/rules/queries.rs` **plus** its
+  `mod` line in `tests/rules/main.rs`.
+- **Signature deviation, argued not assumed:** `spell_target_requirements` takes a 4th
+  parameter `alt_cost: Option<AltCostKind>` that the plan's §3 sketch omits.
+  `casting_with_overload` (`casting.rs:1163`) and `casting_with_aftermath` (`:533`) are
+  **caster-intent** flags derived from the `CastSpell` command, not derivable from state,
+  so without it CR 702.96b is unreachable and the named Overload test is unwritable.
+  `AltCostKind` is already public → no new public type, wire fingerprint unmoved.
+- **A gate-churn trap, avoided.** The first cut checked Overload eligibility by reading
+  `KeywordAbility::Overload` from layer-resolved characteristics. That is a *parallel
+  re-derivation* of what `casting.rs:1203` establishes with
+  `get_overload_cost(...).is_some()`, and it reclassified Overload from SR-5 `Marker` to
+  `Handled`, dragging `keyword_registry.rs`, its gate test and
+  `docs/sr-5-keyword-catchall-audit.md` along with it. Replaced with the *same call*
+  casting makes; the three collateral files reverted. **Lesson: when a new read of a
+  keyword forces an SR-5 reclassification, that is a signal you re-derived something
+  instead of delegating to it.** (Aftermath genuinely does read its keyword, mirroring
+  `casting.rs:533-538`, so `queries.rs` is honestly added to *its* site list.)
+- **Simulator half** — new `crates/simulator/src/params.rs` is now the **single**
+  `LegalAction` → `Command` mapping table (`random_bot::action_to_command` delegates;
+  RNG survives only to fill `attackers`/`blockers`). `hybrid_choices` /
+  `phyrexian_life_payments` forwarded **verbatim** from the `LegalAction` (PB-RS2
+  precedent — re-deriving is the OOS-RS-2 drift class); an `any_color` `TapForMana` with
+  no `chosen_color` is **rejected**, not defaulted to Colorless (PB-EF12, CR 106.1a/b).
+  A param announced on an action with no channel for it is rejected rather than silently
+  discarded.
+- **Bot parity was proven, not asserted.** `mtg-fuzzer --games 50 --seed 424242 --bot
+  random` built at pristine and at refactored code: byte-identical per-seed
+  Turns/Commands/Winner/Error across all 50 seeds, identical aggregates. Only difference
+  is `stack_consistency` violation *line ordering*, which is the known `OOS-M11-3`
+  nondeterminism (total violation count identical).
+- **`HumanChoice` is now a struct** (`{ action_index, params }`), not
+  `enum HumanChoice::Command(Command)`. `submit` builds the command itself for
+  `pending.player`, so a **cross-seat command is structurally unrepresentable** — S1's
+  `command_player` runtime guard and its unit test are deleted, exactly as `submit`'s own
+  S1 doc comment predicted. The tap-then-cast sequence applies to a **clone** and commits
+  only on full success, so a succeeded tap never survives a rejected cast.
+- **`OOS-M11-2`'s pool half is CLOSED**: auto-tap now fires only when `params.auto_tap`
+  **and** the caster's existing `ManaPool` cannot already cover the cost. The layer-
+  resolution half (`mana_solver.rs` reads non-layer-resolved `mana_abilities` at `:35`)
+  is **still open** and unowned. `advance()`'s bot-seat auto-tap deliberately still fires
+  unconditionally — a bot has no reason to prefer its pool, and touching it would perturb
+  the fuzzer parity above.
+- **A fixture trap worth carrying into S4-S8:** you cannot pre-fill a player's mana pool
+  before `LocalGame::start` and expect it to survive — `start_game` runs through
+  Untap/Upkeep and **CR 500.4 empties the pool between steps**. Produce a funded pool
+  with a real `TapForMana` submit inside the same step instead.
+- Workspace **3,955 → 3,965 / 0** (engine +7, simulator +4, −1 deleted `command_player`
+  unit). PROTOCOL **32** / HASH **69** unmoved; diff vs main over
+  `crates/engine/src/rules/protocol.rs` and `crates/card-types/` **empty**.
+- **S4 is unblocked and stays parallel-safe** with the PB-DX queue: it touches a new
+  `crates/view-model` + `tools/replay-viewer`, no engine surface.
 
 **S2 handoff (2026-07-31, `scutemob-161`)**
 

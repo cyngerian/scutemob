@@ -20,6 +20,7 @@ pub mod plot;
 pub mod priority;
 pub mod protection;
 pub mod protocol;
+pub mod queries;
 pub mod replacement;
 pub mod resolution;
 pub mod sba;

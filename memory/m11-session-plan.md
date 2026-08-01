@@ -643,6 +643,58 @@ starts with 7 real cards; no non-`Complete` card can enter a game.
 
 ### Session 3: Action parameterization + engine target queries (8 items)
 
+**STATUS (2026-08-01, `scutemob-163`): all 8 items shipped — the milestone's crux (§8 R1)
+is closed.** A human can cast a targeted spell:
+`crates/simulator/tests/local_game.rs::test_human_casts_targeted_spell_through_local_game`
+casts one through `LocalGame::submit`, picking its target through the new engine query
+surface, and asserts the damage **resolved**. Workspace tests 3,955 → **3,965 / 0**;
+`cargo build --workspace`, `clippy --workspace --all-targets -D warnings`, `fmt --check`
+and `tools/check-defs-fmt.sh` all green; PROTOCOL **32** / HASH **69** unmoved (the pins
+moved from 31/68 on the W6 track via PB-DX1, not here — this session added no
+`Command`/`GameEvent`/`Effect` variant and no new public type, and its diff over
+`rules/protocol.rs` and `crates/card-types/` is empty).
+
+**Three things the item text below did not contain.**
+
+1. **Item 1's signature is wrong and shipped corrected.** `spell_target_requirements`
+   takes a 4th parameter, `alt_cost: Option<AltCostKind>`. `casting_with_overload`
+   (`casting.rs:1163`) and `casting_with_aftermath` (`casting.rs:533`) are **caster-intent**
+   flags read off the `CastSpell` command — they are not derivable from `GameState`, so
+   without the parameter CR 702.96b is unreachable and item 8's
+   `test_702_96b_overload_reports_no_target_requirements` is unwritable. `AltCostKind` is
+   already public, so no new public type is introduced.
+2. **The shared extraction, not the query, is item 1's load-bearing half** — and it is
+   worth more than the item implies. `casting.rs` now exports
+   `card_def_target_requirements`, `spell_mode_selection` and
+   `per_mode_target_requirements`, extracted verbatim (refactor-only, zero behaviour
+   change), so the query and the cast path cannot drift.
+3. **A gate-churn trap.** The first cut established Overload eligibility by reading
+   `KeywordAbility::Overload` off layer-resolved characteristics. That is a *parallel
+   re-derivation* of `get_overload_cost(...).is_some()` (`casting.rs:1203`), and it forced
+   an SR-5 reclassification of Overload from `Marker` to `Handled`, dragging
+   `keyword_registry.rs`, its gate test and `docs/sr-5-keyword-catchall-audit.md` with it.
+   Replaced with the same call casting makes; the three collateral files reverted.
+   **Generalisable: an SR-5 reclassification forced by a new read is a signal you
+   re-derived something instead of delegating to it.**
+
+**Also shipped, beyond the item text:** `HumanChoice` became a struct (item 7), so
+Session 1's `command_player` cross-seat runtime guard and its unit test are **deleted** —
+the guarantee is structural now, exactly as `submit`'s S1 doc comment predicted. The
+tap-then-cast sequence applies to a clone and commits only on full success. Item 6's
+parity was *measured*, not asserted: `mtg-fuzzer --games 50 --seed 424242 --bot random`
+built at pristine and refactored code produced byte-identical per-seed
+Turns/Commands/Winner/Error across all 50 seeds. **`OOS-M11-2`'s pool half is closed;
+its layer-resolution half (`mana_solver.rs:35`) remains open and unowned.**
+
+> **Fixture trap for Sessions 4-8:** you cannot pre-fill a player's mana pool before
+> `LocalGame::start` and expect it to survive — `start_game` runs through Untap/Upkeep and
+> **CR 500.4 empties the pool between steps**. Fund the pool with a real `TapForMana`
+> submit inside the same step instead.
+
+> **And treat this section's CR cites as unverified** — Session 2 found `CR 103.4` used
+> for the opening hand across six sites when 103.4 is the starting *life total*. That
+> family of stale cite has now bitten twice.
+
 **Crates**: `crates/engine` (read-only query module) and `crates/simulator`.
 **Files**: `crates/engine/src/rules/queries.rs` (new), `src/rules/mod.rs`, `src/lib.rs`,
 `src/rules/casting.rs` (visibility widening only), `crates/simulator/src/params.rs` (new),

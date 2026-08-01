@@ -17,12 +17,14 @@ use std::collections::{BTreeSet, HashMap};
 use std::sync::Arc;
 
 use mtg_engine::{
-    all_cards, enrich_spec_from_def, AttackTarget, CardDefinition, CardId, CardRegistry, Command,
-    GameState, GameStateBuilder, ObjectId, ObjectSpec, PlayerId, ZoneId,
+    all_cards, enrich_spec_from_def, legal_targets_per_slot, spell_target_requirements,
+    AttackTarget, CardDefinition, CardId, CardRegistry, Command, GameState, GameStateBuilder,
+    ManaAbility, ManaColor, ObjectId, ObjectSpec, PlayerId, Target, TargetRequirement, ZoneId,
 };
 use mtg_simulator::{
-    build_registry, AdvanceOutcome, Bot, DecisionKind, DeckConfig, GameDriver, HaltReason,
-    HumanChoice, LegalAction, LocalGame, LocalGameError, LocalGameLimits, RandomBot, StubProvider,
+    action_to_command_with_params, build_registry, ActionParams, AdvanceOutcome, Bot, DecisionKind,
+    DeckConfig, GameDriver, HaltReason, HumanChoice, LegalAction, LocalGame, LocalGameError,
+    LocalGameLimits, ParamError, RandomBot, StubProvider,
 };
 
 /// A fixed, low-complexity deck: 99 Plains plus the first `Complete` legendary
@@ -116,6 +118,36 @@ fn small_limits(max_turns: u32) -> LocalGameLimits {
         // configuration the play server will use. `GameDriver` sets it `false`.
         record_journal: true,
     }
+}
+
+/// Find the index of the first action in `actions` matching `pred`. M11-local
+/// Session 3 (item 7) made `HumanChoice` carry an `action_index` into the pending
+/// decision's `actions` rather than a pre-built `Command`, so every test that used
+/// to construct a `Command` directly now has to locate the equivalent
+/// `LegalAction`'s position first.
+fn find_action_index(actions: &[LegalAction], pred: impl Fn(&LegalAction) -> bool) -> usize {
+    actions
+        .iter()
+        .position(pred)
+        .unwrap_or_else(|| panic!("no matching action found in {:?}", actions))
+}
+
+/// The most common case in this file: locate `LegalAction::PassPriority` and
+/// submit it with default params.
+fn submit_pass<P: mtg_simulator::LegalActionProvider>(
+    game: &mut LocalGame<P>,
+    decision: &mtg_simulator::PendingDecision,
+) -> Result<Vec<mtg_engine::GameEvent>, LocalGameError> {
+    let idx = find_action_index(&decision.actions, |a| {
+        matches!(a, LegalAction::PassPriority)
+    });
+    game.submit(
+        decision.seq,
+        HumanChoice {
+            action_index: idx,
+            params: ActionParams::default(),
+        },
+    )
 }
 
 /// A bot that always passes priority, regardless of what else is legal. Used to
@@ -301,18 +333,20 @@ fn test_local_game_repeated_advance_preserves_pending_decision() {
     }
 
     // The seq handed out first is still the one that works.
-    let pass = Command::PassPriority {
-        player: PlayerId(1),
-    };
-    game.submit(first.seq, HumanChoice::Command(pass))
-        .expect("the originally-issued seq must still be valid");
+    submit_pass(&mut game, &first).expect("the originally-issued seq must still be valid");
 }
 
-/// The seat that was asked is the only seat that may answer. A client holding a valid
-/// `seq` for its own decision must not be able to submit a command naming a different
-/// player — Architecture Invariant 7 once this sits behind HTTP.
+/// Session 1's cross-seat guarantee ("the seat that was asked is the only seat that
+/// may answer") is now STRUCTURAL rather than checked (M11-local Session 3, item 7):
+/// `submit` resolves `action_index` against `pending.actions` and always builds the
+/// `Command` for `pending.player` — there is no field anywhere in `HumanChoice` that
+/// could name a different player, so a cross-seat submission is unrepresentable at
+/// the type level and `LocalGameError::BadParams` (Session 1's runtime check) no
+/// longer has anything to report. What remains checkable at runtime is an
+/// out-of-range `action_index`, which is exactly what a client attempting to act
+/// on a decision it does not hold degenerates into.
 #[test]
-fn test_local_game_submit_rejects_command_for_another_seat() {
+fn test_local_game_submit_unknown_action_index_is_rejected() {
     let registry = build_registry();
     let cards = all_cards();
     let state = build_state(2, &registry, &cards);
@@ -336,27 +370,30 @@ fn test_local_game_submit_rejects_command_for_another_seat() {
     assert_eq!(decision.player, PlayerId(1));
 
     let commands_before = game.command_count();
+    let out_of_range = decision.actions.len(); // one past the last valid index
 
-    // A legal-looking command, but for the *other* seat.
-    let cross_seat = Command::PassPriority {
-        player: PlayerId(2),
-    };
-    let result = game.submit(decision.seq, HumanChoice::Command(cross_seat));
+    let result = game.submit(
+        decision.seq,
+        HumanChoice {
+            action_index: out_of_range,
+            params: ActionParams::default(),
+        },
+    );
 
     assert!(
-        matches!(result, Err(LocalGameError::BadParams(_))),
-        "expected BadParams for a cross-seat command, got {:?}",
+        matches!(result, Err(LocalGameError::UnknownAction(i)) if i == out_of_range),
+        "expected UnknownAction({out_of_range}), got {:?}",
         result
     );
     assert_eq!(
         game.command_count(),
         commands_before,
-        "a cross-seat submit must not apply anything"
+        "an unknown action_index must not apply anything"
     );
     assert_eq!(
         game.pending_decision().map(|d| d.seq),
         Some(decision.seq),
-        "a rejected cross-seat submit must not consume the decision"
+        "a rejected submit must not consume the decision"
     );
 }
 
@@ -396,68 +433,20 @@ fn test_local_game_journal_can_be_disabled() {
     assert!(game.journal_since(0).is_empty());
 }
 
-/// `submit` never falls back to `PassPriority`: an illegal command is reported as
-/// `LocalGameError::Rejected` and the game state (and pending decision) survive
-/// untouched.
-#[test]
-fn test_local_game_submit_illegal_command_returns_err_and_preserves_state() {
-    let registry = build_registry();
-    let cards = all_cards();
-    let state = build_state(2, &registry, &cards);
-
-    let human_seats: BTreeSet<PlayerId> = [PlayerId(1)].into_iter().collect();
-    let (mut game, _start_events) = LocalGame::start(
-        state,
-        7,
-        StubProvider,
-        bots_for(2, 7),
-        human_seats,
-        small_limits(10),
-        true,
-    )
-    .expect("game should start");
-
-    let decision = match game.advance() {
-        AdvanceOutcome::AwaitingHuman(d) => d,
-        other => panic!("expected AwaitingHuman, got {:?}", other),
-    };
-
-    let commands_before = game.command_count();
-    let turn_before = game.state().turn().turn_number;
-    let journal_len_before = game.journal().len();
-
-    // References an object that does not exist — always illegal.
-    let bogus = Command::PlayLand {
-        player: PlayerId(1),
-        card: ObjectId(999_999),
-    };
-    let result = game.submit(decision.seq, HumanChoice::Command(bogus));
-
-    assert!(
-        matches!(result, Err(LocalGameError::Rejected(_))),
-        "expected Rejected, got {:?}",
-        result
-    );
-    assert_eq!(
-        game.command_count(),
-        commands_before,
-        "command_count must be unchanged on rejection"
-    );
-    assert_eq!(
-        game.state().turn().turn_number,
-        turn_before,
-        "turn must be unchanged on rejection"
-    );
-    assert_eq!(
-        game.journal().len(),
-        journal_len_before,
-        "journal must be unchanged on rejection"
-    );
-    let still_pending = game
-        .pending_decision()
-        .expect("a rejected submit must not consume the pending decision");
-    assert_eq!(still_pending.seq, decision.seq);
-}
+// `test_local_game_submit_illegal_command_returns_err_and_preserves_state` used to
+// live here (Session 1): it submitted `Command::PlayLand { card: ObjectId(999_999),
+// .. }` — a bogus, unrepresentable-by-any-`LegalAction` command — and asserted
+// `LocalGameError::Rejected` with the game state untouched. M11-local Session 3
+// (item 7) removed the ability to submit an arbitrary `Command` at all: `submit`
+// now only ever builds a `Command` from an `action_index` into `pending.actions`
+// plus `ActionParams`, so there is no longer a way to construct that scenario.
+// DELETED rather than repurposed: the invariant it protected ("an engine
+// rejection at submit time leaves `self.state` untouched") is not lost — it is
+// exercised, with a real offered action and a real engine-level rejection, by
+// `test_human_illegal_target_is_rejected_without_state_change` below (item 8),
+// which is a strictly stronger test of the same property because the rejected
+// command is one `action_to_command_with_params` actually produced, not one
+// hand-built to be nonsensical.
 
 /// A stale `seq` (one not matching the current `PendingDecision`) is rejected without
 /// touching game state — protects against a stale browser tab acting on a superseded
@@ -487,10 +476,16 @@ fn test_local_game_submit_stale_seq_rejected() {
     assert_eq!(decision.seq, 1);
 
     let stale_seq = decision.seq + 1; // Never issued.
-    let cmd = Command::PassPriority {
-        player: PlayerId(1),
-    };
-    let result = game.submit(stale_seq, HumanChoice::Command(cmd));
+    let idx = find_action_index(&decision.actions, |a| {
+        matches!(a, LegalAction::PassPriority)
+    });
+    let result = game.submit(
+        stale_seq,
+        HumanChoice {
+            action_index: idx,
+            params: ActionParams::default(),
+        },
+    );
 
     match result {
         Err(LocalGameError::StaleDecision { expected, got }) => {
@@ -527,10 +522,7 @@ fn test_local_game_journal_length_matches_commands() {
     for _ in 0..2000 {
         match game.advance() {
             AdvanceOutcome::AwaitingHuman(decision) => {
-                let cmd = Command::PassPriority {
-                    player: decision.player,
-                };
-                game.submit(decision.seq, HumanChoice::Command(cmd))
+                submit_pass(&mut game, &decision)
                     .expect("PassPriority is always legal when it is this player's turn to act");
             }
             AdvanceOutcome::GameOver(_) | AdvanceOutcome::Halted(_) => break,
@@ -610,11 +602,8 @@ fn drive_to_cleanup_discard<P: mtg_simulator::LegalActionProvider>(
                 return d;
             }
             AdvanceOutcome::AwaitingHuman(d) => {
-                game.submit(
-                    d.seq,
-                    HumanChoice::Command(Command::PassPriority { player: d.player }),
-                )
-                .unwrap_or_else(|e| panic!("PassPriority submit failed: {:?}", e));
+                submit_pass(game, &d)
+                    .unwrap_or_else(|e| panic!("PassPriority submit failed: {:?}", e));
             }
             other => panic!(
                 "expected to reach CleanupDiscard, got a terminal outcome instead: {:?}",
@@ -653,12 +642,11 @@ fn test_dp7_local_game_awaits_human_on_cleanup_discard() {
     let decision = drive_to_cleanup_discard(&mut game);
     assert_eq!(decision.player, PlayerId(1));
     assert_eq!(decision.actions.len(), 1);
-    let cards = match &decision.actions[0] {
+    match &decision.actions[0] {
         LegalAction::DiscardToHandSize { count, hand, cards } => {
             assert_eq!(*count, 1);
             assert_eq!(hand.len(), 8);
             assert_eq!(cards.len(), 1);
-            cards.clone()
         }
         other => panic!("expected DiscardToHandSize, got {:?}", other),
     };
@@ -670,23 +658,19 @@ fn test_dp7_local_game_awaits_human_on_cleanup_discard() {
         other => panic!("expected the same AwaitingHuman again, got {:?}", other),
     }
 
-    // submit() naming another seat -> BadParams.
-    let wrong_seat = game.submit(
-        decision.seq,
-        HumanChoice::Command(Command::DiscardToHandSize {
-            player: PlayerId(2),
-            cards: cards.clone(),
-        }),
-    );
-    assert!(matches!(wrong_seat, Err(LocalGameError::BadParams(_))));
+    // The Session 1 "submit() naming another seat -> BadParams" sub-check that used
+    // to live here is gone: `HumanChoice` (Session 3) has no field that can name a
+    // player at all, so there is nothing left to submit "for player 2" with — see
+    // `test_local_game_submit_unknown_action_index_is_rejected`, which covers what
+    // that scenario degenerates into (an out-of-range `action_index`).
 
     // submit() with a stale seq -> StaleDecision.
     let stale = game.submit(
         decision.seq + 100,
-        HumanChoice::Command(Command::DiscardToHandSize {
-            player: PlayerId(1),
-            cards: cards.clone(),
-        }),
+        HumanChoice {
+            action_index: 0,
+            params: ActionParams::default(),
+        },
     );
     assert!(matches!(
         stale,
@@ -695,12 +679,14 @@ fn test_dp7_local_game_awaits_human_on_cleanup_discard() {
     ));
 
     // Correct submit -> the game proceeds (no error, and the decision clears).
+    // `DiscardToHandSize` ignores `params` and forwards the engine's own default
+    // `cards` verbatim (SR-38), so `ActionParams::default()` is sufficient.
     let ok = game.submit(
         decision.seq,
-        HumanChoice::Command(Command::DiscardToHandSize {
-            player: PlayerId(1),
-            cards,
-        }),
+        HumanChoice {
+            action_index: 0,
+            params: ActionParams::default(),
+        },
     );
     assert!(
         ok.is_ok(),
@@ -857,11 +843,8 @@ fn test_dp8_local_game_awaits_human_on_trigger_targets() {
         match game.advance() {
             AdvanceOutcome::AwaitingHuman(d) if d.kind == DecisionKind::TriggerTargets => break d,
             AdvanceOutcome::AwaitingHuman(d) => {
-                game.submit(
-                    d.seq,
-                    HumanChoice::Command(Command::PassPriority { player: d.player }),
-                )
-                .unwrap_or_else(|e| panic!("PassPriority submit failed: {:?}", e));
+                submit_pass(&mut game, &d)
+                    .unwrap_or_else(|e| panic!("PassPriority submit failed: {:?}", e));
             }
             other => panic!("expected to reach TriggerTargets, got {:?}", other),
         }
@@ -873,13 +856,8 @@ fn test_dp8_local_game_awaits_human_on_trigger_targets() {
         1,
         "exactly one action is legal while the CR 603.3b batch is suspended"
     );
-    let (choice_id, targets) = match &decision.actions[0] {
-        LegalAction::ChooseTriggerTargets {
-            choice_id,
-            slots,
-            targets,
-            ..
-        } => {
+    match &decision.actions[0] {
+        LegalAction::ChooseTriggerTargets { slots, targets, .. } => {
             assert_eq!(slots.len(), 1, "one TargetCreature slot");
             assert_eq!(
                 slots[0].candidates.len(),
@@ -887,7 +865,6 @@ fn test_dp8_local_game_awaits_human_on_trigger_targets() {
                 "CR 601.2c: both creatures are legal choices"
             );
             assert_eq!(targets.len(), slots.len());
-            (*choice_id, targets.clone())
         }
         other => panic!("expected ChooseTriggerTargets, got {:?}", other),
     };
@@ -898,36 +875,29 @@ fn test_dp8_local_game_awaits_human_on_trigger_targets() {
         other => panic!("expected the same AwaitingHuman again, got {:?}", other),
     }
 
-    // A command naming another seat -> BadParams.
-    let wrong_seat = game.submit(
-        decision.seq,
-        HumanChoice::Command(Command::ChooseTriggerTargets {
-            player: PlayerId(2),
-            choice_id,
-            targets: targets.clone(),
-        }),
-    );
-    assert!(matches!(wrong_seat, Err(LocalGameError::BadParams(_))));
+    // The Session 1 "a command naming another seat -> BadParams" sub-check that used
+    // to live here is gone for the same structural reason as
+    // `test_local_game_submit_unknown_action_index_is_rejected`: `HumanChoice` has
+    // no field that can name a player.
 
     // A stale seq -> StaleDecision.
     let stale = game.submit(
         decision.seq + 100,
-        HumanChoice::Command(Command::ChooseTriggerTargets {
-            player: PlayerId(1),
-            choice_id,
-            targets: targets.clone(),
-        }),
+        HumanChoice {
+            action_index: 0,
+            params: ActionParams::default(),
+        },
     );
     assert!(matches!(stale, Err(LocalGameError::StaleDecision { .. })));
 
-    // The correct answer is accepted.
+    // The correct answer is accepted. `ChooseTriggerTargets` ignores `params` and
+    // forwards the engine's own default `targets` verbatim (SR-38).
     let ok = game.submit(
         decision.seq,
-        HumanChoice::Command(Command::ChooseTriggerTargets {
-            player: PlayerId(1),
-            choice_id,
-            targets,
-        }),
+        HumanChoice {
+            action_index: 0,
+            params: ActionParams::default(),
+        },
     );
     assert!(ok.is_ok(), "SR-38: {:?}", ok.err());
 }
@@ -1180,11 +1150,8 @@ fn test_dp9_local_game_awaits_human() {
         match game.advance() {
             AdvanceOutcome::AwaitingHuman(d) if d.kind == DecisionKind::EffectChoice => break d,
             AdvanceOutcome::AwaitingHuman(d) => {
-                game.submit(
-                    d.seq,
-                    HumanChoice::Command(Command::PassPriority { player: d.player }),
-                )
-                .unwrap_or_else(|e| panic!("PassPriority submit failed: {:?}", e));
+                submit_pass(&mut game, &d)
+                    .unwrap_or_else(|e| panic!("PassPriority submit failed: {:?}", e));
             }
             other => panic!("expected to reach EffectChoice, got {:?}", other),
         }
@@ -1200,21 +1167,13 @@ fn test_dp9_local_game_awaits_human() {
         1,
         "exactly one action is legal while the resolution is rolled back"
     );
-    let (choice_id, answer) = match &decision.actions[0] {
-        LegalAction::AnswerEffectChoice {
-            choice_id,
-            question,
-            answer,
-            ..
-        } => {
-            match question {
-                mtg_engine::EffectChoiceQuestion::Scry { looked_at } => {
-                    assert_eq!(looked_at.len(), 2, "CR 701.22a: the top 2 were looked at");
-                }
-                other => panic!("expected a Scry question, got {:?}", other),
+    match &decision.actions[0] {
+        LegalAction::AnswerEffectChoice { question, .. } => match question {
+            mtg_engine::EffectChoiceQuestion::Scry { looked_at } => {
+                assert_eq!(looked_at.len(), 2, "CR 701.22a: the top 2 were looked at");
             }
-            (*choice_id, answer.clone())
-        }
+            other => panic!("expected a Scry question, got {:?}", other),
+        },
         other => panic!("expected AnswerEffectChoice, got {:?}", other),
     };
 
@@ -1224,36 +1183,29 @@ fn test_dp9_local_game_awaits_human() {
         other => panic!("expected the same AwaitingHuman again, got {:?}", other),
     }
 
-    // A command naming another seat -> BadParams.
-    let wrong_seat = game.submit(
-        decision.seq,
-        HumanChoice::Command(Command::AnswerEffectChoice {
-            player: PlayerId(2),
-            choice_id,
-            answer: answer.clone(),
-        }),
-    );
-    assert!(matches!(wrong_seat, Err(LocalGameError::BadParams(_))));
+    // The Session 1 "a command naming another seat -> BadParams" sub-check that used
+    // to live here is gone for the same structural reason as
+    // `test_local_game_submit_unknown_action_index_is_rejected`: `HumanChoice` has
+    // no field that can name a player.
 
     // A stale seq -> StaleDecision.
     let stale = game.submit(
         decision.seq + 100,
-        HumanChoice::Command(Command::AnswerEffectChoice {
-            player: PlayerId(1),
-            choice_id,
-            answer: answer.clone(),
-        }),
+        HumanChoice {
+            action_index: 0,
+            params: ActionParams::default(),
+        },
     );
     assert!(matches!(stale, Err(LocalGameError::StaleDecision { .. })));
 
-    // The correct answer is accepted.
+    // The correct answer is accepted. `AnswerEffectChoice` ignores `params` and
+    // forwards the engine's own default `answer` verbatim (SR-38).
     let ok = game.submit(
         decision.seq,
-        HumanChoice::Command(Command::AnswerEffectChoice {
-            player: PlayerId(1),
-            choice_id,
-            answer,
-        }),
+        HumanChoice {
+            action_index: 0,
+            params: ActionParams::default(),
+        },
     );
     assert!(ok.is_ok(), "SR-38: {:?}", ok.err());
 }
@@ -1407,5 +1359,647 @@ fn test_dp9_same_seed_twice_is_byte_identical() {
     assert!(
         j1.iter().any(|c| c.contains("AnswerEffectChoice")),
         "the run must actually have exercised a CR 608.2d choice; trace: {j1:?}"
+    );
+}
+
+// ── M11-local Session 3 (item 8): action parameterization + engine target
+// queries reach LocalGame ──────────────────────────────────────────────────────
+
+/// A 2-player un-started `GameState`: `PlayerId(1)` holds an Instant in hand
+/// ("Session3 Bolt") that deals 3 damage to a declared `TargetCreature`, has
+/// an UNTAPPED mana source that can pay its cost (CR 500.4 empties the mana pool
+/// between steps, so a PRE-FILLED pool set before `LocalGame::start` -- which
+/// runs the game through Untap and Upkeep before the human ever sees a decision
+/// -- would be emptied before this fixture's caller gets to use it; a battlefield
+/// mana source survives that transition and is tapped, via `ActionParams::auto_tap`,
+/// atomically with the cast itself), and `PlayerId(2)` controls a creature on the
+/// battlefield as the only legal target. `PlayerId(1)` holds priority.
+fn state_with_targeted_spell_and_target() -> (GameState, ObjectId, ObjectId) {
+    use mtg_engine::state::turn::Step;
+    use mtg_engine::{
+        AbilityDefinition, CardEffectTarget, CardType, Effect, EffectAmount, ManaCost, TypeLine,
+    };
+
+    let def = CardDefinition {
+        name: "Session3 Bolt".to_string(),
+        card_id: CardId("session3-bolt".to_string()),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            ..ManaCost::default()
+        }),
+        types: TypeLine {
+            card_types: [CardType::Instant].into_iter().collect(),
+            ..Default::default()
+        },
+        abilities: vec![AbilityDefinition::Spell {
+            effect: Effect::DealDamage {
+                source: None,
+                target: CardEffectTarget::DeclaredTarget { index: 0 },
+                amount: EffectAmount::Fixed(3),
+            },
+            targets: vec![TargetRequirement::TargetCreature],
+            modes: None,
+            cant_be_countered: false,
+        }],
+        ..Default::default()
+    };
+
+    let mut state = GameStateBuilder::new()
+        .add_player(PlayerId(1))
+        .add_player(PlayerId(2))
+        .with_registry(CardRegistry::new(vec![def.clone()]))
+        .active_player(PlayerId(1))
+        .at_step(Step::PreCombatMain)
+        .object(
+            ObjectSpec::card(PlayerId(1), &def.name)
+                .with_card_id(def.card_id.clone())
+                .with_types(vec![CardType::Instant])
+                .with_mana_cost(ManaCost {
+                    generic: 1,
+                    ..ManaCost::default()
+                })
+                .in_zone(ZoneId::Hand(PlayerId(1))),
+        )
+        .object(
+            ObjectSpec::land(PlayerId(1), "Session3 Source").with_mana_ability(ManaAbility {
+                produces: [(ManaColor::Colorless, 1u32)].into_iter().collect(),
+                requires_tap: true,
+                ..Default::default()
+            }),
+        )
+        // 5 toughness so the spell's 3 damage is NOT lethal (CR 704.5g) -- the
+        // creature must still exist afterward so the test can read
+        // `damage_marked` off the SAME object rather than chasing a CR 400.7
+        // zone-change identity change into the graveyard.
+        .object(ObjectSpec::creature(PlayerId(2), "Target Creature", 3, 5))
+        .build()
+        .expect("targeted-spell fixture should build");
+
+    state.turn_mut().priority_holder = Some(PlayerId(1));
+
+    let spell_id = state
+        .objects()
+        .iter()
+        .find(|(_, o)| o.characteristics.name == "Session3 Bolt")
+        .map(|(id, _)| *id)
+        .expect("the spell must exist");
+    let creature_id = state
+        .objects()
+        .iter()
+        .find(|(_, o)| o.characteristics.name == "Target Creature")
+        .map(|(id, _)| *id)
+        .expect("the target creature must exist");
+
+    (state, spell_id, creature_id)
+}
+
+/// M11-local Session 3's acceptance criterion: a human can cast a spell with a
+/// `TargetRequirement` at a legal target through `LocalGame::submit`. Uses the
+/// newly re-exported engine query fns (`spell_target_requirements` +
+/// `legal_targets_per_slot`, `crates/engine/src/rules/queries.rs`) to pick the
+/// target, exercising the engine half end-to-end — not just the simulator half.
+/// CR 601.2c (targeting) / CR 608.2h (damage resolves).
+#[test]
+fn test_human_casts_targeted_spell_through_local_game() {
+    let (state, spell_id, creature_id) = state_with_targeted_spell_and_target();
+
+    let human_seats: BTreeSet<PlayerId> = [PlayerId(1)].into_iter().collect();
+    let mut bots: HashMap<PlayerId, Box<dyn Bot>> = HashMap::new();
+    bots.insert(
+        PlayerId(2),
+        Box::new(RandomBot::new(1, "Bot-2".to_string())),
+    );
+
+    let (mut game, _start_events) = LocalGame::start(
+        state,
+        1,
+        StubProvider,
+        bots,
+        human_seats,
+        small_limits(5),
+        true,
+    )
+    .expect("game should start");
+
+    let decision = match game.advance() {
+        AdvanceOutcome::AwaitingHuman(d) => d,
+        other => panic!("expected AwaitingHuman, got {:?}", other),
+    };
+
+    let action_index = find_action_index(
+        &decision.actions,
+        |a| matches!(a, LegalAction::CastSpell { card, .. } if *card == spell_id),
+    );
+
+    // CR 601.2c: use the engine's own query surface to pick a legal target.
+    let reqs = spell_target_requirements(game.state(), spell_id, &[], None);
+    assert_eq!(reqs, vec![TargetRequirement::TargetCreature]);
+    let candidates = legal_targets_per_slot(game.state(), PlayerId(1), spell_id, &reqs);
+    assert_eq!(candidates.len(), 1, "one slot in, one slot out");
+    assert!(
+        candidates[0].contains(&Target::Object(creature_id)),
+        "the opponent's creature must be a legal target for TargetCreature"
+    );
+    let target = Target::Object(creature_id);
+
+    let result = game.submit(
+        decision.seq,
+        HumanChoice {
+            action_index,
+            params: ActionParams {
+                targets: vec![target],
+                // The fixture's mana source has an empty pool going in (CR 500.4
+                // empties it between steps) -- tap it as part of this submit.
+                auto_tap: true,
+                ..Default::default()
+            },
+        },
+    );
+    assert!(
+        result.is_ok(),
+        "the targeted cast must be accepted: {:?}",
+        result.err()
+    );
+
+    // The spell is on the stack after `submit`, not yet resolved (CR 608.1 --
+    // priority must pass around before it does). CR 117.3c gives priority back to
+    // the human caster first, so `advance()` returns another `AwaitingHuman`
+    // rather than running the bot seat by itself; pass, then `advance()` again to
+    // let the bot pass too and resolve the stack.
+    let post_cast = match game.advance() {
+        AdvanceOutcome::AwaitingHuman(d) => d,
+        other => panic!(
+            "expected AwaitingHuman (priority back to the caster), got {:?}",
+            other
+        ),
+    };
+    submit_pass(&mut game, &post_cast).expect("passing priority after casting must succeed");
+    let _ = game.advance();
+
+    let damage = game
+        .state()
+        .object(creature_id)
+        .expect("the creature must still exist")
+        .damage_marked;
+    assert_eq!(damage, 3, "the targeted spell's damage must have resolved");
+}
+
+/// A human submitting a target the engine does not consider legal (here: an
+/// `ObjectId` that does not exist) is rejected — `LocalGameError::Rejected` — and
+/// the game state is left byte-for-byte untouched: same `public_state_hash`, same
+/// `command_count`, same journal length. CR 608.2b's "the target no longer exists"
+/// case fizzles at RESOLUTION, not at cast time; this test is about CAST-time
+/// target legality (CR 601.2c/601.3), which `handle_cast_spell` rejects up front.
+#[test]
+fn test_human_illegal_target_is_rejected_without_state_change() {
+    let (state, spell_id, _creature_id) = state_with_targeted_spell_and_target();
+
+    let human_seats: BTreeSet<PlayerId> = [PlayerId(1)].into_iter().collect();
+    let mut bots: HashMap<PlayerId, Box<dyn Bot>> = HashMap::new();
+    bots.insert(
+        PlayerId(2),
+        Box::new(RandomBot::new(1, "Bot-2".to_string())),
+    );
+
+    let (mut game, _start_events) = LocalGame::start(
+        state,
+        1,
+        StubProvider,
+        bots,
+        human_seats,
+        small_limits(5),
+        true,
+    )
+    .expect("game should start");
+
+    let decision = match game.advance() {
+        AdvanceOutcome::AwaitingHuman(d) => d,
+        other => panic!("expected AwaitingHuman, got {:?}", other),
+    };
+    let action_index = find_action_index(
+        &decision.actions,
+        |a| matches!(a, LegalAction::CastSpell { card, .. } if *card == spell_id),
+    );
+
+    let commands_before = game.command_count();
+    let journal_len_before = game.journal().len();
+    let hash_before = game.state().public_state_hash();
+
+    // A target that does not exist -- never legal. `auto_tap: true` is
+    // deliberate here, not incidental: it means the rejected `CastSpell` is
+    // preceded by a `TapForMana` that WOULD have succeeded on its own, so this
+    // test also exercises `submit`'s atomicity guarantee (item 7) -- a
+    // successful tap followed by a rejected cast must roll back as one unit,
+    // leaving the mana source untapped and the pool empty.
+    let bogus_target = Target::Object(ObjectId(999_999));
+    let result = game.submit(
+        decision.seq,
+        HumanChoice {
+            action_index,
+            params: ActionParams {
+                targets: vec![bogus_target],
+                auto_tap: true,
+                ..Default::default()
+            },
+        },
+    );
+
+    assert!(
+        matches!(result, Err(LocalGameError::Rejected(_))),
+        "expected Rejected, got {:?}",
+        result
+    );
+    assert_eq!(
+        game.command_count(),
+        commands_before,
+        "command_count must be unchanged on rejection"
+    );
+    assert_eq!(
+        game.journal().len(),
+        journal_len_before,
+        "journal must be unchanged on rejection"
+    );
+    assert_eq!(
+        game.state().public_state_hash(),
+        hash_before,
+        "the state must be byte-for-byte unchanged on rejection"
+    );
+    let still_pending = game
+        .pending_decision()
+        .expect("a rejected submit must not consume the pending decision");
+    assert_eq!(still_pending.seq, decision.seq);
+}
+
+/// PB-RS2 precedent (OOS-RS-2): `action_to_command_with_params` must forward a
+/// `LegalAction::TapForMana`'s `hybrid_choices`/`phyrexian_life_payments`
+/// VERBATIM into the `Command`, element for element -- never re-derive them.
+/// Constructs the `LegalAction` directly (a fixed-colour ability, so no
+/// `chosen_color` validation applies) rather than going through the provider,
+/// since the provider only offers a hybrid/Phyrexian plan when one happens to be
+/// payable in a real game state.
+#[test]
+fn test_hybrid_payment_plan_is_forwarded_verbatim() {
+    use mtg_engine::state::turn::Step;
+    use mtg_engine::HybridManaPayment;
+
+    let state = GameStateBuilder::new()
+        .add_player(PlayerId(1))
+        .add_player(PlayerId(2))
+        .active_player(PlayerId(1))
+        .at_step(Step::PreCombatMain)
+        .object(
+            ObjectSpec::land(PlayerId(1), "Filter Source").with_mana_ability(ManaAbility {
+                requires_tap: true,
+                ..Default::default()
+            }),
+        )
+        .build()
+        .expect("fixture should build");
+
+    let source_id = state
+        .objects()
+        .iter()
+        .find(|(_, o)| o.characteristics.name == "Filter Source")
+        .map(|(id, _)| *id)
+        .expect("the source must exist");
+
+    let hybrid_choices = vec![
+        HybridManaPayment::Color(ManaColor::Red),
+        HybridManaPayment::Generic,
+    ];
+    let phyrexian_life_payments = vec![true, false];
+
+    let action = LegalAction::TapForMana {
+        source: source_id,
+        ability_index: 0,
+        chosen_color: None,
+        hybrid_choices: hybrid_choices.clone(),
+        phyrexian_life_payments: phyrexian_life_payments.clone(),
+    };
+
+    let command =
+        action_to_command_with_params(&state, PlayerId(1), &action, &ActionParams::default())
+            .expect("a fixed-colour ability needs no chosen_color");
+
+    match command {
+        Command::TapForMana {
+            hybrid_choices: got_hybrid,
+            phyrexian_life_payments: got_phyrexian,
+            ..
+        } => {
+            assert_eq!(
+                got_hybrid, hybrid_choices,
+                "hybrid_choices must be forwarded verbatim"
+            );
+            assert_eq!(
+                got_phyrexian, phyrexian_life_payments,
+                "phyrexian_life_payments must be forwarded verbatim"
+            );
+        }
+        other => panic!("expected TapForMana, got {:?}", other),
+    }
+}
+
+/// CR 605.3b / CR 106.1b: `action_to_command_with_params` rejects a `TapForMana`
+/// on an `any_color` mana ability with no `chosen_color` (`ParamError::MissingChosenColor`)
+/// rather than silently defaulting to `Colorless`, and rejects `chosen_color:
+/// Some(Colorless)` outright (`ParamError::InvalidChosenColor`) -- Colorless is never
+/// a legal "any color" choice. A concrete colour is accepted.
+#[test]
+fn test_param_error_any_color_without_chosen_color_is_rejected() {
+    use mtg_engine::state::turn::Step;
+
+    let state = GameStateBuilder::new()
+        .add_player(PlayerId(1))
+        .add_player(PlayerId(2))
+        .active_player(PlayerId(1))
+        .at_step(Step::PreCombatMain)
+        .object(
+            ObjectSpec::land(PlayerId(1), "Any Color Source").with_mana_ability(ManaAbility {
+                requires_tap: true,
+                any_color: true,
+                ..Default::default()
+            }),
+        )
+        .build()
+        .expect("fixture should build");
+
+    let source_id = state
+        .objects()
+        .iter()
+        .find(|(_, o)| o.characteristics.name == "Any Color Source")
+        .map(|(id, _)| *id)
+        .expect("the source must exist");
+
+    let missing = LegalAction::TapForMana {
+        source: source_id,
+        ability_index: 0,
+        chosen_color: None,
+        hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+    };
+    let err =
+        action_to_command_with_params(&state, PlayerId(1), &missing, &ActionParams::default())
+            .expect_err("an any_color ability with no chosen_color must be rejected");
+    assert_eq!(err, ParamError::MissingChosenColor);
+
+    let colorless = LegalAction::TapForMana {
+        source: source_id,
+        ability_index: 0,
+        chosen_color: Some(ManaColor::Colorless),
+        hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+    };
+    let err2 =
+        action_to_command_with_params(&state, PlayerId(1), &colorless, &ActionParams::default())
+            .expect_err("Colorless is never legal for an any_color ability (CR 106.1b)");
+    assert_eq!(err2, ParamError::InvalidChosenColor);
+
+    let ok = LegalAction::TapForMana {
+        source: source_id,
+        ability_index: 0,
+        chosen_color: Some(ManaColor::Blue),
+        hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+    };
+    let command = action_to_command_with_params(&state, PlayerId(1), &ok, &ActionParams::default())
+        .expect("a concrete colour must be accepted");
+    assert!(matches!(
+        command,
+        Command::TapForMana {
+            chosen_color: Some(ManaColor::Blue),
+            ..
+        }
+    ));
+}
+
+/// A 2-player un-started `GameState`: `PlayerId(1)` holds an Instant in hand
+/// ("Session3 Cantrip", no targets) costing `{1}`, and controls **two** untapped
+/// mana sources producing `{C}`. The pool starts EMPTY -- CR 500.4 empties it
+/// between steps, so pre-filling it here (before `LocalGame::start` runs the game
+/// through Untap and Upkeep) would just be discarded before the caller ever gets a
+/// decision; the "pool already covers the cost" scenario is instead produced by
+/// manually tapping source A with a separate `submit` call first, within the same
+/// step as the cast.
+///
+/// **The SECOND source is what makes `test_auto_tap_skipped_when_pool_already_covers_cost`
+/// half 1 non-vacuous, and it is load-bearing.** With only one source, the manual
+/// pre-tap exhausts the board: `mana_solver::solve_mana_payment` skips
+/// `status.tapped` sources (`mana_solver.rs:31-33`), so it returns `None` and no
+/// `TapForMana` is issued *whether or not the pool check exists* — the assertion
+/// would be satisfied by source exhaustion rather than by the feature, and the test
+/// stayed green with the guard neutered to `if false && …`. With source B left
+/// untapped, deleting the pool check makes the solver find it and emit a spurious
+/// tap, so half 1 reddens on regression. Do not remove source B.
+fn state_for_auto_tap_test() -> (GameState, ObjectId, ObjectId, ObjectId) {
+    use mtg_engine::state::turn::Step;
+    use mtg_engine::{
+        AbilityDefinition, CardType, Effect, EffectAmount, ManaCost, PlayerTarget, TypeLine,
+    };
+
+    let def = CardDefinition {
+        name: "Session3 Cantrip".to_string(),
+        card_id: CardId("session3-cantrip".to_string()),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            ..ManaCost::default()
+        }),
+        types: TypeLine {
+            card_types: [CardType::Instant].into_iter().collect(),
+            ..Default::default()
+        },
+        abilities: vec![AbilityDefinition::Spell {
+            effect: Effect::GainLife {
+                player: PlayerTarget::Controller,
+                amount: EffectAmount::Fixed(1),
+            },
+            targets: vec![],
+            modes: None,
+            cant_be_countered: false,
+        }],
+        ..Default::default()
+    };
+
+    let mut state = GameStateBuilder::new()
+        .add_player(PlayerId(1))
+        .add_player(PlayerId(2))
+        .with_registry(CardRegistry::new(vec![def.clone()]))
+        .active_player(PlayerId(1))
+        .at_step(Step::PreCombatMain)
+        .object(
+            ObjectSpec::card(PlayerId(1), &def.name)
+                .with_card_id(def.card_id.clone())
+                .with_types(vec![CardType::Instant])
+                .with_mana_cost(ManaCost {
+                    generic: 1,
+                    ..ManaCost::default()
+                })
+                .in_zone(ZoneId::Hand(PlayerId(1))),
+        )
+        .object(
+            ObjectSpec::land(PlayerId(1), "Session3 Source A").with_mana_ability(ManaAbility {
+                produces: [(ManaColor::Colorless, 1u32)].into_iter().collect(),
+                requires_tap: true,
+                ..Default::default()
+            }),
+        )
+        .object(
+            ObjectSpec::land(PlayerId(1), "Session3 Source B").with_mana_ability(ManaAbility {
+                produces: [(ManaColor::Colorless, 1u32)].into_iter().collect(),
+                requires_tap: true,
+                ..Default::default()
+            }),
+        )
+        .build()
+        .expect("auto-tap fixture should build");
+
+    state.turn_mut().priority_holder = Some(PlayerId(1));
+
+    let spell_id = state
+        .objects()
+        .iter()
+        .find(|(_, o)| o.characteristics.name == "Session3 Cantrip")
+        .map(|(id, _)| *id)
+        .expect("the spell must exist");
+    let find_source = |name: &str| {
+        state
+            .objects()
+            .iter()
+            .find(|(_, o)| o.characteristics.name == name)
+            .map(|(id, _)| *id)
+            .unwrap_or_else(|| panic!("{name} must exist"))
+    };
+    let source_a = find_source("Session3 Source A");
+    let source_b = find_source("Session3 Source B");
+
+    (state, spell_id, source_a, source_b)
+}
+
+/// Item 7's conditional auto-tap (the pool half of OOS-M11-2). BOTH halves in one
+/// test, or it proves nothing.
+///
+/// Half 1 (`pre_tap: true`): source A is tapped MANUALLY first (a separate `submit`
+/// of the `TapForMana` action, filling the pool within the same step), then the cast
+/// is submitted with `auto_tap: true` -- no ADDITIONAL `TapForMana` is issued by the
+/// auto-tap machinery, because the pool already covers the cost. **Source B is left
+/// untapped precisely so this half is not vacuous**: without the pool check,
+/// `solve_mana_payment` would find B and emit a spurious tap. See
+/// `state_for_auto_tap_test`'s doc comment — a one-source fixture passed this
+/// assertion by source exhaustion even with the guard neutered.
+///
+/// Half 2 (`pre_tap: false`): the cast is submitted directly with `auto_tap: true`
+/// against an empty pool -- a `TapForMana` IS issued and a source ends up tapped.
+#[test]
+fn test_auto_tap_skipped_when_pool_already_covers_cost() {
+    /// `(a tap was issued by the cast's own submit, source A tapped, source B tapped)`.
+    fn cast_with_auto_tap(pre_tap: bool) -> (bool, bool, bool) {
+        let (state, spell_id, source_id, source_b) = state_for_auto_tap_test();
+        let human_seats: BTreeSet<PlayerId> = [PlayerId(1)].into_iter().collect();
+        let mut bots: HashMap<PlayerId, Box<dyn Bot>> = HashMap::new();
+        bots.insert(
+            PlayerId(2),
+            Box::new(RandomBot::new(1, "Bot-2".to_string())),
+        );
+        let (mut game, _start_events) = LocalGame::start(
+            state,
+            1,
+            StubProvider,
+            bots,
+            human_seats,
+            small_limits(5),
+            true,
+        )
+        .expect("game should start");
+
+        let mut decision = match game.advance() {
+            AdvanceOutcome::AwaitingHuman(d) => d,
+            other => panic!("expected AwaitingHuman, got {:?}", other),
+        };
+
+        if pre_tap {
+            let tap_index = find_action_index(
+                &decision.actions,
+                |a| matches!(a, LegalAction::TapForMana { source, .. } if *source == source_id),
+            );
+            game.submit(
+                decision.seq,
+                HumanChoice {
+                    action_index: tap_index,
+                    params: ActionParams::default(),
+                },
+            )
+            .expect("the manual tap must succeed");
+            decision = match game.advance() {
+                AdvanceOutcome::AwaitingHuman(d) => d,
+                other => panic!(
+                    "expected AwaitingHuman after the manual tap, got {:?}",
+                    other
+                ),
+            };
+        }
+
+        let journal_len_before_cast = game.journal().len();
+
+        let action_index = find_action_index(
+            &decision.actions,
+            |a| matches!(a, LegalAction::CastSpell { card, .. } if *card == spell_id),
+        );
+        let result = game.submit(
+            decision.seq,
+            HumanChoice {
+                action_index,
+                params: ActionParams {
+                    auto_tap: true,
+                    ..Default::default()
+                },
+            },
+        );
+        assert!(
+            result.is_ok(),
+            "the cast must be accepted: {:?}",
+            result.err()
+        );
+
+        let tap_issued_by_cast_submit = game.journal()[journal_len_before_cast..]
+            .iter()
+            .any(|r| matches!(r.command, Command::TapForMana { .. }));
+        let tapped = |id| {
+            game.state()
+                .object(id)
+                .expect("the mana source must still exist")
+                .status
+                .tapped
+        };
+        (
+            tap_issued_by_cast_submit,
+            tapped(source_id),
+            tapped(source_b),
+        )
+    }
+
+    let (tap_issued, a_tapped, b_tapped) = cast_with_auto_tap(true);
+    assert!(
+        !tap_issued,
+        "no ADDITIONAL TapForMana should be issued by the cast's own submit when the \
+         pool already covers the cost"
+    );
+    assert!(
+        a_tapped,
+        "source A is tapped -- by the manual pre-tap, not by auto-tap"
+    );
+    assert!(
+        !b_tapped,
+        "source B must be UNTOUCHED: this is the assertion that fails if the pool \
+         check is removed, because `solve_mana_payment` would then find B and tap it"
+    );
+
+    let (tap_issued, a_tapped, b_tapped) = cast_with_auto_tap(false);
+    assert!(
+        tap_issued,
+        "a TapForMana must be issued when the pool cannot cover the cost"
+    );
+    assert!(
+        a_tapped || b_tapped,
+        "auto-tap must have tapped a source to pay the {{1}} cost"
     );
 }

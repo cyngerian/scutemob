@@ -35,6 +35,7 @@ mod partner_with;
 mod phasing;
 mod planeswalker;
 mod protection;
+mod queries;
 mod replacement_effects;
 mod restrictions;
 mod split_second;
