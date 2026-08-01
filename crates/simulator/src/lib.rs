@@ -8,6 +8,9 @@
 //! - `invariants` module checks game state consistency after every transition
 //! - `mana_solver` provides greedy mana payment
 //! - `deck` builds random Commander decks from available CardDefinitions
+//! - `setup` builds a deterministic, `validate_deck`-admitted pregame `GameState` from a
+//!   single seed, and re-deals a seat's opening hand for a pregame mulligan (M11-local
+//!   Session 2)
 
 pub mod bot;
 pub mod deck;
@@ -19,6 +22,7 @@ pub mod local_game;
 pub mod mana_solver;
 pub mod random_bot;
 pub mod report;
+pub mod setup;
 
 // Re-export key types for convenience
 pub use bot::Bot;
@@ -34,3 +38,4 @@ pub use local_game::{
 pub use mana_solver::solve_mana_payment;
 pub use random_bot::RandomBot;
 pub use report::{CrashReport, GameDriverError, GameResult};
+pub use setup::{build_initial_state, redeal, BotKind, DeckSource, LocalGameConfig, SetupError};

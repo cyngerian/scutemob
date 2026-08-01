@@ -521,6 +521,56 @@ zero HTTP involved in any test; fuzzer output unchanged.
 
 ### Session 2: Deterministic pregame setup and mulligans (7 items)
 
+**STATUS (2026-07-31): all 7 items shipped.** `LocalGameConfig`/`DeckSource`/`BotKind`/
+`SetupError`/`build_initial_state`/`redeal` live in `crates/simulator/src/setup.rs` (new);
+re-exported from `crates/simulator/src/lib.rs`; `tools/tui/src/play/app.rs::PlayApp::new`
+rewired onto `build_initial_state`; `crates/simulator/src/deck.rs` and
+`crates/simulator/src/bin/fuzzer.rs` untouched, as required. 7 new tests in
+`crates/simulator/tests/setup.rs`, all named exactly as below; workspace tests
+3,928 → **3,935**; `cargo build --workspace`, `cargo clippy --workspace --all-targets -- -D
+warnings`, `cargo fmt --check`, and `tools/check-defs-fmt.sh` all green; PROTOCOL 31 /
+HASH 68 confirmed unmoved via the `core::protocol_schema`/`core::hash_schema` sentinel
+tests.
+
+**Premise update on item 4 (binding — see the item text below for what changed):** the
+plan's original mulligan rationale ("because `handle_take_mulligan` cannot shuffle") is
+**stale**. That gap was filed as `OOS-M11-1` and **closed by PB-DP2** (`scutemob-150`,
+2026-07-26) — `handle_take_mulligan` now runs a real seeded `Zone::shuffle` and
+`handle_keep_hand` bottoms correctly. `redeal` was implemented anyway, per Q1's pregame-UX
+rationale (mulligans before `start_game`, no command issued, no history invalidated), with
+the doc comment corrected to say so and to cite CR 103.5/103.5c rather than the stale
+"CR 103.4b" (that rule is the Vanguard starting life total, not mulligans).
+
+**A bug found and fixed during implementation, not in the plan text:** a naive
+`seed ^ mulligan_count ^ seat.0` perturbation for `redeal` collapses back to the
+*original* seed whenever the two terms are equal — which happens on the single most
+common case, seat 1's very first mulligan (`mulligan_count == 1 == seat.0`), silently
+re-dealing the identical hand the player just rejected. Fixed with a splitmix64-style mix
+(`redeal_seed` in `setup.rs`) that runs each term through a distinct odd multiplier before
+combining. Caught by writing `test_redeal_produces_a_different_hand` honestly rather than
+asserting a placeholder.
+
+**Deviation from item 4's literal text:** `redeal` performs only the "shuffle and draw a
+fresh 7" half of CR 103.5. The "let the caller nominate `mulligan_count - 1` cards for the
+bottom" half needs `ActionParams` (Session 3, not yet built) to express a card selection,
+so it is documented as the caller's responsibility once that lands, not implemented here.
+
+**Seed found, not fixed (out of scope for this session):** `build_initial_state` (and the
+`PlayApp::new` logic it replaces) never calls `.player_commander()` on
+`GameStateBuilder` or `register_commander_zone_replacements()` — so `PlayerState::
+commander_ids` stays empty for every `LocalGame`/TUI game. That field gates commander tax
+(`casting.rs:765`), the CR 903.9a/704.6d command-zone-return SBA (`commander.rs:364/488`),
+CR 903.9b's hand/library redirect replacement effects (`replacement.rs:477`,
+`register_commander_zone_replacements` at `builder.rs:1198`), and commander-damage
+tracking (`combat.rs:1919`) — none of which fire in a real game built this way. The
+correct pattern already exists at `testing/replay_harness.rs:257-274` (push each
+commander's `CardId` onto `ps.commander_ids`, then call
+`register_commander_zone_replacements`). Left unfixed here because item 2 explicitly
+scopes `build_initial_state` to lifting `app.rs`'s existing (also-affected) logic
+verbatim, not improving on it — but this is a live Commander-format correctness gap in
+the milestone's whole reason to exist, and should be ranked as a seed at the next
+retriage.
+
 **Crate**: `crates/simulator` (+ a call-site swap in `tools/tui`).
 **Files**: `crates/simulator/src/setup.rs` (new), `src/deck.rs`, `src/lib.rs`,
 `tools/tui/src/play/app.rs`, `crates/simulator/tests/setup.rs` (new).
