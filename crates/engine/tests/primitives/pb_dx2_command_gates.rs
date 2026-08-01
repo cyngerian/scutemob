@@ -1477,8 +1477,10 @@ fn test_dx2_discharge_then_proceed_both_produce_events_in_one_call() {
 fn test_dx2_wire_version_sentinels() {
     assert_eq!(
         mtg_engine::HASH_SCHEMA_VERSION,
-        69u8,
-        "HASH_SCHEMA_VERSION live sentinel -- PB-DX2 must leave it unmoved"
+        70u8,
+        "HASH_SCHEMA_VERSION live sentinel -- moved 69->70 by PB-DX5 (CR 611.2c, \
+         unrelated to this batch); this sentinel pins the LIVE version like every \
+         other scattered sentinel in the suite, not PB-DX2's own contribution"
     );
     assert_eq!(
         mtg_engine::PROTOCOL_VERSION,

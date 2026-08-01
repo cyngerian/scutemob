@@ -423,11 +423,20 @@ fn test_set_both_dynamic_sets_base_pt() {
     );
 }
 
-/// CR 611.2c / 608.2h — after the ability resolves and X is locked in, a NEW creature
-/// that later matches the `CreaturesYouControl` filter also gets the SAME locked-in
-/// value (membership re-evaluated continuously), not a stale or zero value.
+/// CR 611.2c / 608.2h — PB-DX5 inverts this assertion (pre-fix it asserted the CR
+/// 611.2c violation this batch fixes, and passed: a creature entering the battlefield
+/// AFTER Mirror Entity-style "X is locked at resolution" resolved was ALSO getting the
+/// resolution's locked X, because the effect's affected-object SET, not just its
+/// VALUE, was being re-evaluated live on every characteristics calculation. CR 611.2c:
+/// "the set of objects [the effect] affects is determined when that continuous effect
+/// begins. After that point, the set won't change." Verified empirically, not
+/// reasoned to: this exact test passed pre-fix asserting `chars.power == Some(3)`
+/// (`cargo test` run against the tree before `rules/layers.rs`'s `effect_applies_to`
+/// gained the `affected_set` membership check) and now fails on that assertion with
+/// the actual value `Some(1)` -- the new creature's own printed power, untouched by
+/// the locked effect, which is the CR-correct outcome.
 #[test]
-fn test_set_both_dynamic_locked_at_resolution() {
+fn test_611_2c_new_creature_after_resolution_does_not_get_the_locked_value() {
     let p1 = p(1);
     let p2 = p(2);
 
@@ -468,10 +477,11 @@ fn test_set_both_dynamic_locked_at_resolution() {
     let chars = calculate_characteristics(&state, new_id).unwrap();
     assert_eq!(
         chars.power,
-        Some(3),
-        "CR 611.2c: a creature entering after resolution still gets the locked-in X=3 \
-         because the continuous effect's filter membership is re-evaluated continuously, \
-         while the VALUE itself stays locked at 3 (not re-derived from a live X)"
+        Some(1),
+        "CR 611.2c: the set of objects a resolution-generated continuous effect \
+         affects is locked when the effect begins; a creature entering the \
+         battlefield afterward is not in that set and keeps its own printed power, \
+         not the resolution's locked X=3"
     );
 }
 

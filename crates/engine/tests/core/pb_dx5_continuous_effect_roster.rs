@@ -93,3 +93,70 @@ fn pb_dx5_resolution_continuous_effect_roster() {
          nesting site the recursion misses)"
     );
 }
+
+/// A filter is "mass" (multi-object -- the class CR 611.2c is visible on) unless it
+/// resolves to a single object at `Effect::ApplyContinuousEffect` execution time.
+/// `SingleObject` needs no resolution; `DeclaredTarget`/`Source`/`TriggeringCreature`/
+/// `CreaturesControlledByDefendingPlayer`/`AllCreaturesExcludingChosenSubtype` are all
+/// substituted into `SingleObject` (the first three) or a concrete mass filter (the last
+/// two) before storage -- see `effects/mod.rs`'s `match &effect_def.filter` block at the
+/// top of the `ApplyContinuousEffect` arm. `CreaturesControlledByDefendingPlayer` and
+/// `AllCreaturesExcludingChosenSubtype` substitute INTO a mass filter
+/// (`CreaturesControlledBy`/`AllCreaturesExcludingSubtype`), so a def whose `filter` field
+/// literally reads one of those two placeholder names is *itself* a mass-filter def by the
+/// time the effect is stored, and is counted as mass here.
+fn is_mass_filter(name: &str) -> bool {
+    !matches!(name, "SingleObject" | "DeclaredTarget" | "Source" | "TriggeringCreature")
+}
+
+/// PB-DX5 §9 (test): the mass-filter roster, split by `Completeness`, re-reported by
+/// completeness rather than pinned to an exact count -- routine authoring changes both
+/// numbers constantly, and the engine fix is filter-agnostic, so an exact pin would guard
+/// nothing the fix depends on. The 28/8/1 split recorded in `memory/primitive-wip.md` and
+/// the plan is a MEASUREMENT from this same walk, not an independent claim; this test
+/// re-measures it every run and prints the actual numbers so the close notes quote a
+/// live count.
+#[test]
+fn pb_dx5_mass_filter_roster_by_completeness() {
+    let defs = all_cards();
+
+    let mut mass_by_completeness: BTreeMap<&'static str, BTreeSet<String>> = BTreeMap::new();
+
+    for def in &defs {
+        let json = serde_json::to_value(def).expect("CardDefinition serializes");
+        let mut filters = Vec::new();
+        collect_filters(&json, &mut filters);
+        if filters.iter().any(|f| is_mass_filter(f)) {
+            let bucket = match &def.completeness {
+                mtg_engine::Completeness::Complete => "Complete",
+                mtg_engine::Completeness::Partial(_) => "Partial",
+                mtg_engine::Completeness::KnownWrong(_) => "KnownWrong",
+                mtg_engine::Completeness::Inert(_) => "Inert",
+            };
+            mass_by_completeness
+                .entry(bucket)
+                .or_default()
+                .insert(def.name.clone());
+        }
+    }
+
+    let total: usize = mass_by_completeness.values().map(|s| s.len()).sum();
+    eprintln!("PB-DX5 mass-filter roster by completeness (measured, not asserted exact):");
+    for (bucket, names) in &mass_by_completeness {
+        eprintln!("  {bucket}: {} defs", names.len());
+        for n in names {
+            eprintln!("      {n}");
+        }
+    }
+    eprintln!("  TOTAL mass-filter defs: {total}");
+
+    assert!(
+        !mass_by_completeness
+            .get("Complete")
+            .map(|s| s.is_empty())
+            .unwrap_or(true),
+        "PB-DX5's whole premise is that at least one Complete, deck-legal def uses a mass \
+         filter -- this floor guards against the walk going vacuous, not against the count \
+         changing"
+    );
+}

@@ -1244,6 +1244,127 @@ fn candidate_ids_for_filter(state: &GameState, filter: &EffectFilter) -> Vec<Obj
         }
     }
 }
+
+/// PB-DX5 T11: `snapshot_affected_set`'s zone-scope shortcut
+/// (`candidate_ids_for_filter`) must agree with a brute-force scan over EVERY
+/// object in `state.objects`, regardless of zone. This is the only place this
+/// property can be tested: `snapshot_affected_set`, `effect_applies_to_object`
+/// and `candidate_ids_for_filter` are all `pub(crate)`, unreachable from the
+/// `crates/engine/tests/` integration crate -- hence an in-source unit test
+/// rather than a member of `pb_dx5_affected_set_snapshot.rs`, mirroring the
+/// `expect_characteristics_tests` precedent a few hundred lines above.
+#[cfg(test)]
+mod pb_dx5_snapshot_tests {
+    use super::*;
+    use crate::state::continuous_effect::EffectId;
+    use crate::state::{GameStateBuilder, ObjectSpec, PlayerId, ZoneId};
+
+    /// A board with objects in battlefield, graveyard, hand, library and exile,
+    /// so the brute-force comparison actually exercises every zone
+    /// `candidate_ids_for_filter` claims NOT to need to scan.
+    fn multi_zone_board() -> GameState {
+        GameStateBuilder::new()
+            .add_player(PlayerId(1))
+            .add_player(PlayerId(2))
+            .object(ObjectSpec::creature(PlayerId(1), "BF Creature P1", 2, 2))
+            .object(ObjectSpec::creature(PlayerId(2), "BF Creature P2", 2, 2))
+            .object(
+                ObjectSpec::card(PlayerId(1), "BF Land")
+                    .with_types(vec![CardType::Land])
+                    .in_zone(ZoneId::Battlefield),
+            )
+            .object(
+                ObjectSpec::creature(PlayerId(1), "GY Creature", 1, 1)
+                    .in_zone(ZoneId::Graveyard(PlayerId(1))),
+            )
+            .object(
+                ObjectSpec::creature(PlayerId(1), "Hand Creature", 1, 1)
+                    .in_zone(ZoneId::Hand(PlayerId(1))),
+            )
+            .object(
+                ObjectSpec::creature(PlayerId(1), "Library Creature", 1, 1)
+                    .in_zone(ZoneId::Library(PlayerId(1))),
+            )
+            .object(
+                ObjectSpec::creature(PlayerId(1), "Exile Creature", 1, 1).in_zone(ZoneId::Exile),
+            )
+            .build()
+            .expect("multi-zone board builds")
+    }
+
+    /// A brute-force reimplementation of what `snapshot_affected_set` computes,
+    /// scanning `state.objects` in ITS ENTIRETY (every zone) rather than using
+    /// `candidate_ids_for_filter`'s zone-scope shortcut, but calling the exact
+    /// same `effect_applies_to_object` predicate. The two must agree.
+    fn brute_force_affected_set(state: &GameState, effect: &ContinuousEffect) -> OrdSet<ObjectId> {
+        let mut out = OrdSet::new();
+        for (id, obj) in state.objects.iter() {
+            let Some(chars) = calculate_characteristics(state, *id) else {
+                continue;
+            };
+            if effect_applies_to_object(state, effect, *id, obj.zone, &chars) {
+                out.insert(*id);
+            }
+        }
+        out
+    }
+
+    fn find(state: &GameState, name: &str) -> ObjectId {
+        state
+            .objects
+            .iter()
+            .find(|(_, o)| o.characteristics.name == name)
+            .map(|(id, _)| *id)
+            .unwrap_or_else(|| panic!("'{name}' not found"))
+    }
+
+    fn effect_with(source: Option<ObjectId>, filter: EffectFilter) -> ContinuousEffect {
+        ContinuousEffect {
+            id: EffectId(1),
+            source,
+            timestamp: 1,
+            layer: EffectLayer::PtModify,
+            duration: EffectDuration::UntilEndOfTurn,
+            filter,
+            modification: LayerModification::ModifyBoth(1),
+            is_cda: false,
+            affected_set: None,
+            condition: None,
+        }
+    }
+
+    #[test]
+    fn snapshot_matches_brute_force_over_every_zone() {
+        let state = multi_zone_board();
+        let bf_p1 = find(&state, "BF Creature P1");
+
+        // One representative filter per zone-scope bucket in
+        // `candidate_ids_for_filter`'s table: battlefield-scope (several
+        // shapes), graveyard-scope, and the AttachedCreature source-relative
+        // shape (empty here -- nothing is attached -- which is itself a
+        // useful edge case for the shortcut).
+        let filters: Vec<ContinuousEffect> = vec![
+            effect_with(None, EffectFilter::AllCreatures),
+            effect_with(None, EffectFilter::AllPermanents),
+            effect_with(None, EffectFilter::AllCardsInGraveyards),
+            effect_with(Some(bf_p1), EffectFilter::CreaturesYouControl),
+            effect_with(Some(bf_p1), EffectFilter::CreaturesOpponentsControl),
+            effect_with(Some(bf_p1), EffectFilter::AttachedCreature),
+        ];
+
+        for eff in &filters {
+            let shortcut = snapshot_affected_set(&state, eff);
+            let brute = brute_force_affected_set(&state, eff);
+            assert_eq!(
+                shortcut, brute,
+                "candidate_ids_for_filter's zone-scope shortcut disagrees with a \
+                 brute-force scan over every zone for filter {:?}",
+                eff.filter
+            );
+        }
+    }
+}
+
 /// Apply a single layer modification to the given characteristics.
 ///
 /// `state` is needed for Layer 1 copy effects to look up the target object's

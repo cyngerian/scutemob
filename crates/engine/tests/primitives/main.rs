@@ -32,6 +32,7 @@ mod pb_dx2_command_gates;
 mod pb_dx3_stale_blocker_notes;
 mod pb_dx3b_stale_blocker_bucket;
 mod pb_dx4_baseline_triage;
+mod pb_dx5_affected_set_snapshot;
 mod pb_ef10_sacrifice_driven_amounts;
 mod pb_ef11_spell_single_target;
 mod pb_ef11_wheel_greatest_discarded;
