@@ -745,9 +745,26 @@ impl<P: LegalActionProvider> LocalGame<P> {
 ///   never an action the engine would refuse — which is the SR-38 standard the rest of
 ///   this crate holds itself to. `blocking` is therefore *not* consulted for it.
 /// * **`OrderBlockers` (CR 509.2)**, one per attacker this player controls that has two
-///   or more blockers, and only outside a blocking decision (`blocking == false`),
-///   because `handle_order_blockers` is exactly the sort of command the gate above
-///   refuses while one is outstanding.
+///   or more blockers, and only when `decision_is_forced` is `false`.
+///
+/// # What `decision_is_forced` actually means, and the one case where it over-suppresses
+///
+/// `advance()` passes `forced_kind.is_some()`, which is `true` for **two** situations,
+/// not one, and they differ in how load-bearing the suppression is:
+///
+/// * a `rules::engine::BlockingDecision` is outstanding — here suppression is
+///   **required**: the admission gate refuses `Command::OrderBlockers` outright, so
+///   offering it would hand the human an action the engine rejects (the SR-38 standard);
+/// * a **commander zone-change choice** (CR 903.9a) is pending — here suppression is a
+///   **judgement**, not a necessity. That branch is not gated by the engine, so an
+///   `OrderBlockers` issued during it would in fact be accepted. It is suppressed anyway
+///   because `StubProvider` early-returns with only the two zone choices, and adding an
+///   unrelated combat action to a two-option forced choice is noise; nothing is lost,
+///   because answering the zone choice returns the human to a priority window where the
+///   order is offered again (it is only withheld once the order has actually been set).
+///
+/// `Concede` is offered in **both**, because the gate exempts it by name and CR 104.3a
+/// makes it legal at any time.
 ///
 /// # The one moment a human is *not* offered Concede
 ///
@@ -765,11 +782,15 @@ impl<P: LegalActionProvider> LocalGame<P> {
 /// see the CR 509.2 offer is not otherwise possible: `start_game` resets the turn
 /// (`reset_turn_state`, `step = Untap`), so a fixture cannot simply *begin* in
 /// `Step::DeclareBlockers` with a populated `CombatState`.
-pub fn human_only_actions(state: &GameState, player: PlayerId, blocking: bool) -> Vec<LegalAction> {
+pub fn human_only_actions(
+    state: &GameState,
+    player: PlayerId,
+    decision_is_forced: bool,
+) -> Vec<LegalAction> {
     // CR 104.3a: "A player can concede the game at any time."
     let mut extra = vec![LegalAction::Concede];
 
-    if !blocking {
+    if !decision_is_forced {
         extra.extend(order_blocker_actions(state, player));
     }
 
