@@ -86,7 +86,14 @@
   `Rejected(GameStateError::InvalidTarget)` → 422, with the same params on `PassPriority`
   asserted alongside as the **400** control (`ParamError::UnsupportedParam`, never reaches the
   engine). **The excess-target acceptance is a real engine-side gap, out of scope for
-  M11-local — worth filing against the DX queue.**
+  M11-local, and is FILED as `OOS-M11-5`** (`docs/audits/decision-point-audit.md` §8.1) so the
+  next queue re-rank — which enumerates `OOS-*` tokens — actually sees it. Root cause read in
+  source: `validate_targets_inner` skips its entire requirement-matching pass when
+  `requirements.is_empty()`, an "existence-only" arm added for **aura/bestow** (which declares
+  a target while carrying no `TargetRequirement`) and never scoped to it. Zero exposure through
+  the bots — `params.rs` only forwards targets a human announced — so it became reachable only
+  when S3 gave a human a way to announce targets at all, which is why nine prior batches did
+  not see it.
 - **Invariant 7 at the HTTP boundary is pinned in both directions.** Omniscient truth is read
   out of band from the session's `GameState`; after excluding the human's own hand and every
   public zone (battlefield, graveyards, command zone per CR 903.6, exile, stack), **20

@@ -964,7 +964,14 @@ drive three deterministic steps to `Cast Dispel` ("counter target spell", CR 601
 → **422**. The same `targets` on `PassPriority` is asserted alongside as a **400** control
 (`ParamError::UnsupportedParam`, never reaches the engine), so the 400/422 split is
 demonstrated by observation rather than argued. **The excess-target acceptance is a genuine
-engine-side finding, out of scope here — seed it.**
+engine-side finding, out of scope here, and is filed as `OOS-M11-5`** in
+`docs/audits/decision-point-audit.md` §8.1. Root cause read in source, not inferred:
+`validate_targets_inner` short-circuits its whole requirement-matching pass when
+`requirements.is_empty()` — an "existence-only validation" arm added for the **aura/bestow**
+path (which declares a target while carrying no `TargetRequirement`) but **not scoped to it**,
+so every spell with genuinely zero requirements inherits it. Per CR 601.2c's parenthetical the
+spurious target is not inert: a "becomes the target of a spell" trigger can be made to fire off
+a spell that does not target.
 
 **Test 7 is Architecture Invariant 7 at the HTTP boundary and was falsified in both
 directions.** The omniscient truth is read out of band from the `PlaySession`'s `GameState`
