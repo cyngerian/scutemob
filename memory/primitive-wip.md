@@ -13,7 +13,7 @@
 - **Branch**: `feat/pb-dx2-gate-the-resolution-time-commands-nothing-gates-oos-d`
 - **Class**: **CORRECTNESS — live exploit, trust boundary.** `Command::ChooseDredge` has no
   pending-state gate; `card: None` is a free card for any player at any time.
-- **Phase**: implement
+- **Phase**: implement-complete
 - **Plan**: `memory/primitives/pb-plan-DX2.md`
 - **Review file**: `memory/primitives/pb-review-DX2.md`
 - **Wire prediction**: the brief says wire-neutral (PROTOCOL 32 / HASH 69 unmoved). **Treat this as
@@ -111,5 +111,27 @@
       entry (append-only, the existing one preserved) documents the finding
       and fix with CR citations. All downstream assertions unchanged and
       still pass.
-- [ ] Step 13 — Phase 6: roster enumeration + bench check.
-- [ ] Step 14 — Phase 7: bookkeeping (seeds, closures, wip/workstream-state).
+- [x] Step 13 — Phase 6: roster enumeration (temp in-test one-off, deleted
+      after running, per plan §6/§11 step 13 — a permanent gate for 1 card
+      would be theatre): **exactly 1 distinct Complete card**,
+      `golgari_grave_troll.rs`, `Dredge(6)` — matches the plan's prediction
+      exactly (`all_cards()` + `effective_abilities(both faces)` reports it
+      twice, once per face, because the card is single-faced and both faces
+      resolve to the same ability list; 1 distinct card, 0 flips, 0 def
+      edits). Benches (throwaway worktree at merge base `27b0a1ec`, PB-DP9's
+      method): base `full_turn_4p` 229.1 µs / `priority_cycle_4p` 26.0 µs /
+      `sba_check` 14.8 µs; branch (3 runs, high ambient noise from a
+      concurrent worktree build) 219.6-254.8 µs / 24.6 µs / 15.2 µs — all
+      within noise of the base, no regression (criterion's own
+      change-detection on a clean re-run reported "No change in performance
+      detected" / an *improvement*, not a regression).
+- [x] Step 14 — Phase 7: bookkeeping. Seeds **OOS-DX2-1..6** filed in
+      `docs/audits/decision-point-audit.md` §8.1; **OOS-DP5-7**, **OOS-DP7-2**,
+      **OOS-DP2-1**, **OOS-DP9-14** all marked CLOSED with the two stale-cite
+      corrections applied in-row (OOS-DP2-1's `commander.rs:877-885` → `:891`;
+      OOS-DP9-14's `drop_departed_trigger_flush`-placement claim corrected to
+      name `handle_concede`); **OOS-DP7-1**'s row updated (dredge/miracle pair
+      now answered). `memory/workstream-state.md` and `CLAUDE.md`'s Current
+      State snapshot both updated. `Phase:` moved to `implement-complete`
+      above (this batch's task instructions specify `implement-complete`,
+      not `review` — no automatic review-phase handoff was requested).
