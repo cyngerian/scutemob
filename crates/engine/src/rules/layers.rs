@@ -2299,6 +2299,7 @@ mod dependency_cycle_guard_tests {
             filter: EffectFilter::AllPermanents,
             modification: m,
             is_cda: false,
+            affected_set: None,
             condition: None,
         }
     }

@@ -2824,6 +2824,7 @@ pub fn register_static_continuous_effects(
                     filter: resolved_filter,
                     modification: continuous_effect.modification.clone(),
                     is_cda: false,
+                    affected_set: None,
                     condition: continuous_effect.condition.clone(),
                 });
             }
@@ -2886,6 +2887,7 @@ pub fn register_static_continuous_effects(
                             toughness: Box::new(toughness.clone()),
                         },
                     is_cda: true,
+                    affected_set: None,
                     condition: None, // CR 604.3a(5): CDAs are unconditional
                 });
             }
@@ -2950,6 +2952,7 @@ pub fn register_static_continuous_effects(
                         filter: crate::state::continuous_effect::EffectFilter::SingleObject(new_id),
                         modification,
                         is_cda: true,
+                        affected_set: None,
                         condition: None, // CR 604.3a(5): CDAs are unconditional
                     });
                 }

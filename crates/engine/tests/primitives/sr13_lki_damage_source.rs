@@ -330,6 +330,7 @@ fn test_granted_infect_present_before_death() {
         filter: EffectFilter::CreaturesYouControl,
         modification: LayerModification::AddKeyword(KeywordAbility::Infect),
         is_cda: false,
+        affected_set: None,
         condition: None,
     });
     // The grant is live now (base characteristics do NOT carry it).

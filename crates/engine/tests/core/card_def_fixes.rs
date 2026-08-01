@@ -719,6 +719,7 @@ fn test_lightning_greaves_grants_haste_shroud() {
                 .collect(),
         ),
         is_cda: false,
+        affected_set: None,
         condition: None,
     };
 
@@ -806,6 +807,7 @@ fn test_swiftfoot_boots_grants_haste_hexproof() {
                 .collect(),
         ),
         is_cda: false,
+        affected_set: None,
         condition: None,
     };
 

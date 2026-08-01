@@ -923,6 +923,7 @@ fn test_cleanup_layer_granted_no_max_hand_size_skips_discard() {
         filter: EffectFilter::SingleObject(bear),
         modification: LayerModification::AddKeyword(KeywordAbility::NoMaxHandSize),
         is_cda: false,
+        affected_set: None,
         condition: None,
     });
 

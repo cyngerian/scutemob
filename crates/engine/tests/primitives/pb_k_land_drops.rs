@@ -453,6 +453,7 @@ fn test_dryad_lands_have_all_basic_types() {
             .collect(),
         ),
         is_cda: false,
+        affected_set: None,
         condition: None,
     });
 
@@ -516,6 +517,7 @@ fn test_dryad_opponent_lands_unaffected() {
             .collect(),
         ),
         is_cda: false,
+        affected_set: None,
         condition: None,
     });
 
@@ -577,6 +579,7 @@ fn test_dryad_lands_keep_original_types() {
             .collect(),
         ),
         is_cda: false,
+        affected_set: None,
         condition: None,
     });
 

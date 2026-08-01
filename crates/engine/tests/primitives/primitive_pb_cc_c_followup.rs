@@ -97,6 +97,7 @@ fn test_cda_modify_power_toughness_re_evaluates_after_counter_mutation() {
             negate: false,
         },
         is_cda: true,
+        affected_set: None,
         condition: None,
     });
 
@@ -426,6 +427,7 @@ fn test_hash_schema_version_after_pb_lki_cc() {
                 negate: false,
             },
             is_cda: true,
+            affected_set: None,
             condition: None,
         }
     };
@@ -471,6 +473,7 @@ fn test_hash_schema_version_after_pb_lki_cc() {
     let eff_cda_true = make_oil_effect(100, src);
     let eff_cda_false = ContinuousEffect {
         is_cda: false,
+        affected_set: None,
         ..make_oil_effect(100, src)
     };
     assert_ne!(

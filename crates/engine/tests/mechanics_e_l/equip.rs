@@ -1184,6 +1184,7 @@ fn test_equip_grants_keywords_via_layer_system() {
                 [KeywordAbility::Haste].into_iter().collect(),
             ),
             is_cda: false,
+            affected_set: None,
             condition: None,
         });
     }
@@ -1319,6 +1320,7 @@ fn test_reequip_retimestamps_continuous_effects_layer_order_flip() {
             toughness: 6,
         },
         is_cda: false,
+        affected_set: None,
         condition: None,
     });
     state.continuous_effects_mut().push_back(ContinuousEffect {
@@ -1333,6 +1335,7 @@ fn test_reequip_retimestamps_continuous_effects_layer_order_flip() {
             toughness: 4,
         },
         is_cda: false,
+        affected_set: None,
         condition: None,
     });
 

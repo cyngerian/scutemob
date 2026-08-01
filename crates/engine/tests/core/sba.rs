@@ -868,6 +868,7 @@ fn test_sba_704_5f_continuous_effect_reduces_toughness_to_zero_dies() {
         filter: EffectFilter::AllCreatures,
         modification: LayerModification::ModifyBoth(-3),
         is_cda: false,
+        affected_set: None,
         condition: None,
     };
 
@@ -910,6 +911,7 @@ fn test_sba_704_5g_indestructible_removed_by_effect_lethal_damage_dies() {
         filter: EffectFilter::AllCreatures,
         modification: LayerModification::RemoveKeyword(KeywordAbility::Indestructible),
         is_cda: false,
+        affected_set: None,
         condition: None,
     };
 

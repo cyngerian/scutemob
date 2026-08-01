@@ -306,6 +306,7 @@ fn test_gain_control_creates_continuous_effect() {
         filter: EffectFilter::SingleObject(target_id),
         duration: EffectDuration::UntilEndOfTurn,
         is_cda: false,
+        affected_set: None,
         timestamp: 999,
         condition: None,
     };
@@ -355,6 +356,7 @@ fn test_gain_control_until_eot_expires() {
         filter: EffectFilter::SingleObject(target_id),
         duration: EffectDuration::UntilEndOfTurn,
         is_cda: false,
+        affected_set: None,
         timestamp: 100,
         condition: None,
     };
@@ -415,6 +417,7 @@ fn test_gain_control_until_eot_stacked_control_persists() {
         filter: EffectFilter::SingleObject(target_id),
         duration: EffectDuration::UntilEndOfTurn,
         is_cda: false,
+        affected_set: None,
         timestamp: 100,
         condition: None,
     };
@@ -427,6 +430,7 @@ fn test_gain_control_until_eot_stacked_control_persists() {
         filter: EffectFilter::SingleObject(target_id),
         duration: EffectDuration::WhileSourceOnBattlefield,
         is_cda: false,
+        affected_set: None,
         timestamp: 101,
         condition: None,
     };
@@ -487,6 +491,7 @@ fn test_gain_control_until_next_turn_reverts_at_untap() {
         filter: EffectFilter::SingleObject(target_id),
         duration: EffectDuration::UntilYourNextTurn(p1),
         is_cda: false,
+        affected_set: None,
         timestamp: 100,
         condition: None,
     };

@@ -69,6 +69,7 @@ fn effect_at(
         filter,
         modification,
         is_cda: false,
+        affected_set: None,
         condition: None,
     }
 }

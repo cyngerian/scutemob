@@ -111,6 +111,7 @@ fn borrow_via_source(
         filter: EffectFilter::SingleObject(target_id),
         duration: EffectDuration::WhileYouControlSource(borrower),
         is_cda: false,
+        affected_set: None,
         timestamp,
         condition: None,
     };
@@ -135,6 +136,7 @@ fn steal_indefinitely(
         filter: EffectFilter::SingleObject(object_id),
         duration: EffectDuration::Indefinite,
         is_cda: false,
+        affected_set: None,
         timestamp,
         condition: None,
     };
@@ -242,6 +244,7 @@ fn test_while_you_control_source_decoy_whilesourceonbattlefield_does_not_end() {
         filter: EffectFilter::SingleObject(decoy_id),
         duration: EffectDuration::WhileSourceOnBattlefield,
         is_cda: false,
+        affected_set: None,
         timestamp: 911,
         condition: None,
     };

@@ -68,6 +68,7 @@ fn make_effect(
         filter,
         modification,
         is_cda: false,
+        affected_set: None,
         condition: None,
     }
 }

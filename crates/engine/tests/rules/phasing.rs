@@ -820,6 +820,7 @@ fn test_phasing_excluded_from_continuous_effects() {
         filter: EffectFilter::AllCreatures,
         modification: LayerModification::ModifyBoth(1),
         is_cda: false,
+        affected_set: None,
         condition: None,
     });
 

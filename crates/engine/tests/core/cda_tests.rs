@@ -62,6 +62,7 @@ fn make_cda_effect(
             }),
         },
         is_cda: true,
+        affected_set: None,
         condition: None,
     }
 }
@@ -197,6 +198,7 @@ fn test_cda_layer_7a_before_7b() {
             toughness: 1,
         },
         is_cda: false,
+        affected_set: None,
         condition: None,
     };
 
@@ -368,6 +370,7 @@ fn test_cda_partial_power_only() {
             toughness: Box::new(EffectAmount::Fixed(4)),
         },
         is_cda: true,
+        affected_set: None,
         condition: None,
     };
 
@@ -443,6 +446,7 @@ fn test_cda_multiplayer_all_players() {
             }),
         },
         is_cda: true,
+        affected_set: None,
         condition: None,
     };
 
@@ -539,6 +543,7 @@ fn test_cda_with_effect_amount_sum() {
             )),
         },
         is_cda: true,
+        affected_set: None,
         condition: None,
     };
 
@@ -601,6 +606,7 @@ fn test_cda_card_count_in_hand() {
             }),
         },
         is_cda: true,
+        affected_set: None,
         condition: None,
     };
 

@@ -965,6 +965,7 @@ fn test_does_not_untap_removed_by_humility() {
         duration: EffectDuration::WhileSourceOnBattlefield,
         timestamp: 1,
         is_cda: false,
+        affected_set: None,
         condition: None,
     });
 

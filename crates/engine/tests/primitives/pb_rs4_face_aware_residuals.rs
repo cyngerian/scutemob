@@ -1015,6 +1015,7 @@ fn test_static_removal_does_not_match_cda_shaped_entry() {
             toughness: Box::new(EffectAmount::Fixed(5)),
         },
         is_cda: true,
+        affected_set: None,
         condition: None,
     });
 

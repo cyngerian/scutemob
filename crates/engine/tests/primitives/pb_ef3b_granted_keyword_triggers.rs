@@ -77,6 +77,7 @@ fn grant_keyword_to_others(
         filter: EffectFilter::OtherCreaturesYouControl,
         modification: LayerModification::AddKeyword(kw),
         is_cda: false,
+        affected_set: None,
         condition: None,
     }
 }
@@ -100,6 +101,7 @@ fn grant_keyword_to_single_object(
         filter: EffectFilter::SingleObject(target_id),
         modification: LayerModification::AddKeyword(kw),
         is_cda: false,
+        affected_set: None,
         condition: None,
     }
 }
@@ -733,6 +735,7 @@ fn test_ef3b_humility_strips_granted_melee() {
         filter: EffectFilter::AllCreatures,
         modification: LayerModification::RemoveAllAbilities,
         is_cda: false,
+        affected_set: None,
         condition: None,
     });
 

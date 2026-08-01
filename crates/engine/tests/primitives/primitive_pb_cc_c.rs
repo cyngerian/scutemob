@@ -256,6 +256,7 @@ fn test_modify_power_dynamic_resolves_via_cda_amount_when_unsubstituted() {
             negate: false,
         },
         is_cda: false,
+        affected_set: None,
         condition: None,
     });
 
@@ -298,6 +299,7 @@ fn test_modify_toughness_dynamic_resolves_via_cda_amount_when_unsubstituted() {
             negate: false,
         },
         is_cda: false,
+        affected_set: None,
         condition: None,
     });
 

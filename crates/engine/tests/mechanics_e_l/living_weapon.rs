@@ -432,6 +432,7 @@ fn test_living_weapon_germ_survives_with_equipment_buff() {
         modification: LayerModification::ModifyToughness(4),
         duration: EffectDuration::WhileSourceOnBattlefield,
         is_cda: false,
+        affected_set: None,
         condition: None,
     });
 
@@ -581,6 +582,7 @@ fn test_living_weapon_equip_to_other_creature_germ_dies() {
         modification: LayerModification::ModifyToughness(4),
         duration: EffectDuration::WhileSourceOnBattlefield,
         is_cda: false,
+        affected_set: None,
         condition: None,
     });
 

@@ -445,6 +445,7 @@ fn test_chosen_color_filter_no_choice_matches_nothing() {
         filter: EffectFilter::CreaturesYouControlOfChosenColor,
         modification: LayerModification::ModifyBoth(1),
         is_cda: false,
+        affected_set: None,
         condition: None,
     };
     let mut state = state;

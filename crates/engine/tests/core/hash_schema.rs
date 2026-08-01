@@ -774,6 +774,7 @@ fn canonical_fixture() -> GameState {
                 toughness: 3,
             },
             is_cda: false,
+            affected_set: None,
             condition: None,
         })
         .build()

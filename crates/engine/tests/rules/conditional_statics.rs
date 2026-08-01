@@ -48,6 +48,7 @@ fn conditional_keyword_effect(
         filter: EffectFilter::SingleObject(target_id),
         modification: LayerModification::AddKeyword(keyword),
         is_cda: false,
+        affected_set: None,
         condition: Some(condition),
     }
 }
@@ -83,6 +84,7 @@ fn test_conditional_static_life_threshold() {
         filter: EffectFilter::SingleObject(ascendant_id),
         modification: LayerModification::ModifyBoth(5),
         is_cda: false,
+        affected_set: None,
         condition: Some(Condition::ControllerLifeAtLeast(30)),
     });
     // Add conditional flying (Layer 6).
@@ -95,6 +97,7 @@ fn test_conditional_static_life_threshold() {
         filter: EffectFilter::SingleObject(ascendant_id),
         modification: LayerModification::AddKeyword(KeywordAbility::Flying),
         is_cda: false,
+        affected_set: None,
         condition: Some(Condition::ControllerLifeAtLeast(30)),
     });
 
@@ -211,6 +214,7 @@ fn test_conditional_static_counter_threshold() {
         filter: EffectFilter::CreaturesYouControl,
         modification: LayerModification::ModifyBoth(5),
         is_cda: false,
+        affected_set: None,
         condition: Some(Condition::SourceHasCounters {
             counter: CounterType::Quest,
             min: 7,
@@ -282,6 +286,7 @@ fn test_conditional_static_dungeon() {
         filter: EffectFilter::CreaturesYouControl,
         modification: LayerModification::ModifyBoth(1),
         is_cda: false,
+        affected_set: None,
         condition: Some(Condition::CompletedADungeon),
     });
 
@@ -435,6 +440,7 @@ fn test_conditional_static_devotion_single() {
         filter: EffectFilter::SingleObject(purphoros_id),
         modification: LayerModification::RemoveCardTypes(ordset![CardType::Creature]),
         is_cda: false,
+        affected_set: None,
         condition: Some(Condition::DevotionToColorsLessThan {
             colors: vec![mtg_engine::Color::Red],
             threshold: 5,
@@ -486,6 +492,7 @@ fn test_conditional_static_devotion_multicolor() {
         filter: EffectFilter::SingleObject(athreos_id),
         modification: LayerModification::RemoveCardTypes(ordset![CardType::Creature]),
         is_cda: false,
+        affected_set: None,
         condition: Some(Condition::DevotionToColorsLessThan {
             colors: vec![mtg_engine::Color::White, mtg_engine::Color::Black],
             threshold: 7,
@@ -539,6 +546,7 @@ fn test_conditional_static_remove_type() {
         filter: EffectFilter::SingleObject(god_id),
         modification: LayerModification::RemoveCardTypes(ordset![CardType::Creature]),
         is_cda: false,
+        affected_set: None,
         condition: None,
     });
 
@@ -579,6 +587,7 @@ fn test_conditional_static_toggles_midgame() {
         filter: EffectFilter::SingleObject(ascendant_id),
         modification: LayerModification::ModifyBoth(5),
         is_cda: false,
+        affected_set: None,
         condition: Some(Condition::ControllerLifeAtLeast(30)),
     });
 
@@ -631,6 +640,7 @@ fn test_conditional_static_source_filter_resolved() {
         filter: EffectFilter::SingleObject(ascendant_id), // Source -> resolved
         modification: LayerModification::ModifyBoth(5),
         is_cda: false,
+        affected_set: None,
         condition: Some(Condition::ControllerLifeAtLeast(30)),
     });
 

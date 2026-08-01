@@ -2747,6 +2747,7 @@ fn test_sr_fs02_first_strike_gained_between_damage_steps() {
         filter: EffectFilter::SingleObject(latecomer_id),
         modification: LayerModification::AddKeyword(KeywordAbility::FirstStrike),
         is_cda: false,
+        affected_set: None,
         condition: None,
     });
 
@@ -2876,6 +2877,7 @@ fn test_mr_m6_13_blocked_attacker_blockers_removed_no_trample() {
         filter: EffectFilter::SingleObject(blocker_id),
         modification: LayerModification::ModifyToughness(-1),
         is_cda: false,
+        affected_set: None,
         condition: None,
     });
 

@@ -1168,6 +1168,7 @@ fn test_lki_death_filter_subtype_granted_via_single_object() {
             [SubType("Zombie".to_string())].into_iter().collect(),
         ),
         is_cda: false,
+        affected_set: None,
         condition: None,
     });
 
@@ -1271,6 +1272,7 @@ fn test_lki_death_filter_subtype_granted_via_aura() {
             [SubType("Zombie".to_string())].into_iter().collect(),
         ),
         is_cda: false,
+        affected_set: None,
         condition: None,
     });
 

@@ -380,6 +380,7 @@ fn test_player_counter_count_cda_path_layer7a() {
                 toughness: Box::new(amount),
             },
             is_cda: true,
+            affected_set: None,
             condition: None,
         });
 
@@ -438,6 +439,7 @@ fn test_player_counter_count_cda_scaling_4p_sum() {
                 toughness: Box::new(amount),
             },
             is_cda: true,
+            affected_set: None,
             condition: None,
         });
 

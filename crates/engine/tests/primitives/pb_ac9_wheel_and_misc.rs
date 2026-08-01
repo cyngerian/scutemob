@@ -546,6 +546,7 @@ fn test_set_no_max_hand_size_stacks_with_layer_granted_source() {
         filter: EffectFilter::SingleObject(bear),
         modification: LayerModification::AddKeyword(KeywordAbility::NoMaxHandSize),
         is_cda: false,
+        affected_set: None,
         condition: None,
     });
 

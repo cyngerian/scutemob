@@ -74,6 +74,7 @@ fn make_continuous_effect(
         filter,
         modification,
         is_cda: false,
+        affected_set: None,
         condition: None,
     }
 }
@@ -1100,6 +1101,7 @@ fn test_balthor_static_minion_pump() {
         filter: EffectFilter::AllCreaturesWithSubtype(SubType("Minion".to_string())),
         modification: LayerModification::ModifyBoth(1),
         is_cda: false,
+        affected_set: None,
         condition: None,
     };
     state.continuous_effects_mut().push_back(static_effect);

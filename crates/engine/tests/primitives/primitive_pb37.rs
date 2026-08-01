@@ -175,6 +175,7 @@ fn test_until_your_next_turn_duration_persists_through_opponent_turns() {
         filter: EffectFilter::AllCreatures,
         modification: LayerModification::AddKeyword(KeywordAbility::Flying),
         is_cda: false,
+        affected_set: None,
         condition: None,
     };
     state.continuous_effects_mut().push_back(effect);
@@ -219,6 +220,7 @@ fn test_until_your_next_turn_duration_expires_on_next_turn() {
         filter: EffectFilter::AllCreatures,
         modification: LayerModification::AddKeyword(KeywordAbility::Flying),
         is_cda: false,
+        affected_set: None,
         condition: None,
     };
     state.continuous_effects_mut().push_back(effect);

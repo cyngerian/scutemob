@@ -1545,6 +1545,7 @@ fn test_animate_land_pt_and_types_via_chained_or_awaken() {
         duration: EffectDuration::WhileSourceOnBattlefield,
         condition: None,
         is_cda: false,
+        affected_set: None,
         timestamp: 1000,
     });
     state.continuous_effects_mut().push_back(ContinuousEffect {
@@ -1558,6 +1559,7 @@ fn test_animate_land_pt_and_types_via_chained_or_awaken() {
         duration: EffectDuration::WhileSourceOnBattlefield,
         condition: None,
         is_cda: false,
+        affected_set: None,
         timestamp: 1001,
     });
     state.continuous_effects_mut().push_back(ContinuousEffect {
@@ -1572,6 +1574,7 @@ fn test_animate_land_pt_and_types_via_chained_or_awaken() {
         duration: EffectDuration::WhileSourceOnBattlefield,
         condition: None,
         is_cda: false,
+        affected_set: None,
         timestamp: 1002,
     });
     state.continuous_effects_mut().push_back(ContinuousEffect {
@@ -1583,6 +1586,7 @@ fn test_animate_land_pt_and_types_via_chained_or_awaken() {
         duration: EffectDuration::WhileSourceOnBattlefield,
         condition: None,
         is_cda: false,
+        affected_set: None,
         timestamp: 1003,
     });
     // Layer 5: Set color to red (Awaken the Ancient makes the land red).
@@ -1596,6 +1600,7 @@ fn test_animate_land_pt_and_types_via_chained_or_awaken() {
         duration: EffectDuration::WhileSourceOnBattlefield,
         condition: None,
         is_cda: false,
+        affected_set: None,
         timestamp: 1004,
     });
 
@@ -1701,6 +1706,7 @@ fn test_animate_land_summoning_sickness_propagation() {
         duration: EffectDuration::WhileSourceOnBattlefield,
         condition: None,
         is_cda: false,
+        affected_set: None,
         timestamp: 2000,
     });
     state.continuous_effects_mut().push_back(ContinuousEffect {
@@ -1712,6 +1718,7 @@ fn test_animate_land_summoning_sickness_propagation() {
         duration: EffectDuration::WhileSourceOnBattlefield,
         condition: None,
         is_cda: false,
+        affected_set: None,
         timestamp: 2001,
     });
 

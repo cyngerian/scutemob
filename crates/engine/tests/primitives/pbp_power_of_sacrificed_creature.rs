@@ -72,6 +72,7 @@ fn anthem_power_effect(id: u64) -> ContinuousEffect {
         filter: EffectFilter::AllCreatures,
         modification: LayerModification::ModifyPower(1),
         is_cda: false,
+        affected_set: None,
         condition: None,
     }
 }
@@ -86,6 +87,7 @@ fn anthem_toughness_effect(id: u64) -> ContinuousEffect {
         filter: EffectFilter::AllCreatures,
         modification: LayerModification::ModifyToughness(1),
         is_cda: false,
+        affected_set: None,
         condition: None,
     }
 }
@@ -1007,6 +1009,7 @@ fn test_sacrifice_negative_power_creature_mills_zero() {
         filter: EffectFilter::AllCreatures,
         modification: LayerModification::ModifyPower(-3),
         is_cda: false,
+        affected_set: None,
         condition: None,
     };
 

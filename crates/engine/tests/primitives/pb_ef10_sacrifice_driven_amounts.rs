@@ -104,6 +104,7 @@ fn anthem_toughness_effect(id: u64, amount: i32) -> ContinuousEffect {
         filter: EffectFilter::AllCreatures,
         modification: LayerModification::ModifyToughness(amount),
         is_cda: false,
+        affected_set: None,
         condition: None,
     }
 }
@@ -121,6 +122,7 @@ fn anthem_power_effect(id: u64, amount: i32) -> ContinuousEffect {
         filter: EffectFilter::AllCreatures,
         modification: LayerModification::ModifyPower(amount),
         is_cda: false,
+        affected_set: None,
         condition: None,
     }
 }

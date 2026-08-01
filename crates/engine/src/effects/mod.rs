@@ -3968,6 +3968,7 @@ fn execute_effect_inner(
                 filter: resolved_filter,
                 duration: resolved_duration,
                 is_cda: false,
+                affected_set: None,
                 timestamp: ts,
                 condition: effect_def.condition.clone(),
             };
@@ -6127,6 +6128,7 @@ fn execute_effect_inner(
                         duration: EffectDuration::Indefinite,
                         timestamp: state.timestamp_counter,
                         is_cda: false,
+                        affected_set: None,
                         condition: None,
                     });
                 }
@@ -6146,6 +6148,7 @@ fn execute_effect_inner(
                         duration: EffectDuration::Indefinite,
                         timestamp: state.timestamp_counter,
                         is_cda: false,
+                        affected_set: None,
                         condition: None,
                     });
                 }
@@ -6288,6 +6291,7 @@ fn execute_effect_inner(
                     filter: se.filter.clone(),
                     duration: crate::state::continuous_effect::EffectDuration::Indefinite,
                     is_cda: false,
+                    affected_set: None,
                     condition: None,
                     timestamp: ts,
                 };
@@ -6530,6 +6534,7 @@ fn execute_effect_inner(
                         filter: crate::state::continuous_effect::EffectFilter::SingleObject(obj_id),
                         duration: resolved_duration,
                         is_cda: false,
+                        affected_set: None,
                         timestamp: ts,
                         condition: None,
                     };
@@ -6586,6 +6591,7 @@ fn execute_effect_inner(
                                     filter: crate::state::continuous_effect::EffectFilter::SingleObject(obj_id),
                                     duration: *duration,
                                     is_cda: false,
+                                    affected_set: None,
                                     timestamp: ts,
                                     condition: None,
                                 },
