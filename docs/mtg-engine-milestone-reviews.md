@@ -1594,6 +1594,234 @@ None directly. M9.5 is a developer tooling milestone — no new game rules are i
 
 ---
 
+## M11-local: Web Client & Local Play (First Playable)
+
+**Review Status**: REVIEWED (2026-08-01)
+
+Reviewed at S8 close on branch `feat/m11-local-s8-playthrough-hardening-docs-acceptance-closes-th`.
+Diff baseline: `aceba394^` (the M11-local kickoff commit's parent), narrowed to the milestone's
+own commits — `f2a9647b` (S1), `8d32f922` (S2), `33561449`+`92a38176` (S3), `6ef17141`+`546e879a`
+(S4), `03f8293c`..`7670e64a` (S5), `acc35ca1` (S6), `b2eeec62`+`044f52c4`+`66c47cc7` (S7),
+`222ff84f`..`7785825e` (S8). The PB-DP/PB-DX batches that merged into the same range are
+**excluded** — in particular the +1,000 lines on `legal_actions.rs` are PB-DP7/8/9 work, of
+which M11-local contributed 25 (the `LegalAction::OrderBlockers` variant).
+
+`cargo test -p mtg-simulator -p mtg-view-model -p play-server` green at review time.
+
+### Files Introduced
+
+**Engine (`crates/engine/src/`) — the milestone's only engine addition**:
+
+| File | Lines | Purpose |
+|------|-------|---------|
+| `rules/queries.rs` | 227 | Read-only advisory query surface: `spell_target_requirements` (CR 601.2c/702.96b/702.127a/700.2c), `ability_target_requirements` (CR 602.2b), `legal_targets_per_slot`, `target_count_range`. No mutation, no new public type |
+| `tests/rules/queries.rs` | 267 | 7 tests (4 named in the plan + 3 guards); `mod` line added to `tests/rules/main.rs` per SR-9a |
+
+**Simulator (`crates/simulator/src/`)**:
+
+| File | Lines | Purpose |
+|------|-------|---------|
+| `local_game.rs` | 865 | **New.** `LocalGame` — the steppable driver: `advance()` runs bot seats and yields `AwaitingHuman`, `submit(seq, HumanChoice)` answers. `AdvanceOutcome`/`HaltReason`/`PendingDecision`/`DecisionKind`/`CommandRecord`/`LocalGameError`/`LocalGameLimits`; S8's `human_only_actions` (CR 104.3a Concede, CR 509.2 OrderBlockers) |
+| `setup.rs` | 362 | **New.** Deterministic pregame: `LocalGameConfig`/`DeckSource`/`BotKind`/`SetupError`, `build_initial_state` (CR 103.5 opening hand, CR 903.5a/903.6 commander + `validate_deck`), `redeal` (CR 103.5/103.5c) |
+| `params.rs` | 459 | **New.** `ActionParams`/`HumanChoice`/`ParamError` + `action_to_command_with_params` — the single `LegalAction`→`Command` mapping table in the crate |
+| `driver.rs` | 127 (was ~350) | `GameDriver::run_game` re-expressed on top of `LocalGame` with `human_seats` empty; takes `self` by value |
+| `random_bot.rs` | 185 (−270) | `action_to_command` now delegates to `params::action_to_command_with_params` |
+| `mana_solver.rs` | 270 (+37) | S8: `spend()` marks every ability entry of a permanent spent, closing the double-tap plan |
+| `heuristic_bot.rs` | 357 (+155) | S8: `RepeatKey` per-turn preference cap |
+| `invariants.rs` | 306 (+79) | S8: `check_stack_consistency` rewritten against `StackObjectKind::Spell { source_object }` |
+| `legal_actions.rs` | 2,683 (+25) | `LegalAction::OrderBlockers` variant (CR 509.2) |
+| `lib.rs` | 43 (+12) | Re-exports |
+| `tests/local_game.rs` | 2,025 | **New.** 22 tests |
+| `tests/setup.rs` | 436 | **New.** 10 tests |
+| `tests/local_game_playthrough.rs` | 507 | **New.** S8 scripted-human playthrough, 5 seeds, 2 tests |
+| `tests/local_game_human_actions.rs` | 548 | **New.** S8 human-only actions, 13 tests |
+
+**View model (`crates/view-model/` — new crate `mtg-view-model`)**:
+
+| File | Lines | Purpose |
+|------|-------|---------|
+| `src/lib.rs` | 1,011 | Git-recorded rename of `tools/replay-viewer/src/view_model.rs` (895 lines) + `Viewer` enum + `from_game_state_for` + S7's `StackItemView::source_object_id` |
+| `src/redact.rs` | 353 | **Architecture Invariant 7 chokepoint 1.** Hands (CR 402.1), face-down permanents and exiled cards (CR 708.2/406.3), stack sources and targets (CR 405.1/702.36b), combat (CR 508.1/509.1); `viewer_may_identify` |
+| `src/event_view.rs` | 254 | **Chokepoint 2.** `EventView` + `event_view_for` — rendered, redacted lines; stand-in for the M10 `GameEvent::private_to()` broadcast filter |
+| `src/tests.rs` | 817 | 10 tests, each proven non-vacuous by mutation |
+| `src/golden_omniscient_view.json` | 428 | Regression snapshot captured from pristine pre-move code (`56d44177`); regenerated once in S7 for the additive field |
+| `Cargo.toml` | 19 | deps: `mtg-engine`, serde, serde_json |
+
+**Play server (`tools/play-server/` — new bin crate `play-server`)**:
+
+| File | Lines | Purpose |
+|------|-------|---------|
+| `src/main.rs` | 2,972 | CLI (clap), hand-built multi-thread 8 MB-stack tokio runtime, `build_router`, and **28 inline `oneshot` tests** (~2,700 of the lines) including the no-socket gate and the Invariant-7 source gate |
+| `src/view.rs` | 1,304 | Wire DTOs + server-side rendering: `SeatView`, `DecisionView`, `ActionOptionView`, `TargetSlotView`, `ModeOptionView`, combat/order payloads, `NameIndex`, S8's `BugReportView` |
+| `src/api.rs` | 856 | 6 axum handlers, the `ApiFailure` envelope and the whole error→status mapping, `validate_combat_params` |
+| `src/session.rs` | 420 | `PlaySession`, `AppState`, `config_for`, `new_game`, wire-`seq` rebasing, `mulligan` |
+| `README.md` | 782 | Route contract, error-status semantics, 13 known limitations, manual checklists, hidden-information section |
+| `Cargo.toml` | 30 | axum 0.7, tower-http, tokio, clap, anyhow, `mtg-engine`, `mtg-simulator`, `mtg-view-model` |
+
+**Play frontend (`tools/play-server/frontend/` — new Svelte 5 app)**:
+
+| File | Lines | Purpose |
+|------|-------|---------|
+| `src/lib/PlayApp.svelte` | 695 | Layout, pregame block, click-through, bug-report export |
+| `src/lib/ActionBar.svelte` | 636 | Action buttons + the four-stage picker chain, keyboard shortcuts, error strip |
+| `src/lib/TargetPicker.svelte` | 295 | CR 601.2c per-slot selector with `UpToN` multi-select |
+| `src/lib/ValuePrompt.svelte` | 240 | CR 601.2b `{X}` + CR 700.2 modes |
+| `src/lib/AttackerPicker.svelte` | 234 | CR 508.1/508.1a |
+| `src/lib/EventFeed.svelte` | 217 | Redacted event lines, keyed on a monotonic append `seq` |
+| `src/lib/BlockerPicker.svelte` | 206 | CR 509.1a |
+| `src/lib/stores.js` | 203 | `seatView`/`decision`/`events`/`loading`/`error` |
+| `src/lib/api.js` | 141 | `newGame`/`getGame`/`submitAction`/`mulligan`/`getReport` |
+| `src/App.svelte`, `src/main.js`, `src/app.css`, `index.html`, `vite.config.js`, `jsconfig.json`, `svelte.config.js`, `package.json` | 152 | Scaffold; `vite.config.js` carries the `$viewer` alias that imports the replay viewer's components **in place** |
+
+**Modified outside the milestone's crates**:
+
+| File | Change | Purpose |
+|------|--------|---------|
+| `crates/engine/src/rules/casting.rs` | +211/−88 | Refactor-only: `card_def_target_requirements`, `spell_mode_selection`, `per_mode_target_requirements` extracted verbatim; `pub(crate)` on `validate_targets_inner`/`get_overload_cost` |
+| `crates/engine/src/state/keyword_registry.rs` | +10/−4 | SR-5: `queries.rs` added to Aftermath's site list |
+| `crates/engine/src/lib.rs` | +4 | Re-export the four query fns |
+| `tools/tui/src/play/app.rs` | +353/−… | S2: `PlayApp::new` rewired onto `setup::build_initial_state`; **fixes a live Commander bug — `PlayerState::commander_ids` had been empty in every TUI game** |
+| `tools/replay-viewer/src/{view_model.rs,api.rs,main.rs,replay.rs,Cargo.toml}` | −895 / +6 | Consumes `mtg-view-model` |
+| `tools/replay-viewer/frontend/src/lib/ZoneHand.svelte` | +35/−… | S6 review HIGH: `#each` key must not be the redactor's sentinel `object_id: 0` |
+| `Cargo.toml` (workspace) | +2 | `crates/view-model`, `tools/play-server` |
+
+**Source total (new)**: ~11,600 lines of production code + ~4,300 lines of Rust test code
+(2,700 inline in `main.rs` + 3,516 in `crates/simulator/tests/` + 817 in `crates/view-model/src/tests.rs`
++ 267 engine) + 2,867 lines of Svelte/JS/CSS/config + 782 lines of README.
+
+**Wire surface**: unmoved. `PROTOCOL_VERSION` 32 / `PROTOCOL_SCHEMA_FINGERPRINT` / `HASH_SCHEMA_VERSION` 69
+are all unchanged across the milestone; no `Command`, `GameEvent`, `Effect` variant or `GameState`
+field was added, so `state/hash.rs` needed no edit (plan §7 constraint 6). At S8 close
+`git diff f20823b1..HEAD -- crates/engine crates/card-types crates/card-defs` is **empty**.
+
+### CR Sections Implemented
+
+No new *rules* are implemented — M11-local is a client/driver milestone. What follows is the
+CR each surface reads or enforces.
+
+| CR Section | Implementation |
+|------------|---------------|
+| CR 103.5 / 103.5c / 402.1 | `simulator/setup.rs` — seven-card opening hand, seeded shuffle, pregame `redeal`; `PlaySession::mulligan` |
+| CR 104.2a / 104.3a | `local_game.rs::is_game_over` / `find_winner`; `human_only_actions` offers `Concede` to human seats only |
+| CR 117.3 / 117.3a | `local_game.rs::advance` acting-player resolution and `DecisionKind::Priority` |
+| CR 401.2 / 402.1 / 402.2 | `view-model/redact.rs` — libraries are structurally unrepresentable; hands become counted placeholders |
+| CR 405.1 / 702.36b | `redact_stack` — the stack is public, a face-down spell's identity is not |
+| CR 406.3 / 708.2 / 708.2a / 708.5a | `redact_face_down_permanents` / `redact_face_down_exile` / `redact_combat`; the `is_commander` leak layers cannot close |
+| CR 508.1 / 508.1a | `AttackOptionsView`, `AttackerPicker.svelte`, `api.rs::validate_combat_params` |
+| CR 509.1 / 509.1a / 509.1b | `BlockOptionsView`, `BlockerPicker.svelte`, `validate_combat_params` |
+| CR 509.2 | `local_game.rs::order_blocker_actions`, `params.rs`'s `OrderBlockers` arm, `OrderBlockersOptionsView` |
+| CR 601.2b / 107.3 | `ActionParams::x_value`, `action_needs_x`, `ValuePrompt.svelte` |
+| CR 601.2c | `queries.rs::spell_target_requirements` / `legal_targets_per_slot` / `target_count_range`; `TargetSlotView`; `TargetPicker.svelte` |
+| CR 602.2b | `queries.rs::ability_target_requirements` |
+| CR 605.3b / 106.1a / 106.1b | `params.rs`'s `TapForMana` arm — `any_color` without `chosen_color` is refused, never defaulted to Colorless |
+| CR 700.2 / 700.2a / 700.2c / 700.2f | `spell_default_modes` forwarding, `ModeOptionView`, per-mode `target_slots` |
+| CR 702.96b / 702.127a | Overload → empty requirements; Aftermath half's requirements, both delegated to `casting.rs` |
+| CR 903.5a / 903.6 / 903.9a / 903.9b | `setup.rs` deck admission + `player_commander` + `register_commander_zone_replacements`; `DecisionKind::CommanderZoneChoice` |
+| CR 514.1 / 603.3d / 608.2d | `DecisionKind::{CleanupDiscard,TriggerTargets,EffectChoice}` — the PB-DP7/8/9 blocking decisions surfaced to a human seat |
+
+### Findings
+
+| ID | Severity | File:Line | Description | Status |
+|----|----------|-----------|-------------|--------|
+| MR-M11-01 | **HIGH** | `tools/play-server/src/view.rs::GameSummary` / `api.rs::seat_view` | **Every seat payload carries a complete reconstruction key for every hidden zone.** `GameSummary` ships `seed`, `players` and `mulligan_count` on *every* `GET /api/game`, `POST /api/game`, `POST /api/game/action` and `POST /api/game/mulligan` response, and `PlayApp.svelte` renders the seed in the header. `mtg_simulator::setup::build_initial_state` is deterministic in `cfg` alone (pinned by `test_setup_same_seed_same_state_hash`), and `session::config_for` fixes the only other inputs — `human_seats: {PlayerId(1)}`, `DeckSource::RandomPerSeat` — so `(seed, players, mulligan_count)` rebuilds every other seat's opening hand *and library order* exactly, which is the pair Architecture Invariant 7 and the plan's §7 constraint 4 name verbatim. The milestone's two Invariant-7 gates both stay green while this ships: `test_seat_view_over_http_contains_no_other_hand_card_names` searches the body for card *names*, and `test_production_code_never_builds_an_omniscient_view` scans for omniscient *view-model* entry points. Not exploitable inside M11-local's declared scope (one local human, three in-process bots) — but that is exactly the argument `BugReportView` makes, and unlike `BugReportView` this carries no "must be re-scoped at M10a" note anywhere, sits on the default payload rather than an opt-in route, and `SeatView` is precisely what M10a will put on a socket. **Fix:** give `GameSummary.seed` the same treatment `BugReportView` has — an explicit Invariant-7 exception note in `view.rs`, the README's "Hidden information" section and `memory/decisions.md`, plus an M10a re-scope marker — and gate the field behind the dev/report path rather than the seat view (the client needs `players`/`mulligan_count` for display; it does not need `seed`). | OPEN |
+| MR-M11-02 | **MEDIUM** | `crates/simulator/tests/local_game_playthrough.rs:78`, `crates/simulator/src/heuristic_bot.rs:89` | **`OOS-M11-7` and `OOS-M11-9` are declared "filed" in shipped source and exist in no seed inventory.** Both are named in production/test doc comments as filed seeds; neither has a row in `docs/audits/decision-point-audit.md` §8.1 (which does carry `OOS-M11-5`, `-6` and `-8`) or anywhere else in the repo. They are phantom seeds of exactly the class the 2026-07-31 re-rank found and struck (`OOS-RS1-2`), and both carry real engine claims: `OOS-M11-7` says SBAs are checked on step entry and at resolution rather than on every priority grant (CR 704.3), and `OOS-M11-9` says `combat::handle_declare_attackers` has no "attackers already declared this combat" guard, so a vigilant attacker lets `DeclareAttackers` be accepted without limit (CR 508.1 makes it a once-per-combat turn-based action). **Fix:** add both as rows in `docs/audits/decision-point-audit.md` §8.1 with the CR cite, the observation that produced them (the S8 playthrough, seed 1 turn 19 / the token reports) and the engine-vs-simulator classification. | OPEN |
+| MR-M11-03 | **MEDIUM** | `tools/play-server/README.md:340-352,669-699` vs `src/view.rs::BugReportView` | **The README documents neither `GET /api/game/report` nor the Invariant-7 exception it is, while the source claims it does.** `BugReportView`'s doc block states the M10a re-scope obligation is "recorded here, in the README, and in `memory/decisions.md`". `memory/decisions.md` §5 does record it; the README does not mention the route at all — it is absent from the Routes table, and the "Hidden information" section reads as an unqualified claim ("Architecture Invariant 7 is enforced at one chokepoint… machine-enforced as of Session 7") with no carve-out. A reader auditing Invariant 7 from the README would conclude the crate has no unredacted payload. Same doc-vs-code class the milestone itself repeatedly flags. **Fix:** add the `GET /api/game/report` row to the Routes table and a named exception paragraph to "Hidden information", both pointing at `decisions.md` §5 and the M10a obligation. | OPEN |
+| MR-M11-04 | **MEDIUM** | `tools/play-server/src/main.rs:2436` (`test_production_code_never_builds_an_omniscient_view`) | **The Invariant-7 source gate cannot see a route that serializes engine types directly, which is how the one real exception shipped.** The gate scans production regions for `from_game_`+`state(` and `Viewer::`+`Omniscient`. `BugReportView` reaches neither: it serializes `mtg_engine::Command` and `mtg_engine::GameEvent` verbatim and never touches the view model, so `GET /api/game/report` was added, shipped and reviewed with the gate green. The gate's own failure message asserts a stronger property than it checks ("Every label this crate renders must come from `from_game_state_for(.., Viewer::Seat(..))`"). A second such route would ship equally green. **Fix:** either narrow the message to what is checked, or add a companion gate that pins the set of handlers returning a non-`SeatView` body to exactly `{get_report, get_healthz}` so a third one is a compile/test failure rather than a review question. | OPEN |
+| MR-M11-05 | **MEDIUM** | `tools/play-server/src/view.rs:444-493` | **Omitting `params` and sending `"params": {}` are not equivalent, and the README implies they are.** `ActionRequest.params` carries a bare `#[serde(default)]`, which routes through `ActionParamsDto`'s *derived* `Default` — `auto_tap: false` — while an explicit `{}` takes the field's own `#[serde(default = "default_auto_tap")]` and gets `true`. The README's route table says `{seq, action_index, params?}` with no note, and the crate's stated rationale for `auto_tap: true` ("there is no mana-tapping UI yet, and an unpayable cast is the worst failure on this surface") is silently inverted for the `curl` path the acceptance criterion advertises ("a full game can be played through `curl` alone"). Flagged by the S6 review as reasoned-from-source-not-executed and "a one-test job for S7 or S8"; neither session took it. **Fix:** hand-write `impl Default for ActionParamsDto` with `auto_tap: true` (or point the field default at it), and pin both spellings with one `oneshot` test. | OPEN |
+| MR-M11-06 | **MEDIUM** | `crates/simulator/src/params.rs:399-418` | **A human cannot use a targeted loyalty ability at all, and the gap's own note says it was to be filed and was not.** `LegalAction::ActivateLoyaltyAbility` is outside `action_to_command_with_params`' six-arm parameterization allowlist, so `ActionParams { targets, .. }` on a planeswalker ability is refused with `ParamError::UnsupportedParam("targets")` → 400, and the arm then hard-codes `targets: Vec::new(), x_value: None`. `ActivateBloodrush`, `CastWithMutate` and `CastMorphFaceDown` hard-code `targets: Vec::new()` the same way. The in-source comment reads "KNOWN GAP (M11-local, to be filed for S6/S7)" — S6, S7 and S8 all shipped without filing it, and `view.rs::action_target_requirements` correspondingly returns `Vec::new()` for the variant, so the client is not even shown that targets exist. Planeswalkers are common in Commander (Architecture Invariant 6), and `Command::ActivateLoyaltyAbility` already has both fields. **Fix:** file the seed, then add `ActivateLoyaltyAbility` to the allowlist and to `action_target_requirements`/`target_query_source` (CR 602.2b targets are already reachable through `ability_target_requirements`' sibling path). | OPEN |
+| MR-M11-07 | **MEDIUM** | `crates/simulator/src/local_game.rs::auto_tap_commands_for`, `tools/play-server/frontend/src/lib/ValuePrompt.svelte` | **S7 shipped an `{X}` prompt for a path known to be unpayable, and S8's assigned audit did not dispose of it.** `auto_tap_commands_for` solves against the *printed* `mana_cost` and never reads `cast.x_value`, so with the default `auto_tap: true` every `x_value > 0` cast is refused with `422 "player does not have enough mana to pay the cost"` (`OOS-M11-8`, observed). S7 nonetheless closed README Limitation 5 and shipped `ValuePrompt`'s X box, and routed the fix to "S8 item 2's audit of invisible optional decisions" (plan §4 S7 note 4, workstream-state); S8 item 2 shipped Echo / Cumulative Upkeep / Recover / `OrderBlockers` / `Concede` and neither fixed nor explicitly deferred it — plan item 2's own instruction is "defer with a filed seed rather than half-wiring". The documented workaround (tap mana manually first) is not available from this UI: there is no mana-tapping surface, which is the stated reason `auto_tap` defaults to `true`. The milestone's S7 acceptance line ("the human can attack, block, and cast targeted/X/modal spells") is therefore not met for X. **Fix:** add `cast.x_value` generic pips to the cost `auto_tap_commands_for` solves for (CR 107.3b), or disable the X input with the reason until it is. | OPEN |
+| MR-M11-08 | **MEDIUM** | `tools/play-server/src/view.rs::game_over_view` / `halted_view` | **`GameOverView.violations` and `.reason` are raw `Debug` strings injected into the seat payload outside both Invariant-7 chokepoints.** `seat_view` routes the state through `from_game_state_for(.., Viewer::Seat)` and every event through `event_view_for(.., Viewer::Seat)`, then adds `violations: result.violations.iter().map(|v| format!("{v:?}"))` and `reason: format!("{reason:?}")`, neither of which consults the viewer. The concrete live instance is `invariants::check_no_orphaned_tokens`, whose description interpolates `obj.characteristics.name` for a token in *any* zone; `HaltReason::EngineError(String)` carries a `GameStateError` `Debug` from a bot seat's rejected command. The surface is small today, but it is structurally the S4 review HIGH one surface over — **redaction follows the rendering site, not the zone** — and no test covers it. **Fix:** reduce the payload to `check` names plus counts, or route both strings through an entitlement pass; add a leak-scan case to `test_seat_view_over_http_contains_no_other_hand_card_names` that drives a game to `game_over`. | OPEN |
+| MR-M11-09 | **MEDIUM** | `crates/simulator/src/heuristic_bot.rs:117-134` | **The S8 repeat cap silently disables bot attacks in every extra combat phase.** `reset_repeats_if_new_turn` keys the tally on `state.turn().turn_number` alone, and `RepeatKey::DeclareAttackers::cap()` is 1, so the *second* declare-attackers of a turn scores 0 — below `PassPriority`'s 1 — and the bot passes instead of attacking. CR 508.1 makes declaring attackers once-per-combat, not once-per-turn, and an extra combat phase (CR 506.5; Aggravated Assault, World at War, Moraug, and `aurelia_the_warleader`, which PB-DX1 just made grant a real extra combat) is a legitimate second declaration. The cap's own doc calls itself "a preference cap, not a legality cap", which is true and does not help here: nothing else outscores a pass. The underlying stall it mitigates is `OOS-M11-9` (no engine-side already-declared guard), so the cap cannot simply be removed. **Fix:** reset the tally on combat-phase entry rather than on turn number (or exempt `DeclareAttackers` when `turn.in_extra_combat`), which distinguishes a new combat from a re-declaration of the same one. | OPEN |
+| MR-M11-10 | **MEDIUM** | `tools/play-server/src/session.rs::is_pregame`, `frontend/src/lib/PlayApp.svelte:66` | **A kept hand can be re-dealt: "keep" is client-side only and the mulligan route stays open.** `is_pregame()` is `command_count() == 0`, and `POST /api/game/mulligan {"take": false}` records nothing — `PlayApp.svelte` tracks the keep in a local `keptHand` rune and says so. So after the human keeps, a refresh, a second tab, or a direct POST re-runs `setup::redeal` and replaces the hand they kept. CR 103.5 is explicit that the choice is terminal: *"Once a player chooses not to take a mulligan, the remaining cards become that player's opening hand."* Combined with limitation 1 (a redeal re-rolls the whole table, including every public command zone) this is a state the rules do not allow to be reached. **Fix:** put a `kept: bool` on `PlaySession`, set it from `post_mulligan` with `take: false`, and answer `409 not_pregame` afterwards; `summary.pregame` then means what the client currently has to infer. | OPEN |
+| MR-M11-11 | **LOW** | `crates/simulator/src/local_game.rs:537-541` | **Plan §8 R6's mitigation was never implemented.** R6 recommends "count only *bot* passes toward the guard in `LocalGame`" because a human game legitimately passes a lot; `submit` increments `consecutive_passes` on a human pass exactly as `advance()` does for a bot, and the limits were made configurable (the other half of R6) but the human/bot split was not. Harmless at `max_consecutive_passes: 500`, but the risk register records a mitigation that does not exist. **Fix:** skip the increment when the submitting seat is in `human_seats`, or strike the sentence from §8 R6. | OPEN |
+| MR-M11-12 | **LOW** | `crates/simulator/src/local_game.rs:548-551` vs `src/mana_solver.rs:1-5` | **A doc cite points at a sentence that does not exist.** `auto_tap_commands_for` says "`solve_mana_payment` itself still ignores the pool entirely (that gap is unchanged here; see `mana_solver.rs`'s doc comment)". `mana_solver.rs`'s module doc describes the greedy algorithm and says nothing about the mana pool or about `OOS-M11-2`'s open layer-resolution half (`obj.characteristics.mana_abilities`, read raw at `:66`). **Fix:** add the two sentences to `mana_solver.rs`'s module doc, naming `OOS-M11-2`, or re-point the cite. | OPEN |
+| MR-M11-13 | **LOW** | `crates/simulator/src/driver.rs:122` | **`unreachable!()` in library code.** `GameDriver::run_game` panics on `AdvanceOutcome::AwaitingHuman`. It is genuinely unreachable — `advance()` returns that variant only inside `if self.human_seats.contains(&acting_player)` and the set is `BTreeSet::new()` here — and the argument is written down, but `crates/simulator` is a library and `GameResult` already has an `error: Option<GameDriverError>` channel that would express it without a panic. **Fix:** return `GameResult { error: Some(GameDriverError::EngineError("…")), .. }` and keep the invariant as a `debug_assert!`. | OPEN |
+| MR-M11-14 | **LOW** | `crates/simulator/src/invariants.rs:145-189` | **The rewritten stack check dropped a cheap property the old one incidentally had.** `check_stack_consistency` now asserts both directions between `StackObjectKind::Spell { source_object }` and the Stack zone — correct, and the rewrite is a genuine fix (501 spurious violations across 500 fuzz games → 0). But nothing now rejects two non-copy `Spell` stack objects naming the *same* `source_object`, which CR 400.7 makes impossible (a card entering the stack mints a fresh `ObjectId`) and which is therefore exactly the kind of thing an invariant check is for. **Fix:** track `claimed` as a count for non-copies and report a duplicate. | OPEN |
+| MR-M11-15 | **LOW** | `crates/simulator/src/local_game.rs:437-480` vs `:616-647` | **Auto-tap atomicity is asymmetric between the bot path and the human path, and only one side says so.** `submit` applies tap+cast through `apply_sequence` (clone, run all, commit once) so a tap that succeeds under a cast that is rejected never mutates `self.state`. `advance()`'s bot path applies each command individually and, on failure, issues a `PassPriority` — so a bot's mana can be committed to an empty pool for a cast that never happened. This is the pre-M11 driver's behaviour and is *required* for the byte-identical fuzzer parity the milestone measured, so it should not be changed; but `apply_command`'s doc explains only the tracked/untracked distinction. **Fix:** state the atomicity asymmetry and its fuzzer-parity reason on `apply_command`, next to the existing note. | OPEN |
+| MR-M11-16 | **LOW** | `tools/play-server/README.md:595-665` (limitations 6, 7, 12, 13) | **Four ship-unexercised paths are recorded honestly and tracked nowhere.** `TargetPicker`'s `UpToN` multi-select, per-mode targeting, `needs_x` on `CastSpell`, and every DOM/keyboard behaviour are all "right by construction and unexercised" because no seeded fixture in the S7 sweep dealt the cards. Three of the four are reachable *without* a frontend harness: `DeckSource::Fixed` exists and the README itself names `force_of_vigor` (`Complete`, deck-legal, one `UpToN { count: 2 }`) as the reachable case, and the server-side `TargetSlotView.min`/`max` and `ModeOptionView.target_min`/`max` are what would be pinned. **Fix:** add two `oneshot` tests over a `DeckSource::Fixed` table — one `UpToN` card, one modal card with `mode_targets` — leaving only the DOM half to §8 R7. | OPEN |
+| MR-M11-17 | **LOW** | `crates/view-model/src/event_view.rs:242-254` | **`event_kind` serializes the whole event payload to read one key, on every event of every request.** Its own doc says so and states the fix; the play server calls `event_view_for` for every journal event on every `GET /api/game` and every `POST /api/game/action`. The catch-all arm additionally renders `text` as the bare variant name ("PermanentTapped"), a correct redaction floor and a poor game log. **Fix:** replace with a `match` returning `&'static str` (preserving the reads-no-payload-field property that makes it leak-proof), and add per-variant arms for the events players actually read. | OPEN |
+| MR-M11-18 | **LOW** | `crates/view-model/src/redact.rs:224`, `crates/engine/src/rules/queries.rs:177-222` | **Two known-quadratic paths, both measured once and neither bounded.** `redact_stack` does a linear `stack_objects().iter().find(..)` per stack entry (O(n²) in stack depth); `legal_targets_per_slot` enumerates every Battlefield/Stack/Graveyard object once per requirement, each candidate costing a `calculate_characteristics`. `view.rs::action_option_view` measured one whole `decision_view` at ~201 µs on a 22-candidate turn-17 board (debug build) and says plainly that "ten targeted options over a hundred candidates is ~50× this and is worth re-measuring". Fine for M11-local's request/response cadence. **Fix:** none now; re-measure before M10a puts four clients on one server, and cache per `(state, source)` at the play-server layer as `queries.rs` suggests rather than making the query lazier. | OPEN |
+| MR-M11-19 | **INFO** | `crates/simulator/src/driver.rs` | **The `GameDriver::run_game` re-expression is faithful — verified statement by statement and by measurement.** Every counter and branch of the pre-refactor loop maps onto `LocalGame`: the old `command_count`/`total_commands` pair was always incremented together and is now one field; `check_all` + `prev_turn` update on the tracked command sequence only, and *not* on the structural pass, the empty-legal-actions pass or the rejected-command fallback, which `apply_command(cmd, track: false)` reproduces exactly; the `max_turns` / `max_commands` / `max_consecutive_passes: 500` valves and their `GameDriverError` mappings are unchanged; the `start_game` failure string keeps its pre-M11 shape by unwrapping `LocalGameError::Engine`. The only semantic additions on the path are the `blocking_decision` branch (PB-DP7/8/9, not M11) and the `pending` re-entrancy guard (dead with `human_seats` empty). Measured: 500 games at `--profile fuzz --seed 12345 --max-turns 40` are identical in turns, commands and outcome on both sides (`memory/m11/s8-fuzz-parity.md`). The only reported difference is 501 → 0 invariant violations, all from the `check_stack_consistency` rewrite, which is a correction — recorded fuzz artefacts quoting `stack_consistency` counts are no longer comparable, and that is stated in the parity doc. | — |
+| MR-M11-20 | **INFO** | `crates/view-model/src/redact.rs` | **The Invariant-7 redaction layer is the strongest work in the milestone, and its best finding is one layers structurally cannot close.** The module carries a complete inventory table of every site in `lib.rs` that can identify a card, with a disposition for each — which is the right unit of analysis, and is what caught `PermanentView::is_commander`: it renders a *boolean*, derived from the raw `obj.card_id`, and CR 903.3 makes the commander designation "an attribute of the card itself" rather than a characteristic, so CR 708.2a's face-down override does not touch it and `calculate_characteristics` cannot. On a face-down commander every characteristic comes back blanked and `is_commander: true` names the card outright, because CR 903.6 already told the table which card it is. Also correct and worth recording: the ownership-not-control key is the conservative direction and says so (CR 708.5a would let a thief look); `redact_stack` matches by id rather than index, citing the Monastery Mentor index-namespace bug; and the `hidden` flag is what `ZoneHand.svelte` keys on after the S6 review HIGH, rather than the sentinel `object_id: 0`. | — |
+| MR-M11-21 | **INFO** | milestone-wide | **The wire-neutrality constraint held end to end.** Plan §7 constraint 6 forbade any new `Command`/`GameEvent`/`Effect` variant, and none was added across eight sessions — the parameterization lives in `ActionParams`, which is assembled into an existing `Command` inside `crates/simulator` and never crosses the wire, and every client submission is an `action_index` into a `PendingDecision` the server still holds, so `LegalAction` is never serialized either. `PROTOCOL_VERSION` 32 and `HASH_SCHEMA_VERSION` 69 are unmoved, `state/hash.rs` needed no edit, and the milestone's whole engine footprint is one 227-line read-only query module plus a verbatim extraction of three helpers out of `handle_cast_spell` so the query and the cast path cannot drift. Architecture Invariant 1 is intact: `tools/play-server` is the only crate with async or IO, and its own tests machine-enforce that no test in the crate ever binds a socket. | — |
+
+### Test Coverage Assessment
+
+| Behavior | Coverage | Notes |
+|----------|----------|-------|
+| `LocalGame` core (advance/submit/seq/journal/limits) | Full | 8 tests in `tests/local_game.rs`; idempotent `advance`, stale `seq`, unknown index, journal on/off, pass-limit halt |
+| Bot-only parity with `GameDriver` | Full | `test_local_game_bot_only_matches_game_driver_for_fixed_seeds` (5 seeds) + a measured 500-game fuzz diff (`memory/m11/s8-fuzz-parity.md`) |
+| Blocking decisions surfaced to a human (CR 514.1 / 603.3d / 608.2d) | Full | 9 `test_dp7_*` / `test_dp8_*` / `test_dp9_*` tests, human and bot sides both |
+| Human casts a targeted spell (CR 601.2c) | Full | `test_human_casts_targeted_spell_through_local_game` asserts the damage **resolved**; illegal target rejected without state change |
+| Pregame setup determinism + deck admission (CR 103.5 / 903.5a / 903.6) | Full | 10 tests in `tests/setup.rs`, including the commander-registration regression |
+| CR 103.5 bottoming half on a kept hand | **None** | Not implemented on the redeal path at all; `cards_to_bottom` is refused with 400 (README limitation 2) |
+| Engine query surface (CR 601.2c / 602.2b / 702.96b) | Good | 7 tests; shroud/protection exclusion, player targets, `UpToN` range, Overload, layer-resolved ability list, both missing-object guards. **No test for Aftermath (CR 702.127a)** or for the per-mode divergence |
+| Seat redaction (Invariant 7, view-model) | Full | 10 tests, each proven non-vacuous by mutation; the all-seats leak scan, the face-down attacker/blocker/target case and the face-down-commander case were all added by the S4 review |
+| Omniscient path unchanged (replay viewer) | Full | Golden JSON snapshot captured from pristine pre-move code, compared as `Value` |
+| HTTP contract | Full | 28 `oneshot` tests; every documented status/`kind`, the poison-recovery atomicity in both directions, the report route, plus two source gates (no socket, no omniscient view) |
+| Invariant 7 at the HTTP boundary | Partial | `test_seat_view_over_http_contains_no_other_hand_card_names` asserts an exact 20-name absence and 7-name presence — strong, but it searches for **names**, so the seed-as-reconstruction-key (MR-M11-01) and the `game_over.violations` string channel (MR-M11-08) are both invisible to it |
+| Full scripted playthrough | Full | 5 seeds through `LocalGame` alone, zero violations, non-vacuity pinned on `PlayLand` + `DeclareAttackers`, plus a same-seed reproducibility test |
+| Human-only actions (CR 104.3a / 509.2) | Full | 13 tests: offered/not-offered in both directions, bot seats never offered either, default order is a verbatim no-op, not re-offered once set |
+| Combat submission validation (CR 508.1 / 509.1) | Good | Server-side membership + duplicate checks tested; menace/evasion deliberately left to the engine |
+| `TargetPicker` `UpToN` multi-select | **None** | README limitation 12 — no seeded fixture dealt such a card; `force_of_vigor` is reachable via `DeckSource::Fixed` (MR-M11-16) |
+| Per-mode targeting (CR 700.2c) | **None** | README limitation 7 — same reason |
+| `needs_x` on `CastSpell` | **None** | README limitation 6; the `ActivateAbility` half *is* covered |
+| Frontend (DOM, keyboard, pickers) | **None** | No harness in the repo (plan §8 R7); manual checklists in the README, with the two headless-unverifiable steps marked as such |
+| `params` omitted vs `{}` | **None** | MR-M11-05 |
+
+### Notes
+
+- **Most significant finding (MR-M11-01).** The milestone did serious, well-instrumented work on
+  Architecture Invariant 7 — two chokepoints, a mutation-proven test suite, an all-seats leak scan,
+  a source gate — and then shipped the seed on every payload, which reconstructs everything the
+  chokepoints remove. It is not exploitable today for the same reason `BugReportView` is acceptable
+  today (one local human, three in-process bots), and I judge the `BugReportView` exception itself
+  to be sound: the argument is stated, the M10a re-scope obligation is recorded in `decisions.md`,
+  the route is opt-in, it is a pure read that cannot move the game, and a redacted repro genuinely
+  is not a repro. What separates MR-M11-01 from it is that nothing anywhere records the seed as an
+  exception, and `SeatView` — unlike the report — is the object M10a puts on a socket.
+
+- **Second (MR-M11-02, MR-M11-03, MR-M11-04 as a group).** All three are the same shape: a claim
+  about a record that the record does not contain. Two seeds are named as filed in shipped source
+  and appear in no inventory; the README is cited by source as documenting an exception it never
+  mentions; and the Invariant-7 gate's failure message asserts more than the gate checks. This
+  milestone's own history is unusually good at catching this class *inside* a session (S5's three
+  fix cycles are almost entirely this), which makes the residue worth closing rather than tolerating.
+
+- **Third (MR-M11-07 + MR-M11-06).** Two capabilities the UI advertises and cannot deliver: a
+  non-zero `{X}` is announced and then refused by the engine, and a targeted loyalty ability is
+  refused by the params table before it gets that far. Both are known and documented in place; what
+  is missing is a disposition. The `{X}` one had an owner (S8 item 2) that did not pick it up, and
+  the loyalty one has a source comment promising a filing that never happened.
+
+- **Design quality is high, and two decisions deserve recording.** The steppable-driver choice over
+  a channel-backed `Bot` is vindicated by the code: `submit` is a synchronous `&mut self` method
+  that returns `Err` and leaves state untouched, the whole async surface is one `block_in_place`
+  deep, and the fuzzer runs on the same loop with the human branch structurally absent. And the
+  "`LegalAction` is never serialized" rule — the client posts an index into a `PendingDecision` the
+  server still holds — is what makes the no-new-wire-variant constraint achievable at all, and it
+  makes a cross-seat command unrepresentable rather than merely checked.
+
+- **The review-cycle discipline inside the milestone is visible in the artefact.** S4's HIGH
+  ("redaction follows the rendering site, not the zone") is applied forward in `view.rs`'s module
+  doc and in `NameIndex`; S6's HIGH (the `#each` key on a redacted sentinel id) is fixed in the
+  *shared* component rather than a copy, which is the whole reason the alias exists; S5's three
+  successive audits each found the previous one's overstatement. MR-M11-08 and MR-M11-01 are both
+  the S4 HIGH one surface further out, which suggests the generalisation is not finished rather
+  than that it was wrong.
+
+- **Cross-milestone implications.** M10a inherits four things from this review: the seed exposure
+  (MR-M11-01), the report route's stated re-scope obligation, the `event_view_for` layer as the
+  concrete stand-in for `GameEvent::private_to()` (whose per-*event* verdict cannot express the
+  per-*field* entitlement this layer needs), and the `GameSummary`/`GameOverView` string channels
+  that bypass both chokepoints. The `crates/view-model` extraction also moved the two exhaustive
+  matches (`StackObjectKind`, `KeywordAbility`) that runners historically miss — `memory/gotchas-infra.md`
+  was updated, and `cargo build --workspace` remains the gate.
+
+- **1 HIGH / 9 MEDIUM / 8 LOW / 3 INFO.** A fix phase is required.
+
+---
+
 ## Cross-Milestone Issue Index
 
 All findings across all milestones, sorted by severity then milestone.
@@ -1640,6 +1868,7 @@ All findings across all milestones, sorted by severity then milestone.
 | MR-M9.4-01 | M9.4 | Cascade bottom-of-library move silently drops errors (`let _ =` in `copy.rs:368`) | CLOSED — fix session 1 |
 | MR-M9.4-02 | M9.4 | Cascade resolved inline during CastSpell, not as triggered ability (CR 702.85a) | CLOSED — fix session 1 |
 | MR-M9.4-03 | M9.4 | Storm resolved inline during CastSpell, not as triggered ability (CR 702.40a) | CLOSED — fix session 1 |
+| MR-M11-01 | M11-local | `GameSummary.seed` in every seat payload reconstructs every hidden zone (Architecture Invariant 7) | OPEN |
 
 ### MEDIUM
 
@@ -1702,6 +1931,15 @@ All findings across all milestones, sorted by severity then milestone.
 | MR-M9.5-02 | M9.5 | Battlefield permanents show raw characteristics, not calculated (post-layer) values | CLOSED — fix session 1 |
 | MR-M9.5-03 | M9.5 | Redundant `cmd.clone()` on every process_command call in replay.rs | CLOSED — fix session 1 |
 | MR-M9.5-04 | M9.5 | Serialization errors silently dropped in get_step handler | CLOSED — fix session 1 |
+| MR-M11-02 | M11-local | `OOS-M11-7` / `OOS-M11-9` declared filed in source, present in no seed inventory | OPEN |
+| MR-M11-03 | M11-local | README documents neither `GET /api/game/report` nor its Invariant-7 exception, while source says it does | OPEN |
+| MR-M11-04 | M11-local | Invariant-7 source gate cannot see a route that serializes engine types directly | OPEN |
+| MR-M11-05 | M11-local | Omitting `params` and sending `{}` are not equivalent (`auto_tap` false vs true) | OPEN |
+| MR-M11-06 | M11-local | Targeted loyalty abilities unusable by a human; promised seed never filed | OPEN |
+| MR-M11-07 | M11-local | `{X}` prompt ships for an unpayable path (`OOS-M11-8`); S8's assigned audit did not dispose of it | OPEN |
+| MR-M11-08 | M11-local | `GameOverView.violations`/`.reason` are raw `Debug` strings outside both redaction chokepoints | OPEN |
+| MR-M11-09 | M11-local | Repeat cap keyed on turn number disables bot attacks in every extra combat (CR 506.5/508.1) | OPEN |
+| MR-M11-10 | M11-local | A kept hand can be re-dealt — "keep" is client-side only (CR 103.5) | OPEN |
 
 ### LOW
 
