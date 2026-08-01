@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-07-20 05:34 UTC  
-**Git:** `b1c21909` on `main`  
+**Generated:** 2026-08-01 04:42 UTC  
+**Git:** `2d6fb625` on `main`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -25,8 +25,8 @@ and what is intentionally NOT in it.**
 | Plan cards still missing a def file | 135 | · |
 | Bonus defs (on disk, outside plan) | 322 | · |
 | Effective coverage vs plan target | **111%** (1,823 / 1,636) | — |
-| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 63.1% | 1,139 | · |
-| With TODO markers | 514 | · |
+| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 63.2% | 1,140 | +1 |
+| With TODO markers | 513 | -1 |
 | Empty `abilities: vec![]` placeholders | 151 | · |
 | Total TODO lines across all defs | 947 | · |
 
@@ -34,9 +34,9 @@ and what is intentionally NOT in it.**
 
 | Window | New files added | Existing files modified |
 | --- | ---: | ---: |
-| last 7 days | 57 | 1,769 |
+| last 7 days | 0 | 6 |
 | last 30 days | 57 | 2,943 |
-| last 90 days | 57 | 2,979 |
+| last 90 days | 57 | 2,955 |
 | last 1 year | 1,830 | 3,366 |
 
 ## Bonus defs outside the plan
@@ -66,7 +66,7 @@ are blocked on engine primitives.
 
 | Group | Auth / Total | % | Clean | TODO | Empty |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| `combat-keyword` | 187 / 187 | 100% | 88 | 84 | 15 |
+| `combat-keyword` | 187 / 187 | 100% | 89 | 83 | 15 |
 | `draw` | 164 / 169 | 97% | 78 | 69 | 17 |
 | `token-create` | 148 / 155 | 95% | 85 | 47 | 16 |
 | `land-etb-tapped` | 138 / 138 | 100% | 116 | 22 | 0 |
@@ -233,6 +233,10 @@ tyvar_jubilant_brawler: // TODO: static — creatures you control can activate a
 ## Recent card-touching commits
 
 ```
+95c35f7a W6-prim: scutemob-160 — PB-DX1 review fixes
+03053182 W6-prim: scutemob-160 — PB-DX1 phase 8: card def dispositions (§6.3, §6.4)
+460e7f4e W6-prim: scutemob-154 -- PB-DP6 phase 1: queue-time intervening-if gate (CR 603.4)
+5c463339 W6-prim: scutemob-152 -- PB-DP4 engine changes: attack tax debit + payment deadline (DP-10/DP-11)
 36e64283 W6-prim: scutemob-145 — PB-RS3 /review nits: correct two overstated claims
 83e0f4e1 W6-prim: scutemob-145 — PB-RS3 fix cycle: all 7 review findings (0 HIGH, 3 MEDIUM, 4 LOW)
 95626742 W6-prim: scutemob-145 — PB-RS3 card-def roster: 3 flips + 1 integrity repair
@@ -254,10 +258,6 @@ f5a44ab6 W6-prim: PB-OS4 fix pass — ship narrowed (scutemob-130)
 fc3ae4ef W6-prim: PB-OS4 card defs + tests — Fable + Edgar return-transformed
 e16cd0c8 W6-prim: PB-OS3 — WhenTappedForMana trigger target dispatch (OOS-EF6-1)
 95c8a632 scutemob-128: PB-OS2 — thread sacrificed-creature LKI through the optional-cost path (EF-EF1-A)
-a8eb45b5 scutemob-114: PB-EF12 — granted any_color ManaAbility color choice (EF-W-PB2-3) — CLOSES THE EF QUEUE
-50a83faf scutemob-112: PB-EF11 COMMIT 2 — spell-only TargetSpellWithSingleTarget + Misdirection (PROTOCOL 17, HASH 55)
-135ef9e6 scutemob-112: PB-EF11 COMMIT 1 — WheelDraw::GreatestDiscarded + Windfall (PROTOCOL 16, HASH 54)
-9418011b scutemob-111: PB-EF10 COMMIT 3 — Condition::SacrificeFired + version bump (PROTOCOL 15, HASH 53)
 ```
 
 ## Missing card-defs sidecar
