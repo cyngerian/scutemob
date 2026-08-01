@@ -4776,6 +4776,46 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         })
                         .collect();
                     for (haunt_obj_id, haunt_card_id, haunt_controller) in haunt_exiled {
+                        // CR 603.4 (PB-DX1, OOS-DP6-9): queue-time gate. Mirror
+                        // resolution.rs's `HauntedCreatureDies` find_map to locate
+                        // the card-def's own `TriggerCondition::HauntedCreatureDies`
+                        // ability and read its `intervening_if`, then gate exactly
+                        // like every other queue site (`carddef_intervening_if_
+                        // holds_at_queue_time`). CR 702.55c: the haunt source lives
+                        // in exile persistently (not a look-back trigger), so a
+                        // `SourceOnBattlefield`-style condition correctly reads
+                        // false via the normal evaluable path — no LookBack
+                        // carve-out needed.
+                        let intervening_if = haunt_card_id.clone().and_then(|cid| {
+                            state.card_registry.get(cid).and_then(|def| {
+                                def.abilities.iter().find_map(|ab| {
+                                    if let AbilityDefinition::Triggered {
+                                        trigger_condition: TriggerCondition::HauntedCreatureDies,
+                                        intervening_if,
+                                        ..
+                                    } = ab
+                                    {
+                                        Some(intervening_if.clone())
+                                    } else {
+                                        None
+                                    }
+                                })
+                            })
+                        });
+                        let gate_holds = intervening_if
+                            .map(|cond| {
+                                carddef_intervening_if_holds_at_queue_time(
+                                    state,
+                                    cond.as_ref(),
+                                    haunt_controller,
+                                    haunt_obj_id,
+                                )
+                            })
+                            // No card def / no matching ability found: nothing to gate on.
+                            .unwrap_or(true);
+                        if !gate_holds {
+                            continue;
+                        }
                         triggers.push(PendingTrigger {
                             triggering_event: Some(TriggerEvent::HauntedCreatureDies),
                             data: Some(TriggerData::DeathHauntedCreatureDies {

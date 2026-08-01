@@ -20,8 +20,9 @@ use mtg_engine::state::game_object::InterveningIf;
 use mtg_engine::{
     all_cards, enrich_spec_from_def, AbilityDefinition, AttackTarget, CardDefinition, CardFace,
     CardId, CardRegistry, CardType, Color, Command, Condition, CounterType, Effect, EffectAmount,
-    GameEvent, GameState, GameStateBuilder, KeywordAbility, ManaCost, ObjectId, ObjectSpec,
-    PlayerId, PlayerTarget, Step, SubType, TriggerCondition, TypeLine, ZoneId,
+    FaceDownKind, GameEvent, GameState, GameStateBuilder, KeywordAbility, ManaColor, ManaCost,
+    ObjectId, ObjectSpec, PlayerId, PlayerTarget, Step, SubType, TriggerCondition,
+    TurnFaceUpMethod, TypeLine, ZoneId,
 };
 use std::collections::HashMap;
 
@@ -886,4 +887,300 @@ fn test_dx1_corpus_roster_is_enumerated_not_grepped() {
         "non-vacuity: at least the 3 sites that already propagate once_per_turn \
          (rows 15/16/17) should be authored with once_per_turn: true on a card def"
     );
+}
+
+// ── T10-T11: rider fixes (plan §9.1, §9.2) ──────────────────────────────────
+
+/// CR 708.8 (WhenTurnedFaceUp) + a synthetic card-def intervening-if.
+///
+/// Latent: no corpus `WhenTurnedFaceUp` def carries an `intervening_if` (T9's
+/// enumeration confirms zero such defs exist), so this rider's probe is
+/// necessarily a SYNTHETIC def -- there is no real card to drive it with.
+/// Card-def / setup pattern mirrors
+/// `tests/mechanics_m_z/morph.rs::when_turned_face_up_def` /
+/// `build_state_with_face_down_object`.
+fn turn_face_up_def_with_iif(iif: Condition) -> CardDefinition {
+    CardDefinition {
+        card_id: cid2("dx1-t10-face-up"),
+        name: "DX1 T10 Face-Up Trigger".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            ..Default::default()
+        }),
+        types: TypeLine {
+            card_types: [CardType::Creature].into_iter().collect(),
+            ..Default::default()
+        },
+        oracle_text: "Morph {2}. When this creature is turned face up, if <condition>, draw a \
+                      card."
+            .to_string(),
+        abilities: vec![
+            AbilityDefinition::Morph {
+                cost: ManaCost {
+                    generic: 2,
+                    ..Default::default()
+                },
+            },
+            AbilityDefinition::Triggered {
+                once_per_turn: false,
+                trigger_condition: TriggerCondition::WhenTurnedFaceUp,
+                effect: Effect::DrawCards {
+                    player: PlayerTarget::Controller,
+                    count: EffectAmount::Fixed(1),
+                },
+                intervening_if: Some(iif),
+                targets: vec![],
+                modes: None,
+                trigger_zone: None,
+            },
+        ],
+        power: Some(2),
+        toughness: Some(2),
+        ..Default::default()
+    }
+}
+
+/// OOS-DP6-5 / CR 603.4 s2 / CR 708.8: `resolution.rs`'s `TurnFaceUpTrigger`
+/// arm executed its effect unconditionally, ignoring `intervening_if`
+/// entirely -- while the QUEUE end (`abilities.rs`'s `PermanentTurnedFaceUp`
+/// arm, PB-DP6's Category-A site A12) already gated correctly. Condition TRUE
+/// at declaration (queues), flipped FALSE before resolution: the draw must
+/// NOT happen. Pre-fix: FAILS -- the draw happens regardless (verified by
+/// reverting `resolution.rs`'s `TurnFaceUpTrigger` arm and re-running: FAILED,
+/// hand count off by one).
+#[test]
+fn test_dx1_turn_face_up_intervening_if_rechecked_at_resolution() {
+    let p1 = p(1);
+    let p2 = p(2);
+
+    let def = turn_face_up_def_with_iif(Condition::ControllerLifeAtLeast(20));
+    let registry = CardRegistry::new(vec![def.clone()]);
+
+    let spec = ObjectSpec::card(p1, &def.name)
+        .in_zone(ZoneId::Battlefield)
+        .with_card_id(def.card_id.clone())
+        .with_types(vec![CardType::Creature]);
+    let library_card = ObjectSpec::card(p1, "DX1 T10 Library Filler").in_zone(ZoneId::Library(p1));
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .object(spec)
+        .object(library_card)
+        .player_life(p1, 20)
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+
+    // Mark the permanent face-down as a morph (mirrors
+    // morph.rs::build_state_with_face_down_object).
+    let face_down_id = find_by_name(&state, &def.name);
+    {
+        let obj = state.objects_mut().get_mut(&face_down_id).unwrap();
+        obj.characteristics.power = def.power;
+        obj.characteristics.toughness = def.toughness;
+        obj.status.face_down = true;
+        obj.face_down_as = Some(FaceDownKind::Morph);
+    }
+    state
+        .players_mut()
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Colorless, 2);
+    state.turn_mut().priority_holder = Some(p1);
+
+    let initial_hand = state
+        .objects()
+        .values()
+        .filter(|o| o.zone == ZoneId::Hand(p1))
+        .count();
+
+    let (mut state, _) = process_command(
+        state,
+        Command::TurnFaceUp {
+            player: p1,
+            permanent: face_down_id,
+            method: TurnFaceUpMethod::MorphCost,
+        },
+    )
+    .expect("TurnFaceUp should succeed");
+
+    assert_eq!(
+        state.stack_objects().len(),
+        1,
+        "life 20 >= 20 must queue the WhenTurnedFaceUp trigger (queue end already \
+         gated correctly by PB-DP6's A12 -- this is the baseline, not the fix)"
+    );
+
+    // Flip the condition false BETWEEN queue time and resolution.
+    state.players_mut().get_mut(&p1).unwrap().life_total = 10;
+
+    let (state, _) = pass_all(state, &[p1, p2]);
+    let final_hand = state
+        .objects()
+        .values()
+        .filter(|o| o.zone == ZoneId::Hand(p1))
+        .count();
+    assert_eq!(
+        final_hand, initial_hand,
+        "CR 603.4 s2 / OOS-DP6-5: the intervening-if is FALSE at resolution (life \
+         10 < 20), so the WhenTurnedFaceUp trigger must resolve with NO effect -- \
+         no card should be drawn"
+    );
+}
+
+/// A synthetic Haunt creature whose `HauntedCreatureDies` ability carries a
+/// card-def `intervening_if`. Latent (OOS-DP6-9): no corpus Haunt def carries
+/// one, so this is necessarily synthetic -- mirrors
+/// `tests/mechanics_e_l/haunt.rs::haunt_creature_def`.
+fn haunt_def_with_iif(card_id: &str, name: &str, iif: Condition) -> CardDefinition {
+    CardDefinition {
+        card_id: cid2(card_id),
+        name: name.to_string(),
+        mana_cost: None,
+        types: TypeLine {
+            card_types: [CardType::Creature].into_iter().collect(),
+            ..Default::default()
+        },
+        oracle_text: "Haunt. When the creature it haunts dies, if <condition>, gain 2 life."
+            .to_string(),
+        abilities: vec![
+            AbilityDefinition::Keyword(KeywordAbility::Haunt),
+            AbilityDefinition::Triggered {
+                once_per_turn: false,
+                trigger_condition: TriggerCondition::HauntedCreatureDies,
+                effect: Effect::GainLife {
+                    player: PlayerTarget::Controller,
+                    amount: EffectAmount::Fixed(2),
+                },
+                intervening_if: Some(iif),
+                targets: vec![],
+                modes: None,
+                trigger_zone: None,
+            },
+        ],
+        power: Some(2),
+        toughness: Some(2),
+        ..Default::default()
+    }
+}
+
+/// Drive a haunt creature through CR 702.55a/b: it dies, its HauntExileTrigger
+/// resolves, and it ends up in exile haunting `target_name`. Returns the state
+/// with the haunt card safely in exile (not yet triggered by the target's
+/// death) and the target's `ObjectId`.
+fn haunt_setup_to_exiled(
+    def: CardDefinition,
+    target_name: &str,
+    p1: PlayerId,
+    p2: PlayerId,
+) -> (GameState, ObjectId) {
+    let haunt_name = def.name.clone();
+    let card_id = def.card_id.clone();
+    let registry = CardRegistry::new(vec![def]);
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::creature(p1, &haunt_name, 2, 2)
+                .with_card_id(card_id)
+                .with_keyword(KeywordAbility::Haunt)
+                .with_damage(2), // lethal -> SBA kills it
+        )
+        .object(ObjectSpec::creature(p2, target_name, 2, 2))
+        .with_registry(registry)
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+
+    // Step 1: SBA kills the haunt creature -> HauntExileTrigger queues.
+    let (state, _) = pass_all(state, &[p1, p2]);
+    // Step 2: HauntExileTrigger resolves -> haunt card exiled, haunting_target set.
+    let target_id = find_by_name(&state, target_name);
+    let (state, _) = pass_all(state, &[p1, p2]);
+
+    (state, target_id)
+}
+
+/// OOS-DP6-9 / CR 603.4, BOTH ends, CR 702.55c. Two independent scenarios:
+///
+/// Part A (queue end): the card-def intervening-if is FALSE the whole time.
+/// Pre-fix, the queue site (`abilities.rs`'s haunt-exiled loop) never read
+/// `intervening_if` at all, so `HauntedCreatureDiesTrigger` queued
+/// unconditionally. Post-fix it must NOT queue.
+///
+/// Part B (resolution end): the condition is TRUE when the target dies
+/// (queues) and flipped FALSE before resolution -- the effect must not fire.
+/// Pre-fix, `resolution.rs`'s `find_map` never read `intervening_if` either,
+/// so the effect always executed.
+///
+/// Both cited pre-fix mechanisms were verified to independently produce the
+/// wrong outcome by reverting `resolution.rs`'s haunt arm and (for Part A)
+/// `abilities.rs`'s haunt-exiled loop and re-running this test: both FAILED.
+#[test]
+fn test_dx1_haunt_intervening_if_gated_at_both_ends() {
+    let p1 = p(1);
+    let p2 = p(2);
+
+    // ── Part A: queue end -- condition FALSE throughout. ──
+    {
+        let def = haunt_def_with_iif(
+            "dx1-t11a-haunt",
+            "DX1 T11a Haunt Creature",
+            Condition::ControllerLifeAtLeast(999),
+        );
+        let (mut state, target_id) = haunt_setup_to_exiled(def, "DX1 T11a Target", p1, p2);
+
+        // Kill the haunted target creature.
+        let target_obj = state.objects_mut().get_mut(&target_id).unwrap();
+        target_obj.damage_marked = 2;
+
+        let (state, _) = pass_all(state, &[p1, p2]);
+        assert!(
+            state.stack_objects().is_empty(),
+            "Part A (queue end): a FALSE card-def intervening-if must gate \
+             HauntedCreatureDiesTrigger -- it must never reach the stack \
+             (CR 603.4 s1, CR 702.55c); stack: {:?}",
+            state.stack_objects()
+        );
+    }
+
+    // ── Part B: resolution end -- condition TRUE at queue time, flipped FALSE
+    //    before resolution. ──
+    {
+        let def = haunt_def_with_iif(
+            "dx1-t11b-haunt",
+            "DX1 T11b Haunt Creature",
+            Condition::ControllerLifeAtLeast(20),
+        );
+        let (mut state, target_id) = haunt_setup_to_exiled(def, "DX1 T11b Target", p1, p2);
+        state.players_mut().get_mut(&p1).unwrap().life_total = 20;
+
+        // Kill the haunted target creature -- condition TRUE, trigger queues.
+        let target_obj = state.objects_mut().get_mut(&target_id).unwrap();
+        target_obj.damage_marked = 2;
+        let (mut state, _) = pass_all(state, &[p1, p2]);
+        assert_eq!(
+            state.stack_objects().len(),
+            1,
+            "Part B setup: life 20 >= 20 must queue HauntedCreatureDiesTrigger"
+        );
+
+        // Flip the condition false BETWEEN queue time and resolution.
+        state.players_mut().get_mut(&p1).unwrap().life_total = 10;
+
+        let (state, _) = pass_all(state, &[p1, p2]);
+        assert_eq!(
+            life_of(&state, p1),
+            10,
+            "Part B (resolution end): CR 603.4 s2 -- the condition is FALSE at \
+             resolution (life 10 < 20), so the haunt effect (GainLife 2) must NOT \
+             execute; life must stay at 10, not 12"
+        );
+    }
 }
