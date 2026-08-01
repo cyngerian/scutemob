@@ -96,31 +96,92 @@ fn check_mana_non_negative(_state: &GameState, _violations: &mut Vec<InvariantVi
     // This check is a no-op but kept for documentation and future-proofing.
 }
 
-/// 4. Stack consistency: stack_objects matches objects in Stack zone
+/// 4. Stack consistency: the cards in `ZoneId::Stack` are exactly the source cards
+///    of the spells on the stack.
+///
+/// # This check used to compare two different id spaces (M11-local S8)
+///
+/// It previously asserted `zone(Stack).object_ids() == stack_objects().map(|so| so.id)`,
+/// as sets. Those two sets are **never** equal in a healthy game, and the reason is
+/// structural rather than incidental:
+///
+/// * `casting.rs::handle_cast_spell` first does
+///   `state.move_object_to_zone(card, ZoneId::Stack)`, which mints a fresh `ObjectId`
+///   for the card under CR 400.7 — call it *n*;
+/// * it then does `let stack_entry_id = state.next_object_id()` — *n+1* — and that is
+///   the `StackObject::id`.
+///
+/// So every ordinary spell cast produced **two** violations at once ("*n* in Stack zone
+/// but not in stack_objects" and "*n+1* in stack_objects but not in Stack zone"), and
+/// every activated or triggered ability produced **one** (an ability puts a
+/// `StackObject` on the stack but moves no card, so its id has no Stack-zone
+/// counterpart and never could). Observed directly: the S8 playthrough over the real
+/// card pool reported 44 of them across five turns of one seed, in consecutive-integer
+/// pairs, in a game with no actual defect.
+///
+/// This is the same id-space confusion `tools/play-server/src/view.rs`'s `NameIndex`
+/// documents from the other side — `StackObject::id` and the Stack-zone `ObjectId` are
+/// different namespaces that both count from small integers, so a comparison between
+/// them type-checks and means nothing.
+///
+/// # What is actually invariant
+///
+/// `StackObjectKind::Spell { source_object }` documents `source_object` as "the
+/// `ObjectId` of the card now in `ZoneId::Stack`", and it is the only kind that moves a
+/// card there (every other variant's source "remains in whatever zone it is in"). The
+/// four sites in the engine that move an object into `ZoneId::Stack`
+/// (`casting.rs::handle_cast_spell`, the two cascade/discover paths in `copy.rs`, and
+/// `resolution.rs`'s suspend recast) all end in that same `Spell` kind. So:
+///
+/// 1. every non-copy `Spell` stack object's `source_object` is in `ZoneId::Stack`, and
+/// 2. every object in `ZoneId::Stack` is the `source_object` of some `Spell` stack
+///    object.
+///
+/// **Copies are excluded from (1) and only from (1)** (CR 707.10): `copy.rs` clones the
+/// original's `kind` wholesale, so a copy's `source_object` names the *original's* card
+/// — which is correct while the original is still on the stack and dangling the moment
+/// the original is countered, without anything being wrong. A copy adds no Stack-zone
+/// object, so it cannot make (2) fail either way.
 fn check_stack_consistency(state: &GameState, violations: &mut Vec<InvariantViolation>) {
+    use mtg_engine::StackObjectKind;
+
     let stack_zone_ids: HashSet<ObjectId> = if let Ok(zone) = state.zone(&ZoneId::Stack) {
         zone.object_ids().into_iter().collect()
     } else {
         HashSet::new()
     };
 
-    let stack_obj_ids: HashSet<ObjectId> = state.stack_objects().iter().map(|so| so.id).collect();
-
-    for id in &stack_zone_ids {
-        if !stack_obj_ids.contains(id) {
+    // The source cards claimed by the spells currently on the stack.
+    let mut claimed: HashSet<ObjectId> = HashSet::new();
+    for so in state.stack_objects().iter() {
+        let StackObjectKind::Spell { source_object } = &so.kind else {
+            continue;
+        };
+        claimed.insert(*source_object);
+        if so.is_copy {
+            continue;
+        }
+        if !stack_zone_ids.contains(source_object) {
             violations.push(InvariantViolation {
                 check: "stack_consistency".into(),
-                description: format!("Object {:?} in Stack zone but not in stack_objects", id),
+                description: format!(
+                    "Spell stack object {:?} names source card {:?}, which is not in the Stack zone",
+                    so.id, source_object
+                ),
                 turn_number: state.turn().turn_number,
             });
         }
     }
 
-    for id in &stack_obj_ids {
-        if !stack_zone_ids.contains(id) {
+    for id in &stack_zone_ids {
+        if !claimed.contains(id) {
             violations.push(InvariantViolation {
                 check: "stack_consistency".into(),
-                description: format!("Object {:?} in stack_objects but not in Stack zone", id),
+                description: format!(
+                    "Object {:?} is in the Stack zone but no spell on the stack names it as its \
+                     source card",
+                    id
+                ),
                 turn_number: state.turn().turn_number,
             });
         }

@@ -641,7 +641,22 @@ fn test_dp7_local_game_awaits_human_on_cleanup_discard() {
 
     let decision = drive_to_cleanup_discard(&mut game);
     assert_eq!(decision.player, PlayerId(1));
-    assert_eq!(decision.actions.len(), 1);
+    // 2, not 1: the PROVIDER offers exactly the one answer (which
+    // `test_dp8_stub_provider_offers_only_the_answer` pins directly against
+    // `StubProvider`), and M11-local S8 appends `Concede` (CR 104.3a) for a human
+    // seat in `LocalGame::human_only_actions`. Concede is legal here — the engine's
+    // `BlockingDecision` admission gate exempts it explicitly — so offering it is
+    // not a widening of what the engine would accept.
+    assert_eq!(decision.actions.len(), 2);
+    assert_eq!(
+        decision
+            .actions
+            .iter()
+            .filter(|a| matches!(a, LegalAction::Concede))
+            .count(),
+        1,
+        "exactly one Concede, appended by the human-only augmentation"
+    );
     match &decision.actions[0] {
         LegalAction::DiscardToHandSize { count, hand, cards } => {
             assert_eq!(*count, 1);
@@ -853,9 +868,12 @@ fn test_dp8_local_game_awaits_human_on_trigger_targets() {
     assert_eq!(decision.player, PlayerId(1), "CR 603.3a: the controller");
     assert_eq!(
         decision.actions.len(),
-        1,
-        "exactly one action is legal while the CR 603.3b batch is suspended"
+        2,
+        "exactly one action is legal while the CR 603.3b batch is suspended, plus \
+         S8's human-only Concede (CR 104.3a), which the engine's admission gate \
+         exempts from the BlockingDecision block"
     );
+    assert!(matches!(decision.actions[1], LegalAction::Concede));
     match &decision.actions[0] {
         LegalAction::ChooseTriggerTargets { slots, targets, .. } => {
             assert_eq!(slots.len(), 1, "one TargetCreature slot");
@@ -1164,9 +1182,11 @@ fn test_dp9_local_game_awaits_human() {
     );
     assert_eq!(
         decision.actions.len(),
-        1,
-        "exactly one action is legal while the resolution is rolled back"
+        2,
+        "exactly one action is legal while the resolution is rolled back, plus S8's \
+         human-only Concede (CR 104.3a)"
     );
+    assert!(matches!(decision.actions[1], LegalAction::Concede));
     match &decision.actions[0] {
         LegalAction::AnswerEffectChoice { question, .. } => match question {
             mtg_engine::EffectChoiceQuestion::Scry { looked_at } => {

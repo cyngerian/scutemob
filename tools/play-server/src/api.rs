@@ -381,9 +381,41 @@ fn validate_combat_params(
             }
             Ok(())
         }
-        // Every other variant: `params.rs` already refuses `attackers`/`blockers`
-        // on it with `ParamError::UnsupportedParam` -> 400, so there is nothing to
-        // add and nothing to duplicate.
+        // CR 509.2 (M11-local S8, item 2). Checked here for the same reason the two
+        // above are: a submitted order naming something outside the candidate list
+        // the server just sent is wrong against *that response*, with no game state
+        // needed to see it.
+        //
+        // The completeness half (CR 509.2 requires ALL of an attacker's blockers to
+        // be ordered) is deliberately left to the engine, which reports it as
+        // `GameStateError::IncompleteBlockerOrder` -> 422. It is a rules judgment
+        // about the combat, not about the response — and re-deriving it here would
+        // be the drift class the delegation exists to avoid.
+        LegalAction::OrderBlockers { blockers, .. } => {
+            let mut seen = std::collections::BTreeSet::new();
+            for blocker in &params.blocker_order {
+                if !blockers.contains(blocker) {
+                    return Err(bad(format!(
+                        "object {} is not blocking this attacker (CR 509.2); this decision \
+                         offered {:?}",
+                        blocker.0,
+                        blockers.iter().map(|o| o.0).collect::<Vec<_>>()
+                    )));
+                }
+                if !seen.insert(blocker.0) {
+                    return Err(bad(format!(
+                        "object {} appears more than once in the damage assignment order \
+                         (CR 509.2: the order is a permutation of the blockers)",
+                        blocker.0
+                    )));
+                }
+            }
+            Ok(())
+        }
+        // Every other variant: `params.rs` already refuses
+        // `attackers`/`blockers`/`blocker_order` on it with
+        // `ParamError::UnsupportedParam` -> 400, so there is nothing to add and
+        // nothing to duplicate.
         _ => Ok(()),
     }
 }

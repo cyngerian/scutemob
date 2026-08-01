@@ -142,6 +142,31 @@ pub enum LegalAction {
         recover_card: ObjectId,
         pay: bool,
     },
+    /// CR 509.2 (M11-local S8, plan item 2): set the damage-assignment order for
+    /// one attacker that is blocked by two or more creatures.
+    ///
+    /// **Never emitted by [`StubProvider`], and that is deliberate.** It is offered
+    /// only to a *human*-occupied seat, appended by
+    /// `LocalGame::human_only_actions` (`local_game.rs`). Two reasons, both load-bearing:
+    ///
+    /// 1. `Command::OrderBlockers` is **optional** — `combat.rs::apply_combat_damage`
+    ///    falls back to `combat.blockers`' `OrdMap` order when no order was set — so a
+    ///    bot that never issues it plays a legal game.
+    /// 2. Adding an action to the provider's list shifts every `RandomBot` RNG draw
+    ///    downstream of it, which would change what every recorded fuzz seed
+    ///    reproduces (plan §8 R11). Keeping it out of the provider is what lets S8
+    ///    claim the fuzzer is unperturbed and *check* it.
+    ///
+    /// `blockers` is the candidate set — every creature currently blocking
+    /// `attacker`, in the engine's own `OrdMap` order, which is also the order the
+    /// engine would use by default. `ActionParams::blocker_order` carries the
+    /// human's chosen permutation; empty means "accept the default", and
+    /// `params.rs` then submits `blockers` verbatim (a no-op that the engine
+    /// accepts, per `handle_order_blockers`' completeness check).
+    OrderBlockers {
+        attacker: ObjectId,
+        blockers: Vec<ObjectId>,
+    },
     /// CR 514.1 / CR 701.9b (PB-DP7 / DP-3): answer the outstanding cleanup
     /// discard. `count` is how many must go and `hand` is the full candidate
     /// set, so a human client can render a real subset picker. `cards` is the

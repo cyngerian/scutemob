@@ -405,7 +405,15 @@ impl<P: LegalActionProvider> LocalGame<P> {
 
             // A human-occupied seat must act: stop and hand the decision out.
             if self.human_seats.contains(&acting_player) {
+                // Classified from the PROVIDER's list, before augmentation — the
+                // human-only extras are never what the decision is *about*.
                 let kind = forced_kind.unwrap_or_else(|| decision_kind_for(&self.state, &legal));
+                let mut legal = legal;
+                legal.extend(human_only_actions(
+                    &self.state,
+                    acting_player,
+                    forced_kind.is_some(),
+                ));
                 return self.await_human(acting_player, kind, legal);
             }
 
@@ -666,6 +674,113 @@ impl<P: LegalActionProvider> LocalGame<P> {
         self.pending = Some(decision.clone());
         AdvanceOutcome::AwaitingHuman(decision)
     }
+}
+
+/// Actions offered to a **human**-occupied seat and to no other, appended to whatever
+/// `LegalActionProvider::legal_actions` already enumerated (M11-local S8, plan items 2
+/// and 3).
+///
+/// # Why these live here and not in the provider
+///
+/// Both would be wrong in `StubProvider`, for two independent reasons:
+///
+/// 1. **Bots must not take them.** `Concede` (CR 104.3a) is a legal action at literally
+///    every moment, so a `RandomBot` that saw it would concede roughly one game in `n`
+///    on its first priority window. `legal_actions.rs` already says so in prose
+///    ("Concede is intentionally omitted — bots should never auto-concede"); this is
+///    that comment made structural rather than merely honoured.
+/// 2. **The fuzzer must stay byte-comparable.** `RandomBot` picks an index into the
+///    provider's list, so *appending* anything to it re-rolls every subsequent RNG draw
+///    and changes what every recorded fuzz seed reproduces (plan §8 R11). Because this
+///    augmentation happens strictly on the human branch of `advance()` — after the
+///    `legal.is_empty()` auto-pass and after the bot branch was not taken — a game with
+///    `human_seats` empty (the `GameDriver` / fuzzer case) never calls it at all.
+///
+/// # What is offered
+///
+/// * **`Concede` (CR 104.3a), unconditionally.** The engine's admission gate
+///   (`rules::engine::process_command`) exempts `Command::Concede` from the
+///   `BlockingDecision` block and validates only that the player exists, so this is
+///   never an action the engine would refuse — which is the SR-38 standard the rest of
+///   this crate holds itself to. `blocking` is therefore *not* consulted for it.
+/// * **`OrderBlockers` (CR 509.2)**, one per attacker this player controls that has two
+///   or more blockers, and only outside a blocking decision (`blocking == false`),
+///   because `handle_order_blockers` is exactly the sort of command the gate above
+///   refuses while one is outstanding.
+///
+/// # The one moment a human is *not* offered Concede
+///
+/// `advance()` auto-passes when the provider returns an empty list, ahead of this
+/// branch, and that ordering is deliberate and pre-existing (see its comment: stopping
+/// earlier hands a human an empty action list and deadlocks with no safety valve). A
+/// human therefore gets `Concede` at every decision they are actually asked to make,
+/// which is every priority window they hold, not literally every instant CR 104.3a
+/// permits. Widening that would mean giving `advance()` a way to interrupt itself,
+/// which no HTTP request/response surface can use.
+fn human_only_actions(state: &GameState, player: PlayerId, blocking: bool) -> Vec<LegalAction> {
+    // CR 104.3a: "A player can concede the game at any time."
+    let mut extra = vec![LegalAction::Concede];
+
+    if !blocking {
+        extra.extend(order_blocker_actions(state, player));
+    }
+
+    extra
+}
+
+/// CR 509.2: one `LegalAction::OrderBlockers` per attacker of `player`'s that is
+/// blocked by two or more creatures.
+///
+/// Mirrors `combat::handle_order_blockers`' own preconditions rather than
+/// re-deriving them, so the provider never offers something the engine rejects
+/// (SR-38): the step must be `DeclareBlockers`, `player` must be
+/// `combat.attacking_player`, and the attacker must be a declared attacker. The
+/// single-blocker case is excluded because CR 509.2 only calls for an order when a
+/// creature "is blocked by multiple creatures" — with one blocker there is exactly
+/// one permutation and the command would be pure ceremony.
+///
+/// The candidate list is built by filtering `combat.blockers` in its own `OrdMap`
+/// order, which is precisely the order `apply_combat_damage` falls back to when no
+/// order was set. That is what makes an unanswered (or default-answered)
+/// `OrderBlockers` a genuine no-op — see `params.rs`'s arm.
+///
+/// **An attacker whose order has already been set is not offered again**, and that is
+/// a termination property, not a preference. `handle_order_blockers` accepts the same
+/// command any number of times (it only `insert`s into
+/// `combat.damage_assignment_order`) and answering it does not consume priority, so a
+/// client that always takes the first non-pass action would be re-offered the identical
+/// action forever. CR 509.2 orders blockers once, as a turn-based action, so there is
+/// nothing to re-decide either.
+fn order_blocker_actions(state: &GameState, player: PlayerId) -> Vec<LegalAction> {
+    if state.turn().step != mtg_engine::Step::DeclareBlockers {
+        return Vec::new();
+    }
+    let Some(combat) = state.combat().as_ref() else {
+        return Vec::new();
+    };
+    if combat.attacking_player != player {
+        return Vec::new();
+    }
+    combat
+        .attackers
+        .keys()
+        .filter(|attacker| !combat.damage_assignment_order.contains_key(attacker))
+        .filter_map(|attacker| {
+            let blockers: Vec<mtg_engine::ObjectId> = combat
+                .blockers
+                .iter()
+                .filter(|(_, blocked)| *blocked == attacker)
+                .map(|(blocker, _)| *blocker)
+                .collect();
+            if blockers.len() < 2 {
+                return None;
+            }
+            Some(LegalAction::OrderBlockers {
+                attacker: *attacker,
+                blockers,
+            })
+        })
+        .collect()
 }
 
 /// CR 117.3 (priority), CR 508.1 / 509.1 (combat declarations) — classify what a

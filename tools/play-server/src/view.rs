@@ -180,6 +180,8 @@ pub struct ActionOptionView {
     pub attack: Option<AttackOptionsView>,
     /// CR 509.1: present exactly on a `DeclareBlockers` option.
     pub block: Option<BlockOptionsView>,
+    /// CR 509.2: present exactly on an `OrderBlockers` option.
+    pub order: Option<OrderBlockersOptionsView>,
 }
 
 /// One target slot: its own count range, plus every candidate legal for it.
@@ -283,6 +285,21 @@ pub struct BlockOptionsView {
     pub attackers: Vec<CombatantOptionView>,
 }
 
+/// CR 509.2: what an `OrderBlockers` option may reorder (M11-local S8, item 2).
+///
+/// `blockers` is the candidate set **in the engine's own default order** — that is
+/// exactly what `apply_combat_damage` uses when no order has been set, so a client
+/// that echoes it back unchanged (or sends an empty `blocker_order`) changes
+/// nothing. The client's job is to let the human permute this list; the first entry
+/// is assigned damage first and must be dealt lethal before damage flows to the next.
+#[derive(Debug, Serialize)]
+pub struct OrderBlockersOptionsView {
+    /// The attacking creature whose damage order this is.
+    pub attacker: CombatantOptionView,
+    /// Every creature blocking [`Self::attacker`], in the engine's default order.
+    pub blockers: Vec<CombatantOptionView>,
+}
+
 /// One creature in a combat declaration, with a seat-redacted label.
 #[derive(Debug, Serialize)]
 pub struct CombatantOptionView {
@@ -368,6 +385,10 @@ pub struct ActionParamsDto {
     pub attackers: Vec<(ObjectId, AttackTarget)>,
     /// CR 509.1.
     pub blockers: Vec<(ObjectId, ObjectId)>,
+    /// CR 509.2: the chosen damage-assignment order for an `OrderBlockers` action,
+    /// front to back. Empty means "keep the engine's default order", which is the
+    /// order [`OrderBlockersOptionsView::blockers`] was sent in.
+    pub blocker_order: Vec<ObjectId>,
     /// CR 103.5.
     pub cards_to_bottom: Vec<ObjectId>,
     pub additional_costs: Vec<AdditionalCost>,
@@ -392,6 +413,7 @@ impl From<ActionParamsDto> for ActionParams {
             modes_chosen: dto.modes_chosen,
             attackers: dto.attackers,
             blockers: dto.blockers,
+            blocker_order: dto.blocker_order,
             cards_to_bottom: dto.cards_to_bottom,
             additional_costs: dto.additional_costs,
             auto_tap: dto.auto_tap,
@@ -549,6 +571,7 @@ fn action_kind(action: &LegalAction) -> &'static str {
         LegalAction::ActivateAbility { .. } => "ActivateAbility",
         LegalAction::DeclareAttackers { .. } => "DeclareAttackers",
         LegalAction::DeclareBlockers { .. } => "DeclareBlockers",
+        LegalAction::OrderBlockers { .. } => "OrderBlockers",
         LegalAction::TakeMulligan => "TakeMulligan",
         LegalAction::KeepHand => "KeepHand",
         LegalAction::ReturnCommanderToCommandZone { .. } => "ReturnCommanderToCommandZone",
@@ -588,6 +611,10 @@ fn action_object(action: &LegalAction) -> Option<ObjectId> {
         | LegalAction::PayEcho { permanent, .. }
         | LegalAction::PayCumulativeUpkeep { permanent, .. } => Some(*permanent),
         LegalAction::PayRecover { recover_card, .. } => Some(*recover_card),
+        // CR 509.2: the attacker is what the client should highlight — it is the
+        // creature whose damage is being ordered, and the blockers are all listed
+        // in `ActionOptionView::order`.
+        LegalAction::OrderBlockers { attacker, .. } => Some(*attacker),
         LegalAction::PassPriority
         | LegalAction::Concede
         | LegalAction::DeclareAttackers { .. }
@@ -618,6 +645,11 @@ fn action_label(action: &LegalAction, names: &NameIndex) -> String {
         LegalAction::DeclareBlockers { eligible, .. } => {
             format!("Declare blockers ({} eligible)", eligible.len())
         }
+        LegalAction::OrderBlockers { attacker, blockers } => format!(
+            "Order the {} blockers of {} (CR 509.2)",
+            blockers.len(),
+            card(*attacker)
+        ),
         LegalAction::TakeMulligan => "Take a mulligan".to_string(),
         LegalAction::KeepHand => "Keep this hand".to_string(),
         LegalAction::ReturnCommanderToCommandZone { object_id } => {
@@ -895,6 +927,34 @@ fn combat_options(
     }
 }
 
+/// CR 509.2 (M11-local S8, item 2): render the damage-assignment-order payload.
+///
+/// Separate from [`combat_options`] rather than a third element of its tuple
+/// because this action does not come from the provider at all — it is appended by
+/// `mtg_simulator::local_game::human_only_actions` for a human seat only, so the
+/// "nothing is re-derived, these are the provider's verdicts" argument on
+/// `combat_options` does not apply verbatim and should not be implied by sharing
+/// its body. The lists here are the *engine's* (`state.combat()`), read at the
+/// moment the decision was minted.
+fn order_options(action: &LegalAction, names: &NameIndex) -> Option<OrderBlockersOptionsView> {
+    let LegalAction::OrderBlockers { attacker, blockers } = action else {
+        return None;
+    };
+    Some(OrderBlockersOptionsView {
+        attacker: CombatantOptionView {
+            id: attacker.0,
+            label: names.label(*attacker),
+        },
+        blockers: blockers
+            .iter()
+            .map(|id| CombatantOptionView {
+                id: id.0,
+                label: names.label(*id),
+            })
+            .collect(),
+    })
+}
+
 /// Render a `PendingDecision` for the wire.
 ///
 /// `wire_seq` is supplied by the caller rather than read off `decision.seq`:
@@ -1063,6 +1123,7 @@ fn action_option_view(
         mode_max,
         attack,
         block,
+        order: order_options(action, names),
     }
 }
 
