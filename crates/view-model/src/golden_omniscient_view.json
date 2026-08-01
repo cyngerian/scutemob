@@ -417,6 +417,7 @@
         "is_copy": false,
         "kind": "spell",
         "source_name": "Lightning Bolt",
+        "source_object_id": 9,
         "targets": [
           "object:Serra Angel",
           "player:bob"

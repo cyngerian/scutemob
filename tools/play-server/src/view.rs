@@ -708,7 +708,10 @@ fn action_modes(action: &LegalAction, state: &GameState) -> Option<ModeSelection
             .and_then(|chars| chars.activated_abilities.get(*ability_index).cloned())
             .and_then(|ability| ability.modes),
         LegalAction::CastSpell { card, .. } => {
-            let card_id = state.objects().get(card).and_then(|obj| obj.card_id.clone())?;
+            let card_id = state
+                .objects()
+                .get(card)
+                .and_then(|obj| obj.card_id.clone())?;
             let def = state.card_registry().get(card_id)?;
             def.abilities.iter().find_map(|a| match a {
                 AbilityDefinition::Spell { modes: Some(m), .. } => Some(m.clone()),
@@ -955,8 +958,7 @@ fn action_option_view(
                         .and_then(|mt| mt.get(i))
                         .cloned()
                         .unwrap_or_default();
-                    let (mode_target_min, mode_target_max) =
-                        mtg_engine::target_count_range(&reqs);
+                    let (mode_target_min, mode_target_max) = mtg_engine::target_count_range(&reqs);
                     ModeOptionView {
                         index: i,
                         label: mode_label(i, effect),

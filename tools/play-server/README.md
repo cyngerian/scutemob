@@ -9,7 +9,10 @@ crate in M11-local with async or IO** (`memory/m11-session-plan.md` §3) —
 Architecture Invariant 1.
 
 Built by M11-local **Session 5** (plan §4); **Session 6** added the Svelte
-frontend under `frontend/`, which this binary serves from `dist/`.
+frontend under `frontend/`, which this binary serves from `dist/`; **Session 7**
+added targeting, combat and choice — per-slot target candidates and the CR 508.1
+/ CR 509.1 combat payloads on the wire, server-side validation of a submitted
+declaration, and the four pickers that fill `params`.
 
 ---
 
@@ -105,14 +108,19 @@ of the three candidate `dist/` paths it found (or that it found none).
 | `src/lib/PlayApp.svelte` | layout, pregame block, game-over banner, click-through |
 | `src/lib/ActionBar.svelte` | the decision as buttons, the error strip, the keyboard shortcuts |
 | `src/lib/EventFeed.svelte` | the rendered, already-redacted history lines |
+| `src/lib/TargetPicker.svelte` | CR 601.2c — one selector per target slot, range-checked (Session 7) |
+| `src/lib/AttackerPicker.svelte` | CR 508.1a — attacker multi-select plus a per-attacker `AttackTarget` (Session 7) |
+| `src/lib/BlockerPicker.svelte` | CR 509.1a — blocker → attacker pairing (Session 7) |
+| `src/lib/ValuePrompt.svelte` | CR 601.2b `{X}` and CR 700.2 mode selection (Session 7) |
 
 ### `$viewer` imports the replay viewer's components, it does not copy them
 
 `vite.config.js` aliases `$viewer` → `tools/replay-viewer/frontend/src/lib`, so
 `PhaseIndicator` and `StateView` (and, through the latter, `PlayerPanel`,
 `ZoneHand`, `ZoneBattlefield`, `ZoneStack`, `ZoneGraveyard`, `ZoneExile`,
-`cardTooltip`) are compiled **in place** from the viewer's tree — 135 modules in
-the production build, against eight files of our own. This is the
+`cardTooltip`) are compiled **in place** from the viewer's tree — 143 modules in
+the production build (135 before Session 7's four pickers), against twelve files
+of our own. This is the
 mechanism `docs/mtg-engine-replay-viewer.md` §"Import Mechanism" anticipated when
 it made those components props-based.
 
@@ -125,7 +133,7 @@ go stale on the next variant with nothing to make it fail. Promotion to a shared
 The evidence that the alias resolves rather than silently falling back: the
 production bundle contains the viewer components' scoped CSS
 (`grep zone-battlefield dist/assets/*.css`), and
-`find frontend/src -type f` lists eight files, none of them a `Zone*` or
+`find frontend/src -type f` lists twelve files, none of them a `Zone*` or
 `PhaseIndicator`.
 
 ### Interaction
@@ -139,15 +147,23 @@ production bundle contains the viewer components' scoped CSS
   deliberately does **not** invent a rules reason, because the server does not
   send one: a used land drop, an unpayable cost and a sorcery-speed restriction
   are indistinguishable from the client.
+- **Pickers (Session 7)** — clicking an option no longer submits `{}`. `ActionBar`
+  opens whichever pickers that option's fields call for, in CR order — `ValuePrompt`
+  (CR 601.2b announces `{X}` and modes) → `TargetPicker` (CR 601.2c) →
+  `AttackerPicker` (CR 508.1) → `BlockerPicker` (CR 509.1) — accumulating one
+  `params` object and submitting once at the end. An option needing none of them
+  still submits `{}` immediately. Click-through goes through the same entry point,
+  so a targeted spell cannot be cast targetless from either path.
 - **Keyboard** — `space` submits the `PassPriority` option (found by `kind`,
-  never by index), `Esc` cancels the chooser and dismisses the error strip. Both
-  are ignored while the focus is in an input, so typing a seed does not pass
-  priority.
+  never by index), `Esc` cancels the chooser, aborts an open picker chain, and
+  dismisses the error strip. Both are ignored while the focus is in an input, so
+  typing a seed does not pass priority; `space` is additionally suppressed while a
+  picker is open, so it cannot pass priority underneath one.
 - **Errors** are shown, not logged. A 422 `rejected` reads as "the engine refused
   this play" and carries the `GameStateError` text; a 409 `stale_decision`
   re-reads `GET /api/game` on its own.
 
-### The one change this session made *outside* `tools/play-server`
+### The one change Session 6 made *outside* `tools/play-server`
 
 `tools/replay-viewer/frontend/src/lib/ZoneHand.svelte` keyed its `#each` on
 `card.object_id`. That is fine for the replay viewer, which is omniscient and
@@ -175,12 +191,16 @@ alias rather than a package: a component with two consumers now has to be correc
 for both. Fixing it in the viewer rather than working around it here is the whole
 point of not copying.
 
-### Known limitations this session inherits from the server
+### The three S6 gaps, and what Session 7 did to each
 
-`ActionOptionView.target_slots` and `modes` are empty until **Session 7**
-(Limitation 4 above), and the client sends `params: {}`. So casting a *targeted*
-spell from this UI fails with a real 422 — observed verbatim during the
-verification below:
+> **All three are closed.** The account below is kept because the *shapes* of the
+> three failures are the durable lesson — one loud, two silent — and because the
+> S7 pickers are only meaningful as answers to them.
+
+`ActionOptionView.target_slots` and `modes` were empty until Session 7
+(Limitation 4 above), and the client sent `params: {}`. So casting a *targeted*
+spell from this UI failed with a real 422 — observed verbatim during the S6
+verification:
 
 ```
 {"error":"invalid target: expected 1..=1 target(s) but got 0","kind":"rejected"}
@@ -217,10 +237,48 @@ right trade until S7 closes Limitation 5 and can populate `needs_x` for abilitie
 The three paragraphs above are the same underlying hole in three shapes: the
 client can only send `params: {}`. Only the first of them fails loudly.
 
+**Session 7 closes all three, and the asymmetry is why it is worth recording.**
+The targeted-spell case announced itself every time it happened; the other two
+were indistinguishable from a normal click. `TargetPicker` fills `params.targets`
+from the server's per-slot candidate lists; `AttackerPicker` / `BlockerPicker`
+fill `params.attackers` / `params.blockers` from the provider's own eligibility
+lists, and **`api.rs::validate_combat_params` refuses a pair the decision never
+offered with a 400** so a picker bug cannot quietly become a different legal
+declaration; `ValuePrompt` fills `params.x_value` and `params.modes_chosen`, and
+`needs_x` now answers `ActivateAbility`, so `mirror_entity` gets a prompt instead
+of a silent `X = 0`. The `declares none` and `X = 0` badges are gone from
+`ActionBar.svelte` — they were warnings about an absence, and the absence is
+filled.
+
+### The second change outside `tools/play-server` (Session 7)
+
+S6's was `ZoneHand.svelte`. S7's is `crates/view-model`: `StackItemView` gains
+**`source_object_id`**.
+
+`StackItemView::id` is the **`StackObject`** id. `mtg_engine::Target::Object`
+names the underlying **`GameObject`**. They are different id spaces, and nothing
+in the view model bridged them — so a target that is a spell on the stack, which
+is every counterspell's target, had no entry in `NameIndex` and rendered as
+`(unknown card)`. Observed on a real payload before the fix, not reasoned about:
+seed 2 offers `Cast Dispel` with one candidate, and its label came back
+`"(unknown card)"` against a stack holding `Dark Ritual`.
+
+The id was already being computed in `build_zones_view` (for `source_name`) and
+discarded. Exposing it leaks nothing: CR 405.1 makes the stack public, the view
+already ships `source_name` for every entry with `redact_stack` blanking a
+face-down source's *name*, and a face-down **permanent** already keeps its real
+`object_id` for exactly the same reason.
+
+The fix also removed a latent hazard on this side: `NameIndex` used to write
+`item.id` — a `StackObject` id — into a map keyed by `ObjectId`. Nothing ever
+looked it up, and the stack is inserted last, so a numerically-colliding id could
+have overwritten a real permanent's name.
+
 ### Manual checklist (plan item 7)
 
-There is no frontend test harness in this repo — Session 5's 16 API tests are the
-automated coverage, and this session adds no test target. What follows is the
+There is no frontend test harness in this repo — the API tests are the automated
+coverage (16 from Session 5, 23 after Session 7's five), and Session 6 added no
+test target. What follows is the
 checklist the plan asks for, with **each step marked by what was actually done**,
 not by what a browser would presumably show.
 
@@ -253,6 +311,29 @@ rather than against a written-down idea of them. A second run preferring
 Two things the checklist deliberately does not claim: that the layout looks
 right, and that any of it works in a browser at all. Both need a human with the
 server running, which is exactly what the checklist is *for*.
+
+### Manual checklist, Session 7 additions (plan item 7)
+
+The plan asks for three more steps: attack a bot, block a bot's attacker, and
+cast a targeted removal spell on a bot's creature. **All three are now covered by
+permanent automated tests rather than by a one-off probe**, which is a stronger
+claim than the S6 rows above could make — but only for the *server* half. The
+browser half is as unverifiable as it was, and is marked so.
+
+The fixtures below were found by a temporary `#[ignore]`d probe that swept
+`players` ∈ {2, 4} × `seed` ∈ 0..12 through `oneshot` (**no port bound**) and
+reported which games ever offer the human a `DeclareAttackers`, a
+`DeclareBlockers`, or a `CastSpell` with a non-empty candidate list. The probe was
+then deleted; the numbers it produced are pinned as `COMBAT_SEED` / `TARGET_SEED`
+in `src/main.rs` with a note saying to re-observe rather than guess them, because
+a completeness flip in any card-def batch re-deals every seeded deck.
+
+| # | Step | Status | What was actually established |
+|---|---|---|---|
+| 13 | Attack a bot | **verified (automated)** | `test_declare_attackers_through_api_emits_attackers_declared`. At `players: 4, seed: 6` the human is offered a `DeclareAttackers` with one eligible creature (Memnite) and three player targets. The test builds the declaration **only out of what the payload offered** — first `eligible` entry, first `targets` entry, echoing that target's `value` verbatim, exactly as `AttackerPicker` does — and asserts `GameEvent::AttackersDeclared` reaches the client as an `EventView`. It asserts the event, not the 200, because an *empty* declaration also answers 200: a status-only test would have passed against precisely the S6 bug this closes. |
+| 14 | Block a bot's attacker | **verified (automated)** | `test_declare_blockers_rejects_ineligible_blocker`, same seed, one turn later. A blocker id the decision never offered is refused **400 `bad_params`** with a message naming CR 509.1a and the offending id; the decision is then confirmed still outstanding with `command_count` unchanged, so the refusal cost the human nothing. The control half asserts the pairing the payload *did* offer is **not** a `bad_params` — deliberately not asserted to be a 200, because the engine may still refuse it on a rule the provider does not model (flying, menace), which would be a legitimate 422. Non-vacuity was checked by neutering `validate_combat_params` and watching this test go red. |
+| 15 | Cast a targeted removal spell on a bot's creature | **verified (automated)** | `test_action_option_target_slots_match_engine_query` at `players: 4, seed: 9` (Doom Blade). The wire payload is compared against a **second, independent** call to `spell_target_requirements` + `legal_targets_per_slot` made against the same `GameState`, on slot count, per-slot order, and `(min, max)`. The fixture requires a slot with **at least two** candidates: a first version stopped on a one-candidate slot, and reversing the candidate order in `view.rs` left it green — reversing a one-element list changes nothing. With the stronger fixture, that same perturbation turns it red. `test_x_value_is_forwarded_to_cast_spell_data` then drives the whole chain to `CastSpellData.x_value` by reading the applied `Command` out of `LocalGame::journal()`. |
+| 16 | The pickers themselves | **unverifiable headless** | Every DOM and keyboard behaviour: clicking through the `ValuePrompt` → `TargetPicker` → `AttackerPicker` → `BlockerPicker` chain, Escape aborting a chain mid-way, `space` being suppressed while a picker is open, and the `<select>` default rendering in the attacker/blocker pickers. There is still no frontend test harness in this repo (plan §8 R7); `npm run build` is the only gate, and S6's row 2 is the standing proof that a green build says nothing about whether a component survives a redacted payload. **Read, not observed.** |
 
 ---
 
@@ -493,15 +574,60 @@ repeated here so this README does not claim more than the implementation does.
    without the session caching its last outcome. It *does* advance
    `journal_cursor` — reading the events consumes them.
 
-4. **`target_slots` and `modes` are always empty this session.** The DTO fields
-   ship now so the wire shape is settled before the frontend lands; **Session 7**
-   populates them from `crates/engine/src/rules/queries.rs`
-   (`spell_target_requirements` + `legal_targets_per_slot`). Until then a client
-   must supply targets itself in `params.targets`.
+4. ~~**`target_slots` and `modes` are always empty this session.**~~ **CLOSED by
+   Session 7.** Both are populated from `crates/engine/src/rules/queries.rs`
+   (`spell_target_requirements` / `ability_target_requirements` +
+   `legal_targets_per_slot`), alongside `target_min`/`target_max` from
+   `target_count_range` and the CR 508.1 / CR 509.1 combat payloads. What
+   *remains* is narrower and is listed as limitation 8 below.
 
-5. **`needs_x` answers `CastSpell` only.** An activated ability's `{X}` lives in
-   its `ActivationCost`, which `LegalAction::ActivateAbility` does not carry;
-   Session 7 answers that half alongside `modes`.
+5. ~~**`needs_x` answers `CastSpell` only.**~~ **CLOSED by Session 7.** The
+   S6 note said `LegalAction::ActivateAbility` does not carry the ability's
+   `ActivationCost`, which is true and was the wrong place to look: the action
+   carries `source` and `ability_index`, and those are enough to reach the
+   **layer-resolved** `Characteristics::activated_abilities` entry and read its
+   `cost.mana_cost.x_count`. `mirror_entity` — the deck-legal card that made this
+   destructive rather than theoretical — now reports `needs_x: true` and gets a
+   real prompt.
+
+8. **A non-zero `{X}` cannot actually be paid for through this API yet, and it
+   fails as a 422 rather than a wrong game state.** `LocalGame::auto_tap_commands_for`
+   reads the spell's **printed** `mana_cost` and knows nothing about
+   `cast.x_value`, so it taps for the base cost and the engine then refuses the
+   cast for want of the extra `{X}`. Observed, not inferred: the same submission
+   answers `422 "player does not have enough mana to pay the cost"`.
+
+   The workaround exists and the human can use it — tap mana sources manually
+   first, then cast, because S3 made auto-tap conditional on the pool, so a pool
+   that already covers the base cost leaves the surplus available for X. That is
+   the path `test_x_value_is_forwarded_to_cast_spell_data` drives. The fix
+   belongs in `crates/simulator` (out of S7's scope) and is filed as
+   **OOS-M11-8**.
+
+9. **A modal action's target slots are per-mode and the option-level range is
+   `(0, 0)` for such a card.** `spell_target_requirements` is queried at render
+   time with an empty `modes_chosen`, because the human has not announced modes
+   yet, and it deliberately answers `vec![]` for a card whose targets live in
+   `ModeSelection.mode_targets` (its own divergence 1). Each `ModeOptionView`
+   therefore carries its own `target_slots` + `target_min`/`target_max`, and the
+   client sums the chosen modes'. **Untested against a live modal spell**: no
+   game in the S7 fixture sweep (`players` ∈ {2,4} × `seed` ∈ 0..12) dealt the
+   human one, so this path is right by construction and unexercised.
+
+10. **`ModeOptionView.label` is a truncated `Debug` of the mode's `Effect`.**
+    There is no per-mode oracle text anywhere in the DSL — `ModeSelection.modes`
+    is a bare `Vec<Effect>` — so the label is machine-shaped ("Mode 2:
+    DealDamage { .. }") rather than printed text, visibly so rather than
+    pretending otherwise.
+
+11. **The stack's `ModeSelection` lookup is the one engine rule this crate
+    restates.** `rules::casting::spell_mode_selection` is `pub(crate)`, so
+    `view::action_modes` re-derives it through the public
+    `GameState::card_registry`. It is confined to *which modes to offer*; the
+    engine re-validates `modes_chosen` on the cast path regardless (CR 601.2b,
+    PB-DP3), so a drift here is a wrong picker, never a wrong game state.
+    Everything else — target requirements, target legality, combat eligibility —
+    is delegated.
 
 6. **One game per process.** The session is a single
    `Arc<Mutex<Option<PlaySession>>>`; `POST /api/game` replaces it. That is the

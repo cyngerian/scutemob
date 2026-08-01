@@ -37,7 +37,114 @@
 | S4 view-model crate extraction + seat redaction | `scutemob-165` | **SHIPPED** | this session — `crates/view-model` (`mtg-view-model`); a seat view provably cannot leak another hand or any library order. See handoff below |
 | S5 play-server crate skeleton + REST API | `scutemob-167` | **SHIPPED** (+ 2 review cycles) | this session — `tools/play-server` (axum, port 3040), the only crate in this milestone with async or IO. 5 routes + `ServeDir`, **16 tests** (15 `oneshot` HTTP + the source gate, which is a plain `#[test]` and constructs no router), **no port ever bound and now machine-gated crate-wide**. See handoff below |
 | S6 play frontend — render and basic input | `scutemob-169` | **SHIPPED** | this session — `tools/play-server/frontend` (Svelte 5 + Vite 7), dev proxy to `127.0.0.1:3040`, `$viewer` alias importing the replay-viewer components **in place**. **Zero Rust**: `git diff main` over `crates/` + `tools/play-server/src` + `tools/play-server/Cargo.toml` is empty — **zero Rust anywhere**; the only change outside `tools/play-server` is one Svelte component, `tools/replay-viewer/frontend/src/lib/ZoneHand.svelte` (the review HIGH below). PROTOCOL 32 / HASH 69 unmoved, tests **4,040 / 0**. See handoff below |
-| S7 targeting, combat and choice UIs | — | **next** | Plan §4 Session 7. First session since S4 to touch Rust again (`tools/play-server/src/{view.rs,api.rs}` populate `target_slots` / `modes` from `mtg_engine::legal_targets_per_slot` + `spell_target_requirements`) plus four new picker components. Read the S6 handoff's `ZoneStack` and `auto_tap` notes before starting |
+| S7 targeting, combat and choice UIs | `scutemob-171` | **SHIPPED** | this session — `tools/play-server/src/{view.rs,api.rs}` populate `target_slots` / `target_min`/`max` / `modes` (with per-mode slots and ranges) / `attack` / `block` from `mtg_engine::{spell_target_requirements, ability_target_requirements, legal_targets_per_slot, target_count_range}` and the provider's own `DeclareAttackers`/`DeclareBlockers` payloads; `validate_combat_params` refuses an unoffered pair with a 400; `needs_x` now answers `ActivateAbility` (README Limitation 5 CLOSED). Four picker components + an `ActionBar` chain in CR 601.2b → 601.2c → 508.1 → 509.1 order. **One additive change outside `tools/play-server`**: `StackItemView::source_object_id` in `crates/view-model` — see handoff. PROTOCOL 32 / HASH 69 unmoved; play-server tests 18 → **23**. See handoff below |
+| S8 playthrough hardening, docs, acceptance | — | **next** | Plan §4 Session 8 (8 items). Read the S7 handoff's OOS-M11-8 note — item 2's "surface the invisible optional decisions" audit should include it |
+
+**S7 handoff (2026-08-01, `scutemob-171`)**
+
+- **A human can now attack, block, and cast a targeted / X / modal spell.** Server side,
+  `ActionOptionView` gained `target_slots` (populated from
+  `mtg_engine::spell_target_requirements` / `ability_target_requirements` +
+  `legal_targets_per_slot`), `target_min`/`target_max` from `target_count_range`, `modes`
+  with **per-mode** `target_slots` + ranges, `mode_min`/`mode_max`, and `attack` / `block`
+  payloads rendered straight out of the provider's own
+  `LegalAction::DeclareAttackers { eligible, targets }` /
+  `DeclareBlockers { eligible, attackers }`. Frontend side, four pickers chained by
+  `ActionBar` in CR order — `ValuePrompt` (601.2b) → `TargetPicker` (601.2c) →
+  `AttackerPicker` (508.1) → `BlockerPicker` (509.1) — accumulating one `params` object and
+  submitting once. Click-through goes through the same entry point, so a targeted spell
+  cannot be cast targetless from either path. PROTOCOL 32 / HASH 69 unmoved; play-server
+  tests 18 → **23**; `npm run build` clean at 143 modules, 0 warnings.
+
+- **The S6 review's three MEDIUMs are all closed, and the asymmetry between them is the
+  durable part.** The targeted-spell gap announced itself with a 422 every single time. The
+  other two — `DeclareAttackers`/`DeclareBlockers` silently submitting an **empty set**, and
+  an activated ability's `{X}` silently announced as **0** — were indistinguishable from a
+  normal click. The `declares none` and `X = 0` badges in `ActionBar.svelte` are gone,
+  because they were warnings about an absence that is now filled.
+
+- **`needs_x` for activated abilities: the S6 note was true and looked in the wrong place.**
+  It said `LegalAction::ActivateAbility` does not carry the ability's `ActivationCost`,
+  which is correct — but the action carries `source` and `ability_index`, and those reach
+  the **layer-resolved** `Characteristics::activated_abilities` entry, whose
+  `cost.mana_cost.x_count` is the answer. `mirror_entity` (deck-legal, `x_count: 1`, one
+  click makes every creature 0/0) now gets a real prompt. **Generalisable: "the action does
+  not carry X" is not the same claim as "X is unreachable from the action".**
+
+- **A real defect surfaced by populating the field, not by reasoning about it:
+  `StackItemView::id` is a `StackObject` id and `Target::Object` names a `GameObject`.**
+  Nothing bridged the two, so every target that is a spell on the stack — i.e. every
+  counterspell's target — rendered as `(unknown card)`. Observed on a real payload before
+  the fix (seed 2 offers `Cast Dispel`; its one candidate came back `"(unknown card)"` while
+  the stack held `Dark Ritual`). Fixed by adding **`StackItemView::source_object_id`** to
+  `crates/view-model` — the id was already being computed in `build_zones_view` for
+  `source_name` and thrown away. **This is a deliberate scope deviation** (plan §4 S7 says
+  `tools/play-server` and its frontend); it is additive, exposes strictly less than the
+  `source_name` already shipped beside it, and the alternative was leaving counterspell
+  targets unlabelled. Exposing the bare id leaks nothing: CR 405.1 makes the stack public,
+  `redact_stack` blanks a face-down source's *name*, and a face-down **permanent** already
+  keeps its real `object_id` for the same reason.
+
+  The same fix removed a latent hazard on the play-server side: `NameIndex` had been writing
+  `item.id` — a `StackObject` id — into a map keyed by `ObjectId`. Nothing looked it up, and
+  the stack is inserted last, so a numerically-colliding id could have overwritten a real
+  permanent's name. **Two id spaces that both count from small integers, in one map.**
+
+- **New seed `OOS-M11-8`: a non-zero `{X}` cannot be paid for through this API.**
+  `LocalGame::auto_tap_commands_for` reads the spell's **printed** `mana_cost` and knows
+  nothing about `cast.x_value`, so it taps for the base cost and the engine then refuses the
+  cast — observed as `422 "player does not have enough mana to pay the cost"`, not inferred.
+  The human's workaround exists and works (tap sources manually first; S3 made auto-tap
+  conditional on the pool, so a covered base cost leaves the surplus for X) and is the path
+  `test_x_value_is_forwarded_to_cast_spell_data` drives. The fix belongs in
+  `crates/simulator`, out of S7's scope. **S8 item 2's "surface the invisible optional
+  decisions" audit should pick this up** — it is the same family as `OOS-M11-2`.
+
+- **Fixtures were observed, not chosen.** A temporary `#[ignore]`d probe swept
+  `players` ∈ {2, 4} × `seed` ∈ 0..12 through `oneshot` (**no port bound**) and reported per
+  game whether the human is ever offered a `DeclareAttackers`, a `DeclareBlockers`, or a
+  `CastSpell` with a non-empty candidate list. Exactly **one** swept pair reaches both halves
+  of combat: `players: 4, seed: 6` (attackers turn 5, blockers turn 6). `seed: 9` reaches a
+  targeted removal spell (Doom Blade) with real creature candidates. Both are pinned as
+  `COMBAT_SEED` / `TARGET_SEED` with a note to **re-observe rather than guess** when a
+  card-def completeness flip re-deals the decks — which PB-DX4 has already demonstrated it
+  will. The probe was deleted; `git diff` over `tools/play-server/src` shows no probe.
+
+  The sweep also established two absences worth recording rather than discovering later:
+  **no seeded game in the sweep dealt the human a modal spell or an `{X}` spell**, so the
+  `modes` path and the `needs_x`-on-`CastSpell` path are right by construction and
+  **unexercised by any test**. Said plainly in the README rather than left implied.
+
+- **A non-vacuity check that failed, and the fix.** The first version of
+  `test_action_option_target_slots_match_engine_query` stopped on the first action with any
+  non-empty slot — which at `seed: 9` is a slot with **one** candidate. Reversing the
+  candidate order inside `action_option_view` left the test **green**, because reversing a
+  one-element list changes nothing: the per-slot *order* assertion, the whole point of that
+  test, was never being exercised. The fixture now demands a slot with **at least two**
+  candidates, and the same perturbation turns it red. `validate_combat_params` was checked
+  the same way (neuter it → `test_declare_blockers_rejects_ineligible_blocker` goes red).
+  **Carry: "the assertion is present" and "the assertion can fail" are different facts, and
+  only the second is worth anything.**
+
+- **The `ModeSelection` lookup is the one engine rule this crate restates, and it is
+  recorded as such.** `rules::casting::spell_mode_selection` is `pub(crate)`, so
+  `view::action_modes` re-derives it through the public `GameState::card_registry` for the
+  spell case (the *ability* case reads the layer-resolved `ActivatedAbility::modes` and
+  cannot drift). It is confined to which modes to *offer*; the engine re-validates
+  `modes_chosen` on the cast path regardless (CR 601.2b, PB-DP3), so a drift is a wrong
+  picker, never a wrong game state. Everything else — target requirements, target legality,
+  combat eligibility — is delegated, per plan §1 fact 4.
+
+- **`ModeOptionView.label` is a truncated `Debug` of the mode's `Effect`.** There is no
+  per-mode oracle text anywhere in the DSL (`ModeSelection.modes` is a bare `Vec<Effect>`),
+  so the label is visibly machine-shaped rather than pretending to be printed text.
+
+- **Still unverifiable headless, and marked so in the README rather than glossed**: every
+  DOM and keyboard behaviour — clicking through the picker chain, Escape aborting a chain
+  mid-way, `space` being suppressed while a picker is open, `<select>` default rendering in
+  the attacker/blocker pickers. There is still no frontend test harness (plan §8 R7), and
+  S6's row 2 stands as the proof that a green `npm run build` says nothing about whether a
+  component survives a redacted payload.
 
 **S6 handoff (2026-08-01, `scutemob-169`)**
 

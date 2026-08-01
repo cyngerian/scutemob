@@ -1558,8 +1558,12 @@ mod tests {
         develop: bool,
         stop: impl Fn(&Value) -> bool,
     ) -> Value {
-        let (status, mut view) =
-            post_json(state, "/api/game", json!({ "players": PLAYERS, "seed": seed })).await;
+        let (status, mut view) = post_json(
+            state,
+            "/api/game",
+            json!({ "players": PLAYERS, "seed": seed }),
+        )
+        .await;
         assert_eq!(status, StatusCode::OK, "POST /api/game failed: {view}");
 
         for _ in 0..S7_MAX_STEPS {
@@ -1630,9 +1634,9 @@ mod tests {
     /// its per-slot order assertion is actually exercised.
     fn option_with_targets(view: &Value, least: usize) -> Option<Value> {
         options(view).into_iter().find(|a| {
-            a["target_slots"].as_array().is_some_and(|slots| {
-                slots.iter().any(|s| s.as_array().unwrap().len() >= least)
-            })
+            a["target_slots"]
+                .as_array()
+                .is_some_and(|slots| slots.iter().any(|s| s.as_array().unwrap().len() >= least))
         })
     }
 
@@ -1675,8 +1679,10 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn test_action_option_target_slots_match_engine_query() {
         let state = shared_state();
-        let view =
-            drive_until(&state, TARGET_SEED, false, |v| option_with_targets(v, 2).is_some()).await;
+        let view = drive_until(&state, TARGET_SEED, false, |v| {
+            option_with_targets(v, 2).is_some()
+        })
+        .await;
         let option = option_with_targets(&view, 2).expect("the driver stopped on one");
         let index = option["index"].as_u64().expect("index is a number") as usize;
 
@@ -1799,7 +1805,11 @@ mod tests {
             }),
         )
         .await;
-        assert_eq!(status, StatusCode::OK, "the declaration was refused: {after}");
+        assert_eq!(
+            status,
+            StatusCode::OK,
+            "the declaration was refused: {after}"
+        );
 
         let kinds: Vec<String> = after["events"]
             .as_array()
@@ -1843,7 +1853,9 @@ mod tests {
         let option = option_with_combat(&view, "block").expect("the driver stopped on one");
         let block = &option["block"];
         let eligible = block["eligible"].as_array().expect("eligible is an array");
-        let attackers = block["attackers"].as_array().expect("attackers is an array");
+        let attackers = block["attackers"]
+            .as_array()
+            .expect("attackers is an array");
         assert!(
             !eligible.is_empty() && !attackers.is_empty(),
             "fixture drift: this action is only emitted with both non-empty: {block}"
@@ -1934,8 +1946,10 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn test_target_option_labels_are_seat_redacted() {
         let state = shared_state();
-        let view =
-            drive_until(&state, TARGET_SEED, false, |v| option_with_targets(v, 1).is_some()).await;
+        let view = drive_until(&state, TARGET_SEED, false, |v| {
+            option_with_targets(v, 1).is_some()
+        })
+        .await;
 
         // Every label this decision renders for a target or a combatant.
         let mut labels: Vec<String> = Vec::new();
@@ -2039,12 +2053,15 @@ mod tests {
         // sources exist to cover its cost plus X.
         let mut view = drive_until(&state, TARGET_SEED, false, |v| {
             option_with_targets(v, 1).is_some()
-                && options(v).iter().filter(|a| a["kind"] == "TapForMana").count() >= SOURCES
+                && options(v)
+                    .iter()
+                    .filter(|a| a["kind"] == "TapForMana")
+                    .count()
+                    >= SOURCES
         })
         .await;
 
-        let label = option_with_targets(&view, 1)
-            .expect("the driver stopped on one")["label"]
+        let label = option_with_targets(&view, 1).expect("the driver stopped on one")["label"]
             .as_str()
             .expect("a label")
             .to_string();
