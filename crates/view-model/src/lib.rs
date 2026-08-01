@@ -134,7 +134,35 @@ pub struct PermanentView {
 /// An item on the stack.
 #[derive(Debug, Serialize)]
 pub struct StackItemView {
+    /// The **`StackObject`** id — NOT the id of the card or permanent that put
+    /// this item on the stack. See [`StackItemView::source_object_id`].
     pub id: u64,
+    /// The `ObjectId` of the object this stack item came from — the spell card
+    /// itself, or the permanent whose ability is on the stack.
+    ///
+    /// **Additive (M11-local S7).** `id` and this are two different id spaces and
+    /// the difference is load-bearing: `mtg_engine::Target::Object` names *this*
+    /// one, so a client that wants to label a target which is a spell on the
+    /// stack — a counterspell's target, the commonest case — had no bridge from
+    /// the target's id back to a stack entry at all. `tools/play-server`'s
+    /// `NameIndex` keyed the stack by `id` and therefore rendered every such
+    /// target as `(unknown card)`; observed on a real payload (Dispel, seed 2),
+    /// not reasoned about.
+    ///
+    /// `None` for the few `StackObjectKind` variants that have no source object.
+    ///
+    /// # Why exposing the bare id is not a leak
+    ///
+    /// CR 405.1 makes the stack public, and this view already ships
+    /// [`StackItemView::source_name`] for every entry (entitlement-checked by
+    /// `redact::redact_stack`, which blanks the *name* of a face-down source
+    /// while leaving the entry visible). An id is strictly less than a name, and
+    /// a face-down **permanent** already keeps its real `object_id` in
+    /// `PermanentView` for exactly the same reason: the seat can point at the
+    /// object without knowing what it is. Contrast a hidden *hand* card, whose id
+    /// `redact::hidden_placeholder` rewrites to 0 — there, the id is a handle
+    /// onto an object in a zone the seat may not read at all.
+    pub source_object_id: Option<u64>,
     pub controller: String,
     /// "spell", "activated_ability", "triggered_ability", "cascade_trigger", "storm_trigger"
     pub kind: String,
@@ -475,6 +503,10 @@ fn build_zones_view(state: &GameState, player_names: &HashMap<PlayerId, String>)
 
             StackItemView {
                 id: so.id.0,
+                // Already computed above for `source_name`; it used to be
+                // discarded, which is precisely why a target on the stack could
+                // not be named. See the field's doc.
+                source_object_id: source_id.map(|oid| oid.0),
                 controller: controller_name,
                 kind: kind.to_string(),
                 source_name,

@@ -109,6 +109,19 @@
   /** Why the last click produced nothing. Cleared by Escape or the next click. */
   let clickMessage = $state(null);
 
+  /**
+   * The mounted `ActionBar` instance, so click-through can hand an option to its
+   * picker chain instead of submitting `{}` directly (Session 7).
+   *
+   * `ActionBar` exports `beginExternal(option)` precisely so a second entry point
+   * exists that is not a plain button click — see its module doc. Lifting the
+   * whole picker-chain state up into `PlayApp` instead was the other option
+   * considered; this is simpler because `ActionBar` already owns every picker
+   * component and the params-accumulation logic, and `PlayApp` has no other
+   * reason to know about `target_slots` / `modes` / etc.
+   */
+  let actionBar = $state(null);
+
   function clearSelection() {
     chooser = null;
     clickMessage = null;
@@ -195,7 +208,10 @@
 
     const matches = actionsForCard(card);
     if (matches.length === 1) {
-      act(matches[0].index, {});
+      // Route through the picker chain rather than submitting `{}` directly —
+      // a click-through cast of a targeted spell must open `TargetPicker`, not
+      // submit a targetless cast the engine 422s under CR 601.2c.
+      actionBar?.beginExternal(matches[0]);
       return;
     }
     if (matches.length > 1) {
@@ -216,7 +232,9 @@
 
   function chooseOption(option) {
     clearSelection();
-    act(option.index, {});
+    // Same reasoning as `handleCardClick`'s single-match branch: a chosen option
+    // may itself need targets/X/modes, so it goes through the picker chain too.
+    actionBar?.beginExternal(option);
   }
 
   // ── Derived view bits ──────────────────────────────────────────────────────
@@ -357,6 +375,7 @@
   {/if}
 
   <ActionBar
+    bind:this={actionBar}
     decision={$decision}
     loading={$loading}
     error={$error}
