@@ -12,7 +12,7 @@
     "skipLibCheck": true,
     "checkJs": true,
     "paths": {
-      "$viewer/*": ["../replay-viewer/frontend/src/lib/*"]
+      "$viewer/*": ["../../replay-viewer/frontend/src/lib/*"]
     }
   },
   "include": ["src/**/*.d.ts", "src/**/*.js", "src/**/*.svelte"]

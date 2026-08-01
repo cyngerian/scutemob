@@ -41,8 +41,12 @@
   }
 
   $effect(() => {
-    // Track the length so the effect re-runs when lines arrive.
-    const _count = events.length;
+    // This read is the whole point of the statement: `$effect` re-runs when
+    // something it read reactively changes, and nothing else in the body touches
+    // `events`. Do not "clean up" the unused binding — deleting it silently kills
+    // the auto-scroll. `$effect` runs after the DOM update, so `scrollHeight`
+    // below already includes the new lines.
+    void events.length;
     if (stick && box) {
       box.scrollTop = box.scrollHeight;
     }
@@ -74,7 +78,14 @@
     {#if events.length === 0}
       <div class="feed-empty">— nothing yet —</div>
     {:else}
-      {#each events as ev, i (i)}
+      <!--
+        Keyed on the monotonic `seq` `stores.js::applySeatView` stamps on append,
+        not on the array index: the feed is a front-truncating window, so once the
+        cap engages every index shifts and an index key re-keys the whole list on
+        each response. `?? i` is the floor for a caller that passes unstamped
+        lines (nothing does today).
+      -->
+      {#each events as ev, i (ev.seq ?? i)}
         <div class="feed-line tone-{tone(ev.kind)}">
           <div class="line-text">{ev.text}</div>
           <div class="line-meta">

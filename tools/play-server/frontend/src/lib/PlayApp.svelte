@@ -33,12 +33,16 @@
 
   // ── New-game form ───────────────────────────────────────────────────────────
 
+  // Both boxes start EMPTY, and that is the point rather than an oversight: an
+  // omitted field takes the server's own CLI default via `merge_defaults`, so a
+  // blank box means "whatever this server was started with". Pre-seeding the
+  // player count to '4' would have sent `players: 4` on every New game and
+  // silently overridden a server run with `--players 6`.
   let seedInput = $state('');
-  let playersInput = $state('4');
+  let playersInput = $state('');
 
   async function handleNewGame() {
-    // Omit rather than send a blank: an absent field takes the server's CLI
-    // default (`merge_defaults`), which is what an empty box means.
+    // Omit rather than send a blank — see the note on the inputs above.
     const opts = {};
     const seed = Number.parseInt(seedInput, 10);
     if (Number.isFinite(seed)) opts.seed = seed;
@@ -155,8 +159,17 @@
 
   /**
    * `StateView` threads `onCardClick` into `ZoneHand`, `ZoneBattlefield`,
-   * `ZoneStack`, `ZoneGraveyard` and `ZoneExile`, calling it with the card /
-   * permanent object itself, which carries `object_id`.
+   * `ZoneGraveyard` and `ZoneExile`, each of which calls it with the card /
+   * permanent object itself, carrying `object_id`.
+   *
+   * **`ZoneStack` is threaded the prop and never invokes it** — it destructures
+   * `onCardClick` and there is no `onclick` anywhere in the file. So a stack item
+   * is inert. Nothing here needs it (every `LegalAction` carrying an `object_id`
+   * names a card or a permanent, never a stack object — `view.rs::action_object`),
+   * but Session 7 renders targets on stack items and should know two things
+   * before it relies on this path: the prop is dead, **and** a stack entry's id
+   * field is `id`, not `object_id`, so `actionsForCard` would read `undefined` and
+   * return `[]` in silence rather than failing loudly.
    */
   function handleCardClick(card) {
     clearSelection();
@@ -260,7 +273,7 @@
       </label>
       <label>
         players
-        <input type="text" inputmode="numeric" bind:value={playersInput} />
+        <input type="text" inputmode="numeric" placeholder="default" bind:value={playersInput} />
       </label>
       <button class="primary" disabled={$loading} onclick={handleNewGame}>New game</button>
     </div>

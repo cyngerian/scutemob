@@ -147,7 +147,35 @@ production bundle contains the viewer components' scoped CSS
   this play" and carries the `GameStateError` text; a 409 `stale_decision`
   re-reads `GET /api/game` on its own.
 
-### Known limitation this session inherits from the server
+### The one change this session made *outside* `tools/play-server`
+
+`tools/replay-viewer/frontend/src/lib/ZoneHand.svelte` keyed its `#each` on
+`card.object_id`. That is fine for the replay viewer, which is omniscient and
+gives every hand card a distinct id — and **fatal** for this app, because
+`mtg_view_model`'s `redact::redact_hands` replaces each card of a hand the seat
+may not read with `redact::hidden_placeholder()`, whose `object_id` is **0**. A
+redacted 4-player table therefore hands `ZoneHand` three seven-card hands with one
+distinct key each, and Svelte 5's keyed reconciler evaluates `length > keys.size`
+and calls `each_key_duplicate`, which **throws in production as well as in DEV**.
+With no `<svelte:boundary>` above it, the throw escapes the effect flush and takes
+the whole mount down: the play surface rendered *nothing at all*.
+
+Measured on a real payload rather than argued: `Bot-2`/`Bot-3`/`Bot-4` each came
+back `length 7, keys.size 1`; the seat's own hand `length 7, keys.size 7`. The
+key is now `card.hidden ? \`hidden-${i}\` : card.object_id` — keyed on the flag the
+redactor actually sets rather than on the sentinel value 0, and inert for the
+replay viewer, which never sets `hidden` on a hand card.
+
+`hidden_placeholder` is called from exactly one site (`redact_hands`), so hands
+are the only zone that can contain duplicate ids; the command zone is public
+(CR 903.6) and is not redacted this way. That was checked, not assumed.
+
+This is the shared-component tax that plan §8 R8 defers by keeping `$viewer` an
+alias rather than a package: a component with two consumers now has to be correct
+for both. Fixing it in the viewer rather than working around it here is the whole
+point of not copying.
+
+### Known limitations this session inherits from the server
 
 `ActionOptionView.target_slots` and `modes` are empty until **Session 7**
 (Limitation 4 above), and the client sends `params: {}`. So casting a *targeted*
@@ -162,6 +190,17 @@ That is the correct behaviour for S6 (the engine refused an under-specified
 announcement, CR 601.2c) and it is exactly what S7's `TargetPicker` closes. The
 error strip surfaces it rather than swallowing it, so the failure is legible
 instead of mysterious.
+
+**Combat is the same gap with the opposite failure mode, and it is the more
+dangerous one.** `params.rs` maps `LegalAction::DeclareAttackers` with default
+params straight to `Command::DeclareAttackers { attackers: vec![] }` — a legal,
+irreversible "I attack with nothing" for that combat — and likewise for blockers.
+Nothing refuses it, so unlike the targeted spell above there is no 422 to read;
+the human's combat step is simply gone. The buttons stay **enabled** (at a
+`DeclareAttackers` decision the declaration is usually the only option offered, so
+disabling it would deadlock the game, and CR 508.1 makes declaring no attackers a
+legal choice), but they are marked `declares none` and their tooltip says so. S7's
+`AttackerPicker` / `BlockerPicker` are what actually close it.
 
 ### Manual checklist (plan item 7)
 
@@ -183,7 +222,7 @@ rather than against a written-down idea of them. A second run preferring
 | # | Step | Status | What was actually established |
 |---|---|---|---|
 | 1 | Launch: `cargo run -p play-server`, open `http://127.0.0.1:3040` | **unverifiable headless** | Starting the binary binds a port. Forbidden by plan §7 constraint 1, and an agent context that starts a server like this gets SIGKILLed (the replay-viewer OOM/137 note in `memory/gotchas-infra.md`). Nothing was run. |
-| 2 | The page is served at all | **verified (build)** | `npm run build` emits `dist/index.html` referencing `/assets/index-*.js` and `/assets/index-*.css`; `build_router` mounts `ServeDir::new(dist).append_index_html_on_directories(true)` as the path fallback when `dist/` exists. The bytes exist and the route that serves them is the one already tested in S5. **The rendering itself was never observed.** |
+| 2 | The page is served at all | **verified (build)**, and the rendering is **partly** checked | `npm run build` emits `dist/index.html` referencing `/assets/index-*.js` and `/assets/index-*.css`; `build_router` mounts `ServeDir::new(dist).append_index_html_on_directories(true)` as the path fallback when `dist/` exists. The bytes exist and the route that serves them is the one already tested in S5. **The rendering itself was never observed in a browser** — and this row is exactly where the session's one real bug hid: a green build says nothing about whether the components survive a *redacted* payload. See "The one change outside `tools/play-server`" above; it was caught by evaluating Svelte's own `length > keys.size` condition against the dumped hands (`7 > 1` for each bot seat, `7 > 7` false for the human's), not by a build and not by a browser. |
 | 3 | See a 7-card hand | **verified (payload)** | `POST /api/game` at the pinned seed returns `state.zones.hand["Human-1"]` with exactly 7 entries — Island, Mist Intruder, Misdirection, Nyxbloom Ancient, Accorder's Shield, Helm of the Host, Swan Song — each `hidden: false` with a real `object_id`. `PlayApp` passes that state to `$viewer/StateView`, which renders hands through `ZoneHand`. |
 | 4 | Play a land | **verified (payload)** | The decision offered `{index: 1, kind: "PlayLand", object_id: 2, label: "Play Island"}`. Submitting index 1 moved the hand 8 → 7 and the battlefield 0 → 1, and emitted `LandPlayed` + `PermanentEnteredBattlefield`. Click-through matches on that same `object_id: 2`, so the button path and the click path submit the identical index. |
 | 5 | Pass priority | **verified (payload)** | 25 `PassPriority` submissions, all 200, each returning the next decision with a fresh `seq`. |

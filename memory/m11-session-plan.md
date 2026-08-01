@@ -1299,7 +1299,40 @@ without binding a port.
 
 ### Session 6: Play frontend — render and basic input (7 items)
 
-**STATUS (2026-08-01, `scutemob-169`): SHIPPED — all 7 items done.**
+**STATUS (2026-08-01, `scutemob-169`): SHIPPED — all 7 items done, 1 review cycle applied
+(1 HIGH / 2 MEDIUM / 3 LOW).**
+
+- **The HIGH is the session's real lesson, and a green build had nothing to say about it.**
+  `tools/replay-viewer/frontend/src/lib/ZoneHand.svelte` keyed its `#each` on
+  `card.object_id` — correct for the omniscient viewer, **fatal** for a seat-redacted
+  payload, because `redact::redact_hands` replaces every unreadable hand card with
+  `hidden_placeholder()`, whose `object_id` is **0**. Three bot hands of seven cards each
+  therefore arrived with one distinct key apiece, Svelte 5's keyed reconciler evaluates
+  `length > keys.size` and calls `each_key_duplicate` — which **throws in production, not
+  only in DEV** — and with no `<svelte:boundary>` the throw escapes the effect flush and
+  takes the mount down. **The play surface rendered nothing at all**, and every gate this
+  session had (build clean, 135 modules, 0 warnings, zero Rust diff, 4,040 tests green) was
+  green while it did. Measured rather than argued: `Bot-2/3/4` each `length 7, keys.size 1`;
+  the human's own hand `length 7, keys.size 7`. Fixed **in the shared component** as
+  `card.hidden ? \`hidden-${i}\` : card.object_id` — keyed on the flag the redactor sets, not
+  on the sentinel 0 — which is inert for the viewer and is the whole reason not to copy the
+  component. `hidden_placeholder` has exactly one call site (`redact_hands`), so hands are
+  the only zone at risk; checked, not assumed. **Generalisation for S7: the replay viewer's
+  components were written against an omniscient view model, and every assumption they make
+  about id uniqueness is now a claim about the redacted one too.**
+- **MEDIUM: `DeclareAttackers` / `DeclareBlockers` submit an EMPTY set and nothing complains.**
+  `params.rs` maps default params straight to `Command::DeclareAttackers { attackers: vec![] }`
+  — legal, irreversible, and silent, which is *worse* than the targeted-spell case that at
+  least fails loudly with a 422. The buttons stay enabled (disabling them would deadlock a
+  combat where the declaration is the only offered action, and CR 508.1 makes "no attackers"
+  legal) but are marked `declares none` with a tooltip saying so, and the README says it
+  plainly. S7's pickers are the actual fix.
+- Three LOWs: `jsconfig.json`'s `$viewer/*` path was off by one directory (editor-only —
+  `vite.config.js` was right, so the build never noticed); the "omit and take the CLI
+  default" rationale did not hold for `players`, which was pre-seeded to `'4'` and so
+  overrode a server started with `--players 6` on every New game; and the event feed keyed
+  its `#each` on the array index against a front-truncating window, now keyed on a monotonic
+  `seq` stamped at append.
 
 - **Zero Rust.** `git diff main -- crates/ tools/play-server/src tools/play-server/Cargo.toml
   tools/replay-viewer/` is **empty**; PROTOCOL 32 / HASH 69 unmoved; workspace tests

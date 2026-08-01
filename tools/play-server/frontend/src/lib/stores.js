@@ -52,13 +52,31 @@ export const error = writable(null);
  */
 const MAX_EVENTS = 500;
 
+/**
+ * Monotonic sequence stamped onto each event line as it is appended.
+ *
+ * `EventView` carries no id of its own (`{kind, text, player}` and nothing else,
+ * deliberately — see its doc), and the feed is a **front-truncating** window, so
+ * an array index is not a stable identity: once `MAX_EVENTS` engages, every
+ * surviving line's index shifts by the number dropped and a keyed `#each` re-keys
+ * the entire feed on every response. A counter that is assigned once and never
+ * reused is the cheapest thing that stays stable. Reset with the feed.
+ */
+let nextEventSeq = 0;
+
+function resetEvents() {
+  nextEventSeq = 0;
+  events.set([]);
+}
+
 /** Fold a `SeatView` into the stores. `seatView`/`decision` replace; `events` appends. */
 function applySeatView(view) {
   seatView.set(view);
   decision.set(view?.decision ?? null);
   const incoming = view?.events ?? [];
   if (incoming.length > 0) {
-    events.update((prev) => [...prev, ...incoming].slice(-MAX_EVENTS));
+    const stamped = incoming.map((ev) => ({ ...ev, seq: nextEventSeq++ }));
+    events.update((prev) => [...prev, ...stamped].slice(-MAX_EVENTS));
   }
 }
 
@@ -82,12 +100,12 @@ function toStoreError(err) {
  *
  * Returns true on success, false on failure or when the guard rejected the call.
  */
-async function run(call, { resetEvents = false } = {}) {
+async function run(call, { clearFeed = false } = {}) {
   if (get(loading)) return false;
   loading.set(true);
   try {
     const view = await call();
-    if (resetEvents) events.set([]);
+    if (clearFeed) resetEvents();
     applySeatView(view);
     error.set(null);
     return true;
@@ -104,7 +122,7 @@ async function run(call, { resetEvents = false } = {}) {
  * a table that no longer exists.
  */
 export function startGame(opts = {}) {
-  return run(() => api.newGame(opts), { resetEvents: true });
+  return run(() => api.newGame(opts), { clearFeed: true });
 }
 
 /**
@@ -126,7 +144,7 @@ export async function refresh() {
     if (err?.kind === 'no_session' || err?.status === 404) {
       seatView.set(null);
       decision.set(null);
-      events.set([]);
+      resetEvents();
       error.set(null);
       return false;
     }
@@ -167,7 +185,7 @@ export async function act(actionIndex, params = {}) {
  * same reason `startGame` clears it.
  */
 export function takeMulligan() {
-  return run(() => api.mulligan(true), { resetEvents: true });
+  return run(() => api.mulligan(true), { clearFeed: true });
 }
 
 /**

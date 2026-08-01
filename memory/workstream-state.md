@@ -41,6 +41,24 @@
 
 **S6 handoff (2026-08-01, `scutemob-169`)**
 
+- **Read this first: the session's one real bug was invisible to every gate it had, and the
+  fix is in the replay viewer, not here.** `ZoneHand.svelte` keyed its `#each` on
+  `card.object_id`. That is right for the omniscient replay viewer and **fatal** for a
+  seat-redacted payload: `redact::redact_hands` replaces every unreadable hand card with
+  `hidden_placeholder()`, whose `object_id` is **0**, so three bot hands of seven cards each
+  arrive with one distinct key apiece. Svelte 5 evaluates `length > keys.size` and calls
+  `each_key_duplicate`, which **throws in production as well as DEV**; with no
+  `<svelte:boundary>` the throw escapes the effect flush and takes the mount down. **The play
+  surface rendered nothing at all** — while `npm run build` was clean at 135 modules and 0
+  warnings, the Rust diff was empty, and 4,040 tests were green. Caught in review by
+  evaluating Svelte's own condition against the dumped hands (`7 > 1` per bot seat, `7 > 7`
+  false for the human's), not by a build and not by a browser. Fixed **in the shared
+  component** as `card.hidden ? \`hidden-${i}\` : card.object_id` — the flag the redactor
+  sets, not the sentinel 0 — inert for the viewer, and precisely the reason the plan aliases
+  the component instead of copying it. `hidden_placeholder` has one call site, so hands are
+  the only zone at risk (checked). **Carry into S7: the viewer's components were written
+  against an omniscient view model, and every id-uniqueness assumption in them is now also a
+  claim about the redacted one.**
 - **The play surface has a UI.** `tools/play-server/frontend` — Svelte 5 runes + Vite 7, the
   same versions as the replay viewer's frontend. Eight source files
   (`App.svelte`, `app.css`, `main.js`, `lib/{api,stores}.js`,
@@ -96,6 +114,18 @@
   of `CardInZoneView`, **not** of `PermanentView`, so an opponent's face-down permanent keeps
   its real id and is matched normally — which is right, since an action naming it is about an
   object the seat can point at without knowing what it is.
+- **`DeclareAttackers` / `DeclareBlockers` submit an EMPTY set, silently** (review MEDIUM).
+  `params.rs` maps default params straight to `Command::DeclareAttackers { attackers: vec![] }`
+  — legal, irreversible, and *quieter* than the targeted-spell case, which at least fails
+  loudly. The buttons stay enabled (disabling would deadlock a combat where the declaration
+  is the only offered action, and CR 508.1 makes "no attackers" legal) but are marked
+  `declares none` with a tooltip, and the README says it plainly. S7's pickers are the fix.
+- **Three review LOWs applied**: `jsconfig.json`'s `$viewer/*` path was off by one directory
+  (editor-only; `vite.config.js` was right, so the build never noticed); the "omit and take
+  the CLI default" rationale did not hold for `players`, pre-seeded to `'4'` and therefore
+  overriding a server run with `--players 6` on every New game; and the event feed keyed its
+  `#each` on the array index against a front-truncating window, now on a monotonic `seq`
+  stamped at append.
 - **Two facts recorded for Session 7.** (1) **`ZoneStack` declares `onCardClick` and never
   invokes it** — a dead prop in the viewer, harmless here (no `LegalAction` with an
   `object_id` names a stack object, `view.rs::action_object`) but load-bearing for S7, which

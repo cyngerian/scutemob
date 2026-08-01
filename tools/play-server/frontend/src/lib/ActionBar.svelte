@@ -48,6 +48,28 @@
   /** Found by `kind`, never by a hardcoded index — the list order is the server's. */
   const passAction = $derived(actions.find((a) => a.kind === 'PassPriority') ?? null);
 
+  /**
+   * Combat declarations submit an **empty** set until Session 7's pickers land,
+   * and the button says so rather than letting it happen quietly.
+   *
+   * `params.rs` maps `LegalAction::DeclareAttackers` with default params straight
+   * to `Command::DeclareAttackers { attackers: vec![] }` (and likewise for
+   * blockers), which is a legal and irreversible "I attack with nothing" for that
+   * combat. That is a different animal from the targeted-spell case, which the
+   * engine *refuses* with a loud 422 under CR 601.2c — here nothing complains and
+   * the human's combat step is simply gone.
+   *
+   * The buttons stay **enabled** deliberately. At a `DeclareAttackers` decision
+   * the declaration is typically the only option offered, so disabling it would
+   * deadlock the game rather than protect anyone; CR 508.1 also makes declaring
+   * no attackers a legal choice. The fix available to S6 is honesty about what the
+   * click does, not prevention.
+   */
+  const EMPTY_SET_KINDS = ['DeclareAttackers', 'DeclareBlockers'];
+  function declaresEmptySet(kind) {
+    return EMPTY_SET_KINDS.includes(kind);
+  }
+
   function submit(option) {
     if (loading) return;
     onAct?.(option.index, {});
@@ -164,12 +186,18 @@
             {#each plays as option (option.index)}
               <button
                 class="action-btn kind-{option.kind}"
+                class:empty-set={declaresEmptySet(option.kind)}
                 disabled={loading}
-                title="{option.kind}{option.needs_x ? ' — needs X (Session 7)' : ''}"
+                title="{option.kind}{option.needs_x
+                  ? ' — needs X (Session 7)'
+                  : ''}{declaresEmptySet(option.kind)
+                  ? ' — submits an EMPTY set: no attacker/blocker picker exists until Session 7, and the declaration is irreversible for this combat'
+                  : ''}"
                 onclick={() => submit(option)}
               >
                 {option.label}
                 {#if option.needs_x}<span class="needs-x">X</span>{/if}
+                {#if declaresEmptySet(option.kind)}<span class="empty-tag">declares none</span>{/if}
               </button>
             {/each}
           {/if}
@@ -305,12 +333,22 @@
   }
 
   .key-hint,
-  .needs-x {
+  .needs-x,
+  .empty-tag {
     font-size: 0.6rem;
     color: #667;
     border: 1px solid #33335a;
     border-radius: 2px;
     padding: 0 0.2rem;
+  }
+
+  .action-btn.empty-set {
+    border-color: #7a5a10;
+  }
+
+  .action-btn.empty-set .empty-tag {
+    color: #fc8;
+    border-color: #7a5a10;
   }
 
   .empty-reason {
