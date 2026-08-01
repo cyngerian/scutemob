@@ -106,16 +106,20 @@ fn pb_dx5_resolution_continuous_effect_roster() {
 /// literally reads one of those two placeholder names is *itself* a mass-filter def by the
 /// time the effect is stored, and is counted as mass here.
 fn is_mass_filter(name: &str) -> bool {
-    !matches!(name, "SingleObject" | "DeclaredTarget" | "Source" | "TriggeringCreature")
+    !matches!(
+        name,
+        "SingleObject" | "DeclaredTarget" | "Source" | "TriggeringCreature"
+    )
 }
 
 /// PB-DX5 §9 (test): the mass-filter roster, split by `Completeness`, re-reported by
 /// completeness rather than pinned to an exact count -- routine authoring changes both
 /// numbers constantly, and the engine fix is filter-agnostic, so an exact pin would guard
-/// nothing the fix depends on. The 28/8/1 split recorded in `memory/primitive-wip.md` and
-/// the plan is a MEASUREMENT from this same walk, not an independent claim; this test
-/// re-measures it every run and prints the actual numbers so the close notes quote a
-/// live count.
+/// nothing the fix depends on. The plan's "37 (28/8/1)" was itself wrong -- its own table
+/// already listed 38 rows summing to 29 `Complete`, an arithmetic slip nobody re-added.
+/// Measured here: **38 mass-filter defs, 29 `Complete`, 8 `partial`, 1 `known_wrong`**. This
+/// test re-measures it every run and prints the actual numbers so the close notes quote a
+/// live count, not a number in prose.
 #[test]
 fn pb_dx5_mass_filter_roster_by_completeness() {
     let defs = all_cards();
