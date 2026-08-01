@@ -80,6 +80,28 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-        completeness: Completeness::Complete,
+        // PB-DX4 (2026-08-01, OOS-DP10-8): Complete -> known_wrong.
+        //
+        // MCP-verified printed text: "Whenever this Vehicle attacks or blocks, YOU MAY draw a
+        // card. If you do, discard a card." Both triggers above author that as an
+        // UNCONDITIONAL `Effect::Sequence(vec![DrawCards, DiscardCards])`, so the controller is
+        // FORCED to loot on every attack and every block -- and on an empty library the forced
+        // draw loses the game outright (CR 704.5b).
+        //
+        // This is the 20th instance of the class audit §5's DP-12 row already owns: a COSTLESS
+        // "you may" on a trigger has no DSL representation (`MayPayThenEffect` requires a
+        // `Cost`, and a free one always trivially pays; `MayPayOrElse` and `Effect::Choose` are
+        // both barred from `Complete` by `effect_choose_gate.rs`; PB-DP9's
+        // `pending_effect_choice` channel serves search/scry/surveil only). The other 19
+        // instances are already marked `known_wrong`; this def was simply left `Complete`, so
+        // the marker -- not the encoding -- is what is wrong here.
+        completeness: Completeness::known_wrong(
+            "Printed 'you MAY draw a card. If you do, discard a card' is authored as an \
+             unconditional Sequence(DrawCards, DiscardCards) on both the attack and block \
+             triggers: the controller is forced to loot every attack and block, and decks out on \
+             an empty library. A costless 'you may' on a trigger has no DSL representation (audit \
+             §5 DP-12; the other 19 instances of this class are already known_wrong). Closing it \
+             needs the DP-12 owning engine PB, not a card-def edit.",
+        ),
     }
 }

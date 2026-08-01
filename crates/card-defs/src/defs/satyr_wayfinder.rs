@@ -22,19 +22,26 @@ pub fn card() -> CardDefinition {
         abilities: vec![AbilityDefinition::Triggered {
             once_per_turn: false,
             trigger_condition: TriggerCondition::WhenEntersBattlefield,
-            effect: Effect::RevealAndRoute {
+            // `Effect::RevealAndRoute` routes ALL matching cards (mandatory) — printed text is
+            // "You may put A land card" (at most one, optional). Use the put-≤1 sibling instead
+            // (see its doc in card-types/src/cards/card_definition.rs).
+            // Note: neither primitive emits a distinct "reveal" event (only zone-move events),
+            // so modelling this as "look at" rather than "reveal" loses no simulated behaviour.
+            effect: Effect::LookAtTopThenPlace {
                 player: PlayerTarget::Controller,
                 count: EffectAmount::Fixed(4),
                 filter: TargetFilter {
                     has_card_type: Some(CardType::Land),
                     ..Default::default()
                 },
-                matched_dest: ZoneTarget::Hand {
+                place_cost: None,
+                destination: ZoneTarget::Hand {
                     owner: PlayerTarget::Controller,
                 },
-                unmatched_dest: ZoneTarget::Graveyard {
+                rest_to: ZoneTarget::Graveyard {
                     owner: PlayerTarget::Controller,
                 },
+                optional: true,
             },
             intervening_if: None,
             targets: vec![],

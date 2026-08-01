@@ -27,6 +27,21 @@ pub fn card() -> CardDefinition {
                     target: EffectTarget::DeclaredTarget { index: 0 },
                     cant_be_regenerated: false,
                 },
+                // PB-DX4 (2026-08-01, OOS-DP10-8 triage): printed text is "Destroy target
+                // permanent YOU OWN" (ownership, CR 108.3), authored here as
+                // `TargetController::You` (control, CR 109.4). The two diverge in BOTH
+                // directions under any control-change effect: a permanent you own but an
+                // opponent controls (Mind Control) is wrongly an ILLEGAL target, and one you
+                // control but do not own is wrongly a LEGAL one.
+                //
+                // `TargetFilter` has no owner axis at all, so this is not authorable today.
+                // Deliberately NOT demoted, and NOT because the deviation is acceptable: this
+                // is a corpus-wide approximation class (see `nether_traitor.rs`, whose own note
+                // names `athreos` and `fecundity` as further instances), and demoting exactly
+                // the members that happen to sit in PB-DP10's 97-def BASELINE would
+                // misrepresent a class as a handful of cards. Filed as OOS-DX4-1: enumerate
+                // every `Complete` def approximating an ownership clause with
+                // `TargetController::You`, then decide the whole class at once.
                 targets: vec![TargetRequirement::TargetPermanentWithFilter(TargetFilter {
                     controller: TargetController::You,
                     ..Default::default()

@@ -17,19 +17,26 @@ pub fn card() -> CardDefinition {
                       card from among them into your hand. Put the rest into your graveyard."
             .to_string(),
         abilities: vec![AbilityDefinition::Spell {
-            effect: Effect::RevealAndRoute {
+            // `Effect::RevealAndRoute` routes ALL matching cards (mandatory) — printed text is
+            // "You may put A creature or land card" (at most one, optional). Use the put-≤1
+            // sibling instead (see its doc in card-types/src/cards/card_definition.rs).
+            // Note: neither primitive emits a distinct "reveal" event (only zone-move events),
+            // so modelling this as "look at" rather than "reveal" loses no simulated behaviour.
+            effect: Effect::LookAtTopThenPlace {
                 player: PlayerTarget::Controller,
                 count: EffectAmount::Fixed(5),
                 filter: TargetFilter {
                     has_card_types: vec![CardType::Creature, CardType::Land],
                     ..Default::default()
                 },
-                matched_dest: ZoneTarget::Hand {
+                place_cost: None,
+                destination: ZoneTarget::Hand {
                     owner: PlayerTarget::Controller,
                 },
-                unmatched_dest: ZoneTarget::Graveyard {
+                rest_to: ZoneTarget::Graveyard {
                     owner: PlayerTarget::Controller,
                 },
+                optional: true,
             },
             targets: vec![],
             modes: None,

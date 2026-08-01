@@ -67,7 +67,12 @@ pub fn card() -> CardDefinition {
                     Effect::Proliferate,
                 ]),
                 intervening_if: None,
-                targets: vec![TargetRequirement::TargetCreature],
+                // CR 601.2c: "put a +1/+1 counter on a creature you control" — controller-
+                // restricted, not "another", so no exclude_self.
+                targets: vec![TargetRequirement::TargetCreatureWithFilter(TargetFilter {
+                    controller: TargetController::You,
+                    ..Default::default()
+                })],
 
                 modes: None,
                 trigger_zone: None,

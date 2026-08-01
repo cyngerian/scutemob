@@ -232,6 +232,22 @@ mod tests {
 
     use std::collections::{BTreeSet, HashSet};
 
+    /// Test-only: the sentinel `seed` that makes `POST /api/game` fail its rebuild
+    /// *inside* the session lock.
+    ///
+    /// Carried by the request, not by process state, so parallel tests in this binary
+    /// cannot steal it from one another — see `api::post_game`'s injection point for the
+    /// global-flag version that could, and did.
+    ///
+    /// Deliberately declared INSIDE this module rather than at file scope: a top-level
+    /// `#[cfg(test)]` item moves the boundary `test_region` computes, which swept the real
+    /// serving entry point — and the forbidden symbols it uses — into the "test region"
+    /// and reddened `test_no_socket_symbol_appears_in_the_test_region`. The gate was right
+    /// three times over: it then caught this very doc comment naming two of those symbols
+    /// below the cut, on two successive attempts to describe why it had fired. Describe
+    /// them periphrastically here, as the helper below already has to.
+    pub(crate) const REBUILD_FAILURE_SEED: u64 = 0xDEAD_BEEF_F00D_u64;
+
     use axum::body::Body;
     use axum::http::{header, Request, StatusCode};
     use http_body_util::BodyExt;
@@ -380,17 +396,38 @@ mod tests {
         quoted[1..quoted.len() - 1].to_string()
     }
 
+    /// The targeted spell `drive_to_targeted_spell` drives toward, and how many
+    /// decisions it takes to get there.
+    ///
+    /// **Seed-pinned, and pinned to the `Complete`-def pool** — like the exact-hand and
+    /// secrets-count assertions elsewhere in this module, a completeness flip in any
+    /// card-def batch re-deals every seeded deck and this fixture moves with it.
+    /// Re-observe both values off a real run when they do; do not guess them.
+    ///
+    /// PB-DX4 (2026-08-01, `scutemob-168`) re-derived them: this was `"Cast Dispel"` in 8
+    /// steps, and the batch's four completeness demotions (one of them
+    /// `thrasios_triton_hero`, a legendary creature, which shifted the commander draw for
+    /// every seat) dealt the human a hand with no Dispel in it at all. The current opening
+    /// is two Swamps into `Cast Drown in Ichor` ({1}{B}, CR 601.2c "target creature gets
+    /// -X/-X"), which is not reachable inside 8 decisions because it needs a SECOND land
+    /// drop — hence the larger bound.
+    const TARGETED_SPELL: &str = "Cast Drown in Ichor";
+    const TARGETED_SPELL_STEPS: usize = 48;
+
     /// Drive the seed-pinned opening until the human is offered a **targeted**
     /// spell.
     ///
-    /// At `SEED` this is: pass in upkeep, pass in draw, play Island in
-    /// precombat main — after which `Cast Dispel` (CR 601.2c: "counter target
-    /// spell") is affordable and offered. Observed, not assumed; the panic below
-    /// prints the whole action list if the opening ever changes.
+    /// Observed, not assumed; the panic below prints the whole action list if the
+    /// opening ever changes.
+    ///
+    /// The caller feeds the found action a `Player` target, which must be ILLEGAL for
+    /// [`TARGETED_SPELL`] — that is the whole point of the test. Drown in Ichor targets a
+    /// creature, so it is. If a future re-pin picks a spell that legally targets a player,
+    /// the caller's `422` assertion fails loudly rather than passing for the wrong reason.
     async fn drive_to_targeted_spell(state: &SharedState) -> Value {
         let mut view = new_game(state).await;
-        for _ in 0..8 {
-            if action_index_by_label(&view, "Cast Dispel").is_some() {
+        for _ in 0..TARGETED_SPELL_STEPS {
+            if action_index_by_label(&view, TARGETED_SPELL).is_some() {
                 return view;
             }
             let index = action_indices(&view, "PlayLand")
@@ -407,7 +444,8 @@ mod tests {
             view = next;
         }
         panic!(
-            "seed {SEED} no longer offers a targeted spell in the opening; last decision was {}",
+            "seed {SEED} no longer offers {TARGETED_SPELL} within {TARGETED_SPELL_STEPS} \
+             steps; last decision was {}",
             decision(&view)
         );
     }
@@ -502,13 +540,13 @@ mod tests {
         assert_eq!(
             own_names,
             vec![
-                "Island",
-                "Mist Intruder",
-                "Misdirection",
-                "Nyxbloom Ancient",
-                "Accorder's Shield",
-                "Helm of the Host",
-                "Swan Song",
+                "Regrowth",
+                "Gemrazer",
+                "Beast Whisperer",
+                "Drown in Ichor",
+                "Swamp",
+                "Swamp",
+                "Grave Pact",
             ]
         );
 
@@ -560,8 +598,11 @@ mod tests {
             "Bot-4 passes",
             "All players passed",
             "Beginning — Draw",
-            // CR 504.1, seed-pinned: the human's draw for the turn.
-            "Human-1 draws Dispel",
+            // CR 504.1, seed-pinned: the human's draw for the turn. Like the exact-hand
+            // and secrets-count pins, this is a function of the `Complete`-def pool and
+            // re-deals whenever a card-def batch flips a marker — re-read it off a real
+            // run. (PB-DX4, 2026-08-01: was "Dispel".)
+            "Human-1 draws In Garruk's Wake",
         ] {
             assert!(
                 texts.iter().any(|t| t == expected),
@@ -1021,7 +1062,7 @@ mod tests {
         let view = drive_to_targeted_spell(&state).await;
         let at_seq = seq(&view);
         let before = command_count(&view);
-        let cast = action_index_by_label(&view, "Cast Dispel").expect("driven to the cast");
+        let cast = action_index_by_label(&view, TARGETED_SPELL).expect("driven to the cast");
 
         // Control, same decision: `targets` on a `PassPriority` has no channel at
         // all, so it never reaches the engine. 400, kind `bad_params`.
@@ -1161,7 +1202,7 @@ mod tests {
         // the value off a real run when it moves.)
         assert_eq!(
             secrets.len(),
-            18,
+            15,
             "guard against a vacuous pass: {secrets:?}"
         );
 
@@ -1330,10 +1371,18 @@ mod tests {
         assert!(state.session.is_poisoned());
 
         // A rebuild that fails *inside the lock*, after the recovery has run.
-        // Seed-pinned and observed: at `players: 2, seed: 17` seat 2 draws a
-        // colourless commander and `validate_deck` refuses the padded Forests.
-        let (status, err) =
-            post_json(&state, "/api/game", json!({ "players": 2, "seed": 17 })).await;
+        //
+        // PB-DX4 (2026-08-01): this used to rely on `players: 2, seed: 17` drawing a
+        // colourless commander so `validate_deck` refused the padded Forests — the
+        // OOS-M11-6 bug the maintenance note above warned this test was coupled to. That
+        // bug is fixed and nothing a client can send fails a rebuild any more, so the
+        // trigger is explicit now. See `api::post_game`'s injection point.
+        let (status, err) = post_json(
+            &state,
+            "/api/game",
+            json!({ "players": 2, "seed": REBUILD_FAILURE_SEED }),
+        )
+        .await;
         assert_eq!(
             status,
             StatusCode::UNPROCESSABLE_ENTITY,
@@ -1391,9 +1440,14 @@ mod tests {
         let (live_seq, live_commands) = (seq(&live), command_count(&live));
         assert_eq!(live_commands, 4, "the game really is in progress");
 
-        // The failing rebuild, on a HEALTHY lock this time.
-        let (status, err) =
-            post_json(&state, "/api/game", json!({ "players": 2, "seed": 17 })).await;
+        // The failing rebuild, on a HEALTHY lock this time. Explicit trigger since
+        // PB-DX4 closed OOS-M11-6 — see the sibling test above.
+        let (status, err) = post_json(
+            &state,
+            "/api/game",
+            json!({ "players": 2, "seed": REBUILD_FAILURE_SEED }),
+        )
+        .await;
         assert_eq!(
             status,
             StatusCode::UNPROCESSABLE_ENTITY,

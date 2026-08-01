@@ -34,7 +34,9 @@ pub fn random_deck(rng: &mut StdRng, cards: &[CardDefinition]) -> Option<DeckCon
     // deck drawn here that included an inert / partial / knowingly-wrong card
     // would simply abort at `run_game` with `IncompleteCardsInGame`. Filtering
     // to `Complete` up front keeps the fuzzer exercising real play instead.
-    // Find all legendary creatures (potential commanders)
+    // Find all legendary creatures (potential commanders). Colorless identities are
+    // INCLUDED — see the CR 903.5c padding arm below, which is what makes them legal
+    // (OOS-M11-6, closed by PB-DX4).
     let commanders: Vec<&CardDefinition> = cards
         .iter()
         .filter(|c| {
@@ -101,13 +103,45 @@ pub fn random_deck(rng: &mut StdRng, cards: &[CardDefinition]) -> Option<DeckCon
         main_deck.push(card.card_id.clone());
     }
 
-    // Pad to 99 with basic lands matching the color identity
+    // Pad to 99 with basic lands matching the color identity.
     let basics = basics_for_colors(&color_identity);
-    while main_deck.len() < 99 {
-        if basics.is_empty() {
-            // Colorless commander — use Wastes (or just any basic)
-            main_deck.push(CardId("forest".to_string()));
-        } else {
+    if basics.is_empty() {
+        // CR 903.5c — the colorless-commander case. **OOS-M11-6, closed here by PB-DX4
+        // (2026-08-01, `scutemob-168`).**
+        //
+        // This arm used to push `CardId("forest")` under the comment "Colorless commander —
+        // use Wastes (or just any basic)". It did not use Wastes (there is no `wastes.rs` in
+        // the corpus) and "any basic" is not legal: Forest's color identity is {Green} and a
+        // colorless commander's is {}, so a deck padded this way carried ~34 illegal Forests
+        // and `validate_deck` — which PB-M11-S2 routed `build_initial_state` through —
+        // refused the whole table. Worse, `bin/fuzzer.rs` feeds `random_deck` straight into
+        // `GameStateBuilder` with NO validation, so the fuzzer silently PLAYED those illegal
+        // decks rather than refusing them.
+        //
+        // The fix is the one OOS-M11-6 named as preferable: pad from the identity-legal
+        // colorless cards already in `eligible`, needing no new card def and no `Complete`
+        // flip. Viability was measured, not assumed — the `Complete` pool holds 40 colorless
+        // nonbasic lands and 83 colorless nonlands, 123 distinct singletons against the 99 a
+        // deck needs. Basics are exempt from the CR 903.5b singleton rule and these are not,
+        // so each is taken at most once; `None` if the pool ever cannot fill 99, which is a
+        // refusal rather than the silent illegal deck this replaces.
+        let mut filler: Vec<&CardDefinition> = eligible
+            .iter()
+            .filter(|c| !main_deck.contains(&c.card_id))
+            .copied()
+            .collect();
+        filler.shuffle(rng);
+        for card in filler {
+            if main_deck.len() >= 99 {
+                break;
+            }
+            main_deck.push(card.card_id.clone());
+        }
+        if main_deck.len() < 99 {
+            return None;
+        }
+    } else {
+        while main_deck.len() < 99 {
             let basic = &basics[rng.random_range(0..basics.len())];
             main_deck.push(basic.clone());
         }
@@ -134,10 +168,15 @@ fn basics_for_colors(colors: &[Color]) -> Vec<CardId> {
             Color::Green => basics.push(CardId("forest".to_string())),
         }
     }
-    if basics.is_empty() {
-        // Colorless — fall back to forest
-        basics.push(CardId("forest".to_string()));
-    }
+    // PB-DX4 (2026-08-01, `scutemob-168`, OOS-M11-6): the "Colorless — fall back to forest"
+    // arm that used to live here is DELETED, not repaired. It was the reason the caller's own
+    // `basics.is_empty()` branch was dead code, so the caller "handled" the colorless case
+    // with a second Forest push that could never run -- the code named the right fix in a
+    // comment twice and did it neither time. An empty return is now meaningful: it says "this
+    // identity has no legal basic land", which is exactly true of a colorless commander (there
+    // is no `wastes.rs` in the corpus), and the caller pads from identity-legal colorless
+    // cards instead. Do not restore a fallback here; a Forest is a CR 903.5c violation on
+    // every copy.
     basics
 }
 

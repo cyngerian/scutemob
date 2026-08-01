@@ -118,7 +118,9 @@ fn test_modal_death_trigger_structure() {
 
 /// CR 700.2b: Modal WhenDies trigger (Shambling Ghast) with "choose one" structure.
 /// Oracle: "When this creature dies, choose one —"
-/// Mode 0: create Treasure token. Mode 1: put -1/-1 counter on target creature an opponent controls.
+/// Mode 0: create Treasure token. Mode 1: target creature an opponent controls gets -1/-1
+/// until end of turn (PB-DX4 corrected this from a permanent MinusOneMinusOne counter; the
+/// printed clause is "until end of turn").
 #[test]
 fn test_modal_death_trigger_structure_shambling_ghast() {
     let cards = all_cards();
@@ -148,7 +150,7 @@ fn test_modal_death_trigger_structure_shambling_ghast() {
     assert_eq!(
         modes.modes.len(),
         2,
-        "Shambling Ghast has 2 modes (Treasure token or -1/-1 counter)"
+        "Shambling Ghast has 2 modes (Treasure token or -1/-1 until end of turn)"
     );
     assert_eq!(modes.min_modes, 1, "Shambling Ghast: must choose 1 mode");
     assert_eq!(modes.max_modes, 1, "Shambling Ghast: must choose 1 mode");
