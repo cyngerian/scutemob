@@ -385,11 +385,17 @@ pub struct PendingZoneChange {
 /// `perform_one_draw`'s `NeedsChoice` arm, when 2+ `WouldDraw` replacements
 /// apply to one draw and the draw does not happen; and its `DredgeAvailable`
 /// arm, when a dredge-eligible card sits in the drawing player's graveyard
-/// and the draw is replaced by the offer. `perform_one_draw` guarantees at
-/// most ONE entry per player exists at any time (see its doc's "Per-player
-/// invariant" section) — a second draw event for a player who already owes
-/// an answer DISCHARGES the outstanding entry (as a decline) rather than
-/// pushing a second one or folding into it.
+/// and the draw is replaced by the offer. A second draw event for a player
+/// who already owes an answer DISCHARGES the outstanding entry (as a
+/// decline) rather than folding into it — but the discharge can itself
+/// re-raise a fresh `NeedsChoice` entry that survives alongside the one the
+/// discharge's caller then pushes, so **more than one entry per player IS
+/// possible** (re-review Finding R1, `pb-review-DX2.md`; `OOS-DX2-3`,
+/// reopened — see `perform_one_draw`'s "Per-player invariant" doc for the
+/// full argument and the zero-corpus-exposure mitigation). What the
+/// discharge DOES guarantee: at most one *dredge-originated* entry per
+/// player, and no entry is ever destroyed (only resolved, possibly at a
+/// later moment than a human answer would have chosen).
 ///
 /// **Two consumers**: `Command::OrderReplacements` → `resolve_pending_draw`
 /// (CR 616.1), and `Command::ChooseDredge` → `replacement::handle_choose_dredge`
@@ -412,16 +418,19 @@ pub struct PendingDraw {
     /// this draw resolves, before the sequence is considered finished.
     pub remaining: u32,
     /// Which draw path raised this, so the resume writes the same bookkeeping.
-    /// `true` for `turn_actions::draw_card` and an EXPLICIT decline via
-    /// `replacement::handle_choose_dredge`'s `None` arm (both set
-    /// `PlayerState::has_drawn_for_turn`), `false` for
-    /// `effects::draw_cards_for_player` (renamed from `draw_one_card` in
-    /// PB-DP5, which does not). Preserves an existing divergence rather than
-    /// silently unifying it (CLAUDE.md write-only dead-state note; see PB-DP5
-    /// plan §2.4). PB-DX2's fix-cycle `resolve_declined_pending_draw` (an
-    /// IMPLICIT decline, forced by a second draw arriving) replays THIS
-    /// entry's own flag rather than hardcoding `true` — the pre-PB-DX2
-    /// `draw_card_skipping_dredge` helper hardcoded `true` unconditionally,
-    /// which was itself a bug for the effect-draw path.
+    /// `true` when the entry originated from `turn_actions::draw_card`,
+    /// `false` when it originated from `effects::draw_cards_for_player`
+    /// (renamed from `draw_one_card` in PB-DP5, which does not set
+    /// `PlayerState::has_drawn_for_turn`). Preserves an existing divergence
+    /// rather than silently unifying it (CLAUDE.md write-only dead-state
+    /// note; see PB-DP5 plan §2.4). **Corrected (R9, re-review):** neither
+    /// `handle_choose_dredge`'s `None` arm nor `perform_one_draw`'s implicit
+    /// discharge (`resolve_declined_pending_draw`) SETS this field — both
+    /// only ever PROPAGATE the value already stored on the entry they are
+    /// resolving, so a re-deferred entry keeps whatever its originating draw
+    /// established. `true` is not forced by either decline path — the
+    /// pre-PB-DX2 `draw_card_skipping_dredge` helper hardcoded `true`
+    /// unconditionally, which was itself a bug for the effect-draw path;
+    /// that bug is what this field's threading fixes.
     pub sets_has_drawn_for_turn: bool,
 }

@@ -862,9 +862,13 @@ fn test_dx2_dredge_then_remaining_draws_complete() {
 #[test]
 /// Hard constraint (plan §4.5 / risk 1): an outstanding dredge `PendingDraw`
 /// entry does NOT gate priority, SBAs or step advancement. Both players pass
-/// priority repeatedly with the entry outstanding and unanswered: no error,
-/// no hang, no `BlockingDecision`, and the entry is untouched (nothing else
-/// resolves it for the player).
+/// priority repeatedly with the entry outstanding and unanswered, never
+/// reaching p1's own next draw step: no error, no hang, no
+/// `BlockingDecision`, and the entry survives identically. **Corrected
+/// (R7, `pb-review-DX2.md`)**: this is NOT a claim that nothing ever
+/// resolves the entry for the player in general -- the player's own next
+/// draw DOES discharge it (PB-DX2's stale-entry discharge); this test's
+/// fixture simply never reaches that draw.
 fn test_dx2_unanswered_dredge_offer_does_not_deadlock() {
     let p1 = p(1);
     let p2 = p(2);
@@ -889,8 +893,23 @@ fn test_dx2_unanswered_dredge_offer_does_not_deadlock() {
     let (mut state, _events) = pass_all(state, &[p1, p2]);
     assert_eq!(state.pending_draws().len(), 1);
     assert!(state.blocking_decision().is_none());
+    // R7 re-review: capture the entry itself (not just the count) so the
+    // final assertion can prove IDENTITY, not merely count. `len() == 1`
+    // alone cannot distinguish "the same entry survived untouched" from "it
+    // was discharged (by the player's own next draw) and replaced by a
+    // fresh one" -- and after PB-DX2's fix cycle, a same-player draw DOES
+    // resolve it (`perform_one_draw`'s stale-entry discharge). This loop
+    // does not reach p1's next draw step (six `pass_all` rounds from
+    // Upkeep), so identity is expected to hold here, but the message must
+    // not overclaim a guarantee ("nothing else resolves it") the engine no
+    // longer makes in general.
+    let entry_before = state.pending_draws()[0].clone();
 
-    // Pass priority repeatedly through several steps WITHOUT ever answering.
+    // Pass priority repeatedly through several steps WITHOUT ever answering
+    // and WITHOUT ever reaching p1's next draw step (which would discharge
+    // this entry via PB-DX2's stale-entry discharge -- see
+    // `test_dx2_second_dredge_offer_discharges_the_first_and_conserves_draws`
+    // for that mechanism exercised directly).
     for _ in 0..6 {
         let (s, _ev) = pass_all(state, &[p1, p2]);
         state = s;
@@ -903,8 +922,16 @@ fn test_dx2_unanswered_dredge_offer_does_not_deadlock() {
     assert_eq!(
         state.pending_draws().len(),
         1,
-        "the unanswered entry must still be present -- nothing else resolves \
-         it for the player"
+        "exactly one entry must remain outstanding after passing priority \
+         through several steps with no draw step reached for p1"
+    );
+    assert_eq!(
+        state.pending_draws()[0],
+        entry_before,
+        "the SAME entry must survive byte-for-byte across steps that pass \
+         priority without a draw for p1 -- proving identity, not merely a \
+         stable count, distinguishes 'untouched' from 'discharged and \
+         replaced' (R7, `pb-review-DX2.md`)"
     );
 }
 
@@ -1219,6 +1246,225 @@ fn test_dx2_choose_dredge_some_can_answer_a_needschoice_originated_entry() {
     );
     assert!(state.pending_draws().is_empty());
     assert!(object_in_zone(&state, "Dredge Card", ZoneId::Hand(p1)));
+}
+
+// ── T20 (re-review Finding R1) ────────────────────────────────────────────
+
+/// CR 616.1f / 614.11a — pins the TRUE per-player invariant after re-review
+/// Finding R1 (`pb-review-DX2.md`): `pending_draws` is NOT bounded to one
+/// entry per player. A `NeedsChoice`-origin stale entry re-defers INSIDE
+/// `perform_one_draw`'s own stale-entry discharge (`resolve_declined_pending_draw`
+/// re-enters `perform_one_draw`, which independently re-checks
+/// `check_would_draw_replacement` and can push a fresh entry of its own), so
+/// a second, unrelated draw for the same player can leave TWO outstanding
+/// entries — this is `OOS-DX2-3`, REOPENED, not the "structurally
+/// impossible" state the fix cycle originally (and wrongly) closed it as.
+///
+/// Extends T19's fixture: decline a `NeedsChoice`-originated dredge offer
+/// (the decline itself re-defers, since both `SkipDraw` replacements remain
+/// applicable — CR 616.1f excludes only what was *applied*), then issue one
+/// MORE independent draw for the same player. This test fails
+/// (`pending_draws().len()` reverts to 1, or panics) if a future change
+/// re-clears a player's entries before each `push_back` — which the review
+/// explicitly warned against, since that would silently destroy the
+/// re-deferred draw rather than merely record its existence honestly.
+#[test]
+fn test_dx2_needschoice_redefer_grows_the_queue() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let skip_a = ReplacementEffect {
+        id: ReplacementId(960),
+        source: None,
+        controller: p2,
+        duration: EffectDuration::Indefinite,
+        is_self_replacement: false,
+        trigger: ReplacementTrigger::WouldDraw {
+            player_filter: PlayerFilter::Specific(p1),
+        },
+        modification: ReplacementModification::SkipDraw,
+    };
+    let skip_b = ReplacementEffect {
+        id: ReplacementId(961),
+        source: None,
+        controller: p2,
+        duration: EffectDuration::Indefinite,
+        is_self_replacement: false,
+        trigger: ReplacementTrigger::WouldDraw {
+            player_filter: PlayerFilter::Specific(p1),
+        },
+        modification: ReplacementModification::SkipDraw,
+    };
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::card(p1, "Dredge Card")
+                .in_zone(ZoneId::Graveyard(p1))
+                .with_keyword(KeywordAbility::Dredge(3)),
+        )
+        .object(ObjectSpec::card(p1, "Library Card 0").in_zone(ZoneId::Library(p1)))
+        .object(ObjectSpec::card(p1, "Library Card 1").in_zone(ZoneId::Library(p1)))
+        .object(ObjectSpec::card(p1, "Library Card 2").in_zone(ZoneId::Library(p1)))
+        .object(ObjectSpec::card(p1, "Library Card 3").in_zone(ZoneId::Library(p1)))
+        .with_replacement_effect(skip_a)
+        .with_replacement_effect(skip_b)
+        .build()
+        .unwrap();
+
+    mtg_engine::rules::turn_actions::draw_card(&mut state, p1).unwrap();
+    let (mut state, _decline_events) = process_command(
+        state,
+        Command::ChooseDredge {
+            player: p1,
+            card: None,
+        },
+    )
+    .unwrap();
+    assert_eq!(
+        state.pending_draws().len(),
+        1,
+        "sanity: the decline re-defers to a fresh NeedsChoice entry"
+    );
+
+    mtg_engine::rules::turn_actions::draw_card(&mut state, p1).unwrap();
+    assert_eq!(
+        state.pending_draws().len(),
+        2,
+        "R1: a second independent draw for the same player must NOT clobber \
+         or merge with the entry the decline re-raised -- both are legitimate \
+         CR 616.1 obligations and neither may be silently destroyed. If this \
+         reads 1, someone 'fixed' the growth by clearing entries early, which \
+         is the exact anti-fix the re-review warned against."
+    );
+    assert!(
+        state.pending_draws().iter().all(|pd| pd.player == p1),
+        "both entries belong to p1"
+    );
+}
+
+// ── T21 (re-review Finding R3) ─────────────────────────────────────────────
+
+/// CR 614.11a — pins the restructured `perform_one_draw::Proceed` control
+/// flow (re-review Finding R3, `pb-review-DX2.md`). The fix cycle converted
+/// two early `return`s in the `Proceed` arm into nested `match` tail
+/// expressions specifically because a bare `return` there would skip
+/// `events.extend(draw_events)` and silently drop the discharge's own
+/// events -- caught during implementation by the runner reading the code,
+/// not by any test. This test reaches the ONLY shape in which that defect
+/// is observable: the discharge produces events (a real draw, via
+/// `Proceed`) AND the current draw ALSO takes the `Proceed` path in the
+/// same `perform_one_draw` call (T7's fixture never exercises this, because
+/// the dredge card stays in the graveyard there and every draw is offered
+/// -- neither call ever reaches `Proceed`).
+#[test]
+fn test_dx2_discharge_then_proceed_both_produce_events_in_one_call() {
+    use mtg_engine::effects::{execute_effect, EffectContext};
+
+    let p1 = p(1);
+    let p2 = p(2);
+
+    let registry = CardRegistry::new(vec![dredge_card_def(
+        "dredge-dx2-t21",
+        "Dredge T21 Card",
+        3,
+    )]);
+
+    let state = build_upkeep_state(p1, p2, registry, |mut b| {
+        b = b.object(
+            ObjectSpec::card(p1, "Dredge T21 Card")
+                .in_zone(ZoneId::Graveyard(p1))
+                .with_card_id(CardId("dredge-dx2-t21".to_string()))
+                .with_keyword(KeywordAbility::Dredge(3)),
+        );
+        // Exactly at the CR 702.52b threshold (library == 3): eligible for
+        // the FIRST offer, then milled below threshold before the second
+        // draw so dredge is no longer offered on either the discharge's
+        // resume OR the new draw's own check.
+        for i in 0..3 {
+            b = b.object(
+                ObjectSpec::card(p1, &format!("Library Card {}", i)).in_zone(ZoneId::Library(p1)),
+            );
+        }
+        b
+    });
+
+    // Draw-step offer -- unanswered. Library untouched by the offer itself
+    // (dredge REPLACES the draw; nothing is milled/drawn yet).
+    let (mut state, _events) = pass_all(state, &[p1, p2]);
+    assert_eq!(state.pending_draws().len(), 1, "sanity: one stale entry");
+    assert_eq!(
+        count_in_zone(&state, ZoneId::Library(p1)),
+        3,
+        "sanity: library still at the CR 702.52b threshold"
+    );
+
+    // Mill the library below the Dredge(3) threshold -- CR 702.52b: dredge
+    // requires library >= n. After this, dredge cannot be offered again for
+    // EITHER the discharge's resume or the fresh draw's own check.
+    let mill = Effect::MillCards {
+        player: PlayerTarget::Controller,
+        count: EffectAmount::Fixed(1),
+    };
+    let mut ctx = EffectContext::new(p1, ObjectId(998), vec![]);
+    let _mill_events = execute_effect(&mut state, &mill, &mut ctx);
+    assert_eq!(
+        count_in_zone(&state, ZoneId::Library(p1)),
+        2,
+        "sanity: library now below the Dredge(3) threshold"
+    );
+
+    // A single fresh draw for the SAME player: this must discharge the
+    // stale entry (a REAL draw via `Proceed`, since dredge is no longer
+    // eligible and no other WouldDraw replacement is registered) AND take
+    // `Proceed` itself for the draw it was asked to perform.
+    let events = mtg_engine::rules::turn_actions::draw_card(&mut state, p1).unwrap();
+
+    let drawn = events
+        .iter()
+        .filter(|e| matches!(e, GameEvent::CardDrawn { player, .. } if *player == p1))
+        .count();
+    assert_eq!(
+        drawn, 2,
+        "the discharge's own Proceed draw AND the new draw's Proceed both \
+         produce a CardDrawn event from this single call -- reverting the \
+         fix-cycle's match-tail restructuring to a bare `return` in the \
+         `Proceed` arm would drop the discharge's event and read 1 here. \
+         Events: {:?}",
+        events
+    );
+    assert!(
+        !events
+            .iter()
+            .any(|e| matches!(e, GameEvent::DredgeChoiceRequired { .. })),
+        "dredge must not be re-offered on either side -- library is below \
+         threshold. Events: {:?}",
+        events
+    );
+    assert!(
+        state.pending_draws().is_empty(),
+        "no entry should remain outstanding -- the discharge consumed the \
+         stale one and the new draw completed rather than deferring"
+    );
+    // Discharge-first ordering: the discharge's CardDrawn precedes the
+    // outer draw's own (perform_one_draw's discharge step runs BEFORE the
+    // outer `check_would_draw_replacement`/`Proceed` match).
+    let first_drawn_index = events
+        .iter()
+        .position(|e| matches!(e, GameEvent::CardDrawn { player, .. } if *player == p1))
+        .unwrap();
+    let second_drawn_index = events
+        .iter()
+        .enumerate()
+        .filter(|(_, e)| matches!(e, GameEvent::CardDrawn { player, .. } if *player == p1))
+        .nth(1)
+        .map(|(i, _)| i)
+        .unwrap();
+    assert!(
+        first_drawn_index < second_drawn_index,
+        "discharge-first ordering: the discharge's CardDrawn must precede \
+         the outer draw's own. Events: {:?}",
+        events
+    );
 }
 
 // ── T16 ─────────────────────────────────────────────────────────────────────

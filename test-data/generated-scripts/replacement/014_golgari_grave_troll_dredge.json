@@ -188,7 +188,7 @@
       "actions": [
         {
           "type": "assert_state",
-          "description": "After draw step turn-based action fires: hand still 2 (draw paused for dredge choice), GGT still in graveyard, stack empty",
+          "description": "After draw step turn-based action fires: hand still 2 (draw replaced by a recorded dredge offer, not paused -- PB-DX2, the engine does not block), GGT still in graveyard, stack empty",
           "assertions": {
             "zones.hand.p1.count": 2,
             "zones.graveyard.p1": {

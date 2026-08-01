@@ -140,9 +140,14 @@ pub struct GameState {
     pub(crate) pending_zone_changes: Vector<PendingZoneChange>,
     /// Card draws waiting to be completed — either a CR 616.1 multi-replacement
     /// choice (resolved by `Command::OrderReplacements`) or a CR 702.52a dredge
-    /// offer (resolved by `Command::ChooseDredge`, PB-DX2). At most one entry
-    /// per player (`replacement::perform_one_draw`'s per-player invariant); see
-    /// `PendingDraw`'s own doc for the two producers / two consumers.
+    /// offer (resolved by `Command::ChooseDredge`, PB-DX2). **NOT bounded to
+    /// one entry per player** (re-review Finding R1, `pb-review-DX2.md`;
+    /// `OOS-DX2-3`, reopened) — a `NeedsChoice`-origin entry can be re-raised
+    /// inside `perform_one_draw`'s stale-entry discharge and survive alongside
+    /// the entry the discharge's own caller then pushes, so the count can grow
+    /// by one per draw in that regime. See `perform_one_draw`'s "Per-player
+    /// invariant" doc for the full argument and `PendingDraw`'s own doc for
+    /// the two producers / two consumers.
     #[serde(default)]
     pub(crate) pending_draws: Vector<PendingDraw>,
     /// CR 514.1 (PB-DP7 / DP-3): the outstanding cleanup-step discard-to-hand-size

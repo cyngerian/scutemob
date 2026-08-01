@@ -13,8 +13,9 @@
 - **Branch**: `feat/pb-dx2-gate-the-resolution-time-commands-nothing-gates-oos-d`
 - **Class**: **CORRECTNESS — live exploit, trust boundary.** `Command::ChooseDredge` has no
   pending-state gate; `card: None` is a free card for any player at any time.
-- **Phase**: closed (fix cycle applied — see "Fix cycle" section at the foot of this file and
-  `memory/primitives/pb-review-DX2.md`'s "Fix cycle" appendix)
+- **Phase**: closed (fix cycle 1 AND fix cycle 2 both applied — see "Fix cycle" and
+  "Fix cycle 2" sections at the foot of this file and `memory/primitives/pb-review-DX2.md`'s
+  matching appendices)
 - **Plan**: `memory/primitives/pb-plan-DX2.md`
 - **Review file**: `memory/primitives/pb-review-DX2.md`
 - **Wire prediction**: the brief says wire-neutral (PROTOCOL 32 / HASH 69 unmoved). **Treat this as
@@ -189,3 +190,66 @@ reconciling the family Finding 1/2/3/7/12 all touch.
 (+3: T17/T18/T19; T7 rewritten in place for the new discharge mechanism, not counted as new).
 `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --check` and
 `tools/check-defs-fmt.sh` clean; `cargo build --workspace` clean.
+
+## Fix cycle 2 (2026-08-01, same day) — re-review of fix cycle 1
+
+`memory/primitives/pb-review-DX2.md`'s "Re-review (fix cycle)" section — verdict
+**needs-fix (do-not-ship-until-R1-dispositioned)**, 1 HIGH / 3 MEDIUM / 5 LOW. Full disposition
+table for all 9 findings is in that file's "Fix cycle 2" appendix. Summary:
+
+- **R1 (HIGH)** — fix cycle 1's claim that the discharge made `pending_draws` "structurally
+  impossible" to hold two entries per player was **wrong**: `resolve_declined_pending_draw`
+  re-enters `perform_one_draw`, whose OWN discharge check finds the queue empty (the outer caller
+  already removed its target) and proceeds to independently re-check
+  `check_would_draw_replacement`, which can push a FRESH entry if 2+ `WouldDraw` replacements
+  remain applicable (CR 616.1f excludes only what was *applied*). Control then returns to the
+  outer call, which pushes its OWN entry. **Reproduced empirically before any fix, exactly as
+  instructed**: extending T19's fixture by one `draw_card` call reads `pending_draws().len() ==
+  2`. **`OOS-DX2-3` reopened** (not re-deleted — the false closure is preserved with strikethrough
+  and a correction, per the audit's own convention). All eight doc sites carrying the false
+  invariant corrected (`perform_one_draw`'s "Per-player invariant" section, both FIFO notes,
+  `resolve_declined_pending_draw`'s termination doc re-derived from the true premise, `PendingDraw`'s
+  struct doc, `GameState.pending_draws`'s field doc, `DredgeChoiceRequired`'s event doc,
+  `memory/gotchas-rules.md`, plus `sets_has_drawn_for_turn`'s field doc under R9). New permanent
+  test `test_dx2_needschoice_redefer_grows_the_queue` (T20) pins the TRUE count. **No engine fix
+  applied** — corpus exposure is zero (no card def registers `WouldDraw`) and the reviewer
+  explicitly warned that clearing entries early to "fix" the count would silently destroy a
+  re-deferred draw, which is worse.
+- **R2 (MEDIUM)** — the stale-entry discharge is a new engine-made AUTO-CHOSEN decision recorded
+  nowhere. Filed **OOS-DX2-7**, added an AUTO-CHOSEN row to audit §4.10, amended the §8.1 banner
+  (which described only the fold-guard design, not what shipped).
+- **R3 (MEDIUM)** — nothing pinned the restructured `Proceed`-arm control flow (the early-`return`
+  defect the runner caught by hand during fix cycle 1). New test
+  `test_dx2_discharge_then_proceed_both_produce_events_in_one_call` (T21) reaches the shape where
+  BOTH the discharge and the current draw take `Proceed` in one call. **Verified non-vacuous by
+  injecting the exact regression** (temporarily dropping the discharge's events before the final
+  return) — failed as predicted, reverted, passes clean.
+- **R4 (MEDIUM)** — Finding 5's original fix cycle only restored the graveyard-zone branch's
+  coverage; the `Dredge(n)` keyword check and the answer-time CR 702.52b library re-check still
+  had zero. Two new probes added to `dredge.rs`.
+- **R5 (LOW)** — duplicate `PlayerLost` when the discharge decks the player out: fixed with a
+  `has_lost` short-circuit expressed as a tail-value branch, not a `return` (would reintroduce the
+  R3-class defect).
+- **R6 (LOW)** — the two lines the fix cycle 1 rewrote cited CR 104.3b (life-total loss) instead
+  of 104.3c (empty-library loss); corrected. The other four pre-existing sites deliberately left
+  for `OOS-DX2-6`'s existing sweep ticket, per the finding's own directive.
+- **R7 (LOW)** — three surviving "paused" prose sites (golden `014:191`, `dredge.rs`, T8's
+  assertion message) reconciled; T8 additionally strengthened from a count-only assertion to an
+  identity assertion (captures and compares the whole `PendingDraw` entry).
+- **R8 (LOW)** — `OOS-DX2-2` and `OOS-DP2-1`'s cites had drifted a SECOND time within the same
+  batch; both re-verified by direct read and switched to symbol-based citation (file::symbol)
+  rather than a line number, to stop a third drift.
+- **R9 (LOW)** — `sets_has_drawn_for_turn`'s doc, audit §9.3, and §4.10/DP-5's stale
+  `draw_card_skipping_dredge` references all corrected.
+
+**Verification**: `git diff --stat` over `rules/protocol.rs` + `state/hash.rs` empty (PROTOCOL 32
+/ HASH 69 unmoved, confirmed by T16 and direct read). `cargo build --workspace` clean; `cargo
+clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --check` clean;
+`tools/check-defs-fmt.sh` clean (1,804 defs). `cargo test --all` → **3,978 passing, 0 failing**
+(+4 over the fix-cycle-1 pin of 3,974: T20, T21, 2 `dredge.rs` sibling probes).
+
+**Findings the reviewer got wrong**: none. All 9 findings held up on independent verification;
+R1 was reproduced empirically before any fix was written, R3's fix was verified non-vacuous by
+injecting the exact regression class described, and the two "cite drift" findings (R8) were each
+re-checked by reading the actual current file rather than trusting either the original or the
+re-review's own numbers.

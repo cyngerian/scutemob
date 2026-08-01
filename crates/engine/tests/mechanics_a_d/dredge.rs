@@ -758,6 +758,174 @@ fn test_dredge_invalid_command_card_not_in_graveyard() {
     }
 }
 
+// ── Test 9b: ChooseDredge with a graveyard card lacking Dredge ───────────────
+
+#[test]
+/// CR 702.52a — trust-boundary check (re-review Finding R4, `pb-review-DX2.md`).
+/// Finding 5's fix cycle restored coverage for the graveyard-ZONE branch
+/// (test 9 above) but left `handle_choose_dredge`'s `Dredge(n)` KEYWORD check
+/// with zero coverage repo-wide. If that check were dropped,
+/// `ChooseDredge { Some(any_card_in_your_own_graveyard) }` would return ANY
+/// card to hand for free while satisfying the gate (an outstanding entry) and
+/// the zone check (it IS in the graveyard) -- this test exists specifically
+/// so that regression cannot ship silently.
+fn test_dredge_some_rejects_a_graveyard_card_without_the_keyword() {
+    let p1 = p(1);
+    let p2 = p(2);
+
+    let registry = CardRegistry::new(vec![dredge_card_def("dredge-9b", "Dredge Nine B", 3)]);
+
+    let state = build_upkeep_state(p1, p2, registry, |mut b| {
+        b = b.object(
+            ObjectSpec::card(p1, "Dredge Nine B")
+                .in_zone(ZoneId::Graveyard(p1))
+                .with_card_id(CardId("dredge-9b".to_string()))
+                .with_keyword(KeywordAbility::Dredge(3)),
+        );
+        // A SECOND card, in the graveyard, WITHOUT the Dredge keyword -- the
+        // card this test names in its malformed answer.
+        b = b.object(ObjectSpec::card(p1, "No Dredge Keyword").in_zone(ZoneId::Graveyard(p1)));
+        for i in 0..5 {
+            b = b.object(
+                ObjectSpec::card(p1, &format!("Library Card {}", i)).in_zone(ZoneId::Library(p1)),
+            );
+        }
+        b
+    });
+
+    // Reach a REAL outstanding dredge offer first, same as test 9.
+    let (state, events) = pass_all(state, &[p1, p2]);
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, GameEvent::DredgeChoiceRequired { player, .. } if *player == p1)),
+        "expected a real dredge offer to be outstanding. Events: {:?}",
+        events
+    );
+
+    let no_keyword_id = find_object(&state, "No Dredge Keyword");
+
+    let result = process_command(
+        state,
+        Command::ChooseDredge {
+            player: p1,
+            card: Some(no_keyword_id),
+        },
+    );
+
+    match result {
+        Err(mtg_engine::GameStateError::InvalidCommand(msg)) => {
+            assert!(
+                msg.contains("Dredge keyword"),
+                "expected the keyword-eligibility validation to name the \
+                 reason (not the graveyard-zone or entry-gate messages), \
+                 got: {:?}",
+                msg
+            );
+        }
+        Err(other) => panic!(
+            "expected GameStateError::InvalidCommand naming the missing \
+             Dredge keyword, got {:?}",
+            other
+        ),
+        Ok(_) => panic!(
+            "ChooseDredge naming a graveyard card without Dredge must be \
+             rejected -- otherwise ANY graveyard card returns to hand for \
+             free"
+        ),
+    }
+}
+
+// ── Test 9c: ChooseDredge answer-time re-validates the library size ─────────
+
+#[test]
+/// CR 702.52b — answer-time re-validation (re-review Finding R4,
+/// `pb-review-DX2.md`). `test_dredge_insufficient_library_not_offered`
+/// covers the OFFER side of CR 702.52b (a too-small library never emits
+/// `DredgeChoiceRequired` in the first place); it does NOT cover
+/// `handle_choose_dredge`'s own answer-time re-check
+/// (`replacement.rs:3338-3343`), which is the one that matters once the
+/// library can change BETWEEN the offer and the answer -- and after the
+/// PB-DX2 fix cycle it legitimately can, because the stale-entry discharge
+/// makes an intervening draw for the same player possible while an offer
+/// still stands.
+fn test_dredge_some_rejects_when_library_drops_below_threshold_after_the_offer() {
+    use mtg_engine::effects::{execute_effect, EffectContext};
+    use mtg_engine::{Effect, EffectAmount, PlayerTarget};
+
+    let p1 = p(1);
+    let p2 = p(2);
+
+    let registry = CardRegistry::new(vec![dredge_card_def("dredge-9c", "Dredge Nine C", 3)]);
+
+    let state = build_upkeep_state(p1, p2, registry, |mut b| {
+        b = b.object(
+            ObjectSpec::card(p1, "Dredge Nine C")
+                .in_zone(ZoneId::Graveyard(p1))
+                .with_card_id(CardId("dredge-9c".to_string()))
+                .with_keyword(KeywordAbility::Dredge(3)),
+        );
+        // Exactly at the CR 702.52b threshold: eligible for the offer.
+        for i in 0..3 {
+            b = b.object(
+                ObjectSpec::card(p1, &format!("Library Card {}", i)).in_zone(ZoneId::Library(p1)),
+            );
+        }
+        b
+    });
+
+    let (mut state, events) = pass_all(state, &[p1, p2]);
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, GameEvent::DredgeChoiceRequired { player, .. } if *player == p1)),
+        "expected a real dredge offer to be outstanding. Events: {:?}",
+        events
+    );
+    assert_eq!(count_in_zone(&state, ZoneId::Library(p1)), 3);
+
+    // Mill the library below the threshold WHILE the offer stands -- the
+    // library can legitimately change between offer and answer.
+    let mill = Effect::MillCards {
+        player: PlayerTarget::Controller,
+        count: EffectAmount::Fixed(1),
+    };
+    let mut ctx = EffectContext::new(p1, ObjectId(998), vec![]);
+    let _ = execute_effect(&mut state, &mill, &mut ctx);
+    assert_eq!(count_in_zone(&state, ZoneId::Library(p1)), 2);
+
+    let dredge_card_id = find_object(&state, "Dredge Nine C");
+
+    let result = process_command(
+        state,
+        Command::ChooseDredge {
+            player: p1,
+            card: Some(dredge_card_id),
+        },
+    );
+
+    match result {
+        Err(mtg_engine::GameStateError::InvalidCommand(msg)) => {
+            assert!(
+                msg.contains("cannot dredge"),
+                "expected the answer-time library-size re-check to reject \
+                 this, got: {:?}",
+                msg
+            );
+        }
+        Err(other) => panic!(
+            "expected GameStateError::InvalidCommand naming the library \
+             shortfall, got {:?}",
+            other
+        ),
+        Ok(_) => panic!(
+            "ChooseDredge must re-validate the library size at answer time, \
+             not just trust the offer -- CR 702.52b applies at the moment \
+             of dredging, not the moment of the offer"
+        ),
+    }
+}
+
 // ── Test 10: Declining dredge does not re-offer dredge ───────────────────────
 
 #[test]
@@ -902,7 +1070,9 @@ fn test_dredge_during_effect_draw_not_just_draw_step() {
         events
     );
 
-    // No CardDrawn yet — the draw is paused for the player's choice.
+    // No CardDrawn yet — the draw was replaced by the dredge offer (the
+    // engine does NOT pause or block, PB-DX2 -- this only asserts nothing
+    // was drawn in THIS call, not that the game is blocked).
     assert!(
         !events
             .iter()

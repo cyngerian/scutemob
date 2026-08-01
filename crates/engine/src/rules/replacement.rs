@@ -170,11 +170,15 @@ pub fn determine_action(
 /// | `ChooseDredge { Some }` | `NeedsChoice` | the `Some` arm validates only that the named card is dredge-eligible against the player's OWN graveyard/library — byte-for-byte `check_would_draw_replacement`'s own predicate — so this is CR 616.1e's "any of the applicable replacements may be chosen", not a bypass |
 ///
 /// `position(|p| p.player == player)` here and in `handle_choose_dredge` both
-/// take the FIFO (oldest) entry for the player, but `perform_one_draw`'s
-/// fix-cycle Finding 1 discharge (`pb-review-DX2.md`) makes it structurally
-/// impossible for two entries to coexist for one player (`OOS-DX2-3`
-/// CLOSED), so "FIFO" is now vacuous in practice — there is only ever one
-/// candidate.
+/// take the FIFO (oldest) entry for the player. **This is real, not
+/// vacuous** (re-review Finding R1, `pb-review-DX2.md` — corrects a prior
+/// version of this note that claimed `perform_one_draw`'s discharge made a
+/// second entry structurally impossible): a `NeedsChoice`-origin entry
+/// re-raised INSIDE a discharge can coexist with the entry the discharge's
+/// own caller then pushes, so `player` CAN have 2+ outstanding entries —
+/// see `perform_one_draw`'s "Per-player invariant" doc and `OOS-DX2-3`
+/// (reopened). Both this function and `handle_choose_dredge` deliberately
+/// answer the OLDEST one first.
 ///
 /// Order of evaluation: zone change first, then draw. This is pure preservation
 /// of pre-PB-DP5 behavior — byte-for-byte for any existing test — and, because
@@ -846,30 +850,66 @@ pub(crate) enum DrawStepOutcome {
 /// `turn_actions::draw_card` and `handle_choose_dredge`'s decline arm (which
 /// both set it today); `false` for the effect-draw path (which never has).
 ///
-/// # Per-player invariant (fix-cycle Finding 1, `pb-review-DX2.md`)
+/// # Per-player invariant — CORRECTED (re-review Finding R1, `pb-review-DX2.md`)
 ///
-/// At most ONE `PendingDraw` entry can ever exist for a given player. Before
-/// this fix, a second offer for a player who already owed an answer FOLDED
-/// into the existing entry (`remaining += 1 + remaining_after`), which
-/// conserved the draw count but let the obligation accumulate WITHOUT BOUND
-/// across turns and be cashed in a single `ChooseDredge` at an arbitrary
-/// later moment, out of priority (the review's concrete scenario: seven
-/// cards drawn during another player's declare-blockers step). This function
-/// now DISCHARGES — not folds — any stale entry for `player` as its very
-/// first action, before even checking what this new draw requires. See the
-/// top of the body below for why the discharge is unconditional rather than
-/// nested inside the `DredgeAvailable` arm, and `resolve_declined_pending_draw`
-/// for how a discharge plays out (identically to an explicit
-/// `ChooseDredge { None }`, so the draw is never destroyed — only completed
-/// at a different moment than a human answer would have chosen). Because
-/// every `pending_draws.push_back` in this function is now preceded by this
-/// discharge, two entries can never coexist for the same player — this
-/// closes **OOS-DX2-3** as a side effect. It does NOT close the single-entry
+/// **The queue is NOT bounded to one entry per player.** An earlier version of
+/// this doc claimed the discharge below made a second entry "structurally
+/// impossible", reasoning from where the two `push_back` calls live rather
+/// than when they run relative to the discharge — the fallacy R1 identifies.
+/// Before this fix (fix-cycle Finding 1), a second offer for a player who
+/// already owed an answer FOLDED into the existing entry
+/// (`remaining += 1 + remaining_after`), which conserved the draw count but
+/// let the obligation accumulate WITHOUT BOUND across turns and be cashed in
+/// a single `ChooseDredge` at an arbitrary later moment, out of priority
+/// (the review's concrete scenario: seven cards drawn during another
+/// player's declare-blockers step). This function now DISCHARGES — not
+/// folds — any stale entry for `player` as its very first action, before
+/// even checking what this new draw requires; see the top of the body below
+/// for why the discharge is unconditional rather than nested inside the
+/// `DredgeAvailable` arm, and `resolve_declined_pending_draw` for how a
+/// discharge plays out (identically to an explicit `ChooseDredge { None }`,
+/// so the draw is never destroyed — only completed at a different moment
+/// than a human answer would have chosen).
+///
+/// That discharge, however, re-enters this very function
+/// (`resolve_declined_pending_draw` calls `perform_one_draw` with
+/// `offer_dredge: false`), and the re-entrant call's OWN
+/// `check_would_draw_replacement` can independently return `NeedsChoice` and
+/// push a FRESH entry — CR 616.1f only excludes replacements that were
+/// *applied*, not merely offered, so 2+ still-applicable `WouldDraw`
+/// replacements stay applicable across the discharge. Control then returns
+/// to the *outer* call, which pushes its own entry for the draw it was
+/// originally asked to perform. Each `draw_card` (or resumed dredge answer)
+/// for a player whose prior entries are all `NeedsChoice`-originated and
+/// whose replacements remain applicable therefore GROWS the queue by exactly
+/// one entry, without bound — pinned by
+/// `pb_dx2_command_gates.rs::test_dx2_needschoice_redefer_grows_the_queue`.
+/// **What the discharge DOES bound**: at most one **dredge-originated**
+/// (`DredgeAvailable` arm) entry can exist per player, because that arm only
+/// runs when `offer_dredge` is true, which is never the case on a re-entrant
+/// discharge call — so a discharge can never itself mint a second dredge
+/// offer. This is **OOS-DX2-3**, REOPENED (it was closed on the false
+/// "structurally impossible" argument above; see the audit row for the
+/// corrected statement).
+///
+/// What the discharge DOES close: an outstanding entry can no longer be
+/// destroyed (folded/overwritten) by a later draw, and — corpus-permitting —
+/// cannot be cashed at a later moment covering many intervening turns, since
+/// the entry itself is resolved (not merely re-stamped) the instant another
+/// draw arrives for the same player. It does NOT close the single-entry
 /// version of the timing gap: an outstanding entry can still be answered, or
 /// now auto-discharged, at an arbitrary later moment with no priority/step
 /// check on `Command::ChooseDredge`. That residual is **OOS-DP5-2**'s
 /// pre-existing "no deadline for `pending_draws`" finding, not a new one,
 /// and stays out of scope for a wire-neutral fix.
+///
+/// **Corpus exposure today is zero**: no card definition registers a
+/// `ReplacementTrigger::WouldDraw` replacement effect (the only source hit is
+/// an `inert`-completeness note in `out_of_the_tombs.rs`), so a
+/// `NeedsChoice`-originated `PendingDraw` cannot arise from any legal deck —
+/// this growth path is latent, not live-wrong, and is not being engine-fixed
+/// for that reason (see the audit row for the argument against a defensive
+/// engine change here).
 ///
 /// No internal loop *here*: like `resolve_pending_zone_change`'s single call to
 /// `check_zone_change_replacement`, a `NeedsChoice` here defers to a *future*
@@ -977,23 +1017,37 @@ pub(crate) fn perform_one_draw(
                 // and silently drop any discharge events accumulated above.
                 let library_zone = ZoneId::Library(player);
                 // SR-14: the library zone is built pre-turn-1 and never removed
-                // (ground truth 2); `top()` returning `None` is the legal CR 104.3b
+                // (ground truth 2); `top()` returning `None` is the legal CR 104.3c
                 // empty case, not an absence.
                 match state.expect_zone(&library_zone).and_then(|z| z.top()) {
                     None => {
-                        // CR 104.3b: drawing from an empty library causes loss.
-                        // SR-14: players are never removed from state.players
-                        // (ground truth 1).
-                        if let Some(p) = state.expect_player_mut(player) {
-                            p.has_lost = true;
+                        // CR 104.3c: being required to draw more cards than remain
+                        // in the library causes loss (R6 re-review: this cite was
+                        // 104.3b, which is the SEPARATE life-total-<=0 loss rule).
+                        // R5 re-review: if the discharge above already lost this
+                        // player (its own empty-library arm ran first and set
+                        // `has_lost`), do NOT emit a second `PlayerLost` for the
+                        // same condition — Architecture Invariant 4, no
+                        // phantom/duplicate events. This is a tail value, not a
+                        // `return`, for the same reason as the NOTE above: a bare
+                        // `return` here would skip `events.extend(draw_events)`
+                        // and silently drop the discharge's own events.
+                        if state.expect_player(player).is_some_and(|p| p.has_lost) {
+                            (vec![], DrawStepOutcome::LostToEmptyLibrary)
+                        } else {
+                            // SR-14: players are never removed from state.players
+                            // (ground truth 1).
+                            if let Some(p) = state.expect_player_mut(player) {
+                                p.has_lost = true;
+                            }
+                            (
+                                vec![GameEvent::PlayerLost {
+                                    player,
+                                    reason: crate::rules::events::LossReason::LibraryEmpty,
+                                }],
+                                DrawStepOutcome::LostToEmptyLibrary,
+                            )
                         }
-                        (
-                            vec![GameEvent::PlayerLost {
-                                player,
-                                reason: crate::rules::events::LossReason::LibraryEmpty,
-                            }],
-                            DrawStepOutcome::LostToEmptyLibrary,
-                        )
                     }
                     Some(top_id) => {
                         // SR-14: `top_id` was just read from the live library top
@@ -1048,11 +1102,23 @@ pub(crate) fn perform_one_draw(
 /// destroyed, only completed at a different moment than a human answer would
 /// have chosen.
 ///
-/// Terminates: `perform_one_draw`'s stale-entry discharge only ever finds
-/// `pending_draws` empty for `player` at this point (this function's own
-/// callers always remove the entry being discharged before calling it), so
-/// no unbounded recursion is possible; `perform_remaining_draws` below
-/// bounds its own loop by `pending.remaining`, a `u32` captured up front.
+/// Terminates, but NOT for the reason a prior version of this doc claimed
+/// (re-review Finding R1, `pb-review-DX2.md`): `perform_one_draw`'s
+/// discharge does NOT guarantee `pending_draws` is empty for `player` when
+/// this function's recursive call re-enters it — if the player had `k > 1`
+/// STALE entries queued (itself only reachable via the growth path documented
+/// on `perform_one_draw`'s "Per-player invariant" section), the re-entrant
+/// call finds and discharges the NEXT one, recursing again. The true bound:
+/// each recursive level removes exactly one entry from `pending_draws` before
+/// calling this function again, `pending_draws` only shrinks (never grows)
+/// *within* one discharge chain — the growth described above happens only on
+/// the UNWIND, via `push_back`, after the deepest call returns — so recursion
+/// depth is bounded by `k`, the number of entries queued for `player` at the
+/// moment the chain begins. `k` is itself unbounded ACROSS separate draws
+/// (see `perform_one_draw`'s doc), so this is a real, not cosmetic, bound —
+/// it is finite for any single call but grows with prior queue depth.
+/// `perform_remaining_draws` below bounds its own loop by `pending.remaining`,
+/// a `u32` captured up front, independently of this recursion.
 fn resolve_declined_pending_draw(
     state: &mut GameState,
     player: PlayerId,
@@ -3144,10 +3210,11 @@ pub fn apply_damage_prevention(
 /// outcome — so `ChooseDredge { Some }` succeeding against a `NeedsChoice`
 /// entry is a FEATURE (CR 616.1e lets the player pick dredge from the
 /// applicable set), not a hole. `position()` (FIFO, oldest entry for this
-/// player) matches `handle_order_replacements`, but since `perform_one_draw`'s
-/// fix-cycle Finding 1 discharge guarantees at most ONE entry per player
-/// (`OOS-DX2-3`), "FIFO" only matters in the sense that there is never a
-/// second candidate to be FIFO about.
+/// player) matches `handle_order_replacements` — and FIFO is a real choice
+/// here, not a formality (re-review Finding R1, `pb-review-DX2.md`): a
+/// player CAN have 2+ outstanding entries (see `perform_one_draw`'s
+/// "Per-player invariant" doc and `OOS-DX2-3`, reopened), so this always
+/// answers the oldest.
 ///
 /// **The decline is not sticky (fix-cycle Finding 10).** The `None` arm below
 /// passes `offer_dredge: false` so the SAME draw is not re-offered dredge
