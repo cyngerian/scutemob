@@ -35,7 +35,66 @@
 | S2 deterministic pregame setup + mulligans | `scutemob-161` | **SHIPPED** | `setup.rs`: `build_initial_state` / `redeal` — see handoff below |
 | S3 action parameterization + engine target queries | `scutemob-163` | **SHIPPED** | the crux (plan §8 R1) is closed: a human can cast a targeted spell. See handoff below |
 | S4 view-model crate extraction + seat redaction | `scutemob-165` | **SHIPPED** | this session — `crates/view-model` (`mtg-view-model`); a seat view provably cannot leak another hand or any library order. See handoff below |
-| S5 play-server crate skeleton + REST API | — | **next** | Plan §4 Session 5. New `tools/play-server` (axum, port 3040) — the only crate in this milestone with async or IO. Consumes `mtg-view-model` and `LocalGame`. **Never start the HTTP server to validate; use `tower::ServiceExt::oneshot`** |
+| S5 play-server crate skeleton + REST API | `scutemob-167` | **SHIPPED** | this session — `tools/play-server` (axum, port 3040), the only crate in this milestone with async or IO. 5 routes + `ServeDir`, 8 `oneshot` tests, **no port ever bound**. See handoff below |
+| S6 play frontend — render and basic input | — | **next** | Plan §4 Session 6. New `tools/play-server/frontend` (Svelte 5 + Vite), dev proxy to `127.0.0.1:3040`, `$viewer` alias importing the replay-viewer components rather than copying them. No Rust change beyond serving `dist/` |
+
+**S5 handoff (2026-08-01, `scutemob-167`)**
+
+- **A full game is now playable over `curl` alone.** `POST /api/game` → `GET /api/game` →
+  `POST /api/game/action` → `POST /api/game/mulligan` → `GET /api/healthz`, plus a `ServeDir`
+  fallback to `dist/` for S6's frontend. Tests 4,008 → **4,016** (+8, all in the crate's
+  inline `mod tests`). `git diff main -- crates/engine/src crates/card-types/src
+  crates/card-defs/src` is **empty**; PROTOCOL **32** / HASH **69** unmoved; `crates/simulator`
+  and `crates/view-model` untouched — S5 needed nothing added to either.
+- **No port is ever bound.** `TcpListener` / `axum::serve` appear only inside `async_main`,
+  which no test calls; all 8 tests drive `build_router(state, &PathBuf::from("nonexistent_dist"))`
+  through `tower::ServiceExt::oneshot`. Plan §7 constraint 1 held.
+- **The multi-thread runtime flavor is a correctness requirement, not a performance choice.**
+  `tokio::task::block_in_place` **panics** on a current-thread runtime — which is exactly what
+  a plain `#[tokio::test]` builds. Every async test carries
+  `#[tokio::test(flavor = "multi_thread")]`. The 8 MB worker stacks are the separate,
+  inherited reason (`tools/replay-viewer/src/main.rs:52-66`: deep trigger chains overflow
+  tokio's 2 MB default in debug builds). Both facts are commented at the runtime builder and
+  in `api.rs`'s module doc — **S6/S7 must not "simplify" either one away.**
+- **New engine seed, found by a test refusing to lie about itself.** Writing
+  `test_post_action_illegal_target_returns_422` against the first castable spell at seed 0
+  (`Accorder's Shield`, a `{0}` artifact with no target requirements) returned **200**: the
+  engine **accepts a spurious `Player` target on a spell that requires none**, and records it
+  on the stack object. The test was rebuilt to drive three deterministic steps to
+  `Cast Dispel` ("counter target spell", CR 601.2c), where the target is genuinely refused →
+  `Rejected(GameStateError::InvalidTarget)` → 422, with the same params on `PassPriority`
+  asserted alongside as the **400** control (`ParamError::UnsupportedParam`, never reaches the
+  engine). **The excess-target acceptance is a real engine-side gap, out of scope for
+  M11-local — worth filing against the DX queue.**
+- **Invariant 7 at the HTTP boundary is pinned in both directions.** Omniscient truth is read
+  out of band from the session's `GameState`; after excluding the human's own hand and every
+  public zone (battlefield, graveyards, command zone per CR 903.6, exile, stack), **20
+  distinct other-seat hand card names** remain and the count is asserted **exactly**, so a
+  future change cannot quietly empty the set and turn the search into a no-op. Each name is
+  searched for in the **raw response body string**, not the parsed `zones.hand` — S4's review
+  HIGH ("redaction follows the rendering site, not the zone") applied forward. All seven of
+  the human's own names are asserted **present**, so an empty payload fails. Proven by
+  mutation: flipping `seat_view` to `Viewer::Omniscient` reddens test 7 on
+  `"Aggravated Assault"` and nothing else.
+- **Two facts S7 needs.** (1) `mtg_view_model::redact::viewer_may_identify` is `pub(crate)`
+  and not re-exported, so a play-server label physically cannot call it — every label goes
+  through a `NameIndex` derived from the already-redacted `StateViewModel`, and an unidentified
+  id renders `(hidden card)`. **S7's `target_slots` labels must use the same index**, not
+  `state.objects()`. (2) `event_view_for` takes **four** params (`ev, state, player_names,
+  viewer`), not the plan §3 sketch's three.
+- **Known limitations, all deliberate and documented in `tools/play-server/README.md`**: the
+  mulligan rebuilds the **whole table** (CR 903.6 makes the command zone public, so a redeal
+  is not invisible; and CR 103.5c's per-seat counts cannot be represented) — a per-seat model
+  needs each *bot* seat asked, i.e. a new decision channel; `cards_to_bottom` is refused with
+  **400** rather than silently discarded, because `handle_keep_hand` checks it against a
+  `PlayerState::mulligan_count` a rebuild always leaves at 0; `GET /api/game` calls the
+  idempotent `advance()` and consumes `journal_cursor`; `target_slots` / `modes` are empty
+  until S7; `needs_x` answers `CastSpell` only; one game per process.
+- **The no-WebSocket / no-SSE decision is recorded in the crate README with its reasoning**
+  (bots act synchronously inside the human's own request, so the server never holds news the
+  client is not already waiting on; a second human seat would break that premise; push is
+  M10a's problem). `memory/decisions.md` receives it at **S8**, per plan item 8 — deliberately
+  **not** written there yet.
 
 **S4 handoff (2026-08-01, `scutemob-165`)**
 

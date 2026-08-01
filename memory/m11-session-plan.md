@@ -878,6 +878,97 @@ cannot leak another player's hand or any library order.
 
 ### Session 5: play-server crate skeleton + REST API (8 items)
 
+**STATUS (2026-08-01, `scutemob-167`): SHIPPED — all 8 items done.**
+`tools/play-server` (package `play-server`) exists as a workspace member with
+`Cargo.toml`, `src/{main.rs,api.rs,session.rs,view.rs}` and `README.md`. All 8 named tests
+pass through `tower::ServiceExt::oneshot` and **no port is ever bound** —
+`TcpListener`/`axum::serve` appear only inside `async_main`, which no test calls.
+`cargo build --workspace`, `cargo clippy --workspace --all-targets -- -D warnings`,
+`cargo fmt --check`, `tools/check-defs-fmt.sh` (1,804 defs) and `cargo test --workspace`
+are green; tests 4,008 → **4,016**. `git diff main -- crates/engine/src crates/card-types/src
+crates/card-defs/src` is **empty**; PROTOCOL 32 / HASH 69 unmoved; `crates/simulator` and
+`crates/view-model` are untouched — the session needed nothing added to either.
+
+**`block_in_place` is why the runtime flavor is load-bearing, not a performance choice.**
+The 8 MB worker stacks are inherited from `tools/replay-viewer/src/main.rs:52-66` (deep
+trigger chains overflow tokio's 2 MB default in debug), but the *multi-thread* flavor is a
+correctness requirement: `tokio::task::block_in_place` **panics** on a current-thread
+runtime, which is what a plain `#[tokio::test]` builds. Every async test therefore carries
+`#[tokio::test(flavor = "multi_thread")]`, and both the runtime builder and `api.rs`'s
+module doc say so.
+
+**Test 6 (`test_post_action_illegal_target_returns_422`) needed a real spell, and finding
+that out surfaced an engine gap.** The obvious subject — the first castable spell at seed 0,
+`Accorder's Shield`, a `{0}` artifact — **succeeds with 200** when handed a spurious
+`Player` target: the engine does not validate *excess* targets on a spell with no target
+requirements, and the bogus target is recorded on the stack object. The test was rebuilt to
+drive three deterministic steps to `Cast Dispel` ("counter target spell", CR 601.2c), where a
+`Player` target is genuinely refused → `LocalGameError::Rejected(GameStateError::InvalidTarget)`
+→ **422**. The same `targets` on `PassPriority` is asserted alongside as a **400** control
+(`ParamError::UnsupportedParam`, never reaches the engine), so the 400/422 split is
+demonstrated by observation rather than argued. **The excess-target acceptance is a genuine
+engine-side finding, out of scope here — seed it.**
+
+**Test 7 is Architecture Invariant 7 at the HTTP boundary and was falsified in both
+directions.** The omniscient truth is read out of band from the `PlaySession`'s `GameState`
+via `StateViewModel::from_game_state`; after excluding the human's own hand and every public
+zone (battlefield, graveyards, command zone per CR 903.6, exile, stack), **20 distinct
+other-seat hand card names** remain, and the count is asserted **exactly** so a future change
+cannot quietly empty the set and turn the search into a no-op. Each is searched for in the
+**raw response body string** of `GET /api/game`, not in the parsed `zones.hand` field — the
+S4 review HIGH ("redaction follows the rendering site, not the zone") applied forward.
+Opposite-direction guard: all seven of the human's own hand names are asserted **present**,
+so an empty payload fails. Proven non-vacuous by mutation: flipping `seat_view`'s
+`Viewer::Seat(human)` to `Viewer::Omniscient` reddens test 7 on `"Aggravated Assault"` while
+the other seven stay green (test 2 correctly stays green — it does not claim to be a
+redaction test).
+
+Deviations from the plan text, all recorded in source and in the crate README:
+
+- **`PlaySession` gained `mulligan_count`** beyond the plan's field list. `setup::redeal` is
+  keyed by `(seat, mulligan_count)` and nothing else remembers the count — the engine's
+  `PlayerState::mulligan_count` is always 0 on this path, because a whole-table rebuild
+  issues no `Command::TakeMulligan`.
+- **`SeatView` gained `summary: GameSummary`.** The plan names `GameSummary` as a DTO but
+  gives it no home.
+- **"Pregame" is `command_count() == 0`, not a turn number.** `build_initial_state` sets
+  `first_turn_of_game` and `GameStateBuilder` defaults `turn_number` to 1, so a freshly built
+  game is already *in* turn 1 — which is also why `local_game::decision_kind_for`'s
+  `Mulligan` arm, gated on `turn_number == 0`, is unreachable.
+- **The mulligan keeps the whole-table rebuild.** `setup::redeal`'s own doc comment says the
+  per-seat model "belongs with the Session 5 play-server pregame flow"; it does not, because
+  a per-seat model requires each *bot* seat to be asked, which is a new decision channel
+  rather than a small addition. Both of `redeal`'s honest limitations are restated on the
+  handler and in the README.
+- **`cards_to_bottom` is refused with 400 rather than accepted and discarded.**
+  `handle_keep_hand` checks the count against `PlayerState::mulligan_count`, which a rebuild
+  always leaves at 0, so CR 103.5's bottoming half is genuinely inexpressible on this path.
+  Loud, not silently wrong.
+- **`GET /api/game` calls `advance()`** — a read that can move the game. In practice a no-op
+  (`advance` is idempotent while a decision is outstanding), and it is what lets a plain
+  `GET` report a concluded or halted game without the session caching its last outcome. It
+  *does* advance `journal_cursor`: reading events consumes them.
+- **`ActionParamsDto.auto_tap` defaults to `true`** — there is no mana-tapping UI yet, and an
+  unpayable cast is the worst failure on this surface.
+- **`needs_x` answers `CastSpell` only**, through `calculate_characteristics` (not raw
+  `obj.characteristics`). An activated ability's `{X}` lives in its `ActivationCost`, which
+  `LegalAction::ActivateAbility` does not carry — S7's problem, alongside `modes`.
+- **`GameOverView` also carries `AdvanceOutcome::Halted`** behind a `halted: bool`. The plan
+  does not model `Halted`, and the client's question ("is another decision coming?") is the
+  same either way.
+- **Errors the plan does not enumerate**, chosen and reasoned in source: `BadParams` → **400**
+  (wrong against *any* state, so a client error, not an engine rejection), `Engine` → **500**
+  (the fault is on the server's side of the boundary), no session → **404**, a mulligan after
+  play began → **409**, a poisoned mutex → **500**.
+
+**Two facts recorded for Session 7.** (1) `mtg_view_model::redact::viewer_may_identify` is
+`pub(crate)` and not re-exported, so a play-server label physically *cannot* call it — every
+label is instead rendered through a `NameIndex` derived from the already-redacted
+`StateViewModel`, and an id absent from that view (or flagged `hidden`, or empty-named)
+renders as `(hidden card)`. S7's `target_slots` labels must go through the same index.
+(2) `event_view_for` takes **four** parameters (`ev, state, player_names, viewer`), not the
+§3 sketch's three.
+
 **Crate**: `tools/play-server` (new) — the only crate in this milestone with async or IO.
 **Files**: `tools/play-server/Cargo.toml`, `src/main.rs`, `src/api.rs`, `src/session.rs`,
 `src/view.rs`; root `Cargo.toml`.
