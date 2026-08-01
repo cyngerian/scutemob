@@ -140,7 +140,7 @@ impl PlayApp {
                 record_journal: false,
             },
         };
-        // CR 103.4/903.6 pregame setup, and Architecture Invariant 9 deck admission
+        // CR 103.5/903.6 pregame setup, and Architecture Invariant 9 deck admission
         // (`validate_deck`) for free -- unlike the setup logic this replaces, a seat
         // whose `random_deck` could find no legendary commander is now a hard
         // `SetupError` surfaced through `anyhow`, not a silently-skipped seat with no

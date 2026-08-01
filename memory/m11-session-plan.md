@@ -606,11 +606,22 @@ else about the TUI's behaviour changed.
    the 99+1 contract `random_deck` produces. `start_game`'s `check_all_defs_complete` stays
    as the second, independent line of defence.
 4. `redeal(cfg, seat, mulligan_count)` — the mulligan implementation (CR 103.5, CR 103.5c
-   free first mulligan in multiplayer). Because `handle_take_mulligan` cannot shuffle
-   (§1 fact 1), a mulligan is a **pregame rebuild**: re-shuffle with `seed ^
-   mulligan_count`, re-deal 7, and let the caller nominate `mulligan_count - 1` cards for
-   the bottom. This happens strictly before `start_game`, so no command has been issued
-   and no history is invalidated. File the engine-side observation as a seed (§8 R2).
+   free first mulligan in multiplayer). A mulligan is a **pregame rebuild**: re-shuffle
+   under a perturbed seed, re-deal 7, and let the caller nominate `mulligan_count - 1`
+   cards for the bottom. This happens strictly before `start_game`, so no command has been
+   issued and no history is invalidated.
+   > **Two premises in this item were dead by the time it shipped — corrected in place so
+   > they stop propagating.** (a) *"Because `handle_take_mulligan` cannot shuffle (§1 fact
+   > 1)"* — **false since PB-DP2** (`scutemob-150`), which is also what §8 R2 records; the
+   > engine's in-game mulligan is CR 103.5-faithful, and `redeal` is kept for the *pregame
+   > UX* reason in Q1 (mulligans before `start_game`), not as a correctness workaround. Do
+   > not re-file R2. (b) *"re-shuffle with `seed ^ mulligan_count`"* — **do not do this**:
+   > the two terms cancel whenever they are equal, and `seat 1 / mulligan 1` is the single
+   > most common case, so it silently re-deals the identical rejected hand. Shipped as
+   > `redeal_seed`, a splitmix64-style mix; see its doc comment. Also note the shipped
+   > `redeal` implements only the re-deal half — bottoming needs `ActionParams` (Session
+   > 3) — and carries two documented limitations of the whole-table rebuild (public
+   > command zone, and no representation of a partially-decided table).
 5. Rewire `tools/tui/src/play/app.rs::PlayApp::new` to call `setup::build_initial_state`
    — deletes ~45 lines of duplicated setup and gives the TUI deck validation for free.
    TUI behaviour otherwise unchanged.
