@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-08-01 08:06 UTC  
-**Git:** `8e336544` on `feat/pb-dx3-two-stale-blocker-notes-garruksuprising-inventorsfair`  
+**Generated:** 2026-08-01 08:40 UTC  
+**Git:** `6c1cff8c` on `feat/pb-dx3b-the-oos-dx3-1-insert-jadar-live-wrong-complete-ophio`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -25,10 +25,10 @@ and what is intentionally NOT in it.**
 | Plan cards still missing a def file | 135 | · |
 | Bonus defs (on disk, outside plan) | 322 | · |
 | Effective coverage vs plan target | **111%** (1,823 / 1,636) | — |
-| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 63.3% | 1,142 | · |
+| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 63.4% | 1,143 | +1 |
 | With TODO markers | 511 | · |
-| Empty `abilities: vec![]` placeholders | 151 | · |
-| Total TODO lines across all defs | 942 | · |
+| Empty `abilities: vec![]` placeholders | 150 | -1 |
+| Total TODO lines across all defs | 940 | -2 |
 
 ## Authoring activity (git, by window)
 
@@ -68,8 +68,8 @@ are blocked on engine primitives.
 | --- | ---: | ---: | ---: | ---: | ---: |
 | `combat-keyword` | 187 / 187 | 100% | 89 | 83 | 15 |
 | `draw` | 164 / 169 | 97% | 79 | 68 | 17 |
-| `token-create` | 148 / 155 | 95% | 85 | 47 | 16 |
-| `land-etb-tapped` | 138 / 138 | 100% | 116 | 22 | 0 |
+| `token-create` | 148 / 155 | 95% | 86 | 46 | 16 |
+| `land-etb-tapped` | 138 / 138 | 100% | 115 | 23 | 0 |
 | `other` | 108 / 131 | 82% | 70 | 31 | 7 |
 | `modal-choice` | 73 / 105 | 70% | 37 | 24 | 12 |
 | `mana-land` | 92 / 92 | 100% | 65 | 26 | 1 |
@@ -171,7 +171,7 @@ the next thing to triage when the classifier table is grown.
 
 | Gap bucket | TODO lines | Δ since last run |
 | --- | ---: | ---: |
-| OTHER (unclassified) | 578 | · |
+| OTHER (unclassified) | 576 | -2 |
 | DSL gap (unspecified) | 120 | · |
 | attack trigger (self / generic) | 23 | · |
 | TriggerCondition::* missing variant | 17 | · |
@@ -201,7 +201,7 @@ _…and 26 more buckets totaling 44 lines._
 
 ### Raw OTHER samples (read these to design new classifier buckets)
 
-Showing 12 of 578 
+Showing 12 of 576 
 unclassified TODO lines. If two or three of these have a common theme, that's a 
 new bucket to add to `TODO_BUCKETS` in `tools/authoring-report.py`. Sample is 
 deterministic (sorted by slug).
@@ -210,23 +210,24 @@ deterministic (sorted by slug).
 abstergo_entertainment: // TODO: {3}, {T}, Exile Abstergo Entertainment: Return up to one target historic card
 bloodghast: // TODO: Oracle says "you may return" — currently non-optional (bot always returns).
 deep_gnome_terramancer: // TODO: "lands enter under opponent's control without being played" trigger condition
-exuberant_fuseling: // TODO: "whenever another creature or artifact you control is put into a graveyard
-goblin_king: // TODO: AllCreaturesWithSubtype includes Goblin King itself — "other" semantics
-joraga_treespeaker: // TODO: Level up mechanic not in DSL — no LevelUp keyword or level-based ability gating.
+fable_of_the_mirror_breaker: // ENGINE-BLOCKED: the token is created with correct P/T/color/subtypes but
+goblin_lackey: // TODO: "put a Goblin from hand onto battlefield" — needs MoveZone from
+joraga_treespeaker: // TODO: Level-dependent abilities and P/T changes (Level 1-4: 1/2 + {T}: Add {G}{G};
 marisi_breaker_of_the_coil: // TODO: "goad each creature that player controls" — ForEach over DamagedPlayer's creatures
-overwhelming_stampede: // TODO: Spell effect — grant trample and +X/+X to all creatures you control until end
-sakashimas_student: // TODO: "enter as a copy of any creature, except it's also a Ninja" — needs
-sorin_imperious_bloodlord: // TODO: "You may sacrifice a Vampire. When you do, [effects]" — optional sacrifice
-teferis_protection: // TODO: "All permanents you control phase out" — Effect::PhaseOut for all controller permanents.
-tyvar_jubilant_brawler: // TODO: static — creatures you control can activate abilities as though they had haste
+pact_of_negation: // TODO: Counter target spell + delayed upkeep trigger "pay {3}{U}{U} or lose the game."
+sarkhan_fireblood: // TODO: Optional discard-then-draw not in DSL. Using Nothing to avoid free draw.
+sorin_imperious_bloodlord: // TODO: Interactive hand selection by creature subtype ("Vampire creature card from
+teferis_protection: // TODO: "Exile Teferi's Protection" — self-exile on resolution.
+tyvar_jubilant_brawler: // TODO: Mill effect + conditional graveyard return with MV filter.
 ```
 
 ## ⚠ Completeness-marker drift
 
-4 defs whose `completeness:` marker contradicts their comments. The marker is authoritative (it is what `validate_deck` reads), so fix whichever is stale.
+5 defs whose `completeness:` marker contradicts their comments. The marker is authoritative (it is what `validate_deck` reads), so fix whichever is stale.
 
 - `ashnods_altar` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `boggart_shenanigans` — marked partial but has no TODO / ENGINE-BLOCKED comment
+- `emeria_the_sky_ruin` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `phyrexian_tower` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `temple_of_the_dragon_queen` — marked partial but has no TODO / ENGINE-BLOCKED comment
 

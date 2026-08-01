@@ -30,6 +30,14 @@ pub fn card() -> CardDefinition {
             // TODO: DSL gap — replacement effect for "enters with an additional +1/+1 counter"
             // conditional on opponent life loss. Needs conditional ETB replacement.
         ],
+        // PB-DX3b (OOS-DX3-1, 2026-08-01): RE-VERIFIED, still blocked, re-dated. Checked
+        // against the current Condition enum (`card-types/src/cards/card_definition.rs`)
+        // and `AbilityDefinition::Replacement` (`unless_condition: Option<Condition>` is
+        // an opt-OUT gate, not an "active only if" gate — the wrong polarity for "as long
+        // as an opponent lost life this turn" even setting the missing variant aside).
+        // `Condition::OpponentLostLifeThisTurn` still does not exist — the nearest sibling,
+        // `ControllerGainedLifeThisTurn`, is the wrong side of the interaction (own life
+        // gain, not opponent life loss). Both TODOs stand; DEFERRED, not fixed this batch.
         completeness: Completeness::partial(
             "DSL gap — intervening-if 'if an opponent lost life this turn' \
              (Condition::OpponentLostLifeThisTurn) does not exist",

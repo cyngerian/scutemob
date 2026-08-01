@@ -285,9 +285,32 @@ fn the_marker_detector_is_not_vacuous() {
     // floor, since the assert is a lower bound) to 674 before this batch, and now
     // to 669 (verified via a direct grep of MARKER_FRAGMENTS across
     // crates/card-defs/src/defs/*.rs). Same margin convention as before.
+    //
+    // PB-DX3b (2026-08-01): threshold lowered 662 -> 661, and the stale "669" in the
+    // message corrected to "661". The 669 figure had already gone stale silently
+    // between PB-OS11 and this batch -- eight further batches (RS1-4, DP1-10, DX1-3)
+    // flipped defs to `Complete` without anyone re-verifying this comment, so the
+    // *true* non-Complete count on this branch's `main` parent was already 662, not
+    // 669 -- the assert had eroded to its exact floor with ZERO margin, silently,
+    // because `>=` only fails once the true count actually crosses the pinned line.
+    // This batch's own net effect is -1 (measured directly against `all_cards()`,
+    // not estimated): `ophiomancer` and `dwynen_s_elite` flip partial/inert ->
+    // Complete (-2), `emeria_the_sky_ruin` flips Complete -> explicit `partial` (+1,
+    // a genuine correction of a def that was `Complete` only by the
+    // `#[default] Completeness::Complete` derive trap, not a real regression --
+    // see `emeria_the_sky_ruin.rs`'s completeness note). `jadar_ghoulcaller_of_
+    // nephalia` stays `Complete` (no marker either side). Net -1 tipped the
+    // already-zero-margin floor from passing to failing. Measured on this branch:
+    // `marked == 661` and a direct `all_cards()` non-Complete count also == 661 (the
+    // detector currently has NO gap between the two counts at all). Pinned at the
+    // exact measured value rather than re-establishing a margin, because the
+    // generalisable lesson here is that ANY fixed margin silently erodes as later
+    // batches flip markers and nothing re-derives it -- the next batch that moves
+    // this number should re-measure `all_cards()` directly rather than trust this
+    // comment's arithmetic, exactly as this update did.
     assert!(
-        marked >= 662,
-        "marker detector matched only {marked} files; the corpus has 669 non-Complete defs. \
+        marked >= 661,
+        "marker detector matched only {marked} files; the corpus has 661 non-Complete defs. \
          MARKER_FRAGMENTS is broken and the gate would spuriously flag marked defs"
     );
 }

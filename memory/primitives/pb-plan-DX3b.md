@@ -257,8 +257,10 @@ Reasoning, stated so the reviewer can attack it:
   a marker asserting something no one checked.
 - PB-DP10's precedent — *seed, do not demote* — was scoped to a **test-only** batch that was
   forbidden from editing defs. This batch is editing the def, so the precedent does not transfer.
-- Net coverage is **+2**, not +3: `ophiomancer` and `dwynen_s_elite` flip up, `emeria` flips down
-  from a value it never earned. Report it that way; do not quietly bank +3.
+- Net coverage is **+1**, not +3: `ophiomancer` and `dwynen_s_elite` flip up (+2), `emeria` flips
+  down (−1) from a value it never earned. Report it that way; do not quietly bank +3.
+  *(Corrected during close-out — this line originally read "+2", which was this plan's own
+  arithmetic slip. Measured with `tools/authoring-report.py`: **1,142 → 1,143**.)*
 
 **Falsifier**: if the reviewer finds a free-optional mechanism this plan missed, Emeria is
 authorable in full and stays `Complete` at +3. Look before concluding.

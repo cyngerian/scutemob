@@ -1,11 +1,20 @@
 // Jadar, Ghoulcaller of Nephalia — {1}{B}, Legendary Creature — Human Wizard 1/1
-// At the beginning of your end step, if you control no tokens named Shambling Ghast,
+// At the beginning of your end step, if you control no creatures with decayed,
 // create a 2/2 black Zombie creature token with decayed.
 // (It can't block. When it attacks, sacrifice it at end of combat.)
 //
 // CR 702.147a: Decayed — can't block; sacrifice at end of combat after attacking.
 // CR 603.1: Triggered ability fires at beginning of controller's end step with intervening-if.
 // CR 111.10: Token is created with the Decayed keyword in its characteristics.
+//
+// PB-DX3b (OOS-DX3-1, 2026-08-01): the stored `oracle_text` and this file comment were
+// WRONG, not merely blocked — they said "no tokens named Shambling Ghast" (a filter the
+// printed card never had). MCP-verified printed text is "if you control no creatures with
+// decayed." That filter is expressible today: `Condition::YouControlNOrMoreWithFilter` with
+// a Creature + Decayed-keyword TargetFilter, negated. Both PB-DP6 (queue-time, end-step
+// CardDef sweep, `rules/turn_actions.rs:781`) and PB-DX1 (resolution-time re-check,
+// `InterveningIf::CardDef`) already gate this trigger moment. See the fixed intervening_if
+// below.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -22,25 +31,43 @@ pub fn card() -> CardDefinition {
             &[CardType::Creature],
             &["Human", "Wizard"],
         ),
-        oracle_text: "At the beginning of your end step, if you control no tokens named Shambling \
-                      Ghast, create a 2/2 black Zombie creature token with decayed. (It can't \
+        oracle_text: "At the beginning of your end step, if you control no creatures with \
+                      decayed, create a 2/2 black Zombie creature token with decayed. (It can't \
                       block. When it attacks, sacrifice it at end of combat.)"
             .to_string(),
         power: Some(1),
         toughness: Some(1),
         abilities: vec![
-            // CR 603.1: End step trigger with intervening-if (no Shambling Ghast tokens).
-            // NOTE: The intervening-if condition (no Shambling Ghast tokens) cannot be expressed
-            // in the current Condition DSL — no token-name filter exists yet.
-            // Implemented as an unconditional end-step trigger (no intervening_if).
-            // This is a known DSL gap: Condition::NoTokensNamedX does not exist.
+            // CR 603.1/603.4: End step trigger, intervening-if "you control no creatures
+            // with decayed". Checked at queue time (rules/turn_actions.rs:781, comment
+            // names this exact card) and re-checked at resolution
+            // (InterveningIf::CardDef, PB-DX1). Checked against LAYER-RESOLVED
+            // characteristics (effects/mod.rs's `expect_characteristics` call inside the
+            // YouControlNOrMoreWithFilter evaluator), so a Humility-style effect that strips
+            // Decayed correctly re-enables the trigger.
             AbilityDefinition::Triggered {
                 once_per_turn: false,
                 trigger_condition: TriggerCondition::AtBeginningOfYourEndStep,
                 effect: Effect::CreateToken {
                     spec: zombie_decayed_token_spec(1),
                 },
-                intervening_if: None,
+                // NOTE: TargetFilter.controller is left at its default (TargetController::Any)
+                // deliberately, not set to `You`. The YouControlNOrMoreWithFilter evaluator
+                // does its own `obj.controller == controller` check
+                // (effects/mod.rs::check_static_condition) using ctx.controller — it does not
+                // read TargetFilter.controller at all (matches_filter takes only
+                // &Characteristics, which has no controller field). Setting it here would
+                // imply a restriction the predicate does not enforce.
+                intervening_if: Some(Condition::Not(Box::new(
+                    Condition::YouControlNOrMoreWithFilter {
+                        count: 1,
+                        filter: TargetFilter {
+                            has_card_type: Some(CardType::Creature),
+                            has_keywords: [KeywordAbility::Decayed].into_iter().collect(),
+                            ..Default::default()
+                        },
+                    },
+                ))),
                 targets: vec![],
 
                 modes: None,
