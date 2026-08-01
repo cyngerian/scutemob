@@ -1,15 +1,15 @@
 {
-  "generated": "2026-08-01 04:42 UTC",
-  "git_head": "2d6fb625",
+  "generated": "2026-08-01 07:36 UTC",
+  "git_head": "f572bada",
   "total_files": 1804,
-  "total_todos": 947,
+  "total_todos": 942,
   "file_buckets": {
-    "clean": 1140,
-    "todo": 513,
+    "clean": 1142,
+    "todo": 511,
     "empty": 151
   },
   "todo_classes": {
-    "OTHER (unclassified)": 580,
+    "OTHER (unclassified)": 578,
     "replacement effect missing": 14,
     "TriggerCondition::* missing variant": 17,
     "attack trigger (self / generic)": 23,
@@ -41,7 +41,6 @@
     "ETB choice": 4,
     "X-scaled tokens": 2,
     "impulse draw": 4,
-    "count-threshold static": 3,
     "trigger doubling": 2,
     "X-scaled counters": 2,
     "conditional counterspell": 2,
