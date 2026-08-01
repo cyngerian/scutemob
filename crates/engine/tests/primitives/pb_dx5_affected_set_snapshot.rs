@@ -27,10 +27,44 @@
 //! the test's doc comment; the change was then restored. Assertions that would
 //! be indistinguishable pre/post fix are labelled non-discriminating rather than
 //! given a synthetic pre-fix number.
+//!
+//! **The fix closes a second, larger pre-existing defect than the one it set
+//! out to fix (fix-cycle Finding 1).** Every source-relative filter arm in
+//! `effect_applies_to` (`CreaturesYouControl` and its family, `AttachedCreature`,
+//! etc.) returns `false` unconditionally once `state.objects.get(&source_id)`
+//! is `None`. For an instant or sorcery, `ctx.source` at execution time is the
+//! spell's OWN stack card object, and `resolve_top_of_stack_inner`'s
+//! `StackObjectKind::Spell` arm moves that object to the graveyard via
+//! `state.move_object_to_zone` -- minting a fresh `ObjectId` per CR 400.7 --
+//! *after* `execute_effect` has already run every effect in its `Sequence`.
+//! Pre-PB-DX5 (no `affected_set` at all, every read live), this meant a mass
+//! pump/debuff printed on an instant or sorcery applied to **nobody at all**
+//! the instant the spell finished resolving, not merely "a newcomer wrongly
+//! got it." **T12 is the only probe in this module that discriminates this
+//! mechanism**: it is the only test that drives a mass filter through a real
+//! `Command::CastSpell` (every other test calls `execute_effect` directly with
+//! a battlefield permanent as `ctx.source`, which never retires). Reverting
+//! the membership block and re-running T12 in isolation shows both board
+//! creatures' locked P/T collapse from `Some(3)` (the intended +2/+2) to
+//! `Some(1)` (their own base power, i.e. no pump applied to EITHER creature) --
+//! confirming the "applies to nobody" mechanism, not a newcomer-only leak.
+//!
+//! **A second, independent divergence (fix-cycle Finding 2 / OOS-DX5-6, see T15
+//! below).** `snapshot_affected_set` determines membership from FULLY
+//! layer-resolved `chars` (`calculate_characteristics`), while the live
+//! per-layer path evaluates the same predicate against `chars` that carry NO
+//! Layer-4 modification at all -- not merely none from a *later-timestamped*
+//! Layer-4 effect, which is what the original doc block and OOS-DX5-6 claimed
+//! (and which was false: at Layer 4 the live gather sees zero Layer-4
+//! modifications, earlier- or later-timestamped). T15 reproduces this with
+//! Mirror Entity (the corpus's one Layer<=4 mass-filter `Complete` def) and an
+//! animated Inkmoth Nexus (a Layer<=4 counterparty that writes the exact
+//! characteristic -- `CardType::Creature` -- the filter reads).
 
 use mtg_engine::effects::{execute_effect, EffectContext};
 use mtg_engine::rules::layers::is_effect_active;
 use mtg_engine::state::test_util;
+use mtg_engine::state::types::SubType;
 use mtg_engine::{
     calculate_characteristics, check_and_apply_sbas, process_command, AbilityDefinition,
     CardDefinition, CardId, CardRegistry, CardType, CastSpellData, Command, ContinuousEffect,
@@ -795,6 +829,27 @@ fn library_creature(owner: PlayerId, name: &str) -> ObjectSpec {
 /// (discarded) `ApplyContinuousEffect` execution's mutation never persists --
 /// only the replay's does, and it is `snapshot_affected_set` applied to the
 /// SAME restored board, so it lands on the same set deterministically.
+///
+/// **This is also the module's only probe of fix-cycle Finding 1's second,
+/// larger defect**, and the only reason it discriminates it: this is the one
+/// test that drives the pump through a real `Command::CastSpell`, so
+/// `ctx.source` for the `CreaturesYouControl` effect is the SPELL's own stack
+/// card object, which `resolve_top_of_stack_inner`'s `StackObjectKind::Spell`
+/// arm retires to the graveyard (a fresh `ObjectId`, CR 400.7) once
+/// resolution finishes. Every other test in this module calls `execute_effect`
+/// directly with a battlefield permanent as `ctx.source`, which never retires
+/// and so cannot see this.
+///
+/// **Observed pre-fix** (membership check reverted, this exact assertion run
+/// against the finished resolution): `power(&state, bear_a) == Some(1)` and
+/// `power(&state, bear_b) == Some(1)` -- their own base power, i.e. the +2/+2
+/// pump applied to NEITHER board creature, not just to a hypothetical
+/// newcomer. Pre-PB-DX5 (no `affected_set`, filter re-evaluated live at every
+/// characteristics calculation), `CreaturesYouControl`'s source-relative check
+/// (`state.objects.get(&source_id)`) returned `None` for every object once the
+/// spell card had left the stack, so the whole "creatures you control get
+/// +X/+X" spell class silently applied to nobody the moment it resolved.
+/// Restored after recording.
 fn test_611_2c_snapshot_survives_the_pb_dp9_abort_and_replay() {
     let def = CardDefinition {
         name: "DX5 Pump Then Search".to_string(),
@@ -1026,6 +1081,121 @@ fn test_is_effect_active_is_unchanged_by_the_snapshot() {
     );
 
     let _ = state.objects().get(&bear);
+}
+
+// ── T15 — review Finding 2 (OOS-DX5-6): a Layer<=4 mass filter reaches a ────────
+// ── Layer<=4 counterparty (full-resolution `chars`, not partial)          ───────
+
+#[test]
+/// CR 611.2c + OOS-DX5-6. `snapshot_affected_set` calls
+/// `calculate_characteristics`, which returns FULLY layer-resolved
+/// characteristics -- while the live per-layer path inside
+/// `calculate_characteristics` evaluates the very same predicate against
+/// `chars` that carry NO Layer-4 modification at all, because that function
+/// gathers every Layer-4 effect before applying any of them. The divergence
+/// is therefore not scoped to a "later-timestamped" Layer-4 effect (the
+/// shipped doc block's and OOS-DX5-6's original, and wrong, qualifier) -- at
+/// Layer 4 the live gather sees ZERO Layer-4 modifications, earlier- or
+/// later-timestamped. Mirror Entity's `{X}: creatures you control ... gain
+/// all creature types` (`AddAllCreatureTypes`, `EffectFilter::CreaturesYouControl`,
+/// `EffectLayer::TypeChange`) is the corpus's one Layer<=4 mass-filter
+/// `Complete` def, and an animated Inkmoth Nexus is a Layer<=4 counterparty
+/// that WRITES the exact characteristic (`CardType::Creature`) the filter
+/// reads -- not a "mass-filter def" itself, which is the population
+/// OOS-DX5-6 originally (and wrongly) checked.
+///
+/// **Observed pre-fix** (membership check reverted -- i.e. the live,
+/// mid-Layer-4-gather filter re-run, matching pre-PB-DX5 behaviour exactly):
+/// the animated Nexus's `chars.subtypes` did NOT contain any creature type
+/// granted by `AddAllCreatureTypes` (`contains(&SubType("Human"))` was
+/// `false`) -- Nexus was still evaluated as a bare Land against Mirror
+/// Entity's `CreaturesYouControl` filter, because at Layer 4 `chars` carries
+/// none of Layer 4's own modifications yet, including Nexus's own animate
+/// effect. Restored after recording. Post-fix, the snapshot's fully-resolved
+/// `chars` sees Nexus as a creature at determination time, locks it into the
+/// affected set, and it keeps every creature type for the rest of the
+/// duration -- CR 611.2c-correct: "the set of objects it affects is
+/// determined when that continuous effect begins," i.e. with all
+/// *pre-existing* continuous effects (including Nexus's own animate, which
+/// ran first) already applied.
+fn test_611_2c_snapshot_uses_full_resolution_a_layer_le4_mass_filter_reaches_a_layer_le4_counterparty(
+) {
+    let mut state = GameStateBuilder::new()
+        .add_player(p(1))
+        .add_player(p(2))
+        .object(ObjectSpec::land(p(1), "Inkmoth Nexus"))
+        .object(ObjectSpec::creature(p(1), "Mirror Entity", 1, 1))
+        .at_step(Step::PreCombatMain)
+        .active_player(p(1))
+        .build()
+        .unwrap();
+
+    let nexus = find_object(&state, "Inkmoth Nexus");
+    let mirror_entity = find_object(&state, "Mirror Entity");
+
+    // Inkmoth Nexus's own animate ability, `inkmoth_nexus.rs`'s exact
+    // encoding for the two Layer<=4 parts (`EffectFilter::Source`, so it
+    // locks to `{nexus}` unconditionally regardless of this batch -- the
+    // point of this probe is what it does to MIRROR ENTITY's filter reading
+    // the result, not to its own filter).
+    let animate = Effect::Sequence(vec![
+        Effect::ApplyContinuousEffect {
+            effect_def: Box::new(mtg_engine::CardContinuousEffectDef {
+                layer: EffectLayer::TypeChange,
+                modification: LayerModification::AddCardTypes(
+                    [CardType::Artifact, CardType::Creature]
+                        .into_iter()
+                        .collect(),
+                ),
+                filter: EffectFilter::Source,
+                duration: EffectDuration::UntilEndOfTurn,
+                condition: None,
+            }),
+        },
+        Effect::ApplyContinuousEffect {
+            effect_def: Box::new(mtg_engine::CardContinuousEffectDef {
+                layer: EffectLayer::PtSet,
+                modification: LayerModification::SetPowerToughness {
+                    power: 1,
+                    toughness: 1,
+                },
+                filter: EffectFilter::Source,
+                duration: EffectDuration::UntilEndOfTurn,
+                condition: None,
+            }),
+        },
+    ]);
+    let mut nexus_ctx = EffectContext::new(p(1), nexus, vec![]);
+    execute_effect(&mut state, &animate, &mut nexus_ctx);
+
+    // Mirror Entity's `{X}: ... gain all creature types` half only --
+    // `mirror_entity.rs`'s exact encoding (`AddAllCreatureTypes`,
+    // `CreaturesYouControl`, `EffectLayer::TypeChange`).
+    let grant_types = Effect::ApplyContinuousEffect {
+        effect_def: Box::new(mtg_engine::CardContinuousEffectDef {
+            layer: EffectLayer::TypeChange,
+            modification: LayerModification::AddAllCreatureTypes,
+            filter: EffectFilter::CreaturesYouControl,
+            duration: EffectDuration::UntilEndOfTurn,
+            condition: None,
+        }),
+    };
+    let mut mirror_ctx = EffectContext::new(p(1), mirror_entity, vec![]);
+    execute_effect(&mut state, &grant_types, &mut mirror_ctx);
+
+    let nexus_chars = calculate_characteristics(&state, nexus).expect("nexus exists");
+    assert!(
+        nexus_chars.card_types.contains(&CardType::Creature),
+        "the animate ability's own Layer-4 type change is unconditional (EffectFilter::Source \
+         locks to {{nexus}} regardless of the CR 611.2c fix) -- Nexus is a creature"
+    );
+    assert!(
+        nexus_chars.subtypes.contains(&SubType("Human".to_string())),
+        "CR 611.2c: snapshot_affected_set determines Mirror Entity's CreaturesYouControl set \
+         from FULLY layer-resolved characteristics, so the animated Nexus is seen as a \
+         creature at determination time and is locked into the affected set -- it then keeps \
+         every creature type AddAllCreatureTypes grants for the rest of the duration"
+    );
 }
 
 // ── T14 — wire-version sentinel ─────────────────────────────────────────────────

@@ -289,6 +289,17 @@ Note `WhileYouControlSource`'s doc comment in `continuous_effect.rs` already cit
 imperatively. PB-DX5 does not touch it; the two uses of 611.2c are complementary (one locks the
 *set*, one refuses to *resume*).
 
+**Fix-cycle Finding 11 (closed):** the paragraph above was argued, then only spot-checked, never
+enumerated — the implement-phase close notes reported "almost certainly no corpus member" as the
+runner's own spot check, not a measurement. `crates/engine/tests/core/pb_dx5_continuous_effect_roster.rs::pb_dx5_mass_filter_roster_by_completeness`
+now enumerates every `(EffectFilter, EffectDuration)` pair reached through a mass-filter
+`Effect::ApplyContinuousEffect` and asserts the non-fixed-window bucket (`Indefinite`,
+`WhileSourceOnBattlefield`, `WhileYouControlSource`) is empty, re-checked on every run rather than
+argued once. **Measured answer (2026-08-01): the 38-member mass-filter roster uses only
+`UntilEndOfTurn` (10 filter shapes) and `UntilYourNextTurn` (1, `CreaturesYouControl`) — zero
+non-fixed-window members.** The spot check was right; it is now a standing gate instead of a
+sentence.
+
 ### Q5 — `is_effect_active` vs `effect_applies_to`
 
 They answer different questions and **only one of them can hold the snapshot**:

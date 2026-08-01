@@ -3979,8 +3979,20 @@ fn execute_effect_inner(
             // `source` the layer system will, and before the push so the effect
             // cannot see itself.
             eff.affected_set = Some(crate::rules::layers::snapshot_affected_set(state, &eff));
-            debug_assert!(eff.affected_set.is_some());
             state.continuous_effects.push_back(eff);
+            // Fix-cycle Finding 8: the prior `debug_assert!(eff.affected_set.is_some())`
+            // sat immediately after the assignment above and could not fail under any
+            // edit that compiles. This asserts on the value actually PUSHED, so it would
+            // catch a future refactor that rebuilds or clears `eff` between the snapshot
+            // and the push.
+            debug_assert!(
+                state
+                    .continuous_effects
+                    .back()
+                    .and_then(|e| e.affected_set.as_ref())
+                    .is_some(),
+                "CR 611.2c: the pushed ContinuousEffect must carry its snapshotted affected_set"
+            );
         }
         // ── Combinators ────────────────────────────────────────────────────
         Effect::Sequence(effects) => {

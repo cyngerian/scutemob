@@ -55,6 +55,38 @@ fn collect_filters(v: &serde_json::Value, out: &mut Vec<String>) {
     }
 }
 
+/// Fix-cycle Finding 11: recursively collect (filter-variant, duration-variant) pairs for
+/// every `ApplyContinuousEffect` in the tree, so the roster test can report -- MEASURED, not
+/// argued -- which `EffectDuration` a mass-filter resolution effect uses. Plan §3 Q4 argued
+/// from CR 611.2a/611.2c that a non-fixed-window duration (`Indefinite`,
+/// `WhileSourceOnBattlefield`, `WhileYouControlSource`) still locks exactly like
+/// `UntilEndOfTurn`, and spot-checked (not enumerated) that no corpus mass-filter member uses
+/// one. This collects the real answer.
+fn collect_filter_and_duration(v: &serde_json::Value, out: &mut Vec<(String, String)>) {
+    match v {
+        serde_json::Value::Object(m) => {
+            if let Some(inner) = m.get("ApplyContinuousEffect") {
+                if let Some(def) = inner.get("effect_def") {
+                    let filter_name = def.get("filter").and_then(variant_name);
+                    let duration_name = def.get("duration").and_then(variant_name);
+                    if let (Some(f), Some(d)) = (filter_name, duration_name) {
+                        out.push((f, d));
+                    }
+                }
+            }
+            for val in m.values() {
+                collect_filter_and_duration(val, out);
+            }
+        }
+        serde_json::Value::Array(a) => {
+            for val in a {
+                collect_filter_and_duration(val, out);
+            }
+        }
+        _ => {}
+    }
+}
+
 /// Reports the full roster of resolution-generated continuous effects by filter variant.
 ///
 /// Diagnostic + non-vacuity floor, deliberately not an exact pin: routine card authoring
@@ -117,9 +149,12 @@ fn is_mass_filter(name: &str) -> bool {
 /// numbers constantly, and the engine fix is filter-agnostic, so an exact pin would guard
 /// nothing the fix depends on. The plan's "37 (28/8/1)" was itself wrong -- its own table
 /// already listed 38 rows summing to 29 `Complete`, an arithmetic slip nobody re-added.
-/// Measured here: **38 mass-filter defs, 29 `Complete`, 8 `partial`, 1 `known_wrong`**. This
-/// test re-measures it every run and prints the actual numbers so the close notes quote a
-/// live count, not a number in prose.
+/// This test re-measures the split every run and prints the actual numbers via
+/// `eprintln!` below -- that output, not any number in this comment, is the source of
+/// truth. As measured 2026-08-01 (PB-DX5, `scutemob-170`): 38 mass-filter defs, 29
+/// `Complete`, 8 `partial`, 1 `known_wrong` (fix-cycle Finding 10: re-read the
+/// `eprintln!` output for the current numbers, not this line -- they will drift with
+/// routine authoring and nothing here re-checks them).
 #[test]
 fn pb_dx5_mass_filter_roster_by_completeness() {
     let defs = all_cards();
@@ -162,5 +197,56 @@ fn pb_dx5_mass_filter_roster_by_completeness() {
         "PB-DX5's whole premise is that at least one Complete, deck-legal def uses a mass \
          filter -- this floor guards against the walk going vacuous, not against the count \
          changing"
+    );
+
+    // Fix-cycle Finding 11: plan §3 Q4 argued from CR 611.2a/611.2c that a
+    // non-fixed-window duration (`Indefinite`, `WhileSourceOnBattlefield`,
+    // `WhileYouControlSource`) locks exactly like `UntilEndOfTurn`, and spot-checked
+    // (not enumerated) that no corpus mass-filter member uses one. This enumerates it
+    // for real, printed so the close notes can quote a measured answer.
+    let mut mass_durations: BTreeSet<(String, String)> = BTreeSet::new();
+    for def in &defs {
+        let json = serde_json::to_value(def).expect("CardDefinition serializes");
+        let mut pairs = Vec::new();
+        collect_filter_and_duration(&json, &mut pairs);
+        for (filter, duration) in pairs {
+            if is_mass_filter(&filter) {
+                mass_durations.insert((duration, filter));
+            }
+        }
+    }
+    eprintln!("PB-DX5 mass-filter durations (measured, Finding 11):");
+    for (duration, filter) in &mass_durations {
+        eprintln!("      {duration} <- {filter}");
+    }
+    let non_fixed_window: Vec<&(String, String)> = mass_durations
+        .iter()
+        .filter(|(d, _)| {
+            matches!(
+                d.as_str(),
+                "Indefinite" | "WhileSourceOnBattlefield" | "WhileYouControlSource"
+            )
+        })
+        .collect();
+    eprintln!(
+        "  non-fixed-window durations among mass filters: {} ({:?})",
+        non_fixed_window.len(),
+        non_fixed_window
+    );
+    // MEASURED ANSWER (as of 2026-08-01, PB-DX5 fix cycle, `scutemob-170`): the corpus's
+    // mass-filter roster uses ONLY `UntilEndOfTurn` and `UntilYourNextTurn` durations --
+    // zero non-fixed-window members. This is a live re-check, not a pin: if the corpus
+    // grows a mass-filter def with a non-fixed-window duration, this assertion is
+    // expected to start failing, and that is the point -- it converts plan §3 Q4's
+    // spot-checked prediction into a standing, re-measured one.
+    assert!(
+        non_fixed_window.is_empty(),
+        "CR 611.2a/611.2c: plan §3 Q4 predicted (spot-check only) that no corpus \
+         mass-filter member uses a non-fixed-window duration; this enumeration found {} -- \
+         {:?}. The lock is still CR-correct for them (duration is orthogonal to CR 611.2c's \
+         set-locking), but this is now a real, previously-unmeasured behaviour-change class \
+         and should be named in the close notes rather than silently absorbed.",
+        non_fixed_window.len(),
+        non_fixed_window
     );
 }

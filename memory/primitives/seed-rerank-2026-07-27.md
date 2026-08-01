@@ -559,7 +559,7 @@ rank.** `rider-seed-triage-2026-07-19.md` §5's banner is updated to say so.
 | old rank | seed(s) | premise re-verified? | disposition |
 |---|---|---|---|
 | **R5** | **OOS-RS-4** — Anim Pakal live-counter-vs-LKI | **Yes, and it is weaker than filed** (§2.7): `pb-review-OS11.md` Finding 2, severity **LOW**; 0 flips; the natural one-line fix returns 0 Gnomes because `CounterCountAtLastKnownInformation` is LBA-only | **RETIRED from the queue → PARKED (§5).** Re-rank only if a second card needs non-LBA LKI capture, or alongside a CR 608.2h/113.7a LKI batch. |
-| **R6** | **OOS-OS7-2** — CR 611.2c affected-set snapshot | **Yes, and it is stronger than filed** (§2.3): not "0 flips", but **7 `Complete` defs live-wrong in ordinary play** — re-measured again at implementation time as **38 mass-filter defs, 29 `Complete`** | **✅ SHIPPED as `PB-DX5`** (`scutemob-170`, 2026-08-01) — `ContinuousEffect.affected_set`, HASH 69→70, PROTOCOL confirmed unmoved at 32, 0 flips (pure correctness fix), tests 4,048→4,064. Seeds OOS-DX5-1..6 filed. |
+| **R6** | **OOS-OS7-2** — CR 611.2c affected-set snapshot | **Yes, and it is stronger than filed** (§2.3): not "0 flips", but **7 `Complete` defs live-wrong in ordinary play** — re-measured again at implementation time as **38 mass-filter defs, 29 `Complete`** | **✅ SHIPPED as `PB-DX5`** (`scutemob-170`, 2026-08-01) — `ContinuousEffect.affected_set`, HASH 69→70, PROTOCOL confirmed unmoved at 32, 0 flips (pure correctness fix), tests 4,048→**4,065** (corrected by the fix cycle from an initially-reported 4,064 — an uncaught 2-vs-1-test miscount in the roster file; the fix cycle's own +1 new test, T15, brings the final total to **4,066**). Seeds OOS-DX5-1..7 filed (OOS-DX5-6 corrected from a checked non-finding to an open finding, OOS-DX5-7 added, by the same-day fix cycle). |
 | **R7** | **OOS-OS7-1 R1** + **OOS-RS-5** — target-scoped filters | Yes — `EffectFilter::CreaturesControlledByDefendingPlayer` shipped in PB-OS7; `CreaturesControlledByTargetPlayer` still absent; `kogla_the_titan_ape` is `known_wrong` with the note naming the gap | **RE-RANKED → PB-DX13** (3 flips, capability, PROTOCOL+HASH) |
 | **R8** | **OOS-OS6-1** — multi-count sacrifice cost | Yes — `Cost::Sacrifice(TargetFilter)` (`card_definition.rs:1257`) has no count field; no sibling variant exists | **RE-RANKED → PB-DX12** (4 flips discounted to 3, capability, PROTOCOL+HASH). Its DFC oracle-sourcing hazard still applies — re-source Westvale/Ormendahl from `cards.sqlite`, `lookup_card` does not flatten `card_faces`. |
 | **R9** | **OOS-OS4-3** — edgar return-transformed | Yes — `Effect::ExileSourceAndReturnTransformed` exists (`card_definition.rs:2164`); the *from-graveyard* sibling `ReturnSourceToBattlefieldTransformed` does not | **RE-RANKED DOWN → PB-DX16** (1 flip, own wire bump; the wire numbers in the seed are stale — live is PROTOCOL 31 / HASH 68, not "19→20 / 56→57"). Same DFC oracle-sourcing hazard. |
@@ -759,6 +759,34 @@ was waiting on, so its dismissal deserves a fresh look rather than another copy-
 > whether any Layer ≤ 4 mass-filter def could see the snapshot's full-vs-partial-resolution
 > `chars` asymmetry — `mirror_entity` is the one Layer-4 member and its read is unaffected by any
 > mass-filter modification in the corpus today). Tests 4,048 → **4,064**.
+>
+> **Same-day fix cycle (`scutemob-170`) — review `pb-review-DX5.md`, 0 HIGH / 6 MEDIUM / 6 LOW,
+> all 12 applied, none changing observable engine behaviour.** The headline: OOS-DX5-6's "checked
+> non-finding" above was itself FALSE — checked the wrong population (mass-filter defs writing
+> `CardType::Creature`, not any effect writing it) and mis-stated the mechanism. A real, reachable
+> divergence exists (animate Inkmoth Nexus, then Mirror Entity's `AddAllCreatureTypes` now
+> reaches it, where pre-fix it did not) and resolves in the CR-correct direction; reproduced and
+> pinned by a new T15, empirically confirmed to fail with the read-site membership check
+> reverted. A second, larger finding: the batch's own fix closes a SECOND pre-existing defect it
+> never noticed — every source-relative mass filter on an instant/sorcery applied to NOBODY once
+> the spell resolved (CR 400.7 retires the source card), not merely to "not the newcomer";
+> confirmed empirically against T12 (both board creatures collapse to their base power with the
+> fix reverted), filed as **OOS-DX5-7 (CLOSED as a side effect)**. Also corrected: the test-count
+> arithmetic above ("+16 → 4,064" was itself an off-by-one — the roster file has two `#[test]`s,
+> not one; the true implement-phase total was **4,065**, and the fix cycle's own +1 (T15) makes
+> the FINAL, re-run total **4,066**); the OOS-DX5-1 seed's "13 keyword-trigger grants, all
+> `SingleObject`" claim (the 13th, `StackObjectKind::ClassLevelAbility`, is a static registration,
+> not a `SingleObject` site — same conclusion, wrong reason) and its scope (widened to name three
+> READ sites — `copy_effect_applies_to`, `recompute_object_controller`,
+> `expire_while_you_control_source_effects` — that also ignore `affected_set`); and a stale
+> in-source note in `pb_os7_defending_player_continuous_filter.rs` that still declared THIS
+> BATCH'S OWN seed a live limitation. Remaining six LOWs: a doc-block capture split, a vacuous
+> `debug_assert!` hardened to check the pushed value, T11's fixture genuinely enriched (phased-out
+> permanent, a real `AttachedCreature` match, a subtype-filtered variant — not just documented as
+> narrower), a dated prose count, and a measured (not spot-checked) answer to the non-fixed-window
+> duration question (zero corpus members, confirmed by a new standing assertion, not argued).
+> Fingerprints re-confirmed unmoved (HASH 70, PROTOCOL 32) by re-running both schema gates, not
+> assumed. `git diff --stat -- tools/play-server` empty throughout.
 
 **Prefix**: `PB-DX` ("decision-suite eXtension"). Verified unclaimed — zero occurrences of
 `PB-DX` anywhere in `memory/`, `docs/` or `CLAUDE.md` before this document. `PB-SR*`, `PB-RS*`,

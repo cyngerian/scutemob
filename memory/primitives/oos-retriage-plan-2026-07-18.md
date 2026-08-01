@@ -448,6 +448,18 @@ Massacre, Silumgar, and any future card using a description-based `EffectFilter`
 instant/sorcery resolution). Deferred per implement-phase-default-to-defer; do NOT attempt in a
 single-card PB.
 
+> **✅ CLOSED — SHIPPED as `PB-DX5` (`scutemob-170`, 2026-08-01).** `ContinuousEffect` gained
+> `affected_set: Option<OrdSet<ObjectId>>` (CR 611.2c), populated once at
+> `Effect::ApplyContinuousEffect` (`rules::layers::snapshot_affected_set`) and consumed as pure
+> membership by `effect_applies_to`. The re-measured yield was larger than this filing's estimate
+> — 38 mass-filter defs (29 `Complete`, 8 `partial`, 1 `known_wrong`), not the 3 named here — and
+> the fix cycle found the batch also closed a second, larger pre-existing defect: every
+> source-relative filter (`CreaturesYouControl` and family) went dead for the ENTIRE
+> "creatures you control get +X/+X" instant/sorcery class the instant the spell resolved, because
+> its source card had already retired to the graveyard (CR 400.7) by the time characteristics were
+> next calculated. See `memory/primitives/pb-plan-DX5.md` and `memory/primitives/pb-review-DX5.md`
+> for the full record; this entry is left in place as history and is no longer a candidate.
+
 ### PB-OS8 — look-at-top-N-place-one (OOS-EF10-1) · capability ✅ SHIPPED `scutemob-138`
 - **CLOSED (2026-07-19)**: `Effect::LookAtTopThenPlace` (disc 96) + `TargetFilter.min_cmc_amount`
   shipped exactly as scoped below. `birthing_ritual` (inert→Complete) and
