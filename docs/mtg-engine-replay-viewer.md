@@ -1,6 +1,6 @@
 # Game State Stepper: Developer Replay Viewer
 
-<!-- last_updated: 2026-02-22 -->
+<!-- last_updated: 2026-08-01 -->
 
 > **Deferred: relevant at M9.5. Do not load in earlier sessions.**
 
@@ -279,7 +279,7 @@ tools/replay-viewer/
 │   ├── main.rs                     # axum server, CLI, replay engine bridge
 │   ├── replay.rs                   # ReplaySession, StepSnapshot, pre-compute logic
 │   ├── api.rs                      # Route handlers
-│   └── view_model.rs               # GameState → view model conversion
+│   └── (view_model.rs — MOVED, see the note below)
 ├── frontend/
 │   ├── package.json                # Svelte 5 + Vite 6
 │   ├── vite.config.js
@@ -388,7 +388,58 @@ mark changed fields in the Svelte store, components read diff flags.
 
 ---
 
+## The view model now lives in `crates/view-model` (M11-local S4, `scutemob-165`)
+
+`tools/replay-viewer/src/view_model.rs` **no longer exists**. It was extracted into its
+own workspace crate, **`mtg-view-model`** (`crates/view-model/`), when the play client
+(`tools/play-server`) needed the same `GameState` → view-model conversion. A copy would
+have forked on the next `StackObjectKind` or `KeywordAbility` variant, which is exactly
+the failure mode the shared-component strategy below exists to avoid — so the same
+argument was applied to the Rust half.
+
+What moved and what came with it:
+
+* `StateViewModel::from_game_state` — the omniscient conversion the stepper uses,
+  unchanged;
+* `StateViewModel::from_game_state_for(.., Viewer)` and the `redact` module — **new**,
+  and the reason the crate exists. The stepper is omniscient by design (it is a
+  developer tool reading a finished replay); the play client must never send one seat
+  another's hand (Architecture Invariant 7), so redaction is a *seat-aware* second entry
+  point rather than a change to the first;
+* `event_view_for(.., Viewer)` / `EventView`, same split.
+
+Two exhaustive matches live in `crates/view-model/src/lib.rs` and are the standing
+hazard: `stack_kind_info` over `StackObjectKind` and `format_keyword` over
+`KeywordAbility`. Adding a variant to either engine enum is a compile error here.
+`cargo build --workspace` is the gate; older notes pointing at
+`tools/replay-viewer/src/view_model.rs` are stale.
+
+**The Svelte components are shared in place, not copied.** `tools/play-server/frontend`
+aliases `$viewer` to `tools/replay-viewer/frontend/src/lib` in its `vite.config.js`, so
+`PhaseIndicator`, `StateView` and the whole `Zone*` tree are compiled from the viewer's
+own tree. That coupling is deliberate and its first breakage was instructive: S6 found
+`ZoneHand.svelte` keyed its `#each` on `card.object_id`, which is unique for the
+omniscient viewer and **not** for a seat-redacted payload (the redactor gives every
+unreadable hand card `object_id: 0`), so three bot hands of seven arrived with one
+distinct key each and Svelte's `each_key_duplicate` threw the whole mount down. It was
+fixed in the shared component — inert for the viewer — which is precisely what aliasing
+rather than copying buys. **Generalisation worth carrying: every id-uniqueness
+assumption in these components is now a claim about the redacted view model too.**
+
+---
+
 ## Shared Component Strategy for Tauri (M11)
+
+> **Stale in its framing, sound in its principle (M11-local, 2026-07-26/2026-08-01).**
+> The 2026-07-26 web-first decision means there is no Tauri app to import these
+> components — the second consumer turned out to be `tools/play-server/frontend`, another
+> Vite/Svelte app, and it uses a **Vite alias** (`$viewer`) rather than any of the three
+> mechanisms listed below. What survived intact is the discipline this section argues
+> for: components take props and never fetch, so a second host only supplies a different
+> data source. That held exactly as written. Plan §8 R8 records the remaining risk —
+> aliasing couples the play client to the viewer's directory layout, and the right time
+> to promote `frontend/src/lib` to a `tools/ui-shared/` is when a *third* host appears or
+> the first real breakage lands, not before.
 
 ### The Problem
 
