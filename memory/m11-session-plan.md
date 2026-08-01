@@ -963,7 +963,11 @@ addressed; these are new, and the first is a **regression fix cycle 1 introduced
   than before it.** Fix cycle 1 called `clear_poison()` *before* `session::new_game(..)?`.
   `new_game` is fallible on a **client-supplied seed**: `deck::basics_for_colors` pads a
   colourless commander's deck with Forests, and `validate_deck` refuses them under CR
-  903.5c. Its `?` skipped `*guard = Some(play)`, so the half-mutated session survived with
+  903.5c (**filed as `OOS-M11-6`** — `random_deck` applies the colour-identity filter to the
+  main deck and then bypasses it four lines later when padding to 99; and the call site's own
+  dead `if basics.is_empty()` arm names Wastes in a comment and pushes Forest anyway, so the
+  code states the correct fix twice and does neither). Its `?` skipped `*guard = Some(play)`,
+  so the half-mutated session survived with
   the flag cleared and the next `GET /api/game` answered **200** — where before fix cycle 1
   it answered 500. **Reproduced empirically before the fix was written**: a sweep found 7
   failing tables in 180 `(players, seed)` pairs (`players: 2, seed: 17` among them), and the

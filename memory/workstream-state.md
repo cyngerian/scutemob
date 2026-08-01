@@ -135,6 +135,22 @@
   idempotent `advance()` and consumes `journal_cursor`; `target_slots` / `modes` are empty
   until S7; `needs_x` answers `CastSpell` only; one game per process; and (added by the fix
   cycle) `GameSummary.seed` is the base seed, not the effective one after a mulligan.
+- **Second engine/simulator seed, `OOS-M11-6`, found while probing whether `new_game` is
+  client-reachably fallible — and it is.** `random_deck` (`crates/simulator/src/deck.rs`)
+  applies the CR 903.5c colour-identity filter correctly to the main deck and then **bypasses
+  that same filter four lines later** when padding to 99 with basics: `basics_for_colors`
+  falls back to **Forest** (identity `{Green}`) for a **colourless** commander, so such a deck
+  carries ~34 illegal Forests and `validate_deck` — which S2 deliberately routed
+  `build_initial_state` through — refuses the whole table. **Measured: 7 failures in a sweep of
+  180 `(players, seed)` pairs** (`players: 2, seed: 17` among them), so roughly one
+  client-supplied seed in 25 returns a deck-validation failure instead of a game. There are
+  **two** Forest fallbacks and the second is dead — the call site's own `if basics.is_empty()`
+  arm has a comment saying *"use Wastes (or just any basic)"* and pushes `forest`. **Not a
+  one-line fix**: no `wastes.rs` def exists, so it needs either Wastes authored or colourless
+  padding drawn from the identity-legal lands already in the pool (prefer the second — no new
+  def, no `Complete` flip). **Check the fuzzer before fixing**: `GameDriver` does not go
+  through `validate_deck`, so those decks are presumably being *played* rather than refused,
+  which would make it a silent CR 903.5c deviation there and changes the blast radius.
 - **The no-WebSocket / no-SSE decision is recorded in the crate README with its reasoning**
   (bots act synchronously inside the human's own request, so the server never holds news the
   client is not already waiting on; a second human seat would break that premise; push is
