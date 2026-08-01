@@ -131,8 +131,8 @@
   stale test binary, and the test "passed". **A revert-and-rerun proves nothing unless
   the rebuild succeeded.**
 
-- **Gates at close**: tests **4,091 / 0** (merge base measured at **4,072**, so **+19** —
-  2 playthrough, 13 human-action, 4 play-server), clippy `-D warnings` clean, `cargo fmt
+- **Gates at close**: tests **4,092 / 0** (merge base measured at **4,072**, so **+20** —
+  2 playthrough, 14 human-action, 4 play-server), clippy `-D warnings` clean, `cargo fmt
   --check` clean, `tools/check-defs-fmt.sh` 1,804 defs clean, `cargo build --workspace`
   clean, **PROTOCOL 32 / HASH 70 unmoved** (empty diff over `protocol.rs` / `hash.rs` and
   gate-computed by running the `core` suites), fuzz parity as above.
