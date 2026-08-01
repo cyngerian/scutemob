@@ -1,0 +1,30 @@
+[package]
+name = "play-server"
+version = "0.1.0"
+edition.workspace = true
+description = "M11-local play server: one human seat plus simulator bots, over HTTP"
+
+[[bin]]
+name = "play-server"
+path = "src/main.rs"
+
+[dependencies]
+# Shared dependency versions are mirrored VERBATIM from tools/replay-viewer/Cargo.toml
+# so adding this crate churns no entries in the workspace Cargo.lock.
+mtg-engine = { path = "../../crates/engine" }
+mtg-simulator = { path = "../../crates/simulator" }
+mtg-view-model = { path = "../../crates/view-model" }
+axum = "0.7"
+tower-http = { version = "0.6", features = ["fs"] }
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+clap = { version = "4", features = ["derive"] }
+anyhow = "1"
+
+[dev-dependencies]
+tower = { version = "0.4", features = ["util"] }
+http-body-util = "0.1"
+
+[lints]
+workspace = true
