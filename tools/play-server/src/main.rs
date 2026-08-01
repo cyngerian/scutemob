@@ -503,12 +503,12 @@ mod tests {
             own_names,
             vec![
                 "Island",
-                "Mist-Syndicate Naga",
-                "Mist-Cloaked Herald",
-                "Obelisk of Urd",
+                "Mist Intruder",
+                "Misdirection",
+                "Nyxbloom Ancient",
                 "Accorder's Shield",
-                "Hermes, Overseer of Elpis",
-                "Swiftfoot Boots",
+                "Helm of the Host",
+                "Swan Song",
             ]
         );
 
@@ -1152,13 +1152,16 @@ mod tests {
                 }
             }
         }
-        // Seed-pinned: 21 cards across the three bot hands collapse to 20
+        // Seed-pinned: the cards across the three bot hands collapse to 18
         // distinct names the human has no entitlement to. Asserted exactly, so a
         // future change that quietly empties this set fails here rather than
-        // turning the search below into a no-op.
+        // turning the search below into a no-op. (This pin, like the exact-hand
+        // pin above, is a function of the Complete-def pool: a completeness
+        // flip in any card-def batch re-deals every seed-pinned deck — re-read
+        // the value off a real run when it moves.)
         assert_eq!(
             secrets.len(),
-            20,
+            18,
             "guard against a vacuous pass: {secrets:?}"
         );
 
