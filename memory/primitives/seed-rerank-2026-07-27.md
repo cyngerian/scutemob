@@ -682,10 +682,35 @@ was waiting on, so its dismissal deserves a fresh look rather than another copy-
 > 5 MEDIUM / 7 LOW, all 12 applied. New seed **OOS-DX3b-1** (`guardian_project`'s `is_nontoken`
 > half is authorable today; its name-uniqueness half is not, so it stays `known_wrong`).
 >
-> **Next dispatch: `PB-DX4`** (OOS-DP10-8 — triage the 97-entry decision `BASELINE` against
-> oracle text; test + card-def markers only, no engine lines, no wire). Carry two things into it:
-> the `#[default]` marker question above, and the standing lesson that a blocker note is a
-> **dated** claim nothing re-reads when a later batch adds the variant.
+> **`PB-DX4` SHIPPED (`scutemob-168`, 2026-08-01) — OOS-DP10-8 CLOSED, and it closed
+> OOS-M11-6 by accident on the way.** All 97 `BASELINE` entries read against MCP printed text,
+> roster derived from the const array itself rather than from prose. **Split 86 class-B / 11
+> class-D**, so PB-DP10's 2-of-5 spot-check overstated the D rate roughly fivefold — its own
+> "very noisy sample" caution was right, and this is the fourth time in this suite a plausible
+> roster has been wrong when checked. 5 defs repaired in place and still `Complete`
+> (`metastatic_evangel`, `grisly_salvage`, `satyr_wayfinder`, `sword_of_truth_and_justice`,
+> `radstorm`); 5 demoted with oracle citations (`smugglers_copter` → `known_wrong`;
+> `contaminant_grafter`, `grateful_apparition`, `thrasios_triton_hero`, `shambling_ghast` →
+> `partial`); 1 (`staff_of_compleation`) deliberately left `Complete` and allowlisted, matching
+> the shipped `nether_traitor` decision for the identical owner-vs-controller class rather than
+> reporting a corpus class as a pair of cards. Coverage 1,143 → **1,138** (63.1%), tests 4,040 →
+> **4,048**, 0 engine lines, PROTOCOL 32 / HASH 69 unmoved. Durable record:
+> `memory/primitives/pb-dx4-baseline-triage.md`. New seeds **OOS-DX4-1..4**.
+>
+> **Both carried-forward items were answered, and both answered bigger than expected.** The
+> `#[default]` question: **970 of 1,804 def files never mention `completeness` at all** — a
+> clear majority of the `Complete` population, and *all eleven* class-D defs were in it. Now
+> ratcheted in the growth direction. The stale-note lesson: it recurred inside this batch by a
+> different route — `metastatic_evangel` carried a note claiming `is_token` is ignored on the
+> ETB path, which PB-AC0 had made false — so the class is wider than the note-shaped sweeps
+> that have been finding it.
+>
+> **Next dispatch: `PB-DX5`** (OOS-OS7-2 — CR 611.2c affected-set snapshot; 7 live-wrong
+> `Complete` defs; **compute both fingerprints**, do not assume). Two things to carry: PB-DX4
+> found that fixing a def's named defects can SURFACE a further one (`shambling_ghast`'s flat
+> mode-target, OOS-DX4-2), so budget for the yield to move mid-batch; and a card-def batch can
+> shift a seeded RNG — demoting one legendary creature re-dealt every seeded deck in the
+> workspace and broke six fixtures across two crates.
 
 **Prefix**: `PB-DX` ("decision-suite eXtension"). Verified unclaimed — zero occurrences of
 `PB-DX` anywhere in `memory/`, `docs/` or `CLAUDE.md` before this document. `PB-SR*`, `PB-RS*`,
@@ -706,7 +731,7 @@ bumps were falsified).
 | ~~**PB-DX2**~~ **✅ SHIPPED `scutemob-162`** | unguarded resolution-time commands | **OOS-DP5-7** + **OOS-DP7-2** (+riders DP2-1, DP9-14) — **all four CLOSED** | **CORRECTNESS — live exploit, trust boundary** | **0 flips as predicted** (corpus holds 1 dredge def, already `Complete`); closes the free-card exploit + **5** lying doc sites, not 2; +2 unbriefed CR 614.11a bugs fixed; seeds OOS-DX2-1..7 | **none — PREDICTION HELD.** PROTOCOL 32 / HASH 69 unmoved, empty diff on `protocol.rs`/`hash.rs`; achieved by reusing the existing `pending_draws` queue instead of the brief's new-entry design, which would have bumped HASH |
 | ~~**PB-DX3**~~ **✅ SHIPPED `scutemob-164`** | two stale blocker notes | **OOS-DP6-3** — **CLOSED** | **card yield, zero engine** | **2 flips as predicted** (`garruks_uprising`, `inventors_fair`); `inventors_fair`'s upkeep trigger had to be **authored**, not merely gated — it did not exist in the def at all; successor seed OOS-DX3-1 names 6 more defs in the same bucket, one a **live-wrong `Complete`** | **none — PREDICTION HELD.** PROTOCOL 32 / HASH 69 unmoved; empty diff over all of `crates/engine/src` and `crates/card-types/src`, not merely `protocol.rs`/`hash.rs` |
 | ~~**PB-DX3b**~~ **✅ SHIPPED `scutemob-166`** *(insert, not in the original ranking)* | the rest of the stale-note bucket | **OOS-DX3-1** — **CLOSED** | **CORRECTNESS — 2 live-wrong `Complete` defs — + card yield, zero engine** | **2 flips up, 1 honest flip down (net +1, coverage 1,142 → 1,143)**; `dwynen_s_elite`'s ability had to be **authored**; **the seed itself mis-dispositioned `emeria_the_sky_ruin`**, a second live-wrong `Complete`-by-`#[default]` def; new seed OOS-DX3b-1 | **none — PREDICTION HELD.** PROTOCOL 32 / HASH 69 unmoved; empty diff over all of `crates/engine/src` and `crates/card-types/src` |
-| **PB-DX4** | the `BASELINE` triage sweep | **OOS-DP10-8** | **CORRECTNESS — marker integrity** | 0 flips; ≥2 known live-wrong `Complete` defs corrected, 95 entries triaged | **none** (test + card-def markers) |
+| ~~**PB-DX4**~~ **✅ SHIPPED `scutemob-168`** | the `BASELINE` triage sweep | **OOS-DP10-8** — **CLOSED** (+ **OOS-M11-6** closed incidentally) | **CORRECTNESS — marker integrity** | **the "0 flips" estimate was wrong in the direction that matters: 5 demotions, coverage 1,143 → 1,138.** 11 class-D of 97 (not the ≥2 predicted); 5 repaired in place, 5 demoted, 1 allowlisted by class precedent | **none — PREDICTION HELD.** PROTOCOL 32 / HASH 69 unmoved; empty diff over all of `crates/engine/src` and `crates/card-types/src`. Note the batch DID touch `crates/simulator/src` (the OOS-M11-6 fix) and `tools/play-server` (seed re-pins) — neither is in the no-engine gate |
 | **PB-DX5** | CR 611.2c affected-set snapshot | **OOS-OS7-2** *(ex-R6)* | **CORRECTNESS — engine-wide, 7 `Complete` defs** | 0 flips; repairs 7 `Complete` + 2 `partial` defs | **HASH**, and **PROTOCOL** if `ContinuousEffect` is in the wire closure — compute, do not assume |
 | **PB-DX6** | the last unflattened pip sites | **OOS-RS2-1** + **OOS-DP4-1** | **CORRECTNESS — live undercharge (narrow)** | 0 flips; closes the OOS-RS-2 class at its 4th and 5th sites | **PROTOCOL** (`DeclareAttackers` gains the two payment-choice fields `ActivateAbility`/`TapForMana` already have) |
 | **PB-DX7** | SR-19 gate holes | **OOS-DP7-11** + **OOS-DP9-13** (+DP10-1, DP9-10 residual) | **gate integrity** | 0 flips; 5 structs + all hashed enums re-enter the gate | **none** (test-only) |
