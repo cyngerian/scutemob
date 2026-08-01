@@ -396,9 +396,13 @@ whole-line `//` comments. That matters concretely: the serving path's own
 `bind` needle, so the older line-comment-only stripper let that guard pass on a
 diagnostic string rather than on the call. Demonstrated both ways — with the real
 call removed and the message kept, the old stripper stayed green and the new one
-went red. `code_only` handles line comments, nested block comments, raw strings
-and char literals; it is a lint over source text, not a Rust lexer, so
-macro-generated text is invisible to it by construction.
+went red. `code_only` handles line comments, nested block comments, raw strings and char
+literals. Only the first two of those are exercised by any file in this crate —
+the rest are defensive against source that does not exist here yet, and are
+therefore pinned directly by `test_code_only_blanks_comments_and_string_bodies`
+rather than left as an unchecked claim in a doc comment. It is a lint over source
+text, not a Rust lexer, so macro-generated text is invisible to it by
+construction.
 
 The earlier widenings came from the S5 re-review and were likewise proven by
 execution: a forbidden symbol inserted into a `#[cfg(test)]` module in

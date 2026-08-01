@@ -1659,6 +1659,60 @@ mod tests {
         }
     }
 
+    /// [`code_only`]'s three branches that no file in this crate exercises.
+    ///
+    /// Written because the alternative was a doc comment claiming block
+    /// comments, raw strings and char literals are handled, with nothing
+    /// checking it — the exact shape of defect this fix cycle exists to remove.
+    /// Each case is asserted in **both** directions: the body disappears, and
+    /// the code around it survives.
+    #[test]
+    fn test_code_only_blanks_comments_and_string_bodies() {
+        // Block comment, nested — a `/* */` form of the module doc would
+        // otherwise restore the vacuity guard (c) exists to close.
+        let src = "let a = 1; /* secret /* deeper */ still */ let b = 2;";
+        let out = code_only(src);
+        assert!(!out.contains("secret"), "{out:?}");
+        assert!(!out.contains("deeper"), "{out:?}");
+        assert!(
+            out.contains("let a = 1;") && out.contains("let b = 2;"),
+            "{out:?}"
+        );
+
+        // Raw string at a non-zero hash count, containing a quote.
+        let src = "let s = r#\"secret \"quoted\" text\"#; let c = 3;";
+        let out = code_only(src);
+        assert!(!out.contains("secret"), "{out:?}");
+        assert!(out.contains("let c = 3;"), "{out:?}");
+
+        // Char literals that a naive scanner desynchronises on: a quote and a
+        // backslash. If either were mishandled the rest of the line would be
+        // swallowed as string body, so asserting the tail survives is the test.
+        let src = "if c == '\"' { keep_me(); } if d == '\\\\' { keep_me_too(); }";
+        let out = code_only(src);
+        assert!(out.contains("keep_me();"), "{out:?}");
+        assert!(out.contains("keep_me_too();"), "{out:?}");
+
+        // A lifetime is NOT a char literal — an unbounded "scan to the next
+        // quote" would eat everything between two lifetimes on one line.
+        let src = "fn f<'a, 'b>(x: &'a str, y: &'b str) -> &'a str { secret_ident }";
+        let out = code_only(src);
+        assert!(out.contains("secret_ident"), "{out:?}");
+        assert!(out.contains("&'a str"), "{out:?}");
+
+        // Line comment anywhere on a line, not only at its start.
+        let src = "let x = 1; // secret\nlet y = 2;";
+        let out = code_only(src);
+        assert!(!out.contains("secret"), "{out:?}");
+        assert!(
+            out.contains("let x = 1;") && out.contains("let y = 2;"),
+            "{out:?}"
+        );
+
+        // Newlines survive, so a failure message's line structure is intact.
+        assert_eq!(code_only("a\n/* x\ny */\nb").lines().count(), 4);
+    }
+
     /// Every `.rs` file under `dir`, recursively, as `(path, contents)`.
     ///
     /// A directory that does not exist contributes nothing: `tests/` is absent
@@ -1729,6 +1783,17 @@ mod tests {
     /// (`r"…"`, `r#"…"#`), and char literals — including `'"'` and `'\\'`, which
     /// a naive scanner would let desynchronise the string tracking (lifetimes
     /// are told apart from char literals by looking for the closing quote).
+    ///
+    /// **Which of those the crate's own source actually exercises, stated
+    /// because the distinction is this fix cycle's whole subject.** The slice
+    /// guard (c) feeds in is `main.rs` above the cut, and the files the
+    /// test-shaped check feeds in are `api.rs` / `session.rs` / `view.rs`.
+    /// Between them those contain line comments and ordinary strings and
+    /// **nothing else** — no block comment, no raw string, no char literal. So
+    /// three of the branches above are defensive against source this crate does
+    /// not yet contain, and would otherwise be an untested claim in a doc
+    /// comment. They are pinned directly by
+    /// [`test_code_only_blanks_comments_and_string_bodies`] instead.
     ///
     /// **Residual, stated rather than glossed.** This is a lint over source
     /// text, not a Rust lexer. Text produced by a macro is invisible to it by

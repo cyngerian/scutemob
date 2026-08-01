@@ -891,7 +891,7 @@ fix cycle 2's claim that a file Sessions 6/7 add is "covered without editing thi
 false for two real spellings (see fix cycle 3, MEDIUM 1).
 `cargo build --workspace`, `cargo clippy --workspace --all-targets -- -D warnings`,
 `cargo fmt --check`, `tools/check-defs-fmt.sh` (1,804 defs) and `cargo test --workspace`
-are green; tests 4,008 → 4,016 → 4,023 → 4,024 → **4,025** across the three fix cycles. `git diff main --
+are green; tests 4,008 → 4,016 → 4,023 → 4,024 → **4,026** across the three fix cycles. `git diff main --
 crates/engine/src crates/card-types/src crates/card-defs/src` is **empty**;
 PROTOCOL 32 / HASH 69 unmoved; `crates/simulator` and `crates/view-model` are untouched —
 the session needed nothing added to either, and the fix cycle kept it that way even where
@@ -1035,7 +1035,7 @@ addressed; these are new, and the first is a **regression fix cycle 1 introduced
 
 **Fix cycle 3 (2026-08-01) — a third audit, scoped to whether fix cycle 2 repeated fix
 cycle 1's mistake of shipping a false proof: 1 MEDIUM / 6 LOW, all applied; 8 named tests
-unrenamed, +1 new (17 in the module).** It did **not** repeat it — the poison-recovery
+unrenamed, +2 new (18 in the module).** It did **not** repeat it — the poison-recovery
 atomicity repair is genuinely structural, its test is genuinely non-vacuous, and the
 `engine_error` unreachability claim survives independent verification. **No correctness
 defect in shipped behaviour was found.** What the audit found was one gate-coverage hole and
@@ -1077,7 +1077,15 @@ documentation drift**.
   drops the call, the **old** line-comment-only stripper ran **green** and the **new** one
   ran **red** on the `bind` needle. Mutation reverted verbatim (`git diff` over
   `async_main` empty). Residual stated rather than glossed: this is a lint over source text,
-  not a Rust lexer, so macro-generated text is invisible to it by construction.
+  not a Rust lexer, so macro-generated text is invisible to it by construction. **And the
+  branch-coverage claim was checked rather than assumed**: the only inputs `code_only` ever
+  sees in this crate — `main.rs` above the cut, plus `api.rs` / `session.rs` / `view.rs` —
+  contain line comments and ordinary strings and nothing else, so its block-comment,
+  raw-string and char-literal branches were about to ship as an *unverified doc-comment
+  claim*, which is the exact defect shape this cycle exists to remove. Pinned instead by
+  `test_code_only_blanks_comments_and_string_bodies`, itself proven non-vacuous by disabling
+  the char-literal branch and then the block-comment branch (each reddens it; both
+  reverted).
 - **LOW 3 — the restated 400/422 rule was false for 3 of the 4 variants behind
   `setup_failed`.** `api.rs` mapped **all** of `SessionError::Setup(_)` to 422 while the rule
   grounds 422 in "`validate_deck` for a pregame table", and only `SetupError::InvalidDeck` is
