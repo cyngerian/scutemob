@@ -229,7 +229,20 @@ use crate::state::hash::HASH_SCHEMA_VERSION;
 ///   unchanged, declared shape moves, digest moves. (`TriggerEvent`/`TriggerCondition`
 ///   also gained a paired variant for OOS-EF7-1's any-recipient equipped-creature
 ///   combat-damage trigger, `umezawas_jitte`, but neither is in the wire closure —
-///   that half of this batch is a HASH-only change, see `state::hash`.)
+///   that half of this batch is a HASH-only change, see `state::hash`.) **Correction
+///   (PB-DX1, 2026-08-01, §7.4): the "neither is in the wire closure" claim is FALSE
+///   for `TriggerEvent`.** `TriggeredAbilityDef.trigger_on: TriggerEvent`, and
+///   `TriggeredAbilityDef` is reachable via `Characteristics.triggered_abilities:
+///   Vec<TriggeredAbilityDef>` — `Characteristics` is a [`CLOSURE_MUST_CONTAIN`]
+///   entry and was already in the closure at v25 time, independent of anything
+///   PB-DX1 touched. `TriggerEvent` was therefore ALREADY in the wire closure when
+///   this note was written; a probe against the live scanner (2026-08-01) confirms
+///   `TriggerEvent` present / `TriggerCondition` absent. That OS10 sub-change should
+///   have moved this digest and evidently did not get credited for it (the v25 bump
+///   from `TargetRequirement` alone may have masked it, or the note was simply never
+///   checked against the scanner). `TriggerCondition` remains correctly excluded —
+///   it lives on the card-def `AbilityDefinition::Triggered`, not on the runtime
+///   `TriggeredAbilityDef`, and is not reachable from `Command`/`GameEvent`.
 /// - 26: PB-OS11 (2026-07-19, final PB-OS batch — OOS-LKI-3 reframed): `ManaAbility`
 ///   (reachable via `Characteristics.mana_abilities: Vec<ManaAbility>`, a
 ///   [`CLOSURE_MUST_CONTAIN`] entry) gains `remove_counter: Option<(CounterType, u32)>`
@@ -242,9 +255,12 @@ use crate::state::hash::HASH_SCHEMA_VERSION;
 ///   protocol digest even though the closure's type count does not grow). This
 ///   batch's other half — `TriggerCondition::WheneverYouAttack` unit -> struct with
 ///   `filter: Option<TargetFilter>` (CR 508.1/508.1m — Anim Pakal, General Kreat,
-///   Hermes) — does NOT move this digest: `TriggerCondition`/`TriggerEvent` are not
-///   in the wire closure (see the `- 25:` note above), so that half is HASH-only,
-///   see `state::hash`.
+///   Hermes) — does NOT move this digest: `TriggerCondition` is not in the wire
+///   closure (correct); **`TriggerEvent` IS** (see the `- 25:` correction above),
+///   but this sub-change touched only `TriggerCondition` (the card-def type), not
+///   `TriggerEvent` (the runtime type it lowers to), so the "HASH-only" conclusion
+///   for THIS specific sub-change still holds even though its stated reason was
+///   half wrong.
 /// - 27: PB-RS2 (2026-07-20, OOS-RS-2): `Command::ActivateAbility` and
 ///   `Command::TapForMana` (both wire frames) each gain two fields —
 ///   `hybrid_choices: Vec<HybridManaPayment>` and
@@ -296,7 +312,27 @@ use crate::state::hash::HASH_SCHEMA_VERSION;
 ///   declared shapes moved, so the digest moves. (`GameEvent::private_to()` and
 ///   `reveals_hidden_info()` also land in this commit; they are METHODS, not
 ///   declared shapes, and do not touch the digest.)
-pub const PROTOCOL_VERSION: u32 = 31;
+/// - 32: PB-DX1 (2026-08-01, OOS-DP6-1 — CR 603.4, the intervening-if dropped in the
+///   runtime lowering): `InterveningIf` (reachable via
+///   `Characteristics.triggered_abilities: Vec<TriggeredAbilityDef>` ->
+///   `TriggeredAbilityDef.intervening_if: Option<InterveningIf>`; `Characteristics`
+///   is a [`CLOSURE_MUST_CONTAIN`] entry) gains a new variant
+///   `CardDef(Box<Condition>)`, carrying a card-definition intervening-if through
+///   `build_face_ability_vectors`' lowering (previously hardcoded `None` at all 34
+///   push sites — Aurelia, the Warleader granted herself unbounded extra combats on
+///   a `Complete`, deck-legal def). **This is a `HASH`-only-predicted change that
+///   turned out to also be `PROTOCOL`**: the audit row and dispatch brief both
+///   predicted HASH only; `InterveningIf` was NOT previously known to be reachable
+///   from the wire closure. `Condition` was already in the closure (reachable via
+///   `Effect::Conditional`), so the closure's type COUNT is unchanged (96);
+///   `InterveningIf`'s declared shape moved, so the digest moves. **See also the
+///   `- 25:`/`- 26:` corrections above**: while verifying this prediction, a probe
+///   against the live scanner found `TriggerEvent` (unlike `TriggerCondition`) was
+///   ALREADY in the wire closure at v25 time, independent of this batch — those two
+///   History notes are corrected in place, not by a new row (they are doc comments,
+///   not `PROTOCOL_HISTORY` entries; the append-only rule covers the table, not the
+///   prose).
+pub const PROTOCOL_VERSION: u32 = 32;
 
 /// Digest of the serialized shape of the wire-frame type closure
 /// (`Command`, `GameEvent`, [`ReplayLog`] and everything they reach).
@@ -314,7 +350,7 @@ pub const PROTOCOL_VERSION: u32 = 31;
 /// existing `u32` *means* does not. Semantic changes still require a manual
 /// [`PROTOCOL_VERSION`] bump.
 pub const PROTOCOL_SCHEMA_FINGERPRINT: &str =
-    "5c389360ca13beee2ff7de28a482ce99448e560d375723d4b3dbcd2380693b79";
+    "52e9b37c9612f839f7318a484f4947993295a22e2f4522fe7c19c10db663ac73";
 
 /// One `(version, fingerprint)` row of the append-only protocol-schema history.
 ///
@@ -555,6 +591,12 @@ pub const PROTOCOL_HISTORY: &[ProtocolEpoch] = &[
         // GameEvent::EffectChoiceRequired appended, and EffectChoiceQuestion +
         // EffectChoiceAnswer enter the closure (see the `- 31:` History line above).
         fingerprint: "5c389360ca13beee2ff7de28a482ce99448e560d375723d4b3dbcd2380693b79",
+    },
+    ProtocolEpoch {
+        version: 32,
+        // PB-DX1 (2026-08-01, OOS-DP6-1): InterveningIf gains CardDef(Box<Condition>)
+        // (see the `- 32:` History line above). Closure type count unchanged (96).
+        fingerprint: "52e9b37c9612f839f7318a484f4947993295a22e2f4522fe7c19c10db663ac73",
     },
 ];
 

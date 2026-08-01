@@ -657,7 +657,26 @@
 ///   and `EffectChoiceAnswer` are in the SR-8 wire closure, so this bump is
 ///   paired with `PROTOCOL_VERSION` 30 -> 31 (`Command::AnswerEffectChoice`
 ///   lands in the same commit).
-pub const HASH_SCHEMA_VERSION: u8 = 68;
+/// - 69: PB-DX1 (2026-08-01, OOS-DP6-1 — CR 603.4, the intervening-if dropped
+///   in the runtime lowering): `InterveningIf` gains a third variant,
+///   `CardDef(Box<Condition>)`, carrying a card-definition intervening-if
+///   through `build_face_ability_vectors`' lowering (previously hardcoded
+///   `None` at all 34 push sites, so a card-def condition was checked at
+///   NEITHER end of CR 603.4 — Aurelia, the Warleader granted herself
+///   unbounded extra combats on a `Complete`, deck-legal def).
+///   `decl_fingerprint` MOVES (new enum variant reachable from `GameState` via
+///   `Characteristics.triggered_abilities: Vec<TriggeredAbilityDef>` ->
+///   `intervening_if: Option<InterveningIf>`); `stream_fingerprint` moves per
+///   the v40 mechanism (the version sentinel is itself fed into the hash
+///   stream, so it moves on every bump — `canonical_fixture()` carries no
+///   object whose `intervening_if` is `Some(InterveningIf::CardDef(_))`, so
+///   the new `HashInto` arm's own bytes are NOT what moves this digest; the
+///   version-sentinel byte is). `InterveningIf` IS in the SR-8 wire closure
+///   (`TriggeredAbilityDef` is
+///   listed in `crates/engine/tests/core/protocol_schema.rs`'s
+///   `CLOSURE_MUST_CONTAIN` via `Characteristics`), so this bump is paired
+///   with `PROTOCOL_VERSION` 31 -> 32.
+pub const HASH_SCHEMA_VERSION: u8 = 69;
 
 /// One `(version, fingerprints)` row of the append-only hash-schema history.
 ///
@@ -1007,6 +1026,17 @@ pub const HASH_SCHEMA_HISTORY: &[HashSchemaEpoch] = &[
         // GameEvent variant); stream_fingerprint moves per the v40 mechanism.
         decl_fingerprint: "cfe583121f256c677692133a5379ccb8c4280565026ebf85d760333600ca1c37",
         stream_fingerprint: "fa56c48381755a1c6e97b52c1fd4f880cd99dfbe72fc3acc7ca55b76b56edd3f",
+    },
+    HashSchemaEpoch {
+        version: 69,
+        // PB-DX1 (2026-08-01, OOS-DP6-1): `InterveningIf` gains `CardDef(Box<
+        // Condition>)`. decl_fingerprint moves (new enum variant in the
+        // GameState serde closure); stream_fingerprint moves per the v40
+        // mechanism (the version sentinel itself is fed into the hash stream,
+        // so it moves on every bump regardless of whether the new variant is
+        // exercised by `canonical_fixture()` — it is not).
+        decl_fingerprint: "b3516a9cc653f20bd2691d0ff9fa98b52c1dfed5a247e710495072567b05358f",
+        stream_fingerprint: "23bf8909dc820298d917958d33d1f24263c1444ecd56f6c5b6e5ad25930961d9",
     },
 ];
 
@@ -3533,6 +3563,11 @@ impl HashInto for InterveningIf {
             InterveningIf::SourceHadNoCounterOfType(ct) => {
                 1u8.hash_into(hasher);
                 ct.hash_into(hasher);
+            }
+            // PB-DX1: discriminant 2 is free (0/1 taken above).
+            InterveningIf::CardDef(c) => {
+                2u8.hash_into(hasher);
+                c.hash_into(hasher);
             }
         }
     }

@@ -2301,9 +2301,21 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                         .get(&source_object)
                         .map(|o| (o.kicker_times_paid, o.x_value))
                         .unwrap_or((0, 0));
+                    // PB-DX1 §9.3 harmonisation: apply the SAME evaluability guard as
+                    // the runtime `InterveningIf::CardDef` arm's Resolution moment
+                    // (`check_intervening_if`). Before this, a condition unanswerable
+                    // at resolution (WasOverloaded/WasBargained/WasCleaved/
+                    // EvidenceWasCollected/GiftWasGiven/SacrificeFired) behaved
+                    // differently depending on which lowering path the trigger took
+                    // -- the exact asymmetry this batch exists to delete. Corpus
+                    // impact: zero (no def uses one of the seven unevaluable variants
+                    // as an intervening-if here; T9 confirms).
                     let condition_holds = triggered_carddef_iif
                         .as_ref()
                         .map(|cond| {
+                            if !crate::effects::condition_is_queue_time_evaluable(cond) {
+                                return true;
+                            }
                             let mut ctx = EffectContext::new_with_kicker(
                                 stack_obj.controller,
                                 source_object,
@@ -2375,11 +2387,17 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                                         // For persist/undying, the source is now in the graveyard
                                         // with no counters; the MoveZone effect will no-op if the
                                         // source has since left the graveyard.
+                                        // PB-DX1: source_object may itself be LKI (a
+                                        // leave-the-battlefield trigger resolving) --
+                                        // `InterveningIfMoment::Resolution` reads it via
+                                        // `fizzle_object` inside the CardDef arm.
                                         abilities::check_intervening_if(
                                             state,
                                             cond,
                                             stack_obj.controller,
+                                            source_object,
                                             None,
+                                            abilities::InterveningIfMoment::Resolution,
                                         )
                                     })
                                     .unwrap_or(true),
