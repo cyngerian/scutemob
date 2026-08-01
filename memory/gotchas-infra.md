@@ -534,3 +534,52 @@ This is the same pattern as `myriad_exile_at_eoc`. See `game_object.rs` (Decayed
   (SR-11). If a fresh env ever breaks again while local builds pass, suspect another
   floating build input before suspecting the code. Dep upgrades are now an explicit
   `cargo update` + committed lock diff.
+
+## Simulator / play-client Gotchas (M11-local, 2026-08-01)
+
+- **`StackObject::id` and the Stack-zone `ObjectId` are DIFFERENT id spaces.** Casting a
+  spell first moves the card into `ZoneId::Stack` under a fresh `ObjectId` *n* (CR
+  400.7), then does `let stack_entry_id = state.next_object_id()` — *n+1* — for the
+  `StackObject`. Both are typed `ObjectId`, so comparing them type-checks and means
+  nothing. `invariants::check_stack_consistency` did exactly that and reported ~1
+  spurious violation per spell for the life of the fuzzer. What actually links the two is
+  `StackObjectKind::Spell { source_object }`. `tools/play-server/src/view.rs`'s
+  `NameIndex` documents the same trap from the other side (indexing `StackItemView::id`
+  instead of `source_object_id` silently overwrote a permanent's name).
+
+- **`start_game` resets the turn**, so a `GameStateBuilder` fixture cannot *begin* in a
+  chosen step. `start_game_allowing_incomplete` runs `reset_turn_state` and sets
+  `step = Untap`, discarding any `.at_step(..)`, any populated `CombatState`, and any
+  pending-payment queue you set up. Two ways round it, both used in
+  `crates/simulator/tests/local_game_human_actions.rs`: compose the action list directly
+  (`StubProvider.legal_actions` + `local_game::human_only_actions`, which is exactly what
+  `advance()` does), or drive there through real priority passes.
+
+- **A bot that always prefers a real play will loop forever on a free repeatable one.**
+  `HeuristicBot` scores every action above `PassPriority`, so `lightning_greaves`' Equip
+  `{0}` — which resolves as a *no-op*, because its runtime `ActivatedAbility` declares
+  `targets: []` while its effect names `DeclaredTarget { index: 0 }` — and re-declaring
+  the same combat each froze the table at `max_commands`. CR 104.4b loop detection does
+  **not** catch these: it is for loops of *mandatory* actions. The mitigation is a
+  per-turn preference cap in the bot (`RepeatKey`).
+
+- **Never add an action to `StubProvider` to fix a human-client problem.** `RandomBot`
+  picks an index into the provider's list, so appending anything re-rolls every draw
+  downstream of it and changes what every recorded `mtg-fuzzer` seed reproduces.
+  Human-only actions belong in `local_game::human_only_actions`, which runs on the human
+  branch of `advance()` only and is never reached in a `human_seats`-empty (fuzzer) game.
+
+- **`GameDriver`'s `max_turns * 200` command budget is the FUZZER's ratio**, and the
+  fuzzer's games start with empty hands. A real four-player table dealt from the full
+  pool runs ~260 commands/turn, so at that ratio the `InfiniteLoop` valve fires before
+  the turn cap and a test asserting "GameOver or the turn cap" can never see the cap.
+
+- **A revert-and-rerun proves nothing unless the rebuild succeeded.** Disabling a fix to
+  check that its test discriminates can leave an unused-variable warning, which
+  `-D warnings` turns into a build failure — and `cargo test` then runs the *stale* test
+  binary and reports a pass. Check for a compile line, or add `#[allow(..)]` to the
+  disabled version.
+
+- **`cargo test --all | tail -N` silently drops most of the result lines.** Redirect the
+  whole run to a file and sum `^test result` with awk; the workspace has 36 test binaries
+  and a truncated tail sees two of them.
