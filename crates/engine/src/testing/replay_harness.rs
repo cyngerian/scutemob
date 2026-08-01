@@ -2487,6 +2487,7 @@ pub(crate) fn build_face_ability_vectors(
             modes,
             targets,
             intervening_if,
+            once_per_turn,
             ..
         } = ability
         {
@@ -2499,7 +2500,7 @@ pub(crate) fn build_face_ability_vectors(
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
-                once_per_turn: false,
+                once_per_turn: *once_per_turn,
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
@@ -2528,6 +2529,7 @@ pub(crate) fn build_face_ability_vectors(
             modes,
             targets,
             intervening_if,
+            once_per_turn,
             ..
         } = ability
         {
@@ -2540,7 +2542,7 @@ pub(crate) fn build_face_ability_vectors(
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
-                once_per_turn: false,
+                once_per_turn: *once_per_turn,
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
@@ -2564,13 +2566,14 @@ pub(crate) fn build_face_ability_vectors(
             effect,
             targets,
             intervening_if,
+            once_per_turn,
             ..
         } = ability
         {
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
-                once_per_turn: false,
+                once_per_turn: *once_per_turn,
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
@@ -2597,6 +2600,7 @@ pub(crate) fn build_face_ability_vectors(
             modes,
             targets,
             intervening_if,
+            once_per_turn,
             ..
         } = ability
         {
@@ -2609,7 +2613,7 @@ pub(crate) fn build_face_ability_vectors(
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
-                once_per_turn: false,
+                once_per_turn: *once_per_turn,
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
@@ -2634,13 +2638,14 @@ pub(crate) fn build_face_ability_vectors(
             effect,
             targets,
             intervening_if,
+            once_per_turn,
             ..
         } = ability
         {
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
-                once_per_turn: false,
+                once_per_turn: *once_per_turn,
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
@@ -2671,6 +2676,7 @@ pub(crate) fn build_face_ability_vectors(
             effect,
             targets,
             intervening_if,
+            once_per_turn,
             ..
         } = ability
         {
@@ -2691,7 +2697,7 @@ pub(crate) fn build_face_ability_vectors(
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
-                once_per_turn: false,
+                once_per_turn: *once_per_turn,
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
@@ -2715,13 +2721,14 @@ pub(crate) fn build_face_ability_vectors(
             effect,
             targets,
             intervening_if,
+            once_per_turn,
             ..
         } = ability
         {
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
-                once_per_turn: false,
+                once_per_turn: *once_per_turn,
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
@@ -2746,13 +2753,14 @@ pub(crate) fn build_face_ability_vectors(
             effect,
             targets,
             intervening_if,
+            once_per_turn,
             ..
         } = ability
         {
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
-                once_per_turn: false,
+                once_per_turn: *once_per_turn,
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
@@ -2776,13 +2784,14 @@ pub(crate) fn build_face_ability_vectors(
             effect,
             targets,
             intervening_if,
+            once_per_turn,
             ..
         } = ability
         {
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
-                once_per_turn: false,
+                once_per_turn: *once_per_turn,
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
@@ -2822,6 +2831,7 @@ pub(crate) fn build_face_ability_vectors(
             effect,
             targets,
             intervening_if,
+            once_per_turn,
             ..
         } = ability
         {
@@ -2848,7 +2858,7 @@ pub(crate) fn build_face_ability_vectors(
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
-                once_per_turn: false,
+                once_per_turn: *once_per_turn,
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
@@ -2888,6 +2898,7 @@ pub(crate) fn build_face_ability_vectors(
             effect,
             targets,
             intervening_if,
+            once_per_turn,
             ..
         } = ability
         {
@@ -2916,7 +2927,7 @@ pub(crate) fn build_face_ability_vectors(
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
-                once_per_turn: false,
+                once_per_turn: *once_per_turn,
                 trigger_on: TriggerEvent::AnyPermanentEntersBattlefield,
                 // Intervening-if conditions (card_definition::Condition) are a different
                 // type from runtime InterveningIf; conversion is deferred. None is safe
@@ -2982,6 +2993,7 @@ pub(crate) fn build_face_ability_vectors(
             trigger_zone,
             targets,
             intervening_if,
+            once_per_turn,
             ..
         } = ability
         {
@@ -3031,7 +3043,7 @@ pub(crate) fn build_face_ability_vectors(
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
-                once_per_turn: false,
+                once_per_turn: *once_per_turn,
                 trigger_on: TriggerEvent::AnyPermanentEntersBattlefield,
                 // card_definition::Condition ↔ runtime InterveningIf conversion is
                 // deferred (same rationale as Alliance). None is safe for all
@@ -3060,13 +3072,14 @@ pub(crate) fn build_face_ability_vectors(
             effect,
             targets,
             intervening_if,
+            once_per_turn,
             ..
         } = ability
         {
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
-                once_per_turn: false,
+                once_per_turn: *once_per_turn,
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
@@ -3090,13 +3103,14 @@ pub(crate) fn build_face_ability_vectors(
             effect,
             targets,
             intervening_if,
+            once_per_turn,
             ..
         } = ability
         {
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
-                once_per_turn: false,
+                once_per_turn: *once_per_turn,
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
@@ -3252,13 +3266,14 @@ pub(crate) fn build_face_ability_vectors(
             effect,
             targets,
             intervening_if,
+            once_per_turn,
             ..
         } = ability
         {
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
-                once_per_turn: false,
+                once_per_turn: *once_per_turn,
                 trigger_on: TriggerEvent::AnyCreatureYouControlAttacks,
                 intervening_if: intervening_if
                     .clone()
@@ -3289,13 +3304,14 @@ pub(crate) fn build_face_ability_vectors(
             effect,
             targets,
             intervening_if,
+            once_per_turn,
             ..
         } = ability
         {
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
-                once_per_turn: false,
+                once_per_turn: *once_per_turn,
                 trigger_on: TriggerEvent::AnyCreatureYouControlDealsCombatDamageToPlayer,
                 intervening_if: intervening_if
                     .clone()
@@ -3321,13 +3337,14 @@ pub(crate) fn build_face_ability_vectors(
             effect,
             targets,
             intervening_if,
+            once_per_turn,
             ..
         } = ability
         {
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
-                once_per_turn: false,
+                once_per_turn: *once_per_turn,
                 trigger_on: TriggerEvent::AnyCreatureYouControlBatchCombatDamage,
                 intervening_if: intervening_if
                     .clone()
@@ -3351,13 +3368,14 @@ pub(crate) fn build_face_ability_vectors(
             effect,
             targets,
             intervening_if,
+            once_per_turn,
             ..
         } = ability
         {
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
-                once_per_turn: false,
+                once_per_turn: *once_per_turn,
                 trigger_on: TriggerEvent::EquippedCreatureDealsCombatDamageToPlayer,
                 intervening_if: intervening_if
                     .clone()
@@ -3381,13 +3399,14 @@ pub(crate) fn build_face_ability_vectors(
             effect,
             targets,
             intervening_if,
+            once_per_turn,
             ..
         } = ability
         {
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
-                once_per_turn: false,
+                once_per_turn: *once_per_turn,
                 trigger_on: TriggerEvent::EquippedCreatureDealsCombatDamage,
                 intervening_if: intervening_if
                     .clone()
@@ -3410,13 +3429,14 @@ pub(crate) fn build_face_ability_vectors(
             effect,
             targets,
             intervening_if,
+            once_per_turn,
             ..
         } = ability
         {
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
-                once_per_turn: false,
+                once_per_turn: *once_per_turn,
                 trigger_on: TriggerEvent::EnchantedCreatureDealsDamageToPlayer,
                 intervening_if: intervening_if
                     .clone()
@@ -3440,13 +3460,14 @@ pub(crate) fn build_face_ability_vectors(
             effect,
             targets,
             intervening_if,
+            once_per_turn,
             ..
         } = ability
         {
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
-                once_per_turn: false,
+                once_per_turn: *once_per_turn,
                 trigger_on: TriggerEvent::AnyCreatureDealsCombatDamageToOpponent,
                 intervening_if: intervening_if
                     .clone()
@@ -3470,13 +3491,14 @@ pub(crate) fn build_face_ability_vectors(
             effect,
             targets,
             intervening_if,
+            once_per_turn,
             ..
         } = ability
         {
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
-                once_per_turn: false,
+                once_per_turn: *once_per_turn,
                 trigger_on: TriggerEvent::ControllerDiscards,
                 intervening_if: intervening_if
                     .clone()
@@ -3498,13 +3520,14 @@ pub(crate) fn build_face_ability_vectors(
             effect,
             targets,
             intervening_if,
+            once_per_turn,
             ..
         } = ability
         {
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
-                once_per_turn: false,
+                once_per_turn: *once_per_turn,
                 trigger_on: TriggerEvent::OpponentDiscards,
                 intervening_if: intervening_if
                     .clone()
@@ -3526,13 +3549,14 @@ pub(crate) fn build_face_ability_vectors(
             effect,
             targets,
             intervening_if,
+            once_per_turn,
             ..
         } = ability
         {
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
-                once_per_turn: false,
+                once_per_turn: *once_per_turn,
                 trigger_on: TriggerEvent::OpponentPlaysLand,
                 intervening_if: intervening_if
                     .clone()
@@ -3556,13 +3580,14 @@ pub(crate) fn build_face_ability_vectors(
             effect,
             targets,
             intervening_if,
+            once_per_turn,
             ..
         } = ability
         {
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
-                once_per_turn: false,
+                once_per_turn: *once_per_turn,
                 trigger_on: TriggerEvent::ControllerSacrifices,
                 intervening_if: intervening_if
                     .clone()
@@ -3588,13 +3613,14 @@ pub(crate) fn build_face_ability_vectors(
             effect,
             targets,
             intervening_if,
+            once_per_turn,
             ..
         } = ability
         {
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
-                once_per_turn: false,
+                once_per_turn: *once_per_turn,
                 trigger_on: TriggerEvent::ControllerAttacks,
                 intervening_if: intervening_if
                     .clone()
@@ -3616,13 +3642,14 @@ pub(crate) fn build_face_ability_vectors(
             effect,
             targets,
             intervening_if,
+            once_per_turn,
             ..
         } = ability
         {
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
-                once_per_turn: false,
+                once_per_turn: *once_per_turn,
                 trigger_on: TriggerEvent::SelfLeavesBattlefield,
                 intervening_if: intervening_if
                     .clone()
@@ -3645,13 +3672,14 @@ pub(crate) fn build_face_ability_vectors(
             effect,
             targets,
             intervening_if,
+            once_per_turn,
             ..
         } = ability
         {
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
-                once_per_turn: false,
+                once_per_turn: *once_per_turn,
                 trigger_on: TriggerEvent::ControllerDrawsCard,
                 intervening_if: intervening_if
                     .clone()
@@ -3675,6 +3703,7 @@ pub(crate) fn build_face_ability_vectors(
             effect,
             targets,
             intervening_if,
+            once_per_turn,
             ..
         } = ability
         {
@@ -3691,7 +3720,7 @@ pub(crate) fn build_face_ability_vectors(
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
-                once_per_turn: false,
+                once_per_turn: *once_per_turn,
                 trigger_on,
                 intervening_if: intervening_if
                     .clone()
@@ -3714,13 +3743,14 @@ pub(crate) fn build_face_ability_vectors(
             effect,
             targets,
             intervening_if,
+            once_per_turn,
             ..
         } = ability
         {
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
-                once_per_turn: false,
+                once_per_turn: *once_per_turn,
                 trigger_on: TriggerEvent::ControllerGainsLife,
                 intervening_if: intervening_if
                     .clone()
@@ -3755,13 +3785,14 @@ pub(crate) fn build_face_ability_vectors(
             effect,
             targets,
             intervening_if,
+            once_per_turn,
             ..
         } = ability
         {
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
-                once_per_turn: false,
+                once_per_turn: *once_per_turn,
                 trigger_on: TriggerEvent::PermanentBecomesTarget {
                     scope: scope.clone(),
                     by_opponent: *by_opponent,

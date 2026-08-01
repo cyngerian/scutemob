@@ -876,16 +876,28 @@ fn test_dx1_corpus_roster_is_enumerated_not_grepped() {
          added or edited and §6's disposition table (and this test) needs review"
     );
 
-    // once_per_turn on a LOWERED condition is a SEPARATE bug (§10 / Phase 7 of the
-    // plan, NOT fixed in this call's scope) -- this assertion pins the CURRENT
-    // card-def-authored intent (independent of whether the runtime lowering
-    // actually propagates it), i.e. it is a census of which defs the Phase 7
-    // rider must cover, not a claim that the engine honors it yet.
+    // once_per_turn on a LOWERED condition (§10 / Phase 7 of the plan -- FIXED,
+    // separate commit): this is a census over the CARD-DEF-authored field, not
+    // the runtime-propagated one, so it is unaffected by whether Phase 7's fix
+    // has landed. Six defs total: the 3 that always propagated correctly
+    // (rows 15/16/17 -- morbid_opportunist/spiteful_banditry/dusk_legion_duelist)
+    // plus the 3 Phase 7 repaired (welcoming_vampire/elvish_warmaster/
+    // whispering_wizard -- see T13-T15, which drive these 3 through the real
+    // engine and confirm the runtime now honors this field).
     eprintln!("LOWERED x once_per_turn=true roster: {lowered_with_once_per_turn:?}");
-    assert!(
-        !lowered_with_once_per_turn.is_empty(),
-        "non-vacuity: at least the 3 sites that already propagate once_per_turn \
-         (rows 15/16/17) should be authored with once_per_turn: true on a card def"
+    assert_eq!(
+        lowered_with_once_per_turn,
+        vec![
+            "Dusk Legion Duelist".to_string(),
+            "Elvish Warmaster".to_string(),
+            "Morbid Opportunist".to_string(),
+            "Spiteful Banditry".to_string(),
+            "Welcoming Vampire".to_string(),
+            "Whispering Wizard".to_string(),
+        ],
+        "the roster of LOWERED-condition defs authored with once_per_turn: true, \
+         derived by enumeration -- if this list changes, a card def was added or \
+         edited and both §10 (Phase 7 coverage) and T9 need review"
     );
 }
 
@@ -1183,4 +1195,367 @@ fn test_dx1_haunt_intervening_if_gated_at_both_ends() {
              execute; life must stay at 10, not 12"
         );
     }
+}
+
+// ── T13-T15: the once_per_turn rider (plan §10) ─────────────────────────────
+//
+// `once_per_turn` was hardcoded `false` at 31 of the 34 lowering push sites
+// (rows 15/16/17 already propagated it correctly, and were left unchanged).
+// `flush_pending_triggers`'s once-per-turn gate (`abilities.rs`) reads the
+// RUNTIME `characteristics.triggered_abilities[idx].once_per_turn` FIRST and
+// only falls back to the card registry when that lookup MISSES -- for a
+// lowered trigger it always HIT (with the wrong, hardcoded-false value), so
+// the registry's true value was never consulted. No change to
+// `flush_pending_triggers` itself was needed -- its gate logic was already
+// correct; only the 31 lowering sites needed to stop discarding the field.
+// Three `Complete`, deck-legal, REAL corpus defs over-fired as a result.
+
+use mtg_engine::rules::command::CastSpellData;
+
+fn count_in_zone(state: &GameState, zone: ZoneId) -> usize {
+    state.objects().values().filter(|o| o.zone == zone).count()
+}
+
+fn count_named_on_battlefield(state: &GameState, name: &str) -> usize {
+    state
+        .objects()
+        .values()
+        .filter(|o| o.zone == ZoneId::Battlefield && o.characteristics.name == name)
+        .count()
+}
+
+fn cast_spell(state: GameState, player: PlayerId, card: ObjectId) -> (GameState, Vec<GameEvent>) {
+    process_command(
+        state,
+        Command::CastSpell(Box::new(CastSpellData {
+            player,
+            card,
+            targets: vec![],
+            convoke_creatures: vec![],
+            improvise_artifacts: vec![],
+            delve_cards: vec![],
+            kicker_times: 0,
+            alt_cost: None,
+            prototype: false,
+            modes_chosen: vec![],
+            x_value: 0,
+            face_down_kind: None,
+            additional_costs: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        })),
+    )
+    .unwrap_or_else(|e| panic!("CastSpell failed: {e:?}"))
+}
+
+fn vanilla_creature_def(
+    card_id: &str,
+    name: &str,
+    power: i32,
+    toughness: i32,
+    subtypes: Vec<SubType>,
+) -> CardDefinition {
+    CardDefinition {
+        card_id: cid2(card_id),
+        name: name.to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            ..Default::default()
+        }),
+        types: TypeLine {
+            card_types: [CardType::Creature].into_iter().collect(),
+            subtypes: subtypes.into_iter().collect(),
+            ..Default::default()
+        },
+        oracle_text: "".to_string(),
+        power: Some(power),
+        toughness: Some(toughness),
+        abilities: vec![],
+        ..Default::default()
+    }
+}
+
+fn noncreature_instant_def(card_id: &str, name: &str) -> CardDefinition {
+    CardDefinition {
+        card_id: cid2(card_id),
+        name: name.to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            ..Default::default()
+        }),
+        types: TypeLine {
+            card_types: [CardType::Instant].into_iter().collect(),
+            ..Default::default()
+        },
+        oracle_text: "".to_string(),
+        // No `AbilityDefinition::Spell` needed -- this test only cares that
+        // the spell is CAST (Whispering Wizard's trigger is `WheneverYouCastSpell`,
+        // not a resolution effect); it resolves as a no-op and goes to the
+        // graveyard.
+        abilities: vec![],
+        ..Default::default()
+    }
+}
+
+/// CR 603.2c/603.2h — Welcoming Vampire ("...draw a card. This ability
+/// triggers only once each turn."). Two qualifying ETB events (power <= 2
+/// creatures entering under this player's control) in one turn must produce
+/// exactly ONE draw, not two. Pre-fix: FAILS (fires twice — confirmed by T9's
+/// enumeration that this def's card-def `once_per_turn: true` was silently
+/// dropped by the lowering).
+#[test]
+fn test_dx1_once_per_turn_welcoming_vampire() {
+    let p1 = p(1);
+    let p2 = p(2);
+
+    let mut all = all_cards();
+    all.push(vanilla_creature_def(
+        "dx1-t13-filler-a",
+        "DX1 T13 Filler A",
+        1,
+        1,
+        vec![],
+    ));
+    all.push(vanilla_creature_def(
+        "dx1-t13-filler-b",
+        "DX1 T13 Filler B",
+        1,
+        1,
+        vec![],
+    ));
+    let defs = load_defs_from(&all);
+    let registry = CardRegistry::new(all);
+
+    let vampire_spec = enrich_spec_from_def(
+        ObjectSpec::card(p1, "Welcoming Vampire")
+            .with_card_id(cid2("welcoming-vampire"))
+            .in_zone(ZoneId::Battlefield),
+        &defs,
+    );
+    let filler_a = enrich_spec_from_def(
+        ObjectSpec::card(p1, "DX1 T13 Filler A")
+            .with_card_id(cid2("dx1-t13-filler-a"))
+            .in_zone(ZoneId::Hand(p1)),
+        &defs,
+    );
+    let filler_b = enrich_spec_from_def(
+        ObjectSpec::card(p1, "DX1 T13 Filler B")
+            .with_card_id(cid2("dx1-t13-filler-b"))
+            .in_zone(ZoneId::Hand(p1)),
+        &defs,
+    );
+    let mut library = Vec::new();
+    for i in 0..5 {
+        library.push(
+            ObjectSpec::card(p1, &format!("DX1 T13 Library {i}")).in_zone(ZoneId::Library(p1)),
+        );
+    }
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .object(vampire_spec)
+        .object(filler_a)
+        .object(filler_b);
+    for lib_obj in library {
+        state = state.object(lib_obj);
+    }
+    let mut state = state
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+    state
+        .players_mut()
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Colorless, 2);
+    state.turn_mut().priority_holder = Some(p1);
+
+    let initial_library = count_in_zone(&state, ZoneId::Library(p1));
+
+    let filler_a_id = find_by_name(&state, "DX1 T13 Filler A");
+    let (state, _) = cast_spell(state, p1, filler_a_id);
+    let (state, _) = advance_until(state, 20, |s| s.stack_objects().is_empty());
+
+    let filler_b_id = find_by_name(&state, "DX1 T13 Filler B");
+    let (state, _) = cast_spell(state, p1, filler_b_id);
+    let (state, _) = advance_until(state, 20, |s| s.stack_objects().is_empty());
+
+    let final_library = count_in_zone(&state, ZoneId::Library(p1));
+    assert_eq!(
+        initial_library - final_library,
+        1,
+        "CR 603.2c/603.2h: Welcoming Vampire's draw must fire exactly ONCE this \
+         turn even though two qualifying creatures entered -- library should \
+         shrink by exactly 1, not 2"
+    );
+}
+
+/// CR 603.2c/603.2h — Elvish Warmaster ("...create a 1/1 green Elf Warrior
+/// creature token. This ability triggers only once each turn."). Two
+/// qualifying Elf ETB events in one turn must create exactly ONE token.
+///
+/// This def's once_per_turn bug is WORSE than "fires an extra time": the
+/// created token is ITSELF an Elf entering the battlefield under this
+/// player's control, and `exclude_self` only excludes the trigger SOURCE
+/// (Warmaster), not other Elves -- so an ungated trigger re-fires on its own
+/// token, which creates another token, which re-fires again... Verified by
+/// reverting `build_face_ability_vectors` and re-running: `advance_until`'s
+/// 20-pass guard panics ("stop condition not reached") rather than a clean
+/// assertion mismatch, because the pre-fix cascade does not terminate within
+/// budget. once_per_turn is CR 603.2h's own mechanism for preventing exactly
+/// this shape of self-reinforcing loop.
+#[test]
+fn test_dx1_once_per_turn_elvish_warmaster() {
+    let p1 = p(1);
+    let p2 = p(2);
+
+    let elf_subtype = || vec![SubType("Elf".to_string())];
+    let mut all = all_cards();
+    all.push(vanilla_creature_def(
+        "dx1-t14-filler-a",
+        "DX1 T14 Elf Filler A",
+        1,
+        1,
+        elf_subtype(),
+    ));
+    all.push(vanilla_creature_def(
+        "dx1-t14-filler-b",
+        "DX1 T14 Elf Filler B",
+        1,
+        1,
+        elf_subtype(),
+    ));
+    let defs = load_defs_from(&all);
+    let registry = CardRegistry::new(all);
+
+    let warmaster_spec = enrich_spec_from_def(
+        ObjectSpec::card(p1, "Elvish Warmaster")
+            .with_card_id(cid2("elvish-warmaster"))
+            .in_zone(ZoneId::Battlefield),
+        &defs,
+    );
+    let filler_a = enrich_spec_from_def(
+        ObjectSpec::card(p1, "DX1 T14 Elf Filler A")
+            .with_card_id(cid2("dx1-t14-filler-a"))
+            .in_zone(ZoneId::Hand(p1)),
+        &defs,
+    );
+    let filler_b = enrich_spec_from_def(
+        ObjectSpec::card(p1, "DX1 T14 Elf Filler B")
+            .with_card_id(cid2("dx1-t14-filler-b"))
+            .in_zone(ZoneId::Hand(p1)),
+        &defs,
+    );
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .object(warmaster_spec)
+        .object(filler_a)
+        .object(filler_b)
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+    state
+        .players_mut()
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Colorless, 2);
+    state.turn_mut().priority_holder = Some(p1);
+
+    let filler_a_id = find_by_name(&state, "DX1 T14 Elf Filler A");
+    let (state, _) = cast_spell(state, p1, filler_a_id);
+    let (state, _) = advance_until(state, 20, |s| s.stack_objects().is_empty());
+
+    let filler_b_id = find_by_name(&state, "DX1 T14 Elf Filler B");
+    let (state, _) = cast_spell(state, p1, filler_b_id);
+    let (state, _) = advance_until(state, 20, |s| s.stack_objects().is_empty());
+
+    assert_eq!(
+        count_named_on_battlefield(&state, "Elf Warrior"),
+        1,
+        "CR 603.2c/603.2h: Elvish Warmaster must create exactly ONE Elf Warrior \
+         token this turn even though two qualifying Elves entered"
+    );
+}
+
+/// CR 603.2c/603.2h — Whispering Wizard ("...create a 1/1 white Spirit
+/// creature token with flying. This ability triggers only once each turn.").
+/// Two noncreature spells cast in one turn must create exactly ONE token.
+#[test]
+fn test_dx1_once_per_turn_whispering_wizard() {
+    let p1 = p(1);
+    let p2 = p(2);
+
+    let mut all = all_cards();
+    all.push(noncreature_instant_def(
+        "dx1-t15-instant-a",
+        "DX1 T15 Instant A",
+    ));
+    all.push(noncreature_instant_def(
+        "dx1-t15-instant-b",
+        "DX1 T15 Instant B",
+    ));
+    let defs = load_defs_from(&all);
+    let registry = CardRegistry::new(all);
+
+    let wizard_spec = enrich_spec_from_def(
+        ObjectSpec::card(p1, "Whispering Wizard")
+            .with_card_id(cid2("whispering-wizard"))
+            .in_zone(ZoneId::Battlefield),
+        &defs,
+    );
+    let instant_a = enrich_spec_from_def(
+        ObjectSpec::card(p1, "DX1 T15 Instant A")
+            .with_card_id(cid2("dx1-t15-instant-a"))
+            .in_zone(ZoneId::Hand(p1)),
+        &defs,
+    );
+    let instant_b = enrich_spec_from_def(
+        ObjectSpec::card(p1, "DX1 T15 Instant B")
+            .with_card_id(cid2("dx1-t15-instant-b"))
+            .in_zone(ZoneId::Hand(p1)),
+        &defs,
+    );
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .object(wizard_spec)
+        .object(instant_a)
+        .object(instant_b)
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+    state
+        .players_mut()
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Colorless, 2);
+    state.turn_mut().priority_holder = Some(p1);
+
+    let instant_a_id = find_by_name(&state, "DX1 T15 Instant A");
+    let (state, _) = cast_spell(state, p1, instant_a_id);
+    let (state, _) = advance_until(state, 20, |s| s.stack_objects().is_empty());
+
+    let instant_b_id = find_by_name(&state, "DX1 T15 Instant B");
+    let (state, _) = cast_spell(state, p1, instant_b_id);
+    let (state, _) = advance_until(state, 20, |s| s.stack_objects().is_empty());
+
+    assert_eq!(
+        count_named_on_battlefield(&state, "Spirit"),
+        1,
+        "CR 603.2c/603.2h: Whispering Wizard must create exactly ONE Spirit \
+         token this turn even though two noncreature spells were cast"
+    );
 }
