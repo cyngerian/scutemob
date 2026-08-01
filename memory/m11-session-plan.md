@@ -1443,7 +1443,7 @@ src/lib/ActionBar.svelte,src/lib/EventFeed.svelte}`, `tools/play-server/README.m
 ### Session 7: Targeting, combat and choice UIs (7 items)
 
 **STATUS (2026-08-01, `scutemob-171`): SHIPPED — all 7 items done.** The five named
-`oneshot` tests exist and pass (no port bound); play-server tests 18 → **23**;
+`oneshot` tests exist and pass (no port bound); play-server tests 18 → **24** (the five named ones plus the review cycle's omniscient-view source gate);
 `npm run build` clean at 143 modules, 0 warnings; PROTOCOL 32 / HASH 69 unmoved.
 
 Four things this section did not anticipate, recorded here so the next reader of the

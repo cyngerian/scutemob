@@ -277,7 +277,7 @@ have overwritten a real permanent's name.
 ### Manual checklist (plan item 7)
 
 There is no frontend test harness in this repo — the API tests are the automated
-coverage (18 before Session 7 — 16 from Session 5 plus 2 PB-DX4 added, 23 after Session 7's five), and Session 6 added no
+coverage (18 before Session 7 — 16 from Session 5 plus 2 PB-DX4 added, 24 after Session 7's five plus the omniscient-view source gate), and Session 6 added no
 test target. What follows is the
 checklist the plan asks for, with **each step marked by what was actually done**,
 not by what a browser would presumably show.
@@ -579,7 +579,9 @@ repeated here so this README does not claim more than the implementation does.
    (`spell_target_requirements` / `ability_target_requirements` +
    `legal_targets_per_slot`), alongside `target_min`/`target_max` from
    `target_count_range` and the CR 508.1 / CR 509.1 combat payloads. What
-   *remains* is narrower and is listed as limitations 6-9 below.
+   *remains* is narrower and is listed as limitations 6-9 and 12-13 below.
+   (This pointer went stale once already, inside the very fix cycle that
+   renumbered the list — the same cross-reference rot, one level up.)
 
 5. ~~**`needs_x` answers `CastSpell` only.**~~ **CLOSED by Session 7.** The
    S6 note said `LegalAction::ActivateAbility` does not carry the ability's
@@ -671,6 +673,23 @@ state is built with `StateViewModel::from_game_state_for(.., Viewer::Seat(human)
 and every event line goes through `event_view_for(.., Viewer::Seat(human))`.
 Neither omniscient entry point (`from_game_state`, `Viewer::Omniscient`) is
 reachable from the production paths of this crate.
+
+**That chokepoint is machine-enforced as of Session 7**, not asserted in prose:
+`test_production_code_never_builds_an_omniscient_view` scans the production
+region of every `src/*.rs` — comment- and string-blanked, so a doc comment naming
+the symbol neither satisfies nor trips it — for `from_game_state(` and
+`Viewer::Omniscient`. The test module is exempt on purpose; it reaches the
+omniscient path as the out-of-band oracle the redaction tests check against.
+
+It is a *source* gate rather than a behavioural one, and the reason was measured:
+`seat_view` was edited to build its `NameIndex` from the omniscient view and the
+whole crate stayed green, all 23 tests. `NameIndex` is only ever queried for ids
+that appear in an action, a target candidate or a combat list, and every one of
+those is in a public zone — so on every id that ever gets labelled, the two views
+agree. The only construct that separates them is a face-down battlefield
+permanent (CR 708.2a), and no seeded game reaches one. The invariant is real and
+currently unfalsifiable by any payload this crate can produce, which is exactly
+the kind of claim that rots.
 
 Every *label* this crate renders is built from a `NameIndex` derived from that
 already-redacted view, never from `state.objects()`. This is the Session 4 review

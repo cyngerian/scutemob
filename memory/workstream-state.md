@@ -37,7 +37,7 @@
 | S4 view-model crate extraction + seat redaction | `scutemob-165` | **SHIPPED** | this session — `crates/view-model` (`mtg-view-model`); a seat view provably cannot leak another hand or any library order. See handoff below |
 | S5 play-server crate skeleton + REST API | `scutemob-167` | **SHIPPED** (+ 2 review cycles) | this session — `tools/play-server` (axum, port 3040), the only crate in this milestone with async or IO. 5 routes + `ServeDir`, **16 tests** (15 `oneshot` HTTP + the source gate, which is a plain `#[test]` and constructs no router), **no port ever bound and now machine-gated crate-wide**. See handoff below |
 | S6 play frontend — render and basic input | `scutemob-169` | **SHIPPED** | this session — `tools/play-server/frontend` (Svelte 5 + Vite 7), dev proxy to `127.0.0.1:3040`, `$viewer` alias importing the replay-viewer components **in place**. **Zero Rust**: `git diff main` over `crates/` + `tools/play-server/src` + `tools/play-server/Cargo.toml` is empty — **zero Rust anywhere**; the only change outside `tools/play-server` is one Svelte component, `tools/replay-viewer/frontend/src/lib/ZoneHand.svelte` (the review HIGH below). PROTOCOL 32 / HASH 69 unmoved, tests **4,040 / 0**. See handoff below |
-| S7 targeting, combat and choice UIs | `scutemob-171` | **SHIPPED** | this session — `tools/play-server/src/{view.rs,api.rs}` populate `target_slots` / `target_min`/`max` / `modes` (with per-mode slots and ranges) / `attack` / `block` from `mtg_engine::{spell_target_requirements, ability_target_requirements, legal_targets_per_slot, target_count_range}` and the provider's own `DeclareAttackers`/`DeclareBlockers` payloads; `validate_combat_params` refuses an unoffered pair with a 400; `needs_x` now answers `ActivateAbility` (README Limitation 5 CLOSED). Four picker components + an `ActionBar` chain in CR 601.2b → 601.2c → 508.1 → 509.1 order. **One additive change outside `tools/play-server`**: `StackItemView::source_object_id` in `crates/view-model` — see handoff. PROTOCOL 32 / HASH 69 unmoved; play-server tests 18 → **23**. See handoff below |
+| S7 targeting, combat and choice UIs | `scutemob-171` | **SHIPPED** | this session — `tools/play-server/src/{view.rs,api.rs}` populate `target_slots` / `target_min`/`max` / `modes` (with per-mode slots and ranges) / `attack` / `block` from `mtg_engine::{spell_target_requirements, ability_target_requirements, legal_targets_per_slot, target_count_range}` and the provider's own `DeclareAttackers`/`DeclareBlockers` payloads; `validate_combat_params` refuses an unoffered pair with a 400; `needs_x` now answers `ActivateAbility` (README Limitation 5 CLOSED). Four picker components + an `ActionBar` chain in CR 601.2b → 601.2c → 508.1 → 509.1 order. **One additive change outside `tools/play-server`**: `StackItemView::source_object_id` in `crates/view-model` — see handoff. PROTOCOL 32 / HASH 69 unmoved; play-server tests 18 → **24**. See handoff below |
 | S8 playthrough hardening, docs, acceptance | — | **next** | Plan §4 Session 8 (8 items). Read the S7 handoff's OOS-M11-8 note — item 2's "surface the invisible optional decisions" audit should include it |
 
 **S7 handoff (2026-08-01, `scutemob-171`)**
@@ -54,7 +54,7 @@
   `AttackerPicker` (508.1) → `BlockerPicker` (509.1) — accumulating one `params` object and
   submitting once. Click-through goes through the same entry point, so a targeted spell
   cannot be cast targetless from either path. PROTOCOL 32 / HASH 69 unmoved; play-server
-  tests 18 → **23**; `npm run build` clean at 143 modules, 0 warnings.
+  tests 18 → **24**; `npm run build` clean at 143 modules, 0 warnings.
 
 - **The S6 review's three MEDIUMs are all closed, and the asymmetry between them is the
   durable part.** The targeted-spell gap announced itself with a 422 every single time. The
@@ -180,6 +180,29 @@
   future widening of `legal_targets_per_slot` into a hidden zone, not evidence that
   redaction works today. The one reachable divergence at this site — a face-down
   battlefield permanent, CR 708.2a — is unfixtured and said so.
+- **And the fix cycle's own record overstated that repair, which the re-review caught —
+  the exact failure mode this project keeps hitting.** The perturbation cited as proof
+  (sourcing the label from the id instead of `NameIndex`) is the *trivial* one. The
+  redaction-relevant perturbation is **building `NameIndex` from the omniscient view**, and
+  it was then run: `api.rs::seat_view` was edited to do exactly that and **the whole crate
+  stayed green — all 23 tests**, including S5's whole-body sweep
+  `test_seat_view_over_http_contains_no_other_hand_card_names`. So no behavioural test in
+  this crate guarded the chokepoint at all.
+  The reason is structural, not a gap in those tests: `NameIndex` is only ever *queried*
+  for ids that appear in an action, a target candidate or a combat list, and every one of
+  those is in a public zone, so on every id that ever gets labelled the two views **agree**.
+  The only construct that separates them is a face-down battlefield permanent (CR 708.2a),
+  which no seeded game reaches.
+  Closed the way this project closes an unfalsifiable invariant — with a **source gate**:
+  `test_production_code_never_builds_an_omniscient_view` scans the production region of
+  every `src/*.rs` (comment- and string-blanked by the existing `code_only`, so a doc
+  comment naming the symbol neither satisfies nor trips it) for `from_game_state(` and
+  `Viewer::Omniscient`, and **was proven to catch the exact edit above** rather than
+  assumed to. Its own non-vacuity check went red on first run and taught the batch
+  something: the two needles are not in the same position — `from_game_state(` is used for
+  real in the test region (the oracle), while `Viewer::Omniscient` appears **nowhere in
+  this crate** and is a forward guard whose *mechanism* is pinned instead. play-server
+  tests 23 → **24**.
 - Four LOWs, all applied: the `{X}` 422 was observed on `casting.rs`'s `x_count == 0`
   fallback path rather than on a real `{X}` card (the seed row and README now say which);
   `StackItemView::source_object_id`'s leak argument did not cover the hidden-zone source

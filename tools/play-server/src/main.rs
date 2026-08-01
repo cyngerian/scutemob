@@ -2249,6 +2249,127 @@ mod tests {
         );
     }
 
+    // ── 15 ────────────────────────────────────────────────────────────────────
+
+    /// **Architecture Invariant 7's chokepoint, machine-enforced instead of
+    /// asserted in prose.**
+    ///
+    /// The README says "Neither omniscient entry point (`from_game_state`,
+    /// `Viewer::Omniscient`) is reachable from the production paths of this
+    /// crate", and `view.rs`'s module doc says every label comes from a
+    /// [`view::NameIndex`] derived from the seat-redacted view. Until this test
+    /// both were held by review alone.
+    ///
+    /// # Why a source gate and not a behavioural test — the answer was measured
+    ///
+    /// The obvious behavioural test is "swap the view `NameIndex` is built from
+    /// and watch something go red". **Nothing goes red.** That was run, not
+    /// assumed: `api.rs::seat_view` was edited to build its `NameIndex` from
+    /// `StateViewModel::from_game_state` (the omniscient path) and the whole
+    /// crate stayed green — all 23 tests, including
+    /// `test_target_option_labels_are_seat_redacted` **and** S5's whole-body
+    /// sweep `test_seat_view_over_http_contains_no_other_hand_card_names`.
+    ///
+    /// The reason is structural rather than a gap in those tests. `NameIndex` is
+    /// only ever *queried* for ids that appear in an action, a target candidate
+    /// or a combat list — and every one of those comes from a public zone
+    /// (`legal_targets_per_slot` enumerates Battlefield / Stack / Graveyard
+    /// only; combatants are battlefield creatures; a `CastSpell` names the
+    /// seat's **own** hand card, which it is entitled to). On every id that ever
+    /// gets labelled, the omniscient and redacted views **agree**. The one
+    /// construct that would separate them is a face-down battlefield permanent
+    /// (CR 708.2a), and no seeded game the fixture sweep found puts one on the
+    /// board.
+    ///
+    /// So the invariant is real, currently unfalsifiable by any payload this
+    /// crate can produce, and therefore exactly the kind of claim that rots. A
+    /// source gate catches the edit; a fixture would catch the consequence, and
+    /// there is no reachable fixture. Both facts are recorded rather than one of
+    /// them being implied.
+    ///
+    /// # What is checked
+    ///
+    /// Over the **production region** of every `.rs` file under `src/` — the
+    /// part above the `#[cfg(test)]` cut, comment- and string-blanked by
+    /// [`code_only`], so a doc comment naming the symbol cannot satisfy or trip
+    /// it — neither omniscient entry point may appear. The test module below the
+    /// cut is deliberately exempt: it reaches `from_game_state` on purpose, as
+    /// the out-of-band oracle the redaction tests check the payload against.
+    ///
+    /// Needles are assembled with `concat!` for the same reason the no-socket
+    /// gate does it: this function sits below the cut in a file the gate reads,
+    /// and a plainly-written needle would be found by the sibling gate.
+    #[test]
+    fn test_production_code_never_builds_an_omniscient_view() {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let mut sources: Vec<(String, String)> = Vec::new();
+        collect_rs_files(&root.join("src"), &mut sources);
+        assert!(!sources.is_empty(), "the walk found no source files");
+
+        let needles = [
+            concat!("from_game_", "state("),
+            concat!("Viewer::", "Omniscient"),
+        ];
+
+        let mut checked = 0usize;
+        for (name, source) in &sources {
+            // Everything above the `#[cfg(test)]` cut is production code. A file
+            // with no cut at all is production code in full.
+            let region = test_region(source);
+            let production_len = source.len() - region.len();
+            let production = code_only(&source[..production_len]);
+            for needle in needles {
+                assert!(
+                    !production.contains(needle),
+                    "{name} reaches an omniscient view from production code                      (matched {needle:?}). Every label this crate renders must come                      from `StateViewModel::from_game_state_for(.., Viewer::Seat(..))`                      — Architecture Invariant 7. If this is deliberate, the README's                      'Hidden information' section has to change with it."
+                );
+            }
+            checked += 1;
+        }
+        assert!(checked > 0, "vacuous: no production region was scanned");
+
+        // Non-vacuity — and the two needles are NOT in the same position, which
+        // this check established by going red the first time it ran, on a draft
+        // that assumed they were.
+        //
+        // `from_game_state(` is used for real, in this file's test region, as the
+        // out-of-band oracle the redaction tests compare the payload against. So
+        // finding it there proves the scan above matches real code rather than
+        // nothing at all.
+        let (_, this_file) = sources
+            .iter()
+            .find(|(name, _)| name.ends_with("main.rs"))
+            .expect("the walk found this file");
+        let tests_here = code_only(test_region(this_file));
+        assert!(
+            tests_here.contains(needles[0]),
+            "vacuous: needle {:?} matches nothing even in the test region, so the \
+             production scan above proved nothing",
+            needles[0]
+        );
+
+        // The second needle is a **forward guard**, and that is a weaker claim
+        // stated rather than glossed: no code in this crate names it today, in
+        // either region — the omniscient path is reached through the
+        // `from_game_state` shim — so there is nothing real to find it in and the
+        // check above cannot be repeated for it. What is pinned instead is that
+        // the *mechanism* would catch a future call site: `code_only` leaves the
+        // symbol intact in code and blanks it inside a comment, so production
+        // code naming it trips the scan while a doc comment naming it does not.
+        let sample = code_only("let v = Viewer::Omnisc\u{69}ent; // Viewer::Omnisc\u{69}ent\n");
+        assert!(
+            sample.contains(needles[1]),
+            "the gate cannot see {:?} in code at all",
+            needles[1]
+        );
+        assert_eq!(
+            sample.matches(needles[1]).count(),
+            1,
+            "the gate must see {:?} in code but not in a comment",
+            needles[1]
+        );
+    }
+
     // ── 9 ─────────────────────────────────────────────────────────────────────
 
     /// **S5 review LOW 8**, widened by the re-review (**MEDIUM 2 / LOW 5 /
