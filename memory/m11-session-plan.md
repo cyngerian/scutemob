@@ -756,7 +756,7 @@ makes the existing TUI bridge unusable for real play.
 `tests.rs` and `golden_omniscient_view.json`. All 6 named tests pass and each was proven
 non-vacuous by mutation. `cargo build --workspace`, `cargo clippy --all-targets -- -D
 warnings`, `cargo fmt --check`, `tools/check-defs-fmt.sh` and `cargo test --all` are green;
-tests 3,988 → **3,997**. `git diff main -- crates/engine crates/card-types crates/card-defs`
+tests 3,988 → **3,998**. `git diff main -- crates/engine crates/card-types crates/card-defs`
 is **empty**; PROTOCOL 32 / HASH 69 confirmed by the `core` sentinels.
 
 **The golden snapshot was captured BEFORE the move, from pristine code** (commit

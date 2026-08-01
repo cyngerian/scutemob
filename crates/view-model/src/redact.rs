@@ -19,19 +19,44 @@
 //! | Combat | an attacker, a blocker or an attacked planeswalker the viewer may not identify is name-redacted | CR 508.1, CR 509.1, CR 708.2 |
 //! | Graveyard, command zone | public, untouched | CR 404.1, CR 903.6 |
 //!
-//! # Every surface that renders a card name must be listed above
+//! # Every surface that can identify a card must be listed here
 //!
 //! The first cut of this module redacted `hand`, `battlefield` and `exile` and
 //! stopped, because those are the zones CR calls hidden. That was the wrong unit
-//! of analysis: the leak follows the *rendering site*, not the zone. Four further
-//! sites in `lib.rs` read `obj.characteristics.name` **raw** — no layer pass, no
-//! entitlement check — and each of them can be handed a face-down object:
-//! `StackItemView::source_name`, `format_target`, `AttackerView::name` (and its
-//! planeswalker `target`), and `BlockerView::name`. A morph creature that attacks
-//! is on the battlefield, so the battlefield redaction "covers" it in the zone
-//! sense while `combat.attackers[i].name` prints "Exalted Angel" to the whole
-//! table. If a new field is added to `StateViewModel` that renders a name,
-//! it belongs here.
+//! of analysis: **the leak follows the rendering site, not the zone.** A morph
+//! creature that attacks is on the battlefield, so the battlefield redaction
+//! "covers" it in the zone sense while `combat.attackers[i].name` prints
+//! "Exalted Angel" to the whole table.
+//!
+//! The complete inventory of sites in `lib.rs` that can identify a card, and the
+//! disposition of each:
+//!
+//! | Site | Reads | Redacted? |
+//! |------|-------|-----------|
+//! | `PermanentView::name` | `calculate_characteristics` | yes (belt-and-braces; layers already blank it) |
+//! | `PermanentView::is_commander` | raw `obj.card_id` | **yes — a live leak layers cannot close**, see `redact_face_down_permanents` |
+//! | `objects_in_zone_as_card_views` (hand/graveyard/exile/command) | raw `characteristics.name` | hand + exile yes; graveyard and command zone are public |
+//! | `StackItemView::source_name` | raw `characteristics.name` | yes |
+//! | `format_target` | raw `characteristics.name` | yes (object targets only — a player target is public, CR 108.1) |
+//! | `AttackerView::name` and its planeswalker `target` | raw `characteristics.name` | yes |
+//! | `BlockerView::name` | raw `characteristics.name` | yes |
+//! | `PlayerView::commander_damage_received` (inner keys) | raw `characteristics.name` | **no, and correctly so** — a non-zero entry requires that commander to have dealt combat damage, at which point CR 903.10a makes the association public in paper too. Same information, same timing. |
+//!
+//! If a field is added to `StateViewModel` that renders *or derives* a card
+//! identity, it belongs in this table with a disposition. `is_commander` is the
+//! reminder that "renders a name" is too narrow a test: it renders a boolean and
+//! leaks a name.
+//!
+//! # Known conservatism (safe direction, wrong log)
+//!
+//! `viewer_may_identify` denies any object in another seat's hand
+//! unconditionally, so a stack source that is legitimately *revealed from hand* —
+//! Miracle (CR 702.94a), Forecast (CR 702.56a) — renders as "Face-down card" to
+//! every other seat. Likewise a source or combatant that has already left
+//! `state.objects()` (CR 400.7) denies rather than guesses, where the omniscient
+//! view shows `"unknown"` / `"object_<id>"`. Correct as a leak posture, wrong as
+//! a game log; S6 will want to narrow it, and narrowing it means adding a
+//! "publicly revealed" notion the engine does not currently track.
 //!
 //! # Ownership, not control
 //!
@@ -125,11 +150,37 @@ fn redact_hands(view: &mut StateViewModel, state: &GameState, seat: PlayerId) {
 /// that Invariant 7 does not silently depend on the layer system continuing to
 /// blank that name — if a future layer change ever stopped doing so, the leak
 /// would appear here, in the seat view, with nothing to catch it.
+///
+/// `is_commander` is cleared for the same object, and it is **not** belt-and-
+/// braces: it is a live leak the layer system structurally cannot close.
+/// `build_zones_view` derives it from the raw `obj.card_id` (`lib.rs`), and
+/// CR 903.3 calls the commander designation "an attribute of the card itself",
+/// not a characteristic — which is exactly why CR 708.2a's override does not
+/// touch it and why `calculate_characteristics` cannot. So on a face-down
+/// permanent every characteristic comes back blanked and `is_commander: true`
+/// survives, naming the card outright: an opponent knows which card in the game
+/// is your commander (CR 903.6, it started in the command zone), so the flag
+/// resolves the identity to exactly one card the instant the permanent enters.
+/// Reachable whenever a commander with morph, megamorph or disguise is cast face
+/// down. Clearing it is correct, not merely conservative: in paper the opponents
+/// see a face-down card and cannot tell it apart from any other.
+///
+/// NOTE on the split predicate: this function keys on `status.face_down` alone,
+/// while the CR 708.2a layer override also requires `face_down_as.is_some()`.
+/// If a battlefield permanent ever had the former without the latter, layers
+/// would not blank it and this function substitutes only `name` — `subtypes`,
+/// `keywords`, `power`/`toughness` and `supertypes` would ship printed values.
+/// Unreachable today: the only two `status.face_down = true` sites with no
+/// companion `face_down_as` are exile-bound (`foretell.rs`, `resolution.rs`) and
+/// are covered fully by `redact_face_down_exile`. Recorded because the
+/// belt-and-braces argument above refuses to depend on the layer system, and
+/// then does depend on it for five of the six identifying fields.
 fn redact_face_down_permanents(view: &mut StateViewModel, state: &GameState, seat: PlayerId) {
     for permanents in view.zones.battlefield.values_mut() {
         for permanent in permanents.iter_mut() {
             if is_face_down_not_owned_by(state, ObjectId(permanent.object_id), seat) {
                 permanent.name = FACE_DOWN_NAME.to_string();
+                permanent.is_commander = false;
             }
         }
     }

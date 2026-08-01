@@ -43,7 +43,7 @@
   is gone; the file is `crates/view-model/src/lib.rs` (`git mv`, 91% similarity, additive
   changes only). `tools/replay-viewer` is a consumer and **its 15 tests pass unedited**.
   `crates/engine`/`card-types`/`card-defs` diff vs main is **empty**; PROTOCOL 32 / HASH 69
-  unmoved. Tests 3,988 → **3,997**.
+  unmoved. Tests 3,988 → **3,998**.
 - **Redaction follows the RENDERING SITE, not the zone — the review's HIGH, and the thing
   most worth carrying into S5-S7.** The first cut redacted `zones.hand`,
   `zones.battlefield` and `zones.exile`, which are the zones CR calls hidden, and stopped.
@@ -56,6 +56,21 @@
   already-correct `viewer_may_identify`. **S7 populates `ActionOptionView.target_slots` from
   the engine query surface — those labels are a fifth rendering site and must come from the
   seat-redacted view, not from `state.objects()` directly.**
+- **"Renders a name" is too narrow a test for a redaction surface — `is_commander` renders a
+  boolean and leaks a name.** The re-review's finding, and the seventh site.
+  `build_zones_view` derives `PermanentView::is_commander` from the raw `obj.card_id`, and
+  CR 903.3 calls the commander designation *"an attribute of the card itself"*, not a
+  characteristic — which is precisely why CR 708.2a's face-down override does not touch it
+  and why `calculate_characteristics` structurally **cannot**. So a commander cast face down
+  for its morph cost comes back with every characteristic correctly blanked and
+  `is_commander: true` intact, and since every opponent already knows which card is your
+  commander (CR 903.6 — it started in the command zone) that one boolean resolves the
+  identity to exactly one card the instant it enters. Now cleared for non-owners; the test
+  asserts the omniscient view *does* flag it before asserting the seat view does not.
+  `redact.rs`'s module doc now carries the complete site inventory with a disposition for
+  each, including the one deliberate non-redaction (`commander_damage_received`, whose inner
+  keys are commander names — but a non-zero entry requires that commander to have dealt
+  combat damage, at which point CR 903.10a makes the association public in paper too).
 - **A single-seat leak scan is a blind leak scan.** Every scan viewed from alice, and alice
   is the one player whose hand card the fixture also puts on the stack, so her own names
   were never needles — which is why the HIGH above passed six whole-document scans. Fixed by

@@ -745,3 +745,67 @@ fn test_seat_view_hides_a_face_down_attacker_blocker_and_target() {
         "bob owns the face-down creature and must still see it named"
     );
 }
+
+/// A face-down commander must not be identifiable by the `is_commander` flag.
+///
+/// The seventh rendering site, and the one the "redact every zone CR calls
+/// hidden" framing misses hardest, because it does not render a name at all — it
+/// renders a boolean and leaks a name.
+///
+/// `build_zones_view` derives `is_commander` from the raw `obj.card_id`. CR 903.3
+/// calls the commander designation "an attribute of the card itself", not a
+/// characteristic, which is exactly why CR 708.2a's face-down override does not
+/// touch it and why `calculate_characteristics` structurally cannot. So a
+/// face-down commander comes back with every characteristic correctly blanked and
+/// `is_commander: true` intact — and since every opponent already knows which
+/// card is your commander (CR 903.6: it started in the command zone), that single
+/// boolean resolves the identity to exactly one card the moment it enters.
+///
+/// In paper the opponents see a face-down card and cannot tell it from any other,
+/// so clearing the flag is correct rather than merely conservative.
+#[test]
+fn test_seat_view_does_not_flag_a_face_down_commander() {
+    let (mut state, names) = golden_fixture_state();
+    let alice = PlayerId(1);
+    let bob = PlayerId(2);
+
+    // Make bob's face-down morph creature be bob's commander — i.e. bob cast his
+    // commander face down for its morph cost (CR 702.37a).
+    let morph = object_id_of(&state, "Exalted Angel", &ZoneId::Battlefield);
+    let bob_commander = CardId("alesha_who_smiles_at_death".to_string());
+    if let Some(obj) = state.objects_mut().get_mut(&morph) {
+        obj.card_id = Some(bob_commander);
+    }
+
+    let find_morph = |view: &StateViewModel| -> bool {
+        view.zones
+            .battlefield
+            .values()
+            .flatten()
+            .find(|p| p.object_id == morph.0)
+            .map(|p| p.is_commander)
+            .expect("the face-down permanent must still be visible on the battlefield")
+    };
+
+    // Non-vacuity: omniscient DOES flag it, so the assertion below is not
+    // asserting the absence of something that was never there.
+    let dev = StateViewModel::from_game_state_for(&state, &names, Viewer::Omniscient);
+    assert!(
+        find_morph(&dev),
+        "the omniscient view must flag the face-down commander, or this test is vacuous"
+    );
+
+    // Alice must not be able to tell.
+    let alice_view = StateViewModel::from_game_state_for(&state, &names, Viewer::Seat(alice));
+    assert!(
+        !find_morph(&alice_view),
+        "CR 903.3 + CR 708.2: is_commander on a face-down permanent names the card"
+    );
+
+    // Bob owns it, so bob still sees it flagged.
+    let bob_view = StateViewModel::from_game_state_for(&state, &names, Viewer::Seat(bob));
+    assert!(
+        find_morph(&bob_view),
+        "bob owns his own face-down commander and must still see it flagged"
+    );
+}
