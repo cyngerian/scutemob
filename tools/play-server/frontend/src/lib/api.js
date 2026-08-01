@@ -121,3 +121,21 @@ export function submitAction(seq, actionIndex, params = {}) {
 export function mulligan(take) {
   return apiFetch('/api/game/mulligan', jsonPost({ take }));
 }
+
+/**
+ * GET /api/game/report — the bug-report / repro artefact (M11-local Session 8,
+ * item 5; `docs/mtg-engine-runtime-integrity.md` Layer 3).
+ *
+ * Returns the parsed `BugReportView`, **not** a `SeatView` — the only function in
+ * this module that does. A pure read: it neither advances the game nor consumes
+ * the event lines `getGame()` has not delivered yet, so it is safe to call while a
+ * decision is outstanding.
+ *
+ * Note the payload is **not** seat-redacted: it carries every seat's raw
+ * `GameEvent`s deliberately, because a redacted repro cannot be replayed. That is
+ * safe for M11-local (one human, three bots, one process, no networking) and is
+ * exactly what has to be revisited at M10a — see `view.rs`'s `BugReportView` doc.
+ */
+export function getReport() {
+  return apiFetch('/api/game/report');
+}

@@ -556,6 +556,28 @@ impl<P: LegalActionProvider> LocalGame<P> {
     /// reason to prefer its existing pool over a fresh tap, so the asymmetry is
     /// harmless there.
     ///
+    /// # The three `?`s here are the only error-discarding constructs on the human
+    /// path, and none of them hides a failure (M11-local S8, item 4)
+    ///
+    /// The S8 error-surfacing audit swept this file and `tools/play-server/src` for
+    /// anything that drops a `Result`. Reachable from `submit`, there are exactly
+    /// three, all in this function: `state.object(..).ok()?`,
+    /// `state.player(..).ok()?` and `flatten_hybrid_phyrexian(..).ok()?`. Each
+    /// returns `None`, which means only *"prepend no tapping commands"* — the
+    /// caller then applies the main `CastSpell` alone, and if it cannot be paid for
+    /// the **engine** rejects it and `submit` returns
+    /// `LocalGameError::Rejected`. So a discarded error here still surfaces, as the
+    /// cast's own refusal, rather than as a silently different game.
+    ///
+    /// Everything else the sweep found is on the **bot** path inside `advance()`
+    /// (the `Err(_)` auto-pass arm, the unconditional auto-tap's
+    /// `unwrap_or_default()`) and is unreachable from `submit`, which never calls
+    /// `apply_command` at all — it goes to `apply_sequence`, whose only failure mode
+    /// is to return `Rejected` with `self.state` untouched. The bot-seat
+    /// `PassPriority` fallback is therefore structurally out of reach from a human
+    /// submission, not merely unused: `advance()` returns at the
+    /// `human_seats.contains(..)` branch before the bot branch exists.
+    ///
     /// **Known limitation, and the other half of OOS-M11-2**: the pool is checked
     /// against `obj.characteristics.mana_cost`, the *printed* cost. That carries no
     /// commander tax (CR 903.8), no Thalia-style increase and no cost reduction, and
@@ -717,7 +739,14 @@ impl<P: LegalActionProvider> LocalGame<P> {
 /// which is every priority window they hold, not literally every instant CR 104.3a
 /// permits. Widening that would mean giving `advance()` a way to interrupt itself,
 /// which no HTTP request/response surface can use.
-fn human_only_actions(state: &GameState, player: PlayerId, blocking: bool) -> Vec<LegalAction> {
+///
+/// `pub` so a test — or a future host that drives `LocalGame` itself — can compose the
+/// exact same list `advance()` hands out (`provider.legal_actions(..)` then this),
+/// against a hand-built `GameState`. Driving a real game to a declared combat just to
+/// see the CR 509.2 offer is not otherwise possible: `start_game` resets the turn
+/// (`reset_turn_state`, `step = Untap`), so a fixture cannot simply *begin* in
+/// `Step::DeclareBlockers` with a populated `CombatState`.
+pub fn human_only_actions(state: &GameState, player: PlayerId, blocking: bool) -> Vec<LegalAction> {
     // CR 104.3a: "A player can concede the game at any time."
     let mut extra = vec![LegalAction::Concede];
 

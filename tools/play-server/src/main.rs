@@ -174,6 +174,7 @@ fn build_router(state: SharedState, dist_dir: &PathBuf) -> Router {
         .route("/game", get(api::get_game).post(api::post_game))
         .route("/game/action", post(api::post_action))
         .route("/game/mulligan", post(api::post_mulligan))
+        .route("/game/report", get(api::get_report))
         .route("/healthz", get(api::get_healthz))
         .with_state(state);
 
@@ -2246,6 +2247,138 @@ mod tests {
         assert_eq!(
             cast_command.player, play.human,
             "the command must name the human seat and no other"
+        );
+    }
+
+    // ── S8: the bug-report export (plan item 5) ───────────────────────────────
+
+    /// `GET /api/game/report` carries the whole reproduction key and the fingerprints
+    /// that make it checkable (`docs/mtg-engine-runtime-integrity.md` Layer 3).
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_s8_report_carries_the_reproduction_key() {
+        let state = shared_state();
+        let view = new_game(&state).await;
+        // Pass once first, deliberately. A game parked on the human's very first
+        // decision has applied ZERO commands (`advance()` stops before acting), so
+        // the journal assertions below would pass vacuously against a fresh game —
+        // and did, on the first run of this test.
+        let pass = action_indices(&view, "PassPriority")[0];
+        let (status, _) = post_json(
+            &state,
+            "/api/game/action",
+            json!({ "seq": seq(&view), "action_index": pass }),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+
+        let (status, body) = get_json(&state, "/api/game/report").await;
+        assert_eq!(status, StatusCode::OK);
+
+        assert_eq!(body["seed"], json!(SEED));
+        assert_eq!(body["config"]["players"], json!(PLAYERS));
+        assert_eq!(body["config"]["human_seat"], json!(1));
+        assert_eq!(body["config"]["bot"], json!("Heuristic"));
+        assert_eq!(body["config"]["mulligan_count"], json!(0));
+
+        // Fingerprints, read off the engine rather than hard-coded here: this test
+        // pins that the report *reports* them, not what they currently are (the
+        // `core` group's protocol/hash schema suites own that).
+        assert_eq!(
+            body["protocol_version"],
+            json!(mtg_engine::PROTOCOL_VERSION)
+        );
+        assert_eq!(
+            body["hash_schema_version"],
+            json!(mtg_engine::HASH_SCHEMA_VERSION)
+        );
+        assert_eq!(
+            body["protocol_fingerprint"],
+            json!(mtg_engine::PROTOCOL_SCHEMA_FINGERPRINT)
+        );
+
+        let hash = body["state_hash"].as_str().expect("state_hash is a string");
+        assert_eq!(hash.len(), 64, "32 bytes of BLAKE3 as lowercase hex");
+        assert!(hash.chars().all(|c| c.is_ascii_hexdigit()));
+
+        // Non-vacuity: a game that has already advanced to the human's first
+        // decision has applied commands, and every one is in the journal with its
+        // events.
+        let journal = body["journal"].as_array().expect("journal is an array");
+        assert!(
+            !journal.is_empty(),
+            "the journal must not be empty — `session::config_for` sets record_journal"
+        );
+        assert_eq!(
+            journal.len(),
+            body["command_count"].as_u64().unwrap() as usize,
+            "one journal entry per applied command"
+        );
+        for entry in journal {
+            assert!(entry["command"].is_object() || entry["command"].is_string());
+            assert!(entry["events"].is_array());
+            assert!(entry["turn"].is_number());
+        }
+    }
+
+    /// The report is a **pure read**: it neither advances the game nor consumes the
+    /// event lines `GET /api/game` has not shipped yet.
+    ///
+    /// The second half is the one worth a test. `seat_view` drains the journal
+    /// through `take_new_records`, so an export that used the same accessor would
+    /// silently swallow a client's next batch of history — a bug that shows up as
+    /// "the event feed skipped a turn" long after the export.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_s8_report_is_a_pure_read() {
+        let state = shared_state();
+        let (status, first) = post_json(&state, "/api/game", json!({})).await;
+        assert_eq!(status, StatusCode::OK);
+        let seq_before = first["decision"]["seq"].clone();
+        let commands_before = first["summary"]["command_count"].clone();
+
+        let (status, _) = get_json(&state, "/api/game/report").await;
+        assert_eq!(status, StatusCode::OK);
+
+        let (status, after) = get_json(&state, "/api/game").await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(
+            after["decision"]["seq"], seq_before,
+            "the outstanding decision must survive an export unchanged"
+        );
+        assert_eq!(
+            after["summary"]["command_count"], commands_before,
+            "the export must not advance the game"
+        );
+    }
+
+    /// No session, no report — 404, the same answer `GET /api/game` gives, and for
+    /// the same reason (the resource the route names does not exist).
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_s8_report_without_a_session_is_404() {
+        let state = shared_state();
+        let (status, body) = get_json(&state, "/api/game/report").await;
+        assert_eq!(status, StatusCode::NOT_FOUND);
+        assert_eq!(body["kind"], json!("no_session"));
+    }
+
+    /// A mulligan changes the effective seed, and the report has to say so — the
+    /// base `seed` alone no longer rebuilds the table (`setup::redeal` derives from
+    /// `redeal_seed(seed, human_seat, mulligan_count)`), so `mulligan_count` is part
+    /// of the reproduction key rather than a statistic.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_s8_report_tracks_the_mulligan_count() {
+        let state = shared_state();
+        let (status, _) = post_json(&state, "/api/game", json!({})).await;
+        assert_eq!(status, StatusCode::OK);
+        let (status, _) = post_json(&state, "/api/game/mulligan", json!({"take": true})).await;
+        assert_eq!(status, StatusCode::OK);
+
+        let (status, body) = get_json(&state, "/api/game/report").await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(body["seed"], json!(SEED), "the BASE seed is unchanged");
+        assert_eq!(
+            body["config"]["mulligan_count"],
+            json!(1),
+            "the redeal count is the other half of the effective seed"
         );
     }
 

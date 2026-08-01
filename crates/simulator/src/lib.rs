@@ -33,8 +33,8 @@ pub use heuristic_bot::HeuristicBot;
 pub use invariants::{check_all as check_invariants, InvariantViolation};
 pub use legal_actions::{LegalAction, LegalActionProvider, StubProvider};
 pub use local_game::{
-    AdvanceOutcome, CommandRecord, DecisionKind, HaltReason, LocalGame, LocalGameError,
-    LocalGameLimits, PendingDecision,
+    human_only_actions, AdvanceOutcome, CommandRecord, DecisionKind, HaltReason, LocalGame,
+    LocalGameError, LocalGameLimits, PendingDecision,
 };
 pub use mana_solver::solve_mana_payment;
 pub use params::{action_to_command_with_params, ActionParams, HumanChoice, ParamError};

@@ -18,6 +18,7 @@
 //! | `GET /api/game` | this seat's view, its pending decision, and new events |
 //! | `POST /api/game/action` | answer the pending decision |
 //! | `POST /api/game/mulligan` | CR 103.5 pregame redeal, pregame only |
+//! | `GET /api/game/report` | the bug-report / repro artefact (S8 item 5) |
 //! | `GET /api/healthz` | liveness |
 //!
 //! # No WebSocket, no SSE (M11-local decision)
@@ -779,6 +780,30 @@ pub async fn post_mulligan(
         }
         let outcome = play.advance();
         Ok(Json(seat_view(play, &outcome)))
+    })
+}
+
+/// `GET /api/game/report` — the bug-report / repro artefact (M11-local S8, plan
+/// item 5; `docs/mtg-engine-runtime-integrity.md` Layer 3).
+///
+/// `{seed, config, protocol/hash versions, final state hash, journal}` as JSON. See
+/// [`crate::view::BugReportView`] for the shape, how to replay it, and — the part
+/// worth reading before adding a second consumer — why this is the **one** payload
+/// in this crate that is not seat-redacted, and what has to change about that at
+/// M10a.
+///
+/// **A pure read.** Unlike [`get_game`] it does not call `advance()` and does not
+/// move `journal_cursor`, so requesting a report can neither change the game nor
+/// consume event lines the live feed has not shipped yet. It therefore takes the
+/// lock immutably — a report can be pulled from a game parked on a decision without
+/// disturbing the decision.
+pub async fn get_report(
+    State(state): State<SharedState>,
+) -> Result<Json<view::BugReportView>, ApiFailure> {
+    tokio::task::block_in_place(|| {
+        let guard = state.session.lock().map_err(|_| poisoned())?;
+        let play = guard.as_ref().ok_or_else(no_session)?;
+        Ok(Json(view::bug_report_view(play)))
     })
 }
 

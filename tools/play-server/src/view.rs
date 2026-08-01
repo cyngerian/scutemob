@@ -338,6 +338,93 @@ pub struct GameOverView {
     pub violations: Vec<String>,
 }
 
+// ── Bug-report export (M11-local S8, plan item 5) ─────────────────────────────
+
+/// The self-contained reproduction artefact `GET /api/game/report` returns, per
+/// `docs/mtg-engine-runtime-integrity.md` Layer 3.
+///
+/// # This is the ONE payload in this crate that is not seat-redacted
+///
+/// Every other response goes through the Architecture Invariant 7 chokepoint
+/// (`StateViewModel::from_game_state_for(.., Viewer::Seat(human))` and
+/// `event_view_for(.., Viewer::Seat(human))`). This one deliberately does not, and
+/// the reason is that a redacted repro is not a repro: [`Self::journal`] carries raw
+/// `Command`s and raw `GameEvent`s, which is exactly what a maintainer needs to
+/// replay a defect, and a redacted `Command::AnswerEffectChoice` naming a searched
+/// library card would be unusable.
+///
+/// That is **safe only because of what M11-local is**: one human, three bots, one
+/// process, no networking (see the crate README's scope note). The only "other
+/// players" whose hidden information this exposes are simulator bots in the same
+/// process as the person requesting the file. **When M10a puts a real opponent on
+/// the other end of a socket this endpoint must be re-scoped** — either redacted, or
+/// restricted to a single-player game, or authenticated. That is recorded here, in
+/// the README, and in `memory/decisions.md` rather than left to be rediscovered.
+///
+/// # Reproducing from it
+///
+/// [`Self::seed`] plus [`Self::config`] rebuild the exact table:
+/// `mtg_simulator::setup::build_initial_state` is deterministic in `cfg.seed`
+/// (`test_setup_same_seed_same_state_hash`), and after `mulligan_count` redeals the
+/// effective seed is `redeal_seed(seed, human_seat, mulligan_count)`. Replaying
+/// [`Self::journal`]'s commands in order from that state reaches
+/// [`Self::state_hash`].
+///
+/// [`Self::protocol_version`] / [`Self::hash_schema_version`] are what make that
+/// claim checkable rather than hopeful: a repro is only valid against an engine
+/// build with the same two numbers (`crates/simulator/src/bin/fuzzer.rs`'s "repro
+/// seeds are not portable across engine changes").
+#[derive(Debug, Serialize)]
+pub struct BugReportView {
+    /// The **base** seed — see [`GameSummary::seed`]; combine with
+    /// [`ReportConfigView::mulligan_count`] for the effective one.
+    pub seed: u64,
+    pub config: ReportConfigView,
+    /// `mtg_engine::PROTOCOL_VERSION` at capture time.
+    pub protocol_version: u32,
+    /// `mtg_engine::PROTOCOL_SCHEMA_FINGERPRINT` at capture time.
+    pub protocol_fingerprint: String,
+    /// `mtg_engine::HASH_SCHEMA_VERSION` at capture time.
+    pub hash_schema_version: u8,
+    /// Lowercase hex of `GameState::public_state_hash()` for the final state.
+    pub state_hash: String,
+    pub turn: u32,
+    pub command_count: u32,
+    /// Simulator invariant violations seen across the whole game, stringified.
+    pub violations: Vec<String>,
+    /// Every command applied, with the events it produced, in order. **Raw** — see
+    /// the type doc.
+    ///
+    /// Empty when `LocalGameLimits::record_journal` is off; the play server sets it
+    /// on (`session::config_for`), which is what makes this endpoint useful at all.
+    pub journal: Vec<JournalEntryView>,
+}
+
+/// The half of the reproduction key that is not the seed.
+#[derive(Debug, Serialize)]
+pub struct ReportConfigView {
+    pub players: u32,
+    /// The seat the human occupies.
+    pub human_seat: u64,
+    /// `"Heuristic"` or `"Random"`.
+    pub bot: String,
+    /// CR 103.5 pregame redeals taken — part of the effective seed.
+    pub mulligan_count: u32,
+    pub max_turns: u32,
+    pub max_commands: u32,
+    pub max_consecutive_passes: u32,
+}
+
+/// One applied command and its events. Both are the engine's own wire types,
+/// serialized verbatim rather than re-encoded, so a consumer parses exactly what
+/// `crates/engine` defines.
+#[derive(Debug, Serialize)]
+pub struct JournalEntryView {
+    pub turn: u32,
+    pub command: mtg_engine::Command,
+    pub events: Vec<mtg_engine::GameEvent>,
+}
+
 // ── Request DTOs ──────────────────────────────────────────────────────────────
 
 /// Optional overrides for `POST /api/game`. Every field falls back to the CLI
@@ -1154,6 +1241,57 @@ pub fn halted_view(reason: &HaltReason, turn_count: u32, total_commands: u32) ->
         reason: Some(format!("{reason:?}")),
         violations: Vec::new(),
     }
+}
+
+/// Assemble the bug-report artefact (M11-local S8, plan item 5). See
+/// [`BugReportView`] for what it is for and why it is not seat-redacted.
+pub fn bug_report_view(session: &crate::session::PlaySession) -> BugReportView {
+    let state = session.game.state();
+    BugReportView {
+        seed: session.cfg.seed,
+        config: ReportConfigView {
+            players: session.cfg.player_count,
+            human_seat: session.human.0,
+            bot: format!("{:?}", session.cfg.bot_kind),
+            mulligan_count: session.mulligan_count,
+            max_turns: session.cfg.limits.max_turns,
+            max_commands: session.cfg.limits.max_commands,
+            max_consecutive_passes: session.cfg.limits.max_consecutive_passes,
+        },
+        protocol_version: mtg_engine::PROTOCOL_VERSION,
+        protocol_fingerprint: mtg_engine::PROTOCOL_SCHEMA_FINGERPRINT.to_string(),
+        hash_schema_version: mtg_engine::HASH_SCHEMA_VERSION,
+        state_hash: hex_of(&state.public_state_hash()),
+        turn: state.turn().turn_number,
+        command_count: session.game.command_count(),
+        violations: session
+            .game
+            .violations()
+            .iter()
+            .map(|v| format!("{v:?}"))
+            .collect(),
+        // `journal()`, NOT `take_new_records()`: the export is the WHOLE history and
+        // must not move `journal_cursor`, or requesting a bug report would silently
+        // consume the event lines the live feed has not delivered yet.
+        journal: session
+            .game
+            .journal()
+            .iter()
+            .map(|record| JournalEntryView {
+                turn: record.turn,
+                command: record.command.clone(),
+                events: record.events.clone(),
+            })
+            .collect(),
+    }
+}
+
+fn hex_of(bytes: &[u8; 32]) -> String {
+    use std::fmt::Write;
+    bytes.iter().fold(String::with_capacity(64), |mut s, b| {
+        let _ = write!(s, "{b:02x}");
+        s
+    })
 }
 
 /// Player display names are public information (they are shown to the whole
