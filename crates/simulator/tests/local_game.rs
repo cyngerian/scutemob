@@ -1774,14 +1774,24 @@ fn test_param_error_any_color_without_chosen_color_is_rejected() {
 }
 
 /// A 2-player un-started `GameState`: `PlayerId(1)` holds an Instant in hand
-/// ("Session3 Cantrip", no targets) costing `{1}`, and controls one untapped mana
-/// source producing `{C}`. The pool starts EMPTY -- CR 500.4 empties it between
-/// steps, so pre-filling it here (before `LocalGame::start` runs the game through
-/// Untap and Upkeep) would just be discarded before the caller ever gets a
+/// ("Session3 Cantrip", no targets) costing `{1}`, and controls **two** untapped
+/// mana sources producing `{C}`. The pool starts EMPTY -- CR 500.4 empties it
+/// between steps, so pre-filling it here (before `LocalGame::start` runs the game
+/// through Untap and Upkeep) would just be discarded before the caller ever gets a
 /// decision; the "pool already covers the cost" scenario is instead produced by
-/// manually tapping the source with a separate `submit` call first, within the
-/// same step as the cast.
-fn state_for_auto_tap_test() -> (GameState, ObjectId, ObjectId) {
+/// manually tapping source A with a separate `submit` call first, within the same
+/// step as the cast.
+///
+/// **The SECOND source is what makes `test_auto_tap_skipped_when_pool_already_covers_cost`
+/// half 1 non-vacuous, and it is load-bearing.** With only one source, the manual
+/// pre-tap exhausts the board: `mana_solver::solve_mana_payment` skips
+/// `status.tapped` sources (`mana_solver.rs:31-33`), so it returns `None` and no
+/// `TapForMana` is issued *whether or not the pool check exists* — the assertion
+/// would be satisfied by source exhaustion rather than by the feature, and the test
+/// stayed green with the guard neutered to `if false && …`. With source B left
+/// untapped, deleting the pool check makes the solver find it and emit a spurious
+/// tap, so half 1 reddens on regression. Do not remove source B.
+fn state_for_auto_tap_test() -> (GameState, ObjectId, ObjectId, ObjectId) {
     use mtg_engine::state::turn::Step;
     use mtg_engine::{
         AbilityDefinition, CardType, Effect, EffectAmount, ManaCost, PlayerTarget, TypeLine,
@@ -1827,7 +1837,14 @@ fn state_for_auto_tap_test() -> (GameState, ObjectId, ObjectId) {
                 .in_zone(ZoneId::Hand(PlayerId(1))),
         )
         .object(
-            ObjectSpec::land(PlayerId(1), "Session3 Source").with_mana_ability(ManaAbility {
+            ObjectSpec::land(PlayerId(1), "Session3 Source A").with_mana_ability(ManaAbility {
+                produces: [(ManaColor::Colorless, 1u32)].into_iter().collect(),
+                requires_tap: true,
+                ..Default::default()
+            }),
+        )
+        .object(
+            ObjectSpec::land(PlayerId(1), "Session3 Source B").with_mana_ability(ManaAbility {
                 produces: [(ManaColor::Colorless, 1u32)].into_iter().collect(),
                 requires_tap: true,
                 ..Default::default()
@@ -1844,31 +1861,39 @@ fn state_for_auto_tap_test() -> (GameState, ObjectId, ObjectId) {
         .find(|(_, o)| o.characteristics.name == "Session3 Cantrip")
         .map(|(id, _)| *id)
         .expect("the spell must exist");
-    let source_id = state
-        .objects()
-        .iter()
-        .find(|(_, o)| o.characteristics.name == "Session3 Source")
-        .map(|(id, _)| *id)
-        .expect("the mana source must exist");
+    let find_source = |name: &str| {
+        state
+            .objects()
+            .iter()
+            .find(|(_, o)| o.characteristics.name == name)
+            .map(|(id, _)| *id)
+            .unwrap_or_else(|| panic!("{name} must exist"))
+    };
+    let source_a = find_source("Session3 Source A");
+    let source_b = find_source("Session3 Source B");
 
-    (state, spell_id, source_id)
+    (state, spell_id, source_a, source_b)
 }
 
 /// Item 7's conditional auto-tap (the pool half of OOS-M11-2). BOTH halves in one
 /// test, or it proves nothing.
 ///
-/// Half 1 (`pre_tap: true`): the mana source is tapped MANUALLY first (a separate
-/// `submit` of the `TapForMana` action, filling the pool within the same step),
-/// then the cast is submitted with `auto_tap: true` -- no ADDITIONAL `TapForMana`
-/// is issued by the auto-tap machinery, because the pool already covers the cost.
+/// Half 1 (`pre_tap: true`): source A is tapped MANUALLY first (a separate `submit`
+/// of the `TapForMana` action, filling the pool within the same step), then the cast
+/// is submitted with `auto_tap: true` -- no ADDITIONAL `TapForMana` is issued by the
+/// auto-tap machinery, because the pool already covers the cost. **Source B is left
+/// untapped precisely so this half is not vacuous**: without the pool check,
+/// `solve_mana_payment` would find B and emit a spurious tap. See
+/// `state_for_auto_tap_test`'s doc comment — a one-source fixture passed this
+/// assertion by source exhaustion even with the guard neutered.
 ///
 /// Half 2 (`pre_tap: false`): the cast is submitted directly with `auto_tap: true`
-/// against an empty pool -- a `TapForMana` IS issued and the source ends up
-/// tapped.
+/// against an empty pool -- a `TapForMana` IS issued and a source ends up tapped.
 #[test]
 fn test_auto_tap_skipped_when_pool_already_covers_cost() {
-    fn cast_with_auto_tap(pre_tap: bool) -> (bool, bool) {
-        let (state, spell_id, source_id) = state_for_auto_tap_test();
+    /// `(a tap was issued by the cast's own submit, source A tapped, source B tapped)`.
+    fn cast_with_auto_tap(pre_tap: bool) -> (bool, bool, bool) {
+        let (state, spell_id, source_id, source_b) = state_for_auto_tap_test();
         let human_seats: BTreeSet<PlayerId> = [PlayerId(1)].into_iter().collect();
         let mut bots: HashMap<PlayerId, Box<dyn Bot>> = HashMap::new();
         bots.insert(
@@ -1938,30 +1963,43 @@ fn test_auto_tap_skipped_when_pool_already_covers_cost() {
         let tap_issued_by_cast_submit = game.journal()[journal_len_before_cast..]
             .iter()
             .any(|r| matches!(r.command, Command::TapForMana { .. }));
-        let source_tapped = game
-            .state()
-            .object(source_id)
-            .expect("the mana source must still exist")
-            .status
-            .tapped;
-        (tap_issued_by_cast_submit, source_tapped)
+        let tapped = |id| {
+            game.state()
+                .object(id)
+                .expect("the mana source must still exist")
+                .status
+                .tapped
+        };
+        (
+            tap_issued_by_cast_submit,
+            tapped(source_id),
+            tapped(source_b),
+        )
     }
 
-    let (tap_issued, source_tapped) = cast_with_auto_tap(true);
+    let (tap_issued, a_tapped, b_tapped) = cast_with_auto_tap(true);
     assert!(
         !tap_issued,
         "no ADDITIONAL TapForMana should be issued by the cast's own submit when the \
          pool already covers the cost"
     );
     assert!(
-        source_tapped,
-        "the mana source is tapped -- by the manual pre-tap, not by auto-tap"
+        a_tapped,
+        "source A is tapped -- by the manual pre-tap, not by auto-tap"
+    );
+    assert!(
+        !b_tapped,
+        "source B must be UNTOUCHED: this is the assertion that fails if the pool \
+         check is removed, because `solve_mana_payment` would then find B and tap it"
     );
 
-    let (tap_issued, source_tapped) = cast_with_auto_tap(false);
+    let (tap_issued, a_tapped, b_tapped) = cast_with_auto_tap(false);
     assert!(
         tap_issued,
         "a TapForMana must be issued when the pool cannot cover the cost"
     );
-    assert!(source_tapped, "the mana source must have been tapped");
+    assert!(
+        a_tapped || b_tapped,
+        "auto-tap must have tapped a source to pay the {{1}} cost"
+    );
 }

@@ -547,6 +547,18 @@ impl<P: LegalActionProvider> LocalGame<P> {
     /// unconditionally — deliberately left alone this session; a bot never has a
     /// reason to prefer its existing pool over a fresh tap, so the asymmetry is
     /// harmless there.
+    ///
+    /// **Known limitation, and the other half of OOS-M11-2**: the pool is checked
+    /// against `obj.characteristics.mana_cost`, the *printed* cost. That carries no
+    /// commander tax (CR 903.8), no Thalia-style increase and no cost reduction, and
+    /// `can_pay_cost` is called with no `SpellContext`, so CR 106.12 restricted mana
+    /// is invisible. Recasting a taxed commander with a pool that covers only the
+    /// printed cost therefore skips tapping and the cast is rejected. This is not a
+    /// regression — `solve_mana_payment` plans against the same printed cost, so the
+    /// cast failed before this check existed too — but the early return makes it
+    /// reachable on a path where the pool is non-empty. Fixing it means teaching the
+    /// solver about modifiers, which is the layer-resolution half of OOS-M11-2 that
+    /// this session explicitly did not take.
     fn auto_tap_commands_for(&self, command: &Command, player: PlayerId) -> Option<Vec<Command>> {
         let Command::CastSpell(cast) = command else {
             return None;

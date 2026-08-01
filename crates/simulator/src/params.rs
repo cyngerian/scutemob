@@ -129,9 +129,17 @@ impl std::fmt::Display for ParamError {
 
 impl std::error::Error for ParamError {}
 
-/// The single `LegalAction` -> `Command` mapping table in the codebase (item 5/6).
-/// `random_bot::action_to_command` (item 6) and `LocalGame::submit` (item 7) both
-/// delegate here, so there is exactly one place a `LegalAction` becomes a `Command`.
+/// The single `LegalAction` -> `Command` mapping table in `crates/simulator` (item
+/// 5/6). `random_bot::action_to_command` (item 6) and `LocalGame::submit` (item 7)
+/// both delegate here, so within this crate there is exactly one place a
+/// `LegalAction` becomes a `Command`.
+///
+/// **Not yet the only one in the workspace**: `tools/tui/src/play/input.rs` still
+/// reads an `ability_index` out of a `LegalAction` and hand-builds
+/// `Command::CastSpell` / `Command::ActivateAbility` with `targets: Vec::new()` —
+/// which is exactly why the TUI still cannot cast a targeted spell (plan §8 R1).
+/// Migrating that call site onto this function is the remaining half; the session
+/// plan permits it opportunistically and it is not in this session's scope.
 ///
 /// Every arm ports `random_bot::action_to_command`'s pre-Session-3 behavior
 /// verbatim except where a `LegalAction` variant now honours `params` (`CastSpell`,
@@ -362,6 +370,16 @@ pub fn action_to_command_with_params(
                 phyrexian_life_payments: vec![],
             })))
         }
+        // KNOWN GAP (M11-local, to be filed for S6/S7): a loyalty ability's targets
+        // cannot be announced. `ActivateLoyaltyAbility` is outside the five-arm
+        // allowlist above, so `ActionParams { targets, .. }` on a planeswalker
+        // ability is REJECTED with `UnsupportedParam("targets")` rather than
+        // forwarded — loud, not silently wrong, but it means a human still cannot
+        // use a targeted loyalty ability. Planeswalkers are common in Commander
+        // (Architecture Invariant 6), so this will surface the moment the browser
+        // client offers a loyalty picker. Same shape applies to
+        // `ActivateBloodrush` and the Mutate/Morph casts below, which also
+        // hard-code `targets: Vec::new()`.
         LegalAction::ActivateLoyaltyAbility {
             source,
             ability_index,

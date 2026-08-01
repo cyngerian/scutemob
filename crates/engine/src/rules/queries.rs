@@ -36,6 +36,24 @@ use crate::state::{AltCostKind, GameState, KeywordAbility, ObjectId, PlayerId, T
 ///
 /// Missing object, missing `card_id`, or an unregistered card all yield `vec![]` — this
 /// function never panics and never unwraps.
+///
+/// **Two deliberate divergences from `handle_cast_spell`, both narrower than the
+/// "cannot drift" guarantee the shared helpers give the card-def lookup itself:**
+///
+/// 1. An empty `modes_chosen` on a spell with `ModeSelection.mode_targets: Some(_)`
+///    yields `vec![]` here, where `handle_cast_spell` would reach its `vec![0]`
+///    fail-safe (`casting.rs`, the `indices` derivation). Reporting "no targets until
+///    you announce your modes" is the CR 601.2b-faithful answer for a *query* — post
+///    PB-DP3 the engine rejects an unannounced modal cast anyway, so the fail-safe is
+///    unreachable in practice and mirroring it here would advertise targets for a mode
+///    the caster has not chosen.
+/// 2. The Aftermath keyword is read from **layer-resolved** characteristics here,
+///    where `casting.rs:533-538` reads the raw `card_obj.characteristics.keywords`.
+///    The layer-resolved read is the more CR 613.1f-correct one and the two agree for
+///    every shipped Aftermath card (they are cast from a graveyard, where continuous
+///    effects granting or removing Aftermath do not arise). Left asymmetric rather
+///    than "fixed" in either direction, because changing the cast path is a behaviour
+///    change and this batch's `casting.rs` edits are refactor-only.
 pub fn spell_target_requirements(
     state: &GameState,
     card: ObjectId,
@@ -146,6 +164,16 @@ pub fn ability_target_requirements(
 /// Iteration order is deterministic: players in seat order, then objects in ascending
 /// `ObjectId` order (`state.objects()` is an `imbl::OrdMap`) — players pushed first,
 /// matching `trigger_target_candidates`'s ordering (`abilities.rs:7496`).
+///
+/// Hidden information (Architecture Invariant 7): the three enumerated zones are the
+/// public ones, and the return value is bare `ObjectId`/`PlayerId` with no
+/// characteristics attached, so this cannot leak a hand or a library order.
+///
+/// Cost: one `validate_targets_inner` per (requirement × candidate), and each object
+/// candidate costs a `calculate_characteristics`. On a full four-player board (~100
+/// objects across the three zones) a two-slot spell is ~200 layer computations. Fine
+/// per user action; **measure before Session 5 wires this to an endpoint a browser
+/// polls**, and cache per `(state, source)` there rather than making this lazier.
 pub fn legal_targets_per_slot(
     state: &GameState,
     caster: PlayerId,
