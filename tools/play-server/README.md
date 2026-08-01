@@ -277,7 +277,7 @@ have overwritten a real permanent's name.
 ### Manual checklist (plan item 7)
 
 There is no frontend test harness in this repo — the API tests are the automated
-coverage (16 from Session 5, 23 after Session 7's five), and Session 6 added no
+coverage (18 before Session 7 — 16 from Session 5 plus 2 PB-DX4 added, 23 after Session 7's five), and Session 6 added no
 test target. What follows is the
 checklist the plan asks for, with **each step marked by what was actually done**,
 not by what a browser would presumably show.
@@ -579,7 +579,7 @@ repeated here so this README does not claim more than the implementation does.
    (`spell_target_requirements` / `ability_target_requirements` +
    `legal_targets_per_slot`), alongside `target_min`/`target_max` from
    `target_count_range` and the CR 508.1 / CR 509.1 combat payloads. What
-   *remains* is narrower and is listed as limitation 8 below.
+   *remains* is narrower and is listed as limitations 6-9 below.
 
 5. ~~**`needs_x` answers `CastSpell` only.**~~ **CLOSED by Session 7.** The
    S6 note said `LegalAction::ActivateAbility` does not carry the ability's
@@ -590,12 +590,20 @@ repeated here so this README does not claim more than the implementation does.
    destructive rather than theoretical — now reports `needs_x: true` and gets a
    real prompt.
 
-8. **A non-zero `{X}` cannot actually be paid for through this API yet, and it
+6. **A non-zero `{X}` cannot actually be paid for through this API yet, and it
    fails as a 422 rather than a wrong game state.** `LocalGame::auto_tap_commands_for`
    reads the spell's **printed** `mana_cost` and knows nothing about
    `cast.x_value`, so it taps for the base cost and the engine then refuses the
    cast for want of the extra `{X}`. Observed, not inferred: the same submission
    answers `422 "player does not have enough mana to pay the cost"`.
+
+   **What was observed, precisely.** No seeded game in the S7 fixture sweep dealt
+   the human an `{X}` spell, so the observation is on a spell with `x_count == 0`,
+   where `casting.rs`'s documented fallback ("cards that don't use x_count yet")
+   adds `x_value` to the generic cost. A real `{X}` card reaches the same shortfall
+   by the `x_count > 0` path, which is the same argument and is **unexercised**.
+   Worth stating, because "observed" and "follows from the observation" are
+   different claims.
 
    The workaround exists and the human can use it — tap mana sources manually
    first, then cast, because S3 made auto-tap conditional on the pool, so a pool
@@ -604,7 +612,7 @@ repeated here so this README does not claim more than the implementation does.
    belongs in `crates/simulator` (out of S7's scope) and is filed as
    **OOS-M11-8**.
 
-9. **A modal action's target slots are per-mode and the option-level range is
+7. **A modal action's target slots are per-mode and the option-level range is
    `(0, 0)` for such a card.** `spell_target_requirements` is queried at render
    time with an empty `modes_chosen`, because the human has not announced modes
    yet, and it deliberately answers `vec![]` for a card whose targets live in
@@ -614,13 +622,13 @@ repeated here so this README does not claim more than the implementation does.
    game in the S7 fixture sweep (`players` ∈ {2,4} × `seed` ∈ 0..12) dealt the
    human one, so this path is right by construction and unexercised.
 
-10. **`ModeOptionView.label` is a truncated `Debug` of the mode's `Effect`.**
+8. **`ModeOptionView.label` is a truncated `Debug` of the mode's `Effect`.**
     There is no per-mode oracle text anywhere in the DSL — `ModeSelection.modes`
     is a bare `Vec<Effect>` — so the label is machine-shaped ("Mode 2:
     DealDamage { .. }") rather than printed text, visibly so rather than
     pretending otherwise.
 
-11. **The stack's `ModeSelection` lookup is the one engine rule this crate
+9. **The stack's `ModeSelection` lookup is the one engine rule this crate
     restates.** `rules::casting::spell_mode_selection` is `pub(crate)`, so
     `view::action_modes` re-derives it through the public
     `GameState::card_registry`. It is confined to *which modes to offer*; the
@@ -629,14 +637,30 @@ repeated here so this README does not claim more than the implementation does.
     Everything else — target requirements, target legality, combat eligibility —
     is delegated.
 
-6. **One game per process.** The session is a single
+10. **One game per process.** The session is a single
    `Arc<Mutex<Option<PlaySession>>>`; `POST /api/game` replaces it. That is the
    shape M11-local wants (one local player) and explicitly not a lobby.
 
-7. **`GameSummary.seed` is the base seed, not the effective one.** After a
+11. **`GameSummary.seed` is the base seed, not the effective one.** After a
    mulligan the table was built from a derived seed; the reproduction key is
    `seed` + `players` + `bot` + `mulligan_count`. See "Reproducing a table from a
    bug report" above.
+
+12. **`TargetPicker`'s multi-target slot is unexercised.** A
+    `TargetRequirement::UpToN { count }` slot is one requirement worth up to
+    `count` targets, and `TargetSlotView` carries its own `min`/`max` so the
+    client can offer that. No seeded game in the S7 fixture sweep dealt such a
+    card, so the multi-select branch ships correct-by-construction and untested.
+    The reachable case is `force_of_vigor` (`Complete`, deck-legal, one
+    `UpToN { count: 2 }`), which before the fix would have destroyed at most one
+    of its "up to two" targets.
+
+13. **`BlockerPicker` cannot express CR 509.1b "can block an additional
+    creature".** Its model is one attacker per blocker. The *server* deliberately
+    permits more — `validate_combat_params` rejects only the identical
+    `(blocker, attacker)` pair twice, precisely so a creature with the ability is
+    not blocked by the validator — so this is a client limitation, not a rules
+    one. A blocker with the ability can still be assigned once through the UI.
 
 ---
 

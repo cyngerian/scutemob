@@ -5,19 +5,33 @@
    * M11-local Session 7 (`memory/m11-session-plan.md` §4, item 3).
    *
    * Props:
-   *   slots (TargetOptionView[][]) — outer index = slot, in the exact order
-   *     `Command::CastSpell`/`Command::ActivateAbility`'s `targets` vector must
-   *     be in. Each entry's `.value` is the engine's own serialized `Target`
-   *     (`{"Object":12}` / `{"Player":2}`) — echoed back verbatim, never rebuilt.
-   *   min (number), max (number) — from `mtg_engine::target_count_range`. `max`
-   *     exceeds `min` only for a `TargetRequirement::UpToN` slot (CR 601.2c), in
-   *     which case a later slot may be left unfilled and the pick still confirms.
+   *   slots (TargetSlotView[]) — one entry per target slot, in the exact order
+   *     `Command::CastSpell`/`Command::ActivateAbility`'s `targets` vector must be
+   *     in. Each is `{min, max, candidates}`; each candidate's `.value` is the
+   *     engine's own serialized `Target` (`{"Object":12}` / `{"Player":2}`) —
+   *     echoed back verbatim, never rebuilt.
+   *   min (number), max (number) — the COLLECTIVE range from
+   *     `mtg_engine::target_count_range`, equal to the sum of the slots' own.
    *   disabled (bool) — a request is in flight
-   *   onConfirm (fn(targets)) — `targets` is a `Target[]`, one entry per slot the
-   *     human actually filled, in slot order, skipping any left empty under `UpToN`
+   *   onConfirm (fn(targets)) — `targets` is a `Target[]` in slot order, with a
+   *     slot contributing between its own `min` and `max` entries
    *   onCancel (fn)
    *
-   * # Why "one candidate per slot", not "any card, then match a slot"
+   * # A slot is a requirement, and a requirement is not always worth one target
+   *
+   * `TargetRequirement::UpToN { count }` is a **single** requirement admitting up
+   * to `count` targets — `casting::target_count_range` adds `count` to the
+   * maximum for it, and `validate_targets_inner`'s second pass assigns several
+   * announced targets to that one slot. So a slot is multi-select up to its own
+   * `max`, not a radio button.
+   *
+   * The first version of this component held one candidate index per slot and
+   * therefore capped `force_of_vigor` — `Complete`, deck-legal, one
+   * `UpToN { count: 2 }` requirement — at destroying **one** of its "up to two"
+   * targets. Caught in review, not by a test: no seeded game in the S7 fixture
+   * sweep dealt such a card, so this multi-select path ships **unexercised**.
+   *
+   * # Why "candidates within a slot", not "any card, then match a slot"
    *
    * `legal_targets_per_slot` (`crates/engine/src/rules/queries.rs`) already ran
    * every relevant check — hexproof, shroud, protection, the requirement's own
@@ -45,46 +59,67 @@
     $props();
 
   /**
-   * One selected candidate index per slot, or `null` if that slot is still
-   * unfilled. Length is fixed to `slots.length` for the life of this component
-   * instance — `TargetPicker` is mounted fresh per action (`ActionBar`'s picker
-   * chain keys it away when the chain moves on), so there is no stale-length
-   * hazard across different actions.
+   * Selected candidate indices per slot, as an array of arrays — a slot may hold
+   * up to its own `max` (see the header). Length is fixed to `slots.length` for
+   * the life of this component instance; `TargetPicker` is mounted fresh per
+   * action (`ActionBar`'s picker chain unmounts it when the chain moves on), so
+   * there is no stale-length hazard across different actions.
    *
-   * `untrack` tells the compiler this is a deliberate one-time read of `slots`
-   * at mount, not a dependency `picked` should stay reactive to — the whole
-   * point of the fixed length above is that it does NOT track subsequent
-   * changes to the `slots` prop.
+   * `untrack` marks this a deliberate one-time read of `slots` at mount, not a
+   * dependency `picked` should stay reactive to — the fixed length above is the
+   * whole point.
    */
-  let picked = $state(untrack(() => slots.map(() => null)));
+  let picked = $state(untrack(() => slots.map(() => [])));
 
-  /** How many slots currently have a selection. */
-  const filledCount = $derived(picked.filter((p) => p !== null).length);
+  /** Total targets currently announced, across every slot. */
+  const filledCount = $derived(picked.reduce((n, p) => n + p.length, 0));
 
   /**
-   * CR 601.2c range check. Below `min` the spell cannot legally be cast/activated
-   * yet; at or above it, and never exceeding `max` (each slot holds at most one
-   * candidate index, so `filledCount` cannot exceed `slots.length`, and `max` is
-   * never less than `slots.length` for a well-formed payload), confirming is
-   * allowed.
+   * CR 601.2c. Every slot must be within its OWN range, and the total within the
+   * collective one. The two are not redundant: the collective range is the sum
+   * of the slots', so a total inside it can still put a mandatory slot at zero.
    */
-  const canConfirm = $derived(filledCount >= min && filledCount <= max);
+  const slotsInRange = $derived(
+    picked.every((p, i) => p.length >= (slots[i]?.min ?? 0) && p.length <= (slots[i]?.max ?? 1)),
+  );
+  const canConfirm = $derived(slotsInRange && filledCount >= min && filledCount <= max);
 
   function selectCandidate(slotIndex, candidateIndex) {
     if (disabled) return;
-    const next = picked.slice();
-    next[slotIndex] = next[slotIndex] === candidateIndex ? null : candidateIndex;
-    picked = next;
+    const slotMax = slots[slotIndex]?.max ?? 1;
+    const current = picked[slotIndex];
+    let next;
+    if (current.includes(candidateIndex)) {
+      next = current.filter((c) => c !== candidateIndex);
+    } else if (slotMax === 1) {
+      // A single-target slot behaves as a radio button: picking replaces.
+      next = [candidateIndex];
+    } else if (current.length < slotMax) {
+      next = [...current, candidateIndex];
+    } else {
+      // At capacity. Deselect something first rather than silently dropping the
+      // oldest pick, which would look like the click did nothing in particular.
+      return;
+    }
+    picked = picked.map((p, i) => (i === slotIndex ? next : p));
   }
 
   function confirm() {
     if (disabled || !canConfirm) return;
     const targets = [];
     for (let i = 0; i < slots.length; i++) {
-      const choice = picked[i];
-      if (choice !== null) targets.push(slots[i][choice].value);
+      // Ascending candidate order within a slot, so the announced list is a
+      // deterministic function of the selection rather than of click order.
+      for (const c of [...picked[i]].sort((a, b) => a - b)) {
+        targets.push(slots[i].candidates[c].value);
+      }
     }
     onConfirm?.(targets);
+  }
+
+  function slotRangeText(slot) {
+    if (slot.min === slot.max) return slot.min === 1 ? '' : `exactly ${slot.min}`;
+    return `up to ${slot.max}`;
   }
 </script>
 
@@ -95,17 +130,20 @@
   </div>
 
   <div class="slots">
-    {#each slots as candidates, slotIndex (slotIndex)}
+    {#each slots as slot, slotIndex (slotIndex)}
       <div class="slot">
-        <span class="slot-label">Target {slotIndex + 1}</span>
-        {#if candidates.length === 0}
+        <span class="slot-label">
+          Target {slotIndex + 1}
+          {#if slotRangeText(slot)}<span class="slot-range">{slotRangeText(slot)}</span>{/if}
+        </span>
+        {#if slot.candidates.length === 0}
           <span class="no-candidates">no legal target for this slot</span>
         {:else}
           <div class="candidates">
-            {#each candidates as candidate, candidateIndex (candidateIndex)}
+            {#each slot.candidates as candidate, candidateIndex (candidateIndex)}
               <button
                 class="candidate"
-                class:selected={picked[slotIndex] === candidateIndex}
+                class:selected={picked[slotIndex].includes(candidateIndex)}
                 disabled={disabled}
                 onclick={() => selectCandidate(slotIndex, candidateIndex)}
               >
@@ -171,6 +209,15 @@
     font-size: 0.68rem;
     color: #778;
     min-width: 4.5rem;
+  }
+
+  .slot-range {
+    margin-left: 0.3rem;
+    font-size: 0.6rem;
+    color: #667;
+    border: 1px solid #33335a;
+    border-radius: 2px;
+    padding: 0 0.2rem;
   }
 
   .no-candidates {

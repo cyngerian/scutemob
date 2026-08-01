@@ -162,6 +162,17 @@ pub struct StackItemView {
     /// object without knowing what it is. Contrast a hidden *hand* card, whose id
     /// `redact::hidden_placeholder` rewrites to 0 — there, the id is a handle
     /// onto an object in a zone the seat may not read at all.
+    ///
+    /// The one case that has **no** precedent to cite is the one
+    /// `redact::redact_stack`'s own doc raises: a stack source that is "a card
+    /// in a hidden zone (through a synthetic or mid-move state)". There the bare
+    /// id ships with nothing analogous behind it. It is still acceptable, and
+    /// narrowly so: `redact_stack` has already blanked that entry's
+    /// `source_name`, so the id resolves — through the only consumer,
+    /// `play-server`'s `NameIndex` — to the blanked name and not to an identity.
+    /// An id is a handle for pointing, and this one points at an entry the seat
+    /// can already see. Recorded rather than left to be inferred from the two
+    /// cases above, which do not cover it.
     pub source_object_id: Option<u64>,
     pub controller: String,
     /// "spell", "activated_ability", "triggered_ability", "cascade_trigger", "storm_trigger"

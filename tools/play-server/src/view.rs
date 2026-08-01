@@ -157,7 +157,7 @@ pub struct ActionOptionView {
     /// **Empty for a modal spell whose targets are per-mode** (CR 700.2c): the
     /// slots then live on each [`ModeOptionView`] instead, because which slots
     /// exist depends on which modes the human picks. See [`ModeOptionView::target_slots`].
-    pub target_slots: Vec<Vec<TargetOptionView>>,
+    pub target_slots: Vec<TargetSlotView>,
     /// CR 601.2c: how many targets the engine will accept in total, from
     /// `mtg_engine::target_count_range`. `TargetRequirement::UpToN` is why the
     /// two can differ — "up to N target creatures" legally takes fewer.
@@ -180,6 +180,40 @@ pub struct ActionOptionView {
     pub attack: Option<AttackOptionsView>,
     /// CR 509.1: present exactly on a `DeclareBlockers` option.
     pub block: Option<BlockOptionsView>,
+}
+
+/// One target slot: its own count range, plus every candidate legal for it.
+///
+/// # Why this is a struct and not a bare `Vec<TargetOptionView>`
+///
+/// A slot is **one `TargetRequirement`**, and a requirement is not always worth
+/// one target. `TargetRequirement::UpToN { count }` is a single requirement that
+/// admits up to `count` targets — `casting::target_count_range` adds `count` to
+/// the maximum for it, and `validate_targets_inner`'s second pass assigns
+/// several announced targets to that one slot.
+///
+/// So a client holding only `Vec<Vec<TargetOptionView>>` plus a *collective*
+/// `(min, max)` cannot tell **which** slot the slack belongs to, and the obvious
+/// reading — one pick per slot — silently caps an "up to two" spell at one
+/// target. That is not hypothetical: `force_of_vigor` is `Complete` and
+/// deck-legal with exactly one `UpToN { count: 2 }` requirement, so "destroy up
+/// to two target artifacts and/or enchantments" would have destroyed at most
+/// one. Caught in review, not by a test — no seeded game in the S7 fixture sweep
+/// dealt such a card.
+///
+/// [`Self::min`] / [`Self::max`] are this slot's own contribution, computed by
+/// handing `mtg_engine::target_count_range` a one-element slice, so they cannot
+/// drift from the collective [`ActionOptionView::target_min`]/`target_max`
+/// (which is the same function over the whole list).
+#[derive(Debug, Serialize)]
+pub struct TargetSlotView {
+    /// 0 for an `UpToN` slot, 1 for every other requirement.
+    pub min: usize,
+    /// `count` for an `UpToN { count }` slot, 1 for every other requirement.
+    pub max: usize,
+    /// Every `Target` the engine would accept in this slot, in the engine's own
+    /// order.
+    pub candidates: Vec<TargetOptionView>,
 }
 
 /// One legal target for one slot.
@@ -211,7 +245,7 @@ pub struct ModeOptionView {
     /// per-mode target requirements (`ModeSelection.mode_targets`). Empty when
     /// the card's targets are flat, in which case [`ActionOptionView::target_slots`]
     /// carries them instead.
-    pub target_slots: Vec<Vec<TargetOptionView>>,
+    pub target_slots: Vec<TargetSlotView>,
     /// CR 601.2c for *this mode's* slots, from `mtg_engine::target_count_range`.
     ///
     /// The option-level [`ActionOptionView::target_min`]/`target_max` are
@@ -900,16 +934,42 @@ pub fn decision_view(
 
 /// Render one `LegalAction` for the wire.
 ///
-/// # Cost
+/// # Cost, stated with both terms and measured rather than argued
 ///
 /// `legal_targets_per_slot` is one `validate_targets_inner` per (slot ×
-/// candidate) and each object candidate costs a `calculate_characteristics` —
-/// `queries.rs` says so and asks that it be measured before a browser polls it.
-/// It is bounded here by construction rather than by hope: the candidate loop
-/// runs **only** for actions that declare at least one target requirement (an
-/// empty requirement list produces an empty `Vec<Vec<Target>>` without touching
-/// a single candidate), and most actions in a priority list — lands, mana
-/// abilities, pass — declare none.
+/// candidate) and each object candidate costs a `calculate_characteristics`.
+/// `queries.rs` asks in terms that this be **measured** before a browser polls
+/// it, so it was.
+///
+/// The candidate sweep runs once per option-level requirement **plus once per
+/// declared mode** of a modal action. The second term matters and an earlier
+/// draft of this comment denied it: for a per-mode-targeting card the
+/// option-level requirement list is empty *by design*
+/// (`action_target_requirements`' doc), so exactly the actions that sentence
+/// called free are the ones that pay `modes × slots × candidates`. An action
+/// declaring neither — a land drop, a mana ability, a pass, which is most of a
+/// priority list — touches no candidate at all.
+///
+/// **Measured** (M11-local S7, temporary `#[ignore]`d probe through `oneshot`,
+/// since removed), and the numbers are the probe's rather than an estimate — a
+/// first draft of this paragraph carried invented ones and the probe
+/// contradicted them:
+///
+/// > 4 players, seed 9, **turn 17** (the deepest board the S7 fixtures reach):
+/// > **12** actions offered, of which **1** carries a target requirement, over
+/// > **22** candidates across Battlefield / Stack / Graveyard. One whole
+/// > [`decision_view`] costs **≈ 201 µs**, mean of 20 renders, **debug build**.
+///
+/// That is against a `POST /api/game/action` that also runs every bot seat
+/// forward to the human's next decision, so it is nowhere near the dominant
+/// term, and the per-`(state, source)` cache `queries.rs` suggests is not needed
+/// at this board size.
+///
+/// What the number does **not** establish: the cost is roughly linear in
+/// (targeted actions × slots × candidates), and this board exercises exactly one
+/// targeted action. A hand full of removal on a wide board — say ten targeted
+/// options over a hundred candidates — is ~50× this and is worth re-measuring
+/// before assuming it is still fine. No seeded fixture has produced one.
 fn action_option_view(
     index: usize,
     action: &LegalAction,
@@ -922,16 +982,31 @@ fn action_option_view(
     let (target_min, target_max) = mtg_engine::target_count_range(&requirements);
     let source = target_query_source(action);
 
-    let slots = |reqs: &[TargetRequirement]| -> Vec<Vec<TargetOptionView>> {
+    let slots = |reqs: &[TargetRequirement]| -> Vec<TargetSlotView> {
         let Some(src) = source else {
             return Vec::new();
         };
         if reqs.is_empty() {
             return Vec::new();
         }
+        // `legal_targets_per_slot` returns one entry per requirement, in the same
+        // order — its own doc says "parallel to `requirements`" — so zipping the
+        // two is index-correspondent by the engine's construction rather than by
+        // an assumption made here.
         mtg_engine::legal_targets_per_slot(state, player, src, reqs)
             .iter()
-            .map(|slot| target_options(slot, names, player_names))
+            .zip(reqs.iter())
+            .map(|(candidates, req)| {
+                // Per-slot range from the same function that computes the
+                // collective one, handed a one-element slice. `UpToN { count }`
+                // is the only requirement whose min and max differ.
+                let (min, max) = mtg_engine::target_count_range(std::slice::from_ref(req));
+                TargetSlotView {
+                    min,
+                    max,
+                    candidates: target_options(candidates, names, player_names),
+                }
+            })
             .collect()
     };
 

@@ -230,7 +230,7 @@ fn build_router(state: SharedState, dist_dir: &PathBuf) -> Router {
 mod tests {
     use super::*;
 
-    use std::collections::{BTreeSet, HashSet};
+    use std::collections::{BTreeSet, HashMap, HashSet};
 
     /// Test-only: the sentinel `seed` that makes `POST /api/game` fail its rebuild
     /// *inside* the session lock.
@@ -251,7 +251,7 @@ mod tests {
     use axum::body::Body;
     use axum::http::{header, Request, StatusCode};
     use http_body_util::BodyExt;
-    use mtg_view_model::StateViewModel;
+    use mtg_view_model::{StateViewModel, Viewer};
     use serde_json::{json, Value};
     use tower::ServiceExt;
 
@@ -1634,9 +1634,11 @@ mod tests {
     /// its per-slot order assertion is actually exercised.
     fn option_with_targets(view: &Value, least: usize) -> Option<Value> {
         options(view).into_iter().find(|a| {
-            a["target_slots"]
-                .as_array()
-                .is_some_and(|slots| slots.iter().any(|s| s.as_array().unwrap().len() >= least))
+            a["target_slots"].as_array().is_some_and(|slots| {
+                slots
+                    .iter()
+                    .any(|s| s["candidates"].as_array().unwrap().len() >= least)
+            })
         })
     }
 
@@ -1645,10 +1647,11 @@ mod tests {
         options(view).into_iter().find(|a| !a[field].is_null())
     }
 
-    /// The ids of one wire slot, in order.
+    /// The candidate ids of one wire slot, in order.
     fn slot_ids(slot: &Value) -> Vec<u64> {
-        slot.as_array()
-            .expect("a slot is an array")
+        slot["candidates"]
+            .as_array()
+            .expect("a slot has a candidates array")
             .iter()
             .map(|t| t["id"].as_u64().expect("id is a number"))
             .collect()
@@ -1694,7 +1697,9 @@ mod tests {
         // Non-vacuity, stated first so a fixture that has drifted to an
         // all-empty slot list cannot make the comparison below pass trivially.
         assert!(
-            wire_slots.iter().any(|s| !s.as_array().unwrap().is_empty()),
+            wire_slots
+                .iter()
+                .any(|s| !s["candidates"].as_array().unwrap().is_empty()),
             "fixture drift: no slot has a candidate. Action: {option}"
         );
 
@@ -1744,11 +1749,39 @@ mod tests {
                 "slot {i} disagrees with the engine query (order matters: the client \
                  submits `targets` in slot order)"
             );
+
+            // CR 601.2c per slot. `UpToN { count }` is one requirement worth up
+            // to `count` targets, so a client holding only the collective range
+            // cannot tell which slot the slack belongs to — which is why
+            // `TargetSlotView` carries its own. Checked against the same engine
+            // function over a one-element slice.
+            let (slot_min, slot_max) =
+                mtg_engine::target_count_range(std::slice::from_ref(&requirements[i]));
+            assert_eq!(
+                wire["min"].as_u64(),
+                Some(slot_min as u64),
+                "slot {i} min disagrees with the engine"
+            );
+            assert_eq!(
+                wire["max"].as_u64(),
+                Some(slot_max as u64),
+                "slot {i} max disagrees with the engine"
+            );
         }
 
         let (min, max) = mtg_engine::target_count_range(&requirements);
         assert_eq!(option["target_min"].as_u64(), Some(min as u64));
         assert_eq!(option["target_max"].as_u64(), Some(max as u64));
+
+        // The per-slot ranges must sum to the collective one — the property a
+        // client relies on when it validates a pick locally before submitting.
+        let (sum_min, sum_max) = wire_slots.iter().fold((0u64, 0u64), |(lo, hi), s| {
+            (
+                lo + s["min"].as_u64().expect("min is a number"),
+                hi + s["max"].as_u64().expect("max is a number"),
+            )
+        });
+        assert_eq!((sum_min, sum_max), (min as u64, max as u64));
     }
 
     // ── 11 ────────────────────────────────────────────────────────────────────
@@ -1928,21 +1961,40 @@ mod tests {
     /// riding on test 7's whole-body sweep: redaction follows the *rendering
     /// site*, not the zone, and a new site is a new place for it to be missed.
     ///
-    /// Three assertions, in the order they matter:
+    /// # What each assertion is worth, stated because two of them are worth less
+    /// # than they look
     ///
-    /// 1. **Non-vacuity first.** At least one target label is a real card name.
-    ///    Without this the leak check below passes for a payload with no labels
-    ///    at all, which is exactly how a redaction test rots into a no-op.
-    /// 2. No name any *other* seat is holding in hand appears in any target or
-    ///    combat label. The omniscient truth is read separately, straight off the
-    ///    session's `GameState` through `StateViewModel::from_game_state` — the
-    ///    developer path — so the oracle is not derived from the payload it is
-    ///    checking.
-    /// 3. Every label that names something resolves through the seat-redacted
-    ///    `NameIndex`, evidenced by the placeholders: an object the seat may not
-    ///    identify renders as [`view::HIDDEN_LABEL`] or [`view::UNKNOWN_LABEL`],
-    ///    never as an empty string, so a client can never be handed a nameless id
-    ///    to display.
+    /// 1. **Non-vacuity, first.** At least one target label is a real card name,
+    ///    and no label is empty. Without this everything below passes for a
+    ///    payload with no labels at all, which is how a redaction test rots into
+    ///    a no-op.
+    /// 2. **The substantive check**: every object label equals the name the
+    ///    **seat-redacted** `StateViewModel` carries for that object id — the
+    ///    *same* view `NameIndex` is built from, re-derived here from the session
+    ///    rather than read off the payload. A label sourced from anywhere else —
+    ///    `state.objects()`, the omniscient view, a raw `characteristics.name` —
+    ///    fails this the moment the two disagree.
+    /// 3. **A forward guard, not a live proof**: no name any *other* seat holds
+    ///    in hand appears in any label. **This cannot currently fire, and saying
+    ///    so is the point.** `legal_targets_per_slot` enumerates candidates from
+    ///    Battlefield, Stack and Graveyard only (its own doc), and the combat
+    ///    lists are battlefield creatures — every one a public zone. On top of
+    ///    that, `redact::redact_hands` rewrites a hidden hand card's `object_id`
+    ///    to 0, so no id collected here can key into a hand entry at all. The
+    ///    assertion is kept because it is the check that *would* catch a future
+    ///    widening of `legal_targets_per_slot` into a hidden zone, which is
+    ///    exactly the change that would make this site leak. It is not evidence
+    ///    that redaction works today.
+    ///
+    /// # The reachable case this fixture does not contain
+    ///
+    /// The one way a *target* label can differ between the omniscient and
+    /// redacted views today is a **face-down battlefield permanent** (CR 708.2a:
+    /// no name, so `non_empty` yields [`view::HIDDEN_LABEL`]). No seeded game in
+    /// the S7 fixture sweep put one on the board, so assertion 2's inequality
+    /// branch is unexercised — every id in this fixture happens to agree between
+    /// the two views. Recorded rather than papered over: reaching it needs a
+    /// fixture with a morph or a manifest, which this driver cannot steer to.
     #[tokio::test(flavor = "multi_thread")]
     async fn test_target_option_labels_are_seat_redacted() {
         let state = shared_state();
@@ -1951,13 +2003,17 @@ mod tests {
         })
         .await;
 
-        // Every label this decision renders for a target or a combatant.
-        let mut labels: Vec<String> = Vec::new();
+        // Every label this decision renders for a target or a combatant, paired
+        // with the object id it claims to name (`None` for a player label, whose
+        // name is public by CR 108.1 and lives in a different index).
+        let mut labels: Vec<(Option<u64>, String)> = Vec::new();
         for option in options(&view) {
             let mut push_slots = |slots: &Value| {
                 for slot in slots.as_array().into_iter().flatten() {
-                    for t in slot.as_array().into_iter().flatten() {
-                        labels.push(t["label"].as_str().unwrap_or_default().to_string());
+                    for t in slot["candidates"].as_array().into_iter().flatten() {
+                        let id = (t["kind"] == "object")
+                            .then(|| t["id"].as_u64().expect("a candidate carries a numeric id"));
+                        labels.push((id, t["label"].as_str().unwrap_or_default().to_string()));
                     }
                 }
             };
@@ -1965,10 +2021,16 @@ mod tests {
             for mode in option["modes"].as_array().into_iter().flatten() {
                 push_slots(&mode["target_slots"]);
             }
+            // `attack.eligible` / `block.eligible` / `block.attackers` are all
+            // creatures; `attack.targets` is a player-or-planeswalker list, so its
+            // entries carry their own `kind`.
             for field in ["attack", "block"] {
                 for list in ["eligible", "targets", "attackers"] {
                     for c in option[field][list].as_array().into_iter().flatten() {
-                        labels.push(c["label"].as_str().unwrap_or_default().to_string());
+                        let is_object = c["kind"].is_null() || c["kind"] == "planeswalker";
+                        let id = is_object
+                            .then(|| c["id"].as_u64().expect("a combatant carries a numeric id"));
+                        labels.push((id, c["label"].as_str().unwrap_or_default().to_string()));
                     }
                 }
             }
@@ -1978,18 +2040,72 @@ mod tests {
         assert!(
             labels
                 .iter()
-                .any(|l| !l.is_empty() && !placeholders.contains(&l.as_str())),
+                .any(|(_, l)| !l.is_empty() && !placeholders.contains(&l.as_str())),
             "vacuous: no target label named anything. Labels: {labels:?}"
         );
         assert!(
-            labels.iter().all(|l| !l.is_empty()),
+            labels.iter().all(|(_, l)| !l.is_empty()),
             "a label was empty — a client would show a bare id: {labels:?}"
         );
 
-        // The out-of-band oracle: what the other seats are ACTUALLY holding.
         let guard = state.session.lock().expect("session lock");
         let play = guard.as_ref().expect("a session exists");
         let human = play.human;
+
+        // Assertion 2, the substantive one: every object label equals the name
+        // the SEAT-REDACTED view carries for that id. Re-derived from the session
+        // rather than read off the payload, so this compares two independently
+        // built things.
+        let redacted = StateViewModel::from_game_state_for(
+            play.game.state(),
+            &play.names,
+            Viewer::Seat(human),
+        );
+        let mut redacted_names: HashMap<u64, String> = HashMap::new();
+        for permanents in redacted.zones.battlefield.values() {
+            for p in permanents {
+                redacted_names.insert(p.object_id, p.name.clone());
+            }
+        }
+        for zone in [&redacted.zones.graveyard, &redacted.zones.hand] {
+            for cards in zone.values() {
+                for c in cards {
+                    if !c.hidden {
+                        redacted_names.insert(c.object_id, c.name.clone());
+                    }
+                }
+            }
+        }
+        for item in &redacted.zones.stack {
+            if let Some(source) = item.source_object_id {
+                redacted_names.insert(source, item.source_name.clone());
+            }
+        }
+
+        let mut checked = 0usize;
+        for (id, label) in &labels {
+            let Some(id) = id else { continue };
+            let Some(expected) = redacted_names.get(id) else {
+                continue;
+            };
+            let expected = if expected.is_empty() {
+                view::HIDDEN_LABEL
+            } else {
+                expected.as_str()
+            };
+            assert_eq!(
+                label, expected,
+                "label for object {id} is not the seat-redacted view's name for it"
+            );
+            checked += 1;
+        }
+        assert!(
+            checked > 0,
+            "vacuous: no object label could be cross-checked against the redacted view"
+        );
+
+        // Assertion 3, the forward guard. See the doc comment: this cannot fire
+        // today, and is kept for the widening that would make it able to.
         let omniscient = StateViewModel::from_game_state(play.game.state(), &play.names);
         let mut secrets: Vec<String> = Vec::new();
         for (owner, cards) in omniscient.zones.hand.iter() {
@@ -2007,7 +2123,7 @@ mod tests {
             "vacuous: the oracle found no hidden card to look for"
         );
 
-        for label in &labels {
+        for (_, label) in &labels {
             for secret in &secrets {
                 assert!(
                     !label.contains(secret.as_str()),
@@ -2088,8 +2204,8 @@ mod tests {
             .into_iter()
             .find(|a| a["label"] == label.as_str())
             .expect("the cast is still offered after tapping");
-        let target = cast["target_slots"][0][0]["value"].clone();
-        let target_id = cast["target_slots"][0][0]["id"]
+        let target = cast["target_slots"][0]["candidates"][0]["value"].clone();
+        let target_id = cast["target_slots"][0]["candidates"][0]["id"]
             .as_u64()
             .expect("id is a number");
 

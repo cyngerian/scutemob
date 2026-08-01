@@ -139,6 +139,54 @@
   per-mode oracle text anywhere in the DSL (`ModeSelection.modes` is a bare `Vec<Effect>`),
   so the label is visibly machine-shaped rather than pretending to be printed text.
 
+- **Review cycle: 0 HIGH / 3 MEDIUM / 4 LOW, all 7 applied — and the sharpest one is a
+  correctness bug the tests could not have caught.** `TargetRequirement::UpToN { count }`
+  is a **single** requirement worth up to `count` targets (`target_count_range` adds
+  `count` to the maximum for it; `validate_targets_inner`'s second pass assigns several
+  announced targets to that one slot), but `legal_targets_per_slot` returns one entry per
+  *requirement*. The first DTO shape was `Vec<Vec<TargetOptionView>>` plus a **collective**
+  `(min, max)`, from which a client cannot tell *which* slot the slack belongs to — so the
+  obvious one-pick-per-slot reading silently capped `force_of_vigor` (`Complete` by the
+  `#[default]` derive, deck-legal, one `UpToN { count: 2 }`) at destroying **one** of its
+  "up to two" targets. Fixed by making a slot a struct: `TargetSlotView { min, max,
+  candidates }`, each range computed by handing `target_count_range` a one-element slice so
+  it cannot drift from the collective one, with `TargetPicker` multi-selecting up to a
+  slot's own `max`. **No test could have found it**: no seeded game in the fixture sweep
+  deals such a card, so the multi-select branch still ships unexercised and the README says
+  so. **Carry: a DTO that flattens a domain concept ("a slot") onto a container shape ("a
+  list of candidates") loses whatever the concept carried besides its contents.**
+- **The second MEDIUM is the same class as PB-DX3's: a doc comment contradicted by its own
+  code.** `action_option_view`'s `# Cost` block claimed the candidate sweep "runs **only**
+  for actions that declare at least one target requirement" — while the function's own
+  modal branch calls the sweep once per *mode*, and a per-mode-targeting card's
+  option-level requirement list is empty **by design**. So the exact actions the sentence
+  called free were the ones paying `modes × slots × candidates`. And `queries.rs` asks in
+  terms that this be **measured** before a browser polls it; the comment had substituted an
+  argument. Measured with a temporary probe: 4 players / seed 9 / turn 17, 12 actions of
+  which 1 targeted, 22 candidates → one `decision_view` ≈ **201 µs**, debug build, mean of
+  20. **A first draft of the corrected paragraph carried invented numbers ("24 actions, 91
+  candidates, under 3 ms") and the probe contradicted every one of them** — which is the
+  whole argument for running the probe rather than reasoning.
+- **The third MEDIUM: a redaction test whose leak oracle could not fire.**
+  `test_target_option_labels_are_seat_redacted` asserted no other seat's hand-card name
+  appears in a target label — but target candidates come only from Battlefield / Stack /
+  Graveyard (all public), and `redact_hands` rewrites a hidden hand card's `object_id` to 0,
+  so no id it collects can key into a hand entry. Deleting `redact_hands` entirely would
+  have left it green. Fixed by adding the assertion that **does** bite — every object label
+  equals the name the *seat-redacted* `StateViewModel` carries for that id, re-derived from
+  the session rather than read off the payload — verified by perturbation (sourcing the
+  label from the id instead of `NameIndex` turns it red: `left: "obj-409", right:
+  "Vampire"`). The hand-name loop is kept and **relabelled a forward guard** against a
+  future widening of `legal_targets_per_slot` into a hidden zone, not evidence that
+  redaction works today. The one reachable divergence at this site — a face-down
+  battlefield permanent, CR 708.2a — is unfixtured and said so.
+- Four LOWs, all applied: the `{X}` 422 was observed on `casting.rs`'s `x_count == 0`
+  fallback path rather than on a real `{X}` card (the seed row and README now say which);
+  `StackItemView::source_object_id`'s leak argument did not cover the hidden-zone source
+  `redact_stack`'s own doc raises (now does); `BlockerPicker` cannot express CR 509.1b
+  "can block an additional creature" while the server deliberately permits it (recorded as
+  a client limitation); README limitation numbering and a stale "16 tests" (the pre-S7
+  count was 18 — PB-DX4 added two).
 - **Still unverifiable headless, and marked so in the README rather than glossed**: every
   DOM and keyboard behaviour — clicking through the picker chain, Escape aborting a chain
   mid-way, `space` being suppressed while a picker is open, `<select>` default rendering in

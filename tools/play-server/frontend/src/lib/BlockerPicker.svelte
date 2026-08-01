@@ -22,6 +22,17 @@
    * defaults to "doesn't block", and the confirm button's own label says
    * "Block with nothing" whenever every blocker is still at that default, so an
    * empty submission can only happen through an explicit, visibly-labelled click.
+   *
+   * # What this cannot express: CR 509.1b
+   *
+   * `assignment` is `Map<blockerId, attackerId>` — structurally one attacker per
+   * blocker. A creature with "can block an additional creature" can legally be
+   * assigned to more than one, and the **server deliberately allows it**:
+   * `api.rs::validate_combat_params` rejects only the *identical*
+   * `(blocker, attacker)` pair twice, precisely so the validator does not
+   * foreclose the exception. So this is a client limitation, not a rules one, and
+   * it is recorded in the crate README's Known limitations rather than left as a
+   * silent shortfall. Such a blocker can still be assigned once through this UI.
    */
   const {
     eligible = [],
