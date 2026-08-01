@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 
 use crate::replay::{AssertionResult, ReplaySession};
-use crate::view_model::{AssertionResultView, StateViewModel, StepViewModel};
+use mtg_view_model::{AssertionResultView, StateViewModel, StepViewModel};
 
 // ── AppState ──────────────────────────────────────────────────────────────────
 

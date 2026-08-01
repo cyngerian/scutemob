@@ -1,0 +1,427 @@
+{
+  "combat": {
+    "attackers": [
+      {
+        "blockers": [
+          {
+            "name": "Serra Angel",
+            "object_id": 5
+          }
+        ],
+        "name": "Grizzly Bears",
+        "object_id": 1,
+        "target": "player:carol"
+      },
+      {
+        "blockers": [],
+        "name": "Alesha, Who Smiles at Death",
+        "object_id": 3,
+        "target": "planeswalker:Teferi, Hero of Dominaria"
+      }
+    ],
+    "attacking_player": "alice"
+  },
+  "players": {
+    "alice": {
+      "commander_damage_received": {
+        "bob": {
+          "Alesha, Who Smiles at Death": 6
+        }
+      },
+      "graveyard_size": 2,
+      "hand_size": 3,
+      "has_citys_blessing": false,
+      "has_conceded": false,
+      "has_lost": false,
+      "land_plays_remaining": 1,
+      "library_size": 3,
+      "life": 37,
+      "mana_pool": {
+        "black": 0,
+        "blue": 2,
+        "colorless": 1,
+        "green": 0,
+        "red": 3,
+        "white": 1
+      },
+      "poison": 2
+    },
+    "bob": {
+      "commander_damage_received": {},
+      "graveyard_size": 0,
+      "hand_size": 2,
+      "has_citys_blessing": false,
+      "has_conceded": false,
+      "has_lost": false,
+      "land_plays_remaining": 1,
+      "library_size": 2,
+      "life": 40,
+      "mana_pool": {
+        "black": 0,
+        "blue": 0,
+        "colorless": 0,
+        "green": 0,
+        "red": 0,
+        "white": 0
+      },
+      "poison": 0
+    },
+    "carol": {
+      "commander_damage_received": {},
+      "graveyard_size": 1,
+      "hand_size": 1,
+      "has_citys_blessing": true,
+      "has_conceded": false,
+      "has_lost": false,
+      "land_plays_remaining": 1,
+      "library_size": 1,
+      "life": 12,
+      "mana_pool": {
+        "black": 0,
+        "blue": 0,
+        "colorless": 0,
+        "green": 0,
+        "red": 0,
+        "white": 0
+      },
+      "poison": 9
+    },
+    "dave": {
+      "commander_damage_received": {},
+      "graveyard_size": 0,
+      "hand_size": 0,
+      "has_citys_blessing": false,
+      "has_conceded": true,
+      "has_lost": true,
+      "land_plays_remaining": 0,
+      "library_size": 1,
+      "life": 1,
+      "mana_pool": {
+        "black": 0,
+        "blue": 0,
+        "colorless": 0,
+        "green": 0,
+        "red": 0,
+        "white": 0
+      },
+      "poison": 0
+    }
+  },
+  "turn": {
+    "active_player": "alice",
+    "number": 7,
+    "phase": "Combat",
+    "priority": "alice",
+    "step": "DeclareBlockers"
+  },
+  "zones": {
+    "battlefield": {
+      "alice": [
+        {
+          "attached_to": null,
+          "attachments": [],
+          "card_types": [
+            "Creature"
+          ],
+          "controller": "alice",
+          "counters": {
+            "+1/+1": 2
+          },
+          "damage_marked": 1,
+          "is_commander": false,
+          "is_token": false,
+          "keywords": [
+            "Trample"
+          ],
+          "name": "Grizzly Bears",
+          "object_id": 1,
+          "power": 4,
+          "subtypes": [
+            "Bear"
+          ],
+          "summoning_sick": false,
+          "supertypes": [],
+          "tapped": true,
+          "toughness": 4
+        },
+        {
+          "attached_to": null,
+          "attachments": [],
+          "card_types": [
+            "Land"
+          ],
+          "controller": "alice",
+          "counters": {},
+          "damage_marked": 0,
+          "is_commander": false,
+          "is_token": false,
+          "keywords": [],
+          "name": "Forest",
+          "object_id": 2,
+          "power": null,
+          "subtypes": [
+            "Forest"
+          ],
+          "summoning_sick": false,
+          "supertypes": [],
+          "tapped": false,
+          "toughness": null
+        }
+      ],
+      "bob": [
+        {
+          "attached_to": null,
+          "attachments": [],
+          "card_types": [
+            "Creature"
+          ],
+          "controller": "bob",
+          "counters": {},
+          "damage_marked": 0,
+          "is_commander": true,
+          "is_token": false,
+          "keywords": [
+            "First Strike"
+          ],
+          "name": "Alesha, Who Smiles at Death",
+          "object_id": 3,
+          "power": 3,
+          "subtypes": [],
+          "summoning_sick": false,
+          "supertypes": [
+            "Legendary"
+          ],
+          "tapped": false,
+          "toughness": 2
+        },
+        {
+          "attached_to": null,
+          "attachments": [],
+          "card_types": [
+            "Creature"
+          ],
+          "controller": "bob",
+          "counters": {},
+          "damage_marked": 0,
+          "is_commander": false,
+          "is_token": false,
+          "keywords": [],
+          "name": "",
+          "object_id": 4,
+          "power": 2,
+          "subtypes": [],
+          "summoning_sick": false,
+          "supertypes": [],
+          "tapped": false,
+          "toughness": 2
+        }
+      ],
+      "carol": [
+        {
+          "attached_to": null,
+          "attachments": [
+            6
+          ],
+          "card_types": [
+            "Creature"
+          ],
+          "controller": "carol",
+          "counters": {},
+          "damage_marked": 0,
+          "is_commander": false,
+          "is_token": false,
+          "keywords": [
+            "Flying",
+            "Vigilance"
+          ],
+          "name": "Serra Angel",
+          "object_id": 5,
+          "power": 4,
+          "subtypes": [],
+          "summoning_sick": false,
+          "supertypes": [],
+          "tapped": false,
+          "toughness": 4
+        },
+        {
+          "attached_to": 5,
+          "attachments": [],
+          "card_types": [
+            "Enchantment"
+          ],
+          "controller": "carol",
+          "counters": {},
+          "damage_marked": 0,
+          "is_commander": false,
+          "is_token": false,
+          "keywords": [],
+          "name": "Ghostly Prison",
+          "object_id": 6,
+          "power": null,
+          "subtypes": [],
+          "summoning_sick": false,
+          "supertypes": [],
+          "tapped": false,
+          "toughness": null
+        },
+        {
+          "attached_to": null,
+          "attachments": [],
+          "card_types": [
+            "Planeswalker"
+          ],
+          "controller": "carol",
+          "counters": {},
+          "damage_marked": 0,
+          "is_commander": false,
+          "is_token": false,
+          "keywords": [],
+          "name": "Teferi, Hero of Dominaria",
+          "object_id": 7,
+          "power": null,
+          "subtypes": [],
+          "summoning_sick": false,
+          "supertypes": [],
+          "tapped": false,
+          "toughness": null
+        }
+      ],
+      "dave": [
+        {
+          "attached_to": null,
+          "attachments": [],
+          "card_types": [
+            "Creature"
+          ],
+          "controller": "dave",
+          "counters": {},
+          "damage_marked": 0,
+          "is_commander": false,
+          "is_token": true,
+          "keywords": [],
+          "name": "Soldier",
+          "object_id": 8,
+          "power": 1,
+          "subtypes": [],
+          "summoning_sick": false,
+          "supertypes": [],
+          "tapped": false,
+          "toughness": 1
+        }
+      ]
+    },
+    "command_zone": {
+      "alice": [],
+      "bob": [],
+      "carol": [
+        {
+          "card_types": [
+            "Creature"
+          ],
+          "hidden": false,
+          "name": "Kenrith, the Returned King",
+          "object_id": 27
+        }
+      ],
+      "dave": []
+    },
+    "exile": [
+      {
+        "card_types": [],
+        "hidden": false,
+        "name": "Oblivion Ring Target",
+        "object_id": 25
+      },
+      {
+        "card_types": [],
+        "hidden": false,
+        "name": "Saw It Coming",
+        "object_id": 26
+      }
+    ],
+    "graveyard": {
+      "alice": [
+        {
+          "card_types": [],
+          "hidden": false,
+          "name": "Shock",
+          "object_id": 22
+        },
+        {
+          "card_types": [],
+          "hidden": false,
+          "name": "Ponder",
+          "object_id": 23
+        }
+      ],
+      "bob": [],
+      "carol": [
+        {
+          "card_types": [],
+          "hidden": false,
+          "name": "Doom Blade",
+          "object_id": 24
+        }
+      ],
+      "dave": []
+    },
+    "hand": {
+      "alice": [
+        {
+          "card_types": [],
+          "hidden": false,
+          "name": "Lightning Bolt",
+          "object_id": 9
+        },
+        {
+          "card_types": [],
+          "hidden": false,
+          "name": "Counterspell",
+          "object_id": 10
+        },
+        {
+          "card_types": [],
+          "hidden": false,
+          "name": "Swords to Plowshares",
+          "object_id": 11
+        }
+      ],
+      "bob": [
+        {
+          "card_types": [],
+          "hidden": false,
+          "name": "Wrath of God",
+          "object_id": 12
+        },
+        {
+          "card_types": [],
+          "hidden": false,
+          "name": "Sol Ring",
+          "object_id": 13
+        }
+      ],
+      "carol": [
+        {
+          "card_types": [],
+          "hidden": false,
+          "name": "Demonic Tutor",
+          "object_id": 14
+        }
+      ],
+      "dave": []
+    },
+    "stack": [
+      {
+        "controller": "alice",
+        "id": 9001,
+        "is_copy": false,
+        "kind": "spell",
+        "source_name": "Lightning Bolt",
+        "targets": [
+          "object:Serra Angel",
+          "player:bob"
+        ]
+      }
+    ]
+  }
+}

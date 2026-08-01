@@ -9,6 +9,7 @@ path = "src/main.rs"
 
 [dependencies]
 mtg-engine = { path = "../../crates/engine" }
+mtg-view-model = { path = "../../crates/view-model" }
 axum = "0.7"
 tower-http = { version = "0.6", features = ["fs"] }
 tokio = { version = "1", features = ["full"] }

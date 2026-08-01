@@ -8,6 +8,7 @@ members = [
     "crates/card-db",
     "crates/card-pipeline",
     "crates/simulator",
+    "crates/view-model",
     "tools/scryfall-import",
     "tools/mcp-server",
     "tools/replay-viewer",

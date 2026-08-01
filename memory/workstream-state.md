@@ -33,8 +33,102 @@
 |---------|------|--------|-------|
 | S1 steppable local-game core | `scutemob-147` | **SHIPPED** | `LocalGame` in `crates/simulator/src/local_game.rs`; `GameDriver::run_game` re-expressed on top of it |
 | S2 deterministic pregame setup + mulligans | `scutemob-161` | **SHIPPED** | `setup.rs`: `build_initial_state` / `redeal` — see handoff below |
-| S3 action parameterization + engine target queries | `scutemob-163` | **SHIPPED** | this session — the crux (plan §8 R1) is closed: a human can cast a targeted spell. See handoff below |
-| S4 view-model crate extraction + seat redaction | — | **next** | Plan §4 Session 4. New `crates/view-model`; `tools/replay-viewer` becomes a consumer. Carries the two exhaustive matches (`StackObjectKind`, `KeywordAbility`) runners miss ~50% of the time — `cargo build --workspace` after every phase |
+| S3 action parameterization + engine target queries | `scutemob-163` | **SHIPPED** | the crux (plan §8 R1) is closed: a human can cast a targeted spell. See handoff below |
+| S4 view-model crate extraction + seat redaction | `scutemob-165` | **SHIPPED** | this session — `crates/view-model` (`mtg-view-model`); a seat view provably cannot leak another hand or any library order. See handoff below |
+| S5 play-server crate skeleton + REST API | — | **next** | Plan §4 Session 5. New `tools/play-server` (axum, port 3040) — the only crate in this milestone with async or IO. Consumes `mtg-view-model` and `LocalGame`. **Never start the HTTP server to validate; use `tower::ServiceExt::oneshot`** |
+
+**S4 handoff (2026-08-01, `scutemob-165`)**
+
+- **One view-model implementation now feeds both hosts.** `tools/replay-viewer/src/view_model.rs`
+  is gone; the file is `crates/view-model/src/lib.rs` (`git mv`, 91% similarity, additive
+  changes only). `tools/replay-viewer` is a consumer and **its 15 tests pass unedited**.
+  `crates/engine`/`card-types`/`card-defs` diff vs main is **empty**; PROTOCOL 32 / HASH 69
+  unmoved. Tests 3,988 → **3,998**.
+- **Redaction follows the RENDERING SITE, not the zone — the review's HIGH, and the thing
+  most worth carrying into S5-S7.** The first cut redacted `zones.hand`,
+  `zones.battlefield` and `zones.exile`, which are the zones CR calls hidden, and stopped.
+  Four other sites read `obj.characteristics.name` **raw** — no layer pass, no entitlement
+  check — and each can be handed a face-down object: `StackItemView::source_name`,
+  `format_target`, `AttackerView::name` (and its planeswalker `target`), `BlockerView::name`.
+  A morph creature that attacks *is* on the battlefield, so the battlefield redaction
+  "covered" it in the zone sense while `combat.attackers[i].name` printed its name to the
+  whole table. `redact_stack` / `redact_combat` now route all four through the
+  already-correct `viewer_may_identify`. **S7 populates `ActionOptionView.target_slots` from
+  the engine query surface — those labels are a fifth rendering site and must come from the
+  seat-redacted view, not from `state.objects()` directly.**
+- **"Renders a name" is too narrow a test for a redaction surface — `is_commander` renders a
+  boolean and leaks a name.** The re-review's finding, and the seventh site.
+  `build_zones_view` derives `PermanentView::is_commander` from the raw `obj.card_id`, and
+  CR 903.3 calls the commander designation *"an attribute of the card itself"*, not a
+  characteristic — which is precisely why CR 708.2a's face-down override does not touch it
+  and why `calculate_characteristics` structurally **cannot**. So a commander cast face down
+  for its morph cost comes back with every characteristic correctly blanked and
+  `is_commander: true` intact, and since every opponent already knows which card is your
+  commander (CR 903.6 — it started in the command zone) that one boolean resolves the
+  identity to exactly one card the instant it enters. Now cleared for non-owners; the test
+  asserts the omniscient view *does* flag it before asserting the seat view does not.
+  `redact.rs`'s module doc now carries the complete site inventory with a disposition for
+  each, including the one deliberate non-redaction (`commander_damage_received`, whose inner
+  keys are commander names — but a non-zero entry requires that commander to have dealt
+  combat damage, at which point CR 903.10a makes the association public in paper too).
+- **A single-seat leak scan is a blind leak scan.** Every scan viewed from alice, and alice
+  is the one player whose hand card the fixture also puts on the stack, so her own names
+  were never needles — which is why the HIGH above passed six whole-document scans. Fixed by
+  looping all four seats. With the new redactions disabled the all-seats test fails on
+  `seat 2: leaked "Lightning Bolt"` **while all six plan-named tests stay green**.
+- **The exhaustive-match gotcha moved with the file.** `stack_kind_info()`
+  (`StackObjectKind`) and `format_keyword()` (`KeywordAbility`) now live in
+  `crates/view-model/src/lib.rs`. `cargo build --workspace` is still the gate and is now a
+  *harder* one: a missed arm breaks a library two binaries depend on, not one binary's
+  private module. `memory/gotchas-infra.md` and the session-loaded auto-memory index are
+  both updated; several historical docs still cite the replay-viewer path and are stale.
+- **The golden snapshot was captured BEFORE the move** (commit `56d44177`), from pristine
+  code, then the source file was restored byte-for-byte. That is what makes
+  `test_omniscient_view_is_unchanged_for_fixture_state` a regression guard rather than a
+  record of whatever the new code happens to do. Compared as `serde_json::Value`, never as
+  a string — `StateViewModel` uses `HashMap` and its iteration order is randomized per
+  process. It was regenerated exactly once, for the additive `hidden` field; a structural
+  diff showed 12 deltas, every one an added `hidden: false`.
+- **The leak that mattered was not the one the plan named.** A face-down *battlefield*
+  permanent was already safe: `build_zones_view` runs each permanent through
+  `calculate_characteristics` and the layer system applies the CR 708.2a override for
+  everyone, so the pristine golden already shows `"name": ""`. The face-down *exiled* card
+  leaked its printed name, because `objects_in_zone_as_card_views` reads
+  `obj.characteristics.name` raw with no layer pass. Both are redacted explicitly so
+  Invariant 7 does not silently depend on the layer system continuing to blank the name.
+- **A lookup bug can hide inside privacy behaviour — the sharpest thing in this session.**
+  `event_view.rs` first rendered a cast spell's name from `SpellCast.stack_object_id`,
+  which **never** resolves: `handle_cast_spell` mints `stack_entry_id =
+  state.next_object_id()` (`rules/casting.rs:4401`) solely to build the `StackObject` it
+  pushes onto `state.stack_objects()` (`:4529`), and that id is never inserted into
+  `state.objects()`. Every cast degraded to the name-free fallback "alice casts a spell" —
+  never wrong, never present, and **indistinguishable from correct redaction**, which would
+  have quietly made S6's event feed useless for the most common action in the game. Fixed
+  to `source_object_id` (`:4732`). The three sibling `card_name` call sites were audited the
+  same way against their emission sites and were already right (`CardDrawn.new_object_id` →
+  `Hand`, `LandPlayed.new_land_id` → `Battlefield`, `CardDiscarded.new_id` → `Graveyard`).
+  **Generalisable: in a redacting renderer, a failed id lookup and a deliberate redaction
+  produce the same output. Check every id against its emission site, not just its
+  entitlement rule.**
+- **`event_view_for` takes a 4th parameter** the plan's sketch omits, `player_names:
+  &HashMap<PlayerId, String>` — `GameState` carries `PlayerId`s only, so without it every
+  line reads `player_2` and the caller must re-render, putting string formatting back
+  *outside* the chokepoint. Display names are public. Same deviation class as S3's
+  `alt_cost`.
+- **Plan §"Hidden-information filtering point" is stale on one premise**: it says
+  `GameEvent::private_to()` "does not exist". It does (PB-DP9, `rules/events.rs`), but by
+  its own doc it is "a declaration, not an enforcement point" with no consumer, and it is a
+  per-*event* verdict that cannot express per-*field* privacy (`CardDrawn` is public; the
+  card's identity is not). `event_view.rs` honours it first and then applies per-field
+  entitlement, and its module doc says so for M10a.
+- **Face-down redaction keys on `obj.owner`, which is conservative rather than strictly
+  correct.** CR 708.5a lets a player who *controls* a face-down permanent look at it, so a
+  thief is denied a name they are entitled to. Denying too much never leaks; the reverse
+  does. Recorded in `redact.rs` for whoever wants the precise version.
+- **Escape hatches need the `test-util` feature.** The fixture uses `objects_mut` /
+  `players_mut` / `stack_objects_mut` / `combat_mut`, which are `#[cfg(any(test, feature =
+  "test-util"))]` per SR-3. They belong in `[dev-dependencies]` only — putting `test-util`
+  in `[dependencies]` would break the seal that `cargo build --workspace` enforces.
 
 **S3 handoff (2026-08-01, `scutemob-163`)**
 

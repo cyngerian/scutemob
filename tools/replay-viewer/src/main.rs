@@ -9,7 +9,6 @@
 ///   replay-viewer --script path/to/script.json --port 3030
 mod api;
 mod replay;
-mod view_model;
 
 use std::path::PathBuf;
 use std::sync::Arc;
