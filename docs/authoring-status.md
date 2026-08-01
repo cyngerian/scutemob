@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-08-01 04:42 UTC  
-**Git:** `2d6fb625` on `main`  
+**Generated:** 2026-08-01 08:06 UTC  
+**Git:** `8e336544` on `feat/pb-dx3-two-stale-blocker-notes-garruksuprising-inventorsfair`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -25,16 +25,16 @@ and what is intentionally NOT in it.**
 | Plan cards still missing a def file | 135 | · |
 | Bonus defs (on disk, outside plan) | 322 | · |
 | Effective coverage vs plan target | **111%** (1,823 / 1,636) | — |
-| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 63.2% | 1,140 | +1 |
-| With TODO markers | 513 | -1 |
+| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 63.3% | 1,142 | · |
+| With TODO markers | 511 | · |
 | Empty `abilities: vec![]` placeholders | 151 | · |
-| Total TODO lines across all defs | 947 | · |
+| Total TODO lines across all defs | 942 | · |
 
 ## Authoring activity (git, by window)
 
 | Window | New files added | Existing files modified |
 | --- | ---: | ---: |
-| last 7 days | 0 | 6 |
+| last 7 days | 0 | 8 |
 | last 30 days | 57 | 2,943 |
 | last 90 days | 57 | 2,955 |
 | last 1 year | 1,830 | 3,366 |
@@ -67,12 +67,12 @@ are blocked on engine primitives.
 | Group | Auth / Total | % | Clean | TODO | Empty |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | `combat-keyword` | 187 / 187 | 100% | 89 | 83 | 15 |
-| `draw` | 164 / 169 | 97% | 78 | 69 | 17 |
+| `draw` | 164 / 169 | 97% | 79 | 68 | 17 |
 | `token-create` | 148 / 155 | 95% | 85 | 47 | 16 |
 | `land-etb-tapped` | 138 / 138 | 100% | 116 | 22 | 0 |
 | `other` | 108 / 131 | 82% | 70 | 31 | 7 |
 | `modal-choice` | 73 / 105 | 70% | 37 | 24 | 12 |
-| `mana-land` | 92 / 92 | 100% | 64 | 27 | 1 |
+| `mana-land` | 92 / 92 | 100% | 65 | 26 | 1 |
 | `body-only` | 64 / 70 | 91% | 38 | 10 | 16 |
 | `removal-destroy` | 56 / 56 | 100% | 35 | 17 | 4 |
 | `counters-plus` | 49 / 49 | 100% | 25 | 19 | 5 |
@@ -171,7 +171,7 @@ the next thing to triage when the classifier table is grown.
 
 | Gap bucket | TODO lines | Δ since last run |
 | --- | ---: | ---: |
-| OTHER (unclassified) | 580 | · |
+| OTHER (unclassified) | 578 | · |
 | DSL gap (unspecified) | 120 | · |
 | attack trigger (self / generic) | 23 | · |
 | TriggerCondition::* missing variant | 17 | · |
@@ -197,11 +197,11 @@ the next thing to triage when the classifier table is grown.
 | CDA / dynamic P/T | 4 | · |
 | devotion | 4 | · |
 
-_…and 27 more buckets totaling 47 lines._
+_…and 26 more buckets totaling 44 lines._
 
 ### Raw OTHER samples (read these to design new classifier buckets)
 
-Showing 12 of 580 
+Showing 12 of 578 
 unclassified TODO lines. If two or three of these have a common theme, that's a 
 new bucket to add to `TODO_BUCKETS` in `tools/authoring-report.py`. Sample is 
 deterministic (sorted by slug).
@@ -210,12 +210,12 @@ deterministic (sorted by slug).
 abstergo_entertainment: // TODO: {3}, {T}, Exile Abstergo Entertainment: Return up to one target historic card
 bloodghast: // TODO: Oracle says "you may return" — currently non-optional (bot always returns).
 deep_gnome_terramancer: // TODO: "lands enter under opponent's control without being played" trigger condition
-fable_of_the_mirror_breaker: // ENGINE-BLOCKED: the token is created with correct P/T/color/subtypes but
+exuberant_fuseling: // TODO: "whenever another creature or artifact you control is put into a graveyard
 goblin_king: // TODO: AllCreaturesWithSubtype includes Goblin King itself — "other" semantics
-jeskas_will: // TODO: "choose both if commander" conditional entwine.
-marisi_breaker_of_the_coil: // TODO: "Your opponents can't cast spells during combat" — phase-scoped CantCast not in DSL.
-out_of_the_tombs: // TODO: Both abilities too complex for DSL.
-ruthless_winnower: // TODO: "non-Elf creature" filter — SacrificePermanents has no subtype exclusion.
+joraga_treespeaker: // TODO: Level up mechanic not in DSL — no LevelUp keyword or level-based ability gating.
+marisi_breaker_of_the_coil: // TODO: "goad each creature that player controls" — ForEach over DamagedPlayer's creatures
+overwhelming_stampede: // TODO: Spell effect — grant trample and +X/+X to all creatures you control until end
+sakashimas_student: // TODO: "enter as a copy of any creature, except it's also a Ninja" — needs
 sorin_imperious_bloodlord: // TODO: "You may sacrifice a Vampire. When you do, [effects]" — optional sacrifice
 teferis_protection: // TODO: "All permanents you control phase out" — Effect::PhaseOut for all controller permanents.
 tyvar_jubilant_brawler: // TODO: static — creatures you control can activate abilities as though they had haste
@@ -233,6 +233,8 @@ tyvar_jubilant_brawler: // TODO: static — creatures you control can activate a
 ## Recent card-touching commits
 
 ```
+8e336544 scutemob-164: PB-DX3 fix cycle -- apply review findings (1 MEDIUM / 5 LOW)
+f3e92ecc scutemob-164: PB-DX3 implement — two stale blocker notes closed (OOS-DP6-3)
 95c35f7a W6-prim: scutemob-160 — PB-DX1 review fixes
 03053182 W6-prim: scutemob-160 — PB-DX1 phase 8: card def dispositions (§6.3, §6.4)
 460e7f4e W6-prim: scutemob-154 -- PB-DP6 phase 1: queue-time intervening-if gate (CR 603.4)
@@ -256,8 +258,6 @@ be9f371c W6-prim: PB-OS4 /review nit — Fable back-face comment names OOS-OS4-2
 7945c975 W6-prim: PB-OS4 fix pass — fmt gate (scutemob-130)
 f5a44ab6 W6-prim: PB-OS4 fix pass — ship narrowed (scutemob-130)
 fc3ae4ef W6-prim: PB-OS4 card defs + tests — Fable + Edgar return-transformed
-e16cd0c8 W6-prim: PB-OS3 — WhenTappedForMana trigger target dispatch (OOS-EF6-1)
-95c8a632 scutemob-128: PB-OS2 — thread sacrificed-creature LKI through the optional-cost path (EF-EF1-A)
 ```
 
 ## Missing card-defs sidecar
