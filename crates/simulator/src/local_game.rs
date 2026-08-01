@@ -15,6 +15,7 @@
 
 use std::collections::{BTreeSet, HashMap};
 
+use mtg_engine::rules::casting;
 use mtg_engine::{
     process_command, start_game, Command, GameEvent, GameState, GameStateError, PlayerId,
 };
@@ -23,6 +24,7 @@ use crate::bot::Bot;
 use crate::invariants::{self, InvariantViolation};
 use crate::legal_actions::{LegalAction, LegalActionProvider};
 use crate::mana_solver;
+use crate::params::{action_to_command_with_params, HumanChoice};
 use crate::report::{GameDriverError, GameResult};
 
 /// Turn/command/pass safety valves for a `LocalGame`. Mirrors the constants
@@ -146,14 +148,6 @@ pub struct CommandRecord {
     pub turn: u32,
 }
 
-/// A human choice handed to `LocalGame::submit`. Session 1 accepts a pre-built
-/// `Command` directly; full parameterization (`ActionParams`, resolving a
-/// `LegalAction` + targets/X/modes into a `Command`) arrives in Session 3.
-#[derive(Clone, Debug)]
-pub enum HumanChoice {
-    Command(Command),
-}
-
 /// Errors `LocalGame::start` / `submit` can return. Distinct from `GameStateError`
 /// (the engine's own rejection reason) so a caller can tell "your seq was stale" apart
 /// from "the engine said no" apart from "the engine itself is unusable".
@@ -163,9 +157,13 @@ pub enum LocalGameError {
     StaleDecision { expected: u64, got: u64 },
     /// `submit` was called with no outstanding `PendingDecision`.
     NoPendingDecision,
-    /// Reserved for Session 3's `action_index` resolution against `LegalAction`s.
+    /// `choice.action_index` was out of range for the pending decision's
+    /// `actions`. Session 3 (item 7): this is also, structurally, what a
+    /// "cross-seat command" attempt collapses into — there is no longer any way
+    /// to name a `Command` for a player other than `pending.player`.
     UnknownAction(usize),
-    /// Reserved for Session 3's `ActionParams` validation.
+    /// `action_to_command_with_params` rejected the supplied `ActionParams`
+    /// (`ParamError`, stringified) — Session 3 (item 5/7).
     BadParams(String),
     /// The engine rejected the submitted command. `self.state` is left untouched —
     /// `submit` never falls back to `PassPriority` on a human seat's behalf.
@@ -475,10 +473,22 @@ impl<P: LegalActionProvider> LocalGame<P> {
         }
     }
 
-    /// Submit a human's chosen command for the currently pending decision. Validates
-    /// `seq` against the outstanding `PendingDecision`; on engine rejection returns
-    /// `LocalGameError::Rejected` and leaves `self.state` untouched. Never falls back
-    /// to `PassPriority` — a mis-submitted human action is an error, not a pass.
+    /// Submit a human's chosen action for the currently pending decision. Validates
+    /// `seq` against the outstanding `PendingDecision`, resolves `choice.action_index`
+    /// against `pending.actions`, and builds the `Command` via
+    /// `action_to_command_with_params` — always **for `pending.player`**. Because the
+    /// command is always built for the seat that was asked, a command naming a
+    /// different seat is structurally unrepresentable (Session 1's separate
+    /// `command_player` cross-seat check is gone — there is nothing left for it to
+    /// check). On any failure (`UnknownAction`, `BadParams`, or an engine `Rejected`)
+    /// `self.state` is left untouched — `submit` never falls back to `PassPriority`.
+    ///
+    /// `params.auto_tap` (Session 3, item 7 — the pool half of OOS-M11-2): when the
+    /// resolved command is a `CastSpell` and the caster's EXISTING mana pool cannot
+    /// already cover its cost, tapping commands are prepended. The whole sequence
+    /// (taps + the action) is applied atomically to a clone of `self.state` — see
+    /// `apply_sequence` — so a tap that succeeds but leaves the main command rejected
+    /// never partially mutates `self.state`.
     pub fn submit(
         &mut self,
         seq: u64,
@@ -495,59 +505,103 @@ impl<P: LegalActionProvider> LocalGame<P> {
             });
         }
 
-        let expected_player = pending.player;
-        let HumanChoice::Command(command) = choice;
+        let player = pending.player;
+        let action = pending
+            .actions
+            .get(choice.action_index)
+            .cloned()
+            .ok_or(LocalGameError::UnknownAction(choice.action_index))?;
 
-        // The seat that was asked is the only seat that may answer. Without this, a
-        // client holding a valid `seq` for its own decision could submit a command
-        // naming a *different* player and have it applied if the engine happened to
-        // accept it — an Architecture Invariant 7 problem the moment this is behind
-        // HTTP. Session 3 makes this structural rather than checked: `submit` will take
-        // an `action_index` into `pending.actions` and build the `Command` itself for
-        // `pending.player`, so a cross-seat command becomes unrepresentable.
-        match command_player(&command) {
-            Some(p) if p != expected_player => {
-                return Err(LocalGameError::BadParams(format!(
-                    "command names player {:?} but the pending decision belongs to {:?}",
-                    p, expected_player
-                )));
-            }
-            Some(_) => {}
-            None => {
-                // Every `Command` variant carries a player, so this is unreachable in
-                // practice; refuse rather than silently waive the check if that changes.
-                return Err(LocalGameError::BadParams(
-                    "could not determine the acting player of the submitted command".into(),
-                ));
+        let command = action_to_command_with_params(&self.state, player, &action, &choice.params)
+            .map_err(|e| LocalGameError::BadParams(e.to_string()))?;
+
+        let mut commands = Vec::new();
+        if choice.params.auto_tap {
+            if let Some(tap_commands) = self.auto_tap_commands_for(&command, player) {
+                commands.extend(tap_commands);
             }
         }
+        let is_pass = matches!(command, Command::PassPriority { .. });
+        commands.push(command);
 
-        match process_command(self.state.clone(), command.clone()) {
-            Ok((new_state, events)) => {
-                if matches!(command, Command::PassPriority { .. }) {
-                    self.consecutive_passes += 1;
-                } else {
-                    self.consecutive_passes = 0;
-                }
-                if self.check_invariants {
-                    let new_violations = invariants::check_all(&new_state, Some(self.prev_turn));
-                    self.violations.extend(new_violations);
-                }
-                self.prev_turn = new_state.turn().turn_number;
-                self.state = new_state;
-                self.command_count += 1;
-                if self.limits.record_journal {
-                    self.journal.push(CommandRecord {
+        let events = self.apply_sequence(commands)?;
+
+        if is_pass {
+            self.consecutive_passes += 1;
+        } else {
+            self.consecutive_passes = 0;
+        }
+        self.pending = None;
+        Ok(events)
+    }
+
+    /// Item 7 (M11-local Session 3): the pool half of OOS-M11-2. Only ever fires for a
+    /// `Command::CastSpell`, and only when the caster's EXISTING mana pool cannot
+    /// already cover the spell's mana cost — `mana_solver::solve_mana_payment` itself
+    /// still ignores the pool entirely (that gap is unchanged here; see
+    /// `mana_solver.rs`'s doc comment). Returns `None` when no tapping is needed (or
+    /// the command has no mana cost to check), in which case `submit` applies only the
+    /// main command.
+    ///
+    /// `advance()`'s bot-seat auto-tap (above) has no such check and fires
+    /// unconditionally — deliberately left alone this session; a bot never has a
+    /// reason to prefer its existing pool over a fresh tap, so the asymmetry is
+    /// harmless there.
+    fn auto_tap_commands_for(&self, command: &Command, player: PlayerId) -> Option<Vec<Command>> {
+        let Command::CastSpell(cast) = command else {
+            return None;
+        };
+        let obj = self.state.object(cast.card).ok()?;
+        let cost = obj.characteristics.mana_cost.clone()?;
+        let pool = self.state.player(player).ok()?.mana_pool.clone();
+        // `ManaPool::can_spend` debug-asserts the cost is already flattened (no
+        // hybrid/Phyrexian pips) — flatten with the same all-default plan
+        // `action_to_command_with_params`'s CastSpell arm uses (each hybrid pip pays
+        // its first colour option, each Phyrexian pip pays mana) before checking.
+        let (flat_cost, _) = casting::flatten_hybrid_phyrexian(&cost, &[], &[]).ok()?;
+        if casting::can_pay_cost(&pool, &flat_cost) {
+            return None;
+        }
+        mana_solver::solve_mana_payment(&self.state, player, &cost)
+    }
+
+    /// Apply a sequence of commands ATOMICALLY: every command is run against a clone
+    /// of `self.state` in order, and `self.state`/`command_count`/`journal` are only
+    /// committed if every command in the sequence succeeds. On the first failure,
+    /// returns `LocalGameError::Rejected` and `self.state` is untouched — no partial
+    /// application of e.g. a tap-then-cast sequence where the tap succeeded but the
+    /// cast was rejected.
+    fn apply_sequence(&mut self, commands: Vec<Command>) -> Result<Vec<GameEvent>, LocalGameError> {
+        let mut working = self.state.clone();
+        let mut all_events = Vec::new();
+        let mut records = Vec::new();
+
+        for command in commands {
+            match process_command(working, command.clone()) {
+                Ok((new_state, events)) => {
+                    working = new_state;
+                    all_events.extend(events.clone());
+                    records.push(CommandRecord {
                         command,
-                        events: events.clone(),
-                        turn: self.state.turn().turn_number,
+                        events,
+                        turn: working.turn().turn_number,
                     });
                 }
-                self.pending = None;
-                Ok(events)
+                Err(e) => return Err(LocalGameError::Rejected(e)),
             }
-            Err(e) => Err(LocalGameError::Rejected(e)),
         }
+
+        if self.check_invariants {
+            let new_violations = invariants::check_all(&working, Some(self.prev_turn));
+            self.violations.extend(new_violations);
+        }
+        self.prev_turn = working.turn().turn_number;
+        self.command_count += records.len() as u32;
+        self.state = working;
+        if self.limits.record_journal {
+            self.journal.extend(records);
+        }
+        Ok(all_events)
     }
 
     /// Apply a command that is known-legal-to-attempt (bot seat auto-play or a
@@ -602,23 +656,6 @@ impl<P: LegalActionProvider> LocalGame<P> {
     }
 }
 
-/// Every `Command` variant carries the acting player; extract it generically rather
-/// than with a 42-arm match that would have to be extended for each new variant (and
-/// would silently mis-handle one that was added without updating it).
-///
-/// `Command` is a wire type (`Serialize`, externally tagged), so a variant serializes
-/// as `{"VariantName": { …fields… }}` and `PlayerId(pub u64)` as a bare number. That
-/// makes `["<variant>"]["player"]` a total lookup across all 42 variants today,
-/// including tuple variants like `CastSpell(CastSpellData)` whose payload struct
-/// carries `player` at the same depth. Returns `None` if that ever stops holding — the
-/// caller refuses rather than waiving the check. Pinned by
-/// `test_command_player_extracts_acting_player`.
-fn command_player(command: &Command) -> Option<PlayerId> {
-    let value = serde_json::to_value(command).ok()?;
-    let (_variant, fields) = value.as_object()?.iter().next()?;
-    Some(PlayerId(fields.get("player")?.as_u64()?))
-}
-
 /// CR 117.3 (priority), CR 508.1 / 509.1 (combat declarations) — classify what a
 /// priority-holding human seat is actually being asked to do, from the legal actions
 /// the provider already computed for them.
@@ -664,47 +701,9 @@ fn find_winner(state: &GameState) -> Option<PlayerId> {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use mtg_engine::ObjectId;
-
-    /// Pins the serialization shape `command_player` relies on: externally-tagged
-    /// variant name at the top level, `player` as a bare number inside the payload.
-    /// If `Command`'s serde representation ever changes, this fails here rather than
-    /// silently turning `submit`'s cross-seat guard into a refusal of everything.
-    #[test]
-    fn test_command_player_extracts_acting_player() {
-        let pass = Command::PassPriority {
-            player: PlayerId(2),
-        };
-        assert_eq!(command_player(&pass), Some(PlayerId(2)));
-
-        let play_land = Command::PlayLand {
-            player: PlayerId(4),
-            card: ObjectId(17),
-        };
-        assert_eq!(command_player(&play_land), Some(PlayerId(4)));
-
-        // PB-DP7 / DP-3: DiscardToHandSize { player, cards } follows the same
-        // `{"VariantName": {"player": ..}}` shape.
-        let discard = Command::DiscardToHandSize {
-            player: PlayerId(1),
-            cards: vec![ObjectId(5), ObjectId(6)],
-        };
-        assert_eq!(command_player(&discard), Some(PlayerId(1)));
-
-        // PB-DP9 / DP-7/8/9 (CR 608.2d): AnswerEffectChoice { player, choice_id,
-        // answer } has the same externally-tagged shape, so `submit`'s
-        // foreign-seat guard covers it without any change.
-        let answer = Command::AnswerEffectChoice {
-            player: PlayerId(3),
-            choice_id: 42,
-            answer: mtg_engine::EffectChoiceAnswer::Scry {
-                bottom: vec![ObjectId(9)],
-                top: vec![],
-            },
-        };
-        assert_eq!(command_player(&answer), Some(PlayerId(3)));
-    }
-}
+// The `command_player`/`test_command_player_extracts_acting_player` unit that used
+// to live here is gone (Session 3, item 7): `submit` no longer accepts a pre-built
+// `Command` at all, so there is nothing left to extract a player from. The
+// cross-seat guarantee it existed to check is now structural — see `submit`'s doc
+// comment above, and `crates/simulator/tests/local_game.rs`'s
+// `test_local_game_submit_unknown_action_index_is_rejected`.

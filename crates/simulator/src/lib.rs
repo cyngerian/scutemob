@@ -20,6 +20,7 @@ pub mod invariants;
 pub mod legal_actions;
 pub mod local_game;
 pub mod mana_solver;
+pub mod params;
 pub mod random_bot;
 pub mod report;
 pub mod setup;
@@ -32,10 +33,11 @@ pub use heuristic_bot::HeuristicBot;
 pub use invariants::{check_all as check_invariants, InvariantViolation};
 pub use legal_actions::{LegalAction, LegalActionProvider, StubProvider};
 pub use local_game::{
-    AdvanceOutcome, CommandRecord, DecisionKind, HaltReason, HumanChoice, LocalGame,
-    LocalGameError, LocalGameLimits, PendingDecision,
+    AdvanceOutcome, CommandRecord, DecisionKind, HaltReason, LocalGame, LocalGameError,
+    LocalGameLimits, PendingDecision,
 };
 pub use mana_solver::solve_mana_payment;
+pub use params::{action_to_command_with_params, ActionParams, HumanChoice, ParamError};
 pub use random_bot::RandomBot;
 pub use report::{CrashReport, GameDriverError, GameResult};
 pub use setup::{build_initial_state, redeal, BotKind, DeckSource, LocalGameConfig, SetupError};
