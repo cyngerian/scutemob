@@ -606,9 +606,33 @@ was waiting on, so its dismissal deserves a fresh look rather than another copy-
 > (`welcoming_vampire`, `elvish_warmaster`, `whispering_wizard` — the last a self-reinforcing token
 > cascade, since its own token re-qualifies the trigger). Wire-neutral, shipped in the same batch.
 >
-> **Next dispatch: `PB-DX2`** (OOS-DP5-7 + OOS-DP7-2 — `ChooseDredge` has no pending-state gate;
-> `card: None` is a free card for any player at any time; wire-neutral). **PB-DX3** after it
-> (2 flips, 0 engine lines). Both are independent of PB-DX1 and of M11-local.
+> **PB-DX2 SHIPPED** (`scutemob-162`, 2026-08-01) — OOS-DP5-7, OOS-DP7-2 and both riders
+> (OOS-DP2-1, OOS-DP9-14) CLOSED. **The wire prediction of "none" HELD**: PROTOCOL 32 / HASH 69
+> unmoved, with an empty `git diff` over `rules/protocol.rs` and `state/hash.rs` — the first
+> PB-DX row whose prediction survived. **Yield 0 flips as predicted**; the corpus holds exactly
+> **one** dredge def (`golgari_grave_troll`, already `Complete`), so this batch's value is entirely
+> the closed exploit, not card count.
+>
+> **Three corrections to this row's premises, and one lesson worth carrying.** (1) The row said
+> "2 lying doc comments"; there were **five**, and a sixth family (`MiracleRevealChoiceRequired`)
+> was verified rather than merely suspected. (2) The design is **not** the brief's "give the
+> `DredgeAvailable` pause its own `PendingDraw`-style entry" — a *new* type or `GameState` field
+> would have moved HASH (PB-DP5's `pending_draws` moved 63 → 64 for exactly that reason) and
+> broken the wire-neutrality this row promised. What shipped reuses the **existing**
+> `pending_draws` queue, adding no declaration. Blocking on the answer was rejected on evidence:
+> `crates/simulator` constructs zero `ChooseDredge` commands, so a block deadlocks every bot game
+> with a dredge card in a graveyard. (3) Two CR **614.11a** bugs outside the brief were found and
+> fixed — `Effect::DrawCards { count: n }` with a dredge card emitted **n** prompts and drew
+> **zero** cards. **The lesson: the fix cycle's own repair introduced the next HIGH.** Replacing
+> the fold with an unconditional discharge was right, but the runner then marked a seed
+> (`OOS-DX2-3`) CLOSED on a *structural* proof — "both push sites are downstream of the discharge"
+> — which is a claim about **where** the pushes are, not **when** they run; the discharge
+> re-enters `perform_one_draw` and the inner call can push between them. Caught by a re-review of
+> the fix cycle, reproduced empirically, and **reopened**. A batch that closes doc-vs-code seeds
+> is exactly where a false proof is most costly.
+>
+> **Next dispatch: `PB-DX3`** (OOS-DP6-3 — two stale blocker notes; **2 flips, 0 engine lines**;
+> pure authoring, blocks nothing, and can ride any batch as a rider). Independent of M11-local.
 
 **Prefix**: `PB-DX` ("decision-suite eXtension"). Verified unclaimed — zero occurrences of
 `PB-DX` anywhere in `memory/`, `docs/` or `CLAUDE.md` before this document. `PB-SR*`, `PB-RS*`,
@@ -626,7 +650,7 @@ bumps were falsified).
 | rank | batch | seed(s) | class | discounted ship | wire prediction |
 |---|---|---|---|---|---|
 | ~~**PB-DX1**~~ **✅ SHIPPED `scutemob-160`** | the dropped intervening-if | **OOS-DP6-1** (+riders DP6-5, DP6-9) — **all three CLOSED** | **CORRECTNESS — live-wrong `Complete`, unbounded** | **1 flip** (`karlach`), not 2 — `tatyova` stays `partial`; `aurelia` repaired; +3 defs stop over-firing via the unpredicted `once_per_turn` half | **PROTOCOL 31→32 AND HASH 68→69** — the "HASH only" prediction was **half wrong** (see banner) |
-| **PB-DX2** | unguarded resolution-time commands | **OOS-DP5-7** + **OOS-DP7-2** (+riders DP2-1, DP9-14) | **CORRECTNESS — live exploit, trust boundary** | 0 flips; closes a free-card exploit + 2 lying doc comments | **none** |
+| ~~**PB-DX2**~~ **✅ SHIPPED `scutemob-162`** | unguarded resolution-time commands | **OOS-DP5-7** + **OOS-DP7-2** (+riders DP2-1, DP9-14) — **all four CLOSED** | **CORRECTNESS — live exploit, trust boundary** | **0 flips as predicted** (corpus holds 1 dredge def, already `Complete`); closes the free-card exploit + **5** lying doc sites, not 2; +2 unbriefed CR 614.11a bugs fixed; seeds OOS-DX2-1..7 | **none — PREDICTION HELD.** PROTOCOL 32 / HASH 69 unmoved, empty diff on `protocol.rs`/`hash.rs`; achieved by reusing the existing `pending_draws` queue instead of the brief's new-entry design, which would have bumped HASH |
 | **PB-DX3** | two stale blocker notes | **OOS-DP6-3** | **card yield, zero engine** | **2 flips** (`garruks_uprising`, `inventors_fair`) | **none** |
 | **PB-DX4** | the `BASELINE` triage sweep | **OOS-DP10-8** | **CORRECTNESS — marker integrity** | 0 flips; ≥2 known live-wrong `Complete` defs corrected, 95 entries triaged | **none** (test + card-def markers) |
 | **PB-DX5** | CR 611.2c affected-set snapshot | **OOS-OS7-2** *(ex-R6)* | **CORRECTNESS — engine-wide, 7 `Complete` defs** | 0 flips; repairs 7 `Complete` + 2 `partial` defs | **HASH**, and **PROTOCOL** if `ContinuousEffect` is in the wire closure — compute, do not assume |

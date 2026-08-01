@@ -833,7 +833,19 @@ pub enum GameEvent {
     /// CR 702.94a: A card with miracle was drawn as the first card this turn.
     /// The player may choose to reveal it and trigger the miracle ability.
     ///
-    /// The engine pauses until a `Command::ChooseMiracle` is received.
+    /// **The engine does NOT block on this, and unlike `DredgeChoiceRequired`
+    /// it is not even gated on the offer** (PB-DX2 verified this rather than
+    /// merely correcting the doc — see OOS-DX2-1). `check_miracle_eligible`
+    /// emits this event from inside the completed-draw path and records
+    /// nothing; `Command::ChooseMiracle`'s handler (`rules::miracle`) validates
+    /// only that the named card is in `player`'s hand, has the Miracle
+    /// keyword, and `cards_drawn_this_turn == 1` — NOT that it is the card
+    /// this event names. A miracle card already in hand from an earlier turn
+    /// (tutored, discarded-and-returned, etc.) can be revealed and cast for
+    /// its miracle cost as long as the player has drawn exactly one card this
+    /// turn, which is a live CR 702.94a ("as you draw it") violation. Closing
+    /// it needs a record of which object was just drawn — new stored state,
+    /// out of scope for a wire-neutral batch; seeded as OOS-DX2-1.
     /// `card_object_id` is the drawn card's new ObjectId in hand.
     /// `miracle_cost` is the miracle alternative cost from the card definition.
     MiracleRevealChoiceRequired {
@@ -842,10 +854,51 @@ pub enum GameEvent {
         miracle_cost: crate::state::game_object::ManaCost,
     },
     // ── Dredge events (CR 702.52) ─────────────────────────────────────────
-    /// One or more dredge cards are available in the player's graveyard and
-    /// the player must choose whether to dredge one or draw normally (CR 702.52a).
+    /// One or more dredge cards are available in the player's graveyard and the
+    /// player must choose whether to dredge one or draw normally (CR 702.52a).
     ///
-    /// The engine pauses until a `Command::ChooseDredge` is received.
+    /// **The engine does NOT block on this** (PB-DX2, closing OOS-DP7-2's half
+    /// of the claim). What happens is: the draw does not occur; a `PendingDraw`
+    /// entry is recorded for `player` (`replacement::perform_one_draw`); and
+    /// the draw SEQUENCE stops (CR 614.11a), with the count of further draws
+    /// carried on the entry. Priority, state-based actions and step
+    /// advancement all continue, and any player may act. `Command::ChooseDredge`
+    /// is legal ONLY while that entry stands and CONSUMES it
+    /// (`replacement::handle_choose_dredge`), which is what stops the command
+    /// minting a free card (OOS-DP5-7).
+    ///
+    /// It is a DEADLINE, not a `rules::engine::BlockingDecision`, for two
+    /// reasons: CR 702.52a is "you MAY instead", so declining is always legal
+    /// and "no answer" has a well-defined meaning (the block-vs-deadline test
+    /// PB-DP4/PB-DP7 use); and `crates/simulator` constructs no `ChooseDredge`
+    /// at all, so blocking would deadlock every bot game in which a dredge
+    /// card reaches a graveyard.
+    ///
+    /// **A single obligation does NOT accumulate WITHOUT BOUND across
+    /// unanswered turns** (fix-cycle Finding 1, `pb-review-DX2.md` — an
+    /// earlier version of this doc said "an unanswered offer means the draw
+    /// simply never happens", which was false: nothing destroyed it, but
+    /// nothing bounded it either, and it could be answered in a single
+    /// command at an arbitrary later moment covering every turn since the
+    /// offer). If the SAME player faces another draw before answering this
+    /// one, the engine DISCHARGES the earlier obligation automatically, as
+    /// though the player had declined it
+    /// (`replacement::resolve_declined_pending_draw`) — the draw is never
+    /// lost, only completed at a different moment than a human answer would
+    /// have chosen. **Correction (re-review Finding R1): this does NOT bound
+    /// the total outstanding-entry count to one.** The discharge can itself
+    /// re-raise a fresh entry (if 2+ `WouldDraw` replacements remain
+    /// applicable, CR 616.1f), which survives alongside the entry the
+    /// discharge's own caller then pushes — so `player` can have 2+
+    /// outstanding entries. See `replacement::perform_one_draw`'s
+    /// "Per-player invariant" doc and `OOS-DX2-3` (reopened) for the full
+    /// argument; corpus exposure is zero today (no card def registers a
+    /// `WouldDraw` replacement). What is NOT closed: a single outstanding
+    /// entry can still be answered, or auto-discharged, at an arbitrary later
+    /// moment with no priority or step check on `Command::ChooseDredge` —
+    /// that residual is `OOS-DP5-2`'s pre-existing "no deadline for
+    /// `pending_draws`" finding.
+    ///
     /// `options` lists `(ObjectId, u32)` pairs of (dredge card, dredge amount).
     DredgeChoiceRequired {
         player: PlayerId,
@@ -1350,9 +1403,14 @@ pub enum GameEvent {
     /// their maximum hand size and must choose which to discard. The engine
     /// BLOCKS — no step or turn advancement, and `process_command` rejects
     /// every command except `Command::DiscardToHandSize` from `player` and
-    /// `Command::Concede` — until the answer arrives. Unlike
-    /// `DredgeChoiceRequired`, whose identical claim is not implemented (seed
-    /// OOS-DP7-2), this one is enforced; see `rules::engine::blocking_decision`.
+    /// `Command::Concede` — until the answer arrives; see
+    /// `rules::engine::blocking_decision`. Unlike `DredgeChoiceRequired`,
+    /// which is a DEADLINE rather than a block (PB-DX2, closing OOS-DP7-2):
+    /// CR 702.52a supplies a legal default ("you may instead" — declining is
+    /// always fine) where CR 514.1 does not, and `Command::ChooseDredge` is
+    /// gated by requiring-and-consuming a recorded `PendingDraw` entry
+    /// (`replacement::handle_choose_dredge`) rather than by blocking
+    /// `process_command`'s admission.
     ///
     /// `count` is how many cards must go. `hand` is the full set of candidate
     /// `ObjectId`s at the moment of the pause; it is public information at the

@@ -27,8 +27,22 @@
   modifies the "would draw" event using the existing `check_would_draw_replacement` infrastructure.
   Wire it into BOTH the draw-step path (`turn_actions.rs`) and the effect-draw path
   (`effects/mod.rs`). Dredge does NOT increment `cards_drawn_this_turn` — it is a replacement,
-  not a draw. `draw_card_skipping_dredge` is a helper that bypasses the replacement check to
-  avoid re-offering the choice after the player declines.
+  not a draw. **A dredge offer is GATED (PB-DX2):** `perform_one_draw`'s `DredgeAvailable` arm
+  records a `PendingDraw` entry, and `Command::ChooseDredge` requires-and-consumes it in
+  `replacement::handle_choose_dredge` — before PB-DX2 `card: None` was a free card for any
+  player at any time (`draw_card_skipping_dredge`, since deleted, validated nothing). A second
+  draw for a player who already owes an answer DISCHARGES the earlier one automatically (as
+  though declined, `replacement::resolve_declined_pending_draw`) rather than folding/overwriting
+  it. **This does NOT bound the queue to one entry per player** (re-review Finding R1,
+  `pb-review-DX2.md`; `OOS-DX2-3` reopened, not closed): the discharge can itself re-raise a
+  fresh `NeedsChoice` entry (2+ `WouldDraw` replacements still applicable, CR 616.1f), which
+  survives alongside the entry the discharge's own caller then pushes for the draw it was
+  originally asked to perform — so the count grows by one per draw in that regime. Corpus
+  exposure is zero today (no card def registers a `WouldDraw` replacement); see
+  `replacement.rs::perform_one_draw`'s "Per-player invariant" doc for the full argument.
+  Declining re-checks other `WouldDraw` replacements but does not re-offer dredge for THAT SAME
+  draw (`offer_dredge: false`) — this avoids an infinite loop of choices, not a "bypassed
+  replacement check".
 - **Flashback must exile at ALL departure points (CR 702.34a).** The card must be exiled when
   it leaves the stack for ANY reason: (1) normal resolution, (2) fizzle (all targets illegal),
   (3) countered by a spell/ability, AND (4) the `CounterSpell` effect path in `effects/mod.rs`.

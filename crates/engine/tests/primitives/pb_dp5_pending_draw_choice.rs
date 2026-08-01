@@ -434,10 +434,11 @@ fn test_dp5_draw_sequence_stops_and_resumes() {
 // ── T7 ──────────────────────────────────────────────────────────────────────
 
 #[test]
-/// CR 702.52a / 616.1 — the THIRD emit site: `draw_card_skipping_dredge`
-/// (reached via `Command::ChooseDredge { card: None }`, declining dredge). The
-/// original DP-5 audit named only two emit sites; this one is reachable and was
-/// equally unanswerable pre-PB-DP5.
+/// CR 702.52a / 616.1 — the THIRD emit site: `handle_choose_dredge`'s decline
+/// arm (reached via `Command::ChooseDredge { card: None }`, declining dredge;
+/// PB-DX2 folded the standalone helper this used to go through directly into
+/// the now-gated handler). The original DP-5 audit named only two emit sites;
+/// this one is reachable and was equally unanswerable pre-PB-DP5.
 fn test_dp5_dredge_decline_path_records_pending_state() {
     let p1 = p(1);
     let p2 = p(2);
@@ -490,7 +491,7 @@ fn test_dp5_dredge_decline_path_records_pending_state() {
         events
     );
 
-    // Decline dredge — this reaches draw_card_skipping_dredge, the third emit site.
+    // Decline dredge — this reaches handle_choose_dredge's decline arm, the third emit site.
     let (state, decline_events) = process_command(
         state,
         Command::ChooseDredge {

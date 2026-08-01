@@ -9280,12 +9280,16 @@ fn try_pay_optional_cost(
 /// all actions required by the replacement are completed, if possible, before
 /// resuming the sequence." The sequence STOPS at the deferred draw — the
 /// remaining count is recorded on the `PendingDraw` entry `perform_one_draw`
-/// pushes, and performed by `resolve_pending_draw` once the player answers
-/// `Command::OrderReplacements`.
+/// pushes. It is performed by `resolve_pending_draw` once the player answers
+/// `Command::OrderReplacements` (CR 616.1 multi-replacement deferral), OR by
+/// `replacement::handle_choose_dredge` once the player answers
+/// `Command::ChooseDredge` (CR 702.52a dredge offer, PB-DX2) — the entry does
+/// not distinguish which of the two raised it (`PendingDraw`'s own doc).
 ///
 /// `sets_has_drawn_for_turn: false` preserves this path's pre-existing
-/// divergence from `turn_actions::draw_card` / `draw_card_skipping_dredge`
-/// (see `perform_one_draw`'s doc comment) rather than silently unifying it.
+/// divergence from `turn_actions::draw_card` / `handle_choose_dredge`'s
+/// decline arm (see `perform_one_draw`'s doc comment) rather than silently
+/// unifying it.
 fn draw_cards_for_player(state: &mut GameState, player: PlayerId, n: usize) -> Vec<GameEvent> {
     use crate::rules::replacement::{perform_one_draw, DrawStepOutcome};
     let mut events = Vec::new();
@@ -9300,9 +9304,17 @@ fn draw_cards_for_player(state: &mut GameState, player: PlayerId, n: usize) -> V
             remaining_after,
         );
         events.extend(evts);
+        // CR 614.11a (PB-DX2 / plan §1 P3): a dredge offer REPLACES this draw,
+        // so the sequence must stop here just like a `NeedsChoice` deferral --
+        // before this fix `DredgeOffered` was not in this break set, so the
+        // loop kept iterating, re-offered dredge for the SAME card on every
+        // remaining draw, and destroyed all but (at most) one of the `n`
+        // draws once a decline was answered.
         if matches!(
             outcome,
-            DrawStepOutcome::Deferred | DrawStepOutcome::LostToEmptyLibrary
+            DrawStepOutcome::Deferred
+                | DrawStepOutcome::LostToEmptyLibrary
+                | DrawStepOutcome::DredgeOffered
         ) {
             break;
         }

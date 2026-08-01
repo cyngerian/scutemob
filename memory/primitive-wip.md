@@ -1,69 +1,255 @@
-# Primitive WIP — PB-DX1 (the intervening-if dropped in the runtime lowering)
+# Primitive WIP — PB-DX2 (gate the resolution-time commands nothing gates)
 
 <!-- last_updated: 2026-08-01 -->
 
-> Previous occupant: **PB-DP10 (decision-gate widening) — SHIPPED**, `scutemob-158`, merge
-> `16ffcfd0`, PROTOCOL 31 / HASH 68 unmoved, tests **3,928** on main. **That closed the PB-DP
-> suite (DP1..DP10).** Its WIP file is preserved verbatim at
-> `memory/primitives/pb-wip-DP10-archive.md`.
-> The seed re-rank (`scutemob-159`) retired the PB-RS queue; the authoritative queue is now
-> `memory/primitives/seed-rerank-2026-07-27.md` §4, **PB-DX1..PB-DX18**.
+> Previous occupant: **PB-DX1 (the intervening-if dropped in the runtime lowering) — SHIPPED**,
+> `scutemob-160`, PROTOCOL 31 → **32** / HASH 68 → **69**, tests **3,945** on main.
+> Its WIP file is preserved verbatim at `memory/primitives/pb-wip-DX1-archive.md`.
+> Authoritative queue: `memory/primitives/seed-rerank-2026-07-27.md` §4, **PB-DX1..PB-DX18**.
 
-- **PB**: PB-DX1 — rank 1 of the PB-DX queue. Seed **OOS-DP6-1** (+ riders OOS-DP6-5, OOS-DP6-9).
-- **Task**: `scutemob-160`
-- **Branch**: `feat/pb-dx1-the-intervening-if-dropped-in-the-runtime-lowering-oo`
-- **Class**: **CORRECTNESS** — live-wrong on a `Complete`, deck-legal def; unbounded loop.
-- **Phase**: **closed** — plan → implement → review → fix → close all complete 2026-08-01.
-  Review findings applied in full (all 10: 1 HIGH, 5 MEDIUM, 4 LOW).
-- **Plan**: `memory/primitives/pb-plan-DX1.md`
-- **Review file**: `memory/primitives/pb-review-DX1.md`
-- **Wire**: predicted **HASH** only; **shipped PROTOCOL 31 → 32 AND HASH 68 → 69**. The prediction
-  was half wrong and *planning caught it before implementation*, stating the falsifier in advance:
-  `Characteristics` is in `protocol_schema.rs`'s `CLOSURE_MUST_CONTAIN` and
-  `Characteristics.triggered_abilities: Vec<TriggeredAbilityDef>`, so `TriggeredAbilityDef` and
-  `InterveningIf` were in the wire closure all along. **Carry-forward: any future prediction of
-  "HASH only" on a type reachable from `Characteristics` is wrong — it is a PROTOCOL bump too.**
-- **Result**: tests 3,928 → **3,945**, 0 failing. `OOS-DP6-1` CLOSED with both riders
-  (`OOS-DP6-5`, `OOS-DP6-9`). 1 completeness flip (`karlach_fury_of_avernus`
-  `known_wrong` → `Complete`). Seeds `OOS-DX1-1..6` filed in `docs/audits/decision-point-audit.md`
-  §8.1. Fix (a) taken as a **variant** (`InterveningIf::CardDef(Box<Condition>)`), not a field.
+- **PB**: PB-DX2 — rank 2 of the PB-DX queue. Seeds **OOS-DP5-7** + **OOS-DP7-2**
+  (+ riders **OOS-DP2-1**, **OOS-DP9-14**).
+- **Task**: `scutemob-162`
+- **Branch**: `feat/pb-dx2-gate-the-resolution-time-commands-nothing-gates-oos-d`
+- **Class**: **CORRECTNESS — live exploit, trust boundary.** `Command::ChooseDredge` has no
+  pending-state gate; `card: None` is a free card for any player at any time.
+- **Phase**: closed (fix cycle 1 AND fix cycle 2 both applied — see "Fix cycle" and
+  "Fix cycle 2" sections at the foot of this file and `memory/primitives/pb-review-DX2.md`'s
+  matching appendices)
+- **Plan**: `memory/primitives/pb-plan-DX2.md`
+- **Review file**: `memory/primitives/pb-review-DX2.md`
+- **Wire prediction**: the brief says wire-neutral (PROTOCOL 32 / HASH 69 unmoved). **Treat this as
+  a hypothesis to be gate-computed, not a fact** — PB-DX1's "HASH only" prediction was half wrong.
+  Any new `GameState` field is fed to the public state hash (PB-DP5's `pending_draws` moved
+  HASH 63 → 64), so a new-field design **would** move HASH. The plan must state which design it
+  takes and what the fingerprint consequence is *before* implementation, and state the falsifier.
 
-## Premise re-verification (done before planning, on current branch head `3d73763d`)
+## Premise re-verification (2026-08-01, base = `main` @ `27b0a1ec`)
 
-All four legs of OOS-DP6-1 confirmed against source:
+| Cite in brief/seed | Status | Actual |
+|---|---|---|
+| `rules/engine.rs:534-544` — `ChooseDredge` arm checks only `validate_player_exists` | **HOLDS** | `engine.rs:534-544` verbatim; `validate_player_exists(&state, player)?` at `:538`, then straight to `handle_choose_dredge` at `:541`. No pending-state consult. |
+| `replacement.rs:2925` — `handle_choose_dredge` validates the card, never a pending draw | **HOLDS** | `pub fn handle_choose_dredge` at `:2925`. `None` arm (`:2932-2939`) validates **nothing** and calls `draw_card_skipping_dredge`. `Some` arm (`:2940-3018`) validates graveyard zone / `Dredge(n)` / library ≥ n only. |
+| `replacement.rs:619` — `DrawAction::DredgeAvailable` doc claims "The engine pauses until a `Command::ChooseDredge` is received." | **HOLDS** | `:617-620`. |
+| `rules/events.rs:848-850` — `DredgeChoiceRequired` doc claims the same pause | **HOLDS** | `:845-853`. |
+| `DrawStepOutcome::DredgeOffered` doc says the caller does NOT stop | **HOLDS** | `:764-767`; `perform_one_draw` at `:828` returns `(vec![event], DrawStepOutcome::DredgeOffered)` and records no pending state. |
+| (extra site, not in the brief) `events.rs:1353-1355` already names OOS-DP7-2 | **HOLDS** | The `DiscardToHandSize` doc says of `DredgeChoiceRequired` "whose identical claim is not implemented (seed OOS-DP7-2)". A **third** doc site tied to this seed; it must be reconciled with whatever this batch does, or it becomes the new lying comment. |
+| OOS-DP2-1 cite `rules/commander.rs:877-885` for `handle_keep_hand` | **DRIFTED** | `pub fn handle_keep_hand` is at `commander.rs:891`; the count-only check is in its body below that. Correct the cite on closure (the OOS-DP6-8 documentation-rot class). |
+| OOS-DP9-14 — `pending_effect_choice` reaped only by `handle_concede` | **HOLDS** | `discharge_effect_choice_on_concede` at `engine.rs:2580-2583`; `drop_departed_trigger_flush` called at `engine.rs:2664`; `resolve_top_of_stack` (`resolution.rs:92`) has an entry `debug_assert!(state.pending_effect_choice.is_none())` and no reap. |
+| Golden script `replacement/014` + `tests/mechanics_a_d/dredge.rs` reach `DredgeChoiceRequired` first | to be confirmed in plan/implement | — |
 
-1. `crates/engine/src/testing/replay_harness.rs:2382` `build_face_ability_vectors` — **34**
-   occurrences of `intervening_if: None`, hardcoded at every push site. Self-documented at
-   `:2563` ("Condition and InterveningIf are separate types; conditional combat-damage triggers
-   are rare and deferred").
-2. Type mismatch is real: card-def field is `Option<Condition>`
-   (`card-types/src/cards/card_definition.rs`), runtime field is `Option<InterveningIf>`
-   (`card-types/src/state/game_object.rs:817` — a **2-variant** enum:
-   `ControllerLifeAtLeast(u32)`, `SourceHadNoCounterOfType(CounterType)`).
-   `TriggeredAbilityDef` is at `game_object.rs:884`, `intervening_if` at `:889`.
-3. Live paths reach the lowering: `rules/face.rs:104` (transform / face change) and
-   `rules/resolution.rs:864` (disturb / cast-transformed ETB). It is **also** called from
-   `enrich_spec_from_def` (`replay_harness.rs:3750`), which is the universal card-def →
-   runtime-object lowering used by `state/builder.rs` object specs and by
-   `crates/simulator/src/legal_actions.rs` — i.e. it is not test-only.
-4. `crates/card-defs/src/defs/aurelia_the_warleader.rs:32` carries
-   `intervening_if: Some(Condition::IsFirstCombatPhase)` on its `WhenAttacks` ability, and the
-   file has **no `completeness` field**, so it defaults to `Complete` and `validate_deck`
-   admits it.
+**Nothing in the brief was falsified.** One line-number drift (OOS-DP2-1 → `commander.rs:891`).
 
-Conclusion: premise **holds**. Proceed to plan.
+## Implementation progress (plan §11 step numbering)
 
-## Bench numbers vs merge base (plan §7.3 / §13, review Finding 9)
+- [x] Step 1 — Phase 0 probes T1, T2, T5, T10 written in
+      `crates/engine/tests/primitives/pb_dx2_command_gates.rs`; all four FAIL
+      pre-fix as predicted (T1/T2: `ChooseDredge` succeeds with no gate; T5:
+      3 `DredgeChoiceRequired`, 0 `CardDrawn`; T10: p2's hand card moved to
+      p1's library bottom). Failure text captured in
+      `memory/primitives/pb-review-DX2.md` inputs (see runner report).
+- [x] Step 2 — Phase 0 T14 written in-src at the foot of
+      `crates/engine/src/rules/resolution.rs`
+      (`dx2_pending_effect_choice_reap_tests`); FAILS pre-fix with the entry
+      `debug_assert!` panic, exactly as predicted. T15 (live-owner
+      `#[should_panic]`) already passes pre-fix (its row says "passes before
+      and after").
+- [x] Step 3 — extracted `perform_remaining_draws` in `replacement.rs`;
+      `resolve_pending_draw`'s tail re-expressed on it, `DredgeOffered` added
+      to its `matches!` set. Pure refactor — full dredge/primitives corpus
+      stayed green.
+- [x] Step 4 — `DredgeAvailable` arm in `perform_one_draw` records a
+      `PendingDraw` with the fold guard (§4.2). T4 passes; T7 initially wrote
+      the wrong assertion (expected zero `DredgeChoiceRequired` on the second
+      offer instead of one folded-entry), corrected to assert exactly one
+      event + one entry + `remaining == 2`.
+- [x] Step 5 — `effects/mod.rs::draw_cards_for_player` break set gains
+      `DredgeOffered`. T5's "stops at first offer" half now passes.
+- [x] Step 6 — `handle_choose_dredge` rewritten per §4.4 (steps 0-4b);
+      `draw_card_skipping_dredge` deleted; `check_would_draw_replacement`'s
+      doc reference and every other prose mention of the deleted function
+      (7 more sites across `replacement.rs`, `effects/mod.rs`,
+      `card-types/.../replacement_effect.rs`, `dredge.rs`,
+      `pb_dp5_pending_draw_choice.rs`) updated so
+      `rg -n 'draw_card_skipping_dredge' crates/` → 0. T1, T2, T3, T6, T8, T9
+      all pass; full dredge/mechanics_e_l/primitives corpus green except T10
+      (KeepHand rider, Phase 3).
+- [x] Step 7 — `cargo build --workspace` clean (no exhaustive-match sites to
+      update — no enum variant changed).
+- [x] Step 8 — Phase 2: reconciled all five §5 doc sites (`replacement.rs`
+      `DredgeAvailable`/`DredgeOffered`, `events.rs` `DredgeChoiceRequired` /
+      `CleanupDiscardChoiceRequired` / `MiracleRevealChoiceRequired`). Verified
+      by reading: no surviving comment on the dredge or miracle path claims a
+      pause, a block, or a guarantee the code does not make.
+- [x] Step 9 — Phase 3: `commander.rs:891` `handle_keep_hand` per-entry hand
+      guard (§8.1). T10, T11, T12, T13 all pass; `bare_lookup_ratchet` green,
+      unmoved (`expect_zone`, not a bare lookup); full `commander::`/mulligan
+      suite (27 tests) green.
+- [x] Step 10 — Phase 4: `resolution.rs:90` reap above the entry
+      `debug_assert!` (§8.2), narrowed to a dead owner only. T14 now passes;
+      T15 (`#[should_panic]`, live owner) written and passes, proving the
+      reap did not silence the assert.
+- [x] Step 11 — Phase 5 gates: `core` test group (449 tests, including
+      `hash_schema::*` and `protocol_schema::*`) green; `git diff --stat` over
+      `rules/protocol.rs` / `state/hash.rs` is EMPTY. T16 added and passes
+      (`HASH_SCHEMA_VERSION == 69`, `PROTOCOL_VERSION == 32`, both unmoved).
+- [x] Step 12 — full suite (3,971 passing / 0 failing, +16 over this
+      worktree's own 3,955 baseline), `cargo clippy --workspace --all-targets
+      -- -D warnings` clean, `cargo fmt --check` clean, `check-defs-fmt.sh`
+      clean (1,804 defs), `cargo build --workspace` clean. **211/211 golden
+      scripts pass, 60 retired (pre-existing, unrelated) — but
+      `replacement/014_golgari_grave_troll_dredge.json` did NOT stay
+      unchanged as plan §9.4 predicted.** Its `turn_based_action: draw_card`
+      entry is (and always was) purely informational per
+      `script_schema.rs`'s documented contract — no driver dispatches an
+      engine Command off it — so the script never actually attempted a real
+      draw; its `choose_dredge` succeeded pre-PB-DX2 purely on the exploit
+      the batch closes. Fixed per plan §11 step 12's own instruction ("SR-9c
+      forbids silent skips... any changed expectation needs a one-line CR
+      citation... do not adjust a script to fit"): initial_state now starts
+      at Upkeep and a leading `priority_round` (both players pass) drives the
+      REAL Upkeep→Draw transition and its draw turn-based action (CR 504.1),
+      mirroring `dredge.rs`'s `pass_all` unit-test pattern. A new dispute
+      entry (append-only, the existing one preserved) documents the finding
+      and fix with CR citations. All downstream assertions unchanged and
+      still pass.
+- [x] Step 13 — Phase 6: roster enumeration (temp in-test one-off, deleted
+      after running, per plan §6/§11 step 13 — a permanent gate for 1 card
+      would be theatre): **exactly 1 distinct Complete card**,
+      `golgari_grave_troll.rs`, `Dredge(6)` — matches the plan's prediction
+      exactly (`all_cards()` + `effective_abilities(both faces)` reports it
+      twice, once per face, because the card is single-faced and both faces
+      resolve to the same ability list; 1 distinct card, 0 flips, 0 def
+      edits). Benches (throwaway worktree at merge base `27b0a1ec`, PB-DP9's
+      method): base `full_turn_4p` 229.1 µs / `priority_cycle_4p` 26.0 µs /
+      `sba_check` 14.8 µs; branch (3 runs, high ambient noise from a
+      concurrent worktree build) 219.6-254.8 µs / 24.6 µs / 15.2 µs — all
+      within noise of the base, no regression (criterion's own
+      change-detection on a clean re-run reported "No change in performance
+      detected" / an *improvement*, not a regression).
+- [x] Step 14 — Phase 7: bookkeeping. Seeds **OOS-DX2-1..6** filed in
+      `docs/audits/decision-point-audit.md` §8.1; **OOS-DP5-7**, **OOS-DP7-2**,
+      **OOS-DP2-1**, **OOS-DP9-14** all marked CLOSED with the two stale-cite
+      corrections applied in-row (OOS-DP2-1's `commander.rs:877-885` → `:891`;
+      OOS-DP9-14's `drop_departed_trigger_flush`-placement claim corrected to
+      name `handle_concede`); **OOS-DP7-1**'s row updated (dredge/miracle pair
+      now answered). `memory/workstream-state.md` and `CLAUDE.md`'s Current
+      State snapshot both updated. `Phase:` moved to `implement-complete`
+      above (this batch's task instructions specify `implement-complete`,
+      not `review` — no automatic review-phase handoff was requested).
 
-Measured via `cargo bench -p mtg-engine --bench engine_perf` in a throwaway worktree at
-merge base `3d73763d` (criterion, 100 samples each), compared against the same benchmarks
-on this branch (commit `03053182`, before the review-fix commit):
+## Fix cycle (2026-08-01, same day)
 
-| benchmark | `3d73763d` (merge base) | this branch | delta |
-|---|---|---|---|
-| `priority_cycle_4p` | 23.605 µs | 24.220 µs | +2.6% |
-| `sba_check` | 14.338 µs | 14.780 µs | +3.1% |
-| `full_turn_4p` | 214.59 µs | 217.44 µs | +1.3% |
+`memory/primitives/pb-review-DX2.md` — verdict **needs-fix**, 1 HIGH / 7 MEDIUM / 7 LOW.
+All 15 findings applied; full disposition table and argument for each is in that file's
+"Fix cycle" appendix. Summary:
 
-All three within the plan's 5% regression budget (§7.3: "A >5% regression is a
-stop-and-report"). No regression flagged.
+- **Finding 1 (HIGH)** — the implement-phase "fold guard" let an unanswered dredge offer
+  accumulate WITHOUT BOUND across turns and be cashed in one command at an arbitrary later
+  moment, out of priority, while `events.rs`'s own doc denied it. **Fixed by replacing the
+  fold with a discharge**: `replacement::perform_one_draw` now auto-resolves (as an implicit
+  decline, `resolve_declined_pending_draw`) any stale `PendingDraw` for a player the instant
+  another draw event arrives for them — unconditionally, before even examining what the new
+  draw needs. This bounds `pending_draws` to the single most-recently-offered draw's own
+  remainder (never a running sum), conserves every draw (nothing destroyed, only completed
+  at a different moment than a human answer would have chosen), and — found while designing
+  the fix, not prescribed by the review — closes **OOS-DX2-3** (two entries per player) as a
+  full side effect, since both `pending_draws.push_back` sites are now downstream of the
+  discharge. **Two early `return`s inside `perform_one_draw`'s `Proceed` arm had to be
+  restructured into nested `match` tail expressions** — a bare `return` there would have
+  skipped the new `events.extend(draw_events)` step and silently dropped the discharge's own
+  events; caught during implementation, not by a test.
+- **Findings 2, 3, 6, 7, 12** — doc-vs-code, all fixed. `PendingDraw`'s declaration doc and the
+  `GameState.pending_draws` field doc now name both producers and both consumers;
+  `handle_order_replacements` gained the four-case table from plan §3.3; `perform_remaining_draws`
+  relocated ABOVE `resolve_pending_draw`'s doc block (Rust attaches a doc comment to the
+  immediately following item — the bug was exactly this); `memory/gotchas-rules.md` rewritten
+  for the gated handler; `effects/mod.rs` names both consumers.
+- **Findings 4, 5** (test-validity MEDIUMs, treated as fix-phase HIGHs per
+  `memory/conventions.md`) — three new tests added (T17 cross-player rejection, T18/T19 the two
+  untested cross-kind cells of plan §3.3's four-case table), and `dredge.rs` test 9 rewritten to
+  reach a real offer first before naming an invalid card, restoring coverage of
+  `handle_choose_dredge`'s `Some`-arm validations.
+- **Findings 9, 10, 13, 14** — 9 (wrong CR 104.4b justification) and 13/14 (silent no-op /
+  discarded fields in the fold) are moot: the code they described no longer exists after
+  Finding 1's rewrite. 10 (decline not sticky) is genuinely a feature, not a bug — documented
+  in-source with a CR 616.1e citation and pinned by new test T19.
+- **Finding 11** — golden script `replacement/014`'s three surviving stale-prose sites (lines
+  6, 205, 216) reconciled.
+- **Finding 15** — (a) no action, already correctly documented; (b) `OOS-DX2-2`'s stale cite
+  corrected (`resolve_pending_draw:1402` → `perform_remaining_draws:1495`); (c) `dredge.rs:150`
+  and its enclosing test's doc comment corrected.
+
+**Extra, beyond the 15 findings**: two more "the engine pauses" sites the review did not name
+— `check_would_draw_replacement`'s own doc comment, and the top-level `perform_one_draw`
+doc's new "Per-player invariant" section — were found and fixed for consistency while
+reconciling the family Finding 1/2/3/7/12 all touch.
+
+**Verification**: wire-neutrality confirmed (`git diff --stat` over `rules/protocol.rs` +
+`state/hash.rs` empty; `protocol_schema` / `hash_schema` gates green). Tests 3,971 → **3,974**
+(+3: T17/T18/T19; T7 rewritten in place for the new discharge mechanism, not counted as new).
+`cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --check` and
+`tools/check-defs-fmt.sh` clean; `cargo build --workspace` clean.
+
+## Fix cycle 2 (2026-08-01, same day) — re-review of fix cycle 1
+
+`memory/primitives/pb-review-DX2.md`'s "Re-review (fix cycle)" section — verdict
+**needs-fix (do-not-ship-until-R1-dispositioned)**, 1 HIGH / 3 MEDIUM / 5 LOW. Full disposition
+table for all 9 findings is in that file's "Fix cycle 2" appendix. Summary:
+
+- **R1 (HIGH)** — fix cycle 1's claim that the discharge made `pending_draws` "structurally
+  impossible" to hold two entries per player was **wrong**: `resolve_declined_pending_draw`
+  re-enters `perform_one_draw`, whose OWN discharge check finds the queue empty (the outer caller
+  already removed its target) and proceeds to independently re-check
+  `check_would_draw_replacement`, which can push a FRESH entry if 2+ `WouldDraw` replacements
+  remain applicable (CR 616.1f excludes only what was *applied*). Control then returns to the
+  outer call, which pushes its OWN entry. **Reproduced empirically before any fix, exactly as
+  instructed**: extending T19's fixture by one `draw_card` call reads `pending_draws().len() ==
+  2`. **`OOS-DX2-3` reopened** (not re-deleted — the false closure is preserved with strikethrough
+  and a correction, per the audit's own convention). All eight doc sites carrying the false
+  invariant corrected (`perform_one_draw`'s "Per-player invariant" section, both FIFO notes,
+  `resolve_declined_pending_draw`'s termination doc re-derived from the true premise, `PendingDraw`'s
+  struct doc, `GameState.pending_draws`'s field doc, `DredgeChoiceRequired`'s event doc,
+  `memory/gotchas-rules.md`, plus `sets_has_drawn_for_turn`'s field doc under R9). New permanent
+  test `test_dx2_needschoice_redefer_grows_the_queue` (T20) pins the TRUE count. **No engine fix
+  applied** — corpus exposure is zero (no card def registers `WouldDraw`) and the reviewer
+  explicitly warned that clearing entries early to "fix" the count would silently destroy a
+  re-deferred draw, which is worse.
+- **R2 (MEDIUM)** — the stale-entry discharge is a new engine-made AUTO-CHOSEN decision recorded
+  nowhere. Filed **OOS-DX2-7**, added an AUTO-CHOSEN row to audit §4.10, amended the §8.1 banner
+  (which described only the fold-guard design, not what shipped).
+- **R3 (MEDIUM)** — nothing pinned the restructured `Proceed`-arm control flow (the early-`return`
+  defect the runner caught by hand during fix cycle 1). New test
+  `test_dx2_discharge_then_proceed_both_produce_events_in_one_call` (T21) reaches the shape where
+  BOTH the discharge and the current draw take `Proceed` in one call. **Verified non-vacuous by
+  injecting the exact regression** (temporarily dropping the discharge's events before the final
+  return) — failed as predicted, reverted, passes clean.
+- **R4 (MEDIUM)** — Finding 5's original fix cycle only restored the graveyard-zone branch's
+  coverage; the `Dredge(n)` keyword check and the answer-time CR 702.52b library re-check still
+  had zero. Two new probes added to `dredge.rs`.
+- **R5 (LOW)** — duplicate `PlayerLost` when the discharge decks the player out: fixed with a
+  `has_lost` short-circuit expressed as a tail-value branch, not a `return` (would reintroduce the
+  R3-class defect).
+- **R6 (LOW)** — the two lines the fix cycle 1 rewrote cited CR 104.3b (life-total loss) instead
+  of 104.3c (empty-library loss); corrected. The other four pre-existing sites deliberately left
+  for `OOS-DX2-6`'s existing sweep ticket, per the finding's own directive.
+- **R7 (LOW)** — three surviving "paused" prose sites (golden `014:191`, `dredge.rs`, T8's
+  assertion message) reconciled; T8 additionally strengthened from a count-only assertion to an
+  identity assertion (captures and compares the whole `PendingDraw` entry).
+- **R8 (LOW)** — `OOS-DX2-2` and `OOS-DP2-1`'s cites had drifted a SECOND time within the same
+  batch; both re-verified by direct read and switched to symbol-based citation (file::symbol)
+  rather than a line number, to stop a third drift.
+- **R9 (LOW)** — `sets_has_drawn_for_turn`'s doc, audit §9.3, and §4.10/DP-5's stale
+  `draw_card_skipping_dredge` references all corrected.
+
+**Verification**: `git diff --stat` over `rules/protocol.rs` + `state/hash.rs` empty (PROTOCOL 32
+/ HASH 69 unmoved, confirmed by T16 and direct read). `cargo build --workspace` clean; `cargo
+clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt --check` clean;
+`tools/check-defs-fmt.sh` clean (1,804 defs). `cargo test --all` → **3,978 passing, 0 failing**
+(+4 over the fix-cycle-1 pin of 3,974: T20, T21, 2 `dredge.rs` sibling probes).
+
+**Findings the reviewer got wrong**: none. All 9 findings held up on independent verification;
+R1 was reproduced empirically before any fix was written, R3's fix was verified non-vacuous by
+injecting the exact regression class described, and the two "cite drift" findings (R8) were each
+re-checked by reading the actual current file rather than trusting either the original or the
+re-review's own numbers.

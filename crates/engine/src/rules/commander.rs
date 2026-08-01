@@ -888,6 +888,9 @@ pub fn handle_take_mulligan(
 /// therefore ends up ABOVE later entries: the LAST entry is the bottom-most card in
 /// the library. Implemented with `move_object_to_bottom_of_zone` (`push_front`), so
 /// the pre-existing library — including its top card — is untouched.
+///
+/// Every entry of `cards_to_bottom` must be a distinct object currently in
+/// `player`'s hand (PB-DX2 / OOS-DP2-1) — validated before any mutation.
 pub fn handle_keep_hand(
     state: &mut GameState,
     player: PlayerId,
@@ -907,6 +910,43 @@ pub fn handle_keep_hand(
             mulligans_taken,
             cards_to_bottom.len()
         )));
+    }
+    // CR 103.5 (PB-DX2 / OOS-DP2-1): "then puts a number of THOSE CARDS ... on
+    // the bottom of their library" -- "those cards" are the cards of the hand
+    // just drawn, not any object in the game. Before this fix only the COUNT
+    // was checked, so a malformed or hostile `KeepHand` could bottom a
+    // permanent from the battlefield, a card from a graveyard, or a card from
+    // ANOTHER PLAYER'S HAND.
+    //
+    // All validation precedes all mutation (the SR-23 idiom
+    // `move_object_to_bottom_of_zone` itself follows): a rejected command must
+    // not leave a half-applied bottoming behind.
+    let hand_zone = ZoneId::Hand(player);
+    {
+        // SR-25: read the HAND ZONE's membership, not the object map.
+        // `expect_zone` is the NONSWALLOW helper (the hand zone is built
+        // pre-turn-1 and never removed, ground truth 2) and this adds no bare
+        // `.objects.get(` lookup, so `bare_lookup_ratchet`'s ceiling for this
+        // file does not move.
+        let hand = state
+            .expect_zone(&hand_zone)
+            .ok_or(GameStateError::ZoneNotFound(hand_zone))?;
+        let mut seen: std::collections::HashSet<ObjectId> = std::collections::HashSet::new();
+        for obj_id in cards_to_bottom.iter() {
+            if !seen.insert(*obj_id) {
+                return Err(GameStateError::InvalidCommand(format!(
+                    "KeepHand: object {:?} named twice in cards_to_bottom (CR 103.5: each of \
+                     the cards put on the bottom is a distinct card of the hand)",
+                    obj_id
+                )));
+            }
+            if !hand.contains(obj_id) {
+                return Err(GameStateError::InvalidCommand(format!(
+                    "KeepHand: object {:?} is not in player {:?}'s hand (CR 103.5)",
+                    obj_id, player
+                )));
+            }
+        }
     }
     // Move each card from hand to bottom of library
     let lib_zone_id = ZoneId::Library(player);
