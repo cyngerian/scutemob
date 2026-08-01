@@ -52,6 +52,7 @@
 - [M9: Commander Rules Integration](#m9-commander-rules-integration) **(REVIEWED)**
 - [M9.4: Copy, Protection, Storm, Cascade, Trigger Doubling, Loop Detection](#m94-copy-protection-storm-cascade-trigger-doubling-loop-detection) **(REVIEWED)**
 - [M9.5: Game State Stepper (Developer Replay Viewer)](#m95-game-state-stepper-developer-replay-viewer) **(REVIEWED)**
+- [M11-local: Web Client & Local Play (First Playable)](#m11-local-web-client--local-play-first-playable) **(REVIEWED)**
 - [W1-B16: Dungeon / Venture into the Dungeon](#w1-b16-dungeon--venture-into-the-dungeon-cr-309-70149-725) **(REVIEWED)**
 - [Cross-Milestone Issue Index](#cross-milestone-issue-index)
 
