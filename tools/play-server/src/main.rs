@@ -230,7 +230,7 @@ fn build_router(state: SharedState, dist_dir: &PathBuf) -> Router {
 mod tests {
     use super::*;
 
-    use std::collections::{BTreeSet, HashSet};
+    use std::collections::{BTreeSet, HashMap, HashSet};
 
     /// Test-only: the sentinel `seed` that makes `POST /api/game` fail its rebuild
     /// *inside* the session lock.
@@ -251,7 +251,7 @@ mod tests {
     use axum::body::Body;
     use axum::http::{header, Request, StatusCode};
     use http_body_util::BodyExt;
-    use mtg_view_model::StateViewModel;
+    use mtg_view_model::{StateViewModel, Viewer};
     use serde_json::{json, Value};
     use tower::ServiceExt;
 
@@ -1500,6 +1500,874 @@ mod tests {
         assert_eq!(status, StatusCode::OK);
         assert_eq!(health["status"], "ok");
         assert_eq!(health["service"], "play-server");
+    }
+
+    // ── S7: targeting, combat and choice ──────────────────────────────────────
+
+    /// The S7 fixtures, **observed rather than chosen**.
+    ///
+    /// Every one of these numbers was read off a real playthrough by a temporary
+    /// `#[ignore]`d probe driven through `oneshot` (no port bound), which swept
+    /// `players` ∈ {2, 4} × `seed` ∈ 0..12 and reported, per game, whether the
+    /// human seat was ever offered a `DeclareAttackers`, a `DeclareBlockers`, or
+    /// a `CastSpell` whose target query returned a non-empty candidate list. The
+    /// probe was then deleted. Do not guess replacements for these: like the
+    /// exact-hand and [`TARGETED_SPELL`] pins above, a completeness flip in any
+    /// card-def batch re-deals every seeded deck and moves them. Re-observe.
+    ///
+    /// Seed 6 at four players is the only swept pair that reaches **both** halves
+    /// of combat (attackers at turn 5, blockers at turn 6); seed 9 reaches a
+    /// targeted removal spell with a real, legal creature candidate.
+    const COMBAT_SEED: u64 = 6;
+    const TARGET_SEED: u64 = 9;
+
+    /// How many decisions the drivers below will answer before giving up. Chosen
+    /// well above the observed cost of the slowest fixture (the X-value one needs
+    /// ~150 decisions to reach five untapped mana sources) so a small shift in
+    /// the deal does not turn a moved fixture into a timeout.
+    const S7_MAX_STEPS: u32 = 700;
+
+    /// Drive the human seat until `stop` accepts the payload.
+    ///
+    /// The policy is the dullest one that makes progress: take a land drop if
+    /// offered; else, when `develop` is set, cast the first spell that announces
+    /// nothing (no targets, no `{X}`, no modes) so the board actually fills;
+    /// else pass; else answer whatever is first, which covers the blocking
+    /// decisions a priority-shaped policy cannot answer at all (e.g.
+    /// `DiscardToHandSize` at cleanup). It **never declares attackers or
+    /// blockers**, so a combat fixture is reached by the game arriving at it
+    /// rather than by this driver steering into it.
+    ///
+    /// `develop` is a parameter and not a constant because the two fixture
+    /// families were observed under different policies and pinning each to the
+    /// one it was actually seen under is cheaper than re-sweeping:
+    ///
+    /// * **`true`** for the combat fixtures — with no creatures cast, the human
+    ///   seat is never offered a `DeclareAttackers` at all
+    ///   (`legal_actions.rs` emits it only when `eligible` is non-empty), and
+    ///   seed 6 ran 700 decisions without one.
+    /// * **`false`** for the targeting and X fixtures, which need a *stable*
+    ///   board late enough to have five untapped mana sources; casting along the
+    ///   way spends the mana and removes the creature the removal spell targets.
+    ///
+    /// Panics with the last decision if the fixture is not reached, so a moved
+    /// deal is a loud failure naming what it did offer.
+    async fn drive_until(
+        state: &SharedState,
+        seed: u64,
+        develop: bool,
+        stop: impl Fn(&Value) -> bool,
+    ) -> Value {
+        let (status, mut view) = post_json(
+            state,
+            "/api/game",
+            json!({ "players": PLAYERS, "seed": seed }),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "POST /api/game failed: {view}");
+
+        for _ in 0..S7_MAX_STEPS {
+            if view["decision"].is_null() {
+                break;
+            }
+            if stop(&view) {
+                return view;
+            }
+            let actions = decision(&view)["actions"]
+                .as_array()
+                .expect("actions is an array")
+                .clone();
+            let pick = actions
+                .iter()
+                .find(|a| a["kind"] == "PlayLand")
+                .or_else(|| {
+                    if !develop {
+                        return None;
+                    }
+                    actions.iter().find(|a| {
+                        a["kind"] == "CastSpell"
+                            && a["target_min"] == 0
+                            && a["needs_x"] == false
+                            && a["modes"].as_array().is_some_and(|m| m.is_empty())
+                    })
+                })
+                .or_else(|| actions.iter().find(|a| a["kind"] == "PassPriority"))
+                .or_else(|| actions.first())
+                .cloned()
+                .expect("a decision always offers at least one action");
+            let (status, next) = post_json(
+                state,
+                "/api/game/action",
+                json!({ "seq": seq(&view), "action_index": pick["index"] }),
+            )
+            .await;
+            assert_eq!(
+                status,
+                StatusCode::OK,
+                "driving seed {seed} failed on {}: {next}",
+                pick["label"]
+            );
+            view = next;
+        }
+        panic!(
+            "seed {seed} did not reach the fixture within {S7_MAX_STEPS} decisions; \
+             last payload was {view}"
+        );
+    }
+
+    /// Every action of the current decision, as a `Vec<Value>`.
+    fn options(view: &Value) -> Vec<Value> {
+        decision(view)["actions"]
+            .as_array()
+            .expect("actions is an array")
+            .clone()
+    }
+
+    /// The first action with a target slot holding at least `least` candidates.
+    ///
+    /// `least` is a parameter rather than a bare "non-empty" test because of a
+    /// perturbation check that would otherwise have been reported as passing:
+    /// reversing the candidate order inside `action_option_view` left
+    /// [`test_action_option_target_slots_match_engine_query`] **green**, because
+    /// the first fixture it stopped on had a single-candidate slot and reversing
+    /// a one-element list changes nothing. That test now asks for `least = 2`, so
+    /// its per-slot order assertion is actually exercised.
+    fn option_with_targets(view: &Value, least: usize) -> Option<Value> {
+        options(view).into_iter().find(|a| {
+            a["target_slots"].as_array().is_some_and(|slots| {
+                slots
+                    .iter()
+                    .any(|s| s["candidates"].as_array().unwrap().len() >= least)
+            })
+        })
+    }
+
+    /// The first action carrying the named combat payload (`"attack"` / `"block"`).
+    fn option_with_combat(view: &Value, field: &str) -> Option<Value> {
+        options(view).into_iter().find(|a| !a[field].is_null())
+    }
+
+    /// The candidate ids of one wire slot, in order.
+    fn slot_ids(slot: &Value) -> Vec<u64> {
+        slot["candidates"]
+            .as_array()
+            .expect("a slot has a candidates array")
+            .iter()
+            .map(|t| t["id"].as_u64().expect("id is a number"))
+            .collect()
+    }
+
+    // ── 10 ────────────────────────────────────────────────────────────────────
+
+    /// **Plan item 1**: `ActionOptionView.target_slots` is the engine's own
+    /// answer, not a client-side re-derivation.
+    ///
+    /// The wire payload is compared against a *second, independent* call to
+    /// `mtg_engine::spell_target_requirements` + `legal_targets_per_slot`, made
+    /// here against the same `GameState` the server rendered from and reached
+    /// through the session directly rather than through HTTP. Slot count, order
+    /// within each slot, and the `(min, max)` range must all agree exactly.
+    ///
+    /// That is a real check rather than a tautology because the two sides differ
+    /// in everything except the query: the wire side went through
+    /// `decision_view` -> `action_option_view` -> `target_options` -> serde ->
+    /// HTTP -> `serde_json::Value`, and reads `TargetOptionView::id`, while this
+    /// side reads `mtg_engine::Target` straight out of the engine. A rendering
+    /// bug that dropped, reordered or duplicated a slot shows up as an
+    /// inequality; a `modes_chosen`/`alt_cost` argument that did not match what
+    /// `params.rs` builds the `Command` with shows up as a different candidate
+    /// set.
+    ///
+    /// CR 601.2c.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_action_option_target_slots_match_engine_query() {
+        let state = shared_state();
+        let view = drive_until(&state, TARGET_SEED, false, |v| {
+            option_with_targets(v, 2).is_some()
+        })
+        .await;
+        let option = option_with_targets(&view, 2).expect("the driver stopped on one");
+        let index = option["index"].as_u64().expect("index is a number") as usize;
+
+        let wire_slots = option["target_slots"]
+            .as_array()
+            .expect("target_slots is an array")
+            .clone();
+
+        // Non-vacuity, stated first so a fixture that has drifted to an
+        // all-empty slot list cannot make the comparison below pass trivially.
+        assert!(
+            wire_slots
+                .iter()
+                .any(|s| !s["candidates"].as_array().unwrap().is_empty()),
+            "fixture drift: no slot has a candidate. Action: {option}"
+        );
+
+        let guard = state.session.lock().expect("session lock");
+        let play = guard.as_ref().expect("a session exists");
+        let game_state = play.game.state();
+        let pending = play.pending.as_ref().expect("a decision is outstanding");
+        let action = pending
+            .actions
+            .get(index)
+            .expect("the wire index addresses a real action");
+
+        let (requirements, source) = match action {
+            mtg_simulator::LegalAction::CastSpell { card, .. } => (
+                mtg_engine::spell_target_requirements(game_state, *card, &[], None),
+                *card,
+            ),
+            mtg_simulator::LegalAction::ActivateAbility {
+                source,
+                ability_index,
+                ..
+            } => (
+                mtg_engine::ability_target_requirements(game_state, *source, *ability_index),
+                *source,
+            ),
+            other => panic!("fixture drift: expected a targeting action, got {other:?}"),
+        };
+        let expected =
+            mtg_engine::legal_targets_per_slot(game_state, pending.player, source, &requirements);
+
+        assert_eq!(
+            wire_slots.len(),
+            expected.len(),
+            "slot count disagrees with the engine query"
+        );
+        for (i, (wire, engine)) in wire_slots.iter().zip(expected.iter()).enumerate() {
+            let engine_ids: Vec<u64> = engine
+                .iter()
+                .map(|t| match t {
+                    mtg_engine::Target::Object(id) => id.0,
+                    mtg_engine::Target::Player(p) => p.0,
+                })
+                .collect();
+            assert_eq!(
+                slot_ids(wire),
+                engine_ids,
+                "slot {i} disagrees with the engine query (order matters: the client \
+                 submits `targets` in slot order)"
+            );
+
+            // CR 601.2c per slot. `UpToN { count }` is one requirement worth up
+            // to `count` targets, so a client holding only the collective range
+            // cannot tell which slot the slack belongs to — which is why
+            // `TargetSlotView` carries its own. Checked against the same engine
+            // function over a one-element slice.
+            let (slot_min, slot_max) =
+                mtg_engine::target_count_range(std::slice::from_ref(&requirements[i]));
+            assert_eq!(
+                wire["min"].as_u64(),
+                Some(slot_min as u64),
+                "slot {i} min disagrees with the engine"
+            );
+            assert_eq!(
+                wire["max"].as_u64(),
+                Some(slot_max as u64),
+                "slot {i} max disagrees with the engine"
+            );
+        }
+
+        let (min, max) = mtg_engine::target_count_range(&requirements);
+        assert_eq!(option["target_min"].as_u64(), Some(min as u64));
+        assert_eq!(option["target_max"].as_u64(), Some(max as u64));
+
+        // The per-slot ranges must sum to the collective one — the property a
+        // client relies on when it validates a pick locally before submitting.
+        let (sum_min, sum_max) = wire_slots.iter().fold((0u64, 0u64), |(lo, hi), s| {
+            (
+                lo + s["min"].as_u64().expect("min is a number"),
+                hi + s["max"].as_u64().expect("max is a number"),
+            )
+        });
+        assert_eq!((sum_min, sum_max), (min as u64, max as u64));
+    }
+
+    // ── 11 ────────────────────────────────────────────────────────────────────
+
+    /// **Plan item 2, first half**: a human can attack through the API, and the
+    /// engine really registers it.
+    ///
+    /// The declaration is built entirely out of what the payload offered — the
+    /// first `attack.eligible` entry and the first `attack.targets` entry,
+    /// echoing that target's `value` verbatim rather than reconstructing the
+    /// `AttackTarget` encoding — which is exactly what the frontend picker does.
+    ///
+    /// The assertion is on `GameEvent::AttackersDeclared` reaching the client as
+    /// an `EventView`, not merely on a 200: a 200 is also what an empty
+    /// declaration returns (CR 508.1 makes attacking with nothing legal), so a
+    /// status-only test would pass against precisely the S6 bug this session
+    /// closes.
+    ///
+    /// CR 508.1 / CR 508.1a.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_declare_attackers_through_api_emits_attackers_declared() {
+        let state = shared_state();
+        let view = drive_until(&state, COMBAT_SEED, true, |v| {
+            option_with_combat(v, "attack").is_some()
+        })
+        .await;
+        let option = option_with_combat(&view, "attack").expect("the driver stopped on one");
+        let attack = &option["attack"];
+
+        let eligible = attack["eligible"].as_array().expect("eligible is an array");
+        let targets = attack["targets"].as_array().expect("targets is an array");
+        assert!(
+            !eligible.is_empty() && !targets.is_empty(),
+            "fixture drift: `legal_actions.rs` only emits this action when both are \
+             non-empty, so an empty one here means the payload is wrong: {attack}"
+        );
+        // Every combatant is labelled from the seat-redacted view, never an id.
+        for c in eligible {
+            assert!(
+                c["label"].as_str().is_some_and(|l| !l.is_empty()),
+                "an eligible attacker has no label: {c}"
+            );
+        }
+
+        let attacker = eligible[0]["id"].clone();
+        let target = targets[0]["value"].clone();
+        let (status, after) = post_json(
+            &state,
+            "/api/game/action",
+            json!({
+                "seq": seq(&view),
+                "action_index": option["index"],
+                "params": { "attackers": [[attacker, target]] },
+            }),
+        )
+        .await;
+        assert_eq!(
+            status,
+            StatusCode::OK,
+            "the declaration was refused: {after}"
+        );
+
+        let kinds: Vec<String> = after["events"]
+            .as_array()
+            .expect("events is an array")
+            .iter()
+            .map(|e| e["kind"].as_str().unwrap_or_default().to_string())
+            .collect();
+        assert!(
+            kinds.iter().any(|k| k == "AttackersDeclared"),
+            "no AttackersDeclared reached the client; events were {kinds:?}"
+        );
+    }
+
+    // ── 12 ────────────────────────────────────────────────────────────────────
+
+    /// **Plan item 2, second half**: a blocker the decision never offered is a
+    /// **400**, refused by this crate before the engine sees it.
+    ///
+    /// Two halves, and the second is what stops the first being satisfiable by a
+    /// validator that rejects everything:
+    ///
+    /// 1. An id outside `block.eligible` is refused with `bad_params`, the
+    ///    message names CR 509.1a, and — checked afterwards — the decision is
+    ///    still outstanding with no command applied, so the refusal cost the
+    ///    human nothing.
+    /// 2. The pairing the payload actually offered is **not** refused as
+    ///    `bad_params`. Deliberately not asserted to be a 200: `eligible` is the
+    ///    provider's own `can_block` list and the engine may still refuse the
+    ///    pair on a rule the provider does not model (flying, menace, a
+    ///    restriction), which would be a legitimate 422. What matters is that it
+    ///    got past this crate's own gate and reached engine code.
+    ///
+    /// CR 509.1 / CR 509.1a.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_declare_blockers_rejects_ineligible_blocker() {
+        let state = shared_state();
+        let view = drive_until(&state, COMBAT_SEED, true, |v| {
+            option_with_combat(v, "block").is_some()
+        })
+        .await;
+        let option = option_with_combat(&view, "block").expect("the driver stopped on one");
+        let block = &option["block"];
+        let eligible = block["eligible"].as_array().expect("eligible is an array");
+        let attackers = block["attackers"]
+            .as_array()
+            .expect("attackers is an array");
+        assert!(
+            !eligible.is_empty() && !attackers.is_empty(),
+            "fixture drift: this action is only emitted with both non-empty: {block}"
+        );
+
+        let at_seq = seq(&view);
+        let before = command_count(&view);
+        let attacker = attackers[0]["id"].clone();
+
+        // An id no object in this game has. Derived from the payload rather than
+        // hardcoded, so it cannot collide with a real object however the deal moves.
+        let offered: Vec<u64> = eligible
+            .iter()
+            .map(|c| c["id"].as_u64().expect("id is a number"))
+            .collect();
+        let bogus = offered.iter().copied().max().unwrap_or(0) + 100_000;
+
+        let (status, err) = post_json(
+            &state,
+            "/api/game/action",
+            json!({
+                "seq": at_seq,
+                "action_index": option["index"],
+                "params": { "blockers": [[bogus, attacker]] },
+            }),
+        )
+        .await;
+        assert_eq!(
+            status,
+            StatusCode::BAD_REQUEST,
+            "an ineligible blocker is a client error, not an engine rejection: {err}"
+        );
+        assert_eq!(err["kind"], "bad_params");
+        let message = err["error"].as_str().expect("an error message");
+        assert!(
+            message.contains("509.1a") && message.contains(&bogus.to_string()),
+            "the message must name the rule and the offending object: {message:?}"
+        );
+
+        // The refusal touched nothing.
+        let (status, still) = get_json(&state, "/api/game").await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(seq(&still), at_seq, "the decision is still outstanding");
+        assert_eq!(command_count(&still), before, "no command was applied");
+
+        // Control: the offered pairing is not stopped by *this* gate.
+        let (status, out) = post_json(
+            &state,
+            "/api/game/action",
+            json!({
+                "seq": at_seq,
+                "action_index": option["index"],
+                "params": { "blockers": [[eligible[0]["id"], attacker]] },
+            }),
+        )
+        .await;
+        assert_ne!(
+            status,
+            StatusCode::BAD_REQUEST,
+            "the validator rejected a pairing the server itself offered: {out}"
+        );
+    }
+
+    // ── 13 ────────────────────────────────────────────────────────────────────
+
+    /// **Architecture Invariant 7 at the target picker.**
+    ///
+    /// A target label is the fifth rendering site the S4 handoff warned about,
+    /// and the S6 handoff's HIGH is the reason it gets its own test rather than
+    /// riding on test 7's whole-body sweep: redaction follows the *rendering
+    /// site*, not the zone, and a new site is a new place for it to be missed.
+    ///
+    /// # What each assertion is worth, stated because two of them are worth less
+    /// # than they look
+    ///
+    /// 1. **Non-vacuity, first.** At least one target label is a real card name,
+    ///    and no label is empty. Without this everything below passes for a
+    ///    payload with no labels at all, which is how a redaction test rots into
+    ///    a no-op.
+    /// 2. **The substantive check**: every object label equals the name the
+    ///    **seat-redacted** `StateViewModel` carries for that object id — the
+    ///    *same* view `NameIndex` is built from, re-derived here from the session
+    ///    rather than read off the payload. A label sourced from anywhere else —
+    ///    `state.objects()`, the omniscient view, a raw `characteristics.name` —
+    ///    fails this the moment the two disagree.
+    /// 3. **A forward guard, not a live proof**: no name any *other* seat holds
+    ///    in hand appears in any label. **This cannot currently fire, and saying
+    ///    so is the point.** `legal_targets_per_slot` enumerates candidates from
+    ///    Battlefield, Stack and Graveyard only (its own doc), and the combat
+    ///    lists are battlefield creatures — every one a public zone. On top of
+    ///    that, `redact::redact_hands` rewrites a hidden hand card's `object_id`
+    ///    to 0, so no id collected here can key into a hand entry at all. The
+    ///    assertion is kept because it is the check that *would* catch a future
+    ///    widening of `legal_targets_per_slot` into a hidden zone, which is
+    ///    exactly the change that would make this site leak. It is not evidence
+    ///    that redaction works today.
+    ///
+    /// # The reachable case this fixture does not contain
+    ///
+    /// The one way a *target* label can differ between the omniscient and
+    /// redacted views today is a **face-down battlefield permanent** (CR 708.2a:
+    /// no name, so `non_empty` yields [`view::HIDDEN_LABEL`]). No seeded game in
+    /// the S7 fixture sweep put one on the board, so assertion 2's inequality
+    /// branch is unexercised — every id in this fixture happens to agree between
+    /// the two views. Recorded rather than papered over: reaching it needs a
+    /// fixture with a morph or a manifest, which this driver cannot steer to.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_target_option_labels_are_seat_redacted() {
+        let state = shared_state();
+        let view = drive_until(&state, TARGET_SEED, false, |v| {
+            option_with_targets(v, 1).is_some()
+        })
+        .await;
+
+        // Every label this decision renders for a target or a combatant, paired
+        // with the object id it claims to name (`None` for a player label, whose
+        // name is public by CR 108.1 and lives in a different index).
+        let mut labels: Vec<(Option<u64>, String)> = Vec::new();
+        for option in options(&view) {
+            let mut push_slots = |slots: &Value| {
+                for slot in slots.as_array().into_iter().flatten() {
+                    for t in slot["candidates"].as_array().into_iter().flatten() {
+                        let id = (t["kind"] == "object")
+                            .then(|| t["id"].as_u64().expect("a candidate carries a numeric id"));
+                        labels.push((id, t["label"].as_str().unwrap_or_default().to_string()));
+                    }
+                }
+            };
+            push_slots(&option["target_slots"]);
+            for mode in option["modes"].as_array().into_iter().flatten() {
+                push_slots(&mode["target_slots"]);
+            }
+            // `attack.eligible` / `block.eligible` / `block.attackers` are all
+            // creatures; `attack.targets` is a player-or-planeswalker list, so its
+            // entries carry their own `kind`.
+            for field in ["attack", "block"] {
+                for list in ["eligible", "targets", "attackers"] {
+                    for c in option[field][list].as_array().into_iter().flatten() {
+                        let is_object = c["kind"].is_null() || c["kind"] == "planeswalker";
+                        let id = is_object
+                            .then(|| c["id"].as_u64().expect("a combatant carries a numeric id"));
+                        labels.push((id, c["label"].as_str().unwrap_or_default().to_string()));
+                    }
+                }
+            }
+        }
+
+        let placeholders = [view::HIDDEN_LABEL, view::UNKNOWN_LABEL];
+        assert!(
+            labels
+                .iter()
+                .any(|(_, l)| !l.is_empty() && !placeholders.contains(&l.as_str())),
+            "vacuous: no target label named anything. Labels: {labels:?}"
+        );
+        assert!(
+            labels.iter().all(|(_, l)| !l.is_empty()),
+            "a label was empty — a client would show a bare id: {labels:?}"
+        );
+
+        let guard = state.session.lock().expect("session lock");
+        let play = guard.as_ref().expect("a session exists");
+        let human = play.human;
+
+        // Assertion 2, the substantive one: every object label equals the name
+        // the SEAT-REDACTED view carries for that id. Re-derived from the session
+        // rather than read off the payload, so this compares two independently
+        // built things.
+        let redacted = StateViewModel::from_game_state_for(
+            play.game.state(),
+            &play.names,
+            Viewer::Seat(human),
+        );
+        let mut redacted_names: HashMap<u64, String> = HashMap::new();
+        for permanents in redacted.zones.battlefield.values() {
+            for p in permanents {
+                redacted_names.insert(p.object_id, p.name.clone());
+            }
+        }
+        for zone in [&redacted.zones.graveyard, &redacted.zones.hand] {
+            for cards in zone.values() {
+                for c in cards {
+                    if !c.hidden {
+                        redacted_names.insert(c.object_id, c.name.clone());
+                    }
+                }
+            }
+        }
+        for item in &redacted.zones.stack {
+            if let Some(source) = item.source_object_id {
+                redacted_names.insert(source, item.source_name.clone());
+            }
+        }
+
+        let mut checked = 0usize;
+        for (id, label) in &labels {
+            let Some(id) = id else { continue };
+            let Some(expected) = redacted_names.get(id) else {
+                continue;
+            };
+            let expected = if expected.is_empty() {
+                view::HIDDEN_LABEL
+            } else {
+                expected.as_str()
+            };
+            assert_eq!(
+                label, expected,
+                "label for object {id} is not the seat-redacted view's name for it"
+            );
+            checked += 1;
+        }
+        assert!(
+            checked > 0,
+            "vacuous: no object label could be cross-checked against the redacted view"
+        );
+
+        // Assertion 3, the forward guard. See the doc comment: this cannot fire
+        // today, and is kept for the widening that would make it able to.
+        let omniscient = StateViewModel::from_game_state(play.game.state(), &play.names);
+        let mut secrets: Vec<String> = Vec::new();
+        for (owner, cards) in omniscient.zones.hand.iter() {
+            if play.names.get(&human).is_some_and(|n| n == owner) {
+                continue;
+            }
+            for card in cards {
+                if !card.name.is_empty() {
+                    secrets.push(card.name.clone());
+                }
+            }
+        }
+        assert!(
+            !secrets.is_empty(),
+            "vacuous: the oracle found no hidden card to look for"
+        );
+
+        for (_, label) in &labels {
+            for secret in &secrets {
+                assert!(
+                    !label.contains(secret.as_str()),
+                    "target label {label:?} names {secret:?}, a card in another seat's hand"
+                );
+            }
+        }
+    }
+
+    // ── 14 ────────────────────────────────────────────────────────────────────
+
+    /// **Plan item 6**: an announced `x_value` reaches `CastSpellData.x_value`.
+    ///
+    /// Proven at the far end rather than at the boundary: the assertion reads the
+    /// `Command` the engine actually applied out of `LocalGame::journal()`, so it
+    /// covers the whole chain — `ActionParamsDto` -> `ActionParams` ->
+    /// `params.rs`'s `CastSpell` arm -> `Command::CastSpell(CastSpellData)`.
+    ///
+    /// # Why the test taps mana by hand first
+    ///
+    /// It has to, and the reason is a real limitation worth recording rather
+    /// than a test-harness convenience. `LocalGame::auto_tap_commands_for` reads
+    /// `obj.characteristics.mana_cost` — the **printed** cost — and knows nothing
+    /// about `cast.x_value`, so it taps for `{1}{B}` and the engine then refuses
+    /// the cast for want of the extra `{3}`. Observed, not inferred: the same
+    /// submission without the manual taps answers **422 "player does not have
+    /// enough mana to pay the cost"**.
+    ///
+    /// So this test fills the pool through five real `TapForMana` submissions
+    /// first. S3 made auto-tap conditional on the pool (`OOS-M11-2`'s pool half),
+    /// which is what makes that work: with the cost already covered,
+    /// `auto_tap_commands_for` returns `None` and the surplus stays available for
+    /// X. The gap is filed as **OOS-M11-8** and stated in the crate README.
+    ///
+    /// CR 107.3 / CR 601.2b.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_x_value_is_forwarded_to_cast_spell_data() {
+        const X: u64 = 3;
+        const SOURCES: usize = 5;
+
+        let state = shared_state();
+        // Wait for a board where the spell is castable AND enough untapped
+        // sources exist to cover its cost plus X.
+        let mut view = drive_until(&state, TARGET_SEED, false, |v| {
+            option_with_targets(v, 1).is_some()
+                && options(v)
+                    .iter()
+                    .filter(|a| a["kind"] == "TapForMana")
+                    .count()
+                    >= SOURCES
+        })
+        .await;
+
+        let label = option_with_targets(&view, 1).expect("the driver stopped on one")["label"]
+            .as_str()
+            .expect("a label")
+            .to_string();
+
+        // Mana abilities do not use the stack and do not pass priority, so the
+        // human keeps the decision across each one — but each answer mints a new
+        // `seq`, hence the re-read of the action list every iteration.
+        for i in 0..SOURCES {
+            let tap = options(&view)
+                .into_iter()
+                .find(|a| a["kind"] == "TapForMana")
+                .unwrap_or_else(|| panic!("ran out of mana sources after {i}"));
+            let (status, next) = post_json(
+                &state,
+                "/api/game/action",
+                json!({ "seq": seq(&view), "action_index": tap["index"] }),
+            )
+            .await;
+            assert_eq!(status, StatusCode::OK, "tapping failed: {next}");
+            view = next;
+        }
+
+        let cast = options(&view)
+            .into_iter()
+            .find(|a| a["label"] == label.as_str())
+            .expect("the cast is still offered after tapping");
+        let target = cast["target_slots"][0]["candidates"][0]["value"].clone();
+        let target_id = cast["target_slots"][0]["candidates"][0]["id"]
+            .as_u64()
+            .expect("id is a number");
+
+        let (status, after) = post_json(
+            &state,
+            "/api/game/action",
+            json!({
+                "seq": seq(&view),
+                "action_index": cast["index"],
+                "params": { "targets": [target], "x_value": X },
+            }),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "the cast was refused: {after}");
+
+        let guard = state.session.lock().expect("session lock");
+        let play = guard.as_ref().expect("a session exists");
+        let cast_command = play
+            .game
+            .journal()
+            .iter()
+            .rev()
+            .find_map(|record| match &record.command {
+                mtg_engine::Command::CastSpell(data) => Some(data.clone()),
+                _ => None,
+            })
+            .expect("the applied command list contains the cast");
+
+        assert_eq!(
+            cast_command.x_value, X as u32,
+            "the announced X did not reach CastSpellData"
+        );
+        assert_eq!(
+            cast_command.targets,
+            vec![mtg_engine::Target::Object(mtg_engine::ObjectId(target_id))],
+            "the announced target did not reach CastSpellData"
+        );
+        assert_eq!(
+            cast_command.player, play.human,
+            "the command must name the human seat and no other"
+        );
+    }
+
+    // ── 15 ────────────────────────────────────────────────────────────────────
+
+    /// **Architecture Invariant 7's chokepoint, machine-enforced instead of
+    /// asserted in prose.**
+    ///
+    /// The README says "Neither omniscient entry point (`from_game_state`,
+    /// `Viewer::Omniscient`) is reachable from the production paths of this
+    /// crate", and `view.rs`'s module doc says every label comes from a
+    /// [`view::NameIndex`] derived from the seat-redacted view. Until this test
+    /// both were held by review alone.
+    ///
+    /// # Why a source gate and not a behavioural test — the answer was measured
+    ///
+    /// The obvious behavioural test is "swap the view `NameIndex` is built from
+    /// and watch something go red". **Nothing goes red.** That was run, not
+    /// assumed: `api.rs::seat_view` was edited to build its `NameIndex` from
+    /// `StateViewModel::from_game_state` (the omniscient path) and the whole
+    /// crate stayed green — all 23 tests, including
+    /// `test_target_option_labels_are_seat_redacted` **and** S5's whole-body
+    /// sweep `test_seat_view_over_http_contains_no_other_hand_card_names`.
+    ///
+    /// The reason is structural rather than a gap in those tests. `NameIndex` is
+    /// only ever *queried* for ids that appear in an action, a target candidate
+    /// or a combat list — and every one of those comes from a public zone
+    /// (`legal_targets_per_slot` enumerates Battlefield / Stack / Graveyard
+    /// only; combatants are battlefield creatures; a `CastSpell` names the
+    /// seat's **own** hand card, which it is entitled to). On every id that ever
+    /// gets labelled, the omniscient and redacted views **agree**. The one
+    /// construct that would separate them is a face-down battlefield permanent
+    /// (CR 708.2a), and no seeded game the fixture sweep found puts one on the
+    /// board.
+    ///
+    /// So the invariant is real, currently unfalsifiable by any payload this
+    /// crate can produce, and therefore exactly the kind of claim that rots. A
+    /// source gate catches the edit; a fixture would catch the consequence, and
+    /// there is no reachable fixture. Both facts are recorded rather than one of
+    /// them being implied.
+    ///
+    /// # What is checked
+    ///
+    /// Over the **production region** of every `.rs` file under `src/` — the
+    /// part above the `#[cfg(test)]` cut, comment- and string-blanked by
+    /// [`code_only`], so a doc comment naming the symbol cannot satisfy or trip
+    /// it — neither omniscient entry point may appear. The test module below the
+    /// cut is deliberately exempt: it reaches `from_game_state` on purpose, as
+    /// the out-of-band oracle the redaction tests check the payload against.
+    ///
+    /// Needles are assembled with `concat!` for the same reason the no-socket
+    /// gate does it: this function sits below the cut in a file the gate reads,
+    /// and a plainly-written needle would be found by the sibling gate.
+    #[test]
+    fn test_production_code_never_builds_an_omniscient_view() {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let mut sources: Vec<(String, String)> = Vec::new();
+        collect_rs_files(&root.join("src"), &mut sources);
+        assert!(!sources.is_empty(), "the walk found no source files");
+
+        let needles = [
+            concat!("from_game_", "state("),
+            concat!("Viewer::", "Omniscient"),
+        ];
+
+        let mut checked = 0usize;
+        for (name, source) in &sources {
+            // Everything above the `#[cfg(test)]` cut is production code. A file
+            // with no cut at all is production code in full.
+            let region = test_region(source);
+            let production_len = source.len() - region.len();
+            let production = code_only(&source[..production_len]);
+            for needle in needles {
+                assert!(
+                    !production.contains(needle),
+                    "{name} reaches an omniscient view from production code                      (matched {needle:?}). Every label this crate renders must come                      from `StateViewModel::from_game_state_for(.., Viewer::Seat(..))`                      — Architecture Invariant 7. If this is deliberate, the README's                      'Hidden information' section has to change with it."
+                );
+            }
+            checked += 1;
+        }
+        assert!(checked > 0, "vacuous: no production region was scanned");
+
+        // Non-vacuity — and the two needles are NOT in the same position, which
+        // this check established by going red the first time it ran, on a draft
+        // that assumed they were.
+        //
+        // `from_game_state(` is used for real, in this file's test region, as the
+        // out-of-band oracle the redaction tests compare the payload against. So
+        // finding it there proves the scan above matches real code rather than
+        // nothing at all.
+        let (_, this_file) = sources
+            .iter()
+            .find(|(name, _)| name.ends_with("main.rs"))
+            .expect("the walk found this file");
+        let tests_here = code_only(test_region(this_file));
+        assert!(
+            tests_here.contains(needles[0]),
+            "vacuous: needle {:?} matches nothing even in the test region, so the \
+             production scan above proved nothing",
+            needles[0]
+        );
+
+        // The second needle is a **forward guard**, and that is a weaker claim
+        // stated rather than glossed: no code in this crate names it today, in
+        // either region — the omniscient path is reached through the
+        // `from_game_state` shim — so there is nothing real to find it in and the
+        // check above cannot be repeated for it. What is pinned instead is that
+        // the *mechanism* would catch a future call site: `code_only` leaves the
+        // symbol intact in code and blanks it inside a comment, so production
+        // code naming it trips the scan while a doc comment naming it does not.
+        let sample = code_only("let v = Viewer::Omnisc\u{69}ent; // Viewer::Omnisc\u{69}ent\n");
+        assert!(
+            sample.contains(needles[1]),
+            "the gate cannot see {:?} in code at all",
+            needles[1]
+        );
+        assert_eq!(
+            sample.matches(needles[1]).count(),
+            1,
+            "the gate must see {:?} in code but not in a comment",
+            needles[1]
+        );
     }
 
     // ── 9 ─────────────────────────────────────────────────────────────────────

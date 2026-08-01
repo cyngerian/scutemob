@@ -273,6 +273,121 @@ fn json_rejection(rejection: JsonRejection) -> ApiFailure {
     ApiFailure::new(status, kind, rejection.body_text())
 }
 
+// ── Combat submission validation (plan item 2) ────────────────────────────────
+
+/// CR 508.1 / CR 509.1: check a submitted combat declaration against the very
+/// lists the client was shown.
+///
+/// # Why this exists at all, when the engine validates too
+///
+/// The engine does check attacker and blocker legality, and it would refuse an
+/// ineligible pair — but as a **422** carrying a `GameStateError`, i.e. "the
+/// engine looked at your command and said no". That is the wrong report for this
+/// case. The action list the server sent already enumerated exactly which
+/// creatures may attack and what they may attack; a submission naming something
+/// outside those lists is wrong *against the response the client is holding*,
+/// with no reference to game state needed. That is this crate's own definition of
+/// a 400 (`ApiFailure`'s doc: "400 means this crate refused the request before
+/// any engine code judged it").
+///
+/// It also closes a hole the engine cannot see. `params.rs` maps
+/// `LegalAction::DeclareAttackers` with **default** params to
+/// `Command::DeclareAttackers { attackers: vec![] }` — a legal, irreversible "I
+/// attack with nothing" that the engine accepts silently. The S6 handoff flagged
+/// that as its second review MEDIUM. It is not fixed by rejecting the empty set
+/// (declaring no attackers is legal under CR 508.1 and rejecting it would
+/// deadlock a combat); it is fixed by the client now having a picker, which is
+/// item 4 of this session. What this function adds is that a picker bug cannot
+/// silently produce a *different* legal declaration than the one the human made.
+///
+/// # What is checked, and what is deliberately left to the engine
+///
+/// Checked here: membership in the provider's own `eligible` / `targets` /
+/// `attackers` lists, and duplicate declarations of the same creature. Both are
+/// decidable from the response alone.
+///
+/// Left to the engine: everything that needs rules reasoning — menace (CR
+/// 702.110b) needing two blockers, evasion, requirements and restrictions (CR
+/// 509.1c/d), banding. Re-deriving any of those here would be the OOS-RS-2 drift
+/// class the whole `queries.rs` delegation exists to avoid.
+fn validate_combat_params(
+    action: &mtg_simulator::LegalAction,
+    params: &crate::view::ActionParamsDto,
+) -> Result<(), ApiFailure> {
+    use mtg_simulator::LegalAction;
+
+    let bad = |message: String| ApiFailure::new(StatusCode::BAD_REQUEST, "bad_params", message);
+
+    match action {
+        LegalAction::DeclareAttackers { eligible, targets } => {
+            let mut seen = std::collections::BTreeSet::new();
+            for (attacker, target) in &params.attackers {
+                if !eligible.contains(attacker) {
+                    return Err(bad(format!(
+                        "object {} is not an eligible attacker (CR 508.1a); this decision \
+                         offered {:?}",
+                        attacker.0,
+                        eligible.iter().map(|o| o.0).collect::<Vec<_>>()
+                    )));
+                }
+                if !targets.contains(target) {
+                    return Err(bad(format!(
+                        "{target:?} is not a legal attack target for this combat (CR 508.1a); \
+                         this decision offered {targets:?}"
+                    )));
+                }
+                if !seen.insert(attacker.0) {
+                    return Err(bad(format!(
+                        "object {} is declared as an attacker more than once (CR 508.1a: a \
+                         creature attacks one player or planeswalker)",
+                        attacker.0
+                    )));
+                }
+            }
+            Ok(())
+        }
+        LegalAction::DeclareBlockers {
+            eligible,
+            attackers,
+        } => {
+            let mut seen = std::collections::BTreeSet::new();
+            for (blocker, attacker) in &params.blockers {
+                if !eligible.contains(blocker) {
+                    return Err(bad(format!(
+                        "object {} is not an eligible blocker (CR 509.1a); this decision \
+                         offered {:?}",
+                        blocker.0,
+                        eligible.iter().map(|o| o.0).collect::<Vec<_>>()
+                    )));
+                }
+                if !attackers.contains(attacker) {
+                    return Err(bad(format!(
+                        "object {} is not an attacking creature in this combat (CR 509.1a); \
+                         this decision offered {:?}",
+                        attacker.0,
+                        attackers.iter().map(|o| o.0).collect::<Vec<_>>()
+                    )));
+                }
+                // CR 509.1a: a creature blocks one attacker unless something says
+                // otherwise. The exceptions ("can block an additional creature")
+                // are real, so this rejects only the *identical* pair twice, which
+                // is meaningless under every rule rather than merely unusual.
+                if !seen.insert((blocker.0, attacker.0)) {
+                    return Err(bad(format!(
+                        "object {} is assigned to block object {} more than once",
+                        blocker.0, attacker.0
+                    )));
+                }
+            }
+            Ok(())
+        }
+        // Every other variant: `params.rs` already refuses `attackers`/`blockers`
+        // on it with `ParamError::UnsupportedParam` -> 400, so there is nothing to
+        // add and nothing to duplicate.
+        _ => Ok(()),
+    }
+}
+
 /// **404**, deliberately. "No game exists" is the absence of the resource the
 /// route names, which is what 404 means; 409 would imply the resource exists in
 /// a conflicting state. The client's remedy is `POST /api/game`.
@@ -335,7 +450,7 @@ fn seat_view(session: &mut PlaySession, outcome: &AdvanceOutcome) -> SeatView {
         .pending
         .as_ref()
         .zip(wire_seq)
-        .map(|(pending, seq)| view::decision_view(pending, seq, state, &names));
+        .map(|(pending, seq)| view::decision_view(pending, seq, state, &names, &session.names));
 
     let game_over = match outcome {
         AdvanceOutcome::AwaitingHuman(_) => None,
@@ -543,6 +658,28 @@ pub async fn post_action(
     tokio::task::block_in_place(|| {
         let mut guard = state.session.lock().map_err(|_| poisoned())?;
         let play = guard.as_mut().ok_or_else(no_session)?;
+
+        // CR 508.1 / CR 509.1 (plan item 2): check a combat declaration against
+        // the lists this decision actually offered, before anything is applied.
+        //
+        // Only when the `seq` matches: a stale `seq` must keep answering **409
+        // `stale_decision`** (the client's remedy is to re-read and retry), and
+        // validating an old submission against the *current* decision's action
+        // list would report the mismatch as a 400 instead — a worse diagnosis for
+        // the same fault. `submit` re-checks `seq` itself, so this is a guard on
+        // *whether to speak*, not a duplicate of the staleness check.
+        //
+        // An out-of-range `action_index` falls through untouched and `submit`
+        // reports it as `UnknownAction` -> 400, which is already the right answer.
+        if play.pending_wire_seq() == Some(req.seq) {
+            if let Some(action) = play
+                .pending
+                .as_ref()
+                .and_then(|pending| pending.actions.get(req.action_index))
+            {
+                validate_combat_params(action, &req.params)?;
+            }
+        }
 
         // `LegalAction` never crossed the wire: the index is resolved against
         // the `PendingDecision` the server is still holding.

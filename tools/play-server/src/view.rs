@@ -43,7 +43,10 @@
 
 use std::collections::HashMap;
 
-use mtg_engine::{AdditionalCost, AttackTarget, GameState, ObjectId, PlayerId, Target};
+use mtg_engine::{
+    AbilityDefinition, AdditionalCost, AttackTarget, Effect, GameState, ModeSelection, ObjectId,
+    PlayerId, Target, TargetRequirement,
+};
 use mtg_simulator::{
     ActionParams, DecisionKind, GameResult, HaltReason, LegalAction, PendingDecision,
 };
@@ -141,22 +144,76 @@ pub struct ActionOptionView {
     /// The primary object this action is about, when it has one (the card being
     /// cast, the permanent being tapped). Purely so the client can highlight it.
     pub object_id: Option<u64>,
-    /// CR 601.2c: per-slot legal target candidates.
+    /// CR 601.2c: per-slot legal target candidates, populated from
+    /// `crates/engine/src/rules/queries.rs` (`spell_target_requirements` /
+    /// `ability_target_requirements` + `legal_targets_per_slot`).
     ///
-    /// **S7 populates this** from `crates/engine/src/rules/queries.rs`
-    /// (`spell_target_requirements` + `legal_targets_per_slot`). This session
-    /// ships the field and always leaves it empty, so the wire shape is settled
-    /// before the frontend lands. Per the S4 handoff, those labels are a fifth
-    /// rendering site and must be built from the seat-redacted view exactly as
-    /// [`NameIndex`] does here.
-    pub target_slots: Vec<Vec<TargetOptionView>>,
+    /// Outer index = slot, in the same order the engine's requirement list is in,
+    /// which is the order `Command::CastSpell`'s / `Command::ActivateAbility`'s
+    /// `targets` vector must be in. Per the S4 handoff, these labels are a fifth
+    /// rendering site and are built from the seat-redacted view exactly as
+    /// [`NameIndex`] does for action labels.
+    ///
+    /// **Empty for a modal spell whose targets are per-mode** (CR 700.2c): the
+    /// slots then live on each [`ModeOptionView`] instead, because which slots
+    /// exist depends on which modes the human picks. See [`ModeOptionView::target_slots`].
+    pub target_slots: Vec<TargetSlotView>,
+    /// CR 601.2c: how many targets the engine will accept in total, from
+    /// `mtg_engine::target_count_range`. `TargetRequirement::UpToN` is why the
+    /// two can differ — "up to N target creatures" legally takes fewer.
+    pub target_min: usize,
+    pub target_max: usize,
     /// CR 107.3 / 601.2b: this action needs an `x_value` announced.
-    pub needs_x: bool,
-    /// CR 700.2: selectable modes.
     ///
-    /// **S7 populates this**, for the same reason as `target_slots`; empty this
-    /// session.
+    /// Answered for **both** `CastSpell` (the spell's own `{X}`) and
+    /// `ActivateAbility` (the `{X}` in its `ActivationCost`) — see
+    /// [`action_needs_x`]. The ability half is S7 closing the README's
+    /// Limitation 5, which had let an `{X}` ability be announced as 0 in silence.
+    pub needs_x: bool,
+    /// CR 700.2: selectable modes, empty for a non-modal action.
     pub modes: Vec<ModeOptionView>,
+    /// CR 700.2a: how many modes must be chosen. Both 0 when [`Self::modes`] is
+    /// empty.
+    pub mode_min: usize,
+    pub mode_max: usize,
+    /// CR 508.1: present exactly on a `DeclareAttackers` option.
+    pub attack: Option<AttackOptionsView>,
+    /// CR 509.1: present exactly on a `DeclareBlockers` option.
+    pub block: Option<BlockOptionsView>,
+}
+
+/// One target slot: its own count range, plus every candidate legal for it.
+///
+/// # Why this is a struct and not a bare `Vec<TargetOptionView>`
+///
+/// A slot is **one `TargetRequirement`**, and a requirement is not always worth
+/// one target. `TargetRequirement::UpToN { count }` is a single requirement that
+/// admits up to `count` targets — `casting::target_count_range` adds `count` to
+/// the maximum for it, and `validate_targets_inner`'s second pass assigns
+/// several announced targets to that one slot.
+///
+/// So a client holding only `Vec<Vec<TargetOptionView>>` plus a *collective*
+/// `(min, max)` cannot tell **which** slot the slack belongs to, and the obvious
+/// reading — one pick per slot — silently caps an "up to two" spell at one
+/// target. That is not hypothetical: `force_of_vigor` is `Complete` and
+/// deck-legal with exactly one `UpToN { count: 2 }` requirement, so "destroy up
+/// to two target artifacts and/or enchantments" would have destroyed at most
+/// one. Caught in review, not by a test — no seeded game in the S7 fixture sweep
+/// dealt such a card.
+///
+/// [`Self::min`] / [`Self::max`] are this slot's own contribution, computed by
+/// handing `mtg_engine::target_count_range` a one-element slice, so they cannot
+/// drift from the collective [`ActionOptionView::target_min`]/`target_max`
+/// (which is the same function over the whole list).
+#[derive(Debug, Serialize)]
+pub struct TargetSlotView {
+    /// 0 for an `UpToN` slot, 1 for every other requirement.
+    pub min: usize,
+    /// `count` for an `UpToN { count }` slot, 1 for every other requirement.
+    pub max: usize,
+    /// Every `Target` the engine would accept in this slot, in the engine's own
+    /// order.
+    pub candidates: Vec<TargetOptionView>,
 }
 
 /// One legal target for one slot.
@@ -167,6 +224,16 @@ pub struct TargetOptionView {
     pub id: u64,
     /// Redacted display text.
     pub label: String,
+    /// The engine's own `Target`, serialized verbatim.
+    ///
+    /// **Additive to the plan's `{kind, id, label}` sketch, and deliberately so.**
+    /// `ActionParamsDto::targets` is `Vec<Target>`, i.e. `{"Object": 12}` /
+    /// `{"Player": 2}`. A client that had only `kind` and `id` would have to
+    /// *reconstruct* that encoding, which is a second place for the wire shape to
+    /// be known and therefore a place for it to drift. With this field the client
+    /// echoes back exactly what the server sent and `kind`/`id` are for display
+    /// and highlighting only.
+    pub value: Target,
 }
 
 /// One selectable mode of a modal spell or ability (CR 700.2).
@@ -174,6 +241,65 @@ pub struct TargetOptionView {
 pub struct ModeOptionView {
     pub index: usize,
     pub label: String,
+    /// CR 700.2c/700.2f: this mode's own target slots, when the card declares
+    /// per-mode target requirements (`ModeSelection.mode_targets`). Empty when
+    /// the card's targets are flat, in which case [`ActionOptionView::target_slots`]
+    /// carries them instead.
+    pub target_slots: Vec<TargetSlotView>,
+    /// CR 601.2c for *this mode's* slots, from `mtg_engine::target_count_range`.
+    ///
+    /// The option-level [`ActionOptionView::target_min`]/`target_max` are
+    /// computed with an empty `modes_chosen` and are therefore `(0, 0)` for a
+    /// per-mode-targeting card (`action_target_requirements`' doc says why), so
+    /// a client that has just let the human pick modes has nothing usable at the
+    /// option level. It sums these instead.
+    ///
+    /// Added because the S7 frontend agent found the gap and reported it rather
+    /// than guessing a range — its first pass had to approximate every per-mode
+    /// slot as mandatory, which is wrong for a mode carrying `UpToN`.
+    pub target_min: usize,
+    pub target_max: usize,
+}
+
+/// CR 508.1: what a `DeclareAttackers` option may declare.
+#[derive(Debug, Serialize)]
+pub struct AttackOptionsView {
+    /// Creatures that may be declared as attackers, from the provider's
+    /// `LegalAction::DeclareAttackers { eligible, .. }`.
+    pub eligible: Vec<CombatantOptionView>,
+    /// CR 508.1a: what each attacker may be declared as attacking — a player or
+    /// a planeswalker — from the same `LegalAction`'s `targets`.
+    pub targets: Vec<AttackTargetOptionView>,
+}
+
+/// CR 509.1: what a `DeclareBlockers` option may declare.
+#[derive(Debug, Serialize)]
+pub struct BlockOptionsView {
+    /// Creatures that may be declared as blockers, from the provider's
+    /// `LegalAction::DeclareBlockers { eligible, .. }`.
+    pub eligible: Vec<CombatantOptionView>,
+    /// CR 509.1a: the attacking creatures a blocker may be assigned to, from the
+    /// same `LegalAction`'s `attackers`.
+    pub attackers: Vec<CombatantOptionView>,
+}
+
+/// One creature in a combat declaration, with a seat-redacted label.
+#[derive(Debug, Serialize)]
+pub struct CombatantOptionView {
+    pub id: u64,
+    pub label: String,
+}
+
+/// CR 508.1a: one thing an attacker may attack.
+#[derive(Debug, Serialize)]
+pub struct AttackTargetOptionView {
+    /// `"player"` or `"planeswalker"`.
+    pub kind: String,
+    pub id: u64,
+    pub label: String,
+    /// The engine's own `AttackTarget`, serialized verbatim — same argument as
+    /// [`TargetOptionView::value`].
+    pub value: AttackTarget,
 }
 
 /// Why the game stopped. Covers both `AdvanceOutcome::GameOver` (CR 104) and
@@ -331,7 +457,32 @@ impl NameIndex {
             names.insert(c.object_id, card_label(c.hidden, &c.name));
         }
         for item in &view.zones.stack {
-            names.insert(item.id, non_empty(&item.source_name));
+            // **`source_object_id`, not `id`** — and the difference is a bug fix,
+            // not a preference.
+            //
+            // `StackItemView::id` is a **`StackObject`** id. This map is keyed by
+            // `ObjectId` (that is what [`NameIndex::label`] takes, and every
+            // caller — action objects, target candidates, combatants — holds
+            // one). The two are different id spaces that both count from small
+            // integers, so the previous `names.insert(item.id, ..)` was writing a
+            // foreign key into an `ObjectId` map: at best dead (nothing ever
+            // looks a stack id up here), at worst it **overwrote a real
+            // permanent's name**, because the stack is inserted last and a
+            // `StackObject` id can numerically equal an `ObjectId`.
+            //
+            // `source_object_id` is the id `mtg_engine::Target::Object` actually
+            // names for a spell on the stack, which is the key a target lookup
+            // arrives with. Indexing the wrong one is how a counterspell's target
+            // came out as [`UNKNOWN_LABEL`] — observed on a real S7 payload
+            // (Dispel targeting an instant on the stack), not reasoned about.
+            //
+            // The value is the already-redacted `source_name`, which
+            // `redact::redact_stack` has blanked if the seat may not identify the
+            // source (CR 405.1 makes *that* a spell is on the stack public; CR
+            // 702.36b keeps a face-down one's identity private).
+            if let Some(source) = item.source_object_id {
+                names.insert(source, non_empty(&item.source_name));
+            }
         }
 
         NameIndex { names }
@@ -527,17 +678,221 @@ fn pay_verb(pay: bool) -> &'static str {
 /// CR 107.3 / 601.2b: does this action need an `x_value`?
 ///
 /// Read through `calculate_characteristics`, never off `obj.characteristics`
-/// directly — the standing layer-correctness gotcha. Only `CastSpell` is
-/// answered today: an activated ability's `{X}` lives in its `ActivationCost`,
-/// which `LegalAction::ActivateAbility` does not carry, so S7 will answer that
-/// half alongside `modes`.
+/// directly — the standing layer-correctness gotcha.
+///
+/// **Both halves are answered as of S7.** `CastSpell` reads the spell's own
+/// `mana_cost.x_count`. `ActivateAbility` reads the `{X}` in the *ability's*
+/// `ActivationCost`, reached through the same layer-resolved
+/// `activated_abilities` list `ability_index` indexes into (`abilities.rs`) —
+/// which is what the S6 handoff's "`LegalAction::ActivateAbility` does not carry
+/// it" note missed: the action does not carry the cost, but the *state* does, and
+/// `source` + `ability_index` are enough to find it.
+///
+/// That closes the README's Limitation 5. Before it, a deck-legal
+/// `mirror_entity` ({X}: creatures become X/X) was announced as X = 0 with no
+/// error and no way for the client to know an `{X}` existed.
+///
+/// `TapForMana` is deliberately not answered: a mana ability with `{X}` in its
+/// cost has no channel on `Command::TapForMana` at all, so reporting `true`
+/// would offer the human a box whose value is discarded.
 fn action_needs_x(action: &LegalAction, state: &GameState) -> bool {
-    let LegalAction::CastSpell { card, .. } = action else {
-        return false;
+    match action {
+        LegalAction::CastSpell { card, .. } => mtg_engine::calculate_characteristics(state, *card)
+            .and_then(|chars| chars.mana_cost)
+            .is_some_and(|cost| cost.x_count > 0),
+        LegalAction::ActivateAbility {
+            source,
+            ability_index,
+            ..
+        } => mtg_engine::calculate_characteristics(state, *source)
+            .and_then(|chars| chars.activated_abilities.get(*ability_index).cloned())
+            .and_then(|ability| ability.cost.mana_cost)
+            .is_some_and(|cost| cost.x_count > 0),
+        _ => false,
+    }
+}
+
+/// CR 700.2a: the `ModeSelection` this action's object carries, if any.
+///
+/// Two different lookups, because the two live in different places:
+///
+/// * an **activated ability**'s modes are on the layer-resolved
+///   `ActivatedAbility` that `ability_index` indexes (`Characteristics::
+///   activated_abilities`), so this is the same read `handle_activate_ability`
+///   makes and cannot drift from it;
+/// * a **spell**'s modes live on the card definition's `AbilityDefinition::Spell
+///   { modes }`. `rules::casting::spell_mode_selection` is the engine's own
+///   accessor for exactly this and it is `pub(crate)`, so the four lines below
+///   re-derive it through the public `GameState::card_registry`.
+///
+/// **That re-derivation is the one place in this file that restates an engine
+/// rule rather than delegating**, and it is recorded as such rather than left
+/// implicit: if `spell_mode_selection` ever stops being "the first
+/// `AbilityDefinition::Spell` with `modes: Some(..)`", this goes stale silently.
+/// It is confined to a *display* concern (which modes to offer); the engine
+/// re-validates `modes_chosen` on the cast path regardless (CR 601.2b, PB-DP3),
+/// so a drift here is a wrong picker, never a wrong game state.
+fn action_modes(action: &LegalAction, state: &GameState) -> Option<ModeSelection> {
+    match action {
+        LegalAction::ActivateAbility {
+            source,
+            ability_index,
+            ..
+        } => mtg_engine::calculate_characteristics(state, *source)
+            .and_then(|chars| chars.activated_abilities.get(*ability_index).cloned())
+            .and_then(|ability| ability.modes),
+        LegalAction::CastSpell { card, .. } => {
+            let card_id = state
+                .objects()
+                .get(card)
+                .and_then(|obj| obj.card_id.clone())?;
+            let def = state.card_registry().get(card_id)?;
+            def.abilities.iter().find_map(|a| match a {
+                AbilityDefinition::Spell { modes: Some(m), .. } => Some(m.clone()),
+                _ => None,
+            })
+        }
+        _ => None,
+    }
+}
+
+/// A one-line label for a mode.
+///
+/// `ModeSelection.modes` is a `Vec<Effect>` and an `Effect` carries **no** prose
+/// — there is no oracle-text-per-mode field anywhere in the DSL. So the label is
+/// the `Effect`'s `Debug` rendering, truncated: honest about what the mode does,
+/// and visibly machine-shaped rather than pretending to be printed text.
+fn mode_label(index: usize, effect: &Effect) -> String {
+    const MAX: usize = 90;
+    let mut detail = format!("{effect:?}");
+    // Debug output is one line for these; collapse anyway so a nested pretty
+    // formatter could never break the label across lines.
+    detail = detail.split_whitespace().collect::<Vec<_>>().join(" ");
+    if detail.chars().count() > MAX {
+        detail = detail.chars().take(MAX - 1).collect::<String>() + "…";
+    }
+    format!("Mode {}: {detail}", index + 1)
+}
+
+/// CR 601.2c: the target requirements this action announces, from the engine's
+/// own query surface — never re-derived here.
+///
+/// `modes_chosen` is `&[]` and `alt_cost` is `None` because that is exactly what
+/// `mtg_simulator::params::action_to_command_with_params` builds the `Command`
+/// with for these two variants: it passes `alt_cost: None` unconditionally, and
+/// forwards `params.modes_chosen`, which is empty at render time (the human has
+/// not answered yet). Any other pair of arguments here would advertise a target
+/// set for a cast the client cannot actually make.
+fn action_target_requirements(action: &LegalAction, state: &GameState) -> Vec<TargetRequirement> {
+    match action {
+        LegalAction::CastSpell { card, .. } => {
+            mtg_engine::spell_target_requirements(state, *card, &[], None)
+        }
+        LegalAction::ActivateAbility {
+            source,
+            ability_index,
+            ..
+        } => mtg_engine::ability_target_requirements(state, *source, *ability_index),
+        // Every other variant either takes no targets or carries them inside the
+        // action itself (`ActivateBloodrush`, `CastWithMutate`,
+        // `ChooseTriggerTargets`), and `params.rs` refuses a `targets` param on
+        // all of them with `UnsupportedParam`. Offering a picker whose value the
+        // mapping table would reject with a 400 is worse than offering none.
+        _ => Vec::new(),
+    }
+}
+
+/// The object whose controller/source context the target query runs against.
+fn target_query_source(action: &LegalAction) -> Option<ObjectId> {
+    match action {
+        LegalAction::CastSpell { card, .. } => Some(*card),
+        LegalAction::ActivateAbility { source, .. } => Some(*source),
+        _ => None,
+    }
+}
+
+/// Render one slot's worth of `Target`s for the wire, seat-redacted.
+fn target_options(
+    targets: &[Target],
+    names: &NameIndex,
+    player_names: &HashMap<PlayerId, String>,
+) -> Vec<TargetOptionView> {
+    targets
+        .iter()
+        .map(|t| match t {
+            Target::Object(id) => TargetOptionView {
+                kind: "object".to_string(),
+                id: id.0,
+                label: names.label(*id),
+                value: t.clone(),
+            },
+            Target::Player(p) => TargetOptionView {
+                kind: "player".to_string(),
+                id: p.0,
+                label: display_name(*p, player_names),
+                value: t.clone(),
+            },
+        })
+        .collect()
+}
+
+/// CR 508.1 / CR 509.1: render the combat payloads straight out of the
+/// `LegalAction` the provider emitted.
+///
+/// **Nothing is re-derived**: `eligible`, `targets` and `attackers` are the
+/// provider's own `can_attack` / `can_block` verdicts (`legal_actions.rs`), and
+/// [`crate::api::validate_combat_params`] validates a submission against these
+/// same three lists, so the picker the human sees and the check the server makes
+/// cannot disagree.
+fn combat_options(
+    action: &LegalAction,
+    names: &NameIndex,
+    player_names: &HashMap<PlayerId, String>,
+) -> (Option<AttackOptionsView>, Option<BlockOptionsView>) {
+    let combatants = |ids: &[ObjectId]| -> Vec<CombatantOptionView> {
+        ids.iter()
+            .map(|id| CombatantOptionView {
+                id: id.0,
+                label: names.label(*id),
+            })
+            .collect()
     };
-    mtg_engine::calculate_characteristics(state, *card)
-        .and_then(|chars| chars.mana_cost)
-        .is_some_and(|cost| cost.x_count > 0)
+    match action {
+        LegalAction::DeclareAttackers { eligible, targets } => (
+            Some(AttackOptionsView {
+                eligible: combatants(eligible),
+                targets: targets
+                    .iter()
+                    .map(|t| match t {
+                        AttackTarget::Player(p) => AttackTargetOptionView {
+                            kind: "player".to_string(),
+                            id: p.0,
+                            label: display_name(*p, player_names),
+                            value: t.clone(),
+                        },
+                        AttackTarget::Planeswalker(id) => AttackTargetOptionView {
+                            kind: "planeswalker".to_string(),
+                            id: id.0,
+                            label: names.label(*id),
+                            value: t.clone(),
+                        },
+                    })
+                    .collect(),
+            }),
+            None,
+        ),
+        LegalAction::DeclareBlockers {
+            eligible,
+            attackers,
+        } => (
+            None,
+            Some(BlockOptionsView {
+                eligible: combatants(eligible),
+                attackers: combatants(attackers),
+            }),
+        ),
+        _ => (None, None),
+    }
 }
 
 /// Render a `PendingDecision` for the wire.
@@ -558,21 +913,14 @@ pub fn decision_view(
     wire_seq: u64,
     state: &GameState,
     names: &NameIndex,
+    player_names: &HashMap<PlayerId, String>,
 ) -> DecisionView {
     let actions = decision
         .actions
         .iter()
         .enumerate()
-        .map(|(index, action)| ActionOptionView {
-            index,
-            kind: action_kind(action).to_string(),
-            label: action_label(action, names),
-            object_id: action_object(action).map(|id| id.0),
-            // S7 populates this from crates/engine/src/rules/queries.rs.
-            target_slots: Vec::new(),
-            needs_x: action_needs_x(action, state),
-            // S7 populates this too.
-            modes: Vec::new(),
+        .map(|(index, action)| {
+            action_option_view(index, action, decision.player, state, names, player_names)
         })
         .collect();
 
@@ -581,6 +929,140 @@ pub fn decision_view(
         kind: decision_kind_tag(decision.kind),
         player: decision.player.0,
         actions,
+    }
+}
+
+/// Render one `LegalAction` for the wire.
+///
+/// # Cost, stated with both terms and measured rather than argued
+///
+/// `legal_targets_per_slot` is one `validate_targets_inner` per (slot ×
+/// candidate) and each object candidate costs a `calculate_characteristics`.
+/// `queries.rs` asks in terms that this be **measured** before a browser polls
+/// it, so it was.
+///
+/// The candidate sweep runs once per option-level requirement **plus once per
+/// declared mode** of a modal action. The second term matters and an earlier
+/// draft of this comment denied it: for a per-mode-targeting card the
+/// option-level requirement list is empty *by design*
+/// (`action_target_requirements`' doc), so exactly the actions that sentence
+/// called free are the ones that pay `modes × slots × candidates`. An action
+/// declaring neither — a land drop, a mana ability, a pass, which is most of a
+/// priority list — touches no candidate at all.
+///
+/// **Measured** (M11-local S7, temporary `#[ignore]`d probe through `oneshot`,
+/// since removed), and the numbers are the probe's rather than an estimate — a
+/// first draft of this paragraph carried invented ones and the probe
+/// contradicted them:
+///
+/// > 4 players, seed 9, **turn 17** (the deepest board the S7 fixtures reach):
+/// > **12** actions offered, of which **1** carries a target requirement, over
+/// > **22** candidates across Battlefield / Stack / Graveyard. One whole
+/// > [`decision_view`] costs **≈ 201 µs**, mean of 20 renders, **debug build**.
+///
+/// That is against a `POST /api/game/action` that also runs every bot seat
+/// forward to the human's next decision, so it is nowhere near the dominant
+/// term, and the per-`(state, source)` cache `queries.rs` suggests is not needed
+/// at this board size.
+///
+/// What the number does **not** establish: the cost is roughly linear in
+/// (targeted actions × slots × candidates), and this board exercises exactly one
+/// targeted action. A hand full of removal on a wide board — say ten targeted
+/// options over a hundred candidates — is ~50× this and is worth re-measuring
+/// before assuming it is still fine. No seeded fixture has produced one.
+fn action_option_view(
+    index: usize,
+    action: &LegalAction,
+    player: PlayerId,
+    state: &GameState,
+    names: &NameIndex,
+    player_names: &HashMap<PlayerId, String>,
+) -> ActionOptionView {
+    let requirements = action_target_requirements(action, state);
+    let (target_min, target_max) = mtg_engine::target_count_range(&requirements);
+    let source = target_query_source(action);
+
+    let slots = |reqs: &[TargetRequirement]| -> Vec<TargetSlotView> {
+        let Some(src) = source else {
+            return Vec::new();
+        };
+        if reqs.is_empty() {
+            return Vec::new();
+        }
+        // `legal_targets_per_slot` returns one entry per requirement, in the same
+        // order — its own doc says "parallel to `requirements`" — so zipping the
+        // two is index-correspondent by the engine's construction rather than by
+        // an assumption made here.
+        mtg_engine::legal_targets_per_slot(state, player, src, reqs)
+            .iter()
+            .zip(reqs.iter())
+            .map(|(candidates, req)| {
+                // Per-slot range from the same function that computes the
+                // collective one, handed a one-element slice. `UpToN { count }`
+                // is the only requirement whose min and max differ.
+                let (min, max) = mtg_engine::target_count_range(std::slice::from_ref(req));
+                TargetSlotView {
+                    min,
+                    max,
+                    candidates: target_options(candidates, names, player_names),
+                }
+            })
+            .collect()
+    };
+
+    let target_slots = slots(&requirements);
+
+    // CR 700.2a/700.2c. A modal action's per-mode target requirements are only
+    // knowable once the modes are chosen, and the human has not chosen yet, so
+    // each mode carries its own slots and the client picks the ones for the modes
+    // it selects. `spell_target_requirements` with an empty `modes_chosen`
+    // deliberately returns `vec![]` for such a card (its own doc, divergence 1),
+    // which is why `target_slots` above is empty for them rather than wrong.
+    let mode_selection = action_modes(action, state);
+    let (modes, mode_min, mode_max) = match &mode_selection {
+        None => (Vec::new(), 0, 0),
+        Some(ms) => {
+            let rendered = ms
+                .modes
+                .iter()
+                .enumerate()
+                .map(|(i, effect)| {
+                    let reqs = ms
+                        .mode_targets
+                        .as_ref()
+                        .and_then(|mt| mt.get(i))
+                        .cloned()
+                        .unwrap_or_default();
+                    let (mode_target_min, mode_target_max) = mtg_engine::target_count_range(&reqs);
+                    ModeOptionView {
+                        index: i,
+                        label: mode_label(i, effect),
+                        target_slots: slots(&reqs),
+                        target_min: mode_target_min,
+                        target_max: mode_target_max,
+                    }
+                })
+                .collect();
+            (rendered, ms.min_modes, ms.max_modes)
+        }
+    };
+
+    let (attack, block) = combat_options(action, names, player_names);
+
+    ActionOptionView {
+        index,
+        kind: action_kind(action).to_string(),
+        label: action_label(action, names),
+        object_id: action_object(action).map(|id| id.0),
+        target_slots,
+        target_min,
+        target_max,
+        needs_x: action_needs_x(action, state),
+        modes,
+        mode_min,
+        mode_max,
+        attack,
+        block,
     }
 }
 

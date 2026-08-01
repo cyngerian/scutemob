@@ -436,8 +436,14 @@ fn test_event_view_redacts_other_seats_card_draw() {
 /// alone does not *prove* its own provenance — the load-bearing evidence is the
 /// `git diff` of the move, which is a recorded rename whose only non-additive
 /// hunks are the `///`→`//!` header conversion and one `let mut` binding.
-/// Regenerated exactly once since, for the additive `hidden` field: 12 deltas,
-/// every one an added `"hidden": false`.
+/// Regenerated **twice** since, both times additively and both times with the
+/// delta counted rather than eyeballed: once for the `hidden` field (12 deltas,
+/// every one an added `"hidden": false`), and once by M11-local S7 for
+/// `StackItemView::source_object_id` (**1** delta, `zones.stack[0].
+/// source_object_id: 9` — the fixture has one stack entry). Each regeneration
+/// was diffed key-by-key against the previous snapshot, and "additive" means
+/// literally zero removed and zero changed keys, not merely that it looked
+/// right.
 #[test]
 fn test_omniscient_view_is_unchanged_for_fixture_state() {
     let (state, names) = golden_fixture_state();

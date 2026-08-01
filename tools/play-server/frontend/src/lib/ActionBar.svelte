@@ -1,8 +1,10 @@
 <script>
   /**
-   * ActionBar — the pending decision, rendered as buttons.
+   * ActionBar — the pending decision, rendered as buttons, plus the picker chain
+   * that fills in `params` before submitting.
    *
-   * M11-local Session 6 (`memory/m11-session-plan.md` §4, item 5).
+   * M11-local Session 6 (`memory/m11-session-plan.md` §4, item 5); Session 7
+   * (§4, item 6 wiring) adds the picker chain described below.
    *
    * Props:
    *   decision (DecisionView|null) — `{ seq, kind, player, actions }`
@@ -12,16 +14,67 @@
    *   onAct (fn(index, params))   — submit an action
    *   onRefresh (fn)              — re-read the seat view
    *   onDismissError (fn)
-   *   onCancel (fn)               — Escape: clear the caller's pending picker
+   *   onCancel (fn)               — Escape: clear the caller's OWN pending picker
+   *                                  (`PlayApp`'s inline chooser/click message) —
+   *                                  this component's picker chain has its own
+   *                                  cancel path (`cancelChain`), called alongside
    *
    * # `index`, and nothing else
    *
    * A submission is `{seq, action_index, params}`. The server maps the index back
    * through the `PendingDecision` it is still holding, so no engine type is a wire
    * type (`view.rs` module doc, "`LegalAction` is NEVER serialized"). `params` is
-   * `{}` this session; Session 7 adds the target / attacker / blocker / X / mode
-   * pickers that fill it.
+   * assembled by the picker chain below, or `{}` for an action that announces
+   * nothing.
+   *
+   * # The picker chain (Session 7)
+   *
+   * Clicking an option does not submit immediately — it opens whichever pickers
+   * that option's `ActionOptionView` fields call for, in the CR-mandated order,
+   * accumulating one params object across the chain and submitting once at the
+   * end:
+   *
+   *   1. `ValuePrompt`     — iff `needs_x || modes.length > 0` (CR 601.2b
+   *                          announces `{X}`/modes as part of casting, before
+   *                          CR 601.2c's target announcement)
+   *   2. `TargetPicker`    — iff the resolved slot list is non-empty. For a
+   *                          per-mode-targeting card (`ModeOptionView.target_slots`
+   *                          non-empty on at least one mode) the slots are the
+   *                          CHOSEN modes' own `target_slots`, concatenated in
+   *                          ascending mode-index order; otherwise the option's
+   *                          own flat `target_slots`.
+   *   3. `AttackerPicker`  — iff `option.attack` is present (CR 508.1)
+   *   4. `BlockerPicker`   — iff `option.block` is present (CR 509.1)
+   *
+   * A stage that is not needed is skipped entirely (`pickerNeeded` below), and an
+   * option needing none of the four submits `{}` immediately, exactly as before
+   * Session 7. Escape (or a picker's own Cancel button) aborts the whole chain
+   * and submits nothing — `cancelChain` clears every field the chain touched.
+   *
+   * # Per-mode target ranges come from the server, not from a guess here
+   *
+   * For a card whose targets are genuinely per-mode, the **option-level**
+   * `target_min`/`target_max` are `(0, 0)`: `spell_target_requirements` is
+   * queried at render time with an empty `modes_chosen` (`view.rs`'s own
+   * divergence-1 note), because the human has not chosen modes yet. So this
+   * component sums each **chosen** mode's own `target_min`/`target_max` instead.
+   *
+   * That pair was not in the payload when this file was first written — the
+   * first version had to approximate every per-mode slot as mandatory, which is
+   * wrong for a mode carrying CR 601.2c's `UpToN`. It was reported rather than
+   * shipped as a guess, and `ModeOptionView` gained the fields.
+   *
+   * Still unverified against a real per-mode-targeting card: no seeded game in
+   * the fixture sweep dealt one, and there is no frontend test harness in this
+   * repo (plan §8 R7). The arithmetic is right by construction; that it renders
+   * correctly against a live modal spell is untested, and saying so is cheaper
+   * than implying otherwise.
    */
+  import TargetPicker from './TargetPicker.svelte';
+  import AttackerPicker from './AttackerPicker.svelte';
+  import BlockerPicker from './BlockerPicker.svelte';
+  import ValuePrompt from './ValuePrompt.svelte';
+
   const {
     decision = null,
     loading = false,
@@ -48,66 +101,176 @@
   /** Found by `kind`, never by a hardcoded index — the list order is the server's. */
   const passAction = $derived(actions.find((a) => a.kind === 'PassPriority') ?? null);
 
-  /**
-   * Combat declarations submit an **empty** set until Session 7's pickers land,
-   * and the button says so rather than letting it happen quietly.
-   *
-   * `params.rs` maps `LegalAction::DeclareAttackers` with default params straight
-   * to `Command::DeclareAttackers { attackers: vec![] }` (and likewise for
-   * blockers), which is a legal and irreversible "I attack with nothing" for that
-   * combat. That is a different animal from the targeted-spell case, which the
-   * engine *refuses* with a loud 422 under CR 601.2c — here nothing complains and
-   * the human's combat step is simply gone.
-   *
-   * The buttons stay **enabled** deliberately. At a `DeclareAttackers` decision
-   * the declaration is typically the only option offered, so disabling it would
-   * deadlock the game rather than protect anyone; CR 508.1 also makes declaring
-   * no attackers a legal choice. The fix available to S6 is honesty about what the
-   * click does, not prevention.
-   */
-  const EMPTY_SET_KINDS = ['DeclareAttackers', 'DeclareBlockers'];
-  function declaresEmptySet(kind) {
-    return EMPTY_SET_KINDS.includes(kind);
+  // ── Picker chain state ──────────────────────────────────────────────────────
+
+  /** The `ActionOptionView` currently being answered, or `null` between chains. */
+  let activeOption = $state(null);
+
+  /** Which picker is showing right now: 'value' | 'targets' | 'attack' | 'block' | null. */
+  let stage = $state(null);
+
+  /** Stage names already answered in the current chain. */
+  let doneStages = $state(new Set());
+
+  /** Params accumulated across the chain so far; submitted whole at the end. */
+  let paramsAcc = $state({});
+
+  /** True while the human is mid-picker — dims/disables the action list. */
+  const chainOpen = $derived(stage !== null);
+
+  /** Does `option` declare per-mode target slots (as opposed to flat ones)? */
+  function isPerModeTargeting(option) {
+    return (option.modes ?? []).some((m) => (m.target_slots?.length ?? 0) > 0);
   }
 
   /**
-   * An activated ability's `{X}` is announced as **0** by this session, silently,
-   * and the client cannot tell which abilities even have one.
-   *
-   * `params.rs` maps `LegalAction::ActivateAbility` with default params to
-   * `x_value: None`, and `abilities.rs` reads it as `unwrap_or(0)`. The server's
-   * `action_needs_x` answers `CastSpell` **only** — an activated ability's `{X}`
-   * lives in its `ActivationCost`, which `LegalAction::ActivateAbility` does not
-   * carry (`README.md` Limitation 5) — so `needs_x` is `false` here whether or not
-   * the ability has one, and there is no field to branch on.
-   *
-   * It is reachable and destructive, not theoretical: `mirror_entity` is
-   * deck-legal (`Complete` by the `#[default]` derive) and its activated ability
-   * has `x_count: 1`, so one click makes every creature 0/0 and the board dies to
-   * SBAs, with no error to read. Same shape as the combat case above and arguably
-   * worse, because there the label at least names a declaration.
-   *
-   * The tag is therefore **unconditional** on this kind rather than conditional on
-   * a flag that does not exist. It goes away when S7 closes Limitation 5 and can
-   * populate `needs_x` for abilities.
+   * The slot list the `TargetPicker` stage should render for `option`, given
+   * whatever has been accumulated in `paramsSoFar` (specifically `modes_chosen`).
+   * See the module doc for the per-mode-vs-flat distinction and its known gap.
    */
-  function announcesXAsZero(kind) {
-    return kind === 'ActivateAbility';
+  function resolvedTargetSlots(option, paramsSoFar) {
+    if (isPerModeTargeting(option)) {
+      const chosen = [...(paramsSoFar.modes_chosen ?? [])].sort((a, b) => a - b);
+      const slots = [];
+      for (const idx of chosen) {
+        const mode = option.modes.find((m) => m.index === idx);
+        if (mode) slots.push(...mode.target_slots);
+      }
+      return slots;
+    }
+    return option.target_slots ?? [];
   }
 
-  function submit(option) {
-    if (loading) return;
-    onAct?.(option.index, {});
+  /**
+   * `[min, max]` for the `TargetPicker` stage (CR 601.2c).
+   *
+   * For a per-mode-targeting card this is the **sum over the chosen modes** of
+   * each mode's own server-computed range, not a slot count — see the module
+   * doc. Summing is right because the announced `targets` array is the chosen
+   * modes' slots concatenated, so the collective range is the sum of the parts.
+   */
+  function resolvedTargetRange(option, paramsSoFar) {
+    if (isPerModeTargeting(option)) {
+      const chosen = [...(paramsSoFar.modes_chosen ?? [])];
+      let min = 0;
+      let max = 0;
+      for (const idx of chosen) {
+        const mode = option.modes.find((m) => m.index === idx);
+        if (!mode) continue;
+        min += mode.target_min ?? 0;
+        max += mode.target_max ?? 0;
+      }
+      return [min, max];
+    }
+    return [option.target_min, option.target_max];
   }
+
+  const currentTargetSlots = $derived.by(() =>
+    activeOption ? resolvedTargetSlots(activeOption, paramsAcc) : [],
+  );
+  const currentTargetRange = $derived.by(() =>
+    activeOption ? resolvedTargetRange(activeOption, paramsAcc) : [0, 0],
+  );
+
+  /**
+   * Which stage (if any) is still needed for `option`, given what `doneSet`
+   * already covers and what `paramsSoFar` holds. Returns `null` when nothing is
+   * left — the caller submits.
+   */
+  function pickerNeeded(option, paramsSoFar, doneSet) {
+    if (!doneSet.has('value')) {
+      const needsValue = option.needs_x || (option.modes?.length ?? 0) > 0;
+      if (needsValue) return 'value';
+    }
+    if (!doneSet.has('targets')) {
+      if (resolvedTargetSlots(option, paramsSoFar).length > 0) return 'targets';
+    }
+    if (!doneSet.has('attack') && option.attack) return 'attack';
+    if (!doneSet.has('block') && option.block) return 'block';
+    return null;
+  }
+
+  function advanceChain() {
+    if (!activeOption) return;
+    const needed = pickerNeeded(activeOption, paramsAcc, doneStages);
+    if (needed === null) {
+      const option = activeOption;
+      const params = paramsAcc;
+      resetChain();
+      onAct?.(option.index, params);
+      return;
+    }
+    stage = needed;
+  }
+
+  /**
+   * Begin the picker chain for `option`, or submit immediately if it needs none.
+   * This is the sole entry point for acting on an option — the plain button
+   * click below and `PlayApp`'s click-through (via `beginExternal`) both call it,
+   * so a targeted spell can never be submitted with an empty `targets` array from
+   * either path.
+   */
+  function beginChain(option) {
+    if (loading || chainOpen) return;
+    activeOption = option;
+    doneStages = new Set();
+    paramsAcc = {};
+    advanceChain();
+  }
+
+  /** Called by `PlayApp`'s click-through via `bind:this` — same entry point as a click. */
+  export function beginExternal(option) {
+    beginChain(option);
+  }
+
+  function cancelChain() {
+    resetChain();
+  }
+
+  function resetChain() {
+    activeOption = null;
+    stage = null;
+    doneStages = new Set();
+    paramsAcc = {};
+  }
+
+  function onValueConfirm(result) {
+    paramsAcc = { ...paramsAcc, ...result };
+    doneStages = new Set([...doneStages, 'value']);
+    advanceChain();
+  }
+
+  function onTargetsConfirm(targets) {
+    paramsAcc = { ...paramsAcc, targets };
+    doneStages = new Set([...doneStages, 'targets']);
+    advanceChain();
+  }
+
+  function onAttackConfirm(attackers) {
+    paramsAcc = { ...paramsAcc, attackers };
+    doneStages = new Set([...doneStages, 'attack']);
+    advanceChain();
+  }
+
+  function onBlockConfirm(blockers) {
+    paramsAcc = { ...paramsAcc, blockers };
+    doneStages = new Set([...doneStages, 'block']);
+    advanceChain();
+  }
+
+  /** A decision that disappears (game over, refresh) must not leave a dangling picker. */
+  $effect(() => {
+    if (!decision) resetChain();
+  });
 
   /**
    * Keyboard shortcuts (plan item 5): space = pass priority, Escape = cancel the
    * pending picker and dismiss the error strip.
    *
-   * Bound on `window` in an `$effect` with cleanup. The handler reads `decision`
-   * and `loading` when it fires rather than when the effect runs, so the effect
-   * registers once instead of re-binding on every state change while still seeing
-   * current values.
+   * Bound on `window` in an `$effect` with cleanup. The handler reads `decision`,
+   * `loading` and `stage` when it fires rather than when the effect runs, so the
+   * effect registers once instead of re-binding on every state change while still
+   * seeing current values.
    */
   $effect(() => {
     function isTyping(target) {
@@ -127,9 +290,12 @@
         // either behaviour consistently.
         event.preventDefault();
         if (loading) return;
+        // A picker chain is open: space must not pass priority underneath it.
+        if (stage !== null) return;
         const pass = decision?.actions?.find((a) => a.kind === 'PassPriority');
         if (pass) onAct?.(pass.index, {});
       } else if (event.key === 'Escape') {
+        cancelChain();
         onCancel?.();
         onDismissError?.();
       }
@@ -203,7 +369,7 @@
         <span class="decision-seq">seq {decision.seq}</span>
       </div>
 
-      <div class="action-groups">
+      <div class="action-groups" class:dimmed={chainOpen}>
         <div class="action-group plays">
           {#if plays.length === 0}
             <span class="no-plays">No plays available.</span>
@@ -211,21 +377,12 @@
             {#each plays as option (option.index)}
               <button
                 class="action-btn kind-{option.kind}"
-                class:empty-set={declaresEmptySet(option.kind) || announcesXAsZero(option.kind)}
-                disabled={loading}
-                title="{option.kind}{option.needs_x
-                  ? ' — needs X (Session 7)'
-                  : ''}{declaresEmptySet(option.kind)
-                  ? ' — submits an EMPTY set: no attacker/blocker picker exists until Session 7, and the declaration is irreversible for this combat'
-                  : ''}{announcesXAsZero(option.kind)
-                  ? ' — announces X as 0. If this ability has {X} the effect resolves for zero, silently; the server cannot tell the client which abilities have one until Session 7 (README Limitation 5)'
-                  : ''}"
-                onclick={() => submit(option)}
+                disabled={loading || chainOpen}
+                title={option.kind}
+                onclick={() => beginChain(option)}
               >
                 {option.label}
                 {#if option.needs_x}<span class="needs-x">X</span>{/if}
-                {#if declaresEmptySet(option.kind)}<span class="empty-tag">declares none</span>{/if}
-                {#if announcesXAsZero(option.kind)}<span class="empty-tag">X = 0</span>{/if}
               </button>
             {/each}
           {/if}
@@ -236,9 +393,9 @@
             {#each controls as option (option.index)}
               <button
                 class="action-btn control kind-{option.kind}"
-                disabled={loading}
+                disabled={loading || chainOpen}
                 title={option.kind === 'PassPriority' ? 'Pass priority (space)' : option.kind}
-                onclick={() => submit(option)}
+                onclick={() => beginChain(option)}
               >
                 {option.label}
                 {#if option.kind === 'PassPriority'}<span class="key-hint">space</span>{/if}
@@ -248,6 +405,43 @@
         {/if}
       </div>
     </div>
+
+    {#if stage === 'value'}
+      <ValuePrompt
+        needsX={activeOption.needs_x}
+        modes={activeOption.modes}
+        modeMin={activeOption.mode_min}
+        modeMax={activeOption.mode_max}
+        disabled={loading}
+        onConfirm={onValueConfirm}
+        onCancel={cancelChain}
+      />
+    {:else if stage === 'targets'}
+      <TargetPicker
+        slots={currentTargetSlots}
+        min={currentTargetRange[0]}
+        max={currentTargetRange[1]}
+        disabled={loading}
+        onConfirm={onTargetsConfirm}
+        onCancel={cancelChain}
+      />
+    {:else if stage === 'attack'}
+      <AttackerPicker
+        eligible={activeOption.attack.eligible}
+        targets={activeOption.attack.targets}
+        disabled={loading}
+        onConfirm={onAttackConfirm}
+        onCancel={cancelChain}
+      />
+    {:else if stage === 'block'}
+      <BlockerPicker
+        eligible={activeOption.block.eligible}
+        attackers={activeOption.block.attackers}
+        disabled={loading}
+        onConfirm={onBlockConfirm}
+        onCancel={cancelChain}
+      />
+    {/if}
 
     {#if passAction}
       <div class="hint">space = pass priority · Esc = cancel selection</div>
@@ -311,6 +505,10 @@
     flex-wrap: wrap;
   }
 
+  .action-groups.dimmed {
+    opacity: 0.45;
+  }
+
   .action-group {
     display: flex;
     flex-wrap: wrap;
@@ -361,22 +559,12 @@
   }
 
   .key-hint,
-  .needs-x,
-  .empty-tag {
+  .needs-x {
     font-size: 0.6rem;
     color: #667;
     border: 1px solid #33335a;
     border-radius: 2px;
     padding: 0 0.2rem;
-  }
-
-  .action-btn.empty-set {
-    border-color: #7a5a10;
-  }
-
-  .action-btn.empty-set .empty-tag {
-    color: #fc8;
-    border-color: #7a5a10;
   }
 
   .empty-reason {

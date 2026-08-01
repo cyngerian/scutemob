@@ -1442,6 +1442,38 @@ src/lib/ActionBar.svelte,src/lib/EventFeed.svelte}`, `tools/play-server/README.m
 
 ### Session 7: Targeting, combat and choice UIs (7 items)
 
+**STATUS (2026-08-01, `scutemob-171`): SHIPPED — all 7 items done.** The five named
+`oneshot` tests exist and pass (no port bound); play-server tests 18 → **24** (the five named ones plus the review cycle's omniscient-view source gate);
+`npm run build` clean at 143 modules, 0 warnings; PROTOCOL 32 / HASH 69 unmoved.
+
+Four things this section did not anticipate, recorded here so the next reader of the
+plan is not misled by it:
+
+1. **One additive change outside `tools/play-server`.** `StackItemView::id` is a
+   `StackObject` id while `mtg_engine::Target::Object` names a `GameObject`, and nothing
+   bridged them — so every target that is a spell on the stack (every counterspell's
+   target) rendered as `(unknown card)`. `crates/view-model`'s `StackItemView` gained
+   `source_object_id`, which `build_zones_view` was already computing and discarding.
+2. **Item 6's `needs_x` half covers activated abilities too.** S5's note that
+   `LegalAction::ActivateAbility` does not carry its `ActivationCost` is true and was the
+   wrong place to look: `source` + `ability_index` reach the layer-resolved
+   `Characteristics::activated_abilities` entry, whose `cost.mana_cost.x_count` is the
+   answer. README Limitation 5 is closed.
+3. **`ModeOptionView` carries per-mode `target_slots` *and* per-mode
+   `target_min`/`target_max`.** The option-level range is `(0, 0)` for a card whose targets
+   are per-mode, because `spell_target_requirements` is queried with an empty
+   `modes_chosen` at render time; the client sums the chosen modes' ranges instead.
+4. **New seed `OOS-M11-8`**: a non-zero `{X}` cannot be paid for through this API, because
+   `LocalGame::auto_tap_commands_for` reads the printed `mana_cost` and ignores
+   `cast.x_value`. Observed as a 422, not inferred. Belongs to `crates/simulator` —
+   fold into **Session 8 item 2**'s audit of invisible optional decisions.
+
+**Not exercised by any test, and said plainly rather than implied**: the fixture sweep
+(`players` ∈ {2,4} × `seed` ∈ 0..12) dealt the human no modal spell and no `{X}` spell, so
+the `modes` path and the `needs_x`-on-`CastSpell` path are right by construction and
+unexercised. Every DOM/keyboard behaviour remains unverifiable headlessly (§8 R7).
+
+
 **Crates**: `tools/play-server` (DTO population + validation) and its frontend.
 **Files**: `tools/play-server/src/{view.rs,api.rs}`,
 `tools/play-server/frontend/src/lib/{TargetPicker.svelte,AttackerPicker.svelte,
