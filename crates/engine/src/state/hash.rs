@@ -676,7 +676,40 @@
 ///   listed in `crates/engine/tests/core/protocol_schema.rs`'s
 ///   `CLOSURE_MUST_CONTAIN` via `Characteristics`), so this bump is paired
 ///   with `PROTOCOL_VERSION` 31 -> 32.
-pub const HASH_SCHEMA_VERSION: u8 = 69;
+/// - 70: PB-DX5 (2026-08-01, OOS-OS7-2 — CR 611.2c, the affected set of a
+///   resolution-generated continuous effect must be locked when the effect
+///   begins, not re-evaluated live): `ContinuousEffect` gains
+///   `affected_set: Option<OrdSet<ObjectId>>`, fed to `HashInto` right after
+///   `condition`. `Some(set)` — populated only by
+///   `Effect::ApplyContinuousEffect` via the new `rules::layers::
+///   snapshot_affected_set` — is the locked CR 611.2c set; `None` means a
+///   static ability (CR 611.3a: not locked in, `filter` still re-evaluated
+///   live). Two states differing only in which objects a resolution-generated
+///   effect has locked onto must not hash identically. `decl_fingerprint`
+///   MOVES (a new `#[serde(default)]` field on `ContinuousEffect`, inside the
+///   `GameState` serde closure); `stream_fingerprint` moves per the v40
+///   mechanism AND is additionally exercised by non-default bytes this time —
+///   unlike the v41/v42 precedent, `canonical_fixture()`'s one
+///   `ContinuousEffect` is deliberately given `affected_set:
+///   Some(OrdSet::unit(ObjectId(1)))`, so the new feed's own bytes are inside
+///   `stream_fingerprint`, not just the version-sentinel byte.
+///   `ContinuousEffect` is NOT in the SR-8 wire closure (confirmed by an empty
+///   `rg -n '[^y]ContinuousEffect\b'` over `rules/events.rs` and
+///   `rules/protocol.rs`, and by `protocol_schema.rs` listing `GameState` in
+///   `KNOWN_NON_WIRE` as the sole path to it) — computed via
+///   `cargo test -p mtg-engine --test core protocol_schema`, which stayed
+///   green, so `PROTOCOL_VERSION` is UNMOVED at 32. `affected_set` IS folded
+///   into `loop_detection.rs::compute_mandatory_state_hash` (it hashes every
+///   `ContinuousEffect` via `ce.hash_into`, unconditionally, unlike the v68
+///   PB-DP9 fields which are excluded there by name) — deliberately, and
+///   unlike PB-DP9's exclusion: `affected_set` is fixed at creation and never
+///   mutated afterward (it does not grow between replays the way PB-DP9's
+///   `pending_effect_choice` machinery does), and the `ContinuousEffect.id`
+///   / `.timestamp` fields already in that fingerprint increment on every
+///   effect creation, so a mandatory loop that re-creates the same locked
+///   effect is already distinguishable from a genuine repeat without
+///   `affected_set`'s help — including it adds no new false-negative risk.
+pub const HASH_SCHEMA_VERSION: u8 = 70;
 
 /// One `(version, fingerprints)` row of the append-only hash-schema history.
 ///
@@ -1037,6 +1070,17 @@ pub const HASH_SCHEMA_HISTORY: &[HashSchemaEpoch] = &[
         // exercised by `canonical_fixture()` — it is not).
         decl_fingerprint: "b3516a9cc653f20bd2691d0ff9fa98b52c1dfed5a247e710495072567b05358f",
         stream_fingerprint: "23bf8909dc820298d917958d33d1f24263c1444ecd56f6c5b6e5ad25930961d9",
+    },
+    HashSchemaEpoch {
+        version: 70,
+        // PB-DX5 (2026-08-01, OOS-OS7-2): `ContinuousEffect` gains
+        // `affected_set: Option<OrdSet<ObjectId>>` (CR 611.2c). decl_fingerprint
+        // moves (new field in the GameState serde closure); stream_fingerprint
+        // moves per the v40 mechanism AND is exercised by non-default bytes --
+        // `canonical_fixture()`'s ContinuousEffect carries
+        // `Some(OrdSet::unit(ObjectId(1)))`, not `None`.
+        decl_fingerprint: "cc5dcc426fd0d65be6c375407bf1147fcab326cc51ba548f3083abeb3e8c6701",
+        stream_fingerprint: "b31e0324f0011df56dff4cdfc4a097fda5fbfbedd8d0fd3837593d4c4547be11",
     },
 ];
 
@@ -2586,6 +2630,7 @@ impl HashInto for ContinuousEffect {
         self.modification.hash_into(hasher);
         self.is_cda.hash_into(hasher);
         self.condition.hash_into(hasher);
+        self.affected_set.hash_into(hasher);
     }
 }
 // --- Stub type implementations ---

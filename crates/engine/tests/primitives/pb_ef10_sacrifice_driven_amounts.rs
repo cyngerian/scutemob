@@ -1628,7 +1628,7 @@ fn test_pb_ef10_version_sentinels() {
          AdditionalCost::Sacrifice reshape)"
     );
     assert_eq!(
-        HASH_SCHEMA_VERSION, 69u8,
+        HASH_SCHEMA_VERSION, 70u8,
         "HASH_SCHEMA_VERSION should be 53 after PB-EF10"
     );
 }

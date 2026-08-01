@@ -877,7 +877,7 @@ fn test_os6_version_sentinels() {
         "PROTOCOL_VERSION should be 21 after PB-OS6"
     );
     assert_eq!(
-        HASH_SCHEMA_VERSION, 69u8,
+        HASH_SCHEMA_VERSION, 70u8,
         "HASH_SCHEMA_VERSION should be 58 after PB-OS6"
     );
 }

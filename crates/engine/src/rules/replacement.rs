@@ -2780,6 +2780,15 @@ pub fn register_permanent_replacement_abilities(
 /// transformed (e.g. craft return, `ExileSourceAndReturnTransformed`) or when this
 /// is called from [`super::face::apply_face_change`] to register the newly-visible
 /// face at an in-place transform boundary.
+///
+/// CR 611.3a / PB-DX5: every `ContinuousEffect` this function builds gets
+/// `affected_set: None`. This is a static ability's effect, and CR 611.3a says a
+/// static ability's continuous effect "isn't 'locked in'; it applies at any given
+/// moment to whatever its text indicates" -- `None` is required here, not a
+/// default. Only `Effect::ApplyContinuousEffect` (a resolution-time creation
+/// site, `crates/engine/src/effects/mod.rs`) computes and stores a locked
+/// `Some(set)`. A future mass filter reaching `ContinuousEffect` construction at
+/// any other site would be a silent CR 611.2c hole -- filed as OOS-DX5-1.
 pub fn register_static_continuous_effects(
     state: &mut GameState,
     new_id: ObjectId,
