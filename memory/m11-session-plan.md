@@ -84,8 +84,8 @@ must not be treated as a placeholder for them.
 | `random_deck` | `crates/simulator/src/deck.rs:30` | Already filters `completeness.is_complete()` (SR-12) |
 | **An existing human-input bridge** | `tools/tui/src/play/` (`app.rs`, `input.rs`, `render.rs`, `panels/`) | **Prior art the strategic review does not mention.** `PlayApp` already: builds a shuffled deck with a 7-card opening hand (`app.rs:122-165`), keeps `human_player: PlayerId(1)`, exposes `is_bot_turn()` / `execute_bot_turn()` / `execute_command()`, auto-taps before casting, and formats an event log. It reimplements the driver loop instead of reusing it, and it **never supplies targets** (`input.rs:98`, `targets: Vec::new()`), so targeted spells are uncastable |
 | axum + Svelte 5 stack | `tools/replay-viewer/` (708-line `api.rs`, 895-line `view_model.rs`, 15 Svelte components) | Props-based components; `api.js`/`stores.js` are the only host-specific layer |
-| **Router tests without a running server** | `tools/replay-viewer/src/main.rs:200-415` | `tower::ServiceExt::oneshot` against `build_router(...)`. This is the pattern every HTTP test in this milestone must use (see the OOM gotcha, §7) |
-| 8 MB tokio worker stacks | `tools/replay-viewer/src/main.rs:52-66` | Required: engine trigger chains overflow tokio's default 2 MB stacks in debug builds |
+| **Router tests without a running server** | `tools/replay-viewer/src/main.rs:198-414` | `tower::ServiceExt::oneshot` against `build_router(...)`. This is the pattern every HTTP test in this milestone must use (see the OOM gotcha, §7) |
+| 8 MB tokio worker stacks | `tools/replay-viewer/src/main.rs`'s `fn main` (`:50-65`) | Required: engine trigger chains overflow tokio's default 2 MB stacks in debug builds |
 | `crates/network` | `crates/network/src/lib.rs` | 4-line stub, reserved for M10a. **M11-local does not touch it** |
 
 ### Facts that shape the design (each verified in source)
@@ -878,16 +878,20 @@ cannot leak another player's hand or any library order.
 
 ### Session 5: play-server crate skeleton + REST API (8 items)
 
-**STATUS (2026-08-01, `scutemob-167`): SHIPPED — all 8 items done, two review cycles applied.**
+**STATUS (2026-08-01, `scutemob-167`): SHIPPED — all 8 items done, three review cycles applied.**
 `tools/play-server` (package `play-server`) exists as a workspace member with
 `Cargo.toml`, `src/{main.rs,api.rs,session.rs,view.rs}` and `README.md`. All 8 named tests
 pass through `tower::ServiceExt::oneshot` and **no port is ever bound** —
 `TcpListener`/`axum::serve` appear only inside `async_main`, which no test calls, and that
 is now **machine-enforced across every `.rs` file in the crate** rather than reviewed (see
-fix cycle 2; fix cycle 1's gate read `main.rs` alone and cut in the wrong place).
+fix cycle 2; fix cycle 1's gate read `main.rs` alone and cut in the wrong place). Stated
+precisely, after fix cycle 3: a `src/` file is either checked, or the gate goes **red naming
+it** — it is not the case that every arrangement of test code is silently understood, and
+fix cycle 2's claim that a file Sessions 6/7 add is "covered without editing this test" was
+false for two real spellings (see fix cycle 3, MEDIUM 1).
 `cargo build --workspace`, `cargo clippy --workspace --all-targets -- -D warnings`,
 `cargo fmt --check`, `tools/check-defs-fmt.sh` (1,804 defs) and `cargo test --workspace`
-are green; tests 4,008 → 4,016 → 4,023 → **4,024** across the two fix cycles. `git diff main --
+are green; tests 4,008 → 4,016 → 4,023 → 4,024 → **4,025** across the three fix cycles. `git diff main --
 crates/engine/src crates/card-types/src crates/card-defs/src` is **empty**;
 PROTOCOL 32 / HASH 69 unmoved; `crates/simulator` and `crates/view-model` are untouched —
 the session needed nothing added to either, and the fix cycle kept it that way even where
@@ -964,9 +968,12 @@ addressed; these are new, and the first is a **regression fix cycle 1 introduced
   `new_game` is fallible on a **client-supplied seed**: `deck::basics_for_colors` pads a
   colourless commander's deck with Forests, and `validate_deck` refuses them under CR
   903.5c (**filed as `OOS-M11-6`** — `random_deck` applies the colour-identity filter to the
-  main deck and then bypasses it four lines later when padding to 99; and the call site's own
-  dead `if basics.is_empty()` arm names Wastes in a comment and pushes Forest anyway, so the
-  code states the correct fix twice and does neither). Its `?` skipped `*guard = Some(play)`,
+  main deck (`deck.rs:68`) and then bypasses it 37 lines later when padding to 99
+  (`deck.rs:105-110`); and the call site's own dead `if basics.is_empty()` arm names Wastes in
+  a comment and pushes Forest anyway, so the code states the correct fix twice and does
+  neither. The third audit confirmed the fuzzer half: `driver.rs` references no deck,
+  `bin/fuzzer.rs:296` calls `random_deck` and builds from it with no `validate_deck` in the
+  file, so those decks are *played* there rather than refused). Its `?` skipped `*guard = Some(play)`,
   so the half-mutated session survived with
   the flag cleared and the next `GET /api/game` answered **200** — where before fix cycle 1
   it answered 500. **Reproduced empirically before the fix was written**: a sweep found 7
@@ -1026,8 +1033,109 @@ addressed; these are new, and the first is a **regression fix cycle 1 introduced
   claim is dropped), the `decision_view` "cannot be forgotten" claim (a convention, not a
   guarantee), and `DecisionView.player` missing from the deviations list.
 
+**Fix cycle 3 (2026-08-01) — a third audit, scoped to whether fix cycle 2 repeated fix
+cycle 1's mistake of shipping a false proof: 1 MEDIUM / 6 LOW, all applied; 8 named tests
+unrenamed, +1 new (17 in the module).** It did **not** repeat it — the poison-recovery
+atomicity repair is genuinely structural, its test is genuinely non-vacuous, and the
+`engine_error` unreachability claim survives independent verification. **No correctness
+defect in shipped behaviour was found.** What the audit found was one gate-coverage hole and
+six documentation overstatements, **three of them inside text written to correct
+documentation drift**.
+
+- **MEDIUM 1 — the no-socket gate silently skipped any file whose `cfg(test)` spelling it
+  did not recognise.** `test_region` matched only the literal `#[cfg(test)]` as a line's
+  first non-whitespace text; anything else returned `""` and the loop `continue`d **with no
+  signal**, guarded only by `files_with_a_region >= 1`, which `main.rs` alone satisfies
+  forever (the count was literally **1**, because `api.rs`/`session.rs`/`view.rs` contain no
+  `cfg(test)` at all). Fix cycle 2's claim that "a file Session 6 or 7 adds is covered
+  without editing this test" was therefore **false for two real arrangements**, and Sessions
+  6/7 are exactly when new files arrive. **Both were reproduced before anything was written**:
+  `src/probe_split.rs` (the `#[cfg(test)] mod tests;` split — the body file carries no
+  attribute) and `src/probe_cfg_all.rs` (`#[cfg(all(test, feature = "x"))]`), each containing
+  `tokio::net::TcpListener::bind`, left the gate **green**; the run did not even recompile,
+  since the gate reads source from disk. Fixed two ways: `test_region` now recognises the
+  `#[cfg(all(test` prefix, and a `src/` file whose **code** is test-shaped (`#[test]`,
+  `#[tokio::test`, `fn test_`, `mod tests`) while its region is empty is now a **failure**
+  naming the file, not a skip. Post-fix, probe A reddened with the "test-shaped code but no
+  test region this gate recognises" message and probe B reddened through the ordinary region
+  path naming `TcpListener`; both probes removed. The coverage claim is restated in the
+  README, the plan and the gate's own doc comment as *either checked, or red naming the
+  file* — the weaker sentence, which is the true one. **The gate again caught a draft of its
+  own documentation**: the new doc text named `async_main` in prose below the cut and went
+  red, which is the second time it has found a fault in its own comments.
+- **LOW 2 — guard (c)'s `bind` needle was satisfiable by a string literal.** The stripper
+  removed only whole lines whose `trim_start()` began with `//`, so the serving path's own
+  `format!("Failed to bind to {addr}")` — a *code* line — supplied the fourth needle by
+  itself, and the guard would have stayed green if the real call were renamed away. It also
+  handled neither `/* */` block comments (converting the module doc block to that form
+  restores the exact vacuity the guard exists to close) nor `//` inside string literals.
+  Replaced with `code_only`, which blanks comment bodies and string-literal bodies, handling
+  line comments anywhere on a line, **nested** block comments, raw strings at any hash count,
+  and char literals (`'"'` and `'\\'` included — a naive scanner desynchronises on them).
+  **Proven both ways by execution**: with the real call replaced by an
+  `unimplemented!("{}", format!("Failed to bind to {addr}"))` that keeps the message and
+  drops the call, the **old** line-comment-only stripper ran **green** and the **new** one
+  ran **red** on the `bind` needle. Mutation reverted verbatim (`git diff` over
+  `async_main` empty). Residual stated rather than glossed: this is a lint over source text,
+  not a Rust lexer, so macro-generated text is invisible to it by construction.
+- **LOW 3 — the restated 400/422 rule was false for 3 of the 4 variants behind
+  `setup_failed`.** `api.rs` mapped **all** of `SessionError::Setup(_)` to 422 while the rule
+  grounds 422 in "`validate_deck` for a pregame table", and only `SetupError::InvalidDeck` is
+  a `validate_deck` judgment: `NoDeckForSeat` is pool exhaustion, `MissingCardDefinition` is
+  documented in `crates/simulator/src/setup.rs` as a defensive spec-build check, and
+  `Builder(GameStateError)` is `GameStateBuilder::build()` failing. By this crate's own
+  `Start → 500` reasoning all three are server-side faults. **Matched by variant** (the
+  preferred fix — it makes the rule true rather than narrowed) with a new
+  **500 `setup_internal`** kind so the README's kind→status table stays one-to-one; the match
+  is written out variant by variant rather than with a wildcard, so a future `SetupError`
+  variant is a compile error here. None of the three is reachable today, so no status was
+  lying; the *rule* was over-broad in exactly the way the finding it answers warned about.
+- **LOW 4 — the healthy-path half of the atomicity property was prose-only.** `api.rs`
+  claimed "a rebuild that fails below must leave a running game exactly as it was"; the code
+  was right (`as_ref`, never `take`) and no test drove it, on the same arm where round 2 found
+  a claim-vs-code gap. Added `test_a_failed_rebuild_leaves_a_running_game_untouched`: play one
+  action first (so "unchanged" is distinguishable from "silently rebuilt at the defaults",
+  which would also report `command_count == 0`), fail a rebuild at `players: 2, seed: 17`,
+  then assert the same `seq`, the same `command_count`, the same table, and that the
+  outstanding decision is still answerable. **Non-vacuity proven by mutation**: changing the
+  healthy arm's `as_ref()` to `take()` reddens it with `404 no_session`; reverted.
+- **LOW 5 — the coupling between those fixtures and `OOS-M11-6` was recorded nowhere.** Both
+  poison-atomicity tests can only make `session::new_game` fail through the CR 903.5c Forest
+  padding filed as `OOS-M11-6`; closing that seed may leave them with no trigger. Recorded in
+  both test doc comments, the README and the seed row. They fail loudly rather than rotting
+  silently, so it is a maintenance note, not a blocker.
+- **LOW 6 — two overstatements in `OOS-M11-6` itself, plus one hedge that is now confirmed.**
+  (a) "bypasses that same filter **four lines later**" — the filter predicate is `deck.rs:68`
+  and the padding bypass is `deck.rs:105-110`: **37** lines. The four was the distance from
+  the `basics_for_colors` *call* to the fallback, written as the distance from the filter.
+  (b) The italicised, presented-as-verbatim error text quoted "(34 **violations**)";
+  `SetupError`'s `Display` formats `"({} violation(s))"`. Quoted correctly now, with a note
+  that the earlier form was presented as verbatim and was not. (c) The `GameDriver` hedge is
+  **dropped: it is confirmed.** `crates/simulator/src/driver.rs` contains no deck reference of
+  any kind; `validate_deck` occurs in `crates/simulator` only in `setup.rs`;
+  `bin/fuzzer.rs:296` calls `random_deck` and feeds `GameStateBuilder` at `:309`+ with no
+  validation anywhere in the file; both callers draw from the same `all_cards()` pool. So the
+  illegal decks are **played** in the fuzzer rather than refused, which raises the seed's
+  blast radius from "a play-server 422" to **a silent CR 903.5c deviation in every fuzz run
+  that rolls a colourless commander**.
+- **LOW 7 — README nits, and one pre-existing stale cite.** The `dist/`-absent caveat
+  over-generalised to 405: the 404 half is right (`fallback_service(ServeDir)` is mounted only
+  `if dist_dir.exists()`), but a 405 on a routed path is decided by the `MethodRouter` and
+  never reaches the path fallback, so `dist/` is irrelevant to it. The `bot` row now says the
+  comparison is case-insensitive (`parse_bot_kind` lowercases first), so `"Heuristic"` is
+  accepted. And `tools/replay-viewer/src/main.rs:52-66` is actually `:50-65` — corrected at
+  all four cite sites, now written by symbol (`fn main`) with the range secondary; the
+  neighbouring router-tests cite `:200-415` was also off the end of a 414-line file and is now
+  `:198-414`.
+
+**The meta-point, for the third time.** Three of the six documentation defects above sat
+*inside* text written to correct documentation drift. The standing rule this cycle enforced:
+before writing a sentence asserting a line distance, a quoted string, or a coverage property,
+open the file and look — and where that has not been done, write the weaker sentence that is
+true.
+
 **`block_in_place` is why the runtime flavor is load-bearing, not a performance choice.**
-The 8 MB worker stacks are inherited from `tools/replay-viewer/src/main.rs:52-66` (deep
+The 8 MB worker stacks are inherited from `tools/replay-viewer/src/main.rs`'s `fn main` (`:50-65`) (deep
 trigger chains overflow tokio's 2 MB default in debug), but the *multi-thread* flavor is a
 correctness requirement: `tokio::task::block_in_place` **panics** on a current-thread
 runtime, which is what a plain `#[tokio::test]` builds. Every async test therefore carries
@@ -1137,7 +1245,7 @@ renders as `(hidden card)`. S7's `target_slots` labels must go through the same 
 2. `main.rs`: clap CLI (`--port` default 3040 so it can run alongside the replay viewer's
    3030, `--host` default `127.0.0.1` per MR-M9.5-06, `--players`, `--bot`, `--seed`), and
    a hand-built multi-thread tokio runtime with **8 MB worker stacks** — same reason as
-   `tools/replay-viewer/src/main.rs:52-66` (deep trigger chains overflow tokio's 2 MB
+   `tools/replay-viewer/src/main.rs`'s `fn main` (`:50-65`) (deep trigger chains overflow tokio's 2 MB
    default in debug builds). `build_router(state, dist_dir) -> Router` must be a free
    function so tests can construct it.
 3. `session.rs`: `PlaySession { game: LocalGame, human: PlayerId, names:

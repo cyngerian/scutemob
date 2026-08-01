@@ -48,7 +48,7 @@ use axum::{
 };
 use serde::Serialize;
 
-use mtg_simulator::{AdvanceOutcome, BotKind, HumanChoice, LocalGameError};
+use mtg_simulator::{AdvanceOutcome, BotKind, HumanChoice, LocalGameError, SetupError};
 use mtg_view_model::{event_view_for, StateViewModel, Viewer};
 
 use crate::session::{self, AppState, NewGameDefaults, PlaySession, SessionError, SharedState};
@@ -166,7 +166,7 @@ impl From<LocalGameError> for ApiFailure {
 
 /// `SessionError` -> HTTP.
 ///
-/// # Why `Setup` is 422 and not 400 (S5 re-review MEDIUM 4)
+/// # Why `InvalidDeck` is 422 and not 400 (S5 re-review MEDIUM 4)
 ///
 /// The re-review flagged 422 here against the crate's previously-stated rule,
 /// *"400 means the request never reached the engine, 422 means the engine looked
@@ -189,10 +189,43 @@ impl From<LocalGameError> for ApiFailure {
 ///
 /// `BadPlayerCount` stays **400** and the contrast is the point: a count outside
 /// `2..=6` is wrong against every state and never reaches engine code at all.
+///
+/// # The other three `SetupError` variants are 500, not 422 (S5 third audit LOW 3)
+///
+/// The rule above grounds 422 in `validate_deck`, and only
+/// [`SetupError::InvalidDeck`] is a `validate_deck` judgment. The rest are
+/// server-side faults by the same reasoning that puts `Start` at 500:
+///
+/// * `NoDeckForSeat` — `random_deck` found no legendary creature in the card
+///   pool *this server chose*. Nothing the client sent caused it.
+/// * `MissingCardDefinition` — `crates/simulator/src/setup.rs` documents this as
+///   "a defensive check at spec-build time, in case a `DeckSource::Fixed` deck
+///   was assembled against a different card pool". This crate only ever passes
+///   `DeckSource::RandomPerSeat`, so reaching it would mean the pool and the
+///   builder disagree — an internal inconsistency.
+/// * `Builder(GameStateError)` — `GameStateBuilder::build()` refusing the table
+///   the server assembled, exactly parallel to `Start`.
+///
+/// **None of the three is reachable today** (`players` is range-checked to
+/// `2..=6` before this point, and the pool always contains a legendary
+/// creature), so no status currently lies either way. Matching the variant makes
+/// the *rule* true rather than merely narrowed, which is the point of the
+/// finding. They carry a distinct `kind` so the README's kind→status table stays
+/// one-to-one.
 impl From<SessionError> for ApiFailure {
     fn from(err: SessionError) -> Self {
-        let (status, kind) = match err {
-            SessionError::Setup(_) => (StatusCode::UNPROCESSABLE_ENTITY, "setup_failed"),
+        let (status, kind) = match &err {
+            SessionError::Setup(SetupError::InvalidDeck { .. }) => {
+                (StatusCode::UNPROCESSABLE_ENTITY, "setup_failed")
+            }
+            // Exhaustive rather than a wildcard: `SetupError` is a plain enum, so
+            // a variant added later is a compile error here and has to be
+            // classified rather than silently inheriting a status.
+            SessionError::Setup(
+                SetupError::NoDeckForSeat { .. }
+                | SetupError::MissingCardDefinition { .. }
+                | SetupError::Builder(_),
+            ) => (StatusCode::INTERNAL_SERVER_ERROR, "setup_internal"),
             // `LocalGame::start` failing is `check_all_defs_complete` refusing the
             // table the server itself assembled — a server-side fault.
             SessionError::Start(_) => (StatusCode::INTERNAL_SERVER_ERROR, "start_failed"),

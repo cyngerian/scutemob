@@ -88,7 +88,7 @@
   `tokio::task::block_in_place` **panics** on a current-thread runtime — which is exactly what
   a plain `#[tokio::test]` builds. Every async test carries
   `#[tokio::test(flavor = "multi_thread")]`. The 8 MB worker stacks are the separate,
-  inherited reason (`tools/replay-viewer/src/main.rs:52-66`: deep trigger chains overflow
+  inherited reason (`tools/replay-viewer/src/main.rs`'s `fn main` (`:50-65`): deep trigger chains overflow
   tokio's 2 MB default in debug builds). Both facts are commented at the runtime builder and
   in `api.rs`'s module doc — **S6/S7 must not "simplify" either one away.**
 - **New engine seed, found by a test refusing to lie about itself.** Writing
@@ -138,7 +138,8 @@
 - **Second engine/simulator seed, `OOS-M11-6`, found while probing whether `new_game` is
   client-reachably fallible — and it is.** `random_deck` (`crates/simulator/src/deck.rs`)
   applies the CR 903.5c colour-identity filter correctly to the main deck and then **bypasses
-  that same filter four lines later** when padding to 99 with basics: `basics_for_colors`
+  that same filter 37 lines later** when padding to 99 with basics (filter predicate
+  `deck.rs:68`, padding loop `deck.rs:105-110`): `basics_for_colors`
   falls back to **Forest** (identity `{Green}`) for a **colourless** commander, so such a deck
   carries ~34 illegal Forests and `validate_deck` — which S2 deliberately routed
   `build_initial_state` through — refuses the whole table. **Measured: 7 failures in a sweep of
@@ -148,9 +149,14 @@
   arm has a comment saying *"use Wastes (or just any basic)"* and pushes `forest`. **Not a
   one-line fix**: no `wastes.rs` def exists, so it needs either Wastes authored or colourless
   padding drawn from the identity-legal lands already in the pool (prefer the second — no new
-  def, no `Complete` flip). **Check the fuzzer before fixing**: `GameDriver` does not go
-  through `validate_deck`, so those decks are presumably being *played* rather than refused,
-  which would make it a silent CR 903.5c deviation there and changes the blast radius.
+  def, no `Complete` flip). **The fuzzer half is CONFIRMED, not suspected** (checked in the
+  third audit): `driver.rs` has no deck reference at all, `validate_deck` appears in
+  `crates/simulator` only in `setup.rs`, and `bin/fuzzer.rs:296` calls `random_deck` and feeds
+  `GameStateBuilder` directly at `:309`+ from the same `all_cards()` pool. So those decks are
+  **played** there, not refused — the blast radius is a **silent CR 903.5c deviation in every
+  fuzz run that rolls a colourless commander**, not just a play-server 422. The two
+  poison-atomicity tests in `tools/play-server` use this bug as their only trigger; closing it
+  needs a replacement failure mode (they fail loudly, not vacuously).
 - **The no-WebSocket / no-SSE decision is recorded in the crate README with its reasoning**
   (bots act synchronously inside the human's own request, so the server never holds news the
   client is not already waiting on; a second human seat would break that premise; push is

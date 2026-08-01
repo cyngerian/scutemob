@@ -104,10 +104,17 @@ Two residual exceptions, named rather than glossed: a path no route matches
 router itself, with an **empty body and no `Content-Type`**. Both are decided
 before any handler exists to answer them. Note the first is distinct from the
 enveloped `404 no_session` below: that one comes from a handler and does carry
-`kind`. (That statement is read off axum's routing behaviour, not held by a test
-in this crate — and it holds only in the configuration the inline tests build,
-where `dist/` is absent. In the configuration `main.rs` builds when `dist/`
-exists, an unmatched path is answered by the `ServeDir` fallback instead.)
+`kind`. Both statements are read off axum's routing behaviour, not held by a test
+in this crate.
+
+The `dist/` caveat applies to the **404 only** (third audit LOW 7). An unmatched
+*path* is answered by the router's path fallback, and `build_router` mounts a
+`ServeDir` fallback only `if dist_dir.exists()` — so with a built frontend the
+404 becomes whatever `ServeDir` says. A **405** is decided by the `MethodRouter`
+for an already-matched path and never reaches the path fallback at all, so
+`dist/`'s presence is irrelevant to it. The inline tests build the router with a
+deliberately absent `dist/`, which is why a 404 in them really is "the API said
+404".
 
 | Condition | Status | `kind` | Reasoning |
 |---|---|---|---|
@@ -117,9 +124,10 @@ exists, an unmatched path is answered by the `ServeDir` fallback instead.)
 | `action_index` is not in the list just sent | **400** | `unknown_action` | the request is malformed on its face |
 | a param the chosen action has no channel for | **400** | `bad_params` | `ParamError::UnsupportedParam` — wrong against *any* state, so a client error rather than an engine rejection. Refusing beats silently discarding a human's announced targets. **Also emitted by `POST /api/game/mulligan` for a non-empty `cards_to_bottom`**, which is refused in the handler and never goes near `LocalGame::submit` — see Limitation 2. |
 | `players` outside `2..=6` | **400** | `bad_player_count` | a range check this crate makes; wrong against every state and never reaches engine code |
-| `bot` is neither `"heuristic"` nor `"random"` | **400** | `bad_bot_kind` | likewise |
+| `bot` is neither `"heuristic"` nor `"random"` | **400** | `bad_bot_kind` | likewise. The comparison is **case-insensitive** (`parse_bot_kind` lowercases first), so `"Heuristic"` is accepted |
 | the **engine** refused the command | **422** | `rejected` | an illegal target, an unpayable cost. Understood, addressed to a real action, but unprocessable. The `GameStateError` is rendered as **text**. |
-| pregame assembly failed for the requested table | **422** | `setup_failed` | `validate_deck` refused a seat's deck (Architecture Invariant 9 / CR 903.5c), or no deck could be built. Reachable from a client-supplied `seed` — see the 400/422 rule below |
+| `validate_deck` refused a seat's deck | **422** | `setup_failed` | Architecture Invariant 9 / CR 903.5c. Reachable from a client-supplied `seed` — see the 400/422 rule below |
+| pregame assembly failed some *other* way | **500** | `setup_internal` | `SetupError`'s three non-`validate_deck` variants — no deck could be built for a seat, a `CardId` has no definition in the pool, or `GameStateBuilder::build()` failed. All server-side faults, none reachable today. See below |
 | `start_game` refused the assembled table | **500** | `start_failed` | `check_all_defs_complete` rejecting a table *this server itself* put together is a server-side fault, not a bad request |
 | an engine failure reaches `From<LocalGameError>` | **500** | `engine_error` | **currently unreachable** — kept as the correct mapping, not as a live contract. See below. |
 | no game in progress | **404** | `no_session` | the absence of the resource the route names. Remedy: `POST /api/game`. |
@@ -143,6 +151,18 @@ perfect — a legal `u64`, nothing malformed on its face — and fails because t
 commander's deck with Forests and `validate_deck` refuses them under CR 903.5c.
 That is the textbook 422. A sweep of 180 `(players, seed)` pairs found 7 such
 tables, so this is a route a client can take, not a theoretical one.
+
+The restated rule grounds 422 in `validate_deck`, and the third audit's LOW 3
+pointed out that only **one** of `SetupError`'s four variants is a `validate_deck`
+judgment. The other three — `NoDeckForSeat` (the card pool had no legendary
+creature), `MissingCardDefinition` (documented in `crates/simulator/src/setup.rs`
+as "a defensive check at spec-build time", and this crate never passes a
+`DeckSource::Fixed` deck), and `Builder(GameStateError)` — are server-side faults
+by the same argument that puts `start_failed` at 500, so they are matched by
+variant and answered **500 `setup_internal`**. None is reachable today (`players`
+is range-checked to `2..=6` first, and the pool always contains a legendary
+creature), so nothing was lying before; the point is that the *rule* is now true
+rather than merely narrowed.
 
 The same rule is why a deserialization failure is reported as **400 even though
 axum's own `JsonDataError` is a 422**. Left alone it collided head-on with the
@@ -200,6 +220,16 @@ the flag cleared, and the next `GET /api/game` answered **200** with its full se
 view — where before that "fix" it answered 500. Observed on a real run;
 `test_poison_recovery_is_atomic_when_the_rebuild_fails` pins it. A failed rebuild
 now leaves **no** session, so the next `GET` is `404 no_session`.
+
+The healthy-path half is the mirror image and is now pinned too
+(`test_a_failed_rebuild_leaves_a_running_game_untouched`, third audit LOW 4): on a
+**non**-poisoned lock the handler only *peeks* at the seq counter, so a rebuild
+that fails leaves a running game exactly as it was — same outstanding `seq`, same
+`command_count`, still answerable. That was true in the code and asserted nowhere.
+
+Both tests reach a failing rebuild the only way a client can: the CR 903.5c Forest
+padding filed as `OOS-M11-6`. Closing that seed will need a replacement failure
+mode for them; they fail loudly rather than passing vacuously if it disappears.
 
 ### Wire `seq` is not `LocalGame`'s `seq`
 
@@ -342,15 +372,38 @@ That rule is **machine-enforced across the whole crate**, not merely stated:
 `src/` and `tests/` (rooted at `CARGO_MANIFEST_DIR`, so the walk does not depend
 on the process's working directory) and fails on any of the four symbols inside a
 test region. In a `src/` file the region starts at the first **line-anchored**
-`#[cfg(test)]` attribute; a `tests/` file is checked in full, because an
-integration test carries no such attribute. Its own needles are assembled with
-`concat!` so the gate does not match its own source — keep any needle you add in
-that form.
+`#[cfg(test)]` or `#[cfg(all(test…` attribute; a `tests/` file is checked in
+full, because an integration test carries no such attribute. Its own needles are
+assembled with `concat!` so the gate does not match its own source — keep any
+needle you add in that form.
 
-Both widenings came from the S5 re-review and both were proven by execution
-rather than argued: a forbidden symbol inserted into a `#[cfg(test)]` module in
+**What "crate-wide" does and does not promise.** The gate recognises two
+spellings of the attribute, and a file it cannot cut is no longer skipped in
+silence: a `src/` file whose *code* is test-shaped (`#[test]`, `#[tokio::test`,
+`fn test_`, `mod tests`) but whose region comes out empty is a **failure**, and
+the message names the file. So the honest claim is *a file Session 6 or 7 adds is
+either checked, or the gate goes red naming it* — not "every arrangement is
+understood automatically". The earlier claim was the second, and it was false:
+before the third audit's MEDIUM 1, a `#[cfg(test)] mod tests;` split with the
+body in `src/tests.rs`, and a `#[cfg(all(test, feature = "x"))]` module, each
+carried a `TcpListener::bind` call **past a green gate**. Both were run, not
+reasoned about.
+
+The non-vacuity guard that requires each needle to occur in real code above the
+cut strips **comments and string-literal bodies** (`code_only`), not just
+whole-line `//` comments. That matters concretely: the serving path's own
+`format!("Failed to bind to {addr}")` is a code line whose *message* contains the
+`bind` needle, so the older line-comment-only stripper let that guard pass on a
+diagnostic string rather than on the call. Demonstrated both ways — with the real
+call removed and the message kept, the old stripper stayed green and the new one
+went red. `code_only` handles line comments, nested block comments, raw strings
+and char literals; it is a lint over source text, not a Rust lexer, so
+macro-generated text is invisible to it by construction.
+
+The earlier widenings came from the S5 re-review and were likewise proven by
+execution: a forbidden symbol inserted into a `#[cfg(test)]` module in
 `src/session.rs`, and into a new `tests/tmp_probe.rs`, each reddened the gate and
-named the offending file; both were removed again. The earlier version read
+named the offending file; both were removed again. The version before that read
 `src/main.rs` alone **and** cut at the first textual `#[cfg(test)]`, which is the
 one written out in that file's own module doc comment — so the "test region"
 began at a paragraph of prose and the gate passed only because all four symbols

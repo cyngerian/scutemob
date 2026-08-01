@@ -1300,6 +1300,17 @@ mod tests {
     /// `take()`s the corrupt session in the same straight-line block that clears
     /// the flag, with no fallible operation between, so "the flag is clear" and
     /// "there is no untrustworthy session left to read" cannot come apart.
+    ///
+    /// # Maintenance: this test is coupled to `OOS-M11-6`
+    ///
+    /// The **only** way this test makes `session::new_game` fail from client
+    /// input is the CR 903.5c Forest padding filed on this branch as
+    /// `OOS-M11-6` (`docs/audits/decision-point-audit.md` §8.1). Closing that
+    /// seed may make `new_game` infallible from a client-supplied seed and leave
+    /// this test with no trigger — at which point the first assertion below goes
+    /// red rather than the test rotting into a vacuous pass, which is why this is
+    /// a note and not a blocker. Whoever closes `OOS-M11-6` needs a new way to
+    /// fail a rebuild inside the lock; there is no other one today.
     #[tokio::test(flavor = "multi_thread")]
     async fn test_poison_recovery_is_atomic_when_the_rebuild_fails() {
         let state = shared_state();
@@ -1343,6 +1354,76 @@ mod tests {
         let (status, fresh) = post_json(&state, "/api/game", json!({})).await;
         assert_eq!(status, StatusCode::OK, "{fresh}");
         assert_eq!(command_count(&fresh), 0);
+    }
+
+    // ── 7d ────────────────────────────────────────────────────────────────────
+
+    /// **S5 third audit LOW 4**: the *healthy-path* half of the same property —
+    /// a rebuild that fails must leave a **running** game exactly as it was.
+    ///
+    /// `post_game`'s healthy arm only *peeks* at the seq counter (`as_ref`,
+    /// never `take`), so `session::new_game`'s `?` cannot destroy a live game on
+    /// its way out. That was true in the code and asserted nowhere, and the
+    /// round-2 finding was a claim-vs-code gap on this same arm — so the prose
+    /// is now backed by a run.
+    ///
+    /// Same `OOS-M11-6` coupling as the test above: `players: 2, seed: 17` is
+    /// the only client-reachable way to make the rebuild fail.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_a_failed_rebuild_leaves_a_running_game_untouched() {
+        let state = shared_state();
+        let view = new_game(&state).await;
+        let pass = action_indices(&view, "PassPriority")[0];
+
+        // Play one action first, so "unchanged" is distinguishable from "wiped
+        // and silently rebuilt at the defaults" — a fresh session would report
+        // `command_count == 0`, which is what a brand-new game reports too.
+        let (status, live) = post_json(
+            &state,
+            "/api/game/action",
+            json!({ "seq": seq(&view), "action_index": pass }),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{live}");
+        let (live_seq, live_commands) = (seq(&live), command_count(&live));
+        assert_eq!(live_commands, 4, "the game really is in progress");
+
+        // The failing rebuild, on a HEALTHY lock this time.
+        let (status, err) =
+            post_json(&state, "/api/game", json!({ "players": 2, "seed": 17 })).await;
+        assert_eq!(
+            status,
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "the rebuild must fail here, or this test proves nothing: {err}"
+        );
+        assert_eq!(err["kind"], "setup_failed");
+
+        // The subject: the running game survived the failed rebuild intact.
+        let (status, after) = get_json(&state, "/api/game").await;
+        assert_eq!(status, StatusCode::OK, "{after}");
+        assert_eq!(
+            seq(&after),
+            live_seq,
+            "the outstanding decision is the same"
+        );
+        assert_eq!(
+            command_count(&after),
+            live_commands,
+            "no play was discarded"
+        );
+        assert_eq!(after["summary"]["players"], PLAYERS, "still the same table");
+        assert_eq!(after["summary"]["seed"], SEED, "not rebuilt at seed 17");
+
+        // Non-vacuous: it is still the same *playable* game, not just the same
+        // numbers — the decision it is holding is still answerable.
+        let (status, ok) = post_json(
+            &state,
+            "/api/game/action",
+            json!({ "seq": live_seq, "action_index": 0 }),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{ok}");
+        assert!(command_count(&ok) > live_commands);
     }
 
     // ── 8 ─────────────────────────────────────────────────────────────────────
@@ -1406,6 +1487,28 @@ mod tests {
     ///    cut, so it may not spell any of the four out. The widened gate caught
     ///    a draft of it that did — which is the first thing it ever found.)
     ///
+    /// # What the third audit found (MEDIUM 1): a silent skip
+    ///
+    /// [`test_region`] returning `""` used to mean "no test code here", and the
+    /// loop below `continue`d on it **with no signal**. But `""` really means
+    /// "no spelling of the attribute that this function recognises", which is a
+    /// strictly larger set. Two forms fell into the gap and were **observed to
+    /// pass a forbidden symbol through**, not reasoned about: a `src/` file that
+    /// is the body of a `#[cfg(test)] mod tests;` split (the file itself carries
+    /// no attribute), and `#[cfg(all(test, feature = "…"))]`. Both were given a
+    /// `TcpLis`+`tener` call and the gate stayed green.
+    ///
+    /// Two repairs, and the claim about coverage is now narrower:
+    ///
+    /// * [`test_region`] recognises the `#[cfg(all(test` prefix as well.
+    /// * A `src/` file whose **code** (not prose — see [`code_only`]) is
+    ///   test-shaped but whose region is empty is now a **failure**, not a skip.
+    ///   So a spelling this function does not understand is loud.
+    ///
+    /// The honest statement of coverage is therefore: a file Session 6 or 7 adds
+    /// is either checked, or the gate goes red naming it. It is *not* "every
+    /// arrangement is silently understood".
+    ///
     /// # Self-reference
     ///
     /// The gate lives *inside* a region it checks, so every needle would match
@@ -1433,6 +1536,32 @@ mod tests {
             concat!("asyn", "c_main"),
             concat!("bi", "nd"),
         ];
+
+        // MEDIUM 1: an unrecognised spelling must be loud, not skipped. A `src/`
+        // file whose CODE is test-shaped — an attribute, a `fn test_`, a test
+        // module — but whose region is empty is a file this gate does not
+        // understand, and silently skipping it is exactly how a forbidden symbol
+        // gets in. Prose does not count: `api.rs`'s module doc names
+        // `#[tokio::test]` and has no tests at all, which is why the search runs
+        // over [`code_only`] output.
+        for (path, source) in &sources {
+            if !test_region(source).is_empty() {
+                continue;
+            }
+            let code = code_only(source);
+            let shaped = ["#[test]", "#[tokio::test", "fn test_", "mod tests"]
+                .into_iter()
+                .find(|marker| code.contains(marker));
+            assert!(
+                shaped.is_none(),
+                "{path} contains test-shaped code ({:?}) but no test region this gate \
+                 recognises, so it would be skipped in silence. Either give it a \
+                 line-anchored `#[cfg` attribute this gate's `test_region` understands, \
+                 or teach `test_region` the spelling. Session plan §7 constraint 1 \
+                 applies to every test in this crate, however it is arranged.",
+                shaped.unwrap_or_default()
+            );
+        }
 
         let regions = sources
             .iter()
@@ -1509,15 +1638,18 @@ mod tests {
         );
 
         // (c) Every needle occurs above the cut in real CODE — `main`'s own
-        //     serving path uses all four. Comment lines are stripped first: the
-        //     doc comment above names all four, so an un-stripped search would
-        //     pass on prose alone (LOW 6). A misspelled needle, or a `concat!`
-        //     producing a symbol no longer in the codebase, fails here.
-        let code_above: String = above
-            .lines()
-            .filter(|line| !line.trim_start().starts_with("//"))
-            .collect::<Vec<_>>()
-            .join("\n");
+        //     serving path uses all four. Comments AND string literals are
+        //     blanked first (see [`code_only`]): the doc comment above names all
+        //     four, so an un-stripped search would pass on prose alone (LOW 6);
+        //     and the serving entry point's `format!("Failed to bi"+"nd to
+        //     {addr}")` is a *code* line whose string body satisfies the fourth
+        //     needle by itself, so a line-comment-only stripper would let that
+        //     guard pass on a diagnostic message rather than on the call (third
+        //     audit LOW 2 — demonstrated both ways: with the real call removed
+        //     and the message kept, the old stripper ran green and this one runs
+        //     red). A misspelled needle, or a `concat!` producing a symbol no
+        //     longer in the codebase, fails here.
+        let code_above = code_only(above);
         for needle in forbidden {
             assert!(
                 code_above.contains(needle),
@@ -1550,23 +1682,168 @@ mod tests {
         }
     }
 
-    /// The slice of `source` at and below its first **line-anchored**
-    /// `#[cfg(test)]` attribute, or `""` when the file has none.
+    /// The slice of `source` at and below its first **line-anchored** test
+    /// `cfg` attribute, or `""` when the file has none.
     ///
     /// "Line-anchored" means the attribute is the first non-whitespace text on
     /// its line, which is true of a real attribute and false of every mention
     /// inside a `///`, `//!` or `//` comment. That distinction is the whole
     /// repair for re-review MEDIUM 2. `starts_with` rather than equality so the
     /// one-line `#[cfg(test)] mod tests {` form is caught too.
+    ///
+    /// Two spellings are recognised: the plain attribute, and the `#[cfg(all(test`
+    /// prefix that covers `#[cfg(all(test, feature = "…"))]` (third audit
+    /// MEDIUM 1). Anything else still yields `""` — but `""` is no longer a
+    /// silent skip: the caller fails on a file whose code is test-shaped and
+    /// whose region is empty, so an unrecognised spelling is loud.
     fn test_region(source: &str) -> &str {
-        let marker = concat!("#[cfg", "(test)]");
+        let markers = [concat!("#[cfg", "(test)]"), concat!("#[cfg", "(all(test")];
         let mut offset = 0usize;
         for line in source.split_inclusive('\n') {
-            if line.trim_start().starts_with(marker) {
+            let trimmed = line.trim_start();
+            if markers.iter().any(|m| trimmed.starts_with(m)) {
                 return &source[offset..];
             }
             offset += line.len();
         }
         ""
+    }
+
+    /// `source` with every comment body and every string-literal body blanked to
+    /// spaces, leaving code. Newlines survive, so line structure is preserved.
+    ///
+    /// Both non-vacuity searches above look for a *symbol*, and neither must be
+    /// satisfiable by text that merely spells it. Two ways that happens here:
+    /// prose (this file's own module doc names all four forbidden symbols), and
+    /// string literals — the serving entry point's failure message contains the
+    /// fourth needle as message text. Blanking both is what makes guard (c) a
+    /// claim about the serving path rather than about a sentence.
+    ///
+    /// (Both mentions above are deliberately periphrastic. This function sits
+    /// below the cut, so it may not spell any of the four symbols out — and an
+    /// earlier draft of this very doc comment did, which the gate caught. That
+    /// is now the second time it has found a fault in its own documentation.)
+    ///
+    /// Handles `//` line comments anywhere on a line, **nested** `/* */` block
+    /// comments, `"…"` strings with `\` escapes, raw strings at any hash count
+    /// (`r"…"`, `r#"…"#`), and char literals — including `'"'` and `'\\'`, which
+    /// a naive scanner would let desynchronise the string tracking (lifetimes
+    /// are told apart from char literals by looking for the closing quote).
+    ///
+    /// **Residual, stated rather than glossed.** This is a lint over source
+    /// text, not a Rust lexer. Text produced by a macro is invisible to it by
+    /// construction, and so is anything pulled in by `include_str!`. Neither
+    /// occurs in this crate; if one ever does, the guard weakens silently, which
+    /// is the standing hazard of every source-text gate in this project.
+    fn code_only(source: &str) -> String {
+        let chars: Vec<char> = source.chars().collect();
+        let n = chars.len();
+        let mut out = String::with_capacity(source.len());
+        let mut i = 0usize;
+        // Blank `count` characters starting at `i`, keeping any newline among
+        // them so line structure survives.
+        let blank = |out: &mut String, from: usize, to: usize| {
+            for &c in &chars[from..to] {
+                out.push(if c == '\n' { '\n' } else { ' ' });
+            }
+        };
+        while i < n {
+            let c = chars[i];
+            let next = chars.get(i + 1).copied();
+            // Line comment: blank to (not including) the newline.
+            if c == '/' && next == Some('/') {
+                let start = i;
+                while i < n && chars[i] != '\n' {
+                    i += 1;
+                }
+                blank(&mut out, start, i);
+                continue;
+            }
+            // Block comment, nested per the Rust grammar.
+            if c == '/' && next == Some('*') {
+                let start = i;
+                let mut depth = 1usize;
+                i += 2;
+                while i < n && depth > 0 {
+                    if chars[i] == '/' && chars.get(i + 1) == Some(&'*') {
+                        depth += 1;
+                        i += 2;
+                    } else if chars[i] == '*' && chars.get(i + 1) == Some(&'/') {
+                        depth -= 1;
+                        i += 2;
+                    } else {
+                        i += 1;
+                    }
+                }
+                blank(&mut out, start, i);
+                continue;
+            }
+            // Raw string: `r`, any number of `#`, then `"`.
+            if c == 'r' {
+                let mut j = i + 1;
+                while j < n && chars[j] == '#' {
+                    j += 1;
+                }
+                if j < n && chars[j] == '"' {
+                    let hashes = j - i - 1;
+                    let start = i;
+                    i = j + 1;
+                    while i < n {
+                        if chars[i] == '"'
+                            && chars[i + 1..].iter().take(hashes).all(|&h| h == '#')
+                            && i + 1 + hashes <= n
+                        {
+                            i += 1 + hashes;
+                            break;
+                        }
+                        i += 1;
+                    }
+                    blank(&mut out, start, i.min(n));
+                    continue;
+                }
+            }
+            // Ordinary string literal.
+            if c == '"' {
+                let start = i;
+                i += 1;
+                while i < n {
+                    if chars[i] == '\\' {
+                        i += 2;
+                        continue;
+                    }
+                    if chars[i] == '"' {
+                        i += 1;
+                        break;
+                    }
+                    i += 1;
+                }
+                blank(&mut out, start, i.min(n));
+                continue;
+            }
+            // Char literal vs lifetime. A char literal is a quote, then either
+            // ONE character or an escape sequence, then a closing quote — so the
+            // scan is tightly bounded. `'a` in `&'a str` is a lifetime and falls
+            // through to be emitted as code; an unbounded "scan to the next
+            // quote" would swallow it and everything up to the next lifetime on
+            // the line.
+            if c == '\'' {
+                let close = if chars.get(i + 1) == Some(&'\\') {
+                    // `'\n'`, `'\\'`, `'\u{1F600}'` — an escape body is short.
+                    (i + 2..(i + 12).min(n)).find(|&j| chars[j] == '\'')
+                } else if chars.get(i + 2) == Some(&'\'') {
+                    Some(i + 2)
+                } else {
+                    None
+                };
+                if let Some(j) = close {
+                    blank(&mut out, i, j + 1);
+                    i = j + 1;
+                    continue;
+                }
+            }
+            out.push(c);
+            i += 1;
+        }
+        out
     }
 }
