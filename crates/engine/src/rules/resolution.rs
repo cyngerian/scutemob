@@ -88,6 +88,30 @@ use imbl::OrdSet;
 /// the re-stacked object, and no trigger or SBA runs against it. What the model
 /// buys is that a suspended resolution has no partial state to reconcile at all.
 pub fn resolve_top_of_stack(state: &mut GameState) -> Result<Vec<GameEvent>, GameStateError> {
+    // CR 608.2d (PB-DX2, closing OOS-DP9-14): a `pending_effect_choice` whose
+    // owner has left the game is a trap state, not a question. `blocking_decision`'s
+    // liveness filter (`engine.rs:220-227`) already stops such an entry blocking the
+    // game, but it does NOT clear the field, so if a future widened admission gate
+    // ever let an SBA elimination run here the residue would be unrecoverable.
+    // Unreachable through legal commands today (`discharge_effect_choice_on_concede`
+    // clears the field on ANY concede) -- this is defensive hardening, and it is
+    // deliberately narrow.
+    //
+    // It must run BEFORE the assert below and must clear ONLY a dead owner's entry:
+    // clearing unconditionally would make the assert vacuous, and the assert's real
+    // job -- catching re-entry with a LIVE player's question outstanding, which IS
+    // an engine bug -- has to keep its teeth. Pinned in both directions by
+    // `dx2_pending_effect_choice_reap_tests` at the foot of this module.
+    if let Some(entry) = state.pending_effect_choice.clone() {
+        let owner_alive = state
+            .expect_player(entry.player)
+            .map(|pl| !pl.has_lost && !pl.has_conceded)
+            .unwrap_or(false);
+        if !owner_alive {
+            state.pending_effect_choice = None;
+            state.effect_choice_answers = imbl::Vector::new();
+        }
+    }
     debug_assert!(
         state.pending_effect_choice.is_none(),
         "CR 608.2d: resolve_top_of_stack re-entered while a resolution-time \
@@ -8366,9 +8390,9 @@ mod dx2_pending_effect_choice_reap_tests {
                 source_object: ghost_source,
                 ability_index: 0,
                 is_carddef_etb: false,
-                embedded_effect: Some(Box::new(
-                    crate::cards::card_definition::Effect::Sequence(vec![]),
-                )),
+                embedded_effect: Some(Box::new(crate::cards::card_definition::Effect::Sequence(
+                    vec![],
+                ))),
             },
             targets: vec![],
             cant_be_countered: false,

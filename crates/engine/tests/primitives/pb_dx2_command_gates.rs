@@ -126,8 +126,9 @@ fn build_no_offer_state(p1: PlayerId, p2: PlayerId, dredge_n: u32) -> (GameState
         .at_step(Step::PreCombatMain);
     // Library needs >= dredge_n cards (CR 702.52b).
     for i in 0..(dredge_n as usize + 2) {
-        builder = builder
-            .object(ObjectSpec::card(p1, &format!("Library Filler {}", i)).in_zone(ZoneId::Library(p1)));
+        builder = builder.object(
+            ObjectSpec::card(p1, &format!("Library Filler {}", i)).in_zone(ZoneId::Library(p1)),
+        );
     }
     let mut state = builder.build().unwrap();
     state.turn_mut().priority_holder = Some(p1);
@@ -329,8 +330,8 @@ fn test_dx2_keep_hand_rejects_a_card_in_another_players_hand() {
     let p2 = p(2);
     let mut builder = GameStateBuilder::four_player().active_player(p1);
     for i in 0..20 {
-        builder =
-            builder.object(ObjectSpec::card(p1, &format!("Card {}", i)).in_zone(ZoneId::Library(p1)));
+        builder = builder
+            .object(ObjectSpec::card(p1, &format!("Card {}", i)).in_zone(ZoneId::Library(p1)));
     }
     builder = builder.object(ObjectSpec::card(p2, "P2 Secret Card").in_zone(ZoneId::Hand(p2)));
     let state = builder.build().unwrap();
@@ -526,12 +527,11 @@ fn test_dx2_keep_hand_rejects_a_battlefield_permanent() {
     let p2 = p(2);
     let mut builder = GameStateBuilder::four_player().active_player(p1);
     for i in 0..20 {
-        builder =
-            builder.object(ObjectSpec::card(p1, &format!("Card {}", i)).in_zone(ZoneId::Library(p1)));
+        builder = builder
+            .object(ObjectSpec::card(p1, &format!("Card {}", i)).in_zone(ZoneId::Library(p1)));
     }
-    builder = builder.object(
-        ObjectSpec::creature(p1, "P1 Battlefield Bear", 2, 2).in_zone(ZoneId::Battlefield),
-    );
+    builder = builder
+        .object(ObjectSpec::creature(p1, "P1 Battlefield Bear", 2, 2).in_zone(ZoneId::Battlefield));
     let state = builder.build().unwrap();
     let (state, _) = process_command(state, Command::TakeMulligan { player: p1 }).unwrap();
     let (state, _) = process_command(state, Command::TakeMulligan { player: p1 }).unwrap();
@@ -586,8 +586,8 @@ fn test_dx2_keep_hand_rejects_duplicate_ids() {
     let p1 = p(1);
     let mut builder = GameStateBuilder::four_player().active_player(p1);
     for i in 0..20 {
-        builder =
-            builder.object(ObjectSpec::card(p1, &format!("Card {}", i)).in_zone(ZoneId::Library(p1)));
+        builder = builder
+            .object(ObjectSpec::card(p1, &format!("Card {}", i)).in_zone(ZoneId::Library(p1)));
     }
     let state = builder.build().unwrap();
     let (state, _) = process_command(state, Command::TakeMulligan { player: p1 }).unwrap();
@@ -637,8 +637,8 @@ fn test_dx2_keep_hand_still_accepts_the_players_own_hand_cards() {
     let p1 = p(1);
     let mut builder = GameStateBuilder::four_player().active_player(p1);
     for i in 0..20 {
-        builder =
-            builder.object(ObjectSpec::card(p1, &format!("Card {}", i)).in_zone(ZoneId::Library(p1)));
+        builder = builder
+            .object(ObjectSpec::card(p1, &format!("Card {}", i)).in_zone(ZoneId::Library(p1)));
     }
     let state = builder.build().unwrap();
     let (state, _) = process_command(state, Command::TakeMulligan { player: p1 }).unwrap();
@@ -646,7 +646,12 @@ fn test_dx2_keep_hand_still_accepts_the_players_own_hand_cards() {
     assert_eq!(state.players().get(&p1).unwrap().mulligan_count, 2);
 
     let card_to_bottom = state.zone(&ZoneId::Hand(p1)).unwrap().object_ids()[0];
-    let card_name = state.object(card_to_bottom).unwrap().characteristics.name.clone();
+    let card_name = state
+        .object(card_to_bottom)
+        .unwrap()
+        .characteristics
+        .name
+        .clone();
 
     let (state, events) = process_command(
         state,
@@ -668,5 +673,287 @@ fn test_dx2_keep_hand_still_accepts_the_players_own_hand_cards() {
     assert!(
         object_in_zone(&state, &card_name, ZoneId::Library(p1)),
         "the named card should be in p1's library after KeepHand bottoms it"
+    );
+}
+
+// ── T3 ──────────────────────────────────────────────────────────────────────
+
+#[test]
+/// CR 702.52a — the CONSUME half, distinct from T1's REQUIRE half: reach the
+/// draw-step offer, answer it once (`ChooseDredge { None }` -> Ok), then send
+/// the identical command AGAIN -> must now be rejected because the entry was
+/// already consumed. Before PB-DX2 the second answer drew a SECOND card (no
+/// gate at all, so nothing was ever consumed).
+fn test_dx2_choose_dredge_is_consumed_by_its_answer() {
+    let p1 = p(1);
+    let p2 = p(2);
+
+    let registry = CardRegistry::new(vec![dredge_card_def("dredge-dx2-t3", "Dredge T3 Card", 3)]);
+
+    let state = build_upkeep_state(p1, p2, registry, |mut b| {
+        b = b.object(
+            ObjectSpec::card(p1, "Dredge T3 Card")
+                .in_zone(ZoneId::Graveyard(p1))
+                .with_card_id(CardId("dredge-dx2-t3".to_string()))
+                .with_keyword(KeywordAbility::Dredge(3)),
+        );
+        for i in 0..5 {
+            b = b.object(
+                ObjectSpec::card(p1, &format!("Library Card {}", i)).in_zone(ZoneId::Library(p1)),
+            );
+        }
+        b
+    });
+
+    let (state, _events) = pass_all(state, &[p1, p2]);
+    assert_eq!(state.pending_draws().len(), 1);
+
+    // First answer: consumes the entry.
+    let (state, first_events) = process_command(
+        state,
+        Command::ChooseDredge {
+            player: p1,
+            card: None,
+        },
+    )
+    .unwrap();
+    assert!(first_events
+        .iter()
+        .any(|e| matches!(e, GameEvent::CardDrawn { player, .. } if *player == p1)));
+    assert!(state.pending_draws().is_empty());
+
+    // Second, identical answer: the entry is gone -- must be rejected.
+    let result = process_command(
+        state,
+        Command::ChooseDredge {
+            player: p1,
+            card: None,
+        },
+    );
+    match result {
+        Err(GameStateError::InvalidCommand(_)) => {}
+        Err(other) => panic!("expected InvalidCommand on the re-send, got {:?}", other),
+        Ok((state, events)) => {
+            let hand_count = count_in_zone(&state, ZoneId::Hand(p1));
+            panic!(
+                "CR 702.52a: a second ChooseDredge with the entry already \
+                 consumed must be rejected, but it succeeded (hand count now \
+                 {}). Events: {:?}",
+                hand_count, events
+            );
+        }
+    }
+}
+
+// ── T6 ──────────────────────────────────────────────────────────────────────
+
+#[test]
+/// CR 702.52a + 614.11a — as T5, but choosing to DREDGE (`Some`) rather than
+/// decline: one `Dredged` event plus the two remaining draws of the sequence
+/// complete. Before PB-DX2 there was one `Dredged` and zero further draws.
+fn test_dx2_dredge_then_remaining_draws_complete() {
+    use mtg_engine::effects::{execute_effect, EffectContext};
+
+    let p1 = p(1);
+    let p2 = p(2);
+    let registry = CardRegistry::new(vec![dredge_card_def("dredge-dx2-t6", "Dredge T6 Card", 3)]);
+    let mut builder = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .object(
+            ObjectSpec::card(p1, "Dredge T6 Card")
+                .in_zone(ZoneId::Graveyard(p1))
+                .with_card_id(CardId("dredge-dx2-t6".to_string()))
+                .with_keyword(KeywordAbility::Dredge(3)),
+        );
+    for i in 0..10 {
+        builder = builder.object(
+            ObjectSpec::card(p1, &format!("Library Card {}", i)).in_zone(ZoneId::Library(p1)),
+        );
+    }
+    let mut state = builder.build().unwrap();
+
+    let effect = Effect::DrawCards {
+        player: PlayerTarget::Controller,
+        count: EffectAmount::Fixed(3),
+    };
+    let mut ctx = EffectContext::new(p1, ObjectId(997), vec![]);
+    let events = execute_effect(&mut state, &effect, &mut ctx);
+    let (dredge_id, _n) = events
+        .iter()
+        .find_map(|e| {
+            if let GameEvent::DredgeChoiceRequired { player, options } = e {
+                if *player == p1 {
+                    options.first().copied()
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        })
+        .expect("DredgeChoiceRequired expected");
+    assert_eq!(state.pending_draws()[0].remaining, 2);
+
+    let (state, dredge_events) = process_command(
+        state,
+        Command::ChooseDredge {
+            player: p1,
+            card: Some(dredge_id),
+        },
+    )
+    .unwrap();
+
+    let dredged_count = dredge_events
+        .iter()
+        .filter(|e| matches!(e, GameEvent::Dredged { player, .. } if *player == p1))
+        .count();
+    let drawn_count = dredge_events
+        .iter()
+        .filter(|e| matches!(e, GameEvent::CardDrawn { player, .. } if *player == p1))
+        .count();
+    assert_eq!(
+        dredged_count, 1,
+        "exactly one Dredged event. Events: {:?}",
+        dredge_events
+    );
+    assert_eq!(
+        drawn_count, 2,
+        "CR 614.11a: the two remaining draws of the sequence must complete \
+         after dredging. Events: {:?}",
+        dredge_events
+    );
+    assert!(state.pending_draws().is_empty());
+}
+
+// ── T8 ──────────────────────────────────────────────────────────────────────
+
+#[test]
+/// Hard constraint (plan §4.5 / risk 1): an outstanding dredge `PendingDraw`
+/// entry does NOT gate priority, SBAs or step advancement. Both players pass
+/// priority repeatedly with the entry outstanding and unanswered: no error,
+/// no hang, no `BlockingDecision`, and the entry is untouched (nothing else
+/// resolves it for the player).
+fn test_dx2_unanswered_dredge_offer_does_not_deadlock() {
+    let p1 = p(1);
+    let p2 = p(2);
+
+    let registry = CardRegistry::new(vec![dredge_card_def("dredge-dx2-t8", "Dredge T8 Card", 3)]);
+
+    let state = build_upkeep_state(p1, p2, registry, |mut b| {
+        b = b.object(
+            ObjectSpec::card(p1, "Dredge T8 Card")
+                .in_zone(ZoneId::Graveyard(p1))
+                .with_card_id(CardId("dredge-dx2-t8".to_string()))
+                .with_keyword(KeywordAbility::Dredge(3)),
+        );
+        for i in 0..5 {
+            b = b.object(
+                ObjectSpec::card(p1, &format!("Library Card {}", i)).in_zone(ZoneId::Library(p1)),
+            );
+        }
+        b
+    });
+
+    let (mut state, _events) = pass_all(state, &[p1, p2]);
+    assert_eq!(state.pending_draws().len(), 1);
+    assert!(state.blocking_decision().is_none());
+
+    // Pass priority repeatedly through several steps WITHOUT ever answering.
+    for _ in 0..6 {
+        let (s, _ev) = pass_all(state, &[p1, p2]);
+        state = s;
+        assert!(
+            state.blocking_decision().is_none(),
+            "an outstanding dredge offer must never become a BlockingDecision"
+        );
+    }
+
+    assert_eq!(
+        state.pending_draws().len(),
+        1,
+        "the unanswered entry must still be present -- nothing else resolves \
+         it for the player"
+    );
+}
+
+// ── T9 ──────────────────────────────────────────────────────────────────────
+
+#[test]
+/// CR 702.52a (§4.4 step 0) — a dead player's outstanding dredge entry is
+/// discharged, not left to sit in the hash forever. 3 players so the game is
+/// not over when p1 concedes.
+fn test_dx2_dead_players_dredge_entry_is_discharged() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let p3 = PlayerId(3);
+
+    let registry = CardRegistry::new(vec![dredge_card_def("dredge-dx2-t9", "Dredge T9 Card", 3)]);
+
+    let mut builder = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .add_player(p3)
+        .with_registry(registry)
+        .active_player(p1)
+        .at_step(Step::Upkeep)
+        .object(
+            ObjectSpec::card(p1, "Dredge T9 Card")
+                .in_zone(ZoneId::Graveyard(p1))
+                .with_card_id(CardId("dredge-dx2-t9".to_string()))
+                .with_keyword(KeywordAbility::Dredge(3)),
+        );
+    for i in 0..5 {
+        builder = builder.object(
+            ObjectSpec::card(p1, &format!("Library Card {}", i)).in_zone(ZoneId::Library(p1)),
+        );
+    }
+    let mut state = builder.build().unwrap();
+    state.turn_mut().is_first_turn_of_game = false;
+    state.turn_mut().priority_holder = Some(p1);
+
+    let (state, _events) = pass_all(state, &[p1, p2, p3]);
+    assert_eq!(state.pending_draws().len(), 1);
+
+    let (state, _) = process_command(state, Command::Concede { player: p1 }).unwrap();
+    assert!(state.players().get(&p1).unwrap().has_conceded);
+
+    let (state, events) = process_command(
+        state,
+        Command::ChooseDredge {
+            player: p1,
+            card: None,
+        },
+    )
+    .unwrap();
+    assert!(
+        events.is_empty(),
+        "a dead player's ChooseDredge should be a pure no-op: {:?}",
+        events
+    );
+    assert!(
+        state.pending_draws().is_empty(),
+        "the dead player's entry must be discharged, not left outstanding"
+    );
+}
+
+// ── T16 ─────────────────────────────────────────────────────────────────────
+
+#[test]
+/// Wire-neutrality pin (plan §7.1 / AC 5873). PB-DX2 takes design (b) --
+/// reuse the existing `pending_draws` queue, no new type, no new `GameState`
+/// field, no new `Command`/`GameEvent` variant -- so `PROTOCOL_VERSION` and
+/// `HASH_SCHEMA_VERSION` must stay exactly where PB-DX1 left them.
+fn test_dx2_wire_version_sentinels() {
+    assert_eq!(
+        mtg_engine::HASH_SCHEMA_VERSION,
+        69u8,
+        "HASH_SCHEMA_VERSION live sentinel -- PB-DX2 must leave it unmoved"
+    );
+    assert_eq!(
+        mtg_engine::PROTOCOL_VERSION,
+        32u32,
+        "PROTOCOL_VERSION live sentinel -- PB-DX2 must leave it unmoved"
     );
 }

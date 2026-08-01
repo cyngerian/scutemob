@@ -83,11 +83,33 @@
       guard (§8.1). T10, T11, T12, T13 all pass; `bare_lookup_ratchet` green,
       unmoved (`expect_zone`, not a bare lookup); full `commander::`/mulligan
       suite (27 tests) green.
-- [ ] Step 10 — Phase 4: `resolution.rs:90` reap above the entry
-      `debug_assert!` (§8.2). T14 should then pass; write and run T15.
-- [ ] Step 11 — Phase 5 gates: `core` test group green, no edits to
-      `rules/protocol.rs` / `state/hash.rs`. Add T16.
-- [ ] Step 12 — full suite / clippy / fmt / check-defs-fmt / workspace build
-      / golden scripts all green.
+- [x] Step 10 — Phase 4: `resolution.rs:90` reap above the entry
+      `debug_assert!` (§8.2), narrowed to a dead owner only. T14 now passes;
+      T15 (`#[should_panic]`, live owner) written and passes, proving the
+      reap did not silence the assert.
+- [x] Step 11 — Phase 5 gates: `core` test group (449 tests, including
+      `hash_schema::*` and `protocol_schema::*`) green; `git diff --stat` over
+      `rules/protocol.rs` / `state/hash.rs` is EMPTY. T16 added and passes
+      (`HASH_SCHEMA_VERSION == 69`, `PROTOCOL_VERSION == 32`, both unmoved).
+- [x] Step 12 — full suite (3,971 passing / 0 failing, +16 over this
+      worktree's own 3,955 baseline), `cargo clippy --workspace --all-targets
+      -- -D warnings` clean, `cargo fmt --check` clean, `check-defs-fmt.sh`
+      clean (1,804 defs), `cargo build --workspace` clean. **211/211 golden
+      scripts pass, 60 retired (pre-existing, unrelated) — but
+      `replacement/014_golgari_grave_troll_dredge.json` did NOT stay
+      unchanged as plan §9.4 predicted.** Its `turn_based_action: draw_card`
+      entry is (and always was) purely informational per
+      `script_schema.rs`'s documented contract — no driver dispatches an
+      engine Command off it — so the script never actually attempted a real
+      draw; its `choose_dredge` succeeded pre-PB-DX2 purely on the exploit
+      the batch closes. Fixed per plan §11 step 12's own instruction ("SR-9c
+      forbids silent skips... any changed expectation needs a one-line CR
+      citation... do not adjust a script to fit"): initial_state now starts
+      at Upkeep and a leading `priority_round` (both players pass) drives the
+      REAL Upkeep→Draw transition and its draw turn-based action (CR 504.1),
+      mirroring `dredge.rs`'s `pass_all` unit-test pattern. A new dispute
+      entry (append-only, the existing one preserved) documents the finding
+      and fix with CR citations. All downstream assertions unchanged and
+      still pass.
 - [ ] Step 13 — Phase 6: roster enumeration + bench check.
 - [ ] Step 14 — Phase 7: bookkeeping (seeds, closures, wip/workstream-state).

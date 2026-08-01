@@ -1495,9 +1495,9 @@ pub fn resolve_pending_draw(
         DrawStepOutcome::Deferred
             | DrawStepOutcome::LostToEmptyLibrary
             | DrawStepOutcome::DredgeOffered // PB-DX2 / P3: a dredge offer now
-                                              // records its own entry with the
-                                              // correct `remaining`; resuming here
-                                              // would double-count it.
+                                             // records its own entry with the
+                                             // correct `remaining`; resuming here
+                                             // would double-count it.
     ) && pending.remaining > 0
     {
         events.extend(perform_remaining_draws(
@@ -3046,7 +3046,11 @@ pub fn handle_choose_dredge(
     // truth 1: players are never removed from `state.players`).
     if let Some(p) = state.expect_player(player) {
         if p.has_lost || p.has_conceded {
-            if let Some(idx) = state.pending_draws.iter().position(|pd| pd.player == player) {
+            if let Some(idx) = state
+                .pending_draws
+                .iter()
+                .position(|pd| pd.player == player)
+            {
                 state.pending_draws.remove(idx);
             }
             return Ok(vec![]);
