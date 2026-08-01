@@ -4556,11 +4556,16 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         // CR 603.4: Check intervening-if clause at trigger time.
                         // Pass pre_death_counters for persist/undying counter checks (CR 702.79a).
                         if let Some(ref cond) = trigger_def.intervening_if {
+                            // CR 603.10a: SelfDies is a look-back trigger — source is
+                            // now in the graveyard (*new_grave_id).
                             if !check_intervening_if(
                                 state,
                                 cond,
                                 *death_controller,
+                                *new_grave_id,
                                 Some(pre_death_counters),
+                                InterveningIfMoment::TriggerTimeLookBack,
+                                &[],
                             ) {
                                 continue;
                             }
@@ -4619,7 +4624,16 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             continue;
                         }
                         if let Some(ref cond) = trigger_def.intervening_if {
-                            if !check_intervening_if(state, cond, controller, None) {
+                            // CR 603.10a: look-back trigger — source is the graveyard object.
+                            if !check_intervening_if(
+                                state,
+                                cond,
+                                controller,
+                                *new_grave_id,
+                                None,
+                                InterveningIfMoment::TriggerTimeLookBack,
+                                &[],
+                            ) {
                                 continue;
                             }
                         }
@@ -4764,6 +4778,22 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         })
                         .collect();
                     for (haunt_obj_id, haunt_card_id, haunt_controller) in haunt_exiled {
+                        // CR 603.4 (PB-DX1, OOS-DP6-9): the queue-time intervening-if
+                        // gate for this trigger lives in `flush_pending_triggers`'s
+                        // `PendingTriggerKind::HauntedCreatureDies` arm, NOT here.
+                        // `check_triggers` only has `&GameState` and CR 702.55c
+                        // requires clearing `haunting_target` on suppression (a
+                        // suppressed trigger still spends the one-shot haunting
+                        // relationship, exactly like a resolved one — mirroring
+                        // `resolution.rs`'s "regardless of whether the
+                        // intervening-if held" clear) — a mutation `check_triggers`
+                        // cannot perform. Gating here and clearing at flush time
+                        // would leave a suppressed trigger's exiled card still
+                        // haunting a dead creature's `ObjectId` (review Finding 7).
+                        // This is the SAME "gate at flush time" shape
+                        // `once_per_turn` already uses in this function, applied to
+                        // the one trigger family that also needs a mutation on
+                        // suppression.
                         triggers.push(PendingTrigger {
                             triggering_event: Some(TriggerEvent::HauntedCreatureDies),
                             data: Some(TriggerData::DeathHauntedCreatureDies {
@@ -4867,9 +4897,19 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                     continue;
                                 }
                             }
-                            // CR 603.4: Check intervening-if at trigger time.
+                            // CR 603.4: Check intervening-if at trigger time. Not a
+                            // look-back trigger — the SOURCE (observer) is `obj_id`,
+                            // still on the battlefield; only the *dying* creature is LKI.
                             if let Some(ref cond) = trigger_def.intervening_if {
-                                if !check_intervening_if(state, cond, obj.controller, None) {
+                                if !check_intervening_if(
+                                    state,
+                                    cond,
+                                    obj.controller,
+                                    obj_id,
+                                    None,
+                                    InterveningIfMoment::TriggerTime,
+                                    &[],
+                                ) {
                                     continue;
                                 }
                             }
@@ -4913,8 +4953,17 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             continue;
                         }
                         // CR 603.4: Check intervening-if clause at trigger time.
+                        // CR 603.10a: look-back trigger — source is the graveyard object.
                         if let Some(ref cond) = trigger_def.intervening_if {
-                            if !check_intervening_if(state, cond, controller, None) {
+                            if !check_intervening_if(
+                                state,
+                                cond,
+                                controller,
+                                *new_grave_id,
+                                None,
+                                InterveningIfMoment::TriggerTimeLookBack,
+                                &[],
+                            ) {
                                 continue;
                             }
                         }
@@ -5010,8 +5059,18 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             continue;
                         }
                         // CR 603.4: intervening-if check at trigger time.
+                        // CR 701.50b / 603.10a: the source may already have left the
+                        // battlefield (connive fires even then) — look-back.
                         if let Some(ref cond) = trigger_def.intervening_if {
-                            if !check_intervening_if(state, cond, obj.controller, None) {
+                            if !check_intervening_if(
+                                state,
+                                cond,
+                                obj.controller,
+                                *object_id,
+                                None,
+                                InterveningIfMoment::TriggerTimeLookBack,
+                                &[],
+                            ) {
                                 continue;
                             }
                         }
@@ -5470,9 +5529,18 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                 {
                                     continue;
                                 }
-                                // Apply intervening-if condition.
+                                // Apply intervening-if condition. Not a look-back trigger
+                                // — the source (`obj_id`) is filtered to the battlefield above.
                                 if let Some(ref cond) = trigger_def.intervening_if {
-                                    if !check_intervening_if(state, cond, obj.controller, None) {
+                                    if !check_intervening_if(
+                                        state,
+                                        cond,
+                                        obj.controller,
+                                        obj_id,
+                                        None,
+                                        InterveningIfMoment::TriggerTime,
+                                        &[],
+                                    ) {
                                         continue;
                                     }
                                 }
@@ -5782,7 +5850,15 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             continue;
                         }
                         if let Some(ref cond) = trigger_def.intervening_if {
-                            if !check_intervening_if(state, cond, controller, None) {
+                            if !check_intervening_if(
+                                state,
+                                cond,
+                                controller,
+                                *new_grave_id,
+                                None,
+                                InterveningIfMoment::TriggerTimeLookBack,
+                                &[],
+                            ) {
                                 continue;
                             }
                         }
@@ -5840,7 +5916,15 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             continue;
                         }
                         if let Some(ref cond) = trigger_def.intervening_if {
-                            if !check_intervening_if(state, cond, controller, None) {
+                            if !check_intervening_if(
+                                state,
+                                cond,
+                                controller,
+                                *new_exile_id,
+                                None,
+                                InterveningIfMoment::TriggerTimeLookBack,
+                                &[],
+                            ) {
                                 continue;
                             }
                         }
@@ -5898,7 +5982,15 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             continue;
                         }
                         if let Some(ref cond) = trigger_def.intervening_if {
-                            if !check_intervening_if(state, cond, controller, None) {
+                            if !check_intervening_if(
+                                state,
+                                cond,
+                                controller,
+                                *new_hand_id,
+                                None,
+                                InterveningIfMoment::TriggerTimeLookBack,
+                                &[],
+                            ) {
                                 continue;
                             }
                         }
@@ -6363,7 +6455,15 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                             continue;
                         }
                         if let Some(ref cond) = trigger_def.intervening_if {
-                            if !check_intervening_if(state, cond, controller, None) {
+                            if !check_intervening_if(
+                                state,
+                                cond,
+                                controller,
+                                *new_id,
+                                None,
+                                InterveningIfMoment::TriggerTimeLookBack,
+                                &[],
+                            ) {
                                 continue;
                             }
                         }
@@ -6545,9 +6645,18 @@ fn collect_permanent_becomes_target_triggers(
                     }
                 }
             }
-            // CR 603.4: Check intervening-if at trigger time.
+            // CR 603.4: Check intervening-if at trigger time. Not a look-back
+            // trigger — `src` is filtered to the battlefield above.
             if let Some(ref cond) = trigger_def.intervening_if {
-                if !check_intervening_if(state, cond, src.controller, None) {
+                if !check_intervening_if(
+                    state,
+                    cond,
+                    src.controller,
+                    src.id,
+                    None,
+                    InterveningIfMoment::TriggerTime,
+                    &[],
+                ) {
                     continue;
                 }
             }
@@ -6875,8 +6984,19 @@ fn collect_triggers_for_event(
             }
             // CR 603.4: Check intervening-if at trigger time.
             // If the condition is false, the ability does not trigger.
+            // PB-DX1: this is the headline site — ALL 34 lowered trigger events
+            // dispatch through here. Not a look-back trigger: `obj.zone ==
+            // Battlefield` is enforced above (the `only_object`/full-scan filter).
             if let Some(ref cond) = trigger_def.intervening_if {
-                if !check_intervening_if(state, cond, obj.controller, None) {
+                if !check_intervening_if(
+                    state,
+                    cond,
+                    obj.controller,
+                    obj_id,
+                    None,
+                    InterveningIfMoment::TriggerTime,
+                    &[],
+                ) {
                     continue;
                 }
             }
@@ -6930,9 +7050,20 @@ pub(crate) fn collect_emblem_triggers_for_event(
             if trigger_def.trigger_on != event_type {
                 continue;
             }
-            // CR 603.4: Check intervening-if at trigger time.
+            // CR 603.4: Check intervening-if at trigger time. Not a look-back
+            // trigger — emblems function in the command zone (CR 113.6p) and
+            // `obj_id` is that persistent command-zone object; a source-scoped
+            // condition like SourceOnBattlefield correctly reads false here.
             if let Some(ref cond) = trigger_def.intervening_if {
-                if !check_intervening_if(state, cond, obj.controller, None) {
+                if !check_intervening_if(
+                    state,
+                    cond,
+                    obj.controller,
+                    obj_id,
+                    None,
+                    InterveningIfMoment::TriggerTime,
+                    &[],
+                ) {
                     continue;
                 }
             }
@@ -7957,8 +8088,18 @@ fn flush_sorted(
         let once_per_turn_flag: bool = {
             let obj = state.objects.get(&trigger.source);
             if let Some(obj) = obj {
+                // PB-DX1 review Finding 10: this now genuinely reads layer-resolved
+                // characteristics (CR 613.1f), matching `collect_triggers_for_event`'s
+                // own namespace, instead of merely claiming to. Was inert either way
+                // (an ability-removal effect already suppresses the trigger upstream,
+                // at `collect_triggers_for_event`, before a `PendingTrigger` for it is
+                // ever created), but phase 7 made a genuine mismatch here load-bearing
+                // for three `Complete` defs, so the comment's claim is honored for real.
+                let resolved =
+                    crate::rules::layers::calculate_characteristics(state, trigger.source)
+                        .unwrap_or_else(|| obj.characteristics.clone());
                 let from_runtime = if trigger.kind == PendingTriggerKind::Normal {
-                    obj.characteristics
+                    resolved
                         .triggered_abilities
                         .get(trigger.ability_index)
                         .map(|ab| ab.once_per_turn)
@@ -8850,14 +8991,67 @@ fn flush_sorted(
                         Some(TriggerData::DeathHauntedCreatureDies {
                             haunt_source,
                             haunt_card_id,
-                        }) => StackObjectKind::KeywordTrigger {
-                            source_object: trigger.source,
-                            keyword: KeywordAbility::Haunt,
-                            data: TriggerData::DeathHauntedCreatureDies {
-                                haunt_source,
-                                haunt_card_id,
-                            },
-                        },
+                        }) => {
+                            // CR 603.4 (PB-DX1 review Finding 7 / OOS-DP6-9): the
+                            // queue-time intervening-if gate lives HERE, not in
+                            // `check_triggers` — this arm mirrors that function's own
+                            // find_map (locate the card-def's `HauntedCreatureDies`
+                            // ability, read its `intervening_if`) and gates with the
+                            // same `carddef_intervening_if_holds_at_queue_time` every
+                            // other queue site uses. It lives at flush time (like
+                            // `once_per_turn`, checked earlier in this same function)
+                            // specifically because only here is `state` `&mut`, and
+                            // CR 702.55c requires clearing `haunting_target` on
+                            // suppression: a suppressed trigger still spends the
+                            // one-shot haunting relationship (mirroring
+                            // `resolution.rs`'s clear, which runs "regardless of
+                            // whether the intervening-if held") — otherwise the
+                            // exiled card would keep haunting a dead creature's
+                            // `ObjectId`, the exact recycled-`ObjectId` hazard that
+                            // clear exists to prevent.
+                            let intervening_if = haunt_card_id.clone().and_then(|cid| {
+                                state.card_registry.get(cid).and_then(|def| {
+                                    def.abilities.iter().find_map(|ab| {
+                                        if let AbilityDefinition::Triggered {
+                                            trigger_condition:
+                                                TriggerCondition::HauntedCreatureDies,
+                                            intervening_if,
+                                            ..
+                                        } = ab
+                                        {
+                                            Some(intervening_if.clone())
+                                        } else {
+                                            None
+                                        }
+                                    })
+                                })
+                            });
+                            let gate_holds = intervening_if
+                                .map(|cond| {
+                                    carddef_intervening_if_holds_at_queue_time(
+                                        state,
+                                        cond.as_ref(),
+                                        trigger.controller,
+                                        haunt_source,
+                                    )
+                                })
+                                // No card def / no matching ability found: nothing to gate on.
+                                .unwrap_or(true);
+                            if !gate_holds {
+                                if let Some(haunt_obj) = state.fizzle_object_mut(haunt_source) {
+                                    haunt_obj.haunting_target = None;
+                                }
+                                continue;
+                            }
+                            StackObjectKind::KeywordTrigger {
+                                source_object: trigger.source,
+                                keyword: KeywordAbility::Haunt,
+                                data: TriggerData::DeathHauntedCreatureDies {
+                                    haunt_source,
+                                    haunt_card_id,
+                                },
+                            }
+                        }
                         _ => StackObjectKind::KeywordTrigger {
                             source_object: trigger.source,
                             keyword: KeywordAbility::Haunt,
@@ -10163,16 +10357,66 @@ pub(crate) fn carddef_intervening_if_holds_at_queue_time(
     ctx.x_value = x_value;
     crate::effects::check_condition(state, cond, &ctx)
 }
+/// When a CR 603.4 intervening-if is being evaluated. Not serialized, not hashed,
+/// not on the wire — a pure call-site classification (PB-DX1).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum InterveningIfMoment {
+    /// CR 603.4 sentence 1, source still in the zone its ability functions in.
+    TriggerTime,
+    /// CR 603.4 sentence 1 for a **leave-the-battlefield** trigger (CR 603.10a).
+    /// The source has already moved; the game must "look back in time" and the
+    /// engine has no LKI-aware `check_condition`. A card-def condition is treated
+    /// as HOLDING here (hard constraint 3: never suppress a trigger on a state we
+    /// cannot query faithfully). Seeded as OOS-DX1-1.
+    TriggerTimeLookBack,
+    /// CR 603.4 sentence 2 — re-check as the ability resolves.
+    Resolution,
+    /// CR 603.4 sentence 2 for a **leave-the-battlefield** trigger (CR 603.10a).
+    /// PB-DX1 review Finding 2: CR 603.4 explicitly says the intervening-if
+    /// mechanism "mirrors the check for legal targets" (CR 608.2b), and 608.2b is
+    /// unambiguous that a departed source's last-known-information is used, not
+    /// current state. Evaluating a source-scoped condition (`SourceOnBattlefield`,
+    /// ...) against the CURRENT state at resolution would read false for a source
+    /// that has legitimately left the zone its ability functions in — the same
+    /// false-negative failure `TriggerTimeLookBack` exists to prevent, just one
+    /// step later ("queue-then-fizzle": PB-DP6's review named this exact shape).
+    /// Treated as HOLDING, matching `TriggerTimeLookBack` and the pre-existing
+    /// `InterveningIf::SourceHadNoCounterOfType` precedent (which also answers
+    /// `true` at resolution rather than re-deriving from an LKI snapshot the
+    /// caller cannot supply). Threaded from `resolution.rs` when the resolving
+    /// ability's `trigger_on` is `SelfDies` / `SelfLeavesBattlefield` /
+    /// `SourceConnives` — the same three `TriggerEvent`s the 8 `TriggerTimeLookBack`
+    /// queue sites cover.
+    ResolutionLookBack,
+}
+
 /// Evaluate an intervening-if condition against the current game state (CR 603.4).
 ///
 /// `pre_death_counters` — counters captured from the creature just before it left
 /// the battlefield. Required for `SourceHadNoCounterOfType` checks (persist/undying).
 /// Pass `None` for all non-death trigger contexts.
+///
+/// `source` and `moment` are PB-DX1 additions for the `InterveningIf::CardDef` arm:
+/// `source` feeds `carddef_intervening_if_holds_at_queue_time`'s `fizzle_object` /
+/// kicker/x-value lookup; `moment` selects which of CR 603.4's two sentences (and
+/// CR 603.10a's look-back carve-out) applies at this call site.
+///
+/// `resolution_targets` is a PB-DX1 review (Finding 6) addition: the resolving
+/// stack object's declared targets, read by `Condition::TargetIsLegal` — the one
+/// `Condition` variant that reads `ctx.targets`. At `TriggerTime`/
+/// `TriggerTimeLookBack` no targets have been declared yet (targets are chosen
+/// when a trigger is placed on the stack, not when it is collected), so every
+/// queue-time caller correctly passes `&[]`; only the `Resolution` arm reads this
+/// parameter for real. Mirrors `resolution.rs`'s registry-path re-check, which
+/// already threads `stack_obj.targets.clone()`.
 pub fn check_intervening_if(
     state: &GameState,
     cond: &InterveningIf,
     controller: PlayerId,
+    source: ObjectId,
     pre_death_counters: Option<&imbl::OrdMap<crate::state::types::CounterType, u32>>,
+    moment: InterveningIfMoment,
+    resolution_targets: &[SpellTarget],
 ) -> bool {
     match cond {
         InterveningIf::ControllerLifeAtLeast(n) => state
@@ -10186,6 +10430,66 @@ pub fn check_intervening_if(
         InterveningIf::SourceHadNoCounterOfType(ct) => pre_death_counters
             .map(|counters| !counters.contains_key(ct))
             .unwrap_or(true),
+        // PB-DX1 (CR 603.4, OOS-DP6-1): the card-def condition, carried through the
+        // lowering by `build_face_ability_vectors`.
+        InterveningIf::CardDef(c) => match moment {
+            // CR 603.10a: the source has already left the battlefield and
+            // `check_condition` has no LKI-aware evaluation path -- evaluating a
+            // source-scoped condition (SourceOnBattlefield, SourceHasCounters, ...)
+            // against the CURRENT state would read false and wrongly suppress a
+            // trigger CR 603.4 requires to fire. Queue unconditionally. The
+            // `ResolutionLookBack` arm below is the SAME carve-out applied at the
+            // resolution end (review Finding 2) -- treating this arm's "true" as
+            // sufficient and letting a real re-check run at resolution would have
+            // been queue-then-fizzle, not a functioning carve-out.
+            InterveningIfMoment::TriggerTimeLookBack => true,
+            InterveningIfMoment::TriggerTime => {
+                carddef_intervening_if_holds_at_queue_time(state, Some(c), controller, source)
+            }
+            // CR 603.4 s2 / CR 603.10a (review Finding 2): the resolution-time
+            // counterpart of `TriggerTimeLookBack`. See the `InterveningIfMoment`
+            // doc comment for the CR 608.2b mirroring argument. Not `Resolution`'s
+            // evaluability-guard-then-`check_condition` shape -- unconditionally
+            // true, matching `TriggerTimeLookBack` and the `SourceHadNoCounterOfType`
+            // precedent above.
+            InterveningIfMoment::ResolutionLookBack => true,
+            InterveningIfMoment::Resolution => {
+                // CR 603.4 sentence 2. The SAME evaluability guard as the queue end:
+                // of `condition_is_queue_time_evaluable`'s seven `false` variants, six
+                // (WasOverloaded/WasBargained/WasCleaved/EvidenceWasCollected/
+                // GiftWasGiven/SacrificeFired) are ALSO unpropagated into a trigger's
+                // resolution context (OOS-DP6-6), so gating on them here would be the
+                // same false negative one step later. The seventh, TargetIsLegal, IS
+                // answerable at resolution and is therefore over-conservative here —
+                // deliberately, because CR 608.2b's all-targets-illegal fizzle at
+                // `resolution.rs:2274` already removes exactly that ability, so nothing
+                // is lost. Split seeded as OOS-DX1-2.
+                //
+                // PB-DX1 review Finding 6: `resolution_targets` is threaded from the
+                // resolving `StackObject.targets` (see the doc comment above) so that
+                // if OOS-DX1-2 is ever closed and `TargetIsLegal` becomes evaluable
+                // here, `ctx.targets` is the REAL declared target list, not an empty
+                // one that would turn every such trigger into a guaranteed false
+                // negative.
+                if !crate::effects::condition_is_queue_time_evaluable(c) {
+                    return true;
+                }
+                // CR 113.7a: the source may be LKI (a leave-the-battlefield trigger
+                // resolving) — `fizzle_object`, not a bare lookup (SR-25 ratchet).
+                let (kicker_times_paid, x_value) = state
+                    .fizzle_object(source)
+                    .map(|o| (o.kicker_times_paid, o.x_value))
+                    .unwrap_or((0, 0));
+                let mut ctx = crate::effects::EffectContext::new_with_kicker(
+                    controller,
+                    source,
+                    resolution_targets.to_vec(),
+                    kicker_times_paid,
+                );
+                ctx.x_value = x_value;
+                crate::effects::check_condition(state, c, &ctx)
+            }
+        },
     }
 }
 // ---------------------------------------------------------------------------

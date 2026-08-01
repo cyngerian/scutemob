@@ -812,7 +812,9 @@ pub enum TriggerEvent {
 /// Intervening-if clause for conditional triggered abilities (CR 603.4).
 ///
 /// The condition is checked at trigger time (ability only triggers if true)
-/// and again at resolution (ability only resolves if still true).
+/// and again at resolution (ability only resolves if still true) —
+/// PB-DX1 made this literally true for `CardDef`; the two legacy variants
+/// already implemented it directly in `check_intervening_if`.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum InterveningIf {
     /// "if your life total is [N] or more" — for testing conditional triggers.
@@ -824,6 +826,16 @@ pub enum InterveningIf {
     /// in the graveyard with no counters; MoveZone will simply find nothing if
     /// the source has since left the graveyard).
     SourceHadNoCounterOfType(crate::state::types::CounterType),
+    /// PB-DX1 (CR 603.4): a **card-definition** intervening-if
+    /// (`AbilityDefinition::Triggered.intervening_if: Option<Condition>`) carried
+    /// through `build_face_ability_vectors`' lowering. Before PB-DX1 the lowering
+    /// hardcoded `intervening_if: None` at all 34 push sites because `Condition` and
+    /// `InterveningIf` were unrelated types, so the condition was checked at NEITHER
+    /// end of CR 603.4 (OOS-DP6-1: Aurelia, the Warleader granted herself unbounded
+    /// extra combats on a `Complete`, deck-legal def).
+    /// Boxed per `clippy::large_enum_variant` — `Condition` is far larger than the
+    /// two legacy variants (mirrors `TriggerEvent::PermanentBecomesTarget.scope`).
+    CardDef(Box<crate::cards::card_definition::Condition>),
 }
 /// Filter applied to death triggers to restrict which dying creatures cause
 /// the trigger to fire. All `true` fields must be satisfied (AND logic).

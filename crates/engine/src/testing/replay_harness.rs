@@ -1,6 +1,7 @@
 use crate::rules::command::CastSpellData;
 use crate::state::combat::AttackTarget;
 use crate::state::game_object::HybridManaPayment;
+use crate::state::game_object::InterveningIf;
 use crate::state::types::{AdditionalCost, AltCostKind, FaceDownKind, TurnFaceUpMethod};
 use crate::state::{ActivatedAbility, ActivationCost, CounterType, SacrificeFilter};
 use crate::testing::script_schema::{
@@ -2379,6 +2380,24 @@ pub fn parse_counter_type(s: &str) -> Option<CounterType> {
 ///
 /// Preserves the mana/activated-ability disjointness (SR-34/SF-6): an ability
 /// lowered into `mana_abilities` is excluded from `activated_abilities`.
+///
+/// ## PB-DX1: this lowering is lossy — the complete field audit
+///
+/// `AbilityDefinition::Triggered` has more fields than the runtime
+/// `TriggeredAbilityDef` this function builds. Recording what happens to each,
+/// because nothing else in the codebase said so before PB-DX1 (OOS-DP6-1: two
+/// of these were silently dropped, one live-wrong on a `Complete` deck-legal
+/// def — Aurelia, the Warleader granted herself unbounded extra combats):
+///
+/// | field              | status after PB-DX1 |
+/// |--------------------|----------------------|
+/// | `trigger_condition`| mapped to `trigger_on` (by construction) |
+/// | `effect`           | propagated |
+/// | `targets`          | propagated |
+/// | `intervening_if`   | **propagated (this batch)** — was `None` at all 34 push sites |
+/// | `once_per_turn`    | **propagated (this batch, phase 7)** — was hardcoded `false` at 31 of 34 sites; `flush_pending_triggers`'s once-per-turn gate reads the runtime value first, so three `Complete` defs (welcoming_vampire / elvish_warmaster / whispering_wizard) over-fired. CR 603.2c/603.2h. |
+/// | `modes`            | collapsed to mode 0 as a bot fallback — deliberate, OOS-DP8-7 / PB-DX10 |
+/// | `trigger_zone`     | **no runtime home** — dropped; `collect_triggers_for_event` scans the battlefield only; the graveyard sweep is a separate registry path. Seeded OOS-DX1-3 |
 pub(crate) fn build_face_ability_vectors(
     abilities: &[AbilityDefinition],
 ) -> (
@@ -2467,6 +2486,8 @@ pub(crate) fn build_face_ability_vectors(
             effect,
             modes,
             targets,
+            intervening_if,
+            once_per_turn,
             ..
         } = ability
         {
@@ -2479,13 +2500,15 @@ pub(crate) fn build_face_ability_vectors(
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
-                once_per_turn: false,
+                once_per_turn: *once_per_turn,
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
                 triggering_creature_filter: None,
                 trigger_on: TriggerEvent::SelfDies,
-                intervening_if: None,
+                intervening_if: intervening_if
+                    .clone()
+                    .map(|c| InterveningIf::CardDef(Box::new(c))),
                 targets: targets.clone(),
                 description: "When ~ dies (CR 700.4)".to_string(),
                 effect: Some(resolved_effect),
@@ -2505,6 +2528,8 @@ pub(crate) fn build_face_ability_vectors(
             effect,
             modes,
             targets,
+            intervening_if,
+            once_per_turn,
             ..
         } = ability
         {
@@ -2517,13 +2542,15 @@ pub(crate) fn build_face_ability_vectors(
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
-                once_per_turn: false,
+                once_per_turn: *once_per_turn,
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
                 triggering_creature_filter: None,
                 trigger_on: TriggerEvent::SelfAttacks,
-                intervening_if: None,
+                intervening_if: intervening_if
+                    .clone()
+                    .map(|c| InterveningIf::CardDef(Box::new(c))),
                 targets: targets.clone(),
                 description: "Whenever ~ attacks (CR 508.3a)".to_string(),
                 effect: Some(resolved_effect),
@@ -2538,19 +2565,23 @@ pub(crate) fn build_face_ability_vectors(
             trigger_condition: TriggerCondition::WhenBlocks,
             effect,
             targets,
+            intervening_if,
+            once_per_turn,
             ..
         } = ability
         {
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
-                once_per_turn: false,
+                once_per_turn: *once_per_turn,
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
                 triggering_creature_filter: None,
                 trigger_on: TriggerEvent::SelfBlocks,
-                intervening_if: None,
+                intervening_if: intervening_if
+                    .clone()
+                    .map(|c| InterveningIf::CardDef(Box::new(c))),
                 targets: targets.clone(),
                 description: "Whenever ~ blocks (CR 509.1)".to_string(),
                 effect: Some(effect.clone()),
@@ -2560,14 +2591,16 @@ pub(crate) fn build_face_ability_vectors(
     // CR 510.3a / CR 603.2: Convert "Whenever ~ deals combat damage to a player"
     // card-definition triggers into runtime TriggeredAbilityDef entries so
     // check_triggers can dispatch them via CombatDamageDealt events.
-    // intervening_if is None here: Condition and InterveningIf are separate types;
-    // conditional combat-damage triggers are rare and deferred.
+    // PB-DX1: intervening_if is now propagated (see the module comment above
+    // `build_face_ability_vectors` for the full field-audit table).
     for ability in abilities {
         if let AbilityDefinition::Triggered {
             trigger_condition: TriggerCondition::WhenDealsCombatDamageToPlayer,
             effect,
             modes,
             targets,
+            intervening_if,
+            once_per_turn,
             ..
         } = ability
         {
@@ -2580,13 +2613,15 @@ pub(crate) fn build_face_ability_vectors(
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
-                once_per_turn: false,
+                once_per_turn: *once_per_turn,
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
                 triggering_creature_filter: None,
                 trigger_on: TriggerEvent::SelfDealsCombatDamageToPlayer,
-                intervening_if: None,
+                intervening_if: intervening_if
+                    .clone()
+                    .map(|c| InterveningIf::CardDef(Box::new(c))),
                 targets: targets.clone(),
                 description: "Whenever ~ deals combat damage to a player (CR 510.3a)".to_string(),
                 effect: Some(resolved_effect),
@@ -2602,19 +2637,23 @@ pub(crate) fn build_face_ability_vectors(
             trigger_condition: TriggerCondition::WhenDealtDamage,
             effect,
             targets,
+            intervening_if,
+            once_per_turn,
             ..
         } = ability
         {
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
-                once_per_turn: false,
+                once_per_turn: *once_per_turn,
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
                 triggering_creature_filter: None,
                 trigger_on: TriggerEvent::SelfIsDealtDamage,
-                intervening_if: None,
+                intervening_if: intervening_if
+                    .clone()
+                    .map(|c| InterveningIf::CardDef(Box::new(c))),
                 targets: targets.clone(),
                 description: "Enrage -- Whenever this creature is dealt damage (CR 207.2c)"
                     .to_string(),
@@ -2636,6 +2675,8 @@ pub(crate) fn build_face_ability_vectors(
                 },
             effect,
             targets,
+            intervening_if,
+            once_per_turn,
             ..
         } = ability
         {
@@ -2656,13 +2697,15 @@ pub(crate) fn build_face_ability_vectors(
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
-                once_per_turn: false,
+                once_per_turn: *once_per_turn,
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
                 triggering_creature_filter: spell_filter,
                 trigger_on: TriggerEvent::OpponentCastsSpell,
-                intervening_if: None,
+                intervening_if: intervening_if
+                    .clone()
+                    .map(|c| InterveningIf::CardDef(Box::new(c))),
                 targets: targets.clone(),
                 description: "Whenever an opponent casts a spell (CR 603.2)".to_string(),
                 effect: Some(effect.clone()),
@@ -2677,19 +2720,23 @@ pub(crate) fn build_face_ability_vectors(
             trigger_condition: TriggerCondition::WheneverYouSurveil,
             effect,
             targets,
+            intervening_if,
+            once_per_turn,
             ..
         } = ability
         {
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
-                once_per_turn: false,
+                once_per_turn: *once_per_turn,
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
                 triggering_creature_filter: None,
                 trigger_on: TriggerEvent::ControllerSurveils,
-                intervening_if: None,
+                intervening_if: intervening_if
+                    .clone()
+                    .map(|c| InterveningIf::CardDef(Box::new(c))),
                 targets: targets.clone(),
                 description: "Whenever you surveil (CR 701.25d)".to_string(),
                 effect: Some(effect.clone()),
@@ -2705,19 +2752,23 @@ pub(crate) fn build_face_ability_vectors(
             trigger_condition: TriggerCondition::WhenConnives,
             effect,
             targets,
+            intervening_if,
+            once_per_turn,
             ..
         } = ability
         {
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
-                once_per_turn: false,
+                once_per_turn: *once_per_turn,
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
                 triggering_creature_filter: None,
                 trigger_on: TriggerEvent::SourceConnives,
-                intervening_if: None,
+                intervening_if: intervening_if
+                    .clone()
+                    .map(|c| InterveningIf::CardDef(Box::new(c))),
                 targets: targets.clone(),
                 description: "Whenever this creature connives (CR 701.50b)".to_string(),
                 effect: Some(effect.clone()),
@@ -2732,19 +2783,23 @@ pub(crate) fn build_face_ability_vectors(
             trigger_condition: TriggerCondition::WheneverYouInvestigate,
             effect,
             targets,
+            intervening_if,
+            once_per_turn,
             ..
         } = ability
         {
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
-                once_per_turn: false,
+                once_per_turn: *once_per_turn,
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
                 triggering_creature_filter: None,
                 trigger_on: TriggerEvent::ControllerInvestigates,
-                intervening_if: None,
+                intervening_if: intervening_if
+                    .clone()
+                    .map(|c| InterveningIf::CardDef(Box::new(c))),
                 targets: targets.clone(),
                 description: "Whenever you investigate (CR 701.16a)".to_string(),
                 effect: Some(effect.clone()),
@@ -2775,6 +2830,8 @@ pub(crate) fn build_face_ability_vectors(
                 },
             effect,
             targets,
+            intervening_if,
+            once_per_turn,
             ..
         } = ability
         {
@@ -2801,13 +2858,15 @@ pub(crate) fn build_face_ability_vectors(
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
-                once_per_turn: false,
+                once_per_turn: *once_per_turn,
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
                 triggering_creature_filter: spell_filter,
                 trigger_on: TriggerEvent::ControllerCastsSpell,
-                intervening_if: None,
+                intervening_if: intervening_if
+                    .clone()
+                    .map(|c| InterveningIf::CardDef(Box::new(c))),
                 targets: targets.clone(),
                 description: "Whenever you cast a spell (CR 603.2)".to_string(),
                 effect: Some(effect.clone()),
@@ -2838,6 +2897,8 @@ pub(crate) fn build_face_ability_vectors(
                 },
             effect,
             targets,
+            intervening_if,
+            once_per_turn,
             ..
         } = ability
         {
@@ -2866,12 +2927,14 @@ pub(crate) fn build_face_ability_vectors(
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
-                once_per_turn: false,
+                once_per_turn: *once_per_turn,
                 trigger_on: TriggerEvent::AnyPermanentEntersBattlefield,
                 // Intervening-if conditions (card_definition::Condition) are a different
                 // type from runtime InterveningIf; conversion is deferred. None is safe
                 // for all known Alliance cards.
-                intervening_if: None,
+                intervening_if: intervening_if
+                    .clone()
+                    .map(|c| InterveningIf::CardDef(Box::new(c))),
                 description: "Alliance -- Whenever another creature you control enters (CR 207.2c)"
                     .to_string(),
                 effect: Some(effect.clone()),
@@ -2929,6 +2992,8 @@ pub(crate) fn build_face_ability_vectors(
             effect,
             trigger_zone,
             targets,
+            intervening_if,
+            once_per_turn,
             ..
         } = ability
         {
@@ -2978,13 +3043,15 @@ pub(crate) fn build_face_ability_vectors(
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
-                once_per_turn: false,
+                once_per_turn: *once_per_turn,
                 trigger_on: TriggerEvent::AnyPermanentEntersBattlefield,
                 // card_definition::Condition ↔ runtime InterveningIf conversion is
                 // deferred (same rationale as Alliance). None is safe for all
                 // known simple Landfall cards; compound-conditional cases
                 // (Moraug, Omnath Locus of Creation) remain TODO-blocked.
-                intervening_if: None,
+                intervening_if: intervening_if
+                    .clone()
+                    .map(|c| InterveningIf::CardDef(Box::new(c))),
                 description: "Whenever a permanent enters the battlefield (CR 207.2c / CR 603.2)"
                     .to_string(),
                 effect: Some(effect.clone()),
@@ -3004,19 +3071,23 @@ pub(crate) fn build_face_ability_vectors(
             trigger_condition: TriggerCondition::WhenMutates,
             effect,
             targets,
+            intervening_if,
+            once_per_turn,
             ..
         } = ability
         {
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
-                once_per_turn: false,
+                once_per_turn: *once_per_turn,
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
                 triggering_creature_filter: None,
                 trigger_on: TriggerEvent::SelfMutates,
-                intervening_if: None,
+                intervening_if: intervening_if
+                    .clone()
+                    .map(|c| InterveningIf::CardDef(Box::new(c))),
                 targets: targets.clone(),
                 description: "Whenever this creature mutates (CR 702.140d)".to_string(),
                 effect: Some(effect.clone()),
@@ -3031,19 +3102,23 @@ pub(crate) fn build_face_ability_vectors(
             trigger_condition: TriggerCondition::WhenSelfBecomesTapped,
             effect,
             targets,
+            intervening_if,
+            once_per_turn,
             ..
         } = ability
         {
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
-                once_per_turn: false,
+                once_per_turn: *once_per_turn,
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
                 triggering_creature_filter: None,
                 trigger_on: TriggerEvent::SelfBecomesTapped,
-                intervening_if: None,
+                intervening_if: intervening_if
+                    .clone()
+                    .map(|c| InterveningIf::CardDef(Box::new(c))),
                 targets: targets.clone(),
                 description: "Whenever this permanent becomes tapped".to_string(),
                 effect: Some(effect.clone()),
@@ -3061,6 +3136,7 @@ pub(crate) fn build_face_ability_vectors(
             effect,
             once_per_turn,
             targets,
+            intervening_if,
             ..
         } = ability
         {
@@ -3073,7 +3149,9 @@ pub(crate) fn build_face_ability_vectors(
                 combat_damage_filter: None,
                 triggering_creature_filter: filter.clone(),
                 trigger_on: TriggerEvent::AnyPermanentUntaps,
-                intervening_if: None,
+                intervening_if: intervening_if
+                    .clone()
+                    .map(|c| InterveningIf::CardDef(Box::new(c))),
                 targets: targets.clone(),
                 description: "Whenever a permanent becomes untapped (CR 502.3/603.2e)".to_string(),
                 effect: Some(effect.clone()),
@@ -3097,6 +3175,7 @@ pub(crate) fn build_face_ability_vectors(
             effect,
             once_per_turn,
             targets,
+            intervening_if,
             ..
         } = ability
         {
@@ -3109,7 +3188,9 @@ pub(crate) fn build_face_ability_vectors(
                 combat_damage_filter: None,
                 triggering_creature_filter: filter.clone(),
                 trigger_on: TriggerEvent::CounterPlaced,
-                intervening_if: None,
+                intervening_if: intervening_if
+                    .clone()
+                    .map(|c| InterveningIf::CardDef(Box::new(c))),
                 targets: targets.clone(),
                 description:
                     "Whenever one or more counters are put on a permanent (CR 122.6/122.7)"
@@ -3141,6 +3222,7 @@ pub(crate) fn build_face_ability_vectors(
             effect,
             once_per_turn,
             targets,
+            intervening_if,
             ..
         } = ability
         {
@@ -3157,7 +3239,9 @@ pub(crate) fn build_face_ability_vectors(
                 // Opportunist) from the card def.
                 once_per_turn: *once_per_turn,
                 trigger_on: TriggerEvent::AnyCreatureDies,
-                intervening_if: None,
+                intervening_if: intervening_if
+                    .clone()
+                    .map(|c| InterveningIf::CardDef(Box::new(c))),
                 description: "Whenever a creature dies (CR 603.10a)".to_string(),
                 effect: Some(effect.clone()),
                 etb_filter: None,
@@ -3181,15 +3265,19 @@ pub(crate) fn build_face_ability_vectors(
             trigger_condition: TriggerCondition::WheneverCreatureYouControlAttacks { filter },
             effect,
             targets,
+            intervening_if,
+            once_per_turn,
             ..
         } = ability
         {
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
-                once_per_turn: false,
+                once_per_turn: *once_per_turn,
                 trigger_on: TriggerEvent::AnyCreatureYouControlAttacks,
-                intervening_if: None,
+                intervening_if: intervening_if
+                    .clone()
+                    .map(|c| InterveningIf::CardDef(Box::new(c))),
                 description: "Whenever a creature you control attacks (CR 508.1m)".to_string(),
                 effect: Some(effect.clone()),
                 etb_filter: None,
@@ -3215,15 +3303,19 @@ pub(crate) fn build_face_ability_vectors(
                 TriggerCondition::WheneverCreatureYouControlDealsCombatDamageToPlayer { filter },
             effect,
             targets,
+            intervening_if,
+            once_per_turn,
             ..
         } = ability
         {
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
-                once_per_turn: false,
+                once_per_turn: *once_per_turn,
                 trigger_on: TriggerEvent::AnyCreatureYouControlDealsCombatDamageToPlayer,
-                intervening_if: None,
+                intervening_if: intervening_if
+                    .clone()
+                    .map(|c| InterveningIf::CardDef(Box::new(c))),
                 description:
                     "Whenever a creature you control deals combat damage to a player (CR 510.3a)"
                         .to_string(),
@@ -3244,15 +3336,19 @@ pub(crate) fn build_face_ability_vectors(
                 TriggerCondition::WhenOneOrMoreCreaturesYouControlDealCombatDamageToPlayer { filter },
             effect,
             targets,
+            intervening_if,
+            once_per_turn,
             ..
         } = ability
         {
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
-                once_per_turn: false,
+                once_per_turn: *once_per_turn,
                 trigger_on: TriggerEvent::AnyCreatureYouControlBatchCombatDamage,
-                intervening_if: None,
+                intervening_if: intervening_if
+                    .clone()
+                    .map(|c| InterveningIf::CardDef(Box::new(c))),
                 description:
                     "Whenever one or more creatures you control deal combat damage to a player (CR 510.3a)"
                         .to_string(),
@@ -3271,15 +3367,19 @@ pub(crate) fn build_face_ability_vectors(
             trigger_condition: TriggerCondition::WhenEquippedCreatureDealsCombatDamageToPlayer,
             effect,
             targets,
+            intervening_if,
+            once_per_turn,
             ..
         } = ability
         {
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
-                once_per_turn: false,
+                once_per_turn: *once_per_turn,
                 trigger_on: TriggerEvent::EquippedCreatureDealsCombatDamageToPlayer,
-                intervening_if: None,
+                intervening_if: intervening_if
+                    .clone()
+                    .map(|c| InterveningIf::CardDef(Box::new(c))),
                 description:
                     "Whenever equipped creature deals combat damage to a player (CR 510.3a)"
                         .to_string(),
@@ -3298,15 +3398,19 @@ pub(crate) fn build_face_ability_vectors(
             trigger_condition: TriggerCondition::WhenEquippedCreatureDealsCombatDamage,
             effect,
             targets,
+            intervening_if,
+            once_per_turn,
             ..
         } = ability
         {
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
-                once_per_turn: false,
+                once_per_turn: *once_per_turn,
                 trigger_on: TriggerEvent::EquippedCreatureDealsCombatDamage,
-                intervening_if: None,
+                intervening_if: intervening_if
+                    .clone()
+                    .map(|c| InterveningIf::CardDef(Box::new(c))),
                 description: "Whenever equipped creature deals combat damage (CR 510.3a)"
                     .to_string(),
                 effect: Some(effect.clone()),
@@ -3324,15 +3428,19 @@ pub(crate) fn build_face_ability_vectors(
             trigger_condition: TriggerCondition::WhenEnchantedCreatureDealsDamageToPlayer { .. },
             effect,
             targets,
+            intervening_if,
+            once_per_turn,
             ..
         } = ability
         {
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
-                once_per_turn: false,
+                once_per_turn: *once_per_turn,
                 trigger_on: TriggerEvent::EnchantedCreatureDealsDamageToPlayer,
-                intervening_if: None,
+                intervening_if: intervening_if
+                    .clone()
+                    .map(|c| InterveningIf::CardDef(Box::new(c))),
                 description: "Whenever enchanted creature deals damage to a player (CR 510.3a)"
                     .to_string(),
                 effect: Some(effect.clone()),
@@ -3351,15 +3459,19 @@ pub(crate) fn build_face_ability_vectors(
             trigger_condition: TriggerCondition::WhenAnyCreatureDealsCombatDamageToOpponent,
             effect,
             targets,
+            intervening_if,
+            once_per_turn,
             ..
         } = ability
         {
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
-                once_per_turn: false,
+                once_per_turn: *once_per_turn,
                 trigger_on: TriggerEvent::AnyCreatureDealsCombatDamageToOpponent,
-                intervening_if: None,
+                intervening_if: intervening_if
+                    .clone()
+                    .map(|c| InterveningIf::CardDef(Box::new(c))),
                 description:
                     "Whenever a creature deals combat damage to one of your opponents (CR 510.3a)"
                         .to_string(),
@@ -3378,15 +3490,19 @@ pub(crate) fn build_face_ability_vectors(
             trigger_condition: TriggerCondition::WheneverYouDiscard,
             effect,
             targets,
+            intervening_if,
+            once_per_turn,
             ..
         } = ability
         {
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
-                once_per_turn: false,
+                once_per_turn: *once_per_turn,
                 trigger_on: TriggerEvent::ControllerDiscards,
-                intervening_if: None,
+                intervening_if: intervening_if
+                    .clone()
+                    .map(|c| InterveningIf::CardDef(Box::new(c))),
                 description: "Whenever you discard a card (CR 701.9a)".to_string(),
                 effect: Some(effect.clone()),
                 etb_filter: None,
@@ -3403,15 +3519,19 @@ pub(crate) fn build_face_ability_vectors(
             trigger_condition: TriggerCondition::WheneverOpponentDiscards,
             effect,
             targets,
+            intervening_if,
+            once_per_turn,
             ..
         } = ability
         {
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
-                once_per_turn: false,
+                once_per_turn: *once_per_turn,
                 trigger_on: TriggerEvent::OpponentDiscards,
-                intervening_if: None,
+                intervening_if: intervening_if
+                    .clone()
+                    .map(|c| InterveningIf::CardDef(Box::new(c))),
                 description: "Whenever an opponent discards a card (CR 701.9a)".to_string(),
                 effect: Some(effect.clone()),
                 etb_filter: None,
@@ -3428,15 +3548,19 @@ pub(crate) fn build_face_ability_vectors(
             trigger_condition: TriggerCondition::WheneverOpponentPlaysLand,
             effect,
             targets,
+            intervening_if,
+            once_per_turn,
             ..
         } = ability
         {
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
-                once_per_turn: false,
+                once_per_turn: *once_per_turn,
                 trigger_on: TriggerEvent::OpponentPlaysLand,
-                intervening_if: None,
+                intervening_if: intervening_if
+                    .clone()
+                    .map(|c| InterveningIf::CardDef(Box::new(c))),
                 etb_filter: None,
                 death_filter: None,
                 combat_damage_filter: None,
@@ -3455,15 +3579,19 @@ pub(crate) fn build_face_ability_vectors(
             trigger_condition: TriggerCondition::WheneverYouSacrifice { .. },
             effect,
             targets,
+            intervening_if,
+            once_per_turn,
             ..
         } = ability
         {
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
-                once_per_turn: false,
+                once_per_turn: *once_per_turn,
                 trigger_on: TriggerEvent::ControllerSacrifices,
-                intervening_if: None,
+                intervening_if: intervening_if
+                    .clone()
+                    .map(|c| InterveningIf::CardDef(Box::new(c))),
                 description: "Whenever you sacrifice a permanent (CR 701.21a)".to_string(),
                 effect: Some(effect.clone()),
                 etb_filter: None,
@@ -3484,15 +3612,19 @@ pub(crate) fn build_face_ability_vectors(
             trigger_condition: TriggerCondition::WheneverYouAttack { filter },
             effect,
             targets,
+            intervening_if,
+            once_per_turn,
             ..
         } = ability
         {
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
-                once_per_turn: false,
+                once_per_turn: *once_per_turn,
                 trigger_on: TriggerEvent::ControllerAttacks,
-                intervening_if: None,
+                intervening_if: intervening_if
+                    .clone()
+                    .map(|c| InterveningIf::CardDef(Box::new(c))),
                 description: "Whenever you attack (CR 508.1)".to_string(),
                 effect: Some(effect.clone()),
                 etb_filter: None,
@@ -3509,15 +3641,19 @@ pub(crate) fn build_face_ability_vectors(
             trigger_condition: TriggerCondition::WhenLeavesBattlefield,
             effect,
             targets,
+            intervening_if,
+            once_per_turn,
             ..
         } = ability
         {
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
-                once_per_turn: false,
+                once_per_turn: *once_per_turn,
                 trigger_on: TriggerEvent::SelfLeavesBattlefield,
-                intervening_if: None,
+                intervening_if: intervening_if
+                    .clone()
+                    .map(|c| InterveningIf::CardDef(Box::new(c))),
                 description: "When ~ leaves the battlefield (CR 603.10a)".to_string(),
                 effect: Some(effect.clone()),
                 etb_filter: None,
@@ -3535,15 +3671,19 @@ pub(crate) fn build_face_ability_vectors(
             trigger_condition: TriggerCondition::WheneverYouDrawACard,
             effect,
             targets,
+            intervening_if,
+            once_per_turn,
             ..
         } = ability
         {
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
-                once_per_turn: false,
+                once_per_turn: *once_per_turn,
                 trigger_on: TriggerEvent::ControllerDrawsCard,
-                intervening_if: None,
+                intervening_if: intervening_if
+                    .clone()
+                    .map(|c| InterveningIf::CardDef(Box::new(c))),
                 description: "Whenever you draw a card (CR 603.2)".to_string(),
                 effect: Some(effect.clone()),
                 etb_filter: None,
@@ -3562,6 +3702,8 @@ pub(crate) fn build_face_ability_vectors(
             trigger_condition: TriggerCondition::WheneverPlayerDrawsCard { player_filter },
             effect,
             targets,
+            intervening_if,
+            once_per_turn,
             ..
         } = ability
         {
@@ -3578,9 +3720,11 @@ pub(crate) fn build_face_ability_vectors(
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
-                once_per_turn: false,
+                once_per_turn: *once_per_turn,
                 trigger_on,
-                intervening_if: None,
+                intervening_if: intervening_if
+                    .clone()
+                    .map(|c| InterveningIf::CardDef(Box::new(c))),
                 description: desc.to_string(),
                 effect: Some(effect.clone()),
                 etb_filter: None,
@@ -3598,15 +3742,19 @@ pub(crate) fn build_face_ability_vectors(
             trigger_condition: TriggerCondition::WheneverYouGainLife,
             effect,
             targets,
+            intervening_if,
+            once_per_turn,
             ..
         } = ability
         {
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
-                once_per_turn: false,
+                once_per_turn: *once_per_turn,
                 trigger_on: TriggerEvent::ControllerGainsLife,
-                intervening_if: None,
+                intervening_if: intervening_if
+                    .clone()
+                    .map(|c| InterveningIf::CardDef(Box::new(c))),
                 description: "Whenever you gain life (CR 603.2)".to_string(),
                 effect: Some(effect.clone()),
                 etb_filter: None,
@@ -3636,19 +3784,23 @@ pub(crate) fn build_face_ability_vectors(
                 },
             effect,
             targets,
+            intervening_if,
+            once_per_turn,
             ..
         } = ability
         {
             triggered_abilities.push(TriggeredAbilityDef {
                 counter_filter: None,
                 counter_on_self: false,
-                once_per_turn: false,
+                once_per_turn: *once_per_turn,
                 trigger_on: TriggerEvent::PermanentBecomesTarget {
                     scope: scope.clone(),
                     by_opponent: *by_opponent,
                     include_abilities: *include_abilities,
                 },
-                intervening_if: None,
+                intervening_if: intervening_if
+                    .clone()
+                    .map(|c| InterveningIf::CardDef(Box::new(c))),
                 description: "Whenever ~ becomes the target of a spell/ability (CR 601.2c/602.2b)"
                     .to_string(),
                 effect: Some(effect.clone()),

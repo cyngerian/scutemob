@@ -2301,9 +2301,21 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                         .get(&source_object)
                         .map(|o| (o.kicker_times_paid, o.x_value))
                         .unwrap_or((0, 0));
+                    // PB-DX1 §9.3 harmonisation: apply the SAME evaluability guard as
+                    // the runtime `InterveningIf::CardDef` arm's Resolution moment
+                    // (`check_intervening_if`). Before this, a condition unanswerable
+                    // at resolution (WasOverloaded/WasBargained/WasCleaved/
+                    // EvidenceWasCollected/GiftWasGiven/SacrificeFired) behaved
+                    // differently depending on which lowering path the trigger took
+                    // -- the exact asymmetry this batch exists to delete. Corpus
+                    // impact: zero (no def uses one of the seven unevaluable variants
+                    // as an intervening-if here; T9 confirms).
                     let condition_holds = triggered_carddef_iif
                         .as_ref()
                         .map(|cond| {
+                            if !crate::effects::condition_is_queue_time_evaluable(cond) {
+                                return true;
+                            }
                             let mut ctx = EffectContext::new_with_kicker(
                                 stack_obj.controller,
                                 source_object,
@@ -2375,11 +2387,37 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                                         // For persist/undying, the source is now in the graveyard
                                         // with no counters; the MoveZone effect will no-op if the
                                         // source has since left the graveyard.
+                                        // PB-DX1: source_object may itself be LKI (a
+                                        // leave-the-battlefield trigger resolving) --
+                                        // `InterveningIfMoment::Resolution`/`ResolutionLookBack`
+                                        // read it via `fizzle_object` inside the CardDef arm.
+                                        // PB-DX1 review Finding 6: thread the resolving
+                                        // stack object's real targets, matching the
+                                        // registry path's `stack_obj.targets.clone()`
+                                        // a few dozen lines above.
+                                        // PB-DX1 review Finding 2: `def.trigger_on` identifies
+                                        // whether this ability is one of the 8 look-back queue
+                                        // sites' TriggerEvents (SelfDies/SelfLeavesBattlefield/
+                                        // SourceConnives, CR 603.10a) -- if so, the resolution
+                                        // recheck must NOT evaluate against the current state
+                                        // either (the source has legitimately left), matching
+                                        // the queue end's TriggerTimeLookBack carve-out.
+                                        let moment = match def.trigger_on {
+                                            crate::state::game_object::TriggerEvent::SelfDies
+                                            | crate::state::game_object::TriggerEvent::SelfLeavesBattlefield
+                                            | crate::state::game_object::TriggerEvent::SourceConnives => {
+                                                abilities::InterveningIfMoment::ResolutionLookBack
+                                            }
+                                            _ => abilities::InterveningIfMoment::Resolution,
+                                        };
                                         abilities::check_intervening_if(
                                             state,
                                             cond,
                                             stack_obj.controller,
+                                            source_object,
                                             None,
+                                            moment,
+                                            &stack_obj.targets,
                                         )
                                     })
                                     .unwrap_or(true),
@@ -5496,8 +5534,13 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                 // Look up the card definition to find the haunt effect.
                 // The effect is the "When the creature it haunts dies" triggered ability effect.
                 // We look for AbilityDefinition::Triggered with trigger_condition == HauntedCreatureDies.
-                use crate::cards::card_definition::{AbilityDefinition, TriggerCondition};
-                let haunt_effect: Option<crate::cards::card_definition::Effect> = {
+                use crate::cards::card_definition::{
+                    AbilityDefinition, Condition, TriggerCondition,
+                };
+                let haunt_ability: Option<(
+                    crate::cards::card_definition::Effect,
+                    Option<Condition>,
+                )> = {
                     let card_id_opt = haunt_card_id.clone().or_else(|| {
                         state
                             .objects
@@ -5512,11 +5555,12 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                                 if let AbilityDefinition::Triggered {
                                     trigger_condition,
                                     effect,
+                                    intervening_if,
                                     ..
                                 } = ab
                                 {
                                     if *trigger_condition == TriggerCondition::HauntedCreatureDies {
-                                        return Some(effect.clone());
+                                        return Some((effect.clone(), intervening_if.clone()));
                                     }
                                 }
                                 None
@@ -5524,14 +5568,41 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                         })
                     })
                 };
-                if let Some(effect) = haunt_effect {
-                    let mut ctx =
-                        crate::effects::EffectContext::new(controller, haunt_source, vec![]);
-                    let effect_events = crate::effects::execute_effect(state, &effect, &mut ctx);
-                    events.extend(effect_events);
+                if let Some((effect, intervening_if)) = haunt_ability {
+                    // CR 603.4 s2 / OOS-DP6-9 (PB-DX1): re-check the card-def
+                    // intervening-if at resolution. CR 702.55c: the haunt
+                    // card's source is in EXILE (not a look-back trigger --
+                    // the source legitimately, persistently lives in exile,
+                    // not battlefield, for the whole time this trigger is
+                    // relevant), so `Condition::SourceOnBattlefield` correctly
+                    // evaluates to false against the current state; no
+                    // LookBack-style unconditional-true carve-out is needed
+                    // or wanted here.
+                    let condition_holds = intervening_if
+                        .as_ref()
+                        .map(|cond| {
+                            if !crate::effects::condition_is_queue_time_evaluable(cond) {
+                                return true;
+                            }
+                            let ctx = crate::effects::EffectContext::new(
+                                controller,
+                                haunt_source,
+                                vec![],
+                            );
+                            crate::effects::check_condition(state, cond, &ctx)
+                        })
+                        .unwrap_or(true);
+                    if condition_holds {
+                        let mut ctx =
+                            crate::effects::EffectContext::new(controller, haunt_source, vec![]);
+                        let effect_events =
+                            crate::effects::execute_effect(state, &effect, &mut ctx);
+                        events.extend(effect_events);
+                    }
                     // CR 702.55c: Haunt fires exactly once — clear the haunting relationship
-                    // after the trigger resolves so that a recycled ObjectId cannot cause a
-                    // spurious re-trigger against an unrelated creature's death.
+                    // after the trigger resolves (regardless of whether the intervening-if
+                    // held) so that a recycled ObjectId cannot cause a spurious re-trigger
+                    // against an unrelated creature's death.
                     if let Some(haunt_obj) = state.fizzle_object_mut(haunt_source) {
                         haunt_obj.haunting_target = None;
                     }
@@ -7527,17 +7598,49 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                     if let Some(cid) = card_id {
                         let registry = state.card_registry.clone();
                         if let Some(def) = registry.get(cid) {
-                            if let Some(AbilityDefinition::Triggered { effect, .. }) =
-                                def.abilities.get(ability_index)
+                            if let Some(AbilityDefinition::Triggered {
+                                effect,
+                                intervening_if,
+                                ..
+                            }) = def.abilities.get(ability_index)
                             {
-                                let mut ctx = crate::effects::EffectContext::new(
-                                    controller,
-                                    permanent,
-                                    vec![],
-                                );
-                                let effect_events =
-                                    crate::effects::execute_effect(state, effect, &mut ctx);
-                                events.extend(effect_events);
+                                // CR 603.4 s2 (PB-DX1, OOS-DP6-5): re-check the
+                                // card-def intervening-if at resolution -- the
+                                // queue-time gate (`abilities.rs`'s
+                                // `PermanentTurnedFaceUp` arm) is not the whole
+                                // rule; CR 603.4 requires a second check here.
+                                // Same evaluability guard as the harmonised
+                                // registry-path re-check above (§9.3). Both
+                                // ends of THIS trigger index `def.abilities`
+                                // (never `effective_abilities(is_transformed)`),
+                                // so there is no OOS-DP6-2 index-space hazard --
+                                // the face-unaware indexing itself is a shared,
+                                // separate, latent gap (seeded OOS-DX1-4).
+                                let condition_holds = intervening_if
+                                    .as_ref()
+                                    .map(|cond| {
+                                        if !crate::effects::condition_is_queue_time_evaluable(cond)
+                                        {
+                                            return true;
+                                        }
+                                        let ctx = crate::effects::EffectContext::new(
+                                            controller,
+                                            permanent,
+                                            vec![],
+                                        );
+                                        crate::effects::check_condition(state, cond, &ctx)
+                                    })
+                                    .unwrap_or(true);
+                                if condition_holds {
+                                    let mut ctx = crate::effects::EffectContext::new(
+                                        controller,
+                                        permanent,
+                                        vec![],
+                                    );
+                                    let effect_events =
+                                        crate::effects::execute_effect(state, effect, &mut ctx);
+                                    events.extend(effect_events);
+                                }
                             }
                         }
                     }
