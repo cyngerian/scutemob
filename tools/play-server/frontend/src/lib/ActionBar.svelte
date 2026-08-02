@@ -49,10 +49,12 @@
    * end:
    *
    *   0. blocking decision — iff `option.decision` is present (UI-1). Renders one
-   *                          of four pickers chosen by `decision.answer.shape`:
+   *                          of five pickers chosen by `decision.answer.shape`:
    *                          `Subset` → `DiscardPicker`, `PickOne` →
    *                          `SearchPicker`, `Partition` → `PartitionPicker`,
-   *                          `Slots` → the same `TargetPicker` stage 2 uses.
+   *                          `Slots` → the same `TargetPicker` stage 2 uses,
+   *                          `PickN` (ENG-1, CR 701.9b) → `DiscardPicker` again,
+   *                          templated this time.
    *   1. `ValuePrompt`     — iff `needs_x || modes.length > 0` (CR 601.2b
    *                          announces `{X}`/modes as part of casting, before
    *                          CR 601.2c's target announcement)
@@ -147,7 +149,7 @@
    * There is no frontend test harness in this repo (plan §8 R7), so none of the
    * decision-stage wiring has an automated test. Unexercised in particular: the
    * shape-dispatch fallback below (unreachable against the real server, which sends
-   * one of exactly four shapes), and every interaction between the decision stage
+   * one of exactly five shapes), and every interaction between the decision stage
    * and the four older stages — which, per the note above, cannot co-occur, but
    * that is an argument from the server's shape rather than an observation of a
    * running game.
@@ -507,9 +509,11 @@
    * The single exit from the decision stage. `params` is a whole params fragment
    * (`{discard_cards: [...]}` / `{effect_choice_answer: {...}}` /
    * `{trigger_targets: [[...]]}`) built by the picker from the server's own
-   * `answer_field`, so this function never names a params key: the three pickers
-   * key their own fragment off the payload, which keeps the `ActionParamsDto`
-   * schema known in one place (`view.rs`'s stated reason for sending the field).
+   * `answer_field`, so this function never names a params key: the four pickers
+   * that route through here (`Subset`, `PickOne`, `Partition`, and — ENG-1 —
+   * `PickN`) key their own fragment off the payload, which keeps the
+   * `ActionParamsDto` schema known in one place (`view.rs`'s stated reason for
+   * sending the field).
    */
   function onDecisionConfirm(params) {
     paramsAcc = { ...paramsAcc, ...params };
@@ -849,6 +853,20 @@
           disabled={loading}
           onConfirm={onDecisionConfirm}
           onCancel={cancelChain}
+        />
+      {:else if currentShape?.shape === 'PickN'}
+        <DiscardPicker
+          prompt={currentDecision.prompt}
+          candidates={currentShape.candidates}
+          count={currentShape.count}
+          defaults={currentShape.default}
+          template={currentShape.template}
+          chosenKey={currentShape.chosen_key}
+          answerField={currentDecision.answer_field}
+          disabled={loading}
+          onConfirm={onDecisionConfirm}
+          onCancel={cancelChain}
+          onError={onPickerError}
         />
       {:else if currentShape?.shape === 'PickOne'}
         <SearchPicker

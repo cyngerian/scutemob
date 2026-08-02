@@ -1,14 +1,17 @@
 <script>
   /**
-   * DiscardPicker — the `Subset` answer shape: choose EXACTLY `count` of
-   * `candidates`.
+   * DiscardPicker — the `Subset` AND `PickN` answer shapes: choose EXACTLY
+   * `count` of `candidates`.
    *
-   * UI-1 (`scutemob-174`; `memory/playtest-triage-2026-08-02.md` F8). Today the
-   * only question that arrives in this shape is the CR 514.1 cleanup discard
-   * (`LegalAction::DiscardToHandSize`), but this component is written against the
-   * SHAPE, not the question — `view.rs`'s `AnswerShapeView` doc makes that the
-   * explicit contract, so a second "choose exactly N of these cards" question
-   * would reuse this component with no new client code.
+   * UI-1 (`scutemob-174`; `memory/playtest-triage-2026-08-02.md` F8). Originally
+   * the only question that arrived in this shape was the CR 514.1 cleanup
+   * discard (`LegalAction::DiscardToHandSize`, `Subset`), and this component was
+   * written against the SHAPE, not the question — `view.rs`'s `AnswerShapeView`
+   * doc makes that the explicit contract. ENG-1 is the predicted reuse: an
+   * effect-driven discard (CR 701.9b) arrives as `PickN`, which answers through
+   * `effect_choice_answer` and a `template` rather than through a bare
+   * `discard_cards` array. Both shapes render identically; only `confirm()`'s
+   * output differs, branched on whether `template` was sent.
    *
    * Props:
    *   prompt (string)      — `BlockingDecisionView.prompt`, already seat-redacted
@@ -16,31 +19,61 @@
    *                          component never composes prompt text of its own about
    *                          *which* cards are involved.
    *   candidates (CardOptionView[]) — `{id, label}`. For the cleanup discard this
-   *                          is the player's WHOLE hand, not a pre-trimmed subset.
+   *                          is the player's WHOLE hand, not a pre-trimmed subset;
+   *                          same for the ENG-1 effect-driven discard.
    *   count (number)       — choose exactly this many. `api.rs` rejects any other
-   *                          length with a 400 ("CR 514.1 requires exactly N").
-   *   defaults (number[])  — the engine's OWN default subset
-   *                          (`default_cleanup_discard`: the `count` highest
-   *                          `ObjectId`s). Named `defaults` because `default` is a
-   *                          reserved word in JS and cannot be destructured.
-   *   answerField (string) — `BlockingDecisionView.answer_field`, i.e.
-   *                          `"discard_cards"`. Taken from the payload rather than
-   *                          hardcoded here: `view.rs` sends this field precisely
-   *                          so the client is not a second place that has to know
-   *                          the `ActionParamsDto` schema.
+   *                          length with a 400 ("CR 514.1 requires exactly N" /
+   *                          "CR 701.9b: this effect discards exactly N card(s)").
+   *   defaults (number[])  — the engine's OWN default subset. For `Subset`,
+   *                          `default_cleanup_discard`: the `count` HIGHEST
+   *                          `ObjectId`s. For `PickN`, `default_discard_answer`:
+   *                          the `count` LOWEST `ObjectId`s — the opposite end of
+   *                          the hand, see that function's doc for why the two
+   *                          auto-picks genuinely differ. Named `defaults` because
+   *                          `default` is a reserved word in JS and cannot be
+   *                          destructured.
+   *   answerField (string) — `BlockingDecisionView.answer_field`: `"discard_cards"`
+   *                          for `Subset`, `"effect_choice_answer"` for `PickN`.
+   *                          Taken from the payload rather than hardcoded here:
+   *                          `view.rs` sends this field precisely so the client is
+   *                          not a second place that has to know the
+   *                          `ActionParamsDto` schema.
+   *   template (object|null) — `null` for `Subset` (unchanged, bare-array path).
+   *                          For `PickN` (ENG-1, CR 701.9b), the engine's own
+   *                          default answer, serialized verbatim — see
+   *                          `SearchPicker`'s doc for the "why the variant name is
+   *                          never typed here" contract, reused verbatim below.
+   *   chosenKey (string)   — `AnswerShapeView::PickN::chosen_key`, i.e. `"chosen"`
+   *                          — the key inside `template`'s variant object the
+   *                          chosen ids go in. Unused when `template` is `null`.
    *   disabled (bool)      — a request is in flight
-   *   onConfirm (fn(params)) — a params fragment, `{[answerField]: [id, ...]}`,
-   *                          which `ActionBar` merges into the chain's accumulator
+   *   onConfirm (fn(params)) — for `Subset`, `{[answerField]: [id, ...]}`; for
+   *                          `PickN`, `{[answerField]: <mutated clone of template>}`
+   *                          — which `ActionBar` merges into the chain's accumulator
    *   onCancel (fn)
+   *   onError (fn(message)) — a failure while building or emitting a `PickN`
+   *                          answer. UI-4 (`scutemob-185`): before that batch, a
+   *                          throw here escaped the click handler and the DOM was
+   *                          simply untouched — the button read as dead. Never let
+   *                          this path fail in silence again. Unused on the
+   *                          `Subset` path, which cannot fail this way.
    *
-   * # Ascending ids, not click order
+   * # Ascending ids, not click order — correct for `Subset`, a stated deviation
+   * # for `PickN`
    *
    * The submitted list is sorted ascending, the same argument `TargetPicker`
    * makes: the submission should be a function of WHICH cards were selected, not
-   * of the order the human happened to click them. `check_ids` in `api.rs` treats
-   * the list as a set (membership + no duplicates), so order carries no meaning
-   * on the wire and letting it vary would only make two identical choices look
-   * like different requests in a replay log.
+   * of the order the human happened to click them. For `Subset` this is simply
+   * correct — `check_ids` in `api.rs` treats the list as a set (membership + no
+   * duplicates), so order carries no meaning on the wire.
+   *
+   * For `PickN` this is, IN PRINCIPLE, wrong: CR 608.2f / CR 404.3 make discard
+   * order a real player payload (it is the relative order the cards enter the
+   * graveyard), and `EffectChoiceAnswer::Discard::chosen`'s own doc says so. This
+   * component ships ascending-ids anyway, because the engine's own `api.rs` check
+   * treats `chosen` as a set too (membership + no duplicates, not order) and no
+   * card in the corpus reads graveyard order — but the deviation is real and is
+   * seeded as `OOS-ENG1-7` rather than left to be rediscovered.
    *
    * # "Use the default" fills the selection, it does not submit
    *
@@ -63,20 +96,27 @@
    * this file is covered by an automated test. Specifically unexercised: the
    * capacity behaviour when `count` cards are already selected and a further
    * candidate is clicked (the click is ignored rather than evicting an earlier
-   * pick), the "use the default" button, and the degenerate `count === 0` case
+   * pick), the "use the default" button, the degenerate `count === 0` case
    * (which the server never sends — `DiscardToHandSize` is only offered when the
-   * hand is over the maximum — and which would render as an immediately
-   * confirmable empty choice).
+   * hand is over the maximum, and `PickN`'s short-circuit means the engine never
+   * sends `count === 0` either — and which would render as an immediately
+   * confirmable empty choice), and (ENG-1) the `PickN`/`template` path and its
+   * malformed-template guard.
    */
+  import { plainClone } from './plainClone.svelte.js';
+
   const {
     prompt = '',
     candidates = [],
     count = 0,
     defaults = [],
     answerField = 'discard_cards',
+    template = null,
+    chosenKey = 'chosen',
     disabled = false,
     onConfirm = null,
     onCancel = null,
+    onError = null,
   } = $props();
 
   /** Chosen object ids, in click order; re-sorted ascending on confirm. */
@@ -105,9 +145,39 @@
     selected = defaults.filter((id) => candidateIds.has(id));
   }
 
+  /**
+   * `Subset` (`template === null`) submits a bare id array unchanged. `PickN`
+   * (ENG-1) submits a mutated clone of `template` — the exact `SearchPicker.emit`
+   * body: `plainClone` (never `structuredClone` — the UI-4 `DataCloneError`
+   * defect), take the enum's single key, guard that the value under it is an
+   * object, write `chosenKey`, report any failure via `onError` rather than
+   * bailing in silence (the UI-4 `/review` lesson).
+   */
   function confirm() {
     if (disabled || !canConfirm) return;
-    onConfirm?.({ [answerField]: [...selected].sort((a, b) => a - b) });
+    if (template === null) {
+      onConfirm?.({ [answerField]: [...selected].sort((a, b) => a - b) });
+      return;
+    }
+    if (typeof template !== 'object') {
+      onError?.('this discard offered no answer template — nothing was submitted');
+      return;
+    }
+    try {
+      const answer = plainClone(template);
+      const variant = Object.keys(answer)[0];
+      // An externally-tagged enum has exactly one key. If it somehow does not,
+      // bail rather than write into `undefined` and post a body the server will
+      // 400.
+      if (variant === undefined || typeof answer[variant] !== 'object') {
+        onError?.('the discard answer template is not the shape this client can fill in');
+        return;
+      }
+      answer[variant][chosenKey] = [...selected].sort((a, b) => a - b);
+      onConfirm?.({ [answerField]: answer });
+    } catch (err) {
+      onError?.(`could not submit the discard answer: ${err?.message ?? err}`);
+    }
   }
 </script>
 

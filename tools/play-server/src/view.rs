@@ -472,6 +472,32 @@ pub enum AnswerShapeView {
         /// (`abilities::default_trigger_targets`), one entry per slot.
         default: Vec<Vec<Target>>,
     },
+    /// CR 701.9b (ENG-1): choose **exactly** `count` of `candidates`, answered
+    /// through a template. The answer goes into
+    /// `ActionParamsDto::effect_choice_answer`.
+    ///
+    /// `PickOne` and `PickN` are the two cardinal-choice shapes that answer via
+    /// `effect_choice_answer` and therefore carry a `template` + a key;
+    /// [`Self::Subset`] is the one that answers via its own `discard_cards`
+    /// field and carries no template. Splitting on that, rather than making
+    /// `Subset`'s template optional, means a stale or malformed payload lands in
+    /// `ActionBar`'s visible "unknown shape" fallback instead of posting a body
+    /// the server will 400 (the UI-4 lesson).
+    PickN {
+        candidates: Vec<CardOptionView>,
+        count: usize,
+        /// The key inside `template`'s single variant object that the chosen ids
+        /// go in (`"chosen"`). See [`Self::Partition::template`].
+        chosen_key: String,
+        /// See [`Self::Partition::template`] — serialized verbatim, cloned by the
+        /// client, never re-spelled.
+        template: EffectChoiceAnswer,
+        /// The engine's own default subset (`default_discard_answer`: the `count`
+        /// LOWEST `ObjectId`s -- note that is the opposite end of the hand from
+        /// `Subset`'s CR 514.1 default). Sent so "use the default" is one click
+        /// and so a test can assert the human drove something else.
+        default: Vec<u64>,
+    },
 }
 
 /// One card in a blocking decision's answer space, with a seat-redacted label.
@@ -1956,6 +1982,41 @@ fn blocking_decision_view(
                         moved_key: "graveyard".to_string(),
                         moved_label: "graveyard".to_string(),
                         template: answer.clone(),
+                    },
+                ),
+                EffectChoiceQuestion::Discard { hand, count } => (
+                    "Discard",
+                    format!(
+                        "{src}: discard {count} card{} — you choose (CR 701.9b)",
+                        plural(*count as usize)
+                    ),
+                    AnswerShapeView::PickN {
+                        // CR 701.9b: these are the ANSWERER'S OWN hand cards, so
+                        // they are already in the seat-redacted view and their
+                        // labels come through `NameIndex` -- exactly as the
+                        // CR 514.1 arm above does it, and deliberately NOT
+                        // through `question_card_label`. That channel exists for
+                        // LIBRARY cards the effect has granted a look at, and
+                        // `test_ui1_view_rs_reads_game_state_in_exactly_the_two_
+                        // known_places` pins its size; routing an owned-hand
+                        // question through it would enlarge a channel for no
+                        // reason and blur what that gate is counting.
+                        candidates: hand
+                            .iter()
+                            .map(|id| CardOptionView {
+                                id: id.0,
+                                label: names.label(*id),
+                            })
+                            .collect(),
+                        count: *count as usize,
+                        chosen_key: "chosen".to_string(),
+                        template: answer.clone(),
+                        default: match answer {
+                            EffectChoiceAnswer::Discard { chosen } => {
+                                chosen.iter().map(|id| id.0).collect()
+                            }
+                            _ => Vec::new(),
+                        },
                     },
                 ),
             };

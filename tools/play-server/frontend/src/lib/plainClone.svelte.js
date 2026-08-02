@@ -11,8 +11,9 @@
  * key being written lives inside the externally-tagged enum's payload object,
  * and mutating the prop in place would write into the parent's reactive state.
  *
- * Three pickers reached for the platform's deep-copy primitive, and all three
- * were dead buttons for the entire life of the feature. `ActionBar.svelte`
+ * Three pickers reached for the platform's deep-copy primitive at the time this
+ * was found, and all three were dead buttons for the entire life of the
+ * feature. `ActionBar.svelte`
  * declares `let activeOption = $state(null)` and assigns a plain store object
  * into it; Svelte 5 wraps that in a `Proxy` and deep-proxies on read, so by the
  * time `template` reaches a picker it is a proxy — and the structured-clone
@@ -45,8 +46,9 @@
  * `tools/play-server/src/main.rs`'s
  * `test_frontend_never_structured_clones_reactive_state` fails the build if any
  * file under `frontend/src/` calls the platform primitive again, and asserts that
- * all three pickers call this function. The rule is a class, not three sites: the
- * same rejection hits `postMessage` and IndexedDB writes, so a Worker or a
+ * all four template-copying pickers (ENG-1 added `DiscardPicker`'s `PickN`
+ * branch to the group) call this function. The rule is a class, not four sites:
+ * the same rejection hits `postMessage` and IndexedDB writes, so a Worker or a
  * persistence layer added later must route through here too.
  *
  * Its sibling, `test_frontend_picker_failures_reach_the_error_strip`, pins the

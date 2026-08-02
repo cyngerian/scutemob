@@ -551,6 +551,21 @@ fn validate_decision_params(
                 ) => {
                     check_partition(looked_at, graveyard, top, "surveil", "CR 701.25a").map_err(bad)
                 }
+                // CR 701.9b (ENG-1): exactly `count`, no duplicates, every one from
+                // the hand this decision offered.
+                (
+                    EffectChoiceQuestion::Discard { hand, count },
+                    EffectChoiceAnswer::Discard { chosen },
+                ) => {
+                    check_ids(chosen, hand, "discard", "CR 701.9b").map_err(bad)?;
+                    if chosen.len() != *count as usize {
+                        return Err(bad(format!(
+                            "CR 701.9b: this effect discards exactly {count} card(s), got {}",
+                            chosen.len()
+                        )));
+                    }
+                    Ok(())
+                }
                 _ => Err(bad(format!(
                     "CR 608.2d: this decision asked a {} question; the answer given is a \
                      different kind",
@@ -888,6 +903,7 @@ fn question_kind(question: &mtg_engine::EffectChoiceQuestion) -> &'static str {
         EffectChoiceQuestion::SearchLibrary { .. } => "library search",
         EffectChoiceQuestion::Scry { .. } => "scry",
         EffectChoiceQuestion::Surveil { .. } => "surveil",
+        EffectChoiceQuestion::Discard { .. } => "discard",
     }
 }
 

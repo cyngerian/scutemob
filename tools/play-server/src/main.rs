@@ -6773,13 +6773,17 @@ mod tests {
             shared.len()
         );
 
-        // (b) The three pickers really route through the sanctioned helper. A
+        // (b) The four pickers really route through the sanctioned helper. A
         //     picker that stopped taking a copy at all would satisfy the ban
         //     above while quietly mutating its parent's reactive state.
+        //     `DiscardPicker.svelte` joined this list at ENG-1: its `PickN`
+        //     branch (CR 701.9b) builds an answer by cloning a `template` prop,
+        //     the exact shape the other three pickers were already guarded for.
         for picker in [
             "SearchPicker.svelte",
             "PartitionPicker.svelte",
             "CostPicker.svelte",
+            "DiscardPicker.svelte",
         ] {
             let (_, text) = sources
                 .iter()
@@ -6831,9 +6835,11 @@ mod tests {
     ///    That buys a message naming which picker failed.
     /// 2. `stores.js` installs `window` handlers for `error` and
     ///    `unhandledrejection`, and `main.js` calls that installer. That buys the
-    ///    *guarantee*, for the five pickers with no `try` and for every handler
-    ///    written later. Svelte 5's `<svelte:boundary>` is not a substitute — it
-    ///    catches render and effect errors, not DOM handler ones.
+    ///    *guarantee*, for the four pickers with no `try` (ENG-1 moved
+    ///    `DiscardPicker` into the guarded group — its `PickN` branch now clones a
+    ///    template too) and for every handler written later. Svelte 5's
+    ///    `<svelte:boundary>` is not a substitute — it catches render and effect
+    ///    errors, not DOM handler ones.
     ///
     /// Source-level, for the same reason as the gate above: there is no frontend
     /// harness (plan §8 R7). This proves the wiring exists, not that it renders.
@@ -6857,6 +6863,7 @@ mod tests {
             "SearchPicker.svelte",
             "PartitionPicker.svelte",
             "CostPicker.svelte",
+            "DiscardPicker.svelte",
         ] {
             let text = text_of(picker);
             // `onError?.(` and not the bare identifier: the identifier matches the
@@ -6881,8 +6888,8 @@ mod tests {
         let action_bar = text_of("ActionBar.svelte");
         assert_eq!(
             action_bar.matches("onError={onPickerError}").count(),
-            3,
-            "all three template-copying pickers must be given `onPickerError`"
+            4,
+            "all four template-copying pickers must be given `onPickerError`"
         );
         assert!(
             action_bar.contains("onClientError?.("),

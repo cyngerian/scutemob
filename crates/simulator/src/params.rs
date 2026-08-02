@@ -85,10 +85,11 @@ pub struct ActionParams {
     /// Membership, cardinality and duplication are the ENGINE's judgment
     /// (`rules::turn_actions::handle_discard_to_hand_size`), never re-derived here.
     pub discard_cards: Vec<ObjectId>,
-    /// CR 608.2d (UI-1): this player's answer to a
-    /// [`LegalAction::AnswerEffectChoice`] — a library search, a scry or a
-    /// surveil. `None` means "accept the engine's own default", in which case the
-    /// action's `answer` field is submitted verbatim.
+    /// CR 608.2d (UI-1; ENG-1 widens this to a fourth kind): this player's answer
+    /// to a [`LegalAction::AnswerEffectChoice`] — a library search, a scry, a
+    /// surveil, or (ENG-1, CR 701.9b) an effect-driven discard. `None` means
+    /// "accept the engine's own default", in which case the action's `answer`
+    /// field is submitted verbatim.
     ///
     /// An `Option` rather than the "empty means default" convention above because
     /// the answer is an enum, not a collection, and several of its variants have a
