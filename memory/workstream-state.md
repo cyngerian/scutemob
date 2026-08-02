@@ -914,6 +914,21 @@ worth carrying:
   fallback that exists to prevent a dead bar**; the count gate's narrowness (one needle, blind to
   `zones()`/`card_registry()`) is now stated rather than implied.
 
+**Re-review (second pass)**: all 6 confirmed fixed and the new gate confirmed two-sided by
+execution — but the fix cycle had left 4 doc defects of its own, **two in the same class it was
+convened to fix**. That recurrence is the point, not an aside: writing the correction is a second
+chance to assert something no test holds. One was substantive — `seat_view`'s comment justified
+dropping a foreign decision with "`submit`'s own `seq` check already refuses to act on it", which
+is false (`pending_wire_seq` ignores `human`, and the 409 body discloses the current `seq`, so a
+client could learn a hidden decision's seq and submit against it). `post_action` now refuses it
+too, and the gate asserts both halves using the seq captured *before* the move. Also corrected:
+the gate's own description said it retargets the decision (it retargets the viewer); "asserts
+every name is gone" overstated a needle that is the `looked_at` **key** (names are not assertable
+— seat 2 legitimately holds Swamps); an unresolvable `[check_ids]` intra-doc link; and both the
+code comment and the README now say plainly that this pair is **fail-closed, not M10a-ready** —
+`PlaySession::human` is a single `PlayerId`, so a real second human seat would be deadlocked
+rather than served, and the missing piece is a per-request viewer.
+
 **Not done / deferred** (all recorded as play-server README limitations 14-17):
 - The TUI halves of OOS-DP7-6 / OOS-DP8-2 / OOS-DP9-7 are untouched; those rows are *about* the
   TUI and remain open. OOS-DP9-1 is unchanged and deliberately so — it is about the bot, and the
@@ -921,6 +936,9 @@ worth carrying:
 - No picker has an automated test (no frontend harness exists, plan §8 R7).
 - `Slots` has no "use the default" button; `PartitionPicker` has no ordering control on the moved
   pile (CR 608.2f says that order is the player's).
+- Two pre-existing broken intra-doc links in `tools/play-server/src/view.rs` (`GameSummary::seed`,
+  `crate::api::validate_combat_params`) predate this branch and were left alone. CI runs
+  fmt/clippy/build/tests, not `cargo doc`, so nothing goes red — noted for whoever wants them.
 
 **Next session candidates**: `scutemob-175` (SIM-1 commander cast) or `scutemob-177` (UI-2
 additional costs) — UI-2 is the one UI-1 was meant to pre-shape, and its `CostPicker` should slot
