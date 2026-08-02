@@ -3526,6 +3526,10 @@ mod tests {
             );
         }
 
+        // Captured BEFORE the move: this is exactly the disclosure a client would
+        // have — the 409 body hands out the current `seq` on demand.
+        let wire_seq_before = seq(&view);
+
         // Render for the OTHER seat while seat 1's question is outstanding.
         {
             let mut guard = state.session.lock().expect("lock");
@@ -3551,10 +3555,33 @@ mod tests {
         // Asserted over the RAW body, not over parsed fields — the MR-M11-01 idiom.
         // A future field that carried the question's cards under another name would
         // be caught by this and not by a field-by-field check.
+        //
+        // The needle is the `looked_at` **key**, not a card name, and deliberately:
+        // seat 2 legitimately holds Swamps of its own, so "no card name appears"
+        // is not assertable here and claiming it would be the overstatement this
+        // whole review cycle is about.
         assert!(
             !body.contains("\"looked_at\""),
             "the foreign seat's look entitlement leaked into the body: {body}"
         );
+
+        // **The write half.** Hiding the decision is not enough on its own:
+        // `pending_wire_seq` does not read `human`, and the 409 body discloses the
+        // current `seq`, so a client could learn it and post anyway. `post_action`
+        // refuses. `wire_seq` is read out of the pre-move view, which is exactly
+        // the disclosure a real attacker would have.
+        let (status, refused) = post_json(
+            &state,
+            "/api/game/action",
+            json!({"seq": wire_seq_before, "action_index": index, "params": {}}),
+        )
+        .await;
+        assert_eq!(
+            status,
+            StatusCode::CONFLICT,
+            "answering another seat's decision must be refused, not applied: {refused}"
+        );
+        assert_eq!(refused["kind"], "no_pending_decision");
     }
 
     /// **Architecture Invariant 7, at the look-entitlement channel.**

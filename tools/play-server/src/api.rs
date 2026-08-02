@@ -655,9 +655,9 @@ fn check_partition(
 ///
 /// Enumerated rather than `Debug`-ed for **message quality**, not for redaction —
 /// and the distinction is worth stating, because an earlier version of this comment
-/// claimed the latter and was contradicted forty lines above by
-/// [`check_ids`]/[`check_partition`], which both format the candidate ids straight
-/// into their own 400 bodies.
+/// claimed the latter and was contradicted by `check_ids` (nested inside
+/// [`validate_decision_params`]) and [`check_partition`], which both format the
+/// candidate ids straight into their own 400 bodies.
 ///
 /// Those ids are fine there and a `Debug` here would be fine too: every id in the
 /// question was just sent to this seat on the wire, in this decision, as the answer
@@ -743,16 +743,27 @@ fn seat_view(session: &mut PlaySession, outcome: &AdvanceOutcome) -> SeatView {
     // Nothing enforced the emphasised half. It held only by arithmetic on a
     // one-element set: `session::config_for` hard-codes `human_seats: [HUMAN_SEAT]`,
     // so `session.human` is the only seat `LocalGame` ever parks a decision for, so
-    // `pending.player` happened to always equal it. A second human seat — the
-    // obvious M10a direction — would have rendered seat A's scry candidates, **with
-    // their real names**, into seat B's payload, through a channel both older
-    // Invariant-7 gates are blind to (one scans for omniscient view-model entry
-    // points, the other for another seat's *hand* names).
+    // `pending.player` happened to always equal it. Break that assumption and seat
+    // A's scry candidates would render, **with their real names**, into seat B's
+    // payload, through a channel both older Invariant-7 gates are blind to (one
+    // scans for omniscient view-model entry points, the other for another seat's
+    // *hand* names).
     //
     // A decision addressed to another seat is now simply absent from this one's
-    // payload. That is the correct answer rather than a defensive one: a seat is
-    // not entitled to know what another seat is being asked, and `submit`'s own
-    // `seq` check already refuses to act on it.
+    // payload: a seat is not entitled to know what another seat is being asked.
+    // [`post_action`] refuses the matching write for the same reason — see the
+    // guard there, and note that the two are NOT redundant, because
+    // `PlaySession::pending_wire_seq` does not read `human` at all and the 409 body
+    // discloses the current `seq` verbatim, so a client that guessed could
+    // otherwise have acted on a decision this filter had hidden from it.
+    //
+    // **This does not make the crate M10a-ready, and should not be read as
+    // claiming to.** `PlaySession::human` is a single `PlayerId` taken from
+    // `cfg.human_seats`' lowest element, so a genuine second human seat would find
+    // its decisions withheld with no channel to answer them — correct redaction,
+    // deadlocked gameplay. The actual missing piece is a per-request viewer. What
+    // this pair of guards buys is that the failure is fail-closed rather than a
+    // leak.
     let decision = session
         .pending
         .as_ref()
@@ -970,6 +981,33 @@ pub async fn post_action(
     tokio::task::block_in_place(|| {
         let mut guard = state.session.lock().map_err(|_| poisoned())?;
         let play = guard.as_mut().ok_or_else(no_session)?;
+
+        // **Architecture Invariant 7's write half** (UI-1 re-review, LOW 3). The
+        // read half — `seat_view`'s `pending.player == human` filter — hides a
+        // decision addressed to another seat. That is not on its own enough to stop
+        // this seat *answering* it: `PlaySession::pending_wire_seq` does not read
+        // `human`, and the 409 `stale_decision` body discloses the current `seq`
+        // verbatim, so a client could learn a hidden decision's `seq` from a
+        // deliberate stale post and then submit against it. `LocalGame::submit`
+        // would accept, because it builds the command for `pending.player` and has
+        // no notion of a viewer.
+        //
+        // So the two guards are a pair, not a duplicate. 409 rather than 403,
+        // matching the sibling case below it: from this seat's point of view there
+        // is genuinely nothing outstanding to answer.
+        //
+        // Unreachable today for the same reason the read half is — `config_for`
+        // hard-codes one human seat. Both exist so that stops being load-bearing.
+        if let Some(pending) = play.pending.as_ref() {
+            if pending.player != play.human {
+                return Err(ApiFailure::new(
+                    StatusCode::CONFLICT,
+                    "no_pending_decision",
+                    "the outstanding decision belongs to another seat; there is \
+                     nothing for this seat to answer",
+                ));
+            }
+        }
 
         // CR 508.1 / CR 509.1 (plan item 2): check a combat declaration against
         // the lists this decision actually offered, before anything is applied.

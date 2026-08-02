@@ -1325,10 +1325,17 @@ fn order_options(action: &LegalAction, names: &NameIndex) -> Option<OrderBlocker
 /// # What actually holds it — two gates, and what neither of them covers
 ///
 /// * `test_ui1_a_foreign_seats_effect_choice_never_reaches_this_payload` is the
-///   behavioural one. It takes a real, live scry decision, retargets it to a bot
-///   seat, and asserts the human's payload loses both the decision and every name
-///   that came through this function. It is two-sided: removing the `seat_view`
-///   filter turns it red.
+///   behavioural one. It drives a real scry, confirms this function is returning
+///   real names for it, then moves the **viewer** (`PlaySession::human`) to the
+///   other seat — not the decision, which `advance()` would refresh straight back
+///   — and asserts the payload loses the decision and the `looked_at` field that
+///   carried its cards. It also asserts the matching *write* is refused. It is
+///   two-sided on both halves: removing either `api.rs` guard turns it red.
+///
+///   Precisely what the raw-body half asserts is the absence of the `looked_at`
+///   **key**, not of the card names. The names cannot be asserted absent — seat 2
+///   legitimately holds Swamps of its own — so the key is the right needle, and
+///   saying "every name it carried" would overstate it.
 /// * `test_ui1_view_rs_reads_game_state_in_exactly_the_two_known_places` pins the
 ///   number of raw `GameState` object-table reads in this file's production code at
 ///   two, so a *third* look channel cannot be opened in silence.

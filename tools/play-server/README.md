@@ -816,7 +816,7 @@ payload can identify a hidden card without ever naming it:
 | **Names** — a label that says the card | the view model and `NameIndex` | `test_production_code_never_builds_an_omniscient_view` (source) + `test_seat_view_over_http_contains_no_other_hand_card_names` (body) |
 | **Reconstruction keys** — data that *rebuilds* a hidden zone | `GameSummary.seed`, until MR-M11-01 removed it | `test_mr_m11_01_seat_payload_carries_no_reconstruction_key`, which asserts over the raw body so a rename or a nested copy is caught too |
 | **Free-form strings** — engine text spliced in after redaction | `game_over.violations` / `.reason`, until MR-M11-08 reduced them | `test_mr_m11_08_game_over_payload_carries_no_engine_debug`, which plants a card name in both carriers |
-| **Look entitlements** — a real name from a hidden zone, rendered *on purpose* | `view::question_card_label`, feeding `BlockingDecisionView`'s scry / surveil / search candidates | `test_ui1_a_foreign_seats_effect_choice_never_reaches_this_payload` (behavioural — renders a live scry for the *other* seat and asserts both the decision and every name it carried are gone) + `test_ui1_view_rs_reads_game_state_in_exactly_the_two_known_places` (source, count-pinned) |
+| **Look entitlements** — a real name from a hidden zone, rendered *on purpose* | `view::question_card_label`, feeding `BlockingDecisionView`'s scry / surveil / search candidates | `test_ui1_a_foreign_seats_effect_choice_never_reaches_this_payload` (behavioural — renders a live scry for the *other* seat and asserts the decision and its `looked_at` field are gone from the raw body, and that the matching write is refused 409) + `test_ui1_view_rs_reads_game_state_in_exactly_the_two_known_places` (source, count-pinned) |
 
 The fourth is the only one that is not a leak, and it is worth stating why it is
 in the table anyway. CR 701.22a / 701.23a / 701.25a each instruct **this seat** to
@@ -840,8 +840,17 @@ by configuration rather than by code** until the UI-1 review. It was true only b
 arithmetic on a one-element set (`config_for` hard-codes one human seat, so
 `pending.player` always equalled `session.human`); a second human seat would have put
 seat A's scried library cards, named, into seat B's payload. `api.rs::seat_view` now
-filters the pending decision on `pending.player == human`, and the behavioural gate in
-the table above is two-sided against exactly that line.
+filters the pending decision on `pending.player == human`, and `post_action` refuses the
+matching write — the two are a pair, not a duplicate, because `pending_wire_seq` does not
+read `human` and the 409 body discloses the current `seq` verbatim, so hiding a decision
+does not on its own stop a client answering it. The behavioural gate in the table above
+is two-sided against **both** lines.
+
+This does **not** make the crate M10a-ready and is not offered as doing so.
+`PlaySession::human` is a single `PlayerId`, so a genuine second human seat would find
+its decisions withheld with no channel to answer them — correct redaction, deadlocked
+gameplay. The actual missing piece is a per-request viewer. What the pair buys is that
+the failure is fail-closed rather than a leak.
 
 The count gate is the second half: `view.rs`'s production code may read the raw
 `GameState` object table exactly **twice** — here, and in `action_modes`'
