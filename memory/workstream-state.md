@@ -834,6 +834,76 @@
 
 ## Last Handoff
 
+**Date**: 2026-08-02 (worker session, `scutemob-174` — UI-1 blocking-decision pickers)
+**Workstream**: M11-local maintenance track (`crates/simulator`, `tools/play-server`)
+**Task**: `scutemob-174` — branch `feat/ui-1-blocking-decision-payload-channel-pickers-discard-scrys`
+
+**Completed** — playtest-triage **F8** closed on the browser surface:
+- **Three layers, one mechanism.** `StubProvider` bakes the engine-accepted default into every
+  blocking-decision `LegalAction` (cleanup discard = the `count` highest `ObjectId`s, scry/surveil
+  = the identity partition, search = `candidates.first()`) so a *bot* can submit it and always be
+  accepted (SR-38). The candidate data rides along so a *human* client can render a choice. The
+  view layer threw it away, so the browser drew one bare button that submitted the default.
+- `crates/simulator/src/params.rs`: `ActionParams` gains `discard_cards` / `effect_choice_answer`
+  / `trigger_targets`; the three arms forward an announced answer and fall back to the same
+  default as before; the three variants join the allowlist and `first_announced_field`.
+- `tools/play-server/src/view.rs`: `ActionOptionView.decision` — a generic
+  `{question, prompt, answer_field, answer}` envelope whose `answer` is one of **four shapes**
+  (`Subset` / `PickOne` / `Partition` / `Slots`). `ActionParamsDto` gains the three answer fields.
+- `tools/play-server/src/api.rs`: `validate_decision_params` — an answer naming something the
+  response never offered is a **400**, not an engine 422.
+- Frontend: `DiscardPicker`, `PartitionPicker` (scry AND surveil), `SearchPicker`; `ActionBar`
+  gains a `'decision'` stage dispatching on `answer.shape`; `TargetPicker` now hands back the
+  grouped `Target[][]` alongside the flat list.
+- **Tests 4,124 → 4,136** (+8 params unit, +5 play-server). Zero engine lines (empty `git diff`
+  over `crates/engine/src` + `crates/card-types/src`), PROTOCOL **33** / HASH **70** unmoved
+  (gate-executed, not predicted).
+
+**Durable lessons this session paid for**:
+1. **CR 400.7 defeats id-following assertions.** The scry and search probes' first drafts followed
+   an `ObjectId` from the library into the hand. A card that changes zones is a NEW object. Both
+   now assert over the **library**, where the ids survive — and the two answers are distinguished
+   by *which* card is still in it.
+2. **A probe can pass on a printed keyword.** The trigger-target probe's first version asserted
+   "the chosen creature has a keyword" and **passed against the un-fixed code**, because Nezumi
+   Prowler is printed with Ninjutsu. It now asserts what each creature *gains* against a baseline
+   taken before the answer. Every probe here was re-checked by reverting the fix and watching it
+   go red; that check is what caught this one.
+3. **A generic payload's extension claim is worth its test.** `Slots` was built so OOS-DP8-2 would
+   need no rework, and it did not — but the claim only became evidence once a real pair of
+   `Complete` cards (Shadow Alley Denizen + Nezumi Prowler) drove it end to end. Every other
+   mono-black route was checked and rejected: PB-EF6 retargeted them all to `TargetOpponent`,
+   which has exactly one candidate in a 2-player game and is therefore always forced.
+4. **A fourth Invariant-7 channel, opened deliberately.** `StateViewModel` models `library_size`
+   and no library *contents*, so `NameIndex` answers `(unknown card)` for every scry/search
+   candidate. `view::question_card_label` reads the name off `GameState` for ids drawn out of the
+   engine's own `EffectChoiceQuestion` — whose `private_to()` already classifies exactly that id
+   set as this seat's. MR-M11-01's lesson applies verbatim (*a redaction gate checks the channel
+   it was written for*), so it ships with its own gate: `view.rs`'s production code may read the
+   raw object table exactly **twice**, and a third read must be deliberate.
+5. **`session::new_game` is the deck-injection seam.** `config_for` hard-codes
+   `DeckSource::RandomPerSeat`, but `new_game` takes any `LocalGameConfig` and runs the same two
+   Invariant-9 gates — so a `#[cfg(test)]` fixture can install a `DeckSource::Fixed` session and
+   still drive every request through the real router. One seed (184) serves two different fixture
+   decks because the shuffle permutes *positions* and both probe spells sit at `main_deck[0..2]`.
+
+**Not done / deferred** (all recorded as play-server README limitations 14-17):
+- The TUI halves of OOS-DP7-6 / OOS-DP8-2 / OOS-DP9-7 are untouched; those rows are *about* the
+  TUI and remain open. OOS-DP9-1 is unchanged and deliberately so — it is about the bot, and the
+  bot still submits the default, which is what keeps every recorded fuzzer seed reproducing.
+- No picker has an automated test (no frontend harness exists, plan §8 R7).
+- `Slots` has no "use the default" button; `PartitionPicker` has no ordering control on the moved
+  pile (CR 608.2f says that order is the player's).
+
+**Next session candidates**: `scutemob-175` (SIM-1 commander cast) or `scutemob-177` (UI-2
+additional costs) — UI-2 is the one UI-1 was meant to pre-shape, and its `CostPicker` should slot
+into the same `pickerNeeded` chain.
+
+**Commit prefix used**: `scutemob-174:`
+
+
+## Prior Handoff (oversight — wave-7 recovery, both collects, playtest triage)
+
 **Date**: 2026-08-02 (oversight session — wave-7 crash recovery, both collects, playtest triage)
 **Workstream**: coordinator — W6 (PB-DX6 collect) + M11-local (S8 collect, MILESTONE CLOSED) + triage
 **Task**: `scutemob-172`/`173` collected; `scutemob-174..181` created; merges `51878905` + `cb0755bf`
