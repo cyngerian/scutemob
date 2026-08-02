@@ -34,7 +34,15 @@ pub use invariants::{check_all as check_invariants, InvariantViolation};
 // SIM-1 (CR 903.8): `pub`, not `pub(crate)` -- OOS-SIM1-2 names a FOURTH printed-cost
 // auto-tap site outside this crate (`tools/tui/src/play/app.rs`'s bot path); exporting
 // the helper makes that a one-line fix later instead of a copy.
-pub use legal_actions::{effective_cast_cost, LegalAction, LegalActionProvider, StubProvider};
+// UI-2 (CR 118.8 / CR 702.157): the additional-cost descriptor is part of this
+// crate's public surface -- `tools/play-server` renders it and validates a
+// submission against it. `effective_cast_cost_with_additional` is exported for the
+// same reason `effective_cast_cost` is: any caller that pays for a cast must use
+// the same arithmetic the offer gate used (SR-38).
+pub use legal_actions::{
+    effective_cast_cost, effective_cast_cost_with_additional, AdditionalCostPlan, LegalAction,
+    LegalActionProvider, SacrificeCostOption, SquadCostOption, StubProvider,
+};
 pub use local_game::{
     human_only_actions, AdvanceOutcome, CommandRecord, DecisionKind, HaltReason, LocalGame,
     LocalGameError, LocalGameLimits, PendingDecision,

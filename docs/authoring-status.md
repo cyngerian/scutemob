@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-08-02 10:48 UTC  
-**Git:** `23b75885` on `feat/cards-2-corpus-field-fidelity-audit-permanent-gate-mana-cost`  
+**Generated:** 2026-08-02 12:23 UTC  
+**Git:** `5c58d18c` on `feat/ui-2-additional-cost-surfacing---sacrifice-squad-offer-descr`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -34,7 +34,7 @@ and what is intentionally NOT in it.**
 
 | Window | New files added | Existing files modified |
 | --- | ---: | ---: |
-| last 7 days | 0 | 76 |
+| last 7 days | 0 | 77 |
 | last 30 days | 57 | 2,943 |
 | last 90 days | 57 | 2,955 |
 | last 1 year | 1,830 | 3,366 |
@@ -241,6 +241,8 @@ tyvar_jubilant_brawler: // TODO: Mill effect + conditional graveyard return with
 ## Recent card-touching commits
 
 ```
+a2fef7cd scutemob-178: UI-2 stage 1/2 — provider builds an AdditionalCostPlan; params defaults it; auto-tap pays Squad
+2c7272fd scutemob-181: CARDS-2 fourth fix cycle — the closed-vs-not-firing overclaim, and two uncovered repairs
 23b75885 scutemob-181: CARDS-2 third fix cycle — merge SIM-1, add R8, close the reviewer's list
 0abb41db scutemob-181: CARDS-2 second fix cycle — the batch's own worst moment, documented
 50f26048 scutemob-181: CARDS-2 fix cycle — the reviewer found the sharpest thing in the batch
@@ -264,8 +266,6 @@ f3e92ecc scutemob-164: PB-DX3 implement — two stale blocker notes closed (OOS-
 48cec52a W6-prim: scutemob-144 — PB-RS2: CR 119.4 combined-life fix, birthing_pod flip, roster sweep, simulator
 e29dd99f W6-prim: PB-OS11 review-fix — flip gemstone_array + druids_repository known_wrong→Complete
 69768559 W6-prim: PB-OS11 — final PB-OS batch: RemoveCounter mana-ability lowering + batch filtered-attack trigger
-d876d19b W6-prim: PB-OS10 — inter-target distinctness + Jitte any-recipient combat trigger
-63335b8d W6-prim: PB-OS9 — Condition::YouControlYourCommander (OOS-EF3b-1); PROTOCOL 24 / HASH 61
 ```
 
 ## Missing card-defs sidecar
