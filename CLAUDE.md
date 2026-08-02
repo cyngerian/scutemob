@@ -220,6 +220,23 @@
 - **Recurrence rule** — future `/collect` and milestone-close bookkeeping appends its detailed PB/SR
   narrative to that archive file (newest first), and updates only a one-paragraph snapshot delta
   here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
+- **Last Updated**: 2026-08-02 — **ADJUDICATION SHIPPED** (`scutemob-186`, merge `8b069ae2`,
+  doc-only): the external recursion review (`docs/audits/mtg-characteristics-recursion-findings.md`)
+  is adjudicated in `docs/audits/mtg-characteristics-recursion-adjudication.md`. **The task's framed
+  conflict was stale on arrival** — PB-DX19's own review had already replaced the raw
+  base-characteristics fix with `characteristics_for_condition` (thread-local depth guard), so the
+  external doc's live objection is its thread-local rejection, not its printed-characteristics one.
+  Measured from `all_cards()`: the layer-querying-condition population is **exactly 1 card**
+  (`indomitable_archangel`); the shipped deviation is live-wrong on **7** deck-legal `Complete`
+  pairs plus the CR 708.2a face-down class. CR verdict: the external doc's durable architecture
+  (layer-bounded queries) is CR-correct; its immediate treat-as-inactive patch has **no CR
+  warrant** (CR 613.8b prescribes timestamp order, never inactivity). **Disposition: accept in
+  substance, reject the sequencing, split** — **PB-DX42b briefed at rank 13** of the v3 queue
+  (authority: adjudication §5; the v3 memo's §4 table is NOT yet re-rowed), **PB-DX42a** (corpus
+  roster gate) offered as a rider on PB-DX8 (rank 10). Seeds **OOS-ADJ-1..7** filed in adjudication
+  §6 (registry-of-record for them until rowed into the audit registry); **OOS-ADJ-7** is an
+  unrelated live-wrong find — `blood_moon`/`magus_of_the_moon` strip the Artifact card type from
+  artifact lands, contradicting the printed cards (should ride PB-DX27, not DX42).
 - **Last Updated**: 2026-08-02 — **UI-4 SHIPPED** (`scutemob-185`; G1 of
   `memory/playtest-triage-2026-08-02b.md`). **The browser's Confirm button was dead in all three
   template-copying pickers, and five CR flows the project believed shipped had never worked**:

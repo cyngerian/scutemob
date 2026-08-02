@@ -839,6 +839,15 @@
   (`scutemob-159`) confirmed its exclusion from the primitive queue. `OOS-M11-3` (fuzzer
   nondeterminism in 150-200+ turn games) untouched.
 
+## Coordinator note (scutemob-186 collect, 2026-08-02)
+
+The adjudication task was conflict-barred from coordination files; its dispositions live in
+`docs/audits/mtg-characteristics-recursion-adjudication.md` (§5 queue insertion PB-DX42a/b,
+§6 seeds OOS-ADJ-1..7). The v3 queue memo's §4 table has NOT been re-rowed — the next dispatcher
+must read adjudication §5 alongside it. OOS-ADJ-3 warns `OOS-DX19-2`'s "613.8b fixpoint" framing
+would make a worker build the wrong thing — re-word at dispatch. OOS-ADJ-7 (blood_moon strips
+Artifact card type) rides PB-DX27.
+
 ## Worker Handoff (UI-4, `scutemob-185`) — picker Confirm hotfix
 
 **G1 CONFIRMED IN A BROWSER BEFORE ANY EDIT, and the triage's diagnosis was exactly right.**
