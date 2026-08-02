@@ -4,7 +4,7 @@
 **Seeds**: OOS-RS2-1 + OOS-DP4-1 (`memory/primitives/seed-rerank-2026-07-27.md` §4 + the PB-DX6
 dispatch brief at that file's `:994`)
 **Task**: `scutemob-172` · **Branch**: `feat/pb-dx6-the-last-two-unflattened-mana-cost-payment-sites-oos-`
-**Phase**: plan
+**Phase**: implement (plan DONE — `memory/primitives/pb-plan-DX6.md`, commit `4d367c54`)
 
 > Prior batch (PB-DX5, `scutemob-170`) shipped; its result summary lives in
 > `memory/primitives/pb-plan-DX5.md` + `pb-review-DX5.md` and in CLAUDE.md's Current State.
