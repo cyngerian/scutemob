@@ -314,6 +314,28 @@ fn test_greater_good_draws_by_sacrificed_power_then_discards_three() {
 
     // Pass priority to resolve the ability (Sequence: draw 4, then discard 3).
     let (state, _) = pass_all(state, &players);
+    // ENG-1 (CR 701.9b): discarding 3 of a 4-card hand is no longer
+    // determined (3 < 4), so the resolution suspends here and rolls the
+    // whole Sequence (including the draw) back. Answer with the engine's
+    // own default -- byte-identical to the pre-ENG-1 auto-pick -- so the
+    // net-hand-change and drawn-count assertions below still mean what they
+    // meant before this batch; they read final state, not event counts, so
+    // no event-merging is needed (contrast `x_cost_spells.rs`'s fix).
+    let state = if let Some(entry) = state.pending_effect_choice().cloned() {
+        let answer = mtg_engine::effects::default_effect_choice_answer(&entry.question);
+        process_command(
+            state,
+            Command::AnswerEffectChoice {
+                player: entry.player,
+                choice_id: entry.choice_id,
+                answer,
+            },
+        )
+        .expect("the engine must accept its own default answer (SR-38)")
+        .0
+    } else {
+        state
+    };
 
     let hand_after = count_in_zone(&state, ZoneId::Hand(p1));
     let lib_after = count_in_zone(&state, ZoneId::Library(p1));

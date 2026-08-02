@@ -57,6 +57,35 @@ fn pass_all(
     (current, all_events)
 }
 
+/// ENG-1 (CR 701.9b): if the resolution suspended on an effect-driven
+/// discard, answer it with the engine's own default (`min_by_key(|id| id.0)`,
+/// byte-identical to the pre-ENG-1 auto-pick) and return the REPLAY's events
+/// appended to `initial_events` -- the suspension rolls the WHOLE resolution
+/// back (CR 608.2d), so any `CardDrawn`/`CardDiscarded` events these tests
+/// count appear on the replay pass, not the initial one. A no-op passthrough
+/// when nothing suspended.
+fn resolve_through_any_discard_choice(
+    state: mtg_engine::GameState,
+    initial_events: Vec<GameEvent>,
+) -> (mtg_engine::GameState, Vec<GameEvent>) {
+    let Some(entry) = state.pending_effect_choice().cloned() else {
+        return (state, initial_events);
+    };
+    let answer = mtg_engine::effects::default_effect_choice_answer(&entry.question);
+    let (state, answer_events) = process_command(
+        state,
+        Command::AnswerEffectChoice {
+            player: entry.player,
+            choice_id: entry.choice_id,
+            answer,
+        },
+    )
+    .expect("the engine must accept its own default answer (SR-38)");
+    let mut events = initial_events;
+    events.extend(answer_events);
+    (state, events)
+}
+
 /// Mana to add to the caster's pool before casting (generic/colorless, blue, green, red, white, black).
 type ManaSpec = (u32, u32, u32, u32, u32, u32);
 
@@ -180,7 +209,12 @@ fn test_x_cost_spell_basic_mana_payment() {
     );
 
     // Resolve: pass priority for both players. Pull from Tomorrow draws X cards then discards 1.
-    let (state, _) = pass_all(state, &[p1, p2]);
+    let (state, events) = pass_all(state, &[p1, p2]);
+    // ENG-1 (CR 701.9b): the discard-of-1 is now a real player choice and
+    // suspends the resolution (hand.len() > 1 after the draw). Answer with
+    // the engine's own default -- this test only cares that the spell fully
+    // resolves, not which card is discarded.
+    let (state, _) = resolve_through_any_discard_choice(state, events);
 
     // Stack should be empty after resolution.
     assert!(
@@ -238,6 +272,14 @@ fn test_x_cost_effect_amount_xvalue_draw() {
     // Cast with X=3 (draw 3, discard 1 → net +2 cards in hand, minus 1 for the spell cast = net +1).
     let (state, _) = cast_x_spell(state, p1, card_obj_id, (3, 2, 0, 0, 0, 0), 3);
     let (state, resolve_events) = pass_all(state, &[p1, p2]);
+    // ENG-1 (CR 701.9b): the discard-of-1 now suspends (hand.len()=3 > 1
+    // after the draw). Answer with the DEFAULT (lowest id) -- byte-identical
+    // to the pre-ENG-1 auto-pick -- so `draw_count`/`final_hand` below still
+    // mean what they meant before this batch. The suspension rolls the WHOLE
+    // resolution back, so the `CardDrawn` events appear on the REPLAY pass,
+    // not the initial one -- `resolve_through_any_discard_choice` merges
+    // both passes' events for exactly that reason.
+    let (state, resolve_events) = resolve_through_any_discard_choice(state, resolve_events);
 
     // Count CardDrawn events in the resolve batch.
     let draw_count = resolve_events
