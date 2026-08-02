@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-08-02 12:23 UTC  
-**Git:** `5c58d18c` on `feat/ui-2-additional-cost-surfacing---sacrifice-squad-offer-descr`  
+**Generated:** 2026-08-02 20:04 UTC  
+**Git:** `a878ca26` on `feat/sim-6-activation-cost-payment-channel-sacrificediscard-costs`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -34,7 +34,7 @@ and what is intentionally NOT in it.**
 
 | Window | New files added | Existing files modified |
 | --- | ---: | ---: |
-| last 7 days | 0 | 77 |
+| last 7 days | 0 | 83 |
 | last 30 days | 57 | 2,943 |
 | last 90 days | 57 | 2,955 |
 | last 1 year | 1,830 | 3,366 |
@@ -241,6 +241,11 @@ tyvar_jubilant_brawler: // TODO: Mill effect + conditional graveyard return with
 ## Recent card-touching commits
 
 ```
+a878ca26 scutemob-189: SIM-6 — activation-cost payment channel (sacrifice + discard) end to end
+569087e6 scutemob-184: close OOS-DX19-1 for real, and gate it so the claim stays true
+697606a6 scutemob-184: apply the rest of the review — devilish_valet probe, docs, seeds
+79b94a58 scutemob-184: PB-DX19 — discriminating tests, each watched failing by revert
+a0d977e5 scutemob-184: PB-DX19 — close OOS-SIM2-6 and fold in OOS-SIM2-5
 a2fef7cd scutemob-178: UI-2 stage 1/2 — provider builds an AdditionalCostPlan; params defaults it; auto-tap pays Squad
 2c7272fd scutemob-181: CARDS-2 fourth fix cycle — the closed-vs-not-firing overclaim, and two uncovered repairs
 23b75885 scutemob-181: CARDS-2 third fix cycle — merge SIM-1, add R8, close the reviewer's list
@@ -261,11 +266,6 @@ f3e92ecc scutemob-164: PB-DX3 implement — two stale blocker notes closed (OOS-
 5c463339 W6-prim: scutemob-152 -- PB-DP4 engine changes: attack tax debit + payment deadline (DP-10/DP-11)
 36e64283 W6-prim: scutemob-145 — PB-RS3 /review nits: correct two overstated claims
 83e0f4e1 W6-prim: scutemob-145 — PB-RS3 fix cycle: all 7 review findings (0 HIGH, 3 MEDIUM, 4 LOW)
-95626742 W6-prim: scutemob-145 — PB-RS3 card-def roster: 3 flips + 1 integrity repair
-7d932614 W6-prim: scutemob-144 — PB-RS2 fix cycle: apply all 12 review findings (0 HIGH, 5 MEDIUM, 7 LOW)
-48cec52a W6-prim: scutemob-144 — PB-RS2: CR 119.4 combined-life fix, birthing_pod flip, roster sweep, simulator
-e29dd99f W6-prim: PB-OS11 review-fix — flip gemstone_array + druids_repository known_wrong→Complete
-69768559 W6-prim: PB-OS11 — final PB-OS batch: RemoveCounter mana-ability lowering + batch filtered-attack trigger
 ```
 
 ## Missing card-defs sidecar

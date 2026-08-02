@@ -7427,4 +7427,427 @@ mod tests {
             "the mulligan must still redraw the hand"
         );
     }
+
+    // ── SIM-6 (CR 602.2, triage G4): the activation-cost payment channel ────────
+    //
+    // The `ActivateAbility` sibling of the UI-2 section above. Before this batch
+    // `additional_costs_view` early-returned for anything that was not a
+    // `CastSpell`, so `ActionOptionView.costs` was `null` for every
+    // sacrifice-cost or discard-cost ability, the browser never entered its cost
+    // stage, and `params.rs` submitted `sacrifice_target: None` -> the engine's
+    // `InvalidCommand` -> 422.
+
+    /// `{5}{B}{B}{B}`, Legendary Creature, `Completeness::Complete`
+    /// (`crates/card-defs/src/defs/razaketh_the_foulblooded.rs`). Mono-black, which
+    /// fixes CR 903.5c colour identity to plain black so a Swamp deck is legal, and
+    /// at 8 mana it is far outside this probe's window (a handful of Swamps) — the
+    /// same two properties [`UI2_COMMANDER`] was chosen for on the green side.
+    const SIM6_COMMANDER: &str = "razaketh-the-foulblooded";
+
+    /// `{2}{B}`, Legendary Creature — Aetherborn Vampire 2/2, `Completeness::Complete`.
+    /// "Sacrifice **another** creature: Yahenni gains indestructible until end of
+    /// turn" — the exact card the first human playtest could not activate (G4), and
+    /// the CR 109.1 half of this probe: its own id must NOT appear among the
+    /// candidates the wire offers.
+    const SIM6_YAHENNI: &str = "yahenni-undying-partisan";
+    const SIM6_YAHENNI_NAME: &str = "Yahenni, Undying Partisan";
+
+    /// `{B}`, Creature — Zombie 1/1, `Completeness::Complete`. "Sacrifice **a**
+    /// creature: Put a +1/+1 counter on this creature" — printed WITHOUT "another",
+    /// so this card is the control for Yahenni's exclusion: on the same board, its
+    /// own offer must include itself. No mana ability (see [`UI2_ELF_A`]'s doc for
+    /// why that matters to the auto-tap solver).
+    const SIM6_FODDER: &str = "carrion-feeder";
+    const SIM6_FODDER_NAME: &str = "Carrion Feeder";
+
+    /// Generous bound for driving through ~4 of the human's own land drops and two
+    /// casts. Same "one step per human decision" accounting as [`UI2_MAX_STEPS`].
+    const SIM6_MAX_STEPS: usize = 800;
+
+    /// CR 903.5c: `SIM6_COMMANDER` plus 99 Swamps, with `overrides` written into
+    /// the given deck positions. Mirrors [`ui2_deck_with`] on the black side; the
+    /// pinned opening-hand positions are the same because the shuffle is a function
+    /// of the seed and the deck SIZE, not of which cards are in it.
+    fn sim6_deck_with(overrides: &[(usize, &str)]) -> mtg_simulator::DeckConfig {
+        use mtg_engine::CardId;
+        let mut main_deck: Vec<CardId> = (0..99).map(|_| CardId("swamp".to_string())).collect();
+        for (index, card) in overrides {
+            main_deck[*index] = CardId(card.to_string());
+        }
+        mtg_simulator::DeckConfig {
+            commander: CardId(SIM6_COMMANDER.to_string()),
+            main_deck,
+        }
+    }
+
+    /// Install a two-player fixed-deck session, exactly as [`ui2_install`] does.
+    fn sim6_install(state: &SharedState, p1_deck: mtg_simulator::DeckConfig) {
+        let cfg = mtg_simulator::LocalGameConfig {
+            player_count: 2,
+            human_seats: [mtg_engine::PlayerId(1)].into_iter().collect(),
+            bot_kind: BotKind::Heuristic,
+            seed: UI2_SEED,
+            decks: mtg_simulator::DeckSource::Fixed(vec![
+                (mtg_engine::PlayerId(1), p1_deck),
+                // All-Swamp opponent: no spell in the deck at all, so the bot can
+                // only play lands and pass and cannot perturb P1's board.
+                (mtg_engine::PlayerId(2), sim6_deck_with(&[])),
+            ]),
+            limits: mtg_simulator::LocalGameLimits {
+                max_turns: 200,
+                max_commands: 40_000,
+                max_consecutive_passes: 500,
+                record_journal: true,
+            },
+        };
+        let session = session::new_game(cfg, 0).expect("the SIM-6 fixture deck must be legal");
+        *state.session.lock().expect("fresh lock") = Some(session);
+    }
+
+    /// Drive the human seat — playing a land, else casting whichever of the two
+    /// fixture creatures is not yet out, else passing — until BOTH are on the
+    /// battlefield and an `ActivateAbility` option for `SIM6_YAHENNI_NAME` is
+    /// offered. Returns the view at that point.
+    async fn sim6_drive_to_yahenni_activation(state: &SharedState, max_steps: usize) -> Value {
+        let p1 = mtg_engine::PlayerId(1);
+        let (status, mut view) = get_json(state, "/api/game").await;
+        assert_eq!(status, StatusCode::OK, "{view}");
+        for step in 0..max_steps {
+            let both_out = [SIM6_FODDER_NAME, SIM6_YAHENNI_NAME]
+                .iter()
+                .all(|name| !ui2_battlefield_ids_by_name(state, p1, name).is_empty());
+            if both_out {
+                let yahenni = ui2_battlefield_ids_by_name(state, p1, SIM6_YAHENNI_NAME)[0];
+                let offered = view["decision"]["actions"]
+                    .as_array()
+                    .is_some_and(|actions| {
+                        actions
+                            .iter()
+                            .any(|a| a["kind"] == "ActivateAbility" && a["object_id"] == yahenni)
+                    });
+                if offered {
+                    return view;
+                }
+            }
+            assert!(
+                !view["decision"].is_null(),
+                "the game ended at step {step} before Yahenni's activation was offered: {view}"
+            );
+            let wire_seq = seq(&view);
+            let actions = view["decision"]["actions"]
+                .as_array()
+                .expect("actions is an array")
+                .clone();
+            let next_cast = [SIM6_FODDER_NAME, SIM6_YAHENNI_NAME]
+                .iter()
+                .find(|name| ui2_battlefield_ids_by_name(state, p1, name).is_empty())
+                .map(|name| format!("Cast {name}"));
+            let pick = actions
+                .iter()
+                .find(|a| a["kind"] == "PlayLand")
+                .or_else(|| {
+                    next_cast.as_deref().and_then(|label| {
+                        actions
+                            .iter()
+                            .find(|a| a["kind"] == "CastSpell" && a["label"] == label)
+                    })
+                })
+                .or_else(|| actions.iter().find(|a| a["kind"] == "PassPriority"))
+                .or_else(|| actions.iter().find(|a| a["kind"] != "Concede"))
+                .unwrap_or_else(|| panic!("only Concede was offered at step {step}: {view}"));
+            let index = pick["index"].as_u64().expect("index is a number");
+            let (status, next) = post_json(
+                state,
+                "/api/game/action",
+                json!({"seq": wire_seq, "action_index": index, "params": {}}),
+            )
+            .await;
+            assert_eq!(
+                status,
+                StatusCode::OK,
+                "step {step} submitting {}: {next}",
+                pick["label"]
+            );
+            view = next;
+        }
+        panic!("Yahenni's activation was never offered within {max_steps} steps");
+    }
+
+    /// The `ActivateAbility` option whose `object_id` is `source`.
+    fn sim6_activate_option(view: &Value, source: u64) -> Value {
+        view["decision"]["actions"]
+            .as_array()
+            .expect("actions is an array")
+            .iter()
+            .find(|a| a["kind"] == "ActivateAbility" && a["object_id"] == source)
+            .unwrap_or_else(|| panic!("no ActivateAbility option for object {source}: {view}"))
+            .clone()
+    }
+
+    /// SIM6-P1 (criterion 6066): the wire payload for Yahenni's activation carries a
+    /// populated `costs.activation_sacrifice` whose candidate list is the OTHER
+    /// creature and **not Yahenni itself** (CR 109.1) — while the SAME board's
+    /// Carrion Feeder offer, printed "Sacrifice **a** creature", DOES include itself.
+    ///
+    /// Two cards on one board is what makes this discriminating: an implementation
+    /// that always excluded the source, or never did, fails one half or the other.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_sim6_yahenni_offer_excludes_itself_while_carrion_feeder_includes_itself() {
+        let p1 = mtg_engine::PlayerId(1);
+        let state = shared_state();
+        sim6_install(
+            &state,
+            sim6_deck_with(&[(0, SIM6_YAHENNI), (1, SIM6_FODDER)]),
+        );
+
+        let view = sim6_drive_to_yahenni_activation(&state, SIM6_MAX_STEPS).await;
+        let yahenni = ui2_battlefield_ids_by_name(&state, p1, SIM6_YAHENNI_NAME)[0];
+        let fodder = ui2_battlefield_ids_by_name(&state, p1, SIM6_FODDER_NAME)[0];
+
+        let option = sim6_activate_option(&view, yahenni);
+        let costs = &option["costs"];
+        assert!(
+            !costs.is_null(),
+            "G4: an activation with a sacrifice cost must carry a cost descriptor: {option}"
+        );
+        let sac = &costs["activation_sacrifice"];
+        assert!(
+            !sac.is_null(),
+            "the sacrifice block must be present: {costs}"
+        );
+        assert!(
+            costs["activation_discard"].is_null() && costs["sacrifice"].is_null(),
+            "this ability has no discard cost and this is not a CastSpell: {costs}"
+        );
+        assert_eq!(sac["answer_field"], "cost_sacrifice_target");
+        assert_eq!(sac["default"], fodder);
+        let ids: Vec<u64> = sac["candidates"]
+            .as_array()
+            .expect("candidates is an array")
+            .iter()
+            .map(|c| c["id"].as_u64().expect("id is a number"))
+            .collect();
+        assert!(
+            ids.contains(&fodder),
+            "the other creature must be offered: {sac}"
+        );
+        assert!(
+            !ids.contains(&yahenni),
+            "CR 109.1: 'Sacrifice ANOTHER creature' must not offer Yahenni itself: {sac}"
+        );
+        assert!(
+            sac["prompt"]
+                .as_str()
+                .expect("prompt is a string")
+                .contains("another"),
+            "the prompt must say 'another' so a human can tell an exclusion from a \
+             missing card: {sac}"
+        );
+
+        // The control, on the SAME board: Carrion Feeder prints "Sacrifice a
+        // creature" and may pay with itself.
+        let feeder_option = sim6_activate_option(&view, fodder);
+        let feeder_ids: Vec<u64> = feeder_option["costs"]["activation_sacrifice"]["candidates"]
+            .as_array()
+            .expect("candidates is an array")
+            .iter()
+            .map(|c| c["id"].as_u64().expect("id is a number"))
+            .collect();
+        assert!(
+            feeder_ids.contains(&fodder) && feeder_ids.contains(&yahenni),
+            "'Sacrifice a creature' offers every creature INCLUDING the source: {feeder_ids:?}"
+        );
+    }
+
+    /// SIM6-P2 (criterion 6066): the human's chosen sacrifice is submitted over
+    /// HTTP, ACCEPTED (200, not the 422 this batch exists to remove), and the
+    /// sacrifice really happened — read back out of band by NAME, since CR 400.7
+    /// mints a fresh `ObjectId` on the zone change.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_sim6_activation_sacrifice_is_answered_over_http() {
+        let p1 = mtg_engine::PlayerId(1);
+        let state = shared_state();
+        sim6_install(
+            &state,
+            sim6_deck_with(&[(0, SIM6_YAHENNI), (1, SIM6_FODDER)]),
+        );
+
+        let view = sim6_drive_to_yahenni_activation(&state, SIM6_MAX_STEPS).await;
+        let yahenni = ui2_battlefield_ids_by_name(&state, p1, SIM6_YAHENNI_NAME)[0];
+        let fodder = ui2_battlefield_ids_by_name(&state, p1, SIM6_FODDER_NAME)[0];
+        let option = sim6_activate_option(&view, yahenni);
+
+        let (status, after) = post_json(
+            &state,
+            "/api/game/action",
+            json!({
+                "seq": seq(&view),
+                "action_index": option["index"],
+                "params": {"cost_sacrifice_target": fodder},
+            }),
+        )
+        .await;
+        assert_eq!(
+            status,
+            StatusCode::OK,
+            "the activation with its cost paid must be accepted: {after}"
+        );
+
+        assert!(
+            ui2_battlefield_ids_by_name(&state, p1, SIM6_FODDER_NAME).is_empty(),
+            "the sacrificed creature must have left the battlefield"
+        );
+        assert!(
+            ui2_zone_names(&state, mtg_engine::ZoneId::Graveyard(p1))
+                .contains(&SIM6_FODDER_NAME.to_string()),
+            "the sacrificed creature must be in its owner's graveyard (CR 602.2)"
+        );
+        assert!(
+            !ui2_battlefield_ids_by_name(&state, p1, SIM6_YAHENNI_NAME).is_empty(),
+            "Yahenni itself must still be on the battlefield"
+        );
+    }
+
+    /// SIM6-P3: submitting Yahenni's OWN id as the sacrifice is refused **400
+    /// `bad_params`** at the response boundary — it is not among the ids this
+    /// decision offered — rather than reaching the engine and coming back 422.
+    ///
+    /// The same boundary argument `validate_additional_cost_params` makes for the
+    /// cast side, at the id a human is most likely to try.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_sim6_sacrificing_the_source_of_an_another_cost_is_refused_400() {
+        let p1 = mtg_engine::PlayerId(1);
+        let state = shared_state();
+        sim6_install(
+            &state,
+            sim6_deck_with(&[(0, SIM6_YAHENNI), (1, SIM6_FODDER)]),
+        );
+
+        let view = sim6_drive_to_yahenni_activation(&state, SIM6_MAX_STEPS).await;
+        let yahenni = ui2_battlefield_ids_by_name(&state, p1, SIM6_YAHENNI_NAME)[0];
+        let option = sim6_activate_option(&view, yahenni);
+
+        let (status, body) = post_json(
+            &state,
+            "/api/game/action",
+            json!({
+                "seq": seq(&view),
+                "action_index": option["index"],
+                "params": {"cost_sacrifice_target": yahenni},
+            }),
+        )
+        .await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+        assert_eq!(body["kind"], "bad_params", "{body}");
+        assert!(
+            !ui2_battlefield_ids_by_name(&state, p1, SIM6_YAHENNI_NAME).is_empty(),
+            "the refused submission must not have changed the board"
+        );
+    }
+
+    /// A `LegalAction::ActivateAbility` carrying a fully-populated
+    /// `ActivationCostPlan`, for unit-testing `api::validate_additional_cost_params`
+    /// without an HTTP drive — the [`ui2_cast_spell_action_with_costs`] of this
+    /// section.
+    fn sim6_activate_action_with_costs(
+        sacrifice: Option<Vec<mtg_engine::ObjectId>>,
+        discard: Option<Vec<mtg_engine::ObjectId>>,
+    ) -> mtg_simulator::LegalAction {
+        use mtg_simulator::legal_actions::{
+            ActivationCostPlan, ActivationDiscardOption, ActivationSacrificeOption,
+        };
+        mtg_simulator::LegalAction::ActivateAbility {
+            source: mtg_engine::ObjectId(1),
+            ability_index: 0,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+            activation_costs: ActivationCostPlan {
+                sacrifice: sacrifice.map(|eligible| ActivationSacrificeOption {
+                    filter: mtg_engine::state::game_object::SacrificeFilter::Creature,
+                    exclude_self: true,
+                    default: eligible[0],
+                    eligible,
+                }),
+                discard: discard.map(|eligible| ActivationDiscardOption {
+                    default: eligible[0],
+                    eligible,
+                }),
+            },
+        }
+    }
+
+    /// SIM6-P4: an out-of-set activation sacrifice id is refused 400 (CR 602.2).
+    #[test]
+    fn test_sim6_validate_rejects_an_out_of_set_activation_sacrifice_id() {
+        let eligible = mtg_engine::ObjectId(10);
+        let action = sim6_activate_action_with_costs(Some(vec![eligible]), None);
+        let params = crate::view::ActionParamsDto {
+            cost_sacrifice_target: Some(mtg_engine::ObjectId(999)),
+            ..Default::default()
+        };
+        let err = api::validate_additional_cost_params(&action, &params)
+            .expect_err("an id outside `eligible` must be refused");
+        assert_eq!(err.status, StatusCode::BAD_REQUEST);
+        assert_eq!(err.body.kind, "bad_params");
+    }
+
+    /// SIM6-P5: an out-of-set activation DISCARD id is refused 400 (CR 111.10g),
+    /// and an in-set one is accepted — so this discriminates the check rather than
+    /// observing a blanket refusal.
+    #[test]
+    fn test_sim6_validate_checks_the_activation_discard_set_both_ways() {
+        let in_hand = mtg_engine::ObjectId(20);
+        let action = sim6_activate_action_with_costs(None, Some(vec![in_hand]));
+        let err = api::validate_additional_cost_params(
+            &action,
+            &crate::view::ActionParamsDto {
+                cost_discard_card: Some(mtg_engine::ObjectId(999)),
+                ..Default::default()
+            },
+        )
+        .expect_err("a card outside the offered hand must be refused");
+        assert_eq!(err.status, StatusCode::BAD_REQUEST);
+        assert_eq!(err.body.kind, "bad_params");
+
+        api::validate_additional_cost_params(
+            &action,
+            &crate::view::ActionParamsDto {
+                cost_discard_card: Some(in_hand),
+                ..Default::default()
+            },
+        )
+        .expect("the offered card must be accepted");
+    }
+
+    /// SIM6-P6: a cost answer on an action that offers no such cost is refused 400
+    /// — both the "this ability has no discard cost" case and the "this decision is
+    /// not an ActivateAbility at all" case, which `params.rs`'s own per-variant
+    /// guard cannot catch for `CastSpell` (a consuming arm).
+    #[test]
+    fn test_sim6_validate_rejects_cost_answers_the_decision_never_offered() {
+        let eligible = mtg_engine::ObjectId(10);
+        let sacrifice_only = sim6_activate_action_with_costs(Some(vec![eligible]), None);
+        let err = api::validate_additional_cost_params(
+            &sacrifice_only,
+            &crate::view::ActionParamsDto {
+                cost_discard_card: Some(eligible),
+                ..Default::default()
+            },
+        )
+        .expect_err("this ability has no discard cost");
+        assert_eq!(err.status, StatusCode::BAD_REQUEST);
+        assert_eq!(err.body.kind, "bad_params");
+
+        let a_cast = ui2_cast_spell_action_with_costs(vec![eligible], eligible, 0);
+        let err = api::validate_additional_cost_params(
+            &a_cast,
+            &crate::view::ActionParamsDto {
+                cost_sacrifice_target: Some(eligible),
+                ..Default::default()
+            },
+        )
+        .expect_err("an activation answer on a CastSpell decision is a 400");
+        assert_eq!(err.status, StatusCode::BAD_REQUEST);
+        assert_eq!(err.body.kind, "bad_params");
+    }
 }

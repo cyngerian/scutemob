@@ -1409,4 +1409,256 @@ mod tests {
             vec![AdditionalCost::Squad { count: 1 }]
         );
     }
+
+    // ── SIM-6 (CR 602.2, triage G4): the activation-cost payment channel ────────
+
+    /// Yahenni, Undying Partisan (real card def: "Sacrifice ANOTHER creature:
+    /// Yahenni gains indestructible") on the battlefield with TWO other creatures,
+    /// so an announced choice can discriminate from the plan's default.
+    ///
+    /// Returns `(state, p1, yahenni, lower_fodder, other_fodder)`.
+    fn yahenni_state_with_two_fodder() -> (GameState, PlayerId, ObjectId, ObjectId, ObjectId) {
+        let p1 = PlayerId(1);
+        let p2 = PlayerId(2);
+        let defs = ui2_defs();
+        let yahenni = mtg_engine::enrich_spec_from_def(
+            ObjectSpec::card(p1, "Yahenni, Undying Partisan")
+                .with_card_id(mtg_engine::CardId("yahenni-undying-partisan".to_string()))
+                .in_zone(ZoneId::Battlefield),
+            &defs,
+        );
+        let state = GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(p2)
+            .with_registry(ui2_registry())
+            .active_player(p1)
+            .object(yahenni)
+            .object(ObjectSpec::creature(p1, "Lower Fodder", 1, 1).in_zone(ZoneId::Battlefield))
+            .object(ObjectSpec::creature(p1, "Other Fodder", 1, 1).in_zone(ZoneId::Battlefield))
+            .build()
+            .expect("state builds");
+        let yahenni_id = id_of(&state, "Yahenni, Undying Partisan");
+        let lower = id_of(&state, "Lower Fodder");
+        let other = id_of(&state, "Other Fodder");
+        assert!(lower < other, "fixture precondition: ids in add order");
+        (state, p1, yahenni_id, lower, other)
+    }
+
+    fn find_activate(state: &GameState, player: PlayerId, source: ObjectId) -> LegalAction {
+        StubProvider
+            .legal_actions(state, player)
+            .into_iter()
+            .find(|a| matches!(a, LegalAction::ActivateAbility { source: s, .. } if *s == source))
+            .expect("the ability must be offered")
+    }
+
+    /// P1 (SR-38, criterion 6066): an unparameterized activation of Yahenni's
+    /// sacrifice ability produces a `Command::ActivateAbility` carrying the plan's
+    /// DEFAULT `sacrifice_target` — and the engine ACCEPTS it, proven by running it
+    /// through `process_command` rather than by inspecting the built struct.
+    ///
+    /// Before SIM-6 `sacrifice_target` was hardcoded `None` here and this exact
+    /// command came back `InvalidCommand("ability requires sacrificing a permanent
+    /// as cost: sacrifice_target must be Some (CR 602.2)")` — the browser's 422.
+    ///
+    /// **The default is never Yahenni itself** (CR 109.1 / PB-EF1): the card def
+    /// carries `exclude_self`, which this batch also had to fix — without it the
+    /// default would have been Yahenni (the lowest id on this board) and the very
+    /// first activation would have sacrificed the source to protect itself.
+    #[test]
+    fn unparameterized_activation_sacrifice_is_defaulted_and_accepted_by_the_engine() {
+        let (state, p1, yahenni, lower_fodder, _other) = yahenni_state_with_two_fodder();
+        let action = find_activate(&state, p1, yahenni);
+
+        let cmd = action_to_command_with_params(&state, p1, &action, &ActionParams::default())
+            .expect("ActivateAbility is an Ok arm for an unannounced activation");
+        let Command::ActivateAbility {
+            sacrifice_target, ..
+        } = &cmd
+        else {
+            panic!("expected Command::ActivateAbility, got {cmd:?}");
+        };
+        assert_eq!(
+            *sacrifice_target,
+            Some(lower_fodder),
+            "CR 109.1: the default is the lowest-id ANOTHER creature, never Yahenni"
+        );
+        assert_ne!(*sacrifice_target, Some(yahenni));
+
+        let result = process_command(state, cmd);
+        assert!(
+            result.is_ok(),
+            "the engine must accept the defaulted sacrifice: {:?}",
+            result.err()
+        );
+    }
+
+    /// P2: a human's explicit sacrifice choice is forwarded VERBATIM and never
+    /// overwritten by the plan's default — `other_fodder` is deliberately NOT the
+    /// default (the fixture asserts the id order), so this cannot pass by
+    /// accidentally still submitting the default. The engine accepts it too.
+    #[test]
+    fn an_announced_activation_sacrifice_is_forwarded_and_not_overwritten() {
+        let (state, p1, yahenni, lower_fodder, other_fodder) = yahenni_state_with_two_fodder();
+        let action = find_activate(&state, p1, yahenni);
+
+        let params = ActionParams {
+            cost_sacrifice_target: Some(other_fodder),
+            ..Default::default()
+        };
+        let cmd = action_to_command_with_params(&state, p1, &action, &params)
+            .expect("an in-set choice is accepted");
+        let Command::ActivateAbility {
+            sacrifice_target, ..
+        } = &cmd
+        else {
+            panic!("expected Command::ActivateAbility, got {cmd:?}");
+        };
+        assert_eq!(*sacrifice_target, Some(other_fodder));
+        assert_ne!(
+            *sacrifice_target,
+            Some(lower_fodder),
+            "the human's choice must not be replaced by the default"
+        );
+
+        let result = process_command(state, cmd);
+        assert!(
+            result.is_ok(),
+            "the engine must accept the human's choice: {:?}",
+            result.err()
+        );
+    }
+
+    /// P3: announcing a cost answer on an ability that has no such cost is REFUSED
+    /// (`UnsupportedParam`), not silently dropped. The engine ignores
+    /// `sacrifice_target` when the ability declares no `sacrifice_filter`, so this
+    /// is the only layer that can tell the client its answer meant nothing.
+    #[test]
+    fn an_activation_cost_answer_on_an_ability_without_that_cost_is_refused() {
+        let p1 = PlayerId(1);
+        let p2 = PlayerId(2);
+        let state = GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(p2)
+            .active_player(p1)
+            .object(
+                ObjectSpec::artifact(p1, "Plain Engine")
+                    .in_zone(ZoneId::Battlefield)
+                    .with_activated_ability(mtg_engine::ActivatedAbility {
+                        cost: mtg_engine::ActivationCost::default(),
+                        description: "do nothing".to_string(),
+                        modes: None,
+                        ..Default::default()
+                    }),
+            )
+            .object(ObjectSpec::creature(p1, "Bear", 2, 2).in_zone(ZoneId::Battlefield))
+            .build()
+            .expect("state builds");
+
+        let engine_id = id_of(&state, "Plain Engine");
+        let bear = id_of(&state, "Bear");
+        let action = find_activate(&state, p1, engine_id);
+
+        assert_eq!(
+            action_to_command_with_params(
+                &state,
+                p1,
+                &action,
+                &ActionParams {
+                    cost_sacrifice_target: Some(bear),
+                    ..Default::default()
+                },
+            ),
+            Err(ParamError::UnsupportedParam("cost_sacrifice_target"))
+        );
+        assert_eq!(
+            action_to_command_with_params(
+                &state,
+                p1,
+                &action,
+                &ActionParams {
+                    cost_discard_card: Some(bear),
+                    ..Default::default()
+                },
+            ),
+            Err(ParamError::UnsupportedParam("cost_discard_card"))
+        );
+    }
+
+    /// P4 (criterion 6068): the DISCARD half, end to end. An unparameterized
+    /// activation defaults to the first card in hand and the engine accepts it; an
+    /// announced card is forwarded verbatim.
+    ///
+    /// Before SIM-6 this command carried `discard_card: None` and came back
+    /// `InvalidCommand("ability requires discarding a card as cost: discard_card
+    /// must be Some (CR 602.2)")`.
+    #[test]
+    fn activation_discard_cost_is_defaulted_forwarded_and_accepted_by_the_engine() {
+        let p1 = PlayerId(1);
+        let p2 = PlayerId(2);
+        let build = || {
+            GameStateBuilder::new()
+                .add_player(p1)
+                .add_player(p2)
+                .active_player(p1)
+                .object(
+                    ObjectSpec::artifact(p1, "Blood Token")
+                        .in_zone(ZoneId::Battlefield)
+                        .with_activated_ability(mtg_engine::ActivatedAbility {
+                            cost: mtg_engine::ActivationCost {
+                                discard_card: true,
+                                ..Default::default()
+                            },
+                            description: "Discard a card: do nothing".to_string(),
+                            modes: None,
+                            ..Default::default()
+                        }),
+                )
+                .object(ObjectSpec::card(p1, "First Card").in_zone(ZoneId::Hand(p1)))
+                .object(ObjectSpec::card(p1, "Second Card").in_zone(ZoneId::Hand(p1)))
+                .build()
+                .expect("state builds")
+        };
+
+        let state = build();
+        let token = id_of(&state, "Blood Token");
+        let first = id_of(&state, "First Card");
+        let second = id_of(&state, "Second Card");
+        assert!(first < second, "fixture precondition: ids in add order");
+
+        let action = find_activate(&state, p1, token);
+        let cmd = action_to_command_with_params(&state, p1, &action, &ActionParams::default())
+            .expect("ActivateAbility is an Ok arm");
+        let Command::ActivateAbility { discard_card, .. } = &cmd else {
+            panic!("expected Command::ActivateAbility, got {cmd:?}");
+        };
+        assert_eq!(*discard_card, Some(first), "the default is the first card");
+        let result = process_command(state, cmd);
+        assert!(
+            result.is_ok(),
+            "the engine must accept the defaulted discard: {:?}",
+            result.err()
+        );
+
+        let state = build();
+        let action = find_activate(&state, p1, token);
+        let cmd = action_to_command_with_params(
+            &state,
+            p1,
+            &action,
+            &ActionParams {
+                cost_discard_card: Some(second),
+                ..Default::default()
+            },
+        )
+        .expect("an in-set choice is accepted");
+        let Command::ActivateAbility { discard_card, .. } = &cmd else {
+            panic!("expected Command::ActivateAbility, got {cmd:?}");
+        };
+        assert_eq!(*discard_card, Some(second));
+        assert!(
+            process_command(state, cmd).is_ok(),
+            "the engine must accept the announced discard"
+        );
+    }
 }

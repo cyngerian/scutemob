@@ -191,7 +191,34 @@ impl HeuristicBot {
                 };
                 base + mv_bonus
             }
-            LegalAction::ActivateAbility { .. } => 40,
+            // SIM-6 (CR 602.2): an activation whose cost makes the bot NAME an
+            // object it owns — sacrifice a permanent, discard a card — is scored
+            // BELOW `PassPriority`, so this bot declines it by default.
+            //
+            // Not a legality gate and not a hole in the channel. `params.rs` fills
+            // the plan's own default, so if this action is ever the only thing on
+            // offer the resulting command is one the engine ACCEPTS (the 0 idiom
+            // above: below `PassPriority`, above nothing).
+            //
+            // The reason is that this bot has no valuation for the resource it
+            // would spend. It scores an activation at 40 because activations are
+            // usually free upside; "sacrifice a creature" is not, and the cap above
+            // would let it eat two of its own creatures per turn, every turn, for
+            // whatever the ability does. The dispatch brief is explicit that
+            // teaching bots sacrifice STRATEGY is out of scope and that declining
+            // is an acceptable answer — so this declines rather than guesses.
+            //
+            // `RandomBot` still picks these uniformly, so the fuzzer keeps
+            // exercising the channel end to end; only the *heuristic* seat abstains.
+            LegalAction::ActivateAbility {
+                activation_costs, ..
+            } => {
+                if activation_costs.sacrifice.is_some() || activation_costs.discard.is_some() {
+                    0
+                } else {
+                    40
+                }
+            }
             LegalAction::DeclareAttackers {
                 eligible,
                 targets: _,
