@@ -5,12 +5,13 @@
 //! without deep engine knowledge — enough to play games, but misses edge
 //! cases that a full engine implementation would catch.
 
+use mtg_engine::state::game_object::SacrificeFilter;
 use mtg_engine::{
-    apply_commander_tax, AbilityDefinition, AdditionalCost, AttackTarget, CardType, CounterType,
-    EffectChoiceAnswer, EffectChoiceQuestion, EffectDuration, FaceDownKind, FlashGrantFilter,
-    GameObject, GameRestriction, GameState, HybridMana, HybridManaPayment, KeywordAbility,
-    ManaColor, ManaCost, ObjectId, PhyrexianMana, PlayerId, SpellAdditionalCost, Step, Target,
-    TriggerTargetOption, TurnFaceUpMethod, ZoneId,
+    apply_commander_tax, AbilityDefinition, ActivatedAbility, AdditionalCost, AttackTarget,
+    CardType, CounterType, EffectChoiceAnswer, EffectChoiceQuestion, EffectDuration, FaceDownKind,
+    FlashGrantFilter, GameObject, GameRestriction, GameState, HybridMana, HybridManaPayment,
+    KeywordAbility, ManaColor, ManaCost, ObjectId, PhyrexianMana, PlayerId, SpellAdditionalCost,
+    Step, Target, TriggerTargetOption, TurnFaceUpMethod, ZoneId,
 };
 
 /// CR 118.8 / CR 601.2b (UI-2): the additional costs a `CastSpell` offer must or may
@@ -41,6 +42,74 @@ pub struct SacrificeCostOption {
     /// A sentinel (`ObjectId::SENTINEL`) when `eligible` is empty -- never read in
     /// that case, since the whole offer is suppressed before this value reaches a
     /// consumer.
+    pub default: ObjectId,
+}
+
+/// CR 602.2 (SIM-6, triage G4): the **non-mana** activation costs an
+/// `ActivateAbility` offer has to pay, described well enough that a client can
+/// render a picker and a bot can submit an answer the engine will accept.
+///
+/// The sibling of [`AdditionalCostPlan`], one command over. UI-2 built that one for
+/// `CastSpell` (CR 118.8) and stopped there; `Command::ActivateAbility` carries
+/// `sacrifice_target` / `discard_card` on the wire and has since PB-EF1, but nothing
+/// in this crate ever filled them, so `handle_activate_ability` refused every
+/// sacrifice- or discard-cost activation with an `InvalidCommand` (CR 602.2) — a 422
+/// in the browser, and ~135 of the 166 bot command refusals SIM-5 recorded.
+///
+/// **Mana is deliberately absent.** The mana/hybrid/Phyrexian/life components of an
+/// activation cost are already gated (and, for pips, *planned*) by the offer loop in
+/// [`StubProvider::legal_actions`]; this type covers exactly the components that
+/// require the activating player to NAME an object.
+#[derive(Clone, Debug, Default)]
+pub struct ActivationCostPlan {
+    /// CR 602.2: the "Sacrifice a/another <thing>" component, when the ability's
+    /// `ActivationCost` declares a `sacrifice_filter`. `None` for every other
+    /// ability — including one that sacrifices ITSELF (`sacrifice_self`), which
+    /// names no object and so needs no channel.
+    pub sacrifice: Option<ActivationSacrificeOption>,
+    /// CR 602.2 / CR 111.10g: the "Discard a card" component, when the ability's
+    /// `ActivationCost` sets `discard_card`. `None` for every other ability —
+    /// including a Channel ability (`discard_self`), which names no object.
+    pub discard: Option<ActivationDiscardOption>,
+}
+
+/// CR 602.2 (SIM-6): the offer's sacrifice descriptor.
+#[derive(Clone, Debug)]
+pub struct ActivationSacrificeOption {
+    /// The engine's own `ActivationCost::sacrifice_filter`, verbatim — for
+    /// labelling only. The CANDIDATES already carry the judgment of who is
+    /// eligible, so a wrong label here cannot become a wrong game state.
+    pub filter: mtg_engine::state::game_object::SacrificeFilter,
+    /// CR 109.1 / PB-EF1: the ability's `sacrifice_exclude_self` bit, carried so a
+    /// client can say *why* the source is missing from `eligible` rather than
+    /// leaving a human to wonder. Already applied to `eligible`.
+    pub exclude_self: bool,
+    /// Battlefield permanents this player controls that `handle_activate_ability`'s
+    /// own sacrifice gate will accept. **Never empty**: an empty set suppresses the
+    /// whole `ActivateAbility` offer, the same SR-38 rule
+    /// [`offerable_cast_plan`] applies one command over.
+    pub eligible: Vec<ObjectId>,
+    /// The deterministic default a bot submits: `eligible[0]` (lowest `ObjectId`,
+    /// since `objects_in_zone` yields the engine's own order). Its own field rather
+    /// than re-derived at each consumer, so the consumers cannot drift.
+    /// `ObjectId::SENTINEL` when `eligible` is empty — never read in that case,
+    /// because the whole offer is suppressed before this value reaches a consumer.
+    pub default: ObjectId,
+}
+
+/// CR 602.2 / CR 111.10g (SIM-6): the offer's discard descriptor.
+#[derive(Clone, Debug)]
+pub struct ActivationDiscardOption {
+    /// The cards in this player's hand. `handle_activate_ability` accepts any card
+    /// in the activating player's hand (`abilities.rs`' discard-cost block checks
+    /// the zone and nothing else), so this is that zone verbatim — there is no
+    /// filter to mirror, which is why this option has no `filter` field.
+    ///
+    /// **Never empty**, for the same SR-38 reason as
+    /// [`ActivationSacrificeOption::eligible`].
+    pub eligible: Vec<ObjectId>,
+    /// The deterministic default a bot submits: `eligible[0]`. Same contract as
+    /// [`ActivationSacrificeOption::default`].
     pub default: ObjectId,
 }
 
@@ -99,6 +168,11 @@ pub enum LegalAction {
         /// PB-RS2 (CR 107.4f via CR 602.2b, CR 104.3b): mirrors
         /// `TapForMana::phyrexian_life_payments`.
         phyrexian_life_payments: Vec<bool>,
+        /// CR 602.2 (SIM-6): the ability's non-mana, object-naming cost components
+        /// — the sacrifice and the discard. `ActivationCostPlan::default()` (both
+        /// fields `None`) for the overwhelming majority of abilities, exactly as
+        /// `CastSpell::additional_costs` is for spells.
+        activation_costs: ActivationCostPlan,
     },
     DeclareAttackers {
         eligible: Vec<ObjectId>,
@@ -921,11 +995,23 @@ impl LegalActionProvider for StubProvider {
                 if is_ability_restricted_by_stax(state, player, obj.id) {
                     continue;
                 }
+                // CR 602.2 / SR-38 (SIM-6, triage G4): the non-mana components that
+                // require NAMING an object -- the sacrifice and the discard. `None`
+                // suppresses the offer entirely, exactly as `offerable_cast_plan`
+                // does one command over: an activation whose required sacrifice has
+                // nothing eligible to name is one `handle_activate_ability` refuses,
+                // and offering it was the whole G4 defect.
+                let Some(activation_costs) =
+                    offerable_activation_plan(state, player, obj.id, ability)
+                else {
+                    continue;
+                };
                 actions.push(LegalAction::ActivateAbility {
                     source: obj.id,
                     ability_index: idx,
                     hybrid_choices,
                     phyrexian_life_payments,
+                    activation_costs,
                 });
             }
         }
@@ -1813,6 +1899,145 @@ fn eligible_spell_sacrifice_targets(
         })
         .map(|obj| obj.id)
         .collect()
+}
+
+/// CR 602.2 (SIM-6): the battlefield permanents `player` controls that
+/// `handle_activate_ability`'s own sacrifice-cost gate (`rules/abilities.rs`, the
+/// `ability_cost.sacrifice_filter` block) will accept for `filter`, **gate for gate
+/// and in the same order**: on the battlefield, controlled by `player`, not the
+/// source when `exclude_self` (CR 109.1 / PB-EF1), not
+/// `object_cant_be_sacrificed` (CR 701.21a / PB-AC8), and matching the filter
+/// against LAYER-RESOLVED characteristics (CR 613.1f).
+///
+/// Deliberately NOT `effects::eligible_sacrifice_targets`, and NOT
+/// [`eligible_spell_sacrifice_targets`] either — for the same reason that one is not
+/// the effect helper. The three gates differ: the effect helper also checks
+/// `is_phased_in`; the CAST gate (CR 118.8) has no self-exclusion because a spell on
+/// the stack is not a permanent; only this one has `exclude_self` and the
+/// `CreatureOfChosenType` arm. Mirroring a neighbouring gate would offer a set the
+/// engine does not validate.
+///
+/// `CreatureOfChosenType` reads the SOURCE's `chosen_creature_type`, which is why
+/// `source` is a parameter and not just the exclusion subject.
+fn eligible_activation_sacrifice_targets(
+    state: &GameState,
+    player: PlayerId,
+    source: ObjectId,
+    filter: &SacrificeFilter,
+    exclude_self: bool,
+) -> Vec<ObjectId> {
+    state
+        .objects_in_zone(&ZoneId::Battlefield)
+        .into_iter()
+        .filter(|obj| obj.controller == player)
+        .filter(|obj| !(exclude_self && obj.id == source))
+        .filter(|obj| !object_cant_be_sacrificed(state, obj.id))
+        .filter(|obj| {
+            let chars = mtg_engine::rules::layers::calculate_characteristics(state, obj.id)
+                .unwrap_or_else(|| obj.characteristics.clone());
+            match filter {
+                SacrificeFilter::Creature => chars.card_types.contains(&CardType::Creature),
+                SacrificeFilter::Land => chars.card_types.contains(&CardType::Land),
+                SacrificeFilter::Artifact => chars.card_types.contains(&CardType::Artifact),
+                SacrificeFilter::ArtifactOrCreature => {
+                    chars.card_types.contains(&CardType::Artifact)
+                        || chars.card_types.contains(&CardType::Creature)
+                }
+                SacrificeFilter::Subtype(sub) => chars.subtypes.contains(sub),
+                // The engine's own arm, restated: a creature AND carrying the
+                // ACTIVATING SOURCE's chosen creature type. A source that has
+                // chosen nothing accepts nothing, which is what makes the whole
+                // offer disappear rather than 422.
+                SacrificeFilter::CreatureOfChosenType => {
+                    chars.card_types.contains(&CardType::Creature)
+                        && state
+                            .objects()
+                            .get(&source)
+                            .and_then(|o| o.chosen_creature_type.as_ref())
+                            .is_some_and(|ct| chars.subtypes.contains(ct))
+                }
+            }
+        })
+        .map(|obj| obj.id)
+        .collect()
+}
+
+/// CR 602.2 / SR-38 (SIM-6): the [`ActivationCostPlan`] to offer with an
+/// `ActivateAbility` for `ability` on `source`, or `None` if the activation must not
+/// be offered at all.
+///
+/// `None` means exactly one thing, and it is [`offerable_cast_plan`]'s meaning one
+/// command over: the ability declares a cost component that must NAME an object and
+/// this player has no legal object to name, so `handle_activate_ability` would refuse
+/// the activation outright. Offering it anyway was the G4 defect — the human clicked
+/// Yahenni and got a 422.
+///
+/// Both components are REQUIRED when present (CR 602.2b: costs are not optional), so
+/// either one being unpayable suppresses the whole offer. Nothing here is optional
+/// the way Squad is, which is why this has no counterpart to
+/// `offerable_cast_plan`'s "Squad never suppresses" carve-out.
+fn offerable_activation_plan(
+    state: &GameState,
+    player: PlayerId,
+    source: ObjectId,
+    ability: &ActivatedAbility,
+) -> Option<ActivationCostPlan> {
+    let plan = build_activation_cost_plan(state, player, source, ability);
+    if plan
+        .sacrifice
+        .as_ref()
+        .is_some_and(|s| s.eligible.is_empty())
+    {
+        return None;
+    }
+    if plan.discard.as_ref().is_some_and(|d| d.eligible.is_empty()) {
+        return None;
+    }
+    Some(plan)
+}
+
+/// CR 602.2 (SIM-6): build the non-mana activation-cost descriptor for `ability`.
+/// Consumed by `params.rs` (the bot default and the human's answer) and by
+/// `tools/play-server` (the picker). `ActivationCostPlan::default()` (both fields
+/// `None`) for every ability whose `ActivationCost` declares neither component.
+///
+/// The caller ([`offerable_activation_plan`]) suppresses the whole offer when either
+/// eligible set comes back empty, so the `SENTINEL` defaults below are never read in
+/// that case.
+fn build_activation_cost_plan(
+    state: &GameState,
+    player: PlayerId,
+    source: ObjectId,
+    ability: &ActivatedAbility,
+) -> ActivationCostPlan {
+    let sacrifice = ability.cost.sacrifice_filter.as_ref().map(|filter| {
+        let exclude_self = ability.cost.sacrifice_exclude_self;
+        let eligible =
+            eligible_activation_sacrifice_targets(state, player, source, filter, exclude_self);
+        ActivationSacrificeOption {
+            filter: filter.clone(),
+            exclude_self,
+            default: eligible.first().copied().unwrap_or(ObjectId::SENTINEL),
+            eligible,
+        }
+    });
+
+    // CR 602.2 / CR 111.10g: `abilities.rs`' discard-cost block checks that the
+    // named card is in the ACTIVATING PLAYER's hand and nothing else — no filter, no
+    // count beyond one — so the eligible set is that zone verbatim.
+    let discard = ability.cost.discard_card.then(|| {
+        let eligible: Vec<ObjectId> = state
+            .objects_in_zone(&ZoneId::Hand(player))
+            .into_iter()
+            .map(|obj| obj.id)
+            .collect();
+        ActivationDiscardOption {
+            default: eligible.first().copied().unwrap_or(ObjectId::SENTINEL),
+            eligible,
+        }
+    });
+
+    ActivationCostPlan { sacrifice, discard }
 }
 
 /// CR 118.8 / SR-38 (UI-2 §1.3): the `AdditionalCostPlan` to offer with a

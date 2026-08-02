@@ -51,8 +51,10 @@ pub fn card() -> CardDefinition {
             },
             // Sacrifice another creature: Scry 1
             AbilityDefinition::Activated {
+                // CR 109.1 / PB-EF1: printed "Sacrifice ANOTHER creature".
                 cost: Cost::Sacrifice(TargetFilter {
                     has_card_type: Some(CardType::Creature),
+                    exclude_self: true,
                     ..Default::default()
                 }),
                 effect: Effect::Scry {
@@ -82,11 +84,13 @@ pub fn card() -> CardDefinition {
         completeness: Completeness::partial(
             "Two items. (1) Blocker shipped: add AbilityDefinition::EscapeWithCounter \
              (card_definition.rs:521; wired at resolution.rs:853, tested at \
-             tests/mechanics_e_l/escape.rs:141) for 'escapes with two +1/+1 counters'. (2) Still \
-             blocked / currently wrong: 'Sacrifice another creature: Scry 1' uses Cost::Sacrifice \
-             with a bare creature filter, which cannot exclude the source — Woe Strider can \
-             sacrifice itself. Same exclude-self gap as wight_of_the_reliquary.rs / \
-             vampire_gourmand.rs, which omit the ability instead.",
+             tests/mechanics_e_l/escape.rs:141) for 'escapes with two +1/+1 counters'. (2) FIXED \
+             by SIM-6 (scutemob-189): 'Sacrifice another creature: Scry 1' now carries \
+             TargetFilter.exclude_self, which flatten_cost_into lowers to \
+             ActivationCost.sacrifice_exclude_self and handle_activate_ability enforces (CR 109.1 \
+             / PB-EF1). The old claim that Cost::Sacrifice 'cannot exclude the source' was stale \
+             — that primitive shipped with PB-EF1. wight_of_the_reliquary.rs / \
+             vampire_gourmand.rs still omit their abilities on the stale belief (OOS-SIM6-2).",
         ),
         ..Default::default()
     }

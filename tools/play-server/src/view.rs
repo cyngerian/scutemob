@@ -239,15 +239,59 @@ pub struct ActionOptionView {
 /// makes for CR 508.1/509.1).
 #[derive(Debug, Serialize)]
 pub struct AdditionalCostsView {
-    /// Which `ActionParamsDto` field carries the answer -- `"additional_costs"`.
-    /// Sent rather than inferred, same argument as
-    /// [`BlockingDecisionView::answer_field`].
+    /// Which `ActionParamsDto` field carries the answer for the two `CastSpell`
+    /// blocks -- `"additional_costs"`, an ARRAY of `AdditionalCost`. Sent rather
+    /// than inferred, same argument as [`BlockingDecisionView::answer_field`].
+    ///
+    /// The two `ActivateAbility` blocks below do **not** use it: an activation cost
+    /// reaches the engine as a scalar `Command::ActivateAbility` field, never as an
+    /// `AdditionalCost`, so each names its own `ActionParamsDto` field in its own
+    /// [`ActivationChoiceView::answer_field`]. The two kinds of block are never
+    /// present at once (they come from different `LegalAction` variants).
     pub answer_field: String,
     pub prompt: String,
-    /// CR 118.8: present when the spell declares a required sacrifice.
+    /// CR 118.8: present when the SPELL declares a required sacrifice.
     pub sacrifice: Option<SacrificeCostView>,
-    /// CR 702.157a: present when the spell has a Squad cost.
+    /// CR 702.157a: present when the SPELL has a Squad cost.
     pub squad: Option<SquadCostView>,
+    /// CR 602.2 (SIM-6): present when the ACTIVATED ABILITY's cost includes
+    /// "Sacrifice a/another <thing>".
+    pub activation_sacrifice: Option<ActivationChoiceView>,
+    /// CR 602.2 / CR 111.10g (SIM-6): present when the ACTIVATED ABILITY's cost
+    /// includes "Discard a card".
+    pub activation_discard: Option<ActivationChoiceView>,
+}
+
+/// CR 602.2 (SIM-6): one object-naming component of an activated ability's cost.
+///
+/// One type for both components, because they are one shape: pick exactly one id
+/// from a candidate list the server already judged eligible, and put it in the
+/// named scalar field. There is no `template` here and no `ids_key` -- unlike
+/// [`SacrificeCostView`], whose answer is an externally-tagged `AdditionalCost`
+/// the client must clone and fill in, this answer is a bare `ObjectId`, so there
+/// is no enum encoding for a client to know or get wrong.
+#[derive(Debug, Serialize)]
+pub struct ActivationChoiceView {
+    pub prompt: String,
+    /// The objects `handle_activate_ability`'s own cost gate will accept, from the
+    /// provider's own eligible set -- **never** re-derived here. Labelled through
+    /// [`NameIndex`]; see [`SacrificeCostView::candidates`] for why that channel and
+    /// not [`question_card_label`].
+    ///
+    /// For a sacrifice these are battlefield permanents (public under CR 400.1). For
+    /// a discard they are cards in the ACTIVATING SEAT's own hand, which that seat
+    /// may look at (CR 108.4 / Architecture Invariant 7): this view is built from
+    /// the seat-redacted `StateViewModel`, so a card another seat holds could not be
+    /// labelled here even if the provider offered it -- and it cannot, because
+    /// `StubProvider` enumerates `ZoneId::Hand(player)` for the acting player alone.
+    pub candidates: Vec<CardOptionView>,
+    /// The provider's own deterministic default -- what a bot submits, and what the
+    /// picker pre-selects so Confirm alone is a legal play.
+    pub default: u64,
+    /// Which `ActionParamsDto` field carries the chosen id:
+    /// `"cost_sacrifice_target"` or `"cost_discard_card"`. Sent rather than
+    /// inferred, same argument as [`Self::prompt`]'s neighbour above.
+    pub answer_field: String,
 }
 
 /// CR 118.8: the offer's required-sacrifice descriptor.
@@ -811,6 +855,17 @@ pub struct ActionParamsDto {
     /// CR 103.5.
     pub cards_to_bottom: Vec<ObjectId>,
     pub additional_costs: Vec<AdditionalCost>,
+    /// CR 602.2 (SIM-6): the permanent chosen to pay an `ActivateAbility`'s
+    /// sacrifice cost. `null` means "accept the offer's own default" — see
+    /// `ActionParams::cost_sacrifice_target`. Checked against the offer's own
+    /// eligible set by `api::validate_additional_cost_params` before anything is
+    /// applied.
+    pub cost_sacrifice_target: Option<ObjectId>,
+    /// CR 602.2 / CR 111.10g (SIM-6): the card chosen to pay an
+    /// `ActivateAbility`'s discard cost. `null` means "accept the offer's own
+    /// default". **Not [`Self::discard_cards`]**, which answers a CR 514.1 cleanup
+    /// discard.
+    pub cost_discard_card: Option<ObjectId>,
     /// CR 514.1 / CR 701.9b (UI-1): the cards chosen for a cleanup discard.
     /// Empty means "accept the engine's default" — see `ActionParams::discard_cards`.
     pub discard_cards: Vec<ObjectId>,
@@ -864,6 +919,8 @@ impl Default for ActionParamsDto {
             blocker_order: Vec::new(),
             cards_to_bottom: Vec::new(),
             additional_costs: Vec::new(),
+            cost_sacrifice_target: None,
+            cost_discard_card: None,
             discard_cards: Vec::new(),
             effect_choice_answer: None,
             trigger_targets: Vec::new(),
@@ -883,6 +940,8 @@ impl From<ActionParamsDto> for ActionParams {
             blocker_order: dto.blocker_order,
             cards_to_bottom: dto.cards_to_bottom,
             additional_costs: dto.additional_costs,
+            cost_sacrifice_target: dto.cost_sacrifice_target,
+            cost_discard_card: dto.cost_discard_card,
             discard_cards: dto.discard_cards,
             effect_choice_answer: dto.effect_choice_answer,
             trigger_targets: dto.trigger_targets,
@@ -1488,6 +1547,19 @@ fn order_options(action: &LegalAction, names: &NameIndex) -> Option<OrderBlocker
 /// [`question_card_label`] -- see [`SacrificeCostView::candidates`]'s doc for why
 /// the two channels must not be confused here.
 fn additional_costs_view(action: &LegalAction, names: &NameIndex) -> Option<AdditionalCostsView> {
+    // CR 602.2 (SIM-6, triage G4): the ACTIVATION arm. This early return used to be
+    // `let LegalAction::CastSpell { .. } else { return None }`, which is precisely
+    // why the browser never rendered a cost picker for Yahenni or Altar of
+    // Dementia -- the provider's plan existed nowhere for a non-cast, so
+    // `ActionBar` never entered its cost stage and the human's only path was a
+    // command the engine refused with a 422.
+    if let LegalAction::ActivateAbility {
+        activation_costs, ..
+    } = action
+    {
+        return activation_costs_view(activation_costs, names);
+    }
+
     let LegalAction::CastSpell {
         additional_costs: plan,
         ..
@@ -1534,7 +1606,94 @@ fn additional_costs_view(action: &LegalAction, names: &NameIndex) -> Option<Addi
         prompt: "This spell has an additional cost to cast (CR 118.8 / CR 702.157)".to_string(),
         sacrifice,
         squad,
+        activation_sacrifice: None,
+        activation_discard: None,
     })
+}
+
+/// CR 602.2 (SIM-6): render an `ActivateAbility` option's non-mana cost
+/// components, or `None` when the ability has none -- which is the overwhelming
+/// majority of abilities, exactly as for spells.
+///
+/// Nothing is re-derived: `eligible` and `default` are the provider's own fields,
+/// mirroring `handle_activate_ability`'s gate, and
+/// [`crate::api::validate_additional_cost_params`] checks a submission against
+/// these same fields -- so the picker the human sees and the check the server makes
+/// cannot disagree.
+fn activation_costs_view(
+    plan: &mtg_simulator::legal_actions::ActivationCostPlan,
+    names: &NameIndex,
+) -> Option<AdditionalCostsView> {
+    if plan.sacrifice.is_none() && plan.discard.is_none() {
+        return None;
+    }
+
+    let label = |ids: &[mtg_engine::ObjectId]| -> Vec<CardOptionView> {
+        ids.iter()
+            .map(|id| CardOptionView {
+                id: id.0,
+                label: names.label(*id),
+            })
+            .collect()
+    };
+
+    let activation_sacrifice = plan.sacrifice.as_ref().map(|sac| ActivationChoiceView {
+        prompt: activation_sacrifice_prompt(&sac.filter, sac.exclude_self),
+        candidates: label(&sac.eligible),
+        default: sac.default.0,
+        answer_field: "cost_sacrifice_target".to_string(),
+    });
+
+    let activation_discard = plan.discard.as_ref().map(|dis| ActivationChoiceView {
+        prompt: "Discard a card to activate this ability (CR 602.2)".to_string(),
+        candidates: label(&dis.eligible),
+        default: dis.default.0,
+        answer_field: "cost_discard_card".to_string(),
+    });
+
+    Some(AdditionalCostsView {
+        // Carried for shape compatibility with the `CastSpell` payload; the two
+        // blocks below name their own scalar fields and the client uses those.
+        // See [`AdditionalCostsView::answer_field`].
+        answer_field: "additional_costs".to_string(),
+        prompt: "This ability has a cost to pay before it goes on the stack (CR 602.2)".to_string(),
+        sacrifice: None,
+        squad: None,
+        activation_sacrifice,
+        activation_discard,
+    })
+}
+
+/// A one-line prompt naming what CR 602.2 requires, from the engine's own
+/// `SacrificeFilter` plus the CR 109.1 "another" bit -- for display only, the same
+/// argument [`sacrifice_prompt`] makes for the spell side: the CANDIDATES already
+/// carry the judgment of who is eligible.
+///
+/// The `another` wording is not decoration. Yahenni prints "Sacrifice **another**
+/// creature", and until this batch its own card definition did not carry that bit
+/// at all -- so a human who saw "sacrifice a creature" and did not see Yahenni in
+/// the list would have no way to tell a correct exclusion from a missing card.
+fn activation_sacrifice_prompt(
+    filter: &mtg_engine::state::game_object::SacrificeFilter,
+    exclude_self: bool,
+) -> String {
+    use mtg_engine::state::game_object::SacrificeFilter;
+    let what = match filter {
+        SacrificeFilter::Creature => "creature".to_string(),
+        SacrificeFilter::Land => "land".to_string(),
+        SacrificeFilter::Artifact => "artifact".to_string(),
+        SacrificeFilter::ArtifactOrCreature => "artifact or creature".to_string(),
+        SacrificeFilter::Subtype(sub) => sub.0.clone(),
+        SacrificeFilter::CreatureOfChosenType => "creature of the chosen type".to_string(),
+    };
+    let article = if exclude_self {
+        "another"
+    } else if what.starts_with(['a', 'e', 'i', 'o', 'u']) {
+        "an"
+    } else {
+        "a"
+    };
+    format!("Sacrifice {article} {what} to activate this ability (CR 602.2)")
 }
 
 /// A one-line prompt naming what CR 118.8 requires, from the engine's own

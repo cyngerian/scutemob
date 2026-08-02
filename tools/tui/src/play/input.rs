@@ -277,28 +277,35 @@ fn handle_normal_mode(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result<()> {
                 let ability_action = legal.iter().find(
                     |a| matches!(a, LegalAction::ActivateAbility { source, .. } if *source == *obj_id),
                 );
-                if let Some(LegalAction::ActivateAbility { ability_index, .. }) = ability_action {
-                    let cmd = Command::ActivateAbility {
-                        player: app.human_player,
-                        source: *obj_id,
-                        ability_index: *ability_index,
-                        targets: Vec::new(),
-                        discard_card: None,
-                        sacrifice_target: None,
-                        x_value: None,
-                        // CR 602.2b (PB-DP3): the engine no longer auto-selects mode 0 for
-                        // a modal activated ability — announce the first `min_modes` modes
-                        // in printed order (layer-resolved index; a real mode prompt is
-                        // M11/M13 work, not this PB).
-                        modes_chosen: mtg_simulator::legal_actions::ability_default_modes(
-                            &app.state,
-                            *obj_id,
-                            *ability_index,
-                        ),
-                        hybrid_choices: vec![],
-                        phyrexian_life_payments: vec![],
-                    };
-                    app.execute_command(cmd)?;
+                if let Some(action @ LegalAction::ActivateAbility { .. }) = ability_action {
+                    // SIM-6 (CR 602.2, triage G4): route through the simulator's ONE
+                    // `LegalAction` -> `Command` mapping table instead of hand-building
+                    // the command here. The hand-built version pinned
+                    // `sacrifice_target: None` / `discard_card: None` and empty
+                    // hybrid/Phyrexian plans, so this key refused every
+                    // sacrifice-cost or discard-cost ability with an engine 422 and
+                    // every hybrid/Phyrexian-cost ability with a wrong payment — the
+                    // same G4 defect the browser had, at a second call site.
+                    //
+                    // `ActionParams::default()` means "accept every offer's own
+                    // deterministic default": the sacrifice and the discard come from
+                    // `ActivationCostPlan`, the modes from `ability_default_modes`
+                    // (CR 602.2b / PB-DP3, exactly what this site used to pass by
+                    // hand). The TUI still has no picker for any of them — a real
+                    // prompt is M13 work — but a default the engine ACCEPTS beats a
+                    // hardcoded `None` it refuses.
+                    let params = mtg_simulator::params::ActionParams::default();
+                    match mtg_simulator::params::action_to_command_with_params(
+                        &app.state,
+                        app.human_player,
+                        action,
+                        &params,
+                    ) {
+                        Ok(cmd) => app.execute_command(cmd)?,
+                        Err(e) => {
+                            app.status_message = Some(format!("Can't activate '{}': {}", name, e));
+                        }
+                    }
                 } else {
                     app.status_message =
                         Some(format!("'{}' has no activatable ability right now", name));

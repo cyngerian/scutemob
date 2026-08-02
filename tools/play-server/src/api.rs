@@ -618,6 +618,13 @@ fn validate_decision_params(
 /// `AdditionalCost::Squad` against the `AdditionalCostPlan` this decision's
 /// `CastSpell` option actually offered, before anything is applied.
 ///
+/// SIM-6 (CR 602.2) added the second half: a submitted `cost_sacrifice_target` /
+/// `cost_discard_card` is checked against the `ActivationCostPlan` this decision's
+/// `ActivateAbility` option offered. The name is now half a misnomer — an
+/// activation cost is not an `AdditionalCost` and never becomes one — but the two
+/// halves answer the same question at the same boundary, and one function that
+/// sees every cost answer is worth more than two that each see half.
+///
 /// # Same boundary as `validate_combat_params` / `validate_decision_params`
 ///
 /// The engine checks all of this too, and would refuse an out-of-set sacrifice
@@ -651,6 +658,64 @@ pub(crate) fn validate_additional_cost_params(
     use mtg_simulator::LegalAction;
 
     let bad = |message: String| ApiFailure::new(StatusCode::BAD_REQUEST, "bad_params", message);
+
+    // CR 602.2 (SIM-6): the ACTIVATION half. Same boundary and same reason as the
+    // cast half below -- an id this decision never offered is wrong against the
+    // response the client is holding, with no game state needed to see it.
+    //
+    // Checked BEFORE the `CastSpell` destructure, and the two are disjoint: an
+    // activation answer on a `CastSpell` (or on any third variant) falls through to
+    // the `_` arm here and is refused as "no such cost to pay", rather than being
+    // silently ignored the way an unread param would be.
+    if let LegalAction::ActivateAbility {
+        activation_costs, ..
+    } = action
+    {
+        if let Some(chosen) = params.cost_sacrifice_target {
+            let Some(sac) = activation_costs.sacrifice.as_ref() else {
+                return Err(bad(
+                    "CR 602.2: this ability has no sacrifice cost to pay".to_string()
+                ));
+            };
+            if !sac.eligible.contains(&chosen) {
+                return Err(bad(format!(
+                    "object {} is not among the permanents this sacrifice cost offered \
+                     (CR 602.2); this decision offered {:?}",
+                    chosen.0,
+                    sac.eligible.iter().map(|o| o.0).collect::<Vec<_>>()
+                )));
+            }
+        }
+        if let Some(chosen) = params.cost_discard_card {
+            let Some(dis) = activation_costs.discard.as_ref() else {
+                return Err(bad(
+                    "CR 602.2 / CR 111.10g: this ability has no discard cost to pay".to_string(),
+                ));
+            };
+            if !dis.eligible.contains(&chosen) {
+                return Err(bad(format!(
+                    "object {} is not among the cards this discard cost offered (CR 602.2); \
+                     this decision offered {:?}",
+                    chosen.0,
+                    dis.eligible.iter().map(|o| o.0).collect::<Vec<_>>()
+                )));
+            }
+        }
+        return Ok(());
+    }
+
+    // An activation-cost answer on anything that is not an `ActivateAbility`. The
+    // simulator's own `first_announced_field` would reject it for every
+    // non-consuming variant, but `CastSpell` IS a consuming variant, so a
+    // `cost_sacrifice_target` sent alongside a cast would otherwise be dropped in
+    // silence (`params.rs`' own "residual, deliberately not guarded" note).
+    if params.cost_sacrifice_target.is_some() || params.cost_discard_card.is_some() {
+        return Err(bad(
+            "CR 602.2: activation-cost answers (cost_sacrifice_target / cost_discard_card) \
+             belong to an ActivateAbility decision, and this decision is not one"
+                .to_string(),
+        ));
+    }
 
     let LegalAction::CastSpell {
         additional_costs: plan,

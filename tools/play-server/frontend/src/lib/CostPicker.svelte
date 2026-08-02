@@ -17,6 +17,13 @@
    *                          server-side through `NameIndex`.
    *   squad (SquadCostView|null) — `{prompt, cost_label, max_count, template,
    *                          count_key}`
+   *   activationSacrifice, activationDiscard (ActivationChoiceView|null) —
+   *                          `{prompt, candidates, default, answer_field}`
+   *                          (SIM-6, CR 602.2). An ACTIVATED ABILITY's two
+   *                          object-naming cost components. Present only for an
+   *                          `ActivateAbility` option; the two `CastSpell` props
+   *                          above are then null, and vice versa — they come from
+   *                          different `LegalAction` variants and never co-occur.
    *   answerField (string) — `"additional_costs"`
    *   disabled (bool)
    *   onConfirm (fn(params)) — `{[answerField]: [<entry>, …]}`
@@ -84,12 +91,51 @@
     prompt = '',
     sacrifice = null,
     squad = null,
+    activationSacrifice = null,
+    activationDiscard = null,
     answerField = 'additional_costs',
     disabled = false,
     onConfirm = null,
     onCancel = null,
     onError = null,
   } = $props();
+
+  /**
+   * CR 602.2 (SIM-6): the two ACTIVATION blocks, as one list so the markup and the
+   * answer builder walk the same thing.
+   *
+   * Each entry is an `ActivationChoiceView`: `{prompt, candidates, default,
+   * answer_field}`. Both are REQUIRED costs — `handle_activate_ability` refuses the
+   * activation without them, which is the 422 this batch exists to remove — so they
+   * behave like the CR 118.8 sacrifice above: pre-selected on the server's own
+   * default, no skip, no way to clear.
+   *
+   * The variant-name argument in the module doc does not apply to these two: an
+   * activation cost reaches the engine as a bare `ObjectId` on a scalar field, not
+   * as an externally-tagged enum, so there is no template to clone and no encoding
+   * for this component to know. It still never spells the field name — the server
+   * sends it in `answer_field`.
+   */
+  const activationBlocks = $derived(
+    [
+      activationSacrifice && { kind: 'sacrifice', view: activationSacrifice },
+      activationDiscard && { kind: 'discard', view: activationDiscard },
+    ].filter(Boolean),
+  );
+
+  /**
+   * `answer_field` → the id this human picked, for the activation blocks only.
+   * Empty until a click; the effective value falls back to the server's default,
+   * for the same reason `chosenId` does above.
+   */
+  let activationPicked = $state({});
+
+  const activationChoices = $derived(
+    activationBlocks.map((block) => ({
+      ...block,
+      chosen: activationPicked[block.view.answer_field] ?? block.view.default ?? null,
+    })),
+  );
 
   /**
    * The permanent the human explicitly clicked, or `null` for "hasn't clicked
@@ -133,12 +179,26 @@
    * claims this guard should have it.
    */
   const canConfirm = $derived(
-    !sacrifice || ((sacrifice.candidates ?? []).length > 0 && chosenId !== null),
+    (!sacrifice || ((sacrifice.candidates ?? []).length > 0 && chosenId !== null)) &&
+      // CR 602.2 (SIM-6): the same guard, for the same reason, on each activation
+      // block. `default` is `ObjectId::SENTINEL` (the number 0) when the provider's
+      // eligible set is empty, so gating on `chosen !== null` alone would leave
+      // Confirm live and submit `0` for a 400 — the exact bug UI-4's review found on
+      // the cast side. Unreachable while the provider's suppression gate holds.
+      activationChoices.every(
+        (block) => (block.view.candidates ?? []).length > 0 && block.chosen !== null,
+      ),
   );
 
   function select(id) {
     if (disabled) return;
     picked = id;
+  }
+
+  /** CR 602.2: pick the object that pays one activation-cost component. */
+  function selectActivation(field, id) {
+    if (disabled) return;
+    activationPicked = { ...activationPicked, [field]: id };
   }
 
   function setSquad(n) {
@@ -197,7 +257,21 @@
         entries.push(entry);
       }
 
-      onConfirm?.({ [answerField]: entries });
+      // CR 602.2 (SIM-6): each activation block contributes ONE scalar field, named
+      // by the server. `entries` stays empty for an activation (its costs are not
+      // `AdditionalCost`s at all), and the array field is still sent — an empty
+      // `additional_costs` is what every action that announces none already sends.
+      const activationParams = {};
+      for (const block of activationChoices) {
+        const field = block.view.answer_field;
+        if (!field) {
+          onError?.('the activation cost offer did not name a field to answer in');
+          return;
+        }
+        activationParams[field] = block.chosen;
+      }
+
+      onConfirm?.({ [answerField]: entries, ...activationParams });
     } catch (err) {
       onError?.(`could not submit the additional-cost payment: ${err?.message ?? err}`);
     }
@@ -237,6 +311,39 @@
       {/if}
     </div>
   {/if}
+
+  {#each activationChoices as block (block.view.answer_field)}
+    <div class="cost-block">
+      <div class="cost-label">
+        <span class="required">required</span>
+        <span class="cost-prompt">{block.view.prompt}</span>
+        {#if block.chosen !== null}
+          <span class="picker-chosen">
+            {block.kind === 'discard' ? 'discarding' : 'sacrificing'}:
+            {(block.view.candidates ?? []).find((c) => c.id === block.chosen)?.label ??
+              `#${block.chosen}`}
+          </span>
+        {/if}
+      </div>
+
+      {#if (block.view.candidates ?? []).length === 0}
+        <span class="no-candidates">nothing eligible to pay this cost</span>
+      {:else}
+        <div class="candidates">
+          {#each block.view.candidates as card (card.id)}
+            <button
+              class="candidate"
+              class:selected={block.chosen === card.id}
+              disabled={disabled}
+              onclick={() => selectActivation(block.view.answer_field, card.id)}
+            >
+              {card.label}
+            </button>
+          {/each}
+        </div>
+      {/if}
+    </div>
+  {/each}
 
   {#if squad}
     <div class="cost-block">

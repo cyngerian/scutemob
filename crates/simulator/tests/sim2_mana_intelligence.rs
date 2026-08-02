@@ -494,6 +494,9 @@ fn t9b_a_spend_target_still_outranks_both_tap_and_pass() {
             ability_index: 0,
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
+            // SIM-6 (CR 602.2): this ability has no sacrifice or discard component,
+            // which is the default plan (both fields `None`).
+            activation_costs: Default::default(),
         },
         LegalAction::PassPriority,
     ];

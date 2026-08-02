@@ -48,9 +48,11 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
                     Cost::Tap,
+                    // CR 109.1 / PB-EF1: printed "Sacrifice ANOTHER black creature".
                     Cost::Sacrifice(TargetFilter {
                         has_card_type: Some(CardType::Creature),
                         colors: Some(imbl::ordset![Color::Black]),
+                        exclude_self: true,
                         ..Default::default()
                     }),
                 ]),

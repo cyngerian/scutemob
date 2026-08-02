@@ -48,8 +48,14 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
             AbilityDefinition::Activated {
+                // CR 109.1 / PB-EF1: printed "Sacrifice ANOTHER creature" — the
+                // `exclude_self` bit is lowered to `ActivationCost.
+                // sacrifice_exclude_self` by `flatten_cost_into` and enforced in
+                // `handle_activate_ability`. Without it Yahenni is a legal choice
+                // to pay its own cost.
                 cost: Cost::Sacrifice(TargetFilter {
                     has_card_type: Some(CardType::Creature),
+                    exclude_self: true,
                     ..Default::default()
                 }),
                 effect: Effect::ApplyContinuousEffect {

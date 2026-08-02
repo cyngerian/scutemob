@@ -46,6 +46,34 @@ pub struct ActionParams {
     /// Consolidated additional costs (sacrifice, discard, exile-from-zone, etc.)
     /// for a `CastSpell`.
     pub additional_costs: Vec<AdditionalCost>,
+    /// CR 602.2 (SIM-6): the permanent this player chose to sacrifice to pay an
+    /// `ActivateAbility`'s sacrifice cost. `None` means "accept the offer's own
+    /// default" (`ActivationSacrificeOption::default`) — the same "absent means
+    /// default" contract [`Self::effect_choice_answer`] uses, and unambiguous for
+    /// the same reason: an `ObjectId` has no empty value, so a real answer is never
+    /// `None`.
+    ///
+    /// A *separate scalar field* rather than another [`Self::additional_costs`]
+    /// entry, and deliberately so: `AdditionalCost` is a WIRE type carried by
+    /// `Command::CastSpell`, while an activation sacrifice reaches the engine as
+    /// `Command::ActivateAbility::sacrifice_target` and never as an
+    /// `AdditionalCost` at all. Overloading that array would mean encoding an
+    /// activation answer in a spell's vocabulary, and the discard half has no
+    /// `AdditionalCost` variant to overload in the first place (adding one would be
+    /// a `PROTOCOL_SCHEMA_FINGERPRINT` change — see this batch's constraints).
+    ///
+    /// Membership is the OFFER's judgment (`ActivationSacrificeOption::eligible`,
+    /// which mirrors `handle_activate_ability`'s own gate); this field is only the
+    /// choice among it.
+    pub cost_sacrifice_target: Option<ObjectId>,
+    /// CR 602.2 / CR 111.10g (SIM-6): the card this player chose to discard to pay
+    /// an `ActivateAbility`'s discard cost. `None` means "accept the offer's own
+    /// default" (`ActivationDiscardOption::default`). Same argument as
+    /// [`Self::cost_sacrifice_target`] for why it is its own field.
+    ///
+    /// **Not [`Self::discard_cards`]**, which answers a CR 514.1 cleanup discard —
+    /// a different decision on a different command, whose count is the engine's.
+    pub cost_discard_card: Option<ObjectId>,
     /// CR 514.1 / CR 701.9b (UI-1): the cards this player chose to discard for a
     /// [`LegalAction::DiscardToHandSize`]. Empty means "accept the engine's own
     /// default", in which case the action's `cards` field is submitted verbatim —
@@ -151,6 +179,16 @@ impl ActionParams {
         }
         if !self.additional_costs.is_empty() {
             return Some("additional_costs");
+        }
+        // CR 602.2 (SIM-6): both activation-cost answers. Listed here for the same
+        // reason every field above is — naming a permanent to sacrifice on a
+        // `PassPriority` means the client and the pending decision disagree about
+        // what is being answered.
+        if self.cost_sacrifice_target.is_some() {
+            return Some("cost_sacrifice_target");
+        }
+        if self.cost_discard_card.is_some() {
+            return Some("cost_discard_card");
         }
         // UI-1: the three blocking-decision answers. Listed here for the same
         // reason every field above is — announcing a discard subset on a
@@ -336,28 +374,59 @@ pub fn action_to_command_with_params(
             ability_index,
             hybrid_choices,
             phyrexian_life_payments,
-        } => Ok(Command::ActivateAbility {
-            player,
-            source: *source,
-            ability_index: *ability_index,
-            targets: params.targets.clone(),
-            discard_card: None,
-            sacrifice_target: None,
-            x_value: if params.x_value != 0 {
-                Some(params.x_value)
-            } else {
-                None
-            },
-            // CR 602.2b/700.2a (PB-DP3): see the CastSpell arm above.
-            modes_chosen: if params.modes_chosen.is_empty() {
-                legal_actions::ability_default_modes(state, *source, *ability_index)
-            } else {
-                params.modes_chosen.clone()
-            },
-            // PB-RS2: see the TapForMana arm above.
-            hybrid_choices: hybrid_choices.clone(),
-            phyrexian_life_payments: phyrexian_life_payments.clone(),
-        }),
+            activation_costs,
+        } => {
+            // CR 602.2 (SIM-6, triage G4): the two cost components that require
+            // NAMING an object. Before this, both were hardcoded `None` and every
+            // sacrifice- or discard-cost activation was refused by
+            // `handle_activate_ability` — the human's 422 and ~135 of the 166 bot
+            // command refusals SIM-5 recorded.
+            //
+            // Announcing a component the offer does not carry is refused rather
+            // than silently dropped, for `UnsupportedParam`'s own reason: the
+            // `action_index` already fixed which action this is, so a cost answer
+            // the action has no cost for means the client and the pending decision
+            // disagree. (The engine ignores `sacrifice_target` when the ability has
+            // no `sacrifice_filter`, so this is the only layer that can say so.)
+            if params.cost_sacrifice_target.is_some() && activation_costs.sacrifice.is_none() {
+                return Err(ParamError::UnsupportedParam("cost_sacrifice_target"));
+            }
+            if params.cost_discard_card.is_some() && activation_costs.discard.is_none() {
+                return Err(ParamError::UnsupportedParam("cost_discard_card"));
+            }
+            Ok(Command::ActivateAbility {
+                player,
+                source: *source,
+                ability_index: *ability_index,
+                targets: params.targets.clone(),
+                // The caller's choice, else the offer's own deterministic default —
+                // which is what lets a BOT activate one of these at all (SR-38: the
+                // provider only offers the action when that default is a permanent the
+                // engine will accept). `build_activation_cost_plan` supplies the
+                // default; nothing here re-derives it, so the two cannot drift
+                // (OOS-RS-2's class).
+                discard_card: params
+                    .cost_discard_card
+                    .or_else(|| activation_costs.discard.as_ref().map(|d| d.default)),
+                sacrifice_target: params
+                    .cost_sacrifice_target
+                    .or_else(|| activation_costs.sacrifice.as_ref().map(|s| s.default)),
+                x_value: if params.x_value != 0 {
+                    Some(params.x_value)
+                } else {
+                    None
+                },
+                // CR 602.2b/700.2a (PB-DP3): see the CastSpell arm above.
+                modes_chosen: if params.modes_chosen.is_empty() {
+                    legal_actions::ability_default_modes(state, *source, *ability_index)
+                } else {
+                    params.modes_chosen.clone()
+                },
+                // PB-RS2: see the TapForMana arm above.
+                hybrid_choices: hybrid_choices.clone(),
+                phyrexian_life_payments: phyrexian_life_payments.clone(),
+            })
+        }
         LegalAction::DeclareAttackers { .. } => {
             // PB-DX6 §9.2 (CR 508.1h/107.4e/107.4f): unlike `TapForMana`/
             // `ActivateAbility`, the tax total for a `DeclareAttackers`

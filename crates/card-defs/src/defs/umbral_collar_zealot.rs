@@ -16,8 +16,10 @@ pub fn card() -> CardDefinition {
         power: Some(3),
         toughness: Some(2),
         abilities: vec![AbilityDefinition::Activated {
+            // CR 109.1 / PB-EF1: printed "Sacrifice ANOTHER creature or artifact".
             cost: Cost::Sacrifice(TargetFilter {
                 has_card_types: vec![CardType::Creature, CardType::Artifact],
+                exclude_self: true,
                 ..Default::default()
             }),
             effect: Effect::Surveil {
