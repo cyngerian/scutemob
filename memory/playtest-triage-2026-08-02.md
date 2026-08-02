@@ -133,6 +133,21 @@ conditions it. RandomBot's version is expected uniform-choice behaviour
 already funds bot casts), or gate the +5 on an affordable follow-up cast existing.
 
 ### F6 — `stack_consistency` invariant is a false positive BY CONSTRUCTION
+**CLOSED 2026-08-02 by SIM-3 (`scutemob-177`).** The diagnosis below is exactly right and
+M11-local S8 had already acted on it; SIM-3 finished the job. What remained, and what it
+found: the check had **no test module** (now ten probes, each watched failing under a
+deliberate revert — a 9-revert matrix); `docs/mtg-engine-simulator.md` **and**
+`docs/mtg-engine-runtime-integrity.md` both still stated the wrong invariant in prose (S8
+corrected neither); and the S8 rewrite carried a **residual false positive of its own** —
+it classified on `StackObjectKind::Spell` alone, on the stated premise that every
+Stack-zone move "ends in that same `Spell` kind", but `casting.rs` moves the card first
+and *then* branches on `cast_with_mutate`, so every **mutate** cast (CR 702.140a) had a
+card in the Stack zone that no `Spell` object claimed. Classification is now an exhaustive
+match over all 27 `StackObjectKind` variants, so the next variant is a compile error until
+someone classifies it. Measured A/B, same builds and seeds: `--games 5 --seed 1
+--max-turns 200` goes **9,719 → 938** violations (the 8,781 that vanish are 90.3% of the
+run) and the scripted playthrough's seed 1 goes **720 → 0**. Seeds `OOS-SIM3-1..4` filed.
+
 `crates/simulator/src/invariants.rs:100-128` compares `ZoneId::Stack` object ids
 against `state.stack_objects()[].id` — two **deliberately different** id namespaces:
 `casting.rs:4399` mints the zone object (CR 400.7), `:4401` mints `stack_entry_id =
@@ -213,7 +228,8 @@ TargetPicker (CR 601.2b/h precedes 601.2c). No engine/wire-type change.
 
 **CLOSED**: F1, F2 (CARDS-2, `scutemob-181`); F3, F4, F5 (SIM-2, `scutemob-176`); F7 (SIM-1,
 `scutemob-175`); F8 (UI-1, `scutemob-174`); F9 (UI-2, `scutemob-178`, for `Sacrifice` + `Squad` —
-see that entry's scope note and **OOS-UI2-4**); F10 (CARDS-1, `scutemob-179`). **OPEN**: F6.
+see that entry's scope note and **OOS-UI2-4**); F10 (CARDS-1, `scutemob-179`); F6 (SIM-3,
+`scutemob-177`). **OPEN**: none.
 
 > F7's banner was already stale when SIM-2 read this file — SIM-1 closed it on 2026-08-02 and
 > only the roll-up went unupdated. Corrected here rather than left, since a roll-up that is

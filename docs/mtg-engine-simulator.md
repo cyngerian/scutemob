@@ -220,17 +220,39 @@ mtg-fuzzer [OPTIONS]
 
 ### Invariant Checks (run after every state transition)
 
+> **Nine of these twelve can fire.** Re-derived from `invariants::check_all` by SIM-3
+> (`scutemob-177`, 2026-08-02) rather than trusted: #3 is an explicit no-op in the
+> source, and **#10 and #11 do not exist** — no function implements them and no
+> violation in the codebase carries their name. They are marked below rather than
+> deleted, because they are still worth having; filed as **OOS-SIM3-2**. A list of
+> checks is not a list of checks that run.
+
 1. **Zone integrity**: Every object in exactly one zone
 2. **ID uniqueness**: No duplicate ObjectIds
-3. **Mana non-negative**: All mana pool values >= 0
-4. **Stack consistency**: stack_objects matches objects in Stack zone
+3. **Mana non-negative**: All mana pool values >= 0 — **no-op**: `ManaPool`'s fields are
+   `u32` and cannot go negative, so `check_mana_non_negative` has an empty body
+4. **Stack consistency**: `ZoneId::Stack` holds exactly the cards named by the stack
+   objects that put a card there — one apiece, in the same order.
+   **This line used to read "stack_objects matches objects in Stack zone", and that is
+   wrong.** A `StackObject::id` and the Stack-zone `ObjectId` of the card being cast are
+   two different id namespaces (`casting.rs::handle_cast_spell` mints the zone object
+   under CR 400.7, then takes the *next* id for the stack entry), so they never match in
+   a healthy game and the check that compared them fired on every spell and every
+   ability. `invariants::stack_card_of` now classifies each `StackObjectKind` — only
+   `Spell` and `MutatingCreatureSpell` own a Stack-zone card — and
+   `invariants::check_stack_consistency` asserts the four properties documented on it.
+   See its doc comment for the measured before/after.
 5. **Player consistency**: Active player and priority holder are alive
 6. **Turn order**: All players in turn_order, active player present
 7. **Object-zone agreement**: Object's zone field matches containing zone
 8. **Attachment validity**: attached_to references existing battlefield objects
 9. **Game progression**: Turn number never decreases
 10. **Legal action soundness**: Actions from provider don't get rejected by `process_command()`
-11. **SBA idempotency**: After SBAs, running again produces no events
+    — **NOT IMPLEMENTED** (OOS-SIM3-2). Nothing in `invariants.rs` checks this. It is the
+    SR-38 property, and it is currently enforced only by the assertions in
+    `local_game_playthrough.rs` (a policy rejection fails that test), not by the fuzzer.
+11. **SBA idempotency**: After SBAs, running again produces no events — **NOT IMPLEMENTED**
+    (OOS-SIM3-2).
 12. **No orphaned tokens**: No tokens in non-battlefield zones after SBAs
 
 ### Crash Reports

@@ -1,6 +1,6 @@
 # Runtime Integrity: Watchdog, Recovery, and Bug Reporting
 
-<!-- last_updated: 2026-08-01 -->
+<!-- last_updated: 2026-08-02 -->
 
 > **Purpose**: Ensure that when a rules bug occurs during a live game, it is caught
 > immediately, the game state is recoverable, and the bug is diagnosable. This is a
@@ -53,14 +53,34 @@ pub fn validate_invariants(state: &GameState) -> Result<(), Vec<InvariantViolati
 ```
 
 **What it checks** (from existing invariants.rs):
+
+> **⚠️ Four of these nine are NOT in `invariants.rs` and never were** — re-derived from
+> `invariants::check_all` by SIM-3 (`scutemob-177`, 2026-08-02), marked inline below.
+> The attribution "from existing invariants.rs" is what is wrong: this doc is a
+> **PROPOSAL** (see its Status line) and this list has always been part wish. It also
+> *omits* five checks that do exist — ID uniqueness, turn order, object-zone agreement,
+> game progression, orphaned tokens. Same defect class as **OOS-SIM3-2**, which this
+> paragraph extends to cover this file: a list of checks is not a list of checks that run.
+
 - Zone integrity: every object in exactly one zone, no dangling references
-- Player validity: active_player and priority_holder within bounds
-- Stack consistency: LIFO order, stack zone length matches stack_objects
-- Object conservation: no objects created or destroyed outside of explicit effects
-- Mana pool: non-negative components
-- Commander: tax never negative, damage_received valid
-- Continuous effects: unique effect IDs
-- Timestamps: monotonically increasing
+- Player validity: active_player and priority_holder within bounds — **partially**:
+  `check_player_consistency` checks that the active player and priority holder have not
+  lost or conceded, which is a different (and stronger) property than "within bounds"
+- Stack consistency: `ZoneId::Stack` holds exactly the cards named by the stack objects
+  that put a card there, one apiece, in the same order.
+  **This line used to read "LIFO order, stack zone length matches stack_objects", and
+  the length half of that is wrong**: abilities and triggers are stack objects that move
+  no card, so the Stack zone is *shorter* than `stack_objects` in any game where one is
+  on the stack, and a spell's stack-entry id is a different id from its Stack-zone card's
+  (CR 400.7 — see `invariants::check_stack_consistency`'s doc comment). The order half is
+  right and is now actually checked, against the card-owning stack objects only.
+- Object conservation: no objects created or destroyed outside of explicit effects —
+  **NOT IMPLEMENTED** (OOS-SIM3-2)
+- Mana pool: non-negative components — **no-op**: `ManaPool`'s fields are `u32`, so
+  `check_mana_non_negative` has an empty body and cannot fail
+- Commander: tax never negative, damage_received valid — **NOT IMPLEMENTED** (OOS-SIM3-2)
+- Continuous effects: unique effect IDs — **NOT IMPLEMENTED** (OOS-SIM3-2)
+- Timestamps: monotonically increasing — **NOT IMPLEMENTED** (OOS-SIM3-2)
 - Attachment validity: no `attached_to` pointing at objects in wrong zones
 
 **What it adds** (new, rule-aware invariants):
