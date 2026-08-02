@@ -220,7 +220,41 @@
 - **Recurrence rule** — future `/collect` and milestone-close bookkeeping appends its detailed PB/SR
   narrative to that archive file (newest first), and updates only a one-paragraph snapshot delta
   here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
-- **Last Updated**: 2026-08-02 — **SEED RE-RANK v3 SHIPPED** (`scutemob-182`, doc-only):
+- **Last Updated**: 2026-08-02 — **PB-DX19 SHIPPED** (`scutemob-184`), the v3 queue's first dispatch:
+  **OOS-SIM2-6 (the registry's only HIGH) and OOS-SIM2-5 both CLOSED**, and **OOS-DP3-9 /
+  OOS-M11-3's stack-overflow half closes with them, measured.** The recursion
+  (`calculate_characteristics` → `is_effect_active` → `check_static_condition` →
+  `expect_characteristics` → back) is broken by the brief's pre-decided base-characteristics read.
+  **Two premises of the seed were wrong and are corrected in its row**: the recursion is not a
+  property of the object being calculated or of its zone — `calculate_characteristics` evaluates
+  **every** conditional effect on **every** call — so a probe on the Archangel's own
+  characteristics, and one with Metalcraft OFF, crashed identically. The in-source comment had
+  argued termination from exactly that disproved invariant and demoted the fix to a *performance*
+  note; **that comment, not the code, is why a HIGH survived 4.5 months**, and it now carries the
+  mechanism. **The mandatory experiment is decisive**: `mtg-fuzzer --games 15 --seed 1` under
+  `[profile.fuzz]` went from SIGABRT with **0 of 15** games completed to **15 completed** at avg
+  **189** turns — and the abort was *immediate*, so OOS-DP3-9's "game-length-dependent" reading was
+  a decks-drawn artefact. **OOS-SIM2-5 undercounted its own scope 4×**: sixteen edits, not four —
+  ten `+=` sites (incl. the ±1/+1 counter path every game runs), six negations, and **two `as i32`
+  counter widenings**, the last being the one that mattered, since **an `as` cast is not checked
+  arithmetic even under `overflow-checks`** and wrapped the counter's SIGN in every profile. Its
+  probe is the only one of six that fails by assertion, not panic. **The fix's cost is real and is
+  pinned, not remembered**: `blinkmoth_nexus`/`inkmoth_nexus` are `Complete`-by-derive colourless
+  lands that animate into *artifacts*, so an animated Nexus no longer feeds Metalcraft though CR
+  613.1d says it must — asserted wrong-way-round by
+  `deviation_animated_nexus_does_not_count_toward_metalcraft`, which tells the successor batch to
+  **invert** it. Ten sibling `expect_characteristics` sites are the same shape and **latent only
+  because of corpus shape** (all 97 `condition: Some(..)` occurrences enumerated; every one is an
+  `activation_condition`/`unless_condition`/`intervening_if`, none on the `is_effect_active` path)
+  — filed `OOS-DX19-1`, fix shape a boundary guard, NOT ten leaf edits, since several are
+  *correct* as layer-resolved. Seeds **OOS-DX19-1..4** filed. PROTOCOL **33** / HASH **70**
+  gate-executed and unmoved. Tests **4,274 / 0 / 5** (+11). Coverage **unmoved** — proven by
+  regenerating `tools/authoring-report.py` to a byte-identical body, *not* by an empty card-defs
+  diff, since the brief itself mandated the `greymond_avacyns_stalwart` note edit (that note had
+  been instructing future authors to build a second instance of this exact HIGH). `cargo fmt`
+  passed the greymond edit and **`tools/check-defs-fmt.sh` caught it** — SR-35, again. Full memo:
+  `memory/primitives/pb-plan-DX19.md`; handoff in `memory/workstream-state.md`.
+- **Prior**: 2026-08-02 — **SEED RE-RANK v3 SHIPPED** (`scutemob-182`, doc-only):
   `memory/primitives/seed-rerank-2026-08-02.md` is the authoritative queue; v2's §4 is banner'd
   SUPERSEDED (its §1-§3 stay canonical). **Census: 80 rows / 79 distinct IDs filed after
   2026-07-27 — twice the brief's ~40**, because v2's census closed 2026-07-31 and every PB-DX
