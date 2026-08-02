@@ -226,7 +226,7 @@
 - **Recurrence rule** — future `/collect` and milestone-close bookkeeping appends its detailed PB/SR
   narrative to that archive file (newest first), and updates only a one-paragraph snapshot delta
   here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
-- **Last Updated**: 2026-08-02 — **SIM-6 SHIPPED** (`scutemob-189`; row 4 of the
+- **Last Updated**: 2026-08-02 — **SIM-6 SHIPPED** (`scutemob-189`, merge `ee99929d`; row 4 of the
   `memory/playtest-triage-2026-08-02b.md` successor table). **G4 CLOSED, both components.**
   `LegalAction::ActivateAbility` gains an `ActivationCostPlan`; the offer is suppressed when
   the eligible sacrifice/discard set is empty (SR-38, mirroring `offerable_cast_plan`); the
