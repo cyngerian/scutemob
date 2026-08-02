@@ -51,4 +51,6 @@ pub use mana_solver::solve_mana_payment;
 pub use params::{action_to_command_with_params, ActionParams, HumanChoice, ParamError};
 pub use random_bot::RandomBot;
 pub use report::{CrashReport, GameDriverError, GameResult};
-pub use setup::{build_initial_state, redeal, BotKind, DeckSource, LocalGameConfig, SetupError};
+pub use setup::{
+    build_initial_state, dealt_decks, redeal, BotKind, DeckSource, LocalGameConfig, SetupError,
+};

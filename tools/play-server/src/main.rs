@@ -7074,4 +7074,256 @@ mod tests {
         }
         out
     }
+
+    // ── SIM-4 (G2, CR 103.5): a mulligan permutes a FIXED deck ───────────────
+    //
+    // The first human playtest reported *"mulligans seem to change decks instead
+    // of drawing a new hand"*, and it was literal: the session held
+    // `DeckSource::RandomPerSeat`, a recipe in which every card of every seat —
+    // commander included — is a function of `cfg.seed`, and `PlaySession::mulligan`
+    // rebuilds from a **perturbed** seed. All four decklists and all four
+    // commanders were re-rolled per mulligan, and CR 903.6 puts the commander in
+    // the public command zone, so the playtester watched three opponents'
+    // commanders change (`memory/playtest-triage-2026-08-02b.md` G2).
+    //
+    // Two probes, because the property has two halves and only one of them is
+    // visible over HTTP:
+    //
+    // * P1 drives the REAL router — `POST /api/game` then two `POST
+    //   /api/game/mulligan` — and reads the commanders back out of the seat view's
+    //   own public payload. That is exactly the channel the defect was observed
+    //   through.
+    // * P2 goes through `session::new_game` directly, because the thing that must
+    //   also hold — every seat's 100-card multiset — lives in hidden zones that no
+    //   seat view will ever render (Architecture Invariant 7). It also pins the
+    //   mechanism: the session must be *holding* resolved decklists.
+    //
+    // `crates/simulator/tests/setup.rs` pins the CR 103.5 property of `redeal`
+    // itself. It cannot catch this defect and never could: `DeckSource::Fixed` was
+    // always immune, so a simulator-level test passes whatever the play server
+    // stores. The defect is in what the session *keeps*, so the gate has to be here.
+
+    /// Every seat's command-zone card names, keyed by seat name, read from the
+    /// seat view's own payload.
+    ///
+    /// By name, not by object id: `LocalGame::start` mints fresh `ObjectId`s on
+    /// every rebuild (CR 400.7), so ids differ across a mulligan even when nothing
+    /// is wrong. The card's identity is the assertion.
+    fn sim4_commanders_by_seat(view: &Value) -> std::collections::BTreeMap<String, Vec<String>> {
+        view["state"]["zones"]["command_zone"]
+            .as_object()
+            .expect("command_zone is an object")
+            .iter()
+            .map(|(seat, cards)| {
+                let names = cards
+                    .as_array()
+                    .expect("a command zone is an array")
+                    .iter()
+                    .map(|c| {
+                        c["name"]
+                            .as_str()
+                            .expect("a command-zone card has a name")
+                            .to_string()
+                    })
+                    .collect();
+                (seat.clone(), names)
+            })
+            .collect()
+    }
+
+    /// P1 — CR 103.5 / CR 903.6 over HTTP: two mulligans, and every seat's
+    /// commander is the card it was before.
+    ///
+    /// **Proven to discriminate by executing the revert**: with
+    /// `session::new_game` restored to passing `cfg` through unresolved, this test
+    /// fails on the first mulligan with all four commanders replaced.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_sim4_mulligan_preserves_every_seats_commander() {
+        let state = shared_state();
+        let before = new_game(&state).await;
+
+        let commanders_before = sim4_commanders_by_seat(&before);
+        // Non-vacuity floor: an empty map compares equal to itself. CR 903.6 puts
+        // exactly one commander in each of the four seats' command zones.
+        assert_eq!(
+            commanders_before.len(),
+            PLAYERS as usize,
+            "every seat's command zone must be visible — it is public (CR 903.6): {before}"
+        );
+        for (seat, names) in &commanders_before {
+            assert_eq!(
+                names.len(),
+                1,
+                "seat {seat} must show exactly one commander"
+            );
+        }
+        let hand_before = before["state"]["zones"]["hand"][HUMAN].clone();
+        assert!(
+            hand_before.as_array().is_some_and(|h| h.len() == 7),
+            "the human opens with 7 cards (CR 103.5): {hand_before}"
+        );
+
+        let mut latest = before;
+        for n in 1..=2u64 {
+            let (status, after) =
+                post_json(&state, "/api/game/mulligan", json!({ "take": true })).await;
+            assert_eq!(status, StatusCode::OK, "{after}");
+            assert_eq!(after["summary"]["mulligan_count"], n);
+            assert_eq!(
+                sim4_commanders_by_seat(&after),
+                commanders_before,
+                "CR 103.5: mulligan {n} must permute a fixed deck, not re-roll the table — \
+                 and CR 903.6 makes every one of these commanders public, so a change here \
+                 is a change the other three players can see"
+            );
+            latest = after;
+        }
+
+        // Still a mulligan: same cards, new order, new hand.
+        assert_ne!(
+            latest["state"]["zones"]["hand"][HUMAN], hand_before,
+            "the human's hand must actually redraw"
+        );
+        assert!(
+            latest["state"]["zones"]["hand"][HUMAN]
+                .as_array()
+                .is_some_and(|h| h.len() == 7),
+            "and it is still 7 cards"
+        );
+    }
+
+    /// Every card seat `pid` owns, by name, sorted — the CR 103.5 multiset (hand ∪
+    /// library ∪ command zone), read out of band from the engine's own state
+    /// because two of those three zones are hidden from every seat view.
+    fn sim4_deck_multiset(play: &session::PlaySession, pid: mtg_engine::PlayerId) -> Vec<String> {
+        let gs = play.game.state();
+        let mut names: Vec<String> = [
+            mtg_engine::ZoneId::Hand(pid),
+            mtg_engine::ZoneId::Library(pid),
+            mtg_engine::ZoneId::Command(pid),
+        ]
+        .iter()
+        .flat_map(|zone| {
+            gs.objects_in_zone(zone)
+                .iter()
+                .map(|obj| obj.characteristics.name.clone())
+                .collect::<Vec<_>>()
+        })
+        .collect();
+        names.sort();
+        names
+    }
+
+    /// P2 — the session resolves its decks once and keeps them, and a mulligan
+    /// leaves every seat's 100-card multiset untouched (CR 103.5, CR 903.5a).
+    ///
+    /// Also pins the seam: `config_for` still hands `new_game` the *recipe*. The
+    /// resolve happens in `new_game`, which is the one constructor both
+    /// `POST /api/game` and every fixture goes through.
+    #[test]
+    fn test_sim4_session_resolves_decks_once_and_a_mulligan_preserves_them() {
+        let defaults = NewGameDefaults {
+            players: PLAYERS,
+            bot: BotKind::Heuristic,
+            seed: SEED,
+        };
+        let cfg = session::config_for(defaults).expect("the default table must be legal");
+        assert!(
+            matches!(cfg.decks, mtg_simulator::DeckSource::RandomPerSeat),
+            "config_for describes a random table; resolving it is new_game's job"
+        );
+
+        let mut play = session::new_game(cfg, 0).expect("the default table must build");
+        match &play.cfg.decks {
+            mtg_simulator::DeckSource::Fixed(pairs) => assert_eq!(
+                pairs.len(),
+                PLAYERS as usize,
+                "one resolved decklist per seat"
+            ),
+            other => panic!(
+                "the session must hold resolved decklists so a redeal cannot re-roll them \
+                 (CR 103.5), got {other:?}"
+            ),
+        }
+
+        let seats: Vec<mtg_engine::PlayerId> =
+            (1..=u64::from(PLAYERS)).map(mtg_engine::PlayerId).collect();
+        let decks_before: Vec<Vec<String>> = seats
+            .iter()
+            .map(|&pid| sim4_deck_multiset(&play, pid))
+            .collect();
+        let commanders_before: Vec<Vec<mtg_engine::CardId>> = seats
+            .iter()
+            .map(|&pid| {
+                play.game
+                    .state()
+                    .players()
+                    .get(&pid)
+                    .expect("seat exists")
+                    .commander_ids
+                    .iter()
+                    .cloned()
+                    .collect()
+            })
+            .collect();
+        let hand_before: Vec<String> = {
+            let gs = play.game.state();
+            let mut names: Vec<String> = gs
+                .objects_in_zone(&mtg_engine::ZoneId::Hand(session::HUMAN_SEAT))
+                .iter()
+                .map(|o| o.characteristics.name.clone())
+                .collect();
+            names.sort();
+            names
+        };
+
+        play.mulligan()
+            .expect("a pregame mulligan must be accepted");
+
+        for (i, &pid) in seats.iter().enumerate() {
+            // Non-vacuity floor: CR 903.5a — 99 main-deck cards plus the commander.
+            assert_eq!(
+                decks_before[i].len(),
+                100,
+                "seat {pid:?} must own exactly 100 cards, or this equality asserts nothing"
+            );
+            assert_eq!(
+                decks_before[i],
+                sim4_deck_multiset(&play, pid),
+                "CR 103.5: seat {pid:?}'s card multiset must survive another seat's mulligan"
+            );
+            let after: Vec<mtg_engine::CardId> = play
+                .game
+                .state()
+                .players()
+                .get(&pid)
+                .expect("seat exists")
+                .commander_ids
+                .iter()
+                .cloned()
+                .collect();
+            assert_eq!(commanders_before[i].len(), 1);
+            assert_eq!(
+                commanders_before[i], after,
+                "CR 903.6: seat {pid:?}'s registered commander must not change"
+            );
+        }
+
+        let hand_after: Vec<String> = {
+            let gs = play.game.state();
+            let mut names: Vec<String> = gs
+                .objects_in_zone(&mtg_engine::ZoneId::Hand(session::HUMAN_SEAT))
+                .iter()
+                .map(|o| o.characteristics.name.clone())
+                .collect();
+            names.sort();
+            names
+        };
+        assert_eq!(hand_before.len(), 7, "CR 103.5 — seven before");
+        assert_eq!(hand_after.len(), 7, "and seven after");
+        assert_ne!(
+            hand_before, hand_after,
+            "the mulligan must still redraw the hand"
+        );
+    }
 }

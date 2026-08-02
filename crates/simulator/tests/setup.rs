@@ -12,8 +12,8 @@ use mtg_engine::{
     ZoneId, ZoneType,
 };
 use mtg_simulator::{
-    build_initial_state, redeal, BotKind, DeckConfig, DeckSource, LocalGameConfig, LocalGameLimits,
-    SetupError,
+    build_initial_state, dealt_decks, redeal, BotKind, DeckConfig, DeckSource, LocalGameConfig,
+    LocalGameLimits, SetupError,
 };
 
 /// Default `LocalGameLimits` for these tests — `build_initial_state`/`redeal` never
@@ -321,6 +321,254 @@ fn test_redeal_produces_a_different_hand() {
         hand_names(&state_after, PlayerId(1)),
         "seat 1's redealt hand must differ from its original opening hand"
     );
+}
+
+/// Every card a seat owns, by name, sorted — the CR 103.5 multiset: hand ∪ library ∪
+/// command zone.
+///
+/// Sorted rather than compared zone-by-zone precisely because a mulligan is *allowed* to
+/// move cards between hand and library and to reorder the library; what it may not do is
+/// change which cards are there. Names rather than `CardId`s so a mismatch names the card.
+fn deck_multiset(state: &mtg_engine::GameState, pid: PlayerId) -> Vec<String> {
+    let mut names: Vec<String> = [
+        ZoneId::Hand(pid),
+        ZoneId::Library(pid),
+        ZoneId::Command(pid),
+    ]
+    .iter()
+    .flat_map(|zone| {
+        state
+            .objects_in_zone(zone)
+            .iter()
+            .map(|obj| obj.characteristics.name.clone())
+            .collect::<Vec<_>>()
+    })
+    .collect();
+    names.sort();
+    names
+}
+
+/// The seat's registered commander (`PlayerState::commander_ids`), not merely the card
+/// sitting in the command zone — that is the field every commander rule keys off.
+fn registered_commanders(state: &mtg_engine::GameState, pid: PlayerId) -> Vec<CardId> {
+    state
+        .players()
+        .get(&pid)
+        .unwrap_or_else(|| panic!("seat {pid:?} must exist"))
+        .commander_ids
+        .iter()
+        .cloned()
+        .collect()
+}
+
+/// Seat `pid`'s opening hand by name, sorted.
+fn hand_names(state: &mtg_engine::GameState, pid: PlayerId) -> Vec<String> {
+    let mut names: Vec<String> = state
+        .objects_in_zone(&ZoneId::Hand(pid))
+        .iter()
+        .map(|obj| obj.characteristics.name.clone())
+        .collect();
+    names.sort();
+    names
+}
+
+/// **CR 103.5 — a mulligan permutes a FIXED library-plus-hand multiset.** *"To take a
+/// mulligan, a player shuffles the cards in their hand back into their library, draws a new
+/// hand of cards equal to their starting hand size, then puts a number of those cards ... on
+/// the bottom of their library."* Nothing in that rule replaces a card; the deck a player
+/// mulligans is the deck they registered (CR 903.5), and their commander stays in the
+/// public command zone (CR 903.6) where the other three players can see it.
+///
+/// **This is the gate whose absence let G2 ship** (`memory/playtest-triage-2026-08-02b.md`;
+/// fixed in `scutemob-187`). `test_redeal_produces_a_different_hand` below asserts only
+/// that the *hand* changes — which stayed true while every seat's 99 **and commander** were
+/// being re-rolled from the perturbed seed, because `DeckSource::RandomPerSeat` makes every
+/// card a function of `cfg.seed`. A test that watches only the thing that is supposed to
+/// change cannot see the thing that is not.
+///
+/// Asserted for **every** seat, not just the mulliganing one: the defect's most visible
+/// symptom was the three *opponents'* commanders changing.
+#[test]
+fn test_redeal_preserves_every_seats_deck_and_commander() {
+    // The shape a caller must hand `redeal`: build once from the recipe, then hold the
+    // decklists that build actually dealt. This is exactly what `play-server`'s
+    // `session::new_game` does.
+    let recipe = random_cfg(4, 20_260_802);
+    let (dealt_state, _) = build_initial_state(&recipe).expect("setup should succeed");
+    let cfg = LocalGameConfig {
+        decks: DeckSource::Fixed(
+            dealt_decks(&dealt_state, &recipe).expect("a freshly dealt table must be readable"),
+        ),
+        ..recipe
+    };
+
+    let (before, _) = build_initial_state(&cfg).expect("setup should succeed");
+    let (after, _) =
+        redeal(&cfg, PlayerId(1), 1).expect("redeal should succeed for seat 1's first mulligan");
+
+    for i in 1..=4u64 {
+        let pid = PlayerId(i);
+
+        let deck_before = deck_multiset(&before, pid);
+        // Non-vacuity floor: an empty or short multiset would compare equal to itself and
+        // assert nothing. CR 903.5a — 99 main-deck cards plus the commander.
+        assert_eq!(
+            deck_before.len(),
+            100,
+            "seat {i} must own exactly 100 cards before the mulligan (CR 903.5a) — \
+             otherwise this test's equality check is vacuous"
+        );
+        assert_eq!(
+            deck_before,
+            deck_multiset(&after, pid),
+            "CR 103.5: seat {i}'s card multiset must be identical across a mulligan — a \
+             mulligan permutes the deck, it does not replace it"
+        );
+
+        let commander_before = registered_commanders(&before, pid);
+        assert_eq!(
+            commander_before.len(),
+            1,
+            "seat {i} must have exactly one registered commander before the mulligan"
+        );
+        assert_eq!(
+            commander_before,
+            registered_commanders(&after, pid),
+            "CR 903.6: seat {i}'s commander is public in the command zone and must not \
+             change because another seat mulliganed"
+        );
+        // ... and the object in the public zone must still be that commander, not just the
+        // registration: the defect was visible to the other players precisely there.
+        let command_zone = after.objects_in_zone(&ZoneId::Command(pid));
+        assert_eq!(
+            command_zone.len(),
+            1,
+            "seat {i} keeps one command-zone card"
+        );
+        let cards = all_cards();
+        let def = cards
+            .iter()
+            .find(|c| c.card_id == commander_before[0])
+            .expect("the registered commander must resolve to a CardDefinition");
+        assert_eq!(
+            &def.name, &command_zone[0].characteristics.name,
+            "seat {i}'s command-zone card must still be its registered commander"
+        );
+    }
+
+    // The other half of CR 103.5: it is still a mulligan. Same cards, new order, new hand.
+    assert_ne!(
+        hand_names(&before, PlayerId(1)),
+        hand_names(&after, PlayerId(1)),
+        "the mulliganing seat must actually get a different hand"
+    );
+    assert_eq!(
+        after.objects_in_zone(&ZoneId::Hand(PlayerId(1))).len(),
+        7,
+        "CR 103.5 — the redeal still draws a fresh 7 (bottoming is the caller's, per the \
+         module doc)"
+    );
+}
+
+/// The caller's obligation, pinned rather than assumed: `redeal` given a config that still
+/// holds the **recipe** (`DeckSource::RandomPerSeat`) re-rolls every seat's decklist, which
+/// is not a CR 103.5 mulligan.
+///
+/// `redeal` cannot reject such a config — it is also the plain pregame-rebuild primitive
+/// for callers that have not dealt anything yet, where re-rolling is harmless. So the
+/// obligation lives with the caller (`resolve_decks` once, then hold the result), and this
+/// test is what makes it visible: if `redeal` is ever changed to resolve internally, this
+/// test reddens and whoever changed it must say so, rather than the behaviour drifting
+/// silently in either direction.
+#[test]
+fn test_redeal_on_an_unresolved_recipe_still_rerolls_the_decks() {
+    let cfg = random_cfg(2, 20_260_802);
+    let (before, _) = build_initial_state(&cfg).expect("setup should succeed");
+    let (after, _) = redeal(&cfg, PlayerId(1), 1).expect("redeal should succeed");
+
+    assert_ne!(
+        deck_multiset(&before, PlayerId(1)),
+        deck_multiset(&after, PlayerId(1)),
+        "an unresolved RandomPerSeat config re-rolls the decklist — this is the state G2 \
+         found in the browser, kept here as the reason callers must resolve first"
+    );
+}
+
+/// `dealt_decks` reads back exactly what was dealt: one decklist per seat, 99 main-deck
+/// cards plus the registered commander (CR 903.5a), and rebuilding from it reproduces every
+/// seat's 100-card multiset.
+///
+/// The round trip is the property `session::new_game` depends on. It does **not** claim the
+/// rebuilt table is the same table — the library order and the opening hands change,
+/// because a rebuild reshuffles, which is exactly what a mulligan is for.
+#[test]
+fn test_dealt_decks_round_trip_preserves_every_seats_multiset() {
+    let recipe = random_cfg(4, 8_675_309);
+    let (dealt_state, _) = build_initial_state(&recipe).expect("setup should succeed");
+    let dealt = dealt_decks(&dealt_state, &recipe).expect("a freshly dealt table must be readable");
+
+    assert_eq!(dealt.len(), 4, "one decklist per seat");
+    assert_eq!(
+        dealt.iter().map(|(pid, _)| *pid).collect::<Vec<_>>(),
+        vec![PlayerId(1), PlayerId(2), PlayerId(3), PlayerId(4)],
+        "in ascending seat order"
+    );
+    for (pid, deck) in &dealt {
+        assert_eq!(
+            deck.main_deck.len(),
+            99,
+            "seat {pid:?}: 99 main-deck cards (CR 903.5a — the commander is the 100th and \
+             is carried separately)"
+        );
+        assert!(
+            !deck.main_deck.contains(&deck.commander),
+            "seat {pid:?}: the commander must not also be in the main deck (CR 903.6 put \
+             it in the command zone)"
+        );
+    }
+
+    let rebuilt_cfg = LocalGameConfig {
+        decks: DeckSource::Fixed(dealt),
+        ..recipe
+    };
+    let (rebuilt, _) = build_initial_state(&rebuilt_cfg).expect("the dealt decks must be legal");
+    for i in 1..=4u64 {
+        assert_eq!(
+            deck_multiset(&dealt_state, PlayerId(i)),
+            deck_multiset(&rebuilt, PlayerId(i)),
+            "seat {i}'s 100 cards must survive the round trip"
+        );
+    }
+}
+
+/// `dealt_decks` is pure and total over a well-formed pregame state, and refuses a state it
+/// cannot read rather than returning a short decklist.
+///
+/// The refusal case is what matters: a seat the config names but the state does not hold is
+/// `NoDeckForSeat`, not a silently missing entry that would surface much later as a
+/// mysteriously invalid deck.
+#[test]
+fn test_dealt_decks_is_deterministic_and_refuses_an_unreadable_seat() {
+    let recipe = random_cfg(3, 4242);
+    let (state, _) = build_initial_state(&recipe).expect("setup should succeed");
+
+    let a = dealt_decks(&state, &recipe).expect("read should succeed");
+    let b = dealt_decks(&state, &recipe).expect("read should succeed");
+    for ((pid_a, deck_a), (pid_b, deck_b)) in a.iter().zip(b.iter()) {
+        assert_eq!(pid_a, pid_b);
+        assert_eq!(deck_a.commander, deck_b.commander);
+        assert_eq!(deck_a.main_deck, deck_b.main_deck);
+    }
+
+    // A config naming a seat the state does not have.
+    let wider = LocalGameConfig {
+        player_count: 4,
+        ..random_cfg(3, 4242)
+    };
+    match dealt_decks(&state, &wider) {
+        Err(SetupError::NoDeckForSeat { seat }) => assert_eq!(seat, PlayerId(4)),
+        other => panic!("expected NoDeckForSeat for the absent seat 4, got {other:?}"),
+    }
 }
 
 /// CR 903.6 / 903.9b — the commander is not merely *placed* in the command zone, it is

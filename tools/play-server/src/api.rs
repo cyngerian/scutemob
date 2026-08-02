@@ -1208,14 +1208,21 @@ pub async fn post_action(
 /// papered over** (see `PlaySession::mulligan`'s doc comment for the full
 /// argument):
 ///
-/// 1. The redeal rebuilds the **whole table**, not one seat. It re-rolls every
-///    seat's commander, and the command zone is public (CR 903.6), so it is not
-///    invisible to the other players; and it cannot represent a partially
-///    decided table (CR 103.5c gives each player their own mulligan count).
-///    `redeal`'s own doc says the per-seat model "belongs with the Session 5
-///    play-server pregame flow" — this session keeps the whole-table rebuild,
-///    because a per-seat model needs each bot seat to be *asked*, which is a new
-///    decision channel rather than a small addition.
+/// 1. The redeal rebuilds the **whole table**, not one seat: every seat's
+///    library is reshuffled and every seat's hand redrawn, and it cannot
+///    represent a partially decided table (CR 103.5c gives each player their own
+///    mulligan count). `redeal`'s own doc says the per-seat model "belongs with
+///    the play-server pregame flow" — this session keeps the whole-table
+///    rebuild, because a per-seat model needs each bot seat to be *asked*, which
+///    is a new decision channel rather than a small addition.
+///
+///    What it no longer does is re-roll the **decklists and commanders**. It did
+///    until `scutemob-187` (G2 of `memory/playtest-triage-2026-08-02b.md`): the
+///    session held `DeckSource::RandomPerSeat`, a recipe keyed on the seed, so a
+///    perturbed seed rebuilt all four decks and all four commanders — visible to
+///    everyone, because CR 903.6 puts the commander in the public command zone.
+///    `session::new_game` now resolves the decks once and stores
+///    `DeckSource::Fixed`, so a redeal permutes a fixed multiset (CR 103.5).
 /// 2. CR 103.5's bottoming half is not expressible on this path at all:
 ///    `handle_keep_hand` checks `cards_to_bottom.len()` against
 ///    `PlayerState::mulligan_count`, which a rebuild always leaves at 0 because

@@ -162,6 +162,9 @@ pub fn config_for(defaults: NewGameDefaults) -> Result<LocalGameConfig, SessionE
         human_seats: [HUMAN_SEAT].into_iter().collect(),
         bot_kind: defaults.bot,
         seed: defaults.seed,
+        // A *recipe*, and it does not survive first contact with [`new_game`],
+        // which resolves it into `DeckSource::Fixed` before the first deal so a
+        // mulligan cannot re-roll the decklists (CR 103.5 — see `new_game`).
         decks: mtg_simulator::DeckSource::RandomPerSeat,
         limits: mtg_simulator::LocalGameLimits {
             max_turns: 200,
@@ -206,8 +209,39 @@ fn bots_for(cfg: &LocalGameConfig) -> HashMap<PlayerId, Box<dyn Bot>> {
 /// `seq_base` is the caller's job because only the caller can see the session
 /// being replaced: pass the outgoing session's [`PlaySession::next_seq_base`], or
 /// `0` when there is none. See [`PlaySession::wire_seq`] for why.
+///
+/// # The decks are resolved here, once, and the session keeps the decklists
+///
+/// `config_for` asks for [`DeckSource::RandomPerSeat`], which is a *recipe*, not a
+/// decklist: every card of every seat — **including the commander** — is a function of
+/// `cfg.seed`. [`PlaySession::mulligan`] rebuilds the table from a perturbed seed, so a
+/// session that kept the recipe re-rolled all four decklists and all four commanders on
+/// every mulligan, and the command zone is public (CR 903.6) — the first human playtester
+/// watched three opponents' commanders change (G2, `memory/playtest-triage-2026-08-02b.md`).
+/// CR 103.5 makes a mulligan a permutation of a **fixed** library-plus-hand multiset.
+///
+/// So the table is built exactly as before, and then the decklists it was **actually dealt**
+/// are read back out of that state (`setup::dealt_decks`) and stored as
+/// [`DeckSource::Fixed`]. From here on `self.cfg` names cards, not a recipe, and
+/// `setup::redeal` needed no change: with fixed decklists its perturbed seed reaches only
+/// the shuffle.
+///
+/// **Reading the dealt state, rather than re-resolving the config, is the point.** It
+/// changes no table — the game is built from the unmodified `cfg`, so every seed builds
+/// what it always built — and it guarantees the multiset a mulligan permutes is the one
+/// this player was dealt, rather than one re-derived from a config believed to agree.
+/// `setup::dealt_decks`'s own doc records the measurement behind that choice.
+///
+/// [`DeckSource::RandomPerSeat`]: mtg_simulator::DeckSource::RandomPerSeat
+/// [`DeckSource::Fixed`]: mtg_simulator::DeckSource::Fixed
 pub fn new_game(cfg: LocalGameConfig, seq_base: u64) -> Result<PlaySession, SessionError> {
     let (state, names) = setup::build_initial_state(&cfg).map_err(SessionError::Setup)?;
+    // CR 103.5 — pin the multiset before anything can mulligan it away. See the doc above.
+    let dealt = setup::dealt_decks(&state, &cfg).map_err(SessionError::Setup)?;
+    let cfg = LocalGameConfig {
+        decks: mtg_simulator::DeckSource::Fixed(dealt),
+        ..cfg
+    };
     let bots = bots_for(&cfg);
     let (game, _start_events) = LocalGame::start(
         state,
@@ -356,17 +390,27 @@ impl PlaySession {
     /// CR 103.5 / 103.5c — take a pregame mulligan by rebuilding the table from
     /// a perturbed seed (`setup::redeal`).
     ///
-    /// **Whole-table rebuild, and its two limitations are real.** `setup::redeal`
-    /// documents them: the rebuild is *not* invisible to the other seats (CR
-    /// 903.6 puts every commander in the public command zone, and a rebuild
-    /// re-rolls them), and it cannot represent a partially-decided table (each
-    /// seat has its own CR 103.5c mulligan count; one `(seat, count)` signature
-    /// has nowhere to record that seat 2 already kept). `redeal`'s doc says the
-    /// per-seat model "belongs with the Session 5 play-server pregame flow" —
-    /// this session keeps the whole-table rebuild, because a per-seat model needs
-    /// a second decision channel (each bot seat must be *asked*), which is more
-    /// than a small addition and would be the first thing in this milestone to
-    /// need a decision the engine does not already offer.
+    /// **The decklists survive it, and that is not incidental** (G2,
+    /// `scutemob-187`): [`new_game`] resolved `DeckSource::RandomPerSeat` into
+    /// `DeckSource::Fixed` before the first deal, so the perturbed seed
+    /// `setup::redeal` builds from reaches only the shuffle. Every seat keeps the
+    /// same 99 and the same commander (CR 103.5, CR 903.6); what changes is the
+    /// library order and therefore the hands. Reading `self.cfg` — rather than
+    /// re-deriving a config — is what carries that property here, so a future
+    /// edit that rebuilds a config in this function reopens the defect.
+    ///
+    /// **The whole-table rebuild's remaining limitations are real.**
+    /// `setup::redeal` documents them: it still redeals *every* seat rather than
+    /// just this one (invisible to the other players, since hands are hidden —
+    /// Architecture Invariant 7 — but a bot that had a hand gets a different
+    /// one), and it cannot represent a partially-decided table (each seat has its
+    /// own CR 103.5c mulligan count; one `(seat, count)` signature has nowhere to
+    /// record that seat 2 already kept). `redeal`'s doc says the per-seat model
+    /// "belongs with the play-server pregame flow" — this session keeps the
+    /// whole-table rebuild, because a per-seat model needs a second decision
+    /// channel (each bot seat must be *asked*), which is more than a small
+    /// addition and would be the first thing in this milestone to need a decision
+    /// the engine does not already offer.
     ///
     /// **CR 103.5's bottoming half is not expressible here either.** After the
     /// n-th mulligan a kept hand puts `n - 1` cards on the bottom, and
