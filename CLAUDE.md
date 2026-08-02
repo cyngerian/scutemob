@@ -91,25 +91,11 @@
   (OOS-DP7-11 + OOS-DP9-13 — the SR-19 gate reports success while checking nothing; test-only, 0
   flips; brief in `memory/primitives/seed-rerank-2026-07-27.md`). Older queue history (the PB-OS,
   PB-RS and PB-DP chains) is rotated to the 2026-08 archive.
-- **Tests (branch pin, SIM-3 `scutemob-177`)**: **4,257 passing / 0 failing / 5 ignored**, +10
-  over the **4,247** merge-base baseline at `f40c9fb9`. All ten are the new `#[cfg(test)] mod
-  tests` in `crates/simulator/src/invariants.rs` — the file had none across 306 lines — and
-  every one was watched failing under a deliberate revert (a **9-revert** matrix: R1–R7 each
-  fail exactly one test, R8/R9 cover the over-firing direction). The older pins below are the
-  pre-SIM-3 snapshot.
-- **Tests (branch pin, UI-2 `scutemob-178`)**: **4,218 passing / 0 failing / 5 ignored**, +33
-  over the **4,185** merge-base baseline at `8cad9c36` measured on this branch before any edit.
-  Split: 8 simulator unit tests (eligibility mirror, `CantBeSacrificed`, two-sided offer
-  suppression incl. the command-zone loop, the F4-capped `max_count` record, Squad last-wins),
-  4 params tests, 9 play-server unit tests (incl. the two duplicate-entry 400s), 4 end-to-end
-  HTTP probes, 7 roster-gate tests, and 1 bot-path test. Every load-bearing one watched failing
-  under a deliberate revert. The older pins below are the pre-UI-2 snapshot.
-- **Tests (branch pin, SIM-2 `scutemob-176`)**: **4,214 passing / 0 failing / 5 ignored** at close,
-  **+29** over the **4,185** merge-base baseline measured in a clean worktree at `8cad9c36` — 24 in
-  `crates/simulator/tests/sim2_mana_intelligence.rs` (every one watched failing first, and each fix
-  proven guarded by a **13-revert** discrimination matrix) plus 5 roster rows in
-  `sim2_mana_source_roster.rs`.
-- **Tests**: **4,124 passing / 0 failing / 5 ignored** on main at the S8+DX6 collect (`cb0755bf`),
+- **Tests**: **4,263 passing / 0 failing / 5 ignored** on main at the wave-4 collect
+  (`b76b1df4`, 2026-08-02) — the full playtest-successor run 174–181 landed +139 over the 4,124
+  S8+DX6 baseline. Per-batch branch pins for the run are rotated to
+  `memory/archive/claude-md-changelog-2026-08.md`. Earlier pin:
+  **4,124 passing / 0 failing / 5 ignored** on main at the S8+DX6 collect (`cb0755bf`),
   measured on the combined tree — consistent with the disjoint branch pins (4,097 `scutemob-173`,
   4,099 `scutemob-172`). Branch-pin detail: **4,099 passing / 0 failing / 5 ignored** on branch
   `scutemob-172` at PB-DX6 close (+33 over the **4,066** merge-base baseline at `f20823b1`, measured
@@ -229,310 +215,28 @@
 - **Recurrence rule** — future `/collect` and milestone-close bookkeeping appends its detailed PB/SR
   narrative to that archive file (newest first), and updates only a one-paragraph snapshot delta
   here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
-- **Last Updated**: 2026-08-02 — **UI-3 SHIPPED** (`scutemob-180`): the playtest's UX/layout
-  items, which the triage filed under *"Not verified (by design)"* because they are feature
-  work rather than claims. **Zero engine lines** (`git diff main -- crates/engine/src
-  crates/card-types/src crates/card-defs` empty); PROTOCOL **33** / HASH **70** gate-EXECUTED
-  unmoved; tests **4,247 → 4,253 / 0 / 5**; 0 card-def edits, coverage untouched.
-  **The batch's recurring shape is that the data was already there and nothing read it.**
-  Combat is the cleanest case: `StateViewModel::combat` has carried attacker→defender and
-  blocker assignments since **M9.5**, seat-redacted by `redact::redact_combat`, and
-  `CombatView.svelte` has existed just as long — but the play client composed
-  `$viewer/StateView.svelte`, which does **not** include it (the replay viewer wires the two
-  together in its own `App.svelte`). So "not clear which card are attacking which player" was
-  never a missing feature; it was two existing pieces that had never been introduced. Rendering
-  it exposed a live defect in the shared component: `AttackerView::target`'s doc said
-  `"planeswalker:<id>"`, `formatTarget` believed it, and an attacked planeswalker displayed as
-  **`PW #Chandra, Torch of Defiance`** — in the replay viewer too. `build_combat_view` always
-  wrote a *name*, and `redact_combat` substitutes `FACE_DOWN_NAME`, which is only coherent for a
-  name field; **the comment was wrong and the code that trusted it was wrong with it.** Fixed in
-  place. The **event feed** was sparse for the same class of reason, one layer down:
-  `event_view_for` had ~11 rendered arms and a `_ =>` catch-all emitting the bare serde variant
-  name with no player and no card, and *every* item the user listed — taps, ETB, deaths, exiles,
-  counters, triggers, resolutions, attacks, blocks, damage — landed in it. **49 prose arms**
-  added, each identity routed through `viewer_may_identify` (no arm reads `state.objects()`),
-  plus `EventView.tier` assigned **server-side** in a match on the variant with a documented
-  `_ => Game` default. The client deliberately does not classify by `kind` substring — it does
-  that only to pick a *colour* — because a stale client-side list over ~141 variants would
-  silently hide a whole class of event behind a filter chip, which is worse than no filter.
-  **Layout** is play-local (`PlayBoard.svelte`, `SeatCard.svelte`); `StateView.svelte` is
-  untouched, because every requirement here is the opposite of what a step-debugger wants (it
-  must keep rendering a dead player's board — stepping backwards past an elimination is normal
-  there). All four "stay in place" requests fall out of **one** flex arrangement rather than
-  four `position: sticky` strips sliding under each other, and the 2×2 grid is `auto-fit`, so
-  two survivors reflow to full width with **no code branch on the count**. Commander
-  hover-preview was measured, not assumed: the command zone was the **only** zone without
-  `cardTooltip`. **Pass-until** is entirely client-side — ordinary `PassPriority` submissions
-  over the existing route, no new endpoint, no seed moves — and its load-bearing property is
-  that it **stops at any non-`Priority` decision** rather than answering it, since answering a
-  cleanup discard with a default is the defect UI-1 existed to delete. **The sharpest lesson is
-  about a fixture, not a feature**: the combat probe first ran on `COMBAT_SEED` and passed while
-  checking almost nothing, because that seed offers **one** eligible attacker — "attacker →
-  defender" collapses to "there is a defender", and a bug swapping two attackers' defenders
-  would have passed. A sweep of `seed` ∈ 0..24 found **only seed 21** offers two eligible
-  attackers (every seed offers three defenders, which is just CR 506.2); new pin
-  `UI3_SPLIT_COMBAT_SEED`, and **the split is asserted rather than reported**, so a re-deal
-  fails loudly instead of silently reverting to the weaker property. Every new test watched
-  failing under a deliberate revert, two of them re-verified independently of the agent that
-  wrote them. **S6 method both ways**: play frontend 151 → **155** modules, 0 warnings; replay
-  viewer **142 modules unchanged** with a **byte-identical CSS bundle hash**, its JS differing
-  by 10 bytes — exactly the one deliberate `formatTarget` fix. Seeds **OOS-UI3-1..4** filed in
-  `docs/audits/decision-point-audit.md` §8.1; the first is **nine wrong CR citations in
-  `events.rs` doc comments**, all in the renumbered 701.x keyword-action block, which survived
-  precisely because every wrong number points at a *real* keyword action. **The fix cycle found
-  that the 2×2 grid was not 2×2**: `repeat(auto-fit, minmax(22rem, 1fr))` packs as many tracks
-  as *fit*, and four boards need ~88rem, so any wider display got a squeezed **1×4** row with
-  empty space to the right — verbatim the complaint the grid exists to answer. The idiom was
-  chosen for the dead-player reflow, which it delivered with no code branch, while silently
-  failing the headline requirement; with no frontend test harness (plan §8 R7) the only
-  detector was reading it, and the corroboration was a `--cells` custom property set inline and
-  consumed by **no CSS rule** — an unfinished hook sitting in the file. **A CSS idiom that
-  solves the requirement you were thinking about can fail the one you started from.** Same
-  family, same cycle: `.top-dock` was the one uncapped sibling of two capped ones, and it hosts
-  every picker. One review HIGH was **false** and not actioned (it dropped the
-  `ctx.stackDepth = depth` re-baselining line when quoting). Limitations 21–25 in
-  `tools/play-server/README.md`; handoff in `memory/workstream-state.md`.
-- **Prior**: 2026-08-02 — **SIM-3 SHIPPED** (`scutemob-177`): playtest-triage **F6
-  CLOSED**, and with it the **triage is fully closed — OPEN = none**. The `stack_consistency`
-  invariant compared two id namespaces CR 400.7 guarantees will differ, so it fired on every
-  spell and every ability in a healthy game. M11-local S8 had already diagnosed that and
-  rewritten the check; **this batch found the rewrite carried a false positive of its own, on
-  the exact premise it stated in writing.** S8's doc block claimed the four engine sites that
-  move an object into `ZoneId::Stack` "all end in that same `Spell` kind";
-  `casting.rs::handle_cast_spell` moves the card **first** and then branches on
-  `cast_with_mutate`, so a mutate cast (CR 702.140a) puts a card in the Stack zone under a
-  `MutatingCreatureSpell` kind and the check reported it as an orphan every time. **Same shape
-  as `OOS-SIM1-3` one and two batches earlier — an enumeration is only as complete as the
-  category it names**, and here the category was "kinds that obviously put a card on the
-  stack", read off variant names. Classification is now `stack_card_of`, an **exhaustive match
-  over all 27 `StackObjectKind` variants**: a new variant is a compile error until someone
-  classifies it, the forcing function SR-5 already applies to `KeywordAbility`. Two properties
-  the old set comparison could not express were added and measured — **MR-M11-14 CLOSED** (no
-  two non-copy stack objects may claim one card, CR 400.7; its deferral had asked for a
-  measured run and this batch was already measuring) and **order** (structurally guaranteed,
-  and the `/review` verified that argument rather than accepting the clean runs as proof).
-  **Measured A/B**, old check restored verbatim from `222ff84f^`, same builds and seeds:
-  scripted playthrough seed 1 **720 → 0**, `mtg-fuzzer --games 5 --seed 1 --max-turns 200`
-  **8,781 → 0**, with every other check byte-identical across both sides — **8,781 of that
-  run's 9,719 violations, 90.3%, were this one check being wrong.** Both prose docs corrected
-  (`mtg-engine-simulator.md` **and** `mtg-engine-runtime-integrity.md`; S8 had corrected
-  neither), and correcting them turned up the same defect class one line over: **two of the
-  twelve documented invariant checks have never been written** (legal-action soundness — which
-  is the SR-38 property — and SBA idempotency), a third is a no-op, and the parallel list in
-  `runtime-integrity.md` has **four** that exist nowhere (`OOS-SIM3-2`). **The two findings
-  that outlive the batch**: **OOS-SIM3-1** — `OOS-UI2-1`'s "`mtg-fuzzer` has never cast a
-  spell" is right about the mechanism and wrong about the **horizon**; at the fuzzer's default
-  `--max-turns 200`, **150 distinct cards reached `ZoneId::Stack` across 5 games, the earliest
-  on turn 143**, so the land-only game is a threshold below ~turn 140 rather than an absolute,
-  and UI-2 measured at a cap of 80. And **OOS-SIM3-3** — every "N violations" figure this
-  project has ever quoted is **checkpoint-weighted**: 929 `no_orphaned_tokens` reports come
-  from **183 distinct tokens**, 9 `player_consistency` reports from **1** condition. Tests
-  **4,247 → 4,257 / 0 / 5**; PROTOCOL **33** / HASH **70** gate-EXECUTED unmoved (the
-  criterion's "32" was stale again); `decision_gate` 18/18; **zero engine lines** — the only
-  source file in the diff is `crates/simulator/src/invariants.rs`. Seeds **OOS-SIM3-1..5**
-  filed in `docs/audits/decision-point-audit.md` §8.1; **OOS-SIM3-5** is the one to read
-  first — `Effect::CounterSpell` drops `MutatingCreatureSpell` into its `_ =>` arm *after*
-  removing the stack object (stranding the card in `ZoneId::Stack` forever) and, given a
-  **copy**, moves the *original's* card; both are engine defects that will legitimately trip
-  the new check, and neither is in this batch's evidence. Handoff:
-  `memory/workstream-state.md`.
-- **Prior**: 2026-08-02 — **UI-2 SHIPPED** (`scutemob-178`): playtest-triage **F9
-  CLOSED** for the two cost kinds it names — a human can now be *asked* which creature to
-  sacrifice, and can *choose* to pay Squad. **The request wire already existed and had for
-  three sessions**: `CastSpellData.additional_costs` covers all sixteen kinds and
-  `ActionParamsDto` deserialized it, so a hand-crafted POST could pay a sacrifice before this
-  batch. What was blind was the **offer** — `StubProvider` had zero references to
-  `spell_additional_costs` or Squad, so Life's Legacy was offered on mana affordability alone
-  and `casting.rs:3311` refused it (the human's 422, an SR-38 violation), and a Squad creature
-  always cast at `count: 0` with the optional cost silently lost. `LegalAction::CastSpell`
-  gains an `AdditionalCostPlan` whose eligibility mirrors `casting.rs:3300-3369` **gate for
-  gate** — and deliberately NOT `effects::eligible_sacrifice_targets`, which also checks
-  `is_phased_in` and would offer a different set from the one the engine validates. **A
-  required cost with nothing eligible now suppresses the whole offer**
-  (`offerable_cast_plan`, one helper for both cast loops); `ActionOptionView.costs` +
-  `CostPicker.svelte` render it between `ValuePrompt` and `TargetPicker`, and the stage
-  ordering's premise is *checked* by roster gate **R5** rather than assumed. **The card the
-  playtest actually hit needed a def repair the brief did not anticipate**: `galadhrim_brigade`
-  shipped `Complete` and deck-legal with `KeywordAbility::Squad` and **no
-  `AbilityDefinition::Squad { cost }`**, so every non-zero count was refused — CARDS-2's shape
-  again, knowledge present per-def with nothing able to fail. **R3b** now pins marker-set ≡
-  cost-set both ways. **The fix cycle's finding is the sharpest**: the cost helper **summed**
-  multiple `Squad` entries where `casting.rs` **assigns** (last wins), so a two-entry
-  submission made the auto-tap reach for more mana than the engine charges and the cast was
-  refused for want of mana — a 422 after a clean offer, the exact shape the batch exists to
-  delete; now mirrored, with duplicates refused at the 400 boundary because the engine
-  resolves the two kinds in **opposite** directions in silence. **The two findings that
-  outlive the batch, both measured**: **OOS-UI2-1** — *`mtg-fuzzer` has never cast a spell*
-  (`bin/fuzzer.rs` never shuffles its libraries and `random_deck` appends the basics last, so
-  5 games × 80 turns gave **25,964 hand-card observations and zero non-lands**); the 360-game
-  A/B came back byte-identical for that reason and is reported as worthless rather than
-  banked, **which means every "fuzz parity" claim in this project's history is a claim about
-  a land-only game**. And **OOS-UI2-2** — `HeuristicBot` burns its mana in the upkeep where it
-  cannot spend it, so a whole-game bot test passes by never reaching what it tests. Tests
-  **4,185 → 4,218 / 0 / 5**; PROTOCOL **33** / HASH **70** gate-EXECUTED unmoved (the
-  criterion's "32" was stale, as UI-1 also found); `decision_gate` 18/18; coverage unmoved at
-  **1,133/1,803 = 62.8%**, 0 completeness flips. **NOT zero engine lines**: 9 insertions / 1
-  deletion, one data-only `sites:` row on `A::Squad` in `ability_definition_registry.rs`,
-  which the SR-15 gate demanded once the provider read the cost variant — `SCAN_ROOTS`
-  includes `crates/simulator/src` by SR-20's design and `A::Bloodrush` already carries the
-  identical row. Seeds **OOS-UI2-1..5** filed in `docs/audits/decision-point-audit.md` §8.1;
-  limitations 18–20 in `tools/play-server/README.md`; handoff in `memory/workstream-state.md`.
-- **Prior**: 2026-08-02 — **SIM-2 SHIPPED** (`scutemob-176`): playtest findings **F3 +
-  F4 + F5 CLOSED**, and the batch's headline is that **the mana solver counted SOURCES, not
-  MANA**. `produces` was expanded per unit of mana and the expansion then never read, so Sol
-  Ring was one mana — which over-tapped in one direction (Sol Ring + two Forests for `{2}{G}`,
-  a mana stranded and destroyed by CR 500.4) and, far worse, **under-offered** in the other: a
-  `{2}` spell with only a Sol Ring untapped solved to `None`, so `can_afford` never showed the
-  human the cast at all. **A wrong count in a payment planner does not misprice a spell; it
-  deletes it from the game.** Auto-tap was separately all-or-nothing — pool covers the whole
-  cost → tap nothing, anything less → solve for the **entire printed cost** with the pool never
-  subtracted — so 2 floating + a `{3}` cast tapped three more sources.
-  `mana_solver::solve_mana_payment_with_pool` now subtracts the pool in `ManaPool::can_spend`'s
-  own order and solves the residual; the early return is the residual-is-zero *case* of the
-  general rule rather than a special case beside it, `advance()`'s bot path calls the same
-  helper (closing the **bot half of OOS-M11-8**, which S8 had declared closed on a fix that only
-  ever ran on the human path — latent, since no shipped bot announces X > 0, but open), and
-  `can_afford` asks the same question once instead of a pool shortcut OR a whole-cost solve
-  **with a gap between them** (a player with `{G}` floating and one Forest up was told a
-  `{1}{G}` spell was uncastable). `HeuristicBot`'s `TapForMana` drops 5 → **0**, below
-  `PassPriority`: every mana-consuming action already outscored 5, so a tap was only ever
-  *chosen* when it was the sole alternative to passing — which is exactly the empty-upkeep
-  tap-out and nothing else. **The most instructive finding is about a known gap's own
-  description**: the layer half of `OOS-M11-2` was documented with a *granted*-ability example
-  (Cryptolith Rite) and treated as theoretical; the moment source selection moved, the S8
-  scripted playthrough reddened on seed 42 with `"object ObjectId(487) has no mana ability at
-  index 0"` — `layers.rs` clears `mana_abilities` for a **face-down** permanent (CR 707.2), an
-  ordinary morph, and the solver was reading base characteristics. **A gap illustrated by an
-  exotic example gets triaged as exotic.** Resolving layers cost nothing measurable (fuzzer 6.8 s
-  both sides, 60 games), which is why the gather is *not* hoisted. Also closed: **OOS-CARDS2-9**,
-  which lived in three source comments and was **never filed** — and whose own statement of the
-  fix ("one place: make the solver ask whether the ability is activatable") was right about the
-  affordability half and silent about the **offer** half, where `legal_actions`'s `TapForMana`
-  loop checked `life_cost` and nothing else; one predicate, `tap_ability_is_activatable`, now
-  serves both, and the play-server driver's `KNOWN_FALSE_OFFERS` entries for it are dead.
-  **Fuzzer A/B**: 96/100 games byte-identical, 4 differing only in command count, violations
-  0 → 0. **Two engine findings carried out unfixed and both worth attention**: `OOS-SIM2-6`
-  (HIGH) — `calculate_characteristics` recurses without bound through `is_effect_active` →
-  `check_static_condition` → `expect_characteristics`, and `indomitable_archangel` (`Complete`,
-  deck-legal) makes it **unconditional**, so any game it reaches is an unrecoverable stack
-  overflow; very likely the mechanism behind `OOS-M11-3`/`OOS-DP3-9`, which had the symptom and
-  no cause — and `OOS-SIM2-5`, unchecked `i32` P/T arithmetic in `layers.rs` that Devilish
-  Valet's doubling overflows at 2^30 (panic in debug, **silent wrap in release**). **The fix
-  cycle found the batch's sharpest lesson in its own comments**: four of them asserted that
-  `plannable_tap_ability` mirrored *every* rejection `handle_tap_for_mana` makes, while an
-  entire class — CR 605.3 stax restrictions, i.e. an opponent's **Collector Ouphe** stopping a
-  Sol Ring — was mirrored in neither the solver nor the offer loop, so `can_afford` counted the
-  Ring and the cast was refused. Same shape as `OOS-SIM1-3` one batch earlier: **an enumeration
-  is only as complete as the category it names** — there about enum variants, here about the set
-  of rejections inside one function. Fixed by reusing the provider's own
-  `is_ability_restricted_by_stax`. The cycle also killed a "conservative" claim that was wrong
-  at its endpoint: an SR-36 **scaled** ability's `1`-per-colour marker was called a safe
-  under-count, but `rules/mana.rs` adds `resolve_amount(..).max(0)` with no error, so Itlimoc
-  with no creatures out produces **nothing** while the marker promises one mana — an over-credit
-  and a refused cast; scaled abilities are now excluded from planning outright. Tests
-  **4,185 → 4,214**; PROTOCOL **33** / HASH **70** gate-executed unmoved (the criterion's "32"
-  was stale); coverage unmoved, 0 card-def edits. `TARGET_SEED` re-derived 1 → **13** (second
-  time in two days, by the rule the pin's own comment states). **Diff is `crates/simulator` (4 source
-  files), one seed pin in `tools/play-server`, docs/memory, and ONE gate-mandated data line in
-  `keyword_registry.rs`** — SR-5 greps the source tree, so the solver's new CR 302.6 branch on
-  `Haste` must be declared; no engine behaviour changes. Seeds **OOS-SIM2-1..7** filed. Full
-  evidence: `memory/primitives/sim2-mana-intelligence-2026-08-02.md`.
-- - **Prior**: 2026-08-02 — **CARDS-2 SHIPPED** (`scutemob-181`): **SR-37 exists, and
-  playtest findings F1 + F2 are CLOSED.** Until this batch, **nothing checked that a card
-  definition's mana cost, power, toughness or type line matched the card it claims to be** —
-  `completeness` gates whether *abilities* are authored and `validate_deck` refuses a
-  non-`Complete` card, and both were silent about the four most mechanically checkable fields in
-  a def. `tyrranax_rex` shipped `Complete`, passed every test, and cost three mana less than
-  printed on a seven-drop; a human found it by playing the game. The gate is three pieces:
-  `tools/card-field-dump` enumerates `all_cards()` (SR-36, never grep),
-  `tools/refresh-card-fidelity-fixture.py` joins `cards.sqlite` and copies printed strings
-  **verbatim**, and `core::cards2_printed_field_fidelity` is **the only place equality is
-  decided** — the fixture is committed because the database is gitignored and absent in CI, and
-  the Python deliberately normalises nothing, or the two sides would encode two opinions and
-  drift. **Measured yield: 39 real defects across 1,804 defs** (17 costs / 5 P/T / 16 type lines
-  / 1 duplicate name), errors running both directions — transcription noise, not one cause. The
-  gate's raw first run said 51; the difference is not bookkeeping but the gate learning what a
-  defect is (six false mismatches from its own notation, six more that were the design working).
-  R2 **reproduced the F2 triage table exactly, card for card**. **Boon Satyr** repaired on all four
-  clauses including the printed "+4/+2" that was **never authored at all** on a `Complete` def;
-  it is two layer-7c statics on `EffectFilter::AttachedCreature`, **the shape Rancor already
-  used** — the machinery was never missing, nobody reached for it. Its cost defect was a
-  *transposition*, so mana value was unchanged and no arithmetic check could ever have caught
-  it, which is why the gate compares structure. Two further `Complete` defs turned out to be
-  implementing a **different card's abilities** (`backup_agent`: Backup 1 + Lifelink;
-  `necron_deathmark`), both caught because *more than one* printed field was wrong — a reliable
-  signal for "authored from a misremembered card" — and both repaired without demotion. **The
-  durable lesson is about the seed pins**: this batch flipped **zero** completeness markers and
-  still re-dealt every seeded game, because `deck.rs::random_deck` keys its commander draw off
-  `Complete` **AND Legendary AND Creature** and fills by **colour identity** (i.e. the mana
-  cost) — so a *type-line* repair moves the deal. Every pin's comment said "re-read when a batch
-  flips a marker"; **that guard was too narrow, and all of them now say the pins are a function
-  of the whole corpus.** Re-deriving them also found that
-  `test_x_value_is_forwarded_to_cast_spell_data` had silently retargeted from a spell onto an
-  activated ability (a predicate broader than its purpose does not fail when the fixture moves —
-  it tests something else), and that four of ten candidate seeds reproduce **F4** (offered a
-  cast the engine then refuses), and that **an Aura is offered with `target_min: 0` and then
-  refused by the engine** — its target requirement lives in `KeywordAbility::Enchant(...)`, which
-  `casting.rs` special-cases (CR 303.4a) and the provider never reads, so a human clicking any
-  Aura in the browser client gets a 422 (**OOS-CARDS2-4**; the same shape as CARDS-1's equip bug,
-  one link earlier in the chain). Golden scripts 177/164 re-derived — both had been written to
-  *what the def said, not to the card* — and 163 **retired**, its subject having ceased to exist.
-  R5's duplicate-name finding had sat in `marker-sweep-2026-07-16.md` for **seventeen days** with
-  the words "one of the two should be deleted", because no gate could fail; that is the whole
-  point of the batch. Two further `Complete` defs turned out to implement text on **no card at
-  all** and were **honestly demoted** rather than half-repaired (`cyber_conversion` → inert,
-  `exalted_angel` → partial; neither is expressible — seeds **OOS-CARDS2-5/6** name the exact
-  missing primitives, and note that CR 702.15a lifelink is a *static* ability while Exalted
-  Angel's printed clause is a *triggered* one that can be Stifled). **The fix cycle's finding is
-  the sharpest thing in the batch**: `tyrranax_rex` — the gate's own motivating example — shipped
-  `Complete` declaring `KeywordAbility::Ravenous`, which is **on no printing of the card**, while
-  omitting haste, Toxic 4 and "can't be countered"; and a golden script certified the invented
-  keyword. Worse, that script had already FAILED earlier in this batch when the cost was
-  corrected, and was re-baselined by recomputing its mana pool **without re-reading the oracle** —
-  the exact failure the batch had named in writing one commit before repeating it. Repaired in
-  full (every primitive existed); script 177 retired alongside 163. **The durable rule is
-  narrower and harsher than the heuristic above: a wrong printed field is reason to re-read the
-  whole oracle, not to fix the field.** Two more `Complete` defs (`braided_net`,
-  `windbrisk_heights`) carried stale "DSL gap"/"deferred" notes for primitives that had since
-  landed — the third and fourth instances of that pattern here — and
-  `completeness_deviation_scan` missed both because its needle set has no entry for "DSL gap".
-  Tests **4,185 / 0 / 5** (post-merge with SIM-1);
-  **0 engine lines**; PROTOCOL **33** / HASH **70** gate-executed unmoved; `decision_gate` 18/18.
-  **4 completeness flips, ALL demotions** — coverage **1,133/1,803 = 62.8%**, down from
-  1,137/1,804 = 63.0%. **The number went down because the corpus got truer**, exactly as PB-DX4
-  recorded: two defs implementing text that exists on no card (`cyber_conversion`,
-  `exalted_angel`), one whose two remaining printed clauses have no expression (`braided_net` — its
-  note first claimed six missing primitives and a reviewer found four of them to exist), one
-  whose mana ability has no `Cost` variant (`birchlore_rangers`). The denominator also fell by
-  one, because a double-counted card stopped being counted twice. Seeds **OOS-CARDS2-1..11**
-  filed. **Full evidence:
-  `memory/card-authoring/cards2-field-fidelity-2026-08-02.md`**; gate + refresh procedure:
-  `docs/engine-invariants.md` (SR-37).
-- - **Prior**: 2026-08-02 — **UI-1 SHIPPED** (`scutemob-174`): the browser client can now
-  ANSWER a blocking decision instead of echoing the engine's default. Playtest-triage **F8** —
-  "it discards for me", "it never asks me to scry", "the tutor always fetches the same card" are
-  one mechanism at three layers. `ActionOptionView.decision` carries a generic
-  `{question, prompt, answer_field, answer}` envelope whose `answer` is one of four **shapes**
-  (Subset / PickOne / Partition / Slots); a client dispatches on the shape, not the question,
-  which is why **OOS-DP8-2** (`ChooseTriggerTargets`, the identical gap) reused the CR 601.2c
-  `TargetSlotView` with no new picker and no new encoding. `ActionParams`/`ActionParamsDto` gain
-  the three answer fields; `params.rs` allowlists the three variants and still submits the
-  engine's default when nothing is announced, so **no recorded fuzz seed moves** (OOS-DP8-1).
-  Four HTTP probes, each proven to discriminate by reverting the fix. **Zero engine lines**
-  (empty diff over `crates/engine/src` + `crates/card-types/src`); PROTOCOL **33** / HASH **70**
-  gate-verified unmoved (the criterion's "32" was stale — PB-DX6 bumped it before this fork).
-  Tests **4,124 → 4,138**; coverage unmoved at 63.0%. A **fourth Invariant-7 channel** is opened
-  deliberately: `view::question_card_label` renders a real name for a library card the engine has
-  told this seat to look at (CR 701.22a/23a/25a), because `StateViewModel` models no library
-  contents. **Its fix-cycle HIGH is the durable one** — the doc block cited a gate test that did
-  not exist, and the premise that test would have asserted (`pending.player == session.human`) was
-  enforced *nowhere*, holding only by arithmetic on a one-element set. `seat_view` now filters on
-  it and the gate exists and is two-sided. Generalisable: **when a comment calls an argument
-  "structural", check the structure is in the code and not in the configuration.** Still open: the
-  **TUI** halves of OOS-DP7-6/DP8-2/DP9-7, and no picker has an automated test. **Full narrative:
-  `memory/archive/claude-md-changelog-2026-08.md`**; limitations `tools/play-server/README.md`
-  14-17.
-- - **Prior**: 2026-08-02 — **PB-DX6 SHIPPED** (`scutemob-172`, merge `cb0755bf`; redone from
+- **Last Updated**: 2026-08-02 — **THE PLAYTEST-SUCCESSOR RUN IS COMPLETE: scutemob-174..181 all
+  SHIPPED in one coordinated session** (four waves of two workers; merges `f28df527` UI-1,
+  `d04f42a1` CARDS-1, `83bfdba5` SIM-1, `8cad9c36` CARDS-2, `b30c99f4` SIM-2, `f40c9fb9` UI-2,
+  `a23f0be0` SIM-3, `b76b1df4` UI-3). **The 2026-08-02 playtest triage is fully closed — F1–F10,
+  OPEN = none.** Highlights: the browser answers blocking decisions (UI-1) and additional costs
+  (UI-2, Sacrifice + Squad); SR-37 printed-field fidelity gate exists and repaired 45 wrong costs
+  (CARDS-2); the mana solver counts MANA not sources and solves the residual against the pool
+  (SIM-2); commanders are castable from the command zone with tax-aware auto-tap (SIM-1);
+  `stack_consistency` no longer false-positives (SIM-3, 8,781→0 in fuzz A/B); 17 equip defs carry
+  their CR 702.6a target (CARDS-1); 4-board layout fixed (UI-3). PROTOCOL **33** / HASH **70**
+  unmoved by every batch, gate-executed each time. Coverage **62.8%** (1,133/1,803) after CARDS-2's
+  honest demotions. Two cross-branch reconciliations happened at collect, not in any worker: the
+  UI-2/SIM-2 bot-path conflict (one auto-tap path, both semantics) and UI-2's F4 pin flipped 0→1 by
+  its own written instruction when SIM-2 closed F4 in parallel. **Standing findings worth reading
+  before trusting old evidence**: `OOS-UI2-1` — the fuzzer has NEVER cast a spell (every historical
+  "fuzz parity" claim is about a land-only game); `OOS-SIM2-6` (HIGH) — unbounded
+  `calculate_characteristics` recursion, a hard crash reachable from a legal deck
+  (`indomitable_archangel`); `OOS-SIM2-5` — silent i32 P/T wrap in release. Seeds filed:
+  OOS-SIM1-1..4, OOS-SIM2-1..7, OOS-UI2-1..5, OOS-CARDS1-1..3, OOS-CARDS2-1..11, OOS-SIM3-*.
+  **Full per-batch narratives: `memory/archive/claude-md-changelog-2026-08.md`** (rotated at this
+  collect per the recurrence rule); handoffs in `memory/workstream-state.md`.
+- **Prior**: 2026-08-02 — **PB-DX6 SHIPPED** (`scutemob-172`, merge `cb0755bf`; redone from
   scratch after the wave-7 crash, staged 0/A-F): **OOS-RS2-1 + OOS-DP4-1 CLOSED** —
   `handle_turn_face_up` paid a raw unflattened `def.mana_cost` in **all three** `TurnFaceUpMethod`
   arms (the brief named one), so every hybrid/Phyrexian pip in a face-up flip was free in release (a
