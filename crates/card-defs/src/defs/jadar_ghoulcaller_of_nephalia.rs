@@ -42,9 +42,11 @@ pub fn card() -> CardDefinition {
             // with decayed". Checked at queue time (rules/turn_actions.rs:781, comment
             // names this exact card) and re-checked at resolution
             // (InterveningIf::CardDef, PB-DX1). Checked against LAYER-RESOLVED
-            // characteristics (effects/mod.rs's `expect_characteristics` call inside the
-            // YouControlNOrMoreWithFilter evaluator), so a Humility-style effect that strips
-            // Decayed correctly re-enables the trigger.
+            // characteristics — an intervening-if is evaluated OFF the layer walk, so
+            // `rules::layers::characteristics_for_condition` (PB-DX19) resolves layers for
+            // it — so a Humility-style effect that strips Decayed correctly re-enables the
+            // trigger. That sentence was briefly FALSE mid-PB-DX19, when the recursion fix
+            // read base characteristics on every path; the re-entrancy guard restored it.
             AbilityDefinition::Triggered {
                 once_per_turn: false,
                 trigger_condition: TriggerCondition::AtBeginningOfYourEndStep,

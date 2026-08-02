@@ -742,3 +742,76 @@ fn the_deviation_is_scoped_to_the_layer_walk_only() {
          characteristics, which is the regression this guard exists to prevent"
     );
 }
+
+/// **The card-level probe the plan promised (§8.5) and the first pass omitted.**
+///
+/// Everything above proves saturation with synthetic `LayerModification`s. This one
+/// uses the real `devilish_valet` definition — `Complete`, deck-legal — and the real
+/// substitution path, so the claim "an unbounded doubling chain reaches `i32::MAX`
+/// in about 31 triggers" rests on the shipped card rather than on a hand-built
+/// effect.
+///
+/// CR 608.2h: each trigger resolves `EffectAmount::PowerOf(Source)` to a concrete
+/// `ModifyPower(v)` at resolution, so the modifier locks in at the creature's
+/// *current* power — power doubles per trigger. Starting from 1, the 31st doubling
+/// leaves `i32`.
+///
+/// Rather than resolve 31 triggers through the stack, this stacks the already-
+/// substituted `ModifyPower` effects the resolution path produces, doubling each
+/// time and clamping as the engine does; the point under test is that the layer
+/// system's accumulation saturates instead of wrapping to a negative power (which
+/// would kill the creature to CR 704.5a — a "gets huge" card that silently dies).
+#[test]
+fn devilish_valet_doubling_chain_saturates() {
+    let defs = defs_map();
+    let mut state = GameStateBuilder::new()
+        .add_player(p1())
+        .add_player(p2())
+        .object(real_card_spec(
+            p1(),
+            "Devilish Valet",
+            ZoneId::Battlefield,
+            &defs,
+        ))
+        .build()
+        .unwrap();
+
+    let valet = find_on_battlefield(&state, "Devilish Valet");
+    let base = calculate_characteristics(&state, valet)
+        .expect("live on the battlefield")
+        .power
+        .expect("Devilish Valet is a creature with power");
+
+    // Replay the doubling chain: each trigger adds the creature's CURRENT power,
+    // which is exactly what CR 608.2h substitution produces at resolution.
+    let mut current = base;
+    for i in 0..40 {
+        state.continuous_effects_mut().push_back(ContinuousEffect {
+            id: EffectId(9_300 + i),
+            source: Some(valet),
+            timestamp: 100 + i,
+            layer: EffectLayer::PtModify,
+            duration: EffectDuration::UntilEndOfTurn,
+            filter: EffectFilter::SingleObject(valet),
+            modification: LayerModification::ModifyPower(current),
+            is_cda: false,
+            affected_set: None,
+            condition: None,
+        });
+        current = current.saturating_add(current);
+    }
+
+    let chars = calculate_characteristics(&state, valet).expect("live on the battlefield");
+    assert_eq!(
+        chars.power,
+        Some(i32::MAX),
+        "40 doublings of a real Devilish Valet must saturate at i32::MAX. Before \
+         PB-DX19 this wrapped to a NEGATIVE power in --release (and panicked under \
+         [profile.fuzz]'s overflow-checks), so the card that 'gets huge' would \
+         quietly become a 0/0 and die to CR 704.5a"
+    );
+    assert!(
+        chars.toughness.unwrap_or(0) > 0,
+        "only power doubles; toughness is untouched and the creature stays alive"
+    );
+}

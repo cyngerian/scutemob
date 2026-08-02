@@ -222,7 +222,8 @@
   here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
 - **Last Updated**: 2026-08-02 — **PB-DX19 SHIPPED** (`scutemob-184`), the v3 queue's first dispatch:
   **OOS-SIM2-6 (the registry's only HIGH) and OOS-SIM2-5 both CLOSED**, and **OOS-DP3-9 /
-  OOS-M11-3's stack-overflow half closes with them, measured.** The recursion
+  OOS-M11-3's stack-overflow half closes with them** on a 0/15 → 15/15 A/B (the pre-fix aborts
+  were not individually backtrace-classified — strong evidence, not proof). The recursion
   (`calculate_characteristics` → `is_effect_active` → `check_static_condition` →
   `expect_characteristics` → back) is broken by the brief's pre-decided base-characteristics read.
   **Two premises of the seed were wrong and are corrected in its row**: the recursion is not a
@@ -238,18 +239,26 @@
   ten `+=` sites (incl. the ±1/+1 counter path every game runs), six negations, and **two `as i32`
   counter widenings**, the last being the one that mattered, since **an `as` cast is not checked
   arithmetic even under `overflow-checks`** and wrapped the counter's SIGN in every profile. Its
-  probe is the only one of six that fails by assertion, not panic. **The fix's cost is real and is
+  probe is the only one that fails by assertion, not panic. **35 arithmetic edits across two
+  files**, counted from the diff rather than asserted — the count first published was wrong twice. **The fix's cost is real and is
   pinned, not remembered**: `blinkmoth_nexus`/`inkmoth_nexus` are `Complete`-by-derive colourless
   lands that animate into *artifacts*, so an animated Nexus no longer feeds Metalcraft though CR
   613.1d says it must — asserted wrong-way-round by
   `deviation_animated_nexus_does_not_count_toward_metalcraft`, which tells the successor batch to
-  **invert** it. Ten sibling `expect_characteristics` sites are the same shape and **latent only
-  because of corpus shape** — every one of the **57** corpus occurrences of those ten variants is an
-  `activation_condition` / `unless_condition` / `intervening_if` / bare `Effect::Conditional`, and
-  **none** is a `ContinuousEffectDef.condition`, which is the only field on that path. Filed
-  `OOS-DX19-1`; fix shape is a boundary guard, NOT ten leaf edits, since several are *correct* as
-  layer-resolved. Seeds **OOS-DX19-1..4** filed. PROTOCOL **33** / HASH **70**
-  gate-executed and unmoved. Tests **4,274 / 0 / 5** (+11). Coverage **unmoved** — proven by
+  **invert** it. **The batch's first fix was itself a HIGH regression, caught by review and fixed
+  here.** `check_static_condition` is a **shared** evaluator: five callers reach it, only
+  `is_effect_active` closes a cycle, so reading base characteristics unconditionally broke the four
+  safe callers to fix the one dangerous one — `garruks_uprising`'s `min_power` intervening-if
+  silently stops firing on a counter-pumped creature (CR 613.4c), `bloodline_keeper` rejects a
+  changeling (CR 702.73a), and `mox_opal` **over**-counts a face-down manifest (CR 708.2a, the
+  false-positive direction nobody looked for). **None was visible to 4,274 passing tests** — no
+  fixture put a counter-pumped or type-changed permanent through a condition filter. The repair is
+  a re-entrancy guard, `rules::layers::characteristics_for_condition` behind an RAII
+  `LayerWalkGuard`: base inside the walk, layer-resolved outside it. It decides by SHAPE, so it
+  **also closes `OOS-DX19-1`** — the ten sibling sites — which the leaf-edit fix would have got
+  wrong in the other direction, several being *correct* as layer-resolved. The deviation's scope is
+  now the layer walk alone. Seeds **OOS-DX19-1..4** filed. PROTOCOL **33** / HASH **70**
+  gate-executed and unmoved. Tests **4,278 / 0 / 5** (+15). Coverage **unmoved** — proven by
   regenerating `tools/authoring-report.py` to a byte-identical body, *not* by an empty card-defs
   diff, since the brief itself mandated the `greymond_avacyns_stalwart` note edit (that note had
   been instructing future authors to build a second instance of this exact HIGH). `cargo fmt`

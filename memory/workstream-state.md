@@ -909,6 +909,28 @@ rewrote it with the mechanism, and that rewrite is worth more than the one-line 
   and recent-commits list differ). The generated docs were then reverted, since the numbers moved
   by nothing and committing them is pure churn.
 
+### The mistake this batch made, and what caught it
+
+**The first fix was a HIGH regression, and the tests could not see it.**
+`check_static_condition` is a *shared* evaluator with five callers; only `is_effect_active` (inside
+`calculate_characteristics`) closes the cycle. Reading `obj.characteristics` unconditionally fixed
+that one and broke the other four, all of which CR 613.1d requires to be layer-resolved:
+`garruks_uprising`'s `min_power: 4` intervening-if stops firing on a 2/2 with two `+1/+1` counters;
+`bloodline_keeper` rejects a changeling (CR 702.73a expands types *inside* the layer loop);
+`mox_opal` **over**-counts a face-down manifest (CR 708.2a — printed types are still the hidden
+card's, so this one is a false *positive*, the direction nobody thought to look for).
+
+**All 4,274 tests passed through it.** Not because coverage is thin, but because no existing test
+put a counter-pumped or type-changed permanent through a condition filter — the fixture creatures
+are plain vanilla bears. A green suite is evidence about the scenarios someone thought to write.
+
+The lesson is not "be careful". It is: **when you change a function, enumerate its callers before
+you decide what the change means.** The recursion was a property of ONE call path, and the fix was
+applied to the function. `rules::layers::characteristics_for_condition` is the repair — a
+re-entrancy guard that decides per caller — and because it decides by shape rather than per site, it
+also closed `OOS-DX19-1`'s ten siblings, which the leaf-edit fix would have got wrong in the
+opposite direction (several are *correct* as layer-resolved on their real paths).
+
 ### What the next worker should know
 
 - **The fix has a known, live cost, and it is asserted in the wrong direction on purpose.**
@@ -917,7 +939,8 @@ rewrote it with the mechanism, and that rewrite is worth more than the one-line 
   Archangel and an animated Nexus no longer feeds Metalcraft — CR 613.1d says it must.
   `deviation_animated_nexus_does_not_count_toward_metalcraft` pins that, and its message tells you
   to **invert** it rather than delete it when `OOS-DX19-2`'s CR 613.8b fixpoint lands.
-- **`OOS-DX19-1` is the one to take seriously.** Ten more `expect_characteristics` sites in
+- **`OOS-DX19-1` is CLOSED** — by this batch, after the review forced the stronger fix. Ten more
+  `expect_characteristics` sites in
   `check_condition` are the identical shape and are latent **only because of corpus shape** — all
   **57** corpus occurrences of those ten variants were enumerated and classified by field
   position: every one is an `activation_condition`, `unless_condition`, `intervening_if`, or a bare
