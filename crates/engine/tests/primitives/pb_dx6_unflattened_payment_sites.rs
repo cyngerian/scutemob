@@ -103,6 +103,8 @@ fn declare_cmd(player: PlayerId, attackers: Vec<(ObjectId, AttackTarget)>) -> Co
         attackers,
         enlist_choices: vec![],
         exert_choices: vec![],
+        hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
     }
 }
 
@@ -165,6 +167,8 @@ fn observation_a_turn_face_up_panics_in_debug_build() {
                 player: p1,
                 permanent: finks_id,
                 method: TurnFaceUpMethod::ManaCost,
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
             },
         )
     }));
@@ -272,6 +276,8 @@ fn observation_b_release_figure_pool_debit_kitchen_finks() {
             player: p1,
             permanent: finks_id,
             method: TurnFaceUpMethod::ManaCost,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect(

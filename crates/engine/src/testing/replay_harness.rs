@@ -1217,7 +1217,9 @@ pub fn translate_player_action(
                 attackers: atk_pairs,
                 enlist_choices,
                 exert_choices,
-            })
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        })
         }
         // CR 509.1: Declare blockers. Resolve creature names to ObjectIds on the
         // battlefield. The blocker is controlled by the declaring player; the attacker
@@ -2271,7 +2273,9 @@ pub fn translate_player_action(
                 player,
                 permanent: perm_id,
                 method,
-            })
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        })
         }
         // CR 701.28: Transform a double-faced permanent (Delver of Secrets, …).
         // `Command::Transform` has existed since M8; this arm did not, so `transform`

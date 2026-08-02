@@ -292,6 +292,8 @@ fn test_harness_declare_attackers_empty() {
         attackers: vec![],
         enlist_choices: vec![],
         exert_choices: vec![],
+        hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
     };
     let (state_after, _) =
         process_command(state, cmd_empty).expect("Empty DeclareAttackers should succeed");
@@ -334,6 +336,8 @@ fn test_harness_declare_blockers_basic() {
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -442,6 +446,8 @@ fn test_harness_declare_blockers_empty() {
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");

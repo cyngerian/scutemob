@@ -156,6 +156,8 @@ fn test_702_147_decayed_creature_can_attack() {
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -208,6 +210,8 @@ fn test_702_147_decayed_flag_set_on_attack() {
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -258,6 +262,8 @@ fn test_702_147_decayed_creature_sacrificed_at_eoc() {
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -333,6 +339,8 @@ fn test_702_147_decayed_sacrifice_persists_after_losing_keyword() {
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -440,6 +448,8 @@ fn test_702_147_decayed_creature_not_sacrificed_if_not_attacking() {
             attackers: vec![],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers with empty list should succeed");
@@ -544,6 +554,8 @@ fn test_702_147_decayed_no_haste() {
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -701,6 +713,8 @@ fn test_702_147_decayed_token_sacrificed_at_eoc() {
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers should succeed for Decayed token");
@@ -779,6 +793,8 @@ fn test_702_147_decayed_token_has_summoning_sickness() {
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 

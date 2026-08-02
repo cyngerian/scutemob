@@ -77,6 +77,8 @@ fn test_dethrone_basic_attacks_player_with_most_life() {
             attackers: vec![(dt_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -166,6 +168,8 @@ fn test_dethrone_tied_for_most_life() {
             attackers: vec![(dt_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -250,6 +254,8 @@ fn test_dethrone_does_not_trigger_against_lower_life() {
             attackers: vec![(dt_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -328,6 +334,8 @@ fn test_dethrone_multiplayer_four_player_most_life() {
             attackers: vec![(dt_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -417,6 +425,8 @@ fn test_dethrone_multiplayer_not_most_life() {
             attackers: vec![(dt_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -487,6 +497,8 @@ fn test_dethrone_multiple_instances_trigger_separately() {
             attackers: vec![(dt_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -587,6 +599,8 @@ fn test_dethrone_does_not_trigger_on_planeswalker_attack() {
             attackers: vec![(dt_id, AttackTarget::Planeswalker(pw_id))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -659,6 +673,8 @@ fn test_dethrone_attacker_has_most_life_attacks_lower() {
             attackers: vec![(dt_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");

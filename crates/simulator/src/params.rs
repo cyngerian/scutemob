@@ -284,6 +284,8 @@ pub fn action_to_command_with_params(
             attackers: params.attackers.clone(),
             enlist_choices: Vec::new(),
             exert_choices: Vec::new(),
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         }),
         LegalAction::DeclareBlockers { .. } => Ok(Command::DeclareBlockers {
             player,
@@ -350,6 +352,8 @@ pub fn action_to_command_with_params(
             player,
             permanent: *permanent,
             method: method.clone(),
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         }),
         LegalAction::CastMorphFaceDown { card, .. } => {
             Ok(Command::CastSpell(Box::new(CastSpellData {

@@ -334,6 +334,8 @@ fn test_cipher_combat_damage_triggers_copy() {
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers failed");
@@ -588,6 +590,8 @@ fn test_cipher_creature_leaves_encoding_broken() {
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers failed");
@@ -718,6 +722,8 @@ fn test_cipher_copy_is_not_encodable() {
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers failed");
@@ -837,6 +843,8 @@ fn test_cipher_no_combat_damage_no_trigger() {
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers failed");
@@ -1005,6 +1013,8 @@ fn test_cipher_multiple_encoded_cards_fire_separate_triggers() {
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers failed");

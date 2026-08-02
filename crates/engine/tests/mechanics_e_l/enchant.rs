@@ -1752,6 +1752,8 @@ fn test_animate_land_summoning_sickness_propagation() {
             attackers: vec![(mountain_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
     assert!(
@@ -1771,6 +1773,8 @@ fn test_animate_land_summoning_sickness_propagation() {
             attackers: vec![(mountain_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
     assert!(

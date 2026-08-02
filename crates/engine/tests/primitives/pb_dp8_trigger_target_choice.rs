@@ -2107,6 +2107,8 @@ fn test_dp8_declare_attackers_guard_grants_no_priority_while_suspended() {
             )],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -2257,6 +2259,8 @@ fn test_dp8_declare_blockers_guard_grants_no_priority_while_suspended() {
             )],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();

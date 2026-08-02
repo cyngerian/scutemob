@@ -54,6 +54,8 @@ fn run_one_unblocked_combat(
             attackers: vec![(attacker_id, AttackTarget::Player(defending_player))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -257,6 +259,8 @@ fn test_commander_damage_from_copy_does_not_count() {
             attackers: vec![(copy_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -539,6 +543,8 @@ fn test_combat_damage_no_declare_blockers_command() {
             attackers: vec![(elf_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();

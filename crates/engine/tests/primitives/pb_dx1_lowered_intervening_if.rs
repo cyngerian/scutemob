@@ -196,6 +196,8 @@ fn test_dx1_aurelia_attack_trigger_fires_exactly_once_per_turn() {
             attackers: vec![(aurelia_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("combat 1 DeclareAttackers failed: {e:?}"));
@@ -234,6 +236,8 @@ fn test_dx1_aurelia_attack_trigger_fires_exactly_once_per_turn() {
             attackers: vec![(aurelia_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("combat 2 DeclareAttackers failed: {e:?}"));
@@ -328,6 +332,8 @@ fn test_dx1_aurelia_first_attack_in_an_extra_combat_still_triggers() {
             attackers: vec![(aurelia_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("DeclareAttackers failed: {e:?}"));
@@ -433,6 +439,8 @@ fn declare_attack(
             attackers: vec![(id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("DeclareAttackers failed: {e:?}"))
@@ -899,6 +907,8 @@ fn test_dx1_face_change_carries_back_face_condition() {
             attackers: vec![(obj_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("DeclareAttackers failed: {e:?}"));
@@ -1156,6 +1166,8 @@ fn test_dx1_turn_face_up_intervening_if_rechecked_at_resolution() {
             player: p1,
             permanent: face_down_id,
             method: TurnFaceUpMethod::MorphCost,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("TurnFaceUp should succeed");
@@ -1770,6 +1782,8 @@ fn test_dx1_karlach_fires_without_personally_attacking() {
             attackers: vec![(buddy_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("DeclareAttackers failed: {e:?}"));
@@ -1834,6 +1848,8 @@ fn test_dx1_karlach_extra_combat_once_per_turn() {
             attackers: vec![(karlach_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("combat 1 DeclareAttackers failed: {e:?}"));
@@ -1865,6 +1881,8 @@ fn test_dx1_karlach_extra_combat_once_per_turn() {
             attackers: vec![(karlach_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("combat 2 DeclareAttackers failed: {e:?}"));

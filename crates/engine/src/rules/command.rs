@@ -178,6 +178,35 @@ pub enum Command {
         /// Empty vec for no exert choices. Validated in handle_declare_attackers.
         #[serde(default)]
         exert_choices: Vec<ObjectId>,
+        /// CR 107.4e (via CR 508.1h): for each hybrid pip of the CR 508.1h attack
+        /// tax **total**, how it was paid, in cost order. This is NOT any printed
+        /// cost — it is the accumulated total of every `CantAttackYouUnlessPay`
+        /// restriction that applies to this declaration, one full copy of the
+        /// relevant defender's per-creature cost per creature attacking that
+        /// defender. The canonical order (defined once, must not be re-derived at
+        /// a second call site): defenders ascending by `PlayerId` → within a
+        /// defender, one complete copy of that defender's per-creature cost per
+        /// creature attacking that defender → within a copy, restrictions in
+        /// `state.restrictions` iteration order. This is **copy-major**: for a
+        /// defender with per-creature pips `[r1, r2]` and 3 attackers the vec is
+        /// `[r1, r2, r1, r2, r1, r2]`, NOT `[r1, r1, r1, r2, r2, r2]`. Because the
+        /// total depends on the declared attacker set, its pip count is not
+        /// derivable from the board alone — `rules::queries::attack_tax_total`
+        /// (forthcoming, a later PB-DX6 stage) is the supported way for a client
+        /// to obtain the exact cost these choices index; re-deriving the
+        /// accumulation client-side is a known drift class (the OOS-RS-2 shape).
+        /// A SHORT vector (or empty) is fine — each unindexed pip defaults to its
+        /// first color option; a vector LONGER than the pip count is rejected
+        /// with `InvalidCommand` rather than silently ignored. PB-DX6 (OOS-DP4-1).
+        #[serde(default)]
+        hybrid_choices: Vec<crate::state::game_object::HybridManaPayment>,
+        /// CR 107.4f (via CR 508.1h): for each Phyrexian pip of the same
+        /// CR 508.1h attack tax total, in the same copy-major order, true = pay 2
+        /// life, false = pay mana. Empty = default to paying with mana for each
+        /// pip; a vector longer than the Phyrexian pip count is rejected, not
+        /// silently ignored. PB-DX6 (OOS-DP4-1).
+        #[serde(default)]
+        phyrexian_life_payments: Vec<bool>,
     },
     /// Declare blocking creatures (CR 509.1).
     ///
@@ -674,6 +703,26 @@ pub enum Command {
         /// A manifested card with morph may use either MorphCost or ManaCost (CR 701.40c).
         /// A manifested card with disguise may use either DisguiseCost or ManaCost (CR 701.40d).
         method: TurnFaceUpMethod,
+        /// CR 107.4e (via CR 701.40b/702.37e/702.168d): for each hybrid pip of the
+        /// cost this turn-face-up actually pays, how it was paid, in cost order.
+        /// **Which cost** depends on `method`, resolved in `handle_turn_face_up`:
+        /// `MorphCost` → the permanent's `Morph`/`Megamorph` ability's cost;
+        /// `DisguiseCost` → the permanent's `Disguise` ability's cost; `ManaCost` →
+        /// `def.mana_cost`. A SHORT vector (or empty) is fine — each unindexed pip
+        /// defaults to its first color option (`ManaCost::flatten_hybrid_phyrexian`);
+        /// a vector LONGER than the pip count is rejected with `InvalidCommand`
+        /// rather than silently ignored past the pip count, mirroring
+        /// `Command::ActivateAbility::hybrid_choices`. PB-DX6 (OOS-RS2-1).
+        #[serde(default)]
+        hybrid_choices: Vec<crate::state::game_object::HybridManaPayment>,
+        /// CR 107.4f (via CR 701.40b/702.37e/702.168d): for each Phyrexian pip of
+        /// the same resolved cost, in cost order, true = pay 2 life, false = pay
+        /// mana. Empty = default to paying with mana for each pip (deliberate
+        /// short-vector default, mirroring `hybrid_choices` above); a vector
+        /// longer than the Phyrexian pip count is rejected, not silently ignored.
+        /// PB-DX6 (OOS-RS2-1).
+        #[serde(default)]
+        phyrexian_life_payments: Vec<bool>,
     },
     /// CR 606: Activate a loyalty ability on a planeswalker (CR 306.5d).
     ///

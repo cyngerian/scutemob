@@ -642,6 +642,8 @@ fn test_ef4_atarka_grants_double_strike_to_attacking_dragon() {
             ],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -701,6 +703,8 @@ fn test_ef4_fervent_charge_pumps_attacking_creature() {
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -780,6 +784,8 @@ fn test_ef4_dreadhorde_invasion_lifelink_gated_by_token_and_power() {
             ],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");

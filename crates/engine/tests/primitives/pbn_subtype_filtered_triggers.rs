@@ -189,6 +189,8 @@ fn test_pbn_attack_filter_subtype_match_fires() {
             attackers: vec![(dragon_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers failed");
@@ -244,6 +246,8 @@ fn test_pbn_attack_filter_subtype_mismatch_no_fire() {
             attackers: vec![(goblin_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers failed");
@@ -298,6 +302,8 @@ fn test_pbn_attack_filter_color_match_fires() {
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers failed");
@@ -638,6 +644,8 @@ fn test_pbn_kolaghan_end_to_end() {
             attackers: vec![(kolaghan_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers with Dragon failed");
@@ -704,6 +712,8 @@ fn test_pbn_kolaghan_end_to_end() {
             attackers: vec![(goblin_id_b, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers with Goblin failed");
@@ -812,6 +822,8 @@ fn test_pbn_combat_damage_filter_not_consulted_on_attack_events() {
             attackers: vec![(goblin_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers failed");
@@ -899,6 +911,8 @@ fn test_utvara_hellkite_dragon_filter() {
             attackers: vec![(utvara_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers (Dragon) failed");
@@ -943,6 +957,8 @@ fn test_utvara_hellkite_dragon_filter() {
             attackers: vec![(goblin_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers (Goblin) failed");
@@ -1048,6 +1064,8 @@ fn test_sanctum_seeker_flat_gain_4_player() {
             attackers: vec![(vampire_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers failed");

@@ -545,6 +545,8 @@ fn test_whenever_you_attack_fires_once_per_combat() {
             ],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers failed");

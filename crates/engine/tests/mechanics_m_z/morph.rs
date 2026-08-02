@@ -493,6 +493,8 @@ fn test_morph_turn_face_up() {
             player: p1,
             permanent: face_down_id,
             method: TurnFaceUpMethod::MorphCost,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("TurnFaceUp should succeed");
@@ -705,6 +707,8 @@ fn test_morph_when_turned_face_up_trigger() {
             player: p1,
             permanent: face_down_id,
             method: TurnFaceUpMethod::MorphCost,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("TurnFaceUp should succeed");
@@ -807,6 +811,8 @@ fn test_megamorph_counter() {
             player: p1,
             permanent: face_down_id,
             method: TurnFaceUpMethod::MorphCost,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("TurnFaceUp (megamorph) should succeed");
@@ -937,6 +943,8 @@ fn test_manifest_creature_turn_face_up() {
             player: p1,
             permanent: face_down_id,
             method: TurnFaceUpMethod::ManaCost,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("CR 701.40b: manifested creature should be turnable face up");
@@ -990,6 +998,8 @@ fn test_manifest_noncreature_stuck() {
             player: p1,
             permanent: face_down_id,
             method: TurnFaceUpMethod::ManaCost,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 
@@ -1033,6 +1043,8 @@ fn test_manifest_with_morph() {
             player: p1,
             permanent: face_down_id,
             method: TurnFaceUpMethod::MorphCost,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
     assert!(
@@ -1069,6 +1081,8 @@ fn test_manifest_with_morph() {
             player: p1,
             permanent: face_down_id2,
             method: TurnFaceUpMethod::ManaCost,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
     assert!(

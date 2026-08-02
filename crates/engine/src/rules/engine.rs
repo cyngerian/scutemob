@@ -423,6 +423,8 @@ pub fn process_command(
             attackers,
             enlist_choices,
             exert_choices,
+            // PB-DX6 stage A: schema-only; payment logic is a later stage.
+            ..
         } => {
             validate_player_active(&state, player)?;
             // CR 104.4b: declaring attackers is a meaningful player choice; reset loop detection.
@@ -870,6 +872,8 @@ pub fn process_command(
             player,
             permanent,
             method,
+            // PB-DX6 stage A: schema-only; payment logic is a later stage.
+            ..
         } => {
             validate_player_active(&state, player)?;
             // CR 116.2b: Turn face up is a special action; reset loop detection.

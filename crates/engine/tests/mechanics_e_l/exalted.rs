@@ -84,6 +84,8 @@ fn test_exalted_basic_attacks_alone_gives_plus_one() {
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -177,6 +179,8 @@ fn test_exalted_does_not_trigger_with_multiple_attackers() {
             ],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -240,6 +244,8 @@ fn test_exalted_multiple_instances_stack() {
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -319,6 +325,8 @@ fn test_exalted_on_non_attacker_permanent_targets_attacker() {
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -402,6 +410,8 @@ fn test_exalted_does_not_trigger_on_opponent_attack() {
             attackers: vec![(p2_attacker_id, AttackTarget::Player(p1))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -456,6 +466,8 @@ fn test_exalted_bonus_expires_at_end_of_turn() {
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -543,6 +555,8 @@ fn test_exalted_multiplayer_only_attacker_controller_triggers() {
             attackers: vec![(p1_attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -613,6 +627,8 @@ fn test_exalted_with_zero_attackers_does_not_trigger() {
             attackers: vec![],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers with empty list should succeed");

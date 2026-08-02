@@ -574,6 +574,8 @@ impl Move {
                     attackers: pairs,
                     enlist_choices: vec![],
                     exert_choices: vec![],
+                    hybrid_choices: vec![],
+                    phyrexian_life_payments: vec![],
                 })
             }
             Move::CastAlt {

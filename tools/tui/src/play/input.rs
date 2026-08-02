@@ -618,6 +618,8 @@ fn handle_attack_target_mode(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result
                     attackers,
                     enlist_choices: Vec::new(),
                     exert_choices: Vec::new(),
+                    hybrid_choices: vec![],
+                    phyrexian_life_payments: vec![],
                 };
                 app.execute_command(cmd)?;
                 app.mode = InputMode::Normal;
@@ -632,6 +634,8 @@ fn handle_attack_target_mode(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result
                     attackers,
                     enlist_choices: Vec::new(),
                     exert_choices: Vec::new(),
+                    hybrid_choices: vec![],
+                    phyrexian_life_payments: vec![],
                 };
                 app.execute_command(cmd)?;
             }
@@ -664,6 +668,8 @@ fn handle_attacker_mode(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result<()> 
                         attackers,
                         enlist_choices: Vec::new(),
                         exert_choices: Vec::new(),
+                        hybrid_choices: vec![],
+                        phyrexian_life_payments: vec![],
                     };
                     app.execute_command(cmd)?;
                 }

@@ -74,6 +74,8 @@ fn test_702_45a_bushido_blocker_gets_bonus() {
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -163,6 +165,8 @@ fn test_702_45a_bushido_attacker_becomes_blocked() {
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -255,6 +259,8 @@ fn test_702_45a_bushido_does_not_double_trigger() {
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -381,6 +387,8 @@ fn test_702_45b_bushido_multiple_instances() {
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -478,6 +486,8 @@ fn test_702_45a_bushido_bonus_expires_eot() {
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -565,6 +575,8 @@ fn test_702_45a_bushido_attacker_blocked_by_multiple() {
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -653,6 +665,8 @@ fn test_702_45a_bushido_multiplayer() {
             ],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("declare attackers failed");

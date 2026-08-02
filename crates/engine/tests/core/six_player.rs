@@ -154,6 +154,8 @@ fn test_six_player_combat_five_defenders() {
             attackers: attackers_decl,
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers failed");

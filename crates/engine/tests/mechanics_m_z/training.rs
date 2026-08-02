@@ -85,6 +85,8 @@ fn test_702_149a_training_basic_attacks_with_greater_power() {
             ],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -172,6 +174,8 @@ fn test_702_149a_training_does_not_trigger_alone() {
             attackers: vec![(tr_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -247,6 +251,8 @@ fn test_702_149a_training_does_not_trigger_equal_power() {
             ],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -321,6 +327,8 @@ fn test_702_149a_training_does_not_trigger_lower_power() {
             ],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -396,6 +404,8 @@ fn test_702_149b_training_multiple_instances() {
             ],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -500,6 +510,8 @@ fn test_702_149a_training_two_training_creatures_both_trigger() {
             ],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -632,6 +644,8 @@ fn test_702_149a_training_multiplayer_four_player() {
             ],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");

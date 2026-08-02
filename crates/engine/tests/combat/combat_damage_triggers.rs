@@ -207,6 +207,8 @@ fn test_per_creature_you_control_combat_damage_trigger() {
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers");
@@ -267,6 +269,8 @@ fn test_per_creature_triggers_fire_per_creature() {
             ],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers");
@@ -337,6 +341,8 @@ fn test_per_creature_subtype_filter_combat_damage() {
             ],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers");
@@ -402,6 +408,8 @@ fn test_batch_one_or_more_trigger_fires_once() {
             ],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers");
@@ -470,6 +478,8 @@ fn test_batch_trigger_per_damaged_player() {
             ],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers");
@@ -550,6 +560,8 @@ fn test_equipped_creature_combat_damage_trigger() {
             attackers: vec![(creature_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers");
@@ -606,6 +618,8 @@ fn test_equipped_creature_unequipped_no_trigger() {
             attackers: vec![(creature_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers");
@@ -684,6 +698,8 @@ fn test_enchanted_creature_damage_trigger() {
             attackers: vec![(creature_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers");

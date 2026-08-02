@@ -566,6 +566,8 @@ fn test_combat_damage_to_planeswalker_removes_loyalty_cr306_8() {
             attackers: vec![(attacker_id, AttackTarget::Planeswalker(pw_id))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("declare attackers failed");
