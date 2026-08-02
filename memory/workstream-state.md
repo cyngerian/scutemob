@@ -887,6 +887,33 @@
    still drive every request through the real router. One seed (184) serves two different fixture
    decks because the shuffle permutes *positions* and both probe spells sit at `main_deck[0..2]`.
 
+**Fix cycle (Opus review, 1 HIGH + 1 MEDIUM + 4 LOW, all closed)** — and the HIGH is the one
+worth carrying:
+- `question_card_label`'s doc **cited a gate test that did not exist**
+  (`test_ui1_a_bot_seats_effect_choice_never_reaches_the_human_payload`) and said the channel
+  "ships with its own gate rather than with an argument". That is this project's own defect
+  class — a claim in prose that no test holds — landing on the one subsystem MR-M11-01's lesson
+  is about. It was a draft line left behind when the planned behavioural test was replaced by a
+  source-count gate; the README and the archive entry both described the real situation
+  correctly, which is how it survived self-review.
+- Worse, the premise that test would have asserted was **enforced nowhere**. The channel's safety
+  argument needs the `EffectChoiceQuestion` to belong to the seat being rendered, and that held
+  only by arithmetic on a one-element set (`config_for` hard-codes `human_seats: [HUMAN_SEAT]`).
+  A second human seat — the obvious M10a direction — would have rendered seat A's scried library
+  cards, **with real names**, into seat B's payload. `api.rs::seat_view` now filters
+  `pending.player == human`, and `test_ui1_a_foreign_seats_effect_choice_never_reaches_this_payload`
+  holds it two-sidedly. **Generalisable**: when a doc comment says "structural", check that the
+  structure is in the code and not in the configuration.
+- The new test's own first version mutated `pending.player` and did nothing — every route calls
+  `advance()`, which refreshes `pending` straight off `LocalGame`. It moves `PlaySession::human`
+  instead. Recorded in the test's doc.
+- LOWs: the same doc block said "fourth channel" in its heading and "a fifth" five lines later;
+  `question_kind`'s rationale claimed redaction while two functions above it format candidate ids
+  into their own 400 bodies (corrected to what it is — message quality); `ActionBar`'s decision
+  guard required `currentShape`, so a malformed payload rendered nothing and **skipped the very
+  fallback that exists to prevent a dead bar**; the count gate's narrowness (one needle, blind to
+  `zones()`/`card_registry()`) is now stated rather than implied.
+
 **Not done / deferred** (all recorded as play-server README limitations 14-17):
 - The TUI halves of OOS-DP7-6 / OOS-DP8-2 / OOS-DP9-7 are untouched; those rows are *about* the
   TUI and remain open. OOS-DP9-1 is unchanged and deliberately so — it is about the bot, and the

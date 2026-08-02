@@ -62,7 +62,22 @@
   entry points, and the body scan looks for another seat's *hand* names). It ships with a count
   gate instead: `view.rs`'s production code may read the raw object table exactly **twice**, and a
   third read must be a deliberate act.
-  Tests **4,124 → 4,137** on branch (+8 `params.rs` unit, +5 play-server). **Zero engine lines** —
+  **The fix cycle's HIGH is the entry worth re-reading.** `question_card_label`'s doc **cited a
+  gate test that did not exist** and said the channel "ships with its own gate rather than with an
+  argument" — a claim in prose that no test holds, on the one subsystem MR-M11-01's lesson is
+  about. It was a draft line left behind when the planned behavioural test was replaced by the
+  source-count gate, and the README and this archive entry both described the real situation
+  correctly, which is exactly how it survived self-review: *the wrong version was the one nobody
+  re-read.* And the premise that test would have asserted was **enforced nowhere** — the channel
+  needs its `EffectChoiceQuestion` to belong to the seat being rendered, and that held only by
+  arithmetic on a one-element set (`config_for` hard-codes one human seat), so a second human seat
+  would have rendered seat A's scried library cards, **named**, into seat B's payload.
+  `api.rs::seat_view` now filters `pending.player == human` and the gate exists and is two-sided.
+  **Generalisable: when a doc comment calls an argument "structural", check the structure is in
+  the code and not in the configuration.** Four LOWs alongside it, one of which is a live UI trap:
+  `ActionBar`'s decision guard required a truthy `currentShape`, so a malformed payload rendered
+  nothing at all and **skipped the very unknown-shape fallback that exists to prevent a dead bar**.
+  Tests **4,124 → 4,138** on branch (+8 `params.rs` unit, +6 play-server). **Zero engine lines** —
   empty `git diff` over `crates/engine/src` + `crates/card-types/src`. PROTOCOL **33** / HASH
   **70** unmoved, gate-executed rather than predicted. (The task's acceptance criterion said
   "PROTOCOL 32"; 32 → 33 was PB-DX6's bump on the parallel W6 track, which landed before this

@@ -208,11 +208,15 @@
   Four HTTP probes, each proven to discriminate by reverting the fix. **Zero engine lines**
   (empty diff over `crates/engine/src` + `crates/card-types/src`); PROTOCOL **33** / HASH **70**
   gate-verified unmoved (the criterion's "32" was stale — PB-DX6 bumped it before this fork).
-  Tests **4,124 → 4,137**; coverage unmoved at 63.0%. A **fourth Invariant-7 channel** is opened
-  deliberately and gated by count: `view::question_card_label` renders a real name for a library
-  card the engine has told this seat to look at (CR 701.22a/23a/25a), because `StateViewModel`
-  models no library contents. Still open: the **TUI** halves of OOS-DP7-6/DP8-2/DP9-7, and no
-  picker has an automated test. **Full narrative:
+  Tests **4,124 → 4,138**; coverage unmoved at 63.0%. A **fourth Invariant-7 channel** is opened
+  deliberately: `view::question_card_label` renders a real name for a library card the engine has
+  told this seat to look at (CR 701.22a/23a/25a), because `StateViewModel` models no library
+  contents. **Its fix-cycle HIGH is the durable one** — the doc block cited a gate test that did
+  not exist, and the premise that test would have asserted (`pending.player == session.human`) was
+  enforced *nowhere*, holding only by arithmetic on a one-element set. `seat_view` now filters on
+  it and the gate exists and is two-sided. Generalisable: **when a comment calls an argument
+  "structural", check the structure is in the code and not in the configuration.** Still open: the
+  **TUI** halves of OOS-DP7-6/DP8-2/DP9-7, and no picker has an automated test. **Full narrative:
   `memory/archive/claude-md-changelog-2026-08.md`**; limitations `tools/play-server/README.md`
   14-17.
 - - **Prior**: 2026-08-02 — **PB-DX6 SHIPPED** (`scutemob-172`, merge `cb0755bf`; redone from
