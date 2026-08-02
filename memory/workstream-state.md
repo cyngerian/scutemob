@@ -131,11 +131,55 @@
   stale test binary, and the test "passed". **A revert-and-rerun proves nothing unless
   the rebuild succeeded.**
 
-- **Gates at close**: tests **4,092 / 0** (merge base measured at **4,072**, so **+20** —
-  2 playthrough, 14 human-action, 4 play-server), clippy `-D warnings` clean, `cargo fmt
+- **Gates at close**: tests **4,097 / 0** (merge base measured at **4,072**, so **+25** —
+  2 playthrough, 15 human-action, 8 play-server; the implement phase pinned **4,092/+20**
+  and the close-out fix cycle added the other 5, so both figures are real and this is the
+  final one — measured by running the suite, and the per-file split re-derived against it
+  rather than carried), clippy `-D warnings` clean, `cargo fmt
   --check` clean, `tools/check-defs-fmt.sh` 1,804 defs clean, `cargo build --workspace`
   clean, **PROTOCOL 32 / HASH 70 unmoved** (empty diff over `protocol.rs` / `hash.rs` and
   gate-computed by running the `core` suites), fuzz parity as above.
+
+- **CLOSE-OUT ADDENDUM (2026-08-02, same task, after a kitty crash mid-fix-cycle).** The
+  `milestone-reviewer` pass filed **MR-M11-01..21** into
+  `docs/mtg-engine-milestone-reviews.md`; the fix cycle it opened was interrupted, and the
+  resume finished it. **All 10 HIGH/MEDIUM are now closed, all 8 LOW deliberately open**
+  (the CLAUDE.md checklist's LOW-no-fix-phase rule), each LOW re-verified as genuinely
+  unchanged rather than assumed. Four things worth carrying:
+
+  - **The HIGH is the one nobody's gate could see, and it is the reusable shape.**
+    `GameSummary.seed` shipped on **every** seat payload for three sessions. Since
+    `setup::build_initial_state` is deterministic in its config alone and
+    `session::config_for` fixes every other input, `(seed, players, mulligan_count)`
+    *rebuilds* every bot's opening hand and library order — the exact pair Architecture
+    Invariant 7 names, and the exact words of the milestone's own acceptance criterion.
+    Both Invariant-7 gates stayed green the whole time, because one searches the body for
+    card **names** and the other scans source for omniscient **view-model entry points**,
+    and a seed is neither. **A redaction gate checks the channel it was written for; a new
+    channel is invisible to it.** There are now three gates for three channels — names,
+    reconstruction keys, free-form engine strings — and the table is in the play-server
+    README so the next surface starts from three rather than rediscovering two.
+  - **A status word is not a disposition.** Every one of the 18 findings still read `OPEN`
+    while eight had shipped, and three of the eight had landed their *code* fix without
+    the *test* the finding asked for — so three behaviour changes were held by prose.
+    Those three tests now exist and were proven to discriminate by execution: with each
+    fix reverted its test fails and the other 29 stay green. **The first revert did not
+    compile** (two helpers went dead under `-D warnings`), which is the S8 `{X}` lesson
+    recurring within the same task: *a revert-and-rerun proves nothing unless the rebuild
+    succeeded.*
+  - **Two findings are closed on part of what they asked for, and the part left is named
+    in the reviews doc rather than implied.** MR-M11-04's companion handler-set gate is an
+    M10a item (the narrowing, which makes the *existing* claim true, was taken);
+    MR-M11-06's code half is a capability addition, not a defect repair, and its seed
+    **`OOS-M11-10`** is filed — which was the half the finding actually flagged, since the
+    in-source comment had promised "to be filed for S6/S7" through three sessions that all
+    shipped without filing it. *A comment asserting a seed exists is not a seed.*
+  - **`HASH 69` in the reviews doc was stale in four places.** The claim ("unmoved by
+    M11-local") was true; the number was not — HASH moved 69 → **70** in PB-DX5 on the
+    parallel W6 track before this branch forked. Found by reading
+    `crates/engine/src/state/hash.rs` rather than carrying the figure forward, which is
+    the same move that caught three arithmetic slips inside PB-DX5 itself. This file
+    already had it right.
 
 - **What M11-local did NOT deliver, stated plainly**: card images come from Scryfall over
   the network rather than a cache (M14); the bug-report artefact has no free-text
