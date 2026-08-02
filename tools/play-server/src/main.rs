@@ -4524,6 +4524,352 @@ mod tests {
         );
     }
 
+    // ── UI-2 (CR 118.8 / CR 702.157): additional-cost surfacing (task scutemob-178) ──
+    //
+    // Stage 3 only: the `view.rs`/`api.rs` rendering and validation. The HTTP
+    // probes (Life's Legacy over `POST /api/game/action`, Squad 0/1/N, SR-38
+    // suppression) are a later stage and are deliberately not here.
+
+    /// Build a minimal `GameState` for UI-2: `p1` holds Life's Legacy in hand
+    /// with `{1}{G}` available and controls one eligible creature; `p2` exists
+    /// so the state builds.
+    ///
+    /// Mirrors `crates/simulator/src/legal_actions.rs`'s own UI-2 test fixtures
+    /// (`make_lifes_legacy`/`lifes_legacy_pool`, same card, same shape) --
+    /// duplicated rather than shared, for the reason
+    /// `setup_skullclamp_view_scenario` above already gives: no shared
+    /// test-support crate between `crates/simulator` and `tools/play-server`.
+    fn setup_lifes_legacy_view_scenario() -> (
+        mtg_engine::GameState,
+        mtg_engine::ObjectId,
+        mtg_engine::ObjectId,
+        mtg_engine::PlayerId,
+    ) {
+        let p1 = mtg_engine::PlayerId(1);
+        let p2 = mtg_engine::PlayerId(2);
+        let defs: HashMap<String, mtg_engine::CardDefinition> = mtg_engine::all_cards()
+            .into_iter()
+            .map(|d| (d.name.clone(), d))
+            .collect();
+
+        let lifes_legacy = mtg_engine::enrich_spec_from_def(
+            mtg_engine::ObjectSpec::card(p1, "Life's Legacy")
+                .with_card_id(mtg_engine::CardId("lifes-legacy".to_string()))
+                .in_zone(mtg_engine::ZoneId::Hand(p1)),
+            &defs,
+        );
+        let bear = mtg_engine::ObjectSpec::creature(p1, "P1 Bear", 2, 2)
+            .in_zone(mtg_engine::ZoneId::Battlefield);
+
+        let mut state = mtg_engine::GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(p2)
+            .with_registry(mtg_engine::CardRegistry::new(mtg_engine::all_cards()))
+            .object(lifes_legacy)
+            .object(bear)
+            .active_player(p1)
+            .at_step(mtg_engine::Step::PreCombatMain)
+            .build()
+            .unwrap();
+
+        {
+            let pool = &mut state.players_mut().get_mut(&p1).unwrap().mana_pool;
+            pool.add(mtg_engine::ManaColor::Green, 1);
+            pool.add(mtg_engine::ManaColor::White, 1);
+        }
+        state.turn_mut().priority_holder = Some(p1);
+
+        let find = |name: &str, controller: mtg_engine::PlayerId| -> mtg_engine::ObjectId {
+            state
+                .objects()
+                .iter()
+                .find(|(_, obj)| obj.characteristics.name == name && obj.controller == controller)
+                .map(|(id, _)| *id)
+                .unwrap_or_else(|| panic!("object '{name}' controlled by {controller:?} not found"))
+        };
+        let card_id = find("Life's Legacy", p1);
+        let bear_id = find("P1 Bear", p1);
+
+        (state, card_id, bear_id, p1)
+    }
+
+    /// Render the wire `costs` value for Life's Legacy's `CastSpell` option in
+    /// [`setup_lifes_legacy_view_scenario`]'s state, plus the eligible bear's id.
+    /// Shared by the two tests below so each stays focused on its own assertion.
+    fn lifes_legacy_costs_wire() -> (Value, mtg_engine::ObjectId) {
+        use mtg_simulator::LegalActionProvider as _;
+
+        let (state, card_id, bear_id, p1) = setup_lifes_legacy_view_scenario();
+        let p2 = mtg_engine::PlayerId(2);
+        let player_names: HashMap<mtg_engine::PlayerId, String> =
+            [(p1, "Human-1".to_string()), (p2, "Bot-2".to_string())]
+                .into_iter()
+                .collect();
+
+        let actions = mtg_simulator::StubProvider.legal_actions(&state, p1);
+        let (index, _) = actions
+            .iter()
+            .enumerate()
+            .find(|(_, a)| {
+                matches!(a, mtg_simulator::LegalAction::CastSpell { card, .. } if *card == card_id)
+            })
+            .expect(
+                "Life's Legacy must be offered: p1 has {1}{G} in the pool and an eligible \
+                 creature to sacrifice",
+            );
+
+        let pending = mtg_simulator::PendingDecision {
+            seq: 0,
+            player: p1,
+            kind: mtg_simulator::DecisionKind::Priority,
+            actions,
+        };
+        let state_view =
+            StateViewModel::from_game_state_for(&state, &player_names, Viewer::Seat(p1));
+        let names = view::NameIndex::from_view(&state_view);
+        let decision = view::decision_view(&pending, 0, &state, &names, &player_names);
+        let wire = serde_json::to_value(&decision).expect("DecisionView serializes");
+        (wire["actions"][index]["costs"].clone(), bear_id)
+    }
+
+    /// T: `ActionOptionView.costs` is `None` (wire `null`) for a plain spell with
+    /// no additional cost, and `Some` with a populated `sacrifice` descriptor for
+    /// Life's Legacy — the exact playtest-triage F9 gap (`CastSpell` offering a
+    /// mandatory-sacrifice spell with no channel for the client to announce it).
+    #[test]
+    fn test_ui2_costs_field_is_none_for_plain_spell_and_populated_for_lifes_legacy() {
+        use mtg_simulator::LegalActionProvider as _;
+
+        let p1 = mtg_engine::PlayerId(1);
+        let p2 = mtg_engine::PlayerId(2);
+        let defs: HashMap<String, mtg_engine::CardDefinition> = mtg_engine::all_cards()
+            .into_iter()
+            .map(|d| (d.name.clone(), d))
+            .collect();
+        let bolt = mtg_engine::enrich_spec_from_def(
+            mtg_engine::ObjectSpec::card(p1, "Lightning Bolt")
+                .with_card_id(mtg_engine::CardId("lightning-bolt".to_string()))
+                .in_zone(mtg_engine::ZoneId::Hand(p1)),
+            &defs,
+        );
+        let mut state = mtg_engine::GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(p2)
+            .with_registry(mtg_engine::CardRegistry::new(mtg_engine::all_cards()))
+            .object(bolt)
+            .active_player(p1)
+            .at_step(mtg_engine::Step::PreCombatMain)
+            .build()
+            .unwrap();
+        state
+            .players_mut()
+            .get_mut(&p1)
+            .unwrap()
+            .mana_pool
+            .add(mtg_engine::ManaColor::Red, 1);
+        state.turn_mut().priority_holder = Some(p1);
+
+        let player_names: HashMap<mtg_engine::PlayerId, String> =
+            [(p1, "Human-1".to_string()), (p2, "Bot-2".to_string())]
+                .into_iter()
+                .collect();
+
+        let actions = mtg_simulator::StubProvider.legal_actions(&state, p1);
+        let bolt_index = actions
+            .iter()
+            .position(|a| matches!(a, mtg_simulator::LegalAction::CastSpell { .. }))
+            .expect("Lightning Bolt must be offered");
+        let pending = mtg_simulator::PendingDecision {
+            seq: 0,
+            player: p1,
+            kind: mtg_simulator::DecisionKind::Priority,
+            actions,
+        };
+        let state_view =
+            StateViewModel::from_game_state_for(&state, &player_names, Viewer::Seat(p1));
+        let names = view::NameIndex::from_view(&state_view);
+        let decision = view::decision_view(&pending, 0, &state, &names, &player_names);
+        let wire = serde_json::to_value(&decision).expect("DecisionView serializes");
+        assert!(
+            wire["actions"][bolt_index]["costs"].is_null(),
+            "a plain spell's costs must be null: {:?}",
+            wire["actions"][bolt_index]["costs"]
+        );
+
+        let (costs, bear_id) = lifes_legacy_costs_wire();
+        assert!(
+            !costs.is_null(),
+            "Life's Legacy must carry a costs descriptor"
+        );
+        assert_eq!(costs["answer_field"], "additional_costs");
+        assert!(
+            costs["squad"].is_null(),
+            "Life's Legacy has no Squad ability"
+        );
+        let sacrifice = &costs["sacrifice"];
+        assert!(
+            !sacrifice.is_null(),
+            "Life's Legacy must offer a sacrifice picker"
+        );
+        assert_eq!(sacrifice["default"].as_u64(), Some(bear_id.0));
+        let candidates = sacrifice["candidates"]
+            .as_array()
+            .expect("candidates is an array");
+        assert!(
+            candidates
+                .iter()
+                .any(|c| c["id"].as_u64() == Some(bear_id.0)),
+            "the eligible bear must be among the sacrifice candidates: {candidates:?}"
+        );
+    }
+
+    /// T: the sacrifice template round-trips as `{"Sacrifice":{"ids":[<default>],
+    /// "lki":[]}}` — `lki` stays EMPTY on the wire because `casting.rs`'s
+    /// sacrifice site (CR 118.8) patches it from LKI captured before the zone move
+    /// (CR 608.2b/608.2h/608.2i); a client-supplied `lki` would be a second
+    /// opinion about LKI the engine already owns.
+    #[test]
+    fn test_ui2_sacrifice_template_round_trips_with_lki_empty() {
+        let (costs, bear_id) = lifes_legacy_costs_wire();
+        let sacrifice = &costs["sacrifice"];
+        assert_eq!(sacrifice["ids_key"], "ids");
+        assert_eq!(
+            sacrifice["template"],
+            json!({"Sacrifice": {"ids": [bear_id.0], "lki": []}})
+        );
+    }
+
+    /// A `LegalAction::CastSpell` carrying a fully-populated `AdditionalCostPlan`
+    /// (one eligible sacrifice candidate, a Squad option with `max_count`), for
+    /// unit-testing `api::validate_additional_cost_params` without going through
+    /// HTTP (that probe is a later stage — see this section's header comment).
+    fn ui2_cast_spell_action_with_costs(
+        eligible: Vec<mtg_engine::ObjectId>,
+        default: mtg_engine::ObjectId,
+        squad_max_count: u32,
+    ) -> mtg_simulator::LegalAction {
+        mtg_simulator::LegalAction::CastSpell {
+            card: mtg_engine::ObjectId(1),
+            from_zone: mtg_engine::ZoneId::Hand(mtg_engine::PlayerId(1)),
+            additional_costs: mtg_simulator::legal_actions::AdditionalCostPlan {
+                sacrifice: Some(mtg_simulator::legal_actions::SacrificeCostOption {
+                    requirement: mtg_engine::SpellAdditionalCost::SacrificeCreature,
+                    eligible,
+                    default,
+                }),
+                squad: Some(mtg_simulator::legal_actions::SquadCostOption {
+                    cost: mtg_engine::ManaCost {
+                        generic: 1,
+                        ..Default::default()
+                    },
+                    max_count: squad_max_count,
+                }),
+            },
+        }
+    }
+
+    /// T: a submitted `Sacrifice` naming an id outside the offered `eligible` set
+    /// is refused 400 `bad_params` (CR 118.8) rather than reaching the engine.
+    #[test]
+    fn test_ui2_validate_additional_cost_params_rejects_out_of_set_sacrifice_id() {
+        let eligible_id = mtg_engine::ObjectId(10);
+        let action = ui2_cast_spell_action_with_costs(vec![eligible_id], eligible_id, 2);
+        let params = crate::view::ActionParamsDto {
+            additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice {
+                ids: vec![mtg_engine::ObjectId(999)],
+                lki: vec![],
+            }],
+            ..Default::default()
+        };
+        let err = api::validate_additional_cost_params(&action, &params)
+            .expect_err("an id outside `eligible` must be refused");
+        assert_eq!(err.status, StatusCode::BAD_REQUEST);
+        assert_eq!(err.body.kind, "bad_params");
+    }
+
+    /// T: a submitted `Sacrifice` naming TWO ids is refused 400 — CR 118.8 /
+    /// `casting.rs`'s own "exactly one mandatory sacrifice" support.
+    #[test]
+    fn test_ui2_validate_additional_cost_params_rejects_two_sacrifice_ids() {
+        let eligible_a = mtg_engine::ObjectId(10);
+        let eligible_b = mtg_engine::ObjectId(11);
+        let action = ui2_cast_spell_action_with_costs(vec![eligible_a, eligible_b], eligible_a, 2);
+        let params = crate::view::ActionParamsDto {
+            additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice {
+                ids: vec![eligible_a, eligible_b],
+                lki: vec![],
+            }],
+            ..Default::default()
+        };
+        let err = api::validate_additional_cost_params(&action, &params)
+            .expect_err("two sacrifice ids must be refused");
+        assert_eq!(err.status, StatusCode::BAD_REQUEST);
+        assert_eq!(err.body.kind, "bad_params");
+    }
+
+    /// T: a submitted `Squad { count }` above the offered `max_count` is refused
+    /// 400 (CR 702.157a).
+    #[test]
+    fn test_ui2_validate_additional_cost_params_rejects_squad_over_max_count() {
+        let eligible_id = mtg_engine::ObjectId(10);
+        let action = ui2_cast_spell_action_with_costs(vec![eligible_id], eligible_id, 2);
+        let params = crate::view::ActionParamsDto {
+            additional_costs: vec![mtg_engine::AdditionalCost::Squad { count: 3 }],
+            ..Default::default()
+        };
+        let err = api::validate_additional_cost_params(&action, &params)
+            .expect_err("a count above max_count must be refused");
+        assert_eq!(err.status, StatusCode::BAD_REQUEST);
+        assert_eq!(err.body.kind, "bad_params");
+    }
+
+    /// T: a submitted `Squad` on an action whose plan offers no Squad option is
+    /// refused 400, rather than silently accepted.
+    #[test]
+    fn test_ui2_validate_additional_cost_params_rejects_squad_when_none_offered() {
+        let eligible_id = mtg_engine::ObjectId(10);
+        let action = mtg_simulator::LegalAction::CastSpell {
+            card: mtg_engine::ObjectId(1),
+            from_zone: mtg_engine::ZoneId::Hand(mtg_engine::PlayerId(1)),
+            additional_costs: mtg_simulator::legal_actions::AdditionalCostPlan {
+                sacrifice: Some(mtg_simulator::legal_actions::SacrificeCostOption {
+                    requirement: mtg_engine::SpellAdditionalCost::SacrificeCreature,
+                    eligible: vec![eligible_id],
+                    default: eligible_id,
+                }),
+                squad: None,
+            },
+        };
+        let params = crate::view::ActionParamsDto {
+            additional_costs: vec![mtg_engine::AdditionalCost::Squad { count: 1 }],
+            ..Default::default()
+        };
+        let err = api::validate_additional_cost_params(&action, &params)
+            .expect_err("Squad on an action offering none must be refused");
+        assert_eq!(err.status, StatusCode::BAD_REQUEST);
+        assert_eq!(err.body.kind, "bad_params");
+    }
+
+    /// T: the happy path — a valid single eligible sacrifice id plus a Squad
+    /// count within `max_count` — does NOT fire any of the four checks above.
+    #[test]
+    fn test_ui2_validate_additional_cost_params_accepts_the_happy_path() {
+        let eligible_id = mtg_engine::ObjectId(10);
+        let action = ui2_cast_spell_action_with_costs(vec![eligible_id], eligible_id, 2);
+        let params = crate::view::ActionParamsDto {
+            additional_costs: vec![
+                mtg_engine::AdditionalCost::Sacrifice {
+                    ids: vec![eligible_id],
+                    lki: vec![],
+                },
+                mtg_engine::AdditionalCost::Squad { count: 2 },
+            ],
+            ..Default::default()
+        };
+        api::validate_additional_cost_params(&action, &params)
+            .expect("a legal sacrifice id and an in-bound squad count must be accepted");
+    }
+
     // ── 15 ────────────────────────────────────────────────────────────────────
 
     /// **Architecture Invariant 7's chokepoint, machine-enforced instead of

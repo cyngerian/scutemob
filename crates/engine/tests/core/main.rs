@@ -48,4 +48,5 @@ mod state_invariants;
 mod turn_actions;
 mod turn_invariants;
 mod turn_structure;
+mod ui2_additional_cost_roster;
 mod zone_integrity;
