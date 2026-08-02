@@ -573,8 +573,24 @@ impl LegalActionProvider for StubProvider {
         // speed and must be offered -- `can_cast_at_this_time` is the same predicate
         // the hand loop above uses, so the two cannot diverge.
         //
-        // Appended AFTER the hand loop on purpose: `RandomBot` chooses by index, so
-        // appending leaves every pre-existing action's index untouched.
+        // Placed immediately after the hand loop it mirrors, so the two stay readable
+        // as a pair. **This is NOT an "append", and the difference matters**: the
+        // tap-for-mana, declare-attackers and declare-blockers blocks all run below,
+        // so whenever this loop pushes, every one of their indices shifts by one — and
+        // `RandomBot` chooses by index into this list.
+        //
+        // So the reason no recorded `mtg-fuzzer` seed moves is **not** placement. It is
+        // that the offer is gated on `commander_ids`, and `fuzzer.rs` builds its
+        // command-zone object without ever calling `builder.player_commander(..)` —
+        // so `commander_ids` is empty in every fuzzer game and this loop cannot fire
+        // there at all. That is structural unreachability, filed as `OOS-SIM1-4`, and
+        // it is a stronger guarantee than index arithmetic would have been. Verified
+        // by A/B against the merge-base: 60 games, per-game results byte-identical.
+        //
+        // A future session that closes `OOS-SIM1-4` (teaching the fuzzer to register
+        // commanders) re-rolls every recorded seed. That is the cost named in the seed,
+        // and it is the *registration* that causes it — moving this block would not
+        // help.
         if !cast_restricted && !is_cast_from_nonhand_restricted(state, player) {
             let command_zone = ZoneId::Command(player);
             for obj in state.objects_in_zone(&command_zone) {
