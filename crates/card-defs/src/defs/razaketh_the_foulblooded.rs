@@ -26,8 +26,10 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
                     Cost::PayLife(2),
+                    // CR 109.1 / PB-EF1: printed "Sacrifice ANOTHER creature".
                     Cost::Sacrifice(TargetFilter {
                         has_card_type: Some(CardType::Creature),
+                        exclude_self: true,
                         ..Default::default()
                     }),
                 ]),

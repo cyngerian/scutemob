@@ -5,12 +5,13 @@
 //! without deep engine knowledge — enough to play games, but misses edge
 //! cases that a full engine implementation would catch.
 
+use mtg_engine::state::game_object::SacrificeFilter;
 use mtg_engine::{
-    apply_commander_tax, AbilityDefinition, AdditionalCost, AttackTarget, CardType, CounterType,
-    EffectChoiceAnswer, EffectChoiceQuestion, EffectDuration, FaceDownKind, FlashGrantFilter,
-    GameObject, GameRestriction, GameState, HybridMana, HybridManaPayment, KeywordAbility,
-    ManaColor, ManaCost, ObjectId, PhyrexianMana, PlayerId, SpellAdditionalCost, Step, Target,
-    TriggerTargetOption, TurnFaceUpMethod, ZoneId,
+    apply_commander_tax, AbilityDefinition, ActivatedAbility, AdditionalCost, AttackTarget,
+    CardType, CounterType, EffectChoiceAnswer, EffectChoiceQuestion, EffectDuration, FaceDownKind,
+    FlashGrantFilter, GameObject, GameRestriction, GameState, HybridMana, HybridManaPayment,
+    KeywordAbility, ManaColor, ManaCost, ObjectId, PhyrexianMana, PlayerId, SpellAdditionalCost,
+    Step, Target, TriggerTargetOption, TurnFaceUpMethod, ZoneId,
 };
 
 /// CR 118.8 / CR 601.2b (UI-2): the additional costs a `CastSpell` offer must or may
@@ -41,6 +42,74 @@ pub struct SacrificeCostOption {
     /// A sentinel (`ObjectId::SENTINEL`) when `eligible` is empty -- never read in
     /// that case, since the whole offer is suppressed before this value reaches a
     /// consumer.
+    pub default: ObjectId,
+}
+
+/// CR 602.2 (SIM-6, triage G4): the **non-mana** activation costs an
+/// `ActivateAbility` offer has to pay, described well enough that a client can
+/// render a picker and a bot can submit an answer the engine will accept.
+///
+/// The sibling of [`AdditionalCostPlan`], one command over. UI-2 built that one for
+/// `CastSpell` (CR 118.8) and stopped there; `Command::ActivateAbility` carries
+/// `sacrifice_target` / `discard_card` on the wire and has since PB-EF1, but nothing
+/// in this crate ever filled them, so `handle_activate_ability` refused every
+/// sacrifice- or discard-cost activation with an `InvalidCommand` (CR 602.2) — a 422
+/// in the browser, and ~135 of the 166 bot command refusals SIM-5 recorded.
+///
+/// **Mana is deliberately absent.** The mana/hybrid/Phyrexian/life components of an
+/// activation cost are already gated (and, for pips, *planned*) by the offer loop in
+/// [`StubProvider::legal_actions`]; this type covers exactly the components that
+/// require the activating player to NAME an object.
+#[derive(Clone, Debug, Default)]
+pub struct ActivationCostPlan {
+    /// CR 602.2: the "Sacrifice a/another <thing>" component, when the ability's
+    /// `ActivationCost` declares a `sacrifice_filter`. `None` for every other
+    /// ability — including one that sacrifices ITSELF (`sacrifice_self`), which
+    /// names no object and so needs no channel.
+    pub sacrifice: Option<ActivationSacrificeOption>,
+    /// CR 602.2 / CR 111.10g: the "Discard a card" component, when the ability's
+    /// `ActivationCost` sets `discard_card`. `None` for every other ability —
+    /// including a Channel ability (`discard_self`), which names no object.
+    pub discard: Option<ActivationDiscardOption>,
+}
+
+/// CR 602.2 (SIM-6): the offer's sacrifice descriptor.
+#[derive(Clone, Debug)]
+pub struct ActivationSacrificeOption {
+    /// The engine's own `ActivationCost::sacrifice_filter`, verbatim — for
+    /// labelling only. The CANDIDATES already carry the judgment of who is
+    /// eligible, so a wrong label here cannot become a wrong game state.
+    pub filter: mtg_engine::state::game_object::SacrificeFilter,
+    /// CR 109.1 / PB-EF1: the ability's `sacrifice_exclude_self` bit, carried so a
+    /// client can say *why* the source is missing from `eligible` rather than
+    /// leaving a human to wonder. Already applied to `eligible`.
+    pub exclude_self: bool,
+    /// Battlefield permanents this player controls that `handle_activate_ability`'s
+    /// own sacrifice gate will accept. **Never empty**: an empty set suppresses the
+    /// whole `ActivateAbility` offer, the same SR-38 rule
+    /// [`offerable_cast_plan`] applies one command over.
+    pub eligible: Vec<ObjectId>,
+    /// The deterministic default a bot submits: `eligible[0]` (lowest `ObjectId`,
+    /// since `objects_in_zone` yields the engine's own order). Its own field rather
+    /// than re-derived at each consumer, so the consumers cannot drift.
+    /// `ObjectId::SENTINEL` when `eligible` is empty — never read in that case,
+    /// because the whole offer is suppressed before this value reaches a consumer.
+    pub default: ObjectId,
+}
+
+/// CR 602.2 / CR 111.10g (SIM-6): the offer's discard descriptor.
+#[derive(Clone, Debug)]
+pub struct ActivationDiscardOption {
+    /// The cards in this player's hand. `handle_activate_ability` accepts any card
+    /// in the activating player's hand (`abilities.rs`' discard-cost block checks
+    /// the zone and nothing else), so this is that zone verbatim — there is no
+    /// filter to mirror, which is why this option has no `filter` field.
+    ///
+    /// **Never empty**, for the same SR-38 reason as
+    /// [`ActivationSacrificeOption::eligible`].
+    pub eligible: Vec<ObjectId>,
+    /// The deterministic default a bot submits: `eligible[0]`. Same contract as
+    /// [`ActivationSacrificeOption::default`].
     pub default: ObjectId,
 }
 
@@ -99,6 +168,11 @@ pub enum LegalAction {
         /// PB-RS2 (CR 107.4f via CR 602.2b, CR 104.3b): mirrors
         /// `TapForMana::phyrexian_life_payments`.
         phyrexian_life_payments: Vec<bool>,
+        /// CR 602.2 (SIM-6): the ability's non-mana, object-naming cost components
+        /// — the sacrifice and the discard. `ActivationCostPlan::default()` (both
+        /// fields `None`) for the overwhelming majority of abilities, exactly as
+        /// `CastSpell::additional_costs` is for spells.
+        activation_costs: ActivationCostPlan,
     },
     DeclareAttackers {
         eligible: Vec<ObjectId>,
@@ -921,11 +995,30 @@ impl LegalActionProvider for StubProvider {
                 if is_ability_restricted_by_stax(state, player, obj.id) {
                     continue;
                 }
+                // CR 302.6 / CR 602.5b / CR 118.3 (SIM-6, SR-38): the three refusals
+                // `handle_activate_ability` makes that this loop never mirrored. See
+                // `activated_ability_is_activatable` — one of them produced a live 422
+                // during this batch's own browser verification.
+                if !activated_ability_is_activatable(state, player, obj, &act_chars, ability) {
+                    continue;
+                }
+                // CR 602.2 / SR-38 (SIM-6, triage G4): the non-mana components that
+                // require NAMING an object -- the sacrifice and the discard. `None`
+                // suppresses the offer entirely, exactly as `offerable_cast_plan`
+                // does one command over: an activation whose required sacrifice has
+                // nothing eligible to name is one `handle_activate_ability` refuses,
+                // and offering it was the whole G4 defect.
+                let Some(activation_costs) =
+                    offerable_activation_plan(state, player, obj.id, ability)
+                else {
+                    continue;
+                };
                 actions.push(LegalAction::ActivateAbility {
                     source: obj.id,
                     ability_index: idx,
                     hybrid_choices,
                     phyrexian_life_payments,
+                    activation_costs,
                 });
             }
         }
@@ -1813,6 +1906,207 @@ fn eligible_spell_sacrifice_targets(
         })
         .map(|obj| obj.id)
         .collect()
+}
+
+/// CR 602.2 / SR-38 (SIM-6): the checks `handle_activate_ability` makes that this
+/// provider's own offer loop did not, and that are knowable from the state alone.
+///
+/// **The sibling of `mana_solver::tap_ability_is_activatable`**, which SIM-2 built for
+/// the MANA path after finding the same class of gap there. That function takes a
+/// `ManaAbility`; this one takes an `ActivatedAbility`, and the two cover the same
+/// three engine refusals (a fourth, the CR 605.3 stax restriction, is already checked
+/// separately at this call site by `is_ability_restricted_by_stax`).
+///
+/// **Found by this batch's own browser verification, not reasoned to**: driving a live
+/// game to a Rummaging Goblin activation (`{T}`, Discard a card: Draw a card) produced
+/// a real **422** — `"object ObjectId(499) has summoning sickness and cannot use
+/// abilities with {T}"` — from a picker the browser had rendered correctly. The
+/// cost-payment channel was fine; the OFFER was not. The `activation_condition` arm is
+/// the same shape and was 40 of the 166 bot command refusals the SIM-5 A/B recorded on
+/// seeds 0/7/42; after this gate it is 0.
+fn activated_ability_is_activatable(
+    state: &GameState,
+    player: PlayerId,
+    obj: &GameObject,
+    chars: &mtg_engine::Characteristics,
+    ability: &ActivatedAbility,
+) -> bool {
+    // CR 302.6 / CR 702.10 (`abilities.rs`, the `requires_tap` block): a summoning-sick
+    // creature cannot pay a `{T}` cost. Read from LAYER-RESOLVED characteristics
+    // exactly as the engine does, so an animated land is sick and layer-granted haste
+    // (Fervor) is seen (CR 613.1d/613.1f).
+    if ability.cost.requires_tap
+        && obj.has_summoning_sickness
+        && chars.card_types.contains(&CardType::Creature)
+        && !chars.keywords.contains(&KeywordAbility::Haste)
+    {
+        return false;
+    }
+    // CR 602.5b (`abilities.rs:260`): "Activate only if ...". Evaluated with the same
+    // `check_condition` the engine uses, so the two cannot disagree.
+    //
+    // **KNOWN DIVERGENCE, latent (`/review` finding 3)**: the engine builds its
+    // context with `x_value: x_value.unwrap_or(0)` from the COMMAND, while this runs
+    // at offer time, before any `{X}` is announced, and so always evaluates at
+    // `x_value: 0`. An "Activate only if X is N or more" condition would therefore be
+    // wrongly SUPPRESSED here — the silent-unplayable direction, not the 422
+    // direction. Not reachable today: every `Condition::XValueAtLeast` in the corpus
+    // (`finale_of_devastation`, `white_suns_twilight`, `martial_coup`) is spell-side,
+    // never an `activation_condition`. Closing it needs the announced `{X}` at offer
+    // time, which this action does not have; `OOS-SIM6-6`.
+    if let Some(condition) = &ability.activation_condition {
+        let ctx = mtg_engine::effects::EffectContext::new(player, obj.id, vec![]);
+        if !mtg_engine::effects::check_condition(state, condition, &ctx) {
+            return false;
+        }
+    }
+    // CR 602.2 / CR 118.3 (`abilities.rs:1277`): a remove-counter cost with too few
+    // counters on the source.
+    if let Some((counter, count)) = &ability.cost.remove_counter_cost {
+        if obj.counters.get(counter).copied().unwrap_or(0) < *count {
+            return false;
+        }
+    }
+    true
+}
+
+/// CR 602.2 (SIM-6): the battlefield permanents `player` controls that
+/// `handle_activate_ability`'s own sacrifice-cost gate (`rules/abilities.rs`, the
+/// `ability_cost.sacrifice_filter` block) will accept for `filter`, **gate for gate
+/// and in the same order**: on the battlefield, controlled by `player`, not the
+/// source when `exclude_self` (CR 109.1 / PB-EF1), not
+/// `object_cant_be_sacrificed` (CR 701.21a / PB-AC8), and matching the filter
+/// against LAYER-RESOLVED characteristics (CR 613.1f).
+///
+/// Deliberately NOT `effects::eligible_sacrifice_targets`, and NOT
+/// [`eligible_spell_sacrifice_targets`] either — for the same reason that one is not
+/// the effect helper. The three gates differ: the effect helper also checks
+/// `is_phased_in`; the CAST gate (CR 118.8) has no self-exclusion because a spell on
+/// the stack is not a permanent; only this one has `exclude_self` and the
+/// `CreatureOfChosenType` arm. Mirroring a neighbouring gate would offer a set the
+/// engine does not validate.
+///
+/// `CreatureOfChosenType` reads the SOURCE's `chosen_creature_type`, which is why
+/// `source` is a parameter and not just the exclusion subject.
+fn eligible_activation_sacrifice_targets(
+    state: &GameState,
+    player: PlayerId,
+    source: ObjectId,
+    filter: &SacrificeFilter,
+    exclude_self: bool,
+) -> Vec<ObjectId> {
+    state
+        .objects_in_zone(&ZoneId::Battlefield)
+        .into_iter()
+        .filter(|obj| obj.controller == player)
+        .filter(|obj| !(exclude_self && obj.id == source))
+        .filter(|obj| !object_cant_be_sacrificed(state, obj.id))
+        .filter(|obj| {
+            let chars = mtg_engine::rules::layers::calculate_characteristics(state, obj.id)
+                .unwrap_or_else(|| obj.characteristics.clone());
+            match filter {
+                SacrificeFilter::Creature => chars.card_types.contains(&CardType::Creature),
+                SacrificeFilter::Land => chars.card_types.contains(&CardType::Land),
+                SacrificeFilter::Artifact => chars.card_types.contains(&CardType::Artifact),
+                SacrificeFilter::ArtifactOrCreature => {
+                    chars.card_types.contains(&CardType::Artifact)
+                        || chars.card_types.contains(&CardType::Creature)
+                }
+                SacrificeFilter::Subtype(sub) => chars.subtypes.contains(sub),
+                // The engine's own arm, restated: a creature AND carrying the
+                // ACTIVATING SOURCE's chosen creature type. A source that has
+                // chosen nothing accepts nothing, which is what makes the whole
+                // offer disappear rather than 422.
+                SacrificeFilter::CreatureOfChosenType => {
+                    chars.card_types.contains(&CardType::Creature)
+                        && state
+                            .objects()
+                            .get(&source)
+                            .and_then(|o| o.chosen_creature_type.as_ref())
+                            .is_some_and(|ct| chars.subtypes.contains(ct))
+                }
+            }
+        })
+        .map(|obj| obj.id)
+        .collect()
+}
+
+/// CR 602.2 / SR-38 (SIM-6): the [`ActivationCostPlan`] to offer with an
+/// `ActivateAbility` for `ability` on `source`, or `None` if the activation must not
+/// be offered at all.
+///
+/// `None` means exactly one thing, and it is [`offerable_cast_plan`]'s meaning one
+/// command over: the ability declares a cost component that must NAME an object and
+/// this player has no legal object to name, so `handle_activate_ability` would refuse
+/// the activation outright. Offering it anyway was the G4 defect — the human clicked
+/// Yahenni and got a 422.
+///
+/// Both components are REQUIRED when present (CR 602.2b: costs are not optional), so
+/// either one being unpayable suppresses the whole offer. Nothing here is optional
+/// the way Squad is, which is why this has no counterpart to
+/// `offerable_cast_plan`'s "Squad never suppresses" carve-out.
+fn offerable_activation_plan(
+    state: &GameState,
+    player: PlayerId,
+    source: ObjectId,
+    ability: &ActivatedAbility,
+) -> Option<ActivationCostPlan> {
+    let plan = build_activation_cost_plan(state, player, source, ability);
+    if plan
+        .sacrifice
+        .as_ref()
+        .is_some_and(|s| s.eligible.is_empty())
+    {
+        return None;
+    }
+    if plan.discard.as_ref().is_some_and(|d| d.eligible.is_empty()) {
+        return None;
+    }
+    Some(plan)
+}
+
+/// CR 602.2 (SIM-6): build the non-mana activation-cost descriptor for `ability`.
+/// Consumed by `params.rs` (the bot default and the human's answer) and by
+/// `tools/play-server` (the picker). `ActivationCostPlan::default()` (both fields
+/// `None`) for every ability whose `ActivationCost` declares neither component.
+///
+/// The caller ([`offerable_activation_plan`]) suppresses the whole offer when either
+/// eligible set comes back empty, so the `SENTINEL` defaults below are never read in
+/// that case.
+fn build_activation_cost_plan(
+    state: &GameState,
+    player: PlayerId,
+    source: ObjectId,
+    ability: &ActivatedAbility,
+) -> ActivationCostPlan {
+    let sacrifice = ability.cost.sacrifice_filter.as_ref().map(|filter| {
+        let exclude_self = ability.cost.sacrifice_exclude_self;
+        let eligible =
+            eligible_activation_sacrifice_targets(state, player, source, filter, exclude_self);
+        ActivationSacrificeOption {
+            filter: filter.clone(),
+            exclude_self,
+            default: eligible.first().copied().unwrap_or(ObjectId::SENTINEL),
+            eligible,
+        }
+    });
+
+    // CR 602.2 / CR 111.10g: `abilities.rs`' discard-cost block checks that the
+    // named card is in the ACTIVATING PLAYER's hand and nothing else — no filter, no
+    // count beyond one — so the eligible set is that zone verbatim.
+    let discard = ability.cost.discard_card.then(|| {
+        let eligible: Vec<ObjectId> = state
+            .objects_in_zone(&ZoneId::Hand(player))
+            .into_iter()
+            .map(|obj| obj.id)
+            .collect();
+        ActivationDiscardOption {
+            default: eligible.first().copied().unwrap_or(ObjectId::SENTINEL),
+            eligible,
+        }
+    });
+
+    ActivationCostPlan { sacrifice, discard }
 }
 
 /// CR 118.8 / SR-38 (UI-2 §1.3): the `AdditionalCostPlan` to offer with a
@@ -3952,6 +4246,605 @@ mod tests {
                 .iter()
                 .any(|a| matches!(a, LegalAction::CastSpell { card, .. } if *card == card_id)),
             "Squad's own max_count == 0 must not suppress the cast itself"
+        );
+    }
+
+    // ── SIM-6 (CR 602.2, triage G4): the activation-cost payment channel ────────
+    //
+    // Every test below is against `LegalAction::ActivateAbility`, whose two
+    // object-naming cost components had no channel at all before this batch:
+    // `params.rs` hardcoded `sacrifice_target: None` / `discard_card: None` and
+    // `handle_activate_ability` refused the command (CR 602.2). The sibling suite
+    // one command over (`eligible_spell_sacrifice_targets_*`, CR 118.8) tests the
+    // CAST gate; these gates are DIFFERENT (self-exclusion, `CreatureOfChosenType`),
+    // which is why they are mirrored separately rather than shared.
+
+    /// An activated ability whose only cost is sacrificing something matching
+    /// `filter`, with the CR 109.1 "another" bit as given.
+    fn activated_sacrificing(filter: SacrificeFilter, exclude_self: bool) -> ActivatedAbility {
+        ActivatedAbility {
+            cost: ActivationCost {
+                sacrifice_filter: Some(filter),
+                sacrifice_exclude_self: exclude_self,
+                ..Default::default()
+            },
+            description: "Sacrifice something: do nothing".to_string(),
+            modes: None,
+            ..Default::default()
+        }
+    }
+
+    /// An activated ability whose only cost is discarding a card (CR 111.10g's
+    /// Blood-token shape, minus the mana and the tap).
+    fn activated_discarding() -> ActivatedAbility {
+        ActivatedAbility {
+            cost: ActivationCost {
+                discard_card: true,
+                ..Default::default()
+            },
+            description: "Discard a card: do nothing".to_string(),
+            modes: None,
+            ..Default::default()
+        }
+    }
+
+    /// S1: `eligible_activation_sacrifice_targets` mirrors each of the six
+    /// `SacrificeFilter` arms `handle_activate_ability` validates against, and reads
+    /// LAYER-RESOLVED characteristics (CR 613.1f) rather than printed ones — a
+    /// permanent GRANTED a subtype is eligible for that subtype's filter.
+    ///
+    /// The engine's own arm order is followed exactly; a filter that offered a
+    /// different set from the one the engine validates is the SR-38 defect this
+    /// helper exists to prevent.
+    #[test]
+    fn eligible_activation_sacrifice_targets_mirrors_each_of_the_six_filters() {
+        let p1 = PlayerId(1);
+        let p2 = PlayerId(2);
+        let mut state = GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(p2)
+            .active_player(p1)
+            .object(
+                ObjectSpec::artifact(p1, "Altar")
+                    .in_zone(ZoneId::Battlefield)
+                    .with_activated_ability(activated_sacrificing(
+                        SacrificeFilter::Creature,
+                        false,
+                    )),
+            )
+            .object(ObjectSpec::creature(p1, "P1 Bear", 2, 2).in_zone(ZoneId::Battlefield))
+            .object(ObjectSpec::land(p1, "P1 Land").in_zone(ZoneId::Battlefield))
+            .object(ObjectSpec::artifact(p1, "P1 Sword").in_zone(ZoneId::Battlefield))
+            .object(
+                ObjectSpec::creature(p1, "P1 Printed Goblin", 1, 1)
+                    .in_zone(ZoneId::Battlefield)
+                    .with_subtypes(vec![SubType("Goblin".to_string())]),
+            )
+            .object(
+                ObjectSpec::creature(p1, "P1 Granted Goblin", 1, 1).in_zone(ZoneId::Battlefield),
+            )
+            .object(ObjectSpec::creature(p2, "P2 Bear", 2, 2).in_zone(ZoneId::Battlefield))
+            .build()
+            .expect("state builds");
+
+        let granted_goblin = id_of(&state, "P1 Granted Goblin");
+        state.continuous_effects_mut().push_back(ContinuousEffect {
+            id: EffectId(9101),
+            source: None,
+            timestamp: 0,
+            layer: EffectLayer::TypeChange,
+            duration: EffectDuration::Indefinite,
+            filter: EffectFilter::SingleObject(granted_goblin),
+            modification: LayerModification::AddSubtypes(
+                [SubType("Goblin".to_string())].into_iter().collect(),
+            ),
+            is_cda: false,
+            condition: None,
+            affected_set: None,
+        });
+
+        let altar = id_of(&state, "Altar");
+        let bear = id_of(&state, "P1 Bear");
+        let land = id_of(&state, "P1 Land");
+        let sword = id_of(&state, "P1 Sword");
+        let printed_goblin = id_of(&state, "P1 Printed Goblin");
+        let p2_bear = id_of(&state, "P2 Bear");
+
+        let eligible = |filter: SacrificeFilter| {
+            eligible_activation_sacrifice_targets(&state, p1, altar, &filter, false)
+        };
+
+        let creatures = eligible(SacrificeFilter::Creature);
+        assert!(creatures.contains(&bear) && creatures.contains(&printed_goblin));
+        assert!(
+            !creatures.contains(&land) && !creatures.contains(&sword),
+            "a land and an artifact are not creatures: {creatures:?}"
+        );
+        assert!(
+            !creatures.contains(&p2_bear),
+            "CR 602.2: you may only sacrifice permanents YOU control: {creatures:?}"
+        );
+
+        assert_eq!(eligible(SacrificeFilter::Land), vec![land]);
+        assert_eq!(eligible(SacrificeFilter::Artifact), vec![altar, sword]);
+
+        let artifact_or_creature = eligible(SacrificeFilter::ArtifactOrCreature);
+        for id in [altar, bear, sword, printed_goblin, granted_goblin] {
+            assert!(
+                artifact_or_creature.contains(&id),
+                "{id:?} must be eligible"
+            );
+        }
+        assert!(!artifact_or_creature.contains(&land));
+
+        let goblins = eligible(SacrificeFilter::Subtype(SubType("Goblin".to_string())));
+        assert!(
+            goblins.contains(&printed_goblin) && goblins.contains(&granted_goblin),
+            "CR 613.1f: the layer-GRANTED Goblin is eligible too: {goblins:?}"
+        );
+        assert!(!goblins.contains(&bear));
+
+        // CR 602.2's `CreatureOfChosenType` arm reads the SOURCE's own
+        // `chosen_creature_type`. With nothing chosen, nothing is eligible — which
+        // is what makes the whole offer disappear rather than 422.
+        assert!(
+            eligible(SacrificeFilter::CreatureOfChosenType).is_empty(),
+            "a source that has chosen no creature type accepts nothing"
+        );
+        state
+            .objects_mut()
+            .get_mut(&altar)
+            .expect("altar exists")
+            .chosen_creature_type = Some(SubType("Goblin".to_string()));
+        let chosen = eligible_activation_sacrifice_targets(
+            &state,
+            p1,
+            altar,
+            &SacrificeFilter::CreatureOfChosenType,
+            false,
+        );
+        assert!(
+            chosen.contains(&printed_goblin) && chosen.contains(&granted_goblin),
+            "both Goblins match the chosen type: {chosen:?}"
+        );
+        assert!(
+            !chosen.contains(&bear),
+            "a Bear is not of the chosen type: {chosen:?}"
+        );
+    }
+
+    /// S2 (CR 109.1 / PB-EF1): `exclude_self` removes the SOURCE and nothing else.
+    ///
+    /// This is the gate that makes Yahenni's printed "Sacrifice **another**
+    /// creature" mean what it prints. Two-sided on purpose: with the bit off, the
+    /// source IS eligible (Nantuko Husk's shape, which is also correct), so this
+    /// test discriminates the bit rather than merely observing an absence.
+    #[test]
+    fn exclude_self_removes_only_the_source() {
+        let p1 = PlayerId(1);
+        let p2 = PlayerId(2);
+        let state = GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(p2)
+            .active_player(p1)
+            .object(
+                ObjectSpec::creature(p1, "Yahenni", 2, 2)
+                    .in_zone(ZoneId::Battlefield)
+                    .with_activated_ability(activated_sacrificing(SacrificeFilter::Creature, true)),
+            )
+            .object(ObjectSpec::creature(p1, "Fodder", 1, 1).in_zone(ZoneId::Battlefield))
+            .build()
+            .expect("state builds");
+
+        let yahenni = id_of(&state, "Yahenni");
+        let fodder = id_of(&state, "Fodder");
+
+        assert_eq!(
+            eligible_activation_sacrifice_targets(
+                &state,
+                p1,
+                yahenni,
+                &SacrificeFilter::Creature,
+                true
+            ),
+            vec![fodder],
+            "CR 109.1: 'sacrifice ANOTHER creature' must not offer the source"
+        );
+        assert_eq!(
+            eligible_activation_sacrifice_targets(
+                &state,
+                p1,
+                yahenni,
+                &SacrificeFilter::Creature,
+                false
+            ),
+            vec![yahenni, fodder],
+            "without the bit the source pays its own cost legally (Nantuko Husk)"
+        );
+    }
+
+    /// S3 (PB-AC8 / CR 701.21a): a permanent under `CantBeSacrificed` is not a legal
+    /// choice, mirroring `handle_activate_ability`'s own `object_cant_be_sacrificed`
+    /// check — the one gate the dispatch brief called out by line number.
+    #[test]
+    fn activation_sacrifice_excludes_cant_be_sacrificed_permanents() {
+        let p1 = PlayerId(1);
+        let p2 = PlayerId(2);
+        let mut state = GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(p2)
+            .active_player(p1)
+            .object(
+                ObjectSpec::artifact(p1, "Altar")
+                    .in_zone(ZoneId::Battlefield)
+                    .with_activated_ability(activated_sacrificing(
+                        SacrificeFilter::Creature,
+                        false,
+                    )),
+            )
+            .object(ObjectSpec::creature(p1, "Protected Bear", 2, 2).in_zone(ZoneId::Battlefield))
+            .object(ObjectSpec::creature(p1, "Plain Bear", 2, 2).in_zone(ZoneId::Battlefield))
+            .build()
+            .expect("state builds");
+
+        let altar = id_of(&state, "Altar");
+        let protected = id_of(&state, "Protected Bear");
+        let plain = id_of(&state, "Plain Bear");
+        state
+            .restrictions_mut()
+            .push_back(mtg_engine::state::ActiveRestriction {
+                source: protected,
+                controller: p1,
+                restriction: GameRestriction::CantBeSacrificed,
+            });
+
+        assert_eq!(
+            eligible_activation_sacrifice_targets(
+                &state,
+                p1,
+                altar,
+                &SacrificeFilter::Creature,
+                false
+            ),
+            vec![plain],
+            "CR 701.21a: the protected creature cannot pay a sacrifice cost"
+        );
+    }
+
+    /// S4 (SR-38, criterion 6067): with nothing eligible to sacrifice, the WHOLE
+    /// `ActivateAbility` offer is suppressed — not offered with an empty set.
+    ///
+    /// **This is the test that is red on the pre-fix behavior.** Before this batch
+    /// the offer loop consulted mana, hybrid/Phyrexian, life and stax and never
+    /// `ability.cost.sacrifice_filter`, so the action below was offered with zero
+    /// eligible creatures on the board and the engine refused the command with
+    /// `InvalidCommand` (a 422 in the browser). Deleting the `offerable_activation_plan`
+    /// gate in `StubProvider::legal_actions` turns this assertion red.
+    ///
+    /// Two-sided: the SAME ability IS offered once one eligible creature exists, so
+    /// this proves a conditional suppression rather than a blanket omission.
+    #[test]
+    fn activation_offer_is_suppressed_with_no_eligible_sacrifice_then_offered_once_one_exists() {
+        let p1 = PlayerId(1);
+        let p2 = PlayerId(2);
+        let build = |with_fodder: bool| {
+            let mut b = GameStateBuilder::new()
+                .add_player(p1)
+                .add_player(p2)
+                .active_player(p1)
+                .object(
+                    ObjectSpec::artifact(p1, "Altar")
+                        .in_zone(ZoneId::Battlefield)
+                        .with_activated_ability(activated_sacrificing(
+                            SacrificeFilter::Creature,
+                            false,
+                        )),
+                )
+                // An OPPONENT's creature: on the battlefield and a creature, so it
+                // fails only the controller gate. A board with no creature at all
+                // would not discriminate a controller bug from a filter bug.
+                .object(ObjectSpec::creature(p2, "Their Bear", 2, 2).in_zone(ZoneId::Battlefield));
+            if with_fodder {
+                b = b.object(ObjectSpec::creature(p1, "Fodder", 1, 1).in_zone(ZoneId::Battlefield));
+            }
+            b.build().expect("state builds")
+        };
+
+        let barren = build(false);
+        let altar = id_of(&barren, "Altar");
+        let offered = |state: &GameState| {
+            StubProvider.legal_actions(state, p1).into_iter().find(
+                |a| matches!(a, LegalAction::ActivateAbility { source, .. } if *source == altar),
+            )
+        };
+        assert!(
+            offered(&barren).is_none(),
+            "CR 602.2 / SR-38: an activation whose required sacrifice has nothing \
+             eligible must not be offered at all"
+        );
+
+        let stocked = build(true);
+        let fodder = id_of(&stocked, "Fodder");
+        let action = offered(&stocked).expect("the same ability is offered once fodder exists");
+        let LegalAction::ActivateAbility {
+            activation_costs, ..
+        } = &action
+        else {
+            unreachable!("matched above")
+        };
+        let sac = activation_costs
+            .sacrifice
+            .as_ref()
+            .expect("the plan describes the sacrifice component");
+        assert_eq!(sac.eligible, vec![fodder]);
+        assert_eq!(
+            sac.default, fodder,
+            "the default is the first eligible id — what a bot submits"
+        );
+        assert!(!sac.exclude_self, "this ability prints 'a', not 'another'");
+        assert!(
+            activation_costs.discard.is_none(),
+            "no discard component on this ability"
+        );
+    }
+
+    /// S5 (SR-38, criterion 6068): the discard half of the same gate. An empty hand
+    /// suppresses the offer; a card in hand restores it, and the plan names that card.
+    ///
+    /// Red on the pre-fix behavior for the same reason S4 is: `ability.cost.discard_card`
+    /// was never consulted by the offer loop, and `handle_activate_ability` refuses a
+    /// `discard_card: None` command outright (CR 602.2 / CR 111.10g).
+    #[test]
+    fn activation_offer_is_suppressed_with_an_empty_hand_then_offered_once_a_card_exists() {
+        let p1 = PlayerId(1);
+        let p2 = PlayerId(2);
+        let build = |with_card: bool| {
+            let mut b = GameStateBuilder::new()
+                .add_player(p1)
+                .add_player(p2)
+                .active_player(p1)
+                .object(
+                    ObjectSpec::artifact(p1, "Blood Token")
+                        .in_zone(ZoneId::Battlefield)
+                        .with_activated_ability(activated_discarding()),
+                )
+                // An OPPONENT's hand card: it exists, so an implementation that
+                // enumerated the wrong zone owner would pass the barren case.
+                .object(ObjectSpec::card(p2, "Their Card").in_zone(ZoneId::Hand(p2)));
+            if with_card {
+                b = b.object(ObjectSpec::card(p1, "My Card").in_zone(ZoneId::Hand(p1)));
+            }
+            b.build().expect("state builds")
+        };
+
+        let barren = build(false);
+        let token = id_of(&barren, "Blood Token");
+        let offered = |state: &GameState| {
+            StubProvider.legal_actions(state, p1).into_iter().find(
+                |a| matches!(a, LegalAction::ActivateAbility { source, .. } if *source == token),
+            )
+        };
+        assert!(
+            offered(&barren).is_none(),
+            "CR 602.2 / CR 111.10g: an activation whose discard cost has no card to \
+             pay it must not be offered at all"
+        );
+
+        let stocked = build(true);
+        let my_card = id_of(&stocked, "My Card");
+        let action = offered(&stocked).expect("the same ability is offered once a card exists");
+        let LegalAction::ActivateAbility {
+            activation_costs, ..
+        } = &action
+        else {
+            unreachable!("matched above")
+        };
+        let discard = activation_costs
+            .discard
+            .as_ref()
+            .expect("the plan describes the discard component");
+        assert_eq!(
+            discard.eligible,
+            vec![my_card],
+            "only THIS seat's hand is offered"
+        );
+        assert_eq!(discard.default, my_card);
+        assert!(activation_costs.sacrifice.is_none());
+    }
+
+    /// S6: an ability with NEITHER component carries the default plan (both fields
+    /// `None`) and is offered unconditionally — the shape of the overwhelming
+    /// majority of the corpus, pinned so a future gate cannot start suppressing them.
+    #[test]
+    fn an_ability_with_no_object_naming_cost_carries_the_default_plan() {
+        let p1 = PlayerId(1);
+        let p2 = PlayerId(2);
+        let state = GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(p2)
+            .active_player(p1)
+            .object(
+                ObjectSpec::artifact(p1, "Plain Engine")
+                    .in_zone(ZoneId::Battlefield)
+                    .with_activated_ability(activated_costing_life(0)),
+            )
+            .build()
+            .expect("state builds");
+
+        let engine = id_of(&state, "Plain Engine");
+        let action = StubProvider
+            .legal_actions(&state, p1)
+            .into_iter()
+            .find(|a| matches!(a, LegalAction::ActivateAbility { source, .. } if *source == engine))
+            .expect("a cost-free ability is offered");
+        let LegalAction::ActivateAbility {
+            activation_costs, ..
+        } = &action
+        else {
+            unreachable!("matched above")
+        };
+        assert!(activation_costs.sacrifice.is_none() && activation_costs.discard.is_none());
+    }
+
+    /// S7 (SR-38, CR 302.6 / CR 602.5b / CR 118.3): the three refusals
+    /// `handle_activate_ability` makes that this provider's offer loop did not
+    /// mirror. Each is asserted BOTH ways on one board, so the gate cannot pass by
+    /// refusing everything.
+    ///
+    /// **The summoning-sickness arm is not hypothetical**: it produced a live 422
+    /// (`"object ObjectId(499) has summoning sickness and cannot use abilities with
+    /// {T}"`) during this batch's browser verification of a Rummaging Goblin
+    /// discard-cost activation, from a picker that had rendered perfectly. Proven
+    /// red by deleting the `activated_ability_is_activatable` call in
+    /// `StubProvider::legal_actions` and watching this assertion fail.
+    #[test]
+    fn the_provider_mirrors_the_three_state_knowable_activation_refusals() {
+        use mtg_engine::cards::Condition;
+        let p1 = PlayerId(1);
+        let p2 = PlayerId(2);
+
+        let offered = |state: &GameState, id: ObjectId| {
+            StubProvider
+                .legal_actions(state, p1)
+                .into_iter()
+                .any(|a| matches!(a, LegalAction::ActivateAbility { source, .. } if source == id))
+        };
+
+        // Arm 1 — CR 302.6: a `{T}` ability on a summoning-sick creature. Three
+        // sources on one board: sick creature (refused), sick creature WITH haste
+        // (offered), sick non-creature artifact (offered — CR 302.6 is about
+        // creatures).
+        let tap_ability = || ActivatedAbility {
+            cost: ActivationCost {
+                requires_tap: true,
+                ..Default::default()
+            },
+            description: "{T}: do nothing".to_string(),
+            modes: None,
+            ..Default::default()
+        };
+        let mut state = GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(p2)
+            .active_player(p1)
+            .object(
+                ObjectSpec::creature(p1, "Sick Goblin", 1, 1)
+                    .in_zone(ZoneId::Battlefield)
+                    .with_activated_ability(tap_ability()),
+            )
+            .object(
+                ObjectSpec::creature(p1, "Hasty Goblin", 1, 1)
+                    .in_zone(ZoneId::Battlefield)
+                    .with_keyword(KeywordAbility::Haste)
+                    .with_activated_ability(tap_ability()),
+            )
+            .object(
+                ObjectSpec::artifact(p1, "Sick Artifact")
+                    .in_zone(ZoneId::Battlefield)
+                    .with_activated_ability(tap_ability()),
+            )
+            .build()
+            .expect("state builds");
+        // Set the flag the engine reads rather than relying on the builder's default.
+        for name in ["Sick Goblin", "Hasty Goblin", "Sick Artifact"] {
+            let id = id_of(&state, name);
+            state
+                .objects_mut()
+                .get_mut(&id)
+                .expect("object exists")
+                .has_summoning_sickness = true;
+        }
+        assert!(
+            !offered(&state, id_of(&state, "Sick Goblin")),
+            "CR 302.6: a summoning-sick creature's {{T}} ability must not be offered"
+        );
+        assert!(
+            offered(&state, id_of(&state, "Hasty Goblin")),
+            "CR 702.10: haste lifts the restriction"
+        );
+        assert!(
+            offered(&state, id_of(&state, "Sick Artifact")),
+            "CR 302.6 applies to creatures; a sick artifact is unaffected"
+        );
+
+        // Arm 2 — CR 602.5b: "Activate only if ...", unmet then met.
+        let condition = Condition::YouControlPermanent(mtg_engine::cards::TargetFilter {
+            has_card_type: Some(CardType::Enchantment),
+            ..Default::default()
+        });
+        let gated = |cond: Condition| ActivatedAbility {
+            cost: ActivationCost::default(),
+            description: "Activate only if ...: do nothing".to_string(),
+            activation_condition: Some(cond),
+            modes: None,
+            ..Default::default()
+        };
+        let state_unmet = GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(p2)
+            .active_player(p1)
+            .object(
+                ObjectSpec::artifact(p1, "Gated Engine")
+                    .in_zone(ZoneId::Battlefield)
+                    .with_activated_ability(gated(condition.clone())),
+            )
+            .build()
+            .expect("state builds");
+        assert!(
+            !offered(&state_unmet, id_of(&state_unmet, "Gated Engine")),
+            "CR 602.5b: an unmet activation condition must not be offered"
+        );
+        let state_met = GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(p2)
+            .active_player(p1)
+            .object(
+                ObjectSpec::artifact(p1, "Gated Engine")
+                    .in_zone(ZoneId::Battlefield)
+                    .with_activated_ability(gated(condition)),
+            )
+            .object(ObjectSpec::enchantment(p1, "An Enchantment").in_zone(ZoneId::Battlefield))
+            .build()
+            .expect("state builds");
+        assert!(
+            offered(&state_met, id_of(&state_met, "Gated Engine")),
+            "the same condition, now met, is offered"
+        );
+
+        // Arm 3 — CR 118.3: a remove-counter cost with too few counters.
+        let mut state_counters = GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(p2)
+            .active_player(p1)
+            .object(
+                ObjectSpec::artifact(p1, "Charge Engine")
+                    .in_zone(ZoneId::Battlefield)
+                    .with_activated_ability(ActivatedAbility {
+                        cost: ActivationCost {
+                            remove_counter_cost: Some((CounterType::Charge, 2)),
+                            ..Default::default()
+                        },
+                        description: "Remove two charge counters: do nothing".to_string(),
+                        modes: None,
+                        ..Default::default()
+                    }),
+            )
+            .build()
+            .expect("state builds");
+        let engine_id = id_of(&state_counters, "Charge Engine");
+        assert!(
+            !offered(&state_counters, engine_id),
+            "CR 118.3: zero counters cannot pay a two-counter cost"
+        );
+        state_counters
+            .objects_mut()
+            .get_mut(&engine_id)
+            .expect("object exists")
+            .counters
+            .insert(CounterType::Charge, 2);
+        assert!(
+            offered(&state_counters, engine_id),
+            "with two counters present the same ability is offered"
         );
     }
 }

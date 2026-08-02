@@ -52,9 +52,17 @@
    *   1. `ValuePrompt`     — iff `needs_x || modes.length > 0` (CR 601.2b
    *                          announces `{X}`/modes as part of casting, before
    *                          CR 601.2c's target announcement)
-   *   2. `CostPicker`      — iff `option.costs` is present (UI-2). CR 601.2b's
-   *                          additional costs: the required sacrifice (CR 118.8)
-   *                          and the optional Squad count (CR 702.157a).
+   *   2. `CostPicker`      — iff `option.costs` is present (UI-2, SIM-6). For a
+   *                          CAST, CR 601.2b's additional costs: the required
+   *                          sacrifice (CR 118.8) and the optional Squad count
+   *                          (CR 702.157a). For an ACTIVATION, CR 602.2's
+   *                          object-naming cost components: the sacrifice and the
+   *                          discard. This stage's gate was always `option.costs`
+   *                          and never the action kind, so SIM-6 needed no change
+   *                          here beyond passing the two new blocks through — the
+   *                          missing half was on the server, where
+   *                          `additional_costs_view` early-returned for anything
+   *                          that was not a `CastSpell`.
    *   3. `TargetPicker`    — iff the resolved slot list is non-empty. For a
    *                          per-mode-targeting card (`ModeOptionView.target_slots`
    *                          non-empty on at least one mode) the slots are the
@@ -750,6 +758,8 @@
         prompt={activeOption.costs.prompt}
         sacrifice={activeOption.costs.sacrifice}
         squad={activeOption.costs.squad}
+        activationSacrifice={activeOption.costs.activation_sacrifice}
+        activationDiscard={activeOption.costs.activation_discard}
         answerField={activeOption.costs.answer_field}
         disabled={loading}
         onConfirm={onCostsConfirm}

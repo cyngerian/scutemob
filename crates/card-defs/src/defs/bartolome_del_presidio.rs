@@ -25,8 +25,10 @@ pub fn card() -> CardDefinition {
             // CR 602.2: "Sacrifice another creature or artifact: Put a +1/+1 counter
             // on Bartolomé del Presidio."
             AbilityDefinition::Activated {
+                // CR 109.1 / PB-EF1: printed "Sacrifice ANOTHER creature or artifact".
                 cost: Cost::Sacrifice(TargetFilter {
                     has_card_types: vec![CardType::Creature, CardType::Artifact],
+                    exclude_self: true,
                     ..Default::default()
                 }),
                 effect: Effect::AddCounter {

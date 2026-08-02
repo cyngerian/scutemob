@@ -47,7 +47,13 @@ pub fn card() -> CardDefinition {
                         black: 1,
                         ..Default::default()
                     }),
-                    Cost::Sacrifice(TargetFilter::default()),
+                    // CR 109.1 / PB-EF1: printed "Sacrifice ANOTHER creature or
+                    // artifact". The `has_card_types` half of this filter is still
+                    // overbroad -- see this def's completeness note.
+                    Cost::Sacrifice(TargetFilter {
+                        exclude_self: true,
+                        ..Default::default()
+                    }),
                 ]),
                 effect: Effect::DrawCards {
                     player: PlayerTarget::Controller,
@@ -66,9 +72,11 @@ pub fn card() -> CardDefinition {
              (abilities.rs:6260; forwarded at replay_harness.rs:2701) — the old ENGINE-BLOCKED \
              note is stale. Author with TriggerCondition::WheneverPermanentEntersBattlefield { \
              filter: is_token + controller You } + once_per_turn: true. ALSO FIX: the {1}{B} \
-             ability's Cost::Sacrifice(TargetFilter::default()) is overbroad — oracle requires \
-             'another creature or artifact' (needs has_card_types [Creature, Artifact] + \
-             exclude_self).",
+             ability's Cost::Sacrifice filter is still overbroad — oracle requires 'another \
+             creature or artifact' and the filter names no card type at all. The exclude_self \
+             half was taken by SIM-6 (scutemob-189); the has_card_types half is blocked on \
+             flatten_cost_into, which reads only TargetFilter.has_card_type (singular) and lowers \
+             a has_card_types pair to SacrificeFilter::Creature (OOS-SIM6-1).",
         ),
         ..Default::default()
     }

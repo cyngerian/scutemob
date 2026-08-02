@@ -848,6 +848,202 @@ must read adjudication §5 alongside it. OOS-ADJ-3 warns `OOS-DX19-2`'s "613.8b 
 would make a worker build the wrong thing — re-word at dispatch. OOS-ADJ-7 (blood_moon strips
 Artifact card type) rides PB-DX27.
 
+## Worker Handoff (SIM-6, `scutemob-189`) — activation costs are payable, and the offer stops lying
+
+**G4 CLOSED, both components.** The triage's chain was correct end to end and is
+re-verified against HEAD: `LegalAction::ActivateAbility` (`legal_actions.rs:93-102`) had no
+cost field; the offer loop (`:883-918`) checked mana/hybrid/Phyrexian/life and never
+`ability.cost.sacrifice_filter`; `view.rs`'s `additional_costs_view` early-returned for
+anything that was not a `CastSpell`, so `ActionBar`'s cost stage never opened; and
+`params.rs:339-345` hardcoded `sacrifice_target: None` / `discard_card: None`. The engine
+was innocent throughout — the wire fields have existed since PB-EF1.
+
+**The fix is the UI-2 shape, one command over**: a new `ActivationCostPlan` on the action
+(`ActivationSacrificeOption` / `ActivationDiscardOption`), an SR-38 suppression gate when
+either eligible set is empty, the choice forwarded through `params.rs` (falling back to the
+plan's own default so a *bot* submission is engine-legal), a picker block in
+`additional_costs_view`, a validator arm in `api.rs`, and two new props on `CostPicker`.
+**0 engine lines** (`git diff main..HEAD -- crates/engine/` empty), **0 wire changes** —
+`LegalAction`/`ActionParams` are simulator types. PROTOCOL **33** / HASH **70**
+gate-executed and unmoved.
+
+### Three things this batch found that the brief did not predict
+
+1. **The brief's refusal attribution is wrong, and the correction is the useful part.** It
+   said "~95 InsufficientMana-on-ActivateAbility + 40 'activation condition not met' … your
+   subject is ~80% of all bot command refusals". Re-running the SIM-5 A/B instrument
+   (`crates/simulator/tests/sim5_bot_cast_discipline.rs`, seeds 0/7/42, 25 turns) at the
+   merge base and printing every rejection class: **not one of the 166 refusals is a
+   sacrifice- or discard-cost refusal.** `"sacrifice_target must be Some"` appears **zero**
+   times. Those 135 are two *different* SR-38 gaps in the same loop (below). The
+   cost-payment channel's refusals never appeared because the *bots* were never reaching
+   them — which is exactly why this defect needed a human playtest to surface.
+
+2. **The heuristic bot had to be taught to decline, and a seeded fixture caught it.** With
+   the channel open and `ActivateAbility` scored at 40 (vs `PassPriority`'s 1) under a
+   2-per-turn repeat cap, a bot ate two of its own creatures per turn, every turn.
+   `test_ui3_combat_view_maps_attackers_to_defenders_and_blockers` went red — seed 21 no
+   longer reached a declared blocker, because the blockers had been sacrificed. The bot now
+   scores an activation whose cost NAMES an object below `PassPriority` (the established
+   "0" idiom: below passing, above nothing, so it is still chosen when it is all there is,
+   and `params.rs`'s default keeps that command legal). The dispatch brief's own guidance —
+   do not teach bots sacrifice strategy; declining is acceptable. `RandomBot` still picks
+   these uniformly, so the fuzzer keeps exercising the channel. **Verify this by reverting
+   the score, not by reading it**: the UI-3 test is the instrument.
+
+3. **The browser verification found a live 422 of its own, in the same loop.** Driving a
+   real game to a Rummaging Goblin discard activation (`{T}`, Discard a card: Draw a card),
+   the picker rendered perfectly, the human picked a non-default card, and the POST came
+   back **422 — `"object ObjectId(499) has summoning sickness and cannot use abilities with
+   {T}"`**. The offer loop mirrored none of the three refusals `handle_activate_ability`
+   makes that are knowable from state alone: CR 302.6 summoning sickness, CR 602.5b
+   `activation_condition`, CR 118.3 remove-counter. SIM-2 had built exactly this predicate
+   for the MANA path (`mana_solver::tap_ability_is_activatable`, OOS-CARDS2-9) and the
+   non-mana sibling was never written. It is now
+   (`legal_actions::activated_ability_is_activatable`), and **that alone closes the 40
+   "activation condition not met" refusals**.
+
+### A/B, measured both ways (instrument: `sim5_bot_cast_discipline.rs`, seeds 0/7/42, 25 turns)
+
+| | merge base | this branch |
+|---|---|---|
+| total bot command refusals | 30 + 44 + 92 = **166** | 30 + 28 + 55 = **113** |
+| `activate: InsufficientMana` | **95** | **62** |
+| `activate: "activation condition not met"` | **40** | **0** |
+| `activate: sacrifice/discard cost` | **0** | **0** |
+| wasted taps / `ManaPoolsEmptied` | 0 / 1 | 0 / 1 (SIM-5's gate holds) |
+
+The 62 residual `InsufficientMana` are **`OOS-SIM6-3`** and are the largest single refusal
+class left in the simulator.
+
+### Browser verification — three flows, each with a NON-DEFAULT answer
+
+Seed-scanned `POST /api/game` over 0..400 for a human opening hand holding any of the 37
+`Complete` defs with an object-naming activation cost (**hand lives at
+`state.zones.hand["Human-1"]`**, not `zones.hand`). **Known-good tuples, handed over so
+nobody re-scans**: seed **79** → Yahenni, Undying Partisan; seed **62** → Altar of
+Dementia; seed **219** → Rummaging Goblin (discard); seed **282** → Vampiric Rites; seed
+**63/70/73/106** → High Market / Spawning Pit / Scavenger Grounds / Viscera Seer. Driver
+and playwright scripts were scratchpad-only (~60 lines each, trivially rewritten from this
+paragraph).
+
+* **Yahenni (seed 79), activated IN RESPONSE to a bot's Dismember on the stack** — exactly
+  the playtest report. The picker offered `Jadar` and `Zombie` and **not Yahenni itself**;
+  the prompt read "Sacrifice **another** creature"; picking the non-default `Zombie`
+  POSTed `{"cost_sacrifice_target":418}` → **200**; `Zombie` went to the graveyard, `Jadar`
+  (the default) did not, the ability resolved above Dismember and Yahenni came back with
+  `keywords: ["Haste","Indestructible"]`.
+* **Altar of Dementia (seed 62)** — cost stage *then* target stage in one chain, one POST
+  carrying `cost_sacrifice_target` **and** `targets` → 200. Archmage Emeritus (power 2)
+  sacrificed, the non-default target Bot-3 milled exactly 2, Bot-2 milled 0.
+* **Rummaging Goblin (seed 219)** — the discard half. Non-default `Balefire Dragon`
+  discarded, goblin tapped, draw resolved. This is the flow that produced finding 3.
+
+No error strip, no `pageerror`, no console error in any of the three.
+
+### Card defs: 8 one-line repairs, and a stale belief that produced them
+
+`yahenni_undying_partisan` was the mandated fix, but it is not alone: **8** activated
+abilities print "Sacrifice **another** …" and carried `exclude_self: false`, so all 8 would
+have started legally sacrificing themselves the moment this channel opened —
+`yahenni_undying_partisan`, `ayara_first_of_locthwain`, `bartolome_del_presidio`,
+`razaketh_the_foulblooded`, `umbral_collar_zealot`, `warren_soultrader`, `woe_strider`,
+`baron_bertram_graywater`. Coverage is **unmoved at 1,133/1,803 = 62.8%** (regenerated;
+only the header date, git SHA and rolling commit log moved).
+
+**Why 8 and not 1**: three defs (`woe_strider`, `wight_of_the_reliquary`,
+`vampire_gourmand`) carry notes asserting that "`Cost::Sacrifice` has no 'another' /
+exclude-self semantics". **That has been false since PB-EF1** — `TargetFilter.exclude_self`
+lowers to `ActivationCost.sacrifice_exclude_self` via `flatten_cost_into`
+(`replay_harness.rs:4622`) and `handle_activate_ability` enforces it. Two of those notes
+are corrected; the third pair still OMIT their abilities entirely on the stale belief
+(`OOS-SIM6-2`). Same shape as PB-DX19's comment: the note, not the code, is why this
+survived.
+
+### Seeds filed
+
+* **`OOS-SIM6-1`** (MEDIUM, engine) — `flatten_cost_into` reads only
+  `TargetFilter.has_card_type` (**singular**) and ignores `has_card_types` (plural) and
+  `colors`. `bartolome_del_presidio` / `umbral_collar_zealot` / `baron_bertram_graywater`
+  print "creature **or artifact**" and lower to `SacrificeFilter::Creature`;
+  `ayara_first_of_locthwain` prints "another **black** creature" and loses the colour.
+  `SacrificeFilter::ArtifactOrCreature` **already exists** and the lowering never emits it.
+  The direction is *narrowing* (legal plays refused), so it is not a wrong-game-state bug —
+  but it makes three defs' printed text unreachable. Out of scope here only because of the
+  0-engine-lines constraint.
+* **`OOS-SIM6-2`** (LOW, card defs) — `wight_of_the_reliquary`, `vampire_gourmand` and
+  `ruthless_technomancer` omit their sacrifice abilities on the disproved claim above.
+  Re-authoring them moves coverage, so it belongs in a card batch, not here.
+* **`OOS-SIM6-3`** (HIGH, simulator + human-facing) — **auto-tap covers `CastSpell` and
+  nothing else.** `local_game.rs:738` returns `None` for every other command, on both the
+  bot path (`advance()`) and the human path (`submit`). `can_afford` offers an activation
+  whose cost is solvable *with taps*, the engine charges the *pool*, and the command is
+  refused `InsufficientMana`: **62 of the 113 remaining bot refusals**, and a browser human
+  activating a mana-cost ability gets a 422 unless they happened to have floating mana.
+  This is the largest remaining SR-38 violation on this surface and the obvious successor.
+* **`OOS-SIM6-4`** (LOW, simulator) — two engine refusals still unmirrored by the offer
+  loop: `forage` (CR 701.61a, `abilities.rs:1235` — needs a Food artifact or three
+  graveyard cards; **1 def** in the corpus) and `sacrifice_self` on a source under
+  `CantBeSacrificed` (CR 701.21a, `abilities.rs:917`). Both are the same class as the three
+  `activated_ability_is_activatable` now covers; neither has measured traffic.
+* **`OOS-SIM6-6`** (LOW, latent — filed by the `/review` cycle) — the offer-time
+  `activation_condition` evaluation uses `x_value: 0`, because `{X}` is not announced until
+  command construction. The engine evaluates the same condition with the command's own
+  `x_value` (`abilities.rs:261-271`), so an "Activate only if X is N or more" ability would
+  be wrongly **suppressed** — the silent-unplayable direction, not the 422 direction.
+  Unreachable today: every `Condition::XValueAtLeast` in the corpus is spell-side. Recorded
+  in `activated_ability_is_activatable`'s own doc rather than left to be rediscovered.
+* **`OOS-SIM6-5`** (LOW, TUI) — `tools/tui/src/play/input.rs`'s `'e'` key now routes
+  through `action_to_command_with_params` (so the costs, modes and hybrid/Phyrexian plans
+  are filled), but the TUI still has **no picker** for any of them: it always submits the
+  plan's default. A human TUI seat cannot choose which creature to sacrifice.
+
+### What this batch did NOT do, stated plainly
+
+* **Multi-sacrifice is untouched** (`OOS-OS6-1` → PB-DX12). `sacrifice_target` is a single
+  `ObjectId` on the wire and stayed one; nothing here reshapes it.
+* **No frontend test harness still exists** (R7). The three browser flows were verified by
+  hand with playwright-core; nothing automated covers `CostPicker`'s new block. The
+  play-server probes cover the *channel* end to end and prove nothing about the component —
+  the same limitation UI-2 and UI-4 both recorded.
+* **The discard candidate list is the whole hand, unfiltered**, which is what
+  `handle_activate_ability` accepts (it checks the zone and nothing else). If a def ever
+  needs "discard a *land*", this descriptor has no field for it.
+
+### `/review` cycle — 5 LOW, all 5 taken
+
+The reviewer re-executed every load-bearing gate independently (4,312/0/5, PROTOCOL 33 /
+HASH 70, fmt + clippy + defs-fmt, 0 engine lines) and confirmed by three separate reverts
+that the suppression gate, the Yahenni `exclude_self` fix and the new activatable mirror
+each have a test that goes red without them. All five findings were LOW; all five taken:
+
+1. **The discard channel had no HTTP probe.** The sacrifice half did; the discard half was
+   covered only by unit calls and the `params.rs` engine round-trip, so
+   `activation_costs_view`'s discard block was verified in a browser by hand and by nothing
+   automated. Added `test_sim6_activation_discard_is_answered_over_http` on a new mono-RED
+   fixture (Lathliss commander, 99 Mountains, Rummaging Goblin) — deliberately a `{T}`-only
+   ability, because an activation that ALSO costs mana fails on this surface for the
+   unrelated `OOS-SIM6-3`, which would have made the probe pass or fail for the wrong cause.
+   It also pins the CR 302.6 gate incidentally: the offer does not appear on the turn the
+   goblin lands.
+2. **An `additional_costs` array on an `ActivateAbility` was dropped in silence** — the
+   mirror image of a guard this batch had just added in the same function. `params.rs`'s
+   activation arm never reads that field and `ActivateAbility` sits inside its consuming
+   allowlist, so `first_announced_field` could not catch it either. Now a 400, with a
+   both-ways test (and a control that an activation announcing nothing is still accepted).
+3. **`OOS-SIM6-6` filed** — see the seed list above.
+4. README limitation numbering (the new item was inserted before, not after, item 22).
+5. `docs/authoring-status.md` had been regenerated at the batch's first commit rather than
+   at HEAD, so its rolling commit block was three commits stale. No count was wrong — no
+   card def changed after that commit — but regenerated at HEAD anyway.
+
+### Numbers
+
+Tests **4,313 / 0 / 5** full workspace (+18 over SIM-5's 4,295): 11 simulator (10 for the
+channel, 1 for the SR-38 mirror) + 7 play-server. Every suppression gate proven **red by
+reverting the gate and watching the assertion fail**, not by inspection. `cargo fmt`,
+`tools/check-defs-fmt.sh`, `clippy --workspace --all-targets -D warnings` all clean.
+
 ## Worker Handoff (SIM-5, `scutemob-188`) — bots stop wasting mana, and start announcing targets
 
 **G5 CLOSED for its (1)/(2)/(3) halves; (4) DEFERRED with measurements (`OOS-SIM5-4`).**
