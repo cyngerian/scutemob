@@ -9,6 +9,14 @@ bookkeeping) by seven read-only chain-verification passes before anything was wr
 **Zero fixes implemented** — this file is a triage record and a dispatch proposal.
 
 Line cites are snapshots (OOS-DP6-8 class) — re-verify by symbol before building on them.
+Bare filenames are unique across the workspace but several resolve somewhere non-obvious:
+`events.rs` and `command.rs` are `crates/engine/src/rules/`; `stubs.rs` is
+`crates/card-types/src/state/`; `params.rs`, `setup.rs`, `deck.rs`, `local_game.rs`,
+`legal_actions.rs`, `heuristic_bot.rs`, `random_bot.rs` are `crates/simulator/src/`;
+`session.rs`, `api.rs`, `view.rs`, `main.rs` are `tools/play-server/src/`; `redact.rs` and
+`event_view.rs` are `crates/view-model/src/`; the `.svelte`/`.js` files are under
+`tools/play-server/frontend/src/lib/` except the `Zone*.svelte` set and `cardTooltip.js`,
+which are the replay viewer's, shared in place via the `$viewer` alias.
 
 > **The notes file itself is not on this branch.** It lives untracked in the main worktree
 > (`/home/skydude/projects/scutemob/test-data/bot testing notes 2.md`). This task's
@@ -78,9 +86,14 @@ DataCloneError #<Object> could not be cloned.
 ```
 
 (Reproduced independently at triage time, not taken from the investigation.) The throw
-escapes an ordinary Svelte 5 DOM handler — there is no `<svelte:boundary>`, no `try`
-anywhere in the frontend, and no global handler — so the DOM is untouched: picker stays
-open, no error strip, no HTTP request. That is precisely "did nothing".
+escapes an ordinary Svelte 5 DOM handler — there is **no `try` on the picker emit path**, no
+`<svelte:boundary>` anywhere, and no global handler — so the DOM is untouched: picker stays
+open, no error strip, no HTTP request. That is precisely "did nothing". (The frontend does
+have four `try` blocks — `api.js:46`, `stores.js:120`, `stores.js:153`,
+`PlayApp.svelte:161` — but the throw happens inside `SearchPicker.emit`'s own synchronous
+click handler, *before* `onConfirm`, so none of them is in the chain. Stated precisely here
+because a UI-4 worker who greps for `try`, finds four hits and discounts the diagnosis would
+be wrong.)
 
 `grep -rn '\$state.snapshot' tools/play-server/frontend/src/` returns **nothing**;
 `package.json:13` pins `svelte: ^5.45.2`. `$state.snapshot()` exists in Svelte 5 for exactly
@@ -245,7 +258,8 @@ the answerer owns it, so Invariant 7 holds by the same argument as the library q
 Watch: `discard_cards`' second caller is `Effect::WheelHand` (`:1236`), which snapshots hand
 size before disposal, so a replay must not double-count; short-circuit `count >= hand.len()`
 (a full-hand discard needs no choice, and skipping the question avoids perturbing fuzz
-seeds). Corpus check: 23 defs use `Effect::DiscardCards` and **zero** print "at random" or
+seeds). Corpus check: **21 defs** use `Effect::DiscardCards` (23 occurrences) and **zero**
+print "at random" or
 "opponent chooses", so the CR 701.9b default covers the entire live corpus and the missing
 `chooser` field can be deferred without a known-wrong def.
 
@@ -294,7 +308,15 @@ exists (`command.rs:111-116`) and
 the notes: Altar of Dementia's printed cost is `Sacrifice a creature:` with **no tap symbol**
 — MCP-verified, and the def matches. The tap is irrelevant either way.)
 
-**Not previously filed.** The nearest neighbours are all about spells: `OOS-UI2-4` is scoped
+**Not previously filed — and the user's "this happened during the first testing run" is both
+right and easy to misread.** The first notes do carry a sacrifice-cost failure
+(`test-data/bot testing notes.md:76-78`, Life's Legacy, *"ui provides no option to sacrifice
+a create"*) — but that is a **spell** additional cost (CR 118.8), which became F9 and was
+closed by UI-2. Yahenni and Altar are **activation** costs on a different command. So the
+user saw the same *shape* twice and reasonably called it the same bug; UI-2 closed the spell
+half and the activation half was never filed. **Do not let the recollection downgrade this to
+a recurrence — it is the unclosed sibling.** The nearest seeds are likewise all spells:
+`OOS-UI2-4` is scoped
 to `CastSpellData.additional_costs`; `OOS-OS6-1` (→ PB-DX12) is the **multi**-sacrifice case
 needing a wire reshape, whereas single `sacrifice_target` already exists — so this is
 strictly cheaper and disjoint. `README.md` limitations 18-20 name only the spell side.
@@ -346,8 +368,11 @@ cannot legally be announced.
 **Why the cast is rejected — structural**: bots announce **zero targets, always**.
 `random_bot.rs:142` (shared by `HeuristicBot` via `heuristic_bot.rs:19`) builds
 `ActionParams::default()` and fills only attackers/blockers (`:150-182`);
-`Bot::choose_targets` has **zero call sites** (already recorded at
-`memory/m11-session-plan.md:117`). The offer gate never checks targets either — `grep
+`Bot::choose_targets` has **zero call sites outside the bot impls' own `choose_action`**
+(already recorded at `memory/m11-session-plan.md:117`) — the trait method is implemented four
+times and reached from the driver never; its one non-impl mention is a delegating test
+wrapper at `crates/simulator/tests/sim2_mana_intelligence.rs:1157`. The offer gate never
+checks targets either — `grep
 TargetRequirement crates/simulator/src/legal_actions.rs` returns nothing. The engine then
 refuses at `casting.rs:5931` (`"expected {}..={} target(s) but got {}"`) or `casting.rs:3730`
 for Auras (= `OOS-CARDS2-4`). The human is unaffected only because target requirements are
@@ -417,6 +442,12 @@ successor batch. **Do not touch `deadly_rollick.rs`.**
 ### G7 — Targets are absent from the event log (the stack half is refuted)
 **Split verdict.** Notes: *"still hard to parse events clearly — Fell Spector: couldnt see
 who was target in any event log — targeting should be part of the stack and cards sections"*.
+
+The leading clause — *"still hard to parse events clearly"* — is a standing complaint carried
+over from the first playtest, and UI-3 has already shipped against it (the 3-tier event feed).
+It is dispositioned here as **partially addressed, no separate task**: the user's own
+elaboration names one concrete cause, and that cause is below. If event legibility is still
+poor after G7 lands, it needs a fresh observation to act on, not a re-file of this line.
 
 **Stack: REFUTED — already implemented end to end.** `StackItemView.targets: Vec<String>`
 (`view-model/src/lib.rs:182-183`) is built at `:524-528` via `format_target` (`:696-714`),
