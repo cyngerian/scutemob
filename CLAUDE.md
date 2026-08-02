@@ -218,7 +218,59 @@
 - **Recurrence rule** — future `/collect` and milestone-close bookkeeping appends its detailed PB/SR
   narrative to that archive file (newest first), and updates only a one-paragraph snapshot delta
   here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
-- **Last Updated**: 2026-08-02 — **UI-2 SHIPPED** (`scutemob-178`): playtest-triage **F9
+- **Last Updated**: 2026-08-02 — **UI-3 SHIPPED** (`scutemob-180`): the playtest's UX/layout
+  items, which the triage filed under *"Not verified (by design)"* because they are feature
+  work rather than claims. **Zero engine lines** (`git diff main -- crates/engine/src
+  crates/card-types/src crates/card-defs` empty); PROTOCOL **33** / HASH **70** gate-EXECUTED
+  unmoved; tests **4,247 → 4,253 / 0 / 5**; 0 card-def edits, coverage untouched.
+  **The batch's recurring shape is that the data was already there and nothing read it.**
+  Combat is the cleanest case: `StateViewModel::combat` has carried attacker→defender and
+  blocker assignments since **M9.5**, seat-redacted by `redact::redact_combat`, and
+  `CombatView.svelte` has existed just as long — but the play client composed
+  `$viewer/StateView.svelte`, which does **not** include it (the replay viewer wires the two
+  together in its own `App.svelte`). So "not clear which card are attacking which player" was
+  never a missing feature; it was two existing pieces that had never been introduced. Rendering
+  it exposed a live defect in the shared component: `AttackerView::target`'s doc said
+  `"planeswalker:<id>"`, `formatTarget` believed it, and an attacked planeswalker displayed as
+  **`PW #Chandra, Torch of Defiance`** — in the replay viewer too. `build_combat_view` always
+  wrote a *name*, and `redact_combat` substitutes `FACE_DOWN_NAME`, which is only coherent for a
+  name field; **the comment was wrong and the code that trusted it was wrong with it.** Fixed in
+  place. The **event feed** was sparse for the same class of reason, one layer down:
+  `event_view_for` had ~11 rendered arms and a `_ =>` catch-all emitting the bare serde variant
+  name with no player and no card, and *every* item the user listed — taps, ETB, deaths, exiles,
+  counters, triggers, resolutions, attacks, blocks, damage — landed in it. **49 prose arms**
+  added, each identity routed through `viewer_may_identify` (no arm reads `state.objects()`),
+  plus `EventView.tier` assigned **server-side** in a match on the variant with a documented
+  `_ => Game` default. The client deliberately does not classify by `kind` substring — it does
+  that only to pick a *colour* — because a stale client-side list over ~141 variants would
+  silently hide a whole class of event behind a filter chip, which is worse than no filter.
+  **Layout** is play-local (`PlayBoard.svelte`, `SeatCard.svelte`); `StateView.svelte` is
+  untouched, because every requirement here is the opposite of what a step-debugger wants (it
+  must keep rendering a dead player's board — stepping backwards past an elimination is normal
+  there). All four "stay in place" requests fall out of **one** flex arrangement rather than
+  four `position: sticky` strips sliding under each other, and the 2×2 grid is `auto-fit`, so
+  two survivors reflow to full width with **no code branch on the count**. Commander
+  hover-preview was measured, not assumed: the command zone was the **only** zone without
+  `cardTooltip`. **Pass-until** is entirely client-side — ordinary `PassPriority` submissions
+  over the existing route, no new endpoint, no seed moves — and its load-bearing property is
+  that it **stops at any non-`Priority` decision** rather than answering it, since answering a
+  cleanup discard with a default is the defect UI-1 existed to delete. **The sharpest lesson is
+  about a fixture, not a feature**: the combat probe first ran on `COMBAT_SEED` and passed while
+  checking almost nothing, because that seed offers **one** eligible attacker — "attacker →
+  defender" collapses to "there is a defender", and a bug swapping two attackers' defenders
+  would have passed. A sweep of `seed` ∈ 0..24 found **only seed 21** offers two eligible
+  attackers (every seed offers three defenders, which is just CR 506.2); new pin
+  `UI3_SPLIT_COMBAT_SEED`, and **the split is asserted rather than reported**, so a re-deal
+  fails loudly instead of silently reverting to the weaker property. Every new test watched
+  failing under a deliberate revert, two of them re-verified independently of the agent that
+  wrote them. **S6 method both ways**: play frontend 151 → **155** modules, 0 warnings; replay
+  viewer **142 modules unchanged** with a **byte-identical CSS bundle hash**, its JS differing
+  by 10 bytes — exactly the one deliberate `formatTarget` fix. Seeds **OOS-UI3-1..4** filed in
+  `docs/audits/decision-point-audit.md` §8.1; the first is **nine wrong CR citations in
+  `events.rs` doc comments**, all in the renumbered 701.x keyword-action block, which survived
+  precisely because every wrong number points at a *real* keyword action. Limitations 21–24 in
+  `tools/play-server/README.md`; handoff in `memory/workstream-state.md`.
+- **Prior**: 2026-08-02 — **UI-2 SHIPPED** (`scutemob-178`): playtest-triage **F9
   CLOSED** for the two cost kinds it names — a human can now be *asked* which creature to
   sacrifice, and can *choose* to pay Squad. **The request wire already existed and had for
   three sessions**: `CastSpellData.additional_costs` covers all sixteen kinds and
