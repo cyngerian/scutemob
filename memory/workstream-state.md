@@ -856,8 +856,8 @@ document that ranks PB-DX1..DX18 has never seen the 28 seeds PB-DX1..DX5 filed, 
 and only the L18 W6 mega-row survives, naming DX1's seeds not at all. Pass B (the 2026-08 archive)
 misses `OOS-M11-5` entirely and records almost every filing as an unresolvable range. Pass C
 (`docs/audits/decision-point-audit.md` §8.1, the registry) misses **10** — the CARDS-2 family lives
-in `memory/card-authoring/cards2-field-fidelity-2026-08-02.md` §7 and only `OOS-CARDS2-9` is in
-§8.1. Wildcards resolved and two written ranges found stale (`OOS-DX5-1..7` under-reports by one —
+in `memory/card-authoring/cards2-field-fidelity-2026-08-02.md` §5 (`## 5. Cross-references and
+seeds`, L267 — the doc has five sections, not seven) and only `OOS-CARDS2-9` is in §8.1. Wildcards resolved and two written ranges found stale (`OOS-DX5-1..7` under-reports by one —
 `OOS-DX5-8` exists and neither narrative mentions it). **UI-1 (`scutemob-174`) filed zero seeds**;
 there is no `OOS-UI1-*` family anywhere.
 
@@ -883,14 +883,22 @@ Archangel and hand-builds the effect with `condition: None` at `:736`. *A test t
 while dodging the field is worse than no test — it reads as coverage.* And a landmine:
 `greymond_avacyns_stalwart.rs:38-43` instructs a future author to build a second instance.
 
-**Four seeds filed "latent" are live-wrong, and the mechanism is the same every time.**
-`OOS-DX1-3` (`nether_traitor`), `OOS-DX2-5`/`-2`/`-7` (`golgari_grave_troll`), `OOS-DX4-2`
-(`retreat_to_kazandu`), `OOS-DX4-6` (**all ten Karoo bounce lands** + two more — scope ×7, and the
-deviation is exploitable *in the controller's favour*). Every one is `Complete` by the `#[default]`
-derive. With `indomitable_archangel`, `sigil_of_sleep`, `qarsi_sadist` and `voldaren_epicure`,
-that is **eight** in this census alone, and **965 of 1,803 defs never declare a marker** (re-measured; PB-DX4 said 966 the day before). Filed as
+**Four seeds filed "latent" are live-wrong.** `OOS-DX1-3` (`nether_traitor`),
+`OOS-DX2-5`/`-2`/`-7` (`golgari_grave_troll`), `OOS-DX4-2` (`retreat_to_kazandu`), `OOS-DX4-6`
+(**all ten Karoo bounce lands** + two more — scope ×7, and the deviation is exploitable *in the
+controller's favour*). **The tempting explanation is wrong and the true one is worse.** The
+`#[default] Completeness::Complete` derive — PB-DX1's and PB-DX3b's lesson — accounts for **five**
+of the eight live-wrong defs this census caught (`golgari_grave_troll`, `retreat_to_kazandu`, the
+ten Karoos, `sigil_of_sleep`, `indomitable_archangel`). The other three (`nether_traitor.rs:60`,
+`qarsi_sadist`, `voldaren_epicure`) declare `completeness: Completeness::Complete` **explicitly** —
+a one-line grep would have found them. So the shared mechanism is not the derive; it is that **the
+latency claim was never checked against the corpus at all**, in three cases not even by the
+cheapest possible check. Saying "the derive did it" would let a future triage think that grepping
+the explicit marker is sufficient diligence, and for three of these eight it would have been.
+**965 of 1,803 defs never declare a marker** (re-measured; PB-DX4 said 966 the day before). Filed as
 `OOS-RR3-1`. **Binding for every future batch: a latency claim is not verified until the corpus
-has been enumerated with a missing marker treated as `Complete`.**
+has been enumerated — over `all_cards()` where possible (SR-36), missing marker treated as
+`Complete` — and "no def does X" is not a finding until someone has actually looked.**
 
 **Other findings that moved a rank.** `OOS-CARDS2-4` — the offer layer cannot see a
 `KeywordAbility::Enchant`-carried target requirement (`legal_actions.rs` has zero occurrences of

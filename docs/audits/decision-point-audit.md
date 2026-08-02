@@ -872,6 +872,17 @@ decision actually block", not "add another pending vector".**
 > re-dispatch from the "top five" list below without reading the per-row closure markers first —
 > that list is a snapshot of 2026-07-31, and the N4 re-dispatch hazard is exactly a stale banner.
 >
+> **RE-RANKED AGAIN 2026-08-02 (`scutemob-182`) — the pointer in the next paragraph is STALE.**
+> The authoritative queue is now **`memory/primitives/seed-rerank-2026-08-02.md` §4** (v3);
+> `seed-rerank-2026-07-27.md` §4 is banner'd SUPERSEDED. Its top five, in order: **OOS-SIM2-6**
+> (unbounded `calculate_characteristics` recursion — a hard process abort from a deck-legal
+> `Complete` card, one-line fix), **OOS-CARDS2-4** (13 `Complete` Auras unplayable in the browser),
+> **OOS-M11-9** (CR 508.1 attackers may be re-declared without limit), **OOS-UI2-1 + OOS-SIM3-1 +
+> OOS-SIM1-4** (the fuzzer has never cast a spell below ~turn 140 and registers no commander), and
+> **OOS-DX2-5** (no `LegalAction::ChooseDredge` exists for any client). The v2 top five below all
+> shipped as PB-DX1..DX6. The 2026-07-31 paragraph is retained verbatim as the record of what was
+> believed then — the same "do not trust a dated banner" discipline the paragraph above it states.
+>
 > **RE-RANKED 2026-07-31 (`scutemob-159`).** These 109 rows were merged with the paused PB-RS
 > queue and the previously-unranked backlog, and the resulting **authoritative dispatch queue is
 > `memory/primitives/seed-rerank-2026-07-27.md` §4 (PB-DX1..PB-DX18)** — read that before picking

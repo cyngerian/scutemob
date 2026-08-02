@@ -233,10 +233,12 @@
   from **one** deck-legal `Complete` card (`indomitable_archangel`) and has been live 4.5 months
   behind a comment arguing termination from the wrong invariant and a test that names the card
   while hand-building `condition: None`. **One line fixes it**, and the correct precedent
-  (`layers.rs:2304-2310`) was already in the tree. **Four seeds filed "latent" are live-wrong**,
-  all via the `#[default] Completeness::Complete` derive — its fifth, sixth, seventh and eighth
-  demonstrated instances (`nether_traitor`, `golgari_grave_troll`, `retreat_to_kazandu`, the ten
-  Karoo bounce lands); 965 of 1,803 defs never declare a marker, and nothing reviews that
+  (`layers.rs:2304-2310`) was already in the tree. **Four seeds filed "latent" are live-wrong** on
+  deck-legal `Complete` cards (`golgari_grave_troll`, `retreat_to_kazandu`, the ten Karoo bounce
+  lands, `nether_traitor`). The `#[default] Completeness::Complete` derive explains five of the
+  eight defs found this way — but `nether_traitor`, `qarsi_sadist` and `voldaren_epicure` declare
+  `Complete` **explicitly**, so the shared mechanism is not the derive, it is that **nobody
+  looked**. 965 of 1,803 defs never declare a marker and nothing reviews that
   population — filed as `OOS-RR3-1`. Also: `OOS-CARDS2-4` makes **13 `Complete` Auras** unplayable
   in the browser on first contact (the offer layer cannot see a `KeywordAbility::Enchant`-carried
   requirement); `OOS-M11-9` re-fires attack triggers and mutates attack targets when a human clicks
