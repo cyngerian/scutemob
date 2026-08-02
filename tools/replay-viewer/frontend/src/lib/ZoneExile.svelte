@@ -5,7 +5,7 @@
    * Props:
    *   cards (CardInZoneView[]) — exiled cards
    */
-  import { cardTooltip } from './cardTooltip.js';
+  import { cardTooltip, zoneCaption } from './cardTooltip.js';
   const { cards = [], onCardClick = null } = $props();
 </script>
 
@@ -25,9 +25,8 @@
         <div
           class="exile-card"
           class:clickable={onCardClick !== null}
-          title="{card.name} ({(card.card_types ?? []).join(', ')})"
           onclick={() => onCardClick?.(card)}
-          use:cardTooltip={card.name}
+          use:cardTooltip={{ name: card.hidden ? null : card.name, caption: zoneCaption(card) }}
         >
           <span class="card-name">{card.name}</span>
           {#if card.card_types?.length}

@@ -7,7 +7,7 @@
    *   cards (CardInZoneView[]) — graveyard contents, top first
    *   playerName (string) — player label for the zone header
    */
-  import { cardTooltip } from './cardTooltip.js';
+  import { cardTooltip, zoneCaption } from './cardTooltip.js';
   const { cards = [], playerName, onCardClick = null } = $props();
 </script>
 
@@ -27,9 +27,8 @@
         <div
           class="gy-card"
           class:clickable={onCardClick !== null}
-          title="{card.name} ({(card.card_types ?? []).join(', ')})"
           onclick={() => onCardClick?.(card)}
-          use:cardTooltip={card.name}
+          use:cardTooltip={{ name: card.hidden ? null : card.name, caption: zoneCaption(card) }}
         >
           <span class="gy-index muted">{i + 1}.</span>
           <span class="card-name">{card.name}</span>

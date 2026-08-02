@@ -238,7 +238,7 @@
         ? 'Keep everything on top'
         : `Keep ${kept.length}, move ${moved.length}`}
     </button>
-    <button class="cancel" disabled={disabled} onclick={() => onCancel?.()}>Cancel</button>
+    <button class="cancel" disabled={disabled} onclick={() => onCancel?.()}>Back</button>
   </div>
 </div>
 

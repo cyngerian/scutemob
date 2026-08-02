@@ -31,7 +31,7 @@
    *   onCardClick (fn|null)
    */
   import PlayerPanel from '$viewer/PlayerPanel.svelte';
-  import { cardTooltip } from '$viewer/cardTooltip.js';
+  import { cardTooltip, zoneCaption } from '$viewer/cardTooltip.js';
 
   const {
     player,
@@ -81,9 +81,18 @@
     return card?.hidden ? `hidden-${i}` : card?.object_id;
   }
 
-  /** A hidden card has no identity to preview — `cardTooltip` skips a null name. */
+  /**
+   * A hidden card has no identity to preview — `cardTooltip` skips a null name.
+   *
+   * G11 (`scutemob-190`) turns this into the whole tooltip argument: the command
+   * chip used to carry `title="{name} — {types}"` on the SAME element the
+   * tooltip anchors to, and a native tooltip is drawn by the browser at the
+   * cursor above every z-index this document can reach — over the card image.
+   * `zoneCaption` is the shared builder the three `$viewer` zone components use,
+   * so the four sites cannot drift apart.
+   */
   function previewName(card) {
-    return card?.hidden ? null : card?.name;
+    return { name: card?.hidden ? null : card?.name, caption: zoneCaption(card) };
   }
 </script>
 
@@ -115,7 +124,6 @@
             class="cmd-card"
             class:clickable={onCardClick !== null}
             disabled={onCardClick === null}
-            title="{card.name} — {(card.card_types ?? []).join(', ')}"
             onclick={() => onCardClick?.(card)}
             use:cardTooltip={previewName(card)}
           >
