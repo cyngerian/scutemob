@@ -220,7 +220,27 @@
 - **Recurrence rule** — future `/collect` and milestone-close bookkeeping appends its detailed PB/SR
   narrative to that archive file (newest first), and updates only a one-paragraph snapshot delta
   here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
-- **Last Updated**: 2026-08-02 — **SEED RE-RANK v3 SHIPPED** (`scutemob-182`, doc-only):
+- **Last Updated**: 2026-08-02 — **UI-4 SHIPPED** (`scutemob-185`; G1 of
+  `memory/playtest-triage-2026-08-02b.md`). **The browser's Confirm button was dead in all three
+  template-copying pickers, and five CR flows the project believed shipped had never worked**:
+  library search (701.23), scry (701.22a), surveil (701.25a), sacrifice additional costs (118.8),
+  Squad (702.157a). Cause exactly as triaged — `structuredClone()` on a Svelte 5 `$state` proxy
+  throws `DataCloneError` out of the click handler, leaving the DOM untouched. **Confirmed in
+  headless Chromium against a live game before any edit** (picker open, 0 POSTs, 0 error strip,
+  `command_count` unmoved), then fixed with a new `plainClone.svelte.js` (`$state.snapshot`) at all
+  three sites. Picker failures now reach the error strip by two independent paths — a per-picker
+  `try/catch` → `onError` → `stores.reportClientError`, and a `window` `error`/`unhandledrejection`
+  net armed from `main.js` that covers the five pickers with no `try` (Svelte's `<svelte:boundary>`
+  does **not** catch handler errors). Two source gates added in `tools/play-server/src/main.rs`,
+  each proven red by executing a revert. **All five flows re-verified in the browser with a
+  NON-DEFAULT answer each**, so game state distinguishes the human's choice from the engine's
+  default. 9 files, +506/−32, **0 engine lines, 0 wire change** — PROTOCOL **33** / HASH **70**
+  untouched by construction. Tests **4,265 / 0 / 5** on branch (+2 = the two gates).
+  **The R7 frontend harness is proposed, not built** — `memory/workstream-state.md` carries the
+  two-tier design, the "fixtures must wrap the template in `$state()`" rule without which a harness
+  would have passed green against this bug, the CI Node gap, and four known-good
+  (seed → card → flow) tuples so nobody re-scans 2,400 seeds.
+- **Prior**: 2026-08-02 — **SEED RE-RANK v3 SHIPPED** (`scutemob-182`, doc-only):
   `memory/primitives/seed-rerank-2026-08-02.md` is the authoritative queue; v2's §4 is banner'd
   SUPERSEDED (its §1-§3 stay canonical). **Census: 80 rows / 79 distinct IDs filed after
   2026-07-27 — twice the brief's ~40**, because v2's census closed 2026-07-31 and every PB-DX

@@ -839,6 +839,132 @@
   (`scutemob-159`) confirmed its exclusion from the primitive queue. `OOS-M11-3` (fuzzer
   nondeterminism in 150-200+ turn games) untouched.
 
+## Worker Handoff (UI-4, `scutemob-185`) — picker Confirm hotfix
+
+**G1 CONFIRMED IN A BROWSER BEFORE ANY EDIT, and the triage's diagnosis was exactly right.**
+Headless Chromium (playwright-core, `~/.cache/ms-playwright/chromium-1228`) against a live
+`play-server` on **:3041**, seed 116 driven over HTTP to a Three Visits `SearchLibrary`
+decision (the Farhaven Elf class), then three clicks in the browser:
+
+```
+[pageerror] DataCloneError: Failed to execute 'structuredClone' on 'Window':
+            #<Object> could not be cloned.
+    at z (…/assets/index-BIZqizQa.js:3:13218)      <- SearchPicker.emit
+    at HTMLButtonElement.O (…:3:13344)             <- confirm()
+    at HTMLDivElement.za (…:1:30189)               <- Svelte's delegated handler
+```
+
+Picker stayed open, **error-strip count 0, zero POST requests**, `command_count` still 171 and
+`seq` still 291 after the click. "Did nothing" was literal.
+
+**Fix**: new `frontend/src/lib/plainClone.svelte.js` (a `$state.snapshot` wrapper) called at all
+three sites. `$state.snapshot` over `JSON.parse(JSON.stringify(…))` deliberately: it does not
+re-serialize, so it cannot coerce anything the wire put there, and it deep-copies plain objects
+too — which matters for the harness proposed below, whose fixtures pass non-reactive values.
+
+**Error surfacing, two mechanisms, both demonstrated live by fault injection** (faults reverted;
+`dist` rebuilt clean, bundle hash back to `index-CsOwI2Ah.js`):
+
+| Fault | Path | Rendered |
+|---|---|---|
+| throw inside `SearchPicker.emit` (guarded) | picker `try` → `onError` → `ActionBar.onPickerError` → `PlayApp` → `stores.reportClientError` → strip | *"Something went wrong in this browser — the game is unchanged / could not submit the search answer: injected UI-4 fault"*; chain closed, 0 POSTs |
+| throw inside `SearchPicker.select` (**no** `try`) | `window` `error` listener armed by `main.js` | *"unhandled RangeError in the client: …"* |
+
+The second is the load-bearing one: five pickers have no `try` and never will have one for every
+handler, so the `window` listener is the guarantee and the per-picker `catch` is only a better
+message. **Svelte 5's `<svelte:boundary>` is not a substitute** — it catches render and effect
+errors, not DOM handler ones. Checked, not assumed.
+
+**Gates (2, both proven red by executing a revert, then green again)**, in
+`tools/play-server/src/main.rs` so they run under `cargo test --all` and therefore CI:
+
+* `test_frontend_never_structured_clones_reactive_state` — walks every `.svelte`/`.js`/`.css`
+  under `frontend/src/` (skipping `node_modules/`, `dist/`), bans `structuredClone(`,
+  `.postMessage(` and `indexedDB`. **Proven by reverting `SearchPicker`'s clone.** Four
+  non-vacuity arms, because a ban with zero permitted uses is the pinned-empty-roster shape:
+  named files **and** a ≥14-file floor on the walk; each picker must *import and call*
+  `plainClone` (a picker that stopped copying at all would satisfy the ban while mutating its
+  parent's state); the helper must really be `$state.snapshot`; and the matcher is fired at a
+  synthetic offending line so a typo in a needle cannot hide.
+* `test_frontend_picker_failures_reach_the_error_strip` — pins both mechanisms **and the call
+  that arms the second**. **Proven by deleting `main.js`'s `installGlobalErrorReporting()`
+  call**, which is the failure mode a "does the module export it?" test would have missed.
+
+**All five CR flows verified end to end, each with a NON-DEFAULT answer** so game state
+distinguishes the human's choice from the engine's default — the property the whole defect class
+turns on:
+
+| Flow | Setup | Posted | Observed in game state |
+|---|---|---|---|
+| library search CR 701.23 | seed 116, Three Visits | `{SearchLibrary:{found:24}}` | **Dryad Arbor** on the battlefield, not the default `candidates.first()` Forest |
+| scry CR 701.22a | seed 28, Preordain (scry 2) | `{Scry:{bottom:[99],top:[98]}}` | drew **Reverse Engineer**, the *second* card; the default order draws the Island |
+| surveil CR 701.25a | seed 28, Consider | `{Surveil:{graveyard:[99],top:[]}}` | **Island in the graveyard** |
+| sacrifice CR 118.8 | seed 29, Harrow | `{Sacrifice:{ids:[437],lki:[]}}` | battlefield `402,419,437` → `402,419`; **437 chosen over the server default 402** |
+| Squad CR 702.157a | seed 1364, Galadhrim Brigade | `{Squad:{count:1}}` | **token copy #486** beside the real #482; template default is `count: 0` = decline |
+
+Zero `pageerror`s and zero error strips across all five.
+
+**Scope**: 9 files, +506/−32, **0 engine lines** (`git diff --numstat HEAD~1 HEAD -- crates/engine`
+is empty), 0 simulator lines, 0 wire changes — no `Command`/`GameEvent`/`Effect` variant, so
+PROTOCOL and HASH are untouched by construction and were not recomputed. Workspace:
+**4,265 passing / 0 failing / 5 ignored** (`--workspace --no-fail-fast`, captured to a file, not
+piped to `tail` — 2026-08-02 lesson), which is +2 on main's 4,263 and those 2 are these gates.
+`cargo fmt --check`, `tools/check-defs-fmt.sh` (1,803 defs) and
+`clippy --workspace --all-targets -D warnings` all clean.
+
+### The R7 frontend test harness — a concrete proposal, deliberately NOT built here
+
+R7 (`memory/m11-session-plan.md` §8) is the debt this defect collected on, and the triage is right
+that it is overdue. It is **not** built here because this task had to be small and go first. What
+follows is sized from having actually done both halves by hand today.
+
+**Tier 1 — component tests (vitest + jsdom + `@testing-library/svelte`).** 3 devDeps, an
+`npm test` script, a `vitest.config.js` reusing the existing `svelte.config.js`, one spec per
+picker (8) ≈ 400-600 lines. **The one rule that makes or breaks it: a fixture MUST wrap the
+template in `$state()` before passing it as a prop.** A spec that hands a picker a plain object
+would have passed green against the broken code — that is precisely why UI-1's and UI-2's HTTP
+probes proved the channel and nothing about the component. Reproduce the *reactivity*, not just
+the shape. Write that rule into the harness's own module doc, because it is the only part a
+future author can get wrong while believing they have covered the bug.
+
+**Tier 2 — real-browser scenarios (`playwright-core`, ~30 lines of setup).** Exactly the shape
+used for today's verification, and worth keeping: drive the game to the target decision **over
+HTTP**, then do only the last few clicks in the browser. Cheap, no component framework, and it
+catches what jsdom structurally cannot — the `DataCloneError` is real-browser structured-clone
+behaviour and a jsdom polyfill may not reproduce it. Tier 1 without Tier 2 could have missed this
+exact bug.
+
+**The real cost is fixtures, and it is bigger than the harness.** Reaching a scry / surveil /
+Squad decision meant scanning **~2,400 seeds** through `POST /api/game` to find an opening hand
+holding the right card, because `session.rs:165` hard-codes `DeckSource::RandomPerSeat`. Two
+routes: (a) cheap and immediate — commit the tuples below under `test-data/`; (b) the real fix —
+let `POST /api/game` accept a fixed decklist so a scenario names its cards instead of hunting a
+seed. Recommend (a) now, (b) when someone touches `session.rs` anyway. **Known-good tuples,
+handed over so nobody re-scans**: seed **116** → Three Visits (`PickOne`, 33 candidates incl.
+Dryad Arbor as a distinguishable non-default); seed **28** → Preordain *and* Consider, two
+Islands (`Partition`, both scry 2 and surveil 1 in one game); seed **29** → Harrow, 3 Forests
+(sacrifice-a-land `SacrificeCostView`, no creature needed); seed **1364** → Galadhrim Brigade,
+5 Forests (Squad `max_count: 1`). Squad is the scarce one — **1 seed in the first 600**, and
+`Ultramarines Honour Guard` at 6 mana is not reachable before the human dies, so use Galadhrim
+Brigade. Driver scripts are in this session's scratchpad only, not committed; they are ~150 lines
+and trivially rewritten from this paragraph.
+
+**CI note, flagged not fixed**: the workflow is a single Ubuntu **cargo** job. Tier 1 needs an
+`npm ci && npm test` step and a Node toolchain in that job. Today's two gates need neither —
+that is why they are Rust source gates and not a JS lint.
+
+**What today's gates do NOT cover, stated plainly**: they prove the pattern is absent and the
+error wiring exists. They cannot prove a picker *renders*, that a template is read correctly, or
+that an answer is *right*. `SearchPicker`'s and `PartitionPicker`'s "# Untested" module sections
+are still accurate and were left alone.
+
+**Seed**: `OOS-G1-1` (the structured-clone-on-Svelte-state class) is **CLOSED by this task** —
+fixed at all three sites and machine-gated against recurrence. Not filed as open in
+`docs/audits/decision-point-audit.md` §8.1 for that reason; the gate is the durable artefact.
+`OOS-G8-1`-adjacent note for whoever takes **UI-5**: G8's "Concede was the only live control"
+premise is now false — the answer button works — so it reverts to an ordinary UX item, exactly as
+the triage predicted.
+
 ## Worker Handoff (SEED RE-RANK v3, `scutemob-182`) — doc-only
 
 **Deliverable**: `memory/primitives/seed-rerank-2026-08-02.md`. **This is now the authoritative
