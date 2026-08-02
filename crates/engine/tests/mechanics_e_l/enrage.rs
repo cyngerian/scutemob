@@ -196,6 +196,8 @@ fn test_enrage_combat_damage_triggers() {
             attackers: vec![(attacker_id, AttackTarget::Player(p1))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers failed");
@@ -460,6 +462,8 @@ fn test_enrage_zero_damage_no_trigger() {
             attackers: vec![(attacker_id, AttackTarget::Player(p1))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers failed");
@@ -565,6 +569,8 @@ fn test_enrage_multiple_blockers_triggers_once() {
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers failed");
@@ -689,6 +695,8 @@ fn test_enrage_lethal_damage_still_triggers() {
             attackers: vec![(attacker_id, AttackTarget::Player(p1))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers failed");
@@ -845,6 +853,8 @@ fn test_enrage_prevention_reduces_to_zero_no_trigger() {
             attackers: vec![(attacker_id, AttackTarget::Player(p1))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers failed");

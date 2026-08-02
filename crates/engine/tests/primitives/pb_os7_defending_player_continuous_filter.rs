@@ -142,6 +142,8 @@ fn declare_attackers(
             attackers,
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -702,7 +704,7 @@ fn test_os7_version_sentinels() {
          history block on every HASH change."
     );
     assert_eq!(
-        PROTOCOL_VERSION, 32,
+        PROTOCOL_VERSION, 33,
         "PROTOCOL_VERSION drifted from this live sentinel. PB-OS7 first moved it to 22 (see the \
          protocol.rs `- 22:` history line for why it moved despite the plan predicting no bump); \
          it is since 23 (PB-OS8 Effect::LookAtTopThenPlace). Bump this value with the protocol.rs \

@@ -16,8 +16,12 @@
 //! plan §1 fact 4).
 use crate::cards::TargetRequirement;
 use crate::rules::casting;
+use crate::rules::combat;
 use crate::rules::layers::calculate_characteristics;
-use crate::state::{AltCostKind, GameState, KeywordAbility, ObjectId, PlayerId, Target, ZoneId};
+use crate::state::{
+    AltCostKind, AttackTarget, GameState, KeywordAbility, ManaCost, ObjectId, PlayerId, Target,
+    ZoneId,
+};
 
 /// CR 601.2c — the target requirements a spell cast from `card` announces, honouring
 /// Aftermath (CR 702.127a), Overload (CR 702.96b -> empty) and per-mode requirements
@@ -224,4 +228,66 @@ pub fn legal_targets_per_slot(
 /// (min, max) target count for a requirement list (CR 601.2c).
 pub fn target_count_range(requirements: &[TargetRequirement]) -> (usize, usize) {
     casting::target_count_range(requirements)
+}
+
+/// CR 508.1h — the unflattened attack-tax total a candidate `attackers` declaration
+/// would owe, in the canonical pip order `Command::DeclareAttackers::hybrid_choices`/
+/// `phyrexian_life_payments` index against.
+///
+/// The turn-face-up cost is knowable from the card def alone; the attack-tax cost is
+/// **not** knowable outside the engine, because it is a function of the declared
+/// attacker set, the live restriction list and the source permanents' zones —
+/// `LegalAction::DeclareAttackers { eligible, targets }` carries no attacker set at
+/// all (the set is chosen later, client-side). Without this query, every client
+/// would have to re-implement the CR 508.1h accumulation itself, which is precisely
+/// the drift class OOS-RS-2 was.
+///
+/// **Anti-drift guarantee**: this delegates to `combat::accumulate_attack_tax_total`,
+/// the exact same function `handle_declare_attackers`'s own validation calls — see
+/// its doc for the full canonical-order contract (copy-major: defenders ascending by
+/// `PlayerId`, then one complete copy of the defender's per-creature cost per
+/// attacking creature, then restrictions in `state.restrictions` order within a
+/// copy). Two independent copies of that order is how OOS-RS2-1/OOS-DP4-1 happened
+/// in the first place; this function and the validation block share one.
+///
+/// Returns `None` when the total is `ManaCost::default()` (no tax applies to this
+/// declaration) — never `Some(ManaCost::default())`. `player` is accepted for API
+/// symmetry with the command this advises and so a future caller-side validation (a
+/// declared attacker not controlled by `player`, a self-attack) has a place to live
+/// without a signature change; the accumulation itself does not need it today, since
+/// `attackers` already encodes which creatures and targets are being asked about —
+/// `handle_declare_attackers` re-validates attacker ownership independently before
+/// this figure would ever be charged (Architecture Invariant 3: this is advisory
+/// only, never authoritative).
+///
+/// **`None` does NOT always mean "this declaration is free" — read this before
+/// treating an absent total as "nothing to pay" (PB-DX6 fix-cycle Finding 7,
+/// OOS-DX6-1).** `combat::accumulate_attack_tax_total` excludes any restriction whose
+/// `cost_per_creature` carries `x_count > 0` from the returned total entirely (X has
+/// no announcement channel on `Command::DeclareAttackers`, CR 107.3/601.2b), and for a
+/// defender whose ONLY restriction is such an X tax this function returns `None`
+/// exactly as it would for a genuinely untaxed defender. `handle_declare_attackers`
+/// will nonetheless hard-reject any declaration engaging that defender. So `None`
+/// means one of two different things a caller cannot distinguish from this return
+/// value alone: "no restriction applies here" (the declaration is legal and free), or
+/// "an X-only restriction applies here" (the declaration will be rejected regardless
+/// of what is paid). A mixed total (a payable restriction plus a separate X
+/// restriction on the same defender) is worse: `Some` is returned, but it silently
+/// omits the X restriction's own contribution, so even a `Some` total is not
+/// necessarily the FULL reason a declaration might be rejected. Do not build a payment
+/// plan from `None` and assume it will be accepted — see `params.rs`'s call site for
+/// the current SR-38 residue this causes. Widening the signature to express "X applies
+/// and is unrepresentable" is OOS-DX6-1's job, not this batch's.
+pub fn attack_tax_total(
+    state: &GameState,
+    player: PlayerId,
+    attackers: &[(ObjectId, AttackTarget)],
+) -> Option<ManaCost> {
+    let _ = player;
+    let total = combat::accumulate_attack_tax_total(state, attackers);
+    if total == ManaCost::default() {
+        None
+    } else {
+        Some(total)
+    }
 }

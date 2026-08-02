@@ -1248,7 +1248,7 @@ fn test_dp5_wire_version_sentinels() {
     );
     assert_eq!(
         mtg_engine::PROTOCOL_VERSION,
-        32,
+        33,
         "PROTOCOL_VERSION live sentinel"
     );
 }

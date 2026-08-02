@@ -92,6 +92,8 @@ fn test_702_25_flanking_basic_minus_one_minus_one() {
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -199,6 +201,8 @@ fn test_702_25_flanking_does_not_trigger_on_flanking_blocker() {
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -289,6 +293,8 @@ fn test_702_25_flanking_kills_1_toughness_blocker() {
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -421,6 +427,8 @@ fn test_702_25b_flanking_multiple_instances() {
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -534,6 +542,8 @@ fn test_702_25_flanking_multiple_blockers() {
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -642,6 +652,8 @@ fn test_702_25_flanking_effect_expires_at_end_of_turn() {
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -748,6 +760,8 @@ fn test_702_25_flanking_multiplayer() {
             ],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("declare attackers failed");

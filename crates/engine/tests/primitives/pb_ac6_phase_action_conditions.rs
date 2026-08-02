@@ -1035,6 +1035,8 @@ fn test_you_attacked_this_turn() {
             attackers: vec![(attacker_id, mtg_engine::AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();

@@ -143,6 +143,8 @@ fn test_damaged_player_target_controller_creature_match_fires() {
             attackers: vec![(thug_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers failed");
@@ -220,6 +222,8 @@ fn test_damaged_player_target_controller_negative_excludes_other_opponent() {
             attackers: vec![(thug_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers failed");
@@ -430,6 +434,8 @@ fn test_damaged_player_foreach_land_tap_nature_will_pattern() {
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers failed");
@@ -566,6 +572,8 @@ fn test_damaged_player_destroy_all_filter_multiplayer_isolation() {
             attackers: vec![(battlecry_id, AttackTarget::Player(p3))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers failed");
@@ -749,6 +757,8 @@ fn test_throat_slitter_end_to_end_precision_fix() {
             attackers: vec![(slitter_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers with Throat Slitter failed");

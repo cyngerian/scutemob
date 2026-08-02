@@ -288,12 +288,58 @@ pub fn action_to_command_with_params(
             hybrid_choices: hybrid_choices.clone(),
             phyrexian_life_payments: phyrexian_life_payments.clone(),
         }),
-        LegalAction::DeclareAttackers { .. } => Ok(Command::DeclareAttackers {
-            player,
-            attackers: params.attackers.clone(),
-            enlist_choices: Vec::new(),
-            exert_choices: Vec::new(),
-        }),
+        LegalAction::DeclareAttackers { .. } => {
+            // PB-DX6 §9.2 (CR 508.1h/107.4e/107.4f): unlike `TapForMana`/
+            // `ActivateAbility`, the tax total for a `DeclareAttackers`
+            // announcement is NOT knowable at `LegalAction` enumeration time —
+            // `LegalAction::DeclareAttackers { eligible, targets }` carries no
+            // attacker SET, and the CR 508.1h total is a function of exactly
+            // which creatures attack which defenders. So the plan is built
+            // here, at command-construction time, once `params.attackers` is
+            // known — never on the `LegalAction` itself (that would require a
+            // field that lies about being determined before the attacker
+            // subset is chosen).
+            //
+            // `mtg_engine::rules::queries::attack_tax_total` is the ONE
+            // supported way to obtain the unflattened CR 508.1h total in the
+            // canonical (copy-major) pip order `hybrid_choices`/
+            // `phyrexian_life_payments` index against — re-deriving that
+            // accumulation here would be the exact OOS-RS-2 drift class this
+            // suite keeps closing. If no payable-and-non-suicidal plan exists
+            // (`None`, either because there is no tax or because the tax is
+            // genuinely unpayable), fall back to empty vectors and let the
+            // engine reject the declaration — mutating the attacker set to
+            // dodge the tax is out of scope and would hide a legality
+            // problem from the caller.
+            //
+            // KNOWN SR-38 RESIDUE (OOS-DX6-1, PB-DX6 fix-cycle Finding 7):
+            // `attack_tax_total` also returns `None` for a defender whose ONLY
+            // restriction is an X-carrying tax (X has no announcement channel
+            // on `Command::DeclareAttackers` and is excluded from the total
+            // entirely — see that function's own doc). This arm cannot tell
+            // "no tax" apart from "an X tax this query cannot express" from
+            // the `None` alone, so it falls back to empty vectors in BOTH
+            // cases and the engine hard-rejects the latter — an SR-38
+            // violation in the strict sense (offering an action the engine
+            // will refuse), latent only because the corpus carries no X or
+            // mixed X/pip attack tax today (PB-DX6's roster gate, R4, pinned
+            // empty). Fixing this needs the X-announcement channel
+            // OOS-DX6-1 itself is filed for, not a change to this arm.
+            let (hybrid_choices, phyrexian_life_payments) =
+                mtg_engine::rules::queries::attack_tax_total(state, player, &params.attackers)
+                    .and_then(|total| {
+                        legal_actions::resolve_hybrid_phyrexian_plan(state, player, &total, 0)
+                    })
+                    .unwrap_or_default();
+            Ok(Command::DeclareAttackers {
+                player,
+                attackers: params.attackers.clone(),
+                enlist_choices: Vec::new(),
+                exert_choices: Vec::new(),
+                hybrid_choices,
+                phyrexian_life_payments,
+            })
+        }
         LegalAction::DeclareBlockers { .. } => Ok(Command::DeclareBlockers {
             player,
             blockers: params.blockers.clone(),
@@ -372,10 +418,22 @@ pub fn action_to_command_with_params(
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
         }))),
-        LegalAction::TurnFaceUp { permanent, method } => Ok(Command::TurnFaceUp {
+        LegalAction::TurnFaceUp {
+            permanent,
+            method,
+            hybrid_choices,
+            phyrexian_life_payments,
+        } => Ok(Command::TurnFaceUp {
             player,
             permanent: *permanent,
             method: method.clone(),
+            // PB-DX6 (CR 107.4e/107.4f, PB-RS2 pattern): forward the
+            // `LegalActionProvider`'s already-resolved, already-payable plan
+            // VERBATIM -- `legal_actions.rs::turn_face_up_payment_plan` is the one
+            // place that decides which half of a pip to pay, so this arm must not
+            // re-derive or default it.
+            hybrid_choices: hybrid_choices.clone(),
+            phyrexian_life_payments: phyrexian_life_payments.clone(),
         }),
         LegalAction::CastMorphFaceDown { card, .. } => {
             Ok(Command::CastSpell(Box::new(CastSpellData {
@@ -459,5 +517,193 @@ pub fn action_to_command_with_params(
             choice_id: *choice_id,
             answer: answer.clone(),
         }),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use mtg_engine::state::ActiveRestriction;
+    use mtg_engine::{
+        process_command, GameRestriction, GameStateBuilder, HybridMana, ManaCost, ObjectSpec, Step,
+        ZoneId,
+    };
+
+    /// Find a battlefield object's id by its printed name.
+    fn id_of(state: &GameState, name: &str) -> ObjectId {
+        state
+            .objects()
+            .iter()
+            .find(|(_, o)| o.characteristics.name == name)
+            .map(|(id, _)| *id)
+            .unwrap_or_else(|| panic!("no object named {name:?}"))
+    }
+
+    /// Fixture: P2 controls a permanent bearing `CantAttackYouUnlessPay { cost_per_creature:
+    /// pip_cost }`, P1 controls one creature able to attack P2. Mirrors
+    /// `crates/engine/tests/primitives/pb_dx6_unflattened_payment_sites.rs`'s
+    /// `attack_tax_state` fixture (that helper is private to the engine's own test
+    /// crate, so this is a deliberate, minimal re-derivation from the same public
+    /// `GameStateBuilder` API rather than a shared dependency).
+    fn attack_tax_state(pip_cost: ManaCost) -> (GameState, PlayerId, PlayerId, ObjectId) {
+        let p1 = PlayerId(1);
+        let p2 = PlayerId(2);
+        let mut state = GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(p2)
+            .active_player(p1)
+            .at_step(Step::DeclareAttackers)
+            .object(ObjectSpec::creature(p2, "Tax Source", 0, 4).in_zone(ZoneId::Battlefield))
+            .object(ObjectSpec::creature(p1, "Attacking Bear", 2, 2).in_zone(ZoneId::Battlefield))
+            .build()
+            .unwrap();
+        let tax_source = id_of(&state, "Tax Source");
+        state.restrictions_mut().push_back(ActiveRestriction {
+            source: tax_source,
+            controller: p2,
+            restriction: GameRestriction::CantAttackYouUnlessPay {
+                cost_per_creature: pip_cost,
+            },
+        });
+        state.turn_mut().priority_holder = Some(p1);
+        let bear = id_of(&state, "Attacking Bear");
+        (state, p1, p2, bear)
+    }
+
+    /// PB-DX6 §9.2: `action_to_command_with_params`'s `DeclareAttackers` arm must
+    /// build a REAL, non-empty payment plan for a pipped CR 508.1h attack tax once
+    /// `params.attackers` is known — the plan cannot live on the `LegalAction`
+    /// itself (§9.2's structural difference from PB-RS2/`TapForMana`). Verified by
+    /// EXECUTION: the resulting `Command` is submitted through `process_command`
+    /// and the attacker is confirmed actually declared, not merely constructed.
+    #[test]
+    fn declare_attackers_arm_builds_a_real_hybrid_tax_plan_and_the_engine_accepts_it() {
+        let (mut state, p1, p2, bear) = attack_tax_state(ManaCost {
+            hybrid: vec![HybridMana::ColorColor(
+                mtg_engine::ManaColor::Green,
+                mtg_engine::ManaColor::White,
+            )],
+            ..Default::default()
+        });
+        // Pool covers ONLY the Green half -- proves the plan actually chose the
+        // payable half rather than defaulting blindly to the flattener's own
+        // first-colour default (which here would also be Green, so this alone
+        // would not discriminate; case 2 below closes that gap).
+        state.players_mut().get_mut(&p1).unwrap().mana_pool.green = 1;
+
+        let params = ActionParams {
+            attackers: vec![(bear, AttackTarget::Player(p2))],
+            ..ActionParams::default()
+        };
+        let action = LegalAction::DeclareAttackers {
+            eligible: vec![bear],
+            targets: vec![AttackTarget::Player(p2)],
+        };
+        let cmd = action_to_command_with_params(&state, p1, &action, &params)
+            .expect("DeclareAttackers is an unconditional Ok arm");
+        let Command::DeclareAttackers {
+            hybrid_choices,
+            phyrexian_life_payments,
+            ..
+        } = &cmd
+        else {
+            panic!("expected Command::DeclareAttackers, got {cmd:?}");
+        };
+        assert!(
+            !hybrid_choices.is_empty(),
+            "a pipped attack tax must produce a NON-EMPTY plan, not the pre-PB-DX6 \
+             empty-vectors placeholder: {cmd:?}"
+        );
+        assert!(
+            phyrexian_life_payments.is_empty(),
+            "no Phyrexian pip in this cost"
+        );
+
+        let (state, _events) =
+            process_command(state, cmd).expect("the built plan must actually pay the tax");
+        assert!(
+            state
+                .combat()
+                .as_ref()
+                .map(|c| c.attackers.contains_key(&bear))
+                .unwrap_or(false),
+            "the attacker must be genuinely declared, not merely affordable on paper"
+        );
+        let pool = &state.player(p1).unwrap().mana_pool;
+        assert_eq!(
+            pool.total(),
+            0,
+            "the Green pip must have been spent: {pool:?}"
+        );
+    }
+
+    /// Case 2 of the same arm: pool covers ONLY the White half. If the plan builder
+    /// ever regressed to hard-coding `Color(Green)` (the flattener's own default,
+    /// which this case's pool cannot pay), this would fail with an
+    /// insufficient-mana rejection instead of succeeding.
+    #[test]
+    fn declare_attackers_arm_plan_pays_with_the_actually_available_half() {
+        let (mut state, p1, p2, bear) = attack_tax_state(ManaCost {
+            hybrid: vec![HybridMana::ColorColor(
+                mtg_engine::ManaColor::Green,
+                mtg_engine::ManaColor::White,
+            )],
+            ..Default::default()
+        });
+        state.players_mut().get_mut(&p1).unwrap().mana_pool.white = 1;
+
+        let params = ActionParams {
+            attackers: vec![(bear, AttackTarget::Player(p2))],
+            ..ActionParams::default()
+        };
+        let action = LegalAction::DeclareAttackers {
+            eligible: vec![bear],
+            targets: vec![AttackTarget::Player(p2)],
+        };
+        let cmd = action_to_command_with_params(&state, p1, &action, &params).unwrap();
+        let (state, _events) =
+            process_command(state, cmd).expect("the plan must have chosen the payable half");
+        let pool = &state.player(p1).unwrap().mana_pool;
+        assert_eq!(
+            pool.total(),
+            0,
+            "the White pip must have been spent: {pool:?}"
+        );
+    }
+
+    /// No tax at all (the common case, and the vast majority of declarations):
+    /// `attack_tax_total` returns `None`, and the arm must fall back to the
+    /// documented empty-vectors shape rather than panic or fabricate a plan.
+    #[test]
+    fn declare_attackers_arm_is_untaxed_by_default() {
+        let p1 = PlayerId(1);
+        let p2 = PlayerId(2);
+        let state = GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(p2)
+            .active_player(p1)
+            .at_step(Step::DeclareAttackers)
+            .object(ObjectSpec::creature(p1, "Plain Bear", 2, 2).in_zone(ZoneId::Battlefield))
+            .build()
+            .unwrap();
+        let bear = id_of(&state, "Plain Bear");
+        let params = ActionParams {
+            attackers: vec![(bear, AttackTarget::Player(p2))],
+            ..ActionParams::default()
+        };
+        let action = LegalAction::DeclareAttackers {
+            eligible: vec![bear],
+            targets: vec![AttackTarget::Player(p2)],
+        };
+        let cmd = action_to_command_with_params(&state, p1, &action, &params).unwrap();
+        let Command::DeclareAttackers {
+            hybrid_choices,
+            phyrexian_life_payments,
+            ..
+        } = &cmd
+        else {
+            panic!("expected Command::DeclareAttackers, got {cmd:?}");
+        };
+        assert!(hybrid_choices.is_empty() && phyrexian_life_payments.is_empty());
     }
 }

@@ -39,15 +39,24 @@ impl Bot for RandomBot {
         let attack_action = legal
             .iter()
             .find(|a| matches!(a, LegalAction::DeclareAttackers { .. }));
-        if let Some(LegalAction::DeclareAttackers { eligible, targets }) = attack_action {
+        if let Some(action @ LegalAction::DeclareAttackers { eligible, targets }) = attack_action {
             if !eligible.is_empty() && self.rng.random_bool(0.8) {
                 let attackers = self.choose_attackers(state, eligible, targets);
-                return Command::DeclareAttackers {
-                    player,
+                // PB-DX6 §9.2: route through `action_to_command_with_params`
+                // (params.rs) rather than hand-building the `Command` here, so
+                // the CR 508.1h attack-tax payment plan — which can only be
+                // built once the attacker SET is known — is computed in
+                // exactly one place. See that arm's doc for why the plan
+                // cannot live on `LegalAction::DeclareAttackers` itself.
+                let params = ActionParams {
                     attackers,
-                    enlist_choices: Vec::new(),
-                    exert_choices: Vec::new(),
+                    ..ActionParams::default()
                 };
+                if let Ok(cmd) = action_to_command_with_params(state, player, action, &params) {
+                    return cmd;
+                }
+                // Unreachable in practice for `DeclareAttackers` (the arm
+                // never returns `Err`), kept as a non-panicking fallback.
             }
         }
 
@@ -182,4 +191,110 @@ pub(crate) fn action_to_command(
     // stops holding.
     action_to_command_with_params(state, player, action, &params)
         .unwrap_or(Command::PassPriority { player })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use mtg_engine::state::ActiveRestriction;
+    use mtg_engine::{
+        process_command, GameRestriction, GameStateBuilder, HybridMana, ManaColor, ManaCost,
+        ObjectSpec, Step, ZoneId,
+    };
+
+    fn id_of(state: &GameState, name: &str) -> ObjectId {
+        state
+            .objects()
+            .iter()
+            .find(|(_, o)| o.characteristics.name == name)
+            .map(|(id, _)| *id)
+            .unwrap_or_else(|| panic!("no object named {name:?}"))
+    }
+
+    /// PB-DX6 §9.2: `RandomBot`'s 80%-bias `DeclareAttackers` path (the direct-build
+    /// branch in `choose_action`, which used to hand-construct `Command` with
+    /// hard-coded empty payment vectors) now routes through
+    /// `action_to_command_with_params` exactly like every other arm, so a pipped CR
+    /// 508.1h attack tax gets a real plan there too -- not just via the
+    /// `action_to_command` fallback path. Swept across several seeds so both the
+    /// 80% branch and the 20%-fallback branch fire at least once, and BOTH must
+    /// produce a `Command` the engine actually accepts and that spends the pip.
+    #[test]
+    fn choose_action_pays_a_hybrid_attack_tax_on_every_seed() {
+        // PB-DX6 fix cycle, Finding 12: this loop's own comment concedes the bot may
+        // legally decline to attack on any given seed (0-count random subset on the
+        // fallback path), and every non-attacking seed `continue`s past all the real
+        // assertions below -- so a non-vacuity floor is needed, matching this suite's
+        // own standard for pinned-empty/skip-guarded assertions elsewhere.
+        let mut attacked_count = 0u32;
+        for seed in 0..20u64 {
+            let p1 = PlayerId(1);
+            let p2 = PlayerId(2);
+            let mut state = GameStateBuilder::new()
+                .add_player(p1)
+                .add_player(p2)
+                .active_player(p1)
+                .at_step(Step::DeclareAttackers)
+                .object(ObjectSpec::creature(p2, "Tax Source", 0, 4).in_zone(ZoneId::Battlefield))
+                .object(
+                    ObjectSpec::creature(p1, "Attacking Bear", 2, 2).in_zone(ZoneId::Battlefield),
+                )
+                .build()
+                .unwrap();
+            let tax_source = id_of(&state, "Tax Source");
+            state.restrictions_mut().push_back(ActiveRestriction {
+                source: tax_source,
+                controller: p2,
+                restriction: GameRestriction::CantAttackYouUnlessPay {
+                    cost_per_creature: ManaCost {
+                        hybrid: vec![HybridMana::ColorColor(ManaColor::Green, ManaColor::White)],
+                        ..Default::default()
+                    },
+                },
+            });
+            state.turn_mut().priority_holder = Some(p1);
+            let bear = id_of(&state, "Attacking Bear");
+            state.players_mut().get_mut(&p1).unwrap().mana_pool.green = 1;
+
+            let legal = vec![LegalAction::DeclareAttackers {
+                eligible: vec![bear],
+                targets: vec![AttackTarget::Player(p2)],
+            }];
+            let mut bot = RandomBot::new(seed, "seeded".to_string());
+            let cmd = bot.choose_action(&state, p1, &legal);
+
+            // The bot is allowed to decline to attack at all (0-count random subset
+            // on the fallback path) -- that is legal and outside this test's scope.
+            // But whenever it DOES declare the attacker, the pip must be paid.
+            let attacked = matches!(
+                &cmd,
+                Command::DeclareAttackers { attackers, .. } if !attackers.is_empty()
+            );
+            if !attacked {
+                continue;
+            }
+            attacked_count += 1;
+            let (state, _events) = process_command(state, cmd)
+                .unwrap_or_else(|e| panic!("seed {seed}: bot built an unpayable plan: {e:?}"));
+            assert!(
+                state
+                    .combat()
+                    .as_ref()
+                    .map(|c| c.attackers.contains_key(&bear))
+                    .unwrap_or(false),
+                "seed {seed}: attacker must be genuinely declared"
+            );
+            let pool = &state.player(p1).unwrap().mana_pool;
+            assert_eq!(
+                pool.total(),
+                0,
+                "seed {seed}: the Green pip must have been spent: {pool:?}"
+            );
+        }
+        assert!(
+            attacked_count >= 1,
+            "non-vacuity floor: at least one of the 20 seeds must have declared the \
+             attack for the assertions above to have run at all"
+        );
+    }
 }

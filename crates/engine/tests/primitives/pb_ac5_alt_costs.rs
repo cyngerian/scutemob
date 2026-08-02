@@ -1416,6 +1416,8 @@ fn test_exert_combat_celebrant_untaps_and_extra_combat() {
             attackers: vec![(celebrant_id, mtg_engine::AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![celebrant_id],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("DeclareAttackers with exert should succeed: {:?}", e));
@@ -1545,6 +1547,8 @@ fn test_exert_twice_expires_same_step() {
             attackers: vec![(creature_id, mtg_engine::AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![creature_id],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();
@@ -1634,6 +1638,8 @@ fn test_exert_offer_requires_not_already_exerted() {
             attackers: vec![(creature_id, mtg_engine::AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![creature_id],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
     assert!(

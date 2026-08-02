@@ -332,7 +332,20 @@ use crate::state::hash::HASH_SCHEMA_VERSION;
 ///   History notes are corrected in place, not by a new row (they are doc comments,
 ///   not `PROTOCOL_HISTORY` entries; the append-only rule covers the table, not the
 ///   prose).
-pub const PROTOCOL_VERSION: u32 = 32;
+/// - 33: PB-DX6 (2026-08-02, OOS-RS2-1 + OOS-DP4-1 — the last two unflattened
+///   mana-cost payment sites): two `Command` variants change declared shape.
+///   `Command::TurnFaceUp` gains hybrid/Phyrexian payment fields so
+///   `TurnFaceUpMethod::ManaCost` can pay a hybrid (`{G/W}`) or Phyrexian
+///   (`{G/P}`) pip instead of treating it as free (CR 107.4e/107.4f via CR
+///   701.40b — turning a creature face up is not casting a spell, but the mana
+///   cost is still paid under the same pip rules); `Command::DeclareAttackers`
+///   gains the same fields so the CR 508.1h "costs to attack" tax can be paid
+///   when it is denominated in hybrid or Phyrexian mana. Both reuse
+///   `HybridManaPayment` and `bool`, already reachable via
+///   `CastSpellData`/`ActivateAbility`, so the closure's **type count is
+///   unchanged** — exact precedent: `- 27: PB-RS2`, the same two fields landing
+///   on two other variants. Both declared shapes moved, so the digest moves.
+pub const PROTOCOL_VERSION: u32 = 33;
 
 /// Digest of the serialized shape of the wire-frame type closure
 /// (`Command`, `GameEvent`, [`ReplayLog`] and everything they reach).
@@ -350,7 +363,7 @@ pub const PROTOCOL_VERSION: u32 = 32;
 /// existing `u32` *means* does not. Semantic changes still require a manual
 /// [`PROTOCOL_VERSION`] bump.
 pub const PROTOCOL_SCHEMA_FINGERPRINT: &str =
-    "52e9b37c9612f839f7318a484f4947993295a22e2f4522fe7c19c10db663ac73";
+    "a153b6655890ccb3335d83678d7145b27358716334ef0971b898a3a54b4997f6";
 
 /// One `(version, fingerprint)` row of the append-only protocol-schema history.
 ///
@@ -597,6 +610,13 @@ pub const PROTOCOL_HISTORY: &[ProtocolEpoch] = &[
         // PB-DX1 (2026-08-01, OOS-DP6-1): InterveningIf gains CardDef(Box<Condition>)
         // (see the `- 32:` History line above). Closure type count unchanged (96).
         fingerprint: "52e9b37c9612f839f7318a484f4947993295a22e2f4522fe7c19c10db663ac73",
+    },
+    ProtocolEpoch {
+        version: 33,
+        // PB-DX6 (2026-08-02, OOS-RS2-1 + OOS-DP4-1): Command::TurnFaceUp and
+        // Command::DeclareAttackers both gain hybrid_choices/phyrexian_life_payments
+        // (see the `- 33:` History line above). Closure type count unchanged (96).
+        fingerprint: "a153b6655890ccb3335d83678d7145b27358716334ef0971b898a3a54b4997f6",
     },
 ];
 

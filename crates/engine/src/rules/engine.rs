@@ -423,6 +423,8 @@ pub fn process_command(
             attackers,
             enlist_choices,
             exert_choices,
+            hybrid_choices,
+            phyrexian_life_payments,
         } => {
             validate_player_active(&state, player)?;
             // CR 104.4b: declaring attackers is a meaningful player choice; reset loop detection.
@@ -433,6 +435,8 @@ pub fn process_command(
                 attackers,
                 enlist_choices,
                 exert_choices,
+                hybrid_choices,
+                phyrexian_life_payments,
             )?;
             all_events.extend(events);
         }
@@ -870,11 +874,23 @@ pub fn process_command(
             player,
             permanent,
             method,
+            // PB-DX6 stage B: threaded into `handle_turn_face_up`, which flattens them
+            // against whichever cost `method` resolves to (CR 107.4e/107.4f via CR
+            // 701.40b/702.37e/702.168d).
+            hybrid_choices,
+            phyrexian_life_payments,
         } => {
             validate_player_active(&state, player)?;
             // CR 116.2b: Turn face up is a special action; reset loop detection.
             loop_detection::reset_loop_detection(&mut state);
-            let mut events = handle_turn_face_up(&mut state, player, permanent, method)?;
+            let mut events = handle_turn_face_up(
+                &mut state,
+                player,
+                permanent,
+                method,
+                hybrid_choices,
+                phyrexian_life_payments,
+            )?;
             check_and_flush_triggers(&mut state, &mut events);
             all_events.extend(events);
         }
@@ -1359,6 +1375,29 @@ fn handle_pay_cumulative_upkeep(
     Ok(events)
 }
 /// Multiply a mana cost by a scalar, used for cumulative upkeep cost calculation.
+///
+/// **PIP-MAJOR, deliberately** (`flat_map(repeat_n)`: each distinct pip is repeated
+/// `multiplier` times *before* moving to the next pip -- for `hybrid = [r1, r2]` and
+/// `multiplier: 3` the result is `[r1, r1, r1, r2, r2, r2]`). Correct for cumulative
+/// upkeep, which has exactly one pip source and one payer choosing once per pip
+/// occurrence with no ordering contract to preserve.
+///
+/// **Do NOT reuse this for `rules/combat.rs`'s CR 508.1h attack-tax accumulation**
+/// (`combat::add_mana_cost`, `combat::accumulate_attack_tax_total`) even though the
+/// two now look similar (OOS-DP4-7). The attack tax's canonical pip order is
+/// **copy-major** (`add_mana_cost`'s own doc has the full contract; a defender's
+/// per-creature pips `[r1, r2]` with 3 attackers must be `[r1, r2, r1, r2, r1, r2]`,
+/// not this function's `[r1, r1, r1, r2, r2, r2]`), because the Norn's Annex rulings
+/// (`pb-plan-DX6.md` §1) require each COPY of a cost to be payable individually. A
+/// "harmless" dedup onto this function would silently re-order the attack tax's pips
+/// and therefore silently re-interpret every `hybrid_choices` vector a client had
+/// already built, with no compile error -- and, absent
+/// `pb_dx6_unflattened_payment_sites.rs::one_defender_two_distinct_restrictions_two_attackers_discriminates_copy_vs_pip_major`,
+/// no test failure either: the batch's original order-pin test paired its only
+/// two-restriction defender with a single attacker, so the two orders coincided by
+/// construction there (PB-DX6 fix-cycle Finding 1). The discriminating test named
+/// above -- one defender, two distinct restrictions, two attackers -- was verified by
+/// revert-and-restore to redden under exactly this dedup. PB-DX6 §5.2.5.
 fn multiply_mana_cost(
     cost: &crate::state::game_object::ManaCost,
     multiplier: u32,
@@ -2018,6 +2057,8 @@ fn handle_turn_face_up(
     player: PlayerId,
     permanent: crate::state::game_object::ObjectId,
     method: crate::state::types::TurnFaceUpMethod,
+    hybrid_choices: Vec<crate::state::game_object::HybridManaPayment>,
+    phyrexian_life_payments: Vec<bool>,
 ) -> Result<Vec<GameEvent>, GameStateError> {
     use crate::cards::card_definition::AbilityDefinition;
     use crate::state::types::{FaceDownKind, TurnFaceUpMethod};
@@ -2129,18 +2170,99 @@ fn handle_turn_face_up(
         }
     };
     // Validate and pay the cost from the player's mana pool.
-    {
-        let player_state = state
-            .players
-            .get_mut(&player)
-            .ok_or(GameStateError::PlayerNotFound(player))?;
-        if !player_state.mana_pool.can_spend(&mana_cost, None) {
+    //
+    // PB-DX6 (OOS-RS2-1; CR 701.40b via CR 107.4e/107.4f): `mana_cost` above is the
+    // RAW, unflattened cost of whichever `TurnFaceUpMethod` branch produced it (the
+    // printed mana cost for Manifest/Cloak, or the Morph/Megamorph/Disguise ability's
+    // own cost) -- all three arms feed this single payment block, so fixing it once
+    // fixes all three (CR 701.40c/701.40d). This mirrors
+    // `rules/abilities.rs::handle_activate_ability`'s activation-cost payment block,
+    // the canonical, reviewed form of this fix -- adapted here rather than reinvented,
+    // per plan §5.1.
+    //
+    // CR 107.4e/107.4f: flatten hybrid/Phyrexian pips FIRST, unconditionally when
+    // either choice vector is non-empty. Calls the INHERENT `ManaCost::
+    // flatten_hybrid_phyrexian` directly (not `casting::flatten_hybrid_phyrexian`) --
+    // reaching into `casting` from this non-cast payment path is the layering smell
+    // plan §4 flags; `abilities.rs` and `legal_actions.rs` already call the inherent
+    // method the same way.
+    let (flat_cost, phyrexian_life) =
+        if !mana_cost.hybrid.is_empty() || !mana_cost.phyrexian.is_empty() {
+            mana_cost
+                .flatten_hybrid_phyrexian(&hybrid_choices, &phyrexian_life_payments)
+                .map_err(GameStateError::InvalidCommand)?
+        } else {
+            (mana_cost.clone(), 0)
+        };
+    // CR 119.4 (via CR 107.4f): unlike `abilities.rs`'s ability-cost block, this site
+    // has no OTHER life component to combine with the Phyrexian pip -- there is no
+    // `life_cost` field on a turn-face-up cost -- but the check is still written
+    // through a `combined_life_cost` local (rather than checking `phyrexian_life`
+    // directly) so this site reads identically to `abilities.rs`'s, and so a future
+    // life component on this cost cannot slip past a hard-coded single-addend check.
+    // CR 119.4b: 0 life is always payable, so the guard short-circuits on > 0.
+    let combined_life_cost = phyrexian_life; // structurally zero other addend at this site
+    if combined_life_cost > 0 {
+        let player_state = state.player(player)?;
+        if player_state.life_total < combined_life_cost as i32 {
+            return Err(GameStateError::InsufficientLife {
+                player,
+                required: combined_life_cost,
+                actual: player_state.life_total,
+            });
+        }
+    }
+    // The gate is on the FLATTENED cost, and the flatten runs above it: a pure
+    // `{G/P}` paid entirely with life flattens to `{0}` (mana_value() == 0), so this
+    // correctly skips the mana check while the (sibling, not nested) life deduction
+    // below still fires. Error variant deliberately kept as the existing
+    // `InvalidCommand` string (existing tests assert it) rather than harmonised to
+    // `InsufficientMana` -- plan §5.1 explicit deviation from `abilities.rs`.
+    if flat_cost.mana_value() > 0 {
+        let player_state = state.player_mut(player)?;
+        if !player_state.mana_pool.can_spend(&flat_cost, None) {
             return Err(GameStateError::InvalidCommand(
                 "TurnFaceUp: player cannot pay the turn-face-up cost".into(),
             ));
         }
-        player_state.mana_pool.spend(&mana_cost, None);
+        player_state.mana_pool.spend(&flat_cost, None);
     }
+    // CR 107.4f: pay life for a Phyrexian pip paid with life. A SIBLING of the mana
+    // gate above, not nested inside it -- see the pure-Phyrexian-paid-with-life case
+    // in the comment above. Legality was already validated above, before any
+    // mutation. No rollback is needed or invented here: `process_command` takes
+    // `GameState` by value and returns it only on `Ok`, so an `Err` anywhere above
+    // discards the whole state (Architecture Invariants 2/3) -- same as
+    // `abilities.rs` documents at its own identical site.
+    if phyrexian_life > 0 {
+        let player_state = state.player_mut(player)?;
+        player_state.life_total -= phyrexian_life as i32;
+        events.push(GameEvent::LifeLost {
+            player,
+            amount: phyrexian_life,
+        });
+    }
+    if flat_cost.mana_value() > 0 || phyrexian_life > 0 {
+        // Architecture Invariant 4 repair: `handle_turn_face_up` emitted NO
+        // `ManaCostPaid` before this batch, even though a mana-pool debit is a
+        // state change and must be evented. This is a new event on an EXISTING
+        // `GameEvent` variant, so it is not a wire change -- but it does change the
+        // event stream of any test/golden script that flips a face-down permanent
+        // for a non-zero cost (plan §5.1: expect and repair that, do not suppress
+        // the event to keep a test green). Emit the ORIGINAL (unflattened)
+        // `mana_cost`, mirroring `casting.rs`/`abilities.rs`, which carry the
+        // pipped shape so event consumers see what was printed.
+        events.push(GameEvent::ManaCostPaid {
+            player,
+            cost: mana_cost.clone(),
+        });
+    }
+    // Carry-forward limitation (plan §4, unchanged from PB-RS2): a hybrid-Phyrexian
+    // pip (`PhyrexianMana::Hybrid(a, b)`) paid with MANA always resolves to `a` --
+    // `hybrid_choices` only reaches plain hybrid pips, not the color half of a
+    // hybrid-Phyrexian one. No card on either PB-DX6 roster carries a
+    // hybrid-Phyrexian pip in a turn-face-up cost, so this is safe today; a future
+    // one would need a third choice field (documented, not silently widened).
     // Check if this is a Megamorph turned face up via MorphCost (gets +1/+1 counter).
     let is_megamorph_flip =
         face_down_as == FaceDownKind::Megamorph && method == TurnFaceUpMethod::MorphCost;

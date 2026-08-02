@@ -126,6 +126,8 @@ fn test_attack_trigger_forwards_declared_target() {
             attackers: vec![(ojutai_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers with Ojutai should succeed");
@@ -218,6 +220,8 @@ fn test_attack_trigger_target_not_dropped_decoy() {
             attackers: vec![(ojutai_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers with Ojutai should succeed");
@@ -284,6 +288,8 @@ fn test_hellrider_damages_defending_player_4p() {
             attackers: vec![(hellrider_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers with Hellrider should succeed");
@@ -356,6 +362,8 @@ fn test_hellrider_damages_attacked_planeswalker() {
             attackers: vec![(hellrider_id, AttackTarget::Planeswalker(pw_id))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers targeting the planeswalker should succeed");
@@ -438,6 +446,8 @@ fn test_defending_player_target_multiplayer() {
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -510,6 +520,8 @@ fn test_raid_bombardment_power_filter() {
             ],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -592,6 +604,8 @@ fn test_defending_player_captured_survives_attacker_removal() {
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -687,6 +701,8 @@ fn test_hellrider_fizzles_when_attacked_planeswalker_removed() {
             attackers: vec![(hellrider_id, AttackTarget::Planeswalker(pw_id))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers targeting the planeswalker should succeed");
@@ -800,6 +816,8 @@ fn test_untargeted_attack_trigger_survives_defending_player_leaving() {
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");

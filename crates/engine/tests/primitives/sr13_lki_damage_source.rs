@@ -128,6 +128,8 @@ fn run_lethal_block(pinger: ObjectSpec, attacker_power: i32) -> (GameState, Obje
             attackers: vec![(attacker_id, AttackTarget::Player(p1))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers failed");
@@ -348,6 +350,8 @@ fn test_granted_infect_present_before_death() {
             attackers: vec![(attacker_id, AttackTarget::Player(p1))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers failed");
@@ -430,6 +434,8 @@ fn test_alive_infect_source_unchanged() {
             attackers: vec![(attacker_id, AttackTarget::Player(p1))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers failed");

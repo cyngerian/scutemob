@@ -2318,6 +2318,8 @@ fn run_unblocked_attack(
             attackers: vec![(attacker_obj, AttackTarget::Player(defending_player))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap();

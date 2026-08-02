@@ -97,7 +97,7 @@ fn test_pb_os10_version_sentinel() {
          (HASH 61->62). Update this sentinel and the state/hash.rs history block together."
     );
     assert_eq!(
-        PROTOCOL_VERSION, 32,
+        PROTOCOL_VERSION, 33,
         "PB-OS10 added TargetRequirement::TargetPermanentDistinctFrom (PROTOCOL 24->25). \
          Update this sentinel and the rules/protocol.rs history block together."
     );
@@ -446,6 +446,8 @@ fn test_jitte_triggers_on_damage_to_creature() {
             attackers: vec![(wielder_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers");
@@ -490,6 +492,8 @@ fn test_jitte_triggers_on_damage_to_player() {
             attackers: vec![(wielder_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers");
@@ -554,6 +558,8 @@ fn test_jitte_no_trigger_when_unequipped() {
             attackers: vec![(wielder_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers");
@@ -598,6 +604,8 @@ fn test_jitte_fires_once_per_multiblock() {
             attackers: vec![(wielder_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers");
@@ -694,6 +702,8 @@ fn test_jitte_distinct_from_toplayer_variant() {
             attackers: vec![(wielder_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers");
@@ -888,6 +898,8 @@ fn test_jitte_counter_accumulation_roundtrip() {
             attackers: vec![(wielder_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers");

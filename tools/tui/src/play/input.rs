@@ -613,11 +613,21 @@ fn handle_attack_target_mode(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result
             if idx < targets.len() {
                 let target = &targets[idx];
                 let attackers: Vec<_> = eligible.iter().map(|&id| (id, target.clone())).collect();
+                // KNOWN GAP (OOS-DX6-5, PB-DX6 fix cycle): hand-builds Command::
+                // DeclareAttackers with empty payment vectors instead of routing
+                // through crates/simulator/src/params.rs::action_to_command_with_params,
+                // the single CR 508.1h plan-building site every other caller (incl.
+                // random_bot.rs, migrated by PB-DX6) uses. Latent -- 0 corpus defs
+                // carry a pipped or X attack tax (PB-DX6's R4 roster gate is pinned
+                // empty) -- but becomes live and un-payable-by-the-player the moment
+                // one is authored. Deliberately not fixed here: out of PB-DX6's scope.
                 let cmd = Command::DeclareAttackers {
                     player: app.human_player,
                     attackers,
                     enlist_choices: Vec::new(),
                     exert_choices: Vec::new(),
+                    hybrid_choices: vec![],
+                    phyrexian_life_payments: vec![],
                 };
                 app.execute_command(cmd)?;
                 app.mode = InputMode::Normal;
@@ -627,11 +637,15 @@ fn handle_attack_target_mode(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result
         KeyCode::Enter => {
             if let Some(target) = targets.get(selected) {
                 let attackers: Vec<_> = eligible.iter().map(|&id| (id, target.clone())).collect();
+                // KNOWN GAP (OOS-DX6-5, PB-DX6 fix cycle) -- see the comment on the
+                // sibling arm above; same gap, same latency, same deferral reason.
                 let cmd = Command::DeclareAttackers {
                     player: app.human_player,
                     attackers,
                     enlist_choices: Vec::new(),
                     exert_choices: Vec::new(),
+                    hybrid_choices: vec![],
+                    phyrexian_life_payments: vec![],
                 };
                 app.execute_command(cmd)?;
             }
@@ -659,11 +673,17 @@ fn handle_attacker_mode(app: &mut PlayApp, key: KeyEvent) -> anyhow::Result<()> 
                 if let Some(target) = targets.first() {
                     let attackers: Vec<_> =
                         eligible.iter().map(|&id| (id, target.clone())).collect();
+                    // KNOWN GAP (OOS-DX6-5, PB-DX6 fix cycle) -- see the comment in
+                    // handle_attack_target_mode above; same gap, same latency, same
+                    // deferral reason. This is a THIRD hand-built site the PB-DX6
+                    // review's Finding 8 did not count (it named two).
                     let cmd = Command::DeclareAttackers {
                         player: app.human_player,
                         attackers,
                         enlist_choices: Vec::new(),
                         exert_choices: Vec::new(),
+                        hybrid_choices: vec![],
+                        phyrexian_life_payments: vec![],
                     };
                     app.execute_command(cmd)?;
                 }

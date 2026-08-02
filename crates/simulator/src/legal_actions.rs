@@ -101,6 +101,16 @@ pub enum LegalAction {
         permanent: ObjectId,
         /// The method to use for paying the face-up cost.
         method: TurnFaceUpMethod,
+        /// PB-DX6 (CR 107.4e via CR 701.40b/702.37e/702.168d, SR-38 precedent):
+        /// mirrors `ActivateAbility::hybrid_choices` — a fully-payable hybrid
+        /// payment plan for whichever cost `method` resolves to, if it has one.
+        /// Empty when that cost has no hybrid pips. When non-empty, always a plan
+        /// the engine will accept — the provider only offers this action at all if
+        /// some plan is fully payable (`resolve_hybrid_phyrexian_plan`).
+        hybrid_choices: Vec<HybridManaPayment>,
+        /// PB-DX6 (CR 107.4f via CR 701.40b/702.37e/702.168d, CR 104.3b): mirrors
+        /// `ActivateAbility::phyrexian_life_payments`.
+        phyrexian_life_payments: Vec<bool>,
     },
     /// CR 606: Activate a loyalty ability on a planeswalker.
     /// Sorcery-speed, empty stack, once per permanent per turn.
@@ -1079,19 +1089,27 @@ impl LegalActionProvider for StubProvider {
                         for ability in &def.abilities {
                             match ability {
                                 AbilityDefinition::Morph { cost } => {
-                                    if can_afford(state, player, cost) {
+                                    if let Some((hybrid_choices, phyrexian_life_payments)) =
+                                        turn_face_up_payment_plan(state, player, cost)
+                                    {
                                         actions.push(LegalAction::TurnFaceUp {
                                             permanent: obj.id,
                                             method: TurnFaceUpMethod::MorphCost,
+                                            hybrid_choices,
+                                            phyrexian_life_payments,
                                         });
                                     }
                                     break;
                                 }
                                 AbilityDefinition::Megamorph { cost } => {
-                                    if can_afford(state, player, cost) {
+                                    if let Some((hybrid_choices, phyrexian_life_payments)) =
+                                        turn_face_up_payment_plan(state, player, cost)
+                                    {
                                         actions.push(LegalAction::TurnFaceUp {
                                             permanent: obj.id,
                                             method: TurnFaceUpMethod::MorphCost,
+                                            hybrid_choices,
+                                            phyrexian_life_payments,
                                         });
                                     }
                                     break;
@@ -1106,10 +1124,14 @@ impl LegalActionProvider for StubProvider {
                     if let Some(def) = &card_def {
                         for ability in &def.abilities {
                             if let AbilityDefinition::Disguise { cost } = ability {
-                                if can_afford(state, player, cost) {
+                                if let Some((hybrid_choices, phyrexian_life_payments)) =
+                                    turn_face_up_payment_plan(state, player, cost)
+                                {
                                     actions.push(LegalAction::TurnFaceUp {
                                         permanent: obj.id,
                                         method: TurnFaceUpMethod::DisguiseCost,
+                                        hybrid_choices,
+                                        phyrexian_life_payments,
                                     });
                                 }
                                 break;
@@ -1134,10 +1156,14 @@ impl LegalActionProvider for StubProvider {
                             .and_then(|def| def.mana_cost.clone())
                             .or_else(|| obj.characteristics.mana_cost.clone());
                         if let Some(cost) = mana_cost {
-                            if can_afford(state, player, &cost) {
+                            if let Some((hybrid_choices, phyrexian_life_payments)) =
+                                turn_face_up_payment_plan(state, player, &cost)
+                            {
                                 actions.push(LegalAction::TurnFaceUp {
                                     permanent: obj.id,
                                     method: TurnFaceUpMethod::ManaCost,
+                                    hybrid_choices,
+                                    phyrexian_life_payments,
                                 });
                             }
                         }
@@ -1150,19 +1176,27 @@ impl LegalActionProvider for StubProvider {
                             match ability {
                                 AbilityDefinition::Morph { cost }
                                 | AbilityDefinition::Megamorph { cost } => {
-                                    if can_afford(state, player, cost) {
+                                    if let Some((hybrid_choices, phyrexian_life_payments)) =
+                                        turn_face_up_payment_plan(state, player, cost)
+                                    {
                                         actions.push(LegalAction::TurnFaceUp {
                                             permanent: obj.id,
                                             method: TurnFaceUpMethod::MorphCost,
+                                            hybrid_choices,
+                                            phyrexian_life_payments,
                                         });
                                     }
                                     break;
                                 }
                                 AbilityDefinition::Disguise { cost } => {
-                                    if can_afford(state, player, cost) {
+                                    if let Some((hybrid_choices, phyrexian_life_payments)) =
+                                        turn_face_up_payment_plan(state, player, cost)
+                                    {
                                         actions.push(LegalAction::TurnFaceUp {
                                             permanent: obj.id,
                                             method: TurnFaceUpMethod::DisguiseCost,
+                                            hybrid_choices,
+                                            phyrexian_life_payments,
                                         });
                                     }
                                     break;
@@ -1248,6 +1282,36 @@ impl LegalActionProvider for StubProvider {
     }
 }
 
+/// PB-DX6 (CR 107.4e/107.4f via CR 701.40b/702.37e/702.168d, SR-38): resolves the
+/// TurnFaceUp offer-site's payment plan for `cost`, whichever of
+/// `MorphCost`/`DisguiseCost`/`ManaCost` the caller is evaluating. Mirrors the
+/// `ActivateAbility`/`TapForMana` sites' `has_pip_cost` branch above -- for a
+/// pip-free cost the plain `can_afford` check (unchanged) is enough and the plan is
+/// the empty pair; for a pipped cost `resolve_hybrid_phyrexian_plan` is the ONLY
+/// correct check (a pip's raw `white`/`blue`/etc. fields are all 0, so
+/// `can_afford`'s pool-total fallback can wrongly pass a pool the engine will
+/// reject). `other_life_cost` is always 0 here -- a turn-face-up cost has no OTHER
+/// life component to combine with a Phyrexian pip paid with life (plan §5.1's
+/// `combined_life_cost` comment in `rules/engine.rs`, mirrored here on the offer
+/// side). Deliberately reuses `resolve_hybrid_phyrexian_plan` verbatim rather than a
+/// second copy (plan §9.1) -- including its CR 104.3b non-suicide policy, which must
+/// not be collapsed with the CR 119.4 legality check it also performs.
+fn turn_face_up_payment_plan(
+    state: &GameState,
+    player: PlayerId,
+    cost: &ManaCost,
+) -> Option<(Vec<HybridManaPayment>, Vec<bool>)> {
+    if cost.hybrid.is_empty() && cost.phyrexian.is_empty() {
+        if can_afford(state, player, cost) {
+            Some((vec![], vec![]))
+        } else {
+            None
+        }
+    } else {
+        resolve_hybrid_phyrexian_plan(state, player, cost, 0)
+    }
+}
+
 /// PB-RS2 (CR 107.4e/107.4f, SR-38 precedent — "a bot must never suggest a choice the
 /// engine rejects"). `can_afford`/the raw affordability checks above it check a cost's
 /// standard fields; a cost with hybrid/Phyrexian pips needs an actual PLAN (which half,
@@ -1266,7 +1330,7 @@ impl LegalActionProvider for StubProvider {
 /// `ability_cost.life_cost` / `ManaAbility::life_cost`) that must be combined with a
 /// Phyrexian-life choice for the CR 119.4 legality check — mirrors the engine's own
 /// combined check in `rules/abilities.rs` / `rules/mana.rs` (§5.2 of the plan).
-fn resolve_hybrid_phyrexian_plan(
+pub(crate) fn resolve_hybrid_phyrexian_plan(
     state: &GameState,
     player: PlayerId,
     cost: &ManaCost,

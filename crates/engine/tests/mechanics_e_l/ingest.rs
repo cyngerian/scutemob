@@ -109,6 +109,8 @@ fn test_702_115_ingest_basic_exiles_top_card() {
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -225,6 +227,8 @@ fn test_702_115_ingest_does_not_trigger_when_blocked() {
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -315,6 +319,8 @@ fn test_702_115_ingest_empty_library_is_noop() {
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -424,6 +430,8 @@ fn test_702_115a_ingest_two_creatures_each_trigger() {
             ],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -578,6 +586,8 @@ fn test_702_115b_ingest_single_creature_multiple_instances() {
             attackers: vec![(attacker_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("declare attackers failed");
@@ -710,6 +720,8 @@ fn test_702_115_ingest_multiplayer_targets_correct_player() {
             ],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("declare attackers failed");

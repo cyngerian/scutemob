@@ -598,6 +598,8 @@ fn test_dp1_special_action_actor_holds_priority_after_turn_face_up() {
             player: p2,
             permanent: face_down_id,
             method: TurnFaceUpMethod::ManaCost,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("CR 116.2b: p2 should be able to turn their manifested creature face up");
@@ -672,6 +674,8 @@ fn test_dp1_turn_face_up_rejects_non_priority_holder() {
             player: p2,
             permanent: face_down_id,
             method: TurnFaceUpMethod::ManaCost,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
 

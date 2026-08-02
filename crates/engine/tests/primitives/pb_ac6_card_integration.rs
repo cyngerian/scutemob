@@ -196,6 +196,8 @@ fn test_searslicer_goblin_raid_creates_token_only_if_attacked() {
                 attackers: vec![(attacker_id, mtg_engine::AttackTarget::Player(p2))],
                 enlist_choices: vec![],
                 exert_choices: vec![],
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
             },
         )
         .unwrap();
@@ -385,6 +387,8 @@ fn test_bloodsoaked_champion_raid_reanimation_gated_by_attack() {
                 attackers: vec![(attacker_id, mtg_engine::AttackTarget::Player(p2))],
                 enlist_choices: vec![],
                 exert_choices: vec![],
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
             },
         )
         .unwrap();

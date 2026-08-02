@@ -151,6 +151,13 @@ impl ManaPool {
         spell: Option<&SpellContext>,
     ) -> bool {
         debug_assert_flattened(cost);
+        // PB-DX6 §6.2: `can_spend` is a QUESTION. A cost with unresolved hybrid or
+        // Phyrexian residue is not payable as given — that answer is truthful and
+        // conservative in every build, not just debug, so it does not depend on the
+        // `debug_assert!` above surviving into release.
+        if mana_cost_has_unflattened_residue(cost) {
+            return false;
+        }
         let available = |color: ManaColor| -> u32 {
             self.get(color) + spell.map_or(0, |s| self.restricted_available(color, s))
         };
@@ -183,12 +190,30 @@ impl ManaPool {
     /// For generic mana, remaining mana is taken in order: colorless, green,
     /// red, black, blue, white. The specific order doesn't affect correctness
     /// since generic can use any color.
+    #[track_caller]
     pub fn spend(
         &mut self,
         cost: &crate::state::game_object::ManaCost,
         spell: Option<&SpellContext>,
     ) {
-        debug_assert_flattened(cost);
+        // PB-DX6 §6.2: `spend` is an INSTRUCTION, not a question, and `spend`'s
+        // documented precondition is a prior `can_spend`, which (as of this batch)
+        // answers `false` for exactly this input. Reaching here with residue means a
+        // caller skipped or ignored that precondition -- a program bug, not a game
+        // state the engine must degrade gracefully under. There is no truthful
+        // execution to fall back to (proceeding silently undercharges; doing nothing
+        // leaves a paid-for cost unpaid), so this REPLACES the debug-only
+        // `debug_assert_flattened` diagnostic (still used, unmodified, by `can_spend`
+        // above) with an unconditional `assert!` on the identical condition and
+        // message, panicking in EVERY build, not only debug.
+        assert!(
+            !mana_cost_has_unflattened_residue(cost),
+            "unflattened mana cost reached the payment path: {} hybrid + {} Phyrexian pip(s) \
+             would be paid for free (CR 107.4e/107.4f). Call ManaCost::flatten_hybrid_phyrexian \
+             first. cost = {cost:?}",
+            cost.hybrid.len(),
+            cost.phyrexian.len(),
+        );
         // Spend a required amount of a color, using restricted mana first.
         let spend_color = |pool: &mut ManaPool, color: ManaColor, required: u32| {
             let mut remaining = required;
@@ -271,13 +296,22 @@ impl ManaPool {
 /// This exact silence made every filter land a free "{T}: Add two mana" land for the
 /// life of the project (OOS-RS-2). PB-RS2.
 ///
-/// **Release note (review finding #7):** `debug_assert!` compiles out entirely in a
-/// release build (`diagnostics.rs`'s "releases return `None`" tradeoff, applied here
-/// by mechanism even though this isn't a `state::diagnostics` call). In release, this
-/// guard fires NEVER — release correctness rests entirely on the three call sites
-/// (`abilities.rs`, `mana.rs`, `casting.rs`) actually flattening before they reach
-/// `can_spend`/`spend`, not on this assertion. Do not treat this guard as load-bearing
-/// for release correctness; it is a debug/test-time tripwire only.
+/// **Release behavior (PB-DX6, rewritten — this paragraph replaces, not appends to,
+/// the prior "Release note (review finding #7)"):** `debug_assert!` still compiles
+/// out entirely in a release build, so this function alone remains a debug/test-time
+/// tripwire, not load-bearing for release correctness on its own. What changed is
+/// that its two callers are no longer symmetric about what happens next. `can_spend`
+/// is a QUESTION: it follows this call with `mana_cost_has_unflattened_residue(cost)`
+/// and returns `false` in every build — not only debug — when the cost still has
+/// residue, so a silent undercharge becomes a truthful "no, this cost is not payable
+/// as given" regardless of build profile. `spend` is an INSTRUCTION with no truthful
+/// execution once its documented precondition (a prior `can_spend`) has been
+/// violated, so it no longer relies on this debug-only diagnostic at all — it pairs
+/// an unconditional `assert!(!mana_cost_has_unflattened_residue(cost), ..)` on the
+/// identical condition and message, which panics in every build. See
+/// `memory/primitives/pb-plan-DX6.md` §6.2 for the full four-option ranking (question
+/// vs. instruction; fail-closed vs. precondition violation) and why `Result` and an
+/// unconditional panic in `can_spend` were both rejected.
 #[track_caller]
 fn debug_assert_flattened(cost: &crate::state::game_object::ManaCost) {
     debug_assert!(
@@ -288,6 +322,17 @@ fn debug_assert_flattened(cost: &crate::state::game_object::ManaCost) {
         cost.hybrid.len(),
         cost.phyrexian.len(),
     );
+}
+/// True iff `cost` still carries a pip `ManaPool` cannot price (CR 107.4e/107.4f) —
+/// the behavioural, all-builds twin of `debug_assert_flattened`'s debug-only
+/// diagnostic. A named, directly testable predicate: the `can_spend` branch it
+/// guards is not observable in a debug build (the `debug_assert!` above panics
+/// first), so the *condition* must be testable on its own even where that *branch*
+/// is not (§6.4).
+pub(crate) fn mana_cost_has_unflattened_residue(
+    cost: &crate::state::game_object::ManaCost,
+) -> bool {
+    !cost.hybrid.is_empty() || !cost.phyrexian.is_empty()
 }
 /// Check if a mana restriction matches the spell being cast.
 pub fn restriction_matches(restriction: &ManaRestriction, spell: &SpellContext) -> bool {
@@ -507,22 +552,32 @@ pub struct PlayerState {
     #[serde(default)]
     pub spells_cast_this_game_turn: u32,
 }
-// PB-RS2 §6.4: this test intentionally lives HERE, not in `crates/engine/tests/`
-// (the project's normal black-box test location, `memory/conventions.md`). Once the
-// PB-RS2 payment-path fix lands, no engine integration test can reach an unflattened
-// `ManaCost` at `can_spend`/`spend` — every real call site flattens first — so testing
-// the guard from the engine's public API would require constructing an artificial
-// bypass. This module exercises `ManaPool::can_spend` directly, the one place that can
-// still observe the guard firing.
-#[cfg(all(test, debug_assertions))]
+// PB-RS2 §6.4 / PB-DX6 §6.4: this test intentionally lives HERE, not in
+// `crates/engine/tests/` (the project's normal black-box test location,
+// `memory/conventions.md`). No engine integration test can reach an unflattened
+// `ManaCost` at `can_spend`/`spend` — every real call site flattens first — so
+// testing the guard from the engine's public API would require constructing an
+// artificial bypass. This module exercises `ManaPool::can_spend`/`spend` directly,
+// the one place that can still observe the guard firing.
+//
+// PB-DX6 changed the module gate from `#[cfg(all(test, debug_assertions))]` to
+// plain `#[cfg(test)]`: `spend`'s residue guard is now an unconditional `assert!`
+// that must be proven to panic in a RELEASE test binary too, which a
+// debug-assertions-only module cannot do. Individual tests that assert
+// debug-only behavior (the `can_spend` panics) are re-gated per-test with
+// `#[cfg(debug_assertions)]` below instead.
+#[cfg(test)]
 mod tests {
     use super::*;
-    use crate::state::game_object::{HybridMana, ManaCost};
+    use crate::state::game_object::{HybridMana, ManaCost, PhyrexianMana};
 
     /// CR 107.4e — `debug_assert_flattened` (SR-4 engine-bug classification) panics
     /// when a hybrid pip reaches `can_spend` unflattened, proving an unflattened cost
-    /// cannot silently pass through the payment path.
+    /// cannot silently pass through the payment path. Debug-only: in release,
+    /// `can_spend` no longer panics on this input at all — it returns `false` (see
+    /// `can_spend_returns_false_for_unflattened_residue_in_release` below).
     #[test]
+    #[cfg(debug_assertions)]
     #[should_panic(expected = "unflattened mana cost reached the payment path")]
     fn unflattened_hybrid_cost_panics_in_debug() {
         let pool = ManaPool::default();
@@ -534,21 +589,20 @@ mod tests {
         let _ = pool.can_spend(&cost, None);
     }
 
-    /// CR 107.4f — same guard, Phyrexian pip.
+    /// CR 107.4f — same guard, Phyrexian pip. Debug-only, same reason as above.
     #[test]
+    #[cfg(debug_assertions)]
     #[should_panic(expected = "unflattened mana cost reached the payment path")]
     fn unflattened_phyrexian_cost_panics_in_debug() {
         let pool = ManaPool::default();
         let cost = ManaCost {
-            phyrexian: vec![crate::state::game_object::PhyrexianMana::Single(
-                ManaColor::Green,
-            )],
+            phyrexian: vec![PhyrexianMana::Single(ManaColor::Green)],
             ..Default::default()
         };
         let _ = pool.can_spend(&cost, None);
     }
 
-    /// A flattened cost (the normal case) does not panic.
+    /// A flattened cost (the normal case) does not panic, in any build.
     #[test]
     fn flattened_cost_does_not_panic() {
         let pool = ManaPool::default();
@@ -559,20 +613,79 @@ mod tests {
         assert!(!pool.can_spend(&cost, None));
     }
 
-    /// Review finding #17: the residue guard's `spend` copy (`player.rs:191`) had no
-    /// dedicated test — only `can_spend`'s copy was exercised above. `debug_assert_flattened`
-    /// is called separately at the top of each function, so a defect in ONE call site
-    /// (e.g. it being deleted from `spend` while staying in `can_spend`) would not be
-    /// caught by the `can_spend`-only tests. This test calls `spend` directly.
+    /// Review finding #17 (PB-RS2) / PB-DX6 §6.4 item 2: the residue guard's `spend`
+    /// copy had no dedicated test — only `can_spend`'s copy was exercised above.
+    /// PB-DX6 made `spend`'s copy an unconditional `assert!`, so this test now runs
+    /// (and must panic) in EVERY build, not only debug — this is the whole point of
+    /// the unconditional assert: the release behavior of the mutating path is
+    /// something the normal suite proves, not merely a debug/test-time tripwire.
     #[test]
     #[should_panic(expected = "unflattened mana cost reached the payment path")]
-    fn unflattened_hybrid_cost_panics_in_debug_via_spend() {
+    fn unflattened_hybrid_cost_panics_via_spend_in_every_build() {
         let mut pool = ManaPool::default();
         let cost = ManaCost {
             hybrid: vec![HybridMana::ColorColor(ManaColor::Black, ManaColor::Red)],
             ..Default::default()
         };
-        // Never reached — the debug_assert! inside spend panics first.
+        // Panics in every build — `spend`'s unconditional `assert!` fires first.
         pool.spend(&cost, None);
+    }
+
+    /// PB-DX6 §6.4 item 1: the predicate itself, runs in every build. Covers the
+    /// *condition* `can_spend`'s `return false` branch depends on, independently of
+    /// whether that branch is reachable in this build (it is not, in debug — see the
+    /// module doc comment above).
+    #[test]
+    fn mana_cost_has_unflattened_residue_matches_each_pip_kind() {
+        let neither = ManaCost {
+            black: 1,
+            ..Default::default()
+        };
+        assert!(!mana_cost_has_unflattened_residue(&neither));
+
+        let hybrid_only = ManaCost {
+            hybrid: vec![HybridMana::ColorColor(ManaColor::Black, ManaColor::Red)],
+            ..Default::default()
+        };
+        assert!(mana_cost_has_unflattened_residue(&hybrid_only));
+
+        let phyrexian_only = ManaCost {
+            phyrexian: vec![PhyrexianMana::Single(ManaColor::Green)],
+            ..Default::default()
+        };
+        assert!(mana_cost_has_unflattened_residue(&phyrexian_only));
+
+        let both = ManaCost {
+            hybrid: vec![HybridMana::ColorColor(ManaColor::White, ManaColor::Blue)],
+            phyrexian: vec![PhyrexianMana::Single(ManaColor::Black)],
+            ..Default::default()
+        };
+        assert!(mana_cost_has_unflattened_residue(&both));
+    }
+
+    /// PB-DX6 §6.4 item 3: with the module-level `debug_assert!` inside `can_spend`
+    /// necessarily NOT firing (this test only compiles under `not(debug_assertions)`
+    /// — in a debug build, `pool.can_spend(&cost, None)` would panic before reaching
+    /// the `return false`, making the assertion below unreachable rather than false),
+    /// this observes the `return false` branch by actual execution.
+    ///
+    /// This test does NOT run in CI, which builds debug. Its claim rests on a single
+    /// recorded manual run of `cargo test -p mtg-card-types --release` — it does not
+    /// assert coverage the suite does not have.
+    ///
+    /// **OBSERVED** (PB-DX6 fix cycle, 2026-08-02, `cargo test -p mtg-card-types
+    /// --release`): `state::player::tests::can_spend_returns_false_for_unflattened_
+    /// residue_in_release ... ok`, alongside the other 11 `mtg-card-types` unit tests,
+    /// all green (12 passed; 0 failed; 0 ignored). This is the paste Finding 15 of
+    /// the PB-DX6 fix-cycle review asked for.
+    #[test]
+    #[cfg(not(debug_assertions))]
+    fn can_spend_returns_false_for_unflattened_residue_in_release() {
+        let pool = ManaPool::default();
+        let cost = ManaCost {
+            hybrid: vec![HybridMana::ColorColor(ManaColor::Black, ManaColor::Red)],
+            ..Default::default()
+        };
+        assert!(!pool.can_spend(&cost, None));
     }
 }

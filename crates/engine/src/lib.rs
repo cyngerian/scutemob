@@ -30,8 +30,8 @@ pub use rules::protocol::{
     ReplayLog, PROTOCOL_HISTORY, PROTOCOL_SCHEMA_FINGERPRINT, PROTOCOL_VERSION,
 };
 pub use rules::queries::{
-    ability_target_requirements, legal_targets_per_slot, spell_target_requirements,
-    target_count_range,
+    ability_target_requirements, attack_tax_total, legal_targets_per_slot,
+    spell_target_requirements, target_count_range,
 };
 pub use rules::sba::check_and_apply_sbas;
 pub use rules::{CastSpellData, Command, GameEvent, LossReason};

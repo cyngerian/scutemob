@@ -1036,6 +1036,8 @@ fn test_goblin_rabblemaster_end_to_end() {
             attackers: vec![],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
     assert!(
@@ -1055,6 +1057,8 @@ fn test_goblin_rabblemaster_end_to_end() {
             attackers: vec![(goblin_id, AttackTarget::Player(p2))],
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     );
     assert!(

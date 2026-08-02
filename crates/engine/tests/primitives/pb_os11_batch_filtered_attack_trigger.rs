@@ -166,6 +166,8 @@ fn declare_attack_all(
                 .collect(),
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .unwrap_or_else(|e| panic!("DeclareAttackers failed: {e:?}"))

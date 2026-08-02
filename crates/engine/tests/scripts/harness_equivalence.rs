@@ -68,6 +68,35 @@
 //! mis-populated field in any of those is invisible to this file. Adding a
 //! scenario is cheap: a JSON blob, a `direct` fn, a `CastAlt` move, one label.
 //!
+//! **PB-DX6 §9.4 (2026-08-02): `turn_face_up` and `turn_face_up:hybrid`
+//! remain uncovered here, checked and rejected as infeasible at this file's
+//! own construction, not merely unattempted.** `assert_equivalent` requires
+//! the harness-regime state (`build_initial_state`, driven off the JSON
+//! [`InitialState`]/[`PermanentInitState`] schema) and the direct-regime
+//! state (a `GameStateBuilder` closure) to be byte-identical BEFORE any move
+//! runs. `PermanentInitState` (`script_schema.rs`) has no face-down field at
+//! all — no `face_down`, no `face_down_as` — so the harness side has no way
+//! to construct a face-down battlefield permanent; only the direct side can
+//! (by post-build mutation of `obj.status.face_down`/`obj.face_down_as`, the
+//! technique `crates/engine/tests/primitives/pb_dx6_unflattened_payment_sites.rs`
+//! uses). Adding this shape here is therefore not "a JSON blob, a `direct`
+//! fn, one label" like the rest of this list — it is a JSON-schema capability
+//! this corpus does not have, and inventing it to satisfy one ratchet entry
+//! was judged out of proportion for this batch. `declare_attackers:hybrid` is
+//! likewise NOT added, for a different and simpler reason: no `Complete` card
+//! def in the corpus produces a pipped CR 508.1h attack tax (`memory/
+//! primitives/pb-plan-DX6.md` §10), and this file's `defs()` fixture is built
+//! from `all_cards()`, so the shape has no honest scenario to drive it with —
+//! inventing a synthetic def to manufacture coverage is exactly the
+//! yield-inflation class `feedback_pb_yield_calibration` warns against. Both
+//! gaps are covered at the `Command`-construction level instead: PB-DX6's
+//! `crates/simulator/src/params.rs` and `crates/simulator/src/random_bot.rs`
+//! test modules exercise the real plan-building logic by execution, and
+//! `pb_dx6_unflattened_payment_sites.rs` exercises the engine's payment sites
+//! directly — this file's `translate_player_action`-vs-hand-built-`Command`
+//! parity check is simply not extendable to either shape without first
+//! extending the JSON schema.
+//!
 //! # What "same state" means here
 //!
 //! [`GameState::public_state_hash`] deliberately omits hand and library
@@ -574,6 +603,8 @@ impl Move {
                     attackers: pairs,
                     enlist_choices: vec![],
                     exert_choices: vec![],
+                    hybrid_choices: vec![],
+                    phyrexian_life_payments: vec![],
                 })
             }
             Move::CastAlt {
@@ -1949,6 +1980,11 @@ fn each_alt_cost_move_sets_exactly_one_dimension() {
 /// was the sole cover for a shape fails the ratchet below rather than silently
 /// thinning coverage — which is exactly how this file's coverage sat at 6 shapes,
 /// undocumented, until SR-31.
+///
+/// **PB-DX6 §9.4: deliberately does NOT gain `turn_face_up`, `turn_face_up:
+/// hybrid`, or `declare_attackers:hybrid` in this batch** — see the module
+/// doc's "Still uncovered" paragraph for why each was checked and rejected
+/// rather than skipped.
 const CROSS_VALIDATED_SHAPES: &[&str] = &[
     // Base shapes (SR-9b).
     "pass_priority",

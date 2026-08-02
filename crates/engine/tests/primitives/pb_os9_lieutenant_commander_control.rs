@@ -161,6 +161,8 @@ fn declare_attackers(
             attackers,
             enlist_choices: vec![],
             exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
         },
     )
     .expect("DeclareAttackers should succeed");
@@ -884,7 +886,7 @@ fn test_check_static_condition_fallback_routes_you_control_your_commander() {
 #[test]
 fn test_pb_os9_version_sentinels() {
     assert_eq!(
-        PROTOCOL_VERSION, 32,
+        PROTOCOL_VERSION, 33,
         "PROTOCOL_VERSION should be 24 after PB-OS9 (Condition::YouControlYourCommander)"
     );
     assert_eq!(
