@@ -383,6 +383,7 @@ deliberately absent `dist/`, which is why a 404 in them really is "the API said
 | `POST /api/game/mulligan` after a command has been applied | **409** | `not_pregame` | CR 103.5 is a pregame action; a rebuild would discard real play |
 | `action_index` is not in the list just sent | **400** | `unknown_action` | the request is malformed on its face |
 | a param the chosen action has no channel for | **400** | `bad_params` | `ParamError::UnsupportedParam` — wrong against *any* state, so a client error rather than an engine rejection. Refusing beats silently discarding a human's announced targets. **Also emitted by `POST /api/game/mulligan` for a non-empty `cards_to_bottom`**, which is refused in the handler and never goes near `LocalGame::submit` — see Limitation 2. |
+| a blocking-decision answer names something this decision never offered | **400** | `bad_params` | UI-1. `api.rs::validate_decision_params`, the sibling of `validate_combat_params` and the same argument: a discard subset with the wrong count, a scry partition that does not partition, a search answer for a *different* question, a fail-to-find on a search CR 701.23d makes mandatory — all decidable from the response the client is holding, with no game state needed. The engine would also refuse each of these, but as a 422. |
 | `players` outside `2..=6` | **400** | `bad_player_count` | a range check this crate makes; wrong against every state and never reaches engine code |
 | `bot` is neither `"heuristic"` nor `"random"` | **400** | `bad_bot_kind` | likewise. The comparison is **case-insensitive** (`parse_bot_kind` lowercases first), so `"Heuristic"` is accepted |
 | the **engine** refused the command | **422** | `rejected` | an illegal target, an unpayable cost. Understood, addressed to a real action, but unprocessable. The `GameStateError` is rendered as **text**. |
@@ -545,6 +546,63 @@ milestone's documentation updates. It is deliberately not written there yet.
 
 ---
 
+## Blocking decisions and their pickers (UI-1)
+
+`memory/playtest-triage-2026-08-02.md` F8. Three engine decisions block the game
+until the player named by them answers: the CR 514.1 cleanup discard, the CR 608.2d
+resolution-time effect choice (search / scry / surveil), and the CR 603.3d trigger
+target announcement.
+
+`StubProvider` bakes the engine's own deterministic default into each of these
+`LegalAction`s — the `count` highest `ObjectId`s, the identity partition,
+`candidates.first()` — precisely so a **bot** can submit it and always be accepted
+(SR-38: never offer an action the engine will refuse). The candidate data rides
+along on the same action so a **human** client can render a real choice instead.
+Until UI-1 the view layer threw that data away, so the browser drew one bare button
+that submitted the default: the game discarded the right-hand cards for you, every
+scry resolved as a no-op, and every search fetched the lowest-id match.
+
+### The payload is generic on the answer's SHAPE, not on the question
+
+`ActionOptionView.decision` is `{question, prompt, answer_field, answer}`. A client
+dispatches on `answer.shape`, not on `question`:
+
+| Shape | Question(s) | Answered through | Picker |
+|---|---|---|---|
+| `Subset` | `CleanupDiscard` (CR 514.1) | `discard_cards` | `DiscardPicker` |
+| `PickOne` | `SearchLibrary` (CR 701.23a) | `effect_choice_answer` | `SearchPicker` |
+| `Partition` | `Scry` (CR 701.22a), `Surveil` (CR 701.25a) | `effect_choice_answer` | `PartitionPicker` |
+| `Slots` | `TriggerTargets` (CR 603.3d) | `trigger_targets` | the existing `TargetPicker` |
+
+The last row is the design's own test, and it is why the shape is the discriminant.
+`ChooseTriggerTargets` was filed as the *identical* gap (**OOS-DP8-2**) and it needed
+no new picker, no new answer encoding and no new client branch beyond a dispatch
+arm: its payload is the same `Vec<TargetSlotView>` the CR 601.2c target picker
+already draws. A scry and a surveil share `PartitionPicker` for the same reason —
+the entire difference between them is `moved_key` / `moved_label`, which the server
+supplies, and nothing in that component names either question.
+
+### The client never spells `EffectChoiceAnswer`'s variant name
+
+`PickOne` and `Partition` carry a `template`: the engine's own default answer,
+serialized verbatim, e.g. `{"Scry":{"bottom":[],"top":[20,21]}}`. A client answers
+by cloning it, reading its single key, and replacing only the arrays named by
+`kept_key` / `moved_key` / `found_key`. So the externally-tagged encoding of
+`EffectChoiceAnswer` stays known in exactly one place — the engine. This is
+`TargetOptionView::value`'s argument applied to a second type: a client that built
+`{"Scry": …}` from scratch would be a second place for that encoding to drift, and
+the drift would be silent until `api.rs` answered "you answered the wrong question".
+`answer_field` is a prop for the same reason one level up.
+
+### The default is still the fallback, and that is load-bearing
+
+`params.rs`'s three arms submit the action's own default when nothing is announced.
+`random_bot` reaches them with `ActionParams::default()`, so an unparameterized
+submission produces a **byte-identical** `Command` to the pre-UI-1 one and no
+recorded fuzz seed's outcome moves (OOS-DP8-1 — the same constraint PB-DP8/DP9 wrote
+these arms under). What changed is only that an announced answer is now forwarded
+rather than dropped.
+
 ## Known limitations
 
 These are real and deliberate. The code documents each in place; they are
@@ -664,6 +722,33 @@ repeated here so this README does not claim more than the implementation does.
     not blocked by the validator — so this is a client limitation, not a rules
     one. A blocker with the ability can still be assigned once through the UI.
 
+14. **The `Slots` decision shape is unexercised end to end.** The backend channel
+    is complete and unit-tested (`params.rs`'s
+    `trigger_targets_arm_defaults_then_forwards`, `api.rs`'s per-slot cardinality
+    and membership checks), and the frontend dispatches to `TargetPicker` — but no
+    probe drives a real `ChooseTriggerTargets` through HTTP, because reaching one
+    needs a triggered ability whose target slot has two or more candidates and the
+    UI-1 fixture deck (97 Swamps + the two probe spells) contains none. The other
+    three shapes each have a probe that reproduces the default and then drives a
+    different answer. Saying which one does not is cheaper than implying all four do.
+
+15. **`Slots` has no "use the default" affordance.** `AnswerShapeView::Slots`
+    carries the engine's `default_trigger_targets`, and `Subset` carries its
+    default and offers a one-click button for it. `TargetPicker` has no pre-seed
+    path, so the trigger shape does not — a parity gap, not a correctness one.
+
+16. **`PartitionPicker` does not let the human order the *moved* pile.** CR 608.2f
+    makes the order cards are put into the graveyard the surveilling player's
+    choice, and the wire carries it; the component sends the order the human moved
+    them in and offers reorder controls only on the kept pile, where `top[0]`
+    becoming the library's top card makes ordering unmissable. A real choice made
+    implicitly, recorded rather than glossed.
+
+17. **None of the five pickers has an automated test.** There is no frontend test
+    harness in this repo (plan §8 R7, revisit at M13). Each component's own doc
+    names its unexercised paths. What *is* tested is everything the server sends
+    and everything it accepts, over HTTP.
+
 ---
 
 ## `GET /api/game/report` — and the one place Invariant 7 does not apply
@@ -717,15 +802,35 @@ and every event line goes through `event_view_for(.., Viewer::Seat(human))`.
 Neither omniscient entry point (`from_game_state`, `Viewer::Omniscient`) is
 reachable from the production paths of this crate.
 
-**Three channels, not one — and two of them were found by review, not by a gate**
-(review MR-M11-01 / MR-M11-08). A payload can identify a hidden card without ever
-naming it:
+**Four channels, not one — and three of them were found by review, not by a gate**
+(review MR-M11-01 / MR-M11-08; the fourth was opened deliberately by UI-1). A
+payload can identify a hidden card without ever naming it:
 
 | Channel | What carries it | What holds it |
 |---------|-----------------|---------------|
 | **Names** — a label that says the card | the view model and `NameIndex` | `test_production_code_never_builds_an_omniscient_view` (source) + `test_seat_view_over_http_contains_no_other_hand_card_names` (body) |
 | **Reconstruction keys** — data that *rebuilds* a hidden zone | `GameSummary.seed`, until MR-M11-01 removed it | `test_mr_m11_01_seat_payload_carries_no_reconstruction_key`, which asserts over the raw body so a rename or a nested copy is caught too |
 | **Free-form strings** — engine text spliced in after redaction | `game_over.violations` / `.reason`, until MR-M11-08 reduced them | `test_mr_m11_08_game_over_payload_carries_no_engine_debug`, which plants a card name in both carriers |
+| **Look entitlements** — a real name from a hidden zone, rendered *on purpose* | `view::question_card_label`, feeding `BlockingDecisionView`'s scry / surveil / search candidates | `test_ui1_view_rs_reads_game_state_in_exactly_the_two_known_places` (source, count-pinned) + the positive half of `test_ui1_scry_partition_is_answered_over_http`, which asserts a scried library card renders its **real** name |
+
+The fourth is the only one that is not a leak, and it is worth stating why it is
+in the table anyway. CR 701.22a / 701.23a / 701.25a each instruct **this seat** to
+look at **these cards**, and the engine encodes that entitlement structurally
+rather than in prose: the ids live inside a `PendingEffectChoice { player, .. }`
+minted for exactly one seat, and `GameEvent::EffectChoiceRequired::private_to()`
+returns `Some(player)` for that seat and nobody else. `NameIndex` cannot serve it —
+`StateViewModel` carries `library_size` and no library *contents* — so every one of
+these ids would render as `(unknown card)`, which is not safer (the ids are already
+on the wire, and must be, or the human cannot answer) and makes the picker useless.
+
+What earns it a row is that it is a **new channel**, and MR-M11-01's lesson is that
+a redaction gate checks the channel it was written for. Neither existing name gate
+can see this one: the source gate scans for omniscient *view-model* entry points and
+this uses none, and the body scan looks for another seat's *hand* card names and
+these are library cards. So the gate is a count: `view.rs`'s production code may
+read the raw `GameState` object table exactly **twice** — here, and in
+`action_modes`' card-registry lookup, which reads an id the seat already holds and
+no name at all. A third read is not forbidden; it is required to be *deliberate*.
 
 `seed` shipped on **every** seat response for three sessions with both name-channel
 gates green, because `setup::build_initial_state` is deterministic in its config alone
