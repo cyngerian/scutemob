@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-08-01 12:51 UTC  
-**Git:** `736493db` on `feat/pb-dx5-cr-6112c-lock-the-affected-set-of-a-resolution-genera`  
+**Generated:** 2026-08-02 08:14 UTC  
+**Git:** `d04f42a1` on `main`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -34,7 +34,7 @@ and what is intentionally NOT in it.**
 
 | Window | New files added | Existing files modified |
 | --- | ---: | ---: |
-| last 7 days | 0 | 28 |
+| last 7 days | 0 | 45 |
 | last 30 days | 57 | 2,943 |
 | last 90 days | 57 | 2,955 |
 | last 1 year | 1,830 | 3,366 |
@@ -239,6 +239,7 @@ tyvar_jubilant_brawler: // TODO: Mill effect + conditional graveyard return with
 ## Recent card-touching commits
 
 ```
+99d54ed5 scutemob-179: CARDS-1 — author the CR 702.6a equip target into all 17 equip defs (OOS-M11-10)
 869f09d6 scutemob-168: PB-DX4 fix cycle — 2 HIGH / 5 MEDIUM / 6 LOW from pb-review-DX4.md, all 13 applied
 e658c9d8 scutemob-168: PB-DX4 — triage the 97-entry decision BASELINE against oracle text (OOS-DP10-8)
 39d4902c scutemob-166: PB-DX3b fix cycle — apply review findings (5 MEDIUM / 7 LOW)
@@ -263,7 +264,6 @@ d876d19b W6-prim: PB-OS10 — inter-target distinctness + Jitte any-recipient co
 bd15b45b W6-prim: PB-OS6 review LOW — soften delver 'strictly beneficial' comment wording
 969ef404 W6-prim: PB-OS6 wire bump (PROTOCOL 20->21, HASH 57->58) + card defs
 8c31c1fd W6-prim: PB-OS5 (OOS-EF4-1) — dynamic relative-count EffectAmount
-55664ad8 scutemob-134: PB-OS4b card-def message fixes + wip checklist
 ```
 
 ## Missing card-defs sidecar
