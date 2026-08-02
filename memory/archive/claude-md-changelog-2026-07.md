@@ -13,6 +13,215 @@
 
 ---
 
+## Rotated 2026-08-02 from CLAUDE.md's "Last Updated" window (July-dated entries)
+
+- 2026-07-31 — **SEED RE-RANK SHIPPED (`scutemob-159`): the PB-RS queue is retired and the successor
+  queue is `memory/primitives/seed-rerank-2026-07-27.md` §4, PB-DX1..PB-DX18.** Docs-only, 0
+  engine/card-def edits, tests **3,928 / 0** unchanged, PROTOCOL 31 / HASH 68 untouched. The census:
+  **209** `OOS-*` tokens across the repo → 207 distinct seeds → **204 real** after striking three
+  phantoms, one of them found here (**`OOS-RS1-2`**, conditional in `pb-review-RS1.md` and never
+  filed because the fix it was the fallback for was applied — `effects/mod.rs:3568-3577` reads
+  `Zone::top_n`). All six closures the brief listed as settled were re-verified **against shipped
+  code, not banners**, and all six hold — **and a seventh was found that no document records:
+  `OOS-RS3-1` was closed by PB-DP6 (`scutemob-154`)**, all five `CardDefETB` sweeps now gating at
+  queue time (`turn_actions.rs:310/483/561/781/1945`, 14 gated sites workspace-wide), while the RS
+  doc's §5 banner went on naming it the next insert candidate for a week — the `N4 re-dispatch
+  hazard`, live. **Four premise corrections changed the ranking.** (1) The RS queue's own next pick,
+  **R5 / OOS-RS-4**, is a *LOW* review finding worth 0 flips whose obvious one-line fix is a trap:
+  `CounterCountAtLastKnownInformation` reads `ctx.lki_counters`, populated only for
+  leave-the-battlefield triggers, and Anim Pakal's is `WheneverYouAttack`, so the swap would produce
+  **zero** Gnomes — retired from the queue. (2) **R6 / OOS-OS7-2 is much stronger than its "0 flips"
+  filing**: `ContinuousEffect` has no affected-set field and `layers.rs:613` re-evaluates
+  `AllCreatures` live, so CR 611.2c is unimplemented and **7 `Complete` defs are live-wrong in
+  ordinary play** (a creature entering after a mass -1/-1 wrongly gets it) — re-ranked up to PB-DX5.
+  (3) **OOS-DP9-3's yield is 2, not ~7**: `protean_hulk` is `inert` not `partial`, and five of the
+  seven carry a second independent blocker a count field does not touch. (4) **OOS-DP6-3 is the
+  cheapest item in the inventory and only became so when PB-DP6 landed** —
+  `Condition::YouControlNOrMoreWithFilter` is used by 21 defs *and* is queue-time evaluable, so both
+  halves of CR 603.4 are available and `garruks_uprising` + `inventors_fair` are authorable today:
+  **2 flips, 0 engine lines**. The queue's top five, correctness-first: **PB-DX1** OOS-DP6-1 (the
+  intervening-if dropped in the runtime lowering — the only open seed that is live-wrong *and* on a
+  `Complete` def *and* unbounded; Aurelia is deck-legal and grants herself infinite combats; HASH
+  bump), **PB-DX2** OOS-DP5-7 + OOS-DP7-2 (`ChooseDredge` has no pending-state gate — `card: None`
+  is a free card for anyone at any time, and two doc comments claim a pause the code does not
+  implement; wire-neutral), **PB-DX3** OOS-DP6-3, **PB-DX4** OOS-DP10-8 (the 97-entry `BASELINE`
+  triage; both spot-check class-D defs re-verified against oracle text by MCP — Shambling Ghast's
+  printed -1/-1 is *until end of turn* and it has no `Decayed`), **PB-DX5** OOS-OS7-2. **OOS-M11-2's
+  exclusion from the primitive queue is confirmed and now recorded as a queue decision**
+  (`mana_solver.rs` has zero `mana_pool` references and reads non-layer-resolved `mana_abilities` at
+  `:35`; M11-local S3 owns it). Two further cross-links worth carrying: **`OOS-DP10-3` ≡ the legacy
+  `OOS-AC9-FILTERMANA`**, the same filter-land gap filed twice nine months apart, and
+  **`OOS-DP5-5`'s stated blocker no longer exists** — PB-DP9's abort-and-replay *is* the suspendable
+  resolver it was waiting for, so re-scope it rather than copying the dismissal forward. The durable
+  lesson, added as an addendum to the 2026-07-19 triage's closing claim that no rider seed had gone
+  stale: **"filed too recently to be stale" is a statement about elapsed batches, not elapsed days**
+  — ten PB-DP batches ran across the same subsystems while the RS queue was parked.
+
+- 2026-07-27 — **PB-DP10 SHIPPED (`scutemob-158`) and THE PB-DP SUITE IS COMPLETE.** The last row of
+  `docs/audits/decision-point-audit.md` §8 was never an instance; it was the **invariant**. DP-INV
+  says the engine must either obtain a player's answer through a `Command` or refuse the card at
+  deck-build, and SR-33's `effect_choose_gate.rs` enforced that for exactly **three** DSL variants
+  while §3.1 counted twenty-one decision sites across 277 `Complete` defs — so the figure grew
+  silently with every card authored. PB-DP10 is **test-only** (PROTOCOL 31 / HASH 68 unmoved, `git
+  diff` over `crates/engine/src` + `crates/card-types/src` + `crates/card-defs/src` **empty**, 0 def
+  edits, 0 completeness flips) and adds two files under `crates/engine/tests/core/`:
+  `decision_site_walk.rs`, which classifies **all 22** rows (the audit's 21, with row 4 split) as
+  **4 SERVED** (`triggered_targets` 77, `search_library` 73, `scry` 16, `surveil` 8 — the classes
+  PB-DP8 and PB-DP9 actually fixed) / **15 AUTO-CHOSEN** / **2 GATED** / **1 NO-DECISION**, each
+  carrying the engine site that was *read* to establish it; and `decision_gate.rs`, which freezes
+  the **97**-def still-auto union in a name-keyed `BASELINE` and reddens on a new instance. **The
+  batch's headline is a gate-integrity finding, and it is the reason this was worth a batch**: every
+  serde walk in this codebase — `effect_choose_gate.rs`, `pb_rs1_roster_sweep.rs`, and PB-DP9's own
+  `roster` module, the one written *because* a hand-walk had been caught being incomplete — matches
+  **object keys only**, and serde serializes a **unit** enum variant as a bare JSON **string**.
+  `serde_json::to_value(Effect::Proliferate) == Value::String("Proliferate")`. A verbatim reuse
+  would have reported **0** for Proliferate's 25 `Complete` defs *while the suite stayed green* —
+  precisely the OOS-DP7-11 "a gate cited as covering something is a claim like any other" failure
+  mode, one layer deeper. The canonical walk now matches both shapes, with a `PROSE_FIELDS` denylist
+  so a card whose oracle text spells a variant name is not a false positive, and T2/T3 pin both
+  mechanisms against the legacy walk. Two "control group" zeros the audit credited to the SR-33 gate
+  were held by **nothing** (`AddManaFilterChoice` is a *different serde key* from the
+  `AddManaChoice` that gate bars; `TheRingTemptsYou` likewise) and are now machine-checked.
+  **All-rows union 267** — the §3.1 "277" re-derived by computation rather than regex, which
+  **closes OOS-DP7-7** — with a per-row delta table naming a mechanism for each drift and marking
+  three deltas honestly as "unexplained, ±1, within regex noise" rather than inventing a story.
+  **Fail-closed was proven end-to-end on a real card def**, not only on a synthetic corpus:
+  `Effect::Proliferate` added to `lightning_bolt.rs` reddened **two** tests naming the card, the
+  row, the CR and the engine site; restored, green. **The review's two HIGHs are both about the
+  gate's own honesty, and both are the durable lesson.** (1) `BASELINE`'s 97 entries were populated
+  **mechanically** and the plan's class-B/class-D triage against oracle text was never performed — a
+  spot-check found two class-**D** defs already inside the frozen list: **Smuggler's Copter**, whose
+  "you **may** draw a card" is authored as an unconditional `Sequence(DrawCards, DiscardCards)` on a
+  `Complete` def (the 20th instance of DP-12's class, where the other 19 are `known_wrong`), and
+  **Shambling Ghast**, with a *permanent* `-1/-1` counter where the card says "until end of turn",
+  an `oracle_text` field reading "enters" against a `WhenDies` trigger, and a `Decayed` keyword the
+  printed card does not have. Per plan §5.3 both are **seeded (OOS-DP10-8), not demoted**, and the
+  baseline's doc comment and the gate's failure message now say plainly that an entry asserts *only*
+  which rows a def hits and nothing about whether the def is otherwise oracle-correct. (2) **The
+  gate can only see a decision the DSL encoded.** Every row is a predicate over a variant name, so a
+  choice dropped at authoring time — a "you may" written as a bare `Sequence` — leaves no trace and
+  passes forever; that class is *strictly worse* than the class the gate records, because a recorded
+  auto-choice is at least a legal outcome. Stated in the module doc, in §3.1 and in the §8 row, and
+  filed as **OOS-DP10-9** with the instrument that would catch it (an oracle-text-vs-DSL
+  cross-check, not a variant walk). All 14 findings applied; both new tests proven non-vacuous by
+  execution. Tests 3,910 → **3,928**; seeds **OOS-DP10-1..11**; audit §8 carries a suite-COMPLETE
+  banner and §10 an honest **3-of-8** mechanization ledger. **Next: re-rank RS5..RS11** against the
+  DP suite's seeds (OOS-DP9-3 was the standing first pick; OOS-DP10-6 is the successor queue's
+  measured ranking).
+
+- 2026-07-27 — **PB-DP9 SHIPPED** (`scutemob-157`): **a tutor no longer fetches for you, and scry
+  and surveil stop inverting their printed mechanic.** Library search picked the lowest `ObjectId`;
+  scry put **every** looked-at card on the bottom, making "keep on top" unreachable; surveil put
+  every one in the graveyard, making `Surveil N` exactly `Mill N`. All three now route through a
+  blocking CR **608.2d** announcement — `GameState.pending_effect_choice` +
+  `GameEvent::EffectChoiceRequired` (disc. 131) → `Command::AnswerEffectChoice` — the engine's
+  **first resolution-time decision channel**. **The design the plan inherited was impossible and the
+  correction is the batch's headline.** `pb-plan-DP7.md` §1.6 and audit §8 both prescribed "a
+  resumable effect-list cursor **on the stack object**"; `resolve_top_of_stack` **pops** the stack
+  object (`resolution.rs:39-42`) before a single effect runs, so nothing living there can carry a
+  continuation. What shipped is an **abort-and-replay**: clone the state at entry; an effect needing
+  an unanswered choice records the *question* and returns; the wrapper **restores the clone
+  wholesale** (spell back on the stack, no card moved, no event emitted) and returns exactly one
+  event; the answer is banked on `GameState` and the resolution re-runs **from the top**, retracing
+  the identical deterministic path. That buys three things a cursor would not: **no continuation
+  data structure at all** (`Sequence`/`Conditional`/`ForEach`/`Repeat`/`MayPayThenEffect` and the
+  per-player loops need zero machinery — the replay re-executes them, which is *correct* because
+  they are pure functions of a restored state); a re-entrancy audit of **3 units, not 20** (15 of
+  the 17 production `execute_effect` callers live inside `resolve_top_of_stack` itself, one is CR
+  605.4a-gated, one is provably unreachable); and **immunity to PB-DP8's hardest recurring bug
+  class** — "a guard that returns early inherits the obligation of the statements it skipped" cannot
+  arise when nothing was skipped because nothing happened. **ONE `Command` for all three effects**,
+  argued from CR 608.2d being one rule of which 701.22a/701.23a/701.25a are three instances with
+  identical timing, actor and validity condition — so one admission-gate entry, one `LegalAction`,
+  one `DecisionKind`, one harness action string, correcting OOS-DP8-14's prediction of three.
+  **PROTOCOL 30 → 31 / HASH 67 → 68**, all fingerprints gate-computed, both histories append-only,
+  44 sentinel files re-pinned via the **symbol** grep. **Roster 69 / 16 / 7, not the audit's 74 / 16
+  / 8** — enumerated from `all_cards()` with a *recursive* `Effect`-tree walk (a flat scan
+  undercounts; the effects nest). **0 card-def edits, 0 completeness flips.** Three in-scope
+  correctness fixes beyond the agency restoration, none in the brief: CR **701.22b** (`Scry 0`
+  emitted `Scried { count: 0 }` — the surveil arm had the mirror-image CR 701.25c guard, the scry
+  arm did not, so a "whenever you scry" trigger could fire off a scry 0); CR **400.7**
+  (scry-to-bottom **renumbered every scried card**, because both `move_object_to_*` helpers mint a
+  fresh `ObjectId` unconditionally, and it also consumed `timestamp_counter` — the shuffle seed
+  source; replaced with a `Zone::reposition_within` permutation, sweep seeded as OOS-DP9-11); and CR
+  **701.23d** (a quantity-only search with exactly one candidate is determined and asks nothing).
+  **Two deliberate deviations, both argued in source and pinned in both directions by tests.** (1)
+  The scry and surveil **defaults flip to the identity** — search keeps its lowest-`ObjectId`
+  default byte-for-byte, but "all to the bottom" / "all to the graveyard" is the systematically
+  maximal-harm legal answer and surveil-as-mill can contribute to a CR 704.5b deck-out; the cost was
+  paid visibly in 25 unit tests + 1 golden script, every repair CR-justified, none by weakening an
+  assertion. (2) The three new `GameState` fields go into `public_state_hash` but **NOT** into
+  `loop_detection.rs`'s mandatory-state fingerprint, unlike PB-DP7's and PB-DP8's, because they
+  *grow* between successive replays of one resolution and could mask a CR 726 mandatory loop —
+  recorded as **obligation (7)** on the `BlockingDecision` doc block, the first evidence PB-DP8's
+  six-obligation list generalises (PB-DP9 discharged 6/6 plus the new one).
+  `GameEvent::private_to()` now exists (OOS-DP8-6's declaration half) and is honestly labelled a
+  **declaration, not an enforcement point** — nothing consumes it until M10. Benches measured
+  against `48353a36` in a throwaway worktree: `full_turn_4p` **253 → 229 µs**, no regression from
+  the per-resolution `GameState::clone()`. `EffectContext.target_remaps`' `HashMap` audited and
+  **clean** (3 inserts, 1 get, nothing iterates — SR-9b safe). Tests 3,878 → **3,905**; 211/211
+  golden scripts green, 0 new skips; seeds **OOS-DP9-1..12** filed in audit §8.1 — rank
+  **OOS-DP9-3** next (`Effect::SearchLibrary` finds exactly ONE card; CR 701.23 says "one or more";
+  ~7 `partial` defs; **zero** new plumbing on this machinery).
+
+- 2026-07-26 — **PB-DP3 SHIPPED** (`scutemob-151`): **a modal spell can no longer be cast without
+  announcing its modes** (CR **601.2b/700.2a**). The range / duplicate / `min_modes` / `max_modes`
+  checks all lived inside `casting.rs`'s `if !modes_chosen.is_empty()` branch, so supplying
+  *nothing* skipped every one of them and both consumers re-derived `vec![0]` — Cryptic Command,
+  Austere Command and Incendiary Command (all `Complete`, all `min_modes: 2`) paid full cost and
+  resolved **one** mode, silently. The fix **lifts** the checks out of the emptiness gate rather
+  than mirroring the Spree guard as the audit prescribed (the Spree guard fires earlier and owns its
+  CR 702.172a message, so it was kept intact) — and the lift turned a 3-card fix into a **40-def**
+  one: the 3 commands plus the **37** `min_modes: 1` defs that had all been accepting an unannounced
+  cast, plus the identical bypass on modal **activated** abilities in `abilities.rs` (audit §4.2
+  L214), folded in at zero test cost. Escalate keeps a narrow CR 702.120a exemption — electing to
+  pay the additional cost *is* an announcement of the mode **count** — with the derived count now
+  bounds-checked (OOS-DP3-1). `resolution.rs`'s `vec![0]` fallback was **retained**: it looks like
+  dead code after the fix and is not, because four producers build Spell stack objects without ever
+  calling `handle_cast_spell` (cascade, discover, cipher, suspend) — the plan's original list of
+  those producers was wrong in *both* directions and the review corrected it. **0 card-def edits**,
+  PROTOCOL 27 / HASH 63 unmoved as predicted, 8 fail-before probes (Austere Command's empty-mode
+  cast simply *succeeded* pre-fix), review 0 HIGH / 2 MEDIUM / 6 LOW all dispositioned, tests 3,725
+  → **3,747**; seeds **OOS-DP3-1..9** filed in audit §8.1 (the last, OOS-DP3-9, found by the closing
+  `/review`: `mtg-fuzzer` aborts on a stack overflow at 15 games and long games trip
+  `stack_consistency` — pre-existing on `main`, reproduced both there and here, plausibly a shared
+  root cause with OOS-M11-3) and audit rows §4.1 L186 (**D→A**), §4.2 L214 (**B→A**), §5 DP-4/DP-20,
+  §8, §9 rec 4 (superseded) all updated. **Prior same-day entry:** **PB-DP2 SHIPPED**
+  (`scutemob-150`): the mulligan is no longer a content no-op — `handle_take_mulligan` performs a
+  real `timestamp_counter`-seeded `Zone::shuffle` (the `LibraryShuffled` event had been a phantom,
+  Architecture Invariant 4) and `handle_keep_hand` bottoms with `move_object_to_bottom_of_zone`
+  instead of writing to the library top, per **CR 103.5/103.5c** (the suite's "103.4b" cite is stale
+  — that rule is the Vanguard starting life total); **OOS-M11-1 CLOSED**, the audit's predicted HASH
+  bump **falsified** (PROTOCOL 27 / HASH 63 unmoved), 4 probes, tests 3,721 → 3,725, seeds
+  OOS-DP2-1..6 filed. **Prior same-day entry:** **M11-local KICKED OFF (web-first); the playability
+  track is now open** (`scutemob-147`). Three commits: (1) `aceba394` roadmap restructure applying
+  strategic-review action items 2/3/4 — M11 → **M11-local** (browser + 1 human + 3 bots, no
+  networking, M10 dependency removed), M10 → **M10-pre/M10a/M10b**, **M12 downscoped** to a
+  continuous track; rewind/pause/manual-adjust UI and the two engine features (Mindslaver turn
+  control, Stasis step skipping) carved out of the UI milestone into M13; strategic-review action
+  items closed 9/9 with its stale headless-Debian premise corrected. (2) `c6b6b46f`
+  `memory/m11-session-plan.md` — 8 sessions from `rules-implementation-planner`; the milestone needs
+  **no new `Command`/`GameEvent` variant**, so PROTOCOL 27 / HASH 63 hold throughout. (3) `f2a9647b`
+  **Session 1 shipped** — `LocalGame`, the steppable human-input bridge, in `crates/simulator` only;
+  `GameDriver::run_game` re-expressed on top of it (parity evidenced by a byte-identical single-seed
+  command-trace replay plus a statement-by-statement review — a full fuzzer-baseline diff is **not**
+  a usable oracle right now, see OOS-M11-3 below); 10 new tests; **3,683 workspace tests passing, 0
+  failing**. A review pass found and fixed four API hazards before HTTP lands on this surface:
+  `advance()` is now idempotent while a decision is outstanding (a poll endpoint or browser refresh
+  used to silently invalidate the client's `seq`), a human seat now gets the same
+  empty-legal-actions auto-pass a bot does (it could otherwise deadlock on an empty decision),
+  `submit()` now refuses a command naming another seat, and the journal is opt-in so the fuzzer does
+  not pay for it. Three new seeds filed but **not yet ranked into the RS queue**: OOS-M11-1
+  (mulligan never actually shuffles — live-wrong vs CR 103.5), OOS-M11-2 (mana solver ignores the
+  pool, reads non-layer-resolved abilities), OOS-M11-3 (fuzzer nondeterministic in very long games;
+  pre-existing). **Same day, parallel track: PB-RS4 SHIPPED** (`scutemob-146` merge `9419d0e9`) —
+  face-aware residuals; **OOS-RS-3 closed, and with it OOS-OS4-2 fully closed**;
+  `deregister_face_statics` extended to all 10 registered families + parity gate; a 4th
+  same-root-cause Saga-sweep deviation found in planning and fixed; 0 flips, 2 integrity repairs, 17
+  probes, PROTOCOL 27 / HASH 63 unchanged; seeds OOS-RS4-1/2/4 filed; **next: PB-RS5**. *(Entries
+  older than the five above have rotated out of this window — the 2026-07-19 PB-OS-queue-complete
+  entry and everything before it live verbatim in `memory/archive/claude-md-changelog-2026-07.md`.)*
+
 ## Last shipped (as of 2026-07-18)
 
 - **Last shipped**: **PB-EF1 — `exclude_self` enforcement sweep** (`scutemob-99`, merge `6202ab81`) —
