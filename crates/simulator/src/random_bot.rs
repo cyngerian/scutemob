@@ -156,14 +156,15 @@ pub(crate) fn action_to_command(
     player: PlayerId,
     action: &LegalAction,
 ) -> Command {
-    let mut params = ActionParams::default();
-
-    // CR 601.2c / CR 602.2b (SIM-5): announce targets. `NotTargeted` and
-    // `Unsatisfiable` both leave this empty -- the first because there is nothing to
-    // announce, the second because no announcement can be legal, in which case the
-    // engine refuses the command and `LocalGame::advance()` records the refusal
-    // (`RejectedCommand`) and passes, spending nothing (SIM-5 fix (1)).
-    params.targets = crate::targeting::plan_targets(state, player, action).announced();
+    let mut params = ActionParams {
+        // CR 601.2c / CR 602.2b (SIM-5): announce targets. `NotTargeted` and
+        // `Unsatisfiable` both leave this empty -- the first because there is nothing
+        // to announce, the second because no announcement can be legal, in which case
+        // the engine refuses the command and `LocalGame::advance()` records the
+        // refusal (`RejectedCommand`) and passes, spending nothing (SIM-5 fix (1)).
+        targets: crate::targeting::plan_targets(state, player, action).announced(),
+        ..ActionParams::default()
+    };
 
     match action {
         // Random subset of attackers (moved verbatim from the pre-Session-3 body).

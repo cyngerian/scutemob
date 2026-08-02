@@ -60,8 +60,42 @@ pub enum TargetPlan {
     Announce(Vec<Target>),
     /// At least one **mandatory** requirement has no legal candidate on this board, so
     /// CR 601.2c makes the action unannounceable however it is parameterised —
-    /// `handle_cast_spell` will refuse it. Used by bots to decline gracefully, and
-    /// available to a future offer gate (the SR-38 suppression of G5 fix (4)).
+    /// `handle_cast_spell` will refuse it.
+    ///
+    /// # This is the predicate G5's fix (4) would need, and fix (4) is DEFERRED
+    ///
+    /// `OOS-SIM5-4`. G5 proposed an SR-38 offer gate that suppresses casts whose
+    /// targets cannot be satisfied. The predicate exists (here), and wiring it into
+    /// `StubProvider::legal_actions` is a short filter — but it was measured before
+    /// being written, and it is not worth it *yet*:
+    ///
+    /// * **Value, measured.** Across seeds 0/7/42 at 25 turns the engine refused
+    ///   **166** bot commands. Exactly **1** was a cast this filter would have
+    ///   suppressed (`Victimize`, "expected 2..=2 target(s) but got 0", with no
+    ///   creature card in the graveyard); up to 4 more were modal *activated
+    ///   abilities* whose per-mode requirements `ability_target_requirements`
+    ///   deliberately does not report (its own doc, "out of scope here"), so this
+    ///   predicate cannot see them either. The remaining ~161 are `InsufficientMana`
+    ///   and `activation condition not met` on activations (SIM-6's subject, and
+    ///   explicitly out of this batch's scope) plus blocker-declaration refusals.
+    /// * **It does not cover `OOS-CARDS2-4`**, which was fix (4)'s main advertised
+    ///   benefit. An Aura's restriction is a `KeywordAbility::Enchant`, not a
+    ///   `TargetRequirement`, so this returns [`TargetPlan::NotTargeted`] for one; the
+    ///   predicates that would decide it (`rules::sba::get_enchant_target` /
+    ///   `matches_enchant_target`) are `pub(crate)`. Covering Auras needs a new
+    ///   **engine** query, which SIM-5 is forbidden to add (0 engine lines).
+    /// * **Cost.** The filter runs a full candidate sweep per offered cast per
+    ///   priority window, and `queries::legal_targets_per_slot`'s own doc asks for a
+    ///   measurement and a per-`(state, source)` cache before it is put on a polled
+    ///   path. Nothing here is cached today.
+    /// * **Blast radius.** Removing offers shortens the action list, and `RandomBot`
+    ///   picks `rng.random_range(0..legal.len())` — so every recorded fuzz seed and
+    ///   every seeded play-server fixture re-rolls, for a 0.6%-of-refusals gain.
+    ///
+    /// Post fix (1) an unsatisfiable offer costs nothing anyway: the taps roll back
+    /// and the refusal is recorded. The successor batch should scope it as an engine
+    /// query (`can_announce_targets`, Enchant-aware) plus caching, not as a simulator
+    /// filter.
     Unsatisfiable,
 }
 
@@ -106,7 +140,10 @@ fn target_query_source(action: &LegalAction) -> Option<ObjectId> {
 ///
 /// `alt_cost` is `None` for the same reason `view.rs` passes `None`: `params.rs` hard-
 /// codes `alt_cost: None` on both arms.
-pub fn action_target_requirements(state: &GameState, action: &LegalAction) -> Vec<TargetRequirement> {
+pub fn action_target_requirements(
+    state: &GameState,
+    action: &LegalAction,
+) -> Vec<TargetRequirement> {
     match action {
         LegalAction::CastSpell { card, .. } => mtg_engine::spell_target_requirements(
             state,

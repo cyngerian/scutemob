@@ -93,24 +93,39 @@ pub fn targeted_cast_names(
     out
 }
 
-/// For every `ManaPoolsEmptied` (CR 500.4), the handful of commands that preceded it.
+/// For every `ManaPoolsEmptied` (CR 500.4), the commands that preceded it.
 ///
 /// This is the residual-explaining instrument: after SIM-5 a destroyed pool should
 /// never be a *wasted* one (a tap run followed by its own player's pass), but it can
 /// still be greedy-solver slack on a cast that actually happened (`OOS-SIM2-1`).
+///
+/// The window is 40 rather than a handful because the one residual left on the A/B
+/// seeds needed it: seed 7's T14 pool was funded by a four-tap run **twenty-odd
+/// commands earlier**, whose cast succeeded, with the remainder partly spent on a
+/// second cast and the rest destroyed at the step boundary. A five-command window
+/// showed only passes and would have made that residual look unexplained.
 pub fn emptied_pool_context(game: &LocalGame<StubProvider>) -> Vec<String> {
     let journal = game.journal();
     journal
         .iter()
         .enumerate()
-        .filter(|(_, r)| r.events.iter().any(|e| matches!(e, GameEvent::ManaPoolsEmptied)))
+        .filter(|(_, r)| {
+            r.events
+                .iter()
+                .any(|e| matches!(e, GameEvent::ManaPoolsEmptied))
+        })
         .map(|(i, r)| {
-            let from = i.saturating_sub(12);
+            let from = i.saturating_sub(40);
             let preceding: Vec<String> = journal[from..i]
                 .iter()
                 .map(|p| short_command(&p.command))
                 .collect();
-            format!("T{} [{}] <- {}", r.turn, preceding.join(", "), short_command(&r.command))
+            format!(
+                "T{} [{}] <- {}",
+                r.turn,
+                preceding.join(", "),
+                short_command(&r.command)
+            )
         })
         .collect()
 }
@@ -240,11 +255,11 @@ pub fn play(
     )
     .expect("seeded game must start");
 
-    loop {
-        match game.advance() {
-            AdvanceOutcome::AwaitingHuman(_) => unreachable!("no human seats in this fixture"),
-            AdvanceOutcome::GameOver(_) | AdvanceOutcome::Halted(_) => break,
-        }
+    // One call: with no human seat `advance()` only returns on `GameOver` or `Halted`,
+    // so the game is played to its conclusion (or to a safety valve) right here.
+    match game.advance() {
+        AdvanceOutcome::AwaitingHuman(_) => unreachable!("no human seats in this fixture"),
+        AdvanceOutcome::GameOver(_) | AdvanceOutcome::Halted(_) => {}
     }
     (game, card_names)
 }
@@ -265,7 +280,11 @@ fn seeded_four_bot_game_wastes_no_taps() {
             let (game, names) = play(seed, BotKind::Heuristic, AB_MAX_TURNS);
             let m = metrics_of(&game);
             eprintln!("SIM-5 A/B seed {seed}: {m:?}");
-            eprintln!("  rejections: {} retained/{} total", game.rejections().len(), game.rejection_count());
+            eprintln!(
+                "  rejections: {} retained/{} total",
+                game.rejections().len(),
+                game.rejection_count()
+            );
             let mut classes: std::collections::BTreeMap<String, usize> =
                 std::collections::BTreeMap::new();
             for r in game.rejections() {
@@ -332,7 +351,10 @@ fn seeded_four_bot_game_wastes_no_taps() {
 /// real def. `Doom Blade` is the minimal choice: one mandatory
 /// `TargetCreatureWithFilter { exclude_colors: {Black} }` (CR 601.2c), so a board can
 /// be built where exactly one of two creatures is a legal target.
-fn doom_blade_registry() -> (std::sync::Arc<CardRegistry>, HashMap<String, CardDefinition>) {
+fn doom_blade_registry() -> (
+    std::sync::Arc<CardRegistry>,
+    HashMap<String, CardDefinition>,
+) {
     let def = all_cards()
         .into_iter()
         .find(|c| c.card_id == CardId("doom-blade".to_string()))
@@ -361,10 +383,12 @@ fn doom_blade_state(creatures: Vec<ObjectSpec>) -> GameState {
             &defs,
         ))
         .object(
-            ObjectSpec::land(p1, "Swamp 1").with_mana_ability(ManaAbility::tap_for(ManaColor::Black)),
+            ObjectSpec::land(p1, "Swamp 1")
+                .with_mana_ability(ManaAbility::tap_for(ManaColor::Black)),
         )
         .object(
-            ObjectSpec::land(p1, "Swamp 2").with_mana_ability(ManaAbility::tap_for(ManaColor::Black)),
+            ObjectSpec::land(p1, "Swamp 2")
+                .with_mana_ability(ManaAbility::tap_for(ManaColor::Black)),
         );
     for c in creatures {
         builder = builder.object(c);
@@ -464,8 +488,9 @@ fn bot_announces_a_legal_target_and_the_engine_accepts_the_cast() {
 #[test]
 fn plan_targets_reports_an_unsatisfiable_requirement() {
     let p2 = PlayerId(2);
-    let state = doom_blade_state(vec![ObjectSpec::creature(p2, "Black Bear", 2, 2)
-        .with_colors(vec![Color::Black])]);
+    let state = doom_blade_state(vec![
+        ObjectSpec::creature(p2, "Black Bear", 2, 2).with_colors(vec![Color::Black])
+    ]);
     let card = find_by_name(&state, "Doom Blade");
     let action = cast_action(&state, card);
     assert_eq!(
