@@ -223,7 +223,28 @@
 - **Recurrence rule** — future `/collect` and milestone-close bookkeeping appends its detailed PB/SR
   narrative to that archive file (newest first), and updates only a one-paragraph snapshot delta
   here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
-- **Last Updated**: 2026-08-02 — **SIM-4 SHIPPED** (`scutemob-187`, merge `dcb1fe55`; row 2 of
+- **Last Updated**: 2026-08-02 — **SIM-5 SHIPPED** (`scutemob-188`, merge `e185a2ff`; row 3 of
+  the `memory/playtest-triage-2026-08-02b.md` successor table). **G5 CLOSED in its (1)/(2)/(3)
+  halves; (4) offer-suppression DEFERRED with measurements as `OOS-SIM5-4`** — it would have
+  suppressed 1 of 166 refusals, does not cover the Aura family (needs an engine query;
+  `get_enchant_target` is `pub(crate)`), and post-(1) an unsatisfiable offer costs nothing.
+  What shipped: the bot path routes through the same atomic `apply_sequence` as the human path
+  (a rejected cast commits zero taps); **bots announce targets for the first time ever** — new
+  `crates/simulator/src/targeting.rs::plan_targets`, every legality decision delegated to
+  `rules/queries.rs`, deterministic first-legal candidate by design (no RNG, so no recorded seed
+  moves); and rejections are recorded (`RejectedCommand`, capped 256 retained /
+  uncapped count, exported on `GET /api/game/report`) instead of discarded. **A/B on seeds
+  0/7/42, 25 turns, 4 heuristic bots: wasted taps 20/15/10 → 0/0/0, `ManaPoolsEmptied`
+  10/15/5 → 0/1/0** (the one residual traced in-journal to greedy-solver slack `OOS-SIM2-1`,
+  a cast that SUCCEEDED — not a wasted plan); first journal-verified targeted bot casts
+  (`Doom Blade` → creature, `Glacial Ray` → player, 7 total). **The new rejection channel
+  immediately paid for itself**: 166 refusals classified, **~135 of them the activation-cost
+  payment channel — SIM-6's exact subject**, measured before its dispatch. Seeds
+  **OOS-SIM5-1..5** filed (1: lowest-ObjectId targeting often self-targets; 3: bot blocker
+  refusals; 5: modal per-mode target slices unqueryable). 0 engine lines, PROTOCOL **33** /
+  HASH **70** gate-executed. Tests **4,295 / 0 / 5** (+5), every new gate proven red by revert.
+  Full handoff: `memory/workstream-state.md`.
+- **Prior**: 2026-08-02 — **SIM-4 SHIPPED** (`scutemob-187`, merge `dcb1fe55`; row 2 of
   the `memory/playtest-triage-2026-08-02b.md` successor table, first of the seven remaining rows
   dispatched one at a time). **G2 CLOSED**: a browser mulligan re-rolled all four seats' decks
   AND commanders (CR 103.5/903.6) because the session kept `DeckSource::RandomPerSeat` and
