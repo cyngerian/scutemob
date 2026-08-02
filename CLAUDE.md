@@ -233,7 +233,7 @@
 - **Recurrence rule** — future `/collect` and milestone-close bookkeeping appends its detailed PB/SR
   narrative to that archive file (newest first), and updates only a one-paragraph snapshot delta
   here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
-- **Last Updated**: 2026-08-02 — **ENG-1 SHIPPED** (`scutemob-191`, merge `<pending>`; **G3** of
+- **Last Updated**: 2026-08-02 — **ENG-1 SHIPPED** (`scutemob-191`, merge `a3b5e56b`; **G3** of
   `memory/playtest-triage-2026-08-02b.md`, row 6 of its successor table).
   Effect-driven discard is a real player choice: `Effect::DiscardCards` suspends into a new
   `EffectChoiceQuestion::Discard` (CR 701.9b) instead of auto-picking the lowest `ObjectId`.
