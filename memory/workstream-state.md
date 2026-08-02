@@ -919,9 +919,12 @@ rewrote it with the mechanism, and that rewrite is worth more than the one-line 
   to **invert** it rather than delete it when `OOS-DX19-2`'s CR 613.8b fixpoint lands.
 - **`OOS-DX19-1` is the one to take seriously.** Ten more `expect_characteristics` sites in
   `check_condition` are the identical shape and are latent **only because of corpus shape** — all
-  97 `condition: Some(..)` occurrences in the defs were enumerated and every one is an
-  `activation_condition` / `unless_condition` / `intervening_if`, none on the `is_effect_active`
-  path. The next author who writes "as long as you control a legendary creature, …" as a **static**
+  **57** corpus occurrences of those ten variants were enumerated and classified by field
+  position: every one is an `activation_condition`, `unless_condition`, `intervening_if`, or a bare
+  `Effect::Conditional`, and **none** is a `ContinuousEffectDef.condition` — which is the only
+  field `is_effect_active` reads. (Do not restate this as "all ~98 `condition: Some(..)`
+  occurrences are off the layer path"; that is false — 17 of them *are* continuous-effect
+  conditions, `indomitable_archangel`'s among them. The claim is about the ten variants only.) The next author who writes "as long as you control a legendary creature, …" as a **static**
   reopens a HIGH with no warning. **Do not fix it by converting the ten leaves**: several are
   *correct* as layer-resolved on their real call paths (there is a `// CR 613.1d … Blood Moon`
   comment saying so). It wants a boundary guard.

@@ -246,8 +246,11 @@
   **invert** it. Ten sibling `expect_characteristics` sites are the same shape and **latent only
   because of corpus shape** (all 97 `condition: Some(..)` occurrences enumerated; every one is an
   `activation_condition`/`unless_condition`/`intervening_if`, none on the `is_effect_active` path)
-  — filed `OOS-DX19-1`, fix shape a boundary guard, NOT ten leaf edits, since several are
-  *correct* as layer-resolved. Seeds **OOS-DX19-1..4** filed. PROTOCOL **33** / HASH **70**
+  — every one of the **57** corpus occurrences of those ten variants is an
+  `activation_condition` / `unless_condition` / `intervening_if` / bare `Effect::Conditional`, and
+  **none** is a `ContinuousEffectDef.condition`, which is the only field on that path. Filed
+  `OOS-DX19-1`; fix shape is a boundary guard, NOT ten leaf edits, since several are *correct* as
+  layer-resolved. Seeds **OOS-DX19-1..4** filed. PROTOCOL **33** / HASH **70**
   gate-executed and unmoved. Tests **4,274 / 0 / 5** (+11). Coverage **unmoved** — proven by
   regenerating `tools/authoring-report.py` to a byte-identical body, *not* by an empty card-defs
   diff, since the brief itself mandated the `greymond_avacyns_stalwart` note edit (that note had
