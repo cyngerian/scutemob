@@ -848,6 +848,291 @@ must read adjudication §5 alongside it. OOS-ADJ-3 warns `OOS-DX19-2`'s "613.8b 
 would make a worker build the wrong thing — re-word at dispatch. OOS-ADJ-7 (blood_moon strips
 Artifact card type) rides PB-DX27.
 
+## Worker Handoff (ENG-1, `scutemob-191`) — effect-driven discard is a real player choice (G3, CR 701.9b)
+
+**G3 of `memory/playtest-triage-2026-08-02b.md` CLOSED.** `Effect::DiscardCards` used to execute
+inline and call `discard_cards`, which picks `min_by_key(|id| id.0)` — the human's leftmost/oldest
+card — and moved it. CR 701.9b: *"By default, effects that cause a player to discard a card allow
+the affected player to choose which card to discard."* No def in the corpus prints "at random" or
+"another player chooses", so the default covers the **entire** live corpus and the violation was
+unconditional. It now suspends into a new `EffectChoiceQuestion::Discard` through PB-DP9's
+existing suspend-and-replay machinery. **PROTOCOL 33 → 34, HASH 70 → 71**, both gate-computed
+from the failing gate's own output. Tests **4,329 / 0 / 5** full workspace (`--workspace
+--no-fail-fast` to a file, never tail-piped) against a **pre-edit baseline of 4,317 / 0 / 5
+measured on this branch** — +12, being 10 new engine tests and 2 new play-server probes. `fmt`,
+`clippy --workspace --all-targets -D warnings` and `tools/check-defs-fmt.sh` (1,803 defs) clean.
+Coverage **unmoved at 1,133/1,803 = 62.8%**, proven by regenerating `tools/authoring-report.py`
+to a byte-identical body — **0 card-def lines changed in the whole batch**, which is a positive
+assertion, not an omission: `fell_specter.rs` was `Complete`, correct and innocent, and the
+defect was 100% engine-side.
+
+### The one decision that shaped everything else: the ask lives in the ARM, not in the helper
+
+The dispatch brief reasoned as if the ask went inside `discard_cards`, and concluded that the
+full-hand short-circuit is what stops `Effect::WheelHand` double-counting across a suspend/replay.
+**That reasoning is replaced.** The ask is in the `Effect::DiscardCards` arm
+(`effects/mod.rs:1267`), so:
+
+- **`Effect::WheelHand` cannot suspend, by construction** — it calls the helper directly and the
+  helper never asks. Not "because the short-circuit catches it".
+- **`Cost::DiscardCard` cannot suspend, by construction**, and this one is not a nicety: that call
+  is inside `pay_optional_cost`, on a cost-payment path with **no resolution wrapper to roll back
+  to**. An ask there would record a `pending_effect_choice` nothing can discharge — the trap-state
+  class `OOS-DP9-14` was filed for. Placement makes "cost discards do not ask" structural rather
+  than promised. (CR 701.9c also gives a cost discard rules of its own; it is a *harder* problem
+  than a resolution discard, not an easier one.)
+
+Because both guarantees are structural and structural guarantees rot silently,
+`test_eng1_wheel_hand_discards_the_whole_hand_exactly_once_and_never_suspends` asserts the
+**structure**, not the arithmetic. If a later batch "simplifies" by moving the ask into
+`discard_cards`, that test goes red.
+
+### Shape, and why each field is named what it is
+
+`EffectChoiceQuestion::Discard { hand: Vec<ObjectId>, count: u32 }` — the **whole** hand,
+ascending, because CR 701.9b restricts nothing, so the whole hand *is* the legal answer space.
+`hand`/`count` rather than `candidates` to match `GameEvent::CleanupDiscardChoiceRequired.hand`
+and `LegalAction::DiscardToHandSize.count`: the engine's two discard channels should use one
+vocabulary.
+
+`EffectChoiceAnswer::Discard { chosen: Vec<ObjectId> }` — **`chosen`, not `discarded`**. The three
+sibling answers name a *destination* (`found`, `bottom`/`top`, `graveyard`/`top`) because those
+questions are about where cards go. This one is not a partition — the unchosen cards stay in hand
+— and a destination name would be actively **wrong**: CR 702.35a sends a chosen Madness card to
+**exile**, so at answer time nothing has been discarded and the destination is not yet known.
+
+**One question for all `n` cards, not `n` questions.** Nothing between picks can change the answer
+space (no priority during a resolution, CR 608.2; a Madness trigger lands after, CR 603.3), it
+matches CR 514.1's cleanup discard, and `DiscardPicker` already renders it. What it forfeits — an
+effect whose k-th pick depends on the (k-1)-th — is seeded as `OOS-ENG1-4`.
+
+### The short-circuit, and the two loop exits that are not compile errors
+
+`n == 0 || n >= hand.len()` (which includes the empty hand) short-circuits on **CR 601.2c's
+principle**, the same argument the search arm already makes: when the answer space admits exactly
+one legal answer the announcement is *determined*, so there is nothing to announce. That is what
+keeps a full-hand discard from costing a round trip and from perturbing a fuzz seed.
+
+The `for p in players` loop has **two different exits and neither is a compile error**: `continue`
+for the determined case (later seats still get asked) and `return` for the suspension (the whole
+pass is discarded; every later seat's question is re-derived by the replay). Getting them
+backwards is the easiest way to break this arm, so
+`test_eng1_multiplayer_discard_exercises_both_loop_exits` drives both in **one** resolution — and
+it also shows the rollback undoes a determined seat's already-applied discard, which is the
+property that makes `return` correct.
+
+### The bot/fuzz default is zero-churn, and it is the opposite end of the hand from its sibling
+
+`default_discard_answer` takes the `count` **lowest** ids from an ascending hand — byte-identical
+to `min_by_key(|id| id.0)` applied `n` times. No game *outcome* changes in any bot-only game; only
+the **command trace** grows an `AnswerEffectChoice`. Note it is the **opposite** of
+`rules::turn_actions::default_cleanup_discard`, which takes the `count` **highest**. Both are
+faithful reproductions of two auto-picks that genuinely differed (CR 514.1's took `obj_ids.last()`;
+CR 701.9b's took `min_by_key`). Do not "unify" them —
+`test_eng1_defaults_reproduce_both_pre_batch_picks` pins both in one place and says why.
+
+### Fixtures that moved, enumerated — three, all repaired by ANSWERING, none by weakening
+
+All three drive resolution with a local `pass_all` helper that never pumps blocking decisions, so
+the new suspension went unanswered and the resolution appeared to do nothing.
+
+| Test | Card | Why it moved | Change |
+|---|---|---|---|
+| `casting/x_cost_spells.rs::test_x_cost_spell_basic_mana_payment` | Pull from Tomorrow | draw X then discard 1; post-draw hand of 3 makes `count=1 < hand.len()`, so it asks | new shared `resolve_through_any_discard_choice` answers with the default |
+| `casting/x_cost_spells.rs::test_x_cost_effect_amount_xvalue_draw` | Pull from Tomorrow | same | same, **plus** the helper merges the replay's events — the suspension rolls the whole resolution back, so the `CardDrawn` events the test counts now appear on the replay pass, not the first |
+| `primitives/pbp_power_of_sacrificed_creature.rs::test_greater_good_draws_by_sacrificed_power_then_discards_three` | Greater Good | discard 3 against a 4-card hand is no longer determined | answers with the default inline (this one reads final zone counts, not events) |
+
+The default reproduces the pre-ENG-1 pick byte for byte, so **every original assertion keeps its
+meaning**. Nothing else in the workspace moved: no seeded simulator fixture, no golden script (the
+harness's `auto_answer_blocking_decisions` pump already answers any `EffectChoice` with the
+default), and no fuzz outcome — the honest prediction there is "no fuzz change **because there is
+no fuzz coverage here**" (`OOS-UI2-1`: the fuzzer has never cast a spell), not "no fuzz change
+because it is zero-churn".
+
+### The decision-gate yield: 91 → 80, read off the gate, not computed
+
+`decision_site_walk.rs`'s `discard_cards` row flips `AutoChosen` → `Served { by: "ENG-1" }`.
+`decision_gate.rs` loses the 11 `BASELINE` entries whose only auto-chosen row was `discard_cards`
+and shrinks Izzet Charm to `["counter_unless_pays"]`; `MAX_AUTO_CHOSEN_COMPLETE_UNION` is set to
+**80**, the number T6's own panic printed — deliberately **not** `91 − 12`, because the union is
+over *defs*, not `(def, row)` pairs. `MIN_BASELINE = 50` clears with 30 headroom and was not
+lowered. **Correction to the plan**: it said 13 baseline rows; T9's reconciliation says **12**
+(11 solo + Izzet Charm), and the plan's number was off by one.
+
+Worth reading before the next audit: `decision_site_walk.rs:317-326` has carried a **verbatim
+statement of this defect** since 2026-07-27 — `why_not_flagged_is_wrong: "CR 701.9b: the affected
+player chooses which card, by default; the engine picks the lowest ObjectId"` — green in the suite
+the whole time. The audit found it and classified it as expected. That is the corpus-scale form of
+the comment-debt failure below.
+
+### Architecture Invariant 7: the first question that names HAND objects
+
+`EffectChoiceQuestion`'s type doc used to say *"Every `ObjectId` in every variant names a card in a
+HIDDEN zone — the library."* ENG-1 **falsifies that sentence**, and it is rewritten to state the
+two premises separately rather than folding the new one into the old: the three library variants
+are entitled by the *effect* (the player may see those ids only because this effect is resolving),
+while `Discard` names cards the answerer **already holds**. Same conclusion — `private_to()` stays
+`Some(player)` — different, weaker premise, stated so a reviewer can check it. The premise rests on
+`entry.player` being enforced in three independent places (the `process_command` admission gate,
+`handle_answer_effect_choice` check 2, and the play-server read guard), and the doc names all
+three so relaxing one is visibly a leak.
+
+`view.rs` routes hand labels through **`NameIndex`**, not `question_card_label` — these are the
+answerer's own cards, already in the seat-redacted view, exactly as the CR 514.1 arm does it.
+Routing an owned-hand question through the library channel would enlarge a channel that
+`test_ui1_view_rs_reads_game_state_in_exactly_the_two_known_places` counts.
+
+**The new-channel gate exists**: `test_eng1_a_foreign_seats_discard_question_never_reaches_this_payload`,
+the hand-zone analogue of the UI-1 gate. Its revert (removing the `pending.player == human` filter
+in `api.rs::seat_view`) makes it red, and the leaked payload's candidates render as
+`(unknown card)` from the foreign seat — the leak is real and the gate catches it. **The shipped
+`GameSummary.seed` HIGH is precisely what a redaction gate checking only the channel it was
+written for costs, and a hand is a new channel.**
+
+### The two SILENT plumbing sites — neither is a compile error
+
+`handle_answer_effect_choice` check 4 is a `matches!`, which is not exhaustive: a miss refuses
+**every** discard answer with "does not answer question". Check 5 sits before
+`_ => unreachable!("variant agreement checked above")`: a miss **panics the engine** on the first
+real answer. Both were extended; both are exercised by tests (b) and (f). `api.rs`'s
+`validate_decision_params` has a `_ =>` catch-all with the same property — a miss there is a silent
+400 on every discard — and it was extended too. `validate_partition` is deliberately **not** reused
+for the discard: it is not a partition (the unchosen cards stay in hand) and its message strings
+would give a false diagnosis. That is said in a comment so nobody "deduplicates" it later.
+
+### `OOS-ENG1-9` — the batch's biggest discovery, measured and NOT fixed
+
+Building the browser probe reddened its real-name assertion on Faithless Looting, and the cause
+generalises: **CR 608.2d's suspend rolls the WHOLE resolution back** (`rules/resolution.rs`, `*state
+= restart_point`). For a **draw-then-discard** printing the recorded question names hand objects
+that the *restored* state does not contain — the draw was rolled back and CR 400.7 minted new ids
+— so every candidate renders as the unknown-label placeholder. The answer still applies correctly
+on submission (the replay re-draws deterministically and re-mints the same ids), so this is a
+**display gap, not a correctness gap**.
+
+**It is new to this variant, and not by design**: the three library questions name cards that
+already existed before the resolution began, so they are immune **by accident**.
+
+**Blast radius, measured, not guessed.** Of the **22** def files that actually carry
+`Effect::DiscardCards` (a plain grep says 23 — `reforge_the_soul` mentions it only in a comment
+explaining that it uses `Effect::WheelHand` instead), **15 draw in the same effect**. The number
+that matters for playability today is the deck-legal one: of the **12** `Complete` defs, **7 draw**
+— Chart a Course, Faithless Looting, Frantic Search, Geier Reach Sanitarium, Greater Good, Izzet
+Charm, Pull from Tomorrow — against 5 that do not (Burglar Rat, Consign // Oblivion, Fell Specter,
+Raiders' Wake, Sword of Feast and Famine). **A clear majority of the cards a human can actually
+play, and the dominant printing, not a corner case** — the loot effect is what "discard" mostly
+means in Magic.
+
+**Deferred deliberately, with the reason**: the correct fix is not a discard patch but a general
+LKI-for-questions mechanism — capture each candidate's identity at the moment of the ask (where the
+objects still exist) onto `PendingEffectChoice`, and widen `BlockingDecision`, `LegalAction` and
+the view to carry it. That is a second wire-adjacent surface in a batch already bumping PROTOCOL
+and HASH, and it generalises beyond discard to any future question whose answer space is created
+mid-resolution. **The coordinator should weigh whether it is the immediate successor**: for those
+7 deck-legal cards the human now gets a picker with unlabelled options where they previously got a silent
+auto-pick, which is arguably worse for them until this closes. Filed in
+`docs/audits/decision-point-audit.md`.
+
+### Comment debt — the thing this batch is a lesson about
+
+`discard_cards`' doc read *"Discard n cards from a player's hand (first by ObjectId,
+deterministic)"* — it stated a **placeholder as a design property**. Every one of the ~13 sibling
+auto-pick sites the triage census found carries a `deferred to M10+` comment. **This one did not,
+which is exactly why the PB-DP decision-point audit's greps missed it and a human found it in a
+live game.**
+
+> **A deliberate placeholder that documents its MECHANISM instead of its DEBT is invisible to every
+> audit that greps for the debt.**
+
+`discard_cards`' doc now says plainly that its `min_by_key` is the auto-pick path only, and
+`Effect::Connive`'s inline comment — the last remaining copy of the exact comment shape that hid
+this for a year — now carries `deferred, OOS-ENG1-2` and its CR cite.
+
+### PROTOCOL / HASH, and the sentinel re-pin
+
+PROTOCOL **33 → 34**, fingerprint `2cda8c05…`; **closure type count unchanged at 96** —
+`EffectChoiceQuestion`/`EffectChoiceAnswer` have been in the closure since v31, only their declared
+shape moved. HASH **70 → 71**, `decl_fingerprint` `ce89c998…` over 129 types, `stream_fingerprint`
+`c2845544…`, and both frozen-prefix digests re-pinned to what their gates printed once the v33 and
+v70 rows joined the prefix. New history rows appended in both files; **no shipped row edited**.
+
+Sentinels re-pinned **by symbol** across 46 test files. **Two multi-line survivors** —
+`pb_dx2_command_gates.rs:1478-1492` and `pb_dp5_pending_draw_choice.rs:1244-1253`, each carrying
+both a HASH and a PROTOCOL sentinel split across lines — were invisible to every single-line grep
+and were found only by reading the files. That is the exact failure PB-DX5 shipped with.
+**Residual list after the pass: EMPTY**, confirmed by execution, not by inspection.
+
+**One surprise worth carrying forward**: `stream_fingerprint_is_pinned` was still **green** before
+the version bump even though the new `HashInto` arms already existed — the canonical fixture
+carries no `Discard`-shaped `pending_effect_choice`, so the new arms were unexercised and only the
+version byte moved the stream. **A hash arm can ship unhashed and unnoticed here**, and `hash.rs`'s
+own warning already says the SR-19 gate scans structs only, so an enum arm dropping a field feed
+passes every gate green (`OOS-DP9-13`).
+
+### Browser verification (live headless Chromium, real clicks)
+
+Seed **22**, 4 players, heuristic bots, human seat 1. The asking card is **Burglar Rat controlled
+by Bot-2** — a bot-controlled `DiscardCards` resolving against the human — reached at step 48 of a
+pass-only drive. 28 seeds tried, two hits (seed 22 Burglar Rat, seed 24 Fell Specter). Payload:
+shape `PickN`, `answer_field: "effect_choice_answer"`, `chosen_key: "chosen"`, template
+`{"Discard":{"chosen":[2]}}`, `default: [2]`, and **all seven candidate labels are real card
+names**. Clicked **Elspeth, Storm Slayer (id 3)** — non-default, since the default is id 2, the
+lowest `ObjectId`. Server-side proof: Elspeth left the hand and is in the graveyard; **the default
+card (id 2, Plains) is still in hand**. Also verified: "Use the default" selects but does **not**
+auto-submit (0 POSTs, `command_count` unchanged); "Back" leaves the decision intact at the same
+`seq` and re-openable, not wedged; and the console carried exactly **one** message across the whole
+session, a 404 for `/favicon.ico` — **no `DataCloneError`, no uncaught exception**, so the UI-4
+class does not recur in `DiscardPicker`'s new template branch.
+
+**A trap for the next author of a test like this**: the graveyard entry was id **427, not 3** — CR
+400.7 mints a new object on the zone change, so an id-equality assertion across a discard always
+reads false. Match by name.
+
+### Seeds filed
+
+- **`OOS-ENG1-1`** — `Cost::DiscardCard` (`effects/mod.rs`, inside `pay_optional_cost`) still
+  auto-picks the lowest id. CR 701.9b covers a cost discard too. Excluded **structurally**: a cost
+  is paid outside any resolution wrapper, so an ask there records a `pending_effect_choice` nothing
+  can discharge, and CR 701.9c adds cost-specific rules an announcement must respect.
+- **`OOS-ENG1-2`** — `Effect::Connive`'s inlined discard duplicates the `min_by_key` because it
+  needs per-card nonland accounting. Now trivially closable *except* that the nonland counter must
+  survive a suspend/replay — a real design question, not a rename.
+- **`OOS-ENG1-3`** — no `chooser` field on `Effect::DiscardCards`. **Do not add one.** 22 def files
+  carry the effect, 12 are deck-legal `Complete`, and **zero** print "at random" or "another player
+  chooses". The two corpus cards that would need it (`gamble.rs`, `grief.rs`) are blocked TODO defs
+  carrying no `Effect::DiscardCards` at all, so the field would ship with no reader.
+- **`OOS-ENG1-4`** — the one-question shape forfeits a sequenced per-card choice. No current
+  printing needs it; filed so a future "discard a card, then discard a card" does not silently
+  inherit the wrong shape.
+- **`OOS-ENG1-6`** — `Effect::MillCards` is the only sibling of the missing `.max(0)` fixed here
+  (`resolve_amount(...) as usize` with no clamp wraps a negative to ~1.8e19; `discard_cards`' loop
+  has no empty-hand break, so it was an effective hang in release from a legal `EffectAmount`). Not
+  fixed — a drive-by in an adjacent arm is how review scope-creep starts. Check whether
+  `mill_cards` has an empty-library break before deciding severity.
+- **`OOS-ENG1-7`** — `DiscardPicker` submits ascending ids, not click order. CR 608.2f/404.3 make
+  discard order a real player payload; shipped ascending because `check_ids` treats the list as a
+  set and no card in the corpus reads graveyard order.
+- **`OOS-ENG1-8`** — `fable_of_the_mirror_breaker` (`partial`) TODO names this primitive
+  (*"DiscardCards has no player-choice bound"*) and is **NOT closed by ENG-1** — chapter II needs
+  *optional* + *up-to-N* + a count-driven draw, and this question asks for **exactly** `count`.
+  With the variant in the tree, closing it is a min/max widening plus an `EffectAmount` source, not
+  a new primitive.
+- **`OOS-ENG1-9`** — the draw-then-discard label gap above. **The successor candidate.**
+- **`OOS-G3-2`** — the "engine picks for the player" census. The triage's list in
+  `memory/playtest-triage-2026-08-02b.md` §G3 has never been machine-checked, and
+  `decision_site_walk.rs`'s `AutoChosen` rows are the machine-checkable version of it. Reconcile
+  the two and make the source comments derive from the table rather than the reverse.
+
+`OOS-G3-1` (the defect itself) is **CLOSED**. `Effect::SacrificePermanents` remains the named
+cheapest follow-on and is genuinely cheaper now, but it is a different rule with a **public**
+answer space and therefore a different hidden-info argument — its own batch, not a rider.
+
+### Roster-recall gate
+
+TODO sweep over `crates/card-defs/src/defs/`: 27 hits, exactly **1** names this primitive
+(`fable_of_the_mirror_breaker`, recorded above as a NOT-a-forced-add with its reason). The other 26
+are a different primitive each. **0 forced adds, 0 card-def lines changed.**
+
 ## Worker Handoff (UI-5, `scutemob-190`) — UX polish batch 2: G8, G10, G11, G12, G13
 
 **All five UX rows of `memory/playtest-triage-2026-08-02b.md` closed. Frontend only: 0 engine

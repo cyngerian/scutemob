@@ -96,6 +96,10 @@
   `memory/primitives/seed-rerank-2026-08-02.md` §4). **PB-DX7 is no longer next** — it survives at
   rank 9; eight new entries outrank it. Older queue history (the PB-OS,
   PB-RS and PB-DP chains) is rotated to the 2026-08 archive.
+- **Tests (delta 2026-08-02, ENG-1)**: **4,329 / 0 / 5** full-workspace on branch
+  `scutemob-191` (+12 over a 4,317 baseline measured on that branch BEFORE any edit — 10 engine
+  tests + 2 play-server probes), measured with `--workspace --no-fail-fast` to a file.
+  **PROTOCOL 33 → 34, HASH 70 → 71**, both gate-computed. Earlier pins below.
 - **Tests (delta 2026-08-02, UI-5)**: **4,317 / 0 / 5** full-workspace on branch
   `scutemob-190` (+4 over SIM-6's 4,313 — the four new frontend source gates), measured with
   `--workspace --no-fail-fast` to a file. Earlier pins below.
@@ -229,7 +233,42 @@
 - **Recurrence rule** — future `/collect` and milestone-close bookkeeping appends its detailed PB/SR
   narrative to that archive file (newest first), and updates only a one-paragraph snapshot delta
   here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
-- **Last Updated**: 2026-08-02 — **UI-5 SHIPPED** (`scutemob-190`, merge `08dc4e6a`; rows G8 + G10-G13 of
+- **Last Updated**: 2026-08-02 — **ENG-1 SHIPPED** (`scutemob-191`; **G3** of
+  `memory/playtest-triage-2026-08-02b.md`, row 6 of its successor table). **Effect-driven discard
+  is a real player choice.** `Effect::DiscardCards` executed inline and called `discard_cards`,
+  which picks `min_by_key(|id| id.0)` — the human's leftmost/oldest card — and moved it; **CR
+  701.9b** gives that choice to the AFFECTED player by default, and **zero** defs in the corpus
+  print "at random" or "another player chooses", so the violation was unconditional. New
+  `EffectChoiceQuestion::Discard { hand, count }` / `EffectChoiceAnswer::Discard { chosen }`
+  through PB-DP9's existing suspend-and-replay machinery. **PROTOCOL 33 → 34 / HASH 70 → 71**,
+  both gate-computed from the failing gate's own output; histories appended, no shipped row
+  edited; sentinels re-pinned **by symbol** across 46 files with an **EMPTY** residual —
+  **two multi-line survivors** (`pb_dx2_command_gates.rs`, `pb_dp5_pending_draw_choice.rs`) were
+  invisible to every single-line grep and were found only by reading, the exact failure PB-DX5
+  shipped with. **The ask lives in the ARM, not in `discard_cards`** — which is what makes
+  `Effect::WheelHand` and `Cost::DiscardCard` structurally unable to suspend, the latter mattering
+  because it is paid outside any resolution wrapper (the `OOS-DP9-14` trap-state class). The
+  dispatch brief's "the short-circuit protects WheelHand" reasoning is replaced. Determined
+  announcements (`count == 0`, `count >= hand.len()`, empty hand) short-circuit on CR 601.2c's
+  principle; `default_discard_answer` reproduces the pre-batch pick byte for byte, so **no bot-only
+  game changes outcome** — only the command trace grows. New `AnswerShapeView::PickN` in the
+  play-server rather than optional template fields on `Subset`, so a malformed payload lands in
+  ActionBar's visible fallback instead of a 400 (the UI-4 lesson). **Decision-gate yield:
+  `MAX_AUTO_CHOSEN_COMPLETE_UNION` 91 → 80**, read off T6's own panic, not computed — and
+  `decision_site_walk.rs:317-326` had carried a **verbatim statement of this defect** since
+  2026-07-27, green in the suite the whole time. **0 card-def lines**; coverage unmoved at
+  **1,133/1,803 = 62.8%**, proven byte-identical. Three fixtures moved (two Pull from Tomorrow
+  `x_cost` tests, one Greater Good) and all three were repaired by **answering**, never by
+  weakening an assertion. Browser-verified live: seed 22, Burglar Rat from a bot, a NON-DEFAULT
+  pick reaching the graveyard with the default still in hand, and no `DataCloneError`. Tests
+  **4,329 / 0 / 5** (+12). **The successor candidate is `OOS-ENG1-9`**, found building the probe:
+  CR 608.2d's suspend rolls the WHOLE resolution back, so for a **draw-then-discard** printing the
+  recorded question names hand objects the restored state no longer has and every candidate
+  renders unlabelled — **7 of the 12 deck-legal defs**, a majority. Correct on submission, so a
+  display gap, not a correctness one; deferred because the real fix is a general
+  LKI-for-questions mechanism, not a discard patch. Seeds **OOS-ENG1-1..4, 6..9** + **OOS-G3-2**;
+  **OOS-G3-1 CLOSED**. Full handoff: `memory/workstream-state.md`.
+- **Prior**: 2026-08-02 — **UI-5 SHIPPED** (`scutemob-190`, merge `08dc4e6a`; rows G8 + G10-G13 of
   `memory/playtest-triage-2026-08-02b.md`, the whole UX half of that triage). Frontend only:
   **0 engine lines** (`git diff main..HEAD -- crates/` empty), 0 wire change, PROTOCOL **33** /
   HASH **70** gate-executed. **Concede leaves the priority row** for the header beside "New
