@@ -4012,6 +4012,516 @@ mod tests {
         );
     }
 
+    // ── SIM-1: commander castable from the command zone (task scutemob-175) ──
+    //
+    // Playtest triage F7 / `memory/primitives/sim-1-plan.md` §5. Criterion 5984:
+    // "human casts their commander from the browser end-to-end (probe test over
+    // HTTP)". Criterion 5985's browser half: "probe covers 0-tax and 2-tax
+    // casts" — CR 903.8 charges an additional {2} for each PREVIOUS command-zone
+    // cast this game, so the SECOND cast pays the "2-tax" (tax count 1) and,
+    // per the dispatch brief's explicit ask, this probe goes one step further
+    // and drives a THIRD cast paying the {4} "tax 2" (tax count 2) as well.
+    //
+    // Modeled on the UI-1 fixed-deck harness just above (`ui1_install` /
+    // `ui1_drive_to_question`), not on the seed-swept `COMBAT_SEED`/`TARGET_SEED`
+    // fixtures: `session::new_game` with `DeckSource::Fixed` is the same
+    // constructor the real handler uses, running the same two Invariant-9 gates,
+    // so nothing about the HTTP path is stubbed.
+
+    /// Same numeric value as [`UI1_SEED`], and for the same reason it is safe to
+    /// reuse: `setup::build_initial_state` shuffles each seat's `main_deck` with
+    /// `SliceRandom::shuffle` on a single `StdRng` seeded from `cfg.seed` alone
+    /// (`setup.rs:206`, `:280`) — the permutation depends only on the RNG stream
+    /// and the deck's LENGTH, never on what `CardId`s sit at which index. UI-1's
+    /// fixture is also a 2-player, `DeckSource::Fixed` game with a 99-card
+    /// `main_deck` for both seats, so at this seed player 1's shuffle draws the
+    /// exact same permutation of POSITIONS regardless of what this deck puts at
+    /// each one — including landing `main_deck[0]`/`main_deck[1]` in the opening
+    /// hand, which is UI-1's own pinned observation. **Verified empirically for
+    /// this deck too** (not merely inferred): the drive below reaches both
+    /// sacrifice spells well inside [`SIM1_MAX_STEPS`].
+    const SIM1_SEED: u64 = UI1_SEED;
+
+    /// `{1}{B}`, Legendary Creature — Human Wizard 1/1, `Completeness::Complete`
+    /// (`crates/card-defs/src/defs/jadar_ghoulcaller_of_nephalia.rs`). Mono-black,
+    /// and its only ability is an end-step trigger (no ETB), so nothing about
+    /// entering the battlefield perturbs this drive. MV 2 — castable on the
+    /// human's second land drop at tax 0.
+    const SIM1_COMMANDER: &str = "jadar-ghoulcaller-of-nephalia";
+
+    /// `{B}`, Instant, `Completeness::Complete`
+    /// (`crates/card-defs/src/defs/village_rites.rs`). "As an additional cost to
+    /// cast this spell, sacrifice a creature. Draw two cards." No target, so with
+    /// Jadar the only creature the human controls, the sacrifice is unambiguous —
+    /// this probe never has to answer a "which creature" picker that does not
+    /// exist yet.
+    const SIM1_SAC_SPELL_1: &str = "village-rites";
+
+    /// `{B}`, Instant, `Completeness::Complete`
+    /// (`crates/card-defs/src/defs/culling_the_weak.rs`). Same shape as
+    /// [`SIM1_SAC_SPELL_1`] (mandatory, untargeted `SacrificeCreature`) under a
+    /// different name, so the SECOND kill is a different singleton card rather
+    /// than a second copy of the first.
+    const SIM1_SAC_SPELL_2: &str = "culling-the-weak";
+
+    /// Generous bound: reaching the third cast needs roughly ten of the human's
+    /// own turns (two land drops to afford the first cast, a further turn or two
+    /// to draw and afford each sacrifice spell, four lands for the tax-1 recast,
+    /// six for the tax-2 recast), each with several priority windows. Panics
+    /// print the last payload, matching `drive_until`'s failure ergonomics
+    /// (`main.rs:1619-1622`).
+    const SIM1_MAX_STEPS: usize = 500;
+
+    /// CR 903.5c: 97 Swamps, the two sacrifice-outlet spells, and the Jadar
+    /// commander. Almost-all-basics for the same reason as [`ui1_deck`]: Swamps
+    /// are `Complete`, exempt from the singleton rule, and produce exactly one
+    /// mana each, so the auto-tap solver's known source-counting defect
+    /// (playtest triage F4) cannot influence what this probe observes.
+    ///
+    /// The two sacrifice spells occupy `main_deck[0]` and `main_deck[1]` —
+    /// see [`SIM1_SEED`] for why that is what puts them in the opening hand.
+    fn sim1_deck() -> mtg_simulator::DeckConfig {
+        use mtg_engine::CardId;
+        let mut main_deck: Vec<CardId> = vec![
+            CardId(SIM1_SAC_SPELL_1.to_string()),
+            CardId(SIM1_SAC_SPELL_2.to_string()),
+        ];
+        while main_deck.len() < 99 {
+            main_deck.push(CardId("swamp".to_string()));
+        }
+        mtg_simulator::DeckConfig {
+            commander: CardId(SIM1_COMMANDER.to_string()),
+            main_deck,
+        }
+    }
+
+    /// Install a two-player fixed-deck session through the same constructor the
+    /// real handler uses — see [`ui1_install`]'s doc for why `POST /api/game`
+    /// itself cannot express this fixture.
+    fn sim1_install(state: &SharedState) {
+        let cfg = mtg_simulator::LocalGameConfig {
+            player_count: 2,
+            human_seats: [mtg_engine::PlayerId(1)].into_iter().collect(),
+            bot_kind: BotKind::Heuristic,
+            seed: SIM1_SEED,
+            decks: mtg_simulator::DeckSource::Fixed(vec![
+                (mtg_engine::PlayerId(1), sim1_deck()),
+                (mtg_engine::PlayerId(2), sim1_deck()),
+            ]),
+            limits: mtg_simulator::LocalGameLimits {
+                max_turns: 200,
+                max_commands: 40_000,
+                max_consecutive_passes: 500,
+                record_journal: true,
+            },
+        };
+        let session = session::new_game(cfg, 0).expect("the SIM-1 fixture deck must be legal");
+        *state.session.lock().expect("fresh lock") = Some(session);
+    }
+
+    /// Out-of-band oracle, exactly [`ui1_zone`]'s role: read the engine's own
+    /// `commander_tax` directly, never used to build a payload — only to verify
+    /// what an HTTP-driven cast actually did (CR 903.8).
+    fn sim1_commander_tax(state: &SharedState) -> u32 {
+        let guard = state.session.lock().expect("lock");
+        let session = guard.as_ref().expect("a session is installed");
+        let cid = mtg_engine::CardId(SIM1_COMMANDER.to_string());
+        session
+            .game
+            .state()
+            .player(mtg_engine::PlayerId(1))
+            .expect("player 1 exists")
+            .commander_tax
+            .get(&cid)
+            .copied()
+            .unwrap_or(0)
+    }
+
+    /// Out-of-band oracle: the human's Jadar object currently on the
+    /// battlefield, if any. Used only to name the sacrifice target for
+    /// [`SIM1_SAC_SPELL_1`]/[`SIM1_SAC_SPELL_2`]'s `additional_costs` — the
+    /// engine requires the caster to supply this `ObjectId` explicitly
+    /// (`casting.rs:3312`'s `sacrifice_from_additional_costs.ok_or_else`), and
+    /// CR 400.7 means a fresh id is minted every time Jadar re-enters the
+    /// battlefield, so this must be re-read after each cast rather than reused.
+    fn sim1_jadar_on_battlefield_opt(state: &SharedState) -> Option<u64> {
+        let guard = state.session.lock().expect("lock");
+        let session = guard.as_ref().expect("a session is installed");
+        let gs = session.game.state();
+        let cid = mtg_engine::CardId(SIM1_COMMANDER.to_string());
+        gs.zones()
+            .get(&mtg_engine::ZoneId::Battlefield)
+            .map(|z| z.object_ids())
+            .unwrap_or_default()
+            .into_iter()
+            .find_map(|id| {
+                let obj = gs.objects().get(&id)?;
+                if obj.controller == mtg_engine::PlayerId(1) && obj.card_id.as_ref() == Some(&cid) {
+                    Some(id.0)
+                } else {
+                    None
+                }
+            })
+    }
+
+    /// A `CastSpell` command does not resolve synchronously — CR 117.3c hands
+    /// priority back to the ACTOR (not straight to resolution), so the very next
+    /// decision after casting Jadar is still a priority window with Jadar on the
+    /// STACK. Drive priority passes (playing a land first if one is still owed)
+    /// until [`sim1_jadar_on_battlefield_opt`] finds it, so callers never read the
+    /// sacrifice target's id one priority window too early.
+    async fn sim1_wait_for_jadar_on_battlefield(state: &SharedState, max_steps: usize) -> u64 {
+        if let Some(id) = sim1_jadar_on_battlefield_opt(state) {
+            return id;
+        }
+        for step in 0..max_steps {
+            let (status, view) = get_json(state, "/api/game").await;
+            assert_eq!(status, StatusCode::OK, "{view}");
+            assert!(
+                !view["decision"].is_null(),
+                "the game ended at step {step} before Jadar resolved onto the battlefield: {view}"
+            );
+            let wire_seq = seq(&view);
+            let actions = view["decision"]["actions"]
+                .as_array()
+                .expect("actions is an array")
+                .clone();
+            let pick = actions
+                .iter()
+                .find(|a| a["kind"] == "PlayLand")
+                .or_else(|| actions.iter().find(|a| a["kind"] == "PassPriority"))
+                .or_else(|| actions.iter().find(|a| a["kind"] != "Concede"))
+                .unwrap_or_else(|| panic!("only Concede was offered at step {step}: {view}"));
+            let index = pick["index"].as_u64().expect("index is a number");
+            let (status, next) = post_json(
+                state,
+                "/api/game/action",
+                json!({"seq": wire_seq, "action_index": index, "params": {}}),
+            )
+            .await;
+            assert_eq!(
+                status,
+                StatusCode::OK,
+                "step {step} submitting {}: {next}",
+                pick["label"]
+            );
+            if let Some(id) = sim1_jadar_on_battlefield_opt(state) {
+                return id;
+            }
+        }
+        panic!("Jadar never resolved onto the battlefield within {max_steps} steps");
+    }
+
+    /// Drive the human seat — playing lands and otherwise passing priority,
+    /// exactly [`ui1_drive_to_question`]'s policy — until an offered action
+    /// satisfies `stop`. Returns the view it was found in and the matching
+    /// action, cloned.
+    ///
+    /// **This is the discriminating half of the probe.** Before SIM-1's Step 5
+    /// (the command-zone enumeration in `legal_actions.rs`), no offered action
+    /// ever names the command-zone object, so a stop condition looking for the
+    /// commander's `CastSpell` drives every land it can and then exhausts
+    /// `max_steps` passing priority forever.
+    ///
+    /// **Recorded from a real run** with that enumeration temporarily disabled
+    /// (`if false && !cast_restricted && ...` in `legal_actions.rs`, then
+    /// reverted with `git checkout`): the probe panics at exactly
+    /// `sim1_drive_until`'s `panic!` site below, having burned all 500 steps —
+    /// the drive reaches turn 59 (`"turn":59` in the payload), the human holds
+    /// both sacrifice spells and four Swamps in hand with nothing left to do,
+    /// and the payload's own `zones.command_zone` still shows **both** players'
+    /// Jadar sitting untouched (`"Human-1":[{"name":"Jadar, Ghoulcaller of
+    /// Nephalia","object_id":1}]`) while `decision.actions` contains only
+    /// `PassPriority`, the two sacrifice-spell `CastSpell`s and a page of
+    /// `TapForMana` — never a `CastSpell` naming `object_id` 1. Abbreviated:
+    ///
+    /// ```text
+    /// thread '...' panicked at .../main.rs:4137:9:
+    /// awaited action not offered within 500 steps: {"decision":{"actions":[
+    ///   {"kind":"PassPriority", ...},
+    ///   {"kind":"CastSpell","label":"Cast Culling the Weak","object_id":2,...},
+    ///   {"kind":"CastSpell","label":"Cast Village Rites","object_id":8,...},
+    ///   {"kind":"TapForMana", ...}, ... (29 more TapForMana) ...
+    /// ], "kind":"Priority","player":1,"seq":501}, ...,
+    /// "state":{... "turn":{"active_player":"Human-1","number":59,...},
+    /// "zones":{... "command_zone":{
+    ///   "Bot-2":[{"name":"Jadar, Ghoulcaller of Nephalia","object_id":101}],
+    ///   "Human-1":[{"name":"Jadar, Ghoulcaller of Nephalia","object_id":1}]
+    /// }, ...}}, "summary":{... "turn":59}}
+    /// ```
+    ///
+    /// i.e. the action list never contains a `CastSpell` naming the command-zone
+    /// object — only `PassPriority`/`PlayLand`/`TapForMana`, the pre-SIM-1
+    /// hand-only offer — and both commanders are still exactly where CR 903.6
+    /// put them at the start of the game, 59 turns later.
+    async fn sim1_drive_until(
+        state: &SharedState,
+        stop: impl Fn(&Value) -> bool,
+        max_steps: usize,
+    ) -> (Value, Value) {
+        let (status, mut view) = get_json(state, "/api/game").await;
+        assert_eq!(status, StatusCode::OK, "{view}");
+        for step in 0..max_steps {
+            if let Some(action) = view["decision"]["actions"]
+                .as_array()
+                .and_then(|actions| actions.iter().find(|a| stop(a)))
+                .cloned()
+            {
+                return (view, action);
+            }
+            assert!(
+                !view["decision"].is_null(),
+                "the game ended at step {step} before the awaited action was offered: {view}"
+            );
+            let wire_seq = seq(&view);
+            let actions = view["decision"]["actions"]
+                .as_array()
+                .expect("actions is an array")
+                .clone();
+            let pick = actions
+                .iter()
+                .find(|a| a["kind"] == "PlayLand")
+                .or_else(|| actions.iter().find(|a| a["kind"] == "PassPriority"))
+                .or_else(|| actions.iter().find(|a| a["kind"] != "Concede"))
+                .unwrap_or_else(|| panic!("only Concede was offered at step {step}: {view}"));
+            let index = pick["index"].as_u64().expect("index is a number");
+            let (status, next) = post_json(
+                state,
+                "/api/game/action",
+                json!({"seq": wire_seq, "action_index": index, "params": {}}),
+            )
+            .await;
+            assert_eq!(
+                status,
+                StatusCode::OK,
+                "step {step} submitting {}: {next}",
+                pick["label"]
+            );
+            view = next;
+        }
+        panic!("awaited action not offered within {max_steps} steps: {view}");
+    }
+
+    /// Submit `action` (found by [`sim1_drive_until`] against `view`) with the
+    /// given `params`.
+    async fn sim1_submit(
+        state: &SharedState,
+        view: &Value,
+        action: &Value,
+        params: Value,
+    ) -> Value {
+        let wire_seq = seq(view);
+        let index = action["index"].as_u64().expect("index is a number");
+        let (status, next) = post_json(
+            state,
+            "/api/game/action",
+            json!({"seq": wire_seq, "action_index": index, "params": params}),
+        )
+        .await;
+        assert_eq!(
+            status,
+            StatusCode::OK,
+            "submitting {}: {next}",
+            action["label"]
+        );
+        next
+    }
+
+    /// **CR 903.6/903.8/903.9a — the human casts their commander from the
+    /// command zone, end to end, over HTTP.** Closes criterion 5984 and the
+    /// browser half of criterion 5985.
+    ///
+    /// Three casts, each discriminating a different half of SIM-1:
+    ///   * **Cast 1 (tax 0)** — `legal_actions.rs`'s command-zone enumeration
+    ///     (Step 5) offers the commander at all, at the printed cost.
+    ///   * **Cast 2 ("2-tax")** — after Jadar dies (sacrificed to
+    ///     [`SIM1_SAC_SPELL_1`]) and CR 903.9a's state-based choice returns it to
+    ///     the command zone, the SECOND cast is offered/paid at `{1}{B}` PLUS the
+    ///     {2} CR 903.8 tax — `effective_cast_cost` (`legal_actions.rs`) and
+    ///     `auto_tap_commands_for` (`local_game.rs`) agreeing is what makes this
+    ///     succeed instead of 422ing.
+    ///   * **Cast 3 ("tax 2")** — one more kill/return cycle (this time via
+    ///     [`SIM1_SAC_SPELL_2`], a different singleton card) and a THIRD cast,
+    ///     now taxed {4} (tax count 2). Goes beyond the "0-tax and 2-tax" wire
+    ///     wording on purpose, per the dispatch brief's explicit ask.
+    ///
+    /// The commander's `ObjectId` changes on every zone transition (CR 400.7),
+    /// so the command-zone object is re-read out of band before each cast and
+    /// never reused across one.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_sim1_human_casts_their_commander_from_the_command_zone_over_http() {
+        let state = shared_state();
+        sim1_install(&state);
+
+        let read_command_zone_object = |state: &SharedState| -> u64 {
+            let ids = ui1_zone(state, mtg_engine::ZoneId::Command(mtg_engine::PlayerId(1)));
+            assert_eq!(
+                ids.len(),
+                1,
+                "exactly the commander should be in the command zone: {ids:?}"
+            );
+            ids[0]
+        };
+
+        // ── Cast 1: tax 0 ──────────────────────────────────────────────────
+        let commander_obj_1 = read_command_zone_object(&state);
+        assert_eq!(sim1_commander_tax(&state), 0, "no cast has happened yet");
+
+        let (view, action) = sim1_drive_until(
+            &state,
+            |a| a["kind"] == "CastSpell" && a["object_id"].as_u64() == Some(commander_obj_1),
+            SIM1_MAX_STEPS,
+        )
+        .await;
+        assert_eq!(
+            action["label"], "Cast Jadar, Ghoulcaller of Nephalia",
+            "the label resolves via NameIndex::from_view, which already indexes \
+             view.zones.command_zone (CR 903.6: the command zone is face up) — no \
+             play-server production change is needed for this"
+        );
+        sim1_submit(&state, &view, &action, json!({})).await;
+
+        let after_cast_1 = ui1_zone(&state, mtg_engine::ZoneId::Command(mtg_engine::PlayerId(1)));
+        assert!(
+            !after_cast_1.contains(&commander_obj_1),
+            "the commander must have left the command zone: {after_cast_1:?}"
+        );
+        assert_eq!(
+            sim1_commander_tax(&state),
+            1,
+            "CR 903.8: the tax counter increments as soon as the cast happens"
+        );
+
+        // ── Sacrifice Jadar (Village Rites) so CR 903.9a can offer it back ──
+        let jadar_bf_1 = sim1_wait_for_jadar_on_battlefield(&state, SIM1_MAX_STEPS).await;
+        let (view, action) = sim1_drive_until(
+            &state,
+            |a| a["kind"] == "CastSpell" && a["label"] == "Cast Village Rites",
+            SIM1_MAX_STEPS,
+        )
+        .await;
+        sim1_submit(
+            &state,
+            &view,
+            &action,
+            json!({
+                "additional_costs": [{"Sacrifice": {"ids": [jadar_bf_1], "lki": []}}]
+            }),
+        )
+        .await;
+
+        // ── CR 903.9a: accept the state-based choice back to the command zone ──
+        let (view, action) = sim1_drive_until(
+            &state,
+            |a| a["kind"] == "ReturnCommanderToCommandZone",
+            SIM1_MAX_STEPS,
+        )
+        .await;
+        sim1_submit(&state, &view, &action, json!({})).await;
+
+        // ── Cast 2 ("2-tax"): {1}{B} + the {2} CR 903.8 tax ──────────────────
+        let commander_obj_2 = read_command_zone_object(&state);
+        assert_eq!(
+            mtg_simulator::effective_cast_cost(
+                state
+                    .session
+                    .lock()
+                    .expect("lock")
+                    .as_ref()
+                    .expect("session")
+                    .game
+                    .state(),
+                mtg_engine::PlayerId(1),
+                mtg_engine::ObjectId(commander_obj_2),
+            )
+            .expect("Jadar has a mana cost")
+            .mana_value(),
+            4,
+            "CR 903.8/601.2f: {{1}}{{B}} (MV 2) plus one previous cast's {{2}} tax is MV 4 — \
+             the same arithmetic `can_afford` and `auto_tap_commands_for` both consume"
+        );
+
+        let (view, action) = sim1_drive_until(
+            &state,
+            |a| a["kind"] == "CastSpell" && a["object_id"].as_u64() == Some(commander_obj_2),
+            SIM1_MAX_STEPS,
+        )
+        .await;
+        sim1_submit(&state, &view, &action, json!({})).await;
+        assert_eq!(
+            sim1_commander_tax(&state),
+            2,
+            "the second cast increments the tax counter again"
+        );
+
+        // ── Sacrifice again (Culling the Weak, a different singleton card) ──
+        let jadar_bf_2 = sim1_wait_for_jadar_on_battlefield(&state, SIM1_MAX_STEPS).await;
+        let (view, action) = sim1_drive_until(
+            &state,
+            |a| a["kind"] == "CastSpell" && a["label"] == "Cast Culling the Weak",
+            SIM1_MAX_STEPS,
+        )
+        .await;
+        sim1_submit(
+            &state,
+            &view,
+            &action,
+            json!({
+                "additional_costs": [{"Sacrifice": {"ids": [jadar_bf_2], "lki": []}}]
+            }),
+        )
+        .await;
+
+        let (view, action) = sim1_drive_until(
+            &state,
+            |a| a["kind"] == "ReturnCommanderToCommandZone",
+            SIM1_MAX_STEPS,
+        )
+        .await;
+        sim1_submit(&state, &view, &action, json!({})).await;
+
+        // ── Cast 3 ("tax 2"): {1}{B} + the {4} CR 903.8 tax ──────────────────
+        let commander_obj_3 = read_command_zone_object(&state);
+        assert_eq!(
+            mtg_simulator::effective_cast_cost(
+                state
+                    .session
+                    .lock()
+                    .expect("lock")
+                    .as_ref()
+                    .expect("session")
+                    .game
+                    .state(),
+                mtg_engine::PlayerId(1),
+                mtg_engine::ObjectId(commander_obj_3),
+            )
+            .expect("Jadar has a mana cost")
+            .mana_value(),
+            6,
+            "CR 903.8/601.2f: {{1}}{{B}} (MV 2) plus two previous casts' {{4}} tax is MV 6"
+        );
+
+        let (view, action) = sim1_drive_until(
+            &state,
+            |a| a["kind"] == "CastSpell" && a["object_id"].as_u64() == Some(commander_obj_3),
+            SIM1_MAX_STEPS,
+        )
+        .await;
+        sim1_submit(&state, &view, &action, json!({})).await;
+
+        let after_cast_3 = ui1_zone(&state, mtg_engine::ZoneId::Command(mtg_engine::PlayerId(1)));
+        assert!(
+            !after_cast_3.contains(&commander_obj_3),
+            "the third, doubly-taxed cast really did leave the command zone: \
+             {after_cast_3:?}"
+        );
+        assert_eq!(
+            sim1_commander_tax(&state),
+            3,
+            "three casts, three increments — the tax counter does not stop at 2"
+        );
+    }
+
     // ── 15 ────────────────────────────────────────────────────────────────────
 
     /// **Architecture Invariant 7's chokepoint, machine-enforced instead of

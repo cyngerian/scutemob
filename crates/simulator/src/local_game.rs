@@ -22,6 +22,7 @@ use mtg_engine::{
 
 use crate::bot::Bot;
 use crate::invariants::{self, InvariantViolation};
+use crate::legal_actions;
 use crate::legal_actions::{LegalAction, LegalActionProvider};
 use crate::mana_solver;
 use crate::params::{action_to_command_with_params, HumanChoice};
@@ -435,19 +436,25 @@ impl<P: LegalActionProvider> LocalGame<P> {
             }
 
             // If the command is CastSpell, auto-tap mana sources first.
+            //
+            // CR 903.8 (SIM-1): same helper as the human path and the offer gate --
+            // see `auto_tap_commands_for`. A bot offered a taxed commander cast and
+            // handed a printed-cost tap plan gets its cast rejected, falls through to
+            // the `PassPriority` fallback below, and is re-offered the identical
+            // action next priority: `HeuristicBot` scores `CastSpell` at
+            // `50 + 10*mana_value` and `RandomBot` picks uniformly, and nothing caps
+            // the retry -- so the taxed cost must be known here too, not just at the
+            // offer gate.
             let commands = if let Command::CastSpell(cast) = &cmd {
-                if let Ok(obj) = self.state.object(cast.card) {
-                    if let Some(ref cost) = obj.characteristics.mana_cost {
+                match legal_actions::effective_cast_cost(&self.state, cast.player, cast.card) {
+                    Some(cost) => {
                         let mut cmds =
-                            mana_solver::solve_mana_payment(&self.state, cast.player, cost)
+                            mana_solver::solve_mana_payment(&self.state, cast.player, &cost)
                                 .unwrap_or_default();
                         cmds.push(cmd.clone());
                         cmds
-                    } else {
-                        vec![cmd.clone()]
                     }
-                } else {
-                    vec![cmd.clone()]
+                    None => vec![cmd.clone()],
                 }
             } else {
                 vec![cmd.clone()]
@@ -556,16 +563,22 @@ impl<P: LegalActionProvider> LocalGame<P> {
     /// reason to prefer its existing pool over a fresh tap, so the asymmetry is
     /// harmless there.
     ///
-    /// # The three `?`s here are the only error-discarding constructs on the human
-    /// path, and none of them hides a failure (M11-local S8, item 4)
+    /// # Two `?`s remain here as the only error-discarding constructs on the human
+    /// path, and neither of them hides a failure (M11-local S8, item 4; count and
+    /// list updated by SIM-1)
     ///
     /// The S8 error-surfacing audit swept this file and `tools/play-server/src` for
-    /// anything that drops a `Result`. Reachable from `submit`, there are exactly
-    /// three, all in this function: `state.object(..).ok()?`,
-    /// `state.player(..).ok()?` and `flatten_hybrid_phyrexian(..).ok()?`. Each
-    /// returns `None`, which means only *"prepend no tapping commands"* — the
-    /// caller then applies the main `CastSpell` alone, and if it cannot be paid for
-    /// the **engine** rejects it and `submit` returns
+    /// anything that drops a `Result`. Reachable from `submit`, there were originally
+    /// three in this function: `state.object(..).ok()?`, `state.player(..).ok()?`
+    /// and `flatten_hybrid_phyrexian(..).ok()?`. SIM-1 replaces the first with a call
+    /// to `legal_actions::effective_cast_cost`, which performs the identical
+    /// `state.object(..).ok()?` (plus a `mana_cost.clone()?`) INSIDE itself — so that
+    /// `?` still exists, just one level down, and the argument below still holds for
+    /// it. The two that remain directly in this function are `state.player(..).ok()?`
+    /// (the pool clone) and `flatten_hybrid_phyrexian(..).ok()?`. Each of the three
+    /// (two here, one inside the helper) returns `None`, which means only *"prepend
+    /// no tapping commands"* — the caller then applies the main `CastSpell` alone,
+    /// and if it cannot be paid for the **engine** rejects it and `submit` returns
     /// `LocalGameError::Rejected`. So a discarded error here still surfaces, as the
     /// cast's own refusal, rather than as a silently different game.
     ///
@@ -578,17 +591,18 @@ impl<P: LegalActionProvider> LocalGame<P> {
     /// submission, not merely unused: `advance()` returns at the
     /// `human_seats.contains(..)` branch before the bot branch exists.
     ///
-    /// **Known limitation, and the other half of OOS-M11-2**: the pool is checked
-    /// against `obj.characteristics.mana_cost`, the *printed* cost. That carries no
-    /// commander tax (CR 903.8), no Thalia-style increase and no cost reduction, and
-    /// `can_pay_cost` is called with no `SpellContext`, so CR 106.12 restricted mana
-    /// is invisible. Recasting a taxed commander with a pool that covers only the
-    /// printed cost therefore skips tapping and the cast is rejected. This is not a
-    /// regression — `solve_mana_payment` plans against the same printed cost, so the
-    /// cast failed before this check existed too — but the early return makes it
-    /// reachable on a path where the pool is non-empty. Fixing it means teaching the
-    /// solver about modifiers, which is the layer-resolution half of OOS-M11-2 that
-    /// this session explicitly did not take.
+    /// **Known limitation, narrowed by SIM-1 -- the commander-tax half of
+    /// OOS-M11-2 is now CLOSED**: the pool used to be checked against
+    /// `obj.characteristics.mana_cost`, the *printed* cost, with no commander tax
+    /// (CR 903.8) folded in. `legal_actions::effective_cast_cost` now applies that
+    /// tax before either the pool check or the solve, so the offer gate, this human
+    /// auto-tap and the bot auto-tap in `advance()` cannot disagree about what has to
+    /// be paid (T8/T8b pin this). **Still open, and still invisible here**: no
+    /// Thalia-style cost INCREASE, no cost REDUCTION, and `can_pay_cost` is called
+    /// with no `SpellContext`, so CR 106.12 restricted mana is invisible. Those three
+    /// remain the surviving halves of OOS-M11-2 and are out of SIM-1's scope
+    /// (criterion 5987) -- fixing them means teaching the solver/helper about layer-
+    /// resolved cost modifiers, which SIM-1 explicitly does not take.
     ///
     /// # `{X}` is now paid for — **OOS-M11-8 CLOSED** (S8, item 2)
     ///
@@ -608,8 +622,12 @@ impl<P: LegalActionProvider> LocalGame<P> {
         let Command::CastSpell(cast) = command else {
             return None;
         };
-        let obj = self.state.object(cast.card).ok()?;
-        let mut cost = obj.characteristics.mana_cost.clone()?;
+        // CR 903.8 / CR 601.2f (SIM-1): the PRINTED cost is not what the engine
+        // charges. The shared helper applies commander tax when the card is being
+        // cast from this player's command zone, so the offer gate
+        // (`legal_actions::can_afford`), this human auto-tap and the bot auto-tap in
+        // `advance()` cannot disagree about what has to be paid.
+        let mut cost = legal_actions::effective_cast_cost(&self.state, player, cast.card)?;
         // CR 107.3 / 601.2b — see the doc block above (OOS-M11-8).
         cost.generic = cost
             .generic

@@ -339,6 +339,39 @@
   `OOS-M11-10` names TWO distinct seeds** — this batch closed the equip one; the loyalty-ability
   targeting gap of the same ID is **still OPEN**, and every cite outside the audit table means that
   one. **Full narrative: `memory/archive/claude-md-changelog-2026-08.md`.**
+- - **Last Updated**: 2026-08-02 — **SIM-1 SHIPPED** (`scutemob-175`): playtest-triage **F7**
+  closed — a human can cast their commander from the command zone. **The engine was never the
+  problem**: `casting.rs` has supported CR 903.8 since M6 (zone-derived detection, the "not in your
+  hand" gate, the `commander_ids` check, the tax, the counter, the event). `StubProvider` simply
+  never looked in the zone, so the browser correctly reported the server had offered nothing — the
+  frontend and the wire were both innocent (`from_zone` is read **nowhere** in the workspace).
+  **Zero engine lines**; PROTOCOL **33** / HASH **70** gate-executed unmoved; coverage unmoved at
+  63.0%. The brief named **one** place the tax was needed; there were **three** — offer gate, human
+  `submit` auto-tap, bot `advance()` auto-tap — all reading the printed cost, a defect
+  `local_game.rs`'s own doc block already described in as many words. One `effective_cast_cost`
+  helper now serves all three and **consumes** `mtg_engine::apply_commander_tax` rather than
+  re-deriving `generic + 2*tax`: SR-38's "only offer what the engine accepts" is only true if the
+  two arithmetics are literally the same function. **The finding that would have shipped a fresh
+  SR-38 violation**: `casting.rs` rejects *any* non-hand cast under an opponent's **Drannith
+  Magistrate** (deck-legal `Complete` by the `#[default]` derive), and `is_cast_restricted_by_stax`
+  says in its own doc that it deliberately skips per-card **zone** restrictions — harmless for
+  exactly one reason, that every offer had always been a hand cast. Every command-zone offer is a
+  non-hand cast. Generalisable: **a guard that is "harmless because unreachable" becomes a defect
+  the moment you widen what reaches it — audit the reachability argument, not the guard.** The
+  batch's own `/review` then found the same shape one level up: `OOS-SIM1-3` had framed itself as a
+  complete SR-38 account by enumerating `GameRestriction` variants, but **`GameRestriction` is not
+  the only cast gate** — split second (CR 702.61a) is unmirrored too, and always was. **An
+  enumeration is only as complete as the category it names.** Tests **4,150 → 4,167** (+17: 16
+  matrix + 1 HTTP probe), every discriminator *watched failing* by revert, and the three tax sites
+  proven **independently** load-bearing (offer gate → T3 only; human auto-tap → T8/T8b only; bot
+  auto-tap → T9 only). Seeds **OOS-SIM1-1..4** filed. **Also closed in passing**: the commander-tax
+  half of `OOS-M11-2`. **Not SIM-1's bug but newly reachable**: `OOS-M11-9` (no "already declared
+  this combat" guard) livelocked the scripted playthrough at 19,351 `DeclareAttackers` in one turn,
+  because SIM-1 finally lets a **vigilant** commander reach the battlefield; mitigated in the test
+  policy exactly where `heuristic_bot.rs` had already mitigated the identical loop and said why —
+  client-side, to keep the provider's action list and every recorded fuzz seed untouched. Fuzzer
+  A/B'd against the true merge-base: **zero** per-game differences over 60 games. **Full narrative:
+  `memory/workstream-state.md`.**
 
 ### What Exists (M0-M9.5 + Engine Core Complete + all P3/P4 abilities)
 
