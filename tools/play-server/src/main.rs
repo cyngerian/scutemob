@@ -6956,7 +6956,7 @@ mod tests {
         };
         // Blank comment bodies rather than deleting them: byte offsets stay
         // aligned with the source, so a failure message quotes the real tag.
-        let mut template: Vec<u8> = text[script_end..].as_bytes().to_vec();
+        let mut template: Vec<u8> = text.as_bytes()[script_end..].to_vec();
         let mut i = 0usize;
         while i + 4 <= template.len() {
             if &template[i..i + 4] == b"<!--" {
@@ -6987,8 +6987,7 @@ mod tests {
             let mut depth = 0usize;
             let mut quote: Option<u8> = None;
             let mut end = bytes.len();
-            for i in start + 1..bytes.len() {
-                let c = bytes[i];
+            for (i, &c) in bytes.iter().enumerate().skip(start + 1) {
                 match quote {
                     Some(q) => {
                         if c == q {
@@ -7155,7 +7154,8 @@ mod tests {
             .map(|(_, t)| t.as_str())
             .expect("cardTooltip.js is in the walk");
         assert!(
-            tooltip.contains("captionEl.textContent = ") && tooltip.contains("export function zoneCaption("),
+            tooltip.contains("captionEl.textContent = ")
+                && tooltip.contains("export function zoneCaption("),
             "`cardTooltip` must render the caption into its own element and export the shared \
              `zoneCaption` builder the four zone/seat sites call"
         );
