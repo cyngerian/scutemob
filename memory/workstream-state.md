@@ -938,6 +938,100 @@ mana cost — `advance()` auto-taps for `CastSpell` only; pre-existing and uncha
 direction), `OOS-SIM2-7` (the two `tools/tui` call sites inherit the production fix but not
 the residual). What remains of `OOS-M11-2` after this batch is exactly cost *modifiers* and
 CR 106.12 restricted mana.
+## Worker Handoff (UI-2, `scutemob-178`)
+
+**Date**: 2026-08-02 (worker session)
+**Workstream**: playtest-triage successor track (UI-2) — **F9 CLOSED for `Sacrifice` + `Squad`**
+**Task**: `scutemob-178`. Branch
+`feat/ui-2-additional-cost-surfacing---sacrifice-squad-offer-descr`
+
+**Completed**:
+- **The request wire already existed; the OFFER was blind, and that was the whole
+  defect.** `CastSpellData.additional_costs` covers all sixteen cost kinds and
+  `ActionParamsDto` deserialized it, so a hand-crafted POST could pay a sacrifice
+  before this batch. `StubProvider` simply never read `spell_additional_costs` or
+  Squad — zero references — so Life's Legacy was offered on mana affordability alone
+  and `casting.rs:3311` then refused it (the human's observed **422**, an SR-38
+  violation), and a Squad creature always cast at `count: 0` with the optional cost
+  silently lost (CR 702.157a).
+- `LegalAction::CastSpell` gains `additional_costs: AdditionalCostPlan`. Eligibility
+  mirrors `casting.rs:3300-3369` **gate for gate** — zone, controller,
+  `object_cant_be_sacrificed`, then the filter against LAYER-RESOLVED characteristics
+  — and deliberately **not** `effects::eligible_sacrifice_targets`, which also checks
+  `is_phased_in` and would therefore offer a different set from the one the engine
+  validates. `object_cant_be_sacrificed` is re-derived locally because the engine's
+  copy is `pub(crate)`; documented as a *necessary* duplicate, explicitly unlike
+  `effective_cast_cost`, whose engine copy is public and is consumed.
+- **A required cost with nothing eligible suppresses the whole offer**
+  (`offerable_cast_plan`, one helper used by BOTH cast loops). That is SR-38 restored,
+  and it is F9's actual fix.
+- `params.rs` appends the plan's default sacrifice only when the caller announced
+  none, so `ActionParams::default()` (every bot) still produces an engine-accepted
+  command and a human's choice is never overwritten. Squad is never defaulted —
+  absent means declined, which keeps a bot's command byte-identical to the pre-UI-2
+  one.
+- `ActionOptionView.costs` + `CostPicker.svelte`, inserted between `ValuePrompt` and
+  `TargetPicker`. `validate_additional_cost_params` answers **400** for an
+  out-of-offer sacrifice id, more than one id, a Squad count above `max_count`, and a
+  duplicate entry of either kind; the other fourteen `AdditionalCost` variants
+  deliberately fall through to the engine's 422 and the doc says so.
+
+**The card-def repair, which the brief did not anticipate**: `galadhrim_brigade` — the
+very card the human tried to Squad — shipped `Complete` and deck-legal carrying
+`KeywordAbility::Squad` with **no `AbilityDefinition::Squad { cost }`**, so
+`casting.rs::get_squad_cost` returned `None` and *every* non-zero count was refused
+with "spell has squad keyword but no squad cost defined". Repaired from the printed
+"Squad {1}{G}". `core::ui2_additional_cost_roster` **R3b** now pins that the marker set
+and the cost set are the **same set**, in both directions. This is the CARDS-2 shape
+again: the knowledge existed per-def and nothing could fail.
+
+**The fix cycle found the sharpest correctness bug**: `effective_cast_cost_with_additional`
+**summed** multiple `Squad` entries where `casting.rs` **assigns** (`squad_count = *count`,
+so the LAST wins). A two-entry submission therefore made the auto-tap reach for more
+mana than the engine charges, the solver found no plan, no taps were issued, and the
+engine refused the cast for want of mana — a 422 after a clean offer, which is exactly
+the shape this batch exists to delete. Mirrored to last-wins, and duplicates are now
+refused at the 400 boundary as well, because the engine resolves the two kinds in
+**opposite** directions in silence (Squad last-wins, Sacrifice first-wins via `find_map`).
+
+**The two findings that matter beyond this batch** — both measured, neither UI-2's to
+fix:
+- **OOS-UI2-1**: **`mtg-fuzzer` has never cast a spell.** `bin/fuzzer.rs` populates its
+  libraries through `GameStateBuilder` and **never shuffles them**, while `random_deck`
+  appends its ~34 basics LAST and `Zone::Ordered`'s top is the last index. Instrumenting
+  the provider over 5 games x 80 turns gave **25,964 hand-card observations and zero
+  non-lands**; `build_additional_cost_plan` was reached **0** times in 30 games. UI-2's
+  own 360-game A/B came back byte-identical for that reason and is reported as worth
+  nothing rather than banked. **Every "fuzz parity" claim in this project's history is a
+  claim about a land-only game.**
+- **OOS-UI2-2**: `HeuristicBot` scores `TapForMana` 5 against `PassPriority`'s 1, and in
+  the upkeep those are the only two actions — so it burns its lands where it cannot
+  spend the mana, the pool empties (CR 500.4), and by its own main phase the cast is
+  never *offered*. A whole-game bot test therefore passes by never reaching the thing it
+  claims to test.
+
+**Numbers**: tests **4,185 -> 4,218 / 0 / 5**. PROTOCOL **33** / HASH **70**
+gate-EXECUTED unmoved (the criterion's "PROTOCOL 32" is stale — PB-DX6 moved it before
+this fork, the same staleness UI-1 recorded). `decision_gate` 18/18. Coverage unmoved at
+**1,133/1,803 = 62.8%**, 0 completeness flips — the Galadhrim repair is an addition to an
+already-`Complete` def. `fmt` + `check-defs-fmt.sh` + `clippy -D warnings` clean.
+
+**NOT zero engine lines, and the exception is named**: **9 insertions / 1 deletion in
+one file**, `crates/engine/src/state/ability_definition_registry.rs` — one data-only
+`sites:` row adding `crates/simulator/src/legal_actions.rs` to `A::Squad`. The SR-15
+gate demanded it the moment the provider read the cost-carrying variant; that gate's
+`SCAN_ROOTS` includes `crates/simulator/src` **by design** (SR-20), and `A::Bloodrush`
+already carries the identical row. `crates/card-types/src` diffs empty.
+
+**Seeds filed** (`docs/audits/decision-point-audit.md` §8.1): **OOS-UI2-1..5** —
+the fuzzer's unshuffled libraries; HeuristicBot's upkeep mana burn;
+`squad_max_count`'s under-report (capped by playtest triage **F4**, whose test pins
+the current wrong value and names the right one); the fourteen unsurfaced
+`AdditionalCost` variants; and the TUI receiving the sacrifice default with no picker.
+
+**Also deleted**: `local_game_playthrough.rs`'s `KNOWN_FALSE_OFFERS` register. Its last
+entry was F9, its own trailing assertion required deletion once an entry stopped firing,
+and the playthrough now asserts `run.error.is_none()` unconditionally — strictly sharper.
 
 ## Worker Handoff (CARDS-2, `scutemob-181`)
 

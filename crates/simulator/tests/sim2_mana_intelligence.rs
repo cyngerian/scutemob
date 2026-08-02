@@ -1141,6 +1141,7 @@ impl Bot for XBot {
             let action = LegalAction::CastSpell {
                 card: *card,
                 from_zone: ZoneId::Hand(player),
+                additional_costs: Default::default(),
             };
             return mtg_simulator::action_to_command_with_params(state, player, &action, &params)
                 .expect("the X cast must build");

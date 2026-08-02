@@ -603,6 +603,75 @@ recorded fuzz seed's outcome moves (OOS-DP8-1 — the same constraint PB-DP8/DP9
 these arms under). What changed is only that an announced answer is now forwarded
 rather than dropped.
 
+## Additional costs and the `CostPicker` (UI-2)
+
+`memory/playtest-triage-2026-08-02.md` **F9**. The request wire for additional costs
+already existed — `CastSpellData.additional_costs` covers all sixteen kinds and
+`ActionParamsDto` deserialized it, so a hand-crafted POST could pay a sacrifice. What
+was missing was entirely on the **offer** side: `StubProvider` never read
+`spell_additional_costs` or Squad, so Life's Legacy was offered on mana affordability
+alone and the engine then refused it (the observed **422**, an SR-38 violation), and a
+Squad creature always cast at `count: 0` with the optional cost silently lost.
+
+`LegalAction::CastSpell` now carries an `AdditionalCostPlan`, and
+`ActionOptionView.costs` renders it:
+
+```jsonc
+"costs": {
+  "answer_field": "additional_costs",
+  "prompt": "This spell has an additional cost to cast (CR 118.8 / CR 702.157)",
+  "sacrifice": {
+    "prompt": "Sacrifice a creature as an additional cost (CR 118.8)",
+    "candidates": [{"id": 12, "label": "Glistener Elf"}],
+    "default": 12,
+    "template": {"Sacrifice": {"ids": [12], "lki": []}},
+    "ids_key": "ids"
+  },
+  "squad": {
+    "prompt": "Pay the squad cost any number of times ... (CR 702.157a)",
+    "cost_label": "{1}{G}",
+    "max_count": 2,
+    "template": {"Squad": {"count": 0}},
+    "count_key": "count"
+  }
+}
+```
+
+### Three properties worth stating
+
+**A required cost with nothing eligible SUPPRESSES the offer.** `offerable_cast_plan`
+returns `None` and the `CastSpell` action is absent from the payload entirely — not
+present with an empty candidate list. That is SR-38 ("never offer an action the engine
+rejects") restored for CR 118.8, and it is the F9 defect's actual fix. Squad never
+suppresses: declining is always legal (CR 702.157a, "any number of times", including
+zero), so `max_count: 0` still casts the spell.
+
+**The client never spells a variant name**, exactly as with `EffectChoiceAnswer`
+above. It clones `template`, keeps its single key, and replaces the array or field
+named by `ids_key`/`count_key`. `lki` is sent empty and must stay empty — `casting.rs`
+patches it from the layer-resolved characteristics captured *before* the zone move
+(CR 608.2b/608.2h/608.2i), and a client-supplied `lki` would be a second opinion about
+LKI the engine already owns.
+
+**A duplicate entry is a 400, not a silent resolution.** The engine resolves duplicates
+in opposite directions and in silence — `Squad` last-wins (a plain `squad_count = *count`
+assignment), `Sacrifice` first-wins (a `find_map` over `ids.first()`) — so a client
+sending two would have one applied and never learn which.
+`validate_additional_cost_params` refuses both cases. Separately,
+`effective_cast_cost_with_additional` mirrors the engine's *last-wins* Squad arithmetic
+for every non-HTTP caller, so the auto-tap and the engine cannot disagree about what a
+cast costs.
+
+### The picker stage sits between `ValuePrompt` and `TargetPicker`
+
+CR 601.2b announces additional costs and CR 601.2c announces targets, so
+costs-before-targets is forced. Within 601.2b the printed order is modes → splice →
+additional costs → `{X}`, and `ActionBar` bundles modes **and** `{X}` into one
+`ValuePrompt` that runs before the cost stage — a simplification whose premise is
+**checked rather than assumed**: `core::ui2_additional_cost_roster`'s **R5** pins that
+no def in the corpus declares both an additional cost and an `{X}`/modes. If R5 ever
+fails, the fix is to split `ValuePrompt`, not to reorder the chain.
+
 ## Known limitations
 
 These are real and deliberate. The code documents each in place; they are
@@ -752,7 +821,40 @@ repeated here so this README does not claim more than the implementation does.
 17. **None of the five pickers has an automated test.** There is no frontend test
     harness in this repo (plan §8 R7, revisit at M13). Each component's own doc
     names its unexercised paths. What *is* tested is everything the server sends
-    and everything it accepts, over HTTP.
+    and everything it accepts, over HTTP. **UI-2 makes it six** — `CostPicker` is
+    untested for the same reason, while its *channel* is driven end to end by four
+    HTTP probes.
+
+18. **Only 2 of `AdditionalCost`'s 16 variants are surfaced (UI-2).**
+    `ActionOptionView.costs` describes a required **sacrifice** (CR 118.8) and an
+    optional **Squad** cost (CR 702.157a) and nothing else. Kicker, Replicate,
+    Offspring, Escalate, Splice, Entwine, Fuse, Gift, Assist, Escape, Collect
+    Evidence, Discard, ExileFromHand and Mutate are all still invisible to the
+    offer, so an **optional** one is silently lost and a **mandatory** one is still
+    a 422 on a card whose cast the server offered. `validate_additional_cost_params`
+    deliberately lets those fourteen fall through to the engine's 422 rather than
+    pretending to check them — it can only speak for what it renders an offer for.
+    The request wire already carries all sixteen, so each is a provider + view +
+    picker addition with no engine or wire change. Seed **OOS-UI2-4**.
+
+19. **The required-sacrifice default is applied to *any* unparameterised
+    submission, including the TUI's (UI-2).**
+    `params.rs::merge_required_additional_costs` appends the plan's `eligible[0]` —
+    the lowest `ObjectId`, so usually the player's oldest and often best creature —
+    whenever no `Sacrifice` was announced. That is what makes a **bot's** cast
+    engine-legal and is the documented policy. But the TUI reaches the same arm with
+    default params and renders no cost picker, so a human casting Life's Legacy
+    there loses a creature **without being asked which**. Better than the outright
+    refusal it replaces, worse than asking. Same shape as the TUI halves of
+    `OOS-DP7-6`/`OOS-DP8-2`/`OOS-DP9-7`. Seed **OOS-UI2-5**.
+
+20. **`SquadCostView.max_count` under-reports what CR 601.2h would allow, and the
+    400 boundary enforces the under-report (UI-2).** `squad_max_count` gates on
+    `can_afford`, whose solver pays **one generic pip per source tapped** regardless
+    of that source's output (playtest triage **F4**), so three two-mana rocks read
+    as three mana. A human is then refused a `count` the engine would have accepted
+    from a hand-built command. `legal_actions.rs`'s own test pins the current wrong
+    value and names the right one. Seed **OOS-UI2-3**.
 
 ---
 

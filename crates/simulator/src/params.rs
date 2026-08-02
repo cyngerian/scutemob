@@ -252,7 +252,11 @@ pub fn action_to_command_with_params(
             player,
             card: *card,
         }),
-        LegalAction::CastSpell { card, .. } => Ok(Command::CastSpell(Box::new(CastSpellData {
+        LegalAction::CastSpell {
+            card,
+            additional_costs: plan,
+            ..
+        } => Ok(Command::CastSpell(Box::new(CastSpellData {
             player,
             card: *card,
             targets: params.targets.clone(),
@@ -273,7 +277,12 @@ pub fn action_to_command_with_params(
             },
             x_value: params.x_value,
             face_down_kind: None,
-            additional_costs: params.additional_costs.clone(),
+            // CR 118.8 (UI-2): append the offer's required-sacrifice DEFAULT when the
+            // caller announced no `AdditionalCost::Sacrifice` of its own -- see
+            // `merge_required_additional_costs`'s own doc for why this keeps a bot's
+            // cast of a mandatory-sacrifice spell engine-legal (SR-38) while never
+            // overwriting a human's explicit choice.
+            additional_costs: merge_required_additional_costs(plan, &params.additional_costs),
             // KNOWN GAP: unlike `TapForMana`/`ActivateAbility`, `LegalAction::CastSpell`
             // carries no provider-resolved hybrid/Phyrexian payment plan, so there is
             // nothing to forward here. Empty is the documented default: each hybrid
@@ -614,13 +623,58 @@ pub fn action_to_command_with_params(
     }
 }
 
+/// CR 118.8 (UI-2): appends the offer's required-sacrifice DEFAULT
+/// (`plan.sacrifice.default`) when `announced` carries no `AdditionalCost::Sacrifice`
+/// of its own, and otherwise returns `announced` UNCHANGED. Two properties, both
+/// load-bearing:
+///
+/// * **`ActionParams::default()` still produces an engine-accepted command.**
+///   `random_bot` and `heuristic_bot` reach the `CastSpell` arm with default params,
+///   so a bot casting a mandatory-sacrifice spell (Life's Legacy) now sacrifices
+///   `eligible[0]` instead of being refused by `casting.rs:3311`. The cost of
+///   "sacrifices the lowest-id creature, which may be its best" is a real one and is
+///   filed as a seed, not hidden.
+/// * **A human's explicit choice is never overwritten**, only a missing one filled
+///   in -- checked by matching on the variant, not by emptiness, since an
+///   `AdditionalCost::Sacrifice { ids: [], .. }` (a real but degenerate announcement)
+///   must still count as "announced".
+///
+/// Squad is NEVER defaulted here: absent means declined (`count: 0`), which is what
+/// the engine already does, and is what keeps a bot's command byte-identical to the
+/// pre-UI-2 one on every non-sacrifice spell.
+fn merge_required_additional_costs(
+    plan: &legal_actions::AdditionalCostPlan,
+    announced: &[AdditionalCost],
+) -> Vec<AdditionalCost> {
+    let already_announced = announced
+        .iter()
+        .any(|c| matches!(c, AdditionalCost::Sacrifice { .. }));
+    if already_announced {
+        return announced.to_vec();
+    }
+    let Some(sacrifice) = &plan.sacrifice else {
+        return announced.to_vec();
+    };
+    let mut merged = announced.to_vec();
+    // CR 608.2b/608.2h/608.2i: `lki` is deliberately empty -- `casting.rs:4269-4285`
+    // PATCHES it from the layer-resolved characteristics captured before the zone
+    // move. A client-supplied (or here, bot-default) `lki` would be a second
+    // opinion about LKI.
+    merged.push(AdditionalCost::Sacrifice {
+        ids: vec![sacrifice.default],
+        lki: vec![],
+    });
+    merged
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::legal_actions::{LegalActionProvider, StubProvider};
     use mtg_engine::state::ActiveRestriction;
     use mtg_engine::{
-        process_command, GameRestriction, GameStateBuilder, HybridMana, ManaCost, ObjectSpec, Step,
-        ZoneId,
+        process_command, GameRestriction, GameStateBuilder, HybridMana, ManaCost, ManaPool,
+        ObjectSpec, Step, ZoneId,
     };
 
     /// Find a battlefield object's id by its printed name.
@@ -1047,5 +1101,243 @@ mod tests {
             ..ActionParams::default()
         };
         assert!(action_to_command_with_params(&state, p1, &discard_action(), &params).is_ok());
+    }
+
+    // ── UI-2 (CR 118.8 / CR 702.157): additional-cost surfacing ─────────────────
+
+    fn ui2_registry() -> std::sync::Arc<mtg_engine::CardRegistry> {
+        mtg_engine::CardRegistry::new(mtg_engine::all_cards())
+    }
+
+    fn ui2_defs() -> std::collections::HashMap<String, mtg_engine::CardDefinition> {
+        mtg_engine::all_cards()
+            .iter()
+            .map(|d| (d.name.clone(), d.clone()))
+            .collect()
+    }
+
+    /// Life's Legacy (`{1}{G}`, `SpellAdditionalCost::SacrificeCreature`) in P1's
+    /// hand, with TWO eligible creatures P1 controls -- `lower_bear` is the lower
+    /// `ObjectId` (the plan's deterministic `default`), `other_bear` is the higher
+    /// one, so a test can announce `other_bear` and have it discriminate from the
+    /// default rather than coincide with it.
+    fn lifes_legacy_state_with_two_bears() -> (GameState, PlayerId, ObjectId, ObjectId, ObjectId) {
+        let p1 = PlayerId(1);
+        let p2 = PlayerId(2);
+        let defs = ui2_defs();
+        let lifes_legacy = mtg_engine::enrich_spec_from_def(
+            ObjectSpec::card(p1, "Life's Legacy")
+                .with_card_id(mtg_engine::CardId("lifes-legacy".to_string()))
+                .in_zone(ZoneId::Hand(p1)),
+            &defs,
+        );
+        let state = GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(p2)
+            .with_registry(ui2_registry())
+            .active_player(p1)
+            // {1}{G}: green >= 1 and total >= 2.
+            .player_mana(
+                p1,
+                ManaPool {
+                    green: 1,
+                    white: 1,
+                    ..Default::default()
+                },
+            )
+            .object(lifes_legacy)
+            .object(ObjectSpec::creature(p1, "Lower Bear", 2, 2).in_zone(ZoneId::Battlefield))
+            .object(ObjectSpec::creature(p1, "Other Bear", 2, 2).in_zone(ZoneId::Battlefield))
+            .build()
+            .expect("state builds");
+        let card = id_of(&state, "Life's Legacy");
+        let lower_bear = id_of(&state, "Lower Bear");
+        let other_bear = id_of(&state, "Other Bear");
+        // `ObjectId`s are assigned in builder-object order, so "Lower Bear" (added
+        // first) really is the lower id and therefore the plan's default -- assert
+        // it rather than assume it, since a builder change would otherwise make
+        // this fixture silently stop discriminating.
+        assert!(
+            lower_bear < other_bear,
+            "fixture precondition: ids in add order"
+        );
+        let cast_action = StubProvider
+            .legal_actions(&state, p1)
+            .into_iter()
+            .find(|a| matches!(a, LegalAction::CastSpell { card: c, .. } if *c == card))
+            .expect("Life's Legacy must be offered with two eligible creatures");
+        let LegalAction::CastSpell {
+            additional_costs, ..
+        } = &cast_action
+        else {
+            unreachable!("matched by discriminant above");
+        };
+        let default = additional_costs
+            .sacrifice
+            .as_ref()
+            .expect("Life's Legacy declares a required sacrifice")
+            .default;
+        assert_eq!(
+            default, lower_bear,
+            "the plan's default must be the LOWER ObjectId"
+        );
+        (state, p1, card, lower_bear, other_bear)
+    }
+
+    fn find_cast_spell(state: &GameState, player: PlayerId, card: ObjectId) -> LegalAction {
+        StubProvider
+            .legal_actions(state, player)
+            .into_iter()
+            .find(|a| matches!(a, LegalAction::CastSpell { card: c, .. } if *c == card))
+            .expect("card must be offered as a CastSpell action")
+    }
+
+    /// T7 (SR-38): an unparameterized (`ActionParams::default()`) cast of a
+    /// required-sacrifice spell produces a `Command::CastSpell` carrying
+    /// `AdditionalCost::Sacrifice { ids: [default], lki: [] }` -- and the engine
+    /// ACCEPTS it, proven by running it through `process_command`, not merely by
+    /// inspecting the built struct.
+    #[test]
+    fn unparameterized_required_sacrifice_cast_is_accepted_by_the_engine() {
+        let (state, p1, card, default_bear, _other_bear) = lifes_legacy_state_with_two_bears();
+        let action = find_cast_spell(&state, p1, card);
+
+        let cmd = action_to_command_with_params(&state, p1, &action, &ActionParams::default())
+            .expect("CastSpell is an unconditional Ok arm");
+        let Command::CastSpell(cast) = &cmd else {
+            panic!("expected Command::CastSpell, got {cmd:?}");
+        };
+        assert_eq!(
+            cast.additional_costs,
+            vec![AdditionalCost::Sacrifice {
+                ids: vec![default_bear],
+                lki: vec![],
+            }],
+            "an unparameterized submission must carry the plan's DEFAULT sacrifice"
+        );
+
+        let result = process_command(state, cmd);
+        assert!(
+            result.is_ok(),
+            "the engine must accept the defaulted sacrifice: {:?}",
+            result.err()
+        );
+    }
+
+    /// T8: a human's explicit sacrifice choice is forwarded VERBATIM and is never
+    /// overwritten by the plan's default -- `other_bear` is deliberately NOT the
+    /// default (`lifes_legacy_state_with_two_bears` asserts this), so this could
+    /// not pass by accidentally still submitting the default.
+    #[test]
+    fn an_announced_sacrifice_is_forwarded_and_not_overwritten_by_the_default() {
+        let (state, p1, card, default_bear, other_bear) = lifes_legacy_state_with_two_bears();
+        let action = find_cast_spell(&state, p1, card);
+        assert_ne!(
+            other_bear, default_bear,
+            "fixture must actually discriminate"
+        );
+
+        let params = ActionParams {
+            additional_costs: vec![AdditionalCost::Sacrifice {
+                ids: vec![other_bear],
+                lki: vec![],
+            }],
+            ..ActionParams::default()
+        };
+        let cmd = action_to_command_with_params(&state, p1, &action, &params).unwrap();
+        let Command::CastSpell(cast) = &cmd else {
+            panic!("expected Command::CastSpell, got {cmd:?}");
+        };
+        assert_eq!(
+            cast.additional_costs,
+            vec![AdditionalCost::Sacrifice {
+                ids: vec![other_bear],
+                lki: vec![],
+            }],
+            "the human's chosen sacrifice must reach the Command unmodified"
+        );
+
+        let result = process_command(state, cmd);
+        assert!(
+            result.is_ok(),
+            "the engine must accept the human's own choice too: {:?}",
+            result.err()
+        );
+    }
+
+    /// Ultramarines Honour Guard (`{3}{W}`, `AbilityDefinition::Squad { cost: {2} }`)
+    /// in P1's hand -- no sacrifice machinery involved, isolating the Squad half of
+    /// `merge_required_additional_costs` (which must never touch Squad at all).
+    fn honour_guard_state() -> (GameState, PlayerId, ObjectId) {
+        let p1 = PlayerId(1);
+        let p2 = PlayerId(2);
+        let defs = ui2_defs();
+        let honour_guard = mtg_engine::enrich_spec_from_def(
+            ObjectSpec::card(p1, "Ultramarines Honour Guard")
+                .with_card_id(mtg_engine::CardId("ultramarines-honour-guard".to_string()))
+                .in_zone(ZoneId::Hand(p1)),
+            &defs,
+        );
+        let state = GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(p2)
+            .with_registry(ui2_registry())
+            .active_player(p1)
+            .player_mana(
+                p1,
+                ManaPool {
+                    white: 1,
+                    colorless: 3,
+                    ..Default::default()
+                },
+            )
+            .object(honour_guard)
+            .build()
+            .expect("state builds");
+        let card = id_of(&state, "Ultramarines Honour Guard");
+        (state, p1, card)
+    }
+
+    /// T9 (half 1): no `AdditionalCost::Squad` is synthesized when the caller
+    /// announces none -- absent means declined (`count: 0`, CR 702.157a "any
+    /// number of times, including zero"), which keeps a bot's command
+    /// byte-identical to the pre-UI-2 one.
+    #[test]
+    fn squad_is_never_synthesized_when_not_announced() {
+        let (state, p1, card) = honour_guard_state();
+        let action = find_cast_spell(&state, p1, card);
+        let cmd =
+            action_to_command_with_params(&state, p1, &action, &ActionParams::default()).unwrap();
+        let Command::CastSpell(cast) = &cmd else {
+            panic!("expected Command::CastSpell, got {cmd:?}");
+        };
+        assert!(
+            !cast
+                .additional_costs
+                .iter()
+                .any(|c| matches!(c, AdditionalCost::Squad { .. })),
+            "no Squad entry may be synthesized when none was announced: {:?}",
+            cast.additional_costs
+        );
+    }
+
+    /// T9 (half 2): an announced `AdditionalCost::Squad { count }` is forwarded
+    /// verbatim.
+    #[test]
+    fn an_announced_squad_is_forwarded_verbatim() {
+        let (state, p1, card) = honour_guard_state();
+        let action = find_cast_spell(&state, p1, card);
+        let params = ActionParams {
+            additional_costs: vec![AdditionalCost::Squad { count: 1 }],
+            ..ActionParams::default()
+        };
+        let cmd = action_to_command_with_params(&state, p1, &action, &params).unwrap();
+        let Command::CastSpell(cast) = &cmd else {
+            panic!("expected Command::CastSpell, got {cmd:?}");
+        };
+        assert_eq!(
+            cast.additional_costs,
+            vec![AdditionalCost::Squad { count: 1 }]
+        );
     }
 }

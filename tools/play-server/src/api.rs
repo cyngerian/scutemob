@@ -610,6 +610,140 @@ fn validate_decision_params(
     }
 }
 
+/// UI-2 (CR 118.8 / CR 702.157): check a submitted `AdditionalCost::Sacrifice` /
+/// `AdditionalCost::Squad` against the `AdditionalCostPlan` this decision's
+/// `CastSpell` option actually offered, before anything is applied.
+///
+/// # Same boundary as `validate_combat_params` / `validate_decision_params`
+///
+/// The engine checks all of this too, and would refuse an out-of-set sacrifice
+/// or an over-count Squad payment — but as a **422** carrying a
+/// `GameStateError`, i.e. "the engine looked at your command and said no". An
+/// answer naming a permanent this decision never offered as eligible, or a
+/// Squad count this decision never said was affordable, is wrong *against the
+/// response the client is holding*, with no game state needed to see it — this
+/// crate's own definition of a 400.
+///
+/// # Only two of `AdditionalCost`'s sixteen variants are surfaced
+///
+/// UI-2 renders a picker for exactly `Sacrifice` and `Squad`
+/// ([`crate::view::AdditionalCostsView`]). Every other variant — Kicker,
+/// Replicate, Offspring, Escalate, Splice, Entwine, Gift, Assist, Escape,
+/// Collect Evidence, and the rest — falls through to `Ok(())` here and is
+/// judged, if at all, by the **engine's** 422. This function can only speak
+/// authoritatively about the two kinds it renders an offer for; claiming to
+/// validate the rest would be a check written against no offer (the same
+/// "known limitation" this batch's own plan states rather than papers over).
+///
+/// `pub(crate)` rather than private: unit-tested directly from the crate's
+/// `tests` module (`main.rs`), which is a sibling module and cannot see a plain
+/// private item here — the same reason `REBUILD_FAILURE_SEED` (`main.rs`'s
+/// `tests` module) is `pub(crate)` rather than private.
+pub(crate) fn validate_additional_cost_params(
+    action: &mtg_simulator::LegalAction,
+    params: &crate::view::ActionParamsDto,
+) -> Result<(), ApiFailure> {
+    use mtg_engine::AdditionalCost;
+    use mtg_simulator::LegalAction;
+
+    let bad = |message: String| ApiFailure::new(StatusCode::BAD_REQUEST, "bad_params", message);
+
+    let LegalAction::CastSpell {
+        additional_costs: plan,
+        ..
+    } = action
+    else {
+        return Ok(());
+    };
+
+    // **At most one entry of each kind**, checked before anything else.
+    //
+    // The offer carries at most one `SacrificeCostView` and at most one
+    // `SquadCostView`, so a second entry of either kind is an announcement this
+    // response never made — a 400 by this crate's own definition. It is also the
+    // only reading that is unambiguous, because the engine resolves duplicates
+    // SILENTLY and the two kinds resolve them DIFFERENTLY: `casting.rs`'s
+    // destructuring loop assigns `squad_count` (so the LAST `Squad` wins) while its
+    // sacrifice extraction is a `find_map` over `ids.first()` (so the FIRST
+    // `Sacrifice` wins and the rest are dropped with no error and no diagnostic).
+    // A client that sent two would get one of them applied and never be told which.
+    //
+    // `legal_actions::effective_cast_cost_with_additional` mirrors the engine's
+    // last-wins arithmetic for Squad regardless, so a non-HTTP caller cannot make
+    // the auto-tap and the engine disagree; this guard is about not letting the
+    // ambiguity onto the wire in the first place.
+    let sacrifice_entries = params
+        .additional_costs
+        .iter()
+        .filter(|c| matches!(c, AdditionalCost::Sacrifice { .. }))
+        .count();
+    if sacrifice_entries > 1 {
+        return Err(bad(format!(
+            "CR 118.8: this spell has at most one additional sacrifice cost, but {sacrifice_entries} \
+             were announced; the engine would silently apply only the first"
+        )));
+    }
+    let squad_entries = params
+        .additional_costs
+        .iter()
+        .filter(|c| matches!(c, AdditionalCost::Squad { .. }))
+        .count();
+    if squad_entries > 1 {
+        return Err(bad(format!(
+            "CR 702.157a: announce the squad count once, not {squad_entries} times; the engine \
+             would silently apply only the last"
+        )));
+    }
+
+    for cost in &params.additional_costs {
+        match cost {
+            // CR 118.8: exactly one id, and it must be among the permanents this
+            // decision offered as eligible.
+            AdditionalCost::Sacrifice { ids, .. } => {
+                let Some(sac) = plan.sacrifice.as_ref() else {
+                    return Err(bad(
+                        "CR 118.8: this spell has no additional sacrifice cost to pay".to_string(),
+                    ));
+                };
+                if ids.len() != 1 {
+                    return Err(bad(format!(
+                        "CR 118.8: this spell's additional cost is a single mandatory \
+                         sacrifice, got {} id(s)",
+                        ids.len()
+                    )));
+                }
+                if !sac.eligible.contains(&ids[0]) {
+                    return Err(bad(format!(
+                        "object {} is not among the permanents this sacrifice cost offered \
+                         (CR 118.8); this decision offered {:?}",
+                        ids[0].0,
+                        sac.eligible.iter().map(|o| o.0).collect::<Vec<_>>()
+                    )));
+                }
+            }
+            // CR 702.157a: the spell must actually have a Squad cost, and the
+            // count must be within what this decision said was affordable.
+            AdditionalCost::Squad { count } => {
+                let Some(squad) = plan.squad.as_ref() else {
+                    return Err(bad(
+                        "CR 702.157a: this spell has no squad cost to pay".to_string()
+                    ));
+                };
+                if *count > squad.max_count {
+                    return Err(bad(format!(
+                        "CR 702.157a: at most {} squad payment(s) are affordable right now, \
+                         got {count}",
+                        squad.max_count
+                    )));
+                }
+            }
+            // Every other `AdditionalCost` variant: see the doc comment above.
+            _ => {}
+        }
+    }
+    Ok(())
+}
+
 /// CR 701.22a / CR 701.25a: the two piles must PARTITION `whole` — same multiset,
 /// no duplicates, nothing else. `effects::validate_partition`'s check, restated at
 /// the response boundary for the 400/422 reason in [`validate_decision_params`]'s
@@ -1040,6 +1174,9 @@ pub async fn post_action(
                 // reason — an answer naming something the response never offered
                 // is a 400, not an engine rejection.
                 validate_decision_params(action, &req.params)?;
+                // UI-2 (CR 118.8 / CR 702.157): same boundary again, for the two
+                // additional-cost kinds this crate renders a picker for.
+                validate_additional_cost_params(action, &req.params)?;
             }
         }
 

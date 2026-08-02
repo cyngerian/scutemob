@@ -4548,6 +4548,1288 @@ mod tests {
         );
     }
 
+    // ── UI-2 (CR 118.8 / CR 702.157): additional-cost surfacing (task scutemob-178) ──
+    //
+    // Stage 3: the `view.rs`/`api.rs` rendering and validation, unit-tested against a
+    // hand-built `GameState` / a synthetic `LegalAction`, immediately below. Stage 5's
+    // HTTP probes (Life's Legacy over `POST /api/game/action`, Squad 0/1/N, SR-38
+    // suppression) drive the real router end to end and are the section starting at
+    // "UI-2 stage 5" further down this file.
+
+    /// Build a minimal `GameState` for UI-2: `p1` holds Life's Legacy in hand
+    /// with `{1}{G}` available and controls one eligible creature; `p2` exists
+    /// so the state builds.
+    ///
+    /// Mirrors `crates/simulator/src/legal_actions.rs`'s own UI-2 test fixtures
+    /// (`make_lifes_legacy`/`lifes_legacy_pool`, same card, same shape) --
+    /// duplicated rather than shared, for the reason
+    /// `setup_skullclamp_view_scenario` above already gives: no shared
+    /// test-support crate between `crates/simulator` and `tools/play-server`.
+    fn setup_lifes_legacy_view_scenario() -> (
+        mtg_engine::GameState,
+        mtg_engine::ObjectId,
+        mtg_engine::ObjectId,
+        mtg_engine::PlayerId,
+    ) {
+        let p1 = mtg_engine::PlayerId(1);
+        let p2 = mtg_engine::PlayerId(2);
+        let defs: HashMap<String, mtg_engine::CardDefinition> = mtg_engine::all_cards()
+            .into_iter()
+            .map(|d| (d.name.clone(), d))
+            .collect();
+
+        let lifes_legacy = mtg_engine::enrich_spec_from_def(
+            mtg_engine::ObjectSpec::card(p1, "Life's Legacy")
+                .with_card_id(mtg_engine::CardId("lifes-legacy".to_string()))
+                .in_zone(mtg_engine::ZoneId::Hand(p1)),
+            &defs,
+        );
+        let bear = mtg_engine::ObjectSpec::creature(p1, "P1 Bear", 2, 2)
+            .in_zone(mtg_engine::ZoneId::Battlefield);
+
+        let mut state = mtg_engine::GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(p2)
+            .with_registry(mtg_engine::CardRegistry::new(mtg_engine::all_cards()))
+            .object(lifes_legacy)
+            .object(bear)
+            .active_player(p1)
+            .at_step(mtg_engine::Step::PreCombatMain)
+            .build()
+            .unwrap();
+
+        {
+            let pool = &mut state.players_mut().get_mut(&p1).unwrap().mana_pool;
+            pool.add(mtg_engine::ManaColor::Green, 1);
+            pool.add(mtg_engine::ManaColor::White, 1);
+        }
+        state.turn_mut().priority_holder = Some(p1);
+
+        let find = |name: &str, controller: mtg_engine::PlayerId| -> mtg_engine::ObjectId {
+            state
+                .objects()
+                .iter()
+                .find(|(_, obj)| obj.characteristics.name == name && obj.controller == controller)
+                .map(|(id, _)| *id)
+                .unwrap_or_else(|| panic!("object '{name}' controlled by {controller:?} not found"))
+        };
+        let card_id = find("Life's Legacy", p1);
+        let bear_id = find("P1 Bear", p1);
+
+        (state, card_id, bear_id, p1)
+    }
+
+    /// Render the wire `costs` value for Life's Legacy's `CastSpell` option in
+    /// [`setup_lifes_legacy_view_scenario`]'s state, plus the eligible bear's id.
+    /// Shared by the two tests below so each stays focused on its own assertion.
+    fn lifes_legacy_costs_wire() -> (Value, mtg_engine::ObjectId) {
+        use mtg_simulator::LegalActionProvider as _;
+
+        let (state, card_id, bear_id, p1) = setup_lifes_legacy_view_scenario();
+        let p2 = mtg_engine::PlayerId(2);
+        let player_names: HashMap<mtg_engine::PlayerId, String> =
+            [(p1, "Human-1".to_string()), (p2, "Bot-2".to_string())]
+                .into_iter()
+                .collect();
+
+        let actions = mtg_simulator::StubProvider.legal_actions(&state, p1);
+        let (index, _) = actions
+            .iter()
+            .enumerate()
+            .find(|(_, a)| {
+                matches!(a, mtg_simulator::LegalAction::CastSpell { card, .. } if *card == card_id)
+            })
+            .expect(
+                "Life's Legacy must be offered: p1 has {1}{G} in the pool and an eligible \
+                 creature to sacrifice",
+            );
+
+        let pending = mtg_simulator::PendingDecision {
+            seq: 0,
+            player: p1,
+            kind: mtg_simulator::DecisionKind::Priority,
+            actions,
+        };
+        let state_view =
+            StateViewModel::from_game_state_for(&state, &player_names, Viewer::Seat(p1));
+        let names = view::NameIndex::from_view(&state_view);
+        let decision = view::decision_view(&pending, 0, &state, &names, &player_names);
+        let wire = serde_json::to_value(&decision).expect("DecisionView serializes");
+        (wire["actions"][index]["costs"].clone(), bear_id)
+    }
+
+    /// T: `ActionOptionView.costs` is `None` (wire `null`) for a plain spell with
+    /// no additional cost, and `Some` with a populated `sacrifice` descriptor for
+    /// Life's Legacy — the exact playtest-triage F9 gap (`CastSpell` offering a
+    /// mandatory-sacrifice spell with no channel for the client to announce it).
+    #[test]
+    fn test_ui2_costs_field_is_none_for_plain_spell_and_populated_for_lifes_legacy() {
+        use mtg_simulator::LegalActionProvider as _;
+
+        let p1 = mtg_engine::PlayerId(1);
+        let p2 = mtg_engine::PlayerId(2);
+        let defs: HashMap<String, mtg_engine::CardDefinition> = mtg_engine::all_cards()
+            .into_iter()
+            .map(|d| (d.name.clone(), d))
+            .collect();
+        let bolt = mtg_engine::enrich_spec_from_def(
+            mtg_engine::ObjectSpec::card(p1, "Lightning Bolt")
+                .with_card_id(mtg_engine::CardId("lightning-bolt".to_string()))
+                .in_zone(mtg_engine::ZoneId::Hand(p1)),
+            &defs,
+        );
+        let mut state = mtg_engine::GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(p2)
+            .with_registry(mtg_engine::CardRegistry::new(mtg_engine::all_cards()))
+            .object(bolt)
+            .active_player(p1)
+            .at_step(mtg_engine::Step::PreCombatMain)
+            .build()
+            .unwrap();
+        state
+            .players_mut()
+            .get_mut(&p1)
+            .unwrap()
+            .mana_pool
+            .add(mtg_engine::ManaColor::Red, 1);
+        state.turn_mut().priority_holder = Some(p1);
+
+        let player_names: HashMap<mtg_engine::PlayerId, String> =
+            [(p1, "Human-1".to_string()), (p2, "Bot-2".to_string())]
+                .into_iter()
+                .collect();
+
+        let actions = mtg_simulator::StubProvider.legal_actions(&state, p1);
+        let bolt_index = actions
+            .iter()
+            .position(|a| matches!(a, mtg_simulator::LegalAction::CastSpell { .. }))
+            .expect("Lightning Bolt must be offered");
+        let pending = mtg_simulator::PendingDecision {
+            seq: 0,
+            player: p1,
+            kind: mtg_simulator::DecisionKind::Priority,
+            actions,
+        };
+        let state_view =
+            StateViewModel::from_game_state_for(&state, &player_names, Viewer::Seat(p1));
+        let names = view::NameIndex::from_view(&state_view);
+        let decision = view::decision_view(&pending, 0, &state, &names, &player_names);
+        let wire = serde_json::to_value(&decision).expect("DecisionView serializes");
+        assert!(
+            wire["actions"][bolt_index]["costs"].is_null(),
+            "a plain spell's costs must be null: {:?}",
+            wire["actions"][bolt_index]["costs"]
+        );
+
+        let (costs, bear_id) = lifes_legacy_costs_wire();
+        assert!(
+            !costs.is_null(),
+            "Life's Legacy must carry a costs descriptor"
+        );
+        assert_eq!(costs["answer_field"], "additional_costs");
+        assert!(
+            costs["squad"].is_null(),
+            "Life's Legacy has no Squad ability"
+        );
+        let sacrifice = &costs["sacrifice"];
+        assert!(
+            !sacrifice.is_null(),
+            "Life's Legacy must offer a sacrifice picker"
+        );
+        assert_eq!(sacrifice["default"].as_u64(), Some(bear_id.0));
+        let candidates = sacrifice["candidates"]
+            .as_array()
+            .expect("candidates is an array");
+        assert!(
+            candidates
+                .iter()
+                .any(|c| c["id"].as_u64() == Some(bear_id.0)),
+            "the eligible bear must be among the sacrifice candidates: {candidates:?}"
+        );
+    }
+
+    /// T: the sacrifice template round-trips as `{"Sacrifice":{"ids":[<default>],
+    /// "lki":[]}}` — `lki` stays EMPTY on the wire because `casting.rs`'s
+    /// sacrifice site (CR 118.8) patches it from LKI captured before the zone move
+    /// (CR 608.2b/608.2h/608.2i); a client-supplied `lki` would be a second
+    /// opinion about LKI the engine already owns.
+    #[test]
+    fn test_ui2_sacrifice_template_round_trips_with_lki_empty() {
+        let (costs, bear_id) = lifes_legacy_costs_wire();
+        let sacrifice = &costs["sacrifice"];
+        assert_eq!(sacrifice["ids_key"], "ids");
+        assert_eq!(
+            sacrifice["template"],
+            json!({"Sacrifice": {"ids": [bear_id.0], "lki": []}})
+        );
+    }
+
+    /// A `LegalAction::CastSpell` carrying a fully-populated `AdditionalCostPlan`
+    /// (one eligible sacrifice candidate, a Squad option with `max_count`), for
+    /// unit-testing `api::validate_additional_cost_params` without going through
+    /// HTTP (that probe is a later stage — see this section's header comment).
+    fn ui2_cast_spell_action_with_costs(
+        eligible: Vec<mtg_engine::ObjectId>,
+        default: mtg_engine::ObjectId,
+        squad_max_count: u32,
+    ) -> mtg_simulator::LegalAction {
+        mtg_simulator::LegalAction::CastSpell {
+            card: mtg_engine::ObjectId(1),
+            from_zone: mtg_engine::ZoneId::Hand(mtg_engine::PlayerId(1)),
+            additional_costs: mtg_simulator::legal_actions::AdditionalCostPlan {
+                sacrifice: Some(mtg_simulator::legal_actions::SacrificeCostOption {
+                    requirement: mtg_engine::SpellAdditionalCost::SacrificeCreature,
+                    eligible,
+                    default,
+                }),
+                squad: Some(mtg_simulator::legal_actions::SquadCostOption {
+                    cost: mtg_engine::ManaCost {
+                        generic: 1,
+                        ..Default::default()
+                    },
+                    max_count: squad_max_count,
+                }),
+            },
+        }
+    }
+
+    /// T: a submitted `Sacrifice` naming an id outside the offered `eligible` set
+    /// is refused 400 `bad_params` (CR 118.8) rather than reaching the engine.
+    #[test]
+    fn test_ui2_validate_additional_cost_params_rejects_out_of_set_sacrifice_id() {
+        let eligible_id = mtg_engine::ObjectId(10);
+        let action = ui2_cast_spell_action_with_costs(vec![eligible_id], eligible_id, 2);
+        let params = crate::view::ActionParamsDto {
+            additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice {
+                ids: vec![mtg_engine::ObjectId(999)],
+                lki: vec![],
+            }],
+            ..Default::default()
+        };
+        let err = api::validate_additional_cost_params(&action, &params)
+            .expect_err("an id outside `eligible` must be refused");
+        assert_eq!(err.status, StatusCode::BAD_REQUEST);
+        assert_eq!(err.body.kind, "bad_params");
+    }
+
+    /// T: a submitted `Sacrifice` naming TWO ids is refused 400 — CR 118.8 /
+    /// `casting.rs`'s own "exactly one mandatory sacrifice" support.
+    #[test]
+    fn test_ui2_validate_additional_cost_params_rejects_two_sacrifice_ids() {
+        let eligible_a = mtg_engine::ObjectId(10);
+        let eligible_b = mtg_engine::ObjectId(11);
+        let action = ui2_cast_spell_action_with_costs(vec![eligible_a, eligible_b], eligible_a, 2);
+        let params = crate::view::ActionParamsDto {
+            additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice {
+                ids: vec![eligible_a, eligible_b],
+                lki: vec![],
+            }],
+            ..Default::default()
+        };
+        let err = api::validate_additional_cost_params(&action, &params)
+            .expect_err("two sacrifice ids must be refused");
+        assert_eq!(err.status, StatusCode::BAD_REQUEST);
+        assert_eq!(err.body.kind, "bad_params");
+    }
+
+    /// T: a submitted `Squad { count }` above the offered `max_count` is refused
+    /// 400 (CR 702.157a).
+    #[test]
+    fn test_ui2_validate_additional_cost_params_rejects_squad_over_max_count() {
+        let eligible_id = mtg_engine::ObjectId(10);
+        let action = ui2_cast_spell_action_with_costs(vec![eligible_id], eligible_id, 2);
+        let params = crate::view::ActionParamsDto {
+            additional_costs: vec![mtg_engine::AdditionalCost::Squad { count: 3 }],
+            ..Default::default()
+        };
+        let err = api::validate_additional_cost_params(&action, &params)
+            .expect_err("a count above max_count must be refused");
+        assert_eq!(err.status, StatusCode::BAD_REQUEST);
+        assert_eq!(err.body.kind, "bad_params");
+    }
+
+    /// T: a submitted `Squad` on an action whose plan offers no Squad option is
+    /// refused 400, rather than silently accepted.
+    #[test]
+    fn test_ui2_validate_additional_cost_params_rejects_squad_when_none_offered() {
+        let eligible_id = mtg_engine::ObjectId(10);
+        let action = mtg_simulator::LegalAction::CastSpell {
+            card: mtg_engine::ObjectId(1),
+            from_zone: mtg_engine::ZoneId::Hand(mtg_engine::PlayerId(1)),
+            additional_costs: mtg_simulator::legal_actions::AdditionalCostPlan {
+                sacrifice: Some(mtg_simulator::legal_actions::SacrificeCostOption {
+                    requirement: mtg_engine::SpellAdditionalCost::SacrificeCreature,
+                    eligible: vec![eligible_id],
+                    default: eligible_id,
+                }),
+                squad: None,
+            },
+        };
+        let params = crate::view::ActionParamsDto {
+            additional_costs: vec![mtg_engine::AdditionalCost::Squad { count: 1 }],
+            ..Default::default()
+        };
+        let err = api::validate_additional_cost_params(&action, &params)
+            .expect_err("Squad on an action offering none must be refused");
+        assert_eq!(err.status, StatusCode::BAD_REQUEST);
+        assert_eq!(err.body.kind, "bad_params");
+    }
+
+    /// **Fix cycle (review Issue 2): a DUPLICATE `Squad` entry is refused 400.**
+    ///
+    /// Two entries are not additive, and the engine resolves them silently:
+    /// `casting.rs`'s destructuring loop is `squad_count = *count`, so the LAST wins
+    /// and the first is dropped with no error and no diagnostic. A client that sent
+    /// two would have one of them applied and never be told which — and, before the
+    /// matching `effective_cast_cost_with_additional` fix, the auto-tap would have
+    /// SUMMED them, reached for more mana than the engine charges, found no plan,
+    /// and let the engine refuse the cast for want of mana. A 422 after a clean
+    /// offer is exactly the SR-38 shape this batch exists to delete.
+    #[test]
+    fn test_ui2_validate_additional_cost_params_rejects_a_duplicate_squad_entry() {
+        let eligible_id = mtg_engine::ObjectId(10);
+        let action = ui2_cast_spell_action_with_costs(vec![eligible_id], eligible_id, 2);
+        let params = crate::view::ActionParamsDto {
+            // BOTH within `max_count`, so the per-entry bound check cannot be what
+            // rejects this — only the duplicate check can.
+            additional_costs: vec![
+                mtg_engine::AdditionalCost::Squad { count: 2 },
+                mtg_engine::AdditionalCost::Squad { count: 1 },
+            ],
+            ..Default::default()
+        };
+        let err = api::validate_additional_cost_params(&action, &params)
+            .expect_err("two Squad announcements must be refused, not silently resolved");
+        assert_eq!(err.status, StatusCode::BAD_REQUEST);
+        assert_eq!(err.body.kind, "bad_params");
+    }
+
+    /// **Fix cycle (review Issue 2): a DUPLICATE `Sacrifice` entry is refused 400.**
+    ///
+    /// The other half, and it resolves the OTHER way: `casting.rs:186` extracts the
+    /// sacrifice with a `find_map` over `ids.first()`, so the FIRST entry wins and
+    /// the rest are dropped. A human who somehow announced two would watch one of
+    /// their creatures die for no stated reason.
+    #[test]
+    fn test_ui2_validate_additional_cost_params_rejects_a_duplicate_sacrifice_entry() {
+        let a = mtg_engine::ObjectId(10);
+        let b = mtg_engine::ObjectId(11);
+        let action = ui2_cast_spell_action_with_costs(vec![a, b], a, 0);
+        let params = crate::view::ActionParamsDto {
+            // BOTH ids are eligible and each entry is well-formed on its own, so
+            // only the duplicate check can reject this.
+            additional_costs: vec![
+                mtg_engine::AdditionalCost::Sacrifice {
+                    ids: vec![a],
+                    lki: vec![],
+                },
+                mtg_engine::AdditionalCost::Sacrifice {
+                    ids: vec![b],
+                    lki: vec![],
+                },
+            ],
+            ..Default::default()
+        };
+        let err = api::validate_additional_cost_params(&action, &params)
+            .expect_err("two Sacrifice announcements must be refused");
+        assert_eq!(err.status, StatusCode::BAD_REQUEST);
+        assert_eq!(err.body.kind, "bad_params");
+    }
+
+    /// T: the happy path — a valid single eligible sacrifice id plus a Squad
+    /// count within `max_count` — does NOT fire any of the four checks above.
+    #[test]
+    fn test_ui2_validate_additional_cost_params_accepts_the_happy_path() {
+        let eligible_id = mtg_engine::ObjectId(10);
+        let action = ui2_cast_spell_action_with_costs(vec![eligible_id], eligible_id, 2);
+        let params = crate::view::ActionParamsDto {
+            additional_costs: vec![
+                mtg_engine::AdditionalCost::Sacrifice {
+                    ids: vec![eligible_id],
+                    lki: vec![],
+                },
+                mtg_engine::AdditionalCost::Squad { count: 2 },
+            ],
+            ..Default::default()
+        };
+        api::validate_additional_cost_params(&action, &params)
+            .expect("a legal sacrifice id and an in-bound squad count must be accepted");
+    }
+
+    // ── UI-2 stage 5 (CR 118.8 / CR 702.157): additional-cost surfacing, end to
+    // end over HTTP (task scutemob-178) ─────────────────────────────────────
+    //
+    // The stage-3 tests just above check `view.rs`/`api.rs` against a hand-built
+    // `GameState` and a synthetic `LegalAction`. These three probes drive the REAL
+    // router — `session::new_game`, the same two Invariant-9 gates, the same
+    // `LocalGame::submit` auto-tap — exactly the UI-1/SIM-1 pattern
+    // (`ui1_install`/`sim1_install`), so nothing about the HTTP path is stubbed.
+    //
+    // P1: Life's Legacy's mandatory sacrifice, driven to a non-default pick.
+    // P2: Galadhrim Brigade's Squad, declined (0) and paid twice (N=2).
+    // P3: SR-38 — the offer is absent with no eligible creature, present with one.
+
+    /// Reused for every UI-2 stage-5 fixture, for the identical reason
+    /// [`SIM1_SEED`] reuses [`UI1_SEED`]: `setup::build_initial_state` shuffles each
+    /// seat's `main_deck` with `SliceRandom::shuffle` on a single `StdRng` seeded
+    /// from `cfg.seed` ALONE (`setup.rs:206`), and for a `DeckSource::Fixed` game
+    /// player 1's shuffle is the FIRST rng draw at all (`setup.rs:227-244`'s
+    /// `RandomPerSeat` branch, the only one that draws earlier, never runs). A
+    /// `SliceRandom::shuffle` is a permutation of INDICES that depends only on the
+    /// rng stream and the slice's LENGTH — never on what sits at each index — so
+    /// for any 99-card `Fixed` main deck at this seed, the **same set of original
+    /// positions** lands in player 1's opening 7-card hand.
+    ///
+    /// That set was computed directly (not assumed): replaying
+    /// `(0..99).collect::<Vec<usize>>().shuffle(&mut StdRng::seed_from_u64(184))`
+    /// gives original indices `[1, 53, 70, 19, 39, 50, 0]` as the top 7 — i.e. the
+    /// hand is exactly positions `{0, 1, 19, 39, 50, 53, 70}`. UI-1's own doc only
+    /// ever needed two of those (`main_deck[0]`/`main_deck[1]`); this batch needs a
+    /// third (`main_deck[19]`) for the two-eligible-creature fixture (P1), and the
+    /// pin above is what justifies using it.
+    const UI2_SEED: u64 = UI1_SEED;
+
+    /// `{10}{G}{G}`, Legendary Creature, `Completeness::Complete`
+    /// (`crates/card-defs/src/defs/ghalta_primal_hunger.rs`). Mono-green (fixes CR
+    /// 903.5c colour identity to plain green) and the single most expensive
+    /// mono-green creature in the corpus — `self_cost_reduction` only reduces it by
+    /// the total power of creatures controlled, so even with both fixture
+    /// creatures out (power 1 and 2) it is still far outside every probe's mana
+    /// window (a handful of Forests). Reused as the commander for every UI-2
+    /// stage-5 fixture, including the opponent seat's.
+    const UI2_COMMANDER: &str = "ghalta-primal-hunger";
+
+    /// `{1}{G}`, Sorcery, `Completeness::Complete`
+    /// (`crates/card-defs/src/defs/lifes_legacy.rs`). `SpellAdditionalCost::SacrificeCreature`
+    /// — the F9 defect card this whole batch is about.
+    const UI2_SAC_SPELL: &str = "lifes-legacy";
+
+    /// `{G}`, Creature -- Phyrexian Elf Warrior 1/1, `Completeness::Complete`
+    /// (`crates/card-defs/src/defs/glistener_elf.rs`). Its only ability is the
+    /// keyword Infect, which never fires here (no combat damage is ever dealt) --
+    /// deliberately NOT a mana dork: an earlier draft used Llanowar Elves /
+    /// Elvish Mystic here and both broke the fixture, because `LocalGame`'s
+    /// auto-tap solver (playtest triage F4's known source-counting defect)
+    /// would greedily reach for a JUST-CAST creature's own `{T}: Add {G}` ability
+    /// to help pay for the SECOND creature and fail on "has summoning sickness
+    /// and cannot tap for mana (no haste)" -- reproduced, not guessed at, by
+    /// running this fixture with that pair first. No creature with a mana
+    /// ability appears anywhere in this batch's fixtures for that reason.
+    const UI2_ELF_A: &str = "glistener-elf";
+    /// [`UI2_ELF_A`]'s rendered `CardDefinition.name` -- distinct from the `CardId`
+    /// above, and load-bearing: both the battlefield-name lookups
+    /// ([`ui2_battlefield_ids_by_name`]) and the driven action's label (`"Cast
+    /// {name}"`) are keyed on this, never on the kebab-case `CardId`.
+    const UI2_ELF_A_NAME: &str = "Glistener Elf";
+
+    /// `{1}{G}`, Creature -- Ouphe 2/2, `Completeness::Complete`
+    /// (`crates/card-defs/src/defs/collector_ouphe.rs`). Its only ability is a
+    /// static restriction ("Activated abilities of artifacts can't be
+    /// activated") that never matters here -- no artifact is ever in play -- and,
+    /// as important as [`UI2_ELF_A`]'s doc, it has NO mana ability either. Gives
+    /// P1's two-eligible-creature fixture two DISTINCT sacrifice candidates
+    /// rather than two copies of one; verified against an enumeration over
+    /// `all_cards()`, not assumed, that this corpus has no mono-green creature
+    /// simpler than this pair.
+    const UI2_ELF_B: &str = "collector-ouphe";
+    /// See [`UI2_ELF_A_NAME`]'s doc -- the same distinction, for [`UI2_ELF_B`].
+    const UI2_ELF_B_NAME: &str = "Collector Ouphe";
+
+    /// `{2}{G}`, Creature -- Elf Soldier 2/2, Squad `{1}{G}`, `Completeness::Complete`
+    /// (`crates/card-defs/src/defs/galadhrim_brigade.rs`) -- the exact card the
+    /// first human playtest hit (F9: "spell has squad keyword but no squad cost
+    /// defined").
+    const UI2_SQUAD_SPELL: &str = "galadhrim-brigade";
+
+    /// Generous bound for driving through 2-3 of the human's own turns (one land
+    /// drop and one creature cast each), matching the order of magnitude of
+    /// [`SIM1_MAX_STEPS`] for a similarly-shallow drive. Each step here is one
+    /// HUMAN decision -- the bot's whole turn collapses into zero extra steps,
+    /// since every route drives straight to the next human decision.
+    const UI2_MAX_STEPS: usize = 500;
+
+    /// Generous bound for driving through up to 7 of the human's own land drops
+    /// (P2's `count = 2` fixture). Same "one step per human decision" accounting
+    /// as [`UI2_MAX_STEPS`], scaled up for the extra turns.
+    const UI2_LAND_DRIVE_MAX_STEPS: usize = 1500;
+
+    /// CR 903.5c: `commander` plus 96-98 Forests plus 1-2 non-land probe cards,
+    /// placed at whichever of `{0, 1, 19, 39, 50, 53, 70}` [`UI2_SEED`]'s doc names
+    /// are needed -- the rest of the 99 slots are Forests. Shared builder for every
+    /// UI-2 stage-5 deck; the probe-specific constructors below just choose which
+    /// slots to overwrite.
+    fn ui2_deck_with(commander: &str, overrides: &[(usize, &str)]) -> mtg_simulator::DeckConfig {
+        use mtg_engine::CardId;
+        let mut main_deck: Vec<CardId> = (0..99).map(|_| CardId("forest".to_string())).collect();
+        for (index, card) in overrides {
+            main_deck[*index] = CardId(card.to_string());
+        }
+        mtg_simulator::DeckConfig {
+            commander: CardId(commander.to_string()),
+            main_deck,
+        }
+    }
+
+    /// All-Forest deck (plus commander) -- the harmless opponent-seat fixture for
+    /// every UI-2 stage-5 probe. No spell in this deck at all, so the bot can only
+    /// ever play lands and pass; it cannot perturb anything this batch checks on
+    /// player 1's side of the board.
+    fn ui2_forest_only_deck() -> mtg_simulator::DeckConfig {
+        ui2_deck_with(UI2_COMMANDER, &[])
+    }
+
+    /// P1's two-eligible-creature fixture: Life's Legacy at position 0,
+    /// [`UI2_ELF_A`] at position 1, [`UI2_ELF_B`] at position 19 -- all three of
+    /// [`UI2_SEED`]'s pinned hand positions that are not left as Forest.
+    fn ui2_lifes_legacy_two_elves_deck() -> mtg_simulator::DeckConfig {
+        ui2_deck_with(
+            UI2_COMMANDER,
+            &[(0, UI2_SAC_SPELL), (1, UI2_ELF_A), (19, UI2_ELF_B)],
+        )
+    }
+
+    /// P3 half B's one-eligible-creature fixture: Life's Legacy at position 0,
+    /// [`UI2_ELF_A`] at position 1, Forest everywhere else (including position 19,
+    /// unlike the two-elf deck above) -- the minimal fixture that has an eligible
+    /// sacrifice target at all.
+    fn ui2_lifes_legacy_one_elf_deck() -> mtg_simulator::DeckConfig {
+        ui2_deck_with(UI2_COMMANDER, &[(0, UI2_SAC_SPELL), (1, UI2_ELF_A)])
+    }
+
+    /// P3 half A's no-creature fixture: Life's Legacy at position 0, Forest
+    /// everywhere else. No creature anywhere in this 99-card deck, so "0 eligible
+    /// creatures" is guaranteed by construction rather than by a drive that merely
+    /// never got around to casting one.
+    fn ui2_lifes_legacy_no_creature_deck() -> mtg_simulator::DeckConfig {
+        ui2_deck_with(UI2_COMMANDER, &[(0, UI2_SAC_SPELL)])
+    }
+
+    /// P2's fixture: Galadhrim Brigade at position 0, Forest everywhere else.
+    fn ui2_squad_deck() -> mtg_simulator::DeckConfig {
+        ui2_deck_with(UI2_COMMANDER, &[(0, UI2_SQUAD_SPELL)])
+    }
+
+    /// Install a two-player fixed-deck session through the same constructor the
+    /// real handler uses -- see [`ui1_install`]'s doc for why `POST /api/game`
+    /// itself cannot express this fixture.
+    fn ui2_install(
+        state: &SharedState,
+        p1_deck: mtg_simulator::DeckConfig,
+        p2_deck: mtg_simulator::DeckConfig,
+    ) {
+        let cfg = mtg_simulator::LocalGameConfig {
+            player_count: 2,
+            human_seats: [mtg_engine::PlayerId(1)].into_iter().collect(),
+            bot_kind: BotKind::Heuristic,
+            seed: UI2_SEED,
+            decks: mtg_simulator::DeckSource::Fixed(vec![
+                (mtg_engine::PlayerId(1), p1_deck),
+                (mtg_engine::PlayerId(2), p2_deck),
+            ]),
+            limits: mtg_simulator::LocalGameLimits {
+                max_turns: 200,
+                max_commands: 40_000,
+                max_consecutive_passes: 500,
+                record_journal: true,
+            },
+        };
+        let session = session::new_game(cfg, 0).expect("the UI-2 fixture deck must be legal");
+        *state.session.lock().expect("fresh lock") = Some(session);
+    }
+
+    /// Out-of-band oracle, [`ui1_zone`]'s role: every battlefield permanent
+    /// `controller` controls whose rendered name is `name`, by `ObjectId`. Reads
+    /// the engine's own object table directly -- never used to build a payload,
+    /// only to verify what an HTTP-driven cast actually did.
+    fn ui2_battlefield_ids_by_name(
+        state: &SharedState,
+        controller: mtg_engine::PlayerId,
+        name: &str,
+    ) -> Vec<u64> {
+        let guard = state.session.lock().expect("lock");
+        let session = guard.as_ref().expect("a session is installed");
+        let gs = session.game.state();
+        gs.zones()
+            .get(&mtg_engine::ZoneId::Battlefield)
+            .map(|z| z.object_ids())
+            .unwrap_or_default()
+            .into_iter()
+            .filter_map(|id| {
+                let obj = gs.objects().get(&id)?;
+                if obj.controller == controller && obj.characteristics.name == name {
+                    Some(id.0)
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    /// Count form of [`ui2_battlefield_ids_by_name`], for P2's "how many copies"
+    /// assertions -- CR 400.7 mints a fresh `ObjectId` for a real cast and every
+    /// token copy alike, so counting BY NAME is the only stable check.
+    fn ui2_battlefield_count_by_name(
+        state: &SharedState,
+        controller: mtg_engine::PlayerId,
+        name: &str,
+    ) -> usize {
+        ui2_battlefield_ids_by_name(state, controller, name).len()
+    }
+
+    /// Rendered names of every object currently in `zone`, out of band. Used for
+    /// P1's graveyard check: CR 400.7 means the sacrificed creature's BATTLEFIELD
+    /// `ObjectId` never appears in the graveyard at all (`move_object_to_zone`
+    /// mints a fresh one and clones `characteristics` across the move), so "did
+    /// the sacrifice happen" has to be read back by NAME, not by the id that was
+    /// submitted.
+    fn ui2_zone_names(state: &SharedState, zone: mtg_engine::ZoneId) -> Vec<String> {
+        let guard = state.session.lock().expect("lock");
+        let session = guard.as_ref().expect("a session is installed");
+        let gs = session.game.state();
+        gs.zones()
+            .get(&zone)
+            .map(|z| z.object_ids())
+            .unwrap_or_default()
+            .into_iter()
+            .filter_map(|id| {
+                gs.objects()
+                    .get(&id)
+                    .map(|o| o.characteristics.name.clone())
+            })
+            .collect()
+    }
+
+    /// Out-of-band oracle: `player`'s current mana pool total, for P2's "the
+    /// mana really was charged" assertion.
+    fn ui2_mana_pool_total(state: &SharedState, player: mtg_engine::PlayerId) -> u32 {
+        let guard = state.session.lock().expect("lock");
+        let session = guard.as_ref().expect("a session is installed");
+        session
+            .game
+            .state()
+            .player(player)
+            .expect("player exists")
+            .mana_pool
+            .total()
+    }
+
+    /// Drive the human seat -- playing a land, else casting whichever of
+    /// `elf_names` is not yet on this seat's battlefield, else passing priority --
+    /// until an offered action is `"Cast Life's Legacy"` AND every name in
+    /// `elf_names` is already controlled on the battlefield. `elf_names` is
+    /// checked in order, so the same helper serves P1's two-creature fixture and
+    /// P3 half B's one-creature fixture.
+    ///
+    /// The two conditions are checked TOGETHER (not "stop as soon as every elf is
+    /// out") because Life's Legacy is a sorcery (CR 117.1a): with a creature still
+    /// resolving on the stack, `can_cast_at_this_time`'s stack-empty gate means the
+    /// spell is not offered yet even once every elf is technically controlled --
+    /// the loop must keep passing priority until the stack actually drains.
+    async fn ui2_drive_to_lifes_legacy_offer(
+        state: &SharedState,
+        elf_names: &[&str],
+        max_steps: usize,
+    ) -> (Value, Value) {
+        let p1 = mtg_engine::PlayerId(1);
+        let (status, mut view) = get_json(state, "/api/game").await;
+        assert_eq!(status, StatusCode::OK, "{view}");
+        for step in 0..max_steps {
+            let all_present = elf_names
+                .iter()
+                .all(|name| !ui2_battlefield_ids_by_name(state, p1, name).is_empty());
+            if all_present {
+                if let Some(action) = view["decision"]["actions"]
+                    .as_array()
+                    .and_then(|actions| {
+                        actions.iter().find(|a| {
+                            a["kind"] == "CastSpell" && a["label"] == "Cast Life's Legacy"
+                        })
+                    })
+                    .cloned()
+                {
+                    return (view, action);
+                }
+            }
+            assert!(
+                !view["decision"].is_null(),
+                "the game ended at step {step} before Life's Legacy (with {elf_names:?} \
+                 in play) was offered: {view}"
+            );
+            let wire_seq = seq(&view);
+            let actions = view["decision"]["actions"]
+                .as_array()
+                .expect("actions is an array")
+                .clone();
+            let next_elf_label = elf_names
+                .iter()
+                .find(|name| ui2_battlefield_ids_by_name(state, p1, name).is_empty())
+                .map(|name| format!("Cast {name}"));
+            let pick = next_elf_label
+                .as_deref()
+                .and_then(|label| {
+                    actions
+                        .iter()
+                        .find(|a| a["kind"] == "CastSpell" && a["label"] == label)
+                })
+                .or_else(|| actions.iter().find(|a| a["kind"] == "PlayLand"))
+                .or_else(|| actions.iter().find(|a| a["kind"] == "PassPriority"))
+                .or_else(|| actions.iter().find(|a| a["kind"] != "Concede"))
+                .unwrap_or_else(|| panic!("only Concede was offered at step {step}: {view}"));
+            let index = pick["index"].as_u64().expect("index is a number");
+            let (status, next) = post_json(
+                state,
+                "/api/game/action",
+                json!({"seq": wire_seq, "action_index": index, "params": {}}),
+            )
+            .await;
+            assert_eq!(
+                status,
+                StatusCode::OK,
+                "step {step} submitting {}: {next}",
+                pick["label"]
+            );
+            view = next;
+        }
+        panic!(
+            "Life's Legacy (with {elf_names:?} in play) was never offered within \
+             {max_steps} steps: {view}"
+        );
+    }
+
+    /// Drive the human seat -- playing a land every turn it can, else passing
+    /// priority -- until `land_target` lands have been played, then return the
+    /// view at that point. Never casts anything (P2's fixture has exactly one
+    /// non-land card, and the whole point is to accumulate MORE mana than its base
+    /// cost needs before ever casting it).
+    async fn ui2_drive_playing_lands(
+        state: &SharedState,
+        land_target: usize,
+        max_steps: usize,
+    ) -> Value {
+        let (status, mut view) = get_json(state, "/api/game").await;
+        assert_eq!(status, StatusCode::OK, "{view}");
+        let mut lands_played = 0usize;
+        for step in 0..max_steps {
+            if lands_played >= land_target {
+                return view;
+            }
+            assert!(
+                !view["decision"].is_null(),
+                "the game ended at step {step} before {land_target} lands were played: {view}"
+            );
+            let wire_seq = seq(&view);
+            let actions = view["decision"]["actions"]
+                .as_array()
+                .expect("actions is an array")
+                .clone();
+            let pick = actions
+                .iter()
+                .find(|a| a["kind"] == "PlayLand")
+                .or_else(|| actions.iter().find(|a| a["kind"] == "PassPriority"))
+                .or_else(|| actions.iter().find(|a| a["kind"] != "Concede"))
+                .unwrap_or_else(|| panic!("only Concede was offered at step {step}: {view}"));
+            let is_land = pick["kind"] == "PlayLand";
+            let index = pick["index"].as_u64().expect("index is a number");
+            let (status, next) = post_json(
+                state,
+                "/api/game/action",
+                json!({"seq": wire_seq, "action_index": index, "params": {}}),
+            )
+            .await;
+            assert_eq!(
+                status,
+                StatusCode::OK,
+                "step {step} submitting {}: {next}",
+                pick["label"]
+            );
+            view = next;
+            if is_land {
+                lands_played += 1;
+            }
+        }
+        assert!(
+            lands_played >= land_target,
+            "only {lands_played}/{land_target} lands played within {max_steps} steps"
+        );
+        view
+    }
+
+    /// Pass priority until the stack is empty (a cast spell -- and any trigger it
+    /// queues -- has fully resolved), the same drain loop
+    /// [`test_ui1_trigger_targets_are_answered_over_http`] uses for the identical
+    /// reason: a `CastSpell` command does not resolve synchronously (CR 117.3c
+    /// hands priority back to the actor, not straight to resolution).
+    async fn ui2_drain_stack(state: &SharedState, view: Value, max_steps: usize) -> Value {
+        let mut view = view;
+        for _ in 0..max_steps {
+            let stack_empty = view["state"]["zones"]["stack"]
+                .as_array()
+                .map(|s| s.is_empty())
+                .unwrap_or(true);
+            if stack_empty {
+                return view;
+            }
+            assert!(
+                !view["decision"].is_null(),
+                "the game ended mid-stack: {view}"
+            );
+            let wire_seq = seq(&view);
+            let actions = view["decision"]["actions"].as_array().unwrap().clone();
+            let pick = actions
+                .iter()
+                .find(|a| a["kind"] == "PassPriority")
+                .or_else(|| actions.iter().find(|a| a["kind"] != "Concede"))
+                .expect("something other than Concede");
+            let index = pick["index"].as_u64().unwrap();
+            let (status, next) = post_json(
+                state,
+                "/api/game/action",
+                json!({"seq": wire_seq, "action_index": index, "params": {}}),
+            )
+            .await;
+            assert_eq!(status, StatusCode::OK, "{next}");
+            view = next;
+        }
+        panic!("the stack never drained within {max_steps} steps: {view}");
+    }
+
+    /// **CR 118.8 -- Life's Legacy's mandatory sacrifice, driven to a non-default
+    /// pick over HTTP.** Closes playtest-triage F9's Life's Legacy half and
+    /// criterion 5997.
+    ///
+    /// Three things, in the order the task brief asks for: (1) the descriptor
+    /// itself -- present, well-formed, naming a real eligible creature; (2) the
+    /// reproduction -- an id this decision never offered as eligible is refused at
+    /// the 400 boundary, never reaching the engine's own 422 (see this function's
+    /// doc for why the true pre-fix 422 is no longer reachable through the HTTP
+    /// surface at all, and how that was checked rather than assumed); (3) the real
+    /// cast, with the NON-default candidate, verified out of band against the
+    /// engine's own graveyard/library/battlefield state.
+    ///
+    /// # Why the pre-fix 422 could not be reproduced by submitting an empty answer
+    ///
+    /// The obvious reproduction -- submit `"additional_costs": []` and watch the
+    /// engine refuse it -- no longer exists: `params.rs`'s
+    /// `merge_required_additional_costs` APPENDS the plan's default sacrifice the
+    /// moment no `Sacrifice` is announced, precisely so a bot's default-params cast
+    /// stays engine-legal (SR-38). So an empty announcement now succeeds instead of
+    /// 422ing, and that success IS the fix, not a hole in this test.
+    ///
+    /// # Why an out-of-set id 400s instead of 422ing, and whether the 422 is
+    /// reachable at all through this surface -- checked, not assumed
+    ///
+    /// `api::validate_additional_cost_params` checks a submitted `Sacrifice` id
+    /// against `plan.sacrifice.eligible` BEFORE any command reaches the engine, and
+    /// `legal_actions::build_additional_cost_plan`'s eligibility mirrors
+    /// `casting.rs`'s own gate (filter, controller, zone, `CantBeSacrificed`) by
+    /// construction (UI-2 plan §1.2) -- so any id this 400 boundary accepts is,
+    /// by that mirror, an id the engine's own check would ALSO accept. There is
+    /// therefore no id a well-formed HTTP submission can carry that passes this
+    /// 400 gate and still fails the engine's 422 -- unlike UI-1's search/discard
+    /// probes, where the 400 boundary and the engine's own check look at different
+    /// things. Here they look at the same set, by design.
+    ///
+    /// This was verified empirically, not reasoned to only in prose: with
+    /// `api.rs`'s `validate_additional_cost_params(action, &req.params)?` call
+    /// temporarily commented out of `post_action` (`api.rs:1140`), submitting this
+    /// exact test's out-of-set land id reached the engine directly and came back
+    /// **422** with body (verbatim, `kind: "rejected"` -- `LocalGameError::Rejected`,
+    /// NOT `"engine_error"`, which this crate reserves for the separately-unreachable
+    /// `LocalGameError::Engine` variant per this file's `impl From<LocalGameError>`):
+    /// `{"error":"invalid command: spell additional cost: sacrificed permanent \
+    /// does not match required filter SacrificeCreature (CR 118.8)","kind":"rejected"}`
+    /// -- i.e. `casting.rs:3360-3364`'s own filter-mismatch message, reached and
+    /// observed, then the call site was restored and the full suite re-run green.
+    /// That is the F9 defect's ORIGINAL shape (a client, offered nothing, submits
+    /// something the engine refuses); UI-2's fix moves the refusal from that 422
+    /// to this test's 400 and leaves it unreachable beyond that boundary.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_ui2_lifes_legacy_sacrifice_is_answered_over_http() {
+        let p1 = mtg_engine::PlayerId(1);
+        let state = shared_state();
+        ui2_install(
+            &state,
+            ui2_lifes_legacy_two_elves_deck(),
+            ui2_forest_only_deck(),
+        );
+
+        let (view, action) = ui2_drive_to_lifes_legacy_offer(
+            &state,
+            &[UI2_ELF_A_NAME, UI2_ELF_B_NAME],
+            UI2_MAX_STEPS,
+        )
+        .await;
+        let index = action["index"].as_u64().expect("index is a number");
+        let option = view["decision"]["actions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|a| a["index"] == index)
+            .expect("the option with that index");
+        let costs = &option["costs"];
+        assert!(
+            !costs.is_null(),
+            "Life's Legacy must carry a costs descriptor"
+        );
+        assert_eq!(costs["answer_field"], "additional_costs");
+        assert!(
+            costs["squad"].is_null(),
+            "Life's Legacy has no Squad ability"
+        );
+        let sacrifice = &costs["sacrifice"];
+        assert!(
+            !sacrifice.is_null(),
+            "Life's Legacy must offer a sacrifice picker"
+        );
+
+        let candidates: Vec<(u64, String)> = sacrifice["candidates"]
+            .as_array()
+            .expect("candidates is an array")
+            .iter()
+            .map(|c| {
+                (
+                    c["id"].as_u64().expect("id is a number"),
+                    c["label"].as_str().expect("label is a string").to_string(),
+                )
+            })
+            .collect();
+        assert_eq!(
+            candidates.len(),
+            2,
+            "both fixture creatures must be eligible candidates: {candidates:?}"
+        );
+        let names: Vec<&str> = candidates.iter().map(|(_, n)| n.as_str()).collect();
+        assert!(names.contains(&UI2_ELF_A_NAME), "{names:?}");
+        assert!(names.contains(&UI2_ELF_B_NAME), "{names:?}");
+
+        let default = sacrifice["default"].as_u64().expect("default is a number");
+        let min_id = candidates
+            .iter()
+            .map(|(id, _)| *id)
+            .min()
+            .expect("non-empty");
+        assert_eq!(
+            default, min_id,
+            "the default is eligible[0] -- the lowest ObjectId"
+        );
+        assert_eq!(sacrifice["ids_key"], "ids");
+        assert_eq!(
+            sacrifice["template"],
+            json!({"Sacrifice": {"ids": [default], "lki": []}})
+        );
+
+        let wire_seq = seq(&view);
+
+        // Reproduction: an id this decision never offered as eligible (a Forest,
+        // not a creature) is refused at the 400 boundary -- see this test's doc
+        // for why the true engine 422 is no longer reachable beyond it.
+        let land_id = ui2_battlefield_ids_by_name(&state, p1, "Forest")
+            .into_iter()
+            .next()
+            .expect("at least one Forest must be in play by now");
+        let (status, refused) = post_json(
+            &state,
+            "/api/game/action",
+            json!({
+                "seq": wire_seq,
+                "action_index": index,
+                "params": {
+                    "additional_costs": [{"Sacrifice": {"ids": [land_id], "lki": []}}]
+                }
+            }),
+        )
+        .await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{refused}");
+        assert_eq!(refused["kind"], "bad_params");
+
+        // The real cast: the NON-default candidate, so the answer discriminates
+        // from a client that submitted nothing (which would have sacrificed the
+        // default instead).
+        let (chosen, chosen_name) = candidates
+            .iter()
+            .find(|(id, _)| *id != default)
+            .cloned()
+            .expect("two distinct candidates, so a non-default one exists");
+        let (survivor, survivor_name) = candidates
+            .iter()
+            .find(|(id, _)| *id != chosen)
+            .cloned()
+            .expect("the other candidate");
+        assert_eq!(
+            survivor, default,
+            "sanity: the two candidates are default+chosen"
+        );
+
+        let library_before = ui1_library(&state).len();
+        let graveyard_before = ui2_zone_names(&state, mtg_engine::ZoneId::Graveyard(p1));
+        assert!(
+            graveyard_before.is_empty(),
+            "sanity: nothing has died yet: {graveyard_before:?}"
+        );
+
+        let (status, after_cast) = post_json(
+            &state,
+            "/api/game/action",
+            json!({
+                "seq": wire_seq,
+                "action_index": index,
+                "params": {
+                    "additional_costs": [{"Sacrifice": {"ids": [chosen], "lki": []}}]
+                }
+            }),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{after_cast}");
+
+        let view = ui2_drain_stack(&state, after_cast, 40).await;
+
+        // The chosen creature is gone (CR 400.7: a fresh graveyard object was
+        // minted, so this checks by NAME, never by the submitted id).
+        assert!(
+            ui2_battlefield_ids_by_name(&state, p1, &chosen_name).is_empty(),
+            "the sacrificed creature ({chosen_name}) must have left the battlefield"
+        );
+        assert!(
+            !ui2_battlefield_ids_by_name(&state, p1, &survivor_name).is_empty(),
+            "the OTHER (default) creature ({survivor_name}) must still be controlled -- \
+             a client submitting the default would have killed this one instead"
+        );
+
+        let graveyard_after = ui2_zone_names(&state, mtg_engine::ZoneId::Graveyard(p1));
+        assert_eq!(
+            graveyard_after.len(),
+            2,
+            "the sacrificed creature AND the resolved sorcery both end in the \
+             graveyard: {graveyard_after:?}"
+        );
+        assert!(
+            graveyard_after.contains(&chosen_name),
+            "the sacrificed creature must be in the graveyard by name: {graveyard_after:?}"
+        );
+        assert!(
+            graveyard_after.contains(&"Life's Legacy".to_string()),
+            "the resolved sorcery itself must be in the graveyard: {graveyard_after:?}"
+        );
+
+        // CR 608.2b: Life's Legacy draws cards equal to the sacrificed creature's
+        // power -- [`UI2_ELF_A`] and [`UI2_ELF_B`] print DIFFERENT power (1 and 2),
+        // deliberately, so this reads the expected count off whichever name was
+        // actually chosen rather than a single hard-coded number.
+        let expected_draw = if chosen_name == UI2_ELF_A_NAME {
+            1
+        } else if chosen_name == UI2_ELF_B_NAME {
+            2
+        } else {
+            panic!("unexpected sacrificed creature name: {chosen_name}");
+        };
+        let library_after = ui1_library(&state).len();
+        assert_eq!(
+            library_after,
+            library_before - expected_draw,
+            "Life's Legacy must have drawn exactly {expected_draw} card(s) (the \
+             sacrificed {chosen_name}'s power)"
+        );
+        let _ = view;
+    }
+
+    /// **CR 702.157a -- Squad, declined (count 0).** Closes half of criterion
+    /// 5998.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_ui2_squad_declined_casts_plain_over_http() {
+        let p1 = mtg_engine::PlayerId(1);
+        let state = shared_state();
+        ui2_install(&state, ui2_squad_deck(), ui2_forest_only_deck());
+
+        // 3 lands = Galadhrim Brigade's own base cost ({2}{G}), nothing spare.
+        let view = ui2_drive_playing_lands(&state, 3, UI2_LAND_DRIVE_MAX_STEPS).await;
+        let action = view["decision"]["actions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|a| a["kind"] == "CastSpell" && a["label"] == "Cast Galadhrim Brigade")
+            .cloned()
+            .unwrap_or_else(|| {
+                panic!("Galadhrim Brigade must be offered once its base cost is affordable: {view}")
+            });
+        let index = action["index"].as_u64().expect("index is a number");
+        let costs = &action["costs"];
+        assert!(
+            !costs.is_null(),
+            "Galadhrim Brigade must carry a costs descriptor"
+        );
+        assert_eq!(costs["answer_field"], "additional_costs");
+        assert!(
+            costs["sacrifice"].is_null(),
+            "Galadhrim Brigade has no additional sacrifice cost"
+        );
+        let squad = &costs["squad"];
+        assert!(
+            !squad.is_null(),
+            "Galadhrim Brigade must offer a Squad picker"
+        );
+        // The label must match the PRINTING: Galadhrim Brigade prints "Squad {1}{G}",
+        // so `format_mana_cost_compact` emits the generic component first. (The TUI's
+        // own copy of that formatter emits colours first and would render `{G}{1}`;
+        // see that function's doc for why this one deliberately diverges.)
+        assert_eq!(squad["cost_label"], "{1}{G}");
+        assert_eq!(squad["count_key"], "count");
+        assert_eq!(squad["template"], json!({"Squad": {"count": 0}}));
+        assert_eq!(
+            squad["max_count"].as_u64(),
+            Some(0),
+            "with exactly 3 mana available and a base cost of 3, nothing is left \
+             over for Squad"
+        );
+
+        let wire_seq = seq(&view);
+        let (status, after_cast) = post_json(
+            &state,
+            "/api/game/action",
+            json!({"seq": wire_seq, "action_index": index, "params": {}}),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{after_cast}");
+
+        ui2_drain_stack(&state, after_cast, 20).await;
+        assert_eq!(
+            ui2_battlefield_count_by_name(&state, p1, "Galadhrim Brigade"),
+            1,
+            "declining Squad must cast the spell plainly -- no token copies"
+        );
+    }
+
+    /// **CR 702.157a -- Squad, paid twice (count 2).** Closes the other half of
+    /// criterion 5998, going one step past "N >= 1" per the task brief's
+    /// preference, since 7 lands are reachable within this fixture's budget and a
+    /// count of 2 discriminates "count is read" from "count is a boolean" in a way
+    /// count 1 cannot.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_ui2_squad_paying_twice_produces_two_token_copies_over_http() {
+        let p1 = mtg_engine::PlayerId(1);
+        let state = shared_state();
+        ui2_install(&state, ui2_squad_deck(), ui2_forest_only_deck());
+
+        // 7 lands: base cost 3 + 2 x Squad's {1}{G} (MV 2) = 7, exactly.
+        let view = ui2_drive_playing_lands(&state, 7, UI2_LAND_DRIVE_MAX_STEPS).await;
+        let action = view["decision"]["actions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|a| a["kind"] == "CastSpell" && a["label"] == "Cast Galadhrim Brigade")
+            .cloned()
+            .unwrap_or_else(|| panic!("Galadhrim Brigade must still be offered: {view}"));
+        let index = action["index"].as_u64().expect("index is a number");
+        let squad = &action["costs"]["squad"];
+        assert!(!squad.is_null());
+        let max_count = squad["max_count"].as_u64().expect("max_count is a number");
+        assert_eq!(
+            max_count, 2,
+            "7 mana available, base cost 3, Squad {{1}}{{G}} (MV 2) per payment -> \
+             exactly 2 affordable"
+        );
+
+        let wire_seq = seq(&view);
+
+        // The over-count 400, using the offer's OWN max_count rather than a
+        // hard-coded number.
+        let (status, refused) = post_json(
+            &state,
+            "/api/game/action",
+            json!({
+                "seq": wire_seq,
+                "action_index": index,
+                "params": {"additional_costs": [{"Squad": {"count": max_count + 1}}]}
+            }),
+        )
+        .await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{refused}");
+        assert_eq!(refused["kind"], "bad_params");
+
+        // The real cast, at the full max_count.
+        let (status, after_cast) = post_json(
+            &state,
+            "/api/game/action",
+            json!({
+                "seq": wire_seq,
+                "action_index": index,
+                "params": {"additional_costs": [{"Squad": {"count": max_count}}]}
+            }),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{after_cast}");
+
+        // The creature spell resolves, THEN its CR 702.157a ETB trigger goes on the
+        // stack and must ALSO resolve before the token copies exist.
+        ui2_drain_stack(&state, after_cast, 40).await;
+
+        assert_eq!(
+            ui2_battlefield_count_by_name(&state, p1, "Galadhrim Brigade"),
+            (max_count + 1) as usize,
+            "1 real permanent plus {max_count} token copies (CR 702.157a)"
+        );
+        assert_eq!(
+            ui2_mana_pool_total(&state, p1),
+            0,
+            "all 7 available mana must have been spent -- base {{2}}{{G}} plus 2x \
+             Squad {{1}}{{G}}"
+        );
+    }
+
+    /// **SR-38 (criterion 5999) -- the offer is absent with no eligible creature,
+    /// present with one.** Two-sided in the same test, exactly the shape
+    /// [`test_ui1_a_foreign_seats_effect_choice_never_reaches_this_payload`]'s
+    /// Invariant-7 check uses for the same reason: a one-sided absence assertion
+    /// alone cannot distinguish "correctly suppressed" from "broken and never
+    /// offers anything".
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_ui2_lifes_legacy_offer_suppressed_without_an_eligible_creature_over_http() {
+        let p1 = mtg_engine::PlayerId(1);
+
+        // Half A: no creature anywhere in this 99-card deck (by construction, not
+        // by a drive that merely never got around to casting one).
+        let state_a = shared_state();
+        ui2_install(
+            &state_a,
+            ui2_lifes_legacy_no_creature_deck(),
+            ui2_forest_only_deck(),
+        );
+        // 2 lands = Life's Legacy's own cost ({1}{G}), so the offer's absence
+        // below is due to the missing creature, not missing mana.
+        let view_a = ui2_drive_playing_lands(&state_a, 2, UI2_LAND_DRIVE_MAX_STEPS).await;
+        assert!(
+            ui2_battlefield_ids_by_name(&state_a, p1, UI2_ELF_A_NAME).is_empty(),
+            "sanity: this deck has no creature at all"
+        );
+        let actions_a = view_a["decision"]["actions"]
+            .as_array()
+            .expect("actions is an array");
+        assert!(
+            !actions_a
+                .iter()
+                .any(|a| a["kind"] == "CastSpell" && a["label"] == "Cast Life's Legacy"),
+            "SR-38: with no eligible creature to sacrifice, and the engine's own \
+             gate refusing the cast outright, Life's Legacy must not be offered at \
+             all -- offering it would be the F9 defect: {actions_a:?}"
+        );
+
+        // Half B: the SAME mana window, but with one eligible creature.
+        let state_b = shared_state();
+        ui2_install(
+            &state_b,
+            ui2_lifes_legacy_one_elf_deck(),
+            ui2_forest_only_deck(),
+        );
+        let (_, action_b) =
+            ui2_drive_to_lifes_legacy_offer(&state_b, &[UI2_ELF_A_NAME], UI2_MAX_STEPS).await;
+        assert_eq!(action_b["label"], "Cast Life's Legacy");
+        assert!(
+            !action_b["costs"]["sacrifice"].is_null(),
+            "with an eligible creature in play, the sacrifice descriptor must be \
+             present: {action_b}"
+        );
+    }
+
     // ── 15 ────────────────────────────────────────────────────────────────────
 
     /// **Architecture Invariant 7's chokepoint, machine-enforced instead of

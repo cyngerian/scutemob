@@ -454,6 +454,11 @@ impl<P: LegalActionProvider> LocalGame<P> {
             // the announced-`{X}` handling (CR 107.3) for free -- which it never had,
             // so a bot casting an `{X}` spell tapped for the base cost and had the
             // cast refused every time.
+            //
+            // UI-2's additional-cost pricing (CR 702.157 Squad) lives INSIDE
+            // `auto_tap_commands_for` via `effective_cast_cost_with_additional`, so
+            // the unified call keeps this site, the offer gate and the human path in
+            // agreement about what a Squad-paying cast charges.
             let commands = {
                 let mut cmds = self
                     .auto_tap_commands_for(&cmd, acting_player)
@@ -653,7 +658,17 @@ impl<P: LegalActionProvider> LocalGame<P> {
         // cast from this player's command zone, so the offer gate
         // (`legal_actions::can_afford`), this human auto-tap and the bot auto-tap in
         // `advance()` cannot disagree about what has to be paid.
-        let mut cost = legal_actions::effective_cast_cost(&self.state, player, cast.card)?;
+        // CR 702.157 (UI-2): the SQUAD payment is a cost INCREASE folded in here too --
+        // `effective_cast_cost_with_additional` calls `effective_cast_cost` and adds
+        // `cast.additional_costs`'s `AdditionalCost::Squad` count on top, so this site,
+        // the offer gate and `advance()`'s bot auto-tap above cannot disagree about
+        // what a Squad-paying cast actually charges.
+        let mut cost = legal_actions::effective_cast_cost_with_additional(
+            &self.state,
+            player,
+            cast.card,
+            &cast.additional_costs,
+        )?;
         // CR 107.3 / 601.2b — see the doc block above (OOS-M11-8).
         cost.generic = cost
             .generic

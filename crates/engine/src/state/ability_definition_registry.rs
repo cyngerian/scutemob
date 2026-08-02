@@ -296,7 +296,15 @@ pub fn handling(ability: &AbilityDefinition) -> AbilityHandling {
             sites: &["crates/engine/src/rules/casting.rs"],
         },
         A::Squad { .. } => AbilityHandling::Handled {
-            sites: &["crates/engine/src/rules/casting.rs"],
+            sites: &[
+                "crates/engine/src/rules/casting.rs",
+                // UI-2 (`scutemob-178`): the simulator's `LegalActionProvider` reads the
+                // squad cost so it can OFFER the optional additional cost (CR 702.157a /
+                // 601.2b) and fold it into the affordability check. `casting.rs`'s own
+                // `get_squad_cost` is private, so this is a necessary duplicate — exactly
+                // the `A::Bloodrush` shape below, and declared here for the same reason.
+                "crates/simulator/src/legal_actions.rs",
+            ],
         },
         A::Bloodrush { .. } => AbilityHandling::Handled {
             sites: &[

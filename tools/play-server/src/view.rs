@@ -45,7 +45,8 @@ use std::collections::HashMap;
 
 use mtg_engine::{
     AbilityDefinition, AdditionalCost, AttackTarget, Effect, EffectChoiceAnswer,
-    EffectChoiceQuestion, GameState, ModeSelection, ObjectId, PlayerId, Target, TargetRequirement,
+    EffectChoiceQuestion, GameState, ManaCost, ModeSelection, ObjectId, PlayerId,
+    SpellAdditionalCost, Target, TargetRequirement,
 };
 use mtg_simulator::{
     ActionParams, DecisionKind, GameResult, HaltReason, LegalAction, PendingDecision,
@@ -199,6 +200,88 @@ pub struct ActionOptionView {
     ///
     /// `None` on every other action. See [`BlockingDecisionView`].
     pub decision: Option<BlockingDecisionView>,
+    /// CR 118.8 / CR 702.157 (UI-2, `memory/playtest-triage-2026-08-02.md` F9): the
+    /// additional costs this `CastSpell` option must or may pay. `None` on every
+    /// other action, and `None` on a `CastSpell` whose `AdditionalCostPlan` is
+    /// `Default` (both fields `None`) -- which is nearly every spell in the corpus.
+    /// See [`AdditionalCostsView`].
+    pub costs: Option<AdditionalCostsView>,
+}
+
+/// CR 118.8 / CR 702.157 (UI-2): the additional-cost descriptor for one
+/// `CastSpell` option, rendered from the provider's own
+/// `mtg_simulator::legal_actions::AdditionalCostPlan`.
+///
+/// Nothing here is re-derived: `sacrifice.eligible` / `sacrifice.default` /
+/// `squad.cost` / `squad.max_count` are the plan's own fields, and
+/// [`crate::api`]'s `validate_additional_cost_params` checks a submission
+/// against these same fields -- so the picker the human sees and the check the
+/// server makes cannot disagree (the same argument [`combat_options`]'s doc
+/// makes for CR 508.1/509.1).
+#[derive(Debug, Serialize)]
+pub struct AdditionalCostsView {
+    /// Which `ActionParamsDto` field carries the answer -- `"additional_costs"`.
+    /// Sent rather than inferred, same argument as
+    /// [`BlockingDecisionView::answer_field`].
+    pub answer_field: String,
+    pub prompt: String,
+    /// CR 118.8: present when the spell declares a required sacrifice.
+    pub sacrifice: Option<SacrificeCostView>,
+    /// CR 702.157a: present when the spell has a Squad cost.
+    pub squad: Option<SquadCostView>,
+}
+
+/// CR 118.8: the offer's required-sacrifice descriptor.
+#[derive(Debug, Serialize)]
+pub struct SacrificeCostView {
+    pub prompt: String,
+    /// Battlefield permanents this player controls that the engine's own
+    /// sacrifice gate will accept, labelled through [`NameIndex`] -- **not**
+    /// [`question_card_label`]. A sacrifice candidate is a permanent on the
+    /// battlefield, public under CR 400.1, not a card in a hidden zone an effect
+    /// has told this seat to look at (`question_card_label`'s whole reason to
+    /// exist); routing it through that channel instead would also open a THIRD
+    /// raw `GameState` object-table read in this file, which
+    /// `test_ui1_view_rs_reads_game_state_in_exactly_the_two_known_places` pins
+    /// at exactly two.
+    pub candidates: Vec<CardOptionView>,
+    pub default: u64,
+    /// The engine's own `AdditionalCost`, serialized verbatim, holding the
+    /// default -- same argument as [`TargetOptionView::value`] /
+    /// [`AnswerShapeView::Partition::template`]: the client clones it and
+    /// replaces the array named by [`Self::ids_key`], so the externally-tagged
+    /// encoding of `AdditionalCost` stays known in exactly one place.
+    ///
+    /// `lki` is deliberately EMPTY and must stay empty: `casting.rs`'s sacrifice
+    /// site (CR 118.8) PATCHES it from the layer-resolved characteristics
+    /// captured before the zone move (CR 608.2b/608.2h/608.2i). A
+    /// client-supplied `lki` would be a second opinion about LKI the engine
+    /// already owns and computes correctly on its own.
+    pub template: AdditionalCost,
+    /// The key inside `template`'s single variant object that the chosen id(s)
+    /// go in -- `"ids"`.
+    pub ids_key: String,
+}
+
+/// CR 702.157a: the offer's optional Squad descriptor.
+#[derive(Debug, Serialize)]
+pub struct SquadCostView {
+    pub prompt: String,
+    /// Compact MTG notation (`{1}{G}`), rendered server-side by
+    /// [`format_mana_cost_compact`].
+    pub cost_label: String,
+    /// CR 702.157a: the largest N this player can currently afford on top of the
+    /// spell's own cost, from the provider's `SquadCostOption::max_count`. `0`
+    /// means "offerable but not payable right now" -- the spell is still legal
+    /// to cast, declining is always legal (CR 702.157a "any number of times",
+    /// including zero).
+    pub max_count: u32,
+    /// `Squad { count: 0 }` -- see [`SacrificeCostView::template`]'s argument for
+    /// why this is sent verbatim rather than reconstructed client-side.
+    pub template: AdditionalCost,
+    /// The key inside `template`'s single variant object that the chosen count
+    /// goes in -- `"count"`.
+    pub count_key: String,
 }
 
 /// One blocking decision, as everything a client needs to render a real picker
@@ -1270,6 +1353,133 @@ fn order_options(action: &LegalAction, names: &NameIndex) -> Option<OrderBlocker
     })
 }
 
+/// CR 118.8 / CR 702.157 (UI-2): render a `CastSpell` option's additional-cost
+/// descriptor, or `None` for every other action -- and `None` for a `CastSpell`
+/// whose plan is `Default` (both fields `None`), which is nearly every spell.
+///
+/// Every candidate is labelled through [`NameIndex`], never through
+/// [`question_card_label`] -- see [`SacrificeCostView::candidates`]'s doc for why
+/// the two channels must not be confused here.
+fn additional_costs_view(action: &LegalAction, names: &NameIndex) -> Option<AdditionalCostsView> {
+    let LegalAction::CastSpell {
+        additional_costs: plan,
+        ..
+    } = action
+    else {
+        return None;
+    };
+    if plan.sacrifice.is_none() && plan.squad.is_none() {
+        return None;
+    }
+
+    let sacrifice = plan.sacrifice.as_ref().map(|sac| SacrificeCostView {
+        prompt: sacrifice_prompt(&sac.requirement),
+        candidates: sac
+            .eligible
+            .iter()
+            .map(|id| CardOptionView {
+                id: id.0,
+                label: names.label(*id),
+            })
+            .collect(),
+        default: sac.default.0,
+        // `lki: vec![]` -- see the field's own doc. `casting.rs`'s sacrifice site
+        // patches this from LKI it captures itself; nothing here supplies it.
+        template: AdditionalCost::Sacrifice {
+            ids: vec![sac.default],
+            lki: vec![],
+        },
+        ids_key: "ids".to_string(),
+    });
+
+    let squad = plan.squad.as_ref().map(|sq| SquadCostView {
+        prompt: "Pay the squad cost any number of times to create token copies on entry \
+                 (CR 702.157a)"
+            .to_string(),
+        cost_label: format_mana_cost_compact(&sq.cost),
+        max_count: sq.max_count,
+        template: AdditionalCost::Squad { count: 0 },
+        count_key: "count".to_string(),
+    });
+
+    Some(AdditionalCostsView {
+        answer_field: "additional_costs".to_string(),
+        prompt: "This spell has an additional cost to cast (CR 118.8 / CR 702.157)".to_string(),
+        sacrifice,
+        squad,
+    })
+}
+
+/// A one-line prompt naming what CR 118.8 requires, from the engine's own
+/// `SpellAdditionalCost` -- for display only; the CANDIDATES already carry the
+/// engine's judgment of who is eligible, so this text cannot itself be wrong in
+/// a way that matters.
+fn sacrifice_prompt(requirement: &SpellAdditionalCost) -> String {
+    let what = match requirement {
+        SpellAdditionalCost::SacrificeCreature => "a creature".to_string(),
+        SpellAdditionalCost::SacrificeLand => "a land".to_string(),
+        SpellAdditionalCost::SacrificeArtifactOrCreature => "an artifact or creature".to_string(),
+        SpellAdditionalCost::SacrificeSubtype(sub) => format!("a {}", sub.0),
+        SpellAdditionalCost::SacrificeColorPermanent(color) => {
+            format!("a {color:?} permanent").to_lowercase()
+        }
+    };
+    format!("Sacrifice {what} as an additional cost (CR 118.8)")
+}
+
+/// Compact MTG notation for a mana cost: `{2}{W}{W}`, `{0}` for a zero cost.
+/// The generic number FIRST, then coloured pips in WUBRG order, then `{C}`.
+///
+/// Modelled on `tools/tui/src/play/panels/card_detail.rs::format_mana_cost`, and
+/// deliberately a duplicate rather than a shared helper: that copy lives in a
+/// different binary crate (`tools/tui`) with no dependency relationship to this
+/// one, and is itself `#[allow(dead_code)]` there. Like `sacrifice_prompt` above,
+/// this renders **display text only** -- it does not decide what a Squad payment
+/// costs; the engine's own `ManaCost` arithmetic does that untouched.
+///
+/// **The pip ORDER deliberately diverges from that copy**, which emits colours
+/// first and so renders Galadhrim Brigade's printed "Squad {1}{G}" as `{G}{1}`.
+/// Every real card prints the generic component first (CR 107.4 / the comprehensive
+/// rules' own notation), so the TUI's order is simply wrong; it is dead code there
+/// and fixing it is out of this batch's scope, but a label a human reads next to a
+/// printed card must match the printing.
+///
+/// **Known limitation, inherited from the TUI copy and pinned rather than
+/// assumed**: `ManaCost::hybrid` and `ManaCost::phyrexian` are not rendered, so a
+/// Squad cost carrying either would display as strictly cheaper than it is. That is
+/// not merely unlikely today -- `core::ui2_additional_cost_roster` R4 asserts that
+/// no def in the corpus has a hybrid or Phyrexian Squad cost, so the gate fails
+/// loudly the day one is authored rather than this label quietly lying.
+fn format_mana_cost_compact(cost: &ManaCost) -> String {
+    let mut parts = Vec::new();
+    if cost.generic > 0 {
+        parts.push(format!("{{{}}}", cost.generic));
+    }
+    for _ in 0..cost.white {
+        parts.push("{W}".to_string());
+    }
+    for _ in 0..cost.blue {
+        parts.push("{U}".to_string());
+    }
+    for _ in 0..cost.black {
+        parts.push("{B}".to_string());
+    }
+    for _ in 0..cost.red {
+        parts.push("{R}".to_string());
+    }
+    for _ in 0..cost.green {
+        parts.push("{G}".to_string());
+    }
+    for _ in 0..cost.colorless {
+        parts.push("{C}".to_string());
+    }
+    if parts.is_empty() {
+        "{0}".to_string()
+    } else {
+        parts.join("")
+    }
+}
+
 /// Display text for a card the **engine has told this seat to look at** — and the
 /// one place in this crate that reads a name from `GameState` rather than from the
 /// seat-redacted [`NameIndex`].
@@ -1693,6 +1903,7 @@ fn action_option_view(
         block,
         order: order_options(action, names),
         decision: blocking_decision_view(action, state, names, player_names),
+        costs: additional_costs_view(action, names),
     }
 }
 

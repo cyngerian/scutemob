@@ -86,11 +86,19 @@
   (OOS-DP7-11 + OOS-DP9-13 — the SR-19 gate reports success while checking nothing; test-only, 0
   flips; brief in `memory/primitives/seed-rerank-2026-07-27.md`). Older queue history (the PB-OS,
   PB-RS and PB-DP chains) is rotated to the 2026-08 archive.
-- **Tests**: **4,214 passing / 0 failing / 5 ignored** on branch `scutemob-176` (SIM-2) at close,
+- **Tests (branch pin, UI-2 `scutemob-178`)**: **4,218 passing / 0 failing / 5 ignored**, +33
+  over the **4,185** merge-base baseline at `8cad9c36` measured on this branch before any edit.
+  Split: 8 simulator unit tests (eligibility mirror, `CantBeSacrificed`, two-sided offer
+  suppression incl. the command-zone loop, the F4-capped `max_count` record, Squad last-wins),
+  4 params tests, 9 play-server unit tests (incl. the two duplicate-entry 400s), 4 end-to-end
+  HTTP probes, 7 roster-gate tests, and 1 bot-path test. Every load-bearing one watched failing
+  under a deliberate revert. The older pins below are the pre-UI-2 snapshot.
+- **Tests (branch pin, SIM-2 `scutemob-176`)**: **4,214 passing / 0 failing / 5 ignored** at close,
   **+29** over the **4,185** merge-base baseline measured in a clean worktree at `8cad9c36` — 24 in
   `crates/simulator/tests/sim2_mana_intelligence.rs` (every one watched failing first, and each fix
   proven guarded by a **13-revert** discrimination matrix) plus 5 roster rows in
-  `sim2_mana_source_roster.rs`. Earlier pin: **4,124 passing / 0 failing / 5 ignored** on main at the S8+DX6 collect (`cb0755bf`),
+  `sim2_mana_source_roster.rs`.
+- **Tests**: **4,124 passing / 0 failing / 5 ignored** on main at the S8+DX6 collect (`cb0755bf`),
   measured on the combined tree — consistent with the disjoint branch pins (4,097 `scutemob-173`,
   4,099 `scutemob-172`). Branch-pin detail: **4,099 passing / 0 failing / 5 ignored** on branch
   `scutemob-172` at PB-DX6 close (+33 over the **4,066** merge-base baseline at `f20823b1`, measured
@@ -210,7 +218,48 @@
 - **Recurrence rule** — future `/collect` and milestone-close bookkeeping appends its detailed PB/SR
   narrative to that archive file (newest first), and updates only a one-paragraph snapshot delta
   here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
-- **Last Updated**: 2026-08-02 — **SIM-2 SHIPPED** (`scutemob-176`): playtest findings **F3 +
+- **Last Updated**: 2026-08-02 — **UI-2 SHIPPED** (`scutemob-178`): playtest-triage **F9
+  CLOSED** for the two cost kinds it names — a human can now be *asked* which creature to
+  sacrifice, and can *choose* to pay Squad. **The request wire already existed and had for
+  three sessions**: `CastSpellData.additional_costs` covers all sixteen kinds and
+  `ActionParamsDto` deserialized it, so a hand-crafted POST could pay a sacrifice before this
+  batch. What was blind was the **offer** — `StubProvider` had zero references to
+  `spell_additional_costs` or Squad, so Life's Legacy was offered on mana affordability alone
+  and `casting.rs:3311` refused it (the human's 422, an SR-38 violation), and a Squad creature
+  always cast at `count: 0` with the optional cost silently lost. `LegalAction::CastSpell`
+  gains an `AdditionalCostPlan` whose eligibility mirrors `casting.rs:3300-3369` **gate for
+  gate** — and deliberately NOT `effects::eligible_sacrifice_targets`, which also checks
+  `is_phased_in` and would offer a different set from the one the engine validates. **A
+  required cost with nothing eligible now suppresses the whole offer**
+  (`offerable_cast_plan`, one helper for both cast loops); `ActionOptionView.costs` +
+  `CostPicker.svelte` render it between `ValuePrompt` and `TargetPicker`, and the stage
+  ordering's premise is *checked* by roster gate **R5** rather than assumed. **The card the
+  playtest actually hit needed a def repair the brief did not anticipate**: `galadhrim_brigade`
+  shipped `Complete` and deck-legal with `KeywordAbility::Squad` and **no
+  `AbilityDefinition::Squad { cost }`**, so every non-zero count was refused — CARDS-2's shape
+  again, knowledge present per-def with nothing able to fail. **R3b** now pins marker-set ≡
+  cost-set both ways. **The fix cycle's finding is the sharpest**: the cost helper **summed**
+  multiple `Squad` entries where `casting.rs` **assigns** (last wins), so a two-entry
+  submission made the auto-tap reach for more mana than the engine charges and the cast was
+  refused for want of mana — a 422 after a clean offer, the exact shape the batch exists to
+  delete; now mirrored, with duplicates refused at the 400 boundary because the engine
+  resolves the two kinds in **opposite** directions in silence. **The two findings that
+  outlive the batch, both measured**: **OOS-UI2-1** — *`mtg-fuzzer` has never cast a spell*
+  (`bin/fuzzer.rs` never shuffles its libraries and `random_deck` appends the basics last, so
+  5 games × 80 turns gave **25,964 hand-card observations and zero non-lands**); the 360-game
+  A/B came back byte-identical for that reason and is reported as worthless rather than
+  banked, **which means every "fuzz parity" claim in this project's history is a claim about
+  a land-only game**. And **OOS-UI2-2** — `HeuristicBot` burns its mana in the upkeep where it
+  cannot spend it, so a whole-game bot test passes by never reaching what it tests. Tests
+  **4,185 → 4,218 / 0 / 5**; PROTOCOL **33** / HASH **70** gate-EXECUTED unmoved (the
+  criterion's "32" was stale, as UI-1 also found); `decision_gate` 18/18; coverage unmoved at
+  **1,133/1,803 = 62.8%**, 0 completeness flips. **NOT zero engine lines**: 9 insertions / 1
+  deletion, one data-only `sites:` row on `A::Squad` in `ability_definition_registry.rs`,
+  which the SR-15 gate demanded once the provider read the cost variant — `SCAN_ROOTS`
+  includes `crates/simulator/src` by SR-20's design and `A::Bloodrush` already carries the
+  identical row. Seeds **OOS-UI2-1..5** filed in `docs/audits/decision-point-audit.md` §8.1;
+  limitations 18–20 in `tools/play-server/README.md`; handoff in `memory/workstream-state.md`.
+- **Prior**: 2026-08-02 — **SIM-2 SHIPPED** (`scutemob-176`): playtest findings **F3 +
   F4 + F5 CLOSED**, and the batch's headline is that **the mana solver counted SOURCES, not
   MANA**. `produces` was expanded per unit of mana and the expansion then never read, so Sol
   Ring was one mana — which over-tapped in one direction (Sol Ring + two Forests for `{2}{G}`,

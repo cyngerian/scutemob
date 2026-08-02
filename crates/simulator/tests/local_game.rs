@@ -2030,3 +2030,169 @@ fn test_auto_tap_skipped_when_pool_already_covers_cost() {
         "auto-tap must have tapped a source to pay the {{1}} cost"
     );
 }
+
+// ── UI-2 (criterion 6000): a BOT pays a mandatory additional cost ─────────────
+
+/// **CR 118.8 — the bot command path builds a cast the engine accepts.**
+///
+/// This is criterion 6000's "bots handle both cost kinds without new engine
+/// rejections", asserted at the level where it is decidable: the provider's own
+/// offer, through `RandomBot`'s own `choose_action`, into `process_command`. Before
+/// UI-2 that chain produced a `CastSpell` with an EMPTY `additional_costs`,
+/// `casting.rs:3311` refused it, and `advance()` fell back to `PassPriority` — the
+/// spell sat in hand being re-offered forever.
+///
+/// # Why this is not driven through a whole `advance()` game, and what was found
+/// trying
+///
+/// Two pre-existing defects make a full bot game a bad witness for this property,
+/// both OBSERVED here rather than reasoned about, and both filed rather than worked
+/// around:
+///
+/// * **`OOS-UI2-2`** — `HeuristicBot` scores `TapForMana` at 5 against
+///   `PassPriority`'s 1, and during the UPKEEP those are the only two actions that
+///   exist. So it taps its lands in a step where it cannot spend the mana, the pool
+///   empties at end of step (CR 500.4), and by its own main phase `can_afford` sees
+///   no untapped source and the cast is never OFFERED. The journal of such a game is
+///   two `TapForMana` and then nothing but passes, with **zero** engine rejections.
+/// * **`OOS-UI2-1`** — `bin/fuzzer.rs` builds its libraries through
+///   `GameStateBuilder` **without shuffling them**, while `random_deck` appends its
+///   ~34 basics LAST and `Zone::Ordered`'s top is the last index. Every fuzzer game
+///   therefore deals basics off the top for its whole length. Instrumenting the
+///   provider over 5 games × 80 turns produced **25,964 hand-card observations and
+///   not one non-land**. The 360-game A/B this batch ran came back byte-identical
+///   because the fuzzer never casts a spell at all — not because the change is
+///   neutral.
+///
+/// The bot is handed a one-element action list so the choice is forced and the test
+/// is deterministic. That is not a weaker test than "let it choose": what is under
+/// test is the MAPPING from a chosen action to an accepted command, which is exactly
+/// what `RandomBot::choose_action` does and exactly where UI-2 changed anything.
+#[test]
+fn test_ui2_a_bot_pays_a_mandatory_sacrifice_cost_without_an_engine_rejection() {
+    use mtg_engine::{process_command, AdditionalCost};
+    use mtg_simulator::LegalActionProvider;
+
+    let cards = all_cards();
+    let registry = build_registry();
+    let defs: HashMap<String, CardDefinition> =
+        cards.iter().map(|c| (c.name.clone(), c.clone())).collect();
+
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+    let mut state = GameStateBuilder::new()
+        .with_registry(Arc::clone(&registry))
+        .add_player(p1)
+        .add_player(p2)
+        .active_player(p1)
+        .object(enrich_spec_from_def(
+            ObjectSpec::card(p1, "Life's Legacy")
+                .with_card_id(CardId("lifes-legacy".to_string()))
+                .in_zone(ZoneId::Hand(p1)),
+            &defs,
+        ))
+        // The only eligible sacrifice, so the plan's `eligible[0]` default is
+        // unambiguous and the assertion below cannot be satisfied by accident.
+        .object(ObjectSpec::creature(p1, "Sacrificial Bear", 2, 2).in_zone(ZoneId::Battlefield));
+    // Two untapped Forests cover Life's Legacy's {1}{G}.
+    for _ in 0..2 {
+        state = state.object(enrich_spec_from_def(
+            ObjectSpec::card(p1, "Forest")
+                .with_card_id(CardId("forest".to_string()))
+                .in_zone(ZoneId::Battlefield),
+            &defs,
+        ));
+    }
+    let mut state = state.build().expect("UI-2 bot fixture should build");
+    state.turn_mut().priority_holder = Some(p1);
+
+    let bear_id = state
+        .objects()
+        .iter()
+        .find(|(_, o)| o.characteristics.name == "Sacrificial Bear")
+        .map(|(id, _)| *id)
+        .expect("the bear must exist");
+
+    // The provider's own offer, with the descriptor UI-2 added.
+    let offer = StubProvider
+        .legal_actions(&state, p1)
+        .into_iter()
+        .find(|a| matches!(a, LegalAction::CastSpell { .. }))
+        .expect("Life's Legacy must be offered: it is affordable and a creature is eligible");
+    let LegalAction::CastSpell {
+        additional_costs, ..
+    } = &offer
+    else {
+        unreachable!("matched by discriminant above");
+    };
+    assert_eq!(
+        additional_costs
+            .sacrifice
+            .as_ref()
+            .map(|s| (s.eligible.clone(), s.default)),
+        Some((vec![bear_id], bear_id)),
+        "the offer must name the bear as the one eligible sacrifice"
+    );
+
+    // The bot's OWN mapping — `RandomBot::choose_action`, not a hand-built command.
+    let mut bot = RandomBot::new(7, "Bot-1".to_string());
+    let cmd = bot.choose_action(&state, p1, std::slice::from_ref(&offer));
+    let Command::CastSpell(cast) = &cmd else {
+        panic!("a one-element list of CastSpell must yield a CastSpell, got {cmd:?}");
+    };
+    assert_eq!(
+        cast.additional_costs,
+        vec![AdditionalCost::Sacrifice {
+            ids: vec![bear_id],
+            lki: vec![],
+        }],
+        "an all-default `ActionParams` must still carry the plan's required sacrifice \
+         (CR 118.8) -- this is the whole reason `merge_required_additional_costs` exists"
+    );
+
+    // Pay for it the way `advance()` does, then cast. The taps are the engine's own
+    // commands, so nothing here fakes a mana pool.
+    let mut working = state;
+    for tap in mtg_simulator::solve_mana_payment(
+        &working,
+        p1,
+        &mtg_simulator::effective_cast_cost_with_additional(
+            &working,
+            p1,
+            cast.card,
+            &cast.additional_costs,
+        )
+        .expect("Life's Legacy has a mana cost"),
+    )
+    .expect("two Forests must be a solvable payment plan")
+    {
+        working = process_command(working, tap)
+            .expect("the provider only offers payable taps")
+            .0;
+    }
+
+    let (after, _events) =
+        process_command(working, cmd).expect("the engine must accept the bot's own cast");
+    // CR 400.7: the sacrificed permanent became a NEW object in the graveyard, so
+    // the old `bear_id` is gone from the object table entirely. Checked by NAME in
+    // the graveyard rather than by following the dead id -- the same reason UI-1's
+    // scry probe asserts over the library instead of chasing ids into the hand.
+    assert!(
+        !after.objects().contains_key(&bear_id),
+        "CR 400.7: the pre-sacrifice ObjectId must be dead, not merely moved"
+    );
+    assert!(
+        after
+            .objects_in_zone(&ZoneId::Graveyard(p1))
+            .iter()
+            .any(|o| o.characteristics.name == "Sacrificial Bear"),
+        "the bear must have been sacrificed to pay CR 118.8's additional cost"
+    );
+    assert!(
+        !after
+            .objects_in_zone(&ZoneId::Hand(p1))
+            .iter()
+            .any(|o| o.characteristics.name == "Life's Legacy"),
+        "the spell must have left hand for the stack"
+    );
+}
