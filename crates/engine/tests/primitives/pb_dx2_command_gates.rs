@@ -1477,17 +1477,18 @@ fn test_dx2_discharge_then_proceed_both_produce_events_in_one_call() {
 fn test_dx2_wire_version_sentinels() {
     assert_eq!(
         mtg_engine::HASH_SCHEMA_VERSION,
-        70u8,
-        "HASH_SCHEMA_VERSION live sentinel -- moved 69->70 by PB-DX5 (CR 611.2c, \
-         unrelated to this batch); this sentinel pins the LIVE version like every \
-         other scattered sentinel in the suite, not PB-DX2's own contribution"
+        71u8,
+        "HASH_SCHEMA_VERSION live sentinel -- moved 70->71 by ENG-1 (effect-driven \
+         discard, unrelated to this batch); this sentinel pins the LIVE version \
+         like every other scattered sentinel in the suite, not PB-DX2's own \
+         contribution"
     );
     assert_eq!(
         mtg_engine::PROTOCOL_VERSION,
-        33u32,
-        "PROTOCOL_VERSION live sentinel -- moved 32->33 by PB-DX6 (the last two \
-         unflattened mana-cost payment sites, unrelated to this batch); this \
-         sentinel pins the LIVE version like every other scattered sentinel in \
-         the suite, not PB-DX2's own contribution -- PB-DX2 itself left it unmoved"
+        34u32,
+        "PROTOCOL_VERSION live sentinel -- moved 33->34 by ENG-1 (effect-driven \
+         discard, unrelated to this batch); this sentinel pins the LIVE version \
+         like every other scattered sentinel in the suite, not PB-DX2's own \
+         contribution -- PB-DX2 itself left it unmoved"
     );
 }

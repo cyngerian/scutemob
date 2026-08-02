@@ -709,7 +709,22 @@
 ///   effect creation, so a mandatory loop that re-creates the same locked
 ///   effect is already distinguishable from a genuine repeat without
 ///   `affected_set`'s help — including it adds no new false-negative risk.
-pub const HASH_SCHEMA_VERSION: u8 = 70;
+/// - 71: ENG-1 (2026-08-02, effect-driven discard becomes a real player choice,
+///   CR 701.9b): `EffectChoiceQuestion` and `EffectChoiceAnswer` (both reachable
+///   only from `GameState`, via `pending_effect_choice` /
+///   `effect_choice_answers`, PB-DP9's v68 fields) each gain a fourth variant,
+///   `Discard { hand: Vec<ObjectId>, count: u32 }` /
+///   `Discard { chosen: Vec<ObjectId> }`, fed to `HashInto` with discriminant
+///   `3u8` (append-only, after `Surveil`'s `2u8`). `decl_fingerprint` MOVES (new
+///   variant on both enums, inside the `GameState` serde closure);
+///   `stream_fingerprint` moves per the v40 mechanism (`HASH_SCHEMA_VERSION` is
+///   the stream's first byte) -- `canonical_fixture()` carries no
+///   `pending_effect_choice` populated with `Discard`, so the new `HashInto`
+///   arms' own bytes are not what moves this digest, the version-sentinel byte
+///   is. `EffectChoiceQuestion` and `EffectChoiceAnswer` ARE in the SR-8 wire
+///   closure (both entered it at v31), so this bump is paired with
+///   `PROTOCOL_VERSION` 33 -> 34.
+pub const HASH_SCHEMA_VERSION: u8 = 71;
 
 /// One `(version, fingerprints)` row of the append-only hash-schema history.
 ///
@@ -1081,6 +1096,18 @@ pub const HASH_SCHEMA_HISTORY: &[HashSchemaEpoch] = &[
         // `Some(OrdSet::unit(ObjectId(1)))`, not `None`.
         decl_fingerprint: "cc5dcc426fd0d65be6c375407bf1147fcab326cc51ba548f3083abeb3e8c6701",
         stream_fingerprint: "b31e0324f0011df56dff4cdfc4a097fda5fbfbedd8d0fd3837593d4c4547be11",
+    },
+    HashSchemaEpoch {
+        version: 71,
+        // ENG-1 (2026-08-02, effect-driven discard becomes a real player choice):
+        // `EffectChoiceQuestion` and `EffectChoiceAnswer` each gain a fourth
+        // `Discard` variant (CR 701.9b). decl_fingerprint moves (new variant on
+        // both enums, in the GameState serde closure); stream_fingerprint moves
+        // per the v40 mechanism (canonical_fixture() carries no
+        // pending_effect_choice populated with Discard, so the version-sentinel
+        // byte is what moves it, not the new HashInto arms' own bytes).
+        decl_fingerprint: "ce89c9986695ff29a61bdfa00824bd8524612975158ff5309a8b78bba1821747",
+        stream_fingerprint: "c28455444e0e6399ae7f343924830dfba564eb1b9e27b586711c246540304a3b",
     },
 ];
 
