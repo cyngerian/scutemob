@@ -95,12 +95,15 @@
    *
    * There is no frontend test harness in this repo (plan §8 R7), so none of the
    * decision-stage wiring has an automated test. Unexercised in particular: the
-   * `Slots` branch end-to-end (it needs a triggered ability with targets to reach
-   * a human seat), the shape-dispatch fallback below (unreachable against the real
-   * server, which sends one of exactly four shapes), and every interaction between
-   * the decision stage and the four older stages — which, per the note above,
-   * cannot co-occur, but that is an argument from the server's shape rather than
-   * an observation of a running game.
+   * shape-dispatch fallback below (unreachable against the real server, which sends
+   * one of exactly four shapes), and every interaction between the decision stage
+   * and the four older stages — which, per the note above, cannot co-occur, but
+   * that is an argument from the server's shape rather than an observation of a
+   * running game.
+   *
+   * The `Slots` *channel* is not in that list: `test_ui1_trigger_targets_are_
+   * answered_over_http` drives a real CR 603.3d announcement end to end. What is
+   * untested is this file's rendering of it, like everything else here.
    *
    * # Per-mode target ranges come from the server, not from a guess here
    *
@@ -518,7 +521,7 @@
       </div>
     </div>
 
-    {#if stage === 'decision' && currentShape}
+    {#if stage === 'decision'}
       <!--
         Dispatch on the SHAPE, never on `decision.question` — `view.rs` says a
         client switching on the question tag "is doing more work than it needs
@@ -526,8 +529,16 @@
         here. The `{:else}` arm is unreachable against the real server and exists
         so an unknown shape degrades to a visible, cancellable message rather than
         to an empty bar with no way forward.
+
+        The outer guard is `stage === 'decision'` ALONE, deliberately. It used to
+        also require `currentShape`, which meant a missing or malformed `answer`
+        rendered NOTHING — no picker, no fallback (the fallback is inside this
+        block), and every action button disabled by `chainOpen`, leaving Escape as
+        the only way out. That is the exact failure the `{:else}` arm exists to
+        prevent, slipping past it. A falsy `currentShape` now falls through to that
+        arm instead. (UI-1 review, LOW 5.)
       -->
-      {#if currentShape.shape === 'Subset'}
+      {#if currentShape?.shape === 'Subset'}
         <DiscardPicker
           prompt={currentDecision.prompt}
           candidates={currentShape.candidates}
@@ -538,7 +549,7 @@
           onConfirm={onDecisionConfirm}
           onCancel={cancelChain}
         />
-      {:else if currentShape.shape === 'PickOne'}
+      {:else if currentShape?.shape === 'PickOne'}
         <SearchPicker
           prompt={currentDecision.prompt}
           candidates={currentShape.candidates}
@@ -550,7 +561,7 @@
           onConfirm={onDecisionConfirm}
           onCancel={cancelChain}
         />
-      {:else if currentShape.shape === 'Partition'}
+      {:else if currentShape?.shape === 'Partition'}
         <PartitionPicker
           prompt={currentDecision.prompt}
           lookedAt={currentShape.looked_at}
@@ -563,7 +574,7 @@
           onConfirm={onDecisionConfirm}
           onCancel={cancelChain}
         />
-      {:else if currentShape.shape === 'Slots'}
+      {:else if currentShape?.shape === 'Slots'}
         <TargetPicker
           slots={decisionSlots}
           min={decisionSlotRange[0]}
@@ -575,7 +586,7 @@
       {:else}
         <div class="unknown-shape">
           <span class="unknown-shape-text">
-            This client does not know how to answer a "{currentShape.shape}" decision.
+            This client does not know how to answer a "{currentShape?.shape ?? 'malformed'}" decision.
           </span>
           <button class="action-btn control" onclick={cancelChain}>Cancel</button>
         </div>

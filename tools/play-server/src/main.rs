@@ -3474,6 +3474,89 @@ mod tests {
             .unwrap_or_default()
     }
 
+    /// **Architecture Invariant 7: a decision addressed to another seat carries
+    /// none of its look entitlement into this seat's payload** (UI-1 review, HIGH 2).
+    ///
+    /// `view::question_card_label` renders the REAL name of a library card, and its
+    /// safety argument's second premise is that the `EffectChoiceQuestion` it reads
+    /// belongs to the seat being rendered. Nothing enforced that: it held only
+    /// because `session::config_for` hard-codes one human seat, so `pending.player`
+    /// happened to always equal `session.human`. A second human seat — the obvious
+    /// M10a direction — would have put seat A's scried library cards, **named**,
+    /// into seat B's payload.
+    ///
+    /// This drives a real scry, confirms the entitlement is being exercised (the
+    /// candidates render as `Swamp`, not as a placeholder), then moves
+    /// `PlaySession::human` to the other seat and re-reads — so the payload is being
+    /// built for a seat that is *not* the one the outstanding question belongs to,
+    /// which is precisely the M10a shape.
+    ///
+    /// **Retargeting the viewer rather than the decision, and the reason is worth
+    /// recording**: a first version mutated `PlaySession::pending.player` instead,
+    /// and it did nothing — every route calls `advance()`, which refreshes `pending`
+    /// straight back off `LocalGame`. `human` is the play server's own field and
+    /// survives.
+    ///
+    /// **Two-sided**: with `seat_view`'s `pending.player == human` filter removed,
+    /// the decision comes back and the assertions below go red.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_ui1_a_foreign_seats_effect_choice_never_reaches_this_payload() {
+        let state = shared_state();
+        ui1_install(&state, UI1_EFFECT_CHOICE_SPELLS);
+        let view = ui1_drive_to_question(&state, "Scry", 400).await;
+        let index = ui1_question_index(&view, "Scry").expect("just found");
+        let option = view["decision"]["actions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|a| a["index"] == index)
+            .expect("the option with that index");
+
+        // Non-vacuity: the entitlement really is in use, so its absence below is a
+        // consequence of the filter and not of the payload being empty anyway.
+        let looked = option["decision"]["answer"]["looked_at"]
+            .as_array()
+            .expect("looked_at");
+        assert!(!looked.is_empty());
+        for card in looked {
+            assert_eq!(
+                card["label"], "Swamp",
+                "the look entitlement must be rendering real names before this test \
+                 can say anything about withholding them"
+            );
+        }
+
+        // Render for the OTHER seat while seat 1's question is outstanding.
+        {
+            let mut guard = state.session.lock().expect("lock");
+            let session = guard.as_mut().expect("a session is installed");
+            assert_eq!(
+                session.pending.as_ref().map(|p| p.player),
+                Some(session.human),
+                "precondition: the question belongs to the seat being rendered"
+            );
+            session.human = mtg_engine::PlayerId(2);
+        }
+
+        let (status, body) = get_raw(&state, "/api/game").await;
+        assert_eq!(status, StatusCode::OK, "{body}");
+        let refetched: Value = serde_json::from_str(&body).expect("body is JSON");
+        assert_eq!(refetched["summary"]["human"], 2, "the viewer really moved");
+        assert!(
+            refetched["decision"].is_null(),
+            "seat 1's question must not appear in seat 2's payload: {}",
+            refetched["decision"]
+        );
+
+        // Asserted over the RAW body, not over parsed fields — the MR-M11-01 idiom.
+        // A future field that carried the question's cards under another name would
+        // be caught by this and not by a field-by-field check.
+        assert!(
+            !body.contains("\"looked_at\""),
+            "the foreign seat's look entitlement leaked into the body: {body}"
+        );
+    }
+
     /// **Architecture Invariant 7, at the look-entitlement channel.**
     ///
     /// `view::question_card_label` reads a card's name off `GameState` rather than

@@ -650,11 +650,21 @@ fn check_partition(
     Ok(())
 }
 
-/// Display tag for an [`mtg_engine::EffectChoiceQuestion`], for the
-/// wrong-variant message. Enumerated rather than `Debug`-ed: a `Debug` would
-/// splice the question's own `ObjectId`s into an error body, and while those ids
-/// are this seat's own, an error string is not a channel that has been reasoned
-/// about (the MR-M11-08 lesson).
+/// Display tag for an [`mtg_engine::EffectChoiceQuestion`], for the wrong-variant
+/// message.
+///
+/// Enumerated rather than `Debug`-ed for **message quality**, not for redaction —
+/// and the distinction is worth stating, because an earlier version of this comment
+/// claimed the latter and was contradicted forty lines above by
+/// [`check_ids`]/[`check_partition`], which both format the candidate ids straight
+/// into their own 400 bodies.
+///
+/// Those ids are fine there and a `Debug` here would be fine too: every id in the
+/// question was just sent to this seat on the wire, in this decision, as the answer
+/// space it is being asked to choose from. What a `Debug` would *not* be is
+/// readable — "this decision asked a scry question" is a diagnosis; a dumped
+/// `EffectChoiceQuestion::Scry { looked_at: [ObjectId(97), ObjectId(98)] }` is a
+/// thing the client has to parse to learn the same fact.
 fn question_kind(question: &mtg_engine::EffectChoiceQuestion) -> &'static str {
     use mtg_engine::EffectChoiceQuestion;
     match question {
@@ -722,9 +732,31 @@ fn seat_view(session: &mut PlaySession, outcome: &AdvanceOutcome) -> SeatView {
 
     // `zip` rather than two `unwrap`s: the pending decision and its wire `seq`
     // are produced together and are structurally inseparable here.
+    //
+    // **The `filter` is Architecture Invariant 7, made structural** (UI-1 review,
+    // HIGH 2). `view::question_card_label` renders the REAL name of a library card
+    // — a scry's `looked_at`, a search's `candidates` — and its whole safety
+    // argument is that the ids come out of an `EffectChoiceQuestion` the engine
+    // minted *for the seat this payload is being rendered for*
+    // (`GameEvent::EffectChoiceRequired::private_to()` names exactly one player).
+    //
+    // Nothing enforced the emphasised half. It held only by arithmetic on a
+    // one-element set: `session::config_for` hard-codes `human_seats: [HUMAN_SEAT]`,
+    // so `session.human` is the only seat `LocalGame` ever parks a decision for, so
+    // `pending.player` happened to always equal it. A second human seat — the
+    // obvious M10a direction — would have rendered seat A's scry candidates, **with
+    // their real names**, into seat B's payload, through a channel both older
+    // Invariant-7 gates are blind to (one scans for omniscient view-model entry
+    // points, the other for another seat's *hand* names).
+    //
+    // A decision addressed to another seat is now simply absent from this one's
+    // payload. That is the correct answer rather than a defensive one: a seat is
+    // not entitled to know what another seat is being asked, and `submit`'s own
+    // `seq` check already refuses to act on it.
     let decision = session
         .pending
         .as_ref()
+        .filter(|pending| pending.player == human)
         .zip(wire_seq)
         .map(|(pending, seq)| view::decision_view(pending, seq, state, &names, &session.names));
 

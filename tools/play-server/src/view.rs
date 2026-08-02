@@ -1298,24 +1298,45 @@ fn order_options(action: &LegalAction, names: &NameIndex) -> Option<OrderBlocker
 /// a HIDDEN zone -- the library. That is why ... `private_to()` returns
 /// `Some(player)`").
 ///
-/// So the safety argument is a *structural* one and it has one premise: this
-/// function is only ever called with an id drawn out of the `EffectChoiceQuestion`
-/// the engine minted **for the seat this payload is being rendered for**. Every
-/// call site below maps over `candidates` / `looked_at` directly for that reason —
-/// none of them takes an id from anywhere else.
+/// So the safety argument is a *structural* one and it has **two** premises:
+///
+/// 1. this function is only ever called with an id drawn out of an
+///    `EffectChoiceQuestion` — every call site below maps over `candidates` /
+///    `looked_at` directly for that reason, and none takes an id from anywhere
+///    else; and
+/// 2. that question is the one the engine minted **for the seat this payload is
+///    being rendered for**.
+///
+/// The second premise used to hold only by arithmetic on a one-element set
+/// (`session::config_for` hard-codes a single human seat, so `pending.player`
+/// happened to always equal `session.human`). It is enforced as of the UI-1 review:
+/// `api.rs::seat_view` filters the pending decision on `pending.player == human`,
+/// so a decision addressed to another seat is absent from this one's payload
+/// rather than rendered into it. Read that filter's comment before weakening it.
 ///
 /// # This is a fourth channel, and a new channel is invisible to an old gate
 ///
 /// Review MR-M11-01's durable lesson, stated in the crate README: *a redaction gate
 /// checks the channel it was written for.* `GameSummary.seed` shipped for three
 /// sessions past two green Invariant-7 gates because it was a reconstruction key
-/// and both gates watched names. This is a fifth: a **look entitlement**, a real
+/// and both gates watched names. This is the fourth: a **look entitlement**, a real
 /// card name from a hidden zone, deliberately rendered.
 ///
-/// It therefore ships with its own gate rather than with an argument:
-/// `test_ui1_a_bot_seats_effect_choice_never_reaches_the_human_payload` renders a
-/// seat view while a *bot* seat holds the pending choice and asserts the human's
-/// payload names none of it.
+/// # What actually holds it — two gates, and what neither of them covers
+///
+/// * `test_ui1_a_foreign_seats_effect_choice_never_reaches_this_payload` is the
+///   behavioural one. It takes a real, live scry decision, retargets it to a bot
+///   seat, and asserts the human's payload loses both the decision and every name
+///   that came through this function. It is two-sided: removing the `seat_view`
+///   filter turns it red.
+/// * `test_ui1_view_rs_reads_game_state_in_exactly_the_two_known_places` pins the
+///   number of raw `GameState` object-table reads in this file's production code at
+///   two, so a *third* look channel cannot be opened in silence.
+///
+/// Neither covers a hidden-information channel that reads `GameState` some other
+/// way — `zones()`, `card_registry()`, `player()`. The count gate watches one
+/// needle, which is the same shape of limitation MR-M11-01 is about, and is said
+/// here rather than left to be rediscovered.
 fn question_card_label(state: &GameState, id: ObjectId) -> String {
     state
         .objects()

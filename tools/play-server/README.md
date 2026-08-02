@@ -816,7 +816,7 @@ payload can identify a hidden card without ever naming it:
 | **Names** — a label that says the card | the view model and `NameIndex` | `test_production_code_never_builds_an_omniscient_view` (source) + `test_seat_view_over_http_contains_no_other_hand_card_names` (body) |
 | **Reconstruction keys** — data that *rebuilds* a hidden zone | `GameSummary.seed`, until MR-M11-01 removed it | `test_mr_m11_01_seat_payload_carries_no_reconstruction_key`, which asserts over the raw body so a rename or a nested copy is caught too |
 | **Free-form strings** — engine text spliced in after redaction | `game_over.violations` / `.reason`, until MR-M11-08 reduced them | `test_mr_m11_08_game_over_payload_carries_no_engine_debug`, which plants a card name in both carriers |
-| **Look entitlements** — a real name from a hidden zone, rendered *on purpose* | `view::question_card_label`, feeding `BlockingDecisionView`'s scry / surveil / search candidates | `test_ui1_view_rs_reads_game_state_in_exactly_the_two_known_places` (source, count-pinned) + the positive half of `test_ui1_scry_partition_is_answered_over_http`, which asserts a scried library card renders its **real** name |
+| **Look entitlements** — a real name from a hidden zone, rendered *on purpose* | `view::question_card_label`, feeding `BlockingDecisionView`'s scry / surveil / search candidates | `test_ui1_a_foreign_seats_effect_choice_never_reaches_this_payload` (behavioural — renders a live scry for the *other* seat and asserts both the decision and every name it carried are gone) + `test_ui1_view_rs_reads_game_state_in_exactly_the_two_known_places` (source, count-pinned) |
 
 The fourth is the only one that is not a leak, and it is worth stating why it is
 in the table anyway. CR 701.22a / 701.23a / 701.25a each instruct **this seat** to
@@ -832,10 +832,24 @@ What earns it a row is that it is a **new channel**, and MR-M11-01's lesson is t
 a redaction gate checks the channel it was written for. Neither existing name gate
 can see this one: the source gate scans for omniscient *view-model* entry points and
 this uses none, and the body scan looks for another seat's *hand* card names and
-these are library cards. So the gate is a count: `view.rs`'s production code may
-read the raw `GameState` object table exactly **twice** — here, and in
-`action_modes`' card-registry lookup, which reads an id the seat already holds and
-no name at all. A third read is not forbidden; it is required to be *deliberate*.
+these are library cards.
+
+Its safety argument has two premises — the ids come out of an `EffectChoiceQuestion`,
+and that question belongs to the seat being rendered — and **the second one was held
+by configuration rather than by code** until the UI-1 review. It was true only by
+arithmetic on a one-element set (`config_for` hard-codes one human seat, so
+`pending.player` always equalled `session.human`); a second human seat would have put
+seat A's scried library cards, named, into seat B's payload. `api.rs::seat_view` now
+filters the pending decision on `pending.player == human`, and the behavioural gate in
+the table above is two-sided against exactly that line.
+
+The count gate is the second half: `view.rs`'s production code may read the raw
+`GameState` object table exactly **twice** — here, and in `action_modes`'
+card-registry lookup, which reads an id the seat already holds and no name at all. A
+third read is not forbidden; it is required to be *deliberate*. It watches one needle
+and would not see a channel opened through `zones()` or `card_registry()`, which is
+the same shape of limitation MR-M11-01 is about and is said here rather than left to
+be rediscovered.
 
 `seed` shipped on **every** seat response for three sessions with both name-channel
 gates green, because `setup::build_initial_state` is deterministic in its config alone
