@@ -421,6 +421,248 @@ fn validate_combat_params(
     }
 }
 
+/// UI-1: check a **blocking-decision** answer against the candidate lists this
+/// same decision sent, before anything is applied.
+///
+/// # Same argument as [`validate_combat_params`], same boundary
+///
+/// The engine checks all of this too, and would refuse it — but as a **422**
+/// carrying a `GameStateError`, i.e. "the engine looked at your answer and said
+/// no". An answer naming a card the response never offered is wrong *against the
+/// response the client is holding*, with no game state needed to see it, which is
+/// this crate's own definition of a 400.
+///
+/// It also matters more here than it does for combat, because the answer types are
+/// richer: a client that got `bottom`/`top` the wrong way round, or that filled in
+/// the wrong `EffectChoiceAnswer` variant, gets a message naming the mismatch
+/// instead of `InvalidCommand("CR 608.2d: answer ... does not answer question ...")`
+/// rendered through the engine-rejection path.
+///
+/// # What is deliberately left to the engine
+///
+/// * **CR 601.2c cross-slot distinctness** for two `TargetPermanentDistinctFrom`
+///   slots naming the same permanent. That is a rules judgment about the
+///   requirement, not about the response, and re-deriving it here would be the
+///   OOS-RS-2 drift class.
+/// * **CR 514.1's step gate and the `choice_id` moment guard.** Both are facts
+///   about the game's state at apply time, not about the response — and the wire
+///   `seq` check already covers the staleness those protect against.
+/// * Everything about whether the decision is still the pending one at all.
+fn validate_decision_params(
+    action: &mtg_simulator::LegalAction,
+    params: &crate::view::ActionParamsDto,
+) -> Result<(), ApiFailure> {
+    use mtg_engine::{EffectChoiceAnswer, EffectChoiceQuestion};
+    use mtg_simulator::LegalAction;
+
+    let bad = |message: String| ApiFailure::new(StatusCode::BAD_REQUEST, "bad_params", message);
+
+    /// Membership + duplication for one flat id list against one candidate set.
+    fn check_ids(
+        submitted: &[mtg_engine::ObjectId],
+        allowed: &[mtg_engine::ObjectId],
+        what: &str,
+        cr: &str,
+    ) -> Result<(), String> {
+        let mut seen = std::collections::BTreeSet::new();
+        for id in submitted {
+            if !allowed.contains(id) {
+                return Err(format!(
+                    "object {} is not among the cards this {what} offered ({cr}); this \
+                     decision offered {:?}",
+                    id.0,
+                    allowed.iter().map(|o| o.0).collect::<Vec<_>>()
+                ));
+            }
+            if !seen.insert(id.0) {
+                return Err(format!("object {} appears in the {what} answer twice", id.0));
+            }
+        }
+        Ok(())
+    }
+
+    match action {
+        // CR 514.1 / CR 701.9b. Empty means "accept the engine's default" (see
+        // `ActionParams::discard_cards`), so an empty list skips every check here —
+        // the default is by construction exactly `count` cards from the hand.
+        LegalAction::DiscardToHandSize { count, hand, .. } => {
+            if params.discard_cards.is_empty() {
+                return Ok(());
+            }
+            check_ids(&params.discard_cards, hand, "cleanup discard", "CR 514.1").map_err(bad)?;
+            if params.discard_cards.len() != *count as usize {
+                return Err(bad(format!(
+                    "CR 514.1 requires exactly {count} card(s) to be discarded, got {}",
+                    params.discard_cards.len()
+                )));
+            }
+            Ok(())
+        }
+        // CR 608.2d. The variant check comes first: answering a scry with a search
+        // answer is the mistake most likely to be a client bug rather than a typo,
+        // and reporting it as "you answered the wrong question" beats reporting the
+        // membership failure that would follow from it.
+        LegalAction::AnswerEffectChoice { question, .. } => {
+            let Some(answer) = params.effect_choice_answer.as_ref() else {
+                return Ok(());
+            };
+            match (question, answer) {
+                (
+                    EffectChoiceQuestion::SearchLibrary {
+                        candidates,
+                        may_fail_to_find,
+                    },
+                    EffectChoiceAnswer::SearchLibrary { found },
+                ) => {
+                    match found {
+                        // CR 701.23a.
+                        Some(id) => check_ids(
+                            std::slice::from_ref(id),
+                            candidates,
+                            "search",
+                            "CR 701.23a",
+                        )
+                        .map_err(bad)?,
+                        // CR 701.23d: an unrestricted search MUST find. The picker
+                        // is told this through `may_decline: false` and should not
+                        // offer the button at all.
+                        None if !may_fail_to_find => {
+                            return Err(bad(
+                                "CR 701.23d: this search is not for a card with a stated \
+                                 quality, so failing to find is not legal"
+                                    .to_string(),
+                            ))
+                        }
+                        None => {}
+                    }
+                    Ok(())
+                }
+                (
+                    EffectChoiceQuestion::Scry { looked_at },
+                    EffectChoiceAnswer::Scry { bottom, top },
+                ) => check_partition(looked_at, bottom, top, "scry", "CR 701.22a").map_err(bad),
+                (
+                    EffectChoiceQuestion::Surveil { looked_at },
+                    EffectChoiceAnswer::Surveil { graveyard, top },
+                ) => check_partition(looked_at, graveyard, top, "surveil", "CR 701.25a")
+                    .map_err(bad),
+                _ => Err(bad(format!(
+                    "CR 608.2d: this decision asked a {} question; the answer given is a \
+                     different kind",
+                    question_kind(question)
+                ))),
+            }
+        }
+        // CR 603.3d / CR 601.2c (OOS-DP8-2).
+        LegalAction::ChooseTriggerTargets { slots, .. } => {
+            if params.trigger_targets.is_empty() {
+                return Ok(());
+            }
+            if params.trigger_targets.len() != slots.len() {
+                return Err(bad(format!(
+                    "CR 601.2c: this trigger has {} target slot(s), the answer names {}",
+                    slots.len(),
+                    params.trigger_targets.len()
+                )));
+            }
+            for (i, (submitted, slot)) in params.trigger_targets.iter().zip(slots).enumerate() {
+                // CR 601.2c: an `optional` slot is `UpToN` and takes 0..=max; every
+                // other slot takes exactly one. `handle_choose_trigger_targets`'
+                // own step-6 check, read off the same two fields.
+                let ok = if slot.optional {
+                    submitted.len() <= slot.max as usize
+                } else {
+                    submitted.len() == 1
+                };
+                if !ok {
+                    return Err(bad(format!(
+                        "CR 601.2c: slot {i} takes {}, the answer names {}",
+                        if slot.optional {
+                            format!("up to {}", slot.max)
+                        } else {
+                            "exactly 1".to_string()
+                        },
+                        submitted.len()
+                    )));
+                }
+                let mut seen = Vec::new();
+                for target in submitted {
+                    if !slot.candidates.iter().any(|c| &c.target == target) {
+                        return Err(bad(format!(
+                            "{target:?} is not a legal choice for trigger target slot {i} \
+                             (CR 603.3d)"
+                        )));
+                    }
+                    if seen.contains(&target) {
+                        return Err(bad(format!(
+                            "trigger target slot {i} names the same target twice (CR 601.2c)"
+                        )));
+                    }
+                    seen.push(target);
+                }
+            }
+            Ok(())
+        }
+        // Every other variant: `params.rs` refuses these three fields on it with
+        // `ParamError::UnsupportedParam` -> 400, so there is nothing to add.
+        _ => Ok(()),
+    }
+}
+
+/// CR 701.22a / CR 701.25a: the two piles must PARTITION `whole` — same multiset,
+/// no duplicates, nothing else. `effects::validate_partition`'s check, restated at
+/// the response boundary for the 400/422 reason in [`validate_decision_params`]'s
+/// doc; the engine still runs its own.
+fn check_partition(
+    whole: &[mtg_engine::ObjectId],
+    a: &[mtg_engine::ObjectId],
+    b: &[mtg_engine::ObjectId],
+    what: &str,
+    cr: &str,
+) -> Result<(), String> {
+    let mut seen = std::collections::BTreeSet::new();
+    for id in a.iter().chain(b.iter()) {
+        if !whole.contains(id) {
+            return Err(format!(
+                "object {} is not among the {} card(s) this {what} looked at ({cr}); this \
+                 decision offered {:?}",
+                id.0,
+                whole.len(),
+                whole.iter().map(|o| o.0).collect::<Vec<_>>()
+            ));
+        }
+        if !seen.insert(id.0) {
+            return Err(format!(
+                "object {} is put in both piles of this {what} ({cr})",
+                id.0
+            ));
+        }
+    }
+    if a.len() + b.len() != whole.len() {
+        return Err(format!(
+            "{cr}: a {what} answer must account for all {} card(s) looked at; this one \
+             accounts for {}",
+            whole.len(),
+            a.len() + b.len()
+        ));
+    }
+    Ok(())
+}
+
+/// Display tag for an [`mtg_engine::EffectChoiceQuestion`], for the
+/// wrong-variant message. Enumerated rather than `Debug`-ed: a `Debug` would
+/// splice the question's own `ObjectId`s into an error body, and while those ids
+/// are this seat's own, an error string is not a channel that has been reasoned
+/// about (the MR-M11-08 lesson).
+fn question_kind(question: &mtg_engine::EffectChoiceQuestion) -> &'static str {
+    use mtg_engine::EffectChoiceQuestion;
+    match question {
+        EffectChoiceQuestion::SearchLibrary { .. } => "library search",
+        EffectChoiceQuestion::Scry { .. } => "scry",
+        EffectChoiceQuestion::Surveil { .. } => "surveil",
+    }
+}
+
 /// **404**, deliberately. "No game exists" is the absence of the resource the
 /// route names, which is what 404 means; 409 would imply the resource exists in
 /// a conflicting state. The client's remedy is `POST /api/game`.
@@ -715,6 +957,10 @@ pub async fn post_action(
                 .and_then(|pending| pending.actions.get(req.action_index))
             {
                 validate_combat_params(action, &req.params)?;
+                // UI-1 (CR 514.1 / CR 608.2d / CR 603.3d): same boundary, same
+                // reason — an answer naming something the response never offered
+                // is a 400, not an engine rejection.
+                validate_decision_params(action, &req.params)?;
             }
         }
 
