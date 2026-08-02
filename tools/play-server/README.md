@@ -722,15 +722,20 @@ repeated here so this README does not claim more than the implementation does.
     not blocked by the validator — so this is a client limitation, not a rules
     one. A blocker with the ability can still be assigned once through the UI.
 
-14. **The `Slots` decision shape is unexercised end to end.** The backend channel
-    is complete and unit-tested (`params.rs`'s
-    `trigger_targets_arm_defaults_then_forwards`, `api.rs`'s per-slot cardinality
-    and membership checks), and the frontend dispatches to `TargetPicker` — but no
-    probe drives a real `ChooseTriggerTargets` through HTTP, because reaching one
-    needs a triggered ability whose target slot has two or more candidates and the
-    UI-1 fixture deck (97 Swamps + the two probe spells) contains none. The other
-    three shapes each have a probe that reproduces the default and then drives a
-    different answer. Saying which one does not is cheaper than implying all four do.
+14. **The `Slots` picker itself is unexercised; the `Slots` *channel* is not.**
+    `test_ui1_trigger_targets_are_answered_over_http` drives a real
+    `ChooseTriggerTargets` end to end — Shadow Alley Denizen + Nezumi Prowler, two
+    candidates per slot, a non-default target announced, the granted keyword read
+    back out of the seat view — so the payload, the params channel, the validation
+    and the engine round trip are all covered. What is *not* covered is the
+    `TargetPicker` rendering of it, for the same reason nothing else in the
+    frontend is (limitation 17).
+
+    Worth recording how close this came to being a false claim: the probe's first
+    version asserted "the chosen creature has a keyword" and **passed against the
+    un-fixed code**, because Nezumi Prowler is printed with Ninjutsu. It now
+    asserts what each creature *gains* against a baseline captured before the
+    answer, and was re-checked by reverting the fix.
 
 15. **`Slots` has no "use the default" affordance.** `AnswerShapeView::Slots`
     carries the engine's `default_trigger_targets`, and `Subset` carries its

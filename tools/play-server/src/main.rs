@@ -2711,12 +2711,14 @@ mod tests {
     /// known source-counting defect (playtest triage F4) cannot influence what this
     /// probe observes, and the only two castable spells in the deck are the two the
     /// probes are about.
-    fn ui1_deck() -> mtg_simulator::DeckConfig {
+    /// The two probe spells occupy `main_deck[0]` and `main_deck[1]`. That is what
+    /// makes one seed serve two different fixtures: the shuffle is a permutation of
+    /// *positions* determined by `cfg.seed` alone, so whichever pair of cards sits
+    /// in those two slots lands in the opening hand at [`UI1_SEED`]. Verified by
+    /// sweep for both pairs, not assumed.
+    fn ui1_deck(spells: [&str; 2]) -> mtg_simulator::DeckConfig {
         use mtg_engine::CardId;
-        let mut main_deck = vec![
-            CardId("read-the-bones".to_string()),
-            CardId("diabolic-tutor".to_string()),
-        ];
+        let mut main_deck: Vec<CardId> = spells.iter().map(|s| CardId(s.to_string())).collect();
         while main_deck.len() < 99 {
             main_deck.push(CardId("swamp".to_string()));
         }
@@ -2725,6 +2727,26 @@ mod tests {
             main_deck,
         }
     }
+
+    /// CR 608.2d: the scry and search fixtures.
+    const UI1_EFFECT_CHOICE_SPELLS: [&str; 2] = ["read-the-bones", "diabolic-tutor"];
+
+    /// CR 603.3d: the trigger-target fixture (OOS-DP8-2).
+    ///
+    /// Shadow Alley Denizen ({B}, `Complete`) triggers when **another** black
+    /// creature you control enters and targets an unfiltered `TargetCreature`;
+    /// Nezumi Prowler ({1}{B}, `Complete`, a black creature) has an ETB targeting a
+    /// creature *you* control. Casting the Denizen on turn 1 and the Prowler on the
+    /// human's next turn therefore raises the CR 603.3d announcement, because by
+    /// flush time each slot has **two** candidates — and a slot with two candidates
+    /// is exactly the condition `abilities::forced_trigger_target_answer` fails to
+    /// force, which is what makes the engine ask instead of auto-picking.
+    ///
+    /// Every other route was checked and rejected: every other mono-black `Complete`
+    /// triggered target at this mana value was retargeted to `TargetOpponent` by
+    /// PB-EF6, and `TargetOpponent` has exactly one candidate in a two-player game,
+    /// so it is always forced and never asks.
+    const UI1_TRIGGER_SPELLS: [&str; 2] = ["shadow-alley-denizen", "nezumi-prowler"];
 
     /// Install a two-player fixed-deck session, then drive every request through
     /// the real router exactly as any other test here does.
@@ -2737,15 +2759,15 @@ mod tests {
     /// `build_initial_state`, then `check_all_defs_complete` inside
     /// `LocalGame::start`). Nothing about the HTTP path is stubbed — only the deck
     /// the game starts from.
-    fn ui1_install(state: &SharedState) {
+    fn ui1_install(state: &SharedState, spells: [&str; 2]) {
         let cfg = mtg_simulator::LocalGameConfig {
             player_count: 2,
             human_seats: [mtg_engine::PlayerId(1)].into_iter().collect(),
             bot_kind: BotKind::Heuristic,
             seed: UI1_SEED,
             decks: mtg_simulator::DeckSource::Fixed(vec![
-                (mtg_engine::PlayerId(1), ui1_deck()),
-                (mtg_engine::PlayerId(2), ui1_deck()),
+                (mtg_engine::PlayerId(1), ui1_deck(spells)),
+                (mtg_engine::PlayerId(2), ui1_deck(spells)),
             ]),
             limits: mtg_simulator::LocalGameLimits {
                 max_turns: 200,
@@ -2864,7 +2886,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn test_ui1_scry_partition_is_answered_over_http() {
         let state = shared_state();
-        ui1_install(&state);
+        ui1_install(&state, UI1_EFFECT_CHOICE_SPELLS);
         let view = ui1_drive_to_question(&state, "Scry", 400).await;
         let index = ui1_question_index(&view, "Scry").expect("just found");
         let option = view["decision"]["actions"]
@@ -2977,7 +2999,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn test_ui1_search_pick_is_answered_over_http() {
         let state = shared_state();
-        ui1_install(&state);
+        ui1_install(&state, UI1_EFFECT_CHOICE_SPELLS);
         let view = ui1_drive_to_question(&state, "SearchLibrary", 600).await;
         let index = ui1_question_index(&view, "SearchLibrary").expect("just found");
         let option = view["decision"]["actions"]
@@ -3238,6 +3260,218 @@ mod tests {
                  still be in hand"
             );
         }
+    }
+
+    /// **CR 603.3d — a trigger's target announcement, driven to a non-default
+    /// choice over HTTP. This is OOS-DP8-2's extension proof, executed.**
+    ///
+    /// The claim UI-1 makes is that a blocking-decision payload keyed on the
+    /// answer's *shape* rather than on the question extends to a new question with
+    /// no rework. `ChooseTriggerTargets` was filed as the identical gap to the
+    /// discard and scry ones, and its shape — [`view::AnswerShapeView::Slots`] — is
+    /// the same `Vec<TargetSlotView>` the CR 601.2c target picker already draws. So
+    /// the browser reuses `TargetPicker` and the server reuses `target_options`.
+    ///
+    /// A claim of that kind is worth exactly as much as its test. This one drives a
+    /// real pair of `Complete` card definitions to a real announcement and picks
+    /// something other than the engine's default, then reads the *rendered
+    /// keywords* back out of the seat view — so the whole loop, payload to picker
+    /// answer to game state to next payload, is checked over HTTP.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_ui1_trigger_targets_are_answered_over_http() {
+        let state = shared_state();
+        ui1_install(&state, UI1_TRIGGER_SPELLS);
+        let view = ui1_drive_to_question(&state, "TriggerTargets", 400).await;
+        let index = ui1_question_index(&view, "TriggerTargets").expect("just found");
+        let option = view["decision"]["actions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|a| a["index"] == index)
+            .expect("the option with that index");
+        let decision = &option["decision"];
+
+        assert_eq!(decision["answer_field"], "trigger_targets");
+        let answer = &decision["answer"];
+        assert_eq!(answer["shape"], "Slots");
+
+        let slots = answer["slots"].as_array().expect("slots is an array");
+        assert_eq!(slots.len(), 1, "both fixture triggers have one target slot");
+        let slot = &slots[0];
+        assert_eq!(slot["min"], 1, "a required slot takes exactly one target");
+        assert_eq!(slot["max"], 1);
+
+        // **The condition that makes the engine ask at all.** With one candidate
+        // `forced_trigger_target_answer` determines the announcement and no decision
+        // is raised, so this assertion is the fixture's own non-vacuity check.
+        let candidates = slot["candidates"].as_array().expect("candidates");
+        assert!(
+            candidates.len() >= 2,
+            "a slot with fewer than two candidates is FORCED and would never have \
+             produced this decision: {slot}"
+        );
+        for candidate in candidates {
+            assert_eq!(candidate["kind"], "object");
+            let label = candidate["label"].as_str().expect("label");
+            assert!(
+                label != view::HIDDEN_LABEL && label != view::UNKNOWN_LABEL,
+                "a battlefield creature is public (CR 400.1) and must be named \
+                 through NameIndex: {label:?}"
+            );
+        }
+
+        // Reproduction: the engine's own default announcement, one entry per slot.
+        let default = answer["default"].as_array().expect("default is an array");
+        assert_eq!(default.len(), 1, "one entry per slot");
+        let default_target = &default[0].as_array().expect("slot 0's targets")[0];
+
+        // Pick a candidate the default did NOT.
+        let chosen = candidates
+            .iter()
+            .map(|c| &c["value"])
+            .find(|value| *value != default_target)
+            .unwrap_or_else(|| panic!("no candidate differs from the default: {answer}"));
+        let chosen_id = candidates
+            .iter()
+            .find(|c| &c["value"] == chosen)
+            .and_then(|c| c["id"].as_u64())
+            .expect("the chosen candidate's id");
+        let default_id = candidates
+            .iter()
+            .find(|c| &c["value"] == default_target)
+            .and_then(|c| c["id"].as_u64())
+            .expect("the default is always one of the candidates");
+
+        // **Baselines, and the reason they are needed.** Nezumi Prowler is printed
+        // with Ninjutsu, so "the chosen creature has a keyword" is true before any
+        // trigger resolves. A first draft asserted exactly that and passed against
+        // the un-fixed code — vacuously, on a printed keyword. What discriminates is
+        // what each creature *gains*.
+        let chosen_before = ui1_battlefield_keywords(&view, chosen_id);
+        let default_before = ui1_battlefield_keywords(&view, default_id);
+
+        // Answer every announcement in this CR 603.3b batch with the SAME
+        // non-default creature. Both fixture triggers offer the same two candidates,
+        // so leaving the second to its own default would land a grant on
+        // `default_id` and blunt the assertion below.
+        //
+        // The `Target` is echoed back VERBATIM out of the candidate's `value`, never
+        // rebuilt from `kind`/`id` — the rule `TargetPicker` already follows.
+        let mut view = view;
+        let mut answered = 0usize;
+        for _ in 0..8 {
+            let Some(index) = ui1_question_index(&view, "TriggerTargets") else {
+                break;
+            };
+            let option = view["decision"]["actions"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|a| a["index"] == index)
+                .expect("the option with that index")
+                .clone();
+            let slots = option["decision"]["answer"]["slots"].as_array().unwrap();
+            let pick = slots[0]["candidates"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|c| c["id"] == chosen_id)
+                .unwrap_or_else(|| panic!("the chosen creature must be offered: {option}"))
+                ["value"]
+                .clone();
+            let wire_seq = seq(&view);
+            let (status, next) = post_json(
+                &state,
+                "/api/game/action",
+                json!({
+                    "seq": wire_seq,
+                    "action_index": index,
+                    "params": { "trigger_targets": [[pick]] }
+                }),
+            )
+            .await;
+            assert_eq!(status, StatusCode::OK, "{next}");
+            view = next;
+            answered += 1;
+        }
+        assert!(
+            answered >= 1,
+            "at least one announcement must have been answered"
+        );
+
+        // The grant happens at RESOLUTION, not at announcement, so the stack has to
+        // drain before there is anything to read. Pass until it does.
+        for _ in 0..40 {
+            let stack_empty = view["state"]["zones"]["stack"]
+                .as_array()
+                .map(|s| s.is_empty())
+                .unwrap_or(true);
+            if stack_empty {
+                break;
+            }
+            assert!(
+                !view["decision"].is_null(),
+                "the game ended mid-stack: {view}"
+            );
+            let wire_seq = seq(&view);
+            let actions = view["decision"]["actions"].as_array().unwrap().clone();
+            let pick = actions
+                .iter()
+                .find(|a| a["kind"] == "PassPriority")
+                .or_else(|| actions.iter().find(|a| a["kind"] != "Concede"))
+                .expect("something other than Concede");
+            let index = pick["index"].as_u64().unwrap();
+            let (status, next) = post_json(
+                &state,
+                "/api/game/action",
+                json!({"seq": wire_seq, "action_index": index, "params": {}}),
+            )
+            .await;
+            assert_eq!(status, StatusCode::OK, "{next}");
+            view = next;
+        }
+
+        // `PermanentView.keywords` renders the layer-resolved set, so the effect is
+        // read back out of the seat view rather than out of the engine.
+        let chosen_gained = ui1_gained(&view, chosen_id, &chosen_before);
+        let default_gained = ui1_gained(&view, default_id, &default_before);
+        assert!(
+            !chosen_gained.is_empty(),
+            "the chosen creature must have GAINED the trigger's keyword: gained \
+             {chosen_gained:?} (was {chosen_before:?})"
+        );
+        assert!(
+            default_gained.is_empty(),
+            "the DEFAULT's target must have gained NOTHING — a client submitting \
+             `{{}}` would have produced exactly the opposite pair, and that \
+             asymmetry is the whole discriminator: default gained {default_gained:?}"
+        );
+    }
+
+    /// Keywords `object_id` has in `view` that it did not have in `before`.
+    fn ui1_gained(view: &Value, object_id: u64, before: &[String]) -> Vec<String> {
+        ui1_battlefield_keywords(view, object_id)
+            .into_iter()
+            .filter(|k| !before.contains(k))
+            .collect()
+    }
+
+    /// Rendered keywords of a battlefield permanent, out of the seat payload.
+    fn ui1_battlefield_keywords(view: &Value, object_id: u64) -> Vec<String> {
+        view["state"]["zones"]["battlefield"]
+            .as_object()
+            .expect("battlefield is an object keyed by player name")
+            .values()
+            .filter_map(|permanents| permanents.as_array())
+            .flatten()
+            .find(|p| p["object_id"] == object_id)
+            .and_then(|p| p["keywords"].as_array())
+            .map(|ks| {
+                ks.iter()
+                    .filter_map(|k| k.as_str().map(str::to_string))
+                    .collect()
+            })
+            .unwrap_or_default()
     }
 
     /// **Architecture Invariant 7, at the look-entitlement channel.**
