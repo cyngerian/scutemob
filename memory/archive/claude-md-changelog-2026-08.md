@@ -1172,6 +1172,71 @@ and this batch is pinned to zero engine lines.
   *closed*, DX1-6 half-fixed). **Next: PB-DX2** (`ChooseDredge` has no pending-state gate — a free
   card for any player at any time; wire-neutral), then **PB-DX3** (2 flips, 0 engine lines).
 
+
+- 2026-08-02 — **CARDS-1 SHIPPED** (`scutemob-179`): **OOS-M11-10 (equip)
+  CLOSED** — every equip activation in the corpus paid its cost and attached to nothing, because a
+  def declaring `targets: vec![]` is not under-validated but *un*-validated (`abilities.rs` guards
+  its CR 601.2c pass with `if !target_requirements.is_empty()`), so the picker never asked and
+  `DeclaredTarget { index: 0 }` resolved against an empty list. Card-def-only, **0 engine lines**.
+  The roster re-derived from `all_cards()` confirmed the seed's 17/16 arithmetic and then broke its
+  conclusion: the batch is **17 defs, not 16** — `helm_of_the_host`, the def the seed called the one
+  that already declared a requirement, declared a bare `TargetCreature`, dropping CR 702.6a's "you
+  control", so *the designated reference def was itself under-restrictive*. All 17 now carry
+  `TargetCreatureWithFilter { controller: You }`; all 17 printed lines MCP-verified as plain
+  `Equip {N}` with no CR 702.6c restriction. Two of the tests written to fail pre-fix **passed** —
+  the legacy special-case does validate a *volunteered* target, so the defect was never "equip
+  doesn't validate", it was "nothing ever asks", which is exactly why the TUI never surfaced it and
+  the browser client did on its first human game. **0 completeness flips** (body byte-identical,
+  **1,137/1,804 = 63.0%**); PROTOCOL **33** / HASH **70** unmoved, gate-executed not predicted (the
+  criterion's "PROTOCOL 32" was stale since PB-DX6); `decision_gate` 18/18, no pin moves. New
+  permanent gates `core::cards1_equip_target_roster` (R1–R3) + `primitives::cards1_equip_target_
+  repair` (T1–T7b). Seeds **OOS-CARDS1-1** (Fortify, same shape, card-def-only) and
+  **OOS-CARDS1-2** (Reconfigure, same shape but written in *engine* source, and CR 702.151a's
+  "**another**" means it needs `exclude_self`) filed, both deliberately unfixed. **Read this
+  closure as the target-slot half ONLY**: the batch's `/review` found, and a re-measure against
+  `all_cards()` confirmed, that **21 further Equipment defs print "Equip {N}" and have no equip
+  ability at all — 10 deck-legal `Complete`, 9 of them by the `#[default]` derive** (`K::Equip` is
+  a `KeywordHandling::Marker` that synthesises nothing). That is a *larger* population than this
+  batch touched, one link earlier in the same chain ("there is no action to pick" rather than "the
+  picker never asks"), and it is filed as **OOS-CARDS1-3** — R1's exact-17 pin would otherwise
+  read as a clean sweep of the equip surface. **Also recorded:
+  `OOS-M11-10` names TWO distinct seeds** — this batch closed the equip one; the loyalty-ability
+  targeting gap of the same ID is **still OPEN**, and every cite outside the audit table means that
+  one. **Full narrative: `memory/archive/claude-md-changelog-2026-08.md`.**
+- 2026-08-02 — **SIM-1 SHIPPED** (`scutemob-175`): playtest-triage **F7**
+  closed — a human can cast their commander from the command zone. **The engine was never the
+  problem**: `casting.rs` has supported CR 903.8 since M6 (zone-derived detection, the "not in your
+  hand" gate, the `commander_ids` check, the tax, the counter, the event). `StubProvider` simply
+  never looked in the zone, so the browser correctly reported the server had offered nothing — the
+  frontend and the wire were both innocent (`from_zone` is read **nowhere** in the workspace).
+  **Zero engine lines**; PROTOCOL **33** / HASH **70** gate-executed unmoved; coverage unmoved at
+  63.0%. The brief named **one** place the tax was needed; there were **three** — offer gate, human
+  `submit` auto-tap, bot `advance()` auto-tap — all reading the printed cost, a defect
+  `local_game.rs`'s own doc block already described in as many words. One `effective_cast_cost`
+  helper now serves all three and **consumes** `mtg_engine::apply_commander_tax` rather than
+  re-deriving `generic + 2*tax`: SR-38's "only offer what the engine accepts" is only true if the
+  two arithmetics are literally the same function. **The finding that would have shipped a fresh
+  SR-38 violation**: `casting.rs` rejects *any* non-hand cast under an opponent's **Drannith
+  Magistrate** (deck-legal `Complete` by the `#[default]` derive), and `is_cast_restricted_by_stax`
+  says in its own doc that it deliberately skips per-card **zone** restrictions — harmless for
+  exactly one reason, that every offer had always been a hand cast. Every command-zone offer is a
+  non-hand cast. Generalisable: **a guard that is "harmless because unreachable" becomes a defect
+  the moment you widen what reaches it — audit the reachability argument, not the guard.** The
+  batch's own `/review` then found the same shape one level up: `OOS-SIM1-3` had framed itself as a
+  complete SR-38 account by enumerating `GameRestriction` variants, but **`GameRestriction` is not
+  the only cast gate** — split second (CR 702.61a) is unmirrored too, and always was. **An
+  enumeration is only as complete as the category it names.** Tests **4,150 → 4,167** (+17: 16
+  matrix + 1 HTTP probe), every discriminator *watched failing* by revert, and the three tax sites
+  proven **independently** load-bearing (offer gate → T3 only; human auto-tap → T8/T8b only; bot
+  auto-tap → T9 only). Seeds **OOS-SIM1-1..4** filed. **Also closed in passing**: the commander-tax
+  half of `OOS-M11-2`. **Not SIM-1's bug but newly reachable**: `OOS-M11-9` (no "already declared
+  this combat" guard) livelocked the scripted playthrough at 19,351 `DeclareAttackers` in one turn,
+  because SIM-1 finally lets a **vigilant** commander reach the battlefield; mitigated in the test
+  policy exactly where `heuristic_bot.rs` had already mitigated the identical loop and said why —
+  client-side, to keep the provider's action list and every recorded fuzz seed untouched. Fuzzer
+  A/B'd against the true merge-base: **zero** per-game differences over 60 games. **Full narrative:
+  `memory/workstream-state.md`.**
+
 ## 2026-08-01 — M11-local COMPLETE (`scutemob-173`); the full session-by-session narrative
 
 The verbatim "Active Milestone" bullet as it stood at milestone close, with the
