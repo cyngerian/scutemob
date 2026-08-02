@@ -6,6 +6,7 @@
 //! the suite if a top-level `tests/*.rs` file reappears.
 
 mod cards1_equip_target_repair;
+mod cards2_printed_field_repair;
 mod counter_replacement_pb_cd;
 mod pb_ac1_untap_counter;
 mod pb_ac2_card_integration;

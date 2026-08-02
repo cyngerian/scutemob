@@ -1,4 +1,4 @@
-// The World Tree
+// The World Tree — Land (not Legendary)
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -6,7 +6,7 @@ pub fn card() -> CardDefinition {
         card_id: cid("the-world-tree"),
         name: "The World Tree".to_string(),
         mana_cost: None,
-        types: supertypes(&[SuperType::Legendary], &[CardType::Land]),
+        types: types(&[CardType::Land]),
         oracle_text: "This land enters tapped.\n{T}: Add {G}.\nAs long as you control six or more \
                       lands, lands you control have \"{T}: Add one mana of any \
                       color.\"\n{W}{W}{U}{U}{B}{B}{R}{R}{G}{G}, {T}, Sacrifice this land: Search \

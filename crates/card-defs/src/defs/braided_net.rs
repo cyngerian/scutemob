@@ -1,5 +1,5 @@
 // Braided Net // Braided Quipu — DFC with Craft (CR 702.167)
-// Front: {2} Artifact, when ETB tap target creature an opponent controls.
+// Front: {2}{U} Artifact, when ETB tap target creature an opponent controls.
 //        Craft with artifact {2}{U}
 // Back:  Braided Quipu, Artifact, when ETB tap target creature,
 //        whenever you cast a spell draw a card
@@ -14,6 +14,7 @@ pub fn card() -> CardDefinition {
         name: "Braided Net".to_string(),
         mana_cost: Some(ManaCost {
             generic: 2,
+            blue: 1,
             ..Default::default()
         }),
         types: types(&[CardType::Artifact]),

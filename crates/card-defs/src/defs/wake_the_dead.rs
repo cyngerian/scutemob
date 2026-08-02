@@ -10,6 +10,7 @@ pub fn card() -> CardDefinition {
         name: "Wake the Dead".to_string(),
         mana_cost: Some(ManaCost {
             black: 2,
+            x_count: 1,
             ..Default::default()
         }),
         // {X}{B}{B} — X cost not expressible in ManaCost struct

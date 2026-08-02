@@ -10,6 +10,7 @@ pub fn card() -> CardDefinition {
         name: "Green Sun's Zenith".to_string(),
         mana_cost: Some(ManaCost {
             green: 1,
+            x_count: 1,
             ..Default::default()
         }),
         types: types(&[CardType::Sorcery]),

@@ -1,4 +1,4 @@
-// Mystic Remora — {U}, Enchantment — Fish; cumulative upkeep {1};
+// Mystic Remora — {U}, Enchantment; cumulative upkeep {1};
 // whenever an opponent casts a noncreature spell, you may draw a card unless that player pays {4}.
 use crate::cards::helpers::*;
 
@@ -10,7 +10,7 @@ pub fn card() -> CardDefinition {
             blue: 1,
             ..Default::default()
         }),
-        types: types_sub(&[CardType::Enchantment], &["Fish"]),
+        types: types(&[CardType::Enchantment]),
         oracle_text: "Cumulative upkeep {1} (At the beginning of your upkeep, put an age counter \
                       on this permanent, then sacrifice it unless you pay its upkeep cost for \
                       each age counter on it.)\nWhenever an opponent casts a noncreature spell, \

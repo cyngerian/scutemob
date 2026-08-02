@@ -1,4 +1,4 @@
-// Overlord of the Hauntwoods — {3}{G}{G}, Enchantment Creature — Avatar Horror 6/5
+// Overlord of the Hauntwoods — {3}{G}{G}, Enchantment Creature — Avatar Horror 6/5 (not Legendary)
 // Impending 4—{1}{G}{G}: enters with 4 time counters, not a creature until last removed.
 // Whenever this permanent enters or attacks, create a tapped colorless Everywhere land token
 // (all basic land types + all five mana abilities).
@@ -50,8 +50,7 @@ pub fn card() -> CardDefinition {
             green: 2,
             ..Default::default()
         }),
-        types: full_types(
-            &[SuperType::Legendary],
+        types: types_sub(
             &[CardType::Enchantment, CardType::Creature],
             &["Avatar", "Horror"],
         ),

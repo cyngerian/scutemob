@@ -1,4 +1,4 @@
-// Cyber Conversion — {2}{U}, Instant
+// Cyber Conversion — {U}{U}, Instant
 // Target creature becomes an artifact in addition to its other types until end of turn. Draw a card.
 use crate::cards::helpers::*;
 
@@ -7,8 +7,7 @@ pub fn card() -> CardDefinition {
         card_id: cid("cyber-conversion"),
         name: "Cyber Conversion".to_string(),
         mana_cost: Some(ManaCost {
-            generic: 2,
-            blue: 1,
+            blue: 2,
             ..Default::default()
         }),
         types: types(&[CardType::Instant]),

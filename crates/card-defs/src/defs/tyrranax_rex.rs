@@ -1,4 +1,4 @@
-// Tyrranax Rex — {X}{G}{G}{G}{G}, Creature — Phyrexian Dinosaur 8/8
+// Tyrranax Rex — {4}{G}{G}{G}, Creature — Phyrexian Dinosaur 8/8
 // Trample, ward {4}, Ravenous (enters with X +1/+1 counters; draw a card if X >= 5)
 use crate::cards::helpers::*;
 
@@ -7,7 +7,8 @@ pub fn card() -> CardDefinition {
         card_id: cid("tyrranax-rex"),
         name: "Tyrranax Rex".to_string(),
         mana_cost: Some(ManaCost {
-            green: 4,
+            generic: 4,
+            green: 3,
             ..Default::default()
         }),
         types: creature_types(&["Phyrexian", "Dinosaur"]),

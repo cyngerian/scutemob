@@ -1,4 +1,4 @@
-// Birchlore Rangers — {G}, Creature — Elf Ranger 1/1
+// Birchlore Rangers — {G}, Creature — Elf Druid Ranger 1/1
 // Tap two untapped Elves you control: Add one mana of any color.
 // Morph {0} (You may cast this card face down as a 2/2 creature for {3}.
 // Turn it face up any time for its morph cost.)
@@ -16,7 +16,7 @@ pub fn card() -> CardDefinition {
             green: 1,
             ..Default::default()
         }),
-        types: types_sub(&[CardType::Creature], &["Elf", "Ranger"]),
+        types: types_sub(&[CardType::Creature], &["Elf", "Druid", "Ranger"]),
         oracle_text: "Tap two untapped Elves you control: Add one mana of any color.\nMorph {0}"
             .to_string(),
         power: Some(1),

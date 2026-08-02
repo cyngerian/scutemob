@@ -1,4 +1,4 @@
-// 73. Saw It Coming — {2}{U}{U}, Instant; Counter target spell.
+// 73. Saw It Coming — {1}{U}{U}, Instant; Counter target spell.
 // Foretell {1}{U} (During your turn, you may pay {2} and exile this card from
 // your hand face down. Cast it on a future turn for its foretell cost.)
 use crate::cards::helpers::*;
@@ -8,7 +8,7 @@ pub fn card() -> CardDefinition {
         card_id: cid("saw-it-coming"),
         name: "Saw It Coming".to_string(),
         mana_cost: Some(ManaCost {
-            generic: 2,
+            generic: 1,
             blue: 2,
             ..Default::default()
         }),

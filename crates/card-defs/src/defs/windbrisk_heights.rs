@@ -1,4 +1,4 @@
-// 112. Windbrisk Heights — Land — Plains; Hideaway 4; enters tapped; {T}: {W}; {W},{T}: play exiled card.
+// 112. Windbrisk Heights — Land; Hideaway 4; enters tapped; {T}: {W}; {W},{T}: play exiled card.
 // CR 702.75: Hideaway 4 triggers on ETB: look at top 4, exile one face-down, put rest on bottom.
 // CR 702.75b: older Hideaway cards errata'd to "Hideaway 4" + separate "enters tapped" line.
 // The play condition ("attacked with 3+ creatures this turn") uses Condition::Always as
@@ -10,7 +10,7 @@ pub fn card() -> CardDefinition {
         card_id: cid("windbrisk-heights"),
         name: "Windbrisk Heights".to_string(),
         mana_cost: None,
-        types: types_sub(&[CardType::Land], &["Plains"]),
+        types: types(&[CardType::Land]),
         oracle_text: "Hideaway 4 (When this land enters, look at the top four cards of your \
                       library, exile one face down, then put the rest on the bottom in a random \
                       order.)\nThis land enters tapped.\n{T}: Add {W}.\n{W}, {T}: You may play \
@@ -29,7 +29,7 @@ pub fn card() -> CardDefinition {
                 is_self: true,
                 unless_condition: None,
             },
-            // {T}: Add {W} (Plains subtype).
+            // {T}: Add {W} (no Plains subtype on the printed card; ability is explicit).
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
                 effect: Effect::AddMana {

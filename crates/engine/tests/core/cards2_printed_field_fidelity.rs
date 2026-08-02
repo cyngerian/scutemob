@@ -62,7 +62,8 @@
 //! `completeness` is for.
 
 use mtg_engine::{
-    CardDefinition, CardType, HybridMana, ManaColor, ManaCost, PhyrexianMana, SubType, SuperType,
+    CardDefinition, CardType, Completeness, HybridMana, ManaColor, ManaCost, PhyrexianMana,
+    SubType, SuperType,
 };
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -377,6 +378,61 @@ fn corpus() -> Vec<CardDefinition> {
     mtg_engine::all_cards()
 }
 
+/// The face whose characteristics the printed line describes.
+///
+/// Almost always the definition itself. The exception is a **meld result** (CR 712.5b): the
+/// combined permanent gets its own `CardDefinition` that is never in anyone's deck and never
+/// cast, exists only to be pointed at by both halves' `meld_pair.melded_card_id`, and carries
+/// the melded characteristics on `back_face` with a deliberately empty front. Scryfall prints
+/// that card's *melded* line ("Legendary Creature — Eldrazi Ooze", 7/4), so comparing the
+/// empty front would report three mismatches that are the design working.
+///
+/// The exception is recognised **structurally** — by being referenced as some other
+/// definition's `melded_card_id` — not by name. A name allowlist would let any def opt out of
+/// the gate by being added to a list; this cannot be entered without another card pointing at
+/// you, which only a real meld pair does. There is exactly one such definition today
+/// (Hanweir, the Writhing Township) and R6 pins that count.
+fn meld_result_ids(defs: &[CardDefinition]) -> BTreeSet<String> {
+    defs.iter()
+        .filter_map(|d| d.meld_pair.as_ref())
+        .map(|m| format!("{:?}", m.melded_card_id))
+        .collect()
+}
+
+struct DefFields {
+    mana_cost: Option<ManaCost>,
+    power: Option<i32>,
+    toughness: Option<i32>,
+    supertypes: BTreeSet<SuperType>,
+    card_types: BTreeSet<CardType>,
+    subtype_words: BTreeSet<String>,
+}
+
+fn def_fields(def: &CardDefinition, meld_results: &BTreeSet<String>) -> DefFields {
+    if meld_results.contains(&format!("{:?}", def.card_id)) {
+        if let Some(face) = def.back_face.as_ref() {
+            return DefFields {
+                mana_cost: face.mana_cost.clone(),
+                power: face.power,
+                toughness: face.toughness,
+                supertypes: face.types.supertypes.iter().copied().collect(),
+                card_types: face.types.card_types.iter().copied().collect(),
+                subtype_words: subtype_words(
+                    face.types.subtypes.iter().map(|SubType(s)| s.as_str()),
+                ),
+            };
+        }
+    }
+    DefFields {
+        mana_cost: def.mana_cost.clone(),
+        power: def.power,
+        toughness: def.toughness,
+        supertypes: def.types.supertypes.iter().copied().collect(),
+        card_types: def.types.card_types.iter().copied().collect(),
+        subtype_words: subtype_words(def.types.subtypes.iter().map(|SubType(s)| s.as_str())),
+    }
+}
+
 fn is_synthetic(name: &str) -> bool {
     SYNTHETIC_ALLOWLIST.contains(&name)
 }
@@ -427,9 +483,11 @@ fn r1_every_definition_has_a_printed_row() {
 #[test]
 fn r2_mana_costs_match_printed() {
     let printed = fixture();
+    let defs = corpus();
+    let melds = meld_result_ids(&defs);
     let mut bad = Vec::new();
     let mut compared = 0usize;
-    for def in corpus() {
+    for def in &defs {
         let Some(p) = printed.get(&def.name) else {
             continue; // R1 owns absence
         };
@@ -448,7 +506,10 @@ fn r2_mana_costs_match_printed() {
                 }
             }
         };
-        let got = def.mana_cost.as_ref().map(canonical_def_cost);
+        let got = def_fields(def, &melds)
+            .mana_cost
+            .as_ref()
+            .map(canonical_def_cost);
         if got != want {
             bad.push(format!(
                 "{}: def {} != printed {} (raw fixture {:?})",
@@ -483,16 +544,20 @@ fn parse_printed_pt(s: &str) -> Result<Option<i32>, ()> {
 #[test]
 fn r3_power_and_toughness_match_printed() {
     let printed = fixture();
+    let defs = corpus();
+    let melds = meld_result_ids(&defs);
     let mut bad = Vec::new();
     let mut compared = 0usize;
-    for def in corpus() {
+    for def in &defs {
         let Some(p) = printed.get(&def.name) else {
             continue;
         };
         compared += 1;
+        let fields = def_fields(def, &melds);
+        let deck_legal = matches!(def.completeness, Completeness::Complete);
         for (field, raw, got) in [
-            ("power", p.power.as_str(), def.power),
-            ("toughness", p.toughness.as_str(), def.toughness),
+            ("power", p.power.as_str(), fields.power),
+            ("toughness", p.toughness.as_str(), fields.toughness),
         ] {
             match parse_printed_pt(raw) {
                 Ok(want) => {
@@ -503,14 +568,35 @@ fn r3_power_and_toughness_match_printed() {
                         ));
                     }
                 }
-                Err(()) => {
-                    // CDA: the printed value is not a number, so no fixed value is correct.
+                Err(()) if deck_legal => {
+                    // CDA (CR 604.3): the printed value is not a number, so no fixed value is
+                    // correct and a `Complete` definition must express it as one.
                     if got.is_some() {
                         bad.push(format!(
                             "{} {field}: def {:?} but printed {:?} is characteristic-defining \
-                             — the definition must carry None",
+                             — a Complete definition must carry None and author the CDA",
                             def.name, got, raw
                         ));
+                    }
+                }
+                Err(()) => {
+                    // Not deck-legal: `validate_deck` refuses this card, so the placeholder can
+                    // never reach a game. This is the ONE field where a non-`Complete` marker
+                    // buys an exemption, and only because no correct number exists — a wrong
+                    // *mana cost* gets no such pass from R2, since the printed cost is a fact
+                    // the definition could simply have copied. The marker is the disclosure
+                    // channel, so require it to actually say something.
+                    if got.is_some() {
+                        let note = match &def.completeness {
+                            Completeness::Complete => String::new(),
+                            other => format!("{other:?}"),
+                        };
+                        assert!(
+                            note.len() > 20,
+                            "{} {field}: carries a placeholder for characteristic-defining {raw:?} \
+                             but its completeness marker {note:?} explains nothing",
+                            def.name
+                        );
                     }
                 }
             }
@@ -531,9 +617,11 @@ fn r3_power_and_toughness_match_printed() {
 #[test]
 fn r4_type_lines_match_printed() {
     let printed = fixture();
+    let defs = corpus();
+    let melds = meld_result_ids(&defs);
     let mut bad = Vec::new();
     let mut compared = 0usize;
-    for def in corpus() {
+    for def in &defs {
         let Some(p) = printed.get(&def.name) else {
             continue;
         };
@@ -545,9 +633,9 @@ fn r4_type_lines_match_printed() {
                 continue;
             }
         };
-        let got_supers: BTreeSet<SuperType> = def.types.supertypes.iter().copied().collect();
-        let got_types: BTreeSet<CardType> = def.types.card_types.iter().copied().collect();
-        let got_subs = subtype_words(def.types.subtypes.iter().map(|SubType(s)| s.as_str()));
+        let fields = def_fields(def, &melds);
+        let (got_supers, got_types, got_subs) =
+            (fields.supertypes, fields.card_types, fields.subtype_words);
 
         if got_supers != want.supertypes {
             bad.push(format!(
@@ -625,6 +713,29 @@ fn r6_non_vacuity_floors() {
          each addition needs a human to confirm that claim"
     );
 
+    // The meld exception is the one place R2/R3/R4 read a face other than the definition's
+    // own. Pin its size, because it is the shape a future def could quietly hide inside.
+    let defs = corpus();
+    let melds = meld_result_ids(&defs);
+    assert_eq!(
+        melds.len(),
+        1,
+        "expected exactly one meld result (Hanweir, the Writhing Township); found {melds:?}. \
+         A new meld pair is fine — confirm its result definition really is a never-cast shell \
+         with its characteristics on back_face, then update this count."
+    );
+    let melded: Vec<&CardDefinition> = defs
+        .iter()
+        .filter(|d| melds.contains(&format!("{:?}", d.card_id)))
+        .collect();
+    assert_eq!(melded.len(), 1, "meld result id resolves to no definition");
+    assert!(
+        melded[0].back_face.is_some(),
+        "{}: named as a meld result but carries no back_face — the melded characteristics \
+         have nowhere to live and def_fields would silently compare the empty front",
+        melded[0].name
+    );
+
     // The canonicalisers must actually canonicalise: two orderings of the same printed
     // cost reduce alike, and two different costs do not. Without this, a bug that made
     // `canonical_printed_cost` return a constant would leave R2 green and empty.
@@ -678,7 +789,10 @@ fn r6_non_vacuity_floors() {
         t.subtypes,
         BTreeSet::from(["Elf".to_string(), "Druid".to_string()])
     );
-    assert!(parse_type_line("Creature — Elf").unwrap().supertypes.is_empty());
+    assert!(parse_type_line("Creature — Elf")
+        .unwrap()
+        .supertypes
+        .is_empty());
     assert_eq!(parse_printed_pt("-"), Ok(None));
     assert_eq!(parse_printed_pt("4"), Ok(Some(4)));
     assert_eq!(parse_printed_pt("*"), Err(()));

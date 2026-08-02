@@ -1,4 +1,4 @@
-// Stock Up — {3}{U}, Instant
+// Stock Up — {2}{U}, Sorcery
 // Look at the top five cards of your library. Put two of them into your hand
 // and the rest on the bottom in a random order.
 //
@@ -13,11 +13,11 @@ pub fn card() -> CardDefinition {
         card_id: cid("stock-up"),
         name: "Stock Up".to_string(),
         mana_cost: Some(ManaCost {
-            generic: 3,
+            generic: 2,
             blue: 1,
             ..Default::default()
         }),
-        types: types(&[CardType::Instant]),
+        types: types(&[CardType::Sorcery]),
         oracle_text: "Look at the top five cards of your library. Put two of them into your hand \
                       and the rest on the bottom in a random order."
             .to_string(),

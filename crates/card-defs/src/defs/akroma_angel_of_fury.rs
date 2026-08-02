@@ -21,7 +21,7 @@ pub fn card() -> CardDefinition {
             red: 3,
             ..Default::default()
         }),
-        types: types_sub(&[CardType::Creature], &["Angel"]),
+        types: full_types(&[SuperType::Legendary], &[CardType::Creature], &["Angel"]),
         oracle_text: "Flying, trample, protection from white and from blue.\nAkroma, Angel of \
                       Fury can't be countered.\n{R}: Akroma, Angel of Fury gets +1/+0 until end \
                       of turn.\nMorph {R}{R}{R}"

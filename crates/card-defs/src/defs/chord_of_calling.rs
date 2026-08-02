@@ -10,6 +10,7 @@ pub fn card() -> CardDefinition {
         name: "Chord of Calling".to_string(),
         mana_cost: Some(ManaCost {
             green: 3,
+            x_count: 1,
             ..Default::default()
         }),
         types: types(&[CardType::Instant]),

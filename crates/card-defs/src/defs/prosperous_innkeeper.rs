@@ -14,11 +14,7 @@ pub fn card() -> CardDefinition {
             green: 1,
             ..Default::default()
         }),
-        types: full_types(
-            &[SuperType::Legendary],
-            &[CardType::Creature],
-            &["Halfling", "Citizen"],
-        ),
+        types: creature_types(&["Halfling", "Citizen"]),
         oracle_text: "When this creature enters, create a Treasure token. (It's an artifact with \
                       \"{T}, Sacrifice this token: Add one mana of any color.\")\nAlliance — \
                       Whenever another creature you control enters, you gain 1 life."

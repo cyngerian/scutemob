@@ -1,4 +1,4 @@
-// Zulaport Cutthroat — {1}{B}, Creature — Human Rogue 1/1.
+// Zulaport Cutthroat — {1}{B}, Creature — Human Rogue Ally 1/1.
 // "Whenever Zulaport Cutthroat or another creature you control dies, each opponent
 // loses 1 life and you gain 1 life for each opponent that lost life."
 // CR 603.2/603.10a: WheneverCreatureDies trigger; controller_you because oracle says
@@ -15,7 +15,7 @@ pub fn card() -> CardDefinition {
             black: 1,
             ..Default::default()
         }),
-        types: creature_types(&["Human", "Rogue"]),
+        types: creature_types(&["Human", "Rogue", "Ally"]),
         oracle_text: "Whenever Zulaport Cutthroat or another creature you control dies, each \
                       opponent loses 1 life and you gain 1 life for each opponent that lost life."
             .to_string(),

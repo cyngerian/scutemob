@@ -365,9 +365,22 @@ fn the_marker_detector_is_not_vacuous() {
     // gap between the two counts. Pinned at the exact measured
     // value, keeping PB-DX3b's convention and its reasoning (any fixed margin silently
     // erodes as later batches flip markers and nothing re-derives it).
+    // CARDS-2 (2026-08-02, `scutemob-181`): threshold lowered 667 -> 666, and this is the one
+    // direction the comment above did not anticipate — the count fell without any def flipping
+    // its marker. `crates/card-defs/src/defs/legolasquick_reflexes.rs` was DELETED: it and
+    // `legolass_quick_reflexes.rs` both defined "Legolas's Quick Reflexes" under different
+    // CardIds, so `CardRegistry::try_new`'s duplicate-id check never saw them, and the corpus
+    // carried one card twice. Both were non-Complete, so removing the twin removes exactly one
+    // marker fragment. RE-MEASURED DIRECTLY as this comment block instructs, not derived:
+    // `all_cards()` reports 1,137 Complete / 666 non-Complete of 1,803 definitions, and an
+    // independent grep of MARKER_FRAGMENTS across `crates/card-defs/src/defs/*.rs` also reports
+    // 666 — the detector still has no gap between the two counts. The Complete numerator is
+    // UNMOVED at 1,137 (this batch flipped no markers); only the denominator fell, because a
+    // double-counted card stopped being counted twice. The new duplicate-name gate is
+    // `core::cards2_printed_field_fidelity::r5_no_two_definitions_share_a_name`.
     assert!(
-        marked >= 667,
-        "marker detector matched {marked} files; expected >= 667. This assertion has NO \
+        marked >= 666,
+        "marker detector matched {marked} files; expected >= 666. This assertion has NO \
          margin (see the comment above) and can fail for two different reasons: (1) \
          MARKER_FRAGMENTS stopped matching (a detector bug -- the gate would then spuriously \
          flag marked defs) or, far more likely on an ordinary day, (2) a ROUTINE Complete \

@@ -20,7 +20,7 @@
       "lifelink"
     ],
     "confidence": "medium",
-    "review_status": "approved",
+    "review_status": "retired",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "Backup Agent card definition (crates/engine/src/cards/defs/backup_agent.rs): mana_cost {2}{W} (generic:2, white:1), 2/3 Human Soldier, abilities: [Keyword(Backup(1)), Keyword(Lifelink)]. CR 702.165a: 'When this creature enters, put N +1/+1 counter(s) on target creature. If that creature is another creature, it gains the following abilities until end of turn.' The engine queues a PendingTriggerKind::Backup when Backup Agent enters (abilities.rs ~line 4499). At trigger queueing time, the engine sets the default target to `trigger.source` (self — Backup Agent). Since self == source, abilities_to_grant is empty (no Lifelink grant). The BackupTrigger stack object is created with target_creature == source_object, counter_count == 1. At resolution (resolution.rs line 2745+): 1 +1/+1 counter is placed on Backup Agent. Effective P/T: base 2/3 + 1 counter = 3/4. Mana for cast: {2}{W} = colorless:2, white:1 in pool. Lifelink on Backup Agent itself (native ability, not granted by Backup trigger) remains at all times — this is intrinsic from the card definition. Llanowar Elves on the battlefield serves as the 'other creature' that could be targeted in a full implementation — included to demonstrate the engine still self-targets. The original scenario requested targeting another creature, but the harness provides no mechanism to override the deterministic self-target default. A dispute is recorded.",
@@ -34,7 +34,8 @@
         "resolved_by": null,
         "resolved_date": null
       }
-    ]
+    ],
+    "retirement_reason": "CARDS-2 (2026-08-02, scutemob-181): the script's subject does not exist. Backup Agent has no Backup and no Lifelink -- it is {1}{W} Creature - Human Citizen 1/1, 'When this creature enters, put a +1/+1 counter on target creature' (MCP oracle). The definition this script was written against implemented KeywordAbility::Backup(1) + Lifelink on a 2/3 Human Soldier costing {2}{W}, i.e. a different card's ability set entirely, and the corpus field-fidelity gate (core::cards2_printed_field_fidelity) caught the cost, the P/T and the subtypes at once. Rewriting the script in place would leave a file named and identified for Backup while testing an ETB counter, so it is retired rather than repurposed. NOTHING IS LOST: no card definition in the corpus declares KeywordAbility::Backup any more, and the keyword's engine behaviour is covered by crates/engine/tests/mechanics_a_d/backup.rs against a mock -- which is the appropriate home for it, since a keyword test that rides one real card silently becomes a test of that card's authoring."
   },
   "initial_state": {
     "format": "commander",

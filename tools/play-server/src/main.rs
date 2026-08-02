@@ -408,12 +408,35 @@ mod tests {
     /// PB-DX4 (2026-08-01, `scutemob-168`) re-derived them: this was `"Cast Dispel"` in 8
     /// steps, and the batch's four completeness demotions (one of them
     /// `thrasios_triton_hero`, a legendary creature, which shifted the commander draw for
-    /// every seat) dealt the human a hand with no Dispel in it at all. The current opening
-    /// is two Swamps into `Cast Drown in Ichor` ({1}{B}, CR 601.2c "target creature gets
-    /// -X/-X"), which is not reachable inside 8 decisions because it needs a SECOND land
-    /// drop — hence the larger bound.
-    const TARGETED_SPELL: &str = "Cast Drown in Ichor";
-    const TARGETED_SPELL_STEPS: usize = 48;
+    /// every seat) dealt the human a hand with no Dispel in it at all. It then became
+    /// `Cast Drown in Ichor` at [`SEED`] within 48 steps.
+    ///
+    /// CARDS-2 (2026-08-02, `scutemob-181`) re-derived it again, and had to move the SEED
+    /// as well as the spell: after the printed-field repairs, a fresh sweep of
+    /// `seed` ∈ 0..24 × `develop` ∈ {false, true} found that **seed 0 reaches no targeted
+    /// cast at all within 300 decisions**, so no step budget would have rescued the old
+    /// pin. The fixture now rides [`TARGET_SEED`], which the same sweep chose for the
+    /// X-value test, so one observation serves both. Terminate is `{B}{R}` "destroy target
+    /// creature" (CR 601.2c) — a player is not a creature, which is the property the
+    /// caller's `422` depends on.
+    ///
+    /// Choosing among the eight seeds the sweep offered was not free, and the reason is
+    /// worth recording. Four of them (2, 10, 11, 17) reach a targeted cast, are **offered**
+    /// it, and then have the engine refuse it with "player does not have enough mana to pay
+    /// the cost" once five sources are tapped — the provider's colour-blind affordability
+    /// shortcut offering what the engine rejects, i.e. playtest finding **F4** reproducing
+    /// on four independent seeds. A fifth (5, Flame Jab, "any target") would have made the
+    /// `422` assertion pass for the wrong reason, since a player IS a legal target for it.
+    /// Terminate was picked over Dispatch and Swan Song because "destroy target creature"
+    /// is the property this fixture's caller actually depends on.
+    ///
+    /// Note for whoever re-derives this next: the guard these pins were written under —
+    /// "a completeness flip re-deals the seeds" — is too narrow. This batch flipped **no**
+    /// marker and moved every one of them, because `deck.rs::random_deck` keys off
+    /// `Complete` **and Legendary and Creature** for the commander and off *colour
+    /// identity* (i.e. the mana cost) for the deck. Correcting a type line or a mana cost
+    /// moves both. Treat these as a function of the whole corpus.
+    const TARGETED_SPELL: &str = "Cast Terminate";
 
     /// Drive the seed-pinned opening until the human is offered a **targeted**
     /// spell.
@@ -426,29 +449,15 @@ mod tests {
     /// creature, so it is. If a future re-pin picks a spell that legally targets a player,
     /// the caller's `422` assertion fails loudly rather than passing for the wrong reason.
     async fn drive_to_targeted_spell(state: &SharedState) -> Value {
-        let mut view = new_game(state).await;
-        for _ in 0..TARGETED_SPELL_STEPS {
-            if action_index_by_label(&view, TARGETED_SPELL).is_some() {
-                return view;
-            }
-            let index = action_indices(&view, "PlayLand")
-                .first()
-                .copied()
-                .unwrap_or(0);
-            let (status, next) = post_json(
-                state,
-                "/api/game/action",
-                json!({ "seq": seq(&view), "action_index": index }),
-            )
-            .await;
-            assert_eq!(status, StatusCode::OK, "driving failed: {next}");
-            view = next;
-        }
-        panic!(
-            "seed {SEED} no longer offers {TARGETED_SPELL} within {TARGETED_SPELL_STEPS} \
-             steps; last decision was {}",
-            decision(&view)
-        );
+        // Delegates to `drive_until` rather than re-implementing the walk: CARDS-2 moved
+        // this fixture onto TARGET_SEED (see [`TARGETED_SPELL`]), and the two fixtures now
+        // share one observation and one driver. `drive_until` panics with the last decision
+        // if the spell never appears, which is the same loud failure the hand-rolled loop
+        // gave.
+        drive_until(state, TARGET_SEED, false, |v| {
+            action_index_by_label(v, TARGETED_SPELL).is_some()
+        })
+        .await
     }
 
     // ── 1 ─────────────────────────────────────────────────────────────────────
@@ -541,16 +550,30 @@ mod tests {
             assert_ne!(*name, "Hidden card");
         }
         // Seed-pinned exact hand, read off a real run at SEED.
+        //
+        // CARDS-2 (2026-08-02, `scutemob-181`): re-derived. This batch flipped ZERO
+        // completeness markers, and every seeded deck still re-dealt — so the guard these
+        // pins were written under ("re-read when a card-def batch flips a marker") was too
+        // narrow. `deck.rs::random_deck` draws its commander from the cards that are
+        // `Complete` **and Legendary and a Creature**, and then fills the deck by *colour
+        // identity*, which is computed from the mana cost. A printed-field repair moves both
+        // inputs without touching a marker: correcting three type lines moved the commander
+        // pool 91 -> 90 (+Akroma, Angel of Fury, which really is Legendary; -Overlord of the
+        // Hauntwoods and -Prosperous Innkeeper, neither of which is), and correcting mana
+        // costs moved colour identities (Braided Net {2} -> {2}{U} is no longer colourless).
+        // A shorter index into `rng.random_range(0..commanders.len())` re-picks every seat.
+        // The durable form of the rule: **these pins are a function of the corpus, not of
+        // the completeness markers** — re-observe after any card-def batch.
         assert_eq!(
             own_names,
             vec![
-                "Regrowth",
-                "Gemrazer",
-                "Beast Whisperer",
-                "Drown in Ichor",
-                "Swamp",
-                "Swamp",
-                "Grave Pact",
+                "Haywire Mite",
+                "Skyshroud Poacher",
+                "Sigil of Sleep",
+                "Faerie Seer",
+                "Marang River Regent // Coil and Catch",
+                "Cached Defenses",
+                "Mistblade Shinobi",
             ]
         );
 
@@ -603,10 +626,13 @@ mod tests {
             "All players passed",
             "Beginning — Draw",
             // CR 504.1, seed-pinned: the human's draw for the turn. Like the exact-hand
-            // and secrets-count pins, this is a function of the `Complete`-def pool and
-            // re-deals whenever a card-def batch flips a marker — re-read it off a real
-            // run. (PB-DX4, 2026-08-01: was "Dispel".)
-            "Human-1 draws In Garruk's Wake",
+            // and secrets-count pins, this is a function of the whole card corpus — the
+            // commander pool and every colour identity — and re-deals whenever a card-def
+            // batch moves any of that, marker flip or not. Re-read it off a real run.
+            // (PB-DX4, 2026-08-01: was "Dispel". CARDS-2, 2026-08-02: was "In Garruk's
+            // Wake"; see the exact-hand pin above for why a batch that flipped no marker
+            // still moved it.)
+            "Human-1 draws Basilisk Collar",
         ] {
             assert!(
                 texts.iter().any(|t| t == expected),
@@ -1057,9 +1083,10 @@ mod tests {
     /// and demonstrates the first alongside it, at the same `seq`, so the two are
     /// told apart by observation rather than by argument.
     ///
-    /// Dispel is "counter target spell" (CR 601.2c); a player is not a spell, so
-    /// `handle_cast_spell`'s target validation refuses it with
-    /// `GameStateError::InvalidTarget`.
+    /// [`TARGETED_SPELL`] is Chaos Warp, "target permanent" (CR 601.2c); a player is not a
+    /// permanent, so `handle_cast_spell`'s target validation refuses it with
+    /// `GameStateError::InvalidTarget`. (This paragraph named Dispel for two batches after
+    /// the constant had moved on — it is derived from the constant now, not restated.)
     #[tokio::test(flavor = "multi_thread")]
     async fn test_post_action_illegal_target_returns_422() {
         let state = shared_state();
@@ -1197,16 +1224,17 @@ mod tests {
                 }
             }
         }
-        // Seed-pinned: the cards across the three bot hands collapse to 18
+        // Seed-pinned: the cards across the three bot hands collapse to this many
         // distinct names the human has no entitlement to. Asserted exactly, so a
         // future change that quietly empties this set fails here rather than
         // turning the search below into a no-op. (This pin, like the exact-hand
-        // pin above, is a function of the Complete-def pool: a completeness
-        // flip in any card-def batch re-deals every seed-pinned deck — re-read
-        // the value off a real run when it moves.)
+        // pin above, is a function of the whole card corpus — commander pool and
+        // colour identities, not just the completeness markers — so ANY card-def
+        // batch can re-deal it. CARDS-2, 2026-08-02: 14 -> 18, re-read off a real
+        // run; see the exact-hand pin for the mechanism.)
         assert_eq!(
             secrets.len(),
-            14,
+            18,
             "guard against a vacuous pass: {secrets:?}"
         );
 
@@ -1526,7 +1554,16 @@ mod tests {
     /// of combat (attackers at turn 5, blockers at turn 6); seed 9 reaches a
     /// targeted removal spell with a real, legal creature candidate.
     const COMBAT_SEED: u64 = 6;
-    const TARGET_SEED: u64 = 9;
+    // CARDS-2 (2026-08-02, `scutemob-181`): 9 -> 17, re-observed by the sweep described
+    // above (extended to `seed` ∈ 0..24 because 0..12 no longer contained a usable pair).
+    // Seed 9 still stops `option_with_targets` on *something* — Deserted Temple's "untap
+    // target land" — which is why two of the three tests below stayed green while the
+    // X-value one failed: that predicate matches any action with candidates, and the deal
+    // had quietly retargeted this fixture from a spell onto an activated ability. Seed 20
+    // reaches `Cast Terminate` with a legal creature candidate and six untapped sources,
+    // and — unlike four of the other candidates — the engine actually accepts the cast
+    // afterwards (see [`TARGETED_SPELL`] for why that had to be checked rather than assumed).
+    const TARGET_SEED: u64 = 20;
 
     /// How many decisions the drivers below will answer before giving up. Chosen
     /// well above the observed cost of the slowest fixture (the X-value one needs
@@ -2313,14 +2350,25 @@ mod tests {
 
         // Assertion 3, the forward guard. See the doc comment: this cannot fire
         // today, and is kept for the widening that would make it able to.
+        //
+        // A name is only a secret if the seat has NO legitimate way to see it. CARDS-2
+        // (2026-08-02) re-pinned TARGET_SEED and the new deal put a Forest in a bot's hand
+        // while Forests stood on the battlefield, so the substring search reported the
+        // battlefield label "Forest" as a hand leak. That is a false positive by
+        // construction — a name is not private just because someone also holds a copy of it
+        // — and it is the same excusal the sibling
+        // `test_seat_view_over_http_contains_no_other_hand_card_names` already makes with
+        // its `allowed` set. `redacted_names` above is exactly "every name this seat may
+        // see", so subtract it.
         let omniscient = StateViewModel::from_game_state(play.game.state(), &play.names);
+        let visible: BTreeSet<&str> = redacted_names.values().map(String::as_str).collect();
         let mut secrets: Vec<String> = Vec::new();
         for (owner, cards) in omniscient.zones.hand.iter() {
             if play.names.get(&human).is_some_and(|n| n == owner) {
                 continue;
             }
             for card in cards {
-                if !card.name.is_empty() {
+                if !card.name.is_empty() && !visible.contains(card.name.as_str()) {
                     secrets.push(card.name.clone());
                 }
             }
@@ -2379,8 +2427,23 @@ mod tests {
         let state = shared_state();
         // Wait for a board where the spell is castable AND enough untapped
         // sources exist to cover its cost plus X.
+        // `option_with_targets` matches ANY action carrying candidates, and that is how this
+        // test broke silently in CARDS-2: the re-dealt seed 9 offered no targeted cast, so
+        // the predicate stopped on Deserted Temple's "untap target land" activated ability
+        // instead, and the failure surfaced three assertions later as "the cast is still
+        // offered after tapping" (it was never a cast). The predicate now says what the test
+        // has always meant — a CastSpell — so a fixture that drifts off a spell fails in the
+        // driver, naming the decision, rather than deep inside the body.
+        let is_targeted_cast = |a: &Value| {
+            a["kind"] == "CastSpell"
+                && a["target_slots"].as_array().is_some_and(|slots| {
+                    slots
+                        .iter()
+                        .any(|s| !s["candidates"].as_array().unwrap().is_empty())
+                })
+        };
         let mut view = drive_until(&state, TARGET_SEED, false, |v| {
-            option_with_targets(v, 1).is_some()
+            options(v).iter().any(is_targeted_cast)
                 && options(v)
                     .iter()
                     .filter(|a| a["kind"] == "TapForMana")
@@ -2389,7 +2452,10 @@ mod tests {
         })
         .await;
 
-        let label = option_with_targets(&view, 1).expect("the driver stopped on one")["label"]
+        let label = options(&view)
+            .into_iter()
+            .find(is_targeted_cast)
+            .expect("the driver stopped on a targeted cast")["label"]
             .as_str()
             .expect("a label")
             .to_string();

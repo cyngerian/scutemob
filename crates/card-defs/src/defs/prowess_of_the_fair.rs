@@ -12,8 +12,8 @@ pub fn card() -> CardDefinition {
             black: 1,
             ..Default::default()
         }),
-        // Kindred Enchantment — Elf: represented as Enchantment with Elf subtype
-        types: types_sub(&[CardType::Enchantment], &["Elf"]),
+        // Kindred Enchantment — Elf
+        types: types_sub(&[CardType::Kindred, CardType::Enchantment], &["Elf"]),
         oracle_text: "Whenever another nontoken Elf is put into your graveyard from the \
                       battlefield, you may create a 1/1 green Elf Warrior creature token."
             .to_string(),

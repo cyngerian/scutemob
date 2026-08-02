@@ -1,4 +1,4 @@
-// Flare of Malice — {3}{B}, Instant
+// Flare of Malice — {2}{B}{B}, Instant
 // You may sacrifice a nontoken black creature rather than pay this spell's mana cost.
 // Target opponent sacrifices a nonland permanent and loses 2 life.
 use crate::cards::helpers::*;
@@ -8,8 +8,8 @@ pub fn card() -> CardDefinition {
         card_id: cid("flare-of-malice"),
         name: "Flare of Malice".to_string(),
         mana_cost: Some(ManaCost {
-            generic: 3,
-            black: 1,
+            generic: 2,
+            black: 2,
             ..Default::default()
         }),
         types: types(&[CardType::Instant]),

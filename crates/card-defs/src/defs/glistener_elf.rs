@@ -1,4 +1,4 @@
-// 108. Glistener Elf — {G}, Creature — Elf Warrior 1/1; Infect.
+// 108. Glistener Elf — {G}, Creature — Phyrexian Elf Warrior 1/1; Infect.
 // CR 702.90: Infect — damage to creatures as -1/-1 counters, to players as poison counters.
 use crate::cards::helpers::*;
 
@@ -10,7 +10,7 @@ pub fn card() -> CardDefinition {
             green: 1,
             ..Default::default()
         }),
-        types: creature_types(&["Elf", "Warrior"]),
+        types: creature_types(&["Phyrexian", "Elf", "Warrior"]),
         oracle_text: "Infect (This creature deals damage to creatures in the form of -1/-1 \
                       counters and to players in the form of poison counters.)"
             .to_string(),

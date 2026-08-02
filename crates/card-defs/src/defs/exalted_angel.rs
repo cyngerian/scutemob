@@ -1,4 +1,4 @@
-// Exalted Angel — {3}{W}{W}{W}, Creature — Angel 4/5
+// Exalted Angel — {4}{W}{W}, Creature — Angel 4/5
 // Flying, lifelink.
 // Morph {2}{W}{W} (You may cast this card face down as a 2/2 creature for {3}.
 // Turn it face up any time for its morph cost.)
@@ -12,8 +12,8 @@ pub fn card() -> CardDefinition {
         card_id: cid("exalted-angel"),
         name: "Exalted Angel".to_string(),
         mana_cost: Some(ManaCost {
-            generic: 3,
-            white: 3,
+            generic: 4,
+            white: 2,
             ..Default::default()
         }),
         types: types_sub(&[CardType::Creature], &["Angel"]),
