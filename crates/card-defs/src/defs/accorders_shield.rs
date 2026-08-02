@@ -49,7 +49,17 @@ pub fn card() -> CardDefinition {
                     target: EffectTarget::DeclaredTarget { index: 0 },
                 },
                 timing_restriction: Some(TimingRestriction::SorcerySpeed),
-                targets: vec![],
+                // CARDS-1 (OOS-M11-10) / CR 702.6a: "Equip {3}" means "[Cost]: Attach this
+                // permanent to target creature you control." The printed line was MCP-verified
+                // as plain "Equip {3}" -- no CR 702.6c quality restriction -- so the requirement is
+                // the unmodified 702.6a one. Authoring it is what makes the target announceable:
+                // an empty `targets` list left `queries::ability_target_requirements` reporting
+                // zero slots, so the browser picker never asked and the attach silently fizzled
+                // with the cost paid.
+                targets: vec![TargetRequirement::TargetCreatureWithFilter(TargetFilter {
+                    controller: TargetController::You,
+                    ..Default::default()
+                })],
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,

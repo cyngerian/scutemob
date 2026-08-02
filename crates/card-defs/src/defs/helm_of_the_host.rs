@@ -51,7 +51,18 @@ pub fn card() -> CardDefinition {
                     target: EffectTarget::DeclaredTarget { index: 0 },
                 },
                 timing_restriction: Some(TimingRestriction::SorcerySpeed),
-                targets: vec![TargetRequirement::TargetCreature],
+                // CARDS-1 (OOS-M11-10) / CR 702.6a: "Equip {5}" means "[Cost]: Attach this
+                // permanent to target creature you control." The printed line was MCP-verified
+                // as plain "Equip {5}" -- no CR 702.6c quality restriction -- so the requirement is
+                // the unmodified 702.6a one. This def is the ONE member of the 17-card equip
+                // roster that already declared a requirement, so its repair is a TIGHTENING, not
+                // an addition: it read a bare `TargetRequirement::TargetCreature`, which dropped
+                // 702.6a's "you control" clause and so offered an opponent's creature as a legal
+                // pick to every target-candidate query. The other 16 declared `targets: vec![]`.
+                targets: vec![TargetRequirement::TargetCreatureWithFilter(TargetFilter {
+                    controller: TargetController::You,
+                    ..Default::default()
+                })],
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,

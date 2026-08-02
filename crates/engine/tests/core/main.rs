@@ -12,6 +12,7 @@ mod builder_tests;
 mod card_def_fixes;
 mod card_defs_fmt;
 mod card_registry_gate;
+mod cards1_equip_target_roster;
 mod cda_tests;
 mod completeness_deviation_scan;
 mod concede;

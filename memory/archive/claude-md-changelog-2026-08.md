@@ -4,6 +4,89 @@
 > snapshot, per the Recurrence rule in CLAUDE.md's "Changelog & history". Newest first.
 > Older entries: `memory/archive/claude-md-changelog-2026-07.md`.
 
+## CARDS-1 — equip target repair batch (`scutemob-179`, 2026-08-02)
+
+**Seed OOS-M11-10 (equip) CLOSED.** Every equip activation in the corpus paid its cost and
+attached to nothing. The first human playtest of the browser client found it; no test, gate, bot
+or fuzz run had ever gone red on it.
+
+**The chain, re-verified by symbol rather than by the seed's line cites.**
+`handle_activate_ability` (`rules/abilities.rs`) reads `target_requirements` from the
+*layer-resolved* `ActivatedAbility.targets`, and its general CR 601.2c validation is guarded by
+`if !target_requirements.is_empty()` — so a def declaring `targets: vec![]` is not
+under-validated, it is **un**-validated: a zero-target activation is accepted outright. A legacy
+`Effect::AttachEquipment` special-case further down does check creature-ness and controller, but
+only via `targets.first()`, so with zero targets it is a no-op; its own comment already said defs
+with proper declarations fall through to the general check. At resolution
+`EffectTarget::DeclaredTarget { index: 0 }` then resolves against an empty list, the attach loop
+never iterates, and nothing is emitted. Browser half: `queries::ability_target_requirements`
+returns that same empty list → `view.rs::action_target_requirements` → `slots()` →
+`ActionOptionView.target_slots` is empty → the picker never asks.
+
+**Roster re-derived from `all_cards()` (SR-36), never from the seed's def-source scan.** It
+confirmed the seed's arithmetic exactly — 17 defs with an `AbilityDefinition::Activated` whose
+effect is `Effect::AttachEquipment`, 16 declaring `targets: vec![]`, `cryptic_coat`'s ETB
+self-attach to `LastCreatedPermanent` correctly outside the roster (it needs no target), and the
+4 prose-only files correctly excluded — and then contradicted its conclusion in one place.
+
+**The batch is 17 defs, not 16.** The seed named `helm_of_the_host` as the one def that "declares
+the `TargetRequirement`", which is true and was read as "the one def that is already correct". It
+declared a bare `TargetRequirement::TargetCreature` — CR 702.6a's **"you control"** clause absent
+— so every target-candidate query offered an opponent's creature as a legal equip target. The
+designated reference def was itself under-restrictive. *Being the only member with a requirement
+is not the same as being the only member with a correct one*, and a batch that trusts its
+reference without re-deriving it inherits the reference's defect.
+
+**The defect is also narrower than "equip never validates".** Two of the tests written to fail
+pre-fix (T3 legal-target attach, T4 opponent-target rejection) **passed** pre-fix, because the
+legacy special-case does validate a target that is volunteered. The engine's validation was
+never wrong; nothing ever *asked*. That is precisely why the TUI — which volunteered targets —
+never surfaced this and the browser client did on its first human game. Recorded rather than
+smoothed over: the prediction in the brief was wrong and the measurement stands.
+
+**Fix**: card-def-only, all 17 →
+`TargetCreatureWithFilter(TargetFilter { controller: TargetController::You, ..Default::default() })`.
+All 17 printed lines MCP-verified as plain `Equip {N}` with **no** CR 702.6c quality restriction,
+so no per-def deviation exists to document (`blackblade_reforged`'s restricted
+"Equip legendary creature {3}" variant is not in the roster at all — that def has no equip ability
+implemented and stays `partial`).
+
+**Evidence executed, not asserted.** 4 of the 11 new tests failed pre-fix and pass post-fix;
+verbatim pre-fix output in `memory/primitives/cards1-equip-fail-before-2026-08-02.md`, including
+the `Ok((GameState{..}, [ManaCostPaid{generic:1}, AbilityActivated{..}]))` that *is* the
+cost-paid-then-fizzle defect. Permanent gates: `core::cards1_equip_target_roster` R1–R3 (exact
+17-name roster pin + per-member requirement shape, so a regression to `targets: vec![]` **or** to a
+bare `TargetCreature` fails loudly) and `primitives::cards1_equip_target_repair` T1–T7b (T1 keeps
+the defect shape itself as a permanent synthetic record).
+
+**Gates**: **0 engine lines** (`git diff` over `crates/engine/src` + `crates/card-types/src` empty).
+**0 completeness flips** — report body byte-identical, coverage unmoved at **1,137/1,804 = 63.0%**
+— so the seed-pin re-read the row required on a flip was never triggered. **PROTOCOL 33 / HASH 70
+unmoved**, confirmed by *executing* `core hash_schema` + `core protocol_schema`, not by predicting
+them (the criterion's "PROTOCOL 32" was stale — PB-DX6 moved it to 33 on main before this branch
+forked; the *intent*, unmoved, is what held). `decision_gate` 18/18 with no pin moves.
+
+**Two follow-on seeds filed**, both found by the same `all_cards()` sweep and both left unfixed on
+purpose. **OOS-CARDS1-1**: `darksteel_garrison` has the identical shape for **Fortify** (CR
+702.67a, "target land you control") — card-def-only and 0 engine lines via
+`TargetPermanentWithFilter { has_card_type: Land, controller: You }`, which was verified live in
+`casting.rs` rather than assumed. **OOS-CARDS1-2**: **Reconfigure** has it too, but the defective
+`targets: vec![]` is written in *engine* source (`testing/replay_harness.rs`'s
+`AbilityDefinition::Reconfigure` expansion), so this batch's zero-engine-lines criterion excluded
+it by construction — and CR 702.151a says "**another** target creature you control", so it needs
+`exclude_self: true` and copying the equip repair verbatim would be wrong. A sweep found no other
+engine-synthesised attach ability, so that class is closed at one site. Both rosters are pinned by
+`t7b`, so either fix must move a pin in the same change.
+
+**Documentation defect found and recorded, not silently worked around**: `OOS-M11-10` names **two
+distinct seeds** in `docs/audits/decision-point-audit.md` §8.1 — the equip one closed here, and a
+still-open loyalty-ability targeting gap filed the same day by M11-local S8's close-out. Every cite
+of the ID *outside* that table (CLAUDE.md, the milestone-reviews doc, `params.rs`'s in-source
+comment, `workstream-state.md:183`) refers to the **loyalty** seed. Both rows are now labelled and
+a collision note sits under the table, so "OOS-M11-10 CLOSED" cannot be misread as closing the
+loyalty gap. Renumbering was declined here because it would rewrite an in-source engine comment
+and this batch is pinned to zero engine lines.
+
 ## Rotated "Last Updated" entries (moved from CLAUDE.md Current State, 2026-08-02)
 
 - 2026-08-02 — **PB-DX6 SHIPPED (`scutemob-172`): the last two unflattened mana-cost payment sites

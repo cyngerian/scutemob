@@ -209,6 +209,29 @@
   successor tasks `scutemob-174..181`). **Full narratives:
   `memory/archive/claude-md-changelog-2026-08.md`** — this bullet holds only the latest delta, per
   the recurrence rule.
+- - **Last Updated**: 2026-08-02 — **CARDS-1 SHIPPED** (`scutemob-179`): **OOS-M11-10 (equip)
+  CLOSED** — every equip activation in the corpus paid its cost and attached to nothing, because a
+  def declaring `targets: vec![]` is not under-validated but *un*-validated (`abilities.rs` guards
+  its CR 601.2c pass with `if !target_requirements.is_empty()`), so the picker never asked and
+  `DeclaredTarget { index: 0 }` resolved against an empty list. Card-def-only, **0 engine lines**.
+  The roster re-derived from `all_cards()` confirmed the seed's 17/16 arithmetic and then broke its
+  conclusion: the batch is **17 defs, not 16** — `helm_of_the_host`, the def the seed called the one
+  that already declared a requirement, declared a bare `TargetCreature`, dropping CR 702.6a's "you
+  control", so *the designated reference def was itself under-restrictive*. All 17 now carry
+  `TargetCreatureWithFilter { controller: You }`; all 17 printed lines MCP-verified as plain
+  `Equip {N}` with no CR 702.6c restriction. Two of the tests written to fail pre-fix **passed** —
+  the legacy special-case does validate a *volunteered* target, so the defect was never "equip
+  doesn't validate", it was "nothing ever asks", which is exactly why the TUI never surfaced it and
+  the browser client did on its first human game. **0 completeness flips** (body byte-identical,
+  **1,137/1,804 = 63.0%**); PROTOCOL **33** / HASH **70** unmoved, gate-executed not predicted (the
+  criterion's "PROTOCOL 32" was stale since PB-DX6); `decision_gate` 18/18, no pin moves. New
+  permanent gates `core::cards1_equip_target_roster` (R1–R3) + `primitives::cards1_equip_target_
+  repair` (T1–T7b). Seeds **OOS-CARDS1-1** (Fortify, same shape, card-def-only) and
+  **OOS-CARDS1-2** (Reconfigure, same shape but written in *engine* source, and CR 702.151a's
+  "**another**" means it needs `exclude_self`) filed, both deliberately unfixed. **Also recorded:
+  `OOS-M11-10` names TWO distinct seeds** — this batch closed the equip one; the loyalty-ability
+  targeting gap of the same ID is **still OPEN**, and every cite outside the audit table means that
+  one. **Full narrative: `memory/archive/claude-md-changelog-2026-08.md`.**
 
 ### What Exists (M0-M9.5 + Engine Core Complete + all P3/P4 abilities)
 

@@ -832,6 +832,72 @@
   (`scutemob-159`) confirmed its exclusion from the primitive queue. `OOS-M11-3` (fuzzer
   nondeterminism in 150-200+ turn games) untouched.
 
+## Worker Handoff (CARDS-1, `scutemob-179`)
+
+**Date**: 2026-08-02 (worker session)
+**Workstream**: playtest-triage successor track (CARDS-1) — **OOS-M11-10 (equip) CLOSED**
+**Task**: `scutemob-179`. Branch `feat/cards-1-equip-target-repair-batch---close-oos-m11-10-16-defs`
+
+**Completed**:
+- **17 card defs repaired** (not the 16 the seed scoped): every `AbilityDefinition::Activated`
+  whose effect is `Effect::AttachEquipment` now declares
+  `TargetCreatureWithFilter { controller: You }` (CR 702.6a). **0 engine lines.**
+- **Roster re-derived from `all_cards()` per SR-36**, never from the seed's def-source scan. It
+  confirmed the seed's counts exactly (17 activated attach sites, 16 empty, `cryptic_coat`'s ETB
+  self-attach correctly excluded, 4 prose-only files correctly excluded) — and then broke its
+  conclusion, see the lesson below.
+- All 17 printed equip lines MCP-verified as plain `Equip {N}`: **no CR 702.6c quality
+  restriction anywhere**, so there is no per-def deviation to document.
+- New permanent gates: `core::cards1_equip_target_roster` R1–R3 and
+  `primitives::cards1_equip_target_repair` T1–T7b (11 tests). Fail-before evidence with verbatim
+  pre-fix output: `memory/primitives/cards1-equip-fail-before-2026-08-02.md`.
+- Gates: **0 completeness flips** (report body byte-identical, 1,137/1,804 = 63.0%);
+  **PROTOCOL 33 / HASH 70 unmoved**, verified by *executing* `core hash_schema` +
+  `core protocol_schema`; `decision_gate` 18/18, no pin moves; `cargo fmt --check` and
+  `tools/check-defs-fmt.sh` (1,804 defs) both clean.
+
+**Durable lessons** (the reason this handoff is worth reading):
+- **The designated reference def was itself wrong.** The seed named `helm_of_the_host` as the one
+  def that "declares the `TargetRequirement`" — true, and it was read as "already correct". It
+  declared a bare `TargetRequirement::TargetCreature`, dropping CR 702.6a's "you control", so it
+  offered opponents' creatures as legal equip targets. *Being the only member with a requirement
+  is not the same as being the only member with a correct one.* A batch that trusts its reference
+  without re-deriving it inherits the reference's defect — the same shape as PB-DX6's "the brief
+  named one arm; all three shared the defect".
+- **Two tests written to fail pre-fix passed pre-fix**, and that was information, not noise: the
+  legacy `AttachEquipment` special-case in `abilities.rs` *does* validate a **volunteered**
+  target. So the defect was never "equip doesn't validate" — it was "**nothing ever asks**".
+  That is exactly why the TUI (which volunteered targets) never surfaced this and the browser
+  client did on its first human game. The prediction was recorded as wrong rather than smoothed.
+- **`OOS-M11-10` names TWO distinct seeds** in `docs/audits/decision-point-audit.md` §8.1 — the
+  equip one (closed here) and a still-OPEN loyalty-ability targeting gap filed the same day by
+  M11-local S8's close-out. **Every cite of the ID outside that table — CLAUDE.md, the
+  milestone-reviews doc, `params.rs`'s in-source comment, and line 183 of this file — means the
+  LOYALTY seed.** Both rows are now labelled and a collision note sits under the table.
+  Renumbering was declined here: it would rewrite an in-source engine comment, and this batch is
+  pinned to zero engine lines. Whoever next touches `params.rs` should renumber the equip row.
+
+**Not done / deferred (deliberate)**:
+- **OOS-CARDS1-1** — `darksteel_garrison` has the identical shape for **Fortify** (CR 702.67a).
+  Card-def-only and 0 engine lines via
+  `TargetPermanentWithFilter { has_card_type: Land, controller: You }` — verified live in
+  `casting.rs`, not assumed. Left alone because criterion 6003 required neighbouring attach
+  mechanisms be untouched.
+- **OOS-CARDS1-2** — **Reconfigure** has it too, but the defective `targets: vec![]` is written in
+  *engine* source (`testing/replay_harness.rs`'s `AbilityDefinition::Reconfigure` expansion), so
+  zero-engine-lines excluded it by construction. CR 702.151a says "**another** target creature you
+  control" — it needs `exclude_self: true`, and copying the equip repair verbatim would be wrong.
+- Both rosters are **pinned** by `t7b` (`{"Darksteel Garrison"}`, `{"Lizard Blades"}`), so either
+  fix must move a pin in the same change.
+
+**Hazards for the collector**:
+- CLAUDE.md and this file both got a new **appended** section (no existing line grown), per the
+  2026-08-02 formatting rule — expect the usual both-sides-edited conflict and take the richer side.
+- `docs/authoring-status.md` / `-prev.json` were regenerated to measure flips and then **reverted**,
+  because the only delta was the timestamp/SHA header. Do not re-run and commit them.
+
+**Commit prefix used**: `scutemob-179:`
+
 ## Last Handoff
 
 **Date**: 2026-08-02 (oversight session — wave-7 crash recovery, both collects, playtest triage)
