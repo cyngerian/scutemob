@@ -416,7 +416,7 @@ mod tests {
     /// `seed` ∈ 0..24 × `develop` ∈ {false, true} found that **seed 0 reaches no targeted
     /// cast at all within 300 decisions**, so no step budget would have rescued the old
     /// pin. The fixture now rides [`TARGET_SEED`], which the same sweep chose for the
-    /// X-value test, so one observation serves both. Dispatch is `{1}{W}` "tap target
+    /// X-value test, so one observation serves both. Dispatch is `{W}` "tap target
     /// creature" (CR 601.2c) — a player is not a creature, which is the property the caller's
     /// `422` depends on.
     ///
@@ -429,22 +429,15 @@ mod tests {
     /// whole corpus **and of the provider**, and a branch that re-derives them must re-derive
     /// them again after any merge that touches `legal_actions.rs`.
     ///
-    /// Choosing among the eight seeds the sweep offered was not free, and the reason is
-    /// worth recording. Four of them (2, 10, 11, 17) reach a targeted cast, are **offered**
-    /// it, and then have the engine refuse it with "player does not have enough mana to pay
-    /// the cost" once five sources are tapped — the provider's colour-blind affordability
-    /// shortcut offering what the engine rejects, i.e. playtest finding **F4** reproducing
-    /// on four independent seeds. A fifth (5, Flame Jab, "any target") would have made the
-    /// `422` assertion pass for the wrong reason, since a player IS a legal target for it.
-    /// Terminate was picked over Dispatch and Swan Song because "destroy target creature"
-    /// is the property this fixture's caller actually depends on.
-    ///
-    /// Note for whoever re-derives this next: the guard these pins were written under —
-    /// "a completeness flip re-deals the seeds" — is too narrow. This batch flipped **no**
-    /// marker and moved every one of them, because `deck.rs::random_deck` keys off
-    /// `Complete` **and Legendary and Creature** for the commander and off *colour
-    /// identity* (i.e. the mana cost) for the deck. Correcting a type line or a mana cost
-    /// moves both. Treat these as a function of the whole corpus.
+    /// Choosing a seed was not free, and the reason is worth recording. Several otherwise
+    /// usable seeds reach a targeted cast, are **offered** it, and then have the engine refuse
+    /// it with "player does not have enough mana to pay the cost" once five sources are tapped
+    /// — the provider's colour-blind affordability shortcut offering what the engine rejects,
+    /// i.e. playtest finding **F4** / **OOS-CARDS2-9** reproducing on several independent
+    /// seeds. Another (Flame Jab, "any target") would have made the `422` assertion pass for
+    /// the wrong reason, since a player IS a legal target for it. So the sweep checks that the
+    /// engine actually ACCEPTS the cast, and the spell must be one a player cannot be a legal
+    /// target of. Dispatch is `{W}` "Tap target creature" (CR 601.2c).
     const TARGETED_SPELL: &str = "Cast Dispatch";
 
     /// Drive the seed-pinned opening until the human is offered a **targeted**
@@ -454,8 +447,9 @@ mod tests {
     /// opening ever changes.
     ///
     /// The caller feeds the found action a `Player` target, which must be ILLEGAL for
-    /// [`TARGETED_SPELL`] — that is the whole point of the test. Drown in Ichor targets a
-    /// creature, so it is. If a future re-pin picks a spell that legally targets a player,
+    /// [`TARGETED_SPELL`] — that is the whole point of the test. It is derived from the
+    /// constant, not restated here: whatever [`TARGETED_SPELL`] names must be a spell for
+    /// which a player is not a legal target, and the sweep that chose it enforced that. If a future re-pin picks a spell that legally targets a player,
     /// the caller's `422` assertion fails loudly rather than passing for the wrong reason.
     async fn drive_to_targeted_spell(state: &SharedState) -> Value {
         // Delegates to `drive_until` rather than re-implementing the walk: CARDS-2 moved

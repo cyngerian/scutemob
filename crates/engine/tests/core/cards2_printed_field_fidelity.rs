@@ -934,6 +934,16 @@ const KNOWN_DIVERGENT_ORACLE_TEXT: &[(&str, &str)] = &[
 /// Definitions with no content words on one side (vanilla creatures, basic lands) are skipped:
 /// there is nothing to compare, not a mismatch.
 ///
+/// **What this floor structurally cannot see, measured rather than guessed.** A reviewer
+/// cross-paired every def's printed text against 40 random other cards — 71,003 pairings — and
+/// **0.196% of completely wrong pairings still score 50 or more**. They concentrate in
+/// template-identical cards: the shocklands score **100** against each other, because the only
+/// thing distinguishing them is the mana symbol inside their reminder text, which this function
+/// drops on purpose; Elvish Mystic vs Fyndhorn Elves and Crucible of Worlds vs Ramunap
+/// Excavator behave the same way. R2 and R4 catch every one of those (different costs, different
+/// type lines), so the corpus is covered — but this rule alone would not, and a future reader
+/// should not read "median 100" as "any wrong text fails here".
+///
 /// One process note, because it is the batch's own lesson turned on itself: the floor of 50 was
 /// chosen from a throwaway Python approximation of this function, which scored
 /// `delighted_halfling` at exactly 50 and `doom_blade` at 50 — so the first draft of the

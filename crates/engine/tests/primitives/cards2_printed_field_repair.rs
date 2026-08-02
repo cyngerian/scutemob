@@ -29,7 +29,7 @@ use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::types::AltCostKind;
 use mtg_engine::{
     all_cards, calculate_characteristics, card_name_to_id, enrich_spec_from_def, process_command,
-    AbilityDefinition, CardDefinition, CardRegistry, CardType, Command, EffectDuration,
+    AbilityDefinition, CardDefinition, CardRegistry, CardType, Command, Effect, EffectDuration,
     EffectFilter, EffectLayer, GameEvent, GameState, GameStateBuilder, KeywordAbility,
     LayerModification, ManaColor, ObjectId, ObjectSpec, PlayerId, Step, SubType, Target, ZoneId,
 };
@@ -342,4 +342,95 @@ fn t8_tyrranax_rex_costs_seven() {
     assert_eq!(cost.generic, 4);
     assert_eq!(cost.green, 3);
     assert_eq!(cost.mana_value(), 7, "CR 202.3: a seven-drop");
+}
+
+// ── T9/T10: the two ABILITY repairs, which no gate can see ────────────────────
+
+#[test]
+/// T9 — Zulaport Cutthroat gains exactly ONE life per death, in a four-player game.
+///
+/// The review-cycle finding this pins is the sharpest correctness bug the batch found. The def
+/// used `Effect::DrainLife { amount: Fixed(1) }`, and `effects/mod.rs` gives the controller the
+/// **total** life lost across all opponents — so in the four-player Commander format this
+/// engine targets, every creature death gained **3** life for a card that prints 1. It shipped
+/// `Complete` and deck-legal.
+///
+/// SR-37 cannot catch this: R1–R8 check printed *fields*, and this is an ability. Nothing else
+/// covered the card either — `grep -rl zulaport crates/engine/tests test-data/` was empty. So
+/// the shape is pinned here, structurally, rather than left to the next re-read.
+fn t9_zulaport_cutthroat_gains_one_life_not_one_per_opponent() {
+    let def = def_named("Zulaport Cutthroat");
+    let effect = def
+        .abilities
+        .iter()
+        .find_map(|a| match a {
+            AbilityDefinition::Triggered { effect, .. } => Some(effect),
+            _ => None,
+        })
+        .expect("Zulaport Cutthroat has a death trigger");
+
+    let debug = format!("{effect:?}");
+    assert!(
+        !debug.contains("DrainLife"),
+        "CR 118.4 / the printed text: 'each opponent loses 1 life AND you gain 1 life' is two          effects, not a drain. `Effect::DrainLife` credits the controller with the TOTAL lost,          which is 3 at a four-player table. Effect was: {debug}"
+    );
+    assert!(
+        debug.contains("EachOpponent"),
+        "the life loss is per-opponent: {debug}"
+    );
+    // Exactly one GainLife, and it must be OUTSIDE the per-opponent loop — a GainLife nested
+    // in the ForEach would reintroduce the 3-life bug with different spelling.
+    assert_eq!(
+        debug.matches("GainLife").count(),
+        1,
+        "expected exactly one GainLife: {debug}"
+    );
+    let Effect::Sequence(steps) = effect else {
+        panic!("expected a Sequence of [per-opponent loss, single gain], got {debug}");
+    };
+    assert!(
+        steps.iter().any(|s| matches!(s, Effect::GainLife { .. })),
+        "the GainLife must be a sibling of the ForEach, not nested inside it: {debug}"
+    );
+}
+
+#[test]
+/// T10 — Tyrranax Rex has the four abilities it prints and not the one it does not.
+///
+/// The def declared `KeywordAbility::Ravenous`, which appears on **no printing of this card**,
+/// and omitted haste, Toxic 4 and "this spell can't be countered" — while being the gate's own
+/// motivating example. Repairing its mana cost fixed one defect of five.
+///
+/// Pinned both ways round. The positive half would pass on a def that also kept Ravenous; the
+/// negative half is what encodes the actual finding, and it is why the golden script that
+/// certified the invented keyword had to be retired.
+fn t10_tyrranax_rex_has_its_printed_abilities_and_not_ravenous() {
+    let def = def_named("Tyrranax Rex");
+    let keywords: Vec<&KeywordAbility> = def
+        .abilities
+        .iter()
+        .filter_map(|a| match a {
+            AbilityDefinition::Keyword(k) => Some(k),
+            _ => None,
+        })
+        .collect();
+    for want in [
+        KeywordAbility::Trample,
+        KeywordAbility::Ward(4),
+        KeywordAbility::Haste,
+        KeywordAbility::Toxic(4),
+    ] {
+        assert!(
+            keywords.contains(&&want),
+            "printed keyword {want:?} missing; def has {keywords:?}"
+        );
+    }
+    assert!(
+        !keywords.contains(&&KeywordAbility::Ravenous),
+        "CR 702.156 Ravenous is on NO printing of Tyrranax Rex — it was invented, along with an          oracle_text describing it and a golden script certifying it"
+    );
+    assert!(
+        def.cant_be_countered,
+        "printed 'This spell can't be countered' (CR 701.6a) lives on the definition, not in          `abilities`"
+    );
 }

@@ -121,17 +121,20 @@ pub fn card() -> CardDefinition {
         cant_be_countered: false,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
-        completeness: Completeness::known_wrong(
-            "authored against text this card does not have; a CARDS-2 pass then IMPLEMENTED that \
-             invented text (see the header comment for the full incident) because it was briefed \
-             from this file's own stale comment instead of the oracle. Invented abilities \
-             removed; Craft cost corrected {2}{U} -> {1}{U}. TWO missing primitives, RE-VERIFIED \
-             after a reviewer found four of the six first listed here to exist: (1) a static \
-             activation-lock on another object keyed to its tapped state (LayerModification can \
-             RemoveAllAbilities but cannot forbid activation); (2) a positional library insert \
-             (LibraryPosition is Top/Bottom/ShuffledIn only). Everything else this card needs \
-             exists, so it is mostly authorable and is left unauthored on purpose -- the lock is \
-             the load-bearing half of the front ability. Craft is implemented and correct.",
+        completeness: Completeness::partial(
+            "PARTIAL, not KnownWrong: only Craft is implemented -- the net counters, the whole \
+             tap ability and the entire back face are absent, which is the Partial definition \
+             (card_definition.rs). Originally authored against text this card does not have; a \
+             CARDS-2 pass then IMPLEMENTED that invented text (see the header comment for the \
+             full incident) because it was briefed from this file's own stale comment instead of \
+             the oracle. Invented abilities removed; Craft cost corrected {2}{U} -> {1}{U}. TWO \
+             missing primitives, RE-VERIFIED after a reviewer found four of the six first listed \
+             here to exist: (1) a static activation-lock on another object keyed to its tapped \
+             state (LayerModification can RemoveAllAbilities but cannot forbid activation); (2) a \
+             positional library insert (LibraryPosition is Top/Bottom/ShuffledIn only). \
+             Everything else this card needs exists, so it is mostly authorable and is left \
+             unauthored on purpose -- the lock is the load-bearing half of the front ability. \
+             Craft is implemented and correct.",
         ),
     }
 }

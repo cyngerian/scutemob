@@ -594,6 +594,25 @@ fn test_s8_scripted_human_playthrough_is_clean_on_five_seeds() {
             run.submitted_kinds
         );
     }
+    // The register must stay live. KNOWN_HALTS was only deleted because removing it made the
+    // constant dead and the compiler complained; with KNOWN_FALSE_OFFERS still referenced, an
+    // entry that stopped firing would simply sit here forever. So assert every entry earns its
+    // place — which is what the comment above asks of the reader, now asked of the test too.
+    for (needle, seed_id) in KNOWN_FALSE_OFFERS {
+        assert!(
+            runs.iter()
+                .any(|r| r.error.as_deref().is_some_and(|e| e.contains(needle))),
+            "KNOWN_FALSE_OFFERS still lists {seed_id}, but no seed reaches it any more — \
+             delete the entry rather than carrying a permanent exemption"
+        );
+    }
+    if !excused.is_empty() {
+        eprintln!(
+            "playthrough: {} of {} seeds excused on a known provider false offer: {excused:?}",
+            excused.len(),
+            runs.len()
+        );
+    }
 }
 
 /// Plan item 1, the determinism half — the same seed must produce the same

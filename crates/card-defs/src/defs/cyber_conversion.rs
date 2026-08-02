@@ -9,7 +9,7 @@
 // (of any owner) face down in place — no zone change occurs, `status.face_down`
 // flips on the same object. There is also no `FaceDownKind::Cyberman` (or
 // equivalent) variant: this card's face-down state is a 2/2 *artifact* creature
-// (CR 707.1a's default face-down characteristics are colorless creature 2/2 with no
+// (CR 708.2a's default face-down characteristics are colorless creature 2/2 with no
 // text/name/types, and this card layers "artifact" on top per the ruling that the
 // Cyberman-ness ends the moment the permanent is turned face up). Missing
 // primitives: (a) an `Effect::TurnPermanentFaceDown { target, .. }` (or similar) that

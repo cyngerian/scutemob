@@ -49,8 +49,9 @@ pub fn card() -> CardDefinition {
             // that player pays {4}.
             AbilityDefinition::Keyword(KeywordAbility::Ward(4)),
             AbilityDefinition::Keyword(KeywordAbility::Haste),
-            // CR 702.164a: Toxic 4 — a player dealt combat damage by this creature also
-            // gets four poison counters. CR 120.3g: combat damage to a PLAYER only.
+            // CR 702.164c (702.164a only fixes the notation "toxic N"): a player dealt
+            // combat damage by this creature also gets four poison counters.
+            // CR 120.3g: combat damage to a PLAYER only.
             AbilityDefinition::Keyword(KeywordAbility::Toxic(4)),
         ],
         color_indicator: None,
@@ -62,8 +63,8 @@ pub fn card() -> CardDefinition {
         meld_pair: None,
         spell_additional_costs: vec![],
         activated_ability_cost_reductions: vec![],
-        // CR 701.5a: "This spell can't be countered" is a static ability of the spell
-        // itself, so it lives on the definition rather than in `abilities`.
+        // CR 701.6a is Counter (701.5a is Cast): "this spell can't be countered" is a static
+        // ability of the spell itself, so it lives on the definition, not in `abilities`.
         cant_be_countered: true,
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,

@@ -867,10 +867,11 @@
   can). Both **honestly demoted** with blocker notes naming the missing primitive
   (**OOS-CARDS2-5/6**), not half-repaired.
 - **Zero engine lines**; PROTOCOL/HASH gate-executed unmoved; `decision_gate` 18/18; tests
-  **4,183 / 0 / 5** (post-merge with SIM-1). Coverage **1,133/1,803 = 62.8%**, down from 1,137/1,804 — **4
+  **4,185 / 0 / 5** (post-merge with SIM-1). Coverage **1,133/1,803 = 62.8%**, down from 1,137/1,804 — **4
   completeness flips, ALL demotions**. The number went DOWN because the corpus got truer
   (the PB-DX4 pattern): `cyber_conversion` and `exalted_angel` implemented text on no card,
-  `braided_net`'s real abilities need six absent primitives, `birchlore_rangers`' mana
+  `braided_net`'s two remaining clauses have no expression (its note first claimed six,
+  and a reviewer found four of those to exist), `birchlore_rangers`' mana
   ability has no `Cost` variant.
 
 **Hazards for the next session — read these three:**

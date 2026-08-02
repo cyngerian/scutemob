@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-08-02 10:31 UTC  
-**Git:** `52e59ab3` on `feat/cards-2-corpus-field-fidelity-audit-permanent-gate-mana-cost`  
+**Generated:** 2026-08-02 10:48 UTC  
+**Git:** `23b75885` on `feat/cards-2-corpus-field-fidelity-audit-permanent-gate-mana-cost`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -223,11 +223,12 @@ tyvar_jubilant_brawler: // TODO: Mill effect + conditional graveyard return with
 
 ## ⚠ Completeness-marker drift
 
-11 defs whose `completeness:` marker contradicts their comments. The marker is authoritative (it is what `validate_deck` reads), so fix whichever is stale.
+12 defs whose `completeness:` marker contradicts their comments. The marker is authoritative (it is what `validate_deck` reads), so fix whichever is stale.
 
 - `ashnods_altar` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `birchlore_rangers` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `boggart_shenanigans` — marked partial but has no TODO / ENGINE-BLOCKED comment
+- `braided_net` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `contaminant_grafter` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `emeria_the_sky_ruin` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `grateful_apparition` — marked partial but has no TODO / ENGINE-BLOCKED comment
@@ -240,6 +241,7 @@ tyvar_jubilant_brawler: // TODO: Mill effect + conditional graveyard return with
 ## Recent card-touching commits
 
 ```
+23b75885 scutemob-181: CARDS-2 third fix cycle — merge SIM-1, add R8, close the reviewer's list
 0abb41db scutemob-181: CARDS-2 second fix cycle — the batch's own worst moment, documented
 50f26048 scutemob-181: CARDS-2 fix cycle — the reviewer found the sharpest thing in the batch
 b76ef319 scutemob-181: CARDS-2 — SR-37 docs, two honest demotions, seeds, close-out
@@ -264,7 +266,6 @@ e29dd99f W6-prim: PB-OS11 review-fix — flip gemstone_array + druids_repository
 69768559 W6-prim: PB-OS11 — final PB-OS batch: RemoveCounter mana-ability lowering + batch filtered-attack trigger
 d876d19b W6-prim: PB-OS10 — inter-target distinctness + Jitte any-recipient combat trigger
 63335b8d W6-prim: PB-OS9 — Condition::YouControlYourCommander (OOS-EF3b-1); PROTOCOL 24 / HASH 61
-63148132 W6-prim: PB-OS8 — Effect::LookAtTopThenPlace + TargetFilter.min_cmc_amount (OOS-EF10-1 + OS6-deferred-(d))
 ```
 
 ## Missing card-defs sidecar
