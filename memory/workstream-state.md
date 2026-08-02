@@ -143,9 +143,18 @@
 - **CLOSE-OUT ADDENDUM (2026-08-02, same task, after a kitty crash mid-fix-cycle).** The
   `milestone-reviewer` pass filed **MR-M11-01..21** into
   `docs/mtg-engine-milestone-reviews.md`; the fix cycle it opened was interrupted, and the
-  resume finished it. **All 10 HIGH/MEDIUM are now closed, all 8 LOW deliberately open**
-  (the CLAUDE.md checklist's LOW-no-fix-phase rule), each LOW re-verified as genuinely
-  unchanged rather than assumed. Four things worth carrying:
+  resume finished it. **All 10 HIGH/MEDIUM are now closed; of 8 LOW, 1 closed and 7
+  open**, each of the seven re-verified as genuinely unchanged rather than assumed. The
+  blanket "LOW needs no fix phase" was only half the account and is worth correcting here:
+  the reviewer's `memory/m11-fix-session-plan.md` had scoped **four** LOWs into its two
+  sessions. **MR-M11-12** was taken (a doc cite pointing at a sentence that does not exist
+  — the lying-cite class, doc-only, and the fix documents *both* halves of `OOS-M11-2`,
+  the second verified at the read site rather than copied from CLAUDE.md);
+  **MR-M11-13/14/17** were deferred with the reason recorded at each item, MR-M11-14 on
+  the plan's own advice, since its Session 2 gate names that item as one of the two that
+  can perturb the 500-game fuzz parity — and that parity run is the branch's evidence for
+  acceptance criterion 5977. The plan's checkboxes are now accurate rather than untouched.
+  Five things worth carrying:
 
   - **The HIGH is the one nobody's gate could see, and it is the reusable shape.**
     `GameSummary.seed` shipped on **every** seat payload for three sessions. Since
@@ -180,6 +189,14 @@
     `crates/engine/src/state/hash.rs` rather than carrying the figure forward, which is
     the same move that caught three arithmetic slips inside PB-DX5 itself. This file
     already had it right.
+  - **A fix plan nobody ticks reads as a fix plan nobody ran.** `m11-fix-session-plan.md`
+    still had all fourteen boxes unchecked while eleven of its items had shipped — which
+    is the same failure as the reviews doc's eighteen `OPEN` rows, in a second file, and
+    it is what made the close-out's first account of the LOWs wrong (it said all eight
+    were untouched-by-design; four had actually been *scoped into sessions*, so three of
+    them needed a stated deferral rather than a blanket rule). Both files are now
+    accurate. **The generalisable bit: the artefact a reviewer produces is a second place
+    the work has to be recorded, and finishing the work does not update it.**
 
 - **What M11-local did NOT deliver, stated plainly**: card images come from Scryfall over
   the network rather than a cache (M14); the bug-report artefact has no free-text
