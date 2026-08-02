@@ -15,7 +15,6 @@
 
 use std::collections::{BTreeSet, HashMap};
 
-use mtg_engine::rules::casting;
 use mtg_engine::{
     process_command, start_game, Command, GameEvent, GameState, GameStateError, PlayerId,
 };
@@ -445,19 +444,22 @@ impl<P: LegalActionProvider> LocalGame<P> {
             // `50 + 10*mana_value` and `RandomBot` picks uniformly, and nothing caps
             // the retry -- so the taxed cost must be known here too, not just at the
             // offer gate.
-            let commands = if let Command::CastSpell(cast) = &cmd {
-                match legal_actions::effective_cast_cost(&self.state, cast.player, cast.card) {
-                    Some(cost) => {
-                        let mut cmds =
-                            mana_solver::solve_mana_payment(&self.state, cast.player, &cost)
-                                .unwrap_or_default();
-                        cmds.push(cmd.clone());
-                        cmds
-                    }
-                    None => vec![cmd.clone()],
-                }
-            } else {
-                vec![cmd.clone()]
+            //
+            // SIM-2: this is now the SAME function the human path calls, rather than a
+            // parallel `solve_mana_payment` on the printed-plus-tax cost. It was a
+            // parallel one on the strength of a rationale that only held because the
+            // solver was pool-blind: "a bot never has a reason to prefer its existing
+            // pool over a fresh tap, so the asymmetry is harmless". With a residual
+            // solver the two are not merely symmetric but identical, and the bot gets
+            // the announced-`{X}` handling (CR 107.3) for free -- which it never had,
+            // so a bot casting an `{X}` spell tapped for the base cost and had the
+            // cast refused every time.
+            let commands = {
+                let mut cmds = self
+                    .auto_tap_commands_for(&cmd, acting_player)
+                    .unwrap_or_default();
+                cmds.push(cmd.clone());
+                cmds
             };
 
             // Execute all commands in sequence (tap commands + the action).
@@ -550,46 +552,53 @@ impl<P: LegalActionProvider> LocalGame<P> {
         Ok(events)
     }
 
-    /// Item 7 (M11-local Session 3): the pool half of OOS-M11-2. Only ever fires for a
-    /// `Command::CastSpell`, and only when the caster's EXISTING mana pool cannot
-    /// already cover the spell's mana cost — `mana_solver::solve_mana_payment` itself
-    /// still ignores the pool entirely (that gap is unchanged here; see
-    /// `mana_solver.rs`'s doc comment). Returns `None` when no tapping is needed (or
-    /// the command has no mana cost to check), in which case `submit` applies only the
-    /// main command.
+    /// The auto-tapper, shared by the human `submit` path and `advance()`'s bot path
+    /// (SIM-2 — they were two code paths with two different notions of the cost until
+    /// this batch). Only ever fires for a `Command::CastSpell`; returns `None` when the
+    /// command is something else, when the card has no mana cost, or when no plan
+    /// exists, in which case the caller applies the main command alone.
     ///
-    /// `advance()`'s bot-seat auto-tap (above) has no such check and fires
-    /// unconditionally — deliberately left alone this session; a bot never has a
-    /// reason to prefer its existing pool over a fresh tap, so the asymmetry is
-    /// harmless there.
+    /// # The pool half of OOS-M11-2 is CLOSED here — as a residual, not a special case
+    ///
+    /// M11-local S3 opened this function to keep a human from over-tapping when the
+    /// pool already covered a cost. It did that with an all-or-nothing check, and the
+    /// "nothing" branch was wrong: anything short of FULL coverage handed the solver the
+    /// entire printed cost with the pool never subtracted, so two floating mana plus a
+    /// `{3}` cast tapped three more sources and CR 500.4 destroyed the float at the step
+    /// boundary. A human observed exactly that in the browser client (triage F3).
+    /// `mana_solver::solve_mana_payment_with_pool` now does the subtraction itself, and
+    /// a fully-covering pool is simply the residual-is-zero case of the general rule.
     ///
     /// # Two `?`s remain here as the only error-discarding constructs on the human
     /// path, and neither of them hides a failure (M11-local S8, item 4; count and
-    /// list updated by SIM-1)
+    /// list updated by SIM-1, re-counted by SIM-2)
     ///
     /// The S8 error-surfacing audit swept this file and `tools/play-server/src` for
     /// anything that drops a `Result`. Reachable from `submit`, there were originally
     /// three in this function: `state.object(..).ok()?`, `state.player(..).ok()?`
-    /// and `flatten_hybrid_phyrexian(..).ok()?`. SIM-1 replaces the first with a call
+    /// and `flatten_hybrid_phyrexian(..).ok()?`. SIM-1 replaced the first with a call
     /// to `legal_actions::effective_cast_cost`, which performs the identical
     /// `state.object(..).ok()?` (plus a `mana_cost.clone()?`) INSIDE itself — so that
     /// `?` still exists, just one level down, and the argument below still holds for
-    /// it. The two that remain directly in this function are `state.player(..).ok()?`
-    /// (the pool clone) and `flatten_hybrid_phyrexian(..).ok()?`. Each of the three
-    /// (two here, one inside the helper) returns `None`, which means only *"prepend
-    /// no tapping commands"* — the caller then applies the main `CastSpell` alone,
-    /// and if it cannot be paid for the **engine** rejects it and `submit` returns
-    /// `LocalGameError::Rejected`. So a discarded error here still surfaces, as the
-    /// cast's own refusal, rather than as a silently different game.
+    /// it. SIM-2 removed the other two from this function outright: the pool clone and
+    /// the flatten both moved inside the solver, where the pool read is an `if let Ok`
+    /// (a missing player means "no pool to subtract", not a lost error) and the flatten
+    /// is `PipTracker::from_cost`, which is total. **So exactly one `?` of this class is
+    /// now reachable from `submit`, and it is inside `effective_cast_cost`.** It returns
+    /// `None`, which means only *"prepend no tapping commands"* — the caller then
+    /// applies the main `CastSpell` alone, and if it cannot be paid for the **engine**
+    /// rejects it and `submit` returns `LocalGameError::Rejected`. So a discarded error
+    /// here still surfaces, as the cast's own refusal, rather than as a silently
+    /// different game.
     ///
     /// Everything else the sweep found is on the **bot** path inside `advance()`
-    /// (the `Err(_)` auto-pass arm, the unconditional auto-tap's
-    /// `unwrap_or_default()`) and is unreachable from `submit`, which never calls
-    /// `apply_command` at all — it goes to `apply_sequence`, whose only failure mode
-    /// is to return `Rejected` with `self.state` untouched. The bot-seat
-    /// `PassPriority` fallback is therefore structurally out of reach from a human
-    /// submission, not merely unused: `advance()` returns at the
-    /// `human_seats.contains(..)` branch before the bot branch exists.
+    /// (the `Err(_)` auto-pass arm, the auto-tap's `unwrap_or_default()`) and is
+    /// unreachable from `submit`, which never calls `apply_command` at all — it goes to
+    /// `apply_sequence`, whose only failure mode is to return `Rejected` with
+    /// `self.state` untouched. The bot-seat `PassPriority` fallback is therefore
+    /// structurally out of reach from a human submission, not merely unused:
+    /// `advance()` returns at the `human_seats.contains(..)` branch before the bot
+    /// branch exists.
     ///
     /// **Known limitation, narrowed by SIM-1 -- the commander-tax half of
     /// OOS-M11-2 is now CLOSED**: the pool used to be checked against
@@ -598,21 +607,38 @@ impl<P: LegalActionProvider> LocalGame<P> {
     /// tax before either the pool check or the solve, so the offer gate, this human
     /// auto-tap and the bot auto-tap in `advance()` cannot disagree about what has to
     /// be paid (T8/T8b pin this). **Still open, and still invisible here**: no
-    /// Thalia-style cost INCREASE, no cost REDUCTION, and `can_pay_cost` is called
+    /// Thalia-style cost INCREASE, no cost REDUCTION, and the pool subtraction is made
     /// with no `SpellContext`, so CR 106.12 restricted mana is invisible. Those three
-    /// remain the surviving halves of OOS-M11-2 and are out of SIM-1's scope
-    /// (criterion 5987) -- fixing them means teaching the solver/helper about layer-
-    /// resolved cost modifiers, which SIM-1 explicitly does not take.
+    /// remain the surviving halves of OOS-M11-2 and are out of SIM-1's and SIM-2's
+    /// scope -- fixing them means teaching the solver/helper about layer-resolved cost
+    /// MODIFIERS, which neither batch takes.
     ///
-    /// # `{X}` is now paid for — **OOS-M11-8 CLOSED** (S8, item 2)
+    /// **What SIM-2 did close**: the POOL half, at the solver
+    /// (`mana_solver::solve_mana_payment_with_pool` — this function no longer compensates
+    /// for a pool-blind solver, because the solver is not pool-blind), and the
+    /// LAYER-RESOLUTION half, which was recorded as a theoretical gap about *granted*
+    /// mana abilities and turned out to be live-wrong about **face-down** ones
+    /// (CR 707.2 — see `mana_solver::gather_sources`). So OOS-M11-2 is now exactly its
+    /// cost-modifier and CR 106.12 residue, and nothing else.
     ///
-    /// It was not, until here. This function read the *printed* `mana_cost` and knew
+    /// # `{X}` is paid for — **OOS-M11-8 CLOSED for the human path** (S8, item 2) —
+    /// **and now for the bot path too** (SIM-2)
+    ///
+    /// It was not, until S8. This function read the *printed* `mana_cost` and knew
     /// nothing about the announced `cast.x_value`, so a human casting `Fireball` with
     /// X = 3 got the base cost tapped for and the engine then refused the whole cast
     /// — observed by S7 as `422 "player does not have enough mana to pay the cost"`.
     /// CR 107.3 / 601.2b: X is announced at cast time and is part of the cost from
     /// that moment, so `x_value × mana_cost.x_count` generic is added to the cost
-    /// **before** both the pool check and the solve.
+    /// **before** the solve.
+    ///
+    /// S8's close-out said "OOS-M11-8 CLOSED" of a fix that lived in this function
+    /// only, while `advance()` kept its own `solve_mana_payment` call on the taxed
+    /// printed cost — so a *bot* announcing X > 0 still tapped for the base cost and
+    /// had its cast refused. SIM-2 makes `advance()` call this function, which closes
+    /// the second half by construction rather than by a second copy of the arithmetic.
+    /// (`RandomBot`/`HeuristicBot` announce `x_value: 0` today, so the bot half was
+    /// latent, not live — recorded because the *claim* was whole and the fix was half.)
     ///
     /// `x_count`, not a bare `+ x_value`: a card printed `{X}{X}{R}` (Fireball is
     /// `{X}{R}`, but e.g. Rolling Thunder is not the only two-X card) has
@@ -632,16 +658,22 @@ impl<P: LegalActionProvider> LocalGame<P> {
         cost.generic = cost
             .generic
             .saturating_add(cast.x_value.saturating_mul(cost.x_count));
-        let pool = self.state.player(player).ok()?.mana_pool.clone();
-        // `ManaPool::can_spend` debug-asserts the cost is already flattened (no
-        // hybrid/Phyrexian pips) — flatten with the same all-default plan
-        // `action_to_command_with_params`'s CastSpell arm uses (each hybrid pip pays
-        // its first colour option, each Phyrexian pip pays mana) before checking.
-        let (flat_cost, _) = casting::flatten_hybrid_phyrexian(&cost, &[], &[]).ok()?;
-        if casting::can_pay_cost(&pool, &flat_cost) {
-            return None;
-        }
-        mana_solver::solve_mana_payment(&self.state, player, &cost)
+        // SIM-2 (triage F3): solve for the RESIDUAL — the cost that survives the
+        // player's existing pool. `solve_mana_payment_with_pool` performs the
+        // subtraction in `ManaPool::can_spend`'s own order, which is what the
+        // `can_pay_cost` early return this replaces was checking: a pool that covers
+        // the whole cost now yields a zero residual and therefore an EMPTY plan, the
+        // same "tap nothing" outcome, reached by the general rule instead of a special
+        // case. The special case was the bug — everything short of full coverage fell
+        // through to a solve for the ENTIRE printed cost, so two floating mana and a
+        // `{3}` cast tapped three more sources and CR 500.4 destroyed the float at the
+        // step boundary.
+        //
+        // The flatten that used to be needed here (for `can_spend`'s debug-assert) has
+        // moved inside the solver: `PipTracker::from_cost` applies the identical
+        // all-default hybrid/Phyrexian plan that `action_to_command_with_params`'s
+        // CastSpell arm uses, so there is one flattening on this path, not two.
+        mana_solver::solve_mana_payment_with_pool(&self.state, player, &cost)
     }
 
     /// Apply a sequence of commands ATOMICALLY: every command is run against a clone

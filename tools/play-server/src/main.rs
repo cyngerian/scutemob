@@ -1581,7 +1581,23 @@ mod tests {
     // Rift because "tap target creature" is the property the `422` caller actually depends on
     // (Reanimate targets a card in a graveyard, Cyclonic Rift a nonland permanent — both would
     // still 422 on a player, but for a reason the test does not name).
-    const TARGET_SEED: u64 = 1;
+    // SIM-2 (2026-08-02, `scutemob-176`): 1 -> 13, and this is the *second* re-derivation
+    // in two days, by the second half of the rule stated above -- SIM-2 changes
+    // `legal_actions.rs::can_afford` (it now asks the residual solver one question instead
+    // of a pool shortcut OR a whole-cost solve) and `mana_solver.rs` (production counted in
+    // mana, layer-resolved sources, unactivatable abilities excluded), so every seeded game
+    // diverges from turn one. Swept `seed` in 0..24 by running these four tests against each:
+    // **only seed 13 passed all four**, which is a stricter check than the property sweep it
+    // replaces because it asserts the fixtures themselves rather than their preconditions.
+    //
+    // Seed 1 does not merely miss the fixture now -- it drives the engine into an i32
+    // **overflow panic** at `layers.rs`'s `ModifyPower` (`Devilish Valet`, whose Alliance
+    // trigger doubles its own power until end of turn; observed at power = delta =
+    // 1_073_741_824 = 2^30). That is a pre-existing engine fragility on an unbounded
+    // doubling, not a SIM-2 defect and not reachable through anything this batch wrote:
+    // filed as **OOS-SIM2-5**. It is recorded here because "seed 1 panics" would otherwise
+    // look like a property of this fixture rather than of the engine.
+    const TARGET_SEED: u64 = 13;
 
     /// How many decisions the drivers below will answer before giving up. Chosen
     /// well above the observed cost of the slowest fixture (the X-value one needs
@@ -1704,15 +1720,23 @@ mod tests {
                 // finding **F4** is the fourth symptom (Sol Ring credited as one mana). The fix
                 // is one place: make the solver ask whether the ability is *activatable*, not
                 // whether its source is untapped.
+                //
+                // **SIM-2 (`scutemob-176`) CLOSED symptoms 1 and 2 and DELETED their entries**,
+                // adopting the policy the sibling list in
+                // `crates/simulator/tests/local_game_playthrough.rs` states and enforces: *"an
+                // excusal list is a debt register with a maturity date — delete the entry the
+                // moment it stops firing"*. A dead entry is not inert here: this list has no
+                // staleness assertion (the sibling's does), so carrying
+                // `"mana ability activation condition not met"` and `"summoning sickness and
+                // cannot tap for mana"` after the fix would silently drive a future REGRESSION
+                // of either past instead of failing this driver. SIM-2's first pass argued for
+                // keeping them as a record; the record belongs in the seed row (`OOS-CARDS2-9`),
+                // not in a live allowlist.
                 const KNOWN_FALSE_OFFERS: &[&str] = &[
                     // OOS-CARDS2-4: an Aura's target requirement lives in
                     // `KeywordAbility::Enchant(...)`, which `casting.rs` special-cases (CR
                     // 303.4a) and the provider never reads, so the offer says `target_min: 0`.
                     "Aura spells require exactly one target",
-                    // OOS-CARDS2-9, symptom 1 (refused at `rules/mana.rs`).
-                    "mana ability activation condition not met",
-                    // OOS-CARDS2-9, symptom 2 (CR 302.6).
-                    "summoning sickness and cannot tap for mana",
                 ];
                 let reason = next["error"].as_str().unwrap_or_default();
                 assert!(

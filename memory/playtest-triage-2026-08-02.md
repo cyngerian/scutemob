@@ -73,6 +73,15 @@ mechanically checkable field in a def. Same technique extends to P/T and type li
 (metastatic_evangel precedent: transposed P/T + missing subtype).
 
 ### F3 — Auto-tap is all-or-nothing; floating mana wasted
+**CLOSED 2026-08-02 by SIM-2 (`scutemob-176`).** `mana_solver::solve_mana_payment_with_pool`
+subtracts the pool in `ManaPool::can_spend`'s own order and solves the residual, so the
+all-or-nothing check is not repaired but *subsumed*: a fully-covering pool is the
+residual-is-zero case of the general rule. The bot path in `advance()` calls the same helper
+(and so inherits the commander tax and the announced `{X}`, which it never had — see
+`OOS-M11-8`). `can_afford` asks the same question once, closing a third gap this finding did
+not name: a player with `{G}` floating and one Forest up was told a `{1}{G}` spell was
+uncastable, because neither the pool shortcut nor the whole-cost solve covered the middle.
+Evidence: `memory/primitives/sim2-mana-intelligence-2026-08-02.md`.
 `crates/simulator/src/local_game.rs:562-578`: if the pool fully covers the flattened
 cost → tap nothing (`:574-575`); anything less → `solve_mana_payment` is handed the
 **entire printed cost** (`:577`), pool never subtracted. 2 floating + 3-CC cast = 5
@@ -86,6 +95,15 @@ the residual solver once it exists — its "harmless asymmetry" rationale only h
 because of this bug.
 
 ### F4 — Mana solver counts SOURCES, not MANA; no ordering preference
+**CLOSED 2026-08-02 by SIM-2 (`scutemob-176`).** A tapped source now credits its whole
+production to a running tally and each pip is paid from that tally, so a multi-mana source's
+surplus is spendable on the rest of the same payment. Phase 3 picks by least waste (the
+largest production that fits, else the smallest), which is what "prefer small producers"
+is actually for: a `{1}` takes the Forest and leaves the Sol Ring up, and a `{2}` takes the
+Sol Ring alone rather than two Forests. The four fresh reproductions this section records
+below are covered by the same fix, together with **OOS-CARDS2-9**, which named three more
+symptoms of the identical defect and was never filed. Evidence:
+`memory/primitives/sim2-mana-intelligence-2026-08-02.md`.
 `crates/simulator/src/mana_solver.rs:23-147`. `produces` is expanded per unit of mana
 (`:39-44`) and the length is then never used: every phase decrements `remaining` by 1
 per source tapped. Sol Ring (`{C}{C}`) is credited as 1. Phase 3 (generic, `:122-144`)
@@ -99,6 +117,13 @@ correct; no seed anywhere. Fix: decrement by actual produced count; Phase 3 pref
 ascending `produces.len()`; Phase 1 same credit fix for multi-mana colored sources.
 
 ### F5 — Bots tap out every empty upkeep: systematic, not random noise
+**CLOSED 2026-08-02 by SIM-2 (`scutemob-176`).** `HeuristicBot` scores `TapForMana` **0**,
+below `PassPriority`. The choice between demoting and gating on a spend target is
+observationally empty: every mana-consuming action already outscored the old 5, so a tap was
+only ever chosen when it was the sole alternative to passing. Scored 0 rather than removed,
+so it stays choosable when it is all there is. `RandomBot` is untouched, so no recorded fuzz
+seed moves for this reason. Evidence:
+`memory/primitives/sim2-mana-intelligence-2026-08-02.md`.
 `heuristic_bot.rs:70` scores `TapForMana` **5** vs `PassPriority` **1**
 (`heuristic_bot.rs:76`), no spend-intent check → with nothing to cast, the bot
 deterministically taps every source, pool wiped at the step boundary, arrives at main
@@ -171,8 +196,12 @@ TargetPicker (CR 601.2b/h precedes 601.2c). No engine/wire-type change.
 
 ## Status (added 2026-08-02)
 
-**CLOSED**: F1, F2 (CARDS-2, `scutemob-181`); F8 (UI-1, `scutemob-174`); F10 (CARDS-1,
-`scutemob-179`). **OPEN**: F3, F4, F5, F6, F7, F9.
+**CLOSED**: F1, F2 (CARDS-2, `scutemob-181`); F3, F4, F5 (SIM-2, `scutemob-176`); F7 (SIM-1,
+`scutemob-175`); F8 (UI-1, `scutemob-174`); F10 (CARDS-1, `scutemob-179`). **OPEN**: F6, F9.
+
+> F7's banner was already stale when SIM-2 read this file — SIM-1 closed it on 2026-08-02 and
+> only the roll-up went unupdated. Corrected here rather than left, since a roll-up that is
+> wrong about one finding is not trusted about the others.
 
 F4 gained four fresh reproductions in CARDS-2: sweeping `seed` ∈ 0..24 for a play-server test
 fixture found that seeds 2, 10, 11 and 17 are each **offered** a targeted cast and then refused

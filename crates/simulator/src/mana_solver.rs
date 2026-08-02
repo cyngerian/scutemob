@@ -1,32 +1,111 @@
 //! Greedy mana payment solver.
 //!
-//! For each colored pip, tap a source that produces that color.
-//! For generic, tap any remaining source. Returns a sequence of
-//! `TapForMana` commands.
+//! Plans a `Vec<Command::TapForMana>` that, together with whatever is already floating,
+//! covers a mana cost. Colored pips first (CR 107.4a), then `{C}` (CR 107.4c: only
+//! colorless mana pays it), then generic (CR 107.4: any type pays it).
 //!
-//! # Two things this solver does not do — **`OOS-M11-2`**
+//! # What "greedy" means here, and what it costs
 //!
-//! Both halves are open, and this block exists because
-//! [`crate::local_game::LocalGame::auto_tap_commands_for`] cites it by name for the
-//! first of them and, until now, cited a sentence that was not here (review
-//! MR-M11-12 — the lying-cite class this project keeps finding, one layer out).
+//! Each phase picks one source at a time and never backtracks. That is exact for the
+//! shapes this engine's corpus actually contains (fixed-colour lands, two-colour karoo
+//! lands, `{C}{C}` rocks) and can in principle mis-plan a board where a *choice* of
+//! which flexible source to spend on which pip matters. The failure mode is a `None`
+//! (or a larger-than-minimal plan), never an illegal plan.
 //!
-//! 1. **It ignores the mana pool entirely.** `solve_mana_payment` plans a payment for
-//!    the *whole* cost from untapped sources, as though the pool were empty, so
-//!    floating mana is neither spent nor counted. The caller compensates rather than
-//!    the solver: `auto_tap_commands_for` checks the existing pool first (M11-local S3
-//!    closed that half) and only calls in when the pool cannot already cover the cost.
-//!    That keeps a human from over-tapping, and leaves the solver itself unchanged —
-//!    so any *other* caller still gets the pool-blind behaviour.
-//! 2. **It reads `obj.characteristics.mana_abilities` raw**, not through
-//!    `calculate_characteristics`, so a source whose mana abilities are granted,
-//!    removed or altered by a continuous effect (CR 613) is mis-planned. This is the
-//!    layer-resolution half of `OOS-M11-2` and is still open — M11-local made no engine
-//!    change, and the fix belongs with the PB-DX correctness queue.
+//! "Never illegal" is the property `can_afford` and the auto-tapper both depend on (SR-38:
+//! never offer what the engine rejects), and it holds **as far as
+//! [`plannable_tap_ability`] mirrors `handle_tap_for_mana`** — read that function's doc for
+//! the bound, which is a real bound and not a formality: SIM-2's own `/review` found one
+//! whole rejection class (CR 605.3 stax restrictions) unmirrored while four comments,
+//! including this one, asserted the mirror was complete.
+//!
+//! # SIM-2: production is counted in MANA, not in SOURCES
+//!
+//! Until 2026-08-02 every phase decremented the remaining pip count by **one per source
+//! tapped**, while `produces` was expanded per unit of mana and the expansion then never
+//! read (playtest triage F4). Sol Ring (`{C}{C}`) was credited as one mana. Both
+//! directions were live and both were observed by a human in the browser client:
+//!
+//!   * **Over-tap** — Sol Ring + two Forests tapped for `{2}{G}`: four mana produced,
+//!     three spent, one stranded, and CR 500.4 destroyed it at the step boundary.
+//!   * **Under-offer** — a `{2}` spell with only a Sol Ring untapped solved to `None`,
+//!     so `legal_actions::can_afford` never offered the cast at all.
+//!
+//! A tapped source now contributes its whole production to a running `Floating` tally,
+//! and each pip is paid from that tally; a source is only tapped when the tally cannot
+//! already cover the pip. That makes the surplus of a multi-mana source spendable on
+//! later pips of the same payment instead of vanishing.
+//!
+//! # SIM-2: the pool half of `OOS-M11-2` is CLOSED, at the solver
+//!
+//! [`solve_mana_payment_with_pool`] subtracts the player's existing pool from the cost
+//! before planning, mirroring `ManaPool::can_spend`'s allocation exactly (colored pips
+//! from matching colored mana, `{C}` from colorless, then *everything left over* against
+//! generic). [`solve_mana_payment`] — the pool-blind entry point — is retained for the
+//! two `tools/tui` callers (`OOS-SIM1-2`) and is now defined as "solve with an empty
+//! pool", so the two cannot drift.
+//!
+//! `LocalGame::auto_tap_commands_for` used to compensate for the pool-blindness itself
+//! with an all-or-nothing check — if the pool fully covered the cost it tapped nothing,
+//! and otherwise it solved for the ENTIRE printed cost — so two floating mana plus a
+//! `{3}` cast tapped three more sources and destroyed the float (triage F3). That check
+//! is gone; both it and the bot path in `LocalGame::advance` now call the residual
+//! solver.
+//!
+//! # SIM-2: the layer-resolution half of `OOS-M11-2` is CLOSED too — it was live-wrong
+//!
+//! Sources used to be gathered from `obj.characteristics.mana_abilities` **raw**. That
+//! was recorded here as a known gap with a theoretical example (Cryptolith Rite). The
+//! real one is duller and far more common: `layers.rs` clears `mana_abilities` for a
+//! **face-down** permanent (CR 707.2), so the solver planned a tap the engine refused
+//! with `"has no mana ability at index 0"` — caught by the S8 scripted playthrough on
+//! seed 42 the moment this batch changed which source the solver reaches for.
+//! [`gather_sources`] now calls `calculate_characteristics`, the same function
+//! `StubProvider`'s `TapForMana` offer loop and `handle_tap_for_mana` itself use. It is
+//! **not** hoisted out of the solve — `can_afford` pays for a gather per castable card, and
+//! the measurement that says it may (fuzzer A/B, 6.8 s both sides) is at
+//! [`gather_sources`]'s own doc.
+//!
+//! What remains open under `OOS-M11-2` after this batch: cost *modifiers* (no
+//! Thalia-style increase, no reduction) and CR 106.12 restricted mana, neither of which
+//! lives in this file.
+//!
+//! # Which taps this solver refuses to plan, and why
+//!
+//! [`plannable_tap_ability`] is the gate — one function, called from one place
+//! ([`gather_sources`]), with its legality half shared with the provider's offer loop. It
+//! exists because a plan is worthless
+//! unless `handle_tap_for_mana` (`rules/mana.rs`) accepts every command in it: the human
+//! path applies taps and the cast as one atomic sequence, so a single refused tap fails
+//! the whole cast (the `422` a human sees), and the bot path silently falls back to
+//! `PassPriority`.
 
 use mtg_engine::{
-    Command, GameState, HybridMana, ManaColor, ManaCost, ObjectId, PhyrexianMana, PlayerId, ZoneId,
+    Characteristics, Command, GameObject, GameState, HybridMana, ManaAbility, ManaColor, ManaCost,
+    ObjectId, PhyrexianMana, PlayerId, ZoneId,
 };
+
+/// WUBRG, the order colored pips are paid in. Colorless is deliberately absent — it is a
+/// mana *type*, not a colour (CR 106.1b), and has its own phase.
+const COLORS: [ManaColor; 5] = [
+    ManaColor::White,
+    ManaColor::Blue,
+    ManaColor::Black,
+    ManaColor::Red,
+    ManaColor::Green,
+];
+
+/// The order surplus mana is spent on generic pips: colorless first, then GRBUW.
+/// Mirrors `ManaPool::spend`'s documented generic order so a plan and the engine's own
+/// deduction agree about which mana is left over.
+const GENERIC_SPEND_ORDER: [ManaColor; 6] = [
+    ManaColor::Colorless,
+    ManaColor::Green,
+    ManaColor::Red,
+    ManaColor::Black,
+    ManaColor::Blue,
+    ManaColor::White,
+];
 
 /// A mana source on the battlefield: its ObjectId, ability index, and what it produces.
 ///
@@ -37,9 +116,47 @@ use mtg_engine::{
 struct ManaSource {
     object_id: ObjectId,
     ability_index: usize,
+    /// One entry per unit of mana produced, e.g. `[Colorless, Colorless]` for Sol Ring.
+    /// **Empty for an `any_color` source**: CR 111.10a's "add one mana of any color"
+    /// produces exactly one mana whose colour is chosen on the activation command
+    /// (`rules/mana.rs` step 8 adds `1 × multiplier` of `resolved_color` and ignores
+    /// `produces` entirely for such an ability), so the colour is not knowable until the
+    /// pip being paid is known. [`ManaSource::output`] is the accessor that folds the two
+    /// cases together.
     produces: Vec<ManaColor>,
     any_color: bool,
     tapped: bool,
+}
+
+impl ManaSource {
+    /// How many mana this source adds to the pool when tapped.
+    fn amount(&self) -> u32 {
+        if self.any_color {
+            1
+        } else {
+            self.produces.len() as u32
+        }
+    }
+
+    /// How many of `color` this source can contribute — for an `any_color` source, one of
+    /// *any* colour (CR 106.1b: never colorless).
+    fn produces_color(&self, color: ManaColor) -> u32 {
+        if self.any_color {
+            u32::from(color != ManaColor::Colorless)
+        } else {
+            self.produces.iter().filter(|c| **c == color).count() as u32
+        }
+    }
+
+    /// The mana this source actually adds, given the colour chosen for an `any_color`
+    /// ability.
+    fn output(&self, chosen: Option<ManaColor>) -> Vec<ManaColor> {
+        match (self.any_color, chosen) {
+            (true, Some(c)) => vec![c],
+            (true, None) => Vec::new(),
+            (false, _) => self.produces.clone(),
+        }
+    }
 }
 
 /// Mark the chosen source spent — **and every other entry for the same permanent**.
@@ -69,22 +186,215 @@ fn spend(sources: &mut [ManaSource], idx: usize) {
     }
 }
 
-/// Attempt to solve a mana payment greedily. Returns `TapForMana` commands
-/// if a solution is found, or `None` if the cost can't be paid.
-pub fn solve_mana_payment(
+/// Whether this `{T}` mana ability is one the solver may put in a plan — i.e. one
+/// `handle_tap_for_mana` will accept right now, for reasons the solver can check without
+/// simulating the activation.
+///
+/// Each arm mirrors a specific rejection in `rules/mana.rs`. Before SIM-2 the only filters
+/// were "untapped" and "requires_tap", so the solver freely planned taps the engine then
+/// refused — which on the human path fails the whole atomic tap-and-cast sequence and
+/// surfaces as a `422` on a cast the client had just been offered.
+///
+/// **The claim here is "every rejection `handle_tap_for_mana` makes for a reason knowable
+/// from the state alone", and it is bounded, not absolute.** SIM-2's first pass said "all
+/// of them" and was wrong by one whole class: its own `/review` found `rules/mana.rs`'s
+/// **step 1b** — the `GameRestriction` check that stops a Sol Ring under Collector Ouphe
+/// and any opponent's mana ability under Grand Abolisher (CR 605.3 makes a mana ability an
+/// activated ability) — mirrored in neither this file nor the provider's offer loop, while
+/// four separate comments asserted the mirror was complete. That arm now exists (see
+/// `tap_ability_is_activatable`). What is still NOT mirrored, deliberately, is anything the
+/// solver cannot decide without performing the activation: `resolve_amount` for a scaled
+/// ability's production (`pub(crate)` to the engine — hence the `scaled_amount` exclusion
+/// below), and CR 106.12 restricted mana.
+///
+/// Populations measured by enumerating `all_cards()` (SR-36 — never grep) over the 1,803
+/// defs at 2026-08-02, counted as **(def × `{T}` ability) rows**, not defs: 322 rows across
+/// the corpus, of which 20 carry a mana component, 8 a life component, 13 an activation
+/// condition, 9 a scaled amount and 0 a counter cost
+/// (`crates/simulator/tests/sim2_mana_source_roster.rs`).
+fn plannable_tap_ability(
     state: &GameState,
     player: PlayerId,
-    cost: &ManaCost,
-) -> Option<Vec<Command>> {
-    // Gather untapped mana sources controlled by this player
-    let mut sources: Vec<ManaSource> = Vec::new();
+    obj: &GameObject,
+    chars: &Characteristics,
+    ability: &ManaAbility,
+) -> bool {
+    // SR-36 (CR 605.1a): a scaled ability's `produces` holds a `1`-per-colour **marker**,
+    // not a count, and the real amount comes from `effects::resolve_amount`, which is
+    // `pub(crate)` to the engine and unreachable from here. Crediting the marker is not
+    // merely an under-count: `rules/mana.rs` computes `resolve_amount(..).max(0) as u32`
+    // and adds it with **no error at zero**, so Itlimoc with no creatures out produces
+    // NOTHING while the marker promises one mana — an over-credit, and therefore an
+    // offered cast the engine refuses. Found by SIM-2's `/review` on
+    // `growing_rites_of_itlimoc`, which is `Complete` and deck-legal — and note it is the
+    // **back** face that carries the scaled ability, so it is not one of the nine rows
+    // `sim2_mana_source_roster::r5` counts (that enumeration builds front-face ability
+    // vectors). The runtime exclusion still covers it: `apply_face_change` rebuilds the
+    // ability vectors at the transform, so a flipped Itlimoc's mana ability carries
+    // `scaled_amount` like any other.
+    //
+    // **This exclusion has a real cost, and it is not "nothing that was working".** A
+    // Cradle with ONE creature out credited the marker, was offered, and the cast
+    // succeeded, because the engine then resolved a count of ≥1; that case is now not
+    // offered. It is over-broad for exactly **three** of the roster's nine — the ones
+    // counting a population that contains themselves, so their count cannot be zero while
+    // they are on the battlefield: `elvish_archdruid` and `priest_of_titania` (Elves
+    // counting Elves you control) and `circle_of_dreams_druid` (a creature counting
+    // creatures you control). **`marwyn_the_nurturer` is NOT one of them** — a first pass
+    // put it here on the strength of its being a mana dork, but it is a **1/1** reading
+    // `PowerOf(Source)` rather than a population, so one `-1/-1` counter or any layer-7b
+    // P/T setter takes it to zero and it fails exactly as Itlimoc does. Carving the three
+    // out by name would be a shadow implementation of the count — the "two arithmetics"
+    // trap this file avoids elsewhere — so the blunt exclusion stands and the honest fix
+    // is to export `resolve_amount`, which closes every case at once. `OOS-SIM2-4`.
+    //
+    // Placed here in `plannable_tap_ability` and NOT in `tap_ability_is_activatable`, so
+    // `StubProvider` still OFFERS the tap and a human can float the mana by hand — the
+    // same escape hatch the mana-component arm leaves for Signets. A **bot** has no such
+    // path (`advance()` auto-taps for `CastSpell` only and `TapForMana` now scores 0), so
+    // bots lose all nine scaled sources outright; that compound effect of this arm and the
+    // F5 demotion is recorded in `OOS-SIM2-3`.
+    if ability.scaled_amount.is_some() {
+        return false;
+    }
+    // CR 605.3a / CR 118.3a: the ability's OWN mana component (a Signet's `{1}`, a filter
+    // land's `{W/B}`) is paid from the pool at activation, before the mana is produced.
+    // Planning that means interleaving a tap plan with a pool state this solver does not
+    // model per-step, and crediting the gross production while ignoring the cost would
+    // *over*-credit — a Signet would look like two free mana. Refusing to plan them is
+    // the conservative direction: it can only under-offer. `OOS-SIM2-2`.
+    //
+    // **Solver-only**, and the one check that is: `StubProvider` still OFFERS these taps,
+    // because a human can perfectly well tap a Signet by hand once they have the `{1}` —
+    // refusing to offer it would take a legal play away. The solver declining to *plan*
+    // one costs nobody anything.
+    if let Some(mana_cost) = &ability.mana_cost {
+        if mana_cost.mana_value() > 0
+            || !mana_cost.hybrid.is_empty()
+            || !mana_cost.phyrexian.is_empty()
+        {
+            return false;
+        }
+    }
+    tap_ability_is_activatable(state, player, obj, chars, ability)
+}
 
+/// The subset of [`plannable_tap_ability`] that is about **legality right now**, shared
+/// with `StubProvider`'s `TapForMana` offer loop.
+///
+/// Two callers, one predicate, deliberately: **OOS-CARDS2-9** is the same defect appearing
+/// at both — "the provider's affordability check counts mana abilities it could not legally
+/// activate ... the fix is one place: make the solver ask whether the ability is
+/// *activatable*, not whether its source is untapped". `legal_actions.rs` had the *offer*
+/// half of it (it checked `life_cost` per SG-1 and nothing else, so an unmet
+/// `activation_condition` and a summoning-sick creature were both offered and both
+/// refused), and this file had the affordability half. Splitting the fix would have left
+/// **`tools/play-server/src/main.rs`**'s `KNOWN_FALSE_OFFERS` list — not the same-named
+/// list in `crates/simulator/tests/local_game_playthrough.rs`, which never carried these
+/// two entries — still describing a live bug.
+pub(crate) fn tap_ability_is_activatable(
+    state: &GameState,
+    player: PlayerId,
+    obj: &GameObject,
+    chars: &Characteristics,
+    ability: &ManaAbility,
+) -> bool {
+    // CR 605.3 + CR 101.2 (rules/mana.rs step 1b): a `GameRestriction` that stops an
+    // activated ability stops a MANA ability — Stony Silence / Collector Ouphe on any
+    // artifact source, Grand Abolisher / Myrel on an opponent's artifact, creature or
+    // enchantment during the controller's turn. `is_ability_restricted_by_stax` is the
+    // provider's own mirror of `rules/abilities.rs`'s identical check, reused rather than
+    // re-derived (SIM-1's lesson: two arithmetics agree only when they are one function).
+    //
+    // Added by SIM-2's `/review`, which found this class mirrored NOWHERE on the tap path
+    // while four comments claimed the mirror was complete. Live: with an opponent's
+    // Collector Ouphe out, `can_afford` counted a Sol Ring, the cast was offered, and the
+    // atomic tap-and-cast sequence was then refused — a 422 of exactly the kind this batch
+    // exists to remove.
+    if crate::legal_actions::is_ability_restricted_by_stax(state, player, obj.id) {
+        return false;
+    }
+    // CR 119.4 / CR 118.3b (rules/mana.rs step 5b): a horizon land's "Pay 1 life" is
+    // rejected outright when the player cannot pay. Mirrors `legal_actions.rs`'s SG-1
+    // check on the offer side, including its `>=` (CR 119.4 permits paying down to 0).
+    if ability.life_cost > 0 {
+        let life = state.player(player).map(|p| p.life_total).unwrap_or(0);
+        if life < ability.life_cost as i32 {
+            return false;
+        }
+    }
+    // CR 602.2c / CR 118.3 (rules/mana.rs step 5b2): a counter cost with too few counters
+    // present. No def in the corpus lowers to this today; the check is here because its
+    // absence is invisible until the first one does.
+    if let Some((counter, count)) = &ability.remove_counter {
+        if obj.counters.get(counter).copied().unwrap_or(0) < *count {
+            return false;
+        }
+    }
+    // CR 602.5b (SR-37, rules/mana.rs step 5c): "Activate only if ..." — Mox Opal's
+    // metalcraft, Tainted Field's Swamp. Evaluated with the same `check_condition` the
+    // engine uses, so the two cannot disagree.
+    if let Some(condition) = &ability.activation_condition {
+        let ctx = mtg_engine::effects::EffectContext::new(player, obj.id, vec![]);
+        if !mtg_engine::effects::check_condition(state, condition, &ctx) {
+            return false;
+        }
+    }
+    // CR 302.6 / CR 702.10 (rules/mana.rs step 6): a summoning-sick creature cannot pay a
+    // `{T}` cost. This is the arm with real traffic — a mana dork played this turn was
+    // credited by `can_afford`, the cast was offered, and the auto-tap plan was then
+    // refused. Read from the LAYER-RESOLVED characteristics, exactly as `rules/mana.rs`
+    // does, so an animated land is summoning-sick and layer-granted haste (Fervor) is
+    // seen (CR 613.1d/613.1f).
+    if ability.requires_tap
+        && obj.has_summoning_sickness
+        && chars.card_types.contains(&mtg_engine::CardType::Creature)
+        && !chars.keywords.contains(&mtg_engine::KeywordAbility::Haste)
+    {
+        return false;
+    }
+    true
+}
+
+/// Gather this player's untapped, plannable `{T}` mana sources, in battlefield order.
+///
+/// # CR 613.1f: layer-resolved, and what that costs
+///
+/// Until SIM-2 this read `obj.characteristics.mana_abilities` **raw** — the
+/// layer-resolution half of `OOS-M11-2`, which was a documented known gap and turned out
+/// to be live-wrong rather than theoretical. `layers.rs` clears `mana_abilities`
+/// outright for a **face-down** permanent (CR 707.2 — morph/manifest/cloak), so a
+/// face-down mana source was planned from its base characteristics and
+/// `handle_tap_for_mana`, which reads `expect_characteristics`, answered `"object
+/// ObjectId(487) has no mana ability at index 0"`. Found by
+/// `test_s8_scripted_human_playthrough_is_clean_on_five_seeds` (seed 42, turn 21) the
+/// first time this batch changed which source the solver reaches for — the defect
+/// predates SIM-2, the exposure did not.
+///
+/// The same call also picks up granted mana abilities (Cryptolith Rite, Chromatic
+/// Lantern) and removals (Humility), which `StubProvider`'s own `TapForMana` offer loop
+/// has always resolved — so the offer list and the payment plan now read the same
+/// characteristics, which is the property that makes them impossible to disagree.
+///
+/// **Cost, measured rather than assumed**: `can_afford` calls this once per castable
+/// card per `legal_actions` enumeration, so the layer system's work in the provider is
+/// multiplied by roughly the hand size. `mtg-fuzzer --games 60 --threads 1
+/// --max-turns 40` reports **6.8 s before and 6.8 s after** on seeds 1 and 7 (two runs
+/// each), i.e. inside noise, which is why this function is not hoisted out of the solve
+/// and handed a pre-gathered list — a real complication for an unmeasurable saving.
+fn gather_sources(state: &GameState, player: PlayerId) -> Vec<ManaSource> {
+    let mut sources: Vec<ManaSource> = Vec::new();
     for obj in state.objects_in_zone(&ZoneId::Battlefield) {
         if obj.controller != player || obj.status.tapped {
             continue;
         }
-        for (idx, ability) in obj.characteristics.mana_abilities.iter().enumerate() {
+        let chars = mtg_engine::rules::layers::calculate_characteristics(state, obj.id)
+            .unwrap_or_else(|| obj.characteristics.clone());
+        for (idx, ability) in chars.mana_abilities.iter().enumerate() {
             if !ability.requires_tap {
+                continue;
+            }
+            if !plannable_tap_ability(state, player, obj, &chars, ability) {
                 continue;
             }
             let mut produces = Vec::new();
@@ -102,99 +412,245 @@ pub fn solve_mana_payment(
             });
         }
     }
+    sources
+}
 
-    let mut commands = Vec::new();
-    let mut remaining = PipTracker::from_cost(cost);
+/// Pick the untapped source that wastes the least: the largest useful production that
+/// still fits inside `need`, and failing that the smallest useful production of all.
+/// Ties break toward the earliest source, so the plan is a deterministic function of
+/// battlefield order.
+///
+/// This is the "prefer small producers" rule from the SIM-2 brief, stated as the thing it
+/// is actually for. A single `{1}` never taps the Sol Ring while a Forest is up (nothing
+/// larger fits, so the Forest wins outright), and a `{2}` takes the Sol Ring alone rather
+/// than two Forests — a plain ascending-size order gets the first case right and the
+/// second wrong, tapping two sources and stranding a mana exactly as the pre-fix code did.
+fn pick_least_waste(
+    sources: &[ManaSource],
+    need: u32,
+    useful: impl Fn(&ManaSource) -> u32,
+) -> Option<usize> {
+    let mut best_fit: Option<(u32, usize)> = None;
+    let mut smallest: Option<(u32, usize)> = None;
+    for (idx, source) in sources.iter().enumerate() {
+        if source.tapped {
+            continue;
+        }
+        let value = useful(source);
+        if value == 0 {
+            continue;
+        }
+        if value <= need && best_fit.is_none_or(|(best, _)| value > best) {
+            best_fit = Some((value, idx));
+        }
+        if smallest.is_none_or(|(small, _)| value < small) {
+            smallest = Some((value, idx));
+        }
+    }
+    best_fit.or(smallest).map(|(_, idx)| idx)
+}
 
-    // Phase 1: pay colored pips with exact-match sources first
-    for color in &[
-        ManaColor::White,
-        ManaColor::Blue,
-        ManaColor::Black,
-        ManaColor::Red,
-        ManaColor::Green,
-    ] {
-        while remaining.colored(*color) > 0 {
-            // Find a source producing this color (prefer non-any-color first)
-            let found = sources
-                .iter()
-                .position(|s| !s.tapped && !s.any_color && s.produces.contains(color));
-            let found = found.or_else(|| {
-                sources
-                    .iter()
-                    .position(|s| !s.tapped && (s.produces.contains(color) || s.any_color))
-            });
+/// Mana produced but not yet assigned to a pip, during one solve.
+#[derive(Default, Debug)]
+struct Floating {
+    white: u32,
+    blue: u32,
+    black: u32,
+    red: u32,
+    green: u32,
+    colorless: u32,
+}
 
-            // None => can't pay this color.
-            let idx = found?;
-            spend(&mut sources, idx);
-            // PB-EF12 (CR 605.3b): an any_color source can satisfy any colour — choose
-            // the exact one needed here. A fixed-colour source carries no choice.
-            let chosen_color = if sources[idx].any_color {
-                Some(*color)
-            } else {
-                None
-            };
-            commands.push(Command::TapForMana {
-                player,
-                source: sources[idx].object_id,
-                ability_index: sources[idx].ability_index,
-                chosen_color,
-                hybrid_choices: vec![],
-                phyrexian_life_payments: vec![],
-            });
-            remaining.pay_colored(*color);
+impl Floating {
+    fn get_mut(&mut self, color: ManaColor) -> &mut u32 {
+        match color {
+            ManaColor::White => &mut self.white,
+            ManaColor::Blue => &mut self.blue,
+            ManaColor::Black => &mut self.black,
+            ManaColor::Red => &mut self.red,
+            ManaColor::Green => &mut self.green,
+            ManaColor::Colorless => &mut self.colorless,
         }
     }
 
-    // Phase 2: pay colorless pips — ONLY colorless mana can pay {C} (CR 107.4c)
-    while remaining.colorless > 0 {
-        let found = sources
-            .iter()
-            .position(|s| !s.tapped && s.produces.contains(&ManaColor::Colorless));
-
-        // None => no colorless source available; colored mana cannot pay {C} (CR 107.4c).
-        let idx = found?;
-        spend(&mut sources, idx);
-        // PB-EF12: an any_color source's `produces` is empty (CR 106.1b: colorless is
-        // not a legal "any color" choice), so it never matches the `contains(&Colorless)`
-        // filter above — this source is always fixed-colour, chosen_color is None.
-        commands.push(Command::TapForMana {
-            player,
-            source: sources[idx].object_id,
-            ability_index: sources[idx].ability_index,
-            chosen_color: None,
-            hybrid_choices: vec![],
-            phyrexian_life_payments: vec![],
-        });
-        remaining.colorless -= 1;
+    fn add_all(&mut self, produced: &[ManaColor]) {
+        for color in produced {
+            *self.get_mut(*color) += 1;
+        }
     }
 
-    // Phase 3: pay generic with any remaining sources
+    /// Spend one mana of exactly `color`; `false` if there is none.
+    fn take(&mut self, color: ManaColor) -> bool {
+        let slot = self.get_mut(color);
+        if *slot == 0 {
+            return false;
+        }
+        *slot -= 1;
+        true
+    }
+
+    /// Spend one mana of any type against a generic pip (CR 107.4).
+    fn take_any(&mut self) -> bool {
+        for color in GENERIC_SPEND_ORDER {
+            if self.take(color) {
+                return true;
+            }
+        }
+        false
+    }
+}
+
+/// Attempt to solve a mana payment greedily, **ignoring the player's mana pool**.
+///
+/// Equivalent to [`solve_mana_payment_with_pool`] against an empty pool. Retained as the
+/// entry point the two `tools/tui` auto-tap call sites use (`OOS-SIM1-2`); everything
+/// inside `crates/simulator` goes through the pool-aware form.
+pub fn solve_mana_payment(
+    state: &GameState,
+    player: PlayerId,
+    cost: &ManaCost,
+) -> Option<Vec<Command>> {
+    let sources = gather_sources(state, player);
+    solve_tracker(&sources, player, PipTracker::from_cost(cost))
+}
+
+/// Solve for the cost **that remains after the player's existing mana pool is applied**
+/// (SIM-2, the pool half of `OOS-M11-2`).
+///
+/// The subtraction mirrors `ManaPool::can_spend` exactly — colored pips from matching
+/// colored mana, `{C}` from colorless mana only (CR 107.4c), then every mana left over
+/// against generic (CR 107.4) — so a cost this returns `Some(vec![])` for is a cost the
+/// engine agrees the pool already covers, and a plan it returns leaves the pool plus the
+/// tapped mana exactly sufficient.
+///
+/// CR 106.12 restricted mana is invisible here, as it is to `can_spend(cost, None)`; that
+/// remains part of the open surviving half of `OOS-M11-2`.
+pub fn solve_mana_payment_with_pool(
+    state: &GameState,
+    player: PlayerId,
+    cost: &ManaCost,
+) -> Option<Vec<Command>> {
+    let mut tracker = PipTracker::from_cost(cost);
+    if let Ok(player_state) = state.player(player) {
+        tracker.subtract_pool(&player_state.mana_pool);
+    }
+    solve_tracker(&gather_sources(state, player), player, tracker)
+}
+
+/// The solver proper. `remaining` is already flattened (CR 107.4e/107.4f) and already
+/// net of whatever the caller decided is available.
+fn solve_tracker(
+    sources: &[ManaSource],
+    player: PlayerId,
+    mut remaining: PipTracker,
+) -> Option<Vec<Command>> {
+    let mut sources = sources.to_vec();
+    let mut commands = Vec::new();
+    let mut floating = Floating::default();
+
+    // Phase 1: colored pips (CR 107.4a). A fixed-colour source is preferred over an
+    // any-colour one, which is kept back for a pip nothing else can pay.
+    for color in COLORS {
+        while remaining.colored(color) > 0 {
+            if floating.take(color) {
+                remaining.pay_colored(color);
+                continue;
+            }
+            let need = remaining.colored(color);
+            let idx = pick_least_waste(&sources, need, |s| {
+                if s.any_color {
+                    0
+                } else {
+                    s.produces_color(color)
+                }
+            })
+            .or_else(|| pick_least_waste(&sources, need, |s| s.produces_color(color)))?;
+            tap(
+                &mut sources,
+                idx,
+                player,
+                Some(color),
+                &mut floating,
+                &mut commands,
+            );
+        }
+    }
+
+    // Phase 2: `{C}` pips — only colorless mana pays them (CR 107.4c). An any-colour
+    // source can never help (CR 106.1b: colorless is not a colour), which
+    // `produces_color` encodes, so no fallback pass is needed here.
+    while remaining.colorless > 0 {
+        if floating.take(ManaColor::Colorless) {
+            remaining.colorless -= 1;
+            continue;
+        }
+        let need = remaining.colorless;
+        let idx = pick_least_waste(&sources, need, |s| s.produces_color(ManaColor::Colorless))?;
+        tap(
+            &mut sources,
+            idx,
+            player,
+            None,
+            &mut floating,
+            &mut commands,
+        );
+    }
+
+    // Phase 3: generic pips — any mana pays them (CR 107.4), so the source is chosen by
+    // total production and an any-colour source contributes one mana of a deterministic
+    // White (mirroring `legal_actions.rs`'s pick).
     while remaining.generic > 0 {
-        let found = sources.iter().position(|s| !s.tapped);
-        // None => no untapped source left to pay the remaining generic cost.
-        let idx = found?;
-        spend(&mut sources, idx);
-        // PB-EF12: a generic pip can be paid with any colour, so an any_color source
-        // just needs *a* legal choice — deterministic White, mirroring legal_actions.rs.
-        let chosen_color = if sources[idx].any_color {
+        if floating.take_any() {
+            remaining.generic -= 1;
+            continue;
+        }
+        let need = remaining.generic;
+        let idx = pick_least_waste(&sources, need, |s| s.amount())?;
+        let chosen = if sources[idx].any_color {
             Some(ManaColor::White)
         } else {
             None
         };
-        commands.push(Command::TapForMana {
+        tap(
+            &mut sources,
+            idx,
             player,
-            source: sources[idx].object_id,
-            ability_index: sources[idx].ability_index,
-            chosen_color,
-            hybrid_choices: vec![],
-            phyrexian_life_payments: vec![],
-        });
-        remaining.generic -= 1;
+            chosen,
+            &mut floating,
+            &mut commands,
+        );
     }
 
     Some(commands)
+}
+
+/// Emit the `TapForMana` for `sources[idx]`, mark the whole permanent spent, and credit
+/// everything it produces to `floating`.
+///
+/// `chosen_color` is `Some` **only** for an `any_color` ability (PB-EF12 / CR 605.3b: the
+/// colour is chosen on the activation command, and `handle_tap_for_mana` rejects a
+/// `chosen_color` supplied for a fixed-colour ability outright), so the caller's colour
+/// hint is dropped for a fixed source.
+fn tap(
+    sources: &mut [ManaSource],
+    idx: usize,
+    player: PlayerId,
+    color_hint: Option<ManaColor>,
+    floating: &mut Floating,
+    commands: &mut Vec<Command>,
+) {
+    spend(sources, idx);
+    let source = &sources[idx];
+    let chosen_color = if source.any_color { color_hint } else { None };
+    floating.add_all(&source.output(chosen_color));
+    commands.push(Command::TapForMana {
+        player,
+        source: source.object_id,
+        ability_index: source.ability_index,
+        chosen_color,
+        hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+    });
 }
 
 /// Track remaining mana pips to pay.
@@ -251,8 +707,28 @@ impl PipTracker {
         }
 
         // x_count: X defaults to 0 for the solver (CR 202.3e), so no generic added.
+        // Callers that have an announced X fold `x_value * x_count` into `generic`
+        // themselves (CR 107.3 / 601.2b) — `LocalGame::auto_tap_commands_for` does.
 
         tracker
+    }
+
+    /// Deduct what the player's existing pool already covers, in `ManaPool::can_spend`'s
+    /// own order: each colored pip from mana of that colour, `{C}` from colorless mana,
+    /// and only then the entire remainder of the pool against generic (CR 107.4).
+    ///
+    /// Saturating throughout: a pool larger than the cost leaves a zero tracker, which
+    /// `solve_tracker` answers with an empty plan.
+    fn subtract_pool(&mut self, pool: &mtg_engine::ManaPool) {
+        let mut leftover = 0u32;
+        for color in GENERIC_SPEND_ORDER {
+            let have = pool.get(color);
+            let owed = self.colored(color);
+            let paid = have.min(owed);
+            self.pay_colored_n(color, paid);
+            leftover += have - paid;
+        }
+        self.generic = self.generic.saturating_sub(leftover);
     }
 
     fn add_color(&mut self, color: ManaColor, amount: u32) {
@@ -278,13 +754,17 @@ impl PipTracker {
     }
 
     fn pay_colored(&mut self, color: ManaColor) {
+        self.pay_colored_n(color, 1);
+    }
+
+    fn pay_colored_n(&mut self, color: ManaColor, amount: u32) {
         match color {
-            ManaColor::White => self.white = self.white.saturating_sub(1),
-            ManaColor::Blue => self.blue = self.blue.saturating_sub(1),
-            ManaColor::Black => self.black = self.black.saturating_sub(1),
-            ManaColor::Red => self.red = self.red.saturating_sub(1),
-            ManaColor::Green => self.green = self.green.saturating_sub(1),
-            ManaColor::Colorless => self.colorless = self.colorless.saturating_sub(1),
+            ManaColor::White => self.white = self.white.saturating_sub(amount),
+            ManaColor::Blue => self.blue = self.blue.saturating_sub(amount),
+            ManaColor::Black => self.black = self.black.saturating_sub(amount),
+            ManaColor::Red => self.red = self.red.saturating_sub(amount),
+            ManaColor::Green => self.green = self.green.saturating_sub(amount),
+            ManaColor::Colorless => self.colorless = self.colorless.saturating_sub(amount),
         }
     }
 }

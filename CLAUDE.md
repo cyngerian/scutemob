@@ -38,10 +38,14 @@
   started, and not to be started without direction.* Full session-by-session M11 narrative:
   `memory/archive/claude-md-changelog-2026-08.md`; S8 handoff and durable lessons:
   `memory/workstream-state.md`. **Seeds this milestone left open**: **OOS-M11-2**
-  (`solve_mana_payment` ignores the pool and reads non-layer-resolved `mana_abilities`; the pool
-  half closed in S3), **OOS-M11-3** / **OOS-DP3-9** (the fuzzer is not run-to-run deterministic in
+  (cost MODIFIERS and CR 106.12 restricted mana only, as of SIM-2 — its pool half closed in S3,
+  its commander-tax half by SIM-1, and its layer-resolution half by SIM-2, which found that half
+  live-wrong on **face-down** permanents rather than theoretical), **OOS-M11-3** / **OOS-DP3-9**
+  (the fuzzer is not run-to-run deterministic in
   very long games and stack-overflows at `--max-turns 200`; pre-existing, reproduced on pristine
-  merge-base code by S8), **OOS-M11-7** (CR 704.3 SBAs are checked on step entry and at resolution,
+  merge-base code by S8 — **and SIM-2 diagnosed a mechanism**, `OOS-SIM2-6`: an unbounded
+  `calculate_characteristics` recursion that `indomitable_archangel` makes unconditional),
+  **OOS-M11-7** (CR 704.3 SBAs are checked on step entry and at resolution,
   not on every priority grant, so a token sacrificed as a mana cost lingers in the graveyard until
   the next of those — self-healing, never wrong at rest), **OOS-M11-9** (`handle_declare_attackers`
   has no "already declared this combat" guard; CR 508.1 makes it a once-per-combat turn-based
@@ -82,7 +86,11 @@
   (OOS-DP7-11 + OOS-DP9-13 — the SR-19 gate reports success while checking nothing; test-only, 0
   flips; brief in `memory/primitives/seed-rerank-2026-07-27.md`). Older queue history (the PB-OS,
   PB-RS and PB-DP chains) is rotated to the 2026-08 archive.
-- **Tests**: **4,124 passing / 0 failing / 5 ignored** on main at the S8+DX6 collect (`cb0755bf`),
+- **Tests**: **4,214 passing / 0 failing / 5 ignored** on branch `scutemob-176` (SIM-2) at close,
+  **+29** over the **4,185** merge-base baseline measured in a clean worktree at `8cad9c36` — 24 in
+  `crates/simulator/tests/sim2_mana_intelligence.rs` (every one watched failing first, and each fix
+  proven guarded by a **13-revert** discrimination matrix) plus 5 roster rows in
+  `sim2_mana_source_roster.rs`. Earlier pin: **4,124 passing / 0 failing / 5 ignored** on main at the S8+DX6 collect (`cb0755bf`),
   measured on the combined tree — consistent with the disjoint branch pins (4,097 `scutemob-173`,
   4,099 `scutemob-172`). Branch-pin detail: **4,099 passing / 0 failing / 5 ignored** on branch
   `scutemob-172` at PB-DX6 close (+33 over the **4,066** merge-base baseline at `f20823b1`, measured
@@ -202,7 +210,67 @@
 - **Recurrence rule** — future `/collect` and milestone-close bookkeeping appends its detailed PB/SR
   narrative to that archive file (newest first), and updates only a one-paragraph snapshot delta
   here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
-- **Last Updated**: 2026-08-02 — **CARDS-2 SHIPPED** (`scutemob-181`): **SR-37 exists, and
+- **Last Updated**: 2026-08-02 — **SIM-2 SHIPPED** (`scutemob-176`): playtest findings **F3 +
+  F4 + F5 CLOSED**, and the batch's headline is that **the mana solver counted SOURCES, not
+  MANA**. `produces` was expanded per unit of mana and the expansion then never read, so Sol
+  Ring was one mana — which over-tapped in one direction (Sol Ring + two Forests for `{2}{G}`,
+  a mana stranded and destroyed by CR 500.4) and, far worse, **under-offered** in the other: a
+  `{2}` spell with only a Sol Ring untapped solved to `None`, so `can_afford` never showed the
+  human the cast at all. **A wrong count in a payment planner does not misprice a spell; it
+  deletes it from the game.** Auto-tap was separately all-or-nothing — pool covers the whole
+  cost → tap nothing, anything less → solve for the **entire printed cost** with the pool never
+  subtracted — so 2 floating + a `{3}` cast tapped three more sources.
+  `mana_solver::solve_mana_payment_with_pool` now subtracts the pool in `ManaPool::can_spend`'s
+  own order and solves the residual; the early return is the residual-is-zero *case* of the
+  general rule rather than a special case beside it, `advance()`'s bot path calls the same
+  helper (closing the **bot half of OOS-M11-8**, which S8 had declared closed on a fix that only
+  ever ran on the human path — latent, since no shipped bot announces X > 0, but open), and
+  `can_afford` asks the same question once instead of a pool shortcut OR a whole-cost solve
+  **with a gap between them** (a player with `{G}` floating and one Forest up was told a
+  `{1}{G}` spell was uncastable). `HeuristicBot`'s `TapForMana` drops 5 → **0**, below
+  `PassPriority`: every mana-consuming action already outscored 5, so a tap was only ever
+  *chosen* when it was the sole alternative to passing — which is exactly the empty-upkeep
+  tap-out and nothing else. **The most instructive finding is about a known gap's own
+  description**: the layer half of `OOS-M11-2` was documented with a *granted*-ability example
+  (Cryptolith Rite) and treated as theoretical; the moment source selection moved, the S8
+  scripted playthrough reddened on seed 42 with `"object ObjectId(487) has no mana ability at
+  index 0"` — `layers.rs` clears `mana_abilities` for a **face-down** permanent (CR 707.2), an
+  ordinary morph, and the solver was reading base characteristics. **A gap illustrated by an
+  exotic example gets triaged as exotic.** Resolving layers cost nothing measurable (fuzzer 6.8 s
+  both sides, 60 games), which is why the gather is *not* hoisted. Also closed: **OOS-CARDS2-9**,
+  which lived in three source comments and was **never filed** — and whose own statement of the
+  fix ("one place: make the solver ask whether the ability is activatable") was right about the
+  affordability half and silent about the **offer** half, where `legal_actions`'s `TapForMana`
+  loop checked `life_cost` and nothing else; one predicate, `tap_ability_is_activatable`, now
+  serves both, and the play-server driver's `KNOWN_FALSE_OFFERS` entries for it are dead.
+  **Fuzzer A/B**: 96/100 games byte-identical, 4 differing only in command count, violations
+  0 → 0. **Two engine findings carried out unfixed and both worth attention**: `OOS-SIM2-6`
+  (HIGH) — `calculate_characteristics` recurses without bound through `is_effect_active` →
+  `check_static_condition` → `expect_characteristics`, and `indomitable_archangel` (`Complete`,
+  deck-legal) makes it **unconditional**, so any game it reaches is an unrecoverable stack
+  overflow; very likely the mechanism behind `OOS-M11-3`/`OOS-DP3-9`, which had the symptom and
+  no cause — and `OOS-SIM2-5`, unchecked `i32` P/T arithmetic in `layers.rs` that Devilish
+  Valet's doubling overflows at 2^30 (panic in debug, **silent wrap in release**). **The fix
+  cycle found the batch's sharpest lesson in its own comments**: four of them asserted that
+  `plannable_tap_ability` mirrored *every* rejection `handle_tap_for_mana` makes, while an
+  entire class — CR 605.3 stax restrictions, i.e. an opponent's **Collector Ouphe** stopping a
+  Sol Ring — was mirrored in neither the solver nor the offer loop, so `can_afford` counted the
+  Ring and the cast was refused. Same shape as `OOS-SIM1-3` one batch earlier: **an enumeration
+  is only as complete as the category it names** — there about enum variants, here about the set
+  of rejections inside one function. Fixed by reusing the provider's own
+  `is_ability_restricted_by_stax`. The cycle also killed a "conservative" claim that was wrong
+  at its endpoint: an SR-36 **scaled** ability's `1`-per-colour marker was called a safe
+  under-count, but `rules/mana.rs` adds `resolve_amount(..).max(0)` with no error, so Itlimoc
+  with no creatures out produces **nothing** while the marker promises one mana — an over-credit
+  and a refused cast; scaled abilities are now excluded from planning outright. Tests
+  **4,185 → 4,214**; PROTOCOL **33** / HASH **70** gate-executed unmoved (the criterion's "32"
+  was stale); coverage unmoved, 0 card-def edits. `TARGET_SEED` re-derived 1 → **13** (second
+  time in two days, by the rule the pin's own comment states). **Diff is `crates/simulator` (4 source
+  files), one seed pin in `tools/play-server`, docs/memory, and ONE gate-mandated data line in
+  `keyword_registry.rs`** — SR-5 greps the source tree, so the solver's new CR 302.6 branch on
+  `Haste` must be declared; no engine behaviour changes. Seeds **OOS-SIM2-1..7** filed. Full
+  evidence: `memory/primitives/sim2-mana-intelligence-2026-08-02.md`.
+- - **Prior**: 2026-08-02 — **CARDS-2 SHIPPED** (`scutemob-181`): **SR-37 exists, and
   playtest findings F1 + F2 are CLOSED.** Until this batch, **nothing checked that a card
   definition's mana cost, power, toughness or type line matched the card it claims to be** —
   `completeness` gates whether *abilities* are authored and `validate_deck` refuses a

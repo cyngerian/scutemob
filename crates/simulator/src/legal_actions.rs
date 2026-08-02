@@ -644,10 +644,25 @@ impl LegalActionProvider for StubProvider {
                 .unwrap_or_else(|| obj.characteristics.clone());
             for (idx, ability) in chars.mana_abilities.iter().enumerate() {
                 if ability.requires_tap {
-                    // SG-1 (CR 118.3 / CR 119.4b): a horizon land / Mana Confluence mana
-                    // ability with a life component the player cannot pay is rejected by
-                    // `handle_tap_for_mana` (rules/mana.rs step 5b) — don't offer it.
-                    if ability.life_cost > 0 && life_total < ability.life_cost as i32 {
+                    // SG-1 (CR 118.3 / CR 119.4b) + **OOS-CARDS2-9** (SIM-2): a mana
+                    // ability whose activation `handle_tap_for_mana` would refuse for a
+                    // reason knowable from the state alone must not be offered (SR-38).
+                    // SG-1 covered the life component; the shared predicate covers it plus
+                    // the two `tools/play-server`'s driver had been absorbing in its
+                    // `KNOWN_FALSE_OFFERS` list for a batch — an unmet
+                    // `activation_condition` (CR 602.5b) and a summoning-sick creature
+                    // (CR 302.6) — a counter cost with too few counters (CR 118.3), and
+                    // (added by SIM-2's own `/review`, which found it mirrored nowhere on
+                    // this path) the CR 605.3 stax restrictions of `rules/mana.rs` step 1b.
+                    // It does NOT cover what needs the activation performed to decide; see
+                    // `mana_solver::plannable_tap_ability`'s doc for that bound.
+                    //
+                    // The SAME predicate the mana solver uses, so the offer list and the
+                    // payment plan cannot drift: that identity is the fix, not the
+                    // individual checks.
+                    if !crate::mana_solver::tap_ability_is_activatable(
+                        state, player, obj, &chars, ability,
+                    ) {
                         continue;
                     }
                     // PB-EF12: an any_color ability requires a chosen_color on the
@@ -1657,28 +1672,24 @@ pub fn effective_cast_cost(
 
 /// Mana affordability check: considers both mana pool and untapped sources.
 /// Uses the mana solver for precise color-aware checking.
+///
+/// # SIM-2: one question, asked once
+///
+/// This used to be two checks with a gap between them — a pool-total shortcut
+/// (`pool.total() >= cost.mana_value()` with per-colour floors) OR a solve for the
+/// **entire** cost from untapped sources, with nothing covering the case in between.
+/// A player with `{G}` floating and one Forest up was told they could not cast a
+/// `{1}{G}` spell: the pool alone did not cover it and the sources alone did not
+/// either. `solve_mana_payment_with_pool` subtracts the pool and solves the residual,
+/// which answers all three cases with one call and, crucially, is the **same function**
+/// `LocalGame::auto_tap_commands_for` uses to build the plan — so the gate and the
+/// plan cannot disagree (SR-38: never offer what the engine rejects, and its dual,
+/// never withhold what the engine accepts).
 fn can_afford(state: &GameState, player: PlayerId, cost: &mtg_engine::ManaCost) -> bool {
     if state.player(player).is_err() {
         return false;
     }
-
-    // If pool already has enough, no tapping needed
-    if let Ok(p) = state.player(player) {
-        let pool = &p.mana_pool;
-        if pool.white >= cost.white
-            && pool.blue >= cost.blue
-            && pool.black >= cost.black
-            && pool.red >= cost.red
-            && pool.green >= cost.green
-            && pool.colorless >= cost.colorless
-            && pool.total() >= cost.mana_value()
-        {
-            return true;
-        }
-    }
-
-    // Otherwise, check if mana solver can find a payment plan from untapped sources
-    crate::mana_solver::solve_mana_payment(state, player, cost).is_some()
+    crate::mana_solver::solve_mana_payment_with_pool(state, player, cost).is_some()
 }
 
 /// PB-18 review Finding 4: Check whether any active restriction prevents this player
@@ -1686,7 +1697,37 @@ fn can_afford(state: &GameState, player: PlayerId, cost: &mtg_engine::ManaCost) 
 ///
 /// Mirrors check_activate_restrictions in rules/abilities.rs. Only objects on the
 /// battlefield are affected (zone-scope fix from Finding 3).
-fn is_ability_restricted_by_stax(state: &GameState, player: PlayerId, source: ObjectId) -> bool {
+///
+/// # SIM-2: mana abilities are activated abilities too (CR 605.3)
+///
+/// `pub(crate)` and called from `mana_solver::tap_ability_is_activatable` as well.
+/// `rules/mana.rs`'s step 1b enforces these same two `GameRestriction` variants on a
+/// `TapForMana` — CR 605.3 says activating a mana ability follows the rules for
+/// activating any other activated ability, so Stony Silence / Collector Ouphe stop a
+/// Sol Ring and Grand Abolisher stops an opponent's — and until SIM-2's `/review`
+/// caught it, **neither the provider's `TapForMana` loop nor the solver mirrored them**.
+/// With an opponent's Collector Ouphe out, `can_afford` counted a Sol Ring, the cast was
+/// offered, and the atomic tap-and-cast sequence was then refused: the exact SR-38
+/// failure this batch exists to remove, one restriction class away from where it looked.
+///
+/// The `restrictions().is_empty()` fast path is new and load-bearing for that second
+/// caller: the solver asks this per source per solve, and `calculate_characteristics` is
+/// not free. Almost every board has no restrictions at all.
+///
+/// **Known cost, accepted**: past that fast path this recomputes `calculate_characteristics`
+/// twice per source per solve, while `mana_solver::gather_sources` is already holding the
+/// layer-resolved characteristics and passes them in for the summoning-sickness arm. It
+/// mirrors `rules/mana.rs` step 1b, which makes the same double call, and correctness does
+/// not depend on it — recorded so a stax-heavy fuzz seed running slow is a known cost
+/// rather than a surprise.
+pub(crate) fn is_ability_restricted_by_stax(
+    state: &GameState,
+    player: PlayerId,
+    source: ObjectId,
+) -> bool {
+    if state.restrictions().is_empty() {
+        return false;
+    }
     let active_player = state.turn().active_player;
 
     // Source must be on the battlefield for restrictions to apply (Finding 3).

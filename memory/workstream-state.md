@@ -832,6 +832,113 @@
   (`scutemob-159`) confirmed its exclusion from the primitive queue. `OOS-M11-3` (fuzzer
   nondeterminism in 150-200+ turn games) untouched.
 
+## Worker Handoff (SIM-2, `scutemob-176`)
+
+**Date**: 2026-08-02 (worker session)
+**Workstream**: playtest-triage successor track (SIM-2) — **F3 + F4 + F5 CLOSED**
+**Task**: `scutemob-176`. Branch
+`feat/sim-2-mana-intelligence-batch---residual-auto-tap-solver-cou`
+**Full evidence**: `memory/primitives/sim2-mana-intelligence-2026-08-02.md`
+
+**Completed**:
+- **F4 — the mana solver counted SOURCES, not MANA.** `produces` was expanded per unit and
+  the expansion never read, so Sol Ring was one mana. Both directions were live and a human
+  saw both: over-tap (Sol Ring + two Forests for `{2}{G}`, one mana stranded and destroyed by
+  CR 500.4) and, worse, **under-offer** — a `{2}` spell with only a Sol Ring untapped solved
+  to `None`, so `can_afford` never offered the cast. A tapped source now credits its whole
+  production to a running tally and each pip is paid from that tally.
+- **F3 — auto-tap was all-or-nothing.** Pool covers the whole cost → tap nothing; anything
+  less → solve for the **entire printed cost** with the pool never subtracted.
+  `solve_mana_payment_with_pool` subtracts in `ManaPool::can_spend`'s own order and solves the
+  residual; the early return is now the residual-is-zero case of the general rule.
+  `advance()`'s bot path calls the same helper, and `can_afford` asks the same question once
+  instead of a pool shortcut OR a whole-cost solve **with a gap between them** (a player with
+  `{G}` floating and one Forest up was told `{1}{G}` was uncastable).
+- **F5 — the bot tapped out every empty upkeep.** `TapForMana` 5 → **0**, below
+  `PassPriority`. The demote-vs-gate choice is not arbitrary: every mana-consuming action
+  already outscored 5, so a tap was only ever *chosen* when it was the sole alternative to
+  passing. Scored 0 rather than removed, so it stays choosable when it is all there is.
+- **The layer half of `OOS-M11-2`, recorded as theoretical, was live-wrong.** Changing which
+  source the solver reaches for reddened the S8 scripted playthrough on seed 42:
+  `"object ObjectId(487) has no mana ability at index 0"`. `layers.rs` clears
+  `mana_abilities` for a **face-down** permanent (CR 707.2) and the solver read base
+  characteristics. The doc block had illustrated the gap with *granted* abilities
+  (Cryptolith Rite) and no urgency. Now `calculate_characteristics`, measured free:
+  `mtg-fuzzer --games 60 --max-turns 40` is 6.8 s on both sides.
+- **`OOS-CARDS2-9`, which existed only in three source comments and was never filed.** Its
+  own statement of the fix — "one place: make the solver ask whether the ability is
+  activatable" — was right about the affordability half and silent about the **offer** half:
+  `legal_actions`'s `TapForMana` loop checked `life_cost` and nothing else, so an unmet
+  activation condition and a summoning-sick creature were offered and refused, and the
+  play-server driver carried both refusal strings in `KNOWN_FALSE_OFFERS`. One predicate,
+  `tap_ability_is_activatable`, now serves both.
+- **The bot half of `OOS-M11-8`.** S8 recorded it CLOSED on a fix living only in
+  `auto_tap_commands_for` while `advance()` kept its own printed-cost solve. Latent (no
+  shipped bot announces X > 0), but open. Closed by there being one function; pinned by
+  `t21`, which drives a purpose-built `XBot`.
+
+**Gates**: workspace **4,214 / 0 / 5**; `play-server` 40/40; clippy `-D warnings` clean;
+`cargo fmt --check` + `tools/check-defs-fmt.sh` clean (1,803 defs); `cargo build --workspace`
+(SR-3 seal) clean. **PROTOCOL 33 / HASH 70 gate-executed, unmoved** — the criterion's
+"PROTOCOL 32" was stale, PB-DX6 moved it before this fork. Coverage unmoved: zero card-def
+edits, zero completeness flips.
+
+**Diff scope, stated exactly**: `crates/simulator` (3 source + 4 test files) +
+`tools/play-server/src/main.rs` (one seed pin) + docs/memory + **one line of
+`crates/engine/src/state/keyword_registry.rs`**. That last one is not scope creep and not
+optional: SR-5's gate greps the source tree, so the solver's new CR 302.6 branch on
+`KeywordAbility::Haste` must be declared or `core::keyword_registry` fails. It is a data
+line; PROTOCOL/HASH are unmoved and `git diff main -- crates/engine/src/rules
+crates/engine/src/effects crates/card-types crates/card-defs` is empty.
+
+**Fuzzer A/B** (`--games 100 --seed 1 --max-turns 60`, merge base vs branch): **96/100 games
+byte-identical**, 4 differ only in command count, violations 0 → 0, every game ends
+`MaxTurnsReached(60)` on both sides. The four are the offer set moving.
+
+**Fix cycle (`/review`, Opus)**: 8 findings, all applied. Two were live SR-38 violations the
+batch had *asserted away*: (a) CR 605.3 **stax restrictions** — an opponent's Collector Ouphe
+or Stony Silence refuses a Sol Ring's tap, and that class was mirrored in neither the solver
+nor the offer loop while four comments claimed the mirror of `handle_tap_for_mana` was
+complete (same shape as `OOS-SIM1-3`: an enumeration is only as complete as the category it
+names — there enum variants, here the rejections inside one function); (b) an SR-36 **scaled**
+ability's marker was called a safe under-count, but the engine adds `resolve_amount(..).max(0)`
+with no error, so Itlimoc with no creatures out produces nothing while the marker promises one
+mana — over-credit, refused cast. Both fixed and pinned (`t22`, `t23`). The other six were
+documentation: a "hoisted" claim the same file contradicted two hundred lines later, the
+`OOS-M11-2`/`OOS-M11-8` audit rows (criterion 5 asked for exactly this and the first pass
+appended seeds without correcting the rows they contradicted), the playtest-triage F3/F4/F5
+banners and roll-up, a defs-vs-ability-rows unit error in a population count, and a
+discrimination matrix that claimed no test was decorative while having no row for the one
+guarding `pick_least_waste`.
+
+**Two engine findings carried out, both out of scope and both worth someone's attention**:
+- **`OOS-SIM2-6` (HIGH)** — `calculate_characteristics` recurses without bound through
+  `is_effect_active` → `check_static_condition` → `expect_characteristics`, and
+  `indomitable_archangel` (`Complete`, deck-legal) makes that unconditional: its metalcraft
+  static's activity depends on counting artifacts, which depends on layer-resolved types,
+  which depends on its activity. **Hard, unrecoverable crash** (still overflows at
+  `ulimit -s 524288`). Reproduce: `mtg-fuzzer --games 1 --seed 504 --max-turns 200` on this
+  branch. Diagnosed by `gdb` backtrace plus a depth probe that named the card. Very likely
+  the mechanism behind `OOS-M11-3` / `OOS-DP3-9`, which had the symptom and no cause.
+- **`OOS-SIM2-5`** — `layers.rs` P/T arithmetic is unchecked `i32`; Devilish Valet's
+  doubling reaches 2^30 and the next doubling panics in debug and **wraps silently in
+  release**.
+
+**Seed pin re-derived, for the second time in two days**: `TARGET_SEED` 1 → **13**, by the
+rule the pin's own comment states (the pins are a function of the whole corpus *and of the
+provider*; SIM-2 changes `can_afford`). Swept 0..24 running the four fixtures against each;
+only 13 passes all four. Seed 1 now drives into `OOS-SIM2-5`'s overflow, which is recorded at
+the pin so it cannot later read as a property of the fixture.
+
+**Left open, deliberately**: `OOS-SIM2-1` (the solve is greedy — an under-offer is still
+possible where source assignment interacts), `OOS-SIM2-2` (20 abilities with their own mana
+component are never planned), `OOS-SIM2-3` (a bot still cannot pay an activated ability's
+mana cost — `advance()` auto-taps for `CastSpell` only; pre-existing and unchanged in kind),
+`OOS-SIM2-4` (SR-36 scaled production and CR 106.6a replacements under-counted — safe
+direction), `OOS-SIM2-7` (the two `tools/tui` call sites inherit the production fix but not
+the residual). What remains of `OOS-M11-2` after this batch is exactly cost *modifiers* and
+CR 106.12 restricted mana.
+
 ## Worker Handoff (CARDS-2, `scutemob-181`)
 
 **Date**: 2026-08-02 (worker session)

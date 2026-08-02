@@ -5,8 +5,9 @@
 //! - Cast a spell: +50 base, +10 per mana value, +20 if removal-like
 //! - Activate ability: +40
 //! - Attack with creature: +30 if opponent tapped out, +10 otherwise
-//! - Tap for mana: +5 (only useful as prep)
 //! - Pass priority: +1 (last resort)
+//! - Tap for mana: 0 — **below passing** (SIM-2; see the `TapForMana` arm of
+//!   `score_action` for why "prep" was the wrong model)
 
 use std::collections::HashMap;
 
@@ -213,7 +214,34 @@ impl HeuristicBot {
                 }
                 20
             }
-            LegalAction::TapForMana { .. } => 5,
+            // SIM-2 (playtest triage F5): **below** `PassPriority`'s 1, not the +5 this
+            // scored until 2026-08-02.
+            //
+            // The header's "only useful as prep" was never conditioned on anything, so
+            // with nothing to cast the bot deterministically tapped every source it
+            // controlled, CR 500.4 emptied the pool at the step boundary, and it arrived
+            // at its main phase tapped out. A human watching a browser game saw it every
+            // upkeep. Systematic, not noise: `score_action` is deterministic and 5 > 1.
+            //
+            // Scoring it *below* passing rather than gating it on a spend target is the
+            // whole fix because the two are observationally identical here: every action
+            // that could consume mana already outscores 5 (`CastSpell` 50+,
+            // `ActivateAbility` 40, `PlayLand` 100), so a tap was only ever CHOSEN when
+            // it was the sole alternative to passing -- which is exactly the empty-upkeep
+            // tap-out and nothing else. `LocalGame` auto-taps for a bot's casts
+            // (`advance()` -> `auto_tap_commands_for`), so nothing the bot can actually
+            // pay for depends on it pre-floating mana.
+            //
+            // Scored 0, not removed: like a capped repeat, the action stays choosable
+            // when it is all there is, so this can never make the bot fail to act.
+            //
+            // **Known consequence, deliberately not fixed here** (`OOS-SIM2-3`): a bot
+            // still cannot pay an activated ability's mana cost, because `advance()`
+            // auto-taps for `CastSpell` only. That was already true -- `ActivateAbility`
+            // scored 40 and was therefore always chosen *before* any tap, then rejected
+            // for lack of mana and absorbed by the `PassPriority` fallback -- so this
+            // change does not cause it and does not deepen it.
+            LegalAction::TapForMana { .. } => 0,
             LegalAction::TakeMulligan => 10,
             LegalAction::KeepHand => 50,
             LegalAction::ReturnCommanderToCommandZone { .. } => 80,
