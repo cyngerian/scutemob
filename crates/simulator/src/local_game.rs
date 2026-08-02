@@ -611,9 +611,15 @@ impl<P: LegalActionProvider> LocalGame<P> {
     /// with no `SpellContext`, so CR 106.12 restricted mana is invisible. Those three
     /// remain the surviving halves of OOS-M11-2 and are out of SIM-1's and SIM-2's
     /// scope -- fixing them means teaching the solver/helper about layer-resolved cost
-    /// modifiers, which neither batch takes. SIM-2 closes the POOL half at the solver
-    /// (`mana_solver::solve_mana_payment_with_pool`) and leaves the LAYER half of
-    /// OOS-M11-2 open, with the reason recorded in `mana_solver.rs` (`OOS-SIM2-1`).
+    /// MODIFIERS, which neither batch takes.
+    ///
+    /// **What SIM-2 did close**: the POOL half, at the solver
+    /// (`mana_solver::solve_mana_payment_with_pool` — this function no longer compensates
+    /// for a pool-blind solver, because the solver is not pool-blind), and the
+    /// LAYER-RESOLUTION half, which was recorded as a theoretical gap about *granted*
+    /// mana abilities and turned out to be live-wrong about **face-down** ones
+    /// (CR 707.2 — see `mana_solver::gather_sources`). So OOS-M11-2 is now exactly its
+    /// cost-modifier and CR 106.12 residue, and nothing else.
     ///
     /// # `{X}` is paid for — **OOS-M11-8 CLOSED for the human path** (S8, item 2) —
     /// **and now for the bot path too** (SIM-2)

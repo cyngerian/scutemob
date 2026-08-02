@@ -49,9 +49,8 @@ fn battlefield_with(sources: &[(&str, ManaAbility)]) -> (GameState, Vec<ObjectId
         .add_player(PlayerId(2))
         .active_player(PlayerId(1));
     for (name, ability) in sources {
-        builder = builder.object(
-            ObjectSpec::land(PlayerId(1), name).with_mana_ability(ability.clone()),
-        );
+        builder =
+            builder.object(ObjectSpec::land(PlayerId(1), name).with_mana_ability(ability.clone()));
     }
     let state = builder.build().expect("solver fixture should build");
     let ids = sources
@@ -342,9 +341,10 @@ fn t7_auto_tap_solves_for_the_residual_after_the_pool() {
             AdvanceOutcome::AwaitingHuman(d) => d,
             other => panic!("expected AwaitingHuman, got {other:?}"),
         };
-        let idx = action_index(&decision.actions, |a| {
-            matches!(a, LegalAction::TapForMana { source: s, .. } if s == source)
-        });
+        let idx = action_index(
+            &decision.actions,
+            |a| matches!(a, LegalAction::TapForMana { source: s, .. } if s == source),
+        );
         game.submit(
             decision.seq,
             HumanChoice {
@@ -368,9 +368,10 @@ fn t7_auto_tap_solves_for_the_residual_after_the_pool() {
         AdvanceOutcome::AwaitingHuman(d) => d,
         other => panic!("expected AwaitingHuman, got {other:?}"),
     };
-    let idx = action_index(&decision.actions, |a| {
-        matches!(a, LegalAction::CastSpell { card, .. } if *card == spell)
-    });
+    let idx = action_index(
+        &decision.actions,
+        |a| matches!(a, LegalAction::CastSpell { card, .. } if *card == spell),
+    );
     let before = game.journal().len();
     game.submit(
         decision.seq,
@@ -577,9 +578,10 @@ fn t10_two_generic_spell_with_only_a_sol_ring_is_offered_and_succeeds() {
         AdvanceOutcome::AwaitingHuman(d) => d,
         other => panic!("expected AwaitingHuman, got {other:?}"),
     };
-    let idx = action_index(&decision.actions, |a| {
-        matches!(a, LegalAction::CastSpell { card, .. } if *card == spell)
-    });
+    let idx = action_index(
+        &decision.actions,
+        |a| matches!(a, LegalAction::CastSpell { card, .. } if *card == spell),
+    );
     game.submit(
         decision.seq,
         HumanChoice {
@@ -754,10 +756,9 @@ fn t14_counter_cost_source_respects_the_counters_present() {
         solve_mana_payment(&empty, PlayerId(1), &generic(1)).is_none(),
         "no counters on the permanent means the activation cost cannot be paid"
     );
-    let (stocked, id) =
-        battlefield_with_life("SIM2 Workhorse", workhorse, 40, vec![], |obj| {
-            obj.counters.insert(CounterType::PlusOnePlusOne, 1);
-        });
+    let (stocked, id) = battlefield_with_life("SIM2 Workhorse", workhorse, 40, vec![], |obj| {
+        obj.counters.insert(CounterType::PlusOnePlusOne, 1);
+    });
     assert_eq!(
         tapped_sources(
             &solve_mana_payment(&stocked, PlayerId(1), &generic(1))
@@ -978,7 +979,8 @@ fn t19_unactivatable_mana_abilities_are_not_offered() {
         activation_condition: Some(Box::new(Condition::ControllerLifeAtLeast(30))),
         ..Default::default()
     };
-    let (unmet, _) = battlefield_with_life("SIM2 Conditioned", conditioned.clone(), 10, vec![], |_| {});
+    let (unmet, _) =
+        battlefield_with_life("SIM2 Conditioned", conditioned.clone(), 10, vec![], |_| {});
     assert!(
         !StubProvider
             .legal_actions(&unmet, PlayerId(1))

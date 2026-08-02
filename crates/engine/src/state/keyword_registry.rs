@@ -117,6 +117,13 @@ pub fn handling(keyword: &KeywordAbility) -> KeywordHandling {
                 "crates/engine/src/rules/mana.rs",
                 "crates/engine/src/rules/resolution.rs",
                 "crates/simulator/src/legal_actions.rs",
+                // SIM-2 (`scutemob-176`): the mana solver mirrors `rules/mana.rs`'s
+                // CR 302.6 / CR 702.10b summoning-sickness check, so it will not plan a
+                // `{T}` payment on a sick mana creature that `handle_tap_for_mana` would
+                // then refuse. Declared here because SR-5 requires it — the gate greps the
+                // source tree, and this is the ONE line outside `crates/simulator` that
+                // batch touched.
+                "crates/simulator/src/mana_solver.rs",
             ],
         },
         K::Hexproof => KeywordHandling::Handled {

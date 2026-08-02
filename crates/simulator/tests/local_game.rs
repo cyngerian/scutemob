@@ -1898,6 +1898,13 @@ fn state_for_auto_tap_test() -> (GameState, ObjectId, ObjectId, ObjectId) {
 /// Item 7's conditional auto-tap (the pool half of OOS-M11-2). BOTH halves in one
 /// test, or it proves nothing.
 ///
+/// **Still true after SIM-2, by a different mechanism** (`scutemob-176`): the explicit
+/// `can_pay_cost` early return this test was written against is gone, and half 1 now
+/// passes because `solve_mana_payment_with_pool` subtracts the pool and finds a residual
+/// of zero, which is an EMPTY plan. Same observable outcome, reached by the general rule
+/// instead of a special case — and the non-vacuity argument below is unchanged, because a
+/// solver that ignored the pool would still find source B and tap it.
+///
 /// Half 1 (`pre_tap: true`): source A is tapped MANUALLY first (a separate `submit`
 /// of the `TapForMana` action, filling the pool within the same step), then the cast
 /// is submitted with `auto_tap: true` -- no ADDITIONAL `TapForMana` is issued by the

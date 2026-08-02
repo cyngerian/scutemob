@@ -324,10 +324,33 @@ recorded fuzz seed.** The engine-side fix — an "already declared this combat" 
 frontend). It is the only crate in the M11-local stack with async or IO; nothing below
 `api.rs` references tokio. See `tools/play-server/README.md`.
 
-**Known simulator-side gaps, all recorded rather than fixed here**: `mana_solver` ignores
-the mana pool and reads non-layer-resolved `mana_abilities` (`OOS-M11-2`, pool half
-closed in S3, **commander-tax half closed by SIM-1**); `StubProvider` enumerates no
-Adventure, alt-cost, or Convoke/Improvise/Delve casts (plan §8 R4).
+**Known simulator-side gaps, all recorded rather than fixed here**: `StubProvider`
+enumerates no Adventure, alt-cost, or Convoke/Improvise/Delve casts (plan §8 R4).
+
+**`mana_solver` is pool-aware and layer-resolved as of SIM-2** (2026-08-02, `scutemob-176`,
+playtest triage F3/F4). It previously (a) ignored the mana pool entirely, with
+`LocalGame::auto_tap_commands_for` compensating by an all-or-nothing pool check that solved
+for the **whole printed cost** whenever the pool did not fully cover it; (b) counted one
+mana per SOURCE tapped rather than per mana produced, so Sol Ring was one mana — which
+over-tapped in one direction and, worse, made `can_afford` refuse to offer a `{2}` spell a
+Sol Ring pays for; and (c) read `obj.characteristics.mana_abilities` raw, so a **face-down**
+permanent's stripped mana abilities (CR 707.2) were planned and the engine refused the tap.
+`solve_mana_payment_with_pool` now solves the residual, production is credited in mana, and
+sources are gathered through `calculate_characteristics` — the same function the provider's
+own `TapForMana` loop and `handle_tap_for_mana` use, so an offer and a payment plan cannot
+disagree. What remains of **`OOS-M11-2`** is cost *modifiers* (no Thalia-style increase, no
+reduction) and CR 106.12 restricted mana; its pool, commander-tax (SIM-1) and layer halves
+are all closed. Residual gaps have their own seeds: `OOS-SIM2-1` (the solve is greedy, so an
+under-offer is still possible on a board where source assignment interacts), `OOS-SIM2-2`
+(abilities with their own mana component are never planned), `OOS-SIM2-4` (SR-36 scaled
+production and CR 106.6a replacements are under-counted).
+
+**`HeuristicBot` no longer taps out on an empty upkeep** (SIM-2, playtest triage F5):
+`TapForMana` scores **0**, below `PassPriority`'s 1. Every action that can consume mana
+already outscored the old 5, so the demotion only removes the case where a tap was the sole
+alternative to passing — and `LocalGame` auto-taps a bot's casts, so nothing the bot can pay
+for depended on pre-floating mana. A bot still cannot pay an activated ability's mana cost
+(`OOS-SIM2-3`), which was equally true before.
 
 **`StubProvider` enumerates command-zone casts as of SIM-1 (2026-08-02, playtest triage
 F7).** It previously enumerated casts **from hand only**, so a human clicking their

@@ -78,7 +78,12 @@ fn r1_multi_mana_sources() {
          production accounting if this moved. Found: {:?}",
         multi.iter().map(|r| &r.name).collect::<Vec<_>>()
     );
-    for expected in ["Sol Ring", "Mana Crypt", "Golgari Rot Farm", "Llanowar Tribe"] {
+    for expected in [
+        "Sol Ring",
+        "Mana Crypt",
+        "Golgari Rot Farm",
+        "Llanowar Tribe",
+    ] {
         assert!(
             multi.iter().any(|r| r.name == expected),
             "{expected} must be in the multi-mana roster (non-vacuity)"

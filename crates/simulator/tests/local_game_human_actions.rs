@@ -588,6 +588,13 @@ fn test_s8_bot_seat_is_never_offered_concede() {
 /// handoff routed the seed into this session's item-2 audit; it is the same family as
 /// `OOS-M11-2`.
 ///
+/// **This test covers the HUMAN path only, and that mattered** (SIM-2, `scutemob-176`):
+/// `LocalGame::advance`'s bot seat had its own `solve_mana_payment` call on the taxed
+/// printed cost, so the seed was closed for `submit` and open for `advance` — latent,
+/// since no shipped bot announces a non-zero X. The bot half is now closed by `advance`
+/// calling this same helper, and pinned separately by
+/// `sim2_mana_intelligence::t21_bot_auto_tap_includes_the_announced_x`.
+///
 /// The fixture is a `{X}{1}` sorcery with four one-mana sources. X = 2 needs three
 /// mana, which is **more than the printed cost and less than the board**, so a pass
 /// that tapped only for the printed `{1}` would leave the cast unpayable and a pass

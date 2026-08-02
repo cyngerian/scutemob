@@ -509,7 +509,14 @@ fn solve_tracker(
         }
         let need = remaining.colorless;
         let idx = pick_least_waste(&sources, need, |s| s.produces_color(ManaColor::Colorless))?;
-        tap(&mut sources, idx, player, None, &mut floating, &mut commands);
+        tap(
+            &mut sources,
+            idx,
+            player,
+            None,
+            &mut floating,
+            &mut commands,
+        );
     }
 
     // Phase 3: generic pips — any mana pays them (CR 107.4), so the source is chosen by
