@@ -1713,6 +1713,13 @@ fn can_afford(state: &GameState, player: PlayerId, cost: &mtg_engine::ManaCost) 
 /// The `restrictions().is_empty()` fast path is new and load-bearing for that second
 /// caller: the solver asks this per source per solve, and `calculate_characteristics` is
 /// not free. Almost every board has no restrictions at all.
+///
+/// **Known cost, accepted**: past that fast path this recomputes `calculate_characteristics`
+/// twice per source per solve, while `mana_solver::gather_sources` is already holding the
+/// layer-resolved characteristics and passes them in for the summoning-sickness arm. It
+/// mirrors `rules/mana.rs` step 1b, which makes the same double call, and correctness does
+/// not depend on it — recorded so a stax-heavy fuzz seed running slow is a known cost
+/// rather than a surprise.
 pub(crate) fn is_ability_restricted_by_stax(
     state: &GameState,
     player: PlayerId,

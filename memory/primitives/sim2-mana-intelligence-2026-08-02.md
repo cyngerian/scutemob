@@ -123,6 +123,16 @@ the solver cannot ask for the real number); `t23` pins it. The lesson is narrow 
 **"conservative" is a claim about a direction, and a direction has to be checked at its
 endpoints.**
 
+The *second* pass of the same `/review` then caught the same species of overclaim inside the
+fix for the first: the exclusion's comment said it cost "nothing that was working", and that
+is false — a Cradle with **one** creature out was offered and the cast *succeeded*, and that
+case is now withheld. It is also over-broad for four of the nine, which count a population
+containing themselves and so cannot reach zero on the battlefield (`elvish_archdruid`,
+`priest_of_titania`, `circle_of_dreams_druid`, `marwyn_the_nurturer`). Carving those out by
+name would be a shadow implementation of the count — the trap avoided one paragraph earlier on
+the stax fix — so the blunt exclusion stands and the claim was corrected instead. **Twice in
+one batch, the thing needing repair was a sentence asserting the code was safe.**
+
 ### The bot half of OOS-M11-8 — closed by there being one function
 
 S8 recorded `OOS-M11-8` (announced `{X}` not paid for) as CLOSED on a fix that lived only in

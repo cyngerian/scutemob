@@ -1720,15 +1720,23 @@ mod tests {
                 // finding **F4** is the fourth symptom (Sol Ring credited as one mana). The fix
                 // is one place: make the solver ask whether the ability is *activatable*, not
                 // whether its source is untapped.
+                //
+                // **SIM-2 (`scutemob-176`) CLOSED symptoms 1 and 2 and DELETED their entries**,
+                // adopting the policy the sibling list in
+                // `crates/simulator/tests/local_game_playthrough.rs` states and enforces: *"an
+                // excusal list is a debt register with a maturity date — delete the entry the
+                // moment it stops firing"*. A dead entry is not inert here: this list has no
+                // staleness assertion (the sibling's does), so carrying
+                // `"mana ability activation condition not met"` and `"summoning sickness and
+                // cannot tap for mana"` after the fix would silently drive a future REGRESSION
+                // of either past instead of failing this driver. SIM-2's first pass argued for
+                // keeping them as a record; the record belongs in the seed row (`OOS-CARDS2-9`),
+                // not in a live allowlist.
                 const KNOWN_FALSE_OFFERS: &[&str] = &[
                     // OOS-CARDS2-4: an Aura's target requirement lives in
                     // `KeywordAbility::Enchant(...)`, which `casting.rs` special-cases (CR
                     // 303.4a) and the provider never reads, so the offer says `target_min: 0`.
                     "Aura spells require exactly one target",
-                    // OOS-CARDS2-9, symptom 1 (refused at `rules/mana.rs`).
-                    "mana ability activation condition not met",
-                    // OOS-CARDS2-9, symptom 2 (CR 302.6).
-                    "summoning sickness and cannot tap for mana",
                 ];
                 let reason = next["error"].as_str().unwrap_or_default();
                 assert!(

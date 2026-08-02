@@ -226,9 +226,25 @@ fn plannable_tap_ability(
     // and adds it with **no error at zero**, so Itlimoc with no creatures out produces
     // NOTHING while the marker promises one mana — an over-credit, and therefore an
     // offered cast the engine refuses. Found by SIM-2's `/review` on
-    // `growing_rites_of_itlimoc`, which is `Complete` and deck-legal. Excluded outright:
-    // the 9 scaled defs were already under-counted before this batch, so nothing regresses
-    // that was working, and the zero case stops being a live SR-38 violation. `OOS-SIM2-4`.
+    // `growing_rites_of_itlimoc`, which is `Complete` and deck-legal.
+    //
+    // **This exclusion has a real cost, and it is not "nothing that was working".** A
+    // Cradle with ONE creature out credited the marker, was offered, and the cast
+    // succeeded, because the engine then resolved a count of ≥1; that case is now not
+    // offered. It is also provably over-broad for four of the nine, which count a
+    // population containing themselves and so cannot reach zero while on the battlefield
+    // (`elvish_archdruid` and `priest_of_titania` count Elves, `circle_of_dreams_druid`
+    // counts creatures, `marwyn_the_nurturer` uses `PowerOf(Source)`). Carving those out
+    // by name would be a shadow implementation of the count — the "two arithmetics" trap
+    // this file avoids elsewhere — so the blunt exclusion stands and the honest fix is to
+    // export `resolve_amount`, which closes all nine at once. `OOS-SIM2-4`.
+    //
+    // Placed here in `plannable_tap_ability` and NOT in `tap_ability_is_activatable`, so
+    // `StubProvider` still OFFERS the tap and a human can float the mana by hand — the
+    // same escape hatch the mana-component arm leaves for Signets. A **bot** has no such
+    // path (`advance()` auto-taps for `CastSpell` only and `TapForMana` now scores 0), so
+    // bots lose all nine scaled sources outright; that compound effect of this arm and the
+    // F5 demotion is recorded in `OOS-SIM2-3`.
     if ability.scaled_amount.is_some() {
         return false;
     }
