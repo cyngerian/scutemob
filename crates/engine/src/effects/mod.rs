@@ -3890,19 +3890,26 @@ fn execute_effect_inner(
             // `CdaPowerToughness` (Layer 7a, dispatched via `resolve_cda_amount`) is the
             // analogous Layer-7a live-eval primitive.
             let resolved_modification = match &effect_def.modification {
+                // OOS-SIM2-5 / PB-DX19: `saturating_neg`, not `-raw`. This is the CR
+                // 608.2h lock-in site that feeds `rules/layers.rs`'s (now saturating)
+                // `Modify*` arms, so leaving a bare negation here would reintroduce the
+                // same overflow one hop upstream of the fix — `-raw` panics under
+                // `[profile.fuzz]`'s `overflow-checks` and wraps in plain `--release`
+                // when `raw == i32::MIN`. See the ceiling deviation on
+                // `rules::layers::apply_layer_modification`.
                 LM::ModifyBothDynamic { amount, negate } => {
                     let raw = resolve_amount(state, amount, ctx);
-                    let v = if *negate { -raw } else { raw };
+                    let v = if *negate { raw.saturating_neg() } else { raw };
                     LM::ModifyBoth(v)
                 }
                 LM::ModifyPowerDynamic { amount, negate } => {
                     let raw = resolve_amount(state, amount, ctx);
-                    let v = if *negate { -raw } else { raw };
+                    let v = if *negate { raw.saturating_neg() } else { raw };
                     LM::ModifyPower(v)
                 }
                 LM::ModifyToughnessDynamic { amount, negate } => {
                     let raw = resolve_amount(state, amount, ctx);
-                    let v = if *negate { -raw } else { raw };
+                    let v = if *negate { raw.saturating_neg() } else { raw };
                     LM::ModifyToughness(v)
                 }
                 // CR 613.4b / CR 608.2h / CR 107.3k: SetBothDynamic (Layer 7b "set base P/T
@@ -10244,20 +10251,47 @@ pub fn check_static_condition(
                         && obj.is_phased_in()
                         && obj.controller == controller
                         && {
-                            // NOTE: `calculate_characteristics` is called here from within
-                            // `check_static_condition`, which is itself called from
-                            // `is_effect_active`, which is called from within
-                            // `calculate_characteristics` for each active continuous effect.
-                            // This is re-entrant but safe: `im-rs` persistent data structures
-                            // are immutable, so there is no risk of observing partial mutations.
-                            // Termination is guaranteed because we are checking the types of
-                            // *other* battlefield objects, not the object currently being
-                            // calculated — there is no direct self-referential cycle.
-                            // If performance becomes an issue, consider using base
-                            // characteristics (`obj.characteristics`) for the filter check
-                            // instead of calling `calculate_characteristics` again.
-                            let chars = crate::rules::layers::expect_characteristics(state, obj.id);
-                            matches_filter(&chars, filter)
+                            // OOS-SIM2-6 / PB-DX19 — READ BASE CHARACTERISTICS HERE. Calling
+                            // `calculate_characteristics` (or `expect_characteristics`, which
+                            // wraps it) from this arm is an UNBOUNDED RECURSION, not a
+                            // performance question. The cycle is:
+                            //
+                            //   calculate_characteristics -> is_effect_active (layers.rs)
+                            //     -> check_static_condition -> this arm
+                            //     -> expect_characteristics -> calculate_characteristics -> ...
+                            //
+                            // and it has no exit. The comment that stood here until 2026-08-02
+                            // argued termination from the wrong invariant — that "we are
+                            // checking the types of *other* battlefield objects, not the object
+                            // currently being calculated". That is not what breaks the cycle,
+                            // because the cycle runs through the EFFECT, not through the object:
+                            // `calculate_characteristics` (`rules/layers.rs`) calls
+                            // `is_effect_active` on EVERY entry in `state.continuous_effects`
+                            // regardless of which object it was asked about, and regardless of
+                            // that object's zone. So recursing on a different object — or on an
+                            // object in the graveyard — re-enters this arm just the same. The
+                            // recursion is unconditional, and `indomitable_archangel` (a
+                            // deck-legal `Complete` def) made it a `fatal runtime error: stack
+                            // overflow` -> SIGABRT that no `catch_unwind` can contain.
+                            //
+                            // The precedent for this fix was already in the tree and had made
+                            // the opposite choice for the same hazard: see the
+                            // `EffectAmount::PermanentCount` arm in `rules/layers.rs`, which
+                            // filters on `obj.characteristics` with an explicit
+                            // "avoid an infinite recursion" note.
+                            //
+                            // DOCUMENTED DEVIATION (CR 604.2 / CR 613.1): a base-characteristics
+                            // read misses type changes granted by OTHER continuous effects — a
+                            // land that Mycosynth Lattice has made an artifact will not be
+                            // counted toward Metalcraft here, though CR says it should. That is
+                            // a wrong ANSWER in a rare board state, traded for a hard process
+                            // abort in a common one. The CR-honest fix is a CR 613.8b
+                            // dependency-aware fixpoint (the engine already has the 613.8
+                            // machinery: `resolve_layer_order` / `toposort_with_timestamp_fallback`
+                            // in `rules/layers.rs`); it is a batch of its own, filed as
+                            // OOS-DX19-2. Do not reintroduce a layer-resolved read here without
+                            // that fixpoint.
+                            matches_filter(&obj.characteristics, filter)
                                 // CR 122.1: counter check must be against GameObject (not Characteristics).
                                 && check_has_counter_type(obj, filter)
                                 // CR 109.1: "you control another [permanent]" excludes the

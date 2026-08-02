@@ -378,23 +378,33 @@ pub fn calculate_characteristics(
             let Some(obj_ref) = state.expect_object(object_id) else {
                 break;
             };
-            let plus_ones = obj_ref
+            // OOS-SIM2-5 / PB-DX19: counters are `u32` and P/T is `i32`, so both the
+            // widening and the arithmetic are saturating. `try_into().unwrap_or(i32::MAX)`
+            // rather than `as i32`, because an `as` cast does NOT panic under
+            // `overflow-checks` — a count above `i32::MAX` would wrap to a NEGATIVE
+            // modifier and silently invert the counter's sign in every build. See the
+            // ceiling deviation note on `apply_modification`.
+            let plus_ones: i32 = obj_ref
                 .counters
                 .get(&CounterType::PlusOnePlusOne)
                 .copied()
-                .unwrap_or(0) as i32;
-            let minus_ones = obj_ref
+                .unwrap_or(0)
+                .try_into()
+                .unwrap_or(i32::MAX);
+            let minus_ones: i32 = obj_ref
                 .counters
                 .get(&CounterType::MinusOneMinusOne)
                 .copied()
-                .unwrap_or(0) as i32;
-            let net = plus_ones - minus_ones;
+                .unwrap_or(0)
+                .try_into()
+                .unwrap_or(i32::MAX);
+            let net = plus_ones.saturating_sub(minus_ones);
             if net != 0 {
                 if let Some(p) = &mut chars.power {
-                    *p += net;
+                    *p = p.saturating_add(net);
                 }
                 if let Some(t) = &mut chars.toughness {
-                    *t += net;
+                    *t = t.saturating_add(net);
                 }
             }
         }
@@ -1449,6 +1459,35 @@ mod pb_dx5_snapshot_tests {
 /// `state` is needed for Layer 1 copy effects to look up the target object's
 /// copiable values (CR 707.2).  `mana_value` is the object's printed mana value,
 /// used for `SetPtToManaValue`.
+///
+/// # Documented deviation: P/T saturates at `i32` bounds (OOS-SIM2-5, PB-DX19)
+///
+/// The Comprehensive Rules put **no ceiling on power or toughness**. This engine
+/// stores both as `i32`, so an unbounded doubling chain — `devilish_valet` is the
+/// worked example, and it is `Complete`: `effects/mod.rs` substitutes its
+/// `ModifyPowerDynamic` to a concrete `ModifyPower(current_power)` per trigger
+/// (CR 608.2h), so each trigger *adds the creature's current power* — reaches
+/// `i32::MAX` in about 31 triggers, which is a reachable number of combat triggers
+/// in a Commander game.
+///
+/// Every P/T write in this file therefore uses `saturating_add` /
+/// `saturating_sub` / `saturating_neg` — the six `Modify*` / `Modify*Dynamic` arms
+/// below, and the `+1/+1` / `-1/-1` counter path in `calculate_characteristics`,
+/// which additionally widens its `u32` counter counts with
+/// `try_into().unwrap_or(i32::MAX)` rather than `as i32`.
+/// **The choice matters because the two supported build profiles fail differently**:
+/// `Cargo.toml`'s `[profile.fuzz]` sets `overflow-checks = true`, so bare `+=`
+/// *panicked* there, while a plain `--release` build *wrapped silently to negative
+/// power* — a creature that "gets huge" would quietly become a 0/0 and die to
+/// CR 704.5a. An `as` cast, note, does neither: it wraps in **every** profile,
+/// including under `overflow-checks`, which is why the counter widening could not
+/// stay an `as`.
+///
+/// Saturating is a deviation, not a rules-correct answer: a creature pinned at
+/// `i32::MAX` power is wrong per CR, just far less wrong than one that wrapped
+/// negative and died. Making the ceiling unreachable means widening the stored type
+/// (or clamping at the effect layer with an explicit CR-blessed rule), and that is
+/// out of scope here — filed as OOS-DX19-3.
 fn apply_layer_modification(
     state: &GameState,
     chars: &mut Characteristics,
@@ -1655,20 +1694,20 @@ fn apply_layer_modification(
         // Layer 7c: P/T-modifying
         LayerModification::ModifyPower(delta) => {
             if let Some(p) = &mut chars.power {
-                *p += delta;
+                *p = p.saturating_add(*delta);
             }
         }
         LayerModification::ModifyToughness(delta) => {
             if let Some(t) = &mut chars.toughness {
-                *t += delta;
+                *t = t.saturating_add(*delta);
             }
         }
         LayerModification::ModifyBoth(delta) => {
             if let Some(p) = &mut chars.power {
-                *p += delta;
+                *p = p.saturating_add(*delta);
             }
             if let Some(t) = &mut chars.toughness {
-                *t += delta;
+                *t = t.saturating_add(*delta);
             }
         }
         // CR 611.3a / PB-CC-C-followup: ModifyBothDynamic re-evaluates live at every
@@ -1693,12 +1732,14 @@ fn apply_layer_modification(
                 .map(|o| o.controller)
                 .unwrap_or(crate::state::player::PlayerId(0));
             let raw = resolve_cda_amount(state, amount, object_id, controller);
-            let delta = if *negate { -raw } else { raw };
+            // OOS-SIM2-5: `-raw` panics under `overflow-checks` and wraps otherwise at
+            // `i32::MIN`; `saturating_neg` is total.
+            let delta = if *negate { raw.saturating_neg() } else { raw };
             if let Some(p) = &mut chars.power {
-                *p += delta;
+                *p = p.saturating_add(delta);
             }
             if let Some(t) = &mut chars.toughness {
-                *t += delta;
+                *t = t.saturating_add(delta);
             }
         }
         // CR 611.3a / PB-CC-C-followup: ModifyPowerDynamic stored with `is_cda: true` —
@@ -1710,9 +1751,10 @@ fn apply_layer_modification(
                 .map(|o| o.controller)
                 .unwrap_or(crate::state::player::PlayerId(0));
             let raw = resolve_cda_amount(state, amount, object_id, controller);
-            let delta = if *negate { -raw } else { raw };
+            // OOS-SIM2-5: see the `ModifyBothDynamic` arm above.
+            let delta = if *negate { raw.saturating_neg() } else { raw };
             if let Some(p) = &mut chars.power {
-                *p += delta;
+                *p = p.saturating_add(delta);
             }
         }
         // CR 611.3a / PB-CC-C-followup: ModifyToughnessDynamic stored with `is_cda: true` —
@@ -1724,9 +1766,10 @@ fn apply_layer_modification(
                 .map(|o| o.controller)
                 .unwrap_or(crate::state::player::PlayerId(0));
             let raw = resolve_cda_amount(state, amount, object_id, controller);
-            let delta = if *negate { -raw } else { raw };
+            // OOS-SIM2-5: see the `ModifyBothDynamic` arm above.
+            let delta = if *negate { raw.saturating_neg() } else { raw };
             if let Some(t) = &mut chars.toughness {
-                *t += delta;
+                *t = t.saturating_add(delta);
             }
         }
         // Layer 7d: P/T-switching
