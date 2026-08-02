@@ -1657,28 +1657,24 @@ pub fn effective_cast_cost(
 
 /// Mana affordability check: considers both mana pool and untapped sources.
 /// Uses the mana solver for precise color-aware checking.
+///
+/// # SIM-2: one question, asked once
+///
+/// This used to be two checks with a gap between them — a pool-total shortcut
+/// (`pool.total() >= cost.mana_value()` with per-colour floors) OR a solve for the
+/// **entire** cost from untapped sources, with nothing covering the case in between.
+/// A player with `{G}` floating and one Forest up was told they could not cast a
+/// `{1}{G}` spell: the pool alone did not cover it and the sources alone did not
+/// either. `solve_mana_payment_with_pool` subtracts the pool and solves the residual,
+/// which answers all three cases with one call and, crucially, is the **same function**
+/// `LocalGame::auto_tap_commands_for` uses to build the plan — so the gate and the
+/// plan cannot disagree (SR-38: never offer what the engine rejects, and its dual,
+/// never withhold what the engine accepts).
 fn can_afford(state: &GameState, player: PlayerId, cost: &mtg_engine::ManaCost) -> bool {
     if state.player(player).is_err() {
         return false;
     }
-
-    // If pool already has enough, no tapping needed
-    if let Ok(p) = state.player(player) {
-        let pool = &p.mana_pool;
-        if pool.white >= cost.white
-            && pool.blue >= cost.blue
-            && pool.black >= cost.black
-            && pool.red >= cost.red
-            && pool.green >= cost.green
-            && pool.colorless >= cost.colorless
-            && pool.total() >= cost.mana_value()
-        {
-            return true;
-        }
-    }
-
-    // Otherwise, check if mana solver can find a payment plan from untapped sources
-    crate::mana_solver::solve_mana_payment(state, player, cost).is_some()
+    crate::mana_solver::solve_mana_payment_with_pool(state, player, cost).is_some()
 }
 
 /// PB-18 review Finding 4: Check whether any active restriction prevents this player
