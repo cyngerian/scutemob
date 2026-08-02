@@ -995,6 +995,13 @@ impl LegalActionProvider for StubProvider {
                 if is_ability_restricted_by_stax(state, player, obj.id) {
                     continue;
                 }
+                // CR 302.6 / CR 602.5b / CR 118.3 (SIM-6, SR-38): the three refusals
+                // `handle_activate_ability` makes that this loop never mirrored. See
+                // `activated_ability_is_activatable` — one of them produced a live 422
+                // during this batch's own browser verification.
+                if !activated_ability_is_activatable(state, player, obj, &act_chars, ability) {
+                    continue;
+                }
                 // CR 602.2 / SR-38 (SIM-6, triage G4): the non-mana components that
                 // require NAMING an object -- the sacrifice and the discard. `None`
                 // suppresses the offer entirely, exactly as `offerable_cast_plan`
@@ -1899,6 +1906,58 @@ fn eligible_spell_sacrifice_targets(
         })
         .map(|obj| obj.id)
         .collect()
+}
+
+/// CR 602.2 / SR-38 (SIM-6): the checks `handle_activate_ability` makes that this
+/// provider's own offer loop did not, and that are knowable from the state alone.
+///
+/// **The sibling of `mana_solver::tap_ability_is_activatable`**, which SIM-2 built for
+/// the MANA path after finding the same class of gap there. That function takes a
+/// `ManaAbility`; this one takes an `ActivatedAbility`, and the two cover the same
+/// three engine refusals (a fourth, the CR 605.3 stax restriction, is already checked
+/// separately at this call site by `is_ability_restricted_by_stax`).
+///
+/// **Found by this batch's own browser verification, not reasoned to**: driving a live
+/// game to a Rummaging Goblin activation (`{T}`, Discard a card: Draw a card) produced
+/// a real **422** — `"object ObjectId(499) has summoning sickness and cannot use
+/// abilities with {T}"` — from a picker the browser had rendered correctly. The
+/// cost-payment channel was fine; the OFFER was not. The `activation_condition` arm is
+/// the same shape and was 40 of the 166 bot command refusals the SIM-5 A/B recorded on
+/// seeds 0/7/42; after this gate it is 0.
+fn activated_ability_is_activatable(
+    state: &GameState,
+    player: PlayerId,
+    obj: &GameObject,
+    chars: &mtg_engine::Characteristics,
+    ability: &ActivatedAbility,
+) -> bool {
+    // CR 302.6 / CR 702.10 (`abilities.rs`, the `requires_tap` block): a summoning-sick
+    // creature cannot pay a `{T}` cost. Read from LAYER-RESOLVED characteristics
+    // exactly as the engine does, so an animated land is sick and layer-granted haste
+    // (Fervor) is seen (CR 613.1d/613.1f).
+    if ability.cost.requires_tap
+        && obj.has_summoning_sickness
+        && chars.card_types.contains(&CardType::Creature)
+        && !chars.keywords.contains(&KeywordAbility::Haste)
+    {
+        return false;
+    }
+    // CR 602.5b (`abilities.rs:260`): "Activate only if ...". Evaluated with the same
+    // `check_condition` the engine uses, so the two cannot disagree.
+    if let Some(condition) = &ability.activation_condition {
+        let ctx = mtg_engine::effects::EffectContext::new(player, obj.id, vec![]);
+        if !mtg_engine::effects::check_condition(state, condition, &ctx) {
+            return false;
+        }
+    }
+    // CR 602.2 / CR 118.3 (`abilities.rs:1277`): a remove-counter cost with too few
+    // counters on the source.
+    if let Some((counter, count)) = &ability.cost.remove_counter_cost {
+        if obj.counters.get(counter).copied().unwrap_or(0) < *count {
+            return false;
+        }
+    }
+    true
 }
 
 /// CR 602.2 (SIM-6): the battlefield permanents `player` controls that
@@ -4615,5 +4674,167 @@ mod tests {
             unreachable!("matched above")
         };
         assert!(activation_costs.sacrifice.is_none() && activation_costs.discard.is_none());
+    }
+
+    /// S7 (SR-38, CR 302.6 / CR 602.5b / CR 118.3): the three refusals
+    /// `handle_activate_ability` makes that this provider's offer loop did not
+    /// mirror. Each is asserted BOTH ways on one board, so the gate cannot pass by
+    /// refusing everything.
+    ///
+    /// **The summoning-sickness arm is not hypothetical**: it produced a live 422
+    /// (`"object ObjectId(499) has summoning sickness and cannot use abilities with
+    /// {T}"`) during this batch's browser verification of a Rummaging Goblin
+    /// discard-cost activation, from a picker that had rendered perfectly. Proven
+    /// red by deleting the `activated_ability_is_activatable` call in
+    /// `StubProvider::legal_actions` and watching this assertion fail.
+    #[test]
+    fn the_provider_mirrors_the_three_state_knowable_activation_refusals() {
+        use mtg_engine::cards::Condition;
+        let p1 = PlayerId(1);
+        let p2 = PlayerId(2);
+
+        let offered = |state: &GameState, id: ObjectId| {
+            StubProvider
+                .legal_actions(state, p1)
+                .into_iter()
+                .any(|a| matches!(a, LegalAction::ActivateAbility { source, .. } if source == id))
+        };
+
+        // Arm 1 — CR 302.6: a `{T}` ability on a summoning-sick creature. Three
+        // sources on one board: sick creature (refused), sick creature WITH haste
+        // (offered), sick non-creature artifact (offered — CR 302.6 is about
+        // creatures).
+        let tap_ability = || ActivatedAbility {
+            cost: ActivationCost {
+                requires_tap: true,
+                ..Default::default()
+            },
+            description: "{T}: do nothing".to_string(),
+            modes: None,
+            ..Default::default()
+        };
+        let mut state = GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(p2)
+            .active_player(p1)
+            .object(
+                ObjectSpec::creature(p1, "Sick Goblin", 1, 1)
+                    .in_zone(ZoneId::Battlefield)
+                    .with_activated_ability(tap_ability()),
+            )
+            .object(
+                ObjectSpec::creature(p1, "Hasty Goblin", 1, 1)
+                    .in_zone(ZoneId::Battlefield)
+                    .with_keyword(KeywordAbility::Haste)
+                    .with_activated_ability(tap_ability()),
+            )
+            .object(
+                ObjectSpec::artifact(p1, "Sick Artifact")
+                    .in_zone(ZoneId::Battlefield)
+                    .with_activated_ability(tap_ability()),
+            )
+            .build()
+            .expect("state builds");
+        // Set the flag the engine reads rather than relying on the builder's default.
+        for name in ["Sick Goblin", "Hasty Goblin", "Sick Artifact"] {
+            let id = id_of(&state, name);
+            state
+                .objects_mut()
+                .get_mut(&id)
+                .expect("object exists")
+                .has_summoning_sickness = true;
+        }
+        assert!(
+            !offered(&state, id_of(&state, "Sick Goblin")),
+            "CR 302.6: a summoning-sick creature's {{T}} ability must not be offered"
+        );
+        assert!(
+            offered(&state, id_of(&state, "Hasty Goblin")),
+            "CR 702.10: haste lifts the restriction"
+        );
+        assert!(
+            offered(&state, id_of(&state, "Sick Artifact")),
+            "CR 302.6 applies to creatures; a sick artifact is unaffected"
+        );
+
+        // Arm 2 — CR 602.5b: "Activate only if ...", unmet then met.
+        let condition = Condition::YouControlPermanent(mtg_engine::cards::TargetFilter {
+            has_card_type: Some(CardType::Enchantment),
+            ..Default::default()
+        });
+        let gated = |cond: Condition| ActivatedAbility {
+            cost: ActivationCost::default(),
+            description: "Activate only if ...: do nothing".to_string(),
+            activation_condition: Some(cond),
+            modes: None,
+            ..Default::default()
+        };
+        let state_unmet = GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(p2)
+            .active_player(p1)
+            .object(
+                ObjectSpec::artifact(p1, "Gated Engine")
+                    .in_zone(ZoneId::Battlefield)
+                    .with_activated_ability(gated(condition.clone())),
+            )
+            .build()
+            .expect("state builds");
+        assert!(
+            !offered(&state_unmet, id_of(&state_unmet, "Gated Engine")),
+            "CR 602.5b: an unmet activation condition must not be offered"
+        );
+        let state_met = GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(p2)
+            .active_player(p1)
+            .object(
+                ObjectSpec::artifact(p1, "Gated Engine")
+                    .in_zone(ZoneId::Battlefield)
+                    .with_activated_ability(gated(condition)),
+            )
+            .object(ObjectSpec::enchantment(p1, "An Enchantment").in_zone(ZoneId::Battlefield))
+            .build()
+            .expect("state builds");
+        assert!(
+            offered(&state_met, id_of(&state_met, "Gated Engine")),
+            "the same condition, now met, is offered"
+        );
+
+        // Arm 3 — CR 118.3: a remove-counter cost with too few counters.
+        let mut state_counters = GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(p2)
+            .active_player(p1)
+            .object(
+                ObjectSpec::artifact(p1, "Charge Engine")
+                    .in_zone(ZoneId::Battlefield)
+                    .with_activated_ability(ActivatedAbility {
+                        cost: ActivationCost {
+                            remove_counter_cost: Some((CounterType::Charge, 2)),
+                            ..Default::default()
+                        },
+                        description: "Remove two charge counters: do nothing".to_string(),
+                        modes: None,
+                        ..Default::default()
+                    }),
+            )
+            .build()
+            .expect("state builds");
+        let engine_id = id_of(&state_counters, "Charge Engine");
+        assert!(
+            !offered(&state_counters, engine_id),
+            "CR 118.3: zero counters cannot pay a two-counter cost"
+        );
+        state_counters
+            .objects_mut()
+            .get_mut(&engine_id)
+            .expect("object exists")
+            .counters
+            .insert(CounterType::Charge, 2);
+        assert!(
+            offered(&state_counters, engine_id),
+            "with two counters present the same ability is offered"
+        );
     }
 }
