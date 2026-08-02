@@ -6,12 +6,55 @@
 //! cases that a full engine implementation would catch.
 
 use mtg_engine::{
-    apply_commander_tax, AbilityDefinition, AttackTarget, CardType, CounterType,
+    apply_commander_tax, AbilityDefinition, AdditionalCost, AttackTarget, CardType, CounterType,
     EffectChoiceAnswer, EffectChoiceQuestion, EffectDuration, FaceDownKind, FlashGrantFilter,
     GameObject, GameRestriction, GameState, HybridMana, HybridManaPayment, KeywordAbility,
-    ManaColor, ManaCost, ObjectId, PhyrexianMana, PlayerId, Step, Target, TriggerTargetOption,
-    TurnFaceUpMethod, ZoneId,
+    ManaColor, ManaCost, ObjectId, PhyrexianMana, PlayerId, SpellAdditionalCost, Step, Target,
+    TriggerTargetOption, TurnFaceUpMethod, ZoneId,
 };
+
+/// CR 118.8 / CR 601.2b (UI-2): the additional costs a `CastSpell` offer must or may
+/// pay. Built by the provider, consumed by `params.rs` (for the bot default) and by
+/// `tools/play-server` (to render a picker).
+#[derive(Clone, Debug, Default)]
+pub struct AdditionalCostPlan {
+    /// CR 118.8: the spell's REQUIRED sacrifice, when its `CardDefinition` declares
+    /// one. `None` for every other spell.
+    pub sacrifice: Option<SacrificeCostOption>,
+    /// CR 702.157: the OPTIONAL squad cost, when the spell has
+    /// `AbilityDefinition::Squad { cost }`. `None` for every other spell.
+    pub squad: Option<SquadCostOption>,
+}
+
+/// CR 118.8 (UI-2 §1.1): the offer's required-sacrifice descriptor.
+#[derive(Clone, Debug)]
+pub struct SacrificeCostOption {
+    /// The engine's own requirement, verbatim -- for labelling only.
+    pub requirement: SpellAdditionalCost,
+    /// Battlefield permanents this player controls that `casting.rs`'s own gate will
+    /// accept. **Never empty**: an empty set suppresses the whole offer (§1.3) --
+    /// see `StubProvider::legal_actions`'s two cast loops.
+    pub eligible: Vec<ObjectId>,
+    /// The deterministic default a bot submits: `eligible[0]` (lowest `ObjectId`,
+    /// since `objects_in_zone` yields the engine's own order). Kept as its own field
+    /// rather than re-derived at the two consumer sites, so the two cannot drift.
+    /// A sentinel (`ObjectId::SENTINEL`) when `eligible` is empty -- never read in
+    /// that case, since the whole offer is suppressed before this value reaches a
+    /// consumer.
+    pub default: ObjectId,
+}
+
+/// CR 702.157a (UI-2 §1.1): the offer's optional Squad descriptor.
+#[derive(Clone, Debug)]
+pub struct SquadCostOption {
+    /// The per-copy cost from `AbilityDefinition::Squad { cost }`.
+    pub cost: ManaCost,
+    /// The largest N this player can currently afford on top of the spell's own cost.
+    /// 0 means "offerable but not payable right now" -- the client must still be
+    /// able to cast the spell, declining is always legal (CR 702.157a "any number of
+    /// times", including zero).
+    pub max_count: u32,
+}
 
 /// A legal action a player may take at this moment.
 #[derive(Clone, Debug)]
@@ -24,6 +67,9 @@ pub enum LegalAction {
     CastSpell {
         card: ObjectId,
         from_zone: ZoneId,
+        /// CR 118.8 / CR 702.157 (UI-2): `AdditionalCostPlan::default()` -- both
+        /// fields `None` -- for the overwhelming majority of spells.
+        additional_costs: AdditionalCostPlan,
     },
     TapForMana {
         source: ObjectId,
@@ -539,10 +585,24 @@ impl LegalActionProvider for StubProvider {
                     // Basic mana affordability check
                     if let Some(ref cost) = obj.characteristics.mana_cost {
                         if can_afford(state, player, cost) {
-                            actions.push(LegalAction::CastSpell {
-                                card: obj.id,
-                                from_zone: hand,
-                            });
+                            // UI-2 (CR 118.8 / CR 702.157, SR-38 criterion 5999): build
+                            // the additional-cost descriptor and suppress the WHOLE
+                            // offer if a required sacrifice has no eligible permanent --
+                            // `casting.rs:3311` would refuse the cast outright, and
+                            // offering it anyway was the F9 defect.
+                            let additional_costs = build_additional_cost_plan(state, player, obj);
+                            let sacrifice_offerable = additional_costs
+                                .sacrifice
+                                .as_ref()
+                                .map(|s| !s.eligible.is_empty())
+                                .unwrap_or(true);
+                            if sacrifice_offerable {
+                                actions.push(LegalAction::CastSpell {
+                                    card: obj.id,
+                                    from_zone: hand,
+                                    additional_costs,
+                                });
+                            }
                         }
                     }
                 }
@@ -622,10 +682,22 @@ impl LegalActionProvider for StubProvider {
                     continue;
                 };
                 if can_afford(state, player, &cost) {
-                    actions.push(LegalAction::CastSpell {
-                        card: obj.id,
-                        from_zone: command_zone,
-                    });
+                    // UI-2: see the identical gate in the hand loop above -- the two
+                    // must not diverge on when a required sacrifice suppresses the
+                    // offer.
+                    let additional_costs = build_additional_cost_plan(state, player, obj);
+                    let sacrifice_offerable = additional_costs
+                        .sacrifice
+                        .as_ref()
+                        .map(|s| !s.eligible.is_empty())
+                        .unwrap_or(true);
+                    if sacrifice_offerable {
+                        actions.push(LegalAction::CastSpell {
+                            card: obj.id,
+                            from_zone: command_zone,
+                            additional_costs,
+                        });
+                    }
                 }
             }
         }
@@ -1681,6 +1753,250 @@ fn can_afford(state: &GameState, player: PlayerId, cost: &mtg_engine::ManaCost) 
     crate::mana_solver::solve_mana_payment(state, player, cost).is_some()
 }
 
+/// PB-AC8 / CR 701.21a (UI-2 §1.2): mirrors `effects::object_cant_be_sacrificed`,
+/// which is `pub(crate)` to the engine and therefore not callable from this crate.
+/// A NECESSARY duplicate over PUBLIC state (`state.restrictions()`,
+/// `GameRestriction::CantBeSacrificed`, plus the source's own zone) -- the same
+/// category as `multiply_mana_cost` above, and explicitly NOT the category of
+/// `effective_cast_cost`, whose engine copy IS public and must be consumed, never
+/// re-derived.
+fn object_cant_be_sacrificed(state: &GameState, obj_id: ObjectId) -> bool {
+    state.restrictions().iter().any(|r| {
+        r.source == obj_id
+            && matches!(r.restriction, GameRestriction::CantBeSacrificed)
+            && state
+                .objects()
+                .get(&r.source)
+                .map(|o| o.zone == ZoneId::Battlefield)
+                .unwrap_or(false)
+    })
+}
+
+/// CR 118.8 (UI-2 §1.2): the battlefield permanents `player` controls that
+/// `casting.rs:3300-3369`'s own spell-additional-sacrifice gate will accept for
+/// `required`, gate for gate and in the SAME order (its checks: on the battlefield,
+/// controlled by `player`, not `object_cant_be_sacrificed`, matches the filter
+/// against LAYER-RESOLVED characteristics).
+///
+/// Deliberately NOT `effects::eligible_sacrifice_targets` -- that helper also checks
+/// `is_phased_in`, which the CAST gate does not. Mirroring the sacrifice-EFFECT
+/// helper here would offer a different set from the one the engine will actually
+/// validate.
+fn eligible_spell_sacrifice_targets(
+    state: &GameState,
+    player: PlayerId,
+    required: &SpellAdditionalCost,
+) -> Vec<ObjectId> {
+    state
+        .objects_in_zone(&ZoneId::Battlefield)
+        .into_iter()
+        .filter(|obj| obj.controller == player)
+        .filter(|obj| !object_cant_be_sacrificed(state, obj.id))
+        .filter(|obj| {
+            let chars = mtg_engine::rules::layers::calculate_characteristics(state, obj.id)
+                .unwrap_or_else(|| obj.characteristics.clone());
+            match required {
+                SpellAdditionalCost::SacrificeCreature => {
+                    chars.card_types.contains(&CardType::Creature)
+                }
+                SpellAdditionalCost::SacrificeLand => chars.card_types.contains(&CardType::Land),
+                SpellAdditionalCost::SacrificeArtifactOrCreature => {
+                    chars.card_types.contains(&CardType::Artifact)
+                        || chars.card_types.contains(&CardType::Creature)
+                }
+                SpellAdditionalCost::SacrificeSubtype(sub) => chars.subtypes.contains(sub),
+                SpellAdditionalCost::SacrificeColorPermanent(color) => chars.colors.contains(color),
+            }
+        })
+        .map(|obj| obj.id)
+        .collect()
+}
+
+/// CR 118.8 / CR 702.157 (UI-2 §1): builds the additional-cost descriptor for
+/// casting `obj` -- consumed by `params.rs` (the bot default) and, in a later
+/// stage, `tools/play-server` (the picker). `AdditionalCostPlan::default()` (both
+/// fields `None`) for every spell whose `CardDefinition` declares neither.
+fn build_additional_cost_plan(
+    state: &GameState,
+    player: PlayerId,
+    obj: &GameObject,
+) -> AdditionalCostPlan {
+    let Some(def) = obj
+        .card_id
+        .as_ref()
+        .and_then(|cid| state.card_registry().get(cid.clone()))
+    else {
+        return AdditionalCostPlan::default();
+    };
+
+    // §1.2: only `spell_additional_costs.first()` is read. `casting.rs` says so in
+    // its own words ("For now, we support exactly one mandatory sacrifice cost")
+    // and then validates `required_costs[0]` alone -- offering a second requirement
+    // the engine will never check would be an offer that means nothing.
+    let sacrifice = def.spell_additional_costs.first().map(|requirement| {
+        let eligible = eligible_spell_sacrifice_targets(state, player, requirement);
+        // The caller suppresses the WHOLE `CastSpell` offer when `eligible` is
+        // empty (§1.3), so this sentinel is never actually read in that case.
+        let default = eligible.first().copied().unwrap_or(ObjectId::SENTINEL);
+        SacrificeCostOption {
+            requirement: requirement.clone(),
+            eligible,
+            default,
+        }
+    });
+
+    // CR 702.157a: detected via the COST-CARRYING variant, not the
+    // `KeywordAbility::Squad` presence marker. A def carrying the marker but no
+    // `AbilityDefinition::Squad { cost }` makes `casting.rs`'s own `get_squad_cost`
+    // return `None` and the cast is refused the moment `squad_count > 0` is
+    // announced (`"spell has squad keyword but no squad cost defined"`); detecting
+    // on the cost variant means this provider never offers Squad on such a def in
+    // the first place (SR-38), rather than offering it and having every non-zero
+    // count refused.
+    //
+    // That is not a hypothetical shape: `galadhrim_brigade` -- the very card the
+    // first human playtest tried to Squad -- shipped `Complete` with the marker
+    // alone, and UI-2 repaired the def. The roster gate
+    // (`core::ui2_additional_cost_roster`, R4) now pins that every Squad def carries
+    // a non-zero cost, so this arm's SR-38 fallback is a floor rather than the
+    // corpus's actual state.
+    let squad = def
+        .abilities
+        .iter()
+        .find_map(|a| {
+            if let AbilityDefinition::Squad { cost } = a {
+                Some(cost.clone())
+            } else {
+                None
+            }
+        })
+        .map(|cost| {
+            let max_count = squad_max_count(state, player, obj.id, &cost);
+            SquadCostOption { cost, max_count }
+        });
+
+    AdditionalCostPlan { sacrifice, squad }
+}
+
+/// CR 702.157a (UI-2 §1.4): the largest N this player can currently afford on top
+/// of `card`'s own effective cast cost, paying `squad_cost` N times.
+///
+/// A GENUINE upper bound gates the search, not an arbitrary cap -- every mana
+/// ability produces at least one mana, so no payment plan can exceed `pool.total()
+/// + <count of untapped battlefield permanents this player controls with at least
+/// one mana ability>`. The loop then walks `n = 1..` checking `can_afford` (mirrors
+/// `effective_cast_cost_with_additional`, so this can never drift from what the
+/// engine will actually charge) and stops at the first unaffordable `n` -- the
+/// cost strictly increases with `n`, so affordability cannot come back once lost.
+///
+/// Returns 0 if `squad_cost.mana_value() == 0`: the loop would be unbounded (an
+/// ever-larger N stays equally "free"), and the roster gate (a later stage's plan
+/// §6 R4) pins that no def in the corpus has one.
+fn squad_max_count(
+    state: &GameState,
+    player: PlayerId,
+    card: ObjectId,
+    squad_cost: &ManaCost,
+) -> u32 {
+    let squad_mv = squad_cost.mana_value();
+    if squad_mv == 0 {
+        return 0;
+    }
+
+    let pool_total = state
+        .player(player)
+        .map(|p| p.mana_pool.total())
+        .unwrap_or(0);
+    let mana_source_count = state
+        .objects_in_zone(&ZoneId::Battlefield)
+        .into_iter()
+        .filter(|o| o.controller == player && !o.status.tapped)
+        .filter(|o| {
+            !mtg_engine::rules::layers::calculate_characteristics(state, o.id)
+                .unwrap_or_else(|| o.characteristics.clone())
+                .mana_abilities
+                .is_empty()
+        })
+        .count() as u32;
+    let available = pool_total.saturating_add(mana_source_count);
+
+    let base_mv = effective_cast_cost(state, player, card)
+        .map(|c| c.mana_value())
+        .unwrap_or(0);
+    let upper_bound = available.saturating_sub(base_mv) / squad_mv;
+
+    let mut max_count = 0;
+    for n in 1..=upper_bound {
+        let announced = [AdditionalCost::Squad { count: n }];
+        let Some(candidate_cost) =
+            effective_cast_cost_with_additional(state, player, card, &announced)
+        else {
+            break;
+        };
+        if can_afford(state, player, &candidate_cost) {
+            max_count = n;
+        } else {
+            break;
+        }
+    }
+    max_count
+}
+
+/// CR 702.157a / CR 601.2b,f (UI-2 §2): `effective_cast_cost` plus the mana cost of
+/// any announced `AdditionalCost::Squad { count }`, added `count` times EXACTLY as
+/// `casting.rs`'s own Squad arm does (CR 118.8d: additional costs don't change the
+/// spell's PRINTED mana cost, but they do change what this player is actually
+/// charged, which is this helper's whole purpose). Calls `effective_cast_cost`
+/// rather than re-deriving it, so the commander-tax arithmetic stays
+/// `mtg_engine::apply_commander_tax` in exactly one place.
+///
+/// `casting.rs`'s own `get_squad_cost` is private to that file, so reading
+/// `AbilityDefinition::Squad { cost }` off `state.card_registry()` here is a
+/// NECESSARY duplicate (same category as `object_cant_be_sacrificed` above).
+///
+/// Identity for every cast that announces no Squad -- which is every bot cast and
+/// every cast today (T-series pin this at both call sites in `local_game.rs`).
+pub fn effective_cast_cost_with_additional(
+    state: &GameState,
+    player: PlayerId,
+    card: ObjectId,
+    additional_costs: &[AdditionalCost],
+) -> Option<ManaCost> {
+    let mut cost = effective_cast_cost(state, player, card)?;
+    for ac in additional_costs {
+        let AdditionalCost::Squad { count } = ac else {
+            continue;
+        };
+        if *count == 0 {
+            continue;
+        }
+        let obj = state.object(card).ok()?;
+        let squad_cost = obj
+            .card_id
+            .as_ref()
+            .and_then(|cid| state.card_registry().get(cid.clone()))
+            .and_then(|def| {
+                def.abilities.iter().find_map(|a| {
+                    if let AbilityDefinition::Squad { cost } = a {
+                        Some(cost.clone())
+                    } else {
+                        None
+                    }
+                })
+            })?;
+        for _ in 0..*count {
+            cost.white += squad_cost.white;
+            cost.blue += squad_cost.blue;
+            cost.black += squad_cost.black;
+            cost.red += squad_cost.red;
+            cost.green += squad_cost.green;
+            cost.generic += squad_cost.generic;
+            cost.colorless += squad_cost.colorless;
+        }
+    }
+    Some(cost)
+}
+
 /// PB-18 review Finding 4: Check whether any active restriction prevents this player
 /// from activating an ability of a specific source object.
 ///
@@ -1911,7 +2227,11 @@ pub fn ability_default_modes(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use mtg_engine::{ActivatedAbility, ActivationCost, GameStateBuilder, ManaAbility, ObjectSpec};
+    use mtg_engine::{
+        ActivatedAbility, ActivationCost, Color, ContinuousEffect, EffectFilter, EffectId,
+        EffectLayer, GameStateBuilder, LayerModification, ManaAbility, ManaPool, ObjectSpec,
+        SubType,
+    };
 
     /// Find a battlefield object's id by its printed name.
     fn id_of(state: &GameState, name: &str) -> ObjectId {
@@ -2935,6 +3255,357 @@ mod tests {
             result.is_ok(),
             "the provider's offered action must be accepted: {:?}",
             result.err()
+        );
+    }
+
+    // ── UI-2 (CR 118.8 / CR 702.157): additional-cost surfacing ─────────────────
+
+    fn ui2_registry() -> std::sync::Arc<mtg_engine::CardRegistry> {
+        mtg_engine::CardRegistry::new(mtg_engine::all_cards())
+    }
+
+    /// T1: `eligible_spell_sacrifice_targets` mirrors each of the five
+    /// `SpellAdditionalCost` filters, gate for gate with `casting.rs:3300-3369`.
+    /// `SacrificeSubtype`/`SacrificeColorPermanent` are each checked against a
+    /// permanent whose subtype/color is granted ONLY by a layer-resolved continuous
+    /// effect -- a raw `obj.characteristics` read would miss it, which is exactly
+    /// the mistake §1.2 warns against.
+    #[test]
+    fn eligible_spell_sacrifice_targets_mirrors_each_of_the_five_filters() {
+        let p1 = PlayerId(1);
+        let p2 = PlayerId(2);
+        let mut state = GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(p2)
+            .active_player(p1)
+            .object(ObjectSpec::creature(p1, "P1 Bear", 2, 2).in_zone(ZoneId::Battlefield))
+            .object(ObjectSpec::land(p1, "P1 Land").in_zone(ZoneId::Battlefield))
+            .object(ObjectSpec::artifact(p1, "P1 Sword").in_zone(ZoneId::Battlefield))
+            .object(
+                ObjectSpec::creature(p1, "P1 Printed Goblin", 1, 1)
+                    .in_zone(ZoneId::Battlefield)
+                    .with_subtypes(vec![SubType("Goblin".to_string())]),
+            )
+            .object(ObjectSpec::artifact(p1, "P1 Granted Goblin").in_zone(ZoneId::Battlefield))
+            .object(
+                ObjectSpec::artifact(p1, "P1 Printed Blue")
+                    .in_zone(ZoneId::Battlefield)
+                    .with_colors(vec![Color::Blue]),
+            )
+            .object(ObjectSpec::artifact(p1, "P1 Granted Blue").in_zone(ZoneId::Battlefield))
+            .object(ObjectSpec::creature(p2, "P2 Bear", 2, 2).in_zone(ZoneId::Battlefield))
+            .build()
+            .expect("state builds");
+
+        // Grant the subtype/color via LAYER-RESOLVED continuous effects only --
+        // neither object's printed `characteristics` carries it.
+        let granted_goblin = id_of(&state, "P1 Granted Goblin");
+        let granted_blue = id_of(&state, "P1 Granted Blue");
+        state.continuous_effects_mut().push_back(ContinuousEffect {
+            id: EffectId(9001),
+            source: None,
+            timestamp: 0,
+            layer: EffectLayer::TypeChange,
+            duration: EffectDuration::Indefinite,
+            filter: EffectFilter::SingleObject(granted_goblin),
+            modification: LayerModification::AddSubtypes(
+                [SubType("Goblin".to_string())].into_iter().collect(),
+            ),
+            is_cda: false,
+            condition: None,
+            affected_set: None,
+        });
+        state.continuous_effects_mut().push_back(ContinuousEffect {
+            id: EffectId(9002),
+            source: None,
+            timestamp: 1,
+            layer: EffectLayer::ColorChange,
+            duration: EffectDuration::Indefinite,
+            filter: EffectFilter::SingleObject(granted_blue),
+            modification: LayerModification::AddColors([Color::Blue].into_iter().collect()),
+            is_cda: false,
+            condition: None,
+            affected_set: None,
+        });
+
+        let bear = id_of(&state, "P1 Bear");
+        let land = id_of(&state, "P1 Land");
+        let sword = id_of(&state, "P1 Sword");
+        let printed_goblin = id_of(&state, "P1 Printed Goblin");
+        let printed_blue = id_of(&state, "P1 Printed Blue");
+        let p2_bear = id_of(&state, "P2 Bear");
+
+        let creature =
+            eligible_spell_sacrifice_targets(&state, p1, &SpellAdditionalCost::SacrificeCreature);
+        assert!(creature.contains(&bear) && creature.contains(&printed_goblin));
+        assert!(
+            !creature.contains(&land) && !creature.contains(&sword) && !creature.contains(&p2_bear),
+            "SacrificeCreature must exclude non-creatures and P2's creature: {creature:?}"
+        );
+
+        let land_set =
+            eligible_spell_sacrifice_targets(&state, p1, &SpellAdditionalCost::SacrificeLand);
+        assert_eq!(land_set, vec![land]);
+
+        let artifact_or_creature = eligible_spell_sacrifice_targets(
+            &state,
+            p1,
+            &SpellAdditionalCost::SacrificeArtifactOrCreature,
+        );
+        for id in [
+            bear,
+            printed_goblin,
+            sword,
+            granted_goblin,
+            printed_blue,
+            granted_blue,
+        ] {
+            assert!(
+                artifact_or_creature.contains(&id),
+                "{id:?} is an artifact or a creature and must be eligible"
+            );
+        }
+        assert!(!artifact_or_creature.contains(&land));
+
+        let goblin = eligible_spell_sacrifice_targets(
+            &state,
+            p1,
+            &SpellAdditionalCost::SacrificeSubtype(SubType("Goblin".to_string())),
+        );
+        assert!(
+            goblin.contains(&printed_goblin) && goblin.contains(&granted_goblin),
+            "both the printed AND the layer-GRANTED Goblin must be eligible: {goblin:?}"
+        );
+        assert!(!goblin.contains(&bear));
+
+        let blue = eligible_spell_sacrifice_targets(
+            &state,
+            p1,
+            &SpellAdditionalCost::SacrificeColorPermanent(Color::Blue),
+        );
+        assert!(
+            blue.contains(&printed_blue) && blue.contains(&granted_blue),
+            "both the printed AND the layer-GRANTED blue permanent must be eligible: {blue:?}"
+        );
+        assert!(!blue.contains(&sword));
+    }
+
+    /// T2: a permanent under `GameRestriction::CantBeSacrificed` is excluded from
+    /// `eligible_spell_sacrifice_targets`, mirroring PB-AC8 / CR 701.21a.
+    #[test]
+    fn cant_be_sacrificed_permanent_is_excluded() {
+        let p1 = PlayerId(1);
+        let p2 = PlayerId(2);
+        let mut state = GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(p2)
+            .active_player(p1)
+            .object(ObjectSpec::creature(p1, "Protected Bear", 2, 2).in_zone(ZoneId::Battlefield))
+            .object(ObjectSpec::creature(p1, "Plain Bear", 2, 2).in_zone(ZoneId::Battlefield))
+            .build()
+            .expect("state builds");
+
+        let protected = id_of(&state, "Protected Bear");
+        let plain = id_of(&state, "Plain Bear");
+        state
+            .restrictions_mut()
+            .push_back(mtg_engine::state::ActiveRestriction {
+                source: protected,
+                controller: p1,
+                restriction: GameRestriction::CantBeSacrificed,
+            });
+
+        let eligible =
+            eligible_spell_sacrifice_targets(&state, p1, &SpellAdditionalCost::SacrificeCreature);
+        assert_eq!(
+            eligible,
+            vec![plain],
+            "the CantBeSacrificed creature must be excluded: {eligible:?}"
+        );
+    }
+
+    /// T3 (SR-38 criterion 5999): with the only creature ineligible (an opponent's,
+    /// so it fails the CONTROLLER check), the `CastSpell` offer for a mandatory-
+    /// sacrifice spell is SUPPRESSED ENTIRELY -- not merely offered with an empty
+    /// eligible set. Two-sided: once an eligible creature exists, the SAME action IS
+    /// offered, proving the suppression is conditional and not a blanket omission of
+    /// Life's Legacy from the hand loop.
+    #[test]
+    fn offer_is_suppressed_with_no_eligible_sacrifice_then_offered_once_one_exists() {
+        let p1 = PlayerId(1);
+        let p2 = PlayerId(2);
+        let defs = mtg_engine::all_cards()
+            .iter()
+            .map(|d| (d.name.clone(), d.clone()))
+            .collect::<std::collections::HashMap<_, _>>();
+        let make_lifes_legacy = || {
+            mtg_engine::enrich_spec_from_def(
+                ObjectSpec::card(p1, "Life's Legacy")
+                    .with_card_id(mtg_engine::CardId("lifes-legacy".to_string()))
+                    .in_zone(ZoneId::Hand(p1)),
+                &defs,
+            )
+        };
+        // {1}{G}: green >= 1 and total >= 2.
+        let lifes_legacy_pool = || ManaPool {
+            green: 1,
+            white: 1,
+            ..Default::default()
+        };
+        let state = GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(p2)
+            .with_registry(ui2_registry())
+            .active_player(p1)
+            .player_mana(p1, lifes_legacy_pool())
+            .object(make_lifes_legacy())
+            // Only P2's creature exists -- fails the CONTROLLER check, so
+            // `eligible` is empty and the whole offer must be suppressed.
+            .object(ObjectSpec::creature(p2, "Opponent's Bear", 2, 2).in_zone(ZoneId::Battlefield))
+            .build()
+            .expect("state builds");
+
+        let card_id = id_of(&state, "Life's Legacy");
+        let actions = StubProvider.legal_actions(&state, p1);
+        assert!(
+            !actions
+                .iter()
+                .any(|a| matches!(a, LegalAction::CastSpell { card, .. } if *card == card_id)),
+            "with no eligible sacrifice the CastSpell offer must be absent entirely: {actions:?}"
+        );
+
+        // Now add an eligible creature P1 controls and rebuild.
+        let state = GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(p2)
+            .with_registry(ui2_registry())
+            .active_player(p1)
+            .player_mana(p1, lifes_legacy_pool())
+            .object(make_lifes_legacy())
+            .object(ObjectSpec::creature(p2, "Opponent's Bear", 2, 2).in_zone(ZoneId::Battlefield))
+            .object(ObjectSpec::creature(p1, "My Bear", 2, 2).in_zone(ZoneId::Battlefield))
+            .build()
+            .expect("state builds");
+        let card_id = id_of(&state, "Life's Legacy");
+        let my_bear = id_of(&state, "My Bear");
+        let actions = StubProvider.legal_actions(&state, p1);
+        let action = actions
+            .iter()
+            .find(|a| matches!(a, LegalAction::CastSpell { card, .. } if *card == card_id))
+            .expect("with an eligible creature the CastSpell offer must be present");
+        let LegalAction::CastSpell {
+            additional_costs, ..
+        } = action
+        else {
+            unreachable!("matched by discriminant above");
+        };
+        let sac = additional_costs
+            .sacrifice
+            .as_ref()
+            .expect("Life's Legacy declares a required sacrifice");
+        assert_eq!(sac.eligible, vec![my_bear]);
+        assert_eq!(sac.default, my_bear);
+    }
+
+    /// T4: a spell with no `spell_additional_costs` and no Squad ability gets
+    /// `AdditionalCostPlan::default()` (both fields `None`) and is otherwise
+    /// unaffected -- the no-op case that is nearly every spell in the corpus.
+    #[test]
+    fn build_additional_cost_plan_is_default_for_a_plain_spell() {
+        let p1 = PlayerId(1);
+        let p2 = PlayerId(2);
+        let defs = mtg_engine::all_cards()
+            .iter()
+            .map(|d| (d.name.clone(), d.clone()))
+            .collect::<std::collections::HashMap<_, _>>();
+        let bolt = mtg_engine::enrich_spec_from_def(
+            ObjectSpec::card(p1, "Lightning Bolt")
+                .with_card_id(mtg_engine::CardId("lightning-bolt".to_string()))
+                .in_zone(ZoneId::Hand(p1)),
+            &defs,
+        );
+        let state = GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(p2)
+            .with_registry(ui2_registry())
+            .active_player(p1)
+            .object(bolt)
+            .build()
+            .expect("state builds");
+        let card_id = id_of(&state, "Lightning Bolt");
+        let obj = state.object(card_id).expect("object exists");
+        let plan = build_additional_cost_plan(&state, p1, obj);
+        assert!(plan.sacrifice.is_none());
+        assert!(plan.squad.is_none());
+    }
+
+    /// T5: Squad's `max_count` is a REAL bound derived from what the player can
+    /// actually afford, not an arbitrary cap. Ultramarines Honour Guard is `{3}{W}`
+    /// with Squad `{2}`; its all-generic squad cost keeps the arithmetic below
+    /// readable, which is the only reason it is preferred here over the corpus's
+    /// other Squad card (`galadhrim-brigade`, `{2}{G}` + Squad `{1}{G}`, repaired by
+    /// UI-2 and exercised end to end by the play-server probes instead).
+    #[test]
+    fn squad_max_count_is_a_real_bound_not_an_arbitrary_cap() {
+        let p1 = PlayerId(1);
+        let p2 = PlayerId(2);
+        let defs = mtg_engine::all_cards()
+            .iter()
+            .map(|d| (d.name.clone(), d.clone()))
+            .collect::<std::collections::HashMap<_, _>>();
+        let make_state = |pool: ManaPool| {
+            let honour_guard = mtg_engine::enrich_spec_from_def(
+                ObjectSpec::card(p1, "Ultramarines Honour Guard")
+                    .with_card_id(mtg_engine::CardId("ultramarines-honour-guard".to_string()))
+                    .in_zone(ZoneId::Hand(p1)),
+                &defs,
+            );
+            GameStateBuilder::new()
+                .add_player(p1)
+                .add_player(p2)
+                .with_registry(ui2_registry())
+                .active_player(p1)
+                .player_mana(p1, pool)
+                .object(honour_guard)
+                .build()
+                .expect("state builds")
+        };
+
+        // Base cost {3}{W} = 4. Squad {2} = 2 per copy. A pool of 8 total mana
+        // (4 base + 2*2 for exactly 2 copies) must yield max_count == 2, not more
+        // (a 3rd copy would need 6, total 10, which this pool cannot pay).
+        let state = make_state(ManaPool {
+            white: 1,
+            colorless: 7,
+            ..Default::default()
+        });
+        let card_id = id_of(&state, "Ultramarines Honour Guard");
+        let obj = state.object(card_id).expect("object exists");
+        let plan = build_additional_cost_plan(&state, p1, obj);
+        let squad = plan.squad.as_ref().expect("Squad must be detected");
+        assert_eq!(
+            squad.max_count, 2,
+            "exactly 2 copies are affordable with this pool"
+        );
+
+        // No spare mana beyond the base cost: max_count == 0, but the cast itself
+        // is still offered (Squad never gates -- §1.3).
+        let state = make_state(ManaPool {
+            white: 1,
+            colorless: 3,
+            ..Default::default()
+        });
+        let card_id = id_of(&state, "Ultramarines Honour Guard");
+        let obj = state.object(card_id).expect("object exists");
+        let plan = build_additional_cost_plan(&state, p1, obj);
+        let squad = plan.squad.as_ref().expect("Squad must be detected");
+        assert_eq!(squad.max_count, 0, "no spare mana means 0 extra copies");
+        let actions = StubProvider.legal_actions(&state, p1);
+        assert!(
+            actions
+                .iter()
+                .any(|a| matches!(a, LegalAction::CastSpell { card, .. } if *card == card_id)),
+            "Squad's own max_count == 0 must not suppress the cast itself"
         );
     }
 }

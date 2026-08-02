@@ -446,7 +446,12 @@ impl<P: LegalActionProvider> LocalGame<P> {
             // the retry -- so the taxed cost must be known here too, not just at the
             // offer gate.
             let commands = if let Command::CastSpell(cast) = &cmd {
-                match legal_actions::effective_cast_cost(&self.state, cast.player, cast.card) {
+                match legal_actions::effective_cast_cost_with_additional(
+                    &self.state,
+                    cast.player,
+                    cast.card,
+                    &cast.additional_costs,
+                ) {
                     Some(cost) => {
                         let mut cmds =
                             mana_solver::solve_mana_payment(&self.state, cast.player, &cost)
@@ -627,7 +632,17 @@ impl<P: LegalActionProvider> LocalGame<P> {
         // cast from this player's command zone, so the offer gate
         // (`legal_actions::can_afford`), this human auto-tap and the bot auto-tap in
         // `advance()` cannot disagree about what has to be paid.
-        let mut cost = legal_actions::effective_cast_cost(&self.state, player, cast.card)?;
+        // CR 702.157 (UI-2): the SQUAD payment is a cost INCREASE folded in here too --
+        // `effective_cast_cost_with_additional` calls `effective_cast_cost` and adds
+        // `cast.additional_costs`'s `AdditionalCost::Squad` count on top, so this site,
+        // the offer gate and `advance()`'s bot auto-tap above cannot disagree about
+        // what a Squad-paying cast actually charges.
+        let mut cost = legal_actions::effective_cast_cost_with_additional(
+            &self.state,
+            player,
+            cast.card,
+            &cast.additional_costs,
+        )?;
         // CR 107.3 / 601.2b — see the doc block above (OOS-M11-8).
         cost.generic = cost
             .generic

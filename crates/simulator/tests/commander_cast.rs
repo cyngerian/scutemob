@@ -1049,6 +1049,8 @@ fn test_sim1_both_bots_choose_the_offered_commander_cast() {
         LegalAction::CastSpell {
             card: commander_id,
             from_zone: ZoneId::Command(p1),
+            // UI-2: no additional-cost machinery is under test in this fixture.
+            additional_costs: Default::default(),
         },
         LegalAction::PassPriority,
     ];
