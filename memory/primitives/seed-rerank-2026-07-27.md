@@ -802,8 +802,31 @@ was waiting on, so its dismissal deserves a fresh look rather than another copy-
 > Fingerprints re-confirmed unmoved (HASH 70, PROTOCOL 32) by re-running both schema gates, not
 > assumed. `git diff --stat -- tools/play-server` empty throughout.
 >
-> **Next dispatch: `PB-DX6`** (OOS-RS2-1 + OOS-DP4-1 — the last two unflattened mana-cost payment
-> sites; full brief in §"Dispatch briefs" below). `handle_turn_face_up` pays a raw, unflattened
+> **✅ PB-DX6 SHIPPED (`scutemob-172`, 2026-08-02) — both seeds CLOSED.** `handle_turn_face_up`
+> flattens in all three `TurnFaceUpMethod` arms (the brief named only `ManaCost`; all three share
+> one payment block), and the CR 508.1h attack tax is payable via the two new
+> `Command::DeclareAttackers` fields, with pips replicated **copy-major** into the total and the
+> total flattened once — design (B), flatten-then-multiply, is rules-wrong on the Norn's Annex
+> ruling that each cost is chosen *individually*. `can_spend` is now fail-**closed** on an
+> unflattened residue in every build and `spend` asserts unconditionally, so the guard that
+> "fires NEVER" in release no longer fails **open**. **PROTOCOL 32 → 33** computed from the gate's
+> own output (the named falsifier — "it passes unchanged" — did not occur); **HASH confirmed
+> unmoved at 70** by running the gate. **0 completeness flips**, pre-committed and held (empty
+> `git diff` over `crates/card-defs`), so coverage holds at 1,137/1,804 = 63.0% and no seeded deck
+> re-dealt. Tests 4,066 → **4,099**. The review's HIGH is the lesson: the copy-major order-pin test
+> **could not fail** under the permutation it existed to catch, and the batch's own freshly-written
+> doc claimed it could — the PB-DX5 "verified: none exist" class, reproduced inside the batch that
+> cites it twice. Fixed with a minimum discriminating fixture (one defender, two *distinct*
+> restrictions, two attackers), proven by reverting to pip-major and watching the old test stay
+> green and the new one redden. Second finding, worth carrying: this batch silently **removed**
+> PB-DP4's E1 CR 508.1c regression coverage, because both E1 pins used a *hybrid* restriction that
+> stopped being a rejection class — verified by reverting E1 and watching them stay green, then
+> moved to `x_count: 1`. Seeds **OOS-DX6-1..5** filed. **Next dispatch: `PB-DX7`** (OOS-DP7-11 +
+> OOS-DP9-13 — the SR-19 gate reports success while checking nothing; gate integrity, 0 flips, no
+> wire change; full brief in §"Dispatch briefs" below).
+>
+> *(Historical — the PB-DX6 dispatch text as written on 2026-07-27:)*
+> `handle_turn_face_up` pays a raw, unflattened
 > `def.mana_cost` and `ManaPool::can_spend`'s residue guard is `debug_assert`-only, so **in release
 > every hybrid and Phyrexian pip in a `TurnFaceUpMethod::ManaCost` flip is free** — `kitchen_finks`
 > is `Complete` with two `{G/W}` pips, so manifest or cloak it and flip it for `{1}`. Separately,
@@ -842,7 +865,7 @@ bumps were falsified).
 | ~~**PB-DX3b**~~ **✅ SHIPPED `scutemob-166`** *(insert, not in the original ranking)* | the rest of the stale-note bucket | **OOS-DX3-1** — **CLOSED** | **CORRECTNESS — 2 live-wrong `Complete` defs — + card yield, zero engine** | **2 flips up, 1 honest flip down (net +1, coverage 1,142 → 1,143)**; `dwynen_s_elite`'s ability had to be **authored**; **the seed itself mis-dispositioned `emeria_the_sky_ruin`**, a second live-wrong `Complete`-by-`#[default]` def; new seed OOS-DX3b-1 | **none — PREDICTION HELD.** PROTOCOL 32 / HASH 69 unmoved; empty diff over all of `crates/engine/src` and `crates/card-types/src` |
 | ~~**PB-DX4**~~ **✅ SHIPPED `scutemob-168`** | the `BASELINE` triage sweep | **OOS-DP10-8** — **CLOSED** (+ **OOS-M11-6** closed incidentally) | **CORRECTNESS — marker integrity** | **the "0 flips" estimate was wrong in the direction that matters: 6 demotions, coverage 1,143 → 1,137.** 13 class-D of 97 (not the ≥2 predicted); 6 repaired in place, 6 demoted, 1 allowlisted by class precedent; two of the thirteen were found by the closing review, not the triage | **none — PREDICTION HELD.** PROTOCOL 32 / HASH 69 unmoved; empty diff over all of `crates/engine/src` and `crates/card-types/src`. Note the batch DID touch `crates/simulator/src` (the OOS-M11-6 fix) and `tools/play-server` (seed re-pins) — neither is in the no-engine gate |
 | **PB-DX5** | CR 611.2c affected-set snapshot | **OOS-OS7-2** *(ex-R6)* | **✅ SHIPPED** (`scutemob-170`, 2026-08-01) — CORRECTNESS, engine-wide, 29 `Complete` + 8 `partial` + 1 `known_wrong` (measured 38, not 7/9) | 0 flips (predicted, confirmed) | **HASH 69→70**; **PROTOCOL confirmed unmoved at 32** (computed, not assumed) |
-| **PB-DX6** | the last unflattened pip sites | **OOS-RS2-1** + **OOS-DP4-1** | **CORRECTNESS — live undercharge (narrow)** | 0 flips; closes the OOS-RS-2 class at its 4th and 5th sites | **PROTOCOL** (`DeclareAttackers` gains the two payment-choice fields `ActivateAbility`/`TapForMana` already have) |
+| **PB-DX6** ✅ **SHIPPED** (`scutemob-172`, 2026-08-02) | the last unflattened pip sites | **OOS-RS2-1** + **OOS-DP4-1** | **CORRECTNESS — live undercharge (narrow)** | 0 flips; closes the OOS-RS-2 class at its 4th and 5th sites | **PROTOCOL** (`DeclareAttackers` gains the two payment-choice fields `ActivateAbility`/`TapForMana` already have) |
 | **PB-DX7** | SR-19 gate holes | **OOS-DP7-11** + **OOS-DP9-13** (+DP10-1, DP9-10 residual) | **gate integrity** | 0 flips; 5 structs + all hashed enums re-enter the gate | **none** (test-only) |
 | **PB-DX8** | oracle-text-vs-DSL cross-check | **OOS-DP10-9** | **gate integrity — the worst blind spot** | 0 flips; makes dropped "may"/"choose" clauses visible for the first time | **none** (test-only) |
 | **PB-DX9** | multi-card search + the inert-field family | **OOS-DP9-3** (+DP9-2, DP9-4, DP9-9, DP10-5) | capability / card yield | **2 flips** (`tooth_and_nail`, `buried_alive`) — **not 7**, see §2.5 | **PROTOCOL + HASH** (`count` on `Effect::SearchLibrary`, `found: Vec<ObjectId>` on the answer) |
