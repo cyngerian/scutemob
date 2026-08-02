@@ -242,7 +242,9 @@
   toughness or type line matched the card it claims to be**. `tyrranax_rex` shipped `Complete`,
   passed every test, and cost `{G}{G}{G}{G}` against a printed `{4}{G}{G}{G}` — three mana cheap
   on a seven-drop, found by a human playing the game. A corpus-wide diff put the background rate
-  at **45 wrong fields across 1,804 defs**, errors running in both directions: authoring-time
+  at **39 real defects across 1,804 defs** (the gate's raw first run said 51; the difference
+  is six false mismatches from its own notation and six more that were the design working),
+  errors running in both directions: authoring-time
   transcription noise, not one systematic cause.
   **Three pieces, and the split matters.** `tools/card-field-dump` (a bin crate) enumerates
   `all_cards()` and emits TSV — enumerated, never grepped out of the def sources (SR-36).

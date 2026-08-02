@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-08-02 09:25 UTC  
-**Git:** `b76ef319` on `feat/cards-2-corpus-field-fidelity-audit-permanent-gate-mana-cost`  
+**Generated:** 2026-08-02 09:55 UTC  
+**Git:** `50f26048` on `feat/cards-2-corpus-field-fidelity-audit-permanent-gate-mana-cost`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -25,10 +25,10 @@ and what is intentionally NOT in it.**
 | Plan cards still missing a def file | 135 | · |
 | Bonus defs (on disk, outside plan) | 321 | · |
 | Effective coverage vs plan target | **111%** (1,822 / 1,636) | — |
-| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 63.0% | 1,135 | · |
-| With TODO markers | 517 | · |
+| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 62.8% | 1,133 | -2 |
+| With TODO markers | 519 | +2 |
 | Empty `abilities: vec![]` placeholders | 151 | · |
-| Total TODO lines across all defs | 941 | · |
+| Total TODO lines across all defs | 940 | -1 |
 
 ## Authoring activity (git, by window)
 
@@ -171,7 +171,7 @@ the next thing to triage when the classifier table is grown.
 
 | Gap bucket | TODO lines | Δ since last run |
 | --- | ---: | ---: |
-| OTHER (unclassified) | 577 | · |
+| OTHER (unclassified) | 576 | -1 |
 | DSL gap (unspecified) | 122 | · |
 | attack trigger (self / generic) | 23 | · |
 | TriggerCondition::* missing variant | 17 | · |
@@ -201,7 +201,7 @@ _…and 26 more buckets totaling 44 lines._
 
 ### Raw OTHER samples (read these to design new classifier buckets)
 
-Showing 12 of 577 
+Showing 12 of 576 
 unclassified TODO lines. If two or three of these have a common theme, that's a 
 new bucket to add to `TODO_BUCKETS` in `tools/authoring-report.py`. Sample is 
 deterministic (sorted by slug).
@@ -212,20 +212,21 @@ bloodghast: // TODO: Oracle says "you may return" — currently non-optional (bo
 deep_gnome_terramancer: // TODO: "lands enter under opponent's control without being played" trigger condition
 exuberant_fuseling: // TODO: "whenever another creature or artifact you control is put into a graveyard
 goblin_king: // TODO: AllCreaturesWithSubtype includes Goblin King itself — "other" semantics
-joraga_treespeaker: // TODO: Level up mechanic not in DSL — no LevelUp keyword or level-based ability gating.
-marisi_breaker_of_the_coil: // TODO: "Your opponents can't cast spells during combat" — phase-scoped CantCast not in DSL.
-overwhelming_stampede: // TODO: Spell effect — grant trample and +X/+X to all creatures you control until end
-sakashimas_student: // TODO: "enter as a copy of any creature, except it's also a Ninja" — needs
-sorin_imperious_bloodlord: // TODO: "You may sacrifice a Vampire. When you do, [effects]" — optional sacrifice
-teferis_protection: // TODO: "All permanents you control phase out" — Effect::PhaseOut for all controller permanents.
-tyvar_jubilant_brawler: // TODO: static — creatures you control can activate abilities as though they had haste
+joraga_treespeaker: // TODO: Level-dependent abilities and P/T changes (Level 1-4: 1/2 + {T}: Add {G}{G};
+marisi_breaker_of_the_coil: // TODO: "goad each creature that player controls" — ForEach over DamagedPlayer's creatures
+pact_of_negation: // TODO: Counter target spell + delayed upkeep trigger "pay {3}{U}{U} or lose the game."
+sarkhan_fireblood: // TODO: Optional discard-then-draw not in DSL. Using Nothing to avoid free draw.
+sorin_imperious_bloodlord: // TODO: Interactive hand selection by creature subtype ("Vampire creature card from
+teferis_protection: // TODO: "Exile Teferi's Protection" — self-exile on resolution.
+tyvar_jubilant_brawler: // TODO: Mill effect + conditional graveyard return with MV filter.
 ```
 
 ## ⚠ Completeness-marker drift
 
-10 defs whose `completeness:` marker contradicts their comments. The marker is authoritative (it is what `validate_deck` reads), so fix whichever is stale.
+11 defs whose `completeness:` marker contradicts their comments. The marker is authoritative (it is what `validate_deck` reads), so fix whichever is stale.
 
 - `ashnods_altar` — marked partial but has no TODO / ENGINE-BLOCKED comment
+- `birchlore_rangers` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `boggart_shenanigans` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `contaminant_grafter` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `emeria_the_sky_ruin` — marked partial but has no TODO / ENGINE-BLOCKED comment
@@ -239,6 +240,7 @@ tyvar_jubilant_brawler: // TODO: static — creatures you control can activate a
 ## Recent card-touching commits
 
 ```
+50f26048 scutemob-181: CARDS-2 fix cycle — the reviewer found the sharpest thing in the batch
 b76ef319 scutemob-181: CARDS-2 — SR-37 docs, two honest demotions, seeds, close-out
 b7a46cb3 scutemob-181: CARDS-2 — repair all 45 printed-field mismatches; gate green
 99d54ed5 scutemob-179: CARDS-1 — author the CR 702.6a equip target into all 17 equip defs (OOS-M11-10)
@@ -263,7 +265,6 @@ d876d19b W6-prim: PB-OS10 — inter-target distinctness + Jitte any-recipient co
 63335b8d W6-prim: PB-OS9 — Condition::YouControlYourCommander (OOS-EF3b-1); PROTOCOL 24 / HASH 61
 63148132 W6-prim: PB-OS8 — Effect::LookAtTopThenPlace + TargetFilter.min_cmc_amount (OOS-EF10-1 + OS6-deferred-(d))
 2beaba4f W6-prim: PB-OS7 — author silumgar_the_drifting_death.rs (Complete)
-bd15b45b W6-prim: PB-OS6 review LOW — soften delver 'strictly beneficial' comment wording
 ```
 
 ## Missing card-defs sidecar

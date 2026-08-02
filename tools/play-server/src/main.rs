@@ -416,9 +416,13 @@ mod tests {
     /// `seed` ∈ 0..24 × `develop` ∈ {false, true} found that **seed 0 reaches no targeted
     /// cast at all within 300 decisions**, so no step budget would have rescued the old
     /// pin. The fixture now rides [`TARGET_SEED`], which the same sweep chose for the
-    /// X-value test, so one observation serves both. Terminate is `{B}{R}` "destroy target
-    /// creature" (CR 601.2c) — a player is not a creature, which is the property the
+    /// X-value test, so one observation serves both. Infernal Grasp is `{1}{B}` "destroy
+    /// target creature" (CR 601.2c) — a player is not a creature, which is the property the
     /// caller's `422` depends on.
+    ///
+    /// Re-observed a THIRD time in the same batch, after the second fix cycle demoted two more
+    /// definitions. Three re-derivations for one batch is the cost of the fact recorded above:
+    /// these fixtures are a function of the whole corpus.
     ///
     /// Choosing among the eight seeds the sweep offered was not free, and the reason is
     /// worth recording. Four of them (2, 10, 11, 17) reach a targeted cast, are **offered**
@@ -436,7 +440,7 @@ mod tests {
     /// `Complete` **and Legendary and Creature** for the commander and off *colour
     /// identity* (i.e. the mana cost) for the deck. Correcting a type line or a mana cost
     /// moves both. Treat these as a function of the whole corpus.
-    const TARGETED_SPELL: &str = "Cast Terminate";
+    const TARGETED_SPELL: &str = "Cast Infernal Grasp";
 
     /// Drive the seed-pinned opening until the human is offered a **targeted**
     /// spell.
@@ -573,13 +577,13 @@ mod tests {
         assert_eq!(
             own_names,
             vec![
-                "Hazoret's Monument",
-                "Slither Blade",
-                "Signal Pest",
-                "Farhaven Elf",
-                "Marchesa's Emissary",
-                "Cached Defenses",
-                "Mobilize",
+                "Helm of the Host",
+                "Solemn Simulacrum",
+                "Simic Signet",
+                "Fierce Empath",
+                "Master Biomancer",
+                "Cankerbloom",
+                "Momentous Fall",
             ]
         );
 
@@ -1089,8 +1093,8 @@ mod tests {
     /// and demonstrates the first alongside it, at the same `seq`, so the two are
     /// told apart by observation rather than by argument.
     ///
-    /// [`TARGETED_SPELL`] is Terminate, "destroy target creature" (CR 601.2c); a player is not
-    /// a creature, so `handle_cast_spell`'s target validation refuses it with
+    /// [`TARGETED_SPELL`] is Infernal Grasp, "destroy target creature" (CR 601.2c); a player is
+    /// not a creature, so `handle_cast_spell`'s target validation refuses it with
     /// `GameStateError::InvalidTarget`. (This paragraph named Dispel for two batches after
     /// the constant had moved on — it is derived from the constant now, not restated.)
     #[tokio::test(flavor = "multi_thread")]
@@ -1565,11 +1569,17 @@ mod tests {
     // Seed 9 still stops `option_with_targets` on *something* — Deserted Temple's "untap
     // target land" — which is why two of the three tests below stayed green while the
     // X-value one failed: that predicate matches any action with candidates, and the deal
-    // had quietly retargeted this fixture from a spell onto an activated ability. Seed 20
-    // reaches `Cast Terminate` with a legal creature candidate and six untapped sources,
-    // and — unlike four of the other candidates — the engine actually accepts the cast
-    // afterwards (see [`TARGETED_SPELL`] for why that had to be checked rather than assumed).
-    const TARGET_SEED: u64 = 20;
+    // had quietly retargeted this fixture from a spell onto an activated ability.
+    //
+    // Final value 23, from a sweep of `seed` ∈ 0..24 that checked THREE properties at once,
+    // because the fixture serves three tests: a slot with ≥2 candidates (the order-perturbation
+    // test), a targeted CastSpell reachable with five untapped sources, and — measured, not
+    // assumed — the engine actually ACCEPTING that cast afterwards. Only five seeds (1, 5, 13,
+    // 21, 23) satisfied all three; five more reached a cast the engine then refused for want of
+    // mana, which is OOS-CARDS2-9/F4 and not a property to build a fixture on. Infernal Grasp
+    // was chosen over Dispatch and Cyclonic Rift because "destroy target creature" is the
+    // property the `422` caller actually depends on.
+    const TARGET_SEED: u64 = 23;
 
     /// How many decisions the drivers below will answer before giving up. Chosen
     /// well above the observed cost of the slowest fixture (the X-value one needs
@@ -1678,13 +1688,37 @@ mod tests {
                 // would make this driver absorb exactly the bug it exists downstream of.
                 // A blanket skip would be near-unfailable, because `PassPriority` is in the
                 // candidate chain and essentially always succeeds.
+                // Named, filed defects only. Each is a case of the provider offering an
+                // action `process_command` then refuses — SR-38's "never offer what the engine
+                // rejects". Anything NOT on this list fails loudly: a fixture driver that
+                // tolerates arbitrary refusals absorbs exactly the class it sits downstream of.
+                //
+                // The last three entries are ONE defect with three symptoms, not three
+                // defects — **OOS-CARDS2-9**: the provider's affordability check counts mana
+                // abilities it could not legally activate. It checks that a source is untapped
+                // and nothing else, so an unmet `activation_condition` (CR 602.5b), a
+                // summoning-sick creature (CR 302.6) and — per the previously filed **SG-1** —
+                // a `life_cost` it cannot pay all inflate the pool it believes in. Playtest
+                // finding **F4** is the fourth symptom (Sol Ring credited as one mana). The fix
+                // is one place: make the solver ask whether the ability is *activatable*, not
+                // whether its source is untapped.
+                const KNOWN_FALSE_OFFERS: &[&str] = &[
+                    // OOS-CARDS2-4: an Aura's target requirement lives in
+                    // `KeywordAbility::Enchant(...)`, which `casting.rs` special-cases (CR
+                    // 303.4a) and the provider never reads, so the offer says `target_min: 0`.
+                    "Aura spells require exactly one target",
+                    // OOS-CARDS2-9, symptom 1 (refused at `rules/mana.rs`).
+                    "mana ability activation condition not met",
+                    // OOS-CARDS2-9, symptom 2 (CR 302.6).
+                    "summoning sickness and cannot tap for mana",
+                ];
                 let reason = next["error"].as_str().unwrap_or_default();
                 assert!(
-                    reason.contains("Aura spells require exactly one target"),
+                    KNOWN_FALSE_OFFERS.iter().any(|k| reason.contains(k)),
                     "driving seed {seed}: the engine refused {} with an UNEXPECTED reason \
-                     {reason:?}. Only the CR 303.4a Aura false offer (OOS-CARDS2-4) is a known \
-                     one; a new refusal means the provider is offering something else the \
-                     engine rejects, and that is a finding, not something to drive past.",
+                     {reason:?}. Only the shapes in KNOWN_FALSE_OFFERS are filed; a new refusal \
+                     means the provider is offering something else the engine rejects, and that \
+                     is a finding, not something to drive past.",
                     pick["label"]
                 );
             }

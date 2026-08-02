@@ -79,6 +79,18 @@ FACE_JOIN_LAYOUTS = frozenset(
 )
 
 
+def escape_text(text):
+    """One-line, tab-free encoding of a printed oracle text for a TSV cell.
+
+    Newlines become the two characters `\n` and tabs become spaces, so a rules-text
+    paragraph survives a tab-separated fixture without a quoting layer. `-` marks the
+    genuinely absent case (a vanilla creature). The gate unescapes with the inverse.
+    """
+    if not text:
+        return "-"
+    return text.replace("\\", "\\\\").replace("\t", " ").replace("\r", "").replace("\n", "\\n")
+
+
 def load_corpus(path):
     """Return [(name, completeness)] from the card-field-dump TSV."""
     rows = []
@@ -99,18 +111,18 @@ def build_index(db):
     card named "X" and some *other* card's face also named "X" must not collide.
     """
     by_face = {}
-    for name, cost, tl, power, toughness, layout in db.execute(
-        """select f.name, f.mana_cost, f.type_line, f.power, f.toughness, c.layout
+    for name, cost, tl, power, toughness, text, layout in db.execute(
+        """select f.name, f.mana_cost, f.type_line, f.power, f.toughness, f.oracle_text, c.layout
              from card_faces f join cards c on c.id = f.card_id
             where f.face_index = 0"""
     ):
         if layout in EXCLUDED_LAYOUTS:
             continue
-        by_face.setdefault(name, (cost, power, toughness, tl))
+        by_face.setdefault(name, (cost, power, toughness, tl, text))
 
     by_card = {}
-    for name, cost, tl, power, toughness, layout in db.execute(
-        "select name, mana_cost, type_line, power, toughness, layout from cards"
+    for name, cost, tl, power, toughness, text, layout in db.execute(
+        "select name, mana_cost, type_line, power, toughness, oracle_text, layout from cards"
     ):
         if layout in EXCLUDED_LAYOUTS:
             continue
@@ -120,7 +132,7 @@ def build_index(db):
             if face is not None:
                 by_card.setdefault(name, face)
                 continue
-        by_card.setdefault(name, (cost, power, toughness, tl))
+        by_card.setdefault(name, (cost, power, toughness, tl, text))
 
     merged = dict(by_face)
     merged.update(by_card)
@@ -148,7 +160,7 @@ def main():
         if printed is None:
             unmatched.append(name)
             continue
-        cost, power, toughness, type_line = printed
+        cost, power, toughness, type_line, oracle_text = printed
         matched.append(
             (
                 name,
@@ -156,6 +168,7 @@ def main():
                 power if power is not None else "-",
                 toughness if toughness is not None else "-",
                 type_line,
+                escape_text(oracle_text),
             )
         )
 
@@ -168,10 +181,14 @@ def main():
         fh.write("#   cargo run -q -p card-field-dump > /tmp/corpus.tsv\n")
         fh.write("#   python3 tools/refresh-card-fidelity-fixture.py \\\n")
         fh.write("#       --corpus /tmp/corpus.tsv --db cards.sqlite --out %s\n" % args.out)
-        fh.write("# Columns: name  mana_cost  power  toughness  type_line   ('-' = field absent)\n")
+        fh.write(
+            "# Columns: name  mana_cost  power  toughness  type_line  oracle_text  "
+            "('-' = field absent)\n"
+        )
+        fh.write("# oracle_text has newlines escaped as \\n and tabs replaced by spaces.\n")
         fh.write("# Multi-face cards carry FACE 0 only; non-game layouts are excluded at extraction.\n")
         fh.write("# The gate is crates/engine/tests/core/cards2_printed_field_fidelity.rs.\n")
-        fh.write("name\tmana_cost\tpower\ttoughness\ttype_line\n")
+        fh.write("name\tmana_cost\tpower\ttoughness\ttype_line\toracle_text\n")
         for row in matched:
             fh.write("\t".join(row) + "\n")
         if unmatched:

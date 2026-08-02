@@ -847,7 +847,9 @@
   `core::cards2_printed_field_fidelity` (**the only place equality is decided**). The
   fixture is committed because `cards.sqlite` is gitignored and absent in CI; the Python
   does no normalisation on purpose, or the two sides would drift.
-- **45 wrong fields found and repaired** across 31 defs: 17 mana costs, 5 P/T over 3 defs,
+- **39 real defects found and repaired** across 31 defs (the gate's raw first run said 51;
+  the difference is six false mismatches from its own notation and six more that were the
+  design working — see the evidence record's three-column table): 17 mana costs, 5 P/T over 3 defs,
   16 type lines over 16 defs, 1 duplicate card name. **R2 reproduced the playtest-triage
   F2 table exactly, card for card** — first independent confirmation it was reproducible.
 - **Boon Satyr (F1) fully repaired**, all four defects incl. the printed "+4/+2" that was
@@ -865,10 +867,11 @@
   can). Both **honestly demoted** with blocker notes naming the missing primitive
   (**OOS-CARDS2-5/6**), not half-repaired.
 - **Zero engine lines**; PROTOCOL/HASH gate-executed unmoved; `decision_gate` 18/18; tests
-  **4,164 / 0 / 5**. Coverage **1,135/1,803 = 63.0%** — **2 completeness flips, both
-  demotions**. The headline percentage is unmoved while three things moved underneath it
-  (two demotions down, one double-counted card out of the denominator); do not read the
-  stability as "nothing happened".
+  **4,165 / 0 / 5**. Coverage **1,133/1,803 = 62.8%**, down from 1,137/1,804 — **4
+  completeness flips, ALL demotions**. The number went DOWN because the corpus got truer
+  (the PB-DX4 pattern): `cyber_conversion` and `exalted_angel` implemented text on no card,
+  `braided_net`'s real abilities need six absent primitives, `birchlore_rangers`' mana
+  ability has no `Cost` variant.
 
 **Hazards for the next session — read these three:**
 
@@ -924,7 +927,11 @@ Both were also **stale** claims: `Effect::TapPermanent` and
 
 **Full evidence record**: `memory/card-authoring/cards2-field-fidelity-2026-08-02.md`
 (measurement, every disposition, the four gate-design findings, and seeds
-**OOS-CARDS2-1/2/3**). Gate rationale + refresh procedure: `docs/engine-invariants.md`
+**OOS-CARDS2-1..9** — 7, 8 and 9 came out of the review fix cycles: **OOS-CARDS2-7** the
+`completeness_deviation_scan` needle set has no entry for "DSL gap" or "deferred", the two
+phrases the corpus actually uses; **OOS-CARDS2-8** stale "not expressible" notes are a
+recurring class, four found false in this batch alone). Gate rationale + refresh procedure:
+`docs/engine-invariants.md`
 (SR-37).
 
 ## Worker Handoff (CARDS-1, `scutemob-179`)

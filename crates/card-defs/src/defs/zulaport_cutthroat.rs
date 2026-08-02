@@ -1,9 +1,11 @@
 // Zulaport Cutthroat — {1}{B}, Creature — Human Rogue Ally 1/1.
-// "Whenever Zulaport Cutthroat or another creature you control dies, each opponent
-// loses 1 life and you gain 1 life for each opponent that lost life."
+// "Whenever this creature or another creature you control dies, each opponent
+// loses 1 life and you gain 1 life."
 // CR 603.2/603.10a: WheneverCreatureDies trigger; controller_you because oracle says
-// "this creature or another creature you control." DrainLife captures the "gain life
-// equal to total actually lost" semantics (CR 702.101a).
+// "this creature or another creature you control." Each opponent loses exactly 1 life
+// (ForEach EachOpponent), then the controller gains exactly 1 life (flat — not
+// total_lost). This is distinct from DrainLife, which gains total_lost across all
+// opponents and is wrong in 3+ player games (see sanctum_seeker.rs for the same shape).
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -16,8 +18,8 @@ pub fn card() -> CardDefinition {
             ..Default::default()
         }),
         types: creature_types(&["Human", "Rogue", "Ally"]),
-        oracle_text: "Whenever Zulaport Cutthroat or another creature you control dies, each \
-                      opponent loses 1 life and you gain 1 life for each opponent that lost life."
+        oracle_text: "Whenever this creature or another creature you control dies, each opponent \
+                      loses 1 life and you gain 1 life."
             .to_string(),
         power: Some(1),
         toughness: Some(1),
@@ -32,9 +34,19 @@ pub fn card() -> CardDefinition {
                     nontoken_only: false,
                     filter: None,
                 },
-                effect: Effect::DrainLife {
-                    amount: EffectAmount::Fixed(1),
-                },
+                effect: Effect::Sequence(vec![
+                    Effect::ForEach {
+                        over: ForEachTarget::EachOpponent,
+                        effect: Box::new(Effect::LoseLife {
+                            player: PlayerTarget::DeclaredTarget { index: 0 },
+                            amount: EffectAmount::Fixed(1),
+                        }),
+                    },
+                    Effect::GainLife {
+                        player: PlayerTarget::Controller,
+                        amount: EffectAmount::Fixed(1),
+                    },
+                ]),
                 intervening_if: None,
                 targets: vec![],
 

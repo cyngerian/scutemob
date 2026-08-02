@@ -389,9 +389,17 @@ fn the_marker_detector_is_not_vacuous() {
     // MARKER_FRAGMENTS across `crates/card-defs/src/defs/*.rs` (excluding `mod.rs`) reports
     // 668 of 1,803 definitions marked non-Complete, so the Complete numerator falls
     // 1,137 -> 1,135.
+    // CARDS-2 THIRD pass (2026-08-02, `scutemob-181`, review fix cycles): 668 -> 670. Two more
+    // honest demotions, both from a review that found `Complete` defs implementing text their
+    // card does not print: `braided_net` (a repair pass had just *implemented* three invented
+    // abilities into it, briefed from the file's own stale comment rather than the oracle) and
+    // `birchlore_rangers` (printed "Tap two untapped Elves you control: Add one mana of any
+    // colour" has no `Cost` variant; its Morph cost was also `{0}` for a printed `{G}`).
+    // RE-MEASURED DIRECTLY, not derived: `all_cards()` reports 1,133 Complete / 670 non-Complete
+    // of 1,803, and an independent MARKER_FRAGMENTS grep also reports 670.
     assert!(
-        marked >= 668,
-        "marker detector matched {marked} files; expected >= 668. This assertion has NO \
+        marked >= 670,
+        "marker detector matched {marked} files; expected >= 670. This assertion has NO \
          margin (see the comment above) and can fail for two different reasons: (1) \
          MARKER_FRAGMENTS stopped matching (a detector bug -- the gate would then spuriously \
          flag marked defs) or, far more likely on an ordinary day, (2) a ROUTINE Complete \

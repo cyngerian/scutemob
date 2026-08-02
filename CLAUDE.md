@@ -67,7 +67,7 @@
   three sessions; and the reviews doc's `HASH 69` corrected to **70** in four places — the claim was
   true, the number was stale, PB-DX5 moved it on the parallel W6 track before this branch forked.
 - **Card Authoring Campaign** (continuous, was M12): plan
-  `memory/card-authoring/campaign-plan-2026-05-16.md` §0. **Live coverage: 1,137/1,804 = 63.0%**
+  `memory/card-authoring/campaign-plan-2026-05-16.md` §0. **Live coverage: 1,133/1,803 = 62.8%**
   (PB-DX4's 6 honest demotions outweigh its 6 in-place repairs — the number went *down* because the
   corpus got *truer*) — regenerate with `tools/authoring-report.py`; `docs/authoring-status.md` is
   the canonical, self-dating source. **Current queue state: the PB-OS queue is COMPLETE; the PB-DP
@@ -262,10 +262,13 @@
   `completeness_deviation_scan` missed both because its needle set has no entry for "DSL gap".
   Tests **4,164 / 0 / 5**;
   **0 engine lines**; PROTOCOL **33** / HASH **70** gate-executed unmoved; `decision_gate` 18/18.
-  **2 completeness flips, both demotions** — coverage **1,135/1,803 = 63.0%**; the headline
-  figure is unmoved while three things changed underneath it (two demotions down, one
-  double-counted card out of the denominator), so do not read that stability as "nothing
-  happened". Seeds **OOS-CARDS2-1..6** filed. **Full evidence:
+  **4 completeness flips, ALL demotions** — coverage **1,133/1,803 = 62.8%**, down from
+  1,137/1,804 = 63.0%. **The number went down because the corpus got truer**, exactly as PB-DX4
+  recorded: two defs implementing text that exists on no card (`cyber_conversion`,
+  `exalted_angel`), one whose printed abilities need six absent primitives (`braided_net`), one
+  whose mana ability has no `Cost` variant (`birchlore_rangers`). The denominator also fell by
+  one, because a double-counted card stopped being counted twice. Seeds **OOS-CARDS2-1..9**
+  filed. **Full evidence:
   `memory/card-authoring/cards2-field-fidelity-2026-08-02.md`**; gate + refresh procedure:
   `docs/engine-invariants.md` (SR-37).
 - - **Prior**: 2026-08-02 — **UI-1 SHIPPED** (`scutemob-174`): the browser client can now

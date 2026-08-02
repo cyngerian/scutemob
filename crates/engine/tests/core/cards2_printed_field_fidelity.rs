@@ -55,6 +55,10 @@
 //!   past it — the corpus carried exactly one such pair when this gate was written.
 //! - **R6** — non-vacuity floors, because R1–R5 are all "for every row" assertions and an
 //!   empty fixture would satisfy every one of them.
+//! - **R7** — costs that live *inside* an ability (bestow, morph, megamorph, disguise, craft)
+//!   match the printed clause. R2 sees one field and these are not in it; Boon Satyr's bestow
+//!   cost was one of this batch's four headline defects and the gate as first built could not
+//!   have caught it. Three more turned up by hand before this rule existed.
 //!
 //! What a passing gate does NOT assert: that a definition's *abilities* are right. This
 //! file checks the four fields that are mechanically checkable against a database. A card
@@ -62,8 +66,8 @@
 //! `completeness` is for.
 
 use mtg_engine::{
-    CardDefinition, CardType, Completeness, HybridMana, ManaColor, ManaCost, PhyrexianMana,
-    SubType, SuperType,
+    AbilityDefinition, CardDefinition, CardType, Completeness, HybridMana, ManaColor, ManaCost,
+    PhyrexianMana, SubType, SuperType,
 };
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -84,6 +88,7 @@ struct Printed {
     power: String,
     toughness: String,
     type_line: String,
+    oracle_text: String,
 }
 
 fn fixture() -> BTreeMap<String, Printed> {
@@ -98,8 +103,8 @@ fn fixture() -> BTreeMap<String, Printed> {
         }
         assert_eq!(
             cols.len(),
-            5,
-            "fixture row has {} columns, expected 5: {line:?}",
+            6,
+            "fixture row has {} columns, expected 6: {line:?}",
             cols.len()
         );
         let prev = out.insert(
@@ -109,6 +114,9 @@ fn fixture() -> BTreeMap<String, Printed> {
                 power: cols[2].to_string(),
                 toughness: cols[3].to_string(),
                 type_line: cols[4].to_string(),
+                // The generator escapes newlines as the two characters `\n` so a rules-text
+                // paragraph survives a tab-separated cell; undo that here, once.
+                oracle_text: cols[5].replace("\\n", "\n"),
             },
         );
         assert!(prev.is_none(), "duplicate fixture row for {:?}", cols[0]);
@@ -661,6 +669,131 @@ fn r4_type_lines_match_printed() {
     assert!(
         bad.is_empty(),
         "{} type-line mismatch(es) against the printed card:\n  {}",
+        bad.len(),
+        bad.join("\n  ")
+    );
+}
+
+// ── R7: costs that live INSIDE an ability ─────────────────────────────────────
+
+/// The keyword abilities whose cost the DSL stores on an `AbilityDefinition` variant rather
+/// than in `CardDefinition.mana_cost`, paired with the word they print as.
+///
+/// R2 cannot see any of these — it compares one field — and that blind spot is not
+/// theoretical: **Boon Satyr's bestow cost was one of the four headline defects of this very
+/// batch** (`{4}{G}{G}` for a printed `{3}{G}{G}`) and was found by a human reading the card,
+/// not by the gate built to stop exactly this. The batch then found three more by hand
+/// (Braided Net's craft, Akroma's and Birchlore Rangers' morph — the last free at `{0}` for a
+/// printed `{G}`). Four found by eye in one batch is a class, so it gets a rule.
+const ABILITY_COST_KEYWORDS: &[&str] = &["Bestow", "Morph", "Megamorph", "Disguise", "Craft"];
+
+/// Pull the mana cost a printed keyword clause charges, e.g. `Bestow {3}{G}{G}` -> `{3}{G}{G}`.
+///
+/// Returns `None` when the keyword is absent, and — deliberately — also when it is present
+/// without a brace-delimited cost. That covers the real "Morph—Reveal a blue card in your
+/// hand." form (CR 702.36b permits a non-mana morph cost) and reminder text that names the
+/// keyword in prose. Silence there is correct: this rule compares mana costs and has nothing
+/// to say about a cost that is not one.
+fn printed_ability_cost(oracle: &str, keyword: &str) -> Option<String> {
+    for (idx, _) in oracle.match_indices(keyword) {
+        let rest = &oracle[idx + keyword.len()..];
+        // `Craft with artifact {1}{U}` — skip the materials clause to the first brace, but
+        // stop at a line break so a later line's cost is never mistaken for this one.
+        let line_end = rest.find('\n').unwrap_or(rest.len());
+        let line = &rest[..line_end];
+        let Some(brace) = line.find('{') else {
+            continue;
+        };
+        // Everything between the keyword and the cost must be cost-less connective tissue.
+        // A sentence boundary means this occurrence is prose (reminder text), not the clause.
+        if line[..brace].contains('.') || line[..brace].contains('(') {
+            continue;
+        }
+        let cost_run: String = line[brace..]
+            .chars()
+            .take_while(|c| *c == '{' || *c == '}' || c.is_ascii_alphanumeric() || *c == '/')
+            .collect();
+        if cost_run.ends_with('}') {
+            return Some(cost_run);
+        }
+    }
+    None
+}
+
+/// The cost a definition charges for the same keyword, if it declares one.
+fn def_ability_cost(def: &CardDefinition, keyword: &str) -> Option<ManaCost> {
+    def.abilities.iter().find_map(|a| match (keyword, a) {
+        ("Bestow", AbilityDefinition::Bestow { cost }) => Some(cost.clone()),
+        ("Morph", AbilityDefinition::Morph { cost }) => Some(cost.clone()),
+        ("Megamorph", AbilityDefinition::Megamorph { cost }) => Some(cost.clone()),
+        ("Disguise", AbilityDefinition::Disguise { cost }) => Some(cost.clone()),
+        ("Craft", AbilityDefinition::Craft { cost, .. }) => Some(cost.clone()),
+        _ => None,
+    })
+}
+
+#[test]
+/// R7 — where a card PRINTS a keyword cost and the definition DECLARES that keyword, the two
+/// must agree.
+///
+/// Asymmetric on purpose. A def that declares no `Bestow` ability for a card printing Bestow
+/// is *incomplete*, which is `completeness`'s job and not this file's; a def that declares one
+/// and charges the wrong number is *wrong*, which is exactly this file's job. Only the second
+/// is failed here.
+fn r7_ability_embedded_costs_match_printed() {
+    let printed = fixture();
+    let defs = corpus();
+    let mut bad = Vec::new();
+    let mut compared = 0usize;
+    for def in &defs {
+        let Some(p) = printed.get(&def.name) else {
+            continue;
+        };
+        if p.oracle_text == "-" {
+            continue;
+        }
+        for keyword in ABILITY_COST_KEYWORDS {
+            let (Some(want_raw), Some(got)) = (
+                printed_ability_cost(&p.oracle_text, keyword),
+                def_ability_cost(def, keyword),
+            ) else {
+                continue;
+            };
+            compared += 1;
+            let want = match canonical_printed_cost(&want_raw) {
+                Ok(c) => c,
+                Err(e) => {
+                    bad.push(format!("{}: {keyword} cost unparseable — {e}", def.name));
+                    continue;
+                }
+            };
+            let got = canonical_def_cost(&got);
+            if got != want {
+                bad.push(format!(
+                    "{} {keyword}: def {got} != printed {want} (raw {want_raw:?})",
+                    def.name
+                ));
+            }
+        }
+    }
+    // MEASURED, not guessed: 9 definitions declare one of these five variants today
+    // (Bestow 1, Morph 4, Megamorph 2, Disguise 1, Craft 1). The first draft of this floor
+    // was written as `>= 20` from intuition and reddened immediately — which is the whole
+    // argument for measuring, made against this file by this file.
+    //
+    // The number is small because the rule is ASYMMETRIC: it compares only where the def
+    // declares the keyword. Two cards print Bestow and only one declares it (Springheart
+    // Nantuko is `inert` with a documented blocker), and that gap is `completeness`'s
+    // business, not this rule's. Raise the floor when the corpus gains such a def.
+    assert!(
+        compared >= 9,
+        "R7 compared only {compared} ability costs — the extraction has stopped matching, \
+         which would make this rule silently vacuous"
+    );
+    bad.sort();
+    assert!(
+        bad.is_empty(),
+        "{} ability-embedded cost mismatch(es) against the printed card:\n  {}",
         bad.len(),
         bad.join("\n  ")
     );

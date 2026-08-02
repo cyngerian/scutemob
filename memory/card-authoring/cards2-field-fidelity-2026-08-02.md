@@ -242,21 +242,22 @@ Three of the re-pins were not mechanical, and each is its own lesson:
 | | before | after |
 |---|---:|---:|
 | definitions | 1,804 | **1,803** |
-| `Complete` | 1,137 | **1,135** |
-| non-`Complete` | 667 | **668** |
-| coverage | 63.0% | **63.0%** |
+| `Complete` | 1,137 | **1,133** |
+| non-`Complete` | 667 | **670** |
+| coverage | 63.0% | **62.8%** |
 
-**Two completeness flips, both demotions, both honest** (§2.4 below). The denominator also fell
-by one, because a double-counted card stopped being counted twice — so the *headline* coverage
-figure is unmoved at 63.0% while three separate things changed underneath it. Do not read that
-stability as "nothing happened".
+**Four completeness flips, ALL demotions, all honest.** Coverage went **down**, and that is the
+correct direction: it is the PB-DX4 pattern — *the number fell because the corpus got truer*.
+Two defs implemented text that exists on no card (§2.4), one needs six absent primitives to
+express its real abilities (§2.6), one has no `Cost` variant for its printed mana ability. The
+denominator also fell by one, because a double-counted card stopped being counted twice.
 
-`completeness_deviation_scan`'s floor moved in **two steps within this batch**, 667 → 666 (the
-deleted duplicate) → **668** (the two demotions), each re-measured directly against
-`all_cards()` **and** by an independent grep of `MARKER_FRAGMENTS`, as that file's own comment
-instructs, rather than derived by arithmetic from the previous value.
+`completeness_deviation_scan`'s floor moved in **three steps within this batch**, 667 → 666 (the
+deleted duplicate) → 668 (the first two demotions) → **670** (the review fix cycles), each
+re-measured directly against `all_cards()` **and** by an independent grep of `MARKER_FRAGMENTS`,
+as that file's own comment instructs, rather than derived by arithmetic from the previous value.
 
-Tests **4,164 / 0 / 5** workspace-wide. Zero engine lines (empty diff over `crates/engine/src`
+Tests **4,165 / 0 / 5** workspace-wide. Zero engine lines (empty diff over `crates/engine/src`
 and `crates/card-types/src`). PROTOCOL and HASH gate-executed unmoved; `decision_gate` 18/18.
 
 ---
