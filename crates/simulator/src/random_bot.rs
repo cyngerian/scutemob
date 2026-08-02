@@ -221,6 +221,12 @@ mod tests {
     /// produce a `Command` the engine actually accepts and that spends the pip.
     #[test]
     fn choose_action_pays_a_hybrid_attack_tax_on_every_seed() {
+        // PB-DX6 fix cycle, Finding 12: this loop's own comment concedes the bot may
+        // legally decline to attack on any given seed (0-count random subset on the
+        // fallback path), and every non-attacking seed `continue`s past all the real
+        // assertions below -- so a non-vacuity floor is needed, matching this suite's
+        // own standard for pinned-empty/skip-guarded assertions elsewhere.
+        let mut attacked_count = 0u32;
         for seed in 0..20u64 {
             let p1 = PlayerId(1);
             let p2 = PlayerId(2);
@@ -267,6 +273,7 @@ mod tests {
             if !attacked {
                 continue;
             }
+            attacked_count += 1;
             let (state, _events) = process_command(state, cmd)
                 .unwrap_or_else(|e| panic!("seed {seed}: bot built an unpayable plan: {e:?}"));
             assert!(
@@ -284,5 +291,10 @@ mod tests {
                 "seed {seed}: the Green pip must have been spent: {pool:?}"
             );
         }
+        assert!(
+            attacked_count >= 1,
+            "non-vacuity floor: at least one of the 20 seeds must have declared the \
+             attack for the assertions above to have run at all"
+        );
     }
 }

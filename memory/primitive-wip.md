@@ -4,7 +4,9 @@
 **Seeds**: OOS-RS2-1 + OOS-DP4-1 (`memory/primitives/seed-rerank-2026-07-27.md` §4 + the PB-DX6
 dispatch brief at that file's `:994`)
 **Task**: `scutemob-172` · **Branch**: `feat/pb-dx6-the-last-two-unflattened-mana-cost-payment-sites-oos-`
-**Phase**: implement (plan DONE — `memory/primitives/pb-plan-DX6.md`, commit `4d367c54`)
+**Phase**: close (fix DONE — 1 HIGH / 8 MEDIUM / 6 LOW all applied; see
+`memory/primitives/pb-review-DX6.md` for findings and the fix-cycle report for
+verification detail; implement DONE — stages 0/A/B/C/D/E/F, commits 34374603..dd4a9237)
 
 > Prior batch (PB-DX5, `scutemob-170`) shipped; its result summary lives in
 > `memory/primitives/pb-plan-DX5.md` + `pb-review-DX5.md` and in CLAUDE.md's Current State.
@@ -74,8 +76,8 @@ than left folded under the rejection message's existing OOS-DP4-1 cite.
 ## Phases
 
 - [x] premise verified
-- [ ] plan
-- [ ] implement
-- [ ] review
-- [ ] fix
+- [x] plan
+- [x] implement
+- [x] review
+- [x] fix
 - [ ] close

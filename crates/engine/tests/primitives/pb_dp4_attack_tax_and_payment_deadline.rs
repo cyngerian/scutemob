@@ -574,10 +574,19 @@ fn test_508_1c_planeswalker_attack_is_not_taxed() {
 }
 
 #[test]
-/// CR 107.4e/107.4f via CR 508.1h — a hybrid attack tax is REJECTED, not silently paid
-/// for free. Pre-fix: the hybrid pip is invisible to the field-sum, so the declaration
-/// succeeds for free.
-fn test_107_4e_hybrid_attack_tax_is_rejected_not_paid_free() {
+/// CR 107.4e/107.4f/508.1h/508.1j — **reconciled by PB-DX6 (fix cycle, Finding 2)**.
+/// This test's ORIGINAL subject (a hybrid pip is invisible to the field-sum, so the
+/// declaration succeeds for free) was closed by PB-DX6: hybrid pips are now payable
+/// via `hybrid_choices`, and are rejected only when the declared attackers'
+/// accumulated, FLATTENED cost cannot actually be paid from the pool. This test now
+/// pins THAT: an insufficient pool cannot pay an otherwise-payable hybrid tax, and the
+/// rejection message must be the CR 508.1h/508.1j "cannot pay the required" shape, NOT
+/// the PB-DX6-superseded "is not payable" class-rejection shape (see
+/// `historical_observation_c_hybrid_attack_tax_no_longer_unpayable_class` in
+/// `pb_dx6_unflattened_payment_sites.rs` for that shape's own pin). Kept, not deleted
+/// — the scenario (zero-mana player attacks into a taxed defender) is still worth
+/// pinning, just against the new regime.
+fn test_107_4e_insufficient_pool_cannot_pay_an_otherwise_payable_hybrid_attack_tax() {
     let mut state = GameStateBuilder::new()
         .add_player(p(1))
         .add_player(p(2))
@@ -607,26 +616,45 @@ fn test_107_4e_hybrid_attack_tax_is_rejected_not_paid_free() {
         state,
         declare_cmd(p(2), vec![(bear, AttackTarget::Player(p(1)))]),
     );
-    let err = result
-        .expect_err("CR 107.4e/107.4f: a hybrid attack tax must be rejected, not silently free");
+    let err = result.expect_err(
+        "CR 508.1h/508.1j: a hybrid attack tax the player's empty pool cannot pay must \
+         still be rejected",
+    );
     let msg = format!("{:?}", err);
-    // Closing `/review` finding 3: this used to assert the message contained the literal
-    // seed id "OOS-DP4-1". A seed id is bookkeeping, not behaviour — renaming or renumbering
-    // the seed would have broken a green test for no correctness reason. Assert instead that
-    // the rejection names the tax and the unpayable pip shape, which is what a player (and a
-    // future reader) actually needs to see.
+    // PB-DX6 fix cycle, Finding 2: pre-fix this asserted `msg.contains("hybrid")`,
+    // which post-PB-DX6 is satisfied UNCONDITIONALLY by the `ManaCost` `Debug` impl's
+    // own field name ("hybrid: []") regardless of whether the rejection reason has
+    // anything to do with hybrid mana at all -- a vacuous assertion. Assert instead on
+    // the CR 508.1h/508.1j "cannot pay" shape this test now actually exercises, and
+    // explicitly rule out the superseded "is not payable" class-rejection message
+    // (the shape `historical_observation_c_hybrid_attack_tax_no_longer_unpayable_class`
+    // in `pb_dx6_unflattened_payment_sites.rs` pins the ABSENCE of).
     assert!(
-        msg.contains("attack tax") && (msg.contains("hybrid") || msg.contains("Phyrexian")),
-        "message should name the attack tax and the unpayable pip shape: {msg}"
+        msg.contains("cannot pay the required"),
+        "message should name the CR 508.1h/508.1j insufficient-pool rejection: {msg}"
+    );
+    assert!(
+        !msg.contains("is not payable"),
+        "message must NOT use the PB-DX6-superseded class-rejection shape -- hybrid is \
+         payable now, this rejection is about the pool, not the pip: {msg}"
     );
 }
 
 #[test]
-/// CR 508.1c/107.4e (fix cycle, E1) — a hybrid/Phyrexian/X attack tax on ONE defender
-/// must not block a declaration that doesn't attack that defender at all. Pre-fix: the
-/// rejection fired unconditionally whenever such a restriction existed anywhere on the
+/// CR 508.1c/107.4e (fix cycle, E1) — an X attack tax on ONE defender must not block a
+/// declaration that doesn't attack that defender at all. Pre-fix (E1): the rejection
+/// fired unconditionally whenever such a restriction existed anywhere on the
 /// battlefield, even for an attack against a different, untaxed defender.
-fn test_107_4e_hybrid_tax_does_not_block_attacks_on_other_defenders() {
+///
+/// **PB-DX6 fix cycle, Finding 3**: this test originally used a HYBRID restriction.
+/// Post-PB-DX6, hybrid is payable and never enters `x_tax_defenders` at all -- the E1
+/// scoping loop this test exists to pin is never reached for a hybrid restriction, so
+/// the assertion held whether or not E1's scoping was present (verified by
+/// revert-and-execute in the fix cycle: reverting the scoping loop to an unconditional
+/// rejection left this test green). Switched to `x_count: 1`, the only restriction
+/// shape that still reaches `x_tax_defenders` and therefore the only shape that can
+/// still discriminate E1's scoping.
+fn test_107_4e_x_tax_does_not_block_attacks_on_other_defenders() {
     let mut state = GameStateBuilder::four_player()
         .active_player(p(2))
         .at_step(Step::DeclareAttackers)
@@ -642,7 +670,7 @@ fn test_107_4e_hybrid_tax_does_not_block_attacks_on_other_defenders() {
         p(1),
         GameRestriction::CantAttackYouUnlessPay {
             cost_per_creature: ManaCost {
-                hybrid: vec![HybridMana::GenericColor(ManaColor::White)],
+                x_count: 1,
                 ..Default::default()
             },
         },
@@ -650,14 +678,14 @@ fn test_107_4e_hybrid_tax_does_not_block_attacks_on_other_defenders() {
     state.turn_mut().priority_holder = Some(p(2));
 
     let bear = find_by_name(&state, "Bear");
-    // Attack p3 (untaxed), not p1 (the hybrid-tax defender).
+    // Attack p3 (untaxed), not p1 (the X-tax defender).
     let result = process_command(
         state,
         declare_cmd(p(2), vec![(bear, AttackTarget::Player(p(3)))]),
     );
     assert!(
         result.is_ok(),
-        "E1: an unrelated hybrid-tax restriction on a different defender must not block \
+        "E1: an unrelated X-tax restriction on a different defender must not block \
          an attack against p3: {:?}",
         result.err()
     );
@@ -665,9 +693,14 @@ fn test_107_4e_hybrid_tax_does_not_block_attacks_on_other_defenders() {
 
 #[test]
 /// CR 508.1c/107.4e (fix cycle, E1) — an empty attack declaration must not be blocked by
-/// an unrelated hybrid/Phyrexian/X attack-tax restriction that no declared attacker
-/// engages. Pre-fix: the rejection fired on the mere existence of the restriction.
-fn test_107_4e_hybrid_tax_does_not_block_an_empty_declaration() {
+/// an unrelated X attack-tax restriction that no declared attacker engages. Pre-fix
+/// (E1): the rejection fired on the mere existence of the restriction.
+///
+/// **PB-DX6 fix cycle, Finding 3**: switched from a hybrid restriction (which, post-
+/// PB-DX6, never reaches `x_tax_defenders` and so cannot discriminate the E1 scoping
+/// this test exists to pin — see the sibling test above) to `x_count: 1`, the one
+/// remaining rejection class.
+fn test_107_4e_x_tax_does_not_block_an_empty_declaration() {
     let mut state = GameStateBuilder::new()
         .add_player(p(1))
         .add_player(p(2))
@@ -685,7 +718,7 @@ fn test_107_4e_hybrid_tax_does_not_block_an_empty_declaration() {
         p(1),
         GameRestriction::CantAttackYouUnlessPay {
             cost_per_creature: ManaCost {
-                hybrid: vec![HybridMana::GenericColor(ManaColor::White)],
+                x_count: 1,
                 ..Default::default()
             },
         },
@@ -695,7 +728,7 @@ fn test_107_4e_hybrid_tax_does_not_block_an_empty_declaration() {
     let result = process_command(state, declare_cmd(p(2), vec![]));
     assert!(
         result.is_ok(),
-        "E1: an empty declaration must not be rejected by a hybrid-tax restriction no \
+        "E1: an empty declaration must not be rejected by an X-tax restriction no \
          declared attacker engages: {:?}",
         result.err()
     );

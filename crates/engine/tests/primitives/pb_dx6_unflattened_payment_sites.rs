@@ -279,15 +279,22 @@ fn historical_observation_a_no_longer_panics_post_fix() {
 
 #[test]
 #[ignore = "PB-DX6 stage-0 manual observation only (plan §2.0's preferred cheap \
-            route). Reproduce by temporarily commenting out the \
-            `debug_assert_flattened(cost);` line at the top of ManaPool::can_spend in \
-            crates/card-types/src/state/player.rs, then run: \
-            `cargo test -p mtg-engine --test primitives observation_b -- --ignored \
-            --nocapture`. Restore the commented-out line immediately after and confirm \
-            `git diff -- crates/card-types/src/state/player.rs` is empty. With the \
-            guard PRESENT (the tree's normal state) this test panics rather than \
-            failing an assertion, which is why it is #[ignore]d rather than left in \
-            the standing suite."]
+            route), and now PERMANENTLY NON-REPRODUCIBLE on this tree -- PB-DX6 \
+            fix-cycle Finding 6. The recipe below was accurate at stage 0, against an \
+            unmodified pre-fix tree; after stage B, handle_turn_face_up flattens \
+            def.mana_cost BEFORE can_spend/spend are ever reached, so commenting out \
+            debug_assert_flattened(cost) alone changes nothing on the post-fix path -- \
+            the recipe would need `handle_turn_face_up`'s stage-B flatten hunk ALSO \
+            reverted (e.g. `git stash` of just that hunk) to reproduce the recorded \
+            numbers, and doing that is not worth the churn for a single historical \
+            observation. If you need to re-derive this figure, temporarily comment \
+            out `debug_assert_flattened(cost);` at the top of ManaPool::can_spend in \
+            crates/card-types/src/state/player.rs AND revert handle_turn_face_up's \
+            unconditional-flatten hunk in crates/engine/src/rules/engine.rs, run \
+            `cargo test -p mtg-engine --test primitives historical_observation_b -- \
+            --ignored --nocapture`, then restore BOTH and confirm `git diff` is empty \
+            over both files. The OBSERVED numbers below are the historical record and \
+            are NOT re-derivable from a one-line revert alone."]
 /// PRE-FIX / RELEASE-equivalent observation (plan §2.0). Commenting out the
 /// `debug_assert!` call has the identical effect, for this call, to a release build
 /// (`debug_assert!` compiles to nothing in release) without paying for a full
@@ -314,7 +321,14 @@ fn historical_observation_a_no_longer_panics_post_fix() {
 /// - Pool after:  `{ colorless: 0, green: 1, white: 1 }` (all other fields 0) — only
 ///   the `{1}` generic component was charged, taken from colourless; **both `{G/W}`
 ///   pips were paid for free**, exactly as OOS-RS2-1 describes.
-fn observation_b_release_figure_pool_debit_kitchen_finks() {
+///
+/// This test is now HISTORICAL (PB-DX6 fix-cycle Finding 6): its recorded numbers
+/// stand as the release-equivalent evidence for OOS-RS2-1, but its `#[ignore]`
+/// recipe can no longer reproduce them on the post-fix tree with a single-guard
+/// revert — see the `#[ignore]` reason for the corrected two-hunk procedure. Kept
+/// (not deleted) as the permanent record, matching the `historical_observation_a/c/d2`
+/// treatment used elsewhere in this file.
+fn historical_observation_b_release_figure_pool_debit_kitchen_finks() {
     let p1 = p(1);
     let p2 = p(2);
     let (defs, registry) = build_defs_and_registry();
@@ -1620,6 +1634,139 @@ fn two_defenders_two_restrictions_attack_tax_pip_order_is_copy_major() {
     );
 }
 
+#[test]
+/// CR 508.1h -- the discriminating case T8 above cannot provide (PB-DX6 fix-cycle
+/// Finding 1, filed against `two_defenders_two_restrictions_attack_tax_pip_order_is_copy_major`).
+/// T8's only two-restriction defender (P3) has exactly ONE attacker, so `times == 1`
+/// for that defender's outer composition and copy-major/pip-major coincide by
+/// construction — T8's own doc concedes this in so many words. This test isolates the
+/// minimum shape where the two orders actually diverge: ONE defender with TWO
+/// DISTINCT restrictions, attacked by TWO creatures.
+///
+/// Copy-major (canonical, per `add_mana_cost`'s doc): the per-creature entry is the
+/// concatenation `[r1, r2]` = `[{G/W}, {R/W}]`, replicated once per attacker ->
+/// `[r1, r2, r1, r2]` = `[G/W, R/W, G/W, R/W]`.
+/// Pip-major (`multiply_mana_cost`'s `flat_map(repeat_n)` shape — the OOS-DP4-7 dedup
+/// this test exists to keep rejected): each restriction is replicated across every
+/// attacker before moving to the next -> `[r1, r1, r2, r2]` = `[G/W, G/W, R/W, R/W]`.
+///
+/// The choice vector `[Green, Red, White, White]` is LEGAL under copy-major (idx0
+/// `{G/W}`->Green, idx1 `{R/W}`->Red, idx2 `{G/W}`->White, idx3 `{R/W}`->White; pool
+/// drains to exactly zero) and ILLEGAL under pip-major, where idx1 would instead be
+/// the SECOND copy of `{G/W}` and `Red` is not a legal choice for a `{G/W}` pip (CR
+/// 107.4e) — a pip-major engine rejects this exact declaration outright rather than
+/// merely charging a different pool, so the two orders are not silently
+/// interchangeable here.
+///
+/// **Verified by revert-and-restore in the PB-DX6 fix cycle**, per plan §13 risk 3's
+/// own instruction: with `add_mana_cost`'s replication loop temporarily swapped for
+/// `multiply_mana_cost`'s `flat_map(repeat_n)` shape, this test's `.expect()` panics
+/// on the resulting `Err` (a pip-major-triggered `InvalidCommand`) while T8 above
+/// stays green, exactly as predicted — T8's fixture cannot see the permutation this
+/// one is built to see. Restored immediately after; `git diff` over `combat.rs` was
+/// confirmed empty.
+fn one_defender_two_distinct_restrictions_two_attackers_discriminates_copy_vs_pip_major() {
+    let p1 = p(1);
+    let p2 = p(2);
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .active_player(p1)
+        .at_step(Step::DeclareAttackers)
+        .object(ObjectSpec::creature(p2, "T9 P2 Tax Source One", 0, 4).in_zone(ZoneId::Battlefield))
+        .object(ObjectSpec::creature(p2, "T9 P2 Tax Source Two", 0, 4).in_zone(ZoneId::Battlefield))
+        .object(ObjectSpec::creature(p1, "T9 Bear One", 2, 2).in_zone(ZoneId::Battlefield))
+        .object(ObjectSpec::creature(p1, "T9 Bear Two", 2, 2).in_zone(ZoneId::Battlefield))
+        .build()
+        .unwrap();
+
+    let source_one = find_by_name(&state, "T9 P2 Tax Source One");
+    add_restriction(
+        &mut state,
+        source_one,
+        p2,
+        GameRestriction::CantAttackYouUnlessPay {
+            cost_per_creature: ManaCost {
+                hybrid: vec![HybridMana::ColorColor(ManaColor::Green, ManaColor::White)],
+                ..Default::default()
+            },
+        },
+    );
+    let source_two = find_by_name(&state, "T9 P2 Tax Source Two");
+    add_restriction(
+        &mut state,
+        source_two,
+        p2,
+        GameRestriction::CantAttackYouUnlessPay {
+            cost_per_creature: ManaCost {
+                hybrid: vec![HybridMana::ColorColor(ManaColor::Red, ManaColor::White)],
+                ..Default::default()
+            },
+        },
+    );
+    state.turn_mut().priority_holder = Some(p1);
+
+    // Canonical (copy-major) order: [r1, r2, r1, r2] = [G/W, R/W, G/W, R/W].
+    // idx0 {G/W} -> Green. idx1 {R/W} -> Red. idx2 {G/W} -> White. idx3 {R/W} -> White.
+    // Required flat cost: green 1, red 1, white 2.
+    set_pool(&mut state, p1, 2, 0, 0, 1, 1, 0);
+
+    let bear_one = find_by_name(&state, "T9 Bear One");
+    let bear_two = find_by_name(&state, "T9 Bear Two");
+    let (state, events) = process_command(
+        state,
+        Command::DeclareAttackers {
+            player: p1,
+            attackers: vec![
+                (bear_one, AttackTarget::Player(p2)),
+                (bear_two, AttackTarget::Player(p2)),
+            ],
+            enlist_choices: vec![],
+            exert_choices: vec![],
+            hybrid_choices: vec![
+                HybridManaPayment::Color(ManaColor::Green),
+                HybridManaPayment::Color(ManaColor::Red),
+                HybridManaPayment::Color(ManaColor::White),
+                HybridManaPayment::Color(ManaColor::White),
+            ],
+            phyrexian_life_payments: vec![],
+        },
+    )
+    .expect(
+        "the copy-major choice vector [Green, Red, White, White] must be legal against \
+         the canonical [r1, r2, r1, r2] pip order -- if this errs, the accumulation \
+         reordered to pip-major ([r1, r1, r2, r2]), which makes idx1 the SECOND copy \
+         of {G/W} and Red an illegal choice for it (CR 107.4e)",
+    );
+
+    let pool = &state.player(p1).unwrap().mana_pool;
+    assert_eq!(
+        pool.total(),
+        0,
+        "the seeded pool must be drained to EXACTLY zero: {pool:?}"
+    );
+
+    let paid = events
+        .iter()
+        .find_map(|e| match e {
+            GameEvent::ManaCostPaid { player: pl, cost } if *pl == p1 => Some(cost.clone()),
+            _ => None,
+        })
+        .expect("ManaCostPaid must be emitted");
+    assert_eq!(
+        paid.hybrid,
+        vec![
+            HybridMana::ColorColor(ManaColor::Green, ManaColor::White),
+            HybridMana::ColorColor(ManaColor::Red, ManaColor::White),
+            HybridMana::ColorColor(ManaColor::Green, ManaColor::White),
+            HybridMana::ColorColor(ManaColor::Red, ManaColor::White),
+        ],
+        "canonical pip order must be [r1, r2, r1, r2] -- COPY-MAJOR, not pip-major \
+         ([r1, r1, r2, r2]): {paid:?}"
+    );
+}
+
 // ── T10 — queries::attack_tax_total matches what the engine actually charges ────
 
 #[test]
@@ -1628,8 +1775,9 @@ fn two_defenders_two_restrictions_attack_tax_pip_order_is_copy_major() {
 /// `combat::accumulate_attack_tax_total` helper, so the total the query reports
 /// BEFORE a declaration must equal the pipped total the engine actually charges
 /// (visible in the `ManaCostPaid` event) when that same attacker set is declared.
-/// Reuses the T8/T9 two-defender/two-restriction fixture -- the shape most likely to
-/// expose a divergence between two independently-written accumulations.
+/// Reuses T8's three-player, two-defender/two-restriction fixture shape (T9 above has
+/// its own, smaller two-player fixture) -- the shape most likely to expose a
+/// divergence between two independently-written accumulations.
 fn attack_tax_total_query_matches_declared_attackers_charge() {
     let p1 = p(1);
     let p2 = p(2);

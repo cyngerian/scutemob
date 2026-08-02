@@ -670,9 +670,14 @@ mod tests {
     /// this observes the `return false` branch by actual execution.
     ///
     /// This test does NOT run in CI, which builds debug. Its claim rests on a single
-    /// recorded manual run of `cargo test -p mtg-card-types --release`, pasted into
-    /// the PB-DX6 close-out report — it does not assert coverage the suite does not
-    /// have.
+    /// recorded manual run of `cargo test -p mtg-card-types --release` — it does not
+    /// assert coverage the suite does not have.
+    ///
+    /// **OBSERVED** (PB-DX6 fix cycle, 2026-08-02, `cargo test -p mtg-card-types
+    /// --release`): `state::player::tests::can_spend_returns_false_for_unflattened_
+    /// residue_in_release ... ok`, alongside the other 11 `mtg-card-types` unit tests,
+    /// all green (12 passed; 0 failed; 0 ignored). This is the paste Finding 15 of
+    /// the PB-DX6 fix-cycle review asked for.
     #[test]
     #[cfg(not(debug_assertions))]
     fn can_spend_returns_false_for_unflattened_residue_in_release() {

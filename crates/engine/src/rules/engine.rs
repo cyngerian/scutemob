@@ -1391,8 +1391,13 @@ fn handle_pay_cumulative_upkeep(
 /// (`pb-plan-DX6.md` §1) require each COPY of a cost to be payable individually. A
 /// "harmless" dedup onto this function would silently re-order the attack tax's pips
 /// and therefore silently re-interpret every `hybrid_choices` vector a client had
-/// already built, with no compile error and no test failure unless a probe pins the
-/// order (`pb_dx6_unflattened_payment_sites.rs`'s order-pin tests do). PB-DX6 §5.2.5.
+/// already built, with no compile error -- and, absent
+/// `pb_dx6_unflattened_payment_sites.rs::one_defender_two_distinct_restrictions_two_attackers_discriminates_copy_vs_pip_major`,
+/// no test failure either: the batch's original order-pin test paired its only
+/// two-restriction defender with a single attacker, so the two orders coincided by
+/// construction there (PB-DX6 fix-cycle Finding 1). The discriminating test named
+/// above -- one defender, two distinct restrictions, two attackers -- was verified by
+/// revert-and-restore to redden under exactly this dedup. PB-DX6 §5.2.5.
 fn multiply_mana_cost(
     cost: &crate::state::game_object::ManaCost,
     multiplier: u32,

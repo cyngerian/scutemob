@@ -259,6 +259,25 @@ pub fn target_count_range(requirements: &[TargetRequirement]) -> (usize, usize) 
 /// `handle_declare_attackers` re-validates attacker ownership independently before
 /// this figure would ever be charged (Architecture Invariant 3: this is advisory
 /// only, never authoritative).
+///
+/// **`None` does NOT always mean "this declaration is free" — read this before
+/// treating an absent total as "nothing to pay" (PB-DX6 fix-cycle Finding 7,
+/// OOS-DX6-1).** `combat::accumulate_attack_tax_total` excludes any restriction whose
+/// `cost_per_creature` carries `x_count > 0` from the returned total entirely (X has
+/// no announcement channel on `Command::DeclareAttackers`, CR 107.3/601.2b), and for a
+/// defender whose ONLY restriction is such an X tax this function returns `None`
+/// exactly as it would for a genuinely untaxed defender. `handle_declare_attackers`
+/// will nonetheless hard-reject any declaration engaging that defender. So `None`
+/// means one of two different things a caller cannot distinguish from this return
+/// value alone: "no restriction applies here" (the declaration is legal and free), or
+/// "an X-only restriction applies here" (the declaration will be rejected regardless
+/// of what is paid). A mixed total (a payable restriction plus a separate X
+/// restriction on the same defender) is worse: `Some` is returned, but it silently
+/// omits the X restriction's own contribution, so even a `Some` total is not
+/// necessarily the FULL reason a declaration might be rejected. Do not build a payment
+/// plan from `None` and assume it will be accepted — see `params.rs`'s call site for
+/// the current SR-38 residue this causes. Widening the signature to express "X applies
+/// and is unrepresentable" is OOS-DX6-1's job, not this batch's.
 pub fn attack_tax_total(
     state: &GameState,
     player: PlayerId,

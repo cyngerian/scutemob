@@ -302,6 +302,20 @@ pub fn action_to_command_with_params(
             // engine reject the declaration — mutating the attacker set to
             // dodge the tax is out of scope and would hide a legality
             // problem from the caller.
+            //
+            // KNOWN SR-38 RESIDUE (OOS-DX6-1, PB-DX6 fix-cycle Finding 7):
+            // `attack_tax_total` also returns `None` for a defender whose ONLY
+            // restriction is an X-carrying tax (X has no announcement channel
+            // on `Command::DeclareAttackers` and is excluded from the total
+            // entirely — see that function's own doc). This arm cannot tell
+            // "no tax" apart from "an X tax this query cannot express" from
+            // the `None` alone, so it falls back to empty vectors in BOTH
+            // cases and the engine hard-rejects the latter — an SR-38
+            // violation in the strict sense (offering an action the engine
+            // will refuse), latent only because the corpus carries no X or
+            // mixed X/pip attack tax today (PB-DX6's roster gate, R4, pinned
+            // empty). Fixing this needs the X-announcement channel
+            // OOS-DX6-1 itself is filed for, not a change to this arm.
             let (hybrid_choices, phyrexian_life_payments) =
                 mtg_engine::rules::queries::attack_tax_total(state, player, &params.attackers)
                     .and_then(|total| {

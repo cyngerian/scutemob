@@ -946,10 +946,13 @@ fn add_mana_cost(total: &mut ManaCost, addend: &ManaCost, times: u32) {
 /// Restrictions whose `cost_per_creature` carries an `x_count > 0` pip are SKIPPED
 /// here -- X has no announcement channel on `Command::DeclareAttackers`
 /// (CR 107.3/601.2b, OOS-DX6-1) and its rejection is `handle_declare_attackers`'s own
-/// responsibility (the `x_tax_defenders` bookkeeping there), not this function's; a
-/// defender excluded here contributes nothing to the total regardless of how many
-/// creatures attack it. A `{0}` restriction (CR 118.5, PB-DP4's E7 fix) is likewise
-/// skipped -- unconditionally payable, contributes nothing.
+/// responsibility (the `x_tax_defenders` bookkeeping there), not this function's. It
+/// is the *restriction*, not the whole defender, that is skipped: a defender carrying
+/// both an X restriction and a plain (non-X) restriction still contributes the plain
+/// restriction's cost to the total; only a defender whose ONLY restriction carries an
+/// X contributes nothing here. A `{0}` restriction (CR 118.5, PB-DP4's E7 fix) is
+/// likewise skipped at the restriction level -- unconditionally payable, contributes
+/// nothing.
 ///
 /// Returns `ManaCost::default()` (never wrapped in `Option`) when no tax applies;
 /// callers convert to `Option` at their own boundary (`queries::attack_tax_total`

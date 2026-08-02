@@ -192,12 +192,19 @@ pub enum Command {
         /// `[r1, r2, r1, r2, r1, r2]`, NOT `[r1, r1, r1, r2, r2, r2]`. Because the
         /// total depends on the declared attacker set, its pip count is not
         /// derivable from the board alone — `rules::queries::attack_tax_total`
-        /// (forthcoming, a later PB-DX6 stage) is the supported way for a client
-        /// to obtain the exact cost these choices index; re-deriving the
-        /// accumulation client-side is a known drift class (the OOS-RS-2 shape).
+        /// IS the supported way for a client to obtain the exact cost these
+        /// choices index; re-deriving the accumulation client-side is a known
+        /// drift class (the OOS-RS-2 shape). Note its own documented residue:
+        /// it silently excludes X-carrying restrictions and returns `None` (=
+        /// "no tax") for a defender whose only restriction carries an X, even
+        /// though the engine hard-rejects that declaration regardless — see
+        /// `attack_tax_total`'s doc and OOS-DX6-1.
         /// A SHORT vector (or empty) is fine — each unindexed pip defaults to its
         /// first color option; a vector LONGER than the pip count is rejected
-        /// with `InvalidCommand` rather than silently ignored. PB-DX6 (OOS-DP4-1).
+        /// with `InvalidCommand` rather than silently ignored, WHEN the total
+        /// carries at least one pip — a cost with no hybrid/Phyrexian pips at
+        /// all ignores both of these fields entirely, matching
+        /// `ActivateAbility`'s treatment of a pip-free cost. PB-DX6 (OOS-DP4-1).
         #[serde(default)]
         hybrid_choices: Vec<crate::state::game_object::HybridManaPayment>,
         /// CR 107.4f (via CR 508.1h): for each Phyrexian pip of the same
@@ -712,7 +719,10 @@ pub enum Command {
         /// defaults to its first color option (`ManaCost::flatten_hybrid_phyrexian`);
         /// a vector LONGER than the pip count is rejected with `InvalidCommand`
         /// rather than silently ignored past the pip count, mirroring
-        /// `Command::ActivateAbility::hybrid_choices`. PB-DX6 (OOS-RS2-1).
+        /// `Command::ActivateAbility::hybrid_choices` — WHEN the resolved cost
+        /// carries at least one hybrid/Phyrexian pip; a cost with none ignores
+        /// both this field and `phyrexian_life_payments` entirely, again
+        /// matching `ActivateAbility`. PB-DX6 (OOS-RS2-1).
         #[serde(default)]
         hybrid_choices: Vec<crate::state::game_object::HybridManaPayment>,
         /// CR 107.4f (via CR 701.40b/702.37e/702.168d): for each Phyrexian pip of

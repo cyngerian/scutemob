@@ -173,10 +173,22 @@ fn r2_morph_megamorph_disguise_pip_roster_is_pinned_empty() {
 /// passes silently even if the walk itself is broken. At least one
 /// Morph/Megamorph/Disguise ability must exist somewhere in the corpus (7 defs
 /// carry one per the plan) or this floor fails loudly instead.
+///
+/// PB-DX6 fix cycle, Finding 14: the original floor only proved the ABILITY
+/// exists, not that `roster_r2`'s own `cost` extraction (the `match ability {
+/// AbilityDefinition::Morph { cost } => Some(cost), ... }` binding) or `has_pip`
+/// actually run on it -- a broken extraction that always produced `None`, or a
+/// `has_pip` that always returned `false` on a real morph-family cost, would have
+/// left R2 green and this floor green too. Strengthened to walk the SAME
+/// extraction shape `roster_r2` uses and additionally prove `has_pip` was
+/// invoked on at least one real morph-family cost object (its answer for R2's
+/// corpus is `false` in every case today -- R2 is genuinely empty -- so this
+/// floor asserts invocation, not a `true` result).
 #[test]
 fn r2_walk_is_not_vacuous() {
     let defs = mtg_engine::all_cards();
     let mut seen = 0usize;
+    let mut cost_extracted = 0usize;
     for def in &defs {
         for ability in &def.abilities {
             if matches!(
@@ -187,6 +199,19 @@ fn r2_walk_is_not_vacuous() {
             ) {
                 seen += 1;
             }
+            let cost = match ability {
+                AbilityDefinition::Morph { cost } => Some(cost),
+                AbilityDefinition::Megamorph { cost } => Some(cost),
+                AbilityDefinition::Disguise { cost } => Some(cost),
+                _ => None,
+            };
+            if let Some(cost) = cost {
+                // Call has_pip for real, on a real extracted cost object -- proves
+                // the extraction and the predicate both actually run on this path,
+                // not merely that the ability variant is reachable.
+                let _ = has_pip(cost);
+                cost_extracted += 1;
+            }
         }
     }
     assert!(
@@ -194,6 +219,12 @@ fn r2_walk_is_not_vacuous() {
         "no Morph/Megamorph/Disguise abilities found anywhere in the corpus -- the R2 walk \
          is broken (this is a real, populated corpus; PB-DX6's R2 roster gate would be \
          vacuous). Found {seen}."
+    );
+    assert_eq!(
+        cost_extracted, seen,
+        "every Morph/Megamorph/Disguise ability found must also yield an extracted cost \
+         object via roster_r2's own match-arm shape -- a mismatch means the extraction \
+         itself is broken even though the ability variant is reachable"
     );
 }
 
