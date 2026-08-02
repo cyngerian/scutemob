@@ -1,6 +1,6 @@
 # MTG Engine — Game Simulator & Fuzzer
 
-<!-- last_updated: 2026-08-01 -->
+<!-- last_updated: 2026-08-02 -->
 
 > Design document for automated game simulation, fuzz testing, and interactive TUI play.
 
@@ -306,14 +306,49 @@ seed `OOS-M11-9`). CR 104.4b loop detection catches neither, because both are *o
 actions. `RandomBot` is unaffected: it picks uniformly and passes often enough to
 advance.
 
+**SIM-1 (2026-08-02) made the `OOS-M11-9` loop reachable from a second client, and
+mitigated it the same way.** Once the provider offers a command-zone cast, commanders
+actually reach the battlefield — and commanders are disproportionately vigilant. The
+scripted human policy in `local_game_playthrough.rs` had no repeat cap, so seed 1 halted
+`InfiniteLoop` at turn 17 with exactly 20,000 commands, **19,351 of them
+`DeclareAttackers` in that single turn** (seed 1's human commander is `Samut, Voice of
+Dissent`, which has Vigilance). That policy now carries the same per-combat cap the bot
+does, reset on the combat-entry edge rather than the turn number — `MR-M11-09` found that
+exact regression in `HeuristicBot`, where a turn-keyed tally silently disabled attacks in
+every CR 506.5 extra combat. **The mitigation stayed client-side both times, deliberately:
+putting it in `StubProvider` would change the provider's action list and re-roll every
+recorded fuzz seed.** The engine-side fix — an "already declared this combat" guard in
+`combat.rs::handle_declare_attackers` — remains `OOS-M11-9` and is still open.
+
 **The play server itself** is `tools/play-server` (axum, port 3040, 6 routes, Svelte 5
 frontend). It is the only crate in the M11-local stack with async or IO; nothing below
 `api.rs` references tokio. See `tools/play-server/README.md`.
 
 **Known simulator-side gaps, all recorded rather than fixed here**: `mana_solver` ignores
 the mana pool and reads non-layer-resolved `mana_abilities` (`OOS-M11-2`, pool half
-closed in S3); `StubProvider` enumerates no Adventure, alt-cost, or Convoke/Improvise/Delve
-casts (plan §8 R4).
+closed in S3, **commander-tax half closed by SIM-1**); `StubProvider` enumerates no
+Adventure, alt-cost, or Convoke/Improvise/Delve casts (plan §8 R4).
+
+**`StubProvider` enumerates command-zone casts as of SIM-1 (2026-08-02, playtest triage
+F7).** It previously enumerated casts **from hand only**, so a human clicking their
+commander in the browser was correctly told the server had offered nothing — the engine
+has supported CR 903.8 since M6, and only the provider was blind. The new loop mirrors
+three engine gates rather than inventing policy: the zone must be `Command(player)`, the
+object's `CardId` must be in `commander_ids` (CR 408.1 means the zone also holds emblems
+and CR 903.9a/b returns — **the zone is not the filter**), and CR 101.2's non-hand cast
+restriction must not apply. That last one was newly reachable and is worth its own note:
+`casting.rs` rejects *any* non-hand cast while an opponent controls a **Drannith
+Magistrate**, and `is_cast_restricted_by_stax` deliberately does not mirror per-card zone
+restrictions — harmless only while every offer was a hand cast. Affordability charges the
+CR 903.8 tax through the shared `effective_cast_cost`, which all three printed-cost sites
+(the offer gate, the human auto-tap, the bot auto-tap) now consume, so they cannot
+disagree about what has to be paid. Still open: a hybrid/Phyrexian-pipped commander is
+gated by `can_afford` rather than by a payment plan, because `LegalAction::CastSpell` has
+no plan channel (`OOS-SIM1-1`); the TUI keeps a fourth printed-cost auto-tap and its human
+path still enumerates the hand only (`OOS-SIM1-2`); and `mtg-fuzzer` builds command-zone
+objects without `builder.player_commander`, so its games are not Commander games at all
+and the new offer is unreachable there (`OOS-SIM1-4` — which is also *why* no recorded
+fuzz seed moves).
 
 ---
 
