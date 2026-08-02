@@ -2445,6 +2445,231 @@ mod tests {
         );
     }
 
+    // ── Review MR-M11-05: omitting `params` and sending `{}` must agree ───────
+
+    /// **Two spellings a client would call identical used to produce different game
+    /// behaviour** (review MR-M11-05).
+    ///
+    /// `ActionRequest::params` is `#[serde(default)]`, so an **omitted** `params` key
+    /// was built by `ActionParamsDto`'s *derived* `Default` — `auto_tap: false` —
+    /// while a present-but-empty `"params": {}` ran serde's own field defaults and got
+    /// `auto_tap: true` (`default_auto_tap`). With `auto_tap: false` a `CastSpell`
+    /// whose cost is not already floating is refused **422**, and there is no
+    /// mana-tapping UI to float it with; the README's route table says `{seq,
+    /// action_index, params?}` with no note, and the acceptance criterion advertises
+    /// playing "through `curl` alone".
+    ///
+    /// Tested at the deserialization boundary rather than over HTTP because that is
+    /// where the divergence lived: both spellings are parsed and lowered through the
+    /// real `From<ActionParamsDto> for ActionParams`, and the results compared. The
+    /// comparison is over `Debug` because `ActionParams` derives no `PartialEq` (it is
+    /// a simulator-internal assembly type) — that is a structural comparison of every
+    /// field, which is what this test wants, not a proxy for one.
+    #[test]
+    fn test_mr_m11_05_omitted_params_and_empty_params_agree() {
+        fn lower(body: &str) -> mtg_simulator::ActionParams {
+            let req: view::ActionRequest =
+                serde_json::from_str(body).expect("the body is a valid ActionRequest");
+            req.params.into()
+        }
+
+        let omitted = lower(r#"{"seq": 1, "action_index": 0}"#);
+        let empty = lower(r#"{"seq": 1, "action_index": 0, "params": {}}"#);
+
+        assert_eq!(
+            format!("{omitted:?}"),
+            format!("{empty:?}"),
+            "an omitted `params` and an empty `params` object must lower to the same \
+             announcement (review MR-M11-05)"
+        );
+
+        // Non-vacuity, and the actual subject: the agreed value is `true` — the one
+        // the *derived* `Default` got wrong. If `impl Default for ActionParamsDto` is
+        // ever replaced by `#[derive(Default)]` again, the assertion above still holds
+        // (both spellings would agree on `false`) and only this one goes red.
+        assert!(
+            omitted.auto_tap,
+            "CR 601.2g: with no mana-tapping UI, an omitted `params` must still \
+             auto-tap, or every cast over `curl` is a 422"
+        );
+        assert!(empty.auto_tap);
+    }
+
+    // ── Review MR-M11-08: the game-over payload carries no raw `Debug` ────────
+
+    /// **Architecture Invariant 7 at the halt/violation channel** (review MR-M11-08).
+    ///
+    /// `game_over_view` and `halted_view` used to inject `format!("{v:?}")` and
+    /// `format!("{reason:?}")` straight into the seat payload, and neither string
+    /// passes through *either* of this crate's Invariant-7 chokepoints —
+    /// `from_game_state_for(.., Viewer::Seat(..))` or [`view::NameIndex`]. Two live
+    /// carriers: `invariants::check_no_orphaned_tokens` interpolates
+    /// `obj.characteristics.name` into its description, and
+    /// `HaltReason::EngineError(String)` carries a `GameStateError` `Debug` produced
+    /// while advancing a **bot** seat.
+    ///
+    /// Driven through the two rendering functions directly with a card name planted in
+    /// each carrier, because the leak is in the *reduction*, not in reaching it: a
+    /// healthy game has an empty `violations` and a `None` `reason`, so a fixture that
+    /// merely plays to `game_over` asserts nothing at all. Planting the name is what
+    /// makes this discriminating — with the pre-fix `format!("{:?}")` restored, both
+    /// halves go red.
+    #[test]
+    fn test_mr_m11_08_game_over_payload_carries_no_engine_debug() {
+        use mtg_simulator::{GameDriverError, GameResult, HaltReason, InvariantViolation};
+
+        /// A name no `check` string, turn number or fixed prose could contain.
+        const PLANTED: &str = "Sheoldred, Whispering One";
+
+        // Half 1: a violation whose *description* names a card.
+        let result = GameResult {
+            seed: 7,
+            winner: None,
+            turn_count: 19,
+            total_commands: 4_200,
+            violations: vec![InvariantViolation {
+                check: "no_orphaned_tokens".to_string(),
+                description: format!("token {PLANTED} (id 412) is in Graveyard(2)"),
+                turn_number: 19,
+            }],
+            error: Some(GameDriverError::EngineError(format!(
+                "InvalidTarget {{ object: {PLANTED} }}"
+            ))),
+        };
+        let over = view::game_over_view(&result, &HashMap::new());
+
+        for line in &over.violations {
+            assert!(
+                !line.contains(PLANTED),
+                "the seat payload leaks a card name through a violation description: \
+                 {line:?} (Architecture Invariant 7, review MR-M11-08)"
+            );
+        }
+        // Not merely absent — the useful half survives, which is what makes the
+        // reduction a redaction rather than a deletion.
+        assert_eq!(over.violations.len(), 1);
+        assert!(
+            over.violations[0].contains("no_orphaned_tokens") && over.violations[0].contains("19"),
+            "the check name and turn must survive so a play-tester knows to export a \
+             report; got {:?}",
+            over.violations[0]
+        );
+        let reason = over
+            .reason
+            .as_deref()
+            .expect("a driver error renders a reason");
+        assert!(
+            !reason.contains(PLANTED),
+            "the seat payload leaks a card name through the driver error: {reason:?}"
+        );
+        assert!(
+            reason.contains("/api/game/report"),
+            "the reason must point at the export that does carry the detail; got \
+             {reason:?}"
+        );
+
+        // Half 2: the halted arm, whose `HaltReason::EngineError` is the same carrier.
+        let halted = view::halted_view(
+            &HaltReason::EngineError(format!("InvalidTarget {{ object: {PLANTED} }}")),
+            19,
+            4_200,
+        );
+        let reason = halted
+            .reason
+            .as_deref()
+            .expect("a halt always has a reason");
+        assert!(
+            !reason.contains(PLANTED),
+            "the halted payload leaks a card name: {reason:?}"
+        );
+
+        // Every other `HaltReason` variant holds only ids and integers, so those keep
+        // their numbers — pinned so a future reduction cannot quietly blank them too.
+        let capped = view::halted_view(
+            &HaltReason::MaxTurns {
+                max_turns: 40,
+                turn: 40,
+            },
+            40,
+            9,
+        );
+        assert!(
+            capped
+                .reason
+                .as_deref()
+                .expect("a halt always has a reason")
+                .contains("40"),
+            "a numeric halt reason must stay legible: {:?}",
+            capped.reason
+        );
+    }
+
+    // ── Review MR-M11-10: a kept hand cannot be re-dealt ──────────────────────
+
+    /// **CR 103.5 — the keep is terminal, and it is now the server that says so**
+    /// (review MR-M11-10).
+    ///
+    /// *"Once a player chooses not to take a mulligan, the remaining cards become that
+    /// player's opening hand."* Before this, `POST /api/game/mulligan {"take": false}`
+    /// recorded nothing — `is_pregame()` was `command_count() == 0`, which stays true
+    /// right up to the first applied command — so a refresh, a second tab or a plain
+    /// `curl` could redeal the hand the human had just accepted. The keep lived only
+    /// in `PlayApp.svelte`'s client-side `keptHand` rune, which is a UI convention and
+    /// not a rule.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_mr_m11_10_a_kept_hand_cannot_be_redealt() {
+        let state = shared_state();
+        let view = new_game(&state).await;
+        assert_eq!(
+            view["summary"]["pregame"], true,
+            "a new game is mulliganable"
+        );
+
+        // A redeal before the keep is still fine — otherwise the assertion below would
+        // pass on a route that had simply broken.
+        let (status, after) =
+            post_json(&state, "/api/game/mulligan", json!({ "take": true })).await;
+        assert_eq!(status, StatusCode::OK, "{after}");
+        assert_eq!(after["summary"]["mulligan_count"], 1);
+        assert_eq!(after["summary"]["pregame"], true, "a redeal is not a keep");
+
+        // The subject: keep.
+        let (status, kept) =
+            post_json(&state, "/api/game/mulligan", json!({ "take": false })).await;
+        assert_eq!(status, StatusCode::OK, "{kept}");
+        assert_eq!(
+            kept["summary"]["pregame"], false,
+            "CR 103.5: after a keep the game is no longer mulliganable, and \
+             `summary.pregame` is what says so"
+        );
+
+        // …and the choice is terminal in both spellings, since either would replace
+        // the accepted hand.
+        for take in [true, false] {
+            let (status, err) =
+                post_json(&state, "/api/game/mulligan", json!({ "take": take })).await;
+            assert_eq!(
+                status,
+                StatusCode::CONFLICT,
+                "a second mulligan ({{take: {take}}}) after a keep must be refused: {err}"
+            );
+            assert_eq!(err["kind"], "not_pregame");
+        }
+
+        // Non-vacuity: the session is still a live, playable game rather than having
+        // been wedged by the guard.
+        let (status, still) = get_json(&state, "/api/game").await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(
+            still["summary"]["mulligan_count"], 1,
+            "the kept hand is the redealt one"
+        );
+        assert!(
+            !still["decision"].is_null(),
+            "the kept table must still be holding an answerable decision"
+        );
+    }
+
     // ── 15 ────────────────────────────────────────────────────────────────────
 
     /// **Architecture Invariant 7's chokepoint, machine-enforced instead of
@@ -2495,6 +2720,24 @@ mod tests {
     /// Needles are assembled with `concat!` for the same reason the no-socket
     /// gate does it: this function sits below the cut in a file the gate reads,
     /// and a plainly-written needle would be found by the sibling gate.
+    ///
+    /// # What this gate cannot see (review MR-M11-04)
+    ///
+    /// It scans for *view-model* entry points, so it is blind to a route that
+    /// serializes engine types directly and never touches the view model at all —
+    /// and that is not hypothetical: it is exactly how the crate's one real
+    /// Invariant-7 exception shipped. `GET /api/game/report` returns
+    /// [`view::BugReportView`], which serializes `mtg_engine::Command` and
+    /// `mtg_engine::GameEvent` verbatim; it was added, shipped and reviewed with this
+    /// gate green, because there was nothing here for the gate to match on.
+    ///
+    /// The failure message above was therefore narrowed to the property actually
+    /// checked ("every label rendered **through the view model**"), and the wider
+    /// claim it used to assert now lives where it belongs: with
+    /// [`test_mr_m11_01_seat_payload_carries_no_reconstruction_key`], which asserts
+    /// over the raw response body, and with the README's exception section. The
+    /// general lesson is the one MR-M11-01 turns on — **a redaction gate checks the
+    /// channel it was written for, and a new channel is invisible to it**.
     #[test]
     fn test_production_code_never_builds_an_omniscient_view() {
         let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -2517,7 +2760,12 @@ mod tests {
             for needle in needles {
                 assert!(
                     !production.contains(needle),
-                    "{name} reaches an omniscient view from production code                      (matched {needle:?}). Every label this crate renders must come                      from `StateViewModel::from_game_state_for(.., Viewer::Seat(..))`                      — Architecture Invariant 7. If this is deliberate, the README's                      'Hidden information' section has to change with it."
+                    "{name} reaches an omniscient view from production code (matched \
+                     {needle:?}). Every label this crate renders **through the view \
+                     model** must come from \
+                     `StateViewModel::from_game_state_for(.., Viewer::Seat(..))` — \
+                     Architecture Invariant 7. If this is deliberate, the README's \
+                     'Hidden information' section has to change with it."
                 );
             }
             checked += 1;

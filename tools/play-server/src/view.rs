@@ -1300,7 +1300,8 @@ fn halt_reason_summary(reason: &HaltReason) -> String {
             "seat {} had no legal action on turn {turn} and could not even pass",
             player.0
         ),
-        HaltReason::EngineError(_) => "the engine rejected a bot seat's command and its              fallback; the detail is in GET /api/game/report"
+        HaltReason::EngineError(_) => "the engine rejected a bot seat's command and its \
+             fallback; the detail is in GET /api/game/report"
             .to_string(),
     }
 }
