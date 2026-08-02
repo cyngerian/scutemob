@@ -1484,7 +1484,10 @@ fn test_dx2_wire_version_sentinels() {
     );
     assert_eq!(
         mtg_engine::PROTOCOL_VERSION,
-        32u32,
-        "PROTOCOL_VERSION live sentinel -- PB-DX2 must leave it unmoved"
+        33u32,
+        "PROTOCOL_VERSION live sentinel -- moved 32->33 by PB-DX6 (the last two \
+         unflattened mana-cost payment sites, unrelated to this batch); this \
+         sentinel pins the LIVE version like every other scattered sentinel in \
+         the suite, not PB-DX2's own contribution -- PB-DX2 itself left it unmoved"
     );
 }

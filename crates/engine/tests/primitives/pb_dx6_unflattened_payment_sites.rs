@@ -54,7 +54,7 @@ use mtg_engine::{
     CardDefinition, CardId, CardRegistry, CardType, Command, FaceDownKind, GameEvent,
     GameRestriction, GameState, GameStateBuilder, GameStateError, HybridMana, HybridManaPayment,
     ManaColor, ManaCost, ObjectId, ObjectSpec, PhyrexianMana, PlayerId, Step, TurnFaceUpMethod,
-    TypeLine, ZoneId,
+    TypeLine, ZoneId, HASH_SCHEMA_VERSION, PROTOCOL_VERSION,
 };
 
 // ── Helpers ─────────────────────────────────────────────────────────────────────
@@ -1809,5 +1809,38 @@ fn all_phyrexian_attack_tax_still_costs_life() {
         )),
         "ManaCostPaid must still be emitted, carrying the PIPPED (unflattened) cost, \
          even though the flattened mana component is zero: {events:?}"
+    );
+}
+
+// ── T12 — batch-level wire sentinel (plan §7.4) ─────────────────────────────────
+
+#[test]
+/// Wire-fingerprint pin, computed rather than predicted (plan §7.1/§7.2), following
+/// the PB-DX5 `test_dx5_hash_schema_version_is_70` template.
+///
+/// `PROTOCOL_VERSION` **moved 32 -> 33**: computed by running
+/// `cargo test -p mtg-engine --test core protocol_schema`, which failed on the
+/// unmodified fingerprint and printed the recomputed digest
+/// (`a153b6655890ccb3335d83678d7145b27358716334ef0971b898a3a54b4997f6`) used to
+/// re-pin `PROTOCOL_SCHEMA_FINGERPRINT` and append the new `PROTOCOL_HISTORY` row --
+/// `Command::TurnFaceUp` and `Command::DeclareAttackers` both gain
+/// `hybrid_choices`/`phyrexian_life_payments`, changing two declared shapes in the
+/// wire closure (closure type count unchanged at 96; exact precedent: `- 27: PB-RS2`).
+///
+/// `HASH_SCHEMA_VERSION` **stays 70**: computed by running
+/// `cargo test -p mtg-engine --test core hash_schema`, which passed unmodified --
+/// `Command` has no `HashInto` impl, no `GameState` field was added, and no hashed
+/// struct changed shape (`GameRestriction::CantAttackYouUnlessPay`'s
+/// `cost_per_creature: ManaCost` is unchanged in shape).
+fn pb_dx6_wire_versions() {
+    assert_eq!(
+        PROTOCOL_VERSION, 33,
+        "PROTOCOL_VERSION live sentinel -- PB-DX6 moved it 32->33 (Command::TurnFaceUp \
+         + Command::DeclareAttackers both gain hybrid_choices/phyrexian_life_payments)"
+    );
+    assert_eq!(
+        HASH_SCHEMA_VERSION, 70,
+        "HASH_SCHEMA_VERSION live sentinel -- PB-DX6 leaves it unmoved at 70 \
+         (Command has no HashInto impl; no GameState field added)"
     );
 }

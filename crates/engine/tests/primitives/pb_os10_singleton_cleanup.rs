@@ -97,7 +97,7 @@ fn test_pb_os10_version_sentinel() {
          (HASH 61->62). Update this sentinel and the state/hash.rs history block together."
     );
     assert_eq!(
-        PROTOCOL_VERSION, 32,
+        PROTOCOL_VERSION, 33,
         "PB-OS10 added TargetRequirement::TargetPermanentDistinctFrom (PROTOCOL 24->25). \
          Update this sentinel and the rules/protocol.rs history block together."
     );
