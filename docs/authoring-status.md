@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-08-02 09:55 UTC  
-**Git:** `50f26048` on `feat/cards-2-corpus-field-fidelity-audit-permanent-gate-mana-cost`  
+**Generated:** 2026-08-02 10:31 UTC  
+**Git:** `52e59ab3` on `feat/cards-2-corpus-field-fidelity-audit-permanent-gate-mana-cost`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -25,10 +25,10 @@ and what is intentionally NOT in it.**
 | Plan cards still missing a def file | 135 | · |
 | Bonus defs (on disk, outside plan) | 321 | · |
 | Effective coverage vs plan target | **111%** (1,822 / 1,636) | — |
-| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 62.8% | 1,133 | -2 |
-| With TODO markers | 519 | +2 |
+| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 62.8% | 1,133 | · |
+| With TODO markers | 519 | · |
 | Empty `abilities: vec![]` placeholders | 151 | · |
-| Total TODO lines across all defs | 940 | -1 |
+| Total TODO lines across all defs | 940 | · |
 
 ## Authoring activity (git, by window)
 
@@ -171,7 +171,7 @@ the next thing to triage when the classifier table is grown.
 
 | Gap bucket | TODO lines | Δ since last run |
 | --- | ---: | ---: |
-| OTHER (unclassified) | 576 | -1 |
+| OTHER (unclassified) | 576 | · |
 | DSL gap (unspecified) | 122 | · |
 | attack trigger (self / generic) | 23 | · |
 | TriggerCondition::* missing variant | 17 | · |
@@ -240,6 +240,7 @@ tyvar_jubilant_brawler: // TODO: Mill effect + conditional graveyard return with
 ## Recent card-touching commits
 
 ```
+0abb41db scutemob-181: CARDS-2 second fix cycle — the batch's own worst moment, documented
 50f26048 scutemob-181: CARDS-2 fix cycle — the reviewer found the sharpest thing in the batch
 b76ef319 scutemob-181: CARDS-2 — SR-37 docs, two honest demotions, seeds, close-out
 b7a46cb3 scutemob-181: CARDS-2 — repair all 45 printed-field mismatches; gate green
@@ -264,7 +265,6 @@ e29dd99f W6-prim: PB-OS11 review-fix — flip gemstone_array + druids_repository
 d876d19b W6-prim: PB-OS10 — inter-target distinctness + Jitte any-recipient combat trigger
 63335b8d W6-prim: PB-OS9 — Condition::YouControlYourCommander (OOS-EF3b-1); PROTOCOL 24 / HASH 61
 63148132 W6-prim: PB-OS8 — Effect::LookAtTopThenPlace + TargetFilter.min_cmc_amount (OOS-EF10-1 + OS6-deferred-(d))
-2beaba4f W6-prim: PB-OS7 — author silumgar_the_drifting_death.rs (Complete)
 ```
 
 ## Missing card-defs sidecar

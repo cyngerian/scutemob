@@ -1,9 +1,19 @@
 // 112. Windbrisk Heights — Land; Hideaway 4; enters tapped; {T}: {W}; {W},{T}: play exiled card.
 // CR 702.75: Hideaway 4 triggers on ETB: look at top 4, exile one face-down, put rest on bottom.
 // CR 702.75b: older Hideaway cards errata'd to "Hideaway 4" + separate "enters tapped" line.
-// The play condition ("attacked with 3+ creatures this turn") uses
-// Condition::YouAttackedWithNOrMore(3), which reads PlayerState.attackers_declared_this_turn
-// (see player.rs) — attack tracking exists and is wired here as the activation_condition.
+// The play condition ("attacked with 3+ creatures this turn") is
+// Condition::YouAttackedWithNOrMore(3), reading PlayerState.attackers_declared_this_turn.
+//
+// KNOWN RESIDUAL, stated rather than claimed away (CARDS-2 review, scutemob-181): that field
+// is ASSIGNED, not accumulated -- `rules/combat.rs` sets it to the size of the latest
+// declaration and says so in its own comment. On a turn with an extra combat
+// (`Effect::AdditionalCombatPhase` is implemented), attacking with three and then one drops
+// the count to one and this land goes dead, which the printed card does not do. It is also
+// not deduplicated by creature. An earlier draft of this comment cited the 2007-10-01 ruling
+// as though the primitive implemented it; it does not, and asserting fidelity a primitive
+// does not have is exactly what `braided_net.rs` was demoted for. The condition is still a
+// strict improvement on the `None` it replaced (which let the exiled card be played with no
+// attack at all).
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {

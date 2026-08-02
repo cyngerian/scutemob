@@ -1,7 +1,7 @@
 // Akroma, Angel of Fury — {5}{R}{R}{R}, Legendary Creature — Angel 6/6
 // This spell can't be countered.
 // Flying, trample, protection from white and from blue.
-// {R}: Akroma, Angel of Fury gets +1/+0 until end of turn.
+// {R}: Akroma gets +1/+0 until end of turn.
 // Morph {3}{R}{R}{R} (You may cast this card face down as a 2/2 creature for {3}.
 // Turn it face up any time for its morph cost.)
 //
@@ -27,9 +27,9 @@ pub fn card() -> CardDefinition {
         }),
         types: full_types(&[SuperType::Legendary], &[CardType::Creature], &["Angel"]),
         oracle_text: "This spell can't be countered.\nFlying, trample, protection from white and \
-                      from blue\n{R}: Akroma, Angel of Fury gets +1/+0 until end of turn.\nMorph \
-                      {3}{R}{R}{R} (You may cast this card face down as a 2/2 creature for {3}. \
-                      Turn it face up any time for its morph cost.)"
+                      from blue\n{R}: Akroma gets +1/+0 until end of turn.\nMorph {3}{R}{R}{R} \
+                      (You may cast this card face down as a 2/2 creature for {3}. Turn it face \
+                      up any time for its morph cost.)"
             .to_string(),
         power: Some(6),
         toughness: Some(6),
@@ -42,7 +42,7 @@ pub fn card() -> CardDefinition {
             AbilityDefinition::Keyword(KeywordAbility::ProtectionFrom(
                 ProtectionQuality::FromColor(Color::Blue),
             )),
-            // CR 613.4c: "{R}: Akroma, Angel of Fury gets +1/+0 until end of turn."
+            // CR 613.4c: "{R}: Akroma gets +1/+0 until end of turn."
             // EffectFilter::Source resolves to SingleObject(ctx.source) at execution time.
             AbilityDefinition::Activated {
                 cost: Cost::Mana(ManaCost {

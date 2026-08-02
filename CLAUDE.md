@@ -183,10 +183,11 @@
 - **SR-36** — An activation cost is only paid if some code pays it: `AddManaScaled` + `life_cost`
   payment paths, disjoint by construction; enumerate `all_cards()` for rosters, never grep source. →
   `docs/engine-invariants.md`
-- **SR-37** — A def's PRINTED fields (mana cost, P/T, type line) are diffed against the card from a
-  committed Scryfall fixture; `completeness` never checked these, and 45 were wrong.
+- **SR-37** — A def's PRINTED fields (mana cost, P/T, type line, ability-embedded costs, and
+  oracle text) are diffed against the card from a committed Scryfall fixture; `completeness`
+  never checked any of them, and 39 were wrong.
   `tools/card-field-dump` → `tools/refresh-card-fidelity-fixture.py` →
-  `core::cards2_printed_field_fidelity` (the only place equality is decided). →
+  `core::cards2_printed_field_fidelity` R1–R8 (the only place equality is decided). →
   `docs/engine-invariants.md`
 
 ### Changelog & history
@@ -260,7 +261,7 @@
   `windbrisk_heights`) carried stale "DSL gap"/"deferred" notes for primitives that had since
   landed — the third and fourth instances of that pattern here — and
   `completeness_deviation_scan` missed both because its needle set has no entry for "DSL gap".
-  Tests **4,164 / 0 / 5**;
+  Tests **4,183 / 0 / 5** (post-merge with SIM-1);
   **0 engine lines**; PROTOCOL **33** / HASH **70** gate-executed unmoved; `decision_gate` 18/18.
   **4 completeness flips, ALL demotions** — coverage **1,133/1,803 = 62.8%**, down from
   1,137/1,804 = 63.0%. **The number went down because the corpus got truer**, exactly as PB-DX4

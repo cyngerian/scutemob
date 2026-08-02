@@ -38,8 +38,15 @@ pub fn card() -> CardDefinition {
             // expressible. Card left uncastable per W5 policy to avoid do-nothing behavior.
         ],
         completeness: Completeness::inert(
-            "DSL gap — untap + grant hexproof/reach + temporary 'whenever tapped' triggered \
-             ability not expressible in the DSL. Only...",
+            "DSL gap. Printed: untap target creature, then until end of turn it gains hexproof, \
+             reach, and 'Whenever this creature becomes tapped, it deals damage equal to its \
+             power to up to one target creature.' The untap and the two keyword grants ARE \
+             expressible; the wall is the granted TRIGGERED ability -- LayerModification has \
+             AddKeyword / AddKeywords / AddActivatedAbility / AddManaAbility and no \
+             AddTriggeredAbility, so a temporary 'whenever this becomes tapped' clause has no \
+             expression. Split second is deliberately NOT declared either: a castable do-nothing \
+             is worse than an uncastable card (W5 policy, consolidated-fix-list M2). (CARDS-2 \
+             restored this note, which had shipped truncated at 'Only...'.)",
         ),
         ..Default::default()
     }

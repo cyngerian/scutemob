@@ -416,13 +416,18 @@ mod tests {
     /// `seed` ∈ 0..24 × `develop` ∈ {false, true} found that **seed 0 reaches no targeted
     /// cast at all within 300 decisions**, so no step budget would have rescued the old
     /// pin. The fixture now rides [`TARGET_SEED`], which the same sweep chose for the
-    /// X-value test, so one observation serves both. Infernal Grasp is `{1}{B}` "destroy
-    /// target creature" (CR 601.2c) — a player is not a creature, which is the property the
-    /// caller's `422` depends on.
+    /// X-value test, so one observation serves both. Dispatch is `{1}{W}` "tap target
+    /// creature" (CR 601.2c) — a player is not a creature, which is the property the caller's
+    /// `422` depends on.
     ///
-    /// Re-observed a THIRD time in the same batch, after the second fix cycle demoted two more
-    /// definitions. Three re-derivations for one batch is the cost of the fact recorded above:
-    /// these fixtures are a function of the whole corpus.
+    /// Re-observed **four times** in this one batch, and the fourth is the instructive one. The
+    /// first three followed from card-def repairs moving the deal. The fourth followed from
+    /// merging `main`: **SIM-1** (`scutemob-175`) taught the provider to offer commander casts,
+    /// which changes what every seeded game does from turn one, and the third-pass reviewer
+    /// caught it by building the merge tree and running it — the branch was green on its own
+    /// and red on the merge. So the rule has a second half: these pins are a function of the
+    /// whole corpus **and of the provider**, and a branch that re-derives them must re-derive
+    /// them again after any merge that touches `legal_actions.rs`.
     ///
     /// Choosing among the eight seeds the sweep offered was not free, and the reason is
     /// worth recording. Four of them (2, 10, 11, 17) reach a targeted cast, are **offered**
@@ -440,7 +445,7 @@ mod tests {
     /// `Complete` **and Legendary and Creature** for the commander and off *colour
     /// identity* (i.e. the mana cost) for the deck. Correcting a type line or a mana cost
     /// moves both. Treat these as a function of the whole corpus.
-    const TARGETED_SPELL: &str = "Cast Infernal Grasp";
+    const TARGETED_SPELL: &str = "Cast Dispatch";
 
     /// Drive the seed-pinned opening until the human is offered a **targeted**
     /// spell.
@@ -1093,7 +1098,7 @@ mod tests {
     /// and demonstrates the first alongside it, at the same `seq`, so the two are
     /// told apart by observation rather than by argument.
     ///
-    /// [`TARGETED_SPELL`] is Infernal Grasp, "destroy target creature" (CR 601.2c); a player is
+    /// [`TARGETED_SPELL`] is Dispatch, "tap target creature" (CR 601.2c); a player is
     /// not a creature, so `handle_cast_spell`'s target validation refuses it with
     /// `GameStateError::InvalidTarget`. (This paragraph named Dispel for two batches after
     /// the constant had moved on — it is derived from the constant now, not restated.)
@@ -1571,15 +1576,18 @@ mod tests {
     // X-value one failed: that predicate matches any action with candidates, and the deal
     // had quietly retargeted this fixture from a spell onto an activated ability.
     //
-    // Final value 23, from a sweep of `seed` ∈ 0..24 that checked THREE properties at once,
+    // Final value 1, from a POST-MERGE sweep of `seed` ∈ 0..24 that checked THREE properties
+    // at once,
     // because the fixture serves three tests: a slot with ≥2 candidates (the order-perturbation
     // test), a targeted CastSpell reachable with five untapped sources, and — measured, not
     // assumed — the engine actually ACCEPTING that cast afterwards. Only five seeds (1, 5, 13,
     // 21, 23) satisfied all three; five more reached a cast the engine then refused for want of
-    // mana, which is OOS-CARDS2-9/F4 and not a property to build a fixture on. Infernal Grasp
-    // was chosen over Dispatch and Cyclonic Rift because "destroy target creature" is the
-    // property the `422` caller actually depends on.
-    const TARGET_SEED: u64 = 23;
+    // mana, which is OOS-CARDS2-9/F4 and not a property to build a fixture on. Post-merge the
+    // qualifying set is seeds 1, 5, 13 and 21; Dispatch was chosen over Reanimate and Cyclonic
+    // Rift because "tap target creature" is the property the `422` caller actually depends on
+    // (Reanimate targets a card in a graveyard, Cyclonic Rift a nonland permanent — both would
+    // still 422 on a player, but for a reason the test does not name).
+    const TARGET_SEED: u64 = 1;
 
     /// How many decisions the drivers below will answer before giving up. Chosen
     /// well above the observed cost of the slowest fixture (the X-value one needs

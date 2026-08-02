@@ -55,6 +55,9 @@
 //!   past it — the corpus carried exactly one such pair when this gate was written.
 //! - **R6** — non-vacuity floors, because R1–R5 are all "for every row" assertions and an
 //!   empty fixture would satisfy every one of them.
+//! - **R8** — a def's `oracle_text` describes the card it names (a similarity floor, because
+//!   the corpus predates WotC's 2024 self-reference re-templating). A fictional `oracle_text`
+//!   is the documented root cause of this batch's worst incident.
 //! - **R7** — costs that live *inside* an ability (bestow, morph, megamorph, disguise, craft)
 //!   match the printed clause. R2 sees one field and these are not in it; Boon Satyr's bestow
 //!   cost was one of this batch's four headline defects and the gate as first built could not
@@ -797,6 +800,215 @@ fn r7_ability_embedded_costs_match_printed() {
         bad.len(),
         bad.join("\n  ")
     );
+}
+
+// ── R8: the oracle text describes the same card ───────────────────────────────
+
+/// Content words of a printed or authored rules text.
+///
+/// Reminder text in parentheses is dropped (a def may legitimately carry it or not), and the
+/// self-reference vocabulary is stopworded, because WotC re-templated every card in 2024 to
+/// say "this creature" where the name used to appear and the corpus predates that. Those two
+/// rules are what make the comparison about *meaning* rather than about printing era: with
+/// them, **the median def scores a perfect 1.00 against its card**.
+fn content_words(text: &str) -> BTreeSet<String> {
+    const SELF_REFERENCE: &[&str] = &[
+        "this",
+        "creature",
+        "land",
+        "artifact",
+        "enchantment",
+        "permanent",
+        "card",
+        "it",
+        "its",
+        "the",
+        "a",
+        "an",
+    ];
+    let mut out = BTreeSet::new();
+    let mut depth = 0i32;
+    let mut word = String::new();
+    for ch in text.chars() {
+        match ch {
+            '(' => depth += 1,
+            ')' => depth = (depth - 1).max(0),
+            _ if depth > 0 => {}
+            c if c.is_ascii_alphanumeric() || "{}/+-'".contains(c) => {
+                word.push(c.to_ascii_lowercase())
+            }
+            _ => {
+                if !word.is_empty() && !SELF_REFERENCE.contains(&word.as_str()) {
+                    out.insert(std::mem::take(&mut word));
+                } else {
+                    word.clear();
+                }
+            }
+        }
+    }
+    if !word.is_empty() && !SELF_REFERENCE.contains(&word.as_str()) {
+        out.insert(word);
+    }
+    out
+}
+
+/// Jaccard overlap of two content-word sets, in hundredths (so the floor is an integer).
+fn overlap_pct(a: &BTreeSet<String>, b: &BTreeSet<String>) -> u32 {
+    let union = a.union(b).count();
+    if union == 0 {
+        return 100;
+    }
+    (a.intersection(b).count() * 100 / union) as u32
+}
+
+/// Definitions whose `oracle_text` genuinely does not describe the printed card, or whose
+/// low score is an artefact of the fixture rather than a defect. Every entry states which.
+///
+/// This is a **debt register with a maturity date**, not a licence: the gate fails on anything
+/// not listed, and an entry should be deleted the moment its def is repaired. The six marked
+/// DEFECT are pre-existing (none was edited by CARDS-2) and are filed as **OOS-CARDS2-10**.
+const KNOWN_DIVERGENT_ORACLE_TEXT: &[(&str, &str)] = &[
+    // — fixture artefacts, not defects —
+    (
+        "Cut // Ribbons",
+        "ARTEFACT: split card. The def carries both halves; the fixture carries face 0 only.",
+    ),
+    (
+        "Connive // Concoct",
+        "ARTEFACT: split card, as Cut // Ribbons.",
+    ),
+    (
+        "Beloved Beggar",
+        "ARTEFACT: Disturb DFC. The def's text covers the back face too; the fixture is face 0.",
+    ),
+    // — real defects, pre-existing, filed as OOS-CARDS2-10 —
+    (
+        "Qarsi Sadist",
+        "DEFECT: omits the whole second clause, 'When this creature exploits a creature, \
+         target opponent loses 2 life and you gain 2 life.' Only the Exploit reminder is there.",
+    ),
+    (
+        "Scheming Symmetry",
+        "DEFECT: 'Choose an opponent. You and that player each search' for a printed 'Choose \
+         two target players. Each of them searches' — different players, and untargeted.",
+    ),
+    (
+        "Voldaren Epicure",
+        "DEFECT: omits 'it deals 1 damage to each opponent'; only the Blood token survives.",
+    ),
+    (
+        "Blasphemous Edict",
+        "DEFECT: two wrong clauses — 'costs {B}{B} less' for a printed alternative cost 'you \
+         may pay {B} rather than pay this spell's mana cost', and 'sacrifices a creature' for \
+         a printed 'sacrifices THIRTEEN creatures'.",
+    ),
+    (
+        "Delighted Halfling",
+        "DEFECT: invents '{T}: Add {G}'. The card prints '{T}: Add {C}' plus a SEPARATE \
+         restricted any-colour ability. A green mana source that should produce colourless — \
+         and colour identity is computed from mana abilities, so this one also moves decks.",
+    ),
+    (
+        "Flare of Malice",
+        "DEFECT: already `known_wrong` — the text is a different card's. Kept here so the \
+         gate stays exact rather than special-casing non-Complete defs.",
+    ),
+];
+
+#[test]
+/// R8 — a definition's `oracle_text` must describe the card it names.
+///
+/// This rule exists because a fictional `oracle_text` is the **documented root cause** of this
+/// batch's worst incident: a repair pass authored three abilities into `braided_net` after
+/// being briefed from that file's own stale text. Nothing checked the field, so nothing
+/// stopped the fiction propagating from a comment into working code.
+///
+/// It is a similarity floor, not equality, and that is a measured choice rather than a
+/// concession. Comparing the strings outright fails on **315** definitions, almost all of them
+/// WotC's 2024 self-reference re-templating and reminder-text churn — a gate that fails on a
+/// sixth of the corpus for spelling gets turned off. With reminder text dropped and the
+/// self-reference vocabulary stopworded, the **median definition scores 100**, and only 9 of
+/// 1,776 comparable definitions fall below 50. Six of those nine are real defects the corpus
+/// did not know it had.
+///
+/// Definitions with no content words on one side (vanilla creatures, basic lands) are skipped:
+/// there is nothing to compare, not a mismatch.
+///
+/// One process note, because it is the batch's own lesson turned on itself: the floor of 50 was
+/// chosen from a throwaway Python approximation of this function, which scored
+/// `delighted_halfling` at exactly 50 and `doom_blade` at 50 — so the first draft of the
+/// register listed the real defect as a miss and the spelling difference as needing an
+/// exemption. **The implementation that ships scores them 47 and 50**, i.e. it catches the
+/// defect and needs no entry for the hyphen. Both notes were wrong in the same direction, and
+/// only running the real thing settled it.
+fn r8_oracle_text_describes_the_same_card() {
+    let printed = fixture();
+    let defs = corpus();
+    let mut bad = Vec::new();
+    let mut compared = 0usize;
+    let mut worst_unlisted = 100u32;
+    for def in &defs {
+        let Some(p) = printed.get(&def.name) else {
+            continue;
+        };
+        if p.oracle_text == "-" {
+            continue;
+        }
+        let (a, b) = (
+            content_words(&def.oracle_text),
+            content_words(&p.oracle_text),
+        );
+        if a.is_empty() || b.is_empty() {
+            continue;
+        }
+        compared += 1;
+        let score = overlap_pct(&a, &b);
+        let listed = KNOWN_DIVERGENT_ORACLE_TEXT
+            .iter()
+            .any(|(name, _)| *name == def.name);
+        if score < 50 && !listed {
+            bad.push(format!(
+                "{}: overlap {score} — def {:?}",
+                def.name, def.oracle_text
+            ));
+        }
+        if !listed {
+            worst_unlisted = worst_unlisted.min(score);
+        }
+    }
+    assert!(
+        compared > 1_700,
+        "R8 compared only {compared} definitions — the word extraction has stopped matching"
+    );
+    bad.sort();
+    assert!(
+        bad.is_empty(),
+        "{} definition(s) carry an `oracle_text` that does not describe their card. This is \
+         how `braided_net` got three invented abilities authored into it — the fiction lived \
+         in the def until someone believed it. Repair the text against Scryfall, or add an \
+         entry to KNOWN_DIVERGENT_ORACLE_TEXT stating which of the two it is:\n  {}",
+        bad.len(),
+        bad.join("\n  ")
+    );
+    // Every listed entry must still be needed. A def that gets repaired and stays on the list
+    // turns the register into a permanent exemption.
+    for (name, _) in KNOWN_DIVERGENT_ORACLE_TEXT {
+        let Some(def) = defs.iter().find(|d| d.name == *name) else {
+            panic!("KNOWN_DIVERGENT_ORACLE_TEXT names {name:?}, which is not in the corpus");
+        };
+        let Some(p) = printed.get(*name) else {
+            continue;
+        };
+        let score = overlap_pct(
+            &content_words(&def.oracle_text),
+            &content_words(&p.oracle_text),
+        );
+        assert!(
+            score < 50,
+            "{name} now scores {score} and no longer diverges — delete its \
+             KNOWN_DIVERGENT_ORACLE_TEXT entry"
+        );
+    }
 }
 
 // ── R5 ────────────────────────────────────────────────────────────────────────

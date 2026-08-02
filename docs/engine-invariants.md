@@ -284,6 +284,25 @@
   `SYNTHETIC_ALLOWLIST` (two hand-built test cards with no printing) is by name, is pinned at
   exactly two, and is checked in both directions so a synthetic that turns out to be real fails
   rather than being skipped.
+  **R7 and R8 were added by the review fix cycles**, each because the first shape of the gate
+  proved too narrow in a way that cost real defects. **R7** compares costs that live *inside* an
+  ability — bestow, morph, megamorph, disguise, craft — because R2 reads one field and Boon
+  Satyr's bestow cost was one of the batch's four headline defects; three more wrong ones
+  (Braided Net's craft, Akroma's and Birchlore Rangers' morph, the last **free at `{0}`** for a
+  printed `{G}`) were then found by eye. It is asymmetric on purpose: a def that declares no
+  bestow for a card printing it is *incomplete*, which is `completeness`'s job; one that
+  declares it and charges wrong is *wrong*, which is this gate's.
+  **R8** compares the `oracle_text` field, because a fictional `oracle_text` is the documented
+  root cause of this batch's worst incident — a repair pass authored three abilities into
+  `braided_net` after being briefed from that file's own stale text, taking a `Complete` def
+  from "missing abilities" to "legal but wrong". It is a *similarity floor*, not equality, and
+  that is measured rather than conceded: strict equality fails on **315** defs, almost all of it
+  WotC's 2024 self-reference re-templating and reminder-text churn, and a gate that reddens on a
+  sixth of the corpus for spelling gets switched off. With reminder text dropped and the
+  self-reference vocabulary stopworded the **median def scores 100**, and only 9 of 1,776 fall
+  below 50 — six of them real defects the corpus did not know it had, carried in an explicit
+  `KNOWN_DIVERGENT_ORACLE_TEXT` register whose entries a staleness assertion forces you to
+  delete once repaired.
   **What a passing gate does NOT assert**: that a def's abilities are right. It checks the four
   fields mechanically checkable against a database. That said, *more than one* wrong printed
   field turned out to be a reliable signal that a def was authored from a misremembered card

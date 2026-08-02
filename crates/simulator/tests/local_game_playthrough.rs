@@ -488,60 +488,33 @@ fn test_s8_scripted_human_playthrough_is_clean_on_five_seeds() {
         .expect("worker thread should spawn");
     let runs = handle.join().expect("playthrough thread must not panic");
 
-    // Error paths the PROVIDER is already known to walk into, each an SR-38 violation
-    // ("never offer what the engine rejects") with a filed seed. They are named here rather
-    // than avoided by choosing kinder seeds, because a fixture reshaped around a bug reports
-    // the bug as absent. Anything NOT on this list still fails.
+    // ONE known error path, named rather than dodged by picking a kinder seed.
     //
-    // CARDS-2 (2026-08-02, `scutemob-181`): seed 7 re-dealt onto a spell with a sacrifice
-    // additional cost and started failing here. That is playtest finding **F9** — the
-    // provider reads mana only and is blind to `spell_additional_costs`, so it offers a cast
-    // `casting.rs` then refuses (CR 118.8). Pre-existing and unrelated to the card-def
-    // repairs that moved the deal; the repairs only changed which seed reaches it.
-    const KNOWN_FALSE_OFFERS: &[(&str, &str)] = &[
-        (
-            "spell requires sacrificing a permanent as an additional cost",
-            "F9 — provider ignores `spell_additional_costs` (CR 118.8)",
-        ),
-        (
-            "Aura spells require exactly one target",
-            "OOS-CARDS2-4 — provider never reads KeywordAbility::Enchant (CR 303.4a)",
-        ),
-    ];
-
-    /// Terminal states that are a filed defect rather than a finished game. Same rule as
-    /// `KNOWN_FALSE_OFFERS`: named, not avoided.
-    ///
-    /// CARDS-2 diagnosed seed 9001's halt rather than raising the command valve past it.
-    /// Quadrupling `max_commands` to 80,000 left the game on **the same turn**, so it was
-    /// never a budget: the run sits in `DeclareAttackers` on turn 13 being offered
-    /// `["PassPriority", "TapForMana", "TapForMana", "DeclareAttackers", "ActivateAbility",
-    /// "Concede"]` forever, submitting `DeclareAttackers`, and being offered it again. That
-    /// is **OOS-M11-9** verbatim — `handle_declare_attackers` has no "already declared this
-    /// combat" guard, and CR 508.1 makes declaring attackers a once-per-combat turn-based
-    /// action. Pre-existing and open; the card-def repairs only changed which deal reaches it.
-    const KNOWN_HALTS: &[(&str, &str)] = &[(
-        "InfiniteLoop",
-        "OOS-M11-9 — no once-per-combat guard on DeclareAttackers (CR 508.1)",
+    // CARDS-2 (2026-08-02, `scutemob-181`) re-dealt every seeded deck three times over — the
+    // decks are a function of the whole card corpus — and walked this test into three filed
+    // defects in turn. Two have since closed and their entries are DELETED, which is the
+    // point of the shape: **OOS-M11-9** (no once-per-combat `DeclareAttackers` guard, which
+    // stalled seed 9001 at turn 13 — 80,000 commands on the same turn, so never a budget) and
+    // **OOS-CARDS2-9** (the provider's affordability check counts mana abilities it could not
+    // activate) both stopped firing when SIM-1 (`scutemob-175`) merged, and the compiler said
+    // so out loud by calling the constants dead.
+    //
+    // What remains is playtest finding **F9**: `spell_additional_costs` is invisible to the
+    // provider, so it offers a cast `casting.rs` then refuses (CR 118.8). Pre-existing — this
+    // branch changed no line of `crates/simulator/src` — and open.
+    //
+    // An excusal list is a debt register with a maturity date, not a permanent fixture. Name
+    // the defect, keep the assertion sharp enough that a NEW shape still fails, and delete the
+    // entry the moment it stops firing.
+    const KNOWN_FALSE_OFFERS: &[(&str, &str)] = &[(
+        "spell requires sacrificing a permanent as an additional cost",
+        "F9 — provider ignores `spell_additional_costs` (CR 118.8)",
     )];
 
     let mut excused: Vec<String> = Vec::new();
     for run in &runs {
-        if let Some(err) = run.error.as_deref() {
-            let known = KNOWN_FALSE_OFFERS
-                .iter()
-                .find(|(needle, _)| err.contains(needle));
-            let Some((_, seed_id)) = known else {
-                panic!(
-                    "seed {}: the playthrough hit an UNKNOWN error path; full run: {run:?}",
-                    run.seed
-                );
-            };
-            // The run aborted, so `outcome` is empty and every assertion below would fail on
-            // the abort rather than on anything it measures. Record and move on.
-            excused.push(format!("seed {} — {seed_id}", run.seed));
-            continue;
-        }
+        // Asserted BEFORE the excusal: a run that aborted early still measured these, and an
+        // invariant violation or a leaked token is never excused by a false offer.
         assert!(
             run.violations.is_empty(),
             "seed {}: {} simulator invariant violation(s): {:?}",
@@ -558,19 +531,27 @@ fn test_s8_scripted_human_playthrough_is_clean_on_five_seeds() {
             run.leaked_tokens.len(),
             run.leaked_tokens
         );
-        if run.outcome != "GameOver" && run.outcome != "MaxTurns" {
-            let known = KNOWN_HALTS
+        if let Some(err) = run.error.as_deref() {
+            let Some((_, seed_id)) = KNOWN_FALSE_OFFERS
                 .iter()
-                .find(|(needle, _)| run.outcome.contains(needle));
-            let Some((_, seed_id)) = known else {
+                .find(|(needle, _)| err.contains(needle))
+            else {
                 panic!(
-                    "seed {}: expected GameOver or the turn cap, got {:?}; full run: {run:?}",
-                    run.seed, run.outcome
+                    "seed {}: the playthrough hit an UNKNOWN error path; full run: {run:?}",
+                    run.seed
                 );
             };
+            // The run aborted, so `outcome` is empty and the assertions below would report the
+            // abort rather than anything they measure.
             excused.push(format!("seed {} — {seed_id}", run.seed));
             continue;
         }
+        assert!(
+            run.outcome == "GameOver" || run.outcome == "MaxTurns",
+            "seed {}: expected GameOver or the turn cap, got {:?}; full run: {run:?}",
+            run.seed,
+            run.outcome
+        );
         // A run that made no decisions would satisfy every assertion above
         // vacuously. The human must actually have been asked.
         assert!(
@@ -611,21 +592,6 @@ fn test_s8_scripted_human_playthrough_is_clean_on_five_seeds() {
             run.decisions,
             run.transient_token_violations.len(),
             run.submitted_kinds
-        );
-    }
-    // The excusal above must never swallow the whole test. If every seed aborts on a "known"
-    // false offer, this function asserts nothing at all — and the list of known offers is a
-    // debt register, not a licence.
-    assert!(
-        excused.len() < runs.len(),
-        "every seed was excused as a known false offer ({excused:?}) — this test now proves \
-         nothing. Fix the provider (SR-38) or re-derive the seeds."
-    );
-    if !excused.is_empty() {
-        eprintln!(
-            "playthrough: {} of {} seeds excused on known provider false offers: {excused:?}",
-            excused.len(),
-            runs.len()
         );
     }
 }

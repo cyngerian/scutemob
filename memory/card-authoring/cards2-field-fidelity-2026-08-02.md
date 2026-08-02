@@ -257,7 +257,7 @@ deleted duplicate) → 668 (the first two demotions) → **670** (the review fix
 re-measured directly against `all_cards()` **and** by an independent grep of `MARKER_FRAGMENTS`,
 as that file's own comment instructs, rather than derived by arithmetic from the previous value.
 
-Tests **4,165 / 0 / 5** workspace-wide. Zero engine lines (empty diff over `crates/engine/src`
+Tests **4,183 / 0 / 5** workspace-wide (post-merge with SIM-1). Zero engine lines (empty diff over `crates/engine/src`
 and `crates/card-types/src`). PROTOCOL and HASH gate-executed unmoved; `decision_gate` 18/18.
 
 ---
@@ -272,8 +272,10 @@ unavailable — Torment of Hailfire for `{B}{B}`, draining for zero. This is the
 **OOS-M11-8** reasons about (`x_count` handling), approached from the other end: that seed is
 about the engine's treatment of `x_count`, this is about defs that never set it. The four are
 repaired and pinned by `primitives::cards2_printed_field_repair::t7`, and R2 now makes the class
-unable to recur — a def printed with `{X}` and declaring `x_count: 0` fails the gate. **Nothing
-in OOS-M11-8's own scope is closed by this**; the seed stands.
+unable to recur — a def printed with `{X}` and declaring `x_count: 0` fails the gate. **Nothing in OOS-M11-8's own scope is
+touched by this.** Note also that `CLAUDE.md` records OOS-M11-8 as already CLOSED by M11-local
+S8 — an earlier draft of this section said "the seed stands", which contradicted it. The
+cross-reference is to the *population*, not to an open seed.
 
 Also worth noting for whoever picks that seed up: `wake_the_dead.rs` carried an inline comment
 reading "X cost not expressible in ManaCost struct", which was **never true** — `x_count` has
@@ -328,6 +330,37 @@ always been a field. That is the third stale "not expressible" note this batch f
   a primitive is missing is written once and never revisited when the primitive lands. Cheap
   partial fix: have the DSL-gap notes name the primitive they want, so a grep can check whether
   it now exists.
+* **OOS-CARDS2-10** — **six definitions carry an `oracle_text` that does not describe their
+  card**, found by R8 and all pre-existing (none was edited by this batch). Listed with their
+  overlap scores in `KNOWN_DIVERGENT_ORACLE_TEXT`
+  (`crates/engine/tests/core/cards2_printed_field_fidelity.rs`), which is a debt register: the
+  gate fails on anything new, and an entry must be deleted when its def is repaired (a
+  staleness assertion enforces that).
+  * `qarsi_sadist` — omits the entire second clause ("When this creature exploits a creature,
+    target opponent loses 2 life and you gain 2 life").
+  * `voldaren_epicure` — omits "it deals 1 damage to each opponent".
+  * `blasphemous_edict` — "costs {B}{B} less" for a printed **alternative cost**, and
+    "sacrifices a creature" for a printed "sacrifices **thirteen** creatures".
+  * `scheming_symmetry` — "Choose an opponent. You and that player each search" for a printed
+    "Choose **two target players**. Each of them searches" — different players, and untargeted.
+  * `delighted_halfling` — invents "{T}: Add {G}" where the card prints "{T}: Add {C}" plus a
+    separate restricted any-colour ability. **This one also moves decks**: colour identity is
+    computed from mana production, so a green source that should be colourless changes what
+    `random_deck` builds (§3).
+  * `flare_of_malice` — already `known_wrong`; its text is a different card's.
+  Four further entries on that list are **fixture artefacts, not defects** (split cards and a
+  Disturb DFC whose def text covers both faces while the fixture carries face 0), each labelled
+  as such. Unfixed here: all six are pre-existing, none is in this batch's scope, and repairing
+  six more defs after three fix cycles is a batch of its own.
+* **OOS-CARDS2-11** — **the oracle sweep's own findings** (`cards2-oracle-sweep-2026-08-02.md`:
+  0 HIGH, 3 MEDIUM, 8 LOW over 22 branch-edited defs, 11 clean). The two that unblock coverage
+  are `chord_of_calling` and `the_world_tree`, both blocked behind stale "not expressible"
+  claims that the sweep re-checked and refuted — `TargetFilter.max_cmc_amount` with
+  `EffectAmount::XValue` exists and has three corpus precedents, and The World Tree's own
+  completeness note already contradicts its inline TODO. `green_suns_zenith` carries the
+  identical false `max_cmc` claim plus a phantom trailing clause. Filed rather than fixed for
+  the same reason as OOS-CARDS2-10, and cross-referenced here so the sweep document is
+  reachable from the seed list rather than being an orphan.
 * **F4 corroboration** (not a new seed) — the sweep in section 3 is independent evidence for
   `memory/playtest-triage-2026-08-02.md` F4, on four seeds the triage never examined. Whoever
   fixes the mana solver has four ready reproductions.

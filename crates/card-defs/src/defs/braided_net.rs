@@ -35,15 +35,37 @@
 //      (OOS-CARDS2-8). The stale claim here was not merely out of date, it was about a
 //      card that did not exist.
 //
-// DEMOTED, not repaired. The printed front face needs: enters-with-N-counters on a
-// non-creature artifact, a `Remove a counter` activation cost, "tap ANOTHER target NONLAND
-// permanent" (`Effect::TapPermanent` exists, but the target filter needs nonland +
-// exclude_self), and a static "its activated abilities can't be activated while it remains
-// tapped" — a conditional, duration-bound activation lock keyed to another object's tapped
-// state, which the DSL has no expression for. The back face needs
-// "draw a card for each artifact you control" (a scaled draw) and "put this into its
-// owner's library third from the top" (a positional library insert; `ZoneTarget::Library`
-// offers top/bottom only). Craft is real and stays; its cost is corrected {2}{U} -> {1}{U}.
+// DEMOTED, not repaired — and the reason has itself been rechecked, because the first
+// version of this note failed the very test lesson 2 above sets.
+//
+// The first draft listed SIX missing primitives. A reviewer rechecked all six, as that
+// lesson invites, and **four of them exist**:
+//
+//   claim                                        verdict
+//   enters-with-N-counters on a noncreature      FALSE. `ReplacementModification::
+//                                                EntersWithCounters` is type-agnostic, and
+//                                                even the "Net" counter is expressible as
+//                                                `CounterType::Custom(..)`.
+//   a remove-a-counter activation cost           FALSE. `Cost::RemoveCounter { .. }`, used
+//                                                by 13 defs.
+//   "another nonland permanent" target filter    FALSE. `TargetFilter.non_land` and
+//                                                `.exclude_self` both exist and are enforced.
+//   a draw scaled by a permanent count           FALSE. `Effect::DrawCards { count }` with
+//                                                `EffectAmount::PermanentCount { .. }`.
+//   an activation lock on another object,        TRUE. `LayerModification` can
+//   conditioned on its tapped state              `RemoveAllAbilities` but cannot forbid
+//                                                activation.
+//   a positional library insert                  TRUE. `LibraryPosition` is Top / Bottom /
+//                                                ShuffledIn — no Nth-from-top.
+//
+// So this card is *mostly* expressible: the front face lacks only "its activated abilities
+// can't be activated for as long as it remains tapped", and the back face only "third from
+// the top". It stays `known_wrong` and unauthored anyway, deliberately, on two grounds:
+// the activation lock is the load-bearing half of the front face's ability (a Braided Net
+// that taps without locking is a materially different card), and **this file has already
+// demonstrated once what authoring into it on incomplete information costs**. Authoring it
+// belongs to a pass that can verify the result against the card, clause by clause — which is
+// what OOS-CARDS2-8 asks for and what the earlier pass did not do.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -100,22 +122,16 @@ pub fn card() -> CardDefinition {
         self_exile_on_resolution: false,
         self_shuffle_on_resolution: false,
         completeness: Completeness::known_wrong(
-            "def was authored against text this card does not have, and a CARDS-2 repair pass \
-             then IMPLEMENTED that invented text (ETB 'tap target creature an opponent controls' \
-             on both faces, plus a back-face 'whenever you cast a spell, draw a card') because it \
-             was briefed from this file's own stale header comment instead of the oracle. The \
-             invented abilities are removed. Real front text: three net counters on ETB; '{T}, \
-             Remove a net counter: Tap another target nonland permanent. Its activated abilities \
-             can't be activated for as long as it remains tapped'; Craft with artifact {1}{U} \
-             (the def had {2}{U}, now corrected). Real back text: '{3}{U}, {T}: Draw a card for \
-             each artifact you control, then put this artifact into its owner's library third \
-             from the top.' MISSING PRIMITIVES, named so they can be rechecked (OOS-CARDS2-8): \
-             (a) enters-with-N-counters on a noncreature artifact; (b) a remove-a-counter \
-             activation cost; (c) a target filter for 'another nonland permanent' (nonland + \
-             exclude_self); (d) a static activation-lock on another object conditioned on its \
-             tapped state, for any duration; (e) a draw scaled by a permanent count; (f) a \
-             positional library insert -- ZoneTarget::Library is top/bottom only. Craft is \
-             implemented and correct.",
+            "authored against text this card does not have; a CARDS-2 pass then IMPLEMENTED that \
+             invented text (see the header comment for the full incident) because it was briefed \
+             from this file's own stale comment instead of the oracle. Invented abilities \
+             removed; Craft cost corrected {2}{U} -> {1}{U}. TWO missing primitives, RE-VERIFIED \
+             after a reviewer found four of the six first listed here to exist: (1) a static \
+             activation-lock on another object keyed to its tapped state (LayerModification can \
+             RemoveAllAbilities but cannot forbid activation); (2) a positional library insert \
+             (LibraryPosition is Top/Bottom/ShuffledIn only). Everything else this card needs \
+             exists, so it is mostly authorable and is left unauthored on purpose -- the lock is \
+             the load-bearing half of the front ability. Craft is implemented and correct.",
         ),
     }
 }

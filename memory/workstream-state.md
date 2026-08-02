@@ -867,7 +867,7 @@
   can). Both **honestly demoted** with blocker notes naming the missing primitive
   (**OOS-CARDS2-5/6**), not half-repaired.
 - **Zero engine lines**; PROTOCOL/HASH gate-executed unmoved; `decision_gate` 18/18; tests
-  **4,165 / 0 / 5**. Coverage **1,133/1,803 = 62.8%**, down from 1,137/1,804 — **4
+  **4,183 / 0 / 5** (post-merge with SIM-1). Coverage **1,133/1,803 = 62.8%**, down from 1,137/1,804 — **4
   completeness flips, ALL demotions**. The number went DOWN because the corpus got truer
   (the PB-DX4 pattern): `cyber_conversion` and `exalted_angel` implemented text on no card,
   `braided_net`'s real abilities need six absent primitives, `birchlore_rangers`' mana
@@ -927,7 +927,7 @@ Both were also **stale** claims: `Effect::TapPermanent` and
 
 **Full evidence record**: `memory/card-authoring/cards2-field-fidelity-2026-08-02.md`
 (measurement, every disposition, the four gate-design findings, and seeds
-**OOS-CARDS2-1..9** — 7, 8 and 9 came out of the review fix cycles: **OOS-CARDS2-7** the
+**OOS-CARDS2-1..11** — 7..11 came out of three review fix cycles: **OOS-CARDS2-7** the
 `completeness_deviation_scan` needle set has no entry for "DSL gap" or "deferred", the two
 phrases the corpus actually uses; **OOS-CARDS2-8** stale "not expressible" notes are a
 recurring class, four found false in this batch alone). Gate rationale + refresh procedure:
