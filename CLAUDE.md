@@ -223,7 +223,31 @@
 - **Recurrence rule** — future `/collect` and milestone-close bookkeeping appends its detailed PB/SR
   narrative to that archive file (newest first), and updates only a one-paragraph snapshot delta
   here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
-- **Last Updated**: 2026-08-02 — **ADJUDICATION SHIPPED** (`scutemob-186`, merge `8b069ae2`,
+- **Last Updated**: 2026-08-02 — **SIM-4 SHIPPED** (`scutemob-187`, merge `dcb1fe55`; row 2 of
+  the `memory/playtest-triage-2026-08-02b.md` successor table, first of the seven remaining rows
+  dispatched one at a time). **G2 CLOSED**: a browser mulligan re-rolled all four seats' decks
+  AND commanders (CR 103.5/903.6) because the session kept `DeckSource::RandomPerSeat` and
+  `redeal`'s perturbed seed re-ran the whole recipe. **The brief's fix was built, measured, and
+  replaced**: two-pass `resolve_decks` moves the single-RNG stream (seat 2's decklist depends on
+  seat 1's shuffle) and reddened 7 seeded tests, so the ship is `setup::dealt_decks(&state,&cfg)`
+  (`setup.rs:238`) — read the *dealt* multiset back out of the built state and pin
+  `cfg.decks = Fixed(dealt)` in `session::new_game` (`session.rs:240`); `redeal` needed zero
+  changes and no seeded table moved. The mandatory gate exists
+  (`test_redeal_preserves_every_seats_deck_and_commander`, plus two play-server probes proven
+  red by executing the revert) — and the handoff notes the simulator gate ALONE could never
+  catch this class: the defect lived in what the session *stored*, and a gate on the primitive
+  does not gate the caller's argument. 0 engine lines (`git diff -- crates/engine/` empty),
+  PROTOCOL **33** / HASH **70** by construction. Tests **4,290 / 0 / 5** (+7). Browser-verified
+  headless (seed 187187, two mulligans, four command zones stable, hand redraws). Seed
+  dispositions: **OOS-G2-1 CLOSED** (redeal no longer re-validates a recipe), **OOS-G2-2
+  narrowed** (README repro procedure corrected), **OOS-G2-3 unchanged** (out of scope). New:
+  **OOS-SIM4-1** (redeal still accepts a recipe config silently — TUI `app.rs:132` would
+  reintroduce G2 verbatim), **OOS-SIM4-2** (pre-existing: engine offers an Aura `CastSpell` it
+  then rejects, CR 303.4a), **OOS-SIM4-3** (`dealt_decks` can't represent partner commanders).
+  Per-seat RNG streams deferred with reasons (needs per-seat mulligan counts; would move the
+  `UI1_SEED`/`UI2_SEED`/`SIM1_SEED` fixtures five shipped flows rest on). Full handoff:
+  `memory/workstream-state.md`.
+- **Prior**: 2026-08-02 — **ADJUDICATION SHIPPED** (`scutemob-186`, merge `8b069ae2`,
   doc-only): the external recursion review (`docs/audits/mtg-characteristics-recursion-findings.md`)
   is adjudicated in `docs/audits/mtg-characteristics-recursion-adjudication.md`. **The task's framed
   conflict was stale on arrival** — PB-DX19's own review had already replaced the raw
