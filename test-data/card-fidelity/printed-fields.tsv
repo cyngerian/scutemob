@@ -1,0 +1,1813 @@
+# Printed-field fidelity fixture — CARDS-2 / SR-37. GENERATED, do not hand-edit.
+# Source: Scryfall `cards.sqlite` (gitignored); refresh with
+#   cargo run -q -p card-field-dump > /tmp/corpus.tsv
+#   python3 tools/refresh-card-fidelity-fixture.py \
+#       --corpus /tmp/corpus.tsv --db cards.sqlite --out test-data/card-fidelity/printed-fields.tsv
+# Columns: name  mana_cost  power  toughness  type_line   ('-' = field absent)
+# Multi-face cards carry FACE 0 only; non-game layouts are excluded at extraction.
+# The gate is crates/engine/tests/core/cards2_printed_field_fidelity.rs.
+name	mana_cost	power	toughness	type_line
+Abjure	{U}	-	-	Instant
+Abomination of Llanowar	{1}{B}{G}	*	*	Legendary Creature — Elf Horror
+Abrade	{1}{R}	-	-	Instant
+Abrupt Decay	{B}{G}	-	-	Instant
+Abstergo Entertainment	-	-	-	Legendary Land
+Abundance	{2}{G}{G}	-	-	Enchantment
+Abzan Charm	{W}{B}{G}	-	-	Instant
+Academy Manufactor	{3}	1	3	Artifact Creature — Assembly-Worker
+Access Denied	{3}{U}{U}	-	-	Instant
+Access Tunnel	-	-	-	Land
+Accorder's Shield	{0}	-	-	Artifact — Equipment
+Accursed Marauder	{1}{B}	2	1	Creature — Zombie Warrior
+Acererak the Archlich	{2}{B}	5	5	Legendary Creature — Zombie Wizard
+Acidic Slime	{3}{G}{G}	2	2	Creature — Ooze
+Adeline, Resplendent Cathar	{1}{W}{W}	*	4	Legendary Creature — Human Knight
+Adriana, Captain of the Guard	{3}{R}{W}	4	4	Legendary Creature — Human Knight
+Adrix and Nev, Twincasters	{2}{G}{U}	2	2	Legendary Creature — Merfolk Wizard
+Aesi, Tyrant of Gyre Strait	{4}{G}{U}	5	5	Legendary Creature — Serpent
+Aetherflux Reservoir	{4}	-	-	Artifact
+Aetherize	{3}{U}	-	-	Instant
+Agadeem's Awakening // Agadeem, the Undercrypt	{X}{B}{B}{B}	-	-	Sorcery
+Agent Venom	{2}{B}	2	3	Legendary Creature — Symbiote Soldier Hero
+Aggravated Assault	{2}{R}	-	-	Enchantment
+Ainok Bond-Kin	{1}{W}	2	1	Creature — Dog Soldier
+Ainok Strike Leader	{1}{W}	2	2	Creature — Dog Warrior
+Ajani, Sleeper Agent	{1}{G}{G/W/P}{W}	-	-	Legendary Planeswalker — Ajani
+Akrasan Squire	{W}	1	1	Creature — Human Soldier
+Akroma's Will	{3}{W}	-	-	Instant
+Akroma, Angel of Fury	{5}{R}{R}{R}	6	6	Legendary Creature — Angel
+Al Bhed Salvagers	{2}{B}	2	3	Creature — Human Artificer Warrior
+Alandra, Sky Dreamer	{2}{U}{U}	2	4	Legendary Creature — Merfolk Wizard
+Alela, Cunning Conqueror	{2}{U}{B}	2	4	Legendary Creature — Faerie Warlock
+Alesha, Who Laughs at Fate	{1}{B}{R}	2	2	Legendary Creature — Human Warrior
+Alexios, Deimos of Kosmos	{3}{R}	4	4	Legendary Creature — Human Berserker
+Allied Strategies	{4}{U}	-	-	Sorcery
+Allosaurus Shepherd	{G}	1	1	Creature — Elf Shaman
+Alseid of Life's Bounty	{W}	1	1	Enchantment Creature — Nymph
+Altar of Bone	{G}{W}	-	-	Sorcery
+Altar of Dementia	{2}	-	-	Artifact
+An Offer You Can't Refuse	{U}	-	-	Instant
+Anafenza, Unyielding Lineage	{2}{W}	2	2	Legendary Creature — Spirit Soldier
+Ancient Brass Dragon	{5}{B}{B}	7	6	Creature — Elder Dragon
+Ancient Bronze Dragon	{5}{G}{G}	7	7	Creature — Elder Dragon
+Ancient Copper Dragon	{4}{R}{R}	6	5	Creature — Elder Dragon
+Ancient Den	-	-	-	Artifact Land
+Ancient Gold Dragon	{5}{W}{W}	7	10	Creature — Elder Dragon
+Ancient Greenwarden	{4}{G}{G}	5	7	Creature — Elemental
+Ancient Silver Dragon	{6}{U}{U}	8	8	Creature — Elder Dragon
+Ancient Tomb	-	-	-	Land
+Angrath's Marauders	{5}{R}{R}	4	4	Creature — Human Pirate
+Anguished Unmaking	{1}{W}{B}	-	-	Instant
+Anim Pakal, Thousandth Moon	{1}{R}{W}	1	2	Legendary Creature — Human Soldier
+Animate Dead	{1}{B}	-	-	Enchantment — Aura
+Anointed Procession	{3}{W}	-	-	Enchantment
+Anowon, the Ruin Sage	{3}{B}{B}	4	3	Legendary Creature — Vampire Shaman
+Aqueous Form	{U}	-	-	Enchantment — Aura
+Arbor Elf	{G}	1	1	Creature — Elf Druid
+Arcane Denial	{1}{U}	-	-	Instant
+Arcane Sanctum	-	-	-	Land
+Arcane Signet	{2}	-	-	Artifact
+Arcanis the Omnipotent	{3}{U}{U}{U}	3	4	Legendary Creature — Wizard
+Arch of Orazca	-	-	-	Land
+Archdruid's Charm	{G}{G}{G}	-	-	Instant
+Archetype of Endurance	{6}{G}{G}	6	5	Enchantment Creature — Boar
+Archetype of Imagination	{4}{U}{U}	3	2	Enchantment Creature — Human Wizard
+Archmage Emeritus	{2}{U}{U}	2	2	Creature — Human Wizard
+Archmage of Runes	{3}{U}{U}	3	6	Creature — Giant Wizard
+Archmage's Charm	{U}{U}{U}	-	-	Instant
+Archon of Emeria	{2}{W}	2	3	Creature — Archon
+Arena of Glory	-	-	-	Land
+Argentum Armor	{6}	-	-	Artifact — Equipment
+Arid Mesa	-	-	-	Land
+Arixmethes, Slumbering Isle	{2}{G}{U}	12	12	Legendary Creature — Kraken
+Armorcraft Judge	{3}{G}	3	3	Creature — Elf Artificer
+Ashaya, Soul of the Wild	{3}{G}{G}	*	*	Legendary Creature — Elemental
+Ashnod's Altar	{3}	-	-	Artifact
+Aspect of Hydra	{G}	-	-	Instant
+Assassin's Trophy	{B}{G}	-	-	Instant
+Atarka, World Render	{5}{R}{G}	6	4	Legendary Creature — Dragon
+Athreos, God of Passage	{1}{W}{B}	5	4	Legendary Enchantment Creature — God
+Atomize	{2}{B}{G}	-	-	Instant
+Atraxa, Praetors' Voice	{G}{W}{U}{B}	4	4	Legendary Creature — Phyrexian Angel Horror
+Audacious Thief	{2}{B}	2	2	Creature — Human Rogue
+Aura Shards	{1}{G}{W}	-	-	Enchantment
+Aurelia, the Law Above	{3}{R}{W}	4	4	Legendary Creature — Angel
+Aurelia, the Warleader	{2}{R}{R}{W}{W}	3	4	Legendary Creature — Angel
+Auroral Procession	{G}{U}	-	-	Instant
+Austere Command	{4}{W}{W}	-	-	Sorcery
+Autumn's Veil	{G}	-	-	Instant
+Avacyn's Pilgrim	{G}	1	1	Creature — Human Monk
+Avalanche Riders	{3}{R}	2	2	Creature — Human Nomad
+Aven Mindcensor	{2}{W}	2	1	Creature — Bird Wizard
+Aven Riftwatcher	{2}{W}	2	3	Creature — Bird Rebel Soldier
+Avenger of Zendikar	{5}{G}{G}	5	5	Creature — Elemental
+Awaken the Ancient	{1}{R}{R}{R}	-	-	Enchantment — Aura
+Awaken the Woods	{X}{G}{G}	-	-	Sorcery
+Awakening Zone	{2}{G}	-	-	Enchantment
+Ayara, First of Locthwain	{B}{B}{B}	2	3	Legendary Creature — Elf Noble
+Azami, Lady of Scrolls	{2}{U}{U}{U}	0	2	Legendary Creature — Human Wizard
+Azorius Chancery	-	-	-	Land
+Azusa, Lost but Seeking	{2}{G}	1	2	Legendary Creature — Human Monk
+Backup Agent	{1}{W}	1	1	Creature — Human Citizen
+Badgermole Cub	{1}{G}	2	2	Creature — Badger Mole
+Badlands	-	-	-	Land — Swamp Mountain
+Bake into a Pie	{2}{B}{B}	-	-	Instant
+Bala Ged Recovery // Bala Ged Sanctuary	{2}{G}	-	-	Sorcery
+Balan, Wandering Knight	{2}{W}{W}	3	3	Legendary Creature — Cat Knight
+Balefire Dragon	{5}{R}{R}	6	6	Creature — Dragon
+Baleful Strix	{U}{B}	1	1	Artifact Creature — Bird
+Balthor the Defiled	{2}{B}{B}	2	2	Legendary Creature — Zombie Dwarf
+Bane of Progress	{4}{G}{G}	2	2	Creature — Elemental
+Baral, Chief of Compliance	{1}{U}	1	3	Legendary Creature — Human Wizard
+Barkchannel Pathway // Tidechannel Pathway	-	-	-	Land
+Baron Bertram Graywater	{2}{W}{B}	3	4	Legendary Creature — Vampire Noble
+Bartolomé del Presidio	{W}{B}	2	1	Legendary Creature — Vampire Knight
+Basilisk Collar	{1}	-	-	Artifact — Equipment
+Basri Ket	{1}{W}{W}	-	-	Legendary Planeswalker — Basri
+Bastion of Remembrance	{2}{B}	-	-	Enchantment
+Batterskull	{5}	-	-	Artifact — Equipment
+Battle Cry Goblin	{1}{R}	2	2	Creature — Goblin
+Battle Hymn	{1}{R}	-	-	Instant
+Battle Squadron	{3}{R}{R}	*	*	Creature — Goblin
+Battlefield Forge	-	-	-	Land
+Bayou	-	-	-	Land — Swamp Forest
+Bear Umbra	{2}{G}{G}	-	-	Enchantment — Aura
+Beast Whisperer	{2}{G}{G}	2	3	Creature — Elf Druid
+Beast Within	{2}{G}	-	-	Instant
+Beastmaster Ascension	{2}{G}	-	-	Enchantment
+Beetleback Chief	{2}{R}{R}	2	2	Creature — Goblin Warrior
+Beloved Beggar	{1}{W}	0	4	Creature — Human Peasant
+Benefactor's Draught	{1}{G}	-	-	Instant
+Berserk	{G}	-	-	Instant
+Betor, Kin to All	{2}{W}{B}{G}	5	7	Legendary Creature — Spirit Dragon
+Bident of Thassa	{2}{U}{U}	-	-	Legendary Enchantment Artifact
+Big Score	{3}{R}	-	-	Instant
+Bilious Skulldweller	{B}	1	1	Creature — Phyrexian Insect
+Binding the Old Gods	{2}{B}{G}	-	-	Enchantment — Saga
+Birchlore Rangers	{G}	1	1	Creature — Elf Druid Ranger
+Birds of Paradise	{G}	0	1	Creature — Bird
+Birthing Pod	{3}{G/P}	-	-	Artifact
+Birthing Ritual	{1}{G}	-	-	Enchantment
+Biting-Palm Ninja	{2}{B}	3	3	Creature — Human Ninja
+Bitterblossom	{1}{B}	-	-	Kindred Enchantment — Faerie
+Black Market	{3}{B}{B}	-	-	Enchantment
+Black Market Connections	{2}{B}	-	-	Enchantment
+Blackblade Reforged	{2}	-	-	Legendary Artifact — Equipment
+Blade Historian	{R/W}{R/W}{R/W}{R/W}	2	3	Creature — Human Cleric
+Blade of the Bloodchief	{1}	-	-	Artifact — Equipment
+Bladetusk Boar	{3}{R}	3	2	Creature — Boar
+Bladewing the Risen	{3}{B}{B}{R}{R}	4	4	Legendary Creature — Zombie Dragon
+Blasphemous Act	{8}{R}	-	-	Sorcery
+Blasphemous Edict	{3}{B}{B}	-	-	Sorcery
+Blasting Station	{3}	-	-	Artifact
+Blastoderm	{2}{G}{G}	5	5	Creature — Beast
+Blazemire Verge	-	-	-	Land
+Bleachbone Verge	-	-	-	Land
+Blessed Alliance	{1}{W}	-	-	Instant
+Blight Mound	{2}{B}	-	-	Enchantment
+Blightbelly Rat	{1}{B}	2	2	Creature — Phyrexian Rat
+Blighted Agent	{1}{U}	1	1	Creature — Phyrexian Human Rogue
+Blighted Woodland	-	-	-	Land
+Blightstep Pathway // Searstep Pathway	-	-	-	Land
+Blind Hunter	{2}{W}{B}	2	2	Creature — Bat
+Blind Obedience	{1}{W}	-	-	Enchantment
+Blinkmoth Nexus	-	-	-	Land
+Blitz Automaton	{7}	6	4	Artifact Creature — Construct
+Bloated Contaminator	{2}{G}	4	4	Creature — Phyrexian Beast
+Blood Artist	{1}{B}	0	1	Creature — Vampire
+Blood Crypt	-	-	-	Land — Swamp Mountain
+Blood Moon	{2}{R}	-	-	Enchantment
+Blood Seeker	{1}{B}	1	1	Creature — Vampire Shaman
+Blood Tribute	{4}{B}{B}	-	-	Sorcery
+Bloodchief Ascension	{B}	-	-	Enchantment
+Bloodfell Caves	-	-	-	Land
+Bloodghast	{B}{B}	2	1	Creature — Vampire Spirit
+Bloodletter of Aclazotz	{1}{B}{B}{B}	2	4	Creature — Vampire Demon
+Bloodline Keeper	{2}{B}{B}	3	3	Creature — Vampire
+Bloodline Necromancer	{4}{B}	3	2	Creature — Vampire Wizard
+Bloodmark Mentor	{1}{R}	1	1	Creature — Goblin Warrior
+Bloodsoaked Champion	{B}	2	1	Creature — Human Warrior
+Bloodstained Mire	-	-	-	Land
+Bloodthirsty Conqueror	{3}{B}{B}	5	5	Creature — Vampire Knight
+Blooming Marsh	-	-	-	Land
+Bloomvine Regent // Claim Territory	{3}{G}{G}	4	5	Creature — Dragon
+Bog Raiders	{2}{B}	2	2	Creature — Zombie
+Boggart Ram-Gang	{R/G}{R/G}{R/G}	3	3	Creature — Goblin Warrior
+Boggart Shenanigans	{2}{R}	-	-	Kindred Enchantment — Goblin
+Boggart Trawler // Boggart Bog	{2}{B}	3	1	Creature — Goblin
+Bojuka Bog	-	-	-	Land
+Bolas's Citadel	{3}{B}{B}{B}	-	-	Legendary Artifact
+Bolt Bend	{3}{R}	-	-	Instant
+Bone Saw	{0}	-	-	Artifact — Equipment
+Bonecrusher Giant // Stomp	{2}{R}	4	3	Creature — Giant
+Bontu's Monument	{3}	-	-	Legendary Artifact
+Boon Satyr	{1}{G}{G}	4	2	Enchantment Creature — Satyr
+Bootleggers' Stash	{5}{G}	-	-	Artifact
+Borne Upon a Wind	{1}{U}	-	-	Instant
+Boromir, Warden of the Tower	{2}{W}	3	3	Legendary Creature — Human Soldier
+Boros Charm	{R}{W}	-	-	Instant
+Boros Garrison	-	-	-	Land
+Boros Signet	{2}	-	-	Artifact
+Boseiju, Who Endures	-	-	-	Legendary Land
+Bottomless Pool // Locker Room	{U}	-	-	Enchantment — Room
+Bountiful Landscape	-	-	-	Land
+Bountiful Promenade	-	-	-	Land
+Bounty of Skemfar	{2}{G}	-	-	Sorcery
+Braided Net	{2}{U}	-	-	Artifact
+Braids, Arisen Nightmare	{1}{B}{B}	3	3	Legendary Creature — Nightmare
+Brainstorm	{U}	-	-	Instant
+Brainsurge	{2}{U}	-	-	Instant
+Brallin, Skyshark Rider	{3}{R}	3	3	Legendary Creature — Human Shaman
+Brash Taunter	{4}{R}	1	1	Creature — Goblin
+Brave the Sands	{1}{W}	-	-	Enchantment
+Breath of Fury	{2}{R}{R}	-	-	Enchantment — Aura
+Breeding Pool	-	-	-	Land — Forest Island
+Breena, the Demagogue	{1}{W}{B}	1	3	Legendary Creature — Bird Warlock
+Briarblade Adept	{4}{B}	3	4	Creature — Elf Assassin
+Bridgeworks Battle // Tanglespan Bridgeworks	{2}{G}	-	-	Sorcery
+Brightclimb Pathway // Grimclimb Pathway	-	-	-	Land
+Brightstone Ritual	{R}	-	-	Instant
+Broken Bond	{1}{G}	-	-	Sorcery
+Brokers Ascendancy	{G}{W}{U}	-	-	Enchantment
+Brokers Hideout	-	-	-	Land
+Brokkos, Apex of Forever	{2}{B}{G}{U}	6	6	Legendary Creature — Nightmare Beast Elemental
+Broodcaller Scourge	{5}{G}{G}	5	7	Creature — Dragon
+Brotherhood's End	{1}{R}{R}	-	-	Sorcery
+Brutal Cathar	{2}{W}	2	2	Creature — Human Soldier Werewolf
+Burgeoning	{G}	-	-	Enchantment
+Burglar Rat	{1}{B}	1	1	Creature — Rat
+Buried Alive	{2}{B}	-	-	Sorcery
+Buried Ruin	-	-	-	Land
+Burst Lightning	{R}	-	-	Instant
+Butcher of Malakir	{5}{B}{B}	5	4	Creature — Vampire Warrior
+By Invitation Only	{3}{W}{W}	-	-	Sorcery
+Bygone Colossus	{9}	9	9	Artifact Creature — Robot Giant
+Cabal Coffers	-	-	-	Land
+Cabal Stronghold	-	-	-	Land
+Cached Defenses	{2}{G}	-	-	Sorcery
+Caesar, Legion's Emperor	{1}{R}{W}{B}	4	4	Legendary Creature — Human Soldier
+Caged Sun	{6}	-	-	Artifact
+Call of the Nightwing	{2}{U}{B}	-	-	Sorcery
+Call of the Ring	{1}{B}	-	-	Enchantment
+Call the Spirit Dragons	{W}{U}{B}{R}{G}	-	-	Enchantment
+Camellia, the Seedmiser	{1}{B}{G}	3	3	Legendary Creature — Squirrel Warlock
+Cankerbloom	{1}{G}	3	2	Creature — Phyrexian Fungus
+Canopy Crawler	{3}{G}	2	2	Creature — Beast
+Canopy Tactician	{3}{G}	3	3	Creature — Elf Warrior
+Canopy Vista	-	-	-	Land — Forest Plains
+Captain Lannery Storm	{2}{R}	2	2	Legendary Creature — Human Pirate
+Captivating Vampire	{1}{B}{B}	2	2	Creature — Vampire
+Carmen, Cruel Skymarcher	{3}{W}{B}	2	2	Legendary Creature — Vampire Soldier
+Carnelian Orb of Dragonkind	{2}{R}	-	-	Artifact
+Carrion Feeder	{B}	1	1	Creature — Zombie
+Carth the Lion	{2}{B}{G}	3	5	Legendary Creature — Human Warrior
+Cascade Bluffs	-	-	-	Land
+Case of the Locked Hothouse	{3}{G}	-	-	Enchantment — Case
+Castle Ardenvale	-	-	-	Land
+Castle Embereth	-	-	-	Land
+Castle Locthwain	-	-	-	Land
+Castle Vantress	-	-	-	Land
+Casualties of War	{2}{B}{B}{G}{G}	-	-	Sorcery
+Cathar Commando	{1}{W}	3	1	Creature — Human Soldier
+Cathar's Shield	{0}	-	-	Artifact — Equipment
+Cathars' Crusade	{3}{W}{W}	-	-	Enchantment
+Caustic Caterpillar	{G}	1	1	Creature — Insect
+Cavern of Souls	-	-	-	Land
+Cavern-Hoard Dragon	{7}{R}{R}	6	6	Creature — Dragon
+Caves of Koilos	-	-	-	Land
+Chained to the Rocks	{W}	-	-	Enchantment — Aura
+Champion of Dusk	{3}{B}{B}	4	4	Creature — Vampire Knight
+Champion of Lambholt	{1}{G}{G}	1	1	Creature — Human Warrior
+Chandra, Flamecaller	{4}{R}{R}	-	-	Legendary Planeswalker — Chandra
+Changeling Hero	{4}{W}	4	4	Creature — Shapeshifter
+Changeling Outcast	{B}	1	1	Creature — Shapeshifter
+Chaos Warp	{2}{R}	-	-	Instant
+Charismatic Conqueror	{1}{W}	2	2	Creature — Vampire Soldier
+Chart a Course	{1}{U}	-	-	Sorcery
+Chasm Skulker	{2}{U}	1	1	Creature — Squid Horror
+Chivalric Alliance	{1}{W}	-	-	Enchantment
+Choked Estuary	-	-	-	Land
+Chord of Calling	{X}{G}{G}{G}	-	-	Instant
+Chromatic Lantern	{3}	-	-	Artifact
+Chrome Mox	{0}	-	-	Artifact
+Chulane, Teller of Tales	{2}{G}{W}{U}	2	4	Legendary Creature — Human Druid
+Cinder Glade	-	-	-	Land — Mountain Forest
+Circle of Dreams Druid	{G}{G}{G}	2	1	Creature — Elf Druid
+Citanul Hierophants	{3}{G}	3	2	Creature — Human Druid
+City of Brass	-	-	-	Land
+City on Fire	{5}{R}{R}{R}	-	-	Enchantment
+Clavileño, First of the Blessed	{1}{W}{B}	2	2	Legendary Creature — Vampire Cleric
+Claws of Gix	{0}	-	-	Artifact
+Clearwater Pathway // Murkwater Pathway	-	-	-	Land
+Clifftop Retreat	-	-	-	Land
+Cloud of Faeries	{1}{U}	1	1	Creature — Faerie
+Cloudfin Raptor	{U}	0	1	Creature — Bird Mutant
+Cloudstone Curio	{3}	-	-	Artifact
+Coalition Skyknight	{3}{W}	2	2	Creature — Human Knight
+Coastal Piracy	{2}{U}{U}	-	-	Enchantment
+Coiling Oracle	{G}{U}	1	1	Creature — Snake Elf Druid
+Collective Resistance	{1}{G}	-	-	Instant
+Collector Ouphe	{1}{G}	2	2	Creature — Ouphe
+Combat Celebrant	{2}{R}	4	1	Creature — Human Warrior
+Command Beacon	-	-	-	Land
+Command Tower	-	-	-	Land
+Commander's Plate	{1}	-	-	Artifact — Equipment
+Commander's Sphere	{3}	-	-	Artifact
+Commissar Severina Raine	{1}{W}{B}	2	2	Legendary Creature — Human Soldier
+Commit // Memory	{3}{U}	-	-	Instant
+Complete the Circuit	{5}{U}	-	-	Instant
+Concealed Courtyard	-	-	-	Land
+Conclave Mentor	{G}{W}	2	2	Creature — Centaur Cleric
+Concordant Crossroads	{G}	-	-	World Enchantment
+Connive // Concoct	{2}{U/B}{U/B}	-	-	Sorcery
+Consecrated Sphinx	{4}{U}{U}	4	6	Creature — Sphinx
+Consider	{U}	-	-	Instant
+Consign // Oblivion	{1}{U}	-	-	Instant
+Constant Mists	{1}{G}	-	-	Instant
+Contagion Clasp	{2}	-	-	Artifact
+Contaminant Grafter	{4}{G}	5	5	Creature — Phyrexian Druid
+Contentious Plan	{1}{U}	-	-	Sorcery
+Copperhorn Scout	{G}	1	1	Creature — Elf Scout
+Cordial Vampire	{B}{B}	1	1	Creature — Vampire
+Corpsejack Menace	{2}{B}{G}	4	4	Creature — Fungus
+Corrupted Conviction	{B}	-	-	Instant
+Counterspell	{U}{U}	-	-	Instant
+Courser of Kruphix	{1}{G}{G}	2	4	Enchantment Creature — Centaur
+Cover of Darkness	{1}{B}	-	-	Enchantment
+Crackling Doom	{R}{W}{B}	-	-	Instant
+Cragcrown Pathway // Timbercrown Pathway	-	-	-	Land
+Crashing Drawbridge	{2}	0	4	Artifact Creature — Wall
+Craterhoof Behemoth	{5}{G}{G}{G}	5	5	Creature — Beast
+Creeping Bloodsucker	{1}{B}	1	2	Creature — Vampire
+Creeping Tar Pit	-	-	-	Land
+Crimestopper Sprite	{2}{U}	2	2	Creature — Faerie Detective
+Crippling Fear	{2}{B}{B}	-	-	Sorcery
+Crop Rotation	{G}	-	-	Instant
+Crossway Troublemakers	{5}{B}	5	5	Creature — Vampire
+Crown of Skemfar	{2}{G}{G}	-	-	Enchantment — Aura
+Crucible of Fire	{3}{R}	-	-	Enchantment
+Crucible of Worlds	{3}	-	-	Artifact
+Crucible of the Spirit Dragon	-	-	-	Land
+Cruel Celebrant	{W}{B}	1	2	Creature — Vampire
+Crux of Fate	{3}{B}{B}	-	-	Sorcery
+Crypt Ghast	{3}{B}	2	2	Creature — Spirit
+Crypt of Agadeem	-	-	-	Land
+Cryptic Coat	{2}{U}	-	-	Artifact — Equipment
+Cryptic Command	{1}{U}{U}{U}	-	-	Instant
+Cryptolith Rite	{1}{G}	-	-	Enchantment
+Crystal Barricade	{1}{W}	0	4	Artifact Creature — Wall
+Culling Ritual	{2}{B}{G}	-	-	Sorcery
+Culling the Weak	{B}	-	-	Instant
+Cult Conscript	{B}	2	1	Creature — Skeleton Warrior
+Cultivate	{2}{G}	-	-	Sorcery
+Cultivator Colossus	{4}{G}{G}{G}	*	*	Creature — Plant Beast
+Cunning Evasion	{1}{U}	-	-	Enchantment
+Curiosity	{U}	-	-	Enchantment — Aura
+Curiosity Crafter	{3}{U}	3	3	Creature — Bird Wizard
+Curse of Opulence	{R}	-	-	Enchantment — Aura Curse
+Curtains' Call	{5}{B}	-	-	Instant
+Cut // Ribbons	{1}{R}	-	-	Sorcery
+Cyber Conversion	{U}{U}	-	-	Instant
+Cyclonic Rift	{1}{U}	-	-	Instant
+Damn	{B}{B}	-	-	Sorcery
+Damnation	{2}{B}{B}	-	-	Sorcery
+Danitha Capashen, Paragon	{2}{W}	2	2	Legendary Creature — Human Knight
+Dark Petition	{3}{B}{B}	-	-	Sorcery
+Dark Prophecy	{B}{B}{B}	-	-	Enchantment
+Dark Ritual	{B}	-	-	Instant
+Darkbore Pathway // Slitherbore Pathway	-	-	-	Land
+Darkslick Shores	-	-	-	Land
+Darksteel Colossus	{11}	11	11	Artifact Creature — Golem
+Darksteel Garrison	{2}	-	-	Artifact — Fortification
+Darksteel Ingot	{3}	-	-	Artifact
+Darksteel Mutation	{1}{W}	-	-	Enchantment — Aura
+Darkwater Catacombs	-	-	-	Land
+Dauthi Slayer	{B}{B}	2	2	Creature — Dauthi Soldier
+Dawn's Truce	{1}{W}	-	-	Instant
+Dawnstrike Vanguard	{5}{W}	4	5	Creature — Human Knight
+Deadbridge Goliath	{2}{G}{G}	5	5	Creature — Insect
+Deadly Dispute	{1}{B}	-	-	Instant
+Deadly Rollick	{3}{B}	-	-	Instant
+Deadly Tempest	{4}{B}{B}	-	-	Sorcery
+Deafening Silence	{W}	-	-	Enchantment
+Deathcap Glade	-	-	-	Land
+Deathrite Shaman	{B/G}	1	2	Creature — Elf Shaman
+Decadent Dragon // Expensive Taste	{2}{R}{R}	4	4	Creature — Dragon
+Decanter of Endless Water	{3}	-	-	Artifact
+Deep Gnome Terramancer	{1}{W}	2	2	Creature — Gnome Wizard
+Deflecting Swat	{2}{R}	-	-	Instant
+Delighted Halfling	{G}	1	2	Creature — Halfling Citizen
+Delney, Streetwise Lookout	{2}{W}	2	2	Legendary Creature — Human Scout
+Delver of Secrets	{U}	1	1	Creature — Human Wizard
+Demolition Field	-	-	-	Land
+Demon's Disciple	{2}{B}	3	1	Creature — Human Cleric
+Demonic Tutor	{1}{B}	-	-	Sorcery
+Den Protector	{1}{G}	2	1	Creature — Human Warrior
+Den of the Bugbear	-	-	-	Land
+Derevi, Empyrial Tactician	{G}{W}{U}	2	3	Legendary Creature — Bird Wizard
+Desert of the Fervent	-	-	-	Land — Desert
+Desert of the True	-	-	-	Land — Desert
+Deserted Temple	-	-	-	Land
+Despark	{W}{B}	-	-	Instant
+Destiny Spinner	{1}{G}	2	3	Enchantment Creature — Human
+Devilish Valet	{2}{R}	1	3	Creature — Devil Warrior
+Devoted Retainer	{W}	1	1	Creature — Human Samurai
+Diabolic Intent	{1}{B}	-	-	Sorcery
+Diabolic Tutor	{2}{B}{B}	-	-	Sorcery
+Diamond Pick-Axe	{R}	-	-	Artifact — Equipment
+Diamond Valley	-	-	-	Land
+Dictate of Erebos	{3}{B}{B}	-	-	Enchantment
+Dig Through Time	{6}{U}{U}	-	-	Instant
+Dimensional Exile	{1}{W}	-	-	Enchantment — Aura
+Dimir Aqueduct	-	-	-	Land
+Dimir Guildgate	-	-	-	Land — Gate
+Dimir Infiltrator	{U}{B}	1	3	Creature — Spirit
+Dimir Signet	{2}	-	-	Artifact
+Dionus, Elvish Archdruid	{3}{G}	3	3	Legendary Creature — Elf Druid
+Diresight	{2}{B}	-	-	Sorcery
+Disciple of Freyalise	{3}{G}{G}{G}	3	3	Creature — Elf Druid
+Dismember	{1}{B/P}{B/P}	-	-	Instant
+Dispatch	{W}	-	-	Instant
+Dispel	{U}	-	-	Instant
+Divination	{2}{U}	-	-	Sorcery
+Docent of Perfection	{3}{U}{U}	5	4	Creature — Insect Horror
+Dockside Extortionist	{1}{R}	1	2	Creature — Goblin Pirate
+Dokuchi Silencer	{1}{B}	2	1	Creature — Human Ninja
+Dolmen Gate	{2}	-	-	Artifact
+Doom Blade	{1}{B}	-	-	Instant
+Doom Whisperer	{3}{B}{B}	6	6	Creature — Nightmare Demon
+Doomed Traveler	{W}	1	1	Creature — Human Soldier
+Doubling Season	{4}{G}	-	-	Enchantment
+Dour Port-Mage	{1}{U}	1	3	Creature — Frog Wizard
+Dovin's Veto	{W}{U}	-	-	Instant
+Dragon Fodder	{1}{R}	-	-	Sorcery
+Dragon Tempest	{1}{R}	-	-	Enchantment
+Dragon's Hoard	{3}	-	-	Artifact
+Dragonlord Dromoka	{4}{G}{W}	5	7	Legendary Creature — Elder Dragon
+Dragonlord Kolaghan	{4}{B}{R}	6	5	Legendary Creature — Elder Dragon
+Dragonlord Ojutai	{3}{W}{U}	5	4	Legendary Creature — Elder Dragon
+Dragonlord Silumgar	{4}{U}{B}	3	5	Legendary Creature — Elder Dragon
+Dragonlord's Servant	{1}{R}	1	3	Creature — Goblin Shaman
+Dragonmaster Outcast	{R}	1	1	Creature — Human Shaman
+Dragonskull Summit	-	-	-	Land
+Dragonspeaker Shaman	{1}{R}{R}	2	2	Creature — Human Barbarian Shaman
+Dragonstorm Globe	{3}	-	-	Artifact
+Drakuseth, Maw of Flames	{4}{R}{R}{R}	7	7	Legendary Creature — Dragon
+Drana and Linvala	{1}{W}{W}{B}	3	4	Legendary Creature — Vampire Angel
+Drana, Liberator of Malakir	{1}{B}{B}	2	3	Legendary Creature — Vampire Ally
+Drannith Magistrate	{1}{W}	1	3	Creature — Human Wizard
+Dread Return	{2}{B}{B}	-	-	Sorcery
+Dreadhorde Invasion	{1}{B}	-	-	Enchantment
+Dreadhound	{4}{B}{B}	6	6	Creature — Demon Dog
+Dreamroot Cascade	-	-	-	Land
+Dreamstone Hedron	{6}	-	-	Artifact
+Dreamtide Whale	{2}{U}	7	5	Creature — Whale
+Dregscape Zombie	{1}{B}	2	1	Creature — Zombie
+Drifting Meadow	-	-	-	Land
+Drivnod, Carnage Dominus	{3}{B}{B}	8	3	Legendary Creature — Phyrexian Horror
+Dromoka, the Eternal	{3}{G}{W}	5	5	Legendary Creature — Dragon
+Drown in Ichor	{1}{B}	-	-	Sorcery
+Drowned Catacomb	-	-	-	Land
+Drudge Skeletons	{1}{B}	1	1	Creature — Skeleton
+Druid Class	{1}{G}	-	-	Enchantment — Class
+Druids' Repository	{1}{G}{G}	-	-	Enchantment
+Dryad Arbor	-	1	1	Land Creature — Forest Dryad
+Dryad of the Ilysian Grove	{2}{G}	2	4	Enchantment Creature — Nymph Dryad
+Duelist's Heritage	{2}{W}	-	-	Enchantment
+Dusk Legion Duelist	{1}{W}	2	2	Creature — Vampire Soldier
+Dusk Legion Zealot	{1}{B}	1	1	Creature — Vampire Soldier
+Dwynen's Elite	{1}{G}	2	2	Creature — Elf Warrior
+Dwynen, Gilt-Leaf Daen	{2}{G}{G}	3	4	Legendary Creature — Elf Warrior
+Earthquake Dragon	{14}{G}	10	10	Creature — Elemental Dragon
+Eaten by Piranhas	{1}{U}	-	-	Enchantment — Aura
+Echo of Eons	{4}{U}{U}	-	-	Sorcery
+Edgar Markov	{3}{R}{W}{B}	4	4	Legendary Creature — Vampire Knight
+Edric, Spymaster of Trest	{1}{G}{U}	2	2	Legendary Creature — Elf Rogue
+Eerie Ultimatum	{W}{W}{B}{B}{B}{G}{G}	-	-	Sorcery
+Eidolon of Rhetoric	{2}{W}	1	4	Enchantment Creature — Spirit
+Eiganjo, Seat of the Empire	-	-	-	Legendary Land
+Eladamri's Call	{G}{W}	-	-	Instant
+Elas il-Kor, Sadistic Pilgrim	{W}{B}	2	2	Legendary Creature — Phyrexian Kor Cleric
+Elder Deep-Fiend	{8}	5	6	Creature — Eldrazi Octopus
+Elderfang Ritualist	{2}{B}	3	1	Creature — Elf Cleric
+Elderfang Venom	{2}{B}{G}	-	-	Enchantment
+Eldrazi Monument	{5}	-	-	Artifact
+Eldritch Evolution	{1}{G}{G}	-	-	Sorcery
+Elemental Bond	{2}{G}	-	-	Enchantment
+Elenda's Hierophant	{2}{W}	1	1	Creature — Vampire Cleric
+Elenda, the Dusk Rose	{2}{W}{B}	1	1	Legendary Creature — Vampire Knight
+Elesh Norn, Grand Cenobite	{5}{W}{W}	4	7	Legendary Creature — Phyrexian Praetor
+Elesh Norn, Mother of Machines	{4}{W}	4	7	Legendary Creature — Phyrexian Praetor
+Elspeth, Storm Slayer	{3}{W}{W}	-	-	Legendary Planeswalker — Elspeth
+Elspeth, Sun's Champion	{4}{W}{W}	-	-	Legendary Planeswalker — Elspeth
+Elven Ambush	{3}{G}	-	-	Instant
+Elven Chorus	{3}{G}	-	-	Enchantment
+Elves of Deep Shadow	{G}	1	1	Creature — Elf Druid
+Elvish Archdruid	{1}{G}{G}	2	2	Creature — Elf Druid
+Elvish Champion	{1}{G}{G}	2	2	Creature — Elf
+Elvish Dreadlord	{3}{B}{B}	3	3	Creature — Zombie Elf
+Elvish Guidance	{2}{G}	-	-	Enchantment — Aura
+Elvish Harbinger	{2}{G}	1	2	Creature — Elf Druid
+Elvish Mystic	{G}	1	1	Creature — Elf Druid
+Elvish Promenade	{3}{G}	-	-	Kindred Sorcery — Elf
+Elvish Reclaimer	{G}	1	2	Creature — Elf Warrior
+Elvish Spirit Guide	{2}{G}	2	2	Creature — Elf Spirit
+Elvish Visionary	{1}{G}	1	1	Creature — Elf Shaman
+Elvish Warmaster	{1}{G}	2	2	Creature — Elf Warrior
+Emerald Medallion	{2}	-	-	Artifact
+Emergency Eject	{2}{W}	-	-	Instant
+Emeria, the Sky Ruin	-	-	-	Land
+Empty the Warrens	{3}{R}	-	-	Sorcery
+Empyrial Plate	{2}	-	-	Artifact — Equipment
+Emrakul, the Promised End	{13}	13	13	Legendary Creature — Eldrazi
+Encroaching Dragonstorm	{3}{G}	-	-	Enchantment
+Endurance	{1}{G}{G}	3	4	Creature — Elemental Incarnation
+Enduring Curiosity	{2}{U}{U}	4	3	Enchantment Creature — Cat Glimmer
+Enduring Vitality	{1}{G}{G}	3	3	Enchantment Creature — Elk Glimmer
+Enlightened Tutor	{W}	-	-	Instant
+Entish Restoration	{2}{G}	-	-	Instant
+Entomb	{B}	-	-	Instant
+Ephemerate	{W}	-	-	Instant
+Esper Sentinel	{W}	1	1	Artifact Creature — Human Soldier
+Etali, Primal Storm	{4}{R}{R}	6	6	Legendary Creature — Elder Dinosaur
+Etchings of the Chosen	{1}{W}{B}	-	-	Enchantment
+Eternal Witness	{1}{G}{G}	2	1	Creature — Human Shaman
+Ethersworn Canonist	{1}{W}	2	2	Artifact Creature — Human Cleric
+Everflowing Chalice	{0}	-	-	Artifact
+Evolution Charm	{1}{G}	-	-	Instant
+Evolution Sage	{2}{G}	3	2	Creature — Elf Druid
+Evolving Wilds	-	-	-	Land
+Exalted Angel	{4}{W}{W}	4	5	Creature — Angel
+Excise the Imperfect	{1}{W}{W}	-	-	Instant
+Exotic Orchard	-	-	-	Land
+Experimental Augury	{1}{U}	-	-	Instant
+Exploration	{G}	-	-	Enchantment
+Explore	{1}{G}	-	-	Sorcery
+Explosive Vegetation	{3}{G}	-	-	Sorcery
+Exquisite Blood	{4}{B}	-	-	Enchantment
+Exsanguinate	{X}{B}{B}	-	-	Sorcery
+Exuberant Fuseling	{R}	0	1	Creature — Phyrexian Goblin Warrior
+Eyeblight Massacre	{2}{B}{B}	-	-	Sorcery
+Ezuri, Renegade Leader	{1}{G}{G}	2	2	Legendary Creature — Elf Warrior
+Ezuri, Stalker of Spheres	{2}{G}{U}	3	3	Legendary Creature — Phyrexian Elf Warrior
+Fable of the Mirror-Breaker	{2}{R}	-	-	Enchantment — Saga
+Fabled Passage	-	-	-	Land
+Faeburrow Elder	{1}{G}{W}	0	0	Creature — Treefolk Druid
+Faerie Seer	{U}	1	1	Creature — Faerie Wizard
+Faithless Looting	{R}	-	-	Sorcery
+Falkenrath Noble	{3}{B}	2	2	Creature — Vampire Noble
+Falkenrath Pit Fighter	{R}	2	1	Creature — Vampire Warrior
+Fanatic of Xenagos	{1}{R}{G}	3	3	Creature — Centaur Warrior
+Farewell	{4}{W}{W}	-	-	Sorcery
+Farhaven Elf	{2}{G}	1	1	Creature — Elf Druid
+Farseek	{1}{G}	-	-	Sorcery
+Fateful Showdown	{2}{R}{R}	-	-	Instant
+Fathom Mage	{2}{G}{U}	1	1	Creature — Human Wizard
+Fauna Shaman	{1}{G}	2	2	Creature — Elf Shaman
+Fecundity	{2}{G}	-	-	Enchantment
+Feed the Swarm	{1}{B}	-	-	Sorcery
+Felidar Retreat	{3}{W}	-	-	Enchantment
+Fell Specter	{3}{B}	1	3	Creature — Specter
+Fell Stinger	{2}{B}	3	2	Creature — Zombie Scorpion
+Fell the Profane // Fell Mire	{2}{B}{B}	-	-	Instant
+Fellwar Stone	{2}	-	-	Artifact
+Fervent Charge	{1}{R}{W}{B}	-	-	Enchantment
+Fervor	{2}{R}	-	-	Enchantment
+Fetid Heath	-	-	-	Land
+Field of the Dead	-	-	-	Land
+Fierce Empath	{2}{G}	1	1	Creature — Elf
+Fierce Guardianship	{2}{U}	-	-	Instant
+Fiery Emancipation	{3}{R}{R}{R}	-	-	Enchantment
+Fiery Islet	-	-	-	Land
+Fiery Temper	{1}{R}{R}	-	-	Instant
+Filter Out	{1}{U}{U}	-	-	Instant
+Final Showdown	{W}	-	-	Instant
+Finale of Devastation	{X}{G}{G}	-	-	Sorcery
+Fire Covenant	{1}{B}{R}	-	-	Instant
+Fire Diamond	{2}	-	-	Artifact
+Flame Jab	{R}	-	-	Sorcery
+Flamekin Village	-	-	-	Land
+Flare of Cultivation	{1}{G}{G}	-	-	Sorcery
+Flare of Denial	{1}{U}{U}	-	-	Instant
+Flare of Fortitude	{2}{W}{W}	-	-	Instant
+Flare of Malice	{2}{B}{B}	-	-	Instant
+Flawless Maneuver	{2}{W}	-	-	Instant
+Fleshbag Marauder	{2}{B}	3	1	Creature — Zombie Warrior
+Flooded Grove	-	-	-	Land
+Flooded Strand	-	-	-	Land
+Florian, Voldaren Scion	{1}{B}{R}	3	3	Legendary Creature — Vampire Noble
+Flowerfoot Swordmaster	{W}	1	2	Creature — Mouse Soldier
+Flusterstorm	{U}	-	-	Instant
+Flux Channeler	{2}{U}	2	2	Creature — Human Wizard
+Fog	{G}	-	-	Instant
+Follow the Bodies	{2}{U}	-	-	Sorcery
+Food Chain	{2}{G}	-	-	Enchantment
+Footbottom Feast	{2}{B}	-	-	Instant
+Forbidden Orchard	-	-	-	Land
+Force of Despair	{1}{B}{B}	-	-	Instant
+Force of Negation	{1}{U}{U}	-	-	Instant
+Force of Vigor	{2}{G}{G}	-	-	Instant
+Force of Will	{3}{U}{U}	-	-	Instant
+Foreboding Ruins	-	-	-	Land
+Forerunner of Slaughter	{B}{R}	3	2	Creature — Eldrazi Drone
+Forerunner of the Legion	{2}{W}	2	2	Creature — Vampire Knight
+Forest	-	-	-	Basic Land — Forest
+Forever Young	{1}{B}	-	-	Sorcery
+Forger's Foundry	{2}{U}	-	-	Artifact
+Forgotten Ancient	{3}{G}	0	3	Creature — Elemental
+Forgotten Cave	-	-	-	Land
+Forsaken Miner	{B}	2	2	Creature — Skeleton Rogue
+Foul Orchard	-	-	-	Land
+Foundry Street Denizen	{R}	1	1	Creature — Goblin Warrior
+Fracture	{W}{B}	-	-	Instant
+Frantic Scapegoat	{R}	1	1	Creature — Goat
+Frantic Search	{2}{U}	-	-	Instant
+Freyalise, Llanowar's Fury	{3}{G}{G}	-	-	Legendary Planeswalker — Freyalise
+Frodo, Sauron's Bane	{W}	1	2	Legendary Creature — Halfling Citizen
+Frogmite	{4}	2	2	Artifact Creature — Frog
+Frontier Bivouac	-	-	-	Land
+Frontier Siege	{3}{G}	-	-	Enchantment
+Frostboil Snarl	-	-	-	Land
+Fumigate	{3}{W}{W}	-	-	Sorcery
+Funeral Room // Awakening Hall	{2}{B}	-	-	Enchantment — Room
+Furtive Homunculus	{1}{U}	2	1	Creature — Homunculus
+Furycalm Snarl	-	-	-	Land
+Future Sight	{2}{U}{U}{U}	-	-	Enchantment
+Fyndhorn Elves	{G}	1	1	Creature — Elf Druid
+Gaea's Cradle	-	-	-	Legendary Land
+Galadhrim Ambush	{3}{G}	-	-	Instant
+Galadhrim Brigade	{2}{G}	2	2	Creature — Elf Soldier
+Gamble	{R}	-	-	Sorcery
+Ganax, Astral Hunter	{4}{R}	3	4	Legendary Creature — Dragon
+Garruk's Uprising	{2}{G}	-	-	Enchantment
+Garruk, Primal Hunter	{2}{G}{G}{G}	-	-	Legendary Planeswalker — Garruk
+Geier Reach Sanitarium	-	-	-	Legendary Land
+Gemrazer	{3}{G}	4	4	Creature — Beast
+Gemstone Array	{4}	-	-	Artifact
+Gemstone Caverns	-	-	-	Legendary Land
+General Kreat, the Boltbringer	{2}{R}	2	2	Legendary Creature — Goblin Soldier
+Generous Gift	{2}{W}	-	-	Instant
+Geological Appraiser	{2}{R}{R}	3	2	Creature — Human Artificer
+Ghalta, Primal Hunger	{10}{G}{G}	12	12	Legendary Creature — Elder Dinosaur
+Ghave, Guru of Spores	{2}{W}{B}{G}	0	0	Legendary Creature — Fungus Shaman
+Ghor-Clan Rampager	{2}{R}{G}	4	4	Creature — Beast
+Ghost Quarter	-	-	-	Land
+Ghostly Prison	{2}{W}	-	-	Enchantment
+Gifted Aetherborn	{B}{B}	2	3	Creature — Aetherborn Vampire
+Gilded Drake	{1}{U}	3	3	Creature — Drake
+Gilt-Leaf Palace	-	-	-	Land
+Gingerbrute	{1}	1	1	Artifact Creature — Food Golem
+Gitaxian Probe	{U/P}	-	-	Sorcery
+Glacial Fortress	-	-	-	Land
+Glacial Ray	{1}{R}	-	-	Instant — Arcane
+Glacierwood Siege	{1}{G}{U}	-	-	Enchantment
+Glare of Subdual	{2}{G}{W}	-	-	Enchantment
+Glimmer Lens	{1}{W}	-	-	Artifact — Equipment
+Glint-Horn Buccaneer	{1}{R}{R}	2	4	Creature — Minotaur Pirate
+Glissa Sunslayer	{1}{B}{G}	3	3	Legendary Creature — Phyrexian Zombie Elf
+Glistener Elf	{G}	1	1	Creature — Phyrexian Elf Warrior
+Glistening Sphere	{3}	-	-	Artifact
+Gloomlake Verge	-	-	-	Land
+Glowstone Recluse	{2}{G}	2	3	Creature — Spider
+Gnarlroot Trapper	{B}	1	1	Creature — Elf Druid
+Go for the Throat	{1}{B}	-	-	Instant
+Goblin Bombardment	{1}{R}	-	-	Enchantment
+Goblin Bushwhacker	{R}	1	1	Creature — Goblin Warrior
+Goblin Chainwhirler	{R}{R}{R}	3	3	Creature — Goblin Warrior
+Goblin Chieftain	{1}{R}{R}	2	2	Creature — Goblin
+Goblin Chirurgeon	{R}	0	2	Creature — Goblin Shaman
+Goblin Cratermaker	{1}{R}	2	2	Creature — Goblin Warrior
+Goblin Electromancer	{U}{R}	2	2	Creature — Goblin Wizard
+Goblin Grappler	{R}	1	1	Creature — Goblin
+Goblin Grenade	{R}	-	-	Sorcery
+Goblin Instigator	{1}{R}	1	1	Creature — Goblin Rogue
+Goblin King	{1}{R}{R}	2	2	Creature — Goblin
+Goblin Lackey	{R}	1	1	Creature — Goblin
+Goblin Lookout	{1}{R}	1	2	Creature — Goblin
+Goblin Matron	{2}{R}	1	1	Creature — Goblin
+Goblin Motivator	{R}	1	1	Creature — Goblin Warrior
+Goblin Negotiation	{X}{R}{R}	-	-	Sorcery
+Goblin Piledriver	{1}{R}	1	2	Creature — Goblin Warrior
+Goblin Rabblemaster	{2}{R}	2	2	Creature — Goblin Warrior
+Goblin Rally	{3}{R}{R}	-	-	Sorcery
+Goblin Recruiter	{1}{R}	1	1	Creature — Goblin
+Goblin Ringleader	{3}{R}	2	2	Creature — Goblin
+Goblin Sharpshooter	{2}{R}	1	1	Creature — Goblin
+Goblin Sledder	{R}	1	1	Creature — Goblin
+Goblin Surprise	{2}{R}	-	-	Instant
+Goblin Trashmaster	{2}{R}{R}	3	3	Creature — Goblin Warrior
+Goblin War Drums	{2}{R}	-	-	Enchantment
+Goblin War Party	{3}{R}	-	-	Sorcery
+Goblin War Strike	{R}	-	-	Sorcery
+Goblin Warchief	{1}{R}{R}	2	2	Creature — Goblin Warrior
+Goblin Wardriver	{R}{R}	2	2	Creature — Goblin Warrior
+Godless Shrine	-	-	-	Land — Plains Swamp
+Goldhound	{R}	1	1	Artifact Creature — Treasure Dog
+Goldnight Commander	{3}{W}	2	2	Creature — Human Cleric Soldier
+Goldspan Dragon	{3}{R}{R}	4	4	Creature — Dragon
+Golgari Charm	{B}{G}	-	-	Instant
+Golgari Findbroker	{B}{B}{G}{G}	3	4	Creature — Elf Shaman
+Golgari Grave-Troll	{4}{G}	0	0	Creature — Troll Skeleton
+Golgari Guildgate	-	-	-	Land — Gate
+Golgari Rot Farm	-	-	-	Land
+Golgari Signet	{2}	-	-	Artifact
+Golos, Tireless Pilgrim	{5}	3	5	Legendary Artifact Creature — Scout
+Goro-Goro, Disciple of Ryusei	{1}{R}	2	2	Legendary Creature — Goblin Samurai
+Grand Abolisher	{W}{W}	2	2	Creature — Human Cleric
+Grand Warlord Radha	{2}{R}{G}	3	4	Legendary Creature — Elf Warrior
+Grateful Apparition	{1}{W}	1	1	Creature — Spirit
+Grave Pact	{1}{B}{B}{B}	-	-	Enchantment
+Grave Titan	{4}{B}{B}	6	6	Creature — Giant
+Graven Cairns	-	-	-	Land
+Gravepurge	{2}{B}	-	-	Instant
+Gray Merchant of Asphodel	{3}{B}{B}	2	4	Creature — Zombie
+Great Oak Guardian	{5}{G}	4	5	Creature — Treefolk
+Greater Good	{2}{G}{G}	-	-	Enchantment
+Green Sun's Zenith	{X}{G}	-	-	Sorcery
+Greensleeves, Maro-Sorcerer	{3}{G}{G}	*	*	Legendary Creature — Elemental Sorcerer
+Grenzo, Havoc Raiser	{R}{R}	2	2	Legendary Creature — Goblin Rogue
+Greymond, Avacyn's Stalwart	{2}{W}{W}	3	4	Legendary Creature — Human Soldier
+Grief	{2}{B}{B}	3	2	Creature — Elemental Incarnation
+Grim Backwoods	-	-	-	Land
+Grim Haruspex	{2}{B}	3	2	Creature — Human Wizard
+Grim Harvest	{1}{B}	-	-	Instant
+Grim Hireling	{3}{B}	3	2	Creature — Tiefling Rogue
+Grim Tutor	{1}{B}{B}	-	-	Sorcery
+Grisly Salvage	{B}{G}	-	-	Instant
+Growing Rites of Itlimoc	{2}{G}	-	-	Legendary Enchantment
+Growth Spiral	{G}{U}	-	-	Instant
+Gruul Turf	-	-	-	Land
+Gryff Rider	{2}{W}	2	1	Creature — Human Knight
+Guardian Project	{3}{G}	-	-	Enchantment
+Gudul Lurker	{U}	1	1	Creature — Salamander
+Gush	{4}{U}	-	-	Instant
+Guttersnipe	{2}{R}	2	2	Creature — Goblin Shaman
+Halimar Depths	-	-	-	Land
+Hall of Heliod's Generosity	-	-	-	Legendary Land
+Hallowed Fountain	-	-	-	Land — Plains Island
+Hallowed Spiritkeeper	{1}{W}{W}	3	2	Creature — Avatar
+Hammer of Nazahn	{4}	-	-	Legendary Artifact — Equipment
+Hammerhead Tyrant	{4}{U}{U}	6	6	Creature — Dragon
+Hands of Binding	{1}{U}	-	-	Sorcery
+Hanweir Battlements	-	-	-	Land
+Hanweir Garrison	{2}{R}	2	3	Creature — Human Soldier
+Hanweir, the Writhing Township	-	7	4	Legendary Creature — Eldrazi Ooze
+Harald, King of Skemfar	{1}{B}{G}	3	2	Legendary Creature — Elf Warrior
+Hardened Scales	{G}	-	-	Enchantment
+Harmonize	{2}{G}{G}	-	-	Sorcery
+Harrow	{2}{G}	-	-	Instant
+Harvest Season	{2}{G}	-	-	Sorcery
+Haunted Mire	-	-	-	Land — Swamp Forest
+Haunted Ridge	-	-	-	Land
+Haven of the Spirit Dragon	-	-	-	Land
+Haywire Mite	{1}	1	1	Artifact Creature — Insect
+Hazoret's Monument	{3}	-	-	Legendary Artifact
+Heartstone	{3}	-	-	Artifact
+Hedron Archive	{4}	-	-	Artifact
+Hellkite Courser	{4}{R}{R}	6	5	Creature — Dragon
+Hellkite Tyrant	{4}{R}{R}	6	5	Creature — Dragon
+Hellrider	{2}{R}{R}	3	3	Creature — Devil
+Helm of the Host	{4}	-	-	Legendary Artifact — Equipment
+Herald's Horn	{3}	-	-	Artifact
+Hermes, Overseer of Elpis	{3}{U}	2	4	Legendary Creature — Elder Wizard
+Hero of Bladehold	{2}{W}{W}	3	4	Creature — Human Knight
+Heroic Intervention	{1}{G}	-	-	Instant
+Hidden Strings	{1}{U}	-	-	Sorcery
+High Market	-	-	-	Land
+Higure, the Still Wind	{3}{U}{U}	3	4	Legendary Creature — Human Ninja
+Hinterland Harbor	-	-	-	Land
+Honor-Worn Shaku	{3}	-	-	Artifact
+Hope of Ghirapur	{1}	1	1	Legendary Artifact Creature — Thopter
+Hordeling Outburst	{1}{R}{R}	-	-	Sorcery
+Horn of Greed	{3}	-	-	Artifact
+Howlsquad Heavy	{2}{R}	2	3	Creature — Goblin Mercenary
+Huddle Up	{2}{U}	-	-	Sorcery
+Hullbreaker Horror	{5}{U}{U}	7	8	Creature — Kraken Horror
+Hunted Witness	{W}	1	1	Creature — Human
+Hydroelectric Specimen // Hydroelectric Laboratory	{2}{U}	1	4	Creature — Weird
+Hyena Umbra	{W}	-	-	Enchantment — Aura
+Hyrax Tower Scout	{2}{G}	3	3	Creature — Human Scout
+Icetill Explorer	{2}{G}{G}	2	4	Creature — Insect Scout
+Ichor Rats	{1}{B}{B}	2	1	Creature — Phyrexian Rat
+Idol of Oblivion	{2}	-	-	Artifact
+Ignoble Hierarch	{G}	0	1	Creature — Goblin Shaman
+Illusionist's Bracers	{2}	-	-	Artifact — Equipment
+Immaculate Magistrate	{3}{G}	2	2	Creature — Elf Shaman
+Impact Tremors	{1}{R}	-	-	Enchantment
+Imperial Recruiter	{2}{R}	1	1	Creature — Human Advisor
+Imperial Seal	{B}	-	-	Sorcery
+Imperious Perfect	{2}{G}	2	2	Creature — Elf Warrior
+Imprisoned in the Moon	{2}{U}	-	-	Enchantment — Aura
+Impulsive Pilferer	{R}	1	1	Creature — Goblin Pirate
+In Garruk's Wake	{7}{B}{B}	-	-	Sorcery
+Incarnation Technique	{4}{B}	-	-	Sorcery
+Incendiary Command	{3}{R}{R}	-	-	Sorcery
+Incubation Druid	{1}{G}	0	2	Creature — Elf Druid
+Indatha Triome	-	-	-	Land — Plains Swamp Forest
+Indomitable Archangel	{2}{W}{W}	4	4	Creature — Angel
+Indulgent Aristocrat	{B}	1	1	Creature — Vampire Noble
+Inexorable Tide	{3}{U}{U}	-	-	Enchantment
+Infectious Bite	{1}{G}	-	-	Instant
+Infectious Inquiry	{2}{B}	-	-	Sorcery
+Infernal Grasp	{1}{B}	-	-	Instant
+Ingenious Infiltrator	{2}{U}{B}	2	3	Creature — Vedalken Ninja
+Ingenious Prodigy	{X}{U}	0	1	Creature — Human Wizard
+Ink-Eyes, Servant of Oni	{4}{B}{B}	5	4	Legendary Creature — Rat Ninja
+Inkmoth Nexus	-	-	-	Land
+Inkshield	{3}{W}{B}	-	-	Instant
+Innkeeper's Talent	{1}{G}	-	-	Enchantment — Class
+Insatiable Avarice	{B}	-	-	Sorcery
+Inspiring Call	{2}{G}	-	-	Instant
+Inventors' Fair	-	-	-	Legendary Land
+Invigorate	{2}{G}	-	-	Instant
+Invisible Stalker	{1}{U}	1	1	Creature — Human Rogue
+Iroas, God of Victory	{2}{R}{W}	7	4	Legendary Enchantment Creature — God
+Island	-	-	-	Basic Land — Island
+Isolated Chapel	-	-	-	Land
+Isshin, Two Heavens as One	{R}{W}{B}	3	4	Legendary Creature — Human Samurai
+Ixhel, Scion of Atraxa	{1}{W}{B}{G}	2	5	Legendary Creature — Phyrexian Angel
+Izoni, Thousand-Eyed	{2}{B}{B}{G}{G}	2	3	Legendary Creature — Elf Shaman
+Izzet Boilerworks	-	-	-	Land
+Izzet Charm	{U}{R}	-	-	Instant
+Izzet Signet	{2}	-	-	Artifact
+Jadar, Ghoulcaller of Nephalia	{1}{B}	1	1	Legendary Creature — Human Wizard
+Jaddi Offshoot	{G}	0	3	Creature — Plant
+Jade Orb of Dragonkind	{2}{G}	-	-	Artifact
+Jagged-Scar Archers	{1}{G}{G}	*	*	Creature — Elf Archer
+Jeska's Will	{2}{R}	-	-	Sorcery
+Jet Medallion	{2}	-	-	Artifact
+Jetmir's Garden	-	-	-	Land — Mountain Forest Plains
+Jhoira's Familiar	{4}	2	2	Artifact Creature — Bird
+Joraga Treespeaker	{G}	1	1	Creature — Elf Druid
+Joraga Warcaller	{G}	1	1	Creature — Elf Warrior
+Jungle Hollow	-	-	-	Land
+Jungle Shrine	-	-	-	Land
+Junji, the Midnight Sky	{3}{B}{B}	5	5	Legendary Creature — Dragon Spirit
+Juri, Master of the Revue	{B}{R}	1	1	Legendary Creature — Human Shaman
+Kabira Takedown // Kabira Plateau	{1}{W}	-	-	Instant
+Kaito Shizuki	{1}{U}{B}	-	-	Legendary Planeswalker — Kaito
+Kaito, Bane of Nightmares	{2}{U}{B}	-	-	Legendary Planeswalker — Kaito
+Kaito, Dancing Shadow	{2}{U}{B}	-	-	Legendary Planeswalker — Kaito
+Kalastria Highborn	{B}{B}	2	2	Creature — Vampire Shaman
+Karlach, Fury of Avernus	{4}{R}	5	4	Legendary Creature — Tiefling Barbarian
+Karn's Bastion	-	-	-	Land
+Karrthus, Tyrant of Jund	{4}{B}{R}{G}	7	7	Legendary Creature — Dragon
+Kasmina's Transmutation	{1}{U}	-	-	Enchantment — Aura
+Kaya's Ghostform	{B}	-	-	Enchantment — Aura
+Kazuul, Tyrant of the Cliffs	{3}{R}{R}	5	4	Legendary Creature — Ogre Warrior
+Keen-Eyed Curator	{G}{G}	3	3	Creature — Raccoon Scout
+Keep Safe	{1}{U}	-	-	Instant
+Keep Watch	{2}{U}	-	-	Instant
+Keeper of Fables	{3}{G}{G}	4	5	Creature — Cat
+Kellogg, Dangerous Mind	{1}{B}{R}	3	2	Legendary Creature — Human Mercenary
+Kemba, Kha Regent	{1}{W}{W}	2	4	Legendary Creature — Cat Cleric
+Kenrith's Transformation	{1}{G}	-	-	Enchantment — Aura
+Ketria Triome	-	-	-	Land — Forest Island Mountain
+Khalni Heart Expedition	{1}{G}	-	-	Enchantment
+Khenra Eternal	{1}{B}	2	2	Creature — Zombie Jackal Warrior
+Kher Keep	-	-	-	Legendary Land
+Kiki-Jiki, Mirror Breaker	{2}{R}{R}{R}	2	2	Legendary Creature — Goblin Shaman
+Kindred Discovery	{3}{U}{U}	-	-	Enchantment
+Kindred Dominance	{5}{B}{B}	-	-	Sorcery
+Kishla Skimmer	{G}{U}	2	2	Creature — Bird Scout
+Kitchen Finks	{1}{G/W}{G/W}	3	2	Creature — Ouphe
+Kite Shield	{0}	-	-	Artifact — Equipment
+Knight of the Ebon Legion	{B}	1	2	Creature — Vampire Knight
+Kodama of the East Tree	{4}{G}{G}	6	6	Legendary Creature — Spirit
+Kodama's Reach	{2}{G}	-	-	Sorcery — Arcane
+Kogla, the Titan Ape	{3}{G}{G}{G}	7	6	Legendary Creature — Ape
+Kokusho, the Evening Star	{4}{B}{B}	5	5	Legendary Creature — Dragon Spirit
+Kolaghan, the Storm's Fury	{3}{B}{R}	4	5	Legendary Creature — Dragon
+Kor Haven	-	-	-	Legendary Land
+Korvold, Fae-Cursed King	{2}{B}{R}{G}	4	4	Legendary Creature — Dragon Noble
+Krenko's Command	{1}{R}	-	-	Sorcery
+Krenko, Mob Boss	{2}{R}{R}	3	3	Legendary Creature — Goblin Warrior
+Krenko, Tin Street Kingpin	{2}{R}	1	2	Legendary Creature — Goblin
+Krosan Grip	{2}{G}	-	-	Instant
+Kyren Negotiations	{2}{R}{R}	-	-	Enchantment
+Laboratory Maniac	{2}{U}	2	2	Creature — Human Wizard
+Lae'zel, Vlaakith's Champion	{2}{W}	3	3	Legendary Creature — Gith Warrior
+Laelia, the Blade Reforged	{2}{R}	2	2	Legendary Creature — Spirit Warrior
+Land Tax	{W}	-	-	Enchantment
+Last March of the Ents	{6}{G}{G}	-	-	Sorcery
+Last-Ditch Effort	{R}	-	-	Instant
+Lathliss, Dragon Queen	{4}{R}{R}	6	6	Legendary Creature — Dragon
+Lathril, Blade of the Elves	{2}{B}{G}	2	3	Legendary Creature — Elf Noble
+Lazotep Plating	{1}{U}	-	-	Instant
+Leaden Myr	{2}	1	1	Artifact Creature — Myr
+Leaf-Crowned Visionary	{G}{G}	1	1	Creature — Elf Druid
+Legion Lieutenant	{W}{B}	2	2	Creature — Vampire Knight
+Legion Loyalist	{R}	1	1	Creature — Goblin Soldier
+Legion Warboss	{2}{R}	2	2	Creature — Goblin Soldier
+Legion's Landing	{W}	-	-	Legendary Enchantment
+Legolas's Quick Reflexes	{G}	-	-	Instant
+Lena, Selfless Champion	{4}{W}{W}	3	3	Legendary Creature — Human Knight
+Leonin Warleader	{2}{W}{W}	4	4	Creature — Cat Soldier
+Leyline of Abundance	{2}{G}{G}	-	-	Enchantment
+Leyline of the Guildpact	{G/W}{G/U}{B/G}{R/G}	-	-	Enchantment
+Leyline of the Void	{2}{B}{B}	-	-	Enchantment
+Life's Legacy	{1}{G}	-	-	Sorcery
+Lightning Bolt	{R}	-	-	Instant
+Lightning Greaves	{2}	-	-	Artifact — Equipment
+Lightning, Army of One	{1}{R}{W}	3	2	Legendary Creature — Human Soldier
+Liliana's Caress	{1}{B}	-	-	Enchantment
+Liliana, Dreadhorde General	{4}{B}{B}	-	-	Legendary Planeswalker — Liliana
+Living Death	{3}{B}{B}	-	-	Sorcery
+Lizard Blades	{1}{R}	1	1	Artifact Creature — Equipment Lizard
+Llanowar Elves	{G}	1	1	Creature — Elf Druid
+Llanowar Tribe	{G}{G}{G}	3	3	Creature — Elf Druid
+Llanowar Wastes	-	-	-	Land
+Lonely Sandbar	-	-	-	Land
+Lotus Cobra	{1}{G}	2	1	Creature — Snake
+Lovestruck Beast // Heart's Desire	{2}{G}	5	5	Creature — Beast Noble
+Loyal Apprentice	{1}{R}	2	1	Creature — Human Artificer
+Lozhan, Dragons' Legacy	{3}{U}{R}	4	2	Legendary Creature — Dragon Shaman
+Lumbering Laundry	{5}	4	5	Artifact Creature — Golem
+Luminous Broodmoth	{2}{W}{W}	3	4	Creature — Insect
+Lunar Insight	{2}{U}	-	-	Sorcery
+Luxury Suite	-	-	-	Land
+Lys Alana Huntmaster	{2}{G}{G}	3	3	Creature — Elf Warrior
+Maelstrom of the Spirit Dragon	-	-	-	Land
+Maestros Theater	-	-	-	Land
+Magmatic Hellkite	{2}{R}{R}	4	5	Creature — Dragon
+Magnifying Glass	{3}	-	-	Artifact
+Magus of the Moon	{2}{R}	2	2	Creature — Human Wizard
+Mahadi, Emporium Master	{1}{B}{R}	3	3	Legendary Creature — Devil
+Make Disappear	{1}{U}	-	-	Instant
+Malakir Bloodwitch	{3}{B}{B}	4	4	Creature — Vampire Shaman
+Malakir Rebirth // Malakir Mire	{B}	-	-	Instant
+Mana Confluence	-	-	-	Land
+Mana Crypt	{0}	-	-	Artifact
+Mana Drain	{U}{U}	-	-	Instant
+Mana Leak	{1}{U}	-	-	Instant
+Mana Reflection	{4}{G}{G}	-	-	Enchantment
+Mana Tithe	{W}	-	-	Instant
+Mana Vault	{1}	-	-	Artifact
+Mangara, the Diplomat	{3}{W}	2	4	Legendary Creature — Human Cleric
+Marang River Regent // Coil and Catch	{4}{U}{U}	6	7	Creature — Dragon
+Marauding Blight-Priest	{2}{B}	3	2	Creature — Vampire Cleric
+Marble Diamond	{2}	-	-	Artifact
+Marchesa's Emissary	{3}{U}	2	2	Creature — Human Rogue
+Mardu Ascendancy	{R}{W}{B}	-	-	Enchantment
+Marionette Apprentice	{1}{B}	1	2	Creature — Human Artificer
+Marisi, Breaker of the Coil	{1}{R}{G}{W}	5	4	Legendary Creature — Cat Warrior
+Markov Baron	{2}{B}	2	2	Creature — Vampire Noble
+Marsh Flats	-	-	-	Land
+Martial Coup	{X}{W}{W}	-	-	Sorcery
+Marwyn, the Nurturer	{2}{G}	1	1	Legendary Creature — Elf Druid
+Mask of Memory	{2}	-	-	Artifact — Equipment
+Maskwood Nexus	{4}	-	-	Artifact
+Mass Hysteria	{R}	-	-	Enchantment
+Massacre Wurm	{3}{B}{B}{B}	6	5	Creature — Phyrexian Wurm
+Massive Raid	{1}{R}{R}	-	-	Instant
+Master Biomancer	{2}{G}{U}	2	4	Creature — Elf Wizard
+Mavren Fein, Dusk Apostle	{2}{W}	2	2	Legendary Creature — Vampire Cleric
+Mayhem Devil	{1}{B}{R}	3	3	Creature — Devil
+Maze of Ith	-	-	-	Land
+Meeting of Minds	{3}{U}	-	-	Instant
+Megrim	{2}{B}	-	-	Enchantment
+Meloku the Clouded Mirror	{4}{U}	2	4	Legendary Creature — Moonfolk Wizard
+Memnite	{0}	1	1	Artifact Creature — Construct
+Memory Lapse	{1}{U}	-	-	Instant
+Mental Misstep	{U/P}	-	-	Instant
+Merciless Eviction	{4}{W}{B}	-	-	Sorcery
+Merciless Executioner	{2}{B}	3	1	Creature — Orc Warrior
+Meren of Clan Nel Toth	{2}{B}{G}	3	4	Legendary Creature — Human Shaman
+Mesmeric Orb	{2}	-	-	Artifact
+Metastatic Evangel	{1}{W}	3	1	Creature — Phyrexian Human Cleric
+Miara, Thorn of the Glade	{1}{B}	1	2	Legendary Creature — Elf Scout
+Midnight Reaper	{2}{B}	3	2	Creature — Zombie Knight
+Miirym, Sentinel Wyrm	{3}{G}{U}{R}	6	6	Legendary Creature — Dragon Spirit
+Mikaeus, the Unhallowed	{3}{B}{B}{B}	5	5	Legendary Creature — Zombie Cleric
+Mina and Denn, Wildborn	{2}{R}{G}	4	4	Legendary Creature — Elf Ally
+Minamo, School at Water's Edge	-	-	-	Legendary Land
+Minas Tirith	-	-	-	Legendary Land
+Mind Games	{U}	-	-	Instant
+Mind Stone	{2}	-	-	Artifact
+Mindbreak Trap	{2}{U}{U}	-	-	Instant — Trap
+Mindcrank	{2}	-	-	Artifact
+Mindleecher	{4}{B}{B}	5	5	Creature — Nightmare
+Ministrant of Obligation	{2}{W}	2	1	Creature — Human Cleric
+Mirage Phalanx	{4}{R}{R}	4	4	Creature — Human Soldier
+Mirari's Wake	{3}{G}{W}	-	-	Enchantment
+Miren, the Moaning Well	-	-	-	Legendary Land
+Mirkwood Bats	{3}{B}	2	3	Creature — Bat
+Mirror Entity	{2}{W}	1	1	Creature — Shapeshifter
+Misdirection	{3}{U}{U}	-	-	Instant
+Mishra, Claimed by Gix	{2}{B}{R}	3	5	Legendary Creature — Phyrexian Human Artificer
+Mist Intruder	{1}{U}	1	2	Creature — Eldrazi Drone
+Mist-Cloaked Herald	{U}	1	1	Creature — Merfolk Warrior
+Mist-Syndicate Naga	{2}{U}	3	1	Creature — Snake Ninja
+Mistblade Shinobi	{2}{U}	1	1	Creature — Human Ninja
+Mistrise Village	-	-	-	Land
+Misty Rainforest	-	-	-	Land
+Mob Justice	{1}{R}	-	-	Sorcery
+Mobilize	{G}	-	-	Sorcery
+Mockingbird	{X}{U}	1	1	Creature — Bird Bard
+Mogg War Marshal	{1}{R}	1	1	Creature — Goblin Warrior
+Moggcatcher	{2}{R}{R}	2	2	Creature — Human Mercenary
+Moldervine Reclamation	{3}{B}{G}	-	-	Enchantment
+Molimo, Maro-Sorcerer	{4}{G}{G}{G}	*	*	Legendary Creature — Elemental Sorcerer
+Molten Gatekeeper	{2}{R}	2	3	Artifact Creature — Golem
+Moment's Peace	{1}{G}	-	-	Instant
+Momentous Fall	{2}{G}{G}	-	-	Instant
+Monastery Mentor	{2}{W}	2	2	Creature — Human Monk
+Monastery Swiftspear	{R}	1	2	Creature — Human Monk
+Monster Manual // Zoological Study	{3}{G}	-	-	Artifact
+Moon-Circuit Hacker	{1}{U}	2	1	Enchantment Creature — Human Ninja
+Moonblade Shinobi	{3}{U}	3	2	Creature — Human Ninja
+Moonsnare Specialist	{3}{U}	2	2	Creature — Human Ninja
+Moraug, Fury of Akoum	{4}{R}{R}	6	6	Legendary Creature — Minotaur Warrior
+Morbid Opportunist	{2}{B}	1	3	Creature — Human Rogue
+Moria Marauder	{R}{R}	1	1	Creature — Goblin Warrior
+Morophon, the Boundless	{7}	6	6	Legendary Creature — Shapeshifter
+Morphic Pool	-	-	-	Land
+Mortify	{1}{W}{B}	-	-	Instant
+Mortuary Mire	-	-	-	Land
+Mossborn Hydra	{2}{G}	0	0	Creature — Elemental Hydra
+Mothdust Changeling	{U}	1	1	Creature — Shapeshifter
+Mother of Runes	{W}	1	1	Creature — Human Cleric
+Mountain	-	-	-	Basic Land — Mountain
+Mox Amber	{0}	-	-	Legendary Artifact
+Mox Diamond	{0}	-	-	Artifact
+Mox Jasper	{0}	-	-	Legendary Artifact
+Mox Opal	{0}	-	-	Legendary Artifact
+Mulldrifter	{4}{U}	2	2	Creature — Elemental
+Multani, Yavimaya's Avatar	{4}{G}{G}	0	0	Legendary Creature — Elemental Avatar
+Murderous Cut	{4}{B}	-	-	Instant
+Murmuring Mystic	{3}{U}	1	5	Creature — Human Wizard
+Muxus, Goblin Grandee	{4}{R}{R}	4	4	Legendary Creature — Goblin Noble
+Myrel, Shield of Argive	{3}{W}	3	4	Legendary Creature — Human Soldier
+Myriad Landscape	-	-	-	Land
+Mystic Forge	{4}	-	-	Artifact
+Mystic Monastery	-	-	-	Land
+Mystic Remora	{U}	-	-	Enchantment
+Mystic Sanctuary	-	-	-	Land — Island
+Mystical Tutor	{U}	-	-	Instant
+Nadaar, Selfless Paladin	{2}{W}	3	3	Legendary Creature — Dragon Knight
+Nadier's Nightblade	{2}{B}	1	3	Creature — Elf Warrior
+Nadir Kraken	{1}{U}{U}	2	3	Creature — Kraken
+Najeela, the Blade-Blossom	{2}{R}	3	2	Legendary Creature — Human Warrior
+Nanogene Conversion	{3}{U}	-	-	Sorcery
+Narset, Parter of Veils	{1}{U}{U}	-	-	Legendary Planeswalker — Narset
+Natural Order	{2}{G}{G}	-	-	Sorcery
+Nature's Claim	{G}	-	-	Instant
+Nature's Lore	{1}{G}	-	-	Sorcery
+Nature's Will	{2}{G}{G}	-	-	Enchantment
+Naya Charm	{R}{G}{W}	-	-	Instant
+Necroblossom Snarl	-	-	-	Land
+Necrogen Rotpriest	{2}{B}{G}	1	5	Creature — Phyrexian Zombie Cleric
+Necron Deathmark	{3}{B}{B}	5	3	Artifact Creature — Necron
+Necropanther	{1}{W}{B}	3	3	Creature — Cat Nightmare
+Needleverge Pathway // Pillarverge Pathway	-	-	-	Land
+Negate	{1}{U}	-	-	Instant
+Neriv, Heart of the Storm	{1}{R}{W}{B}	4	5	Legendary Creature — Spirit Dragon
+Nether Traitor	{B}{B}	1	1	Creature — Spirit
+Nethergoyf	{B}	*	1+*	Creature — Lhurgoyf
+Nethroi, Apex of Death	{2}{W}{B}{G}	5	5	Legendary Creature — Cat Nightmare Beast
+Nexus of Fate	{5}{U}{U}	-	-	Instant
+Nezahal, Primal Tide	{5}{U}{U}	7	7	Legendary Creature — Elder Dinosaur
+Nezumi Prowler	{1}{B}	3	1	Artifact Creature — Rat Ninja
+Night's Whisper	{1}{B}	-	-	Sorcery
+Nighthawk Scavenger	{1}{B}{B}	1+*	3	Creature — Vampire Rogue
+Ninja of the Deep Hours	{3}{U}	2	2	Creature — Human Ninja
+Nissa, Resurgent Animist	{2}{G}	3	3	Legendary Creature — Elf Scout
+Niv-Mizzet, Parun	{U}{U}{U}{R}{R}{R}	5	5	Legendary Creature — Dragon Wizard
+Niv-Mizzet, Visionary	{4}{U}{R}	5	5	Legendary Creature — Dragon Wizard
+Niv-Mizzet, the Firemind	{2}{U}{U}{R}{R}	4	4	Legendary Creature — Dragon Wizard
+Noble Hierarch	{G}	0	1	Creature — Human Druid
+Nocturnal Hunger	{2}{B}	-	-	Instant
+Nomad Outpost	-	-	-	Land
+Norn's Choirmaster	{3}{W}{W}	5	4	Creature — Phyrexian Angel
+Noxious Revival	{G/P}	-	-	Instant
+Nullmage Shepherd	{3}{G}	2	4	Creature — Elf Shaman
+Nullpriest of Oblivion	{1}{B}	2	1	Creature — Vampire Cleric
+Nurturing Peatland	-	-	-	Land
+Nykthos, Shrine to Nyx	-	-	-	Legendary Land
+Nyxbloom Ancient	{4}{G}{G}{G}	5	5	Enchantment Creature — Elemental
+Oath of Teferi	{3}{W}{U}	-	-	Legendary Enchantment
+Oathsworn Vampire	{1}{B}	2	2	Creature — Vampire Knight
+Obelisk of Urd	{6}	-	-	Artifact
+Oboro, Palace in the Clouds	-	-	-	Legendary Land
+Ogre Battledriver	{2}{R}{R}	3	3	Creature — Ogre Warrior
+Ohran Frostfang	{3}{G}{G}	2	6	Snow Creature — Snake
+Ojutai, Soul of Winter	{5}{W}{U}	5	6	Legendary Creature — Dragon
+Oketra's Monument	{3}	-	-	Legendary Artifact
+Oko, Thief of Crowns	{1}{G}{U}	-	-	Legendary Planeswalker — Oko
+Old Gnawbone	{5}{G}{G}	7	7	Legendary Creature — Dragon
+Olivia Voldaren	{2}{B}{R}	3	3	Legendary Creature — Vampire
+Olivia's Wrath	{4}{B}	-	-	Sorcery
+Ominous Seas	{1}{U}	-	-	Enchantment
+Omnath, Locus of Creation	{R}{G}{W}{U}	4	4	Legendary Creature — Elemental
+Omnath, Locus of Rage	{3}{R}{R}{G}{G}	5	5	Legendary Creature — Elemental
+Omnath, Locus of the Roil	{1}{G}{U}{R}	3	3	Legendary Creature — Elemental
+Open the Armory	{1}{W}	-	-	Sorcery
+Open the Vaults	{4}{W}{W}	-	-	Sorcery
+Ophidian Eye	{2}{U}	-	-	Enchantment — Aura
+Ophiomancer	{2}{B}	2	2	Creature — Human Shaman
+Opposition	{2}{U}{U}	-	-	Enchantment
+Opt	{U}	-	-	Instant
+Opulent Palace	-	-	-	Land
+Oracle of Mul Daya	{3}{G}	2	2	Creature — Elf Shaman
+Oran-Rief Hydra	{4}{G}{G}	5	5	Creature — Hydra
+Oran-Rief, the Vastwood	-	-	-	Land
+Orcish Bowmasters	{1}{B}	1	1	Creature — Orc Archer
+Ornithopter	{0}	0	2	Artifact Creature — Thopter
+Ornithopter of Paradise	{2}	0	2	Artifact Creature — Thopter
+Orzhov Basilica	-	-	-	Land
+Orzhov Enforcer	{1}{B}	1	2	Creature — Human Rogue
+Orzhov Signet	{2}	-	-	Artifact
+Ossification	{1}{W}	-	-	Enchantment — Aura
+Otawara, Soaring City	-	-	-	Legendary Land
+Otharri, Suns' Glory	{3}{R}{W}	3	3	Legendary Creature — Phoenix
+Out of the Tombs	{2}{B}	-	-	Enchantment
+Outcaster Trailblazer	{2}{G}	4	2	Creature — Human Druid
+Outnumber	{R}	-	-	Instant
+Overgrown Tomb	-	-	-	Land — Swamp Forest
+Overlord of the Hauntwoods	{3}{G}{G}	6	5	Enchantment Creature — Avatar Horror
+Overwhelming Stampede	{3}{G}{G}	-	-	Sorcery
+Ox of Agonas	{3}{R}{R}	4	2	Creature — Ox
+Pact of Negation	{0}	-	-	Instant
+Pact of the Serpent	{1}{B}{B}	-	-	Sorcery
+Panharmonicon	{4}	-	-	Artifact
+Paradise Mantle	{0}	-	-	Artifact — Equipment
+Parallel Lives	{3}{G}	-	-	Enchantment
+Parapet Thrasher	{2}{R}{R}	4	3	Creature — Dragon
+Pashalik Mons	{2}{R}	2	2	Legendary Creature — Goblin Warrior
+Patchwork Banner	{3}	-	-	Artifact
+Path of Ancestry	-	-	-	Land
+Path of Peril	{1}{B}{B}	-	-	Sorcery
+Path to Exile	{W}	-	-	Instant
+Patriar's Seal	{3}	-	-	Artifact
+Patron of the Vein	{4}{B}{B}	4	4	Creature — Vampire Shaman
+Pawn of Ulamog	{1}{B}{B}	2	2	Creature — Vampire Shaman
+Perennial Behemoth	{5}	2	7	Artifact Creature — Beast
+Perilous Forays	{3}{G}{G}	-	-	Enchantment
+Persist	{1}{B}	-	-	Sorcery
+Pestilent Syphoner	{1}{B}	1	1	Creature — Phyrexian Insect
+Phantasmal Image	{1}{U}	0	0	Creature — Illusion
+Phantom Ninja	{1}{U}{U}	2	2	Creature — Illusion Ninja
+Phoenix Chick	{R}	1	1	Creature — Phoenix
+Phyresis Outbreak	{2}{B}	-	-	Sorcery
+Phyrexian Altar	{3}	-	-	Artifact
+Phyrexian Arena	{1}{B}{B}	-	-	Enchantment
+Phyrexian Crusader	{1}{B}{B}	2	2	Creature — Phyrexian Zombie Knight
+Phyrexian Dreadnought	{1}	12	12	Artifact Creature — Phyrexian Dreadnought
+Phyrexian Swarmlord	{4}{G}{G}	4	4	Creature — Phyrexian Insect Horror
+Phyrexian Tower	-	-	-	Legendary Land
+Phyrexian Walker	{0}	0	3	Artifact Creature — Phyrexian Construct
+Pir, Imaginative Rascal	{2}{G}	1	1	Legendary Creature — Human
+Pitiless Plunderer	{3}{B}	1	4	Creature — Human Pirate
+Plague Myr	{2}	1	1	Artifact Creature — Phyrexian Myr
+Plague Stinger	{1}{B}	1	1	Creature — Phyrexian Insect Horror
+Plains	-	-	-	Basic Land — Plains
+Plateau	-	-	-	Land — Mountain Plains
+Plumb the Forbidden	{1}{B}	-	-	Instant
+Poison-Tip Archer	{2}{B}{G}	2	3	Creature — Elf Archer
+Polluted Delta	-	-	-	Land
+Polymorphist's Jest	{1}{U}{U}	-	-	Instant
+Ponder	{U}	-	-	Sorcery
+Pongify	{U}	-	-	Instant
+Prairie Stream	-	-	-	Land — Plains Island
+Preacher of the Schism	{2}{B}	2	4	Creature — Vampire Cleric
+Predator Dragon	{3}{R}{R}{R}	4	4	Creature — Dragon
+Preordain	{U}	-	-	Sorcery
+Press the Enemy	{2}{U}{U}	-	-	Instant
+Priest of Forgotten Gods	{1}{B}	1	2	Creature — Human Cleric
+Priest of Titania	{1}{G}	1	1	Creature — Elf Druid
+Prismatic Vista	-	-	-	Land
+Professional Face-Breaker	{2}{R}	2	3	Creature — Human Warrior
+Prologue to Phyresis	{1}{U}	-	-	Instant
+Promise of Power	{2}{B}{B}{B}	-	-	Sorcery
+Propaganda	{2}{U}	-	-	Enchantment
+Prosperous Innkeeper	{1}{G}	1	1	Creature — Halfling Citizen
+Prosperous Thief	{2}{U}	3	2	Creature — Human Ninja
+Prossh, Skyraider of Kher	{3}{B}{R}{G}	5	5	Legendary Creature — Dragon
+Protean Hulk	{5}{G}{G}	6	6	Creature — Beast
+Proven Combatant	{U}	1	1	Creature — Human Warrior
+Prowess of the Fair	{1}{B}	-	-	Kindred Enchantment — Elf
+Psychosis Crawler	{5}	*	*	Artifact Creature — Phyrexian Horror
+Pull from Tomorrow	{X}{U}{U}	-	-	Instant
+Puppeteer Clique	{3}{B}{B}	3	2	Creature — Faerie Wizard
+Puresteel Paladin	{W}{W}	2	2	Creature — Human Knight
+Purphoros, God of the Forge	{3}{R}	6	5	Legendary Enchantment Creature — God
+Putrefy	{1}{B}{G}	-	-	Instant
+Pyroblast	{R}	-	-	Instant
+Qarsi Revenant	{1}{B}{B}	3	3	Creature — Vampire
+Qarsi Sadist	{1}{B}	1	3	Creature — Human Cleric
+Quest for Renewal	{1}{G}	-	-	Enchantment
+Quest for the Goblin Lord	{R}	-	-	Enchantment
+Quick Study	{2}{U}	-	-	Instant
+Quietus Spike	{3}	-	-	Artifact — Equipment
+Quilled Charger	{3}{R}	4	3	Creature — Porcupine Mount
+Radha, Heart of Keld	{1}{R}{G}	3	3	Legendary Creature — Elf Warrior
+Radical Idea	{1}{U}	-	-	Instant
+Radstorm	{3}{U}	-	-	Instant
+Raffine's Informant	{1}{W}	2	1	Creature — Human Wizard
+Raffine's Tower	-	-	-	Land — Plains Island Swamp
+Ragavan, Nimble Pilferer	{R}	2	1	Legendary Creature — Monkey Pirate
+Raid Bombardment	{2}{R}	-	-	Enchantment
+Raiders' Wake	{3}{B}	-	-	Enchantment
+Rakdos Carnarium	-	-	-	Land
+Rakdos Charm	{B}{R}	-	-	Instant
+Rakdos Signet	{2}	-	-	Artifact
+Rakish Heir	{2}{R}	2	2	Creature — Vampire
+Ram Through	{1}{G}	-	-	Instant
+Ramos, Dragon Engine	{6}	4	4	Legendary Artifact Creature — Dragon
+Rampaging Baloths	{4}{G}{G}	6	6	Creature — Beast
+Rampant Growth	{1}{G}	-	-	Sorcery
+Ramunap Excavator	{2}{G}	2	3	Creature — Snake Cleric
+Rancor	{G}	-	-	Enchantment — Aura
+Rapid Hybridization	{U}	-	-	Instant
+Raugrin Triome	-	-	-	Land — Island Mountain Plains
+Ravenous Chupacabra	{2}{B}{B}	2	2	Creature — Beast Horror
+Razaketh, the Foulblooded	{5}{B}{B}{B}	8	8	Legendary Creature — Demon
+Razorkin Needlehead	{R}{R}	2	2	Creature — Human Assassin
+Reach Through Mists	{U}	-	-	Instant — Arcane
+Read the Bones	{2}{B}	-	-	Sorcery
+Reality Shift	{1}{U}	-	-	Instant
+Reanimate	{B}	-	-	Sorcery
+Reassembling Skeleton	{1}{B}	1	1	Creature — Skeleton Warrior
+Reckless Bushwhacker	{2}{R}	2	1	Creature — Goblin Warrior Ally
+Reckless One	{3}{R}	*	*	Creature — Goblin Avatar
+Reclamation Sage	{2}{G}	2	1	Creature — Elf Shaman
+Reconnaissance	{W}	-	-	Enchantment
+Reconnaissance Mission	{2}{U}{U}	-	-	Enchantment
+Recruiter of the Guard	{2}{W}	1	1	Creature — Human Soldier
+Red Elemental Blast	{R}	-	-	Instant
+Reflecting Pool	-	-	-	Land
+Reforge the Soul	{3}{R}{R}	-	-	Sorcery
+Regal Force	{4}{G}{G}{G}	5	5	Creature — Elemental
+Regrowth	{1}{G}	-	-	Sorcery
+Rejuvenating Springs	-	-	-	Land
+Reliquary Tower	-	-	-	Land
+Replicating Ring	{3}	-	-	Snow Artifact
+Reprieve	{1}{W}	-	-	Instant
+Resculpt	{1}{U}	-	-	Instant
+Rest in Peace	{1}{W}	-	-	Enchantment
+Retraced Image	{U}	-	-	Sorcery
+Retreat to Coralhelm	{2}{U}	-	-	Enchantment
+Retreat to Kazandu	{2}{G}	-	-	Enchantment
+Return Upon the Tide	{4}{B}	-	-	Sorcery
+Return of the Wildspeaker	{4}{G}	-	-	Instant
+Return to Dust	{2}{W}{W}	-	-	Instant
+Revel in Riches	{4}{B}	-	-	Enchantment
+Reverse Engineer	{3}{U}{U}	-	-	Sorcery
+Revitalizing Repast	{B/G}	-	-	Instant
+Rewind	{2}{U}{U}	-	-	Instant
+Rhys the Exiled	{2}{G}	3	2	Legendary Creature — Elf Warrior
+Rhystic Study	{2}{U}	-	-	Enchantment
+Rhythm of the Wild	{1}{R}{G}	-	-	Enchantment
+Rift Bolt	{2}{R}	-	-	Sorcery
+Rings of Brighthearth	{3}	-	-	Artifact
+Ripjaw Raptor	{2}{G}{G}	4	5	Creature — Dinosaur
+Ripples of Undeath	{1}{B}	-	-	Enchantment
+Risen Reef	{1}{G}{U}	1	1	Creature — Elemental
+Rising of the Day	{2}{R}	-	-	Enchantment
+Rith, Liberated Primeval	{2}{R}{G}{W}	5	5	Legendary Creature — Dragon
+Rivaz of the Claw	{1}{B}{R}	3	3	Legendary Creature — Lizard Warlock
+Riverglide Pathway // Lavaglide Pathway	-	-	-	Land
+Riveteers Requisitioner	{1}{R}	3	1	Creature — Lizard Rogue
+Roalesk, Apex Hybrid	{2}{G}{G}{U}	4	5	Legendary Creature — Human Mutant
+Rockfall Vale	-	-	-	Land
+Rograkh, Son of Rohgahh	{0}	0	1	Legendary Creature — Kobold Warrior
+Rogue's Passage	-	-	-	Land
+Roil Elemental	{3}{U}{U}{U}	3	2	Creature — Elemental
+Roiling Dragonstorm	{1}{U}	-	-	Enchantment
+Roiling Regrowth	{2}{G}	-	-	Instant
+Rootbound Crag	-	-	-	Land
+Ruby Medallion	{2}	-	-	Artifact
+Rugged Prairie	-	-	-	Land
+Ruinous Ultimatum	{R}{R}{W}{W}{W}{B}{B}	-	-	Sorcery
+Rule of Law	{2}{W}	-	-	Enchantment
+Rummaging Goblin	{2}{R}	1	1	Creature — Goblin Rogue
+Rundvelt Hordemaster	{1}{R}	1	1	Creature — Goblin Warrior
+Rune-Tail, Kitsune Ascendant // Rune-Tail's Essence	{2}{W}	2	2	Legendary Creature — Fox Monk
+Ruthless Lawbringer	{1}{W}{B}	3	2	Creature — Vampire Assassin
+Ruthless Technomancer	{3}{B}	2	4	Creature — Human Wizard
+Ruthless Winnower	{3}{B}{B}	4	4	Creature — Elf Rogue
+Sabotender	{1}{R}	2	1	Creature — Plant
+Sacred Cat	{W}	1	1	Creature — Cat
+Sacred Foundry	-	-	-	Land — Mountain Plains
+Sakashima's Student	{2}{U}{U}	0	0	Creature — Human Ninja
+Sakura-Tribe Elder	{1}{G}	1	1	Creature — Snake Shaman
+Sakura-Tribe Scout	{G}	1	1	Creature — Snake Shaman Scout
+Samut, Voice of Dissent	{3}{R}{G}	3	4	Legendary Creature — Human Warrior
+Sanctum Seeker	{2}{B}{B}	3	4	Creature — Vampire Knight
+Sandsteppe Citadel	-	-	-	Land
+Sanguine Bond	{3}{B}{B}	-	-	Enchantment
+Sapphire Medallion	{2}	-	-	Artifact
+Sarkhan Unbroken	{2}{G}{U}{R}	-	-	Legendary Planeswalker — Sarkhan
+Sarkhan Vol	{2}{R}{G}	-	-	Legendary Planeswalker — Sarkhan
+Sarkhan's Triumph	{2}{R}	-	-	Instant
+Sarkhan, Fireblood	{1}{R}{R}	-	-	Legendary Planeswalker — Sarkhan
+Saskia the Unyielding	{B}{R}{G}{W}	3	4	Legendary Creature — Human Soldier
+Satoru Umezawa	{1}{U}{B}	2	4	Legendary Creature — Human Ninja
+Satoru, the Infiltrator	{U}{B}	2	3	Legendary Creature — Human Ninja Rogue
+Satyr Wayfinder	{1}{G}	1	1	Creature — Satyr
+Savage Lands	-	-	-	Land
+Savai Triome	-	-	-	Land — Mountain Plains Swamp
+Savannah	-	-	-	Land — Forest Plains
+Saw It Coming	{1}{U}{U}	-	-	Instant
+Saw in Half	{2}{B}	-	-	Instant
+Scalding Tarn	-	-	-	Land
+Scaled Nurturer	{1}{G}	0	2	Creature — Dragon Druid
+Scalelord Reckoner	{3}{W}{W}	4	4	Creature — Dragon
+Scapeshift	{2}{G}{G}	-	-	Sorcery
+Scavenger Grounds	-	-	-	Land — Desert
+Scavenger Regent // Exude Toxin	{3}{B}	4	4	Creature — Dragon
+Scavenging Ooze	{1}{G}	2	2	Creature — Ooze
+Scheming Symmetry	{B}	-	-	Sorcery
+Scion of Draco	{12}	4	4	Artifact Creature — Dragon
+Scion of the Ur-Dragon	{W}{U}{B}{R}{G}	4	4	Legendary Creature — Dragon Avatar
+Scoured Barrens	-	-	-	Land
+Scourge of Fleets	{5}{U}{U}	6	6	Creature — Kraken
+Scourge of Valkas	{2}{R}{R}{R}	4	4	Creature — Dragon
+Scourge of the Throne	{4}{R}{R}	5	5	Creature — Dragon
+Scrawling Crawler	{3}	3	2	Artifact Creature — Phyrexian Construct
+Scroll Thief	{2}{U}	1	3	Creature — Merfolk Rogue
+Scrubland	-	-	-	Land — Plains Swamp
+Scryb Ranger	{1}{G}	1	1	Creature — Faerie Ranger
+Scute Swarm	{2}{G}	1	1	Creature — Insect
+Sea Gate Restoration	{4}{U}{U}{U}	-	-	Sorcery
+Sea of Clouds	-	-	-	Land
+Sea-Dasher Octopus	{1}{U}{U}	2	2	Creature — Octopus
+Searing Touch	{R}	-	-	Instant
+Searslicer Goblin	{1}{R}	2	1	Creature — Goblin Warrior
+Seaside Citadel	-	-	-	Land
+Season of Gathering	{4}{G}{G}	-	-	Sorcery
+Seasoned Dungeoneer	{3}{W}	3	4	Creature — Human Warrior
+Secluded Courtyard	-	-	-	Land
+Secluded Steppe	-	-	-	Land
+Seedborn Muse	{3}{G}{G}	2	4	Creature — Spirit
+Seething Song	{2}{R}	-	-	Instant
+Sejiri Shelter // Sejiri Glacier	{1}{W}	-	-	Instant
+Selesnya Sanctuary	-	-	-	Land
+Selvala, Heart of the Wilds	{1}{G}{G}	2	3	Legendary Creature — Elf Scout
+Sengir Autocrat	{3}{B}	2	2	Creature — Human
+Sensei's Divining Top	{1}	-	-	Artifact
+Serpent's Soul-Jar	{2}{B}	-	-	Artifact
+Serra Ascendant	{W}	1	1	Creature — Human Monk
+Serum Visions	{U}	-	-	Sorcery
+Severed Legion	{1}{B}{B}	2	2	Creature — Zombie
+Shadow Alley Denizen	{B}	1	1	Creature — Vampire Rogue
+Shadow of Mortality	{13}{B}{B}	7	7	Creature — Avatar
+Shadowspear	{1}	-	-	Legendary Artifact — Equipment
+Shalai, Voice of Plenty	{3}{W}	3	4	Legendary Creature — Angel
+Shaman of the Pack	{1}{B}{G}	3	2	Creature — Elf Shaman
+Shamanic Revelation	{3}{G}{G}	-	-	Sorcery
+Shambling Ghast	{B}	1	1	Creature — Zombie
+Shared Animosity	{2}{R}	-	-	Enchantment
+Sharktocrab	{2}{G}{U}	4	4	Creature — Shark Octopus Crab
+Shattered Perception	{2}{R}	-	-	Sorcery
+Shattered Sanctum	-	-	-	Land
+Sheoldred, Whispering One	{5}{B}{B}	6	6	Legendary Creature — Phyrexian Praetor
+Shifting Woodland	-	-	-	Land
+Shiko, Paragon of the Way	{2}{U}{R}{W}	4	5	Legendary Creature — Spirit Dragon
+Shineshadow Snarl	-	-	-	Land
+Shiny Impetus	{2}{R}	-	-	Enchantment — Aura
+Shipwreck Marsh	-	-	-	Land
+Shivan Reef	-	-	-	Land
+Shizo, Death's Storehouse	-	-	-	Legendary Land
+Shrieking Drake	{U}	1	1	Creature — Drake
+Shriekmaw	{4}{B}	3	2	Creature — Elemental
+Shu Cavalry	{2}{W}	2	2	Creature — Human Soldier
+Sidisi, Undead Vizier	{3}{B}{B}	4	6	Legendary Creature — Zombie Snake
+Siege Wurm	{5}{G}{G}	5	5	Creature — Wurm
+Siege-Gang Commander	{3}{R}{R}	2	2	Creature — Goblin
+Siege-Gang Lieutenant	{3}{R}	2	2	Creature — Goblin
+Sifter of Skulls	{3}{B}	4	3	Creature — Eldrazi
+Sigil of Sleep	{U}	-	-	Enchantment — Aura
+Sign in Blood	{B}{B}	-	-	Sorcery
+Signal Pest	{1}	0	1	Artifact Creature — Pest
+Silence	{W}	-	-	Instant
+Silent Clearing	-	-	-	Land
+Silumgar, the Drifting Death	{4}{U}{B}	3	7	Legendary Creature — Dragon
+Silver-Fur Master	{U}{B}	2	2	Creature — Rat Ninja
+Silverblade Paladin	{1}{W}{W}	2	2	Creature — Human Knight
+Simian Spirit Guide	{2}{R}	2	2	Creature — Ape Spirit
+Simic Ascendancy	{G}{U}	-	-	Enchantment
+Simic Growth Chamber	-	-	-	Land
+Simic Initiate	{G}	0	0	Creature — Human Mutant
+Simic Signet	{2}	-	-	Artifact
+Sink into Stupor // Soporific Springs	{1}{U}{U}	-	-	Instant
+Siren Stormtamer	{U}	1	1	Creature — Siren Pirate Wizard
+Six	{2}{G}	2	4	Legendary Creature — Treefolk
+Skemfar Avenger	{1}{B}	3	1	Creature — Elf Berserker
+Skemfar Elderhall	-	-	-	Land
+Skemfar Shadowsage	{3}{B}	2	5	Creature — Elf Cleric
+Skewer the Critics	{2}{R}	-	-	Sorcery
+Skithiryx, the Blight Dragon	{3}{B}{B}	4	4	Legendary Creature — Phyrexian Dragon Skeleton
+Skrelv's Hive	{1}{W}	-	-	Enchantment
+Skrelv, Defector Mite	{W}	1	1	Legendary Artifact Creature — Phyrexian Mite
+Skullclamp	{1}	-	-	Artifact — Equipment
+Skullsnatcher	{1}{B}	2	1	Creature — Rat Ninja
+Sky Hussar	{3}{W}{U}	4	3	Creature — Human Knight
+Skyclave Apparition	{1}{W}{W}	2	2	Creature — Kor Spirit
+Skyhunter Strike Force	{2}{W}	2	2	Creature — Cat Knight
+Skyknight Vanguard	{R}{W}	1	2	Creature — Human Knight
+Skyshroud Claim	{3}{G}	-	-	Sorcery
+Skyshroud Poacher	{2}{G}{G}	2	2	Creature — Human Rebel
+Slayers' Stronghold	-	-	-	Land
+Slickshot Show-Off	{1}{R}	1	2	Creature — Bird Wizard
+Slither Blade	{U}	1	2	Creature — Snake Rogue
+Smoke Shroud	{1}{U}	-	-	Enchantment — Aura
+Smoldering Crater	-	-	-	Land
+Smoldering Marsh	-	-	-	Land — Swamp Mountain
+Smothering Abomination	{2}{B}{B}	4	3	Creature — Eldrazi
+Smothering Tithe	{3}{W}	-	-	Enchantment
+Smuggler's Copter	{2}	3	3	Artifact — Vehicle
+Smuggler's Surprise	{G}	-	-	Instant
+Snap	{1}{U}	-	-	Instant
+Snow-Covered Island	-	-	-	Basic Snow Land — Island
+Snow-Covered Swamp	-	-	-	Basic Snow Land — Swamp
+Snuff Out	{3}{B}	-	-	Instant
+Sokenzan, Crucible of Defiance	-	-	-	Legendary Land
+Sol Ring	{1}	-	-	Artifact
+Solemn Simulacrum	{4}	2	2	Artifact Creature — Golem
+Song of Freyalise	{1}{G}	-	-	Enchantment — Saga
+Sorin, Imperious Bloodlord	{2}{B}	-	-	Legendary Planeswalker — Sorin
+Sorin, Lord of Innistrad	{2}{W}{B}	-	-	Legendary Planeswalker — Sorin
+Soul's Majesty	{4}{G}	-	-	Sorcery
+Soulless Jailer	{2}	0	4	Artifact Creature — Phyrexian Golem
+Spara's Headquarters	-	-	-	Land — Forest Plains Island
+Spark Double	{3}{U}	0	0	Creature — Illusion
+Spawning Pit	{2}	-	-	Artifact
+Spectator Seating	-	-	-	Land
+Spectral Sailor	{U}	1	1	Creature — Spirit Pirate
+Spell Pierce	{U}	-	-	Instant
+Spellseeker	{2}{U}	1	1	Creature — Human Wizard
+Spelunking	{2}{G}	-	-	Enchantment
+Spidersilk Net	{0}	-	-	Artifact — Equipment
+Spike Weaver	{2}{G}{G}	0	0	Creature — Spike
+Spinerock Knoll	-	-	-	Land
+Spire Garden	-	-	-	Land
+Spirit of the Labyrinth	{1}{W}	3	1	Enchantment Creature — Spirit
+Spiteful Banditry	{X}{R}{R}	-	-	Enchantment
+Splendid Reclamation	{3}{G}	-	-	Sorcery
+Spore Frog	{G}	1	1	Creature — Frog
+Springbloom Druid	{2}{G}	1	1	Creature — Elf Druid
+Springheart Nantuko	{1}{G}	1	1	Enchantment Creature — Insect Monk
+Springleaf Drum	{1}	-	-	Artifact
+Spymaster's Vault	-	-	-	Land
+Squee, Dubious Monarch	{2}{R}	2	2	Legendary Creature — Goblin Noble
+Squee, Goblin Nabob	{2}{R}	1	1	Legendary Creature — Goblin
+Sram, Senior Edificer	{1}{W}	2	2	Legendary Creature — Dwarf Advisor
+Staff of Compleation	{3}	-	-	Artifact
+Staff of Domination	{3}	-	-	Artifact
+Starfield Shepherd	{3}{W}{W}	3	2	Creature — Angel
+Steam Vents	-	-	-	Land — Island Mountain
+Steel Hellkite	{6}	5	5	Artifact Creature — Dragon
+Steelshaper's Gift	{W}	-	-	Sorcery
+Stensia Masquerade	{2}{R}	-	-	Enchantment
+Sting, the Glinting Dagger	{2}	-	-	Legendary Artifact — Equipment
+Stitcher's Supplier	{B}	1	1	Creature — Zombie
+Stock Up	{2}{U}	-	-	Sorcery
+Stomping Ground	-	-	-	Land — Mountain Forest
+Stony Silence	{1}{W}	-	-	Enchantment
+Storm-Kiln Artist	{3}{R}	2	2	Creature — Dwarf Shaman
+Stormblood Berserker	{1}{R}	1	1	Creature — Human Berserker
+Stormcarved Coast	-	-	-	Land
+Street Wraith	{3}{B}{B}	3	4	Creature — Wraith
+Strike It Rich	{R}	-	-	Sorcery
+Strip Mine	-	-	-	Land
+Strix Serenade	{U}	-	-	Instant
+Strixhaven Stadium	{3}	-	-	Artifact
+Stroke of Midnight	{2}{W}	-	-	Instant
+Stromkirk Captain	{1}{B}{R}	2	2	Creature — Vampire Soldier
+Stubborn Denial	{U}	-	-	Instant
+Sublime Exhalation	{6}{W}	-	-	Sorcery
+Submerge	{4}{U}	-	-	Instant
+Sulfur Falls	-	-	-	Land
+Sulfurous Springs	-	-	-	Land
+Summoner's Pact	{0}	-	-	Instant
+Sun Titan	{4}{W}{W}	6	6	Creature — Giant
+Sundering Eruption // Volcanic Fissure	{2}{R}	-	-	Sorcery
+Sundown Pass	-	-	-	Land
+Sunken Hollow	-	-	-	Land — Island Swamp
+Sunken Palace	-	-	-	Land — Cave
+Sunken Ruins	-	-	-	Land
+Sunpetal Grove	-	-	-	Land
+Supreme Verdict	{1}{W}{W}{U}	-	-	Sorcery
+Suq'Ata Lancer	{2}{R}	2	2	Creature — Human Knight
+Susurian Voidborn	{2}{B}	2	2	Creature — Vampire Soldier
+Swamp	-	-	-	Basic Land — Swamp
+Swan Song	{U}	-	-	Instant
+Swiftfoot Boots	{2}	-	-	Artifact — Equipment
+Swiftwater Cliffs	-	-	-	Land
+Sword of Body and Mind	{3}	-	-	Artifact — Equipment
+Sword of Feast and Famine	{3}	-	-	Artifact — Equipment
+Sword of Fire and Ice	{3}	-	-	Artifact — Equipment
+Sword of Light and Shadow	{3}	-	-	Artifact — Equipment
+Sword of Sinew and Steel	{3}	-	-	Artifact — Equipment
+Sword of Truth and Justice	{3}	-	-	Artifact — Equipment
+Sword of Vengeance	{3}	-	-	Artifact — Equipment
+Sword of War and Peace	{3}	-	-	Artifact — Equipment
+Sword of the Animist	{2}	-	-	Legendary Artifact — Equipment
+Sword of the Paruns	{4}	-	-	Artifact — Equipment
+Swords to Plowshares	{W}	-	-	Instant
+Sylvan Library	{1}{G}	-	-	Enchantment
+Sylvan Messenger	{3}{G}	2	2	Creature — Elf
+Syndic of Tithes	{1}{W}	2	2	Creature — Human Cleric
+Syr Konrad, the Grim	{3}{B}{B}	5	4	Legendary Creature — Human Knight
+Taiga	-	-	-	Land — Mountain Forest
+Tainted Field	-	-	-	Land
+Tainted Isle	-	-	-	Land
+Tainted Observer	{1}{G}{U}	2	3	Creature — Phyrexian Bird
+Tainted Strike	{B}	-	-	Instant
+Tainted Wood	-	-	-	Land
+Takenuma, Abandoned Mire	-	-	-	Legendary Land
+Talisman of Conviction	{2}	-	-	Artifact
+Talisman of Creativity	{2}	-	-	Artifact
+Talisman of Dominance	{2}	-	-	Artifact
+Talisman of Hierarchy	{2}	-	-	Artifact
+Talisman of Indulgence	{2}	-	-	Artifact
+Talisman of Resilience	{2}	-	-	Artifact
+Talrand's Invocation	{2}{U}{U}	-	-	Sorcery
+Talrand, Sky Summoner	{2}{U}{U}	2	2	Legendary Creature — Merfolk Wizard
+Tamiyo's Safekeeping	{G}	-	-	Instant
+Tamiyo, Field Researcher	{1}{G}{W}{U}	-	-	Legendary Planeswalker — Tamiyo
+Tandem Lookout	{2}{U}	2	1	Creature — Human Scout
+Tatyova, Benthic Druid	{3}{G}{U}	3	3	Legendary Creature — Merfolk Druid
+Tatyova, Steward of Tides	{G}{G}{U}	3	3	Legendary Creature — Merfolk Druid
+Tear Asunder	{1}{G}	-	-	Instant
+Tectonic Giant	{2}{R}{R}	3	4	Creature — Elemental Giant
+Tectonic Reformation	{1}{R}	-	-	Enchantment
+Teferi's Ageless Insight	{2}{U}{U}	-	-	Legendary Enchantment
+Teferi's Isle	-	-	-	Legendary Land
+Teferi's Protection	{2}{W}	-	-	Instant
+Teferi, Hero of Dominaria	{3}{W}{U}	-	-	Legendary Planeswalker — Teferi
+Teferi, Master of Time	{2}{U}{U}	-	-	Legendary Planeswalker — Teferi
+Teferi, Temporal Archmage	{4}{U}{U}	-	-	Legendary Planeswalker — Teferi
+Teferi, Temporal Pilgrim	{3}{U}{U}	-	-	Legendary Planeswalker — Teferi
+Teferi, Time Raveler	{1}{W}{U}	-	-	Legendary Planeswalker — Teferi
+Tekuthal, Inquiry Dominus	{2}{U}{U}	3	5	Legendary Creature — Phyrexian Horror
+Telling Time	{1}{U}	-	-	Instant
+Temple Garden	-	-	-	Land — Forest Plains
+Temple of Deceit	-	-	-	Land
+Temple of Epiphany	-	-	-	Land
+Temple of Malady	-	-	-	Land
+Temple of Malice	-	-	-	Land
+Temple of Silence	-	-	-	Land
+Temple of Triumph	-	-	-	Land
+Temple of the Dragon Queen	-	-	-	Land
+Temple of the False God	-	-	-	Land
+Temporal Mastery	{5}{U}{U}	-	-	Sorcery
+Temporal Trespass	{8}{U}{U}{U}	-	-	Sorcery
+Temur Ascendancy	{G}{U}{R}	-	-	Enchantment
+Temur Sabertooth	{2}{G}{G}	4	3	Creature — Cat
+Teneb, the Harvester	{3}{W}{B}{G}	6	6	Legendary Creature — Dragon
+Terminate	{B}{R}	-	-	Instant
+Terminus	{4}{W}{W}	-	-	Sorcery
+Terramorphic Expanse	-	-	-	Land
+Territorial Maro	{4}{G}	*	*	Creature — Elemental
+Territorial Scythecat	{2}{G}	2	1	Creature — Cat
+Terror of the Peaks	{3}{R}{R}	5	4	Creature — Dragon
+Tetsuko Umezawa, Fugitive	{1}{U}	1	3	Legendary Creature — Human Rogue
+Teysa Karlov	{2}{W}{B}	2	4	Legendary Creature — Human Advisor
+Teysa, Orzhov Scion	{1}{W}{B}	2	3	Legendary Creature — Human Advisor
+Tezzeret's Gambit	{3}{U/P}	-	-	Sorcery
+Thalia, Guardian of Thraben	{1}{W}	2	1	Legendary Creature — Human Soldier
+Thassa's Oracle	{U}{U}	1	3	Creature — Merfolk Wizard
+Thaumatic Compass	{2}	-	-	Artifact
+The Eternal Wanderer	{4}{W}{W}	-	-	Legendary Planeswalker
+The Fire Crystal	{2}{R}{R}	-	-	Legendary Artifact
+The Great Henge	{7}{G}{G}	-	-	Legendary Artifact
+The Indomitable	{2}{U}{U}	6	6	Legendary Artifact — Vehicle
+The Locust God	{4}{U}{R}	4	4	Legendary Creature — God
+The Meathook Massacre	{X}{B}{B}	-	-	Legendary Enchantment
+The One Ring	{4}	-	-	Legendary Artifact
+The Reaver Cleaver	{2}{R}	-	-	Legendary Artifact — Equipment
+The Seedcore	-	-	-	Land — Sphere
+The Soul Stone	{1}{B}	-	-	Legendary Artifact — Infinity Stone
+The Ur-Dragon	{4}{W}{U}{B}{R}{G}	10	10	Legendary Creature — Dragon Avatar
+The World Tree	-	-	-	Land
+Thespian's Stage	-	-	-	Land
+Thieving Skydiver	{1}{U}	2	1	Creature — Merfolk Rogue
+Think Twice	{1}{U}	-	-	Instant
+Thirsting Roots	{G}	-	-	Sorcery
+Thornbite Staff	{2}	-	-	Kindred Artifact — Shaman Equipment
+Thought Vessel	{2}	-	-	Artifact
+Thousand-Faced Shadow	{U}	1	1	Creature — Human Ninja
+Thousand-Year Elixir	{3}	-	-	Artifact
+Thraben Inspector	{W}	1	2	Creature — Human Soldier
+Thrasios, Triton Hero	{G}{U}	1	3	Legendary Creature — Merfolk Wizard
+Three Tree City	-	-	-	Legendary Land
+Three Visits	{1}{G}	-	-	Sorcery
+Thrill of Possibility	{1}{R}	-	-	Instant
+Throat Slitter	{4}{B}	2	2	Creature — Rat Ninja
+Throatseeker	{2}{B}	3	2	Creature — Vampire Ninja
+Throne of Eldraine	{5}	-	-	Legendary Artifact
+Throne of the God-Pharaoh	{2}	-	-	Legendary Artifact
+Thrummingbird	{1}{U}	1	1	Creature — Phyrexian Bird Horror
+Thundering Falls	-	-	-	Land — Island Mountain
+Thundermane Dragon	{3}{R}	4	4	Creature — Dragon
+Tiamat	{2}{W}{U}{B}{R}{G}	7	7	Legendary Creature — Dragon God
+Tibalt's Trickery	{1}{R}	-	-	Instant
+Timberwatch Elf	{2}{G}	1	2	Creature — Elf
+Timeline Culler	{B}{B}	2	2	Creature — Drix Warlock
+Tinybones, Trinket Thief	{1}{B}	1	2	Legendary Creature — Skeleton Rogue
+Tireless Provisioner	{2}{G}	3	2	Creature — Elf Scout
+Tireless Tracker	{2}{G}	3	2	Creature — Human Scout
+Tolarian Winds	{1}{U}	-	-	Instant
+Tombstone Stairwell	{2}{B}{B}	-	-	World Enchantment
+Tomik, Wielder of Law	{1}{W}{B}	2	4	Legendary Creature — Human Advisor
+Tooth and Nail	{5}{G}{G}	-	-	Sorcery
+Toothy, Imaginary Friend	{3}{U}	1	1	Legendary Creature — Illusion
+Topan Freeblade	{1}{W}	2	2	Creature — Human Soldier
+Torch Courier	{R}	1	1	Creature — Goblin
+Torch Slinger	{2}{R}	2	2	Creature — Goblin Shaman
+Torch the Tower	{R}	-	-	Instant
+Torment of Hailfire	{X}{B}{B}	-	-	Sorcery
+Tormented Soul	{B}	1	1	Creature — Spirit
+Tormenting Voice	{1}{R}	-	-	Sorcery
+Tortured Existence	{B}	-	-	Enchantment
+Toski, Bearer of Secrets	{3}{G}	1	1	Legendary Creature — Squirrel
+Touch the Spirit Realm	{2}{W}	-	-	Enchantment
+Toxic Deluge	{2}{B}	-	-	Sorcery
+Tragic Slip	{B}	-	-	Instant
+Train of Thought	{1}{U}	-	-	Sorcery
+Training Center	-	-	-	Land
+Training Grounds	{U}	-	-	Enchantment
+Transcendent Dragon	{4}{U}{U}	4	3	Creature — Dragon
+Treasure Cruise	{7}{U}	-	-	Sorcery
+Treasure Vault	-	-	-	Artifact Land
+Triton Shorestalker	{U}	1	1	Creature — Merfolk Rogue
+Triumph of the Hordes	{2}{G}{G}	-	-	Sorcery
+Triumphant Adventurer	{W}{B}	1	1	Creature — Human Knight
+Tropical Island	-	-	-	Land — Forest Island
+Tundra	-	-	-	Land — Plains Island
+Turn // Burn	{2}{U}	-	-	Instant
+Turntimber Symbiosis // Turntimber, Serpentine Wood	{4}{G}{G}{G}	-	-	Sorcery
+Twilight Mire	-	-	-	Land
+Twilight Prophet	{2}{B}{B}	2	4	Creature — Vampire Cleric
+Twinflame Tyrant	{3}{R}{R}	3	5	Creature — Dragon
+Two-Headed Hellkite	{1}{W}{U}{B}{R}{G}	5	5	Creature — Dragon
+Tymna the Weaver	{1}{W}{B}	2	2	Legendary Creature — Human Cleric
+Tyrranax Rex	{4}{G}{G}{G}	8	8	Creature — Phyrexian Dinosaur
+Tyvar Kell	{2}{G}{G}	-	-	Legendary Planeswalker — Tyvar
+Tyvar the Bellicose	{2}{B}{G}	5	4	Legendary Creature — Elf Warrior
+Tyvar, Jubilant Brawler	{1}{B}{G}	-	-	Legendary Planeswalker — Tyvar
+Ugin, the Spirit Dragon	{8}	-	-	Legendary Planeswalker — Ugin
+Ulamog's Crusher	{8}	8	8	Creature — Eldrazi
+Ultramarines Honour Guard	{3}{W}	2	2	Creature — Astartes Warrior
+Ulvenwald Hydra	{4}{G}{G}	*	*	Creature — Hydra
+Umbral Collar Zealot	{1}{B}	3	2	Creature — Human Cleric
+Umbral Mantle	{3}	-	-	Artifact — Equipment
+Umezawa's Jitte	{2}	-	-	Legendary Artifact — Equipment
+Unbreakable Formation	{2}{W}	-	-	Instant
+Unclaimed Territory	-	-	-	Land
+Undercity Sewers	-	-	-	Land — Island Swamp
+Underground Mortuary	-	-	-	Land — Swamp Forest
+Underground River	-	-	-	Land
+Underground Sea	-	-	-	Land — Island Swamp
+Undergrowth Stadium	-	-	-	Land
+Unearth	{B}	-	-	Sorcery
+Universal Automaton	{1}	1	1	Artifact Creature — Shapeshifter
+Unnatural Restoration	{1}{G}	-	-	Sorcery
+Untimely Malfunction	{1}{R}	-	-	Instant
+Up the Beanstalk	{1}{G}	-	-	Enchantment
+Urban Evolution	{3}{G}{U}	-	-	Sorcery
+Urborg, Tomb of Yawgmoth	-	-	-	Legendary Land
+Ureni of the Unwritten	{4}{G}{U}{R}	7	7	Legendary Creature — Spirit Dragon
+Uro, Titan of Nature's Wrath	{1}{G}{U}	6	6	Legendary Creature — Elder Giant
+Urza's Cave	-	-	-	Land — Urza's Cave
+Urza's Incubator	{3}	-	-	Artifact
+Urza's Saga	-	-	-	Enchantment Land — Urza's Saga
+Utter End	{2}{W}{B}	-	-	Instant
+Utvara Hellkite	{6}{R}{R}	6	6	Creature — Dragon
+Valakut Awakening // Valakut Stoneforge	{2}{R}	-	-	Instant
+Valakut, the Molten Pinnacle	-	-	-	Land
+Vampire Cutthroat	{B}	1	1	Creature — Vampire Rogue
+Vampire Gourmand	{1}{B}	2	2	Creature — Vampire
+Vampire Hexmage	{B}{B}	2	1	Creature — Vampire Shaman
+Vampire Nighthawk	{1}{B}{B}	2	3	Creature — Vampire Shaman
+Vampire Nocturnus	{1}{B}{B}{B}	3	3	Creature — Vampire
+Vampire Socialite	{B}{R}	2	2	Creature — Vampire Noble
+Vampire of the Dire Moon	{B}	1	1	Creature — Vampire
+Vampiric Rites	{B}	-	-	Enchantment
+Vampiric Tutor	{B}	-	-	Instant
+Vandalblast	{R}	-	-	Sorcery
+Vanquish the Horde	{6}{W}{W}	-	-	Sorcery
+Vanquisher's Banner	{5}	-	-	Artifact
+Vault of Champions	-	-	-	Land
+Vault of the Archangel	-	-	-	Land
+Veil of Summer	{G}	-	-	Instant
+Vein Ripper	{3}{B}{B}{B}	6	5	Creature — Vampire Assassin
+Venerated Rotpriest	{G}	1	2	Creature — Phyrexian Druid
+Vengeful Bloodwitch	{1}{B}	1	1	Creature — Vampire Warlock
+Verdant Catacombs	-	-	-	Land
+Vexing Shusher	{R/G}{R/G}	2	2	Creature — Goblin Shaman
+Victimize	{2}{B}	-	-	Sorcery
+Village Rites	{B}	-	-	Instant
+Vindicate	{1}{W}{B}	-	-	Sorcery
+Vindictive Vampire	{3}{B}	2	3	Creature — Vampire
+Vines of Vastwood	{G}	-	-	Instant
+Viridescent Bog	-	-	-	Land
+Viscera Seer	{B}	1	1	Creature — Vampire Wizard
+Vishgraz, the Doomhive	{2}{W}{B}{G}	3	3	Legendary Creature — Phyrexian Insect
+Vitalize	{G}	-	-	Instant
+Vito, Thorn of the Dusk Rose	{2}{B}	1	3	Legendary Creature — Vampire Cleric
+Vivisection Evangelist	{3}{W}{B}	4	4	Creature — Phyrexian Cleric
+Vizier of the Menagerie	{3}{G}	3	4	Creature — Snake Cleric
+Voice of Many	{2}{G}{G}	3	3	Creature — Elf Druid
+Voice of Victory	{1}{W}	1	3	Creature — Human Bard
+Voidwing Hybrid	{U}{B}	2	1	Creature — Phyrexian Bat
+Volatile Stormdrake	{1}{U}	3	2	Creature — Drake
+Volcanic Island	-	-	-	Land — Island Mountain
+Voldaren Epicure	{R}	1	1	Creature — Vampire
+Voldaren Estate	-	-	-	Land
+Volley Veteran	{3}{R}	4	2	Creature — Goblin Warrior
+Vona's Hunger	{2}{B}	-	-	Instant
+Vorinclex, Monstrous Raider	{4}{G}{G}	6	6	Legendary Creature — Phyrexian Praetor
+Vraska's Fall	{2}{B}	-	-	Instant
+Vraska, Betrayal's Sting	{4}{B}{B/P}	-	-	Legendary Planeswalker — Vraska
+Vulpikeet	{3}{W}	2	3	Creature — Fox Bird
+Wake the Dead	{X}{B}{B}	-	-	Instant
+Walk-In Closet // Forgotten Cellar	{2}{G}	-	-	Enchantment — Room
+Walker of Secret Ways	{2}{U}	1	2	Creature — Human Ninja
+Wall of Omens	{1}{W}	0	4	Creature — Wall
+War Room	-	-	-	Land
+Warchief Giant	{3}{R}{R}	5	3	Creature — Giant Warrior
+Warleader's Call	{1}{R}{W}	-	-	Enchantment
+Warren Instigator	{R}{R}	1	1	Creature — Goblin Berserker
+Warren Soultrader	{2}{B}	3	3	Creature — Zombie Goblin Wizard
+Warstorm Surge	{5}{R}	-	-	Enchantment
+Waste Not	{1}{B}	-	-	Enchantment
+Wasteland	-	-	-	Land
+Wastewood Verge	-	-	-	Land
+Watery Grave	-	-	-	Land — Island Swamp
+Wayfarer's Bauble	{1}	-	-	Artifact
+Wayward Swordtooth	{2}{G}	5	5	Creature — Dinosaur
+Weaponcraft Enthusiast	{2}{B}	0	1	Creature — Aetherborn Artificer
+Wear // Tear	{1}{R}	-	-	Instant
+Welcoming Vampire	{2}{W}	2	3	Creature — Vampire
+Well of Lost Dreams	{4}	-	-	Artifact
+Wellwisher	{1}{G}	1	1	Creature — Elf
+Wheel of Fortune	{2}{R}	-	-	Sorcery
+Whelming Wave	{2}{U}{U}	-	-	Sorcery
+Whirlpool Warrior	{2}{U}	2	2	Creature — Merfolk Warrior
+Whispering Wizard	{3}{U}	3	2	Creature — Human Wizard
+Whispersilk Cloak	{3}	-	-	Artifact — Equipment
+White Sun's Twilight	{X}{W}{W}	-	-	Sorcery
+Whitemane Lion	{1}{W}	2	2	Creature — Cat
+Wight of the Reliquary	{B}{G}	2	2	Creature — Zombie Knight
+Wild Growth	{G}	-	-	Enchantment — Aura
+Wilderness Reclamation	{3}{G}	-	-	Enchantment
+Wind-Scarred Crag	-	-	-	Land
+Windbrisk Heights	-	-	-	Land
+Windcrag Siege	{1}{R}{W}	-	-	Enchantment
+Windfall	{2}{U}	-	-	Sorcery
+Winds of Change	{R}	-	-	Sorcery
+Windswept Heath	-	-	-	Land
+Wingcrafter	{U}	1	1	Creature — Human Wizard
+Winged Words	{2}{U}	-	-	Sorcery
+Wings of the Guard	{1}{W}	1	1	Creature — Bird
+Wirewood Herald	{1}{G}	1	1	Creature — Elf
+Wirewood Lodge	-	-	-	Land
+Witch Enchanter // Witch-Blessed Meadow	{3}{W}	2	2	Creature — Human Warlock
+Witch's Cottage	-	-	-	Land — Swamp
+Witty Roastmaster	{2}{R}	3	2	Creature — Devil Citizen
+Woe Strider	{2}{B}	3	2	Creature — Horror
+Wolverine Pack	{2}{G}{G}	2	4	Creature — Wolverine
+Wolverine Riders	{4}{G}{G}	4	4	Creature — Elf Warrior
+Wonder	{3}{U}	2	2	Creature — Incarnation
+Wood Elves	{2}{G}	1	1	Creature — Elf Scout
+Wooded Foothills	-	-	-	Land
+Woodland Bellower	{4}{G}{G}	6	5	Creature — Beast
+Woodland Cemetery	-	-	-	Land
+Workhorse	{6}	0	0	Artifact Creature — Horse
+World Shaper	{3}{G}	3	3	Creature — Merfolk Shaman
+Worldly Tutor	{G}	-	-	Instant
+Wrath of God	{2}{W}{W}	-	-	Sorcery
+Wrathful Red Dragon	{3}{R}{R}	5	5	Creature — Dragon
+Wrenn and Realmbreaker	{1}{G}{G}	-	-	Legendary Planeswalker — Wrenn
+Wrenn and Seven	{3}{G}{G}	-	-	Legendary Planeswalker — Wrenn
+Write into Being	{2}{U}	-	-	Sorcery
+Xenagos, the Reveler	{2}{R}{G}	-	-	Legendary Planeswalker — Xenagos
+Xorn	{2}{R}	3	2	Creature — Elemental
+Yahenni, Undying Partisan	{2}{B}	2	2	Legendary Creature — Aetherborn Vampire
+Yavimaya Coast	-	-	-	Land
+Yavimaya Hollow	-	-	-	Legendary Land
+Yavimaya, Cradle of Growth	-	-	-	Legendary Land
+Yawgmoth, Thran Physician	{2}{B}{B}	2	4	Legendary Creature — Human Cleric
+Yeva, Nature's Herald	{2}{G}{G}	4	4	Legendary Creature — Elf Shaman
+You See a Pair of Goblins	{2}{R}	-	-	Instant
+Young Wolf	{G}	1	1	Creature — Wolf
+Yuriko, the Tiger's Shadow	{1}{U}{B}	1	3	Legendary Creature — Human Ninja
+Zagoth Triome	-	-	-	Land — Swamp Forest Island
+Zealous Conscripts	{4}{R}	3	3	Creature — Human Warrior
+Zendikar Resurgent	{5}{G}{G}	-	-	Enchantment
+Zendikar's Roil	{3}{G}{G}	-	-	Enchantment
+Zhalfirin Void	-	-	-	Land
+Zhur-Taa Goblin	{R}{G}	2	2	Creature — Goblin Berserker
+Ziatora's Proving Ground	-	-	-	Land — Swamp Mountain Forest
+Ziatora, the Incinerator	{3}{B}{R}{G}	6	6	Legendary Creature — Demon Dragon
+Zulaport Cutthroat	{1}{B}	1	1	Creature — Human Rogue Ally
+Zurgo Bellstriker	{R}	2	2	Legendary Creature — Orc Warrior
+Zurgo Stormrender	{R}{W}{B}	3	3	Legendary Creature — Orc Warrior
+Zurgo and Ojutai	{2}{U}{R}{W}	4	4	Legendary Creature — Orc Dragon
+Éomer, King of Rohan	{3}{R}{W}	2	2	Legendary Creature — Human Noble
+# unmatched: 2 name(s) absent from the database snapshot:
+#   Poisonous Viper
+#   Steel Guardian

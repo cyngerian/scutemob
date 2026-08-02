@@ -14,6 +14,7 @@ members = [
     "tools/replay-viewer",
     "tools/play-server",
     "tools/tui",
+    "tools/card-field-dump",
 ]
 
 [workspace.package]

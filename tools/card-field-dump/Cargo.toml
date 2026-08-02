@@ -1,0 +1,11 @@
+[package]
+name = "card-field-dump"
+version = "0.1.0"
+edition.workspace = true
+
+[dependencies]
+mtg-card-defs = { path = "../../crates/card-defs" }
+mtg-card-types = { path = "../../crates/card-types" }
+
+[lints]
+workspace = true
