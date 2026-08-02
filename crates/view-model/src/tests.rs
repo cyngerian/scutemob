@@ -8,12 +8,14 @@
 //! through a field added later, or through one nobody thought of.
 
 use mtg_engine::{
-    AttackTarget, CardId, CombatState, CounterType, FaceDownKind, GameEvent, GameState,
-    GameStateBuilder, KeywordAbility, ManaPool, ObjectId, ObjectSpec, PlayerId, SpellTarget,
-    StackObject, StackObjectKind, Step, SubType, SuperType, Target, ZoneId,
+    AttackTarget, CardId, CombatDamageAssignment, CombatDamageTarget, CombatState, CounterType,
+    FaceDownKind, GameEvent, GameState, GameStateBuilder, KeywordAbility, ManaPool, ObjectId,
+    ObjectSpec, PlayerId, SpellTarget, StackObject, StackObjectKind, Step, SubType, SuperType,
+    Target, ZoneId,
 };
 use std::collections::HashMap;
 
+use crate::event_view::EventTier;
 use crate::redact::{FACE_DOWN_NAME, HIDDEN_CARD_NAME};
 use crate::{event_view_for, StateViewModel, Viewer};
 
@@ -399,17 +401,15 @@ fn test_event_view_redacts_other_seats_card_draw() {
     let dev_view = event_view_for(&drawn, &state, &names, Viewer::Omniscient).expect("dev view");
     assert_eq!(dev_view.text, "bob draws Sol Ring");
 
-    // The `_ =>` catch-all: kind only. `PermanentTapped` carries an ObjectId
-    // naming a face-down creature, and none of it reaches the rendered line.
+    // The `_ =>` catch-all: kind only. `PermanentExerted` (CR 701.43a) carries
+    // an ObjectId naming a face-down creature, has no prose arm, and none of its
+    // payload reaches the rendered line.
     let morph = object_id_of(&state, "Exalted Angel", &ZoneId::Battlefield);
-    let tapped = GameEvent::PermanentTapped {
-        player: bob,
-        object_id: morph,
-    };
-    let catch_all = event_view_for(&tapped, &state, &names, Viewer::Seat(alice))
+    let exerted = GameEvent::PermanentExerted { object_id: morph };
+    let catch_all = event_view_for(&exerted, &state, &names, Viewer::Seat(alice))
         .expect("catch-all still renders a line");
-    assert_eq!(catch_all.kind, "PermanentTapped");
-    assert_eq!(catch_all.text, "PermanentTapped");
+    assert_eq!(catch_all.kind, "PermanentExerted");
+    assert_eq!(catch_all.text, "PermanentExerted");
     let every_card_name: Vec<&str> = OTHER_SEAT_HAND_CARDS
         .iter()
         .chain(LIBRARY_CARDS.iter())
@@ -814,4 +814,335 @@ fn test_seat_view_does_not_flag_a_face_down_commander() {
         find_morph(&bob_view),
         "bob owns his own face-down commander and must still see it flagged"
     );
+}
+
+// ── UI-3: event-feed tiers and prose arms ────────────────────────────────────
+
+/// The four feed tiers, one representative variant each.
+///
+/// The tiers are the playtest note's own three groupings (`test-data/bot testing
+/// notes.md`: "player actions", "card actions", "stack actions") plus a fourth
+/// for turn structure and outcome, which fits none of the three. The interaction
+/// validated is the client contract: a Svelte client switches on `tier`, so the
+/// serialized form must be the bare snake_case string, not a Rust enum name.
+///
+/// CR references for why each representative belongs where it does:
+/// CR 500.1 (turn structure) → game; CR 701.26 (tap/untap, a player's action) →
+/// player; CR 608.3a (a permanent entering the battlefield) → card;
+/// CR 608.2n (a spell leaving the stack) → stack.
+#[test]
+fn test_event_tier_classifies_the_four_buckets() {
+    let (state, names) = golden_fixture_state();
+    let alice = PlayerId(1);
+
+    let forest = object_id_of(&state, "Forest", &ZoneId::Battlefield);
+    let bears = object_id_of(&state, "Grizzly Bears", &ZoneId::Battlefield);
+    let shock = object_id_of(&state, "Shock", &ZoneId::Graveyard(alice));
+
+    let cases: Vec<(GameEvent, EventTier, &str)> = vec![
+        (
+            GameEvent::TurnStarted {
+                player: alice,
+                turn_number: 7,
+            },
+            EventTier::Game,
+            "game",
+        ),
+        (
+            GameEvent::PermanentTapped {
+                player: alice,
+                object_id: forest,
+            },
+            EventTier::Player,
+            "player",
+        ),
+        (
+            GameEvent::PermanentEnteredBattlefield {
+                player: alice,
+                object_id: bears,
+            },
+            EventTier::Card,
+            "card",
+        ),
+        (
+            GameEvent::SpellResolved {
+                player: alice,
+                stack_object_id: ObjectId(9_001),
+                source_object_id: shock,
+            },
+            EventTier::Stack,
+            "stack",
+        ),
+    ];
+
+    for (ev, expected, wire) in cases {
+        let view = event_view_for(&ev, &state, &names, Viewer::Seat(alice))
+            .expect("every case is a public event");
+        assert_eq!(
+            view.tier, expected,
+            "{} must be classified {expected:?}",
+            view.kind
+        );
+        let json = serde_json::to_string(&view).expect("an event view must serialize");
+        assert!(
+            json.contains(&format!("\"tier\":\"{wire}\"")),
+            "{} must reach the client as the bare string {wire:?}, got:\n{json}",
+            view.kind
+        );
+    }
+}
+
+/// An unclassified variant lands on the documented default tier rather than
+/// vanishing from the feed.
+///
+/// `GameEvent` has ~141 variants and `event_tier` deliberately classifies only
+/// the ones a player cares about, so the default arm is load-bearing, not a
+/// formality. The default is `Game` because that is the least-populated tier and
+/// the one a client is least likely to filter out — an event this build does not
+/// narrate yet still reaches the player's eye, next to the turn markers.
+///
+/// Both serialization shapes are covered, because `event_kind` handles them
+/// separately (PB-DP10): `PermanentExerted` (CR 701.43a) is a struct variant and
+/// `DamageCleared` (CR 514.2) is a unit variant.
+#[test]
+fn test_event_tier_defaults_to_game_for_an_unclassified_variant() {
+    let (state, names) = golden_fixture_state();
+    let alice = PlayerId(1);
+    let bears = object_id_of(&state, "Grizzly Bears", &ZoneId::Battlefield);
+
+    for ev in [
+        GameEvent::PermanentExerted { object_id: bears },
+        GameEvent::DamageCleared,
+    ] {
+        let view =
+            event_view_for(&ev, &state, &names, Viewer::Seat(alice)).expect("a public event");
+        assert_eq!(
+            view.tier,
+            EventTier::Game,
+            "{} is unclassified and must fall to the documented default tier",
+            view.kind
+        );
+        // ...and it really is unclassified: the catch-all renders kind-only.
+        assert_eq!(
+            view.text, view.kind,
+            "{} must still be on the kind-only redaction floor, or this test \
+             has stopped testing the default arm",
+            view.kind
+        );
+    }
+}
+
+/// CR 402.1 / CR 401.2: a card moved into a hidden zone may be named only for a
+/// seat entitled to identify it. CR 708.2: nor may a face-down permanent be
+/// named for a seat that does not own it.
+///
+/// Architecture Invariant 7. Each case asserts the omniscient view DOES name the
+/// card first, so the absence assertions are not asserting the absence of
+/// something that was never there.
+#[test]
+fn test_event_view_does_not_leak_a_card_moved_into_a_hidden_zone() {
+    let (state, names) = golden_fixture_state();
+    let alice = PlayerId(1);
+    let bob = PlayerId(2);
+    let carol = PlayerId(3);
+
+    let alesha = object_id_of(&state, "Alesha, Who Smiles at Death", &ZoneId::Battlefield);
+    let sol_ring = object_id_of(&state, "Sol Ring", &ZoneId::Hand(bob));
+    let llanowar = object_id_of(&state, "Llanowar Elves", &ZoneId::Library(carol));
+    let morph = object_id_of(&state, "Exalted Angel", &ZoneId::Battlefield);
+
+    // (event, entitled seat, needle, expected line for the entitled seat,
+    //  expected line for a seat that is not entitled)
+    let cases: Vec<(GameEvent, PlayerId, &str, &str, &str)> = vec![
+        // CR 402.1: a bounce lands in bob's hand — only bob may be told which
+        // card it was. (Known conservatism: in paper the battlefield object was
+        // public before it moved. See `event_view`'s module doc.)
+        (
+            GameEvent::ObjectReturnedToHand {
+                player: bob,
+                object_id: alesha,
+                new_hand_id: sol_ring,
+                pre_lba_counters: Default::default(),
+                pre_lba_power: None,
+            },
+            bob,
+            "Sol Ring",
+            "bob returns Sol Ring to their hand",
+            "bob returns a card to their hand",
+        ),
+        // CR 401.2: a library is hidden from every player but its owner.
+        (
+            GameEvent::ObjectPutOnLibrary {
+                player: carol,
+                object_id: alesha,
+                new_lib_id: llanowar,
+            },
+            carol,
+            "Llanowar Elves",
+            "carol puts Llanowar Elves into their library",
+            "carol puts a card into their library",
+        ),
+        // CR 708.2: a face-down permanent is a public OBJECT with a private
+        // identity. The battlefield arm must degrade the same way.
+        (
+            GameEvent::PermanentTapped {
+                player: bob,
+                object_id: morph,
+            },
+            bob,
+            "Exalted Angel",
+            "bob taps Exalted Angel",
+            "bob taps a permanent",
+        ),
+    ];
+
+    for (ev, entitled, needle, entitled_line, redacted_line) in cases {
+        // Non-vacuity: the developer tool really does name it.
+        let dev = event_view_for(&ev, &state, &names, Viewer::Omniscient).expect("a public event");
+        assert!(
+            dev.text.contains(needle),
+            "the omniscient line for {} must name {needle:?}, or the absence \
+             assertion below is vacuous: {:?}",
+            dev.kind,
+            dev.text
+        );
+
+        let owner_view =
+            event_view_for(&ev, &state, &names, Viewer::Seat(entitled)).expect("a public event");
+        assert_eq!(owner_view.text, entitled_line);
+
+        let outsider_view =
+            event_view_for(&ev, &state, &names, Viewer::Seat(alice)).expect("a public event");
+        assert_eq!(
+            outsider_view.text, redacted_line,
+            "{} must degrade to a name-free sentence, not a placeholder",
+            outsider_view.kind
+        );
+        assert_absent(
+            &outsider_view.text,
+            &[needle],
+            &format!("alice's {} line", outsider_view.kind),
+        );
+    }
+}
+
+/// The rendered arms produce sentences, not the bare serde variant name.
+///
+/// Before UI-3 every one of these fell through to the `_ =>` catch-all and
+/// rendered as a single CamelCase word — the playtest's "events is too sparse
+/// and not verbose enough" finding, in full. Exact strings are asserted rather
+/// than "is not equal to the kind", because an arm that renders the wrong
+/// SUBJECT (the retired CR 400.7 id instead of the live one, say) still renders
+/// prose and would pass a looser check.
+///
+/// CR references: CR 701.26 (tap), CR 608.3a (enters the battlefield),
+/// CR 704.5f (dies as an SBA, into the public graveyard of CR 400.2),
+/// CR 701.6 (counter a spell), CR 508.1 (declare attackers),
+/// CR 510.2 (combat damage), CR 122.1 (counters).
+#[test]
+fn test_event_view_renders_prose_for_the_variants_players_care_about() {
+    let (state, names) = golden_fixture_state();
+    let alice = PlayerId(1);
+    let carol = PlayerId(3);
+
+    let forest = object_id_of(&state, "Forest", &ZoneId::Battlefield);
+    let bears = object_id_of(&state, "Grizzly Bears", &ZoneId::Battlefield);
+    let shock = object_id_of(&state, "Shock", &ZoneId::Graveyard(alice));
+    let doom_blade = object_id_of(&state, "Doom Blade", &ZoneId::Graveyard(carol));
+
+    // (event, expected line, expected `player` attribution, expected tier)
+    let cases: Vec<(GameEvent, &str, Option<&str>, EventTier)> = vec![
+        (
+            GameEvent::PermanentTapped {
+                player: alice,
+                object_id: forest,
+            },
+            "alice taps Forest",
+            Some("alice"),
+            EventTier::Player,
+        ),
+        (
+            GameEvent::PermanentEnteredBattlefield {
+                player: alice,
+                object_id: bears,
+            },
+            "Grizzly Bears enters the battlefield under alice's control",
+            Some("alice"),
+            EventTier::Card,
+        ),
+        // CR 400.7: `object_id` is retired by the time this renders. Naming off
+        // `new_grave_id` is the whole point — the other id always denies.
+        (
+            GameEvent::CreatureDied {
+                object_id: bears,
+                new_grave_id: doom_blade,
+                controller: carol,
+                pre_death_counters: Default::default(),
+                pre_death_power: None,
+                pre_death_characteristics: None,
+            },
+            "Doom Blade dies",
+            Some("carol"),
+            EventTier::Card,
+        ),
+        (
+            GameEvent::SpellCountered {
+                player: alice,
+                stack_object_id: ObjectId(9_001),
+                source_object_id: shock,
+            },
+            "Shock is countered",
+            Some("alice"),
+            EventTier::Stack,
+        ),
+        (
+            GameEvent::AttackersDeclared {
+                attacking_player: alice,
+                attackers: vec![(bears, AttackTarget::Player(carol))],
+            },
+            "alice attacks with Grizzly Bears → carol",
+            Some("alice"),
+            EventTier::Player,
+        ),
+        (
+            GameEvent::CombatDamageDealt {
+                assignments: vec![CombatDamageAssignment {
+                    source: bears,
+                    target: CombatDamageTarget::Player(carol),
+                    amount: 2,
+                }],
+            },
+            "Grizzly Bears deals 2 combat damage to carol",
+            None,
+            EventTier::Card,
+        ),
+        (
+            GameEvent::CounterAdded {
+                object_id: bears,
+                counter: CounterType::PlusOnePlusOne,
+                count: 2,
+            },
+            "2 +1/+1 counters put on Grizzly Bears",
+            None,
+            EventTier::Card,
+        ),
+    ];
+
+    for (ev, expected_text, expected_player, expected_tier) in cases {
+        let view =
+            event_view_for(&ev, &state, &names, Viewer::Seat(alice)).expect("a public event");
+        assert_ne!(
+            view.text, view.kind,
+            "{} must have a prose arm, not the catch-all",
+            view.kind
+        );
+        assert_eq!(view.text, expected_text, "{} rendered wrong", view.kind);
+        assert_eq!(
+            view.player.as_deref(),
+            expected_player,
+            "{} attributed to the wrong player",
+            view.kind
+        );
+        assert_eq!(view.tier, expected_tier, "{} tiered wrong", view.kind);
+    }
 }

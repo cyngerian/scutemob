@@ -856,6 +856,49 @@ repeated here so this README does not claim more than the implementation does.
     from a hand-built command. `legal_actions.rs`'s own test pins the current wrong
     value and names the right one. Seed **OOS-UI2-3**.
 
+21. **"Pass until X" is a client loop, and it stops at every real decision
+    (UI-3).** `stores.js::startPassUntil` submits ordinary `PassPriority`
+    actions over the existing route — there is no server-side auto-pass and no
+    new endpoint, so the server cannot tell it from a human clicking quickly and
+    no recorded seed moves. Consequences, all deliberate: it costs one round trip
+    per pass; it **stops the moment a non-`Priority` decision arrives** rather
+    than answering it, because answering a cleanup discard or a trigger's targets
+    with a default is the defect UI-1 existed to delete; and it has a hard bound
+    of 400 passes, below the server's own 500-consecutive-pass guard, so it stops
+    first and stops visibly. The playtest note's fine-grained form ("select
+    player turn and phase … ex: Bot-3 end") is **not implemented** — the
+    predicate table is keyed on a mode object precisely so that is one more
+    entry, but today there are two modes.
+
+22. **Opponent seat cards can show *no* known hand cards, and that is the view
+    model, not the drawer (UI-3).** `SeatCard`'s details drawer lists the
+    non-`hidden` entries of a seat's hand, which is the whole hand for the human
+    and normally **empty** for a bot. The view model has no channel for a
+    *revealed* card: `redact::redact_hands` decides per entry from zone
+    entitlement alone, so a reveal effect does not un-hide an opponent's hand
+    entry. The drawer says how many cards it may not identify rather than
+    implying the information is merely unrendered. Closing this needs a
+    per-object reveal set on `CardInZoneView`, which is an M10a-shaped change.
+
+23. **The 2×2 battlefield grid is `auto-fit`, so "2×2" is a viewport property
+    (UI-3).** `PlayBoard` lays living seats out with
+    `repeat(auto-fit, minmax(22rem, 1fr))`. Four boards on a wide screen give the
+    2×2 the playtest note asked for and two survivors reflow to full width with
+    no code branch — but a narrow window gives one column, and that is the
+    correct behaviour rather than a fallback. Eliminated seats are dropped from
+    the grid entirely (CR 800.4a empties their battlefield anyway); a seat that
+    somehow still controls a permanent gets a greyed row below the grid instead
+    of being silently hidden.
+
+24. **The event feed's tiers are server-assigned, and an unclassified variant
+    lands in `game` (UI-3).** `EventTier` is decided in
+    `crates/view-model/src/event_view.rs` by a `match` on the `GameEvent`
+    variant with a documented `_ => Game` default, so a newly added variant gets
+    a tier without an edit — but it gets the *default* tier, not a considered
+    one. The client never classifies by `kind` substring (it does that only to
+    pick a colour), because a stale client-side list would silently hide a whole
+    class of event behind a filter chip.
+
 ---
 
 ## `GET /api/game/report` — and the one place Invariant 7 does not apply

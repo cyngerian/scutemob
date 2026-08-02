@@ -26,7 +26,7 @@ mod redact;
 #[cfg(test)]
 mod tests;
 
-pub use event_view::{event_view_for, EventView};
+pub use event_view::{event_view_for, EventTier, EventView};
 
 use std::collections::HashMap;
 
@@ -227,7 +227,22 @@ pub struct CombatView {
 pub struct AttackerView {
     pub object_id: u64,
     pub name: String,
-    /// "player:<name>" or "planeswalker:<id>"
+    /// `"player:<name>"` or `"planeswalker:<name>"`.
+    ///
+    /// **Both halves are names.** This comment said `"planeswalker:<id>"` from
+    /// M9.5 until UI-3 (`scutemob-180`) corrected it; `build_combat_view` has
+    /// always written `format!("planeswalker:{pw_name}")`, and `redact_combat`
+    /// substitutes `FACE_DOWN_NAME` — a *name* — when the seat may not identify
+    /// the attacked planeswalker, which only makes sense for a name field. The
+    /// stale comment was believed: `CombatView.svelte`'s `formatTarget` rendered
+    /// the suffix as `PW #{...}`, so an attacked planeswalker displayed as
+    /// `PW #Chandra, Torch of Defiance` in both the replay viewer and the play
+    /// client. Fixed there in the same change.
+    ///
+    /// Do not parse an id back out of this string. `redact_combat`'s own doc
+    /// says why: the planeswalker's id is taken from `CombatState::attackers`
+    /// instead, because a card name containing the separator would silently
+    /// skip the redaction.
     pub target: String,
     pub blockers: Vec<BlockerView>,
 }
@@ -789,7 +804,17 @@ fn build_combat_view(
 
 // ── Formatting helpers ─────────────────────────────────────────────────────────
 
-fn format_counter_type(ct: &CounterType) -> String {
+/// A display label for a counter KIND (CR 122.1).
+///
+/// `pub(crate)` since UI-3 (`scutemob-180`): `event_view.rs` needs the identical
+/// mapping for its counter lines and shipped a verbatim copy, which is a second
+/// exhaustive `match` on `CounterType` that a new variant would have to be added
+/// to twice. Widening this by one word deleted the copy.
+///
+/// `Custom(s)` carries a counter NAME authored in a card definition ("gold",
+/// "burden"), never a card name, and counters sit on public objects — so this is
+/// not an entitlement decision and is safe to call from the redacting renderer.
+pub(crate) fn format_counter_type(ct: &CounterType) -> String {
     match ct {
         CounterType::PlusOnePlusOne => "+1/+1".to_string(),
         CounterType::MinusOneMinusOne => "-1/-1".to_string(),

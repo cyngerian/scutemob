@@ -2298,6 +2298,333 @@ mod tests {
         );
     }
 
+    // ── 12b (UI-3, `scutemob-180`) ────────────────────────────────────────────
+
+    /// The seed whose first `DeclareAttackers` offer has **more than one**
+    /// eligible attacker, so an attack can genuinely be split across two
+    /// different defending players.
+    ///
+    /// Not [`COMBAT_SEED`], and the difference is the whole point of having a
+    /// second constant. Observed by a throwaway probe over `seed` ∈ 0..24 at
+    /// [`PLAYERS`] seats, driving each to its first attack offer and recording
+    /// the offer's shape: **every** seed offers 3 player targets (the three
+    /// opponents, which is just CR 506.2), and **only seed 21 offers 2 eligible
+    /// attackers** — every other seed offers exactly 1, because at the turn the
+    /// first attack becomes available the boards hold a single creature. The
+    /// probe was then deleted.
+    ///
+    /// With one attacker, "attacker → defender" degenerates to "there is a
+    /// defender", and a mapping bug that *swapped two attackers' defenders*
+    /// would pass. Re-observe rather than guess if this stops splitting: like
+    /// [`COMBAT_SEED`] and [`TARGET_SEED`], it is a function of the whole card
+    /// corpus, and a completeness flip in any card-def batch re-deals it.
+    const UI3_SPLIT_COMBAT_SEED: u64 = 21;
+
+    /// **UI-3 AC 6006**: after attackers are declared, the seat payload says
+    /// **which attacker is attacking which defending player**, and after blockers
+    /// are declared it says which blocker is assigned to which attacker.
+    ///
+    /// CR 508.1a (each attacker is declared as attacking one defending player or
+    /// planeswalker) / CR 509.1a (each blocker is declared as blocking one or
+    /// more attacking creatures).
+    ///
+    /// # Why this test exists at all, given `CombatView` shipped in M9.5
+    ///
+    /// The playtest finding is "not clear which card are attacking which player
+    /// after attackers declared", and the cause is **not** missing data —
+    /// `StateViewModel::combat` has carried `attackers[].target` and
+    /// `attackers[].blockers[]` since M9.5, seat-redacted by
+    /// `redact::redact_combat`. The play client simply never rendered it: it
+    /// composed `$viewer/StateView.svelte`, which does not include
+    /// `CombatView.svelte` (the replay viewer wires those two together in its own
+    /// `App.svelte`). UI-3 renders it, and this test pins the payload half so the
+    /// component has something guaranteed to render.
+    ///
+    /// # What makes it discriminating rather than a shape check
+    ///
+    /// The declaration deliberately **splits the attackers across two different
+    /// defending players**, which is why it runs on [`UI3_SPLIT_COMBAT_SEED`]
+    /// rather than on [`COMBAT_SEED`]: with a single eligible attacker — which
+    /// is what every other swept seed offers — "attacker → defender" collapses
+    /// to "there is a defender", and a bug that paired two attackers with each
+    /// other's defenders would pass. The split is asserted to have happened, so
+    /// this cannot silently weaken back into a shape check if the deal moves.
+    ///
+    /// A mapping bug that collapsed every attacker onto one defender also passes
+    /// any "combat is present and non-empty" assertion and fails this one.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_ui3_combat_view_maps_attackers_to_defenders_and_blockers() {
+        let state = shared_state();
+        let view = drive_until(&state, UI3_SPLIT_COMBAT_SEED, true, |v| {
+            option_with_combat(v, "attack").is_some()
+        })
+        .await;
+        let option = option_with_combat(&view, "attack").expect("the driver stopped on one");
+        let attack = &option["attack"];
+        let eligible = attack["eligible"].as_array().expect("eligible is an array");
+        let targets = attack["targets"].as_array().expect("targets is an array");
+
+        // Player targets only: a planeswalker defender is a different rendering
+        // path (`"planeswalker:<name>"`), and this fixture has no planeswalker.
+        let player_targets: Vec<&Value> =
+            targets.iter().filter(|t| t["kind"] == "player").collect();
+        assert!(
+            !eligible.is_empty() && !player_targets.is_empty(),
+            "fixture drift: expected at least one attacker and one player defender: {attack}"
+        );
+
+        // Pair attacker i with defender (i mod defenders): with two or more
+        // eligible attackers and two or more defenders this genuinely splits, and
+        // it degrades to "everyone at the same defender" rather than failing when
+        // the deal offers only one of either.
+        let mut declared: Vec<(u64, String)> = Vec::new();
+        let mut pairs: Vec<Value> = Vec::new();
+        for (i, creature) in eligible.iter().enumerate() {
+            let defender = player_targets[i % player_targets.len()];
+            let id = creature["id"].as_u64().expect("id is a number");
+            let label = defender["label"].as_str().expect("a label").to_string();
+            pairs.push(json!([id, defender["value"]]));
+            declared.push((id, label));
+        }
+        let distinct_defenders: std::collections::BTreeSet<&String> =
+            declared.iter().map(|(_, d)| d).collect();
+
+        let (status, after) = post_json(
+            &state,
+            "/api/game/action",
+            json!({
+                "seq": seq(&view),
+                "action_index": option["index"],
+                "params": { "attackers": pairs },
+            }),
+        )
+        .await;
+        assert_eq!(
+            status,
+            StatusCode::OK,
+            "the declaration was refused: {after}"
+        );
+
+        let combat = &after["state"]["combat"];
+        assert!(
+            !combat.is_null(),
+            "CR 506.1: combat state must be on the payload while combat is in \
+             progress — without it the client has nothing to render. Payload: {}",
+            after["state"]["turn"]
+        );
+
+        let human = after["summary"]["human_name"]
+            .as_str()
+            .expect("human_name is on the summary");
+        assert_eq!(
+            combat["attacking_player"], human,
+            "the human declared the attack, so they are the attacking player"
+        );
+
+        // Every declared pair appears, with the right defender.
+        let rendered = combat["attackers"]
+            .as_array()
+            .expect("combat.attackers is an array");
+        assert_eq!(
+            rendered.len(),
+            declared.len(),
+            "every declared attacker must appear exactly once: declared {declared:?}, \
+             rendered {rendered:?}"
+        );
+        for (id, defender) in &declared {
+            let entry = rendered
+                .iter()
+                .find(|a| a["object_id"].as_u64() == Some(*id))
+                .unwrap_or_else(|| {
+                    panic!("attacker {id} was declared but is missing from combat: {rendered:?}")
+                });
+            assert_eq!(
+                entry["target"].as_str(),
+                Some(format!("player:{defender}").as_str()),
+                "attacker {id} was declared attacking {defender} but the payload says \
+                 {:?} — this is the exact 'which card is attacking which player' \
+                 mapping the playtest could not see",
+                entry["target"]
+            );
+            // The name is the seat-redacted one, never an id or a blank.
+            assert!(
+                entry["name"].as_str().is_some_and(|n| !n.is_empty()),
+                "an attacker has no rendered name: {entry}"
+            );
+        }
+        // The split is the point — see the doc block. Asserted rather than
+        // reported, so a re-deal that reduces this seed to one attacker fails
+        // loudly and gets a fresh sweep, instead of leaving a test that still
+        // passes while checking a strictly weaker property.
+        assert!(
+            distinct_defenders.len() >= 2,
+            "fixture drift: seed {UI3_SPLIT_COMBAT_SEED} no longer splits the attack across \
+             two defenders (declared {declared:?}). Re-observe it — see \
+             `UI3_SPLIT_COMBAT_SEED`'s doc for the probe. Without a split this test checks \
+             only that *a* defender is named, not that the RIGHT one is."
+        );
+
+        // ── Second half: blockers ────────────────────────────────────────────
+        //
+        // The bots are the defenders, so their blocker declarations arrive
+        // without this seat acting. Drive forward until either a blocker is
+        // assigned or combat ends; both are legitimate outcomes of one deal, so
+        // the assertion is on the SHAPE when blockers exist, and the absence of
+        // blockers is reported rather than treated as a pass.
+        let mut latest = after;
+        let mut saw_blocker = false;
+        for _ in 0..40 {
+            let combat = &latest["state"]["combat"];
+            if let Some(list) = combat["attackers"].as_array() {
+                for entry in list {
+                    let blockers = entry["blockers"].as_array().expect("blockers is an array");
+                    for b in blockers {
+                        saw_blocker = true;
+                        assert!(
+                            b["name"].as_str().is_some_and(|n| !n.is_empty()),
+                            "CR 509.1a: a blocker assigned to attacker {} has no rendered \
+                             name, so the client cannot show the assignment: {b}",
+                            entry["object_id"]
+                        );
+                        assert!(
+                            b["object_id"].as_u64().is_some(),
+                            "a blocker carries no object id: {b}"
+                        );
+                    }
+                }
+            }
+            if saw_blocker || latest["decision"].is_null() {
+                break;
+            }
+            let Some(pass) = decision(&latest)["actions"]
+                .as_array()
+                .and_then(|a| a.iter().find(|o| o["kind"] == "PassPriority"))
+                .cloned()
+            else {
+                break;
+            };
+            let (status, next) = post_json(
+                &state,
+                "/api/game/action",
+                json!({ "seq": seq(&latest), "action_index": pass["index"] }),
+            )
+            .await;
+            if status != StatusCode::OK {
+                break;
+            }
+            latest = next;
+        }
+        // Asserted, not merely reported. Whether the defending bots block is
+        // their choice, but the bots are deterministic in the seed, and this
+        // seed does block — so leaving it unasserted would mean the blocker half
+        // of AC 6006 is "covered" by a loop that is allowed to find nothing. If
+        // a re-deal stops producing a block, that is a fixture to re-observe,
+        // not a property to quietly drop.
+        assert!(
+            saw_blocker,
+            "fixture drift: seed {UI3_SPLIT_COMBAT_SEED} no longer reaches a declared blocker \
+             within 40 passes, so the CR 509.1a half of this test checked nothing. Re-observe \
+             a seed that reaches both halves — see `UI3_SPLIT_COMBAT_SEED`'s doc."
+        );
+        eprintln!(
+            "UI-3 combat fixture: seed {UI3_SPLIT_COMBAT_SEED}, {} attacker(s) across {} \
+             defender(s), blockers exercised = {saw_blocker}",
+            declared.len(),
+            distinct_defenders.len()
+        );
+    }
+
+    /// **UI-3 AC 6010**: every target candidate carries the seat it belongs to,
+    /// so the picker can segment by player.
+    ///
+    /// `TargetOptionView::owner` is derived inside [`view::NameIndex`] from the
+    /// **already-redacted** `StateViewModel` — the same walk that produces
+    /// `label`. This test pins that it is populated for real candidates and that
+    /// it agrees with the view model, which is what makes the segmentation a
+    /// restatement of the payload rather than a client-side guess.
+    ///
+    /// The check that gives it teeth is the last one: the owner of a battlefield
+    /// candidate must equal that permanent's **controller** in the redacted view
+    /// (CR 109.4), not merely be *some* seat name. A grouping keyed on owner
+    /// rather than controller would put a stolen creature in the wrong segment,
+    /// and only this comparison catches that.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_ui3_target_options_carry_the_owning_seat() {
+        let state = shared_state();
+        let view = drive_until(&state, TARGET_SEED, false, |v| {
+            option_with_targets(v, 1).is_some()
+        })
+        .await;
+        let option = option_with_targets(&view, 1).expect("the driver stopped on one");
+
+        // Controller of every battlefield permanent, straight off the payload's
+        // own seat-redacted state — the second, independent source.
+        let mut controller_of: HashMap<u64, String> = HashMap::new();
+        let battlefield = view["state"]["zones"]["battlefield"]
+            .as_object()
+            .expect("battlefield is an object");
+        for (seat, permanents) in battlefield {
+            for p in permanents.as_array().expect("a permanent list") {
+                let id = p["object_id"].as_u64().expect("object_id is a number");
+                let controller = p["controller"]
+                    .as_str()
+                    .filter(|c| !c.is_empty())
+                    .unwrap_or(seat.as_str());
+                controller_of.insert(id, controller.to_string());
+            }
+        }
+        let seats: std::collections::BTreeSet<&String> = view["state"]["players"]
+            .as_object()
+            .expect("players is an object")
+            .keys()
+            .collect();
+
+        let mut checked = 0usize;
+        for slot in option["target_slots"].as_array().expect("slots") {
+            for candidate in slot["candidates"].as_array().expect("candidates") {
+                let owner = candidate["owner"].as_str();
+                if candidate["kind"] == "player" {
+                    // A player target sorts into their own segment.
+                    assert_eq!(
+                        owner,
+                        candidate["label"].as_str(),
+                        "a player candidate's owner is that player: {candidate}"
+                    );
+                    checked += 1;
+                    continue;
+                }
+                let id = candidate["id"].as_u64().expect("id is a number");
+                if let Some(expected) = controller_of.get(&id) {
+                    assert_eq!(
+                        owner,
+                        Some(expected.as_str()),
+                        "CR 109.4: candidate {id} is controlled by {expected} in the \
+                         redacted view, but the payload segments it under {owner:?}"
+                    );
+                    checked += 1;
+                } else if let Some(o) = owner {
+                    // Graveyard / command-zone / stack candidates: not on the
+                    // battlefield, so the cross-check above cannot reach them —
+                    // but the value must still be a seat at this table and not
+                    // some other string.
+                    assert!(
+                        seats.contains(&o.to_string()),
+                        "candidate {id} is segmented under {o:?}, which is not a seat: \
+                         seats are {seats:?}"
+                    );
+                    checked += 1;
+                }
+            }
+        }
+        // Non-vacuity: without this the loop above passes for a payload whose
+        // candidates all carry `owner: null`, which is precisely the regression
+        // it exists to catch.
+        assert!(
+            checked > 0,
+            "no candidate carried an owner — the segmentation has nothing to group on: {option}"
+        );
+    }
+
     // ── 13 ────────────────────────────────────────────────────────────────────
 
     /// **Architecture Invariant 7 at the target picker.**

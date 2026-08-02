@@ -13,12 +13,28 @@
 
   const { combat } = $props();
 
-  /** Parse the target string into a human-readable label.
-   *  Format: "player:<name>" or "planeswalker:<id>" */
+  /**
+   * Parse the target string into a human-readable label.
+   *
+   * Format is `"player:<name>"` or `"planeswalker:<name>"` — **both halves are
+   * names**, and the second one is a fix, not a restatement (UI-3,
+   * `scutemob-180`). `AttackerView::target`'s own doc comment in
+   * `crates/view-model/src/lib.rs` said `"planeswalker:<id>"`, and this function
+   * believed it, rendering `PW #{...}` — so an attacked planeswalker came out as
+   * `PW #Chandra, Torch of Defiance`. `build_combat_view` has always written
+   * `format!("planeswalker:{pw_name}")` (and `redact_combat` substitutes a
+   * *name*, `FACE_DOWN_NAME`, when the seat may not identify it, which is only
+   * coherent if this field is a name). The doc comment was corrected in the same
+   * change.
+   *
+   * Deliberately changed **in place** in the shared component rather than
+   * shadowed in the play surface: the replay viewer had the identical defect,
+   * and a second copy of this parser is how the two surfaces would drift.
+   */
   function formatTarget(target) {
     if (!target) return '(unknown target)';
     if (target.startsWith('player:')) return target.slice(7);
-    if (target.startsWith('planeswalker:')) return `PW #${target.slice(13)}`;
+    if (target.startsWith('planeswalker:')) return `${target.slice(13)} (planeswalker)`;
     return target;
   }
 
