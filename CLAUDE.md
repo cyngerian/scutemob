@@ -33,8 +33,9 @@
   the bug-report artefact has no free-text description field; no automated test spans browser +
   game, because no frontend test harness exists (plan §8 R7, revisit at M13); `StubProvider`
   enumerates no Adventure, alt-cost or Convoke/Improvise/Delve casts (R4). **The active track is now
-  the PB-DX correctness queue alone** (`memory/primitives/seed-rerank-2026-07-27.md` §4; PB-DX6 is
-  in flight as `scutemob-172`). The roadmap's next milestone candidate is **M10-pre → M10a** — *not
+  the PB-DX correctness queue alone** (`memory/primitives/seed-rerank-2026-07-27.md` §4; PB-DX6
+  shipped `cb0755bf`, next PB-DX7; the playtest-successor run 174–181 completed 2026-08-02 in
+  between). The roadmap's next milestone candidate is **M10-pre → M10a** — *not
   started, and not to be started without direction.* Full session-by-session M11 narrative:
   `memory/archive/claude-md-changelog-2026-08.md`; S8 handoff and durable lessons:
   `memory/workstream-state.md`. **Seeds this milestone left open**: **OOS-M11-2**

@@ -1575,6 +1575,55 @@ behaviourally identical.
 
 ## Last Handoff
 
+**Date**: 2026-08-02 (oversight session — the full playtest-successor run)
+**Workstream**: playtest-triage successor track (UI-1/2/3, SIM-1/2/3, CARDS-1/2)
+**Task**: coordinated dispatch of `scutemob-174..181` in four waves of two workers; all 8 collected
+same-day. Merges: `f28df527` (174 UI-1), `d04f42a1` (179 CARDS-1), `83bfdba5` (175 SIM-1),
+`8cad9c36` (181 CARDS-2), `b30c99f4` (176 SIM-2), `f40c9fb9` (178 UI-2), `a23f0be0` (177 SIM-3),
+`b76b1df4` (180 UI-3); bookkeeping `662e4264`.
+
+**Completed**:
+- **Playtest triage 2026-08-02 fully closed** — F1–F10, OPEN = none (roll-up in
+  `memory/playtest-triage-2026-08-02.md`, rewritten at collect as the union of two
+  mutually-blind updates).
+- Tests **4,124 → 4,263 / 0 / 5** on main; PROTOCOL **33** / HASH **70** unmoved by every batch,
+  gate-executed each time. Coverage **62.8%** (1,133/1,803) after CARDS-2's honest demotions.
+- Per-batch detail: the eight Worker Handoff sections above; per-batch narratives rotated to
+  `memory/archive/claude-md-changelog-2026-08.md` at the wave-4 collect.
+- **Two cross-branch reconciliations happened at collect, not in any worker**: (1) UI-2 × SIM-2
+  conflicted in `local_game.rs::advance` — resolved onto SIM-2's unified `auto_tap_commands_for`,
+  inside which UI-2's Squad pricing already lived; (2) UI-2's F4 pin test flipped 0 → 1 by its own
+  written instruction (SIM-2 closed F4 in parallel) and was renamed
+  `squad_max_count_counts_true_production_now_that_f4_is_closed`; OOS-UI2-3 row annotated.
+
+**Not done / deferred**:
+- `scutemob-127` (abilities-corpus distillation) — pre-existing backlog, out of the run's scope.
+- PB-DX7 (SR-19 gate checks nothing) — still the standing queue's next item, untouched.
+- The seeds below — filed, not fixed.
+
+**Next session candidates**:
+- **OOS-SIM2-6 (HIGH)**: unbounded `calculate_characteristics` recursion — hard crash from a legal
+  deck (`indomitable_archangel`); likely the real cause of OOS-M11-3/OOS-DP3-9.
+- **OOS-UI2-1**: the fuzzer has never cast a spell (unshuffled libraries) — closing it together
+  with OOS-SIM1-4 (fuzzer games aren't Commander games) re-rolls every recorded seed ONCE.
+- **PB-DX7** per the standing queue (`memory/primitives/seed-rerank-2026-07-27.md` §4).
+- OOS-UI2-4 (14 remaining additional-cost kinds), OOS-SIM2-5 (i32 P/T wrap).
+
+**Hazards** (carrying forward):
+- Parallel workers sharing `crates/simulator` or `tools/play-server` WILL conflict on
+  `local_game.rs` + the four coordination docs; collect one at a time and re-check the second
+  against the new main. Semantic conflicts (a pin one branch wrote, the other branch's fix flips)
+  survive a clean textual merge — run the FULL suite between collects, with output captured
+  (a `| tail` pipe destroyed the evidence once this session).
+- Every task staged before PB-DX6 cites PROTOCOL 32 in its criteria; main is 33. Brief workers.
+- Assertion messages containing mana symbols (`{2}`) are format strings — escape the braces.
+- Workers leave throwaway A/B worktrees under scratchpad paths — check `git worktree list` at
+  collect, not just `esm worktree list`.
+
+**Commit prefix used**: `scutemob-N:` (workers) / `merge:` / `chore:`
+
+## Worker Handoff (UI-1, `scutemob-174`)
+
 **Date**: 2026-08-02 (worker session, `scutemob-174` — UI-1 blocking-decision pickers)
 **Workstream**: M11-local maintenance track (`crates/simulator`, `tools/play-server`)
 **Task**: `scutemob-174` — branch `feat/ui-1-blocking-decision-payload-channel-pickers-discard-scrys`
