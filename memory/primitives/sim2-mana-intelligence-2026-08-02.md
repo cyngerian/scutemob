@@ -4,9 +4,10 @@ Evidence record for the batch that closed playtest-triage **F3**, **F4** and **F
 (`memory/playtest-triage-2026-08-02.md`), plus **OOS-CARDS2-9** (never filed, only named in
 source), the layer half of **OOS-M11-2**, and the bot half of **OOS-M11-8**.
 
-Scope as dispatched: `crates/simulator` only. Actual diff: `crates/simulator` (3 source
-files, 4 test files) + `tools/play-server/src/main.rs` (one seed pin) + docs/memory + **one
-data line in `crates/engine/src/state/keyword_registry.rs`**. That last one is neither scope
+Scope as dispatched: `crates/simulator` only. Actual diff: `crates/simulator` (**4** source
+files — `mana_solver`, `local_game`, `legal_actions`, `heuristic_bot` — plus 4 test files) +
+`tools/play-server/src/main.rs` (one seed pin) + docs/memory + **one data line in
+`crates/engine/src/state/keyword_registry.rs`**. That last one is neither scope
 creep nor optional: SR-5's gate (`core::keyword_registry::registry_sites_match_the_source_tree`)
 greps the source tree for `KeywordAbility` branches and asserts set equality against the
 declared sites, so the solver's new CR 302.6 summoning-sickness check must be declared or the

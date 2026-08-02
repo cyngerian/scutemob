@@ -265,9 +265,10 @@
   and a refused cast; scaled abilities are now excluded from planning outright. Tests
   **4,185 → 4,214**; PROTOCOL **33** / HASH **70** gate-executed unmoved (the criterion's "32"
   was stale); coverage unmoved, 0 card-def edits. `TARGET_SEED` re-derived 1 → **13** (second
-  time in two days, by the rule the pin's own comment states). **Diff is `crates/simulator` plus
-  ONE gate-mandated data line in `keyword_registry.rs`** — SR-5 greps the source tree, so the
-  solver's new CR 302.6 branch on `Haste` must be declared. Seeds **OOS-SIM2-1..7** filed. Full
+  time in two days, by the rule the pin's own comment states). **Diff is `crates/simulator` (4 source
+  files), one seed pin in `tools/play-server`, docs/memory, and ONE gate-mandated data line in
+  `keyword_registry.rs`** — SR-5 greps the source tree, so the solver's new CR 302.6 branch on
+  `Haste` must be declared; no engine behaviour changes. Seeds **OOS-SIM2-1..7** filed. Full
   evidence: `memory/primitives/sim2-mana-intelligence-2026-08-02.md`.
 - - **Prior**: 2026-08-02 — **CARDS-2 SHIPPED** (`scutemob-181`): **SR-37 exists, and
   playtest findings F1 + F2 are CLOSED.** Until this batch, **nothing checked that a card
