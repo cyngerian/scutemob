@@ -175,9 +175,14 @@
     try {
       const entries = [];
 
+      // `fillTemplate` returning null used to bail in silence, which is the same
+      // symptom UI-4 repaired arriving from a different cause. It reports now.
       if (sacrifice) {
         const entry = fillTemplate(sacrifice.template, sacrifice.ids_key, [chosenId]);
-        if (!entry) return;
+        if (!entry) {
+          onError?.('the sacrifice cost template is not the shape this client can fill in');
+          return;
+        }
         entries.push(entry);
       }
 
@@ -185,7 +190,10 @@
       // a zero-cost payment.
       if (squad && squadCount > 0) {
         const entry = fillTemplate(squad.template, squad.count_key, squadCount);
-        if (!entry) return;
+        if (!entry) {
+          onError?.('the Squad cost template is not the shape this client can fill in');
+          return;
+        }
         entries.push(entry);
       }
 

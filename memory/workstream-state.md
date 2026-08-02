@@ -904,9 +904,12 @@ turns on:
 
 Zero `pageerror`s and zero error strips across all five.
 
-**Scope**: 9 files, +506/−32, **0 engine lines** (`git diff --numstat HEAD~1 HEAD -- crates/engine`
-is empty), 0 simulator lines, 0 wire changes — no `Command`/`GameEvent`/`Effect` variant, so
-PROTOCOL and HASH are untouched by construction and were not recomputed. Workspace:
+**Scope**: 9 source files under `tools/play-server` plus 4 doc files; **0 engine lines**
+(`git diff main..HEAD --numstat -- crates/` is EMPTY — no engine *and* no simulator), 0 wire
+changes — no `Command`/`GameEvent`/`Effect` variant, so PROTOCOL and HASH are untouched by
+construction and were not recomputed. (Reconciliation note for the collector: the implementation
+commit is 9 files; the branch total is 12+, the difference being `CLAUDE.md`, the play-server
+README and this file.) Workspace:
 **4,265 passing / 0 failing / 5 ignored** (`--workspace --no-fail-fast`, captured to a file, not
 piped to `tail` — 2026-08-02 lesson), which is +2 on main's 4,263 and those 2 are these gates.
 `cargo fmt --check`, `tools/check-defs-fmt.sh` (1,803 defs) and
@@ -957,6 +960,35 @@ that is why they are Rust source gates and not a JS lint.
 error wiring exists. They cannot prove a picker *renders*, that a template is read correctly, or
 that an answer is *right*. `SearchPicker`'s and `PartitionPicker`'s "# Untested" module sections
 are still accurate and were left alone.
+
+**`/review` fix cycle — 5 LOW, all 5 taken rather than deferred** (each was a few lines, and two
+were real coverage holes):
+
+1. **The gate had a blind spot exactly the size of the shared component library.** It walked
+   `frontend/src/` only, but `vite.config.js` aliases `$viewer` →
+   `tools/replay-viewer/frontend/src/lib`, imported **in place** and compiled into *this* bundle.
+   The walk now covers both, with its own named-file + ≥8-file floor because a `..`-relative path
+   is the arrangement most likely to resolve to nothing after a move. **Proven by appending a
+   forbidden call to `cardTooltip.js`** — red, naming that file; restored, green. Zero real hits
+   today, so this is coverage, not a repair — but the test's own "this is a class, not three
+   sites" claim was overreaching by one directory until now.
+2. **The silent bail-outs survived.** All three pickers kept malformed-template guards that
+   `return` without reporting. Those are *returns*, not throws, so 6048's literal wording was
+   already satisfied — but the **symptom** (click Confirm, nothing happens, no message) is the
+   thing this task exists to eliminate, and it should not survive from a second cause. All five
+   sites now report through `onError` before bailing.
+3. **`main.js`'s comment overclaimed.** It said arming the net before mount surfaces "a throw
+   during the very first render"; the strip lives inside `ActionBar`, so such a throw sets the
+   store and renders nothing. Comment narrowed to what is true.
+4. **The weakest gate arm matched prose.** The per-picker check was `contains("onError")`, which
+   the prop's own doc comment satisfies — a picker that documented the prop and never called it
+   would have passed. Anchored on `onError?.(` instead. **Proven by renaming CostPicker's calls**
+   — red; restored, green.
+5. Count mismatch between CLAUDE.md and this handoff reconciled (above).
+
+All three picker types re-verified in the browser **after** these edits (search → Dryad Arbor;
+surveil → Island to graveyard; sacrifice → 437 over the default 402), so the fix cycle did not
+regress the thing the fix cycle was protecting.
 
 **Seed**: `OOS-G1-1` (the structured-clone-on-Svelte-state class) is **CLOSED by this task** —
 fixed at all three sites and machine-gated against recurrence. Not filed as open in

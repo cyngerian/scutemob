@@ -116,7 +116,15 @@
    */
   function emit(found) {
     if (disabled) return;
-    if (!template || typeof template !== 'object') return;
+    // The malformed-template guards REPORT rather than return in silence (UI-4
+    // `/review`). Bailing is still right — a half-built body the server will 400
+    // helps nobody — but a silent bail is indistinguishable from the dead button
+    // this component was just repaired for, and the whole point of the repair is
+    // that the symptom never recurs from any cause.
+    if (!template || typeof template !== 'object') {
+      onError?.('this search offered no answer template — nothing was submitted');
+      return;
+    }
     // `plainClone`, never the platform's deep-copy primitive: `template` is a
     // Svelte 5 reactive proxy by the time it gets here, and that primitive
     // rejects proxies with a `DataCloneError`. See `plainClone.svelte.js` — this
@@ -126,7 +134,10 @@
       const variant = Object.keys(answer)[0];
       // An externally-tagged enum has exactly one key. If it somehow does not, bail
       // rather than write into `undefined` and post a body the server will 400.
-      if (variant === undefined || typeof answer[variant] !== 'object') return;
+      if (variant === undefined || typeof answer[variant] !== 'object') {
+        onError?.('the search answer template is not the shape this client can fill in');
+        return;
+      }
       answer[variant][foundKey] = found;
       onConfirm?.({ [answerField]: answer });
     } catch (err) {

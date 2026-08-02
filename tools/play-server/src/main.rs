@@ -6598,13 +6598,24 @@ mod tests {
         let mut sources: Vec<(String, String)> = Vec::new();
         collect_frontend_files(&frontend_src, &mut sources);
 
+        // `$viewer` — the replay viewer's component library, imported IN PLACE
+        // rather than copied (`vite.config.js`'s alias, plan §8 R8). Those files
+        // are compiled into *this* bundle by `npm run build`, so a call added
+        // there would ship into the play client and the rule would have a hole
+        // exactly the size of the shared library. Added after a `/review`
+        // finding; currently zero hits, so this arm is coverage, not a repair.
+        let viewer_lib =
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../replay-viewer/frontend/src/lib");
+        let mut shared: Vec<(String, String)> = Vec::new();
+        collect_frontend_files(&viewer_lib, &mut shared);
+
         // Call forms, not bare identifiers: the prose in `plainClone.svelte.js`
         // has to be able to name what it replaced. `indexedDB` is spelled with a
         // leading lowercase because that is the global's actual name — the docs
         // that discuss it write "IndexedDB", which is a different string.
         let forbidden = ["structuredClone(", ".postMessage(", "indexedDB"];
 
-        for (path, text) in &sources {
+        for (path, text) in sources.iter().chain(shared.iter()) {
             for needle in forbidden {
                 assert!(
                     !text.contains(needle),
@@ -6645,6 +6656,20 @@ mod tests {
              that, so the walk is reading the wrong place and the ban above checked nothing",
             sources.len(),
             frontend_src.display()
+        );
+        // The shared library needs its own floor and its own named file: it is
+        // reached by a `..` path, which is the arrangement most likely to resolve
+        // to nothing after a move and leave the arm silently checking zero bytes.
+        let shared_seen: BTreeSet<&str> = shared
+            .iter()
+            .filter_map(|(p, _)| p.rsplit('/').next())
+            .collect();
+        assert!(
+            shared_seen.contains("cardTooltip.js") && shared.len() >= 8,
+            "the `$viewer` walk under {} found {} files ({shared_seen:?}) — `vite.config.js` \
+             aliases that directory into this bundle, so an empty walk is a hole in the ban",
+            viewer_lib.display(),
+            shared.len()
         );
 
         // (b) The three pickers really route through the sanctioned helper. A
@@ -6733,13 +6758,18 @@ mod tests {
             "CostPicker.svelte",
         ] {
             let text = text_of(picker);
+            // `onError?.(` and not the bare identifier: the identifier matches the
+            // prop's own doc-comment line, so a picker that documented the prop
+            // and never called it would pass. Anchoring on the CALL is the
+            // difference between "the prop exists" and "a failure is reported"
+            // (`/review` finding).
             assert!(
-                text.contains("onError"),
-                "{picker} has no `onError` prop — a failure while building its answer would \
+                text.contains("onError?.("),
+                "{picker} never CALLS `onError` — a failure while building its answer would \
                  be invisible to the player"
             );
             assert!(
-                text.contains("try {") && text.contains("catch (err)"),
+                text.contains("try {") && text.contains("} catch (err) {"),
                 "{picker} does not guard its emit path; a throw there escapes the click \
                  handler and leaves the DOM untouched"
             );

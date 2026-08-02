@@ -142,7 +142,12 @@
 
   function confirm() {
     if (disabled) return;
-    if (!template || typeof template !== 'object') return;
+    // Reports rather than returning in silence — see `SearchPicker.emit`'s note:
+    // a silent bail is indistinguishable from the dead button UI-4 repaired.
+    if (!template || typeof template !== 'object') {
+      onError?.('this decision offered no answer template — nothing was submitted');
+      return;
+    }
     // `plainClone`, never the platform's deep-copy primitive — `template` is a
     // Svelte 5 reactive proxy here and that primitive rejects proxies with a
     // `DataCloneError`. See `plainClone.svelte.js`; this site is why scry
@@ -152,7 +157,10 @@
       const variant = Object.keys(answer)[0];
       // An externally-tagged enum has exactly one key. If it somehow does not, bail
       // rather than write into `undefined` and post a body the server will 400.
-      if (variant === undefined || typeof answer[variant] !== 'object') return;
+      if (variant === undefined || typeof answer[variant] !== 'object') {
+        onError?.('the answer template is not the shape this client can fill in');
+        return;
+      }
       answer[variant][keptKey] = [...kept];
       answer[variant][movedKey] = [...moved];
       onConfirm?.({ [answerField]: answer });

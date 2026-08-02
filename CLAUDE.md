@@ -234,8 +234,15 @@
   does **not** catch handler errors). Two source gates added in `tools/play-server/src/main.rs`,
   each proven red by executing a revert. **All five flows re-verified in the browser with a
   NON-DEFAULT answer each**, so game state distinguishes the human's choice from the engine's
-  default. 9 files, +506/−32, **0 engine lines, 0 wire change** — PROTOCOL **33** / HASH **70**
-  untouched by construction. Tests **4,265 / 0 / 5** on branch (+2 = the two gates).
+  default. 9 source files + 4 doc files; **0 engine lines and 0 simulator lines**
+  (`git diff main..HEAD --numstat -- crates/` is empty), **0 wire change** — PROTOCOL **33** /
+  HASH **70** untouched by construction. Tests **4,265 / 0 / 5** on branch (+2 = the two gates).
+  **The `/review` cycle found 5 LOW and all 5 were taken**, two of them real holes: the gate
+  walked only `frontend/src/` and missed the `$viewer` shared library that `vite.config.js`
+  compiles into the same bundle (now walked, proven red by planting a call in `cardTooltip.js`),
+  and the pickers' malformed-template guards still bailed in silence — the same symptom from a
+  second cause (now reported). All three picker types were re-verified in the browser *after* the
+  fix cycle.
   **The R7 frontend harness is proposed, not built** — `memory/workstream-state.md` carries the
   two-tier design, the "fixtures must wrap the template in `$state()`" rule without which a harness
   would have passed green against this bug, the CI Node gap, and four known-good
