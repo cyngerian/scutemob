@@ -23,6 +23,14 @@ clap = { version = "4", features = ["derive"] }
 anyhow = "1"
 
 [dev-dependencies]
+# CARDS-1 (OOS-M11-10): `GameState::turn_mut`/`players_mut` are engine escape
+# hatches gated behind `test-util` (`crates/engine/src/state/mod.rs`'s
+# `#[cfg(any(test, feature = "test-util"))]`), on so a test in this crate can
+# build a custom `GameState` the same way `crates/engine/tests` does. Mirrors
+# `crates/engine/Cargo.toml`'s own self-referencing dev-dependency for the same
+# reason. `cargo build --workspace` (SR-3's seal gate) does not build
+# dev-dependencies, so this cannot leak into the production binary.
+mtg-engine = { path = "../../crates/engine", features = ["test-util"] }
 tower = { version = "0.4", features = ["util"] }
 http-body-util = "0.1"
 
