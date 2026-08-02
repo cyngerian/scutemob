@@ -669,6 +669,88 @@
 
 ## Last Handoff
 
+**Date**: 2026-08-01..02 (oversight session — parallel two-lane waves; wave 7 lost to a kitty crash; /eot 2026-08-02)
+**Workstream**: W6 (PB-DX queue) + M11-local track, run as parallel pairs
+**Task**: coordinator chain `scutemob-160..173` (waves 1-6 collected; wave 7 crashed in-flight)
+
+**Completed**:
+- **Five waves collected and on-main verified this session** (each pair merged + full workspace run):
+  PB-DX2+S3 (**3,988**), PB-DX3+S4 (**4,008**), PB-DX3b+S5 (**4,040** after the seed-pin re-pin
+  `b24a9685`), PB-DX4+S6 (**4,048**), PB-DX5+S7 (**4,072**). Main is at `f20823b1` (PB-DX5 merge).
+  Detail per batch lives in the entries below and in CLAUDE.md Current State.
+- **M11-local S7 SHIPPED** (`scutemob-171`, merge `05849372`) — targeting/combat/X/mode pickers;
+  the human can attack, block, and cast targeted/X/modal spells in the browser. CLAUDE.md's
+  milestone bullet was a session stale on main and is corrected by this /eot.
+- **First human playtest of the browser client happened this session** (frontend `npm install`
+  + `npm run build`, `cargo run -p play-server`). It works — and it immediately found a real bug
+  (see the equip finding below), which is the whole point of first-playable.
+- Stray `/tmp/claude-1000/s8-fuzz-baseline` worktree (left by the S8 worker's fuzz-parity
+  comparison) removed; both crashed worktrees WIP-committed so `git status` is clean everywhere.
+
+**Not done / crashed (wave 7 — kitty crash killed both worker sessions)**:
+- **`scutemob-172` (PB-DX6, mana-payment flattening)**: died mid-implement. Plan committed
+  (`4d367c54`, 1/5 criteria); the 94-file partial implement (mid-PROTOCOL-bump) is preserved as
+  WIP `18e89bde` but is **UNVERIFIED — do not build on it**. Agreed recovery: reset branch to
+  `4d367c54`, redo implement fresh.
+- **`scutemob-173` (M11-local S8, closes the milestone)**: died at **4/5 criteria** with
+  substantial verified work committed — scripted-human playthrough (5 seeds), fuzz-parity gate,
+  `GET /api/game/report`, Concede + OrderBlockers surfacing, measured test pin **4,092**, seeds
+  OOS-M11-7/8/9 handled in-branch. In-flight review-fix edits preserved as WIP `c2013efa`.
+  Agreed recovery: fresh worker resumes on the existing commits; only the milestone close-out
+  criterion remains. **Collect hazard**: this branch already advances CLAUDE.md past M11-local
+  and closes the workstream-state M11 table IN-BRANCH — expect coordination-file conflicts.
+- Both tasks remain `in_progress` in ESM with recovery comments attached.
+
+**New finding from the user's playtest (UNFILED — next session should file as an OOS seed)**:
+- **Equip is unusable from the browser client, and the root cause is corpus-wide.**
+  `accorders_shield.rs` (and ~20 of the 22 `AttachEquipment` defs — `skullclamp`, `lightning_greaves`,
+  `swiftfoot_boots`, the swords, etc.) declare the equip `AbilityDefinition::Activated` with
+  `targets: vec![]` while the effect reads `EffectTarget::DeclaredTarget { index: 0 }`.
+  `abilities.rs:537` has a **legacy special-case** that validates a *volunteered* target
+  (`targets.first()`) for `AttachEquipment` but **silently accepts activation with no target** —
+  mana is paid, the ability resolves, the attach fizzles. The TUI/old paths volunteered targets;
+  S7's browser picker only renders slots from *declared* `TargetRequirement`s → empty → no picker
+  → no target submitted → exactly the observed "pay mana, click, nothing happens."
+  `crates/simulator` has **zero** equip handling (bots never equip), so no fuzz run ever covered it.
+  This is the mirror of OOS-M11-5 (targets accepted without requirements ↔ requirements absent so
+  targets never asked). Fix directions to weigh: author a real `TargetRequirement` on the equip
+  ability corpus-wide (card-def sweep, likely zero engine lines — the general validation path then
+  serves the picker for free); make a no-target `AttachEquipment` activation a **hard rejection**
+  (CR 601.2c/702.6a — the ability *requires* a target); and check the two defs that looked
+  different (`blade_of_the_bloodchief` is `partial` with equip not even authored; verify
+  `blackblade_reforged`).
+
+**Policy change (binding, this session)**:
+- **Autonomous wave-chaining RETRACTED by the user.** After wave 1 ("dispatch both") the
+  coordinator chained five further waves overnight on the strength of the 2026-07-18
+  authorization; the user did not want that. `feedback_queue_autonomous_chaining.md` and the
+  MEMORY.md index now record the retraction: **every dispatch — including restarting a crashed
+  worker — needs explicit user approval; collect what is in flight, then stop and report.**
+
+**Next session candidates**:
+- **Resume `scutemob-173` (S8)** — closest to done; closes M11-local. Fresh worker on the existing
+  branch, only the milestone close-out criterion left.
+- **Redo `scutemob-172` (PB-DX6)** — reset branch to the plan commit `4d367c54`, fresh implement.
+- **File + schedule the equip finding** — could ride PB-DX6's close-out or run as a micro-batch
+  (card-def sweep shape, PB-DX3's zero-engine-lines pattern).
+- Queue then continues at **PB-DX7** (SR-19 gate integrity) per `seed-rerank-2026-07-27.md` §4.
+
+**Hazards** (carrying forward):
+- **kitty remote-control socket loss**: `/tmp/kitty-<pid>` vanished mid-session (likely tmpfiles
+  aging at the date rollover) leaving RC unusable while kitty ran; a second detached kitty
+  instance (`--listen-on unix:/tmp/kitty-claude-workers`) worked but auto-loads the full session
+  config (duplicate tabs). Then kitty itself crashed, killing both wave-7 workers.
+- **Two Opus workers + their subagents get heavily API-throttled** — waves 5-7 ran 3-5h wall each;
+  single-worker dispatch is materially faster per task.
+- **Workers can create throwaway worktrees outside `.worktrees/`** (S8's `/tmp/.../s8-fuzz-baseline`)
+  which escape `esm worktree list` hygiene — check `git worktree list` at collect.
+- The play-server seed pins re-deal on ANY `Complete`-pool change (precedent `b24a9685`) — now a
+  standing coupling between card-def batches and `tools/play-server` tests.
+
+**Commit prefix used**: coordinator `chore:` + `merge:`; worker `scutemob-N:`; crash-preservation `wip:`.
+
+---
+
 **Date**: 2026-08-01 (worker session, `scutemob-170`)
 **Workstream**: W6 (primitives) — **PB-DX5 SHIPPED**, fifth batch of the PB-DX queue
 **Task**: `scutemob-170`. Branch `feat/pb-dx5-cr-6112c-lock-the-affected-set-of-a-resolution-genera`, 8 commits.
@@ -810,34 +892,6 @@ shows S7's work, not this branch's.
 
 **Next**: **PB-DX2** (OOS-DP5-7 + OOS-DP7-2 — `ChooseDredge` has no pending-state gate; wire-neutral), then **PB-DX3** (2 flips, 0 engine lines). Both independent of PB-DX1 and of M11-local. **✅ PB-DX2 shipped — see the Last Handoff section above.**
 
----
-
-**Date**: 2026-07-26..27 (oversight session — autonomous coordinator chain, user-directed "task out the PB suite and run autonomously", then "task it out and rerank"; /eot 2026-07-27)
-**Workstream**: W6 (PB-DP suite) — **DP1..DP10 ALL SHIPPED + seed re-rank DONE; queue handoff to PB-DX**
-**Task**: `scutemob-149..158` (suite) + `scutemob-159` (re-rank). Final merges `16ffcfd0` (DP10) and `0dd79b5d` (re-rank).
-
-**Completed**:
-- **THE PB-DP SUITE IS COMPLETE** — all 10 batches dispatched, collected, merge-verified (full test suite run on main after every merge). Tests 3,683 → **3,928 / 0**; PROTOCOL 27 → **31**; HASH 63 → **68**. All five Tier-0 correctness findings (DP-1..DP-5) closed. Per-batch detail: CLAUDE.md "Last Updated" entries + `docs/audits/decision-point-audit.md` §5/§8 rows (each marked SHIPPED with verified breakdowns) + git merges `f7651bb5`/`68172717`/`3b04bd17`/`799dcc0a`/`922252f7`/`d52fe5b6`/`8f890611`/`48353a36`/`d65e7f1e`/`16ffcfd0`.
-- **Seeds closed by the suite**: OOS-M11-1 (DP2), OOS-M11-4 (DP8), OOS-DP1-1 + OOS-RS3-4 (DP4), OOS-DP7-7 (DP10) — plus OOS-RS3-1, discovered closed by DP6 only during the re-rank census.
-- **Seed re-rank** (`scutemob-159`, merge `0dd79b5d`, docs-only): 204-seed census, 7 closures source-verified, RS5..RS11 dispositioned (only ex-RS6 gained rank; ex-RS5 demoted — its obvious fix is a trap), phantom seed OOS-RS1-2 struck. **Successor queue PB-DX1..DX18** in `memory/primitives/seed-rerank-2026-07-27.md` §4 (authoritative; rider-seed-triage §5 banner defused). Honest yield ~13-15 flips + ~15 integrity repairs + 3 gate-integrity fixes.
-
-**Not done / deferred**:
-- ~~PB-DX queue not started~~ — **PB-DX1 SHIPPED** (`scutemob-160`, 2026-08-01); OOS-DP6-1 + riders DP6-5/DP6-9 all CLOSED. **Next dispatch is PB-DX2**, then PB-DX3.
-- M11-local S2 (pregame setup + mulligans) unblocked and parallel-safe; scutemob-127 (abilities-corpus distillation) still backlog; M10 line untouched.
-
-**Next session candidates** (highest-yield first):
-- ~~Dispatch PB-DX1~~ **DONE** (`scutemob-160`; PROTOCOL 31→32 / HASH 68→69 — the §4 brief predicted HASH only and was half wrong). **Dispatch PB-DX2** (`ChooseDredge` free-card exploit, wire-neutral) — then chain DX3 (2 flips, 0 engine lines) under the standing autonomous-chaining rule.
-- M11-local S2 in parallel (`crates/simulator` only — disjoint from DX1/DX2 engine surface).
-
-**Hazards** (carrying forward):
-- All prior hazards stand (attestation verbatim, Monitor-not-poll-loops, `esm update` clobber, probe-first, never skip the reviewer).
-- **Merge conflicts in coordination files are routine** on worker branches that update CLAUDE.md/workstream-state (DP1, DP9): resolve by taking the worker's richer version, then reconcile counts in the collect chore commit. `git merge-tree --write-tree` remains the conflict arbiter (`esm worktree check` false-positives persist).
-- **Audit rosters are magnitudes, not rosters** — SR-36 enumeration beat the §3.1 regex every time (84→77, 74→73, 7→2). Trust only computed counts; DP10's gate now ratchets them.
-- **The CR 800.4 concede/departure priority-strand class bit three batches** before DP9's engine-wide backstop; watch for it in any new blocking-decision work (PB-DX10 adds one).
-- **Worker state-sync is inconsistent** — some workers update CLAUDE.md/workstream-state in-branch, some don't; the collect step must check and reconcile every time (N4).
-
-**Commit prefix used**: worker `W6-prim:`, `merge:`, coordinator `chore:`.
-
 ## Previous Handoff (preserved for chain context)
 
 **Date**: 2026-07-19..20 (oversight session — autonomous coordinator chain, user-directed "stop dispatching after PB-RS3"; /eot 2026-07-26)
@@ -877,6 +931,36 @@ shows S7's work, not this branch's.
 > merge commits listed in the Last Handoff above.
 
 ## Handoff History
+
+### 2026-07-26..27 (oversight — PB-DP suite complete + re-rank) [rotated]
+
+**Date**: 2026-07-26..27 (oversight session — autonomous coordinator chain, user-directed "task out the PB suite and run autonomously", then "task it out and rerank"; /eot 2026-07-27)
+**Workstream**: W6 (PB-DP suite) — **DP1..DP10 ALL SHIPPED + seed re-rank DONE; queue handoff to PB-DX**
+**Task**: `scutemob-149..158` (suite) + `scutemob-159` (re-rank). Final merges `16ffcfd0` (DP10) and `0dd79b5d` (re-rank).
+
+**Completed**:
+- **THE PB-DP SUITE IS COMPLETE** — all 10 batches dispatched, collected, merge-verified (full test suite run on main after every merge). Tests 3,683 → **3,928 / 0**; PROTOCOL 27 → **31**; HASH 63 → **68**. All five Tier-0 correctness findings (DP-1..DP-5) closed. Per-batch detail: CLAUDE.md "Last Updated" entries + `docs/audits/decision-point-audit.md` §5/§8 rows (each marked SHIPPED with verified breakdowns) + git merges `f7651bb5`/`68172717`/`3b04bd17`/`799dcc0a`/`922252f7`/`d52fe5b6`/`8f890611`/`48353a36`/`d65e7f1e`/`16ffcfd0`.
+- **Seeds closed by the suite**: OOS-M11-1 (DP2), OOS-M11-4 (DP8), OOS-DP1-1 + OOS-RS3-4 (DP4), OOS-DP7-7 (DP10) — plus OOS-RS3-1, discovered closed by DP6 only during the re-rank census.
+- **Seed re-rank** (`scutemob-159`, merge `0dd79b5d`, docs-only): 204-seed census, 7 closures source-verified, RS5..RS11 dispositioned (only ex-RS6 gained rank; ex-RS5 demoted — its obvious fix is a trap), phantom seed OOS-RS1-2 struck. **Successor queue PB-DX1..DX18** in `memory/primitives/seed-rerank-2026-07-27.md` §4 (authoritative; rider-seed-triage §5 banner defused). Honest yield ~13-15 flips + ~15 integrity repairs + 3 gate-integrity fixes.
+
+**Not done / deferred**:
+- ~~PB-DX queue not started~~ — **PB-DX1 SHIPPED** (`scutemob-160`, 2026-08-01); OOS-DP6-1 + riders DP6-5/DP6-9 all CLOSED. **Next dispatch is PB-DX2**, then PB-DX3.
+- M11-local S2 (pregame setup + mulligans) unblocked and parallel-safe; scutemob-127 (abilities-corpus distillation) still backlog; M10 line untouched.
+
+**Next session candidates** (highest-yield first):
+- ~~Dispatch PB-DX1~~ **DONE** (`scutemob-160`; PROTOCOL 31→32 / HASH 68→69 — the §4 brief predicted HASH only and was half wrong). **Dispatch PB-DX2** (`ChooseDredge` free-card exploit, wire-neutral) — then chain DX3 (2 flips, 0 engine lines) under the standing autonomous-chaining rule.
+- M11-local S2 in parallel (`crates/simulator` only — disjoint from DX1/DX2 engine surface).
+
+**Hazards** (carrying forward):
+- All prior hazards stand (attestation verbatim, Monitor-not-poll-loops, `esm update` clobber, probe-first, never skip the reviewer).
+- **Merge conflicts in coordination files are routine** on worker branches that update CLAUDE.md/workstream-state (DP1, DP9): resolve by taking the worker's richer version, then reconcile counts in the collect chore commit. `git merge-tree --write-tree` remains the conflict arbiter (`esm worktree check` false-positives persist).
+- **Audit rosters are magnitudes, not rosters** — SR-36 enumeration beat the §3.1 regex every time (84→77, 74→73, 7→2). Trust only computed counts; DP10's gate now ratchets them.
+- **The CR 800.4 concede/departure priority-strand class bit three batches** before DP9's engine-wide backstop; watch for it in any new blocking-decision work (PB-DX10 adds one).
+- **Worker state-sync is inconsistent** — some workers update CLAUDE.md/workstream-state in-branch, some don't; the collect step must check and reconcile every time (N4).
+
+**Commit prefix used**: worker `W6-prim:`, `merge:`, coordinator `chore:`.
+
+---
 
 ### 2026-07-19 (oversight — PB-OS queue complete, OS4..OS11 + OS4b) [rotated]
 
