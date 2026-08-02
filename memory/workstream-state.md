@@ -973,10 +973,13 @@ unsatisfiable offer costs nothing anyway. Scope it as an engine query plus cachi
 ### Seeds filed
 
 * **`OOS-SIM5-1`** — bot target *choice* is "first legal candidate", and `legal_targets_per_slot`
-  lists players before objects, so a `TargetPlayer` slot usually resolves to the bot itself.
-  `Bot::choose_targets` is still dead and cannot express player targets. A real policy
-  (opponent-preferring for removal, self-preferring for buffs) needs spell polarity, which is a
-  `HeuristicBot` scoring project.
+  lists players before objects **in seat order**, so every player-eligible slot (`TargetPlayer`,
+  `TargetAny`, `TargetCreatureOrPlayer`) resolves to **seat 1** — the human's seat in a
+  play-server game, and the bot's own seat when the bot is seat 1. **Not a cosmetic seed**: it
+  points every bot burn spell at one player, which changes the character of a seeded game and
+  not merely its strategic quality. `Bot::choose_targets` is still dead and cannot express
+  player targets at all. A real policy (opponent-preferring for removal, self-preferring for
+  buffs) needs spell polarity, which is a `HeuristicBot` scoring project.
 * **`OOS-SIM5-2`** — `TargetRequirement::UpToN` slots are announced empty (legal: min 0), so a
   bot never uses an optional target.
 * **`OOS-SIM5-3`** — ~25 of 166 refusals are blocker declarations the provider offered and the
@@ -989,6 +992,28 @@ unsatisfiable offer costs nothing anyway. Scope it as an engine query plus cachi
   so bots refuse 4× per A/B run. Needs an engine query change, not a simulator one.
 * **`OOS-CARDS2-4` unchanged** — Auras still cannot be announced; post-(1) the attempt is a
   harmless no-op that now shows up in `rejections()`.
+
+### The `/review` cycle: 5 PASS, 4 LOW, all 4 taken
+
+The reviewer re-ran everything rather than trusting the numbers — it reverted both fixes in a
+scratch tree and reproduced the BEFORE column exactly, then reproduced AFTER on HEAD, then
+re-ran the full workspace suite. Four LOW findings, all applied:
+
+1. An in-source A/B summary in `local_game.rs` said "30 wasted taps across 30 tap runs". The
+   verified figures are **45 wasted taps across 30 wasted runs, of 82 tap runs in all** — 30 is
+   the wasted-*run* count, which is what `ManaPoolsEmptied` matches 1:1. Comment corrected; the
+   handoff table and task comment were already right.
+2. `record_rejection` retained records regardless of `LocalGameLimits::record_journal`, while
+   `driver.rs` sets that flag `false` specifically so the fuzzer retains nothing. Retention is
+   now gated on the same flag (the **count** is not gated, so a crash report keeps the number).
+3. `OOS-SIM5-1` was under-stated: players are enumerated first *in seat order*, so every
+   player-eligible slot resolves to seat 1 for every bot. Seed text strengthened above and in
+   `plan_targets`' doc — it changes a seeded game's character, not just its quality.
+4. Measured: with targeting kept and only `apply_sequence` reverted, only seed 42 reddens the
+   whole-game A/B test, because fix (2) removed nearly all cast-side refusals. So the A/B test
+   is **not** the primary atomicity gate — `a_rejected_bot_cast_commits_no_taps` is, and it
+   freezes a `ZeroTargetCastBot` into the fixture exactly so it keeps discriminating however
+   good targeting becomes. Recorded in that test's doc so a future seed re-pick cannot lose it.
 
 ## Worker Handoff (SIM-4, `scutemob-187`) — the mulligan stops re-rolling the table
 

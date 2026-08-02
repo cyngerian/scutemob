@@ -300,8 +300,9 @@ impl<P: LegalActionProvider> LocalGame<P> {
 
     /// Bot-seat commands the engine refused, oldest first (SIM-5 fix (3)).
     ///
-    /// Truncated at [`MAX_RETAINED_REJECTIONS`] — compare against
-    /// [`Self::rejection_count`] to see whether anything was dropped.
+    /// **Empty when `LocalGameLimits::record_journal` is off**, and otherwise truncated
+    /// at [`MAX_RETAINED_REJECTIONS`] — compare against [`Self::rejection_count`], which
+    /// is neither gated nor truncated, to see whether anything was dropped.
     pub fn rejections(&self) -> &[RejectedCommand] {
         &self.rejections
     }
@@ -536,8 +537,9 @@ impl<P: LegalActionProvider> LocalGame<P> {
             // `[taps…, cast]` vector through `apply_sequence`, whose doc says in as many
             // words that it exists to prevent "a tap-then-cast sequence where the tap
             // succeeded but the cast was rejected". This is that same call, on the bot
-            // path. Measured on seeds 0/7/42 at 25 turns: 30 wasted taps across 30 tap
-            // runs before, 0 after, with `ManaPoolsEmptied` falling 1:1 with them
+            // path. Measured on seeds 0/7/42 at 25 turns: **45 wasted taps across 30
+            // wasted tap runs** before (of 82 tap runs in all), 0 after, with
+            // `ManaPoolsEmptied` falling 1:1 with the wasted RUNS -- 30 before, 1 after
             // (`crates/simulator/tests/sim5_bot_cast_discipline.rs`).
             //
             // Two behavioural differences from the old loop, both deliberate:
@@ -850,11 +852,19 @@ impl<P: LegalActionProvider> LocalGame<P> {
     /// SIM-5 fix (3): keep the engine's refusal instead of discarding it.
     ///
     /// `command` is the bot's chosen action, not the tapping plan around it — see
-    /// [`RejectedCommand::command`]. The count is always incremented; the record is
-    /// retained only up to [`MAX_RETAINED_REJECTIONS`].
+    /// [`RejectedCommand::command`].
+    ///
+    /// **The count is always incremented; the RECORD follows
+    /// `LocalGameLimits::record_journal`**, and is additionally capped at
+    /// [`MAX_RETAINED_REJECTIONS`]. Gating on the same flag the journal uses is
+    /// deliberate: `GameDriver` sets it `false` precisely so the fuzzer "retains what
+    /// the pre-M11 driver retained, which was nothing" (see that field's doc), and a
+    /// rejection record holds a cloned `Command` exactly like a `CommandRecord` does.
+    /// A caller that has opted out of the journal keeps the *number* — which is the
+    /// part a crash report needs — and pays no per-game allocation for the detail.
     fn record_rejection(&mut self, player: PlayerId, command: &Command, error: &LocalGameError) {
         self.rejection_count = self.rejection_count.saturating_add(1);
-        if self.rejections.len() < MAX_RETAINED_REJECTIONS {
+        if self.limits.record_journal && self.rejections.len() < MAX_RETAINED_REJECTIONS {
             self.rejections.push(RejectedCommand {
                 player,
                 turn: self.state.turn().turn_number,

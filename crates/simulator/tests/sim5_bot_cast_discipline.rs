@@ -268,8 +268,19 @@ pub fn play(
 /// `apply_sequence`), so a rejected cast can no longer leave taps committed: no tap
 /// run is followed by its own player's `PassPriority`.
 ///
-/// Before the fix this seed produced wasted runs (recorded in the task handoff);
-/// the triage measured the same shape live at 18/38 runs and 26/72 taps.
+/// Before the fix these seeds produced 30 wasted runs / 45 wasted taps (recorded in
+/// the task handoff); the triage measured the same shape live at 18/38 runs and 26/72
+/// taps.
+///
+/// # This is a whole-game measurement, NOT the primary atomicity gate
+///
+/// Measured during the SIM-5 review: with targeting kept and *only* the
+/// `apply_sequence` call reverted, just seed 42 goes red here (1 wasted run) — because
+/// fix (2) removed nearly every cast-side refusal, so there is little left for fix (1)
+/// to roll back. [`a_rejected_bot_cast_commits_no_taps`] carries the real regression
+/// load for atomicity: it freezes a zero-target bot into the fixture so it keeps
+/// failing on a reverted `apply_sequence` no matter how good targeting gets. If this
+/// seed list is ever re-picked, do not treat this test as the atomicity gate.
 #[test]
 fn seeded_four_bot_game_wastes_no_taps() {
     // Every seed is measured and printed before anything is asserted, so a failure

@@ -179,6 +179,14 @@ pub fn action_target_requirements(
 ///    permanent is right for removal and wrong for a pump spell or an Aura, and
 ///    nothing at this layer knows a spell's polarity. A bot that targets *well* is a
 ///    `HeuristicBot` scoring question (`OOS-SIM5-1`), not a legality question.
+///    **`OOS-SIM5-1` is more than a quality nit, and the seed says so**: candidates are
+///    enumerated players-first in seat order, so *every* player-eligible slot
+///    (`TargetPlayer`, `TargetAny`, `TargetCreatureOrPlayer`) resolves to **seat 1** —
+///    which is the human's seat in a play-server game, and the bot's own seat when the
+///    bot is seat 1. Every bot burn spell therefore points at one player. That is
+///    legal, and it is what makes the A/B measurement stable, but it changes the
+///    *character* of a seeded game rather than merely its strategic quality, so a
+///    successor should not read the seed as cosmetic.
 /// 3. **It is stable.** A seeded game's journal is the A/B instrument for G5; a
 ///    stable choice keeps the before/after comparison about the fix.
 ///
