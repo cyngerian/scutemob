@@ -77,6 +77,14 @@
   the code and not in the configuration.** Four LOWs alongside it, one of which is a live UI trap:
   `ActionBar`'s decision guard required a truthy `currentShape`, so a malformed payload rendered
   nothing at all and **skipped the very unknown-shape fallback that exists to prevent a dead bar**.
+  **Three review rounds, and the through-line is worth more than any single finding.** Every round
+  found prose out of step with the code — a cited gate that did not exist; a justification
+  ("`submit`'s own `seq` check already refuses") for a guard that was not there, next to a write
+  path that returned **HTTP 200 and applied another seat's scry**; then the inverse, comments
+  advertising a disclosure the new guard had closed. **Two of the three faults were introduced by
+  the correction to the previous round.** Every fix was the same move: *make a test hold the
+  claim.* A comment that says "structural", "gated", "already refuses" or "discloses" is an
+  assertion, and an assertion no test executes decays at the speed of the code around it.
   Tests **4,124 → 4,138** on branch (+8 `params.rs` unit, +6 play-server). **Zero engine lines** —
   empty `git diff` over `crates/engine/src` + `crates/card-types/src`. PROTOCOL **33** / HASH
   **70** unmoved, gate-executed rather than predicted. (The task's acceptance criterion said

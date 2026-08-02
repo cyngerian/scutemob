@@ -929,6 +929,23 @@ code comment and the README now say plainly that this pair is **fail-closed, not
 `PlaySession::human` is a single `PlayerId`, so a real second human seat would be deadlocked
 rather than served, and the missing piece is a per-request viewer.
 
+**Confirmation pass (third)**: all 5 second-cycle findings confirmed fixed, both guard halves
+confirmed two-sided **by execution** — and the write half turned out to close a real hole, not a
+theoretical one: with `post_action`'s guard deleted the probe gets **HTTP 200 and the other seat's
+scry is applied**. No new instance of the "guard that is not there" class; one instance of its
+**inverse** — three comments still advertising a `seq`-disclosure channel that the guard's own
+placement (above the staleness check) had already closed. Closed the same way as everything else
+here: the gate now asserts that a wrong `seq` against a foreign decision answers
+`no_pending_decision` rather than `stale_decision`, whose body would carry `expected: <the real
+seq>`.
+
+**The through-line of three review rounds, worth more than any one finding**: every round found
+prose out of step with the code, in one direction or the other, and every round's fix was the
+same — *make a test hold the claim*. A comment that says "structural", "gated", "already
+refuses" or "discloses" is an assertion; if no test executes it, it decays at the speed of the
+code around it. Two of the three rounds' faults were introduced by the correction to the previous
+round.
+
 **Not done / deferred** (all recorded as play-server README limitations 14-17):
 - The TUI halves of OOS-DP7-6 / OOS-DP8-2 / OOS-DP9-7 are untouched; those rows are *about* the
   TUI and remain open. OOS-DP9-1 is unchanged and deliberately so — it is about the bot, and the
