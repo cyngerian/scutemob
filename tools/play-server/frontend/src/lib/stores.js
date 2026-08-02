@@ -280,11 +280,17 @@ const PASS_UNTIL_PREDICATES = {
    *   - the step or phase changed (CR 500.1 — the turn moved on), or
    *   - the stack grew (CR 405.1 — somebody cast or activated something).
    *
-   * The stack check compares against the depth at the moment the run started,
-   * so a spell that goes on and resolves entirely between two of our passes is
-   * not missed as a net-zero change: any response we receive with a deeper
-   * stack stops us, and a spell that resolved changed the board in ways the
-   * step check or the caller's own eyes will catch.
+   * The stack check compares against the depth seen on the **previous
+   * iteration**, not against the depth when the run started, and the difference
+   * is real: with a fixed baseline, a spell that resolved off the stack and a
+   * different one that went on in its place is a net-zero change and would be
+   * passed straight through. Any growth from one response to the next stops the
+   * run.
+   *
+   * `ctx.step`/`ctx.phase` stay fixed at the starting values on purpose — the
+   * question there is "has the turn moved on from where I stopped paying
+   * attention", which is a comparison against the start, not against the last
+   * poll.
    */
   'phase-end': (view, ctx) => {
     const step = view?.state?.turn?.step ?? null;
@@ -292,10 +298,10 @@ const PASS_UNTIL_PREDICATES = {
     if (step !== ctx.step || phase !== ctx.phase) {
       return `the ${ctx.phase} phase moved on (${ctx.step} → ${step})`;
     }
-    if ((view?.state?.zones?.stack?.length ?? 0) > ctx.stackDepth) {
-      return 'something was put on the stack';
-    }
-    return null;
+    const depth = view?.state?.zones?.stack?.length ?? 0;
+    const grew = depth > ctx.stackDepth;
+    ctx.stackDepth = depth;
+    return grew ? 'something was put on the stack' : null;
   },
 };
 
@@ -339,6 +345,14 @@ export async function startPassUntil(modeKind) {
     });
     return false;
   }
+  // Refuse a second concurrent run. `loading` alone is not enough: it is false
+  // between iterations, so a second call landing in that window would start a
+  // rival loop, both would drive the same session, and `passUntilCancelled`
+  // would stop whichever checked it first while the other kept passing. The
+  // buttons are already hidden mid-run (`ActionBar`'s `autoPassing`); this is
+  // the guard behind that, for any caller that is not a button.
+  const running = get(passUntil);
+  if (running && running.stopReason === null) return false;
   if (get(loading)) return false;
 
   const start = get(seatView);
