@@ -470,19 +470,30 @@ pub enum ScriptAction {
         /// Example: "green"
         #[serde(default)]
         chosen_color: Option<String>,
-        /// PB-RS2 (CR 107.4e via CR 602.2b/605.1a): For `activate_ability` or
-        /// `tap_for_mana` on a source with a hybrid pip in its activation cost. One
-        /// entry per hybrid pip, in cost order: `"white"`/`"blue"`/`"black"`/`"red"`/
+        /// PB-RS2 (CR 107.4e via CR 602.2b/605.1a); extended by PB-DX6 §9.3 to
+        /// `turn_face_up` and `declare_attackers`. For `activate_ability` or
+        /// `tap_for_mana` on a source with a hybrid pip in its activation cost, one
+        /// entry per hybrid pip, in cost order; for `turn_face_up`, one entry per
+        /// hybrid pip of the RESOLVED turn-face-up cost (`Command::TurnFaceUp`'s
+        /// doc block); for `declare_attackers`, one entry per hybrid pip of the CR
+        /// 508.1h attack-tax total in its own canonical copy-major order
+        /// (`rules::queries::attack_tax_total`'s doc block) -- NOT the printed
+        /// per-card cost order. Values: `"white"`/`"blue"`/`"black"`/`"red"`/
         /// `"green"`/`"colorless"` to pay with that color, or `"generic"` to pay a
         /// monocolored hybrid (`{2/W}`) with 2 generic mana. Empty = default to the
-        /// first color option for each pip.
+        /// first color option for each pip. **This vector is positional and
+        /// `flatten_hybrid_phyrexian` indexes it that way: a dropped or
+        /// out-of-order entry silently shifts every later pip's choice** — supply
+        /// either the full vector, in order, or none at all.
         /// Example: ["black"]
         #[serde(default)]
         hybrid_choices: Vec<String>,
-        /// PB-RS2 (CR 107.4f via CR 602.2b/605.1a): For `activate_ability` or
-        /// `tap_for_mana` on a source with a Phyrexian pip in its activation cost.
-        /// One entry per Phyrexian pip, in cost order: `true` = pay 2 life, `false` =
-        /// pay mana. Empty = default to paying with mana for each pip.
+        /// PB-RS2 (CR 107.4f via CR 602.2b/605.1a); extended by PB-DX6 §9.3 to
+        /// `turn_face_up` and `declare_attackers` — see `hybrid_choices`' doc for
+        /// which cost's pip order each action type indexes and the same
+        /// positional/all-or-nothing warning. One entry per Phyrexian pip, in cost
+        /// order: `true` = pay 2 life, `false` = pay mana. Empty = default to
+        /// paying with mana for each pip.
         /// Example: [true]
         #[serde(default)]
         phyrexian_life_payments: Vec<bool>,

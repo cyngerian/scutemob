@@ -1305,7 +1305,7 @@ fn turn_face_up_payment_plan(
 /// `ability_cost.life_cost` / `ManaAbility::life_cost`) that must be combined with a
 /// Phyrexian-life choice for the CR 119.4 legality check — mirrors the engine's own
 /// combined check in `rules/abilities.rs` / `rules/mana.rs` (§5.2 of the plan).
-fn resolve_hybrid_phyrexian_plan(
+pub(crate) fn resolve_hybrid_phyrexian_plan(
     state: &GameState,
     player: PlayerId,
     cost: &ManaCost,

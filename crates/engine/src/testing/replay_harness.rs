@@ -1212,14 +1212,27 @@ pub fn translate_player_action(
                 .iter()
                 .filter_map(|name| find_on_battlefield(state, player, name.as_str()))
                 .collect();
+            // PB-DX6 §9.3 (CR 508.1h via CR 107.4e/107.4f): reuses the SAME
+            // `hybrid_choices`/`phyrexian_life_payments` `PlayerAction` fields
+            // PB-RS2 added for `activate_ability`/`tap_for_mana`, and the SAME
+            // `parse_hybrid_choices` helper -- including its all-or-nothing
+            // parse contract. Here the positions are §5.2.2's canonical
+            // copy-major CR 508.1h total order (defenders ascending by
+            // `PlayerId`, then one full copy of the defender's per-creature
+            // cost per attacking creature, then restrictions in
+            // `state.restrictions` order within a copy) -- NOT any printed
+            // per-card cost order. A script that wants to pay an attack tax
+            // must derive that order the same way `rules::queries::
+            // attack_tax_total` does; empty vectors mean "no tax, or accept
+            // the flattener's own default plan."
             Some(Command::DeclareAttackers {
                 player,
                 attackers: atk_pairs,
                 enlist_choices,
                 exert_choices,
-            hybrid_choices: vec![],
-            phyrexian_life_payments: vec![],
-        })
+                hybrid_choices: parse_hybrid_choices(hybrid_choice_names)?,
+                phyrexian_life_payments: phyrexian_life_payment_choices.to_vec(),
+            })
         }
         // CR 509.1: Declare blockers. Resolve creature names to ObjectIds on the
         // battlefield. The blocker is controlled by the declaring player; the attacker
@@ -2269,13 +2282,21 @@ pub fn translate_player_action(
                     TurnFaceUpMethod::MorphCost // default
                 }
             };
+            // PB-DX6 §9.3 (CR 701.40b/702.37e/702.168d via CR 107.4e/107.4f):
+            // reuses the SAME `hybrid_choices`/`phyrexian_life_payments`
+            // `PlayerAction` fields and the SAME `parse_hybrid_choices` helper
+            // PB-RS2 added for `activate_ability`/`tap_for_mana` -- including
+            // its all-or-nothing parse contract. The positions here index the
+            // RESOLVED turn-face-up cost (whichever of `MorphCost`/
+            // `DisguiseCost`/`ManaCost` `method` above selected), in that
+            // cost's own pip order -- see `Command::TurnFaceUp`'s doc block.
             Some(Command::TurnFaceUp {
                 player,
                 permanent: perm_id,
                 method,
-            hybrid_choices: vec![],
-            phyrexian_life_payments: vec![],
-        })
+                hybrid_choices: parse_hybrid_choices(hybrid_choice_names)?,
+                phyrexian_life_payments: phyrexian_life_payment_choices.to_vec(),
+            })
         }
         // CR 701.28: Transform a double-faced permanent (Delver of Secrets, …).
         // `Command::Transform` has existed since M8; this arm did not, so `transform`
