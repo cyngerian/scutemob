@@ -126,12 +126,26 @@ endpoints.**
 The *second* pass of the same `/review` then caught the same species of overclaim inside the
 fix for the first: the exclusion's comment said it cost "nothing that was working", and that
 is false — a Cradle with **one** creature out was offered and the cast *succeeded*, and that
-case is now withheld. It is also over-broad for four of the nine, which count a population
-containing themselves and so cannot reach zero on the battlefield (`elvish_archdruid`,
-`priest_of_titania`, `circle_of_dreams_druid`, `marwyn_the_nurturer`). Carving those out by
+case is now withheld. It is also over-broad for **three** of the roster's nine,
+which count a population containing themselves and so cannot reach zero on the battlefield
+(`elvish_archdruid`, `priest_of_titania`, `circle_of_dreams_druid`). Carving those out by
 name would be a shadow implementation of the count — the trap avoided one paragraph earlier on
 the stax fix — so the blunt exclusion stands and the claim was corrected instead. **Twice in
 one batch, the thing needing repair was a sentence asserting the code was safe.**
+
+And then a **third** time, in the correction itself: that sentence originally said *four*,
+counting `marwyn_the_nurturer` among the safe ones. Marwyn is a **1/1** reading
+`EffectAmount::PowerOf(EffectTarget::Source)` — not a population — so one `-1/-1` counter or
+any layer-7b P/T setter takes it to zero and it fails exactly as Itlimoc does. It is evidence
+*for* the exclusion. The reviewer's own second-pass report had listed it with the hedge "≥1
+unless debuffed", and the durable observation is theirs: **a hedge inside a list gets read as
+a member of the list.** Re-derived rather than decremented, per this file's own rule about not
+adjusting a constant by hand.
+
+One more roster subtlety, since a reader will go looking: the motivating card's scaled ability
+is on its **back** face, so `r5`'s nine rows do not contain `growing_rites_of_itlimoc` —
+`enrich_spec_from_def` builds front-face ability vectors. The runtime exclusion still covers
+it, because `apply_face_change` rebuilds those vectors at the transform.
 
 ### The bot half of OOS-M11-8 — closed by there being one function
 

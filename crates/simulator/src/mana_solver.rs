@@ -226,18 +226,27 @@ fn plannable_tap_ability(
     // and adds it with **no error at zero**, so Itlimoc with no creatures out produces
     // NOTHING while the marker promises one mana — an over-credit, and therefore an
     // offered cast the engine refuses. Found by SIM-2's `/review` on
-    // `growing_rites_of_itlimoc`, which is `Complete` and deck-legal.
+    // `growing_rites_of_itlimoc`, which is `Complete` and deck-legal — and note it is the
+    // **back** face that carries the scaled ability, so it is not one of the nine rows
+    // `sim2_mana_source_roster::r5` counts (that enumeration builds front-face ability
+    // vectors). The runtime exclusion still covers it: `apply_face_change` rebuilds the
+    // ability vectors at the transform, so a flipped Itlimoc's mana ability carries
+    // `scaled_amount` like any other.
     //
     // **This exclusion has a real cost, and it is not "nothing that was working".** A
     // Cradle with ONE creature out credited the marker, was offered, and the cast
     // succeeded, because the engine then resolved a count of ≥1; that case is now not
-    // offered. It is also provably over-broad for four of the nine, which count a
-    // population containing themselves and so cannot reach zero while on the battlefield
-    // (`elvish_archdruid` and `priest_of_titania` count Elves, `circle_of_dreams_druid`
-    // counts creatures, `marwyn_the_nurturer` uses `PowerOf(Source)`). Carving those out
-    // by name would be a shadow implementation of the count — the "two arithmetics" trap
-    // this file avoids elsewhere — so the blunt exclusion stands and the honest fix is to
-    // export `resolve_amount`, which closes all nine at once. `OOS-SIM2-4`.
+    // offered. It is over-broad for exactly **three** of the roster's nine — the ones
+    // counting a population that contains themselves, so their count cannot be zero while
+    // they are on the battlefield: `elvish_archdruid` and `priest_of_titania` (Elves
+    // counting Elves you control) and `circle_of_dreams_druid` (a creature counting
+    // creatures you control). **`marwyn_the_nurturer` is NOT one of them** — a first pass
+    // put it here on the strength of its being a mana dork, but it is a **1/1** reading
+    // `PowerOf(Source)` rather than a population, so one `-1/-1` counter or any layer-7b
+    // P/T setter takes it to zero and it fails exactly as Itlimoc does. Carving the three
+    // out by name would be a shadow implementation of the count — the "two arithmetics"
+    // trap this file avoids elsewhere — so the blunt exclusion stands and the honest fix
+    // is to export `resolve_amount`, which closes every case at once. `OOS-SIM2-4`.
     //
     // Placed here in `plannable_tap_ability` and NOT in `tap_ability_is_activatable`, so
     // `StubProvider` still OFFERS the tap and a human can float the mana by hand — the
