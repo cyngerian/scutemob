@@ -12,7 +12,7 @@ use super::events::{CombatDamageAssignment, CombatDamageTarget, GameEvent};
 use super::layers::calculate_characteristics;
 use crate::state::combat::{AttackTarget, CombatState};
 use crate::state::error::GameStateError;
-use crate::state::game_object::{Designations, ManaCost, ObjectId};
+use crate::state::game_object::{Designations, HybridManaPayment, ManaCost, ObjectId};
 use crate::state::player::{CardId, PlayerId};
 use crate::state::stubs::{FlushResumeSite, GameRestriction};
 use crate::state::turn::Step;
@@ -31,12 +31,21 @@ use std::collections::{BTreeMap, BTreeSet};
 /// The active player announces which creatures are attacking and what they
 /// attack. Non-Vigilance attackers become tapped (CR 508.1f). After declaring,
 /// triggers are flushed and priority is granted to the active player.
+///
+/// `hybrid_choices`/`phyrexian_life_payments` (PB-DX6, CR 107.4e/107.4f via CR
+/// 508.1h) index the CR 508.1h attack-tax TOTAL, not any printed cost -- see
+/// `accumulate_attack_tax_total`'s doc for the canonical (copy-major) pip order,
+/// which is defined there once and shared with `queries::attack_tax_total` so a
+/// client can obtain the exact cost these choices index without re-deriving the
+/// accumulation itself (the OOS-RS-2 drift class).
 pub fn handle_declare_attackers(
     state: &mut GameState,
     player: PlayerId,
     attackers: Vec<(ObjectId, AttackTarget)>,
     enlist_choices: Vec<(ObjectId, ObjectId)>,
     exert_choices: Vec<ObjectId>,
+    hybrid_choices: Vec<HybridManaPayment>,
+    phyrexian_life_payments: Vec<bool>,
 ) -> Result<Vec<GameEvent>, GameStateError> {
     // Must be in the DeclareAttackers step.
     if state.turn.step != Step::DeclareAttackers {
@@ -198,29 +207,43 @@ pub fn handle_declare_attackers(
     // is illegal; the game returns to the moment before the declaration"). The DEBIT
     // happens after the tapping loop below, matching CR 508.1f -> 508.1j order.
     //
-    // PB-DP4 / DP-10: before this, the pool was READ ONCE (total_with_restricted) and
-    // never debited, and the cost was flattened to a u32 generic total so colour was
-    // lost. CR 508.1i (a mana-ability window between "total determined" and "total paid")
-    // is NOT honoured here -- the engine determines and pays the total inside this single
+    // PB-DX6 (OOS-DP4-1, closed by this batch): hybrid and Phyrexian pips in an attack
+    // tax are now PAYABLE -- `hybrid_choices`/`phyrexian_life_payments` on this command
+    // index the CR 508.1h TOTAL, accumulated by `accumulate_attack_tax_total` (shared,
+    // unchanged, with `queries::attack_tax_total` so the pip order cannot drift -- see
+    // that function's own doc for the canonical copy-major order and the Norn's Annex
+    // "individually" rulings that make it the only rules-correct shape, plan §5.2.1).
+    // X is still rejected: `Command::DeclareAttackers` has no channel to announce it
+    // (CR 107.3/601.2b), tracked as OOS-DX6-1 (replacing OOS-DP4-1).
+    //
+    // CR 508.1i (a mana-ability window between "total determined" and "total paid") is
+    // NOT honoured here -- the engine determines and pays the total inside this single
     // command, so the tax must already be floating; that is a pre-existing deviation,
     // recorded as OOS-DP4-2, not fixed by this change.
     //
-    // Fix cycle (E1): the hybrid/Phyrexian/X rejection below is scoped to defenders an
-    // attacker actually targets, not to the mere existence of a restriction anywhere on
-    // the battlefield. The pre-fix version rejected the WHOLE declaration -- including an
-    // attack against a different, untaxed defender, a planeswalker-only attack, or an
-    // empty `attackers: vec![]` -- whenever such a restriction existed at all.
-    let (attack_tax, taxed_defenders): (Option<ManaCost>, BTreeSet<PlayerId>) = {
-        // CR 508.1h: per-defender per-creature cost, as a real ManaCost (not a u32).
-        // BTreeMap, not HashMap: iteration order feeds the summed cost and the error
-        // message, and SR-9b requires determinism.
-        let mut tax_per_creature: BTreeMap<PlayerId, ManaCost> = BTreeMap::new();
-        // CR 107.4e/107.4f: defenders whose tax includes a hybrid/Phyrexian/X pip that
-        // cannot be flattened. Command::DeclareAttackers carries no payment-choice
-        // field, so the engine cannot ask which half to pay. Recorded here, not
-        // rejected immediately (E1 fix) -- the rejection fires below, only if a
-        // declared attacker actually targets one of these defenders.
-        let mut unpayable_tax_defenders: BTreeSet<PlayerId> = BTreeSet::new();
+    // Fix cycle (E1, PB-DP4): the X rejection below is scoped to defenders an attacker
+    // actually targets, not to the mere existence of a restriction anywhere on the
+    // battlefield. Rejecting the WHOLE declaration whenever an X-taxed restriction
+    // exists at all -- including an attack against a different, untaxed defender, a
+    // planeswalker-only attack, or an empty `attackers: vec![]` -- would be wrong.
+    let (attack_tax, flat_total, phyrexian_life, taxed_defenders): (
+        Option<ManaCost>,
+        ManaCost,
+        u32,
+        BTreeSet<PlayerId>,
+    ) = {
+        // CR 107.3/601.2b: defenders whose tax includes an X pip that
+        // Command::DeclareAttackers has no channel to announce (hybrid and
+        // Phyrexian pips ARE payable now -- see `accumulate_attack_tax_total`).
+        // Renamed from `unpayable_tax_defenders` (PB-DX6) -- that name would be a
+        // lying identifier now that hybrid/Phyrexian are no longer in this bucket,
+        // exactly the OOS-DP7-2 class this suite keeps re-creating.
+        let mut x_tax_defenders: BTreeSet<PlayerId> = BTreeSet::new();
+        // All defenders with a live, nonzero CantAttackYouUnlessPay restriction
+        // against them, payable or not -- CR 508.1d's has_uncosted_attack_target
+        // needs the union. An X-taxed defender is, if anything, an even stronger
+        // case for "not required to pay that cost" than a payable one.
+        let mut taxed_defenders: BTreeSet<PlayerId> = BTreeSet::new();
         for restriction in state.restrictions.iter() {
             // Skip if source is no longer on the battlefield.
             let source_on_bf = state
@@ -234,111 +257,113 @@ pub fn handle_declare_attackers(
             if let GameRestriction::CantAttackYouUnlessPay { cost_per_creature } =
                 &restriction.restriction
             {
-                let defending_player = restriction.controller;
-                if !cost_per_creature.hybrid.is_empty()
-                    || !cost_per_creature.phyrexian.is_empty()
-                    || cost_per_creature.x_count > 0
-                {
-                    unpayable_tax_defenders.insert(defending_player);
-                    continue;
-                }
-                // E7 fix: a {0} restriction (all fields zero) is unconditionally
-                // payable (CR 118.5) and must not mark its defender as "taxed" --
-                // has_uncosted_attack_target (Change 1c) treats any taxed_defenders
-                // member as a costed target, so a free restriction would wrongly
-                // close off an otherwise-uncosted must-attack target.
+                // E7 fix (PB-DP4), CR 118.5: a {0} restriction (all fields zero) is
+                // unconditionally payable and must not mark its defender "taxed" --
+                // has_uncosted_attack_target treats any taxed_defenders member as a
+                // costed target, so a free restriction would wrongly close off an
+                // otherwise-uncosted must-attack target. Unchanged by this batch.
                 if *cost_per_creature == ManaCost::default() {
                     continue;
                 }
-                let entry = tax_per_creature.entry(defending_player).or_default();
-                add_mana_cost(entry, cost_per_creature, 1);
+                let defending_player = restriction.controller;
+                taxed_defenders.insert(defending_player);
+                if cost_per_creature.x_count > 0 {
+                    x_tax_defenders.insert(defending_player);
+                }
             }
         }
-        // CR 508.1c: attackers per taxed defender. Only player-attacks are taxed. A
-        // creature attacking a planeswalker is attacking that planeswalker, not its
-        // controller, so Propaganda does not apply (CR 508.1c + the Propaganda
-        // ruling). Keep this narrow.
-        //
-        // E1 fix: the CR 107.4e/107.4f rejection lives HERE, not in the restriction
-        // scan above -- it only fires when a declared attacker actually targets an
-        // unpayably-taxed defender, so an attack against a different defender (or an
-        // empty declaration) is never blocked by a restriction it doesn't engage.
-        let mut attackers_per_player: BTreeMap<PlayerId, u32> = BTreeMap::new();
+        // CR 508.1c: reject only if a DECLARED attacker actually targets a defender
+        // whose tax carries an unannounced X (E1 fix's scoping, preserved) -- an
+        // attack against a different, untaxed defender, a planeswalker-only attack,
+        // or an empty declaration is never blocked by a restriction it doesn't
+        // engage.
         for (_, target) in &attackers {
             if let AttackTarget::Player(defending_pid) = target {
-                if unpayable_tax_defenders.contains(defending_pid) {
+                if x_tax_defenders.contains(defending_pid) {
                     return Err(GameStateError::InvalidCommand(format!(
-                        "attack tax: a hybrid, Phyrexian or X attack cost against defender \
-                         {:?} is not payable -- Command::DeclareAttackers carries no \
-                         payment-choice field, so the engine cannot ask which half to pay \
-                         (CR 107.4e/107.4f via CR 508.1h); see OOS-DP4-1.",
+                        "attack tax: an X in the attack cost against defender {:?} cannot \
+                         be announced -- Command::DeclareAttackers carries no X-payment \
+                         channel (CR 107.3/601.2b via CR 508.1h); see OOS-DX6-1.",
                         defending_pid
                     )));
                 }
-                if tax_per_creature.contains_key(defending_pid) {
-                    *attackers_per_player.entry(*defending_pid).or_insert(0) += 1;
+            }
+        }
+        // CR 508.1h: the total, via the SAME accumulation `queries::attack_tax_total`
+        // calls -- two copies of this order is how OOS-RS2-1/OOS-DP4-1 happened.
+        let total = accumulate_attack_tax_total(state, &attackers);
+        // CR 508.1h/508.1j: affordability, checked before any mutation so an
+        // unaffordable declaration leaves the game untouched (CR 732). Evaluated on
+        // the PIPPED total, not the flattened one -- a cost_per_creature that is
+        // entirely Phyrexian and entirely paid with life flattens to {0} with
+        // phyrexian_life > 0, and gating on the flattened value here would silently
+        // skip the whole payment (plan §13 risk 9, pinned by T11).
+        let (flat_total, phyrexian_life) = if total != ManaCost::default() {
+            // CR 107.4e/107.4f: flatten ONCE, against the accumulated total, never
+            // against any individual restriction's cost_per_creature -- design (A),
+            // plan §5.2.1. Design (B) (flatten-then-multiply) is rules-wrong: the
+            // Norn's Annex rulings say each copy of a cost is chosen INDIVIDUALLY,
+            // which (B) cannot express and which flattening the total once, after
+            // full replication, preserves.
+            let (flat, life) = total
+                .flatten_hybrid_phyrexian(&hybrid_choices, &phyrexian_life_payments)
+                .map_err(GameStateError::InvalidCommand)?;
+            // CR 119.4, before any mutation. CR 119.4b: 0 life is always payable, so
+            // the guard short-circuits on > 0 -- mirrors `rules/engine.rs`'s
+            // `handle_turn_face_up` (`combined_life_cost > 0`) exactly.
+            if life > 0 {
+                let (life_ok, current_life) = state
+                    .expect_player(player)
+                    .map(|ps| (ps.life_total >= life as i32, ps.life_total))
+                    .unwrap_or((false, 0));
+                if !life_ok {
+                    return Err(GameStateError::InsufficientLife {
+                        player,
+                        required: life,
+                        actual: current_life,
+                    });
                 }
             }
-        }
-        // Built from BOTH the flattenable-cost map and the unpayable set: CR 508.1d
-        // needs to know which players are taxed at all -- payably or not, and whether
-        // or not anyone is currently declared against them (used by
-        // has_uncosted_attack_target below). An unpayable tax is, if anything, an even
-        // stronger case for "not required to pay that cost" than a payable one.
-        let taxed_defenders: BTreeSet<PlayerId> = tax_per_creature
-            .keys()
-            .copied()
-            .chain(unpayable_tax_defenders.iter().copied())
-            .collect();
-        // CR 508.1h: total cost. Attack taxes from multiple sources are cumulative
-        // (Propaganda ruling), and a defender's total is cost_per_creature x the
-        // number of creatures attacking that defender.
-        let mut total = ManaCost::default();
-        for (defending_pid, attacker_count) in &attackers_per_player {
-            if let Some(cost_per) = tax_per_creature.get(defending_pid) {
-                add_mana_cost(&mut total, cost_per, *attacker_count);
-            }
-        }
-        // CR 508.1h/508.1j: affordability, checked before any mutation so an
-        // unaffordable declaration leaves the game untouched (CR 732).
-        if total != ManaCost::default() {
             let (affordable, available) = state
                 .expect_player(player)
                 .map(|ps| {
                     (
-                        casting::can_pay_cost(&ps.mana_pool, &total),
+                        casting::can_pay_cost(&ps.mana_pool, &flat),
                         ps.mana_pool.total(),
                     )
                 })
                 .unwrap_or((false, 0));
             if !affordable {
-                // CR 106.6 (fix cycle, E5): restricted mana cannot pay a non-spell
-                // cost in this engine -- every `ManaRestriction` variant is
+                // CR 106.6 (fix cycle, E5, PB-DP4): restricted mana cannot pay a
+                // non-spell cost in this engine -- every `ManaRestriction` variant is
                 // spell-scoped (see `player.rs::restriction_matches`) -- so
                 // `can_pay_cost` above already excludes it, and `available` below is
                 // already the unrestricted total. That is engine-internal reasoning,
                 // not a fact a player needs in an error string, so it stays in this
-                // comment. The message below states the required cost and the
-                // available quantity WITHOUT asserting "not enough" as the cause --
-                // the shortfall can be a colour mismatch (required and available
-                // totals equal) as easily as a quantity shortfall, and the old
-                // message's blanket "no ManaRestriction ... matches a non-spell
-                // cost" sentence used to print on every failure regardless of which
-                // one it actually was.
+                // comment. The message below states the FLATTENED cost -- that is
+                // the thing that must actually be payable -- and the available
+                // quantity WITHOUT asserting "not enough" as the cause -- the
+                // shortfall can be a colour mismatch (required and available totals
+                // equal) as easily as a quantity shortfall.
                 return Err(GameStateError::InvalidCommand(format!(
                     "attack tax: the attacking player cannot pay the required {:?} for the \
                      declared attackers from their mana pool (CR 508.1h/508.1j, \
                      Propaganda/Ghostly Prison); {} unrestricted mana available.",
-                    total, available
+                    flat, available
                 )));
             }
-        }
+            (flat, life)
+        } else {
+            (ManaCost::default(), 0)
+        };
         (
             if total == ManaCost::default() {
                 None
             } else {
                 Some(total)
             },
+            flat_total,
+            phyrexian_life,
             taxed_defenders,
         )
     };
@@ -679,19 +704,39 @@ pub fn handle_declare_attackers(
     // mana abilities between the two. The tax must already be floating.
     // Pre-existing deviation, preserved (fixing it needs a two-phase declaration
     // = a new Command). Seed OOS-DP4-2.
+    //
+    // PB-DX6: pays `flat_total` (the CR 107.4e/107.4f-resolved cost validation
+    // computed above) and deducts `phyrexian_life`, but the `ManaCostPaid` event
+    // carries `attack_tax` -- the ORIGINAL, unflattened total -- mirroring
+    // `casting.rs`/`abilities.rs`/`handle_turn_face_up`, which all emit the pipped
+    // shape so event consumers see what was printed (CR 107.4e/107.4f).
     if let Some(tax) = &attack_tax {
-        // Fix cycle (E6): the event push lives INSIDE the `if let Some(ps)` -- a
-        // missing player must not produce a `ManaCostPaid` event describing a
-        // payment that didn't happen (Architecture Invariant 4: events describe
-        // what happened, not what was attempted).
+        // Fix cycle (E6, PB-DP4): both events live INSIDE the `if let Some(ps)` --
+        // a missing player must not produce an event describing a payment that
+        // didn't happen (Architecture Invariant 4: events describe what happened,
+        // not what was attempted).
         if let Some(ps) = state.expect_player_mut(player) {
-            casting::pay_cost(&mut ps.mana_pool, tax);
+            casting::pay_cost(&mut ps.mana_pool, &flat_total);
             // Architecture Invariant 4: a pool debit is a state change and must be
             // evented. Reuses the existing universal payment event -- no wire change.
             events.push(GameEvent::ManaCostPaid {
                 player,
                 cost: tax.clone(),
             });
+            // CR 107.4f: pay life for any Phyrexian pip paid with life. A SIBLING
+            // of the mana payment above, not nested inside a separate gate --
+            // mirrors `handle_turn_face_up`'s identical site (plan §5.1/§5.2.3).
+            // The `total != ManaCost::default()` guard above (evaluated on the
+            // PIPPED total, plan §13 risk 9) is what lets an all-Phyrexian,
+            // all-life cost_per_creature (flat_total == {0}) still reach this
+            // block at all -- T11 pins it.
+            if phyrexian_life > 0 {
+                ps.life_total -= phyrexian_life as i32;
+                events.push(GameEvent::LifeLost {
+                    player,
+                    amount: phyrexian_life,
+                });
+            }
         }
     }
     // Record attackers in combat state.
@@ -835,21 +880,34 @@ fn has_uncosted_attack_target(
                 .contains(&CardType::Planeswalker)
     })
 }
-/// CR 508.1h: accumulate `addend` x `times` into `total`, field by field.
+/// CR 508.1h (+ CR 107.4e/107.4f via the Norn's Annex "individually" rulings, quoted
+/// in full at `memory/primitives/pb-plan-DX6.md` §1): accumulate `times` full copies
+/// of `addend` into `total`, replicating its hybrid/Phyrexian pips along with its
+/// numeric fields.
 ///
-/// Attack taxes from multiple sources are cumulative (Propaganda ruling), and a defender's
-/// total is `cost_per_creature` x the number of creatures attacking that defender. Hybrid,
-/// Phyrexian and X components are rejected by the caller before this is reached
-/// (CR 107.4e/107.4f) and are debug-asserted here so the guard cannot drift.
+/// Attack taxes from multiple sources are cumulative (Propaganda ruling), and a
+/// defender's total is `cost_per_creature` x the number of creatures attacking that
+/// defender. `accumulate_attack_tax_total` (below) uses this function for BOTH halves
+/// of that accumulation -- summing multiple restrictions into one defender's
+/// per-creature cost (`times: 1` per restriction, in `state.restrictions` order),
+/// THEN multiplying that per-creature cost by the attacker count (`times:
+/// attacker_count`) -- which is exactly what makes the result **copy-major**
+/// (`accumulate_attack_tax_total`'s own doc has the full contract): `times` full,
+/// intact copies of `addend`'s pip list are appended in `addend`'s own order, never
+/// each individual pip repeated `times` times on its own. That other shape is
+/// **pip-major**, and is what `multiply_mana_cost` in `rules/engine.rs` does for
+/// cumulative upkeep -- see that function's own doc for why the two must NOT be
+/// merged (OOS-DP4-7, re-dispositioned by this batch, not closed).
 ///
-/// Deliberately NOT the `multiply_mana_cost` helper in `rules/engine.rs` (cumulative
-/// upkeep): that one multiplies hybrid/Phyrexian/X too (correct for CU), which would be
-/// wrong here (an attack tax rejects those fields before payment). Deduplicating the two
-/// is seed OOS-DP4-7.
+/// X is rejected upstream of every call site (`Command::DeclareAttackers` has no
+/// X-announcement channel -- CR 107.3/601.2b, OOS-DX6-1), so `addend.x_count` is
+/// asserted zero here as an unreachable-by-construction tripwire, not handled.
 fn add_mana_cost(total: &mut ManaCost, addend: &ManaCost, times: u32) {
     debug_assert!(
-        addend.hybrid.is_empty() && addend.phyrexian.is_empty() && addend.x_count == 0,
-        "unflattened / X attack tax reached add_mana_cost: {addend:?}"
+        addend.x_count == 0,
+        "X attack tax reached add_mana_cost -- X has no announcement channel on \
+         Command::DeclareAttackers and must be rejected before this point \
+         (CR 107.3/601.2b, OOS-DX6-1): {addend:?}"
     );
     total.white += addend.white * times;
     total.blue += addend.blue * times;
@@ -858,6 +916,99 @@ fn add_mana_cost(total: &mut ManaCost, addend: &ManaCost, times: u32) {
     total.green += addend.green * times;
     total.colorless += addend.colorless * times;
     total.generic += addend.generic * times;
+    for _ in 0..times {
+        total.hybrid.extend(addend.hybrid.iter().cloned());
+        total.phyrexian.extend(addend.phyrexian.iter().cloned());
+    }
+}
+/// CR 508.1h: the unflattened attack-tax total for a candidate `attackers` set --
+/// **the single, canonical accumulation**, shared by `handle_declare_attackers`'s own
+/// validation and `queries::attack_tax_total` (read-only advisory), so the pip order
+/// is defined in exactly one place. Two copies of this order is how OOS-RS2-1 /
+/// OOS-DP4-1 happened in the first place (plan §5.3).
+///
+/// **The canonical pip order** (of `total.hybrid`, and independently of
+/// `total.phyrexian` -- this is the contract `hybrid_choices`/`phyrexian_life_payments`
+/// on `Command::DeclareAttackers` index against): defenders ascending by `PlayerId`
+/// (the `BTreeMap` iteration this function relies on for SR-9b determinism) ->
+/// within a defender, one complete copy of that defender's per-creature cost (itself
+/// the concatenation of every `CantAttackYouUnlessPay` restriction against that
+/// defender, in `state.restrictions` order -- Propaganda ruling: costs from multiple
+/// sources are cumulative) per creature attacking that defender -> within a copy,
+/// restrictions in `state.restrictions` iteration order. This is **copy-major**, not
+/// pip-major: for a defender with per-creature pips `[r1, r2]` and 3 attackers the
+/// result's hybrid vec is `[r1, r2, r1, r2, r1, r2]`, NOT `[r1, r1, r1, r2, r2, r2]`
+/// (see `add_mana_cost`'s own doc for the mechanism, and why `multiply_mana_cost`
+/// must not be reused here -- OOS-DP4-7). Creatures are indistinguishable for cost
+/// purposes -- the order does not depend on WHICH creature is which, and no
+/// attacker -> offset mapping is promised.
+///
+/// Restrictions whose `cost_per_creature` carries an `x_count > 0` pip are SKIPPED
+/// here -- X has no announcement channel on `Command::DeclareAttackers`
+/// (CR 107.3/601.2b, OOS-DX6-1) and its rejection is `handle_declare_attackers`'s own
+/// responsibility (the `x_tax_defenders` bookkeeping there), not this function's; a
+/// defender excluded here contributes nothing to the total regardless of how many
+/// creatures attack it. A `{0}` restriction (CR 118.5, PB-DP4's E7 fix) is likewise
+/// skipped -- unconditionally payable, contributes nothing.
+///
+/// Returns `ManaCost::default()` (never wrapped in `Option`) when no tax applies;
+/// callers convert to `Option` at their own boundary (`queries::attack_tax_total`
+/// does; `handle_declare_attackers` keeps working with the bare value).
+pub(crate) fn accumulate_attack_tax_total(
+    state: &GameState,
+    attackers: &[(ObjectId, AttackTarget)],
+) -> ManaCost {
+    // CR 508.1h: per-defender per-creature cost, as a real ManaCost (not a u32).
+    // BTreeMap, not HashMap: iteration order feeds the summed cost, and SR-9b
+    // requires determinism.
+    let mut tax_per_creature: BTreeMap<PlayerId, ManaCost> = BTreeMap::new();
+    for restriction in state.restrictions.iter() {
+        // Skip if source is no longer on the battlefield.
+        let source_on_bf = state
+            .objects
+            .get(&restriction.source)
+            .map(|o| matches!(o.zone, ZoneId::Battlefield))
+            .unwrap_or(false);
+        if !source_on_bf {
+            continue;
+        }
+        if let GameRestriction::CantAttackYouUnlessPay { cost_per_creature } =
+            &restriction.restriction
+        {
+            // X is not accumulated here -- see doc above; the caller's own
+            // restriction scan handles X rejection.
+            if cost_per_creature.x_count > 0 {
+                continue;
+            }
+            // CR 118.5: a {0} restriction contributes nothing.
+            if *cost_per_creature == ManaCost::default() {
+                continue;
+            }
+            let entry = tax_per_creature.entry(restriction.controller).or_default();
+            add_mana_cost(entry, cost_per_creature, 1);
+        }
+    }
+    // CR 508.1c: attackers per taxed defender. Only player-attacks are taxed. A
+    // creature attacking a planeswalker is attacking that planeswalker, not its
+    // controller, so Propaganda does not apply (CR 508.1c + the Propaganda ruling).
+    let mut attackers_per_player: BTreeMap<PlayerId, u32> = BTreeMap::new();
+    for (_, target) in attackers {
+        if let AttackTarget::Player(defending_pid) = target {
+            if tax_per_creature.contains_key(defending_pid) {
+                *attackers_per_player.entry(*defending_pid).or_insert(0) += 1;
+            }
+        }
+    }
+    // CR 508.1h: total cost, defenders visited ascending by PlayerId (the
+    // `BTreeMap` iteration order) -- see this function's own doc for why that is
+    // the canonical order's outer loop.
+    let mut total = ManaCost::default();
+    for (defending_pid, attacker_count) in &attackers_per_player {
+        if let Some(cost_per) = tax_per_creature.get(defending_pid) {
+            add_mana_cost(&mut total, cost_per, *attacker_count);
+        }
+    }
+    total
 }
 /// CR 506.4: Remove a permanent from combat.
 ///

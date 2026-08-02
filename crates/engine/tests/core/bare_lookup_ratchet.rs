@@ -132,7 +132,22 @@ const SWEPT_FILES: &[(&str, usize)] = &[
     // deduplicates the two copy-pasted `has_cant_attack_owner` bare
     // `state.restrictions.iter().any(|r| ... state.objects.get(&r.source) ...)` lookups
     // (the goad block and the MustAttackEachCombat block) into a single site.
-    ("src/rules/combat.rs", 15),
+    // PB-DX6 (2026-08-02): 15 -> 16. `accumulate_attack_tax_total` (new, CR 508.1h --
+    // shared by `handle_declare_attackers`'s own validation AND
+    // `queries::attack_tax_total`, plan §5.3's anti-drift requirement) needs its OWN
+    // `state.restrictions.iter().any(|r| ... state.objects.get(&r.source) ...
+    // matches!(o.zone, ZoneId::Battlefield) ...)` source-on-battlefield check to
+    // accumulate the payable total, independently of `handle_declare_attackers`'s own
+    // local scan for `x_tax_defenders`/`taxed_defenders` (which the plan deliberately
+    // keeps local, not shared -- "the X/taxed_defenders bookkeeping stays in
+    // combat.rs; only the total is shared"). This is the file's own pre-existing
+    // NONSWALLOW predicate-read idiom (a departed source legitimately answers
+    // "not on the battlefield", not an engine bug) duplicated into a third site
+    // rather than a new pattern -- the two functions cannot share it without
+    // widening `accumulate_attack_tax_total`'s signature to also report X/taxed-
+    // defender bookkeeping, which `queries::attack_tax_total` (a pure total, no new
+    // public type) has no use for.
+    ("src/rules/combat.rs", 16),
     ("src/rules/sba.rs", 7),
     ("src/rules/replacement.rs", 24),
     ("src/rules/turn_actions.rs", 7),

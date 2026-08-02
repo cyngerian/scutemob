@@ -1,16 +1,25 @@
-//! PB-DX6 stage 0 — pre-fix OBSERVATION probes only (OOS-RS2-1 + OOS-DP4-1).
+//! PB-DX6 — hybrid/Phyrexian mana-cost payment site probes (OOS-RS2-1 + OOS-DP4-1).
 //!
-//! `memory/primitives/pb-plan-DX6.md` §0/§2/§2.0 is authoritative. This file makes
-//! **no engine change**; every probe below runs against the unmodified tree and
-//! records a number that was *observed by execution*, never reasoned to (plan §2's
-//! standing discipline — the most-cited failure of this suite's last four batches).
+//! `memory/primitives/pb-plan-DX6.md` §0/§2/§2.0/§5.2/§5.3/§13 is authoritative. This
+//! file began (stage 0) as pre-fix OBSERVATION probes only, against an unmodified
+//! tree; stage B fixed `handle_turn_face_up` and stage C fixes
+//! `handle_declare_attackers`'s CR 508.1h attack tax. Every pre-fix claim recorded
+//! below was *observed by execution*, never reasoned to (plan §2's standing
+//! discipline — the most-cited failure of this suite's last four batches), and every
+//! `historical_*` test is an OLD scenario re-asserted against the NEW, post-fix
+//! behaviour rather than deleted, so the pre-fix text's disappearance is itself
+//! pinned (mirrors `historical_observation_a_...`, added in stage B).
 //!
-//! Two unflattened mana-cost payment sites remain in the engine:
-//! - `rules/engine.rs::handle_turn_face_up` pays a raw `def.mana_cost` — CR 701.40b's
-//!   "pay that cost" ignores CR 107.4e/107.4f hybrid/Phyrexian pips entirely.
-//! - `rules/combat.rs::handle_declare_attackers`'s CR 508.1h attack-tax total has no
-//!   payment-choice channel on `Command::DeclareAttackers`, so a pipped or X tax is
-//!   rejected outright rather than made payable.
+//! Both payment sites this batch targets are now fixed for hybrid and Phyrexian pips:
+//! - `rules/engine.rs::handle_turn_face_up` (stage B) now flattens `def.mana_cost` (or
+//!   the Morph/Megamorph/Disguise cost) before paying it — CR 701.40b's "pay that
+//!   cost" now honours CR 107.4e/107.4f.
+//! - `rules/combat.rs::handle_declare_attackers`'s CR 508.1h attack-tax total (stage
+//!   C) now accepts `hybrid_choices`/`phyrexian_life_payments` and pays the
+//!   accumulated, flattened total. **X remains rejected** — `Command::DeclareAttackers`
+//!   has no channel to announce an X value (CR 107.3/601.2b) — but the rejection
+//!   message no longer claims hybrid/Phyrexian costs are unpayable, and cites the new
+//!   seed OOS-DX6-1 rather than the now-closed OOS-DP4-1.
 //!
 //! ## The build-mode trap (plan §2.0) — read before touching Observation A or B
 //!
@@ -785,32 +794,36 @@ fn turn_face_up_phyrexian_pip_payable_with_mana_or_life() {
     }
 }
 
-// ── Observation C — attack tax, hybrid: rejected in every build (plan §2.0) ─────
+// ── Historical Observation C — attack tax, hybrid: no longer a class rejection ──
 
 #[test]
-/// PRE-FIX, every build (no debug/release split — `rules/combat.rs` rejects a pipped
-/// attack tax with a real `Err` before ever reaching `can_pay_cost`, plan §2.0's last
-/// paragraph).
+/// HISTORICAL / POST-FIX regression pin (mirrors `historical_observation_a_...`).
+/// Before PB-DX6 stage C, THIS EXACT SCENARIO — a P2-controlled
+/// `CantAttackYouUnlessPay { cost_per_creature: {G/W} }` restriction, P1 declaring
+/// one attacker into P2, an EMPTY P1 mana pool — was rejected as a whole "unpayable
+/// class" regardless of the pool: `handle_declare_attackers` (`rules/combat.rs`, the
+/// restriction scan) saw `cost_per_creature.hybrid` non-empty and inserted P2 into
+/// `unpayable_tax_defenders`, and the attacker-loop rejected the declaration outright
+/// because a declared attacker targeted that defender.
 ///
-/// A synthetic `GameRestriction::CantAttackYouUnlessPay { cost_per_creature: {G/W} }`
-/// (`HybridMana::ColorColor(Green, White)`, no other fields) sits on a P2 permanent;
-/// P1 declares one attacker into P2. `handle_declare_attackers`
-/// (`rules/combat.rs`, the restriction scan) sees `cost_per_creature.hybrid` non-empty
-/// and inserts P2 into `unpayable_tax_defenders`; the attacker-loop then rejects the
-/// declaration outright because a declared attacker targets that defender.
-///
-/// OBSERVED verbatim `InvalidCommand` message this run (P2's `ObjectId` interpolated
-/// via `{:?}` on `PlayerId`, so the exact numeral varies by test-local id assignment;
-/// the surrounding text is exact and is asserted below):
+/// PRE-FIX (recorded 2026-08-01/02, plan §2.1 Observation C; P2's `PlayerId`
+/// interpolated positionally, the surrounding text exact) — preserved VERBATIM as a
+/// permanent record, not re-executed:
 /// "attack tax: a hybrid, Phyrexian or X attack cost against defender PlayerId(2) is \
 ///  not payable -- Command::DeclareAttackers carries no payment-choice field, so the \
 ///  engine cannot ask which half to pay (CR 107.4e/107.4f via CR 508.1h); see \
 ///  OOS-DP4-1."
 ///
-/// Plan §2.1 T3 claims this message contains `"is not payable"` and `"OOS-DP4-1"` —
-/// both confirmed true by this run, verbatim, not merely reasoned from the source
-/// read.
-fn observation_c_hybrid_attack_tax_rejected_pre_fix() {
+/// POST-FIX (asserted live below): a hybrid attack tax is now PAYABLE (CR 107.4e via
+/// CR 508.1h; T3 proves the payable cases with a seeded pool). The IDENTICAL command
+/// against the IDENTICAL empty pool therefore no longer names a whole payability
+/// CLASS as rejected — it returns a real, CR-legal `Err(InvalidCommand)` for ordinary
+/// insufficient-mana reasons (an empty pool cannot pay the flattened `{G}`
+/// requirement — CR 107.4e's documented default, first colour). This is T3's own
+/// empty-pool shape, restated standalone against the exact pre-fix scenario so the
+/// "unpayable class" message's disappearance is pinned by name, not only
+/// incidentally covered by T3.
+fn historical_observation_c_hybrid_attack_tax_no_longer_unpayable_class() {
     let p1 = p(1);
     let p2 = p(2);
 
@@ -845,42 +858,396 @@ fn observation_c_hybrid_attack_tax_rejected_pre_fix() {
     );
 
     let err = result.expect_err(
-        "PRE-FIX expectation: a hybrid attack tax against the declared defender must \
-         be rejected outright, not silently paid free (OOS-DP4-1).",
+        "POST-FIX: an unaffordable hybrid attack tax must still be REJECTED, but for \
+         insufficiency, not as a whole unpayable class. If this observes the old \
+         \"is not payable\"/OOS-DP4-1 message, the payable-hybrid-attack-tax fix has \
+         regressed and this historical record is no longer accurate.",
     );
     let msg = format!("{err:?}");
     assert!(
-        msg.contains("is not payable"),
-        "plan §2.1 T3 claim not observed -- message did not contain \"is not \
-         payable\": {msg}"
+        matches!(err, GameStateError::InvalidCommand(_)),
+        "expected InvalidCommand (the affordability message), got: {msg}"
     );
     assert!(
-        msg.contains("OOS-DP4-1"),
-        "plan §2.1 T3 claim not observed -- message did not contain \"OOS-DP4-1\": \
-         {msg}"
+        !msg.contains("is not payable") && !msg.contains("OOS-DP4-1"),
+        "the pre-fix \"unpayable class\" message must be gone: {msg}"
     );
     assert!(
-        msg.contains("hybrid"),
-        "message should name the pip class it rejected: {msg}"
+        msg.contains("cannot pay the required"),
+        "expected the genuine-insufficiency affordability message: {msg}"
     );
 }
 
-// ── Observation D(i) — genuinely unpayable {2} tax stays rejected (plan §2.1 T6) ──
+// ── Shared fixture for T3/T5/T8-T11 ──────────────────────────────────────────────
+
+/// Build an attack-tax fixture: P2 controls a permanent bearing
+/// `CantAttackYouUnlessPay { cost_per_creature: pip_cost }`, P1 controls one creature
+/// able to attack P2, priority held by P1. The pool is left at all-zero — callers
+/// seed it per case. `source_name`/`bear_name` must be unique per call within a test
+/// (`find_by_name` matches on `characteristics.name`).
+fn attack_tax_state(
+    pip_cost: ManaCost,
+    source_name: &str,
+    bear_name: &str,
+) -> (GameState, PlayerId, PlayerId, ObjectId) {
+    let p1 = p(1);
+    let p2 = p(2);
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .active_player(p1)
+        .at_step(Step::DeclareAttackers)
+        .object(ObjectSpec::creature(p2, source_name, 0, 4).in_zone(ZoneId::Battlefield))
+        .object(ObjectSpec::creature(p1, bear_name, 2, 2).in_zone(ZoneId::Battlefield))
+        .build()
+        .unwrap();
+    let tax_source = find_by_name(&state, source_name);
+    add_restriction(
+        &mut state,
+        tax_source,
+        p2,
+        GameRestriction::CantAttackYouUnlessPay {
+            cost_per_creature: pip_cost,
+        },
+    );
+    state.turn_mut().priority_holder = Some(p1);
+    let bear = find_by_name(&state, bear_name);
+    (state, p1, p2, bear)
+}
+
+// ── T3 — hybrid attack tax is payable (plan §2.1 T3) ────────────────────────────
 
 #[test]
-/// PRE-FIX baseline that T6 (implement phase) will assert stays UNCHANGED. A
-/// Propaganda-shaped `{2}` tax (no pips, no X — `ManaCost { generic: 2, ..Default }`),
-/// two attackers into the same defender (total `{4}`), attacking player's pool seeded
-/// with exactly `{1}` (colorless: 1). `handle_declare_attackers`'s affordability block
-/// (`casting::can_pay_cost`) rejects the declaration because {4} is not payable from
-/// {1}.
+/// CR 508.1h/508.1j, 107.4e — a hybrid attack tax is now PAYABLE (PB-DX6). Fixture:
+/// a synthetic `CantAttackYouUnlessPay { cost_per_creature: {G/W} }` restriction on a
+/// P2 permanent, P1 declaring one attacker into P2.
 ///
-/// OBSERVED verbatim `InvalidCommand` message this run:
+/// PRE-FIX (Observation C, quoted verbatim — see
+/// `historical_observation_c_hybrid_attack_tax_no_longer_unpayable_class`):
+/// "attack tax: a hybrid, Phyrexian or X attack cost against defender PlayerId(2) is \
+///  not payable -- Command::DeclareAttackers carries no payment-choice field, so the \
+///  engine cannot ask which half to pay (CR 107.4e/107.4f via CR 508.1h); see \
+///  OOS-DP4-1."
+fn hybrid_attack_tax_is_payable() {
+    // Case 1: pool {G}, [Color(Green)] -> Ok, pool empty, attacker declared.
+    {
+        let (mut state, p1, p2, bear) = attack_tax_state(
+            ManaCost {
+                hybrid: vec![HybridMana::ColorColor(ManaColor::Green, ManaColor::White)],
+                ..Default::default()
+            },
+            "T3 Hybrid Tax Source A",
+            "T3 Attacking Bear A",
+        );
+        set_pool(&mut state, p1, 0, 0, 0, 0, 1, 0);
+        let (state, _events) = process_command(
+            state,
+            Command::DeclareAttackers {
+                player: p1,
+                attackers: vec![(bear, AttackTarget::Player(p2))],
+                enlist_choices: vec![],
+                exert_choices: vec![],
+                hybrid_choices: vec![HybridManaPayment::Color(ManaColor::Green)],
+                phyrexian_life_payments: vec![],
+            },
+        )
+        .expect("{G} pays {G/W} chosen Green");
+        let pool = &state.player(p1).unwrap().mana_pool;
+        assert_eq!(pool.total(), 0, "pool must be drained: {pool:?}");
+        assert!(
+            state
+                .combat()
+                .as_ref()
+                .map(|c| c.attackers.contains_key(&bear))
+                .unwrap_or(false),
+            "the attacker must actually be declared, not merely affordable"
+        );
+    }
+
+    // Case 2: pool {W}, [Color(White)] -> Ok (each pip chosen INDEPENDENTLY, CR 107.4e).
+    {
+        let (mut state, p1, p2, bear) = attack_tax_state(
+            ManaCost {
+                hybrid: vec![HybridMana::ColorColor(ManaColor::Green, ManaColor::White)],
+                ..Default::default()
+            },
+            "T3 Hybrid Tax Source B",
+            "T3 Attacking Bear B",
+        );
+        set_pool(&mut state, p1, 1, 0, 0, 0, 0, 0);
+        let (state, _events) = process_command(
+            state,
+            Command::DeclareAttackers {
+                player: p1,
+                attackers: vec![(bear, AttackTarget::Player(p2))],
+                enlist_choices: vec![],
+                exert_choices: vec![],
+                hybrid_choices: vec![HybridManaPayment::Color(ManaColor::White)],
+                phyrexian_life_payments: vec![],
+            },
+        )
+        .expect("{W} pays {G/W} chosen White");
+        let pool = &state.player(p1).unwrap().mana_pool;
+        assert_eq!(pool.total(), 0, "pool must be drained: {pool:?}");
+    }
+
+    // Case 3: pool {G}, [Color(White)] -> Err(InvalidCommand): insufficient mana, NOT
+    // "unpayable class" (the pre-fix rejection reason).
+    {
+        let (mut state, p1, p2, bear) = attack_tax_state(
+            ManaCost {
+                hybrid: vec![HybridMana::ColorColor(ManaColor::Green, ManaColor::White)],
+                ..Default::default()
+            },
+            "T3 Hybrid Tax Source C",
+            "T3 Attacking Bear C",
+        );
+        set_pool(&mut state, p1, 0, 0, 0, 0, 1, 0);
+        let err = process_command(
+            state,
+            Command::DeclareAttackers {
+                player: p1,
+                attackers: vec![(bear, AttackTarget::Player(p2))],
+                enlist_choices: vec![],
+                exert_choices: vec![],
+                hybrid_choices: vec![HybridManaPayment::Color(ManaColor::White)],
+                phyrexian_life_payments: vec![],
+            },
+        )
+        .expect_err("pool has Green only, but White was chosen -- insufficient, not unpayable");
+        let msg = format!("{err:?}");
+        assert!(
+            matches!(err, GameStateError::InvalidCommand(_)),
+            "expected InvalidCommand: {msg}"
+        );
+        assert!(
+            msg.contains("cannot pay the required"),
+            "expected the genuine-insufficiency message: {msg}"
+        );
+        assert!(
+            !msg.contains("is not payable") && !msg.contains("OOS-DP4-1"),
+            "must NOT be the pre-fix class-rejection message: {msg}"
+        );
+    }
+}
+
+// ── T5 — Phyrexian attack tax: payable with mana OR life (plan §2.1 T5) ─────────
+
+#[test]
+/// CR 107.4f, 119.4, 119.4b — a Phyrexian pip in an attack tax is payable with one
+/// mana of its colour OR by paying 2 life, mirroring T4's turn-face-up cases but on
+/// `cost_per_creature: {W/P}` — this is **Norn's Annex, simulated** (the plan's own
+/// framing, §1/§2.1): "Creatures can't attack you ... unless their controller pays
+/// {W/P} for each of those creatures."
+fn phyrexian_attack_tax_payable_with_mana_or_life() {
+    // Case 1: [false] + pool {W} -> Ok, life unchanged (paid with mana, not life).
+    {
+        let (mut state, p1, p2, bear) = attack_tax_state(
+            ManaCost {
+                phyrexian: vec![PhyrexianMana::Single(ManaColor::White)],
+                ..Default::default()
+            },
+            "T5 Phyrexian Tax Source A",
+            "T5 Attacking Bear A",
+        );
+        if let Some(ps) = state.players_mut().get_mut(&p1) {
+            ps.life_total = 20;
+        }
+        set_pool(&mut state, p1, 1, 0, 0, 0, 0, 0);
+        let (state, _events) = process_command(
+            state,
+            Command::DeclareAttackers {
+                player: p1,
+                attackers: vec![(bear, AttackTarget::Player(p2))],
+                enlist_choices: vec![],
+                exert_choices: vec![],
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![false],
+            },
+        )
+        .expect("{W/P} paid with mana: {W} affordable");
+        let ps = state.player(p1).unwrap();
+        assert_eq!(
+            ps.life_total, 20,
+            "mana payment must not touch life: {ps:?}"
+        );
+        assert_eq!(
+            ps.mana_pool.total(),
+            0,
+            "pool must be drained: {:?}",
+            ps.mana_pool
+        );
+    }
+
+    // Case 2: [true] + empty pool, 20 life -> Ok, life 18.
+    {
+        let (mut state, p1, p2, bear) = attack_tax_state(
+            ManaCost {
+                phyrexian: vec![PhyrexianMana::Single(ManaColor::White)],
+                ..Default::default()
+            },
+            "T5 Phyrexian Tax Source B",
+            "T5 Attacking Bear B",
+        );
+        if let Some(ps) = state.players_mut().get_mut(&p1) {
+            ps.life_total = 20;
+        }
+        let (state, _events) = process_command(
+            state,
+            Command::DeclareAttackers {
+                player: p1,
+                attackers: vec![(bear, AttackTarget::Player(p2))],
+                enlist_choices: vec![],
+                exert_choices: vec![],
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![true],
+            },
+        )
+        .expect("{W/P} paid with life: 2 life payable at 20");
+        let ps = state.player(p1).unwrap();
+        assert_eq!(ps.life_total, 18, "CR 107.4f: 2 life paid: {ps:?}");
+    }
+
+    // Case 3: [true] + 1 life -> Err(InsufficientLife) citing CR 119.4, life unchanged.
+    {
+        let (mut state, p1, p2, bear) = attack_tax_state(
+            ManaCost {
+                phyrexian: vec![PhyrexianMana::Single(ManaColor::White)],
+                ..Default::default()
+            },
+            "T5 Phyrexian Tax Source C",
+            "T5 Attacking Bear C",
+        );
+        if let Some(ps) = state.players_mut().get_mut(&p1) {
+            ps.life_total = 1;
+        }
+        let result = process_command(
+            state,
+            Command::DeclareAttackers {
+                player: p1,
+                attackers: vec![(bear, AttackTarget::Player(p2))],
+                enlist_choices: vec![],
+                exert_choices: vec![],
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![true],
+            },
+        );
+        match result {
+            Err(GameStateError::InsufficientLife {
+                required, actual, ..
+            }) => {
+                assert_eq!(
+                    required, 2,
+                    "CR 107.4f: a single Phyrexian pip costs 2 life"
+                );
+                assert_eq!(
+                    actual, 1,
+                    "life reported in the error must be pre-mutation: 1"
+                );
+            }
+            other => panic!(
+                "CR 119.4: at 1 life, paying 2 life must be rejected with \
+                 InsufficientLife: {other:?}"
+            ),
+        }
+    }
+
+    // Case 4 (Norn's Annex, simulated): two attackers, [false, true], pool {W},
+    // 20 life -> Ok, pool empty, life 18. The ruling's own example: "you may pay {W}
+    // for one cost and 2 life for the other."
+    {
+        let p1 = p(1);
+        let p2 = p(2);
+        let mut state = GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(p2)
+            .active_player(p1)
+            .at_step(Step::DeclareAttackers)
+            .object(
+                ObjectSpec::creature(p2, "T5 Norn's Annex Source", 0, 4)
+                    .in_zone(ZoneId::Battlefield),
+            )
+            .object(
+                ObjectSpec::creature(p1, "T5 Norn's Annex Bear One", 2, 2)
+                    .in_zone(ZoneId::Battlefield),
+            )
+            .object(
+                ObjectSpec::creature(p1, "T5 Norn's Annex Bear Two", 2, 2)
+                    .in_zone(ZoneId::Battlefield),
+            )
+            .build()
+            .unwrap();
+        let tax_source = find_by_name(&state, "T5 Norn's Annex Source");
+        add_restriction(
+            &mut state,
+            tax_source,
+            p2,
+            GameRestriction::CantAttackYouUnlessPay {
+                cost_per_creature: ManaCost {
+                    phyrexian: vec![PhyrexianMana::Single(ManaColor::White)],
+                    ..Default::default()
+                },
+            },
+        );
+        state.turn_mut().priority_holder = Some(p1);
+        if let Some(ps) = state.players_mut().get_mut(&p1) {
+            ps.life_total = 20;
+        }
+        set_pool(&mut state, p1, 1, 0, 0, 0, 0, 0);
+        let bear1 = find_by_name(&state, "T5 Norn's Annex Bear One");
+        let bear2 = find_by_name(&state, "T5 Norn's Annex Bear Two");
+        let (state, _events) = process_command(
+            state,
+            Command::DeclareAttackers {
+                player: p1,
+                attackers: vec![
+                    (bear1, AttackTarget::Player(p2)),
+                    (bear2, AttackTarget::Player(p2)),
+                ],
+                enlist_choices: vec![],
+                exert_choices: vec![],
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![false, true],
+            },
+        )
+        .expect(
+            "Norn's Annex ruling: {W} for one copy, 2 life for the other, chosen \
+             individually",
+        );
+        let ps = state.player(p1).unwrap();
+        assert_eq!(
+            ps.mana_pool.total(),
+            0,
+            "pool must be drained: {:?}",
+            ps.mana_pool
+        );
+        assert_eq!(
+            ps.life_total, 18,
+            "CR 107.4f: exactly 2 life paid for the SECOND copy: {ps:?}"
+        );
+    }
+}
+
+// ── T6 — a genuinely unpayable {2} tax is still rejected (plan §2.1 T6) ─────────
+
+#[test]
+/// CR 508.1h/508.1j — proves this batch widened *payability* (hybrid/Phyrexian pips
+/// are now chargeable), not *acceptance* (a tax the pool genuinely cannot cover is
+/// still rejected, unchanged). A Propaganda-shaped `{2}` tax (no pips, no X —
+/// `ManaCost { generic: 2, ..Default }`), two attackers into the same defender (total
+/// `{4}`), attacking player's pool seeded with exactly `{1}` (colorless: 1).
+/// `handle_declare_attackers`'s affordability block (`casting::can_pay_cost`) rejects
+/// the declaration because {4} is not payable from {1} — for a cost with no pips at
+/// all, `flat_total == total`, so this message is byte-identical pre- and post-fix
+/// (confirmed by this test, unchanged since it was first written as a pre-fix
+/// baseline):
+///
+/// OBSERVED verbatim `InvalidCommand` message (both before and after PB-DX6 stage C):
 /// "attack tax: the attacking player cannot pay the required ManaCost { white: 0, \
 ///  blue: 0, black: 0, red: 0, green: 0, colorless: 0, generic: 4, hybrid: [], \
 ///  phyrexian: [], x_count: 0 } for the declared attackers from their mana pool (CR \
 ///  508.1h/508.1j, Propaganda/Ghostly Prison); 1 unrestricted mana available."
-fn observation_d1_propaganda_shaped_tax_still_rejected_pre_fix() {
+fn genuinely_unpayable_attack_tax_is_still_rejected() {
     let p1 = p(1);
     let p2 = p(2);
 
@@ -942,32 +1309,31 @@ fn observation_d1_propaganda_shaped_tax_still_rejected_pre_fix() {
     );
 }
 
-// ── Observation D(ii) — X attack tax stays rejected (plan §2.1 T7 baseline) ─────
+// ── Historical Observation D(ii) — X attack tax: message rewritten ──────────────
 
 #[test]
-/// PRE-FIX baseline that T7 (implement phase) will assert changes its REASONING but
-/// not its OUTCOME. `cost_per_creature` here has `x_count: 1` and is otherwise
-/// `ManaCost::default()` — no hybrid, no Phyrexian. `rules/combat.rs`'s restriction
-/// scan funnels `x_count > 0` into the SAME `unpayable_tax_defenders` bucket as a
-/// hybrid/Phyrexian pip (today's code does not distinguish the two classes), so the
-/// pre-fix message is the identical hybrid/Phyrexian-shaped text Observation C
-/// recorded — which is exactly the "errors for a different and now-wrong reason"
-/// hazard plan §2.1 T7 names (the PB-DX2 T12 lesson): an `is_err()`-only assertion
-/// here would be vacuous both before and after the coming fix, since the pre-fix code
-/// also errors, just while citing the wrong pip class.
+/// HISTORICAL / POST-FIX regression pin. Before PB-DX6 stage C, an X-count attack tax
+/// (`cost_per_creature { x_count: 1, ..Default }`, no hybrid, no Phyrexian) was
+/// rejected with the SAME "hybrid, Phyrexian or X ... is not payable ... OOS-DP4-1"
+/// text hybrid/Phyrexian pips got — `rules/combat.rs`'s restriction scan funnelled
+/// `x_count > 0` into the same bucket as a pip (the pre-fix code did not distinguish
+/// the two classes).
 ///
-/// OBSERVED verbatim `InvalidCommand` message this run (identical shape to
-/// Observation C's, confirming the shared-bucket claim above by execution rather than
-/// by re-reading `combat.rs`):
+/// PRE-FIX (recorded 2026-08-01/02, plan §2.1 Observation D(ii); identical shape to
+/// Observation C's own text) — preserved VERBATIM, not re-executed:
 /// "attack tax: a hybrid, Phyrexian or X attack cost against defender PlayerId(2) is \
 ///  not payable -- Command::DeclareAttackers carries no payment-choice field, so the \
 ///  engine cannot ask which half to pay (CR 107.4e/107.4f via CR 508.1h); see \
 ///  OOS-DP4-1."
 ///
-/// Plan §5.2.3 states that post-fix this message must lose its hybrid/Phyrexian
-/// clause, cite CR 107.3 + CR 601.2b, and cite the NEW seed rather than OOS-DP4-1 —
-/// none of that has happened yet; this probe pins what "yet" looks like.
-fn observation_d2_x_attack_tax_rejected_pre_fix() {
+/// POST-FIX (asserted live below): X is STILL rejected (CR 107.3/601.2b —
+/// `Command::DeclareAttackers` has no X-announcement channel), but the message now
+/// names X specifically, no longer claims hybrid/Phyrexian costs are unpayable (they
+/// are not, as of this batch), and cites the NEW seed OOS-DX6-1 rather than the
+/// closed OOS-DP4-1. T7 (below) asserts the same three properties on a fresh
+/// scenario; this test pins the disappearance of the PRE-FIX text against the exact
+/// historical scenario.
+fn historical_observation_d2_x_attack_tax_message_rewritten() {
     let p1 = p(1);
     let p2 = p(2);
 
@@ -1002,23 +1368,446 @@ fn observation_d2_x_attack_tax_rejected_pre_fix() {
     );
 
     let err = result.expect_err(
-        "PRE-FIX baseline: an X-count attack tax against the declared defender must \
-         stay rejected.",
+        "POST-FIX: an X-count attack tax against the declared defender must STILL be \
+         rejected -- X has no announcement channel on this command.",
     );
     let msg = format!("{err:?}");
     assert!(
-        msg.contains("is not payable"),
-        "message did not contain \"is not payable\": {msg}"
+        !msg.contains("is not payable"),
+        "the pre-fix \"is not payable\" class-rejection text must be gone: {msg}"
     );
     assert!(
-        msg.contains("OOS-DP4-1"),
-        "message did not contain \"OOS-DP4-1\" (pre-fix cite; the coming fix must \
-         replace this with a new seed per plan §5.2.3): {msg}"
+        !msg.contains("hybrid, Phyrexian or X"),
+        "the message must no longer name hybrid/Phyrexian as unpayable classes: {msg}"
     );
     assert!(
-        msg.contains("hybrid, Phyrexian or X"),
-        "PRE-FIX baseline: the message names all three pip classes generically, \
-         confirming X shares the hybrid/Phyrexian rejection bucket rather than \
-         getting its own CR 107.3/601.2b-cited message: {msg}"
+        !msg.contains("OOS-DP4-1"),
+        "the pre-fix cite (OOS-DP4-1, closed by this batch) must be gone: {msg}"
+    );
+    assert!(
+        msg.contains("OOS-DX6-1"),
+        "expected the NEW seed cite: {msg}"
+    );
+    assert!(
+        msg.contains("CR 107.3") && msg.contains("601.2b"),
+        "expected the X-specific CR citations: {msg}"
+    );
+}
+
+// ── T7 — X attack tax: still rejected, says only X (plan §2.1 T7) ───────────────
+
+#[test]
+/// CR 107.3 — X in an attack cost has no announcement channel on
+/// `Command::DeclareAttackers` (no `x_value` field, unlike `CastSpell`), so it stays
+/// rejected. **Assert on the MESSAGE TEXT**, not merely `is_err()`: the pre-fix code
+/// also errored here (see `historical_observation_d2_...`), just while citing the
+/// wrong pip class — an `is_err()`-only probe would be vacuous both before and after
+/// this batch (the PB-DX2 T12 lesson). This probe pins the THREE properties the
+/// message must now have: (i) names X, (ii) does NOT claim hybrid/Phyrexian costs are
+/// unpayable, (iii) cites OOS-DX6-1 rather than the closed OOS-DP4-1.
+fn x_attack_tax_is_still_rejected_and_says_only_x() {
+    let (mut state, p1, p2, bear) = attack_tax_state(
+        ManaCost {
+            x_count: 1,
+            ..Default::default()
+        },
+        "T7 X Tax Source",
+        "T7 Attacking Bear",
+    );
+    // Pool is fully seeded so an affordability rejection (T6's shape) cannot be
+    // mistaken for the X rejection this test targets.
+    set_pool(&mut state, p1, 9, 9, 9, 9, 9, 9);
+    let err = process_command(
+        state,
+        Command::DeclareAttackers {
+            player: p1,
+            attackers: vec![(bear, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
+            exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
+    )
+    .expect_err("an X-count attack tax must be rejected: no announcement channel exists");
+    let msg = format!("{err:?}");
+    assert!(
+        matches!(err, GameStateError::InvalidCommand(_)),
+        "expected InvalidCommand: {msg}"
+    );
+    // (i) names X.
+    assert!(
+        msg.contains('X') || msg.contains("x_count"),
+        "message must name X: {msg}"
+    );
+    // (ii) does NOT claim hybrid/Phyrexian are unpayable.
+    assert!(
+        !msg.contains("hybrid") && !msg.contains("Phyrexian"),
+        "message must NOT claim hybrid/Phyrexian costs are unpayable -- they are \
+         payable as of this batch: {msg}"
+    );
+    // (iii) cites the NEW seed, not the closed one.
+    assert!(
+        msg.contains("OOS-DX6-1"),
+        "expected the new seed cite: {msg}"
+    );
+    assert!(
+        !msg.contains("OOS-DP4-1"),
+        "must not cite the closed seed OOS-DP4-1: {msg}"
+    );
+}
+
+// ── T8/T9 — the order pin: copy-major, not pip-major (plan §13 risk 2/3) ────────
+
+#[test]
+/// CR 508.1h, `add_mana_cost`/`accumulate_attack_tax_total`'s own doc — pins the
+/// **canonical pip order** by execution, the weakest joint in this design per plan
+/// §13 risk 2: `hybrid_choices[i]` indexes a cost the client cannot see, and a
+/// "harmless" future dedup of `add_mana_cost` onto `multiply_mana_cost` (risk 3,
+/// OOS-DP4-7) would silently re-order it with no compile error.
+///
+/// Two defenders (P2 < P3, ascending `PlayerId`), asymmetric restriction shapes:
+/// - P2: ONE restriction, `cost_per_creature: {G/W}`; TWO attackers into P2 -- this
+///   defender's per-creature entry is a single pip, replicated into two COPIES.
+/// - P3: TWO restrictions (added in this order), `cost_per_creature: {G/W}` then
+///   `cost_per_creature: {R/W}`; ONE attacker into P3 -- this defender's
+///   per-creature entry is the CONCATENATION of both restrictions' pips (one copy).
+///
+/// The canonical order is therefore `[P2-copy1, P2-copy2, P3-r1, P3-r2]` (4 hybrid
+/// pips): defenders ascending by `PlayerId` (P2 before P3), then P2's two copies
+/// before P3's single copy, then P3's own two restrictions in insertion order WITHIN
+/// that one copy. A PIP-MAJOR order (what a naive `multiply_mana_cost`-based
+/// implementation would produce, grouping by restriction across the whole
+/// declaration) would be `[P2-copy1, P2-copy2, P3-r1, P3-r2]` too for this
+/// particular defender/restriction shape by coincidence of P2 having only one
+/// restriction -- so the choices below are deliberately ASYMMETRIC per copy
+/// (`Green` then `White` for P2's two identical-shaped copies) specifically so a
+/// pip-major bug that grouped "all copies of P2's restriction, then P3's two
+/// restrictions" would still pass; what actually discriminates copy-major from any
+/// alternative interleaving is that the pool is seeded to the EXACT sum the
+/// as-designed order requires and the declaration must succeed with ZERO mana left
+/// over in every field -- any different index-to-pip mapping requires a different
+/// colour distribution and the affordability check would reject it (or leave a
+/// nonzero remainder), catching a reordering by execution, not by inspection.
+fn two_defenders_two_restrictions_attack_tax_pip_order_is_copy_major() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let p3 = p(3);
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .add_player(p3)
+        .active_player(p1)
+        .at_step(Step::DeclareAttackers)
+        .object(ObjectSpec::creature(p2, "T8 P2 Tax Source", 0, 4).in_zone(ZoneId::Battlefield))
+        .object(ObjectSpec::creature(p3, "T8 P3 Tax Source One", 0, 4).in_zone(ZoneId::Battlefield))
+        .object(ObjectSpec::creature(p3, "T8 P3 Tax Source Two", 0, 4).in_zone(ZoneId::Battlefield))
+        .object(ObjectSpec::creature(p1, "T8 Bear Into P2 One", 2, 2).in_zone(ZoneId::Battlefield))
+        .object(ObjectSpec::creature(p1, "T8 Bear Into P2 Two", 2, 2).in_zone(ZoneId::Battlefield))
+        .object(ObjectSpec::creature(p1, "T8 Bear Into P3", 2, 2).in_zone(ZoneId::Battlefield))
+        .build()
+        .unwrap();
+
+    let p2_source = find_by_name(&state, "T8 P2 Tax Source");
+    add_restriction(
+        &mut state,
+        p2_source,
+        p2,
+        GameRestriction::CantAttackYouUnlessPay {
+            cost_per_creature: ManaCost {
+                hybrid: vec![HybridMana::ColorColor(ManaColor::Green, ManaColor::White)],
+                ..Default::default()
+            },
+        },
+    );
+    let p3_source_one = find_by_name(&state, "T8 P3 Tax Source One");
+    add_restriction(
+        &mut state,
+        p3_source_one,
+        p3,
+        GameRestriction::CantAttackYouUnlessPay {
+            cost_per_creature: ManaCost {
+                hybrid: vec![HybridMana::ColorColor(ManaColor::Green, ManaColor::White)],
+                ..Default::default()
+            },
+        },
+    );
+    let p3_source_two = find_by_name(&state, "T8 P3 Tax Source Two");
+    add_restriction(
+        &mut state,
+        p3_source_two,
+        p3,
+        GameRestriction::CantAttackYouUnlessPay {
+            cost_per_creature: ManaCost {
+                hybrid: vec![HybridMana::ColorColor(ManaColor::Red, ManaColor::White)],
+                ..Default::default()
+            },
+        },
+    );
+    state.turn_mut().priority_holder = Some(p1);
+
+    // Canonical order: [P2-copy1, P2-copy2, P3-r1, P3-r2].
+    // idx0 (P2 copy 1, {G/W}) -> Green. idx1 (P2 copy 2, {G/W}) -> White.
+    // idx2 (P3 restriction 1, {G/W}) -> Green. idx3 (P3 restriction 2, {R/W}) -> Red.
+    // Required flat cost: green 2 (idx0 + idx2), white 1 (idx1), red 1 (idx3).
+    set_pool(&mut state, p1, 1, 0, 0, 1, 2, 0);
+
+    let bear_p2_one = find_by_name(&state, "T8 Bear Into P2 One");
+    let bear_p2_two = find_by_name(&state, "T8 Bear Into P2 Two");
+    let bear_p3 = find_by_name(&state, "T8 Bear Into P3");
+    let (state, events) = process_command(
+        state,
+        Command::DeclareAttackers {
+            player: p1,
+            attackers: vec![
+                (bear_p2_one, AttackTarget::Player(p2)),
+                (bear_p2_two, AttackTarget::Player(p2)),
+                (bear_p3, AttackTarget::Player(p3)),
+            ],
+            enlist_choices: vec![],
+            exert_choices: vec![],
+            hybrid_choices: vec![
+                HybridManaPayment::Color(ManaColor::Green),
+                HybridManaPayment::Color(ManaColor::White),
+                HybridManaPayment::Color(ManaColor::Green),
+                HybridManaPayment::Color(ManaColor::Red),
+            ],
+            phyrexian_life_payments: vec![],
+        },
+    )
+    .expect(
+        "the exact pool seeded for the canonical [P2-copy1, P2-copy2, P3-r1, P3-r2] \
+         order must be sufficient -- if this errs, the accumulation order regressed",
+    );
+
+    let pool = &state.player(p1).unwrap().mana_pool;
+    assert_eq!(
+        pool.total(),
+        0,
+        "the seeded pool must be drained to EXACTLY zero across every field -- any \
+         other index-to-pip mapping would leave a nonzero remainder or fail \
+         affordability entirely: {pool:?}"
+    );
+    assert_eq!(
+        pool.green, 0,
+        "both Green requirements must be spent: {pool:?}"
+    );
+    assert_eq!(
+        pool.white, 0,
+        "the White requirement must be spent: {pool:?}"
+    );
+    assert_eq!(pool.red, 0, "the Red requirement must be spent: {pool:?}");
+
+    // The ManaCostPaid event carries the ORIGINAL pipped total in the canonical
+    // order -- assert its hybrid vec directly, the strongest possible pin.
+    let paid = events
+        .iter()
+        .find_map(|e| match e {
+            GameEvent::ManaCostPaid { player: pl, cost } if *pl == p1 => Some(cost.clone()),
+            _ => None,
+        })
+        .expect("ManaCostPaid must be emitted");
+    assert_eq!(
+        paid.hybrid,
+        vec![
+            HybridMana::ColorColor(ManaColor::Green, ManaColor::White),
+            HybridMana::ColorColor(ManaColor::Green, ManaColor::White),
+            HybridMana::ColorColor(ManaColor::Green, ManaColor::White),
+            HybridMana::ColorColor(ManaColor::Red, ManaColor::White),
+        ],
+        "canonical pip order must be [P2-copy1, P2-copy2, P3-r1, P3-r2] -- COPY-MAJOR, \
+         not pip-major: {paid:?}"
+    );
+}
+
+// ── T10 — queries::attack_tax_total matches what the engine actually charges ────
+
+#[test]
+/// Plan §5.3's anti-drift requirement, proven by execution: `queries::attack_tax_total`
+/// and `handle_declare_attackers`'s own validation call the SAME
+/// `combat::accumulate_attack_tax_total` helper, so the total the query reports
+/// BEFORE a declaration must equal the pipped total the engine actually charges
+/// (visible in the `ManaCostPaid` event) when that same attacker set is declared.
+/// Reuses the T8/T9 two-defender/two-restriction fixture -- the shape most likely to
+/// expose a divergence between two independently-written accumulations.
+fn attack_tax_total_query_matches_declared_attackers_charge() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let p3 = p(3);
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .add_player(p3)
+        .active_player(p1)
+        .at_step(Step::DeclareAttackers)
+        .object(ObjectSpec::creature(p2, "T10 P2 Tax Source", 0, 4).in_zone(ZoneId::Battlefield))
+        .object(
+            ObjectSpec::creature(p3, "T10 P3 Tax Source One", 0, 4).in_zone(ZoneId::Battlefield),
+        )
+        .object(
+            ObjectSpec::creature(p3, "T10 P3 Tax Source Two", 0, 4).in_zone(ZoneId::Battlefield),
+        )
+        .object(ObjectSpec::creature(p1, "T10 Bear Into P2 One", 2, 2).in_zone(ZoneId::Battlefield))
+        .object(ObjectSpec::creature(p1, "T10 Bear Into P2 Two", 2, 2).in_zone(ZoneId::Battlefield))
+        .object(ObjectSpec::creature(p1, "T10 Bear Into P3", 2, 2).in_zone(ZoneId::Battlefield))
+        .build()
+        .unwrap();
+
+    let p2_source = find_by_name(&state, "T10 P2 Tax Source");
+    add_restriction(
+        &mut state,
+        p2_source,
+        p2,
+        GameRestriction::CantAttackYouUnlessPay {
+            cost_per_creature: ManaCost {
+                hybrid: vec![HybridMana::ColorColor(ManaColor::Green, ManaColor::White)],
+                ..Default::default()
+            },
+        },
+    );
+    let p3_source_one = find_by_name(&state, "T10 P3 Tax Source One");
+    add_restriction(
+        &mut state,
+        p3_source_one,
+        p3,
+        GameRestriction::CantAttackYouUnlessPay {
+            cost_per_creature: ManaCost {
+                hybrid: vec![HybridMana::ColorColor(ManaColor::Green, ManaColor::White)],
+                ..Default::default()
+            },
+        },
+    );
+    let p3_source_two = find_by_name(&state, "T10 P3 Tax Source Two");
+    add_restriction(
+        &mut state,
+        p3_source_two,
+        p3,
+        GameRestriction::CantAttackYouUnlessPay {
+            cost_per_creature: ManaCost {
+                hybrid: vec![HybridMana::ColorColor(ManaColor::Red, ManaColor::White)],
+                ..Default::default()
+            },
+        },
+    );
+    state.turn_mut().priority_holder = Some(p1);
+    set_pool(&mut state, p1, 1, 0, 0, 1, 2, 0);
+
+    let bear_p2_one = find_by_name(&state, "T10 Bear Into P2 One");
+    let bear_p2_two = find_by_name(&state, "T10 Bear Into P2 Two");
+    let bear_p3 = find_by_name(&state, "T10 Bear Into P3");
+    let attackers = vec![
+        (bear_p2_one, AttackTarget::Player(p2)),
+        (bear_p2_two, AttackTarget::Player(p2)),
+        (bear_p3, AttackTarget::Player(p3)),
+    ];
+
+    // Query BEFORE any command is issued -- purely advisory, must not mutate.
+    let queried = mtg_engine::attack_tax_total(&state, p1, &attackers)
+        .expect("a nonzero attack tax applies to this declaration");
+
+    let (state, events) = process_command(
+        state,
+        Command::DeclareAttackers {
+            player: p1,
+            attackers,
+            enlist_choices: vec![],
+            exert_choices: vec![],
+            hybrid_choices: vec![
+                HybridManaPayment::Color(ManaColor::Green),
+                HybridManaPayment::Color(ManaColor::White),
+                HybridManaPayment::Color(ManaColor::Green),
+                HybridManaPayment::Color(ManaColor::Red),
+            ],
+            phyrexian_life_payments: vec![],
+        },
+    )
+    .expect("declaration matching the queried total must succeed");
+
+    let charged = events
+        .iter()
+        .find_map(|e| match e {
+            GameEvent::ManaCostPaid { player: pl, cost } if *pl == p1 => Some(cost.clone()),
+            _ => None,
+        })
+        .expect("ManaCostPaid must be emitted");
+
+    assert_eq!(
+        queried, charged,
+        "queries::attack_tax_total must report the SAME total (same order, same \
+         content) as what handle_declare_attackers actually charges -- a divergence \
+         here means the two accumulations drifted: queried={queried:?} \
+         charged={charged:?}"
+    );
+    let _ = state;
+}
+
+// ── T11 — an all-Phyrexian attack tax still costs life (plan §13 risk 9) ────────
+
+#[test]
+/// CR 107.4f, 118.5 — plan §13 risk 9: a `cost_per_creature` that is ENTIRELY
+/// Phyrexian, paid entirely with life, flattens to `ManaCost::default()`
+/// (`mana_value() == 0`) but the PIPPED total is non-default. The
+/// `total != ManaCost::default()` guard that decides whether to enter the payment
+/// block at all must be evaluated on the PIPPED total, not the flattened one, or the
+/// whole payment (both the (zero) mana half AND the life half) silently vanishes --
+/// "a real and easy bug to write" per the plan.
+fn all_phyrexian_attack_tax_still_costs_life() {
+    let (mut state, p1, p2, bear) = attack_tax_state(
+        ManaCost {
+            phyrexian: vec![PhyrexianMana::Single(ManaColor::Green)],
+            ..Default::default()
+        },
+        "T11 Phyrexian Tax Source",
+        "T11 Attacking Bear",
+    );
+    if let Some(ps) = state.players_mut().get_mut(&p1) {
+        ps.life_total = 20;
+    }
+    // Pool deliberately left EMPTY: the flattened cost is {0}, so an empty pool must
+    // be no obstacle at all if the guard is correctly evaluated on the pipped total.
+    assert_eq!(
+        state.player(p1).unwrap().mana_pool.total(),
+        0,
+        "pool deliberately left empty for this case"
+    );
+
+    let (state, events) = process_command(
+        state,
+        Command::DeclareAttackers {
+            player: p1,
+            attackers: vec![(bear, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
+            exert_choices: vec![],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![true],
+        },
+    )
+    .expect(
+        "a pure Phyrexian attack tax paid entirely with life must succeed even with \
+         an EMPTY pool -- the flatten runs before any mana check and the pipped, not \
+         flattened, total gates whether the payment block runs at all",
+    );
+
+    let ps = state.player(p1).unwrap();
+    assert_eq!(
+        ps.life_total, 18,
+        "CR 107.4f: 2 life paid for the single Phyrexian pip -- if this is still 20, \
+         the payment silently vanished (the exact bug plan §13 risk 9 names): {ps:?}"
+    );
+    assert!(
+        events.iter().any(
+            |e| matches!(e, GameEvent::LifeLost { player: pl, amount } if *pl == p1 && *amount == 2)
+        ),
+        "LifeLost must be present in the event stream: {events:?}"
+    );
+    assert!(
+        events.iter().any(|e| matches!(
+            e,
+            GameEvent::ManaCostPaid { player: pl, cost }
+                if *pl == p1 && !cost.phyrexian.is_empty()
+        )),
+        "ManaCostPaid must still be emitted, carrying the PIPPED (unflattened) cost, \
+         even though the flattened mana component is zero: {events:?}"
     );
 }

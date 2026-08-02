@@ -423,8 +423,8 @@ pub fn process_command(
             attackers,
             enlist_choices,
             exert_choices,
-            // PB-DX6 stage A: schema-only; payment logic is a later stage.
-            ..
+            hybrid_choices,
+            phyrexian_life_payments,
         } => {
             validate_player_active(&state, player)?;
             // CR 104.4b: declaring attackers is a meaningful player choice; reset loop detection.
@@ -435,6 +435,8 @@ pub fn process_command(
                 attackers,
                 enlist_choices,
                 exert_choices,
+                hybrid_choices,
+                phyrexian_life_payments,
             )?;
             all_events.extend(events);
         }
@@ -1373,6 +1375,24 @@ fn handle_pay_cumulative_upkeep(
     Ok(events)
 }
 /// Multiply a mana cost by a scalar, used for cumulative upkeep cost calculation.
+///
+/// **PIP-MAJOR, deliberately** (`flat_map(repeat_n)`: each distinct pip is repeated
+/// `multiplier` times *before* moving to the next pip -- for `hybrid = [r1, r2]` and
+/// `multiplier: 3` the result is `[r1, r1, r1, r2, r2, r2]`). Correct for cumulative
+/// upkeep, which has exactly one pip source and one payer choosing once per pip
+/// occurrence with no ordering contract to preserve.
+///
+/// **Do NOT reuse this for `rules/combat.rs`'s CR 508.1h attack-tax accumulation**
+/// (`combat::add_mana_cost`, `combat::accumulate_attack_tax_total`) even though the
+/// two now look similar (OOS-DP4-7). The attack tax's canonical pip order is
+/// **copy-major** (`add_mana_cost`'s own doc has the full contract; a defender's
+/// per-creature pips `[r1, r2]` with 3 attackers must be `[r1, r2, r1, r2, r1, r2]`,
+/// not this function's `[r1, r1, r1, r2, r2, r2]`), because the Norn's Annex rulings
+/// (`pb-plan-DX6.md` §1) require each COPY of a cost to be payable individually. A
+/// "harmless" dedup onto this function would silently re-order the attack tax's pips
+/// and therefore silently re-interpret every `hybrid_choices` vector a client had
+/// already built, with no compile error and no test failure unless a probe pins the
+/// order (`pb_dx6_unflattened_payment_sites.rs`'s order-pin tests do). PB-DX6 §5.2.5.
 fn multiply_mana_cost(
     cost: &crate::state::game_object::ManaCost,
     multiplier: u32,
