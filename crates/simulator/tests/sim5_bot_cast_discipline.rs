@@ -14,13 +14,19 @@
 
 use std::collections::{BTreeSet, HashMap};
 
-use mtg_engine::{Command, GameEvent, ObjectId, PlayerId, Target};
+use mtg_engine::{
+    all_cards, enrich_spec_from_def, process_command, CardDefinition, CardId, CardRegistry, Color,
+    Command, GameEvent, GameState, GameStateBuilder, ManaAbility, ManaColor, ObjectId, ObjectSpec,
+    PlayerId, Step, Target, ZoneId,
+};
 use mtg_simulator::bot::Bot;
 use mtg_simulator::heuristic_bot::HeuristicBot;
-use mtg_simulator::legal_actions::StubProvider;
+use mtg_simulator::legal_actions::{LegalAction, LegalActionProvider, StubProvider};
 use mtg_simulator::local_game::{AdvanceOutcome, LocalGame, LocalGameLimits};
+use mtg_simulator::params::{action_to_command_with_params, ActionParams, HumanChoice};
 use mtg_simulator::random_bot::RandomBot;
 use mtg_simulator::setup::{self, BotKind, DeckSource, LocalGameConfig};
+use mtg_simulator::targeting::{plan_targets, TargetPlan};
 
 /// The seeds the A/B measurement is reported on, and how far each is played.
 ///
@@ -300,5 +306,339 @@ fn seeded_four_bot_game_wastes_no_taps() {
     assert!(
         total_taps > 0,
         "non-vacuity floor: the seeds must actually produce bot taps"
+    );
+
+    // CR 601.2c (SIM-5 fix (2)): bots announce targets now. This was 0 on every seed
+    // before the fix -- `random_bot::action_to_command` filled only
+    // `attackers`/`blockers`, so no bot had ever cast a targeted spell in the history
+    // of this simulator.
+    let targeted: usize = measured.iter().map(|(_, m)| m.targeted_casts).sum();
+    assert!(
+        targeted > 0,
+        "bots must be able to cast targeted spells: {measured:?}"
+    );
+}
+
+// ── Focused gates ────────────────────────────────────────────────────────────────
+//
+// The A/B test above is a whole-game measurement; these three are fixtures small
+// enough that a reviewer can see what is being pinned.
+
+/// Registry + name index holding exactly the one real card def these fixtures need.
+///
+/// A `TargetRequirement` comes from the card DEFINITION
+/// (`casting::card_def_target_requirements`), never from an `ObjectSpec`, so a
+/// synthetic object cannot exercise targeting at all — the fixture must register a
+/// real def. `Doom Blade` is the minimal choice: one mandatory
+/// `TargetCreatureWithFilter { exclude_colors: {Black} }` (CR 601.2c), so a board can
+/// be built where exactly one of two creatures is a legal target.
+fn doom_blade_registry() -> (std::sync::Arc<CardRegistry>, HashMap<String, CardDefinition>) {
+    let def = all_cards()
+        .into_iter()
+        .find(|c| c.card_id == CardId("doom-blade".to_string()))
+        .expect("doom-blade must be in the card pool");
+    let defs: HashMap<String, CardDefinition> =
+        [(def.name.clone(), def.clone())].into_iter().collect();
+    (CardRegistry::new(vec![def]), defs)
+}
+
+/// `p1` holds Doom Blade with two black sources untapped; `creatures` are put on the
+/// battlefield under `p2`.
+fn doom_blade_state(creatures: Vec<ObjectSpec>) -> GameState {
+    let (registry, defs) = doom_blade_registry();
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+    let mut builder = GameStateBuilder::new()
+        .with_registry(registry)
+        .add_player(p1)
+        .add_player(p2)
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .object(enrich_spec_from_def(
+            ObjectSpec::card(p1, "Doom Blade")
+                .with_card_id(CardId("doom-blade".to_string()))
+                .in_zone(ZoneId::Hand(p1)),
+            &defs,
+        ))
+        .object(
+            ObjectSpec::land(p1, "Swamp 1").with_mana_ability(ManaAbility::tap_for(ManaColor::Black)),
+        )
+        .object(
+            ObjectSpec::land(p1, "Swamp 2").with_mana_ability(ManaAbility::tap_for(ManaColor::Black)),
+        );
+    for c in creatures {
+        builder = builder.object(c);
+    }
+    let mut state = builder.build().expect("fixture must build");
+    state.turn_mut().priority_holder = Some(p1);
+    state
+}
+
+fn find_by_name(state: &GameState, name: &str) -> ObjectId {
+    state
+        .objects()
+        .iter()
+        .find(|(_, o)| o.characteristics.name == name)
+        .map(|(id, _)| *id)
+        .unwrap_or_else(|| panic!("no object named {name:?} in this fixture"))
+}
+
+fn cast_action(state: &GameState, card: ObjectId) -> LegalAction {
+    StubProvider
+        .legal_actions(state, PlayerId(1))
+        .into_iter()
+        .find(|a| matches!(a, LegalAction::CastSpell { card: c, .. } if *c == card))
+        .expect("the provider must offer the cast for this fixture to mean anything")
+}
+
+/// **SIM-5 fix (2), CR 601.2c.** A bot announces a target, and it announces a *legal*
+/// one: the board holds a black creature (which Doom Blade may not target) and a
+/// colourless one (which it may), and the bot must pick the second — which is only
+/// possible by asking the engine, since both are "the first creature" by some
+/// ordering. The command is then handed to `process_command`, so the gate is
+/// "the engine accepts it", not "it looks right".
+///
+/// Before SIM-5 this produced `targets: []` and `process_command` answered
+/// `InvalidTarget("expected 1..=1 target(s) but got 0")` (`casting.rs:5931`) — the
+/// structural G5 mechanism.
+#[test]
+fn bot_announces_a_legal_target_and_the_engine_accepts_the_cast() {
+    let p2 = PlayerId(2);
+    let state = doom_blade_state(vec![
+        // Lower `ObjectId` than the legal one, and illegal: a "first creature on the
+        // battlefield" policy would pick this and be refused.
+        ObjectSpec::creature(p2, "Black Bear", 2, 2).with_colors(vec![Color::Black]),
+        ObjectSpec::creature(p2, "Grey Ogre", 2, 2),
+    ]);
+    let card = find_by_name(&state, "Doom Blade");
+    let legal_target = find_by_name(&state, "Grey Ogre");
+    let action = cast_action(&state, card);
+
+    for (label, mut bot) in [
+        (
+            "RandomBot",
+            Box::new(RandomBot::new(1, "bot".into())) as Box<dyn Bot>,
+        ),
+        (
+            "HeuristicBot",
+            Box::new(HeuristicBot::new(1, "bot".into())) as Box<dyn Bot>,
+        ),
+    ] {
+        let cmd = bot.choose_action(&state, PlayerId(1), std::slice::from_ref(&action));
+        let Command::CastSpell(cast) = &cmd else {
+            panic!("{label}: expected a CastSpell, got {cmd:?}");
+        };
+        assert_eq!(
+            cast.targets,
+            vec![Target::Object(legal_target)],
+            "{label}: the bot must announce the one legal (non-black) creature"
+        );
+
+        // The mana still has to be paid, so tap first — the point of this assertion is
+        // that the ANNOUNCEMENT is accepted, not that the cast is free.
+        let mut working = state.clone();
+        for land in ["Swamp 1", "Swamp 2"] {
+            let source = find_by_name(&working, land);
+            let (next, _) = process_command(
+                working,
+                Command::TapForMana {
+                    player: PlayerId(1),
+                    source,
+                    ability_index: 0,
+                    chosen_color: None,
+                    hybrid_choices: vec![],
+                    phyrexian_life_payments: vec![],
+                },
+            )
+            .expect("tapping a fixture land must succeed");
+            working = next;
+        }
+        process_command(working, cmd)
+            .unwrap_or_else(|e| panic!("{label}: the engine refused the bot's cast: {e:?}"));
+    }
+}
+
+/// **SIM-5 fix (2), CR 601.2c.** With no legal target on the board the announcement
+/// is impossible however it is parameterised, and `plan_targets` says so rather than
+/// inventing one. This is the predicate a future offer gate (G5 fix (4)) would use.
+#[test]
+fn plan_targets_reports_an_unsatisfiable_requirement() {
+    let p2 = PlayerId(2);
+    let state = doom_blade_state(vec![ObjectSpec::creature(p2, "Black Bear", 2, 2)
+        .with_colors(vec![Color::Black])]);
+    let card = find_by_name(&state, "Doom Blade");
+    let action = cast_action(&state, card);
+    assert_eq!(
+        plan_targets(&state, PlayerId(1), &action),
+        TargetPlan::Unsatisfiable,
+        "the only creature is black, and Doom Blade excludes black (CR 601.2c)"
+    );
+
+    // ...and an action with no target requirements at all is left alone, so the
+    // pre-SIM-5 behaviour is preserved everywhere it was already correct.
+    assert_eq!(
+        plan_targets(&state, PlayerId(1), &LegalAction::PassPriority),
+        TargetPlan::NotTargeted
+    );
+}
+
+/// A bot that always casts the first spell it is offered, announcing **nothing** —
+/// the pre-SIM-5 `ActionParams::default()` behaviour, frozen so
+/// [`a_rejected_bot_cast_commits_no_taps`] pins ATOMICITY and nothing else. Without
+/// this the test would pass for the wrong reason the moment targeting improved.
+struct ZeroTargetCastBot;
+
+impl Bot for ZeroTargetCastBot {
+    fn choose_action(
+        &mut self,
+        state: &GameState,
+        player: PlayerId,
+        legal: &[LegalAction],
+    ) -> Command {
+        for action in legal {
+            if matches!(action, LegalAction::CastSpell { .. }) {
+                if let Ok(cmd) =
+                    action_to_command_with_params(state, player, action, &ActionParams::default())
+                {
+                    return cmd;
+                }
+            }
+        }
+        Command::PassPriority { player }
+    }
+    fn choose_targets(&mut self, _: &GameState, _: &[ObjectId], _: usize) -> Vec<ObjectId> {
+        Vec::new()
+    }
+    fn choose_attackers(
+        &mut self,
+        _: &GameState,
+        _: &[ObjectId],
+        _: &[mtg_engine::AttackTarget],
+    ) -> Vec<(ObjectId, mtg_engine::AttackTarget)> {
+        Vec::new()
+    }
+    fn choose_blockers(
+        &mut self,
+        _: &GameState,
+        _: &[ObjectId],
+        _: &[ObjectId],
+    ) -> Vec<(ObjectId, ObjectId)> {
+        Vec::new()
+    }
+    fn choose_mulligan_bottom(&mut self, _: &[ObjectId], _: usize) -> Vec<ObjectId> {
+        Vec::new()
+    }
+    fn name(&self) -> &str {
+        "zero-target"
+    }
+}
+
+/// **SIM-5 fixes (1) and (3) — the G5 mechanism itself.**
+///
+/// `advance()` auto-taps for a cast it is about to make (`auto_tap_commands_for`,
+/// which prices the mana cost and never looks at targets), and the engine then
+/// refuses the cast. Before SIM-5 the `[tap, tap, cast]` vector was applied one
+/// command at a time, so both taps were committed, the bot passed, and CR 500.4 threw
+/// the floating mana away at the next step boundary — 26 wasted taps in the triage's
+/// live game. Now the whole vector goes through `apply_sequence`, so a refused cast
+/// leaves **every land untapped and the pool empty**, and the refusal is recorded
+/// instead of discarded.
+///
+/// Reverting `advance()`'s `apply_sequence` call to the old per-command loop makes
+/// this fail on the `is_tapped` assertion (executed, not assumed).
+#[test]
+fn a_rejected_bot_cast_commits_no_taps() {
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+    // No creature anywhere: Doom Blade's one mandatory requirement is unsatisfiable,
+    // so the cast is refused however it is announced.
+    let state = doom_blade_state(Vec::new());
+
+    let mut bots: HashMap<PlayerId, Box<dyn Bot>> = HashMap::new();
+    bots.insert(p1, Box::new(ZeroTargetCastBot));
+    // `p2` is a human seat purely so `advance()` returns control to this test between
+    // priority windows -- `LocalGame::start` resets the turn to Untap, so a bot-only
+    // fixture would run the whole game before we could look at it.
+    let human: BTreeSet<PlayerId> = [p2].into_iter().collect();
+    let (mut game, _events) = LocalGame::start(
+        state,
+        0,
+        StubProvider,
+        bots,
+        human,
+        LocalGameLimits {
+            max_turns: 3,
+            max_commands: 400,
+            max_consecutive_passes: 100,
+            record_journal: true,
+        },
+        false,
+    )
+    .expect("fixture game must start");
+
+    // Drive until the bot has attempted (and been refused) its cast.
+    for _ in 0..200 {
+        if game.rejection_count() > 0 {
+            break;
+        }
+        match game.advance() {
+            AdvanceOutcome::AwaitingHuman(decision) => {
+                let index = decision
+                    .actions
+                    .iter()
+                    .position(|a| matches!(a, LegalAction::PassPriority))
+                    .expect("the human seat is always offered a pass");
+                game.submit(
+                    decision.seq,
+                    HumanChoice {
+                        action_index: index,
+                        params: ActionParams::default(),
+                    },
+                )
+                .expect("passing must be accepted");
+            }
+            other => panic!("fixture ended early: {other:?}"),
+        }
+    }
+
+    assert_eq!(
+        game.rejection_count(),
+        1,
+        "the bot's unsatisfiable Doom Blade cast must have been refused exactly once"
+    );
+
+    // (3): the error is observable rather than discarded.
+    let rejection = &game.rejections()[0];
+    assert_eq!(rejection.player, p1);
+    assert!(
+        matches!(&rejection.command, Command::CastSpell(c) if c.targets.is_empty()),
+        "the recorded command must be the bot's cast: {:?}",
+        rejection.command
+    );
+    assert!(
+        rejection.error.contains("InvalidTarget"),
+        "the engine's own reason must be kept verbatim, got {:?}",
+        rejection.error
+    );
+
+    // (1): nothing was spent on it.
+    for land in ["Swamp 1", "Swamp 2"] {
+        let id = find_by_name(game.state(), land);
+        assert!(
+            !game.state().objects().get(&id).unwrap().status.tapped,
+            "{land} was tapped for a cast the engine refused (G5)"
+        );
+    }
+    assert_eq!(
+        game.state().player(p1).unwrap().mana_pool.total(),
+        0,
+        "no mana may be left floating from a refused cast"
+    );
+    assert!(
+        !game
+            .journal()
+            .iter()
+            .any(|r| matches!(r.command, Command::TapForMana { .. })),
+        "no tap may reach the journal from a rolled-back sequence"
     );
 }
