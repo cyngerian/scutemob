@@ -216,6 +216,60 @@ export function dismissError() {
   error.set(null);
 }
 
+/**
+ * Put a **client-side** failure on the same error strip the server errors use.
+ *
+ * UI-4 (`scutemob-185`; G1 of `memory/playtest-triage-2026-08-02b.md`). Every
+ * other writer of this store is a failed HTTP call, so `kind` came from
+ * `ApiError.kind` and `status` from the response. A client-side throw has
+ * neither, and `'client_error'` is a kind `api.rs` cannot produce — which is the
+ * point: the strip must be able to say "this went wrong in your browser, not on
+ * the server", because those are two different bugs to report.
+ *
+ * Introduced because a picker threw a `DataCloneError` out of a click handler
+ * for the entire life of the feature and *nothing on screen changed*. A silent
+ * throw is what turned a three-line bug into a conceded game.
+ */
+export function reportClientError(message) {
+  error.set({
+    message: String(message ?? 'the client hit an unexpected problem'),
+    kind: 'client_error',
+    status: null,
+  });
+}
+
+/**
+ * The net under every handler, not just the ones with a `try`.
+ *
+ * A DOM event handler that throws does not fail loudly in a browser: the
+ * exception unwinds to the platform, which logs it to a console nobody has open
+ * and leaves the DOM exactly as it was. Svelte 5's `<svelte:boundary>` does not
+ * help — it catches render and effect errors, not handler ones. The only place
+ * that sees all of them is `window`.
+ *
+ * So the per-picker `try/catch` blocks buy a *specific* message, and this buys
+ * the guarantee: after UI-4 there is no way for a click in this client to fail
+ * and leave the screen unchanged. Called once from `main.js`; idempotent so a
+ * hot reload cannot stack listeners.
+ */
+let globalHandlersInstalled = false;
+export function installGlobalErrorReporting(target = globalThis) {
+  if (globalHandlersInstalled || !target?.addEventListener) return;
+  globalHandlersInstalled = true;
+  target.addEventListener('error', (event) => {
+    const err = event?.error;
+    reportClientError(
+      `unhandled ${err?.name ?? 'error'} in the client: ${err?.message ?? event?.message ?? 'no detail'}`,
+    );
+  });
+  target.addEventListener('unhandledrejection', (event) => {
+    const err = event?.reason;
+    reportClientError(
+      `unhandled ${err?.name ?? 'rejection'} in the client: ${err?.message ?? String(err ?? 'no detail')}`,
+    );
+  });
+}
+
 // ── Pass-until (UI-3, `scutemob-180`, AC 6009) ───────────────────────────────
 
 /**

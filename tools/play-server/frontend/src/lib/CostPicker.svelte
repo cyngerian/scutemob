@@ -21,6 +21,11 @@
    *   disabled (bool)
    *   onConfirm (fn(params)) — `{[answerField]: [<entry>, …]}`
    *   onCancel (fn)
+   *   onError (fn(message)) — a failure while building or emitting the answer.
+   *                          UI-4 (`scutemob-185`): before this, a throw here
+   *                          escaped the click handler and the DOM was simply
+   *                          untouched — the button read as dead. Never let this
+   *                          path fail in silence again.
    *
    * # Required vs optional, and what "no answer" means
    *
@@ -73,6 +78,8 @@
    * play-server HTTP probes, which drive a real sacrifice payment and a real
    * Squad count through `POST /api/game/action`.
    */
+  import { plainClone } from './plainClone.svelte.js';
+
   const {
     prompt = '',
     sacrifice = null,
@@ -81,6 +88,7 @@
     disabled = false,
     onConfirm = null,
     onCancel = null,
+    onError = null,
   } = $props();
 
   /**
@@ -147,7 +155,12 @@
    */
   function fillTemplate(template, key, value) {
     if (!template || typeof template !== 'object') return null;
-    const entry = structuredClone(template);
+    // `plainClone`, never the platform's deep-copy primitive — `template` is a
+    // Svelte 5 reactive proxy here and that primitive rejects proxies with a
+    // `DataCloneError`. See `plainClone.svelte.js`; this site is why sacrifice
+    // additional costs (CR 118.8) and Squad (CR 702.157a) had never worked in a
+    // browser.
+    const entry = plainClone(template);
     const variant = Object.keys(entry)[0];
     if (variant === undefined || typeof entry[variant] !== 'object' || entry[variant] === null) {
       return null;
@@ -159,23 +172,27 @@
   function confirm() {
     if (disabled || !canConfirm) return;
 
-    const entries = [];
+    try {
+      const entries = [];
 
-    if (sacrifice) {
-      const entry = fillTemplate(sacrifice.template, sacrifice.ids_key, [chosenId]);
-      if (!entry) return;
-      entries.push(entry);
+      if (sacrifice) {
+        const entry = fillTemplate(sacrifice.template, sacrifice.ids_key, [chosenId]);
+        if (!entry) return;
+        entries.push(entry);
+      }
+
+      // Omitted entirely at 0 — see the module doc. This is the declined case, not
+      // a zero-cost payment.
+      if (squad && squadCount > 0) {
+        const entry = fillTemplate(squad.template, squad.count_key, squadCount);
+        if (!entry) return;
+        entries.push(entry);
+      }
+
+      onConfirm?.({ [answerField]: entries });
+    } catch (err) {
+      onError?.(`could not submit the additional-cost payment: ${err?.message ?? err}`);
     }
-
-    // Omitted entirely at 0 — see the module doc. This is the declined case, not
-    // a zero-cost payment.
-    if (squad && squadCount > 0) {
-      const entry = fillTemplate(squad.template, squad.count_key, squadCount);
-      if (!entry) return;
-      entries.push(entry);
-    }
-
-    onConfirm?.({ [answerField]: entries });
   }
 </script>
 
