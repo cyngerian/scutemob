@@ -849,7 +849,7 @@ canonical. `git diff` confined to `memory/`, `docs/`, `CLAUDE.md` — zero sourc
 seeds (DX6 + the 174-181 run). The real post-2026-07-27 population is **80 rows / 79 distinct
 IDs**. v2's census closed **2026-07-31**; every PB-DX batch shipped **2026-08-01** — so the
 document that ranks PB-DX1..DX18 has never seen the 29 seeds PB-DX1..DX5 filed, nor
-`OOS-M11-5..10`. Four of those 28 are live-wrong on deck-legal `Complete` cards.
+`OOS-M11-5..10`. Four of those 29 are live-wrong on deck-legal `Complete` cards.
 
 **No single source is complete, and a future re-rank must run all three.** Pass A
 (workstream-state handoffs) misses **20** rows — the PB-DX1..DX4 handoff sections are rotated out
@@ -858,8 +858,8 @@ misses `OOS-M11-5` entirely and records almost every filing as an unresolvable r
 (`docs/audits/decision-point-audit.md` §8.1, the registry) misses **10** — the CARDS-2 family lives
 in `memory/card-authoring/cards2-field-fidelity-2026-08-02.md` under
 `## 5. Cross-references and seeds` (**§5**, not §7 — that doc has five sections), and only
-`OOS-CARDS2-9` is in §8.1. Wildcards resolved and two written ranges found stale (`OOS-DX5-1..7` under-reports by one —
-`OOS-DX5-8` exists and neither narrative mentions it). **UI-1 (`scutemob-174`) filed zero seeds**;
+`OOS-CARDS2-9` is in §8.1. Wildcards resolved, and two written ranges found stale
+(`OOS-DX5-1..7` under-reports by one — `OOS-DX5-8` exists and neither narrative mentions it). **UI-1 (`scutemob-174`) filed zero seeds**;
 there is no `OOS-UI1-*` family anywhere.
 
 **Next dispatch is PB-DX19, not PB-DX7.** `OOS-SIM2-6` — the registry's only self-declared HIGH —
@@ -907,7 +907,7 @@ has been enumerated — over `all_cards()` where possible (SR-36), missing marke
 deck-legal `Complete` Aura defs** 422 on first human contact and the only reason the suite is green
 is `KNOWN_FALSE_OFFERS`. `OOS-M11-9` — no once-per-combat guard, and the consequences are three,
 not one: attackers **accumulate** (`combat.rs:743` inserts into a map), every attack trigger
-**re-fires** (`:795-802`), and the raid count is **clobbered** (`:759`); the blocker side already
+**re-fires** (`:795-805`), and the raid count is **clobbered** (`:759`); the blocker side already
 has the guard (`:1103`). `OOS-UI2-1` and `OOS-SIM3-1` **reconcile arithmetically** — no opening
 hand + 34 basics on top ⇒ first non-land at personal draw ~35-40 ⇒ game turn ≈136-156; "never
 casts" is `--max-turns 80`, "casts from turn 143" is the default cap. Quote the cap alongside any
