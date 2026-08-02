@@ -16,8 +16,14 @@
    * stepping *backwards* past their elimination is the normal thing to do there.
    * Every requirement above is the opposite. Editing `StateView` would have
    * forced the two surfaces to share a layout that neither wants; `PlayApp` uses
-   * this instead and `StateView` is untouched, so the replay viewer is
-   * byte-for-byte what it was.
+   * this instead and `StateView` is untouched.
+   *
+   * Precisely: **`StateView.svelte` is byte-for-byte what it was**, so the
+   * replay viewer's own composition of it is unaffected. That is not a claim
+   * that this batch changed nothing under `$viewer` — it changed exactly one
+   * file, `CombatView.svelte`, deliberately and in place, because the replay
+   * viewer had the same planeswalker-label defect. See that file's
+   * `formatTarget`.
    *
    * The *leaf* components are still shared and imported through `$viewer` —
    * `ZoneBattlefield`, `ZoneGraveyard`, `ZoneExile`. Only the arrangement is
@@ -46,18 +52,35 @@
   /**
    * Whose battlefield gets a cell.
    *
-   * Eliminated seats are dropped entirely rather than rendered empty, and the
-   * grid is `auto-fit` over a minimum column width, so four boards lay out 2×2
-   * and two boards lay out 2×1 at **double the width** with no code branch on
-   * the count. That is the playtest note's "remaining battlefields render
-   * larger" without a hardcoded 2.
-   *
-   * CR 800.4a empties a departing player's battlefield anyway (their permanents
-   * cease to exist / are exiled), so an eliminated seat's cell would be an empty
-   * box occupying a quarter of the board — which is the dead space the note is
-   * about, in its worst form.
+   * Eliminated seats are dropped entirely rather than rendered empty. CR 800.4a
+   * empties a departing player's battlefield anyway (their permanents cease to
+   * exist or are exiled), so an eliminated seat's cell would be an empty box
+   * occupying a quarter of the board — which is the dead space the playtest note
+   * is about, in its worst form.
    */
   const livingNames = $derived(playerNames.filter((p) => !isEliminated(p)));
+
+  /**
+   * How many columns the battlefield grid gets.
+   *
+   * **Computed, not `auto-fit`,** and that is a correction rather than a
+   * preference. The first version used
+   * `repeat(auto-fit, minmax(22rem, 1fr))`, which packs as many tracks as will
+   * fit: four boards need only ~88rem, so any display wider than that laid them
+   * out **1×4** — a single row with the boards squeezed left, which is *exactly*
+   * the "tons of empty space on the right of the board" the note complained
+   * about. `auto-fit` gave the dead-player reflow for free and quietly failed
+   * the headline requirement on the machines most likely to run this.
+   *
+   * The rule: at most two columns up to four seats, three from five (CR 903.1
+   * tables run to six here — `session.rs::MAX_PLAYERS`), so four seats are 2×2,
+   * two survivors are 2×1 at full width each, one survivor is a single column,
+   * and six seats are 3×2. The narrow-window collapse to one column stays, but
+   * as an explicit media query rather than as a side effect of track packing.
+   */
+  const columns = $derived(
+    livingNames.length <= 1 ? 1 : livingNames.length <= 4 ? 2 : 3,
+  );
   const eliminatedNames = $derived(playerNames.filter((p) => isEliminated(p)));
 
   /**
@@ -77,7 +100,7 @@
 </script>
 
 <div class="play-board">
-  <section class="battlefield-grid" style="--cells: {livingNames.length}">
+  <section class="battlefield-grid" style="--cols: {columns}">
     {#each livingNames as pname (pname)}
       {@const permanents = state?.zones?.battlefield?.[pname] ?? []}
       <div class="bf-cell" class:is-human={pname === humanName}>
@@ -132,20 +155,34 @@
   }
 
   /*
-    `auto-fit` + `minmax` is what makes the reflow automatic: with four living
-    boards and a wide viewport this is 2×2; when two players die the two
-    survivors each take a full half. No JS decides the column count.
+    `--cols` is set inline from `columns` — see its doc for why the column count
+    is computed rather than left to `auto-fit`, which laid four boards out 1×4 on
+    any display wider than ~88rem and reproduced the very complaint this grid
+    exists to answer.
+
+    `minmax(0, 1fr)` rather than `minmax(22rem, 1fr)`: a `1fr` track's implicit
+    minimum is `auto`, so a battlefield with a long card name would refuse to
+    shrink and overflow the row. The narrow-viewport floor is the media query
+    below, which is a statement about the *viewport* — the right place for it —
+    instead of a per-track minimum that silently changes the column count.
   */
   .battlefield-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(22rem, 1fr));
+    grid-template-columns: repeat(var(--cols, 2), minmax(0, 1fr));
     gap: 0.4rem;
     align-items: start;
   }
 
   /* One living board should not stretch to a single absurdly wide column. */
   .battlefield-grid:has(> .bf-cell:only-child) {
-    grid-template-columns: minmax(22rem, 48rem);
+    grid-template-columns: minmax(0, 48rem);
+  }
+
+  /* Below two comfortable board widths, stack them however many seats survive. */
+  @media (max-width: 60rem) {
+    .battlefield-grid {
+      grid-template-columns: minmax(0, 1fr);
+    }
   }
 
   .bf-cell {

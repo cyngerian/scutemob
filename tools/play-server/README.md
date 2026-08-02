@@ -880,15 +880,28 @@ repeated here so this README does not claim more than the implementation does.
     implying the information is merely unrendered. Closing this needs a
     per-object reveal set on `CardInZoneView`, which is an M10a-shaped change.
 
-23. **The 2×2 battlefield grid is `auto-fit`, so "2×2" is a viewport property
-    (UI-3).** `PlayBoard` lays living seats out with
-    `repeat(auto-fit, minmax(22rem, 1fr))`. Four boards on a wide screen give the
-    2×2 the playtest note asked for and two survivors reflow to full width with
-    no code branch — but a narrow window gives one column, and that is the
-    correct behaviour rather than a fallback. Eliminated seats are dropped from
-    the grid entirely (CR 800.4a empties their battlefield anyway); a seat that
-    somehow still controls a permanent gets a greyed row below the grid instead
-    of being silently hidden.
+23. **The battlefield grid's column count is computed, and only the narrow case
+    is a viewport property (UI-3).** `PlayBoard` sets `--cols` from the number of
+    *living* seats — at most 2 up to four seats, 3 from five (tables run to six,
+    `session.rs::MAX_PLAYERS`) — so four seats are 2×2, two survivors are 2×1 at
+    full width each, and six are 3×2. Below `60rem` a media query stacks them
+    into one column; that is the correct behaviour, not a fallback. Eliminated
+    seats are dropped from the grid entirely (CR 800.4a empties their battlefield
+    anyway); a seat that somehow still controls a permanent gets a greyed row
+    below the grid rather than being silently hidden. **This replaced an
+    `auto-fit` version that failed the requirement on exactly the displays most
+    likely to run this**: `repeat(auto-fit, minmax(22rem, 1fr))` packs as many
+    tracks as fit, four boards need only ~88rem, so anything wider laid them out
+    **1×4** — the "tons of empty space on the right of the board" the playtest
+    complained about, reproduced by the fix for it. Found in review.
+
+25. **The top dock is capped at 62vh and scrolls (UI-3).** It holds the seat row
+    and the ActionBar, and the ActionBar hosts every picker — so an expanded seat
+    drawer plus a four-seat segmented `TargetPicker` could otherwise grow an
+    unshrinkable dock until the board had no room and the *document* scrolled,
+    which destroys the "player cards stay in place" property the layout exists
+    for. Scrolling inside the dock is the lesser evil and only engages in that
+    case; `.body` is guaranteed at least 38vh.
 
 24. **The event feed's tiers are server-assigned, and an unclassified variant
     lands in `game` (UI-3).** `EventTier` is decided in

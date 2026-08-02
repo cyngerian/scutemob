@@ -141,9 +141,14 @@
   const sections = $derived.by(() => {
     const out = [];
     let current = null;
-    for (const ev of events) {
+    for (const [i, ev] of events.entries()) {
       if (ev.kind === 'TurnStarted') {
-        current = { key: `turn-${ev.seq}`, heading: ev.text, lines: [] };
+        // `?? i` for the same reason the line-level key below carries one: a
+        // caller passing unstamped lines would key every section `turn-undefined`
+        // and give a keyed block duplicate keys, which Svelte 5 **throws** on.
+        // Nothing does today — `applySeatView` stamps every line — but the two
+        // keys should not have different amounts of care.
+        current = { key: `turn-${ev.seq ?? i}`, heading: ev.text, lines: [] };
         out.push(current);
         continue;
       }

@@ -49,8 +49,16 @@ export const error = writable(null);
  * back through, and the feed is a DOM node per line; bounding it keeps a long
  * session from growing without limit. The oldest lines are dropped, not the
  * newest — the interesting end is the bottom.
+ *
+ * **Raised 500 → 2000 by UI-3**, because that batch invalidated the number it
+ * was chosen against. Before it, ~11 `GameEvent` variants rendered as prose and
+ * everything else arrived as a bare kind string; now 60 do, so the lines *per
+ * turn* went up several-fold and 500 no longer spans the recent history a
+ * turn-grouped feed is meant to let you scroll back through. Adding the feature
+ * that makes a cap bite and leaving the cap alone would have quietly truncated
+ * the thing the feature exists to show.
  */
-const MAX_EVENTS = 500;
+const MAX_EVENTS = 2000;
 
 /**
  * Monotonic sequence stamped onto each event line as it is appended.
@@ -67,6 +75,12 @@ let nextEventSeq = 0;
 function resetEvents() {
   nextEventSeq = 0;
   events.set([]);
+  // An auto-pass status line describes a run against a table that no longer
+  // exists — every caller of this is a redeal or a session that went away. It
+  // also cancels: a loop still in flight when the game is replaced would keep
+  // submitting passes into the new one.
+  passUntilCancelled = true;
+  passUntil.set(null);
 }
 
 /** Fold a `SeatView` into the stores. `seatView`/`decision` replace; `events` appends. */

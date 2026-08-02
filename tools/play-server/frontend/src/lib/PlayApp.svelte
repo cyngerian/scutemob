@@ -24,8 +24,13 @@
    * The board itself (2×2 battlefields, dead-player reflow) is `PlayBoard`, and
    * the per-seat card is `SeatCard`; both are play-local, and the reasons are in
    * their own module docs. The shared `$viewer/StateView.svelte` is no longer
-   * used by this surface and is **unmodified** — the replay viewer still renders
-   * exactly what it did.
+   * used by this surface and is **unmodified**, so the replay viewer's own
+   * composition of it renders exactly what it did.
+   *
+   * Stated narrowly on purpose: UI-3 *did* change one `$viewer` file —
+   * `CombatView.svelte`, deliberately and in place, because the replay viewer
+   * carried the identical planeswalker-label defect. "The replay viewer is
+   * untouched" would be the convenient sentence and it would be false.
    */
   import { onMount } from 'svelte';
 
@@ -716,6 +721,23 @@
     flex-direction: column;
     gap: 0.3rem;
     flex-shrink: 0;
+    /*
+      Capped for the same reason `.stack-dock` and `.hand-bar` are, and it was
+      missed on the first pass while both of its neighbours got one. The dock is
+      `flex-shrink: 0` and now hosts the ActionBar, which hosts every picker — so
+      an expanded seat drawer plus a four-seat segmented `TargetPicker` can grow
+      it without limit, squeeze `.body` toward zero and push the page into a
+      document-level scrollbar. That does not merely look wrong: it destroys the
+      "player cards stay in place on scroll" property this whole arrangement
+      exists to provide, because once the *document* scrolls there is no fixed
+      region left. `.body` is therefore guaranteed at least 38vh.
+
+      Scrolling inside the dock is the lesser evil, not a happy outcome: the seat
+      cards can leave view when it overflows. It only engages in the case where
+      the alternative is the board vanishing entirely.
+    */
+    max-height: 62vh;
+    overflow-y: auto;
     background: #0d0d1a;
     border-bottom: 1px solid #22223a;
   }

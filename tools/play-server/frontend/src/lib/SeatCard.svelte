@@ -15,8 +15,10 @@
    * viewer (`vite.config.js`), which renders it in an omniscient dev tool with
    * no command zone, no drawer and no notion of a "seat". Everything this
    * component adds is play-surface-specific, so it is added *around* the shared
-   * component rather than inside it. The replay viewer is byte-for-byte
-   * unaffected.
+   * component rather than inside it — **`PlayerPanel.svelte` is byte-for-byte
+   * what it was.** (A statement about this component's dependency, not about the
+   * whole batch: UI-3 changed one `$viewer` file deliberately and in place,
+   * `CombatView.svelte`, because the replay viewer had the same defect.)
    *
    * Props:
    *   player (PlayerView)     — `state.players[playerName]`
@@ -99,17 +101,26 @@
       <span class="cmd-label">Command</span>
       <div class="cmd-cards">
         {#each commanders as card, i (eachKey(card, i))}
-          <!-- svelte-ignore a11y_click_events_have_key_events -->
-          <!-- svelte-ignore a11y_no_static_element_interactions -->
-          <span
+          <!--
+            A real `<button>`, unlike the `<span onclick>` the sibling `$viewer`
+            zone components use. Not a style preference: since SIM-1
+            (`scutemob-175`) a commander in the command zone is **castable** (CR
+            903.8), so this is the one card chip on the surface that is a primary
+            game action rather than an inspect affordance, and it should not be
+            the one you cannot reach from the keyboard. The type is reset in CSS
+            so it still reads as a chip.
+          -->
+          <button
+            type="button"
             class="cmd-card"
             class:clickable={onCardClick !== null}
+            disabled={onCardClick === null}
             title="{card.name} — {(card.card_types ?? []).join(', ')}"
             onclick={() => onCardClick?.(card)}
             use:cardTooltip={previewName(card)}
           >
             {card.name}
-          </span>
+          </button>
         {/each}
       </div>
     </div>
@@ -232,13 +243,16 @@
     gap: 0.2rem;
   }
 
+  /* Reset the button back to a chip — see the markup note on why it is a button. */
   .cmd-card {
     background: #2a1a06;
     border: 1px solid #6a4a10;
     color: #ca8;
     padding: 0.05rem 0.3rem;
     border-radius: 3px;
+    font-family: monospace;
     font-size: 0.7rem;
+    line-height: inherit;
     cursor: default;
   }
 
@@ -246,8 +260,15 @@
     cursor: pointer;
   }
 
-  .cmd-card:hover {
+  .cmd-card:hover:not(:disabled) {
     background: #3a2a10;
+  }
+
+  .cmd-card:disabled {
+    /* Inspect-only (no click handler): still readable, not dimmed like a
+       disabled control, because nothing is unavailable — there is simply no
+       action wired on this surface. */
+    opacity: 1;
   }
 
   .drawer-toggle {
