@@ -237,7 +237,7 @@
   §6 (registry-of-record for them until rowed into the audit registry); **OOS-ADJ-7** is an
   unrelated live-wrong find — `blood_moon`/`magus_of_the_moon` strip the Artifact card type from
   artifact lands, contradicting the printed cards (should ride PB-DX27, not DX42).
-- **Last Updated**: 2026-08-02 — **UI-4 SHIPPED** (`scutemob-185`; G1 of
+- **Prior**: 2026-08-02 — **UI-4 SHIPPED** (`scutemob-185`; G1 of
   `memory/playtest-triage-2026-08-02b.md`). **The browser's Confirm button was dead in all three
   template-copying pickers, and five CR flows the project believed shipped had never worked**:
   library search (701.23), scry (701.22a), surveil (701.25a), sacrifice additional costs (118.8),
