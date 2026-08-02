@@ -291,7 +291,7 @@ fn r6_rosters_are_not_vacuous() {
          set and this number together."
     );
     assert!(
-        defs.iter().any(|d| declares_x_or_modes(d)),
+        defs.iter().any(declares_x_or_modes),
         "R5's `declares_x_or_modes` predicate matches NOTHING in the corpus, so R5 passes \
          vacuously -- the predicate is broken, not the corpus"
     );

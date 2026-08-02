@@ -1427,8 +1427,8 @@ fn sacrifice_prompt(requirement: &SpellAdditionalCost) -> String {
     format!("Sacrifice {what} as an additional cost (CR 118.8)")
 }
 
-/// Compact MTG notation for a mana cost: `{W}{W}{2}`, `{0}` for a zero cost.
-/// Colored pips first (WUBRG order), then `{C}`, then the generic number.
+/// Compact MTG notation for a mana cost: `{2}{W}{W}`, `{0}` for a zero cost.
+/// The generic number FIRST, then coloured pips in WUBRG order, then `{C}`.
 ///
 /// Modelled on `tools/tui/src/play/panels/card_detail.rs::format_mana_cost`, and
 /// deliberately a duplicate rather than a shared helper: that copy lives in a
@@ -1436,6 +1436,13 @@ fn sacrifice_prompt(requirement: &SpellAdditionalCost) -> String {
 /// one, and is itself `#[allow(dead_code)]` there. Like `sacrifice_prompt` above,
 /// this renders **display text only** -- it does not decide what a Squad payment
 /// costs; the engine's own `ManaCost` arithmetic does that untouched.
+///
+/// **The pip ORDER deliberately diverges from that copy**, which emits colours
+/// first and so renders Galadhrim Brigade's printed "Squad {1}{G}" as `{G}{1}`.
+/// Every real card prints the generic component first (CR 107.4 / the comprehensive
+/// rules' own notation), so the TUI's order is simply wrong; it is dead code there
+/// and fixing it is out of this batch's scope, but a label a human reads next to a
+/// printed card must match the printing.
 ///
 /// **Known limitation, inherited from the TUI copy and pinned rather than
 /// assumed**: `ManaCost::hybrid` and `ManaCost::phyrexian` are not rendered, so a
@@ -1445,6 +1452,9 @@ fn sacrifice_prompt(requirement: &SpellAdditionalCost) -> String {
 /// loudly the day one is authored rather than this label quietly lying.
 fn format_mana_cost_compact(cost: &ManaCost) -> String {
     let mut parts = Vec::new();
+    if cost.generic > 0 {
+        parts.push(format!("{{{}}}", cost.generic));
+    }
     for _ in 0..cost.white {
         parts.push("{W}".to_string());
     }
@@ -1462,9 +1472,6 @@ fn format_mana_cost_compact(cost: &ManaCost) -> String {
     }
     for _ in 0..cost.colorless {
         parts.push("{C}".to_string());
-    }
-    if cost.generic > 0 {
-        parts.push(format!("{{{}}}", cost.generic));
     }
     if parts.is_empty() {
         "{0}".to_string()

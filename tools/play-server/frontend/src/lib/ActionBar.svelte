@@ -42,19 +42,38 @@
    *   1. `ValuePrompt`     — iff `needs_x || modes.length > 0` (CR 601.2b
    *                          announces `{X}`/modes as part of casting, before
    *                          CR 601.2c's target announcement)
-   *   2. `TargetPicker`    — iff the resolved slot list is non-empty. For a
+   *   2. `CostPicker`      — iff `option.costs` is present (UI-2). CR 601.2b's
+   *                          additional costs: the required sacrifice (CR 118.8)
+   *                          and the optional Squad count (CR 702.157a).
+   *   3. `TargetPicker`    — iff the resolved slot list is non-empty. For a
    *                          per-mode-targeting card (`ModeOptionView.target_slots`
    *                          non-empty on at least one mode) the slots are the
    *                          CHOSEN modes' own `target_slots`, concatenated in
    *                          ascending mode-index order; otherwise the option's
    *                          own flat `target_slots`.
-   *   3. `AttackerPicker`  — iff `option.attack` is present (CR 508.1)
-   *   4. `BlockerPicker`   — iff `option.block` is present (CR 509.1)
+   *   4. `AttackerPicker`  — iff `option.attack` is present (CR 508.1)
+   *   5. `BlockerPicker`   — iff `option.block` is present (CR 509.1)
    *
    * A stage that is not needed is skipped entirely (`pickerNeeded` below), and an
-   * option needing none of the five submits `{}` immediately, exactly as before
+   * option needing none of the six submits `{}` immediately, exactly as before
    * Session 7. Escape (or a picker's own Cancel button) aborts the whole chain
    * and submits nothing — `cancelChain` clears every field the chain touched.
+   *
+   * # Why the cost stage sits between `ValuePrompt` and `TargetPicker`
+   *
+   * The outer ordering is forced: CR 601.2b announces additional costs and CR
+   * 601.2c announces targets, so costs must be collected before targets.
+   *
+   * The inner ordering is a deliberate simplification. Within CR 601.2b the
+   * printed order is modes → splice → **additional costs** → `{X}`, so a strict
+   * reading would split `ValuePrompt` — which bundles modes AND `{X}` in one
+   * panel — around this stage, putting modes before it and `{X}` after it. That
+   * is not done here, and the premise is checked rather than assumed:
+   * `crates/engine/tests/core/ui2_additional_cost_roster.rs`'s **R5** pins that no
+   * def in the corpus declares an additional cost (sacrifice or Squad) together
+   * with an `{X}` or modes, so the sub-ordering inside 601.2b is not observable
+   * in any game this engine can deal. If R5 ever fails, this is the paragraph to
+   * re-read: the fix is to split `ValuePrompt`, not to reorder the chain.
    *
    * # Why the decision stage is numbered 0 and checked first
    *
@@ -101,6 +120,12 @@
    * that is an argument from the server's shape rather than an observation of a
    * running game.
    *
+   * The same holds for the cost stage: `CostPicker` has no automated test, for the
+   * same missing-harness reason. Its *channel* is covered end to end by the
+   * play-server HTTP probes, which drive a real CR 118.8 sacrifice payment and a
+   * real CR 702.157a Squad count through `POST /api/game/action`; what is untested
+   * is this file's wiring of it and that component's rendering of it.
+   *
    * The `Slots` *channel* is not in that list: `test_ui1_trigger_targets_are_
    * answered_over_http` drives a real CR 603.3d announcement end to end. What is
    * untested is this file's rendering of it, like everything else here.
@@ -131,6 +156,7 @@
   import DiscardPicker from './DiscardPicker.svelte';
   import SearchPicker from './SearchPicker.svelte';
   import PartitionPicker from './PartitionPicker.svelte';
+  import CostPicker from './CostPicker.svelte';
 
   const {
     decision = null,
@@ -165,7 +191,7 @@
 
   /**
    * Which picker is showing right now:
-   * 'decision' | 'value' | 'targets' | 'attack' | 'block' | null.
+   * 'decision' | 'value' | 'costs' | 'targets' | 'attack' | 'block' | null.
    */
   let stage = $state(null);
 
@@ -272,6 +298,9 @@
       const needsValue = option.needs_x || (option.modes?.length ?? 0) > 0;
       if (needsValue) return 'value';
     }
+    // CR 601.2b before CR 601.2c — see the module doc's "Why the cost stage sits
+    // between `ValuePrompt` and `TargetPicker`".
+    if (!doneSet.has('costs') && option.costs) return 'costs';
     if (!doneSet.has('targets')) {
       if (resolvedTargetSlots(option, paramsSoFar).length > 0) return 'targets';
     }
@@ -352,6 +381,18 @@
   function onValueConfirm(result) {
     paramsAcc = { ...paramsAcc, ...result };
     doneStages = new Set([...doneStages, 'value']);
+    advanceChain();
+  }
+
+  /**
+   * The single exit from the cost stage (UI-2). Like `onDecisionConfirm`, `params`
+   * is a whole fragment (`{additional_costs: [...]}`) built by the picker from the
+   * server's own `answer_field` — so this function never names a params key
+   * either, and `ActionParamsDto`'s schema stays known in one place.
+   */
+  function onCostsConfirm(params) {
+    paramsAcc = { ...paramsAcc, ...params };
+    doneStages = new Set([...doneStages, 'costs']);
     advanceChain();
   }
 
@@ -599,6 +640,16 @@
         modeMax={activeOption.mode_max}
         disabled={loading}
         onConfirm={onValueConfirm}
+        onCancel={cancelChain}
+      />
+    {:else if stage === 'costs'}
+      <CostPicker
+        prompt={activeOption.costs.prompt}
+        sacrifice={activeOption.costs.sacrifice}
+        squad={activeOption.costs.squad}
+        answerField={activeOption.costs.answer_field}
+        disabled={loading}
+        onConfirm={onCostsConfirm}
         onCancel={cancelChain}
       />
     {:else if stage === 'targets'}
