@@ -3121,6 +3121,99 @@ mod tests {
         );
     }
 
+    /// **SIM-5 fix (3), G5.** The report carries the engine's own refusals of
+    /// *bot* commands, not just the commands that were applied.
+    ///
+    /// This is the half of the G5 triage that could not be settled from the artefact:
+    /// `journal` records applied commands only, so "why did that bot tap six sources
+    /// at upkeep and then pass?" had to be inferred from the surrounding commands
+    /// because `LocalGame::advance()` bound the engine's error and dropped it. The
+    /// rejections are now recorded (`mtg_simulator::local_game::RejectedCommand`) and
+    /// exported here, so the next triage classifies instead of inferring.
+    ///
+    /// Driven by passing, not by `drive_until`: the rejections this asserts on are
+    /// **bot**-seat ones, which accumulate on their own while the human does nothing.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_sim5_report_exposes_bot_command_rejections() {
+        let state = shared_state();
+        let mut view = new_game(&state).await;
+        let mut report = Value::Null;
+
+        for _ in 0..S7_MAX_STEPS {
+            let (status, body) = get_json(&state, "/api/game/report").await;
+            assert_eq!(status, StatusCode::OK);
+            // The two fields are asserted present on EVERY iteration, so this test
+            // fails on a dropped field even if the game never produces a rejection.
+            assert!(
+                body["rejections"].is_array(),
+                "the report must carry a rejections array: {body}"
+            );
+            assert!(
+                body["rejection_count"].is_u64(),
+                "the report must carry a rejection_count: {body}"
+            );
+            if body["rejection_count"].as_u64().unwrap_or(0) > 0 {
+                report = body;
+                break;
+            }
+            if view["decision"].is_null() {
+                break;
+            }
+            // Pass when passing is offered; otherwise answer whatever is first with
+            // its server-side default -- the same dull policy `drive_until` uses, and
+            // the only way past an out-of-band blocking decision (a cleanup discard
+            // offers no `PassPriority` at all, CR 514.3).
+            let index = action_indices(&view, "PassPriority")
+                .first()
+                .copied()
+                .unwrap_or(0);
+            let (status, next) = post_json(
+                &state,
+                "/api/game/action",
+                json!({ "seq": seq(&view), "action_index": index }),
+            )
+            .await;
+            assert_eq!(
+                status,
+                StatusCode::OK,
+                "the human's answer must be accepted: {next}"
+            );
+            view = next;
+        }
+
+        // Non-vacuity: the loop above must actually have found a refusal, or every
+        // assertion below is about an empty list. Bots are offered actions the engine
+        // refuses on every seed measured for SIM-5 (30/44/92 refusals in 25 turns on
+        // seeds 0/7/42) -- if this ever goes red, `StubProvider` got MORE accurate,
+        // which is a good problem and this fixture is where to notice it.
+        assert!(
+            !report.is_null(),
+            "no bot command was refused within {S7_MAX_STEPS} steps at SEED"
+        );
+        let rejections = report["rejections"].as_array().expect("array");
+        assert!(!rejections.is_empty());
+        assert!(
+            report["rejection_count"].as_u64().unwrap() >= rejections.len() as u64,
+            "the count is never truncated, the retained list is: {report}"
+        );
+        for r in rejections {
+            assert!(r["turn"].is_u64(), "{r}");
+            assert!(
+                r["player"].as_u64().is_some_and(|p| p != 1),
+                "only BOT seats reach the rejection recorder -- a human submission \
+                 returns its error to the client instead: {r}"
+            );
+            assert!(
+                r["error"].as_str().is_some_and(|e| !e.is_empty()),
+                "the engine's reason must be kept: {r}"
+            );
+            assert!(
+                r["command"].is_object(),
+                "the refused command is serialized verbatim, like a journal entry: {r}"
+            );
+        }
+    }
+
     /// No session, no report — 404, the same answer `GET /api/game` gives, and for
     /// the same reason (the resource the route names does not exist).
     #[tokio::test(flavor = "multi_thread")]

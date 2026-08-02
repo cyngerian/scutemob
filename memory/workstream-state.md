@@ -848,6 +848,173 @@ must read adjudication §5 alongside it. OOS-ADJ-3 warns `OOS-DX19-2`'s "613.8b 
 would make a worker build the wrong thing — re-word at dispatch. OOS-ADJ-7 (blood_moon strips
 Artifact card type) rides PB-DX27.
 
+## Worker Handoff (SIM-5, `scutemob-188`) — bots stop wasting mana, and start announcing targets
+
+**G5 CLOSED for its (1)/(2)/(3) halves; (4) DEFERRED with measurements (`OOS-SIM5-4`).**
+The triage's chain was correct end to end and is re-verified against HEAD (pre-edit line
+numbers, the ones the brief cites): the bot path built `[taps…, cast]` at
+`local_game.rs:462-468` and applied them **one at a time** at `:471-472`; on failure `:474-491`
+committed the taps, discarded `e`, and passed. The human path has never had that failure mode —
+`submit` (`:549`) hands the identical vector to `apply_sequence` (`:700`), whose doc at `:694`
+says it exists precisely to stop "a tap-then-cast sequence where the tap succeeded but the cast
+was rejected". The cast was rejected because `random_bot::action_to_command` (`:142-193`) built
+`ActionParams::default()` and filled only `attackers`/`blockers`, so `params.rs`'s `CastSpell`
+arm (`:262`) forwarded `targets: []` and `casting.rs:5931` refused. `HeuristicBot` shares that
+function (`heuristic_bot.rs:19`, called at `:346`), so **neither bot had ever cast a targeted
+spell**.
+
+### What shipped
+
+* **(1) atomicity, `local_game.rs`** — the bot loop is now one `self.apply_sequence(commands)`
+  call. Two deliberate behaviour deltas, both documented at the call site: invariants are
+  checked once per *sequence* rather than once per command (the states no longer checked are
+  mid-payment ones), and a recorded seed moves **only where a cast is rejected** — per
+  `OOS-UI2-1` the fuzzer has never cast at all, so no fuzz seed can reach the changed branch.
+* **(3) the refusal is kept** — `RejectedCommand { player, turn, command, error }`, with
+  `LocalGame::rejections()` (retained, capped at `MAX_RETAINED_REJECTIONS = 256`) and
+  `rejection_count()` (never truncated, so the cap is visible rather than silent). Exported on
+  `GET /api/game/report` as `rejections` / `rejection_count` — that endpoint's `journal` records
+  applied commands only, which is exactly the limit the triage hit ("the rejected command and
+  its error string are unrecoverable").
+* **(2) targeting, new `crates/simulator/src/targeting.rs`** — `plan_targets` returns
+  `NotTargeted` / `Announce(Vec<Target>)` / `Unsatisfiable`, one target per **mandatory**
+  requirement. Every legality decision is delegated to `crates/engine/src/rules/queries.rs`
+  (`spell_target_requirements`, `ability_target_requirements`, `legal_targets_per_slot`,
+  `target_count_range`); nothing re-derives a targeting rule outside the engine (the `OOS-RS-2`
+  drift class). `random_bot::action_to_command` fills `params.targets` from it, and
+  `HeuristicBot` inherits it through the shared function.
+
+### Three decisions a successor should not re-litigate blind
+
+1. **Not `Bot::choose_targets`.** The dead trait method takes `&[ObjectId]` and returns
+   `Vec<ObjectId>`, so it cannot express `Target::Player` — half of what spells target. It is
+   still dead; widening it is `OOS-SIM5-1`'s business, not a legality fix.
+2. **Deterministic first-legal candidate, no RNG.** `legal_targets_per_slot` already enumerates
+   deterministically (live players in seat order, then objects ascending). Drawing here would
+   re-roll every recorded fuzz seed and every seeded play-server fixture for a *strategy* gain,
+   and no layer here knows a spell's polarity anyway (removal wants an opponent's creature, a
+   pump spell wants its own). Bots therefore target the lowest-`ObjectId` legal candidate,
+   which for a `TargetPlayer` slot is often themselves — `OOS-SIM5-1`.
+3. **Modes are queried as `spell_default_modes(state, card)`, not `&[]`.** This is the one place
+   this module deliberately differs from `view.rs`'s `action_target_requirements`, which passes
+   `&[]` because the *human* has not chosen yet. `params.rs` fills a bot's `modes_chosen` with
+   exactly that default list, so querying with `&[]` would return `vec![]` for a
+   per-mode-targeting card (`queries.rs` divergence 1) and the bot would announce nothing for a
+   cast whose command *does* select a mode.
+
+### A/B, measured both ways (instrument: `crates/simulator/tests/sim5_bot_cast_discipline.rs`)
+
+Seeds 0/7/42, 25 turns, four heuristic bots, no human seat; the same journal walk the triage
+did on `GET /api/game/report`.
+
+| seed | wasted tap runs | wasted taps | ManaPoolsEmptied | taps | casts | targeted casts |
+|------|-----------------|-------------|------------------|------|-------|----------------|
+| 0    | 10 → **0**      | 20 → **0**  | 10 → **0**       | 65 → 46 | 17 → 20 | 0 → **2** |
+| 7    | 15 → **0**      | 15 → **0**  | 15 → **1**       | 68 → 69 | 23 → 27 | 0 → **4** |
+| 42   | 5 → **0**       | 10 → **0**  | 5 → **0**        | 55 → 60 | 19 → 22 | 0 → **1** |
+
+The BEFORE column reproduces the triage's live 1:1 match exactly — `ManaPoolsEmptied` equals
+wasted tap runs on all three seeds (10/10, 15/15, 5/5), as the triage measured 18/18.
+**The one residual is explained, not waved at**: seed 7 keeps a single `ManaPoolsEmptied` at
+T14, and its journal context shows a four-tap run whose cast **succeeded**, part of the
+remainder spent on a second cast ~20 commands later and the rest destroyed at the step
+boundary — greedy-solver slack (`OOS-SIM2-1`), not a wasted plan. `emptied_pool_context()`
+uses a 40-command window for exactly this reason; a 5-command one showed only passes.
+
+**Journal-verified targeted casts by bots** (impossible before this batch): T7 `Glacial Ray` →
+player 1 and T18 `Damn` → a permanent (seed 0); T2 `Burst Lightning` → player 1, T3 `Goblin War
+Strike` → player 1, T10 `Vandalblast` → a permanent (seed 7); T12 `Doom Blade` → a creature
+(seed 42).
+
+### What the recorded rejections immediately revealed (the point of fix (3))
+
+166 refusals across the three seeds, now classifiable instead of inferable:
+**~95 `InsufficientMana` on `ActivateAbility`** and **40 `activation condition not met`** — i.e.
+the *activation-cost payment channel*, which is **SIM-6's** subject and untouched here; ~25
+blocker-declaration refusals (`CrossPlayerBlock`, "the attacking player cannot declare
+blockers", CR 508.1d must-attack) — `OOS-SIM5-3`; **4** modal `ActivateAbility` refusals
+("requires exactly 1 target(s) for the chosen mode(s)", CR 700.2c) — `ability_target_requirements`
+documents that a modal ability's per-mode slice is out of its scope, so a bot cannot announce
+for one (`OOS-SIM5-5`); and **1** genuinely unsatisfiable cast (`Victimize`, no creature card in
+the graveyard). Cast-side refusals are now ~3% of the total.
+
+### Why fix (4) is deferred rather than shipped (`OOS-SIM5-4`)
+
+Full argument and numbers in `targeting.rs`'s `TargetPlan::Unsatisfiable` doc. In short: the
+predicate exists and the filter is short, but it would have suppressed **1 of 166** refusals;
+it does **not** cover `OOS-CARDS2-4` (an Aura's restriction is a `KeywordAbility::Enchant`, not
+a `TargetRequirement`, and `rules::sba::get_enchant_target`/`matches_enchant_target` are
+`pub(crate)` — covering Auras needs an **engine** query this batch may not add); it costs a full
+candidate sweep per offered cast per priority window on a path `queries.rs` itself says to
+measure and cache first; and shortening the action list re-rolls every recorded fuzz seed and
+seeded fixture, since `RandomBot` picks `rng.random_range(0..legal.len())`. Post-(1) an
+unsatisfiable offer costs nothing anyway. Scope it as an engine query plus caching.
+
+### Gates (each new gate proven to discriminate by executing a revert, not by assumption)
+
+* `crates/simulator/tests/sim5_bot_cast_discipline.rs` — `seeded_four_bot_game_wastes_no_taps`
+  (the A/B instrument; red both on the pre-fix per-command loop **and** on pre-fix zero-target
+  params), `bot_announces_a_legal_target_and_the_engine_accepts_the_cast` (a black and a
+  colourless creature on board: the bot must pick the non-black one *and* `process_command` must
+  accept the command), `plan_targets_reports_an_unsatisfiable_requirement`,
+  `a_rejected_bot_cast_commits_no_taps` (no land tapped, no mana floating, no tap in the
+  journal, refusal recorded — pinned with a frozen `ZeroTargetCastBot` so it keeps testing
+  ATOMICITY even as targeting improves).
+* `tools/play-server/src/main.rs` `test_sim5_report_exposes_bot_command_rejections` — asserts
+  the two report fields on every iteration (so a dropped field fails even with no rejection) and
+  has a non-vacuity floor requiring a real refusal; went red when `record_rejection` was stubbed.
+* **0 engine lines** (`git diff main..HEAD --numstat -- crates/engine/` is empty),
+  PROTOCOL **33** / HASH **70** unmoved and gate-executed. Workspace suite **4,295 / 0 / 5**
+  (+5 = this batch's gates), captured to a file, never tail-piped. `fmt`, `clippy -D warnings`
+  and `tools/check-defs-fmt.sh` all clean. **No seeded fixture moved** — the `UI1_SEED`/
+  `UI2_SEED`/`SIM1_SEED` pins and the six SEED-0 play-server probes were green untouched, which
+  is why nothing in this handoff explains a moved pin.
+
+### Seeds filed
+
+* **`OOS-SIM5-1`** — bot target *choice* is "first legal candidate", and `legal_targets_per_slot`
+  lists players before objects **in seat order**, so every player-eligible slot (`TargetPlayer`,
+  `TargetAny`, `TargetCreatureOrPlayer`) resolves to **seat 1** — the human's seat in a
+  play-server game, and the bot's own seat when the bot is seat 1. **Not a cosmetic seed**: it
+  points every bot burn spell at one player, which changes the character of a seeded game and
+  not merely its strategic quality. `Bot::choose_targets` is still dead and cannot express
+  player targets at all. A real policy (opponent-preferring for removal, self-preferring for
+  buffs) needs spell polarity, which is a `HeuristicBot` scoring project.
+* **`OOS-SIM5-2`** — `TargetRequirement::UpToN` slots are announced empty (legal: min 0), so a
+  bot never uses an optional target.
+* **`OOS-SIM5-3`** — ~25 of 166 refusals are blocker declarations the provider offered and the
+  engine refused (`CrossPlayerBlock`, "the attacking player cannot declare blockers", CR 508.1d
+  must-attack). Pre-existing SR-38 residue in `legal_actions.rs`'s combat surface; now visible
+  because rejections are recorded.
+* **`OOS-SIM5-4`** — fix (4) deferred; see above and `targeting.rs`.
+* **`OOS-SIM5-5`** — a modal **activated ability** with per-mode targets is unannounceable by any
+  caller of `ability_target_requirements` (which documents the per-mode slice as out of scope),
+  so bots refuse 4× per A/B run. Needs an engine query change, not a simulator one.
+* **`OOS-CARDS2-4` unchanged** — Auras still cannot be announced; post-(1) the attempt is a
+  harmless no-op that now shows up in `rejections()`.
+
+### The `/review` cycle: 5 PASS, 4 LOW, all 4 taken
+
+The reviewer re-ran everything rather than trusting the numbers — it reverted both fixes in a
+scratch tree and reproduced the BEFORE column exactly, then reproduced AFTER on HEAD, then
+re-ran the full workspace suite. Four LOW findings, all applied:
+
+1. An in-source A/B summary in `local_game.rs` said "30 wasted taps across 30 tap runs". The
+   verified figures are **45 wasted taps across 30 wasted runs, of 82 tap runs in all** — 30 is
+   the wasted-*run* count, which is what `ManaPoolsEmptied` matches 1:1. Comment corrected; the
+   handoff table and task comment were already right.
+2. `record_rejection` retained records regardless of `LocalGameLimits::record_journal`, while
+   `driver.rs` sets that flag `false` specifically so the fuzzer retains nothing. Retention is
+   now gated on the same flag (the **count** is not gated, so a crash report keeps the number).
+3. `OOS-SIM5-1` was under-stated: players are enumerated first *in seat order*, so every
+   player-eligible slot resolves to seat 1 for every bot. Seed text strengthened above and in
+   `plan_targets`' doc — it changes a seeded game's character, not just its quality.
+4. Measured: with targeting kept and only `apply_sequence` reverted, only seed 42 reddens the
+   whole-game A/B test, because fix (2) removed nearly all cast-side refusals. So the A/B test
+   is **not** the primary atomicity gate — `a_rejected_bot_cast_commits_no_taps` is, and it
+   freezes a `ZeroTargetCastBot` into the fixture exactly so it keeps discriminating however
+   good targeting becomes. Recorded in that test's doc so a future seed re-pick cannot lose it.
+
 ## Worker Handoff (SIM-4, `scutemob-187`) — the mulligan stops re-rolling the table
 
 **G2 CLOSED. CR 103.5: a mulligan permutes a FIXED library-plus-hand multiset.** The

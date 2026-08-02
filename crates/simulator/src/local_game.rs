@@ -148,6 +148,35 @@ pub struct CommandRecord {
     pub turn: u32,
 }
 
+/// A command the engine **refused** on a bot seat's behalf, and why (SIM-5 fix (3),
+/// G5 of `memory/playtest-triage-2026-08-02b.md`).
+///
+/// Before SIM-5 the error at `advance()`'s rejection arm was bound and then dropped,
+/// so a rejected bot command left no trace anywhere: the journal records applied
+/// commands only, which is why the triage could only *infer* why bots were wasting
+/// mana ("the journal records applied commands only, so the rejected command and its
+/// error string are unrecoverable"). Recording it here is what lets the next triage
+/// classify a bot failure instead of inferring it.
+///
+/// This is not an engine bug by itself — `StubProvider` is a bot move generator, not
+/// a rules-complete action enumerator (see the SR-38 discussion in `legal_actions.rs`),
+/// so it can legitimately offer an action the engine refuses. A *rising* count, or a
+/// new error string, is the signal.
+#[derive(Clone, Debug)]
+pub struct RejectedCommand {
+    /// The seat the command was issued for.
+    pub player: PlayerId,
+    /// `state.turn().turn_number` at the moment of refusal.
+    pub turn: u32,
+    /// The action the bot chose — **not** any tapping commands prepended to it. The
+    /// taps are not recorded because, post-SIM-5, they were never applied: the whole
+    /// `[taps…, cast]` sequence goes through `apply_sequence` and is rolled back
+    /// wholesale.
+    pub command: Command,
+    /// The engine's own rejection reason, stringified.
+    pub error: String,
+}
+
 /// Errors `LocalGame::start` / `submit` can return. Distinct from `GameStateError`
 /// (the engine's own rejection reason) so a caller can tell "your seq was stale" apart
 /// from "the engine said no" apart from "the engine itself is unusable".
@@ -198,9 +227,22 @@ pub struct LocalGame<P: LegalActionProvider> {
     /// The decision `submit` is currently allowed to answer, if any.
     pending: Option<PendingDecision>,
     journal: Vec<CommandRecord>,
+    /// Bot-seat commands the engine refused (SIM-5 fix (3)). Retention is capped at
+    /// [`MAX_RETAINED_REJECTIONS`]; `rejection_count` is not, so truncation is
+    /// visible rather than silent.
+    rejections: Vec<RejectedCommand>,
+    rejection_count: u32,
     violations: Vec<InvariantViolation>,
     check_invariants: bool,
 }
+
+/// How many [`RejectedCommand`]s a `LocalGame` retains. Unbounded retention is not
+/// safe here: nothing caps how often a bot re-chooses an action the engine refuses
+/// (`advance()`'s own comment on the auto-tap notes the identical action is re-offered
+/// next priority), and `mtg-fuzzer` runs thousands of games in parallel. The count is
+/// kept whole so a caller can always see that dropping happened — see
+/// [`LocalGame::rejection_count`].
+pub const MAX_RETAINED_REJECTIONS: usize = 256;
 
 impl<P: LegalActionProvider> LocalGame<P> {
     /// Starts a game from an assembled (but not yet started) `GameState`. Delegates to
@@ -232,6 +274,8 @@ impl<P: LegalActionProvider> LocalGame<P> {
             decision_seq: 0,
             pending: None,
             journal: Vec::new(),
+            rejections: Vec::new(),
+            rejection_count: 0,
             violations: Vec::new(),
             check_invariants,
         };
@@ -252,6 +296,21 @@ impl<P: LegalActionProvider> LocalGame<P> {
 
     pub fn journal(&self) -> &[CommandRecord] {
         &self.journal
+    }
+
+    /// Bot-seat commands the engine refused, oldest first (SIM-5 fix (3)).
+    ///
+    /// **Empty when `LocalGameLimits::record_journal` is off**, and otherwise truncated
+    /// at [`MAX_RETAINED_REJECTIONS`] — compare against [`Self::rejection_count`], which
+    /// is neither gated nor truncated, to see whether anything was dropped.
+    pub fn rejections(&self) -> &[RejectedCommand] {
+        &self.rejections
+    }
+
+    /// How many bot-seat commands the engine refused over the whole game. Never
+    /// truncated, unlike [`Self::rejections`].
+    pub fn rejection_count(&self) -> u32 {
+        self.rejection_count
     }
 
     /// Every `CommandRecord` recorded since `cursor` (an index into `journal()`).
@@ -467,28 +526,54 @@ impl<P: LegalActionProvider> LocalGame<P> {
                 cmds
             };
 
-            // Execute all commands in sequence (tap commands + the action).
-            for c in commands {
-                match self.apply_command(c, true) {
-                    Ok(_events) => {}
-                    Err(e) => {
-                        // Command rejected — not necessarily fatal. The provider may
-                        // produce invalid actions for a bot seat. Fall back to passing.
-                        let fallback = Command::PassPriority {
-                            player: acting_player,
-                        };
-                        match self.apply_command(fallback, false) {
-                            Ok(_events) => {
-                                self.consecutive_passes += 1;
-                            }
-                            Err(e2) => {
-                                return AdvanceOutcome::Halted(HaltReason::EngineError(format!(
-                                    "Both action and fallback failed: {:?}, {:?}",
-                                    e, e2
-                                )));
-                            }
-                        }
-                        break; // Don't continue the sequence if a command failed.
+            // Execute the whole plan (tap commands + the action) ATOMICALLY.
+            //
+            // SIM-5 fix (1), G5 of `memory/playtest-triage-2026-08-02b.md`. This used
+            // to be a `for c in commands` loop of `apply_command(c, true)` calls, and
+            // that is the entire mechanism of G5: the taps were committed one at a
+            // time, so a rejected cast left them applied, the bot passed, and CR 500.4
+            // destroyed the floating mana at the next step boundary. The human path has
+            // never had that failure mode -- `submit` routes the identical
+            // `[taps…, cast]` vector through `apply_sequence`, whose doc says in as many
+            // words that it exists to prevent "a tap-then-cast sequence where the tap
+            // succeeded but the cast was rejected". This is that same call, on the bot
+            // path. Measured on seeds 0/7/42 at 25 turns: **45 wasted taps across 30
+            // wasted tap runs** before (of 82 tap runs in all), 0 after, with
+            // `ManaPoolsEmptied` falling 1:1 with the wasted RUNS -- 30 before, 1 after
+            // (`crates/simulator/tests/sim5_bot_cast_discipline.rs`).
+            //
+            // Two behavioural differences from the old loop, both deliberate:
+            //
+            // * **Invariants are checked once per sequence, not once per command.** A
+            //   sequence is longer than one command only when a cast is being funded, so
+            //   the states no longer checked are mid-payment ones (some taps applied,
+            //   the cast not yet). `apply_sequence` still checks the post-sequence state
+            //   against the same `prev_turn`.
+            // * **Recorded fuzz seeds move only where a cast is REJECTED** -- a
+            //   succeeding sequence commits exactly what the loop committed, in the same
+            //   order, so `journal`/`command_count` are unchanged for it. Per
+            //   `OOS-UI2-1` the fuzzer has never cast a spell at all, so the fuzzer's
+            //   seeds cannot reach the changed branch.
+            if let Err(e) = self.apply_sequence(commands) {
+                // Command rejected — not necessarily fatal. The provider may produce
+                // invalid actions for a bot seat (SR-38 is a goal, not a guarantee, in
+                // `StubProvider`). Fall back to passing.
+                //
+                // SIM-5 fix (3): the error is RECORDED before the fallback rather than
+                // dropped on the floor. See `RejectedCommand`.
+                self.record_rejection(acting_player, &cmd, &e);
+                let fallback = Command::PassPriority {
+                    player: acting_player,
+                };
+                match self.apply_command(fallback, false) {
+                    Ok(_events) => {
+                        self.consecutive_passes += 1;
+                    }
+                    Err(e2) => {
+                        return AdvanceOutcome::Halted(HaltReason::EngineError(format!(
+                            "Both action and fallback failed: {:?}, {:?}",
+                            e, e2
+                        )));
                     }
                 }
             }
@@ -761,6 +846,31 @@ impl<P: LegalActionProvider> LocalGame<P> {
                 Ok(events)
             }
             Err(e) => Err(e),
+        }
+    }
+
+    /// SIM-5 fix (3): keep the engine's refusal instead of discarding it.
+    ///
+    /// `command` is the bot's chosen action, not the tapping plan around it — see
+    /// [`RejectedCommand::command`].
+    ///
+    /// **The count is always incremented; the RECORD follows
+    /// `LocalGameLimits::record_journal`**, and is additionally capped at
+    /// [`MAX_RETAINED_REJECTIONS`]. Gating on the same flag the journal uses is
+    /// deliberate: `GameDriver` sets it `false` precisely so the fuzzer "retains what
+    /// the pre-M11 driver retained, which was nothing" (see that field's doc), and a
+    /// rejection record holds a cloned `Command` exactly like a `CommandRecord` does.
+    /// A caller that has opted out of the journal keeps the *number* — which is the
+    /// part a crash report needs — and pays no per-game allocation for the detail.
+    fn record_rejection(&mut self, player: PlayerId, command: &Command, error: &LocalGameError) {
+        self.rejection_count = self.rejection_count.saturating_add(1);
+        if self.limits.record_journal && self.rejections.len() < MAX_RETAINED_REJECTIONS {
+            self.rejections.push(RejectedCommand {
+                player,
+                turn: self.state.turn().turn_number,
+                command: command.clone(),
+                error: format!("{error:?}"),
+            });
         }
     }
 

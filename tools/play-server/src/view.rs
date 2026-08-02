@@ -705,6 +705,31 @@ pub struct BugReportView {
     /// Empty when `LocalGameLimits::record_journal` is off; the play server sets it
     /// on (`session::config_for`), which is what makes this endpoint useful at all.
     pub journal: Vec<JournalEntryView>,
+    /// Bot-seat commands the engine **refused**, oldest first (SIM-5 fix (3), G5).
+    ///
+    /// [`Self::journal`] records applied commands only, and that is exactly the limit
+    /// the G5 triage ran into: with the rejection thrown away at
+    /// `local_game.rs`'s auto-pass arm, "why did that bot waste six mana at upkeep?"
+    /// could only be *inferred* from the surrounding commands. These are the engine's
+    /// own refusals, so the next triage can classify instead.
+    ///
+    /// Truncated at `mtg_simulator::local_game::MAX_RETAINED_REJECTIONS`; compare the
+    /// length against [`Self::rejection_count`] to see whether anything was dropped.
+    pub rejections: Vec<RejectionView>,
+    /// Total refusals over the whole game, never truncated.
+    pub rejection_count: u32,
+}
+
+/// One refused bot command. `command` is the engine's own wire type, serialized
+/// verbatim, exactly like [`JournalEntryView::command`].
+#[derive(Debug, Serialize)]
+pub struct RejectionView {
+    pub turn: u32,
+    pub player: u64,
+    pub command: mtg_engine::Command,
+    /// The engine's rejection reason, stringified (`GameStateError` is not a
+    /// `Serialize` type).
+    pub error: String,
 }
 
 /// The half of the reproduction key that is not the seed.
@@ -2117,6 +2142,19 @@ pub fn bug_report_view(session: &crate::session::PlaySession) -> BugReportView {
                 events: record.events.clone(),
             })
             .collect(),
+        // SIM-5 fix (3): see `BugReportView::rejections`.
+        rejections: session
+            .game
+            .rejections()
+            .iter()
+            .map(|r| RejectionView {
+                turn: r.turn,
+                player: r.player.0,
+                command: r.command.clone(),
+                error: r.error.clone(),
+            })
+            .collect(),
+        rejection_count: session.game.rejection_count(),
     }
 }
 
