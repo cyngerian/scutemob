@@ -984,13 +984,21 @@ pub async fn post_action(
 
         // **Architecture Invariant 7's write half** (UI-1 re-review, LOW 3). The
         // read half — `seat_view`'s `pending.player == human` filter — hides a
-        // decision addressed to another seat. That is not on its own enough to stop
-        // this seat *answering* it: `PlaySession::pending_wire_seq` does not read
-        // `human`, and the 409 `stale_decision` body discloses the current `seq`
-        // verbatim, so a client could learn a hidden decision's `seq` from a
-        // deliberate stale post and then submit against it. `LocalGame::submit`
-        // would accept, because it builds the command for `pending.player` and has
-        // no notion of a viewer.
+        // decision addressed to another seat. Hiding it does not stop this seat
+        // *answering* it: `LocalGame::submit` builds the command for
+        // `pending.player` and has no notion of a viewer, so a submission naming a
+        // hidden decision's `seq` was **accepted**. Not reasoned to — with this
+        // guard deleted the re-review's probe gets HTTP 200 and the other seat's
+        // scry is applied.
+        //
+        // The `seq` was obtainable, too: `PlaySession::pending_wire_seq` does not
+        // read `human`, and a 409 `stale_decision` body carries the current `seq`
+        // verbatim, so a deliberate stale post would have disclosed it. **This
+        // guard's own placement closes that**, which is why it sits above the `seq`
+        // check rather than beside it: a foreign decision now answers 409
+        // `no_pending_decision` with no `expected` field, so the seq is never
+        // handed out in the first place. (`seq` is a small monotonic integer and
+        // guessable regardless — the disclosure was never the load-bearing part.)
         //
         // So the two guards are a pair, not a duplicate. 409 rather than 403,
         // matching the sibling case below it: from this seat's point of view there

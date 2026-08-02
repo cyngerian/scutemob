@@ -3497,8 +3497,10 @@ mod tests {
     /// straight back off `LocalGame`. `human` is the play server's own field and
     /// survives.
     ///
-    /// **Two-sided**: with `seat_view`'s `pending.player == human` filter removed,
-    /// the decision comes back and the assertions below go red.
+    /// **Two-sided on BOTH halves**, each verified by deleting the line and running
+    /// this test: without `seat_view`'s filter the decision comes back with its
+    /// scried cards named, and without `post_action`'s guard the final POST returns
+    /// 200 and applies the other seat's scry.
     #[tokio::test(flavor = "multi_thread")]
     async fn test_ui1_a_foreign_seats_effect_choice_never_reaches_this_payload() {
         let state = shared_state();
@@ -3526,8 +3528,12 @@ mod tests {
             );
         }
 
-        // Captured BEFORE the move: this is exactly the disclosure a client would
-        // have — the 409 body hands out the current `seq` on demand.
+        // Captured BEFORE the move, while this harness is still seat 1. A real seat-2
+        // client could NOT obtain it: the write guard sits above the `seq` check, so
+        // a foreign decision answers 409 `no_pending_decision` with no `expected`
+        // field rather than the usual `stale_decision` body that carries the current
+        // `seq`. Reading it here is therefore the STRONGEST case for the guard, not
+        // a representative one — it grants the attacker something the code does not.
         let wire_seq_before = seq(&view);
 
         // Render for the OTHER seat while seat 1's question is outstanding.
@@ -3565,11 +3571,12 @@ mod tests {
             "the foreign seat's look entitlement leaked into the body: {body}"
         );
 
-        // **The write half.** Hiding the decision is not enough on its own:
-        // `pending_wire_seq` does not read `human`, and the 409 body discloses the
-        // current `seq`, so a client could learn it and post anyway. `post_action`
-        // refuses. `wire_seq` is read out of the pre-move view, which is exactly
-        // the disclosure a real attacker would have.
+        // **The write half.** Hiding the decision does not stop this seat answering
+        // it — `LocalGame::submit` builds the command for `pending.player` and has
+        // no notion of a viewer, so without `post_action`'s guard this exact post
+        // returns 200 and applies the other seat's scry (verified by deleting the
+        // guard). The `seq` used here is the pre-move one; see the note above for
+        // why that is a deliberately generous gift to the attacker.
         let (status, refused) = post_json(
             &state,
             "/api/game/action",
@@ -3582,6 +3589,37 @@ mod tests {
             "answering another seat's decision must be refused, not applied: {refused}"
         );
         assert_eq!(refused["kind"], "no_pending_decision");
+
+        // **And the guard suppresses the `seq` disclosure**, which is why it sits
+        // ABOVE the staleness check. A wrong `seq` against a foreign decision must
+        // not fall through to `stale_decision`, whose body carries `expected: <the
+        // real seq>` — that would hand a seat-2 client the one thing it needs to
+        // answer a decision it is not allowed to see.
+        //
+        // This is asserted rather than described. An earlier draft of the comment
+        // above stated the disclosure as a live fact *after* this guard had closed
+        // it, which is the same "prose out of step with the code" fault this whole
+        // review chain kept finding — in its harmless direction, but the fix is the
+        // same: make a test hold the claim.
+        let (status, refused) = post_json(
+            &state,
+            "/api/game/action",
+            json!({"seq": 999_999, "action_index": 0, "params": {}}),
+        )
+        .await;
+        assert_eq!(status, StatusCode::CONFLICT, "{refused}");
+        assert_eq!(
+            refused["kind"], "no_pending_decision",
+            "a foreign decision must not answer `stale_decision`, which would \
+             disclose its `seq`: {refused}"
+        );
+        assert!(
+            refused["error"]
+                .as_str()
+                .map(|e| !e.contains("expected"))
+                .unwrap_or(true),
+            "the refusal body must not carry the foreign decision's seq: {refused}"
+        );
     }
 
     /// **Architecture Invariant 7, at the look-entitlement channel.**
