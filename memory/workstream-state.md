@@ -911,6 +911,107 @@
 
 **Commit prefix used**: `scutemob-179:`
 
+## Worker Handoff (SIM-1, `scutemob-175`)
+
+**Date**: 2026-08-02 (worker session)
+**Workstream**: playtest-triage successor track (SIM-1) — **triage F7 CLOSED**
+**Task**: `scutemob-175`. Branch `feat/sim-1-commander-castable-from-the-command-zone-legalactionpr`
+
+**Completed** — a human can cast their commander from the command zone. **Zero engine lines**
+(`crates/engine/src` + `crates/card-types/src` + `crates/card-defs` diffs all empty and pasted);
+PROTOCOL **33** / HASH **70** gate-executed unmoved.
+
+- **The engine was never the problem.** `casting.rs` has supported CR 903.8 since M6 — it derives
+  command-zone-ness from the object's zone, admits it past the "not in your hand" gate, gates it
+  on `commander_ids`, applies the tax and increments the counter, and emits
+  `CommanderCastFromCommandZone`. `StubProvider` simply never looked in the zone, so the browser
+  correctly reported that the server had offered nothing. **The frontend was innocent and so was
+  the wire**: `params.rs` already forwarded the bare card, and `from_zone` is read *nowhere* in
+  the workspace.
+- **`effective_cast_cost` — one helper, three call sites.** The brief named one place the tax was
+  needed; there were **three**, and `local_game.rs`'s own doc block already described the defect in
+  as many words ("Recasting a taxed commander with a pool that covers only the printed cost
+  therefore skips tapping and the cast is rejected"). The offer gate, the human `submit` auto-tap
+  and the bot `advance()` auto-tap all read the **printed** cost. They now share one helper that
+  **consumes `mtg_engine::apply_commander_tax`** rather than re-deriving `generic + 2*tax` — SR-38's
+  "only offer what the engine accepts" is only true if the two arithmetics are literally the same
+  function. (Contrast `multiply_mana_cost`, a *necessary* duplicate because the engine's copy is
+  private. This one is not, so duplicating it would have been a choice, and the wrong one.)
+- **The Drannith trap — the finding that would have shipped a fresh SR-38 violation.**
+  `casting.rs` rejects **any** non-hand cast while an opponent controls a Drannith Magistrate, and
+  `is_cast_restricted_by_stax` says in its own doc that it deliberately does not mirror per-card
+  *zone* restrictions. That was harmless for exactly one reason: every offer the provider had ever
+  made was a hand cast, and a hand cast always satisfies `zone == Hand(player)`. **Every
+  command-zone offer is a non-hand cast**, so without a new mirror the batch would have offered an
+  action the engine rejects 100% of the time. `drannith_magistrate.rs` is deck-legal `Complete` by
+  the `#[default]` derive. Generalisable: **a guard that is "harmless because unreachable" becomes
+  a defect the moment you widen what reaches it — check the reachability argument, not the guard.**
+- **Timing is mirrored, not assumed.** A commander is a permanent, so sorcery speed is the *usual*
+  answer — but the engine's timing gate is zone-agnostic, so a commander with Flash or under a CR
+  601.3b flash grant is legally castable at instant speed. The hand loop's timing block was
+  extracted to `can_cast_at_this_time` and is now called by both enumerations, so they cannot drift.
+- **Appended after the hand loop on purpose**: `RandomBot` picks by index, so appending leaves every
+  pre-existing action's index untouched.
+
+**The regression, and why it is not SIM-1's bug** (the durable lesson of this batch):
+`local_game_playthrough` seed 1 halted `InfiniteLoop` at turn 17 having applied exactly 20,000
+commands. Diagnosed **by measurement, not by reading code** — a throwaway instrumented copy of the
+test printed a per-turn, per-kind histogram: **19,351 of those commands were `DeclareAttackers` in
+that single turn.** The cause is the already-open seed **`OOS-M11-9`**: nothing gates "attackers
+already declared this combat", so a **vigilant** attacker stays untapped, stays `eligible`, and is
+re-offered without limit (CR 508.1 makes it a once-per-combat turn-based action). SIM-1 only made
+it *reachable* — seed 1's human commander is `Samut, Voice of Dissent`, which has Vigilance, and
+before this branch no commander could ever be cast, so no vigilant commander was ever on the
+battlefield to re-declare with. It is the same seed, the same turn range and the same
+20,000-command signature the audit already records for the S8 **bot-side** instance.
+**The fix location was already decided, in shipped source.** `heuristic_bot.rs` mitigated the
+identical loop with a per-combat `RepeatKey` cap and states its reason: put it in the client
+"rather than in `StubProvider` … keeps the provider's action list, and therefore every recorded
+`mtg-fuzzer` seed, untouched." The scripted human policy is simply the **second client** to need
+it, so it got the same cap — reset on the **combat-entry edge**, not the turn number, because
+`MR-M11-09` found exactly that regression in the bot (a turn-keyed tally silently disables attacks
+in every CR 506.5 extra combat). **No assertion was relaxed.**
+
+**A/B evidence, measured in a separate git worktree at the true merge-base — not reasoned to:**
+- **Fuzzer unperturbed.** 60 games, `--seed 42 --max-turns 50 --verbose`: per-game
+  `Seed/Turns/Commands/Violations/Error` lines diffed with **zero** differences; the only differing
+  line in the entire output is the games/sec throughput counter (58 vs 57), i.e. timing noise.
+  This is immunity **by construction** — `fuzzer.rs` never calls `builder.player_commander`, so
+  `commander_ids` is empty and the `commander_ids`-gated offer is unreachable there (`OOS-SIM1-4`).
+- **Playthrough trajectory essentially unmoved.** Per-seed commands, merge-base → branch:
+  1058→1064, 1177→1183, 1164→1172, 1010→1010, 1118→1111 — within ~1% on every seed, with identical
+  per-seed action-kind coverage sets.
+- **A correction worth carrying**: I first reported these seeds as finishing "below the pre-SIM-1
+  baseline". That compared against a **stale comment inside the test file**, written for a
+  different `max_commands` config. The measured answer is *unchanged*, which is a stronger result —
+  but the lesson is the recurring one here: **a number written in a doc is not a baseline; the
+  baseline is what the merge-base actually does when you run it.**
+- **Pre-existing failure correctly attributed**: the documented smoke command
+  (`--games 100 --seed 42`, default `--max-turns 200`) **stack-overflows on the merge-base too** —
+  `OOS-M11-3` / `OOS-DP3-9`, reproduced on pristine code, not SIM-1.
+
+**Seeds filed** (durable rows in `docs/audits/decision-point-audit.md` §8.1, the same table CARDS-1
+used): **`OOS-SIM1-1`** (hybrid/Phyrexian commander gated by `can_afford`, not a payment plan —
+`CastSpell` has no PB-RS2 channel; note the tax cannot *create* a pip, since `apply_commander_tax`
+writes only `generic`), **`OOS-SIM1-2`** (a **fourth** printed-cost auto-tap in `tools/tui`,
+outside this batch's scope — which is why `effective_cast_cost` is exported `pub`, so the fix is a
+call and not a copy), **`OOS-SIM1-3`** (verified exhaustively against all 9 `GameRestriction`
+variants: 7 are cast-relevant, the provider now mirrors 5, and exactly
+`MaxNoncreatureSpellsPerTurn` + `MaxNonartifactSpellsPerTurn` remain unmirrored — pre-existing for
+hand casts, deliberately not widened), **`OOS-SIM1-4`** (the fuzzer's games are not Commander games
+at all: no tax, no CR 903.9a return, no CR 903.10a commander damage is ever fuzzed — deliberately
+unfixed, because fixing it moves every recorded seed).
+
+**Scope note the coordinator must record, not swallow**: criterion 5984 requires an HTTP probe and
+`tools/play-server` is a **bin** crate with no `lib.rs`, so no `tests/` integration test can reach
+`build_router` — every HTTP test in this crate lives in `main.rs`'s `#[cfg(test)] mod tests`. So
+criterion 5987's "empty git diff elsewhere" is satisfied as: engine/card-types/card-defs diffs
+**empty**, and the `main.rs` diff **proven** test-only by line arithmetic rather than asserted —
+the `#[cfg(test)]` cut is at line 207 and the lowest changed line is 3873, so the shipped binary is
+behaviourally identical.
+
+**Commit prefix used**: `scutemob-175:`
+
 ## Last Handoff
 
 **Date**: 2026-08-02 (worker session, `scutemob-174` — UI-1 blocking-decision pickers)

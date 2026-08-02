@@ -6,10 +6,11 @@
 //! cases that a full engine implementation would catch.
 
 use mtg_engine::{
-    AbilityDefinition, AttackTarget, CardType, CounterType, EffectChoiceAnswer,
-    EffectChoiceQuestion, EffectDuration, FaceDownKind, FlashGrantFilter, GameRestriction,
-    GameState, HybridMana, HybridManaPayment, KeywordAbility, ManaColor, ManaCost, ObjectId,
-    PhyrexianMana, PlayerId, Step, Target, TriggerTargetOption, TurnFaceUpMethod, ZoneId,
+    apply_commander_tax, AbilityDefinition, AttackTarget, CardType, CounterType,
+    EffectChoiceAnswer, EffectChoiceQuestion, EffectDuration, FaceDownKind, FlashGrantFilter,
+    GameObject, GameRestriction, GameState, HybridMana, HybridManaPayment, KeywordAbility,
+    ManaColor, ManaCost, ObjectId, PhyrexianMana, PlayerId, Step, Target, TriggerTargetOption,
+    TurnFaceUpMethod, ZoneId,
 };
 
 /// A legal action a player may take at this moment.
@@ -530,55 +531,11 @@ impl LegalActionProvider for StubProvider {
                     continue;
                 }
 
-                let is_instant = obj.characteristics.card_types.contains(&CardType::Instant);
-                let has_flash = obj
-                    .characteristics
-                    .keywords
-                    .contains(&KeywordAbility::Flash);
-
-                // CR 601.3b: Check if player has an active flash grant for this spell.
-                let has_flash_grant = state.flash_grants().iter().any(|g| {
-                    if g.player != player {
-                        return false;
-                    }
-                    // CR 611.2b: WhileSourceOnBattlefield grants are only active while
-                    // the source object is still on the battlefield (mirrors engine's
-                    // has_active_flash_grant check in casting.rs).
-                    if matches!(g.duration, EffectDuration::WhileSourceOnBattlefield) {
-                        if let Some(src) = g.source {
-                            let on_bf = state
-                                .objects()
-                                .get(&src)
-                                .map(|o| matches!(o.zone, ZoneId::Battlefield))
-                                .unwrap_or(false);
-                            if !on_bf {
-                                return false;
-                            }
-                        }
-                    }
-                    match &g.filter {
-                        FlashGrantFilter::AllSpells => true,
-                        FlashGrantFilter::Sorceries => {
-                            obj.characteristics.card_types.contains(&CardType::Sorcery)
-                        }
-                        FlashGrantFilter::GreenCreatures => {
-                            obj.characteristics.card_types.contains(&CardType::Creature)
-                                && obj
-                                    .characteristics
-                                    .colors
-                                    .contains(&mtg_engine::Color::Green)
-                        }
-                    }
-                });
-                // Timing check: instants and flash anytime with priority;
-                // sorcery-speed only main phase + stack empty + active player
-                let can_cast = if is_instant || has_flash || has_flash_grant {
-                    true
-                } else {
-                    is_main_phase && stack_empty && is_active
-                };
-
-                if can_cast {
+                // SIM-1 Step 3: timing predicate extracted to `can_cast_at_this_time`
+                // so the hand loop and the new command-zone loop (below) cannot drift
+                // out of sync on CR 117.1a / CR 601.3b timing.
+                if can_cast_at_this_time(state, player, obj, is_main_phase, stack_empty, is_active)
+                {
                     // Basic mana affordability check
                     if let Some(ref cost) = obj.characteristics.mana_cost {
                         if can_afford(state, player, cost) {
@@ -588,6 +545,87 @@ impl LegalActionProvider for StubProvider {
                             });
                         }
                     }
+                }
+            }
+        }
+
+        // SIM-1 (CR 903.8 / CR 601.2a, playtest triage F7): a player may cast a
+        // commander they OWN from the command zone. The engine has always supported
+        // this (`casting.rs` derives command-zone-ness from the object's zone, admits
+        // the "not in your hand" gate, gates CR 903.8 on `CardId`, applies the tax, and
+        // increments the tax counter on cast) -- the provider simply never looked in
+        // the zone, so a human clicking their commander in the browser was told the
+        // server offered nothing.
+        //
+        // Three filters, each mirroring an engine gate rather than a preference:
+        //   * `ZoneId::Command(player)` only -- never another seat's zone
+        //     (`casting.rs`'s `casting_from_command_zone` derivation).
+        //   * `commander_ids` (CR 903.8) -- CR 408.1 makes the command zone a home for
+        //     other objects too (emblems), and CR 903.9a/b can move things through it.
+        //     The zone is NOT the filter; `commander_ids` is.
+        //   * CR 101.2 non-hand cast restriction (`is_cast_from_nonhand_restricted`) --
+        //     newly reachable now that this provider offers a non-hand cast at all; see
+        //     that function's doc.
+        //
+        // Timing is MIRRORED, not assumed: a commander is a permanent so it is normally
+        // sorcery speed (CR 117.1a), but the engine's own gate is zone-agnostic, so a
+        // commander with Flash or under a CR 601.3b flash grant is legal at instant
+        // speed and must be offered -- `can_cast_at_this_time` is the same predicate
+        // the hand loop above uses, so the two cannot diverge.
+        //
+        // Placed immediately after the hand loop it mirrors, so the two stay readable
+        // as a pair. **This is NOT an "append", and the difference matters**: the
+        // tap-for-mana, declare-attackers and declare-blockers blocks all run below,
+        // so whenever this loop pushes, every one of their indices shifts by one — and
+        // `RandomBot` chooses by index into this list.
+        //
+        // So the reason no recorded `mtg-fuzzer` seed moves is **not** placement. It is
+        // that the offer is gated on `commander_ids`, and `fuzzer.rs` builds its
+        // command-zone object without ever calling `builder.player_commander(..)` —
+        // so `commander_ids` is empty in every fuzzer game and this loop cannot fire
+        // there at all. That is structural unreachability, filed as `OOS-SIM1-4`, and
+        // it is a stronger guarantee than index arithmetic would have been. Verified
+        // by A/B against the merge-base: 60 games, per-game results byte-identical.
+        //
+        // A future session that closes `OOS-SIM1-4` (teaching the fuzzer to register
+        // commanders) re-rolls every recorded seed. That is the cost named in the seed,
+        // and it is the *registration* that causes it — moving this block would not
+        // help.
+        if !cast_restricted && !is_cast_from_nonhand_restricted(state, player) {
+            let command_zone = ZoneId::Command(player);
+            for obj in state.objects_in_zone(&command_zone) {
+                // CR 117.1a: a land is played, not cast. No commander is a land today;
+                // the skip mirrors the hand loop so the two cannot diverge if one ever
+                // is.
+                if obj.characteristics.card_types.contains(&CardType::Land) {
+                    continue;
+                }
+                // CR 903.8, keyed on CardId -- NOT ObjectId.
+                let Some(cid) = obj.card_id.as_ref() else {
+                    continue;
+                };
+                let is_commander = state
+                    .player(player)
+                    .map(|ps| ps.commander_ids.contains(cid))
+                    .unwrap_or(false);
+                if !is_commander {
+                    continue;
+                }
+                if !can_cast_at_this_time(state, player, obj, is_main_phase, stack_empty, is_active)
+                {
+                    continue;
+                }
+                // CR 903.8 / 601.2f: the tax is a cost INCREASE folded into the total
+                // cost, so the affordability gate must see it or the offer is a
+                // guaranteed rejection (SR-38).
+                let Some(cost) = effective_cast_cost(state, player, obj.id) else {
+                    continue;
+                };
+                if can_afford(state, player, &cost) {
+                    actions.push(LegalAction::CastSpell {
+                        card: obj.id,
+                        from_zone: command_zone,
+                    });
                 }
             }
         }
@@ -1499,6 +1537,124 @@ fn multiply_mana_cost(cost: &ManaCost, multiplier: u32) -> ManaCost {
         x_count: cost.x_count * multiplier,
     }
 }
+
+/// CR 117.1a / CR 601.3b (SIM-1 Step 3): may `player` begin casting `obj` in the
+/// current priority window? Shared by the hand loop and the command-zone loop in
+/// `StubProvider::legal_actions` so the two enumerations cannot drift apart on
+/// timing -- a pure extraction of what was previously duplicated inline in the hand
+/// loop, behaviour-preserving (verified by the existing suite staying green with no
+/// test edits).
+///
+/// Instants, Flash, and any active CR 601.3b flash grant (`state.flash_grants()`) are
+/// castable any time the caller has priority; everything else is sorcery-speed only
+/// (main phase, empty stack, active player). This is deliberately zone-agnostic: the
+/// engine's own timing gate (`casting.rs`) knows nothing about which zone the card
+/// came from, so a commander with Flash, or one under a Vedalken Orrery / Leyline of
+/// Anticipation grant, is legally castable at instant speed and must be offered --
+/// hard-coding sorcery speed for the command-zone loop would under-offer.
+fn can_cast_at_this_time(
+    state: &GameState,
+    player: PlayerId,
+    obj: &GameObject,
+    is_main_phase: bool,
+    stack_empty: bool,
+    is_active: bool,
+) -> bool {
+    let is_instant = obj.characteristics.card_types.contains(&CardType::Instant);
+    let has_flash = obj
+        .characteristics
+        .keywords
+        .contains(&KeywordAbility::Flash);
+
+    // CR 601.3b: Check if player has an active flash grant for this spell.
+    let has_flash_grant = state.flash_grants().iter().any(|g| {
+        if g.player != player {
+            return false;
+        }
+        // CR 611.2b: WhileSourceOnBattlefield grants are only active while
+        // the source object is still on the battlefield (mirrors engine's
+        // has_active_flash_grant check in casting.rs).
+        if matches!(g.duration, EffectDuration::WhileSourceOnBattlefield) {
+            if let Some(src) = g.source {
+                let on_bf = state
+                    .objects()
+                    .get(&src)
+                    .map(|o| matches!(o.zone, ZoneId::Battlefield))
+                    .unwrap_or(false);
+                if !on_bf {
+                    return false;
+                }
+            }
+        }
+        match &g.filter {
+            FlashGrantFilter::AllSpells => true,
+            FlashGrantFilter::Sorceries => {
+                obj.characteristics.card_types.contains(&CardType::Sorcery)
+            }
+            FlashGrantFilter::GreenCreatures => {
+                obj.characteristics.card_types.contains(&CardType::Creature)
+                    && obj
+                        .characteristics
+                        .colors
+                        .contains(&mtg_engine::Color::Green)
+            }
+        }
+    });
+    // Timing check: instants and flash anytime with priority;
+    // sorcery-speed only main phase + stack empty + active player
+    if is_instant || has_flash || has_flash_grant {
+        true
+    } else {
+        is_main_phase && stack_empty && is_active
+    }
+}
+
+/// CR 903.8 / CR 601.2f (SIM-1): the mana cost this player will actually be charged for
+/// casting `card` right now -- the printed cost, plus commander tax when (and only when)
+/// `card` is in `ZoneId::Command(player)` AND its `CardId` is one of `player`'s
+/// `commander_ids`.
+///
+/// Mirrors `rules/casting.rs`'s own two-part derivation exactly:
+///   * `casting.rs::process_command`'s `casting_from_command_zone` derivation -- the
+///     object's zone equals `ZoneId::Command(player)`.
+///   * `casting.rs`'s CR 903.8 gate -- `player_state.commander_ids.contains(card_id)`.
+///   * `casting.rs`'s tax application -- `apply_commander_tax(&base, tax)`, where `tax`
+///     is the count of PREVIOUS casts (`commander_tax.get(cid)`, defaulting to 0).
+///
+/// The tax itself is consumed from the engine (`mtg_engine::apply_commander_tax`), never
+/// re-derived here -- SR-38's "only offer what the engine accepts" is only true if the
+/// two arithmetics are literally the same function. Contrast `multiply_mana_cost` above,
+/// which is a *necessary* duplicate because the engine's copy is private; this one is
+/// not, so duplicating it would be a choice, and the wrong one.
+///
+/// Returns `None` when the object has no mana cost (an emblem in the command zone under
+/// CR 408.1, a land, a missing object) or -- defensively, unreached by any real card --
+/// a command-zone object with a mana cost but no `CardId`. Every caller treats `None`
+/// as "nothing to pay for / nothing to offer".
+///
+/// **Identity for every non-commander cast**: for a card in hand (or any zone other than
+/// this player's command zone, or a command-zone object that is not one of this
+/// player's registered commanders) both guards fail and the printed cost is returned
+/// unchanged, so no existing offer, plan or seed moves (T12).
+pub fn effective_cast_cost(
+    state: &GameState,
+    player: PlayerId,
+    card: ObjectId,
+) -> Option<ManaCost> {
+    let obj = state.object(card).ok()?;
+    let printed = obj.characteristics.mana_cost.clone()?;
+    if obj.zone != ZoneId::Command(player) {
+        return Some(printed);
+    }
+    let ps = state.player(player).ok()?;
+    let cid = obj.card_id.as_ref()?;
+    if !ps.commander_ids.contains(cid) {
+        return Some(printed);
+    }
+    let tax = ps.commander_tax.get(cid).copied().unwrap_or(0);
+    Some(apply_commander_tax(&printed, tax))
+}
+
 /// Mana affordability check: considers both mana pool and untapped sources.
 /// Uses the mana solver for precise color-aware checking.
 fn can_afford(state: &GameState, player: PlayerId, cost: &mtg_engine::ManaCost) -> bool {
@@ -1594,8 +1750,10 @@ fn is_ability_restricted_by_stax(state: &GameState, player: PlayerId, source: Ob
 /// any spell at all (MaxSpellsPerTurn, OpponentsCantCast*).
 ///
 /// Returns true if the player is completely restricted from casting.
-/// Does NOT check per-card restrictions (like Drannith Magistrate's zone restriction)
-/// — those need per-card checking at a deeper level.
+/// Does NOT check per-card ZONE restrictions (like Drannith Magistrate's) --
+/// those are checked separately by `is_cast_from_nonhand_restricted` (SIM-1), which
+/// callers must consult alongside this function wherever a non-hand cast can be
+/// offered.
 fn is_cast_restricted_by_stax(state: &GameState, player: PlayerId) -> bool {
     use mtg_engine::GameRestriction;
 
@@ -1656,6 +1814,41 @@ fn is_cast_restricted_by_stax(state: &GameState, player: PlayerId) -> bool {
         }
     }
 
+    false
+}
+
+/// CR 101.2 (Drannith Magistrate) (SIM-1): mirrors the `OpponentsCantCastFromNonHand`
+/// arm of `rules/casting.rs`'s `check_cast_restrictions`.
+///
+/// `is_cast_restricted_by_stax` deliberately does not check per-card ZONE
+/// restrictions -- its own doc says so -- and that was harmless while the provider
+/// offered hand casts only, because a hand cast always satisfies
+/// `zone == Hand(player)`. Every command-zone cast is a non-hand cast, so without
+/// this check SIM-1 would offer an action the engine rejects 100% of the time
+/// whenever any opponent controls a Drannith Magistrate (`drannith_magistrate.rs`,
+/// `Completeness::Complete`, deck-legal). SR-38.
+///
+/// Player-level, not per-card: the engine's arm reduces to `zone != Hand(player)`,
+/// which is unconditionally true for the command zone.
+fn is_cast_from_nonhand_restricted(state: &GameState, player: PlayerId) -> bool {
+    for restriction in state.restrictions().iter() {
+        // Same "source still on the battlefield" guard as `is_cast_restricted_by_stax`.
+        let source_on_bf = state
+            .objects()
+            .get(&restriction.source)
+            .map(|o| matches!(o.zone, ZoneId::Battlefield))
+            .unwrap_or(false);
+        if !source_on_bf {
+            continue;
+        }
+        if matches!(
+            restriction.restriction,
+            GameRestriction::OpponentsCantCastFromNonHand
+        ) && player != restriction.controller
+        {
+            return true;
+        }
+    }
     false
 }
 

@@ -124,6 +124,61 @@ fn kind_of(action: &LegalAction) -> &'static str {
     }
 }
 
+/// Per-combat memory for [`choose`] — the scripted policy's half of the `OOS-M11-9`
+/// mitigation (SIM-1).
+///
+/// # Why a stateless policy is not enough any more
+///
+/// `HeuristicBot` has carried a per-combat cap of **1** on `RepeatKey::DeclareAttackers`
+/// since M11-local S8, and that cap's own doc records both the defect and the decision
+/// about where to mitigate it: neither `StubProvider` nor `combat.rs::handle_declare_attackers`
+/// gates *"attackers have already been declared this combat"*, so with a **vigilant**
+/// attacker — which stays untapped and therefore stays `eligible` — `DeclareAttackers` is
+/// offered and accepted without limit (CR 508.1 makes it a turn-based action performed
+/// **once**; the engine accepting a second is `OOS-M11-9`, and fixing it is an engine
+/// change). S8 put the mitigation in the *client* explicitly "rather than in `StubProvider`
+/// … keeps the provider's action list, and therefore every recorded `mtg-fuzzer` seed,
+/// untouched."
+///
+/// This policy is the **second client** to need it, and it needed it the moment SIM-1
+/// landed. Before SIM-1 the human's commander could never be cast, so a commander never
+/// reached the battlefield here; seed 1's human commander is `Samut, Voice of Dissent`,
+/// which has **Vigilance**. Observed on this branch before the cap: seed 1 halted
+/// `InfiniteLoop` at turn 17 having applied exactly 20,000 commands, of which **19,351
+/// were `DeclareAttackers` submitted in that single turn** (measured, not reasoned to).
+/// That is the same seed, the same turn range and the same 20,000 commands the S8 bot-side
+/// instance produced — recorded in `docs/audits/decision-point-audit.md` §8.1's
+/// `OOS-M11-9` row.
+///
+/// **This is a policy cap, not a relaxed assertion.** Every assertion in the test below is
+/// unchanged: `error == None`, no violations, no leaked tokens, outcome ∈ {GameOver,
+/// MaxTurns}, and the `PlayLand`/`DeclareAttackers` coverage set. The cap only stops the
+/// policy from *preferring* an action CR 508.1 says is not a real second play.
+#[derive(Default)]
+struct PolicyState {
+    /// Whether a `CombatState` existed the last time the policy acted. Reset of the
+    /// per-combat tally keys on the `false → true` edge, exactly as
+    /// `HeuristicBot::refresh_repeat_scope` does — `turn_actions.rs` clears
+    /// `state.combat` at end of combat and installs a fresh one at `BeginningOfCombat`,
+    /// so the edge is a reliable "a new combat phase has begun" signal. Keying on the
+    /// **turn number** instead would silently disable attacks in every CR 506.5 extra
+    /// combat, which is precisely the regression `MR-M11-09` found in the bot.
+    in_combat: bool,
+    /// How many times this policy has already declared attackers in the current combat.
+    declared_attackers_this_combat: u32,
+}
+
+impl PolicyState {
+    /// Mirrors `HeuristicBot::refresh_repeat_scope`'s combat-entry edge detection.
+    fn refresh_scope(&mut self, state: &mtg_engine::GameState) {
+        let in_combat = state.combat().is_some();
+        if in_combat && !self.in_combat {
+            self.declared_attackers_this_combat = 0;
+        }
+        self.in_combat = in_combat;
+    }
+}
+
 /// The scripted human policy: **prefer a land → prefer the cheapest castable spell
 /// → attack when able → otherwise pass**, exactly as plan item 1 words it.
 ///
@@ -150,8 +205,13 @@ fn kind_of(action: &LegalAction) -> &'static str {
 /// fallback is "first non-Concede" and not "PassPriority or bust": passing is not
 /// legal there and the engine's admission gate would refuse it, turning a
 /// recoverable state into `Halted(EngineError)` (OOS-DP7-12).
-fn choose(state: &mtg_engine::GameState, decision: &PendingDecision) -> (usize, ActionParams) {
+fn choose(
+    state: &mtg_engine::GameState,
+    decision: &PendingDecision,
+    policy: &mut PolicyState,
+) -> (usize, ActionParams) {
     let actions = &decision.actions;
+    policy.refresh_scope(state);
 
     // 1. A land drop is always the best available play in this policy.
     if let Some(i) = actions
@@ -212,19 +272,27 @@ fn choose(state: &mtg_engine::GameState, decision: &PendingDecision) -> (usize, 
     // 3. Attack with everything eligible, each at the first offered attack target
     //    (CR 508.1a). An empty `eligible` list still yields an empty declaration,
     //    which is legal and is how a combat with no creatures proceeds.
-    if let Some((i, LegalAction::DeclareAttackers { eligible, targets })) = actions
-        .iter()
-        .enumerate()
-        .find(|(_, a)| matches!(a, LegalAction::DeclareAttackers { .. }))
-    {
-        let params = ActionParams {
-            attackers: match targets.first() {
-                Some(t) => eligible.iter().map(|e| (*e, t.clone())).collect(),
-                None => Vec::new(),
-            },
-            ..ActionParams::default()
-        };
-        return (i, params);
+    //
+    //    CR 508.1 / `OOS-M11-9` (SIM-1): **once per combat phase**. See
+    //    [`PolicyState`] — past the first declaration the policy falls through to
+    //    `PassPriority` below rather than re-declaring, exactly as `HeuristicBot`'s
+    //    `RepeatKey::DeclareAttackers` cap of 1 makes the bot seats do.
+    if policy.declared_attackers_this_combat == 0 {
+        if let Some((i, LegalAction::DeclareAttackers { eligible, targets })) = actions
+            .iter()
+            .enumerate()
+            .find(|(_, a)| matches!(a, LegalAction::DeclareAttackers { .. }))
+        {
+            let params = ActionParams {
+                attackers: match targets.first() {
+                    Some(t) => eligible.iter().map(|e| (*e, t.clone())).collect(),
+                    None => Vec::new(),
+                },
+                ..ActionParams::default()
+            };
+            policy.declared_attackers_this_combat += 1;
+            return (i, params);
+        }
     }
 
     // 4. Pass.
@@ -334,11 +402,15 @@ fn play(seed: u64) -> Playthrough {
         }
     };
 
+    // CR 508.1 / `OOS-M11-9` — see [`PolicyState`]. One per playthrough, so the
+    // per-combat tally is scoped to this seed's game and nothing leaks between seeds.
+    let mut policy = PolicyState::default();
+
     loop {
         match game.advance() {
             AdvanceOutcome::AwaitingHuman(decision) => {
                 result.decisions += 1;
-                let (index, params) = choose(game.state(), &decision);
+                let (index, params) = choose(game.state(), &decision, &mut policy);
                 result
                     .submitted_kinds
                     .insert(kind_of(&decision.actions[index]));
