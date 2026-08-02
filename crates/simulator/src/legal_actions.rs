@@ -585,18 +585,14 @@ impl LegalActionProvider for StubProvider {
                     // Basic mana affordability check
                     if let Some(ref cost) = obj.characteristics.mana_cost {
                         if can_afford(state, player, cost) {
-                            // UI-2 (CR 118.8 / CR 702.157, SR-38 criterion 5999): build
-                            // the additional-cost descriptor and suppress the WHOLE
-                            // offer if a required sacrifice has no eligible permanent --
-                            // `casting.rs:3311` would refuse the cast outright, and
-                            // offering it anyway was the F9 defect.
-                            let additional_costs = build_additional_cost_plan(state, player, obj);
-                            let sacrifice_offerable = additional_costs
-                                .sacrifice
-                                .as_ref()
-                                .map(|s| !s.eligible.is_empty())
-                                .unwrap_or(true);
-                            if sacrifice_offerable {
+                            // UI-2 (CR 118.8 / CR 702.157, SR-38 criterion 5999): see
+                            // `offerable_cast_plan`. The command-zone loop below calls
+                            // the SAME helper -- the two used to carry byte-identical
+                            // inline copies under a comment saying they must not
+                            // diverge, which is a rule stated rather than enforced
+                            // (review Issue 4).
+                            if let Some(additional_costs) = offerable_cast_plan(state, player, obj)
+                            {
                                 actions.push(LegalAction::CastSpell {
                                     card: obj.id,
                                     from_zone: hand,
@@ -682,16 +678,12 @@ impl LegalActionProvider for StubProvider {
                     continue;
                 };
                 if can_afford(state, player, &cost) {
-                    // UI-2: see the identical gate in the hand loop above -- the two
-                    // must not diverge on when a required sacrifice suppresses the
-                    // offer.
-                    let additional_costs = build_additional_cost_plan(state, player, obj);
-                    let sacrifice_offerable = additional_costs
-                        .sacrifice
-                        .as_ref()
-                        .map(|s| !s.eligible.is_empty())
-                        .unwrap_or(true);
-                    if sacrifice_offerable {
+                    // UI-2: the SAME helper the hand loop above uses, so the two
+                    // cannot diverge on when a required sacrifice suppresses the
+                    // offer. A commander with a CR 118.8 additional cost is a shape
+                    // no card in the corpus has today, which is exactly why this
+                    // must be shared code rather than a second copy nobody tests.
+                    if let Some(additional_costs) = offerable_cast_plan(state, player, obj) {
                         actions.push(LegalAction::CastSpell {
                             card: obj.id,
                             from_zone: command_zone,
@@ -1812,6 +1804,37 @@ fn eligible_spell_sacrifice_targets(
         .collect()
 }
 
+/// CR 118.8 / SR-38 (UI-2 §1.3): the `AdditionalCostPlan` to offer with a
+/// `CastSpell` for `obj`, or `None` if the cast must not be offered at all.
+///
+/// `None` means exactly one thing: the spell declares a REQUIRED sacrifice
+/// (CR 118.8) and this player controls nothing eligible to pay it, so
+/// `casting.rs:3311` would refuse the cast outright. Offering it anyway was the F9
+/// defect -- the human clicked Life's Legacy and got a 422.
+///
+/// Squad never suppresses: it is optional (CR 702.157a, "any number of times",
+/// including zero), so a spell with Squad and no spare mana is still cast.
+///
+/// **One helper, two call sites, and that is the point** (review Issue 4): the hand
+/// loop and the command-zone loop used to carry byte-identical inline copies of this
+/// under a comment saying the two must not diverge. A rule that lives in a comment
+/// is a rule nothing enforces, and only one of the two copies had a test.
+fn offerable_cast_plan(
+    state: &GameState,
+    player: PlayerId,
+    obj: &GameObject,
+) -> Option<AdditionalCostPlan> {
+    let plan = build_additional_cost_plan(state, player, obj);
+    if plan
+        .sacrifice
+        .as_ref()
+        .is_some_and(|s| s.eligible.is_empty())
+    {
+        return None;
+    }
+    Some(plan)
+}
+
 /// CR 118.8 / CR 702.157 (UI-2 §1): builds the additional-cost descriptor for
 /// casting `obj` -- consumed by `params.rs` (the bot default) and, in a later
 /// stage, `tools/play-server` (the picker). `AdditionalCostPlan::default()` (both
@@ -1881,17 +1904,31 @@ fn build_additional_cost_plan(
 /// CR 702.157a (UI-2 §1.4): the largest N this player can currently afford on top
 /// of `card`'s own effective cast cost, paying `squad_cost` N times.
 ///
-/// A GENUINE upper bound gates the search, not an arbitrary cap -- every mana
-/// ability produces at least one mana, so no payment plan can exceed `pool.total()
-/// + <count of untapped battlefield permanents this player controls with at least
-/// one mana ability>`. The loop then walks `n = 1..` checking `can_afford` (mirrors
-/// `effective_cast_cost_with_additional`, so this can never drift from what the
-/// engine will actually charge) and stops at the first unaffordable `n` -- the
-/// cost strictly increases with `n`, so affordability cannot come back once lost.
+/// A GENUINE upper bound gates the search, not an arbitrary cap: no payment plan
+/// can exceed `pool.total()` plus the summed maximum output of this player's
+/// untapped mana sources. The loop then walks `n = 1..` checking `can_afford` and
+/// stops at the first unaffordable `n` -- the cost strictly increases with `n`, so
+/// affordability cannot come back once lost.
+///
+/// The COST arithmetic is `effective_cast_cost_with_additional`, the same function
+/// `LocalGame`'s two auto-tap sites use, so this cannot drift from what the engine
+/// will actually charge.
+///
+/// **The AFFORDABILITY arithmetic is a different matter, and the distinction is
+/// worth stating** (review Issue 1): `can_afford` answers "the pool alone covers
+/// this" OR "the solver finds a plan from untapped sources alone", and never
+/// "pool plus a few fresh taps". That is the surviving half of `OOS-M11-2`
+/// (`mana_solver.rs` ignores the pool entirely), and it is **symmetric** rather
+/// than a new asymmetry: `LocalGame::auto_tap_commands_for` takes exactly the same
+/// two branches, so a count this function calls unaffordable is a count the payment
+/// path could not have paid either. It is still a real under-report against what
+/// the ENGINE would accept from a hand-built command, and it is the reason a human
+/// with floating mana and untapped lands may be offered a smaller `max_count` than
+/// CR 601.2h would allow -- filed as `OOS-UI2-3`.
 ///
 /// Returns 0 if `squad_cost.mana_value() == 0`: the loop would be unbounded (an
-/// ever-larger N stays equally "free"), and the roster gate (a later stage's plan
-/// §6 R4) pins that no def in the corpus has one.
+/// ever-larger N stays equally "free"), and the roster gate
+/// (`core::ui2_additional_cost_roster` R4) pins that no def in the corpus has one.
 fn squad_max_count(
     state: &GameState,
     player: PlayerId,
@@ -1907,18 +1944,40 @@ fn squad_max_count(
         .player(player)
         .map(|p| p.mana_pool.total())
         .unwrap_or(0);
-    let mana_source_count = state
+    // The bound must OVER-estimate, never under-estimate: `can_afford` below is the
+    // real gate, so an over-estimate only costs a wasted loop iteration, while an
+    // under-estimate silently caps what a human is allowed to pay and is then
+    // enforced as a hard 400 by `validate_additional_cost_params`.
+    //
+    // So sum each untapped source's actual maximum output rather than counting
+    // sources at one mana each (review Issue 1). Summing every ability of every
+    // source over-counts a source that can only be activated once, which is the
+    // safe direction.
+    //
+    // **This is currently unobservable, and saying so is the point**: `can_afford`'s
+    // solver has the SAME under-count one layer down -- `mana_solver`'s Phase 3 does
+    // `remaining.generic -= 1` per source tapped, regardless of how much that source
+    // produces, which is playtest triage **F4** and is open. So the solver's cap
+    // binds before this bound ever does, and the test
+    // `squad_max_count_is_capped_by_the_solvers_one_mana_per_source_defect_f4` pins
+    // exactly that rather than pretending this change moved a number. It is made
+    // anyway because two independent under-counts are worse than one: with this
+    // fixed, closing F4 fixes the offer, instead of revealing a second cap nobody
+    // remembered. Seed `OOS-UI2-3`.
+    let mana_source_total: u32 = state
         .objects_in_zone(&ZoneId::Battlefield)
         .into_iter()
         .filter(|o| o.controller == player && !o.status.tapped)
-        .filter(|o| {
-            !mtg_engine::rules::layers::calculate_characteristics(state, o.id)
+        .map(|o| {
+            mtg_engine::rules::layers::calculate_characteristics(state, o.id)
                 .unwrap_or_else(|| o.characteristics.clone())
                 .mana_abilities
-                .is_empty()
+                .iter()
+                .map(|a| a.produces.values().copied().sum::<u32>().max(1))
+                .sum::<u32>()
         })
-        .count() as u32;
-    let available = pool_total.saturating_add(mana_source_count);
+        .sum();
+    let available = pool_total.saturating_add(mana_source_total);
 
     let base_mv = effective_cast_cost(state, player, card)
         .map(|c| c.mana_value())
@@ -1963,13 +2022,31 @@ pub fn effective_cast_cost_with_additional(
     additional_costs: &[AdditionalCost],
 ) -> Option<ManaCost> {
     let mut cost = effective_cast_cost(state, player, card)?;
-    for ac in additional_costs {
-        let AdditionalCost::Squad { count } = ac else {
-            continue;
-        };
-        if *count == 0 {
-            continue;
-        }
+    // **LAST wins, not the sum** -- and the difference is a mirror correction, not a
+    // preference. `casting.rs`'s own destructuring loop is
+    // `AdditionalCost::Squad { count } => { squad_count = *count; }`, a plain
+    // assignment, so a command carrying two `Squad` entries is charged for the LAST
+    // one only. A first draft here summed them, which meant a two-entry submission
+    // made this helper (and therefore the auto-tap) reach for strictly more mana
+    // than the engine would charge: with only the smaller amount available the
+    // solver found no plan, no taps were issued, and the engine refused the cast
+    // with "player does not have enough mana to pay the cost" -- a 422 after a
+    // clean offer, exactly the SR-38 shape this batch exists to delete. Found by
+    // review, not by a test.
+    //
+    // `tools/play-server`'s `validate_additional_cost_params` additionally refuses a
+    // duplicate `Squad` at the 400 boundary, because a second entry is an
+    // announcement the offer never made. The two are complementary rather than
+    // redundant: this one keeps the ARITHMETIC honest for every caller (a bot, the
+    // TUI, a test) and that one keeps the AMBIGUITY out of the HTTP surface.
+    let squad_count = additional_costs
+        .iter()
+        .filter_map(|ac| match ac {
+            AdditionalCost::Squad { count } => Some(*count),
+            _ => None,
+        })
+        .next_back();
+    if let Some(count) = squad_count.filter(|c| *c > 0) {
         let obj = state.object(card).ok()?;
         let squad_cost = obj
             .card_id
@@ -1984,7 +2061,7 @@ pub fn effective_cast_cost_with_additional(
                     }
                 })
             })?;
-        for _ in 0..*count {
+        for _ in 0..count {
             cost.white += squad_cost.white;
             cost.blue += squad_cost.blue;
             cost.black += squad_cost.black;
@@ -3537,6 +3614,235 @@ mod tests {
         let plan = build_additional_cost_plan(&state, p1, obj);
         assert!(plan.sacrifice.is_none());
         assert!(plan.squad.is_none());
+    }
+
+    /// **Fix cycle (review Issue 1), and the answer is not the one the review
+    /// expected.** The reviewer's premise -- that `squad_max_count` is pool-blind --
+    /// is wrong: `can_afford` checks the pool BEFORE reaching the solver, and
+    /// `LocalGame::auto_tap_commands_for` takes the same two branches, so the offer
+    /// and the payment path cannot disagree.
+    ///
+    /// What IS real is one layer down, and this test is its historical record:
+    /// `mana_solver`'s Phase 3 pays **one generic pip per SOURCE**
+    /// (`remaining.generic -= 1` after tapping a source regardless of what it
+    /// produces), so a Sol Ring counts as one mana. That is playtest triage **F4**,
+    /// pre-existing and open. `squad_max_count`'s own upper bound now SUMS each
+    /// source's real output rather than counting sources -- which is sound, and is
+    /// the right direction, but is **not observable today** because the solver's cap
+    /// binds first.
+    ///
+    /// So this asserts **0**, not 1, and says why. It is a pin on a defect, not on a
+    /// design: when F4 closes, this test must go red and be changed to 1. Writing it
+    /// the other way round -- asserting 1 and marking it `#[ignore]` -- would have
+    /// hidden which layer is actually wrong. Filed as `OOS-UI2-3`.
+    #[test]
+    fn squad_max_count_is_capped_by_the_solvers_one_mana_per_source_defect_f4() {
+        let p1 = PlayerId(1);
+        let p2 = PlayerId(2);
+        let defs = mtg_engine::all_cards()
+            .iter()
+            .map(|d| (d.name.clone(), d.clone()))
+            .collect::<std::collections::HashMap<_, _>>();
+        let honour_guard = mtg_engine::enrich_spec_from_def(
+            ObjectSpec::card(p1, "Ultramarines Honour Guard")
+                .with_card_id(mtg_engine::CardId("ultramarines-honour-guard".to_string()))
+                .in_zone(ZoneId::Hand(p1)),
+            &defs,
+        );
+        // Base {3}{W} = 4, Squad {2} = 2 per copy. One Plains ({W}) plus three
+        // two-mana rocks is SEVEN mana by the rules, which covers the base plus one
+        // extra copy ({W} + 5 generic). The solver sees FOUR.
+        let two_mana = || ManaAbility {
+            produces: [(ManaColor::Colorless, 2u32)].into_iter().collect(),
+            requires_tap: true,
+            ..Default::default()
+        };
+        let state = GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(p2)
+            .with_registry(ui2_registry())
+            .active_player(p1)
+            .object(honour_guard)
+            .object(
+                ObjectSpec::land(p1, "White Source").with_mana_ability(ManaAbility {
+                    produces: [(ManaColor::White, 1u32)].into_iter().collect(),
+                    requires_tap: true,
+                    ..Default::default()
+                }),
+            )
+            .object(ObjectSpec::artifact(p1, "Rock A").with_mana_ability(two_mana()))
+            .object(ObjectSpec::artifact(p1, "Rock B").with_mana_ability(two_mana()))
+            .object(ObjectSpec::artifact(p1, "Rock C").with_mana_ability(two_mana()))
+            .build()
+            .expect("state builds");
+        let card_id = id_of(&state, "Ultramarines Honour Guard");
+        let obj = state.object(card_id).expect("object exists");
+        let plan = build_additional_cost_plan(&state, p1, obj);
+        let squad = plan.squad.as_ref().expect("Squad must be detected");
+        assert_eq!(
+            squad.max_count, 0,
+            "playtest triage F4: `mana_solver` pays one generic pip per SOURCE, so \
+             three two-mana rocks read as three mana and the extra copy looks \
+             unaffordable. By the rules it is affordable and this should be 1. When \
+             F4 closes, change this to 1 -- do not delete the test."
+        );
+        // The offer itself is NOT suppressed: Squad is optional, so an unaffordable
+        // extra copy never stops the spell being cast (CR 702.157a).
+        assert!(
+            StubProvider
+                .legal_actions(&state, p1)
+                .iter()
+                .any(|a| matches!(a, LegalAction::CastSpell { card, .. } if *card == card_id)),
+            "Squad's max_count == 0 must not suppress the cast"
+        );
+    }
+
+    /// **Fix cycle (review Issue 2): `effective_cast_cost_with_additional` must take
+    /// the LAST `Squad` entry, not the sum** -- `casting.rs`'s own destructuring
+    /// loop is a plain assignment (`squad_count = *count`), so a command carrying
+    /// two entries is charged for the last one only.
+    ///
+    /// Summing made the auto-tap reach for strictly more mana than the engine
+    /// charges: the solver then found no plan, no taps were issued, and the engine
+    /// refused the cast for want of mana -- a 422 after a clean offer, which is the
+    /// SR-38 shape this whole batch exists to delete.
+    #[test]
+    fn squad_cost_takes_the_last_announced_entry_exactly_as_the_engine_does() {
+        let p1 = PlayerId(1);
+        let p2 = PlayerId(2);
+        let defs = mtg_engine::all_cards()
+            .iter()
+            .map(|d| (d.name.clone(), d.clone()))
+            .collect::<std::collections::HashMap<_, _>>();
+        let honour_guard = mtg_engine::enrich_spec_from_def(
+            ObjectSpec::card(p1, "Ultramarines Honour Guard")
+                .with_card_id(mtg_engine::CardId("ultramarines-honour-guard".to_string()))
+                .in_zone(ZoneId::Hand(p1)),
+            &defs,
+        );
+        let state = GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(p2)
+            .with_registry(ui2_registry())
+            .active_player(p1)
+            .object(honour_guard)
+            .build()
+            .expect("state builds");
+        let card_id = id_of(&state, "Ultramarines Honour Guard");
+
+        // Base {3}{W} has mana value 4; Squad {2} adds 2 per payment.
+        let one = effective_cast_cost_with_additional(
+            &state,
+            p1,
+            card_id,
+            &[AdditionalCost::Squad { count: 1 }],
+        )
+        .expect("has a mana cost");
+        assert_eq!(one.mana_value(), 6);
+
+        // Two entries: 2 then 1. LAST wins -> +2, total 6. Summing would give +6.
+        let last_wins = effective_cast_cost_with_additional(
+            &state,
+            p1,
+            card_id,
+            &[
+                AdditionalCost::Squad { count: 2 },
+                AdditionalCost::Squad { count: 1 },
+            ],
+        )
+        .expect("has a mana cost");
+        assert_eq!(
+            last_wins.mana_value(),
+            6,
+            "the LAST entry (count 1) is what casting.rs charges; summing would give 10"
+        );
+
+        // And the other order, so this cannot pass by coincidence of which is smaller.
+        let last_wins_other = effective_cast_cost_with_additional(
+            &state,
+            p1,
+            card_id,
+            &[
+                AdditionalCost::Squad { count: 1 },
+                AdditionalCost::Squad { count: 2 },
+            ],
+        )
+        .expect("has a mana cost");
+        assert_eq!(last_wins_other.mana_value(), 8);
+    }
+
+    /// **Fix cycle (review Issue 4): the COMMAND-ZONE loop suppresses too.**
+    ///
+    /// The two cast loops now share `offerable_cast_plan`, and this is the test the
+    /// command-zone copy never had. A commander with a CR 118.8 additional cost is a
+    /// shape no card in the corpus has, so the fixture builds one directly: the
+    /// object is a real registry card (Life's Legacy, which declares
+    /// `SacrificeCreature`) placed in `ZoneId::Command(p1)` and registered in
+    /// `commander_ids`, which is exactly what `casting.rs` keys CR 903.8 on.
+    #[test]
+    fn command_zone_cast_is_suppressed_with_no_eligible_sacrifice() {
+        let p1 = PlayerId(1);
+        let p2 = PlayerId(2);
+        let defs = mtg_engine::all_cards()
+            .iter()
+            .map(|d| (d.name.clone(), d.clone()))
+            .collect::<std::collections::HashMap<_, _>>();
+        let build = |with_creature: bool| {
+            let mut b = GameStateBuilder::new()
+                .add_player(p1)
+                .add_player(p2)
+                .with_registry(ui2_registry())
+                .active_player(p1)
+                .player_commander(p1, mtg_engine::CardId("lifes-legacy".to_string()))
+                .player_mana(
+                    p1,
+                    ManaPool {
+                        green: 1,
+                        white: 1,
+                        ..Default::default()
+                    },
+                )
+                .object(mtg_engine::enrich_spec_from_def(
+                    ObjectSpec::card(p1, "Life's Legacy")
+                        .with_card_id(mtg_engine::CardId("lifes-legacy".to_string()))
+                        .in_zone(ZoneId::Command(p1)),
+                    &defs,
+                ));
+            if with_creature {
+                b = b
+                    .object(ObjectSpec::creature(p1, "My Bear", 2, 2).in_zone(ZoneId::Battlefield));
+            }
+            b.build().expect("state builds")
+        };
+
+        let without = build(false);
+        let card_id = id_of(&without, "Life's Legacy");
+        assert!(
+            !StubProvider
+                .legal_actions(&without, p1)
+                .iter()
+                .any(|a| matches!(a, LegalAction::CastSpell { card, .. } if *card == card_id)),
+            "SR-38: a command-zone cast whose CR 118.8 sacrifice has no eligible \
+             permanent must not be offered either"
+        );
+
+        let with = build(true);
+        let card_id = id_of(&with, "Life's Legacy");
+        let action = StubProvider
+            .legal_actions(&with, p1)
+            .into_iter()
+            .find(|a| matches!(a, LegalAction::CastSpell { card, .. } if *card == card_id))
+            .expect("two-sided: with an eligible creature the command-zone cast IS offered");
+        let LegalAction::CastSpell {
+            from_zone,
+            additional_costs,
+            ..
+        } = &action
+        else {
+            unreachable!("matched by discriminant above");
+        };
+        assert_eq!(*from_zone, ZoneId::Command(p1));
+        assert!(additional_costs.sacrifice.is_some());
     }
 
     /// T5: Squad's `max_count` is a REAL bound derived from what the player can

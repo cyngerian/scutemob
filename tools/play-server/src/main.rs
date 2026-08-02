@@ -4852,6 +4852,67 @@ mod tests {
         assert_eq!(err.body.kind, "bad_params");
     }
 
+    /// **Fix cycle (review Issue 2): a DUPLICATE `Squad` entry is refused 400.**
+    ///
+    /// Two entries are not additive, and the engine resolves them silently:
+    /// `casting.rs`'s destructuring loop is `squad_count = *count`, so the LAST wins
+    /// and the first is dropped with no error and no diagnostic. A client that sent
+    /// two would have one of them applied and never be told which — and, before the
+    /// matching `effective_cast_cost_with_additional` fix, the auto-tap would have
+    /// SUMMED them, reached for more mana than the engine charges, found no plan,
+    /// and let the engine refuse the cast for want of mana. A 422 after a clean
+    /// offer is exactly the SR-38 shape this batch exists to delete.
+    #[test]
+    fn test_ui2_validate_additional_cost_params_rejects_a_duplicate_squad_entry() {
+        let eligible_id = mtg_engine::ObjectId(10);
+        let action = ui2_cast_spell_action_with_costs(vec![eligible_id], eligible_id, 2);
+        let params = crate::view::ActionParamsDto {
+            // BOTH within `max_count`, so the per-entry bound check cannot be what
+            // rejects this — only the duplicate check can.
+            additional_costs: vec![
+                mtg_engine::AdditionalCost::Squad { count: 2 },
+                mtg_engine::AdditionalCost::Squad { count: 1 },
+            ],
+            ..Default::default()
+        };
+        let err = api::validate_additional_cost_params(&action, &params)
+            .expect_err("two Squad announcements must be refused, not silently resolved");
+        assert_eq!(err.status, StatusCode::BAD_REQUEST);
+        assert_eq!(err.body.kind, "bad_params");
+    }
+
+    /// **Fix cycle (review Issue 2): a DUPLICATE `Sacrifice` entry is refused 400.**
+    ///
+    /// The other half, and it resolves the OTHER way: `casting.rs:186` extracts the
+    /// sacrifice with a `find_map` over `ids.first()`, so the FIRST entry wins and
+    /// the rest are dropped. A human who somehow announced two would watch one of
+    /// their creatures die for no stated reason.
+    #[test]
+    fn test_ui2_validate_additional_cost_params_rejects_a_duplicate_sacrifice_entry() {
+        let a = mtg_engine::ObjectId(10);
+        let b = mtg_engine::ObjectId(11);
+        let action = ui2_cast_spell_action_with_costs(vec![a, b], a, 0);
+        let params = crate::view::ActionParamsDto {
+            // BOTH ids are eligible and each entry is well-formed on its own, so
+            // only the duplicate check can reject this.
+            additional_costs: vec![
+                mtg_engine::AdditionalCost::Sacrifice {
+                    ids: vec![a],
+                    lki: vec![],
+                },
+                mtg_engine::AdditionalCost::Sacrifice {
+                    ids: vec![b],
+                    lki: vec![],
+                },
+            ],
+            ..Default::default()
+        };
+        let err = api::validate_additional_cost_params(&action, &params)
+            .expect_err("two Sacrifice announcements must be refused");
+        assert_eq!(err.status, StatusCode::BAD_REQUEST);
+        assert_eq!(err.body.kind, "bad_params");
+    }
+
     /// T: the happy path — a valid single eligible sacrifice id plus a Squad
     /// count within `max_count` — does NOT fire any of the four checks above.
     #[test]

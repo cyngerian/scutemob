@@ -111,8 +111,22 @@
       : ((sacrifice?.candidates ?? []).find((c) => c.id === chosenId)?.label ?? `#${chosenId}`),
   );
 
-  /** CR 118.8: a required sacrifice with nothing chosen cannot be submitted. */
-  const canConfirm = $derived(!sacrifice || chosenId !== null);
+  /**
+   * CR 118.8: a required sacrifice with nothing to choose FROM cannot be submitted.
+   *
+   * Gated on `candidates.length`, not on `chosenId !== null`, and the difference is a
+   * real bug fix rather than belt-and-braces. `sacrifice.default` is
+   * `ObjectId::SENTINEL` when the provider's eligible set is empty, which serialises
+   * as the NUMBER `0` — so `chosenId` was non-null and Confirm stayed enabled,
+   * submitting `ids: [0]` for a 400. Observed on the wire, not reasoned about: the
+   * review reverted the provider's suppression gate and the payload came back
+   * `"candidates": [], "default": 0, "template": {"Sacrifice":{"ids":[0],"lki":[]}}`.
+   * Unreachable while the suppression gate holds, but a component whose own doc
+   * claims this guard should have it.
+   */
+  const canConfirm = $derived(
+    !sacrifice || ((sacrifice.candidates ?? []).length > 0 && chosenId !== null),
+  );
 
   function select(id) {
     if (disabled) return;
