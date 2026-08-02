@@ -111,7 +111,7 @@
     <button class="confirm" disabled={disabled} onclick={confirm}>
       {attackingWithNone ? 'Attack with nothing' : `Attack with ${selectedIds.length}`}
     </button>
-    <button class="cancel" disabled={disabled} onclick={() => onCancel?.()}>Cancel</button>
+    <button class="cancel" disabled={disabled} onclick={() => onCancel?.()}>Back</button>
   </div>
 </div>
 

@@ -8,6 +8,20 @@
   import { cardTooltip } from './cardTooltip.js';
   const { items = [], onCardClick = null } = $props();
 
+  /**
+   * The hover caption (G11, `scutemob-190`). The three badges below used to
+   * carry native `title=` attributes, and they sit INSIDE the `use:cardTooltip`
+   * anchor on the row — so hovering one drew the OS tooltip over the card image
+   * this action is trying to show. Same defect as the nine sites the triage
+   * listed, one level down the tree; the fix is the same, and the text moves
+   * into the floating div where this code can draw it.
+   */
+  function stackCaption(item, position) {
+    const bits = [`stack position ${position} (1 = top)`, kindLabel(item.kind)];
+    if (item.is_copy) bits.push('copy');
+    return `${item.source_name}\n${bits.join(' · ')}`;
+  }
+
   // Display in reverse so top of stack appears first
   const displayItems = $derived([...items].reverse());
 
@@ -45,12 +59,16 @@
   {:else}
     <div class="stack-items">
       {#each displayItems as item, i (item.id)}
-        <div class="stack-item" class:is-copy={item.is_copy} use:cardTooltip={item.source_name}>
+        <div
+          class="stack-item"
+          class:is-copy={item.is_copy}
+          use:cardTooltip={{ name: item.source_name, caption: stackCaption(item, i + 1) }}
+        >
           <!-- Stack position badge (1 = top) -->
-          <span class="stack-pos" title="Stack position (1 = top)">{i + 1}</span>
+          <span class="stack-pos">{i + 1}</span>
 
           <!-- Kind badge -->
-          <span class="kind-badge {kindClass(item.kind)}" title="Kind: {item.kind}">
+          <span class="kind-badge {kindClass(item.kind)}">
             {kindLabel(item.kind)}
           </span>
 
@@ -62,7 +80,7 @@
 
           <!-- Copy badge -->
           {#if item.is_copy}
-            <span class="badge badge-copy" title="Copy">COPY</span>
+            <span class="badge badge-copy">COPY</span>
           {/if}
 
           <!-- Targets -->

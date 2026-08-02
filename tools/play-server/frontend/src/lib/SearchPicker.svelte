@@ -211,7 +211,7 @@
         Fail to find
       </button>
     {/if}
-    <button class="cancel" disabled={disabled} onclick={() => onCancel?.()}>Cancel</button>
+    <button class="cancel" disabled={disabled} onclick={() => onCancel?.()}>Back</button>
   </div>
 </div>
 

@@ -109,7 +109,13 @@
           {#if pname === humanName}<span class="you">you</span>{/if}
           {#if state?.turn?.active_player === pname}<span class="active">active</span>{/if}
         </div>
-        <ZoneBattlefield {permanents} playerName={pname} {onCardClick} />
+        <!--
+          `stackLands` — G13 (`scutemob-190`). Opted into here and NOT in the
+          replay viewer: see `ZoneBattlefield`'s module doc, which carries the
+          whole reasoning (this is a play surface; that one is a step debugger
+          whose job is per-object identity).
+        -->
+        <ZoneBattlefield {permanents} playerName={pname} {onCardClick} stackLands />
       </div>
     {/each}
   </section>
@@ -123,6 +129,7 @@
             permanents={state.zones.battlefield[pname]}
             playerName={pname}
             {onCardClick}
+            stackLands
           />
         </div>
       {/each}

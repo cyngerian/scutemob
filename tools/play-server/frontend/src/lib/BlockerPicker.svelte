@@ -103,7 +103,7 @@
     <button class="confirm" disabled={disabled} onclick={confirm}>
       {blockingWithNone ? 'Block with nothing' : `Block with ${assignedCount}`}
     </button>
-    <button class="cancel" disabled={disabled} onclick={() => onCancel?.()}>Cancel</button>
+    <button class="cancel" disabled={disabled} onclick={() => onCancel?.()}>Back</button>
   </div>
 </div>
 

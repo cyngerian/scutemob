@@ -6923,6 +6923,613 @@ mod tests {
         );
     }
 
+    /// Replace every `<!-- … -->` body with spaces, keeping newlines and byte
+    /// offsets aligned with the source.
+    ///
+    /// Blanking rather than deleting so a failure message can still quote the
+    /// real line. Used by the two gates that must not read a comment as code:
+    /// template comments in this client explain the very elements and props the
+    /// gates assert on, so they quote them verbatim.
+    fn blank_html_comments(text: &str) -> String {
+        let mut out: Vec<u8> = text.as_bytes().to_vec();
+        let mut i = 0usize;
+        while i + 4 <= out.len() {
+            if &out[i..i + 4] == b"<!--" {
+                let end = out[i..]
+                    .windows(3)
+                    .position(|w| w == b"-->")
+                    .map(|p| i + p + 3)
+                    .unwrap_or(out.len());
+                for b in &mut out[i..end] {
+                    if *b != b'\n' {
+                        *b = b' ';
+                    }
+                }
+                i = end;
+            } else {
+                i += 1;
+            }
+        }
+        String::from_utf8(out).expect("blanking preserves UTF-8 boundaries")
+    }
+
+    /// Every opening tag in `text` that carries `use:cardTooltip`, returned whole.
+    ///
+    /// Companion to [`test_frontend_card_elements_carry_no_native_title`]. A
+    /// substring search would be wrong in both directions here: `title=` occurs
+    /// legitimately on buttons and panels that are not tooltip anchors, and a
+    /// tag's attributes are spread over a dozen lines, so "the same line" is not
+    /// the unit either. The unit is the **element**, so this walks one.
+    ///
+    /// Both the `{…}` expression depth and the quote state are tracked, because
+    /// a Svelte attribute value can legally contain `>` (`class:pt-damaged={p
+    /// .damage_marked > 0}`), and stopping at the first `>` would truncate the
+    /// tag and read as "no title here".
+    ///
+    /// # Only the template, and not its comments
+    ///
+    /// Two exclusions, both found by this gate failing on its first run rather
+    /// than reasoned out in advance — which is the point of firing it at a
+    /// synthetic element as well:
+    ///
+    ///  - **Everything up to the last `</script>` is dropped.** A component's
+    ///    module doc names `use:cardTooltip` in prose, and walking back from
+    ///    there finds the nearest `<` — `<script` itself, or worse, a `<`
+    ///    comparison operator in code — and reports a tag that does not exist.
+    ///    A file with no `</script>` has no template and yields nothing, which
+    ///    is also how `cardTooltip.js` is excluded without naming it.
+    ///  - **HTML comments are blanked.** Template comments explain these very
+    ///    elements, so they quote them.
+    fn card_tooltip_anchor_tags(text: &str) -> Vec<String> {
+        let Some(script_end) = text.rfind("</script>") else {
+            return Vec::new();
+        };
+        let template = blank_html_comments(&text[script_end..]);
+        let text: &str = &template;
+
+        let bytes = text.as_bytes();
+        let mut tags = Vec::new();
+        for (idx, _) in text.match_indices("use:cardTooltip") {
+            let Some(start) = text[..idx].rfind('<') else {
+                continue;
+            };
+            let mut depth = 0usize;
+            let mut quote: Option<u8> = None;
+            let mut end = bytes.len();
+            for (i, &c) in bytes.iter().enumerate().skip(start + 1) {
+                match quote {
+                    Some(q) => {
+                        if c == q {
+                            quote = None;
+                        }
+                    }
+                    None => match c {
+                        b'"' | b'\'' => quote = Some(c),
+                        b'{' => depth += 1,
+                        b'}' => depth = depth.saturating_sub(1),
+                        b'>' if depth == 0 => {
+                            end = i;
+                            break;
+                        }
+                        _ => {}
+                    },
+                }
+            }
+            tags.push(text[start..end.min(bytes.len())].to_string());
+        }
+        tags
+    }
+
+    /// **UI-5 (`scutemob-190`), G11 of `memory/playtest-triage-2026-08-02b.md` —
+    /// no card element may carry a native `title` attribute.**
+    ///
+    /// # The defect
+    ///
+    /// Playtest note: *"hover card name interferes with the card image"*. The
+    /// image is `cardTooltip`'s floating `position:fixed` div at `z-index:9999`.
+    /// The interfering text was a browser-native `title=` on the **same
+    /// element**, and a native tooltip is chrome: the browser/OS draws it at the
+    /// cursor, above every z-index this document can reach, exactly where the
+    /// image is anchored. **No CSS can fix it** — there is no selector for it,
+    /// no stacking context that contains it. The `title` has to go.
+    ///
+    /// It went into `cardTooltip`'s new caption, which renders inside the
+    /// floating div. Nine sites were named by the triage (`ZoneBattlefield` ×5,
+    /// `ZoneHand`, `ZoneGraveyard`, `ZoneExile`, `SeatCard`); the badges nested
+    /// *inside* those anchors carried the same attribute and produce the
+    /// identical collision over a smaller hit area, so they went too.
+    ///
+    /// # Why the rule is per-element and not per-file
+    ///
+    /// `title` is fine, and useful, on a control that is not a tooltip anchor —
+    /// `PlayApp`'s Export-report button, `SeatCard`'s drawer toggle,
+    /// `StepControls`' whole row. Banning the attribute outright would have
+    /// deleted working affordances to fix an unrelated bug. So the unit is the
+    /// element: [`card_tooltip_anchor_tags`] extracts each opening tag carrying
+    /// `use:cardTooltip`, and the ban applies to those tags alone. The
+    /// descendant half is covered by a second, narrower arm: the five `$viewer`
+    /// zone components render nothing *but* card chips and their badges, so
+    /// inside those files the attribute is banned outright.
+    ///
+    /// # Vacuity
+    ///
+    /// Four arms, for the reason the sibling clone gate gives: named files plus
+    /// a floor on both walks; a positive assertion that the anchors really do
+    /// pass a caption (an anchor that dropped the `title` *and* the caption
+    /// would satisfy the ban while losing the information); the caption builders
+    /// exist and are called; and the extractor is fired at a synthetic offending
+    /// element, so a bug in the tag walk cannot make this green on nothing.
+    #[test]
+    fn test_frontend_card_elements_carry_no_native_title() {
+        let play_src = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("frontend")
+            .join("src");
+        let viewer_lib =
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../replay-viewer/frontend/src/lib");
+        let mut sources: Vec<(String, String)> = Vec::new();
+        collect_frontend_files(&play_src, &mut sources);
+        let mut shared: Vec<(String, String)> = Vec::new();
+        collect_frontend_files(&viewer_lib, &mut shared);
+
+        // The two attribute spellings Svelte accepts. `title=` bare is NOT the
+        // needle: this file's own prose, and the components', name the attribute
+        // in backticks, and a gate that cannot survive being described is a gate
+        // nobody will keep.
+        let attr_forms = ["title=\"", "title={"];
+
+        let mut anchors_seen = 0usize;
+        for (path, text) in sources.iter().chain(shared.iter()) {
+            for tag in card_tooltip_anchor_tags(text) {
+                anchors_seen += 1;
+                for form in attr_forms {
+                    assert!(
+                        !tag.contains(form),
+                        "{path} has a `use:cardTooltip` element that also carries a native \
+                         `title` attribute:\n{tag}\n\nThe browser draws a native tooltip at the \
+                         cursor above every z-index in this document — over the card image this \
+                         action exists to show, which no CSS can prevent. Pass the text as \
+                         `use:cardTooltip={{{{ name, caption }}}}` instead. UI-5 \
+                         (`scutemob-190`, G11)."
+                    );
+                }
+                // The information must not merely have been deleted.
+                assert!(
+                    tag.contains("caption") || tag.contains("tooltipArg("),
+                    "{path}'s tooltip anchor passes no caption:\n{tag}\nG11 moved the `title` \
+                     text into the floating div; an anchor with neither is a silent loss."
+                );
+            }
+        }
+
+        // ── non-vacuity ──
+        // (a) The walks saw the files this rule is about, and a floor on each.
+        let seen: BTreeSet<&str> = sources
+            .iter()
+            .chain(shared.iter())
+            .filter_map(|(p, _)| p.rsplit('/').next())
+            .collect();
+        for expected in [
+            "ZoneBattlefield.svelte",
+            "ZoneHand.svelte",
+            "ZoneGraveyard.svelte",
+            "ZoneExile.svelte",
+            "ZoneStack.svelte",
+            "SeatCard.svelte",
+            "cardTooltip.js",
+        ] {
+            assert!(
+                seen.contains(expected),
+                "the frontend walks missed {expected}; they saw {seen:?}"
+            );
+        }
+        // Six components anchor the tooltip today (five `$viewer` zones plus
+        // `SeatCard`) across ten elements. The floor is stated below the current
+        // count so an ordinary addition does not fail it, but a walk that
+        // resolved to nothing does.
+        assert!(
+            anchors_seen >= 8,
+            "only {anchors_seen} `use:cardTooltip` elements were found — the walk is reading \
+             the wrong directory and the ban above checked nothing"
+        );
+
+        // (b) The five zone components render card chips and nothing else, so
+        //     the attribute is banned outright there — this is the descendant
+        //     half of the rule, which the per-element arm cannot see.
+        for zone in [
+            "ZoneBattlefield.svelte",
+            "ZoneHand.svelte",
+            "ZoneGraveyard.svelte",
+            "ZoneExile.svelte",
+            "ZoneStack.svelte",
+        ] {
+            let (path, text) = shared
+                .iter()
+                .find(|(p, _)| p.ends_with(zone))
+                .unwrap_or_else(|| panic!("{zone} is in the `$viewer` walk"));
+            for form in attr_forms {
+                assert!(
+                    !text.contains(form),
+                    "{path} carries a native `title` attribute. Every element in this file is a \
+                     card chip or a badge inside one, so it sits under a `use:cardTooltip` \
+                     anchor and collides with the image. Put the text in the caption."
+                );
+            }
+        }
+
+        // (b2) The two card-ish elements that still carry a `title` and are
+        //      knowingly OUT of scope, named rather than left to be discovered:
+        //      `StateView.svelte`'s command-zone chip (the exact mirror of the
+        //      `SeatCard` site that WAS fixed) and `CombatView.svelte`'s
+        //      attacker/blocker boxes. Neither anchors `cardTooltip` today, so
+        //      neither collides with anything, and giving them a caption would
+        //      mean giving them a tooltip — a feature, not this batch's repair.
+        //
+        //      What is asserted is the premise that makes them safe: they are
+        //      NOT anchors. The moment one grows a `use:cardTooltip` this arm
+        //      goes red and the per-element ban above starts applying to it,
+        //      which is the only honest way to write an exemption down.
+        //      (`/review` finding.)
+        for exempt in ["StateView.svelte", "CombatView.svelte"] {
+            let (path, text) = shared
+                .iter()
+                .find(|(p, _)| p.ends_with(exempt))
+                .unwrap_or_else(|| panic!("{exempt} is in the `$viewer` walk"));
+            assert!(
+                !text.contains("use:cardTooltip"),
+                "{path} now anchors `cardTooltip`, and it still carries native `title` \
+                 attributes on its card elements. Those two cannot coexist — move the text \
+                 into the caption (see this test's doc), then delete this file from the \
+                 exemption list."
+            );
+        }
+
+        // (c) The caption really is rendered, and the shared builder is used.
+        let tooltip = shared
+            .iter()
+            .find(|(p, _)| p.ends_with("cardTooltip.js"))
+            .map(|(_, t)| t.as_str())
+            .expect("cardTooltip.js is in the walk");
+        assert!(
+            tooltip.contains("captionEl.textContent = ")
+                && tooltip.contains("export function zoneCaption("),
+            "`cardTooltip` must render the caption into its own element and export the shared \
+             `zoneCaption` builder the four zone/seat sites call"
+        );
+        for caller in [
+            "ZoneHand.svelte",
+            "ZoneGraveyard.svelte",
+            "ZoneExile.svelte",
+        ] {
+            let (_, text) = shared
+                .iter()
+                .find(|(p, _)| p.ends_with(caller))
+                .unwrap_or_else(|| panic!("{caller} is in the walk"));
+            assert!(
+                text.contains("zoneCaption("),
+                "{caller} must build its caption with the shared helper, not a local template — \
+                 four sites wrote the same string before G11 and that is how they drifted"
+            );
+        }
+
+        // (d) The extractor discriminates. Proven by execution against the exact
+        //     element shape G11 removed — including a `>` inside an attribute
+        //     expression, which is what a naive scan-to-first-`>` gets wrong,
+        //     and with the two shapes that made this gate's first run report a
+        //     tag that does not exist: a `use:cardTooltip` named in the module
+        //     doc, and one named in a template comment.
+        let synthetic = r#"<script>
+              /** Anchored with use:cardTooltip; the walk must not see this. */
+              const n = a < b;
+            </script>
+
+            <!-- This comment mentions use:cardTooltip too. -->
+            <div
+              class="permanent-card"
+              class:pt-damaged={p.damage_marked > 0}
+              title={typeLineStr(p)}
+              use:cardTooltip={p.name}
+            >
+        "#;
+        let tags = card_tooltip_anchor_tags(synthetic);
+        assert_eq!(
+            tags.len(),
+            1,
+            "the tag walk found {} tags in the synthetic component: {tags:?}",
+            tags.len()
+        );
+        assert!(
+            attr_forms.iter().any(|f| tags[0].contains(f)),
+            "the tag walk would not have caught the exact element G11 removed: {}",
+            tags[0]
+        );
+        assert!(
+            tags[0].starts_with("<div"),
+            "the tag walk anchored on the wrong element: {}",
+            tags[0]
+        );
+    }
+
+    /// **UI-5 (`scutemob-190`), G8 — `Concede` is not in the priority row, and
+    /// a picker's escape hatch does not read as its peer.**
+    ///
+    /// Playtest note, written by someone who conceded a game by accident:
+    /// *"had to cancel and concede, which ended the game? — i thought the
+    /// concede button would concede the choice — this option should be next to
+    /// new game, not in the priority changing area"*.
+    ///
+    /// Two halves, and the gate pins both because either alone leaves the trap
+    /// half-set: `Concede` is filtered out of the action bar entirely and
+    /// rendered in the header behind a confirmation, and the pickers' abort
+    /// button says **Back** rather than Cancel.
+    ///
+    /// The submission is deliberately NOT changed and that is asserted too — the
+    /// header button still routes an `option.index` through `ActionBar`'s single
+    /// entry point, so this is placement, not a second code path to the most
+    /// destructive action on the surface.
+    #[test]
+    fn test_concede_lives_in_the_header_behind_a_confirmation() {
+        let play_src = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("frontend")
+            .join("src");
+        let mut sources: Vec<(String, String)> = Vec::new();
+        collect_frontend_files(&play_src, &mut sources);
+        let text_of = |name: &str| -> &str {
+            sources
+                .iter()
+                .find(|(p, _)| p.ends_with(name))
+                .map(|(_, t)| t.as_str())
+                .unwrap_or_else(|| panic!("{name} is in the frontend walk"))
+        };
+
+        // 1. Out of the action bar — out of BOTH groups. A kind dropped from
+        //    `controlKinds` alone reappears in the middle of the play list.
+        let action_bar = text_of("ActionBar.svelte");
+        // Read the two array LITERALS rather than matching whole source lines.
+        // A `/review` finding: an exact-line assertion goes red on a reflow or a
+        // reordered array, neither of which changes what the code does, and a
+        // gate that cries wolf is a gate someone deletes.
+        let array_after = |decl: &str| -> String {
+            let rest = action_bar
+                .split_once(decl)
+                .unwrap_or_else(|| panic!("`ActionBar` no longer declares {decl}"))
+                .1;
+            rest[..rest.find(';').unwrap_or(rest.len())].to_string()
+        };
+        let control_kinds = array_after("const controlKinds =");
+        assert!(
+            control_kinds.contains("'PassPriority'") && !control_kinds.contains("'Concede'"),
+            "`Concede` must not be a control kind — that is the row it was next to Pass in.              Found: {control_kinds}"
+        );
+        let relocated = array_after("const relocatedKinds =");
+        assert!(
+            relocated.contains("'Concede'")
+                && relocated.contains("'TapForMana'")
+                && action_bar.contains("!relocatedKinds.includes(a.kind)"),
+            "`Concede` and `TapForMana` must both be filtered out of `plays` as well, or they              simply move left. Found: {relocated}"
+        );
+
+        // 2. In the header, behind two clicks, disabled-with-a-reason rather
+        //    than absent.
+        let play_app = text_of("PlayApp.svelte");
+        for needle in [
+            "const concedeAction = $derived(",
+            "let concedeArmed = $state(false);",
+            "function confirmConcede()",
+            "const concedeDisabledReason = $derived.by(()",
+            "class=\"concede-reason\"",
+        ] {
+            assert!(
+                play_app.contains(needle),
+                "`PlayApp` is missing {needle:?} — G8 wants a header concede that confirms \
+                 before it fires and explains itself when it cannot"
+            );
+        }
+        assert!(
+            play_app.contains("actionBar?.beginExternal(concedeAction)"),
+            "the header button must submit the SAME option through the SAME entry point; a \
+             second path to conceding is the last thing this surface needs"
+        );
+
+        // 3. The pickers say Back. All eight, plus the unknown-shape fallback,
+        //    which aborts the same chain.
+        for picker in [
+            "DiscardPicker.svelte",
+            "SearchPicker.svelte",
+            "PartitionPicker.svelte",
+            "CostPicker.svelte",
+            "TargetPicker.svelte",
+            "AttackerPicker.svelte",
+            "BlockerPicker.svelte",
+            "ValuePrompt.svelte",
+        ] {
+            let text = text_of(picker);
+            assert!(
+                text.contains(">Back</button>"),
+                "{picker}'s abort button must say Back — it steps out of the picker and leaves \
+                 the decision standing, which is not what Cancel reads as next to Concede"
+            );
+            assert!(
+                !text.contains(">Cancel</button>"),
+                "{picker} still has a button labelled Cancel"
+            );
+        }
+        assert!(
+            action_bar.contains("onclick={cancelChain}>Back</button>"),
+            "the unknown-shape fallback aborts the same chain and must be labelled the same way"
+        );
+    }
+
+    /// **UI-5 (`scutemob-190`), G10 — `TapForMana` is grouped, never hidden.**
+    ///
+    /// The playtest note asks for it to be *"removed from the list of legal
+    /// actions"*, and doing that literally would remove capabilities the client
+    /// has no other way to reach. The evidence, all of it checkable in this
+    /// repo:
+    ///
+    ///   - `local_game.rs::auto_tap_commands_for` opens with
+    ///     `let Command::CastSpell(cast) = command else { return None; };` —
+    ///     auto-tap covers casts and nothing else.
+    ///   - An activated ability's mana cost is paid out of the existing pool, so
+    ///     a human has no other way to fill it (that residual gap is
+    ///     `OOS-SIM6-3`, on the SIM track, deliberately untouched here).
+    ///   - `PayEcho` / `PayCumulativeUpkeep` / `PayRecover` are only offered when
+    ///     the pool already covers them, and `legal_actions.rs`' own comment says
+    ///     *"CR 608.2g lets the player activate mana abilities first — so
+    ///     TapForMana must stay available alongside these"*.
+    ///
+    /// So this gate is two-sided on purpose: the kind must be out of the plays
+    /// list **and** still reachable. A future tidy-up that deletes the group
+    /// satisfies half of the note and breaks every activation cost on the
+    /// surface.
+    #[test]
+    fn test_tap_for_mana_is_grouped_and_still_reachable() {
+        let play_src = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("frontend")
+            .join("src");
+        let mut sources: Vec<(String, String)> = Vec::new();
+        collect_frontend_files(&play_src, &mut sources);
+        let action_bar = sources
+            .iter()
+            .find(|(p, _)| p.ends_with("ActionBar.svelte"))
+            .map(|(_, t)| t.as_str())
+            .expect("ActionBar.svelte is in the frontend walk");
+
+        assert!(
+            action_bar.contains("a.kind === 'TapForMana'"),
+            "`ActionBar` must partition `TapForMana` into its own group"
+        );
+        assert!(
+            action_bar.contains("let manaOpen = $state(false);"),
+            "the group must be COLLAPSED by default — that is the entire request"
+        );
+        assert!(
+            action_bar.contains("mana sources ({manaSources.length})"),
+            "the disclosure must say how many sources are folded behind it"
+        );
+        // Still reachable: a row that submits. `beginChain(row.options[0])` is
+        // the assertion that matters — a group rendered as inert text would
+        // satisfy every check above.
+        assert!(
+            action_bar.contains("beginChain(row.options[0])"),
+            "a mana-source row must still submit its option. Hiding the kind removes the only \
+             channel a human has for activation costs, echo, cumulative upkeep and recover \
+             (CR 608.2g) — see this test's doc comment."
+        );
+        // Folded by name with a count, which is what makes eight Forests one row.
+        assert!(
+            action_bar.contains("const manaSourceRows = $derived.by(()"),
+            "sources must fold by label with a count; eight identical buttons IS the clutter"
+        );
+    }
+
+    /// **UI-5 (`scutemob-190`), G13 — a stacked land chip merges only genuinely
+    /// fungible permanents, and tapped never merges with untapped.**
+    ///
+    /// Tap state is the information the playtest note is *about* ("same-name
+    /// lands should stack **when tapped**"), so a key that omitted it would
+    /// answer the request by destroying its subject. The rest of the key is
+    /// every other field a `PermanentView` carries that distinguishes two
+    /// permanents; merging is a claim of interchangeability and a land with a
+    /// counter or an aura is not interchangeable with one without.
+    ///
+    /// Source-level, like its siblings, because there is still no frontend test
+    /// harness (plan §8 R7). It cannot prove the chip renders; it can prove the
+    /// key has not quietly narrowed to `name`, which is the one change that
+    /// makes this feature lie.
+    #[test]
+    fn test_land_stacking_key_is_not_just_the_name() {
+        let viewer_lib =
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../replay-viewer/frontend/src/lib");
+        let mut shared: Vec<(String, String)> = Vec::new();
+        collect_frontend_files(&viewer_lib, &mut shared);
+        let zone = shared
+            .iter()
+            .find(|(p, _)| p.ends_with("ZoneBattlefield.svelte"))
+            .map(|(_, t)| t.as_str())
+            .expect("ZoneBattlefield.svelte is in the `$viewer` walk");
+
+        assert!(
+            zone.contains("function landStackKey(p)"),
+            "the land stack must key on a named function, not an inline template"
+        );
+        let key_body = zone
+            .split_once("function landStackKey(p)")
+            .expect("checked above")
+            .1;
+        let key_body = &key_body[..key_body.find("\n  }").unwrap_or(key_body.len())];
+        for field in [
+            "p.name",
+            "p.tapped",
+            "counters",
+            "p.attached_to",
+            "p.is_commander",
+            "p.is_token",
+            "p.summoning_sick",
+            "p.damage_marked",
+        ] {
+            assert!(
+                key_body.contains(field),
+                "the land fungibility key does not read {field}. Two permanents that differ in \
+                 it are not interchangeable, and merging them into one chip is a lie about the \
+                 board — `p.tapped` most of all, since tap state is what the request is about."
+            );
+        }
+
+        // Opt-in, not default: the replay viewer is a step debugger and needs
+        // per-object identity. See the component's module doc.
+        assert!(
+            zone.contains("stackLands = false,"),
+            "`stackLands` must default OFF so the replay viewer keeps one chip per object"
+        );
+        let mut play_sources: Vec<(String, String)> = Vec::new();
+        collect_frontend_files(
+            &PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("frontend")
+                .join("src"),
+            &mut play_sources,
+        );
+        let play_board = play_sources
+            .iter()
+            .find(|(p, _)| p.ends_with("PlayBoard.svelte"))
+            .map(|(_, t)| t.as_str())
+            .expect("PlayBoard.svelte is in the frontend walk");
+        // A floor, not an equality: a third `ZoneBattlefield` instance on this
+        // surface is an ordinary change, and an equality here would fail it for
+        // no semantic reason (`/review`). What must hold is that EVERY instance
+        // opts in — checked by counting the instances too, so an added one that
+        // forgot the prop is caught.
+        // Comments blanked first: this file's own prose names `stackLands`, and
+        // counting that as an opt-in would let an added instance that forgot
+        // the prop pass on the strength of the comment explaining it.
+        let play_board_code = blank_html_comments(play_board);
+        let instances = play_board_code.matches("<ZoneBattlefield").count();
+        let opt_ins = play_board_code.matches("stackLands").count();
+        assert!(
+            instances >= 2 && opt_ins >= instances,
+            "every `ZoneBattlefield` on the play surface must opt into `stackLands` — found \
+             {instances} instances and {opt_ins} opt-ins"
+        );
+
+        // The click path is decided rather than implicit: the chip nominates a
+        // representative and the caller can fall through to a sibling that
+        // carries an offered action.
+        assert!(
+            zone.contains("onCardClick?.(stack.members[0], stack.members)"),
+            "a stacked chip must hand its whole group to the caller — the caller is the only \
+             party that knows which actions the server offered"
+        );
+        let play_app = play_sources
+            .iter()
+            .find(|(p, _)| p.ends_with("PlayApp.svelte"))
+            .map(|(_, t)| t.as_str())
+            .expect("PlayApp.svelte is in the frontend walk");
+        assert!(
+            play_app.contains("function representativeFor(card, group)"),
+            "`PlayApp` must resolve the stack's representative; without it, clicking a \
+             5-Forest stack is undefined, which is the thing G13 asked to be decided"
+        );
+    }
+
     /// [`code_only`]'s three branches that no file in this crate exercises.
     ///
     /// Written because the alternative was a doc comment claiming block

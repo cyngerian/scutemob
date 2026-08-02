@@ -149,8 +149,52 @@ production bundle contains the viewer components' scoped CSS
 ### Interaction
 
 - **Buttons** — every option in `decision.actions`, labelled server-side.
-  `PassPriority` and `Concede` are pulled into their own group so "pass" does not
-  move as the list grows. Every button is disabled while a request is in flight.
+  `PassPriority` is pulled into its own group so "pass" does not move as the list
+  grows. Every button is disabled while a request is in flight.
+- **Concede is in the header, not the action row (UI-5, `scutemob-190`, G8).**
+  Beside "New game", behind a two-step confirmation, submitting the very same
+  `option.index` through the very same entry point — only the placement changed.
+  It renders **disabled with a visible reason** rather than vanishing when this
+  seat holds no decision, because a control that blinks in and out reads as a bug
+  and gets hunted for in the one moment it is dangerous. Five reasons: no game,
+  game over, request in flight, not your decision, and a picker chain still open
+  (`ActionBar.beginChain` refuses in that state, so a live-looking button there
+  would submit nothing and say nothing). The second-human playtest note is
+  *"i thought the concede button would concede the choice — this option should be
+  next to new game, not in the priority changing area"*, written after an
+  accidental concession.
+- **Mana sources are collapsed, not hidden (UI-5, G10).** `TapForMana` moves into
+  a `▸ mana sources (N)` disclosure, one row per source *name* with a count, so
+  eight Forests are one row instead of eight buttons. It is **not** removed:
+  `auto_tap_commands_for` opens `let Command::CastSpell(cast) = command else
+  { return None; };`, so auto-tap covers casts and nothing else, and this is the
+  only channel a human has for an activation cost, for `PayEcho` /
+  `PayCumulativeUpkeep` / `PayRecover` (offered only when the pool already covers
+  them), and for floating mana ahead of a cost increase — CR 608.2g, and
+  `legal_actions.rs` says so in its own comment. Pinned by
+  `test_tap_for_mana_is_grouped_and_still_reachable`, which asserts *both* sides.
+  The residual gap where a human's mana-cost activation still 422s because
+  nothing auto-taps for it is `OOS-SIM6-3`, on the SIM track.
+- **Card hover has a caption, and no card element carries a native `title`
+  (UI-5, G11).** The playtest note is "hover card name interferes with the card
+  image". It was the browser-native `title` on the same element: chrome drawn at
+  the cursor above every z-index the document can reach, over the image
+  `cardTooltip` anchors there — **not fixable with CSS**. The text moved into a
+  caption rendered inside the floating div. Pinned per-element by
+  `test_frontend_card_elements_carry_no_native_title`, which walks each opening
+  tag carrying `use:cardTooltip`; `title` stays legal on controls that are not
+  anchors.
+- **Board order and land stacking (UI-5, G12/G13).** Lands render below
+  Artifacts/Enchantments. Artifact lands stay in the Lands row — a player reads
+  one as a land, it is what you tap for mana and what CR 305.2 limits, and the
+  classifier is documented in place with the one-line reversal named. Same-name
+  lands stack into one chip keyed on `(name, tapped)` plus every other field that
+  distinguishes two permanents; **tapped never merges with untapped**, which is
+  the information the request was about. A stack nominates `members[0]` and hands
+  the whole group to `PlayApp`, which falls through to a sibling carrying an
+  offered action — so clicking a five-Forest stack is decided, not undefined.
+  Stacking is an opt-in prop: the replay viewer does not set it, because it is a
+  step debugger and per-object identity is its job.
 - **Click-through** — clicking a card in the hand or on the battlefield matches
   `decision.actions` by `object_id`. One match submits; several offer an inline
   chooser; none explains, naming the card and listing what *is* offered. It
@@ -164,6 +208,12 @@ production bundle contains the viewer components' scoped CSS
   `params` object and submitting once at the end. An option needing none of them
   still submits `{}` immediately. Click-through goes through the same entry point,
   so a targeted spell cannot be cast targetless from either path.
+  A picker's escape hatch says **Back**, not Cancel (UI-5, G8). It steps out of
+  the picker and leaves the decision standing — a blocking decision is not
+  cancellable, CR-mandated choices do not go away — and while `Concede` sat one
+  button away in the same row, "Cancel" read as its peer, as though the pair were
+  "abandon this choice" and "abandon this game". That is the misreading the
+  playtest note records.
 - **Keyboard** — `space` submits the `PassPriority` option (found by `kind`,
   never by index), `Esc` cancels the chooser, aborts an open picker chain, and
   dismisses the error strip. Both are ignored while the focus is in an input, so
@@ -173,7 +223,27 @@ production bundle contains the viewer components' scoped CSS
   this play" and carries the `GameStateError` text; a 409 `stale_decision`
   re-reads `GET /api/game` on its own.
 
-### The one change Session 6 made *outside* `tools/play-server`
+### Changes made *outside* `tools/play-server`
+
+Two batches have edited the shared `$viewer` library in place. **UI-5's standing
+rule, applied to all three of its shared-file items:** edit the shared file in
+place, and where the two surfaces genuinely want opposite behaviour, express the
+difference as a **prop** rather than as a copy. G11 (the caption) and G12 (the
+board order) are wanted by both surfaces and are unconditional. G13 is not — the
+replay viewer is a step debugger and stacking would delete objects a user is
+stepping to inspect — so `stackLands` defaults `false` and the play surface opts
+in. A fork would have duplicated 476 lines including the other two fixes and
+forked again on the next `PermanentView` field, which is exactly what
+`PlayBoard.svelte`'s module doc says the *leaf* components must not do.
+
+UI-5 touched `ZoneBattlefield`, `ZoneHand`, `ZoneGraveyard`, `ZoneExile`,
+`ZoneStack` and `cardTooltip.js`. Both bundles were rebuilt and both render;
+the shared components were additionally mounted against a fixture in headless
+Chromium (see the handoff in `memory/workstream-state.md` for the recipe — the
+replay viewer's own Rust binary is deliberately not started, per
+`memory/gotchas-infra.md`).
+
+#### The one change Session 6 made *outside* `tools/play-server`
 
 `tools/replay-viewer/frontend/src/lib/ZoneHand.svelte` keyed its `#each` on
 `card.object_id`. That is fine for the replay viewer, which is omniscient and

@@ -265,6 +265,28 @@
   }
 
   /**
+   * G13's click path, resolved here rather than in `ZoneBattlefield`.
+   *
+   * A stacked land chip stands for several permanents and nominates
+   * `members[0]` — arbitrary and immaterial, since the fungibility key required
+   * every member to be indistinguishable. But *this* component is the only one
+   * that knows which actions the server offered, so it is the right place for
+   * the one case the key cannot rule out: a representative that carries no
+   * offered action while a sibling in the same stack does. Falling through to
+   * the first member that has one turns "clicking a 5-Forest stack is
+   * undefined" into a decided answer.
+   *
+   * Returns the clicked card unchanged when the group is a single permanent, or
+   * when no member has an action — the second is the honest input to the
+   * zero-match branch, which reports the name the player clicked.
+   */
+  function representativeFor(card, group) {
+    if (!Array.isArray(group) || group.length <= 1) return card;
+    if (actionsForCard(card).length > 0) return card;
+    return group.find((p) => actionsForCard(p).length > 0) ?? card;
+  }
+
+  /**
    * `StateView` threads `onCardClick` into `ZoneHand`, `ZoneBattlefield`,
    * `ZoneGraveyard` and `ZoneExile`, each of which calls it with the card /
    * permanent object itself, carrying `object_id`.
@@ -277,9 +299,14 @@
    * before it relies on this path: the prop is dead, **and** a stack entry's id
    * field is `id`, not `object_id`, so `actionsForCard` would read `undefined` and
    * return `[]` in silence rather than failing loudly.
+   *
+   * `group` (G13, UI-5) is the full stack a clicked chip stands for. Every
+   * unstacked call site passes `[card]`, and the replay viewer's own
+   * `openCard(card)` takes one parameter and never sees it.
    */
-  function handleCardClick(card) {
+  function handleCardClick(card, group = null) {
     clearSelection();
+    card = representativeFor(card, group);
     const name = card?.name ?? 'this card';
 
     if (isUnidentifiable(card)) {
@@ -330,6 +357,115 @@
     // may itself need targets/X/modes, so it goes through the picker chain too.
     actionBar?.beginExternal(option);
   }
+
+  // ── Concede (G8, UI-5 `scutemob-190`) ─────────────────────────────────────
+
+  /**
+   * `LegalAction::Concede`, read out of the decision the server is holding.
+   *
+   * **Nothing about the submission changed** — it is still the option's own
+   * `index` over `POST /api/game/act` with `{}` params, which the server maps
+   * back through its `PendingDecision` (`params.rs`). Only the button moved,
+   * out of the action row and into the header beside "New game", which is
+   * verbatim what the playtest note asked for: *"this option should be next to
+   * new game, not in the priority changing area"*.
+   *
+   * Why that note exists at all is worth carrying: the player did not want to
+   * concede the game. They wanted to back out of a picker. G1 had made the
+   * picker's own Confirm button dead (`structuredClone` on a Svelte 5 proxy),
+   * and `legal_actions.rs` early-returns with **only** the answer action when a
+   * blocking decision stands — no `PassPriority` — so the entire action row was
+   * `[answer] [Concede]` with the answer inert. Concede was the only live
+   * control on screen. G1 is fixed (UI-4), so this is now placement and
+   * confirmation alone; but a control that ends the game should never have been
+   * one slip away from a control that passes priority.
+   */
+  const concedeAction = $derived(
+    ($decision?.actions ?? []).find((a) => a.kind === 'Concede') ?? null,
+  );
+
+  /**
+   * Why the header button is disabled, or `null` when it is live.
+   *
+   * **Disabled with a reason, never absent.** `Concede` is only in the payload
+   * while this seat holds a decision (`local_game.rs` appends it to every
+   * decision it builds for the human, including a blocking one), so a button
+   * that rendered only when offerable would blink in and out of the header on
+   * every bot turn — and a control that vanishes reads as a bug, or worse, gets
+   * hunted for and found in the one moment it is dangerous.
+   */
+  const concedeDisabledReason = $derived.by(() => {
+    if (!$seatView) return 'no game is running';
+    if ($seatView.game_over) return 'the game is already over';
+    if ($loading) return 'a request is in flight';
+    if (!concedeAction) return 'not your decision — the bots are acting';
+    // `ActionBar.beginChain` refuses while a picker is open, so a header button
+    // that looked live here would submit nothing and say nothing — the silent
+    // dead control UI-4 was dispatched to remove, and the one that made the
+    // playtester reach for Concede in the first place. Found by `/review`.
+    if (pickerChainOpen) return 'finish the open picker, or go Back out of it, first';
+    return null;
+  });
+
+  /**
+   * Mirror of `ActionBar`'s internal `chainOpen`, pushed down by its
+   * `onChainOpenChange` prop. `$state` and not `$derived` because the truth
+   * lives inside the child; see that prop's doc for why it is pushed rather
+   * than read through the `bind:this` handle (a method call on a `bind:this`
+   * handle is not reactive, and this value is read inside a `$derived`).
+   */
+  let pickerChainOpen = $state(false);
+
+  /** Two-step confirmation: the first click arms, the second submits. */
+  let concedeArmed = $state(false);
+
+  function armConcede() {
+    concedeArmed = true;
+  }
+
+  function cancelConcede() {
+    concedeArmed = false;
+  }
+
+  /**
+   * Submit the concession, through `ActionBar`'s picker chain rather than
+   * straight to `act`.
+   *
+   * `beginExternal` is the single entry point for acting on an option
+   * (`ActionBar.beginChain`'s doc), and `Concede` needs none of its six stages,
+   * so it submits `{}` immediately — the same request the old in-row button
+   * made. Routing through it anyway costs nothing and means a `Concede` that
+   * ever grew a stage would not silently bypass it. It also inherits the
+   * chain's `if (loading || chainOpen) return` guard, so conceding cannot race
+   * a half-answered picker.
+   */
+  function confirmConcede() {
+    concedeArmed = false;
+    if (!concedeAction) return;
+    actionBar?.beginExternal(concedeAction);
+  }
+
+  /**
+   * An armed confirmation must not survive the thing it was armed against.
+   *
+   * **Keyed on the decision's `seq`, not on `concedeAction` being null**, and
+   * that correction came out of the `/review` cycle. `local_game.rs` appends
+   * `Concede` to *every* decision it builds for the human, so `concedeAction`
+   * is almost never null while a game is running — an effect watching only that
+   * left the red "Yes, concede" bar standing after the player changed their
+   * mind and passed priority instead, live across the next decision and the one
+   * after. Measured in a browser: armed, passed priority, `seq 1446 -> 1447`,
+   * bar still up with a live button. That is the accidental-concede class G8
+   * exists to close, reintroduced by the guard meant to prevent it.
+   *
+   * `seq` is `PendingDecisionView.seq` — it advances on every new decision, so
+   * reading it here disarms on exactly the event the confirmation is scoped to:
+   * the moment the question the player was answering stopped being the question.
+   */
+  $effect(() => {
+    void $decision?.seq;
+    concedeArmed = false;
+  });
 
   // ── Derived view bits ──────────────────────────────────────────────────────
 
@@ -442,6 +578,37 @@
       >
         Export report
       </button>
+
+      <!--
+        G8: Concede, beside "New game" and behind a confirmation step. See
+        `concedeAction` / `concedeDisabledReason` for why it is disabled rather
+        than hidden when this seat holds no decision.
+      -->
+      {#if concedeArmed}
+        <span class="concede-confirm" role="alert">
+          <span class="concede-question">Concede — end your game?</span>
+          <button class="concede-yes" onclick={confirmConcede}>Yes, concede</button>
+          <button onclick={cancelConcede}>Keep playing</button>
+        </span>
+      {:else}
+        <button
+          class="concede"
+          disabled={concedeDisabledReason !== null}
+          aria-describedby={concedeDisabledReason !== null ? 'concede-reason' : null}
+          onclick={armConcede}
+        >
+          Concede
+        </button>
+        {#if concedeDisabledReason !== null}
+          <!--
+            A visible reason, not a `title=`. A native tooltip does not open on
+            a disabled button — a disabled control fires no pointer events — so
+            "disabled with a reason" written as a `title` is a reason nobody can
+            read. Same lesson as G11, from the other direction.
+          -->
+          <span class="concede-reason" id="concede-reason">{concedeDisabledReason}</span>
+        {/if}
+      {/if}
     </div>
   </header>
 
@@ -527,6 +694,7 @@
       onCancelPassUntil={cancelPassUntil}
       onDismissPassUntil={dismissPassUntil}
       onClientError={reportClientError}
+      onChainOpenChange={(open) => (pickerChainOpen = open)}
     />
 
     {#if chooser}
@@ -713,6 +881,49 @@
     background: #23386a;
     border-color: #3a5aa0;
     color: #dde;
+  }
+
+  /* G8 — the header concede control and its confirmation step. */
+  button.concede {
+    background: #2a1418;
+    border-color: #5a2a30;
+    color: #d99;
+  }
+
+  button.concede:hover:not(:disabled) {
+    background: #4a1c22;
+  }
+
+  .concede-reason {
+    font-size: 0.66rem;
+    color: #866;
+    max-width: 12rem;
+  }
+
+  .concede-confirm {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.15rem 0.35rem;
+    border: 1px solid #7a2a34;
+    border-radius: 3px;
+    background: #2a1418;
+  }
+
+  .concede-question {
+    font-size: 0.7rem;
+    color: #eaa;
+  }
+
+  button.concede-yes {
+    background: #7a1c26;
+    border-color: #a83a46;
+    color: #fdd;
+    font-weight: bold;
+  }
+
+  button.concede-yes:hover:not(:disabled) {
+    background: #9a242f;
   }
 
   button.cancel {

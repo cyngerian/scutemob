@@ -117,7 +117,7 @@
 
   <div class="picker-actions">
     <button class="confirm" disabled={disabled || !canConfirm} onclick={confirm}>Confirm</button>
-    <button class="cancel" disabled={disabled} onclick={() => onCancel?.()}>Cancel</button>
+    <button class="cancel" disabled={disabled} onclick={() => onCancel?.()}>Back</button>
   </div>
 </div>
 

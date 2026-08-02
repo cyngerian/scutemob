@@ -848,6 +848,226 @@ must read adjudication §5 alongside it. OOS-ADJ-3 warns `OOS-DX19-2`'s "613.8b 
 would make a worker build the wrong thing — re-word at dispatch. OOS-ADJ-7 (blood_moon strips
 Artifact card type) rides PB-DX27.
 
+## Worker Handoff (UI-5, `scutemob-190`) — UX polish batch 2: G8, G10, G11, G12, G13
+
+**All five UX rows of `memory/playtest-triage-2026-08-02b.md` closed. Frontend only: 0 engine
+lines (`git diff main..HEAD -- crates/` is empty), 0 wire change, PROTOCOL 33 / HASH 70
+gate-executed and unmoved.** Tests **4,317 / 0 / 5** full workspace (+4 over SIM-6's 4,313 —
+the four new gates), measured with `--workspace --no-fail-fast` to a file. `fmt`, `clippy
+--workspace --all-targets -D warnings` and `tools/check-defs-fmt.sh` all clean.
+
+### The one decision the brief asked for up front, made once and applied three times
+
+G11/G12/G13 all land in the `$viewer` components the two surfaces share in place. **The rule:
+edit the shared file in place; where the two surfaces genuinely want opposite behaviour,
+express the difference as a PROP rather than as a copy.**
+
+| Item | Shared? | Why |
+|---|---|---|
+| G11 caption | in place, unconditional | the native-`title` collision is identical in the replay viewer — same anchor, same chrome |
+| G12 board order | in place, unconditional | pure sibling-block order; the replay viewer has no opposing requirement |
+| G13 land stacking | in place, behind `stackLands` (default **false**) | the replay viewer is a step *debugger*: `App.svelte`'s `openCard` opens the object you clicked, and folding five Forests into one chip deletes four of the objects you are stepping to inspect |
+
+A fork of `ZoneBattlefield` would have duplicated 476 lines **including G11's and G12's fixes**
+and forked again on the next `PermanentView` field — precisely what `PlayBoard.svelte`'s module
+doc says the *leaf* components must not do. That is one rule with one exception criterion, not
+three answers in one file.
+
+### What shipped, item by item
+
+**G8 — Concede placement + confirmation.** Out of the action row (filtered from **both** groups,
+not just `controls` — dropping it from `controlKinds` alone would have re-shown it mid-play-list),
+into the header beside "New game", behind a two-step confirm. Same `option.index`, routed through
+`ActionBar.beginExternal` so there is no second code path to the most destructive control on the
+surface. **Disabled with a visible reason rather than hidden** — a control that blinks in and out
+of the header on every bot turn reads as a bug, or gets hunted for in the one moment it is
+dangerous. The reason is rendered as text, not a `title`: **a native tooltip does not open on a
+disabled button**, because a disabled control fires no pointer events, so "disabled with a reason"
+written as a `title` is a reason nobody can read. Pickers' "Cancel" → **"Back"** at all eight plus
+the unknown-shape fallback.
+
+**G10 — mana sources.** A `▸ mana sources (N)` disclosure, collapsed by default, one row per
+source *name* with a count (`Tap Mountain for mana ×4`), folded on the server's own label. **Not
+hidden**, and the gate asserts *both* sides — collapsed **and** still submitting — because a later
+tidy-up that deletes the group would satisfy the playtest note and break every activation cost,
+every echo/cumulative-upkeep/recover payment, and every float-ahead-of-a-cost-increase (CR 608.2g).
+`OOS-SIM6-3` untouched. Side effect worth knowing: `plays` can now be empty while mana sources
+exist, so the empty state says *"No plays available beyond tapping for mana"* instead of lying.
+
+**G11 — tooltip caption.** `cardTooltip` accepts `{name, caption}` and renders the caption inside
+the floating div. All nine triage-named sites cleared — **plus roughly ten `title=` on the badges
+nested inside those anchors** (`CMD`, `TAP`, `SICK`, `ATT`, counters, keyword abbreviations). Those
+were not in the triage and produce the *identical* collision over a smaller hit area on a ~70px
+chip; every one existed to expand an abbreviation, so they folded into a second caption line and
+lost nothing. Shared `zoneCaption` for the four `CardInZoneView` sites so they cannot drift apart
+again — writing the same template four times is how they drifted in the first place.
+
+**G12 — board order.** **Lands moved down, rather than Artifacts/Enchantments moved up** — sliding
+A/E up would also have pushed it above Planeswalkers, changing an order nobody complained about.
+Result: Creatures, Planeswalkers, Artifacts/Enchantments, Lands, Other. **Artifact lands stay in
+the Lands row, deliberately**, documented at the classifier with the one-line reversal named: a
+player reads an artifact land as a land — it is what you tap for mana and what CR 305.2 limits —
+and nothing here touches `card_types`, so it is still an artifact for Metalcraft and for artifact
+removal. Only where the chip is drawn changed.
+
+**G13 — land stacking.** Key is `(name, tapped)` **plus** sorted counters, `attached_to`,
+`is_commander`, `is_token`, `summoning_sick`, `damage_marked` — a deliberate superset of what the
+land block renders, because the failure mode of a too-narrow key is a silent lie about the board
+and of a too-wide key is a chip that does not stack. The `#each` key is the fungibility string and
+**not** the representative's `object_id`: tapping one Forest of five moves that permanent into a
+different stack, and a key derived from a member that just left would destroy and rebuild a chip
+that only changed its count.
+
+**Click path, decided rather than implicit.** The chip nominates `members[0]` — arbitrary *and
+immaterial*, since the key already required every member to be indistinguishable, and since tap
+state is *in* the key a stack is wholly tapped or wholly untapped, so "first untapped" collapses to
+"first". It hands the **whole group** up as a second argument, and `PlayApp.representativeFor`
+falls through to a sibling carrying an offered action — the caller is the only party that knows
+what the server offered. The extra argument is inert for the replay viewer, whose `openCard(card)`
+takes one parameter.
+
+### Gates: four, each proven red by executing a revert
+
+All in `tools/play-server/src/main.rs`, so they run under `cargo test --all` and therefore CI.
+Source-level for the standing reason: there is still no frontend test harness (plan §8 R7).
+
+| Gate | Pins |
+|---|---|
+| `test_frontend_card_elements_carry_no_native_title` | per-**element**, via a tag walk over each `use:cardTooltip` anchor |
+| `test_concede_lives_in_the_header_behind_a_confirmation` | out of both action groups; header arm/confirm; same entry point; eight pickers say Back |
+| `test_tap_for_mana_is_grouped_and_still_reachable` | collapsed **and** still submits |
+| `test_land_stacking_key_is_not_just_the_name` | every field of the key by name; `stackLands` default off; every play-surface instance opts in |
+
+Nine reverts executed, all red, tree green again: `title=` restored on `ZoneHand`; `Concede` back
+in `controlKinds`; `CostPicker` Back→Cancel; `concedeArmed` renamed; `manaOpen` default `true`;
+the mana row's `onclick` deleted; `p.tapped` dropped from the key; `stackLands` default `true`;
+`representativeFor` renamed.
+
+**The G11 gate is the one worth reading, and it is per-element rather than per-file on purpose.**
+`title` is fine and useful on a control that is not a tooltip anchor — the Export-report button,
+`SeatCard`'s drawer toggle, `StepControls`' whole row — so banning the attribute outright would
+have deleted working affordances to fix an unrelated bug. It walks each opening tag carrying
+`use:cardTooltip`, tracking `{}` depth and quote state because a Svelte attribute value can
+legally contain `>` (`class:pt-damaged={p.damage_marked > 0}`) and stopping at the first `>` would
+truncate the tag and read as "no title here". **Its own first run found a bug in itself**: a
+component's module doc *names* `use:cardTooltip` in prose, and walking back from there finds the
+nearest `<` — `<script` itself, or a `<` comparison operator in code — and reports a tag that does
+not exist. Now template-only with HTML comments blanked, and the synthetic non-vacuity case
+carries both shapes, so the extractor is proven by execution rather than argued.
+
+### Browser verification — 24/24 live, plus 10/10 on the shared components
+
+Headless Chromium (playwright-core, `/usr/bin/chromium`) against a live `play-server` on **:3045**,
+seed **190190**, 4 seats, heuristic bots. Driven over HTTP to turn 23 and stopped **while a
+decision was still live** — the first attempt ran to turn 59 and the game was over, which leaves
+nothing to concede and no mana source to offer. Stop condition: the human holds ≥4 untapped lands
+of one name, a `TapForMana` is offered, and some seat's board carries an artifact/enchantment
+*and* lands (an ordering assertion over a board of nothing but lands is vacuous).
+
+| Item | Evidence |
+|---|---|
+| G11 | 0 elements matching `.permanent-card,.hand-card,.gy-card,.exile-card,.cmd-card,.chip,.stack-item` carry `title`; battlefield hover → `"Legendary Creature — Human Soldier\n2/1 · commander · First Strike"`; hand hover → `"Contagion Clasp\nArtifact"` |
+| G12 | `["Creatures (2)","Artifacts/Enchantments (1)","Lands (6)"]` |
+| G13 | `Plains×4` untapped, `Swamp×3` **tapped**, `Swamp×2` **untapped**, `Mountain×4` untapped — Swamp and Mountain each render as two chips because each exists in both tap states; clicking the human's own stack acted, `command_count 819 → 820` |
+| G10 | `▸ mana sources (3)` collapsed; 0 `kind-TapForMana` in the plays group; expanded → `["Tap Mountain for mana ×3"]` |
+| G8 | header shows `New game` / `Export report` / `Concede`; 0 concede in the action row; an **open** `TargetPicker` shows `["Confirm (0/1)","Back"]` and Back submits nothing (`820 → 820`); first click arms `"Concede — end your game? Yes, concede / Keep playing"`; **declining** leaves `game_over=false`, commands `824 → 824`; **confirming really concedes** (`winner Bot-4, 48 turns`); afterwards the button is disabled with `"the game is already over"` |
+
+**Shared components, mounted against a fixture** rather than through the replay viewer's own
+binary — `memory/gotchas-infra.md` records that starting that binary from an agent context gets
+SIGKILLed (137). A throwaway Vite entry mounted `ZoneBattlefield` **twice on one page**, with and
+without `stackLands`, over a 6-Forest fixture (3 plain untapped, 2 tapped, 1 untapped carrying a
+charge counter) plus a Sol Ring. Results: viewer mode **6 chips, all count 1**; play mode
+**`Forest×3` untapped / `Forest×2` tapped / one lone Forest** — the counter Forest correctly
+refusing to merge with its otherwise-identical siblings; artifacts above lands; zero `title`;
+caption `"Basic Land — Forest\ncharge counter ×1"` (the badge title that used to be native); and a
+stacked chip handing up `[representative_id, group_length] = [1, 3]`. **This is a working
+proof-of-concept of the R7 tier-1 harness** and took ~15 minutes; the recipe is: a directory beside
+`tools/replay-viewer/frontend/src` containing `index.html` + `main.js` (`mount(Harness, …)`) +
+`Harness.svelte` + a `vite.config.js` whose `root` is that directory, built with
+`npx vite build --config <dir>/vite.config.js` from the frontend package (so `node_modules`
+resolves), then served by `python3 -m http.server`. It was **not** committed — R7 is deferred and
+the brief did not ask for it — but the next batch that wants a frontend harness should start here
+rather than from scratch. Both production bundles were also rebuilt and both succeed (156 and 142
+modules).
+
+### The `/review` cycle found 8 and all 8 were taken — two were real defects, both in G8
+
+1. **MEDIUM — the armed confirmation survived the decision it was armed against.** `local_game.rs`
+   appends `Concede` to **every** decision it builds for the human, so a disarm `$effect` keyed on
+   `concedeAction` being null essentially never fired. Arm Concede, change your mind, pass priority
+   instead — and the red "Yes, concede" bar stayed up, live, across the next decision and the one
+   after. **That is the accidental-concede class G8 exists to close, reintroduced by the guard
+   meant to prevent it**, and the effect's own doc comment claimed the property the code did not
+   have. Reproduced in the browser before the fix (armed, `seq 1446 → 1447`, `stillArmed=true`).
+   Now keyed on `$decision?.seq`.
+2. **MEDIUM — the header Concede was a silent dead control while a picker chain was open.**
+   `beginChain` early-returns on `if (loading || chainOpen)`, and `chainOpen` is `ActionBar`-
+   internal, so the button rendered enabled: click "Yes, concede", the bar vanishes, nothing
+   happens, no error. **The same silent-dead-button shape UI-4 was dispatched to fix — and the
+   shape that made the playtester reach for Concede in the first place.** `ActionBar` gains an
+   `onChainOpenChange` push (a method call on a `bind:this` handle is not reactive, and this is
+   read inside a `$derived`), and the disabled-reason list gains a fifth entry. Both fixes proven
+   by revert: each reverted fix reddens its browser check, 24/24 → 23/24.
+3. MEDIUM — stale README and no handoff. Both written (this file; README's Interaction section
+   rewritten, and the "one change outside `tools/play-server`" heading generalised).
+4. LOW — `position()` floored at the nominal image height when an image is expected. `onEnter`
+   assigns `src` and positions synchronously, so on the first frame `offsetHeight` was
+   caption-height alone (~30px) and the box could be centred with the image off-screen until the
+   first `mousemove`.
+5. LOW — `render()` no longer re-assigns an identical `src` on update.
+6. LOW — the `ZoneStack`/`onCardClick` doc block had been orphaned by inserting `representativeFor`
+   between it and `handleCardClick`. Moved back.
+7. LOW — `StateView.svelte` and `CombatView.svelte` still carry card-element `title`s and are
+   knowingly out of scope: neither anchors `cardTooltip`, so neither collides, and giving them a
+   caption would mean giving them a tooltip (a feature, not this batch's repair). **The exemption
+   is now machine-checked** — the gate asserts they are NOT anchors, so the day one grows a
+   `use:cardTooltip` it goes red and the per-element ban starts applying to it. That is the only
+   honest way to write an exemption down.
+8. LOW — gate brittleness. The two array-literal assertions now read the *literals* (whitespace-
+   and order-insensitive) rather than whole source lines, and the `stackLands` check became "every
+   `<ZoneBattlefield>` instance opts in" with HTML comments blanked first — otherwise the prose
+   explaining the prop counts as an opt-in and an added instance that forgot it passes.
+
+### Durable lessons
+
+- **A confirmation step is only as good as the event that disarms it.** The guard was written, was
+  documented, and was keyed on the wrong signal, and the wrong signal was one that essentially
+  never fires. A two-step confirm whose second step stays live across unrelated decisions is worse
+  than no confirm, because it is a live destructive button you have stopped looking at.
+- **"Disabled with a reason" written as a `title` is a reason nobody can read** — a disabled
+  control fires no pointer events, so the native tooltip never opens. Same lesson as G11, from the
+  other direction, and a reviewer will not catch it because the attribute is right there in the
+  source.
+- **A gate that is worth writing is worth firing at a synthetic offender.** The G11 tag walk was
+  wrong on its first run in a way that would have made it green-on-nothing for two of six files;
+  the non-vacuity arm caught it in the same minute it was written.
+- **Commit before running revert experiments.** A `git checkout -- <file>` used to undo a revert
+  also discarded four uncommitted `/review` fixes to the same file. They were reapplied and the
+  rebuilt bundle hashed identically (`index-DlGFzzL8.js`), which is how the reapply was verified
+  rather than assumed — but the cheap habit is to commit first.
+
+### Seeds
+
+- **`OOS-UI5-1`** — `StateView.svelte:139` (command-zone chip) and `CombatView.svelte:67/79/90`
+  (attacker/blocker boxes) carry the native `title` that G11 removed everywhere else. Harmless
+  today because neither anchors `cardTooltip`; the gate pins that premise. If either grows a card
+  preview, the text must move to a caption first.
+- **`OOS-UI5-2`** — land stacking is limited to the Lands group. Creature tokens are the other
+  population that arrives in identical multiples (a board of nine Saprolings is nine chips), and
+  `PermanentView` carries everything the key would need. Not done here because a creature's chip
+  renders P/T, damage and summoning sickness, so the fungibility key has more to say, and because
+  combat selection (`AttackerPicker` / `BlockerPicker`) picks per-`object_id` and would need the
+  same representative decision made a second time.
+- **`OOS-UI5-3`** — `manaSourceRows` folds on the server's rendered **label**, so two different
+  cards would merge if `view.rs` ever printed the same sentence for both. It does not today
+  (`format!("Tap {} for mana", card(source))` over the card name), and a same-named pair is
+  fungible for this purpose anyway — but the fold is on presentation rather than on identity, and
+  that is the kind of coupling that is invisible until it is wrong.
+- **`OOS-UI5-4`** — the R7 frontend harness remains unbuilt. This batch proved the tier-1 shape
+  works in ~15 minutes (recipe above) and then threw it away, which is the right call for a batch
+  that was not asked to build it and the wrong outcome to repeat a third time. Every UI batch since
+  UI-4 has paid for its absence in source-level gates that cannot prove a component renders.
+
 ## Worker Handoff (SIM-6, `scutemob-189`) — activation costs are payable, and the offer stops lying
 
 **G4 CLOSED, both components.** The triage's chain was correct end to end and is

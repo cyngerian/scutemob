@@ -21,6 +21,10 @@
    *   onClientError (fn(message)) — a picker failed to build or emit its answer
    *                                 (UI-4, `scutemob-185`). Routed to the same
    *                                 error strip as a rejected request.
+   *   onChainOpenChange (fn(bool)) — pushed whenever a picker chain opens or
+   *                                 closes (UI-5, `scutemob-190`). The caller
+   *                                 needs it because `beginExternal` refuses
+   *                                 while a chain is open; see `chainOpen`.
    *   onAct (fn(index, params))   — submit an action
    *   onRefresh (fn)              — re-read the seat view
    *   onDismissError (fn)
@@ -74,8 +78,18 @@
    *
    * A stage that is not needed is skipped entirely (`pickerNeeded` below), and an
    * option needing none of the six submits `{}` immediately, exactly as before
-   * Session 7. Escape (or a picker's own Cancel button) aborts the whole chain
+   * Session 7. Escape (or a picker's own **Back** button) aborts the whole chain
    * and submits nothing — `cancelChain` clears every field the chain touched.
+   *
+   * That button said "Cancel" until UI-5 (`scutemob-190`, G8). The playtest note
+   * is *"had to cancel and concede, which ended the game? — i thought the concede
+   * button would concede the choice"*: with `Concede` sitting one button away in
+   * the same row, "Cancel" read as its peer, as though the two were "abandon this
+   * choice" and "abandon this game". It never was — it steps back out of the
+   * picker and leaves the decision standing, which a blocking decision requires
+   * (it is not cancellable; CR-mandated choices do not go away). "Back" says
+   * that. `Concede` moved to the header in the same change, so the two are no
+   * longer adjacent either.
    *
    * # Why the cost stage sits between `ValuePrompt` and `TargetPicker`
    *
@@ -191,6 +205,7 @@
     onCancelPassUntil = null,
     onDismissPassUntil = null,
     onClientError = null,
+    onChainOpenChange = null,
   } = $props();
 
   /**
@@ -213,14 +228,90 @@
   const actions = $derived(decision?.actions ?? []);
 
   /**
-   * `PassPriority` and `Concede` are pulled into their own group on the right so
-   * "pass" is always in the same place, however long the action list gets — plan
-   * item 5 asks for it to be easy to find. The original `index` travels with each
-   * option, so the split never affects what is submitted.
+   * `PassPriority` is pulled into its own group on the right so "pass" is always
+   * in the same place, however long the action list gets — plan item 5 asks for
+   * it to be easy to find. The original `index` travels with each option, so the
+   * split never affects what is submitted.
+   *
+   * # `Concede` is NOT here any more (G8, UI-5 `scutemob-190`)
+   *
+   * It used to share this group, one button away from Pass. The playtest note is
+   * *"i thought the concede button would concede the choice — this option should
+   * be next to new game, not in the priority changing area"*, and it was written
+   * by someone who conceded a game by accident. `PlayApp` renders it in the
+   * header beside "New game", behind a confirmation step, reading the very same
+   * `Concede` option out of `decision.actions` and submitting the very same
+   * `option.index` — nothing about the wire changed, only where the button is.
+   *
+   * It is filtered out of BOTH groups here, not merely out of `controls`: a kind
+   * that is excluded from the control group and not from `plays` reappears in
+   * the middle of the play list, which is worse than where it started.
+   *
+   * # `TapForMana` is not here either (G10)
+   *
+   * See `manaSources` below. Same principle: filtered out of `plays`, but into a
+   * group of its own rather than off the surface — hiding it would remove
+   * capabilities the client has no other way to reach.
    */
-  const controlKinds = ['PassPriority', 'Concede'];
-  const plays = $derived(actions.filter((a) => !controlKinds.includes(a.kind)));
+  const controlKinds = ['PassPriority'];
+  /** Rendered somewhere other than the two groups below. Excluded from both. */
+  const relocatedKinds = ['Concede', 'TapForMana'];
+  const plays = $derived(
+    actions.filter((a) => !controlKinds.includes(a.kind) && !relocatedKinds.includes(a.kind)),
+  );
   const controls = $derived(actions.filter((a) => controlKinds.includes(a.kind)));
+
+  /**
+   * G10 — "tap land for mana" clutters the legal-action list.
+   *
+   * **The kind is grouped and collapsed, never hidden**, and the evidence for
+   * that is not a preference:
+   *
+   *   - `local_game.rs::auto_tap_commands_for` opens
+   *     `let Command::CastSpell(cast) = command else { return None; };` — auto-tap
+   *     covers **casts and nothing else**.
+   *   - An activated ability's mana cost is paid straight from the pool
+   *     (`rules/abilities.rs`), so every Equip, every `{2}: …`, needs floating
+   *     mana that only this action can produce from the human's side.
+   *   - `PayEcho` / `PayCumulativeUpkeep` / `PayRecover` are offered **only when
+   *     the existing pool already covers them** (`legal_actions.rs`), and that
+   *     file's own comment says outright that *"CR 608.2g lets the player
+   *     activate mana abilities first — so TapForMana must stay available
+   *     alongside these"*.
+   *
+   * Hide it and a human can never pay an activation cost, never pay echo or
+   * cumulative upkeep, and never float mana ahead of a cost-increase effect.
+   * So it collapses instead: one disclosure row saying how many sources there
+   * are, and — when opened — **one row per source card name with a count**,
+   * because eight Forests are eight identical buttons and the playtest note is
+   * about exactly that.
+   *
+   * The related gap where a human's *mana-cost* activation still 422s because
+   * nothing auto-taps for it is `OOS-SIM6-3`, on the SIM track. Deliberately
+   * untouched here.
+   */
+  const manaSources = $derived(actions.filter((a) => a.kind === 'TapForMana'));
+
+  /**
+   * Mana sources folded by label, insertion order preserved.
+   *
+   * The label is `view.rs`'s `format!("Tap {} for mana", card(source))`, so two
+   * options share one only when they name the same card. Each row keeps the
+   * FULL option list: clicking submits `options[0].index` — arbitrary and
+   * immaterial, since the rows are only merged when the server printed the same
+   * sentence for both — and the count is what the row is for.
+   */
+  const manaSourceRows = $derived.by(() => {
+    const byLabel = new Map();
+    for (const a of manaSources) {
+      if (byLabel.has(a.label)) byLabel.get(a.label).push(a);
+      else byLabel.set(a.label, [a]);
+    }
+    return [...byLabel.entries()].map(([label, options]) => ({ label, options }));
+  });
+
+  /** Collapsed by default — that is the whole request. */
+  let manaOpen = $state(false);
 
   /** Found by `kind`, never by a hardcoded index — the list order is the server's. */
   const passAction = $derived(actions.find((a) => a.kind === 'PassPriority') ?? null);
@@ -244,6 +335,24 @@
 
   /** True while the human is mid-picker — dims/disables the action list. */
   const chainOpen = $derived(stage !== null);
+
+  /**
+   * Mirror `chainOpen` out to the caller (UI-5 `/review`, G8 issue 2).
+   *
+   * `beginChain` early-returns on `if (loading || chainOpen)`, so a caller that
+   * cannot see this state can render a control that looks live, submits
+   * nothing, and says nothing — the exact silent-dead-button shape UI-4 was
+   * dispatched to fix, and the shape that made the playtester reach for
+   * Concede. `PlayApp`'s header Concede is such a caller: it routes through
+   * `beginExternal`, so it must be able to disable itself for the same reason
+   * this component disables its own buttons.
+   *
+   * Pushed rather than exported as a getter because `PlayApp` needs it inside a
+   * `$derived`, and a method call on a `bind:this` handle is not reactive.
+   */
+  $effect(() => {
+    onChainOpenChange?.(chainOpen);
+  });
 
   /** Does `option` declare per-mode target slots (as opposed to flat ones)? */
   function isPerModeTargeting(option) {
@@ -596,7 +705,16 @@
       <div class="action-groups" class:dimmed={chainOpen}>
         <div class="action-group plays">
           {#if plays.length === 0}
-            <span class="no-plays">No plays available.</span>
+            <!--
+              G10 moved `TapForMana` out of this list, so "no plays" would be a
+              lie on a turn whose only offered actions are lands to tap. Say
+              which it is.
+            -->
+            <span class="no-plays">
+              {manaSources.length > 0
+                ? 'No plays available beyond tapping for mana.'
+                : 'No plays available.'}
+            </span>
           {:else}
             {#each plays as option (option.index)}
               <button
@@ -611,6 +729,40 @@
             {/each}
           {/if}
         </div>
+
+        <!--
+          G10: mana sources, collapsed. See `manaSources` for why this is a
+          group and not a deletion. Rendered between the plays and the controls
+          so "pass" keeps the rightmost position it has always had.
+        -->
+        {#if manaSources.length > 0}
+          <div class="action-group mana-sources">
+            <button
+              class="action-btn mana-toggle"
+              aria-expanded={manaOpen}
+              disabled={loading || chainOpen}
+              onclick={() => (manaOpen = !manaOpen)}
+            >
+              {manaOpen ? '▾' : '▸'} mana sources ({manaSources.length})
+            </button>
+            {#if manaOpen}
+              <div class="mana-rows">
+                {#each manaSourceRows as row (row.label)}
+                  <button
+                    class="action-btn kind-TapForMana"
+                    disabled={loading || chainOpen}
+                    onclick={() => beginChain(row.options[0])}
+                  >
+                    {row.label}
+                    {#if row.options.length > 1}
+                      <span class="mana-count">×{row.options.length}</span>
+                    {/if}
+                  </button>
+                {/each}
+              </div>
+            {/if}
+          </div>
+        {/if}
 
         {#if controls.length > 0}
           <div class="action-group controls">
@@ -740,7 +892,7 @@
           <span class="unknown-shape-text">
             This client does not know how to answer a "{currentShape?.shape ?? 'malformed'}" decision.
           </span>
-          <button class="action-btn control" onclick={cancelChain}>Cancel</button>
+          <button class="action-btn control" onclick={cancelChain}>Back</button>
         </div>
       {/if}
     {:else if stage === 'value'}
@@ -935,6 +1087,31 @@
 
   .action-group.controls {
     margin-left: auto;
+  }
+
+  /* G10 — the collapsed mana-source group. */
+  .action-group.mana-sources {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.2rem;
+  }
+
+  .mana-toggle {
+    background: #14201c;
+    border-color: #2a4838;
+    color: #8b8;
+  }
+
+  .mana-rows {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    max-width: 34rem;
+  }
+
+  .mana-count {
+    color: #8c8;
+    font-weight: bold;
   }
 
   .no-plays {
