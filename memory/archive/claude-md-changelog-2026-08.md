@@ -78,6 +78,29 @@ it by construction — and CR 702.151a says "**another** target creature you con
 engine-synthesised attach ability, so that class is closed at one site. Both rosters are pinned by
 `t7b`, so either fix must move a pin in the same change.
 
+**A third seed, and the batch's own blind spot — found by the closing `/review`, not by the
+sweep that was supposed to find it.** `OOS-CARDS1-3`: **21** Equipment defs print "Equip {N}" and
+carry **no equip ability at all**, because `state/keyword_registry.rs`'s `K::Equip` arm is a
+`KeywordHandling::Marker` that synthesises nothing — so a def with only
+`AbilityDefinition::Keyword(KeywordAbility::Equip)` beside no `Activated` ability has nothing for
+the provider to offer. **10 are deck-legal `Complete`**, nine of them by the `#[default]` derive
+with no `completeness` field at all, one (`umezawas_jitte`) explicit. That is a *larger*
+population than the 17 this batch repaired, and one link earlier in the same chain: not "the
+picker never asks for a target" but "there is no action to pick". Four of the 11 `partial` members
+already named the gap in their own completeness notes — `sword_of_body_and_mind` cites
+`keyword_registry.rs:89` verbatim — so the knowledge existed per-def and had simply never been
+aggregated into a seed. The finding was re-measured against `all_cards()` before filing rather
+than taken from the review on trust; the review's counts were right and the first quick grep run
+against them was the sloppy one (it matched the word "Complete" inside a `partial` note's prose).
+
+**The durable lesson is about the gate, not the cards.** R1 pins the equip roster at exactly 17
+and asserts every member is correct. That statement is true and reads as a different, false one:
+that the equip surface is swept clean. A roster gate certifies the population it enumerates and is
+silent about the population it does not — and the defs outside its predicate are precisely the
+ones no gate is watching. This is the **fourth** route into the default-`Complete` trap the audit
+table already names three times (PB-DX3b, PB-DX4, the OOS-M11-10 equip row), and the first one
+where a *new* gate shipped in the same change that would have concealed it.
+
 **Documentation defect found and recorded, not silently worked around**: `OOS-M11-10` names **two
 distinct seeds** in `docs/audits/decision-point-audit.md` §8.1 — the equip one closed here, and a
 still-open loyalty-ability targeting gap filed the same day by M11-local S8's close-out. Every cite

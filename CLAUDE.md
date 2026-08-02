@@ -228,7 +228,14 @@
   permanent gates `core::cards1_equip_target_roster` (R1–R3) + `primitives::cards1_equip_target_
   repair` (T1–T7b). Seeds **OOS-CARDS1-1** (Fortify, same shape, card-def-only) and
   **OOS-CARDS1-2** (Reconfigure, same shape but written in *engine* source, and CR 702.151a's
-  "**another**" means it needs `exclude_self`) filed, both deliberately unfixed. **Also recorded:
+  "**another**" means it needs `exclude_self`) filed, both deliberately unfixed. **Read this
+  closure as the target-slot half ONLY**: the batch's `/review` found, and a re-measure against
+  `all_cards()` confirmed, that **21 further Equipment defs print "Equip {N}" and have no equip
+  ability at all — 10 deck-legal `Complete`, 9 of them by the `#[default]` derive** (`K::Equip` is
+  a `KeywordHandling::Marker` that synthesises nothing). That is a *larger* population than this
+  batch touched, one link earlier in the same chain ("there is no action to pick" rather than "the
+  picker never asks"), and it is filed as **OOS-CARDS1-3** — R1's exact-17 pin would otherwise
+  read as a clean sweep of the equip surface. **Also recorded:
   `OOS-M11-10` names TWO distinct seeds** — this batch closed the equip one; the loyalty-ability
   targeting gap of the same ID is **still OPEN**, and every cite outside the audit table means that
   one. **Full narrative: `memory/archive/claude-md-changelog-2026-08.md`.**

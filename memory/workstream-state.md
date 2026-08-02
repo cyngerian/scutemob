@@ -889,6 +889,19 @@
   control" — it needs `exclude_self: true`, and copying the equip repair verbatim would be wrong.
 - Both rosters are **pinned** by `t7b` (`{"Darksteel Garrison"}`, `{"Lizard Blades"}`), so either
   fix must move a pin in the same change.
+- **OOS-CARDS1-3 — the biggest of the three, and it came from the `/review`, not from me.** 21
+  Equipment defs print "Equip {N}" and have **no equip ability at all** (`K::Equip` is a
+  `KeywordHandling::Marker` that synthesises nothing), **10 of them deck-legal `Complete`**, 9 by
+  the `#[default]` derive. That is a larger population than this batch touched and one link
+  earlier in the same chain: not "the picker never asks for a target" but "**there is no action
+  to pick**". A human can legally deck Umezawa's Jitte or Sword of Feast and Famine today and
+  never be offered an equip. Four of the 11 `partial` members already named this gap in their own
+  completeness notes — the knowledge existed per-def and had never been aggregated into a seed.
+  **Lesson**: R1's exact-17 pin makes a true statement ("all 17 members are correct") that reads
+  as a false one ("the equip surface is swept clean"). A roster gate certifies the population it
+  enumerates and is silent about the population it does not — and the defs that fall outside it
+  are exactly the ones no gate is watching. Whoever takes OOS-CARDS1-3 should also decide whether
+  R1 grows a companion pin over marker-only Equipment.
 
 **Hazards for the collector**:
 - CLAUDE.md and this file both got a new **appended** section (no existing line grown), per the
