@@ -21,6 +21,10 @@
    *   onClientError (fn(message)) — a picker failed to build or emit its answer
    *                                 (UI-4, `scutemob-185`). Routed to the same
    *                                 error strip as a rejected request.
+   *   onChainOpenChange (fn(bool)) — pushed whenever a picker chain opens or
+   *                                 closes (UI-5, `scutemob-190`). The caller
+   *                                 needs it because `beginExternal` refuses
+   *                                 while a chain is open; see `chainOpen`.
    *   onAct (fn(index, params))   — submit an action
    *   onRefresh (fn)              — re-read the seat view
    *   onDismissError (fn)
@@ -201,6 +205,7 @@
     onCancelPassUntil = null,
     onDismissPassUntil = null,
     onClientError = null,
+    onChainOpenChange = null,
   } = $props();
 
   /**
@@ -330,6 +335,24 @@
 
   /** True while the human is mid-picker — dims/disables the action list. */
   const chainOpen = $derived(stage !== null);
+
+  /**
+   * Mirror `chainOpen` out to the caller (UI-5 `/review`, G8 issue 2).
+   *
+   * `beginChain` early-returns on `if (loading || chainOpen)`, so a caller that
+   * cannot see this state can render a control that looks live, submits
+   * nothing, and says nothing — the exact silent-dead-button shape UI-4 was
+   * dispatched to fix, and the shape that made the playtester reach for
+   * Concede. `PlayApp`'s header Concede is such a caller: it routes through
+   * `beginExternal`, so it must be able to disable itself for the same reason
+   * this component disables its own buttons.
+   *
+   * Pushed rather than exported as a getter because `PlayApp` needs it inside a
+   * `$derived`, and a method call on a `bind:this` handle is not reactive.
+   */
+  $effect(() => {
+    onChainOpenChange?.(chainOpen);
+  });
 
   /** Does `option` declare per-mode target slots (as opposed to flat ones)? */
   function isPerModeTargeting(option) {

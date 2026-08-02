@@ -112,10 +112,20 @@ function position(e) {
   if (!tooltipEl) return;
   const pad = 14;
   // Approximate height from Scryfall normal aspect ratio (680/488 ≈ 1.393).
-  // `offsetHeight` is preferred once the element is displayed, because the
-  // caption adds a variable number of lines below the image and the constant
-  // would clamp the box off the bottom of a short viewport.
-  const imgHeight = tooltipEl.offsetHeight || Math.round(IMG_WIDTH * 1.393);
+  //
+  // `offsetHeight` once the element is displayed, because the caption adds a
+  // variable number of lines below the image and the constant alone would clamp
+  // the box off the bottom of a short viewport — but **floored** at the
+  // constant whenever an image is expected, which is a `/review` correction.
+  // `onEnter` assigns `imgEl.src` and calls this synchronously, so on the very
+  // first frame of a hover the image has no layout box yet and `offsetHeight`
+  // is caption-height alone (~30px); centring against that put the image itself
+  // off-screen until the first `mousemove` fixed it.
+  const measured = tooltipEl.offsetHeight;
+  const nominal = Math.round(IMG_WIDTH * 1.393);
+  const imgHeight = imgEl.style.display === 'none'
+    ? measured || nominal
+    : Math.max(measured, nominal);
   const vw = window.innerWidth;
   const vh = window.innerHeight;
 
@@ -151,7 +161,11 @@ export function cardTooltip(node, arg) {
   function render() {
     if (current.name) {
       imgEl.style.display = 'block';
-      imgEl.src = scryfallUrl(current.name);
+      // Guarded: `update` re-renders while hovered (tapping the land you are
+      // pointing at), and re-assigning the same `src` restarts the image-data
+      // algorithm — usually cache-served, but it can flash. `/review` finding.
+      const url = scryfallUrl(current.name);
+      if (imgEl.src !== url) imgEl.src = url;
     } else {
       imgEl.style.display = 'none';
       imgEl.removeAttribute('src');

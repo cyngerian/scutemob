@@ -265,20 +265,6 @@
   }
 
   /**
-   * `StateView` threads `onCardClick` into `ZoneHand`, `ZoneBattlefield`,
-   * `ZoneGraveyard` and `ZoneExile`, each of which calls it with the card /
-   * permanent object itself, carrying `object_id`.
-   *
-   * **`ZoneStack` is threaded the prop and never invokes it** — it destructures
-   * `onCardClick` and there is no `onclick` anywhere in the file. So a stack item
-   * is inert. Nothing here needs it (every `LegalAction` carrying an `object_id`
-   * names a card or a permanent, never a stack object — `view.rs::action_object`),
-   * but Session 7 renders targets on stack items and should know two things
-   * before it relies on this path: the prop is dead, **and** a stack entry's id
-   * field is `id`, not `object_id`, so `actionsForCard` would read `undefined` and
-   * return `[]` in silence rather than failing loudly.
-   */
-  /**
    * G13's click path, resolved here rather than in `ZoneBattlefield`.
    *
    * A stacked land chip stands for several permanents and nominates
@@ -301,9 +287,22 @@
   }
 
   /**
-   * `group` (G13) is the full stack a clicked chip stands for. Every unstacked
-   * call site passes `[card]`, and the replay viewer's own `openCard(card)`
-   * takes one parameter and never sees it.
+   * `StateView` threads `onCardClick` into `ZoneHand`, `ZoneBattlefield`,
+   * `ZoneGraveyard` and `ZoneExile`, each of which calls it with the card /
+   * permanent object itself, carrying `object_id`.
+   *
+   * **`ZoneStack` is threaded the prop and never invokes it** — it destructures
+   * `onCardClick` and there is no `onclick` anywhere in the file. So a stack item
+   * is inert. Nothing here needs it (every `LegalAction` carrying an `object_id`
+   * names a card or a permanent, never a stack object — `view.rs::action_object`),
+   * but Session 7 renders targets on stack items and should know two things
+   * before it relies on this path: the prop is dead, **and** a stack entry's id
+   * field is `id`, not `object_id`, so `actionsForCard` would read `undefined` and
+   * return `[]` in silence rather than failing loudly.
+   *
+   * `group` (G13, UI-5) is the full stack a clicked chip stands for. Every
+   * unstacked call site passes `[card]`, and the replay viewer's own
+   * `openCard(card)` takes one parameter and never sees it.
    */
   function handleCardClick(card, group = null) {
     clearSelection();
@@ -400,8 +399,22 @@
     if ($seatView.game_over) return 'the game is already over';
     if ($loading) return 'a request is in flight';
     if (!concedeAction) return 'not your decision — the bots are acting';
+    // `ActionBar.beginChain` refuses while a picker is open, so a header button
+    // that looked live here would submit nothing and say nothing — the silent
+    // dead control UI-4 was dispatched to remove, and the one that made the
+    // playtester reach for Concede in the first place. Found by `/review`.
+    if (pickerChainOpen) return 'finish the open picker, or go Back out of it, first';
     return null;
   });
+
+  /**
+   * Mirror of `ActionBar`'s internal `chainOpen`, pushed down by its
+   * `onChainOpenChange` prop. `$state` and not `$derived` because the truth
+   * lives inside the child; see that prop's doc for why it is pushed rather
+   * than read through the `bind:this` handle (a method call on a `bind:this`
+   * handle is not reactive, and this value is read inside a `$derived`).
+   */
+  let pickerChainOpen = $state(false);
 
   /** Two-step confirmation: the first click arms, the second submits. */
   let concedeArmed = $state(false);
@@ -433,12 +446,25 @@
   }
 
   /**
-   * An armed confirmation must not survive the thing it was armed against. The
-   * decision advancing, the game ending, or the seat losing priority all make
-   * the pending "yes, concede" click refer to an option that is gone.
+   * An armed confirmation must not survive the thing it was armed against.
+   *
+   * **Keyed on the decision's `seq`, not on `concedeAction` being null**, and
+   * that correction came out of the `/review` cycle. `local_game.rs` appends
+   * `Concede` to *every* decision it builds for the human, so `concedeAction`
+   * is almost never null while a game is running — an effect watching only that
+   * left the red "Yes, concede" bar standing after the player changed their
+   * mind and passed priority instead, live across the next decision and the one
+   * after. Measured in a browser: armed, passed priority, `seq 1446 -> 1447`,
+   * bar still up with a live button. That is the accidental-concede class G8
+   * exists to close, reintroduced by the guard meant to prevent it.
+   *
+   * `seq` is `PendingDecisionView.seq` — it advances on every new decision, so
+   * reading it here disarms on exactly the event the confirmation is scoped to:
+   * the moment the question the player was answering stopped being the question.
    */
   $effect(() => {
-    if (!concedeAction) concedeArmed = false;
+    void $decision?.seq;
+    concedeArmed = false;
   });
 
   // ── Derived view bits ──────────────────────────────────────────────────────
@@ -668,6 +694,7 @@
       onCancelPassUntil={cancelPassUntil}
       onDismissPassUntil={dismissPassUntil}
       onClientError={reportClientError}
+      onChainOpenChange={(open) => (pickerChainOpen = open)}
     />
 
     {#if chooser}

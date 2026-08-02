@@ -6923,6 +6923,36 @@ mod tests {
         );
     }
 
+    /// Replace every `<!-- … -->` body with spaces, keeping newlines and byte
+    /// offsets aligned with the source.
+    ///
+    /// Blanking rather than deleting so a failure message can still quote the
+    /// real line. Used by the two gates that must not read a comment as code:
+    /// template comments in this client explain the very elements and props the
+    /// gates assert on, so they quote them verbatim.
+    fn blank_html_comments(text: &str) -> String {
+        let mut out: Vec<u8> = text.as_bytes().to_vec();
+        let mut i = 0usize;
+        while i + 4 <= out.len() {
+            if &out[i..i + 4] == b"<!--" {
+                let end = out[i..]
+                    .windows(3)
+                    .position(|w| w == b"-->")
+                    .map(|p| i + p + 3)
+                    .unwrap_or(out.len());
+                for b in &mut out[i..end] {
+                    if *b != b'\n' {
+                        *b = b' ';
+                    }
+                }
+                i = end;
+            } else {
+                i += 1;
+            }
+        }
+        String::from_utf8(out).expect("blanking preserves UTF-8 boundaries")
+    }
+
     /// Every opening tag in `text` that carries `use:cardTooltip`, returned whole.
     ///
     /// Companion to [`test_frontend_card_elements_carry_no_native_title`]. A
@@ -6954,28 +6984,7 @@ mod tests {
         let Some(script_end) = text.rfind("</script>") else {
             return Vec::new();
         };
-        // Blank comment bodies rather than deleting them: byte offsets stay
-        // aligned with the source, so a failure message quotes the real tag.
-        let mut template: Vec<u8> = text.as_bytes()[script_end..].to_vec();
-        let mut i = 0usize;
-        while i + 4 <= template.len() {
-            if &template[i..i + 4] == b"<!--" {
-                let end = template[i..]
-                    .windows(3)
-                    .position(|w| w == b"-->")
-                    .map(|p| i + p + 3)
-                    .unwrap_or(template.len());
-                for b in &mut template[i..end] {
-                    if *b != b'\n' {
-                        *b = b' ';
-                    }
-                }
-                i = end;
-            } else {
-                i += 1;
-            }
-        }
-        let template = String::from_utf8(template).expect("blanking preserves UTF-8 boundaries");
+        let template = blank_html_comments(&text[script_end..]);
         let text: &str = &template;
 
         let bytes = text.as_bytes();
@@ -7147,6 +7156,33 @@ mod tests {
             }
         }
 
+        // (b2) The two card-ish elements that still carry a `title` and are
+        //      knowingly OUT of scope, named rather than left to be discovered:
+        //      `StateView.svelte`'s command-zone chip (the exact mirror of the
+        //      `SeatCard` site that WAS fixed) and `CombatView.svelte`'s
+        //      attacker/blocker boxes. Neither anchors `cardTooltip` today, so
+        //      neither collides with anything, and giving them a caption would
+        //      mean giving them a tooltip — a feature, not this batch's repair.
+        //
+        //      What is asserted is the premise that makes them safe: they are
+        //      NOT anchors. The moment one grows a `use:cardTooltip` this arm
+        //      goes red and the per-element ban above starts applying to it,
+        //      which is the only honest way to write an exemption down.
+        //      (`/review` finding.)
+        for exempt in ["StateView.svelte", "CombatView.svelte"] {
+            let (path, text) = shared
+                .iter()
+                .find(|(p, _)| p.ends_with(exempt))
+                .unwrap_or_else(|| panic!("{exempt} is in the `$viewer` walk"));
+            assert!(
+                !text.contains("use:cardTooltip"),
+                "{path} now anchors `cardTooltip`, and it still carries native `title` \
+                 attributes on its card elements. Those two cannot coexist — move the text \
+                 into the caption (see this test's doc), then delete this file from the \
+                 exemption list."
+            );
+        }
+
         // (c) The caption really is rendered, and the shared builder is used.
         let tooltip = shared
             .iter()
@@ -7248,14 +7284,28 @@ mod tests {
         // 1. Out of the action bar — out of BOTH groups. A kind dropped from
         //    `controlKinds` alone reappears in the middle of the play list.
         let action_bar = text_of("ActionBar.svelte");
+        // Read the two array LITERALS rather than matching whole source lines.
+        // A `/review` finding: an exact-line assertion goes red on a reflow or a
+        // reordered array, neither of which changes what the code does, and a
+        // gate that cries wolf is a gate someone deletes.
+        let array_after = |decl: &str| -> String {
+            let rest = action_bar
+                .split_once(decl)
+                .unwrap_or_else(|| panic!("`ActionBar` no longer declares {decl}"))
+                .1;
+            rest[..rest.find(';').unwrap_or(rest.len())].to_string()
+        };
+        let control_kinds = array_after("const controlKinds =");
         assert!(
-            action_bar.contains("const controlKinds = ['PassPriority'];"),
-            "`Concede` must not be a control kind — that is the row it was next to Pass in"
+            control_kinds.contains("'PassPriority'") && !control_kinds.contains("'Concede'"),
+            "`Concede` must not be a control kind — that is the row it was next to Pass in.              Found: {control_kinds}"
         );
+        let relocated = array_after("const relocatedKinds =");
         assert!(
-            action_bar.contains("const relocatedKinds = ['Concede', 'TapForMana'];")
+            relocated.contains("'Concede'")
+                && relocated.contains("'TapForMana'")
                 && action_bar.contains("!relocatedKinds.includes(a.kind)"),
-            "`Concede` must be filtered out of `plays` as well, or it simply moves left"
+            "`Concede` and `TapForMana` must both be filtered out of `plays` as well, or they              simply move left. Found: {relocated}"
         );
 
         // 2. In the header, behind two clicks, disabled-with-a-reason rather
@@ -7443,11 +7493,21 @@ mod tests {
             .find(|(p, _)| p.ends_with("PlayBoard.svelte"))
             .map(|(_, t)| t.as_str())
             .expect("PlayBoard.svelte is in the frontend walk");
-        assert_eq!(
-            play_board.matches("stackLands").count(),
-            3,
-            "both `ZoneBattlefield` instances on the play surface must opt in (the living \
-             boards and the eliminated-with-board ones), plus the comment that says why"
+        // A floor, not an equality: a third `ZoneBattlefield` instance on this
+        // surface is an ordinary change, and an equality here would fail it for
+        // no semantic reason (`/review`). What must hold is that EVERY instance
+        // opts in — checked by counting the instances too, so an added one that
+        // forgot the prop is caught.
+        // Comments blanked first: this file's own prose names `stackLands`, and
+        // counting that as an opt-in would let an added instance that forgot
+        // the prop pass on the strength of the comment explaining it.
+        let play_board_code = blank_html_comments(play_board);
+        let instances = play_board_code.matches("<ZoneBattlefield").count();
+        let opt_ins = play_board_code.matches("stackLands").count();
+        assert!(
+            instances >= 2 && opt_ins >= instances,
+            "every `ZoneBattlefield` on the play surface must opt into `stackLands` — found \
+             {instances} instances and {opt_ins} opt-ins"
         );
 
         // The click path is decided rather than implicit: the chip nominates a
