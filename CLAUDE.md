@@ -258,7 +258,7 @@
   **also closes `OOS-DX19-1`** — the ten sibling sites — which the leaf-edit fix would have got
   wrong in the other direction, several being *correct* as layer-resolved. The deviation's scope is
   now the layer walk alone. Seeds **OOS-DX19-1..4** filed. PROTOCOL **33** / HASH **70**
-  gate-executed and unmoved. Tests **4,278 / 0 / 5** (+15). Coverage **unmoved** — proven by
+  gate-executed and unmoved. Tests **4,279 / 0 / 5** (+16). Coverage **unmoved** — proven by
   regenerating `tools/authoring-report.py` to a byte-identical body, *not* by an empty card-defs
   diff, since the brief itself mandated the `greymond_avacyns_stalwart` note edit (that note had
   been instructing future authors to build a second instance of this exact HIGH). `cargo fmt`

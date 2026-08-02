@@ -815,3 +815,62 @@ fn devilish_valet_doubling_chain_saturates() {
         "only power doubles; toughness is untouched and the creature stays alive"
     );
 }
+
+/// The non-layer path on a **different** `matches_filter` branch — subtypes rather
+/// than power. CR 613.1d again, and this is the `bloodline_keeper` + changeling
+/// shape (CR 702.73a makes a changeling every creature type, and the expansion is
+/// applied *inside* the layer loop, so only a layer-resolved read sees it).
+///
+/// Two branches are pinned rather than one because `matches_filter` decides each
+/// characteristic separately; a regression could plausibly restore one and not the
+/// other.
+#[test]
+fn non_layer_path_reads_layer_resolved_subtypes() {
+    use mtg_engine::effects::check_static_condition;
+    use mtg_engine::{Condition, SubType, TargetFilter};
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1())
+        .add_player(p2())
+        .object(ObjectSpec::creature(p1(), "Shifter", 1, 1))
+        .build()
+        .unwrap();
+
+    let shifter = find_on_battlefield(&state, "Shifter");
+    // A Layer-4 subtype grant, the shape CR 702.73a produces.
+    state.continuous_effects_mut().push_back(ContinuousEffect {
+        id: EffectId(9_400),
+        source: Some(shifter),
+        timestamp: 5,
+        layer: EffectLayer::TypeChange,
+        duration: EffectDuration::WhileSourceOnBattlefield,
+        filter: EffectFilter::SingleObject(shifter),
+        modification: LayerModification::AddSubtypes(
+            [SubType("Vampire".to_string())].into_iter().collect(),
+        ),
+        is_cda: false,
+        affected_set: None,
+        condition: None,
+    });
+
+    let chars = calculate_characteristics(&state, shifter).expect("live on the battlefield");
+    assert!(
+        chars.subtypes.contains(&SubType("Vampire".to_string())),
+        "precondition: CR 613.1d — the Layer-4 grant makes it a Vampire; got {:?}",
+        chars.subtypes
+    );
+
+    let condition = Condition::YouControlNOrMoreWithFilter {
+        count: 1,
+        filter: TargetFilter {
+            has_subtype: Some(SubType("Vampire".to_string())),
+            ..Default::default()
+        },
+    };
+    assert!(
+        check_static_condition(&state, &condition, shifter, p1()),
+        "CR 613.1d: an activation_condition evaluated outside the layer walk must see \
+         the GRANTED subtype. Reading base subtypes here is what would make \
+         bloodline_keeper reject a changeling"
+    );
+}
