@@ -10,10 +10,25 @@
 shipped on branch `feat/pb-dx19-the-unbounded-characteristics-recursion-oos-sim2-6-h`.
 **Scope**: read-only. This task changed no source, no card def, no test, no coordination file.
 The only file it writes is this one.
-**Method**: every factual claim re-derived at HEAD (`62e5699a`) or, where the claim is about
-the in-flight fix, at `git show <184-branch>:<path>`. The corpus figures are enumerated from
-`all_cards()` through a throwaway `serde_json` dump run outside the repo — **never grepped from
-def sources** (SR-36). CR text quoted verbatim from the `mtg-rules` MCP server.
+**Method**: the corpus figures are enumerated from `all_cards()` through a throwaway `serde_json`
+dump run outside the repo — **never grepped from def sources** (SR-36). CR text and rulings quoted
+verbatim from the `mtg-rules` MCP server.
+
+> ### Two trees, and which claim is anchored to which — read this before checking a line number
+>
+> `scutemob-184` **merged to main as `451e3517` while this task was running.** Every line number
+> in §1 and §2.2 is against this worktree's base, **`62e5699a`** — the *pre-fix* tree. That is the
+> correct anchor for §1, because the external doc reviewed pre-fix code and §1 asks whether it
+> read that code correctly. It is the **wrong** anchor for main today: `451e3517` moved
+> `effects/mod.rs`'s dangerous site from `:10259` to `:10295` and inserted ~90 lines at the top of
+> `layers.rs`. §4 is anchored to **`451e3517`** and says so. Anything not explicitly marked is
+> `62e5699a`.
+>
+> Two consequences of the merge that this document absorbed rather than hid: `scutemob-184` grew
+> from six commits to **ten** (`ee7a55b4`, `a0d977e5`, `79b94a58`, `4b620c8b`, `cdf194f2`,
+> `007a1d1c`, `697606a6`, `a405aa84`, `569087e6`, merge `451e3517`; +2,821 / −96 over 16 files),
+> and the last of those **shipped a source gate** that §5.1's first draft proposed as new work.
+> §4 and §5.1 are written against what actually landed.
 
 > **Index line not added.** `docs/audits/README.md` carries one row per audit. This task's
 > acceptance criterion 6055 confines `git diff` to this file alone, so the row is deliberately
@@ -35,7 +50,7 @@ halves of that framing needed re-checking, and both moved.
 
 2. **`scutemob-184` did not ship it.** Its *first attempt* did, and its own review caught that as
    a HIGH regression (commit `007a1d1c`, "fix a HIGH regression this batch introduced, found by
-   review"). What is on the branch is narrower: a new
+   review"). What merged is narrower: a new
    `rules::layers::characteristics_for_condition(state, obj)` that returns
    `expect_characteristics` **everywhere except inside a `calculate_characteristics` walk**, where
    it falls back to `obj.characteristics`. The walk is detected by a thread-local depth counter
@@ -53,12 +68,13 @@ halves of that framing needed re-checking, and both moved.
 |---|---|
 | card defs | **1,803** (`Complete`: 1,133) |
 | `ContinuousEffectDef` instances (static + `ApplyContinuousEffect`) | **382** |
-| …carrying a `condition` at all | **17** |
-| …whose condition reaches a **layer-resolved** characteristics query | **1** |
+| …carrying a `condition` at all | **17 instances** across **15 cards** |
+| …whose condition reaches a **layer-resolved** characteristics query | **1 instance, 1 card** |
 | the card | **`indomitable_archangel`** (`Complete`) |
-| corpus cards whose Layer-4 effects move the **Artifact** type | **4** (3 `Complete`) |
-| additional `Complete` cards where a **DFC face flip** moves the Artifact type | **1** |
-| **deck-legal `Complete` combinations live-wrong under the shipped deviation** | **4** |
+| `Complete` cards whose Layer-4 effects **add** the Artifact type | **3** |
+| `Complete` cards whose Layer-4 effects **remove** it (by replacement) | **3** |
+| `Complete` cards where a **DFC face flip** moves it | **1** |
+| **deck-legal `Complete` combinations live-wrong under the shipped deviation** | **7**, plus the unbounded CR 708.2a face-down class |
 
 Eleven of the 52 `Condition` variants can reach a layer query; exactly one of them is used as a
 `ContinuousEffectDef.condition` anywhere in the corpus. The recursion is a one-card problem
@@ -73,9 +89,10 @@ loop, never inactivity — and the doc proposes the two in the wrong order for t
 
 **Disposition** (§5): **accept in substance, reject the sequencing, split the deliverable.**
 A follow-up PB is warranted and briefed as **PB-DX42**, ranked **13** in the v3 queue. Its cheap
-half — a corpus roster gate that pins the layer-querying-condition population at exactly 1 — is
-worth more than its expensive half and is offered as a **rider on PB-DX8** (rank 10, already
-test-only). Six seeds are identified for filing (§6).
+half — a *corpus* roster gate pinning the layer-querying-condition population at exactly 1 — is
+offered as a **rider on PB-DX8** (rank 10, already test-only). Note that `451e3517` shipped a
+*source* gate over the same subsystem; §5.1 explains why the two are complementary rather than
+duplicative. Seven seeds are identified for filing (§6).
 
 ---
 
@@ -89,9 +106,9 @@ Verdicts: **CONFIRMED** / **PARTIAL** / **REFUTED** / **STALE** (true when writt
 | # | claim | verdict | evidence |
 |---|---|---|---|
 | C1 | `calculate_characteristics` collects every active effect before the layer loop, with the quoted `.filter(\|e\| is_effect_active(state, e))` | **CONFIRMED — verbatim** | `crates/engine/src/rules/layers.rs:43-47`. The doc's Rust snippet matches the source token for token. |
-| C2 | "the condition of every conditional continuous effect is evaluated for every characteristic query, regardless of which object is being queried" | **CONFIRMED** | `layers.rs:43-47` filters `state.continuous_effects` with no `object_id` in scope. `scutemob-184`'s stage-0 probes prove it empirically: `recursion_is_independent_of_the_object_being_calculated` and `recursion_metalcraft_off_still_terminates` both SIGABRT pre-fix. |
+| C2 | "the condition of every conditional continuous effect is evaluated for every characteristic query, regardless of which object is being queried" | **CONFIRMED** | The predicate at `layers.rs:46` is `is_effect_active`, which **takes no `object_id`** (`:508`) — the queried object cannot narrow the sweep even though it is in scope at the call. `scutemob-184`'s stage-0 probes prove it empirically: `recursion_is_independent_of_the_object_being_calculated` and `recursion_metalcraft_off_still_terminates` both SIGABRT pre-fix. |
 | C3 | `is_effect_active` calls `check_static_condition(state, condition, source_id, controller)` after the duration check | **CONFIRMED — verbatim** | `layers.rs:565`, inside the `if let Some(ref condition) = effect.condition` block opened at `:558`; duration is decided at `:509-555`. |
-| C4 | "The nearby comment says conditions are evaluated 'at layer-application time,' but this call occurs while constructing `active_effects`, before any layer is processed" | **CONFIRMED** | The comment is `layers.rs:556-557`: *"CR 604.2: Conditional static abilities … Conditions are evaluated against the current game state at layer-application time."* The layer loop begins at `:49`; `is_effect_active` is called from `:46`, before it. The same wording is duplicated at `crates/card-types/src/state/continuous_effect.rs:559-560` and at `effects/mod.rs:10207` — **three** sites, not one. |
+| C4 | "The nearby comment says conditions are evaluated 'at layer-application time,' but this call occurs while constructing `active_effects`, before any layer is processed" | **CONFIRMED** | The comment is `layers.rs:556-557`: *"CR 604.2: Conditional static abilities … Conditions are evaluated against the current game state at layer-application time."* The layer loop begins at `:49`; `is_effect_active` is called from `:46`, before it. The same *claim* appears at two more sites — `effects/mod.rs:10207` (*"CR 604.2: Called at layer-application time for conditional continuous effects"*, near-identical wording) and `crates/card-types/src/state/continuous_effect.rs:559-560` (*"Evaluated at layer-application time in `is_effect_active`"*, a paraphrase). **Three sites carry the claim; one is verbatim.** |
 | C5 | The Archangel def registers the quoted Layer-6 grant with the quoted Metalcraft condition | **CONFIRMED — verbatim** | `crates/card-defs/src/defs/indomitable_archangel.rs:29-43`. Field order, `EffectFilter::ArtifactsYouControl`, `EffectDuration::WhileSourceOnBattlefield`, `count: 3`, `has_card_type: Some(CardType::Artifact)`, `..Default::default()` — all exact. The def declares **no** `completeness` field, so the `#[default] Completeness::Complete` derive makes it deck-legal (`crates/card-types/src/cards/card_definition.rs:197-210`). |
 | C6 | `check_static_condition` handles `YouControlNOrMoreWithFilter` by iterating controlled battlefield objects and calling `expect_characteristics`, then `matches_filter` | **CONFIRMED — verbatim** | `crates/engine/src/effects/mod.rs:10238-10270`; the call is `:10259`, `matches_filter` at `:10260`. |
 | C7 | The cycle diagram (`calculate_characteristics` → active effects → `is_effect_active` → `check_static_condition` → `expect_characteristics` → `calculate_characteristics`) | **CONFIRMED** | Four hops, closed by `expect_characteristics` (`layers.rs:477`) which is a thin wrapper: `:478` `if let Some(chars) = calculate_characteristics(state, object_id) { return chars; }`. |
@@ -132,7 +149,7 @@ This is the half the task asked to be checked hardest, since the external agent 
 | D8 | "The current `is_effect_active` combines two different questions" (duration/liveness vs conditional applicability) and they should be split | **CONFIRMED as a description** | `layers.rs:509-552` is the duration/liveness half; `:556-573` is the condition half; the early `return false` at `:553-555` is already the seam. The split is a ~10-line refactor, not an architecture change. |
 | D9 | The listed duration facts ("source exists; on battlefield; phased in; until-end-of-turn not expired; pairing/control-duration markers remain valid") are evaluable from raw state | **CONFIRMED** | `layers.rs:510-551` evaluates exactly those, plus the CR 702.26e phased-out guard at `:514-515` and the CR 611.2b/c expiry-owned arms (`UntilYourNextTurn`, `WhileYouControlSource`) at `:525-532`. No layer query anywhere in that block. |
 | D10 | Threading a `&mut CharacteristicEvalContext` through the recursive branch is a contained change | **PARTIAL — the blast radius is larger than the doc implies** | The nested call the doc rewrites is inside `check_static_condition`, but 10 of the 11 layer-querying variants are reached through `check_condition` (`effects/mod.rs:9662`), a `pub fn` whose other callers are `activation_condition`, `intervening_if`, `Effect::Conditional` and `unless_condition`. A `ctx` parameter must be threaded through **`check_condition` too**, or duplicated. This is why `scutemob-184` reached for ambient state instead — a decision the doc rejects (§3.4) without costing. |
-| D11 | "The in-progress marker must always be removed, including on early returns. Use a small helper, guard object, or closure pattern" | **CONFIRMED as necessary, and independently implemented** | `calculate_characteristics` has several early returns (`layers.rs:39` `?`, and the `break` at `:378-380`). `scutemob-184` solved exactly this with an RAII `LayerWalkGuard` whose `Drop` decrements (`<184>:layers.rs:44-58`). The doc's caution was correct and is already satisfied by the shipped shape. |
+| D11 | "The in-progress marker must always be removed, including on early returns. Use a small helper, guard object, or closure pattern" | **CONFIRMED as necessary, and independently implemented** | `calculate_characteristics` has several early returns (`layers.rs:39` `?`, and the `break` at `:378-380`). `scutemob-184` solved exactly this with an RAII `LayerWalkGuard` whose `Drop` decrements (`451e3517`: `layers.rs:41-56`). The doc's caution was correct and is already satisfied by the shipped shape. |
 
 ### 1.5 Claims about the fix that are now STALE
 
@@ -140,9 +157,9 @@ This is the half the task asked to be checked hardest, since the external agent 
 |---|---|---|---|
 | S1 | *Rejected Fixes* → "Use printed/base characteristics in the condition … Do not replace the nested call with `obj.characteristics`" | **STALE as a critique of the shipped code; CONFIRMED as a critique of the brief** | The v3 brief said to do exactly that; `scutemob-184`'s first attempt did; its own review reverted it as a HIGH regression because it broke the four safe call paths (`activation_condition`, `intervening_if`, `Effect::Conditional`, `unless_condition`). The shipped code degrades **only** inside the layer walk. |
 | S2 | The doc's implied claim that the deviation is unbounded | **REFUTED — it is bounded, and measured** | §2 measures it at **4** deck-legal `Complete` combinations. |
-| S3 | *Required Regression Tests* → the eight named tests | **PARTIAL — five of eight already exist in equivalent form** | On the 184 branch, `crates/engine/tests/primitives/pb_dx19_characteristics_recursion.rs` supplies `recursion_metalcraft_on_grants_shroud_and_terminates` (≈ "crash reproducer" + "Metalcraft true"), `recursion_metalcraft_off_still_terminates` (≈ "Metalcraft false"), `recursion_is_independent_of_the_object_being_calculated` (≈ "query unrelated object"), and `the_deviation_is_scoped_to_the_layer_walk_only` + `non_layer_path_reads_layer_resolved_power` (no counterpart in the doc's list). Each was watched failing by an **executed, compiling** revert. **Three of the doc's eight have no counterpart and remain open work**: "Layer 4 adds Artifact" exists only in its *inverted* form (`deviation_animated_nexus_does_not_count_toward_metalcraft`, which pins the deviation and instructs the next author to invert rather than delete it); "Layer 4 removes Artifact" does not exist; "multiple conditional effects nest deterministically" does not exist and **cannot** be written against the shipped depth counter, because a depth counter is exactly the "single boolean" shape the doc warns about. |
+| S3 | *Required Regression Tests* → the eight named tests | **PARTIAL — five of the eight are answered; three are not** | `crates/engine/tests/primitives/pb_dx19_characteristics_recursion.rs` (25 test fns at `451e3517`) supplies: `recursion_metalcraft_on_grants_shroud_and_terminates` (≈ "crash reproducer" + "Metalcraft true"), `recursion_metalcraft_off_still_terminates` (≈ "Metalcraft false"), `recursion_is_independent_of_the_object_being_calculated` (≈ "query unrelated object"), and `the_deviation_is_scoped_to_the_layer_walk_only` (≈ "no stale context entry" — it asserts the `LayerWalkGuard` decrements on `Drop`). Each was watched failing by an **executed, compiling** revert. It also adds tests with no counterpart in the doc's list: `non_layer_path_reads_layer_resolved_power` / `…_subtypes`, `sibling_condition_on_a_continuous_effect_terminates`, and the `no_condition_evaluator_resolves_characteristics_directly` source gate. **Three of the doc's eight remain open work**: "Layer 4 adds Artifact" exists only *inverted* (`deviation_animated_nexus_does_not_count_toward_metalcraft`, which pins the deviation and tells the next author to invert rather than delete it); "Layer 4 removes Artifact" does not exist; "multiple conditional effects nest deterministically" does not exist and **cannot** be written against the shipped depth counter, because a depth counter is exactly the "single boolean" shape the doc warns about. |
 | S4 | *Rejected Fixes* → "Add an arbitrary recursion-depth limit … may be useful as a final panic-prevention assertion, but it is not the semantic fix" | **CONFIRMED, and agreed on both sides** | `scutemob-184` filed `OOS-DX19-4` asking for precisely a depth tripwire as a diagnostic, on the ground that "a stack overflow is not a test failure — it is signal 6, names no test, and takes the binary down." No conflict. |
-| S5 | *Rejected Fixes* → "Special-case Indomitable Archangel" | **CONFIRMED, and honored** | No card-specific branch exists in either fix. The only card-def edit on the 184 branch is the `greymond_avacyns_stalwart` note the brief mandated — an authoring landmine that instructed a future author to build a second instance of this shape. |
+| S5 | *Rejected Fixes* → "Special-case Indomitable Archangel" | **CONFIRMED, and honored** | No card-specific branch exists in either fix. The only card-def edit in the whole batch is the `greymond_avacyns_stalwart` note the brief mandated — an authoring landmine that instructed a future author to build a second instance of this shape. |
 
 ---
 
@@ -159,22 +176,27 @@ was grepped (SR-36). Numbers below are reproducible by rerunning that dump.
 | quantity | count |
 |---|---|
 | `ContinuousEffectDef` instances in the corpus | **382** |
-| …with `condition: Some(_)` | **17** |
-| …whose condition variant reaches a layer-resolved query | **1** |
+| …with `condition: Some(_)` | **17 instances**, on **15 distinct cards** |
+| …whose condition variant reaches a layer-resolved query | **1 instance, 1 card** |
 
-The full condition census over those 17, by variant:
+The full condition census over those 17 instances. **Instances and cards differ** — two cards
+carry two conditioned effects each, which is why a per-card column does not sum to 17:
 
-| variant | defs | layer-querying? |
-|---|---|---|
-| `SourceHasCounters` | 3 | no |
-| `DevotionToColorsLessThan` | 3 | no — reads **base** `mana_cost` (§2.4) |
-| `IsYourTurn` | 3 | no |
-| `OpponentLifeAtMost` | 1 | no |
-| `SourceIsUntapped` | 1 | no |
-| `CompletedADungeon` | 1 | no |
-| `ControllerLifeAtLeast` | 1 | no |
-| `YouControlYourCommander` | 1 | no |
-| **`YouControlNOrMoreWithFilter`** | **1** | **YES** — `indomitable_archangel`, `Complete` |
+| variant | instances | cards | the cards | layer-querying? |
+|---|---|---|---|---|
+| `SourceHasCounters` | 4 | 3 | `arixmethes_slumbering_isle` (×2), `beastmaster_ascension`, `quest_for_the_goblin_lord` | no |
+| `DevotionToColorsLessThan` | 3 | 3 | `athreos_god_of_passage`, `iroas_god_of_victory`, `purphoros_god_of_the_forge` | no — reads **base** `mana_cost` (§2.5) |
+| `IsYourTurn` | 3 | 3 | `radha_heart_of_keld`, `razorkin_needlehead`, `triumphant_adventurer` | no |
+| `ControllerLifeAtLeast` | 2 | 1 | `serra_ascendant` (×2) | no |
+| `OpponentLifeAtMost` | 1 | 1 | `bloodghast` | no |
+| `SourceIsUntapped` | 1 | 1 | `dragonlord_ojutai` | no |
+| `CompletedADungeon` | 1 | 1 | `nadaar_selfless_paladin` | no |
+| `YouControlYourCommander` | 1 | 1 | `skyhunter_strike_force` | no |
+| **`YouControlNOrMoreWithFilter`** | **1** | **1** | **`indomitable_archangel`** (`Complete`) | **YES** |
+| **total** | **17** | **15** | | |
+
+**None of the 17 uses `And` / `Or` / `Not`**, so no layer-querying variant hides inside a
+combinator. That is what makes "exactly one" a closed statement rather than a top-level scan.
 
 **The demand side is a set of size one.** Every other condition on a continuous effect reads
 player state, counters, turn structure, or base mana cost — none re-enters the layer system.
@@ -228,15 +250,35 @@ Corpus supply, by bucket:
 | **union, any layer** | **246** | **181** |
 
 Applied to the *actual* filter the corpus's one condition carries — `has_card_type: Artifact`,
-everything else `Default` — the supply set collapses to the four L4 rows whose payload contains
-`CardType::Artifact`:
+everything else `Default` — the supply set is every Layer-4 modification that can make base and
+layer-resolved **Artifact** status disagree. **A "payload contains Artifact" filter is not that
+set**: `SetCardTypes` and `SetTypeLine` are *replacements*, so they remove the Artifact type
+precisely when their payload does **not** list it. Both directions:
 
-| card | modification | completeness | direction of the error |
+| card | modification | completeness | direction |
 |---|---|---|---|
-| `blinkmoth_nexus` | `AddCardTypes(Artifact, Creature)` on `Source` | **Complete** | **under-count** — an animated Nexus is an artifact creature and must feed Metalcraft (CR 613.1d) |
-| `inkmoth_nexus` | `AddCardTypes(Artifact, Creature)` on `Source` | **Complete** | under-count |
-| `darksteel_mutation` | `SetCardTypes(Artifact, Creature)` on `AttachedCreature` | **Complete** | under-count |
-| `vraska_betrayals_sting` | `SetCardTypes(Artifact)` on `DeclaredTarget` | `Partial` | **not deck-legal** — excluded from the tally |
+| `blinkmoth_nexus` | `AddCardTypes(Artifact, Creature)` on `Source` | **Complete** | **adds** → **under-count**: an animated Nexus is an artifact creature and must feed Metalcraft (CR 613.1d) |
+| `inkmoth_nexus` | `AddCardTypes(Artifact, Creature)` on `Source` | **Complete** | adds → under-count |
+| `darksteel_mutation` | `SetCardTypes(Artifact, Creature)` on `AttachedCreature` | **Complete** | adds → under-count |
+| `eaten_by_piranhas` | `SetCardTypes(Creature)` on `AttachedCreature` | **Complete** | **removes** → **over-count**. Oracle: *"(It loses all other colors, card types, and creature types.)"* |
+| `kenriths_transformation` | `SetCardTypes(Creature)` on `AttachedCreature` | **Complete** | removes → over-count. Ruling (2019-10-04): *"loses any other card types it has (such as artifact)."* |
+| `imprisoned_in_the_moon` | `SetTypeLine(Land)` on `AttachedPermanent` | **Complete** | removes → over-count. Oracle: *"loses all other card types"*; enchants creature, land **or** planeswalker |
+| `vraska_betrayals_sting` | `SetCardTypes(Artifact)` on `DeclaredTarget` | `Partial` | **not deck-legal** — excluded |
+| `oko_thief_of_crowns` | `SetTypeLine(Creature)` on `DeclaredTarget` | `KnownWrong` | **not deck-legal** — excluded |
+
+**Hosts exist in the corpus for the removal direction**: 40 defs are printed Artifact Creatures
+(**28** `Complete`), and 2 are printed Artifact Lands (`ancient_den`, `treasure_vault`, both
+`Complete`).
+
+**`blood_moon` / `magus_of_the_moon` are deliberately excluded, and the exclusion is a finding.**
+Both are `Complete` and both register `SetTypeLine { card_types: [Land], subtypes: [Mountain] }`
+over `AllNonbasicLands` — which strips the **Artifact card type** from an artifact land. The
+printed card does not do that. The 2020-08-07 ruling on Blood Moon says the effect *"doesn't
+affect names or supertypes"* and that nonbasic lands *"lose any other **land types** and
+abilities"* — land **subtypes**, not card types; a Darksteel Citadel under Blood Moon is still an
+artifact. So under the shipped deviation the base read of `ancient_den` is **accidentally
+CR-correct**, and counting these as live-wrong pairs would be double-counting a *different*
+defect. That def defect is real and independent of this adjudication — filed as **`OOS-ADJ-7`**.
 
 ### 2.4 A supply source neither document accounts for
 
@@ -244,9 +286,9 @@ everything else `Default` — the supply set collapses to the four L4 rows whose
 local `chars` from the `GameObject` in **fourteen** ways before or outside the continuous-effect
 loop, none of which is stored back on the object. The pre-loop ones are: suspected menace
 (`layers.rs:70-72`), ring-bearer legendary (`:82-84`), **DFC back face** (`:97-139`), **meld**
-(`:149-204`), **face-down / morph / manifest / cloak / disguise** (`:219-240`, CR 708.2a — clears
-name, mana cost, types, subtypes, supertypes, colors, keywords, all three ability vectors, and
-sets 2/2), and **mutate** (`:246-248`, wholesale replacement by the topmost component). Inside the
+(`:149-204`), **face-down / morph / manifest / cloak / disguise** (`:219-240`, CR 708.2a — empties
+name, mana cost, subtypes, supertypes, colors, keywords and all three ability vectors, **replaces**
+`card_types` with exactly `{Creature}` at `:223`, and sets 2/2), and **mutate** (`:246-248`, wholesale replacement by the topmost component). Inside the
 loop: Changeling (`:255-260`), Devoid (`:268-270`), Impending (`:278-295`), Reconfigure
 (`:302-319`), Living Metal (`:329-338`), ±1/+1 counters (`:372-400`). After it: the mutate ability
 union (`:413-435`) and derived attack triggers (`:448-459`).
@@ -256,23 +298,38 @@ Two of these move the Artifact type on a deck-legal card:
 | source | card | direction |
 |---|---|---|
 | DFC face flip (`:97-139`) | `thaumatic_compass` — front `Artifact`, back (Spires of Orazca) `Land`; **Complete** | **over-count** — a transformed Compass is not an artifact, but `obj.characteristics` still holds the front face |
-| face-down override (`:219-240`) | any morph/manifest/cloak/disguise permanent | **over-count** — printed types are still the hidden card's; a face-down artifact card is a typeless 2/2 creature |
+| face-down override (`:219-240`) | any morph/manifest/cloak/disguise permanent | **over-count** — `obj.characteristics` still holds the *hidden* card's printed types, but a face-down permanent's only card type is Creature (CR 708.2a), so a face-down artifact card is counted as an artifact when it is not one |
 
-`scutemob-184` names the face-down over-count in `characteristics_for_condition`'s doc comment.
-Neither document names `thaumatic_compass`.
+`451e3517` names the face-down over-count in `characteristics_for_condition`'s doc comment and
+lists CR 712.8d/e (DFC), 712.8g (meld), 729.2a (merge) and 702.73a (changeling) as **UNPINNED**
+divergences. **No source names `thaumatic_compass`** — it is the concrete `Complete` card behind
+the first of those four, found here.
 
 ### 2.5 The answer to AC 6052
 
-**Deck-legal `Complete` combinations live-wrong under the shipped deviation: 4.**
+**Deck-legal `Complete` combinations live-wrong under the shipped deviation: 7.**
 
-`indomitable_archangel` × { `blinkmoth_nexus`, `inkmoth_nexus`, `darksteel_mutation`,
-`thaumatic_compass` } — three under-counts and one over-count. Plus an unbounded-but-uncountable
-face-down class (any `Complete` card can be played face down).
+`indomitable_archangel` × seven `Complete` supply cards:
 
-Each requires a **conjunction**: both cards in the same game, on the battlefield, controlled by
-the same player, with the mis-typed permanent **pivotal** to the count of three. That is
-materially narrower than the v3 queue's rank-2 through rank-8 entries, and §5 ranks it
-accordingly.
+| direction | supply cards | n |
+|---|---|---|
+| **under-count** (base says not-artifact, layers say artifact) | `blinkmoth_nexus`, `inkmoth_nexus`, `darksteel_mutation` | 3 |
+| **over-count** via Layer 4 (base says artifact, layers say not) | `eaten_by_piranhas`, `kenriths_transformation`, `imprisoned_in_the_moon` | 3 |
+| **over-count** via a non-continuous-effect base rewrite | `thaumatic_compass` (DFC face flip, §2.4) | 1 |
+| **over-count**, unbounded | the CR 708.2a face-down class — any `Complete` card can be played face down, so this has no fixed population and is not tallied | — |
+
+Each pair requires a **conjunction**: both cards in the same game, on the battlefield, controlled
+by the same player, with the mis-typed permanent **pivotal** to the count of three. Four of the
+seven are Auras, so they need a host of the right printed type as well — the corpus supplies 28
+`Complete` artifact creatures and 2 `Complete` artifact lands for the removal direction. That
+conjunction requirement, not the raw count, is what places this below the v3 queue's rank-2
+through rank-12 entries in §5.2.
+
+**This number superseded a published 4.** The first draft's supply filter asked whether a
+modification's *payload contained* `CardType::Artifact`, which is structurally blind to the three
+replacement effects that remove Artifact by not listing it. Recorded because the same blind spot
+would recur in any future measurement written the same way: **for a replacement modification, the
+payload is the whole answer, so "does not contain X" is as much a change to X as "contains X" is.**
 
 **One pre-existing deviation of the same family already ships, banner'd**:
 `Condition::DevotionToColorsLessThan` reads base `mana_cost` off battlefield permanents
@@ -328,34 +385,61 @@ Three findings follow.
 **(i) The Archangel case is not a CR 613.8 dependency at all.** The Archangel's effect is
 Layer 6 (`EffectLayer::Ability`, `AddKeyword(Shroud)`); its condition reads **card types**, which
 are set in Layer 4. Layer 4 < Layer 6, so 613.8a(a) fails and no dependency relation is even
-constructible. The CR-correct answer is supplied by the *fixed layer order* alone (613.1, 613.3,
-613.6): a Layer-6 effect's applicability is decided against characteristics resolved through
-Layer 4. The official Wizards precedent for the same shape is the **Neurok Transmuter / March of
+constructible. The CR-correct answer is supplied by the *fixed layer order* alone — **613.1**,
+which lists the layers and fixes their sequence; that single rule does the work here, and neither
+613.3 (CDAs first *within* a layer) nor 613.6 (an effect keeps applying to the same set of objects
+across layers) bears on a cross-layer condition read. A Layer-6 effect's applicability is decided
+against characteristics resolved through Layer 4 because Layer 4 has already run. The official
+Wizards precedent for the same shape is the **Neurok Transmuter / March of
 the Machines** ruling (2004-12-01) — *"March of the Machines depends on knowing what is and isn't
 an artifact"* — which is the *same-layer* (both Layer 4) case and is therefore resolved by
 dependency; the Archangel's is the strictly-cross-layer case and does not need it.
 
-**(ii) "Treat the recursively-encountered effect as inactive" has no CR warrant.** The CR
-contains no notion of a continuous effect that is skipped because its condition could not be
-evaluated. 611.3a says the condition is simply true or false at the moment asked. 613.8b's answer
-to a genuine loop is **timestamp order**, not inactivity. The external doc is honest about this
-— *"This should not be declared a complete implementation of every possible self-referential
-conditional continuous effect"* — but its own §"Same-layer conditions" then proposes exactly the
-opposite of 613.8b: *"the engine should detect this class through validation or debug assertions
-rather than permitting unconstrained recursion."* Detect-and-assert is a *defensible engineering
-posture* (and matches the engine's existing `debug_assert!` at `layers.rs:1835`); it is **not** a
-CR implementation. **Verdict: timestamp order is CR-correct; treat-as-inactive is a deviation and
-must be documented as one if adopted.** That said — see (iii) — the corpus does not currently
-contain a case where the difference is observable.
+**(ii) "Treat the recursively-encountered effect as inactive" has no CR warrant — but 613.8b is
+not the rule that denies it, and the distinction matters.** Two claims must be kept apart:
 
-**(iii) The corpus contains zero genuine loops, so layer-bounding terminates by construction.**
-The one layer-querying condition sits on a Layer-6 effect and reads a Layer-4 characteristic.
-Resolving layers 1–4 requires only effects in layers 1–4, whose conditions (measured: none is
-layer-querying) cannot ask for layer 4 or later. The recursion is not intrinsic to conditional
-statics; it is an artefact of asking for **fully-resolved Layer-7d** characteristics when the
-question was about Layer 4. **The external doc's `calculate_characteristics_through(state, id,
-through_layer, ctx)` is the CR-correct architecture, and on this corpus it needs no
-cycle-breaker at all.**
+- *What the CR says about a **dependency loop**.* 613.8b is explicit and quoted above: timestamp
+  order, not inactivity. But 613.8a(a) confines that rule to a **single layer**, and (i) has just
+  established that the live case is cross-layer. **So 613.8b does not govern the Archangel case,
+  and citing it as though it did would be the same category error this document is adjudicating.**
+- *What the CR says about a **condition-evaluation cycle**.* Nothing. It is an artefact of an
+  implementation that answers "is this effect active?" by a recursive query; the CR's model has no
+  such query, only 611.3a's *"applies at any given moment to whatever its text indicates."*
+
+**Verdict, stated at the strength the evidence supports: the CR is silent on condition-evaluation
+cycles, so any cycle-breaker — treat-as-inactive included — is an undocumented deviation and must
+ship labelled as one.** 613.8b is *evidence about the CR's disposition* when it does face an
+unresolvable circularity (it picks a total order rather than deleting an effect), which is a
+reason to prefer a timestamp-ordered tiebreak over suppression if the class ever becomes
+non-empty — but it is evidence, not governing text.
+
+On this the external doc is honest — *"This should not be declared a complete implementation of
+every possible self-referential conditional continuous effect"* — and its §"Same-layer conditions"
+proposal to *"detect this class through validation or debug assertions"* is a defensible
+engineering posture that matches the engine's existing `debug_assert!` at `layers.rs:1835`. It is
+simply not a rules implementation, and should not be described as one. Per (iii), the corpus
+contains no case where the difference is observable today.
+
+**(iii) Layer-bounding terminates by construction on this corpus — but only if the activity
+check is bounded too, and neither document says so.** The one layer-querying condition sits on a
+Layer-6 effect and reads a Layer-4 characteristic. Resolving layers 1–4 requires only effects in
+layers 1–4, whose conditions (measured: none is layer-querying) cannot ask for layer 4 or later.
+The recursion is not intrinsic to conditional statics; it is an artefact of asking for
+**fully-resolved Layer-7d** characteristics when the question was about Layer 4.
+
+> **Load-bearing precondition, stated here because it is stated nowhere else.** The external
+> doc's own sketch collects effects **globally** — `state.continuous_effects.iter().filter(|e|
+> is_effect_active_with_context(state, e, ctx))` inside `calculate_characteristics_inner`, with
+> no layer filter. Adding a `through_layer` parameter to the *query* while leaving the *activity
+> sweep* global does **not** terminate: a Layer-4-bounded query would still evaluate the Layer-6
+> Archangel effect's condition, which re-enters the same bounded query. Termination requires that
+> a `through_layer`-bounded walk evaluate the condition of **only those effects whose layer ≤
+> `through_layer`** — which is also the semantically right thing, since an effect in a later layer
+> cannot affect an earlier layer's output. §5.2 step 3 carries this as an explicit instruction.
+
+With that precondition, **the external doc's `calculate_characteristics_through(state, id,
+through_layer, ctx)` is the CR-correct architecture, and on this corpus it needs no cycle-breaker
+at all.** Without it, it is the same recursion with an extra parameter.
 
 The residual same-layer/backward case (a Layer-4 effect whose condition reads Layer 4 or 7) is
 genuinely unaddressed by both documents *and*, so far as this task could establish from the MCP
@@ -374,7 +458,7 @@ the corpus today. §6 files it.
 
 The external doc rejects ambient state on four grounds: *"complicates tests, parallelism,
 reentrancy, and future caching."* Against the shipped implementation
-(`<184>:layers.rs:24-58, 108-114`):
+(`451e3517`: `layers.rs:34-61`, `:111-117`):
 
 - **tests** — *does not survive contact.* `the_deviation_is_scoped_to_the_layer_walk_only` and
   `non_layer_path_reads_layer_resolved_power` test the ambient flag directly. Testability was
@@ -400,12 +484,12 @@ for reasons that are three-quarters wrong about this codebase.
 **Also material, and in the shipped fix's favour**: the thread-local touches neither
 `GameState` (Architecture Invariant 2) nor the `Command` mutation path (Invariant 3), is not
 serialized, not hashed, and cannot differ between two runs of the same command. PROTOCOL **33** /
-HASH **70** were gate-executed on the 184 branch and both are unmoved. Whatever replaces it must
+HASH **70** were gate-executed and both are unmoved. Whatever replaces it must
 clear the same bar.
 
 ### 3.5 Where the external doc improves on the shipped fix, and where it does not
 
-**Improves**: closes all four measured pairs plus the face-down class (§3.3); makes the CR
+**Improves**: closes all seven measured pairs plus the face-down class (§3.3); makes the CR
 answer and the termination argument the same fact (§3.2(iii)); removes the referential-opacity
 hazard (§3.4); makes the "multiple distinct conditional effects" test writable — which against a
 depth counter it is not (S3).
@@ -422,21 +506,37 @@ minimal repair shipped on 2026-08-02.
 
 ## 4. What `scutemob-184` shipped, for the record
 
-Branch `feat/pb-dx19-the-unbounded-characteristics-recursion-oos-sim2-6-h`, six commits,
-`+2,145 / −89` across 12 files. Not merged at the time of writing; this task assumed nothing
-about its landing.
+**Anchored to `451e3517`** (merge of `feat/pb-dx19-…` into main), **not** to this worktree's base.
+Ten commits, `+2,821 / −96` across 16 files. The branch was still being edited when this task
+began; every figure below is from the merged tree, and this section was rewritten once the merge
+landed. Line numbers in this section are main's, not `62e5699a`'s.
 
-- **`rules::layers::characteristics_for_condition(state, obj)`** — `expect_characteristics`
-  unless `in_layer_walk()`, in which case `obj.characteristics.clone()`. Applied at 1 dangerous
-  site (`effects/mod.rs:10259`) and ~10 currently-inert ones in `check_condition` /
-  `resolve_amount`, as a boundary guard rather than a per-leaf conversion. The inert sites are
-  genuinely unreachable inside a walk: `layers.rs` calls `resolve_cda_amount`, never
-  `resolve_amount`, and `resolve_cda_amount`'s own filter arms already read base characteristics
-  by a pre-existing documented choice — `EffectAmount::PermanentCount` at `layers.rs:2290`,
-  whose comment at `:2303-2308` names recursive CDA evaluation as the reason and whose filter
-  test at `:2311` reads `&obj.characteristics`.
-- **`LAYER_WALK_DEPTH` / `LayerWalkGuard`** — thread-local `Cell<u32>`, RAII, entered at the top
-  of `calculate_characteristics`.
+- **`rules::layers::characteristics_for_condition(state, obj)`** (`layers.rs:111`) —
+  `expect_characteristics` unless `in_layer_walk()` (`:59-61`), in which case
+  `obj.characteristics.clone()`. Routed to **14** condition-evaluator sites in `effects/mod.rs`,
+  as a boundary guard rather than a per-leaf conversion. Non-condition call sites in
+  `resolve_amount` also route through it, where the guard is inert: `layers.rs` calls
+  `resolve_cda_amount`, never `resolve_amount`, and `resolve_cda_amount`'s own filter arms already
+  read base characteristics by a pre-existing documented choice — `EffectAmount::PermanentCount`
+  at `layers.rs:2290`+, whose comment names recursive CDA evaluation as the reason.
+- **`LAYER_WALK_DEPTH` / `LayerWalkGuard`** — thread-local `Cell<u32>` (`layers.rs:36`), RAII with
+  `saturating_add`/`saturating_sub` on enter/`Drop` (`:47`, `:54`), entered at the top of
+  `calculate_characteristics`. Plus a `debug_assert!` in `process_command` that the depth is
+  **balanced at every command boundary** — a leaked depth is sticky for the thread and would
+  silently downgrade every later condition read.
+- **The closure was claimed once before it was true, and the fix for that is the most durable
+  thing in the batch.** The routing pass was done by pattern replacement and missed three sites
+  spelling the call `expect_characteristics(state, id)` because they destructure `(&id, obj)`:
+  `ControlAtMostNOtherLands`, `ControlAtLeastNOtherLands`,
+  `ControlAtLeastNOtherLandsWithSubtype`. The re-review **reproduced the original SIGABRT through
+  one of them on a tree that already recorded `OOS-DX19-1` as CLOSED**. `569087e6` routed all 14
+  and added a **source gate**, `no_condition_evaluator_resolves_characteristics_directly`
+  (`tests/primitives/pb_dx19_characteristics_recursion.rs:899`), which brace-matches both
+  evaluator bodies and fails on any `expect_characteristics` / `calculate_characteristics` call
+  inside either — watched failing on a deliberately re-introduced miss, with a non-vacuity
+  assertion so a renamed evaluator cannot pass by finding nothing. Its stated lesson: *"a closure
+  achieved by editing every site you could find is a claim; a closure backed by a gate that fails
+  when a site reappears is a fact."*
 - **`OOS-SIM2-5` fold-in** — ten P/T arithmetic sites converted to `saturating_*`, and four
   `u32 → i32` widenings converted from `as` to `try_into().unwrap_or(i32::MAX)`. The `as` casts
   matter separately: they are not checked arithmetic even under `overflow-checks`, so a count
@@ -466,28 +566,47 @@ deliverable in two, and rank the halves differently.**
 
 The review is competent and its central technical objection is correct: the shipped fix trades a
 crash for a documented CR 613.1d deviation, and that deviation is real, live, and reachable from
-deck-legal `Complete` cards. It is also **four pairs**, each requiring a two-card conjunction —
-which is why the *fix* does not belong near the top of the queue and the *gate* does.
+deck-legal `Complete` cards. It is also **seven pairs**, each requiring a two- or three-object
+conjunction — which is why the *fix* does not belong near the top of the queue and the *gate*
+belongs earlier than the fix.
 
-### 5.1 PB-DX42a — the roster gate (offered as a **rider on PB-DX8**, rank 10)
+### 5.1 PB-DX42a — the **corpus** roster gate (offered as a **rider on PB-DX8**, rank 10)
 
-**Why this is the valuable half.** The deviation's cost today is 4 pairs. Its cost tomorrow is
-unbounded and silent: nothing in the tree stops the layer-querying-condition population from
-growing from 1, and the next author who writes *"as long as you control a legendary creature, …"*
-as a **static** gets a silently wrong answer with no failure, no warning, and no gate. That is a
-defect *generator*, and it is the shape SR-36 exists to catch.
+**First, what already exists, so this is not proposed twice.** `569087e6` shipped
+`no_condition_evaluator_resolves_characteristics_directly` — a **source** gate over
+`check_condition` and `check_static_condition`, which fails if either evaluator ever resolves
+characteristics directly again. That closes the regression channel this batch's own routing pass
+fell into, and it is the right instrument for that job. **It does not answer the question this
+rider asks.** The source gate holds the *shape* fixed; it says nothing about the *population*.
 
-**Scope.** One test file. Enumerate `all_cards()`; walk every `ContinuousEffectDef` (including
-`Effect::ApplyContinuousEffect`, which is 172 of the 382 and is nested arbitrarily deep); collect
-the `condition` variants; assert the layer-querying subset is exactly
-`{ indomitable_archangel × YouControlNOrMoreWithFilter }`, with a **non-vacuity floor** (assert
-the walk found ≥ 382 defs and ≥ 17 conditioned ones) — the PB-DX6 precedent, where two rosters
-were pinned **empty** and that is the shape that rots silently. Message tells the next author what
-to do: either the new condition is layer-safe, or the roster grows and PB-DX42b is now urgent.
+**What is still ungated.** The deviation's blast radius is `{ card defs whose
+`ContinuousEffectDef.condition` reaches a layer query }`, measured at exactly **1**. Nothing stops
+that set growing. The next author who writes *"as long as you control a legendary creature, …"* as
+a **static** routes correctly through `characteristics_for_condition`, passes the source gate, and
+gets a silently wrong answer inside the layer walk — no failure, no warning, no signal that the
+seven pairs are now more. `greymond_avacyns_stalwart`'s note, rewritten by `569087e6`, *invites*
+exactly this ("It is safe to register now, at one cost…"). That is a defect *generator*, and a
+corpus roster is the SR-36-shaped instrument for it.
+
+**Scope.** One test file. Enumerate `all_cards()`; walk every `ContinuousEffectDef` **structurally**
+(by field set, so it catches the 172 nested inside `Effect::ApplyContinuousEffect` at arbitrary
+depth, not only `AbilityDefinition::Static`); collect condition variants, **descending through
+`And`/`Or`/`Not`**; assert the layer-querying subset is exactly
+`{ indomitable_archangel × YouControlNOrMoreWithFilter }`. **Non-vacuity floor required** — assert
+the walk found ≥ 382 `ContinuousEffectDef`s and ≥ 17 conditioned ones, because the pinned set has
+one member and a broken walk finding nothing would otherwise pass. (PB-DX6 precedent: two rosters
+pinned **empty**, and that is the shape that rots silently.) The failure message must tell the next
+author the choice: either the new condition is layer-safe, or the population has grown and
+PB-DX42b's rank must be recomputed.
+
+**Derive the pinned numbers from a fresh enumeration at dispatch, not from §2.1.** §2.1's first
+published version mis-stated the per-variant census by two rows (it reported distinct *cards*
+under a total counting *instances*). The corrected table is above; re-run rather than transcribe.
 
 **Cost**: no engine change, no card-def change, no wire. `Complete` count unmoved. **Rider on
-PB-DX8** (rank 10, "oracle-text-vs-DSL cross-check") because that batch is already a corpus-scanning,
-test-only, gate-integrity batch — marginal dispatch cost ≈ 0. If PB-DX8 slips, it rides PB-DX7.
+PB-DX8** (rank 10, "oracle-text-vs-DSL cross-check") because that batch is already a
+corpus-scanning, test-only, gate-integrity batch — marginal dispatch cost ≈ 0. If PB-DX8 slips, it
+rides PB-DX7.
 
 ### 5.2 PB-DX42b — layer-bounded condition queries (**insert at rank 13**)
 
@@ -496,12 +615,15 @@ CORRECTNESS**
 
 Closes **`OOS-DX19-2`** (reframed per §4), **`OOS-DX19-1`**'s residue, and the new `OOS-ADJ-1`.
 
-`rules::layers::characteristics_for_condition` (shipped by `scutemob-184`) returns
-`obj.characteristics` for **any** condition evaluated inside a `calculate_characteristics` walk.
-That is a CR 613.1d deviation on four measured deck-legal `Complete` pairs (§2.5) and on the whole
-face-down class, and it is asserted **in the wrong direction on purpose** by
+`rules::layers::characteristics_for_condition` (shipped by `scutemob-184`, merged `451e3517`)
+returns `obj.characteristics` for **any** condition evaluated inside a `calculate_characteristics`
+walk. That is a CR 613.1d deviation on **seven** measured deck-legal `Complete` pairs (§2.5) and
+on the whole CR 708.2a face-down class, and it is asserted **in the wrong direction on purpose** by
 `deviation_animated_nexus_does_not_count_toward_metalcraft`, whose message instructs this batch to
-**invert** rather than delete it.
+**invert** rather than delete it. `451e3517`'s doc comment on `characteristics_for_condition`
+already names the four other divergences as **UNPINNED** (CR 712.8d/e DFC, 712.8g meld, 729.2a
+merge, 702.73a changeling) — §2.4 supplies the concrete `Complete` card for the first of them
+(`thaumatic_compass`), which no source currently names.
 
 **Do it in three steps, in this order.**
 
@@ -516,11 +638,14 @@ face-down class, and it is asserted **in the wrong direction on purpose** by
    → **`check_condition`** (this is the real cost: `check_condition` is `pub` with four other
    caller classes — `activation_condition`, `intervening_if`, `Effect::Conditional`,
    `unless_condition`; pass `None` there rather than duplicating the evaluator). Use an RAII guard
-   for insert/remove, as `LayerWalkGuard` already does. **This step alone closes all four measured
+   for insert/remove, as `LayerWalkGuard` already does. **This step alone closes all seven measured
    pairs**, because suppressing one effect leaves the rest of the layer system intact.
-3. **Add `calculate_characteristics_through(state, id, through_layer, ctx)`** and a
-   `TargetFilter::required_characteristic_layer(&self)` that is computed **per filter instance**,
-   not per type. It **must** cover `has_name` (Layers 1/3) and `max_cmc`/`min_cmc`
+3. **Add `calculate_characteristics_through(state, id, through_layer, ctx)`**, and **bound the
+   activity sweep by the same `through_layer`** — evaluate `is_effect_condition_satisfied` only
+   for effects whose layer ≤ `through_layer`. **This is what makes it terminate**; a bounded query
+   over a global activity sweep is the original recursion with an extra parameter (§3.2(iii)).
+   Then add `TargetFilter::required_characteristic_layer(&self)`, computed **per filter
+   instance**, not per type. It **must** cover `has_name` (Layers 1/3) and `max_cmc`/`min_cmc`
    (mana value, Layers 1/3) in addition to power/toughness, card types, supertypes, subtypes,
    colors and keywords — `matches_filter` branches on all nine (`effects/mod.rs:9533-9660`), and
    the external doc's sketch omits the first two. `debug_assert!` when a condition's required
@@ -528,13 +653,28 @@ face-down class, and it is asserted **in the wrong direction on purpose** by
    how it stays visible.
 
 **Tests.** Invert `deviation_animated_nexus_does_not_count_toward_metalcraft`. Add the three of
-the external doc's eight that have no counterpart: Layer-4 *adds* Artifact (Blinkmoth/Inkmoth),
-Layer-4 *removes* Artifact (Darksteel Mutation over an artifact, or `thaumatic_compass`
-transformed), and *distinct* conditional effects nesting without mutual suppression — the last is
-unwritable against a depth counter and is the discriminating test for step 2. Keep
-`non_layer_path_reads_layer_resolved_power` and
-`the_deviation_is_scoped_to_the_layer_walk_only` green (the latter will need rewording, not
-deletion). Watch each fail by an **executed, compiling** revert.
+the external doc's eight that have no counterpart, **with fixtures that can actually produce the
+phenomenon**:
+
+- *Layer-4 **adds** Artifact* — `blinkmoth_nexus` or `inkmoth_nexus` animated, or
+  `darksteel_mutation` on a nonartifact creature.
+- *Layer-4 **removes** Artifact* — `eaten_by_piranhas`, `kenriths_transformation` or
+  `imprisoned_in_the_moon` over one of the 28 `Complete` artifact creatures. **Not**
+  `darksteel_mutation` (its `SetCardTypes` payload *is* `[Artifact, Creature]`, so an enchanted
+  artifact stays an artifact) and **not** `thaumatic_compass` (a DFC face swap at `layers.rs`'s
+  pre-loop rewrite, not a Layer-4 continuous effect — worth its own separate test, but it does not
+  discriminate the Layer-4 path).
+- *Distinct conditional effects nesting without mutual suppression* — the discriminating test for
+  step 2, and **unwritable against a depth counter**, which is exactly the "single boolean" shape
+  the external doc warns about.
+
+Keep `non_layer_path_reads_layer_resolved_power`,
+`non_layer_path_reads_layer_resolved_subtypes`, `sibling_condition_on_a_continuous_effect_terminates`
+and `no_condition_evaluator_resolves_characteristics_directly` green — the last is `451e3517`'s
+source gate and must survive the refactor, which means the new internal entry point has to keep
+condition evaluators from resolving characteristics *directly* even as it gives them a bounded way
+to do it *indirectly*. `the_deviation_is_scoped_to_the_layer_walk_only` needs rewording, not
+deletion. Watch each new test fail by an **executed, compiling** revert.
 
 **Wire: none expected.** No `Command`, `GameEvent` or `Effect` variant; `EffectId` is already
 hashed; the eval context is call-stack state, not game state. Predict PROTOCOL 33 / HASH 70
@@ -560,7 +700,7 @@ this is live-wrong on `Complete` cards and belongs in the first band. Within tha
 | 6 | PB-DX24 | 1 def (`nether_traitor`), unconditionally wrong | no |
 | 7 | PB-DX25 | 6 `Complete` mutate defs × 24 counter defs, spell resolves anyway | pair, but **any** counter × **any** mutate |
 | 12 | PB-DX28 | ≥14 `Complete` defs incl. 10 Karoos, **exploitable** | no |
-| **13** | **PB-DX42b** | **4 pairs** | **yes — both cards, same controller, and the mis-typed permanent pivotal to a count of 3** |
+| **13** | **PB-DX42b** | **7 pairs** (+ the unbounded face-down class) | **yes — both cards, same controller, the mis-typed permanent pivotal to a count of 3, and for 4 of the 7 a host of the right printed type as well** |
 
 It ranks **above** PB-DX29 (rank 13→14, agency) and everything below, because those are agency,
 capability or hygiene classes, and this is a rules-correctness class on deck-legal cards. It is
@@ -594,10 +734,11 @@ Filed here for the collector to register in the canonical registry
 
 | id | severity | statement |
 |---|---|---|
-| **`OOS-ADJ-1`** | MEDIUM | `characteristics_for_condition` returns base characteristics inside the layer walk, deviating from CR 613.1d on **4** measured deck-legal `Complete` pairs (`indomitable_archangel` × `blinkmoth_nexus` / `inkmoth_nexus` / `darksteel_mutation` / `thaumatic_compass`) plus the whole face-down class. **Merges with `OOS-DX19-2`**; both are PB-DX42b. |
-| **`OOS-ADJ-2`** | MEDIUM | Nothing gates the size of the layer-querying-condition population. It is **1** today, measured; a new conditional static with a characteristic filter silently joins the deviation with no failure and no warning. Wants the §5.1 roster gate. This is the seed that justifies the rank-10 rider. |
+| **`OOS-ADJ-1`** | MEDIUM | `characteristics_for_condition` returns base characteristics inside the layer walk, deviating from CR 613.1d on **7** measured deck-legal `Complete` pairs — `indomitable_archangel` × { `blinkmoth_nexus`, `inkmoth_nexus`, `darksteel_mutation` } (under-count) and × { `eaten_by_piranhas`, `kenriths_transformation`, `imprisoned_in_the_moon`, `thaumatic_compass` } (over-count) — plus the unbounded CR 708.2a face-down class. **Merges with `OOS-DX19-2`**; both are PB-DX42b. |
+| **`OOS-ADJ-2`** | MEDIUM | Nothing gates the **size of the corpus population** carrying a layer-querying `ContinuousEffectDef.condition`. It is **1** today, measured. `451e3517`'s `no_condition_evaluator_resolves_characteristics_directly` gates the *evaluator source*, not the population, so a new conditional static passes it and silently joins the deviation. `greymond_avacyns_stalwart`'s rewritten note actively invites one. Wants the §5.1 corpus roster gate; this is the seed that justifies the rank-10 rider. |
 | **`OOS-ADJ-3`** | LOW | `OOS-DX19-2` is framed as "a CR 613.8b dependency-aware fixpoint". CR 613.8a(a) confines dependency to a **single layer**; the live case (Layer-6 effect, Layer-4 condition) is strictly cross-layer and needs layer-bounding, not a fixpoint. A worker taking `OOS-DX19-2` at its word will build the wrong thing. Re-word at dispatch. |
-| **`OOS-ADJ-4`** | LOW | `characteristics_for_condition` is not referentially transparent — the same `(state, obj)` returns different answers by ambient thread-local depth. Any future memoization of `calculate_characteristics` keyed on `(state, id)` (a natural optimization: the Archangel condition performs an O(n) battlefield sweep on **every** query) silently poisons non-layer callers. No comment or assert guards this. |
+| **`OOS-ADJ-4`** | LOW | `characteristics_for_condition` is not referentially transparent — the same `(state, obj)` returns different answers by ambient thread-local depth. Any future memoization of `calculate_characteristics` keyed on `(state, id)` (a natural optimization: the Archangel condition performs an O(n) battlefield sweep on **every** query) silently poisons non-layer callers. `451e3517`'s `process_command` balance `debug_assert!` catches a *leaked* depth; it does not catch this, and no comment names the hazard. |
+| **`OOS-ADJ-7`** | MEDIUM | `blood_moon.rs` and `magus_of_the_moon.rs` (both `Complete`) register `SetTypeLine { card_types: [Land], subtypes: [Mountain] }` over `AllNonbasicLands`, which **strips the Artifact card type**. The printed cards do not: the 2020-08-07 ruling says the effect *"doesn't affect names or supertypes"* and that nonbasic lands lose *"any other **land types** and abilities"* — subtypes, not card types. A Darksteel Citadel under Blood Moon is still an artifact. Live-wrong on 2 `Complete` defs against the corpus's 2 `Complete` artifact lands (`ancient_den`, `treasure_vault`). **Independent of the recursion work** — a card-def/`LayerModification` scope defect, and it should ride a card-def batch (PB-DX27), not PB-DX42b. Found only because §2.3's supply measurement was redone in both directions. |
 | **`OOS-ADJ-5`** | LOW | The engine's CR 613.8 dependency relation is **Layer-4-only** (five hardcoded `depends_on` arms, `layers.rs:1868-1960`) and `depends_on` receives no `&GameState`, so 613.8a(b) ("would applying the other change *what it applies to*") cannot be evaluated. Dependencies in Layers 1/2/3/5/6/7a–7d resolve by pure timestamp. No test constructs a real dependency cycle or exercises the `layers.rs:1835-1852` fallback; `crates/engine/tests/rules/layers.rs:1251-1258` records in its own comment that the test formerly in that slot "claimed to test the 613.8b cycle but built no cycle at all". Pre-existing, out of scope here, and **not** what PB-DX42b fixes. |
 | **`OOS-ADJ-6`** | LOW | No mechanism forces a `Condition` variant, when it is added or when its evaluator gains a characteristics read, to declare which layer it requires. `Condition` has 52 variants; 11 reach a layer query today and the classification lives nowhere but this document. The natural home is the `KeywordAbility`/SR-5 pattern — an exhaustive classification whose omission is a compile error. |
 
@@ -607,6 +748,10 @@ Filed here for the collector to register in the canonical registry
 - **`OOS-DX19-1`** — CONFIRMED and independently re-measured (11 layer-querying variants; only
   `YouControlNOrMoreWithFilter` is corpus-live as a continuous-effect condition). Its guidance
   ("do **not** fix it by converting the ten leaves — it wants a boundary guard") is endorsed.
+  Closed by `569087e6` **on the second attempt**: the first closure was claimed on a tree where
+  three sites spelling the call `expect_characteristics(state, id)` still bypassed the guard, and
+  the re-review reproduced the original SIGABRT through one of them. All 14 sites now route, and
+  the closure is held by a source gate rather than by an edit sweep.
 - **`OOS-DX19-4`** (depth tripwire) — CONFIRMED, and the external doc independently agrees a depth
   limit is legitimate *as a panic-prevention assertion* while not being the semantic fix. No
   conflict; keep as filed.
@@ -617,20 +762,45 @@ Filed here for the collector to register in the canonical registry
 
 ## 7. Method, and what this adjudication does not establish
 
-**Established by execution or by direct source read**: every file:line in §1; the corpus counts
-in §2 (`all_cards()` dump, 1,803 defs, reproducible); the CR text in §3.2 (MCP `get_rule`,
-verbatim); the shipped shape in §4 (`git show` against the 184 branch, not an assumption that it
-merged).
+**Established by execution or by direct source read**: every file:line in §1 and §2.2, at
+`62e5699a` (the pre-fix anchor — see the note in the header); the corpus counts in §2
+(`all_cards()` dump, 1,803 defs, reproducible); the CR text and card rulings in §2.3 and §3.2
+(MCP `get_rule` / `lookup_card`, verbatim); the shipped shape in §4, read at `451e3517` after the
+merge landed mid-task, having first been read on the unmerged branch.
+
+**This document was adversarially reviewed and materially corrected.** Twelve findings were
+raised; the substantive ones are absorbed above and named where they landed, because a corrected
+number with no record of the correction is the same failure mode this document criticises in
+`OOS-DX19-1`'s first closure. The corrections that changed a published figure or instruction:
+
+| what changed | from | to |
+|---|---|---|
+| live-wrong pairs (§0, §2.5, §5.2) | 4 | **7**, after redoing the supply measurement in the *removal* direction (§2.5's note) |
+| condition census (§2.1) | 9 rows summing to 15 under a stated total of 17 | instances-vs-cards separated; `SourceHasCounters` 3→4, `ControllerLifeAtLeast` 1→2 |
+| §5.2 step 3 | layer-bounded *query* | layer-bounded query **plus a layer-bounded activity sweep** — without which it does not terminate (§3.2(iii)) |
+| §5.2 test fixtures | "Darksteel Mutation over an artifact, or `thaumatic_compass` transformed" | neither can produce a Layer-4 Artifact removal; replaced with `eaten_by_piranhas` / `kenriths_transformation` / `imprisoned_in_the_moon` |
+| §3.2(ii) verdict | "613.8b prescribes timestamp order, so treat-as-inactive is a deviation" | 613.8b does not govern a cross-layer case at all; the CR is **silent**, and 613.8b is evidence, not governing text |
+| §4 | branch, 6 commits, +2,145/−89 | merged `451e3517`, **10 commits**, +2,821/−96 — including a source gate §5.1's first draft proposed as new work |
+| §3.2(i) | "613.1, 613.3, 613.6" | **613.1** alone; 613.3 and 613.6 do not bear on a cross-layer condition read |
 
 **Not established here**:
 
-- **No test was run.** This task is read-only on `crates/` and `tools/`; the 4-pair claim in §2.5
+- **No test was run.** This task is read-only on `crates/` and `tools/`; the 7-pair claim in §2.5
   is a *corpus* claim (these cards exist, are `Complete`, and their effects move the Artifact
   type), **not** a claim that a live game was set up and observed producing the wrong Metalcraft
-  count. PB-DX42b's stage 0 should observe it. The direction of each error is derived from
-  `matches_filter`'s reads, which is sound but is derivation, not observation.
+  count. PB-DX42b's stage 0 should observe it. The **direction** of each error is derived from
+  `matches_filter`'s reads and each card's oracle text/rulings; that is sound derivation, not
+  observation.
+- **The 7 is a floor for its own filter, and the filter is narrow.** It answers "which `Complete`
+  cards move the **Artifact** type", because Artifact is what the corpus's single live condition
+  reads. Should the population of §5.1's roster ever exceed one, the supply side must be
+  re-measured against whatever fields the *new* filters read — §2.3's per-layer table (246 cards,
+  181 `Complete`, across Layers 1–7) is the ceiling that measurement would work down from.
 - **The face-down class is not counted.** Any `Complete` card can be played face down, so it has
   no fixed population; it is listed qualitatively.
+- **`OOS-ADJ-7` (Blood Moon) is filed on a rulings reading, not a full def audit.** The ruling text
+  is quoted and the two artifact lands are enumerated, but no systematic pass was made over the
+  corpus's other `SetTypeLine` uses for the same over-strip.
 - **`OOS-ADJ-5` is reported, not audited.** The Layer-4-only dependency relation is a real
   limitation but was not systematically crossed against the corpus. Someone should.
 - **The 11-variant reachability inventory (§2.2) was traced two to three levels deep** through
