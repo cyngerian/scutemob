@@ -224,7 +224,7 @@
   `memory/primitives/seed-rerank-2026-08-02.md` is the authoritative queue; v2's §4 is banner'd
   SUPERSEDED (its §1-§3 stay canonical). **Census: 80 rows / 79 distinct IDs filed after
   2026-07-27 — twice the brief's ~40**, because v2's census closed 2026-07-31 and every PB-DX
-  batch shipped 2026-08-01, so v2 never saw PB-DX1..DX5's 28 seeds or `OOS-M11-5..10`. Every row
+  batch shipped 2026-08-01, so v2 never saw PB-DX1..DX5's 29 seeds or `OOS-M11-5..10`. Every row
   chain-verified against HEAD. **11 closures verified in code** (one, `OOS-UI2-3`, closed *further*
   than recorded — its third cause was `OOS-M11-2`'s `can_afford` half, so that seed's residue is
   now cost MODIFIERS + CR 106.12 only). **Next dispatch is PB-DX19, not PB-DX7**: `OOS-SIM2-6`,

@@ -848,7 +848,7 @@ canonical. `git diff` confined to `memory/`, `docs/`, `CLAUDE.md` — zero sourc
 **The census is twice the brief's estimate, and the reason is a cutoff.** The brief scoped ~40
 seeds (DX6 + the 174-181 run). The real post-2026-07-27 population is **80 rows / 79 distinct
 IDs**. v2's census closed **2026-07-31**; every PB-DX batch shipped **2026-08-01** — so the
-document that ranks PB-DX1..DX18 has never seen the 28 seeds PB-DX1..DX5 filed, nor
+document that ranks PB-DX1..DX18 has never seen the 29 seeds PB-DX1..DX5 filed, nor
 `OOS-M11-5..10`. Four of those 28 are live-wrong on deck-legal `Complete` cards.
 
 **No single source is complete, and a future re-rank must run all three.** Pass A
@@ -856,8 +856,9 @@ document that ranks PB-DX1..DX18 has never seen the 28 seeds PB-DX1..DX5 filed, 
 and only the L18 W6 mega-row survives, naming DX1's seeds not at all. Pass B (the 2026-08 archive)
 misses `OOS-M11-5` entirely and records almost every filing as an unresolvable range. Pass C
 (`docs/audits/decision-point-audit.md` §8.1, the registry) misses **10** — the CARDS-2 family lives
-in `memory/card-authoring/cards2-field-fidelity-2026-08-02.md` §5 (`## 5. Cross-references and
-seeds`, L267 — the doc has five sections, not seven) and only `OOS-CARDS2-9` is in §8.1. Wildcards resolved and two written ranges found stale (`OOS-DX5-1..7` under-reports by one —
+in `memory/card-authoring/cards2-field-fidelity-2026-08-02.md` under
+`## 5. Cross-references and seeds` (**§5**, not §7 — that doc has five sections), and only
+`OOS-CARDS2-9` is in §8.1. Wildcards resolved and two written ranges found stale (`OOS-DX5-1..7` under-reports by one —
 `OOS-DX5-8` exists and neither narrative mentions it). **UI-1 (`scutemob-174`) filed zero seeds**;
 there is no `OOS-UI1-*` family anywhere.
 
