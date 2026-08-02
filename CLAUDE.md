@@ -96,6 +96,9 @@
   `memory/primitives/seed-rerank-2026-08-02.md` §4). **PB-DX7 is no longer next** — it survives at
   rank 9; eight new entries outrank it. Older queue history (the PB-OS,
   PB-RS and PB-DP chains) is rotated to the 2026-08 archive.
+- **Tests (delta 2026-08-02, second session)**: **4,281 / 0 / 5** full-workspace at the PB-DX19
+  collect (`451e3517`); UI-4 (`b031d39e`) adds +2 play-server gates (57 green, targeted run) —
+  nominal 4,283, full-tree re-measure at next collect. Earlier pin below.
 - **Tests**: **4,263 passing / 0 failing / 5 ignored** on main at the wave-4 collect
   (`b76b1df4`, 2026-08-02) — the full playtest-successor run 174–181 landed +139 over the 4,124
   S8+DX6 baseline. Per-batch branch pins for the run are rotated to
