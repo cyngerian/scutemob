@@ -1354,11 +1354,7 @@ fn blocking_decision_view(
         // this seat's own), so these labels come through `NameIndex` like every
         // other label in this file — the `question_card_label` channel is not
         // involved and must not be.
-        LegalAction::DiscardToHandSize {
-            count,
-            hand,
-            cards,
-        } => Some(BlockingDecisionView {
+        LegalAction::DiscardToHandSize { count, hand, cards } => Some(BlockingDecisionView {
             question: "CleanupDiscard".to_string(),
             prompt: format!(
                 "Discard {count} card{} to maximum hand size (CR 514.1)",

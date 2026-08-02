@@ -475,7 +475,10 @@ fn validate_decision_params(
                 ));
             }
             if !seen.insert(id.0) {
-                return Err(format!("object {} appears in the {what} answer twice", id.0));
+                return Err(format!(
+                    "object {} appears in the {what} answer twice",
+                    id.0
+                ));
             }
         }
         Ok(())
@@ -516,13 +519,10 @@ fn validate_decision_params(
                 ) => {
                     match found {
                         // CR 701.23a.
-                        Some(id) => check_ids(
-                            std::slice::from_ref(id),
-                            candidates,
-                            "search",
-                            "CR 701.23a",
-                        )
-                        .map_err(bad)?,
+                        Some(id) => {
+                            check_ids(std::slice::from_ref(id), candidates, "search", "CR 701.23a")
+                                .map_err(bad)?
+                        }
                         // CR 701.23d: an unrestricted search MUST find. The picker
                         // is told this through `may_decline: false` and should not
                         // offer the button at all.
@@ -544,8 +544,9 @@ fn validate_decision_params(
                 (
                     EffectChoiceQuestion::Surveil { looked_at },
                     EffectChoiceAnswer::Surveil { graveyard, top },
-                ) => check_partition(looked_at, graveyard, top, "surveil", "CR 701.25a")
-                    .map_err(bad),
+                ) => {
+                    check_partition(looked_at, graveyard, top, "surveil", "CR 701.25a").map_err(bad)
+                }
                 _ => Err(bad(format!(
                     "CR 608.2d: this decision asked a {} question; the answer given is a \
                      different kind",

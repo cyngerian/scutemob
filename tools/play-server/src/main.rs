@@ -2914,7 +2914,11 @@ mod tests {
         // `EffectChoiceQuestion::Scry`'s `looked_at` is TOP-FIRST, and the library
         // zone is bottom-first, so these two indices are the same two cards.
         let before = ui1_library(&state);
-        assert_eq!(before[before.len() - 1], looked[0], "looked_at is top-first");
+        assert_eq!(
+            before[before.len() - 1],
+            looked[0],
+            "looked_at is top-first"
+        );
         assert_eq!(before[before.len() - 2], looked[1]);
 
         // Answer it: bottom the current top card, keep the other.
@@ -3049,7 +3053,10 @@ mod tests {
 
         // Now a real, non-default pick.
         let chosen = *candidates.last().expect("non-empty");
-        assert_ne!(chosen, candidates[0], "the pick must differ from the default");
+        assert_ne!(
+            chosen, candidates[0],
+            "the pick must differ from the default"
+        );
         let library_before = ui1_library(&state);
         assert!(library_before.contains(&chosen) && library_before.contains(&candidates[0]));
         let (status, after) = post_json(
@@ -3139,7 +3146,10 @@ mod tests {
         assert_eq!(answer["shape"], "Subset");
 
         let count = answer["count"].as_u64().expect("count is a number");
-        assert!(count >= 1, "a cleanup discard is only raised when count >= 1");
+        assert!(
+            count >= 1,
+            "a cleanup discard is only raised when count >= 1"
+        );
         let candidates: Vec<u64> = answer["candidates"]
             .as_array()
             .expect("candidates is an array")
@@ -3254,8 +3264,8 @@ mod tests {
     #[test]
     fn test_ui1_view_rs_reads_game_state_in_exactly_the_two_known_places() {
         let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        let source = std::fs::read_to_string(root.join("src").join("view.rs"))
-            .expect("view.rs is readable");
+        let source =
+            std::fs::read_to_string(root.join("src").join("view.rs")).expect("view.rs is readable");
         // `test_region` returns the suffix STARTING at the `#[cfg(test)]` cut, so
         // the production region is its complement. (`view.rs` has no test module
         // at all, in which case that suffix is empty and the whole file is

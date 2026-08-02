@@ -1029,13 +1029,9 @@ mod tests {
                 "trigger_targets",
             ),
         ] {
-            let err = action_to_command_with_params(
-                &state,
-                p1,
-                &LegalAction::PassPriority,
-                &params,
-            )
-            .expect_err("PassPriority has no answer channel");
+            let err =
+                action_to_command_with_params(&state, p1, &LegalAction::PassPriority, &params)
+                    .expect_err("PassPriority has no answer channel");
             assert_eq!(err, ParamError::UnsupportedParam(expected));
         }
     }
