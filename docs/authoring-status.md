@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-08-02 20:04 UTC  
-**Git:** `a878ca26` on `feat/sim-6-activation-cost-payment-channel-sacrificediscard-costs`  
+**Generated:** 2026-08-02 20:31 UTC  
+**Git:** `e5162b1e` on `feat/sim-6-activation-cost-payment-channel-sacrificediscard-costs`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 

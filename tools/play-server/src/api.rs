@@ -701,6 +701,20 @@ pub(crate) fn validate_additional_cost_params(
                 )));
             }
         }
+        // The mirror image of the guard below (`/review` finding 2). CR 118.8's
+        // `additional_costs` array belongs to a `CastSpell`; `params.rs`'s
+        // `ActivateAbility` arm never reads it, and `ActivateAbility` IS in that
+        // function's consuming allowlist, so `first_announced_field` will not catch
+        // it either — an array sent here would be dropped in silence. Refusing both
+        // directions is the only symmetric answer.
+        if !params.additional_costs.is_empty() {
+            return Err(bad(
+                "CR 118.8: `additional_costs` describes a SPELL's additional costs; an \
+                 activated ability's costs are answered with cost_sacrifice_target / \
+                 cost_discard_card"
+                    .to_string(),
+            ));
+        }
         return Ok(());
     }
 

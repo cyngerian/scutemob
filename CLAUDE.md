@@ -96,8 +96,8 @@
   `memory/primitives/seed-rerank-2026-08-02.md` §4). **PB-DX7 is no longer next** — it survives at
   rank 9; eight new entries outrank it. Older queue history (the PB-OS,
   PB-RS and PB-DP chains) is rotated to the 2026-08 archive.
-- **Tests (delta 2026-08-02, SIM-6)**: **4,312 / 0 / 5** full-workspace on branch
-  `scutemob-189` (+17 over SIM-5's 4,295: 11 simulator + 6 play-server), measured with
+- **Tests (delta 2026-08-02, SIM-6)**: **4,313 / 0 / 5** full-workspace on branch
+  `scutemob-189` (+18 over SIM-5's 4,295: 11 simulator + 7 play-server), measured with
   `--workspace --no-fail-fast` to a file. Earlier pins below.
 - **Tests (delta 2026-08-02, second session)**: **4,281 / 0 / 5** full-workspace at the PB-DX19
   collect (`451e3517`); UI-4 (`b031d39e`) adds +2 play-server gates (57 green, targeted run) —
@@ -249,7 +249,12 @@
   Dismember, with itself correctly absent from the picker; Altar of Dementia cost+target in
   one chain; Rummaging Goblin discard). Seeds **OOS-SIM6-1..5** — **`OOS-SIM6-3` is the
   successor**: auto-tap covers `CastSpell` alone, so 62 of the 113 remaining refusals, and a
-  human's mana-cost activation in the browser, are still 422s. Tests **4,312 / 0 / 5** (+17).
+  human's mana-cost activation in the browser, are still 422s. Tests **4,313 / 0 / 5**
+  (+18). **The `/review` cycle found 5 LOW and all 5 were taken**, two of them real
+  coverage holes: the discard channel had no HTTP probe (added, on a new mono-red
+  fixture whose ability is `{T}`-only so it cannot fail for `OOS-SIM6-3`'s reason), and
+  an `additional_costs` array sent on an `ActivateAbility` was dropped in silence — the
+  mirror image of a guard this batch had just added in the same function.
   Full handoff: `memory/workstream-state.md`.
 - **Prior**: 2026-08-02 — **SIM-5 SHIPPED** (`scutemob-188`, merge `e185a2ff`; row 3 of
   the `memory/playtest-triage-2026-08-02b.md` successor table). **G5 CLOSED in its (1)/(2)/(3)

@@ -1944,6 +1944,16 @@ fn activated_ability_is_activatable(
     }
     // CR 602.5b (`abilities.rs:260`): "Activate only if ...". Evaluated with the same
     // `check_condition` the engine uses, so the two cannot disagree.
+    //
+    // **KNOWN DIVERGENCE, latent (`/review` finding 3)**: the engine builds its
+    // context with `x_value: x_value.unwrap_or(0)` from the COMMAND, while this runs
+    // at offer time, before any `{X}` is announced, and so always evaluates at
+    // `x_value: 0`. An "Activate only if X is N or more" condition would therefore be
+    // wrongly SUPPRESSED here — the silent-unplayable direction, not the 422
+    // direction. Not reachable today: every `Condition::XValueAtLeast` in the corpus
+    // (`finale_of_devastation`, `white_suns_twilight`, `martial_coup`) is spell-side,
+    // never an `activation_condition`. Closing it needs the announced `{X}` at offer
+    // time, which this action does not have; `OOS-SIM6-6`.
     if let Some(condition) = &ability.activation_condition {
         let ctx = mtg_engine::effects::EffectContext::new(player, obj.id, vec![]);
         if !mtg_engine::effects::check_condition(state, condition, &ctx) {

@@ -986,6 +986,13 @@ survived.
   graveyard cards; **1 def** in the corpus) and `sacrifice_self` on a source under
   `CantBeSacrificed` (CR 701.21a, `abilities.rs:917`). Both are the same class as the three
   `activated_ability_is_activatable` now covers; neither has measured traffic.
+* **`OOS-SIM6-6`** (LOW, latent — filed by the `/review` cycle) — the offer-time
+  `activation_condition` evaluation uses `x_value: 0`, because `{X}` is not announced until
+  command construction. The engine evaluates the same condition with the command's own
+  `x_value` (`abilities.rs:261-271`), so an "Activate only if X is N or more" ability would
+  be wrongly **suppressed** — the silent-unplayable direction, not the 422 direction.
+  Unreachable today: every `Condition::XValueAtLeast` in the corpus is spell-side. Recorded
+  in `activated_ability_is_activatable`'s own doc rather than left to be rediscovered.
 * **`OOS-SIM6-5`** (LOW, TUI) — `tools/tui/src/play/input.rs`'s `'e'` key now routes
   through `action_to_command_with_params` (so the costs, modes and hybrid/Phyrexian plans
   are filled), but the TUI still has **no picker** for any of them: it always submits the
@@ -1003,10 +1010,37 @@ survived.
   `handle_activate_ability` accepts (it checks the zone and nothing else). If a def ever
   needs "discard a *land*", this descriptor has no field for it.
 
+### `/review` cycle — 5 LOW, all 5 taken
+
+The reviewer re-executed every load-bearing gate independently (4,312/0/5, PROTOCOL 33 /
+HASH 70, fmt + clippy + defs-fmt, 0 engine lines) and confirmed by three separate reverts
+that the suppression gate, the Yahenni `exclude_self` fix and the new activatable mirror
+each have a test that goes red without them. All five findings were LOW; all five taken:
+
+1. **The discard channel had no HTTP probe.** The sacrifice half did; the discard half was
+   covered only by unit calls and the `params.rs` engine round-trip, so
+   `activation_costs_view`'s discard block was verified in a browser by hand and by nothing
+   automated. Added `test_sim6_activation_discard_is_answered_over_http` on a new mono-RED
+   fixture (Lathliss commander, 99 Mountains, Rummaging Goblin) — deliberately a `{T}`-only
+   ability, because an activation that ALSO costs mana fails on this surface for the
+   unrelated `OOS-SIM6-3`, which would have made the probe pass or fail for the wrong cause.
+   It also pins the CR 302.6 gate incidentally: the offer does not appear on the turn the
+   goblin lands.
+2. **An `additional_costs` array on an `ActivateAbility` was dropped in silence** — the
+   mirror image of a guard this batch had just added in the same function. `params.rs`'s
+   activation arm never reads that field and `ActivateAbility` sits inside its consuming
+   allowlist, so `first_announced_field` could not catch it either. Now a 400, with a
+   both-ways test (and a control that an activation announcing nothing is still accepted).
+3. **`OOS-SIM6-6` filed** — see the seed list above.
+4. README limitation numbering (the new item was inserted before, not after, item 22).
+5. `docs/authoring-status.md` had been regenerated at the batch's first commit rather than
+   at HEAD, so its rolling commit block was three commits stale. No count was wrong — no
+   card def changed after that commit — but regenerated at HEAD anyway.
+
 ### Numbers
 
-Tests **4,312 / 0 / 5** full workspace (+17 over SIM-5's 4,295): 11 simulator (10 for the
-channel, 1 for the SR-38 mirror) + 6 play-server. Every suppression gate proven **red by
+Tests **4,313 / 0 / 5** full workspace (+18 over SIM-5's 4,295): 11 simulator (10 for the
+channel, 1 for the SR-38 mirror) + 7 play-server. Every suppression gate proven **red by
 reverting the gate and watching the assertion fail**, not by inspection. `cargo fmt`,
 `tools/check-defs-fmt.sh`, `clippy --workspace --all-targets -D warnings` all clean.
 

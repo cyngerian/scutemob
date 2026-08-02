@@ -7849,5 +7849,260 @@ mod tests {
         .expect_err("an activation answer on a CastSpell decision is a 400");
         assert_eq!(err.status, StatusCode::BAD_REQUEST);
         assert_eq!(err.body.kind, "bad_params");
+
+        // The mirror image (`/review` finding 2): a CR 118.8 `additional_costs`
+        // array on an ACTIVATION decision. `params.rs`'s `ActivateAbility` arm never
+        // reads that field and `ActivateAbility` is inside its consuming allowlist,
+        // so without this guard the array is dropped in silence.
+        let err = api::validate_additional_cost_params(
+            &sacrifice_only,
+            &crate::view::ActionParamsDto {
+                additional_costs: vec![mtg_engine::AdditionalCost::Sacrifice {
+                    ids: vec![eligible],
+                    lki: vec![],
+                }],
+                ..Default::default()
+            },
+        )
+        .expect_err("a spell's additional-cost array on an activation decision is a 400");
+        assert_eq!(err.status, StatusCode::BAD_REQUEST);
+        assert_eq!(err.body.kind, "bad_params");
+
+        // And the control: an activation decision with NO cost answers at all is
+        // accepted, so the guard above cannot pass by refusing everything.
+        api::validate_additional_cost_params(
+            &sacrifice_only,
+            &crate::view::ActionParamsDto::default(),
+        )
+        .expect("an activation with no announced cost answer is accepted");
+    }
+
+    /// `{4}{R}{R}`, Legendary Creature, `Completeness::Complete`
+    /// (`crates/card-defs/src/defs/lathliss_dragon_queen.rs`). Mono-red, which fixes
+    /// CR 903.5c colour identity to plain red so a Mountain deck is legal — the same
+    /// role [`SIM6_COMMANDER`] plays on the black side. Never cast by
+    /// [`sim6_drive_to_rummaging_goblin_activation`], which only ever plays a land,
+    /// casts the one fixture creature, or passes.
+    const SIM6_RED_COMMANDER: &str = "lathliss-dragon-queen";
+
+    /// `{2}{R}`, Creature — Goblin Rogue 1/1, `Completeness::Complete`.
+    /// "{T}, Discard a card: Draw a card" — the DISCARD half of this batch's channel,
+    /// and deliberately an ability with **no mana component**: an activation that also
+    /// costs mana is refused `InsufficientMana` on this surface for an unrelated
+    /// reason (`OOS-SIM6-3` — auto-tap covers `CastSpell` and nothing else), which
+    /// would make a probe of the discard channel fail for the wrong cause.
+    ///
+    /// This is the card whose live browser activation surfaced the missing CR 302.6
+    /// gate (see `legal_actions::activated_ability_is_activatable`).
+    const SIM6_DISCARDER: &str = "rummaging-goblin";
+    const SIM6_DISCARDER_NAME: &str = "Rummaging Goblin";
+
+    /// [`sim6_deck_with`] on the red side: `SIM6_RED_COMMANDER` plus 99 Mountains.
+    fn sim6_red_deck_with(overrides: &[(usize, &str)]) -> mtg_simulator::DeckConfig {
+        use mtg_engine::CardId;
+        let mut main_deck: Vec<CardId> = (0..99).map(|_| CardId("mountain".to_string())).collect();
+        for (index, card) in overrides {
+            main_deck[*index] = CardId(card.to_string());
+        }
+        mtg_simulator::DeckConfig {
+            commander: CardId(SIM6_RED_COMMANDER.to_string()),
+            main_deck,
+        }
+    }
+
+    /// Install the red fixture, both seats. Mirrors [`sim6_install`].
+    fn sim6_install_red(state: &SharedState, p1_deck: mtg_simulator::DeckConfig) {
+        let cfg = mtg_simulator::LocalGameConfig {
+            player_count: 2,
+            human_seats: [mtg_engine::PlayerId(1)].into_iter().collect(),
+            bot_kind: BotKind::Heuristic,
+            seed: UI2_SEED,
+            decks: mtg_simulator::DeckSource::Fixed(vec![
+                (mtg_engine::PlayerId(1), p1_deck),
+                (mtg_engine::PlayerId(2), sim6_red_deck_with(&[])),
+            ]),
+            limits: mtg_simulator::LocalGameLimits {
+                max_turns: 200,
+                max_commands: 40_000,
+                max_consecutive_passes: 500,
+                record_journal: true,
+            },
+        };
+        let session = session::new_game(cfg, 0).expect("the SIM-6 red fixture deck must be legal");
+        *state.session.lock().expect("fresh lock") = Some(session);
+    }
+
+    /// Drive the human seat — playing a land, else casting the one fixture creature,
+    /// else passing — until an `ActivateAbility` option for that creature is offered.
+    ///
+    /// The commander is never cast: this loop has no branch that would.
+    ///
+    /// **The offer does not appear on the turn the creature lands**, and that is the
+    /// point: `activated_ability_is_activatable` withholds a `{T}` ability from a
+    /// summoning-sick creature (CR 302.6), so this loop keeps passing until the
+    /// following turn. Before that gate the offer appeared immediately and the
+    /// activation came back 422.
+    async fn sim6_drive_to_rummaging_goblin_activation(
+        state: &SharedState,
+        max_steps: usize,
+    ) -> Value {
+        let p1 = mtg_engine::PlayerId(1);
+        let (status, mut view) = get_json(state, "/api/game").await;
+        assert_eq!(status, StatusCode::OK, "{view}");
+        for step in 0..max_steps {
+            if !ui2_battlefield_ids_by_name(state, p1, SIM6_DISCARDER_NAME).is_empty() {
+                let goblin = ui2_battlefield_ids_by_name(state, p1, SIM6_DISCARDER_NAME)[0];
+                let offered = view["decision"]["actions"]
+                    .as_array()
+                    .is_some_and(|actions| {
+                        actions
+                            .iter()
+                            .any(|a| a["kind"] == "ActivateAbility" && a["object_id"] == goblin)
+                    });
+                if offered {
+                    return view;
+                }
+            }
+            assert!(
+                !view["decision"].is_null(),
+                "the game ended at step {step} before the activation was offered: {view}"
+            );
+            let wire_seq = seq(&view);
+            let actions = view["decision"]["actions"]
+                .as_array()
+                .expect("actions is an array")
+                .clone();
+            let cast_label = format!("Cast {SIM6_DISCARDER_NAME}");
+            let pick = actions
+                .iter()
+                .find(|a| a["kind"] == "PlayLand")
+                .or_else(|| {
+                    actions
+                        .iter()
+                        .find(|a| a["kind"] == "CastSpell" && a["label"] == cast_label)
+                })
+                .or_else(|| actions.iter().find(|a| a["kind"] == "PassPriority"))
+                .or_else(|| actions.iter().find(|a| a["kind"] != "Concede"))
+                .unwrap_or_else(|| panic!("only Concede was offered at step {step}: {view}"));
+            let index = pick["index"].as_u64().expect("index is a number");
+            let (status, next) = post_json(
+                state,
+                "/api/game/action",
+                json!({"seq": wire_seq, "action_index": index, "params": {}}),
+            )
+            .await;
+            assert_eq!(
+                status,
+                StatusCode::OK,
+                "step {step} submitting {}: {next}",
+                pick["label"]
+            );
+            view = next;
+        }
+        panic!("the Rummaging Goblin activation was never offered within {max_steps} steps");
+    }
+
+    /// SIM6-P7 (criterion 6068, `/review` finding 4): the DISCARD half of the channel
+    /// over HTTP, which the unit tests and the `params.rs` engine round-trip together
+    /// still left unexercised on the wire — `activation_costs_view`'s discard block
+    /// (its prompt and its `answer_field`) had no automated coverage at all.
+    ///
+    /// A NON-DEFAULT card is chosen, so the resulting game state distinguishes the
+    /// human's answer from the offer's own default.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_sim6_activation_discard_is_answered_over_http() {
+        let p1 = mtg_engine::PlayerId(1);
+        let state = shared_state();
+        sim6_install_red(&state, sim6_red_deck_with(&[(0, SIM6_DISCARDER)]));
+
+        let view = sim6_drive_to_rummaging_goblin_activation(&state, SIM6_MAX_STEPS).await;
+        let goblin = ui2_battlefield_ids_by_name(&state, p1, SIM6_DISCARDER_NAME)[0];
+        let option = sim6_activate_option(&view, goblin);
+
+        let discard = &option["costs"]["activation_discard"];
+        assert!(
+            !discard.is_null(),
+            "the discard block must be present on the wire: {option}"
+        );
+        assert_eq!(discard["answer_field"], "cost_discard_card");
+        assert!(
+            discard["prompt"]
+                .as_str()
+                .expect("prompt is a string")
+                .contains("Discard"),
+            "{discard}"
+        );
+        assert!(
+            option["costs"]["activation_sacrifice"].is_null(),
+            "this ability has no sacrifice cost: {option}"
+        );
+        let candidates: Vec<u64> = discard["candidates"]
+            .as_array()
+            .expect("candidates is an array")
+            .iter()
+            .map(|c| c["id"].as_u64().expect("id is a number"))
+            .collect();
+        assert!(
+            candidates.len() >= 2,
+            "the fixture needs at least two hand cards for a non-default choice: {discard}"
+        );
+        let default = discard["default"].as_u64().expect("default is a number");
+        assert_eq!(default, candidates[0], "the default is the first candidate");
+        let chosen = candidates[1];
+
+        // Read the chosen card's NAME before the submission: CR 400.7 mints a fresh
+        // `ObjectId` on the zone change, so the graveyard check below has to be by
+        // name, exactly as `ui2_zone_names`' own doc says.
+        let chosen_name = {
+            let guard = state.session.lock().expect("lock");
+            let session = guard.as_ref().expect("a session is installed");
+            session
+                .game
+                .state()
+                .objects()
+                .get(&mtg_engine::ObjectId(chosen))
+                .expect("the chosen card exists")
+                .characteristics
+                .name
+                .clone()
+        };
+
+        let (status, after) = post_json(
+            &state,
+            "/api/game/action",
+            json!({
+                "seq": seq(&view),
+                "action_index": option["index"],
+                "params": {"cost_discard_card": chosen},
+            }),
+        )
+        .await;
+        assert_eq!(
+            status,
+            StatusCode::OK,
+            "the activation with its discard paid must be accepted: {after}"
+        );
+        assert!(
+            ui2_zone_names(&state, mtg_engine::ZoneId::Graveyard(p1)).contains(&chosen_name),
+            "the chosen card must be in its owner's graveyard (CR 602.2 / CR 111.10g)"
+        );
+
+        // The negative half, on the same live offer: a card this decision never
+        // offered is refused 400 at the boundary rather than reaching the engine.
+        let (status, body) = post_json(
+            &state,
+            "/api/game/action",
+            json!({
+                "seq": seq(&after),
+                "action_index": 0,
+                "params": {"cost_discard_card": 999_999},
+            }),
+        )
+        .await;
+        assert_ne!(
+            status,
+            StatusCode::OK,
+            "an unofferable discard id must not be accepted: {body}"
+        );
     }
 }

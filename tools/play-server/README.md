@@ -922,17 +922,6 @@ repeated here so this README does not claim more than the implementation does.
     predicate table is keyed on a mode object precisely so that is one more
     entry, but today there are two modes.
 
-23. **Auto-tap covers `CastSpell` and nothing else (SIM-6).**
-    `LocalGame::auto_tap_commands_for` returns `None` for every command that is not
-    a cast, on both the bot path and the human `submit` path — so activating an
-    ability with a mana cost taps nothing. `legal_actions::can_afford` offers the
-    activation because its cost is solvable *with taps*, and
-    `handle_activate_ability` then charges the **pool** and refuses
-    `InsufficientMana` → **422**. A human must have floating mana already, which the
-    browser gives no way to arrange deliberately. Measured at **62 of the 113** bot
-    command refusals in `sim5_bot_cast_discipline`'s A/B (seeds 0/7/42). Seed
-    **OOS-SIM6-3**; the largest remaining SR-38 violation on this surface.
-
 22. **Opponent seat cards can show *no* known hand cards, and that is the view
     model, not the drawer (UI-3).** `SeatCard`'s details drawer lists the
     non-`hidden` entries of a seat's hand, which is the whole hand for the human
@@ -942,6 +931,7 @@ repeated here so this README does not claim more than the implementation does.
     entry. The drawer says how many cards it may not identify rather than
     implying the information is merely unrendered. Closing this needs a
     per-object reveal set on `CardInZoneView`, which is an M10a-shaped change.
+
 
 23. **The battlefield grid's column count is computed, and only the narrow case
     is a viewport property (UI-3).** `PlayBoard` sets `--cols` from the number of
@@ -976,6 +966,17 @@ repeated here so this README does not claim more than the implementation does.
     class of event behind a filter chip.
 
 ---
+
+26. **Auto-tap covers `CastSpell` and nothing else (SIM-6).**
+    `LocalGame::auto_tap_commands_for` returns `None` for every command that is not
+    a cast, on both the bot path and the human `submit` path — so activating an
+    ability with a mana cost taps nothing. `legal_actions::can_afford` offers the
+    activation because its cost is solvable *with taps*, and
+    `handle_activate_ability` then charges the **pool** and refuses
+    `InsufficientMana` → **422**. A human must have floating mana already, which the
+    browser gives no way to arrange deliberately. Measured at **62 of the 113** bot
+    command refusals in `sim5_bot_cast_discipline`'s A/B (seeds 0/7/42). Seed
+    **OOS-SIM6-3**; the largest remaining SR-38 violation on this surface.
 
 ## `GET /api/game/report` — and the one place Invariant 7 does not apply
 
