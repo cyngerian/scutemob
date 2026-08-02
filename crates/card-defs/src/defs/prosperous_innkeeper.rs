@@ -1,8 +1,13 @@
-// Prosperous Innkeeper — Alliance (life gain), ETB Treasure token
-// CR 702.x: Alliance is an ability word (no keyword variant); implemented as a
-// plain Triggered ability using WheneverCreatureEntersBattlefield with
-// controller: You filter and exclude_self: true (PB-XS-E, CR 109.1 / 603.2 —
-// the "another" qualifier on the Alliance trigger).
+// Prosperous Innkeeper — {1}{G}, Creature — Halfling Citizen 1/1
+// When this creature enters, create a Treasure token.
+// Whenever another creature you control enters, you gain 1 life.
+//
+// CARDS-2 (scutemob-181) second fix cycle: the header and oracle_text previously
+// invented an "Alliance —" ability word this printing does not carry (verified via
+// sqlite cards.sqlite; the MCP lookup independently confirms no ability word). Removed
+// from both. The implementation itself — WheneverCreatureEntersBattlefield with
+// controller: You and exclude_self: true (PB-XS-E, CR 109.1 / 603.2) — was already
+// correct for the plain "whenever another creature you control enters" trigger.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -14,14 +19,10 @@ pub fn card() -> CardDefinition {
             green: 1,
             ..Default::default()
         }),
-        types: full_types(
-            &[SuperType::Legendary],
-            &[CardType::Creature],
-            &["Halfling", "Citizen"],
-        ),
+        types: creature_types(&["Halfling", "Citizen"]),
         oracle_text: "When this creature enters, create a Treasure token. (It's an artifact with \
-                      \"{T}, Sacrifice this token: Add one mana of any color.\")\nAlliance — \
-                      Whenever another creature you control enters, you gain 1 life."
+                      \"{T}, Sacrifice this token: Add one mana of any color.\")\nWhenever \
+                      another creature you control enters, you gain 1 life."
             .to_string(),
         abilities: vec![
             // CR 603.1: ETB trigger — create a Treasure token.
@@ -37,9 +38,9 @@ pub fn card() -> CardDefinition {
                 modes: None,
                 trigger_zone: None,
             },
-            // Alliance ability word (CR 702 ability word — no KeywordAbility variant).
-            // Fires whenever another creature you control enters; exclude_self: true
-            // (PB-XS-E) prevents Prosperous Innkeeper from triggering its own Alliance.
+            // "Whenever another creature you control enters, you gain 1 life."
+            // exclude_self: true (PB-XS-E) prevents Prosperous Innkeeper's own ETB from
+            // triggering this ability (CR 109.1 / 603.2 — "another").
             AbilityDefinition::Triggered {
                 once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverCreatureEntersBattlefield {

@@ -1,4 +1,4 @@
-// Whitemane Lion — {1}{W}, Creature — Cat 2/1
+// Whitemane Lion — {1}{W}, Creature — Cat 2/2
 // Flash.
 // When this enters, return a creature you control to its owner's hand.
 use crate::cards::helpers::*;
@@ -16,7 +16,7 @@ pub fn card() -> CardDefinition {
         oracle_text: "Flash\nWhen this enters, return a creature you control to its owner's hand."
             .to_string(),
         power: Some(2),
-        toughness: Some(1),
+        toughness: Some(2),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flash),
             // CR 603.3: ETB trigger — return a creature you control to its owner's hand.

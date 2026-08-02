@@ -1,4 +1,4 @@
-// Glacierwood Siege — {3}{G}, Enchantment
+// Glacierwood Siege — {1}{G}{U}, Enchantment
 // As this enters, choose Temur or Sultai.
 // • Temur — Whenever you cast an instant or sorcery spell, mill four cards.
 // • Sultai — You may play lands from your graveyard.
@@ -9,8 +9,9 @@ pub fn card() -> CardDefinition {
         card_id: cid("glacierwood-siege"),
         name: "Glacierwood Siege".to_string(),
         mana_cost: Some(ManaCost {
-            generic: 3,
+            generic: 1,
             green: 1,
+            blue: 1,
             ..Default::default()
         }),
         types: types(&[CardType::Enchantment]),

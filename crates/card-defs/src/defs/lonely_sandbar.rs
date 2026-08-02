@@ -1,4 +1,4 @@
-// 19b. Lonely Sandbar — Land — Island; enters tapped; cycling {U}.
+// 19b. Lonely Sandbar — Land; enters tapped; cycling {U}.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -6,7 +6,7 @@ pub fn card() -> CardDefinition {
         card_id: cid("lonely-sandbar"),
         name: "Lonely Sandbar".to_string(),
         mana_cost: None,
-        types: types_sub(&[CardType::Land], &["Island"]),
+        types: types(&[CardType::Land]),
         oracle_text: "This land enters tapped.\n{T}: Add {U}.\nCycling {U} ({U}, Discard this \
                       card: Draw a card.)"
             .to_string(),
@@ -20,7 +20,7 @@ pub fn card() -> CardDefinition {
                 is_self: true,
                 unless_condition: None,
             },
-            // {T}: Add {U} (Island subtype grants this implicitly, but explicit here).
+            // {T}: Add {U} (no Island subtype on the printed card; ability is explicit).
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
                 effect: Effect::AddMana {

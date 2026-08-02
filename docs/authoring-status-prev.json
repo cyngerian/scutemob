@@ -1,12 +1,12 @@
 {
-  "generated": "2026-08-01 12:51 UTC",
-  "git_head": "736493db",
-  "total_files": 1804,
+  "generated": "2026-08-02 10:48 UTC",
+  "git_head": "23b75885",
+  "total_files": 1803,
   "total_todos": 940,
   "file_buckets": {
-    "clean": 1137,
-    "todo": 517,
-    "empty": 150
+    "clean": 1133,
+    "todo": 519,
+    "empty": 151
   },
   "todo_classes": {
     "OTHER (unclassified)": 576,
@@ -14,13 +14,13 @@
     "TriggerCondition::* missing variant": 17,
     "attack trigger (self / generic)": 23,
     "compleated": 1,
-    "DSL gap (unspecified)": 120,
+    "DSL gap (unspecified)": 122,
     "can't / must block-attack": 7,
     "gain / exchange control": 2,
     "can't be countered": 7,
     "multi-target reanimate": 1,
     "exert": 1,
-    "dynamic hexproof / protection": 17,
+    "dynamic hexproof / protection": 15,
     "conditional static / grant": 5,
     "mass-attach equipment": 1,
     "delayed triggers": 5,
@@ -65,6 +65,6 @@
     "total": 1636,
     "authored": 1501,
     "missing": 135,
-    "extras": 322
+    "extras": 321
   }
 }

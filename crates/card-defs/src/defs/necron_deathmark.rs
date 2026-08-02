@@ -1,6 +1,7 @@
-// Necron Deathmark — {3}{B}, Creature — Necron 4/2
+// Necron Deathmark — {3}{B}{B}, Artifact Creature — Necron 5/3
 // Flash
-// When this enters, destroy target creature an opponent controls. Each player mills two cards.
+// Synaptic Disintegrator — When this creature enters, destroy up to one target creature
+// and target player mills three cards.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -9,38 +10,42 @@ pub fn card() -> CardDefinition {
         name: "Necron Deathmark".to_string(),
         mana_cost: Some(ManaCost {
             generic: 3,
-            black: 1,
+            black: 2,
             ..Default::default()
         }),
-        types: creature_types(&["Necron"]),
-        oracle_text: "Flash\nWhen this enters, destroy target creature an opponent controls. Each \
-                      player mills two cards."
+        types: full_types(&[], &[CardType::Artifact, CardType::Creature], &["Necron"]),
+        oracle_text: "Flash\nSynaptic Disintegrator — When this creature enters, destroy up to \
+                      one target creature and target player mills three cards."
             .to_string(),
-        power: Some(4),
-        toughness: Some(2),
+        power: Some(5),
+        toughness: Some(3),
         abilities: vec![
             AbilityDefinition::Keyword(KeywordAbility::Flash),
             AbilityDefinition::Triggered {
                 once_per_turn: false,
                 trigger_condition: TriggerCondition::WhenEntersBattlefield,
                 effect: Effect::Sequence(vec![
-                    // Destroy target creature an opponent controls.
+                    // Destroy up to one target creature (any controller). Index 0 is an
+                    // UpToN slot -- if not declared, DestroyPermanent resolves against an
+                    // empty target list and is a no-op (CR 601.2c/608.2b).
                     Effect::DestroyPermanent {
                         target: EffectTarget::DeclaredTarget { index: 0 },
                         cant_be_regenerated: false,
                     },
-                    // Each player mills two cards.
+                    // Target player mills three cards.
                     Effect::MillCards {
-                        player: PlayerTarget::EachPlayer,
-                        count: EffectAmount::Fixed(2),
+                        player: PlayerTarget::DeclaredTarget { index: 1 },
+                        count: EffectAmount::Fixed(3),
                     },
                 ]),
                 intervening_if: None,
-                targets: vec![TargetRequirement::TargetPermanentWithFilter(TargetFilter {
-                    has_card_type: Some(CardType::Creature),
-                    controller: TargetController::Opponent,
-                    ..Default::default()
-                })],
+                targets: vec![
+                    TargetRequirement::UpToN {
+                        count: 1,
+                        inner: Box::new(TargetRequirement::TargetCreature),
+                    },
+                    TargetRequirement::TargetPlayer,
+                ],
                 modes: None,
                 trigger_zone: None,
             },

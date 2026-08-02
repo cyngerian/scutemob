@@ -1,4 +1,4 @@
-// Changeling Hero — {3}{W}, Creature — Shapeshifter 4/4; Changeling, Lifelink,
+// Changeling Hero — {4}{W}, Creature — Shapeshifter 4/4; Changeling, Lifelink,
 // Champion a creature.
 use crate::cards::helpers::*;
 
@@ -7,7 +7,7 @@ pub fn card() -> CardDefinition {
         card_id: cid("changeling-hero"),
         name: "Changeling Hero".to_string(),
         mana_cost: Some(ManaCost {
-            generic: 3,
+            generic: 4,
             white: 1,
             ..Default::default()
         }),

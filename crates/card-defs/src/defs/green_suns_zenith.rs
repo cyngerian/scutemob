@@ -10,6 +10,7 @@ pub fn card() -> CardDefinition {
         name: "Green Sun's Zenith".to_string(),
         mana_cost: Some(ManaCost {
             green: 1,
+            x_count: 1,
             ..Default::default()
         }),
         types: types(&[CardType::Sorcery]),
@@ -19,7 +20,9 @@ pub fn card() -> CardDefinition {
             .to_string(),
         abilities: vec![AbilityDefinition::Spell {
             // TODO: "mana value X or less" — max_cmc should be XValue, not fixed.
-            // TODO: "shuffle into library instead of graveyard" replacement.
+            // "Shuffle Green Sun's Zenith into its owner's library instead of putting it
+            // anywhere else" is now expressible via self_shuffle_on_resolution (see
+            // nexus_of_fate.rs for the same shape) — set below.
             effect: Effect::SearchLibrary {
                 filter: TargetFilter {
                     has_card_type: Some(CardType::Creature),
@@ -39,6 +42,7 @@ pub fn card() -> CardDefinition {
         completeness: Completeness::partial(
             "'mana value X or less' — max_cmc should be XValue, not fixed",
         ),
+        self_shuffle_on_resolution: true,
         ..Default::default()
     }
 }

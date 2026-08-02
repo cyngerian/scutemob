@@ -1,8 +1,19 @@
-// 112. Windbrisk Heights — Land — Plains; Hideaway 4; enters tapped; {T}: {W}; {W},{T}: play exiled card.
+// 112. Windbrisk Heights — Land; Hideaway 4; enters tapped; {T}: {W}; {W},{T}: play exiled card.
 // CR 702.75: Hideaway 4 triggers on ETB: look at top 4, exile one face-down, put rest on bottom.
 // CR 702.75b: older Hideaway cards errata'd to "Hideaway 4" + separate "enters tapped" line.
-// The play condition ("attacked with 3+ creatures this turn") uses Condition::Always as
-// a deterministic fallback — attack tracking is deferred.
+// The play condition ("attacked with 3+ creatures this turn") is
+// Condition::YouAttackedWithNOrMore(3), reading PlayerState.attackers_declared_this_turn.
+//
+// KNOWN RESIDUAL, stated rather than claimed away (CARDS-2 review, scutemob-181): that field
+// is ASSIGNED, not accumulated -- `rules/combat.rs` sets it to the size of the latest
+// declaration and says so in its own comment. On a turn with an extra combat
+// (`Effect::AdditionalCombatPhase` is implemented), attacking with three and then one drops
+// the count to one and this land goes dead, which the printed card does not do. It is also
+// not deduplicated by creature. An earlier draft of this comment cited the 2007-10-01 ruling
+// as though the primitive implemented it; it does not, and asserting fidelity a primitive
+// does not have is exactly what `braided_net.rs` was demoted for. The condition is still a
+// strict improvement on the `None` it replaced (which let the exiled card be played with no
+// attack at all).
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -10,7 +21,7 @@ pub fn card() -> CardDefinition {
         card_id: cid("windbrisk-heights"),
         name: "Windbrisk Heights".to_string(),
         mana_cost: None,
-        types: types_sub(&[CardType::Land], &["Plains"]),
+        types: types(&[CardType::Land]),
         oracle_text: "Hideaway 4 (When this land enters, look at the top four cards of your \
                       library, exile one face down, then put the rest on the bottom in a random \
                       order.)\nThis land enters tapped.\n{T}: Add {W}.\n{W}, {T}: You may play \
@@ -29,7 +40,7 @@ pub fn card() -> CardDefinition {
                 is_self: true,
                 unless_condition: None,
             },
-            // {T}: Add {W} (Plains subtype).
+            // {T}: Add {W} (no Plains subtype on the printed card; ability is explicit).
             AbilityDefinition::Activated {
                 cost: Cost::Tap,
                 effect: Effect::AddMana {
@@ -43,8 +54,9 @@ pub fn card() -> CardDefinition {
                 once_per_turn: false,
                 modes: None,
             },
-            // {W}, {T}: Play the exiled card without paying its mana cost.
-            // Condition::Always — the real attack-count condition is deferred.
+            // {W}, {T}: Play the exiled card without paying its mana cost, if you attacked
+            // with three or more creatures this turn (CR ruling 2007-10-01: any point in the
+            // turn, counted by distinct creatures declared as attackers).
             AbilityDefinition::Activated {
                 cost: Cost::Sequence(vec![
                     Cost::Mana(ManaCost {
@@ -56,7 +68,7 @@ pub fn card() -> CardDefinition {
                 effect: Effect::PlayExiledCard,
                 timing_restriction: None,
                 targets: vec![],
-                activation_condition: None,
+                activation_condition: Some(Condition::YouAttackedWithNOrMore(3)),
                 activation_zone: None,
                 once_per_turn: false,
                 modes: None,

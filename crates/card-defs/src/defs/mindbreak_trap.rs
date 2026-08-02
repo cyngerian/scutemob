@@ -13,7 +13,7 @@ pub fn card() -> CardDefinition {
             blue: 2,
             ..Default::default()
         }),
-        types: types(&[CardType::Instant]),
+        types: types_sub(&[CardType::Instant], &["Trap"]),
         oracle_text: "If an opponent cast three or more spells this turn, you may pay {0} rather \
                       than pay this spell's mana cost.\nExile any number of target spells."
             .to_string(),

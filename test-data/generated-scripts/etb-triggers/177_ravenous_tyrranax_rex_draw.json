@@ -3,7 +3,7 @@
   "metadata": {
     "id": "script_etb_177",
     "name": "Ravenous — Tyrranax Rex enters with X counters and draws when X >= 5",
-    "description": "Tests both effects of the Ravenous keyword (CR 702.156a) on Tyrranax Rex. P1 casts Tyrranax Rex with X=5, paying {5}{G}{G}{G}{G}. Ravenous is a replacement effect that causes the permanent to enter with X +1/+1 counters (so Tyrranax Rex enters as a 13/13 instead of 8/8). Because X is 5 or more, a triggered ability also fires: 'When this permanent enters, if X is 5 or more, draw a card.' The trigger resolves and p1 draws a card, increasing hand count from 0 to 1.",
+    "description": "Tests both effects of the Ravenous keyword (CR 702.156a) on Tyrranax Rex. P1 casts Tyrranax Rex with X=5, paying {5}{4}{G}{G}{G}. Ravenous is a replacement effect that causes the permanent to enter with X +1/+1 counters (so Tyrranax Rex enters as a 13/13 instead of 8/8). Because X is 5 or more, a triggered ability also fires: 'When this permanent enters, if X is 5 or more, draw a card.' The trigger resolves and p1 draws a card, increasing hand count from 0 to 1.",
     "cr_sections_tested": [
       "601.2",
       "107.3",
@@ -23,11 +23,12 @@
       "tyrranax-rex"
     ],
     "confidence": "high",
-    "review_status": "approved",
+    "review_status": "retired",
     "reviewed_by": null,
     "review_date": null,
-    "generation_notes": "Tyrranax Rex card definition (crates/engine/src/cards/defs/tyrranax_rex.rs): mana_cost green:4 (represents {X}{G}{G}{G}{G}); base P/T 8/8; abilities: Trample, Ward(4), Ravenous. CR 702.156a: Ravenous represents both a replacement effect (enters with X +1/+1 counters) and a triggered ability (draw a card if X >= 5). With X=5, p1 needs 5 colorless + 4 green = 9 total mana. The mana pool is pre-loaded with 5 colorless + 4 green. Tyrranax Rex enters with 5 +1/+1 counters making it a 13/13. The draw trigger fires immediately after it enters; the stack_resolve for Tyrranax Rex leaves a trigger on the stack. A card must be in p1's library for the draw to succeed — one Forest is placed in library. After the trigger resolves p1 has 1 card in hand (the drawn Forest). Ward {4} is irrelevant here — nothing targets Tyrranax Rex in this script. The script uses x_value: 5 per CR 107.3m and the script_schema.rs x_value field (line 342).",
-    "disputes": []
+    "generation_notes": "CARDS-2 (2026-08-02, scutemob-181) re-derived this script's mana. Tyrranax Rex's printed cost is {4}{G}{G}{G} with a Ravenous {X}; the definition had carried {G}{G}{G}{G} with x_count 0 -- three mana cheap AND structurally X-less -- and this script was written to match the definition rather than the card, so it passed for two batches. With X=5 the cast now needs 5 (X) + 4 generic + 3 green = colorless 9, green 3. CR 702.156a: Ravenous is both a replacement effect (enters with X +1/+1 counters) and a triggered ability (draw if X >= 5). One Forest is in the library so the draw succeeds. Ward {4} is irrelevant -- nothing targets Tyrranax Rex here. The script uses x_value: 5 per CR 107.3m.",
+    "disputes": [],
+    "retirement_reason": "CARDS-2 (2026-08-02, scutemob-181), review Issue 2: the script's subject does not exist. Tyrranax Rex has no Ravenous and no {X} — its printed text is 'This spell can't be countered. / Trample, ward {4}, haste / Toxic 4' (MCP oracle). The definition this script was written against declared KeywordAbility::Ravenous, which appears on no printing of the card, so every assertion here (enters with X +1/+1 counters, 13/13, the X>=5 draw trigger) certifies an ability the card does not have. WORTH RECORDING HOW THIS SURVIVED A REPAIR: earlier in this same batch the script FAILED on InsufficientMana after the def's cost was corrected, and it was re-baselined by recomputing the mana pool — without re-reading the oracle. That is precisely the failure this batch had already named in writing for scripts 164 and 177 ('written to what the def said, not to the card'), committed one pass before repeating it. A wrong printed field is reason to re-read the whole oracle, not to fix the field. NOTHING IS LOST: Ravenous keeps six engine tests against a mock in crates/engine/tests/mechanics_m_z/ravenous.rs, and Tyrranax Rex was the only definition in the corpus declaring the keyword."
   },
   "initial_state": {
     "format": "commander",
@@ -40,8 +41,8 @@
       "p1": {
         "life": 40,
         "mana_pool": {
-          "colorless": 5,
-          "green": 4
+          "colorless": 9,
+          "green": 3
         },
         "land_plays_remaining": 0,
         "poison_counters": 0,
@@ -117,12 +118,12 @@
           "targets": [],
           "x_value": 5,
           "mana_paid": {
-            "colorless": 5,
-            "green": 4
+            "colorless": 9,
+            "green": 3
           },
           "mana_source": [],
           "cr_ref": "601.2",
-          "note": "CR 601.2: p1 casts Tyrranax Rex with X=5, paying {5}{G}{G}{G}{G}. CR 107.3m: X is chosen as 5 at cast time. Tyrranax Rex moves from hand to the stack."
+          "note": "CR 601.2: p1 casts Tyrranax Rex with X=5, paying {5}{4}{G}{G}{G} = nine generic-payable plus three green. CR 107.3m: X is chosen as 5 at cast time. Tyrranax Rex moves from hand to the stack. (CARDS-2, scutemob-181: was {5}{G}{G}{G}{G} against a def that had dropped the {4} and carried x_count 0 -- the printed cost is {4}{G}{G}{G}, and the script had been written to whatever the def said rather than to the card.)"
         },
         {
           "type": "assert_state",

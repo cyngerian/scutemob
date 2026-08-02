@@ -1,6 +1,6 @@
 # Engine Invariants & Machine-Enforced Gates
 
-<!-- last_updated: 2026-07-18 -->
+<!-- last_updated: 2026-08-02 -->
 
 > **Standing invariant/machinery reference.** These bullets moved verbatim out of
 > CLAUDE.md's "Current State" section on 2026-07-18 (DOC-1v2, `scutemob-125`) because
@@ -14,7 +14,7 @@
 > rules (the SR-remediation gates) and where each mechanism lives. Read the matching
 > entry before touching the subsystem it guards.
 >
-> Live structural counts (corpus size = 1,798 card defs) are kept current here; numbers
+> Live structural counts (corpus size = 1,803 card defs) are kept current here; numbers
 > that appear inside a historical narrative of when a gate was built (e.g. SR-35's
 > "1,380 of 1,748 defs were inert") are point-in-time record and are left as written.
 
@@ -149,7 +149,13 @@
   **not** a test group (`NON_GROUP_DIRS`) — `proptest` writes it on its first failure and the group
   check would otherwise redden a second time and bury the real failure.
 - **The golden-script corpus is triaged and cannot skip silently (SR-9c).** The 271 scripts in
-  `test-data/generated-scripts/` are now **210 `approved` / 61 `retired` / 0 `pending_review`**.
+  `test-data/generated-scripts/` are now **208 `approved` / 63 `retired` / 0 `pending_review`**
+  of 271 files (re-measured 2026-08-02 by CARDS-2, `scutemob-181`, which retired scripts 163
+  and 177 — both certified an ability their card does not have). These two numbers had gone
+  stale once already, because the SR-9c gate is a **partition** check
+  (`approved + retired == discovered`) and not a value check: retiring a script keeps the
+  partition true and moves both counts, so nothing reddens. Re-measure them, do not trust
+  this line — `grep -c '"approved"' test-data/generated-scripts/*/*.json`.
   `ReviewStatus::Retired` carries a **required `retirement_reason`**; a retired script is excluded from the
   run but printed, never absent. `tests/scripts/run_all_scripts.rs` **partitions** the discovered set
   (`approved + retired == discovered`) and fails on a `pending_review`/`disputed`/`corrected` script, a file
@@ -228,3 +234,84 @@
   `memory/card-authoring/sr36-engine-findings-2026-07-17.md` (**SG-1 MEDIUM: the simulator's
   `LegalActionProvider` ignores `life_cost` — harmless while the cost was dropped, now it
   offers bots unpayable actions**).
+
+- **A definition's printed fields are diffed against the printed card (SR-37).** Invariant #9
+  always implied this and nothing enforced it: `completeness` gates whether a card's *abilities*
+  are authored and `validate_deck` refuses a non-`Complete` card, but until CARDS-2
+  (`scutemob-181`, 2026-08-02) **nothing whatsoever checked that a def's mana cost, power,
+  toughness or type line matched the card it claims to be**. `tyrranax_rex` shipped `Complete`,
+  passed every test, and cost `{G}{G}{G}{G}` against a printed `{4}{G}{G}{G}` — three mana cheap
+  on a seven-drop, found by a human playing the game. A corpus-wide diff put the background rate
+  at **39 real defects across 1,804 defs** (the gate's raw first run said 51; the difference
+  is six false mismatches from its own notation and six more that were the design working),
+  errors running in both directions: authoring-time
+  transcription noise, not one systematic cause.
+  **Three pieces, and the split matters.** `tools/card-field-dump` (a bin crate) enumerates
+  `all_cards()` and emits TSV — enumerated, never grepped out of the def sources (SR-36).
+  `tools/refresh-card-fidelity-fixture.py` joins that name list to `cards.sqlite` and copies the
+  printed strings **verbatim**, doing no semantic work at all.
+  `crates/engine/tests/core/cards2_printed_field_fidelity.rs` parses those raw strings and is
+  **the only place equality is decided**. `cards.sqlite` is gitignored and absent in CI, which is
+  why the fixture (`test-data/card-fidelity/printed-fields.tsv`, 1,801 rows) is committed; the
+  Python deliberately does not normalise, because a pre-normalised fixture would encode a second,
+  unreviewed opinion about what a mana cost *is* and the two would drift.
+  **Refreshing is not a way to make a failure go away.** The fixture is the printed card; when
+  the gate fails, the definition is wrong. To refresh after adding or removing defs:
+  `cargo run -q -p card-field-dump > /tmp/corpus.tsv` then
+  `python3 tools/refresh-card-fidelity-fixture.py --corpus /tmp/corpus.tsv --db cards.sqlite
+  --out test-data/card-fidelity/printed-fields.tsv`. Re-running on an unchanged corpus rewrites
+  the same bytes. Unmatched names are written into the fixture's `# unmatched:` trailer and
+  printed on stderr, never silently dropped — an unmatched name is a typo in a def or a card too
+  new for the local snapshot, and both need a human.
+  **Six rules.** R1 every def has a fixture row; R2 mana costs match *structurally* (both sides
+  reduced to the same order-free multiset, because `ManaCost` stores counts and the printed
+  string's ordering is information a def cannot carry — and because Boon Satyr's real defect was
+  a **transposition**, `{2}{G}` for `{1}{G}{G}`, which leaves mana value unchanged and no
+  arithmetic check could ever have caught); R3 power/toughness, where a non-numeric printed value
+  (`*`, `1+*`) is a CDA and a **`Complete`** def must carry `None` — a non-`Complete` def may
+  carry a placeholder, the one field where the marker buys an exemption, and only because no
+  correct number exists (a wrong *cost* gets no such pass, the printed cost being a fact the def
+  could simply have copied); R4 type lines as *sets*, sidestepping printed word order; R5 **no
+  two defs share a `name`** — `CardRegistry::try_new` rejects a duplicate `CardId` and says
+  nothing about a duplicate name, so two files defining one card under two ids built cleanly and
+  both shipped, for seventeen days after a marker sweep had written down that one should be
+  deleted; R6 non-vacuity floors, plus round-trip checks on the canonicalisers themselves, since
+  R1–R5 are all "for every row" assertions that an empty fixture would satisfy.
+  **Two exceptions, both structural rather than by name.** A *meld result* (CR 712.5b) is a
+  never-cast shell whose characteristics live on `back_face`; the gate reads that face, and
+  recognises the case by the def being referenced as some other def's `meld_pair.melded_card_id`
+  — a name allowlist would let any def opt out of the gate by being added to a list. The
+  `SYNTHETIC_ALLOWLIST` (two hand-built test cards with no printing) is by name, is pinned at
+  exactly two, and is checked in both directions so a synthetic that turns out to be real fails
+  rather than being skipped.
+  **R7 and R8 were added by the review fix cycles**, each because the first shape of the gate
+  proved too narrow in a way that cost real defects. **R7** compares costs that live *inside* an
+  ability — bestow, morph, megamorph, disguise, craft — because R2 reads one field and Boon
+  Satyr's bestow cost was one of the batch's four headline defects; three more wrong ones
+  (Braided Net's craft, Akroma's and Birchlore Rangers' morph, the last **free at `{0}`** for a
+  printed `{G}`) were then found by eye. It is asymmetric on purpose: a def that declares no
+  bestow for a card printing it is *incomplete*, which is `completeness`'s job; one that
+  declares it and charges wrong is *wrong*, which is this gate's.
+  **R8** compares the `oracle_text` field, because a fictional `oracle_text` is the documented
+  root cause of this batch's worst incident — a repair pass authored three abilities into
+  `braided_net` after being briefed from that file's own stale text, taking a `Complete` def
+  from "missing abilities" to "legal but wrong". It is a *similarity floor*, not equality, and
+  that is measured rather than conceded: strict equality fails on **315** defs, almost all of it
+  WotC's 2024 self-reference re-templating and reminder-text churn, and a gate that reddens on a
+  sixth of the corpus for spelling gets switched off. With reminder text dropped and the
+  self-reference vocabulary stopworded the **median def scores 100**, and only 9 of 1,776 fall
+  below 50 — six of them real defects the corpus did not know it had, carried in an explicit
+  `KNOWN_DIVERGENT_ORACLE_TEXT` register whose entries a staleness assertion forces you to
+  delete once repaired.
+  **What a passing gate does NOT assert**: that a def's abilities are right. It checks the four
+  fields mechanically checkable against a database. That said, *more than one* wrong printed
+  field turned out to be a reliable signal that a def was authored from a misremembered card
+  rather than mistyped — it is how `backup_agent` (implementing Backup 1 + Lifelink, an ability
+  set from a different card) and `necron_deathmark` were caught, both `Complete`, both
+  deck-legal.
+  **Downstream sensitivity worth knowing before you touch a def.** `deck.rs::random_deck` draws
+  its commander from cards that are `Complete` **and Legendary and a Creature**, then fills by
+  **colour identity**, computed from the mana cost. So correcting a type line or a mana cost
+  re-deals every seeded game, and the play-server's seed pins move — even when no completeness
+  marker flips, which is exactly what CARDS-2 did. The guard those pins carried ("re-read when a
+  batch flips a marker") is too narrow; treat them as a function of the whole corpus.

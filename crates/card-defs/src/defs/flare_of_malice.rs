@@ -1,4 +1,4 @@
-// Flare of Malice — {3}{B}, Instant
+// Flare of Malice — {2}{B}{B}, Instant
 // You may sacrifice a nontoken black creature rather than pay this spell's mana cost.
 // Target opponent sacrifices a nonland permanent and loses 2 life.
 use crate::cards::helpers::*;
@@ -8,8 +8,8 @@ pub fn card() -> CardDefinition {
         card_id: cid("flare-of-malice"),
         name: "Flare of Malice".to_string(),
         mana_cost: Some(ManaCost {
-            generic: 3,
-            black: 1,
+            generic: 2,
+            black: 2,
             ..Default::default()
         }),
         types: types(&[CardType::Instant]),
@@ -40,10 +40,11 @@ pub fn card() -> CardDefinition {
         completeness: Completeness::known_wrong(
             "def is authored against text this card does not have. Real oracle is {2}{B}{B} 'Each \
              opponent sacrifices a creature or planeswalker with the greatest mana value among \
-             creatures and planeswalkers they control' — def has mana_cost {3}{B}, targets ONE \
-             player, sacrifices any permanent incl. lands (filter: None), and adds a nonexistent \
-             'loses 2 life' clause. Requires full re-author. Genuine blockers after that: \
-             greatest-MV-among selection rule (not a static TargetFilter), and the \
+             creatures and planeswalkers they control'. CARDS-2 (scutemob-181) repaired the \
+             mana_cost — it read {3}{B} and is now the printed {2}{B}{B} — but ONLY that: the def \
+             still targets ONE player, sacrifices any permanent incl. lands (filter: None), and \
+             adds a nonexistent 'loses 2 life' clause. Requires full re-author. Genuine blockers \
+             after that: greatest-MV-among selection rule (not a static TargetFilter), and the \
              sacrifice-a-nontoken-black-creature alt cost (Pitch payer at casting.rs:4205 \
              silently drops Cost::Sacrifice; TargetFilter has no nontoken predicate).",
         ),

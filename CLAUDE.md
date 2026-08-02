@@ -67,7 +67,7 @@
   three sessions; and the reviews doc's `HASH 69` corrected to **70** in four places — the claim was
   true, the number was stale, PB-DX5 moved it on the parallel W6 track before this branch forked.
 - **Card Authoring Campaign** (continuous, was M12): plan
-  `memory/card-authoring/campaign-plan-2026-05-16.md` §0. **Live coverage: 1,137/1,804 = 63.0%**
+  `memory/card-authoring/campaign-plan-2026-05-16.md` §0. **Live coverage: 1,133/1,803 = 62.8%**
   (PB-DX4's 6 honest demotions outweigh its 6 in-place repairs — the number went *down* because the
   corpus got *truer*) — regenerate with `tools/authoring-report.py`; `docs/authoring-status.md` is
   the canonical, self-dating source. **Current queue state: the PB-OS queue is COMPLETE; the PB-DP
@@ -173,7 +173,8 @@
 - **SR-9a** — Integration tests are 9 targets, not 297 binaries (`crates/engine/tests/<group>/`);
   never add a top-level `tests/*.rs`; a dropped `mod` line silently deletes coverage and the gate
   catches it. → `docs/engine-invariants.md`
-- **SR-9c** — The golden-script corpus is triaged (210 approved / 61 retired / 0 pending) and cannot
+- **SR-9c** — The golden-script corpus is triaged (208 approved / 63 retired / 0 pending; the gate
+  checks the PARTITION, not these values, so re-measure rather than trust them) and cannot
   skip silently; a new assertion path must be implemented in `check_assertions`. →
   `docs/engine-invariants.md`
 - **SR-9b** — The JSON-script regime and the direct-`Command` regime cross-validate on a per-step
@@ -181,6 +182,12 @@
   `docs/engine-invariants.md`
 - **SR-36** — An activation cost is only paid if some code pays it: `AddManaScaled` + `life_cost`
   payment paths, disjoint by construction; enumerate `all_cards()` for rosters, never grep source. →
+  `docs/engine-invariants.md`
+- **SR-37** — A def's PRINTED fields (mana cost, P/T, type line, ability-embedded costs, and
+  oracle text) are diffed against the card from a committed Scryfall fixture; `completeness`
+  never checked any of them, and 39 were wrong.
+  `tools/card-field-dump` → `tools/refresh-card-fidelity-fixture.py` →
+  `core::cards2_printed_field_fidelity` R1–R8 (the only place equality is decided). →
   `docs/engine-invariants.md`
 
 ### Changelog & history
@@ -195,7 +202,78 @@
 - **Recurrence rule** — future `/collect` and milestone-close bookkeeping appends its detailed PB/SR
   narrative to that archive file (newest first), and updates only a one-paragraph snapshot delta
   here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
-- **Last Updated**: 2026-08-02 — **UI-1 SHIPPED** (`scutemob-174`): the browser client can now
+- **Last Updated**: 2026-08-02 — **CARDS-2 SHIPPED** (`scutemob-181`): **SR-37 exists, and
+  playtest findings F1 + F2 are CLOSED.** Until this batch, **nothing checked that a card
+  definition's mana cost, power, toughness or type line matched the card it claims to be** —
+  `completeness` gates whether *abilities* are authored and `validate_deck` refuses a
+  non-`Complete` card, and both were silent about the four most mechanically checkable fields in
+  a def. `tyrranax_rex` shipped `Complete`, passed every test, and cost three mana less than
+  printed on a seven-drop; a human found it by playing the game. The gate is three pieces:
+  `tools/card-field-dump` enumerates `all_cards()` (SR-36, never grep),
+  `tools/refresh-card-fidelity-fixture.py` joins `cards.sqlite` and copies printed strings
+  **verbatim**, and `core::cards2_printed_field_fidelity` is **the only place equality is
+  decided** — the fixture is committed because the database is gitignored and absent in CI, and
+  the Python deliberately normalises nothing, or the two sides would encode two opinions and
+  drift. **Measured yield: 39 real defects across 1,804 defs** (17 costs / 5 P/T / 16 type lines
+  / 1 duplicate name), errors running both directions — transcription noise, not one cause. The
+  gate's raw first run said 51; the difference is not bookkeeping but the gate learning what a
+  defect is (six false mismatches from its own notation, six more that were the design working).
+  R2 **reproduced the F2 triage table exactly, card for card**. **Boon Satyr** repaired on all four
+  clauses including the printed "+4/+2" that was **never authored at all** on a `Complete` def;
+  it is two layer-7c statics on `EffectFilter::AttachedCreature`, **the shape Rancor already
+  used** — the machinery was never missing, nobody reached for it. Its cost defect was a
+  *transposition*, so mana value was unchanged and no arithmetic check could ever have caught
+  it, which is why the gate compares structure. Two further `Complete` defs turned out to be
+  implementing a **different card's abilities** (`backup_agent`: Backup 1 + Lifelink;
+  `necron_deathmark`), both caught because *more than one* printed field was wrong — a reliable
+  signal for "authored from a misremembered card" — and both repaired without demotion. **The
+  durable lesson is about the seed pins**: this batch flipped **zero** completeness markers and
+  still re-dealt every seeded game, because `deck.rs::random_deck` keys its commander draw off
+  `Complete` **AND Legendary AND Creature** and fills by **colour identity** (i.e. the mana
+  cost) — so a *type-line* repair moves the deal. Every pin's comment said "re-read when a batch
+  flips a marker"; **that guard was too narrow, and all of them now say the pins are a function
+  of the whole corpus.** Re-deriving them also found that
+  `test_x_value_is_forwarded_to_cast_spell_data` had silently retargeted from a spell onto an
+  activated ability (a predicate broader than its purpose does not fail when the fixture moves —
+  it tests something else), and that four of ten candidate seeds reproduce **F4** (offered a
+  cast the engine then refuses), and that **an Aura is offered with `target_min: 0` and then
+  refused by the engine** — its target requirement lives in `KeywordAbility::Enchant(...)`, which
+  `casting.rs` special-cases (CR 303.4a) and the provider never reads, so a human clicking any
+  Aura in the browser client gets a 422 (**OOS-CARDS2-4**; the same shape as CARDS-1's equip bug,
+  one link earlier in the chain). Golden scripts 177/164 re-derived — both had been written to
+  *what the def said, not to the card* — and 163 **retired**, its subject having ceased to exist.
+  R5's duplicate-name finding had sat in `marker-sweep-2026-07-16.md` for **seventeen days** with
+  the words "one of the two should be deleted", because no gate could fail; that is the whole
+  point of the batch. Two further `Complete` defs turned out to implement text on **no card at
+  all** and were **honestly demoted** rather than half-repaired (`cyber_conversion` → inert,
+  `exalted_angel` → partial; neither is expressible — seeds **OOS-CARDS2-5/6** name the exact
+  missing primitives, and note that CR 702.15a lifelink is a *static* ability while Exalted
+  Angel's printed clause is a *triggered* one that can be Stifled). **The fix cycle's finding is
+  the sharpest thing in the batch**: `tyrranax_rex` — the gate's own motivating example — shipped
+  `Complete` declaring `KeywordAbility::Ravenous`, which is **on no printing of the card**, while
+  omitting haste, Toxic 4 and "can't be countered"; and a golden script certified the invented
+  keyword. Worse, that script had already FAILED earlier in this batch when the cost was
+  corrected, and was re-baselined by recomputing its mana pool **without re-reading the oracle** —
+  the exact failure the batch had named in writing one commit before repeating it. Repaired in
+  full (every primitive existed); script 177 retired alongside 163. **The durable rule is
+  narrower and harsher than the heuristic above: a wrong printed field is reason to re-read the
+  whole oracle, not to fix the field.** Two more `Complete` defs (`braided_net`,
+  `windbrisk_heights`) carried stale "DSL gap"/"deferred" notes for primitives that had since
+  landed — the third and fourth instances of that pattern here — and
+  `completeness_deviation_scan` missed both because its needle set has no entry for "DSL gap".
+  Tests **4,185 / 0 / 5** (post-merge with SIM-1);
+  **0 engine lines**; PROTOCOL **33** / HASH **70** gate-executed unmoved; `decision_gate` 18/18.
+  **4 completeness flips, ALL demotions** — coverage **1,133/1,803 = 62.8%**, down from
+  1,137/1,804 = 63.0%. **The number went down because the corpus got truer**, exactly as PB-DX4
+  recorded: two defs implementing text that exists on no card (`cyber_conversion`,
+  `exalted_angel`), one whose two remaining printed clauses have no expression (`braided_net` — its
+  note first claimed six missing primitives and a reviewer found four of them to exist), one
+  whose mana ability has no `Cost` variant (`birchlore_rangers`). The denominator also fell by
+  one, because a double-counted card stopped being counted twice. Seeds **OOS-CARDS2-1..11**
+  filed. **Full evidence:
+  `memory/card-authoring/cards2-field-fidelity-2026-08-02.md`**; gate + refresh procedure:
+  `docs/engine-invariants.md` (SR-37).
+- - **Prior**: 2026-08-02 — **UI-1 SHIPPED** (`scutemob-174`): the browser client can now
   ANSWER a blocking decision instead of echoing the engine's default. Playtest-triage **F8** —
   "it discards for me", "it never asks me to scry", "the tutor always fetches the same card" are
   one mechanism at three layers. `ActionOptionView.decision` carries a generic

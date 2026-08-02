@@ -1,4 +1,4 @@
-// Brainsurge — {2}{U}, Instant (note: actually {3}{U})
+// Brainsurge — {2}{U}, Instant
 // Draw four cards, then put two cards from your hand on top of your library in
 // any order.
 //
@@ -12,7 +12,7 @@ pub fn card() -> CardDefinition {
         card_id: cid("brainsurge"),
         name: "Brainsurge".to_string(),
         mana_cost: Some(ManaCost {
-            generic: 3,
+            generic: 2,
             blue: 1,
             ..Default::default()
         }),

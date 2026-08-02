@@ -12,6 +12,7 @@ pub fn card() -> CardDefinition {
         name: "Torment of Hailfire".to_string(),
         mana_cost: Some(ManaCost {
             black: 2,
+            x_count: 1,
             ..Default::default()
         }),
         types: types(&[CardType::Sorcery]),
