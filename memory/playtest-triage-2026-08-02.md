@@ -149,6 +149,21 @@ already open: **OOS-DP7-6** (discard picker, filed against the TUI), **OOS-DP9-1
 (`ChooseTriggerTargets`, identical gap, next to bite).
 
 ### F9 — Additional costs: request wire EXISTS, offer + provider blind
+**CLOSED 2026-08-02 by UI-2 (`scutemob-178`) — for the two cost kinds it names.**
+`StubProvider` now builds an `AdditionalCostPlan` on every `CastSpell`, and a required
+sacrifice with **no eligible permanent suppresses the whole offer** (SR-38 restored).
+`ActionOptionView.costs` carries the descriptor; `CostPicker.svelte` renders it between
+`ValuePrompt` and `TargetPicker`. Four HTTP probes drive it end to end (Life's Legacy to
+a **non-default** sacrifice; Squad declined; Squad paid twice → three permanents and an
+empty pool; the SR-38 suppression, two-sided). `galadhrim_brigade` — the very card below
+— also needed a **card-def repair**: it shipped `Complete` carrying
+`KeywordAbility::Squad` with **no `AbilityDefinition::Squad { cost }`**, so
+`casting.rs::get_squad_cost` returned `None` and every non-zero count was refused;
+`core::ui2_additional_cost_roster` R3b now pins that the marker set and the cost set are
+the same set. **Read the closure as covering `Sacrifice` and `Squad` only** — the other
+fourteen `AdditionalCost` variants are still invisible to the offer (**OOS-UI2-4**).
+Original finding follows.
+
 `CastSpellData.additional_costs` (`command.rs:761-765`) covers Sacrifice/Squad/etc.;
 `ActionParams.additional_costs` exists and is forwarded (`params.rs:42`, `:206`);
 `ActionParamsDto.additional_costs` deserializes (`view.rs:373`). A hand-crafted POST
@@ -171,8 +186,18 @@ TargetPicker (CR 601.2b/h precedes 601.2c). No engine/wire-type change.
 
 ## Status (added 2026-08-02)
 
-**CLOSED**: F1, F2 (CARDS-2, `scutemob-181`); F8 (UI-1, `scutemob-174`); F10 (CARDS-1,
-`scutemob-179`). **OPEN**: F3, F4, F5, F6, F7, F9.
+**CLOSED**: F1, F2 (CARDS-2, `scutemob-181`); F8 (UI-1, `scutemob-174`); F9 (UI-2,
+`scutemob-178`, for `Sacrifice` + `Squad` — see that entry's scope note and
+**OOS-UI2-4**); F10 (CARDS-1, `scutemob-179`). **OPEN**: F3, F4, F5, F6, F7.
+
+**F4 gained a much bigger reproduction in UI-2**, and it is worth reading before any
+future batch leans on a fuzz A/B: `mana_solver`'s Phase 3 pays **one generic pip per
+SOURCE tapped**, regardless of how much that source produces, so a Sol Ring counts as
+one mana. That is what caps `squad_max_count` (**OOS-UI2-3**). Separately and worse,
+UI-2 found that **`mtg-fuzzer` has never cast a spell at all** — it never shuffles its
+libraries and `random_deck` appends the basics last, so 5 games × 80 turns produced
+25,964 hand-card observations and zero non-lands (**OOS-UI2-1**). Every "fuzz parity"
+claim in this project's history is a claim about a land-only game.
 
 F4 gained four fresh reproductions in CARDS-2: sweeping `seed` ∈ 0..24 for a play-server test
 fixture found that seeds 2, 10, 11 and 17 are each **offered** a targeted cast and then refused
