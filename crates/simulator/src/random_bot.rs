@@ -139,6 +139,17 @@ impl Bot for RandomBot {
 /// `ActionParams::attackers`/`blockers` for `DeclareAttackers`/`DeclareBlockers` —
 /// every other field stays at its `ActionParams::default()`, and
 /// `action_to_command_with_params` itself is RNG-free and deterministic.
+///
+/// **SIM-5 (CR 601.2c) adds one more filled field: `targets`.** Until then this
+/// function's "every other field stays at its default" was literally true and was the
+/// structural reason bots could not cast a single targeted spell — G5 of
+/// `memory/playtest-triage-2026-08-02b.md`. `targeting::plan_targets` is RNG-free
+/// (see its doc), so the sentence above still holds for the RNG: this remains an
+/// RNG-only wrapper as far as randomness is concerned, and a recorded seed's draw
+/// sequence is unchanged by the addition.
+///
+/// `HeuristicBot` shares this function (`heuristic_bot.rs:19`, called at `:346`), so
+/// both bots gain targeting from the single edit below.
 pub(crate) fn action_to_command(
     rng: &mut StdRng,
     state: &GameState,
@@ -146,6 +157,13 @@ pub(crate) fn action_to_command(
     action: &LegalAction,
 ) -> Command {
     let mut params = ActionParams::default();
+
+    // CR 601.2c / CR 602.2b (SIM-5): announce targets. `NotTargeted` and
+    // `Unsatisfiable` both leave this empty -- the first because there is nothing to
+    // announce, the second because no announcement can be legal, in which case the
+    // engine refuses the command and `LocalGame::advance()` records the refusal
+    // (`RejectedCommand`) and passes, spending nothing (SIM-5 fix (1)).
+    params.targets = crate::targeting::plan_targets(state, player, action).announced();
 
     match action {
         // Random subset of attackers (moved verbatim from the pre-Session-3 body).

@@ -24,6 +24,7 @@ pub mod params;
 pub mod random_bot;
 pub mod report;
 pub mod setup;
+pub mod targeting;
 
 // Re-export key types for convenience
 pub use bot::Bot;
@@ -54,3 +55,6 @@ pub use report::{CrashReport, GameDriverError, GameResult};
 pub use setup::{
     build_initial_state, dealt_decks, redeal, BotKind, DeckSource, LocalGameConfig, SetupError,
 };
+// SIM-5 (CR 601.2c): `plan_targets` is how a bot announces targets, and `TargetPlan`
+// is also the predicate a future offer gate needs (G5 fix (4) -- see the module doc).
+pub use targeting::{plan_targets, TargetPlan};

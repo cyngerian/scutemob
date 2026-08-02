@@ -14,7 +14,7 @@
 
 use std::collections::{BTreeSet, HashMap};
 
-use mtg_engine::{Command, GameEvent, PlayerId};
+use mtg_engine::{Command, GameEvent, ObjectId, PlayerId, Target};
 use mtg_simulator::bot::Bot;
 use mtg_simulator::heuristic_bot::HeuristicBot;
 use mtg_simulator::legal_actions::StubProvider;
@@ -52,22 +52,72 @@ pub struct Metrics {
 }
 
 /// Names of the cards a bot cast with at least one announced target, in order.
-pub fn targeted_cast_names(game: &LocalGame<StubProvider>) -> Vec<String> {
-    let mut names = Vec::new();
+///
+/// `names` is built from the **pregame** state, not the final one: a spell that has
+/// resolved is a new object (CR 400.7) and its cast-time `ObjectId` is gone from
+/// `state.objects()` by the end of the game. Every card that can be cast exists at
+/// setup (in a hand or a library), so the pregame index covers all of them.
+pub fn targeted_cast_names(
+    game: &LocalGame<StubProvider>,
+    names: &HashMap<ObjectId, String>,
+) -> Vec<String> {
+    let mut out = Vec::new();
     for record in game.journal() {
         if let Command::CastSpell(cast) = &record.command {
             if !cast.targets.is_empty() {
-                let label = game
-                    .state()
-                    .objects()
+                let label = names
                     .get(&cast.card)
-                    .map(|o| o.characteristics.name.clone())
+                    .cloned()
                     .unwrap_or_else(|| format!("{:?}", cast.card));
-                names.push(format!("{label} ({} target(s))", cast.targets.len()));
+                out.push(format!(
+                    "T{} {label} -> {:?}",
+                    record.turn,
+                    cast.targets
+                        .iter()
+                        .map(|t| match t {
+                            Target::Object(id) =>
+                                names.get(id).cloned().unwrap_or_else(|| format!("{id:?}")),
+                            Target::Player(p) => format!("player {}", p.0),
+                        })
+                        .collect::<Vec<_>>()
+                ));
             }
         }
     }
-    names
+    out
+}
+
+/// For every `ManaPoolsEmptied` (CR 500.4), the handful of commands that preceded it.
+///
+/// This is the residual-explaining instrument: after SIM-5 a destroyed pool should
+/// never be a *wasted* one (a tap run followed by its own player's pass), but it can
+/// still be greedy-solver slack on a cast that actually happened (`OOS-SIM2-1`).
+pub fn emptied_pool_context(game: &LocalGame<StubProvider>) -> Vec<String> {
+    let journal = game.journal();
+    journal
+        .iter()
+        .enumerate()
+        .filter(|(_, r)| r.events.iter().any(|e| matches!(e, GameEvent::ManaPoolsEmptied)))
+        .map(|(i, r)| {
+            let from = i.saturating_sub(12);
+            let preceding: Vec<String> = journal[from..i]
+                .iter()
+                .map(|p| short_command(&p.command))
+                .collect();
+            format!("T{} [{}] <- {}", r.turn, preceding.join(", "), short_command(&r.command))
+        })
+        .collect()
+}
+
+fn short_command(command: &Command) -> String {
+    match command {
+        Command::TapForMana { player, .. } => format!("tap(p{})", player.0),
+        Command::PassPriority { player } => format!("pass(p{})", player.0),
+        Command::CastSpell(c) => format!("cast(p{}, {} targets)", c.player.0, c.targets.len()),
+        Command::PlayLand { player, .. } => format!("land(p{})", player.0),
+        Command::ActivateAbility { player, .. } => format!("activate(p{})", player.0),
+        other => format!("{:?}", std::mem::discriminant(other)),
+    }
 }
 
 pub fn metrics_of(game: &LocalGame<StubProvider>) -> Metrics {
@@ -145,8 +195,14 @@ fn bots_for(cfg: &LocalGameConfig) -> HashMap<PlayerId, Box<dyn Bot>> {
 }
 
 /// Play a seeded four-bot game (no human seat) for at most `max_turns` and return
-/// the finished game so the caller can read `journal()` / `state()`.
-pub fn play(seed: u64, bot_kind: BotKind, max_turns: u32) -> LocalGame<StubProvider> {
+/// the finished game (so the caller can read `journal()` / `state()`) together with a
+/// pregame `ObjectId -> name` index — see [`targeted_cast_names`] for why the index
+/// must be taken before play, not after.
+pub fn play(
+    seed: u64,
+    bot_kind: BotKind,
+    max_turns: u32,
+) -> (LocalGame<StubProvider>, HashMap<ObjectId, String>) {
     let cfg = LocalGameConfig {
         player_count: 4,
         human_seats: BTreeSet::new(),
@@ -161,7 +217,12 @@ pub fn play(seed: u64, bot_kind: BotKind, max_turns: u32) -> LocalGame<StubProvi
             record_journal: true,
         },
     };
-    let (state, _names) = setup::build_initial_state(&cfg).expect("seeded setup must build");
+    let (state, _seat_names) = setup::build_initial_state(&cfg).expect("seeded setup must build");
+    let card_names: HashMap<ObjectId, String> = state
+        .objects()
+        .iter()
+        .map(|(id, o)| (*id, o.characteristics.name.clone()))
+        .collect();
     let (mut game, _events) = LocalGame::start(
         state,
         cfg.seed,
@@ -179,7 +240,7 @@ pub fn play(seed: u64, bot_kind: BotKind, max_turns: u32) -> LocalGame<StubProvi
             AdvanceOutcome::GameOver(_) | AdvanceOutcome::Halted(_) => break,
         }
     }
-    game
+    (game, card_names)
 }
 
 /// **The SIM-5 A/B gate.** A bot's `[taps…, cast]` plan is atomic (`advance()` →
@@ -195,10 +256,31 @@ fn seeded_four_bot_game_wastes_no_taps() {
     let measured: Vec<(u64, Metrics)> = AB_SEEDS
         .iter()
         .map(|&seed| {
-            let game = play(seed, BotKind::Heuristic, AB_MAX_TURNS);
+            let (game, names) = play(seed, BotKind::Heuristic, AB_MAX_TURNS);
             let m = metrics_of(&game);
             eprintln!("SIM-5 A/B seed {seed}: {m:?}");
-            eprintln!("           targeted casts: {:?}", targeted_cast_names(&game));
+            eprintln!("  rejections: {} retained/{} total", game.rejections().len(), game.rejection_count());
+            let mut classes: std::collections::BTreeMap<String, usize> =
+                std::collections::BTreeMap::new();
+            for r in game.rejections() {
+                let card = match &r.command {
+                    Command::CastSpell(c) => names
+                        .get(&c.card)
+                        .cloned()
+                        .unwrap_or_else(|| format!("{:?}", c.card)),
+                    other => short_command(other),
+                };
+                *classes.entry(format!("{card}: {}", r.error)).or_default() += 1;
+            }
+            for (class, n) in &classes {
+                eprintln!("    x{n} {class}");
+            }
+            for line in targeted_cast_names(&game, &names) {
+                eprintln!("  targeted cast: {line}");
+            }
+            for line in emptied_pool_context(&game) {
+                eprintln!("  pools emptied: {line}");
+            }
             (seed, m)
         })
         .collect();
