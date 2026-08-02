@@ -41,6 +41,13 @@ pub enum BotKind {
 }
 
 /// Where each seat's deck comes from.
+///
+/// **A `RandomPerSeat` config is a *recipe*, not a decklist**: it names no cards, so every
+/// rebuild of it from a different seed produces different decks — which is exactly what a
+/// mulligan must not do (CR 103.5; see [`redeal`]). A caller that will rebuild the same
+/// table more than once reads the dealt decklists back out of the first build with
+/// [`dealt_decks`] and keeps the resulting `Fixed` list; `tools/play-server`'s
+/// `session::new_game` does precisely that.
 #[derive(Clone, Debug)]
 pub enum DeckSource {
     /// Each seat gets an independently-built `random_deck`, drawn from the single
@@ -172,6 +179,115 @@ fn find_def<'a>(
         })
 }
 
+/// The seats a config describes, in ascending order — `PlayerId(1)..=player_count`.
+///
+/// Ascending, not `HashMap` iteration order: every random draw keyed off `cfg.seed` is
+/// taken in this sequence, and that is what makes the seed reproduce a table.
+fn seat_ids(cfg: &LocalGameConfig) -> Vec<PlayerId> {
+    (1..=cfg.player_count)
+        .map(|i| PlayerId(u64::from(i)))
+        .collect()
+}
+
+/// CR 903.5 — read the decklists **that were actually dealt** back out of a pregame
+/// `GameState`, as one concrete [`DeckConfig`] per seat.
+///
+/// # Why this exists, and why it reads the state rather than the config (G2, `scutemob-187`)
+///
+/// `DeckSource::RandomPerSeat` is a *recipe*, not a decklist: the commander and all 99
+/// main-deck cards of every seat are a function of `cfg.seed` (`crate::deck::random_deck`).
+/// [`redeal`] rebuilds the whole table from a **perturbed** seed, so a caller still holding
+/// the recipe re-rolls every seat's decklist *and commander* on every mulligan — and the
+/// command zone is public (CR 903.6), so the other three players watch their commanders
+/// change. CR 103.5 makes a mulligan a permutation of a **fixed** library-plus-hand
+/// multiset; it may not replace the multiset. Storing `DeckSource::Fixed(dealt_decks(..))`
+/// once, right after the first build, is what makes the perturbed seed reach only the
+/// shuffle — the CR-correct behaviour. `tools/play-server`'s `session::new_game` does this
+/// for every browser game.
+///
+/// **The state is the source of truth, deliberately.** The obvious alternative — factor the
+/// `RandomPerSeat` draw out of [`build_initial_state`] and resolve straight from the config
+/// — was implemented first and reverted, with the reason measured rather than argued: it
+/// cannot be done without moving the RNG stream (today the per-seat deck draw and that
+/// seat's shuffle interleave, so seat 2's *deck* depends on seat 1's *shuffle*), and moving
+/// it re-rolls every table every existing seed builds. That reddened seven tests —
+/// six `tools/play-server` probes that pin card names at `SEED = 0`, and
+/// `local_game_playthrough` seed 1, which landed on a deck that exposes a pre-existing
+/// engine defect ("Aura spells require exactly one target"). Reading the dealt state
+/// instead moves **nothing**: the game is built exactly as before, and this only records
+/// what it was built with. It is also the stronger guarantee — the multiset a mulligan
+/// permutes is the one the player was literally dealt, not one re-derived from a config
+/// that is merely believed to agree.
+///
+/// # Contract
+///
+/// Pure. Every seat in `cfg` must be present in `state` with exactly one registered
+/// commander (`PlayerState::commander_ids`) and a hand plus library of `CardId`-carrying
+/// objects — which is precisely what [`build_initial_state`] produces. Any other state
+/// (a seat missing, no commander, an object with no `card_id`) is refused with
+/// `SetupError::NoDeckForSeat`, because a partially-readable table is not a decklist —
+/// as is a seat whose hand ∪ library is empty, or whose commander is sitting in one of
+/// them rather than in the command zone. Cards are taken from hand ∪ library, so it does
+/// not matter whether this is called before or after the opening hand is dealt; it does
+/// matter that it is called before the game is played into.
+///
+/// A seat with **two** commanders (CR 903.3 partner / background) is refused for the same
+/// reason: `DeckConfig` has one `commander` field and cannot express that pairing, and
+/// this module never builds one. The refusal is deliberate — silently keeping the first
+/// would drop a commander from the rebuilt table.
+pub fn dealt_decks(
+    state: &GameState,
+    cfg: &LocalGameConfig,
+) -> Result<Vec<(PlayerId, DeckConfig)>, SetupError> {
+    let mut resolved = Vec::with_capacity(cfg.player_count as usize);
+    for pid in seat_ids(cfg) {
+        let player = state
+            .players()
+            .get(&pid)
+            .ok_or(SetupError::NoDeckForSeat { seat: pid })?;
+        // CR 903.5a treats the commander as part of the 100; `DeckConfig` carries it
+        // separately, and `build_initial_state` re-adds it to the validated list.
+        let commanders: Vec<CardId> = player.commander_ids.iter().cloned().collect();
+        // Exactly one: CR 903.3's partner/background variants are not built by this module,
+        // and a seat with none is not a Commander deck at all.
+        let [commander] = &commanders[..] else {
+            return Err(SetupError::NoDeckForSeat { seat: pid });
+        };
+        let commander = commander.clone();
+
+        let mut main_deck = Vec::with_capacity(99);
+        for zone in [ZoneId::Hand(pid), ZoneId::Library(pid)] {
+            for obj in state.objects_in_zone(&zone) {
+                let card_id = obj
+                    .card_id
+                    .clone()
+                    .ok_or(SetupError::NoDeckForSeat { seat: pid })?;
+                main_deck.push(card_id);
+            }
+        }
+        // Two local shape floors, so a wrong-phase call is refused *here* rather than
+        // degrading into a decklist that only fails much later, in `validate_deck` on the
+        // next rebuild, with an error naming the wrong cause (review LOW 5):
+        //
+        // * an empty hand+library is not a deck at all (a mid-game state whose cards have
+        //   moved to the battlefield/graveyard would read this way);
+        // * the commander appearing in the main deck means it is not in the command zone
+        //   where CR 903.6 put it, and would make the rebuilt deck 101 cards.
+        if main_deck.is_empty() || main_deck.contains(&commander) {
+            return Err(SetupError::NoDeckForSeat { seat: pid });
+        }
+
+        resolved.push((
+            pid,
+            DeckConfig {
+                commander,
+                main_deck,
+            },
+        ));
+    }
+    Ok(resolved)
+}
+
 /// CR 103.5 / 402.1 (opening hand), CR 903.5a / 903.6 (commander to the command zone, deck
 /// admission, library shuffle) — build a full pregame `GameState`.
 ///
@@ -191,6 +307,15 @@ fn find_def<'a>(
 /// single `StdRng` seeded with `cfg.seed`, consumed in ascending `PlayerId` order — the
 /// same `cfg.seed` always reproduces the same `GameState` (pinned by
 /// `test_setup_same_seed_same_state_hash`).
+///
+/// **The two draws interleave per seat, and that is load-bearing**: a `RandomPerSeat`
+/// seat's deck is drawn, then that seat's library is shuffled, then the next seat's deck is
+/// drawn — so seat 2's *decklist* depends on seat 1's *shuffle*. Splitting the loop into
+/// "all decks, then all shuffles" would therefore re-roll every table every existing seed
+/// builds (measured: seven tests, `scutemob-187` — see [`dealt_decks`], which exists
+/// because of that). Under `DeckSource::Fixed` no deck draw happens at all, so seat 1's
+/// shuffle is the first draw off the stream, which is the property `tools/play-server`'s
+/// `UI1_SEED`/`UI2_SEED`/`SIM1_SEED` fixtures pin their opening hands on.
 pub fn build_initial_state(
     cfg: &LocalGameConfig,
 ) -> Result<(GameState, HashMap<PlayerId, String>), SetupError> {
@@ -212,9 +337,7 @@ pub fn build_initial_state(
 
     // Ascending order, not `HashMap` iteration order — every random draw below must be
     // taken in a fixed sequence for `cfg.seed` to reproduce the same state.
-    let player_ids: Vec<PlayerId> = (1..=cfg.player_count)
-        .map(|i| PlayerId(u64::from(i)))
-        .collect();
+    let player_ids: Vec<PlayerId> = seat_ids(cfg);
 
     let mut builder = GameStateBuilder::new().with_registry(registry.clone());
     for &pid in &player_ids {
@@ -332,13 +455,35 @@ pub fn build_initial_state(
 /// both `seat` and `mulligan_count` so two different seats mulliganing (or the same seat
 /// mulliganing twice) never collide on an identical redeal.
 ///
-/// **Two honest limitations of that shortcut**, both acceptable for the M11-local v1 UX
-/// path and neither of them "safe" in the way a first draft of this comment claimed:
+/// # The caller must hand this a `DeckSource::Fixed` config (CR 103.5)
 ///
-/// 1. It is *not* invisible to the other seats. Hidden zones (Architecture Invariant 7)
-///    are indeed unobserved, but the command zone is **public** — CR 903.6 puts the
-///    commander there face up — and a whole-table rebuild re-rolls every seat's
-///    commander, mutating state the other players have already seen.
+/// **A perturbed seed re-runs whatever the config describes.** With
+/// `DeckSource::RandomPerSeat` that includes the deck draw itself, so every seat gets
+/// a brand-new 99 *and a new commander* — the command zone is public (CR 903.6), so the
+/// other three players watch their commanders change, and the mulliganing player's own
+/// decklist is not the one they mulliganed. CR 103.5 makes a mulligan a permutation of a
+/// **fixed** library-plus-hand multiset; replacing the multiset is not a mulligan at all.
+/// (Shipped that way and found in the first human playtest — G2 of
+/// `memory/playtest-triage-2026-08-02b.md`, fixed in `scutemob-187`.)
+///
+/// With `DeckSource::Fixed` the perturbed seed reaches only the shuffle, which *is* the
+/// CR-correct behaviour: same cards, new order, new hand. So record the dealt decklists
+/// once ([`dealt_decks`]) and keep them; `session::new_game` in `tools/play-server`
+/// does that for every browser game, and
+/// `test_redeal_preserves_every_seats_deck_and_commander` is the gate.
+///
+/// This function does not (and cannot) reject a `RandomPerSeat` config: `redeal` is also
+/// the pregame-rebuild primitive for callers that have not started a game yet, where
+/// re-rolling is harmless. The obligation is the caller's, and it is pinned by that test.
+///
+/// **Two remaining limitations of the whole-table shortcut**, both acceptable for the
+/// M11-local v1 UX path and neither of them "safe" in the way a first draft of this
+/// comment claimed:
+///
+/// 1. Even with `Fixed` decks it is not invisible to the other seats: every seat's library
+///    is reshuffled and every seat's opening hand is redrawn, not just `seat`'s. Hidden
+///    zones (Architecture Invariant 7) are unobserved, so no other player can *see* it,
+///    but a bot that had already been dealt a hand is dealt a different one.
 /// 2. It cannot represent a partially-decided table. CR 103.5: "Once a player chooses not
 ///    to take a mulligan, the remaining cards become that player's opening hand", and per
 ///    CR 103.5c each player has their own mulligan count. A single
@@ -347,8 +492,14 @@ pub fn build_initial_state(
 ///
 /// Both fall out of the same simplification — one seed reproduces one whole table. A
 /// per-seat mulligan state (each seat holding its own count and a `kept` flag, rebuilt
-/// independently) is the shape that fixes them, and belongs with the Session 5 play-server
-/// pregame flow that will actually offer mulligans seat by seat.
+/// independently) is the shape that fixes them, and belongs with the play-server pregame
+/// flow that will actually offer mulligans seat by seat. **Per-seat RNG streams alone do
+/// not get there** and are deliberately not implemented here (`scutemob-187`): keying each
+/// seat's shuffle on `(cfg.seed, pid)` still moves every seat when `redeal` perturbs
+/// `cfg.seed`, so isolating the mulliganing seat needs the per-seat mulligan *counts* to
+/// live in the config, not just a per-seat stream — and re-deriving the shuffle seed at
+/// all would move the opening hands that `tools/play-server`'s `UI1_SEED`/`UI2_SEED`/
+/// `SIM1_SEED` fixtures pin by original index.
 pub fn redeal(
     cfg: &LocalGameConfig,
     seat: PlayerId,

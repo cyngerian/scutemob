@@ -848,6 +848,107 @@ must read adjudication §5 alongside it. OOS-ADJ-3 warns `OOS-DX19-2`'s "613.8b 
 would make a worker build the wrong thing — re-word at dispatch. OOS-ADJ-7 (blood_moon strips
 Artifact card type) rides PB-DX27.
 
+## Worker Handoff (SIM-4, `scutemob-187`) — the mulligan stops re-rolling the table
+
+**G2 CLOSED. CR 103.5: a mulligan permutes a FIXED library-plus-hand multiset.** The
+triage's chain was correct end to end; re-verified against HEAD (post-edit line numbers):
+`PlayApp.svelte:478` (`Take a mulligan`) → `main.rs:184` (`.route("/game/mulligan", …)`) →
+`api.rs:1236` `post_mulligan` → `:1260` `play.mulligan()` → `session.rs:422` →
+`session.rs:428` `setup::redeal(&self.cfg, …)` → `setup.rs:503` `redeal` (perturbed seed,
+`..cfg.clone()`) → `setup.rs:319` `build_initial_state` → `deck.rs:53`
+`commanders[rng.random_range(..)]`. **The load-bearing link is `self.cfg`**: it held
+`DeckSource::RandomPerSeat`, a seeded *recipe* in which every card of every seat — the
+commander included — is a function of `cfg.seed`, so a perturbed seed re-rolled all four
+decklists and all four commanders. CR 903.6 puts the commander in the **public** command
+zone, which is why the playtester saw it on three opponents at once.
+
+### The brief's fix was implemented, measured, and replaced — read this before re-proposing it
+
+The brief said: factor `setup.rs`'s deck-resolution block into `resolve_decks(cfg)`, have
+`session::new_game` store `DeckSource::Fixed(resolved)`. That was built first. **It reddens
+seven tests**, and the reason is structural rather than incidental: `build_initial_state`
+draws a seat's deck and then shuffles *that seat* before drawing the next seat's deck, all
+off one `StdRng`, so **seat 2's decklist depends on seat 1's shuffle**. Any two-pass
+factoring moves the stream, and moving the stream re-rolls every table every existing seed
+builds. Measured, not predicted:
+
+* six `tools/play-server` probes that pin card names at `SEED = 0`
+  (`test_get_game_returns_seat_view_with_seven_card_hand`,
+  `…pass_priority_advances_and_bots_act`, `…no_other_hand_card_names`,
+  `test_ui3_combat_view_…`, `test_x_value_is_forwarded_…`, `…illegal_target_returns_422`);
+* `local_game_playthrough` seed 1, which landed on a deck holding an **Aura** and died on
+  `"engine rejected a just-offered action (CastSpell): Aura spells require exactly one
+  target (CR 303.4a)"` — a **pre-existing** engine/legal-action defect the new table merely
+  exposed, unfixable inside a 0-engine-lines task and not something to paper over by
+  changing the test's seeds. Filed as **OOS-SIM4-2**.
+
+**Shipped instead: `setup::dealt_decks(&state, &cfg)` (`setup.rs:238`)** — read the
+decklists that were *actually dealt* back out of the built `GameState` (hand ∪ library, plus
+the registered `commander_ids`). `session::new_game` (`session.rs:237`) builds from the
+unmodified cfg, then pins the result: `:240` `dealt_decks` → `cfg.decks = Fixed(dealt)`.
+This moves **no table at all** (all six SEED-0 pins stayed green, which is the evidence),
+and it is the stronger guarantee: the multiset a mulligan permutes is the one the player was
+literally dealt, not one re-derived from a config believed to agree. `setup::redeal` needed
+**zero** changes — with `Fixed` decks its perturbed seed reaches only the shuffle.
+
+### Gates
+
+* `crates/simulator/tests/setup.rs:392` `test_redeal_preserves_every_seats_deck_and_commander`
+  — the pin the brief demanded: for **every** seat, the 100-card multiset and the registered
+  commander are identical across a redeal (with a 100-card non-vacuity floor), the
+  command-zone *object* is still that commander, and seat 1's hand still changes and is
+  still 7. Plus `:505` round trip, `:551` determinism + refusal, `:583` the shape floors.
+* `tools/play-server/src/main.rs:7149` (P1, over the real router — two mulligans, all four
+  public command zones compared) and `:7232` (P2, direct — the session *holds* `Fixed`, and
+  every seat's hidden 100-card multiset survives). **Both proven red by executing the
+  revert**: pre-fix P1 reports all four commanders replaced on mulligan 1.
+* **The simulator gate alone could never have caught this** and it is worth knowing why:
+  `DeckSource::Fixed` was always immune, so a simulator-level test passes whatever the play
+  server chooses to store. The defect lived in what the *session kept*. A gate on the
+  primitive does not gate the caller's choice of argument.
+* `test_redeal_on_an_unresolved_recipe_still_rerolls_the_decks` (`:484`) deliberately pins
+  the un-fixed path, so the caller's obligation is visible rather than folklore.
+
+### Deferred, with reasons
+
+* **Per-seat RNG streams** (the brief's optional residual): NOT implemented. Two reasons,
+  both concrete. (1) Keying each seat's shuffle on `(seed, pid)` does not isolate anything —
+  `redeal` perturbs `cfg.seed`, so every derived stream still moves; real isolation needs
+  per-seat mulligan *counts* in the config, i.e. the per-seat pregame model that needs a
+  decision channel for bot seats. (2) Re-deriving the shuffle seed at all would move the
+  opening hands that `UI1_SEED`/`UI2_SEED`/`SIM1_SEED` pin **by original index** — five
+  shipped CR flows rest on those fixtures.
+* **OOS-G2-3** (dead `Command::TakeMulligan`/`KeepHand`, turn-0 gate never satisfiable):
+  UNCHANGED, out of scope by the brief.
+
+### Seeds filed
+
+* **OOS-SIM4-1** — `setup::redeal` still accepts a `RandomPerSeat` config silently, so G2 is
+  prevented by caller discipline, not by construction. `tools/tui/src/play/app.rs:132` builds
+  exactly such a config and would reintroduce the defect verbatim the day the TUI grows a
+  mulligan (a pointer comment now sits at that construction site). The structural fix is a
+  `redeal` that takes the dealt state, or a `DeckSource` that cannot be a recipe past the
+  first build.
+* **OOS-SIM4-2** — `local_game_playthrough`'s policy submits a just-offered `CastSpell` for
+  an **Aura** and the engine rejects it with CR 303.4a. Pre-existing (the seed-1 table only
+  changed because of an experiment that was reverted), engine-side, and a genuine
+  legal-action bug: an offered action must be applicable. Reproduce by two-passing
+  `build_initial_state`'s deck/shuffle loop and running `--test local_game_playthrough`.
+* **OOS-SIM4-3** — `dealt_decks` refuses a two-commander seat (CR 903.3 partner/background)
+  because `DeckConfig` has one `commander` field. Correct today (nothing builds one), but it
+  is the shape that will bite when partner decks arrive.
+
+### Durable lesson
+
+**A limitation documented by its mechanism does not warn anyone; document the consequence.**
+Four separate doc blocks (`setup.rs`, `session.rs`, `api.rs`, `PlayApp.svelte`) described the
+whole-table rebuild — one even named the commander re-roll — and none said "the players' decks
+change". The playtester was the first to say it in those words. All four now do, plus
+`tools/play-server/README.md`'s known-limitation 1 and its bug-report reproduction procedure,
+which had quietly become **wrong** (rebuilding at the derived seed with the recipe no longer
+reproduces a mulliganed table; it now takes base-seed build → `dealt_decks` → rebuild at the
+derived seed with `Fixed`).
+
 ## Worker Handoff (UI-4, `scutemob-185`) — picker Confirm hotfix
 
 **G1 CONFIRMED IN A BROWSER BEFORE ANY EDIT, and the triage's diagnosis was exactly right.**

@@ -117,9 +117,17 @@
    * on `decision.kind === 'Mulligan'`.
    *
    * The route itself is a whole-table redeal through `setup::redeal` (CR 103.5),
-   * with the two limitations `PlaySession::mulligan` documents: it re-rolls every
-   * seat, and CR 103.5's bottoming half is not expressible (the server refuses a
-   * non-empty `cards_to_bottom` with 400 rather than discarding it silently).
+   * with the two limitations `PlaySession::mulligan` documents: it reshuffles and
+   * redeals every seat rather than just this one, and CR 103.5's bottoming half is
+   * not expressible (the server refuses a non-empty `cards_to_bottom` with 400
+   * rather than discarding it silently).
+   *
+   * What it does **not** do — since `scutemob-187` — is change anyone's cards. It
+   * did until then: the session held a seeded deck *recipe*, so every mulligan
+   * re-rolled all four decklists and all four commanders, and CR 903.6 makes the
+   * command zone public, so the other seats' commanders visibly changed. The
+   * session now stores the decklists it was actually dealt (`setup::dealt_decks`),
+   * and a redeal permutes that fixed multiset.
    */
   const showPregame = $derived(!!$seatView?.summary?.pregame && !keptHand);
 
