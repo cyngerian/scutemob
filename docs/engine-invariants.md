@@ -149,7 +149,13 @@
   **not** a test group (`NON_GROUP_DIRS`) — `proptest` writes it on its first failure and the group
   check would otherwise redden a second time and bury the real failure.
 - **The golden-script corpus is triaged and cannot skip silently (SR-9c).** The 271 scripts in
-  `test-data/generated-scripts/` are now **210 `approved` / 61 `retired` / 0 `pending_review`**.
+  `test-data/generated-scripts/` are now **208 `approved` / 63 `retired` / 0 `pending_review`**
+  of 271 files (re-measured 2026-08-02 by CARDS-2, `scutemob-181`, which retired scripts 163
+  and 177 — both certified an ability their card does not have). These two numbers had gone
+  stale once already, because the SR-9c gate is a **partition** check
+  (`approved + retired == discovered`) and not a value check: retiring a script keeps the
+  partition true and moves both counts, so nothing reddens. Re-measure them, do not trust
+  this line — `grep -c '"approved"' test-data/generated-scripts/*/*.json`.
   `ReviewStatus::Retired` carries a **required `retirement_reason`**; a retired script is excluded from the
   run but printed, never absent. `tests/scripts/run_all_scripts.rs` **partitions** the discovered set
   (`approved + retired == discovered`) and fails on a `pending_review`/`disputed`/`corrected` script, a file

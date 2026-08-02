@@ -902,6 +902,26 @@ words "one of the two should be deleted", and nothing happened — because no ga
 fail. `CardRegistry::try_new` rejects a duplicate `CardId` and says nothing about a
 duplicate name.
 
+**The fix cycle found the sharpest thing in the batch — read this one.** `tyrranax_rex`,
+the gate's own motivating example, shipped `Complete` declaring `KeywordAbility::Ravenous`
+— **on no printing of the card** — while omitting haste, Toxic 4 and "can't be countered";
+a golden script certified the invented keyword. And that script had already FAILED earlier
+in this same batch when the cost was corrected, and was re-baselined by recomputing its
+mana pool **without re-reading the oracle** — the exact failure the batch had written down
+for scripts 164/177 one commit earlier. Repaired in full (every primitive existed); script
+177 retired alongside 163. **The rule: a wrong printed field is reason to re-read the whole
+oracle, not to fix the field.** The batch's own "more than one wrong field = misremembered
+card" heuristic cannot catch this class, because only one field was wrong.
+
+**A gate-needle gap worth someone's time**: `braided_net` and `windbrisk_heights` both
+shipped `Complete` with a printed ability unimplemented and said so in their own comments —
+"DSL gap" and "deferred". `completeness_deviation_scan`'s needle set is
+`["simplif", "modeled as", "modelled as", "deviation", "approximat"]`, so neither reddened.
+Both were also **stale** claims: `Effect::TapPermanent` and
+`Condition::YouAttackedWithNOrMore` had both landed since. That is the third and fourth
+"not expressible" note this batch found to be false (after `wake_the_dead`'s `x_count` and
+`boon_satyr`'s aura static).
+
 **Full evidence record**: `memory/card-authoring/cards2-field-fidelity-2026-08-02.md`
 (measurement, every disposition, the four gate-design findings, and seeds
 **OOS-CARDS2-1/2/3**). Gate rationale + refresh procedure: `docs/engine-invariants.md`

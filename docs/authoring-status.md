@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-08-02 09:00 UTC  
-**Git:** `b7a46cb3` on `feat/cards-2-corpus-field-fidelity-audit-permanent-gate-mana-cost`  
+**Generated:** 2026-08-02 09:25 UTC  
+**Git:** `b76ef319` on `feat/cards-2-corpus-field-fidelity-audit-permanent-gate-mana-cost`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -25,10 +25,10 @@ and what is intentionally NOT in it.**
 | Plan cards still missing a def file | 135 | · |
 | Bonus defs (on disk, outside plan) | 321 | · |
 | Effective coverage vs plan target | **111%** (1,822 / 1,636) | — |
-| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 63.0% | 1,135 | -2 |
-| With TODO markers | 517 | +1 |
-| Empty `abilities: vec![]` placeholders | 151 | +1 |
-| Total TODO lines across all defs | 941 | +3 |
+| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 63.0% | 1,135 | · |
+| With TODO markers | 517 | · |
+| Empty `abilities: vec![]` placeholders | 151 | · |
+| Total TODO lines across all defs | 941 | · |
 
 ## Authoring activity (git, by window)
 
@@ -171,8 +171,8 @@ the next thing to triage when the classifier table is grown.
 
 | Gap bucket | TODO lines | Δ since last run |
 | --- | ---: | ---: |
-| OTHER (unclassified) | 577 | +1 |
-| DSL gap (unspecified) | 122 | +2 |
+| OTHER (unclassified) | 577 | · |
+| DSL gap (unspecified) | 122 | · |
 | attack trigger (self / generic) | 23 | · |
 | TriggerCondition::* missing variant | 17 | · |
 | dynamic hexproof / protection | 15 | · |
@@ -239,6 +239,7 @@ tyvar_jubilant_brawler: // TODO: static — creatures you control can activate a
 ## Recent card-touching commits
 
 ```
+b76ef319 scutemob-181: CARDS-2 — SR-37 docs, two honest demotions, seeds, close-out
 b7a46cb3 scutemob-181: CARDS-2 — repair all 45 printed-field mismatches; gate green
 99d54ed5 scutemob-179: CARDS-1 — author the CR 702.6a equip target into all 17 equip defs (OOS-M11-10)
 869f09d6 scutemob-168: PB-DX4 fix cycle — 2 HIGH / 5 MEDIUM / 6 LOW from pb-review-DX4.md, all 13 applied
@@ -263,7 +264,6 @@ d876d19b W6-prim: PB-OS10 — inter-target distinctness + Jitte any-recipient co
 63148132 W6-prim: PB-OS8 — Effect::LookAtTopThenPlace + TargetFilter.min_cmc_amount (OOS-EF10-1 + OS6-deferred-(d))
 2beaba4f W6-prim: PB-OS7 — author silumgar_the_drifting_death.rs (Complete)
 bd15b45b W6-prim: PB-OS6 review LOW — soften delver 'strictly beneficial' comment wording
-969ef404 W6-prim: PB-OS6 wire bump (PROTOCOL 20->21, HASH 57->58) + card defs
 ```
 
 ## Missing card-defs sidecar

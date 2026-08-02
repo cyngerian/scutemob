@@ -1,11 +1,13 @@
 // Braided Net // Braided Quipu — DFC with Craft (CR 702.167)
 // Front: {2}{U} Artifact, when ETB tap target creature an opponent controls.
 //        Craft with artifact {2}{U}
-// Back:  Braided Quipu, Artifact, when ETB tap target creature,
-//        whenever you cast a spell draw a card
+// Back:  Braided Quipu, Artifact, when ETB tap target creature an opponent controls,
+//        whenever you cast a spell, draw a card.
 //
-// DSL gap: TapTarget effect not in DSL. ETB trigger effect and cast-spell trigger
-// cannot be expressed. Craft keyword and back_face are faithfully represented.
+// Both ETB tap triggers use Effect::TapPermanent (mirrors ravenous_chupacabra.rs /
+// sharktocrab.rs). The back face's cast-spell trigger uses
+// TriggerCondition::WheneverYouCastSpell with during_opponent_turn: false and
+// spell_type_filter: None (mirrors murmuring_mystic.rs) — fires on any spell you cast.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -33,7 +35,21 @@ pub fn card() -> CardDefinition {
                 },
                 materials: CraftMaterials::Artifacts(1),
             },
-            // DSL gap: ETB tap target creature needs TapTarget effect
+            // CR 603.1: ETB trigger — tap target creature an opponent controls.
+            AbilityDefinition::Triggered {
+                once_per_turn: false,
+                trigger_condition: TriggerCondition::WhenEntersBattlefield,
+                effect: Effect::TapPermanent {
+                    target: EffectTarget::DeclaredTarget { index: 0 },
+                },
+                intervening_if: None,
+                targets: vec![TargetRequirement::TargetCreatureWithFilter(TargetFilter {
+                    controller: TargetController::Opponent,
+                    ..Default::default()
+                })],
+                modes: None,
+                trigger_zone: None,
+            },
         ],
         color_indicator: None,
         back_face: Some(CardFace {
@@ -46,7 +62,40 @@ pub fn card() -> CardDefinition {
             power: None,
             toughness: None,
             abilities: vec![
-                // DSL gap: ETB tap target + cast-spell trigger
+                // CR 603.1: ETB trigger — tap target creature an opponent controls.
+                AbilityDefinition::Triggered {
+                    once_per_turn: false,
+                    trigger_condition: TriggerCondition::WhenEntersBattlefield,
+                    effect: Effect::TapPermanent {
+                        target: EffectTarget::DeclaredTarget { index: 0 },
+                    },
+                    intervening_if: None,
+                    targets: vec![TargetRequirement::TargetCreatureWithFilter(TargetFilter {
+                        controller: TargetController::Opponent,
+                        ..Default::default()
+                    })],
+                    modes: None,
+                    trigger_zone: None,
+                },
+                // "Whenever you cast a spell, draw a card." — fires on any spell.
+                AbilityDefinition::Triggered {
+                    once_per_turn: false,
+                    trigger_condition: TriggerCondition::WheneverYouCastSpell {
+                        during_opponent_turn: false,
+                        spell_type_filter: None,
+                        noncreature_only: false,
+                        chosen_subtype_filter: false,
+                        spell_subtype_filter: None,
+                    },
+                    effect: Effect::DrawCards {
+                        player: PlayerTarget::Controller,
+                        count: EffectAmount::Fixed(1),
+                    },
+                    intervening_if: None,
+                    targets: vec![],
+                    modes: None,
+                    trigger_zone: None,
+                },
             ],
             color_indicator: Some(vec![Color::Blue]),
         }),

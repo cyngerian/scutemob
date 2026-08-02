@@ -173,7 +173,8 @@
 - **SR-9a** — Integration tests are 9 targets, not 297 binaries (`crates/engine/tests/<group>/`);
   never add a top-level `tests/*.rs`; a dropped `mod` line silently deletes coverage and the gate
   catches it. → `docs/engine-invariants.md`
-- **SR-9c** — The golden-script corpus is triaged (210 approved / 61 retired / 0 pending) and cannot
+- **SR-9c** — The golden-script corpus is triaged (208 approved / 63 retired / 0 pending; the gate
+  checks the PARTITION, not these values, so re-measure rather than trust them) and cannot
   skip silently; a new assertion path must be implemented in `check_assertions`. →
   `docs/engine-invariants.md`
 - **SR-9b** — The JSON-script regime and the direct-`Command` regime cross-validate on a per-step
@@ -212,9 +213,11 @@
   **verbatim**, and `core::cards2_printed_field_fidelity` is **the only place equality is
   decided** — the fixture is committed because the database is gitignored and absent in CI, and
   the Python deliberately normalises nothing, or the two sides would encode two opinions and
-  drift. **Measured yield: 45 wrong fields across 1,804 defs** (17 costs / 5 P/T / 16 type lines
-  / 1 duplicate name), errors running both directions — transcription noise, not one cause. R2
-  **reproduced the F2 triage table exactly, card for card**. **Boon Satyr** repaired on all four
+  drift. **Measured yield: 39 real defects across 1,804 defs** (17 costs / 5 P/T / 16 type lines
+  / 1 duplicate name), errors running both directions — transcription noise, not one cause. The
+  gate's raw first run said 51; the difference is not bookkeeping but the gate learning what a
+  defect is (six false mismatches from its own notation, six more that were the design working).
+  R2 **reproduced the F2 triage table exactly, card for card**. **Boon Satyr** repaired on all four
   clauses including the printed "+4/+2" that was **never authored at all** on a `Complete` def;
   it is two layer-7c statics on `EffectFilter::AttachedCreature`, **the shape Rancor already
   used** — the machinery was never missing, nobody reached for it. Its cost defect was a
@@ -244,7 +247,20 @@
   all** and were **honestly demoted** rather than half-repaired (`cyber_conversion` → inert,
   `exalted_angel` → partial; neither is expressible — seeds **OOS-CARDS2-5/6** name the exact
   missing primitives, and note that CR 702.15a lifelink is a *static* ability while Exalted
-  Angel's printed clause is a *triggered* one that can be Stifled). Tests **4,164 / 0 / 5**;
+  Angel's printed clause is a *triggered* one that can be Stifled). **The fix cycle's finding is
+  the sharpest thing in the batch**: `tyrranax_rex` — the gate's own motivating example — shipped
+  `Complete` declaring `KeywordAbility::Ravenous`, which is **on no printing of the card**, while
+  omitting haste, Toxic 4 and "can't be countered"; and a golden script certified the invented
+  keyword. Worse, that script had already FAILED earlier in this batch when the cost was
+  corrected, and was re-baselined by recomputing its mana pool **without re-reading the oracle** —
+  the exact failure the batch had named in writing one commit before repeating it. Repaired in
+  full (every primitive existed); script 177 retired alongside 163. **The durable rule is
+  narrower and harsher than the heuristic above: a wrong printed field is reason to re-read the
+  whole oracle, not to fix the field.** Two more `Complete` defs (`braided_net`,
+  `windbrisk_heights`) carried stale "DSL gap"/"deferred" notes for primitives that had since
+  landed — the third and fourth instances of that pattern here — and
+  `completeness_deviation_scan` missed both because its needle set has no entry for "DSL gap".
+  Tests **4,164 / 0 / 5**;
   **0 engine lines**; PROTOCOL **33** / HASH **70** gate-executed unmoved; `decision_gate` 18/18.
   **2 completeness flips, both demotions** — coverage **1,135/1,803 = 63.0%**; the headline
   figure is unmoved while three things changed underneath it (two demotions down, one

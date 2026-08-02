@@ -18,6 +18,11 @@ colored buckets before generic).
 ## Verified findings
 
 ### F1 — Boon Satyr castable with 1 green: the DEF is wrong, not the engine
+**CLOSED 2026-08-02 by CARDS-2 (`scutemob-181`).** All four defects repaired, including the
+"+4/+2" that was never authored — it is two layer-7c statics on `EffectFilter::AttachedCreature`,
+the shape `rancor.rs` already used. Proven by execution, not asserted: reverting the statics
+leaves the enchanted 2/2 at 2/2 (`primitives::cards2_printed_field_repair::t5`). Evidence:
+`memory/card-authoring/cards2-field-fidelity-2026-08-02.md` §2.
 `crates/card-defs/src/defs/boon_satyr.rs:9-13` transposes the pips: `generic: 2,
 green: 1` (= `{2}{G}`) for a printed **{1}{G}{G}**. The engine charged exactly what
 the def said. Three more defects in the same file: bestow cost `{4}{G}{G}` vs printed
@@ -27,6 +32,13 @@ declares `Completeness::Complete` (`:41`). The engine's own bestow test hardcode
 correct numbers (`crates/engine/tests/mechanics_a_d/bestow.rs:56-57`).
 
 ### F2 — Corpus-wide mana-cost audit: 17 wrong costs / 1,804 defs, 9 deck-legal
+**CLOSED 2026-08-02 by CARDS-2 (`scutemob-181`).** All 17 repaired and the audit made permanent
+as **SR-37** — `tools/card-field-dump` + `tools/refresh-card-fidelity-fixture.py` +
+`core::cards2_printed_field_fidelity`, with a committed fixture so it runs in CI without
+`cards.sqlite`. This table was **reproduced exactly, card for card**, by an independent
+measurement before anything was repaired. The P/T and type-line extension this finding predicted
+was also run: **39 real defects total** (17 cost / 5 P/T / 16 type line / 1 duplicate card name).
+Evidence: `memory/card-authoring/cards2-field-fidelity-2026-08-02.md`.
 Method: throwaway `all_cards()` dump (name, completeness, `{:?}` of `mana_cost`)
 diffed against `cards.sqlite` (Scryfall), face-0 costs for `//` names, non-game
 layouts filtered (`token`, `art_series`, …). 1,802/1,804 matched; the 2 unmatched are
@@ -151,10 +163,26 @@ violation (never offer what the engine rejects); Galadhrim Brigade casts fine at
 TargetPicker (CR 601.2b/h precedes 601.2c). No engine/wire-type change.
 
 ### F10 — Equip silent fizzle (filed: **OOS-M11-10**, `e4b93ac0`)
+**CLOSED 2026-08-02 by CARDS-1 (`scutemob-179`).**
 16 of 17 real equip activations declare `targets: vec![]` against a
 `DeclaredTarget { index: 0 }` effect; picker never asks; attach fizzles silently.
 10 of 16 `Complete`, all via the `#[default]` derive. See the seed row in
 `docs/audits/decision-point-audit.md` §8.1 for the full roster and chain.
+
+## Status (added 2026-08-02)
+
+**CLOSED**: F1, F2 (CARDS-2, `scutemob-181`); F8 (UI-1, `scutemob-174`); F10 (CARDS-1,
+`scutemob-179`). **OPEN**: F3, F4, F5, F6, F7, F9.
+
+F4 gained four fresh reproductions in CARDS-2: sweeping `seed` ∈ 0..24 for a play-server test
+fixture found that seeds 2, 10, 11 and 17 are each **offered** a targeted cast and then refused
+by the engine with "player does not have enough mana to pay the cost" once sources are tapped.
+Whoever fixes the mana solver has four ready cases.
+
+CARDS-2 also filed **OOS-CARDS2-4**, a *new* member of the same SR-38 family as F4 and F9: an
+**Aura** is offered with `target_min: 0`, because its target requirement lives in
+`KeywordAbility::Enchant(...)` which `casting.rs:3720` special-cases (CR 303.4a) and the provider
+never reads — so a human clicking any Aura in the browser client gets a 422.
 
 ## Not verified (by design)
 UX/layout requests from the notes (hover preview, 3-tier event log, combat display,

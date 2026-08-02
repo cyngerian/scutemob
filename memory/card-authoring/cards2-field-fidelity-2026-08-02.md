@@ -27,14 +27,24 @@ Corpus at `1f9fff17`: **1,804 definitions / 1,803 distinct names**. 1,801 joined
 the 2 that did not are the documented synthetics (`poisonous_viper`, `steel_guardian`), which
 is exactly what the F2 triage predicted.
 
-**Measured yield — 45 wrong fields:**
+**Measured yield — 39 real corpus defects.** The gate's *raw* output was larger at each stage,
+and the difference is not bookkeeping: it is the gate learning what a defect is.
 
-| rule | field | mismatches | defs |
-|---|---|---:|---:|
-| R2 | mana cost | 17 | 17 |
-| R3 | power / toughness | 5 | 3 |
-| R4 | type line | 16 | 16 |
-| R5 | duplicate card name | 1 | 2 files |
+| rule | field | first run | after canonicalisers | after structural exceptions (**real**) |
+|---|---|---:|---:|---:|
+| R2 | mana cost | 21 | 17 | **17** |
+| R3 | power / toughness | 8 | 8 | **5** |
+| R4 | type line | 21 | 19 | **16** |
+| R5 | duplicate card name | 1 | 1 | **1** |
+| | **total** | 51 | 45 | **39** |
+
+Column 1 → 2 removed six false mismatches created by the gate's own notation (hybrid pip order,
+multi-word subtypes — §1 findings 1 and 2). Column 2 → 3 removed six more that were the design
+working (the meld-result shell, the CDA placeholder — findings 3 and 4).
+
+**39 is the number to quote.** The intermediate 45 appears in this batch's second commit message
+(`b7a46cb3`) and briefly in this file, both written before the structural exceptions were
+recognised; that history is left as written rather than rewritten, but it is not the yield.
 
 R2 reproduced the F2 table **exactly, card for card** — the first independent confirmation
 that audit was reproducible rather than a one-off observation.
@@ -251,7 +261,22 @@ and `crates/card-types/src`). PROTOCOL and HASH gate-executed unmoved; `decision
 
 ---
 
-## 5. Seeds filed
+## 5. Cross-references and seeds
+
+### Cross-reference: the dropped-`{X}` class and OOS-M11-8
+
+`chord_of_calling`, `green_suns_zenith`, `torment_of_hailfire` and `wake_the_dead` all carried
+`x_count: 0` for a printed `{X}`, so each was castable at a fixed cost with X structurally
+unavailable — Torment of Hailfire for `{B}{B}`, draining for zero. This is the same population
+**OOS-M11-8** reasons about (`x_count` handling), approached from the other end: that seed is
+about the engine's treatment of `x_count`, this is about defs that never set it. The four are
+repaired and pinned by `primitives::cards2_printed_field_repair::t7`, and R2 now makes the class
+unable to recur — a def printed with `{X}` and declaring `x_count: 0` fails the gate. **Nothing
+in OOS-M11-8's own scope is closed by this**; the seed stands.
+
+Also worth noting for whoever picks that seed up: `wake_the_dead.rs` carried an inline comment
+reading "X cost not expressible in ManaCost struct", which was **never true** — `x_count` has
+always been a field. That is the third stale "not expressible" note this batch found (see §6).
 
 * **OOS-CARDS2-1** — the fixture is only as current as the local `cards.sqlite` snapshot.
   A card printed after that snapshot joins nothing, lands in the `# unmatched:` trailer, and R1
@@ -286,6 +311,22 @@ and `crates/card-types/src`). PROTOCOL and HASH gate-executed unmoved; `decision
 * **OOS-CARDS2-6** — no general `TriggerCondition::WhenDealsDamage` and no damage-dealt
   `EffectAmount` for "gain that much life" (see §2.4). Blocks `exalted_angel`. Unfixed; the def is
   honestly `partial`.
+* **OOS-CARDS2-7** — **`completeness_deviation_scan`'s needle set misses the two phrases the
+  corpus actually uses for an unimplemented ability.** Its needles are `["simplif",
+  "modeled as", "modelled as", "deviation", "approximat"]`. `braided_net.rs` said **"DSL gap"**
+  three times and `windbrisk_heights.rs` said the condition was **"deferred"**, and both shipped
+  `Complete` with a printed ability missing; neither reddened. A grep of the corpus for "DSL gap"
+  / "deferred" / "not expressible" / "TODO" against `Complete` defs would size the class. Not
+  done here — this batch repaired the two it tripped over, which is not a sweep.
+* **OOS-CARDS2-8** — **stale "not expressible" notes are a recurring class, and nothing rechecks
+  them.** Four found in this batch alone, all false by the time they were read:
+  `wake_the_dead` ("X cost not expressible in ManaCost struct" — `x_count` always existed),
+  `boon_satyr` (the aura static, which `rancor.rs` already used), `braided_net`
+  ("TapTarget effect not in DSL" — `Effect::TapPermanent` exists) and `windbrisk_heights`
+  ("attack tracking is deferred" — `Condition::YouAttackedWithNOrMore` exists). A note claiming
+  a primitive is missing is written once and never revisited when the primitive lands. Cheap
+  partial fix: have the DSL-gap notes name the primitive they want, so a grep can check whether
+  it now exists.
 * **F4 corroboration** (not a new seed) — the sweep in section 3 is independent evidence for
   `memory/playtest-triage-2026-08-02.md` F4, on four seeds the triage never examined. Whoever
   fixes the mana solver has four ready reproductions.

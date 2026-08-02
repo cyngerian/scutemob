@@ -1089,8 +1089,8 @@ mod tests {
     /// and demonstrates the first alongside it, at the same `seq`, so the two are
     /// told apart by observation rather than by argument.
     ///
-    /// [`TARGETED_SPELL`] is Chaos Warp, "target permanent" (CR 601.2c); a player is not a
-    /// permanent, so `handle_cast_spell`'s target validation refuses it with
+    /// [`TARGETED_SPELL`] is Terminate, "destroy target creature" (CR 601.2c); a player is not
+    /// a creature, so `handle_cast_spell`'s target validation refuses it with
     /// `GameStateError::InvalidTarget`. (This paragraph named Dispel for two batches after
     /// the constant had moved on — it is derived from the constant now, not restated.)
     #[tokio::test(flavor = "multi_thread")]
@@ -1560,7 +1560,7 @@ mod tests {
     /// of combat (attackers at turn 5, blockers at turn 6); seed 9 reaches a
     /// targeted removal spell with a real, legal creature candidate.
     const COMBAT_SEED: u64 = 6;
-    // CARDS-2 (2026-08-02, `scutemob-181`): 9 -> 17, re-observed by the sweep described
+    // CARDS-2 (2026-08-02, `scutemob-181`): 9 -> 20, re-observed by the sweep described
     // above (extended to `seed` ∈ 0..24 because 0..12 no longer contained a usable pair).
     // Seed 9 still stops `option_with_targets` on *something* — Deserted Temple's "untap
     // target land" — which is why two of the three tests below stayed green while the
@@ -1673,6 +1673,20 @@ mod tests {
                     advanced = true;
                     break;
                 }
+                // Only the ONE documented false offer is skipped. Anything else is a NEW
+                // provider/engine disagreement — the same SR-38 class — and tolerating it
+                // would make this driver absorb exactly the bug it exists downstream of.
+                // A blanket skip would be near-unfailable, because `PassPriority` is in the
+                // candidate chain and essentially always succeeds.
+                let reason = next["error"].as_str().unwrap_or_default();
+                assert!(
+                    reason.contains("Aura spells require exactly one target"),
+                    "driving seed {seed}: the engine refused {} with an UNEXPECTED reason \
+                     {reason:?}. Only the CR 303.4a Aura false offer (OOS-CARDS2-4) is a known \
+                     one; a new refusal means the provider is offering something else the \
+                     engine rejects, and that is a finding, not something to drive past.",
+                    pick["label"]
+                );
             }
             assert!(
                 advanced,

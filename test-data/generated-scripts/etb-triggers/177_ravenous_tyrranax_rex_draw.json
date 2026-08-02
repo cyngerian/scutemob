@@ -23,11 +23,12 @@
       "tyrranax-rex"
     ],
     "confidence": "high",
-    "review_status": "approved",
+    "review_status": "retired",
     "reviewed_by": null,
     "review_date": null,
     "generation_notes": "CARDS-2 (2026-08-02, scutemob-181) re-derived this script's mana. Tyrranax Rex's printed cost is {4}{G}{G}{G} with a Ravenous {X}; the definition had carried {G}{G}{G}{G} with x_count 0 -- three mana cheap AND structurally X-less -- and this script was written to match the definition rather than the card, so it passed for two batches. With X=5 the cast now needs 5 (X) + 4 generic + 3 green = colorless 9, green 3. CR 702.156a: Ravenous is both a replacement effect (enters with X +1/+1 counters) and a triggered ability (draw if X >= 5). One Forest is in the library so the draw succeeds. Ward {4} is irrelevant -- nothing targets Tyrranax Rex here. The script uses x_value: 5 per CR 107.3m.",
-    "disputes": []
+    "disputes": [],
+    "retirement_reason": "CARDS-2 (2026-08-02, scutemob-181), review Issue 2: the script's subject does not exist. Tyrranax Rex has no Ravenous and no {X} — its printed text is 'This spell can't be countered. / Trample, ward {4}, haste / Toxic 4' (MCP oracle). The definition this script was written against declared KeywordAbility::Ravenous, which appears on no printing of the card, so every assertion here (enters with X +1/+1 counters, 13/13, the X>=5 draw trigger) certifies an ability the card does not have. WORTH RECORDING HOW THIS SURVIVED A REPAIR: earlier in this same batch the script FAILED on InsufficientMana after the def's cost was corrected, and it was re-baselined by recomputing the mana pool — without re-reading the oracle. That is precisely the failure this batch had already named in writing for scripts 164 and 177 ('written to what the def said, not to the card'), committed one pass before repeating it. A wrong printed field is reason to re-read the whole oracle, not to fix the field. NOTHING IS LOST: Ravenous keeps six engine tests against a mock in crates/engine/tests/mechanics_m_z/ravenous.rs, and Tyrranax Rex was the only definition in the corpus declaring the keyword."
   },
   "initial_state": {
     "format": "commander",
