@@ -1791,6 +1791,206 @@ mod tests {
         assert_eq!((sum_min, sum_max), (min as u64, max as u64));
     }
 
+    // ── CARDS-1 (OOS-M11-10) ────────────────────────────────────────────────────
+
+    /// Build a minimal `GameState`: Skullclamp on the battlefield under `p1`, plus
+    /// one creature `p1` controls and one `p2` controls, `p1` holding priority
+    /// with exactly the {1} generic mana Skullclamp's Equip costs.
+    ///
+    /// Mirrors `crates/engine/tests/primitives/cards1_equip_target_repair.rs`'s
+    /// `setup_skullclamp_scenario` (same card, same shape) — duplicated rather
+    /// than shared, because `tools/play-server` and `crates/engine/tests` are
+    /// separate compilation units with no shared test-support crate (exactly the
+    /// reasoning that file's own T7 gives for not reusing `crates/engine/tests/core`
+    /// logic across its own two test binaries). The layer-resolved +1/-1 bonus is
+    /// not wired here (no `register_static_continuous_effects` call): this
+    /// fixture only needs the equip ability to be legally *targetable*, not to
+    /// resolve — that half is already proven by the engine test file's T3.
+    fn setup_skullclamp_view_scenario() -> (
+        mtg_engine::GameState,
+        mtg_engine::ObjectId,
+        mtg_engine::ObjectId,
+        mtg_engine::ObjectId,
+        mtg_engine::PlayerId,
+        mtg_engine::PlayerId,
+    ) {
+        let p1 = mtg_engine::PlayerId(1);
+        let p2 = mtg_engine::PlayerId(2);
+        let defs: HashMap<String, mtg_engine::CardDefinition> = mtg_engine::all_cards()
+            .into_iter()
+            .map(|d| (d.name.clone(), d))
+            .collect();
+
+        let skullclamp = mtg_engine::enrich_spec_from_def(
+            mtg_engine::ObjectSpec::card(p1, "Skullclamp")
+                .in_zone(mtg_engine::ZoneId::Battlefield)
+                .with_card_id(mtg_engine::card_name_to_id("Skullclamp")),
+            &defs,
+        );
+        let p1_creature = mtg_engine::ObjectSpec::creature(p1, "P1 Bear", 2, 2);
+        let p2_creature = mtg_engine::ObjectSpec::creature(p2, "P2 Bear", 2, 2);
+
+        let mut state = mtg_engine::GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(p2)
+            .with_registry(mtg_engine::CardRegistry::new(mtg_engine::all_cards()))
+            .object(skullclamp)
+            .object(p1_creature)
+            .object(p2_creature)
+            .active_player(p1)
+            .at_step(mtg_engine::Step::PreCombatMain)
+            .build()
+            .unwrap();
+
+        state
+            .players_mut()
+            .get_mut(&p1)
+            .unwrap()
+            .mana_pool
+            .add(mtg_engine::ManaColor::Colorless, 1);
+        state.turn_mut().priority_holder = Some(p1);
+
+        let find = |name: &str, controller: mtg_engine::PlayerId| -> mtg_engine::ObjectId {
+            state
+                .objects()
+                .iter()
+                .find(|(_, obj)| obj.characteristics.name == name && obj.controller == controller)
+                .map(|(id, _)| *id)
+                .unwrap_or_else(|| panic!("object '{name}' controlled by {controller:?} not found"))
+        };
+        let skullclamp_id = find("Skullclamp", p1);
+        let p1_creature_id = find("P1 Bear", p1);
+        let p2_creature_id = find("P2 Bear", p2);
+
+        (state, skullclamp_id, p1_creature_id, p2_creature_id, p1, p2)
+    }
+
+    /// **CARDS-1 (OOS-M11-10), browser-path half.** Engine coverage already
+    /// proves `mtg_engine::ability_target_requirements` reports Skullclamp's
+    /// equip slot once its def declares it
+    /// (`crates/engine/tests/primitives/cards1_equip_target_repair.rs` T5). This
+    /// test proves the same thing survives the view/wire layer this crate
+    /// renders for the Svelte client — the layer at which the original defect
+    /// was actually observed: `ActionOptionView.target_slots` was empty, so the
+    /// browser picker never asked for a target, the activation validated with
+    /// zero declared targets, and the attach silently fizzled with the cost
+    /// already paid.
+    ///
+    /// Driven entirely in-process, without HTTP: `mtg_simulator::StubProvider`
+    /// (the same provider `LocalGame` uses) computes the real `LegalAction` list
+    /// off the built `GameState`, and `view::decision_view` — the exact function
+    /// `api::seat_view` calls to build the payload a real session sends — renders
+    /// it. No test in this crate opens a listening socket (see
+    /// `test_no_socket_symbol_appears_in_the_test_region`); this one does not
+    /// even use `tower::ServiceExt::oneshot`, since there is no HTTP surface
+    /// between "a `GameState`" and "the wire `DecisionView`" worth crossing here.
+    ///
+    /// CR 702.6a ("Attach this permanent to target creature you control") / CR
+    /// 602.2b (activating an ability announces targets the same way CR 601.2c
+    /// requires for casting a spell).
+    #[test]
+    fn test_cards1_skullclamp_activate_ability_view_carries_target_slot() {
+        use mtg_simulator::LegalActionProvider as _;
+
+        let (state, skullclamp_id, p1_creature_id, p2_creature_id, p1, p2) =
+            setup_skullclamp_view_scenario();
+
+        let actions = mtg_simulator::StubProvider.legal_actions(&state, p1);
+        let (index, _) = actions
+            .iter()
+            .enumerate()
+            .find(|(_, a)| {
+                matches!(
+                    a,
+                    mtg_simulator::LegalAction::ActivateAbility { source, .. }
+                        if *source == skullclamp_id
+                )
+            })
+            .expect(
+                "StubProvider must offer Skullclamp's equip ability as an ActivateAbility \
+                 action -- p1 has priority, {1} generic mana in pool, and a legal target \
+                 creature on the battlefield",
+            );
+
+        let pending = mtg_simulator::PendingDecision {
+            seq: 0,
+            player: p1,
+            kind: mtg_simulator::DecisionKind::Priority,
+            actions,
+        };
+
+        let player_names: HashMap<mtg_engine::PlayerId, String> =
+            [(p1, "Human-1".to_string()), (p2, "Bot-2".to_string())]
+                .into_iter()
+                .collect();
+
+        let state_view =
+            StateViewModel::from_game_state_for(&state, &player_names, Viewer::Seat(p1));
+        let names = view::NameIndex::from_view(&state_view);
+        let decision = view::decision_view(&pending, 0, &state, &names, &player_names);
+
+        // Serialized to a raw `serde_json::Value`, not inspected as the Rust
+        // struct — the wire shape is what the Svelte picker actually reads, and
+        // that is the layer this test is proving something about.
+        let wire = serde_json::to_value(&decision).expect("DecisionView serializes");
+        let action = wire["actions"]
+            .as_array()
+            .expect("actions is an array")
+            .get(index)
+            .expect("the found index addresses a real wire action")
+            .clone();
+
+        assert_eq!(action["kind"], "ActivateAbility");
+        assert_eq!(action["object_id"].as_u64(), Some(skullclamp_id.0));
+
+        // Regression floor for OOS-M11-10 itself: this is the assertion that
+        // would have caught the original defect at the layer the playtest
+        // actually observed it. With the pre-fix `targets: vec![]`,
+        // `target_slots` here is empty and the picker never asks.
+        let target_slots = action["target_slots"]
+            .as_array()
+            .expect("target_slots is an array");
+        assert_eq!(
+            target_slots.len(),
+            1,
+            "OOS-M11-10: Skullclamp's ActivateAbility option must carry exactly one target \
+             slot once the def declares its TargetRequirement -- an empty target_slots is \
+             exactly the wire shape of the silent-fizzle defect (the picker never asks, the \
+             activation validates with zero declared targets, and the attach never happens). \
+             Wire action: {action}"
+        );
+
+        let candidates = target_slots[0]["candidates"]
+            .as_array()
+            .expect("candidates is an array");
+
+        // Non-vacuity floor, stated first so the scoping checks below cannot pass
+        // trivially against an empty list.
+        assert!(
+            !candidates.is_empty(),
+            "OOS-M11-10: the slot's candidate list must be non-empty -- Skullclamp's own \
+             controller (p1) controls a legal creature target"
+        );
+
+        let candidate_ids: Vec<u64> = candidates
+            .iter()
+            .map(|c| c["id"].as_u64().expect("id is a number"))
+            .collect();
+
+        // CR 702.6a "target creature you control": scoped to the activating seat.
+        assert!(
+            candidate_ids.contains(&p1_creature_id.0),
+            "the activating player's own creature must be an offered candidate; got \
+             {candidate_ids:?}"
+        );
+        assert!(
+            !candidate_ids.contains(&p2_creature_id.0),
+            "an opponent's creature must NOT be an offered candidate (CR 702.6a 'you \
+             control') -- this is exactly the assertion that would have caught the browser \
+             picker never asking for a target at all; got {candidate_ids:?}"
+        );
+    }
+
     // ── 11 ────────────────────────────────────────────────────────────────────
 
     /// **Plan item 2, first half**: a human can attack through the API, and the
