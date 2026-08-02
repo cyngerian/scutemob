@@ -275,6 +275,19 @@ pub fn process_command(
     state: GameState,
     command: Command,
 ) -> Result<(GameState, Vec<GameEvent>), GameStateError> {
+    // OOS-DX19-4 / PB-DX19: the layer-walk depth counter must be balanced at every
+    // command boundary. `LayerWalkGuard` decrements on `Drop`, so this can only trip
+    // if someone `mem::forget`s a guard or enters one outside
+    // `calculate_characteristics` — and a LEAKED depth is silently catastrophic: it is
+    // sticky for the rest of the thread and downgrades every later condition
+    // evaluation to base characteristics, which is exactly the wrongness this batch
+    // spent its review budget removing. Nothing else would notice.
+    debug_assert!(
+        !crate::rules::layers::in_layer_walk(),
+        "layer-walk depth leaked across a command boundary: every condition evaluated \
+         from here on would silently read base characteristics (see \
+         rules::layers::characteristics_for_condition)"
+    );
     let mut state = state;
     let mut all_events = Vec::new();
     // Validate: game not over

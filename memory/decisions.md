@@ -185,3 +185,34 @@ simulator bots in the same process as the person clicking the button.
 **This must be re-scoped at M10a**, when the other end of a socket is a real person:
 redacted, or single-player-only, or authenticated. Recorded here, at
 `view.rs::BugReportView`, and in the crate README so it is not rediscovered by accident.
+
+## 2026-08-02 — P/T saturates at `i32` bounds (PB-DX19, `scutemob-184`, closing OOS-SIM2-5)
+
+**Decision**: every power/toughness write in `rules/layers.rs` saturates rather than wrapping or
+panicking, and every `u32 -> i32` widening that reaches a P/T write uses
+`try_into().unwrap_or(i32::MAX)` rather than `as`.
+
+**Rationale**: the CR puts **no ceiling** on power or toughness; this engine stores both as `i32`.
+`devilish_valet` is `Complete` and genuinely doubles — `effects/mod.rs` substitutes its
+`ModifyPowerDynamic` to a concrete `ModifyPower(current_power)` per trigger (CR 608.2h), so ~31
+triggers reach `i32::MAX`, which is a reachable number of combat triggers in Commander. The two
+supported build profiles failed *differently* and neither failed usefully: `[profile.fuzz]` sets
+`overflow-checks = true`, so a bare `+=` **panicked** there, while a plain `--release` build
+**wrapped silently to negative power** and the creature died to CR 704.5a.
+
+**The deviation, stated plainly**: a creature pinned at `i32::MAX` power is wrong per CR. It is
+accepted as far less wrong than one that wrapped negative. Making the ceiling unreachable means
+widening the stored type or clamping at the effect layer under an explicit rule — filed
+`OOS-DX19-3`, which also records the cost of this decision: the `overflow-checks` panic *was* the
+only tripwire that would ever have reported the condition, and this decision removes it.
+
+**The part that is easy to get wrong**: `as` casts are **not** checked arithmetic. `overflow-checks`
+does not touch them, so a `u32` counter count above `i32::MAX` wrapped to a *negative* modifier in
+**every** profile — inverting the counter's sign — and no fuzz run could ever have surfaced it. A
+hardening pass that converts `+=` to `saturating_add` and leaves the casts alone has hardened only
+the sites that were already loud. Sixteen sites were converted, not the four the seed named.
+
+**Pinned by**: `crates/engine/tests/primitives/pb_dx19_characteristics_recursion.rs` — six probes,
+one per group, each watched failing against an executed (and compiling) revert. The counter-widening
+probe is the only one that fails by *assertion* rather than by *panic*, which is itself the evidence
+for the paragraph above.

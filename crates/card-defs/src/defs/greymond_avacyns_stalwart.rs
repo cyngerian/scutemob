@@ -37,9 +37,17 @@ pub fn card() -> CardDefinition {
         completeness: Completeness::inert(
             "Blocked: 'As this enters, choose two abilities from among first strike, vigilance, \
              and lifelink' — no as-enters ability-choice replacement and no layer grant keyed to \
-             a chosen ability set. The +2/+2 conditional static IS now expressible \
-             (Condition::YouControlNOrMoreWithFilter + ContinuousEffectDef.condition) and should \
-             be wired.",
+             a chosen ability set. The +2/+2 conditional static IS expressible \
+             (Condition::YouControlNOrMoreWithFilter + ContinuousEffectDef.condition) and may be \
+             wired — but read this first (PB-DX19, 2026-08-02): until that batch, following this \
+             note would have built a SECOND instance of the OOS-SIM2-6 stack-overflow class. It \
+             is safe to register now, at one cost: a registered static's condition is evaluated \
+             from INSIDE the layer walk, where the filter test reads base characteristics \
+             (rules::layers::characteristics_for_condition), so a Human created by another \
+             continuous effect's type change is not counted. That is a property of the LAYER \
+             PATH, not of the condition — the same condition used as an activation_condition or \
+             intervening_if reads layer-resolved characteristics. See OOS-DX19-2 for the CR \
+             613.8b-honest fixpoint.",
         ),
         ..Default::default()
     }

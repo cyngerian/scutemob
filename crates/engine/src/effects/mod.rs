@@ -3890,19 +3890,26 @@ fn execute_effect_inner(
             // `CdaPowerToughness` (Layer 7a, dispatched via `resolve_cda_amount`) is the
             // analogous Layer-7a live-eval primitive.
             let resolved_modification = match &effect_def.modification {
+                // OOS-SIM2-5 / PB-DX19: `saturating_neg`, not `-raw`. This is the CR
+                // 608.2h lock-in site that feeds `rules/layers.rs`'s (now saturating)
+                // `Modify*` arms, so leaving a bare negation here would reintroduce the
+                // same overflow one hop upstream of the fix — `-raw` panics under
+                // `[profile.fuzz]`'s `overflow-checks` and wraps in plain `--release`
+                // when `raw == i32::MIN`. See the ceiling deviation on
+                // `rules::layers::apply_layer_modification`.
                 LM::ModifyBothDynamic { amount, negate } => {
                     let raw = resolve_amount(state, amount, ctx);
-                    let v = if *negate { -raw } else { raw };
+                    let v = if *negate { raw.saturating_neg() } else { raw };
                     LM::ModifyBoth(v)
                 }
                 LM::ModifyPowerDynamic { amount, negate } => {
                     let raw = resolve_amount(state, amount, ctx);
-                    let v = if *negate { -raw } else { raw };
+                    let v = if *negate { raw.saturating_neg() } else { raw };
                     LM::ModifyPower(v)
                 }
                 LM::ModifyToughnessDynamic { amount, negate } => {
                     let raw = resolve_amount(state, amount, ctx);
-                    let v = if *negate { -raw } else { raw };
+                    let v = if *negate { raw.saturating_neg() } else { raw };
                     LM::ModifyToughness(v)
                 }
                 // CR 613.4b / CR 608.2h / CR 107.3k: SetBothDynamic (Layer 7b "set base P/T
@@ -4398,7 +4405,7 @@ fn execute_effect_inner(
                 // CR 613.1d: Use layer-resolved types/subtypes for creature scan.
                 for obj in state.objects.values() {
                     if obj.controller == ctx.controller && matches!(obj.zone, ZoneId::Battlefield) {
-                        let chars = crate::rules::layers::expect_characteristics(state, obj.id);
+                        let chars = crate::rules::layers::characteristics_for_condition(state, obj);
                         if chars.card_types.contains(&CardType::Creature) {
                             for st in &chars.subtypes {
                                 *type_counts.entry(st.clone()).or_insert(0usize) += 1;
@@ -8212,7 +8219,8 @@ pub(crate) fn resolve_amount(state: &GameState, amount: &EffectAmount, ctx: &Eff
                         && obj.is_phased_in()
                         && players.contains(&obj.controller)
                         && {
-                            let chars = crate::rules::layers::expect_characteristics(state, obj.id);
+                            let chars =
+                                crate::rules::layers::characteristics_for_condition(state, obj);
                             matches_filter(&chars, filter)
                                 && check_chosen_subtype_filter(state, ctx, filter, &chars)
                                 // CR 122.1: counter check must be against GameObject (not Characteristics).
@@ -8332,7 +8340,14 @@ pub(crate) fn resolve_amount(state: &GameState, amount: &EffectAmount, ctx: &Eff
                         state
                             .objects
                             .get(&id)
-                            .map(|obj| *obj.counters.get(counter).unwrap_or(&0) as i32)
+                            // OOS-SIM2-5 / PB-DX19 review finding: the resolution-time
+                            // twin of `resolve_cda_amount::CounterCount`. Same `u32` counter
+                            // map, same unchecked `as` cast, same P/T write downstream via
+                            // the CR 608.2h `Modify*Dynamic` substitution.
+                            .map(|obj| {
+                                i32::try_from(*obj.counters.get(counter).unwrap_or(&0))
+                                    .unwrap_or(i32::MAX)
+                            })
                     } else {
                         None
                     }
@@ -8355,8 +8370,9 @@ pub(crate) fn resolve_amount(state: &GameState, amount: &EffectAmount, ctx: &Eff
                 crate::state::types::CounterType::Poison => players
                     .iter()
                     .filter_map(|pid| state.expect_player(*pid))
-                    .map(|ps| ps.poison_counters as i32)
-                    .sum(),
+                    // OOS-SIM2-5 / PB-DX19: saturating widen + saturating fold.
+                    .map(|ps| i32::try_from(ps.poison_counters).unwrap_or(i32::MAX))
+                    .fold(0i32, |acc, n| acc.saturating_add(n)),
                 // Future-proof: energy/experience/rad/ticket etc. live as separate
                 // PlayerState fields when implemented. Until then, return 0 rather
                 // than panic so card defs targeting unsupported kinds remain safe.
@@ -8395,7 +8411,8 @@ pub(crate) fn resolve_amount(state: &GameState, amount: &EffectAmount, ctx: &Eff
                         && obj.is_phased_in()
                         && players.contains(&obj.controller)
                         && {
-                            let chars = crate::rules::layers::expect_characteristics(state, obj.id);
+                            let chars =
+                                crate::rules::layers::characteristics_for_condition(state, obj);
                             chars.card_types.contains(&CardType::Creature)
                                 && chars.subtypes.contains(&ct)
                         }
@@ -8422,7 +8439,8 @@ pub(crate) fn resolve_amount(state: &GameState, amount: &EffectAmount, ctx: &Eff
                         && obj.is_phased_in()
                         && players.contains(&obj.controller)
                         && {
-                            let chars = crate::rules::layers::expect_characteristics(state, obj.id);
+                            let chars =
+                                crate::rules::layers::characteristics_for_condition(state, obj);
                             chars.card_types.contains(&CardType::Land)
                                 && chars.subtypes.contains(sub)
                         }
@@ -8499,7 +8517,7 @@ pub(crate) fn resolve_amount(state: &GameState, amount: &EffectAmount, ctx: &Eff
                             .as_ref()
                             .map(|f| {
                                 let chars =
-                                    crate::rules::layers::expect_characteristics(state, obj.id);
+                                    crate::rules::layers::characteristics_for_condition(state, obj);
                                 matches_filter(&chars, f)
                                     && check_chosen_subtype_filter(state, ctx, f, &chars)
                                     && check_has_counter_type(obj, f)
@@ -8528,7 +8546,8 @@ pub(crate) fn resolve_amount(state: &GameState, amount: &EffectAmount, ctx: &Eff
                         && {
                             // CR 613.1d / W3-LC discipline: battlefield type/filter reads
                             // must go through calculate_characteristics, not base chars.
-                            let chars = crate::rules::layers::expect_characteristics(state, obj.id);
+                            let chars =
+                                crate::rules::layers::characteristics_for_condition(state, obj);
                             chars
                                 .card_types
                                 .contains(&crate::state::types::CardType::Creature)
@@ -8602,7 +8621,7 @@ pub(crate) fn resolve_amount(state: &GameState, amount: &EffectAmount, ctx: &Eff
                         && combat.is_attacking(obj.id) // CR 508.1: all attackers, any controller
                         && {
                             let chars =
-                                crate::rules::layers::expect_characteristics(state, obj.id);
+                                crate::rules::layers::characteristics_for_condition(state, obj);
                             chars
                                 .card_types
                                 .contains(&crate::state::types::CardType::Creature)
@@ -9679,7 +9698,7 @@ pub fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectCon
                 && obj.is_phased_in()
                 && obj.controller == ctx.controller
                 && {
-                    let chars = crate::rules::layers::expect_characteristics(state, obj.id);
+                    let chars = crate::rules::layers::characteristics_for_condition(state, obj);
                     matches_filter(&chars, filter)
                         // CR 122.1: counter check must be against GameObject (not Characteristics).
                         && check_has_counter_type(obj, filter)
@@ -9690,7 +9709,7 @@ pub fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectCon
                 && obj.is_phased_in()
                 && obj.controller != ctx.controller
                 && {
-                    let chars = crate::rules::layers::expect_characteristics(state, obj.id);
+                    let chars = crate::rules::layers::characteristics_for_condition(state, obj);
                     matches_filter(&chars, filter)
                         // CR 122.1: counter check must be against GameObject (not Characteristics).
                         && check_has_counter_type(obj, filter)
@@ -9788,7 +9807,7 @@ pub fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectCon
                 && obj.is_phased_in()
                 && obj.controller == ctx.controller
                 && {
-                    let chars = crate::rules::layers::expect_characteristics(state, obj.id);
+                    let chars = crate::rules::layers::characteristics_for_condition(state, obj);
                     chars.card_types.contains(&CardType::Land)
                         && subtypes.iter().any(|st| chars.subtypes.contains(st))
                 }
@@ -9804,7 +9823,7 @@ pub fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectCon
                         && obj.zone == ZoneId::Battlefield
                         && obj.is_phased_in()
                         && obj.controller == ctx.controller
-                        && crate::rules::layers::expect_characteristics(state, id)
+                        && crate::rules::layers::characteristics_for_condition(state, obj)
                             .card_types
                             .contains(&CardType::Land)
                 })
@@ -9843,7 +9862,8 @@ pub fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectCon
                         && obj.is_phased_in()
                         && obj.controller == ctx.controller
                         && {
-                            let chars = crate::rules::layers::expect_characteristics(state, obj.id);
+                            let chars =
+                                crate::rules::layers::characteristics_for_condition(state, obj);
                             chars.card_types.contains(&CardType::Land)
                                 && chars
                                     .supertypes
@@ -9864,7 +9884,7 @@ pub fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectCon
                         && obj.zone == ZoneId::Battlefield
                         && obj.is_phased_in()
                         && obj.controller == ctx.controller
-                        && crate::rules::layers::expect_characteristics(state, id)
+                        && crate::rules::layers::characteristics_for_condition(state, obj)
                             .card_types
                             .contains(&CardType::Land)
                 })
@@ -9882,7 +9902,7 @@ pub fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectCon
                         && obj.zone == ZoneId::Battlefield
                         && obj.is_phased_in()
                         && obj.controller == ctx.controller
-                        && crate::rules::layers::expect_characteristics(state, id)
+                        && crate::rules::layers::characteristics_for_condition(state, obj)
                             .subtypes
                             .contains(subtype)
                 })
@@ -9895,7 +9915,7 @@ pub fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectCon
                 && obj.is_phased_in()
                 && obj.controller == ctx.controller
                 && {
-                    let chars = crate::rules::layers::expect_characteristics(state, obj.id);
+                    let chars = crate::rules::layers::characteristics_for_condition(state, obj);
                     chars.card_types.contains(&CardType::Creature)
                         && chars.supertypes.contains(&SuperType::Legendary)
                 }
@@ -9906,7 +9926,7 @@ pub fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectCon
                 && obj.is_phased_in()
                 && obj.controller == ctx.controller
                 && {
-                    let chars = crate::rules::layers::expect_characteristics(state, obj.id);
+                    let chars = crate::rules::layers::characteristics_for_condition(state, obj);
                     chars.card_types.contains(&CardType::Creature)
                         && chars.subtypes.contains(subtype)
                 }
@@ -10074,7 +10094,7 @@ pub fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectCon
                         o.zone == ZoneId::Battlefield && o.is_phased_in() && o.controller == pid
                     })
                     .filter(|o| {
-                        let chars = crate::rules::layers::expect_characteristics(state, o.id);
+                        let chars = crate::rules::layers::characteristics_for_condition(state, o);
                         chars.card_types.contains(&CardType::Land)
                     })
                     .count()
@@ -10244,19 +10264,35 @@ pub fn check_static_condition(
                         && obj.is_phased_in()
                         && obj.controller == controller
                         && {
-                            // NOTE: `calculate_characteristics` is called here from within
-                            // `check_static_condition`, which is itself called from
-                            // `is_effect_active`, which is called from within
-                            // `calculate_characteristics` for each active continuous effect.
-                            // This is re-entrant but safe: `im-rs` persistent data structures
-                            // are immutable, so there is no risk of observing partial mutations.
-                            // Termination is guaranteed because we are checking the types of
-                            // *other* battlefield objects, not the object currently being
-                            // calculated — there is no direct self-referential cycle.
-                            // If performance becomes an issue, consider using base
-                            // characteristics (`obj.characteristics`) for the filter check
-                            // instead of calling `calculate_characteristics` again.
-                            let chars = crate::rules::layers::expect_characteristics(state, obj.id);
+                            // OOS-SIM2-6 / PB-DX19 — go through
+                            // `characteristics_for_condition`, NEVER `expect_characteristics`
+                            // directly. Read that function's doc before touching this: it is
+                            // the single decision point for a cycle that stack-overflowed the
+                            // process (SIGABRT) from a deck-legal `Complete` card for 4.5
+                            // months.
+                            //
+                            // In one sentence: this evaluator is SHARED by five callers, and
+                            // only one — `is_effect_active`, inside
+                            // `calculate_characteristics` — closes a cycle, so base vs
+                            // layer-resolved has to be decided per CALLER, not once here.
+                            // PB-DX19's own first attempt hard-coded `obj.characteristics` and
+                            // thereby broke the four safe callers (`activation_condition`,
+                            // `intervening_if`, `Effect::Conditional`, `unless_condition`) to
+                            // fix the one dangerous one; its review caught that, and the helper
+                            // is the repair.
+                            //
+                            // The comment that stood here until 2026-08-02 argued termination
+                            // from the wrong invariant — "we are checking the types of *other*
+                            // battlefield objects, not the object currently being calculated" —
+                            // and proposed the correct fix as a mere *performance* note. That
+                            // is why it survived: the cycle runs through the EFFECT, not the
+                            // object, because `calculate_characteristics` calls
+                            // `is_effect_active` on EVERY `state.continuous_effects` entry
+                            // whatever object it was asked about and whatever zone that object
+                            // is in. Recursing on a different object, or on one in the
+                            // graveyard, re-enters this arm just the same.
+                            let chars =
+                                crate::rules::layers::characteristics_for_condition(state, obj);
                             matches_filter(&chars, filter)
                                 // CR 122.1: counter check must be against GameObject (not Characteristics).
                                 && check_has_counter_type(obj, filter)

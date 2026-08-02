@@ -1,4 +1,4 @@
-# Primitive batch WIP — PB-DX6
+# Primitive batch WIP — PB-DX19 (PB-DX6 below is stale history)
 
 **Batch**: PB-DX6 — the last two unflattened mana-cost payment sites
 **Seeds**: OOS-RS2-1 + OOS-DP4-1 (`memory/primitives/seed-rerank-2026-07-27.md` §4 + the PB-DX6

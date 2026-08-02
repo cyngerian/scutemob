@@ -839,6 +839,129 @@
   (`scutemob-159`) confirmed its exclusion from the primitive queue. `OOS-M11-3` (fuzzer
   nondeterminism in 150-200+ turn games) untouched.
 
+## Worker Handoff (PB-DX19, `scutemob-184`)
+
+**Scope**: the v3 queue's first dispatch — `OOS-SIM2-6` (HIGH) + `OOS-SIM2-5` fold-in.
+Plan: `memory/primitives/pb-plan-DX19.md`. Review: `memory/primitives/pb-review-DX19.md`.
+Brief: `memory/primitives/seed-rerank-2026-08-02.md` §4, "Dispatch briefs" → PB-DX19.
+
+**Shipped**: `ee7a55b4` (stage-0 repro), `a0d977e5` (fixes), `79b94a58` (tests + deviation pin).
+PROTOCOL **33** / HASH **70** gate-executed, both unmoved. Tests **4,274 / 0 / 5** on branch
+(+11 over main's 4,263). `clippy -D warnings`, `cargo fmt --check`, `tools/check-defs-fmt.sh`
+all clean. Coverage unmoved, proven by regeneration (see "claims" below).
+
+### What actually broke, and why it took 4.5 months
+
+The cycle is `calculate_characteristics` → `is_effect_active` → `check_static_condition` →
+the `YouControlNOrMoreWithFilter` arm → `expect_characteristics` → back. **The seed's own
+description of it was wrong in a way that matters.** It reads as a property of *counting
+artifacts* with *that permanent on the battlefield*. It is neither: `calculate_characteristics`
+calls `is_effect_active` on **every** `state.continuous_effects` entry, whatever object it was
+asked about and whatever zone that object is in. So the recursion runs through the **effect**,
+not the object. Two probes prove it — one calculating the Archangel's *own* characteristics (it
+is not an artifact; the grant can never reach it) and one with Metalcraft **off** (the condition
+is *false*) — and both crashed identically pre-fix.
+
+That distinction is the whole story of the 4.5 months. The in-source comment argued termination
+from exactly the disproved invariant ("we are checking the types of *other* battlefield
+objects"), and then proposed the correct fix as a **performance** note. Anyone who read it came
+away reassured. **The comment, not the code, was the defect that survived** — so the batch
+rewrote it with the mechanism, and that rewrite is worth more than the one-line code change.
+
+### Durable lessons
+
+1. **A termination argument in a comment is a claim, and claims rot.** This one was never true.
+   If a comment says "this recursion is safe because X", the test that proves X is missing.
+2. **A test that names a card by string proves nothing about that card.** `static_grants.rs`
+   named Indomitable Archangel and then hand-built the effect with `condition: None` — it
+   exercised the filter and never the condition, and the condition was the entire defect. Repaired
+   to drive the real def through `register_static_continuous_effects`; it now aborts pre-fix where
+   the old shape passed. **That is the test to write: one that fails for the reason you claim.**
+3. **`as` casts are not checked arithmetic.** `overflow-checks` does not touch them. The one
+   OOS-SIM2-5 site no fuzz profile could ever have caught was a `u32 as i32` counter widening that
+   wrapped the counter's **sign** in every profile. Its probe fails by *assertion*; the other five
+   fail by *panic*. If a hardening pass converts `+=` to `saturating_add` and leaves the `as`
+   casts, it has hardened the sites that were already loud and skipped the silent one.
+4. **A stack overflow is not a test failure.** It is signal 6, names no test, and takes the binary
+   down: `cargo test` printed `running 3 tests` and named exactly one. Filed `OOS-DX19-4` — a
+   depth tripwire would have made this a named debug failure in 2026-03.
+5. **`cargo fmt` passed a card-def edit that `tools/check-defs-fmt.sh` rejected.** SR-35 caught a
+   real one here, not a hypothetical.
+
+### Claims, and how each was actually established
+
+- **The mandatory experiment is decisive, and was run pre-fix at the real pre-fix tree** (not with
+  the card's static commented out — the brief's control does not survive the fix landing).
+  `mtg-fuzzer --games 15 --seed 1`, `[profile.fuzz]`: **pre-fix** `fatal runtime error: stack
+  overflow` → SIGABRT, exit 134, **0 of 15** games completed; **post-fix** 15 completed, 4.6s,
+  avg **189** turns, 12 wins / 3 errors. **This closes `OOS-DP3-9` / `OOS-M11-3`'s stack-overflow
+  half** — and note the abort was *immediate*, so that row's "game-count- or game-length-dependent"
+  reading was an artefact of which decks the seed drew. `OOS-M11-3`'s **determinism** half is
+  untouched and stays open.
+- **Every pre-fix failure was OBSERVED via an executed revert, and both reverts compiled** (S8's
+  lesson: the first revert of that batch did not compile, so it proved nothing). Two independent
+  reverts were run: P/T-only (6 probes fail, 3 recursion probes pass) and recursion-only (6 P/T
+  probes pass, recursion probe SIGABRTs). The isolation is the point — it shows neither fix is
+  carrying the other's evidence.
+- **Coverage unmoved was proven by REGENERATION, not by an empty diff.** The card-defs diff is
+  *not* empty: the brief mandated the `greymond_avacyns_stalwart` note edit. So the claim rests on
+  `tools/authoring-report.py` producing a byte-identical report body (only the self-dating header
+  and recent-commits list differ). The generated docs were then reverted, since the numbers moved
+  by nothing and committing them is pure churn.
+
+### The mistake this batch made, and what caught it
+
+**The first fix was a HIGH regression, and the tests could not see it.**
+`check_static_condition` is a *shared* evaluator with five callers; only `is_effect_active` (inside
+`calculate_characteristics`) closes the cycle. Reading `obj.characteristics` unconditionally fixed
+that one and broke the other four, all of which CR 613.1d requires to be layer-resolved:
+`garruks_uprising`'s `min_power: 4` intervening-if stops firing on a 2/2 with two `+1/+1` counters;
+`bloodline_keeper` rejects a changeling (CR 702.73a expands types *inside* the layer loop);
+`mox_opal` **over**-counts a face-down manifest (CR 708.2a — printed types are still the hidden
+card's, so this one is a false *positive*, the direction nobody thought to look for).
+
+**All 4,274 tests passed through it.** Not because coverage is thin, but because no existing test
+put a counter-pumped or type-changed permanent through a condition filter — the fixture creatures
+are plain vanilla bears. A green suite is evidence about the scenarios someone thought to write.
+
+The lesson is not "be careful". It is: **when you change a function, enumerate its callers before
+you decide what the change means.** The recursion was a property of ONE call path, and the fix was
+applied to the function. `rules::layers::characteristics_for_condition` is the repair — a
+re-entrancy guard that decides per caller — and because it decides by shape rather than per site, it
+also closed `OOS-DX19-1`'s ten siblings, which the leaf-edit fix would have got wrong in the
+opposite direction (several are *correct* as layer-resolved on their real paths).
+
+### What the next worker should know
+
+- **The fix has a known, live cost, and it is asserted in the wrong direction on purpose.**
+  `blinkmoth_nexus` / `inkmoth_nexus` are `Complete`-by-derive **colourless** lands that animate
+  into **artifact** creatures (Layer-4 `AddCardTypes`), so they share a deck pool with the
+  Archangel and an animated Nexus no longer feeds Metalcraft — CR 613.1d says it must.
+  `deviation_animated_nexus_does_not_count_toward_metalcraft` pins that, and its message tells you
+  to **invert** it rather than delete it when `OOS-DX19-2`'s CR 613.8b fixpoint lands.
+- **`OOS-DX19-1` is CLOSED, and the second review is why.** The first routing pass claimed the
+  closure while three sites were still unconverted — they spell the call
+  `expect_characteristics(state, id)` instead of `(state, obj.id)`, so a pattern-replacement walked
+  straight past them, and the reviewer reproduced the original SIGABRT through one. **The durable
+  lesson: a closure achieved by editing every site you could find is a claim; a closure backed by a
+  gate that fails when a site reappears is a fact.** The gate is
+  `no_condition_evaluator_resolves_characteristics_directly`, watched failing on a re-introduced
+  miss. Ten more `expect_characteristics` sites in
+  `check_condition` are the identical shape and are latent **only because of corpus shape** — all
+  **57** corpus occurrences of those ten variants were enumerated and classified by field
+  position: every one is an `activation_condition`, `unless_condition`, `intervening_if`, or a bare
+  `Effect::Conditional`, and **none** is a `ContinuousEffectDef.condition` — which is the only
+  field `is_effect_active` reads. (Do not restate this as "all ~98 `condition: Some(..)`
+  occurrences are off the layer path"; that is false — 17 of them *are* continuous-effect
+  conditions, `indomitable_archangel`'s among them. The claim is about the ten variants
+  only.) The next author who writes "as long as you control a legendary creature, …" as a **static**
+  reopens a HIGH with no warning. **Do not fix it by converting the ten leaves**: several are
+  *correct* as layer-resolved on their real call paths (there is a `// CR 613.1d … Blood Moon`
+  comment saying so). It wants a boundary guard.
+- **PB-DX22 must still follow this batch**, per the brief's own sequencing note — shuffling the
+  fuzzer makes spells castable at ordinary depths. That constraint is now satisfied.
+
+
 ## Worker Handoff (SEED RE-RANK v3, `scutemob-182`) — doc-only
 
 **Deliverable**: `memory/primitives/seed-rerank-2026-08-02.md`. **This is now the authoritative
