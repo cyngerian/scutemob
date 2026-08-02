@@ -31,7 +31,10 @@ pub use deck::{build_registry, random_deck, DeckConfig};
 pub use driver::GameDriver;
 pub use heuristic_bot::HeuristicBot;
 pub use invariants::{check_all as check_invariants, InvariantViolation};
-pub use legal_actions::{LegalAction, LegalActionProvider, StubProvider};
+// SIM-1 (CR 903.8): `pub`, not `pub(crate)` -- OOS-SIM1-2 names a FOURTH printed-cost
+// auto-tap site outside this crate (`tools/tui/src/play/app.rs`'s bot path); exporting
+// the helper makes that a one-line fix later instead of a copy.
+pub use legal_actions::{effective_cast_cost, LegalAction, LegalActionProvider, StubProvider};
 pub use local_game::{
     human_only_actions, AdvanceOutcome, CommandRecord, DecisionKind, HaltReason, LocalGame,
     LocalGameError, LocalGameLimits, PendingDecision,
