@@ -8,12 +8,25 @@
 > document is the real one. Do not "correct" the filename — correct nothing but this note if
 > the discrepancy ever confuses a reader.
 
+> **⚠️ SUPERSEDED 2026-08-02 (`scutemob-182`) — §4's QUEUE ONLY. Do not claim work from §4.**
+> The authoritative queue is now **`memory/primitives/seed-rerank-2026-08-02.md`** (v3). This
+> document's **§1, §2 and §3 remain canonical** — they are the record of the RS/DP triage and of
+> *why* PB-DX1..DX18 exist, and nothing in v3 contradicts them. **§4 is superseded** because its
+> census closed on **2026-07-31** and every PB-DX batch shipped on **2026-08-01**: 80 further seed
+> rows were filed after it, and eight of them outrank everything §4 still lists. In particular,
+> §4's "next dispatch" reading of **PB-DX7 is wrong** — the next dispatch is **PB-DX19**
+> (`OOS-SIM2-6`, an unbounded `calculate_characteristics` recursion that hard-aborts the process
+> from a deck-legal `Complete` card). PB-DX7..DX18 keep their numbers and scopes in v3; only their
+> *rank* moved. See v3 §3 for the per-entry disposition.
+>
 > **This document is the authoritative primitive queue.** It supersedes
 > `memory/primitives/rider-seed-triage-2026-07-19.md` §3/§5 (the paused PB-RS queue) as the
 > thing a dispatcher reads to pick the next batch. The RS doc remains the canonical *filing
 > record* for the OS/RS-wave seeds — its §1c seed rows are still the source of truth for what
 > those seeds say — but **its queue is retired**; every one of RS5..RS11 is dispositioned in §3
 > below and none of them may be claimed by rank any more.
+> *(Scoping note added 2026-08-02: the "authoritative primitive queue" claim above now applies to
+> §1-§3 only — see the SUPERSEDED banner.)*
 >
 > **Precedents / structural models**: `memory/primitives/oos-retriage-plan-2026-07-18.md`
 > (`scutemob-115`) and `rider-seed-triage-2026-07-19.md` (`scutemob-142`). Same shape:
@@ -582,7 +595,19 @@ was waiting on, so its dismissal deserves a fresh look rather than another copy-
 
 ---
 
-## 4. The successor queue — **PB-DX1 .. PB-DX18** (AC 5857)
+## 4. The successor queue — **PB-DX1 .. PB-DX18** (AC 5857) — ⚠️ **SUPERSEDED**
+
+> ### 🛑 SUPERSEDED 2026-08-02 by `memory/primitives/seed-rerank-2026-08-02.md` §4
+>
+> **Do not claim a batch from this section.** PB-DX1..DX6 shipped (see the QUEUE STATUS banner
+> below for their narratives, which remain accurate). PB-DX7..DX18 survive with their numbers and
+> scopes intact but at **different ranks** — 80 seed rows filed after this document's 2026-07-31
+> census produced eight new entries that outrank all of them, including one hard process abort
+> reachable from a deck-legal `Complete` card. The v3 §3 table dispositions every entry below
+> individually; PB-DX8 is **widened** there (it absorbs `OOS-CARDS2-7`) and PB-DX18 is **widened
+> and promoted** (it absorbs `OOS-DX2-1`, `OOS-DX2-4` and `OOS-M11-5`). Everything else in this
+> section is retained verbatim as the record of how PB-DX1..DX6 were scoped and what their
+> predictions got wrong.
 
 > ### 🚦 QUEUE STATUS — read this before claiming anything
 >

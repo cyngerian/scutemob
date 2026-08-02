@@ -757,6 +757,14 @@ new `Command` (and therefore a PROTOCOL bump). **Shipped as PB-DP8, `scutemob-15
 
 ## 8. Proposed primitive-queue insertions
 
+> **📍 The live queue is `memory/primitives/seed-rerank-2026-08-02.md` §4 (v3, `scutemob-182`),
+> which supersedes `memory/primitives/seed-rerank-2026-07-27.md` §4.** §8.1 below is the **filing
+> record** for the seeds this suite and its PB-DX successors discovered — it is not a queue and its
+> `status` column is not a rank. Every §8.1 row filed after 2026-07-27 was chain-verified against
+> HEAD `8195b109` by `scutemob-182`; where a row's premise, scope or latency claim turned out to be
+> stale, **the correction lives in v3 §1c and §2, cited by line, and the row here is deliberately
+> left as filed** so the registry stays a record of what was believed when. Read the two together.
+
 **THE PB-DP SUITE IS COMPLETE — PB-DP1..PB-DP10 ALL SHIPPED** (`scutemob-149..158`; final:
 PB-DP10, `scutemob-158`, the invariant-level gate). Proposals only, historically; the RS queue
 is paused at PB-RS4 and this audit does not edit it — the coordinator ranked PB-DP1..DP10
@@ -1077,6 +1085,18 @@ seeds land **here**, in the suite's own binding spec. Same role §1c plays for t
 > in-source engine comment (`params.rs`) and this batch is pinned to zero engine lines. Resolving
 > the collision — most cheaply by renumbering the equip row, which has the fewer external cites
 > and is now closed — is left to whichever task next touches `params.rs`.
+>
+> **Update 2026-08-02 (`scutemob-182`)**: the collision was re-verified and still stands (no
+> renumbering has happened). The v3 re-rank writes the two as **`OOS-M11-10(equip)`** (CLOSED) and
+> **`OOS-M11-10(loyalty)`** (ACTIVE, ranked as **PB-DX29**) and uses those disambiguated forms
+> throughout. Chain-verified in passing: the loyalty half fails **loud**, not silently — the
+> ability *is* offered (`legal_actions.rs:981`) and rendered (`view.rs:1078`), and the engine
+> handler validates at `engine.rs:3614` → `casting.rs:5927`, returning `InvalidTarget`. That is
+> the inverse of the equip half, whose guard was on the *supplied* list rather than the *required*
+> one, and it is why the two must not be ranked together. Also corrected: the row's "six-arm
+> `params.rs` allowlist" is **nine** arms now (`params.rs:234-244`; UI-1 added three) —
+> `ActivateLoyaltyAbility` is still outside it, so the conclusion holds but the fix must be
+> re-costed against the current arm set.
 
 ---
 

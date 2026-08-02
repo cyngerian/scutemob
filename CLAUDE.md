@@ -33,9 +33,10 @@
   the bug-report artefact has no free-text description field; no automated test spans browser +
   game, because no frontend test harness exists (plan §8 R7, revisit at M13); `StubProvider`
   enumerates no Adventure, alt-cost or Convoke/Improvise/Delve casts (R4). **The active track is now
-  the PB-DX correctness queue alone** (`memory/primitives/seed-rerank-2026-07-27.md` §4; PB-DX6
-  shipped `cb0755bf`, next PB-DX7; the playtest-successor run 174–181 completed 2026-08-02 in
-  between). The roadmap's next milestone candidate is **M10-pre → M10a** — *not
+  the PB-DX correctness queue alone** (`memory/primitives/seed-rerank-2026-08-02.md` §4 — v3,
+  `scutemob-182`; PB-DX6 shipped `cb0755bf`, **next PB-DX19**; the playtest-successor run 174–181
+  completed 2026-08-02 in between).
+  The roadmap's next milestone candidate is **M10-pre → M10a** — *not
   started, and not to be started without direction.* Full session-by-session M11 narrative:
   `memory/archive/claude-md-changelog-2026-08.md`; S8 handoff and durable lessons:
   `memory/workstream-state.md`. **Seeds this milestone left open**: **OOS-M11-2**
@@ -82,15 +83,18 @@
   corpus got *truer*) — regenerate with `tools/authoring-report.py`; `docs/authoring-status.md` is
   the canonical, self-dating source. **Current queue state: the PB-OS queue is COMPLETE; the PB-DP
   suite is COMPLETE (DP1..DP10, `scutemob-149..158`); the PB-RS queue is **RETIRED** — the re-rank
-  ran as `scutemob-159` and the authoritative queue is now
-  `memory/primitives/seed-rerank-2026-07-27.md` §4, **PB-DX1..PB-DX18**, correctness-first.
+  ran as `scutemob-159`, and the authoritative queue is now
+  `memory/primitives/seed-rerank-2026-08-02.md` §4 (v3), **PB-DX7..PB-DX41**, correctness-first;
+  `seed-rerank-2026-07-27.md` §4 is banner'd SUPERSEDED (its §1-§3 remain canonical).
   RS5..RS11 are each dispositioned there (R5 retired; R6→PB-DX5, R7→PB-DX13, R8→PB-DX12, R9→PB-DX16,
   R10→PB-DX14, R11→PB-DX17) and `rider-seed-triage-2026-07-19.md` §3/§5 must not be claimed from.
   **PB-DX1..PB-DX6 ALL SHIPPED** (`scutemob-160`/`162`/`164`/`166`/`168`/`170`/`172`; full
   narratives in `memory/archive/claude-md-changelog-2026-08.md`, per-batch handoffs in
-  `memory/workstream-state.md`). PROTOCOL **33** / HASH **70**. **Next dispatch: PB-DX7**
-  (OOS-DP7-11 + OOS-DP9-13 — the SR-19 gate reports success while checking nothing; test-only, 0
-  flips; brief in `memory/primitives/seed-rerank-2026-07-27.md`). Older queue history (the PB-OS,
+  `memory/workstream-state.md`). PROTOCOL **33** / HASH **70**. **Next dispatch: PB-DX19**
+  (OOS-SIM2-6 + OOS-SIM2-5 — an unbounded `calculate_characteristics` recursion that hard-aborts
+  the process from a deck-legal `Complete` card, one-line fix; brief in
+  `memory/primitives/seed-rerank-2026-08-02.md` §4). **PB-DX7 is no longer next** — it survives at
+  rank 9; eight new entries outrank it. Older queue history (the PB-OS,
   PB-RS and PB-DP chains) is rotated to the 2026-08 archive.
 - **Tests**: **4,263 passing / 0 failing / 5 ignored** on main at the wave-4 collect
   (`b76b1df4`, 2026-08-02) — the full playtest-successor run 174–181 landed +139 over the 4,124
@@ -149,8 +153,8 @@
   **web-first decided**. Its Finding 2 premise ("Tauri can't build on headless Debian") is corrected
   in-doc as stale. The doc is now a historical record, not a pending-changes list — and so, since
   2026-08-01, is `memory/m11-session-plan.md` (M11-local COMPLETE). The live plan is
-  `docs/mtg-engine-roadmap.md` plus the PB-DX queue in `memory/primitives/seed-rerank-2026-07-27.md`
-  §4.
+  `docs/mtg-engine-roadmap.md` plus the PB-DX queue in `memory/primitives/seed-rerank-2026-08-02.md`
+  §4 (v3; `seed-rerank-2026-07-27.md` §4 is SUPERSEDED, its §1-§3 still canonical).
 
 ### Machine-enforced invariants (full text: `docs/engine-invariants.md`)
 
@@ -216,7 +220,31 @@
 - **Recurrence rule** — future `/collect` and milestone-close bookkeeping appends its detailed PB/SR
   narrative to that archive file (newest first), and updates only a one-paragraph snapshot delta
   here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
-- **Last Updated**: 2026-08-02 — **THE PLAYTEST-SUCCESSOR RUN IS COMPLETE: scutemob-174..181 all
+- **Last Updated**: 2026-08-02 — **SEED RE-RANK v3 SHIPPED** (`scutemob-182`, doc-only):
+  `memory/primitives/seed-rerank-2026-08-02.md` is the authoritative queue; v2's §4 is banner'd
+  SUPERSEDED (its §1-§3 stay canonical). **Census: 80 rows / 79 distinct IDs filed after
+  2026-07-27 — twice the brief's ~40**, because v2's census closed 2026-07-31 and every PB-DX
+  batch shipped 2026-08-01, so v2 never saw PB-DX1..DX5's 28 seeds or `OOS-M11-5..10`. Every row
+  chain-verified against HEAD. **11 closures verified in code** (one, `OOS-UI2-3`, closed *further*
+  than recorded — its third cause was `OOS-M11-2`'s `can_afford` half, so that seed's residue is
+  now cost MODIFIERS + CR 106.12 only). **Next dispatch is PB-DX19, not PB-DX7**: `OOS-SIM2-6`,
+  the registry's only HIGH, is an unbounded `calculate_characteristics` recursion
+  (`layers.rs:46` → `:565` → `effects/mod.rs:10259` → `layers.rs:478`) that hard-aborts the process
+  from **one** deck-legal `Complete` card (`indomitable_archangel`) and has been live 4.5 months
+  behind a comment arguing termination from the wrong invariant and a test that names the card
+  while hand-building `condition: None`. **One line fixes it**, and the correct precedent
+  (`layers.rs:2304-2310`) was already in the tree. **Four seeds filed "latent" are live-wrong**,
+  all via the `#[default] Completeness::Complete` derive — its fifth, sixth, seventh and eighth
+  demonstrated instances (`nether_traitor`, `golgari_grave_troll`, `retreat_to_kazandu`, the ten
+  Karoo bounce lands); 965 of 1,803 defs never declare a marker, and nothing reviews that
+  population — filed as `OOS-RR3-1`. Also: `OOS-CARDS2-4` makes **13 `Complete` Auras** unplayable
+  in the browser on first contact (the offer layer cannot see a `KeywordAbility::Enchant`-carried
+  requirement); `OOS-M11-9` re-fires attack triggers and mutates attack targets when a human clicks
+  attack twice; and `OOS-UI2-1` + `OOS-SIM3-1` reconcile — the fuzzer's first non-land is personal
+  draw ~35-40, so "never casts" is `--max-turns 80` and "casts from turn 143" is the default cap.
+  PB-DX7..DX18 keep their numbers and scopes at new ranks (PB-DX8 and PB-DX18 widened); PB-DX7
+  drops to rank 9. **Full memo: `memory/primitives/seed-rerank-2026-08-02.md`.**
+- **Prior**: 2026-08-02 — **THE PLAYTEST-SUCCESSOR RUN IS COMPLETE: scutemob-174..181 all
   SHIPPED in one coordinated session** (four waves of two workers; merges `f28df527` UI-1,
   `d04f42a1` CARDS-1, `83bfdba5` SIM-1, `8cad9c36` CARDS-2, `b30c99f4` SIM-2, `f40c9fb9` UI-2,
   `a23f0be0` SIM-3, `b76b1df4` UI-3). **The 2026-08-02 playtest triage is fully closed — F1–F10,
