@@ -1098,3 +1098,184 @@ fn t20_bot_seat_casts_through_the_shared_residual_helper() {
         "one {{C}}{{C}} activation covers the whole {{2}} cost — the bot must not tap twice"
     );
 }
+
+/// The discriminating pin for "the bot path is the SAME helper" — and therefore for the
+/// bot half of `OOS-M11-8`.
+///
+/// `t20` proves the bot benefits from the production fix, but it would pass just as well
+/// against a second, private `solve_mana_payment` call inside `advance()`. This one does
+/// not, because it exercises the one thing only the shared helper knows: the **announced
+/// `{X}`** (CR 107.3 / CR 601.2b — X is part of the cost from the moment it is announced).
+///
+/// `advance()` used to call `solve_mana_payment` on the taxed *printed* cost, so a bot
+/// announcing X = 2 on an `{X}{R}` spell had one Mountain tapped for it and the engine then
+/// refused the cast for want of the other two — absorbed silently by the `PassPriority`
+/// fallback, which is why nothing ever caught it. S8 recorded `OOS-M11-8` as CLOSED on the
+/// strength of a fix that only ever ran on the human path.
+///
+/// It was **latent, not live**: `RandomBot`/`HeuristicBot` both build their command from
+/// `ActionParams::default()` (`random_bot::action_to_command`), so no shipped bot announces
+/// a non-zero X. `XBot` below is the smallest thing that does.
+struct XBot {
+    x: u32,
+    inner: HeuristicBot,
+}
+
+impl Bot for XBot {
+    fn choose_action(
+        &mut self,
+        state: &GameState,
+        player: PlayerId,
+        legal: &[LegalAction],
+    ) -> Command {
+        if let Some(LegalAction::CastSpell { card, .. }) = legal
+            .iter()
+            .find(|a| matches!(a, LegalAction::CastSpell { .. }))
+        {
+            let params = ActionParams {
+                x_value: self.x,
+                ..Default::default()
+            };
+            let action = LegalAction::CastSpell {
+                card: *card,
+                from_zone: ZoneId::Hand(player),
+            };
+            return mtg_simulator::action_to_command_with_params(state, player, &action, &params)
+                .expect("the X cast must build");
+        }
+        self.inner.choose_action(state, player, legal)
+    }
+    fn choose_targets(
+        &mut self,
+        state: &GameState,
+        valid: &[ObjectId],
+        count: usize,
+    ) -> Vec<ObjectId> {
+        self.inner.choose_targets(state, valid, count)
+    }
+    fn choose_attackers(
+        &mut self,
+        state: &GameState,
+        eligible: &[ObjectId],
+        targets: &[mtg_engine::AttackTarget],
+    ) -> Vec<(ObjectId, mtg_engine::AttackTarget)> {
+        self.inner.choose_attackers(state, eligible, targets)
+    }
+    fn choose_blockers(
+        &mut self,
+        state: &GameState,
+        eligible: &[ObjectId],
+        attackers: &[ObjectId],
+    ) -> Vec<(ObjectId, ObjectId)> {
+        self.inner.choose_blockers(state, eligible, attackers)
+    }
+    fn choose_mulligan_bottom(&mut self, hand: &[ObjectId], count: usize) -> Vec<ObjectId> {
+        self.inner.choose_mulligan_bottom(hand, count)
+    }
+    fn name(&self) -> &str {
+        self.inner.name()
+    }
+}
+
+#[test]
+fn t21_bot_auto_tap_includes_the_announced_x() {
+    use mtg_engine::state::turn::Step;
+    use mtg_engine::{AbilityDefinition, CardType, Effect, EffectAmount, PlayerTarget, TypeLine};
+
+    let x_cost = ManaCost {
+        red: 1,
+        x_count: 1,
+        ..ManaCost::default()
+    };
+    let def = CardDefinition {
+        name: "SIM2 Fireball".to_string(),
+        card_id: CardId("sim2-fireball".to_string()),
+        mana_cost: Some(x_cost.clone()),
+        types: TypeLine {
+            card_types: [CardType::Sorcery].into_iter().collect(),
+            ..Default::default()
+        },
+        abilities: vec![AbilityDefinition::Spell {
+            effect: Effect::GainLife {
+                player: PlayerTarget::Controller,
+                amount: EffectAmount::Fixed(1),
+            },
+            targets: vec![],
+            modes: None,
+            cant_be_countered: false,
+        }],
+        ..Default::default()
+    };
+
+    let mut builder = GameStateBuilder::new()
+        .add_player(PlayerId(1))
+        .add_player(PlayerId(2))
+        .with_registry(CardRegistry::new(vec![def.clone()]))
+        .active_player(PlayerId(1))
+        .at_step(Step::PreCombatMain)
+        .object(
+            ObjectSpec::card(PlayerId(1), &def.name)
+                .with_card_id(def.card_id.clone())
+                .with_types(vec![CardType::Sorcery])
+                .with_mana_cost(x_cost)
+                .in_zone(ZoneId::Hand(PlayerId(1))),
+        );
+    for i in 0..3 {
+        builder = builder.object(
+            ObjectSpec::land(PlayerId(1), &format!("SIM2 Mountain {i}"))
+                .with_mana_ability(tap_for(ManaColor::Red, 1)),
+        );
+    }
+    let mut state = builder.build().expect("X fixture should build");
+    state.turn_mut().priority_holder = Some(PlayerId(1));
+
+    let mut bots: HashMap<PlayerId, Box<dyn Bot>> = HashMap::new();
+    bots.insert(
+        PlayerId(1),
+        Box::new(XBot {
+            x: 2,
+            inner: HeuristicBot::new(5, "XBot-1".into()),
+        }),
+    );
+    bots.insert(PlayerId(2), Box::new(HeuristicBot::new(6, "Bot-2".into())));
+    let (mut game, _events) = LocalGame::start(
+        state,
+        1,
+        StubProvider,
+        bots,
+        BTreeSet::new(),
+        LocalGameLimits {
+            max_commands: 200,
+            max_turns: 2,
+            max_consecutive_passes: 100,
+            record_journal: true,
+        },
+        true,
+    )
+    .expect("game should start");
+    let _ = game.advance();
+
+    let cast = game
+        .journal()
+        .iter()
+        .find_map(|r| match &r.command {
+            Command::CastSpell(data) => Some(data.clone()),
+            _ => None,
+        })
+        .expect(
+            "the bot's X = 2 cast must be accepted — pre-SIM-2 the bot path solved for the \
+             printed cost only, the engine refused the cast, and the PassPriority fallback \
+             swallowed it",
+        );
+    assert_eq!(cast.x_value, 2, "the announced X must reach the engine");
+    let taps = game
+        .journal()
+        .iter()
+        .take_while(|r| !matches!(r.command, Command::CastSpell(_)))
+        .filter(|r| matches!(r.command, Command::TapForMana { .. }))
+        .count();
+    assert_eq!(
+        taps, 3,
+        "{{X}}{{R}} with X = 2 is three mana, so three Mountains must be tapped"
+    );
+}
