@@ -34,6 +34,11 @@
    * accumulating one params object across the chain and submitting once at the
    * end:
    *
+   *   0. blocking decision — iff `option.decision` is present (UI-1). Renders one
+   *                          of four pickers chosen by `decision.answer.shape`:
+   *                          `Subset` → `DiscardPicker`, `PickOne` →
+   *                          `SearchPicker`, `Partition` → `PartitionPicker`,
+   *                          `Slots` → the same `TargetPicker` stage 2 uses.
    *   1. `ValuePrompt`     — iff `needs_x || modes.length > 0` (CR 601.2b
    *                          announces `{X}`/modes as part of casting, before
    *                          CR 601.2c's target announcement)
@@ -47,9 +52,58 @@
    *   4. `BlockerPicker`   — iff `option.block` is present (CR 509.1)
    *
    * A stage that is not needed is skipped entirely (`pickerNeeded` below), and an
-   * option needing none of the four submits `{}` immediately, exactly as before
+   * option needing none of the five submits `{}` immediately, exactly as before
    * Session 7. Escape (or a picker's own Cancel button) aborts the whole chain
    * and submits nothing — `cancelChain` clears every field the chain touched.
+   *
+   * # Why the decision stage is numbered 0 and checked first
+   *
+   * Not because CR orders it before `{X}` announcement — the two never co-occur.
+   * A blocking decision is its own `LegalAction` (`DiscardToHandSize`,
+   * `AnswerEffectChoice`, `ChooseTriggerTargets`) and carries NONE of the other
+   * stages' fields: `view.rs::action_target_requirements` returns an empty vector
+   * for every variant that is not `CastSpell`/`ActivateAbility`, and
+   * `combat_options` yields `None`/`None`, so `needs_x`, `modes`, `target_slots`,
+   * `attack` and `block` are all empty or absent on such an option.
+   *
+   * So the ordering is not contentious — whichever position it took, exactly one
+   * stage would ever fire for these actions. It is first because the chain reads
+   * as "answer the question this action IS, then fill in the announcements a cast
+   * needs", and because a reader looking for where a blocking decision is handled
+   * finds it at the top of `pickerNeeded` rather than after four conditions that
+   * can never be true at the same time.
+   *
+   * # `Slots` reuses `TargetPicker`, and takes its GROUPED output
+   *
+   * `AnswerShapeView::Slots` carries a `Vec<TargetSlotView>` — the very type the
+   * CR 601.2c picker already renders (`view.rs` calls this the extension proof for
+   * OOS-DP8-2). But the answer field differs: `targets` is flat, while
+   * `trigger_targets` is one array per slot.
+   *
+   * Regrouping the flat list here was rejected. A slot contributes between its own
+   * `min` and `max` entries, so per-slot counts are not recoverable from a
+   * concatenation; any regrouping done here would be a guess that is right only
+   * while every slot is exactly-one and silently wrong the first time an optional
+   * (`UpToN`) trigger slot shows up — and `view.rs` emits `min: 0` for exactly
+   * that case. Instead `TargetPicker.confirm` now builds the grouped form first
+   * and passes it as a SECOND argument, deriving the flat one as `.flat()` of it.
+   * The stage-2 caller ignores the second argument and is unchanged; this stage
+   * ignores the first. The two shapes cannot disagree because one is computed from
+   * the other.
+   *
+   * # Untested
+   *
+   * There is no frontend test harness in this repo (plan §8 R7), so none of the
+   * decision-stage wiring has an automated test. Unexercised in particular: the
+   * shape-dispatch fallback below (unreachable against the real server, which sends
+   * one of exactly four shapes), and every interaction between the decision stage
+   * and the four older stages — which, per the note above, cannot co-occur, but
+   * that is an argument from the server's shape rather than an observation of a
+   * running game.
+   *
+   * The `Slots` *channel* is not in that list: `test_ui1_trigger_targets_are_
+   * answered_over_http` drives a real CR 603.3d announcement end to end. What is
+   * untested is this file's rendering of it, like everything else here.
    *
    * # Per-mode target ranges come from the server, not from a guess here
    *
@@ -74,6 +128,9 @@
   import AttackerPicker from './AttackerPicker.svelte';
   import BlockerPicker from './BlockerPicker.svelte';
   import ValuePrompt from './ValuePrompt.svelte';
+  import DiscardPicker from './DiscardPicker.svelte';
+  import SearchPicker from './SearchPicker.svelte';
+  import PartitionPicker from './PartitionPicker.svelte';
 
   const {
     decision = null,
@@ -106,7 +163,10 @@
   /** The `ActionOptionView` currently being answered, or `null` between chains. */
   let activeOption = $state(null);
 
-  /** Which picker is showing right now: 'value' | 'targets' | 'attack' | 'block' | null. */
+  /**
+   * Which picker is showing right now:
+   * 'decision' | 'value' | 'targets' | 'attack' | 'block' | null.
+   */
   let stage = $state(null);
 
   /** Stage names already answered in the current chain. */
@@ -172,12 +232,42 @@
     activeOption ? resolvedTargetRange(activeOption, paramsAcc) : [0, 0],
   );
 
+  // ── Blocking-decision stage (UI-1) ──────────────────────────────────────────
+
+  /** The active option's `BlockingDecisionView`, or `null` outside that stage. */
+  const currentDecision = $derived(activeOption?.decision ?? null);
+
+  /** Its `AnswerShapeView` — the thing dispatched on, per `view.rs`'s own advice. */
+  const currentShape = $derived(currentDecision?.answer ?? null);
+
+  /** Slots for the `Slots` shape; `[]` for every other shape. */
+  const decisionSlots = $derived(currentShape?.shape === 'Slots' ? currentShape.slots : []);
+
+  /**
+   * `[min, max]` for the `Slots` shape, summed from the slots' OWN `min`/`max`.
+   *
+   * `TargetPicker` wants a collective range as well as the per-slot ones, and for
+   * a trigger there is no server-computed collective range to read — `view.rs`
+   * emits `min: slot.optional ? 0 : 1` and `max: slot.max` per slot and nothing
+   * else. Summing is the right collective bound because the announcement is the
+   * slots' contributions concatenated, which is the same argument the per-mode
+   * range above makes.
+   */
+  const decisionSlotRange = $derived(
+    decisionSlots.reduce(
+      ([mn, mx], slot) => [mn + (slot.min ?? 0), mx + (slot.max ?? 1)],
+      [0, 0],
+    ),
+  );
+
   /**
    * Which stage (if any) is still needed for `option`, given what `doneSet`
    * already covers and what `paramsSoFar` holds. Returns `null` when nothing is
    * left — the caller submits.
    */
   function pickerNeeded(option, paramsSoFar, doneSet) {
+    // Checked first — see the module doc's "Why the decision stage is numbered 0".
+    if (!doneSet.has('decision') && option.decision) return 'decision';
     if (!doneSet.has('value')) {
       const needsValue = option.needs_x || (option.modes?.length ?? 0) > 0;
       if (needsValue) return 'value';
@@ -232,6 +322,31 @@
     stage = null;
     doneStages = new Set();
     paramsAcc = {};
+  }
+
+  /**
+   * The single exit from the decision stage. `params` is a whole params fragment
+   * (`{discard_cards: [...]}` / `{effect_choice_answer: {...}}` /
+   * `{trigger_targets: [[...]]}`) built by the picker from the server's own
+   * `answer_field`, so this function never names a params key: the three pickers
+   * key their own fragment off the payload, which keeps the `ActionParamsDto`
+   * schema known in one place (`view.rs`'s stated reason for sending the field).
+   */
+  function onDecisionConfirm(params) {
+    paramsAcc = { ...paramsAcc, ...params };
+    doneStages = new Set([...doneStages, 'decision']);
+    advanceChain();
+  }
+
+  /**
+   * `Slots` bridge. `TargetPicker` hands back `(flat, perSlot)`; a trigger's
+   * answer is the GROUPED one — see the module doc. The flat first argument is
+   * deliberately ignored here.
+   */
+  function onDecisionSlotsConfirm(_flat, perSlot) {
+    const field = currentDecision?.answer_field;
+    if (!field) return;
+    onDecisionConfirm({ [field]: perSlot });
   }
 
   function onValueConfirm(result) {
@@ -406,7 +521,77 @@
       </div>
     </div>
 
-    {#if stage === 'value'}
+    {#if stage === 'decision'}
+      <!--
+        Dispatch on the SHAPE, never on `decision.question` — `view.rs` says a
+        client switching on the question tag "is doing more work than it needs
+        to", and a fifth question reusing an existing shape must need no change
+        here. The `{:else}` arm is unreachable against the real server and exists
+        so an unknown shape degrades to a visible, cancellable message rather than
+        to an empty bar with no way forward.
+
+        The outer guard is `stage === 'decision'` ALONE, deliberately. It used to
+        also require `currentShape`, which meant a missing or malformed `answer`
+        rendered NOTHING — no picker, no fallback (the fallback is inside this
+        block), and every action button disabled by `chainOpen`, leaving Escape as
+        the only way out. That is the exact failure the `{:else}` arm exists to
+        prevent, slipping past it. A falsy `currentShape` now falls through to that
+        arm instead. (UI-1 review, LOW 5.)
+      -->
+      {#if currentShape?.shape === 'Subset'}
+        <DiscardPicker
+          prompt={currentDecision.prompt}
+          candidates={currentShape.candidates}
+          count={currentShape.count}
+          defaults={currentShape.default}
+          answerField={currentDecision.answer_field}
+          disabled={loading}
+          onConfirm={onDecisionConfirm}
+          onCancel={cancelChain}
+        />
+      {:else if currentShape?.shape === 'PickOne'}
+        <SearchPicker
+          prompt={currentDecision.prompt}
+          candidates={currentShape.candidates}
+          mayDecline={currentShape.may_decline}
+          template={currentShape.template}
+          foundKey={currentShape.found_key}
+          answerField={currentDecision.answer_field}
+          disabled={loading}
+          onConfirm={onDecisionConfirm}
+          onCancel={cancelChain}
+        />
+      {:else if currentShape?.shape === 'Partition'}
+        <PartitionPicker
+          prompt={currentDecision.prompt}
+          lookedAt={currentShape.looked_at}
+          keptKey={currentShape.kept_key}
+          movedKey={currentShape.moved_key}
+          movedLabel={currentShape.moved_label}
+          template={currentShape.template}
+          answerField={currentDecision.answer_field}
+          disabled={loading}
+          onConfirm={onDecisionConfirm}
+          onCancel={cancelChain}
+        />
+      {:else if currentShape?.shape === 'Slots'}
+        <TargetPicker
+          slots={decisionSlots}
+          min={decisionSlotRange[0]}
+          max={decisionSlotRange[1]}
+          disabled={loading}
+          onConfirm={onDecisionSlotsConfirm}
+          onCancel={cancelChain}
+        />
+      {:else}
+        <div class="unknown-shape">
+          <span class="unknown-shape-text">
+            This client does not know how to answer a "{currentShape?.shape ?? 'malformed'}" decision.
+          </span>
+          <button class="action-btn control" onclick={cancelChain}>Cancel</button>
+        </div>
+      {/if}
+    {:else if stage === 'value'}
       <ValuePrompt
         needsX={activeOption.needs_x}
         modes={activeOption.modes}
@@ -565,6 +750,20 @@
     border: 1px solid #33335a;
     border-radius: 2px;
     padding: 0 0.2rem;
+  }
+
+  .unknown-shape {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.6rem;
+    background: #151530;
+    border-top: 1px solid #2a2a44;
+  }
+
+  .unknown-shape-text {
+    font-size: 0.74rem;
+    color: #f9a;
   }
 
   .empty-reason {

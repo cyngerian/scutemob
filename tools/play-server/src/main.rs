@@ -2675,6 +2675,1001 @@ mod tests {
         );
     }
 
+    // ── UI-1: blocking-decision pickers (task scutemob-174) ───────────────────
+    //
+    // `memory/playtest-triage-2026-08-02.md` F8. `StubProvider` bakes the
+    // engine-accepted default into each blocking-decision `LegalAction` — cleanup
+    // discard = the `count` highest `ObjectId`s, scry/surveil = the identity
+    // partition, search = `candidates.first()` (the lowest `ObjectId`) — and until
+    // UI-1 the view layer stripped the candidate data, so the browser rendered one
+    // bare button that submitted exactly that default.
+    //
+    // Each probe below therefore does two things in order: **reproduce** the
+    // symptom by asserting what the default IS, then **drive a different answer
+    // through the real router** and assert the game actually did something else.
+    // The second half is what discriminates; the first is what makes the test a
+    // record of the defect rather than only of the fix.
+
+    /// The pin for the two fixed-deck fixtures. **Read off a real run**, not
+    /// reasoned to: at this seed the human's opening hand holds *both* probe spells
+    /// (`["Diabolic Tutor", "Swamp", "Swamp", "Swamp", "Swamp", "Swamp", "Read the
+    /// Bones"]`), which is what makes a bounded drive reach a scry and a search at
+    /// all. Changing it invalidates every count asserted below.
+    const UI1_SEED: u64 = 184;
+
+    /// A 7-mana mono-black legendary creature. Deliberately the most expensive one
+    /// in the corpus's mono-black set: it fixes the deck's colour identity for
+    /// `validate_deck` (CR 903.5c) while being unreachable inside the probe's
+    /// window, so neither seat's commander can enter the battlefield and perturb
+    /// the drive.
+    const UI1_COMMANDER: &str = "razaketh-the-foulblooded";
+
+    /// CR 903.5c: 97 Swamps + the two probe spells + a mono-black commander.
+    ///
+    /// Almost-all-basics on purpose. Swamps are `Complete`, exempt from the
+    /// singleton rule, and produce exactly one mana each — so the auto-tap solver's
+    /// known source-counting defect (playtest triage F4) cannot influence what this
+    /// probe observes, and the only two castable spells in the deck are the two the
+    /// probes are about.
+    /// The two probe spells occupy `main_deck[0]` and `main_deck[1]`. That is what
+    /// makes one seed serve two different fixtures: the shuffle is a permutation of
+    /// *positions* determined by `cfg.seed` alone, so whichever pair of cards sits
+    /// in those two slots lands in the opening hand at [`UI1_SEED`]. Verified by
+    /// sweep for both pairs, not assumed.
+    fn ui1_deck(spells: [&str; 2]) -> mtg_simulator::DeckConfig {
+        use mtg_engine::CardId;
+        let mut main_deck: Vec<CardId> = spells.iter().map(|s| CardId(s.to_string())).collect();
+        while main_deck.len() < 99 {
+            main_deck.push(CardId("swamp".to_string()));
+        }
+        mtg_simulator::DeckConfig {
+            commander: CardId(UI1_COMMANDER.to_string()),
+            main_deck,
+        }
+    }
+
+    /// CR 608.2d: the scry and search fixtures.
+    const UI1_EFFECT_CHOICE_SPELLS: [&str; 2] = ["read-the-bones", "diabolic-tutor"];
+
+    /// CR 603.3d: the trigger-target fixture (OOS-DP8-2).
+    ///
+    /// Shadow Alley Denizen ({B}, `Complete`) triggers when **another** black
+    /// creature you control enters and targets an unfiltered `TargetCreature`;
+    /// Nezumi Prowler ({1}{B}, `Complete`, a black creature) has an ETB targeting a
+    /// creature *you* control. Casting the Denizen on turn 1 and the Prowler on the
+    /// human's next turn therefore raises the CR 603.3d announcement, because by
+    /// flush time each slot has **two** candidates — and a slot with two candidates
+    /// is exactly the condition `abilities::forced_trigger_target_answer` fails to
+    /// force, which is what makes the engine ask instead of auto-picking.
+    ///
+    /// Every other route was checked and rejected: every other mono-black `Complete`
+    /// triggered target at this mana value was retargeted to `TargetOpponent` by
+    /// PB-EF6, and `TargetOpponent` has exactly one candidate in a two-player game,
+    /// so it is always forced and never asks.
+    const UI1_TRIGGER_SPELLS: [&str; 2] = ["shadow-alley-denizen", "nezumi-prowler"];
+
+    /// Install a two-player fixed-deck session, then drive every request through
+    /// the real router exactly as any other test here does.
+    ///
+    /// `POST /api/game` cannot express this: `session::config_for` hard-codes
+    /// `DeckSource::RandomPerSeat` and `NewGameDefaults` carries only
+    /// `players`/`bot`/`seed`. So the fixture is installed through
+    /// `session::new_game`, which is the same constructor the handler uses and runs
+    /// the same two Invariant-9 gates (`validate_deck` inside
+    /// `build_initial_state`, then `check_all_defs_complete` inside
+    /// `LocalGame::start`). Nothing about the HTTP path is stubbed — only the deck
+    /// the game starts from.
+    fn ui1_install(state: &SharedState, spells: [&str; 2]) {
+        let cfg = mtg_simulator::LocalGameConfig {
+            player_count: 2,
+            human_seats: [mtg_engine::PlayerId(1)].into_iter().collect(),
+            bot_kind: BotKind::Heuristic,
+            seed: UI1_SEED,
+            decks: mtg_simulator::DeckSource::Fixed(vec![
+                (mtg_engine::PlayerId(1), ui1_deck(spells)),
+                (mtg_engine::PlayerId(2), ui1_deck(spells)),
+            ]),
+            limits: mtg_simulator::LocalGameLimits {
+                max_turns: 200,
+                max_commands: 40_000,
+                max_consecutive_passes: 500,
+                record_journal: true,
+            },
+        };
+        let session = session::new_game(cfg, 0).expect("the UI-1 fixture deck must be legal");
+        *state.session.lock().expect("fresh lock") = Some(session);
+    }
+
+    /// The out-of-band oracle: read the *engine's* state directly, to check what
+    /// the answer actually did. Only ever used to verify an effect, never to build
+    /// a payload — the same role `from_game_state` plays for the redaction tests.
+    fn ui1_zone(state: &SharedState, zone: mtg_engine::ZoneId) -> Vec<u64> {
+        let guard = state.session.lock().expect("lock");
+        let session = guard.as_ref().expect("a session is installed");
+        session
+            .game
+            .state()
+            .zones()
+            .get(&zone)
+            .map(|z| z.object_ids())
+            .unwrap_or_default()
+            .iter()
+            .map(|id| id.0)
+            .collect()
+    }
+
+    /// Ordered zone, **bottom-first** (`Zone::Ordered` keeps the top at the last
+    /// index — `Zone::top()` is `v.last()`), so index 0 is the bottom of the
+    /// library. That is the whole point of the scry assertion.
+    fn ui1_library(state: &SharedState) -> Vec<u64> {
+        ui1_zone(state, mtg_engine::ZoneId::Library(mtg_engine::PlayerId(1)))
+    }
+
+    fn ui1_hand(state: &SharedState) -> Vec<u64> {
+        ui1_zone(state, mtg_engine::ZoneId::Hand(mtg_engine::PlayerId(1)))
+    }
+
+    /// The index of the offered action carrying a blocking decision whose
+    /// `question` tag is `want`, if any.
+    fn ui1_question_index(view: &Value, want: &str) -> Option<u64> {
+        view["decision"]["actions"]
+            .as_array()?
+            .iter()
+            .find(|a| a["decision"]["question"] == want)
+            .and_then(|a| a["index"].as_u64())
+    }
+
+    /// Drive the human seat until an offered action carries the `want` question.
+    ///
+    /// Policy, in order: play a land; else cast anything castable (the fixture
+    /// deck's only castables are the two probe spells — the commander is 7 mana and
+    /// out of reach); else pass; else take the first action that is not `Concede`.
+    /// A blocking decision met **on the way** is therefore answered with `{}`, i.e.
+    /// the engine's own default, which is exactly the pre-UI-1 behaviour and is
+    /// what lets the search probe walk straight past Read the Bones' scry.
+    async fn ui1_drive_to_question(state: &SharedState, want: &str, max_steps: usize) -> Value {
+        let (status, mut view) = get_json(state, "/api/game").await;
+        assert_eq!(status, StatusCode::OK, "{view}");
+        for step in 0..max_steps {
+            if ui1_question_index(&view, want).is_some() {
+                return view;
+            }
+            assert!(
+                !view["decision"].is_null(),
+                "the game ended at step {step} without ever asking a {want} question; \
+                 UI1_SEED may need re-pinning: {view}"
+            );
+            let wire_seq = seq(&view);
+            let actions = view["decision"]["actions"]
+                .as_array()
+                .expect("actions is an array")
+                .clone();
+            let pick = actions
+                .iter()
+                .find(|a| a["kind"] == "PlayLand")
+                .or_else(|| actions.iter().find(|a| a["kind"] == "CastSpell"))
+                .or_else(|| actions.iter().find(|a| a["kind"] == "PassPriority"))
+                .or_else(|| actions.iter().find(|a| a["kind"] != "Concede"))
+                .unwrap_or_else(|| panic!("only Concede was offered at step {step}: {view}"));
+            let index = pick["index"].as_u64().expect("index is a number");
+            let (status, next) = post_json(
+                state,
+                "/api/game/action",
+                json!({"seq": wire_seq, "action_index": index, "params": {}}),
+            )
+            .await;
+            assert_eq!(
+                status,
+                StatusCode::OK,
+                "step {step} submitting {}: {next}",
+                pick["label"]
+            );
+            view = next;
+        }
+        panic!("no {want} question within {max_steps} steps");
+    }
+
+    /// **CR 701.22a — Read the Bones' scry, driven to a non-default partition over
+    /// HTTP.** Closes the browser-client half of OOS-DP9-1.
+    ///
+    /// The playtest symptom was "it never asks me to scry": the action's baked-in
+    /// answer is the *identity* partition (keep everything on top), so the one
+    /// button the client rendered resolved every scry as a no-op. Both halves are
+    /// asserted — the identity default is pinned as the reproduction, then a real
+    /// partition is submitted and the library is checked.
+    ///
+    /// The discriminating assertion is the last pair. Read the Bones draws two
+    /// cards immediately after its scry, so with the default the human draws
+    /// `looked_at[0]`; with the answer this test sends, `looked_at[0]` is at the
+    /// **bottom of the library** and was not drawn. A regression to submitting the
+    /// default fails on both lines, not on a count.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_ui1_scry_partition_is_answered_over_http() {
+        let state = shared_state();
+        ui1_install(&state, UI1_EFFECT_CHOICE_SPELLS);
+        let view = ui1_drive_to_question(&state, "Scry", 400).await;
+        let index = ui1_question_index(&view, "Scry").expect("just found");
+        let option = view["decision"]["actions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|a| a["index"] == index)
+            .expect("the option with that index");
+        let decision = &option["decision"];
+
+        assert_eq!(decision["answer_field"], "effect_choice_answer");
+        let answer = &decision["answer"];
+        assert_eq!(answer["shape"], "Partition");
+        assert_eq!(answer["kept_key"], "top");
+        assert_eq!(answer["moved_key"], "bottom");
+        assert_eq!(answer["moved_label"], "bottom of library");
+
+        let looked: Vec<u64> = answer["looked_at"]
+            .as_array()
+            .expect("looked_at is an array")
+            .iter()
+            .map(|c| c["id"].as_u64().expect("id is a number"))
+            .collect();
+        assert_eq!(looked.len(), 2, "Read the Bones scries 2: {answer}");
+
+        // **The new label channel, exercised.** These ids name LIBRARY cards, and
+        // `StateViewModel` does not model library contents at all — so before
+        // `view::question_card_label` every one of them rendered as the unknown
+        // placeholder and the picker would have been three identical buttons.
+        for card in answer["looked_at"].as_array().unwrap() {
+            let label = card["label"].as_str().expect("label is a string");
+            assert_eq!(
+                label, "Swamp",
+                "a scried library card must render its real name (CR 701.22a lets \
+                 this seat look at it); got {label:?}"
+            );
+        }
+
+        // Reproduction: the engine's own default answer is the IDENTITY partition.
+        assert_eq!(
+            answer["template"],
+            json!({"Scry": {"bottom": [], "top": looked}}),
+            "the pre-UI-1 client submitted exactly this, which is why a scry was \
+             always a no-op"
+        );
+
+        // `EffectChoiceQuestion::Scry`'s `looked_at` is TOP-FIRST, and the library
+        // zone is bottom-first, so these two indices are the same two cards.
+        let before = ui1_library(&state);
+        assert_eq!(
+            before[before.len() - 1],
+            looked[0],
+            "looked_at is top-first"
+        );
+        assert_eq!(before[before.len() - 2], looked[1]);
+
+        // Answer it: bottom the current top card, keep the other.
+        let wire_seq = seq(&view);
+        let (status, after) = post_json(
+            &state,
+            "/api/game/action",
+            json!({
+                "seq": wire_seq,
+                "action_index": index,
+                "params": {
+                    "effect_choice_answer": {
+                        "Scry": { "bottom": [looked[0]], "top": [looked[1]] }
+                    }
+                }
+            }),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{after}");
+
+        // **CR 400.7 is why this is asserted over the LIBRARY and not the hand.**
+        // A card that changes zones becomes a NEW object with a new `ObjectId`, so
+        // the two ids above cannot be followed into the hand — a first draft of
+        // this test asserted `hand.contains(looked[1])` and failed against a hand
+        // of freshly-minted ids. The library keeps them, which is enough: the two
+        // answers are distinguished by *which* card is still in it.
+        let library = ui1_library(&state);
+        assert_eq!(
+            library[0], looked[0],
+            "the bottomed card must end at the library's BOTTOM (index 0). Under the \
+             DEFAULT (identity) answer it was the TOP card and Read the Bones would \
+             have drawn it, so it would not be in the library at all — this single \
+             line is what discriminates the two answers."
+        );
+        assert!(
+            !library.contains(&looked[1]),
+            "the kept card became the new top and Read the Bones drew it (CR 400.7: \
+             it is a different object in hand now, so it is checked by its absence)"
+        );
+        assert_eq!(
+            library.len(),
+            before.len() - 2,
+            "Read the Bones draws exactly 2 after its scry; a partition moves cards \
+             within the library and never removes them"
+        );
+    }
+
+    /// **CR 701.23a — Diabolic Tutor's search, driven to a non-default pick over
+    /// HTTP.** Closes the browser-client half of OOS-DP9-7.
+    ///
+    /// Three things at once: the reproduction (the baked-in default is
+    /// `candidates.first()`, i.e. the lowest `ObjectId` — "it always fetches the
+    /// same card"), the CR 701.23d refusal (this search states no quality, so
+    /// failing to find is illegal and the server says so as a **400** rather than
+    /// letting the engine answer 422), and a real non-default pick.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_ui1_search_pick_is_answered_over_http() {
+        let state = shared_state();
+        ui1_install(&state, UI1_EFFECT_CHOICE_SPELLS);
+        let view = ui1_drive_to_question(&state, "SearchLibrary", 600).await;
+        let index = ui1_question_index(&view, "SearchLibrary").expect("just found");
+        let option = view["decision"]["actions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|a| a["index"] == index)
+            .expect("the option with that index");
+        let answer = &option["decision"]["answer"];
+
+        assert_eq!(option["decision"]["answer_field"], "effect_choice_answer");
+        assert_eq!(answer["shape"], "PickOne");
+        assert_eq!(
+            answer["may_decline"], false,
+            "CR 701.23d: Diabolic Tutor's filter states no quality, so finding is \
+             MANDATORY and the client must not offer a fail-to-find button"
+        );
+
+        let candidates: Vec<u64> = answer["candidates"]
+            .as_array()
+            .expect("candidates is an array")
+            .iter()
+            .map(|c| c["id"].as_u64().expect("id is a number"))
+            .collect();
+        assert!(
+            candidates.len() > 2,
+            "a searched library should offer many cards: {}",
+            candidates.len()
+        );
+
+        // Reproduction: the default is `candidates.first()`, and `candidates` is in
+        // ascending `ObjectId` order — so the pre-UI-1 client always fetched the
+        // lowest-id match, exactly as the playtest reported.
+        assert_eq!(
+            candidates[0],
+            *candidates.iter().min().expect("non-empty"),
+            "candidates are in ascending ObjectId order"
+        );
+        assert_eq!(
+            answer["template"],
+            json!({"SearchLibrary": {"found": candidates[0]}})
+        );
+
+        let wire_seq = seq(&view);
+
+        // CR 701.23d, refused at the response boundary rather than by the engine.
+        let (status, refused) = post_json(
+            &state,
+            "/api/game/action",
+            json!({
+                "seq": wire_seq,
+                "action_index": index,
+                "params": { "effect_choice_answer": { "SearchLibrary": { "found": null } } }
+            }),
+        )
+        .await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{refused}");
+        assert_eq!(refused["kind"], "bad_params");
+
+        // A card the search never offered is refused the same way.
+        let (status, refused) = post_json(
+            &state,
+            "/api/game/action",
+            json!({
+                "seq": wire_seq,
+                "action_index": index,
+                "params": { "effect_choice_answer": { "SearchLibrary": { "found": 999_999 } } }
+            }),
+        )
+        .await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{refused}");
+        assert_eq!(refused["kind"], "bad_params");
+
+        // Now a real, non-default pick.
+        let chosen = *candidates.last().expect("non-empty");
+        assert_ne!(
+            chosen, candidates[0],
+            "the pick must differ from the default"
+        );
+        let library_before = ui1_library(&state);
+        assert!(library_before.contains(&chosen) && library_before.contains(&candidates[0]));
+        let (status, after) = post_json(
+            &state,
+            "/api/game/action",
+            json!({
+                "seq": wire_seq,
+                "action_index": index,
+                "params": { "effect_choice_answer": { "SearchLibrary": { "found": chosen } } }
+            }),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{after}");
+
+        // Asserted over the LIBRARY for the CR 400.7 reason spelled out in the scry
+        // probe: the found card is a new object once it reaches the hand, so it is
+        // checked by what left the library rather than by what arrived.
+        let library = ui1_library(&state);
+        assert!(
+            !library.contains(&chosen),
+            "the chosen card must have left the library (CR 701.23a)"
+        );
+        assert!(
+            library.contains(&candidates[0]),
+            "the DEFAULT's pick must still be in the library — it is what a client \
+             submitting `{{}}` would have fetched, and that it is untouched is what \
+             discriminates this test"
+        );
+        assert_eq!(
+            library.len(),
+            library_before.len() - 1,
+            "exactly one card is found (CR 701.23a)"
+        );
+    }
+
+    /// **CR 514.1 — the cleanup discard, driven to a non-default subset over
+    /// HTTP.** Closes the browser-client half of OOS-DP7-6.
+    ///
+    /// The playtest symptom was "it discards for me, always the cards on the
+    /// right": `default_cleanup_discard` is the `count` **highest** `ObjectId`s,
+    /// which is display order's right-hand end. This drives the opposite choice.
+    ///
+    /// No fixed deck needed — the default 4-player table reaches a cleanup discard
+    /// on turn 1 all by itself, because a seat that never plays a land draws past
+    /// the CR 514.1 maximum. Passing is also the only policy that keeps the hand
+    /// composition an accident of the seed rather than of the driver.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_ui1_cleanup_discard_subset_is_answered_over_http() {
+        let state = shared_state();
+        let mut view = new_game(&state).await;
+
+        // Pass, and only pass.
+        let mut found = None;
+        for step in 0..300 {
+            if let Some(index) = ui1_question_index(&view, "CleanupDiscard") {
+                found = Some(index);
+                break;
+            }
+            assert!(!view["decision"].is_null(), "game ended at step {step}");
+            let wire_seq = seq(&view);
+            let actions = view["decision"]["actions"].as_array().unwrap().clone();
+            let pick = actions
+                .iter()
+                .find(|a| a["kind"] == "PassPriority")
+                .or_else(|| actions.iter().find(|a| a["kind"] != "Concede"))
+                .unwrap_or_else(|| panic!("only Concede at step {step}: {view}"));
+            let index = pick["index"].as_u64().unwrap();
+            let (status, next) = post_json(
+                &state,
+                "/api/game/action",
+                json!({"seq": wire_seq, "action_index": index, "params": {}}),
+            )
+            .await;
+            assert_eq!(status, StatusCode::OK, "step {step}: {next}");
+            view = next;
+        }
+        let index = found.expect("a pass-only seat must reach a CR 514.1 cleanup discard");
+        let option = view["decision"]["actions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|a| a["index"] == index)
+            .expect("the option with that index");
+        let decision = &option["decision"];
+        assert_eq!(decision["answer_field"], "discard_cards");
+        let answer = &decision["answer"];
+        assert_eq!(answer["shape"], "Subset");
+
+        let count = answer["count"].as_u64().expect("count is a number");
+        assert!(
+            count >= 1,
+            "a cleanup discard is only raised when count >= 1"
+        );
+        let candidates: Vec<u64> = answer["candidates"]
+            .as_array()
+            .expect("candidates is an array")
+            .iter()
+            .map(|c| c["id"].as_u64().unwrap())
+            .collect();
+        assert_eq!(
+            candidates.len() as u64,
+            count + 7,
+            "the candidate set is the WHOLE hand, not just the cards to be discarded"
+        );
+        // Hand cards are labelled through `NameIndex` like everything else — this
+        // seat's own hand is in its redacted view.
+        for card in answer["candidates"].as_array().unwrap() {
+            let label = card["label"].as_str().unwrap();
+            assert!(
+                label != view::HIDDEN_LABEL && label != view::UNKNOWN_LABEL,
+                "a seat's own hand card must be named to itself (CR 402.1): {label:?}"
+            );
+        }
+
+        // Reproduction: the default is the `count` HIGHEST ObjectIds.
+        let default: Vec<u64> = answer["default"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|c| c.as_u64().unwrap())
+            .collect();
+        let mut highest = candidates.clone();
+        highest.sort_unstable();
+        assert_eq!(
+            default,
+            highest[highest.len() - count as usize..].to_vec(),
+            "`default_cleanup_discard` is the count highest ObjectIds — the \
+             right-hand cards the playtest reported losing"
+        );
+
+        let wire_seq = seq(&view);
+
+        // The wrong number of cards is a 400 against the response, not a 422.
+        let (status, refused) = post_json(
+            &state,
+            "/api/game/action",
+            json!({"seq": wire_seq, "action_index": index,
+                   "params": {"discard_cards": candidates}}),
+        )
+        .await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{refused}");
+        assert_eq!(refused["kind"], "bad_params");
+
+        // So is a card that is not in this hand.
+        let (status, refused) = post_json(
+            &state,
+            "/api/game/action",
+            json!({"seq": wire_seq, "action_index": index,
+                   "params": {"discard_cards": [999_999]}}),
+        )
+        .await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{refused}");
+        assert_eq!(refused["kind"], "bad_params");
+
+        // Now discard the LOWEST ids — the opposite end from the default.
+        let chosen: Vec<u64> = highest[..count as usize].to_vec();
+        assert!(
+            chosen.iter().all(|id| !default.contains(id)),
+            "the chosen subset must be disjoint from the default, or this proves \
+             nothing: chosen={chosen:?} default={default:?}"
+        );
+        let (status, after) = post_json(
+            &state,
+            "/api/game/action",
+            json!({"seq": wire_seq, "action_index": index,
+                   "params": {"discard_cards": chosen}}),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{after}");
+
+        let hand = ui1_hand(&state);
+        for id in &chosen {
+            assert!(!hand.contains(id), "object {id} was chosen for discard");
+        }
+        for id in &default {
+            assert!(
+                hand.contains(id),
+                "object {id} is what the DEFAULT would have discarded; it must \
+                 still be in hand"
+            );
+        }
+    }
+
+    /// **CR 603.3d — a trigger's target announcement, driven to a non-default
+    /// choice over HTTP. This is OOS-DP8-2's extension proof, executed.**
+    ///
+    /// The claim UI-1 makes is that a blocking-decision payload keyed on the
+    /// answer's *shape* rather than on the question extends to a new question with
+    /// no rework. `ChooseTriggerTargets` was filed as the identical gap to the
+    /// discard and scry ones, and its shape — [`view::AnswerShapeView::Slots`] — is
+    /// the same `Vec<TargetSlotView>` the CR 601.2c target picker already draws. So
+    /// the browser reuses `TargetPicker` and the server reuses `target_options`.
+    ///
+    /// A claim of that kind is worth exactly as much as its test. This one drives a
+    /// real pair of `Complete` card definitions to a real announcement and picks
+    /// something other than the engine's default, then reads the *rendered
+    /// keywords* back out of the seat view — so the whole loop, payload to picker
+    /// answer to game state to next payload, is checked over HTTP.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_ui1_trigger_targets_are_answered_over_http() {
+        let state = shared_state();
+        ui1_install(&state, UI1_TRIGGER_SPELLS);
+        let view = ui1_drive_to_question(&state, "TriggerTargets", 400).await;
+        let index = ui1_question_index(&view, "TriggerTargets").expect("just found");
+        let option = view["decision"]["actions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|a| a["index"] == index)
+            .expect("the option with that index");
+        let decision = &option["decision"];
+
+        assert_eq!(decision["answer_field"], "trigger_targets");
+        let answer = &decision["answer"];
+        assert_eq!(answer["shape"], "Slots");
+
+        let slots = answer["slots"].as_array().expect("slots is an array");
+        assert_eq!(slots.len(), 1, "both fixture triggers have one target slot");
+        let slot = &slots[0];
+        assert_eq!(slot["min"], 1, "a required slot takes exactly one target");
+        assert_eq!(slot["max"], 1);
+
+        // **The condition that makes the engine ask at all.** With one candidate
+        // `forced_trigger_target_answer` determines the announcement and no decision
+        // is raised, so this assertion is the fixture's own non-vacuity check.
+        let candidates = slot["candidates"].as_array().expect("candidates");
+        assert!(
+            candidates.len() >= 2,
+            "a slot with fewer than two candidates is FORCED and would never have \
+             produced this decision: {slot}"
+        );
+        for candidate in candidates {
+            assert_eq!(candidate["kind"], "object");
+            let label = candidate["label"].as_str().expect("label");
+            assert!(
+                label != view::HIDDEN_LABEL && label != view::UNKNOWN_LABEL,
+                "a battlefield creature is public (CR 400.1) and must be named \
+                 through NameIndex: {label:?}"
+            );
+        }
+
+        // Reproduction: the engine's own default announcement, one entry per slot.
+        let default = answer["default"].as_array().expect("default is an array");
+        assert_eq!(default.len(), 1, "one entry per slot");
+        let default_target = &default[0].as_array().expect("slot 0's targets")[0];
+
+        // Pick a candidate the default did NOT.
+        let chosen = candidates
+            .iter()
+            .map(|c| &c["value"])
+            .find(|value| *value != default_target)
+            .unwrap_or_else(|| panic!("no candidate differs from the default: {answer}"));
+        let chosen_id = candidates
+            .iter()
+            .find(|c| &c["value"] == chosen)
+            .and_then(|c| c["id"].as_u64())
+            .expect("the chosen candidate's id");
+        let default_id = candidates
+            .iter()
+            .find(|c| &c["value"] == default_target)
+            .and_then(|c| c["id"].as_u64())
+            .expect("the default is always one of the candidates");
+
+        // **Baselines, and the reason they are needed.** Nezumi Prowler is printed
+        // with Ninjutsu, so "the chosen creature has a keyword" is true before any
+        // trigger resolves. A first draft asserted exactly that and passed against
+        // the un-fixed code — vacuously, on a printed keyword. What discriminates is
+        // what each creature *gains*.
+        let chosen_before = ui1_battlefield_keywords(&view, chosen_id);
+        let default_before = ui1_battlefield_keywords(&view, default_id);
+
+        // Answer every announcement in this CR 603.3b batch with the SAME
+        // non-default creature. Both fixture triggers offer the same two candidates,
+        // so leaving the second to its own default would land a grant on
+        // `default_id` and blunt the assertion below.
+        //
+        // The `Target` is echoed back VERBATIM out of the candidate's `value`, never
+        // rebuilt from `kind`/`id` — the rule `TargetPicker` already follows.
+        let mut view = view;
+        let mut answered = 0usize;
+        for _ in 0..8 {
+            let Some(index) = ui1_question_index(&view, "TriggerTargets") else {
+                break;
+            };
+            let option = view["decision"]["actions"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|a| a["index"] == index)
+                .expect("the option with that index")
+                .clone();
+            let slots = option["decision"]["answer"]["slots"].as_array().unwrap();
+            let pick = slots[0]["candidates"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|c| c["id"] == chosen_id)
+                .unwrap_or_else(|| panic!("the chosen creature must be offered: {option}"))
+                ["value"]
+                .clone();
+            let wire_seq = seq(&view);
+            let (status, next) = post_json(
+                &state,
+                "/api/game/action",
+                json!({
+                    "seq": wire_seq,
+                    "action_index": index,
+                    "params": { "trigger_targets": [[pick]] }
+                }),
+            )
+            .await;
+            assert_eq!(status, StatusCode::OK, "{next}");
+            view = next;
+            answered += 1;
+        }
+        assert!(
+            answered >= 1,
+            "at least one announcement must have been answered"
+        );
+
+        // The grant happens at RESOLUTION, not at announcement, so the stack has to
+        // drain before there is anything to read. Pass until it does.
+        for _ in 0..40 {
+            let stack_empty = view["state"]["zones"]["stack"]
+                .as_array()
+                .map(|s| s.is_empty())
+                .unwrap_or(true);
+            if stack_empty {
+                break;
+            }
+            assert!(
+                !view["decision"].is_null(),
+                "the game ended mid-stack: {view}"
+            );
+            let wire_seq = seq(&view);
+            let actions = view["decision"]["actions"].as_array().unwrap().clone();
+            let pick = actions
+                .iter()
+                .find(|a| a["kind"] == "PassPriority")
+                .or_else(|| actions.iter().find(|a| a["kind"] != "Concede"))
+                .expect("something other than Concede");
+            let index = pick["index"].as_u64().unwrap();
+            let (status, next) = post_json(
+                &state,
+                "/api/game/action",
+                json!({"seq": wire_seq, "action_index": index, "params": {}}),
+            )
+            .await;
+            assert_eq!(status, StatusCode::OK, "{next}");
+            view = next;
+        }
+
+        // `PermanentView.keywords` renders the layer-resolved set, so the effect is
+        // read back out of the seat view rather than out of the engine.
+        let chosen_gained = ui1_gained(&view, chosen_id, &chosen_before);
+        let default_gained = ui1_gained(&view, default_id, &default_before);
+        assert!(
+            !chosen_gained.is_empty(),
+            "the chosen creature must have GAINED the trigger's keyword: gained \
+             {chosen_gained:?} (was {chosen_before:?})"
+        );
+        assert!(
+            default_gained.is_empty(),
+            "the DEFAULT's target must have gained NOTHING — a client submitting \
+             `{{}}` would have produced exactly the opposite pair, and that \
+             asymmetry is the whole discriminator: default gained {default_gained:?}"
+        );
+    }
+
+    /// Keywords `object_id` has in `view` that it did not have in `before`.
+    fn ui1_gained(view: &Value, object_id: u64, before: &[String]) -> Vec<String> {
+        ui1_battlefield_keywords(view, object_id)
+            .into_iter()
+            .filter(|k| !before.contains(k))
+            .collect()
+    }
+
+    /// Rendered keywords of a battlefield permanent, out of the seat payload.
+    fn ui1_battlefield_keywords(view: &Value, object_id: u64) -> Vec<String> {
+        view["state"]["zones"]["battlefield"]
+            .as_object()
+            .expect("battlefield is an object keyed by player name")
+            .values()
+            .filter_map(|permanents| permanents.as_array())
+            .flatten()
+            .find(|p| p["object_id"] == object_id)
+            .and_then(|p| p["keywords"].as_array())
+            .map(|ks| {
+                ks.iter()
+                    .filter_map(|k| k.as_str().map(str::to_string))
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    /// **Architecture Invariant 7: a decision addressed to another seat carries
+    /// none of its look entitlement into this seat's payload** (UI-1 review, HIGH 2).
+    ///
+    /// `view::question_card_label` renders the REAL name of a library card, and its
+    /// safety argument's second premise is that the `EffectChoiceQuestion` it reads
+    /// belongs to the seat being rendered. Nothing enforced that: it held only
+    /// because `session::config_for` hard-codes one human seat, so `pending.player`
+    /// happened to always equal `session.human`. A second human seat — the obvious
+    /// M10a direction — would have put seat A's scried library cards, **named**,
+    /// into seat B's payload.
+    ///
+    /// This drives a real scry, confirms the entitlement is being exercised (the
+    /// candidates render as `Swamp`, not as a placeholder), then moves
+    /// `PlaySession::human` to the other seat and re-reads — so the payload is being
+    /// built for a seat that is *not* the one the outstanding question belongs to,
+    /// which is precisely the M10a shape.
+    ///
+    /// **Retargeting the viewer rather than the decision, and the reason is worth
+    /// recording**: a first version mutated `PlaySession::pending.player` instead,
+    /// and it did nothing — every route calls `advance()`, which refreshes `pending`
+    /// straight back off `LocalGame`. `human` is the play server's own field and
+    /// survives.
+    ///
+    /// **Two-sided on BOTH halves**, each verified by deleting the line and running
+    /// this test: without `seat_view`'s filter the decision comes back with its
+    /// scried cards named, and without `post_action`'s guard the final POST returns
+    /// 200 and applies the other seat's scry.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_ui1_a_foreign_seats_effect_choice_never_reaches_this_payload() {
+        let state = shared_state();
+        ui1_install(&state, UI1_EFFECT_CHOICE_SPELLS);
+        let view = ui1_drive_to_question(&state, "Scry", 400).await;
+        let index = ui1_question_index(&view, "Scry").expect("just found");
+        let option = view["decision"]["actions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|a| a["index"] == index)
+            .expect("the option with that index");
+
+        // Non-vacuity: the entitlement really is in use, so its absence below is a
+        // consequence of the filter and not of the payload being empty anyway.
+        let looked = option["decision"]["answer"]["looked_at"]
+            .as_array()
+            .expect("looked_at");
+        assert!(!looked.is_empty());
+        for card in looked {
+            assert_eq!(
+                card["label"], "Swamp",
+                "the look entitlement must be rendering real names before this test \
+                 can say anything about withholding them"
+            );
+        }
+
+        // Captured BEFORE the move, while this harness is still seat 1. A real seat-2
+        // client could NOT obtain it: the write guard sits above the `seq` check, so
+        // a foreign decision answers 409 `no_pending_decision` with no `expected`
+        // field rather than the usual `stale_decision` body that carries the current
+        // `seq`. Reading it here is therefore the STRONGEST case for the guard, not
+        // a representative one — it grants the attacker something the code does not.
+        let wire_seq_before = seq(&view);
+
+        // Render for the OTHER seat while seat 1's question is outstanding.
+        {
+            let mut guard = state.session.lock().expect("lock");
+            let session = guard.as_mut().expect("a session is installed");
+            assert_eq!(
+                session.pending.as_ref().map(|p| p.player),
+                Some(session.human),
+                "precondition: the question belongs to the seat being rendered"
+            );
+            session.human = mtg_engine::PlayerId(2);
+        }
+
+        let (status, body) = get_raw(&state, "/api/game").await;
+        assert_eq!(status, StatusCode::OK, "{body}");
+        let refetched: Value = serde_json::from_str(&body).expect("body is JSON");
+        assert_eq!(refetched["summary"]["human"], 2, "the viewer really moved");
+        assert!(
+            refetched["decision"].is_null(),
+            "seat 1's question must not appear in seat 2's payload: {}",
+            refetched["decision"]
+        );
+
+        // Asserted over the RAW body, not over parsed fields — the MR-M11-01 idiom.
+        // A future field that carried the question's cards under another name would
+        // be caught by this and not by a field-by-field check.
+        //
+        // The needle is the `looked_at` **key**, not a card name, and deliberately:
+        // seat 2 legitimately holds Swamps of its own, so "no card name appears"
+        // is not assertable here and claiming it would be the overstatement this
+        // whole review cycle is about.
+        assert!(
+            !body.contains("\"looked_at\""),
+            "the foreign seat's look entitlement leaked into the body: {body}"
+        );
+
+        // **The write half.** Hiding the decision does not stop this seat answering
+        // it — `LocalGame::submit` builds the command for `pending.player` and has
+        // no notion of a viewer, so without `post_action`'s guard this exact post
+        // returns 200 and applies the other seat's scry (verified by deleting the
+        // guard). The `seq` used here is the pre-move one; see the note above for
+        // why that is a deliberately generous gift to the attacker.
+        let (status, refused) = post_json(
+            &state,
+            "/api/game/action",
+            json!({"seq": wire_seq_before, "action_index": index, "params": {}}),
+        )
+        .await;
+        assert_eq!(
+            status,
+            StatusCode::CONFLICT,
+            "answering another seat's decision must be refused, not applied: {refused}"
+        );
+        assert_eq!(refused["kind"], "no_pending_decision");
+
+        // **And the guard suppresses the `seq` disclosure**, which is why it sits
+        // ABOVE the staleness check. A wrong `seq` against a foreign decision must
+        // not fall through to `stale_decision`, whose body carries `expected: <the
+        // real seq>` — that would hand a seat-2 client the one thing it needs to
+        // answer a decision it is not allowed to see.
+        //
+        // This is asserted rather than described. An earlier draft of the comment
+        // above stated the disclosure as a live fact *after* this guard had closed
+        // it, which is the same "prose out of step with the code" fault this whole
+        // review chain kept finding — in its harmless direction, but the fix is the
+        // same: make a test hold the claim.
+        let (status, refused) = post_json(
+            &state,
+            "/api/game/action",
+            json!({"seq": 999_999, "action_index": 0, "params": {}}),
+        )
+        .await;
+        assert_eq!(status, StatusCode::CONFLICT, "{refused}");
+        assert_eq!(
+            refused["kind"], "no_pending_decision",
+            "a foreign decision must not answer `stale_decision`, which would \
+             disclose its `seq`: {refused}"
+        );
+        assert!(
+            refused["error"]
+                .as_str()
+                .map(|e| !e.contains("expected"))
+                .unwrap_or(true),
+            "the refusal body must not carry the foreign decision's seq: {refused}"
+        );
+    }
+
+    /// **Architecture Invariant 7, at the look-entitlement channel.**
+    ///
+    /// `view::question_card_label` reads a card's name off `GameState` rather than
+    /// off the seat-redacted view, because the redacted view does not model library
+    /// contents at all. That is deliberate and argued in place — CR 701.22a /
+    /// 701.23a / 701.25a each tell *this seat* to look at *these cards*, and the
+    /// engine encodes the entitlement structurally
+    /// (`GameEvent::EffectChoiceRequired::private_to()`).
+    ///
+    /// But it is a **new channel**, and MR-M11-01's lesson is that a redaction gate
+    /// checks the channel it was written for. Neither existing gate can see this
+    /// one: the source gate scans for omniscient *view-model* entry points and this
+    /// uses none, and the HTTP body scan looks for another seat's *hand* card names
+    /// and these are library cards.
+    ///
+    /// So the channel is pinned by count. `.objects()` may appear in `view.rs`'s
+    /// production code exactly twice — in `question_card_label`, and in
+    /// `action_modes`' card-registry lookup, which reads an id the seat already
+    /// holds and no name at all. A third is not forbidden; it is required to be
+    /// *deliberate*, which is the most a gate can enforce and is exactly what was
+    /// missing when `GameSummary.seed` shipped for three sessions.
+    #[test]
+    fn test_ui1_view_rs_reads_game_state_in_exactly_the_two_known_places() {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let source =
+            std::fs::read_to_string(root.join("src").join("view.rs")).expect("view.rs is readable");
+        // `test_region` returns the suffix STARTING at the `#[cfg(test)]` cut, so
+        // the production region is its complement. (`view.rs` has no test module
+        // at all, in which case that suffix is empty and the whole file is
+        // production — which is the case this gate is written for.)
+        let cut = source.len() - test_region(&source).len();
+        let production = code_only(&source[..cut]);
+        // `concat!` for the same reason the sibling gates use it: this line is in a
+        // file the walk reads, and a plainly-written needle would be found by the
+        // gate rather than by the code it is meant to describe.
+        let needle = concat!(".obj", "ects()");
+        let found = production.matches(needle).count();
+        assert_eq!(
+            found, 2,
+            "view.rs's production code reads the raw GameState object table {found} \
+             time(s), not the 2 that are accounted for (question_card_label's \
+             CR 701.22a/23a/25a look entitlement, and action_modes' card-registry \
+             lookup). A third read is a NEW hidden-information channel and neither \
+             Invariant-7 gate can see it — document it and update this count \
+             deliberately, or route it through NameIndex."
+        );
+    }
+
     // ── 15 ────────────────────────────────────────────────────────────────────
 
     /// **Architecture Invariant 7's chokepoint, machine-enforced instead of

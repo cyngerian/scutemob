@@ -6,6 +6,95 @@
 
 ## Rotated "Last Updated" entries (moved from CLAUDE.md Current State, 2026-08-02)
 
+- 2026-08-02 — **UI-1 SHIPPED (`scutemob-174`): the browser client can answer a blocking decision
+  instead of echoing the engine's default.** Playtest-triage **F8**, whose three symptoms ("the
+  game discards for me, always the cards on the right", "it never asks me to scry", "the tutor
+  always fetches the same card") are **one mechanism at three layers**. `StubProvider` bakes the
+  engine-accepted default *into* each blocking-decision `LegalAction` — cleanup discard = the
+  `count` highest `ObjectId`s, scry/surveil = the identity partition, search = `candidates.first()`
+  — and it is right to: that is what lets a **bot** submit it and always be accepted (SR-38, never
+  offer an action the engine will refuse). The candidate data rides along on the same action
+  precisely so a **human** client can render a picker (`legal_actions.rs`'s own doc says so). The
+  view layer threw it away, `ActionParamsDto` had no override channel, and `params.rs` refused the
+  three variants — so the frontend found no picker stage and submitted `{}`.
+  **All three layers fixed generically.** `ActionParams` gains `discard_cards` /
+  `effect_choice_answer` / `trigger_targets`; the three arms forward an announced answer and fall
+  back to the same default as before — which is load-bearing, not conservative, because
+  `random_bot` reaches them with `ActionParams::default()` and so every recorded fuzz seed's
+  outcome is byte-identical (OOS-DP8-1, the constraint PB-DP8/DP9 wrote those arms under).
+  `ActionOptionView.decision` is a `{question, prompt, answer_field, answer}` envelope whose
+  `answer` is one of **four shapes** — `Subset` (CR 514.1), `PickOne` (CR 701.23a), `Partition`
+  (CR 701.22a/701.25a), `Slots` (CR 603.3d). **A client dispatches on the shape, not the
+  question**, which is what makes a scry and a surveil share one component (their entire
+  difference is `moved_key`/`moved_label`, supplied by the server) and what let **OOS-DP8-2** —
+  filed as the identical gap — reuse the CR 601.2c `TargetSlotView` with no new picker, no new
+  answer encoding and no new client branch. `PickOne`/`Partition` carry the engine's own default
+  answer as a `template` plus the JSON keys to fill, so the client **never spells
+  `EffectChoiceAnswer`'s externally-tagged variant name** — `TargetOptionView::value`'s argument
+  applied to a second type. `api.rs::validate_decision_params` makes an answer naming something
+  the response never offered a **400**, not an engine 422.
+  **Four HTTP probes, every one proven to discriminate by execution** (revert the arm, watch it go
+  red): a pass-only 4-player seat driven to a CR 514.1 cleanup discard and answered with the
+  *lowest* ids against a default that is the highest; Read the Bones' scry and Diabolic Tutor's
+  search at a pinned fixed-deck seed, each pinning the observed default as the reproduction before
+  driving a different answer; and Shadow Alley Denizen + Nezumi Prowler driving a real CR 603.3d
+  announcement. Fixed decks reach the router through `session::new_game`, which `config_for`
+  cannot express (`DeckSource::RandomPerSeat` is hard-coded) but which runs the same two
+  Invariant-9 gates — so nothing about the HTTP path is stubbed, only the deck.
+  **Three drafts of these probes were wrong, and each names a durable hazard.** (1) The scry and
+  search probes first followed an `ObjectId` from the library into the hand: **CR 400.7** makes a
+  card that changes zones a NEW object, so both now assert over the *library*, where the ids
+  survive and the two answers are distinguished by which card is still in it. (2) The
+  trigger-target probe first asserted "the chosen creature has a keyword" and **passed against the
+  un-fixed code** — Nezumi Prowler is *printed* with Ninjutsu; it now asserts what each creature
+  **gains** against a baseline taken before the answer. (3) The first `.objects()` gate read the
+  wrong side of the `#[cfg(test)]` cut (`test_region` returns the suffix *from* the marker) and
+  counted 0.
+  **A fourth Architecture-Invariant-7 channel, opened deliberately and gated on its own terms.**
+  `StateViewModel` carries `library_size` and no library *contents*, so `NameIndex` answers
+  `(unknown card)` for every scry/search candidate — which is not *safer*, since the ids are
+  already on the wire and must be, and makes the picker useless.
+  `view::question_card_label` therefore reads the name off `GameState`, but only for ids drawn out
+  of the engine's own `EffectChoiceQuestion` — whose `private_to()` already classifies exactly that
+  id set as this seat's (CR 701.22a/701.23a/701.25a: the effect *tells* this player to look).
+  MR-M11-01's lesson applies verbatim — **a redaction gate checks the channel it was written for**
+  — so neither existing gate can see this one (the source gate scans for omniscient *view-model*
+  entry points, and the body scan looks for another seat's *hand* names). It ships with a count
+  gate instead: `view.rs`'s production code may read the raw object table exactly **twice**, and a
+  third read must be a deliberate act.
+  **The fix cycle's HIGH is the entry worth re-reading.** `question_card_label`'s doc **cited a
+  gate test that did not exist** and said the channel "ships with its own gate rather than with an
+  argument" — a claim in prose that no test holds, on the one subsystem MR-M11-01's lesson is
+  about. It was a draft line left behind when the planned behavioural test was replaced by the
+  source-count gate, and the README and this archive entry both described the real situation
+  correctly, which is exactly how it survived self-review: *the wrong version was the one nobody
+  re-read.* And the premise that test would have asserted was **enforced nowhere** — the channel
+  needs its `EffectChoiceQuestion` to belong to the seat being rendered, and that held only by
+  arithmetic on a one-element set (`config_for` hard-codes one human seat), so a second human seat
+  would have rendered seat A's scried library cards, **named**, into seat B's payload.
+  `api.rs::seat_view` now filters `pending.player == human` and the gate exists and is two-sided.
+  **Generalisable: when a doc comment calls an argument "structural", check the structure is in
+  the code and not in the configuration.** Four LOWs alongside it, one of which is a live UI trap:
+  `ActionBar`'s decision guard required a truthy `currentShape`, so a malformed payload rendered
+  nothing at all and **skipped the very unknown-shape fallback that exists to prevent a dead bar**.
+  **Three review rounds, and the through-line is worth more than any single finding.** Every round
+  found prose out of step with the code — a cited gate that did not exist; a justification
+  ("`submit`'s own `seq` check already refuses") for a guard that was not there, next to a write
+  path that returned **HTTP 200 and applied another seat's scry**; then the inverse, comments
+  advertising a disclosure the new guard had closed. **Two of the three faults were introduced by
+  the correction to the previous round.** Every fix was the same move: *make a test hold the
+  claim.* A comment that says "structural", "gated", "already refuses" or "discloses" is an
+  assertion, and an assertion no test executes decays at the speed of the code around it.
+  Tests **4,124 → 4,138** on branch (+8 `params.rs` unit, +6 play-server). **Zero engine lines** —
+  empty `git diff` over `crates/engine/src` + `crates/card-types/src`. PROTOCOL **33** / HASH
+  **70** unmoved, gate-executed rather than predicted. (The task's acceptance criterion said
+  "PROTOCOL 32"; 32 → 33 was PB-DX6's bump on the parallel W6 track, which landed before this
+  branch forked — the *claim* held, the *number* in the criterion was stale.) Coverage unmoved at
+  1,137/1,804 = 63.0%, 0 card-def edits. **Not closed**: the TUI halves of OOS-DP7-6 / OOS-DP8-2 /
+  OOS-DP9-7 (those rows are *about* the TUI); OOS-DP9-1 is unchanged and deliberately so — it is
+  about the bot. No picker has an automated test; there is no frontend harness (plan §8 R7). Full
+  limitation list: `tools/play-server/README.md` 14-17.
+
 - 2026-08-02 — **PB-DX6 SHIPPED (`scutemob-172`): the last two unflattened mana-cost payment sites
   now flatten, and the payment path stops being able to fail OPEN.** PB-RS2 routed three payment
   sites through `ManaCost::flatten_hybrid_phyrexian` and left two standing. (1)

@@ -834,6 +834,138 @@
 
 ## Last Handoff
 
+**Date**: 2026-08-02 (worker session, `scutemob-174` — UI-1 blocking-decision pickers)
+**Workstream**: M11-local maintenance track (`crates/simulator`, `tools/play-server`)
+**Task**: `scutemob-174` — branch `feat/ui-1-blocking-decision-payload-channel-pickers-discard-scrys`
+
+**Completed** — playtest-triage **F8** closed on the browser surface:
+- **Three layers, one mechanism.** `StubProvider` bakes the engine-accepted default into every
+  blocking-decision `LegalAction` (cleanup discard = the `count` highest `ObjectId`s, scry/surveil
+  = the identity partition, search = `candidates.first()`) so a *bot* can submit it and always be
+  accepted (SR-38). The candidate data rides along so a *human* client can render a choice. The
+  view layer threw it away, so the browser drew one bare button that submitted the default.
+- `crates/simulator/src/params.rs`: `ActionParams` gains `discard_cards` / `effect_choice_answer`
+  / `trigger_targets`; the three arms forward an announced answer and fall back to the same
+  default as before; the three variants join the allowlist and `first_announced_field`.
+- `tools/play-server/src/view.rs`: `ActionOptionView.decision` — a generic
+  `{question, prompt, answer_field, answer}` envelope whose `answer` is one of **four shapes**
+  (`Subset` / `PickOne` / `Partition` / `Slots`). `ActionParamsDto` gains the three answer fields.
+- `tools/play-server/src/api.rs`: `validate_decision_params` — an answer naming something the
+  response never offered is a **400**, not an engine 422.
+- Frontend: `DiscardPicker`, `PartitionPicker` (scry AND surveil), `SearchPicker`; `ActionBar`
+  gains a `'decision'` stage dispatching on `answer.shape`; `TargetPicker` now hands back the
+  grouped `Target[][]` alongside the flat list.
+- **Tests 4,124 → 4,136** (+8 params unit, +5 play-server). Zero engine lines (empty `git diff`
+  over `crates/engine/src` + `crates/card-types/src`), PROTOCOL **33** / HASH **70** unmoved
+  (gate-executed, not predicted).
+
+**Durable lessons this session paid for**:
+1. **CR 400.7 defeats id-following assertions.** The scry and search probes' first drafts followed
+   an `ObjectId` from the library into the hand. A card that changes zones is a NEW object. Both
+   now assert over the **library**, where the ids survive — and the two answers are distinguished
+   by *which* card is still in it.
+2. **A probe can pass on a printed keyword.** The trigger-target probe's first version asserted
+   "the chosen creature has a keyword" and **passed against the un-fixed code**, because Nezumi
+   Prowler is printed with Ninjutsu. It now asserts what each creature *gains* against a baseline
+   taken before the answer. Every probe here was re-checked by reverting the fix and watching it
+   go red; that check is what caught this one.
+3. **A generic payload's extension claim is worth its test.** `Slots` was built so OOS-DP8-2 would
+   need no rework, and it did not — but the claim only became evidence once a real pair of
+   `Complete` cards (Shadow Alley Denizen + Nezumi Prowler) drove it end to end. Every other
+   mono-black route was checked and rejected: PB-EF6 retargeted them all to `TargetOpponent`,
+   which has exactly one candidate in a 2-player game and is therefore always forced.
+4. **A fourth Invariant-7 channel, opened deliberately.** `StateViewModel` models `library_size`
+   and no library *contents*, so `NameIndex` answers `(unknown card)` for every scry/search
+   candidate. `view::question_card_label` reads the name off `GameState` for ids drawn out of the
+   engine's own `EffectChoiceQuestion` — whose `private_to()` already classifies exactly that id
+   set as this seat's. MR-M11-01's lesson applies verbatim (*a redaction gate checks the channel
+   it was written for*), so it ships with its own gate: `view.rs`'s production code may read the
+   raw object table exactly **twice**, and a third read must be deliberate.
+5. **`session::new_game` is the deck-injection seam.** `config_for` hard-codes
+   `DeckSource::RandomPerSeat`, but `new_game` takes any `LocalGameConfig` and runs the same two
+   Invariant-9 gates — so a `#[cfg(test)]` fixture can install a `DeckSource::Fixed` session and
+   still drive every request through the real router. One seed (184) serves two different fixture
+   decks because the shuffle permutes *positions* and both probe spells sit at `main_deck[0..2]`.
+
+**Fix cycle (Opus review, 1 HIGH + 1 MEDIUM + 4 LOW, all closed)** — and the HIGH is the one
+worth carrying:
+- `question_card_label`'s doc **cited a gate test that did not exist**
+  (`test_ui1_a_bot_seats_effect_choice_never_reaches_the_human_payload`) and said the channel
+  "ships with its own gate rather than with an argument". That is this project's own defect
+  class — a claim in prose that no test holds — landing on the one subsystem MR-M11-01's lesson
+  is about. It was a draft line left behind when the planned behavioural test was replaced by a
+  source-count gate; the README and the archive entry both described the real situation
+  correctly, which is how it survived self-review.
+- Worse, the premise that test would have asserted was **enforced nowhere**. The channel's safety
+  argument needs the `EffectChoiceQuestion` to belong to the seat being rendered, and that held
+  only by arithmetic on a one-element set (`config_for` hard-codes `human_seats: [HUMAN_SEAT]`).
+  A second human seat — the obvious M10a direction — would have rendered seat A's scried library
+  cards, **with real names**, into seat B's payload. `api.rs::seat_view` now filters
+  `pending.player == human`, and `test_ui1_a_foreign_seats_effect_choice_never_reaches_this_payload`
+  holds it two-sidedly. **Generalisable**: when a doc comment says "structural", check that the
+  structure is in the code and not in the configuration.
+- The new test's own first version mutated `pending.player` and did nothing — every route calls
+  `advance()`, which refreshes `pending` straight off `LocalGame`. It moves `PlaySession::human`
+  instead. Recorded in the test's doc.
+- LOWs: the same doc block said "fourth channel" in its heading and "a fifth" five lines later;
+  `question_kind`'s rationale claimed redaction while two functions above it format candidate ids
+  into their own 400 bodies (corrected to what it is — message quality); `ActionBar`'s decision
+  guard required `currentShape`, so a malformed payload rendered nothing and **skipped the very
+  fallback that exists to prevent a dead bar**; the count gate's narrowness (one needle, blind to
+  `zones()`/`card_registry()`) is now stated rather than implied.
+
+**Re-review (second pass)**: all 6 confirmed fixed and the new gate confirmed two-sided by
+execution — but the fix cycle had left 4 doc defects of its own, **two in the same class it was
+convened to fix**. That recurrence is the point, not an aside: writing the correction is a second
+chance to assert something no test holds. One was substantive — `seat_view`'s comment justified
+dropping a foreign decision with "`submit`'s own `seq` check already refuses to act on it", which
+is false (`pending_wire_seq` ignores `human`, and the 409 body discloses the current `seq`, so a
+client could learn a hidden decision's seq and submit against it). `post_action` now refuses it
+too, and the gate asserts both halves using the seq captured *before* the move. Also corrected:
+the gate's own description said it retargets the decision (it retargets the viewer); "asserts
+every name is gone" overstated a needle that is the `looked_at` **key** (names are not assertable
+— seat 2 legitimately holds Swamps); an unresolvable `[check_ids]` intra-doc link; and both the
+code comment and the README now say plainly that this pair is **fail-closed, not M10a-ready** —
+`PlaySession::human` is a single `PlayerId`, so a real second human seat would be deadlocked
+rather than served, and the missing piece is a per-request viewer.
+
+**Confirmation pass (third)**: all 5 second-cycle findings confirmed fixed, both guard halves
+confirmed two-sided **by execution** — and the write half turned out to close a real hole, not a
+theoretical one: with `post_action`'s guard deleted the probe gets **HTTP 200 and the other seat's
+scry is applied**. No new instance of the "guard that is not there" class; one instance of its
+**inverse** — three comments still advertising a `seq`-disclosure channel that the guard's own
+placement (above the staleness check) had already closed. Closed the same way as everything else
+here: the gate now asserts that a wrong `seq` against a foreign decision answers
+`no_pending_decision` rather than `stale_decision`, whose body would carry `expected: <the real
+seq>`.
+
+**The through-line of three review rounds, worth more than any one finding**: every round found
+prose out of step with the code, in one direction or the other, and every round's fix was the
+same — *make a test hold the claim*. A comment that says "structural", "gated", "already
+refuses" or "discloses" is an assertion; if no test executes it, it decays at the speed of the
+code around it. Two of the three rounds' faults were introduced by the correction to the previous
+round.
+
+**Not done / deferred** (all recorded as play-server README limitations 14-17):
+- The TUI halves of OOS-DP7-6 / OOS-DP8-2 / OOS-DP9-7 are untouched; those rows are *about* the
+  TUI and remain open. OOS-DP9-1 is unchanged and deliberately so — it is about the bot, and the
+  bot still submits the default, which is what keeps every recorded fuzzer seed reproducing.
+- No picker has an automated test (no frontend harness exists, plan §8 R7).
+- `Slots` has no "use the default" button; `PartitionPicker` has no ordering control on the moved
+  pile (CR 608.2f says that order is the player's).
+- Two pre-existing broken intra-doc links in `tools/play-server/src/view.rs` (`GameSummary::seed`,
+  `crate::api::validate_combat_params`) predate this branch and were left alone. CI runs
+  fmt/clippy/build/tests, not `cargo doc`, so nothing goes red — noted for whoever wants them.
+
+**Next session candidates**: `scutemob-175` (SIM-1 commander cast) or `scutemob-177` (UI-2
+additional costs) — UI-2 is the one UI-1 was meant to pre-shape, and its `CostPicker` should slot
+into the same `pickerNeeded` chain.
+
+**Commit prefix used**: `scutemob-174:`
+
+
+## Prior Handoff (oversight — wave-7 recovery, both collects, playtest triage)
+
 **Date**: 2026-08-02 (oversight session — wave-7 crash recovery, both collects, playtest triage)
 **Workstream**: coordinator — W6 (PB-DX6 collect) + M11-local (S8 collect, MILESTONE CLOSED) + triage
 **Task**: `scutemob-172`/`173` collected; `scutemob-174..181` created; merges `51878905` + `cb0755bf`

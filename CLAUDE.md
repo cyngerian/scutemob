@@ -195,7 +195,31 @@
 - **Recurrence rule** — future `/collect` and milestone-close bookkeeping appends its detailed PB/SR
   narrative to that archive file (newest first), and updates only a one-paragraph snapshot delta
   here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
-- - **Last Updated**: 2026-08-02 — **PB-DX6 SHIPPED** (`scutemob-172`, merge `cb0755bf`; redone from
+- **Last Updated**: 2026-08-02 — **UI-1 SHIPPED** (`scutemob-174`): the browser client can now
+  ANSWER a blocking decision instead of echoing the engine's default. Playtest-triage **F8** —
+  "it discards for me", "it never asks me to scry", "the tutor always fetches the same card" are
+  one mechanism at three layers. `ActionOptionView.decision` carries a generic
+  `{question, prompt, answer_field, answer}` envelope whose `answer` is one of four **shapes**
+  (Subset / PickOne / Partition / Slots); a client dispatches on the shape, not the question,
+  which is why **OOS-DP8-2** (`ChooseTriggerTargets`, the identical gap) reused the CR 601.2c
+  `TargetSlotView` with no new picker and no new encoding. `ActionParams`/`ActionParamsDto` gain
+  the three answer fields; `params.rs` allowlists the three variants and still submits the
+  engine's default when nothing is announced, so **no recorded fuzz seed moves** (OOS-DP8-1).
+  Four HTTP probes, each proven to discriminate by reverting the fix. **Zero engine lines**
+  (empty diff over `crates/engine/src` + `crates/card-types/src`); PROTOCOL **33** / HASH **70**
+  gate-verified unmoved (the criterion's "32" was stale — PB-DX6 bumped it before this fork).
+  Tests **4,124 → 4,138**; coverage unmoved at 63.0%. A **fourth Invariant-7 channel** is opened
+  deliberately: `view::question_card_label` renders a real name for a library card the engine has
+  told this seat to look at (CR 701.22a/23a/25a), because `StateViewModel` models no library
+  contents. **Its fix-cycle HIGH is the durable one** — the doc block cited a gate test that did
+  not exist, and the premise that test would have asserted (`pending.player == session.human`) was
+  enforced *nowhere*, holding only by arithmetic on a one-element set. `seat_view` now filters on
+  it and the gate exists and is two-sided. Generalisable: **when a comment calls an argument
+  "structural", check the structure is in the code and not in the configuration.** Still open: the
+  **TUI** halves of OOS-DP7-6/DP8-2/DP9-7, and no picker has an automated test. **Full narrative:
+  `memory/archive/claude-md-changelog-2026-08.md`**; limitations `tools/play-server/README.md`
+  14-17.
+- - **Prior**: 2026-08-02 — **PB-DX6 SHIPPED** (`scutemob-172`, merge `cb0755bf`; redone from
   scratch after the wave-7 crash, staged 0/A-F): **OOS-RS2-1 + OOS-DP4-1 CLOSED** —
   `handle_turn_face_up` paid a raw unflattened `def.mana_cost` in **all three** `TurnFaceUpMethod`
   arms (the brief named one), so every hybrid/Phyrexian pip in a face-up flip was free in release (a

@@ -15,8 +15,8 @@
 
 use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::{
-    AdditionalCost, AltCostKind, AttackTarget, Command, GameState, ManaColor, ObjectId, PlayerId,
-    Target,
+    AdditionalCost, AltCostKind, AttackTarget, Command, EffectChoiceAnswer, GameState, ManaColor,
+    ObjectId, PlayerId, Target,
 };
 
 use crate::legal_actions::{self, LegalAction};
@@ -46,6 +46,45 @@ pub struct ActionParams {
     /// Consolidated additional costs (sacrifice, discard, exile-from-zone, etc.)
     /// for a `CastSpell`.
     pub additional_costs: Vec<AdditionalCost>,
+    /// CR 514.1 / CR 701.9b (UI-1): the cards this player chose to discard for a
+    /// [`LegalAction::DiscardToHandSize`]. Empty means "accept the engine's own
+    /// default", in which case the action's `cards` field is submitted verbatim —
+    /// the same "empty means default" contract [`Self::blocker_order`] uses, and
+    /// unambiguous for the same reason: a real answer is never empty, because the
+    /// decision only exists when `count >= 1` (`BlockingDecision::CleanupDiscard`
+    /// is raised only for a hand OVER the maximum).
+    ///
+    /// Membership, cardinality and duplication are the ENGINE's judgment
+    /// (`rules::turn_actions::handle_discard_to_hand_size`), never re-derived here.
+    pub discard_cards: Vec<ObjectId>,
+    /// CR 608.2d (UI-1): this player's answer to a
+    /// [`LegalAction::AnswerEffectChoice`] — a library search, a scry or a
+    /// surveil. `None` means "accept the engine's own default", in which case the
+    /// action's `answer` field is submitted verbatim.
+    ///
+    /// An `Option` rather than the "empty means default" convention above because
+    /// the answer is an enum, not a collection, and several of its variants have a
+    /// legitimately empty payload: `Scry { bottom: [], top: [] }` on a scry whose
+    /// `looked_at` is empty, and `SearchLibrary { found: None }` — CR 701.23b's
+    /// deliberate fail-to-find, which is a REAL answer and must not be readable as
+    /// "no answer given".
+    ///
+    /// Legality is checked against the engine's own recorded question
+    /// (`effects::handle_answer_effect_choice`), never re-derived here.
+    pub effect_choice_answer: Option<EffectChoiceAnswer>,
+    /// CR 603.3d / CR 601.2c (UI-1, OOS-DP8-2): this player's per-slot targets for
+    /// a [`LegalAction::ChooseTriggerTargets`], outer index = slot in the action's
+    /// own `slots` order. Empty means "accept the engine's own default", in which
+    /// case the action's `targets` field is submitted verbatim.
+    ///
+    /// Unambiguous for the same reason `discard_cards` is: a `ChooseTriggerTargets`
+    /// action is only ever offered when the trigger has at least one slot AND the
+    /// answer is not forced (`abilities::forced_trigger_target_answer` short-circuits
+    /// the question otherwise), and `default_trigger_targets` emits one entry per
+    /// slot — so a real answer's OUTER vector is always non-empty even when every
+    /// inner one is (an all-optional trigger answered "choose none" is
+    /// `vec![vec![], vec![]]`, not `vec![]`).
+    pub trigger_targets: Vec<Vec<Target>>,
     /// If true, `LocalGame::submit` (item 7) will tap mana sources on the human
     /// seat's behalf before applying a `CastSpell` command, but only when the
     /// player's EXISTING mana pool cannot already cover the cost.
@@ -113,6 +152,19 @@ impl ActionParams {
         if !self.additional_costs.is_empty() {
             return Some("additional_costs");
         }
+        // UI-1: the three blocking-decision answers. Listed here for the same
+        // reason every field above is — announcing a discard subset on a
+        // `PassPriority` means the client and the pending decision disagree about
+        // what is being answered, and refusing beats discarding it in silence.
+        if !self.discard_cards.is_empty() {
+            return Some("discard_cards");
+        }
+        if self.effect_choice_answer.is_some() {
+            return Some("effect_choice_answer");
+        }
+        if !self.trigger_targets.is_empty() {
+            return Some("trigger_targets");
+        }
         None
     }
 }
@@ -150,24 +202,30 @@ impl std::error::Error for ParamError {}
 /// plan permits it opportunistically and it is not in this session's scope.
 ///
 /// Every arm ports `random_bot::action_to_command`'s pre-Session-3 behavior
-/// verbatim except where a `LegalAction` variant now honours `params` (`CastSpell`,
+/// verbatim except where a `LegalAction` variant honours `params` (`CastSpell`,
 /// `TapForMana`'s validation, `ActivateAbility`, `DeclareAttackers`,
-/// `DeclareBlockers`, `KeepHand`). Every other arm is an identical port, and
-/// announcing any param on one of them is rejected with
+/// `DeclareBlockers`, `KeepHand`, and — added by UI-1 — `DiscardToHandSize`,
+/// `ChooseTriggerTargets`, `AnswerEffectChoice`). Every other arm is an identical
+/// port, and announcing any param on one of them is rejected with
 /// `ParamError::UnsupportedParam` rather than silently discarded.
 ///
 /// Residual, deliberately not guarded: a param announced on a *consuming* arm that
 /// that arm does not read (e.g. `attackers` alongside a `CastSpell`) is still
-/// ignored. The five consuming arms would each need their own field allowlist to
+/// ignored. The nine consuming arms would each need their own field allowlist to
 /// catch that, and the failure mode is far less confusing than a wholly unread
 /// `targets` — the action being answered is still the one the client picked.
+/// `tools/play-server`'s `api.rs` closes the half of this that a browser client can
+/// actually hit, by checking a submitted answer against the candidate lists the
+/// same response carried before `submit` is ever called.
 pub fn action_to_command_with_params(
     state: &GameState,
     player: PlayerId,
     action: &LegalAction,
     params: &ActionParams,
 ) -> Result<Command, ParamError> {
-    // Exactly six `LegalAction` variants have a parameterization channel. For every
+    // Exactly nine `LegalAction` variants have a parameterization channel — the six
+    // CR 601.2b-601.2h announcement arms, plus (UI-1) the three blocking-decision
+    // arms whose answer used to be baked into the `LegalAction` itself. For every
     // other action, an announced param means the client and the pending decision
     // disagree about what is being answered — refuse rather than silently discard it.
     // `auto_tap` is excluded (see `first_announced_field`).
@@ -179,6 +237,9 @@ pub fn action_to_command_with_params(
             | LegalAction::DeclareBlockers { .. }
             | LegalAction::OrderBlockers { .. }
             | LegalAction::KeepHand
+            | LegalAction::DiscardToHandSize { .. }
+            | LegalAction::ChooseTriggerTargets { .. }
+            | LegalAction::AnswerEffectChoice { .. }
     ) {
         if let Some(field) = params.first_announced_field() {
             return Err(ParamError::UnsupportedParam(field));
@@ -459,7 +520,7 @@ pub fn action_to_command_with_params(
         // announced. This comment read "to be filed for S6/S7" from S5 until S8's
         // close, and S6, S7 and S8 all shipped without filing it — review MR-M11-06.
         // A comment asserting a seed exists is not a seed; the seed is the row.
-        // `ActivateLoyaltyAbility` is outside the six-arm
+        // `ActivateLoyaltyAbility` is outside the nine-arm
         // allowlist above, so `ActionParams { targets, .. }` on a planeswalker
         // ability is REJECTED with `UnsupportedParam("targets")` rather than
         // forwarded — loud, not silently wrong, but it means a human still cannot
@@ -493,29 +554,62 @@ pub fn action_to_command_with_params(
             recover_card: *recover_card,
             pay: *pay,
         }),
-        // CR 603.3d / CR 601.2c (PB-DP8 / DP-6): submit the engine's OWN default
-        // verbatim, do not randomise/parameterize. Randomising would change every
-        // fuzzer seed's outcome (OOS-DP8-1); a human client wanting a different
-        // answer is out of scope for this session.
+        // ── The three blocking-decision arms (UI-1) ──────────────────────────────
+        //
+        // Each of these used to submit the `LegalAction`'s own default
+        // UNCONDITIONALLY, and `params` was unread. That is the mechanism behind
+        // the first human playtest's "the game discards for me" and "it never asks
+        // me to scry" (`memory/playtest-triage-2026-08-02.md` F8): `StubProvider`
+        // bakes the engine-accepted default into the action, so a client holding
+        // only an action index could echo the default and nothing else.
+        //
+        // The default is still the fallback, and that is load-bearing rather than
+        // conservative: `random_bot::action_to_command` reaches these arms with a
+        // `ActionParams::default()`, so an unparameterized submission produces a
+        // BYTE-IDENTICAL `Command` to the pre-UI-1 one and no recorded fuzz seed's
+        // outcome moves (OOS-DP8-1, the same constraint PB-DP8/DP9 wrote these arms
+        // under). What changes is only that a caller who *does* announce an answer
+        // now has it forwarded instead of dropped.
+        //
+        // Nothing here re-derives legality. `handle_discard_to_hand_size`,
+        // `handle_choose_trigger_targets` and `handle_answer_effect_choice` each
+        // validate an arbitrary answer against the engine's OWN recorded entry
+        // (count/membership/duplication; slot count/cardinality/membership/
+        // distinctness; question-variant agreement/partition), and re-deriving any
+        // of that here would be the OOS-RS-2 drift class.
+        //
+        // CR 514.1 / CR 701.9b (PB-DP7 / DP-3).
         LegalAction::DiscardToHandSize { cards, .. } => Ok(Command::DiscardToHandSize {
             player,
-            cards: cards.clone(),
+            cards: if params.discard_cards.is_empty() {
+                cards.clone()
+            } else {
+                params.discard_cards.clone()
+            },
         }),
+        // CR 603.3d / CR 601.2c (PB-DP8 / DP-6). This arm is OOS-DP8-2's half of
+        // UI-1: the channel exists and is symmetrical with the two beside it.
         LegalAction::ChooseTriggerTargets {
             choice_id, targets, ..
         } => Ok(Command::ChooseTriggerTargets {
             player,
             choice_id: *choice_id,
-            targets: targets.clone(),
+            targets: if params.trigger_targets.is_empty() {
+                targets.clone()
+            } else {
+                params.trigger_targets.clone()
+            },
         }),
-        // CR 608.2d (PB-DP9 / DP-7/8/9): submit the engine's OWN default verbatim,
-        // for the same reason as ChooseTriggerTargets above.
+        // CR 608.2d (PB-DP9 / DP-7/8/9).
         LegalAction::AnswerEffectChoice {
             choice_id, answer, ..
         } => Ok(Command::AnswerEffectChoice {
             player,
             choice_id: *choice_id,
-            answer: answer.clone(),
+            answer: params
+                .effect_choice_answer
+                .clone()
+                .unwrap_or_else(|| answer.clone()),
         }),
     }
 }
@@ -705,5 +799,253 @@ mod tests {
             panic!("expected Command::DeclareAttackers, got {cmd:?}");
         };
         assert!(hybrid_choices.is_empty() && phyrexian_life_payments.is_empty());
+    }
+
+    // ── UI-1: the three blocking-decision arms ────────────────────────────────
+    //
+    // These check the MAPPING only — that an announced answer reaches the
+    // `Command` and that an unannounced one still produces the pre-UI-1 default.
+    // Whether the engine ACCEPTS a given answer is the engine's own business and
+    // is tested where that validation lives (`handle_discard_to_hand_size`,
+    // `handle_answer_effect_choice`, `handle_choose_trigger_targets`) and,
+    // end-to-end over HTTP, in `tools/play-server`.
+
+    /// A bare two-player state. These three arms read nothing off `GameState` —
+    /// only the allowlist match and the params — so the fixture is deliberately
+    /// empty rather than elaborate.
+    fn bare_state() -> (GameState, PlayerId) {
+        let p1 = PlayerId(1);
+        let state = GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(PlayerId(2))
+            .active_player(p1)
+            .build()
+            .unwrap();
+        (state, p1)
+    }
+
+    fn discard_action() -> LegalAction {
+        LegalAction::DiscardToHandSize {
+            count: 2,
+            hand: vec![ObjectId(10), ObjectId(11), ObjectId(12), ObjectId(13)],
+            // `default_cleanup_discard`'s shape: the `count` HIGHEST ids.
+            cards: vec![ObjectId(12), ObjectId(13)],
+        }
+    }
+
+    /// CR 514.1: an unparameterized submission is byte-identical to the pre-UI-1
+    /// one. This is the property that keeps every recorded fuzz seed reproducing
+    /// (OOS-DP8-1) — `random_bot` reaches this arm with `ActionParams::default()`.
+    #[test]
+    fn discard_arm_without_params_submits_the_engines_own_default() {
+        let (state, p1) = bare_state();
+        let cmd =
+            action_to_command_with_params(&state, p1, &discard_action(), &ActionParams::default())
+                .unwrap();
+        let Command::DiscardToHandSize { cards, .. } = &cmd else {
+            panic!("expected Command::DiscardToHandSize, got {cmd:?}");
+        };
+        assert_eq!(
+            cards,
+            &vec![ObjectId(12), ObjectId(13)],
+            "the default is the action's own `cards`"
+        );
+    }
+
+    /// CR 514.1 (playtest triage F8): the human's subset reaches the `Command`.
+    /// The chosen pair is disjoint from the default, so this cannot pass by
+    /// accidentally still submitting the default.
+    #[test]
+    fn discard_arm_forwards_a_human_chosen_subset() {
+        let (state, p1) = bare_state();
+        let params = ActionParams {
+            discard_cards: vec![ObjectId(10), ObjectId(11)],
+            ..ActionParams::default()
+        };
+        let cmd = action_to_command_with_params(&state, p1, &discard_action(), &params).unwrap();
+        let Command::DiscardToHandSize { cards, .. } = &cmd else {
+            panic!("expected Command::DiscardToHandSize, got {cmd:?}");
+        };
+        assert_eq!(cards, &vec![ObjectId(10), ObjectId(11)]);
+    }
+
+    fn scry_action() -> LegalAction {
+        let question = mtg_engine::EffectChoiceQuestion::Scry {
+            looked_at: vec![ObjectId(20), ObjectId(21)],
+        };
+        LegalAction::AnswerEffectChoice {
+            choice_id: 7,
+            source: ObjectId(5),
+            // Built through the engine's own helper, so the "default" this test
+            // pins cannot drift from the one `StubProvider` actually offers.
+            answer: mtg_engine::effects::default_effect_choice_answer(&question),
+            question,
+        }
+    }
+
+    /// CR 608.2d: the scry default is the IDENTITY (everything stays on top), and
+    /// an unparameterized submission still produces exactly it.
+    #[test]
+    fn effect_choice_arm_without_params_submits_the_engines_own_default() {
+        let (state, p1) = bare_state();
+        let cmd =
+            action_to_command_with_params(&state, p1, &scry_action(), &ActionParams::default())
+                .unwrap();
+        let Command::AnswerEffectChoice { answer, .. } = &cmd else {
+            panic!("expected Command::AnswerEffectChoice, got {cmd:?}");
+        };
+        assert_eq!(
+            answer,
+            &EffectChoiceAnswer::Scry {
+                bottom: vec![],
+                top: vec![ObjectId(20), ObjectId(21)],
+            },
+            "the identity partition is the pre-UI-1 behaviour and must be preserved"
+        );
+    }
+
+    /// CR 701.22a (playtest triage F8): a real scry — one card bottomed, the other
+    /// kept — reaches the `Command`. `bottom` being non-empty is exactly what the
+    /// default can never produce, so this discriminates.
+    #[test]
+    fn effect_choice_arm_forwards_a_human_answer() {
+        let (state, p1) = bare_state();
+        let chosen = EffectChoiceAnswer::Scry {
+            bottom: vec![ObjectId(20)],
+            top: vec![ObjectId(21)],
+        };
+        let params = ActionParams {
+            effect_choice_answer: Some(chosen.clone()),
+            ..ActionParams::default()
+        };
+        let cmd = action_to_command_with_params(&state, p1, &scry_action(), &params).unwrap();
+        let Command::AnswerEffectChoice { answer, .. } = &cmd else {
+            panic!("expected Command::AnswerEffectChoice, got {cmd:?}");
+        };
+        assert_eq!(answer, &chosen);
+    }
+
+    /// CR 701.23b: `SearchLibrary { found: None }` is a genuine answer (fail to
+    /// find), not an absent one. This is why `effect_choice_answer` is an
+    /// `Option<..>` and not an "empty means default" collection — with the latter
+    /// encoding this submission would silently become "find the first candidate",
+    /// which is the opposite of what the human asked for.
+    #[test]
+    fn a_deliberate_fail_to_find_is_not_read_as_no_answer() {
+        let (state, p1) = bare_state();
+        let question = mtg_engine::EffectChoiceQuestion::SearchLibrary {
+            candidates: vec![ObjectId(30), ObjectId(31)],
+            may_fail_to_find: true,
+        };
+        let action = LegalAction::AnswerEffectChoice {
+            choice_id: 1,
+            source: ObjectId(5),
+            answer: mtg_engine::effects::default_effect_choice_answer(&question),
+            question,
+        };
+        let params = ActionParams {
+            effect_choice_answer: Some(EffectChoiceAnswer::SearchLibrary { found: None }),
+            ..ActionParams::default()
+        };
+        let cmd = action_to_command_with_params(&state, p1, &action, &params).unwrap();
+        let Command::AnswerEffectChoice { answer, .. } = &cmd else {
+            panic!("expected Command::AnswerEffectChoice, got {cmd:?}");
+        };
+        assert_eq!(
+            answer,
+            &EffectChoiceAnswer::SearchLibrary { found: None },
+            "a fail-to-find must not be overwritten by the default's \
+             `candidates.first()`"
+        );
+    }
+
+    fn trigger_targets_action() -> LegalAction {
+        LegalAction::ChooseTriggerTargets {
+            choice_id: 3,
+            source: ObjectId(5),
+            slots: vec![],
+            targets: vec![vec![Target::Player(PlayerId(2))]],
+        }
+    }
+
+    /// CR 603.3d (OOS-DP8-2): the same two properties for the trigger-target arm —
+    /// the channel this batch adds so the identical gap is closed by construction
+    /// rather than by a follow-up.
+    #[test]
+    fn trigger_targets_arm_defaults_then_forwards() {
+        let (state, p1) = bare_state();
+        let cmd = action_to_command_with_params(
+            &state,
+            p1,
+            &trigger_targets_action(),
+            &ActionParams::default(),
+        )
+        .unwrap();
+        let Command::ChooseTriggerTargets { targets, .. } = &cmd else {
+            panic!("expected Command::ChooseTriggerTargets, got {cmd:?}");
+        };
+        assert_eq!(targets, &vec![vec![Target::Player(PlayerId(2))]]);
+
+        let chosen = vec![vec![Target::Player(PlayerId(1))]];
+        let params = ActionParams {
+            trigger_targets: chosen.clone(),
+            ..ActionParams::default()
+        };
+        let cmd =
+            action_to_command_with_params(&state, p1, &trigger_targets_action(), &params).unwrap();
+        let Command::ChooseTriggerTargets { targets, .. } = &cmd else {
+            panic!("expected Command::ChooseTriggerTargets, got {cmd:?}");
+        };
+        assert_eq!(targets, &chosen);
+    }
+
+    /// The allowlist half: an answer announced on an action that has no channel
+    /// for it is REFUSED, not discarded. Without this, a client whose picker state
+    /// desynchronised from the decision would silently pass priority while
+    /// believing it had discarded.
+    #[test]
+    fn an_answer_announced_on_the_wrong_action_is_refused() {
+        let (state, p1) = bare_state();
+        for (params, expected) in [
+            (
+                ActionParams {
+                    discard_cards: vec![ObjectId(10)],
+                    ..ActionParams::default()
+                },
+                "discard_cards",
+            ),
+            (
+                ActionParams {
+                    effect_choice_answer: Some(EffectChoiceAnswer::SearchLibrary { found: None }),
+                    ..ActionParams::default()
+                },
+                "effect_choice_answer",
+            ),
+            (
+                ActionParams {
+                    trigger_targets: vec![vec![]],
+                    ..ActionParams::default()
+                },
+                "trigger_targets",
+            ),
+        ] {
+            let err =
+                action_to_command_with_params(&state, p1, &LegalAction::PassPriority, &params)
+                    .expect_err("PassPriority has no answer channel");
+            assert_eq!(err, ParamError::UnsupportedParam(expected));
+        }
+    }
+
+    /// The converse, and the reason the allowlist edit is not merely cosmetic: the
+    /// three arms are now IN it, so the same params reach their own action instead
+    /// of being refused. Before UI-1 this returned `UnsupportedParam`.
+    #[test]
+    fn the_three_arms_are_inside_the_allowlist() {
+        let (state, p1) = bare_state();
+        let params = ActionParams {
+            discard_cards: vec![ObjectId(10), ObjectId(11)],
+            ..ActionParams::default()
+        };
+        assert!(action_to_command_with_params(&state, p1, &discard_action(), &params).is_ok());
     }
 }

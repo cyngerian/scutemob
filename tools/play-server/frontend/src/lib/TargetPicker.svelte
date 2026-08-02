@@ -13,8 +13,12 @@
    *   min (number), max (number) — the COLLECTIVE range from
    *     `mtg_engine::target_count_range`, equal to the sum of the slots' own.
    *   disabled (bool) — a request is in flight
-   *   onConfirm (fn(targets)) — `targets` is a `Target[]` in slot order, with a
-   *     slot contributing between its own `min` and `max` entries
+   *   onConfirm (fn(targets, perSlot)) — `targets` is a `Target[]` in slot order,
+   *     with a slot contributing between its own `min` and `max` entries.
+   *     `perSlot` is the SAME data grouped, `Target[][]`, one inner array per slot
+   *     — see "Two shapes of the same announcement" below. A caller that wants the
+   *     flat CR 601.2c announcement ignores the second argument, exactly as the
+   *     original single-argument caller does.
    *   onCancel (fn)
    *
    * # A slot is a requirement, and a requirement is not always worth one target
@@ -42,6 +46,22 @@
    * slot 1 — e.g. `TargetPermanentDistinctFrom` — and the server is the one place
    * that actually enforces distinctness, per `queries.rs`'s own "advisory" doc
    * comment).
+   *
+   * # Two shapes of the same announcement (UI-1, `scutemob-174`)
+   *
+   * A cast/activation announces a FLAT `targets` vector (`Command::CastSpell`), but
+   * a trigger's target announcement is `trigger_targets: Vec<Vec<Target>>` — one
+   * array per slot (`AnswerShapeView::Slots`, `ActionParamsDto::trigger_targets`).
+   * Both are answered by this exact picker over the same `Vec<TargetSlotView>`.
+   *
+   * The flat list CANNOT be regrouped after the fact: a slot may contribute between
+   * its own `min` and `max` entries (see the header), so the per-slot counts are
+   * not recoverable from a concatenation. Rather than have the caller guess them —
+   * which is correct only while every slot happens to be exactly-one, and silently
+   * wrong the first time an `UpToN` trigger slot appears — `confirm` builds the
+   * grouped form FIRST and derives the flat one from it, then hands back both.
+   * There is exactly one grouping in existence and the two arguments cannot
+   * disagree, because one is `.flat()` of the other.
    *
    * # Labels are never re-derived
    *
@@ -106,15 +126,14 @@
 
   function confirm() {
     if (disabled || !canConfirm) return;
-    const targets = [];
-    for (let i = 0; i < slots.length; i++) {
-      // Ascending candidate order within a slot, so the announced list is a
-      // deterministic function of the selection rather than of click order.
-      for (const c of [...picked[i]].sort((a, b) => a - b)) {
-        targets.push(slots[i].candidates[c].value);
-      }
-    }
-    onConfirm?.(targets);
+    // Grouped first, flat derived from it — see "Two shapes of the same
+    // announcement" above. Ascending candidate order within a slot, so the
+    // announced list is a deterministic function of the selection rather than of
+    // click order.
+    const perSlot = slots.map((slot, i) =>
+      [...picked[i]].sort((a, b) => a - b).map((c) => slot.candidates[c].value),
+    );
+    onConfirm?.(perSlot.flat(), perSlot);
   }
 
   function slotRangeText(slot) {

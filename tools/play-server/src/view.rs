@@ -44,8 +44,8 @@
 use std::collections::HashMap;
 
 use mtg_engine::{
-    AbilityDefinition, AdditionalCost, AttackTarget, Effect, GameState, ModeSelection, ObjectId,
-    PlayerId, Target, TargetRequirement,
+    AbilityDefinition, AdditionalCost, AttackTarget, Effect, EffectChoiceAnswer,
+    EffectChoiceQuestion, GameState, ModeSelection, ObjectId, PlayerId, Target, TargetRequirement,
 };
 use mtg_simulator::{
     ActionParams, DecisionKind, GameResult, HaltReason, LegalAction, PendingDecision,
@@ -193,6 +193,153 @@ pub struct ActionOptionView {
     pub block: Option<BlockOptionsView>,
     /// CR 509.2: present exactly on an `OrderBlockers` option.
     pub order: Option<OrderBlockersOptionsView>,
+    /// The full answer space of a **blocking decision** — a cleanup discard (CR
+    /// 514.1), a resolution-time effect choice (CR 608.2d: search / scry /
+    /// surveil), or a trigger's target announcement (CR 603.3d).
+    ///
+    /// `None` on every other action. See [`BlockingDecisionView`].
+    pub decision: Option<BlockingDecisionView>,
+}
+
+/// One blocking decision, as everything a client needs to render a real picker
+/// (UI-1; `memory/playtest-triage-2026-08-02.md` F8).
+///
+/// # Why this exists
+///
+/// `StubProvider` bakes the engine's own deterministic default into the
+/// `LegalAction` — cleanup discard = the `count` highest `ObjectId`s, scry/surveil
+/// = the identity partition, search = `candidates.first()` — precisely so a *bot*
+/// can submit it and always be accepted (SR-38). The candidate data rides along on
+/// the same action so a *human* client can render a choice instead
+/// (`legal_actions.rs`'s own doc says so). Until UI-1 this view layer threw that
+/// data away, so the browser rendered one bare button that submitted the default:
+/// the game discarded the right-hand cards for you and resolved every scry as a
+/// no-op.
+///
+/// # Generic on purpose
+///
+/// The three questions are one *shape* problem, not three: pick a subset, pick one,
+/// split a pile, fill some slots. So a client renders [`Self::answer`]'s **shape**,
+/// not [`Self::question`] — and a fourth question that reuses an existing shape
+/// needs no new client code at all. That claim is not aspirational here:
+/// `ChooseTriggerTargets` (OOS-DP8-2, filed as the *identical* gap) is carried by
+/// [`AnswerShapeView::Slots`], whose payload is the same `Vec<TargetSlotView>` the
+/// CR 601.2c target picker already renders.
+///
+/// # Hidden information (Architecture Invariant 7)
+///
+/// Every label here is seat-redacted, but **not all of them come from
+/// [`NameIndex`]**, and that difference is the interesting part — see
+/// [`question_card_label`].
+#[derive(Debug, Serialize)]
+pub struct BlockingDecisionView {
+    /// Stable machine tag for the question class: `"CleanupDiscard"`,
+    /// `"SearchLibrary"`, `"Scry"`, `"Surveil"`, `"TriggerTargets"`. For display
+    /// and telemetry; a client that switches on this rather than on
+    /// [`Self::answer`]'s shape is doing more work than it needs to.
+    pub question: String,
+    /// One-line prompt, rendered server-side from the seat-redacted labels.
+    pub prompt: String,
+    /// Which [`ActionParamsDto`] field carries the answer to this question:
+    /// `"discard_cards"`, `"effect_choice_answer"` or `"trigger_targets"`.
+    ///
+    /// Sent rather than inferred from the shape because the mapping is
+    /// many-to-one (`PickOne` and `Partition` both answer through
+    /// `effect_choice_answer`), and a client that inferred it would be a second
+    /// place that has to know the params schema.
+    pub answer_field: String,
+    /// The answer's shape — which picker to render, and what to render it over.
+    pub answer: AnswerShapeView,
+}
+
+/// How a [`BlockingDecisionView`] is answered. One variant per *shape*, not per
+/// question — see that type's doc.
+///
+/// Externally tagged under a `shape` key, so the client's dispatch is
+/// `decision.answer.shape`.
+#[derive(Debug, Serialize)]
+#[serde(tag = "shape")]
+pub enum AnswerShapeView {
+    /// CR 514.1 / CR 701.9b: choose **exactly** [`Self::Subset::count`] of
+    /// `candidates`. The answer is the chosen ids, into
+    /// `ActionParamsDto::discard_cards`.
+    Subset {
+        candidates: Vec<CardOptionView>,
+        /// `handle_discard_to_hand_size` requires exactly this many, with no
+        /// duplicates, each in the player's own hand.
+        count: usize,
+        /// The engine's own default subset — the `count` highest `ObjectId`s
+        /// (`default_cleanup_discard`). Sent so a client can offer "accept the
+        /// default" as one click, and so a test can assert it drove something else.
+        default: Vec<u64>,
+    },
+    /// CR 701.23a/b: choose one of `candidates`, or none iff `may_decline`. The
+    /// answer goes into `ActionParamsDto::effect_choice_answer`.
+    PickOne {
+        candidates: Vec<CardOptionView>,
+        /// CR 701.23b vs CR 701.23d. `false` for an unrestricted "search your
+        /// library for a card", where finding is MANDATORY and a `found: null`
+        /// answer is refused by the engine — so a client must not offer the button.
+        may_decline: bool,
+        /// See [`AnswerShapeView::Partition::template`].
+        template: EffectChoiceAnswer,
+        /// The key inside `template`'s single variant object that the chosen id
+        /// goes in (`"found"`). See `template`.
+        found_key: String,
+    },
+    /// CR 701.22a / CR 701.25a: split `looked_at` into two piles. The answer goes
+    /// into `ActionParamsDto::effect_choice_answer`.
+    Partition {
+        /// The cards this player is looking at, **top-first**
+        /// (`Zone::top_n`'s own order).
+        looked_at: Vec<CardOptionView>,
+        /// The key inside `template`'s variant object for the pile that stays on
+        /// the library — always `"top"`, and top-first. See `template`.
+        kept_key: String,
+        /// The key for the other pile: `"bottom"` for a scry, `"graveyard"` for a
+        /// surveil.
+        moved_key: String,
+        /// Prose for the other pile, for the picker's own heading.
+        moved_label: String,
+        /// The engine's own default answer, **serialized verbatim** — the same
+        /// argument as [`TargetOptionView::value`], and load-bearing here.
+        ///
+        /// `EffectChoiceAnswer` is an externally-tagged enum, so this arrives as
+        /// `{"Scry":{"bottom":[],"top":[20,21]}}`. A client answers by cloning it,
+        /// keeping its single key, and replacing the arrays named by `kept_key` /
+        /// `moved_key`. It therefore **never spells the variant name itself**, and
+        /// the wire encoding of `EffectChoiceAnswer` stays known in exactly one
+        /// place (the engine). A client that built `{"Scry": ...}` from scratch
+        /// would be a second place for that encoding to drift.
+        template: EffectChoiceAnswer,
+    },
+    /// CR 603.3d / CR 601.2c: one target list per slot. The answer goes into
+    /// `ActionParamsDto::trigger_targets`, outer index = slot.
+    ///
+    /// **The extension proof for OOS-DP8-2** ([`BlockingDecisionView`]'s doc):
+    /// this reuses [`TargetSlotView`] unchanged, which is what the CR 601.2c
+    /// target picker already renders — so a trigger's target announcement needs no
+    /// new picker component and no new answer encoding.
+    Slots {
+        slots: Vec<TargetSlotView>,
+        /// The engine's own default announcement
+        /// (`abilities::default_trigger_targets`), one entry per slot.
+        default: Vec<Vec<Target>>,
+    },
+}
+
+/// One card in a blocking decision's answer space, with a seat-redacted label.
+///
+/// Shaped like [`CombatantOptionView`] and deliberately not the same type: that
+/// one names a creature on the battlefield, which is public (CR 400.1), and this
+/// one can name a card in a **hidden** zone that the effect has told this seat to
+/// look at. Sharing a type would invite sharing the labelling path, and the two
+/// labelling paths are exactly what must not be confused — see
+/// [`question_card_label`].
+#[derive(Debug, Serialize)]
+pub struct CardOptionView {
+    pub id: u64,
+    pub label: String,
 }
 
 /// One target slot: its own count range, plus every candidate legal for it.
@@ -509,6 +656,22 @@ pub struct ActionParamsDto {
     /// CR 103.5.
     pub cards_to_bottom: Vec<ObjectId>,
     pub additional_costs: Vec<AdditionalCost>,
+    /// CR 514.1 / CR 701.9b (UI-1): the cards chosen for a cleanup discard.
+    /// Empty means "accept the engine's default" — see `ActionParams::discard_cards`.
+    pub discard_cards: Vec<ObjectId>,
+    /// CR 608.2d (UI-1): the answer to a search / scry / surveil, as the engine's
+    /// own `EffectChoiceAnswer` **verbatim** rather than a re-encoding. `null`
+    /// means "accept the engine's default".
+    ///
+    /// This is `Target`'s argument applied to a second type
+    /// (`TargetOptionView::value`): the client echoes back a mutated copy of the
+    /// `template` the server sent on `AnswerShapeView::PickOne`/`Partition`, so the
+    /// externally-tagged encoding of this enum is known in exactly one place.
+    pub effect_choice_answer: Option<EffectChoiceAnswer>,
+    /// CR 603.3d / CR 601.2c (UI-1, OOS-DP8-2): per-slot targets for a trigger's
+    /// announcement, outer index = slot. Empty means "accept the engine's default".
+    /// Each `Target` is echoed verbatim from a `TargetSlotView` candidate's `value`.
+    pub trigger_targets: Vec<Vec<Target>>,
     /// Tap mana sources on the human's behalf before a `CastSpell`, but only
     /// when the existing pool cannot already cover the cost (see
     /// `LocalGame::auto_tap_commands_for`). Defaults to `true`: a browser client
@@ -546,6 +709,9 @@ impl Default for ActionParamsDto {
             blocker_order: Vec::new(),
             cards_to_bottom: Vec::new(),
             additional_costs: Vec::new(),
+            discard_cards: Vec::new(),
+            effect_choice_answer: None,
+            trigger_targets: Vec::new(),
             auto_tap: default_auto_tap(),
         }
     }
@@ -562,6 +728,9 @@ impl From<ActionParamsDto> for ActionParams {
             blocker_order: dto.blocker_order,
             cards_to_bottom: dto.cards_to_bottom,
             additional_costs: dto.additional_costs,
+            discard_cards: dto.discard_cards,
+            effect_choice_answer: dto.effect_choice_answer,
+            trigger_targets: dto.trigger_targets,
             auto_tap: dto.auto_tap,
         }
     }
@@ -1101,6 +1270,259 @@ fn order_options(action: &LegalAction, names: &NameIndex) -> Option<OrderBlocker
     })
 }
 
+/// Display text for a card the **engine has told this seat to look at** — and the
+/// one place in this crate that reads a name from `GameState` rather than from the
+/// seat-redacted [`NameIndex`].
+///
+/// # Why [`NameIndex`] cannot answer this
+///
+/// A scry, a surveil and a library search all name cards in the **library**, and
+/// `StateViewModel` does not model library contents at all — it carries
+/// `library_size` and nothing else. So `NameIndex::label` answers
+/// [`UNKNOWN_LABEL`] for every one of these ids, and a picker built on it would
+/// offer the human three buttons all reading "(unknown card)".
+///
+/// That is not a *safer* outcome, which is the point. The ids are already on the
+/// wire and must be — they are what the answer is expressed in — so rendering them
+/// nameless leaks exactly as much and delivers nothing. The redacted view is the
+/// wrong instrument here, not an instrument that was bypassed.
+///
+/// # The entitlement is the engine's, not this crate's
+///
+/// CR 701.22a / CR 701.23a / CR 701.25a each instruct **this player** to look at
+/// **these cards**. The engine encodes that structurally rather than in prose:
+/// the ids live inside a `PendingEffectChoice { player, question, .. }` minted for
+/// exactly one seat, and `GameEvent::EffectChoiceRequired::private_to()` returns
+/// `Some(player)` for that seat and nobody else (`crates/card-types/src/state/
+/// stubs.rs`, whose own doc says "Every `ObjectId` in every variant names a card in
+/// a HIDDEN zone -- the library. That is why ... `private_to()` returns
+/// `Some(player)`").
+///
+/// So the safety argument is a *structural* one and it has **two** premises:
+///
+/// 1. this function is only ever called with an id drawn out of an
+///    `EffectChoiceQuestion` — every call site below maps over `candidates` /
+///    `looked_at` directly for that reason, and none takes an id from anywhere
+///    else; and
+/// 2. that question is the one the engine minted **for the seat this payload is
+///    being rendered for**.
+///
+/// The second premise used to hold only by arithmetic on a one-element set
+/// (`session::config_for` hard-codes a single human seat, so `pending.player`
+/// happened to always equal `session.human`). It is enforced as of the UI-1 review:
+/// `api.rs::seat_view` filters the pending decision on `pending.player == human`,
+/// so a decision addressed to another seat is absent from this one's payload
+/// rather than rendered into it. Read that filter's comment before weakening it.
+///
+/// # This is a fourth channel, and a new channel is invisible to an old gate
+///
+/// Review MR-M11-01's durable lesson, stated in the crate README: *a redaction gate
+/// checks the channel it was written for.* `GameSummary.seed` shipped for three
+/// sessions past two green Invariant-7 gates because it was a reconstruction key
+/// and both gates watched names. This is the fourth: a **look entitlement**, a real
+/// card name from a hidden zone, deliberately rendered.
+///
+/// # What actually holds it — two gates, and what neither of them covers
+///
+/// * `test_ui1_a_foreign_seats_effect_choice_never_reaches_this_payload` is the
+///   behavioural one. It drives a real scry, confirms this function is returning
+///   real names for it, then moves the **viewer** (`PlaySession::human`) to the
+///   other seat — not the decision, which `advance()` would refresh straight back
+///   — and asserts the payload loses the decision and the `looked_at` field that
+///   carried its cards. It also asserts the matching *write* is refused. It is
+///   two-sided on both halves: removing either `api.rs` guard turns it red.
+///
+///   Precisely what the raw-body half asserts is the absence of the `looked_at`
+///   **key**, not of the card names. The names cannot be asserted absent — seat 2
+///   legitimately holds Swamps of its own — so the key is the right needle, and
+///   saying "every name it carried" would overstate it.
+/// * `test_ui1_view_rs_reads_game_state_in_exactly_the_two_known_places` pins the
+///   number of raw `GameState` object-table reads in this file's production code at
+///   two, so a *third* look channel cannot be opened in silence.
+///
+/// Neither covers a hidden-information channel that reads `GameState` some other
+/// way — `zones()`, `card_registry()`, `player()`. The count gate watches one
+/// needle, which is the same shape of limitation MR-M11-01 is about, and is said
+/// here rather than left to be rediscovered.
+fn question_card_label(state: &GameState, id: ObjectId) -> String {
+    state
+        .objects()
+        .get(&id)
+        .map(|obj| non_empty(&obj.characteristics.name))
+        .unwrap_or_else(|| UNKNOWN_LABEL.to_string())
+}
+
+/// Render the ids of an [`EffectChoiceQuestion`] as labelled options. The single
+/// call path into [`question_card_label`] — see that function's premise.
+fn question_cards(state: &GameState, ids: &[ObjectId]) -> Vec<CardOptionView> {
+    ids.iter()
+        .map(|id| CardOptionView {
+            id: id.0,
+            label: question_card_label(state, *id),
+        })
+        .collect()
+}
+
+/// UI-1: render a blocking decision's answer space, or `None` for an action that
+/// is not one.
+///
+/// Nothing here is re-derived. `count`, `hand`, `candidates`, `looked_at`, `slots`
+/// and every `default` come off the `LegalAction` the provider emitted, which is
+/// the same data `handle_discard_to_hand_size` / `handle_answer_effect_choice` /
+/// `handle_choose_trigger_targets` will validate the answer against — so the
+/// picker the human sees and the check the engine makes cannot disagree.
+fn blocking_decision_view(
+    action: &LegalAction,
+    state: &GameState,
+    names: &NameIndex,
+    player_names: &HashMap<PlayerId, String>,
+) -> Option<BlockingDecisionView> {
+    match action {
+        // CR 514.1 / CR 701.9b. Hand cards ARE in the seat-redacted view (they are
+        // this seat's own), so these labels come through `NameIndex` like every
+        // other label in this file — the `question_card_label` channel is not
+        // involved and must not be.
+        LegalAction::DiscardToHandSize { count, hand, cards } => Some(BlockingDecisionView {
+            question: "CleanupDiscard".to_string(),
+            prompt: format!(
+                "Discard {count} card{} to maximum hand size (CR 514.1)",
+                plural(*count as usize)
+            ),
+            answer_field: "discard_cards".to_string(),
+            answer: AnswerShapeView::Subset {
+                candidates: hand
+                    .iter()
+                    .map(|id| CardOptionView {
+                        id: id.0,
+                        label: names.label(*id),
+                    })
+                    .collect(),
+                count: *count as usize,
+                default: cards.iter().map(|id| id.0).collect(),
+            },
+        }),
+        // CR 608.2d. `source` is a spell or ability on the stack, which is public
+        // (CR 405.1) and therefore in `NameIndex`; the CANDIDATES are library cards
+        // and are not — see `question_card_label`.
+        LegalAction::AnswerEffectChoice {
+            source,
+            question,
+            answer,
+            ..
+        } => {
+            let src = names.label(*source);
+            let (question_tag, prompt, shape) = match question {
+                EffectChoiceQuestion::SearchLibrary {
+                    candidates,
+                    may_fail_to_find,
+                } => (
+                    "SearchLibrary",
+                    format!(
+                        "{src}: search your library — choose a card{} (CR 701.23a)",
+                        if *may_fail_to_find {
+                            ", or fail to find"
+                        } else {
+                            ""
+                        }
+                    ),
+                    AnswerShapeView::PickOne {
+                        candidates: question_cards(state, candidates),
+                        may_decline: *may_fail_to_find,
+                        template: answer.clone(),
+                        found_key: "found".to_string(),
+                    },
+                ),
+                EffectChoiceQuestion::Scry { looked_at } => (
+                    "Scry",
+                    format!(
+                        "{src}: scry {} — put any of these on the bottom of your library \
+                         (CR 701.22a)",
+                        looked_at.len()
+                    ),
+                    AnswerShapeView::Partition {
+                        looked_at: question_cards(state, looked_at),
+                        kept_key: "top".to_string(),
+                        moved_key: "bottom".to_string(),
+                        moved_label: "bottom of library".to_string(),
+                        template: answer.clone(),
+                    },
+                ),
+                EffectChoiceQuestion::Surveil { looked_at } => (
+                    "Surveil",
+                    format!(
+                        "{src}: surveil {} — put any of these into your graveyard \
+                         (CR 701.25a)",
+                        looked_at.len()
+                    ),
+                    AnswerShapeView::Partition {
+                        looked_at: question_cards(state, looked_at),
+                        kept_key: "top".to_string(),
+                        moved_key: "graveyard".to_string(),
+                        moved_label: "graveyard".to_string(),
+                        template: answer.clone(),
+                    },
+                ),
+            };
+            Some(BlockingDecisionView {
+                question: question_tag.to_string(),
+                prompt,
+                answer_field: "effect_choice_answer".to_string(),
+                answer: shape,
+            })
+        }
+        // CR 603.3d / CR 601.2c (OOS-DP8-2). Trigger-target candidates are
+        // `SpellTarget`s naming permanents, players and stack objects — all public,
+        // all in `NameIndex`.
+        LegalAction::ChooseTriggerTargets {
+            source,
+            slots,
+            targets,
+            ..
+        } => Some(BlockingDecisionView {
+            question: "TriggerTargets".to_string(),
+            prompt: format!(
+                "Choose target{} for {}'s triggered ability (CR 603.3d)",
+                plural(slots.len()),
+                names.label(*source)
+            ),
+            answer_field: "trigger_targets".to_string(),
+            answer: AnswerShapeView::Slots {
+                slots: slots
+                    .iter()
+                    .map(|slot| TargetSlotView {
+                        // CR 601.2c: an `optional` slot is `TargetRequirement::UpToN`
+                        // and may legally be answered with zero; every other slot
+                        // takes exactly one. This is `handle_choose_trigger_targets`'
+                        // own per-slot cardinality check (its step 6), read off the
+                        // same two fields rather than re-derived.
+                        min: if slot.optional { 0 } else { 1 },
+                        max: slot.max as usize,
+                        candidates: target_options(
+                            &slot
+                                .candidates
+                                .iter()
+                                .map(|c| c.target.clone())
+                                .collect::<Vec<_>>(),
+                            names,
+                            player_names,
+                        ),
+                    })
+                    .collect(),
+                default: targets.clone(),
+            },
+        }),
+        _ => None,
+    }
+}
+
+fn plural(n: usize) -> &'static str {
+    if n == 1 {
+        ""
+    } else {
+        "s"
+    }
+}
+
 /// Render a `PendingDecision` for the wire.
 ///
 /// `wire_seq` is supplied by the caller rather than read off `decision.seq`:
@@ -1270,6 +1692,7 @@ fn action_option_view(
         attack,
         block,
         order: order_options(action, names),
+        decision: blocking_decision_view(action, state, names, player_names),
     }
 }
 
