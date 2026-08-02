@@ -345,7 +345,14 @@ use crate::state::hash::HASH_SCHEMA_VERSION;
 ///   `CastSpellData`/`ActivateAbility`, so the closure's **type count is
 ///   unchanged** — exact precedent: `- 27: PB-RS2`, the same two fields landing
 ///   on two other variants. Both declared shapes moved, so the digest moves.
-pub const PROTOCOL_VERSION: u32 = 33;
+/// - 34: ENG-1 (2026-08-02, effect-driven discard becomes a real player choice,
+///   CR 701.9b): `EffectChoiceQuestion` and `EffectChoiceAnswer` — both already in
+///   the closure since v31 — each gain a fourth variant, `Discard { hand:
+///   Vec<ObjectId>, count: u32 }` / `Discard { chosen: Vec<ObjectId> }`. Both
+///   field types (`Vec<ObjectId>`, `u32`) are already in the closure, so the
+///   closure's type count is unchanged (96); `EffectChoiceQuestion`'s and
+///   `EffectChoiceAnswer`'s declared shapes moved, so the digest moves.
+pub const PROTOCOL_VERSION: u32 = 34;
 
 /// Digest of the serialized shape of the wire-frame type closure
 /// (`Command`, `GameEvent`, [`ReplayLog`] and everything they reach).
@@ -363,7 +370,7 @@ pub const PROTOCOL_VERSION: u32 = 33;
 /// existing `u32` *means* does not. Semantic changes still require a manual
 /// [`PROTOCOL_VERSION`] bump.
 pub const PROTOCOL_SCHEMA_FINGERPRINT: &str =
-    "a153b6655890ccb3335d83678d7145b27358716334ef0971b898a3a54b4997f6";
+    "2cda8c055ffd09cf507c6d7ca366a9f24915e79268b823cc0507492a89f5e932";
 
 /// One `(version, fingerprint)` row of the append-only protocol-schema history.
 ///
@@ -617,6 +624,14 @@ pub const PROTOCOL_HISTORY: &[ProtocolEpoch] = &[
         // Command::DeclareAttackers both gain hybrid_choices/phyrexian_life_payments
         // (see the `- 33:` History line above). Closure type count unchanged (96).
         fingerprint: "a153b6655890ccb3335d83678d7145b27358716334ef0971b898a3a54b4997f6",
+    },
+    ProtocolEpoch {
+        version: 34,
+        // ENG-1 (2026-08-02, effect-driven discard becomes a real player choice):
+        // EffectChoiceQuestion and EffectChoiceAnswer both gain a fourth Discard
+        // variant (see the `- 34:` History line above). Closure type count
+        // unchanged (96).
+        fingerprint: "2cda8c055ffd09cf507c6d7ca366a9f24915e79268b823cc0507492a89f5e932",
     },
 ];
 

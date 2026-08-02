@@ -2515,11 +2515,11 @@ fn test_dp9_roster_enumeration() {
 ///
 /// A mana ability resolves immediately and OUTSIDE the stack, so there is no
 /// stack object to roll back to and PB-DP9's suspension cannot apply. The
-/// `EffectContext::effect_choice_gate_closed` flag makes the three arms take
+/// `EffectContext::effect_choice_gate_closed` flag makes the four arms take
 /// their deterministic default there instead.
 ///
 /// That branch skips an obligation (offering the choice), so this test is where
-/// the obligation is discharged: **no `Complete` card def puts one of the three
+/// the obligation is discharged: **no `Complete` card def puts one of the four
 /// asking effects inside a mana ability.** If this ever reddens, the branch has
 /// become live and the card needs a rules decision, not a silent default.
 ///
@@ -2555,7 +2555,7 @@ fn test_dp9_mana_ability_gate() {
                     ) {
                         continue;
                     }
-                    let asks = ["SearchLibrary", "Scry", "Surveil"]
+                    let asks = ["SearchLibrary", "Scry", "Surveil", "DiscardCards"]
                         .iter()
                         .any(|v| roster::contains_variant(a, v));
                     if asks {

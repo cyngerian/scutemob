@@ -50,6 +50,7 @@ mod pb_ef6_target_opponent;
 mod pb_ef7_modal_activated;
 mod pb_ef8_exile_self_from_hand;
 mod pb_ef9_while_you_control_source;
+mod pb_eng1_effect_discard_choice;
 mod pb_k_land_drops;
 mod pb_l_landfall;
 mod pb_os10_singleton_cleanup;

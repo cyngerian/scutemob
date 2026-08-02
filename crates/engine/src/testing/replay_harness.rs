@@ -1145,6 +1145,21 @@ pub fn translate_player_action(
                         crate::state::EffectChoiceAnswer::Surveil { graveyard, top }
                     }
                 }
+                crate::state::EffectChoiceQuestion::Discard { hand, count } => {
+                    if spec.discard.is_empty() {
+                        crate::effects::default_effect_choice_answer(&entry.question)
+                    } else {
+                        let mut remaining = hand.clone();
+                        let mut chosen = Vec::new();
+                        for name in &spec.discard {
+                            let id = find_named_among(state, &remaining, name)?;
+                            remaining.retain(|x| *x != id);
+                            chosen.push(id);
+                        }
+                        let _ = count; // legality is the engine's judgment, not ours
+                        crate::state::EffectChoiceAnswer::Discard { chosen }
+                    }
+                }
             };
             Some(Command::AnswerEffectChoice {
                 player,

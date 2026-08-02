@@ -643,6 +643,7 @@ fn format_event(event: &GameEvent, state: &GameState) -> String {
                 mtg_engine::EffectChoiceQuestion::SearchLibrary { .. } => "library search",
                 mtg_engine::EffectChoiceQuestion::Scry { .. } => "scry",
                 mtg_engine::EffectChoiceQuestion::Surveil { .. } => "surveil",
+                mtg_engine::EffectChoiceQuestion::Discard { .. } => "discard",
             };
             format!("P{} must answer a {kind} (CR 608.2d) — press 'r'", player.0)
         }

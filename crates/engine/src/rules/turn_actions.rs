@@ -1401,6 +1401,11 @@ pub fn cleanup_actions(state: &mut GameState) -> Vec<GameEvent> {
 /// The ENGINE NEVER CALLS THIS on a decision path -- `cleanup_actions` always
 /// pauses and asks. It exists so the simulator's `StubProvider`, the replay
 /// harness and the TUI cannot drift from one another.
+///
+/// **This is the OPPOSITE end of the sorted hand from
+/// `effects::default_discard_answer`** (ENG-1), which takes the `count`
+/// LOWEST ids. Both helpers reproduce the auto-pick their site used to make,
+/// and the two auto-picks genuinely differed. Do not "unify" them.
 pub fn default_cleanup_discard(state: &GameState, player: PlayerId) -> Vec<ObjectId> {
     let hand_zone = ZoneId::Hand(player);
     let mut ids: Vec<ObjectId> = state

@@ -96,6 +96,10 @@
   `memory/primitives/seed-rerank-2026-08-02.md` §4). **PB-DX7 is no longer next** — it survives at
   rank 9; eight new entries outrank it. Older queue history (the PB-OS,
   PB-RS and PB-DP chains) is rotated to the 2026-08 archive.
+- **Tests (delta 2026-08-02, ENG-1)**: **4,330 / 0 / 5** full-workspace on branch
+  `scutemob-191` (+13 over a 4,317 baseline measured on that branch BEFORE any edit — 11 engine
+  tests + 2 play-server probes), measured with `--workspace --no-fail-fast` to a file.
+  **PROTOCOL 33 → 34, HASH 70 → 71**, both gate-computed. Earlier pins below.
 - **Tests (delta 2026-08-02, UI-5)**: **4,317 / 0 / 5** full-workspace on branch
   `scutemob-190` (+4 over SIM-6's 4,313 — the four new frontend source gates), measured with
   `--workspace --no-fail-fast` to a file. Earlier pins below.
@@ -229,7 +233,16 @@
 - **Recurrence rule** — future `/collect` and milestone-close bookkeeping appends its detailed PB/SR
   narrative to that archive file (newest first), and updates only a one-paragraph snapshot delta
   here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
-- **Last Updated**: 2026-08-02 — **UI-5 SHIPPED** (`scutemob-190`, merge `08dc4e6a`; rows G8 + G10-G13 of
+- **Last Updated**: 2026-08-02 — **ENG-1 SHIPPED** (`scutemob-191`, merge `<pending>`; **G3** of
+  `memory/playtest-triage-2026-08-02b.md`, row 6 of its successor table).
+  Effect-driven discard is a real player choice: `Effect::DiscardCards` suspends into a new
+  `EffectChoiceQuestion::Discard` (CR 701.9b) instead of auto-picking the lowest `ObjectId`.
+  Tests **4,330 / 0 / 5** (+13); 0 card-def lines, coverage unmoved **1,133/1,803 = 62.8%**;
+  PROTOCOL **34** / HASH **71**; `MAX_AUTO_CHOSEN_COMPLETE_UNION` **91 → 80**.
+  Seeds: **OOS-G3-1 CLOSED**; filed **OOS-ENG1-1, -2, -3, -4, -6, -7, -8, -9, -10** (no `-5`,
+  deliberately unused) + **OOS-G3-2**. Successor candidate: **OOS-ENG1-9**.
+  Full handoff: `memory/workstream-state.md`.
+- **Prior**: 2026-08-02 — **UI-5 SHIPPED** (`scutemob-190`, merge `08dc4e6a`; rows G8 + G10-G13 of
   `memory/playtest-triage-2026-08-02b.md`, the whole UX half of that triage). Frontend only:
   **0 engine lines** (`git diff main..HEAD -- crates/` empty), 0 wire change, PROTOCOL **33** /
   HASH **70** gate-executed. **Concede leaves the priority row** for the header beside "New

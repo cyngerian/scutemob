@@ -472,6 +472,32 @@ pub enum AnswerShapeView {
         /// (`abilities::default_trigger_targets`), one entry per slot.
         default: Vec<Vec<Target>>,
     },
+    /// CR 701.9b (ENG-1): choose **exactly** `count` of `candidates`, answered
+    /// through a template. The answer goes into
+    /// `ActionParamsDto::effect_choice_answer`.
+    ///
+    /// `PickOne` and `PickN` are the two cardinal-choice shapes that answer via
+    /// `effect_choice_answer` and therefore carry a `template` + a key;
+    /// [`Self::Subset`] is the one that answers via its own `discard_cards`
+    /// field and carries no template. Splitting on that, rather than making
+    /// `Subset`'s template optional, means a stale or malformed payload lands in
+    /// `ActionBar`'s visible "unknown shape" fallback instead of posting a body
+    /// the server will 400 (the UI-4 lesson).
+    PickN {
+        candidates: Vec<CardOptionView>,
+        count: usize,
+        /// The key inside `template`'s single variant object that the chosen ids
+        /// go in (`"chosen"`). See [`Self::Partition::template`].
+        chosen_key: String,
+        /// See [`Self::Partition::template`] — serialized verbatim, cloned by the
+        /// client, never re-spelled.
+        template: EffectChoiceAnswer,
+        /// The engine's own default subset (`default_discard_answer`: the `count`
+        /// LOWEST `ObjectId`s -- note that is the opposite end of the hand from
+        /// `Subset`'s CR 514.1 default). Sent so "use the default" is one click
+        /// and so a test can assert the human drove something else.
+        default: Vec<u64>,
+    },
 }
 
 /// One card in a blocking decision's answer space, with a seat-redacted label.
@@ -1087,6 +1113,15 @@ impl NameIndex {
             .get(&id.0)
             .cloned()
             .unwrap_or_else(|| UNKNOWN_LABEL.to_string())
+    }
+
+    /// Same lookup as [`Self::label`], but returns `None` on a miss instead of
+    /// the generic [`UNKNOWN_LABEL`], so a caller can supply a
+    /// candidate-specific fallback. Used by the `PickN` `Discard` arm
+    /// (`OOS-ENG1-9`) to distinguish same-resolution-drawn candidates from each
+    /// other rather than rendering two indistinguishable buttons.
+    pub fn label_opt(&self, id: ObjectId) -> Option<String> {
+        self.names.get(&id.0).cloned()
     }
 
     /// The seat the redacted view associates `id` with, or `None` when it has no
@@ -1898,8 +1933,12 @@ fn blocking_decision_view(
             },
         }),
         // CR 608.2d. `source` is a spell or ability on the stack, which is public
-        // (CR 405.1) and therefore in `NameIndex`; the CANDIDATES are library cards
-        // and are not — see `question_card_label`.
+        // (CR 405.1) and therefore in `NameIndex`. The CANDIDATE source is
+        // PER-QUESTION: `SearchLibrary`/`Scry`/`Surveil` name LIBRARY cards,
+        // which are not in `NameIndex` and go through `question_card_label`
+        // instead; `Discard` (ENG-1, CR 701.9b) names the answerer's own HAND,
+        // which IS in `NameIndex` (see that arm's own comment below) and
+        // deliberately does not use `question_card_label` at all.
         LegalAction::AnswerEffectChoice {
             source,
             question,
@@ -1958,6 +1997,68 @@ fn blocking_decision_view(
                         template: answer.clone(),
                     },
                 ),
+                EffectChoiceQuestion::Discard { hand, count } => {
+                    // CR 701.9b / CR 400.7 / `OOS-ENG1-9`: a card drawn EARLIER
+                    // IN THIS RESOLUTION (e.g. a "draw two, discard one" effect's
+                    // draw half) mints a fresh `ObjectId` that the restored view
+                    // this decision was built from cannot contain, so `names`
+                    // has no entry for it -- not a redaction gap, a same-
+                    // resolution ordering gap (deferred, see `OOS-ENG1-9`).
+                    // Give each such candidate a DISTINGUISHING placeholder
+                    // rather than the bare `UNKNOWN_LABEL`: two same-resolution
+                    // draws must never render as two buttons with identical
+                    // text. The ordinal counts only the unlabelled candidates,
+                    // is stable for a given question (hand order is fixed), and
+                    // can never mislabel a card as a DIFFERENT one -- a
+                    // same-resolution-drawn id is always strictly greater than
+                    // every id the restored view can contain.
+                    let mut undrawn_ordinal = 0usize;
+                    let candidates = hand
+                        .iter()
+                        .map(|id| {
+                            let label = match names.label_opt(*id) {
+                                Some(name) => name,
+                                None => {
+                                    undrawn_ordinal += 1;
+                                    format!("(card drawn this resolution #{undrawn_ordinal})")
+                                }
+                            };
+                            CardOptionView { id: id.0, label }
+                        })
+                        .collect();
+                    (
+                        "Discard",
+                        format!(
+                            "{src}: discard {count} card{} — you choose (CR 701.9b). \
+                             A card drawn earlier in this same resolution cannot be \
+                             named yet (OOS-ENG1-9); it renders as \"(card drawn this \
+                             resolution #N)\".",
+                            plural(*count as usize)
+                        ),
+                        AnswerShapeView::PickN {
+                            // CR 701.9b: these are the ANSWERER'S OWN hand cards, so
+                            // they are already in the seat-redacted view and their
+                            // labels come through `NameIndex` -- exactly as the
+                            // CR 514.1 arm above does it, and deliberately NOT
+                            // through `question_card_label`. That channel exists for
+                            // LIBRARY cards the effect has granted a look at, and
+                            // `test_ui1_view_rs_reads_game_state_in_exactly_the_two_
+                            // known_places` pins its size; routing an owned-hand
+                            // question through it would enlarge a channel for no
+                            // reason and blur what that gate is counting.
+                            candidates,
+                            count: *count as usize,
+                            chosen_key: "chosen".to_string(),
+                            template: answer.clone(),
+                            default: match answer {
+                                EffectChoiceAnswer::Discard { chosen } => {
+                                    chosen.iter().map(|id| id.0).collect()
+                                }
+                                _ => Vec::new(),
+                            },
+                        },
+                    )
+                }
             };
             Some(BlockingDecisionView {
                 question: question_tag.to_string(),

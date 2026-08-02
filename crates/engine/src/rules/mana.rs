@@ -861,21 +861,22 @@ fn fire_mana_triggered_abilities(
                 let dummy_source = trigger_source_id;
                 let mut ctx = EffectContext::new(player, dummy_source, vec![]);
                 ctx.mana_produced = Some(mana_produced.to_vec());
-                // CR 605.1b / CR 605.4a (PB-DP9): a mana ability resolves
+                // CR 605.1b / CR 605.4a (PB-DP9 / ENG-1): a mana ability resolves
                 // immediately, OUTSIDE the stack, so there is no stack object
                 // for `resolve_top_of_stack` to roll back to and PB-DP9's
                 // abort-and-replay suspension cannot apply here. A
-                // `Sequence([AddMana, Scry])` would pass
-                // `is_mana_producing_effect`, so this is a runtime possibility
-                // rather than a type impossibility: close the gate, and a CR
-                // 608.2d choice reached from here takes its deterministic
-                // default. There is deliberately NO `debug_assert` on that
-                // branch -- CR 605.4a leaves no room for an announcement, so the
-                // default is the defined behaviour, not a swallowed failure
-                // (SR-4). The skipped obligation is discharged by
-                // `tests/primitives/pb_dp9_effect_choice.rs`'s
+                // `Sequence([AddMana, Scry])` (or, since ENG-1, `[AddMana,
+                // DiscardCards]`) would pass `is_mana_producing_effect`, so this
+                // is a runtime possibility rather than a type impossibility:
+                // close the gate, and a CR 608.2d choice reached from here takes
+                // its deterministic default. There is deliberately NO
+                // `debug_assert` on that branch -- CR 605.4a leaves no room for
+                // an announcement, so the default is the defined behaviour, not
+                // a swallowed failure (SR-4). The skipped obligation is
+                // discharged by `tests/primitives/pb_dp9_effect_choice.rs`'s
                 // `test_dp9_mana_ability_gate` roster assertion, which proves no
-                // `Complete` card def actually does this.
+                // `Complete` card def actually does this (four asking effects
+                // now: SearchLibrary, Scry, Surveil, DiscardCards).
                 ctx.effect_choice_gate_closed = true;
                 let mut mana_events = execute_effect(state, effect, &mut ctx);
                 // Tag ManaAdded events with no source (triggered mana is not the original tap).

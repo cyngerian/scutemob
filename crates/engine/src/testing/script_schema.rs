@@ -649,6 +649,13 @@ pub struct EffectChoiceScriptAnswer {
     /// looked-at cards not named in `bottom` / `graveyard`, in top-first order.
     #[serde(default)]
     pub top: Vec<String>,
+    /// CR 701.9b (ENG-1): for an effect-driven discard, the cards to discard,
+    /// **in discard order** (CR 608.2f / 404.3 — the order they enter the
+    /// graveyard). Must name exactly the question's `count` cards, all in hand.
+    /// Unlike `bottom`/`graveyard`, there is no complementary half to derive:
+    /// the unchosen cards stay in hand.
+    #[serde(default)]
+    pub discard: Vec<String>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]

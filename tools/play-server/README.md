@@ -651,8 +651,21 @@ dispatches on `answer.shape`, not on `question`:
 |---|---|---|---|
 | `Subset` | `CleanupDiscard` (CR 514.1) | `discard_cards` | `DiscardPicker` |
 | `PickOne` | `SearchLibrary` (CR 701.23a) | `effect_choice_answer` | `SearchPicker` |
+| `PickN` | `Discard` (CR 701.9b) | `effect_choice_answer` | `DiscardPicker` |
 | `Partition` | `Scry` (CR 701.22a), `Surveil` (CR 701.25a) | `effect_choice_answer` | `PartitionPicker` |
 | `Slots` | `TriggerTargets` (CR 603.3d) | `trigger_targets` | the existing `TargetPicker` |
+
+`PickN` (ENG-1, `scutemob-191`) is the second row that tests the design, and it
+tests a *different* edge than `Slots` does: it reuses a **picker** (`DiscardPicker`
+renders "choose exactly N of these cards" either way) while needing a **new shape**,
+because the CR 514.1 cleanup discard answers through its own `discard_cards` field
+and the CR 701.9b effect discard answers through `effect_choice_answer` with a
+template. Making `Subset`'s template optional instead would have been a smaller
+diff and was rejected: a payload whose template was missing or malformed would then
+degrade to posting a bare id array the server 400s, whereas an unknown shape
+degrades to `ActionBar`'s visible, cancellable fallback. That is the UI-4 lesson —
+**the failure mode of the data being wrong is part of the design, not an
+afterthought.**
 
 The last row is the design's own test, and it is why the shape is the discriminant.
 `ChooseTriggerTargets` was filed as the *identical* gap (**OOS-DP8-2**) and it needed
@@ -664,10 +677,10 @@ supplies, and nothing in that component names either question.
 
 ### The client never spells `EffectChoiceAnswer`'s variant name
 
-`PickOne` and `Partition` carry a `template`: the engine's own default answer,
+`PickOne`, `PickN` and `Partition` carry a `template`: the engine's own default answer,
 serialized verbatim, e.g. `{"Scry":{"bottom":[],"top":[20,21]}}`. A client answers
 by cloning it, reading its single key, and replacing only the arrays named by
-`kept_key` / `moved_key` / `found_key`. So the externally-tagged encoding of
+`kept_key` / `moved_key` / `found_key` / `chosen_key`. So the externally-tagged encoding of
 `EffectChoiceAnswer` stays known in exactly one place — the engine. This is
 `TargetOptionView::value`'s argument applied to a second type: a client that built
 `{"Scry": …}` from scratch would be a second place for that encoding to drift, and
@@ -1047,6 +1060,38 @@ repeated here so this README does not claim more than the implementation does.
     browser gives no way to arrange deliberately. Measured at **62 of the 113** bot
     command refusals in `sim5_bot_cast_discipline`'s A/B (seeds 0/7/42). Seed
     **OOS-SIM6-3**; the largest remaining SR-38 violation on this surface.
+
+27. **A draw-then-discard effect renders SOME of its `PickN` candidates unlabelled
+    (ENG-1).** CR 608.2d's suspension rolls the **whole** resolution back
+    (`rules/resolution.rs`, `*state = restart_point`), so for a printing that draws
+    before it discards — Faithless Looting, Chart a Course, Frantic Search, Geier
+    Reach Sanitarium, Greater Good, Izzet Charm, Pull from Tomorrow: **7 of the 12
+    deck-legal `Effect::DiscardCards` defs** — the recorded question names hand
+    objects the *restored* state does not contain, because the draw was undone and
+    CR 400.7 minted new ids. **Only the candidates drawn in that resolution** render
+    unlabelled — pre-existing hand cards render their real names (5 of 7 correct on
+    the Faithless Looting probe) — and since the `/review` fix cycle each unlabelled
+    one carries a distinguishing placeholder, `(card drawn this resolution #N)`, not
+    the generic unknown-card text, so two such candidates no longer look identical
+    to the human. **The answer still applies correctly** (the replay re-draws
+    deterministically and re-mints the same ids), so this is a display gap, not a
+    correctness one. The three library questions are immune **by accident**: they
+    name cards that already existed before the resolution began. The real fix is
+    not a discard patch but a general LKI-for-questions mechanism — capture each
+    candidate's identity at the moment of the ask, where the objects still exist,
+    and carry it through `PendingEffectChoice` → `BlockingDecision` → `LegalAction`
+    → the view. Seed **OOS-ENG1-9**, filed in `docs/audits/decision-point-audit.md`.
+
+28. **The TUI still auto-submits the engine's default for an effect-driven discard
+    (ENG-1, second `/review` pass).** `tools/tui/src/play/input.rs`'s `'r'` key
+    submits `LegalAction::AnswerEffectChoice::answer` verbatim — the engine's own
+    deterministic default (`effects::default_effect_choice_answer`) — for
+    **whichever** `EffectChoiceQuestion` is pending, with no picker. Pre-existing
+    and identical to its handling of scry/surveil/search (same shape as item 19's
+    `OOS-DP7-6`/`OOS-DP8-2`/`OOS-DP9-7` family), so this is **not a regression** —
+    but "effect-driven discard is a real player choice" is now true only on the
+    browser surface; a TUI human still gets the pre-ENG-1 auto-pick. Not fixed
+    here. Seed **OOS-ENG1-10**.
 
 ## `GET /api/game/report` — and the one place Invariant 7 does not apply
 

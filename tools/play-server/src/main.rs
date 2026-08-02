@@ -6773,13 +6773,17 @@ mod tests {
             shared.len()
         );
 
-        // (b) The three pickers really route through the sanctioned helper. A
+        // (b) The four pickers really route through the sanctioned helper. A
         //     picker that stopped taking a copy at all would satisfy the ban
         //     above while quietly mutating its parent's reactive state.
+        //     `DiscardPicker.svelte` joined this list at ENG-1: its `PickN`
+        //     branch (CR 701.9b) builds an answer by cloning a `template` prop,
+        //     the exact shape the other three pickers were already guarded for.
         for picker in [
             "SearchPicker.svelte",
             "PartitionPicker.svelte",
             "CostPicker.svelte",
+            "DiscardPicker.svelte",
         ] {
             let (_, text) = sources
                 .iter()
@@ -6831,9 +6835,11 @@ mod tests {
     ///    That buys a message naming which picker failed.
     /// 2. `stores.js` installs `window` handlers for `error` and
     ///    `unhandledrejection`, and `main.js` calls that installer. That buys the
-    ///    *guarantee*, for the five pickers with no `try` and for every handler
-    ///    written later. Svelte 5's `<svelte:boundary>` is not a substitute — it
-    ///    catches render and effect errors, not DOM handler ones.
+    ///    *guarantee*, for the four pickers with no `try` (ENG-1 moved
+    ///    `DiscardPicker` into the guarded group — its `PickN` branch now clones a
+    ///    template too) and for every handler written later. Svelte 5's
+    ///    `<svelte:boundary>` is not a substitute — it catches render and effect
+    ///    errors, not DOM handler ones.
     ///
     /// Source-level, for the same reason as the gate above: there is no frontend
     /// harness (plan §8 R7). This proves the wiring exists, not that it renders.
@@ -6857,6 +6863,7 @@ mod tests {
             "SearchPicker.svelte",
             "PartitionPicker.svelte",
             "CostPicker.svelte",
+            "DiscardPicker.svelte",
         ] {
             let text = text_of(picker);
             // `onError?.(` and not the bare identifier: the identifier matches the
@@ -6881,8 +6888,8 @@ mod tests {
         let action_bar = text_of("ActionBar.svelte");
         assert_eq!(
             action_bar.matches("onError={onPickerError}").count(),
-            3,
-            "all three template-copying pickers must be given `onPickerError`"
+            4,
+            "all four template-copying pickers must be given `onPickerError`"
         );
         assert!(
             action_bar.contains("onClientError?.("),
@@ -8711,5 +8718,353 @@ mod tests {
             StatusCode::OK,
             "an unofferable discard id must not be accepted: {body}"
         );
+    }
+
+    // ── ENG-1: an effect-driven discard is a real player choice (task scutemob-191) ──
+    //
+    // `memory/primitives/pb-plan-ENG1.md` §8 rows (i)/(j). `Effect::DiscardCards` used
+    // to call `discard_cards` straight through -- the lowest `ObjectId`(s) in the
+    // affected player's hand, never asking (CR 701.9b). The engine half now suspends
+    // into `EffectChoiceQuestion::Discard`; these two probes close the browser-client
+    // half: the wire shape really is `PickN` with real hand-card names, and a foreign
+    // seat's discard question is invisible on that seat's own payload.
+    //
+    // **Fixture choice, and a finding it surfaced.** The obvious fixture --
+    // Faithless Looting ("draw two, then discard two") -- reddens this probe for a
+    // REAL reason, not a test bug: `resolve_top_of_stack`'s CR 608.2d suspend wraps
+    // the WHOLE resolution in a roll-back (`*state = restart_point`), so the two
+    // freshly-drawn cards the recorded `EffectChoiceQuestion::Discard.hand` names do
+    // not exist in the rolled-back state the redacted view is built from, and
+    // `NameIndex` correctly has no entry for them -- `(unknown card)`, not a bug in
+    // the label lookup. That is a genuine, corpus-wide gap (every "draw N, discard
+    // N" card in the roster: Frantic Search, Pull from Tomorrow, Chart a Course, and
+    // Faithless Looting itself) filed as `OOS-ENG1-9`, out of scope for this probe to
+    // fix. Fell Specter's ETB ("target opponent discards a card") has no preceding
+    // same-resolution draw, so its candidate hand is entirely PRE-EXISTING objects
+    // and the premise holds -- used here instead.
+
+    /// CR 701.9b (ENG-1): Fell Specter's ETB targets an opponent for a single
+    /// discard. In a 2-player game the only legal opponent is the human, so
+    /// whichever seat casts it forces the question onto the OTHER seat with no
+    /// target choice to engineer around -- and this fixture's passive human never
+    /// casts anything, so it is always the BOT's copy that resolves. `{3}{B}`
+    /// Creature — Specter 1/3, `Complete`.
+    const ENG1_FELL_SPECTER: &str = "fell-specter";
+
+    /// **Read off a real run, not reasoned to** (the [`UI1_SEED`] convention):
+    /// [`ENG1_SEED`] is the smallest of several thousand candidates, found by a
+    /// throwaway brute-force sweep, for which [`ENG1_FELL_SPECTER`] at
+    /// `main_deck[0]` of the BOT's own deck lands in the BOT's OPENING hand.
+    /// Deliberately NOT [`UI1_SEED`]: a first draft reused it with the identical
+    /// two-seat deck [`ui1_deck`] builds, on the theory that "the shuffle is a
+    /// permutation of positions" (that helper's own doc) would put the override at
+    /// the same post-shuffle slot for both seats. It does not -- each seat's
+    /// shuffle draws from a SHARED RNG stream in seat order (the same mechanism
+    /// SIM-4's `OOS-SIM4-*` notes for mulligan re-dealing), so the two seats'
+    /// permutations differ even from an identical pre-shuffle deck. At
+    /// [`UI1_SEED`] the bot's opening hand was seven Swamps and Fell Specter
+    /// stayed unseen for 28 turns, long enough for the bot's OWN 7-mana commander
+    /// (unreachable "inside the probe's window" only because that window used to
+    /// be short) to kill the passive human by commander damage first.
+    const ENG1_SEED: u64 = 7;
+
+    /// [`ENG1_FELL_SPECTER`] at `main_deck[0]`, 98 Swamps, `UI1_COMMANDER` (mono-black,
+    /// unreachable inside the drive window). The human's deck is plain Swamps --
+    /// this fixture's human never casts anything, so nothing else it could hold
+    /// matters.
+    fn eng1_deck_with(overrides: &[(usize, &str)]) -> mtg_simulator::DeckConfig {
+        use mtg_engine::CardId;
+        let mut main_deck: Vec<CardId> = (0..99).map(|_| CardId("swamp".to_string())).collect();
+        for (index, card) in overrides {
+            main_deck[*index] = CardId(card.to_string());
+        }
+        mtg_simulator::DeckConfig {
+            commander: CardId(UI1_COMMANDER.to_string()),
+            main_deck,
+        }
+    }
+
+    /// Install the ENG-1 fixture: seat 1 (human) a plain-Swamp deck with nothing
+    /// to do but pass; seat 2 (bot) the same shape plus [`ENG1_FELL_SPECTER`] at
+    /// `main_deck[0]`, at [`ENG1_SEED`] so it is in the bot's OPENING hand.
+    fn eng1_install(state: &SharedState) {
+        let cfg = mtg_simulator::LocalGameConfig {
+            player_count: 2,
+            human_seats: [mtg_engine::PlayerId(1)].into_iter().collect(),
+            bot_kind: BotKind::Heuristic,
+            seed: ENG1_SEED,
+            decks: mtg_simulator::DeckSource::Fixed(vec![
+                (mtg_engine::PlayerId(1), eng1_deck_with(&[])),
+                (
+                    mtg_engine::PlayerId(2),
+                    eng1_deck_with(&[(0, ENG1_FELL_SPECTER)]),
+                ),
+            ]),
+            limits: mtg_simulator::LocalGameLimits {
+                max_turns: 200,
+                max_commands: 40_000,
+                max_consecutive_passes: 500,
+                record_journal: true,
+            },
+        };
+        let session = session::new_game(cfg, 0).expect("the ENG-1 fixture deck must be legal");
+        *state.session.lock().expect("fresh lock") = Some(session);
+    }
+
+    /// Drive a PASSIVE human seat -- pass every time, nothing else -- until an
+    /// offered action carries the `want` question. The human never acts in this
+    /// fixture (in particular, never casts anything), so any `Discard` question
+    /// raised is always the BOT's copy of [`ENG1_FELL_SPECTER`] targeting the
+    /// human.
+    async fn eng1_drive_pass_only(state: &SharedState, want: &str, max_steps: usize) -> Value {
+        let (status, mut view) = get_json(state, "/api/game").await;
+        assert_eq!(status, StatusCode::OK, "{view}");
+        for step in 0..max_steps {
+            if ui1_question_index(&view, want).is_some() {
+                return view;
+            }
+            assert!(
+                !view["decision"].is_null(),
+                "the game ended at step {step} without ever asking a {want} question: {view}"
+            );
+            let wire_seq = seq(&view);
+            let actions = view["decision"]["actions"].as_array().unwrap().clone();
+            let pick = actions
+                .iter()
+                .find(|a| a["kind"] == "PassPriority")
+                .or_else(|| actions.iter().find(|a| a["kind"] != "Concede"))
+                .unwrap_or_else(|| panic!("only Concede was offered at step {step}: {view}"));
+            let index = pick["index"].as_u64().unwrap();
+            let (status, next) = post_json(
+                state,
+                "/api/game/action",
+                json!({"seq": wire_seq, "action_index": index, "params": {}}),
+            )
+            .await;
+            assert_eq!(status, StatusCode::OK, "step {step}: {next}");
+            view = next;
+        }
+        panic!("no {want} question within {max_steps} steps");
+    }
+
+    /// **CR 701.9b (ENG-1) — an effect-driven discard, driven to a non-default
+    /// pick over HTTP.**
+    ///
+    /// Three things at once, matching the other UI-1-shaped probes: the reproduction
+    /// (the baked-in default is the count LOWEST `ObjectId`s -- `default_discard_answer`
+    /// mirrors the pre-ENG-1 `min_by_key` auto-pick byte-for-byte), the §4 hidden-info
+    /// premise check (a seat's own hand candidates must carry real names, never the
+    /// unknown-card placeholder -- if this regresses, "the decision belongs to the
+    /// viewer, so its hand ids are already in the viewer's redacted view" is false and
+    /// the `PickN` arm's premise does not hold), and a real, non-default pick.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_eng1_the_browser_renders_a_pickn_discard() {
+        let state = shared_state();
+        eng1_install(&state);
+
+        let view = eng1_drive_pass_only(&state, "Discard", 1200).await;
+        let index = ui1_question_index(&view, "Discard").expect("just found");
+        let option = view["decision"]["actions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|a| a["index"] == index)
+            .expect("the option with that index");
+        let decision = &option["decision"];
+
+        assert_eq!(decision["answer_field"], "effect_choice_answer");
+        let answer = &decision["answer"];
+        assert_eq!(answer["shape"], "PickN");
+        assert_eq!(answer["chosen_key"], "chosen");
+
+        let count = answer["count"].as_u64().expect("count is a number") as usize;
+        assert_eq!(count, 1, "Fell Specter discards exactly 1: {answer}");
+
+        let candidates: Vec<u64> = answer["candidates"]
+            .as_array()
+            .expect("candidates is an array")
+            .iter()
+            .map(|c| c["id"].as_u64().expect("id is a number"))
+            .collect();
+        assert!(
+            candidates.len() > count,
+            "the candidate set is the WHOLE hand, not just the cards to discard: {answer}"
+        );
+
+        // **The §4 hidden-info premise, checked.** These are the answerer's OWN
+        // hand cards, and Fell Specter's discard reaches no cards drawn earlier in
+        // the same resolution, so EVERY candidate must render its real name here --
+        // never `UNKNOWN_LABEL`/`HIDDEN_LABEL`, and never the `OOS-ENG1-9`
+        // same-resolution-draw placeholder either. Asserting against that exact
+        // prefix (not just the two pre-existing constants) is deliberate: a
+        // placeholder-shaped label would silently satisfy `!= UNKNOWN_LABEL`, so a
+        // genuine label regression that started emitting it here would ship green
+        // (review Finding 2). If the labels come back as ANY placeholder, the guard
+        // this arm rests on is not what the plan believes it is.
+        for card in answer["candidates"].as_array().unwrap() {
+            let label = card["label"].as_str().expect("label is a string");
+            assert!(
+                label != view::UNKNOWN_LABEL
+                    && label != view::HIDDEN_LABEL
+                    && !label.starts_with("(card drawn this resolution #"),
+                "a seat's own hand card must render its real name (CR 402.1), not a \
+                 placeholder: {label:?}"
+            );
+        }
+
+        // Reproduction: the default is the count LOWEST ObjectIds (§6:
+        // `default_discard_answer` reproduces the pre-ENG-1 `min_by_key` pick).
+        let mut ascending = candidates.clone();
+        ascending.sort_unstable();
+        let default = ascending[..count].to_vec();
+        assert_eq!(
+            answer["template"],
+            json!({"Discard": {"chosen": default}}),
+            "default_discard_answer takes the count LOWEST ObjectIds"
+        );
+
+        let wire_seq = seq(&view);
+
+        // Now a real, non-default pick: the count HIGHEST ids instead -- the
+        // opposite end of the hand from the default.
+        let chosen: Vec<u64> = ascending[ascending.len() - count..].to_vec();
+        assert!(
+            chosen.iter().all(|id| !default.contains(id)),
+            "the chosen subset must be disjoint from the default, or this proves \
+             nothing: chosen={chosen:?} default={default:?}"
+        );
+        let (status, after) = post_json(
+            &state,
+            "/api/game/action",
+            json!({
+                "seq": wire_seq,
+                "action_index": index,
+                "params": {"effect_choice_answer": {"Discard": {"chosen": chosen}}},
+            }),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{after}");
+
+        let hand = ui1_hand(&state);
+        for id in &chosen {
+            assert!(!hand.contains(id), "object {id} was chosen for discard");
+        }
+        for id in &default {
+            assert!(
+                hand.contains(id),
+                "object {id} is what the DEFAULT would have discarded; it must \
+                 still be in hand"
+            );
+        }
+    }
+
+    /// **The new-channel gate (Architecture Invariant 7).** The hand-zone analogue
+    /// of `test_ui1_a_foreign_seats_effect_choice_never_reaches_this_payload`.
+    ///
+    /// The shipped `GameSummary.seed` HIGH is precisely what happens when a
+    /// redaction gate checks the channel it was written for and a new channel is
+    /// invisible to it: one gate scans for omniscient view-model entry points, the
+    /// other scans the HTTP body for another seat's hand card names, and a hand's
+    /// own `ObjectId`s carried inside a `Discard` question are neither. So this is
+    /// pinned directly: drive a discard block for seat 1, move the viewer to seat
+    /// 2 while it is still outstanding, and assert seat 2's payload carries neither
+    /// the decision nor the `candidates` key at all.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_eng1_a_foreign_seats_discard_question_never_reaches_this_payload() {
+        let state = shared_state();
+        eng1_install(&state);
+
+        let view = eng1_drive_pass_only(&state, "Discard", 1200).await;
+        let index = ui1_question_index(&view, "Discard").expect("just found");
+
+        // Non-vacuity: the entitlement really is in use before it is withheld.
+        let candidates = view["decision"]["actions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|a| a["index"] == index)
+            .expect("the option with that index")["decision"]["answer"]["candidates"]
+            .as_array()
+            .expect("candidates")
+            .clone();
+        assert!(!candidates.is_empty());
+
+        // Captured BEFORE the move, for the same reason UI-1's sibling test
+        // captures it early: a real seat-2 client could never obtain it (the write
+        // guard sits above the `seq` check), so reading it here is the STRONGEST
+        // case for the guard, not a representative one.
+        let wire_seq_before = seq(&view);
+
+        {
+            let mut guard = state.session.lock().expect("lock");
+            let session = guard.as_mut().expect("a session is installed");
+            assert_eq!(
+                session.pending.as_ref().map(|p| p.player),
+                Some(session.human),
+                "precondition: the question belongs to the seat being rendered"
+            );
+            session.human = mtg_engine::PlayerId(2);
+        }
+
+        let (status, body) = get_raw(&state, "/api/game").await;
+        assert_eq!(status, StatusCode::OK, "{body}");
+        let refetched: Value = serde_json::from_str(&body).expect("body is JSON");
+        assert_eq!(refetched["summary"]["human"], 2, "the viewer really moved");
+        assert!(
+            refetched["decision"].is_null(),
+            "seat 1's discard question must not appear in seat 2's payload: {}",
+            refetched["decision"]
+        );
+
+        // Asserted over the RAW body, not over parsed fields (the MR-M11-01 idiom):
+        // a future field that carried the hand under another name would be caught
+        // by this and not by a field-by-field check. `"candidates"` is the
+        // new-channel needle -- it is the hand-question analogue of the scry
+        // probe's `"looked_at"` check, and it is safe here for the same reason:
+        // with `decision` entirely absent, nothing else on this payload renders a
+        // `candidates` array (every one of them lives inside a decision view).
+        assert!(
+            !body.contains("\"candidates\""),
+            "the foreign seat's hand entitlement leaked into the body: {body}"
+        );
+
+        // review Finding 7 (LOW): gate (j) needled only the `"candidates"` KEY --
+        // strengthen it so a rename of that key (while the payload still carried
+        // this seat's hand content under another name) would still be caught.
+        // Anchored on ONE SPECIFIC candidate's (id, label) pair rather than a bare
+        // card name: this fixture's seat-1 hand is uniformly "Swamp"
+        // (`eng1_deck_with`), and seat 2 legitimately holds Swamps of its own, so
+        // "no card named Swamp appears" would be exactly the overstatement the
+        // sibling `"looked_at"` gate above already refused to make. The `id` is a
+        // globally unique `ObjectId`, so the PAIR cannot legitimately appear
+        // anywhere in seat 2's payload for any reason other than this leak, and
+        // the check is independent of whatever key wraps it.
+        let leaked_candidate = &candidates[0];
+        let leaked_id = leaked_candidate["id"]
+            .as_u64()
+            .expect("candidate id is a number");
+        let leaked_label = leaked_candidate["label"]
+            .as_str()
+            .expect("candidate label is a string");
+        let leak_needle = format!("\"id\":{leaked_id},\"label\":\"{leaked_label}\"");
+        assert!(
+            !body.contains(&leak_needle),
+            "one specific candidate from seat 1's hand-discard question leaked \
+             into seat 2's payload verbatim: needle={leak_needle:?} body={body}"
+        );
+
+        // The write half: hiding the decision must not let this seat answer it.
+        let (status, refused) = post_json(
+            &state,
+            "/api/game/action",
+            json!({"seq": wire_seq_before, "action_index": index, "params": {}}),
+        )
+        .await;
+        assert_eq!(
+            status,
+            StatusCode::CONFLICT,
+            "answering another seat's discard question must be refused, not applied: {refused}"
+        );
+        assert_eq!(refused["kind"], "no_pending_decision");
     }
 }

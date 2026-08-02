@@ -17,6 +17,7 @@ use super::turn::{Step, TurnState};
 use super::types::{CardType, Color, CounterType, KeywordAbility, SubType, SuperType};
 use super::zone::{Zone, ZoneId};
 use super::GameState;
+use super::{AnsweredEffectChoice, PendingEffectChoice};
 use crate::cards::card_definition::{
     ContinuousEffectDef, Cost, Effect, EffectAmount, EffectTarget, ForEachTarget, PlayerTarget,
 };
@@ -38,6 +39,8 @@ pub struct GameStateBuilder {
     active_player: Option<PlayerId>,
     is_first_turn_of_game: bool,
     card_registry: Arc<CardRegistry>,
+    pending_effect_choice: Option<PendingEffectChoice>,
+    effect_choice_answers: Vec<AnsweredEffectChoice>,
 }
 struct PlayerConfig {
     id: PlayerId,
@@ -61,6 +64,8 @@ impl GameStateBuilder {
             active_player: None,
             is_first_turn_of_game: false,
             card_registry: CardRegistry::empty(),
+            pending_effect_choice: None,
+            effect_choice_answers: Vec::new(),
         }
     }
     /// Set the card registry for effect execution in tests that use real card definitions.
@@ -226,6 +231,21 @@ impl GameStateBuilder {
         self.prevention_counters.insert(id, n);
         self
     }
+    /// Directly seed `pending_effect_choice` (CR 608.2d, PB-DP9), bypassing
+    /// `ask_or_consume_effect_choice`/`resolve_top_of_stack` entirely. Test-only:
+    /// use where a fixture needs a live discard/search/scry/surveil question
+    /// without driving a real resolution -- e.g. `hash_schema.rs`'s
+    /// `canonical_fixture()` (ENG-1 fix cycle, review Finding 1).
+    pub fn pending_effect_choice(mut self, choice: PendingEffectChoice) -> Self {
+        self.pending_effect_choice = Some(choice);
+        self
+    }
+    /// Append one already-answered effect choice to `effect_choice_answers`
+    /// (CR 608.2d, PB-DP9). See `pending_effect_choice` above for scope.
+    pub fn effect_choice_answer(mut self, answer: AnsweredEffectChoice) -> Self {
+        self.effect_choice_answers.push(answer);
+        self
+    }
     /// Build the `GameState`. Returns `Err` if configuration is invalid (e.g. no players).
     pub fn build(self) -> Result<GameState, GameStateError> {
         if self.players.is_empty() {
@@ -321,9 +341,11 @@ impl GameStateBuilder {
             pending_draws: Vector::new(),
             pending_cleanup_discard: None,
             pending_trigger_targets: None,
-            // CR 608.2d (PB-DP9): no resolution is in progress at build time.
-            pending_effect_choice: None,
-            effect_choice_answers: Vector::new(),
+            // CR 608.2d (PB-DP9): defaults to no resolution in progress; overridden
+            // below from `self.pending_effect_choice` / `self.effect_choice_answers`
+            // if the caller seeded them via the builder methods of the same name.
+            pending_effect_choice: self.pending_effect_choice,
+            effect_choice_answers: self.effect_choice_answers.into_iter().collect(),
             next_effect_choice_id: 0,
             pending_commander_zone_choices: Vector::new(),
             prevention_counters: OrdMap::new(),

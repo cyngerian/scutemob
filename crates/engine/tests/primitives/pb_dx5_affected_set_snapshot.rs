@@ -1207,7 +1207,7 @@ fn test_611_2c_snapshot_uses_full_resolution_a_layer_le4_mass_filter_reaches_a_l
 /// `ContinuousEffect` is not in the SR-8 wire closure).
 fn test_dx5_hash_schema_version_is_70() {
     assert_eq!(
-        HASH_SCHEMA_VERSION, 70u8,
+        HASH_SCHEMA_VERSION, 71u8,
         "HASH_SCHEMA_VERSION live sentinel -- PB-DX5, CR 611.2c"
     );
 }

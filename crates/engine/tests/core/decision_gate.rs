@@ -390,15 +390,12 @@ const BASELINE: &[(&str, &[&str], Option<&str>)] = &[
     ("Bloated Contaminator", &["proliferate"], None),
     ("Bolt Bend", &["change_targets"], None),
     ("Brainstorm", &["put_on_library"], None),
-    ("Burglar Rat", &["discard_cards"], None),
     ("Butcher of Malakir", &["sacrifice_permanents"], None),
     ("Cached Defenses", &["bolster_amass"], None),
     ("Caged Sun", &["choose_color_or_type"], None),
     ("Cankerbloom", &["proliferate"], None),
     ("Chaos Warp", &["look_at_top_or_route"], None),
-    ("Chart a Course", &["discard_cards"], None),
     ("Coiling Oracle", &["look_at_top_or_route"], None),
-    ("Consign // Oblivion", &["discard_cards"], None),
     ("Contagion Clasp", &["proliferate"], None),
     ("Contentious Plan", &["proliferate"], None),
     ("Crippling Fear", &["choose_color_or_type"], None),
@@ -412,27 +409,18 @@ const BASELINE: &[(&str, &[&str], Option<&str>)] = &[
     ("Drown in Ichor", &["proliferate"], None),
     ("Etchings of the Chosen", &["choose_color_or_type"], None),
     ("Evolution Sage", &["proliferate"], None),
-    ("Faithless Looting", &["discard_cards"], None),
     ("Felidar Retreat", &["modal_trigger"], None),
-    ("Fell Specter", &["discard_cards"], None),
     ("Fleshbag Marauder", &["sacrifice_permanents"], None),
     ("Flusterstorm", &["counter_unless_pays"], None),
     ("Flux Channeler", &["proliferate"], None),
-    ("Frantic Search", &["discard_cards"], None),
-    ("Geier Reach Sanitarium", &["discard_cards"], None),
     ("Geological Appraiser", &["discover"], None),
     ("Goblin Ringleader", &["look_at_top_or_route"], None),
     ("Grave Pact", &["sacrifice_permanents"], None),
-    ("Greater Good", &["discard_cards"], None),
     ("Grisly Salvage", &["look_at_top_or_route"], None),
     ("Growing Rites of Itlimoc", &["look_at_top_or_route"], None),
     ("Hazoret's Monument", &["may_pay_then_effect"], None),
     ("Inexorable Tide", &["proliferate"], None),
-    (
-        "Izzet Charm",
-        &["counter_unless_pays", "discard_cards"],
-        None,
-    ),
+    ("Izzet Charm", &["counter_unless_pays"], None),
     ("Kalastria Highborn", &["may_pay_then_effect"], None),
     ("Karn's Bastion", &["proliferate"], None),
     ("Kindred Dominance", &["choose_color_or_type"], None),
@@ -451,10 +439,8 @@ const BASELINE: &[(&str, &[&str], Option<&str>)] = &[
     ("Obelisk of Urd", &["choose_color_or_type"], None),
     ("Pact of the Serpent", &["choose_color_or_type"], None),
     ("Patchwork Banner", &["choose_color_or_type"], None),
-    ("Pull from Tomorrow", &["discard_cards"], None),
     ("Radstorm", &["proliferate"], None),
     ("Raffine's Informant", &["connive"], None),
-    ("Raiders' Wake", &["discard_cards"], None),
     ("Retreat to Kazandu", &["modal_trigger"], None),
     ("Risen Reef", &["look_at_top_or_route"], None),
     ("Roalesk, Apex Hybrid", &["proliferate"], None),
@@ -464,7 +450,6 @@ const BASELINE: &[(&str, &[&str], Option<&str>)] = &[
     ("Springbloom Druid", &["may_pay_then_effect"], None),
     ("Staff of Compleation", &["proliferate"], None),
     ("Stubborn Denial", &["counter_unless_pays"], None),
-    ("Sword of Feast and Famine", &["discard_cards"], None),
     ("Sword of Truth and Justice", &["proliferate"], None),
     ("Sylvan Messenger", &["look_at_top_or_route"], None),
     (
@@ -500,7 +485,14 @@ const BASELINE: &[(&str, &[&str], Option<&str>)] = &[
 /// reading it off `T6` rather than computing it. The six defs the same triage REPAIRED
 /// (Metastatic Evangel, Grisly Salvage, Satyr Wayfinder, Sword of Truth and Justice, Radstorm,
 /// Risen Reef) stayed `Complete` and none of them changed row set, so they contribute 0 here.
-const MAX_AUTO_CHOSEN_COMPLETE_UNION: usize = 91;
+/// **ENG-1 (2026-08-02, `scutemob-191`): lowered 91 -> 80.** Not a demotion this time -- an
+/// engine PB served the `discard_cards` row (`AutoChosen` -> `Served { by: "ENG-1" }`), so
+/// every def whose *only* auto-chosen row was `discard_cards` drops out of the union entirely.
+/// 11 of `BASELINE`'s 12 `discard_cards`-touching entries were exactly that (11 solo rows
+/// deleted); `Izzet Charm` still hits `counter_unless_pays` and stays in the union, so the drop
+/// is 11, not 12 -- read off `T6`'s printed number (80), not computed as `91 - 12`, per this
+/// constant's own standing rule.
+const MAX_AUTO_CHOSEN_COMPLETE_UNION: usize = 80;
 
 const MIN_ROWS: usize = 22;
 const MIN_BASELINE: usize = 50;
@@ -665,9 +657,17 @@ fn t4_gate_logic_reddens_on_a_new_unbaselined_auto_chosen_complete_def() {
     let mut non_complete = prolif_def("PB-DP10 Synthetic Non-Offender (not Complete)");
     non_complete.completeness = mtg_engine::cards::Completeness::partial("T4 probe, not real");
 
+    // ENG-1 (2026-08-02): `discard_cards` flipped AutoChosen -> Served, so a synthetic def
+    // that only hits `proliferate` can never actually hit it -- `auto_chosen_row_hits` filters
+    // to AutoChosen rows before matching, so a stale "discard_cards" here would still pass
+    // (the recorded set is still a strict superset of the actual hits) but would demonstrate
+    // the subset/tighten arm with a row id no def can ever hit anymore, which is a weaker
+    // probe. Swapped for `sacrifice_permanents`, still live AutoChosen.
     let baseline: HashMap<&str, BTreeSet<&'static str>> = [(
         mismatched.name.as_str(),
-        ["proliferate", "discard_cards"].into_iter().collect(),
+        ["proliferate", "sacrifice_permanents"]
+            .into_iter()
+            .collect(),
     )]
     .into_iter()
     .collect();
@@ -916,7 +916,7 @@ fn served_rows_still_have_their_hooks() {
     );
 
     // Each Served row's roster floor is non-zero. Serialize once (Finding PB-DP10 #14),
-    // reused across the 4 rows checked below.
+    // reused across the 5 rows checked below.
     let defs = all_cards();
     let jsons: Vec<serde_json::Value> = defs
         .iter()
@@ -927,6 +927,9 @@ fn served_rows_still_have_their_hooks() {
         ("search_library", 1),
         ("scry", 1),
         ("surveil", 1),
+        // ENG-1 (2026-08-02): `discard_cards` flipped AutoChosen -> Served. Same
+        // non-zero-floor treatment as its three siblings above.
+        ("discard_cards", 1),
     ] {
         let row = ROWS.iter().find(|r| r.id == id).unwrap();
         assert!(
