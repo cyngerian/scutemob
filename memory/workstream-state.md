@@ -939,15 +939,22 @@ opposite direction (several are *correct* as layer-resolved on their real paths)
   Archangel and an animated Nexus no longer feeds Metalcraft — CR 613.1d says it must.
   `deviation_animated_nexus_does_not_count_toward_metalcraft` pins that, and its message tells you
   to **invert** it rather than delete it when `OOS-DX19-2`'s CR 613.8b fixpoint lands.
-- **`OOS-DX19-1` is CLOSED** — by this batch, after the review forced the stronger fix. Ten more
-  `expect_characteristics` sites in
+- **`OOS-DX19-1` is CLOSED, and the second review is why.** The first routing pass claimed the
+  closure while three sites were still unconverted — they spell the call
+  `expect_characteristics(state, id)` instead of `(state, obj.id)`, so a pattern-replacement walked
+  straight past them, and the reviewer reproduced the original SIGABRT through one. **The durable
+  lesson: a closure achieved by editing every site you could find is a claim; a closure backed by a
+  gate that fails when a site reappears is a fact.** The gate is
+  `no_condition_evaluator_resolves_characteristics_directly`, watched failing on a re-introduced
+  miss. Ten more `expect_characteristics` sites in
   `check_condition` are the identical shape and are latent **only because of corpus shape** — all
   **57** corpus occurrences of those ten variants were enumerated and classified by field
   position: every one is an `activation_condition`, `unless_condition`, `intervening_if`, or a bare
   `Effect::Conditional`, and **none** is a `ContinuousEffectDef.condition` — which is the only
   field `is_effect_active` reads. (Do not restate this as "all ~98 `condition: Some(..)`
   occurrences are off the layer path"; that is false — 17 of them *are* continuous-effect
-  conditions, `indomitable_archangel`'s among them. The claim is about the ten variants only.) The next author who writes "as long as you control a legendary creature, …" as a **static**
+  conditions, `indomitable_archangel`'s among them. The claim is about the ten variants
+  only.) The next author who writes "as long as you control a legendary creature, …" as a **static**
   reopens a HIGH with no warning. **Do not fix it by converting the ten leaves**: several are
   *correct* as layer-resolved on their real call paths (there is a `// CR 613.1d … Blood Moon`
   comment saying so). It wants a boundary guard.

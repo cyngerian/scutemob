@@ -96,12 +96,15 @@ pub fn in_layer_walk() -> bool {
 ///
 /// Inside the layer walk this returns **printed** characteristics, which is wrong by
 /// CR 613.1d whenever another continuous effect has changed the object's types,
-/// subtypes or P/T. Known live instances: `blinkmoth_nexus` / `inkmoth_nexus`
-/// animating into artifacts (so they do not feed Metalcraft), and the face-down
-/// override (CR 708.2a), where printed types are still the *hidden* card's and a
-/// count can be too HIGH. Pinned by
-/// `tests/primitives/pb_dx19_characteristics_recursion.rs`. The CR-honest fix is a
-/// CR 613.8b dependency-aware fixpoint — `OOS-DX19-2`, a batch of its own.
+/// subtypes or P/T. The instance that is **pinned by a test** is
+/// `blinkmoth_nexus` / `inkmoth_nexus` animating into artifacts, so they do not feed
+/// Metalcraft — see `deviation_animated_nexus_does_not_count_toward_metalcraft` in
+/// `tests/primitives/pb_dx19_characteristics_recursion.rs`. Others are known and
+/// **not** pinned: CR 712.8d/e (DFC), 712.8g (meld), 729.2a (merge), 702.73a
+/// (changeling), and — in the opposite direction — CR 708.2a face-down permanents,
+/// where the printed types are still the *hidden* card's, so an in-walk count can be
+/// too HIGH rather than too low. All are catalogued on `OOS-DX19-2`, whose CR 613.8b
+/// dependency-aware fixpoint is the honest repair and a batch of its own.
 ///
 /// The deviation applies **only** inside the layer walk. Everywhere else this is
 /// exactly `expect_characteristics`.

@@ -874,3 +874,127 @@ fn non_layer_path_reads_layer_resolved_subtypes() {
          bloodline_keeper reject a changeling"
     );
 }
+
+// ── The class gate ──────────────────────────────────────────────────────────────
+
+/// **A source gate, because a convention is not a guard.**
+///
+/// PB-DX19's regression fix routed the condition evaluators through
+/// `characteristics_for_condition`. It did so by pattern-replacing
+/// `expect_characteristics(state, obj.id)` — and **missed three sites** that spell
+/// the same thing `expect_characteristics(state, id)` because they destructure
+/// `(&id, obj)` instead of closing over `obj`. The batch's own review caught it and
+/// reproduced the original stack-overflow SIGABRT through one of them, on a tree
+/// that had already declared the class closed.
+///
+/// So the closure is enforced here rather than remembered. Any `expect_characteristics`
+/// or `calculate_characteristics` call inside `check_condition` or
+/// `check_static_condition` re-opens OOS-SIM2-6: both are reachable from
+/// `is_effect_active`, which runs inside `calculate_characteristics`, and neither
+/// consults `in_layer_walk()`.
+///
+/// If this test fails, do not add an exception — route the new site through
+/// `crate::rules::layers::characteristics_for_condition`.
+#[test]
+fn no_condition_evaluator_resolves_characteristics_directly() {
+    let src = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/effects/mod.rs"))
+        .expect("effects/mod.rs must be readable from the test binary");
+
+    // Extract the two evaluator bodies by brace matching from their `pub fn` headers.
+    let mut offenders: Vec<(String, usize)> = Vec::new();
+    let mut checked = 0usize;
+    for fname in ["pub fn check_condition(", "pub fn check_static_condition("] {
+        let start = src
+            .find(fname)
+            .unwrap_or_else(|| panic!("{} not found — did the evaluator get renamed?", fname));
+        let open = src[start..]
+            .find('{')
+            .expect("function header must be followed by a body")
+            + start;
+        let mut depth = 0usize;
+        let mut end = open;
+        for (i, c) in src[open..].char_indices() {
+            match c {
+                '{' => depth += 1,
+                '}' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        end = open + i;
+                        break;
+                    }
+                }
+                _ => {}
+            }
+        }
+        assert!(end > open, "brace matching failed for {}", fname);
+        let body = &src[open..end];
+        checked += 1;
+        for (n, line) in body.lines().enumerate() {
+            // Skip comments — the bodies discuss these functions by name on purpose.
+            let code = line.split("//").next().unwrap_or("");
+            if code.contains("expect_characteristics") || code.contains("calculate_characteristics")
+            {
+                offenders.push((format!("{}{}", fname, line.trim()), n));
+            }
+        }
+    }
+
+    // Non-vacuity: prove the extraction found real bodies, not empty strings. Both
+    // evaluators are large; a body that shrank to nothing would make this test pass
+    // for the wrong reason, which is the shape that rots silently.
+    assert_eq!(checked, 2, "both evaluators must have been located");
+
+    assert!(
+        offenders.is_empty(),
+        "OOS-SIM2-6 re-opened: {} condition-evaluator site(s) resolve characteristics \
+         directly instead of going through \
+         `crate::rules::layers::characteristics_for_condition`. Each one is an \
+         unbounded recursion when the condition is attached to a ContinuousEffectDef, \
+         because `is_effect_active` evaluates it from inside `calculate_characteristics`. \
+         Offenders: {:#?}",
+        offenders.len(),
+        offenders
+    );
+}
+
+/// The reviewer's reproduction, kept as a live probe. `ControlAtLeastNOtherLands` is
+/// one of the three sites the pattern-replacement missed; attached to a
+/// `ContinuousEffectDef` it stack-overflowed on a tree that had already declared the
+/// class closed.
+///
+/// No corpus def puts this variant on a continuous effect today (all 17 uses are
+/// `unless_condition` / `activation_condition`), so this probe is the only thing
+/// standing between that fact and a regression.
+#[test]
+fn sibling_condition_on_a_continuous_effect_terminates() {
+    use mtg_engine::Condition;
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1())
+        .add_player(p2())
+        .object(ObjectSpec::land(p1(), "Land A"))
+        .object(ObjectSpec::land(p1(), "Land B"))
+        .object(ObjectSpec::creature(p1(), "Bear", 2, 2))
+        .build()
+        .unwrap();
+
+    let bear = find_on_battlefield(&state, "Bear");
+    state.continuous_effects_mut().push_back(ContinuousEffect {
+        id: EffectId(9_500),
+        source: Some(bear),
+        timestamp: 1,
+        layer: EffectLayer::Ability,
+        duration: EffectDuration::WhileSourceOnBattlefield,
+        filter: EffectFilter::SingleObject(bear),
+        modification: LayerModification::AddKeyword(KeywordAbility::Flying),
+        is_cda: false,
+        affected_set: None,
+        condition: Some(Condition::ControlAtLeastNOtherLands(1)),
+    });
+
+    let chars = calculate_characteristics(&state, bear).expect("live on the battlefield");
+    assert!(
+        chars.keywords.contains(&KeywordAbility::Flying),
+        "the condition is satisfied (two other lands) and evaluating it must TERMINATE"
+    );
+}

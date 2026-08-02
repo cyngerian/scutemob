@@ -9823,7 +9823,7 @@ pub fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectCon
                         && obj.zone == ZoneId::Battlefield
                         && obj.is_phased_in()
                         && obj.controller == ctx.controller
-                        && crate::rules::layers::expect_characteristics(state, id)
+                        && crate::rules::layers::characteristics_for_condition(state, obj)
                             .card_types
                             .contains(&CardType::Land)
                 })
@@ -9884,7 +9884,7 @@ pub fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectCon
                         && obj.zone == ZoneId::Battlefield
                         && obj.is_phased_in()
                         && obj.controller == ctx.controller
-                        && crate::rules::layers::expect_characteristics(state, id)
+                        && crate::rules::layers::characteristics_for_condition(state, obj)
                             .card_types
                             .contains(&CardType::Land)
                 })
@@ -9902,7 +9902,7 @@ pub fn check_condition(state: &GameState, condition: &Condition, ctx: &EffectCon
                         && obj.zone == ZoneId::Battlefield
                         && obj.is_phased_in()
                         && obj.controller == ctx.controller
-                        && crate::rules::layers::expect_characteristics(state, id)
+                        && crate::rules::layers::characteristics_for_condition(state, obj)
                             .subtypes
                             .contains(subtype)
                 })
