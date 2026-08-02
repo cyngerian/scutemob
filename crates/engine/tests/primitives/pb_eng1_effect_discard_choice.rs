@@ -21,15 +21,17 @@
 //! loop exits) and risk 5 (nesting) mitigations.
 
 use mtg_engine::cards::card_definition::{PlayerTarget, WheelDisposal, WheelDraw};
+use mtg_engine::effects::{execute_effect, EffectContext};
 use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::stack::StackObjectKind;
 use mtg_engine::state::stubs::PendingTriggerKind;
 use mtg_engine::testing::script_schema::EffectChoiceScriptAnswer;
 use mtg_engine::{
     enrich_spec_from_def, process_command, AbilityDefinition, CardDefinition, CardEffectTarget,
-    CardId, CardRegistry, CardType, Command, Condition, Effect, EffectAmount, EffectChoiceAnswer,
-    EffectChoiceQuestion, GameEvent, GameState, GameStateBuilder, KeywordAbility, ManaColor,
-    ManaCost, ObjectId, ObjectSpec, PlayerId, Step, TargetRequirement, TypeLine, ZoneId,
+    CardId, CardRegistry, CardType, Command, Condition, Cost, Effect, EffectAmount,
+    EffectChoiceAnswer, EffectChoiceQuestion, GameEvent, GameState, GameStateBuilder,
+    KeywordAbility, ManaColor, ManaCost, ObjectId, ObjectSpec, PlayerId, Step, TargetRequirement,
+    TypeLine, ZoneId,
 };
 
 // ── Shared helpers (pattern: `pb_dp9_effect_choice.rs` / `pb_dp7_cleanup_discard.rs`) ──
@@ -686,6 +688,74 @@ fn test_eng1_wheel_hand_discards_the_whole_hand_exactly_once_and_never_suspends(
             draw
         );
     }
+}
+
+// ── review Finding 6 (LOW) — the `Cost::DiscardCard` structural guarantee ───
+// has its own regression guard, not just (d)'s WheelHand guard
+
+/// CR 701.9c / §2.4 / `OOS-ENG1-1`: `Cost::DiscardCard` pays through
+/// `discard_cards` directly, on a cost-payment path inside
+/// `pay_optional_cost` with NO resolution wrapper to roll back to (unlike
+/// `Effect::DiscardCards`, which is asked and can suspend/replay). An ask on
+/// this path would record a `pending_effect_choice` nothing can discharge --
+/// the trap-state class `OOS-DP9-14` was filed for.
+///
+/// (d) guards the SAME structural property for `Effect::WheelHand`, but only
+/// that one: `WheelHand`'s call sites pass `n == hand_size`, so a future
+/// batch that moved BOTH the ask and the short-circuit into `discard_cards`
+/// would leave (d) green (the short-circuit would still fire for a
+/// whole-hand discard) while a `Cost::DiscardCard` payment -- `n = 1` against
+/// a LARGER hand, where the short-circuit does not apply -- would start
+/// suspending. This test pins that case directly.
+#[test]
+fn test_eng1_a_cost_discard_never_suspends() {
+    let p1 = p(1);
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p(2))
+        .with_registry(CardRegistry::new(vec![]))
+        .object(ObjectSpec::card(p1, "Hand A").in_zone(ZoneId::Hand(p1)))
+        .object(ObjectSpec::card(p1, "Hand B").in_zone(ZoneId::Hand(p1)))
+        .object(ObjectSpec::card(p1, "Hand C").in_zone(ZoneId::Hand(p1)))
+        .object(ObjectSpec::card(p1, "Lib Card").in_zone(ZoneId::Library(p1)))
+        .at_step(Step::PreCombatMain)
+        .active_player(p1)
+        .build()
+        .unwrap();
+    assert!(
+        state.pending_effect_choice().is_none(),
+        "sanity: nothing pending before the cost is paid"
+    );
+
+    let effect = Effect::MayPayThenEffect {
+        cost: Cost::DiscardCard,
+        payer: PlayerTarget::Controller,
+        then: Box::new(Effect::DrawCards {
+            player: PlayerTarget::Controller,
+            count: EffectAmount::Fixed(1),
+        }),
+    };
+    let mut ctx = EffectContext::new(p1, ObjectId(0), vec![]);
+    let mut state = state;
+    let events = execute_effect(&mut state, &effect, &mut ctx);
+
+    // The cost path must have actually run -- a hand of 3 (> 1) means the
+    // cost is payable, so this is not a "nothing happened" pass.
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, GameEvent::CardDiscarded { player, .. } if *player == p1)),
+        "sanity: the cost must actually have been paid for this test to prove \
+         anything; events={events:?}"
+    );
+    assert!(
+        state.pending_effect_choice().is_none(),
+        "CR 701.9c / §2.4: a Cost::DiscardCard payment must NEVER suspend -- it \
+         calls discard_cards directly, bypassing the Effect::DiscardCards arm's \
+         ask (structural guarantee, OOS-ENG1-1). A larger hand than the amount \
+         discarded rules out the n >= hand.len() short-circuit as an alternate \
+         explanation for a passing result."
+    );
 }
 
 // ── (e) — the two defaults are deliberately opposite ends of the same hand ──

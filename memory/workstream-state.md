@@ -857,9 +857,9 @@ the affected player to choose which card to discard."* No def in the corpus prin
 "another player chooses", so the default covers the **entire** live corpus and the violation was
 unconditional. It now suspends into a new `EffectChoiceQuestion::Discard` through PB-DP9's
 existing suspend-and-replay machinery. **PROTOCOL 33 → 34, HASH 70 → 71**, both gate-computed
-from the failing gate's own output. Tests **4,329 / 0 / 5** full workspace (`--workspace
+from the failing gate's own output. Tests **4,330 / 0 / 5** full workspace (`--workspace
 --no-fail-fast` to a file, never tail-piped) against a **pre-edit baseline of 4,317 / 0 / 5
-measured on this branch** — +12, being 10 new engine tests and 2 new play-server probes. `fmt`,
+measured on this branch** — +13, being 11 new engine tests and 2 new play-server probes. `fmt`,
 `clippy --workspace --all-targets -D warnings` and `tools/check-defs-fmt.sh` (1,803 defs) clean.
 Coverage **unmoved at 1,133/1,803 = 62.8%**, proven by regenerating `tools/authoring-report.py`
 to a byte-identical body — **0 card-def lines changed in the whole batch**, which is a positive
@@ -1006,22 +1006,27 @@ Building the browser probe reddened its real-name assertion on Faithless Looting
 generalises: **CR 608.2d's suspend rolls the WHOLE resolution back** (`rules/resolution.rs`, `*state
 = restart_point`). For a **draw-then-discard** printing the recorded question names hand objects
 that the *restored* state does not contain — the draw was rolled back and CR 400.7 minted new ids
-— so every candidate renders as the unknown-label placeholder. The answer still applies correctly
-on submission (the replay re-draws deterministically and re-mints the same ids), so this is a
-**display gap, not a correctness gap**.
+— so every candidate DRAWN IN THAT RESOLUTION renders as the unknown-label placeholder (corrected
+by the /review fix cycle: the original wording overstated its own measurement — pre-existing hand
+cards render their real names; the probe saw 5 of 7 correct on Faithless Looting, not 0 of 7). The
+answer still applies correctly on submission (the replay re-draws deterministically and re-mints
+the same ids), so this is a **display gap, not a correctness gap**.
 
 **It is new to this variant, and not by design**: the three library questions name cards that
 already existed before the resolution began, so they are immune **by accident**.
 
-**Blast radius, measured, not guessed.** Of the **22** def files that actually carry
-`Effect::DiscardCards` (a plain grep says 23 — `reforge_the_soul` mentions it only in a comment
-explaining that it uses `Effect::WheelHand` instead), **15 draw in the same effect**. The number
-that matters for playability today is the deck-legal one: of the **12** `Complete` defs, **7 draw**
-— Chart a Course, Faithless Looting, Frantic Search, Geier Reach Sanitarium, Greater Good, Izzet
-Charm, Pull from Tomorrow — against 5 that do not (Burglar Rat, Consign // Oblivion, Fell Specter,
-Raiders' Wake, Sword of Feast and Famine). **A clear majority of the cards a human can actually
-play, and the dominant printing, not a corner case** — the loot effect is what "discard" mostly
-means in Magic.
+**Blast radius, measured, not guessed.** Of the **21** def files that actually carry
+`Effect::DiscardCards` (a plain grep says 23 — `reforge_the_soul` AND `nezahal_primal_tide` each
+mention it only in a comment explaining that they use `Effect::WheelHand` instead; the first review
+cycle caught only the first of those two, correcting the figure a second time here, and derived it
+by grep-minus-exceptions rather than an `all_cards()` enumeration, SR-36 — the method, not just the
+number, is why it was wrong twice), **14 draw in the same effect**. The number that matters for
+playability today is the deck-legal one: of the **12** `Complete` defs, **7 draw** — Chart a
+Course, Faithless Looting, Frantic Search, Geier Reach Sanitarium, Greater Good, Izzet Charm, Pull
+from Tomorrow — against 5 that do not (Burglar Rat, Consign // Oblivion, Fell Specter, Raiders'
+Wake, Sword of Feast and Famine). **A clear majority of the cards a human can actually play, and
+the dominant printing, not a corner case** — the loot effect is what "discard" mostly means in
+Magic.
 
 **Deferred deliberately, with the reason**: the correct fix is not a discard patch but a general
 LKI-for-questions mechanism — capture each candidate's identity at the moment of the ask (where the
@@ -1032,6 +1037,14 @@ mid-resolution. **The coordinator should weigh whether it is the immediate succe
 7 deck-legal cards the human now gets a picker with unlabelled options where they previously got a silent
 auto-pick, which is arguably worse for them until this closes. Filed in
 `docs/audits/decision-point-audit.md`.
+
+**The /review fix cycle closed the sharpest edge of this, without closing the seed itself**
+(review Finding 2): two same-resolution-drawn candidates used to render as two buttons with
+IDENTICAL text (`(unknown card)` twice), which read as a redaction bug in the seat's own hand.
+`view.rs`'s `PickN` arm now gives each unlabelled candidate a distinguishing placeholder —
+`(card drawn this resolution #N)` — so the human can still make a fully informed choice among the
+pre-existing hand cards, which is strictly more agency than the pre-ENG-1 silent auto-pick had.
+`OOS-ENG1-9` itself (the general LKI-for-questions fix) is still open.
 
 ### Comment debt — the thing this batch is a lesson about
 
@@ -1097,13 +1110,15 @@ reads false. Match by name.
 - **`OOS-ENG1-2`** — `Effect::Connive`'s inlined discard duplicates the `min_by_key` because it
   needs per-card nonland accounting. Now trivially closable *except* that the nonland counter must
   survive a suspend/replay — a real design question, not a rename.
-- **`OOS-ENG1-3`** — no `chooser` field on `Effect::DiscardCards`. **Do not add one.** 22 def files
+- **`OOS-ENG1-3`** — no `chooser` field on `Effect::DiscardCards`. **Do not add one.** 21 def files
   carry the effect, 12 are deck-legal `Complete`, and **zero** print "at random" or "another player
   chooses". The two corpus cards that would need it (`gamble.rs`, `grief.rs`) are blocked TODO defs
   carrying no `Effect::DiscardCards` at all, so the field would ship with no reader.
 - **`OOS-ENG1-4`** — the one-question shape forfeits a sequenced per-card choice. No current
   printing needs it; filed so a future "discard a card, then discard a card" does not silently
   inherit the wrong shape.
+- *(`OOS-ENG1-5` is deliberately unused — the filed set skips it. Noted here per review Finding
+  10 so a future reader does not go hunting for a seed that was never filed.)*
 - **`OOS-ENG1-6`** — `Effect::MillCards` is the only sibling of the missing `.max(0)` fixed here
   (`resolve_amount(...) as usize` with no clamp wraps a negative to ~1.8e19; `discard_cards`' loop
   has no empty-hand break, so it was an effective hang in release from a legal `EffectAmount`). Not
@@ -1118,6 +1133,11 @@ reads false. Match by name.
   With the variant in the tree, closing it is a min/max widening plus an `EffectAmount` source, not
   a new primitive.
 - **`OOS-ENG1-9`** — the draw-then-discard label gap above. **The successor candidate.**
+- **`OOS-ENG1-10`** — the second `/review` pass's find: `tools/tui/src/play/input.rs`'s `'r'` key
+  still submits the engine's default `EffectChoiceAnswer` verbatim for a discard, with no picker —
+  pre-existing and identical to its scry/surveil/search handling (the `OOS-DP7-6`/`OOS-DP8-2`/
+  `OOS-DP9-7` family), so NOT a regression, but "effect-driven discard is a real player choice" is
+  now true on the browser only. Not fixed. See `tools/play-server/README.md` limitation 28.
 - **`OOS-G3-2`** — the "engine picks for the player" census. The triage's list in
   `memory/playtest-triage-2026-08-02b.md` §G3 has never been machine-checked, and
   `decision_site_walk.rs`'s `AutoChosen` rows are the machine-checkable version of it. Reconcile
@@ -1132,6 +1152,56 @@ answer space and therefore a different hidden-info argument — its own batch, n
 TODO sweep over `crates/card-defs/src/defs/`: 27 hits, exactly **1** names this primitive
 (`fable_of_the_mirror_breaker`, recorded above as a NOT-a-forced-add with its reason). The other 26
 are a different primitive each. **0 forced adds, 0 card-def lines changed.**
+
+### The `/review` cycle — two reviewers, 0 HIGH, 2 MEDIUM, 8 LOW, and **all of them taken**
+
+Full findings: `memory/primitives/pb-review-ENG1.md`. Both reviewers looked specifically for a HIGH
+in the four places most likely to hide one — the question-equality determinism premise, the two
+loop exits, the three non-compile-error plumbing sites, and the `HashInto` field feeds — and each is
+correct. **The MEDIUMs are worth reading even after they are closed**, because one of them is a
+standing hole in a gate and the other is a lesson about how a deferral should be shaped.
+
+**MEDIUM 1 — a hash arm can ship unhashed, and the warning that says otherwise is half false.**
+`grep 'pending_effect_choice\|EffectChoiceQuestion\|EffectChoiceAnswer'` over
+`crates/engine/tests/core/hash_schema.rs` returned **zero**: `canonical_fixture()` had never
+populated `pending_effect_choice`, so **all four** arms of both enum impls had been unexercised
+since PB-DP9 — not a new hole, an inherited one. `hash.rs`'s own warning claimed the enum impls were
+"held by review and by `stream_fingerprint`, nothing else"; the second half was **not true**,
+because `stream_fingerprint` is computed over a fixture that never reaches them. Dropping
+`count.hash_into(...)` would have made two states differing only in a pending discard's count hash
+**identically**, with `cargo test --workspace` fully green — SR-19's gate scans structs only, and
+SR-9b's `harness_equivalence` cross-validates green because *both* regimes drop the same field. That
+is an undetectable desync in exactly the state M10's network layer most needs to detect one.
+**Closed here rather than seeded, and the timing is the whole argument**: closing it re-pins
+`stream_fingerprint` on the **v71 row this batch was already writing and which has not shipped to
+main**. A successor batch would have paid a HASH 71 → 72 bump plus a 46-file sentinel re-pin for a
+test-fixture change — an order of magnitude more, for identical correctness. `canonical_fixture()`
+now carries a `Discard`-shaped `pending_effect_choice` (hand of 3, `count: 2`) and a one-entry
+bank; new `stream_fingerprint` `923b1ff8…`, **proven by executing the revert** — dropping `count`
+turned the gate red printing `1edc655e…`, restored, green.
+
+**MEDIUM 2 — the deferral was right, the placeholder was not.** See the `OOS-ENG1-9` section above:
+two same-resolution-drawn candidates rendered as two buttons with *identical* text. Both reviewers
+independently endorsed deferring the general fix and both flagged the placeholder as separately
+fixable at zero wire cost. **Generalisable: when you defer a fix, the thing you ship in its place
+is a deliverable too, and it can have its own defect.**
+
+Of the eight LOWs, three were errors in **my own write-up** and are the ones worth naming, because
+they are the batch's own thesis turned on itself: the def-file denominator was wrong **twice**
+(23 → 22 → 21; `reforge_the_soul` *and* `nezahal_primal_tide` each mention `Effect::DiscardCards`
+only in a comment, and I caught one of the two), and it was wrong because it was derived by
+grep-minus-exceptions instead of an `all_cards()` enumeration — **SR-36 exists to say exactly
+that**; and the `OOS-ENG1-9` summary overstated its own measurement ("every candidate" where the
+evidence said 5 of 7 rendered correctly). The 12-`Complete` and 7-draw figures were right
+throughout. Two more LOWs were **comment debt inside the batch whose thesis is comment debt** —
+`rules/events.rs` still said the question's ids were library-only, and `view.rs`'s arm comment
+asserted "the CANDIDATES are library cards" directly above the arm that disproves it. The last
+structural one: `Cost::DiscardCard`'s guarantee — which plan §2.4 calls the *more* dangerous of the
+two — had **no named guard**, and test (d) does not cover it (a future batch moving both the ask and
+the short-circuit into `discard_cards` leaves (d) green because `WheelHand` passes
+`n == hand_size`, while `Cost::DiscardCard` passes `n = 1` against a larger hand and would begin
+recording undischargeable entries). `test_eng1_a_cost_discard_never_suspends` now exists, proven red
+by an executed revert.
 
 ## Worker Handoff (UI-5, `scutemob-190`) — UX polish batch 2: G8, G10, G11, G12, G13
 

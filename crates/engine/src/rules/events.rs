@@ -1544,9 +1544,10 @@ impl GameEvent {
             GameEvent::LibraryShuffled { .. } => true,
             // The companion moves from the command zone into hand (hidden zone).
             GameEvent::CompanionBroughtToHand { .. } => true,
-            // CR 608.2d (PB-DP9): the question names cards in a HIDDEN zone --
-            // the library candidates a search filter matched, or the top N a
-            // player is looking at. See `private_to` below.
+            // CR 608.2d (PB-DP9 / ENG-1): the question names cards in a HIDDEN
+            // zone -- the library candidates a search filter matched, the top N
+            // a player is looking at, OR (ENG-1, CR 701.9b) the answerer's own
+            // hand. See `private_to` below.
             GameEvent::EffectChoiceRequired { .. } => true,
             // All other events involve only public information.
             _ => false,
@@ -1567,8 +1568,8 @@ impl GameEvent {
     /// "for this seat only".
     pub fn private_to(&self) -> Option<crate::state::player::PlayerId> {
         match self {
-            // CR 608.2d (PB-DP9): the candidate list / looked-at cards are the
-            // searching or scrying player's information alone.
+            // CR 608.2d (PB-DP9 / ENG-1): the candidate list / looked-at cards /
+            // hand (ENG-1, CR 701.9b) are `player`'s information alone.
             GameEvent::EffectChoiceRequired { player, .. } => Some(*player),
             // CR 514.1 (PB-DP7): `hand` is the exact `ObjectId` composition of a
             // hidden zone. Closes OOS-DP7-3(b)'s declaration half.

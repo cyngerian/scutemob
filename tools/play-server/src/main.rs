@@ -8892,12 +8892,21 @@ mod tests {
         );
 
         // **The §4 hidden-info premise, checked.** These are the answerer's OWN
-        // hand cards. If the labels come back as the unknown-card placeholder, the
-        // guard this arm rests on is not what the plan believes it is.
+        // hand cards, and Fell Specter's discard reaches no cards drawn earlier in
+        // the same resolution, so EVERY candidate must render its real name here --
+        // never `UNKNOWN_LABEL`/`HIDDEN_LABEL`, and never the `OOS-ENG1-9`
+        // same-resolution-draw placeholder either. Asserting against that exact
+        // prefix (not just the two pre-existing constants) is deliberate: a
+        // placeholder-shaped label would silently satisfy `!= UNKNOWN_LABEL`, so a
+        // genuine label regression that started emitting it here would ship green
+        // (review Finding 2). If the labels come back as ANY placeholder, the guard
+        // this arm rests on is not what the plan believes it is.
         for card in answer["candidates"].as_array().unwrap() {
             let label = card["label"].as_str().expect("label is a string");
             assert!(
-                label != view::UNKNOWN_LABEL && label != view::HIDDEN_LABEL,
+                label != view::UNKNOWN_LABEL
+                    && label != view::HIDDEN_LABEL
+                    && !label.starts_with("(card drawn this resolution #"),
                 "a seat's own hand card must render its real name (CR 402.1), not a \
                  placeholder: {label:?}"
             );
@@ -9017,6 +9026,31 @@ mod tests {
         assert!(
             !body.contains("\"candidates\""),
             "the foreign seat's hand entitlement leaked into the body: {body}"
+        );
+
+        // review Finding 7 (LOW): gate (j) needled only the `"candidates"` KEY --
+        // strengthen it so a rename of that key (while the payload still carried
+        // this seat's hand content under another name) would still be caught.
+        // Anchored on ONE SPECIFIC candidate's (id, label) pair rather than a bare
+        // card name: this fixture's seat-1 hand is uniformly "Swamp"
+        // (`eng1_deck_with`), and seat 2 legitimately holds Swamps of its own, so
+        // "no card named Swamp appears" would be exactly the overstatement the
+        // sibling `"looked_at"` gate above already refused to make. The `id` is a
+        // globally unique `ObjectId`, so the PAIR cannot legitimately appear
+        // anywhere in seat 2's payload for any reason other than this leak, and
+        // the check is independent of whatever key wraps it.
+        let leaked_candidate = &candidates[0];
+        let leaked_id = leaked_candidate["id"]
+            .as_u64()
+            .expect("candidate id is a number");
+        let leaked_label = leaked_candidate["label"]
+            .as_str()
+            .expect("candidate label is a string");
+        let leak_needle = format!("\"id\":{leaked_id},\"label\":\"{leaked_label}\"");
+        assert!(
+            !body.contains(&leak_needle),
+            "one specific candidate from seat 1's hand-discard question leaked \
+             into seat 2's payload verbatim: needle={leak_needle:?} body={body}"
         );
 
         // The write half: hiding the decision must not let this seat answer it.

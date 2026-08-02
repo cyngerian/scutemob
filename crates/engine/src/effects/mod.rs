@@ -1274,10 +1274,17 @@ fn execute_effect_inner(
         // `chooser` field, OOS-ENG1-3).
         Effect::DiscardCards { player, count } => {
             // MR-M7-05, applied here for the first time (see the DrawCards arm
-            // above): a negative amount cast straight to `usize` wraps to ~1.8e19
-            // and `discard_cards`' loop has no empty-hand break, so it is an
-            // effective hang in release. The short-circuit below also needs `n`
-            // to be a real count.
+            // above): a negative amount cast straight to `usize` used to wrap to
+            // ~1.8e19, an effective hang in release (`discard_cards`' loop has no
+            // empty-hand break). `.max(0)` fixes exactly that -- the NEGATIVE
+            // wrap. It does NOT fix a legitimately huge POSITIVE `n`: that still
+            // loops `n` times against a hand that empties partway through, same
+            // as before this line existed (not reachable from any corpus
+            // `EffectAmount` today, and strictly no worse than pre-ENG-1 -- see
+            // `OOS-ENG1-6`, which tracks the identical gap on `Effect::MillCards`
+            // and was deliberately left unfixed there for the same reason: a
+            // drive-by fix in an adjacent arm is how review scope-creep starts).
+            // The short-circuit below also needs `n` to be a real count.
             let n = resolve_amount(state, count, ctx).max(0) as usize;
             let players = resolve_player_target_list(state, player, ctx);
             for p in players {
@@ -1300,12 +1307,18 @@ fn execute_effect_inner(
                 );
                 // CR 601.2c's principle (the same argument the search arm makes
                 // at the `!may_fail_to_find && candidates.len() == 1` branch):
-                // when the answer space admits exactly ONE legal answer the
+                // when the answer space admits exactly ONE legal SET the
                 // announcement is DETERMINED, so there is nothing to announce.
                 // `n == 0` -> the empty set is the only answer; `n >= hand.len()`
                 // -> the whole hand is (and an empty hand is that case too).
-                // Skipping the question here is what keeps a full-hand discard
-                // from costing a round trip and from perturbing a fuzz seed.
+                // **This determines the SET, not the ORDER**: CR 608.2f / CR
+                // 404.3 make the discard order the player's own choice (see
+                // `EffectChoiceAnswer::Discard::chosen`'s doc), and that half is
+                // NOT covered by this short-circuit -- it is part of
+                // `OOS-ENG1-7`'s scope, alongside the picker's ascending-ids
+                // deviation. Skipping the question here is what keeps a
+                // full-hand discard from costing a round trip and from
+                // perturbing a fuzz seed.
                 if n == 0 || n >= hand.len() {
                     discard_cards(state, p, n, events);
                     continue;

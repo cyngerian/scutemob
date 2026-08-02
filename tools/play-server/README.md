@@ -1061,23 +1061,37 @@ repeated here so this README does not claim more than the implementation does.
     command refusals in `sim5_bot_cast_discipline`'s A/B (seeds 0/7/42). Seed
     **OOS-SIM6-3**; the largest remaining SR-38 violation on this surface.
 
-27. **A draw-then-discard effect renders its `PickN` candidates unlabelled
+27. **A draw-then-discard effect renders SOME of its `PickN` candidates unlabelled
     (ENG-1).** CR 608.2d's suspension rolls the **whole** resolution back
     (`rules/resolution.rs`, `*state = restart_point`), so for a printing that draws
     before it discards — Faithless Looting, Chart a Course, Frantic Search, Geier
     Reach Sanitarium, Greater Good, Izzet Charm, Pull from Tomorrow: **7 of the 12
     deck-legal `Effect::DiscardCards` defs** — the recorded question names hand
     objects the *restored* state does not contain, because the draw was undone and
-    CR 400.7 minted new ids. Every candidate then renders as the unknown-label
-    placeholder and the human cannot tell the options apart. **The answer still
-    applies correctly** (the replay re-draws deterministically and re-mints the same
-    ids), so this is a display gap, not a correctness one. The three library
-    questions are immune **by accident**: they name cards that already existed
-    before the resolution began. The fix is not a discard patch but a general
-    LKI-for-questions mechanism — capture each candidate's identity at the moment of
-    the ask, where the objects still exist, and carry it through
-    `PendingEffectChoice` → `BlockingDecision` → `LegalAction` → the view. Seed
-    **OOS-ENG1-9**, filed in `docs/audits/decision-point-audit.md`.
+    CR 400.7 minted new ids. **Only the candidates drawn in that resolution** render
+    unlabelled — pre-existing hand cards render their real names (5 of 7 correct on
+    the Faithless Looting probe) — and since the `/review` fix cycle each unlabelled
+    one carries a distinguishing placeholder, `(card drawn this resolution #N)`, not
+    the generic unknown-card text, so two such candidates no longer look identical
+    to the human. **The answer still applies correctly** (the replay re-draws
+    deterministically and re-mints the same ids), so this is a display gap, not a
+    correctness one. The three library questions are immune **by accident**: they
+    name cards that already existed before the resolution began. The real fix is
+    not a discard patch but a general LKI-for-questions mechanism — capture each
+    candidate's identity at the moment of the ask, where the objects still exist,
+    and carry it through `PendingEffectChoice` → `BlockingDecision` → `LegalAction`
+    → the view. Seed **OOS-ENG1-9**, filed in `docs/audits/decision-point-audit.md`.
+
+28. **The TUI still auto-submits the engine's default for an effect-driven discard
+    (ENG-1, second `/review` pass).** `tools/tui/src/play/input.rs`'s `'r'` key
+    submits `LegalAction::AnswerEffectChoice::answer` verbatim — the engine's own
+    deterministic default (`effects::default_effect_choice_answer`) — for
+    **whichever** `EffectChoiceQuestion` is pending, with no picker. Pre-existing
+    and identical to its handling of scry/surveil/search (same shape as item 19's
+    `OOS-DP7-6`/`OOS-DP8-2`/`OOS-DP9-7` family), so this is **not a regression** —
+    but "effect-driven discard is a real player choice" is now true only on the
+    browser surface; a TUI human still gets the pre-ENG-1 auto-pick. Not fixed
+    here. Seed **OOS-ENG1-10**.
 
 ## `GET /api/game/report` — and the one place Invariant 7 does not apply
 

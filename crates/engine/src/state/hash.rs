@@ -718,12 +718,16 @@
 ///   `3u8` (append-only, after `Surveil`'s `2u8`). `decl_fingerprint` MOVES (new
 ///   variant on both enums, inside the `GameState` serde closure);
 ///   `stream_fingerprint` moves per the v40 mechanism (`HASH_SCHEMA_VERSION` is
-///   the stream's first byte) -- `canonical_fixture()` carries no
-///   `pending_effect_choice` populated with `Discard`, so the new `HashInto`
-///   arms' own bytes are not what moves this digest, the version-sentinel byte
-///   is. `EffectChoiceQuestion` and `EffectChoiceAnswer` ARE in the SR-8 wire
-///   closure (both entered it at v31), so this bump is paired with
-///   `PROTOCOL_VERSION` 33 -> 34.
+///   the stream's first byte). **Re-pinned once more in the /review fix cycle,
+///   before this row shipped to main** (review Finding 1): the original bump
+///   left `canonical_fixture()` with no `pending_effect_choice` populated with
+///   `Discard`, so the new `HashInto` arms' own field feeds were unexercised by
+///   any gate -- only the version-sentinel byte moved the digest. The fixture
+///   now carries a `Discard`-shaped `pending_effect_choice` plus a one-entry
+///   `effect_choice_answers`, so both arms' bytes are genuinely inside
+///   `stream_fingerprint`. `EffectChoiceQuestion` and `EffectChoiceAnswer` ARE
+///   in the SR-8 wire closure (both entered it at v31), so this bump is paired
+///   with `PROTOCOL_VERSION` 33 -> 34.
 pub const HASH_SCHEMA_VERSION: u8 = 71;
 
 /// One `(version, fingerprints)` row of the append-only hash-schema history.
@@ -1102,12 +1106,17 @@ pub const HASH_SCHEMA_HISTORY: &[HashSchemaEpoch] = &[
         // ENG-1 (2026-08-02, effect-driven discard becomes a real player choice):
         // `EffectChoiceQuestion` and `EffectChoiceAnswer` each gain a fourth
         // `Discard` variant (CR 701.9b). decl_fingerprint moves (new variant on
-        // both enums, in the GameState serde closure); stream_fingerprint moves
-        // per the v40 mechanism (canonical_fixture() carries no
-        // pending_effect_choice populated with Discard, so the version-sentinel
-        // byte is what moves it, not the new HashInto arms' own bytes).
+        // both enums, in the GameState serde closure). stream_fingerprint was
+        // re-pinned in the ENG-1 /review fix cycle (still before this row shipped
+        // to main): `canonical_fixture()` now carries a `Discard`-shaped
+        // `pending_effect_choice` plus a one-entry `effect_choice_answers`, so the
+        // new `HashInto` arms' own field feeds -- not just the version-sentinel
+        // byte -- are what moved this digest from the first (unshipped) v71 value.
+        // Dropping `count.hash_into(..)` from the question arm now reddens
+        // `stream_fingerprint_is_pinned` (review Finding 1, proven by an executed
+        // revert).
         decl_fingerprint: "ce89c9986695ff29a61bdfa00824bd8524612975158ff5309a8b78bba1821747",
-        stream_fingerprint: "c28455444e0e6399ae7f343924830dfba564eb1b9e27b586711c246540304a3b",
+        stream_fingerprint: "923b1ff8d022c58c8a73dcddb83b98105da85b45ef968db90221c7c6e665b918",
     },
 ];
 
@@ -3232,6 +3241,18 @@ impl HashInto for crate::state::stubs::FlushResumeSite {
 // every gate green. The two enum impls below are therefore held by review and by
 // `stream_fingerprint`, not by the SR-19 scan -- do not read the gate as covering
 // them.
+//
+// ENG-1 /review fix cycle, Finding 1: "held by ... `stream_fingerprint`" was
+// FALSE for the `Discard` arm of either impl until this fix cycle --
+// `canonical_fixture()` never populated `pending_effect_choice`, so all four
+// arms of both impls (not just `Discard`) were unexercised by any gate in the
+// workspace. The fixture now carries a `Discard`-shaped `pending_effect_choice`
+// plus one `effect_choice_answers` entry, so the `Discard` arm of each impl is
+// genuinely stream-exercised (proven by an executed revert: dropping
+// `count.hash_into(..)` reddens `stream_fingerprint_is_pinned`). The other
+// three arms (`SearchLibrary`, `Scry`, `Surveil`) remain unexercised by
+// construction -- the fixture populates exactly one `EffectChoiceQuestion`
+// variant at a time.
 impl HashInto for EffectChoiceQuestion {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {

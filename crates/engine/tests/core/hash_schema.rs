@@ -71,9 +71,10 @@ use std::path::{Path, PathBuf};
 
 use imbl::OrdSet;
 use mtg_engine::{
-    CardType, Color, ContinuousEffect, CounterType, EffectDuration, EffectFilter, EffectId,
-    EffectLayer, GameState, GameStateBuilder, HashSchemaEpoch, KeywordAbility, LayerModification,
-    ManaColor, ManaPool, ObjectId, ObjectSpec, PlayerId, Step, SubType, SuperType, ZoneId,
+    AnsweredEffectChoice, CardType, Color, ContinuousEffect, CounterType, EffectChoiceAnswer,
+    EffectChoiceQuestion, EffectDuration, EffectFilter, EffectId, EffectLayer, GameState,
+    GameStateBuilder, HashSchemaEpoch, KeywordAbility, LayerModification, ManaColor, ManaPool,
+    ObjectId, ObjectSpec, PendingEffectChoice, PlayerId, Step, SubType, SuperType, ZoneId,
     HASH_SCHEMA_HISTORY, HASH_SCHEMA_VERSION,
 };
 
@@ -789,6 +790,36 @@ fn canonical_fixture() -> GameState {
             is_cda: false,
             affected_set: Some(OrdSet::unit(ObjectId(1))),
             condition: None,
+        })
+        // ENG-1 fix cycle, review Finding 1: a `Discard`-shaped
+        // `pending_effect_choice` + one `effect_choice_answers` entry, so both
+        // new `HashInto` arms (`EffectChoiceQuestion::Discard`,
+        // `EffectChoiceAnswer::Discard`) are genuinely fed into
+        // `stream_fingerprint` rather than left to the version-sentinel byte
+        // alone. `ObjectId(101..103)` are synthetic, same convention as the
+        // `ObjectId(1)` above on `affected_set` -- this fixture never runs
+        // `process_command`, so nothing depends on them naming real objects.
+        // `count: 2` is deliberately neither 0 nor `hand.len()` (3), so the
+        // question's own short-circuit-adjacent fields both carry real,
+        // distinguishable bytes.
+        .pending_effect_choice(PendingEffectChoice {
+            choice_id: 1,
+            player: PlayerId(2),
+            source: ObjectId(2),
+            question: EffectChoiceQuestion::Discard {
+                hand: vec![ObjectId(101), ObjectId(102), ObjectId(103)],
+                count: 2,
+            },
+            index: 1,
+        })
+        .effect_choice_answer(AnsweredEffectChoice {
+            question: EffectChoiceQuestion::Discard {
+                hand: vec![ObjectId(201), ObjectId(202)],
+                count: 1,
+            },
+            answer: EffectChoiceAnswer::Discard {
+                chosen: vec![ObjectId(202)],
+            },
         })
         .build()
         .expect("canonical fixture builds")
