@@ -620,7 +620,7 @@ the rest are read.
 | 2 | ✅ **SIM-4** — mulligan preserves the deck — SHIPPED `scutemob-187` (merge `dcb1fe55`) | G2 (+3 adjacent seeds) | simulator | ~40-60 lines, 0 engine | none |
 | 3 | ✅ **SIM-5** — bot cast discipline — SHIPPED `scutemob-188` (merge `e185a2ff`) | G5 | simulator | ~100-150 lines | none |
 | 4 | ✅ **SIM-6** — activation-cost payment channel — SHIPPED `scutemob-189` | G4 (+ 8 `exclude_self` defs) | simulator + play-server | ~150 lines, 0 engine | none |
-| 5 | **UI-5** — UX polish batch 2 | G8, G10, G11, G12, G13 | frontend | ~400-500 lines, ~10 files | none |
+| 5 | ✅ **UI-5** — UX polish batch 2 — SHIPPED `scutemob-190` (merge `08dc4e6a`) | G8, G10, G11, G12, G13 | frontend | ~400-500 lines, ~10 files | none |
 | 6 | **ENG-1** — effect-driven discard decision | G3 | engine | one PB-sized batch | **PROTOCOL + likely HASH** |
 | 7 | **ENG-2** — targets in the event log | G7 | engine | one variant + view-model arms | **PROTOCOL** |
 | 8 | **UI-6** — whole-library search view | G9 | play-server + frontend | ~150-250 lines | none (DTO only) |

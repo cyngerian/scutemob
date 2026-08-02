@@ -229,7 +229,7 @@
 - **Recurrence rule** — future `/collect` and milestone-close bookkeeping appends its detailed PB/SR
   narrative to that archive file (newest first), and updates only a one-paragraph snapshot delta
   here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
-- **Last Updated**: 2026-08-02 — **UI-5 SHIPPED** (`scutemob-190`; rows G8 + G10-G13 of
+- **Last Updated**: 2026-08-02 — **UI-5 SHIPPED** (`scutemob-190`, merge `08dc4e6a`; rows G8 + G10-G13 of
   `memory/playtest-triage-2026-08-02b.md`, the whole UX half of that triage). Frontend only:
   **0 engine lines** (`git diff main..HEAD -- crates/` empty), 0 wire change, PROTOCOL **33** /
   HASH **70** gate-executed. **Concede leaves the priority row** for the header beside "New
