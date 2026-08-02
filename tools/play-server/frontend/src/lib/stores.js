@@ -49,8 +49,16 @@ export const error = writable(null);
  * back through, and the feed is a DOM node per line; bounding it keeps a long
  * session from growing without limit. The oldest lines are dropped, not the
  * newest — the interesting end is the bottom.
+ *
+ * **Raised 500 → 2000 by UI-3**, because that batch invalidated the number it
+ * was chosen against. Before it, ~11 `GameEvent` variants rendered as prose and
+ * everything else arrived as a bare kind string; now 60 do, so the lines *per
+ * turn* went up several-fold and 500 no longer spans the recent history a
+ * turn-grouped feed is meant to let you scroll back through. Adding the feature
+ * that makes a cap bite and leaving the cap alone would have quietly truncated
+ * the thing the feature exists to show.
  */
-const MAX_EVENTS = 500;
+const MAX_EVENTS = 2000;
 
 /**
  * Monotonic sequence stamped onto each event line as it is appended.
@@ -67,6 +75,12 @@ let nextEventSeq = 0;
 function resetEvents() {
   nextEventSeq = 0;
   events.set([]);
+  // An auto-pass status line describes a run against a table that no longer
+  // exists — every caller of this is a redeal or a session that went away. It
+  // also cancels: a loop still in flight when the game is replaced would keep
+  // submitting passes into the new one.
+  passUntilCancelled = true;
+  passUntil.set(null);
 }
 
 /** Fold a `SeatView` into the stores. `seatView`/`decision` replace; `events` appends. */
@@ -200,4 +214,216 @@ export function keepHand() {
 /** Dismiss the error strip without issuing a request. */
 export function dismissError() {
   error.set(null);
+}
+
+// ── Pass-until (UI-3, `scutemob-180`, AC 6009) ───────────────────────────────
+
+/**
+ * Auto-pass status: `{ mode, passes, stopReason }` while a run is in flight or
+ * has just finished, `null` when idle.
+ *
+ * `stopReason` is null while running and a sentence when it has stopped, so the
+ * UI can always say *why* it gave you priority back. "It stopped" with no reason
+ * is the failure mode of every auto-pass button in every client, and the answer
+ * ("something was cast", "it is your turn", "you were asked to discard") is the
+ * only interesting part.
+ */
+export const passUntil = writable(null);
+
+/**
+ * Cancellation flag for the running loop.
+ *
+ * A plain module-level boolean rather than a store read: the loop must see the
+ * cancel the moment it is set, and `get(store)` in the loop body would do the
+ * same job with more ceremony. Reset at the start of every run.
+ */
+let passUntilCancelled = false;
+
+/**
+ * Hard bound on one run. A pass costs a round trip, so this is a stall guard,
+ * not a policy: a table that legitimately needs more than this many consecutive
+ * human passes has something wrong with it, and spinning forever against a
+ * server that keeps handing priority back is worse than stopping and saying so.
+ *
+ * Sized against the server's own limits (`session.rs::config_for` allows 500
+ * consecutive passes and 200 turns), so this stops first and stops visibly.
+ */
+const MAX_AUTO_PASSES = 400;
+
+/**
+ * The stop predicates.
+ *
+ * Each takes `(view, ctx)` — the `SeatView` just received and the context
+ * captured when the run started — and returns a **reason string** to stop, or
+ * `null` to keep passing.
+ *
+ * # Shape, and why it is this shape
+ *
+ * The playtest note asks for two buttons now and names the generalisation it
+ * wants later: "this could be fine grained in the future … select player turn
+ * and phase and the priority will pass until that phase (ex: Bot-3 end)". So a
+ * mode is an object, not a string constant, and the dispatch is on `mode.kind`
+ * with the rest of the object free for parameters. Adding that third mode is
+ * one entry here plus one control in `ActionBar`; nothing else moves.
+ *
+ * Everything is read from the seat-redacted `SeatView` the server already sends.
+ * There is no server change for this feature and no new route — `POST
+ * /api/game/action` with the existing `PassPriority` index is the whole
+ * mechanism, which is exactly what a human clicking "pass" repeatedly does.
+ */
+const PASS_UNTIL_PREDICATES = {
+  /**
+   * "Pass until my turn starts."
+   *
+   * Stops the moment the active player (CR 102.1 / 500.1) is this seat. Note
+   * this is the *active player*, not priority: you get control back at the top
+   * of your own turn rather than at the first priority you receive during it.
+   */
+  'my-turn': (view, ctx) => {
+    const active = view?.state?.turn?.active_player ?? null;
+    if (active !== null && active === ctx.humanName) return 'your turn began';
+    return null;
+  },
+
+  /**
+   * "Pass until something happens, or the phase ends."
+   *
+   * Two stop conditions, both meaning "the board is not what it was when you
+   * stopped paying attention":
+   *
+   *   - the step or phase changed (CR 500.1 — the turn moved on), or
+   *   - the stack grew (CR 405.1 — somebody cast or activated something).
+   *
+   * The stack check compares against the depth seen on the **previous
+   * iteration**, not against the depth when the run started, and the difference
+   * is real: with a fixed baseline, a spell that resolved off the stack and a
+   * different one that went on in its place is a net-zero change and would be
+   * passed straight through. Any growth from one response to the next stops the
+   * run.
+   *
+   * `ctx.step`/`ctx.phase` stay fixed at the starting values on purpose — the
+   * question there is "has the turn moved on from where I stopped paying
+   * attention", which is a comparison against the start, not against the last
+   * poll.
+   */
+  'phase-end': (view, ctx) => {
+    const step = view?.state?.turn?.step ?? null;
+    const phase = view?.state?.turn?.phase ?? null;
+    if (step !== ctx.step || phase !== ctx.phase) {
+      return `the ${ctx.phase} phase moved on (${ctx.step} → ${step})`;
+    }
+    const depth = view?.state?.zones?.stack?.length ?? 0;
+    const grew = depth > ctx.stackDepth;
+    ctx.stackDepth = depth;
+    return grew ? 'something was put on the stack' : null;
+  },
+};
+
+/** Cancel a running auto-pass. Safe to call when nothing is running. */
+export function cancelPassUntil() {
+  passUntilCancelled = true;
+}
+
+/**
+ * Pass priority repeatedly until `modeKind`'s predicate says to stop.
+ *
+ * **Entirely client-side.** Every iteration is one ordinary `POST
+ * /api/game/action` naming the `PassPriority` option the server already offered,
+ * so the server cannot tell this apart from a human clicking pass quickly, and
+ * no recorded seed or replay is affected.
+ *
+ * Unconditional stop conditions, checked before the predicate on every
+ * iteration — these are the ones that make the loop safe rather than merely
+ * convenient:
+ *
+ *   - the user cancelled;
+ *   - the game ended (`game_over`);
+ *   - there is no decision to answer;
+ *   - the decision is **not** a `Priority` one. This is the important one: a
+ *     cleanup discard, a trigger's targets, a blocker declaration and a search
+ *     are all real choices (UI-1's whole subject), and an auto-passer that
+ *     answered them with a default would be making the human's decisions for
+ *     them — the exact defect UI-1 existed to remove. The loop hands control
+ *     back instead;
+ *   - the current decision offers no `PassPriority` action at all;
+ *   - a request failed (`act` returns false, having set `error`);
+ *   - `MAX_AUTO_PASSES` iterations.
+ */
+export async function startPassUntil(modeKind) {
+  const predicate = PASS_UNTIL_PREDICATES[modeKind];
+  if (!predicate) {
+    error.set({
+      message: `unknown pass-until mode "${modeKind}"`,
+      kind: 'client_bug',
+      status: null,
+    });
+    return false;
+  }
+  // Refuse a second concurrent run. `loading` alone is not enough: it is false
+  // between iterations, so a second call landing in that window would start a
+  // rival loop, both would drive the same session, and `passUntilCancelled`
+  // would stop whichever checked it first while the other kept passing. The
+  // buttons are already hidden mid-run (`ActionBar`'s `autoPassing`); this is
+  // the guard behind that, for any caller that is not a button.
+  const running = get(passUntil);
+  if (running && running.stopReason === null) return false;
+  if (get(loading)) return false;
+
+  const start = get(seatView);
+  if (!start) return false;
+
+  const ctx = {
+    humanName: start.summary?.human_name ?? null,
+    phase: start.state?.turn?.phase ?? null,
+    step: start.state?.turn?.step ?? null,
+    stackDepth: start.state?.zones?.stack?.length ?? 0,
+  };
+
+  passUntilCancelled = false;
+  let passes = 0;
+  passUntil.set({ mode: modeKind, passes, stopReason: null });
+
+  const finish = (stopReason) => {
+    passUntil.set({ mode: modeKind, passes, stopReason });
+    return true;
+  };
+
+  for (;;) {
+    if (passUntilCancelled) return finish('cancelled');
+    if (passes >= MAX_AUTO_PASSES) {
+      return finish(`stopped after ${MAX_AUTO_PASSES} passes — this looks stuck`);
+    }
+
+    const view = get(seatView);
+    if (!view) return finish('the game went away');
+    if (view.game_over) return finish('the game is over');
+
+    const pending = get(decision);
+    if (!pending) return finish('there is nothing to answer');
+    if (pending.kind !== 'Priority') {
+      return finish(`you have a ${pending.kind} decision to make`);
+    }
+
+    // Only after the loop has passed at least once do we let the predicate stop
+    // it — otherwise "pass until my turn" would refuse to start on your own
+    // turn, which is the one time you most want to pass through to the end of
+    // it. The unconditional guards above still apply on iteration 0.
+    if (passes > 0) {
+      const reason = predicate(view, ctx);
+      if (reason) return finish(reason);
+    }
+
+    const pass = (pending.actions ?? []).find((a) => a.kind === 'PassPriority');
+    if (!pass) return finish('passing is not offered right now');
+
+    const ok = await act(pass.index, {});
+    if (!ok) return finish('a request failed — see the error above');
+    passes += 1;
+    passUntil.set({ mode: modeKind, passes, stopReason: null });
+  }
+}
+
+/** Clear the finished-run status line. */
+export function dismissPassUntil() {
+  passUntil.set(null);
 }

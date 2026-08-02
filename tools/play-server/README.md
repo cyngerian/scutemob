@@ -856,6 +856,62 @@ repeated here so this README does not claim more than the implementation does.
     from a hand-built command. `legal_actions.rs`'s own test pins the current wrong
     value and names the right one. Seed **OOS-UI2-3**.
 
+21. **"Pass until X" is a client loop, and it stops at every real decision
+    (UI-3).** `stores.js::startPassUntil` submits ordinary `PassPriority`
+    actions over the existing route — there is no server-side auto-pass and no
+    new endpoint, so the server cannot tell it from a human clicking quickly and
+    no recorded seed moves. Consequences, all deliberate: it costs one round trip
+    per pass; it **stops the moment a non-`Priority` decision arrives** rather
+    than answering it, because answering a cleanup discard or a trigger's targets
+    with a default is the defect UI-1 existed to delete; and it has a hard bound
+    of 400 passes, below the server's own 500-consecutive-pass guard, so it stops
+    first and stops visibly. The playtest note's fine-grained form ("select
+    player turn and phase … ex: Bot-3 end") is **not implemented** — the
+    predicate table is keyed on a mode object precisely so that is one more
+    entry, but today there are two modes.
+
+22. **Opponent seat cards can show *no* known hand cards, and that is the view
+    model, not the drawer (UI-3).** `SeatCard`'s details drawer lists the
+    non-`hidden` entries of a seat's hand, which is the whole hand for the human
+    and normally **empty** for a bot. The view model has no channel for a
+    *revealed* card: `redact::redact_hands` decides per entry from zone
+    entitlement alone, so a reveal effect does not un-hide an opponent's hand
+    entry. The drawer says how many cards it may not identify rather than
+    implying the information is merely unrendered. Closing this needs a
+    per-object reveal set on `CardInZoneView`, which is an M10a-shaped change.
+
+23. **The battlefield grid's column count is computed, and only the narrow case
+    is a viewport property (UI-3).** `PlayBoard` sets `--cols` from the number of
+    *living* seats — at most 2 up to four seats, 3 from five (tables run to six,
+    `session.rs::MAX_PLAYERS`) — so four seats are 2×2, two survivors are 2×1 at
+    full width each, and six are 3×2. Below `60rem` a media query stacks them
+    into one column; that is the correct behaviour, not a fallback. Eliminated
+    seats are dropped from the grid entirely (CR 800.4a empties their battlefield
+    anyway); a seat that somehow still controls a permanent gets a greyed row
+    below the grid rather than being silently hidden. **This replaced an
+    `auto-fit` version that failed the requirement on exactly the displays most
+    likely to run this**: `repeat(auto-fit, minmax(22rem, 1fr))` packs as many
+    tracks as fit, four boards need only ~88rem, so anything wider laid them out
+    **1×4** — the "tons of empty space on the right of the board" the playtest
+    complained about, reproduced by the fix for it. Found in review.
+
+25. **The top dock is capped at 62vh and scrolls (UI-3).** It holds the seat row
+    and the ActionBar, and the ActionBar hosts every picker — so an expanded seat
+    drawer plus a four-seat segmented `TargetPicker` could otherwise grow an
+    unshrinkable dock until the board had no room and the *document* scrolled,
+    which destroys the "player cards stay in place" property the layout exists
+    for. Scrolling inside the dock is the lesser evil and only engages in that
+    case; `.body` is guaranteed at least 38vh.
+
+24. **The event feed's tiers are server-assigned, and an unclassified variant
+    lands in `game` (UI-3).** `EventTier` is decided in
+    `crates/view-model/src/event_view.rs` by a `match` on the `GameEvent`
+    variant with a documented `_ => Game` default, so a newly added variant gets
+    a tier without an edit — but it gets the *default* tier, not a considered
+    one. The client never classifies by `kind` substring (it does that only to
+    pick a colour), because a stale client-side list would silently hide a whole
+    class of event behind a filter chip.
+
 ---
 
 ## `GET /api/game/report` — and the one place Invariant 7 does not apply

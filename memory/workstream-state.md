@@ -947,6 +947,147 @@ found); `decision_gate` 18/18. **Zero engine lines** — the only source file in
 (`crates/simulator`-only batch). `OOS-SIM3-2`'s two missing checks are marked in both docs,
 not written — #10 (legal-action soundness) is the SR-38 property and is close to free, since
 `GameDriver` already distinguishes a rejected command from an applied one.
+## Worker Handoff (UI-3, `scutemob-180`)
+
+**Date**: 2026-08-02 (worker session)
+**Workstream**: playtest-triage successor track (UI-3) — the UX/layout items the triage
+filed under **"Not verified (by design)"**, i.e. feature work rather than claims
+**Task**: `scutemob-180`. Branch
+`feat/ui-3-play-frontend-ux-polish-batch-playtest-notes-layoutinfo`
+
+**Completed** (all five criteria; 0 engine lines — `git diff main -- crates/engine/src
+crates/card-types/src crates/card-defs` is empty):
+
+- **AC 6006 — combat display.** The headline is that **nothing was missing from the
+  payload**. `StateViewModel::combat` has carried `attackers[].target` and
+  `attackers[].blockers[]` since M9.5, seat-redacted by `redact::redact_combat`. The play
+  client rendered `$viewer/StateView.svelte`, which **does not include**
+  `CombatView.svelte` — the replay viewer composes those two in its own `App.svelte`, so
+  the component existed, the data existed, and the two had never been introduced on this
+  surface. `PlayApp` now renders it under the stack. **A real defect fell out of doing so**:
+  `AttackerView::target`'s doc comment said `"planeswalker:<id>"` and
+  `CombatView.svelte::formatTarget` believed it, rendering `PW #{suffix}` — so an attacked
+  planeswalker displayed as **`PW #Chandra, Torch of Defiance`** in *both* surfaces.
+  `build_combat_view` has always written a name, and `redact_combat` substitutes
+  `FACE_DOWN_NAME` — a name — which is only coherent for a name field. Fixed in place in the
+  shared component (deliberately: the replay viewer had the identical bug) and the doc
+  corrected with it.
+- **AC 6007 — event feed.** The feed was sparse **because the renderer was**:
+  `event_view_for` had ~11 rendered arms and a `_ =>` catch-all emitting the bare serde
+  variant name with no player and no card, and *every single item the playtest asked for*
+  (taps, ETB, deaths, exiles, counters, triggers, resolutions, attacks, blocks, damage) fell
+  into it. **49 prose arms** added, each identity routed through the `viewer_may_identify`
+  gate — no arm reads `state.objects()`. `EventView` gains `tier`
+  (`game`/`player`/`card`/`stack`), assigned **server-side** by a match on the variant with a
+  documented `_ => Game` default. The client deliberately does **not** classify by `kind`
+  substring: `GameEvent` has ~141 variants, and a stale client-side list would silently hide
+  a whole class of event behind a filter chip. (It still substring-matches for *tone*, which
+  only picks a colour — the distinction is written down.) `EventFeed` gains tier chips with
+  live counts and collapsible per-turn sections; **section boundaries come from the
+  unfiltered list**, because `TurnStarted` is itself a `game`-tier event and deriving them
+  from the filtered one would make every turn heading vanish the moment someone unticked
+  "turn".
+- **AC 6008 — layout.** New play-local `PlayBoard.svelte` (2×2 battlefield grid via
+  `repeat(auto-fit, minmax(22rem, 1fr))`, so four boards lay out 2×2 and two survivors reflow
+  to full width **with no code branch on the count**) and `SeatCard.svelte` (command zone
+  folded into the player card, expandable details drawer). The shared
+  `$viewer/StateView.svelte` is **untouched** and the replay viewer still uses it — every
+  requirement here is the opposite of what a step-debugger wants, and a dead player's board
+  must keep rendering there because stepping *backwards* past an elimination is the normal
+  thing to do. All four "stay in place" requests fall out of **one** arrangement: seat row,
+  action bar and stack dock are flex siblings *above* the scrolling body, the own-hand bar is
+  a sibling *below* it, and nothing is `position: sticky` (four stacked sticky strips slide
+  under each other). **Commander hover-preview**: measured rather than assumed — the command
+  zone was the **only** zone in the codebase without `cardTooltip` (hand, battlefield,
+  graveyard, exile and stack all had it).
+- **AC 6009 — pass-until.** `stores.js::startPassUntil`, entirely client-side: each iteration
+  is one ordinary `POST /api/game/action` naming the `PassPriority` option the server already
+  offered, so **no server change, no new route, and no recorded seed moves**. It stops on
+  cancel, game over, no decision, **a non-`Priority` decision**, no pass offered, a failed
+  request, or 400 passes (below the server's own 500-consecutive-pass guard, so it stops
+  first and stops visibly) — and it always **says which**. The non-`Priority` stop is the
+  load-bearing one: answering a cleanup discard or a trigger's targets with a default is
+  precisely the defect UI-1 existed to delete. Predicates are keyed on a **mode object**, so
+  the note's fine-grained form is one more entry (`OOS-UI3-3`).
+- **AC 6010 — target segmentation.** `TargetOptionView.owner`, derived inside `NameIndex`
+  from the **same already-redacted view** every `label` comes from — never from `GameState`,
+  and never re-derived client-side, which would be wrong for exactly the case that matters
+  (a stolen permanent sits in its *controller's* battlefield map, CR 109.4). `TargetPicker`
+  groups by it, human seat first, unlabelled last. Grouping carries **original candidate
+  indices**, so what is submitted is byte-identical to before.
+
+**Tests**: **4,247 → 4,253 / 0 failing / 5 ignored** (baseline measured on this branch at
+merge-base `f40c9fb9` before any edit — note this is the post-SIM-2/UI-2/CARDS-2 merged tree,
+not CLAUDE.md's 4,218 UI-2 branch pin). +4 view-model (tier classification including the
+documented default arm, redaction non-leak across three hidden-zone cases, exact prose), +2
+play-server HTTP probes. **Every one watched failing under a deliberate revert**, including
+two I re-ran independently rather than trusting the implementing agent's report.
+
+**The fixture lesson worth carrying**: the combat probe first ran on `COMBAT_SEED` (6) and
+passed while checking almost nothing — that seed offers **one** eligible attacker, so
+"attacker → defender" collapsed to "there is a defender" and a bug swapping two attackers'
+defenders would have passed. A sweep of `seed` ∈ 0..24 found that **every** seed offers 3
+player targets (just CR 506.2) and **only seed 21 offers two eligible attackers**, because at
+the turn the first attack becomes available the boards hold a single creature. New pin
+`UI3_SPLIT_COMBAT_SEED = 21`, and **the split itself is asserted** (`distinct_defenders >= 2`)
+rather than reported, so a re-deal fails loudly instead of leaving a test that still passes
+while checking a strictly weaker property. The blocker half is asserted the same way.
+
+**Gates**: PROTOCOL **33** / HASH **70** gate-EXECUTED unmoved (`--test core` hash_schema +
+protocol_schema, 53 passing — not predicted); `decision_gate` 18/18; `cargo clippy --workspace
+--all-targets -D warnings` clean; `cargo fmt --check` clean; `tools/check-defs-fmt.sh` clean
+(1,803 defs); coverage untouched (0 card-def edits).
+
+**S6 method, both ways**: play frontend **151 → 155 modules**, 0 warnings; replay viewer
+**142 modules, unchanged**, and its **CSS bundle hash is byte-identical** across the change
+(`index-DYVpLGsR.css` before and after) with the JS differing by 10 bytes — exactly the one
+deliberate `formatTarget` string and nothing else. Only **one** `$viewer` file was touched
+(`CombatView.svelte`); the four S7 pickers other than `TargetPicker` are byte-identical, and
+their six `test_ui1_*` HTTP channel probes re-run green.
+
+**Seeds filed** (`docs/audits/decision-point-audit.md` §8.1): **OOS-UI3-1** (nine wrong CR
+citations in `events.rs` doc comments, all in the renumbered 701.x keyword-action block,
+verified against the CR text — the largest instance of the OOS-DP6-8 rot class yet, and it
+survived because every wrong number points at a *real* keyword action); **OOS-UI3-2** (two
+event arms under-disclose because the only id they carry is the destination object — a
+battlefield bounce is public in paper and renders name-free; needs a wire change);
+**OOS-UI3-3** (fine-grained "until Bot-3 end"); **OOS-UI3-4** (no reveal channel on
+`CardInZoneView`, so an opponent's seat card can never show a revealed hand card).
+
+**Limitations 21–25** appended to `tools/play-server/README.md`.
+
+**The fix cycle's finding is the one to read**: `/review` caught that **the 2×2 grid was not
+2×2**. `repeat(auto-fit, minmax(22rem, 1fr))` packs as many tracks as *fit*, and four boards
+need only ~88rem — so on any display wider than that the batch shipped a squeezed **1×4** row
+with empty space to the right, which is *verbatim* the complaint the grid exists to answer.
+`auto-fit` was chosen because it delivered the dead-player reflow with no code branch, and it
+did; it also silently failed the headline requirement on exactly the machines most likely to
+run this. **A CSS idiom that solves the requirement you were thinking about can fail the one
+you started from, and neither the build nor any test can tell you** — there is no frontend
+harness (plan §8 R7), so the only detector was reading it. Corroboration the reviewer found
+and I had not: `--cells` was set inline on the grid and consumed by **no CSS rule** — a hook I
+wrote for this and never finished, sitting in the file as evidence. Column count is now
+computed. Second MEDIUM, same family: `.top-dock` was the **one uncapped sibling** — I capped
+`.stack-dock` and `.hand-bar` and missed the container that hosts every picker, so an expanded
+drawer plus a segmented `TargetPicker` could squeeze the board to nothing and push the page
+into a *document* scrollbar, destroying the "stay in place on scroll" property the whole flex
+arrangement exists to provide.
+
+**One review finding was FALSE and was not actioned**, recorded because a future reader will
+meet the same claim: the reviewer's sole HIGH said the `phase-end` predicate captures
+`ctx.stackDepth` once at run start, so a resolve-then-recast slips through. It had quoted a
+collapsed paraphrase and dropped the `ctx.stackDepth = depth` re-baselining line; its own
+worked example fails at its step 3. Verified against source before deciding. (That gap **was**
+real one commit earlier — I found and fixed it in a self-review pass before the reviewer ran,
+which is presumably why it was reading for it.)
+
+**Also worth carrying**: `MAX_EVENTS` was still **500**, chosen when ~11 `GameEvent` variants
+rendered as prose; this batch took that to **60**, multiplying lines per turn. Shipping the
+feature that makes a cap bite while leaving the cap alone would have truncated the very
+history the feature exists to show. Raised to 2000. **A constant tuned against a behaviour is
+part of that behaviour's blast radius.**
+
+---
 
 ## Worker Handoff (SIM-2, `scutemob-176`)
 

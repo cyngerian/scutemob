@@ -3,7 +3,34 @@
    * PlayApp — the play surface: header, phase bar, seat-scoped state, event feed,
    * action bar, and the hand/battlefield click-through.
    *
-   * M11-local Session 6 (`memory/m11-session-plan.md` §4, items 4 and 6).
+   * M11-local Session 6 (`memory/m11-session-plan.md` §4, items 4 and 6);
+   * re-laid-out by UI-3 (`scutemob-180`, AC 6006 + 6008).
+   *
+   * # The layout, and why it is flex rather than `position: sticky`
+   *
+   * The first-human-playtest notes asked for four things at once: "player cards
+   * should stay in place on scroll", "action bar could actually be at the top,
+   * under player cards", "stack under the action bar", and "the players hand
+   * should be a permanent bar on the bottom like the action bar".
+   *
+   * All four fall out of one arrangement. `.play-app` is a full-height flex
+   * column; the seat row, the action bar and the stack/combat dock are flex
+   * children ABOVE the scrolling region, and the hand bar is a flex child BELOW
+   * it. Only `.body` scrolls. Nothing is `position: sticky`, which matters
+   * because sticky elements still occupy the scroll container and still slide
+   * under each other when several of them stack up — with four docked strips
+   * that is exactly the mess it looks like.
+   *
+   * The board itself (2×2 battlefields, dead-player reflow) is `PlayBoard`, and
+   * the per-seat card is `SeatCard`; both are play-local, and the reasons are in
+   * their own module docs. The shared `$viewer/StateView.svelte` is no longer
+   * used by this surface and is **unmodified**, so the replay viewer's own
+   * composition of it renders exactly what it did.
+   *
+   * Stated narrowly on purpose: UI-3 *did* change one `$viewer` file —
+   * `CombatView.svelte`, deliberately and in place, because the replay viewer
+   * carried the identical planeswalker-label defect. "The replay viewer is
+   * untouched" would be the convenient sentence and it would be false.
    */
   import { onMount } from 'svelte';
 
@@ -13,22 +40,30 @@
   // `docs/mtg-engine-replay-viewer.md` §"Import Mechanism". A copy would fork on
   // the next `StackObjectKind` variant.
   import PhaseIndicator from '$viewer/PhaseIndicator.svelte';
-  import StateView from '$viewer/StateView.svelte';
+  import ZoneStack from '$viewer/ZoneStack.svelte';
+  import ZoneHand from '$viewer/ZoneHand.svelte';
+  import CombatView from '$viewer/CombatView.svelte';
 
   import ActionBar from './ActionBar.svelte';
   import EventFeed from './EventFeed.svelte';
+  import PlayBoard from './PlayBoard.svelte';
+  import SeatCard from './SeatCard.svelte';
   import { getReport } from './api.js';
   import {
     act,
+    cancelPassUntil,
     decision,
     dismissError,
+    dismissPassUntil,
     error,
     events,
     keepHand,
     loading,
+    passUntil,
     refresh,
     seatView,
     startGame,
+    startPassUntil,
     takeMulligan,
   } from './stores.js';
 
@@ -293,6 +328,38 @@
   const state = $derived($seatView?.state ?? null);
   const gameOver = $derived($seatView?.game_over ?? null);
 
+  /**
+   * This seat's display name, straight off the payload — **not** rebuilt as
+   * `Human-${summary.human}`.
+   *
+   * `GameSummary::human_name` exists precisely so the client does not keep a
+   * second copy of `mtg_simulator::setup::seat_name`'s naming convention; see
+   * that field's doc. Everything that needs to know "which of these seats is
+   * mine" reads this one derived value.
+   */
+  const humanName = $derived(summary?.human_name ?? null);
+
+  /** Sorted for a stable seat order across responses. */
+  const playerNames = $derived(state?.players ? Object.keys(state.players).sort() : []);
+
+  /**
+   * CR 506.1: combat state, present only during the combat phase.
+   *
+   * Rendered here for the first time on this surface. It was in the view model
+   * from M9.5 and the play client never showed it, because `StateView` — the
+   * component this surface used to render — does not include `CombatView`; the
+   * replay viewer wires the two together in its own `App.svelte` instead. That
+   * is the whole of playtest finding "not clear which card are attacking which
+   * player after attackers declared": the data shipped on every payload and no
+   * component read it.
+   */
+  const combat = $derived(state?.combat ?? null);
+
+  /** The human's own hand, for the permanent bottom bar. */
+  const ownHand = $derived(
+    humanName !== null ? (state?.zones?.hand?.[humanName] ?? []) : [],
+  );
+
   /** True only when we know there is no game — not merely that none has loaded yet. */
   const noGame = $derived(!$seatView && !$error && !$loading);
 
@@ -404,6 +471,87 @@
     </div>
   {/if}
 
+  <!--
+    The top dock: seat cards, then the action bar, then the stack and combat.
+    Everything here is OUTSIDE `.body`, so it never scrolls away — see the module
+    doc for why this is a flex arrangement rather than `position: sticky`.
+  -->
+  <div class="top-dock">
+    {#if state}
+      <section class="seat-row">
+        {#each playerNames as pname (pname)}
+          <SeatCard
+            player={state.players[pname]}
+            playerName={pname}
+            isActive={state.turn.active_player === pname}
+            hasPriority={state.turn.priority === pname}
+            isHuman={pname === humanName}
+            commanders={state.zones?.command_zone?.[pname] ?? []}
+            hand={state.zones?.hand?.[pname] ?? []}
+            graveyard={state.zones?.graveyard?.[pname] ?? []}
+            onCardClick={handleCardClick}
+          />
+        {/each}
+      </section>
+    {/if}
+
+    <!--
+      Mounted ONCE, outside the `{#if state}` above, and that is deliberate:
+      `bind:this={actionBar}` is `PlayApp`'s click-through handle into the picker
+      chain (`beginExternal`), and a second copy of this element in an `{:else}`
+      branch would null the binding out on every transition between the two.
+      With no state there is simply no seat row above it.
+    -->
+    <ActionBar
+      bind:this={actionBar}
+      decision={$decision}
+      loading={$loading}
+      error={$error}
+      {emptyReason}
+      {humanName}
+      passUntil={$passUntil}
+      onAct={(index, params) => act(index, params)}
+      onRefresh={refresh}
+      onDismissError={dismissError}
+      onCancel={clearSelection}
+      onPassUntil={(mode) => startPassUntil(mode)}
+      onCancelPassUntil={cancelPassUntil}
+      onDismissPassUntil={dismissPassUntil}
+    />
+
+    {#if chooser}
+      <div class="chooser">
+        <span class="chooser-label">"{chooser.name}" —</span>
+        {#each chooser.options as option (option.index)}
+          <button disabled={$loading} onclick={() => chooseOption(option)}>{option.label}</button>
+        {/each}
+        <button class="cancel" onclick={clearSelection} title="Cancel (Esc)">Cancel</button>
+      </div>
+    {:else if clickMessage}
+      <div class="click-message">
+        <span>{clickMessage}</span>
+        <button class="cancel" onclick={clearSelection} title="Dismiss (Esc)">✕</button>
+      </div>
+    {/if}
+
+    <!--
+      Stack + combat, capped so a deep stack scrolls inside its own box rather
+      than pushing the board off the screen. Combat sits directly under the
+      stack, which is where the playtest note asked for it ("could be a section
+      under the stack which shows attackers and subsequent blockers").
+    -->
+    {#if state && ((state.zones?.stack?.length ?? 0) > 0 || combat)}
+      <section class="stack-dock">
+        {#if (state.zones?.stack?.length ?? 0) > 0}
+          <ZoneStack items={state.zones.stack} onCardClick={handleCardClick} />
+        {/if}
+        {#if combat}
+          <CombatView {combat} />
+        {/if}
+      </section>
+    {/if}
+  </div>
+
   <main class="body">
     <section class="state-pane">
       {#if noGame}
@@ -424,7 +572,7 @@
           the server already removed, while creating a second place for the two
           policies to disagree.
         -->
-        <StateView {state} onCardClick={handleCardClick} />
+        <PlayBoard {state} {humanName} onCardClick={handleCardClick} />
       {:else}
         <div class="empty-state"><div class="empty-title">Loading…</div></div>
       {/if}
@@ -435,32 +583,16 @@
     </aside>
   </main>
 
-  {#if chooser}
-    <div class="chooser">
-      <span class="chooser-label">"{chooser.name}" —</span>
-      {#each chooser.options as option (option.index)}
-        <button disabled={$loading} onclick={() => chooseOption(option)}>{option.label}</button>
-      {/each}
-      <button class="cancel" onclick={clearSelection} title="Cancel (Esc)">Cancel</button>
-    </div>
-  {:else if clickMessage}
-    <div class="click-message">
-      <span>{clickMessage}</span>
-      <button class="cancel" onclick={clearSelection} title="Dismiss (Esc)">✕</button>
-    </div>
+  <!--
+    The human's own hand, permanently docked at the bottom (playtest note). Uses
+    the shared `ZoneHand`, so click-through and the Scryfall hover preview are
+    the same code path every other zone uses.
+  -->
+  {#if state && humanName !== null}
+    <footer class="hand-bar">
+      <ZoneHand cards={ownHand} playerName={humanName} onCardClick={handleCardClick} />
+    </footer>
   {/if}
-
-  <ActionBar
-    bind:this={actionBar}
-    decision={$decision}
-    loading={$loading}
-    error={$error}
-    {emptyReason}
-    onAct={(index, params) => act(index, params)}
-    onRefresh={refresh}
-    onDismissError={dismissError}
-    onCancel={clearSelection}
-  />
 </div>
 
 <style>
@@ -579,6 +711,59 @@
     color: #caa;
   }
 
+  /*
+    UI-3 layout. `.top-dock` and `.hand-bar` are `flex-shrink: 0` siblings of the
+    scrolling `.body`, which is what keeps them in place — see the module doc for
+    why this is not `position: sticky`.
+  */
+  .top-dock {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    flex-shrink: 0;
+    /*
+      Capped for the same reason `.stack-dock` and `.hand-bar` are, and it was
+      missed on the first pass while both of its neighbours got one. The dock is
+      `flex-shrink: 0` and now hosts the ActionBar, which hosts every picker — so
+      an expanded seat drawer plus a four-seat segmented `TargetPicker` can grow
+      it without limit, squeeze `.body` toward zero and push the page into a
+      document-level scrollbar. That does not merely look wrong: it destroys the
+      "player cards stay in place on scroll" property this whole arrangement
+      exists to provide, because once the *document* scrolls there is no fixed
+      region left. `.body` is therefore guaranteed at least 38vh.
+
+      Scrolling inside the dock is the lesser evil, not a happy outcome: the seat
+      cards can leave view when it overflows. It only engages in the case where
+      the alternative is the board vanishing entirely.
+    */
+    max-height: 62vh;
+    overflow-y: auto;
+    background: #0d0d1a;
+    border-bottom: 1px solid #22223a;
+  }
+
+  .seat-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: flex-start;
+    padding: 0.35rem 0.6rem 0;
+  }
+
+  /*
+    A deep stack scrolls inside its own box. Without the cap, a stack ten deep
+    would push the board out of the viewport entirely — and the board is what the
+    stack is about.
+  */
+  .stack-dock {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    max-height: 30vh;
+    overflow-y: auto;
+    padding: 0 0.6rem 0.35rem;
+  }
+
   .body {
     display: flex;
     flex: 1;
@@ -598,6 +783,19 @@
     min-width: 14rem;
     display: flex;
     min-height: 0;
+  }
+
+  /*
+    The human's own hand, always visible. Capped and scrollable for the same
+    reason the stack is: a 15-card hand after a Windfall must not eat the board.
+  */
+  .hand-bar {
+    flex-shrink: 0;
+    max-height: 22vh;
+    overflow-y: auto;
+    padding: 0.3rem 0.6rem;
+    background: #0d0d1a;
+    border-top: 1px solid #22223a;
   }
 
   .empty-state {
@@ -689,7 +887,8 @@
     gap: 0.4rem;
     padding: 0.3rem 0.6rem;
     background: #151530;
-    border-top: 1px solid #2a2a44;
+    /* Sits inside the top dock now, under the action bar. */
+    border-bottom: 1px solid #2a2a44;
     font-size: 0.76rem;
     color: #bbc;
   }

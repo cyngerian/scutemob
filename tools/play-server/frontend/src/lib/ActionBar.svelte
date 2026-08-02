@@ -11,6 +11,13 @@
    *   loading (bool)              — a request is in flight
    *   error ({message,kind,status}|null)
    *   emptyReason (string)        — why there is no decision, supplied by the caller
+   *   humanName (string|null)     — `summary.human_name`, threaded to `TargetPicker`
+   *                                 so a candidate list can put your own segment
+   *                                 first (UI-3, AC 6010)
+   *   passUntil ({mode,passes,stopReason}|null) — `stores.js`' auto-pass status
+   *   onPassUntil (fn(modeKind))  — start an auto-pass run (UI-3, AC 6009)
+   *   onCancelPassUntil (fn)      — stop one mid-run
+   *   onDismissPassUntil (fn)     — clear the finished-run status line
    *   onAct (fn(index, params))   — submit an action
    *   onRefresh (fn)              — re-read the seat view
    *   onDismissError (fn)
@@ -163,11 +170,19 @@
     loading = false,
     error = null,
     emptyReason = '',
+    humanName = null,
+    passUntil = null,
     onAct = null,
     onRefresh = null,
     onDismissError = null,
     onCancel = null,
+    onPassUntil = null,
+    onCancelPassUntil = null,
+    onDismissPassUntil = null,
   } = $props();
+
+  /** True while `stores.js`' auto-pass loop is mid-run. */
+  const autoPassing = $derived(!!passUntil && passUntil.stopReason === null);
 
   const actions = $derived(decision?.actions ?? []);
 
@@ -518,6 +533,28 @@
     </div>
   {/if}
 
+  <!--
+    UI-3 (AC 6009): the auto-pass run always says why it stopped. A pass-until
+    control that silently returns priority is indistinguishable from one that
+    broke, and the reason ("something was put on the stack", "you have a
+    CleanupDiscard decision to make") is the whole value of having pressed it.
+  -->
+  {#if passUntil}
+    <div class="auto-pass-strip" class:running={autoPassing}>
+      {#if autoPassing}
+        <span class="ap-label">passing…</span>
+        <span class="ap-detail">{passUntil.passes} pass{passUntil.passes === 1 ? '' : 'es'}</span>
+        <button class="ap-btn" onclick={() => onCancelPassUntil?.()}>Cancel</button>
+      {:else}
+        <span class="ap-label">stopped</span>
+        <span class="ap-detail">
+          after {passUntil.passes} pass{passUntil.passes === 1 ? '' : 'es'} — {passUntil.stopReason}
+        </span>
+        <button class="ap-btn" onclick={() => onDismissPassUntil?.()} title="Dismiss">✕</button>
+      {/if}
+    </div>
+  {/if}
+
   {#if decision}
     <div class="bar-row">
       <div class="decision-heading">
@@ -557,6 +594,46 @@
                 {#if option.kind === 'PassPriority'}<span class="key-hint">space</span>{/if}
               </button>
             {/each}
+
+            <!--
+              UI-3 (AC 6009). Shown only when passing is actually offered, so a
+              button that cannot work is never on screen — the loop's first
+              unconditional check is the same condition.
+
+              Client-side: each is a run of ordinary `PassPriority` submissions
+              over the existing route (`stores.js::startPassUntil`). No server
+              change, and the loop hands control straight back the moment a
+              non-`Priority` decision arrives, so it can never answer a real
+              choice on the human's behalf.
+            -->
+            {#if passAction}
+              {#if autoPassing}
+                <button
+                  class="action-btn auto-pass cancel-auto"
+                  onclick={() => onCancelPassUntil?.()}
+                  title="Stop passing now"
+                >
+                  ■ stop ({passUntil.passes})
+                </button>
+              {:else}
+                <button
+                  class="action-btn auto-pass"
+                  disabled={loading || chainOpen}
+                  onclick={() => onPassUntil?.('my-turn')}
+                  title="Keep passing priority until your own turn begins"
+                >
+                  ⏭ until my turn
+                </button>
+                <button
+                  class="action-btn auto-pass"
+                  disabled={loading || chainOpen}
+                  onclick={() => onPassUntil?.('phase-end')}
+                  title="Keep passing until the step changes or something goes on the stack"
+                >
+                  ⏵ until something happens
+                </button>
+              {/if}
+            {/if}
           </div>
         {/if}
       </div>
@@ -620,6 +697,7 @@
           slots={decisionSlots}
           min={decisionSlotRange[0]}
           max={decisionSlotRange[1]}
+          {humanName}
           disabled={loading}
           onConfirm={onDecisionSlotsConfirm}
           onCancel={cancelChain}
@@ -657,6 +735,7 @@
         slots={currentTargetSlots}
         min={currentTargetRange[0]}
         max={currentTargetRange[1]}
+        {humanName}
         disabled={loading}
         onConfirm={onTargetsConfirm}
         onCancel={cancelChain}
@@ -698,9 +777,76 @@
     flex-direction: column;
     gap: 0.25rem;
     background: #111120;
-    border-top: 1px solid #2a2a44;
+    /*
+      UI-3: the bar moved from the bottom of the page to the top dock, under the
+      seat cards (playtest note: "action bar could actually be at the top, under
+      player cards"), so the rule that separated it from the board is now below
+      it rather than above it.
+    */
+    border-bottom: 1px solid #2a2a44;
     padding: 0.35rem 0.6rem;
     font-family: monospace;
+  }
+
+  /* UI-3 (AC 6009) — auto-pass controls and status. */
+  .action-btn.auto-pass {
+    background: #14242a;
+    border-color: #256;
+    color: #8cc;
+  }
+
+  .action-btn.auto-pass:hover:not(:disabled) {
+    background: #1c3440;
+  }
+
+  .action-btn.cancel-auto {
+    background: #2a1a10;
+    border-color: #6a3a10;
+    color: #fc8;
+  }
+
+  .auto-pass-strip {
+    display: flex;
+    align-items: baseline;
+    gap: 0.4rem;
+    padding: 0.15rem 0.4rem;
+    background: #101c20;
+    border: 1px solid #1e3a44;
+    border-radius: 3px;
+    font-size: 0.72rem;
+    color: #9bb;
+  }
+
+  .auto-pass-strip.running {
+    border-color: #2a5a6a;
+    background: #10242c;
+  }
+
+  .ap-label {
+    color: #7cc;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-size: 0.66rem;
+  }
+
+  .ap-detail {
+    flex: 1;
+    color: #89a;
+  }
+
+  .ap-btn {
+    padding: 0.05rem 0.35rem;
+    font-size: 0.68rem;
+    background: #16262c;
+    color: #9bb;
+    border: 1px solid #2a4a54;
+    border-radius: 3px;
+    cursor: pointer;
+  }
+
+  .ap-btn:hover {
+    background: #1e3640;
   }
 
   .bar-row {

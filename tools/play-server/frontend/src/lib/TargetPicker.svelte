@@ -12,6 +12,8 @@
    *     echoed back verbatim, never rebuilt.
    *   min (number), max (number) — the COLLECTIVE range from
    *     `mtg_engine::target_count_range`, equal to the sum of the slots' own.
+   *   humanName (string|null) — `summary.human_name`; the seat whose segment
+   *     sorts first. Purely cosmetic — see "Segmented by player" below.
    *   disabled (bool) — a request is in flight
    *   onConfirm (fn(targets, perSlot)) — `targets` is a `Target[]` in slot order,
    *     with a slot contributing between its own `min` and `max` entries.
@@ -72,11 +74,39 @@
    * sentinel, e.g. redacted hand cards all reporting `object_id: 0` — see
    * `PlayApp.svelte`'s `isUnidentifiable` doc for where that is documented in
    * this codebase).
+   *
+   * # Segmented by player (UI-3, `scutemob-180`)
+   *
+   * Playtest note: "target selector should have segments broken up by player."
+   * With four seats on the board a flat row of candidates is a wall of card
+   * names with no way to tell whose creature you are about to Murder.
+   *
+   * The segment key is the server's `TargetOptionView.owner`, derived from the
+   * same already-redacted view model every `label` comes from. It is **not**
+   * re-derived here from the board — that would be a second opinion about which
+   * seat an object belongs to, and it would be wrong for exactly the cases that
+   * matter (a permanent stolen with Control Magic sits in its *controller's*
+   * battlefield map, which is the association the engine targets by).
+   *
+   * Grouping is presentational and cannot change what is submitted: the value
+   * carried through selection is still the candidate's index into the slot's own
+   * `candidates` array, so `confirm` emits `slot.candidates[c].value` in
+   * ascending index order exactly as before. A candidate with a missing `owner`
+   * is not dropped — it lands in a trailing unlabelled segment, so a server that
+   * stopped sending the field would degrade to one flat group rather than to an
+   * empty picker.
    */
   import { untrack } from 'svelte';
 
-  const { slots = [], min = 0, max = 0, disabled = false, onConfirm = null, onCancel = null } =
-    $props();
+  const {
+    slots = [],
+    min = 0,
+    max = 0,
+    humanName = null,
+    disabled = false,
+    onConfirm = null,
+    onCancel = null,
+  } = $props();
 
   /**
    * Selected candidate indices per slot, as an array of arrays — a slot may hold
@@ -140,6 +170,51 @@
     if (slot.min === slot.max) return slot.min === 1 ? '' : `exactly ${slot.min}`;
     return `up to ${slot.max}`;
   }
+
+  /** Label for a segment with no `owner` — see the header's degradation note. */
+  const NO_OWNER = ' no-owner';
+
+  /**
+   * Group one slot's candidates by `owner`, carrying each candidate's ORIGINAL
+   * index so selection state is untouched by the grouping.
+   *
+   * Segment order: the human's own segment first (it is the one you reach for
+   * most, and "which of these is mine" is the question the flat list could not
+   * answer), then every other owner in the order the engine first mentioned
+   * them, then the unlabelled segment last. First-appearance order rather than
+   * alphabetical, so the segments track the engine's own candidate order and two
+   * renders of the same payload cannot differ.
+   */
+  function segmentsFor(slot) {
+    const byOwner = new Map();
+    (slot.candidates ?? []).forEach((candidate, index) => {
+      const key = candidate?.owner ?? NO_OWNER;
+      if (!byOwner.has(key)) byOwner.set(key, []);
+      byOwner.get(key).push({ candidate, index });
+    });
+
+    const keys = [...byOwner.keys()];
+    keys.sort((a, b) => {
+      if (a === b) return 0;
+      // Unlabelled always last.
+      if (a === NO_OWNER) return 1;
+      if (b === NO_OWNER) return -1;
+      // Your own seat always first.
+      if (humanName !== null) {
+        if (a === humanName) return -1;
+        if (b === humanName) return 1;
+      }
+      // Otherwise: stable, and first-mentioned wins.
+      return 0;
+    });
+
+    return keys.map((key) => ({
+      key,
+      owner: key === NO_OWNER ? null : key,
+      isHuman: humanName !== null && key === humanName,
+      entries: byOwner.get(key),
+    }));
+  }
 </script>
 
 <div class="target-picker">
@@ -158,16 +233,26 @@
         {#if slot.candidates.length === 0}
           <span class="no-candidates">no legal target for this slot</span>
         {:else}
-          <div class="candidates">
-            {#each slot.candidates as candidate, candidateIndex (candidateIndex)}
-              <button
-                class="candidate"
-                class:selected={picked[slotIndex].includes(candidateIndex)}
-                disabled={disabled}
-                onclick={() => selectCandidate(slotIndex, candidateIndex)}
-              >
-                {candidate.label}
-              </button>
+          <div class="segments">
+            {#each segmentsFor(slot) as segment (segment.key)}
+              <div class="segment" class:mine={segment.isHuman}>
+                <span class="segment-owner">
+                  {segment.owner ?? 'elsewhere'}
+                  {#if segment.isHuman}<span class="you">you</span>{/if}
+                </span>
+                <div class="candidates">
+                  {#each segment.entries as entry (entry.index)}
+                    <button
+                      class="candidate"
+                      class:selected={picked[slotIndex].includes(entry.index)}
+                      disabled={disabled}
+                      onclick={() => selectCandidate(slotIndex, entry.index)}
+                    >
+                      {entry.candidate.label}
+                    </button>
+                  {/each}
+                </div>
+              </div>
             {/each}
           </div>
         {/if}
@@ -220,8 +305,52 @@
   .slot {
     display: flex;
     flex-wrap: wrap;
-    align-items: center;
+    align-items: flex-start;
     gap: 0.4rem;
+  }
+
+  /* UI-3: one block per owning seat, so "whose creature is this" is legible. */
+  .segments {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem 0.6rem;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .segment {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    padding: 0.15rem 0.3rem;
+    border-left: 2px solid #2a2a4a;
+    min-width: 0;
+  }
+
+  .segment.mine {
+    border-left-color: #3a5aa0;
+  }
+
+  .segment-owner {
+    display: flex;
+    align-items: baseline;
+    gap: 0.25rem;
+    font-size: 0.62rem;
+    color: #667;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .segment.mine .segment-owner {
+    color: #7ac;
+  }
+
+  .you {
+    color: #6af;
+    border: 1px solid #2a4a7a;
+    border-radius: 2px;
+    padding: 0 0.15rem;
+    letter-spacing: 0;
   }
 
   .slot-label {

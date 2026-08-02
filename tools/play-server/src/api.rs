@@ -918,6 +918,10 @@ fn seat_view(session: &mut PlaySession, outcome: &AdvanceOutcome) -> SeatView {
     let summary = GameSummary {
         players: session.cfg.player_count,
         human: human.0,
+        // Read from the SAME `session.names` map `StateViewModel` is built with, so
+        // the string is guaranteed to be a key of `state_view.players` rather than a
+        // reconstruction that merely ought to be. See `GameSummary::human_name`.
+        human_name: view::display_name(human, &session.names),
         bot: format!("{:?}", session.cfg.bot_kind),
         // NO `seed` — review MR-M11-01 (HIGH). See `GameSummary`'s doc: the seed plus
         // these fields reconstruct every other seat's opening hand and library order,

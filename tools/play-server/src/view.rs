@@ -72,6 +72,25 @@ pub struct GameSummary {
     pub players: u32,
     /// The seat this payload is redacted for.
     pub human: u64,
+    /// That seat's **display name**, the key it appears under in
+    /// `StateViewModel::players` / `zones.*` (UI-3, `scutemob-180`).
+    ///
+    /// Additive, and it exists to delete a client-side re-derivation rather than
+    /// to add information. The play surface needs this name in four places (the
+    /// own-hand bar, the "you" badges on the seat card and the battlefield cell,
+    /// and the board's human-seat outline), and without it the client's only
+    /// route is to rebuild `format!("Human-{}", summary.human)` — i.e. to keep a
+    /// second copy of `mtg_simulator::setup::seat_name`'s convention, in another
+    /// language, which would go silently wrong the day that function changes.
+    ///
+    /// **Not an Invariant-7 concern**: player display names are public, stated in
+    /// as many words by `event_view_for`'s own doc ("Player display names are
+    /// public information, so the extra parameter carries no hidden data"), and
+    /// this exact string is already on every payload as a key of
+    /// `StateViewModel::players` and as `TurnView::active_player`. This says
+    /// *which of those already-visible names is yours*, which the recipient
+    /// necessarily knows.
+    pub human_name: String,
     /// `"Heuristic"` or `"Random"`.
     pub bot: String,
     /// **The seed is NOT here, and its absence is Architecture Invariant 7** (review
@@ -467,6 +486,34 @@ pub struct TargetOptionView {
     pub id: u64,
     /// Redacted display text.
     pub label: String,
+    /// Which seat this candidate currently belongs to, for **display grouping
+    /// only** (UI-3, `scutemob-180`; playtest note "target selector should have
+    /// segments broken up by player").
+    ///
+    /// Meaning, precisely, because "owner" is doing three jobs at once and the
+    /// difference matters if anyone ever reaches for this field for anything
+    /// else: it is the seat the *seat-redacted view model* associates the object
+    /// with right now — `PermanentView::controller` for a battlefield permanent
+    /// (CR 109.4, controller, not owner), `StackItemView::controller` for a spell
+    /// or ability on the stack, and the **zone key** for a card in a per-player
+    /// hand / graveyard / command zone (i.e. owner, CR 108.3). For
+    /// `Target::Player` it is that player's own display name, so a player target
+    /// sorts into their own segment.
+    ///
+    /// `None` when the redacted view has no entry for the id — the same
+    /// condition under which [`Self::label`] is [`UNKNOWN_LABEL`]. A client
+    /// groups those together under an "unknown" heading rather than guessing.
+    ///
+    /// **Never used for legality.** `legal_targets_per_slot` already decided what
+    /// is targetable (`crates/engine/src/rules/queries.rs`), and the server
+    /// re-validates on submission; this is a heading, and a wrong heading is a
+    /// cosmetic defect where a wrong candidate list would be a rules one.
+    ///
+    /// Derived from the already-redacted [`NameIndex`] source, so it carries no
+    /// information the same payload's `label` does not — an object whose identity
+    /// this seat may not know is still an object it can *see*, in a zone whose
+    /// ownership is public (CR 401.1/403.1/405.1).
+    pub owner: Option<String>,
     /// The engine's own `Target`, serialized verbatim.
     ///
     /// **Additive to the plan's `{kind, id, label}` sketch, and deliberately so.**
@@ -842,6 +889,15 @@ pub struct MulliganRequest {
 /// present but flagged `hidden`, resolves to a placeholder.
 pub struct NameIndex {
     names: HashMap<u64, String>,
+    /// `ObjectId` -> the seat the redacted view associates it with. Populated
+    /// alongside [`Self::names`] from the same walk, so the two cannot disagree
+    /// about which objects exist. See [`TargetOptionView::owner`] for what
+    /// "owner" means here and what it may be used for.
+    ///
+    /// Sparser than `names` by design: the shared exile pile is not per-player
+    /// in the view model (`ZonesView::exile` is a flat `Vec`), so an exiled card
+    /// contributes a name and no owner.
+    owners: HashMap<u64, String>,
 }
 
 impl NameIndex {
@@ -851,13 +907,26 @@ impl NameIndex {
     /// by construction (an object is in exactly one zone).
     pub fn from_view(view: &StateViewModel) -> Self {
         let mut names = HashMap::new();
+        let mut owners: HashMap<u64, String> = HashMap::new();
 
-        for permanents in view.zones.battlefield.values() {
+        for (controller, permanents) in &view.zones.battlefield {
             for p in permanents {
                 // A face-down permanent comes back from the layer system with an
                 // empty name (CR 708.2a); the redactor blanks the rest. Either
                 // way an empty name is not identifiable.
                 names.insert(p.object_id, non_empty(&p.name));
+                // CR 109.4: the battlefield map is keyed by CONTROLLER, and
+                // `PermanentView::controller` is the same string. Prefer the
+                // permanent's own field over the map key so that if the two ever
+                // disagree this follows the object, not the container.
+                owners.insert(
+                    p.object_id,
+                    if p.controller.is_empty() {
+                        controller.clone()
+                    } else {
+                        p.controller.clone()
+                    },
+                );
             }
         }
 
@@ -867,9 +936,24 @@ impl NameIndex {
             &view.zones.command_zone,
         ];
         for zone in card_zones {
-            for cards in zone.values() {
+            for (owner, cards) in zone.iter() {
                 for c in cards {
                     names.insert(c.object_id, card_label(c.hidden, &c.name));
+                    // **A hidden entry contributes no owner**, and that is not
+                    // caution about leaking — a zone's ownership is public (CR
+                    // 402.1: everyone knows whose hand it is). It is about the
+                    // KEY: `redact::hidden_placeholder` rewrites a hidden card's
+                    // `object_id` to **0**, so every redacted hand card at the
+                    // table shares one id, and inserting them would make id 0
+                    // resolve to whichever seat was walked last. `names` already
+                    // lives with that collision harmlessly (every colliding entry
+                    // maps to the same `HIDDEN_LABEL`); an owner map does not,
+                    // because the values differ. Nothing is lost: a hidden card
+                    // is never a legal target, so no `TargetOptionView` is ever
+                    // built for one.
+                    if !c.hidden {
+                        owners.insert(c.object_id, owner.clone());
+                    }
                 }
             }
         }
@@ -902,10 +986,14 @@ impl NameIndex {
             // 702.36b keeps a face-down one's identity private).
             if let Some(source) = item.source_object_id {
                 names.insert(source, non_empty(&item.source_name));
+                // CR 405.1: the stack is public, and so is who controls each
+                // object on it — `redact::redact_stack` blanks a face-down
+                // source's *name* and never touches `controller`.
+                owners.insert(source, item.controller.clone());
             }
         }
 
-        NameIndex { names }
+        NameIndex { names, owners }
     }
 
     /// Display text for `id`, or [`UNKNOWN_LABEL`] if the redacted view has no
@@ -915,6 +1003,15 @@ impl NameIndex {
             .get(&id.0)
             .cloned()
             .unwrap_or_else(|| UNKNOWN_LABEL.to_string())
+    }
+
+    /// The seat the redacted view associates `id` with, or `None` when it has no
+    /// per-player home there (an exiled card, or an id the view does not carry).
+    ///
+    /// Display grouping only — see [`TargetOptionView::owner`]. Never reads
+    /// `GameState`, exactly as [`Self::label`] does not.
+    pub fn owner(&self, id: ObjectId) -> Option<String> {
+        self.owners.get(&id.0).cloned()
     }
 }
 
@@ -1254,12 +1351,17 @@ fn target_options(
                 kind: "object".to_string(),
                 id: id.0,
                 label: names.label(*id),
+                owner: names.owner(*id),
                 value: t.clone(),
             },
             Target::Player(p) => TargetOptionView {
                 kind: "player".to_string(),
                 id: p.0,
                 label: display_name(*p, player_names),
+                // A player target belongs in that player's own segment, so the
+                // grouping key is their own name — the same string the label is,
+                // which is why this is not read off `names`.
+                owner: Some(display_name(*p, player_names)),
                 value: t.clone(),
             },
         })
