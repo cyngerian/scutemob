@@ -461,6 +461,64 @@ fn test_s8_only_concede_is_offered_while_a_decision_blocks() {
     assert!(matches!(actions[0], LegalAction::Concede));
 }
 
+// ── Review MR-M11-09: the repeat cap is per COMBAT, not per turn ─────────────
+
+/// CR 506.5 / 508.1 — `HeuristicBot`'s S8 repeat cap must not stop it attacking in a
+/// second combat phase of the same turn.
+///
+/// The first version of the cap keyed on `turn_number` alone, so a bot that attacked
+/// in combat 1 scored `DeclareAttackers` at 0 in combat 2 — below `PassPriority` — and
+/// silently declined to attack for the rest of the turn. `aurelia_the_warleader` is
+/// `Complete` and deck-legal and grants exactly that extra combat, so this was
+/// reachable in ordinary play: a quiet play-quality regression introduced by the fix
+/// for a loud stall (review MR-M11-09).
+///
+/// Driven through `Bot::choose_action` directly rather than through a game, because
+/// staging a real extra combat needs Aurelia to trigger and resolve; what is under test
+/// is the bot's *scope*, and `refresh_repeat_scope` reads exactly two things off the
+/// state — the turn number and whether a `CombatState` exists.
+#[test]
+fn test_mr_m11_09_repeat_cap_resets_on_each_combat_phase() {
+    use mtg_simulator::HeuristicBot;
+
+    let attacker_action = LegalAction::DeclareAttackers {
+        eligible: vec![ObjectId(1)],
+        targets: vec![AttackTarget::Player(P2)],
+    };
+    let legal = vec![LegalAction::PassPriority, attacker_action];
+
+    // Combat 1: a `CombatState` exists.
+    let mut in_combat = two_player_state(Step::DeclareAttackers, Vec::new());
+    *in_combat.combat_mut() = Some(mtg_engine::CombatState::new(P1));
+    // Between combats: `turn_actions.rs` sets `state.combat = None` at end of combat.
+    let mut between = two_player_state(Step::PostCombatMain, Vec::new());
+    *between.combat_mut() = None;
+
+    let mut bot = HeuristicBot::new(7, "Bot".to_string());
+
+    // Combat 1 — the bot attacks.
+    let first = bot.choose_action(&in_combat, P1, &legal);
+    assert!(
+        matches!(first, Command::DeclareAttackers { .. }),
+        "the bot must attack in the first combat; got {first:?}"
+    );
+    // Still combat 1 — the cap holds, which is the whole point of it.
+    let second = bot.choose_action(&in_combat, P1, &legal);
+    assert!(
+        matches!(second, Command::PassPriority { .. }),
+        "CR 508.1: a second declaration in the SAME combat must not be preferred; got {second:?}"
+    );
+
+    // Combat ends, then a new combat phase begins on the same turn (CR 506.5).
+    let _ = bot.choose_action(&between, P1, &[LegalAction::PassPriority]);
+    let third = bot.choose_action(&in_combat, P1, &legal);
+    assert!(
+        matches!(third, Command::DeclareAttackers { .. }),
+        "CR 506.5: the cap must reset on combat-phase entry, so the bot attacks again \
+         in the extra combat; got {third:?}"
+    );
+}
+
 // ── Item 3: Concede (CR 104.3a) ───────────────────────────────────────────────
 
 /// CR 104.3a — a human seat is offered `Concede` at a plain priority window, and

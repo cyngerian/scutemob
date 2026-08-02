@@ -73,24 +73,35 @@ pub struct GameSummary {
     pub human: u64,
     /// `"Heuristic"` or `"Random"`.
     pub bot: String,
-    /// The **base** seed — `--seed`, or the `POST /api/game` override.
+    /// **The seed is NOT here, and its absence is Architecture Invariant 7** (review
+    /// MR-M11-01, HIGH).
     ///
-    /// S5 review LOW 7: this is *not* the seed the table in play was built from
-    /// once a mulligan has been taken. `PlaySession::mulligan` goes through
-    /// `setup::redeal`, which builds from `redeal_seed(seed, human_seat,
-    /// mulligan_count)` and leaves `cfg.seed` untouched. The table is still
-    /// exactly reproducible, but from **four** fields rather than one:
-    /// [`GameSummary::seed`], [`GameSummary::players`], [`GameSummary::bot`] and
-    /// [`GameSummary::mulligan_count`] — all four of which are right here, which
-    /// is why the effective seed is documented rather than duplicated (the
-    /// derivation is private to `mtg_simulator::setup` and recomputing it here
-    /// would be a copy that could silently drift from it).
-    pub seed: u64,
+    /// S5 shipped a `seed: u64` on this struct, and S5's own review LOW 7 noted —
+    /// approvingly, as a *reproducibility* property — that `(seed, players, bot,
+    /// mulligan_count)` reproduce the table exactly. That is the same sentence read
+    /// the other way round: `setup::build_initial_state` is deterministic in its
+    /// `LocalGameConfig` alone, and `session::config_for` fixes every other input
+    /// (`human_seats = {PlayerId(1)}`, `DeckSource::RandomPerSeat`, the limits), so
+    /// those fields rebuild **every other seat's opening hand and library order** —
+    /// precisely the pair Invariant 7 names. It shipped on the *default* payload, on
+    /// every response, and the frontend rendered it in the header.
+    ///
+    /// Neither of the milestone's two Invariant-7 gates could see it, and that is the
+    /// durable part: the HTTP leak scan looks for another seat's card **names**, and
+    /// the source gate looks for omniscient **view-model entry points**. A seed is
+    /// neither. **A redaction gate checks the channel it was written for; a
+    /// reconstruction key is a different channel.**
+    ///
+    /// The seed still exists on [`BugReportView`], which is opt-in, is documented as
+    /// the one deliberately unredacted payload, and carries the M10a re-scope
+    /// obligation. Putting it there and nowhere else is what makes the exception
+    /// contained rather than nominal.
     pub turn: u32,
     /// Commands applied so far — 0 exactly while the game is still pregame.
     pub command_count: u32,
-    /// CR 103.5: pregame redeals this seat has taken. Part of the table's
-    /// reproduction key — see [`GameSummary::seed`].
+    /// CR 103.5: pregame redeals this seat has taken. Kept because the client shows
+    /// it, and harmless on its own — it is only half a reproduction key, and the other
+    /// half (the seed) is no longer here. See the note above.
     pub mulligan_count: u32,
     /// True while `POST /api/game/mulligan` is still accepted.
     pub pregame: bool,
@@ -331,10 +342,29 @@ pub struct GameOverView {
     /// `true` when a safety valve tripped rather than the game concluding.
     pub halted: bool,
     /// Human-readable reason; `None` for a clean win.
+    ///
+    /// **Redaction-safe by construction, not by filtering** (review MR-M11-08): this
+    /// is built from [`halt_reason_summary`], which reads only the *variant* and its
+    /// numeric fields. It is never a `Debug` of an engine error — see that function.
     pub reason: Option<String>,
-    /// Simulator invariant violations observed during the game, stringified.
-    /// Always empty in a healthy game; surfaced because this is a play-testing
-    /// surface and a violation is exactly what it is here to find.
+    /// Simulator invariant violations observed during the game: **check name and turn
+    /// only**, never the description.
+    ///
+    /// # Why the description is dropped (review MR-M11-08)
+    ///
+    /// `InvariantViolation::description` is free-form text produced by
+    /// `crates/simulator/src/invariants.rs`, and at least one check interpolates a card
+    /// name directly off `GameState` — `check_no_orphaned_tokens` formats
+    /// `obj.characteristics.name`. That is a rendering site, and it is **outside both**
+    /// of this crate's Invariant-7 chokepoints: it never passes through
+    /// `StateViewModel::from_game_state_for` and never through [`NameIndex`], so a
+    /// redaction that follows the rendering site (the S4 lesson) does not cover it.
+    ///
+    /// The description is not lost — it is on [`BugReportView::violations`], the opt-in
+    /// route that is documented as the one deliberately unredacted payload. What the
+    /// seat view needs is *that a violation happened and which check fired*, which is
+    /// enough to tell the play-tester to export a report; the detail belongs in the
+    /// report.
     pub violations: Vec<String>,
 }
 
@@ -459,7 +489,7 @@ pub struct ActionRequest {
 ///
 /// Every field defaults, so `{}` is a valid params object for an action that
 /// announces nothing.
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct ActionParamsDto {
     /// CR 601.2c.
@@ -490,6 +520,35 @@ pub struct ActionParamsDto {
 
 fn default_auto_tap() -> bool {
     true
+}
+
+/// Hand-written, **not** `#[derive(Default)]` (review MR-M11-05).
+///
+/// `ActionRequest::params` is `#[serde(default)]`, so an **omitted** `params` key built
+/// `ActionParamsDto::default()` — and a derived `Default` gives `auto_tap: false`,
+/// while a present-but-empty `"params": {}` runs serde's field defaults and gives
+/// `auto_tap: true` (`default_auto_tap`). Two spellings a client would reasonably
+/// consider identical produced *different game behaviour*: with `auto_tap: false` a
+/// `CastSpell` whose cost is not already in the pool is refused 422, and the difference
+/// is invisible in the request.
+///
+/// Writing the impl by hand rather than annotating the field is deliberate: it makes
+/// the two paths share one source of truth, so a field added later cannot reintroduce
+/// the divergence by being defaulted in only one of them.
+impl Default for ActionParamsDto {
+    fn default() -> Self {
+        ActionParamsDto {
+            targets: Vec::new(),
+            x_value: 0,
+            modes_chosen: Vec::new(),
+            attackers: Vec::new(),
+            blockers: Vec::new(),
+            blocker_order: Vec::new(),
+            cards_to_bottom: Vec::new(),
+            additional_costs: Vec::new(),
+            auto_tap: default_auto_tap(),
+        }
+    }
 }
 
 impl From<ActionParamsDto> for ActionParams {
@@ -1214,6 +1273,38 @@ fn action_option_view(
     }
 }
 
+/// One violation, reduced to what a seat may see — see [`GameOverView::violations`].
+fn violation_summary(v: &mtg_simulator::InvariantViolation) -> String {
+    format!("{} (turn {})", v.check, v.turn_number)
+}
+
+/// A `HaltReason` reduced to its variant and numbers (review MR-M11-08).
+///
+/// `HaltReason::EngineError(String)` is the one that matters: it carries a
+/// `format!("{:?}", GameStateError)` produced while advancing a **bot** seat, which
+/// can name a bot's object. Every other variant holds only a player id and integers.
+/// So the engine text is replaced with a pointer to the export rather than forwarded.
+///
+/// This is deliberately not a `Debug` with a filter over it: a filter has to know every
+/// shape the text can take, and a new `GameStateError` variant would silently defeat it.
+/// Enumerating the variants here means a new `HaltReason` is a compile error.
+fn halt_reason_summary(reason: &HaltReason) -> String {
+    match reason {
+        HaltReason::MaxTurns { max_turns, turn } => {
+            format!("the {max_turns}-turn limit was reached (turn {turn})")
+        }
+        HaltReason::InfiniteLoop { turn } => {
+            format!("a stall guard tripped on turn {turn} (command or consecutive-pass limit)")
+        }
+        HaltReason::NoLegalActions { player, turn } => format!(
+            "seat {} had no legal action on turn {turn} and could not even pass",
+            player.0
+        ),
+        HaltReason::EngineError(_) => "the engine rejected a bot seat's command and its              fallback; the detail is in GET /api/game/report"
+            .to_string(),
+    }
+}
+
 /// Render a concluded game (CR 104).
 pub fn game_over_view(
     result: &GameResult,
@@ -1224,8 +1315,14 @@ pub fn game_over_view(
         turn_count: result.turn_count,
         total_commands: result.total_commands,
         halted: false,
-        reason: result.error.as_ref().map(|e| format!("{e:?}")),
-        violations: result.violations.iter().map(|v| format!("{v:?}")).collect(),
+        // `GameResult::error` is a `GameDriverError`, which `HaltReason` converts into
+        // — same argument as `halt_reason_summary`, and it is `None` on every path
+        // `LocalGame::advance` takes to `GameOver` today.
+        reason: result
+            .error
+            .as_ref()
+            .map(|_| "the game ended with a driver error; see GET /api/game/report".to_string()),
+        violations: result.violations.iter().map(violation_summary).collect(),
     }
 }
 
@@ -1238,7 +1335,7 @@ pub fn halted_view(reason: &HaltReason, turn_count: u32, total_commands: u32) ->
         turn_count,
         total_commands: total_commands as usize,
         halted: true,
-        reason: Some(format!("{reason:?}")),
+        reason: Some(halt_reason_summary(reason)),
         violations: Vec::new(),
     }
 }

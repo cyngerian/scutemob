@@ -41,8 +41,10 @@ impl RepeatKey {
             // Repeat activation is legitimate play (pump twice, crew then equip), so
             // allow a couple before treating it as a stall.
             RepeatKey::Activate(..) => 2,
-            // CR 508.1 / 509.1 are turn-based actions performed once per combat.
-            // Anything past the first is never a real play.
+            // CR 508.1 / 509.1 are turn-based actions performed once **per combat
+            // phase**, and the tally for these two is reset on each combat entry
+            // rather than on each turn — see `HeuristicBot::repeats_this_turn`.
+            // Anything past the first *within one combat* is never a real play.
             RepeatKey::DeclareAttackers | RepeatKey::DeclareBlockers => 1,
         }
     }
@@ -66,6 +68,15 @@ pub struct HeuristicBot {
     name: String,
     /// The turn `repeats_this_turn` was last reset for.
     repeat_turn: u32,
+    /// Whether a `CombatState` existed the last time this bot acted.
+    ///
+    /// The combat-scoped [`RepeatKey`]s are reset when this goes `false` → `true`,
+    /// which is what makes the cap **per combat phase** rather than per turn — see
+    /// [`HeuristicBot::repeats_this_turn`]'s "the extra-combat regression" note.
+    /// `turn_actions.rs` sets `state.combat = None` at end of combat and installs a
+    /// fresh `CombatState` at `BeginningOfCombat`, so the transition is a reliable
+    /// "a new combat phase has begun" signal with no counter to maintain.
+    in_combat: bool,
     /// How many times this bot has already chosen each [`RepeatKey`] this turn.
     ///
     /// # The two stuck games this prevents (M11-local S8)
@@ -100,6 +111,21 @@ pub struct HeuristicBot {
     /// The cap is a **preference** cap, not a legality cap. A capped action is scored
     /// 0 rather than removed, so it is still chosen when nothing else is available —
     /// this can never make the bot fail to act.
+    ///
+    /// # The extra-combat regression this map's *scope* fixes (review MR-M11-09)
+    ///
+    /// The first version keyed the whole map on `turn_number` alone, which is right for
+    /// `Activate` and **wrong** for the two combat keys. CR 506.5: a turn can contain
+    /// more than one combat phase, and `aurelia_the_warleader` is `Complete`,
+    /// deck-legal, and — since PB-DX1 (`scutemob-160`) made her `once_per_turn` trigger
+    /// actually fire — grants a real one. With a per-*turn* cap of 1, a bot that
+    /// attacked in the first combat scored `DeclareAttackers` at 0 in the second, below
+    /// `PassPriority`'s 1, and so **silently declined to attack in every extra combat**
+    /// — a quiet play-quality regression introduced by the fix for a loud stall.
+    ///
+    /// So the two combat keys are reset on combat-phase entry
+    /// ([`HeuristicBot::in_combat`]) and `Activate` stays on the turn. Both resets are
+    /// applied in `refresh_repeat_scope`.
     repeats_this_turn: HashMap<RepeatKey, u32>,
 }
 
@@ -109,17 +135,27 @@ impl HeuristicBot {
             rng: StdRng::seed_from_u64(seed),
             name,
             repeat_turn: 0,
+            in_combat: false,
             repeats_this_turn: HashMap::new(),
         }
     }
 
-    /// Drop the per-turn tally when the turn number moves.
-    fn reset_repeats_if_new_turn(&mut self, state: &GameState) {
+    /// Drop each tally at the end of its own scope: the whole map on a new turn, and
+    /// the two combat keys on entry to each combat phase (CR 506.5 — a turn may have
+    /// several). See [`HeuristicBot::repeats_this_turn`].
+    fn refresh_repeat_scope(&mut self, state: &GameState) {
         let turn = state.turn().turn_number;
         if turn != self.repeat_turn {
             self.repeat_turn = turn;
             self.repeats_this_turn.clear();
         }
+
+        let in_combat = state.combat().is_some();
+        if in_combat && !self.in_combat {
+            self.repeats_this_turn.remove(&RepeatKey::DeclareAttackers);
+            self.repeats_this_turn.remove(&RepeatKey::DeclareBlockers);
+        }
+        self.in_combat = in_combat;
     }
 
     /// `true` once this action's [`RepeatKey`] has been chosen its `cap()` times this
@@ -249,7 +285,7 @@ impl Bot for HeuristicBot {
             return Command::PassPriority { player };
         }
 
-        self.reset_repeats_if_new_turn(state);
+        self.refresh_repeat_scope(state);
 
         // Score all actions and pick the highest (with random tiebreaking)
         let mut scored: Vec<(i32, usize)> = legal

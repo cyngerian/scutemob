@@ -327,7 +327,12 @@
         <span class="stat"><b>seat</b> Human-{summary.human}</span>
         <span class="stat"><b>players</b> {summary.players}</span>
         <span class="stat"><b>bot</b> {summary.bot}</span>
-        <span class="stat"><b>seed</b> {summary.seed}</span>
+        <!--
+          The seed is deliberately NOT shown, and not sent: review MR-M11-01 removed it
+          from `GameSummary` because it reconstructs every other seat's opening hand and
+          library order (Architecture Invariant 7). It is in the "Export report"
+          download, which is the documented exception.
+        -->
         <span class="stat"><b>mulligans</b> {summary.mulligan_count}</span>
         <span class="stat"><b>commands</b> {summary.command_count}</span>
         {#if summary.pregame}<span class="badge">pregame</span>{/if}

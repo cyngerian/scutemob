@@ -499,7 +499,11 @@ fn seat_view(session: &mut PlaySession, outcome: &AdvanceOutcome) -> SeatView {
         players: session.cfg.player_count,
         human: human.0,
         bot: format!("{:?}", session.cfg.bot_kind),
-        seed: session.cfg.seed,
+        // NO `seed` — review MR-M11-01 (HIGH). See `GameSummary`'s doc: the seed plus
+        // these fields reconstruct every other seat's opening hand and library order,
+        // which is exactly what Architecture Invariant 7 forbids this payload from
+        // carrying. It lives on `BugReportView` alone, which is opt-in and documented
+        // as the one deliberate exception.
         turn: state.turn().turn_number,
         command_count: session.game.command_count(),
         mulligan_count: session.mulligan_count,
@@ -777,6 +781,13 @@ pub async fn post_mulligan(
         }
         if req.take {
             play.mulligan()?;
+        } else {
+            // CR 103.5: "Once a player chooses not to take a mulligan, the remaining
+            // cards become that player's opening hand." Terminal — record it, so a
+            // second request cannot redeal the hand this one accepted (review
+            // MR-M11-10). Before this the choice lived only in the browser's own
+            // `keptHand` flag.
+            play.keep_hand();
         }
         let outcome = play.advance();
         Ok(Json(seat_view(play, &outcome)))

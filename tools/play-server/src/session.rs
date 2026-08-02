@@ -53,6 +53,19 @@ pub struct PlaySession {
     /// How many pregame redeals this seat has taken (CR 103.5). Additive to the
     /// plan's field list — see the struct doc.
     pub mulligan_count: u32,
+    /// CR 103.5: the human has kept this hand, so no further redeal is offered.
+    ///
+    /// # Why this is server state and not a client flag (review MR-M11-10)
+    ///
+    /// CR 103.5: *"Once a player chooses not to take a mulligan, the remaining cards
+    /// become that player's opening hand."* The choice is **terminal**. Before this
+    /// field the server recorded it nowhere — `post_mulligan { take: false }` only
+    /// re-rendered — and `is_pregame()` is `command_count == 0`, which stays true right
+    /// up to the first applied command. So a client (or a second tab, or a `curl`)
+    /// could keep, then redeal the table it had just accepted. `PlayApp.svelte` carried
+    /// a client-side `keptHand` that hid the buttons, which is a UI convention rather
+    /// than a rule.
+    kept: bool,
     /// Offset added to every `LocalGame` decision `seq` on its way out, and
     /// subtracted on its way back in. See [`PlaySession::wire_seq`].
     seq_base: u64,
@@ -223,6 +236,7 @@ pub fn new_game(cfg: LocalGameConfig, seq_base: u64) -> Result<PlaySession, Sess
         journal_cursor: 0,
         pending: None,
         mulligan_count: 0,
+        kept: false,
         seq_base,
         highest_wire_seq: seq_base,
     })
@@ -385,6 +399,9 @@ impl PlaySession {
         self.journal_cursor = 0;
         self.pending = None;
         self.mulligan_count = next_count;
+        // A redeal is not a keep — `kept` stays false so the next hand can also be
+        // mulliganed. Written out because `mulligan()` otherwise rebuilds every field.
+        self.kept = false;
         // `LocalGame::start` reset `decision_seq` to 0, so rebase before the next
         // `advance()` mints a decision — otherwise the redealt table would reissue
         // the `seq` the pre-mulligan tab is still rendering. See
@@ -394,17 +411,23 @@ impl PlaySession {
         Ok(())
     }
 
-    /// True while no command has been applied to this game.
+    /// True while a redeal is still offered: no command applied **and** the hand not
+    /// yet kept (CR 103.5 — see [`PlaySession::kept`]).
     ///
-    /// This is the gate on the mulligan endpoint. "Pregame" cannot be read off
-    /// the turn number: `setup::build_initial_state` sets `first_turn_of_game`
-    /// and `GameStateBuilder` defaults `turn_number` to 1, so a freshly built
-    /// game is already *in* turn 1 (which is also why
-    /// `local_game::decision_kind_for`'s `Mulligan` arm, gated on
-    /// `turn_number == 0`, is unreachable). A zero command count is the honest
-    /// test: nothing has happened that a rebuild would discard.
+    /// "Pregame" cannot be read off the turn number: `setup::build_initial_state` sets
+    /// `first_turn_of_game` and `GameStateBuilder` defaults `turn_number` to 1, so a
+    /// freshly built game is already *in* turn 1 (which is also why
+    /// `local_game::decision_kind_for`'s `Mulligan` arm, gated on `turn_number == 0`,
+    /// is unreachable). A zero command count is the honest test for the first half:
+    /// nothing has happened that a rebuild would discard.
     pub fn is_pregame(&self) -> bool {
-        self.game.command_count() == 0
+        self.game.command_count() == 0 && !self.kept
+    }
+
+    /// CR 103.5 — record that the human kept this hand. Terminal: after this
+    /// [`Self::is_pregame`] is false and `POST /api/game/mulligan` answers 409.
+    pub fn keep_hand(&mut self) {
+        self.kept = true;
     }
 
     /// Drain the journal since `journal_cursor` and advance the cursor.

@@ -470,7 +470,10 @@ mod tests {
 
         assert_eq!(view["summary"]["players"], PLAYERS);
         assert_eq!(view["summary"]["human"], 1);
-        assert_eq!(view["summary"]["seed"], SEED);
+        // NOT `summary.seed` — review MR-M11-01 removed it from the seat payload
+        // (it reconstructs every other seat's hidden zones). See
+        // `test_mr_m11_01_seat_payload_carries_no_reconstruction_key`.
+        assert!(view["summary"]["seed"].is_null());
         assert_eq!(view["summary"]["bot"], "Heuristic");
         // CR 103: nothing has been done yet, so the game is still pregame.
         assert_eq!(command_count(&view), 0);
@@ -955,7 +958,7 @@ mod tests {
         );
         let view: Value = serde_json::from_str(&text).expect("a seat view");
         assert_eq!(view["summary"]["players"], PLAYERS);
-        assert_eq!(view["summary"]["seed"], SEED);
+        assert!(view["summary"]["seed"].is_null(), "MR-M11-01");
         assert_eq!(view["summary"]["bot"], "Heuristic");
     }
 
@@ -1470,7 +1473,10 @@ mod tests {
             "no play was discarded"
         );
         assert_eq!(after["summary"]["players"], PLAYERS, "still the same table");
-        assert_eq!(after["summary"]["seed"], SEED, "not rebuilt at seed 17");
+        // "not rebuilt at the sentinel seed" is now read off `command_count` and the
+        // live decision below rather than off `summary.seed`, which MR-M11-01 removed
+        // from the seat payload.
+        assert!(after["summary"]["seed"].is_null(), "MR-M11-01");
 
         // Non-vacuous: it is still the same *playable* game, not just the same
         // numbers — the decision it is holding is still answerable.
@@ -2247,6 +2253,63 @@ mod tests {
         assert_eq!(
             cast_command.player, play.human,
             "the command must name the human seat and no other"
+        );
+    }
+
+    // ── Review MR-M11-01 (HIGH): the seat payload carries no reconstruction key ──
+
+    /// **Architecture Invariant 7, at the reconstruction-key level rather than the
+    /// card-name level** (review MR-M11-01).
+    ///
+    /// `GameSummary` used to ship `seed`. `setup::build_initial_state` is deterministic
+    /// in its `LocalGameConfig` alone and `session::config_for` fixes every other input,
+    /// so `(seed, players, mulligan_count)` rebuild **every other seat's opening hand
+    /// and library order** — the exact pair the invariant names. It was on the default
+    /// payload, on every response, and the frontend rendered it.
+    ///
+    /// Neither existing gate could see it: the HTTP leak scan looks for another seat's
+    /// card *names*, and the source gate looks for omniscient *view-model entry points*.
+    /// A seed is neither. This test is the gate for the third channel.
+    ///
+    /// It asserts over the **raw response text**, not over a parsed field, so it also
+    /// catches the seed reappearing under a different key or nested somewhere else in
+    /// the payload.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_mr_m11_01_seat_payload_carries_no_reconstruction_key() {
+        // A seed that cannot collide with an ordinary small integer in the payload
+        // (turn numbers, object ids, life totals, counts) — otherwise a substring hit
+        // would be noise rather than a leak.
+        const DISTINCTIVE_SEED: u64 = 987_654_321_987;
+        let state = AppState::new(NewGameDefaults {
+            players: PLAYERS,
+            bot: BotKind::Heuristic,
+            seed: DISTINCTIVE_SEED,
+        });
+
+        let (status, _) = post_json(&state, "/api/game", json!({})).await;
+        assert_eq!(status, StatusCode::OK);
+
+        for uri in ["/api/game"] {
+            let (status, text) = get_raw(&state, uri).await;
+            assert_eq!(status, StatusCode::OK);
+            assert!(
+                !text.contains(&DISTINCTIVE_SEED.to_string()),
+                "{uri} leaks the seed, which reconstructs every other seat's hidden \
+                 zones (Architecture Invariant 7, review MR-M11-01)"
+            );
+            let view: Value = serde_json::from_str(&text).expect("a seat view");
+            assert!(view["summary"]["seed"].is_null());
+        }
+
+        // Non-vacuity, and the containment claim in one: the seed IS on the opt-in
+        // report route, which is the documented exception. If this half ever fails the
+        // test above has stopped meaning anything.
+        let (status, report) = get_json(&state, "/api/game/report").await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(
+            report["seed"],
+            json!(DISTINCTIVE_SEED),
+            "the seed must still be on the deliberate exception, or this test is vacuous"
         );
     }
 
