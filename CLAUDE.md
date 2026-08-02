@@ -86,10 +86,10 @@
   (OOS-DP7-11 + OOS-DP9-13 — the SR-19 gate reports success while checking nothing; test-only, 0
   flips; brief in `memory/primitives/seed-rerank-2026-07-27.md`). Older queue history (the PB-OS,
   PB-RS and PB-DP chains) is rotated to the 2026-08 archive.
-- **Tests**: **4,212 passing / 0 failing / 5 ignored** on branch `scutemob-176` (SIM-2) at close,
-  **+27** over the **4,185** merge-base baseline measured in a clean worktree at `8cad9c36` — 22 in
-  `crates/simulator/tests/sim2_mana_intelligence.rs` (t1–t21 + t9b, every one watched failing first,
-  and each fix proven guarded by a 10-revert discrimination matrix) plus 5 roster rows in
+- **Tests**: **4,214 passing / 0 failing / 5 ignored** on branch `scutemob-176` (SIM-2) at close,
+  **+29** over the **4,185** merge-base baseline measured in a clean worktree at `8cad9c36` — 24 in
+  `crates/simulator/tests/sim2_mana_intelligence.rs` (every one watched failing first, and each fix
+  proven guarded by a **13-revert** discrimination matrix) plus 5 roster rows in
   `sim2_mana_source_roster.rs`. Earlier pin: **4,124 passing / 0 failing / 5 ignored** on main at the S8+DX6 collect (`cb0755bf`),
   measured on the combined tree — consistent with the disjoint branch pins (4,097 `scutemob-173`,
   4,099 `scutemob-172`). Branch-pin detail: **4,099 passing / 0 failing / 5 ignored** on branch
@@ -250,8 +250,20 @@
   deck-legal) makes it **unconditional**, so any game it reaches is an unrecoverable stack
   overflow; very likely the mechanism behind `OOS-M11-3`/`OOS-DP3-9`, which had the symptom and
   no cause — and `OOS-SIM2-5`, unchecked `i32` P/T arithmetic in `layers.rs` that Devilish
-  Valet's doubling overflows at 2^30 (panic in debug, **silent wrap in release**). Tests
-  **4,185 → 4,212**; PROTOCOL **33** / HASH **70** gate-executed unmoved (the criterion's "32"
+  Valet's doubling overflows at 2^30 (panic in debug, **silent wrap in release**). **The fix
+  cycle found the batch's sharpest lesson in its own comments**: four of them asserted that
+  `plannable_tap_ability` mirrored *every* rejection `handle_tap_for_mana` makes, while an
+  entire class — CR 605.3 stax restrictions, i.e. an opponent's **Collector Ouphe** stopping a
+  Sol Ring — was mirrored in neither the solver nor the offer loop, so `can_afford` counted the
+  Ring and the cast was refused. Same shape as `OOS-SIM1-3` one batch earlier: **an enumeration
+  is only as complete as the category it names** — there about enum variants, here about the set
+  of rejections inside one function. Fixed by reusing the provider's own
+  `is_ability_restricted_by_stax`. The cycle also killed a "conservative" claim that was wrong
+  at its endpoint: an SR-36 **scaled** ability's `1`-per-colour marker was called a safe
+  under-count, but `rules/mana.rs` adds `resolve_amount(..).max(0)` with no error, so Itlimoc
+  with no creatures out produces **nothing** while the marker promises one mana — an over-credit
+  and a refused cast; scaled abilities are now excluded from planning outright. Tests
+  **4,185 → 4,214**; PROTOCOL **33** / HASH **70** gate-executed unmoved (the criterion's "32"
   was stale); coverage unmoved, 0 card-def edits. `TARGET_SEED` re-derived 1 → **13** (second
   time in two days, by the rule the pin's own comment states). **Diff is `crates/simulator` plus
   ONE gate-mandated data line in `keyword_registry.rs`** — SR-5 greps the source tree, so the

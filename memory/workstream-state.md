@@ -877,7 +877,7 @@
   shipped bot announces X > 0), but open. Closed by there being one function; pinned by
   `t21`, which drives a purpose-built `XBot`.
 
-**Gates**: workspace **4,212 / 0 / 5**; `play-server` 40/40; clippy `-D warnings` clean;
+**Gates**: workspace **4,214 / 0 / 5**; `play-server` 40/40; clippy `-D warnings` clean;
 `cargo fmt --check` + `tools/check-defs-fmt.sh` clean (1,803 defs); `cargo build --workspace`
 (SR-3 seal) clean. **PROTOCOL 33 / HASH 70 gate-executed, unmoved** — the criterion's
 "PROTOCOL 32" was stale, PB-DX6 moved it before this fork. Coverage unmoved: zero card-def
@@ -894,6 +894,22 @@ crates/engine/src/effects crates/card-types crates/card-defs` is empty.
 **Fuzzer A/B** (`--games 100 --seed 1 --max-turns 60`, merge base vs branch): **96/100 games
 byte-identical**, 4 differ only in command count, violations 0 → 0, every game ends
 `MaxTurnsReached(60)` on both sides. The four are the offer set moving.
+
+**Fix cycle (`/review`, Opus)**: 8 findings, all applied. Two were live SR-38 violations the
+batch had *asserted away*: (a) CR 605.3 **stax restrictions** — an opponent's Collector Ouphe
+or Stony Silence refuses a Sol Ring's tap, and that class was mirrored in neither the solver
+nor the offer loop while four comments claimed the mirror of `handle_tap_for_mana` was
+complete (same shape as `OOS-SIM1-3`: an enumeration is only as complete as the category it
+names — there enum variants, here the rejections inside one function); (b) an SR-36 **scaled**
+ability's marker was called a safe under-count, but the engine adds `resolve_amount(..).max(0)`
+with no error, so Itlimoc with no creatures out produces nothing while the marker promises one
+mana — over-credit, refused cast. Both fixed and pinned (`t22`, `t23`). The other six were
+documentation: a "hoisted" claim the same file contradicted two hundred lines later, the
+`OOS-M11-2`/`OOS-M11-8` audit rows (criterion 5 asked for exactly this and the first pass
+appended seeds without correcting the rows they contradicted), the playtest-triage F3/F4/F5
+banners and roll-up, a defs-vs-ability-rows unit error in a population count, and a
+discrimination matrix that claimed no test was decorative while having no row for the one
+guarding `pick_least_waste`.
 
 **Two engine findings carried out, both out of scope and both worth someone's attention**:
 - **`OOS-SIM2-6` (HIGH)** — `calculate_characteristics` recurses without bound through

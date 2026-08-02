@@ -5,9 +5,14 @@ Evidence record for the batch that closed playtest-triage **F3**, **F4** and **F
 source), the layer half of **OOS-M11-2**, and the bot half of **OOS-M11-8**.
 
 Scope as dispatched: `crates/simulator` only. Actual diff: `crates/simulator` (3 source
-files, 2 test files) + `tools/play-server/src/main.rs` (one seed pin) + this file + the seed
-rows. **Zero engine lines** — `git diff main -- crates/engine crates/card-types
-crates/card-defs` is empty.
+files, 4 test files) + `tools/play-server/src/main.rs` (one seed pin) + docs/memory + **one
+data line in `crates/engine/src/state/keyword_registry.rs`**. That last one is neither scope
+creep nor optional: SR-5's gate (`core::keyword_registry::registry_sites_match_the_source_tree`)
+greps the source tree for `KeywordAbility` branches and asserts set equality against the
+declared sites, so the solver's new CR 302.6 summoning-sickness check must be declared or the
+gate fails. **No engine behaviour changes** — `git diff main -- crates/engine/src/rules
+crates/engine/src/effects crates/card-types crates/card-defs` is empty, and PROTOCOL 33 /
+HASH 70 are gate-executed unmoved.
 
 ---
 
@@ -85,6 +90,38 @@ and a summoning-sick creature were offered and refused — and the play-server d
 both refusal strings in `KNOWN_FALSE_OFFERS` to drive past them. One predicate,
 `tap_ability_is_activatable`, is now called by both.
 
+### Two more, found by this batch's own `/review` — and the second is the sharper one
+
+**Stax restrictions were mirrored nowhere on the tap path.** `rules/mana.rs`'s step 1b
+refuses a `TapForMana` under `ArtifactAbilitiesCantBeActivated` (Collector Ouphe, Stony
+Silence) and `OpponentsCantCastOrActivateDuringYourTurn` (Grand Abolisher) — CR 605.3 makes
+activating a mana ability follow the rules for activating any other activated ability.
+Neither the solver nor `StubProvider`'s offer loop read `state.restrictions()`, so with an
+opponent's Collector Ouphe out, `can_afford` counted a Sol Ring, the cast was offered, and the
+atomic tap-and-cast sequence was refused: the exact 422 this batch exists to remove, one
+restriction class away from where it was being fixed. Closed by reusing the provider's own
+`is_ability_restricted_by_stax` (SIM-1's lesson: two arithmetics agree only when they are one
+function), pinned two-sided by `t22`.
+
+**What makes it worth writing down is not the miss but the claim.** Four separate comments
+written by this batch asserted that `plannable_tap_ability` mirrored *every* rejection
+`handle_tap_for_mana` makes — "SIM-2 added all of them", "the single gate", "the returned
+commands are always ones `handle_tap_for_mana` accepts". An enumeration is only as complete
+as the category it names (`OOS-SIM1-3`, one batch earlier, about `GameRestriction` variants;
+here the same shape about the *set of rejections in a function*). Those comments now state a
+bound instead of an absolute, and name what is still unmirrored.
+
+**A "safe under-count" that over-credits at zero.** SR-36 scaled abilities carry a
+`1`-per-colour marker instead of a count, and both the roster gate's doc and `OOS-SIM2-4`
+originally said the marker "can only under-offer; it never over-credits". False at zero:
+`rules/mana.rs` computes `resolve_amount(..).max(0) as u32` and adds it with **no error**, so
+`growing_rites_of_itlimoc` (`Complete`, deck-legal) taps for nothing with no creatures out
+while the marker promises one mana — an offered cast the engine then refuses. Scaled abilities
+are now excluded from planning outright (`resolve_amount` is `pub(crate)` to the engine, so
+the solver cannot ask for the real number); `t23` pins it. The lesson is narrow and useful:
+**"conservative" is a claim about a direction, and a direction has to be checked at its
+endpoints.**
+
 ### The bot half of OOS-M11-8 — closed by there being one function
 
 S8 recorded `OOS-M11-8` (announced `{X}` not paid for) as CLOSED on a fix that lived only in
@@ -99,11 +136,13 @@ when `advance()` is reverted to its old body.
 
 ## 2. Populations (enumerated from `all_cards()`, SR-36 — never grepped)
 
-Pinned by `crates/simulator/tests/sim2_mana_source_roster.rs`, over 1,803 defs:
+Pinned by `crates/simulator/tests/sim2_mana_source_roster.rs`, over 1,803 defs. Counted as
+**(def × `{T}` ability) rows**, not defs — the first write-up said "322 defs", which is the
+wrong unit for every row below it:
 
 | row | population | count |
 |---|---|---|
-| — | defs with any `{T}` mana ability | 322 |
+| — | `{T}` mana-ability rows in the corpus | 322 |
 | R1 | `{T}` abilities producing **>1** mana (fixed colour, unscaled) | 36 |
 | R2 | `{T}` abilities with their own **mana** component | 20 |
 | R3 | with a **life** component / with an **activation condition** | 8 / 13 |
@@ -122,21 +161,34 @@ no test is decorative.
 
 | revert | tests that redden |
 |---|---|
-| A production-counting | `t1`, `t2`, `t4`, `t5`, `t6`, `t10`, `t20` |
+| A production-counting | `t1`, `t2`, `t4`, `t5`, `t6`, `t10`, `t20`, `t22` |
 | B residual subtraction | `t7`, `t18` |
-| C bot tap demotion | `t8`, `t20` |
+| C bot tap demotion | `t8`, `t20`, `t21` |
 | D layer-resolved sources | `t16`, `test_s8_scripted_human_playthrough_is_clean_on_five_seeds` |
 | E summoning sickness | `t11`, `t19` |
 | F activation condition | `t15`, `t19` |
 | G life cost | `t13` |
 | H counter cost | `t14` |
 | I ability mana component | `t12` |
-| J offer-side predicate | `t19` |
+| J offer-side predicate | `t19`, `t22` |
+| K least-waste selection (phase 3 → first-untapped, main's rule) | `t3` |
+| L stax restrictions | `t22` |
+| M scaled-ability exclusion | `t23` |
 | bot path → old `advance()` body | `t21` |
 
-(The first run of this matrix used cargo's default fail-fast and under-reported revert D by
-one test — the second binary never ran. Re-run with `--no-fail-fast`; the table above is the
-complete one.)
+Two corrections to this table's own method, both from `/review`. (1) The first run used
+cargo's default fail-fast and under-reported revert D by one test — the second binary never
+ran; re-run with `--no-fail-fast`. (2) The first version had **no row for `pick_least_waste`**
+while claiming no test was decorative, which left `t3` — the sole guard for the
+"prefer small producers" half of criterion 2 — looking unguarded. Row K exists now and
+reddens exactly `t3`.
+
+**Tests that appear in no row, and why that is correct**: `t9` and `t9b` pin *non-vacuity*
+of the bot demotion (a scored-0 action stays choosable; a spend target still outranks it),
+which is a property of the fix's shape rather than of the fix, and `t17` pins the
+`any_color` contract (one mana, colour announced, never colorless) that SIM-2 preserved
+rather than changed. Neither is decorative and neither has a revert — they would redden on a
+*future* regression, which is what a pin is for.
 
 ---
 
@@ -183,8 +235,9 @@ panics" cannot later read as a property of the fixture.
 
 ## 6. Numbers
 
-* Tests: `sim2_mana_intelligence` 21, `sim2_mana_source_roster` 5; `play-server` 40/40;
-  simulator suite green; workspace green.
+* Tests: `sim2_mana_intelligence` **24**, `sim2_mana_source_roster` 5; `play-server` 40/40;
+  simulator suite green; workspace **4,185 → 4,214** (merge base measured in a clean worktree
+  at `8cad9c36`).
 * PROTOCOL / HASH: gate-executed, unmoved (the criterion's "PROTOCOL 32" was stale —
   PB-DX6 moved it to 33 before this fork).
 * Coverage: unmoved — zero card-def edits, zero completeness flips.

@@ -10,9 +10,14 @@
 //! shapes this engine's corpus actually contains (fixed-colour lands, two-colour karoo
 //! lands, `{C}{C}` rocks) and can in principle mis-plan a board where a *choice* of
 //! which flexible source to spend on which pip matters. The failure mode is a `None`
-//! (or a larger-than-minimal plan), never an illegal plan — the returned commands are
-//! always ones `handle_tap_for_mana` accepts, which is the property `can_afford` and the
-//! auto-tapper both depend on (SR-38: never offer what the engine rejects).
+//! (or a larger-than-minimal plan), never an illegal plan.
+//!
+//! "Never illegal" is the property `can_afford` and the auto-tapper both depend on (SR-38:
+//! never offer what the engine rejects), and it holds **as far as
+//! [`plannable_tap_ability`] mirrors `handle_tap_for_mana`** — read that function's doc for
+//! the bound, which is a real bound and not a formality: SIM-2's own `/review` found one
+//! whole rejection class (CR 605.3 stax restrictions) unmirrored while four comments,
+//! including this one, asserted the mirror was complete.
 //!
 //! # SIM-2: production is counted in MANA, not in SOURCES
 //!
@@ -56,8 +61,10 @@
 //! with `"has no mana ability at index 0"` — caught by the S8 scripted playthrough on
 //! seed 42 the moment this batch changed which source the solver reaches for.
 //! [`gather_sources`] now calls `calculate_characteristics`, the same function
-//! `StubProvider`'s `TapForMana` offer loop and `handle_tap_for_mana` itself use, and is
-//! hoisted so `legal_actions` pays for it once per enumeration rather than once per card.
+//! `StubProvider`'s `TapForMana` offer loop and `handle_tap_for_mana` itself use. It is
+//! **not** hoisted out of the solve — `can_afford` pays for a gather per castable card, and
+//! the measurement that says it may (fuzzer A/B, 6.8 s both sides) is at
+//! [`gather_sources`]'s own doc.
 //!
 //! What remains open under `OOS-M11-2` after this batch: cost *modifiers* (no
 //! Thalia-style increase, no reduction) and CR 106.12 restricted mana, neither of which
@@ -65,7 +72,9 @@
 //!
 //! # Which taps this solver refuses to plan, and why
 //!
-//! [`plannable_tap_ability`] is the single gate. It exists because a plan is worthless
+//! [`plannable_tap_ability`] is the gate — one function, called from one place
+//! ([`gather_sources`]), with its legality half shared with the provider's offer loop. It
+//! exists because a plan is worthless
 //! unless `handle_tap_for_mana` (`rules/mana.rs`) accepts every command in it: the human
 //! path applies taps and the cast as one atomic sequence, so a single refused tap fails
 //! the whole cast (the `422` a human sees), and the bot path silently falls back to
@@ -181,15 +190,28 @@ fn spend(sources: &mut [ManaSource], idx: usize) {
 /// `handle_tap_for_mana` will accept right now, for reasons the solver can check without
 /// simulating the activation.
 ///
-/// Each arm mirrors a specific rejection in `rules/mana.rs`. **SIM-2 added all of them**;
-/// before, the only filters were "untapped" and "requires_tap", so the solver freely
-/// planned taps the engine then refused — which on the human path fails the whole atomic
-/// tap-and-cast sequence and surfaces as a `422` on a cast the client had just been
-/// offered.
+/// Each arm mirrors a specific rejection in `rules/mana.rs`. Before SIM-2 the only filters
+/// were "untapped" and "requires_tap", so the solver freely planned taps the engine then
+/// refused — which on the human path fails the whole atomic tap-and-cast sequence and
+/// surfaces as a `422` on a cast the client had just been offered.
+///
+/// **The claim here is "every rejection `handle_tap_for_mana` makes for a reason knowable
+/// from the state alone", and it is bounded, not absolute.** SIM-2's first pass said "all
+/// of them" and was wrong by one whole class: its own `/review` found `rules/mana.rs`'s
+/// **step 1b** — the `GameRestriction` check that stops a Sol Ring under Collector Ouphe
+/// and any opponent's mana ability under Grand Abolisher (CR 605.3 makes a mana ability an
+/// activated ability) — mirrored in neither this file nor the provider's offer loop, while
+/// four separate comments asserted the mirror was complete. That arm now exists (see
+/// `tap_ability_is_activatable`). What is still NOT mirrored, deliberately, is anything the
+/// solver cannot decide without performing the activation: `resolve_amount` for a scaled
+/// ability's production (`pub(crate)` to the engine — hence the `scaled_amount` exclusion
+/// below), and CR 106.12 restricted mana.
 ///
 /// Populations measured by enumerating `all_cards()` (SR-36 — never grep) over the 1,803
-/// defs at 2026-08-02: 322 defs have a `{T}` mana ability; 20 carry a mana component, 8 a
-/// life component, 13 an activation condition, 0 a counter cost.
+/// defs at 2026-08-02, counted as **(def × `{T}` ability) rows**, not defs: 322 rows across
+/// the corpus, of which 20 carry a mana component, 8 a life component, 13 an activation
+/// condition, 9 a scaled amount and 0 a counter cost
+/// (`crates/simulator/tests/sim2_mana_source_roster.rs`).
 fn plannable_tap_ability(
     state: &GameState,
     player: PlayerId,
@@ -197,6 +219,19 @@ fn plannable_tap_ability(
     chars: &Characteristics,
     ability: &ManaAbility,
 ) -> bool {
+    // SR-36 (CR 605.1a): a scaled ability's `produces` holds a `1`-per-colour **marker**,
+    // not a count, and the real amount comes from `effects::resolve_amount`, which is
+    // `pub(crate)` to the engine and unreachable from here. Crediting the marker is not
+    // merely an under-count: `rules/mana.rs` computes `resolve_amount(..).max(0) as u32`
+    // and adds it with **no error at zero**, so Itlimoc with no creatures out produces
+    // NOTHING while the marker promises one mana — an over-credit, and therefore an
+    // offered cast the engine refuses. Found by SIM-2's `/review` on
+    // `growing_rites_of_itlimoc`, which is `Complete` and deck-legal. Excluded outright:
+    // the 9 scaled defs were already under-counted before this batch, so nothing regresses
+    // that was working, and the zero case stops being a live SR-38 violation. `OOS-SIM2-4`.
+    if ability.scaled_amount.is_some() {
+        return false;
+    }
     // CR 605.3a / CR 118.3a: the ability's OWN mana component (a Signet's `{1}`, a filter
     // land's `{W/B}`) is paid from the pool at activation, before the mana is produced.
     // Planning that means interleaving a tap plan with a pool state this solver does not
@@ -229,7 +264,9 @@ fn plannable_tap_ability(
 /// half of it (it checked `life_cost` per SG-1 and nothing else, so an unmet
 /// `activation_condition` and a summoning-sick creature were both offered and both
 /// refused), and this file had the affordability half. Splitting the fix would have left
-/// the play-server driver's `KNOWN_FALSE_OFFERS` list still describing a live bug.
+/// **`tools/play-server/src/main.rs`**'s `KNOWN_FALSE_OFFERS` list — not the same-named
+/// list in `crates/simulator/tests/local_game_playthrough.rs`, which never carried these
+/// two entries — still describing a live bug.
 pub(crate) fn tap_ability_is_activatable(
     state: &GameState,
     player: PlayerId,
@@ -237,6 +274,21 @@ pub(crate) fn tap_ability_is_activatable(
     chars: &Characteristics,
     ability: &ManaAbility,
 ) -> bool {
+    // CR 605.3 + CR 101.2 (rules/mana.rs step 1b): a `GameRestriction` that stops an
+    // activated ability stops a MANA ability — Stony Silence / Collector Ouphe on any
+    // artifact source, Grand Abolisher / Myrel on an opponent's artifact, creature or
+    // enchantment during the controller's turn. `is_ability_restricted_by_stax` is the
+    // provider's own mirror of `rules/abilities.rs`'s identical check, reused rather than
+    // re-derived (SIM-1's lesson: two arithmetics agree only when they are one function).
+    //
+    // Added by SIM-2's `/review`, which found this class mirrored NOWHERE on the tap path
+    // while four comments claimed the mirror was complete. Live: with an opponent's
+    // Collector Ouphe out, `can_afford` counted a Sol Ring, the cast was offered, and the
+    // atomic tap-and-cast sequence was then refused — a 422 of exactly the kind this batch
+    // exists to remove.
+    if crate::legal_actions::is_ability_restricted_by_stax(state, player, obj.id) {
+        return false;
+    }
     // CR 119.4 / CR 118.3b (rules/mana.rs step 5b): a horizon land's "Pay 1 life" is
     // rejected outright when the player cannot pay. Mirrors `legal_actions.rs`'s SG-1
     // check on the offer side, including its `>=` (CR 119.4 permits paying down to 0).

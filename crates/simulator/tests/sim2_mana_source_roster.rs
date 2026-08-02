@@ -171,10 +171,15 @@ fn r4_counter_cost_mana_abilities_are_absent_from_the_corpus() {
 }
 
 /// R5 — SR-36 scaled abilities carry a `1`-per-colour **marker** in `produces`, not a real
-/// count (Gaea's Cradle, Cabal Coffers). The solver credits the marker, which UNDER-counts
-/// and can only under-offer; it never over-credits, which is the direction that would
-/// produce a plan the engine refuses. Pinned so that a change to the marker convention
-/// shows up here rather than as a mysterious over-offer.
+/// count (Gaea's Cradle, Cabal Coffers, Itlimoc).
+///
+/// **This row's first version said the marker "can only under-offer; it never over-credits".
+/// That was false at zero**, and zero is trivially reachable: `rules/mana.rs` computes
+/// `resolve_amount(..).max(0) as u32` and adds it with no error, so Itlimoc with no creatures
+/// out produces NOTHING while the marker promises one mana — an offered cast the engine then
+/// refuses. `plannable_tap_ability` therefore excludes scaled abilities from planning
+/// outright (`effects::resolve_amount` is `pub(crate)` to the engine, so the solver cannot
+/// ask for the real number), and this row pins the population that exclusion costs.
 #[test]
 fn r5_scaled_abilities_carry_a_marker_not_a_count() {
     let rows = rows();

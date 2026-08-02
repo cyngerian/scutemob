@@ -1281,3 +1281,115 @@ fn t21_bot_auto_tap_includes_the_announced_x() {
         "{{X}}{{R}} with X = 2 is three mana, so three Mountains must be tapped"
     );
 }
+
+// ---------------------------------------------------------------------------
+// Found by SIM-2's own `/review`: two more ways to plan a tap the engine refuses
+// ---------------------------------------------------------------------------
+
+/// CR 605.3 + CR 101.2 (`rules/mana.rs` step 1b): a `GameRestriction` that stops an
+/// activated ability stops a **mana** ability. Collector Ouphe / Stony Silence
+/// (`ArtifactAbilitiesCantBeActivated`) refuse a Sol Ring's tap outright.
+///
+/// **This class was mirrored NOWHERE on the tap path** — not in the solver, not in the
+/// provider's offer loop — while four separate comments in this batch's first pass claimed
+/// the mirror of `handle_tap_for_mana` was complete. Live and reachable: Collector Ouphe
+/// and Stony Silence are both `Complete` and deck-legal, so an opponent playing one made
+/// `can_afford` count a Sol Ring, the cast was offered, and the atomic tap-and-cast
+/// sequence was then refused — the 422 this whole batch exists to remove.
+#[test]
+fn t22_a_stax_restricted_mana_ability_is_neither_planned_nor_offered() {
+    use mtg_engine::state::ActiveRestriction;
+    use mtg_engine::{CardType, GameRestriction};
+
+    let build = |restricted: bool| {
+        let mut state = GameStateBuilder::new()
+            .add_player(PlayerId(1))
+            .add_player(PlayerId(2))
+            .active_player(PlayerId(1))
+            .object(
+                ObjectSpec::artifact(PlayerId(1), "SIM2 Sol Ring")
+                    .with_mana_ability(tap_for(ManaColor::Colorless, 2)),
+            )
+            .object(
+                ObjectSpec::card(PlayerId(2), "SIM2 Ouphe")
+                    .with_types(vec![CardType::Creature])
+                    .in_zone(ZoneId::Battlefield),
+            )
+            .build()
+            .expect("stax fixture should build");
+        let ouphe = state
+            .objects()
+            .iter()
+            .find(|(_, o)| o.characteristics.name == "SIM2 Ouphe")
+            .map(|(id, _)| *id)
+            .expect("the Ouphe must exist");
+        if restricted {
+            state.restrictions_mut().push_back(ActiveRestriction {
+                source: ouphe,
+                controller: PlayerId(2),
+                restriction: GameRestriction::ArtifactAbilitiesCantBeActivated,
+            });
+        }
+        state
+    };
+
+    let restricted = build(true);
+    assert!(
+        solve_mana_payment(&restricted, PlayerId(1), &generic(2)).is_none(),
+        "an artifact's mana ability cannot be activated under Collector Ouphe (CR 605.3)"
+    );
+    assert!(
+        !StubProvider
+            .legal_actions(&restricted, PlayerId(1))
+            .iter()
+            .any(|a| matches!(a, LegalAction::TapForMana { .. })),
+        "and it must not be offered either (SR-38)"
+    );
+
+    // Non-vacuity: the identical board without the restriction plans and offers the tap.
+    let free = build(false);
+    assert!(
+        solve_mana_payment(&free, PlayerId(1), &generic(2)).is_some(),
+        "control: with no restriction in play the Sol Ring pays {{2}}"
+    );
+    assert!(
+        StubProvider
+            .legal_actions(&free, PlayerId(1))
+            .iter()
+            .any(|a| matches!(a, LegalAction::TapForMana { .. })),
+        "control: with no restriction in play the tap is offered"
+    );
+}
+
+/// SR-36 + CR 605.1a: a **scaled** mana ability's `produces` is a `1`-per-colour marker,
+/// and `rules/mana.rs` adds `resolve_amount(..).max(0)` mana with **no error at zero**.
+///
+/// The batch's first pass called the marker a safe under-count that "can only under-offer".
+/// That is false at zero, which is a state a `Complete` deck-legal def reaches trivially:
+/// `growing_rites_of_itlimoc`'s Itlimoc face taps for one green **per creature you
+/// control**, so with no creatures it produces nothing while the marker promises one — an
+/// over-credit, and therefore an offered cast the engine refuses. Scaled abilities are now
+/// excluded from planning outright.
+#[test]
+fn t23_a_scaled_mana_ability_is_never_planned() {
+    use mtg_engine::{EffectAmount, TargetFilter};
+
+    let cradle = ManaAbility {
+        produces: [(ManaColor::Green, 1u32)].into_iter().collect(),
+        requires_tap: true,
+        scaled_amount: Some(Box::new(EffectAmount::PermanentCount {
+            filter: TargetFilter {
+                has_card_type: Some(mtg_engine::CardType::Creature),
+                ..Default::default()
+            },
+            controller: mtg_engine::PlayerTarget::Controller,
+        })),
+        ..Default::default()
+    };
+    let (state, _) = battlefield_with_life("SIM2 Cradle", cradle, 40, vec![], |_| {});
+    assert!(
+        solve_mana_payment(&state, PlayerId(1), &generic(1)).is_none(),
+        "a scaled ability's marker is not a promise of one mana — with no creatures out it \
+         produces zero and the engine refuses the cast the marker bought"
+    );
+}

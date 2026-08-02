@@ -645,12 +645,17 @@ impl LegalActionProvider for StubProvider {
             for (idx, ability) in chars.mana_abilities.iter().enumerate() {
                 if ability.requires_tap {
                     // SG-1 (CR 118.3 / CR 119.4b) + **OOS-CARDS2-9** (SIM-2): a mana
-                    // ability whose activation `handle_tap_for_mana` would refuse must not
-                    // be offered (SR-38). SG-1 covered the life component alone; the
-                    // shared predicate covers it plus the two the driver's
-                    // `KNOWN_FALSE_OFFERS` list had been absorbing for a batch — an unmet
+                    // ability whose activation `handle_tap_for_mana` would refuse for a
+                    // reason knowable from the state alone must not be offered (SR-38).
+                    // SG-1 covered the life component; the shared predicate covers it plus
+                    // the two `tools/play-server`'s driver had been absorbing in its
+                    // `KNOWN_FALSE_OFFERS` list for a batch — an unmet
                     // `activation_condition` (CR 602.5b) and a summoning-sick creature
-                    // (CR 302.6) — and a counter cost with too few counters (CR 118.3).
+                    // (CR 302.6) — a counter cost with too few counters (CR 118.3), and
+                    // (added by SIM-2's own `/review`, which found it mirrored nowhere on
+                    // this path) the CR 605.3 stax restrictions of `rules/mana.rs` step 1b.
+                    // It does NOT cover what needs the activation performed to decide; see
+                    // `mana_solver::plannable_tap_ability`'s doc for that bound.
                     //
                     // The SAME predicate the mana solver uses, so the offer list and the
                     // payment plan cannot drift: that identity is the fix, not the
@@ -1692,7 +1697,30 @@ fn can_afford(state: &GameState, player: PlayerId, cost: &mtg_engine::ManaCost) 
 ///
 /// Mirrors check_activate_restrictions in rules/abilities.rs. Only objects on the
 /// battlefield are affected (zone-scope fix from Finding 3).
-fn is_ability_restricted_by_stax(state: &GameState, player: PlayerId, source: ObjectId) -> bool {
+///
+/// # SIM-2: mana abilities are activated abilities too (CR 605.3)
+///
+/// `pub(crate)` and called from `mana_solver::tap_ability_is_activatable` as well.
+/// `rules/mana.rs`'s step 1b enforces these same two `GameRestriction` variants on a
+/// `TapForMana` — CR 605.3 says activating a mana ability follows the rules for
+/// activating any other activated ability, so Stony Silence / Collector Ouphe stop a
+/// Sol Ring and Grand Abolisher stops an opponent's — and until SIM-2's `/review`
+/// caught it, **neither the provider's `TapForMana` loop nor the solver mirrored them**.
+/// With an opponent's Collector Ouphe out, `can_afford` counted a Sol Ring, the cast was
+/// offered, and the atomic tap-and-cast sequence was then refused: the exact SR-38
+/// failure this batch exists to remove, one restriction class away from where it looked.
+///
+/// The `restrictions().is_empty()` fast path is new and load-bearing for that second
+/// caller: the solver asks this per source per solve, and `calculate_characteristics` is
+/// not free. Almost every board has no restrictions at all.
+pub(crate) fn is_ability_restricted_by_stax(
+    state: &GameState,
+    player: PlayerId,
+    source: ObjectId,
+) -> bool {
+    if state.restrictions().is_empty() {
+        return false;
+    }
     let active_player = state.turn().active_player;
 
     // Source must be on the battlefield for restrictions to apply (Finding 3).
