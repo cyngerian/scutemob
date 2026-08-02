@@ -220,7 +220,34 @@
 - **Recurrence rule** — future `/collect` and milestone-close bookkeeping appends its detailed PB/SR
   narrative to that archive file (newest first), and updates only a one-paragraph snapshot delta
   here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
-- **Last Updated**: 2026-08-02 — **PB-DX19 SHIPPED** (`scutemob-184`), first of the v3 queue:
+- **Last Updated**: 2026-08-02 — **UI-4 SHIPPED** (`scutemob-185`; G1 of
+  `memory/playtest-triage-2026-08-02b.md`). **The browser's Confirm button was dead in all three
+  template-copying pickers, and five CR flows the project believed shipped had never worked**:
+  library search (701.23), scry (701.22a), surveil (701.25a), sacrifice additional costs (118.8),
+  Squad (702.157a). Cause exactly as triaged — `structuredClone()` on a Svelte 5 `$state` proxy
+  throws `DataCloneError` out of the click handler, leaving the DOM untouched. **Confirmed in
+  headless Chromium against a live game before any edit** (picker open, 0 POSTs, 0 error strip,
+  `command_count` unmoved), then fixed with a new `plainClone.svelte.js` (`$state.snapshot`) at all
+  three sites. Picker failures now reach the error strip by two independent paths — a per-picker
+  `try/catch` → `onError` → `stores.reportClientError`, and a `window` `error`/`unhandledrejection`
+  net armed from `main.js` that covers the five pickers with no `try` (Svelte's `<svelte:boundary>`
+  does **not** catch handler errors). Two source gates added in `tools/play-server/src/main.rs`,
+  each proven red by executing a revert. **All five flows re-verified in the browser with a
+  NON-DEFAULT answer each**, so game state distinguishes the human's choice from the engine's
+  default. 9 source files + 4 doc files; **0 engine lines and 0 simulator lines**
+  (`git diff main..HEAD --numstat -- crates/` is empty), **0 wire change** — PROTOCOL **33** /
+  HASH **70** untouched by construction. Tests **4,265 / 0 / 5** on branch (+2 = the two gates).
+  **The `/review` cycle found 5 LOW and all 5 were taken**, two of them real holes: the gate
+  walked only `frontend/src/` and missed the `$viewer` shared library that `vite.config.js`
+  compiles into the same bundle (now walked, proven red by planting a call in `cardTooltip.js`),
+  and the pickers' malformed-template guards still bailed in silence — the same symptom from a
+  second cause (now reported). All three picker types were re-verified in the browser *after* the
+  fix cycle.
+  **The R7 frontend harness is proposed, not built** — `memory/workstream-state.md` carries the
+  two-tier design, the "fixtures must wrap the template in `$state()`" rule without which a harness
+  would have passed green against this bug, the CI Node gap, and four known-good
+  (seed → card → flow) tuples so nobody re-scans 2,400 seeds.
+- **Prior**: 2026-08-02 — **PB-DX19 SHIPPED** (`scutemob-184`), first of the v3 queue:
   **OOS-SIM2-6 (the registry's only HIGH) and OOS-SIM2-5 both CLOSED**, and **OOS-DP3-9 /
   OOS-M11-3's stack-overflow half closes with them** on a 0/15 → 15/15 A/B (the pre-fix aborts
   were not individually backtrace-classified — strong evidence, not proof). The recursion

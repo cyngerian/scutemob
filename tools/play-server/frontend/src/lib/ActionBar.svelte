@@ -18,6 +18,9 @@
    *   onPassUntil (fn(modeKind))  — start an auto-pass run (UI-3, AC 6009)
    *   onCancelPassUntil (fn)      — stop one mid-run
    *   onDismissPassUntil (fn)     — clear the finished-run status line
+   *   onClientError (fn(message)) — a picker failed to build or emit its answer
+   *                                 (UI-4, `scutemob-185`). Routed to the same
+   *                                 error strip as a rejected request.
    *   onAct (fn(index, params))   — submit an action
    *   onRefresh (fn)              — re-read the seat view
    *   onDismissError (fn)
@@ -179,7 +182,22 @@
     onPassUntil = null,
     onCancelPassUntil = null,
     onDismissPassUntil = null,
+    onClientError = null,
   } = $props();
+
+  /**
+   * A picker could not build or emit its answer (UI-4, `scutemob-185`).
+   *
+   * Routed to the same error strip a rejected request uses, and the chain is
+   * closed afterwards: leaving the picker open under an error message invites a
+   * second click on a button that has already proven it cannot work, which is
+   * how G1 read to the player who hit it — the only live control left on screen
+   * was Concede.
+   */
+  function onPickerError(message) {
+    onClientError?.(message);
+    resetChain();
+  }
 
   /** True while `stores.js`' auto-pass loop is mid-run. */
   const autoPassing = $derived(!!passUntil && passUntil.stopReason === null);
@@ -513,6 +531,11 @@
       case 'invalid_body':
       case 'malformed_json':
         return 'The client sent something the server could not use';
+      // UI-4: not an `ApiError.kind` — `stores.js` sets this one, and only for a
+      // failure that happened in the browser. Worded so a bug report says which
+      // side broke, because those are two different bugs to file.
+      case 'client_error':
+        return 'Something went wrong in this browser — the game is unchanged';
       default:
         return 'Request failed';
     }
@@ -678,6 +701,7 @@
           disabled={loading}
           onConfirm={onDecisionConfirm}
           onCancel={cancelChain}
+          onError={onPickerError}
         />
       {:else if currentShape?.shape === 'Partition'}
         <PartitionPicker
@@ -691,6 +715,7 @@
           disabled={loading}
           onConfirm={onDecisionConfirm}
           onCancel={cancelChain}
+          onError={onPickerError}
         />
       {:else if currentShape?.shape === 'Slots'}
         <TargetPicker
@@ -729,6 +754,7 @@
         disabled={loading}
         onConfirm={onCostsConfirm}
         onCancel={cancelChain}
+        onError={onPickerError}
       />
     {:else if stage === 'targets'}
       <TargetPicker

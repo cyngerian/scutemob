@@ -24,6 +24,11 @@
    *   disabled (bool)
    *   onConfirm (fn(params)) — `{[answerField]: <mutated clone of template>}`
    *   onCancel (fn)
+   *   onError (fn(message)) — a failure while building or emitting the answer.
+   *                          UI-4 (`scutemob-185`): before this, a throw here
+   *                          escaped the click handler and the DOM was simply
+   *                          untouched — the button read as dead. Never let this
+   *                          path fail in silence again.
    *
    * # Why the variant name is never typed here
    *
@@ -71,6 +76,7 @@
    * the malformed-template guard, which cannot fire against the real server.
    */
   import { untrack } from 'svelte';
+  import { plainClone } from './plainClone.svelte.js';
 
   const {
     prompt = '',
@@ -83,6 +89,7 @@
     disabled = false,
     onConfirm = null,
     onCancel = null,
+    onError = null,
   } = $props();
 
   /**
@@ -135,15 +142,31 @@
 
   function confirm() {
     if (disabled) return;
-    if (!template || typeof template !== 'object') return;
-    const answer = structuredClone(template);
-    const variant = Object.keys(answer)[0];
-    // An externally-tagged enum has exactly one key. If it somehow does not, bail
-    // rather than write into `undefined` and post a body the server will 400.
-    if (variant === undefined || typeof answer[variant] !== 'object') return;
-    answer[variant][keptKey] = [...kept];
-    answer[variant][movedKey] = [...moved];
-    onConfirm?.({ [answerField]: answer });
+    // Reports rather than returning in silence — see `SearchPicker.emit`'s note:
+    // a silent bail is indistinguishable from the dead button UI-4 repaired.
+    if (!template || typeof template !== 'object') {
+      onError?.('this decision offered no answer template — nothing was submitted');
+      return;
+    }
+    // `plainClone`, never the platform's deep-copy primitive — `template` is a
+    // Svelte 5 reactive proxy here and that primitive rejects proxies with a
+    // `DataCloneError`. See `plainClone.svelte.js`; this site is why scry
+    // (CR 701.22a) and surveil (CR 701.25a) had never worked in a browser.
+    try {
+      const answer = plainClone(template);
+      const variant = Object.keys(answer)[0];
+      // An externally-tagged enum has exactly one key. If it somehow does not, bail
+      // rather than write into `undefined` and post a body the server will 400.
+      if (variant === undefined || typeof answer[variant] !== 'object') {
+        onError?.('the answer template is not the shape this client can fill in');
+        return;
+      }
+      answer[variant][keptKey] = [...kept];
+      answer[variant][movedKey] = [...moved];
+      onConfirm?.({ [answerField]: answer });
+    } catch (err) {
+      onError?.(`could not submit the card-ordering answer: ${err?.message ?? err}`);
+    }
   }
 </script>
 

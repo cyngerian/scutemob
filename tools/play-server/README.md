@@ -594,6 +594,16 @@ by cloning it, reading its single key, and replacing only the arrays named by
 the drift would be silent until `api.rs` answered "you answered the wrong question".
 `answer_field` is a prop for the same reason one level up.
 
+**How the clone is taken is not an implementation detail (UI-4, `scutemob-185`).** The template
+arrives as a Svelte 5 **reactive proxy** — `ActionBar` holds the option in `$state`, which
+deep-proxies on read — and the platform's structured-clone primitive rejects proxies outright,
+throwing `DataCloneError` out of the click handler without touching the DOM. All three
+template-copying pickers did exactly that, so Confirm was a **dead button** and five CR flows
+(701.23, 701.22a, 701.25a, 118.8, 702.157a) had never worked in a browser for the whole life of
+the feature. Copies now go through `frontend/src/lib/plainClone.svelte.js`
+(`$state.snapshot`), and `test_frontend_never_structured_clones_reactive_state` in `main.rs`
+fails the build if the primitive reappears anywhere under `frontend/src/`.
+
 ### The default is still the fallback, and that is load-bearing
 
 `params.rs`'s three arms submit the action's own default when nothing is announced.
@@ -824,6 +834,19 @@ repeated here so this README does not claim more than the implementation does.
     and everything it accepts, over HTTP. **UI-2 makes it six** — `CostPicker` is
     untested for the same reason, while its *channel* is driven end to end by four
     HTTP probes.
+
+    **UI-4 (`scutemob-185`) is what that costs, measured rather than feared.** All
+    three template-copying pickers were dead on `Confirm` from the day they shipped
+    — every layer below them tested and correct, the only untested part the one a
+    human touches. UI-4 adds two **source** gates (`main.rs`:
+    `test_frontend_never_structured_clones_reactive_state`,
+    `test_frontend_picker_failures_reach_the_error_strip`) which pin the pattern
+    and the error wiring, and a `window`-level error net so a handler throw is
+    never silent again. **None of that is a component test**: a gate cannot prove a
+    picker renders or that an answer is right. R7 is still open, and
+    `memory/workstream-state.md`'s UI-4 handoff carries a sized two-tier proposal,
+    the fixture rule it turns on (`$state()`-wrap the template, or the harness
+    passes green against this exact bug), and four known-good seed→card→flow tuples.
 
 18. **Only 2 of `AdditionalCost`'s 16 variants are surfaced (UI-2).**
     `ActionOptionView.costs` describes a required **sacrifice** (CR 118.8) and an

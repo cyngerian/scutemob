@@ -24,6 +24,11 @@
    *   disabled (bool)
    *   onConfirm (fn(params)) — `{[answerField]: <mutated clone of template>}`
    *   onCancel (fn)
+   *   onError (fn(message)) — a failure while building or emitting the answer.
+   *                          UI-4 (`scutemob-185`): before this, a throw here
+   *                          escaped the click handler and the DOM was simply
+   *                          untouched — the button read as dead. Never let this
+   *                          path fail in silence again.
    *
    * # Why the variant name is never typed here
    *
@@ -64,6 +69,8 @@
    * selected-then-filtered-out case described above, and the malformed-template
    * guard, which cannot fire against the real server.
    */
+  import { plainClone } from './plainClone.svelte.js';
+
   const {
     prompt = '',
     candidates = [],
@@ -74,6 +81,7 @@
     disabled = false,
     onConfirm = null,
     onCancel = null,
+    onError = null,
   } = $props();
 
   /** The chosen object id, or `null` for "nothing chosen yet". */
@@ -108,14 +116,33 @@
    */
   function emit(found) {
     if (disabled) return;
-    if (!template || typeof template !== 'object') return;
-    const answer = structuredClone(template);
-    const variant = Object.keys(answer)[0];
-    // An externally-tagged enum has exactly one key. If it somehow does not, bail
-    // rather than write into `undefined` and post a body the server will 400.
-    if (variant === undefined || typeof answer[variant] !== 'object') return;
-    answer[variant][foundKey] = found;
-    onConfirm?.({ [answerField]: answer });
+    // The malformed-template guards REPORT rather than return in silence (UI-4
+    // `/review`). Bailing is still right — a half-built body the server will 400
+    // helps nobody — but a silent bail is indistinguishable from the dead button
+    // this component was just repaired for, and the whole point of the repair is
+    // that the symptom never recurs from any cause.
+    if (!template || typeof template !== 'object') {
+      onError?.('this search offered no answer template — nothing was submitted');
+      return;
+    }
+    // `plainClone`, never the platform's deep-copy primitive: `template` is a
+    // Svelte 5 reactive proxy by the time it gets here, and that primitive
+    // rejects proxies with a `DataCloneError`. See `plainClone.svelte.js` — this
+    // is the site whose failure was observed in a browser.
+    try {
+      const answer = plainClone(template);
+      const variant = Object.keys(answer)[0];
+      // An externally-tagged enum has exactly one key. If it somehow does not, bail
+      // rather than write into `undefined` and post a body the server will 400.
+      if (variant === undefined || typeof answer[variant] !== 'object') {
+        onError?.('the search answer template is not the shape this client can fill in');
+        return;
+      }
+      answer[variant][foundKey] = found;
+      onConfirm?.({ [answerField]: answer });
+    } catch (err) {
+      onError?.(`could not submit the search answer: ${err?.message ?? err}`);
+    }
   }
 
   function confirm() {

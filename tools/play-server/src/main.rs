@@ -6515,6 +6515,313 @@ mod tests {
         }
     }
 
+    /// Walk `dir` recursively, collecting every frontend source file as
+    /// `(path, text)`. Companion to [`collect_rs_files`] for the Svelte client.
+    ///
+    /// `node_modules/` and `dist/` are skipped: neither is authored here, both
+    /// are gitignored, and a bundled dependency that happens to deep-copy is not
+    /// this crate's rule to enforce. The extensions are the three this client
+    /// actually contains — a new one (`.ts`, `.svelte.ts`) is NOT silently
+    /// covered, which is why the caller asserts a file-count floor.
+    fn collect_frontend_files(dir: &std::path::Path, out: &mut Vec<(String, String)>) {
+        let Ok(entries) = std::fs::read_dir(dir) else {
+            return;
+        };
+        let mut paths: Vec<PathBuf> = entries.filter_map(|e| e.ok()).map(|e| e.path()).collect();
+        paths.sort();
+        for path in paths {
+            let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+            if name == "node_modules" || name == "dist" {
+                continue;
+            }
+            if path.is_dir() {
+                collect_frontend_files(&path, out);
+            } else if path
+                .extension()
+                .is_some_and(|ext| ext == "svelte" || ext == "js" || ext == "css")
+            {
+                let text = std::fs::read_to_string(&path)
+                    .unwrap_or_else(|e| panic!("{} is unreadable: {e}", path.display()));
+                out.push((path.display().to_string(), text));
+            }
+        }
+    }
+
+    /// **UI-4 (`scutemob-185`), G1 of `memory/playtest-triage-2026-08-02b.md` —
+    /// no file in the Svelte client may hand a value to a platform primitive that
+    /// rejects `Proxy` objects.**
+    ///
+    /// # The defect this exists to prevent recurring
+    ///
+    /// `ActionBar.svelte` holds the option being answered in `$state`. Svelte 5
+    /// wraps that in a `Proxy` and deep-proxies on read, so every DTO threaded
+    /// down to a picker as a prop is a proxy by the time it arrives. The
+    /// structured-clone algorithm rejects proxies outright — `DataCloneError:
+    /// #<Object> could not be cloned.` — and the throw escapes an ordinary DOM
+    /// handler without touching the DOM. Three pickers took a deep copy of their
+    /// answer template that way, and **five CR flows were dead in the browser for
+    /// the entire life of the feature**: library search (CR 701.23), scry
+    /// (CR 701.22a), surveil (CR 701.25a), sacrifice additional costs (CR 118.8)
+    /// and Squad (CR 702.157a).
+    ///
+    /// The sanctioned replacement is `frontend/src/lib/plainClone.svelte.js`,
+    /// which wraps Svelte's own `$state.snapshot`.
+    ///
+    /// # Why a source gate and not a test of the components
+    ///
+    /// Because there is still no frontend test harness (plan §8 R7) — that is the
+    /// standing debt this defect collected on, and it is deliberately not paid
+    /// here. A source gate cannot prove a picker works; it can prove the one
+    /// three-line pattern that broke all three of them is absent, and it costs
+    /// nothing to run. When the harness lands, this stays: it is a *class* rule,
+    /// covering a Worker or a persistence layer that does not exist yet.
+    ///
+    /// # Vacuity
+    ///
+    /// A ban with zero permitted uses is exactly the shape that rots into a gate
+    /// over an empty file set (the pinned-empty-roster problem, PB-DX6 R2/R4). So
+    /// four things are asserted rather than assumed: the walk saw a floor of
+    /// files **and** every file the rule is about by name; the three pickers each
+    /// call the sanctioned helper; the helper is really implemented in terms of
+    /// `$state.snapshot`; and the matcher is fired at a synthetic offending line
+    /// to prove it discriminates. Delete any one of those and this test goes red
+    /// rather than green-on-nothing.
+    ///
+    /// No `concat!` splitting is needed (unlike
+    /// `test_no_socket_symbol_appears_in_the_test_region`): this file is Rust and
+    /// the walk reads `frontend/src/` only, so the gate cannot match itself.
+    #[test]
+    fn test_frontend_never_structured_clones_reactive_state() {
+        let frontend_src = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("frontend")
+            .join("src");
+        let mut sources: Vec<(String, String)> = Vec::new();
+        collect_frontend_files(&frontend_src, &mut sources);
+
+        // `$viewer` — the replay viewer's component library, imported IN PLACE
+        // rather than copied (`vite.config.js`'s alias, plan §8 R8). Those files
+        // are compiled into *this* bundle by `npm run build`, so a call added
+        // there would ship into the play client and the rule would have a hole
+        // exactly the size of the shared library. Added after a `/review`
+        // finding; currently zero hits, so this arm is coverage, not a repair.
+        let viewer_lib =
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../replay-viewer/frontend/src/lib");
+        let mut shared: Vec<(String, String)> = Vec::new();
+        collect_frontend_files(&viewer_lib, &mut shared);
+
+        // Call forms, not bare identifiers: the prose in `plainClone.svelte.js`
+        // has to be able to name what it replaced. `indexedDB` is spelled with a
+        // leading lowercase because that is the global's actual name — the docs
+        // that discuss it write "IndexedDB", which is a different string.
+        let forbidden = ["structuredClone(", ".postMessage(", "indexedDB"];
+
+        for (path, text) in sources.iter().chain(shared.iter()) {
+            for needle in forbidden {
+                assert!(
+                    !text.contains(needle),
+                    "{path} calls {needle:?}. Every DTO in this client reaches a component \
+                     as a Svelte 5 reactive proxy, and that primitive rejects proxies with \
+                     a DataCloneError thrown out of the click handler — no request, no \
+                     error strip, nothing on screen. Use `plainClone` from \
+                     `lib/plainClone.svelte.js` instead. This is UI-4 (`scutemob-185`, G1); \
+                     it cost five CR flows the last time."
+                );
+            }
+        }
+
+        // ── non-vacuity, four directions ──
+        // (a) The walk saw the files this rule is about, by name, plus a floor —
+        //     a moved directory or a new extension must not silently empty it.
+        let seen: BTreeSet<&str> = sources
+            .iter()
+            .filter_map(|(p, _)| p.rsplit('/').next())
+            .collect();
+        for expected in [
+            "ActionBar.svelte",
+            "SearchPicker.svelte",
+            "PartitionPicker.svelte",
+            "CostPicker.svelte",
+            "plainClone.svelte.js",
+            "stores.js",
+            "main.js",
+        ] {
+            assert!(
+                seen.contains(expected),
+                "the frontend walk missed {expected}; it saw {seen:?}"
+            );
+        }
+        assert!(
+            sources.len() >= 14,
+            "the frontend walk found only {} files under {} — this client has more than \
+             that, so the walk is reading the wrong place and the ban above checked nothing",
+            sources.len(),
+            frontend_src.display()
+        );
+        // The shared library needs its own floor and its own named file: it is
+        // reached by a `..` path, which is the arrangement most likely to resolve
+        // to nothing after a move and leave the arm silently checking zero bytes.
+        let shared_seen: BTreeSet<&str> = shared
+            .iter()
+            .filter_map(|(p, _)| p.rsplit('/').next())
+            .collect();
+        assert!(
+            shared_seen.contains("cardTooltip.js") && shared.len() >= 8,
+            "the `$viewer` walk under {} found {} files ({shared_seen:?}) — `vite.config.js` \
+             aliases that directory into this bundle, so an empty walk is a hole in the ban",
+            viewer_lib.display(),
+            shared.len()
+        );
+
+        // (b) The three pickers really route through the sanctioned helper. A
+        //     picker that stopped taking a copy at all would satisfy the ban
+        //     above while quietly mutating its parent's reactive state.
+        for picker in [
+            "SearchPicker.svelte",
+            "PartitionPicker.svelte",
+            "CostPicker.svelte",
+        ] {
+            let (_, text) = sources
+                .iter()
+                .find(|(p, _)| p.ends_with(picker))
+                .unwrap_or_else(|| panic!("{picker} is in the walk"));
+            assert!(
+                text.contains("plainClone(") && text.contains("plainClone.svelte.js"),
+                "{picker} neither imports nor calls `plainClone`. It builds its answer by \
+                 copying a template prop, and that copy must be proxy-safe."
+            );
+        }
+
+        // (c) The helper is implemented in terms of Svelte's own unwrapper. If it
+        //     ever became a hand-rolled copy the whole rule would be a rename.
+        let (_, helper) = sources
+            .iter()
+            .find(|(p, _)| p.ends_with("plainClone.svelte.js"))
+            .expect("the helper is in the walk");
+        assert!(
+            helper.contains("$state.snapshot("),
+            "`plainClone` must be `$state.snapshot` — that is the only API that unwraps a \
+             Svelte 5 reactive proxy without re-serializing the value"
+        );
+
+        // (d) The matcher discriminates. Proven by execution against a synthetic
+        //     offending line rather than argued from the needle strings, because
+        //     a typo in a needle is invisible in a green run.
+        let synthetic = "const answer = structuredClone(template);";
+        assert!(
+            forbidden.iter().any(|n| synthetic.contains(n)),
+            "the ban above would not have caught the exact line UI-4 removed"
+        );
+    }
+
+    /// **UI-4 (`scutemob-185`) — a picker may not fail in silence.**
+    ///
+    /// The three-line clone bug was survivable; what made it a conceded game was
+    /// that it produced *no* observable effect. The player clicked Confirm, the
+    /// picker stayed open, no request went out, and no message appeared. G8 in
+    /// the same triage records the consequence: with the answer button dead and
+    /// `legal_actions.rs` offering nothing but the answer and `Concede` while a
+    /// blocking decision stands, Concede was the only live control on screen.
+    ///
+    /// Two independent mechanisms are pinned here, because either alone is a
+    /// half-measure:
+    ///
+    /// 1. Each template-copying picker wraps its emit path in `try` and reports
+    ///    through an `onError` prop, which `ActionBar` routes to the error strip.
+    ///    That buys a message naming which picker failed.
+    /// 2. `stores.js` installs `window` handlers for `error` and
+    ///    `unhandledrejection`, and `main.js` calls that installer. That buys the
+    ///    *guarantee*, for the five pickers with no `try` and for every handler
+    ///    written later. Svelte 5's `<svelte:boundary>` is not a substitute — it
+    ///    catches render and effect errors, not DOM handler ones.
+    ///
+    /// Source-level, for the same reason as the gate above: there is no frontend
+    /// harness (plan §8 R7). This proves the wiring exists, not that it renders.
+    #[test]
+    fn test_frontend_picker_failures_reach_the_error_strip() {
+        let frontend_src = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("frontend")
+            .join("src");
+        let mut sources: Vec<(String, String)> = Vec::new();
+        collect_frontend_files(&frontend_src, &mut sources);
+        let text_of = |name: &str| -> &str {
+            sources
+                .iter()
+                .find(|(p, _)| p.ends_with(name))
+                .map(|(_, t)| t.as_str())
+                .unwrap_or_else(|| panic!("{name} is in the frontend walk"))
+        };
+
+        // 1. Per-picker try/catch, reported upward.
+        for picker in [
+            "SearchPicker.svelte",
+            "PartitionPicker.svelte",
+            "CostPicker.svelte",
+        ] {
+            let text = text_of(picker);
+            // `onError?.(` and not the bare identifier: the identifier matches the
+            // prop's own doc-comment line, so a picker that documented the prop
+            // and never called it would pass. Anchoring on the CALL is the
+            // difference between "the prop exists" and "a failure is reported"
+            // (`/review` finding).
+            assert!(
+                text.contains("onError?.("),
+                "{picker} never CALLS `onError` — a failure while building its answer would \
+                 be invisible to the player"
+            );
+            assert!(
+                text.contains("try {") && text.contains("} catch (err) {"),
+                "{picker} does not guard its emit path; a throw there escapes the click \
+                 handler and leaves the DOM untouched"
+            );
+        }
+
+        // `ActionBar` must actually pass the prop down and route it out, or the
+        // pickers report into nothing.
+        let action_bar = text_of("ActionBar.svelte");
+        assert_eq!(
+            action_bar.matches("onError={onPickerError}").count(),
+            3,
+            "all three template-copying pickers must be given `onPickerError`"
+        );
+        assert!(
+            action_bar.contains("onClientError?.("),
+            "`ActionBar` must forward picker failures to its caller"
+        );
+        let play_app = text_of("PlayApp.svelte");
+        assert!(
+            play_app.contains("onClientError={reportClientError}"),
+            "`PlayApp` must route `ActionBar`'s picker failures into the shared error store"
+        );
+
+        // 2. The global net, and the call that arms it. An installer nobody calls
+        //    is the same as no installer, and that is not visible in the module.
+        let stores = text_of("stores.js");
+        assert!(
+            stores.contains("export function reportClientError(")
+                && stores.contains("export function installGlobalErrorReporting("),
+            "`stores.js` must expose both the client-error reporter and the global installer"
+        );
+        for event in ["'error'", "'unhandledrejection'"] {
+            assert!(
+                stores.contains(&format!("addEventListener({event}")),
+                "the global net must listen for {event}; a DOM handler's throw surfaces \
+                 nowhere else"
+            );
+        }
+        assert!(
+            text_of("main.js").contains("installGlobalErrorReporting()"),
+            "`main.js` must arm the global net — an installer that is never called is not a net"
+        );
+
+        // Non-vacuity: the strip can actually say what a client-side failure is.
+        // Without this arm the message renders under "Request failed", which is a
+        // lie about which side of the wire broke.
+        assert!(
+            action_bar.contains("case 'client_error':"),
+            "the error strip must have prose for the client-side kind `stores.js` sets"
+        );
+    }
+
     /// [`code_only`]'s three branches that no file in this crate exercises.
     ///
     /// Written because the alternative was a doc comment claiming block

@@ -61,6 +61,7 @@
     loading,
     passUntil,
     refresh,
+    reportClientError,
     seatView,
     startGame,
     startPassUntil,
@@ -517,6 +518,7 @@
       onPassUntil={(mode) => startPassUntil(mode)}
       onCancelPassUntil={cancelPassUntil}
       onDismissPassUntil={dismissPassUntil}
+      onClientError={reportClientError}
     />
 
     {#if chooser}
