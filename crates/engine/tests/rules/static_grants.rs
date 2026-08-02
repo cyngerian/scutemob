@@ -706,37 +706,93 @@ fn test_creatures_you_control_with_color_red() {
     );
 }
 
-/// CR 604.2: "Artifacts you control have shroud" (Indomitable Archangel Metalcraft).
-/// Only artifacts controlled by source's controller get shroud; creatures do not.
-#[test]
-fn test_artifacts_you_control_grants_shroud() {
-    let mut state = GameStateBuilder::new()
+/// Build a battlefield carrying the **real** Indomitable Archangel definition, with
+/// its statics registered through the production ETB registrar
+/// (`rules/replacement.rs::register_static_continuous_effects`) — the same function
+/// `resolution.rs` and `lands.rs` call at every real ETB.
+///
+/// PB-DX19 exists because the previous version of this helper's caller did not do
+/// this: it hand-built a `ContinuousEffect` with `condition: None`, which exercised
+/// `EffectFilter::ArtifactsYouControl` and *never* the Metalcraft condition the card
+/// actually carries. The condition was the defective half (OOS-SIM2-6, an unbounded
+/// `calculate_characteristics` recursion), so a test that named the card by string
+/// and skipped its condition could not have caught it — and did not, for 4.5 months.
+///
+/// `artifact_count` is P1's artifact count *including* the ones asserted on, so it
+/// selects whether Metalcraft (three or more artifacts, CR 702.45a) is on.
+fn archangel_battlefield(artifact_count: usize) -> mtg_engine::GameState {
+    let defs: std::collections::HashMap<String, mtg_engine::CardDefinition> =
+        mtg_engine::all_cards()
+            .into_iter()
+            .map(|d| (d.name.clone(), d))
+            .collect();
+    let def = defs
+        .get("Indomitable Archangel")
+        .expect("Indomitable Archangel must have a real CardDefinition");
+    let angel_spec = mtg_engine::enrich_spec_from_def(
+        ObjectSpec::card(p1(), "Indomitable Archangel")
+            .in_zone(ZoneId::Battlefield)
+            .with_card_id(def.card_id.clone()),
+        &defs,
+    );
+
+    let mut builder = GameStateBuilder::new()
         .add_player(p1())
         .add_player(p2())
-        .object(ObjectSpec::creature(p1(), "Indomitable Archangel", 4, 4))
-        .object(ObjectSpec::artifact(p1(), "P1 Artifact"))
+        .object(angel_spec)
         .object(ObjectSpec::creature(p1(), "P1 Creature", 2, 2))
-        .object(ObjectSpec::artifact(p2(), "P2 Artifact"))
-        .build()
-        .unwrap();
+        .object(ObjectSpec::artifact(p2(), "P2 Artifact"));
+    // P1's artifacts. The first is the one the assertions read.
+    builder = builder.object(ObjectSpec::artifact(p1(), "P1 Artifact"));
+    for i in 1..artifact_count {
+        builder = builder.object(ObjectSpec::artifact(p1(), &format!("P1 Filler {}", i)));
+    }
+    let mut state = builder.build().unwrap();
 
-    let source_id = find_on_battlefield(&state, "Indomitable Archangel");
+    let angel = find_on_battlefield(&state, "Indomitable Archangel");
+    let angel_card_id = state
+        .objects()
+        .get(&angel)
+        .and_then(|o| o.card_id.clone())
+        .expect("the Archangel object must carry its real card_id");
+    mtg_engine::rules::replacement::register_static_continuous_effects(
+        &mut state,
+        angel,
+        Some(&angel_card_id),
+        &mtg_engine::CardRegistry::new(mtg_engine::all_cards()),
+        false,
+    );
+    state
+}
+
+/// CR 604.2 / CR 702.45a: "Metalcraft — Artifacts you control have shroud as long as
+/// you control three or more artifacts" (Indomitable Archangel), with Metalcraft
+/// **on**. Only artifacts controlled by the source's controller get shroud;
+/// creatures do not.
+///
+/// Registered through the real ETB path, so the card's `Condition` is genuinely
+/// evaluated. That change alone is what makes this test discriminating: run against
+/// a tree with only the `check_static_condition` fix reverted, it aborts —
+///
+/// ```text
+/// running 2 tests
+/// test static_grants::test_artifacts_you_control_grants_shroud ...
+/// thread 'static_grants::test_artifacts_you_control_grants_shroud' (1977699)
+///   has overflowed its stack
+/// fatal runtime error: stack overflow, aborting
+///   ... (signal: 6, SIGABRT: process abort signal)
+/// ```
+///
+/// — where the `condition: None` version it replaced passed cleanly against that
+/// same tree. See `tests/primitives/pb_dx19_characteristics_recursion.rs` for the
+/// mechanism.
+#[test]
+fn test_artifacts_you_control_grants_shroud() {
+    let state = archangel_battlefield(3);
+
     let p1_artifact = find_on_battlefield(&state, "P1 Artifact");
     let p1_creature = find_on_battlefield(&state, "P1 Creature");
     let p2_artifact = find_on_battlefield(&state, "P2 Artifact");
-
-    state.continuous_effects_mut().push_back(ContinuousEffect {
-        id: EffectId(200),
-        source: Some(source_id),
-        timestamp: 10,
-        layer: EffectLayer::Ability,
-        duration: EffectDuration::WhileSourceOnBattlefield,
-        filter: EffectFilter::ArtifactsYouControl,
-        modification: LayerModification::AddKeyword(KeywordAbility::Shroud),
-        is_cda: false,
-        affected_set: None,
-        condition: None,
-    });
 
     // P1's artifact gets shroud
     let art_chars = calculate_characteristics(&state, p1_artifact).unwrap();
@@ -757,6 +813,27 @@ fn test_artifacts_you_control_grants_shroud() {
     assert!(
         !p2_chars.keywords.contains(&KeywordAbility::Shroud),
         "P2 Artifact should NOT have shroud"
+    );
+}
+
+/// CR 702.45a: the same board one artifact short of Metalcraft grants nothing.
+///
+/// This is the case the `condition: None` version of the test above could not
+/// express at all — with the condition stripped, the grant was unconditional and
+/// this assertion would have failed. It is the discriminating half: it proves the
+/// registered effect really does carry the card's condition, rather than merely
+/// proving the filter works.
+#[test]
+fn test_artifacts_you_control_shroud_requires_metalcraft() {
+    let state = archangel_battlefield(2);
+
+    let p1_artifact = find_on_battlefield(&state, "P1 Artifact");
+    let art_chars = calculate_characteristics(&state, p1_artifact).unwrap();
+    assert!(
+        !art_chars.keywords.contains(&KeywordAbility::Shroud),
+        "CR 702.45a: two artifacts is below Metalcraft's threshold of three, so the \
+         Archangel grants no shroud; got keywords {:?}",
+        art_chars.keywords
     );
 }
 

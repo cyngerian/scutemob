@@ -10280,12 +10280,21 @@ pub fn check_static_condition(
                             // filters on `obj.characteristics` with an explicit
                             // "avoid an infinite recursion" note.
                             //
-                            // DOCUMENTED DEVIATION (CR 604.2 / CR 613.1): a base-characteristics
-                            // read misses type changes granted by OTHER continuous effects — a
-                            // land that Mycosynth Lattice has made an artifact will not be
-                            // counted toward Metalcraft here, though CR says it should. That is
-                            // a wrong ANSWER in a rare board state, traded for a hard process
-                            // abort in a common one. The CR-honest fix is a CR 613.8b
+                            // DOCUMENTED DEVIATION (CR 604.2 / CR 613.1d): a base-characteristics
+                            // read misses type changes granted by OTHER continuous effects, and
+                            // this is LIVE in the corpus, not theoretical. `blinkmoth_nexus` and
+                            // `inkmoth_nexus` animate themselves with a Layer-4
+                            // `AddCardTypes([Artifact, Creature])`; both are `Complete` (by
+                            // derive) and both are colourless, so they fit any commander identity
+                            // — including the W deck holding the Archangel. An animated Nexus
+                            // WILL NOT count toward Metalcraft here, though CR 613.1d says it
+                            // must. That is a wrong ANSWER in a rare board state, knowingly
+                            // traded for a hard process abort in a common one; the trade is
+                            // pinned by a test, not left to memory — see
+                            // `deviation_animated_nexus_does_not_count_toward_metalcraft` in
+                            // `tests/primitives/pb_dx19_characteristics_recursion.rs`, which is
+                            // the discriminating test the follow-up batch flips.
+                            // The CR-honest fix is a CR 613.8b
                             // dependency-aware fixpoint (the engine already has the 613.8
                             // machinery: `resolve_layer_order` / `toposort_with_timestamp_fallback`
                             // in `rules/layers.rs`); it is a batch of its own, filed as
