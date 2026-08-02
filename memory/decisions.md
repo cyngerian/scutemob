@@ -216,3 +216,38 @@ the sites that were already loud. Sixteen sites were converted, not the four the
 one per group, each watched failing against an executed (and compiling) revert. The counter-widening
 probe is the only one that fails by *assertion* rather than by *panic*, which is itself the evidence
 for the paragraph above.
+
+## 2026-08-02 — CLAUDE.md close-out bullets go lean: fixed schema, cut explanation never identifiers
+
+**Decision**: from the `scutemob-191` (ENG-1) collect onward, the CLAUDE.md "Last Updated" delta
+bullet is written to a fixed ~5-line schema instead of a full narrative:
+
+```
+- **Last Updated**: <date> — **<BATCH> SHIPPED** (`<task>`, merge `<hash>`; <queue/row ref>).
+  <One sentence: what changed and why it matters.>
+  Tests <N/N/N> (<delta>); <engine-lines fact>; PROTOCOL <n> / HASH <n>[; coverage if moved].
+  Seeds: <every ID by name — filed / closed / deferred>.
+  Full handoff: memory/workstream-state.md.
+```
+
+**The one hard rule**: condensing may cut *explanation*, never *identifiers*. Every task ID,
+merge hash, seed ID (`OOS-*`), and gate-relevant count appears by name — IDs are the grep index
+that routes a future session to the canonical record; prose is the record, and it lives ONCE, in
+the worker handoff (`memory/workstream-state.md`, rotated to the monthly archive by `/eot`).
+
+**Rationale**: each batch's narrative was being written four times (ESM comments, workstream-state
+handoff, CLAUDE.md mega-bullet, monthly archive) with the CLAUDE.md copy grown to 25+ lines —
+drift *away from* this file's own recurrence rule ("append a NEW short delta, rotate detail to the
+archive"). The lean form is enforcement of the existing convention, not a new one. Nothing stops
+being written except the duplication; canonical homes are unchanged.
+
+**Scope limits (deliberate)**: prospective only — no retroactive edits to existing bullets or
+archives; ESM attestations and all provisioned machinery untouched; the seed-decay question is
+deferred to the next re-rank; the ID-resolution check script (every `OOS-*`/`PB-*`/`scutemob-*` in
+Current State resolves somewhere in `memory/`+`docs/`) is built only if an orphaned reference is
+ever actually observed. Dispatch briefs follow the same principle from ENG-2 onward: point at the
+triage/plan section, state only the constraints and criteria not already recorded there.
+
+**Evaluation gate**: the next `/start` after a lean collect must reconstruct the batch from the
+bullet plus one pointer-follow. If orientation stumbles, write the missing detail back into that
+one bullet and resume the long form — rollback is one commit.
