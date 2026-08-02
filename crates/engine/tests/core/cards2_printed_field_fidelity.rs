@@ -956,7 +956,6 @@ fn r8_oracle_text_describes_the_same_card() {
     let defs = corpus();
     let mut bad = Vec::new();
     let mut compared = 0usize;
-    let mut worst_unlisted = 100u32;
     for def in &defs {
         let Some(p) = printed.get(&def.name) else {
             continue;
@@ -981,9 +980,6 @@ fn r8_oracle_text_describes_the_same_card() {
                 "{}: overlap {score} — def {:?}",
                 def.name, def.oracle_text
             ));
-        }
-        if !listed {
-            worst_unlisted = worst_unlisted.min(score);
         }
     }
     assert!(
