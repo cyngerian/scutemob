@@ -975,8 +975,10 @@ were real coverage holes):
 2. **The silent bail-outs survived.** All three pickers kept malformed-template guards that
    `return` without reporting. Those are *returns*, not throws, so 6048's literal wording was
    already satisfied — but the **symptom** (click Confirm, nothing happens, no message) is the
-   thing this task exists to eliminate, and it should not survive from a second cause. All five
-   sites now report through `onError` before bailing.
+   thing this task exists to eliminate, and it should not survive from a second cause. All **six**
+   sites now report through `onError` before bailing — `SearchPicker` ×2, `PartitionPicker` ×2,
+   `CostPicker` ×2 (the two `!entry` checks, which absorb `fillTemplate`'s own two internal
+   `return null` paths). Three `onError?.(` calls per picker: two guards plus the `catch`.
 3. **`main.js`'s comment overclaimed.** It said arming the net before mount surfaces "a throw
    during the very first render"; the strip lives inside `ActionBar`, so such a throw sets the
    store and renders nothing. Comment narrowed to what is true.
