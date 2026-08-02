@@ -268,7 +268,18 @@
   by 10 bytes — exactly the one deliberate `formatTarget` fix. Seeds **OOS-UI3-1..4** filed in
   `docs/audits/decision-point-audit.md` §8.1; the first is **nine wrong CR citations in
   `events.rs` doc comments**, all in the renumbered 701.x keyword-action block, which survived
-  precisely because every wrong number points at a *real* keyword action. Limitations 21–24 in
+  precisely because every wrong number points at a *real* keyword action. **The fix cycle found
+  that the 2×2 grid was not 2×2**: `repeat(auto-fit, minmax(22rem, 1fr))` packs as many tracks
+  as *fit*, and four boards need ~88rem, so any wider display got a squeezed **1×4** row with
+  empty space to the right — verbatim the complaint the grid exists to answer. The idiom was
+  chosen for the dead-player reflow, which it delivered with no code branch, while silently
+  failing the headline requirement; with no frontend test harness (plan §8 R7) the only
+  detector was reading it, and the corroboration was a `--cells` custom property set inline and
+  consumed by **no CSS rule** — an unfinished hook sitting in the file. **A CSS idiom that
+  solves the requirement you were thinking about can fail the one you started from.** Same
+  family, same cycle: `.top-dock` was the one uncapped sibling of two capped ones, and it hosts
+  every picker. One review HIGH was **false** and not actioned (it dropped the
+  `ctx.stackDepth = depth` re-baselining line when quoting). Limitations 21–25 in
   `tools/play-server/README.md`; handoff in `memory/workstream-state.md`.
 - **Prior**: 2026-08-02 — **UI-2 SHIPPED** (`scutemob-178`): playtest-triage **F9
   CLOSED** for the two cost kinds it names — a human can now be *asked* which creature to

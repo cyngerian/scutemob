@@ -939,7 +939,38 @@ battlefield bounce is public in paper and renders name-free; needs a wire change
 **OOS-UI3-3** (fine-grained "until Bot-3 end"); **OOS-UI3-4** (no reveal channel on
 `CardInZoneView`, so an opponent's seat card can never show a revealed hand card).
 
-**Limitations 21–24** appended to `tools/play-server/README.md`.
+**Limitations 21–25** appended to `tools/play-server/README.md`.
+
+**The fix cycle's finding is the one to read**: `/review` caught that **the 2×2 grid was not
+2×2**. `repeat(auto-fit, minmax(22rem, 1fr))` packs as many tracks as *fit*, and four boards
+need only ~88rem — so on any display wider than that the batch shipped a squeezed **1×4** row
+with empty space to the right, which is *verbatim* the complaint the grid exists to answer.
+`auto-fit` was chosen because it delivered the dead-player reflow with no code branch, and it
+did; it also silently failed the headline requirement on exactly the machines most likely to
+run this. **A CSS idiom that solves the requirement you were thinking about can fail the one
+you started from, and neither the build nor any test can tell you** — there is no frontend
+harness (plan §8 R7), so the only detector was reading it. Corroboration the reviewer found
+and I had not: `--cells` was set inline on the grid and consumed by **no CSS rule** — a hook I
+wrote for this and never finished, sitting in the file as evidence. Column count is now
+computed. Second MEDIUM, same family: `.top-dock` was the **one uncapped sibling** — I capped
+`.stack-dock` and `.hand-bar` and missed the container that hosts every picker, so an expanded
+drawer plus a segmented `TargetPicker` could squeeze the board to nothing and push the page
+into a *document* scrollbar, destroying the "stay in place on scroll" property the whole flex
+arrangement exists to provide.
+
+**One review finding was FALSE and was not actioned**, recorded because a future reader will
+meet the same claim: the reviewer's sole HIGH said the `phase-end` predicate captures
+`ctx.stackDepth` once at run start, so a resolve-then-recast slips through. It had quoted a
+collapsed paraphrase and dropped the `ctx.stackDepth = depth` re-baselining line; its own
+worked example fails at its step 3. Verified against source before deciding. (That gap **was**
+real one commit earlier — I found and fixed it in a self-review pass before the reviewer ran,
+which is presumably why it was reading for it.)
+
+**Also worth carrying**: `MAX_EVENTS` was still **500**, chosen when ~11 `GameEvent` variants
+rendered as prose; this batch took that to **60**, multiplying lines per turn. Shipping the
+feature that makes a cap bite while leaving the cap alone would have truncated the very
+history the feature exists to show. Raised to 2000. **A constant tuned against a behaviour is
+part of that behaviour's blast radius.**
 
 ---
 
