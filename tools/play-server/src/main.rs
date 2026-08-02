@@ -564,16 +564,22 @@ mod tests {
         // A shorter index into `rng.random_range(0..commanders.len())` re-picks every seat.
         // The durable form of the rule: **these pins are a function of the corpus, not of
         // the completeness markers** — re-observe after any card-def batch.
+        //
+        // The same batch then demonstrated the rule twice over: a later pass demoted
+        // `cyber_conversion` and `exalted_angel` (two `Complete` defs implementing oracle text
+        // their cards do not have), and that re-dealt every seat AGAIN — this time through the
+        // channel the old comment did anticipate. Both channels are real; neither is the whole
+        // rule.
         assert_eq!(
             own_names,
             vec![
-                "Haywire Mite",
-                "Skyshroud Poacher",
-                "Sigil of Sleep",
-                "Faerie Seer",
-                "Marang River Regent // Coil and Catch",
+                "Hazoret's Monument",
+                "Slither Blade",
+                "Signal Pest",
+                "Farhaven Elf",
+                "Marchesa's Emissary",
                 "Cached Defenses",
-                "Mistblade Shinobi",
+                "Mobilize",
             ]
         );
 
@@ -1621,37 +1627,59 @@ mod tests {
                 .as_array()
                 .expect("actions is an array")
                 .clone();
-            let pick = actions
+            // Candidates in policy order, not one pick: the FIRST choice may be an action the
+            // provider offers and the engine then refuses, and the driver must be able to fall
+            // through to the next rather than abort the whole fixture.
+            //
+            // This is not hypothetical and not a test smell. An **Aura** carries its target
+            // requirement in `KeywordAbility::Enchant(...)`, which `casting.rs` special-cases
+            // (CR 303.4a, "Aura spells require exactly one target"); the *provider* does not
+            // read that keyword, so the offer reports `target_min: 0` — "announces nothing" —
+            // and the engine rejects the cast with a 422. The develop policy below selects on
+            // `target_min == 0`, so it walks straight into it: CARDS-2 (2026-08-02) re-dealt
+            // seed 6 and the driver died on "Cast Hyena Umbra". That is a live browser-client
+            // defect (a human clicking any Aura gets a 422) of the same family as playtest
+            // findings F4 and F9, filed as **OOS-CARDS2-4**, and it is the provider's bug to
+            // fix — not something a fixture should be reshaped around.
+            //
+            // A rejection is skipped, never silently swallowed: if every candidate is refused
+            // the loop makes no progress and the panic below reports the fixture unreached with
+            // the last payload, which is the same loud failure as before.
+            let candidates: Vec<Value> = actions
                 .iter()
-                .find(|a| a["kind"] == "PlayLand")
-                .or_else(|| {
-                    if !develop {
-                        return None;
-                    }
-                    actions.iter().find(|a| {
-                        a["kind"] == "CastSpell"
-                            && a["target_min"] == 0
-                            && a["needs_x"] == false
-                            && a["modes"].as_array().is_some_and(|m| m.is_empty())
-                    })
-                })
-                .or_else(|| actions.iter().find(|a| a["kind"] == "PassPriority"))
-                .or_else(|| actions.first())
+                .filter(|a| a["kind"] == "PlayLand")
+                .chain(actions.iter().filter(|a| {
+                    develop
+                        && a["kind"] == "CastSpell"
+                        && a["target_min"] == 0
+                        && a["needs_x"] == false
+                        && a["modes"].as_array().is_some_and(|m| m.is_empty())
+                }))
+                .chain(actions.iter().filter(|a| a["kind"] == "PassPriority"))
+                .chain(actions.iter().take(1))
                 .cloned()
-                .expect("a decision always offers at least one action");
-            let (status, next) = post_json(
-                state,
-                "/api/game/action",
-                json!({ "seq": seq(&view), "action_index": pick["index"] }),
-            )
-            .await;
-            assert_eq!(
-                status,
-                StatusCode::OK,
-                "driving seed {seed} failed on {}: {next}",
-                pick["label"]
+                .collect();
+
+            let mut advanced = false;
+            for pick in &candidates {
+                let (status, next) = post_json(
+                    state,
+                    "/api/game/action",
+                    json!({ "seq": seq(&view), "action_index": pick["index"] }),
+                )
+                .await;
+                if status == StatusCode::OK {
+                    view = next;
+                    advanced = true;
+                    break;
+                }
+            }
+            assert!(
+                advanced,
+                "driving seed {seed}: the engine refused every action the provider offered at \
+                 this decision — {}",
+                decision(&view)
             );
-            view = next;
         }
         panic!(
             "seed {seed} did not reach the fixture within {S7_MAX_STEPS} decisions; \

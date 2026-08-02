@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-08-02 08:14 UTC  
-**Git:** `d04f42a1` on `main`  
+**Generated:** 2026-08-02 09:00 UTC  
+**Git:** `b7a46cb3` on `feat/cards-2-corpus-field-fidelity-audit-permanent-gate-mana-cost`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -19,22 +19,22 @@ and what is intentionally NOT in it.**
 
 | Metric | Count | Δ since last run |
 | --- | ---: | ---: |
-| Card def files on disk | 1,804 | · |
+| Card def files on disk | 1,803 | · |
 | Authoring-plan target universe (snapshot 2026-03-10) | 1,636 | · |
 | Plan cards with a def file (any-face match) | 1,501 | · |
 | Plan cards still missing a def file | 135 | · |
-| Bonus defs (on disk, outside plan) | 322 | · |
-| Effective coverage vs plan target | **111%** (1,823 / 1,636) | — |
-| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 63.0% | 1,137 | · |
-| With TODO markers | 517 | · |
-| Empty `abilities: vec![]` placeholders | 150 | · |
-| Total TODO lines across all defs | 940 | · |
+| Bonus defs (on disk, outside plan) | 321 | · |
+| Effective coverage vs plan target | **111%** (1,822 / 1,636) | — |
+| Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 63.0% | 1,135 | -2 |
+| With TODO markers | 517 | +1 |
+| Empty `abilities: vec![]` placeholders | 151 | +1 |
+| Total TODO lines across all defs | 941 | +3 |
 
 ## Authoring activity (git, by window)
 
 | Window | New files added | Existing files modified |
 | --- | ---: | ---: |
-| last 7 days | 0 | 45 |
+| last 7 days | 0 | 76 |
 | last 30 days | 57 | 2,943 |
 | last 90 days | 57 | 2,955 |
 | last 1 year | 1,830 | 3,366 |
@@ -51,12 +51,12 @@ reference cards, or sample cards shipped alongside primitive batches.
 | `W2` | 119 |
 | `W1-B* (ability batches)` | 90 |
 | `W6-cards` | 45 |
-| `W5-cards` | 36 |
+| `W5-cards` | 35 |
 | `W6-prim` | 18 |
 | `chore` | 11 |
 | `W1-Morph` | 3 |
 
-**By month added:** 2026-02: 137, 2026-03: 173, 2026-04: 11, 2026-07: 1
+**By month added:** 2026-02: 137, 2026-03: 172, 2026-04: 11, 2026-07: 1
 
 ## Coverage by authoring-plan group
 
@@ -70,7 +70,7 @@ are blocked on engine primitives.
 | `draw` | 164 / 169 | 97% | 78 | 69 | 17 |
 | `token-create` | 148 / 155 | 95% | 86 | 46 | 16 |
 | `land-etb-tapped` | 138 / 138 | 100% | 115 | 23 | 0 |
-| `other` | 108 / 131 | 82% | 70 | 31 | 7 |
+| `other` | 108 / 131 | 82% | 69 | 31 | 8 |
 | `modal-choice` | 73 / 105 | 70% | 37 | 24 | 12 |
 | `mana-land` | 92 / 92 | 100% | 65 | 26 | 1 |
 | `body-only` | 64 / 70 | 91% | 38 | 10 | 16 |
@@ -171,11 +171,11 @@ the next thing to triage when the classifier table is grown.
 
 | Gap bucket | TODO lines | Δ since last run |
 | --- | ---: | ---: |
-| OTHER (unclassified) | 576 | · |
-| DSL gap (unspecified) | 120 | · |
+| OTHER (unclassified) | 577 | +1 |
+| DSL gap (unspecified) | 122 | +2 |
 | attack trigger (self / generic) | 23 | · |
 | TriggerCondition::* missing variant | 17 | · |
-| dynamic hexproof / protection | 17 | · |
+| dynamic hexproof / protection | 15 | · |
 | replacement effect missing | 14 | · |
 | Cost::* missing variant | 13 | · |
 | EffectAmount::* missing variant | 12 | · |
@@ -201,7 +201,7 @@ _…and 26 more buckets totaling 44 lines._
 
 ### Raw OTHER samples (read these to design new classifier buckets)
 
-Showing 12 of 576 
+Showing 12 of 577 
 unclassified TODO lines. If two or three of these have a common theme, that's a 
 new bucket to add to `TODO_BUCKETS` in `tools/authoring-report.py`. Sample is 
 deterministic (sorted by slug).
@@ -210,15 +210,15 @@ deterministic (sorted by slug).
 abstergo_entertainment: // TODO: {3}, {T}, Exile Abstergo Entertainment: Return up to one target historic card
 bloodghast: // TODO: Oracle says "you may return" — currently non-optional (bot always returns).
 deep_gnome_terramancer: // TODO: "lands enter under opponent's control without being played" trigger condition
-fable_of_the_mirror_breaker: // ENGINE-BLOCKED: the token is created with correct P/T/color/subtypes but
-goblin_lackey: // TODO: "put a Goblin from hand onto battlefield" — needs MoveZone from
-joraga_treespeaker: // TODO: Level-dependent abilities and P/T changes (Level 1-4: 1/2 + {T}: Add {G}{G};
-marisi_breaker_of_the_coil: // TODO: "goad each creature that player controls" — ForEach over DamagedPlayer's creatures
-pact_of_negation: // TODO: Counter target spell + delayed upkeep trigger "pay {3}{U}{U} or lose the game."
-sarkhan_fireblood: // TODO: Optional discard-then-draw not in DSL. Using Nothing to avoid free draw.
-sorin_imperious_bloodlord: // TODO: Interactive hand selection by creature subtype ("Vampire creature card from
-teferis_protection: // TODO: "Exile Teferi's Protection" — self-exile on resolution.
-tyvar_jubilant_brawler: // TODO: Mill effect + conditional graveyard return with MV filter.
+exuberant_fuseling: // TODO: "whenever another creature or artifact you control is put into a graveyard
+goblin_king: // TODO: AllCreaturesWithSubtype includes Goblin King itself — "other" semantics
+joraga_treespeaker: // TODO: Level up mechanic not in DSL — no LevelUp keyword or level-based ability gating.
+marisi_breaker_of_the_coil: // TODO: "Your opponents can't cast spells during combat" — phase-scoped CantCast not in DSL.
+overwhelming_stampede: // TODO: Spell effect — grant trample and +X/+X to all creatures you control until end
+sakashimas_student: // TODO: "enter as a copy of any creature, except it's also a Ninja" — needs
+sorin_imperious_bloodlord: // TODO: "You may sacrifice a Vampire. When you do, [effects]" — optional sacrifice
+teferis_protection: // TODO: "All permanents you control phase out" — Effect::PhaseOut for all controller permanents.
+tyvar_jubilant_brawler: // TODO: static — creatures you control can activate abilities as though they had haste
 ```
 
 ## ⚠ Completeness-marker drift
@@ -239,6 +239,7 @@ tyvar_jubilant_brawler: // TODO: Mill effect + conditional graveyard return with
 ## Recent card-touching commits
 
 ```
+b7a46cb3 scutemob-181: CARDS-2 — repair all 45 printed-field mismatches; gate green
 99d54ed5 scutemob-179: CARDS-1 — author the CR 702.6a equip target into all 17 equip defs (OOS-M11-10)
 869f09d6 scutemob-168: PB-DX4 fix cycle — 2 HIGH / 5 MEDIUM / 6 LOW from pb-review-DX4.md, all 13 applied
 e658c9d8 scutemob-168: PB-DX4 — triage the 97-entry decision BASELINE against oracle text (OOS-DP10-8)
@@ -263,7 +264,6 @@ d876d19b W6-prim: PB-OS10 — inter-target distinctness + Jitte any-recipient co
 2beaba4f W6-prim: PB-OS7 — author silumgar_the_drifting_death.rs (Complete)
 bd15b45b W6-prim: PB-OS6 review LOW — soften delver 'strictly beneficial' comment wording
 969ef404 W6-prim: PB-OS6 wire bump (PROTOCOL 20->21, HASH 57->58) + card defs
-8c31c1fd W6-prim: PB-OS5 (OOS-EF4-1) — dynamic relative-count EffectAmount
 ```
 
 ## Missing card-defs sidecar

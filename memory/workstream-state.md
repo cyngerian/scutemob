@@ -832,6 +832,81 @@
   (`scutemob-159`) confirmed its exclusion from the primitive queue. `OOS-M11-3` (fuzzer
   nondeterminism in 150-200+ turn games) untouched.
 
+## Worker Handoff (CARDS-2, `scutemob-181`)
+
+**Date**: 2026-08-02 (worker session)
+**Workstream**: playtest-triage successor track (CARDS-2) — **SR-37 built; F1 + F2 CLOSED**
+**Task**: `scutemob-181`. Branch
+`feat/cards-2-corpus-field-fidelity-audit-permanent-gate-mana-cost`
+
+**Completed**:
+- **A new permanent gate, SR-37**: every `all_cards()` def's printed mana cost, power,
+  toughness and type line is diffed against a committed Scryfall fixture. Three pieces —
+  `tools/card-field-dump` (enumerates, SR-36), `tools/refresh-card-fidelity-fixture.py`
+  (joins `cards.sqlite`, copies **verbatim**), and
+  `core::cards2_printed_field_fidelity` (**the only place equality is decided**). The
+  fixture is committed because `cards.sqlite` is gitignored and absent in CI; the Python
+  does no normalisation on purpose, or the two sides would drift.
+- **45 wrong fields found and repaired** across 31 defs: 17 mana costs, 5 P/T over 3 defs,
+  16 type lines over 16 defs, 1 duplicate card name. **R2 reproduced the playtest-triage
+  F2 table exactly, card for card** — first independent confirmation it was reproducible.
+- **Boon Satyr (F1) fully repaired**, all four defects incl. the printed "+4/+2" that was
+  **never authored** on a def declaring `Complete`. Expressed as two layer-7c statics on
+  `EffectFilter::AttachedCreature` — **the shape Rancor already used**; the machinery was
+  never missing. T5 proven discriminating **by execution** (revert → the bear stays 2/2).
+- **Two more `Complete` defs were implementing a different card's abilities** —
+  `backup_agent` (Backup 1 + Lifelink, from another card entirely) and `necron_deathmark`.
+  Both repaired, both stayed `Complete`; both were caught because **more than one** printed
+  field was wrong, which is the signal for "authored from a misremembered card".
+- **Two more `Complete` defs implemented text on NO card at all** — `cyber_conversion`
+  ("becomes an artifact + draw a card" for a printed "turn target creature face down")
+  and `exalted_angel` (static `Lifelink` for a printed *triggered* "whenever this deals
+  damage, gain that much life" — CR 702.15a lifelink cannot be Stifled; the printed clause
+  can). Both **honestly demoted** with blocker notes naming the missing primitive
+  (**OOS-CARDS2-5/6**), not half-repaired.
+- **Zero engine lines**; PROTOCOL/HASH gate-executed unmoved; `decision_gate` 18/18; tests
+  **4,164 / 0 / 5**. Coverage **1,135/1,803 = 63.0%** — **2 completeness flips, both
+  demotions**. The headline percentage is unmoved while three things moved underneath it
+  (two demotions down, one double-counted card out of the denominator); do not read the
+  stability as "nothing happened".
+
+**Hazards for the next session — read these three:**
+
+0. **A new browser-client defect fell out of the re-derivation: `OOS-CARDS2-4`.** An Aura
+   is offered with `target_min: 0` — its target requirement lives in
+   `KeywordAbility::Enchant(...)`, which `casting.rs:3720` special-cases (CR 303.4a) and
+   the provider never reads — so the engine 422s the cast. **A human clicking any Aura in
+   the play client gets an error.** Simulator-only fix; same shape as CARDS-1's equip bug,
+   one link earlier in the chain. The S7 test driver now *skips* a refused action, which
+   is a workaround in the test and NOT a fix.
+1. **The seed pins are a function of the WHOLE CORPUS, not of the completeness markers.**
+   Every play-server pin carried the comment "re-read when a batch flips a marker". This
+   batch flipped **zero** markers and moved all of them, because
+   `simulator/src/deck.rs::random_deck` draws its commander from `Complete` **AND
+   Legendary AND Creature** and fills by **colour identity** (computed from the mana
+   cost). Measured: commander pool 91 → 90. Correcting a *type line* re-deals every
+   seeded game. All the comments now say so. Filed as **OOS-CARDS2-3** (no gate exists).
+2. **A fixture predicate broader than the fixture's purpose does not fail when the fixture
+   moves — it silently tests something else.** `test_x_value_is_forwarded_to_cast_spell_data`
+   had retargeted from a spell onto Deserted Temple's "untap target land", and the failure
+   surfaced three assertions later as "the cast is still offered after tapping" (it was
+   never a cast). Predicate now says `CastSpell`.
+3. **A golden script generated from a card def is not an independent check of that def.**
+   Scripts 177 and 164 were written to what the def said, not to the card, and passed for
+   two batches while encoding a wrong cost. Script 163 is **retired** — its subject
+   (Backup Agent's Backup 1) does not exist.
+
+**Also worth carrying**: the duplicate-name finding (R5) had been written down in
+`memory/card-authoring/marker-sweep-2026-07-16.md` **seventeen days earlier**, with the
+words "one of the two should be deleted", and nothing happened — because no gate could
+fail. `CardRegistry::try_new` rejects a duplicate `CardId` and says nothing about a
+duplicate name.
+
+**Full evidence record**: `memory/card-authoring/cards2-field-fidelity-2026-08-02.md`
+(measurement, every disposition, the four gate-design findings, and seeds
+**OOS-CARDS2-1/2/3**). Gate rationale + refresh procedure: `docs/engine-invariants.md`
+(SR-37).
+
 ## Worker Handoff (CARDS-1, `scutemob-179`)
 
 **Date**: 2026-08-02 (worker session)

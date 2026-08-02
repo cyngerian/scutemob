@@ -378,9 +378,20 @@ fn the_marker_detector_is_not_vacuous() {
     // UNMOVED at 1,137 (this batch flipped no markers); only the denominator fell, because a
     // double-counted card stopped being counted twice. The new duplicate-name gate is
     // `core::cards2_printed_field_fidelity::r5_no_two_definitions_share_a_name`.
+    // CARDS-2 second pass (2026-08-02, `scutemob-181`): threshold raised 666 -> 668.
+    // `cyber_conversion.rs` (Complete -> inert) and `exalted_angel.rs` (Complete -> partial)
+    // were demoted: both shipped `Completeness::Complete` while implementing oracle text the
+    // printed cards do not have (Cyber Conversion authored a temporary type-change-plus-draw
+    // spell instead of "turn target creature face down"; Exalted Angel declared static
+    // `KeywordAbility::Lifelink` instead of its printed triggered "whenever this deals damage,
+    // you gain that much life" ability). Both are genuine DSL gaps, not authoring slips — see
+    // the TODO comments in each def. RE-MEASURED DIRECTLY, not derived: a grep of
+    // MARKER_FRAGMENTS across `crates/card-defs/src/defs/*.rs` (excluding `mod.rs`) reports
+    // 668 of 1,803 definitions marked non-Complete, so the Complete numerator falls
+    // 1,137 -> 1,135.
     assert!(
-        marked >= 666,
-        "marker detector matched {marked} files; expected >= 666. This assertion has NO \
+        marked >= 668,
+        "marker detector matched {marked} files; expected >= 668. This assertion has NO \
          margin (see the comment above) and can fail for two different reasons: (1) \
          MARKER_FRAGMENTS stopped matching (a detector bug -- the gate would then spuriously \
          flag marked defs) or, far more likely on an ordinary day, (2) a ROUTINE Complete \

@@ -13,7 +13,10 @@ pub fn card() -> CardDefinition {
             x_count: 1,
             ..Default::default()
         }),
-        // {X}{B}{B} — X cost not expressible in ManaCost struct
+        // {X}{B}{B}. CARDS-2 (scutemob-181) set `x_count: 1`; this comment used to read
+        // "X cost not expressible in ManaCost struct", which was never true — `x_count`
+        // has always been a field, and the def simply omitted it, so the spell was
+        // castable at a fixed cost with X structurally unavailable.
         types: types(&[CardType::Instant]),
         oracle_text: "Cast this spell only during combat on an opponent's turn.\nReturn X target \
                       creature cards from your graveyard to the battlefield. Sacrifice those \
