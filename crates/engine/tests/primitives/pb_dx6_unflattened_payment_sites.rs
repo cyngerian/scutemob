@@ -42,9 +42,10 @@ use std::sync::Arc;
 use mtg_engine::state::stubs::ActiveRestriction;
 use mtg_engine::{
     all_cards, card_name_to_id, enrich_spec_from_def, process_command, AttackTarget,
-    CardDefinition, CardRegistry, Command, FaceDownKind, GameRestriction, GameState,
-    GameStateBuilder, HybridMana, ManaColor, ManaCost, ObjectId, ObjectSpec, PlayerId, Step,
-    TurnFaceUpMethod, ZoneId,
+    CardDefinition, CardId, CardRegistry, CardType, Command, FaceDownKind, GameEvent,
+    GameRestriction, GameState, GameStateBuilder, GameStateError, HybridMana, HybridManaPayment,
+    ManaColor, ManaCost, ObjectId, ObjectSpec, PhyrexianMana, PlayerId, Step, TurnFaceUpMethod,
+    TypeLine, ZoneId,
 };
 
 // ── Helpers ─────────────────────────────────────────────────────────────────────
@@ -108,40 +109,18 @@ fn declare_cmd(player: PlayerId, attackers: Vec<(ObjectId, AttackTarget)>) -> Co
     }
 }
 
-// ── Observation A — turn-face-up, DEBUG build: panics (plan §2.0) ──────────────
-
-#[test]
-/// PRE-FIX / DEBUG build. No engine code touched — this is `cargo test` run exactly
-/// as CI runs it (`crates/engine/tests/primitives`, default profile, `debug_assertions
-/// = true`).
-///
-/// Builds a face-down battlefield object over the REAL, corpus `kitchen_finks` def
-/// (`Completeness::Complete`, `{1}{G/W}{G/W}`), sets `face_down_as:
-/// Some(FaceDownKind::Manifest)`, controller P1 holding priority, and sends
-/// `Command::TurnFaceUp { method: ManaCost, .. }`. `handle_turn_face_up`
-/// (`rules/engine.rs`) calls `player_state.mana_pool.can_spend(&mana_cost, None)` on
-/// the raw, unflattened cost; `can_spend`'s first statement is
-/// `debug_assert_flattened(cost)` (`crates/card-types/src/state/player.rs`), which
-/// panics because the cost still carries 2 hybrid pips.
-///
-/// The panic is captured with `std::panic::catch_unwind` (not `#[should_panic]`) so
-/// the literal downcast payload can be asserted and recorded verbatim, rather than
-/// merely checked for a substring.
-///
-/// OBSERVED (this run, debug build, no source touched):
-/// "unflattened mana cost reached the payment path: 2 hybrid + 0 Phyrexian pip(s) \
-///  would be paid for free (CR 107.4e/107.4f). Call ManaCost::flatten_hybrid_phyrexian \
-///  first. cost = ManaCost { white: 0, blue: 0, black: 0, red: 0, green: 0, colorless: 0, \
-///  generic: 1, hybrid: [ColorColor(Green, White), ColorColor(Green, White)], \
-///  phyrexian: [], x_count: 0 }"
-/// — the pool has zero mana; note the panic fires before any affordability check, so
-/// the pool's contents are irrelevant to whether this panics.
-fn observation_a_turn_face_up_panics_in_debug_build() {
+/// Build a manifested (`FaceDownKind::Manifest`), face-down battlefield object of the
+/// given REAL corpus creature `name`, controlled by P1, P1 holding priority. `defs`/
+/// `registry` let callers extend `all_cards()` with a synthetic def (T4).
+fn manifest_state_with(
+    defs: &HashMap<String, CardDefinition>,
+    registry: Arc<CardRegistry>,
+    name: &str,
+    life_total: i32,
+) -> (GameState, ObjectId, PlayerId) {
     let p1 = p(1);
     let p2 = p(2);
-    let (defs, registry) = build_defs_and_registry();
-
-    let spec = enrich(p1, "Kitchen Finks", ZoneId::Battlefield, &defs);
+    let spec = enrich(p1, name, ZoneId::Battlefield, defs);
 
     let mut state = GameStateBuilder::new()
         .add_player(p1)
@@ -153,50 +132,137 @@ fn observation_a_turn_face_up_panics_in_debug_build() {
         .build()
         .unwrap();
 
-    let finks_id = find_by_name(&state, "Kitchen Finks");
-    if let Some(obj) = state.objects_mut().get_mut(&finks_id) {
+    let id = find_by_name(&state, name);
+    if let Some(obj) = state.objects_mut().get_mut(&id) {
         obj.status.face_down = true;
         obj.face_down_as = Some(FaceDownKind::Manifest);
     }
     state.turn_mut().priority_holder = Some(p1);
+    if let Some(ps) = state.players_mut().get_mut(&p1) {
+        ps.life_total = life_total;
+    }
+    (state, id, p1)
+}
 
-    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        process_command(
-            state,
-            Command::TurnFaceUp {
-                player: p1,
-                permanent: finks_id,
-                method: TurnFaceUpMethod::ManaCost,
-                hybrid_choices: vec![],
-                phyrexian_life_payments: vec![],
-            },
-        )
-    }));
+/// Convenience wrapper of [`manifest_state_with`] for a REAL corpus card (T1/T2):
+/// builds its own `all_cards()`-derived registry (matching this file's pre-existing
+/// Observation A/B style). T1/T2 never assert on life, so an arbitrary high life
+/// total (well clear of any accidental CR 704.5a boundary) is used rather than
+/// depending on the builder's own default.
+fn manifest_state(name: &str) -> (GameState, ObjectId, PlayerId) {
+    let (defs, registry) = build_defs_and_registry();
+    manifest_state_with(&defs, registry, name, 40)
+}
 
-    let payload = result.expect_err(
-        "PRE-FIX debug-build expectation (plan §2.0): handle_turn_face_up must panic \
-         inside debug_assert_flattened when the raw hybrid cost reaches can_spend. If \
-         this assertion fails, the engine has already been fixed (or the guard was \
-         removed) and this stage-0 observation is stale.",
-    );
-    let msg = payload
-        .downcast_ref::<String>()
-        .cloned()
-        .or_else(|| payload.downcast_ref::<&str>().map(|s| s.to_string()))
-        .unwrap_or_else(|| "<non-string panic payload>".to_string());
+/// Set a player's unrestricted mana pool to exactly these six fields (all others left
+/// at their existing values, which is 0 for a freshly-built state).
+#[allow(clippy::too_many_arguments)]
+fn set_pool(
+    state: &mut GameState,
+    player: PlayerId,
+    white: u32,
+    blue: u32,
+    black: u32,
+    red: u32,
+    green: u32,
+    colorless: u32,
+) {
+    if let Some(ps) = state.players_mut().get_mut(&player) {
+        ps.mana_pool.white = white;
+        ps.mana_pool.blue = blue;
+        ps.mana_pool.black = black;
+        ps.mana_pool.red = red;
+        ps.mana_pool.green = green;
+        ps.mana_pool.colorless = colorless;
+    }
+}
 
+/// Synthetic creature def for T4: `{generic}{G/P}` -- a single Phyrexian pip (CR
+/// 107.4f), plain or with a generic component. No shipped card on either PB-DX6
+/// roster carries a Phyrexian pip in a printed `mana_cost` reachable by
+/// Manifest/Cloak (plan §0 roster: all 5 hybrid-only), so this fixture is
+/// necessary, not a substitute for a real corpus card.
+fn phyrexian_manifest_def(card_id_str: &str, name: &str, generic: u32) -> CardDefinition {
+    CardDefinition {
+        card_id: CardId(card_id_str.to_string()),
+        name: name.to_string(),
+        mana_cost: Some(ManaCost {
+            generic,
+            phyrexian: vec![PhyrexianMana::Single(ManaColor::Green)],
+            ..Default::default()
+        }),
+        types: TypeLine {
+            card_types: [CardType::Creature].into_iter().collect(),
+            ..Default::default()
+        },
+        power: Some(1),
+        toughness: Some(1),
+        oracle_text: "PB-DX6 T4 test fixture only.".to_string(),
+        abilities: vec![],
+        ..Default::default()
+    }
+}
+
+// ── Observation A (HISTORICAL) — turn-face-up used to panic in DEBUG (plan §2.0) ─
+
+#[test]
+/// HISTORICAL / POST-FIX regression pin. Before PB-DX6 stage B, THIS EXACT SCENARIO
+/// — Kitchen Finks manifested, empty pool, `TurnFaceUp { method: ManaCost,
+/// hybrid_choices: vec![], .. }` — panicked inside `debug_assert_flattened` in every
+/// debug build (`cargo test`, all of CI), because `handle_turn_face_up`
+/// (`rules/engine.rs`) called `can_spend`/`spend` on the raw, unflattened
+/// `{1}{G/W}{G/W}` cost. The PRE-FIX panic text is preserved VERBATIM below as a
+/// permanent record (this batch's own plan, at the stage-B dispatch, requires this
+/// text not be deleted, only re-expressed) — it is the reason this bug survived
+/// every test build the project has ever run, and no test before this batch ever put
+/// a pipped cost through this site:
+///
+/// PRE-FIX (recorded 2026-08-02, debug build, unmodified tree, `catch_unwind`
+/// downcast to `String`):
+/// "unflattened mana cost reached the payment path: 2 hybrid + 0 Phyrexian pip(s) \
+///  would be paid for free (CR 107.4e/107.4f). Call ManaCost::flatten_hybrid_phyrexian \
+///  first. cost = ManaCost { white: 0, blue: 0, black: 0, red: 0, green: 0, colorless: 0, \
+///  generic: 1, hybrid: [ColorColor(Green, White), ColorColor(Green, White)], \
+///  phyrexian: [], x_count: 0 }"
+///
+/// POST-FIX (asserted live below): `handle_turn_face_up` now flattens the cost
+/// UNCONDITIONALLY (whenever `def.mana_cost` itself carries a hybrid/Phyrexian pip,
+/// independent of whether `hybrid_choices` was supplied) before it ever reaches
+/// `can_spend` (CR 107.4e). The identical command against the identical empty pool
+/// therefore no longer panics at all — it returns a real, CR-legal
+/// `Err(InvalidCommand)` for ordinary insufficient-mana reasons (the flattened cost's
+/// `{1}` generic plus two now-priced `{G/W}` pips are unaffordable from an empty
+/// pool). This is T1's "empty pool -> Err" case, restated standalone against the
+/// exact pre-fix panic scenario so the panic's disappearance is pinned by name, not
+/// only incidentally covered by T1.
+fn historical_observation_a_no_longer_panics_post_fix() {
+    let (state, finks_id, p1) = manifest_state("Kitchen Finks");
+
+    let result = process_command(
+        state,
+        Command::TurnFaceUp {
+            player: p1,
+            permanent: finks_id,
+            method: TurnFaceUpMethod::ManaCost,
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
+    );
+
+    let err = result.expect_err(
+        "POST-FIX: an unaffordable pipped turn-face-up cost must be REJECTED, not \
+         panic. If this observes a panic, the flatten-before-payment fix has \
+         regressed and this historical record is no longer accurate.",
+    );
+    let msg = format!("{err:?}");
     assert!(
-        msg.contains("unflattened mana cost reached the payment path"),
-        "panic message did not match the expected debug_assert_flattened text: {msg}"
+        matches!(err, GameStateError::InvalidCommand(_)),
+        "expected InvalidCommand (the existing affordability message), got: {msg}"
     );
     assert!(
-        msg.contains("2 hybrid + 0 Phyrexian pip(s)"),
-        "panic message did not name 2 hybrid / 0 Phyrexian pips (Kitchen Finks' \
-         {{1}}{{G/W}}{{G/W}}): {msg}"
-    );
-    assert!(
-        msg.contains("CR 107.4e/107.4f"),
-        "panic message did not cite CR 107.4e/107.4f: {msg}"
+        msg.contains("TurnFaceUp: player cannot pay the turn-face-up cost"),
+        "expected the existing, unchanged affordability string (plan §5.1: keep it \
+         for the mana-insufficiency case): {msg}"
     );
 }
 
@@ -303,6 +369,420 @@ fn observation_b_release_figure_pool_debit_kitchen_finks() {
         "both {{G/W}} pips are paid for free pre-fix: white must be UNTOUCHED: {:?}",
         pool_after
     );
+}
+
+// ── T1 — Kitchen Finks, both hybrid pips independently chargeable (plan §2.1) ───
+
+#[test]
+/// CR 701.40b, 107.4e — `handle_turn_face_up` now flattens `{1}{G/W}{G/W}` before
+/// payment (plan §5.1), so each `{G/W}` pip is independently chargeable: "A hybrid
+/// symbol such as {W/U} can be paid with either white or blue mana... A hybrid mana
+/// symbol is all of its component colors" (CR 107.4e).
+fn manifested_kitchen_finks_flip_charges_both_hybrid_pips() {
+    // Case 1: empty pool -> Err (unaffordable; the existing, unchanged message).
+    {
+        let (state, finks_id, p1) = manifest_state("Kitchen Finks");
+        let err = process_command(
+            state,
+            Command::TurnFaceUp {
+                player: p1,
+                permanent: finks_id,
+                method: TurnFaceUpMethod::ManaCost,
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
+            },
+        )
+        .expect_err("empty pool cannot pay {1}{G/W}{G/W}");
+        let msg = format!("{err:?}");
+        assert!(
+            matches!(err, GameStateError::InvalidCommand(_))
+                && msg.contains("TurnFaceUp: player cannot pay the turn-face-up cost"),
+            "expected the existing affordability message, got: {msg}"
+        );
+    }
+
+    // Case 2: pool {1}{G}{G}, explicit [Green, Green] -> Ok, pool empty after.
+    {
+        let (mut state, finks_id, p1) = manifest_state("Kitchen Finks");
+        set_pool(&mut state, p1, 0, 0, 0, 0, 2, 1);
+        let (state, events) = process_command(
+            state,
+            Command::TurnFaceUp {
+                player: p1,
+                permanent: finks_id,
+                method: TurnFaceUpMethod::ManaCost,
+                hybrid_choices: vec![
+                    HybridManaPayment::Color(ManaColor::Green),
+                    HybridManaPayment::Color(ManaColor::Green),
+                ],
+                phyrexian_life_payments: vec![],
+            },
+        )
+        .expect("pool {1}{G}{G} pays {1}{G/W}{G/W} with both pips chosen Green");
+        let pool = &state.player(p1).unwrap().mana_pool;
+        assert_eq!(pool.total(), 0, "pool must be fully drained: {pool:?}");
+        // Architecture Invariant 4 repair: a debit now emits ManaCostPaid with the
+        // ORIGINAL, pipped cost (plan §5.1), not the flattened one.
+        assert!(
+            events.iter().any(|e| matches!(
+                e,
+                GameEvent::ManaCostPaid { player: pl, cost }
+                    if *pl == p1 && !cost.hybrid.is_empty()
+            )),
+            "ManaCostPaid must be emitted carrying the unflattened (pipped) cost: {events:?}"
+        );
+    }
+
+    // Case 3: pool {1}{G}{W}, [Green, White] -> Ok, pool empty (each pip is chosen
+    // INDEPENDENTLY, CR 107.4e).
+    {
+        let (mut state, finks_id, p1) = manifest_state("Kitchen Finks");
+        set_pool(&mut state, p1, 1, 0, 0, 0, 1, 1);
+        let (state, _events) = process_command(
+            state,
+            Command::TurnFaceUp {
+                player: p1,
+                permanent: finks_id,
+                method: TurnFaceUpMethod::ManaCost,
+                hybrid_choices: vec![
+                    HybridManaPayment::Color(ManaColor::Green),
+                    HybridManaPayment::Color(ManaColor::White),
+                ],
+                phyrexian_life_payments: vec![],
+            },
+        )
+        .expect("each {G/W} pip is chosen independently (CR 107.4e): Green + White");
+        let pool = &state.player(p1).unwrap().mana_pool;
+        assert_eq!(pool.total(), 0, "pool must be fully drained: {pool:?}");
+    }
+
+    // Case 4: pool {1}{G}{G}, [Blue, Green] -> Err naming CR 107.4e (Blue is not a
+    // component color of either {G/W} pip).
+    {
+        let (mut state, finks_id, p1) = manifest_state("Kitchen Finks");
+        set_pool(&mut state, p1, 0, 0, 0, 0, 2, 1);
+        let err = process_command(
+            state,
+            Command::TurnFaceUp {
+                player: p1,
+                permanent: finks_id,
+                method: TurnFaceUpMethod::ManaCost,
+                hybrid_choices: vec![
+                    HybridManaPayment::Color(ManaColor::Blue),
+                    HybridManaPayment::Color(ManaColor::Green),
+                ],
+                phyrexian_life_payments: vec![],
+            },
+        )
+        .expect_err("Blue is not a valid component of {G/W}");
+        let msg = format!("{err:?}");
+        assert!(
+            matches!(err, GameStateError::InvalidCommand(_)) && msg.contains("CR 107.4e"),
+            "message must be InvalidCommand citing CR 107.4e: {msg}"
+        );
+    }
+
+    // Case 5: pool {1}{G}{G}, hybrid_choices: [] -> Ok (documented default: first
+    // color of each pip, i.e. Green — ManaCost::flatten_hybrid_phyrexian's doc).
+    {
+        let (mut state, finks_id, p1) = manifest_state("Kitchen Finks");
+        set_pool(&mut state, p1, 0, 0, 0, 0, 2, 1);
+        let (state, _events) = process_command(
+            state,
+            Command::TurnFaceUp {
+                player: p1,
+                permanent: finks_id,
+                method: TurnFaceUpMethod::ManaCost,
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
+            },
+        )
+        .expect("empty hybrid_choices defaults each pip to its first color (Green)");
+        let pool = &state.player(p1).unwrap().mana_pool;
+        assert_eq!(
+            pool.total(),
+            0,
+            "default-Green payment must drain the {{G}}{{G}} pool: {pool:?}"
+        );
+    }
+}
+
+// ── T2 — Blade Historian + Boggart Ram-Gang, same fix on the whole live roster ──
+
+#[test]
+/// CR 701.40b, 107.4e — proves the fix on the OTHER two live-wrong `Complete`
+/// roster members (plan §0: the roster is 3, not the dispatch brief's 1 — Blade
+/// Historian is `Complete` only by the `#[default]` derive), table-driven so the
+/// fix is proven on the whole live roster, not on Kitchen Finks alone.
+fn manifested_blade_historian_and_boggart_ram_gang() {
+    // Blade Historian: {R/W}{R/W}{R/W}{R/W}, generic 0 — all four pips Red.
+    {
+        let (mut state, id, p1) = manifest_state("Blade Historian");
+        set_pool(&mut state, p1, 0, 0, 0, 4, 0, 0);
+        let (state, _events) = process_command(
+            state,
+            Command::TurnFaceUp {
+                player: p1,
+                permanent: id,
+                method: TurnFaceUpMethod::ManaCost,
+                hybrid_choices: vec![HybridManaPayment::Color(ManaColor::Red); 4],
+                phyrexian_life_payments: vec![],
+            },
+        )
+        .expect("4 x {R/W} paid entirely with Red");
+        let pool = &state.player(p1).unwrap().mana_pool;
+        assert_eq!(pool.total(), 0, "pool must be drained: {pool:?}");
+    }
+
+    // Blade Historian mixed: 2 Red + 2 White (each pip independent, CR 107.4e).
+    {
+        let (mut state, id, p1) = manifest_state("Blade Historian");
+        set_pool(&mut state, p1, 2, 0, 0, 2, 0, 0);
+        let (state, _events) = process_command(
+            state,
+            Command::TurnFaceUp {
+                player: p1,
+                permanent: id,
+                method: TurnFaceUpMethod::ManaCost,
+                hybrid_choices: vec![
+                    HybridManaPayment::Color(ManaColor::Red),
+                    HybridManaPayment::Color(ManaColor::Red),
+                    HybridManaPayment::Color(ManaColor::White),
+                    HybridManaPayment::Color(ManaColor::White),
+                ],
+                phyrexian_life_payments: vec![],
+            },
+        )
+        .expect("2 x {R/W} paid Red, 2 x {R/W} paid White independently (CR 107.4e)");
+        let pool = &state.player(p1).unwrap().mana_pool;
+        assert_eq!(pool.total(), 0, "pool must be drained: {pool:?}");
+    }
+
+    // Boggart Ram-Gang: {R/G}{R/G}{R/G}, generic 0 — all three pips Red.
+    {
+        let (mut state, id, p1) = manifest_state("Boggart Ram-Gang");
+        set_pool(&mut state, p1, 0, 0, 0, 3, 0, 0);
+        let (state, _events) = process_command(
+            state,
+            Command::TurnFaceUp {
+                player: p1,
+                permanent: id,
+                method: TurnFaceUpMethod::ManaCost,
+                hybrid_choices: vec![HybridManaPayment::Color(ManaColor::Red); 3],
+                phyrexian_life_payments: vec![],
+            },
+        )
+        .expect("3 x {R/G} paid entirely with Red");
+        let pool = &state.player(p1).unwrap().mana_pool;
+        assert_eq!(pool.total(), 0, "pool must be drained: {pool:?}");
+    }
+
+    // Boggart Ram-Gang: empty pool -> Err (unaffordable, unchanged message).
+    {
+        let (state, id, p1) = manifest_state("Boggart Ram-Gang");
+        let err = process_command(
+            state,
+            Command::TurnFaceUp {
+                player: p1,
+                permanent: id,
+                method: TurnFaceUpMethod::ManaCost,
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![],
+            },
+        )
+        .expect_err("empty pool cannot pay {R/G}{R/G}{R/G}");
+        let msg = format!("{err:?}");
+        assert!(
+            matches!(err, GameStateError::InvalidCommand(_))
+                && msg.contains("TurnFaceUp: player cannot pay the turn-face-up cost"),
+            "expected the existing affordability message, got: {msg}"
+        );
+    }
+}
+
+// ── T4 — Phyrexian pip: payable with mana OR life (plan §2.1) ───────────────────
+
+#[test]
+/// CR 107.4f, 119.4 — a Phyrexian pip in a turn-face-up cost is payable with one
+/// mana of its color OR by paying 2 life, and the CR 119.4 life-total check happens
+/// BEFORE any mutation. Two synthetic creature defs (no shipped card carries a
+/// Phyrexian pip in a printed `mana_cost` reachable by Manifest/Cloak on this
+/// roster — plan §0 roster is all-hybrid): `{1}{G/P}` for cases 1-4, and a PURE
+/// `{G/P}` (no generic) for case 5, which needs a cost whose raw `mana_value()` is
+/// nonzero but whose FLATTENED `mana_value()` is zero.
+fn turn_face_up_phyrexian_pip_payable_with_mana_or_life() {
+    let mut cards = all_cards();
+    cards.push(phyrexian_manifest_def(
+        "test-phyrexian-manifest",
+        "Test Phyrexian Manifest",
+        1,
+    ));
+    cards.push(phyrexian_manifest_def(
+        "test-pure-phyrexian-manifest",
+        "Test Pure Phyrexian Manifest",
+        0,
+    ));
+    let defs: HashMap<String, CardDefinition> =
+        cards.iter().map(|d| (d.name.clone(), d.clone())).collect();
+    let registry = CardRegistry::new(cards);
+
+    // Case 1: [false] + {1}{G} -> Ok, life unchanged (paid with mana, not life).
+    {
+        let (mut state, id, p1) =
+            manifest_state_with(&defs, registry.clone(), "Test Phyrexian Manifest", 20);
+        set_pool(&mut state, p1, 0, 0, 0, 0, 1, 1);
+        let (state, _events) = process_command(
+            state,
+            Command::TurnFaceUp {
+                player: p1,
+                permanent: id,
+                method: TurnFaceUpMethod::ManaCost,
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![false],
+            },
+        )
+        .expect("{G/P} paid with mana: {1}{G} affordable");
+        let ps = state.player(p1).unwrap();
+        assert_eq!(
+            ps.life_total, 20,
+            "mana payment must not touch life: {ps:?}"
+        );
+        assert_eq!(
+            ps.mana_pool.total(),
+            0,
+            "pool must be drained: {:?}",
+            ps.mana_pool
+        );
+    }
+
+    // Case 2: [true] + {1} only, 20 life -> Ok, life 18.
+    {
+        let (mut state, id, p1) =
+            manifest_state_with(&defs, registry.clone(), "Test Phyrexian Manifest", 20);
+        set_pool(&mut state, p1, 0, 0, 0, 0, 0, 1);
+        let (state, _events) = process_command(
+            state,
+            Command::TurnFaceUp {
+                player: p1,
+                permanent: id,
+                method: TurnFaceUpMethod::ManaCost,
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![true],
+            },
+        )
+        .expect("{G/P} paid with life: {1} generic affordable, 2 life payable at 20");
+        let ps = state.player(p1).unwrap();
+        assert_eq!(ps.life_total, 18, "CR 107.4f: 2 life paid: {ps:?}");
+    }
+
+    // Case 3: [true] + {1} only, 1 life -> Err(InsufficientLife) citing CR 119.4,
+    // life unchanged.
+    {
+        let (mut state, id, p1) =
+            manifest_state_with(&defs, registry.clone(), "Test Phyrexian Manifest", 1);
+        set_pool(&mut state, p1, 0, 0, 0, 0, 0, 1);
+        let result = process_command(
+            state,
+            Command::TurnFaceUp {
+                player: p1,
+                permanent: id,
+                method: TurnFaceUpMethod::ManaCost,
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![true],
+            },
+        );
+        match result {
+            Err(GameStateError::InsufficientLife {
+                required, actual, ..
+            }) => {
+                assert_eq!(
+                    required, 2,
+                    "CR 107.4f: a single Phyrexian pip paid with life costs 2"
+                );
+                assert_eq!(
+                    actual, 1,
+                    "life reported in the error must be pre-mutation: 1"
+                );
+            }
+            other => panic!(
+                "CR 119.4: at 1 life, paying 2 life must be rejected with \
+                 InsufficientLife: {other:?}"
+            ),
+        }
+        // `Err` discards the whole `GameState` (Architecture Invariants 2/3, plan
+        // §5.1's "no rollback needed" argument) -- there is no post-command state to
+        // re-read life from here; the error's own `actual: 1` field above is the
+        // proof that no mutation happened before the check fired.
+    }
+
+    // Case 4: [true] + {1} only, 2 life -> Ok, life 0 -- and the CR 704.5a SBA loss
+    // fires SEPARATELY as the legal-but-losing boundary (mirrors PB-RS2's
+    // "exactly enough" pattern).
+    {
+        let (mut state, id, p1) =
+            manifest_state_with(&defs, registry.clone(), "Test Phyrexian Manifest", 2);
+        set_pool(&mut state, p1, 0, 0, 0, 0, 0, 1);
+        let (state, events) = process_command(
+            state,
+            Command::TurnFaceUp {
+                player: p1,
+                permanent: id,
+                method: TurnFaceUpMethod::ManaCost,
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![true],
+            },
+        )
+        .expect("CR 119.4: at exactly 2 life, paying 2 life is legal (2 >= 2)");
+        let ps = state.player(p1).unwrap();
+        assert_eq!(ps.life_total, 0, "life reaches exactly 0: {ps:?}");
+        assert!(
+            ps.has_lost,
+            "CR 704.5a: 0 life is legal to REACH but the player loses as an SBA \
+             immediately after -- handle_turn_face_up's existing end-of-function \
+             sba::check_and_apply_sbas call (unrelated to this batch) catches it"
+        );
+        assert!(
+            events
+                .iter()
+                .any(|e| matches!(e, GameEvent::PlayerLost { player: pl, .. } if *pl == p1)),
+            "PlayerLost must be present in the returned event stream: {events:?}"
+        );
+    }
+
+    // Case 5: [true] + EMPTY pool on a PURE {G/P} cost (no generic) -> Ok, life 18
+    // (a delta of -2 from 20) -- pins that the flatten runs BEFORE the
+    // `mana_value() > 0` gate: the raw cost's mana_value() is 1 (one Phyrexian
+    // pip, CR 202.3g), the FLATTENED cost's is 0 (the pip is paid with life, not
+    // mana), so the mana check is correctly SKIPPED entirely and an empty pool is
+    // no obstacle at all.
+    {
+        let (state, id, p1) =
+            manifest_state_with(&defs, registry.clone(), "Test Pure Phyrexian Manifest", 20);
+        assert_eq!(
+            state.player(p1).unwrap().mana_pool.total(),
+            0,
+            "pool deliberately left empty for this case"
+        );
+        let (state, _events) = process_command(
+            state,
+            Command::TurnFaceUp {
+                player: p1,
+                permanent: id,
+                method: TurnFaceUpMethod::ManaCost,
+                hybrid_choices: vec![],
+                phyrexian_life_payments: vec![true],
+            },
+        )
+        .expect(
+            "a pure {G/P} cost paid with life flattens to mana_value() == 0, so an \
+             EMPTY pool must not block it -- the flatten runs before the mana gate",
+        );
+        let ps = state.player(p1).unwrap();
+        assert_eq!(
+            ps.life_total, 18,
+            "CR 107.4f: 2 life paid, a SIBLING of the (correctly skipped) mana gate: {ps:?}"
+        );
+    }
 }
 
 // ── Observation C — attack tax, hybrid: rejected in every build (plan §2.0) ─────

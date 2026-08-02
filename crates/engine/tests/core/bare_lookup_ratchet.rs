@@ -164,7 +164,15 @@ const SWEPT_FILES: &[(&str, usize)] = &[
     // conversion changes behavior (both are the same `state.players` lookup under a
     // different name); the ceiling is restored to 22 to lock in the reduction, per
     // the ratchet's own rule that a gate exists to stop a raise it can avoid.
-    ("src/rules/engine.rs", 22),
+    // PB-DX6 stage B (2026-08-02): 22 -> 21. `handle_turn_face_up`'s payment block was
+    // rewritten to mirror `abilities.rs::handle_activate_ability`'s hybrid/Phyrexian
+    // flatten-then-pay shape (CR 107.4e/107.4f), which replaced the single bare
+    // `state.players.get_mut(&player)` borrow held across the whole payment with three
+    // separate `state.player(player)?` / `state.player_mut(player)?` primitive-accessor
+    // calls (life-check, mana gate, phyrexian-life deduction) -- exactly the idiom this
+    // file's own craft/cumulative-upkeep sites already use a few hundred lines away. Net
+    // one fewer bare lookup, not a new NONSWALLOW site.
+    ("src/rules/engine.rs", 21),
     ("src/rules/lands.rs", 3),
     // SR-25
     // PB-EF9 (2026-07-18): 51 → 54. Three new NONSWALLOW-shaped reads in

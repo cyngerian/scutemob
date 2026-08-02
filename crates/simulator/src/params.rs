@@ -348,12 +348,22 @@ pub fn action_to_command_with_params(
             hybrid_choices: vec![],
             phyrexian_life_payments: vec![],
         }))),
-        LegalAction::TurnFaceUp { permanent, method } => Ok(Command::TurnFaceUp {
+        LegalAction::TurnFaceUp {
+            permanent,
+            method,
+            hybrid_choices,
+            phyrexian_life_payments,
+        } => Ok(Command::TurnFaceUp {
             player,
             permanent: *permanent,
             method: method.clone(),
-            hybrid_choices: vec![],
-            phyrexian_life_payments: vec![],
+            // PB-DX6 (CR 107.4e/107.4f, PB-RS2 pattern): forward the
+            // `LegalActionProvider`'s already-resolved, already-payable plan
+            // VERBATIM -- `legal_actions.rs::turn_face_up_payment_plan` is the one
+            // place that decides which half of a pip to pay, so this arm must not
+            // re-derive or default it.
+            hybrid_choices: hybrid_choices.clone(),
+            phyrexian_life_payments: phyrexian_life_payments.clone(),
         }),
         LegalAction::CastMorphFaceDown { card, .. } => {
             Ok(Command::CastSpell(Box::new(CastSpellData {
