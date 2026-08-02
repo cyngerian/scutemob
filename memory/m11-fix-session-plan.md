@@ -69,10 +69,17 @@ Theme: everything that leaves the process for a seat. Touches
       Invariant-7 exception, while `view.rs::BugReportView`'s doc claims it does. Add
       the Routes-table row and a named exception paragraph to "Hidden information",
       both pointing at `memory/decisions.md` §5 and the M10a obligation.
-- [x] **DONE** MR-M11-05 (MEDIUM) — omitting `params` and sending `"params": {}` are not
-      equivalent (`auto_tap` false vs true). Hand-write `impl Default for
-      ActionParamsDto` with `auto_tap: true`; pin both spellings with one `oneshot`
-      test; note it in the README's route table.
+- [x] **DONE (one deviation, stated)** MR-M11-05 (MEDIUM) — omitting `params` and sending
+      `"params": {}` are not equivalent (`auto_tap` false vs true). Hand-write `impl
+      Default for ActionParamsDto` with `auto_tap: true`; pin both spellings with one
+      `oneshot` test; note it in the README's route table.
+      **Deviation**: what shipped is a plain `#[test]` at the deserialization boundary,
+      not a `oneshot` test. That is where the divergence actually lived — both spellings
+      are parsed and lowered through the real `From<ActionParamsDto> for ActionParams` and
+      compared structurally — so it pins the property directly rather than through a route
+      that would only observe its consequence. The test additionally pins that the agreed
+      `auto_tap` is `true`, so a re-`derive(Default)` reddens even though it would leave
+      the two spellings agreeing; a `oneshot` equality test would not have caught that.
 - [ ] **DEFERRED** MR-M11-17 (LOW, same file family) — `event_kind` serializes the whole
       event to read one key, on every event of every request. Replace with a `match`
       returning `&'static str`, **preserving the reads-no-payload-field property** that is
