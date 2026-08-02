@@ -225,9 +225,16 @@ fn seat_ids(cfg: &LocalGameConfig) -> Vec<PlayerId> {
 /// commander (`PlayerState::commander_ids`) and a hand plus library of `CardId`-carrying
 /// objects — which is precisely what [`build_initial_state`] produces. Any other state
 /// (a seat missing, no commander, an object with no `card_id`) is refused with
-/// `SetupError::NoDeckForSeat`, because a partially-readable table is not a decklist.
-/// Cards are taken from hand ∪ library, so it does not matter whether this is called
-/// before or after the opening hand is dealt.
+/// `SetupError::NoDeckForSeat`, because a partially-readable table is not a decklist —
+/// as is a seat whose hand ∪ library is empty, or whose commander is sitting in one of
+/// them rather than in the command zone. Cards are taken from hand ∪ library, so it does
+/// not matter whether this is called before or after the opening hand is dealt; it does
+/// matter that it is called before the game is played into.
+///
+/// A seat with **two** commanders (CR 903.3 partner / background) is refused for the same
+/// reason: `DeckConfig` has one `commander` field and cannot express that pairing, and
+/// this module never builds one. The refusal is deliberate — silently keeping the first
+/// would drop a commander from the rebuilt table.
 pub fn dealt_decks(
     state: &GameState,
     cfg: &LocalGameConfig,
@@ -258,6 +265,18 @@ pub fn dealt_decks(
                 main_deck.push(card_id);
             }
         }
+        // Two local shape floors, so a wrong-phase call is refused *here* rather than
+        // degrading into a decklist that only fails much later, in `validate_deck` on the
+        // next rebuild, with an error naming the wrong cause (review LOW 5):
+        //
+        // * an empty hand+library is not a deck at all (a mid-game state whose cards have
+        //   moved to the battlefield/graveyard would read this way);
+        // * the commander appearing in the main deck means it is not in the command zone
+        //   where CR 903.6 put it, and would make the rebuilt deck 101 cards.
+        if main_deck.is_empty() || main_deck.contains(&commander) {
+            return Err(SetupError::NoDeckForSeat { seat: pid });
+        }
+
         resolved.push((
             pid,
             DeckConfig {

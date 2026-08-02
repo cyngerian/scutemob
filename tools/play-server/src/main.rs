@@ -63,6 +63,14 @@ struct Cli {
     /// leaves this value untouched, so "seed 0, four players, heuristic" alone
     /// stops describing the table the moment a mulligan is taken.
     /// `GameSummary.mulligan_count` carries the missing term.
+    ///
+    /// Since `scutemob-187` the *procedure* for using those four fields has one
+    /// more step: build at this base seed, take `setup::dealt_decks` of the
+    /// result, then rebuild at the derived seed with `DeckSource::Fixed(dealt)`.
+    /// The decklists are pinned at the base-seed build (CR 103.5 — a mulligan may
+    /// not change them), so rebuilding at the derived seed with the random recipe
+    /// no longer reproduces the table. See the README's "Reproducing a table from
+    /// a bug report".
     #[arg(long, default_value = "0")]
     seed: u64,
 }

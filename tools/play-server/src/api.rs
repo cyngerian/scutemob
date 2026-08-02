@@ -198,12 +198,16 @@ impl From<LocalGameError> for ApiFailure {
 /// server-side faults by the same reasoning that puts `Start` at 500:
 ///
 /// * `NoDeckForSeat` — `random_deck` found no legendary creature in the card
-///   pool *this server chose*. Nothing the client sent caused it.
+///   pool *this server chose*, or (since `scutemob-187`) `setup::dealt_decks`
+///   could not read a seat back out of a table this server had just built.
+///   Nothing the client sent caused either.
 /// * `MissingCardDefinition` — `crates/simulator/src/setup.rs` documents this as
 ///   "a defensive check at spec-build time, in case a `DeckSource::Fixed` deck
-///   was assembled against a different card pool". This crate only ever passes
-///   `DeckSource::RandomPerSeat`, so reaching it would mean the pool and the
-///   builder disagree — an internal inconsistency.
+///   was assembled against a different card pool". This crate does pass
+///   `DeckSource::Fixed` since `scutemob-187`, but only lists it read out of a
+///   state built from `all_cards()` moments earlier in the same process — so
+///   reaching it would still mean the pool and the builder disagree, an internal
+///   inconsistency.
 /// * `Builder(GameStateError)` — `GameStateBuilder::build()` refusing the table
 ///   the server assembled, exactly parallel to `Start`.
 ///

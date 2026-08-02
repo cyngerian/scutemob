@@ -73,6 +73,16 @@ The effective seed is documented rather than surfaced as a fifth field because
 the derivation is private to `mtg_simulator::setup` and a copy of it here could
 drift from the original silently.
 
+**Reproducing a mulliganed table takes three steps, not one** (since
+`scutemob-187`): build at the **base** seed with `DeckSource::RandomPerSeat`,
+take `setup::dealt_decks` of that state, then rebuild at
+`redeal_seed(seed, human_seat, mulligan_count)` with `DeckSource::Fixed(dealt)`.
+Rebuilding at the derived seed *with the recipe* — which was the whole procedure
+before the fix — now yields a different table, because the decklists are pinned
+at the base-seed build and only the shuffle follows the derived seed. The
+four-field key is still sufficient; it is the recipe for using it that gained a
+step.
+
 The runtime is hand-built with **8 MB worker stacks** for the same reason as
 `tools/replay-viewer/src/main.rs`: deep trigger chains overflow tokio's 2 MB
 default in debug builds. The **multi-thread** flavor is load-bearing, not a
@@ -689,13 +699,24 @@ repeated here so this README does not claim more than the implementation does.
 
 1. **The mulligan rebuilds the whole table, not one seat.** `POST
    /api/game/mulligan` delegates to `mtg_simulator::setup::redeal`, which
-   re-rolls every seat from a perturbed seed. Two consequences: the command zone
-   is public (CR 903.6), so a redeal is *not* invisible to the other players
-   because it changes their commanders; and a partially-decided table cannot be
-   represented at all, because CR 103.5c gives each player their own mulligan
-   count and one `(seat, count)` signature has nowhere to record that seat 2
-   already kept. A per-seat model needs each bot seat to be *asked*, which is a
-   new decision channel rather than a small addition.
+   reshuffles every seat's library and redeals every seat's hand from a perturbed
+   seed. It does **not** change anyone's cards: `session::new_game` records the
+   decklists the table was actually dealt (`setup::dealt_decks`) and stores them
+   as `DeckSource::Fixed`, so the perturbed seed reaches only the shuffle — a CR
+   103.5 permutation of a fixed multiset. The remaining consequence is that a
+   partially-decided table cannot be represented at all, because CR 103.5c gives
+   each player their own mulligan count and one `(seat, count)` signature has
+   nowhere to record that seat 2 already kept. A per-seat model needs each bot
+   seat to be *asked*, which is a new decision channel rather than a small
+   addition.
+
+   **This paragraph described the opposite until `scutemob-187`**, and the
+   difference was a live HIGH defect (G2 of
+   `memory/playtest-triage-2026-08-02b.md`): the session held
+   `DeckSource::RandomPerSeat`, a seeded *recipe*, so every mulligan re-rolled
+   all four decklists **and all four commanders** — and CR 903.6 puts the
+   commander in the public command zone, so the first human playtester watched
+   three opponents' commanders change.
 
 2. **`cards_to_bottom` is refused with 400.** CR 103.5's bottoming half is not
    expressible on the redeal path: `handle_keep_hand` checks

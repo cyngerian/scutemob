@@ -8,8 +8,8 @@ use std::collections::BTreeSet;
 
 use mtg_engine::DeckViolation;
 use mtg_engine::{
-    all_cards, CardDefinition, CardId, CardType, PlayerId, ReplacementModification, SuperType,
-    ZoneId, ZoneType,
+    all_cards, CardDefinition, CardId, CardRegistry, CardType, GameStateBuilder, ObjectSpec,
+    PlayerId, ReplacementModification, SuperType, ZoneId, ZoneType,
 };
 use mtg_simulator::{
     build_initial_state, dealt_decks, redeal, BotKind, DeckConfig, DeckSource, LocalGameConfig,
@@ -568,6 +568,52 @@ fn test_dealt_decks_is_deterministic_and_refuses_an_unreadable_seat() {
     match dealt_decks(&state, &wider) {
         Err(SetupError::NoDeckForSeat { seat }) => assert_eq!(seat, PlayerId(4)),
         other => panic!("expected NoDeckForSeat for the absent seat 4, got {other:?}"),
+    }
+}
+
+/// The two shape floors inside `dealt_decks`, exercised rather than asserted in a comment
+/// (review LOW 5): a seat whose hand ∪ library is empty, and a seat whose registered
+/// commander is sitting in the library instead of the command zone (CR 903.6).
+///
+/// Both would otherwise produce a decklist that only fails on the *next* rebuild, inside
+/// `validate_deck`, with a violation naming the wrong cause — a 0-card deck or a 101-card
+/// one. Built from `GameStateBuilder` directly, because `build_initial_state` cannot
+/// produce either shape, which is the whole reason the floors are cheap insurance.
+#[test]
+fn test_dealt_decks_refuses_a_state_it_cannot_read_as_a_deck() {
+    let cards = all_cards();
+    let commander = fixed_commander(&cards);
+    let cfg = random_cfg(1, 7);
+
+    let seat = PlayerId(1);
+    let build = |place_commander_in_library: bool| {
+        let mut builder = GameStateBuilder::new()
+            .with_registry(CardRegistry::new(cards.clone()))
+            .add_player(seat)
+            .player_commander(seat, commander.card_id.clone());
+        if place_commander_in_library {
+            builder = builder.object(
+                ObjectSpec::card(seat, &commander.name)
+                    .in_zone(ZoneId::Library(seat))
+                    .with_card_id(commander.card_id.clone()),
+            );
+        }
+        builder
+            .first_turn_of_game()
+            .build()
+            .expect("a one-seat state must build")
+    };
+
+    // Empty hand and library: a registered commander but no deck behind it.
+    match dealt_decks(&build(false), &cfg) {
+        Err(SetupError::NoDeckForSeat { seat: s }) => assert_eq!(s, seat),
+        other => panic!("expected NoDeckForSeat for an empty deck, got {other:?}"),
+    }
+
+    // Commander in the library: rebuilding would hand `validate_deck` 101 cards.
+    match dealt_decks(&build(true), &cfg) {
+        Err(SetupError::NoDeckForSeat { seat: s }) => assert_eq!(s, seat),
+        other => panic!("expected NoDeckForSeat for a commander in the library, got {other:?}"),
     }
 }
 

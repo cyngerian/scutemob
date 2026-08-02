@@ -129,6 +129,13 @@ impl PlayApp {
             // The TUI still seeds from the OS at the entry point -- each launch gets a
             // genuinely random game, exactly as before Session 2.
             seed: os_rng.random(),
+            // A seeded *recipe*, which is correct here only because the TUI never
+            // mulligans. `setup::redeal` rebuilds from a perturbed seed, and with a
+            // recipe that re-rolls every seat's decklist and commander — the G2
+            // defect `scutemob-187` fixed in the play server (CR 103.5: a mulligan
+            // permutes a fixed multiset). If this surface ever grows a mulligan,
+            // follow `play-server`'s `session::new_game`: build once, then hold
+            // `DeckSource::Fixed(setup::dealt_decks(&state, &cfg))`.
             decks: DeckSource::RandomPerSeat,
             // `PlayApp` never runs a `LocalGame` (it drives its own loop via
             // `execute_bot_turn`/`execute_command`), so these limits are inert here --
