@@ -96,6 +96,9 @@
   `memory/primitives/seed-rerank-2026-08-02.md` §4). **PB-DX7 is no longer next** — it survives at
   rank 9; eight new entries outrank it. Older queue history (the PB-OS,
   PB-RS and PB-DP chains) is rotated to the 2026-08 archive.
+- **Tests (delta 2026-08-02, UI-5)**: **4,317 / 0 / 5** full-workspace on branch
+  `scutemob-190` (+4 over SIM-6's 4,313 — the four new frontend source gates), measured with
+  `--workspace --no-fail-fast` to a file. Earlier pins below.
 - **Tests (delta 2026-08-02, SIM-6)**: **4,313 / 0 / 5** full-workspace on branch
   `scutemob-189` (+18 over SIM-5's 4,295: 11 simulator + 7 play-server), measured with
   `--workspace --no-fail-fast` to a file. Earlier pins below.
@@ -226,7 +229,40 @@
 - **Recurrence rule** — future `/collect` and milestone-close bookkeeping appends its detailed PB/SR
   narrative to that archive file (newest first), and updates only a one-paragraph snapshot delta
   here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
-- **Last Updated**: 2026-08-02 — **SIM-6 SHIPPED** (`scutemob-189`, merge `ee99929d`; row 4 of the
+- **Last Updated**: 2026-08-02 — **UI-5 SHIPPED** (`scutemob-190`; rows G8 + G10-G13 of
+  `memory/playtest-triage-2026-08-02b.md`, the whole UX half of that triage). Frontend only:
+  **0 engine lines** (`git diff main..HEAD -- crates/` empty), 0 wire change, PROTOCOL **33** /
+  HASH **70** gate-executed. **Concede leaves the priority row** for the header beside "New
+  game", behind a two-step confirm, filtered out of *both* action groups and disabled with a
+  **visible** reason (a native `title` never opens on a disabled button); pickers say **Back**.
+  **`TapForMana` is collapsed into `mana sources (N)`, one row per source NAME with a count —
+  never hidden**, and the gate asserts both sides, because auto-tap covers casts alone
+  (`auto_tap_commands_for`) so this is the only human channel for activation costs, echo,
+  cumulative upkeep and CR 608.2g floating. **`cardTooltip` grows a caption** and every native
+  `title` on a tooltip-anchored card element is gone — the nine the triage named **plus ~10 on
+  the badges nested inside those anchors**, the identical collision over a smaller hit area.
+  **Lands render below Artifacts/Enchantments** (Lands moved down, so no other pair reordered;
+  artifact lands stay with lands, documented at the classifier) and **same-name lands stack**
+  on `(name, tapped)` plus every other distinguishing field, with the click path decided
+  (representative + caller-side fallback) rather than left undefined. **The shared-`$viewer`
+  rule, stated once and applied three times**: edit in place, and where the two surfaces want
+  opposite things express it as a PROP — `stackLands` defaults off, because the replay viewer
+  is a step debugger and stacking deletes objects you are stepping to inspect. **4 gates, 9
+  reverts executed red**; the G11 gate is per-ELEMENT (a tag walk over each `use:cardTooltip`
+  anchor) so `title` stays legal on real controls, and **its own first run found a bug in
+  itself** — prose in a module doc reported a tag that does not exist. Browser: **24/24** live
+  (decline path AND a real concede; an open picker showing Back; a `Swamp×3` tapped beside a
+  `Swamp×2` untapped; a stack click that acted, 819→820), plus **10/10** mounting the shared
+  components against a fixture — a working proof-of-concept of the deferred R7 harness, recipe
+  in the handoff. **The `/review` cycle found 8 and all 8 were taken, two of them real G8
+  defects**: the armed confirmation **survived the decision it was armed against** (`Concede`
+  is on every decision, so the disarm guard essentially never fired — the accidental-concede
+  class G8 exists to close, reintroduced by the guard meant to prevent it), and the header
+  button was a **silent dead control while a picker was open** (`beginChain` refuses on
+  `chainOpen`, which `PlayApp` could not see) — the same shape UI-4 was dispatched to fix. Both
+  proven real by revert. Tests **4,317 / 0 / 5** (+4). Seeds **OOS-UI5-1..4**. Full handoff:
+  `memory/workstream-state.md`.
+- **Prior**: 2026-08-02 — **SIM-6 SHIPPED** (`scutemob-189`, merge `ee99929d`; row 4 of the
   `memory/playtest-triage-2026-08-02b.md` successor table). **G4 CLOSED, both components.**
   `LegalAction::ActivateAbility` gains an `ActivationCostPlan`; the offer is suppressed when
   the eligible sacrifice/discard set is empty (SR-38, mirroring `offerable_cast_plan`); the
