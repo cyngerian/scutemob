@@ -96,6 +96,9 @@
   `memory/primitives/seed-rerank-2026-08-02.md` §4). **PB-DX7 is no longer next** — it survives at
   rank 9; eight new entries outrank it. Older queue history (the PB-OS,
   PB-RS and PB-DP chains) is rotated to the 2026-08 archive.
+- **Tests (delta 2026-08-02, SIM-6)**: **4,312 / 0 / 5** full-workspace on branch
+  `scutemob-189` (+17 over SIM-5's 4,295: 11 simulator + 6 play-server), measured with
+  `--workspace --no-fail-fast` to a file. Earlier pins below.
 - **Tests (delta 2026-08-02, second session)**: **4,281 / 0 / 5** full-workspace at the PB-DX19
   collect (`451e3517`); UI-4 (`b031d39e`) adds +2 play-server gates (57 green, targeted run) —
   nominal 4,283, full-tree re-measure at next collect. Earlier pin below.
@@ -223,7 +226,32 @@
 - **Recurrence rule** — future `/collect` and milestone-close bookkeeping appends its detailed PB/SR
   narrative to that archive file (newest first), and updates only a one-paragraph snapshot delta
   here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
-- **Last Updated**: 2026-08-02 — **SIM-5 SHIPPED** (`scutemob-188`, merge `e185a2ff`; row 3 of
+- **Last Updated**: 2026-08-02 — **SIM-6 SHIPPED** (`scutemob-189`; row 4 of the
+  `memory/playtest-triage-2026-08-02b.md` successor table). **G4 CLOSED, both components.**
+  `LegalAction::ActivateAbility` gains an `ActivationCostPlan`; the offer is suppressed when
+  the eligible sacrifice/discard set is empty (SR-38, mirroring `offerable_cast_plan`); the
+  choice is forwarded through `params.rs` — which hardcoded `sacrifice_target: None` /
+  `discard_card: None`, the whole 422 — with the plan's own default as the bot fallback; the
+  browser renders and validates it; the TUI's hand-built command routes through the one
+  mapping table. **0 engine lines**, 0 wire changes, PROTOCOL **33** / HASH **70**
+  gate-executed. **8 card defs** printing "Sacrifice ANOTHER …" carried `exclude_self: false`
+  and would have started sacrificing themselves the moment the channel opened; coverage
+  unmoved at **1,133/1,803 = 62.8%**. **Three findings the brief did not predict**: (1) the
+  brief's "~135 of 166 refusals are your subject" is **refuted by measurement** — **zero** of
+  the 166 is a sacrifice/discard refusal; they are 95 `InsufficientMana` + 40 unmet
+  `activation_condition`; (2) with the channel open a heuristic bot ate two of its own
+  creatures per turn (caught by the UI-3 seeded fixture going red), so bots now score an
+  object-naming activation below `PassPriority`; (3) **the browser verification found a live
+  422 of its own** — the offer loop mirrored none of CR 302.6 / CR 602.5b / CR 118.3, and
+  `activated_ability_is_activatable` (the non-mana sibling of SIM-2's
+  `tap_ability_is_activatable`) closes all 40 condition refusals. A/B **166 → 113**. Three
+  browser flows verified live with a NON-DEFAULT answer each (Yahenni in response to a
+  Dismember, with itself correctly absent from the picker; Altar of Dementia cost+target in
+  one chain; Rummaging Goblin discard). Seeds **OOS-SIM6-1..5** — **`OOS-SIM6-3` is the
+  successor**: auto-tap covers `CastSpell` alone, so 62 of the 113 remaining refusals, and a
+  human's mana-cost activation in the browser, are still 422s. Tests **4,312 / 0 / 5** (+17).
+  Full handoff: `memory/workstream-state.md`.
+- **Prior**: 2026-08-02 — **SIM-5 SHIPPED** (`scutemob-188`, merge `e185a2ff`; row 3 of
   the `memory/playtest-triage-2026-08-02b.md` successor table). **G5 CLOSED in its (1)/(2)/(3)
   halves; (4) offer-suppression DEFERRED with measurements as `OOS-SIM5-4`** — it would have
   suppressed 1 of 166 refusals, does not cover the Aura family (needs an engine query;

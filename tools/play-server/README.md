@@ -871,7 +871,12 @@ repeated here so this README does not claim more than the implementation does.
 
 18. **Only 2 of `AdditionalCost`'s 16 variants are surfaced (UI-2).**
     `ActionOptionView.costs` describes a required **sacrifice** (CR 118.8) and an
-    optional **Squad** cost (CR 702.157a) and nothing else. Kicker, Replicate,
+    optional **Squad** cost (CR 702.157a) and nothing else. **Scoped to `CastSpell`
+    alone** — an `ActivateAbility`'s own CR 602.2 costs are a separate channel that
+    SIM-6 added (`activation_sacrifice` / `activation_discard`, answered by the
+    scalar `cost_sacrifice_target` / `cost_discard_card` params rather than by the
+    `additional_costs` array, because an activation cost never becomes an
+    `AdditionalCost`). Kicker, Replicate,
     Offspring, Escalate, Splice, Entwine, Fuse, Gift, Assist, Escape, Collect
     Evidence, Discard, ExileFromHand and Mutate are all still invisible to the
     offer, so an **optional** one is silently lost and a **mandatory** one is still
@@ -890,7 +895,10 @@ repeated here so this README does not claim more than the implementation does.
     default params and renders no cost picker, so a human casting Life's Legacy
     there loses a creature **without being asked which**. Better than the outright
     refusal it replaces, worse than asking. Same shape as the TUI halves of
-    `OOS-DP7-6`/`OOS-DP8-2`/`OOS-DP9-7`. Seed **OOS-UI2-5**.
+    `OOS-DP7-6`/`OOS-DP8-2`/`OOS-DP9-7`. Seed **OOS-UI2-5**. **SIM-6 widened this
+    to activated abilities**: the TUI's `'e'` key now routes through
+    `action_to_command_with_params` and so submits `ActivationCostPlan`'s default
+    sacrifice or discard, again without asking. Seed **OOS-SIM6-5**.
 
 20. **`SquadCostView.max_count` under-reports what CR 601.2h would allow, and the
     400 boundary enforces the under-report (UI-2).** `squad_max_count` gates on
@@ -913,6 +921,17 @@ repeated here so this README does not claim more than the implementation does.
     player turn and phase … ex: Bot-3 end") is **not implemented** — the
     predicate table is keyed on a mode object precisely so that is one more
     entry, but today there are two modes.
+
+23. **Auto-tap covers `CastSpell` and nothing else (SIM-6).**
+    `LocalGame::auto_tap_commands_for` returns `None` for every command that is not
+    a cast, on both the bot path and the human `submit` path — so activating an
+    ability with a mana cost taps nothing. `legal_actions::can_afford` offers the
+    activation because its cost is solvable *with taps*, and
+    `handle_activate_ability` then charges the **pool** and refuses
+    `InsufficientMana` → **422**. A human must have floating mana already, which the
+    browser gives no way to arrange deliberately. Measured at **62 of the 113** bot
+    command refusals in `sim5_bot_cast_discipline`'s A/B (seeds 0/7/42). Seed
+    **OOS-SIM6-3**; the largest remaining SR-38 violation on this surface.
 
 22. **Opponent seat cards can show *no* known hand cards, and that is the view
     model, not the drawer (UI-3).** `SeatCard`'s details drawer lists the
