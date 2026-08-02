@@ -256,8 +256,8 @@ fn recursion_is_independent_of_the_object_being_calculated() {
 // profile, which is why no fuzz run could ever have surfaced it.
 
 use mtg_engine::{
-    CardType, ContinuousEffect, CounterType, EffectAmount, EffectDuration, EffectFilter, EffectId,
-    EffectLayer, LayerModification,
+    CardEffectTarget, CardType, ContinuousEffect, CounterType, EffectAmount, EffectDuration,
+    EffectFilter, EffectId, EffectLayer, LayerModification,
 };
 
 /// Push a single continuous effect at the given layer onto an already-built state.
@@ -584,5 +584,161 @@ fn deviation_animated_nexus_does_not_count_toward_metalcraft() {
          OOS-SIM2-6 cannot see it, so no shroud is granted. If this assertion has \
          started failing, the CR 613.8b fixpoint (OOS-DX19-2) has landed and this \
          test should be INVERTED, not deleted."
+    );
+}
+
+/// **Group 1, third failure mode — the CDA path's own copy of the widening.**
+/// Found by the PB-DX19 review, not by the original scope: `resolve_cda_amount`'s
+/// `EffectAmount::CounterCount` arm had the identical `u32 as i32` cast, one
+/// function away from the sites the batch had just fixed, and it feeds every
+/// `SetPtDynamic` / `SetBothDynamic` / `Modify*Dynamic` P/T write.
+///
+/// The plan had explicitly reasoned this function safe on the grounds that it
+/// "returns bounded counts" — true of its `.count()` arms, false of this one, since
+/// `counters` is an `OrdMap<CounterType, u32>` that nothing bounds. That is the
+/// hazard of arguing safety by function rather than by expression, and it is the
+/// same shape of wrong reasoning as the comment that let OOS-SIM2-6 survive.
+///
+/// CR 613.4a (Layer 7a, characteristic-defining P/T).
+#[test]
+fn cda_counter_count_widening_saturates() {
+    let mut state = GameStateBuilder::new()
+        .add_player(p1())
+        .add_player(p2())
+        .object(
+            ObjectSpec::creature(p1(), "Countful", 0, 0)
+                .with_counter(CounterType::PlusOnePlusOne, 3_000_000_000),
+        )
+        .build()
+        .unwrap();
+
+    let id = find_on_battlefield(&state, "Countful");
+    state.continuous_effects_mut().push_back(ContinuousEffect {
+        id: EffectId(9_200),
+        source: Some(id),
+        timestamp: 1,
+        layer: EffectLayer::PtCda,
+        duration: EffectDuration::WhileSourceOnBattlefield,
+        filter: EffectFilter::SingleObject(id),
+        modification: LayerModification::SetPtDynamic {
+            power: Box::new(EffectAmount::CounterCount {
+                target: CardEffectTarget::Source,
+                counter: CounterType::PlusOnePlusOne,
+            }),
+            toughness: Box::new(EffectAmount::CounterCount {
+                target: CardEffectTarget::Source,
+                counter: CounterType::PlusOnePlusOne,
+            }),
+        },
+        is_cda: true,
+        affected_set: None,
+        condition: None,
+    });
+
+    let chars = calculate_characteristics(&state, id).expect("live on the battlefield");
+    // Layer 7a SETS P/T from the count, then the +1/+1 counter path in Layer 7d adds
+    // the same (saturated) count on top; both saturate, so the answer is i32::MAX.
+    assert_eq!(
+        chars.power,
+        Some(i32::MAX),
+        "a CDA reading a counter count above i32::MAX must saturate, not wrap to a \
+         negative base power"
+    );
+}
+
+// ── The non-layer paths, which the first fix regressed ──────────────────────────
+//
+// `check_static_condition` / `check_condition` are SHARED evaluators. Five callers
+// reach them and only one — `is_effect_active`, inside `calculate_characteristics`
+// — closes the recursion. PB-DX19's first attempt read base characteristics
+// unconditionally and so broke the four safe paths to fix the one unsafe one. The
+// review caught it; `characteristics_for_condition` is the repair.
+//
+// These probes pin the safe paths at the layer-RESOLVED answer CR 613.1d requires,
+// so that a future "just read base characteristics" simplification fails loudly.
+
+/// CR 613.4c + CR 603.4: a 2/2 with two `+1/+1` counters has power **4**, and a
+/// condition asking "power 4 or greater" evaluated off the layer walk must say so.
+///
+/// This is `garruks_uprising`'s intervening-if shape (`min_power: Some(4)`, a
+/// `Complete` deck-legal card). Under PB-DX19's first, unguarded fix this read the
+/// printed power of 2 and the trigger would never have queued — a silent false
+/// negative on a real card, invisible to all 4,274 tests because no existing test
+/// put a counter-pumped creature through a power-filtered condition.
+#[test]
+fn non_layer_path_reads_layer_resolved_power() {
+    use mtg_engine::effects::check_static_condition;
+    use mtg_engine::{Condition, TargetFilter};
+
+    let state = GameStateBuilder::new()
+        .add_player(p1())
+        .add_player(p2())
+        .object(
+            ObjectSpec::creature(p1(), "Counter Bear", 2, 2)
+                .with_counter(CounterType::PlusOnePlusOne, 2),
+        )
+        .build()
+        .unwrap();
+
+    let bear = find_on_battlefield(&state, "Counter Bear");
+
+    // Precondition: the layer system really does report power 4.
+    let chars = calculate_characteristics(&state, bear).expect("live on the battlefield");
+    assert_eq!(
+        chars.power,
+        Some(4),
+        "CR 613.4c: two +1/+1 counters on a 2/2 make it a 4/4"
+    );
+
+    // Evaluated OFF the layer walk, the condition must see that 4 — not the
+    // printed 2.
+    let condition = Condition::YouControlNOrMoreWithFilter {
+        count: 1,
+        filter: TargetFilter {
+            min_power: Some(4),
+            ..Default::default()
+        },
+    };
+    assert!(
+        check_static_condition(&state, &condition, bear, p1()),
+        "CR 613.1d: a condition evaluated outside the layer walk reads LAYER-RESOLVED \
+         characteristics. Reading base power here is the regression PB-DX19's review \
+         caught -- it would silently stop garruks_uprising's intervening-if from \
+         firing on a counter-pumped creature."
+    );
+}
+
+/// The same call, made from *inside* the layer walk, is where the deviation lives —
+/// and this test states the boundary explicitly so nobody has to infer it.
+///
+/// `deviation_animated_nexus_does_not_count_toward_metalcraft` above already pins
+/// the wrong answer on the layer path. Together the two probes say: base
+/// characteristics inside the walk, layer-resolved everywhere else, and the
+/// difference is deliberate.
+#[test]
+fn the_deviation_is_scoped_to_the_layer_walk_only() {
+    use mtg_engine::in_layer_walk;
+
+    assert!(
+        !in_layer_walk(),
+        "a test body is not inside calculate_characteristics"
+    );
+
+    let state = GameStateBuilder::new()
+        .add_player(p1())
+        .add_player(p2())
+        .object(ObjectSpec::creature(p1(), "Bear", 2, 2))
+        .build()
+        .unwrap();
+    let bear = find_on_battlefield(&state, "Bear");
+
+    // The guard is re-entrant and restores itself on the way out (it decrements in
+    // Drop, so an early return inside calculate_characteristics cannot leak depth).
+    let _ = calculate_characteristics(&state, bear);
+    assert!(
+        !in_layer_walk(),
+        "LayerWalkGuard must decrement on Drop -- a leaked depth would silently \
+         downgrade every later condition evaluation on this thread to base \
+         characteristics, which is the regression this guard exists to prevent"
     );
 }

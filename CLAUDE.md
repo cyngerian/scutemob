@@ -244,9 +244,7 @@
   613.1d says it must — asserted wrong-way-round by
   `deviation_animated_nexus_does_not_count_toward_metalcraft`, which tells the successor batch to
   **invert** it. Ten sibling `expect_characteristics` sites are the same shape and **latent only
-  because of corpus shape** (all 97 `condition: Some(..)` occurrences enumerated; every one is an
-  `activation_condition`/`unless_condition`/`intervening_if`, none on the `is_effect_active` path)
-  — every one of the **57** corpus occurrences of those ten variants is an
+  because of corpus shape** — every one of the **57** corpus occurrences of those ten variants is an
   `activation_condition` / `unless_condition` / `intervening_if` / bare `Effect::Conditional`, and
   **none** is a `ContinuousEffectDef.condition`, which is the only field on that path. Filed
   `OOS-DX19-1`; fix shape is a boundary guard, NOT ten leaf edits, since several are *correct* as

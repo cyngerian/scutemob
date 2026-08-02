@@ -13,7 +13,7 @@ use crate::state::{
     continuous_effect::{
         ContinuousEffect, EffectDuration, EffectFilter, EffectLayer, LayerModification,
     },
-    game_object::{Characteristics, Designations, ObjectId},
+    game_object::{Characteristics, Designations, GameObject, ObjectId},
     player::PlayerId,
     types::{CardType, CounterType, KeywordAbility, SubType, SuperType},
     zone::ZoneId,
@@ -21,6 +21,98 @@ use crate::state::{
 };
 use imbl::OrdSet;
 use std::collections::VecDeque;
+// ── Layer-walk re-entrancy guard (OOS-SIM2-6 / PB-DX19) ─────────────────────────
+
+thread_local! {
+    /// Depth of the currently-executing [`calculate_characteristics`] walk on this
+    /// thread. Zero means "not inside the layer system".
+    ///
+    /// This is a scratch flag describing the *call stack*, not game state. It is not
+    /// serialized, not hashed, never read by a rule, and cannot differ between two
+    /// runs of the same command — so it does not weaken Architecture Invariant 2
+    /// (immutable `GameState`) or Invariant 3 (all mutation through a `Command`).
+    /// `GameState` remains untouched; what this records is where in the engine's own
+    /// execution we are, which no `&GameState` parameter can express.
+    static LAYER_WALK_DEPTH: std::cell::Cell<u32> = const { std::cell::Cell::new(0) };
+}
+
+/// RAII marker for the dynamic extent of a [`calculate_characteristics`] call.
+///
+/// Decrements on `Drop`, so the depth is restored on an early `return` (this
+/// function has several) and on unwind.
+pub(crate) struct LayerWalkGuard;
+
+impl LayerWalkGuard {
+    pub(crate) fn enter() -> Self {
+        LAYER_WALK_DEPTH.with(|d| d.set(d.get().saturating_add(1)));
+        LayerWalkGuard
+    }
+}
+
+impl Drop for LayerWalkGuard {
+    fn drop(&mut self) {
+        LAYER_WALK_DEPTH.with(|d| d.set(d.get().saturating_sub(1)));
+    }
+}
+
+/// Is the current thread inside a [`calculate_characteristics`] walk?
+pub fn in_layer_walk() -> bool {
+    LAYER_WALK_DEPTH.with(|d| d.get()) > 0
+}
+
+/// The characteristics a **condition's filter test** may read for `obj`
+/// (CR 604.2 / CR 613.1d) — the single decision point for OOS-SIM2-6.
+///
+/// # Why this exists
+///
+/// `check_static_condition` and `check_condition` are **shared evaluators**. They
+/// are reached from five different places, and only one of them is dangerous:
+///
+/// | caller | dangerous? |
+/// |---|---|
+/// | `is_effect_active`, inside `calculate_characteristics` | **YES** — closes a cycle |
+/// | `activation_condition` (`rules/abilities.rs`, `rules/mana.rs`) | no |
+/// | `intervening_if` (`rules/abilities.rs`) | no |
+/// | `Effect::Conditional` | no |
+/// | `unless_condition` (ETB replacement) | no |
+///
+/// On the first, resolving another object's characteristics calls back into
+/// `calculate_characteristics`, which re-enters `is_effect_active` for **every**
+/// registered effect — whatever object it was asked about, and whatever zone that
+/// object is in. The recursion runs through the *effect*, not the object, so it is
+/// unconditional and it overflows the stack (SIGABRT; `indomitable_archangel` made
+/// it reachable from a legal deck).
+///
+/// On the other four there is no cycle, and CR 613.1d demands the **layer-resolved**
+/// answer: a 2/2 with two `+1/+1` counters really does have power 4 for
+/// `garruks_uprising`'s intervening-if, and a changeling really is a Vampire for
+/// `bloodline_keeper`'s activation cost.
+///
+/// **PB-DX19's first attempt read base characteristics unconditionally and so broke
+/// all four of the safe paths to fix the one unsafe one.** That regression is the
+/// reason this function exists rather than a bare `obj.characteristics`.
+///
+/// # The deviation, and its exact scope
+///
+/// Inside the layer walk this returns **printed** characteristics, which is wrong by
+/// CR 613.1d whenever another continuous effect has changed the object's types,
+/// subtypes or P/T. Known live instances: `blinkmoth_nexus` / `inkmoth_nexus`
+/// animating into artifacts (so they do not feed Metalcraft), and the face-down
+/// override (CR 708.2a), where printed types are still the *hidden* card's and a
+/// count can be too HIGH. Pinned by
+/// `tests/primitives/pb_dx19_characteristics_recursion.rs`. The CR-honest fix is a
+/// CR 613.8b dependency-aware fixpoint — `OOS-DX19-2`, a batch of its own.
+///
+/// The deviation applies **only** inside the layer walk. Everywhere else this is
+/// exactly `expect_characteristics`.
+pub fn characteristics_for_condition(state: &GameState, obj: &GameObject) -> Characteristics {
+    if in_layer_walk() {
+        obj.characteristics.clone()
+    } else {
+        expect_characteristics(state, obj.id)
+    }
+}
+
 /// Calculate the effective characteristics of an object after applying all active
 /// continuous effects through the layer system (CR 613).
 ///
@@ -32,10 +124,25 @@ use std::collections::VecDeque;
 /// That is the function's sole failure mode: every other step is total. A caller
 /// holding an id it knows to be live should therefore use
 /// [`expect_characteristics`] rather than papering over the `None`.
+///
+/// # Re-entrancy (OOS-SIM2-6 / PB-DX19)
+///
+/// This function is **re-entrant by design**: evaluating a conditional continuous
+/// effect's `condition` (CR 604.2) can require inspecting other permanents. Left
+/// unguarded that is an unbounded recursion, because the cycle runs through the
+/// *effect*, not the object — see [`characteristics_for_condition`]. The whole
+/// dynamic extent of this call is therefore marked by a [`LayerWalkGuard`], and
+/// condition evaluation consults [`in_layer_walk`] to decide which characteristics
+/// it is allowed to read.
 pub fn calculate_characteristics(
     state: &GameState,
     object_id: ObjectId,
 ) -> Option<Characteristics> {
+    // OOS-SIM2-6 / PB-DX19: mark the layer walk for its whole dynamic extent. See
+    // [`characteristics_for_condition`] — a condition evaluated from *inside* here
+    // must not resolve another object's characteristics, and a condition evaluated
+    // from anywhere else must.
+    let _layer_walk = LayerWalkGuard::enter();
     let obj = state.objects.get(&object_id)?;
     let obj_zone = obj.zone;
     let mut chars = obj.characteristics.clone();
@@ -1670,7 +1777,10 @@ fn apply_layer_modification(
             chars.toughness = Some(t);
         }
         LayerModification::SetPtToManaValue => {
-            let mv = mana_value as i32;
+            // OOS-SIM2-5 / PB-DX19: `mana_value` is `u32`; bounded in practice by a
+            // printed cost, so completeness rather than a live defect -- but it is a
+            // u32->i32 widening that writes P/T, the shape this batch leaves none of.
+            let mv = i32::try_from(mana_value).unwrap_or(i32::MAX);
             chars.power = Some(mv);
             chars.toughness = Some(mv);
         }
@@ -2414,8 +2524,16 @@ pub(crate) fn resolve_cda_amount(
                 state
                     .objects
                     .get(&object_id)
+                    // OOS-SIM2-5 / PB-DX19 review finding: `try_into`, NOT `as i32`.
+                    // Unlike this function's `.count()` arms, this one is NOT bounded:
+                    // `counters` is `OrdMap<CounterType, u32>` and the value flows into
+                    // the `SetPtDynamic` / `Modify*Dynamic` P/T writes. An `as` cast is
+                    // not checked arithmetic even under `overflow-checks`, so a count
+                    // above `i32::MAX` would wrap to a NEGATIVE power in every profile.
                     .and_then(|obj| obj.counters.get(counter).copied())
-                    .unwrap_or(0) as i32
+                    .unwrap_or(0)
+                    .try_into()
+                    .unwrap_or(i32::MAX)
             } else {
                 debug_assert!(false, "CDA CounterCount with non-Source target");
                 0
@@ -2435,15 +2553,17 @@ pub(crate) fn resolve_cda_amount(
                 crate::state::types::CounterType::Poison => players
                     .iter()
                     .filter_map(|pid| state.expect_player(*pid))
-                    .map(|ps| ps.poison_counters as i32)
-                    .sum(),
+                    // OOS-SIM2-5 / PB-DX19: saturating widen + saturating fold.
+                    .map(|ps| i32::try_from(ps.poison_counters).unwrap_or(i32::MAX))
+                    .fold(0i32, |acc, n| acc.saturating_add(n)),
                 _ => 0,
             }
         }
         // PB-28: Sum of two amounts (e.g. "Elves you control plus Elf cards in graveyard").
         EffectAmount::Sum(a, b) => {
+            // OOS-SIM2-5 / PB-DX19: saturating -- this value reaches a P/T write.
             resolve_cda_amount(state, a, object_id, controller)
-                + resolve_cda_amount(state, b, object_id, controller)
+                .saturating_add(resolve_cda_amount(state, b, object_id, controller))
         }
         // PB-L: Domain count — number of distinct basic land types among lands the
         // controller controls. Uses base characteristics (avoids recursion; land types
