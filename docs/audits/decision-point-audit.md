@@ -757,6 +757,14 @@ new `Command` (and therefore a PROTOCOL bump). **Shipped as PB-DP8, `scutemob-15
 
 ## 8. Proposed primitive-queue insertions
 
+> **📍 The live queue is `memory/primitives/seed-rerank-2026-08-02.md` §4 (v3, `scutemob-182`),
+> which supersedes `memory/primitives/seed-rerank-2026-07-27.md` §4.** §8.1 below is the **filing
+> record** for the seeds this suite and its PB-DX successors discovered — it is not a queue and its
+> `status` column is not a rank. Every §8.1 row filed after 2026-07-27 was chain-verified against
+> HEAD `8195b109` by `scutemob-182`; where a row's premise, scope or latency claim turned out to be
+> stale, **the correction lives in v3 §1c and §2, cited by line, and the row here is deliberately
+> left as filed** so the registry stays a record of what was believed when. Read the two together.
+
 **THE PB-DP SUITE IS COMPLETE — PB-DP1..PB-DP10 ALL SHIPPED** (`scutemob-149..158`; final:
 PB-DP10, `scutemob-158`, the invariant-level gate). Proposals only, historically; the RS queue
 is paused at PB-RS4 and this audit does not edit it — the coordinator ranked PB-DP1..DP10
@@ -863,6 +871,17 @@ decision actually block", not "add another pending vector".**
 > the end of this table. Do not
 > re-dispatch from the "top five" list below without reading the per-row closure markers first —
 > that list is a snapshot of 2026-07-31, and the N4 re-dispatch hazard is exactly a stale banner.
+>
+> **RE-RANKED AGAIN 2026-08-02 (`scutemob-182`) — the pointer in the next paragraph is STALE.**
+> The authoritative queue is now **`memory/primitives/seed-rerank-2026-08-02.md` §4** (v3);
+> `seed-rerank-2026-07-27.md` §4 is banner'd SUPERSEDED. Its top five, in order: **OOS-SIM2-6**
+> (unbounded `calculate_characteristics` recursion — a hard process abort from a deck-legal
+> `Complete` card, one-line fix), **OOS-CARDS2-4** (13 `Complete` Auras unplayable in the browser),
+> **OOS-M11-9** (CR 508.1 attackers may be re-declared without limit), **OOS-UI2-1 + OOS-SIM3-1 +
+> OOS-SIM1-4** (the fuzzer has never cast a spell below ~turn 140 and registers no commander), and
+> **OOS-DX2-5** (no `LegalAction::ChooseDredge` exists for any client). The v2 top five below all
+> shipped as PB-DX1..DX6. The 2026-07-31 paragraph is retained verbatim as the record of what was
+> believed then — the same "do not trust a dated banner" discipline the paragraph above it states.
 >
 > **RE-RANKED 2026-07-31 (`scutemob-159`).** These 109 rows were merged with the paused PB-RS
 > queue and the previously-unranked backlog, and the resulting **authoritative dispatch queue is
@@ -1077,6 +1096,18 @@ seeds land **here**, in the suite's own binding spec. Same role §1c plays for t
 > in-source engine comment (`params.rs`) and this batch is pinned to zero engine lines. Resolving
 > the collision — most cheaply by renumbering the equip row, which has the fewer external cites
 > and is now closed — is left to whichever task next touches `params.rs`.
+>
+> **Update 2026-08-02 (`scutemob-182`)**: the collision was re-verified and still stands (no
+> renumbering has happened). The v3 re-rank writes the two as **`OOS-M11-10(equip)`** (CLOSED) and
+> **`OOS-M11-10(loyalty)`** (ACTIVE, ranked as **PB-DX29**) and uses those disambiguated forms
+> throughout. Chain-verified in passing: the loyalty half fails **loud**, not silently — the
+> ability *is* offered (`legal_actions.rs:981`) and rendered (`view.rs:1078`), and the engine
+> handler validates at `engine.rs:3614` → `casting.rs:5927`, returning `InvalidTarget`. That is
+> the inverse of the equip half, whose guard was on the *supplied* list rather than the *required*
+> one, and it is why the two must not be ranked together. Also corrected: the row's "six-arm
+> `params.rs` allowlist" is **nine** arms now (`params.rs:234-244`; UI-1 added three) —
+> `ActivateLoyaltyAbility` is still outside it, so the conclusion holds but the fix must be
+> re-costed against the current arm set.
 
 ---
 
