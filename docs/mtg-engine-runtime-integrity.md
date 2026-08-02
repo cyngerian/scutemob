@@ -1,6 +1,6 @@
 # Runtime Integrity: Watchdog, Recovery, and Bug Reporting
 
-<!-- last_updated: 2026-08-01 -->
+<!-- last_updated: 2026-08-02 -->
 
 > **Purpose**: Ensure that when a rules bug occurs during a live game, it is caught
 > immediately, the game state is recoverable, and the bug is diagnosable. This is a
@@ -55,7 +55,14 @@ pub fn validate_invariants(state: &GameState) -> Result<(), Vec<InvariantViolati
 **What it checks** (from existing invariants.rs):
 - Zone integrity: every object in exactly one zone, no dangling references
 - Player validity: active_player and priority_holder within bounds
-- Stack consistency: LIFO order, stack zone length matches stack_objects
+- Stack consistency: `ZoneId::Stack` holds exactly the cards named by the stack objects
+  that put a card there, one apiece, in the same order.
+  **This line used to read "LIFO order, stack zone length matches stack_objects", and
+  the length half of that is wrong**: abilities and triggers are stack objects that move
+  no card, so the Stack zone is *shorter* than `stack_objects` in any game where one is
+  on the stack, and a spell's stack-entry id is a different id from its Stack-zone card's
+  (CR 400.7 — see `invariants::check_stack_consistency`'s doc comment). The order half is
+  right and is now actually checked, against the card-owning stack objects only.
 - Object conservation: no objects created or destroyed outside of explicit effects
 - Mana pool: non-negative components
 - Commander: tax never negative, damage_received valid

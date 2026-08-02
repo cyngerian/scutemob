@@ -140,7 +140,7 @@ Theme: `crates/simulator` + the seed inventory. Touches
       the fuzzer reports for a state it cannot reach, for no behavioural gain, at the one
       moment the branch's headline evidence is a measured 500-game fuzz parity. Correct
       to take when something else is already touching `driver.rs`.
-- [ ] **DEFERRED** MR-M11-14 (LOW) — `check_stack_consistency` no longer rejects two
+- [x] **DONE — taken later, by SIM-3 (`scutemob-177`, 2026-08-02)** MR-M11-14 (LOW) — `check_stack_consistency` no longer rejects two
       non-copy `Spell` stack objects claiming the same `source_object` (CR 400.7 makes it
       impossible). Count instead of set-insert and report a duplicate.
       **Deferred at close-out, on this plan's own advice**: the Session 2 gate below names
@@ -149,6 +149,11 @@ Theme: `crates/simulator` + the seed inventory. Touches
       milestone-close activity for a LOW. It also strictly *adds* a violation class, so
       the risk is one-directional and real: this check is the one S8 rewrote to remove
       501 false positives, and re-widening it needs its own measured run.
+      **CLOSED 2026-08-02 by SIM-3**, which was already re-measuring this check and so could
+      pay the deferral's stated price: the widened check emits 0 violations on
+      `--games 5 --seed 1 --max-turns 200` and on all five `local_game_playthrough` seeds,
+      every other check byte-identical. The deferral was correct when taken and the measured
+      run it asked for is the one that closed it.
 - [x] **DONE** MR-M11-12 (LOW) — `auto_tap_commands_for` cites a `mana_solver.rs` doc
       sentence that does not exist. Add the pool / `OOS-M11-2` note to `mana_solver.rs`'s
       module doc, or re-point the cite.

@@ -1,8 +1,14 @@
 //! Invariant checks run after every state transition during fuzzing.
 //!
-//! 12 checks covering zone integrity, ID uniqueness, mana validity,
-//! stack consistency, player consistency, turn order, object-zone
-//! agreement, attachment validity, game progression, and more.
+//! **Nine checks can fire**, plus one deliberate no-op: zone integrity, ID
+//! uniqueness, stack consistency, player consistency, turn order, object-zone
+//! agreement, attachment validity, game progression, orphaned tokens — and
+//! `check_mana_non_negative`, which cannot fail because `ManaPool` is `u32`.
+//!
+//! This header used to say "12 checks", and `docs/mtg-engine-simulator.md` still
+//! lists twelve. Two of those twelve (legal-action soundness, SBA idempotency)
+//! have never been written; SIM-3 (`scutemob-177`) re-derived the list from
+//! [`check_all`] and marked them there. Filed as `OOS-SIM3-2`.
 
 use mtg_engine::{GameState, ObjectId, ZoneId};
 use serde::{Deserialize, Serialize};
@@ -96,8 +102,74 @@ fn check_mana_non_negative(_state: &GameState, _violations: &mut Vec<InvariantVi
     // This check is a no-op but kept for documentation and future-proofing.
 }
 
-/// 4. Stack consistency: the cards in `ZoneId::Stack` are exactly the source cards
-///    of the spells on the stack.
+/// The card in `ZoneId::Stack` that this stack object owns, if it owns one.
+///
+/// # Why this is an exhaustive match and not a two-arm `if let`
+///
+/// Only some `StackObjectKind`s put a *card* on the stack. Which ones is not a
+/// property of the kind's name, and it has already been got wrong once by
+/// enumerating the kinds that "obviously" do (see
+/// [`check_stack_consistency`]'s history note): `MutatingCreatureSpell` is a
+/// cast spell whose card sits in `ZoneId::Stack` exactly like `Spell`'s does —
+/// `casting.rs::handle_cast_spell` performs the same
+/// `move_object_to_zone(card, ZoneId::Stack)` and then chooses between the two
+/// kinds afterwards, on `cast_with_mutate` alone.
+///
+/// So the classification is made once, here, over **every** variant. Adding a
+/// `StackObjectKind` is a compile error in this function until someone decides
+/// which side the new variant is on — the same forcing function SR-5 applies to
+/// `KeywordAbility`. Guessing from the variant name is what produced the defect
+/// this check exists to have fixed.
+///
+/// `None` means "this stack object moved no card": every ability and trigger
+/// kind, whose `source_object` (where it has one) "remains in whatever zone it
+/// is in" per `StackObjectKind`'s own docs.
+fn stack_card_of(kind: &mtg_engine::StackObjectKind) -> Option<ObjectId> {
+    use mtg_engine::StackObjectKind as K;
+    match kind {
+        // CR 601.2c — the card is moved to `ZoneId::Stack` as part of casting.
+        // `MutatingCreatureSpell` is the same cast down the same code path
+        // (`casting.rs`: one `move_object_to_zone`, then a `cast_with_mutate`
+        // branch that picks the kind), CR 702.140a / CR 729.2.
+        K::Spell { source_object } | K::MutatingCreatureSpell { source_object, .. } => {
+            Some(*source_object)
+        }
+        // Everything below puts an ability or a trigger on the stack and moves
+        // no card there. Several of them *do* move a card somewhere — Madness
+        // and Miracle name a card in exile and in hand respectively, Ninjutsu
+        // and the graveyard-recursion abilities move their source at
+        // resolution — but none of those destinations is `ZoneId::Stack`, which
+        // is the only thing this classification is about.
+        K::ActivatedAbility { .. }
+        | K::LoyaltyAbility { .. }
+        | K::TriggeredAbility { .. }
+        | K::MadnessTrigger { .. }
+        | K::MiracleTrigger { .. }
+        | K::UnearthAbility { .. }
+        | K::SuspendCounterTrigger { .. }
+        | K::SuspendCastTrigger { .. }
+        | K::NinjutsuAbility { .. }
+        | K::EmbalmAbility { .. }
+        | K::EternalizeAbility { .. }
+        | K::EncoreAbility { .. }
+        | K::ForecastAbility { .. }
+        | K::ScavengeAbility { .. }
+        | K::BloodrushAbility { .. }
+        | K::SaddleAbility { .. }
+        | K::TransformTrigger { .. }
+        | K::CraftAbility { .. }
+        | K::DayboundTransformTrigger { .. }
+        | K::TurnFaceUpTrigger { .. }
+        | K::KeywordTrigger { .. }
+        | K::RoomAbility { .. }
+        | K::RingAbility { .. }
+        | K::ClassLevelAbility { .. }
+        | K::DelayedActionTrigger { .. } => None,
+    }
+}
+
+/// 4. Stack consistency: `ZoneId::Stack` holds exactly the cards named by the stack
+///    objects that put a card there — one apiece, in the same order.
 ///
 /// # This check used to compare two different id spaces (M11-local S8)
 ///
@@ -115,76 +187,127 @@ fn check_mana_non_negative(_state: &GameState, _violations: &mut Vec<InvariantVi
 /// but not in stack_objects" and "*n+1* in stack_objects but not in Stack zone"), and
 /// every activated or triggered ability produced **one** (an ability puts a
 /// `StackObject` on the stack but moves no card, so its id has no Stack-zone
-/// counterpart and never could). Observed directly: the S8 playthrough over the real
-/// card pool reported 44 of them across five turns of one seed, in consecutive-integer
-/// pairs, in a game with no actual defect.
+/// counterpart and never could).
 ///
 /// This is the same id-space confusion `tools/play-server/src/view.rs`'s `NameIndex`
 /// documents from the other side — `StackObject::id` and the Stack-zone `ObjectId` are
 /// different namespaces that both count from small integers, so a comparison between
 /// them type-checks and means nothing.
 ///
+/// Measured on this branch (SIM-3), the shipped check against the reverted one, same
+/// builds, same seeds:
+///
+/// | run | old check | this check |
+/// |---|---|---|
+/// | `local_game_playthrough`, seed 1 | 720 (638 + 82) | 0 |
+/// | `mtg-fuzzer --games 5 --seed 1 --max-turns 200` | 8,781 (7,575 + 1,206) | 0 |
+///
+/// Every *other* check's count is identical on both sides of that A/B (929
+/// `no_orphaned_tokens` and 9 `player_consistency` in the fuzz run), so the measurement
+/// moves this check and nothing else. 8,781 of that run's 9,719 total violations —
+/// **90.3%** — were this one check being wrong, which is the concrete size of the noise
+/// floor `OOS-DP3-9` and `OOS-M11-3` were reading their "70,719 violations" baseline
+/// through.
+///
 /// # What is actually invariant
 ///
-/// `StackObjectKind::Spell { source_object }` documents `source_object` as "the
-/// `ObjectId` of the card now in `ZoneId::Stack`", and it is the only kind that moves a
-/// card there (every other variant's source "remains in whatever zone it is in"). The
-/// four sites in the engine that move an object into `ZoneId::Stack`
-/// (`casting.rs::handle_cast_spell`, the two cascade/discover paths in `copy.rs`, and
-/// `resolution.rs`'s suspend recast) all end in that same `Spell` kind. So:
+/// [`stack_card_of`] decides, per `StackObjectKind`, whether a stack object owns a card
+/// in `ZoneId::Stack`. Given that:
 ///
-/// 1. every non-copy `Spell` stack object's `source_object` is in `ZoneId::Stack`, and
-/// 2. every object in `ZoneId::Stack` is the `source_object` of some `Spell` stack
-///    object.
+/// 1. every non-copy card-owning stack object's card is in `ZoneId::Stack`;
+/// 2. every object in `ZoneId::Stack` is the card of some card-owning stack object;
+/// 3. no two non-copy stack objects claim the **same** card (CR 400.7 mints a fresh
+///    `ObjectId` on every move onto the stack, so a shared claim is impossible —
+///    `MR-M11-14`, closed here);
+/// 4. the two sequences agree in **order**. Both are appended to together and removed
+///    from together (`casting.rs` pushes the zone entry then the stack object;
+///    countering and resolution take out the pair), so the Stack zone's contents are
+///    the card-owning stack objects' cards read in stack order, with the ability and
+///    trigger entries — which own no card — skipped over. Checked only when 1–3 all
+///    hold, so a set disagreement is reported once as itself rather than twice with an
+///    order complaint on top.
 ///
-/// **Copies are excluded from (1) and only from (1)** (CR 707.10): `copy.rs` clones the
-/// original's `kind` wholesale, so a copy's `source_object` names the *original's* card
-/// — which is correct while the original is still on the stack and dangling the moment
-/// the original is countered, without anything being wrong. A copy adds no Stack-zone
-/// object, so it cannot make (2) fail either way.
+/// **Copies are excluded from (1), (3) and (4), and only from those** (CR 707.10):
+/// `copy.rs` clones the original's `kind` wholesale, so a copy's `source_object` names
+/// the *original's* card — correct while the original is still on the stack, and
+/// dangling the moment the original is countered, without anything being wrong. A copy
+/// adds no Stack-zone object, so it cannot make (2) fail either way.
 fn check_stack_consistency(state: &GameState, violations: &mut Vec<InvariantViolation>) {
-    use mtg_engine::StackObjectKind;
+    let before = violations.len();
 
-    let stack_zone_ids: HashSet<ObjectId> = if let Ok(zone) = state.zone(&ZoneId::Stack) {
-        zone.object_ids().into_iter().collect()
-    } else {
-        HashSet::new()
+    // Ordered: `ZoneId::Stack` is built by `Zone::new_ordered()` (`builder.rs`).
+    let stack_zone_ids: Vec<ObjectId> = match state.zone(&ZoneId::Stack) {
+        Ok(zone) => zone.object_ids(),
+        Err(_) => Vec::new(),
     };
+    let zone_set: HashSet<ObjectId> = stack_zone_ids.iter().copied().collect();
 
-    // The source cards claimed by the spells currently on the stack.
-    let mut claimed: HashSet<ObjectId> = HashSet::new();
+    // The cards claimed by the non-copy stack objects that own one, in stack order.
+    let mut claimed_order: Vec<ObjectId> = Vec::new();
+    let mut claim_counts: HashMap<ObjectId, usize> = HashMap::new();
     for so in state.stack_objects().iter() {
-        let StackObjectKind::Spell { source_object } = &so.kind else {
+        let Some(card) = stack_card_of(&so.kind) else {
             continue;
         };
-        claimed.insert(*source_object);
         if so.is_copy {
             continue;
         }
-        if !stack_zone_ids.contains(source_object) {
+        claimed_order.push(card);
+        *claim_counts.entry(card).or_insert(0) += 1;
+        // (1)
+        if !zone_set.contains(&card) {
             violations.push(InvariantViolation {
                 check: "stack_consistency".into(),
                 description: format!(
-                    "Spell stack object {:?} names source card {:?}, which is not in the Stack zone",
-                    so.id, source_object
+                    "Stack object {:?} names card {:?}, which is not in the Stack zone",
+                    so.id, card
                 ),
                 turn_number: state.turn().turn_number,
             });
         }
     }
 
+    // (2)
     for id in &stack_zone_ids {
-        if !claimed.contains(id) {
+        if !claim_counts.contains_key(id) {
             violations.push(InvariantViolation {
                 check: "stack_consistency".into(),
                 description: format!(
-                    "Object {:?} is in the Stack zone but no spell on the stack names it as its \
-                     source card",
+                    "Object {:?} is in the Stack zone but no stack object names it as its card",
                     id
                 ),
                 turn_number: state.turn().turn_number,
             });
         }
+    }
+
+    // (3) MR-M11-14 / CR 400.7.
+    for (card, count) in &claim_counts {
+        if *count > 1 {
+            violations.push(InvariantViolation {
+                check: "stack_consistency".into(),
+                description: format!(
+                    "Card {:?} in the Stack zone is claimed by {} non-copy stack objects; CR \
+                     400.7 mints a fresh ObjectId per move onto the stack, so at most one can \
+                     name it",
+                    card, count
+                ),
+                turn_number: state.turn().turn_number,
+            });
+        }
+    }
+
+    // (4) Only meaningful once 1-3 hold — see the doc comment.
+    if violations.len() == before && claimed_order != stack_zone_ids {
+        violations.push(InvariantViolation {
+            check: "stack_consistency".into(),
+            description: format!(
+                "Stack zone order {:?} does not match the order the stack objects claim their \
+                 cards in ({:?})",
+                stack_zone_ids, claimed_order
+            ),
+            turn_number: state.turn().turn_number,
+        });
     }
 }
 
@@ -302,5 +425,364 @@ fn check_no_orphaned_tokens(state: &GameState, violations: &mut Vec<InvariantVio
                 turn_number: state.turn().turn_number,
             });
         }
+    }
+}
+
+/// SIM-3 (`scutemob-177`): probes for [`check_stack_consistency`], both directions.
+///
+/// # Why this module exists at all
+///
+/// Before SIM-3 this file had **no** test module across 306 lines, and the check it
+/// most needed one for was a false positive by construction that shipped for months
+/// and flooded every fuzz artefact the project produced. A check with no test is a
+/// check nobody can tell apart from a check that always passes, which is exactly what
+/// the rewrite risks becoming in the other direction — so every probe below is paired:
+/// a healthy state that must be silent, and a deliberately broken one that must not
+/// be.
+///
+/// The states are hand-built rather than played out. That is the point: the properties
+/// under test are ones no legal sequence of `Command`s can violate, so the only way to
+/// prove the check would *catch* them is to construct them. The healthy-state probes
+/// are built to mirror `casting.rs::handle_cast_spell` exactly — the Stack-zone card
+/// first, then a stack object whose id is a *different, larger* number — because the
+/// consecutive-integer relationship between those two ids is the whole reason the old
+/// check looked plausible.
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use mtg_engine::{GameStateBuilder, ObjectSpec, PlayerId, StackObject, StackObjectKind};
+
+    fn p(n: u64) -> PlayerId {
+        PlayerId(n)
+    }
+
+    /// Just this check's violations, so a hand-built state tripping some *other*
+    /// invariant (a bare `GameStateBuilder` state has no library, for instance)
+    /// cannot make a probe pass or fail for the wrong reason.
+    fn stack_violations(state: &GameState) -> Vec<String> {
+        let mut v = Vec::new();
+        check_stack_consistency(state, &mut v);
+        v.into_iter().map(|x| x.description).collect()
+    }
+
+    /// A stack object of `kind`, built the way `resolution.rs`'s suspend free-cast
+    /// builds its `Spell` entry — `StackObject::trigger_default` with the cast flags
+    /// at their defaults.
+    fn stack_obj(id: u64, kind: StackObjectKind) -> StackObject {
+        StackObject::trigger_default(ObjectId(id), p(1), kind)
+    }
+
+    /// A two-player state with `stack_names` in `ZoneId::Stack` (in that order) and
+    /// one card in hand. Returns the Stack-zone ids in zone order, then the hand id —
+    /// a real object that is genuinely *not* on the stack, which is what the
+    /// "names a card that is not in the Stack zone" probes need.
+    fn state_with(stack_names: &[&str]) -> (GameState, Vec<ObjectId>, ObjectId) {
+        let mut b = GameStateBuilder::new().add_player(p(1)).add_player(p(2));
+        for name in stack_names {
+            b = b.object(ObjectSpec::card(p(1), name).in_zone(ZoneId::Stack));
+        }
+        b = b.object(ObjectSpec::card(p(1), "Card In Hand").in_zone(ZoneId::Hand(p(1))));
+        let state = b.build().expect("builder state");
+
+        let ids = state
+            .zone(&ZoneId::Stack)
+            .expect("Stack zone exists")
+            .object_ids();
+        assert_eq!(
+            ids.len(),
+            stack_names.len(),
+            "fixture did not put every card on the stack"
+        );
+        let hand = state
+            .objects()
+            .iter()
+            .find(|(_, o)| o.characteristics.name == "Card In Hand")
+            .map(|(id, _)| *id)
+            .expect("hand card");
+        (state, ids, hand)
+    }
+
+    /// T1 — a healthy one-spell stack is silent.
+    ///
+    /// Non-vacuity is asserted, not assumed: the fixture must actually have a card in
+    /// the Stack zone and a stack object naming it, or "0 violations" would prove
+    /// nothing at all.
+    #[test]
+    fn t1_healthy_single_spell_stack_is_silent() {
+        let (mut state, ids, _hand) = state_with(&["Lightning Bolt"]);
+        let card = ids[0];
+        state.stack_objects_mut().push_back(stack_obj(
+            card.0 + 1,
+            StackObjectKind::Spell {
+                source_object: card,
+            },
+        ));
+
+        assert_eq!(state.zone(&ZoneId::Stack).unwrap().object_ids().len(), 1);
+        assert_eq!(state.stack_objects().len(), 1);
+        assert!(
+            stack_violations(&state).is_empty(),
+            "healthy stack must be silent: {:?}",
+            stack_violations(&state)
+        );
+    }
+
+    /// T2 — the historical record: on T1's *healthy* state, the pre-S8 check fired
+    /// twice.
+    ///
+    /// This is the fail-before evidence pinned in code rather than left in a commit
+    /// message. It re-implements the old comparison verbatim (`zone(Stack).object_ids()`
+    /// against `stack_objects().map(|so| so.id)`, as sets, both directions) and asserts
+    /// it produces exactly the two-violation pair the doc comment describes — one per
+    /// direction, on consecutive integers, in a state with nothing wrong with it.
+    ///
+    /// If this ever stops producing 2, the id-space relationship this check's whole
+    /// design rests on has changed and the doc comment above is stale.
+    #[test]
+    fn t2_the_pre_s8_check_fired_twice_on_that_same_healthy_state() {
+        let (mut state, ids, _hand) = state_with(&["Lightning Bolt"]);
+        let card = ids[0];
+        state.stack_objects_mut().push_back(stack_obj(
+            card.0 + 1,
+            StackObjectKind::Spell {
+                source_object: card,
+            },
+        ));
+
+        let zone_ids: HashSet<ObjectId> = state
+            .zone(&ZoneId::Stack)
+            .unwrap()
+            .object_ids()
+            .into_iter()
+            .collect();
+        let entry_ids: HashSet<ObjectId> = state.stack_objects().iter().map(|so| so.id).collect();
+        let old_violations =
+            zone_ids.difference(&entry_ids).count() + entry_ids.difference(&zone_ids).count();
+
+        assert_eq!(
+            old_violations, 2,
+            "the pre-S8 check's two-per-spell false positive is the premise of the rewrite"
+        );
+        assert!(
+            stack_violations(&state).is_empty(),
+            "…and this check says 0"
+        );
+    }
+
+    /// T3 — direction (1): a stack object naming a card that is not in the Stack zone.
+    ///
+    /// The card named is a real object in hand, so this is a genuine
+    /// stack-object/zone divergence and not a dangling-id lookup failure.
+    #[test]
+    fn t3_spell_naming_a_card_outside_the_stack_zone_fires() {
+        let (mut state, _ids, hand) = state_with(&[]);
+        state.stack_objects_mut().push_back(stack_obj(
+            500,
+            StackObjectKind::Spell {
+                source_object: hand,
+            },
+        ));
+
+        let v = stack_violations(&state);
+        assert_eq!(v.len(), 1, "{v:?}");
+        assert!(v[0].contains("not in the Stack zone"), "{v:?}");
+    }
+
+    /// T4 — direction (2): a card sitting in the Stack zone that no stack object claims.
+    #[test]
+    fn t4_orphaned_stack_zone_card_fires() {
+        let (state, ids, _hand) = state_with(&["Lightning Bolt"]);
+        assert_eq!(state.stack_objects().len(), 0);
+
+        let v = stack_violations(&state);
+        assert_eq!(v.len(), 1, "{v:?}");
+        assert!(v[0].contains("no stack object names it"), "{v:?}");
+        assert!(v[0].contains(&format!("{:?}", ids[0])), "{v:?}");
+    }
+
+    /// T5 — CR 707.10: a copy naming a card that has left the stack is *not* a
+    /// violation, and the exclusion is load-bearing.
+    ///
+    /// Both halves are asserted. The same stack object with `is_copy = false` must
+    /// fire, or "copies are excluded" would be an untested claim about a branch that
+    /// might as well not be there.
+    #[test]
+    fn t5_copy_exclusion_is_real_and_load_bearing() {
+        let (mut state, _ids, hand) = state_with(&[]);
+        let mut so = stack_obj(
+            500,
+            StackObjectKind::Spell {
+                source_object: hand,
+            },
+        );
+        so.is_copy = true;
+        state.stack_objects_mut().push_back(so);
+        assert!(
+            stack_violations(&state).is_empty(),
+            "a copy's dangling source_object is CR 707.10, not a defect"
+        );
+
+        state.stack_objects_mut().clear();
+        let mut so = stack_obj(
+            500,
+            StackObjectKind::Spell {
+                source_object: hand,
+            },
+        );
+        so.is_copy = false;
+        state.stack_objects_mut().push_back(so);
+        assert_eq!(
+            stack_violations(&state).len(),
+            1,
+            "the exclusion must be the only thing that silenced the copy"
+        );
+    }
+
+    /// T6 — property (3), `MR-M11-14`: two non-copy stack objects claiming one card.
+    ///
+    /// CR 400.7 mints a fresh `ObjectId` every time a card moves onto the stack, so
+    /// this state is unreachable — which is precisely why nothing but an invariant
+    /// check would ever notice it.
+    #[test]
+    fn t6_two_non_copies_claiming_one_card_fires() {
+        let (mut state, ids, _hand) = state_with(&["Lightning Bolt"]);
+        let card = ids[0];
+        for entry in [card.0 + 1, card.0 + 2] {
+            state.stack_objects_mut().push_back(stack_obj(
+                entry,
+                StackObjectKind::Spell {
+                    source_object: card,
+                },
+            ));
+        }
+
+        let v = stack_violations(&state);
+        assert_eq!(v.len(), 1, "{v:?}");
+        assert!(
+            v[0].contains("claimed by 2 non-copy stack objects"),
+            "{v:?}"
+        );
+    }
+
+    /// T7 — property (4): the two sequences disagree in order.
+    ///
+    /// Set-equal, no duplicates, nothing dangling — the *only* thing wrong is that the
+    /// Stack zone holds the two cards bottom-to-top and the stack objects name them
+    /// top-to-bottom. Nothing before SIM-3 looked at order at all.
+    #[test]
+    fn t7_order_disagreement_fires() {
+        let (mut state, ids, _hand) = state_with(&["Lightning Bolt", "Counterspell"]);
+        for (n, card) in ids.iter().rev().enumerate() {
+            state.stack_objects_mut().push_back(stack_obj(
+                100 + n as u64,
+                StackObjectKind::Spell {
+                    source_object: *card,
+                },
+            ));
+        }
+
+        let v = stack_violations(&state);
+        assert_eq!(v.len(), 1, "{v:?}");
+        assert!(v[0].contains("does not match the order"), "{v:?}");
+
+        // …and in the right order it is silent, so T7 is testing order and not a
+        // second copy of T3/T4.
+        state.stack_objects_mut().clear();
+        for (n, card) in ids.iter().enumerate() {
+            state.stack_objects_mut().push_back(stack_obj(
+                100 + n as u64,
+                StackObjectKind::Spell {
+                    source_object: *card,
+                },
+            ));
+        }
+        assert!(
+            stack_violations(&state).is_empty(),
+            "{:?}",
+            stack_violations(&state)
+        );
+    }
+
+    /// T8 — **the SIM-3 finding**: a mutate cast is silent.
+    ///
+    /// `casting.rs::handle_cast_spell` moves the card into `ZoneId::Stack` and *then*
+    /// branches on `cast_with_mutate` to choose between `Spell` and
+    /// `MutatingCreatureSpell` (CR 702.140a / CR 729.2). The S8 rewrite classified on
+    /// the `Spell` variant alone, on the stated premise that every Stack-zone move
+    /// "ends in that same `Spell` kind" — which this state is the counterexample to:
+    /// before [`stack_card_of`], this fired direction (2) on every mutate cast, a
+    /// false positive of exactly the shape the rewrite existed to delete.
+    ///
+    /// Revert `stack_card_of`'s `MutatingCreatureSpell` arm to `None` and this test
+    /// fails; that is the discrimination.
+    #[test]
+    fn t8_mutating_creature_spell_owns_its_stack_card() {
+        let (mut state, ids, _hand) = state_with(&["Gemrazer"]);
+        let card = ids[0];
+        state.stack_objects_mut().push_back(stack_obj(
+            card.0 + 1,
+            StackObjectKind::MutatingCreatureSpell {
+                source_object: card,
+                target: ObjectId(9_999),
+            },
+        ));
+
+        assert!(
+            stack_violations(&state).is_empty(),
+            "a mutate cast puts its card in the Stack zone exactly as a plain cast \
+             does: {:?}",
+            stack_violations(&state)
+        );
+    }
+
+    /// T9 — the fuzz-shaped half of the old false positive: an ability on the stack
+    /// owns no card, and that is not a divergence.
+    ///
+    /// This is the arm that produced 7,575 of the 8,781 violations the pre-S8 check
+    /// emitted over five fuzz games — those games cast no spells at all, so *every*
+    /// stack object in them was an ability or a trigger.
+    #[test]
+    fn t9_an_ability_on_the_stack_owns_no_card() {
+        let (mut state, _ids, hand) = state_with(&[]);
+        state.stack_objects_mut().push_back(stack_obj(
+            500,
+            StackObjectKind::ActivatedAbility {
+                source_object: hand,
+                ability_index: 0,
+                embedded_effect: None,
+            },
+        ));
+
+        assert!(
+            stack_violations(&state).is_empty(),
+            "an activated ability moves no card to the stack: {:?}",
+            stack_violations(&state)
+        );
+    }
+
+    /// T10 — the check is actually wired into [`check_all`].
+    ///
+    /// T1–T9 call `check_stack_consistency` directly, which would keep passing if
+    /// someone deleted its line from `check_all`. This one goes through the front
+    /// door, in both directions.
+    #[test]
+    fn t10_check_all_dispatches_to_this_check() {
+        let (mut state, ids, _hand) = state_with(&["Lightning Bolt"]);
+        let named = |s: &GameState| {
+            check_all(s, None)
+                .into_iter()
+                .filter(|v| v.check == "stack_consistency")
+                .count()
+        };
+        assert_eq!(named(&state), 1, "orphaned Stack-zone card, via check_all");
+
+        let card = ids[0];
+        state.stack_objects_mut().push_back(stack_obj(
+            card.0 + 1,
+            StackObjectKind::Spell {
+                source_object: card,
+            },
+        ));
+        assert_eq!(named(&state), 0, "…and silent once it is claimed");
     }
 }
