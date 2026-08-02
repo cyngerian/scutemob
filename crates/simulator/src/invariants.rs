@@ -209,6 +209,17 @@ fn stack_card_of(kind: &mtg_engine::StackObjectKind) -> Option<ObjectId> {
 /// floor `OOS-DP3-9` and `OOS-M11-3` were reading their "70,719 violations" baseline
 /// through.
 ///
+/// **What the clean side of that A/B is not evidence of.** The same qualification
+/// `OOS-SIM3-1` puts on everybody else's fuzz parity applies here: `bin/fuzzer.rs` never
+/// shuffles a library, so the first spell in those games is cast around **turn 143** and
+/// the whole 5-game run contains ~150 of them, none involving a counter, a copy, a mutate
+/// or a suspend; the playthrough is a fixed human script that casts only untargeted
+/// spells. So the run proves the check is quiet on ordinary casts, and the properties
+/// below rest on the structural argument, not on it. Two live engine defects that
+/// legitimately trip this check are filed as `OOS-SIM3-5` precisely because the evidence
+/// could not have caught them — read a `stack_consistency` violation as a real finding
+/// again, which is the point of the batch.
+///
 /// # What is actually invariant
 ///
 /// [`stack_card_of`] decides, per `StackObjectKind`, whether a stack object owns a card

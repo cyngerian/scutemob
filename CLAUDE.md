@@ -45,6 +45,11 @@
   very long games and stack-overflows at `--max-turns 200`; pre-existing, reproduced on pristine
   merge-base code by S8 — **and SIM-2 diagnosed a mechanism**, `OOS-SIM2-6`: an unbounded
   `calculate_characteristics` recursion that `indomitable_archangel` makes unconditional),
+  **DE-NOISED by SIM-3** (`scutemob-177`) — this seed's `stack_consistency` half is WITHDRAWN,
+  measured: the check was a false positive by construction and accounted for **90.3%** of a
+  5-game fuzz run's entire violation volume (9,719 → 938). Its determinism and stack-overflow
+  halves stand; read every pre-2026-08-02 `stack_consistency` count as a spell-and-ability
+  census, not a defect count,
   **OOS-M11-7** (CR 704.3 SBAs are checked on step entry and at resolution,
   not on every priority grant, so a token sacrificed as a mana cost lingers in the graveyard until
   the next of those — self-healing, never wrong at rest), **OOS-M11-9** (`handle_declare_attackers`
@@ -86,6 +91,12 @@
   (OOS-DP7-11 + OOS-DP9-13 — the SR-19 gate reports success while checking nothing; test-only, 0
   flips; brief in `memory/primitives/seed-rerank-2026-07-27.md`). Older queue history (the PB-OS,
   PB-RS and PB-DP chains) is rotated to the 2026-08 archive.
+- **Tests (branch pin, SIM-3 `scutemob-177`)**: **4,257 passing / 0 failing / 5 ignored**, +10
+  over the **4,247** merge-base baseline at `f40c9fb9`. All ten are the new `#[cfg(test)] mod
+  tests` in `crates/simulator/src/invariants.rs` — the file had none across 306 lines — and
+  every one was watched failing under a deliberate revert (a **9-revert** matrix: R1–R7 each
+  fail exactly one test, R8/R9 cover the over-firing direction). The older pins below are the
+  pre-SIM-3 snapshot.
 - **Tests (branch pin, UI-2 `scutemob-178`)**: **4,218 passing / 0 failing / 5 ignored**, +33
   over the **4,185** merge-base baseline at `8cad9c36` measured on this branch before any edit.
   Split: 8 simulator unit tests (eligibility mirror, `CantBeSacrificed`, two-sided offer
@@ -218,7 +229,51 @@
 - **Recurrence rule** — future `/collect` and milestone-close bookkeeping appends its detailed PB/SR
   narrative to that archive file (newest first), and updates only a one-paragraph snapshot delta
   here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
-- **Last Updated**: 2026-08-02 — **UI-2 SHIPPED** (`scutemob-178`): playtest-triage **F9
+- **Last Updated**: 2026-08-02 — **SIM-3 SHIPPED** (`scutemob-177`): playtest-triage **F6
+  CLOSED**, and with it the **triage is fully closed — OPEN = none**. The `stack_consistency`
+  invariant compared two id namespaces CR 400.7 guarantees will differ, so it fired on every
+  spell and every ability in a healthy game. M11-local S8 had already diagnosed that and
+  rewritten the check; **this batch found the rewrite carried a false positive of its own, on
+  the exact premise it stated in writing.** S8's doc block claimed the four engine sites that
+  move an object into `ZoneId::Stack` "all end in that same `Spell` kind";
+  `casting.rs::handle_cast_spell` moves the card **first** and then branches on
+  `cast_with_mutate`, so a mutate cast (CR 702.140a) puts a card in the Stack zone under a
+  `MutatingCreatureSpell` kind and the check reported it as an orphan every time. **Same shape
+  as `OOS-SIM1-3` one and two batches earlier — an enumeration is only as complete as the
+  category it names**, and here the category was "kinds that obviously put a card on the
+  stack", read off variant names. Classification is now `stack_card_of`, an **exhaustive match
+  over all 27 `StackObjectKind` variants**: a new variant is a compile error until someone
+  classifies it, the forcing function SR-5 already applies to `KeywordAbility`. Two properties
+  the old set comparison could not express were added and measured — **MR-M11-14 CLOSED** (no
+  two non-copy stack objects may claim one card, CR 400.7; its deferral had asked for a
+  measured run and this batch was already measuring) and **order** (structurally guaranteed,
+  and the `/review` verified that argument rather than accepting the clean runs as proof).
+  **Measured A/B**, old check restored verbatim from `222ff84f^`, same builds and seeds:
+  scripted playthrough seed 1 **720 → 0**, `mtg-fuzzer --games 5 --seed 1 --max-turns 200`
+  **8,781 → 0**, with every other check byte-identical across both sides — **8,781 of that
+  run's 9,719 violations, 90.3%, were this one check being wrong.** Both prose docs corrected
+  (`mtg-engine-simulator.md` **and** `mtg-engine-runtime-integrity.md`; S8 had corrected
+  neither), and correcting them turned up the same defect class one line over: **two of the
+  twelve documented invariant checks have never been written** (legal-action soundness — which
+  is the SR-38 property — and SBA idempotency), a third is a no-op, and the parallel list in
+  `runtime-integrity.md` has **four** that exist nowhere (`OOS-SIM3-2`). **The two findings
+  that outlive the batch**: **OOS-SIM3-1** — `OOS-UI2-1`'s "`mtg-fuzzer` has never cast a
+  spell" is right about the mechanism and wrong about the **horizon**; at the fuzzer's default
+  `--max-turns 200`, **150 distinct cards reached `ZoneId::Stack` across 5 games, the earliest
+  on turn 143**, so the land-only game is a threshold below ~turn 140 rather than an absolute,
+  and UI-2 measured at a cap of 80. And **OOS-SIM3-3** — every "N violations" figure this
+  project has ever quoted is **checkpoint-weighted**: 929 `no_orphaned_tokens` reports come
+  from **183 distinct tokens**, 9 `player_consistency` reports from **1** condition. Tests
+  **4,247 → 4,257 / 0 / 5**; PROTOCOL **33** / HASH **70** gate-EXECUTED unmoved (the
+  criterion's "32" was stale again); `decision_gate` 18/18; **zero engine lines** — the only
+  source file in the diff is `crates/simulator/src/invariants.rs`. Seeds **OOS-SIM3-1..5**
+  filed in `docs/audits/decision-point-audit.md` §8.1; **OOS-SIM3-5** is the one to read
+  first — `Effect::CounterSpell` drops `MutatingCreatureSpell` into its `_ =>` arm *after*
+  removing the stack object (stranding the card in `ZoneId::Stack` forever) and, given a
+  **copy**, moves the *original's* card; both are engine defects that will legitimately trip
+  the new check, and neither is in this batch's evidence. Handoff:
+  `memory/workstream-state.md`.
+- **Prior**: 2026-08-02 — **UI-2 SHIPPED** (`scutemob-178`): playtest-triage **F9
   CLOSED** for the two cost kinds it names — a human can now be *asked* which creature to
   sacrifice, and can *choose* to pay Squad. **The request wire already existed and had for
   three sessions**: `CastSpellData.additional_costs` covers all sixteen kinds and

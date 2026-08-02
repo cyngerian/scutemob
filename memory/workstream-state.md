@@ -766,6 +766,13 @@
   Turns/Commands/Winner/Error across all 50 seeds, identical aggregates. Only difference
   is `stack_consistency` violation *line ordering*, which is the known `OOS-M11-3`
   nondeterminism (total violation count identical).
+  > **VOIDED as evidence by SIM-3 (`scutemob-177`, 2026-08-02).** Those
+  > `stack_consistency` lines were false positives by construction — the check compared
+  > `StackObject::id` against the Stack-zone `ObjectId`, two id namespaces CR 400.7
+  > guarantees will differ. So "only difference is their line ordering" is a statement
+  > about the ordering of noise, and cites `OOS-M11-3` for something that was never
+  > evidence of nondeterminism. **The byte-identical Turns/Commands/Winner/Error result
+  > stands and is what that bullet's claim actually rests on.**
 - **`HumanChoice` is now a struct** (`{ action_index, params }`), not
   `enum HumanChoice::Command(Command)`. `submit` builds the command itself for
   `pending.player`, so a **cross-seat command is structurally unrepresentable** — S1's
@@ -831,6 +838,115 @@
   non-layer-resolved `mana_abilities`) — S3 owns the pool half; the re-rank
   (`scutemob-159`) confirmed its exclusion from the primitive queue. `OOS-M11-3` (fuzzer
   nondeterminism in 150-200+ turn games) untouched.
+
+## Worker Handoff (SIM-3, `scutemob-177`)
+
+**Date**: 2026-08-02 (worker session)
+**Workstream**: playtest-triage successor track (SIM-3) — **F6 CLOSED**; playtest triage is
+now **fully closed** (`memory/playtest-triage-2026-08-02.md`: OPEN = none)
+**Task**: `scutemob-177`. Branch
+`feat/sim-3-stackconsistency-invariant-is-a-false-positive-by-cons`
+
+**The task was re-scoped before it started, and the re-scope was half right.** The
+coordinator's own comment said M11-local S8 had already rewritten the check with the same
+diagnosis, so the task shrank to "tests + one doc line". Two of those three residuals were
+as described (no test module; `docs/mtg-engine-simulator.md` still wrong in prose). The
+third was not: `docs/mtg-engine-runtime-integrity.md` was **also** still wrong — S8 had
+corrected neither. And the rewrite itself carried a residual false positive.
+
+**Completed**:
+
+1. **The finding: the S8 rewrite classified on `StackObjectKind::Spell` alone, and its
+   stated premise for doing so is false.** Its doc block asserted that the four engine
+   sites that move an object into `ZoneId::Stack` "all end in that same `Spell` kind".
+   `casting.rs::handle_cast_spell` moves the card at `:4399` and *then* branches on
+   `cast_with_mutate` at `:4504`, so a **mutate** cast (CR 702.140a / CR 729.2) puts a card
+   in the Stack zone under a `MutatingCreatureSpell` kind — and the check reported it as an
+   orphan, on every such cast, in a game with nothing wrong with it. **Generalisable, and
+   it is the same shape as `OOS-SIM1-3` and `OOS-SIM2`'s fix-cycle finding one and two
+   batches earlier: an enumeration is only as complete as the category it names.** Here the
+   category was "kinds that obviously put a card on the stack", read off variant names.
+   Classification is now `invariants::stack_card_of`, an **exhaustive match over all 27
+   variants** — adding a `StackObjectKind` is a compile error until someone classifies it,
+   the forcing function SR-5 already applies to `KeywordAbility`.
+
+2. **Two properties the old set comparison could not express, both added and both
+   measured.** Property (3) closes **MR-M11-14** (LOW, deferred): no two non-copy stack
+   objects may claim the same card, CR 400.7. Its deferral had asked for a measured run
+   before widening the check — this batch was already measuring, so it could pay that
+   price, and `memory/m11-fix-session-plan.md` is updated to `[x] DONE`. Property (4) is
+   order: the Stack zone's contents are the card-owning stack objects' cards read in stack
+   order, ability and trigger entries skipped. Structurally guaranteed (`Zone::Ordered`
+   inserts at the back only; every entry site pairs the zone move with a
+   `stack_objects.push_back`; every removal takes the pair; CR 608.2d suspension restores
+   `restart_point` wholesale) — the `/review` verified that argument independently rather
+   than accepting the 10 clean runs as proof.
+
+3. **Measured A/B**, old check restored verbatim from `222ff84f^`, same builds, same seeds:
+   `local_game_playthrough` seed 1 **720 → 0** (638 + 82 by direction; the test fails on the
+   first seed with the old check, passes on all five with the new); `mtg-fuzzer --games 5
+   --seed 1 --max-turns 200` **8,781 → 0** (7,575 + 1,206). Every other check byte-identical
+   across the A/B (929 `no_orphaned_tokens`, 9 `player_consistency`), so the measurement
+   moves this check and nothing else. **8,781 of that run's 9,719 violations — 90.3% — were
+   this one check being wrong.**
+
+4. **Ten probes in a new `#[cfg(test)] mod tests`** (the file had none across 306 lines),
+   every one watched failing under a deliberate revert: a **9-revert matrix** in which
+   R1–R7 each fail exactly one test and R8/R9 cover the over-firing direction. T2 pins the
+   pre-S8 check's two-per-spell false positive as a historical record in code.
+
+**Durable lessons**
+
+- **A redaction of a false positive is not the same as a proof of the truth.** S8 removed
+  501 false positives and the number went to zero, which read as done; the *reason* it
+  went to zero was that no seed in its evidence cast a mutate spell. Zero is not a proof
+  when the population is thin.
+- **`OOS-UI2-1` is right about the mechanism and wrong about the horizon** —
+  **`OOS-SIM3-1`**, and the most reusable thing here. UI-2 measured 5 games × 80 turns, saw
+  no non-land in hand, and concluded "every fuzz parity claim in this project's history is
+  a claim about a land-only game". At the fuzzer's **default** `--max-turns 200`, **150
+  distinct cards reached `ZoneId::Stack` across 5 games, the earliest on turn 143** — the
+  basics run out and real spells start resolving. The deck-order defect is real and
+  unchanged; its consequence is a **threshold**, not an absolute. Any future fuzz A/B
+  should say which side of turn ~140 it lives on.
+- **Every "N violations" figure this project has quoted is checkpoint-weighted**
+  (**`OOS-SIM3-3`**): `check_all` re-reports a condition that is still true at every
+  command. Measured: 929 `no_orphaned_tokens` reports = **183 distinct tokens**; 9
+  `player_consistency` reports = **1 condition**. The inflation factor is not constant, so
+  those totals are not comparable to each other.
+
+**Seeds filed** (`docs/audits/decision-point-audit.md` §8.1): **OOS-SIM3-1** (the horizon
+qualification above), **OOS-SIM3-2** (two of the twelve documented invariant checks have
+never been written — legal-action soundness and SBA idempotency — a third is a no-op, and
+`runtime-integrity.md`'s parallel list has four that do not exist), **OOS-SIM3-3**
+(checkpoint-weighted totals), **OOS-SIM3-4** (`no_orphaned_tokens` is now the next noise
+floor at 929 of the 938 remaining, and OOS-M11-7 says they are *expected* — so the fuzzer
+still is not a clean smoke test, for a new reason), **OOS-SIM3-5** (`/review`:
+`Effect::CounterSpell` drops `MutatingCreatureSpell` into its `_ =>` arm after already
+removing the stack object, stranding the card in `ZoneId::Stack` forever; and countering a
+**copy** moves the *original's* card. Both are engine defects that will legitimately trip
+this check, neither is in this batch's evidence — **read the next one as a real finding,
+not a SIM-3 regression**).
+
+**Also updated**: `OOS-DP3-9`'s `stack_consistency` half **WITHDRAWN** with the A/B
+attached (its stack-overflow half stands and now has `OOS-SIM2-6` as a named mechanism; its
+`crash-reports/.gitignore` rider re-checked and closed — `.gitignore:52`). The
+`memory/workstream-state.md` bot-parity bullet that cited `stack_consistency` line ordering
+as evidence of `OOS-M11-3` nondeterminism is annotated as **voided** — it was ordering of
+noise; the byte-identical Turns/Commands/Winner/Error result is what that claim rests on.
+
+**Gates**: tests **4,247 → 4,257 / 0 / 5** (+10, exactly the probes). `cargo fmt --check` +
+`tools/check-defs-fmt.sh` (1,803 defs) clean; `clippy --workspace --all-targets -D
+warnings` clean; `cargo build --workspace` clean (the SR-3 seal gate — the probes use the
+`test-util` escape hatches and are `#[cfg(test)]`, so the seal holds). **PROTOCOL 33 /
+HASH 70 gate-EXECUTED unmoved** (the criterion's "32" is stale, as UI-1/UI-2/SIM-2 also
+found); `decision_gate` 18/18. **Zero engine lines** — the only source file in the diff is
+`crates/simulator/src/invariants.rs`.
+
+**Not done, deliberately**: `OOS-SIM3-5`'s two engine defects are left unfixed
+(`crates/simulator`-only batch). `OOS-SIM3-2`'s two missing checks are marked in both docs,
+not written — #10 (legal-action soundness) is the SR-38 property and is close to free, since
+`GameDriver` already distinguishes a rejected command from an applied one.
 
 ## Worker Handoff (SIM-2, `scutemob-176`)
 
