@@ -834,6 +834,25 @@
 
 ## Last Handoff
 
+> **ADDENDUM 2026-08-02 (coordinator, post-crash recovery session)** — the crash state below is
+> resolved: **`scutemob-173` COLLECTED (merge `51878905`) — M11-LOCAL IS COMPLETE**, on-main
+> verified **4,097 / 0** (matches the worker's branch pin exactly); task `done` in ESM.
+> **`scutemob-172` (PB-DX6) RESTARTED FRESH** per the agreed recovery: branch reset to plan
+> commit `4d367c54`, the unverified 94-file WIP preserved as branch `wip/scutemob-172-crash-20260802`,
+> new worker running in the same worktree (1/5 criteria, mid-implement). **The equip finding
+> below is FILED**: seed **OOS-M11-10** (`e4b93ac0`, audit §8.1) + repair task `scutemob-179` —
+> measured roster is **16 of 17** real equip activations (4 of the 22 grep hits are prose-only,
+> 1 is a correct triggered self-attach), 10 of the 16 `Complete` via the `#[default]` derive.
+> Also this session: the user's full playtest notes were verified claim-by-claim
+> (`memory/playtest-triage-2026-08-02.md`, F1–F10 — **zero engine bugs**, everything is
+> simulator/play-server/card-def) and a **corpus-wide mana-cost audit** found **17 wrong costs
+> (9 deck-legal `Complete`**, incl. `tyrranax_rex` 3 mana cheap); successor tasks
+> **`scutemob-174..181`** created in backlog (pickers, commander cast, mana intelligence,
+> invariant fix, additional costs, equip batch, UX polish, field-fidelity gate). S8's merge
+> re-baselined 176/177: OOS-M11-8 ({X} auto-tap) is CLOSED in-branch by S8, and S8 already
+> rewrote the false-positive `stack_consistency` check (task 177 shrinks to tests + one doc line).
+> No dispatch of 174..181 without explicit user approval (standing directive).
+
 **Date**: 2026-08-01..02 (oversight session — parallel two-lane waves; wave 7 lost to a kitty crash; /eot 2026-08-02)
 **Workstream**: W6 (PB-DX queue) + M11-local track, run as parallel pairs
 **Task**: coordinator chain `scutemob-160..173` (waves 1-6 collected; wave 7 crashed in-flight)
