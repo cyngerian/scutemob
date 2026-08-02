@@ -280,9 +280,10 @@ fn p_the_ring_tempts_you(v: &Value) -> bool {
 
 /// All 22 §3.1 rows, classified against the engine as it exists on this branch (plan §3).
 /// The table has 22 entries because the audit's row 4 ("DiscardCards ... `WheelHand`")
-/// splits into two runtime predicates with two different classes: `discard_cards` really is
-/// AUTO-chosen, but `wheel_hand` discards the WHOLE hand so the pick order is unobservable —
-/// NO-DECISION, not AUTO.
+/// splits into two runtime predicates with two different classes: `discard_cards` was
+/// AUTO-chosen until ENG-1 (2026-08-02) served it via `EffectChoiceQuestion::Discard`
+/// (CR 701.9b); `wheel_hand` discards the WHOLE hand so the pick order is unobservable —
+/// NO-DECISION, not AUTO, and is unaffected by ENG-1.
 pub static ROWS: &[Row] = &[
     Row {
         id: "triggered_targets",
@@ -317,10 +318,10 @@ pub static ROWS: &[Row] = &[
     Row {
         id: "discard_cards",
         cr: "701.9 / 701.9b",
-        site: "effects/mod.rs::discard_cards -- min_by_key(id) in a loop",
-        class: DecisionClass::AutoChosen {
-            why_not_flagged_is_wrong:
-                "CR 701.9b: the affected player chooses which card, by default; the engine picks the lowest ObjectId",
+        site: "effects/mod.rs::execute_effect (DiscardCards) -> EffectChoiceQuestion::Discard",
+        class: DecisionClass::Served {
+            by: "ENG-1",
+            residual: &["OOS-ENG1-1", "OOS-ENG1-2", "OOS-ENG1-3", "OOS-ENG1-4"],
         },
         predicate: p_discard_cards,
     },
