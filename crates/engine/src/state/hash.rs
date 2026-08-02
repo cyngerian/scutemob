@@ -3224,6 +3224,11 @@ impl HashInto for EffectChoiceQuestion {
                 2u8.hash_into(hasher);
                 looked_at.hash_into(hasher);
             }
+            EffectChoiceQuestion::Discard { hand, count } => {
+                3u8.hash_into(hasher);
+                hand.hash_into(hasher);
+                count.hash_into(hasher);
+            }
         }
     }
 }
@@ -3243,6 +3248,10 @@ impl HashInto for EffectChoiceAnswer {
                 2u8.hash_into(hasher);
                 graveyard.hash_into(hasher);
                 top.hash_into(hasher);
+            }
+            EffectChoiceAnswer::Discard { chosen } => {
+                3u8.hash_into(hasher);
+                chosen.hash_into(hasher);
             }
         }
     }

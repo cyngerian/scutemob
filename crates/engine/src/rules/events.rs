@@ -1487,10 +1487,17 @@ pub enum GameEvent {
     ///
     /// HIDDEN INFORMATION (Architecture Invariant 7). Unlike
     /// `TriggerTargetChoiceRequired`, every id here names a card in a HIDDEN
-    /// zone: the library candidates that matched a search filter (CR 401.2) or
-    /// the top N a player is looking at (CR 701.22a / 701.25a). Knowing WHICH
-    /// ids match is itself hidden information even though no card identity is
-    /// carried. So `reveals_hidden_info()` is `true` AND
+    /// zone, and the recipient is entitled to see every one of them -- but for
+    /// two DIFFERENT reasons, and the second one is newer and weaker, so it is
+    /// stated rather than folded into the first: the library candidates that
+    /// matched a search filter (CR 401.2) or the top N a player is looking at
+    /// (CR 701.22a / 701.25a) are hidden because the EFFECT grants the look,
+    /// only for as long as it is resolving; a discard question's `hand`
+    /// (ENG-1, CR 701.9b) is hidden because it is the answerer's OWN hand --
+    /// the entitlement isn't granted by the effect at all, the player already
+    /// holds those cards, and CR 701.9b names them as the chooser. Either way,
+    /// knowing WHICH ids are in play is itself hidden information even though
+    /// no card identity is carried. So `reveals_hidden_info()` is `true` AND
     /// [`GameEvent::private_to`] returns `Some(player)`.
     ///
     /// Discriminant: 131.

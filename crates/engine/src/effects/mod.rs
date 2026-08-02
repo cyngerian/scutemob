@@ -204,7 +204,8 @@ pub struct EffectContext {
     /// swallowed failure (SR-4). The obligation the branch skips is discharged
     /// instead by `tests/primitives/pb_dp9_effect_choice.rs`'s
     /// `test_dp9_mana_ability_gate`, whose roster assertion proves no `Complete`
-    /// card def puts one of the three asking effects inside a mana ability.
+    /// card def puts one of the four asking effects (SearchLibrary, Scry,
+    /// Surveil, DiscardCards) inside a mana ability.
     ///
     /// Deliberately on the context, not on `GameState`: it never crosses a
     /// command boundary.
@@ -377,6 +378,30 @@ pub fn default_surveil_answer(q: &EffectChoiceQuestion) -> EffectChoiceAnswer {
         _ => default_effect_choice_answer(q),
     }
 }
+/// CR 608.2d / CR 701.9b (ENG-1): the deterministic default answer for an
+/// effect-driven discard -- the `count` LOWEST `ObjectId`s, byte-identical to
+/// the pre-ENG-1 `discard_cards` auto-pick (`min_by_key(|id| id.0)`, taken `n`
+/// times against an ascending hand). So the discard half of ENG-1 is zero-churn
+/// for bot-only games and the fuzzer: the same cards are discarded, in the same
+/// order; only the COMMAND TRACE grows an `AnswerEffectChoice`.
+///
+/// **This is the OPPOSITE end of the sorted hand from
+/// `rules::turn_actions::default_cleanup_discard`**, which takes the `count`
+/// HIGHEST ids. Both helpers are doing the same job -- reproduce the auto-pick
+/// their site used to make -- and the two auto-picks genuinely differed
+/// (CR 514.1's took `obj_ids.last()`; CR 701.9b's took `min_by_key`). Do not
+/// "unify" them; pinned in one place by
+/// `test_eng1_defaults_reproduce_both_pre_batch_picks`.
+///
+/// Called by nobody in the engine; see [`default_search_answer`].
+pub fn default_discard_answer(q: &EffectChoiceQuestion) -> EffectChoiceAnswer {
+    match q {
+        EffectChoiceQuestion::Discard { hand, count } => EffectChoiceAnswer::Discard {
+            chosen: hand.iter().take(*count as usize).copied().collect(),
+        },
+        _ => default_effect_choice_answer(q),
+    }
+}
 /// CR 608.2d (PB-DP9): the deterministic default answer for any resolution-time
 /// question — the dispatcher every caller should actually use.
 ///
@@ -397,6 +422,9 @@ pub fn default_effect_choice_answer(q: &EffectChoiceQuestion) -> EffectChoiceAns
         EffectChoiceQuestion::Surveil { looked_at } => EffectChoiceAnswer::Surveil {
             graveyard: Vec::new(),
             top: looked_at.clone(),
+        },
+        EffectChoiceQuestion::Discard { hand, count } => EffectChoiceAnswer::Discard {
+            chosen: hand.iter().take(*count as usize).copied().collect(),
         },
     }
 }
@@ -490,10 +518,11 @@ fn ask_or_consume_effect_choice(
         // swallowed failure (SR-4). The obligation this branch skips (offering
         // the choice) is discharged instead by
         // `tests/primitives/pb_dp9_effect_choice.rs::test_dp9_mana_ability_gate`,
-        // which asserts no `Complete` card def puts one of the three asking
-        // effects inside a mana ability. If that assertion ever reddens, this
-        // branch has become live and the card in question needs a rules
-        // decision, not a silent default.
+        // which asserts no `Complete` card def puts one of the four asking
+        // effects (SearchLibrary, Scry, Surveil, DiscardCards) inside a mana
+        // ability. If that assertion ever reddens, this branch has become live
+        // and the card in question needs a rules decision, not a silent
+        // default.
         return Some(default_effect_choice_answer(&question));
     }
     // CR 104.3a / 800.4: a player who has left the game announces nothing, so
@@ -630,6 +659,9 @@ pub fn handle_answer_effect_choice(
         ) | (
             EffectChoiceQuestion::Surveil { .. },
             EffectChoiceAnswer::Surveil { .. }
+        ) | (
+            EffectChoiceQuestion::Discard { .. },
+            EffectChoiceAnswer::Discard { .. }
         )
     );
     if !variants_agree {
@@ -671,6 +703,39 @@ pub fn handle_answer_effect_choice(
             EffectChoiceAnswer::Surveil { graveyard, top },
         ) => {
             validate_partition(looked_at, graveyard, top, "CR 701.25a")?;
+        }
+        (EffectChoiceQuestion::Discard { hand, count }, EffectChoiceAnswer::Discard { chosen }) => {
+            // CR 701.9b: exactly `count`, no duplicates, every one from the hand
+            // the ENGINE recorded. Nothing is re-derived from the board and
+            // nothing positional is trusted from the wire.
+            //
+            // `validate_partition` is deliberately NOT reused here: a discard
+            // answer is not a partition (the unchosen cards stay in hand, never
+            // touched by this effect), and its message strings say "every
+            // looked-at card must be placed exactly once", which would be a
+            // false diagnosis for a discard. Duplicating the ~12 lines is the
+            // right call.
+            if chosen.len() != *count as usize {
+                return Err(GameStateError::InvalidCommand(format!(
+                    "CR 701.9b: this effect discards exactly {count} card(s); the answer \
+                     names {}",
+                    chosen.len()
+                )));
+            }
+            let mut seen: Vec<ObjectId> = Vec::with_capacity(chosen.len());
+            for id in chosen {
+                if seen.contains(id) {
+                    return Err(GameStateError::InvalidCommand(format!(
+                        "CR 701.9b: {id:?} is named more than once"
+                    )));
+                }
+                if !hand.contains(id) {
+                    return Err(GameStateError::InvalidCommand(format!(
+                        "CR 701.9b: {id:?} is not in the hand this effect is discarding from"
+                    )));
+                }
+                seen.push(*id);
+            }
         }
         // Unreachable: check 4 established variant agreement.
         _ => unreachable!("variant agreement checked above"),
@@ -1199,11 +1264,74 @@ fn execute_effect_inner(
                 events.extend(draw_evts);
             }
         }
+        // CR 701.9b (ENG-1): "By default, effects that cause a player to
+        // discard a card allow the affected player to choose which card to
+        // discard." Before ENG-1 this arm called `discard_cards` straight
+        // through, which takes the lowest `ObjectId` -- the human's
+        // leftmost/oldest card -- and the affected player was never asked.
+        // No def in the corpus prints "at random" or "another player chooses",
+        // so the CR default covers the whole live corpus (see the missing
+        // `chooser` field, OOS-ENG1-3).
         Effect::DiscardCards { player, count } => {
-            let n = resolve_amount(state, count, ctx) as usize;
+            // MR-M7-05, applied here for the first time (see the DrawCards arm
+            // above): a negative amount cast straight to `usize` wraps to ~1.8e19
+            // and `discard_cards`' loop has no empty-hand break, so it is an
+            // effective hang in release. The short-circuit below also needs `n`
+            // to be a real count.
+            let n = resolve_amount(state, count, ctx).max(0) as usize;
             let players = resolve_player_target_list(state, player, ctx);
             for p in players {
-                discard_cards(state, p, n, events);
+                // CR 701.9b: the whole hand is the legal answer space, ascending
+                // (`state.objects` is an `imbl::OrdMap`, and `retain`/`filter`
+                // preserve its order) -- the same order the pre-ENG-1
+                // `min_by_key` scanned, so `hand[..n]` IS the old auto-pick.
+                let hand_zone = ZoneId::Hand(p);
+                let hand: Vec<ObjectId> = state
+                    .objects
+                    .iter()
+                    .filter(|(_, obj)| obj.zone == hand_zone)
+                    .map(|(&id, _)| id)
+                    .collect();
+                debug_assert!(
+                    hand.windows(2).all(|w| w[0].0 < w[1].0),
+                    "CR 608.2d: the discard question's hand must be in ascending \
+                     ObjectId order -- the replay's question-equality check and \
+                     `default_discard_answer` both depend on it"
+                );
+                // CR 601.2c's principle (the same argument the search arm makes
+                // at the `!may_fail_to_find && candidates.len() == 1` branch):
+                // when the answer space admits exactly ONE legal answer the
+                // announcement is DETERMINED, so there is nothing to announce.
+                // `n == 0` -> the empty set is the only answer; `n >= hand.len()`
+                // -> the whole hand is (and an empty hand is that case too).
+                // Skipping the question here is what keeps a full-hand discard
+                // from costing a round trip and from perturbing a fuzz seed.
+                if n == 0 || n >= hand.len() {
+                    discard_cards(state, p, n, events);
+                    continue;
+                }
+                let question = EffectChoiceQuestion::Discard {
+                    hand: hand.clone(),
+                    count: n as u32,
+                };
+                let chosen = match ask_or_consume_effect_choice(state, ctx, p, question) {
+                    Some(EffectChoiceAnswer::Discard { chosen }) => chosen,
+                    Some(other) => {
+                        debug_assert!(
+                            false,
+                            "CR 608.2d: variant mismatch answering a discard: {other:?}"
+                        );
+                        hand.iter().take(n).copied().collect()
+                    }
+                    // Suspended. Apply NOTHING -- the wrapper rolls the whole
+                    // resolution back. The `for p in players` loop must not
+                    // continue either: every later player's question is
+                    // re-derived by the replay.
+                    None => return,
+                };
+                for id in &chosen {
+                    discard_one_chosen_card(state, p, *id, events);
+                }
             }
         }
         // CR 701.9 / 701.24 / 121.1: wheel effect — dispose of the hand, then draw.
@@ -5522,6 +5650,11 @@ fn execute_effect_inner(
                     let mut nonland_count: u32 = 0;
                     for _ in 0..n {
                         // Deterministic: discard the card with the smallest ObjectId.
+                        // deferred, OOS-ENG1-2 -- CR 701.50a / CR 701.9b: this auto-pick
+                        // does not offer the affected player CR 701.9b's choice. Not
+                        // closed by ENG-1: the nonland counter above must survive a
+                        // suspend/replay if this becomes an announced choice, which is
+                        // a real design question, not a rename.
                         let card_id = state
                             .objects
                             .iter()
@@ -9379,6 +9512,18 @@ fn draw_cards_for_player(state: &mut GameState, player: PlayerId, n: usize) -> V
 }
 /// Discard `n` cards from a player's hand (first by ObjectId, deterministic).
 ///
+/// **This is the AUTO-PICK path only.** CR 701.9b's actual choice -- the
+/// affected player picks WHICH card -- is served for a resolution-time discard
+/// by the `Effect::DiscardCards` arm above (ENG-1), which asks an
+/// `EffectChoiceQuestion::Discard` and calls [`discard_one_chosen_card`] per
+/// announced id instead of this loop. `discard_cards` itself is never removed:
+/// two callers still reach it with no choice offered, deliberately --
+/// `Effect::WheelHand` (CR 701.9, "discard your hand": there is nothing to
+/// choose, the whole hand goes) and `Cost::DiscardCard` (a cost-payment site
+/// with no resolution wrapper to roll back to if an ask suspended there; see
+/// `OOS-ENG1-1`). Both are structural, not oversights -- see the placement
+/// discussion in `memory/primitives/pb-plan-ENG1.md` §2.4.
+///
 /// CR 702.35a: If a discarded card has `KeywordAbility::Madness`, it is exiled
 /// instead of going to the graveyard. The `CardDiscarded` event still fires (per
 /// CR ruling: "A card with madness that's discarded counts as having been discarded
@@ -9394,55 +9539,66 @@ fn discard_cards(state: &mut GameState, player: PlayerId, n: usize, events: &mut
             .map(|(&id, _)| id)
             .min_by_key(|id| id.0);
         if let Some(card_id) = card_id {
-            // CR 702.35a: Check if the card has Madness before zone change.
-            let obj_card_id = state.objects.get(&card_id).and_then(|o| o.card_id.clone());
-            let has_madness = state
-                .objects
-                .get(&card_id)
-                .map(|obj| {
-                    obj.characteristics
-                        .keywords
-                        .contains(&KeywordAbility::Madness)
+            discard_one_chosen_card(state, player, card_id, events);
+        }
+    }
+}
+/// CR 701.9a / CR 702.35a / CR 400.7: discard ONE named card from `player`'s
+/// hand. The per-card body extracted from `discard_cards` so that the announced
+/// path (ENG-1, CR 701.9b) and the auto-pick path share one implementation of
+/// the Madness route, the event and the trigger push.
+fn discard_one_chosen_card(
+    state: &mut GameState,
+    player: PlayerId,
+    card_id: ObjectId,
+    events: &mut Vec<GameEvent>,
+) {
+    // CR 702.35a: Check if the card has Madness before zone change.
+    let obj_card_id = state.objects.get(&card_id).and_then(|o| o.card_id.clone());
+    let has_madness = state
+        .objects
+        .get(&card_id)
+        .map(|obj| {
+            obj.characteristics
+                .keywords
+                .contains(&KeywordAbility::Madness)
+        })
+        .unwrap_or(false);
+    let destination = if has_madness {
+        ZoneId::Exile
+    } else {
+        ZoneId::Graveyard(player)
+    };
+    if let Some((new_id, _)) = state.expect_move_object_to_zone(card_id, destination) {
+        // CR ruling: CardDiscarded always fires, even when card goes to exile.
+        events.push(GameEvent::CardDiscarded {
+            player,
+            object_id: card_id,
+            new_id,
+        });
+        if has_madness {
+            // CR 702.35a: Look up the madness cost and queue the trigger via
+            // pending_triggers so flush_pending_triggers properly signals priority.
+            let madness_cost = obj_card_id.as_ref().and_then(|cid| {
+                state.card_registry.get(cid.clone()).and_then(|def| {
+                    def.abilities.iter().find_map(|a| {
+                        if let crate::cards::card_definition::AbilityDefinition::Madness { cost } =
+                            a
+                        {
+                            Some(cost.clone())
+                        } else {
+                            None
+                        }
+                    })
                 })
-                .unwrap_or(false);
-            let destination = if has_madness {
-                ZoneId::Exile
-            } else {
-                ZoneId::Graveyard(player)
-            };
-            if let Some((new_id, _)) = state.expect_move_object_to_zone(card_id, destination) {
-                // CR ruling: CardDiscarded always fires, even when card goes to exile.
-                events.push(GameEvent::CardDiscarded {
-                    player,
-                    object_id: card_id,
-                    new_id,
-                });
-                if has_madness {
-                    // CR 702.35a: Look up the madness cost and queue the trigger via
-                    // pending_triggers so flush_pending_triggers properly signals priority.
-                    let madness_cost = obj_card_id.as_ref().and_then(|cid| {
-                        state.card_registry.get(cid.clone()).and_then(|def| {
-                            def.abilities.iter().find_map(|a| {
-                                if let crate::cards::card_definition::AbilityDefinition::Madness {
-                                    cost,
-                                } = a
-                                {
-                                    Some(cost.clone())
-                                } else {
-                                    None
-                                }
-                            })
-                        })
-                    });
-                    state.pending_triggers.push_back(PendingTrigger {
-                        data: Some(TriggerData::Madness {
-                            exiled_card: new_id,
-                            cost: madness_cost.unwrap_or_default(),
-                        }),
-                        ..PendingTrigger::blank(new_id, player, PendingTriggerKind::Madness)
-                    });
-                }
-            }
+            });
+            state.pending_triggers.push_back(PendingTrigger {
+                data: Some(TriggerData::Madness {
+                    exiled_card: new_id,
+                    cost: madness_cost.unwrap_or_default(),
+                }),
+                ..PendingTrigger::blank(new_id, player, PendingTriggerKind::Madness)
+            });
         }
     }
 }

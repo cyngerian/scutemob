@@ -900,8 +900,32 @@ pub enum FlushResumeSite {
 /// closure.
 ///
 /// **Hidden information (Architecture Invariant 7).** Every `ObjectId` in every
-/// variant names a card in a HIDDEN zone -- the library. That is why
-/// `GameEvent::EffectChoiceRequired::private_to()` returns `Some(player)`.
+/// variant names a card in a HIDDEN zone, and the recipient is entitled to see
+/// every one of them -- but for two DIFFERENT reasons, and the second one is
+/// newer and weaker, so it is stated rather than folded into the first:
+///
+/// * `SearchLibrary` / `Scry` / `Surveil` name cards in the answerer's LIBRARY.
+///   The effect itself is what grants the look (CR 701.23a / 701.22a / 701.25a):
+///   the player is entitled to see these ids only because this effect is
+///   resolving, and only for as long as it is.
+/// * `Discard` (ENG-1, CR 701.9b) names cards in the answerer's own HAND. The
+///   entitlement is not granted by the effect at all -- the player already holds
+///   those cards. CR 701.9b names "the affected player" as the chooser, and
+///   `PendingEffectChoice.player` IS that player, so the ids are only ever sent
+///   to the seat that already has them.
+///
+/// Either way the answerer may see the whole question, which is why
+/// `GameEvent::EffectChoiceRequired::private_to()` returns `Some(player)` --
+/// unchanged by ENG-1.
+///
+/// **The premise the hand variant rests on, named so it can be checked.** "The
+/// answerer owns the cards" is only true because `entry.player` is enforced in
+/// three independent places: `process_command`'s admission gate,
+/// `effects::handle_answer_effect_choice` check 2 (the SR-29 trust boundary),
+/// and -- on the read side -- the play-server guard pinned by
+/// `test_ui1_a_foreign_seats_effect_choice_never_reaches_this_payload`. If any
+/// of those three is ever relaxed, this variant leaks a hand and the library
+/// variants leak a look; the hand is the one a human will notice.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum EffectChoiceQuestion {
     /// CR 701.23a: every card in the searched zone(s) matching the effect's
@@ -919,6 +943,25 @@ pub enum EffectChoiceQuestion {
     Scry { looked_at: Vec<ObjectId> },
     /// CR 701.25a: the top N cards, **top-first**.
     Surveil { looked_at: Vec<ObjectId> },
+    /// CR 701.9b: the affected player's whole hand, in ascending `ObjectId`
+    /// order, and how many cards they must choose.
+    ///
+    /// `hand` is the FULL hand, not a pre-trimmed subset: CR 701.9b puts no
+    /// restriction on which card may be chosen, so the whole hand IS the legal
+    /// answer space. Named `hand` (not `candidates`) to match
+    /// `GameEvent::CleanupDiscardChoiceRequired.hand` and
+    /// `LegalAction::DiscardToHandSize.hand` -- the two discard channels in this
+    /// engine should use one vocabulary, and a reader who knows one should not
+    /// have to learn the other.
+    ///
+    /// `count` is `u32` to match `PendingCleanupDiscard.count` and
+    /// `BlockingDecision::CleanupDiscard { count }`, for the same reason.
+    ///
+    /// Ascending order is REQUIRED, not incidental: the replay's
+    /// question-equality check compares this value structurally, and
+    /// `default_discard_answer` recovers the pre-batch auto-pick by taking the
+    /// first `count` entries.
+    Discard { hand: Vec<ObjectId>, count: u32 },
 }
 /// CR 608.2d (PB-DP9): the player's answer to an [`EffectChoiceQuestion`].
 ///
@@ -945,6 +988,23 @@ pub enum EffectChoiceAnswer {
         graveyard: Vec<ObjectId>,
         top: Vec<ObjectId>,
     },
+    /// CR 701.9b: the cards the affected player chose. Exactly the question's
+    /// `count` of them, no duplicates, every one drawn from the question's
+    /// `hand`.
+    ///
+    /// The ORDER is meaningful and is the player's to choose: it is the order
+    /// the cards are discarded, and therefore (CR 608.2f / CR 404.3) the
+    /// relative order they enter the graveyard.
+    ///
+    /// **Named `chosen`, not `discarded`.** The three sibling answers name a
+    /// DESTINATION (`found`, `bottom`/`top`, `graveyard`/`top`) because those
+    /// questions are about where cards go. This one is not a partition -- the
+    /// unchosen cards stay in hand and the effect never touches them -- so a
+    /// destination name would overstate what the answer says. Worse, it would
+    /// be WRONG: CR 702.35a sends a chosen Madness card to EXILE, so at answer
+    /// time nothing has been discarded and the destination is not yet known.
+    /// `chosen` names the act CR 701.9b actually gives the player.
+    Discard { chosen: Vec<ObjectId> },
 }
 /// CR 608.2d (PB-DP9): the one resolution-time choice the engine is currently
 /// blocked on.
