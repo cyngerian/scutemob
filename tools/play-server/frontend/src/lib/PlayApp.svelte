@@ -17,6 +17,7 @@
 
   import ActionBar from './ActionBar.svelte';
   import EventFeed from './EventFeed.svelte';
+  import { getReport } from './api.js';
   import {
     act,
     decision,
@@ -95,6 +96,55 @@
     clearSelection();
     keptHand = true;
     await keepHand();
+  }
+
+  // ── Bug-report export (Session 8, item 5) ──────────────────────────────────
+
+  /**
+   * Status line for the export button. `null` when idle.
+   *
+   * Deliberately NOT routed through the shared `error` store: that store drives
+   * the dismissible banner every *game action* uses, and a failed download is not
+   * a game event — surfacing it there would suggest the game state is in doubt
+   * when nothing was submitted.
+   */
+  let reportStatus = $state(null);
+
+  /**
+   * Fetch `GET /api/game/report` and hand it to the browser as a download.
+   *
+   * `URL.createObjectURL` + a synthetic `<a download>` rather than opening the
+   * endpoint in a tab: a tab would render 20,000 lines of JSON, and the filename
+   * carries the reproduction key (seed and mulligan count) so a saved file is
+   * self-identifying without being opened.
+   *
+   * The object URL is revoked in a `finally`, so a failed click leaks nothing.
+   */
+  async function handleExportReport() {
+    reportStatus = 'Building report…';
+    let url = null;
+    try {
+      const report = await getReport();
+      const json = JSON.stringify(report, null, 2);
+      const blob = new Blob([json], { type: 'application/json' });
+      url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `scutemob-report-seed${report.seed}-mull${report.config.mulligan_count}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      reportStatus = `Saved ${a.download} (${report.journal.length} commands).`;
+    } catch (e) {
+      // `.kind` is the play server's stable machine tag; `no_session` is the
+      // ordinary "you have not started a game" case and deserves plain words.
+      reportStatus =
+        e?.kind === 'no_session'
+          ? 'No game is running — start one first.'
+          : `Export failed: ${e?.message ?? e}`;
+    } finally {
+      if (url) URL.revokeObjectURL(url);
+    }
   }
 
   // ── Click-through (plan item 6) ────────────────────────────────────────────
@@ -277,7 +327,12 @@
         <span class="stat"><b>seat</b> Human-{summary.human}</span>
         <span class="stat"><b>players</b> {summary.players}</span>
         <span class="stat"><b>bot</b> {summary.bot}</span>
-        <span class="stat"><b>seed</b> {summary.seed}</span>
+        <!--
+          The seed is deliberately NOT shown, and not sent: review MR-M11-01 removed it
+          from `GameSummary` because it reconstructs every other seat's opening hand and
+          library order (Architecture Invariant 7). It is in the "Export report"
+          download, which is the documented exception.
+        -->
         <span class="stat"><b>mulligans</b> {summary.mulligan_count}</span>
         <span class="stat"><b>commands</b> {summary.command_count}</span>
         {#if summary.pregame}<span class="badge">pregame</span>{/if}
@@ -294,8 +349,29 @@
         <input type="text" inputmode="numeric" placeholder="default" bind:value={playersInput} />
       </label>
       <button class="primary" disabled={$loading} onclick={handleNewGame}>New game</button>
+      <!--
+        Not disabled on `$loading`: the export is a pure read that cannot disturb a
+        request in flight (`api.rs::get_report` neither advances the game nor moves
+        `journal_cursor`), and the moment you most want a repro file is while
+        something is stuck.
+      -->
+      <!--
+        No braces in this title: Svelte reads `{...}` in an attribute as an
+        expression, so the obvious "a {seed, config, journal, state hash} artefact"
+        would be compiled as code rather than shown as text.
+      -->
+      <button
+        onclick={handleExportReport}
+        title="Download a repro artefact: seed, config, journal and final state hash"
+      >
+        Export report
+      </button>
     </div>
   </header>
+
+  {#if reportStatus}
+    <div class="report-status">{reportStatus}</div>
+  {/if}
 
   {#if state}
     <PhaseIndicator turn={state.turn} />
@@ -594,6 +670,15 @@
 
   .pregame-text {
     color: #997;
+  }
+
+  /* Session 8, item 5 — the export button's own status line. */
+  .report-status {
+    padding: 0.3rem 0.8rem;
+    background: #0f1a14;
+    border-bottom: 1px solid #1e4030;
+    color: #8ba;
+    font-size: 0.75rem;
   }
 
   .chooser,

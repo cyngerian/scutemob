@@ -67,3 +67,121 @@ already support legal curated decks; simulator (GameDriver/bots/LegalActionProvi
 exists and needs only a human-input bridge. Note: the review's "headless Debian can't
 build Tauri" premise is stale (dev is now skylarch, full desktop) — the web-first call
 was made on iteration-speed and single-stack grounds, not the environment constraint.
+
+## 2026-08-01 — M11-local design decisions (recorded at close, `scutemob-173` / S8 item 7)
+
+Four decisions taken during M11-local that the milestone rests on. Each was made inside
+a session and is recorded here so the *reason* survives the session log.
+
+### 1. The human-input bridge is a **steppable driver**, not a channel-backed `Bot`
+
+**Decision** (M11-local planning, `scutemob-147`; shipped S1 `scutemob-147`,
+`crates/simulator/src/local_game.rs`): a human occupies a seat by the caller *stepping*
+the game — `advance()` runs bot seats and returns `AwaitingHuman(PendingDecision)`;
+`submit(seq, choice)` answers — rather than by implementing `Bot` for a channel that
+blocks waiting on a human.
+
+**Why**: the obvious design is a `HumanBot: Bot` whose `choose_action` blocks on a
+channel, because `GameDriver` already takes `Box<dyn Bot>` per seat. It does not work,
+for a reason specific to this engine rather than to blocking:
+
+* **`Bot::choose_action` returns a `Command`, and a rejected `Command` is silently
+  swallowed.** `driver.rs`'s loop answers a rejection by issuing `PassPriority` on the
+  seat's behalf. For a bot that is a reasonable safety valve; for a human it means an
+  illegal play is answered by *passing your turn* with no error. `submit` returns
+  `Result` precisely so that cannot happen (S8 item 4).
+* **Every sub-decision is already a field of the returned `Command`.** Targets, X, modes,
+  attacker/blocker sets — `Bot`'s extra `choose_targets` / `choose_attackers` /
+  `choose_blockers` callbacks exist for bot convenience, not because the engine asks
+  separately. A human client needs to supply them *with* the action, which is what
+  `ActionParams` does.
+* A blocking channel also forces an async or threaded host on `crates/simulator`, which
+  Architecture Invariant 1's spirit (and the fuzzer's throughput) argues against.
+
+**Consequence, and it is the milestone's structural win**: `GameDriver::run_game` is
+re-expressed on top of `LocalGame` with `human_seats` empty, so there is **one** loop
+rather than two that can drift. Verified byte-identical across 500 fuzz games at close
+(`memory/m11/s8-fuzz-parity.md`).
+
+### 2. **No WebSocket and no SSE** in M11-local
+
+**Decision** (S5, `scutemob-167`): the play server is plain request/response.
+`POST /api/game/action` calls `submit` then `advance` **inside the same request**, so
+the bots play their whole turn synchronously and the response already carries the state
+the human must next act on.
+
+**Why**: a push channel exists to tell a client something it is not already waiting for.
+On this surface there is no such moment — the server never knows anything the client has
+not been told in a response it is holding open. Adding a socket would buy nothing and
+cost a second state-delivery path to keep consistent with the first. Push infrastructure
+is M10a's problem, where there *are* other players acting between your requests.
+
+**Consequence**: no reconnection logic, no message ordering, no heartbeat, and the whole
+client is `fetch`. Revisit at M10a, not before.
+
+### 3. The view model is a **shared crate**, `crates/view-model`
+
+**Decision** (S4, `scutemob-165`): `tools/replay-viewer/src/view_model.rs` was moved to
+its own workspace crate (`mtg-view-model`) rather than copied into the play server.
+
+**Why**: two consumers needed the same `GameState` → view-model conversion, and the
+conversion carries **two exhaustive matches over engine enums** (`StackObjectKind` via
+`stack_kind_info`, `KeywordAbility` via `format_keyword`). A copy forks silently the
+first time either enum gains a variant — the copy still compiles, and only one of the two
+renderings is right. A shared crate makes that a compile error in one place.
+
+The move also let redaction be added as a *second entry point*
+(`from_game_state_for(.., Viewer)`) rather than as a change to the omniscient one the
+stepper legitimately wants, which is what makes Architecture Invariant 7 a chokepoint
+rather than a discipline.
+
+**The Svelte components are shared the same way but by Vite alias**, not by copy — and
+the first breakage proved the point: `ZoneHand.svelte` keyed its `#each` on
+`card.object_id`, unique for the omniscient viewer and *not* for a redacted payload
+(every unreadable card gets `object_id: 0`), so Svelte's `each_key_duplicate` threw the
+mount down. Fixed once, in the shared component. **Generalisation: every id-uniqueness
+assumption in those components is now a claim about the redacted view model too.**
+
+### 4. Mulligans are a **pregame rebuild**, not `Command::TakeMulligan`
+
+**Decision** (S2 `scutemob-161`, kept at S5): `POST /api/game/mulligan` rebuilds the
+whole table from a perturbed seed (`setup::redeal`) instead of issuing the engine's
+`Command::TakeMulligan`.
+
+**Why**: M11-local offers mulligans *before* `start_game` is ever called, so no command
+has been issued and a rebuild invalidates no history. That is simpler than routing an
+in-game command through a game that has not started.
+
+**Note the original rationale was falsified and this is not it.** The M11 plan's R2 said
+a real mulligan needed a caller-supplied permutation and therefore a new `Command` — a
+wire change. **False**: the engine already had a deterministic seeded PRNG
+(`StdRng::seed_from_u64(state.timestamp_counter)`), and PB-DP2 (`scutemob-150`) made
+`handle_take_mulligan` shuffle for real with PROTOCOL 27 / HASH 63 unmoved. The rebuild
+therefore survives on *simplicity*, not on necessity. **Reusable lesson: check for an
+existing in-engine deterministic seed source before concluding a permutation needs a new
+Command.**
+
+**Two limitations, both real and both documented at `setup::redeal`**: the rebuild is not
+invisible to the other seats (CR 903.6 puts every commander in the *public* command zone
+and a rebuild re-rolls them), and it cannot represent a partially-decided table (CR
+103.5c gives each player their own mulligan count). CR 103.5's bottoming half is not
+expressible at all — `handle_keep_hand` checks `cards_to_bottom` against
+`PlayerState::mulligan_count`, which a rebuild leaves at 0 — so a non-empty
+`cards_to_bottom` is **refused with 400** rather than accepted and discarded. A per-seat
+mulligan model belongs with M10a's real pregame flow.
+
+### 5. `GET /api/game/report` is deliberately **not** seat-redacted
+
+**Decision** (S8, `scutemob-173`): the bug-report export carries every seat's raw
+`Command`s and `GameEvent`s, while every other payload in `tools/play-server` goes
+through the Architecture Invariant 7 chokepoint.
+
+**Why**: a redacted repro is not a repro. A maintainer replaying a defect needs the
+`AnswerEffectChoice` that named a library card, and redacting it makes the artefact
+unusable for the one purpose it has. This is safe **only because of what M11-local is**:
+one human, three bots, one process, no networking — the only "other players" are
+simulator bots in the same process as the person clicking the button.
+
+**This must be re-scoped at M10a**, when the other end of a socket is a real person:
+redacted, or single-player-only, or authenticated. Recorded here, at
+`view.rs::BugReportView`, and in the crate README so it is not rediscovered by accident.

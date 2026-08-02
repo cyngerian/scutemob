@@ -36,6 +36,11 @@ pub struct ActionParams {
     pub attackers: Vec<(ObjectId, AttackTarget)>,
     /// CR 509.1: (blocker, attacker) pairs for `DeclareBlockers`.
     pub blockers: Vec<(ObjectId, ObjectId)>,
+    /// CR 509.2: the chosen damage-assignment order for a `LegalAction::OrderBlockers`,
+    /// front (assigned damage first) to back. Empty means "keep the engine's default
+    /// order", in which case the action's own `blockers` candidate list is submitted
+    /// verbatim — see the `OrderBlockers` arm of [`action_to_command_with_params`].
+    pub blocker_order: Vec<ObjectId>,
     /// CR 103.5: cards nominated for the bottom of the library on `KeepHand`.
     pub cards_to_bottom: Vec<ObjectId>,
     /// Consolidated additional costs (sacrifice, discard, exile-from-zone, etc.)
@@ -99,6 +104,9 @@ impl ActionParams {
         if !self.blockers.is_empty() {
             return Some("blockers");
         }
+        if !self.blocker_order.is_empty() {
+            return Some("blocker_order");
+        }
         if !self.cards_to_bottom.is_empty() {
             return Some("cards_to_bottom");
         }
@@ -159,7 +167,7 @@ pub fn action_to_command_with_params(
     action: &LegalAction,
     params: &ActionParams,
 ) -> Result<Command, ParamError> {
-    // Exactly five `LegalAction` variants have a parameterization channel. For every
+    // Exactly six `LegalAction` variants have a parameterization channel. For every
     // other action, an announced param means the client and the pending decision
     // disagree about what is being answered — refuse rather than silently discard it.
     // `auto_tap` is excluded (see `first_announced_field`).
@@ -169,6 +177,7 @@ pub fn action_to_command_with_params(
             | LegalAction::ActivateAbility { .. }
             | LegalAction::DeclareAttackers { .. }
             | LegalAction::DeclareBlockers { .. }
+            | LegalAction::OrderBlockers { .. }
             | LegalAction::KeepHand
     ) {
         if let Some(field) = params.first_announced_field() {
@@ -289,6 +298,23 @@ pub fn action_to_command_with_params(
             player,
             blockers: params.blockers.clone(),
         }),
+        // CR 509.2 (M11-local S8, item 2). Empty `blocker_order` means "keep the
+        // engine's default", and the default IS `blockers` — `apply_combat_damage`
+        // falls back to `combat.blockers`' `OrdMap` order, which is the order this
+        // candidate list was built in (`LocalGame::human_only_actions`). Submitting
+        // it verbatim is therefore an exact no-op rather than an arbitrary pick, and
+        // it satisfies `handle_order_blockers`' CR 509.2 completeness check
+        // (`GameStateError::IncompleteBlockerOrder` when a blocker is omitted), which
+        // an empty vector would fail.
+        LegalAction::OrderBlockers { attacker, blockers } => Ok(Command::OrderBlockers {
+            player,
+            attacker: *attacker,
+            order: if params.blocker_order.is_empty() {
+                blockers.clone()
+            } else {
+                params.blocker_order.clone()
+            },
+        }),
         LegalAction::TakeMulligan => Ok(Command::TakeMulligan { player }),
         LegalAction::KeepHand => Ok(Command::KeepHand {
             player,
@@ -370,8 +396,12 @@ pub fn action_to_command_with_params(
                 phyrexian_life_payments: vec![],
             })))
         }
-        // KNOWN GAP (M11-local, to be filed for S6/S7): a loyalty ability's targets
-        // cannot be announced. `ActivateLoyaltyAbility` is outside the five-arm
+        // KNOWN GAP, filed as **OOS-M11-10** (`docs/audits/decision-point-audit.md`
+        // §8.1) by the M11-local close-out: a loyalty ability's targets cannot be
+        // announced. This comment read "to be filed for S6/S7" from S5 until S8's
+        // close, and S6, S7 and S8 all shipped without filing it — review MR-M11-06.
+        // A comment asserting a seed exists is not a seed; the seed is the row.
+        // `ActivateLoyaltyAbility` is outside the six-arm
         // allowlist above, so `ActionParams { targets, .. }` on a planeswalker
         // ability is REJECTED with `UnsupportedParam("targets")` rather than
         // forwarded — loud, not silently wrong, but it means a human still cannot

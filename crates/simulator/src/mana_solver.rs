@@ -3,12 +3,36 @@
 //! For each colored pip, tap a source that produces that color.
 //! For generic, tap any remaining source. Returns a sequence of
 //! `TapForMana` commands.
+//!
+//! # Two things this solver does not do — **`OOS-M11-2`**
+//!
+//! Both halves are open, and this block exists because
+//! [`crate::local_game::LocalGame::auto_tap_commands_for`] cites it by name for the
+//! first of them and, until now, cited a sentence that was not here (review
+//! MR-M11-12 — the lying-cite class this project keeps finding, one layer out).
+//!
+//! 1. **It ignores the mana pool entirely.** `solve_mana_payment` plans a payment for
+//!    the *whole* cost from untapped sources, as though the pool were empty, so
+//!    floating mana is neither spent nor counted. The caller compensates rather than
+//!    the solver: `auto_tap_commands_for` checks the existing pool first (M11-local S3
+//!    closed that half) and only calls in when the pool cannot already cover the cost.
+//!    That keeps a human from over-tapping, and leaves the solver itself unchanged —
+//!    so any *other* caller still gets the pool-blind behaviour.
+//! 2. **It reads `obj.characteristics.mana_abilities` raw**, not through
+//!    `calculate_characteristics`, so a source whose mana abilities are granted,
+//!    removed or altered by a continuous effect (CR 613) is mis-planned. This is the
+//!    layer-resolution half of `OOS-M11-2` and is still open — M11-local made no engine
+//!    change, and the fix belongs with the PB-DX correctness queue.
 
 use mtg_engine::{
     Command, GameState, HybridMana, ManaColor, ManaCost, ObjectId, PhyrexianMana, PlayerId, ZoneId,
 };
 
 /// A mana source on the battlefield: its ObjectId, ability index, and what it produces.
+///
+/// One entry per *ability*, so a permanent with two `requires_tap` mana abilities
+/// contributes two entries with the same `object_id`. [`spend`] is what keeps those
+/// entries from being planned independently — see its doc.
 #[derive(Clone, Debug)]
 struct ManaSource {
     object_id: ObjectId,
@@ -16,6 +40,33 @@ struct ManaSource {
     produces: Vec<ManaColor>,
     any_color: bool,
     tapped: bool,
+}
+
+/// Mark the chosen source spent — **and every other entry for the same permanent**.
+///
+/// # The bug this closes (M11-local S8, found by the scripted playthrough)
+///
+/// `sources` holds one entry per (permanent × mana ability), and the three payment
+/// phases below previously set `tapped` on the chosen entry alone. A permanent with two
+/// `requires_tap` mana abilities therefore stayed selectable through its *other* entry,
+/// so the solver could emit two `Command::TapForMana` for the same permanent. The first
+/// taps it; the second is refused with `"permanent ObjectId(n) is already tapped"`,
+/// because CR 602.2 pays a `{T}` cost by tapping an untapped permanent and it is no
+/// longer untapped.
+///
+/// Observed rather than reasoned to: the S8 playthrough (seed 1, turn 21) submitted a
+/// `CastSpell` the game had just offered and got exactly that rejection back. On the bot
+/// path the same plan has always been silently absorbed — `LocalGame::advance`'s
+/// command-rejected fallback issues `PassPriority` — which is why a bug reachable in
+/// every game since the solver was written surfaced only once a *human* path refused to
+/// swallow an engine error (S8 item 4).
+fn spend(sources: &mut [ManaSource], idx: usize) {
+    let object_id = sources[idx].object_id;
+    for source in sources.iter_mut() {
+        if source.object_id == object_id {
+            source.tapped = true;
+        }
+    }
 }
 
 /// Attempt to solve a mana payment greedily. Returns `TapForMana` commands
@@ -76,7 +127,7 @@ pub fn solve_mana_payment(
 
             // None => can't pay this color.
             let idx = found?;
-            sources[idx].tapped = true;
+            spend(&mut sources, idx);
             // PB-EF12 (CR 605.3b): an any_color source can satisfy any colour — choose
             // the exact one needed here. A fixed-colour source carries no choice.
             let chosen_color = if sources[idx].any_color {
@@ -104,7 +155,7 @@ pub fn solve_mana_payment(
 
         // None => no colorless source available; colored mana cannot pay {C} (CR 107.4c).
         let idx = found?;
-        sources[idx].tapped = true;
+        spend(&mut sources, idx);
         // PB-EF12: an any_color source's `produces` is empty (CR 106.1b: colorless is
         // not a legal "any color" choice), so it never matches the `contains(&Colorless)`
         // filter above — this source is always fixed-colour, chosen_color is None.
@@ -124,7 +175,7 @@ pub fn solve_mana_payment(
         let found = sources.iter().position(|s| !s.tapped);
         // None => no untapped source left to pay the remaining generic cost.
         let idx = found?;
-        sources[idx].tapped = true;
+        spend(&mut sources, idx);
         // PB-EF12: a generic pip can be paid with any colour, so an any_color source
         // just needs *a* legal choice — deterministic White, mirroring legal_actions.rs.
         let chosen_color = if sources[idx].any_color {

@@ -1,6 +1,6 @@
 # MTG Engine — Game Simulator & Fuzzer
 
-<!-- last_updated: 2026-02-28 -->
+<!-- last_updated: 2026-08-01 -->
 
 > Design document for automated game simulation, fuzz testing, and interactive TUI play.
 
@@ -262,6 +262,58 @@ Serialized as JSON — loadable in the replay viewer for debugging.
 ### Files
 
 All in `crates/simulator/` — already listed in Phase 1 crate structure. The `bin/fuzzer.rs` is the CLI entry point; `invariants.rs` and `report.rs` handle checking and output.
+
+---
+
+## Phase 3b: The web play client (M11-local, ADDED 2026-08-01)
+
+> Not in the original 2026-02-28 design, which had exactly one interactive host (the
+> TUI). M11-local added a second — a **browser** client — and, in the course of doing
+> so, moved the "1 human + 3 bots" machinery out of the TUI and into this crate where
+> both hosts share it. `tools/tui` is unchanged in what it does; it is no longer the
+> only thing that does it.
+
+**What lives in `crates/simulator` now, and why it is here rather than in a host:**
+
+| Module | What it is | Who uses it |
+|---|---|---|
+| `local_game.rs` | `LocalGame` — the steppable driver. `advance()` runs bot seats autonomously and stops when a human seat must act; `submit(seq, choice)` answers. Idempotent while a decision is outstanding. | play server, `GameDriver`, tests |
+| `setup.rs` | `build_initial_state` / `redeal` — deterministic seeded pregame assembly, decks admitted through the real `validate_deck` (Architecture Invariant 9) | play server, TUI |
+| `params.rs` | `ActionParams` + `action_to_command_with_params` — the **single** `LegalAction` → `Command` mapping table in this crate | play server, `RandomBot` |
+| `legal_actions.rs` | `StubProvider`, unchanged in role | everything |
+
+**`GameDriver::run_game` is now a thin wrapper over `LocalGame` with no human seats**,
+rather than a second copy of the same loop. That is the structural point: the fuzzer and
+the interactive clients cannot drift, because there is one loop.
+
+**Two action classes are offered to human seats only** and are appended by
+`local_game::human_only_actions`, *never* by `StubProvider`:
+
+* `LegalAction::Concede` (CR 104.3a) — a bot must not auto-concede;
+* `LegalAction::OrderBlockers` (CR 509.2) — optional (the engine falls back to
+  `OrdMap` order), so a bot that never issues it plays a legal game.
+
+Keeping both out of the provider is what lets a change like this leave **every recorded
+fuzz seed reproducing the same game**: `RandomBot` picks an index into the provider's
+list, so appending to that list would re-roll every subsequent draw.
+
+**`HeuristicBot` carries a per-turn preference cap** (`RepeatKey`) on repeated
+activations and on re-declaring a combat. Both were found by the M11-local S8 scripted
+playthrough halting on `max_commands`: a free repeatable ability (`lightning_greaves`'
+Equip `{0}`, which resolves as a no-op) and re-declaring the same combat (neither the
+provider nor `combat.rs::handle_declare_attackers` gates "already declared", CR 508.1 —
+seed `OOS-M11-9`). CR 104.4b loop detection catches neither, because both are *optional*
+actions. `RandomBot` is unaffected: it picks uniformly and passes often enough to
+advance.
+
+**The play server itself** is `tools/play-server` (axum, port 3040, 6 routes, Svelte 5
+frontend). It is the only crate in the M11-local stack with async or IO; nothing below
+`api.rs` references tokio. See `tools/play-server/README.md`.
+
+**Known simulator-side gaps, all recorded rather than fixed here**: `mana_solver` ignores
+the mana pool and reads non-layer-resolved `mana_abilities` (`OOS-M11-2`, pool half
+closed in S3); `StubProvider` enumerates no Adventure, alt-cost, or Convoke/Improvise/Delve
+casts (plan §8 R4).
 
 ---
 

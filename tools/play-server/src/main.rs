@@ -174,6 +174,7 @@ fn build_router(state: SharedState, dist_dir: &PathBuf) -> Router {
         .route("/game", get(api::get_game).post(api::post_game))
         .route("/game/action", post(api::post_action))
         .route("/game/mulligan", post(api::post_mulligan))
+        .route("/game/report", get(api::get_report))
         .route("/healthz", get(api::get_healthz))
         .with_state(state);
 
@@ -469,7 +470,10 @@ mod tests {
 
         assert_eq!(view["summary"]["players"], PLAYERS);
         assert_eq!(view["summary"]["human"], 1);
-        assert_eq!(view["summary"]["seed"], SEED);
+        // NOT `summary.seed` — review MR-M11-01 removed it from the seat payload
+        // (it reconstructs every other seat's hidden zones). See
+        // `test_mr_m11_01_seat_payload_carries_no_reconstruction_key`.
+        assert!(view["summary"]["seed"].is_null());
         assert_eq!(view["summary"]["bot"], "Heuristic");
         // CR 103: nothing has been done yet, so the game is still pregame.
         assert_eq!(command_count(&view), 0);
@@ -954,7 +958,7 @@ mod tests {
         );
         let view: Value = serde_json::from_str(&text).expect("a seat view");
         assert_eq!(view["summary"]["players"], PLAYERS);
-        assert_eq!(view["summary"]["seed"], SEED);
+        assert!(view["summary"]["seed"].is_null(), "MR-M11-01");
         assert_eq!(view["summary"]["bot"], "Heuristic");
     }
 
@@ -1469,7 +1473,10 @@ mod tests {
             "no play was discarded"
         );
         assert_eq!(after["summary"]["players"], PLAYERS, "still the same table");
-        assert_eq!(after["summary"]["seed"], SEED, "not rebuilt at seed 17");
+        // "not rebuilt at the sentinel seed" is now read off `command_count` and the
+        // live decision below rather than off `summary.seed`, which MR-M11-01 removed
+        // from the seat payload.
+        assert!(after["summary"]["seed"].is_null(), "MR-M11-01");
 
         // Non-vacuous: it is still the same *playable* game, not just the same
         // numbers — the decision it is holding is still answerable.
@@ -2144,19 +2151,24 @@ mod tests {
     ///
     /// # Why the test taps mana by hand first
     ///
-    /// It has to, and the reason is a real limitation worth recording rather
-    /// than a test-harness convenience. `LocalGame::auto_tap_commands_for` reads
-    /// `obj.characteristics.mana_cost` — the **printed** cost — and knows nothing
-    /// about `cast.x_value`, so it taps for `{1}{B}` and the engine then refuses
-    /// the cast for want of the extra `{3}`. Observed, not inferred: the same
-    /// submission without the manual taps answers **422 "player does not have
-    /// enough mana to pay the cost"**.
+    /// **Historical as of S8 — `OOS-M11-8` is CLOSED and this is no longer a
+    /// limitation.** It was one when the test was written:
+    /// `LocalGame::auto_tap_commands_for` read `obj.characteristics.mana_cost` —
+    /// the **printed** cost — and knew nothing about `cast.x_value`, so it tapped
+    /// for `{1}{B}` and the engine then refused the cast for want of the extra
+    /// `{3}` (observed, not inferred: the same submission without the manual taps
+    /// answered **422 "player does not have enough mana to pay the cost"**).
+    /// `auto_tap_commands_for` now adds `x_value * mana_cost.x_count` before it
+    /// solves, and the crate README's limitation 6 records the closure.
     ///
-    /// So this test fills the pool through five real `TapForMana` submissions
-    /// first. S3 made auto-tap conditional on the pool (`OOS-M11-2`'s pool half),
-    /// which is what makes that work: with the cost already covered,
+    /// The manual taps are kept anyway, and deliberately: they make this test
+    /// exercise the **pool** path — S3 made auto-tap conditional on the pool
+    /// (`OOS-M11-2`'s pool half), so with the cost already covered
     /// `auto_tap_commands_for` returns `None` and the surplus stays available for
-    /// X. The gap is filed as **OOS-M11-8** and stated in the crate README.
+    /// X. The auto-tap path for `{X}` has its own probe,
+    /// `local_game_human_actions.rs::test_s8_x_value_is_included_in_the_auto_tap_plan`;
+    /// between them both halves are covered rather than one being retargeted onto
+    /// the other.
     ///
     /// CR 107.3 / CR 601.2b.
     #[tokio::test(flavor = "multi_thread")]
@@ -2249,6 +2261,420 @@ mod tests {
         );
     }
 
+    // ── Review MR-M11-01 (HIGH): the seat payload carries no reconstruction key ──
+
+    /// **Architecture Invariant 7, at the reconstruction-key level rather than the
+    /// card-name level** (review MR-M11-01).
+    ///
+    /// `GameSummary` used to ship `seed`. `setup::build_initial_state` is deterministic
+    /// in its `LocalGameConfig` alone and `session::config_for` fixes every other input,
+    /// so `(seed, players, mulligan_count)` rebuild **every other seat's opening hand
+    /// and library order** — the exact pair the invariant names. It was on the default
+    /// payload, on every response, and the frontend rendered it.
+    ///
+    /// Neither existing gate could see it: the HTTP leak scan looks for another seat's
+    /// card *names*, and the source gate looks for omniscient *view-model entry points*.
+    /// A seed is neither. This test is the gate for the third channel.
+    ///
+    /// It asserts over the **raw response text**, not over a parsed field, so it also
+    /// catches the seed reappearing under a different key or nested somewhere else in
+    /// the payload.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_mr_m11_01_seat_payload_carries_no_reconstruction_key() {
+        // A seed that cannot collide with an ordinary small integer in the payload
+        // (turn numbers, object ids, life totals, counts) — otherwise a substring hit
+        // would be noise rather than a leak.
+        const DISTINCTIVE_SEED: u64 = 987_654_321_987;
+        let state = AppState::new(NewGameDefaults {
+            players: PLAYERS,
+            bot: BotKind::Heuristic,
+            seed: DISTINCTIVE_SEED,
+        });
+
+        let (status, _) = post_json(&state, "/api/game", json!({})).await;
+        assert_eq!(status, StatusCode::OK);
+
+        for uri in ["/api/game"] {
+            let (status, text) = get_raw(&state, uri).await;
+            assert_eq!(status, StatusCode::OK);
+            assert!(
+                !text.contains(&DISTINCTIVE_SEED.to_string()),
+                "{uri} leaks the seed, which reconstructs every other seat's hidden \
+                 zones (Architecture Invariant 7, review MR-M11-01)"
+            );
+            let view: Value = serde_json::from_str(&text).expect("a seat view");
+            assert!(view["summary"]["seed"].is_null());
+        }
+
+        // Non-vacuity, and the containment claim in one: the seed IS on the opt-in
+        // report route, which is the documented exception. If this half ever fails the
+        // test above has stopped meaning anything.
+        let (status, report) = get_json(&state, "/api/game/report").await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(
+            report["seed"],
+            json!(DISTINCTIVE_SEED),
+            "the seed must still be on the deliberate exception, or this test is vacuous"
+        );
+    }
+
+    // ── S8: the bug-report export (plan item 5) ───────────────────────────────
+
+    /// `GET /api/game/report` carries the whole reproduction key and the fingerprints
+    /// that make it checkable (`docs/mtg-engine-runtime-integrity.md` Layer 3).
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_s8_report_carries_the_reproduction_key() {
+        let state = shared_state();
+        let view = new_game(&state).await;
+        // Pass once first, deliberately. A game parked on the human's very first
+        // decision has applied ZERO commands (`advance()` stops before acting), so
+        // the journal assertions below would pass vacuously against a fresh game —
+        // and did, on the first run of this test.
+        let pass = action_indices(&view, "PassPriority")[0];
+        let (status, _) = post_json(
+            &state,
+            "/api/game/action",
+            json!({ "seq": seq(&view), "action_index": pass }),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+
+        let (status, body) = get_json(&state, "/api/game/report").await;
+        assert_eq!(status, StatusCode::OK);
+
+        assert_eq!(body["seed"], json!(SEED));
+        assert_eq!(body["config"]["players"], json!(PLAYERS));
+        assert_eq!(body["config"]["human_seat"], json!(1));
+        assert_eq!(body["config"]["bot"], json!("Heuristic"));
+        assert_eq!(body["config"]["mulligan_count"], json!(0));
+
+        // Fingerprints, read off the engine rather than hard-coded here: this test
+        // pins that the report *reports* them, not what they currently are (the
+        // `core` group's protocol/hash schema suites own that).
+        assert_eq!(
+            body["protocol_version"],
+            json!(mtg_engine::PROTOCOL_VERSION)
+        );
+        assert_eq!(
+            body["hash_schema_version"],
+            json!(mtg_engine::HASH_SCHEMA_VERSION)
+        );
+        assert_eq!(
+            body["protocol_fingerprint"],
+            json!(mtg_engine::PROTOCOL_SCHEMA_FINGERPRINT)
+        );
+
+        let hash = body["state_hash"].as_str().expect("state_hash is a string");
+        assert_eq!(hash.len(), 64, "32 bytes of BLAKE3 as lowercase hex");
+        assert!(hash.chars().all(|c| c.is_ascii_hexdigit()));
+
+        // Non-vacuity: a game that has already advanced to the human's first
+        // decision has applied commands, and every one is in the journal with its
+        // events.
+        let journal = body["journal"].as_array().expect("journal is an array");
+        assert!(
+            !journal.is_empty(),
+            "the journal must not be empty — `session::config_for` sets record_journal"
+        );
+        assert_eq!(
+            journal.len(),
+            body["command_count"].as_u64().unwrap() as usize,
+            "one journal entry per applied command"
+        );
+        for entry in journal {
+            assert!(entry["command"].is_object() || entry["command"].is_string());
+            assert!(entry["events"].is_array());
+            assert!(entry["turn"].is_number());
+        }
+    }
+
+    /// The report is a **pure read**: it neither advances the game nor consumes the
+    /// event lines `GET /api/game` has not shipped yet.
+    ///
+    /// The second half is the one worth a test. `seat_view` drains the journal
+    /// through `take_new_records`, so an export that used the same accessor would
+    /// silently swallow a client's next batch of history — a bug that shows up as
+    /// "the event feed skipped a turn" long after the export.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_s8_report_is_a_pure_read() {
+        let state = shared_state();
+        let (status, first) = post_json(&state, "/api/game", json!({})).await;
+        assert_eq!(status, StatusCode::OK);
+        let seq_before = first["decision"]["seq"].clone();
+        let commands_before = first["summary"]["command_count"].clone();
+
+        let (status, _) = get_json(&state, "/api/game/report").await;
+        assert_eq!(status, StatusCode::OK);
+
+        let (status, after) = get_json(&state, "/api/game").await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(
+            after["decision"]["seq"], seq_before,
+            "the outstanding decision must survive an export unchanged"
+        );
+        assert_eq!(
+            after["summary"]["command_count"], commands_before,
+            "the export must not advance the game"
+        );
+    }
+
+    /// No session, no report — 404, the same answer `GET /api/game` gives, and for
+    /// the same reason (the resource the route names does not exist).
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_s8_report_without_a_session_is_404() {
+        let state = shared_state();
+        let (status, body) = get_json(&state, "/api/game/report").await;
+        assert_eq!(status, StatusCode::NOT_FOUND);
+        assert_eq!(body["kind"], json!("no_session"));
+    }
+
+    /// A mulligan changes the effective seed, and the report has to say so — the
+    /// base `seed` alone no longer rebuilds the table (`setup::redeal` derives from
+    /// `redeal_seed(seed, human_seat, mulligan_count)`), so `mulligan_count` is part
+    /// of the reproduction key rather than a statistic.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_s8_report_tracks_the_mulligan_count() {
+        let state = shared_state();
+        let (status, _) = post_json(&state, "/api/game", json!({})).await;
+        assert_eq!(status, StatusCode::OK);
+        let (status, _) = post_json(&state, "/api/game/mulligan", json!({"take": true})).await;
+        assert_eq!(status, StatusCode::OK);
+
+        let (status, body) = get_json(&state, "/api/game/report").await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(body["seed"], json!(SEED), "the BASE seed is unchanged");
+        assert_eq!(
+            body["config"]["mulligan_count"],
+            json!(1),
+            "the redeal count is the other half of the effective seed"
+        );
+    }
+
+    // ── Review MR-M11-05: omitting `params` and sending `{}` must agree ───────
+
+    /// **Two spellings a client would call identical used to produce different game
+    /// behaviour** (review MR-M11-05).
+    ///
+    /// `ActionRequest::params` is `#[serde(default)]`, so an **omitted** `params` key
+    /// was built by `ActionParamsDto`'s *derived* `Default` — `auto_tap: false` —
+    /// while a present-but-empty `"params": {}` ran serde's own field defaults and got
+    /// `auto_tap: true` (`default_auto_tap`). With `auto_tap: false` a `CastSpell`
+    /// whose cost is not already floating is refused **422**, and there is no
+    /// mana-tapping UI to float it with; the README's route table says `{seq,
+    /// action_index, params?}` with no note, and the acceptance criterion advertises
+    /// playing "through `curl` alone".
+    ///
+    /// Tested at the deserialization boundary rather than over HTTP because that is
+    /// where the divergence lived: both spellings are parsed and lowered through the
+    /// real `From<ActionParamsDto> for ActionParams`, and the results compared. The
+    /// comparison is over `Debug` because `ActionParams` derives no `PartialEq` (it is
+    /// a simulator-internal assembly type) — that is a structural comparison of every
+    /// field, which is what this test wants, not a proxy for one.
+    #[test]
+    fn test_mr_m11_05_omitted_params_and_empty_params_agree() {
+        fn lower(body: &str) -> mtg_simulator::ActionParams {
+            let req: view::ActionRequest =
+                serde_json::from_str(body).expect("the body is a valid ActionRequest");
+            req.params.into()
+        }
+
+        let omitted = lower(r#"{"seq": 1, "action_index": 0}"#);
+        let empty = lower(r#"{"seq": 1, "action_index": 0, "params": {}}"#);
+
+        assert_eq!(
+            format!("{omitted:?}"),
+            format!("{empty:?}"),
+            "an omitted `params` and an empty `params` object must lower to the same \
+             announcement (review MR-M11-05)"
+        );
+
+        // Non-vacuity, and the actual subject: the agreed value is `true` — the one
+        // the *derived* `Default` got wrong. If `impl Default for ActionParamsDto` is
+        // ever replaced by `#[derive(Default)]` again, the assertion above still holds
+        // (both spellings would agree on `false`) and only this one goes red.
+        assert!(
+            omitted.auto_tap,
+            "CR 601.2g: with no mana-tapping UI, an omitted `params` must still \
+             auto-tap, or every cast over `curl` is a 422"
+        );
+        assert!(empty.auto_tap);
+    }
+
+    // ── Review MR-M11-08: the game-over payload carries no raw `Debug` ────────
+
+    /// **Architecture Invariant 7 at the halt/violation channel** (review MR-M11-08).
+    ///
+    /// `game_over_view` and `halted_view` used to inject `format!("{v:?}")` and
+    /// `format!("{reason:?}")` straight into the seat payload, and neither string
+    /// passes through *either* of this crate's Invariant-7 chokepoints —
+    /// `from_game_state_for(.., Viewer::Seat(..))` or [`view::NameIndex`]. Two live
+    /// carriers: `invariants::check_no_orphaned_tokens` interpolates
+    /// `obj.characteristics.name` into its description, and
+    /// `HaltReason::EngineError(String)` carries a `GameStateError` `Debug` produced
+    /// while advancing a **bot** seat.
+    ///
+    /// Driven through the two rendering functions directly with a card name planted in
+    /// each carrier, because the leak is in the *reduction*, not in reaching it: a
+    /// healthy game has an empty `violations` and a `None` `reason`, so a fixture that
+    /// merely plays to `game_over` asserts nothing at all. Planting the name is what
+    /// makes this discriminating — with the pre-fix `format!("{:?}")` restored, both
+    /// halves go red.
+    #[test]
+    fn test_mr_m11_08_game_over_payload_carries_no_engine_debug() {
+        use mtg_simulator::{GameDriverError, GameResult, HaltReason, InvariantViolation};
+
+        /// A name no `check` string, turn number or fixed prose could contain.
+        const PLANTED: &str = "Sheoldred, Whispering One";
+
+        // Half 1: a violation whose *description* names a card.
+        let result = GameResult {
+            seed: 7,
+            winner: None,
+            turn_count: 19,
+            total_commands: 4_200,
+            violations: vec![InvariantViolation {
+                check: "no_orphaned_tokens".to_string(),
+                description: format!("token {PLANTED} (id 412) is in Graveyard(2)"),
+                turn_number: 19,
+            }],
+            error: Some(GameDriverError::EngineError(format!(
+                "InvalidTarget {{ object: {PLANTED} }}"
+            ))),
+        };
+        let over = view::game_over_view(&result, &HashMap::new());
+
+        for line in &over.violations {
+            assert!(
+                !line.contains(PLANTED),
+                "the seat payload leaks a card name through a violation description: \
+                 {line:?} (Architecture Invariant 7, review MR-M11-08)"
+            );
+        }
+        // Not merely absent — the useful half survives, which is what makes the
+        // reduction a redaction rather than a deletion.
+        assert_eq!(over.violations.len(), 1);
+        assert!(
+            over.violations[0].contains("no_orphaned_tokens") && over.violations[0].contains("19"),
+            "the check name and turn must survive so a play-tester knows to export a \
+             report; got {:?}",
+            over.violations[0]
+        );
+        let reason = over
+            .reason
+            .as_deref()
+            .expect("a driver error renders a reason");
+        assert!(
+            !reason.contains(PLANTED),
+            "the seat payload leaks a card name through the driver error: {reason:?}"
+        );
+        assert!(
+            reason.contains("/api/game/report"),
+            "the reason must point at the export that does carry the detail; got \
+             {reason:?}"
+        );
+
+        // Half 2: the halted arm, whose `HaltReason::EngineError` is the same carrier.
+        let halted = view::halted_view(
+            &HaltReason::EngineError(format!("InvalidTarget {{ object: {PLANTED} }}")),
+            19,
+            4_200,
+        );
+        let reason = halted
+            .reason
+            .as_deref()
+            .expect("a halt always has a reason");
+        assert!(
+            !reason.contains(PLANTED),
+            "the halted payload leaks a card name: {reason:?}"
+        );
+
+        // Every other `HaltReason` variant holds only ids and integers, so those keep
+        // their numbers — pinned so a future reduction cannot quietly blank them too.
+        let capped = view::halted_view(
+            &HaltReason::MaxTurns {
+                max_turns: 40,
+                turn: 40,
+            },
+            40,
+            9,
+        );
+        assert!(
+            capped
+                .reason
+                .as_deref()
+                .expect("a halt always has a reason")
+                .contains("40"),
+            "a numeric halt reason must stay legible: {:?}",
+            capped.reason
+        );
+    }
+
+    // ── Review MR-M11-10: a kept hand cannot be re-dealt ──────────────────────
+
+    /// **CR 103.5 — the keep is terminal, and it is now the server that says so**
+    /// (review MR-M11-10).
+    ///
+    /// *"Once a player chooses not to take a mulligan, the remaining cards become that
+    /// player's opening hand."* Before this, `POST /api/game/mulligan {"take": false}`
+    /// recorded nothing — `is_pregame()` was `command_count() == 0`, which stays true
+    /// right up to the first applied command — so a refresh, a second tab or a plain
+    /// `curl` could redeal the hand the human had just accepted. The keep lived only
+    /// in `PlayApp.svelte`'s client-side `keptHand` rune, which is a UI convention and
+    /// not a rule.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_mr_m11_10_a_kept_hand_cannot_be_redealt() {
+        let state = shared_state();
+        let view = new_game(&state).await;
+        assert_eq!(
+            view["summary"]["pregame"], true,
+            "a new game is mulliganable"
+        );
+
+        // A redeal before the keep is still fine — otherwise the assertion below would
+        // pass on a route that had simply broken.
+        let (status, after) =
+            post_json(&state, "/api/game/mulligan", json!({ "take": true })).await;
+        assert_eq!(status, StatusCode::OK, "{after}");
+        assert_eq!(after["summary"]["mulligan_count"], 1);
+        assert_eq!(after["summary"]["pregame"], true, "a redeal is not a keep");
+
+        // The subject: keep.
+        let (status, kept) =
+            post_json(&state, "/api/game/mulligan", json!({ "take": false })).await;
+        assert_eq!(status, StatusCode::OK, "{kept}");
+        assert_eq!(
+            kept["summary"]["pregame"], false,
+            "CR 103.5: after a keep the game is no longer mulliganable, and \
+             `summary.pregame` is what says so"
+        );
+
+        // …and the choice is terminal in both spellings, since either would replace
+        // the accepted hand.
+        for take in [true, false] {
+            let (status, err) =
+                post_json(&state, "/api/game/mulligan", json!({ "take": take })).await;
+            assert_eq!(
+                status,
+                StatusCode::CONFLICT,
+                "a second mulligan ({{take: {take}}}) after a keep must be refused: {err}"
+            );
+            assert_eq!(err["kind"], "not_pregame");
+        }
+
+        // Non-vacuity: the session is still a live, playable game rather than having
+        // been wedged by the guard.
+        let (status, still) = get_json(&state, "/api/game").await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(
+            still["summary"]["mulligan_count"], 1,
+            "the kept hand is the redealt one"
+        );
+        assert!(
+            !still["decision"].is_null(),
+            "the kept table must still be holding an answerable decision"
+        );
+    }
+
     // ── 15 ────────────────────────────────────────────────────────────────────
 
     /// **Architecture Invariant 7's chokepoint, machine-enforced instead of
@@ -2299,6 +2725,24 @@ mod tests {
     /// Needles are assembled with `concat!` for the same reason the no-socket
     /// gate does it: this function sits below the cut in a file the gate reads,
     /// and a plainly-written needle would be found by the sibling gate.
+    ///
+    /// # What this gate cannot see (review MR-M11-04)
+    ///
+    /// It scans for *view-model* entry points, so it is blind to a route that
+    /// serializes engine types directly and never touches the view model at all —
+    /// and that is not hypothetical: it is exactly how the crate's one real
+    /// Invariant-7 exception shipped. `GET /api/game/report` returns
+    /// [`view::BugReportView`], which serializes `mtg_engine::Command` and
+    /// `mtg_engine::GameEvent` verbatim; it was added, shipped and reviewed with this
+    /// gate green, because there was nothing here for the gate to match on.
+    ///
+    /// The failure message above was therefore narrowed to the property actually
+    /// checked ("every label rendered **through the view model**"), and the wider
+    /// claim it used to assert now lives where it belongs: with
+    /// [`test_mr_m11_01_seat_payload_carries_no_reconstruction_key`], which asserts
+    /// over the raw response body, and with the README's exception section. The
+    /// general lesson is the one MR-M11-01 turns on — **a redaction gate checks the
+    /// channel it was written for, and a new channel is invisible to it**.
     #[test]
     fn test_production_code_never_builds_an_omniscient_view() {
         let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -2321,7 +2765,12 @@ mod tests {
             for needle in needles {
                 assert!(
                     !production.contains(needle),
-                    "{name} reaches an omniscient view from production code                      (matched {needle:?}). Every label this crate renders must come                      from `StateViewModel::from_game_state_for(.., Viewer::Seat(..))`                      — Architecture Invariant 7. If this is deliberate, the README's                      'Hidden information' section has to change with it."
+                    "{name} reaches an omniscient view from production code (matched \
+                     {needle:?}). Every label this crate renders **through the view \
+                     model** must come from \
+                     `StateViewModel::from_game_state_for(.., Viewer::Seat(..))` — \
+                     Architecture Invariant 7. If this is deliberate, the README's \
+                     'Hidden information' section has to change with it."
                 );
             }
             checked += 1;

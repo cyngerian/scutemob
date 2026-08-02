@@ -23,11 +23,16 @@
 
 ## M11-local Track (parallel to W6 — `crates/simulator`, `tools/`, no engine surface)
 
-> Deliberately its own section, not a W-row: M11-local runs concurrently with the W6
-> primitive queue and touches a disjoint set of crates. Plan: `memory/m11-session-plan.md`
-> (8 sessions, authoritative). No new `Command`/`GameEvent` variant in the whole milestone
-> — the milestone's wire-neutrality claim holds; the current pins are PROTOCOL **32** /
-> HASH **69** (moved by PB-DX1 on the W6 track, not by M11-local).
+> **✅ MILESTONE COMPLETE — all 8 sessions shipped, closed by `scutemob-173` on
+> 2026-08-01.** This section is now a record, not a queue.
+>
+> Deliberately its own section, not a W-row: M11-local ran concurrently with the W6
+> primitive queue and touched a disjoint set of crates. Plan: `memory/m11-session-plan.md`
+> (8 sessions, authoritative, now marked COMPLETE). **No new `Command`/`GameEvent` variant
+> anywhere in the milestone** — the wire-neutrality claim held end to end; the pins at
+> close are PROTOCOL **32** / HASH **70**, both moved by the W6 track (PB-DX1, PB-DX5) and
+> never by M11-local, confirmed by an empty `git diff` over `crates/engine/src` +
+> `crates/card-types/src` + `crates/card-defs/src` across the whole S8 branch.
 
 | Session | Task | Status | Notes |
 |---------|------|--------|-------|
@@ -38,7 +43,167 @@
 | S5 play-server crate skeleton + REST API | `scutemob-167` | **SHIPPED** (+ 2 review cycles) | this session — `tools/play-server` (axum, port 3040), the only crate in this milestone with async or IO. 5 routes + `ServeDir`, **16 tests** (15 `oneshot` HTTP + the source gate, which is a plain `#[test]` and constructs no router), **no port ever bound and now machine-gated crate-wide**. See handoff below |
 | S6 play frontend — render and basic input | `scutemob-169` | **SHIPPED** | this session — `tools/play-server/frontend` (Svelte 5 + Vite 7), dev proxy to `127.0.0.1:3040`, `$viewer` alias importing the replay-viewer components **in place**. **Zero Rust**: `git diff main` over `crates/` + `tools/play-server/src` + `tools/play-server/Cargo.toml` is empty — **zero Rust anywhere**; the only change outside `tools/play-server` is one Svelte component, `tools/replay-viewer/frontend/src/lib/ZoneHand.svelte` (the review HIGH below). PROTOCOL 32 / HASH 69 unmoved, tests **4,040 / 0**. See handoff below |
 | S7 targeting, combat and choice UIs | `scutemob-171` | **SHIPPED** | this session — `tools/play-server/src/{view.rs,api.rs}` populate `target_slots` / `target_min`/`max` / `modes` (with per-mode slots and ranges) / `attack` / `block` from `mtg_engine::{spell_target_requirements, ability_target_requirements, legal_targets_per_slot, target_count_range}` and the provider's own `DeclareAttackers`/`DeclareBlockers` payloads; `validate_combat_params` refuses an unoffered pair with a 400; `needs_x` now answers `ActivateAbility` (README Limitation 5 CLOSED). Four picker components + an `ActionBar` chain in CR 601.2b → 601.2c → 508.1 → 509.1 order. **One additive change outside `tools/play-server`**: `StackItemView::source_object_id` in `crates/view-model` — see handoff. PROTOCOL 32 / HASH 69 unmoved; play-server tests 18 → **24**. See handoff below |
-| S8 playthrough hardening, docs, acceptance | — | **next** | Plan §4 Session 8 (8 items). Read the S7 handoff's OOS-M11-8 note — item 2's "surface the invisible optional decisions" audit should include it |
+| S8 playthrough hardening, docs, acceptance | `scutemob-173` | **SHIPPED — CLOSES THE MILESTONE** | this session — scripted playthrough on 5 seeds, human-only `Concede` + `OrderBlockers`, error audit, `GET /api/game/report`, docs, decisions.md, 8 gates. See the handoff below |
+
+**S8 handoff — MILESTONE CLOSE (2026-08-01, `scutemob-173`)**
+
+- **A scripted human plays five full games with nothing swept under the rug.**
+  `crates/simulator/tests/local_game_playthrough.rs` drives seat 1 through four-player
+  games on seeds 1/7/42/1234/9001 with a deterministic policy (land → cheapest castable
+  → attack → pass), through `LocalGame` alone. All five reach the turn cap with **0
+  engine rejections and 0 invariant violations**. The five games run over the **real**
+  1,804-def pool through `setup::build_initial_state`, not the 99-Plains fixture the rest
+  of `crates/simulator/tests` uses, on a hand-built 64 MiB thread (deep resolution
+  exhausts the 2 MiB test stack — pre-existing, OOS-DP3-9).
+
+- **Running it found four defects in one afternoon, which is the argument for the test.**
+  None was in the plan; each was fixed at its own layer.
+  1. **`invariants::check_stack_consistency` compared two different id spaces.** A cast
+     spell's card gets `ObjectId` *n* in the Stack zone and its `StackObject` gets *n+1*
+     (`casting.rs` mints them consecutively), so the check fired **twice per spell** and
+     once per ability, always, in games with no defect. Measured: **501 spurious
+     violations across 500 fuzz games** at the merge base, **0** after. Rewritten against
+     `StackObjectKind::Spell { source_object }`, the id the two sides actually share.
+     This is what `OOS-DP3-9`'s "long games trip `stack_consistency`" always was.
+  2. **`mana_solver` tapped one permanent twice.** It held one entry per (permanent ×
+     mana ability) and marked only the chosen entry spent, so a permanent with two mana
+     abilities was planned into two `TapForMana`s; the second is refused ("already
+     tapped"). Fixed with `spend()`, which marks every entry for the permanent.
+  3. **`HeuristicBot` froze the table, twice over.** It scores every real play above
+     `PassPriority`, so a *free repeatable* action loops forever: `lightning_greaves`'
+     Equip `{0}` (which resolves as a **no-op** — its `ActivatedAbility` declares
+     `targets: []` while its effect names `DeclaredTarget { index: 0 }`), and
+     re-declaring the same combat. A per-turn preference cap (`RepeatKey`) fixes both,
+     **in the bot rather than the provider**, so the fuzzer's `RandomBot` draw sequence
+     is untouched.
+  4. **The playthrough's own `max_commands` was too tight.** `GameDriver`'s
+     `max_turns * 200` is the fuzzer's ratio and the fuzzer's games start with empty
+     hands; a real four-player table runs ~260 commands/turn, so the *command* valve
+     fired before the turn cap and the plan's terminal state was unreachable.
+
+- **Two of those bottomed out in the engine and were filed, not fixed** (M11-local makes
+  no engine change — an empty `git diff` over `crates/engine/src` proves it):
+  - **`OOS-M11-7`** — CR 704.3 says SBAs are checked whenever a player *would receive*
+    priority. This engine checks them on **step entry** and at **resolution**, not on
+    each pass within a step, so a Treasure sacrificed to pay a mana cost sits legally in
+    the graveyard for several priority passes. Self-healing, never wrong at rest —
+    the playthrough asserts the strictly stronger property that **no token is outside the
+    battlefield in the final state**, and reports the transient class separately.
+  - **`OOS-M11-9`** — neither `StubProvider` nor `combat.rs::handle_declare_attackers`
+    gates "attackers have already been declared this combat". CR 508.1 makes it a
+    turn-based action performed **once**; the engine accepts a second, a third, and so on.
+    With a vigilant attacker (still untapped, so still `eligible`) this is unbounded.
+
+- **Item 2's premise was stale and that is the reusable part.** The plan (2026-07-26)
+  lists Echo / Cumulative Upkeep / Recover as needing new `LegalAction` variants.
+  **PB-DP4 (`scutemob-152`) had already shipped all three**, with SR-38 affordability
+  gating, later the same day the plan was written. Only `OrderBlockers` (CR 509.2) was
+  genuinely unsurfaced. *A plan item that names missing work is a dated claim; check the
+  code before building it.* Three tests now verify the existing three reach a human seat
+  through `LocalGame`, which is the half `legal_actions.rs`'s own tests do not cover.
+
+- **`Concede` and `OrderBlockers` are offered to human seats ONLY**, appended by
+  `local_game::human_only_actions` rather than by `StubProvider`. Two independent reasons,
+  both load-bearing: a bot must never auto-concede, and *appending to the provider's list
+  re-rolls every `RandomBot` draw downstream of it*, which would change what every
+  recorded fuzz seed reproduces. That constraint is what let the R11 gate be **measured**
+  rather than argued.
+
+- **The R11 fuzz gate, measured** (`memory/m11/s8-fuzz-parity.md`): 500 games, same seed,
+  merge-base worktree vs branch. **0 games differ in turns, commands or outcome.**
+  Violations 501 → 0, all of them finding 1's false positives. The gate **cannot** be run
+  at the plan's default `--max-turns 200` — `mtg-fuzzer` stack-overflows at the *merge
+  base* (OOS-DP3-9), reproduced single- and multi-threaded and with a 128 MiB
+  `RUST_MIN_STACK` — so it is 500 games of up to **40** turns, and the record says so.
+
+- **`GET /api/game/report`** ships the repro artefact: `{seed, config, PROTOCOL +
+  fingerprint, HASH, final `public_state_hash`, journal}` plus an "Export report" button.
+  It is a **pure read** — it uses `journal()` and not `take_new_records()`, so an export
+  cannot swallow event lines the live feed has not shipped (tested). It is also the **one
+  payload in `play-server` that is not seat-redacted**, deliberately: a redacted repro is
+  not a repro. Safe only because M11-local is one human, three bots, one process, no
+  networking. **Re-scope it at M10a.**
+
+- **`OOS-M11-8` CLOSED** (the S7 handoff routed it here): `auto_tap_commands_for` now adds
+  `x_value × mana_cost.x_count` generic before planning, so a human can cast an `{X}`
+  spell. Verified to discriminate by disabling the fix — *and the first attempt at that
+  check was invalid*: clippy `-D warnings` failed the disabled build, cargo reused the
+  stale test binary, and the test "passed". **A revert-and-rerun proves nothing unless
+  the rebuild succeeded.**
+
+- **Gates at close**: tests **4,097 / 0** (merge base measured at **4,072**, so **+25** —
+  2 playthrough, 15 human-action, 8 play-server; the implement phase pinned **4,092/+20**
+  and the close-out fix cycle added the other 5, so both figures are real and this is the
+  final one — measured by running the suite, and the per-file split re-derived against it
+  rather than carried), clippy `-D warnings` clean, `cargo fmt
+  --check` clean, `tools/check-defs-fmt.sh` 1,804 defs clean, `cargo build --workspace`
+  clean, **PROTOCOL 32 / HASH 70 unmoved** (empty diff over `protocol.rs` / `hash.rs` and
+  gate-computed by running the `core` suites), fuzz parity as above.
+
+- **CLOSE-OUT ADDENDUM (2026-08-02, same task, after a kitty crash mid-fix-cycle).** The
+  `milestone-reviewer` pass filed **MR-M11-01..21** into
+  `docs/mtg-engine-milestone-reviews.md`; the fix cycle it opened was interrupted, and the
+  resume finished it. **All 10 HIGH/MEDIUM are now closed; of 8 LOW, 1 closed and 7
+  open**, each of the seven re-verified as genuinely unchanged rather than assumed. The
+  blanket "LOW needs no fix phase" was only half the account and is worth correcting here:
+  the reviewer's `memory/m11-fix-session-plan.md` had scoped **four** LOWs into its two
+  sessions. **MR-M11-12** was taken (a doc cite pointing at a sentence that does not exist
+  — the lying-cite class, doc-only, and the fix documents *both* halves of `OOS-M11-2`,
+  the second verified at the read site rather than copied from CLAUDE.md);
+  **MR-M11-13/14/17** were deferred with the reason recorded at each item, MR-M11-14 on
+  the plan's own advice, since its Session 2 gate names that item as one of the two that
+  can perturb the 500-game fuzz parity — and that parity run is the branch's evidence for
+  acceptance criterion 5977. The plan's checkboxes are now accurate rather than untouched.
+  Five things worth carrying:
+
+  - **The HIGH is the one nobody's gate could see, and it is the reusable shape.**
+    `GameSummary.seed` shipped on **every** seat payload for three sessions. Since
+    `setup::build_initial_state` is deterministic in its config alone and
+    `session::config_for` fixes every other input, `(seed, players, mulligan_count)`
+    *rebuilds* every bot's opening hand and library order — the exact pair Architecture
+    Invariant 7 names, and the exact words of the milestone's own acceptance criterion.
+    Both Invariant-7 gates stayed green the whole time, because one searches the body for
+    card **names** and the other scans source for omniscient **view-model entry points**,
+    and a seed is neither. **A redaction gate checks the channel it was written for; a new
+    channel is invisible to it.** There are now three gates for three channels — names,
+    reconstruction keys, free-form engine strings — and the table is in the play-server
+    README so the next surface starts from three rather than rediscovering two.
+  - **A status word is not a disposition.** Every one of the 18 findings still read `OPEN`
+    while eight had shipped, and three of the eight had landed their *code* fix without
+    the *test* the finding asked for — so three behaviour changes were held by prose.
+    Those three tests now exist and were proven to discriminate by execution: with each
+    fix reverted its test fails and the other 29 stay green. **The first revert did not
+    compile** (two helpers went dead under `-D warnings`), which is the S8 `{X}` lesson
+    recurring within the same task: *a revert-and-rerun proves nothing unless the rebuild
+    succeeded.*
+  - **Two findings are closed on part of what they asked for, and the part left is named
+    in the reviews doc rather than implied.** MR-M11-04's companion handler-set gate is an
+    M10a item (the narrowing, which makes the *existing* claim true, was taken);
+    MR-M11-06's code half is a capability addition, not a defect repair, and its seed
+    **`OOS-M11-10`** is filed — which was the half the finding actually flagged, since the
+    in-source comment had promised "to be filed for S6/S7" through three sessions that all
+    shipped without filing it. *A comment asserting a seed exists is not a seed.*
+  - **`HASH 69` in the reviews doc was stale in four places.** The claim ("unmoved by
+    M11-local") was true; the number was not — HASH moved 69 → **70** in PB-DX5 on the
+    parallel W6 track before this branch forked. Found by reading
+    `crates/engine/src/state/hash.rs` rather than carrying the figure forward, which is
+    the same move that caught three arithmetic slips inside PB-DX5 itself. This file
+    already had it right.
+  - **A fix plan nobody ticks reads as a fix plan nobody ran.** `m11-fix-session-plan.md`
+    still had all fourteen boxes unchecked while eleven of its items had shipped — which
+    is the same failure as the reviews doc's eighteen `OPEN` rows, in a second file, and
+    it is what made the close-out's first account of the LOWs wrong (it said all eight
+    were untouched-by-design; four had actually been *scoped into sessions*, so three of
+    them needed a stated deferral rather than a blanket rule). Both files are now
+    accurate. **The generalisable bit: the artefact a reviewer produces is a second place
+    the work has to be recorded, and finishing the work does not update it.**
+
+- **What M11-local did NOT deliver, stated plainly**: card images come from Scryfall over
+  the network rather than a cache (M14); the bug-report artefact has no free-text
+  description field; no automated test spans browser + game, because there is no frontend
+  test harness (plan §8 R7 — revisit at M13); `StubProvider` still enumerates no
+  Adventure, alt-cost, or Convoke/Improvise/Delve casts (R4); `OOS-M11-2`'s
+  layer-resolution half is open.
 
 **S7 handoff (2026-08-01, `scutemob-171`)**
 

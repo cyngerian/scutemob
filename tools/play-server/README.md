@@ -348,6 +348,7 @@ so the two servers could one day be merged without a route collision.
 | `GET /api/game` | — | this seat's view, its pending decision, and every event since the last read |
 | `POST /api/game/action` | `{seq, action_index, params?}` | answer the pending decision, then let the bots act |
 | `POST /api/game/mulligan` | `{take, cards_to_bottom?}` | CR 103.5 pregame redeal. **Pregame only.** |
+| `GET /api/game/report` | — | the bug-report / repro artefact. A **pure read** — see below |
 | `GET /api/healthz` | — | liveness; never takes the session lock |
 | everything else | — | `ServeDir` fallback to `dist/`, when that directory exists |
 
@@ -592,27 +593,26 @@ repeated here so this README does not claim more than the implementation does.
    destructive rather than theoretical — now reports `needs_x: true` and gets a
    real prompt.
 
-6. **A non-zero `{X}` cannot actually be paid for through this API yet, and it
-   fails as a 422 rather than a wrong game state.** `LocalGame::auto_tap_commands_for`
-   reads the spell's **printed** `mana_cost` and knows nothing about
-   `cast.x_value`, so it taps for the base cost and the engine then refuses the
-   cast for want of the extra `{X}`. Observed, not inferred: the same submission
-   answers `422 "player does not have enough mana to pay the cost"`.
+6. ~~**A non-zero `{X}` cannot actually be paid for through this API yet.**~~
+   **✅ FIXED in Session 8 — `OOS-M11-8` is CLOSED.** `LocalGame::auto_tap_commands_for`
+   used to read the spell's **printed** `mana_cost` and know nothing about
+   `cast.x_value`, so it tapped for the base cost and the engine then refused the
+   cast — observed by S7 as `422 "player does not have enough mana to pay the cost"`.
 
-   **What was observed, precisely.** No seeded game in the S7 fixture sweep dealt
-   the human an `{X}` spell, so the observation is on a spell with `x_count == 0`,
-   where `casting.rs`'s documented fallback ("cards that don't use x_count yet")
-   adds `x_value` to the generic cost. A real `{X}` card reaches the same shortfall
-   by the `x_count > 0` path, which is the same argument and is **unexercised**.
-   Worth stating, because "observed" and "follows from the observation" are
-   different claims.
+   CR 107.3 / 601.2b: X is announced at cast time and is part of the cost from that
+   moment, so `x_value × mana_cost.x_count` generic is now added before both the
+   pool check and the solve. `x_count`, not a bare `+ x_value`, because `{X}{X}`
+   costs 2X; saturating, so a hostile `x_value` cannot overflow into a small cost
+   that then looks payable.
 
-   The workaround exists and the human can use it — tap mana sources manually
-   first, then cast, because S3 made auto-tap conditional on the pool, so a pool
-   that already covers the base cost leaves the surplus available for X. That is
-   the path `test_x_value_is_forwarded_to_cast_spell_data` drives. The fix
-   belongs in `crates/simulator` (out of S7's scope) and is filed as
-   **OOS-M11-8**.
+   The S7 note this replaces made a distinction worth keeping: its observation was
+   on a spell with `x_count == 0` (where `casting.rs`'s documented fallback adds
+   `x_value` to the generic cost), and the real `x_count > 0` path was inferred
+   rather than exercised. It is exercised now —
+   `crates/simulator/tests/local_game_human_actions.rs::test_s8_x_value_is_included_in_the_auto_tap_plan`
+   casts a `{X}{1}` sorcery at X = 2 with four one-mana sources and asserts exactly
+   three tap, which distinguishes it from both "tapped the printed cost" and
+   "tapped everything". Verified to fail with the fix disabled.
 
 7. **A modal action's target slots are per-mode and the option-level range is
    `(0, 0)` for such a card.** `spell_target_requirements` is queried at render
@@ -666,13 +666,74 @@ repeated here so this README does not claim more than the implementation does.
 
 ---
 
+## `GET /api/game/report` — and the one place Invariant 7 does not apply
+
+Session 8, plan item 5, per `docs/mtg-engine-runtime-integrity.md` Layer 3. Returns
+`{seed, config, protocol_version, protocol_fingerprint, hash_schema_version, state_hash,
+turn, command_count, violations, journal}`; the frontend's **Export report** button saves
+it as `scutemob-report-seed<N>-mull<M>.json`.
+
+**It is a pure read.** It does not call `advance()` and does not move `journal_cursor` —
+it reads `LocalGame::journal()`, not `take_new_records()` — so pulling a report can
+neither change the game nor swallow event lines the live feed has not yet delivered.
+Both properties are tested (`test_s8_report_is_a_pure_read`). It can therefore be
+requested while a decision is outstanding, which is the moment you most want it.
+
+**Reproducing from it**: `seed` + `config` rebuild the exact table
+(`setup::build_initial_state` is deterministic in `cfg.seed`; after `mulligan_count`
+redeals the effective seed is `redeal_seed(seed, human_seat, mulligan_count)`), and
+replaying `journal`'s commands in order reaches `state_hash`. `protocol_version` /
+`hash_schema_version` are what make that checkable rather than hopeful: a repro is valid
+only against an engine build carrying the same two numbers.
+
+**⚠️ This is the one payload in this crate that is NOT seat-redacted, and it is
+deliberate.** It carries every seat's raw `Command`s and `GameEvent`s, because a redacted
+repro is not a repro — a maintainer needs the `AnswerEffectChoice` that named a library
+card. That is safe **only because of what M11-local is**: one human, three bots, one
+process, no networking. The only "other players" whose hidden information it exposes are
+simulator bots running in the same process as the person who clicked the button.
+
+**It must be re-scoped at M10a**, when the other end of a socket is a real person —
+redacted, or restricted to a single-player game, or authenticated. Recorded here, at
+`view.rs::BugReportView`, and in `memory/decisions.md` so it is not rediscovered by
+accident. Note this also means the Invariant 7 source gate below (which scans for
+`from_game_state(` / `Viewer::Omniscient`) does **not** cover this route: the report
+never builds a view model at all, omniscient or otherwise — it serializes the journal
+directly. The gate is not weakened; it simply has nothing to say here.
+
+---
+
 ## Hidden information
+
+> **One route is exempt, by design**: `GET /api/game/report` is not seat-redacted.
+> Everything in this section describes the *seat* payloads — `GET /api/game`,
+> `POST /api/game`, `POST /api/game/action`, `POST /api/game/mulligan`. See the
+> section immediately above for the exception, why it is safe inside M11-local's
+> scope, and the M10a obligation it carries.
 
 Architecture Invariant 7 is enforced at one chokepoint, `api.rs::seat_view`: the
 state is built with `StateViewModel::from_game_state_for(.., Viewer::Seat(human))`
 and every event line goes through `event_view_for(.., Viewer::Seat(human))`.
 Neither omniscient entry point (`from_game_state`, `Viewer::Omniscient`) is
 reachable from the production paths of this crate.
+
+**Three channels, not one — and two of them were found by review, not by a gate**
+(review MR-M11-01 / MR-M11-08). A payload can identify a hidden card without ever
+naming it:
+
+| Channel | What carries it | What holds it |
+|---------|-----------------|---------------|
+| **Names** — a label that says the card | the view model and `NameIndex` | `test_production_code_never_builds_an_omniscient_view` (source) + `test_seat_view_over_http_contains_no_other_hand_card_names` (body) |
+| **Reconstruction keys** — data that *rebuilds* a hidden zone | `GameSummary.seed`, until MR-M11-01 removed it | `test_mr_m11_01_seat_payload_carries_no_reconstruction_key`, which asserts over the raw body so a rename or a nested copy is caught too |
+| **Free-form strings** — engine text spliced in after redaction | `game_over.violations` / `.reason`, until MR-M11-08 reduced them | `test_mr_m11_08_game_over_payload_carries_no_engine_debug`, which plants a card name in both carriers |
+
+`seed` shipped on **every** seat response for three sessions with both name-channel
+gates green, because `setup::build_initial_state` is deterministic in its config alone
+and `session::config_for` fixes every other input — so `(seed, players,
+mulligan_count)` rebuilt every other seat's opening hand *and* library order. It is now
+on `BugReportView` and nowhere else. The transferable lesson is why it survived review
+and two gates: **a redaction gate checks the channel it was written for, and a new
+channel is invisible to it.**
 
 **That chokepoint is machine-enforced as of Session 7**, not asserted in prose:
 `test_production_code_never_builds_an_omniscient_view` scans the production

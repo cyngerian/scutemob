@@ -73,24 +73,35 @@ pub struct GameSummary {
     pub human: u64,
     /// `"Heuristic"` or `"Random"`.
     pub bot: String,
-    /// The **base** seed — `--seed`, or the `POST /api/game` override.
+    /// **The seed is NOT here, and its absence is Architecture Invariant 7** (review
+    /// MR-M11-01, HIGH).
     ///
-    /// S5 review LOW 7: this is *not* the seed the table in play was built from
-    /// once a mulligan has been taken. `PlaySession::mulligan` goes through
-    /// `setup::redeal`, which builds from `redeal_seed(seed, human_seat,
-    /// mulligan_count)` and leaves `cfg.seed` untouched. The table is still
-    /// exactly reproducible, but from **four** fields rather than one:
-    /// [`GameSummary::seed`], [`GameSummary::players`], [`GameSummary::bot`] and
-    /// [`GameSummary::mulligan_count`] — all four of which are right here, which
-    /// is why the effective seed is documented rather than duplicated (the
-    /// derivation is private to `mtg_simulator::setup` and recomputing it here
-    /// would be a copy that could silently drift from it).
-    pub seed: u64,
+    /// S5 shipped a `seed: u64` on this struct, and S5's own review LOW 7 noted —
+    /// approvingly, as a *reproducibility* property — that `(seed, players, bot,
+    /// mulligan_count)` reproduce the table exactly. That is the same sentence read
+    /// the other way round: `setup::build_initial_state` is deterministic in its
+    /// `LocalGameConfig` alone, and `session::config_for` fixes every other input
+    /// (`human_seats = {PlayerId(1)}`, `DeckSource::RandomPerSeat`, the limits), so
+    /// those fields rebuild **every other seat's opening hand and library order** —
+    /// precisely the pair Invariant 7 names. It shipped on the *default* payload, on
+    /// every response, and the frontend rendered it in the header.
+    ///
+    /// Neither of the milestone's two Invariant-7 gates could see it, and that is the
+    /// durable part: the HTTP leak scan looks for another seat's card **names**, and
+    /// the source gate looks for omniscient **view-model entry points**. A seed is
+    /// neither. **A redaction gate checks the channel it was written for; a
+    /// reconstruction key is a different channel.**
+    ///
+    /// The seed still exists on [`BugReportView`], which is opt-in, is documented as
+    /// the one deliberately unredacted payload, and carries the M10a re-scope
+    /// obligation. Putting it there and nowhere else is what makes the exception
+    /// contained rather than nominal.
     pub turn: u32,
     /// Commands applied so far — 0 exactly while the game is still pregame.
     pub command_count: u32,
-    /// CR 103.5: pregame redeals this seat has taken. Part of the table's
-    /// reproduction key — see [`GameSummary::seed`].
+    /// CR 103.5: pregame redeals this seat has taken. Kept because the client shows
+    /// it, and harmless on its own — it is only half a reproduction key, and the other
+    /// half (the seed) is no longer here. See the note above.
     pub mulligan_count: u32,
     /// True while `POST /api/game/mulligan` is still accepted.
     pub pregame: bool,
@@ -180,6 +191,8 @@ pub struct ActionOptionView {
     pub attack: Option<AttackOptionsView>,
     /// CR 509.1: present exactly on a `DeclareBlockers` option.
     pub block: Option<BlockOptionsView>,
+    /// CR 509.2: present exactly on an `OrderBlockers` option.
+    pub order: Option<OrderBlockersOptionsView>,
 }
 
 /// One target slot: its own count range, plus every candidate legal for it.
@@ -283,6 +296,21 @@ pub struct BlockOptionsView {
     pub attackers: Vec<CombatantOptionView>,
 }
 
+/// CR 509.2: what an `OrderBlockers` option may reorder (M11-local S8, item 2).
+///
+/// `blockers` is the candidate set **in the engine's own default order** — that is
+/// exactly what `apply_combat_damage` uses when no order has been set, so a client
+/// that echoes it back unchanged (or sends an empty `blocker_order`) changes
+/// nothing. The client's job is to let the human permute this list; the first entry
+/// is assigned damage first and must be dealt lethal before damage flows to the next.
+#[derive(Debug, Serialize)]
+pub struct OrderBlockersOptionsView {
+    /// The attacking creature whose damage order this is.
+    pub attacker: CombatantOptionView,
+    /// Every creature blocking [`Self::attacker`], in the engine's default order.
+    pub blockers: Vec<CombatantOptionView>,
+}
+
 /// One creature in a combat declaration, with a seat-redacted label.
 #[derive(Debug, Serialize)]
 pub struct CombatantOptionView {
@@ -314,11 +342,117 @@ pub struct GameOverView {
     /// `true` when a safety valve tripped rather than the game concluding.
     pub halted: bool,
     /// Human-readable reason; `None` for a clean win.
+    ///
+    /// **Redaction-safe by construction, not by filtering** (review MR-M11-08): this
+    /// is built from [`halt_reason_summary`], which reads only the *variant* and its
+    /// numeric fields. It is never a `Debug` of an engine error — see that function.
     pub reason: Option<String>,
-    /// Simulator invariant violations observed during the game, stringified.
-    /// Always empty in a healthy game; surfaced because this is a play-testing
-    /// surface and a violation is exactly what it is here to find.
+    /// Simulator invariant violations observed during the game: **check name and turn
+    /// only**, never the description.
+    ///
+    /// # Why the description is dropped (review MR-M11-08)
+    ///
+    /// `InvariantViolation::description` is free-form text produced by
+    /// `crates/simulator/src/invariants.rs`, and at least one check interpolates a card
+    /// name directly off `GameState` — `check_no_orphaned_tokens` formats
+    /// `obj.characteristics.name`. That is a rendering site, and it is **outside both**
+    /// of this crate's Invariant-7 chokepoints: it never passes through
+    /// `StateViewModel::from_game_state_for` and never through [`NameIndex`], so a
+    /// redaction that follows the rendering site (the S4 lesson) does not cover it.
+    ///
+    /// The description is not lost — it is on [`BugReportView::violations`], the opt-in
+    /// route that is documented as the one deliberately unredacted payload. What the
+    /// seat view needs is *that a violation happened and which check fired*, which is
+    /// enough to tell the play-tester to export a report; the detail belongs in the
+    /// report.
     pub violations: Vec<String>,
+}
+
+// ── Bug-report export (M11-local S8, plan item 5) ─────────────────────────────
+
+/// The self-contained reproduction artefact `GET /api/game/report` returns, per
+/// `docs/mtg-engine-runtime-integrity.md` Layer 3.
+///
+/// # This is the ONE payload in this crate that is not seat-redacted
+///
+/// Every other response goes through the Architecture Invariant 7 chokepoint
+/// (`StateViewModel::from_game_state_for(.., Viewer::Seat(human))` and
+/// `event_view_for(.., Viewer::Seat(human))`). This one deliberately does not, and
+/// the reason is that a redacted repro is not a repro: [`Self::journal`] carries raw
+/// `Command`s and raw `GameEvent`s, which is exactly what a maintainer needs to
+/// replay a defect, and a redacted `Command::AnswerEffectChoice` naming a searched
+/// library card would be unusable.
+///
+/// That is **safe only because of what M11-local is**: one human, three bots, one
+/// process, no networking (see the crate README's scope note). The only "other
+/// players" whose hidden information this exposes are simulator bots in the same
+/// process as the person requesting the file. **When M10a puts a real opponent on
+/// the other end of a socket this endpoint must be re-scoped** — either redacted, or
+/// restricted to a single-player game, or authenticated. That is recorded here, in
+/// the README, and in `memory/decisions.md` rather than left to be rediscovered.
+///
+/// # Reproducing from it
+///
+/// [`Self::seed`] plus [`Self::config`] rebuild the exact table:
+/// `mtg_simulator::setup::build_initial_state` is deterministic in `cfg.seed`
+/// (`test_setup_same_seed_same_state_hash`), and after `mulligan_count` redeals the
+/// effective seed is `redeal_seed(seed, human_seat, mulligan_count)`. Replaying
+/// [`Self::journal`]'s commands in order from that state reaches
+/// [`Self::state_hash`].
+///
+/// [`Self::protocol_version`] / [`Self::hash_schema_version`] are what make that
+/// claim checkable rather than hopeful: a repro is only valid against an engine
+/// build with the same two numbers (`crates/simulator/src/bin/fuzzer.rs`'s "repro
+/// seeds are not portable across engine changes").
+#[derive(Debug, Serialize)]
+pub struct BugReportView {
+    /// The **base** seed — see [`GameSummary::seed`]; combine with
+    /// [`ReportConfigView::mulligan_count`] for the effective one.
+    pub seed: u64,
+    pub config: ReportConfigView,
+    /// `mtg_engine::PROTOCOL_VERSION` at capture time.
+    pub protocol_version: u32,
+    /// `mtg_engine::PROTOCOL_SCHEMA_FINGERPRINT` at capture time.
+    pub protocol_fingerprint: String,
+    /// `mtg_engine::HASH_SCHEMA_VERSION` at capture time.
+    pub hash_schema_version: u8,
+    /// Lowercase hex of `GameState::public_state_hash()` for the final state.
+    pub state_hash: String,
+    pub turn: u32,
+    pub command_count: u32,
+    /// Simulator invariant violations seen across the whole game, stringified.
+    pub violations: Vec<String>,
+    /// Every command applied, with the events it produced, in order. **Raw** — see
+    /// the type doc.
+    ///
+    /// Empty when `LocalGameLimits::record_journal` is off; the play server sets it
+    /// on (`session::config_for`), which is what makes this endpoint useful at all.
+    pub journal: Vec<JournalEntryView>,
+}
+
+/// The half of the reproduction key that is not the seed.
+#[derive(Debug, Serialize)]
+pub struct ReportConfigView {
+    pub players: u32,
+    /// The seat the human occupies.
+    pub human_seat: u64,
+    /// `"Heuristic"` or `"Random"`.
+    pub bot: String,
+    /// CR 103.5 pregame redeals taken — part of the effective seed.
+    pub mulligan_count: u32,
+    pub max_turns: u32,
+    pub max_commands: u32,
+    pub max_consecutive_passes: u32,
+}
+
+/// One applied command and its events. Both are the engine's own wire types,
+/// serialized verbatim rather than re-encoded, so a consumer parses exactly what
+/// `crates/engine` defines.
+#[derive(Debug, Serialize)]
+pub struct JournalEntryView {
+    pub turn: u32,
+    pub command: mtg_engine::Command,
+    pub events: Vec<mtg_engine::GameEvent>,
 }
 
 // ── Request DTOs ──────────────────────────────────────────────────────────────
@@ -355,7 +489,7 @@ pub struct ActionRequest {
 ///
 /// Every field defaults, so `{}` is a valid params object for an action that
 /// announces nothing.
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct ActionParamsDto {
     /// CR 601.2c.
@@ -368,6 +502,10 @@ pub struct ActionParamsDto {
     pub attackers: Vec<(ObjectId, AttackTarget)>,
     /// CR 509.1.
     pub blockers: Vec<(ObjectId, ObjectId)>,
+    /// CR 509.2: the chosen damage-assignment order for an `OrderBlockers` action,
+    /// front to back. Empty means "keep the engine's default order", which is the
+    /// order [`OrderBlockersOptionsView::blockers`] was sent in.
+    pub blocker_order: Vec<ObjectId>,
     /// CR 103.5.
     pub cards_to_bottom: Vec<ObjectId>,
     pub additional_costs: Vec<AdditionalCost>,
@@ -384,6 +522,35 @@ fn default_auto_tap() -> bool {
     true
 }
 
+/// Hand-written, **not** `#[derive(Default)]` (review MR-M11-05).
+///
+/// `ActionRequest::params` is `#[serde(default)]`, so an **omitted** `params` key built
+/// `ActionParamsDto::default()` — and a derived `Default` gives `auto_tap: false`,
+/// while a present-but-empty `"params": {}` runs serde's field defaults and gives
+/// `auto_tap: true` (`default_auto_tap`). Two spellings a client would reasonably
+/// consider identical produced *different game behaviour*: with `auto_tap: false` a
+/// `CastSpell` whose cost is not already in the pool is refused 422, and the difference
+/// is invisible in the request.
+///
+/// Writing the impl by hand rather than annotating the field is deliberate: it makes
+/// the two paths share one source of truth, so a field added later cannot reintroduce
+/// the divergence by being defaulted in only one of them.
+impl Default for ActionParamsDto {
+    fn default() -> Self {
+        ActionParamsDto {
+            targets: Vec::new(),
+            x_value: 0,
+            modes_chosen: Vec::new(),
+            attackers: Vec::new(),
+            blockers: Vec::new(),
+            blocker_order: Vec::new(),
+            cards_to_bottom: Vec::new(),
+            additional_costs: Vec::new(),
+            auto_tap: default_auto_tap(),
+        }
+    }
+}
+
 impl From<ActionParamsDto> for ActionParams {
     fn from(dto: ActionParamsDto) -> Self {
         ActionParams {
@@ -392,6 +559,7 @@ impl From<ActionParamsDto> for ActionParams {
             modes_chosen: dto.modes_chosen,
             attackers: dto.attackers,
             blockers: dto.blockers,
+            blocker_order: dto.blocker_order,
             cards_to_bottom: dto.cards_to_bottom,
             additional_costs: dto.additional_costs,
             auto_tap: dto.auto_tap,
@@ -549,6 +717,7 @@ fn action_kind(action: &LegalAction) -> &'static str {
         LegalAction::ActivateAbility { .. } => "ActivateAbility",
         LegalAction::DeclareAttackers { .. } => "DeclareAttackers",
         LegalAction::DeclareBlockers { .. } => "DeclareBlockers",
+        LegalAction::OrderBlockers { .. } => "OrderBlockers",
         LegalAction::TakeMulligan => "TakeMulligan",
         LegalAction::KeepHand => "KeepHand",
         LegalAction::ReturnCommanderToCommandZone { .. } => "ReturnCommanderToCommandZone",
@@ -588,6 +757,10 @@ fn action_object(action: &LegalAction) -> Option<ObjectId> {
         | LegalAction::PayEcho { permanent, .. }
         | LegalAction::PayCumulativeUpkeep { permanent, .. } => Some(*permanent),
         LegalAction::PayRecover { recover_card, .. } => Some(*recover_card),
+        // CR 509.2: the attacker is what the client should highlight — it is the
+        // creature whose damage is being ordered, and the blockers are all listed
+        // in `ActionOptionView::order`.
+        LegalAction::OrderBlockers { attacker, .. } => Some(*attacker),
         LegalAction::PassPriority
         | LegalAction::Concede
         | LegalAction::DeclareAttackers { .. }
@@ -618,6 +791,11 @@ fn action_label(action: &LegalAction, names: &NameIndex) -> String {
         LegalAction::DeclareBlockers { eligible, .. } => {
             format!("Declare blockers ({} eligible)", eligible.len())
         }
+        LegalAction::OrderBlockers { attacker, blockers } => format!(
+            "Order the {} blockers of {} (CR 509.2)",
+            blockers.len(),
+            card(*attacker)
+        ),
         LegalAction::TakeMulligan => "Take a mulligan".to_string(),
         LegalAction::KeepHand => "Keep this hand".to_string(),
         LegalAction::ReturnCommanderToCommandZone { object_id } => {
@@ -895,6 +1073,34 @@ fn combat_options(
     }
 }
 
+/// CR 509.2 (M11-local S8, item 2): render the damage-assignment-order payload.
+///
+/// Separate from [`combat_options`] rather than a third element of its tuple
+/// because this action does not come from the provider at all — it is appended by
+/// `mtg_simulator::local_game::human_only_actions` for a human seat only, so the
+/// "nothing is re-derived, these are the provider's verdicts" argument on
+/// `combat_options` does not apply verbatim and should not be implied by sharing
+/// its body. The lists here are the *engine's* (`state.combat()`), read at the
+/// moment the decision was minted.
+fn order_options(action: &LegalAction, names: &NameIndex) -> Option<OrderBlockersOptionsView> {
+    let LegalAction::OrderBlockers { attacker, blockers } = action else {
+        return None;
+    };
+    Some(OrderBlockersOptionsView {
+        attacker: CombatantOptionView {
+            id: attacker.0,
+            label: names.label(*attacker),
+        },
+        blockers: blockers
+            .iter()
+            .map(|id| CombatantOptionView {
+                id: id.0,
+                label: names.label(*id),
+            })
+            .collect(),
+    })
+}
+
 /// Render a `PendingDecision` for the wire.
 ///
 /// `wire_seq` is supplied by the caller rather than read off `decision.seq`:
@@ -1063,6 +1269,40 @@ fn action_option_view(
         mode_max,
         attack,
         block,
+        order: order_options(action, names),
+    }
+}
+
+/// One violation, reduced to what a seat may see — see [`GameOverView::violations`].
+fn violation_summary(v: &mtg_simulator::InvariantViolation) -> String {
+    format!("{} (turn {})", v.check, v.turn_number)
+}
+
+/// A `HaltReason` reduced to its variant and numbers (review MR-M11-08).
+///
+/// `HaltReason::EngineError(String)` is the one that matters: it carries a
+/// `format!("{:?}", GameStateError)` produced while advancing a **bot** seat, which
+/// can name a bot's object. Every other variant holds only a player id and integers.
+/// So the engine text is replaced with a pointer to the export rather than forwarded.
+///
+/// This is deliberately not a `Debug` with a filter over it: a filter has to know every
+/// shape the text can take, and a new `GameStateError` variant would silently defeat it.
+/// Enumerating the variants here means a new `HaltReason` is a compile error.
+fn halt_reason_summary(reason: &HaltReason) -> String {
+    match reason {
+        HaltReason::MaxTurns { max_turns, turn } => {
+            format!("the {max_turns}-turn limit was reached (turn {turn})")
+        }
+        HaltReason::InfiniteLoop { turn } => {
+            format!("a stall guard tripped on turn {turn} (command or consecutive-pass limit)")
+        }
+        HaltReason::NoLegalActions { player, turn } => format!(
+            "seat {} had no legal action on turn {turn} and could not even pass",
+            player.0
+        ),
+        HaltReason::EngineError(_) => "the engine rejected a bot seat's command and its \
+             fallback; the detail is in GET /api/game/report"
+            .to_string(),
     }
 }
 
@@ -1076,8 +1316,14 @@ pub fn game_over_view(
         turn_count: result.turn_count,
         total_commands: result.total_commands,
         halted: false,
-        reason: result.error.as_ref().map(|e| format!("{e:?}")),
-        violations: result.violations.iter().map(|v| format!("{v:?}")).collect(),
+        // `GameResult::error` is a `GameDriverError`, which `HaltReason` converts into
+        // — same argument as `halt_reason_summary`, and it is `None` on every path
+        // `LocalGame::advance` takes to `GameOver` today.
+        reason: result
+            .error
+            .as_ref()
+            .map(|_| "the game ended with a driver error; see GET /api/game/report".to_string()),
+        violations: result.violations.iter().map(violation_summary).collect(),
     }
 }
 
@@ -1090,9 +1336,60 @@ pub fn halted_view(reason: &HaltReason, turn_count: u32, total_commands: u32) ->
         turn_count,
         total_commands: total_commands as usize,
         halted: true,
-        reason: Some(format!("{reason:?}")),
+        reason: Some(halt_reason_summary(reason)),
         violations: Vec::new(),
     }
+}
+
+/// Assemble the bug-report artefact (M11-local S8, plan item 5). See
+/// [`BugReportView`] for what it is for and why it is not seat-redacted.
+pub fn bug_report_view(session: &crate::session::PlaySession) -> BugReportView {
+    let state = session.game.state();
+    BugReportView {
+        seed: session.cfg.seed,
+        config: ReportConfigView {
+            players: session.cfg.player_count,
+            human_seat: session.human.0,
+            bot: format!("{:?}", session.cfg.bot_kind),
+            mulligan_count: session.mulligan_count,
+            max_turns: session.cfg.limits.max_turns,
+            max_commands: session.cfg.limits.max_commands,
+            max_consecutive_passes: session.cfg.limits.max_consecutive_passes,
+        },
+        protocol_version: mtg_engine::PROTOCOL_VERSION,
+        protocol_fingerprint: mtg_engine::PROTOCOL_SCHEMA_FINGERPRINT.to_string(),
+        hash_schema_version: mtg_engine::HASH_SCHEMA_VERSION,
+        state_hash: hex_of(&state.public_state_hash()),
+        turn: state.turn().turn_number,
+        command_count: session.game.command_count(),
+        violations: session
+            .game
+            .violations()
+            .iter()
+            .map(|v| format!("{v:?}"))
+            .collect(),
+        // `journal()`, NOT `take_new_records()`: the export is the WHOLE history and
+        // must not move `journal_cursor`, or requesting a bug report would silently
+        // consume the event lines the live feed has not delivered yet.
+        journal: session
+            .game
+            .journal()
+            .iter()
+            .map(|record| JournalEntryView {
+                turn: record.turn,
+                command: record.command.clone(),
+                events: record.events.clone(),
+            })
+            .collect(),
+    }
+}
+
+fn hex_of(bytes: &[u8; 32]) -> String {
+    use std::fmt::Write;
+    bytes.iter().fold(String::with_capacity(64), |mut s, b| {
+        let _ = write!(s, "{b:02x}");
+        s
+    })
 }
 
 /// Player display names are public information (they are shown to the whole

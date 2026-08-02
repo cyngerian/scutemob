@@ -8,6 +8,8 @@
 //! - Tap for mana: +5 (only useful as prep)
 //! - Pass priority: +1 (last resort)
 
+use std::collections::HashMap;
+
 use mtg_engine::{AttackTarget, Command, GameState, ObjectId, PlayerId};
 use rand::prelude::*;
 
@@ -15,9 +17,116 @@ use crate::bot::Bot;
 use crate::legal_actions::LegalAction;
 use crate::random_bot::action_to_command;
 
+/// Identifies a *repeatable* action for the per-turn preference damper. See
+/// [`HeuristicBot::repeats_this_turn`].
+///
+/// Deliberately coarse: it names the class of choice, not the parameters, because
+/// re-declaring the same combat with a *different* attacker set is exactly as much
+/// of a non-move as re-declaring the identical one.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+enum RepeatKey {
+    /// CR 602: one entry per `(source, ability_index)`.
+    Activate(ObjectId, usize),
+    /// CR 508.1.
+    DeclareAttackers,
+    /// CR 509.1.
+    DeclareBlockers,
+}
+
+impl RepeatKey {
+    /// How many times this bot will *prefer* this action in one turn before scoring
+    /// it below `PassPriority`.
+    fn cap(self) -> u32 {
+        match self {
+            // Repeat activation is legitimate play (pump twice, crew then equip), so
+            // allow a couple before treating it as a stall.
+            RepeatKey::Activate(..) => 2,
+            // CR 508.1 / 509.1 are turn-based actions performed once **per combat
+            // phase**, and the tally for these two is reset on each combat entry
+            // rather than on each turn — see `HeuristicBot::repeats_this_turn`.
+            // Anything past the first *within one combat* is never a real play.
+            RepeatKey::DeclareAttackers | RepeatKey::DeclareBlockers => 1,
+        }
+    }
+
+    fn of(action: &LegalAction) -> Option<Self> {
+        match action {
+            LegalAction::ActivateAbility {
+                source,
+                ability_index,
+                ..
+            } => Some(RepeatKey::Activate(*source, *ability_index)),
+            LegalAction::DeclareAttackers { .. } => Some(RepeatKey::DeclareAttackers),
+            LegalAction::DeclareBlockers { .. } => Some(RepeatKey::DeclareBlockers),
+            _ => None,
+        }
+    }
+}
+
 pub struct HeuristicBot {
     rng: StdRng,
     name: String,
+    /// The turn `repeats_this_turn` was last reset for.
+    repeat_turn: u32,
+    /// Whether a `CombatState` existed the last time this bot acted.
+    ///
+    /// The combat-scoped [`RepeatKey`]s are reset when this goes `false` → `true`,
+    /// which is what makes the cap **per combat phase** rather than per turn — see
+    /// [`HeuristicBot::repeats_this_turn`]'s "the extra-combat regression" note.
+    /// `turn_actions.rs` sets `state.combat = None` at end of combat and installs a
+    /// fresh `CombatState` at `BeginningOfCombat`, so the transition is a reliable
+    /// "a new combat phase has begun" signal with no counter to maintain.
+    in_combat: bool,
+    /// How many times this bot has already chosen each [`RepeatKey`] this turn.
+    ///
+    /// # The two stuck games this prevents (M11-local S8)
+    ///
+    /// `score_action` rates every real play above `PassPriority`'s 1, and a bot that
+    /// always prefers a real play will take one *forever* if the game keeps offering
+    /// the same one. Both instances were found by the S8 scripted playthrough halting
+    /// on `max_commands`, not by reading code:
+    ///
+    /// 1. **A free, repeatable activated ability** (seed 9001, turn 2, 5,000 commands).
+    ///    `lightning_greaves`: Equip `{0}`. Its runtime `ActivatedAbility` declares
+    ///    `targets: []` while its `AttachEquipment` effect names
+    ///    `DeclaredTarget { index: 0 }`, so it is not merely cheap — it resolves as a
+    ///    **no-op**, changing nothing that could ever make the bot stop wanting it.
+    /// 2. **Re-declaring the same combat** (seed 1, turn 19, 20,000 commands). Neither
+    ///    `StubProvider` nor `combat.rs::handle_declare_attackers` gates "attackers
+    ///    have already been declared this combat", so with a vigilant attacker (which
+    ///    stays untapped and therefore stays `eligible`) `DeclareAttackers` is offered
+    ///    and accepted without limit. CR 508.1 makes declaring attackers a turn-based
+    ///    action performed *once*, so the engine accepting a second one is a real gap
+    ///    — filed as **OOS-M11-9**; fixing it is an engine change and M11-local makes
+    ///    none.
+    ///
+    /// CR 104.4b loop detection catches neither: that rule is for a loop of
+    /// **mandatory** actions, and both of these are optional. The bot is the right
+    /// place for the mitigation — this is plan §8 R5 ("bot play quality") — and doing
+    /// it here rather than in `StubProvider` keeps the provider's action list, and
+    /// therefore every recorded `mtg-fuzzer` seed, untouched. (The fuzzer's default
+    /// bot is `RandomBot`, which has neither problem: it picks uniformly, so it passes
+    /// often enough to advance.)
+    ///
+    /// The cap is a **preference** cap, not a legality cap. A capped action is scored
+    /// 0 rather than removed, so it is still chosen when nothing else is available —
+    /// this can never make the bot fail to act.
+    ///
+    /// # The extra-combat regression this map's *scope* fixes (review MR-M11-09)
+    ///
+    /// The first version keyed the whole map on `turn_number` alone, which is right for
+    /// `Activate` and **wrong** for the two combat keys. CR 506.5: a turn can contain
+    /// more than one combat phase, and `aurelia_the_warleader` is `Complete`,
+    /// deck-legal, and — since PB-DX1 (`scutemob-160`) made her `once_per_turn` trigger
+    /// actually fire — grants a real one. With a per-*turn* cap of 1, a bot that
+    /// attacked in the first combat scored `DeclareAttackers` at 0 in the second, below
+    /// `PassPriority`'s 1, and so **silently declined to attack in every extra combat**
+    /// — a quiet play-quality regression introduced by the fix for a loud stall.
+    ///
+    /// So the two combat keys are reset on combat-phase entry
+    /// ([`HeuristicBot::in_combat`]) and `Activate` stays on the turn. Both resets are
+    /// applied in `refresh_repeat_scope`.
+    repeats_this_turn: HashMap<RepeatKey, u32>,
 }
 
 impl HeuristicBot {
@@ -25,10 +134,47 @@ impl HeuristicBot {
         Self {
             rng: StdRng::seed_from_u64(seed),
             name,
+            repeat_turn: 0,
+            in_combat: false,
+            repeats_this_turn: HashMap::new(),
         }
     }
 
+    /// Drop each tally at the end of its own scope: the whole map on a new turn, and
+    /// the two combat keys on entry to each combat phase (CR 506.5 — a turn may have
+    /// several). See [`HeuristicBot::repeats_this_turn`].
+    fn refresh_repeat_scope(&mut self, state: &GameState) {
+        let turn = state.turn().turn_number;
+        if turn != self.repeat_turn {
+            self.repeat_turn = turn;
+            self.repeats_this_turn.clear();
+        }
+
+        let in_combat = state.combat().is_some();
+        if in_combat && !self.in_combat {
+            self.repeats_this_turn.remove(&RepeatKey::DeclareAttackers);
+            self.repeats_this_turn.remove(&RepeatKey::DeclareBlockers);
+        }
+        self.in_combat = in_combat;
+    }
+
+    /// `true` once this action's [`RepeatKey`] has been chosen its `cap()` times this
+    /// turn.
+    fn is_capped_repeat(&self, action: &LegalAction) -> bool {
+        let Some(key) = RepeatKey::of(action) else {
+            return false;
+        };
+        self.repeats_this_turn
+            .get(&key)
+            .is_some_and(|n| *n >= key.cap())
+    }
+
     fn score_action(&self, state: &GameState, _player: PlayerId, action: &LegalAction) -> i32 {
+        // Below `PassPriority`'s 1, so the bot passes instead of looping — but still
+        // above nothing, so it remains choosable when it is all there is.
+        if self.is_capped_repeat(action) {
+            return 0;
+        }
         match action {
             LegalAction::PlayLand { .. } => 100,
             LegalAction::CastSpell { card, .. } => {
@@ -74,6 +220,13 @@ impl HeuristicBot {
             LegalAction::LeaveCommanderInZone { .. } => 20,
             LegalAction::PassPriority => 1,
             LegalAction::Concede => 0,
+            // CR 509.2 (M11-local S8): human-only — `StubProvider` never emits it, so
+            // this arm is unreachable for a bot seat and exists only because the match
+            // is exhaustive. Scored 0 alongside `Concede` (the other human-only action)
+            // so that if some future provider *did* emit it, a bot would never prefer it
+            // to a real play. `local_game::human_only_actions` documents why it is not
+            // in the provider.
+            LegalAction::OrderBlockers { .. } => 0,
             // Bloodrush (B12): activated from hand targeting an attacking creature.
             // Treat like an activated ability — decent priority.
             LegalAction::ActivateBloodrush { .. } => 40,
@@ -132,6 +285,8 @@ impl Bot for HeuristicBot {
             return Command::PassPriority { player };
         }
 
+        self.refresh_repeat_scope(state);
+
         // Score all actions and pick the highest (with random tiebreaking)
         let mut scored: Vec<(i32, usize)> = legal
             .iter()
@@ -152,6 +307,14 @@ impl Bot for HeuristicBot {
             .collect();
 
         let chosen_idx = top_actions[self.rng.random_range(0..top_actions.len())];
+        // Tally BEFORE building the command: the count is of what this bot chose,
+        // which is knowable here and nowhere else — `LocalGame` never reports back
+        // whether the engine accepted it. A choice the engine then rejects still
+        // counts, which is the conservative direction (a rejected action is exactly
+        // one this bot should stop preferring).
+        if let Some(key) = RepeatKey::of(&legal[chosen_idx]) {
+            *self.repeats_this_turn.entry(key).or_insert(0) += 1;
+        }
         action_to_command(&mut self.rng, state, player, &legal[chosen_idx])
     }
 

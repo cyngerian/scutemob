@@ -18,6 +18,7 @@
 //! | `GET /api/game` | this seat's view, its pending decision, and new events |
 //! | `POST /api/game/action` | answer the pending decision |
 //! | `POST /api/game/mulligan` | CR 103.5 pregame redeal, pregame only |
+//! | `GET /api/game/report` | the bug-report / repro artefact (S8 item 5) |
 //! | `GET /api/healthz` | liveness |
 //!
 //! # No WebSocket, no SSE (M11-local decision)
@@ -381,9 +382,41 @@ fn validate_combat_params(
             }
             Ok(())
         }
-        // Every other variant: `params.rs` already refuses `attackers`/`blockers`
-        // on it with `ParamError::UnsupportedParam` -> 400, so there is nothing to
-        // add and nothing to duplicate.
+        // CR 509.2 (M11-local S8, item 2). Checked here for the same reason the two
+        // above are: a submitted order naming something outside the candidate list
+        // the server just sent is wrong against *that response*, with no game state
+        // needed to see it.
+        //
+        // The completeness half (CR 509.2 requires ALL of an attacker's blockers to
+        // be ordered) is deliberately left to the engine, which reports it as
+        // `GameStateError::IncompleteBlockerOrder` -> 422. It is a rules judgment
+        // about the combat, not about the response — and re-deriving it here would
+        // be the drift class the delegation exists to avoid.
+        LegalAction::OrderBlockers { blockers, .. } => {
+            let mut seen = std::collections::BTreeSet::new();
+            for blocker in &params.blocker_order {
+                if !blockers.contains(blocker) {
+                    return Err(bad(format!(
+                        "object {} is not blocking this attacker (CR 509.2); this decision \
+                         offered {:?}",
+                        blocker.0,
+                        blockers.iter().map(|o| o.0).collect::<Vec<_>>()
+                    )));
+                }
+                if !seen.insert(blocker.0) {
+                    return Err(bad(format!(
+                        "object {} appears more than once in the damage assignment order \
+                         (CR 509.2: the order is a permutation of the blockers)",
+                        blocker.0
+                    )));
+                }
+            }
+            Ok(())
+        }
+        // Every other variant: `params.rs` already refuses
+        // `attackers`/`blockers`/`blocker_order` on it with
+        // `ParamError::UnsupportedParam` -> 400, so there is nothing to add and
+        // nothing to duplicate.
         _ => Ok(()),
     }
 }
@@ -466,7 +499,11 @@ fn seat_view(session: &mut PlaySession, outcome: &AdvanceOutcome) -> SeatView {
         players: session.cfg.player_count,
         human: human.0,
         bot: format!("{:?}", session.cfg.bot_kind),
-        seed: session.cfg.seed,
+        // NO `seed` — review MR-M11-01 (HIGH). See `GameSummary`'s doc: the seed plus
+        // these fields reconstruct every other seat's opening hand and library order,
+        // which is exactly what Architecture Invariant 7 forbids this payload from
+        // carrying. It lives on `BugReportView` alone, which is opt-in and documented
+        // as the one deliberate exception.
         turn: state.turn().turn_number,
         command_count: session.game.command_count(),
         mulligan_count: session.mulligan_count,
@@ -744,9 +781,40 @@ pub async fn post_mulligan(
         }
         if req.take {
             play.mulligan()?;
+        } else {
+            // CR 103.5: "Once a player chooses not to take a mulligan, the remaining
+            // cards become that player's opening hand." Terminal — record it, so a
+            // second request cannot redeal the hand this one accepted (review
+            // MR-M11-10). Before this the choice lived only in the browser's own
+            // `keptHand` flag.
+            play.keep_hand();
         }
         let outcome = play.advance();
         Ok(Json(seat_view(play, &outcome)))
+    })
+}
+
+/// `GET /api/game/report` — the bug-report / repro artefact (M11-local S8, plan
+/// item 5; `docs/mtg-engine-runtime-integrity.md` Layer 3).
+///
+/// `{seed, config, protocol/hash versions, final state hash, journal}` as JSON. See
+/// [`crate::view::BugReportView`] for the shape, how to replay it, and — the part
+/// worth reading before adding a second consumer — why this is the **one** payload
+/// in this crate that is not seat-redacted, and what has to change about that at
+/// M10a.
+///
+/// **A pure read.** Unlike [`get_game`] it does not call `advance()` and does not
+/// move `journal_cursor`, so requesting a report can neither change the game nor
+/// consume event lines the live feed has not shipped yet. It therefore takes the
+/// lock immutably — a report can be pulled from a game parked on a decision without
+/// disturbing the decision.
+pub async fn get_report(
+    State(state): State<SharedState>,
+) -> Result<Json<view::BugReportView>, ApiFailure> {
+    tokio::task::block_in_place(|| {
+        let guard = state.session.lock().map_err(|_| poisoned())?;
+        let play = guard.as_ref().ok_or_else(no_session)?;
+        Ok(Json(view::bug_report_view(play)))
     })
 }
 
