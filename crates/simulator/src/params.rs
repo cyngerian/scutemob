@@ -396,8 +396,12 @@ pub fn action_to_command_with_params(
                 phyrexian_life_payments: vec![],
             })))
         }
-        // KNOWN GAP (M11-local, to be filed for S6/S7): a loyalty ability's targets
-        // cannot be announced. `ActivateLoyaltyAbility` is outside the five-arm
+        // KNOWN GAP, filed as **OOS-M11-10** (`docs/audits/decision-point-audit.md`
+        // §8.1) by the M11-local close-out: a loyalty ability's targets cannot be
+        // announced. This comment read "to be filed for S6/S7" from S5 until S8's
+        // close, and S6, S7 and S8 all shipped without filing it — review MR-M11-06.
+        // A comment asserting a seed exists is not a seed; the seed is the row.
+        // `ActivateLoyaltyAbility` is outside the six-arm
         // allowlist above, so `ActionParams { targets, .. }` on a planeswalker
         // ability is REJECTED with `UnsupportedParam("targets")` rather than
         // forwarded — loud, not silently wrong, but it means a human still cannot

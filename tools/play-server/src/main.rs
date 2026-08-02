@@ -2151,19 +2151,24 @@ mod tests {
     ///
     /// # Why the test taps mana by hand first
     ///
-    /// It has to, and the reason is a real limitation worth recording rather
-    /// than a test-harness convenience. `LocalGame::auto_tap_commands_for` reads
-    /// `obj.characteristics.mana_cost` — the **printed** cost — and knows nothing
-    /// about `cast.x_value`, so it taps for `{1}{B}` and the engine then refuses
-    /// the cast for want of the extra `{3}`. Observed, not inferred: the same
-    /// submission without the manual taps answers **422 "player does not have
-    /// enough mana to pay the cost"**.
+    /// **Historical as of S8 — `OOS-M11-8` is CLOSED and this is no longer a
+    /// limitation.** It was one when the test was written:
+    /// `LocalGame::auto_tap_commands_for` read `obj.characteristics.mana_cost` —
+    /// the **printed** cost — and knew nothing about `cast.x_value`, so it tapped
+    /// for `{1}{B}` and the engine then refused the cast for want of the extra
+    /// `{3}` (observed, not inferred: the same submission without the manual taps
+    /// answered **422 "player does not have enough mana to pay the cost"**).
+    /// `auto_tap_commands_for` now adds `x_value * mana_cost.x_count` before it
+    /// solves, and the crate README's limitation 6 records the closure.
     ///
-    /// So this test fills the pool through five real `TapForMana` submissions
-    /// first. S3 made auto-tap conditional on the pool (`OOS-M11-2`'s pool half),
-    /// which is what makes that work: with the cost already covered,
+    /// The manual taps are kept anyway, and deliberately: they make this test
+    /// exercise the **pool** path — S3 made auto-tap conditional on the pool
+    /// (`OOS-M11-2`'s pool half), so with the cost already covered
     /// `auto_tap_commands_for` returns `None` and the surplus stays available for
-    /// X. The gap is filed as **OOS-M11-8** and stated in the crate README.
+    /// X. The auto-tap path for `{X}` has its own probe,
+    /// `local_game_human_actions.rs::test_s8_x_value_is_included_in_the_auto_tap_plan`;
+    /// between them both halves are covered rather than one being retargeted onto
+    /// the other.
     ///
     /// CR 107.3 / CR 601.2b.
     #[tokio::test(flavor = "multi_thread")]

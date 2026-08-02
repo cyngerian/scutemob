@@ -705,11 +705,35 @@ directly. The gate is not weakened; it simply has nothing to say here.
 
 ## Hidden information
 
+> **One route is exempt, by design**: `GET /api/game/report` is not seat-redacted.
+> Everything in this section describes the *seat* payloads — `GET /api/game`,
+> `POST /api/game`, `POST /api/game/action`, `POST /api/game/mulligan`. See the
+> section immediately above for the exception, why it is safe inside M11-local's
+> scope, and the M10a obligation it carries.
+
 Architecture Invariant 7 is enforced at one chokepoint, `api.rs::seat_view`: the
 state is built with `StateViewModel::from_game_state_for(.., Viewer::Seat(human))`
 and every event line goes through `event_view_for(.., Viewer::Seat(human))`.
 Neither omniscient entry point (`from_game_state`, `Viewer::Omniscient`) is
 reachable from the production paths of this crate.
+
+**Three channels, not one — and two of them were found by review, not by a gate**
+(review MR-M11-01 / MR-M11-08). A payload can identify a hidden card without ever
+naming it:
+
+| Channel | What carries it | What holds it |
+|---------|-----------------|---------------|
+| **Names** — a label that says the card | the view model and `NameIndex` | `test_production_code_never_builds_an_omniscient_view` (source) + `test_seat_view_over_http_contains_no_other_hand_card_names` (body) |
+| **Reconstruction keys** — data that *rebuilds* a hidden zone | `GameSummary.seed`, until MR-M11-01 removed it | `test_mr_m11_01_seat_payload_carries_no_reconstruction_key`, which asserts over the raw body so a rename or a nested copy is caught too |
+| **Free-form strings** — engine text spliced in after redaction | `game_over.violations` / `.reason`, until MR-M11-08 reduced them | `test_mr_m11_08_game_over_payload_carries_no_engine_debug`, which plants a card name in both carriers |
+
+`seed` shipped on **every** seat response for three sessions with both name-channel
+gates green, because `setup::build_initial_state` is deterministic in its config alone
+and `session::config_for` fixes every other input — so `(seed, players,
+mulligan_count)` rebuilt every other seat's opening hand *and* library order. It is now
+on `BugReportView` and nowhere else. The transferable lesson is why it survived review
+and two gates: **a redaction gate checks the channel it was written for, and a new
+channel is invisible to it.**
 
 **That chokepoint is machine-enforced as of Session 7**, not asserted in prose:
 `test_production_code_never_builds_an_omniscient_view` scans the production
