@@ -644,10 +644,20 @@ impl LegalActionProvider for StubProvider {
                 .unwrap_or_else(|| obj.characteristics.clone());
             for (idx, ability) in chars.mana_abilities.iter().enumerate() {
                 if ability.requires_tap {
-                    // SG-1 (CR 118.3 / CR 119.4b): a horizon land / Mana Confluence mana
-                    // ability with a life component the player cannot pay is rejected by
-                    // `handle_tap_for_mana` (rules/mana.rs step 5b) — don't offer it.
-                    if ability.life_cost > 0 && life_total < ability.life_cost as i32 {
+                    // SG-1 (CR 118.3 / CR 119.4b) + **OOS-CARDS2-9** (SIM-2): a mana
+                    // ability whose activation `handle_tap_for_mana` would refuse must not
+                    // be offered (SR-38). SG-1 covered the life component alone; the
+                    // shared predicate covers it plus the two the driver's
+                    // `KNOWN_FALSE_OFFERS` list had been absorbing for a batch — an unmet
+                    // `activation_condition` (CR 602.5b) and a summoning-sick creature
+                    // (CR 302.6) — and a counter cost with too few counters (CR 118.3).
+                    //
+                    // The SAME predicate the mana solver uses, so the offer list and the
+                    // payment plan cannot drift: that identity is the fix, not the
+                    // individual checks.
+                    if !crate::mana_solver::tap_ability_is_activatable(
+                        state, player, obj, &chars, ability,
+                    ) {
                         continue;
                     }
                     // PB-EF12: an any_color ability requires a chosen_color on the

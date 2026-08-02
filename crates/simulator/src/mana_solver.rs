@@ -203,6 +203,11 @@ fn plannable_tap_ability(
     // model per-step, and crediting the gross production while ignoring the cost would
     // *over*-credit — a Signet would look like two free mana. Refusing to plan them is
     // the conservative direction: it can only under-offer. `OOS-SIM2-2`.
+    //
+    // **Solver-only**, and the one check that is: `StubProvider` still OFFERS these taps,
+    // because a human can perfectly well tap a Signet by hand once they have the `{1}` —
+    // refusing to offer it would take a legal play away. The solver declining to *plan*
+    // one costs nobody anything.
     if let Some(mana_cost) = &ability.mana_cost {
         if mana_cost.mana_value() > 0
             || !mana_cost.hybrid.is_empty()
@@ -211,6 +216,27 @@ fn plannable_tap_ability(
             return false;
         }
     }
+    tap_ability_is_activatable(state, player, obj, chars, ability)
+}
+
+/// The subset of [`plannable_tap_ability`] that is about **legality right now**, shared
+/// with `StubProvider`'s `TapForMana` offer loop.
+///
+/// Two callers, one predicate, deliberately: **OOS-CARDS2-9** is the same defect appearing
+/// at both — "the provider's affordability check counts mana abilities it could not legally
+/// activate ... the fix is one place: make the solver ask whether the ability is
+/// *activatable*, not whether its source is untapped". `legal_actions.rs` had the *offer*
+/// half of it (it checked `life_cost` per SG-1 and nothing else, so an unmet
+/// `activation_condition` and a summoning-sick creature were both offered and both
+/// refused), and this file had the affordability half. Splitting the fix would have left
+/// the play-server driver's `KNOWN_FALSE_OFFERS` list still describing a live bug.
+pub(crate) fn tap_ability_is_activatable(
+    state: &GameState,
+    player: PlayerId,
+    obj: &GameObject,
+    chars: &Characteristics,
+    ability: &ManaAbility,
+) -> bool {
     // CR 119.4 / CR 118.3b (rules/mana.rs step 5b): a horizon land's "Pay 1 life" is
     // rejected outright when the player cannot pay. Mirrors `legal_actions.rs`'s SG-1
     // check on the offer side, including its `>=` (CR 119.4 permits paying down to 0).

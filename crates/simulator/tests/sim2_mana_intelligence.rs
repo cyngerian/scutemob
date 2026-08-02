@@ -592,3 +592,509 @@ fn t10_two_generic_spell_with_only_a_sol_ring_is_offered_and_succeeds() {
     )
     .expect("the offered cast must be accepted by the engine (SR-38)");
 }
+
+// ---------------------------------------------------------------------------
+// `plannable_tap_ability` — every arm mirrors a rejection in `rules/mana.rs`
+//
+// Each of these is a plan the pre-SIM-2 solver would happily have emitted and the engine
+// would then have refused, failing the whole atomic tap-and-cast sequence on the human
+// path (the `422`) and silently degrading to `PassPriority` on the bot path.
+// ---------------------------------------------------------------------------
+
+/// Build a one-source battlefield with control over the controller's life total, and
+/// optionally mutate the source object after the build (for the flags `ObjectSpec` has no
+/// setter for, e.g. `status.face_down`).
+fn battlefield_with_life(
+    name: &str,
+    ability: ManaAbility,
+    life: i32,
+    types: Vec<mtg_engine::CardType>,
+    tweak: impl FnOnce(&mut mtg_engine::GameObject),
+) -> (GameState, ObjectId) {
+    let mut spec = ObjectSpec::card(PlayerId(1), name)
+        .with_mana_ability(ability)
+        .in_zone(ZoneId::Battlefield);
+    if !types.is_empty() {
+        spec = spec.with_types(types);
+    }
+    let mut state = GameStateBuilder::new()
+        .add_player_with(PlayerId(1), |p| p.life(life))
+        .add_player(PlayerId(2))
+        .active_player(PlayerId(1))
+        .object(spec)
+        .build()
+        .expect("fixture should build");
+    let id = state
+        .objects()
+        .iter()
+        .find(|(_, o)| o.characteristics.name == name)
+        .map(|(id, _)| *id)
+        .expect("the source must exist");
+    if let Some(obj) = state.objects_mut().get_mut(&id) {
+        tweak(obj);
+    }
+    (state, id)
+}
+
+/// CR 302.6 / CR 702.10: a summoning-sick creature cannot pay a `{T}` cost — so a mana
+/// dork played this turn is not a mana source, and `can_afford` must not count it. With
+/// haste (CR 613.1f resolves it through the layer system) it is.
+#[test]
+fn t11_summoning_sick_mana_creature_is_not_planned() {
+    use mtg_engine::{CardType, KeywordAbility};
+
+    let (sick, _) = battlefield_with_life(
+        "SIM2 Dork",
+        tap_for(ManaColor::Green, 1),
+        40,
+        vec![CardType::Creature],
+        |obj| obj.has_summoning_sickness = true,
+    );
+    assert!(
+        solve_mana_payment(&sick, PlayerId(1), &generic(1)).is_none(),
+        "a summoning-sick mana creature cannot pay a {{T}} cost (CR 302.6)"
+    );
+
+    let (hasty, id) = battlefield_with_life(
+        "SIM2 Dork",
+        tap_for(ManaColor::Green, 1),
+        40,
+        vec![CardType::Creature],
+        |obj| {
+            obj.has_summoning_sickness = true;
+            obj.characteristics.keywords.insert(KeywordAbility::Haste);
+        },
+    );
+    assert_eq!(
+        tapped_sources(
+            &solve_mana_payment(&hasty, PlayerId(1), &generic(1))
+                .expect("haste beats summoning sickness (CR 702.10b)")
+        ),
+        vec![id],
+    );
+
+    // And the non-creature control: a land is never summoning-sick.
+    let (land, land_id) = battlefield_with_life(
+        "SIM2 Forest",
+        tap_for(ManaColor::Green, 1),
+        40,
+        vec![CardType::Land],
+        |obj| obj.has_summoning_sickness = true,
+    );
+    assert_eq!(
+        tapped_sources(
+            &solve_mana_payment(&land, PlayerId(1), &generic(1))
+                .expect("a land with the flag set is still tappable — CR 302.6 is creatures only")
+        ),
+        vec![land_id],
+    );
+}
+
+/// CR 605.3a / CR 118.3a: a Signet's `{1}` is paid from the pool at activation. The solver
+/// does not model that interleaving, and crediting the gross `{C}{C}` while ignoring the
+/// `{1}` would OVER-credit — the direction that produces a plan the engine refuses. It
+/// refuses to plan them instead (`OOS-SIM2-2`).
+#[test]
+fn t12_ability_with_its_own_mana_cost_is_not_planned() {
+    let signet = ManaAbility {
+        produces: [(ManaColor::White, 1u32), (ManaColor::Blue, 1u32)]
+            .into_iter()
+            .collect(),
+        requires_tap: true,
+        mana_cost: Some(generic(1)),
+        ..Default::default()
+    };
+    let (state, _) = battlefield_with_life("SIM2 Signet", signet, 40, vec![], |_| {});
+    assert!(
+        solve_mana_payment(&state, PlayerId(1), &generic(1)).is_none(),
+        "a Signet is not a free two mana; the solver must not plan it"
+    );
+}
+
+/// CR 119.4 / CR 118.3b: a horizon land's "Pay 1 life" is rejected outright when the
+/// player cannot pay, and legal at exactly the cost (CR 119.4 permits paying to 0).
+#[test]
+fn t13_life_cost_source_respects_the_life_total() {
+    let horizon = ManaAbility {
+        produces: [(ManaColor::Black, 1u32)].into_iter().collect(),
+        requires_tap: true,
+        life_cost: 1,
+        ..Default::default()
+    };
+    let (broke, _) = battlefield_with_life("SIM2 Horizon", horizon.clone(), 0, vec![], |_| {});
+    assert!(
+        solve_mana_payment(&broke, PlayerId(1), &generic(1)).is_none(),
+        "a player at 0 life cannot pay 1 life for mana"
+    );
+    let (solvent, id) = battlefield_with_life("SIM2 Horizon", horizon, 1, vec![], |_| {});
+    assert_eq!(
+        tapped_sources(
+            &solve_mana_payment(&solvent, PlayerId(1), &generic(1))
+                .expect("paying down to 0 is legal (CR 119.4)")
+        ),
+        vec![id],
+    );
+}
+
+/// CR 602.2c / CR 118.3: a counter cost with too few counters present. **No def in the
+/// corpus lowers to this today** (`sim2_mana_source_roster` R4 pins that at 0), which is
+/// exactly why the arm needs a synthetic test — an unexercised filter rots silently.
+#[test]
+fn t14_counter_cost_source_respects_the_counters_present() {
+    use mtg_engine::CounterType;
+
+    let workhorse = ManaAbility {
+        produces: [(ManaColor::Colorless, 1u32)].into_iter().collect(),
+        requires_tap: true,
+        remove_counter: Some((CounterType::PlusOnePlusOne, 1)),
+        ..Default::default()
+    };
+    let (empty, _) = battlefield_with_life("SIM2 Workhorse", workhorse.clone(), 40, vec![], |_| {});
+    assert!(
+        solve_mana_payment(&empty, PlayerId(1), &generic(1)).is_none(),
+        "no counters on the permanent means the activation cost cannot be paid"
+    );
+    let (stocked, id) =
+        battlefield_with_life("SIM2 Workhorse", workhorse, 40, vec![], |obj| {
+            obj.counters.insert(CounterType::PlusOnePlusOne, 1);
+        });
+    assert_eq!(
+        tapped_sources(
+            &solve_mana_payment(&stocked, PlayerId(1), &generic(1))
+                .expect("one counter present pays a one-counter cost")
+        ),
+        vec![id],
+    );
+}
+
+/// CR 602.5b (SR-37): "Activate only if ..." is enforced by `handle_tap_for_mana` via
+/// `check_condition`, so the solver asks the identical question rather than a lookalike.
+#[test]
+fn t15_activation_condition_is_honoured() {
+    use mtg_engine::Condition;
+
+    let conditioned = ManaAbility {
+        produces: [(ManaColor::Red, 1u32)].into_iter().collect(),
+        requires_tap: true,
+        activation_condition: Some(Box::new(Condition::ControllerLifeAtLeast(30))),
+        ..Default::default()
+    };
+    let (unmet, _) =
+        battlefield_with_life("SIM2 Conditioned", conditioned.clone(), 10, vec![], |_| {});
+    assert!(
+        solve_mana_payment(&unmet, PlayerId(1), &generic(1)).is_none(),
+        "the condition is false at 10 life, so the engine would refuse the activation"
+    );
+    let (met, id) = battlefield_with_life("SIM2 Conditioned", conditioned, 40, vec![], |_| {});
+    assert_eq!(
+        tapped_sources(
+            &solve_mana_payment(&met, PlayerId(1), &generic(1)).expect("the condition holds at 40")
+        ),
+        vec![id],
+    );
+}
+
+/// **The regression the S8 scripted playthrough caught** (seed 42, turn 21): CR 707.2 — a
+/// face-down permanent has no abilities, and `layers.rs` clears `mana_abilities`
+/// accordingly. Reading base characteristics planned a tap the engine answered with
+/// `"object ObjectId(487) has no mana ability at index 0"`.
+#[test]
+fn t16_face_down_permanent_is_not_a_mana_source() {
+    use mtg_engine::FaceDownKind;
+
+    let (state, _) = battlefield_with_life(
+        "SIM2 Morph",
+        tap_for(ManaColor::Green, 1),
+        40,
+        vec![mtg_engine::CardType::Creature],
+        |obj| {
+            obj.status.face_down = true;
+            obj.face_down_as = Some(FaceDownKind::Morph);
+        },
+    );
+    assert!(
+        solve_mana_payment(&state, PlayerId(1), &generic(1)).is_none(),
+        "a face-down permanent has no mana ability to plan (CR 707.2)"
+    );
+}
+
+/// CR 111.10a / CR 605.3b: an `any_color` source makes exactly ONE mana, and the colour is
+/// chosen on the activation command — `handle_tap_for_mana` rejects a missing choice, and
+/// equally rejects a `chosen_color` supplied for a fixed-colour ability.
+#[test]
+fn t17_any_color_source_announces_its_colour_and_counts_as_one() {
+    let any = ManaAbility {
+        produces: Default::default(),
+        requires_tap: true,
+        any_color: true,
+        ..Default::default()
+    };
+    let (state, _) = battlefield_with_life("SIM2 Prism", any, 40, vec![], |_| {});
+
+    let cost = ManaCost {
+        red: 1,
+        ..ManaCost::default()
+    };
+    let plan = solve_mana_payment(&state, PlayerId(1), &cost).expect("any colour pays {R}");
+    assert!(
+        matches!(
+            plan.as_slice(),
+            [Command::TapForMana {
+                chosen_color: Some(ManaColor::Red),
+                ..
+            }]
+        ),
+        "the pip's colour must be the announced choice: {plan:?}"
+    );
+
+    let generic_plan =
+        solve_mana_payment(&state, PlayerId(1), &generic(1)).expect("any colour pays {1}");
+    assert!(
+        matches!(
+            generic_plan.as_slice(),
+            [Command::TapForMana {
+                chosen_color: Some(ManaColor::White),
+                ..
+            }]
+        ),
+        "a generic pip takes the deterministic White, mirroring legal_actions.rs"
+    );
+
+    // CR 106.1b: colorless is not a colour, so an any-colour source can never pay `{C}`.
+    let colorless = ManaCost {
+        colorless: 1,
+        ..ManaCost::default()
+    };
+    assert!(
+        solve_mana_payment(&state, PlayerId(1), &colorless).is_none(),
+        "'add one mana of any color' cannot produce colorless (CR 106.1b)"
+    );
+
+    // One mana, not two: `{1}{R}` needs a second source.
+    let two = ManaCost {
+        red: 1,
+        generic: 1,
+        ..ManaCost::default()
+    };
+    assert!(
+        solve_mana_payment(&state, PlayerId(1), &two).is_none(),
+        "an any-colour source makes exactly one mana (CR 111.10a)"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// The residual, at the solver
+// ---------------------------------------------------------------------------
+
+/// The pool subtraction must mirror `ManaPool::can_spend`: a floating `{G}` pays the `{G}`
+/// pip of `{1}{G}` and NOT the generic one, leaving exactly one source to tap.
+#[test]
+fn t18_residual_spends_coloured_pool_on_matching_pips_first() {
+    use mtg_engine::ManaPool;
+
+    let mut pool = ManaPool::default();
+    pool.add(ManaColor::Green, 1);
+    let state = GameStateBuilder::new()
+        .add_player_with(PlayerId(1), |p| p.mana(pool))
+        .add_player(PlayerId(2))
+        .active_player(PlayerId(1))
+        .object(
+            ObjectSpec::land(PlayerId(1), "SIM2 Forest A")
+                .with_mana_ability(tap_for(ManaColor::Green, 1)),
+        )
+        .object(
+            ObjectSpec::land(PlayerId(1), "SIM2 Forest B")
+                .with_mana_ability(tap_for(ManaColor::Green, 1)),
+        )
+        .build()
+        .expect("pool fixture should build");
+
+    let cost = ManaCost {
+        generic: 1,
+        green: 1,
+        ..ManaCost::default()
+    };
+    let plan = mtg_simulator::mana_solver::solve_mana_payment_with_pool(&state, PlayerId(1), &cost)
+        .expect("{1}{G} with {G} floating and two Forests up");
+    assert_eq!(
+        plan.len(),
+        1,
+        "one floating green covers the {{G}} pip; only the generic pip needs a tap: {plan:?}"
+    );
+
+    // A pool that covers the whole cost plans nothing at all — the case the deleted
+    // `can_pay_cost` early return used to handle as a special case.
+    let mut full = ManaPool::default();
+    full.add(ManaColor::Green, 2);
+    let covered = GameStateBuilder::new()
+        .add_player_with(PlayerId(1), |p| p.mana(full))
+        .add_player(PlayerId(2))
+        .active_player(PlayerId(1))
+        .object(
+            ObjectSpec::land(PlayerId(1), "SIM2 Forest A")
+                .with_mana_ability(tap_for(ManaColor::Green, 1)),
+        )
+        .build()
+        .expect("covered fixture should build");
+    assert_eq!(
+        mtg_simulator::mana_solver::solve_mana_payment_with_pool(&covered, PlayerId(1), &cost)
+            .expect("a covering pool is solvable"),
+        Vec::new(),
+        "a pool that covers the cost must plan an EMPTY tap list, not a tap"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// The offer side of the same predicate — OOS-CARDS2-9
+// ---------------------------------------------------------------------------
+
+/// SR-38, the offer half: `StubProvider` must not OFFER a `TapForMana` the engine will
+/// refuse. Before SIM-2 it checked only `life_cost` (SG-1), so an unmet
+/// `activation_condition` and a summoning-sick creature were both offered — and the
+/// play-server test driver carried both refusal strings in its `KNOWN_FALSE_OFFERS`
+/// allowlist to drive past them.
+#[test]
+fn t19_unactivatable_mana_abilities_are_not_offered() {
+    use mtg_engine::{CardType, Condition};
+
+    let (sick, _) = battlefield_with_life(
+        "SIM2 Dork",
+        tap_for(ManaColor::Green, 1),
+        40,
+        vec![CardType::Creature],
+        |obj| obj.has_summoning_sickness = true,
+    );
+    assert!(
+        !StubProvider
+            .legal_actions(&sick, PlayerId(1))
+            .iter()
+            .any(|a| matches!(a, LegalAction::TapForMana { .. })),
+        "a summoning-sick creature's mana ability must not be offered (CR 302.6)"
+    );
+
+    let conditioned = ManaAbility {
+        produces: [(ManaColor::Red, 1u32)].into_iter().collect(),
+        requires_tap: true,
+        activation_condition: Some(Box::new(Condition::ControllerLifeAtLeast(30))),
+        ..Default::default()
+    };
+    let (unmet, _) = battlefield_with_life("SIM2 Conditioned", conditioned.clone(), 10, vec![], |_| {});
+    assert!(
+        !StubProvider
+            .legal_actions(&unmet, PlayerId(1))
+            .iter()
+            .any(|a| matches!(a, LegalAction::TapForMana { .. })),
+        "an unmet activation condition must not be offered (CR 602.5b)"
+    );
+
+    // Non-vacuity: the same ability with the condition MET is still offered, so the two
+    // assertions above are about the condition and not about the fixture.
+    let (met, _) = battlefield_with_life("SIM2 Conditioned", conditioned, 40, vec![], |_| {});
+    assert!(
+        StubProvider
+            .legal_actions(&met, PlayerId(1))
+            .iter()
+            .any(|a| matches!(a, LegalAction::TapForMana { .. })),
+        "with the condition met the tap must still be offered"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// The bot path goes through the same helper
+// ---------------------------------------------------------------------------
+
+/// `advance()`'s bot auto-tap used to call `solve_mana_payment` on the taxed printed cost
+/// directly — a second code path with its own idea of the cost, justified by an asymmetry
+/// argument ("a bot never has a reason to prefer its existing pool over a fresh tap") that
+/// only held because the solver was pool-blind. It now calls `auto_tap_commands_for`, the
+/// human path's own helper.
+///
+/// Proven end to end rather than by reading the call: an all-bot game where the only
+/// untapped source is a `{C}{C}` rock and the only castable card costs `{2}`. Pre-SIM-2
+/// the provider would not even offer the cast (F4's under-offer dual), so the bot could
+/// never take it; now it is offered, planned with ONE tap, and accepted by the engine.
+#[test]
+fn t20_bot_seat_casts_through_the_shared_residual_helper() {
+    use mtg_engine::state::turn::Step;
+    use mtg_engine::{AbilityDefinition, CardType, Effect, EffectAmount, PlayerTarget, TypeLine};
+
+    let def = CardDefinition {
+        name: "SIM2 Bot Drop".to_string(),
+        card_id: CardId("sim2-bot-drop".to_string()),
+        mana_cost: Some(generic(2)),
+        types: TypeLine {
+            card_types: [CardType::Sorcery].into_iter().collect(),
+            ..Default::default()
+        },
+        abilities: vec![AbilityDefinition::Spell {
+            effect: Effect::GainLife {
+                player: PlayerTarget::Controller,
+                amount: EffectAmount::Fixed(1),
+            },
+            targets: vec![],
+            modes: None,
+            cant_be_countered: false,
+        }],
+        ..Default::default()
+    };
+    let mut state = GameStateBuilder::new()
+        .add_player(PlayerId(1))
+        .add_player(PlayerId(2))
+        .with_registry(CardRegistry::new(vec![def.clone()]))
+        .active_player(PlayerId(1))
+        .at_step(Step::PreCombatMain)
+        .object(
+            ObjectSpec::card(PlayerId(1), &def.name)
+                .with_card_id(def.card_id.clone())
+                .with_types(vec![CardType::Sorcery])
+                .with_mana_cost(generic(2))
+                .in_zone(ZoneId::Hand(PlayerId(1))),
+        )
+        .object(
+            ObjectSpec::artifact(PlayerId(1), "SIM2 Sol Ring")
+                .with_mana_ability(tap_for(ManaColor::Colorless, 2)),
+        )
+        .build()
+        .expect("bot fixture should build");
+    state.turn_mut().priority_holder = Some(PlayerId(1));
+
+    let mut bots: HashMap<PlayerId, Box<dyn Bot>> = HashMap::new();
+    bots.insert(PlayerId(1), Box::new(HeuristicBot::new(3, "Bot-1".into())));
+    bots.insert(PlayerId(2), Box::new(HeuristicBot::new(4, "Bot-2".into())));
+    let (mut game, _events) = LocalGame::start(
+        state,
+        1,
+        StubProvider,
+        bots,
+        BTreeSet::new(),
+        LocalGameLimits {
+            max_commands: 400,
+            max_turns: 3,
+            max_consecutive_passes: 100,
+            record_journal: true,
+        },
+        true,
+    )
+    .expect("game should start");
+    let _ = game.advance();
+
+    let casts: Vec<&Command> = game
+        .journal()
+        .iter()
+        .map(|r| &r.command)
+        .filter(|c| matches!(c, Command::CastSpell(_)))
+        .collect();
+    assert!(
+        !casts.is_empty(),
+        "the bot must be offered and take the {{2}} cast its Sol Ring pays for"
+    );
+    let taps = game
+        .journal()
+        .iter()
+        .filter(|r| matches!(r.command, Command::TapForMana { .. }))
+        .count();
+    assert_eq!(
+        taps, 1,
+        "one {{C}}{{C}} activation covers the whole {{2}} cost — the bot must not tap twice"
+    );
+}
