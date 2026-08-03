@@ -153,6 +153,8 @@ const BASELINE_FINGERPRINT: &str =
 // tail) joined the frozen prefix when version 33 shipped.
 // ENG-1 (2026-08-02): re-pinned on the 33→34 bump — version 33 (the former
 // tail) joined the frozen prefix when version 34 shipped.
+// ENG-2 (2026-08-02): re-pinned on the 34→35 bump — version 34 (the former
+// tail) joined the frozen prefix when version 35 shipped.
 const FROZEN_HISTORY_PREFIX_DIGEST: &str =
     "6159cc05cda2ce25edf6d140bf3f27f4ffb0206db791429a1dd955f29c52dbf8";
 

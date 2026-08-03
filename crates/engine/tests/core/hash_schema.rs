@@ -195,6 +195,8 @@ const BASELINE_STREAM_FINGERPRINT: &str =
 // superseded row and joined the frozen prefix.
 // ENG-1 (2026-08-02): re-pinned on the 70→71 bump — version 70 became a
 // superseded row and joined the frozen prefix.
+// ENG-2 (2026-08-02): re-pinned on the 71→72 bump — version 71 became a
+// superseded row and joined the frozen prefix.
 const FROZEN_HISTORY_PREFIX_DIGEST: &str =
     "8f4b209dd2be84563c3f8777399e7152bf52b557ee3d6eb8f62189f4a6ffec16";
 

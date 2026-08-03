@@ -1556,8 +1556,10 @@ pub(crate) fn announce_targets(
     stack_object_id: crate::state::game_object::ObjectId,
 ) -> Option<GameEvent> {
     // SR-4: a missing stack object one line after pushing it is an engine bug,
-    // not an LKI fizzle — every one of the 8 call sites pushes its `StackObject`
-    // before calling this helper (verified individually), so the lookup always
+    // not an LKI fizzle — every `push_target_announcement` call site pushes its
+    // `StackObject` before calling this helper (verified individually at each of
+    // the 12 sites; the gate in `pb_eng2_targets_announced.rs` is what keeps that
+    // true, so do not trust this count over the gate). The lookup therefore always
     // succeeds. Route the surprise through the `expect_*` family's convention
     // (a `debug_assert!` that degrades to `None` in release builds), not `lki_*`.
     let stack_obj = state

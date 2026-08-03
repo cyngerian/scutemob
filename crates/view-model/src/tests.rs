@@ -1041,7 +1041,7 @@ fn test_event_view_does_not_leak_a_card_moved_into_a_hidden_zone() {
     }
 }
 
-/// ENG-2 (CR 601.2c / CR 708.2 / CR 102.1 / 115.1 / 400.2): a `TargetsAnnounced`
+/// ENG-2 (CR 601.2c / CR 708.2 / CR 400.2): a `TargetsAnnounced`
 /// event redacts an OBJECT target through the same entitlement gate every other
 /// arm uses, and never redacts a PLAYER target -- proven both ways, so this is
 /// not just "redaction happens somewhere" but "redaction happens exactly where
@@ -1092,7 +1092,7 @@ fn test_eng2_targets_announced_redacts_object_targets_and_never_player_targets()
         "alice's TargetsAnnounced line",
     );
 
-    // ── Player target: CR 102.1 / 115.1 / 400.2, never redacted ─────────────
+    // ── Player target: CR 601.2c / 400.2, never redacted ────────────────────
     let player_ev = GameEvent::TargetsAnnounced {
         controller: alice,
         source_object_id: shock,

@@ -185,9 +185,10 @@ pub fn event_view_for(
     let card_or = |id: ObjectId, fallback: &str| -> String {
         card_name(id).unwrap_or_else(|| fallback.to_string())
     };
-    // CR 508.1a: an attack may be aimed at a player (public, CR 102.1 / 115.1 /
-    // 400.2) or at a planeswalker, whose identity goes through the same gate as
-    // any other battlefield permanent.
+    // CR 508.1a: an attack may be aimed at a player (public: CR 601.2c makes a
+    // player an appropriate target, and CR 400.2 makes the stack a public zone)
+    // or at a planeswalker, whose identity goes through the same gate as any
+    // other battlefield permanent.
     let attack_target = |t: &AttackTarget| -> String {
         match t {
             AttackTarget::Player(pid) => name(*pid),
@@ -891,8 +892,8 @@ pub fn event_view_for(
         }
         // CR 601.2c / 602.2b / 603.3d (ENG-2): the targets announced when a spell
         // or ability was put on the stack. A player target is unconditional (CR
-        // 102.1 / 115.1 / 400.2 — a player's identity is never hidden and the
-        // stack is a public zone); an object target goes through `card_or` (CR
+        // 601.2c names "an appropriate object or player" and CR 400.2 makes the
+        // stack a public zone); an object target goes through `card_or` (CR
         // 708.2 — a face-down permanent has no name to reveal).
         //
         // The unnameable-source fallback ("alice targets a creature") is
@@ -1056,10 +1057,11 @@ fn event_tier(ev: &GameEvent) -> EventTier {
         | GameEvent::CascadeCast { .. }
         | GameEvent::DiscoverCast { .. }
         | GameEvent::CommanderCastFromCommandZone { .. }
-        // ENG-2 (§6.2): not caught by the compiler — the match above has no `_`
-        // arm within it (it's not exhaustive over GameEvent as a whole, so a new
-        // variant compiles silently and lands in the `Game` default below unless
-        // it is explicitly listed here.
+        // ENG-2 (§6.2): listing these two is NOT compiler-forced. This or-pattern
+        // chain is not exhaustive over `GameEvent`, so a new variant compiles
+        // silently and falls to the `_ => EventTier::Game` default three lines
+        // below unless it is named here. A stack event misfiled as `Game` is
+        // invisible: the feed's `stack` tier filter would never show it.
         | GameEvent::TargetsAnnounced { .. }
         | GameEvent::TargetsChanged { .. } => EventTier::Stack,
 

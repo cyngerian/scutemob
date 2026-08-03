@@ -944,27 +944,42 @@ fn every_announcement_site_is_classified() {
     let classification: HashMap<&str, bool> =
         EXPECTED_SITES.iter().map(|(k, a, _)| (*k, *a)).collect();
 
-    // ── Part 2: every ANNOUNCES site calls the helper ────────────────────────
+    // ── Part 2: every ANNOUNCES site calls the helper, COUNTED ──────────────
     //
-    // Whole-function-body-contains is safe here: a false positive would need an
-    // UNRELATED push_target_announcement call to exist in the same function,
-    // which none of these functions have (each ANNOUNCES site is the only
-    // announcement in its function, except flush_sorted and
-    // resolve_top_of_stack_inner, which have TWO ANNOUNCES occurrences each and
-    // so trivially satisfy "contains at least one").
+    // ENG-2 fix cycle (review finding 3): this used to assert only that the
+    // function body CONTAINS `push_target_announcement(`. Two functions carry
+    // TWO ANNOUNCES sites each — `flush_sorted` (T6 modular, T7 main flush) and
+    // `resolve_top_of_stack_inner` (S4 cipher, S5 suspend) — so "contains at
+    // least one" was satisfied by either call alone, and deleting the other was
+    // invisible to the whole suite. That mattered most for **T6**, the modular
+    // trigger's announcement, which has no behavioural probe anywhere: nothing
+    // else in 4,341 tests exercises a modular trigger's target announcement, so
+    // this count is its ONLY protection.
+    //
+    // Counting is still a body-level check, not a per-site one — an unrelated
+    // `push_target_announcement` in the same function would mask a deleted real
+    // one — but Part 1's census pins exactly which push sites exist per function,
+    // so an unrelated call would have to be a new census entry and would fail
+    // there first.
     for file in FILES {
         let src = read_src(file);
-        let funcs_needing_check: Vec<&str> = classified
+        let mut needed: HashMap<&str, usize> = HashMap::new();
+        for c in classified
             .iter()
             .filter(|c| c.file == *file && classification[c.key.as_str()])
-            .map(|c| c.func.as_str())
-            .collect();
-        for func in funcs_needing_check {
+        {
+            *needed.entry(c.func.as_str()).or_default() += 1;
+        }
+        for (func, want) in needed {
             let body = function_body(&src, func);
-            assert!(
-                body.contains("push_target_announcement("),
-                "{file}::{func} is classified ANNOUNCES but its body does not call \
-                 push_target_announcement("
+            let got = body.matches("push_target_announcement(").count();
+            assert_eq!(
+                got, want,
+                "{file}::{func} is classified ANNOUNCES at {want} site(s) but its \
+                 body calls push_target_announcement( {got} time(s). Every \
+                 announcement site named in EXPECTED_SITES must have its own call: \
+                 a function with two announcement sites needs two calls, and \
+                 deleting one of them must fail here."
             );
         }
     }
@@ -974,10 +989,21 @@ fn every_announcement_site_is_classified() {
     // Scoped to the LOCAL WINDOW between the previous occurrence's push line
     // (exclusive) and this occurrence's push line (inclusive), within the same
     // function -- see the deviation note in this test's doc comment.
+    // ENG-2 fix cycle (review finding 7): these are literal SPELLINGS, not a
+    // semantic check — a site that grows targets via some other syntax slips
+    // past. Widened from three to cover the assignment and mutation forms that
+    // actually exist in this codebase; `targets:` alone would false-positive on
+    // the `targets: vec![]` that every NEVER_TARGETS site legitimately carries,
+    // so the empty-literal form is deliberately NOT forbidden.
     let forbidden = [
         "stack_obj.targets =",
+        "stack_obj.targets.push",
+        "stack_obj.targets.extend",
         "targets: spell_targets",
         "targets: vec![SpellTarget",
+        "targets: targets",
+        "targets: declared_targets",
+        "targets: resolved_targets",
     ];
     for file in FILES {
         let src = read_src(file);
