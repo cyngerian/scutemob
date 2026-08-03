@@ -8,10 +8,19 @@
    * tutor in a human game fetched whatever happened to be at the front of the
    * candidate list.
    *
+   * UI-6 (`scutemob-194`; `memory/playtest-triage-2026-08-02b.md` G9) turned the
+   * wrapped button grid into a scrollable checkable LIST and added the CR 701.23a
+   * whole-library look — see "Look and pick are two different lists" below.
+   *
    * Props:
    *   prompt (string)      — `BlockingDecisionView.prompt`, seat-redacted server-side
-   *   candidates (CardOptionView[]) — `{id, label}`. This is a LIBRARY search, so
-   *                          the list can be ~99 entries long; see the filter note.
+   *   candidates (CardOptionView[]) — `{id, label}`. The engine's answer space, and
+   *                          the ONLY ids this component will ever submit.
+   *   allCards (CardOptionView[]) — `AnswerShapeView::PickOne::all_cards` (UI-6).
+   *                          The searcher's whole library, LOOK-ONLY, already
+   *                          sorted by name server-side. Empty for a question that
+   *                          carries no look entitlement, in which case this
+   *                          renders exactly the pre-UI-6 candidate list.
    *   mayDecline (bool)    — `AnswerShapeView::PickOne::may_decline`. CR 701.23b:
    *                          only a search "for a card with a stated quality" may
    *                          fail to find. When false, CR 701.23d makes finding
@@ -40,6 +49,33 @@
    * `"SearchLibrary"`, so the wire encoding of `EffectChoiceAnswer` stays known in
    * exactly one place — the engine — instead of two that can drift apart silently.
    *
+   * # Look and pick are two different lists, and that is the whole feature
+   *
+   * The playtest complaint was *"only showed legal basic lands — should be able to
+   * view whole library when searching"*. The filter was never the defect:
+   * `candidates` IS the engine's answer space, and `handle_answer_effect_choice`
+   * refuses anything outside it — offering more as *answers* would be offering
+   * illegal ones (SR-38). What was missing is CR 701.23a's **look**: *"To search
+   * for a card in a zone, look at all cards in that zone (even if it's a hidden
+   * zone)."*
+   *
+   * So `rows` is the union of `allCards` and `candidates`, and each row carries a
+   * `pickable` flag that is `true` **iff its id is in `candidates`**. A look-only
+   * row renders as a plain element with a visible `look only` tag and no click
+   * target at all — not a disabled button, because a disabled button reads as
+   * "temporarily unavailable" and this is a permanent rules fact about the card.
+   *
+   * `emit` re-checks membership before submitting anything. That is deliberately
+   * redundant with the render: a UI-only guard is one refactor away from being the
+   * only guard (the same argument `failToFind` already makes about `mayDecline`),
+   * and the server's own refusal of a look-only id is a **400**, which reaches the
+   * player as a request failure rather than as an explanation.
+   *
+   * The union runs both ways because containment does not: a "search your library
+   * **and** graveyard" effect puts graveyard cards in `candidates` that are in no
+   * library, so `allCards` is not a superset. Rows the server did not send in
+   * `allCards` are appended and are pickable.
+   *
    * # Radio, not multi-select
    *
    * `PickOne` is one card or none. Clicking a candidate REPLACES the selection,
@@ -47,13 +83,18 @@
    * two card-choosing surfaces in this client feel the same. Clicking the selected
    * candidate again clears it.
    *
-   * # The filter narrows the view, never the answer
+   * # The filters narrow the view, never the answer
    *
    * A 99-card library does not fit on screen, so the list scrolls and a text box
    * narrows it by `label`, case-insensitively. It matches on `label` ONLY, never
    * on `id`: an object id is an engine-internal handle, not something a player
    * knows or should be searching by, and matching it would let a stray digit in a
    * card name pull in unrelated cards.
+   *
+   * A second, one-click filter hides the look-only rows. It is off by default —
+   * showing the whole library is the point of UI-6, and defaulting it on would
+   * restore the exact behaviour that was complained about — but a player who has
+   * already looked should not have to scroll past 80 Swamps to find their pick.
    *
    * Filtering is purely a display operation. A card that is selected and then
    * filtered out STAYS selected — the header keeps showing what is chosen so the
@@ -63,17 +104,28 @@
    * # Untested
    *
    * No frontend test harness exists in this repo (plan §8 R7); nothing in this file
-   * is covered by an automated test. Specifically unexercised: the fail-to-find
-   * path (both that it is rendered when `mayDecline` is true and that it is absent
-   * when false), the filter box against a genuinely long candidate list, the
-   * selected-then-filtered-out case described above, and the malformed-template
-   * guard, which cannot fire against the real server.
+   * is covered by an automated test, though two source gates in `main.rs` pin the
+   * `pickable` split and the `onError` wiring. Specifically unexercised: the
+   * fail-to-find path (both that it is rendered when `mayDecline` is true and that
+   * it is absent when false), the selected-then-filtered-out case described above,
+   * the graveyard-search union branch (no `Complete` card in the corpus reaches it
+   * through a `PickOne`), and the malformed-template guard, which cannot fire
+   * against the real server. `emit`'s membership guard is likewise unexercised at
+   * runtime **by construction** — the render gives a look-only card no click
+   * target, so nothing reachable from the page can set `chosenId` to one. It is
+   * there for the refactor that changes that, and only the source gate holds it.
+   *
+   * Browser-verified live (UI-6, seed 116, Three Visits, turn 9): 89 rows / 33
+   * findable / 56 look-only, the list scrolling 2082px inside 224px, a look-only
+   * row rendering as a `DIV` whose click produced 0 POSTs and 0 selection, and a
+   * non-default pick posting `{"found":97}` against a server default of `10`.
    */
   import { plainClone } from './plainClone.svelte.js';
 
   const {
     prompt = '',
     candidates = [],
+    allCards = [],
     mayDecline = false,
     template = null,
     foundKey = 'found',
@@ -90,22 +142,62 @@
   /** Display-only text filter over `label`. */
   let filterText = $state('');
 
+  /** Display-only: hide the CR 701.23a look-only rows. Off by default — see doc. */
+  let findableOnly = $state(false);
+
+  /**
+   * The answer space, as a lookup. **The single source of truth for `pickable`**:
+   * every other decision in this component asks this set, so widening the LOOK can
+   * never widen the ANSWER by accident.
+   */
+  const candidateIds = $derived(new Set(candidates.map((c) => c.id)));
+
+  /**
+   * Every card to render, look-only ones included. `allCards` first (the server
+   * already sorted it by name), then any candidate the look list did not carry —
+   * see the union note in the doc above.
+   */
+  const rows = $derived.by(() => {
+    const seen = new Set();
+    const out = [];
+    for (const card of allCards) {
+      if (seen.has(card.id)) continue;
+      seen.add(card.id);
+      out.push({ id: card.id, label: card.label, pickable: candidateIds.has(card.id) });
+    }
+    for (const card of candidates) {
+      if (seen.has(card.id)) continue;
+      seen.add(card.id);
+      out.push({ id: card.id, label: card.label, pickable: true });
+    }
+    return out;
+  });
+
+  const lookOnlyCount = $derived(rows.filter((r) => !r.pickable).length);
+
   const normalizedFilter = $derived(filterText.trim().toLowerCase());
 
   const visible = $derived(
-    normalizedFilter === ''
-      ? candidates
-      : candidates.filter((c) => c.label.toLowerCase().includes(normalizedFilter)),
+    rows.filter(
+      (r) =>
+        (!findableOnly || r.pickable) &&
+        (normalizedFilter === '' || r.label.toLowerCase().includes(normalizedFilter)),
+    ),
   );
 
   const chosenLabel = $derived(
-    chosenId === null ? null : (candidates.find((c) => c.id === chosenId)?.label ?? `#${chosenId}`),
+    chosenId === null ? null : (rows.find((r) => r.id === chosenId)?.label ?? `#${chosenId}`),
   );
 
   const canConfirm = $derived(chosenId !== null);
 
   function select(id) {
     if (disabled) return;
+    // CR 701.23a again, from the other side: looking at a card is not finding it.
+    // A look-only row renders no click target, so this is defence in depth — and
+    // it is the guard that keeps the answer space pinned to `candidates` if the
+    // markup is ever refactored.
+    if (!candidateIds.has(id)) return;
     chosenId = chosenId === id ? null : id;
   }
 
@@ -116,6 +208,17 @@
    */
   function emit(found) {
     if (disabled) return;
+    // CR 701.23a / SR-38: the look widened, the answer space did not. The server
+    // refuses a look-only id with a 400, which the player would read as "request
+    // failed" — so the refusal is explained here, in the terms of the rule, and
+    // nothing is posted. Redundant with the render on purpose; see the doc.
+    if (found !== null && !candidateIds.has(found)) {
+      onError?.(
+        'CR 701.23a: you may look at every card in your library, but this search can ' +
+          'only find one of the cards it lists as findable — nothing was submitted',
+      );
+      return;
+    }
     // The malformed-template guards REPORT rather than return in silence (UI-4
     // `/review`). Bailing is still right — a half-built body the server will 400
     // helps nobody — but a silent bail is indistinguishable from the dead button
@@ -164,36 +267,79 @@
     <span class="picker-title">{prompt}</span>
     {#if chosenLabel !== null}
       <span class="picker-chosen">chosen: {chosenLabel}</span>
+    {/if}
+    <!-- CR 701.23a stated as two numbers rather than one, so the look/pick split
+         is legible before a single row is read.
+
+         "in library" counts `allCards`, NOT `rows`: a graveyard search puts
+         candidates in `rows` that are in no library, and calling those "in
+         library" would be a small lie in the one place a player reads a number.
+         With no look entitlement the count degrades to the pre-UI-6 phrasing. -->
+    {#if allCards.length > 0}
+      <span class="picker-count">
+        {allCards.length} in library · {candidates.length} findable
+      </span>
     {:else}
       <span class="picker-count">{candidates.length} card{candidates.length === 1 ? '' : 's'}</span>
     {/if}
   </div>
 
-  {#if candidates.length === 0}
+  {#if rows.length === 0}
     <span class="no-candidates">this decision offered no cards</span>
   {:else}
-    <input
-      class="filter"
-      type="text"
-      placeholder="filter by name…"
-      disabled={disabled}
-      value={filterText}
-      oninput={(e) => (filterText = e.currentTarget.value)}
-    />
+    <div class="filters">
+      <input
+        class="filter"
+        type="text"
+        placeholder="filter by name…"
+        disabled={disabled}
+        value={filterText}
+        oninput={(e) => (filterText = e.currentTarget.value)}
+      />
+      {#if lookOnlyCount > 0}
+        <label class="findable-toggle">
+          <input
+            type="checkbox"
+            disabled={disabled}
+            checked={findableOnly}
+            onchange={(e) => (findableOnly = e.currentTarget.checked)}
+          />
+          hide the {lookOnlyCount} I can't find
+        </label>
+      {/if}
+    </div>
 
     <div class="candidates">
       {#if visible.length === 0}
-        <span class="no-candidates">no card matches "{filterText.trim()}"</span>
+        <span class="no-candidates">
+          {#if normalizedFilter === ''}
+            every card here is look-only
+          {:else}
+            no card matches "{filterText.trim()}"
+          {/if}
+        </span>
       {:else}
         {#each visible as card (card.id)}
-          <button
-            class="candidate"
-            class:selected={chosenId === card.id}
-            disabled={disabled}
-            onclick={() => select(card.id)}
-          >
-            {card.label}
-          </button>
+          {#if card.pickable}
+            <button
+              class="candidate"
+              class:selected={chosenId === card.id}
+              disabled={disabled}
+              onclick={() => select(card.id)}
+            >
+              <span class="box">{chosenId === card.id ? '☑' : '☐'}</span>
+              <span class="row-label">{card.label}</span>
+            </button>
+          {:else}
+            <!-- Deliberately NOT a disabled button: a disabled control reads as
+                 "not right now", and CR 701.23a's distinction is permanent — this
+                 card can be looked at and can never be found by this search. -->
+            <div class="candidate look-only">
+              <span class="box">·</span>
+              <span class="row-label">{card.label}</span>
+              <span class="look-tag">look only</span>
+            </div>
+          {/if}
         {/each}
       {/if}
     </div>
@@ -255,8 +401,14 @@
     font-style: italic;
   }
 
+  .filters {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
   .filter {
-    align-self: flex-start;
     width: 16rem;
     max-width: 100%;
     background: #141428;
@@ -268,27 +420,53 @@
     padding: 0.15rem 0.3rem;
   }
 
+  .findable-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.68rem;
+    color: #889;
+    cursor: pointer;
+  }
+
+  /* UI-6: a vertical LIST, not a wrapped button grid. The whole library is now
+     on screen (~99 rows), and a grid of variable-width chips makes a name
+     genuinely hard to find in it — a fixed left edge is what makes scanning
+     work. */
   .candidates {
     display: flex;
-    flex-wrap: wrap;
-    gap: 0.25rem;
-    /* A library search can offer ~99 cards; scroll rather than push the action
-       row off the bottom of the bar. */
-    max-height: 11rem;
+    flex-direction: column;
+    gap: 0.1rem;
+    max-height: 14rem;
     overflow-y: auto;
   }
 
   .candidate {
-    padding: 0.2rem 0.45rem;
+    display: flex;
+    align-items: baseline;
+    gap: 0.4rem;
+    width: 100%;
+    text-align: left;
+    padding: 0.12rem 0.4rem;
+    font-family: monospace;
     font-size: 0.74rem;
     background: #1c1c38;
     color: #ccd;
-    border: 1px solid #33335a;
+    border: 1px solid transparent;
     border-radius: 3px;
     cursor: pointer;
   }
 
-  .candidate:hover:not(:disabled) {
+  .candidate .box {
+    color: #7a8;
+    width: 1ch;
+  }
+
+  .candidate .row-label {
+    flex: 1 1 auto;
+  }
+
+  .candidate:hover:not(:disabled):not(.look-only) {
     background: #2a2a58;
     border-color: #4a4a90;
   }
@@ -302,6 +480,24 @@
     background: #23386a;
     border-color: #3a5aa0;
     color: #dde;
+  }
+
+  /* CR 701.23a: visible, readable, and plainly not a control. */
+  .candidate.look-only {
+    background: #16162a;
+    color: #778;
+    cursor: default;
+  }
+
+  .candidate.look-only .box {
+    color: #445;
+  }
+
+  .look-tag {
+    flex: 0 0 auto;
+    font-size: 0.62rem;
+    color: #667;
+    font-style: italic;
   }
 
   .picker-actions {
