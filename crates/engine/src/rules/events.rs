@@ -1512,6 +1512,86 @@ pub enum GameEvent {
         /// The question, with its full legal answer space.
         question: crate::state::stubs::EffectChoiceQuestion,
     },
+    /// CR 601.2c / 602.2b / 603.3d: the targets chosen for a spell or ability as it
+    /// is put on the stack.
+    ///
+    /// Emitted **only when `targets` is non-empty** — CR 115.1 makes targeting
+    /// optional ("*Some* spells and abilities require their controller to choose one
+    /// or more targets"), and an empty announcement is noise in every game.
+    ///
+    /// `source_object_id` is the same object the sibling announcement event names —
+    /// `SpellCast.source_object_id` (the card's new object in `ZoneId::Stack`),
+    /// `AbilityActivated.source_object_id` / `AbilityTriggered.source_object_id`
+    /// (the source permanent). It is NEVER the stack-object id: a `StackObject` id
+    /// is not in `state.objects()`, so `event_view` could never name it (see the
+    /// `SpellCast` note in `crates/view-model/src/event_view.rs`).
+    ///
+    /// Targets are public: CR 115.1 declares them as part of putting the object on
+    /// the stack, and the stack is a public zone (CR 400.2). `private_to()` is
+    /// therefore `None`. The *identity* of an object target may still be private
+    /// (CR 708.2 — a face-down permanent), which is a per-FIELD verdict the
+    /// per-EVENT `private_to()` cannot express; `event_view`'s `card_or` gate is
+    /// where that is decided.
+    ///
+    /// Discriminant: 132.
+    TargetsAnnounced {
+        /// CR 601.2f / 602.2b / 603.3a: the controller of the spell or ability.
+        controller: crate::state::player::PlayerId,
+        /// The object whose spell/ability this is, in a zone where it can be named.
+        source_object_id: crate::state::game_object::ObjectId,
+        /// The `StackObject` this announcement belongs to.
+        stack_object_id: crate::state::game_object::ObjectId,
+        /// CR 601.2c: the announced targets, in declaration order.
+        targets: Vec<crate::state::targeting::SpellTarget>,
+    },
+}
+/// CR 601.2c / 602.2b / 603.3d — build the announcement for whatever the stack
+/// object at `stack_object_id` actually carries. `None` when it carries nothing
+/// (either the stack object has no targets, or — an engine bug, since every call
+/// site pushes its `StackObject` before calling this — it cannot be found).
+pub(crate) fn announce_targets(
+    state: &crate::state::GameState,
+    controller: crate::state::player::PlayerId,
+    source_object_id: crate::state::game_object::ObjectId,
+    stack_object_id: crate::state::game_object::ObjectId,
+) -> Option<GameEvent> {
+    // SR-4: a missing stack object one line after pushing it is an engine bug,
+    // not an LKI fizzle — every one of the 8 call sites pushes its `StackObject`
+    // before calling this helper (verified individually), so the lookup always
+    // succeeds. Route the surprise through the `expect_*` family's convention
+    // (a `debug_assert!` that degrades to `None` in release builds), not `lki_*`.
+    let stack_obj = state.stack_objects().iter().find(|so| so.id == stack_object_id);
+    debug_assert!(
+        stack_obj.is_some(),
+        "engine invariant: stack_object_id {stack_object_id:?} absent from \
+         GameState::stack_objects() at a site that requires it to be live. \
+         Every push_target_announcement call site pushes its StackObject before \
+         calling this helper -- if that invariant no longer holds, the caller \
+         is passing the wrong id (see the S1 hazard noted in pb-plan-ENG2.md \
+         section 12.3: this must be stack_entry_id, not the pre-cast card id)."
+    );
+    let targets = stack_obj?.targets.clone();
+    if targets.is_empty() {
+        return None;
+    }
+    Some(GameEvent::TargetsAnnounced {
+        controller,
+        source_object_id,
+        stack_object_id,
+        targets,
+    })
+}
+/// The one-line call form used at every site.
+pub(crate) fn push_target_announcement(
+    state: &crate::state::GameState,
+    events: &mut Vec<GameEvent>,
+    controller: crate::state::player::PlayerId,
+    source_object_id: crate::state::game_object::ObjectId,
+    stack_object_id: crate::state::game_object::ObjectId,
+) {
+    if let Some(ev) = announce_targets(state, controller, source_object_id, stack_object_id) {
+        events.push(ev);
+    }
 }
 impl GameEvent {
     /// Returns `true` if this event reveals or commits to hidden information.

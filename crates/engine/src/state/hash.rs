@@ -5706,6 +5706,19 @@ impl HashInto for GameEvent {
                 source_object_id.hash_into(hasher);
                 question.hash_into(hasher);
             }
+            // ENG-2: TargetsAnnounced -- CR 601.2c / 602.2b / 603.3d (discriminant 132)
+            GameEvent::TargetsAnnounced {
+                controller,
+                source_object_id,
+                stack_object_id,
+                targets,
+            } => {
+                132u8.hash_into(hasher);
+                controller.hash_into(hasher);
+                source_object_id.hash_into(hasher);
+                stack_object_id.hash_into(hasher);
+                targets.hash_into(hasher);
+            }
         }
     }
 }
