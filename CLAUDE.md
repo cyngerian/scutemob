@@ -242,7 +242,7 @@
 - **Recurrence rule** — future `/collect` and milestone-close bookkeeping appends its detailed PB/SR
   narrative to that archive file (newest first), and updates only a one-paragraph snapshot delta
   here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
-- **Last Updated**: 2026-08-02 — **UI-6 SHIPPED** (`scutemob-194`, merge `<pending>`; **G9** of
+- **Last Updated**: 2026-08-02 — **UI-6 SHIPPED** (`scutemob-194`, merge `dd5cb47d`; **G9** of
   `memory/playtest-triage-2026-08-02b.md`, row 8 — the **last** row of its successor table, which
   is now fully dispatched).
   The browser shows a searcher their whole library, look-only: `AnswerShapeView::PickOne` gains
