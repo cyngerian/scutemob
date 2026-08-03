@@ -8,7 +8,7 @@ CR 903.8 / 903.9a / 903.10a have never been fuzzed)
 (rank 4, EVIDENCE INTEGRITY) + §2.4. Cross-read `docs/mtg-engine-feedback-engineering.md` §2.1
 row 1.
 **Task**: `scutemob-196` · **Branch**: `feat/pb-dx22-make-the-fuzzer-a-real-instrument-oos-ui2-1-oos-sim3`
-**Phase**: implement (Stages 0-4; Stage 5 is the coordinator's)
+**Phase**: COMPLETE — stages 0-5 + stage 4b + two review cycles, close-out written
 
 ---
 
@@ -680,3 +680,37 @@ changes how an existing claim should be read:
 
 Rows `OOS-DX22-3`, `OOS-DX22-8` and `OOS-DX22-11` were **corrected in place** rather than
 re-filed, each keeping the original text and naming what changed.
+
+---
+
+## Close-out (2026-08-03)
+
+* **Review cycle 1** — `primitive-impl-reviewer`, findings in `memory/primitives/pb-review-DX22.md`:
+  2 HIGH / 4 MEDIUM / 7 LOW, **all 13 taken** (`b79a943a`). The two HIGHs were the batch's own
+  defect class: the headline "after" numbers came from a deleted scratch instrument, and a
+  universal negative over 426 violations was evidenced by the 94 the binary prints. Both repaired
+  by making `mtg-fuzzer` report an all-games violation histogram and mechanics census, then
+  re-measuring — every published number matched to the digit.
+* **Review cycle 2** — the `/review` skill's Opus reviewer, **with shell access** (cycle 1 had
+  none, so it could verify no git-diff or measurement claim). It re-executed the full suite, both
+  version gates, the play-server pins, clippy/fmt/defs-fmt, the whole 20-game fuzz A/B, **and
+  built the merge base in a throwaway worktree to reproduce the before side**. All five acceptance
+  clauses PASS (clause 5 partial by design at the time). 4 findings, **all 4 taken** (`59ad18a1`):
+  a comment-satisfiable P11 source gate (the only code change — proven by an executed revert that
+  truly deletes the call), a 5-game-vs-20-game denominator mismatch in `invariants.rs`, a stale
+  "23 passed" in four shipped places (stage 4b made it 24), and an audit banner saying eleven rows
+  where thirteen were filed.
+* **Coverage** — `tools/authoring-report.py` regenerated; body byte-identical except the git-sha
+  stamp line. **1,133 clean / 1,803 = 62.8%, unmoved.** The regeneration churn was reverted, since
+  the batch changed 0 card defs.
+* **Final gates**: `--workspace --no-fail-fast` to a file → **4,358 / 0 / 5 over 42 targets**,
+  residual list empty. `hash_schema` 21/0 and `protocol_schema` 17/0 EXECUTED; declared
+  **HASH 72 / PROTOCOL 35**, unmoved. `clippy --workspace --all-targets -D warnings`, `fmt
+  --check` and `tools/check-defs-fmt.sh` (1803 defs) all clean. Forbidden-path branch diff
+  (`crates/engine/`, `crates/card-defs/`, `crates/card-types/`, `crates/view-model/`, `tools/`)
+  **EMPTY**; `crates/simulator/src/setup.rs` doc-comment lines only.
+* **Close-out written**: lean CLAUDE.md bullet (2026-08-02 `memory/decisions.md` schema) + a new
+  `Tests (delta 2026-08-03, PB-DX22)` pin; full handoff at the head of
+  `memory/workstream-state.md`; `OOS-DX22-1..13` filed and `OOS-UI2-1` / `OOS-SIM3-1` /
+  `OOS-SIM1-4` closed in `docs/audits/decision-point-audit.md` §8.1.
+  `memory/primitives/seed-rerank-2026-08-02.md` untouched by design.
