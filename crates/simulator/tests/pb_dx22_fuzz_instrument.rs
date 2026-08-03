@@ -16,7 +16,7 @@
 
 use std::sync::Arc;
 
-use mtg_engine::{all_cards, CardDefinition, CardRegistry, PlayerId, ZoneId};
+use mtg_engine::{all_cards, CardDefinition, CardId, CardRegistry, ObjectId, PlayerId, ZoneId};
 use mtg_simulator::{build_fuzz_state, build_registry, FuzzGameSetup};
 
 const PLAYERS: u32 = 4;
@@ -32,6 +32,34 @@ fn seats(player_count: u32) -> Vec<PlayerId> {
 fn built(seed: u64, cards: &[CardDefinition], registry: &Arc<CardRegistry>) -> FuzzGameSetup {
     build_fuzz_state(seed, PLAYERS, cards, registry)
         .unwrap_or_else(|e| panic!("fuzz state for seed {seed} must build: {e:?}"))
+}
+
+/// The ORDERED library sequence for a seat, read from the `Zone::Ordered` vector — NOT
+/// from `objects_in_zone`, which yields objects in the zone storage's own order and
+/// would make an order assertion meaningless.
+fn library_card_ids(setup: &FuzzGameSetup, pid: PlayerId) -> Vec<CardId> {
+    let zone = setup
+        .state
+        .zones()
+        .get(&ZoneId::Library(pid))
+        .unwrap_or_else(|| panic!("seat {pid:?} must have a library zone"));
+    zone.object_ids()
+        .into_iter()
+        .map(|oid: ObjectId| {
+            setup
+                .state
+                .object(oid)
+                .expect("a library object id must resolve")
+                .card_id
+                .clone()
+                .expect("every library card must carry a CardId")
+        })
+        .collect()
+}
+
+fn sorted(mut ids: Vec<CardId>) -> Vec<CardId> {
+    ids.sort();
+    ids
 }
 
 // ── P1 ───────────────────────────────────────────────────────────────────────────
@@ -88,4 +116,102 @@ fn test_dx22_build_fuzz_state_produces_the_fuzzers_table() {
              {pid:?} starts with an empty hand"
         );
     }
+}
+
+// ── P2 ───────────────────────────────────────────────────────────────────────────
+
+/// CR 103.3 / CR 903.6 — every seat's library is a *permutation* of the decklist
+/// `random_deck` produced, not that decklist.
+///
+/// Written as sequence-INEQUALITY plus multiset-EQUALITY on purpose, so it is
+/// structure-independent: `deck.rs` pads a coloured commander's deck with ~34 basics but
+/// pads a **colourless** one with colourless nonlands (CR 903.5c, the PB-DX4 arm), so a
+/// "basics are no longer last" assertion would be false for those seats. Do not
+/// "improve" this into a position assertion.
+///
+/// Non-vacuity floor: both sides are asserted to be exactly 99 long before they are
+/// compared, so a build that produced two empty vectors cannot pass.
+#[test]
+fn test_dx22_libraries_are_shuffled_cr_103_3() {
+    let (cards, registry) = pool();
+    let setup = built(1, &cards, &registry);
+
+    for (i, pid) in seats(PLAYERS).into_iter().enumerate() {
+        let pre_shuffle = setup.decks[i].1.main_deck.clone();
+        let library = library_card_ids(&setup, pid);
+
+        assert_eq!(
+            pre_shuffle.len(),
+            99,
+            "non-vacuity: seat {pid:?} pre-shuffle deck"
+        );
+        assert_eq!(library.len(), 99, "non-vacuity: seat {pid:?} built library");
+
+        assert_ne!(
+            library, pre_shuffle,
+            "CR 103.3: seat {pid:?}'s library must not be the decklist in its \
+             construction order — that is the unshuffled instrument PB-DX22 closes"
+        );
+        assert_eq!(
+            sorted(library),
+            sorted(pre_shuffle),
+            "CR 103.3: a shuffle is a permutation — seat {pid:?}'s library must hold \
+             exactly the same cards, no more and no fewer"
+        );
+    }
+}
+
+// ── P3 ───────────────────────────────────────────────────────────────────────────
+
+/// CR 103.3 + this crate's determinism contract — the shuffle is drawn from the game's
+/// own seeded RNG, so one seed reproduces one table.
+///
+/// Asserts both the per-seat library sequence AND `public_state_hash`, because the
+/// sequence alone would not notice a non-determinism that lived anywhere else in the
+/// build.
+#[test]
+fn test_dx22_shuffle_is_seed_deterministic() {
+    let (cards, registry) = pool();
+    let a = built(1, &cards, &registry);
+    let b = built(1, &cards, &registry);
+
+    for pid in seats(PLAYERS) {
+        let lib_a = library_card_ids(&a, pid);
+        assert_eq!(lib_a.len(), 99, "non-vacuity: seat {pid:?}");
+        assert_eq!(
+            lib_a,
+            library_card_ids(&b, pid),
+            "seed 1 must reproduce seat {pid:?}'s library order exactly"
+        );
+    }
+
+    assert_eq!(
+        a.state.public_state_hash(),
+        b.state.public_state_hash(),
+        "seed 1 must reproduce the whole built state, not just the libraries"
+    );
+}
+
+// ── P4 ───────────────────────────────────────────────────────────────────────────
+
+/// CR 103.3 — a different seed deals a different table.
+///
+/// Only the ORDER is asserted to differ. The multiset differs too (a different seed
+/// draws a different decklist), and asserting the multisets *equal* would be wrong —
+/// that is P2's assertion, about one seed, and it does not generalise across seeds.
+#[test]
+fn test_dx22_different_seed_different_order() {
+    let (cards, registry) = pool();
+    let one = built(1, &cards, &registry);
+    let two = built(2, &cards, &registry);
+
+    let pid = PlayerId(1);
+    let lib_one = library_card_ids(&one, pid);
+    let lib_two = library_card_ids(&two, pid);
+    assert_eq!(lib_one.len(), 99, "non-vacuity: seed 1 seat {pid:?}");
+    assert_eq!(lib_two.len(), 99, "non-vacuity: seed 2 seat {pid:?}");
+    assert_ne!(
+        lib_one, lib_two,
+        "seeds 1 and 2 must not deal seat {pid:?} the same library"
+    );
 }

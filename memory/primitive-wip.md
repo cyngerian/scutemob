@@ -180,3 +180,61 @@ lesson, arriving from the other direction.)
 **170 passed / 0 failed** across 12 targets · `cargo clippy --workspace --all-targets -D
 warnings` exit 0 · `cargo fmt --check` exit 0 · `tools/check-defs-fmt.sh` → `1803 defs
 checked / clean` (SR-35).
+
+### - [x] Stage 2 — CR 103.3 / CR 903.6 shuffle
+
+`fuzz_setup.rs::build_fuzz_state` now keeps **two** lists: `decks` is the pre-shuffle decklist
+(returned on `FuzzGameSetup`, so the probe has something to compare against) and `dealt` is the
+shuffled order actually placed. The shuffle is drawn **inside the existing per-seat deck loop,
+immediately after that seat's `random_deck` call**, in ascending `PlayerId` order — the
+`deck₁, shuffle₁, deck₂, shuffle₂, …` interleaving `setup.rs` uses. The reason for that choice
+(free here; load-bearing there) is written at the function, not left to the plan.
+
+**Probes P2 / P3 / P4** added, each proven red by an EXECUTED revert whose rebuild succeeded:
+
+| probe | revert executed | rebuild | failure observed |
+|---|---|---|---|
+| **P2** `test_dx22_libraries_are_shuffled_cr_103_3` | `deck.main_deck.shuffle(&mut rng)` → `deck.main_deck.truncate(99)` (a no-op) | `Compiling mtg-simulator` present | `pb_dx22_fuzz_instrument.rs:146` `assertion left != right failed: CR 103.3: seat PlayerId(1)'s library must not be the decklist in its construction order` — 3 passed / 1 failed |
+| **P3** `test_dx22_shuffle_is_seed_deterministic` | `shuffle(&mut rng)` → `shuffle(&mut rand::rng())` | present | `:177` `assertion left == right failed: seed 1 must reproduce seat PlayerId(1)'s library order exactly` — 3 passed / 1 failed |
+| **P4** `test_dx22_different_seed_different_order` | `StdRng::seed_from_u64(seed)` → `seed_from_u64(0)` | present | `:209` `assertion left != right failed: seeds 1 and 2 must not deal seat PlayerId(1) the same library` — 3 passed / 1 failed |
+
+**PLAN DIVERGENCE (P4's revert).** The plan's probe table gives P4's revert as "as P3". That is
+**wrong, and it was measured, not reasoned**: under P3's revert (`rand::rng()`) P4 stayed
+GREEN, and under P2's revert (no shuffle at all) P4 *also* stayed green — because seeds 1 and 2
+draw different **decklists**, so the two libraries differ in construction order too. The only
+revert that actually reddens P4 is one that makes the build ignore its `seed`, which is what
+was executed. Recorded rather than accommodated: had the plan's revert been run and reported,
+P4 would have been shipped with no discrimination proof at all.
+
+**SECOND `-D warnings` TRAP, hit and recorded.** The first draft of P2's revert deleted the
+shuffle line outright. That rebuild **FAILED** — `error: unused import: rand::seq::SliceRandom`
+and `error: variable does not need to be mutable` — which under the gotchas-infra rule means
+`cargo test` would have run the stale binary and reported a pass. The revert was rewritten as a
+no-op that still consumes `mut deck` (`truncate(99)`) plus an `#[allow(unused_imports)]`, and
+only then was the red result trusted. This is the documented hazard occurring in the wild
+twice in one batch.
+
+**Stage-2 fuzz run** (`/tmp/pb-dx22-fuzz-after-stage2.txt`, same command as Stage 0). This is
+the point of the batch and it moves enormously:
+
+| metric | Stage 0 (no shuffle) | Stage 2 (shuffled) |
+|---|---|---|
+| games completed | 20 | 20 |
+| wall time | 40.7 s | **14.3 s** |
+| wins / draws / errors | 9 / 0 / **11** | **20 / 0 / 0** |
+| error distribution | 11 × `MaxTurnsReached(200)` | **none** |
+| total violations | 1,519 | **504** |
+| avg turns per game | 191.7 | **112.7** |
+| total turns / total commands | 3,833 / 225,276 | 2,254 / 104,252 |
+| commands per turn | 58.8 | **46.3** |
+| violation `check`s seen | `no_orphaned_tokens`, `player_consistency` | same two — **no new check class** |
+
+Notable: not one game now hits the turn cap, and `HaltReason::InfiniteLoop` did **not** appear
+either — commands/turn went *down*, 58.8 → 46.3, so risk 2 of plan §8 (`max_commands` binding
+before `max_turns`) did **not** materialise at these settings. That number is the input
+`OOS-DX22-2` asks for. No crash, no abort, no new violation class surfaced at this stage
+(plan §8 risk 1 did not fire here).
+
+**Stage-2 gates**: `cargo build --workspace` OK · `cargo test -p mtg-simulator` **173 passed /
+0 failed** (+3 = P2/P3/P4) · `clippy --workspace --all-targets -D warnings` exit 0 ·
+`cargo fmt --check` exit 0 · `tools/check-defs-fmt.sh` clean.

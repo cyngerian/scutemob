@@ -29,6 +29,7 @@ use mtg_engine::{
     GameStateError, ObjectSpec, PlayerId, ZoneId,
 };
 use rand::rngs::StdRng;
+use rand::seq::SliceRandom;
 use rand::SeedableRng;
 
 use crate::deck::{random_deck, DeckConfig};
@@ -94,7 +95,24 @@ pub fn place_registered_deck(
 /// Build the fuzzer's un-started `GameState` for `player_count` seats.
 ///
 /// Deterministic in `seed` alone: one `StdRng::seed_from_u64(seed)`, drawn in ascending
-/// `PlayerId` order.
+/// `PlayerId` order — per seat `random_deck` **then** `shuffle`.
+///
+/// # Where the shuffle sits in the RNG stream, and why (PB-DX22 §2 Fix A)
+///
+/// The two draws **interleave per seat** — `deck₁, shuffle₁, deck₂, shuffle₂, …` — which
+/// is byte-for-byte the pattern `setup::build_initial_state` uses. There, the
+/// interleaving is load-bearing (seat 2's decklist depends on seat 1's shuffle, and
+/// splitting the loop re-rolls every seeded table — measured, `scutemob-187`). Here
+/// nothing is preserved either way: `bin/fuzzer.rs`'s module doc already declares
+/// recorded fuzz seeds non-portable across engine changes, and PB-DX22 is another such
+/// boundary. So the choice is free, and the free choice is the one that keeps the two
+/// build paths the same shape — a future reader should not have to work out why they
+/// differ.
+///
+/// The `random_deck`-returned-`None` fallback branch shuffles too. `SliceRandom::shuffle`
+/// consumes RNG on a 99-element slice regardless of element distinctness, so both
+/// branches advance the stream identically per seat; only the deck-construction draws
+/// differ, a pre-existing asymmetry this does not touch.
 ///
 /// **Not a `setup::build_initial_state` replacement.** This path deals no opening hand
 /// (CR 103.5) and never runs `validate_deck` — see `setup.rs`'s module doc for why the
@@ -110,18 +128,31 @@ pub fn build_fuzz_state(
     // Build random decks for each player
     let player_ids: Vec<PlayerId> = (1..=player_count).map(|i| PlayerId(i as u64)).collect();
 
+    // Two lists, deliberately: `decks` is the PRE-shuffle decklist (what `random_deck`
+    // produced, `deck.rs`'s structural order) and is what `FuzzGameSetup` returns, so
+    // the shuffle probe has something to compare the built library against. `dealt` is
+    // the shuffled order actually placed into the libraries.
     let mut decks: Vec<(PlayerId, DeckConfig)> = Vec::new();
+    let mut dealt: Vec<(PlayerId, DeckConfig)> = Vec::new();
     for &pid in &player_ids {
-        if let Some(deck) = random_deck(&mut rng, cards) {
-            decks.push((pid, deck));
-        } else {
+        let mut deck = match random_deck(&mut rng, cards) {
+            Some(deck) => deck,
             // Fallback: just basic lands
-            let fallback = DeckConfig {
+            None => DeckConfig {
                 commander: CardId("teysa-karlov".to_string()),
                 main_deck: (0..99).map(|_| CardId("plains".to_string())).collect(),
-            };
-            decks.push((pid, fallback));
-        }
+            },
+        };
+        decks.push((pid, deck.clone()));
+        // CR 103.3 / CR 903.6: "each player shuffles the remaining cards of their deck so
+        // that the cards are in a random order. Those cards become the player's library."
+        // Before PB-DX22 the fuzzer never did this, so ~34 basics sat on top of every
+        // library and the first non-land arrived around personal draw 35-40 — game turn
+        // ~136-156 at four seats. `OOS-UI2-1`'s "the fuzzer has never cast a spell" and
+        // `OOS-SIM3-1`'s "earliest cast turn 143" are that one fact read at two
+        // `--max-turns` values.
+        deck.main_deck.shuffle(&mut rng);
+        dealt.push((pid, deck));
     }
 
     // Build initial state using GameStateBuilder, populating libraries from decks
@@ -135,7 +166,7 @@ pub fn build_fuzz_state(
     let card_defs: HashMap<String, CardDefinition> =
         cards.iter().map(|c| (c.name.clone(), c.clone())).collect();
 
-    for (pid, deck) in &decks {
+    for (pid, deck) in &dealt {
         builder = place_registered_deck(builder, *pid, deck, cards, &card_defs);
     }
 
