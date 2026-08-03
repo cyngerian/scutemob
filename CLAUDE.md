@@ -96,6 +96,11 @@
   `memory/primitives/seed-rerank-2026-08-02.md` §4). **PB-DX7 is no longer next** — it survives at
   rank 9; eight new entries outrank it. Older queue history (the PB-OS,
   PB-RS and PB-DP chains) is rotated to the 2026-08 archive.
+- **Tests (delta 2026-08-02, UI-6)**: **4,345 / 0 / 5** full-workspace on branch
+  `scutemob-194` (+4 over ENG-2's 4,341, measured on that branch BEFORE any edit — 2 play-server
+  HTTP probes + 1 frontend source gate + 1 review-cycle restriction probe; the Invariant-7 gate
+  was renamed, not added), measured with `--workspace --no-fail-fast` to a file, residual list
+  empty. **PROTOCOL 35 / HASH 72 unmoved**, both gate-executed. Earlier pins below.
 - **Tests (delta 2026-08-02, ENG-2)**: **4,341 / 0 / 5** full-workspace on branch
   `scutemob-193` (+11 over ENG-1's 4,330 — 9 engine probes + 1 view-model redaction probe + 1
   play-server HTTP probe), measured with `--workspace --no-fail-fast` to a file, residual list
@@ -237,7 +242,22 @@
 - **Recurrence rule** — future `/collect` and milestone-close bookkeeping appends its detailed PB/SR
   narrative to that archive file (newest first), and updates only a one-paragraph snapshot delta
   here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
-- **Last Updated**: 2026-08-02 — **ENG-2 SHIPPED** (`scutemob-193`, merge `4ab68fdc`; **G7** of
+- **Last Updated**: 2026-08-02 — **UI-6 SHIPPED** (`scutemob-194`, merge `<pending>`; **G9** of
+  `memory/playtest-triage-2026-08-02b.md`, row 8 — the **last** row of its successor table, which
+  is now fully dispatched).
+  The browser shows a searcher their whole library, look-only: `AnswerShapeView::PickOne` gains
+  `all_cards` (a play-server DTO, no wire change) while `candidates` stays exactly the engine's
+  answer space (SR-38). Sorted by NAME so CR 701.23e's shuffle is not disclosed, and narrowed by
+  CR 121.1 when a search-restriction replacement applies. `SearchPicker` is a scrollable checkable
+  list; a look-only row is a plain `div` with a visible tag, not a disabled button.
+  **The Invariant-7 raw-read gate is deliberately re-pinned 2 → 3** and is now a needle SET —
+  measured: with the channel in the tree `.objects()` is still 2, so the old single-needle gate
+  would have stayed green (MR-M11-01, a second time in the same file). Five zero-pins close the
+  synonym bypasses, two of them added after a revert defeated the first draft with one.
+  Tests **4,345 / 0 / 5** (+4); 0 engine lines, 0 card-def lines, coverage unmoved
+  **1,133/1,803 = 62.8%**; PROTOCOL **35** / HASH **72** gate-executed and unmoved.
+  Seeds: **OOS-UI6-1..6** filed. Full handoff: `memory/workstream-state.md`.
+- **Prior**: 2026-08-02 — **ENG-2 SHIPPED** (`scutemob-193`, merge `4ab68fdc`; **G7** of
   `memory/playtest-triage-2026-08-02b.md`, row 7 of its successor table).
   Targets reach the event log: one additive `GameEvent::TargetsAnnounced` (discriminant 132) fires
   at announcement time from all 12 stack-push sites (CR 601.2c/602.2b/603.3d), player targets

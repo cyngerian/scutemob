@@ -848,6 +848,152 @@ must read adjudication §5 alongside it. OOS-ADJ-3 warns `OOS-DX19-2`'s "613.8b 
 would make a worker build the wrong thing — re-word at dispatch. OOS-ADJ-7 (blood_moon strips
 Artifact card type) rides PB-DX27.
 
+## Worker Handoff (UI-6, `scutemob-194`) — the whole-library search view (G9, CR 701.23a)
+
+**G9 of `memory/playtest-triage-2026-08-02b.md` CLOSED, both halves — the LAST row of its
+successor table, so that triage is now fully dispatched.** The playtest said *"only showed legal
+basic lands — should be able to view whole library when searching — current view is too
+cumbersome — should be a list which you can check"*. **The filter was never the defect**:
+`candidates` IS the engine's answer space and `handle_answer_effect_choice` refuses anything
+outside it, so widening it would be offering illegal answers (SR-38). What was missing is
+CR 701.23a's **look** — *"To search for a card in a zone, look at all cards in that zone (even if
+it's a hidden zone)"*. So the look and the pick are now two lists, sent separately and rendered
+separately. **0 engine lines and 0 simulator lines** (`git diff main..HEAD -- crates/` empty);
+PROTOCOL **35** / HASH **72** gate-executed and unmoved. Tests **4,345 / 0 / 5** full workspace
+`--no-fail-fast` to a file (+4 on this branch's own pre-edit baseline of 4,341 — two HTTP probes,
+one frontend source gate, and the `/review` cycle's restriction probe; the Invariant-7 gate was
+**renamed**, not added), residual list empty. `fmt`, `clippy --workspace --all-targets -D warnings` and `tools/check-defs-fmt.sh`
+(1,803 defs) all clean. **0 card-def lines**, coverage untouched at **1,133/1,803 = 62.8%**.
+
+**The Invariant-7 gate went red on purpose and that is the interesting part of this batch.**
+`test_ui1_view_rs_reads_game_state_in_exactly_the_two_known_places` is now
+`test_ui6_view_rs_reads_game_state_in_exactly_the_three_known_places`, and the re-pin is argued
+at the pin site in CR terms rather than being a number bump. Three things bound the new read, and
+each is a constraint a careless implementation would have missed:
+
+1. **The searcher's own library only.** `player` is `PendingDecision::player`, which
+   `api.rs::seat_view` has already filtered to the viewing seat, and the engine's search effect
+   builds candidates from `ZoneId::Library(p)` for that same `p`.
+2. **Sorted by NAME, never in library order.** CR 701.23a grants a look at the cards; it does not
+   grant a look at the shuffle CR 701.23e exists to protect, and Architecture Invariant 7 names
+   library *order* explicitly. Sending `Zone::object_ids()` verbatim would leak draw order to the
+   seat that just failed to find — a real defect, in the *right* client rather than the wrong one.
+3. **CR 121.1: "all cards in that zone" is not always the whole library.** Under an opponent's
+   Aven Mindcensor the searcher *"searches the top four cards instead"*, so the entitlement is
+   four cards. This was **found by the `/review` cycle, not by the implementation** — the first
+   draft enumerated the library unconditionally, which would have shown 89 cards with 85 marked
+   "look only". `library_look_cards` now calls the same `apply_search_library_replacement` the
+   engine's search path calls and narrows through the same `Zone::top_n`. This makes it the
+   **second** place in `view.rs` that restates an engine rule rather than delegating
+   (`action_modes` is the first and says so); it is recorded the same way, and every divergence
+   is in the narrowing direction.
+
+**Why the gate had to become a needle SET, measured rather than argued.** The new read spells
+`.zone(`, not `.objects()` — and with the channel in the tree, `.objects()` in `view.rs`'s
+production region is **still exactly 2**. The pre-UI-6 single-needle gate would have stayed
+**green** while a new hidden-information channel opened underneath it. That is MR-M11-01's lesson
+arriving a second time in the same file, three sessions later. Worse, the *first* revert run
+against the two-needle re-pin replaced `state.zone(..)` with `state.zones().get(..)` — the same
+channel one accessor over — and the draft went green. So five needles are now pinned at **0**
+(`zones()`, `objects_in_zone(`, `player(`, `object(`, `players()`), two of them added by the
+`/review` cycle, which pointed out that the first draft closed the *plural* of one needle and the
+*singular* of another while leaving each one's opposite number open. Each zero-pin was proven red
+by an executed revert that fires it alone. It is still an enumerated set and not a proof about
+every raw read; both the gate and `question_card_label`'s doc say so in those terms.
+
+**The new channel got its OWN behavioural gate, and the sibling could not have covered it.**
+`test_ui6_a_foreign_seat_never_receives_the_whole_library_look` mirrors the UI-1 scry gate's
+construction (move `PlaySession::human`, not the decision — `advance()` refreshes `pending`
+straight back), but it exists separately because the scry gate's raw-body needle is the
+`looked_at` **key** and a search payload has none. Proven red by executing the revert: deleting
+`seat_view`'s `pending.player == human` filter puts seat 1's entire library, **every card named**,
+into seat 2's body, and the assertion quotes it.
+
+**The fixture is new, and the reason is worth carrying.** UI-1's `ui1_install` search is Diabolic
+Tutor — *unrestricted*, so its candidate set IS the whole library and `all_cards` would be
+set-equal to it. **A fixture like that can never exhibit a look-only card**, so it could never
+falsify the claim under test. UI-6 uses **Solemn Simulacrum** (`{4}`, colourless, `Complete`,
+ETB `SearchLibrary` with `basic_land_filter()`) at `main_deck[0]` of a mono-black deck, plus six
+distinct MV≥6 mono-black fillers whose only job is to sit in the library as cards the search
+cannot find. At `UI6_SEED` (= `UI1_SEED`) that yields **89 in library / 33 findable / 56
+look-only**. Its `may_fail_to_find` is `true`, the opposite of the UI-1 probe's `false`, so
+between them both CR 701.23b/d branches are now exercised over HTTP.
+
+**Browser-verified live** (headless Chromium, playwright-core, release server on :3046, seed 116
+→ Three Visits at turn 9 — the UI-4 tuple reused): 89 rendered rows, 33 pickable buttons, 56
+look-only, a column list scrolling 2082px inside 224px, the look-only row a `DIV` whose forced
+click produced **0 POSTs and 0 selection** with Confirm still disabled, and a non-default pick
+posting `{"found":97}` against a server default of `10`. 0 `pageerror`s, 0 error strips,
+`command_count` 341 → 342. **Path correction for the next worker: the chromium binary is at
+`~/.cache/ms-playwright/chromium-1228/chrome-linux64/chrome`**, not the `chrome-linux` the UI-4
+handoff records — that path no longer exists and cost a launch failure.
+
+**CR 400.7 trap, for whoever repeats the browser check**: Three Visits puts the found card onto
+the battlefield, where it is a **new object** with a new `ObjectId`, so "the clicked id is on the
+battlefield" is false even on success. The captured POST body is the discriminator, not the board.
+
+**The `/review` cycle found 6 and all 6 were taken**, one of them a real rules defect (the CR
+121.1 restriction above, live-reachable because `aven_mindcensor.rs` declares no `completeness`
+field and is therefore `Complete` by the `#[default]` derive — the same generator PB-DX3b and
+PB-DX4 both hit). Two more were gates whose message overstated what they asserted: the
+`look-tag` needle was satisfiable by the **stylesheet alone** (deleting the `<span>` left it
+green), and `library_look_cards` said it "asserted" a premise it only states in prose. The
+restriction fix is pinned by `test_ui6_the_look_narrows_with_a_search_restriction` on a second
+fixture — seat 2 holds Aven Mindcensor, seed **29**, read off a 300-seed sweep — asserted against
+the engine's own `top_n` rather than against the literal `4`, and proven red by revert (89 ids
+vs 4).
+
+**Frontend**: `SearchPicker` is a scrollable checkable **list**, not a wrapped button grid — a
+fixed left edge is what makes ~99 rows scannable. Rows are the union of `allCards` and
+`candidates`, each carrying `pickable = (id in candidates)`; a look-only row is a plain `div`
+with a visible `look only` tag, **not a disabled button**, because a disabled control reads as
+"not right now" and CR 701.23a's distinction is permanent. `select` and `emit` both re-check
+membership (the emit guard explains the refusal in CR terms rather than letting the server's 400
+read as "request failed"). A one-click *"hide the N I can't find"* filter is **off by default** —
+defaulting it on would restore the exact behaviour that was complained about. Gate:
+`test_frontend_search_picker_looks_wider_than_it_picks`, proven red three ways (render candidates
+only; accept a look-only id; make the look-only row a disabled button).
+
+### Seeds filed (UI-6)
+
+* **`OOS-UI6-1`** — *The picker opens on a wall of look-only rows.* `all_cards` is
+  name-sorted, so in a Swamp/Forest deck every findable card is late in the alphabet and the
+  first screen is unpickable cards (observed live: the top 10 rows at seed 116 are `Archetype of
+  Endurance` … `Collector Ouphe`, all look-only). The filter box and the "hide the N I can't
+  find" toggle each fix it in one action, so this is UX ranking, not correctness. Two candidate
+  treatments, both with a cost stated: sort findable-first (loses the single A–Z scan the sort
+  exists for), or scroll to the first findable row on open (keeps the sort, costs an effect).
+  Deliberately not decided by this batch.
+* **`OOS-UI6-2`** — *`all_cards` is filled in at the `SearchLibrary` arm only, and nothing
+  gates that.* Any future `PickOne` question gets an empty look list and the client silently
+  falls back to candidates-only. That is the safe direction, but a new arm that *should* carry a
+  look entitlement would ship without one and no test would notice. A roster gate over the
+  `EffectChoiceQuestion` variants routed through `PickOne` would close it — the same shape as
+  SR-5's keyword registry.
+* **`OOS-UI6-3`** — *The client's graveyard-search union branch is unreachable and therefore
+  untested.* `SearchPicker` merges candidates absent from `allCards` because
+  `also_search_graveyard` puts graveyard cards in the answer space that are in no library.
+  Measured: `finale_of_devastation` is the **only** def with `also_search_graveyard: true`, and
+  it is `Completeness::partial`, so `validate_deck` rejects it — the branch cannot fire today.
+  Fold into the R7 frontend harness when it exists rather than building a fixture for it.
+* **`OOS-UI6-4`** — *The field is named `all_cards`, which overstates it in one case.* It is
+  the **library**, narrowed by CR 121.1; a graveyard search's candidates are not in it. The name
+  is the triage's own recommendation and the doc is precise, so this is naming, not behaviour —
+  `library_cards` or `look_at` would say it. Renaming is a DTO change with a frontend prop to
+  match; cheap, and worth doing only alongside another change to this shape.
+* **`OOS-UI6-5`** — *The Invariant-7 count gate is still an enumerated needle set.* Seven
+  needles now, five of them zero-pins, two of those added because the first draft's own revert
+  defeated it with a synonym. A read through an accessor nobody listed stays invisible. The
+  durable fix is type-level — a wrapper `view.rs` must go through to reach `GameState` — not more
+  needles, and it is the same limitation MR-M11-01 is about.
+* **`OOS-UI6-6`** — *`library_look_cards` restates an engine rule and can go stale silently.*
+  It is the second such site in `view.rs` (`action_modes` is the first). If the engine's search
+  path stops calling `apply_search_library_replacement`, or starts restricting by something other
+  than `top_n`, the look narrows wrongly with nothing to catch it. A shared engine query —
+  `rules::queries::searchable_library(state, player)` returning the ids the search will actually
+  consider — would let both the engine and the view read one implementation. That is an engine
+  line, so it was out of scope here.
+
 ## Worker Handoff (ENG-2, `scutemob-193`) — targets in the event log (G7, CR 601.2c)
 
 **G7 of `memory/playtest-triage-2026-08-02b.md` CLOSED, event-log half.** Before this batch no
