@@ -9067,4 +9067,64 @@ mod tests {
         );
         assert_eq!(refused["kind"], "no_pending_decision");
     }
+
+    // ── ENG-2 ────────────────────────────────────────────────────────────────
+
+    /// **ENG-2 §7(h): the UI-4/SIM-6 lesson.** A wire proven below the browser is
+    /// not proven at the browser -- this batch's deliverable is a line a human
+    /// reads, so this test drives a real targeted cast through the HTTP API and
+    /// asserts a `TargetsAnnounced` line reaches the seat payload's `events`
+    /// array, i.e. that the browser really receives
+    /// `{"kind":"TargetsAnnounced","tier":"stack","text":"... targets ..."}`.
+    ///
+    /// Test-only: `tools/play-server/src/` carries zero SOURCE changes for this
+    /// batch (confirmed by `Grep "GameEvent::"` over `tools/play-server/src`
+    /// returning only doc comments) -- this probe does not contradict that; it
+    /// exercises the existing `event_view_for` -> `EventView` -> JSON pipeline
+    /// with the new variant flowing through it unmodified.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_eng2_targets_announced_reaches_the_browser_over_http() {
+        let state = shared_state();
+        let view = drive_until(&state, TARGET_SEED, false, |v| {
+            option_with_targets(v, 1).is_some()
+        })
+        .await;
+        let option = option_with_targets(&view, 1).expect("the driver stopped on one");
+        let target = option["target_slots"][0]["candidates"][0]["value"].clone();
+
+        let (status, after) = post_json(
+            &state,
+            "/api/game/action",
+            json!({
+                "seq": seq(&view),
+                "action_index": option["index"],
+                "params": { "targets": [target] },
+            }),
+        )
+        .await;
+        assert_eq!(
+            status,
+            StatusCode::OK,
+            "the targeted cast was refused: {after}"
+        );
+
+        let events = after["events"].as_array().expect("events is an array");
+        let announced = events
+            .iter()
+            .find(|e| e["kind"] == "TargetsAnnounced")
+            .unwrap_or_else(|| {
+                panic!("no TargetsAnnounced event reached the client: events were {events:?}")
+            });
+        assert_eq!(announced["tier"], "stack");
+        let text = announced["text"].as_str().expect("text is a string");
+        assert!(
+            text.contains("targets"),
+            "the rendered line must say who targets what: {text:?}"
+        );
+        assert!(
+            !text.is_empty() && text != "TargetsAnnounced",
+            "the line must be the rendered prose arm, not the kind-only redaction \
+             floor: {text:?}"
+        );
+    }
 }
