@@ -1945,6 +1945,33 @@ fn question_cards(state: &GameState, ids: &[ObjectId]) -> Vec<CardOptionView> {
 /// `seat_view` has already refused to build this payload for any other seat
 /// (`pending.player == human`).
 ///
+/// # …but "all cards in that zone" is not always the whole library
+///
+/// **CR 121.1 / CR 614.1: a search-restriction replacement changes the zone
+/// being searched, so it changes what may be looked at.** Under an opponent's
+/// Aven Mindcensor this player *"searches the top four cards of that library
+/// instead"* — the entitlement is four cards, and showing 99 with 95 marked
+/// "look only" would be a real over-disclosure of this seat's own library, not a
+/// cosmetic one. So the same `apply_search_library_replacement` the engine's
+/// search path calls (`effects/mod.rs`, immediately before it builds candidates)
+/// is called here, and the look is narrowed to `Zone::top_n` exactly as the
+/// engine narrows the candidates.
+///
+/// That makes this the **second** place in this file that restates an engine rule
+/// rather than delegating — [`action_modes`] is the first and says so. It is
+/// recorded the same way and for the same reason: if the engine's search path
+/// ever stops calling that function, or starts restricting by something other
+/// than `top_n`, this goes stale silently. It is confined to a *display* concern
+/// (what the look list holds), the engine re-derives the candidate set on its own
+/// at resolution, and every divergence is in the **narrowing** direction — a stale
+/// restriction here shows too few cards, never too many.
+///
+/// The returned events are discarded deliberately. They are the engine's own
+/// replacement-applied log lines, emitted by the resolution path; re-emitting
+/// them from a render would put a duplicate in the feed every time the client
+/// polls. The function takes `&GameState` and cannot mutate anything, so
+/// discarding them loses nothing but noise.
+///
 /// # Why the library and not "the zone being searched"
 ///
 /// `EffectChoiceQuestion::SearchLibrary` carries only its candidates, not the
@@ -1955,8 +1982,11 @@ fn question_cards(state: &GameState, ids: &[ObjectId]) -> Vec<CardOptionView> {
 /// library is **always the answering seat's own**, and `player` here is
 /// `PendingDecision::player`. There is no engine path today by which one seat
 /// answers a search of another seat's library, and if one is ever added this
-/// function is wrong rather than merely incomplete — hence the assertion of the
-/// premise here rather than a silent dependency on it.
+/// function is wrong rather than merely incomplete. That premise is **stated
+/// here, in prose, and is not machine-checked** — `EffectChoiceQuestion` carries
+/// no zone for a gate to compare against. Said plainly rather than dressed up:
+/// an earlier draft of this paragraph called it "the assertion of the premise",
+/// which reads as a code guarantee this function does not make.
 ///
 /// # Sorted by NAME, never in library order — this is the load-bearing line
 ///
@@ -1989,8 +2019,17 @@ fn library_look_cards(state: &GameState, player: PlayerId) -> Vec<CardOptionView
         // which is exactly the pre-UI-6 behaviour.
         return Vec::new();
     };
-    let mut cards: Vec<CardOptionView> = library
-        .object_ids()
+    // CR 121.1 / CR 614.1 — see the doc above. `top_n` is the same accessor the
+    // engine's own restriction path uses, so a restricted look and a restricted
+    // candidate set are drawn from the same cards by construction rather than by
+    // two implementations agreeing.
+    let (restriction, _replacement_events) =
+        mtg_engine::rules::replacement::apply_search_library_replacement(state, player);
+    let ids = match restriction {
+        Some(n) => library.top_n(n as usize),
+        None => library.object_ids(),
+    };
+    let mut cards: Vec<CardOptionView> = ids
         .iter()
         .map(|id| CardOptionView {
             id: id.0,

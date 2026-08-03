@@ -4056,6 +4056,121 @@ mod tests {
         ui1_question_index(view, "SearchLibrary").expect("a SearchLibrary question is offered")
     }
 
+    /// **Read off a real run, not reasoned to** — the [`UI1_SEED`] convention.
+    /// A sweep of seeds 0..300 over the [`ui6_restricted_install`] fixture found
+    /// this to be the first at which the bot has Aven Mindcensor on the
+    /// battlefield *before* the human's Solemn Simulacrum resolves. Most seeds
+    /// reach no search at all (the bot's Plains deck plays slowly and the drive
+    /// budget runs out); of those that do, this is the first restricted one.
+    const UI6_RESTRICTED_SEED: u64 = 29;
+
+    /// `{2}{W}`, Creature — Bird Wizard 2/1, **Flash**, and its third line is the
+    /// one this fixture is for: *"If an opponent would search a library, that
+    /// player searches the top four cards of that library instead."*
+    /// (`crates/card-defs/src/defs/aven_mindcensor.rs`, `Completeness::Complete`
+    /// by derive — so `validate_deck` accepts it and a human can meet it in a
+    /// real game).
+    const UI6_RESTRICTOR: &str = "aven-mindcensor";
+
+    /// CR 121.1's restriction is `RestrictSearchTopN(4)` here.
+    const UI6_RESTRICTED_TO: usize = 4;
+
+    /// Seat 2 gets a mono-white deck holding the restrictor; seat 1 keeps
+    /// [`ui6_deck`]. The commander is Elesh Norn ({5}{W}{W}) purely to fix seat
+    /// 2's colour identity (CR 903.5c) at a mana value the drive never reaches.
+    fn ui6_restricted_install(state: &SharedState) {
+        use mtg_engine::CardId;
+        let mut bot_main: Vec<CardId> = vec![CardId(UI6_RESTRICTOR.to_string())];
+        while bot_main.len() < 99 {
+            bot_main.push(CardId("plains".to_string()));
+        }
+        let cfg = mtg_simulator::LocalGameConfig {
+            player_count: 2,
+            human_seats: [mtg_engine::PlayerId(1)].into_iter().collect(),
+            bot_kind: BotKind::Heuristic,
+            seed: UI6_RESTRICTED_SEED,
+            decks: mtg_simulator::DeckSource::Fixed(vec![
+                (mtg_engine::PlayerId(1), ui6_deck()),
+                (
+                    mtg_engine::PlayerId(2),
+                    mtg_simulator::DeckConfig {
+                        commander: CardId("elesh-norn-grand-cenobite".to_string()),
+                        main_deck: bot_main,
+                    },
+                ),
+            ]),
+            limits: mtg_simulator::LocalGameLimits {
+                max_turns: 200,
+                max_commands: 40_000,
+                max_consecutive_passes: 500,
+                record_journal: true,
+            },
+        };
+        let session =
+            session::new_game(cfg, 0).expect("the UI-6 restricted fixture deck must be legal");
+        *state.session.lock().expect("fresh lock") = Some(session);
+    }
+
+    /// **CR 121.1 / CR 614.1: "all cards in that zone" is not always the whole
+    /// library, and the look narrows with the search** (UI-6 `/review`, finding 1).
+    ///
+    /// `library_look_cards` originally enumerated the library unconditionally.
+    /// Under an opponent's Aven Mindcensor the searcher *"searches the top four
+    /// cards of that library instead"*, so the CR 701.23a entitlement is four
+    /// cards — and showing 89 with 85 marked "look only" is a real
+    /// over-disclosure of this seat's own library, not a cosmetic one. The fix
+    /// calls the same `apply_search_library_replacement` the engine's search path
+    /// calls and narrows through the same `Zone::top_n`.
+    ///
+    /// **This is the discriminating test for that fix**: before it, `all_cards`
+    /// here was 89. It is asserted against the engine's own zone read rather than
+    /// against the literal `4`, so a fixture whose library happened to be four
+    /// cards long could not satisfy it by accident.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_ui6_the_look_narrows_with_a_search_restriction() {
+        let state = shared_state();
+        ui6_restricted_install(&state);
+        let view = ui1_drive_to_question(&state, "SearchLibrary", 800).await;
+        let (_, candidates, all_cards) = ui6_search_shape(&view);
+
+        // `ui1_library` is BOTTOM-first (`Zone::Ordered` keeps the top last), so
+        // the searched set is the TAIL. This is the engine's own zone, read out
+        // of band — the same oracle role `from_game_state` plays for the
+        // redaction tests.
+        let library = ui1_library(&state);
+        assert!(
+            library.len() > UI6_RESTRICTED_TO * 2,
+            "non-vacuity: the library must be much longer than the restriction, or \
+             'narrowed' means nothing here. len={}",
+            library.len()
+        );
+        let top_n: std::collections::HashSet<u64> = library[library.len() - UI6_RESTRICTED_TO..]
+            .iter()
+            .copied()
+            .collect();
+
+        let all_ids: std::collections::HashSet<u64> = all_cards.iter().map(|(id, _)| *id).collect();
+        assert_eq!(
+            all_ids,
+            top_n,
+            "CR 121.1: the look must be exactly the top {UI6_RESTRICTED_TO} cards the \
+             restriction leaves searchable — not the whole library, and not some \
+             other {UI6_RESTRICTED_TO}. If this fixture stopped putting \
+             {UI6_RESTRICTOR} on the battlefield in time, UI6_RESTRICTED_SEED needs \
+             re-pinning; library len={}",
+            library.len()
+        );
+
+        // The engine narrowed its candidates by the same rule, so the two agree.
+        // That containment is the property the client's `pickable` flag rests on.
+        for id in &candidates {
+            assert!(
+                all_ids.contains(id),
+                "a candidate the restriction allows must be visible in the look list"
+            );
+        }
+    }
+
     /// **CR 701.23a — the search view shows the WHOLE library, look-only** (G9).
     ///
     /// Four claims, in the order they build on each other:
@@ -4224,8 +4339,11 @@ mod tests {
     /// refreshes `pending` straight back off `LocalGame`, so mutating that does
     /// nothing.
     ///
-    /// Two-sided: deleting `seat_view`'s `pending.player == human` filter turns
-    /// this red with seat 1's whole library in seat 2's payload.
+    /// Two-sided, and **proven by executing the revert**, not by arguing it:
+    /// deleting `seat_view`'s `pending.player == human` filter (`api.rs`) and
+    /// running this test returns seat 1's entire library — every card named,
+    /// `Butcher of Malakir` through `Swamp` — inside seat 2's payload, and the
+    /// assertion below quotes it.
     #[tokio::test(flavor = "multi_thread")]
     async fn test_ui6_a_foreign_seat_never_receives_the_whole_library_look() {
         let state = shared_state();
@@ -4849,13 +4967,22 @@ mod tests {
     ///
     /// # The zero pins, and the revert that put them there
     ///
-    /// Three needles are pinned at **0**. They are not decoration: the first
+    /// Five needles are pinned at **0**. They are not decoration: the first
     /// revert run against this gate replaced `state.zone(..)` with
     /// `state.zones().get(..)` — the same channel, one accessor over — and the
     /// two-needle draft of this gate went **green**. A gate whose own revert
     /// proof can be defeated by a synonym is not holding the property it claims
     /// to. So the accessors that reach the same data are pinned closed, and a
-    /// bypass now fails on the pin it uses rather than on none at all.
+    /// bypass now fails on the pin it uses rather than on none at all. Two of the
+    /// five (`.object(`, `.players()`) came from the `/review` cycle, which
+    /// pointed out that the first draft closed the *plural* of one needle and the
+    /// *singular* of another while leaving each one's opposite number open —
+    /// exactly the class this paragraph is about.
+    ///
+    /// A **delegating** call into the engine is not a raw read and is not pinned:
+    /// `library_look_cards` calls `rules::replacement::apply_search_library_replacement`
+    /// (CR 121.1), which takes `&GameState` and returns an `Option<u32>` and some
+    /// events. It reads no object table and can name no card.
     ///
     /// This is still an enumerated set and not a proof about *every* raw read —
     /// see [`view::question_card_label`]'s doc, which says so in the same terms.
@@ -4882,7 +5009,7 @@ mod tests {
         // Each entry is (needle, expected count, what that read is for). The two
         // non-zero pins are the three accounted-for reads; the zero pins are
         // BYPASSES held closed — see below for why they are here at all.
-        let pins: [(&str, usize, &str); 5] = [
+        let pins: [(&str, usize, &str); 7] = [
             (
                 concat!(".obj", "ects()"),
                 2,
@@ -4913,6 +5040,19 @@ mod tests {
                 concat!(".pla", "yer("),
                 0,
                 "raw `PlayerState`, which the seat-redacted view already models",
+            ),
+            (
+                concat!(".obj", "ect("),
+                0,
+                "the SINGULAR of the needle pinned at 2 above — it returns one \
+                 whole GameObject, name included, for any id in any zone, and is \
+                 the most natural way a fourth look channel would be written",
+            ),
+            (
+                concat!(".pla", "yers()"),
+                0,
+                "the plural/singular pair of `.player(` — the same shape of \
+                 synonym the revert below defeated a two-needle draft with",
             ),
         ];
         let mut total = 0usize;
@@ -7481,9 +7621,15 @@ mod tests {
             picker.contains("class=\"candidate look-only\""),
             "look-only rows need their own class so they read as unavailable"
         );
+        // The full opening tag, not the bare class name: `look-tag` also occurs in
+        // the stylesheet, so the bare needle stayed green with the `<span>`
+        // deleted — the assertion did not prove what its message claimed
+        // (`/review` finding, the same overstatement class this batch's other
+        // gates are written against).
         assert!(
-            picker.contains("look-tag"),
-            "a look-only row must carry its visible `look only` tag"
+            picker.contains("<span class=\"look-tag\">look only</span>"),
+            "a look-only row must RENDER its visible `look only` tag, not merely \
+             have a style rule for one"
         );
         // Not a `<button>`: a disabled control reads as "not right now", and this
         // is a permanent rules fact. Checked by position — the look-only element's

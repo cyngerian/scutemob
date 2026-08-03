@@ -1202,11 +1202,16 @@ cards in that zone (even if it's a hidden zone)"* — so the browser now shows a
 searcher their whole library, look-only, while `candidates` stays exactly the
 engine's answer space (`handle_answer_effect_choice` refuses anything outside it;
 widening the answer space would be an SR-38 violation, and the two lists are sent
-separately so a client cannot confuse them). Three things bound the read: it is
+separately so a client cannot confuse them). Four things bound the read: it is
 the *searcher's own* library (`PendingDecision::player`, already filtered to the
 viewing seat); it is sorted **by name, never in library order**, because CR 701.23a
-grants a look at the cards and not at the shuffle CR 701.23e exists to protect; and
-nothing on the write path reads it.
+grants a look at the cards and not at the shuffle CR 701.23e exists to protect; it
+is narrowed by **CR 121.1** whenever a search-restriction replacement applies —
+under an opponent's Aven Mindcensor the entitlement is the top four cards, so
+`library_look_cards` calls the same `apply_search_library_replacement` the engine's
+search path calls and narrows through the same `Zone::top_n`
+(`test_ui6_the_look_narrows_with_a_search_restriction`, seed 29); and nothing on
+the write path reads it.
 
 Two things about the gate are worth carrying forward. First, the new read spells
 `.zone(`, not `.objects()` — **measured**: with the channel in the tree the old
