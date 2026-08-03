@@ -22,9 +22,9 @@ use mtg_engine::{
     ManaAbility, ManaColor, ObjectId, ObjectSpec, PlayerId, Target, TargetRequirement, ZoneId,
 };
 use mtg_simulator::{
-    action_to_command_with_params, build_registry, ActionParams, AdvanceOutcome, Bot, DecisionKind,
-    DeckConfig, GameDriver, HaltReason, HumanChoice, LegalAction, LocalGame, LocalGameError,
-    LocalGameLimits, ParamError, RandomBot, StubProvider,
+    action_to_command_with_params, build_registry, place_registered_deck, ActionParams,
+    AdvanceOutcome, Bot, DecisionKind, DeckConfig, GameDriver, HaltReason, HumanChoice,
+    LegalAction, LocalGame, LocalGameError, LocalGameLimits, ParamError, RandomBot, StubProvider,
 };
 
 /// A fixed, low-complexity deck: 99 Plains plus the first `Complete` legendary
@@ -54,9 +54,23 @@ fn fixed_deck(cards: &[CardDefinition]) -> DeckConfig {
 }
 
 /// Build an un-started `GameState` for `player_count` players, each with the fixed
-/// deck: commander in the command zone, main deck in the library, `first_turn_of_game`
-/// set. Mirrors `mtg-fuzzer::run_single_game`'s builder logic, minus the RNG-driven
-/// deck selection.
+/// deck: commander in the command zone (**registered**, CR 903.6), main deck in the
+/// library, `first_turn_of_game` set.
+///
+/// **PB-DX22**: this used to be a hand-written copy of `mtg-fuzzer::run_single_game`'s
+/// builder logic — the fuzzer's build lived in `src/bin/fuzzer.rs`, which Cargo compiles
+/// as its own crate, so no integration test could `use` it and a second copy was the
+/// only option. The copy inherited the original's defect: it placed the commander object
+/// but never called `player_commander`, so `commander_ids` was empty and every commander
+/// rule (CR 903.8 tax, CR 903.9a return, CR 903.10a damage) was silently inert in every
+/// game this file drove. Both callers now go through the one
+/// `fuzz_setup::place_registered_deck`, and
+/// `pb_dx22_fuzz_instrument::test_dx22_command_zone_placement_and_registration_are_one_operation`
+/// fails if a third copy ever appears.
+///
+/// It still cannot use `build_fuzz_state`: that draws `random_deck` from the full pool,
+/// and this file deliberately uses a fixed 99-Plains deck for the reason its module doc
+/// gives above.
 fn build_state(
     player_count: u32,
     registry: &Arc<CardRegistry>,
@@ -73,20 +87,7 @@ fn build_state(
 
     for &pid in &player_ids {
         let deck = fixed_deck(cards);
-        if let Some(def) = cards.iter().find(|c| c.card_id == deck.commander) {
-            let spec = ObjectSpec::card(pid, &def.name)
-                .in_zone(ZoneId::Command(pid))
-                .with_card_id(deck.commander.clone());
-            builder = builder.object(enrich_spec_from_def(spec, &card_defs));
-        }
-        for card_id in &deck.main_deck {
-            if let Some(def) = cards.iter().find(|c| c.card_id == *card_id) {
-                let spec = ObjectSpec::card(pid, &def.name)
-                    .in_zone(ZoneId::Library(pid))
-                    .with_card_id(card_id.clone());
-                builder = builder.object(enrich_spec_from_def(spec, &card_defs));
-            }
-        }
+        builder = place_registered_deck(builder, pid, &deck, cards, &card_defs);
     }
 
     builder

@@ -25,8 +25,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use mtg_engine::{
-    enrich_spec_from_def, CardDefinition, CardId, CardRegistry, GameState, GameStateBuilder,
-    GameStateError, ObjectSpec, PlayerId, ZoneId,
+    enrich_spec_from_def, register_commander_zone_replacements, CardDefinition, CardId,
+    CardRegistry, GameState, GameStateBuilder, GameStateError, ObjectSpec, PlayerId, ZoneId,
 };
 use rand::rngs::StdRng;
 use rand::seq::SliceRandom;
@@ -52,8 +52,27 @@ pub enum FuzzSetupError {
     Builder(GameStateError),
 }
 
-/// CR 903.6 — place one seat's commander, then its main deck into the library in the
-/// order given (the caller shuffles; see [`build_fuzz_state`]).
+/// CR 903.6 — place one seat's commander **and register it**, then its main deck into
+/// the library in the order given (the caller shuffles; see [`build_fuzz_state`]).
+///
+/// # The two commander steps are ONE operation here, on purpose
+///
+/// Placing an object in `ZoneId::Command(pid)` records *nothing*.
+/// `builder.player_commander(pid, cid)` is what populates
+/// `PlayerState::commander_ids`, and that field is what every commander rule keys off:
+/// CR 903.8 tax (`rules/casting.rs`, mirrored by `legal_actions::effective_cast_cost`),
+/// the CR 903.9a/704.6d command-zone-return SBA (`rules/commander.rs`), CR 903.10a
+/// commander damage (`rules/combat.rs`), and the CR 903.9b hand/library redirects that
+/// `register_commander_zone_replacements` derives *from* `commander_ids`. A game built
+/// with the object but not the registration is not a Commander game — the commander is
+/// recastable for free forever and deals no commander damage. `setup.rs:381-393` states
+/// the same rule; `commander_cast.rs`'s module doc states it a third time.
+///
+/// Stating it was not enough: `bin/fuzzer.rs` and `tests/local_game.rs` both did half of
+/// it for the life of the fuzzer (`OOS-SIM1-4`). Making the pair a single function is
+/// the structural fix, and
+/// `pb_dx22_fuzz_instrument::test_dx22_command_zone_placement_and_registration_are_one_operation`
+/// machine-checks that no third copy re-splits it.
 ///
 /// # The `if let Some(def)` skip is deliberate, and it is a divergence
 ///
@@ -69,13 +88,16 @@ pub fn place_registered_deck(
     cards: &[CardDefinition],
     card_defs: &HashMap<String, CardDefinition>,
 ) -> GameStateBuilder {
-    // CR 903.6: the commander goes to the command zone.
+    // CR 903.6: the commander goes to the command zone -- as an OBJECT and as a
+    // REGISTRATION. See this function's doc for why doing only the first is not a
+    // Commander game.
     if let Some(def) = cards.iter().find(|c| c.card_id == deck.commander) {
         let spec = ObjectSpec::card(pid, &def.name)
             .in_zone(ZoneId::Command(pid))
             .with_card_id(deck.commander.clone());
         let spec = enrich_spec_from_def(spec, card_defs);
         builder = builder.object(spec);
+        builder = builder.player_commander(pid, deck.commander.clone());
     }
 
     // The remaining cards become the library (CR 903.6).
@@ -172,7 +194,19 @@ pub fn build_fuzz_state(
 
     builder = builder.first_turn_of_game();
 
-    let state = builder.build().map_err(FuzzSetupError::Builder)?;
+    let mut state = builder.build().map_err(FuzzSetupError::Builder)?;
+
+    // CR 903.9b: a commander that would go to its owner's hand or library may go to the
+    // command zone instead. These are REPLACEMENT effects, not triggers, so they must
+    // exist in `state.replacement_effects` before the game starts, and
+    // `GameStateBuilder` does not derive them from `commander_ids` itself
+    // (`state/builder.rs`'s own doc says so). Omitting this call does NOT break
+    // CR 903.9a — the graveyard/exile return is an SBA keyed on `commander_ids` and
+    // would work without it — it makes CR 903.9b silently *not exist*: a bounced or
+    // shuffled-away commander stays where it went, no `CommanderZoneRedirect` is ever
+    // emitted, and any measurement counting that event reads zero VACUOUSLY. Same call
+    // `setup.rs` and `testing/replay_harness.rs`'s script path make.
+    register_commander_zone_replacements(&mut state);
 
     Ok(FuzzGameSetup { state, decks })
 }

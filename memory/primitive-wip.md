@@ -238,3 +238,104 @@ before `max_turns`) did **not** materialise at these settings. That number is th
 **Stage-2 gates**: `cargo build --workspace` OK · `cargo test -p mtg-simulator` **173 passed /
 0 failed** (+3 = P2/P3/P4) · `clippy --workspace --all-targets -D warnings` exit 0 ·
 `cargo fmt --check` exit 0 · `tools/check-defs-fmt.sh` clean.
+
+### - [x] Stage 3 — CR 903.6 / 903.8 / 903.9 commander registration
+
+**P11 CONFIRMED RED ON THE PRE-FIX TREE, BY EXECUTION** — this is the plan's strongest
+discrimination proof and it was taken first, before the fix:
+
+```
+thread 'test_dx22_command_zone_placement_and_registration_are_one_operation' panicked at
+crates/simulator/tests/pb_dx22_fuzz_instrument.rs:288:5:
+CR 903.6: these files place an object in a command zone without ever calling
+`player_commander`, so `commander_ids` stays empty and every commander rule is silently
+inert there: ["src/fuzz_setup.rs", "tests/local_game.rs"]
+test result: FAILED. 4 passed; 1 failed
+```
+
+The gate walks `crates/simulator/{src,tests}` from `CARGO_MANIFEST_DIR`; **5 files** contain
+`in_zone(ZoneId::Command(` (`src/setup.rs`, `src/fuzz_setup.rs`, `src/legal_actions.rs`,
+`tests/commander_cast.rs`, `tests/local_game.rs`), which clears the ≥4 non-vacuity floor, and
+exactly the 2 named were offenders.
+
+**Fix**:
+
+* `fuzz_setup.rs::place_registered_deck` — `builder.player_commander(pid, deck.commander.clone())`
+  placed adjacent to the `in_zone(ZoneId::Command(pid))` object, inside the same `if let
+  Some(def)` so the two cannot separate. The `setup.rs:381-393` rationale is restated at the
+  function.
+* `fuzz_setup.rs::build_fuzz_state` — `register_commander_zone_replacements(&mut state)` after
+  `builder.build()` (CR 903.9b, plan §B1).
+* `crates/simulator/tests/local_game.rs::build_state` rewired onto `place_registered_deck`; its
+  `:56-59` doc corrected from "Mirrors `mtg-fuzzer::run_single_game`'s builder logic" to the
+  account of why the mirror existed and what it inherited. Import list gains
+  `place_registered_deck`.
+
+**Probes P5 / P6 / P7 / P8 added. Reverts EXECUTED, rebuilds confirmed:**
+
+*Revert A — delete `builder.player_commander(..)`* (rebuild OK, `Compiling mtg-simulator`
+present). Result **5 passed / 4 failed**, and each of the four fails on its own subject rather
+than a shared symptom:
+
+| probe | message |
+|---|---|
+| **P5** `..._commander_ids_are_registered_by_both_build_paths` | `:355` `left: []` / `right: [CardId("samut-voice-of-dissent")]` |
+| **P6** `..._cr_903_9b_replacements_are_registered` | `:411` `left: 0` / `right: 8` |
+| **P7** `..._cr_903_9a_zone_return_sba_is_reachable_from_the_fuzz_build` | `:477` `CR 903.9a: the SBA must offer P1 the choice ...; pending = []` |
+| **P8** `..._cr_903_8_tax_applies_on_the_fuzz_build` | `:525` `left: generic 3` / `right: generic 5` — i.e. the tax silently vanished |
+
+*Revert B — delete only `register_commander_zone_replacements(&mut state)`* (rebuild OK; the
+revert was written as `let _revert_proof = register_commander_zone_replacements; let _ = &mut
+state;` precisely so `-D warnings` could not turn it into a build failure). Result **8 passed /
+1 failed**: only **P6** reddens (`left: 0` / `right: 8`).
+
+**That isolation CONFIRMS plan §B1's claim by experiment**: under revert B, **P7 stays GREEN**.
+CR 903.9a's graveyard/exile return is a state-based action keyed on `commander_ids` and does
+not depend on the CR 903.9b replacements at all — exactly as §B1 argued, now measured rather
+than asserted. What omitting the call breaks is CR 903.9b *silently*, which is the vacuity
+§B1 warns about.
+
+**Plan §D verification, EXECUTED not assumed**: `cargo test -p play-server` → **78 passed / 0
+failed**, no fixture-drift message. No play-server seed pin moved, as the plan's chain predicted
+(`session::new_game` builds through `setup::build_initial_state`, which this batch does not
+touch). `git diff main..HEAD --numstat -- crates/engine/ crates/card-defs/ crates/card-types/
+crates/view-model/ tools/` is **EMPTY**.
+
+**`crates/simulator/tests/local_game.rs` re-roll**: plan §4 predicted "expected: all pass
+unchanged" and that is what happened — **23 passed / 0 failed**, no pin re-derived, no
+numerical adjustment made.
+
+**Stage-3 fuzz run** (`/tmp/pb-dx22-fuzz-after-stage3.txt`, same command):
+
+| metric | Stage 0 | Stage 2 | Stage 3 |
+|---|---|---|---|
+| games completed | 20 | 20 | 20 |
+| wall time | 40.7 s | 14.3 s | **12.5 s** |
+| wins / draws / errors | 9 / 0 / 11 | 20 / 0 / 0 | **20 / 0 / 0** |
+| total violations | 1,519 | 504 | **426** |
+| avg turns | 191.7 | 112.7 | **103.4** |
+| commands per turn | 58.8 | 46.3 | **45.7** |
+| `check`s seen | orphaned_tokens, player_consistency | same | orphaned_tokens, player_consistency, **`attachment_validity` (NEW)** |
+
+#### FINDING — a pre-existing engine defect became reachable (plan §8 risk 1)
+
+`[attachment_validity] Object ObjectId(532) attached to ObjectId(677) which doesn't exist
+(turn 88)`, ×3, **game seed 5**. Zero occurrences of this check in the Stage-0 and Stage-2
+runs; first appearance at Stage 3.
+
+* **Repro (deterministic, re-run and confirmed identical ObjectIds and turn)**:
+  `cargo run --profile fuzz --bin mtg-fuzzer -- --replay 5 --players 4 --max-turns 200`
+* **Check**: `crates/simulator/src/invariants.rs:386 check_attachment_validity` — a
+  battlefield object whose `attached_to` names an `ObjectId` that no longer resolves. CR 400.7
+  (a zone change makes a NEW object) / CR 704.5n (an Aura attached to an illegal or absent
+  object is put into its owner's graveyard as an SBA).
+* **Why this is not a regression this batch caused**: `git diff main..HEAD --numstat --
+  crates/engine/` is **empty** — 0 engine lines. Per plan §8 that is the strongest available
+  argument, and it is stronger than attempting to reproduce on the merge base, which *cannot
+  shuffle* and therefore cannot reach turn-88 board states of this kind.
+* **NOT FIXED, by instruction and by `memory/conventions.md`'s default-to-defer.** Captured
+  here for Stage 5 seed filing.
+
+**Stage-3 gates**: `cargo build --workspace` OK · `cargo test -p mtg-simulator` **174 passed /
+0 failed** (+1 = P11 at the point it was added; +4 more with P5-P8) · `cargo test -p
+play-server` 78/0 · clippy / fmt / `check-defs-fmt.sh` below.
