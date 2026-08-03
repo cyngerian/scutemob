@@ -34,8 +34,10 @@
   game, because no frontend test harness exists (plan §8 R7, revisit at M13); `StubProvider`
   enumerates no Adventure, alt-cost or Convoke/Improvise/Delve casts (R4). **The active track is now
   the PB-DX correctness queue alone** (`memory/primitives/seed-rerank-2026-08-02.md` §4 — v3,
-  `scutemob-182`; PB-DX6 shipped `cb0755bf`, **next PB-DX19**; the playtest-successor run 174–181
-  completed 2026-08-02 in between).
+  `scutemob-182`; PB-DX19 shipped `451e3517`, **next PB-DX20**; the playtest-successor run 174–181
+  AND the triage-2 successor run 187–194 both completed 2026-08-02 — triage 2 is fully closed,
+  8/8 rows shipped. **Queued for a FRESH session by user direction: FEEDBACK-1 (`scutemob-192`)**,
+  the alpha feedback-loop planning task; PROTOCOL **35** / HASH **72** as of ENG-2).
   The roadmap's next milestone candidate is **M10-pre → M10a** — *not
   started, and not to be started without direction.* Full session-by-session M11 narrative:
   `memory/archive/claude-md-changelog-2026-08.md`; S8 handoff and durable lessons:
@@ -90,10 +92,10 @@
   R10→PB-DX14, R11→PB-DX17) and `rider-seed-triage-2026-07-19.md` §3/§5 must not be claimed from.
   **PB-DX1..PB-DX6 ALL SHIPPED** (`scutemob-160`/`162`/`164`/`166`/`168`/`170`/`172`; full
   narratives in `memory/archive/claude-md-changelog-2026-08.md`, per-batch handoffs in
-  `memory/workstream-state.md`). PROTOCOL **33** / HASH **70**. **Next dispatch: PB-DX19**
-  (OOS-SIM2-6 + OOS-SIM2-5 — an unbounded `calculate_characteristics` recursion that hard-aborts
-  the process from a deck-legal `Complete` card, one-line fix; brief in
-  `memory/primitives/seed-rerank-2026-08-02.md` §4). **PB-DX7 is no longer next** — it survives at
+  `memory/workstream-state.md`). PROTOCOL **35** / HASH **72** (as of ENG-2, `scutemob-193`).
+  **PB-DX19 SHIPPED** (`scutemob-184`, `451e3517`) — **next dispatch: PB-DX20** (brief in
+  `memory/primitives/seed-rerank-2026-08-02.md` §4; re-word OOS-DX19-2 per OOS-ADJ-3 before any
+  DX42b dispatch). **PB-DX7 is no longer next** — it survives at
   rank 9; eight new entries outrank it. Older queue history (the PB-OS,
   PB-RS and PB-DP chains) is rotated to the 2026-08 archive.
 - **Tests (delta 2026-08-02, UI-6)**: **4,345 / 0 / 5** full-workspace on branch
