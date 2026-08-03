@@ -873,6 +873,21 @@ fn test_event_tier_classifies_the_four_buckets() {
             EventTier::Stack,
             "stack",
         ),
+        // ENG-2 (CR 601.2c): the announcement-time target event, §6.2's silent
+        // default hazard -- the compiler does not ask for this entry.
+        (
+            GameEvent::TargetsAnnounced {
+                controller: alice,
+                source_object_id: shock,
+                stack_object_id: ObjectId(9_002),
+                targets: vec![SpellTarget {
+                    target: Target::Player(PlayerId(3)),
+                    zone_at_cast: None,
+                }],
+            },
+            EventTier::Stack,
+            "stack",
+        ),
     ];
 
     for (ev, expected, wire) in cases {
@@ -1022,6 +1037,83 @@ fn test_event_view_does_not_leak_a_card_moved_into_a_hidden_zone() {
             &outsider_view.text,
             &[needle],
             &format!("alice's {} line", outsider_view.kind),
+        );
+    }
+}
+
+/// ENG-2 (CR 601.2c / CR 708.2 / CR 102.1 / 115.1 / 400.2): a `TargetsAnnounced`
+/// event redacts an OBJECT target through the same entitlement gate every other
+/// arm uses, and never redacts a PLAYER target -- proven both ways, so this is
+/// not just "redaction happens somewhere" but "redaction happens exactly where
+/// CR says it must, and nowhere else".
+#[test]
+fn test_eng2_targets_announced_redacts_object_targets_and_never_player_targets() {
+    let (state, names) = golden_fixture_state();
+    let alice = PlayerId(1);
+    let bob = PlayerId(2);
+
+    let shock = object_id_of(&state, "Shock", &ZoneId::Graveyard(alice));
+    let morph = object_id_of(&state, "Exalted Angel", &ZoneId::Battlefield);
+
+    // ── Object target: CR 708.2, redacted by ownership ──────────────────────
+    let object_ev = GameEvent::TargetsAnnounced {
+        controller: alice,
+        source_object_id: shock,
+        stack_object_id: ObjectId(9_003),
+        targets: vec![SpellTarget {
+            target: Target::Object(morph),
+            zone_at_cast: Some(ZoneId::Battlefield),
+        }],
+    };
+
+    // Non-vacuity: the omniscient developer view really does name it.
+    let dev = event_view_for(&object_ev, &state, &names, Viewer::Omniscient)
+        .expect("a public event");
+    assert!(
+        dev.text.contains("Exalted Angel"),
+        "the omniscient line must name Exalted Angel, or the absence assertion \
+         below is vacuous: {:?}",
+        dev.text
+    );
+
+    // bob owns the face-down permanent, so bob is entitled to its identity.
+    let bob_view =
+        event_view_for(&object_ev, &state, &names, Viewer::Seat(bob)).expect("a public event");
+    assert_eq!(bob_view.text, "Shock targets Exalted Angel");
+
+    // alice is not entitled -- CR 708.2 degrades to a name-free sentence, not a
+    // placeholder token, matching the shipped PermanentTargeted fallback.
+    let alice_view =
+        event_view_for(&object_ev, &state, &names, Viewer::Seat(alice)).expect("a public event");
+    assert_eq!(alice_view.text, "Shock targets a permanent");
+    assert_absent(
+        &alice_view.text,
+        &["Exalted Angel"],
+        "alice's TargetsAnnounced line",
+    );
+
+    // ── Player target: CR 102.1 / 115.1 / 400.2, never redacted ─────────────
+    let player_ev = GameEvent::TargetsAnnounced {
+        controller: alice,
+        source_object_id: shock,
+        stack_object_id: ObjectId(9_004),
+        targets: vec![SpellTarget {
+            target: Target::Player(bob),
+            zone_at_cast: None,
+        }],
+    };
+    for viewer in [
+        Viewer::Omniscient,
+        Viewer::Seat(alice),
+        Viewer::Seat(bob),
+        Viewer::Seat(PlayerId(3)),
+    ] {
+        let view =
+            event_view_for(&player_ev, &state, &names, viewer).expect("a public event");
+        assert_eq!(
+            view.text, "Shock targets bob",
+            "a player target's identity is never hidden (CR 102.1 / 115.1 / \
+             400.2), regardless of viewer ({viewer:?})"
         );
     }
 }
