@@ -220,7 +220,14 @@ fn stack_card_of(kind: &mtg_engine::StackObjectKind) -> Option<ObjectId> {
 /// **Re-measured post-shuffle by PB-DX22 (`scutemob-196`), which is this check's first
 /// real test.** `bin/fuzzer.rs` now shuffles (CR 103.3) and registers the commander
 /// (CR 903.6), so the first cast lands on game turn **3-29** instead of 143-154 and a
-/// 20-game run casts **670** spells rather than ~120. Same command as the table above,
+/// 20-game run casts **670** spells. Stated like-for-like, because the two sides of
+/// this A/B were measured at different game counts and quoting them against each other
+/// is the sampling error this very block exists to warn about: the pre-fix instrument
+/// cast **121** spells in **5** games (`pb-dx22-measurement-head.txt`) and **1,519**
+/// violations in **20**; the post-fix one casts **670** in 20. Per game that is
+/// 24.2 -> 33.5 casts, and the real change is not the count but the DEPTH — 143-154
+/// -> 3-29 — since every pre-fix cast happened after the basics ran out. Same command
+/// as the table above,
 /// widened to `--games 20 --seed 1 --max-turns 200 --threads 1 --profile fuzz`:
 ///
 /// | check | violations | games |

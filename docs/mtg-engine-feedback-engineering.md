@@ -585,7 +585,8 @@ playtester occupies. 5 is the only row that covers the layer G1 lived in. 6 is a
 >
 > **What shipping it cost, measured rather than feared**: the fuzz seeds re-rolled once, and
 > nothing else did — `cargo test -p play-server` 78/0 and `crates/simulator/tests/local_game.rs`
-> 23/23, both unchanged. **What it found**: `attachment_validity` violations on fuzz seed 5
+> 24/24 (23 pre-existing, all unchanged, plus this batch's own CR 903.9b probe).
+> **What it found**: `attachment_validity` violations on fuzz seed 5
 > turn 88 (`OOS-DX22-8`) — a pre-existing engine defect, 0 engine lines in the branch diff, and
 > the first defect the repaired instrument surfaced.
 >

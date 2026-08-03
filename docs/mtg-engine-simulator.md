@@ -416,7 +416,8 @@ could not print either number until the fix cycle, and cannot print the pre-fix 
 because the build path they measured no longer exists.
 
 The re-roll did **not** reach the play server (78/0 green; `session.rs` builds through
-`setup.rs`) or `crates/simulator/tests/local_game.rs` (23 passed unchanged).
+`setup.rs`) or `crates/simulator/tests/local_game.rs` (24 passed — the 23 that predate
+this batch all unchanged, plus its own new CR 903.9b probe).
 
 ---
 

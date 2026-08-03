@@ -734,7 +734,8 @@ impl LegalActionProvider for StubProvider {
         // What did NOT move, measured rather than assumed: no play-server seed pin
         // (`cargo test -p play-server` 78 passed / 0 failed — `session.rs` builds
         // through `setup.rs`, which PB-DX22 does not touch) and no test in
-        // `crates/simulator/tests/local_game.rs` (23 passed, unchanged). The re-roll is
+        // `crates/simulator/tests/local_game.rs` (24 passed; 23 of them unchanged, the 24th
+        // added by this batch for CR 903.9b). The re-roll is
         // confined to the fuzz path.
         //
         // The index warning above still stands on its own terms: this block is not an

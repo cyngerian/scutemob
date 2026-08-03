@@ -348,7 +348,23 @@ fn test_dx22_command_zone_placement_and_registration_are_one_operation() {
             }
             let body = std::fs::read_to_string(&path)
                 .unwrap_or_else(|e| panic!("must read {}: {e}", path.display()));
-            if !body.contains(PLACEMENT) {
+            // Comments do not register a commander. Every one of these files DOCUMENTS
+            // the pairing at length -- `fuzz_setup.rs:68`, `setup.rs:19`,
+            // `commander_cast.rs:11` and `legal_actions.rs:716` all spell the needle in
+            // prose -- so searching the raw body lets a file satisfy the rule with the
+            // very sentence explaining the rule. Measured: with the real
+            // `builder.player_commander(..)` call deleted from `fuzz_setup.rs:121`, this
+            // gate stayed GREEN on the raw body while six behavioural probes reddened
+            // (P5/P6/P7/P8/P12/P13). Stripping line comments closes that, and it is safe
+            // rather than merely stricter: all four `EXPECTED_PLACERS` carry a real
+            // non-comment call (`fuzz_setup.rs:121`, `legal_actions.rs:4148`,
+            // `setup.rs:418`, `commander_cast.rs:74`), verified before this was tightened.
+            let code: String = body
+                .lines()
+                .filter(|line| !line.trim_start().starts_with("//"))
+                .collect::<Vec<_>>()
+                .join("\n");
+            if !code.contains(PLACEMENT) {
                 continue;
             }
             let rel = path
@@ -357,7 +373,7 @@ fn test_dx22_command_zone_placement_and_registration_are_one_operation() {
                 .display()
                 .to_string();
             matched.push(rel.clone());
-            if !body.contains(REGISTRATION) {
+            if !code.contains(REGISTRATION) {
                 offenders.push(rel);
             }
         }
