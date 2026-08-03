@@ -1067,8 +1067,8 @@ fn test_eng2_targets_announced_redacts_object_targets_and_never_player_targets()
     };
 
     // Non-vacuity: the omniscient developer view really does name it.
-    let dev = event_view_for(&object_ev, &state, &names, Viewer::Omniscient)
-        .expect("a public event");
+    let dev =
+        event_view_for(&object_ev, &state, &names, Viewer::Omniscient).expect("a public event");
     assert!(
         dev.text.contains("Exalted Angel"),
         "the omniscient line must name Exalted Angel, or the absence assertion \
@@ -1108,8 +1108,7 @@ fn test_eng2_targets_announced_redacts_object_targets_and_never_player_targets()
         Viewer::Seat(bob),
         Viewer::Seat(PlayerId(3)),
     ] {
-        let view =
-            event_view_for(&player_ev, &state, &names, viewer).expect("a public event");
+        let view = event_view_for(&player_ev, &state, &names, viewer).expect("a public event");
         assert_eq!(
             view.text, "Shock targets bob",
             "a player target's identity is never hidden (CR 102.1 / 115.1 / \
