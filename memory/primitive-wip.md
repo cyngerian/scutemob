@@ -475,7 +475,63 @@ branch touches 0 engine lines.
 
 ---
 
-## Stage 5 — NOT DONE (coordinator's)
+### - [x] Stage 4b (unplanned) — the second half of `tests/local_game.rs`'s Commander game
+
+Commit `eb60cc80`, found after Stage 4 and outside the plan. Stage 3 rewired
+`tests/local_game.rs::build_state` onto `place_registered_deck`, which fixed its *placement +
+registration* half — but that file's own post-`build()` step never called
+`register_commander_zone_replacements`, so CR 903.9b was inert in every game it drove: the
+same half-built Commander game one link down from the defect `OOS-SIM1-4` names. Fixed, with
+probe `test_dx22_cr_903_9b_replacements_exist_in_the_fixed_deck_build` proven red by an
+executed revert (**left 0 / right 8**). That is the +1 that takes the branch's probe count to
+11 and its test total to 4,356. The third site, `tests/commander_cast.rs`, has the same shape
+and was deliberately **left alone** — it is a focused CR 903.8 tax fixture that never bounces
+a commander, so widening P11 into "every registrar must also install the 903.9b redirects"
+would have fired on legitimate code. Recorded as `OOS-DX22-10`.
+
+---
+
+## Stage 5 — corrections + seed filing DONE; bookkeeping still the coordinator's
+
+**DONE (`6e7988cd` corrections, `8c23e1f0` seeds).** Nine correction sites and the seed
+filing shipped. Still NOT done and deliberately left: the `CLAUDE.md` Current State delta,
+`memory/workstream-state.md`'s handoff section, and **`memory/primitives/seed-rerank-2026-08-02.md`
+— untouched by instruction** (the coordinator strikes the §4 row and settles §2.4's open
+measurement at collect; the settled answer lives in the plan, this file, and
+`docs/mtg-engine-feedback-engineering.md` §2.1's status block instead).
+
+**Corrections made (aspirationally-wrong-comment rule, `memory/conventions.md`)** — each
+past-tenses the record rather than deleting it, and each carries the measured replacement:
+`crates/simulator/src/legal_actions.rs` (SIM-1's structural-unreachability argument →
+`OOS-SIM1-4` CLOSED, seeds DID move, play-server 78/0 and `tests/local_game.rs` 23/23 did
+not), `src/local_game.rs` (SIM-5's premise closed, its parity claim retired **not**
+re-validated), `src/invariants.rs` (the SIM-3 A/B table dated as an unshuffled measurement +
+the post-shuffle re-measure: 426 violations, **0** `stack_consistency`), `src/setup.rs`
+(**doc lines only, verified: 0 non-`//` lines in the whole-branch diff** — the "not rewired"
+claim is still true, so it now names the three things that still differ), `src/bin/fuzzer.rs`
+(PB-DX22 appended as a third seed-portability boundary event), `tests/local_game.rs` (UI-2's
+25,964-observation block), `docs/mtg-engine-simulator.md`, `docs/mtg-engine-feedback-engineering.md`
+(row 1 SHIPPED + its open measurement recorded SETTLED), `memory/workstream-state.md:2903`
+(the `--seed 504` repro annotated dead across this merge).
+
+**Seeds filed** in `docs/audits/decision-point-audit.md` §8.1: closures appended in-row to
+**`OOS-SIM1-4`** (CLOSED), **`OOS-UI2-1`** (CLOSED, "never" corrected to a `--max-turns 80`
+threshold) and **`OOS-SIM3-1`** (CLOSED, turn 143 retained as the calibration constant), plus
+a §8.1 banner and eleven new rows **`OOS-DX22-1..11`** — four more than the plan's seven, the
+extras being `-8` (the `attachment_validity` find), `-9` (CR 903.9b registered but
+unexercised), `-10` (`commander_cast.rs`'s half-built shape, judged acceptable, and why P11
+was not widened) and `-11` (the method seed: P4's and P9's stated revert-proofs were both
+wrong and were re-derived by execution).
+
+**Stage-5 gates**: `cargo build --workspace` OK · `cargo test -p mtg-simulator` **180 passed /
+0 failed** · `clippy --workspace --all-targets -D warnings` exit 0 · `cargo fmt --check` exit 0
+· `tools/check-defs-fmt.sh` 1803 clean · full workspace `--no-fail-fast` to a file over 42
+targets: **4,356 passed / 0 failed / 5 ignored**, residual list empty. (4,355 at Stage 4, +1
+for the `eb60cc80` probe added after that measurement.) The forbidden-path diff
+(`crates/engine/`, `crates/card-defs/`, `crates/card-types/`, `crates/view-model/`, `tools/`)
+is still **EMPTY** across the whole branch.
+
+### Original Stage-5 note (kept as filed)
 
 The A/B measurement write-up, the 10 comment/doc corrections in plan §5, seed filing
 (`OOS-DX22-1..7` plus the three new ones below), and the `CLAUDE.md` /
