@@ -237,7 +237,7 @@
 - **Recurrence rule** — future `/collect` and milestone-close bookkeeping appends its detailed PB/SR
   narrative to that archive file (newest first), and updates only a one-paragraph snapshot delta
   here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
-- **Last Updated**: 2026-08-02 — **ENG-2 SHIPPED** (`scutemob-193`, merge `<pending>`; **G7** of
+- **Last Updated**: 2026-08-02 — **ENG-2 SHIPPED** (`scutemob-193`, merge `4ab68fdc`; **G7** of
   `memory/playtest-triage-2026-08-02b.md`, row 7 of its successor table).
   Targets reach the event log: one additive `GameEvent::TargetsAnnounced` (discriminant 132) fires
   at announcement time from all 12 stack-push sites (CR 601.2c/602.2b/603.3d), player targets
