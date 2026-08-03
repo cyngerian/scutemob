@@ -15,6 +15,7 @@
 pub mod bot;
 pub mod deck;
 pub mod driver;
+pub mod fuzz_setup;
 pub mod heuristic_bot;
 pub mod invariants;
 pub mod legal_actions;
@@ -30,6 +31,10 @@ pub mod targeting;
 pub use bot::Bot;
 pub use deck::{build_registry, random_deck, DeckConfig};
 pub use driver::GameDriver;
+// PB-DX22 (§B3): `bin/fuzzer.rs` is its own crate, so nothing could `use` its state
+// build and the only "test" available was a second copy of it. Exported so the probes
+// gate the real path.
+pub use fuzz_setup::{build_fuzz_state, place_registered_deck, FuzzGameSetup, FuzzSetupError};
 pub use heuristic_bot::HeuristicBot;
 pub use invariants::{check_all as check_invariants, InvariantViolation};
 // SIM-1 (CR 903.8): `pub`, not `pub(crate)` -- OOS-SIM1-2 names a FOURTH printed-cost

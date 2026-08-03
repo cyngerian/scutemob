@@ -45,13 +45,10 @@ use clap::Parser;
 use indicatif::{ProgressBar, ProgressStyle};
 use rayon::prelude::*;
 
-use mtg_engine::{
-    all_cards, enrich_spec_from_def, CardDefinition, CardId, CardRegistry, GameStateBuilder,
-    ObjectSpec, PlayerId, ZoneId,
-};
+use mtg_engine::{all_cards, CardDefinition, CardRegistry, PlayerId};
 use mtg_simulator::{
-    build_registry, random_deck, CrashReport, DeckConfig, GameDriver, GameDriverError, GameResult,
-    HeuristicBot, RandomBot, StubProvider,
+    build_fuzz_state, build_registry, CrashReport, FuzzSetupError, GameDriver, GameDriverError,
+    GameResult, HeuristicBot, RandomBot, StubProvider,
 };
 use rand::prelude::*;
 
@@ -286,64 +283,16 @@ fn run_single_game(
     cards: &[CardDefinition],
     registry: &Arc<CardRegistry>,
 ) -> GameResult {
-    let mut rng = StdRng::seed_from_u64(seed);
-
-    // Build random decks for each player
+    // PB-DX22 §B3: the state build lives in `mtg_simulator::fuzz_setup` so integration
+    // tests can reach it. This function does nothing else to the state, so a probe on
+    // `build_fuzz_state` is a probe on this binary.
     let player_ids: Vec<PlayerId> = (1..=player_count).map(|i| PlayerId(i as u64)).collect();
 
-    let mut decks: Vec<(PlayerId, DeckConfig)> = Vec::new();
-    for &pid in &player_ids {
-        if let Some(deck) = random_deck(&mut rng, cards) {
-            decks.push((pid, deck));
-        } else {
-            // Fallback: just basic lands
-            let fallback = DeckConfig {
-                commander: CardId("teysa-karlov".to_string()),
-                main_deck: (0..99).map(|_| CardId("plains".to_string())).collect(),
-            };
-            decks.push((pid, fallback));
-        }
-    }
-
-    // Build initial state using GameStateBuilder, populating libraries from decks
-    let mut builder = GameStateBuilder::new().with_registry(registry.clone());
-
-    for &pid in &player_ids {
-        builder = builder.add_player(pid);
-    }
-
-    // Build a name→def lookup for enriching card specs
-    let card_defs: HashMap<String, CardDefinition> =
-        cards.iter().map(|c| (c.name.clone(), c.clone())).collect();
-
-    // Add library cards from decks
-    for (pid, deck) in &decks {
-        // Add commander to command zone
-        if let Some(def) = cards.iter().find(|c| c.card_id == deck.commander) {
-            let spec = ObjectSpec::card(*pid, &def.name)
-                .in_zone(ZoneId::Command(*pid))
-                .with_card_id(deck.commander.clone());
-            let spec = enrich_spec_from_def(spec, &card_defs);
-            builder = builder.object(spec);
-        }
-
-        // Add main deck cards to library
-        for card_id in &deck.main_deck {
-            if let Some(def) = cards.iter().find(|c| c.card_id == *card_id) {
-                let spec = ObjectSpec::card(*pid, &def.name)
-                    .in_zone(ZoneId::Library(*pid))
-                    .with_card_id(card_id.clone());
-                let spec = enrich_spec_from_def(spec, &card_defs);
-                builder = builder.object(spec);
-            }
-        }
-    }
-
-    builder = builder.first_turn_of_game();
-
-    let state = match builder.build() {
-        Ok(s) => s,
-        Err(e) => {
+    let state = match build_fuzz_state(seed, player_count, cards, registry) {
+        Ok(setup) => setup.state,
+        // Byte-identical to the string this arm produced before the extraction — crash
+        // reports and `driver.rs`'s error-shape comment depend on it.
+        Err(FuzzSetupError::Builder(e)) => {
             return GameResult {
                 seed,
                 winner: None,

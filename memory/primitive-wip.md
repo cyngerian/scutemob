@@ -114,3 +114,69 @@ Seeds 1-5 reproduce the §0 pre-plan table exactly (turns 176/192/201/167/201, c
 `?? memory/primitives/pb-plan-DX22.md`; `git ls-files crash-reports` **empty**;
 `git check-ignore -v crash-reports` → `.gitignore:52`, so the run's crash artefacts are
 untracked by construction.
+
+### - [x] Stage 1 — extract the build path, behaviour-NEUTRAL
+
+**New** `crates/simulator/src/fuzz_setup.rs` (147 lines): `FuzzGameSetup`, `FuzzSetupError`,
+`place_registered_deck` (`:64`), `build_fuzz_state` (`:102`). A verbatim lift of the old
+`fuzzer.rs:289-359` — **no shuffle, no `player_commander`, no
+`register_commander_zone_replacements`** at this stage. The `if let Some(def)` silent-skip is
+preserved verbatim and documented as a divergence from `setup.rs` (`OOS-DX22-4`), not fixed.
+
+* `crates/simulator/src/lib.rs:19` `pub mod fuzz_setup;` + `:35` re-exports
+  `build_fuzz_state, place_registered_deck, FuzzGameSetup, FuzzSetupError`.
+* `crates/simulator/src/bin/fuzzer.rs:281-306` — `run_single_game`'s 70-line state build
+  collapses to one `build_fuzz_state(..)` call. The `GameDriverError::EngineError(format!(
+  "Failed to build state: {:?}", e))` string is kept **byte-identical**. Imports narrowed to
+  `{all_cards, CardDefinition, CardRegistry, PlayerId}` + `{build_fuzz_state, ..., FuzzSetupError}`.
+* `crates/simulator/examples/dx22_measure.rs` **deleted**, and the now-empty `examples/` dir
+  with it. `git ls-files crates/simulator/examples` → empty (it was never tracked).
+
+**NEUTRALITY EVIDENCE (mandatory, plan §5)**: the Stage-0 fuzz command re-run verbatim into
+`/tmp/pb-dx22-fuzz-after-stage1.txt`, then `diff` against `/tmp/pb-dx22-fuzz-before.txt` with
+only cargo's own build chatter filtered out. **766 lines each side; exactly ONE differing
+line**, and it is wall time:
+
+```
+9c9
+< Games completed: 20  Time: 40.7s  (0 games/sec)
+---
+> Games completed: 20  Time: 41.3s  (0 games/sec)
+```
+
+Every per-game line (seed / turns / commands / violations / winner) and all 721 printed
+violation lines are byte-identical. The extraction changed nothing.
+
+**Probe P1** — `test_dx22_build_fuzz_state_produces_the_fuzzers_table`
+(`crates/simulator/tests/pb_dx22_fuzz_instrument.rs`). Asserts, per seat: `decks` in ascending
+`PlayerId` order, `main_deck.len() == 99`, exactly 1 command-zone object and it IS the
+decklist's commander, 99 library objects, and **0 hand objects** (the CR 103.5 pin for §B2 /
+`OOS-DX22-1`).
+
+**P1 revert-proof, EXECUTED**: `place_registered_deck`'s `for card_id in &deck.main_deck` →
+`deck.main_deck.iter().take(98)`. Rebuild **succeeded** (`Compiling mtg-simulator v0.1.0` in
+the output — checked, per the `-D warnings`/stale-binary gotcha), then:
+
+```
+thread 'test_dx22_build_fuzz_state_produces_the_fuzzers_table' panicked at
+crates/simulator/tests/pb_dx22_fuzz_instrument.rs:78:9:
+assertion `left == right` failed: seat PlayerId(1)'s library must hold all 99 main-deck cards
+  left: 98
+ right: 99
+test result: FAILED. 0 passed; 1 failed
+```
+
+Restored; green again.
+
+**Divergence from the plan worth recording**: the plan's probe table has P2's
+`library_card_ids` helper living in this file from Stage 1. Written that way it is *dead code
+at Stage 1*, and `-D warnings` turned that into a **build failure** — `error: function
+library_card_ids is never used ... -D dead-code implied by -D warnings`. Rather than paper
+over it with an `#[allow(dead_code)]` that would have to be remembered and removed, the helper
+is deferred to Stage 2 where it has a caller. (Same mechanism as the gotchas-infra revert
+lesson, arriving from the other direction.)
+
+**Stage-1 gates, all executed**: `cargo build --workspace` OK · `cargo test -p mtg-simulator`
+**170 passed / 0 failed** across 12 targets · `cargo clippy --workspace --all-targets -D
+warnings` exit 0 · `cargo fmt --check` exit 0 · `tools/check-defs-fmt.sh` → `1803 defs
+checked / clean` (SR-35).
