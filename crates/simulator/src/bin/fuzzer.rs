@@ -36,7 +36,7 @@
 //! that emitted it; capture the crash JSON, not just the seed, for anything that
 //! must outlive the build.
 //!
-//! **Boundary event: the PB-DX22 merge (`scutemob-196`).** Every seed recorded
+//! **Boundary event: the PB-DX22 merge (`scutemob-196`, `95f53b78`).** Every seed recorded
 //! before it is dead, and this one moves more than the earlier two did. The deal
 //! itself changed: `fuzz_setup::build_fuzz_state` now shuffles each library from
 //! the game's own seeded RNG (CR 103.3 / 903.6) and registers each seat's

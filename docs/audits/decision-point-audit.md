@@ -822,7 +822,7 @@ decision actually block", not "add another pending vector".**
 
 ### 8.1 Seeds filed by shipped PB-DP work
 
-> **⚠️ PB-DX22 SHIPPED 2026-08-03 (`scutemob-196`) — three rows below are CLOSED, and two of
+> **⚠️ PB-DX22 SHIPPED 2026-08-03 (`scutemob-196`, merge `95f53b78`) — three rows below are CLOSED, and two of
 > them keep their numbers on purpose.** **`OOS-SIM1-4`** (the fuzzer registered no commander)
 > closes outright: `fuzz_setup::place_registered_deck` places and registers as one operation and
 > `build_fuzz_state` installs the CR 903.9b replacements, so `CommanderCastFromCommandZone` went

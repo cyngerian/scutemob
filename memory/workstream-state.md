@@ -3033,7 +3033,7 @@ guarding `pick_least_waste`.
   static's activity depends on counting artifacts, which depends on layer-resolved types,
   which depends on its activity. **Hard, unrecoverable crash** (still overflows at
   `ulimit -s 524288`). Reproduce: `mtg-fuzzer --games 1 --seed 504 --max-turns 200` on this
-  branch. **DEAD REPRO across the PB-DX22 merge (`scutemob-196`)**: that batch shuffles the
+  branch. **DEAD REPRO across the PB-DX22 merge (`scutemob-196`, `95f53b78`)**: that batch shuffles the
   fuzz libraries and registers the commanders, so seed 504 deals a different game and no
   longer reproduces this one. The seed is a pre-merge artefact — see `OOS-DX22-7`; the
   defect itself is closed by PB-DX19 (`451e3517`) regardless.

@@ -548,6 +548,10 @@ production registrar is `setup.rs:276`), so `commander_ids` is empty and CR 903.
 zone return and CR 903.10a commander damage have **never been fuzzed**.
 `crates/simulator/tests/local_game.rs:78` repeats the defect.
 
+> **SETTLED by PB-DX22 (`scutemob-196`, merge `95f53b78`, 2026-08-03)**: the offer was
+> SUPPRESSED — `commander_ids` empty in every fuzzer game (0/4, ~57k commands, zero
+> command-zone casts), so OOS-SIM1-4 was the cause, not an independent gap.
+
 **One open measurement this task could not settle read-only, and it changes PB-DX22's sizing.**
 SIM-1 added a command-zone cast loop (`legal_actions.rs:675-693`) and a commander is *not* in the
 library, so the no-shuffle defect does not gate it — a bot should be able to cast its commander
@@ -703,10 +707,10 @@ treat a mismatch as a signal to stop.
 
 | rank | batch | scope | seeds | class | discounted yield | wire |
 |---|---|---|---|---|---|---|
-| **1** | **PB-DX19** | the unbounded characteristics recursion + unchecked P/T arithmetic | **OOS-SIM2-6** (HIGH) + **OOS-SIM2-5** | **CORRECTNESS — hard process abort, deck-legal** | 0 flips; closes the only HIGH in the registry; 10 arithmetic sites hardened | **none** (both fixes are arithmetic/read-site) |
+| **1** | ~~**PB-DX19**~~ ✅ SHIPPED (`scutemob-184`, `451e3517`, 2026-08-02) | the unbounded characteristics recursion + unchecked P/T arithmetic | **OOS-SIM2-6** (HIGH) + **OOS-SIM2-5** | **CORRECTNESS — hard process abort, deck-legal** | 0 flips; closes the only HIGH in the registry; 10 arithmetic sites hardened | **none** (both fixes are arithmetic/read-site) |
 | **2** | **PB-DX20** | the offer layer cannot see a keyword-carried target requirement | **OOS-CARDS2-4** (HIGH) + **OOS-CARDS1-2** | **CORRECTNESS — live in the browser on first contact** | 0 flips; repairs 13 `Complete` Auras + 1 `Complete` Reconfigure | **none** (provider + one synth site) |
 | **3** | **PB-DX21** | CR 508.1 — attackers may be declared without limit | **OOS-M11-9** | **CORRECTNESS — silent state corruption by a normal client action** | 0 flips; 14 `Complete` vigilant creatures; deletes 2 client-side mitigations | **none** if the guard reads `combat.attackers`; **HASH** if it mirrors `defenders_declared` |
-| **4** | **PB-DX22** | make the fuzzer a real instrument | **OOS-UI2-1** + **OOS-SIM3-1** + **OOS-SIM1-4** | **EVIDENCE INTEGRITY — every historical fuzz-parity claim depends on it** | 0 flips; re-rolls every recorded seed **once** | **none** (`crates/simulator` only) |
+| **4** | ~~**PB-DX22**~~ ✅ SHIPPED (`scutemob-196`, `95f53b78`, 2026-08-03) | make the fuzzer a real instrument | **OOS-UI2-1** + **OOS-SIM3-1** + **OOS-SIM1-4** | **EVIDENCE INTEGRITY — every historical fuzz-parity claim depends on it** | 0 flips; re-rolls every recorded seed **once** | **none** (`crates/simulator` only) |
 | **5** | **PB-DX23** | dredge has no answer channel for anyone | **OOS-DX2-5** + **OOS-DX2-2** + **OOS-DX2-7** + **OOS-DX2-3** *(watch item)* | **CORRECTNESS — permanent draw-cadence corruption, deck-legal** | 0 flips; 1 def (`golgari_grave_troll`); adds a `LegalAction` variant | **none** (`Command::ChooseDredge` and the event already exist) |
 | **6** | **PB-DX24** | the lowering drops `trigger_zone`; the two index spaces disagree | **OOS-DX1-3** + **OOS-DX1-4** | **CORRECTNESS — live-wrong on `nether_traitor`** | 0 flips; 1 live def + 6 latent queue sites aligned | **none** for the narrow fix; **HASH** only if `TriggeredAbilityDef` grows the field |
 | **7** | **PB-DX25** | `Effect::CounterSpell`'s three stack-object shapes | **OOS-SIM3-5** | **CORRECTNESS — a countered spell resolves anyway, silently** | 0 flips; 6 `Complete` mutate defs × 24 counter defs | **none** (one arm's internals) |
@@ -894,6 +898,11 @@ actually re-declares. **Wire: none expected.**
 ---
 
 **PB-DX22 — `PB-DX22: make the fuzzer a real instrument (OOS-UI2-1 + OOS-SIM3-1 + OOS-SIM1-4)` · EVIDENCE INTEGRITY**
+
+> **✅ SHIPPED 2026-08-03** (`scutemob-196`, merge `95f53b78`). The §2.4-flagged open measurement
+> is SETTLED: the offer was SUPPRESSED (empty `commander_ids`), not late — OOS-SIM1-4 was the
+> cause. Post-fix first-cast band 3-29 over 20 seeds. Seeds OOS-DX22-1..11 filed in
+> `docs/audits/decision-point-audit.md` §8.1; every pre-merge fuzz seed is dead (OOS-DX22-7).
 
 `crates/simulator/src/bin/fuzzer.rs:331-339` loads each library straight from `deck.main_deck` and
 **never shuffles** (grep the file: zero `shuffle`), while `deck.rs:90-148` appends its ~34 basics

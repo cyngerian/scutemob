@@ -3,7 +3,7 @@
 <!-- last_updated: 2026-08-03 -->
 
 > **Status: STRATEGY + DISPATCH PROPOSAL.** **Row 1 (≡ PB-DX22) is SHIPPED** as of 2026-08-03
-> (`scutemob-196`, pending merge — see §2.1); rows 2-8 are unimplemented. This file is written in
+> (`scutemob-196`, merge `95f53b78` — see §2.1); rows 2-8 are unimplemented. This file is written in
 > the shape of `memory/playtest-triage-2026-08-02b.md`: verified claims with `file:line`, a ranked
 > successor table a coordinator can dispatch from verbatim, and dispatch notes.
 > **Created**: 2026-08-03 (`scutemob-192`, FEEDBACK-1).
@@ -531,7 +531,7 @@ should dispatch the existing batch number.
 
 | # | Task | Findings it would have caught | Track | Scope | Wire |
 |---|---|---|---|---|---|
-| 1 | **≡ PB-DX22 — ✅ SHIPPED** (`scutemob-196`, pending merge to main; was v3 rank 4) — make the fuzzer a real instrument: shuffle the library, register the commander | **none directly, and that is the honest answer** — no F/G finding is catchable by a shuffled fuzzer *alone*. It is what makes row 3 able to catch **F3, F4, F5, G5** at all, and it is the only row that puts CR 903.8/903.9a/903.10a (**F7**'s subsystem) under any automated exercise | simulator | `bin/fuzzer.rs` + `deck.rs`; re-rolls every recorded seed **once** | none |
+| 1 | **≡ PB-DX22 — ✅ SHIPPED** (`scutemob-196`, merge `95f53b78`; was v3 rank 4) — make the fuzzer a real instrument: shuffle the library, register the commander | **none directly, and that is the honest answer** — no F/G finding is catchable by a shuffled fuzzer *alone*. It is what makes row 3 able to catch **F3, F4, F5, G5** at all, and it is the only row that puts CR 903.8/903.9a/903.10a (**F7**'s subsystem) under any automated exercise | simulator | `bin/fuzzer.rs` + `deck.rs`; re-rolls every recorded seed **once** | none |
 | 2 | **FUZZ-CRASH** *(new)* — make the crash artefact reproduce | PB-DX19's SIGABRT (found by a bespoke instrument, not by the fuzzer's own artefact) | simulator | ~120-200 lines: fill `command_history`, per-game abort boundary, `--replay-report` | none |
 | 3 | **≡ PB-DX32** *(v3 rank 19, already queued — argue for promotion)* — invariant #10 (legal-action soundness = SR-38 at runtime) + dedupe the checkpoint weighting + classify the transient-token floor | **F4, F9, G5**; `OOS-SIM5-3` (25 blocker refusals), `OOS-SIM6-3` (62 refusals), `OOS-CARDS2-4` | simulator | `invariants.rs` + `GameResult` fields + dedupe by `(check, description)` | none |
 | 4 | **HTTP-FUZZ** *(new)* — a randomized walker over the 6 play-server routes driving the **human** seat | **G2**, F7, F9, **G4**, G6-as-coverage, `OOS-CARDS2-4`, `OOS-G10-1`, `OOS-SIM6-3`'s human half | play-server (test/bin) | ~300-500 lines over `build_router` + `oneshot`, no port | none |
@@ -564,7 +564,7 @@ finding-count per line and its sensor now exists. 4 is the only row that covers 
 playtester occupies. 5 is the only row that covers the layer G1 lived in. 6 is a force multiplier on
 4, 5 and 1. 7 is free. 8 is small and closes the loop's last link.
 
-### 2.1 Row 1 — ≡ PB-DX22. ✅ SHIPPED (`scutemob-196`, pending merge)
+### 2.1 Row 1 — ≡ PB-DX22. ✅ SHIPPED (`scutemob-196`, merge `95f53b78`)
 
 > **Status: SHIPPED.** Dispatched as this doc recommended (the existing batch, not a new task).
 > All three seeds are CLOSED — `OOS-SIM1-4` outright, `OOS-UI2-1` and `OOS-SIM3-1` as closures

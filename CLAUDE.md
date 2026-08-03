@@ -34,7 +34,9 @@
   game, because no frontend test harness exists (plan §8 R7, revisit at M13); `StubProvider`
   enumerates no Adventure, alt-cost or Convoke/Improvise/Delve casts (R4). **The active track is now
   the PB-DX correctness queue alone** (`memory/primitives/seed-rerank-2026-08-02.md` §4 — v3,
-  `scutemob-182`; PB-DX19 shipped `451e3517`, **next PB-DX20**; the playtest-successor run 174–181
+  `scutemob-182`; PB-DX19 shipped `451e3517`, PB-DX22 shipped `95f53b78`;
+  **next PB-DX32** (promoted per feedback doc §2.3, user-approved run 2026-08-03),
+  then back to **PB-DX20**; the playtest-successor run 174–181
   AND the triage-2 successor run 187–194 both completed 2026-08-02 — triage 2 is fully closed,
   8/8 rows shipped. **FEEDBACK-1 SHIPPED** (`scutemob-192`, merge `d55e74cc`, doc-only):
   `docs/mtg-engine-feedback-engineering.md` is the alpha feedback-loop strategy — 8 ranked
