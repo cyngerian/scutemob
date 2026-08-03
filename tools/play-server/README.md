@@ -1144,16 +1144,17 @@ and every event line goes through `event_view_for(.., Viewer::Seat(human))`.
 Neither omniscient entry point (`from_game_state`, `Viewer::Omniscient`) is
 reachable from the production paths of this crate.
 
-**Four channels, not one — and three of them were found by review, not by a gate**
-(review MR-M11-01 / MR-M11-08; the fourth was opened deliberately by UI-1). A
-payload can identify a hidden card without ever naming it:
+**Five channels, not one — and three of them were found by review, not by a gate**
+(review MR-M11-01 / MR-M11-08; the last two were opened deliberately, by UI-1 and
+by UI-6). A payload can identify a hidden card without ever naming it:
 
 | Channel | What carries it | What holds it |
 |---------|-----------------|---------------|
 | **Names** — a label that says the card | the view model and `NameIndex` | `test_production_code_never_builds_an_omniscient_view` (source) + `test_seat_view_over_http_contains_no_other_hand_card_names` (body) |
 | **Reconstruction keys** — data that *rebuilds* a hidden zone | `GameSummary.seed`, until MR-M11-01 removed it | `test_mr_m11_01_seat_payload_carries_no_reconstruction_key`, which asserts over the raw body so a rename or a nested copy is caught too |
 | **Free-form strings** — engine text spliced in after redaction | `game_over.violations` / `.reason`, until MR-M11-08 reduced them | `test_mr_m11_08_game_over_payload_carries_no_engine_debug`, which plants a card name in both carriers |
-| **Look entitlements** — a real name from a hidden zone, rendered *on purpose* | `view::question_card_label`, feeding `BlockingDecisionView`'s scry / surveil / search candidates | `test_ui1_a_foreign_seats_effect_choice_never_reaches_this_payload` (behavioural — renders a live scry for the *other* seat, then asserts the decision is absent and that the `looked_at` key is gone from the **raw body**, and that the matching write is refused 409) + `test_ui1_view_rs_reads_game_state_in_exactly_the_two_known_places` (source, count-pinned) |
+| **Look entitlements** — a real name from a hidden zone, rendered *on purpose* | `view::question_card_label`, feeding `BlockingDecisionView`'s scry / surveil / search candidates | `test_ui1_a_foreign_seats_effect_choice_never_reaches_this_payload` (behavioural — renders a live scry for the *other* seat, then asserts the decision is absent and that the `looked_at` key is gone from the **raw body**, and that the matching write is refused 409) + `test_ui6_view_rs_reads_game_state_in_exactly_the_three_known_places` (source, count-pinned) |
+| **Whole-zone looks** — CR 701.23a's *"look at **all** cards in that zone"*, i.e. every card of the searcher's own library, named | `view::library_look_cards`, feeding `AnswerShapeView::PickOne::all_cards` (UI-6) | `test_ui6_a_foreign_seat_never_receives_the_whole_library_look` (behavioural — its **own** gate, because the scry gate needles the `looked_at` key and a search payload has none) + the same count-pinned source gate, which UI-6 re-pinned from two reads to three |
 
 The fourth is the only one that is not a leak, and it is worth stating why it is
 in the table anyway. CR 701.22a / 701.23a / 701.25a each instruct **this seat** to
@@ -1189,13 +1190,35 @@ its decisions withheld with no channel to answer them — correct redaction, dea
 gameplay. The actual missing piece is a per-request viewer. What the pair buys is that
 the failure is fail-closed rather than a leak.
 
-The count gate is the second half: `view.rs`'s production code may read the raw
-`GameState` object table exactly **twice** — here, and in `action_modes`'
-card-registry lookup, which reads an id the seat already holds and no name at all. A
-third read is not forbidden; it is required to be *deliberate*. It watches one needle
-and would not see a channel opened through `zones()` or `card_registry()`, which is
-the same shape of limitation MR-M11-01 is about and is said here rather than left to
-be rediscovered.
+The count gate is the second half: `view.rs`'s production code may make exactly
+**three** raw `GameState` reads — `question_card_label`'s, `action_modes`'
+card-registry lookup (an id the seat already holds and no name at all), and, since
+UI-6, `library_look_cards`' whole-library look. A fourth read is not forbidden; it
+is required to be *deliberate*.
+
+**UI-6 moved that pin from two to three, and the gate going red was it working.**
+The fifth row above is CR 701.23a — *"To search for a card in a zone, look at all
+cards in that zone (even if it's a hidden zone)"* — so the browser now shows a
+searcher their whole library, look-only, while `candidates` stays exactly the
+engine's answer space (`handle_answer_effect_choice` refuses anything outside it;
+widening the answer space would be an SR-38 violation, and the two lists are sent
+separately so a client cannot confuse them). Three things bound the read: it is
+the *searcher's own* library (`PendingDecision::player`, already filtered to the
+viewing seat); it is sorted **by name, never in library order**, because CR 701.23a
+grants a look at the cards and not at the shuffle CR 701.23e exists to protect; and
+nothing on the write path reads it.
+
+Two things about the gate are worth carrying forward. First, the new read spells
+`.zone(`, not `.objects()` — **measured**: with the channel in the tree the old
+single-needle count is still exactly 2, so the pre-UI-6 gate would have stayed
+green while a new hidden-information channel opened underneath it. That is
+MR-M11-01's lesson arriving a second time in the same file. Second, the first
+revert run against the re-pinned gate replaced `state.zone(..)` with
+`state.zones().get(..)` — the same channel one accessor over — and a
+two-needle draft went green, so `zones()`, `objects_in_zone()` and `player()` are
+now pinned at **0**. It is still an enumerated needle set and not a proof about
+every possible raw read, which is the same shape of limitation MR-M11-01 is about
+and is said here rather than left to be rediscovered.
 
 `seed` shipped on **every** seat response for three sessions with both name-channel
 gates green, because `setup::build_initial_state` is deterministic in its config alone

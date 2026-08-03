@@ -303,10 +303,10 @@ pub struct SacrificeCostView {
     /// [`question_card_label`]. A sacrifice candidate is a permanent on the
     /// battlefield, public under CR 400.1, not a card in a hidden zone an effect
     /// has told this seat to look at (`question_card_label`'s whole reason to
-    /// exist); routing it through that channel instead would also open a THIRD
-    /// raw `GameState` object-table read in this file, which
-    /// `test_ui1_view_rs_reads_game_state_in_exactly_the_two_known_places` pins
-    /// at exactly two.
+    /// exist); routing it through that channel instead would open a FOURTH
+    /// raw `GameState` read in this file, which
+    /// `test_ui6_view_rs_reads_game_state_in_exactly_the_three_known_places`
+    /// pins at exactly three.
     pub candidates: Vec<CardOptionView>,
     pub default: u64,
     /// The engine's own `AdditionalCost`, serialized verbatim, holding the
@@ -423,6 +423,31 @@ pub enum AnswerShapeView {
     /// answer goes into `ActionParamsDto::effect_choice_answer`.
     PickOne {
         candidates: Vec<CardOptionView>,
+        /// **Look-only. Never an answer space** (UI-6, `scutemob-194`; G9 of
+        /// `memory/playtest-triage-2026-08-02b.md`).
+        ///
+        /// CR 701.23a: *"To search for a card in a zone, look at **all** cards in
+        /// that zone (even if it's a hidden zone)."* `candidates` is the engine's
+        /// filtered answer space and stays exactly that — `handle_answer_effect_choice`
+        /// refuses anything outside it, so offering a non-candidate as an answer
+        /// would be offering an illegal one (SR-38). The playtest complaint ("only
+        /// showed legal basic lands") is therefore about the *look*, not the *pick*,
+        /// and the two are sent as two different lists precisely so a client cannot
+        /// confuse them.
+        ///
+        /// This is the searcher's **own** library and nothing else — see
+        /// [`library_look_cards`], which also explains why it is sorted by name
+        /// rather than sent in library order.
+        ///
+        /// Not a superset by construction: a "search your library **and**
+        /// graveyard" effect (`also_search_graveyard`, `effects/mod.rs`) puts
+        /// graveyard cards in `candidates` that are in no library at all. A client
+        /// renders the union and must not assume containment either way.
+        ///
+        /// Empty when the library is empty, and — deliberately — for every other
+        /// `PickOne` question a future arm might route through this shape: the
+        /// entitlement is CR 701.23a's, so it is filled in at the search arm alone.
+        all_cards: Vec<CardOptionView>,
         /// CR 701.23b vs CR 701.23d. `false` for an unrestricted "search your
         /// library for a card", where finding is MANDATORY and a `found: null`
         /// answer is refused by the engine — so a client must not offer the button.
@@ -1853,7 +1878,7 @@ fn format_mana_cost_compact(cost: &ManaCost) -> String {
 /// and both gates watched names. This is the fourth: a **look entitlement**, a real
 /// card name from a hidden zone, deliberately rendered.
 ///
-/// # What actually holds it — two gates, and what neither of them covers
+/// # What actually holds it — three gates, and what none of them covers
 ///
 /// * `test_ui1_a_foreign_seats_effect_choice_never_reaches_this_payload` is the
 ///   behavioural one. It drives a real scry, confirms this function is returning
@@ -1867,14 +1892,25 @@ fn format_mana_cost_compact(cost: &ManaCost) -> String {
 ///   **key**, not of the card names. The names cannot be asserted absent — seat 2
 ///   legitimately holds Swamps of its own — so the key is the right needle, and
 ///   saying "every name it carried" would overstate it.
-/// * `test_ui1_view_rs_reads_game_state_in_exactly_the_two_known_places` pins the
-///   number of raw `GameState` object-table reads in this file's production code at
-///   two, so a *third* look channel cannot be opened in silence.
+/// * `test_ui6_a_foreign_seat_never_receives_the_whole_library_look` is the same
+///   behavioural shape for the CR 701.23a channel [`library_look_cards`] opened
+///   (UI-6). It gets its **own** gate rather than an extra assertion inside the
+///   scry one, and that is the MR-M11-01 lesson applied rather than restated: a
+///   redaction gate checks the channel it was written for, and the scry gate's
+///   needle is the `looked_at` key, which the search payload does not contain.
+/// * `test_ui6_view_rs_reads_game_state_in_exactly_the_three_known_places` pins the
+///   number of raw `GameState` reads in this file's production code at
+///   three, so a *fourth* look channel cannot be opened in silence. It counts a
+///   **set** of needles, not one: UI-6 added a read that spells `.zone(` rather
+///   than `.objects()`, and against the pre-UI-6 single-needle gate that new
+///   channel would have been invisible — the count would have stayed at 2 and
+///   stayed green. That near-miss is why the gate is a needle set now.
 ///
-/// Neither covers a hidden-information channel that reads `GameState` some other
-/// way — `zones()`, `card_registry()`, `player()`. The count gate watches one
-/// needle, which is the same shape of limitation MR-M11-01 is about, and is said
-/// here rather than left to be rediscovered.
+/// None of them covers a hidden-information channel that reads `GameState` some
+/// other way — `zones()`, `card_registry()`, `player()`. The count gate watches
+/// an enumerated needle set, which is a weaker claim than "every raw read" and is
+/// the same shape of limitation MR-M11-01 is about; it is said here rather than
+/// left to be rediscovered.
 fn question_card_label(state: &GameState, id: ObjectId) -> String {
     state
         .objects()
@@ -1894,6 +1930,77 @@ fn question_cards(state: &GameState, ids: &[ObjectId]) -> Vec<CardOptionView> {
         .collect()
 }
 
+/// **CR 701.23a: every card in the library being searched, look-only.**
+/// The look entitlement's *third* raw `GameState` read, and the reason the
+/// Invariant-7 count gate moved from two to three (UI-6, `scutemob-194`).
+///
+/// # The entitlement, stated as the rule and not as a preference
+///
+/// CR 701.23a: *"To search for a card in a zone, look at **all** cards in that
+/// zone (even if it's a hidden zone)."* The searcher is entitled to see the whole
+/// library — not the subset the effect can find. That is not a UX opinion the
+/// playtest happened to hold; it is what the rule says, and the engine already
+/// encodes the *decision* half of it structurally: this seat is the one
+/// `GameEvent::EffectChoiceRequired::private_to()` addresses, and `api.rs`'s
+/// `seat_view` has already refused to build this payload for any other seat
+/// (`pending.player == human`).
+///
+/// # Why the library and not "the zone being searched"
+///
+/// `EffectChoiceQuestion::SearchLibrary` carries only its candidates, not the
+/// zone they came from. It does not have to: the search effect
+/// (`effects/mod.rs`, the `for p in players` loop) builds candidates from
+/// `ZoneId::Library(p)` — and, with `also_search_graveyard`, `ZoneId::Graveyard(p)`
+/// — where `p` is the very player the question is asked of. So the searched
+/// library is **always the answering seat's own**, and `player` here is
+/// `PendingDecision::player`. There is no engine path today by which one seat
+/// answers a search of another seat's library, and if one is ever added this
+/// function is wrong rather than merely incomplete — hence the assertion of the
+/// premise here rather than a silent dependency on it.
+///
+/// # Sorted by NAME, never in library order — this is the load-bearing line
+///
+/// CR 701.23a entitles the searcher to *look at* the cards. It does not entitle
+/// them to learn the library's **order**, which is hidden information the shuffle
+/// afterwards (CR 701.23e) exists to protect — and Architecture Invariant 7 names
+/// "library order" explicitly, alongside another player's hand, as the thing that
+/// must never reach the wrong client. Sending `Zone::object_ids()` in its stored
+/// order would leak exactly that to the *right* client, which is a subtler defect
+/// and a real one: a search that fails to find, or one whose effect does not
+/// shuffle, would leave the seat knowing its own draw order.
+///
+/// So the list is sorted by `(label, id)`. The tiebreak on `id` keeps it
+/// deterministic across the five copies of Swamp that share a label — the replay
+/// and the seeded probes depend on a stable rendering — while the primary key
+/// being the *name* means the ordering carries no positional information at all.
+///
+/// # Cost
+///
+/// One `Vec` of the library's length per rendered search option, labelled through
+/// [`question_card_label`] (an `OrdMap` lookup each) and sorted. A Commander
+/// library is ≤ 99 cards and a search option is rendered at most once per
+/// decision, so this is far below `decision_view`'s measured ≈ 201 µs
+/// (see [`action_option_view`]) and nowhere near `legal_targets_per_slot`, which
+/// pays a `calculate_characteristics` per candidate.
+fn library_look_cards(state: &GameState, player: PlayerId) -> Vec<CardOptionView> {
+    let Ok(library) = state.zone(&mtg_engine::ZoneId::Library(player)) else {
+        // A player with no library zone is not a state this engine produces; an
+        // empty look list degrades to "the client renders the candidates alone",
+        // which is exactly the pre-UI-6 behaviour.
+        return Vec::new();
+    };
+    let mut cards: Vec<CardOptionView> = library
+        .object_ids()
+        .iter()
+        .map(|id| CardOptionView {
+            id: id.0,
+            label: question_card_label(state, *id),
+        })
+        .collect();
+    cards.sort_by(|a, b| a.label.cmp(&b.label).then(a.id.cmp(&b.id)));
+    cards
+}
+
 /// UI-1: render a blocking decision's answer space, or `None` for an action that
 /// is not one.
 ///
@@ -1902,8 +2009,15 @@ fn question_cards(state: &GameState, ids: &[ObjectId]) -> Vec<CardOptionView> {
 /// the same data `handle_discard_to_hand_size` / `handle_answer_effect_choice` /
 /// `handle_choose_trigger_targets` will validate the answer against — so the
 /// picker the human sees and the check the engine makes cannot disagree.
+///
+/// `player` is [`PendingDecision::player`] — the seat this decision belongs to,
+/// which `api.rs::seat_view` has already checked equals the viewing seat. It is
+/// used for one thing: the CR 701.23a whole-library look
+/// ([`library_look_cards`]). Passing it rather than deriving it is what keeps
+/// that look pinned to the *answering* seat's own library.
 fn blocking_decision_view(
     action: &LegalAction,
+    player: PlayerId,
     state: &GameState,
     names: &NameIndex,
     player_names: &HashMap<PlayerId, String>,
@@ -1962,6 +2076,9 @@ fn blocking_decision_view(
                     ),
                     AnswerShapeView::PickOne {
                         candidates: question_cards(state, candidates),
+                        // CR 701.23a's look entitlement, kept strictly apart from
+                        // the answer space above — see the field's own doc.
+                        all_cards: library_look_cards(state, player),
                         may_decline: *may_fail_to_find,
                         template: answer.clone(),
                         found_key: "found".to_string(),
@@ -2042,8 +2159,8 @@ fn blocking_decision_view(
                             // CR 514.1 arm above does it, and deliberately NOT
                             // through `question_card_label`. That channel exists for
                             // LIBRARY cards the effect has granted a look at, and
-                            // `test_ui1_view_rs_reads_game_state_in_exactly_the_two_
-                            // known_places` pins its size; routing an owned-hand
+                            // `test_ui6_view_rs_reads_game_state_in_exactly_the_
+                            // three_known_places` pins its size; routing an owned-hand
                             // question through it would enlarge a channel for no
                             // reason and blur what that gate is counting.
                             candidates,
@@ -2289,7 +2406,7 @@ fn action_option_view(
         attack,
         block,
         order: order_options(action, names),
-        decision: blocking_decision_view(action, state, names, player_names),
+        decision: blocking_decision_view(action, player, state, names, player_names),
         costs: additional_costs_view(action, names),
     }
 }

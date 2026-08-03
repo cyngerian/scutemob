@@ -3910,6 +3910,375 @@ mod tests {
         );
     }
 
+    // ── UI-6: the whole-library search view (task scutemob-194) ───────────────
+    //
+    // G9 of `memory/playtest-triage-2026-08-02b.md`: *"only showed legal basic
+    // lands — should be able to view whole library when searching"*.
+    //
+    // The filter was never the defect — `candidates` IS the answer space and
+    // `handle_answer_effect_choice` refuses anything outside it (SR-38). What was
+    // missing is CR 701.23a's **look**: *"To search for a card in a zone, look at
+    // all cards in that zone (even if it's a hidden zone)."* `AnswerShapeView::
+    // PickOne` therefore carries a second, look-only list, and the two probes
+    // below assert the two halves that matter: the look really is the whole
+    // library, and it really is look-only.
+    //
+    // **The fixture cannot be the UI-1 one, and the reason is the point of the
+    // feature.** `ui1_install`'s search is Diabolic Tutor — an *unrestricted*
+    // search, so its candidate set is the entire library and `all_cards` would be
+    // set-equal to it. A fixture like that can never exhibit a look-only card, so
+    // it could never falsify the claim under test. UI-6 needs a search with a
+    // *stated quality*, which is exactly the shape the playtest complained about.
+
+    /// Same seed as [`UI1_SEED`], reused for the same reason [`SIM1_SEED`] does:
+    /// `setup::build_initial_state` shuffles a 99-card `main_deck` on an RNG
+    /// seeded from `cfg.seed` alone, so the permutation of *positions* is
+    /// identical for any 2-player `DeckSource::Fixed` game with 99-card decks —
+    /// whichever cards sit at `main_deck[0]`/`[1]` land in the opening hand.
+    /// **Verified empirically for this deck too**, not merely inherited: the
+    /// drive below reaches Solemn Simulacrum's ETB search well inside its budget.
+    const UI6_SEED: u64 = UI1_SEED;
+
+    /// `{4}`, Artifact Creature — Golem 2/2, `Completeness::Complete`
+    /// (`crates/card-defs/src/defs/solemn_simulacrum.rs`). Its ETB trigger is
+    /// `Effect::SearchLibrary` with `basic_land_filter()`, which is the whole
+    /// reason it is the UI-6 fixture rather than a tutor:
+    ///
+    /// * the search states a **quality** (CR 701.23b), so `candidates` is a
+    ///   strict subset of the library and a look-only card exists to be probed;
+    /// * it is **colourless**, so it is legal beside [`UI1_COMMANDER`]'s
+    ///   mono-black colour identity (CR 903.5c);
+    /// * `may_fail_to_find` is therefore `true`, the opposite of the UI-1 search
+    ///   probe's `false` — so between them the two CR 701.23b/d branches are both
+    ///   exercised over HTTP.
+    const UI6_SEARCHER: &str = "solemn-simulacrum";
+
+    /// Six mono-black `Complete` cards, **all MV ≥ 6**, seeded into the deck for
+    /// exactly one purpose: to be cards in the library that the basic-land search
+    /// **cannot find**, i.e. the look-only population this batch exists to show.
+    ///
+    /// Chosen by three constraints, each of which rejected earlier drafts:
+    ///
+    /// 1. **Mono-black or colourless** — CR 903.5c colour identity against
+    ///    [`UI1_COMMANDER`].
+    /// 2. **No search / scry / surveil of their own.** [`ui1_drive_to_question`]
+    ///    stops at the *first* action carrying the wanted question tag, so a
+    ///    filler that searched would be answered instead of Solemn's ETB.
+    /// 3. **Unreachably expensive.** At MV ≥ 6 none is castable inside the drive's
+    ///    window, so a filler that reaches the hand sits there rather than
+    ///    resolving something that perturbs the board.
+    ///
+    /// Singleton (CR 903.5b) is why these are six *distinct* cards and not six
+    /// copies of one — only basic lands are exempt.
+    const UI6_LOOK_ONLY_FILLER: [&str; 6] = [
+        "butcher-of-malakir",
+        "kokusho-the-evening-star",
+        "grave-titan",
+        "in-garruks-wake",
+        "kindred-dominance",
+        "dreadhound",
+    ];
+
+    /// CR 903.5b/c: Solemn Simulacrum at `main_deck[0]`, a Swamp at `[1]` (the two
+    /// opening-hand slots — see [`UI6_SEED`]), the six look-only fillers, then
+    /// Swamps to 99.
+    fn ui6_deck() -> mtg_simulator::DeckConfig {
+        use mtg_engine::CardId;
+        let mut main_deck: Vec<CardId> = vec![CardId(UI6_SEARCHER.to_string())];
+        main_deck.push(CardId("swamp".to_string()));
+        main_deck.extend(UI6_LOOK_ONLY_FILLER.iter().map(|c| CardId(c.to_string())));
+        while main_deck.len() < 99 {
+            main_deck.push(CardId("swamp".to_string()));
+        }
+        mtg_simulator::DeckConfig {
+            commander: CardId(UI1_COMMANDER.to_string()),
+            main_deck,
+        }
+    }
+
+    /// Install the UI-6 fixture through `session::new_game` — the same
+    /// constructor the real handler uses, running the same two Invariant-9 gates.
+    /// See [`ui1_install`]'s doc for why `POST /api/game` cannot express this.
+    fn ui6_install(state: &SharedState) {
+        let cfg = mtg_simulator::LocalGameConfig {
+            player_count: 2,
+            human_seats: [mtg_engine::PlayerId(1)].into_iter().collect(),
+            bot_kind: BotKind::Heuristic,
+            seed: UI6_SEED,
+            decks: mtg_simulator::DeckSource::Fixed(vec![
+                (mtg_engine::PlayerId(1), ui6_deck()),
+                (mtg_engine::PlayerId(2), ui6_deck()),
+            ]),
+            limits: mtg_simulator::LocalGameLimits {
+                max_turns: 200,
+                max_commands: 40_000,
+                max_consecutive_passes: 500,
+                record_journal: true,
+            },
+        };
+        let session = session::new_game(cfg, 0).expect("the UI-6 fixture deck must be legal");
+        *state.session.lock().expect("fresh lock") = Some(session);
+    }
+
+    /// The `PickOne` answer shape of the first offered `SearchLibrary` question,
+    /// as `(action_index, candidate ids, all_cards as (id, label))`.
+    fn ui6_search_shape(view: &Value) -> (u64, Vec<u64>, Vec<(u64, String)>) {
+        let index = ui6_question_index_or_panic(view);
+        let option = view["decision"]["actions"]
+            .as_array()
+            .expect("actions is an array")
+            .iter()
+            .find(|a| a["index"] == index)
+            .expect("the option with that index");
+        let answer = &option["decision"]["answer"];
+        assert_eq!(answer["shape"], "PickOne");
+        let candidates = answer["candidates"]
+            .as_array()
+            .expect("candidates is an array")
+            .iter()
+            .map(|c| c["id"].as_u64().expect("id is a number"))
+            .collect();
+        let all_cards = answer["all_cards"]
+            .as_array()
+            .expect("all_cards is an array — UI-6's CR 701.23a look entitlement")
+            .iter()
+            .map(|c| {
+                (
+                    c["id"].as_u64().expect("id is a number"),
+                    c["label"].as_str().expect("label is a string").to_string(),
+                )
+            })
+            .collect();
+        (index, candidates, all_cards)
+    }
+
+    fn ui6_question_index_or_panic(view: &Value) -> u64 {
+        ui1_question_index(view, "SearchLibrary").expect("a SearchLibrary question is offered")
+    }
+
+    /// **CR 701.23a — the search view shows the WHOLE library, look-only** (G9).
+    ///
+    /// Four claims, in the order they build on each other:
+    ///
+    /// 1. `all_cards` is the searcher's entire library, card for card, against the
+    ///    engine's own zone read as the out-of-band oracle.
+    /// 2. It is a **strict** superset of `candidates` — so the look-only set this
+    ///    feature exists to expose is non-empty, and the test is not vacuously
+    ///    true against a fixture whose filter happens to match everything (which
+    ///    is precisely what the UI-1 Diabolic Tutor fixture is).
+    /// 3. It is ordered by **name**, not by library position. CR 701.23a grants a
+    ///    look at the cards; it does not grant a look at the shuffle, and
+    ///    Architecture Invariant 7 names library order explicitly.
+    /// 4. **A look-only card cannot be submitted** — the refusal path, at the
+    ///    server boundary rather than by the engine. This is the SR-38 half: the
+    ///    look widened, the answer space did not.
+    ///
+    /// Then a real, non-default legal pick resolves, so the widened look has not
+    /// broken the thing it wraps.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_ui6_search_view_shows_the_whole_library_look_only() {
+        let state = shared_state();
+        ui6_install(&state);
+        let view = ui1_drive_to_question(&state, "SearchLibrary", 600).await;
+        let (index, candidates, all_cards) = ui6_search_shape(&view);
+
+        // (1) The whole library, against the engine's own zone.
+        let library = ui1_library(&state);
+        let all_ids: Vec<u64> = all_cards.iter().map(|(id, _)| *id).collect();
+        let mut sorted_all = all_ids.clone();
+        sorted_all.sort_unstable();
+        let mut sorted_library = library.clone();
+        sorted_library.sort_unstable();
+        assert_eq!(
+            sorted_all,
+            sorted_library,
+            "CR 701.23a: `all_cards` must be exactly the searcher's library — \
+             {} entries against a library of {}",
+            all_ids.len(),
+            library.len()
+        );
+
+        // Non-vacuity on the LABELS, not just the ids: the look entitlement has to
+        // be rendering real names before anything below can be said about it.
+        assert!(
+            all_cards.iter().any(|(_, label)| label == "Swamp"),
+            "the look entitlement must render real card names: {all_cards:?}"
+        );
+
+        // (2) A strict superset — the look-only population exists.
+        let candidate_set: std::collections::HashSet<u64> = candidates.iter().copied().collect();
+        let all_set: std::collections::HashSet<u64> = all_ids.iter().copied().collect();
+        assert!(
+            candidate_set.is_subset(&all_set),
+            "this fixture searches the library only, so every candidate must also be \
+             in the look list"
+        );
+        let look_only: Vec<&(u64, String)> = all_cards
+            .iter()
+            .filter(|(id, _)| !candidate_set.contains(id))
+            .collect();
+        assert!(
+            !look_only.is_empty(),
+            "the whole point of UI-6 is a card you may LOOK at and may not FIND. \
+             Solemn Simulacrum searches for a basic land, so the six \
+             UI6_LOOK_ONLY_FILLER cards should supply them — if none is left in \
+             the library at this point, UI6_SEED needs re-pinning. candidates={} \
+             all_cards={}",
+            candidates.len(),
+            all_cards.len()
+        );
+
+        // (3) Ordered by name, never by library position.
+        let mut by_name = all_cards.clone();
+        by_name.sort_by(|a, b| a.1.cmp(&b.1).then(a.0.cmp(&b.0)));
+        assert_eq!(
+            all_cards, by_name,
+            "`all_cards` must arrive sorted by (label, id) — see `library_look_cards`"
+        );
+        // And that ordering really is different from the library's own, so the
+        // claim above is a fact about this payload and not a coincidence of a
+        // library that happened to be in name order.
+        assert_ne!(
+            all_ids, library,
+            "if the look list were in library order it would disclose the shuffle \
+             (Architecture Invariant 7); this assertion is what proves it is not"
+        );
+
+        let wire_seq = seq(&view);
+
+        // (4) The refusal path. A look-only id is a REAL object in a zone this
+        // seat is entitled to look at — which is exactly why it is the
+        // interesting refusal, and why `999_999` (the UI-1 probe's needle) does
+        // not cover this case: that one could be refused by any sanity check,
+        // this one can only be refused by checking membership in `candidates`.
+        let look_only_id = look_only[0].0;
+        let (status, refused) = post_json(
+            &state,
+            "/api/game/action",
+            json!({
+                "seq": wire_seq,
+                "action_index": index,
+                "params": { "effect_choice_answer": { "SearchLibrary": { "found": look_only_id } } }
+            }),
+        )
+        .await;
+        assert_eq!(
+            status,
+            StatusCode::BAD_REQUEST,
+            "a card the search may look at but not find must be refused (SR-38: the \
+             look widened, the answer space did not): {refused}"
+        );
+        assert_eq!(refused["kind"], "bad_params");
+
+        // And the refusal changed nothing — the question is still outstanding.
+        let library_before = ui1_library(&state);
+        assert!(
+            library_before.contains(&look_only_id),
+            "a refused answer must not move a card"
+        );
+
+        // A real, non-default legal pick still resolves.
+        let chosen = *candidates.last().expect("non-empty");
+        assert_ne!(
+            chosen, candidates[0],
+            "the pick must differ from the default"
+        );
+        let (status, after) = post_json(
+            &state,
+            "/api/game/action",
+            json!({
+                "seq": wire_seq,
+                "action_index": index,
+                "params": { "effect_choice_answer": { "SearchLibrary": { "found": chosen } } }
+            }),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{after}");
+        let library_after = ui1_library(&state);
+        assert!(
+            !library_after.contains(&chosen),
+            "the chosen basic land must have left the library (CR 701.23a)"
+        );
+        assert!(
+            library_after.contains(&candidates[0]),
+            "the DEFAULT's pick must still be in the library — that is what \
+             discriminates a real choice from `candidates.first()`"
+        );
+    }
+
+    /// **Architecture Invariant 7: the CR 701.23a whole-library look never reaches
+    /// a foreign seat** (UI-6).
+    ///
+    /// # Why this is a NEW gate and not an assertion added to the scry one
+    ///
+    /// MR-M11-01's lesson, applied rather than restated: *a redaction gate checks
+    /// the channel it was written for.* `test_ui1_a_foreign_seats_effect_choice_
+    /// never_reaches_this_payload` needles the raw body for the `looked_at` key —
+    /// the scry/surveil channel. A search payload has no `looked_at` at all, so
+    /// that gate would have stayed green with every card of seat 1's library,
+    /// **named**, in seat 2's body. `GameSummary.seed` shipped for three sessions
+    /// past two green gates for exactly this reason. A new channel gets a new gate.
+    ///
+    /// Same construction as its sibling and for the same recorded reason: it moves
+    /// the **viewer** (`PlaySession::human`), not the decision — `advance()`
+    /// refreshes `pending` straight back off `LocalGame`, so mutating that does
+    /// nothing.
+    ///
+    /// Two-sided: deleting `seat_view`'s `pending.player == human` filter turns
+    /// this red with seat 1's whole library in seat 2's payload.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_ui6_a_foreign_seat_never_receives_the_whole_library_look() {
+        let state = shared_state();
+        ui6_install(&state);
+        let view = ui1_drive_to_question(&state, "SearchLibrary", 600).await;
+        let (_, _, all_cards) = ui6_search_shape(&view);
+
+        // Non-vacuity: the entitlement is really in use and really carries names,
+        // so its absence below is a consequence of the filter and not of an empty
+        // payload. Asserted BEFORE the move, while this harness is still seat 1.
+        assert!(
+            all_cards.len() > 50,
+            "a Commander library should be tens of cards long: {}",
+            all_cards.len()
+        );
+        assert!(
+            all_cards.iter().any(|(_, label)| label == "Swamp"),
+            "real names, not placeholders: {all_cards:?}"
+        );
+
+        // Render for the OTHER seat while seat 1's question is outstanding.
+        {
+            let mut guard = state.session.lock().expect("lock");
+            let session = guard.as_mut().expect("a session is installed");
+            assert_eq!(
+                session.pending.as_ref().map(|p| p.player),
+                Some(session.human),
+                "precondition: the question belongs to the seat being rendered"
+            );
+            session.human = mtg_engine::PlayerId(2);
+        }
+
+        let (status, body) = get_raw(&state, "/api/game").await;
+        assert_eq!(status, StatusCode::OK, "{body}");
+        let refetched: Value = serde_json::from_str(&body).expect("body is JSON");
+        assert_eq!(refetched["summary"]["human"], 2, "the viewer really moved");
+        assert!(
+            refetched["decision"].is_null(),
+            "seat 1's question must not appear in seat 2's payload: {}",
+            refetched["decision"]
+        );
+
+        // Asserted over the RAW body — the MR-M11-01 idiom. The needle is the
+        // `all_cards` **key**, not a card name, and for the same reason its
+        // sibling gate needles `looked_at`: seat 2 legitimately holds Swamps of
+        // its own, so "no card name appears" is not assertable here and claiming
+        // it would overstate what this proves.
+        assert!(
+            !body.contains("\"all_cards\""),
+            "the foreign seat's CR 701.23a whole-library look leaked into the body: {body}"
+        );
+    }
+
     /// **CR 514.1 — the cleanup discard, driven to a non-default subset over
     /// HTTP.** Closes the browser-client half of OOS-DP7-6.
     ///
@@ -4433,14 +4802,69 @@ mod tests {
     /// uses none, and the HTTP body scan looks for another seat's *hand* card names
     /// and these are library cards.
     ///
-    /// So the channel is pinned by count. `.objects()` may appear in `view.rs`'s
-    /// production code exactly twice — in `question_card_label`, and in
-    /// `action_modes`' card-registry lookup, which reads an id the seat already
-    /// holds and no name at all. A third is not forbidden; it is required to be
-    /// *deliberate*, which is the most a gate can enforce and is exactly what was
-    /// missing when `GameSummary.seed` shipped for three sessions.
+    /// So the channel is pinned by count, at **three** raw reads, each one
+    /// accounted for below.
+    ///
+    /// # The re-pin from two to three, and the entitlement that bought it (UI-6)
+    ///
+    /// This gate read `2` from UI-1 until `scutemob-194`, and it going red was the
+    /// gate **working**: UI-6 (G9 of `memory/playtest-triage-2026-08-02b.md`)
+    /// opened a third read on purpose, and the count is moved deliberately rather
+    /// than routed around.
+    ///
+    /// The entitlement is **CR 701.23a**: *"To search for a card in a zone, look at
+    /// **all** cards in that zone (even if it's a hidden zone)."* Before UI-6 the
+    /// browser showed a searcher only the cards the effect could *find* — correct
+    /// as an answer space (`handle_answer_effect_choice` refuses anything outside
+    /// it, and offering more would violate SR-38) but a rules-level *under*-showing
+    /// of the look. `view::library_look_cards` closes that: the searcher's own
+    /// library, look-only, in a field the answer space never reads.
+    ///
+    /// Three things bound it, and each is the reason a wider read was not taken:
+    ///
+    /// 1. **The searcher's own library only.** `player` is
+    ///    `PendingDecision::player`, which `api.rs::seat_view` has already filtered
+    ///    to the viewing seat; the engine's search effect builds its candidates
+    ///    from `ZoneId::Library(p)` for that same `p`. No other seat's library is
+    ///    reachable from this call.
+    /// 2. **Sorted by name, never in library order.** Architecture Invariant 7
+    ///    names library *order* explicitly. CR 701.23a grants a look at the cards,
+    ///    not at their sequence, and CR 701.23e's shuffle exists to keep the
+    ///    sequence unknown — so sending `Zone::object_ids()` verbatim would leak
+    ///    draw order to the seat that just failed to find.
+    /// 3. **Look-only, and separately named.** `all_cards` is a different field
+    ///    from `candidates`; nothing on the write path reads it.
+    ///
+    /// # Why this counts a needle SET and not one needle
+    ///
+    /// The new read spells `.zone(`, not `.objects()`. Against the single-needle
+    /// gate this file shipped with, UI-6's whole-library channel would have been
+    /// **invisible** — the count would have stayed at 2 and the gate would have
+    /// stayed green while a new hidden-information channel opened underneath it.
+    /// That is MR-M11-01's lesson arriving a second time, in the same file, three
+    /// sessions later. **Measured, not argued**: with UI-6's channel in the tree,
+    /// `.objects()` in `view.rs`'s production region is still exactly 2. The
+    /// needles are therefore enumerated and asserted individually, so the failure
+    /// message says *which* read moved.
+    ///
+    /// # The zero pins, and the revert that put them there
+    ///
+    /// Three needles are pinned at **0**. They are not decoration: the first
+    /// revert run against this gate replaced `state.zone(..)` with
+    /// `state.zones().get(..)` — the same channel, one accessor over — and the
+    /// two-needle draft of this gate went **green**. A gate whose own revert
+    /// proof can be defeated by a synonym is not holding the property it claims
+    /// to. So the accessors that reach the same data are pinned closed, and a
+    /// bypass now fails on the pin it uses rather than on none at all.
+    ///
+    /// This is still an enumerated set and not a proof about *every* raw read —
+    /// see [`view::question_card_label`]'s doc, which says so in the same terms.
+    ///
+    /// A fourth read is not forbidden; it is required to be *deliberate*, which is
+    /// the most a gate can enforce and is exactly what was missing when
+    /// `GameSummary.seed` shipped for three sessions.
     #[test]
-    fn test_ui1_view_rs_reads_game_state_in_exactly_the_two_known_places() {
+    fn test_ui6_view_rs_reads_game_state_in_exactly_the_three_known_places() {
         let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         let source =
             std::fs::read_to_string(root.join("src").join("view.rs")).expect("view.rs is readable");
@@ -4450,19 +4874,63 @@ mod tests {
         // production — which is the case this gate is written for.)
         let cut = source.len() - test_region(&source).len();
         let production = code_only(&source[..cut]);
-        // `concat!` for the same reason the sibling gates use it: this line is in a
-        // file the walk reads, and a plainly-written needle would be found by the
-        // gate rather than by the code it is meant to describe.
-        let needle = concat!(".obj", "ects()");
-        let found = production.matches(needle).count();
+        // `concat!` for the same reason the sibling gates use it: a plainly-written
+        // needle would be found by the gate rather than by the code it is meant to
+        // describe, and both needles are named in `view.rs`'s own prose (which
+        // `code_only` blanks — belt and braces).
+        //
+        // Each entry is (needle, expected count, what that read is for). The two
+        // non-zero pins are the three accounted-for reads; the zero pins are
+        // BYPASSES held closed — see below for why they are here at all.
+        let pins: [(&str, usize, &str); 5] = [
+            (
+                concat!(".obj", "ects()"),
+                2,
+                "question_card_label's CR 701.22a/23a/25a look entitlement, and \
+                 action_modes' card-registry lookup (an id the seat already holds, \
+                 no name at all)",
+            ),
+            (
+                concat!(".zo", "ne("),
+                1,
+                "library_look_cards' CR 701.23a whole-library look (UI-6) — the \
+                 SEARCHER'S OWN library, sorted by name so no library order is \
+                 disclosed",
+            ),
+            (
+                concat!(".zo", "nes()"),
+                0,
+                "the raw zone table — the exact bypass that would re-open the \
+                 whole-library channel while leaving the `.zone(` pin at 1",
+            ),
+            (
+                concat!(".objects_in_", "zone("),
+                0,
+                "the same bypass by another accessor: it returns whole objects, \
+                 names and all, for any zone of any seat",
+            ),
+            (
+                concat!(".pla", "yer("),
+                0,
+                "raw `PlayerState`, which the seat-redacted view already models",
+            ),
+        ];
+        let mut total = 0usize;
+        for (needle, want, purpose) in pins {
+            let found = production.matches(needle).count();
+            total += found;
+            assert_eq!(
+                found, want,
+                "view.rs's production code makes {found} raw `{needle}` GameState \
+                 read(s), not the {want} that are accounted for ({purpose}). A read \
+                 this gate does not know about is a NEW hidden-information channel \
+                 and no other Invariant-7 gate can see it — document it and update \
+                 this pin deliberately, or route it through NameIndex."
+            );
+        }
         assert_eq!(
-            found, 2,
-            "view.rs's production code reads the raw GameState object table {found} \
-             time(s), not the 2 that are accounted for (question_card_label's \
-             CR 701.22a/23a/25a look entitlement, and action_modes' card-registry \
-             lookup). A third read is a NEW hidden-information channel and neither \
-             Invariant-7 gate can see it — document it and update this count \
-             deliberately, or route it through NameIndex."
+            total, 3,
+            "the per-needle pins above must sum to the three accounted-for raw reads"
         );
     }
 
