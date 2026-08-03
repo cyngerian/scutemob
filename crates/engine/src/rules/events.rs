@@ -1560,7 +1560,10 @@ pub(crate) fn announce_targets(
     // before calling this helper (verified individually), so the lookup always
     // succeeds. Route the surprise through the `expect_*` family's convention
     // (a `debug_assert!` that degrades to `None` in release builds), not `lki_*`.
-    let stack_obj = state.stack_objects().iter().find(|so| so.id == stack_object_id);
+    let stack_obj = state
+        .stack_objects()
+        .iter()
+        .find(|so| so.id == stack_object_id);
     debug_assert!(
         stack_obj.is_some(),
         "engine invariant: stack_object_id {stack_object_id:?} absent from \

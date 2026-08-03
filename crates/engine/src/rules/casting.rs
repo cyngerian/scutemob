@@ -4734,7 +4734,13 @@ pub fn handle_cast_spell(
     // ENG-2 (S1, CR 601.2c): announce the spell's targets, if any. Must be called
     // with stack_entry_id, not new_card_id -- see the hazard note in
     // rules::events::announce_targets.
-    super::events::push_target_announcement(state, &mut events, player, new_card_id, stack_entry_id);
+    super::events::push_target_announcement(
+        state,
+        &mut events,
+        player,
+        new_card_id,
+        stack_entry_id,
+    );
     // CR 702.21a: Emit PermanentTargeted for each battlefield permanent that this
     // spell targets. These events drive Ward trigger checks in check_triggers.
     // `targeting_stack_id` is the stack entry's own ObjectId so the ward CounterSpell
