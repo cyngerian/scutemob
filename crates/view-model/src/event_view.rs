@@ -76,6 +76,7 @@
 
 use mtg_engine::{
     AttackTarget, CombatDamageTarget, GameEvent, GameState, ManaColor, ObjectId, PlayerId,
+    SpellTarget, Target,
 };
 use serde::Serialize;
 
@@ -184,9 +185,9 @@ pub fn event_view_for(
     let card_or = |id: ObjectId, fallback: &str| -> String {
         card_name(id).unwrap_or_else(|| fallback.to_string())
     };
-    // CR 508.1a: an attack may be aimed at a player (public, CR 108.1) or at a
-    // planeswalker, whose identity goes through the same gate as any other
-    // battlefield permanent.
+    // CR 508.1a: an attack may be aimed at a player (public, CR 102.1 / 115.1 /
+    // 400.2) or at a planeswalker, whose identity goes through the same gate as
+    // any other battlefield permanent.
     let attack_target = |t: &AttackTarget| -> String {
         match t {
             AttackTarget::Player(pid) => name(*pid),
@@ -888,6 +889,63 @@ pub fn event_view_for(
             };
             (text, Some(*player))
         }
+        // CR 601.2c / 602.2b / 603.3d (ENG-2): the targets announced when a spell
+        // or ability was put on the stack. A player target is unconditional (CR
+        // 102.1 / 115.1 / 400.2 — a player's identity is never hidden and the
+        // stack is a public zone); an object target goes through `card_or` (CR
+        // 708.2 — a face-down permanent has no name to reveal).
+        //
+        // The unnameable-source fallback ("alice targets a creature") is
+        // deliberately byte-identical to the shipped `PermanentTargeted` arm's
+        // own fallback, above — one sentence shape for one concept.
+        GameEvent::TargetsAnnounced {
+            controller,
+            source_object_id,
+            targets,
+            ..
+        } => {
+            let rendered_targets: Vec<String> = targets
+                .iter()
+                .map(|t| match t.target {
+                    Target::Player(pid) => name(pid),
+                    Target::Object(id) => card_or(id, "a permanent"),
+                })
+                .collect();
+            let subject = match card_name(*source_object_id) {
+                Some(n) => n,
+                None => name(*controller),
+            };
+            (
+                format!("{subject} targets {}", rendered_targets.join(", ")),
+                Some(*controller),
+            )
+        }
+        // CR 115.7 (ENG-2 §4.5 rider): targets of a spell or ability already on
+        // the stack were changed. No `controller` field on this event — the line
+        // is attributed to nobody in particular, matching the missing `player`.
+        GameEvent::TargetsChanged {
+            old_targets,
+            new_targets,
+            ..
+        } => {
+            let render = |ts: &[SpellTarget]| -> String {
+                ts.iter()
+                    .map(|t| match t.target {
+                        Target::Player(pid) => name(pid),
+                        Target::Object(id) => card_or(id, "a permanent"),
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            };
+            (
+                format!(
+                    "Targets change: {} → {}",
+                    render(old_targets),
+                    render(new_targets)
+                ),
+                None,
+            )
+        }
 
         // Rule 3: kind only. No payload field is read on this path, so no card
         // name can be interpolated. (The kind itself comes from the serde
@@ -997,7 +1055,13 @@ fn event_tier(ev: &GameEvent) -> EventTier {
         | GameEvent::SpellCopied { .. }
         | GameEvent::CascadeCast { .. }
         | GameEvent::DiscoverCast { .. }
-        | GameEvent::CommanderCastFromCommandZone { .. } => EventTier::Stack,
+        | GameEvent::CommanderCastFromCommandZone { .. }
+        // ENG-2 (§6.2): not caught by the compiler — the match above has no `_`
+        // arm within it (it's not exhaustive over GameEvent as a whole, so a new
+        // variant compiles silently and lands in the `Game` default below unless
+        // it is explicitly listed here.
+        | GameEvent::TargetsAnnounced { .. }
+        | GameEvent::TargetsChanged { .. } => EventTier::Stack,
 
         // Documented default — see this function's doc block.
         _ => EventTier::Game,

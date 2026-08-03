@@ -647,6 +647,31 @@ fn format_event(event: &GameEvent, state: &GameState) -> String {
             };
             format!("P{} must answer a {kind} (CR 608.2d) — press 'r'", player.0)
         }
+        // ENG-2 (§6.2, CR 601.2c / 602.2b / 603.3d): the TUI is omniscient by
+        // design and has no redaction layer, so every target names its object
+        // directly through `resolve_name` rather than going through a `card_or`
+        // entitlement gate.
+        GameEvent::TargetsAnnounced {
+            controller,
+            source_object_id,
+            targets,
+            ..
+        } => {
+            let subject = resolve_name(state, *source_object_id);
+            let rendered_targets: Vec<String> = targets
+                .iter()
+                .map(|t| match t.target {
+                    mtg_engine::Target::Player(pid) => format!("P{}", pid.0),
+                    mtg_engine::Target::Object(id) => resolve_name(state, id),
+                })
+                .collect();
+            format!(
+                "P{}'s {} targets {}",
+                controller.0,
+                subject,
+                rendered_targets.join(", ")
+            )
+        }
         _ => String::new(), // Skip verbose events
     }
 }
