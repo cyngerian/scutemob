@@ -35,6 +35,17 @@
 //! a different game. Treat a crash seed as valid only within the run (and build)
 //! that emitted it; capture the crash JSON, not just the seed, for anything that
 //! must outlive the build.
+//!
+//! **Boundary event: the PB-DX22 merge (`scutemob-196`).** Every seed recorded
+//! before it is dead, and this one moves more than the earlier two did. The deal
+//! itself changed: `fuzz_setup::build_fuzz_state` now shuffles each library from
+//! the game's own seeded RNG (CR 103.3 / 903.6) and registers each seat's
+//! commander (CR 903.6 / 903.8), so a fixed seed deals a different opening
+//! library AND offers a command-zone cast that did not exist before. Measured on
+//! `--games 20 --seed 1 --max-turns 200 --threads 1 --profile fuzz`: avg turns
+//! 191.7 → 103.4, 9 wins / 11 `MaxTurnsReached` → 20 wins / 0 errors, first
+//! `SpellCast` game turn 143-154 → a 3-29 band, `CommanderCastFromCommandZone`
+//! 0 → 36. Nothing about a pre-merge seed survives that. Filed as `OOS-DX22-7`.
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};

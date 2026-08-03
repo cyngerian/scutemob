@@ -209,16 +209,29 @@ fn stack_card_of(kind: &mtg_engine::StackObjectKind) -> Option<ObjectId> {
 /// floor `OOS-DP3-9` and `OOS-M11-3` were reading their "70,719 violations" baseline
 /// through.
 ///
-/// **What the clean side of that A/B is not evidence of.** The same qualification
-/// `OOS-SIM3-1` puts on everybody else's fuzz parity applies here: `bin/fuzzer.rs` never
-/// shuffles a library, so the first spell in those games is cast around **turn 143** and
-/// the whole 5-game run contains ~150 of them, none involving a counter, a copy, a mutate
-/// or a suspend; the playthrough is a fixed human script that casts only untargeted
-/// spells. So the run proves the check is quiet on ordinary casts, and the properties
-/// below rest on the structural argument, not on it. Two live engine defects that
-/// legitimately trip this check are filed as `OOS-SIM3-5` precisely because the evidence
-/// could not have caught them — read a `stack_consistency` violation as a real finding
-/// again, which is the point of the batch.
+/// **What the clean side of that A/B was not evidence of** — SIM-3's own qualification,
+/// kept because it dates the table above. Both rows were measured on the *unshuffled*
+/// instrument: `bin/fuzzer.rs` never shuffled a library, so the first spell in those games
+/// was cast around **turn 143** and the whole 5-game run contained ~150 of them, none
+/// involving a counter, a copy, a mutate or a suspend; the playthrough is a fixed human
+/// script that casts only untargeted spells. So that run proved the check quiet on
+/// ordinary casts, and the properties below rested on the structural argument, not on it.
+///
+/// **Re-measured post-shuffle by PB-DX22 (`scutemob-196`), which is this check's first
+/// real test.** `bin/fuzzer.rs` now shuffles (CR 103.3) and registers the commander
+/// (CR 903.6), so the first cast lands on game turn **3-29** instead of 143-154 and a
+/// 20-game run casts **670** spells rather than ~120. Same command as the table above,
+/// widened to `--games 20 --seed 1 --max-turns 200 --threads 1 --profile fuzz`:
+/// **426 total violations, and not one of them is `stack_consistency`.** (The binary
+/// prints only the first five offending games; those 94 printed lines are 90
+/// `no_orphaned_tokens` + 3 `attachment_validity` + 1 `player_consistency`.) So the
+/// clean side now IS evidence about games with real spells in them — for the first
+/// time — though still not about counters, copies, mutates or suspends specifically.
+/// Recorded as `OOS-DX22-3`.
+///
+/// Two live engine defects that legitimately trip this check are filed as `OOS-SIM3-5`
+/// precisely because the earlier evidence could not have caught them — read a
+/// `stack_consistency` violation as a real finding, which is the point of both batches.
 ///
 /// # What is actually invariant
 ///

@@ -1,6 +1,6 @@
 # MTG Engine — Game Simulator & Fuzzer
 
-<!-- last_updated: 2026-08-02 -->
+<!-- last_updated: 2026-08-03 -->
 
 > Design document for automated game simulation, fuzz testing, and interactive TUI play.
 
@@ -389,11 +389,22 @@ CR 903.8 tax through the shared `effective_cast_cost`, which all three printed-c
 (the offer gate, the human auto-tap, the bot auto-tap) now consume, so they cannot
 disagree about what has to be paid. Still open: a hybrid/Phyrexian-pipped commander is
 gated by `can_afford` rather than by a payment plan, because `LegalAction::CastSpell` has
-no plan channel (`OOS-SIM1-1`); the TUI keeps a fourth printed-cost auto-tap and its human
-path still enumerates the hand only (`OOS-SIM1-2`); and `mtg-fuzzer` builds command-zone
-objects without `builder.player_commander`, so its games are not Commander games at all
-and the new offer is unreachable there (`OOS-SIM1-4` — which is also *why* no recorded
-fuzz seed moves).
+no plan channel (`OOS-SIM1-1`); and the TUI keeps a fourth printed-cost auto-tap and its
+human path still enumerates the hand only (`OOS-SIM1-2`).
+
+SIM-1 also recorded a third open item here — that `mtg-fuzzer` built command-zone objects
+without `builder.player_commander`, so its games were not Commander games at all, the new
+offer was unreachable there, and that unreachability was *why* no recorded fuzz seed moved
+(`OOS-SIM1-4`). **That is closed by PB-DX22 (`scutemob-196`)**: `fuzz_setup::place_registered_deck`
+places and registers as one operation, and `build_fuzz_state` also installs the CR 903.9b
+replacements. The offer fires in fuzzer games now, so **the reason no seed moved is gone
+and the seeds did move** — the one-time cost SIM-1 predicted, paid. Measured on
+`--games 20 --seed 1 --max-turns 200 --threads 1 --profile fuzz`:
+`CommanderCastFromCommandZone` **0 → 36** (16 of 20 games), 13 CR 903.9a returns, non-empty
+`commander_damage_received` in 16 of 20 games — CR 903.8 / 903.9a / 903.10a under automated
+exercise for the first time. The re-roll did **not** reach the play server (78/0 green;
+`session.rs` builds through `setup.rs`) or `crates/simulator/tests/local_game.rs` (23
+passed unchanged).
 
 ---
 

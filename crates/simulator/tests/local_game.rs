@@ -2071,14 +2071,24 @@ fn test_auto_tap_skipped_when_pool_already_covers_cost() {
 ///   empties at end of step (CR 500.4), and by its own main phase `can_afford` sees
 ///   no untapped source and the cast is never OFFERED. The journal of such a game is
 ///   two `TapForMana` and then nothing but passes, with **zero** engine rejections.
-/// * **`OOS-UI2-1`** — `bin/fuzzer.rs` builds its libraries through
-///   `GameStateBuilder` **without shuffling them**, while `random_deck` appends its
-///   ~34 basics LAST and `Zone::Ordered`'s top is the last index. Every fuzzer game
-///   therefore deals basics off the top for its whole length. Instrumenting the
+/// * **`OOS-UI2-1`** *(CLOSED by PB-DX22, `scutemob-196` — recorded, not deleted,
+///   because it is what dates UI-2's evidence)* — `bin/fuzzer.rs` built its libraries
+///   through `GameStateBuilder` **without shuffling them**, while `random_deck` appends
+///   its ~34 basics LAST and `Zone::Ordered`'s top is the last index. Every fuzzer game
+///   therefore dealt basics off the top for its whole length. Instrumenting the
 ///   provider over 5 games × 80 turns produced **25,964 hand-card observations and
 ///   not one non-land**. The 360-game A/B this batch ran came back byte-identical
-///   because the fuzzer never casts a spell at all — not because the change is
-///   neutral.
+///   because the fuzzer never cast a spell at all — not because the change was
+///   neutral, and UI-2 said so rather than banking it.
+///
+///   **The "never" was a horizon, measured at `--max-turns 80`**: at the default 200
+///   cap the pre-fix instrument does cast, from game turn 143-154 (`OOS-SIM3-1`).
+///   PB-DX22 shuffles the libraries (CR 103.3) and registers the commanders
+///   (CR 903.6), moving the first cast into a **3-29** band over 20 seeds. **That
+///   does not re-validate UI-2's 360-game A/B — it retires it as evidence.** The
+///   run was byte-identical because it was a land-only game on both sides; a
+///   re-run on the repaired instrument would be a different experiment, and
+///   PB-DX22 did not perform it. Read this bullet as history.
 ///
 /// The bot is handed a one-element action list so the choice is forced and the test
 /// is deterministic. That is not a weaker test than "let it choose": what is under

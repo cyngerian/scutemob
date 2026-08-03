@@ -551,9 +551,22 @@ impl<P: LegalActionProvider> LocalGame<P> {
             //   against the same `prev_turn`.
             // * **Recorded fuzz seeds move only where a cast is REJECTED** -- a
             //   succeeding sequence commits exactly what the loop committed, in the same
-            //   order, so `journal`/`command_count` are unchanged for it. Per
+            //   order, so `journal`/`command_count` are unchanged for it.
+            //
+            //   **The second half of that argument is now history.** SIM-5 added: "per
             //   `OOS-UI2-1` the fuzzer has never cast a spell at all, so the fuzzer's
-            //   seeds cannot reach the changed branch.
+            //   seeds cannot reach the changed branch." That premise is CLOSED by
+            //   PB-DX22 (`scutemob-196`), which shuffles every fuzz library (CR 103.3)
+            //   and registers the commander (CR 903.6): the first `SpellCast` moved from
+            //   game turn **143-154** to a **3-29** band over 20 seeds, and 670 spells
+            //   were cast across a 20-game run that previously produced ~120. So the
+            //   fuzzer's seeds now DO reach this branch.
+            //
+            //   PB-DX22 did **not** re-run SIM-5's parity argument, and nothing here
+            //   should be read as re-validating it. The first bullet (a succeeding
+            //   sequence is byte-identical to the old loop) is a structural claim and
+            //   stands on its own; the "unreachable in fuzz" claim is retired as
+            //   evidence rather than refreshed.
             if let Err(e) = self.apply_sequence(commands) {
                 // Command rejected — not necessarily fatal. The provider may produce
                 // invalid actions for a bot seat (SR-38 is a goal, not a guarantee, in

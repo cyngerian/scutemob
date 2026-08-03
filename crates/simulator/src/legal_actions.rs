@@ -709,18 +709,36 @@ impl LegalActionProvider for StubProvider {
         // so whenever this loop pushes, every one of their indices shifts by one — and
         // `RandomBot` chooses by index into this list.
         //
-        // So the reason no recorded `mtg-fuzzer` seed moves is **not** placement. It is
-        // that the offer is gated on `commander_ids`, and `fuzzer.rs` builds its
-        // command-zone object without ever calling `builder.player_commander(..)` —
-        // so `commander_ids` is empty in every fuzzer game and this loop cannot fire
-        // there at all. That is structural unreachability, filed as `OOS-SIM1-4`, and
-        // it is a stronger guarantee than index arithmetic would have been. Verified
-        // by A/B against the merge-base: 60 games, per-game results byte-identical.
+        // **HISTORY, corrected by PB-DX22 (`scutemob-196`) — read the next paragraph
+        // before citing this one.** SIM-1 argued that no recorded `mtg-fuzzer` seed
+        // moved, and the reason was **not** placement: the offer is gated on
+        // `commander_ids`, and `fuzzer.rs` built its command-zone object without ever
+        // calling `builder.player_commander(..)`, so `commander_ids` was empty in every
+        // fuzzer game and this loop could not fire there at all. That was structural
+        // unreachability, filed as `OOS-SIM1-4`, and it was verified by A/B against the
+        // merge-base: 60 games, per-game results byte-identical. SIM-1 also predicted
+        // the cost of closing it — "a future session that teaches the fuzzer to register
+        // commanders re-rolls every recorded seed" — and named the *registration*, not
+        // this block's placement, as the cause.
         //
-        // A future session that closes `OOS-SIM1-4` (teaching the fuzzer to register
-        // commanders) re-rolls every recorded seed. That is the cost named in the seed,
-        // and it is the *registration* that causes it — moving this block would not
-        // help.
+        // **`OOS-SIM1-4` is CLOSED by PB-DX22.** `fuzz_setup::place_registered_deck`
+        // now calls `builder.player_commander(..)` adjacent to the command-zone
+        // placement (the two are one operation), so this loop DOES fire in fuzzer games
+        // and the recorded seeds DID move — exactly the predicted cost, paid once.
+        // Measured on `--games 20 --seed 1 --max-turns 200 --threads 1 --profile fuzz`:
+        // `CommanderCastFromCommandZone` went from **0 in ~56,800 commands over 5
+        // games** to **36 casts across 16 of 20 games**, with 13 CR 903.9a returns and
+        // non-empty `commander_damage_received` in 16 of 20. So CR 903.8 / 903.9a /
+        // 903.10a are exercised here for the first time.
+        //
+        // What did NOT move, measured rather than assumed: no play-server seed pin
+        // (`cargo test -p play-server` 78 passed / 0 failed — `session.rs` builds
+        // through `setup.rs`, which PB-DX22 does not touch) and no test in
+        // `crates/simulator/tests/local_game.rs` (23 passed, unchanged). The re-roll is
+        // confined to the fuzz path.
+        //
+        // The index warning above still stands on its own terms: this block is not an
+        // append, and anything inserted here still shifts every later index.
         if !cast_restricted && !is_cast_from_nonhand_restricted(state, player) {
             let command_zone = ZoneId::Command(player);
             for obj in state.objects_in_zone(&command_zone) {

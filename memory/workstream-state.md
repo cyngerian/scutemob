@@ -2901,7 +2901,11 @@ guarding `pick_least_waste`.
   static's activity depends on counting artifacts, which depends on layer-resolved types,
   which depends on its activity. **Hard, unrecoverable crash** (still overflows at
   `ulimit -s 524288`). Reproduce: `mtg-fuzzer --games 1 --seed 504 --max-turns 200` on this
-  branch. Diagnosed by `gdb` backtrace plus a depth probe that named the card. Very likely
+  branch. **DEAD REPRO across the PB-DX22 merge (`scutemob-196`)**: that batch shuffles the
+  fuzz libraries and registers the commanders, so seed 504 deals a different game and no
+  longer reproduces this one. The seed is a pre-merge artefact — see `OOS-DX22-7`; the
+  defect itself is closed by PB-DX19 (`451e3517`) regardless.
+  Diagnosed by `gdb` backtrace plus a depth probe that named the card. Very likely
   the mechanism behind `OOS-M11-3` / `OOS-DP3-9`, which had the symptom and no cause.
 - **`OOS-SIM2-5`** — `layers.rs` P/T arithmetic is unchecked `i32`; Devilish Valet's
   doubling reaches 2^30 and the next doubling panics in debug and **wraps silently in
