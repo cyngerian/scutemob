@@ -872,6 +872,7 @@
         <SearchPicker
           prompt={currentDecision.prompt}
           candidates={currentShape.candidates}
+          allCards={currentShape.all_cards ?? []}
           mayDecline={currentShape.may_decline}
           template={currentShape.template}
           foundKey={currentShape.found_key}

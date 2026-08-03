@@ -7398,6 +7398,119 @@ mod tests {
         );
     }
 
+    /// **UI-6: the search picker LOOKS at the whole library and PICKS only from
+    /// `candidates`** (G9, CR 701.23a / SR-38).
+    ///
+    /// The server sends two lists on purpose. This gate is what stops the client
+    /// collapsing them back into one — in either direction, both of which are real
+    /// regressions and only one of which is obvious:
+    ///
+    /// * rendering `candidates` alone re-creates the playtest complaint verbatim
+    ///   (*"only showed legal basic lands"*) while every test on the server side
+    ///   stays green, because the payload is fine and the client throws it away —
+    ///   which is **exactly** how UI-1's own defect shipped;
+    /// * making a look-only card selectable would post an id
+    ///   `handle_answer_effect_choice` refuses, i.e. offer an illegal answer
+    ///   (SR-38). The server 400s it, so the failure is safe — but it reaches the
+    ///   player as "request failed", not as a rule.
+    ///
+    /// Source-level for the standing reason: there is still no frontend test
+    /// harness (plan §8 R7). This proves the wiring exists, not that it renders —
+    /// the rendering was verified in a browser instead, and the observations are
+    /// in the task record.
+    ///
+    /// Needles are chosen to be **code-only** — `card.pickable`, `candidateIds.has(`,
+    /// the CSS class — rather than blanking comments first, because
+    /// [`code_only`] would also blank the HTML attribute strings this gate reads.
+    /// Each needle was checked against the file's prose before being used here.
+    #[test]
+    fn test_frontend_search_picker_looks_wider_than_it_picks() {
+        let frontend_src = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("frontend")
+            .join("src");
+        let mut sources: Vec<(String, String)> = Vec::new();
+        collect_frontend_files(&frontend_src, &mut sources);
+        let text_of = |name: &str| -> &str {
+            sources
+                .iter()
+                .find(|(p, _)| p.ends_with(name))
+                .map(|(_, t)| t.as_str())
+                .unwrap_or_else(|| panic!("{name} is in the frontend walk"))
+        };
+
+        let picker = text_of("SearchPicker.svelte");
+
+        // 1. The look list is consumed at all. Without this the server's whole
+        //    CR 701.23a channel is dead weight and nobody would notice.
+        assert!(
+            picker.contains("allCards = []"),
+            "SearchPicker must accept the `allCards` prop — CR 701.23a's whole-library \
+             look is otherwise sent and discarded, which is precisely how UI-1's \
+             defect shipped"
+        );
+        assert!(
+            picker.contains("for (const card of allCards)"),
+            "SearchPicker must actually iterate `allCards` into its rows"
+        );
+
+        // 2. Pickability is decided by membership in the ENGINE'S answer space,
+        //    at all three places a card can become an answer.
+        assert!(
+            picker.contains("candidateIds.has(card.id)"),
+            "a row's `pickable` flag must come from the candidate set, not from \
+             whether the server happened to send the card"
+        );
+        assert!(
+            picker.contains("if (!candidateIds.has(id)) return;"),
+            "`select` must refuse a look-only id (SR-38: never build an illegal answer)"
+        );
+        assert!(
+            picker.contains("!candidateIds.has(found)"),
+            "`emit` must re-check membership before posting — a render-only guard is \
+             one refactor away from being no guard, and the server's own refusal is \
+             a 400 the player reads as `request failed` rather than as a rule"
+        );
+
+        // 3. The distinction is VISIBLE, and a look-only row is not a control.
+        assert!(
+            picker.contains("{#if card.pickable}"),
+            "the template must branch on pickability — an invisible distinction is \
+             not a distinction"
+        );
+        assert!(
+            picker.contains("class=\"candidate look-only\""),
+            "look-only rows need their own class so they read as unavailable"
+        );
+        assert!(
+            picker.contains("look-tag"),
+            "a look-only row must carry its visible `look only` tag"
+        );
+        // Not a `<button>`: a disabled control reads as "not right now", and this
+        // is a permanent rules fact. Checked by position — the look-only element's
+        // opening tag must be a `div`.
+        let look_only_at = picker
+            .find("class=\"candidate look-only\"")
+            .expect("just asserted");
+        let tag_start = picker[..look_only_at]
+            .rfind('<')
+            .expect("the class sits inside an element");
+        assert!(
+            picker[tag_start..].starts_with("<div"),
+            "the look-only row must not be a button (disabled or otherwise): it is \
+             not a control that is unavailable right now, it is a card this search \
+             can never find. Found: {:?}",
+            &picker[tag_start..tag_start + 20.min(picker.len() - tag_start)]
+        );
+
+        // 4. And the server's field actually reaches the picker.
+        let action_bar = text_of("ActionBar.svelte");
+        assert!(
+            action_bar.contains("allCards={currentShape.all_cards"),
+            "`ActionBar` must pass `AnswerShapeView::PickOne::all_cards` down; the \
+             picker cannot show a look it is never given"
+        );
+    }
+
     /// Replace every `<!-- … -->` body with spaces, keeping newlines and byte
     /// offsets aligned with the source.
     ///
