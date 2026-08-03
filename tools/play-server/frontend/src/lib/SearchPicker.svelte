@@ -107,10 +107,18 @@
    * is covered by an automated test, though two source gates in `main.rs` pin the
    * `pickable` split and the `onError` wiring. Specifically unexercised: the
    * fail-to-find path (both that it is rendered when `mayDecline` is true and that
-   * it is absent when false), either filter against a genuinely long list, the
-   * selected-then-filtered-out case described above, the graveyard-search union
-   * branch (no `Complete` card in the corpus reaches it through a `PickOne`), and
-   * the malformed-template guard, which cannot fire against the real server.
+   * it is absent when false), the selected-then-filtered-out case described above,
+   * the graveyard-search union branch (no `Complete` card in the corpus reaches it
+   * through a `PickOne`), and the malformed-template guard, which cannot fire
+   * against the real server. `emit`'s membership guard is likewise unexercised at
+   * runtime **by construction** — the render gives a look-only card no click
+   * target, so nothing reachable from the page can set `chosenId` to one. It is
+   * there for the refactor that changes that, and only the source gate holds it.
+   *
+   * Browser-verified live (UI-6, seed 116, Three Visits, turn 9): 89 rows / 33
+   * findable / 56 look-only, the list scrolling 2082px inside 224px, a look-only
+   * row rendering as a `DIV` whose click produced 0 POSTs and 0 selection, and a
+   * non-default pick posting `{"found":97}` against a server default of `10`.
    */
   import { plainClone } from './plainClone.svelte.js';
 
