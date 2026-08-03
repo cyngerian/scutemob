@@ -74,3 +74,29 @@ the orphaned-token class is 70.7% of the run, and `player_consistency` is a seco
    where the engine takes the choice inline and leaves no artefact, and the absence of the
    artefact is the same property that makes it a defect. Three alternatives were considered
    and all three rejected with reasons. Plan §3.5.
+
+---
+
+## Stage 0 step 4 — the two deferred thresholds, measured (this invocation, stages 0-3)
+
+Plan §5 Stage 0 step 4. Both measured on this branch, debug build (`cargo test`), before
+any Stage 1-3 source edit.
+
+* **`MAX_HEURISTIC_POOLS_EMPTIED_PER_SEED`**: `cargo test -p mtg-simulator --test
+  sim5_bot_cast_discipline -- --nocapture` → seeds 0/7/42 (`HeuristicBot`, `AB_MAX_TURNS
+  = 25`, `setup::build_initial_state`) printed `mana_pools_emptied: 0`, `1`, `0`.
+  Max observed = **1**, matching the plan's cited SIM-5 prior exactly. Pinned at **1**
+  (§3.4: not zero, `OOS-SIM2-1` is open).
+* **`MAX_BOT_REJECTION_PER_MILLE_AT_GATE_CONFIG`**: measured with a throwaway probe
+  mirroring the Stage-2 gate's own configuration exactly (3 seeds [1, 2, 3] x 25 turns x
+  `RandomBot` x `build_fuzz_state`, `record_journal: false`, debug build — the same
+  binary `cargo test` will run for T2.2). Seed 1: 1005 commands / 85 rejections; seed 2:
+  886 / 0; seed 3: 876 / 1. **Aggregate: 2,767 commands / 86 rejections = 31.081‰.**
+  Runtime was 2.06s for all three seeds — well under plan §7 R3's ~60s concern, so no
+  seed-count reduction was needed. Pinned at **40** (~30% headroom over 31.081), with a
+  floor `total_commands >= 2200` (2767 x 0.8, rounded down) and `rejections > 0`. This
+  is a DIFFERENT number from §0.3's 22.953‰ (200-turn release-profile number) by design
+  — plan §5 Stage 0 step 4 explicitly forbids reusing it for the test gate, since the two
+  measure different configurations (25 vs 200 turns, debug vs fuzz profile).
+  Scratch probe file `crates/simulator/tests/pb_dx32_stage0_measure_scratch.rs` was
+  written, run, and deleted — never committed.
