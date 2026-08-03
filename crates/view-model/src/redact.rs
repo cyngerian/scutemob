@@ -37,7 +37,7 @@
 //! | `PermanentView::is_commander` | raw `obj.card_id` | **yes — a live leak layers cannot close**, see `redact_face_down_permanents` |
 //! | `objects_in_zone_as_card_views` (hand/graveyard/exile/command) | raw `characteristics.name` | hand + exile yes; graveyard and command zone are public |
 //! | `StackItemView::source_name` | raw `characteristics.name` | yes |
-//! | `format_target` | raw `characteristics.name` | yes (object targets only — a player target is public, CR 108.1) |
+//! | `format_target` | raw `characteristics.name` | yes (object targets only — a player target is public, CR 601.2c / 400.2) |
 //! | `AttackerView::name` and its planeswalker `target` | raw `characteristics.name` | yes |
 //! | `BlockerView::name` | raw `characteristics.name` | yes |
 //! | `PlayerView::commander_damage_received` (inner keys) | raw `characteristics.name` | **no, and correctly so** — a non-zero entry requires that commander to have dealt combat damage, at which point CR 903.10a makes the association public in paper too. Same information, same timing. |
@@ -239,8 +239,10 @@ fn redact_stack(view: &mut StateViewModel, state: &GameState, seat: PlayerId) {
         }
 
         for (rendered, spell_target) in item.targets.iter_mut().zip(stack_object.targets.iter()) {
-            // A player target is always public (CR 108.1) — only object targets
-            // can carry an identity the viewer is not entitled to.
+            // A player target is always public (CR 601.2c names "an appropriate
+            // object or player" as a target; CR 400.2 makes the stack a public
+            // zone) — only object targets can carry an identity the viewer is not
+            // entitled to.
             if let Target::Object(object_id) = spell_target.target {
                 if !viewer_may_identify(state, object_id, seat) {
                     *rendered = HIDDEN_TARGET.to_string();

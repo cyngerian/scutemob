@@ -352,7 +352,12 @@ use crate::state::hash::HASH_SCHEMA_VERSION;
 ///   field types (`Vec<ObjectId>`, `u32`) are already in the closure, so the
 ///   closure's type count is unchanged (96); `EffectChoiceQuestion`'s and
 ///   `EffectChoiceAnswer`'s declared shapes moved, so the digest moves.
-pub const PROTOCOL_VERSION: u32 = 34;
+/// - 35: ENG-2 (2026-08-02, OOS-G7-1 — an announcement-time target event, CR
+///   601.2c/602.2b/603.3d): `GameEvent` (a wire frame) gains a new variant,
+///   `TargetsAnnounced` (discriminant 132), reachable fields already in the
+///   closure. The closure's type count is unchanged (96); `GameEvent`'s
+///   declared shape moved, so the digest moves.
+pub const PROTOCOL_VERSION: u32 = 35;
 
 /// Digest of the serialized shape of the wire-frame type closure
 /// (`Command`, `GameEvent`, [`ReplayLog`] and everything they reach).
@@ -370,7 +375,7 @@ pub const PROTOCOL_VERSION: u32 = 34;
 /// existing `u32` *means* does not. Semantic changes still require a manual
 /// [`PROTOCOL_VERSION`] bump.
 pub const PROTOCOL_SCHEMA_FINGERPRINT: &str =
-    "2cda8c055ffd09cf507c6d7ca366a9f24915e79268b823cc0507492a89f5e932";
+    "7a5fc4b0c7f2e116a6674051ffa7b3455416e45cceac7e54f06d2f44698b386b";
 
 /// One `(version, fingerprint)` row of the append-only protocol-schema history.
 ///
@@ -632,6 +637,12 @@ pub const PROTOCOL_HISTORY: &[ProtocolEpoch] = &[
         // variant (see the `- 34:` History line above). Closure type count
         // unchanged (96).
         fingerprint: "2cda8c055ffd09cf507c6d7ca366a9f24915e79268b823cc0507492a89f5e932",
+    },
+    ProtocolEpoch {
+        version: 35,
+        // ENG-2 (2026-08-02, OOS-G7-1): GameEvent gains TargetsAnnounced (see the
+        // `- 35:` History line above). Closure type count unchanged (96).
+        fingerprint: "7a5fc4b0c7f2e116a6674051ffa7b3455416e45cceac7e54f06d2f44698b386b",
     },
 ];
 

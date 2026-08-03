@@ -3756,6 +3756,10 @@ fn handle_activate_loyalty_ability(
         source_object_id: source,
         stack_object_id: stack_id,
     });
+    // ENG-2 (A13, CR 606.1 -> 602.2b): announce the loyalty ability's targets, if
+    // any -- this is the single most visible targeted action in a Commander game
+    // after spells, and OOS-M11-10 territory (recon §1.6(b)).
+    super::events::push_target_announcement(state, &mut events, player, source, stack_id);
     Ok(events)
 }
 /// CR 716.2a: Handle leveling up a Class enchantment.

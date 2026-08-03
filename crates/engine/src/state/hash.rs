@@ -728,7 +728,19 @@
 ///   `stream_fingerprint`. `EffectChoiceQuestion` and `EffectChoiceAnswer` ARE
 ///   in the SR-8 wire closure (both entered it at v31), so this bump is paired
 ///   with `PROTOCOL_VERSION` 33 -> 34.
-pub const HASH_SCHEMA_VERSION: u8 = 71;
+/// - 72: ENG-2 (2026-08-02, OOS-G7-1 — an announcement-time target event, CR
+///   601.2c/602.2b/603.3d): `GameEvent` gains a new `TargetsAnnounced` variant
+///   (discriminant 132), reachable from `GameState` only via
+///   `PendingTrigger.triggering_event: GameEvent`. `decl_fingerprint` MOVES
+///   (new enum variant in the `GameState` serde closure); `stream_fingerprint`
+///   moves per the v40 mechanism (`HASH_SCHEMA_VERSION` is the stream's first
+///   byte) — `canonical_fixture()` carries no `PendingTrigger.triggering_event`
+///   populated with `TargetsAnnounced`, so this is the v69 version-sentinel-
+///   byte-only case, not the v70/v71 payload-bytes case; the new arm's own
+///   field feeds are exercised only by the direct `HashInto` unit test in
+///   `pb_eng2_targets_announced.rs`. `GameEvent` IS in the SR-8 wire closure,
+///   so this bump is paired with `PROTOCOL_VERSION` 34 -> 35.
+pub const HASH_SCHEMA_VERSION: u8 = 72;
 
 /// One `(version, fingerprints)` row of the append-only hash-schema history.
 ///
@@ -1117,6 +1129,23 @@ pub const HASH_SCHEMA_HISTORY: &[HashSchemaEpoch] = &[
         // revert).
         decl_fingerprint: "ce89c9986695ff29a61bdfa00824bd8524612975158ff5309a8b78bba1821747",
         stream_fingerprint: "923b1ff8d022c58c8a73dcddb83b98105da85b45ef968db90221c7c6e665b918",
+    },
+    HashSchemaEpoch {
+        version: 72,
+        // ENG-2 (2026-08-02, OOS-G7-1 -- an announcement-time target event, CR
+        // 601.2c/602.2b/603.3d): `GameEvent` gains a new `TargetsAnnounced`
+        // variant, reached from `GameState` only via `PendingTrigger.
+        // triggering_event: GameEvent` (see the plan's Sec 7(f)). decl_fingerprint
+        // MOVES (new enum variant in the GameState serde closure).
+        // stream_fingerprint moves per the v40 mechanism (HASH_SCHEMA_VERSION is
+        // the stream's first byte) -- `canonical_fixture()` has no
+        // `PendingTrigger.triggering_event` populated with `TargetsAnnounced`, so
+        // this is the version-sentinel-byte-only case (the v69 precedent), not
+        // the v70/v71 payload-bytes case; the new arm's own field bytes are
+        // exercised only by the direct `HashInto` unit test in
+        // `pb_eng2_targets_announced.rs`, not by this stream fixture.
+        decl_fingerprint: "6cb06c1058f199b5ee257a11c0fd86aa19f68785f67320eeac09d3b49f069329",
+        stream_fingerprint: "c5786aaa4327b08b77978de63a772b65787a701b5ef34465705a84ef659eed5c",
     },
 ];
 
@@ -5705,6 +5734,19 @@ impl HashInto for GameEvent {
                 choice_id.hash_into(hasher);
                 source_object_id.hash_into(hasher);
                 question.hash_into(hasher);
+            }
+            // ENG-2: TargetsAnnounced -- CR 601.2c / 602.2b / 603.3d (discriminant 132)
+            GameEvent::TargetsAnnounced {
+                controller,
+                source_object_id,
+                stack_object_id,
+                targets,
+            } => {
+                132u8.hash_into(hasher);
+                controller.hash_into(hasher);
+                source_object_id.hash_into(hasher);
+                stack_object_id.hash_into(hasher);
+                targets.hash_into(hasher);
             }
         }
     }

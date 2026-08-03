@@ -848,6 +848,159 @@ must read adjudication §5 alongside it. OOS-ADJ-3 warns `OOS-DX19-2`'s "613.8b 
 would make a worker build the wrong thing — re-word at dispatch. OOS-ADJ-7 (blood_moon strips
 Artifact card type) rides PB-DX27.
 
+## Worker Handoff (ENG-2, `scutemob-193`) — targets in the event log (G7, CR 601.2c)
+
+**G7 of `memory/playtest-triage-2026-08-02b.md` CLOSED, event-log half.** Before this batch no
+cast/activate/trigger event carried its targets, and a **player**-targeting trigger emitted
+nothing at all — the playtester watched a bot's Fell Specter hit them and the feed said only that
+a triggered ability went on the stack. One additive `GameEvent::TargetsAnnounced` (discriminant
+132) now fires at announcement time from all twelve stack-push sites, and the view-model renders
+it. **PROTOCOL 34 → 35, HASH 71 → 72**, both gate-computed from the failing gate's own output on
+this branch (the triage's "33" is stale — ENG-1 moved both after it was written). Tests
+**4,341 / 0 / 5** full workspace `--no-fail-fast` to a file, residual list **empty**. **0 card-def
+lines**; coverage unmoved **1,133/1,803 = 62.8%**, proven by regenerating `tools/authoring-report.py`
+to a body byte-identical below its self-dating header, not by an empty diff.
+
+**Shape: option (2) of the triage's three, and the rejections are the useful part.** Option (3)
+(the triage's own "cheaper third option" — widen `PermanentTargeted` to cover `Target::Player`)
+was evaluated first, as the brief demanded, and rejected on a structural ground, not a taste one:
+`PermanentTargeted` is **Ward's dispatch channel**, and `flush_sorted` — the reported defect's own
+site — emits none, so widening it **structurally cannot reach the defect**. Option (1) (add a
+`targets` field to each of `SpellCast`/`AbilityActivated`/`AbilityTriggered`) was rejected as
+unfalsifiable: a forgotten site emits `vec![]`, which is indistinguishable from a genuinely
+targetless announcement, so no gate can tell the two apart. Option (2)'s separate event makes
+"announced nothing" and "announced no targets" the same observable, and the census gate below is
+what keeps the site list honest.
+
+**The census gate is the deliverable that outlives the batch.**
+`crates/engine/tests/primitives/pb_eng2_targets_announced.rs::every_announcement_site_is_classified`
+enumerates all 26 `SpellCast`/`AbilityActivated`/`AbilityTriggered` push sites from source and
+requires each to be classified `ANNOUNCES` or `NEVER_TARGETS` **with a reason inline**. A new
+emission site fails the test until someone decides which it is. Part 3 additionally pins that the
+`NEVER_TARGETS` sites have not quietly grown targets.
+
+**Where targets can actually come from: 8 sites, not 12.** The only places a `StackObject` acquires
+non-empty targets today are two struct literals (`casting.rs:4532`, `engine.rs:3703`) and six
+`.targets =` assignments (`abilities.rs:1395/1778/1993/8559/9181/10682`). All eight announce. Four
+more sites are wired anyway — `copy.rs:474/699` (cascade, discover) and `resolution.rs:5463/6183`
+(cipher-copy, suspend free-cast) — because those four hardcode `targets: vec![]` **unconditionally**
+today, which is itself a bug (`OOS-ENG2-3`); wiring them now means the announcement is correct the
+day that seed is closed, rather than being a second thing to remember. The ninth target-carrying
+construction, `copy.rs:163` (`copy_spell_on_stack`), is deliberately **excluded**: CR 707.10, a
+copy of a spell is not *cast*, so there is no CR 601.2c announcement to report.
+
+**Invariant 7 is honoured by reusing the existing chokepoint, not by a new rule.** `private_to()`
+stays `None` and `reveals_hidden_info()` needs no arm — correct, and reasoned rather than omitted:
+CR 601.2c declares targets as part of putting the object on the stack, and CR 400.2 makes the stack
+a public zone, so the *event* is public. The *identity* of an object target may still be private
+(CR 708.2, a face-down permanent), which is a per-FIELD verdict a per-EVENT `private_to()` cannot
+express — so it is decided in `event_view.rs`'s existing `card_or` gate, which routes
+`card_name` → `may_name` → `redact::viewer_may_identify`. Player targets are never redacted.
+`crates/view-model/src/tests.rs` proves both directions on a face-down permanent, with a
+non-vacuity assertion on the omniscient view so the test cannot pass by rendering nothing.
+
+**Downstream, and the "zero changes expected" claim, confirmed by measurement.** `event_view.rs`
+gets the prose arm plus an `event_tier` entry (**neither is compiler-forced** — the tier match is
+non-exhaustive, so a new variant silently lands in `Game` and the feed's `stack` filter would never
+show it; that class is `OOS-ENG2-7`). `tools/tui/src/play/app.rs` gets an arm (its `_ =>
+String::new()` would otherwise drop the line silently — class filed as `OOS-ENG2-8`).
+`tools/replay-viewer/frontend/src/lib/eventFormat.js` gets a raw dev-tool line. **`tools/play-server`
+carries zero source changes and the play frontend zero changes** — verified, not assumed:
+`grep "GameEvent::" tools/play-server/src` returns only doc comments, and the +60 lines in
+`main.rs` are entirely inside `mod tests`. The existing `event_view_for` → `EventView` → JSON
+pipeline carries the new variant unmodified. `state/hash.rs` is the one arm the compiler demands.
+
+**Rider taken while in the file (§4.5/§4.6).** `GameEvent::TargetsChanged` (CR 115.7) had **no**
+`event_view` arm at all and rendered as the bare kind string; it now renders `old → new` through
+the same `card_or` gate (`OOS-ENG2-4` filed and closed in the same breath). And three shipped
+comments cited **CR 108.1** — the *Oracle-text* rule — for "a player target is public"
+(`OOS-ENG2-5`).
+
+**That citation rider was itself wrong once, and the correction is the lesson.** The first
+replacement was `CR 102.1 / 115.1 / 400.2`. The `/review` cycle caught it: 102.1 merely defines
+what a player *is*, and 400.2 is about whether *cards' faces* are visible in a *zone* — a player is
+neither a card nor a zone. Only one rule actually says a player can be a target, and it is the one
+in this task's own title: **CR 601.2c**, *"an appropriate object **or player** for each target"*.
+Shipped chain is now `CR 601.2c / 400.2` at all **six** sites (the original count of three was also
+wrong). **Replacing a wrong citation with a plausible one is not a fix** — verify the replacement
+against the CR text, which is what the reviewer did and the implementer did not.
+
+### The crash, and what verifying inherited work actually caught
+
+The first worker process died after committing stage E (PROTOCOL/HASH) but before verification and
+close-out. The relaunched worker was told to trust the commits and verify them. The engine work
+survived that scrutiny intact — but **every doc-comment count in it was wrong**, and one gate was
+weaker than its own comment admitted:
+
+| Finding | What it was | Why it mattered |
+|---|---|---|
+| The gate's Part 2 was `body.contains("push_target_announcement(")` | Two functions carry **two** announcement sites each (`flush_sorted`: T6 modular, T7 main; `resolve_top_of_stack_inner`: S4 cipher, S5 suspend), so either call alone satisfied it | **T6 has no behavioural probe anywhere in the suite** — deleting it was invisible to all 4,341 tests. Now counts per function; **proven red by executing the revert** (deleting the T6 call fails `left: 1, right: 2`; the old assertion passes on that same tree) |
+| `events.rs` SR-4 comment said "8 call sites" | There are 12 | The invariant it asserted was **true at all twelve** — only the count rotted. Restated without a count, pointing at the gate as the thing that keeps it true |
+| `event_tier` comment claimed the match "has no `_` arm" | The `_ => EventTier::Game` default is three lines below; the paren was also unclosed | A comment that argues from a false invariant is the PB-DX19 failure mode verbatim — that batch's HIGH survived 4.5 months behind exactly this |
+| `FROZEN_HISTORY_PREFIX_DIGEST` in both schema gates | Values moved; no ENG-2 line appended to their running attribution logs | The logs are append-only by convention; a silent value move breaks the audit trail |
+
+**Generalisable**: the crashed worker's *code* was trustworthy and its *prose about the code* was
+not. Counts in comments are the first thing to rot and the last thing anyone re-derives.
+
+### Browser verification (live headless Chromium, independently re-run)
+
+Both runs are recorded as ESM task comments. The second was run by the relaunched worker precisely
+because the first rested on evidence nobody could re-inspect.
+
+| Run | Seed | Observed in the DOM |
+|---|---|---|
+| Original (comment 1310) | 12, :3041 | `Scrawling Crawler targets Human-1` ×3, kind `TargetsAnnounced`, tier stack, player Bot-4, immediately after the `AbilityTriggered` line; turn 26, 250 pass clicks, 1,984 feed lines |
+| Re-run (comment 1314) | **193193**, :3047, release build | **`Omnath, Locus of the Roil targets Human-1`**, class `feed-line tone-plain tier-stack`, player **Bot-2**, turn 14, 129 pass clicks, 1,416 feed lines, **0 uncaught page errors** |
+
+The re-run is a bot-controlled **triggered** ability (Omnath's ETB, "deals damage to any target")
+naming the **human player** — the exact Fell Specter class G7 reports, which emitted nothing at all
+before this batch. Two other DOM lines named objects (`Shrieking Drake targets Shrieking Drake`,
+`… targets Foundry Street Denizen`), so the sentence is not a fixed string. Corroborated at the
+wire level by an HTTP-only drive of the same seed finding the identical line in the human seat
+payload's `events` array.
+
+**Recipe for the next batch that needs this** (two things cost the re-run most of its time):
+the page boots with **no game** — deal a table through the real pregame controls (fill the two
+`input[inputmode="numeric"]`, click `button.primary`), and **"Use the default" in `DiscardPicker`
+FILLS the selection, it does not submit** (`DiscardPicker.svelte:78`), so clicking it in a loop
+spins forever — click `button.secondary` then `button.confirm`. Driving over HTTP *instead of*
+clicking does not work for a feed check: `GET /api/game` drains the event cursor, so an external
+driver steals the events the browser was going to render.
+
+### Seeds
+
+Filed: **`OOS-ENG2-1`** (MEDIUM — CR 702.21a: `flush_sorted` emits no `PermanentTargeted`, so
+**Ward never fires on a triggered ability**; pinned wrong-way-round by a probe with an instruction
+to the successor), **`OOS-ENG2-2`** (MEDIUM — same class, four more sites the recon missed:
+`handle_activate_forecast`, `handle_scavenge_card`, the loyalty handler, `flush_sorted`'s modular
+arm), **`OOS-ENG2-3`** (MEDIUM — cascade/discover/cipher-copy/suspend free-casts hardcode
+`targets: vec![]`, so a free-cast targeted spell reaches the stack with no targets; three of the
+four admit it in an in-source comment), **`OOS-ENG2-6`** (LOW — the "cards sections" highlight ask;
+a derived `PermanentView` field, no engine change, explicitly out of scope), **`OOS-ENG2-7`** (LOW —
+`event_tier` is non-exhaustive by design and nothing asks; proposes a count-only-grows ratchet),
+**`OOS-ENG2-8`** (LOW — the TUI's `_ => String::new()` silently drops any new event; mitigated for
+this variant, class stands), **`OOS-ENG2-9`** (LOW — the feed now carries two lines per
+battlefield-object target, `PermanentTargeted` + `TargetsAnnounced`; the superset proof is recorded
+so the follow-up can delete the `PermanentTargeted` prose arm without re-deriving it).
+
+Closed: **`OOS-G7-1`** (this batch, event-log half; the triage's stack half was already REFUTED),
+**`OOS-ENG2-4`** and **`OOS-ENG2-5`** (both by their own riders, `-5` twice — see the citation
+paragraph above).
+
+**Untouched by design**: `OOS-M11-10` (the loyalty-ability targeting gap) — this batch *announces*
+loyalty targets (site A13) but does not touch that seed's substance.
+
+**Successor candidate: `OOS-ENG2-1`/`-2` together.** Ward not firing on any triggered ability is a
+game-outcome bug, the two seeds are one mechanism at five sites, and this batch's own census has
+already enumerated every site it touches. It will move fuzz and golden parity — budget for that.
+
+**Benches within noise, as predicted**: `full_turn_4p` **221.2 µs** (PB-DX6 pinned 220–222),
+`priority_cycle_4p` **24.4 µs**, `sba_check` **14.2 µs**, `full_turn_6p` 351.3 µs, `board_wipe_4p`
+107.0 µs. Expected — the helper is one `stack_objects()` scan per *announcement*, not per priority
+cycle, and it returns before allocating when the target list is empty.
+
+Full plan and per-stage reasoning: `memory/primitives/pb-plan-ENG2.md`.
+
 ## Worker Handoff (ENG-1, `scutemob-191`) — effect-driven discard is a real player choice (G3, CR 701.9b)
 
 **G3 of `memory/playtest-triage-2026-08-02b.md` CLOSED.** `Effect::DiscardCards` used to execute

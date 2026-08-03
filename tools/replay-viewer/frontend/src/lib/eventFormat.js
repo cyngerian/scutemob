@@ -138,6 +138,11 @@ export function formatEvent(event) {
       case 'AbilityResolved':
         return `Ability resolved (controller: ${data.controller})`;
 
+      // ENG-2 (CR 601.2c / 602.2b / 603.3d): targets announced when a spell or
+      // ability was put on the stack (source: raw dev-tool render, no redaction).
+      case 'TargetsAnnounced':
+        return `${data.controller} announces targets ${JSON.stringify(data.targets)} for ${data.source_object_id} (stack id: ${data.stack_object_id})`;
+
       case 'CreatureDied':
         return `Creature ${data.object_id} died`;
 

@@ -96,6 +96,10 @@
   `memory/primitives/seed-rerank-2026-08-02.md` §4). **PB-DX7 is no longer next** — it survives at
   rank 9; eight new entries outrank it. Older queue history (the PB-OS,
   PB-RS and PB-DP chains) is rotated to the 2026-08 archive.
+- **Tests (delta 2026-08-02, ENG-2)**: **4,341 / 0 / 5** full-workspace on branch
+  `scutemob-193` (+11 over ENG-1's 4,330 — 9 engine probes + 1 view-model redaction probe + 1
+  play-server HTTP probe), measured with `--workspace --no-fail-fast` to a file, residual list
+  empty. **PROTOCOL 34 → 35, HASH 71 → 72**, both gate-computed. Earlier pins below.
 - **Tests (delta 2026-08-02, ENG-1)**: **4,330 / 0 / 5** full-workspace on branch
   `scutemob-191` (+13 over a 4,317 baseline measured on that branch BEFORE any edit — 11 engine
   tests + 2 play-server probes), measured with `--workspace --no-fail-fast` to a file.
@@ -233,7 +237,18 @@
 - **Recurrence rule** — future `/collect` and milestone-close bookkeeping appends its detailed PB/SR
   narrative to that archive file (newest first), and updates only a one-paragraph snapshot delta
   here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
-- **Last Updated**: 2026-08-02 — **ENG-1 SHIPPED** (`scutemob-191`, merge `a3b5e56b`; **G3** of
+- **Last Updated**: 2026-08-02 — **ENG-2 SHIPPED** (`scutemob-193`, merge `<pending>`; **G7** of
+  `memory/playtest-triage-2026-08-02b.md`, row 7 of its successor table).
+  Targets reach the event log: one additive `GameEvent::TargetsAnnounced` (discriminant 132) fires
+  at announcement time from all 12 stack-push sites (CR 601.2c/602.2b/603.3d), player targets
+  public and object targets through `event_view`'s existing `card_or` gate (Invariant 7).
+  Tests **4,341 / 0 / 5** (+11); 0 card-def lines, 0 play-server source lines, 0 play-frontend
+  lines, coverage unmoved **1,133/1,803 = 62.8%**; PROTOCOL **34 → 35** / HASH **71 → 72**.
+  Seeds: **OOS-G7-1 CLOSED**; filed **OOS-ENG2-1, -2, -3, -6, -7, -8, -9**; **OOS-ENG2-4** and
+  **OOS-ENG2-5** filed and CLOSED by their own riders. Successor candidate:
+  **OOS-ENG2-1** + **OOS-ENG2-2** together (Ward never fires on a triggered ability).
+  Full handoff: `memory/workstream-state.md`.
+- **Prior**: 2026-08-02 — **ENG-1 SHIPPED** (`scutemob-191`, merge `a3b5e56b`; **G3** of
   `memory/playtest-triage-2026-08-02b.md`, row 6 of its successor table).
   Effect-driven discard is a real player choice: `Effect::DiscardCards` suspends into a new
   `EffectChoiceQuestion::Discard` (CR 701.9b) instead of auto-picking the lowest `ObjectId`.

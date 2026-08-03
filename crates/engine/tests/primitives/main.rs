@@ -51,6 +51,7 @@ mod pb_ef7_modal_activated;
 mod pb_ef8_exile_self_from_hand;
 mod pb_ef9_while_you_control_source;
 mod pb_eng1_effect_discard_choice;
+mod pb_eng2_targets_announced;
 mod pb_k_land_drops;
 mod pb_l_landfall;
 mod pb_os10_singleton_cleanup;

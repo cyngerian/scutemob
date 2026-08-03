@@ -468,6 +468,16 @@ pub fn resolve_cascade(
                 stack_object_id: stack_entry_id,
                 source_object_id: stack_source_id,
             });
+            // ENG-2 (S2, CR 601.2c): announce the cascade free-cast's targets. A
+            // no-op today (OOS-ENG2-3: cascade hardcodes `targets: vec![]`), wired
+            // in now so the announcement comes for free when that gap closes.
+            crate::rules::events::push_target_announcement(
+                state,
+                &mut events,
+                caster,
+                stack_source_id,
+                stack_entry_id,
+            );
             events.push(GameEvent::CascadeCast {
                 player: caster,
                 card_id: stack_source_id,
@@ -683,6 +693,16 @@ pub fn resolve_discover(
                 stack_object_id: stack_entry_id,
                 source_object_id: stack_source_id,
             });
+            // ENG-2 (S3, CR 601.2c): announce the discover free-cast's targets. A
+            // no-op today (OOS-ENG2-3: discover hardcodes `targets: vec![]`), wired
+            // in now so the announcement comes for free when that gap closes.
+            crate::rules::events::push_target_announcement(
+                state,
+                &mut events,
+                player,
+                stack_source_id,
+                stack_entry_id,
+            );
             events.push(GameEvent::DiscoverCast {
                 player,
                 card_id: stack_source_id,

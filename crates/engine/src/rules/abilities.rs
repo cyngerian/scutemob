@@ -1418,6 +1418,8 @@ pub fn handle_activate_ability(
         source_object_id: source,
         stack_object_id: stack_id,
     });
+    // ENG-2 (A1, CR 602.2b): announce the ability's targets, if any.
+    super::events::push_target_announcement(state, &mut events, player, source, stack_id);
     // CR 702.21a: Emit PermanentTargeted for each battlefield permanent that this
     // activated ability targets. These events drive Ward trigger checks in check_triggers.
     // `targeting_stack_id` is the stack entry's own ObjectId so the ward CounterSpell
@@ -1786,6 +1788,8 @@ pub fn handle_activate_forecast(
         source_object_id: card,
         stack_object_id: stack_id,
     });
+    // ENG-2 (A3, CR 602.2b): announce the forecast ability's targets, if any.
+    super::events::push_target_announcement(state, &mut events, player, card, stack_id);
     events.push(GameEvent::PriorityGiven { player });
     Ok(events)
 }
@@ -2001,6 +2005,9 @@ pub fn handle_activate_bloodrush(
         source_object_id: card,
         stack_object_id: stack_id,
     });
+    // ENG-2 (A4, CR 602.2b): announce the bloodrush ability's (single, unfiltered)
+    // target.
+    super::events::push_target_announcement(state, &mut events, player, card, stack_id);
     // CR 702.21a: Emit PermanentTargeted so Ward triggers fire when the target
     // creature has Ward. Mirrors the pattern in handle_activate_ability (lines
     // 464-470) which emits this event for every battlefield permanent targeted
@@ -8556,6 +8563,14 @@ fn flush_sorted(
                         source_object_id: trigger.source,
                         stack_object_id: stack_id,
                     });
+                    // ENG-2 (T6, CR 603.3d): announce the modular trigger's target.
+                    super::events::push_target_announcement(
+                        state,
+                        &mut events,
+                        trigger.controller,
+                        trigger.source,
+                        stack_id,
+                    );
                     // For trigger doubling: already handled via additional_count loop below,
                     // but modular uses an early-exit path above. We run additional_count
                     // copies too. However, for simplicity and correctness, break out of the
@@ -9237,6 +9252,18 @@ fn flush_sorted(
                 source_object_id: trigger.source,
                 stack_object_id: stack_id,
             });
+            // ENG-2 (T7, CR 603.3d): announce the triggered ability's targets, if
+            // any -- this is the reported defect's site (the Fell Specter class).
+            // Covers both the auto-default and the PB-DP8 human-answered path,
+            // since both flush_pending_triggers and resume_trigger_flush call
+            // flush_sorted.
+            super::events::push_target_announcement(
+                state,
+                &mut events,
+                trigger.controller,
+                trigger.source,
+                stack_id,
+            );
         }
         // CR 603.2c/603.2h (PB-AC1): mark this once-per-turn ability as fired now that
         // it has been put on the stack (exactly once, per the additional_count == 0
@@ -10668,6 +10695,8 @@ pub fn handle_scavenge_card(
         source_object_id: card,
         stack_object_id: stack_id,
     });
+    // ENG-2 (A12, CR 602.2b): announce the scavenge ability's target creature.
+    crate::rules::events::push_target_announcement(state, &mut events, player, card, stack_id);
     events.push(crate::rules::events::GameEvent::PriorityGiven { player });
     Ok(events)
 }
