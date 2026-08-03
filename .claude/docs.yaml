@@ -195,3 +195,16 @@ templates:
     triggers:
     - crates/engine/tests/**
     frequency: session
+
+  # ================================================================
+  # Strategy + dispatch-proposal ledgers — coupled to the subsystems whose
+  # feedback channels they plan; a session touching those may invalidate rows.
+  # ================================================================
+  feedback-engineering:
+    file: mtg-engine-feedback-engineering.md
+    description: Alpha feedback-loop strategy (channel inventory, ranked buildout proposals, alpha-pipeline ownership)
+    triggers:
+    - crates/simulator/**
+    - tools/play-server/**
+    - .github/workflows/**
+    frequency: session

@@ -36,8 +36,9 @@
   the PB-DX correctness queue alone** (`memory/primitives/seed-rerank-2026-08-02.md` §4 — v3,
   `scutemob-182`; PB-DX19 shipped `451e3517`, **next PB-DX20**; the playtest-successor run 174–181
   AND the triage-2 successor run 187–194 both completed 2026-08-02 — triage 2 is fully closed,
-  8/8 rows shipped. **Queued for a FRESH session by user direction: FEEDBACK-1 (`scutemob-192`)**,
-  the alpha feedback-loop planning task; PROTOCOL **35** / HASH **72** as of ENG-2).
+  8/8 rows shipped. **FEEDBACK-1 SHIPPED** (`scutemob-192`, merge `d55e74cc`, doc-only):
+  `docs/mtg-engine-feedback-engineering.md` is the alpha feedback-loop strategy — 8 ranked
+  proposals, dispatch order the coordinator's; PROTOCOL **35** / HASH **72** as of ENG-2).
   The roadmap's next milestone candidate is **M10-pre → M10a** — *not
   started, and not to be started without direction.* Full session-by-session M11 narrative:
   `memory/archive/claude-md-changelog-2026-08.md`; S8 handoff and durable lessons:
@@ -244,7 +245,18 @@
 - **Recurrence rule** — future `/collect` and milestone-close bookkeeping appends its detailed PB/SR
   narrative to that archive file (newest first), and updates only a one-paragraph snapshot delta
   here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
-- **Last Updated**: 2026-08-02 — **UI-6 SHIPPED** (`scutemob-194`, merge `dd5cb47d`; **G9** of
+- **Last Updated**: 2026-08-03 — **FEEDBACK-1 SHIPPED** (`scutemob-192`, merge `d55e74cc`;
+  doc-only, the user-directed fresh-session planning task).
+  `docs/mtg-engine-feedback-engineering.md`: 14-channel inventory, 8-row ranked proposal table
+  (rows 1/3 are the queued PB-DX22/PB-DX32 — reconciled, not duplicated; PB-DX32 argued for
+  promotion), alpha-loop ownership table, 18 from/to corrections. Headline: of 17 functional
+  playtest findings only 2 are engine-layer; the crash→seed→replay pipeline does not exist
+  (`fuzzer.rs:270`); the decision-point gate already exists (`decision_gate.rs`, ratchet 80) —
+  extend, don't rebuild; the rejection channel is bot-path-only (`local_game.rs:564`).
+  Tests unmoved (0 code lines, 1 doc file); PROTOCOL **35** / HASH **72** by construction.
+  Seeds: **OOS-FB1-1..9** specified in doc §5, **NOT filed** (conflict bar) — filing is a
+  successor step. Full handoff: ESM task comments on `scutemob-192` (scutemob-183 pattern).
+- **Prior**: 2026-08-02 — **UI-6 SHIPPED** (`scutemob-194`, merge `dd5cb47d`; **G9** of
   `memory/playtest-triage-2026-08-02b.md`, row 8 — the **last** row of its successor table, which
   is now fully dispatched).
   The browser shows a searcher their whole library, look-only: `AnswerShapeView::PickOne` gains
@@ -599,6 +611,7 @@ entirely in isolation. The network layer wraps the engine. The Tauri app wraps t
 | M11-local Session Plan | `memory/m11-session-plan.md` | The active first-playable plan: 8 sessions, crate-by-crate scope, the steppable-driver decision, hidden-info chokepoints, risks |
 | Card Authoring Operations | `docs/card-authoring-operations.md` | **HISTORICAL — 2026-03-21 runbook, superseded.** Active campaign: `memory/card-authoring/campaign-plan-2026-05-16.md`; live coverage `docs/authoring-status.md`. (Its "Authoring Order" section is still cited by the Wave Process below.) |
 | Runtime Integrity | `docs/mtg-engine-runtime-integrity.md` | Watchdog, recovery, bug reporting — pre-alpha requirement |
+| Feedback Engineering | `docs/mtg-engine-feedback-engineering.md` | Alpha feedback-loop strategy: channel inventory, 8 ranked buildout proposals, alpha-pipeline ownership (2026-08-03, dispatch-ready) |
 | Type Consolidation Plan | `docs/mtg-engine-type-consolidation.md` | Pre-M10 refactoring: CastSpell, SOK triggers, AbilityDef, Designations — 8 sessions |
 | Cleanup Retention Policy | `docs/cleanup-retention-policy.md` | Two-tier ladder, year-month archive convention, /cleanup skill protocol |
 | This file | `CLAUDE.md` | Current project state; session context |

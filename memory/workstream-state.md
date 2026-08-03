@@ -3327,6 +3327,9 @@ rows shipped)**; every row ✅-marked in `memory/playtest-triage-2026-08-02b.md`
 
 **Not done / deferred**:
 - **FEEDBACK-1 (`scutemob-192`) dispatch** — waits for a fresh Claude Code session by user request.
+  - **→ DONE 2026-08-03** (oversight #4): dispatched, collected, merge `d55e74cc`, doc-only
+    (`docs/mtg-engine-feedback-engineering.md`); handoff lives in ESM task comments
+    (scutemob-183 pattern); OOS-FB1-1..9 specified in doc §5 but NOT yet filed.
 - Inherited from oversight #2 (see Previous Handoff): v3 §4 not re-rowed with DX42a/b; OOS-ADJ-1..7
   not rowed into `decision-point-audit.md` §8.1; `scutemob-127` still backlog.
 - Successor candidates flagged by workers, unranked: **OOS-SIM6-3** (bot/human mana-cost
