@@ -8,7 +8,7 @@ CR 903.8 / 903.9a / 903.10a have never been fuzzed)
 (rank 4, EVIDENCE INTEGRITY) + §2.4. Cross-read `docs/mtg-engine-feedback-engineering.md` §2.1
 row 1.
 **Task**: `scutemob-196` · **Branch**: `feat/pb-dx22-make-the-fuzzer-a-real-instrument-oos-ui2-1-oos-sim3`
-**Phase**: plan
+**Phase**: implement (Stages 0-4; Stage 5 is the coordinator's)
 
 ---
 
@@ -68,3 +68,49 @@ Recorded **before** any acceptance evidence was written, per the brief.
 ## Plan file
 
 `memory/primitives/pb-plan-DX22.md` (written by `primitive-impl-planner`).
+
+---
+
+## Stage checklist (plan §5)
+
+### - [x] Stage 0 — baseline, no source edits
+
+**Full-workspace baseline**, captured to a file (never `| tail`), summed with awk over 41
+`^test result` lines: **4,345 passed / 0 failed / 5 ignored**. Exit 0, zero `failures:` /
+`FAILED` / `error[` lines. Raw: `/tmp/pb-dx22-baseline.txt`. Matches the plan's expected 4,345.
+
+**Wire sentinels GATE-EXECUTED, not predicted**:
+
+* `cargo test -p mtg-engine --test core hash_schema` → exit 0, all green;
+  `crates/engine/src/state/hash.rs:743` `pub const HASH_SCHEMA_VERSION: u8 = 72;` → **HASH 72**.
+* `cargo test -p mtg-engine --test core protocol_schema` → `17 passed; 0 failed`;
+  `crates/engine/src/rules/protocol.rs:360` `pub const PROTOCOL_VERSION: u32 = 35;` →
+  **PROTOCOL 35**.
+
+**Baseline fuzz run** (`--profile fuzz`, the assertions profile):
+`cargo run --profile fuzz --bin mtg-fuzzer -- --games 20 --seed 1 --max-turns 200 --threads 1
+--verbose` → `/tmp/pb-dx22-fuzz-before.txt`.
+
+| metric | value |
+|---|---|
+| games completed | 20 |
+| wall time | 40.7 s (build 25.5 s separately) |
+| wins / draws / errors | 9 / 0 / **11** |
+| error distribution | 11 × `MaxTurnsReached(200)`, 0 of any other kind |
+| total violations | **1,519** |
+| avg turns per game | **191.7** |
+| violations by `check` (over the 721 lines the binary prints — it prints only the first 5 offending games, so this is a *sample*, not the 1,519) | `no_orphaned_tokens` 569, `player_consistency` 152 |
+
+Per-game (seed / turns / commands / violations / end): 1/176/9802/526/P1 · 2/192/12631/50/P1 ·
+3/201/12362/14/MaxTurns · 4/167/9397/116/P1 · 5/201/12601/15/MaxTurns · 6/172/9338/0/P1 ·
+7/173/10182/36/P2 · 8/201/12035/8/MaxTurns · 9/201/11594/8/MaxTurns · 10/201/11575/36/MaxTurns ·
+11/201/12013/445/MaxTurns · 12/201/12083/14/MaxTurns · 13/182/10044/0/P1 · 14/193/10943/3/P1 ·
+15/182/9876/35/P1 · 16/201/12079/31/MaxTurns · 17/201/11475/0/MaxTurns · 18/185/10739/5/P3 ·
+19/201/13228/151/MaxTurns · 20/201/11279/26/MaxTurns.
+Seeds 1-5 reproduce the §0 pre-plan table exactly (turns 176/192/201/167/201, commands
+9802/12631/12362/9397/12601) — the instrument is the same one the measurement used.
+
+**Tree hygiene**: `git status --short` showed exactly `?? crates/simulator/examples/` and
+`?? memory/primitives/pb-plan-DX22.md`; `git ls-files crash-reports` **empty**;
+`git check-ignore -v crash-reports` → `.gitignore:52`, so the run's crash artefacts are
+untracked by construction.
