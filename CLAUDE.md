@@ -99,6 +99,12 @@
   DX42b dispatch). **PB-DX7 is no longer next** — it survives at
   rank 9; eight new entries outrank it. Older queue history (the PB-OS,
   PB-RS and PB-DP chains) is rotated to the 2026-08 archive.
+- **Tests (delta 2026-08-03, PB-DX22)**: **4,358 / 0 / 5** full-workspace on branch
+  `scutemob-196` (+13 over UI-6's 4,345, which this branch re-measured as its own pre-edit
+  baseline — 12 probes in the new `crates/simulator/tests/pb_dx22_fuzz_instrument.rs` + 1
+  CR 903.9b probe added to `crates/simulator/tests/local_game.rs`), measured with
+  `--workspace --no-fail-fast` to a file, residual list empty. **PROTOCOL 35 / HASH 72
+  unmoved**, both gate-executed. Earlier pins below.
 - **Tests (delta 2026-08-02, UI-6)**: **4,345 / 0 / 5** full-workspace on branch
   `scutemob-194` (+4 over ENG-2's 4,341, measured on that branch BEFORE any edit — 2 play-server
   HTTP probes + 1 frontend source gate + 1 review-cycle restriction probe; the Invariant-7 gate
@@ -245,7 +251,20 @@
 - **Recurrence rule** — future `/collect` and milestone-close bookkeeping appends its detailed PB/SR
   narrative to that archive file (newest first), and updates only a one-paragraph snapshot delta
   here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
-- **Last Updated**: 2026-08-03 — **FEEDBACK-1 SHIPPED** (`scutemob-192`, merge `d55e74cc`;
+- **Last Updated**: 2026-08-03 — **PB-DX22 SHIPPED** (`scutemob-196`; v3 queue rank 4,
+  FEEDBACK-1 §2.1 row 1). The fuzzer is an instrument: it shuffles every library from the
+  game's own seeded RNG (CR 103.3) and registers commanders (CR 903.6) via the new shared
+  `crates/simulator/src/fuzz_setup.rs`, so the first cast moves **turn 143-154 → 3-29**
+  (library-only band **5-29**) and CR 903.8 / 903.9a / 903.10a are fuzzed for the first time.
+  **Every recorded fuzz seed before this merge is dead** (`OOS-DX22-7`); no play-server pin
+  moved (78/0 — `session.rs` builds through the untouched `setup.rs`).
+  Tests **4,358 / 0 / 5** (+13); 0 engine lines, 0 card-def lines, 0 `tools/` lines; PROTOCOL
+  **35** / HASH **72** gate-executed and unmoved; coverage unmoved **1,133/1,803 = 62.8%**.
+  Seeds: **OOS-UI2-1**, **OOS-SIM3-1**, **OOS-SIM1-4** CLOSED; filed **OOS-DX22-1..13** —
+  of which **OOS-DX22-8** is the first real defect the repaired instrument found
+  (pre-existing `attachment_validity`, seed 5 turn 88). Full handoff:
+  `memory/workstream-state.md`.
+- **Prior**: 2026-08-03 — **FEEDBACK-1 SHIPPED** (`scutemob-192`, merge `d55e74cc`;
   doc-only, the user-directed fresh-session planning task).
   `docs/mtg-engine-feedback-engineering.md`: 14-channel inventory, 8-row ranked proposal table
   (rows 1/3 are the queued PB-DX22/PB-DX32 — reconciled, not duplicated; PB-DX32 argued for

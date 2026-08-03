@@ -22,9 +22,9 @@ use mtg_engine::{
     ManaAbility, ManaColor, ObjectId, ObjectSpec, PlayerId, Target, TargetRequirement, ZoneId,
 };
 use mtg_simulator::{
-    action_to_command_with_params, build_registry, ActionParams, AdvanceOutcome, Bot, DecisionKind,
-    DeckConfig, GameDriver, HaltReason, HumanChoice, LegalAction, LocalGame, LocalGameError,
-    LocalGameLimits, ParamError, RandomBot, StubProvider,
+    action_to_command_with_params, build_registry, place_registered_deck, ActionParams,
+    AdvanceOutcome, Bot, DecisionKind, DeckConfig, GameDriver, HaltReason, HumanChoice,
+    LegalAction, LocalGame, LocalGameError, LocalGameLimits, ParamError, RandomBot, StubProvider,
 };
 
 /// A fixed, low-complexity deck: 99 Plains plus the first `Complete` legendary
@@ -54,9 +54,23 @@ fn fixed_deck(cards: &[CardDefinition]) -> DeckConfig {
 }
 
 /// Build an un-started `GameState` for `player_count` players, each with the fixed
-/// deck: commander in the command zone, main deck in the library, `first_turn_of_game`
-/// set. Mirrors `mtg-fuzzer::run_single_game`'s builder logic, minus the RNG-driven
-/// deck selection.
+/// deck: commander in the command zone (**registered**, CR 903.6), main deck in the
+/// library, `first_turn_of_game` set.
+///
+/// **PB-DX22**: this used to be a hand-written copy of `mtg-fuzzer::run_single_game`'s
+/// builder logic — the fuzzer's build lived in `src/bin/fuzzer.rs`, which Cargo compiles
+/// as its own crate, so no integration test could `use` it and a second copy was the
+/// only option. The copy inherited the original's defect: it placed the commander object
+/// but never called `player_commander`, so `commander_ids` was empty and every commander
+/// rule (CR 903.8 tax, CR 903.9a return, CR 903.10a damage) was silently inert in every
+/// game this file drove. Both callers now go through the one
+/// `fuzz_setup::place_registered_deck`, and
+/// `pb_dx22_fuzz_instrument::test_dx22_command_zone_placement_and_registration_are_one_operation`
+/// fails if a third copy ever appears.
+///
+/// It still cannot use `build_fuzz_state`: that draws `random_deck` from the full pool,
+/// and this file deliberately uses a fixed 99-Plains deck for the reason its module doc
+/// gives above.
 fn build_state(
     player_count: u32,
     registry: &Arc<CardRegistry>,
@@ -73,26 +87,28 @@ fn build_state(
 
     for &pid in &player_ids {
         let deck = fixed_deck(cards);
-        if let Some(def) = cards.iter().find(|c| c.card_id == deck.commander) {
-            let spec = ObjectSpec::card(pid, &def.name)
-                .in_zone(ZoneId::Command(pid))
-                .with_card_id(deck.commander.clone());
-            builder = builder.object(enrich_spec_from_def(spec, &card_defs));
-        }
-        for card_id in &deck.main_deck {
-            if let Some(def) = cards.iter().find(|c| c.card_id == *card_id) {
-                let spec = ObjectSpec::card(pid, &def.name)
-                    .in_zone(ZoneId::Library(pid))
-                    .with_card_id(card_id.clone());
-                builder = builder.object(enrich_spec_from_def(spec, &card_defs));
-            }
-        }
+        builder = place_registered_deck(builder, pid, &deck, cards, &card_defs);
     }
 
-    builder
+    let mut state = builder
         .first_turn_of_game()
         .build()
-        .expect("fixed-deck state should build")
+        .expect("fixed-deck state should build");
+    // CR 903.9b: a commander that would go to its owner's hand or library may go to the
+    // command zone instead. These are REPLACEMENT effects, not triggers, so they must be
+    // in `state.replacement_effects` before the game starts, and `GameStateBuilder` does
+    // not derive them from `commander_ids` (`state/builder.rs`'s own doc says so).
+    //
+    // PB-DX22 registered `commander_ids` here (CR 903.6) but this call is a SEPARATE
+    // requirement, and omitting it leaves a distinct half-built Commander game: CR 903.9a
+    // (the graveyard/exile return SBA) would still work, because that is keyed on
+    // `commander_ids` alone, while CR 903.9b would silently not exist and any count of
+    // `CommanderZoneRedirect` would read zero VACUOUSLY. This file drives whole games
+    // through `LocalGame`, where a commander really can be bounced or shuffled away, so
+    // the distinction is reachable here and not academic. Pinned by
+    // `test_dx22_cr_903_9b_replacements_exist_in_the_fixed_deck_build`.
+    mtg_engine::register_commander_zone_replacements(&mut state);
+    state
 }
 
 /// A fresh `RandomBot` per seat, deterministically seeded from `seed` the same way
@@ -2055,14 +2071,24 @@ fn test_auto_tap_skipped_when_pool_already_covers_cost() {
 ///   empties at end of step (CR 500.4), and by its own main phase `can_afford` sees
 ///   no untapped source and the cast is never OFFERED. The journal of such a game is
 ///   two `TapForMana` and then nothing but passes, with **zero** engine rejections.
-/// * **`OOS-UI2-1`** — `bin/fuzzer.rs` builds its libraries through
-///   `GameStateBuilder` **without shuffling them**, while `random_deck` appends its
-///   ~34 basics LAST and `Zone::Ordered`'s top is the last index. Every fuzzer game
-///   therefore deals basics off the top for its whole length. Instrumenting the
+/// * **`OOS-UI2-1`** *(CLOSED by PB-DX22, `scutemob-196` — recorded, not deleted,
+///   because it is what dates UI-2's evidence)* — `bin/fuzzer.rs` built its libraries
+///   through `GameStateBuilder` **without shuffling them**, while `random_deck` appends
+///   its ~34 basics LAST and `Zone::Ordered`'s top is the last index. Every fuzzer game
+///   therefore dealt basics off the top for its whole length. Instrumenting the
 ///   provider over 5 games × 80 turns produced **25,964 hand-card observations and
 ///   not one non-land**. The 360-game A/B this batch ran came back byte-identical
-///   because the fuzzer never casts a spell at all — not because the change is
-///   neutral.
+///   because the fuzzer never cast a spell at all — not because the change was
+///   neutral, and UI-2 said so rather than banking it.
+///
+///   **The "never" was a horizon, measured at `--max-turns 80`**: at the default 200
+///   cap the pre-fix instrument does cast, from game turn 143-154 (`OOS-SIM3-1`).
+///   PB-DX22 shuffles the libraries (CR 103.3) and registers the commanders
+///   (CR 903.6), moving the first cast into a **3-29** band over 20 seeds. **That
+///   does not re-validate UI-2's 360-game A/B — it retires it as evidence.** The
+///   run was byte-identical because it was a land-only game on both sides; a
+///   re-run on the repaired instrument would be a different experiment, and
+///   PB-DX22 did not perform it. Read this bullet as history.
 ///
 /// The bot is handed a one-element action list so the choice is forced and the test
 /// is deterministic. That is not a weaker test than "let it choose": what is under
@@ -2194,5 +2220,54 @@ fn test_ui2_a_bot_pays_a_mandatory_sacrifice_cost_without_an_engine_rejection() 
             .iter()
             .any(|o| o.characteristics.name == "Life's Legacy"),
         "the spell must have left hand for the stack"
+    );
+}
+
+/// CR 903.9b — `build_state`'s games are Commander games in the hand/library direction
+/// too, not just the `commander_ids` one (PB-DX22).
+///
+/// This probe exists because the two requirements are genuinely separable and failing
+/// the second one fails **silently**. `place_registered_deck` gives every seat its
+/// CR 903.6 registration, and that alone makes CR 903.8 tax and the CR 903.9a
+/// graveyard/exile return SBA work — so a fixture missing this call still looks like a
+/// Commander game from most angles. What it loses is CR 903.9b: a commander bounced to
+/// hand or shuffled into the library just stays there, no `CommanderZoneRedirect` is
+/// emitted, and anything counting that event reads zero **vacuously**. This file drives
+/// whole games through `LocalGame`, so that is a reachable state here.
+///
+/// Asserted per seat rather than as a bare total, so a build that registered eight
+/// redirects onto one player would still fail.
+#[test]
+fn test_dx22_cr_903_9b_replacements_exist_in_the_fixed_deck_build() {
+    let cards = all_cards();
+    let registry = Arc::new(CardRegistry::new(cards.clone()));
+    let state = build_state(4, &registry, &cards);
+    let commander = fixed_deck(&cards).commander;
+
+    let effects = state.replacement_effects();
+    assert_eq!(
+        effects.len(),
+        8,
+        "CR 903.9b: exactly two redirects (hand, library) for each of the four seats"
+    );
+
+    for i in 1..=4u64 {
+        let pid = PlayerId(i);
+        let mine = effects.iter().filter(|e| e.controller == pid).count();
+        assert_eq!(
+            mine, 2,
+            "CR 903.9b: seat {pid:?} must own exactly two commander zone redirects"
+        );
+    }
+
+    // Non-vacuity floor: the redirects must actually name this deck's commander, so the
+    // count above cannot be satisfied by eight unrelated replacement effects.
+    let naming = effects
+        .iter()
+        .filter(|e| format!("{:?}", e.trigger).contains(commander.0.as_str()))
+        .count();
+    assert_eq!(
+        naming, 8,
+        "CR 903.9b: every redirect must be filtered on the registered commander {commander:?}"
     );
 }

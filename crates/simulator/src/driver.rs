@@ -24,7 +24,9 @@ use mtg_engine::{GameState, PlayerId};
 
 use crate::bot::Bot;
 use crate::legal_actions::LegalActionProvider;
-use crate::local_game::{AdvanceOutcome, LocalGame, LocalGameError, LocalGameLimits};
+use crate::local_game::{
+    AdvanceOutcome, LocalGame, LocalGameError, LocalGameLimits, MechanicsTally,
+};
 use crate::report::{GameDriverError, GameResult};
 
 /// Drives a complete game, alternating between legal action enumeration
@@ -60,6 +62,25 @@ impl<P: LegalActionProvider> GameDriver<P> {
     /// `run_single_game`, constructs a fresh `GameDriver` per game and never reuses it
     /// after calling `run_game`).
     pub fn run_game(self, initial_state: GameState, seed: u64) -> GameResult {
+        self.run_game_with_mechanics(initial_state, seed).0
+    }
+
+    /// As [`Self::run_game`], and additionally returns the game's [`MechanicsTally`].
+    ///
+    /// PB-DX22 fix cycle (review Finding 1): `mtg-fuzzer` reports commander mechanics and
+    /// first-cast depth in its own summary, so those numbers are re-derivable from
+    /// committed code rather than from a deleted scratch instrument. The tally is a
+    /// constant-size counter set folded from events already in hand — it does **not**
+    /// require the journal, which this driver keeps off on purpose.
+    ///
+    /// It is a separate method rather than a new field on [`GameResult`] because
+    /// `GameResult` is constructed outside this crate (`tools/play-server`), and PB-DX22
+    /// may not touch `tools/`.
+    pub fn run_game_with_mechanics(
+        self,
+        initial_state: GameState,
+        seed: u64,
+    ) -> (GameResult, MechanicsTally) {
         let GameDriver {
             provider,
             bots,
@@ -95,21 +116,24 @@ impl<P: LegalActionProvider> GameDriver<P> {
                     LocalGameError::Engine(inner) => format!("{:?}", inner),
                     other => format!("{:?}", other),
                 };
-                return GameResult {
-                    seed,
-                    winner: None,
-                    turn_count: 0,
-                    total_commands: 0,
-                    violations: Vec::new(),
-                    error: Some(GameDriverError::EngineError(message)),
-                };
+                return (
+                    GameResult {
+                        seed,
+                        winner: None,
+                        turn_count: 0,
+                        total_commands: 0,
+                        violations: Vec::new(),
+                        error: Some(GameDriverError::EngineError(message)),
+                    },
+                    MechanicsTally::default(),
+                );
             }
         };
 
         // A single `advance()` call runs the whole game to conclusion: with
         // `human_seats` empty it never yields `AwaitingHuman`, so `advance()`'s own
         // internal loop only stops at `GameOver` or `Halted`.
-        match game.advance() {
+        let result = match game.advance() {
             AdvanceOutcome::GameOver(result) => result,
             AdvanceOutcome::Halted(reason) => GameResult {
                 seed,
@@ -122,6 +146,10 @@ impl<P: LegalActionProvider> GameDriver<P> {
             AdvanceOutcome::AwaitingHuman(_) => unreachable!(
                 "human_seats is empty; LocalGame::advance() must never yield AwaitingHuman"
             ),
-        }
+        };
+        // Read AFTER the game has run: the CR 903.10a half of the census is a final-state
+        // read, not an event fold.
+        let mechanics = game.mechanics();
+        (result, mechanics)
     }
 }

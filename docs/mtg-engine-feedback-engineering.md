@@ -2,7 +2,8 @@
 
 <!-- last_updated: 2026-08-03 -->
 
-> **Status: STRATEGY + DISPATCH PROPOSAL.** Nothing here is implemented. This file is written in
+> **Status: STRATEGY + DISPATCH PROPOSAL.** **Row 1 (≡ PB-DX22) is SHIPPED** as of 2026-08-03
+> (`scutemob-196`, pending merge — see §2.1); rows 2-8 are unimplemented. This file is written in
 > the shape of `memory/playtest-triage-2026-08-02b.md`: verified claims with `file:line`, a ranked
 > successor table a coordinator can dispatch from verbatim, and dispatch notes.
 > **Created**: 2026-08-03 (`scutemob-192`, FEEDBACK-1).
@@ -152,12 +153,27 @@ tripwires that plain `--release` compiles out — this is how PB-DX19's SIGABRT 
   start with empty hands".)*
   **"Never" is `--max-turns 80`; "from ~turn 143" is the default 200 cap.** Every historical
   "fuzz parity" claim must be read against the `--max-turns` it ran at.
+  **✅ FIXED by PB-DX22 (`scutemob-196`, row 1 below).** `fuzz_setup::build_fuzz_state` shuffles
+  each library from the game's own seeded RNG (CR 103.3 / 903.6). Measured over 20 seeds, the
+  first `SpellCast` moved from game turn **143-154** to a **3-29** band (min 3 / median 12 /
+  max 29), and a 20-game run casts **670** spells. The `--max-turns` caveat above stays as the
+  rule for reading pre-merge claims; it no longer describes the instrument.
+  *(PB-DX22's fix cycle refinement: that 3-29 band counts command-zone commander casts, which
+  library order does not gate. The band for the first cast the SHUFFLE is responsible for is
+  **5-29, median 17** — `OOS-DX22-12`. Both are printed by `mtg-fuzzer`'s own summary now; raw
+  run at `memory/primitives/pb-dx22-measurement-after-fixcycle.txt`.)*
 * **Commander rules.** `fuzzer.rs:322-327` puts the commander card in `ZoneId::Command` but never
   calls `builder.player_commander` — the only production registrar is `setup.rs:399`, whose own
   comment at `:384` says *"`ZoneId::Command` only puts a card there; `player_commander` is what
   records it"* — so
   `commander_ids` is empty and CR 903.8 tax / 903.9a zone return / 903.10a commander damage have
   **never been fuzzed** (`OOS-SIM1-4`).
+  **✅ FIXED by PB-DX22 (`scutemob-196`)**, which puts the placement and the registration in one
+  function (`place_registered_deck`) and adds `register_commander_zone_replacements` (CR 903.9b).
+  Same 20-game run: `CommanderCastFromCommandZone` **0 → 36** across 16 of 20 games, **13**
+  CR 903.9a returns, non-empty `commander_damage_received` in **16 of 20**. CR 903.9b is
+  registered but still unexercised at this sample size (`CommanderZoneRedirect` = 0,
+  `OOS-DX22-9`) — which is now a statement about the games, not about the mechanism.
 * **Reproduction.** See §1.1a — this is worse than the docs say.
 * **Determinism.** `driver.rs:12-19`, current code doc: *"the fuzzer is not run-to-run deterministic
   for very long games, and that reproduces on pristine pre-refactor code."* PB-DX19 fixed the
@@ -515,7 +531,7 @@ should dispatch the existing batch number.
 
 | # | Task | Findings it would have caught | Track | Scope | Wire |
 |---|---|---|---|---|---|
-| 1 | **≡ PB-DX22** *(v3 rank 4, already queued)* — make the fuzzer a real instrument: shuffle the library, register the commander | **none directly, and that is the honest answer** — no F/G finding is catchable by a shuffled fuzzer *alone*. It is what makes row 3 able to catch **F3, F4, F5, G5** at all, and it is the only row that puts CR 903.8/903.9a/903.10a (**F7**'s subsystem) under any automated exercise | simulator | `bin/fuzzer.rs` + `deck.rs`; re-rolls every recorded seed **once** | none |
+| 1 | **≡ PB-DX22 — ✅ SHIPPED** (`scutemob-196`, pending merge to main; was v3 rank 4) — make the fuzzer a real instrument: shuffle the library, register the commander | **none directly, and that is the honest answer** — no F/G finding is catchable by a shuffled fuzzer *alone*. It is what makes row 3 able to catch **F3, F4, F5, G5** at all, and it is the only row that puts CR 903.8/903.9a/903.10a (**F7**'s subsystem) under any automated exercise | simulator | `bin/fuzzer.rs` + `deck.rs`; re-rolls every recorded seed **once** | none |
 | 2 | **FUZZ-CRASH** *(new)* — make the crash artefact reproduce | PB-DX19's SIGABRT (found by a bespoke instrument, not by the fuzzer's own artefact) | simulator | ~120-200 lines: fill `command_history`, per-game abort boundary, `--replay-report` | none |
 | 3 | **≡ PB-DX32** *(v3 rank 19, already queued — argue for promotion)* — invariant #10 (legal-action soundness = SR-38 at runtime) + dedupe the checkpoint weighting + classify the transient-token floor | **F4, F9, G5**; `OOS-SIM5-3` (25 blocker refusals), `OOS-SIM6-3` (62 refusals), `OOS-CARDS2-4` | simulator | `invariants.rs` + `GameResult` fields + dedupe by `(check, description)` | none |
 | 4 | **HTTP-FUZZ** *(new)* — a randomized walker over the 6 play-server routes driving the **human** seat | **G2**, F7, F9, **G4**, G6-as-coverage, `OOS-CARDS2-4`, `OOS-G10-1`, `OOS-SIM6-3`'s human half | play-server (test/bin) | ~300-500 lines over `build_router` + `oneshot`, no port | none |
@@ -548,7 +564,34 @@ finding-count per line and its sensor now exists. 4 is the only row that covers 
 playtester occupies. 5 is the only row that covers the layer G1 lived in. 6 is a force multiplier on
 4, 5 and 1. 7 is free. 8 is small and closes the loop's last link.
 
-### 2.1 Row 1 — ≡ PB-DX22. Dispatch the existing batch; do not create a new task
+### 2.1 Row 1 — ≡ PB-DX22. ✅ SHIPPED (`scutemob-196`, pending merge)
+
+> **Status: SHIPPED.** Dispatched as this doc recommended (the existing batch, not a new task).
+> All three seeds are CLOSED — `OOS-SIM1-4` outright, `OOS-UI2-1` and `OOS-SIM3-1` as closures
+> **with their numbers kept as thresholds**, because those numbers are what date every pre-merge
+> fuzz claim. Dispositions and the full A/B are in `docs/audits/decision-point-audit.md` §8.1
+> (rows `OOS-SIM1-4`, `OOS-UI2-1`, `OOS-SIM3-1`, plus new `OOS-DX22-1..11`).
+>
+> **The open measurement below is SETTLED, and it resolved to the second branch.** An
+> instrumented 5-game run at HEAD *before* any edit found **zero**
+> `CommanderCastFromCommandZone` in ~56,800 commands over games running to turn 167-201 — so
+> SIM-3 did **not** measure a pre-SIM-1 build. SIM-1's loop is present and correct; it was
+> *starved of its input*, because the offer is gated on `commander_ids` (CR 903.8) and the
+> fuzzer never populated it. **`OOS-SIM1-4` and the missing commander cast were one defect,
+> not two**, and no provider change was needed. Post-fix, the same command yields **36**
+> commander casts across 16 of 20 games. The other half of the memo's question also resolved:
+> `OOS-SIM3-1`'s turn-143 figure **reproduced exactly** (seed 2), so the two seeds were one
+> fact read at two `--max-turns` values, exactly as argued.
+>
+> **What shipping it cost, measured rather than feared**: the fuzz seeds re-rolled once, and
+> nothing else did — `cargo test -p play-server` 78/0 and `crates/simulator/tests/local_game.rs`
+> 24/24 (23 pre-existing, all unchanged, plus this batch's own CR 903.9b probe).
+> **What it found**: `attachment_validity` violations on fuzz seed 5
+> turn 88 (`OOS-DX22-8`) — a pre-existing engine defect, 0 engine lines in the branch diff, and
+> the first defect the repaired instrument surfaced.
+>
+> **Rows 3, 6 and 7 are unblocked.** Row 2 (FUZZ-CRASH) is unaffected and is now the cheapest
+> remaining row; `OOS-DX22-7` feeds it directly.
 
 `OOS-UI2-1` + `OOS-SIM3-1` + `OOS-SIM1-4`, ranked **4** in
 `memory/primitives/seed-rerank-2026-08-02.md` §4, class *"EVIDENCE INTEGRITY — every historical
@@ -560,12 +603,16 @@ card into a library that is drawn basics-first delivers that card around turn 14
 
 Two constraints carried from the queue memo verbatim: **PB-DX19 must precede PB-DX22** (shipped —
 `451e3517`), and **PB-DX22 re-rolls every recorded seed once**, as does any card-def batch via
-`OOS-CARDS2-3` — so batch the re-deal. The memo also leaves **one open measurement PB-DX22's plan
-must settle first**: SIM-1 added a command-zone cast loop (`legal_actions.rs:675-693`) and a
-commander is not in the library, so a bot should be able to cast its commander around game turn
-12-24, a hundred turns before SIM-3's measured 143. One instrumented
-`mtg-fuzzer --games 5 --seed 1` settles whether SIM-3 measured a pre-SIM-1 build or something
-suppresses that offer.
+`OOS-CARDS2-3` — so batch the re-deal. **Both held.** DX19 preceded it; the re-roll happened once
+and was confined to the fuzz path, so a card-def batch that re-rolls again pays its own cost and
+not this one's.
+
+The memo also left **one open measurement PB-DX22's plan had to settle first**: SIM-1 added a
+command-zone cast loop (`legal_actions.rs:675-693`) and a commander is not in the library, so a
+bot should have been able to cast its commander around game turn 12-24, a hundred turns before
+SIM-3's measured 143. One instrumented `mtg-fuzzer --games 5 --seed 1` was to settle whether
+SIM-3 measured a pre-SIM-1 build or something suppressed that offer. **It was run, and the answer
+is "suppressed" — see the status block above.**
 
 **Cannot catch even after it lands**: everything above `LocalGame`. Rows 4 and 5 exist for that.
 

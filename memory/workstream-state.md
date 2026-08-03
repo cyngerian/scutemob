@@ -848,6 +848,138 @@ must read adjudication §5 alongside it. OOS-ADJ-3 warns `OOS-DX19-2`'s "613.8b 
 would make a worker build the wrong thing — re-word at dispatch. OOS-ADJ-7 (blood_moon strips
 Artifact card type) rides PB-DX27.
 
+## Worker Handoff (PB-DX22, `scutemob-196`) — the fuzzer becomes a real instrument
+
+**Three seeds closed: `OOS-UI2-1`, `OOS-SIM3-1`, `OOS-SIM1-4`.** Rank 4 of the v3 queue
+(`memory/primitives/seed-rerank-2026-08-02.md` §4), row 1 of `docs/mtg-engine-feedback-engineering.md`
+§2.1. Plan: `memory/primitives/pb-plan-DX22.md`. Full stage-by-stage evidence:
+`memory/primitive-wip.md`. Review: `memory/primitives/pb-review-DX22.md`.
+
+### The mandatory pre-plan measurement, and what it settled
+
+The brief made one measurement mandatory *before* acceptance evidence: does a bot cast its
+commander around turn 12-24 through SIM-1's command-zone loop (`legal_actions.rs:675-693`), or
+is the offer suppressed? It was run first, at HEAD, and committed as the branch's **first**
+commit (`891d346c`, raw output `memory/primitives/pb-dx22-measurement-head.txt`) so the
+ordering is checkable rather than claimed.
+
+**Answer: SUPPRESSED, and `OOS-SIM1-4` is the cause.** 5 games / seed 1 / `--max-turns 200`:
+`commander_ids` populated **0/4 in every seat of every game**, **zero**
+`CommanderCastFromCommandZone` in ~56,800 commands, first `SpellCast` at turns
+154/143/151/153/151. The provider's own filter says it — "the zone is NOT the filter;
+`commander_ids` is" (CR 903.8; CR 408.1 is why) — and `fuzzer.rs` never populated it. So the
+brief's disjunction resolves to its second branch: **SIM-3 did not measure a pre-SIM-1 build**,
+and `OOS-SIM1-4` and the missing commander cast are ONE defect. That collapsed the batch's
+sizing: no provider change was needed. Seed 2's turn 143 reproduces `OOS-SIM3-1` exactly.
+
+### What shipped
+
+* **`crates/simulator/src/fuzz_setup.rs` (new).** The fuzzer's pregame build, lifted out of
+  `src/bin/fuzzer.rs`. **This file exists because Cargo compiles `src/bin/*.rs` as its own
+  crate, so no integration test could `use` the fuzzer's state build** — which is exactly how
+  `crates/simulator/tests/local_game.rs::build_state` came to be a hand-written copy ("Mirrors
+  `mtg-fuzzer::run_single_game`'s builder logic") carrying the identical CR 903.6 defect. Both
+  callers now share `place_registered_deck`, which does the placement **and** the registration
+  in one `if let`, so they cannot separate again.
+* **Deliberately NOT in `setup.rs`.** Every play-server seed pin is a function of `setup.rs`;
+  keeping the fuzzer's build in its own file makes "this batch cannot move a play-server pin" a
+  property a reviewer checks from the diff's **file list**, not its contents. It held:
+  `cargo test -p play-server` 78/0, nothing re-derived, nothing adjusted.
+* **CR 103.3 / 903.6 shuffle** off the game's own `StdRng`, interleaved per seat
+  (`deck₁, shuffle₁, deck₂, shuffle₂, …`) exactly as `setup.rs` does. There the interleaving is
+  load-bearing; here it is free, and the free choice is the one that keeps the two paths the
+  same shape.
+* **CR 903.6 registration + CR 903.9b `register_commander_zone_replacements`.** Both are
+  required and they fail differently: omit the second and CR 903.9a still works (it is an SBA
+  keyed on `commander_ids`) while CR 903.9b silently does not exist and any count of
+  `CommanderZoneRedirect` reads zero **vacuously**. Proven by isolation, not argued: under a
+  revert deleting only that call, P6 reddens and P7 stays green.
+* **`tests/local_game.rs` fixed in both halves.** Stage 3 rewired it onto the shared helper; a
+  follow-up (`eb60cc80`) found it still lacked the CR 903.9b call — the same half-built
+  Commander game one link down — and closed it with its own probe.
+* **The fuzzer reports its own census.** A constant-size `MechanicsTally`
+  (`local_game.rs`, surfaced by `GameDriver::run_game_with_mechanics`) folded from events
+  already in hand, so `record_journal: false` and the fuzzer's memory profile are untouched.
+  It is **not** a `GameResult` field: `tools/play-server` constructs one and `tools/` was off
+  limits. This exists because the review caught the batch committing its "before" and deleting
+  its "after" — see the lesson below.
+
+### The A/B, both sides reproducible from committed code
+
+`--games 20 --seed 1 --max-turns 200 --threads 1 --profile fuzz`. After-side raw output:
+`memory/primitives/pb-dx22-measurement-after-fixcycle.txt`. **The before side requires building
+the merge base** — the shipped binary cannot produce it.
+
+| | before | after |
+|---|---|---|
+| `CommanderCastFromCommandZone` (CR 903.8) | **0** (~56,800 commands / 5 games) | **36**, in 16/20 games |
+| `CommanderReturnedToCommandZone` (CR 903.9a) | 0 | **13** |
+| seats with commander damage (CR 903.10a) | 0 | **16/20 games**, max **31** (past the 21 threshold) |
+| `CommanderZoneRedirect` (CR 903.9b) | 0 (no mechanism) | **0** (mechanism exists, no game triggered it — `OOS-DX22-9`) |
+| first `SpellCast` turn | 143-154 | **3-29**; library-only **5-29**, median 17 |
+| `SpellCast` total | 121 / 5 games | **670** / 20 games |
+| violations | 1,519 | **426** (301 `no_orphaned_tokens` / 114 `player_consistency` / 11 `attachment_validity` / **0** `stack_consistency`) |
+| wins / errors | 9 / 11 `MaxTurnsReached` | **20 / 0** |
+| avg turns · cmds/turn | 191.7 · 58.8 | **103.4 · 45.7** |
+
+### Three deliberate remaining divergences from `setup.rs` — read these before "fixing" one
+
+The fuzz path is **not** a `build_initial_state` replacement and was not made into one:
+no opening hand (CR 103.5, **`OOS-DX22-1`**), no `validate_deck` (CR 903.5a/903.4,
+**`OOS-DX22-5`**), no `DeckSource`. `OOS-DX22-1` is measured, not assumed: the first
+`Command::PlayLand` is turn 1-7 on all 20 seeds, so land supply is not the limiter — a seat
+starts with zero cards and draws one per *personal* turn, so it has ~T/4 cards by game turn T
+at four seats. That is the reason the band is 3-29 rather than 3-12.
+
+### What the repaired instrument immediately found
+
+**`OOS-DX22-8`** — `attachment_validity`: `Object ObjectId(532) attached to ObjectId(677) which
+doesn't exist`, 11 violations across seeds 5, 9 and 15 (the batch first recorded "×3, seed 5"
+off the binary's 5-game print cap and under-counted 4×). Repro
+`cargo run --profile fuzz --bin mtg-fuzzer -- --replay 5 --players 4 --max-turns 200`;
+check `invariants.rs:386`; CR 400.7 / **704.5m** (Aura → graveyard; 704.5n is Equipment, which
+unattaches and *stays*). **Pre-existing — 0 engine lines in the branch diff** — and deliberately
+unfixed. Transient, one turn per game, and all 20 games still ran to a winner, so it is a live
+false-positive candidate of the `OOS-M11-7` SBA-lag family SIM-3 withdrew: classify it before
+fixing it. A plausible mechanism this batch uniquely enabled: 13 CR 903.9a returns means
+commanders changed zones in fuzz games for the first time, and a CR 400.7 zone change is exactly
+the orphaning event.
+
+### Durable lessons
+
+1. **A revert-proof written read-only is a hypothesis** (`OOS-DX22-11`). Two of the plan's ten
+   predictions were false when executed: P4's stated revert leaves it green (seeds 1 and 2 draw
+   different *decklists*), and P9's reddens 1 of 4 seeds, because a registered commander is cast
+   from the **command zone** and so is not gated by library order — Stage 3's fix partially
+   masked Stage 2's from that probe. Both gates were left where the plan put them and the real
+   discrimination was executed and recorded instead.
+2. **A universal negative must be measured over its own denominator.** `bin/fuzzer.rs` prints
+   per-violation detail for only the first five offending games, and the batch published
+   "not one of 426 is `stack_consistency`" off 94 printed lines. The claim survived the real
+   tally — but the sample had projected `player_consistency` at ~1% where it is **27%**. Every
+   historical "check X never fired" claim in this project came off that same cap
+   (**`OOS-DX22-13`**).
+3. **Committing the "before" and deleting the "after" is the same defect the batch exists to
+   close.** The headline numbers first came from a scratch `examples/` file that was deleted;
+   the review called it, and the repair was to make the fuzzer print them. Re-measured, every
+   published number matched to the digit — the instrument was accurate, it was *unreproducible*.
+4. **A source gate that greps a file body is satisfied by its own comments.** P11 matched
+   `player_commander` in the doc comment explaining the rule, so deleting the real call left it
+   green while six behavioural probes reddened. It now strips line comments — safe rather than
+   merely stricter, because all four genuine placers were checked for a real call first.
+5. `memory/gotchas-infra.md`'s stale-binary trap fired **three times** in this batch: a revert
+   that fails to compile under `-D warnings` makes `cargo test` run the *previous* binary and
+   report a pass. Check for the `Compiling mtg-simulator` line before trusting any red.
+
+### For the collector
+
+Every recorded fuzz seed predating this merge is dead (**`OOS-DX22-7`**); the docs say "the
+PB-DX22 merge, `scutemob-196`" in four places where a merge sha would be better once one exists
+(`bin/fuzzer.rs` module doc, `workstream-state.md`'s `--seed 504` annotation, the audit §8.1
+banner, feedback-engineering §2.1). `memory/primitives/seed-rerank-2026-08-02.md` is
+**untouched by design** — the coordinator strikes the PB-DX22 row at collect, and §2.4's "one
+open measurement this task could not settle" is settled by the answer above.
+
 ## Worker Handoff (UI-6, `scutemob-194`) — the whole-library search view (G9, CR 701.23a)
 
 **G9 of `memory/playtest-triage-2026-08-02b.md` CLOSED, both halves — the LAST row of its
@@ -2901,7 +3033,11 @@ guarding `pick_least_waste`.
   static's activity depends on counting artifacts, which depends on layer-resolved types,
   which depends on its activity. **Hard, unrecoverable crash** (still overflows at
   `ulimit -s 524288`). Reproduce: `mtg-fuzzer --games 1 --seed 504 --max-turns 200` on this
-  branch. Diagnosed by `gdb` backtrace plus a depth probe that named the card. Very likely
+  branch. **DEAD REPRO across the PB-DX22 merge (`scutemob-196`)**: that batch shuffles the
+  fuzz libraries and registers the commanders, so seed 504 deals a different game and no
+  longer reproduces this one. The seed is a pre-merge artefact — see `OOS-DX22-7`; the
+  defect itself is closed by PB-DX19 (`451e3517`) regardless.
+  Diagnosed by `gdb` backtrace plus a depth probe that named the card. Very likely
   the mechanism behind `OOS-M11-3` / `OOS-DP3-9`, which had the symptom and no cause.
 - **`OOS-SIM2-5`** — `layers.rs` P/T arithmetic is unchecked `i32`; Devilish Valet's
   doubling reaches 2^30 and the next doubling panics in debug and **wraps silently in

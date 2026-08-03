@@ -35,6 +35,30 @@
 //! a different game. Treat a crash seed as valid only within the run (and build)
 //! that emitted it; capture the crash JSON, not just the seed, for anything that
 //! must outlive the build.
+//!
+//! **Boundary event: the PB-DX22 merge (`scutemob-196`).** Every seed recorded
+//! before it is dead, and this one moves more than the earlier two did. The deal
+//! itself changed: `fuzz_setup::build_fuzz_state` now shuffles each library from
+//! the game's own seeded RNG (CR 103.3 / 903.6) and registers each seat's
+//! commander (CR 903.6 / 903.8), so a fixed seed deals a different opening
+//! library AND offers a command-zone cast that did not exist before. Nothing
+//! about a pre-merge seed survives that. Filed as `OOS-DX22-7`.
+//!
+//! The A/B, with each side attributed to the instrument that produced it — as
+//! shipped, PB-DX22 filed all four pairs under this binary's own command line,
+//! and this binary could not then print two of them:
+//!
+//! | metric | before | after | instrument, and its denominator |
+//! |---|---|---|---|
+//! | avg turns / halt distribution | 191.7; 9 wins + 11 `MaxTurnsReached` | 103.4; 20 wins + 0 errors | **this binary**, `--games 20 --seed 1 --max-turns 200 --threads 1 --profile fuzz` (20 games each side) |
+//! | first `SpellCast` game turn | 143-154 | 3-29 (median 12) | **before**: a scratch instrument over **5** games (`memory/primitives/pb-dx22-measurement-head.txt`). **after**: this binary's `print_mechanics_summary`, **20** games |
+//! | `CommanderCastFromCommandZone` | 0 in ~56,800 commands | 36, in 16 of 20 games | as above — the "0" is a **5**-game number, the "36" a **20**-game one |
+//!
+//! Both post-fix rows are printed by this binary as of the PB-DX22 fix cycle
+//! (review Finding 3), so the attribution above is now checkable by running the
+//! command; the raw run is committed at
+//! `memory/primitives/pb-dx22-measurement-after-fixcycle.txt`. The pre-fix rows
+//! cannot be: the build path they measured no longer exists.
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
@@ -45,13 +69,10 @@ use clap::Parser;
 use indicatif::{ProgressBar, ProgressStyle};
 use rayon::prelude::*;
 
-use mtg_engine::{
-    all_cards, enrich_spec_from_def, CardDefinition, CardId, CardRegistry, GameStateBuilder,
-    ObjectSpec, PlayerId, ZoneId,
-};
+use mtg_engine::{all_cards, CardDefinition, CardRegistry, PlayerId};
 use mtg_simulator::{
-    build_registry, random_deck, CrashReport, DeckConfig, GameDriver, GameDriverError, GameResult,
-    HeuristicBot, RandomBot, StubProvider,
+    build_fuzz_state, build_registry, CrashReport, FuzzSetupError, GameDriver, GameDriverError,
+    GameResult, HeuristicBot, MechanicsTally, RandomBot, StubProvider,
 };
 use rand::prelude::*;
 
@@ -132,7 +153,7 @@ fn main() {
     // Single-game replay mode
     if let Some(replay_seed) = cli.replay {
         println!("Replaying game with seed {}...", replay_seed);
-        let result = run_single_game(
+        let (result, mechanics) = run_single_game(
             replay_seed,
             cli.players,
             cli.max_turns,
@@ -141,6 +162,11 @@ fn main() {
             &registry,
         );
         print_game_result(&result, true);
+        // One game, so the per-run summaries below are a per-game report here — which is
+        // what a replay is for. `print_game_result(.., true)` above already printed ALL
+        // of this game's violations, not the first five.
+        print_violation_histogram(std::slice::from_ref(&result));
+        print_mechanics_summary(std::slice::from_ref(&mechanics));
         return;
     }
 
@@ -158,7 +184,7 @@ fn main() {
             .progress_chars("##-"),
     );
 
-    let results: Vec<GameResult> = (0..cli.games)
+    let outcomes: Vec<(GameResult, MechanicsTally)> = (0..cli.games)
         .into_par_iter()
         .filter_map(|i| {
             if cli.stop_on_error && should_stop.load(Ordering::Relaxed) {
@@ -166,7 +192,7 @@ fn main() {
             }
 
             let game_seed = base_seed.wrapping_add(i as u64);
-            let result = run_single_game(
+            let (result, mechanics) = run_single_game(
                 game_seed,
                 cli.players,
                 cli.max_turns,
@@ -192,12 +218,15 @@ fn main() {
             pb.set_position(done as u64);
             pb.set_message(format!("{} violations  {} errors", viols, errs));
 
-            Some(result)
+            Some((result, mechanics))
         })
         .collect();
 
     pb.finish_with_message("done");
     let elapsed = start.elapsed();
+
+    let results: Vec<GameResult> = outcomes.iter().map(|(r, _)| r.clone()).collect();
+    let tallies: Vec<MechanicsTally> = outcomes.iter().map(|(_, m)| *m).collect();
 
     // Summary
     println!();
@@ -223,6 +252,9 @@ fn main() {
     println!("Wins: {}  Draws: {}  Errors: {}", wins, draws, errors);
     println!("Total violations: {}", total_violations);
     println!("Avg turns per game: {:.1}", avg_turns);
+
+    print_violation_histogram(&results);
+    print_mechanics_summary(&tallies);
 
     if cli.verbose {
         for result in &results {
@@ -285,76 +317,31 @@ fn run_single_game(
     bot_type: &BotType,
     cards: &[CardDefinition],
     registry: &Arc<CardRegistry>,
-) -> GameResult {
-    let mut rng = StdRng::seed_from_u64(seed);
-
-    // Build random decks for each player
+) -> (GameResult, MechanicsTally) {
+    // PB-DX22 §B3: the state build lives in `mtg_simulator::fuzz_setup` so integration
+    // tests can reach it. This function does nothing else to the state, so a probe on
+    // `build_fuzz_state` is a probe on this binary.
     let player_ids: Vec<PlayerId> = (1..=player_count).map(|i| PlayerId(i as u64)).collect();
 
-    let mut decks: Vec<(PlayerId, DeckConfig)> = Vec::new();
-    for &pid in &player_ids {
-        if let Some(deck) = random_deck(&mut rng, cards) {
-            decks.push((pid, deck));
-        } else {
-            // Fallback: just basic lands
-            let fallback = DeckConfig {
-                commander: CardId("teysa-karlov".to_string()),
-                main_deck: (0..99).map(|_| CardId("plains".to_string())).collect(),
-            };
-            decks.push((pid, fallback));
-        }
-    }
-
-    // Build initial state using GameStateBuilder, populating libraries from decks
-    let mut builder = GameStateBuilder::new().with_registry(registry.clone());
-
-    for &pid in &player_ids {
-        builder = builder.add_player(pid);
-    }
-
-    // Build a name→def lookup for enriching card specs
-    let card_defs: HashMap<String, CardDefinition> =
-        cards.iter().map(|c| (c.name.clone(), c.clone())).collect();
-
-    // Add library cards from decks
-    for (pid, deck) in &decks {
-        // Add commander to command zone
-        if let Some(def) = cards.iter().find(|c| c.card_id == deck.commander) {
-            let spec = ObjectSpec::card(*pid, &def.name)
-                .in_zone(ZoneId::Command(*pid))
-                .with_card_id(deck.commander.clone());
-            let spec = enrich_spec_from_def(spec, &card_defs);
-            builder = builder.object(spec);
-        }
-
-        // Add main deck cards to library
-        for card_id in &deck.main_deck {
-            if let Some(def) = cards.iter().find(|c| c.card_id == *card_id) {
-                let spec = ObjectSpec::card(*pid, &def.name)
-                    .in_zone(ZoneId::Library(*pid))
-                    .with_card_id(card_id.clone());
-                let spec = enrich_spec_from_def(spec, &card_defs);
-                builder = builder.object(spec);
-            }
-        }
-    }
-
-    builder = builder.first_turn_of_game();
-
-    let state = match builder.build() {
-        Ok(s) => s,
-        Err(e) => {
-            return GameResult {
-                seed,
-                winner: None,
-                turn_count: 0,
-                total_commands: 0,
-                violations: Vec::new(),
-                error: Some(GameDriverError::EngineError(format!(
-                    "Failed to build state: {:?}",
-                    e
-                ))),
-            };
+    let state = match build_fuzz_state(seed, player_count, cards, registry) {
+        Ok(setup) => setup.state,
+        // Byte-identical to the string this arm produced before the extraction — crash
+        // reports and `driver.rs`'s error-shape comment depend on it.
+        Err(FuzzSetupError::Builder(e)) => {
+            return (
+                GameResult {
+                    seed,
+                    winner: None,
+                    turn_count: 0,
+                    total_commands: 0,
+                    violations: Vec::new(),
+                    error: Some(GameDriverError::EngineError(format!(
+                        "Failed to build state: {:?}",
+                        e
+                    ))),
+                },
+                MechanicsTally::default(),
+            );
         }
     };
 
@@ -372,7 +359,191 @@ fn run_single_game(
 
     // Run game
     let driver = GameDriver::new(StubProvider, bots, max_turns, seed);
-    driver.run_game(state, seed)
+    driver.run_game_with_mechanics(state, seed)
+}
+
+/// Every violation in the run, grouped by `check` — **all games, not a sample**.
+///
+/// # Why this exists (PB-DX22 fix cycle, review Finding 2)
+///
+/// The per-violation detail loop below prints only the first five offending games
+/// (`if violation_seeds.len() <= 5`). PB-DX22 read a by-check breakdown off those printed
+/// lines and then stated a universal negative about the whole run — "426 total violations,
+/// and not one of them is `stack_consistency`" — from 94 of them. Every `GameResult` in
+/// `results` carries its complete `violations` vector, so the real tally costs one fold
+/// and there is no reason to sample it. Anything that wants to say "check X did not fire"
+/// must read this block, not the detail loop.
+fn print_violation_histogram(results: &[GameResult]) {
+    let mut by_check: HashMap<&str, (usize, Vec<u64>)> = HashMap::new();
+    let mut games_with_violations = 0usize;
+    let mut total = 0usize;
+    for result in results {
+        if !result.violations.is_empty() {
+            games_with_violations += 1;
+        }
+        for v in &result.violations {
+            let entry = by_check.entry(v.check.as_str()).or_insert((0, Vec::new()));
+            entry.0 += 1;
+            if entry.1.last() != Some(&result.seed) {
+                entry.1.push(result.seed);
+            }
+            total += 1;
+        }
+    }
+
+    println!();
+    println!("Violations by check (ALL {} games)", results.len());
+    println!("---------------------------------");
+    if by_check.is_empty() {
+        println!("  (none)");
+    } else {
+        let mut rows: Vec<(&str, (usize, Vec<u64>))> = by_check.into_iter().collect();
+        // Descending count, then name, so the output is stable across runs regardless of
+        // HashMap iteration order — this text gets committed as evidence.
+        rows.sort_by(|a, b| b.1 .0.cmp(&a.1 .0).then_with(|| a.0.cmp(b.0)));
+        for (check, (count, mut seeds)) in rows {
+            // Seeds too, not just counts: "which games did check X fire in" is the first
+            // question a successor asks, and `--replay <SEED>` prints ALL of that game's
+            // violations where this run prints the first five games' worth.
+            seeds.sort_unstable();
+            println!(
+                "  {:<24} {:<6} in {} game(s): {:?}",
+                check,
+                count,
+                seeds.len(),
+                seeds
+            );
+        }
+    }
+    println!(
+        "  games with >=1 violation: {} / {}",
+        games_with_violations,
+        results.len()
+    );
+    // Printed so the block is self-checking: this must equal the "Total violations" line
+    // above. If it does not, the histogram is reading a different population than the
+    // summary and neither number should be quoted.
+    println!("  histogram total: {}", total);
+}
+
+/// The commander-mechanics and first-cast census over the whole run.
+///
+/// # Why this exists (PB-DX22 fix cycle, review Finding 1)
+///
+/// PB-DX22's headline A/B numbers were produced by a scratch `examples/dx22_p10.rs` that
+/// was **deleted**, and no committed code could re-derive them: `grep
+/// CommanderCastFromCommandZone crates/simulator/src` found three comments and zero code.
+/// This block is the answer to that. Every number the batch published about commander
+/// mechanics and cast depth is now printed by the instrument the batch is named for, over
+/// every game in the run — so the "after" side of an A/B has the same standing as the
+/// "before" side, and a successor re-derives it with one command instead of rewriting the
+/// instrument.
+///
+/// CR 601.2, CR 305.1, CR 903.8, CR 903.9a, CR 903.9b, CR 903.10a.
+fn print_mechanics_summary(tallies: &[MechanicsTally]) {
+    fn band(values: &[u32]) -> String {
+        if values.is_empty() {
+            return "n/a".to_string();
+        }
+        let mut sorted = values.to_vec();
+        sorted.sort_unstable();
+        format!(
+            "min {} / median {} / max {}",
+            sorted[0],
+            sorted[sorted.len() / 2],
+            sorted[sorted.len() - 1]
+        )
+    }
+
+    let games = tallies.len();
+    let spell_casts: u64 = tallies.iter().map(|t| u64::from(t.spell_casts)).sum();
+    let lands: u64 = tallies.iter().map(|t| u64::from(t.lands_played)).sum();
+    let cmdr_casts: u64 = tallies
+        .iter()
+        .map(|t| u64::from(t.commander_casts_from_command_zone))
+        .sum();
+    let cmdr_returns: u64 = tallies
+        .iter()
+        .map(|t| u64::from(t.commander_returns_to_command_zone))
+        .sum();
+    let cmdr_redirects: u64 = tallies
+        .iter()
+        .map(|t| u64::from(t.commander_zone_redirects))
+        .sum();
+
+    let first_cast: Vec<u32> = tallies
+        .iter()
+        .filter_map(|t| t.first_spell_cast_turn)
+        .collect();
+    let first_lib_cast: Vec<u32> = tallies
+        .iter()
+        .filter_map(|t| t.first_library_spell_cast_turn)
+        .collect();
+    let first_land: Vec<u32> = tallies
+        .iter()
+        .filter_map(|t| t.first_land_played_turn)
+        .collect();
+    let first_cmdr_cast: Vec<u32> = tallies
+        .iter()
+        .filter_map(|t| t.first_commander_cast_turn)
+        .collect();
+
+    let games_with_cmdr_cast = tallies
+        .iter()
+        .filter(|t| t.commander_casts_from_command_zone > 0)
+        .count();
+    let games_with_cmdr_damage = tallies
+        .iter()
+        .filter(|t| t.seats_dealt_commander_damage > 0)
+        .count();
+    let max_cmdr_damage = tallies
+        .iter()
+        .map(|t| t.max_commander_damage)
+        .max()
+        .unwrap_or(0);
+
+    println!();
+    println!("Mechanics census (ALL {} games)", games);
+    println!("------------------------------");
+    println!(
+        "  CR 601.2  SpellCast                    {} total; first on game turn {} ({} of {} games cast)",
+        spell_casts,
+        band(&first_cast),
+        first_cast.len(),
+        games
+    );
+    println!(
+        "  CR 601.2  first NON-commander cast     game turn {} ({} of {} games) -- this is the one CR 103.3 library order gates",
+        band(&first_lib_cast),
+        first_lib_cast.len(),
+        games
+    );
+    println!(
+        "  CR 305.1  LandPlayed                   {} total; first on game turn {} ({} of {} games)",
+        lands,
+        band(&first_land),
+        first_land.len(),
+        games
+    );
+    println!(
+        "  CR 903.8  CommanderCastFromCommandZone {} total, in {} of {} games; first on game turn {}",
+        cmdr_casts,
+        games_with_cmdr_cast,
+        games,
+        band(&first_cmdr_cast)
+    );
+    println!(
+        "  CR 903.9a CommanderReturnedToCommandZone {}",
+        cmdr_returns
+    );
+    println!(
+        "  CR 903.9b CommanderZoneRedirect        {}",
+        cmdr_redirects
+    );
+    println!(
+        "  CR 903.10a commander damage            non-empty in {} of {} games; largest single total {} (rule threshold 21)",
+        games_with_cmdr_damage, games, max_cmdr_damage
+    );
 }
 
 fn print_game_result(result: &GameResult, verbose: bool) {

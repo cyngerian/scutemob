@@ -11,10 +11,29 @@
 //! commander included), CR 903.6 (commander to the command zone, library shuffled),
 //! CR 903.9b (the commander's hand/library-to-command-zone replacements).
 //!
-//! `crates/simulator/src/bin/fuzzer.rs` is deliberately **not** rewired onto this module:
-//! its games start every player with an empty hand (session plan §1 fact 2), and every
-//! recorded fuzz seed's behaviour is keyed to that starting condition. Giving it real
-//! opening hands would silently change what every existing seed reproduces.
+//! `crates/simulator/src/bin/fuzzer.rs` is deliberately **not** rewired onto this module,
+//! and that is still true after PB-DX22 (`scutemob-196`) — but the list of things that
+//! differ is now much shorter, so say what it is rather than leaving the old reason
+//! standing. The fuzzer builds through `crate::fuzz_setup::build_fuzz_state`, which as of
+//! PB-DX22 shuffles every library from the game's own seeded RNG (CR 103.3 / 903.6),
+//! registers each seat's commander with `player_commander` (CR 903.6 / 903.8), and calls
+//! `register_commander_zone_replacements` (CR 903.9b) — the three things this module does
+//! that it used not to.
+//!
+//! Three differences remain, each deliberate:
+//!
+//! * **No opening hand.** Its games start every player with an empty hand (session plan
+//!   §1 fact 2), where `build_initial_state` deals seven and runs mulligans (CR 103.5).
+//!   That is what makes a fuzz seat draw only about *T*/4 cards by game turn *T* at four
+//!   seats, and it is the measured reason PB-DX22's first-cast band is game turn 3-29
+//!   rather than 3-12. Filed as `OOS-DX22-1`; giving the fuzzer real opening hands would
+//!   re-roll every recorded seed a second time.
+//! * **No `validate_deck`.** A fuzz deck is admitted by `check_all_defs_complete` alone,
+//!   so CR 903.5a (100 cards) and CR 903.4 (colour identity) go unchecked there, where
+//!   this module gates on the real `validate_deck` (Architecture Invariant 9).
+//!   Filed as `OOS-DX22-5`.
+//! * **No `DeckSource`.** The fuzzer draws `random_deck` per seat directly; it cannot be
+//!   handed a fixed decklist the way `SetupConfig` can.
 
 use std::collections::{BTreeSet, HashMap};
 
