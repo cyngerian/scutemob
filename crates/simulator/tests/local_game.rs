@@ -90,10 +90,25 @@ fn build_state(
         builder = place_registered_deck(builder, pid, &deck, cards, &card_defs);
     }
 
-    builder
+    let mut state = builder
         .first_turn_of_game()
         .build()
-        .expect("fixed-deck state should build")
+        .expect("fixed-deck state should build");
+    // CR 903.9b: a commander that would go to its owner's hand or library may go to the
+    // command zone instead. These are REPLACEMENT effects, not triggers, so they must be
+    // in `state.replacement_effects` before the game starts, and `GameStateBuilder` does
+    // not derive them from `commander_ids` (`state/builder.rs`'s own doc says so).
+    //
+    // PB-DX22 registered `commander_ids` here (CR 903.6) but this call is a SEPARATE
+    // requirement, and omitting it leaves a distinct half-built Commander game: CR 903.9a
+    // (the graveyard/exile return SBA) would still work, because that is keyed on
+    // `commander_ids` alone, while CR 903.9b would silently not exist and any count of
+    // `CommanderZoneRedirect` would read zero VACUOUSLY. This file drives whole games
+    // through `LocalGame`, where a commander really can be bounced or shuffled away, so
+    // the distinction is reachable here and not academic. Pinned by
+    // `test_dx22_cr_903_9b_replacements_exist_in_the_fixed_deck_build`.
+    mtg_engine::register_commander_zone_replacements(&mut state);
+    state
 }
 
 /// A fresh `RandomBot` per seat, deterministically seeded from `seed` the same way
@@ -2195,5 +2210,54 @@ fn test_ui2_a_bot_pays_a_mandatory_sacrifice_cost_without_an_engine_rejection() 
             .iter()
             .any(|o| o.characteristics.name == "Life's Legacy"),
         "the spell must have left hand for the stack"
+    );
+}
+
+/// CR 903.9b — `build_state`'s games are Commander games in the hand/library direction
+/// too, not just the `commander_ids` one (PB-DX22).
+///
+/// This probe exists because the two requirements are genuinely separable and failing
+/// the second one fails **silently**. `place_registered_deck` gives every seat its
+/// CR 903.6 registration, and that alone makes CR 903.8 tax and the CR 903.9a
+/// graveyard/exile return SBA work — so a fixture missing this call still looks like a
+/// Commander game from most angles. What it loses is CR 903.9b: a commander bounced to
+/// hand or shuffled into the library just stays there, no `CommanderZoneRedirect` is
+/// emitted, and anything counting that event reads zero **vacuously**. This file drives
+/// whole games through `LocalGame`, so that is a reachable state here.
+///
+/// Asserted per seat rather than as a bare total, so a build that registered eight
+/// redirects onto one player would still fail.
+#[test]
+fn test_dx22_cr_903_9b_replacements_exist_in_the_fixed_deck_build() {
+    let cards = all_cards();
+    let registry = Arc::new(CardRegistry::new(cards.clone()));
+    let state = build_state(4, &registry, &cards);
+    let commander = fixed_deck(&cards).commander;
+
+    let effects = state.replacement_effects();
+    assert_eq!(
+        effects.len(),
+        8,
+        "CR 903.9b: exactly two redirects (hand, library) for each of the four seats"
+    );
+
+    for i in 1..=4u64 {
+        let pid = PlayerId(i);
+        let mine = effects.iter().filter(|e| e.controller == pid).count();
+        assert_eq!(
+            mine, 2,
+            "CR 903.9b: seat {pid:?} must own exactly two commander zone redirects"
+        );
+    }
+
+    // Non-vacuity floor: the redirects must actually name this deck's commander, so the
+    // count above cannot be satisfied by eight unrelated replacement effects.
+    let naming = effects
+        .iter()
+        .filter(|e| format!("{:?}", e.trigger).contains(commander.0.as_str()))
+        .count();
+    assert_eq!(
+        naming, 8,
+        "CR 903.9b: every redirect must be filtered on the registered commander {commander:?}"
     );
 }
