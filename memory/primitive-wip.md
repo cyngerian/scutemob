@@ -1,31 +1,70 @@
-# Primitive batch WIP — ENG-2 (prior batches are stale history; see their own plan files)
+# Primitive batch WIP — PB-DX22 (prior batches are stale history; see their own plan files)
 
-**Batch**: ENG-2 — targets in the event log: an announcement-time target event, viewer-gated
-**Seeds**: `OOS-G7-1` (no `GameEvent` carries targets) — G7 of
-`memory/playtest-triage-2026-08-02b.md`, row 7 of its successor table
-**Task**: `scutemob-193` · **Branch**: `feat/eng-2-targets-in-the-event-log-an-announcement-time-target-e`
-**Phase**: fix (stage E — version-gate bump — DONE)
+**Batch**: PB-DX22 — make the fuzzer a real instrument
+**Seeds**: `OOS-UI2-1` (the fuzzer has never cast a spell at ordinary depth) + `OOS-SIM3-1`
+(earliest measured cast turn 143) + `OOS-SIM1-4` (`commander_ids` never registered, so
+CR 903.8 / 903.9a / 903.10a have never been fuzzed)
+**Brief (authoritative)**: `memory/primitives/seed-rerank-2026-08-02.md` §4, PB-DX22 entry
+(rank 4, EVIDENCE INTEGRITY) + §2.4. Cross-read `docs/mtg-engine-feedback-engineering.md` §2.1
+row 1.
+**Task**: `scutemob-196` · **Branch**: `feat/pb-dx22-make-the-fuzzer-a-real-instrument-oos-ui2-1-oos-sim3`
+**Phase**: plan
 
-**Baselines measured on this branch before any edit**: PROTOCOL **34**, HASH **71**
-(`rules/protocol.rs::PROTOCOL_VERSION`, `state/hash.rs::HASH_SCHEMA_VERSION`). The triage says
-"PROTOCOL currently 33" — that is stale; ENG-1 (merge `a3b5e56b`) moved both after the triage
-was written. Both new values must be read from the failing gates' own output, never predicted.
+---
 
-- [x] **Stage E — PROTOCOL/HASH version bump (gate-computed)**: `PROTOCOL_VERSION` 34 -> 35
-  (fingerprint `7a5fc4b0…386b`), `HASH_SCHEMA_VERSION` 71 -> 72 (decl_fingerprint
-  `6cb06c10…9329`, stream_fingerprint `c5786aaa…eed5c` — read from the gate AFTER the version
-  bump, per the `HASH_SCHEMA_VERSION` byte folded into the stream; this is the v69/PB-DX1
-  version-sentinel-byte-only case, not a payload-bytes case, since `canonical_fixture()` has no
-  `PendingTrigger.triggering_event` populated with `TargetsAnnounced`). Both `PROTOCOL_HISTORY`
-  and `HASH_SCHEMA_HISTORY` rows appended (never edited in place); both `FROZEN_HISTORY_PREFIX_DIGEST`
-  constants and both version sentinels re-pinned. All 45 `HASH_SCHEMA_VERSION` and 11
-  `PROTOCOL_VERSION` scattered live sentinels re-pinned **by symbol** (two double-checked via
-  grep -A1 for multi-line survivors: `pb_dx2_command_gates.rs` and `pb_dp5_pending_draw_choice.rs`
-  both split the assertion across three lines and were caught). Full workspace:
-  **4,341 passed / 0 failed / 5 ignored**; `cargo fmt --check`, `cargo clippy --workspace
-  --all-targets -- -D warnings`, and `tools/check-defs-fmt.sh` all clean. Commit:
-  `scutemob-193: ENG-2 stage E — PROTOCOL 34→35, HASH 71→72 (gate-computed)`.
+## THE MANDATORY PRE-PLAN MEASUREMENT — RAN, AND IT IS DECISIVE
+
+The brief made one measurement mandatory *before* acceptance evidence could be written:
+SIM-1 added a command-zone cast loop (`legal_actions.rs:675-693`) and a commander is **not**
+in the library, so the no-shuffle defect does not gate it — a bot should be able to cast its
+commander around game turn 12-24, a hundred-odd turns before SIM-3's measured 143. **Either
+SIM-3 measured a pre-SIM-1 build, or something suppresses that offer for bots.**
+
+**Method**: a scratch `crates/simulator/examples/dx22_measure.rs` (deleted before commit)
+replicating `mtg-fuzzer::run_single_game`'s state build byte-for-byte as it stands at HEAD
+(`9aa4f220`) — no shuffle, no `player_commander` — driven through `LocalGame` with
+`record_journal: true`, scanning the journal for `SpellCast`,
+`CommanderCastFromCommandZone`, `CommanderReturnedToCommandZone` and
+`CommanderZoneRedirect`. 5 games, base seed 1, `--max-turns 200`, 4 players, `RandomBot`.
+Raw output: `memory/primitives/pb-dx22-measurement-head.txt`.
+
+| seed | end | commands | `commander_ids` populated | first `SpellCast` turn | total casts | first commander cast | cmdr returns / redirects | rejections |
+|---|---|---|---|---|---|---|---|---|
+| 1 | GameOver t176 | 9,802 | **0/4** | **154** | 25 | **none** | 0 / 0 | 33 |
+| 2 | GameOver t192 | 12,631 | **0/4** | **143** | 21 | **none** | 0 / 0 | 107 |
+| 3 | Halted MaxTurns 201 | 12,362 | **0/4** | **151** | 35 | **none** | 0 / 0 | 149 |
+| 4 | GameOver t167 | 9,397 | **0/4** | **153** | 7 | **none** | 0 / 0 | 98 |
+| 5 | Halted MaxTurns 201 | 12,601 | **0/4** | **151** | 33 | **none** | 0 / 0 | 38 |
+
+**THE ANSWER: the offer is SUPPRESSED, not merely late — and `OOS-SIM1-4` is the cause of it.**
+Zero `CommanderCastFromCommandZone` in ~56,800 commands across five games running to turn
+167-201. The mechanism is in the provider's own documented filter: `legal_actions.rs:675-693`
+says in as many words that "the zone is NOT the filter; `commander_ids` is" (CR 903.8, and
+CR 408.1 is the reason — emblems live in the command zone too). `fuzzer.rs:322-327` places the
+commander *object* in `ZoneId::Command(pid)` but never calls `builder.player_commander`, so
+`commander_ids` is empty in **every seat of every game** and the loop's own CR 903.8 filter
+rejects the commander before the offer is ever built.
+
+**Three consequences the plan must carry, none of which were settled before this ran:**
+
+1. **The brief's disjunction resolves to its second branch.** SIM-3 did **not** measure a
+   pre-SIM-1 build — SIM-1's loop is present and correct at HEAD; it is starved of its input.
+   `OOS-SIM1-4` and the missing commander cast are **one defect, not two**, and registering
+   `commander_ids` is what un-suppresses the offer. That reduces PB-DX22's sizing: no provider
+   change is needed.
+2. **`OOS-SIM3-1`'s turn-143 number reproduces exactly** (seed 2, first `SpellCast` at turn
+   143), and the whole five-seed band is **143-154**, which sits inside §2.4's arithmetically
+   predicted 136-156. So `OOS-UI2-1`'s word "never" and `OOS-SIM3-1`'s "turn 143" are the same
+   fact read at two `--max-turns` values, exactly as the brief argued — and this batch must
+   record that as a **threshold**, not a closure.
+3. **The horizon is a hard floor for commander mechanics too.** CR 903.9a zone return and
+   CR 903.10a commander damage cannot be exercised by a commander that is never cast, so they
+   are gated on fix (1), not on the shuffle.
+
+Recorded **before** any acceptance evidence was written, per the brief.
+
+---
 
 ## Plan file
 
-`memory/primitives/pb-plan-ENG2.md`
+`memory/primitives/pb-plan-DX22.md` (written by `primitive-impl-planner`).

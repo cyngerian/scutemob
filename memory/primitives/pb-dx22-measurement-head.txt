@@ -1,0 +1,23 @@
+PB-DX22 pre-plan measurement — HEAD, unmodified build path
+games=5 base_seed=1 max_turns=200 players=4 bot=random
+
+seed    1  GameOver turns=176  cmds=9802  commander_ids_populated=0/4
+           first SpellCast turn: Some(154)  (total 25)  | first CommanderCastFromCommandZone turn: None (total 0) | cmdr returns 0 redirects 0
+           first cast @turn 154: SpellCast { player: PlayerId(2), stack_object_id: ObjectId(700), source_object_id: ObjectId(699) }
+           rejections: 33
+seed    2  GameOver turns=192  cmds=12631  commander_ids_populated=0/4
+           first SpellCast turn: Some(143)  (total 21)  | first CommanderCastFromCommandZone turn: None (total 0) | cmdr returns 0 redirects 0
+           first cast @turn 143: SpellCast { player: PlayerId(3), stack_object_id: ObjectId(678), source_object_id: ObjectId(677) }
+           rejections: 107
+seed    3  Halted MaxTurns { max_turns: 200, turn: 201 }  cmds=12362  commander_ids_populated=0/4
+           first SpellCast turn: Some(151)  (total 35)  | first CommanderCastFromCommandZone turn: None (total 0) | cmdr returns 0 redirects 0
+           first cast @turn 151: SpellCast { player: PlayerId(3), stack_object_id: ObjectId(699), source_object_id: ObjectId(698) }
+           rejections: 149
+seed    4  GameOver turns=167  cmds=9397  commander_ids_populated=0/4
+           first SpellCast turn: Some(153)  (total 7)  | first CommanderCastFromCommandZone turn: None (total 0) | cmdr returns 0 redirects 0
+           first cast @turn 153: SpellCast { player: PlayerId(1), stack_object_id: ObjectId(713), source_object_id: ObjectId(712) }
+           rejections: 98
+seed    5  Halted MaxTurns { max_turns: 200, turn: 201 }  cmds=12601  commander_ids_populated=0/4
+           first SpellCast turn: Some(151)  (total 33)  | first CommanderCastFromCommandZone turn: None (total 0) | cmdr returns 0 redirects 0
+           first cast @turn 151: SpellCast { player: PlayerId(3), stack_object_id: ObjectId(693), source_object_id: ObjectId(692) }
+           rejections: 38
