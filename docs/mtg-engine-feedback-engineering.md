@@ -16,17 +16,23 @@
 ## 0. Headline
 
 Two human playtests produced **10** findings (`test-data/bot testing notes.md`, 2026-08-01 → F1-F10)
-and **13** (`test-data/bot testing notes 2.md`, 56 lines, 2026-08-02 → G1-G13). Of the **17
+and **13** (`test-data/bot testing notes 2.md`, 55 lines, 2026-08-02 → G1-G13). Of the **17
 functional** findings among them (F1-F10 + G1-G7; G8-G13 are UX), the layer distribution is:
 
 | layer | count | findings |
 |---|---|---|
-| `crates/simulator` | 8 | F3, F4, F5, F6, F7, F8, G5, G6 |
+| `crates/simulator` | 9 | F3, F4, F5, F6, F7, F8, **G4**, G5, G6 |
 | card defs | 3 | F1, F2, F10 |
 | **engine** | **2** | G3, G7 |
-| `tools/play-server` (Rust) | 2 | F9 (with sim), G2 |
+| `tools/play-server` (Rust) | 2 | F9, G2 |
 | frontend (Svelte) | 1 | G1 |
-| (F8/F9/G4 straddle simulator + play-server view; counted once at their primary site) | | |
+| **total** | **17** | |
+
+(F8, F9 and G4 straddle the simulator's offer layer and the play-server's view layer; each is
+counted once, at the layer the fix landed in. G4's fix was `legal_actions.rs` + `view.rs`, so it
+sits with the simulator; F9's was the same shape but its 422 came from `casting.rs` refusing a
+play-server-forwarded command, so it sits with the play-server. Move either and the headline is
+unchanged: **engine 2 of 17.**)
 
 **The test suite is concentrated where the defects are not.** Source-level `#[test]`/`#[tokio::test]`
 attribute counts by area (method: `grep -rho '^\s*#\[\(tokio::\)\?test\]' --include=*.rs <dir> | wc -l`
@@ -50,8 +56,12 @@ Three facts explain why automation missed nearly all of it, and each is verified
    file; `random_deck` appends basics **last** (`crates/simulator/src/deck.rs:143-148`);
    `Zone::insert` is a `push_back` (`crates/card-types/src/state/zone.rs:107`) and `Zone::top()` is
    `v.last()` (`:159`), so the basics are drawn first. **Re-verified at HEAD** — SIM-4, SIM-5 and
-   SIM-6 never touched `bin/fuzzer.rs` or `deck.rs` (`git log --oneline -- crates/simulator/src/bin/fuzzer.rs
-   crates/simulator/src/deck.rs` shows only `34079131`, `b6274fcb`, `96a3bd23`, `878d593a`).
+   SIM-6 never touched `bin/fuzzer.rs` or `deck.rs`. `git log --oneline -- crates/simulator/src/bin/fuzzer.rs
+   crates/simulator/src/deck.rs` returns **seven** commits, none of them SIM-4/5/6: `f3ab45d4`
+   (scutemob-168), `e658c9d8` (scutemob-168 / PB-DX4, **+61 lines to `deck.rs`** — the
+   colourless-commander padding arm, `deck.rs:108-142`), `f2a9647b` (scutemob-147), `878d593a`
+   (SR-32), `96a3bd23` (SR-12), `b6274fcb` (SR-10), `34079131` (the feature commit). **The last
+   change to either file is 2026-08-01**, before both playtests and before all three SIM batches.
 2. **The sensors that would have caught most of the rest were built *after* the playtests.**
    SIM-5's `RejectedCommand` channel (`crates/simulator/src/local_game.rs:165-178`) shipped
    2026-08-02, on the same day, in response to G5.
@@ -73,8 +83,10 @@ sentence, observed by a person. ENG-1 flipped the row to `Served { by: "ENG-1" }
 
 The gate is not broken. It says so itself, at `crates/engine/tests/core/decision_gate.rs:12-17`:
 
-> *"This file does not close that gap at the engine level… It converts silent growth into recorded,
-> reviewed growth… **THIS GATE CANNOT STOP THE GROWTH; IT MAKES IT RECORDED.**"*
+> *"It converts **silent** growth into **recorded, reviewed** growth: a `Complete` def newly
+> carrying a still-auto-chosen decision fails `T4` until its author either demotes it or adds a
+> `BASELINE` entry with a written reason. **This gate cannot stop the growth; it makes it
+> recorded**"*
 
 `MAX_AUTO_CHOSEN_COMPLETE_UNION` (`decision_gate.rs:495`) is an **exact-equality** ratchet, currently
 **80**, walked 97 (2026-07-27) → 91 (PB-DX4) → 80 (ENG-1). **80 deck-legal `Complete` defs still have
@@ -141,7 +153,9 @@ tripwires that plain `--release` compiles out — this is how PB-DX19's SIGABRT 
   **"Never" is `--max-turns 80`; "from ~turn 143" is the default 200 cap.** Every historical
   "fuzz parity" claim must be read against the `--max-turns` it ran at.
 * **Commander rules.** `fuzzer.rs:322-327` puts the commander card in `ZoneId::Command` but never
-  calls `builder.player_commander` (the only production registrar is `setup.rs:276`), so
+  calls `builder.player_commander` — the only production registrar is `setup.rs:399`, whose own
+  comment at `:384` says *"`ZoneId::Command` only puts a card there; `player_commander` is what
+  records it"* — so
   `commander_ids` is empty and CR 903.8 tax / 903.9a zone return / 903.10a commander damage have
   **never been fuzzed** (`OOS-SIM1-4`).
 * **Reproduction.** See §1.1a — this is worse than the docs say.
@@ -275,12 +289,16 @@ superset of `public_state_hash` (`:100-109`). It covers 13 of ~79 dispatch arms,
 
 SR-9a: **9 test targets**, verified by `find crates/engine/tests -mindepth 2 -name main.rs` →
 `core`, `rules`, `casting`, `combat`, `scripts`, `primitives`, `mechanics_a_d`, `mechanics_e_l`,
-`mechanics_m_z`; the gate is `no_stray_test_binaries.rs:63-79` (*"There were 297 of them"*, `:1-3`).
+`mechanics_m_z`; the gate is `crates/engine/tests/no_stray_test_binaries.rs:63-79` (*"There were 297
+of them; linking dominated test-build wall time"*, `:4` — the gate file is itself the one permitted
+top-level `tests/*.rs`, so it does not live in a group directory).
 
 **Cannot catch — verified by grep, zero hits each:**
 * `grep -rln "generated-scripts\|replay_harness\|GameScript" tools/play-server` → nothing.
 * `grep -rn "StubProvider\|LegalAction" crates/engine/src/testing crates/engine/tests/scripts` → nothing.
-* `grep -rln "svelte" crates/engine` → one hit, a doc comment.
+* `grep -rln "svelte" crates/engine` → one **file**
+  (`crates/engine/tests/core/ui2_additional_cost_roster.rs`, four hits at `:28`, `:93`, `:244`,
+  `:261`), every one of them prose in a doc comment.
 
 **The corpus cannot see the provider, the play-server or the browser. 15 of the 17 functional
 playtest findings live in exactly those three places.**
@@ -304,7 +322,8 @@ checks none of them."*
 
 There are two. They have no code relationship.
 
-* `crates/simulator/src/report.rs` — **53 lines, two plain structs, zero derivation logic.**
+* `crates/simulator/src/report.rs` — **53 lines: two plain structs, one IO method
+  (`CrashReport::write_to_file`, `:23-28`), and zero derivation logic.**
   `CrashReport { seed, player_count, violation, command_history, turn_number, total_commands }` and
   `GameResult { seed, winner, turn_count, total_commands, violations, error }`. **It computes no
   metrics.** The wasted-tap and `ManaPoolsEmptied` counters that SIM-5's A/B table reports exist
@@ -496,14 +515,32 @@ should dispatch the existing batch number.
 
 | # | Task | Findings it would have caught | Track | Scope | Wire |
 |---|---|---|---|---|---|
-| 1 | **≡ PB-DX22** *(v3 rank 4, already queued)* — make the fuzzer a real instrument: shuffle the library, register the commander | none directly — **it is the precondition for rows 3, 6 and 7 delivering anything** | simulator | `bin/fuzzer.rs` + `deck.rs`; re-rolls every recorded seed **once** | none |
+| 1 | **≡ PB-DX22** *(v3 rank 4, already queued)* — make the fuzzer a real instrument: shuffle the library, register the commander | **none directly, and that is the honest answer** — no F/G finding is catchable by a shuffled fuzzer *alone*. It is what makes row 3 able to catch **F3, F4, F5, G5** at all, and it is the only row that puts CR 903.8/903.9a/903.10a (**F7**'s subsystem) under any automated exercise | simulator | `bin/fuzzer.rs` + `deck.rs`; re-rolls every recorded seed **once** | none |
 | 2 | **FUZZ-CRASH** *(new)* — make the crash artefact reproduce | PB-DX19's SIGABRT (found by a bespoke instrument, not by the fuzzer's own artefact) | simulator | ~120-200 lines: fill `command_history`, per-game abort boundary, `--replay-report` | none |
 | 3 | **≡ PB-DX32** *(v3 rank 19, already queued — argue for promotion)* — invariant #10 (legal-action soundness = SR-38 at runtime) + dedupe the checkpoint weighting + classify the transient-token floor | **F4, F9, G5**; `OOS-SIM5-3` (25 blocker refusals), `OOS-SIM6-3` (62 refusals), `OOS-CARDS2-4` | simulator | `invariants.rs` + `GameResult` fields + dedupe by `(check, description)` | none |
 | 4 | **HTTP-FUZZ** *(new)* — a randomized walker over the 6 play-server routes driving the **human** seat | **G2**, F7, F9, **G4**, G6-as-coverage, `OOS-CARDS2-4`, `OOS-G10-1`, `OOS-SIM6-3`'s human half | play-server (test/bin) | ~300-500 lines over `build_router` + `oneshot`, no port | none |
 | 5 | **R7-HARNESS** *(≡ `OOS-UI5-4`, designed twice, built zero times)* — tier 1 vitest/jsdom + tier 2 playwright-core | **G1 — and nothing else catches G1** | frontend | tier 1 ~400-600 lines + 3 devDeps; tier 2 ~30 lines setup | none |
 | 6 | **DECK-CHANNEL** *(new)* — steered decks: a salt on `random_deck` + a decklist channel on `POST /api/game` | PB-DX19's crash sooner; **and it deletes the ~2,400-seed fixture cost that is R7's largest line item** | simulator + play-server | ~150-250 lines; **re-rolls seeds — batch with row 1** | none (DTO only) |
-| 7 | **CI-POLICY** *(new, policy not code)* — what runs in CI vs a scheduled job | — | infra | see §2.7 | none |
+| 7 | **CI-POLICY** *(new, policy not code)* — what runs in CI vs a scheduled job | **none — a policy row catches nothing itself.** It decides how often rows 3, 4 and 5 run, which is the difference between catching **F4/F9/G2/G4/G5** on the commit that introduces them and catching them at the next playtest | infra | see §2.7; first deliverable is a **measurement**, not a config change | none |
 | 8 | **REPORT-LOOP** *(new)* — free-text on the bug report + a coded replay path | G7's class (a report a human writes prose into), and every future report | play-server + tooling | ~100-150 lines | none (DTO only) |
+
+**Dispatching from this table.** The table supplies title, findings, track, scope and wire; each
+row's `§2.N` supplies the argument and the constraints a brief must carry. What it deliberately does
+**not** supply is per-row acceptance criteria, because this project's criteria are house-standard
+and identical across rows — write them at dispatch, from this list:
+
+1. every new gate **proven red by executing a revert**, not by inspection (the standing rule since
+   PB-DX5; UI-5's G11 gate was wrong on its first run and its own non-vacuity arm caught it);
+2. **PROTOCOL and HASH computed from the failing gate's own output, never predicted** — all eight
+   rows below predict *no* wire change, so the expected result is "unmoved", and an unmoved
+   prediction still has to be gate-executed;
+3. `git diff main..HEAD --numstat -- crates/engine/` **empty** for rows 2, 4, 5, 6, 7, 8 (row 1 and
+   row 3 are `crates/simulator`, also 0 engine lines);
+4. any behavioural claim **measured A/B on named seeds**, both directions, with the instrument named
+   (SIM-5's `sim5_bot_cast_discipline.rs` is the precedent and rows 1 and 3 should reuse it);
+5. full-workspace `--workspace --no-fail-fast` **captured to a file, never tail-piped** (the
+   2026-08-02 lesson: a tail pipe hid a compile failure and faked a green run);
+6. a seed filed for everything found and not fixed, with its measurement.
 
 **Ranking rationale, stated so it can be argued with**: 1 gates 3/6/7. 2 is cheap and is the only
 row that makes an *unattended* run produce something a person can act on. 3 has the highest
@@ -636,8 +673,10 @@ params from the **descriptors the server itself sends** (`AnswerShapeView`, `cos
   construction and visible on a human's first click.**
 * **invariants across a mulligan** — the G2 property. All four command zones are public (CR 903.6)
   and appear in `SeatView`, so *"no seat's commander changes across a mulligan"* is assertable from
-  the response body alone, with no engine access. SIM-4 shipped exactly this as two probes
-  (`main.rs:7149`, `:7232`); the walker generalises them from two fixed flows to every reachable one.
+  the response body alone, with no engine access. SIM-4 shipped exactly this as two probes —
+  `test_sim4_mulligan_preserves_every_seats_commander` (`main.rs:8583`) and
+  `test_sim4_session_resolves_decks_once_and_a_mulligan_preserves_them` (`:8666`) — and the walker
+  generalises them from two fixed flows to every reachable one.
 * **no 5xx, no unexpected 422, no `seq` desync.**
 
 **Why the 51 existing probes are not this**: each drives one hand-picked flow to one assertion.
@@ -948,3 +987,37 @@ modified. Consequently:
   comparable shipped batches (UI-4's 3 lines + 2 gates; SIM-6's ~150; UI-5's ~400-500) and should be
   re-derived at dispatch, per the queue memo's standing instruction that a brief written now for a
   batch dispatched later is a stale premise waiting to happen.
+
+### The `/review` cycle — 10 findings, all 10 taken, and three were wrong cites in this file
+
+The reviewer re-checked ~30 of this document's `file:line` cites against the code and re-ran four of
+its counting commands. **Three cites did not resolve, and the worst of them was inside a correction
+row**, which is the shape this document is about:
+
+1. **C8 quoted a `git log` output the command does not produce.** It claimed four commits on
+   `bin/fuzzer.rs` + `deck.rs`; the command returns **seven**, and one of the three omitted
+   (`e658c9d8`, PB-DX4) added **61 lines to `deck.rs`**. The conclusion — that SIM-4/5/6 never
+   touched either file — survives and was independently re-confirmed in code, but *"verified by
+   `git log`"* attached to a `git log` output nobody could reproduce is precisely the folklore this
+   task exists to remove. Now lists all seven with the last-change date.
+2. **`setup.rs:276`** was cited as the commander registrar; it is **`:399`** (`:276` is inside
+   `dealt_decks`). The claim "the only production registrar" is correct — re-verified, the only
+   other non-test hits are the builder definition and one test.
+3. **The two SIM-4 mulligan probes** were cited at `main.rs:7149`/`:7232`, which are an assert
+   message and a doc comment. They are at **`:8583`** and **`:8666`**, and are now named as well as
+   numbered — a name survives a file edit and a line number does not, which is the OOS-DP6-8 lesson
+   this document's own header invokes.
+
+Also taken: §0's layer table dropped **G4** and summed to 16 against its own stated 17 (fixed, with
+the straddle rule written down); the notes file is 55 lines, not 56, in a section whose stated method
+is "counted, not quoted"; `report.rs` has one IO method as well as its two structs; the SR-9a "297"
+quote is at `:4` and the gate file is not where SR-9a's own rule sends a reader looking; the
+`svelte` grep is one *file* with four hits; §0.1 rendered an altered-case string as a verbatim
+blockquote (restored); and rows 1 and 7 of §2 carried no F/G column (now stated as *"none, and that
+is the honest answer"* with what each row unblocks), plus the dispatch note above on acceptance
+criteria.
+
+**Nothing the reviewer found changed a conclusion.** All ten were evidence defects — a citation that
+did not resolve, a count that did not close, a quote that was not verbatim. That is the right
+outcome for a document whose entire claim is that its predecessors' evidence defects are why a human
+had to find these bugs.
