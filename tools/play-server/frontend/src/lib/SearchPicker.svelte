@@ -269,10 +269,19 @@
       <span class="picker-chosen">chosen: {chosenLabel}</span>
     {/if}
     <!-- CR 701.23a stated as two numbers rather than one, so the look/pick split
-         is legible before a single row is read. -->
-    <span class="picker-count">
-      {rows.length} in library · {candidates.length} findable
-    </span>
+         is legible before a single row is read.
+
+         "in library" counts `allCards`, NOT `rows`: a graveyard search puts
+         candidates in `rows` that are in no library, and calling those "in
+         library" would be a small lie in the one place a player reads a number.
+         With no look entitlement the count degrades to the pre-UI-6 phrasing. -->
+    {#if allCards.length > 0}
+      <span class="picker-count">
+        {allCards.length} in library · {candidates.length} findable
+      </span>
+    {:else}
+      <span class="picker-count">{candidates.length} card{candidates.length === 1 ? '' : 's'}</span>
+    {/if}
   </div>
 
   {#if rows.length === 0}
