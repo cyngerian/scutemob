@@ -5456,6 +5456,17 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                     stack_object_id: copy_stack_id,
                     source_object_id: encoded_object_id,
                 });
+                // ENG-2 (S4, CR 601.2c): announce the cipher-copy's targets. A no-op
+                // today (OOS-ENG2-3: cipher-copy hardcodes `targets: vec![]` via
+                // trigger_default), wired in now so the announcement comes for free
+                // when that gap closes.
+                crate::rules::events::push_target_announcement(
+                    state,
+                    &mut events,
+                    controller,
+                    encoded_object_id,
+                    copy_stack_id,
+                );
             }
             events.push(GameEvent::AbilityResolved {
                 controller,
@@ -6165,6 +6176,17 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                             stack_object_id: stack_entry_id,
                             source_object_id: stack_source_id,
                         });
+                        // ENG-2 (S5, CR 601.2c): announce the suspend free-cast's
+                        // targets. A no-op today (OOS-ENG2-3: suspend hardcodes
+                        // `targets: vec![]` via trigger_default), wired in now so the
+                        // announcement comes for free when that gap closes.
+                        crate::rules::events::push_target_announcement(
+                            state,
+                            &mut events,
+                            owner,
+                            stack_source_id,
+                            stack_entry_id,
+                        );
                         // For creature spells cast via suspend: the permanent will gain
                         // haste. We mark this by noting is_creature here. The actual
                         // haste grant (clearing summoning sickness) is done in the
