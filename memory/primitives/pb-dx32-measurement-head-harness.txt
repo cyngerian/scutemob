@@ -1,0 +1,62 @@
+=== PB-DX32 HEAD BASELINE (5 fuzz-shaped games, seeds 1-5, max_turns 200) ===
+seed  1: turns  50 cmds   2190 | rejections   79 | taps  155 in  90 runs, wasted 119 taps in  72 runs | poolsEmptied  77 | violations    9 raw /   2 deduped (orphan    9/  2) | leaked 0
+seed  2: turns 123 cmds   5518 | rejections   27 | taps  673 in 263 runs, wasted 560 taps in 219 runs | poolsEmptied 190 | violations   22 raw /   5 deduped (orphan   21/  4) | leaked 0
+seed  3: turns  90 cmds   4812 | rejections   43 | taps  459 in 234 runs, wasted 317 taps in 163 runs | poolsEmptied 150 | violations   14 raw /   3 deduped (orphan   14/  3) | leaked 0
+seed  4: turns 119 cmds   5902 | rejections  157 | taps  727 in 353 runs, wasted 506 taps in 260 runs | poolsEmptied 232 | violations   16 raw /   4 deduped (orphan   16/  4) | leaked 0
+seed  5: turns 112 cmds   5191 | rejections  236 | taps  627 in 318 runs, wasted 484 taps in 254 runs | poolsEmptied 236 | violations   33 raw /   6 deduped (orphan   30/  5) | leaked 0
+TOTALS: rejections 542 / 23613 commands = 2.2953% | wasted taps 1986/2641 in 968 runs | poolsEmptied 885 | violations 94 raw -> 20 deduped
+
+--- distinct rejection shapes ---
+  ActivateAbility { player: PlayerId(1), source: :: Rejected(InsufficientMana)
+  ActivateAbility { player: PlayerId(1), source: :: Rejected(InvalidCommand("graveyard-activated ability can only be activated from the gravey
+  ActivateAbility { player: PlayerId(1), source: :: Rejected(InvalidTarget("expected 1..=1 target(s) but got 0"))
+  ActivateAbility { player: PlayerId(1), source: :: Rejected(InvalidTarget("modal spell with per-mode targets requires exactly 1 target(s) for
+  ActivateAbility { player: PlayerId(2), source: :: Rejected(InsufficientMana)
+  ActivateAbility { player: PlayerId(2), source: :: Rejected(InvalidTarget("expected 1..=1 target(s) but got 0"))
+  ActivateAbility { player: PlayerId(2), source: :: Rejected(InvalidTarget("modal spell with per-mode targets requires exactly 1 target(s) for
+  ActivateAbility { player: PlayerId(3), source: :: Rejected(InsufficientMana)
+  ActivateAbility { player: PlayerId(3), source: :: Rejected(InvalidCommand("a spell with split second is on the stack; non-mana abilities can
+  ActivateAbility { player: PlayerId(3), source: :: Rejected(InvalidTarget("expected 1..=1 target(s) but got 0"))
+  ActivateAbility { player: PlayerId(4), source: :: Rejected(InsufficientMana)
+  ActivateAbility { player: PlayerId(4), source: :: Rejected(InvalidTarget("expected 1..=1 target(s) but got 0"))
+  CastSpell(CastSpellData { player: PlayerId(2), :: Rejected(InvalidTarget("expected 1..=1 target(s) but got 0"))
+  CastSpell(CastSpellData { player: PlayerId(3), :: Rejected(InvalidTarget("expected 1..=1 target(s) but got 0"))
+  CastSpell(CastSpellData { player: PlayerId(4), :: Rejected(InvalidCommand("Aura spells require exactly one target (CR 303.4a)"))
+  CastSpell(CastSpellData { player: PlayerId(4), :: Rejected(InvalidTarget("expected 1..=1 target(s) but got 0"))
+  DeclareAttackers { player: PlayerId(2), attack :: Rejected(InvalidCommand("Object ObjectId(907) is not a creature"))
+  DeclareBlockers { player: PlayerId(1), blocker :: Rejected(AlreadyDeclaredBlockers(PlayerId(1)))
+  DeclareBlockers { player: PlayerId(1), blocker :: Rejected(CrossPlayerBlock { blocker: ObjectId(419), attacker: ObjectId(548) })
+  DeclareBlockers { player: PlayerId(1), blocker :: Rejected(CrossPlayerBlock { blocker: ObjectId(765), attacker: ObjectId(745) })
+  DeclareBlockers { player: PlayerId(1), blocker :: Rejected(CrossPlayerBlock { blocker: ObjectId(805), attacker: ObjectId(798) })
+  DeclareBlockers { player: PlayerId(1), blocker :: Rejected(CrossPlayerBlock { blocker: ObjectId(859), attacker: ObjectId(817) })
+  DeclareBlockers { player: PlayerId(1), blocker :: Rejected(InvalidCommand("Object ObjectId(698) cannot block ObjectId(823) (attacker has fly
+  DeclareBlockers { player: PlayerId(1), blocker :: Rejected(InvalidCommand("Object ObjectId(859) cannot block ObjectId(798) (attacker has fly
+  DeclareBlockers { player: PlayerId(1), blocker :: Rejected(InvalidCommand("The attacking player cannot declare blockers"))
+  DeclareBlockers { player: PlayerId(2), blocker :: Rejected(AlreadyDeclaredBlockers(PlayerId(2)))
+  DeclareBlockers { player: PlayerId(2), blocker :: Rejected(CrossPlayerBlock { blocker: ObjectId(436), attacker: ObjectId(407) })
+  DeclareBlockers { player: PlayerId(2), blocker :: Rejected(CrossPlayerBlock { blocker: ObjectId(553), attacker: ObjectId(681) })
+  DeclareBlockers { player: PlayerId(2), blocker :: Rejected(CrossPlayerBlock { blocker: ObjectId(553), attacker: ObjectId(692) })
+  DeclareBlockers { player: PlayerId(2), blocker :: Rejected(CrossPlayerBlock { blocker: ObjectId(660), attacker: ObjectId(651) })
+  DeclareBlockers { player: PlayerId(2), blocker :: Rejected(CrossPlayerBlock { blocker: ObjectId(709), attacker: ObjectId(651) })
+  DeclareBlockers { player: PlayerId(2), blocker :: Rejected(InvalidCommand("The attacking player cannot declare blockers"))
+  DeclareBlockers { player: PlayerId(3), blocker :: Rejected(AlreadyDeclaredBlockers(PlayerId(3)))
+  DeclareBlockers { player: PlayerId(3), blocker :: Rejected(CrossPlayerBlock { blocker: ObjectId(441), attacker: ObjectId(582) })
+  DeclareBlockers { player: PlayerId(3), blocker :: Rejected(CrossPlayerBlock { blocker: ObjectId(524), attacker: ObjectId(507) })
+  DeclareBlockers { player: PlayerId(3), blocker :: Rejected(CrossPlayerBlock { blocker: ObjectId(562), attacker: ObjectId(539) })
+  DeclareBlockers { player: PlayerId(3), blocker :: Rejected(InvalidCommand("Object ObjectId(441) cannot block ObjectId(452) (attacker has Can
+  DeclareBlockers { player: PlayerId(3), blocker :: Rejected(InvalidCommand("The attacking player cannot declare blockers"))
+  DeclareBlockers { player: PlayerId(4), blocker :: Rejected(AlreadyDeclaredBlockers(PlayerId(4)))
+  DeclareBlockers { player: PlayerId(4), blocker :: Rejected(CrossPlayerBlock { blocker: ObjectId(503), attacker: ObjectId(493) })
+  DeclareBlockers { player: PlayerId(4), blocker :: Rejected(CrossPlayerBlock { blocker: ObjectId(626), attacker: ObjectId(582) })
+  DeclareBlockers { player: PlayerId(4), blocker :: Rejected(CrossPlayerBlock { blocker: ObjectId(703), attacker: ObjectId(668) })
+  DeclareBlockers { player: PlayerId(4), blocker :: Rejected(InvalidCommand("The attacking player cannot declare blockers"))
+  TapForMana { player: PlayerId(2), source: Obje :: Rejected(InsufficientMana)
+
+--- deck pool (OOS-CARDS2-3) ---
+  all_cards() = 1803
+  Complete    = 1133
+  commander pool (Complete legendary creature) = 90
+test scratch_measure_head ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.08s
+
