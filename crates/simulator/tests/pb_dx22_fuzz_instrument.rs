@@ -14,17 +14,17 @@
 //! scoped to `CARGO_MANIFEST_DIR = crates/engine`. `crates/simulator/tests/` is a flat
 //! directory of integration targets and adding one is the convention here.
 
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::sync::Arc;
 
 use mtg_engine::{
-    all_cards, apply_commander_tax, CardDefinition, CardId, CardRegistry, CardType,
+    all_cards, apply_commander_tax, CardDefinition, CardId, CardRegistry, CardType, Command,
     GameStateBuilder, ObjectFilter, ObjectId, PlayerId, ReplacementModification,
     ReplacementTrigger, SuperType, ZoneId, ZoneType,
 };
 use mtg_simulator::{
-    build_fuzz_state, build_registry, effective_cast_cost, place_registered_deck, DeckConfig,
-    FuzzGameSetup,
+    build_fuzz_state, build_registry, effective_cast_cost, place_registered_deck, Bot, DeckConfig,
+    FuzzGameSetup, LocalGame, LocalGameLimits, RandomBot, StubProvider,
 };
 
 const PLAYERS: u32 = 4;
@@ -532,4 +532,112 @@ fn test_dx22_cr_903_8_tax_applies_on_the_fuzz_build() {
         Some(taxed),
         "CR 903.8: after one prior command-zone cast the commander costs {{2}} more"
     );
+}
+
+// ── P9 ───────────────────────────────────────────────────────────────────────────
+
+/// CR 103.3 — a spell is cast at an ORDINARY depth, on every seed.
+///
+/// This is the probe `OOS-UI2-1` and `OOS-SIM3-1` come down to. Before PB-DX22 the floor
+/// was arithmetic: `random_deck` appends ~34 basics LAST and `Zone::top()` is the vector's
+/// end, so the first non-land sat at personal draw ~35-40 ⇒ game turn ≈136-156 at four
+/// seats; the pre-plan measurement observed 143-154 across five seeds. **The turn-30 gate
+/// therefore sits more than 4× below the old behaviour and cannot be satisfied by it**,
+/// which is what makes it a floor rather than a tuned number.
+///
+/// # What the margin actually is — MEASURED, because the estimate was wrong
+///
+/// The plan expected the post-fix band to sit "well above" nothing in particular and
+/// certainly under ~15. It does not. Over **20** seeds the first-cast game turn is
+/// **min 3 / median 12 / max 29**:
+/// `[3,5,5,6,8,9,9,10,10,11,12,17,17,18,18,18,23,25,26,29]`. Against this 30-turn gate
+/// that is a margin of **one turn**. Seeds `[1,2,3,4]` land at 17/9/25/23, so this test
+/// is not currently at risk — but a successor that widens the seed set will get a
+/// failure, and **the correct response is still not to raise the gate**.
+///
+/// The cause is measured, not guessed: the same run records the first `PlayLand` on turn
+/// **1-7 for all 20 seeds**, so land availability is not the limiter. The limiter is that
+/// this path deals **no opening hand** (CR 103.5, deliberately out of scope — §B2 /
+/// `OOS-DX22-1`): a seat starts with zero cards and draws one per *personal* turn, so by
+/// game turn *T* at four seats it has drawn only about *T*/4. §B2 argued seven opening
+/// cards would move this "by ≤1-2 personal draws" — true, and that is 4-8 GAME turns,
+/// which is the unit this threshold is written in.
+///
+/// # What reverting the shuffle alone does — and does NOT do
+///
+/// The plan states this test reddens on every seed if the shuffle is deleted. **Executed,
+/// and that is false**: with the shuffle removed but the commander still registered,
+/// seeds 1/2/3 still cast, at turns 26/25/25, and only seed 4 fails. The reason is that a
+/// registered commander is cast **from the command zone**, which is not in the library and
+/// so is not gated by library order at all — and `Command::CastSpell` covers that cast
+/// too. Reverting **both** this batch's fixes (the merge-base behaviour) fails on the
+/// first seed with zero casts in 1,073 commands, which is the discrimination that
+/// matters and is what was recorded.
+///
+/// `max_commands` is set to `30 * 400`, deliberately double `GameDriver`'s `max_turns *
+/// 200` ratio, so a failure here can only mean "no cast", never "budget exhausted"
+/// (`memory/gotchas-infra.md` on that ratio being the fuzzer's, calibrated on land-only
+/// games).
+#[test]
+fn test_dx22_a_spell_is_cast_at_an_ordinary_depth() {
+    const MAX_TURNS: u32 = 30;
+    let (cards, registry) = pool();
+
+    let mut observed: Vec<(u64, u32)> = Vec::new();
+    for seed in [1u64, 2, 3, 4] {
+        let setup = built(seed, &cards, &registry);
+
+        let mut bots: HashMap<PlayerId, Box<dyn Bot>> = HashMap::new();
+        for (i, pid) in seats(PLAYERS).into_iter().enumerate() {
+            // The same per-seat bot seeding `mtg-fuzzer::run_single_game` uses.
+            let bot_seed = seed.wrapping_add(100 + i as u64);
+            bots.insert(
+                pid,
+                Box::new(RandomBot::new(bot_seed, format!("Bot-{}", pid.0))),
+            );
+        }
+
+        let limits = LocalGameLimits {
+            max_turns: MAX_TURNS,
+            max_commands: MAX_TURNS * 400,
+            max_consecutive_passes: 500,
+            record_journal: true,
+        };
+
+        let (mut game, _) = LocalGame::start(
+            setup.state,
+            seed,
+            StubProvider,
+            bots,
+            BTreeSet::new(),
+            limits,
+            false,
+        )
+        .unwrap_or_else(|e| panic!("seed {seed} must start: {e:?}"));
+
+        let _outcome = game.advance();
+
+        let first_cast = game
+            .journal()
+            .iter()
+            .find(|rec| matches!(rec.command, Command::CastSpell(_)))
+            .map(|rec| rec.turn);
+
+        let turn = first_cast.unwrap_or_else(|| {
+            panic!(
+                "CR 103.3: seed {seed} cast no spell at all within {MAX_TURNS} turns \
+                 ({} commands recorded) — that is the unshuffled instrument's signature",
+                game.command_count()
+            )
+        });
+        println!("P9 seed {seed}: first CastSpell on game turn {turn}");
+        assert!(
+            turn <= MAX_TURNS,
+            "seed {seed} first cast on turn {turn}, beyond the {MAX_TURNS}-turn floor"
+        );
+        observed.push((seed, turn));
+    }
+
+    println!("P9 observed first-cast turns: {observed:?}");
+    assert_eq!(observed.len(), 4, "non-vacuity: all four seeds must be run");
 }

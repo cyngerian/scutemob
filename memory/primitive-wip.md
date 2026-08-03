@@ -336,6 +336,177 @@ runs; first appearance at Stage 3.
 * **NOT FIXED, by instruction and by `memory/conventions.md`'s default-to-defer.** Captured
   here for Stage 5 seed filing.
 
-**Stage-3 gates**: `cargo build --workspace` OK · `cargo test -p mtg-simulator` **174 passed /
-0 failed** (+1 = P11 at the point it was added; +4 more with P5-P8) · `cargo test -p
-play-server` 78/0 · clippy / fmt / `check-defs-fmt.sh` below.
+**Stage-3 gates**: `cargo build --workspace` OK · `cargo test -p mtg-simulator` **178 passed /
+0 failed** (+5 = P5/P6/P7/P8/P11) · `cargo test -p play-server` 78/0 · `clippy --workspace
+--all-targets -D warnings` exit 0 · `cargo fmt --check` exit 0 · `check-defs-fmt.sh` clean.
+
+### - [x] Stage 4 — the ordinary-depth probes
+
+**P9** `test_dx22_a_spell_is_cast_at_an_ordinary_depth` — seeds `[1,2,3,4]`, 4 seats,
+`RandomBot` seeded exactly as `run_single_game` seeds its bots, `LocalGameLimits { max_turns:
+30, max_commands: 30*400, max_consecutive_passes: 500, record_journal: true }`, `human_seats`
+empty. Asserts a `CommandRecord` with `Command::CastSpell(..)` at `turn <= 30` for **every**
+seed, and PRINTS the observed turn. Wall time for all four games: **0.90 s**, so the plan's
+"reduce to seeds `[1,2]` if it exceeds 60 s" escape hatch was not needed.
+
+```
+P9 seed 1: first CastSpell on game turn 17
+P9 seed 2: first CastSpell on game turn 9
+P9 seed 3: first CastSpell on game turn 25
+P9 seed 4: first CastSpell on game turn 23
+```
+
+**THE BINDING RULE FIRED, AND THE GATE WAS NOT MOVED.** The plan says: record the observed
+turn on every seed, and *if any exceeds 15, do NOT raise the gate to fit the data — investigate
+and report*. **Three of the four exceed 15** (17, 25, 23). The gate stays at **30**, exactly as
+the plan specified it; nothing was tuned. The investigation is below.
+
+**P10** is a measurement, not a test (a commander needs 3-6 lands, which a 30-turn debug probe
+cannot reliably reach, and a statistical assertion in the suite is the flake class this project
+bans). Measured with a scratch `crates/simulator/examples/dx22_p10.rs` on the POST-FIX build
+path — 20 games, base seed 1, `--max-turns 200`, `--profile fuzz`, journal on — then
+**deleted**; `git ls-files crates/simulator/examples` is empty and `crates/simulator/examples/`
+no longer exists.
+
+| event | before (pre-plan measurement) | after (20 games) |
+|---|---|---|
+| `CommanderCastFromCommandZone` | **0** in ~56,800 commands / 5 games | **36**, in **16 of 20** games (first cast typically game turn 38-107; seed 8 as early as turn 3) |
+| `CommanderReturnedToCommandZone` (CR 903.9a) | 0 | **13** |
+| non-empty `commander_damage_received` (CR 903.10a) | 0 games | **16 of 20** games |
+| `CommanderZoneRedirect` (CR 903.9b) | 0 | **0** — see the finding below |
+| `SpellCast` | 25/21/35/7/33 per game at turns 143-154 | **670** across 20 games |
+
+**`OOS-SIM1-4`'s closure condition (c) is SATISFIED — the count is 36, not 0, so no STOP.**
+CR 903.8, CR 903.9a and CR 903.10a are all now exercised by the fuzzer for the first time.
+
+#### FINDING — the plan's "≤15" expectation for P9 is refuted by measurement
+
+Over 20 seeds the first-cast game turn is **min 3 / median 12 / max 29**, sorted:
+`[3, 5, 5, 6, 8, 9, 9, 10, 10, 11, 12, 17, 17, 18, 18, 18, 23, 25, 26, 29]`.
+
+Against a gate of 30 that is a margin of **one turn** at 20 seeds. P9 itself uses seeds
+`[1,2,3,4]` (max 25) so it is not currently at risk, but a successor that widens the seed set
+without reading this will get a flake, and the correct response will still be to investigate,
+not to raise the gate.
+
+**Mechanism, measured not guessed.** The same run records the first `Command::PlayLand` turn:
+it is **1-7 on every one of the 20 seeds**, so land availability is *not* the limiter (seed 14
+plays its first land on turn 1 and still does not cast until turn 29). The limiter is §B2's own
+declined item, **`OOS-DX22-1` — no opening hand (CR 103.5)**: every seat starts with **zero**
+cards and draws one per *personal* turn, so by game turn *T* in a four-player game a seat has
+drawn only about *T*/4 cards. The plan's §B2 reason 2 says "Seven extra opening cards move that
+by ≤1-2 personal draws" — which is true, and is precisely the point: **1-2 personal draws is
+4-8 GAME turns at four seats**, and P9's threshold is stated in game turns. The plan converted
+personal draws to game turns when arguing the pre-fix floor (draw ~35-40 ⇒ turn ≈136-156) and
+did not convert them when predicting the post-fix band. `RandomBot`'s uniform choice adds the
+rest of the spread.
+
+This does not weaken any closure: the pre-fix floor was 143-154 and the post-fix band is 3-29,
+so `OOS-UI2-1` and `OOS-SIM3-1` are closed by an order of magnitude either way. It sharpens
+`OOS-DX22-1` from "would not change anything measurable" to "is the measured reason the band is
+3-29 rather than 3-12", which is the number the successor needs.
+
+#### FINDING — CR 903.9b is registered but still never exercised
+
+`CommanderZoneRedirect` fired **0 times in 20 games**, even though P6 proves the eight
+replacement effects exist on every built state. Nothing in those games bounced a commander to
+its owner's hand or shuffled one into a library. So the CR 903.9b half of the commander rules
+is now *reachable* but still *unreached* by the fuzzer at this sample size — which is exactly
+the vacuity §B1 warned about, one step removed: before this batch a zero would have meant "the
+mechanism does not exist"; now a zero means "no game happened to trigger it". The distinction
+is only visible because P6 exists. Worth a seed at Stage 5.
+
+#### FINDING — P9's revert-proof does NOT work the way the plan says
+
+The plan's row for P9 gives the revert as "delete the shuffle → no cast before turn ~136,
+every seed reddens". **Executed on the Stage-4 tree, that is false.** With the shuffle removed
+but the commander still registered:
+
+```
+P9 seed 1: first CastSpell on game turn 26
+P9 seed 2: first CastSpell on game turn 25
+P9 seed 3: first CastSpell on game turn 25
+panicked ...: CR 103.3: seed 4 cast no spell at all within 30 turns (1094 commands recorded)
+test result: FAILED. 0 passed; 1 failed
+```
+
+Only **one of four** seeds reddens. The reason is a genuine confound the plan did not
+anticipate: a **registered commander is cast from the command zone**, which is not in the
+library and therefore is not gated by library order at all — and `Command::CastSpell` is the
+same command either way. Stage 3's fix partially *masks* Stage 2's fix from this probe.
+
+The discrimination that matters was then executed: reverting **both** fixes, i.e. the
+merge-base behaviour, fails on the very first seed —
+
+```
+CR 103.3: seed 1 cast no spell at all within 30 turns (1073 commands recorded)
+test result: FAILED. 0 passed; 1 failed
+```
+
+— rebuild confirmed (`Compiling mtg-simulator`) on both runs. So P9 does discriminate against
+the tree it exists to discriminate against; it is simply not a single-variable probe for the
+shuffle, and the plan's row overstates it. P9's doc comment now records this measurement in
+place of the plan's claim (`memory/conventions.md`'s aspirationally-wrong-comment rule); the
+gate itself was **not** changed.
+
+**Stage-4 gates**: `cargo build --workspace` OK · `cargo test -p mtg-simulator` **179 passed /
+0 failed** (+1 = P9) · `clippy --workspace --all-targets -D warnings` exit 0 · `cargo fmt
+--check` exit 0 · `tools/check-defs-fmt.sh` → `1803 defs checked / clean`.
+
+**FULL-WORKSPACE RE-MEASURE** (`--workspace --no-fail-fast` to `/tmp/pb-dx22-final.txt`, never
+tail-piped, summed with awk over 42 `^test result` lines): **4,355 passed / 0 failed / 5
+ignored**. That is **+10** over the Stage-0 baseline of 4,345, and 10 is exactly the probe count
+(P1-P9 + P11). Residual failure list **empty** — zero `failures:` / `FAILED` / `error[` lines.
+
+**Wire sentinels re-executed** (not predicted): `hash_schema` and `protocol_schema` green;
+`HASH_SCHEMA_VERSION = 72`, `PROTOCOL_VERSION = 35` — **unmoved**, as they must be, since the
+branch touches 0 engine lines.
+
+**Footprint, verified by diff rather than claimed**:
+
+* `git diff main..HEAD --numstat -- crates/engine/ crates/card-defs/ crates/card-types/
+  crates/view-model/ tools/` → **EMPTY**.
+* `git diff main..HEAD -- crates/simulator/src/setup.rs` → **EMPTY** (0 lines, not even doc
+  comments — the plan's §5 `setup.rs` doc correction is Stage 5's).
+* Card coverage unmoved by construction: 0 lines in `crates/card-defs`.
+* `git ls-files crates/simulator/examples` → empty; the directory does not exist.
+* Changed files, whole branch: `crates/simulator/src/{bin/fuzzer.rs, fuzz_setup.rs, lib.rs}`,
+  `crates/simulator/tests/{local_game.rs, pb_dx22_fuzz_instrument.rs}`, plus `memory/`.
+
+---
+
+## Stage 5 — NOT DONE (coordinator's)
+
+The A/B measurement write-up, the 10 comment/doc corrections in plan §5, seed filing
+(`OOS-DX22-1..7` plus the three new ones below), and the `CLAUDE.md` /
+`memory/workstream-state.md` bookkeeping are Stage 5 and were deliberately not started.
+
+**New seed candidates this run surfaced, with their evidence already captured above:**
+
+* **`attachment_validity` on fuzz seed 5, turn 88** — a pre-existing engine defect made
+  reachable. Repro `mtg-fuzzer --replay 5 --players 4 --max-turns 200 --profile fuzz`;
+  0 engine lines in the branch diff.
+* **P9's band is 3-29, not ≤15**, and the cause is `OOS-DX22-1` (no opening hand) measured
+  rather than assumed — this sharpens that seed's justification and gives it the number it
+  needs.
+* **CR 903.9b is registered but unexercised** — `CommanderZoneRedirect` = 0 in 20 post-fix
+  games, while P6 proves the 8 replacements exist.
+
+**Numbers Stage 5 needs and already has**: commands/turn **58.8 → 46.3 → 45.7** across the
+three stages (the input `OOS-DX22-2` asks for; `HaltReason::InfiniteLoop` never appeared and
+the turn cap stopped being reached at all, so `max_commands` did **not** start binding first).
+
+### Probe → revert-proof ledger (all EXECUTED, all rebuilds confirmed)
+
+| probe | revert executed | observed failure |
+|---|---|---|
+| P1 | `place_registered_deck` library loop → `.iter().take(98)` | `left: 98 / right: 99` |
+| P2 | `deck.main_deck.shuffle(&mut rng)` → `truncate(99)` no-op | `left != right` — library IS the construction order |
+| P3 | `shuffle(&mut rng)` → `shuffle(&mut rand::rng())` | seed 1 did not reproduce seat 1's order |
+| P4 | `seed_from_u64(seed)` → `seed_from_u64(0)` | seeds 1 and 2 dealt the same library (**plan's stated revert does not work — see Stage 2**) |
+| P5 | delete `builder.player_commander(..)` | `left: [] / right: [CardId("samut-voice-of-dissent")]` |
+| P6 | delete `register_commander_zone_replacements(..)` only | `left: 0 / right: 8` — **and P7 stays green, confirming §B1** |
+| P7 | delete `builder.player_commander(..)` | `pending = []` |
+| P8 | delete `builder.player_commander(..)` | effective cost `generic 3` where `generic 5` was required |
+| P9 | delete shuffle **and** registration (merge-base) | seed 1 cast no spell in 30 turns / 1,073 commands (**plan's stated revert reddens only 1 of 4 — see the finding above**) |
+| P11 | **none needed — RED on the pre-fix tree**, on exactly `["src/fuzz_setup.rs", "tests/local_game.rs"]` | recorded verbatim in Stage 3 |
