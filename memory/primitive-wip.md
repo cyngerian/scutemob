@@ -227,7 +227,7 @@ the point of the batch and it moves enormously:
 | avg turns per game | 191.7 | **112.7** |
 | total turns / total commands | 3,833 / 225,276 | 2,254 / 104,252 |
 | commands per turn | 58.8 | **46.3** |
-| violation `check`s seen | `no_orphaned_tokens`, `player_consistency` | same two — **no new check class** |
+| violation `check`s seen | `no_orphaned_tokens`, `player_consistency` | same two — **no new check class** *(⚠️ read off the binary's 5-game detail sample, not a tally — see the fix cycle's HIGH 2; the by-`check` histogram did not exist yet)* |
 
 Notable: not one game now hits the turn cap, and `HaltReason::InfiniteLoop` did **not** appear
 either — commands/turn went *down*, 58.8 → 46.3, so risk 2 of plan §8 (`max_commands` binding
@@ -325,10 +325,19 @@ runs; first appearance at Stage 3.
 
 * **Repro (deterministic, re-run and confirmed identical ObjectIds and turn)**:
   `cargo run --profile fuzz --bin mtg-fuzzer -- --replay 5 --players 4 --max-turns 200`
+  **Fix-cycle correction: this is 3 of 11 violations in 1 of 3 affected games.** The full
+  by-`check` histogram gives `attachment_validity` **11 violations across seeds 5, 9 and 15**
+  (5: `532 → 677` turn 88 ×3; 9: `1158 → 928` turn 145 ×4; 15: `573 → 678` turn 94 ×4). The
+  original "×3, seed 5" was read off the detail loop, which prints the first five offending
+  games only. Each game reports the violation at exactly ONE turn and then runs to a winner —
+  the shape of the `OOS-M11-7` transient SBA-lag class, i.e. a false-positive candidate.
 * **Check**: `crates/simulator/src/invariants.rs:386 check_attachment_validity` — a
   battlefield object whose `attached_to` names an `ObjectId` that no longer resolves. CR 400.7
-  (a zone change makes a NEW object) / CR 704.5n (an Aura attached to an illegal or absent
-  object is put into its owner's graveyard as an SBA).
+  (a zone change makes a NEW object) / ~~CR 704.5n~~ **CR 704.5m** (an Aura attached to an
+  illegal or absent object is put into its owner's graveyard as an SBA). **The cite was wrong
+  as filed and is corrected here and in the audit row** — 704.5n is the Equipment/Fortification
+  rule and prescribes the opposite disposition ("it becomes unattached … It remains on the
+  battlefield"). Verified against the CR text via MCP during the fix cycle.
 * **Why this is not a regression this batch caused**: `git diff main..HEAD --numstat --
   crates/engine/` is **empty** — 0 engine lines. Per plan §8 that is the strongest available
   argument, and it is stronger than attempting to reproduce on the merge base, which *cannot
@@ -566,3 +575,108 @@ the turn cap stopped being reached at all, so `max_commands` did **not** start b
 | P8 | delete `builder.player_commander(..)` | effective cost `generic 3` where `generic 5` was required |
 | P9 | delete shuffle **and** registration (merge-base) | seed 1 cast no spell in 30 turns / 1,073 commands (**plan's stated revert reddens only 1 of 4 — see the finding above**) |
 | P11 | **none needed — RED on the pre-fix tree**, on exactly `["src/fuzz_setup.rs", "tests/local_game.rs"]` | recorded verbatim in Stage 3 |
+
+---
+
+## Fix cycle — all 13 review findings TAKEN, 0 deferred, 0 filed-instead-of-fixed
+
+**Phase**: fix · **Review**: `memory/primitives/pb-review-DX22.md` (2 HIGH, 4 MEDIUM, 7 LOW).
+
+**Headline**: the review's HIGH 1 asked for the deleted instrument back. It came back as part
+of the fuzzer itself — `mtg-fuzzer` now prints a **violation-by-`check` histogram over every
+game** and a **commander-mechanics and first-cast census over every game**, so both HIGHs are
+settled by the same change, and PB-DX22's "after" side now has the same standing as its
+committed "before" side. Raw run: `memory/primitives/pb-dx22-measurement-after-fixcycle.txt`.
+
+### The re-measurement, against the six published numbers
+
+`cargo run --profile fuzz --bin mtg-fuzzer -- --games 20 --seed 1 --max-turns 200 --threads 1
+--verbose`, i.e. exactly the command the batch published under.
+
+| published by the deleted instrument | re-derived by the shipped instrument | verdict |
+|---|---|---|
+| `CommanderCastFromCommandZone` **36**, in **16 of 20** games | 36, in 16 of 20 | **exact** |
+| CR 903.9a returns **13** | 13 | **exact** |
+| non-empty `commander_damage_received` in **16 of 20** | 16 of 20 | **exact** |
+| `SpellCast` **670** | 670 | **exact** |
+| first-cast band **3-29** | min 3 / median 12 / max 29 | **exact** |
+| first `PlayLand` turn **1-7** | min 1 / median 2 / max 7 | **exact** |
+| (also) total violations **426**, avg turns **103.4**, 20 wins / 0 errors | 426 / 103.4 / 20 / 0 | **exact** |
+| `CommanderZoneRedirect` **0** | 0 | **exact** |
+
+**No discrepancy in any published number.** The deleted instrument was accurate; it was
+unreproducible, which is a different defect and is the one that is now closed.
+
+**Three things the re-measurement adds that the published set did not contain**, each of which
+changes how an existing claim should be read:
+
+1. **The by-`check` tally is 301 `no_orphaned_tokens` (15 games) + 114 `player_consistency`
+   (5 games) + 11 `attachment_validity` (3 games) + **0** `stack_consistency` = 426.** The
+   bolded universal negative SURVIVES. Its 94-line sample did **not**: it projected
+   `player_consistency` at ~1% of the run (it is **27%**) and `attachment_validity` at 3
+   violations in 1 game (it is **11 in 3**). Restated at `invariants.rs` as a table, with the
+   sampling failure named. Filed as the generic class in `OOS-DX22-13`.
+2. **`attachment_validity` fired in seeds 5, 9 AND 15, not seed 5 alone** — and in each game at
+   exactly one turn, after which the game runs to a winner. That is the shape of the
+   `OOS-M11-7` transient SBA-lag class, so it is a live candidate for the same false-positive
+   family SIM-3 withdrew from `stack_consistency`. Recorded in `OOS-DX22-8` as the successor's
+   first check.
+3. **`max_commander_damage` = 31**, past CR 903.10a's threshold of 21. The commander-damage
+   *loss condition itself* is now reachable under automated exercise, not merely the counter.
+
+### Finding-by-finding
+
+| # | sev | disposition |
+|---|---|---|
+| 1 | HIGH | **FIXED, both parts.** (a) `bin/fuzzer.rs::print_mechanics_summary` + `print_violation_histogram`, fed by a new constant-size `MechanicsTally` folded from events in `local_game.rs` (no journal, so `GameDriver`'s `record_journal: false` is untouched) and returned by a new `GameDriver::run_game_with_mechanics`. **Not a new field on `GameResult`**: `tools/play-server/src/main.rs:3326` constructs one and this batch may not touch `tools/`. (b) new probe **P12** `test_dx22_cr_903_10a_commander_damage_is_recorded_on_the_fuzz_build` — real combat on the fuzz-built state (`handle_declare_attackers` → `apply_combat_damage` → `check_and_apply_sbas`), plus **P13** gating the census itself against vacuity. |
+| 2 | HIGH | **FIXED by obtaining the real tally**, not by re-wording to the sampled scope. See the table above; `invariants.rs`'s block restated, `OOS-DX22-3` restated, `OOS-DX22-13` filed for the generic class. |
+| 3 | MED | **FIXED.** `bin/fuzzer.rs`'s boundary-event doc is now a 3-row table with the instrument AND denominator per side (5 games before / 20 after); `docs/mtg-engine-simulator.md` likewise; `docs/mtg-engine-feedback-engineering.md` (a third site the review did not name) carries the refinement pointer. |
+| 4 | MED | **FIXED, and it settled the open question.** P9 excludes command-zone casts twice over — by the four command-zone `ObjectId`s read off the STARTED state, and by rejecting any record carrying a `CommanderCastFromCommandZone` event (which also covers a post-CR-903.9a recast under a new id, which the id set cannot see). **The turns did not move: 17/9/25/23 before and after.** Seeds 1-4's first casts always were library casts — the thing the batch could only call "probably". |
+| 5 | MED | **FIXED.** Both needles split with `concat!` so the gate no longer matches itself; census is now exactly **4** and is printed. Floor re-derived and stated **by name** (`src/fuzz_setup.rs`, `src/legal_actions.rs`, `src/setup.rs`, `tests/commander_cast.rs`) rather than by count, so a file that stops placing reddens while a new placer does not. |
+| 6 | MED | **FIXED, and both additions made.** CR text fetched via MCP: 704.5m is the Aura rule (graveyard), 704.5n is Equipment/Fortification (unattach, stays). Row corrected in both `docs/audits/decision-point-audit.md` and this file, both dispositions kept since the orphan's card type is unknown, and the two successor checks added — (a) transient-vs-persistent with the one-turn-per-game evidence, (b) the commander-zone-change mechanism (13 CR 903.9a returns = CR 400.7 events this batch uniquely enabled). |
+| 7 | LOW | **FIXED.** P5's doc now says half (b) is a reconstruction with no discrimination over half (a), and names `build_state`'s two real gates (P11 by source walk; the stage-4b probe by output). |
+| 8 | LOW | **FIXED.** P2 loops seeds `[1, 8]`; **seed 8 seat `PlayerId(3)` draws `rograkh-son-of-rohgahh`** (empty colour identity), so the CR 903.5c colourless padding arm is exercised for the first time by any probe. Found by enumerating seeds 1..=120 (hits 8, 50, 73, 119 — all the same card, the only `Complete` colourless legendary creature in the pool). The test asserts the arm was taken, so losing it reddens. |
+| 9 | LOW | **FIXED, not filed.** `place_registered_deck` builds a local `HashMap<&CardId, &CardDefinition>` once per seat (the `setup.rs::find_def` index), replacing an O(defs) scan per card. Built with `entry().or_insert()`, not `collect()`, so a duplicated `card_id` keeps the FIRST def exactly as `Iterator::find` did — behaviour-identical. |
+| 10 | LOW | **FIXED.** `debug_assert_eq!(deck.main_deck.len(), 99, ...)` at `build_fuzz_state`'s per-seat loop, mirroring `setup.rs`. |
+| 11 | LOW | **FIXED.** The "both branches advance the stream identically" claim is replaced with the honest one ("nothing here depends on cross-branch alignment"; `shuffle` is rejection-sampled and data-dependent), and the fallback branch now says it would place no commander at all if `teysa-karlov` left the pool. |
+| 12 | LOW | **FIXED.** `FuzzGameSetup::decks` → **`decklists`**, with the reason at the field. |
+| 13 | LOW | **SATISFIED, recorded rather than re-run.** The coordinator ran `tools/authoring-report.py` at collect: the report body came back **byte-identical except the git-sha stamp line**; coverage **1,133 clean / 1,803 = 62.8%**, unmoved. Consistent with the by-construction argument (`git diff main..HEAD -- crates/card-defs` is empty), and it is now the executed check the plan §7 asked for rather than a substitution. |
+
+### Revert-proof ledger for the fix cycle (all EXECUTED, all rebuilds confirmed)
+
+| revert executed | rebuild | observed |
+|---|---|---|
+| delete `builder.player_commander(..)` (replaced by a `let _revert_proof = GameStateBuilder::player_commander;` so `-D warnings` could not turn it into a build failure) | `Compiling mtg-simulator` present | **6 failed / 6 passed** — P5, P6, P7, P8 as before, **plus P12** (`left: None / right: Some(3)`, `commander_damage_received = {}`) and **P13** (`commander_casts_from_command_zone: 0, seats_dealt_commander_damage: 0`) |
+| `deck.main_deck.shuffle(&mut rng)` → `truncate(99)` no-op (+ `#[allow(unused_imports)]` on the `SliceRandom` import — the same `-D warnings` trap, hit a THIRD time in this batch and worked around the same way) | present | **P9 reddens on seed 1**, and, re-run with the seed list narrowed to each of `[2]`, `[3]`, `[4]` in turn, **on all four seeds individually**. That is the plan's original prediction, delivered for the first time — the pre-fix probe reddened only 1 of 4 |
+| P2's seed list `[1, 8]` → `[1, 1]` | present | P2 reddens on the colourless-commander non-vacuity assertion |
+| P11's walk `vec![src, tests]` → `vec![src]` | present | P11 reddens by NAME on `tests/commander_cast.rs` — the by-name floor discriminates where a bare count would not have |
+| `MechanicsTally::record` made a no-op | present | P13 reddens: `spell_casts: 0, first_spell_cast_turn: None, lands_played: 0, …` |
+
+### Fix-cycle gates, all EXECUTED
+
+* `cargo build --workspace` OK · `cargo clippy --workspace --all-targets -- -D warnings` exit 0 ·
+  `cargo fmt --check` exit 0 · `tools/check-defs-fmt.sh` → `1803 defs checked / clean` (SR-35).
+* Full workspace `--no-fail-fast` to `/tmp/pb-dx22-fixcycle-final.txt`, summed with awk over
+  **42** `^test result` lines: **4,358 passed / 0 failed / 5 ignored**. That is **+2** over the
+  batch's 4,356, and 2 is exactly the new probe count (P12, P13). Residual list **empty** — zero
+  `failures:` / `FAILED` / `error[` / `error:` lines.
+* Wire sentinels **re-executed**, not predicted: `hash_schema` 21/0, `protocol_schema` 17/0;
+  `HASH_SCHEMA_VERSION = 72`, `PROTOCOL_VERSION = 35` — **unmoved**.
+* `git diff main..HEAD --numstat -- crates/engine/ crates/card-defs/ crates/card-types/
+  crates/view-model/ tools/` → **EMPTY** (and the working tree likewise).
+* `git diff main..HEAD -- crates/simulator/src/setup.rs` → 27 changed lines, of which **0** are
+  non-comment lines.
+
+### New seeds filed by the fix cycle
+
+* **`OOS-DX22-12`** — the published "first cast turn 3-29" band mixes command-zone commander
+  casts with library casts; the shuffle-gated band is **5-29 / median 17**. Everywhere the
+  batch reasons from library depth, that is the number that belongs. No conclusion changes.
+* **`OOS-DX22-13`** — **method**: the 5-game detail cap is a property of the binary, so every
+  historical "check X never fired in a fuzz run" claim (including SIM-3's 90.3% share and
+  `OOS-SIM3-4`'s 929-of-938 noise floor) was read off a sample unless it says otherwise. Not a
+  retraction; a filing that they were never re-derived from a complete tally, which
+  `print_violation_histogram` now makes a one-command job.
+
+Rows `OOS-DX22-3`, `OOS-DX22-8` and `OOS-DX22-11` were **corrected in place** rather than
+re-filed, each keeping the original text and naming what changed.

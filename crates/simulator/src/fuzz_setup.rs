@@ -39,10 +39,17 @@ pub struct FuzzGameSetup {
     /// Not yet started: the caller passes this to `mtg_engine::start_game` (or
     /// `LocalGame::start`, which calls it).
     pub state: GameState,
-    /// **Pre-shuffle** decks, ascending `PlayerId`, exactly as `random_deck` produced
-    /// them — `deck.rs`'s structural order (≤60 non-lands, ≤5 non-basic lands, basics
-    /// LAST). The shuffle probe compares the built libraries against this.
-    pub decks: Vec<(PlayerId, DeckConfig)>,
+    /// The **pre-shuffle decklists**, ascending `PlayerId`, exactly as `random_deck`
+    /// produced them — `deck.rs`'s structural order (≤60 non-lands, ≤5 non-basic lands,
+    /// basics LAST). This is NOT the dealt order; the built libraries in
+    /// [`Self::state`] are a permutation of it (CR 103.3), and the shuffle probe
+    /// compares the two.
+    ///
+    /// Named `decklists` rather than `decks` on purpose (review Finding 12): an
+    /// unqualified `decks` reads as "the decks this game was dealt", and a caller that
+    /// believed that would be reading the pre-shuffle order while the game plays the
+    /// shuffled one.
+    pub decklists: Vec<(PlayerId, DeckConfig)>,
 }
 
 /// Why a fuzz state could not be built.
@@ -88,10 +95,24 @@ pub fn place_registered_deck(
     cards: &[CardDefinition],
     card_defs: &HashMap<String, CardDefinition>,
 ) -> GameStateBuilder {
+    // A `CardId` index, built once per seat, replacing the `cards.iter().find(..)` this
+    // function inherited from `bin/fuzzer.rs` (review Finding 9). That scan is O(defs) per
+    // card, so placing a seat was O(defs x 100) = ~180,000 comparisons, paid by every fuzz
+    // game AND by nine probes. `setup.rs::find_def` already exists for exactly this
+    // reason; this is the same index, local so the public signature does not move.
+    //
+    // Behaviour-identical to the scan: `or_insert` keeps the FIRST definition for a
+    // duplicated `card_id`, which is what `Iterator::find` returned. (A `collect()` would
+    // have kept the last.)
+    let mut by_card_id: HashMap<&CardId, &CardDefinition> = HashMap::with_capacity(cards.len());
+    for def in cards {
+        by_card_id.entry(&def.card_id).or_insert(def);
+    }
+
     // CR 903.6: the commander goes to the command zone -- as an OBJECT and as a
     // REGISTRATION. See this function's doc for why doing only the first is not a
     // Commander game.
-    if let Some(def) = cards.iter().find(|c| c.card_id == deck.commander) {
+    if let Some(def) = by_card_id.get(&deck.commander).copied() {
         let spec = ObjectSpec::card(pid, &def.name)
             .in_zone(ZoneId::Command(pid))
             .with_card_id(deck.commander.clone());
@@ -102,7 +123,7 @@ pub fn place_registered_deck(
 
     // The remaining cards become the library (CR 903.6).
     for card_id in &deck.main_deck {
-        if let Some(def) = cards.iter().find(|c| c.card_id == *card_id) {
+        if let Some(def) = by_card_id.get(card_id).copied() {
             let spec = ObjectSpec::card(pid, &def.name)
                 .in_zone(ZoneId::Library(pid))
                 .with_card_id(card_id.clone());
@@ -131,10 +152,13 @@ pub fn place_registered_deck(
 /// build paths the same shape — a future reader should not have to work out why they
 /// differ.
 ///
-/// The `random_deck`-returned-`None` fallback branch shuffles too. `SliceRandom::shuffle`
-/// consumes RNG on a 99-element slice regardless of element distinctness, so both
-/// branches advance the stream identically per seat; only the deck-construction draws
-/// differ, a pre-existing asymmetry this does not touch.
+/// The `random_deck`-returned-`None` fallback branch shuffles too, and **nothing here
+/// depends on the two branches consuming the same amount of RNG** — which is the honest
+/// statement (review Finding 11). `SliceRandom::shuffle` draws by rejection sampling, so
+/// its consumption is data-dependent and the branches are not in fact aligned; the reason
+/// that does not matter is that the branch is per-seat and per-seed, and no property this
+/// module promises is stated across branches. Determinism in `seed` alone holds either
+/// way, because the branch taken is itself a function of the seed.
 ///
 /// **Not a `setup::build_initial_state` replacement.** This path deals no opening hand
 /// (CR 103.5) and never runs `validate_deck` — see `setup.rs`'s module doc for why the
@@ -150,22 +174,34 @@ pub fn build_fuzz_state(
     // Build random decks for each player
     let player_ids: Vec<PlayerId> = (1..=player_count).map(|i| PlayerId(i as u64)).collect();
 
-    // Two lists, deliberately: `decks` is the PRE-shuffle decklist (what `random_deck`
+    // Two lists, deliberately: `decklists` is the PRE-shuffle decklist (what `random_deck`
     // produced, `deck.rs`'s structural order) and is what `FuzzGameSetup` returns, so
     // the shuffle probe has something to compare the built library against. `dealt` is
     // the shuffled order actually placed into the libraries.
-    let mut decks: Vec<(PlayerId, DeckConfig)> = Vec::new();
+    let mut decklists: Vec<(PlayerId, DeckConfig)> = Vec::new();
     let mut dealt: Vec<(PlayerId, DeckConfig)> = Vec::new();
     for &pid in &player_ids {
         let mut deck = match random_deck(&mut rng, cards) {
             Some(deck) => deck,
-            // Fallback: just basic lands
+            // Fallback: just basic lands. Unreachable with `all_cards()`, and note it
+            // would place NO commander at all if `teysa-karlov` were absent from the pool
+            // — `place_registered_deck`'s `if let Some(def)` guards the object AND the
+            // registration together (review Finding 11).
             None => DeckConfig {
                 commander: CardId("teysa-karlov".to_string()),
                 main_deck: (0..99).map(|_| CardId("plains".to_string())).collect(),
             },
         };
-        decks.push((pid, deck.clone()));
+        // The 99+1 contract `random_deck` promises (CR 903.5a): 99 main-deck cards plus
+        // the commander is exactly 100. `setup.rs` asserts this at the same point; this
+        // path did not, and combined with `OOS-DX22-4`'s silent missing-def skip a short
+        // library was unobservable outside probe P1's single seed (review Finding 10).
+        debug_assert_eq!(
+            deck.main_deck.len(),
+            99,
+            "CR 903.5a: a fuzz deck must be exactly 99 main-deck cards + 1 commander"
+        );
+        decklists.push((pid, deck.clone()));
         // CR 103.3 / CR 903.6: "each player shuffles the remaining cards of their deck so
         // that the cards are in a random order. Those cards become the player's library."
         // Before PB-DX22 the fuzzer never did this, so ~34 basics sat on top of every
@@ -208,5 +244,5 @@ pub fn build_fuzz_state(
     // `setup.rs` and `testing/replay_harness.rs`'s script path make.
     register_commander_zone_replacements(&mut state);
 
-    Ok(FuzzGameSetup { state, decks })
+    Ok(FuzzGameSetup { state, decklists })
 }

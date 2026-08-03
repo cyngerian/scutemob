@@ -177,6 +177,114 @@ pub struct RejectedCommand {
     pub error: String,
 }
 
+/// A constant-size census of the rules mechanics a game actually exercised.
+///
+/// # Why this exists (PB-DX22 fix cycle, review Findings 1 and 2)
+///
+/// PB-DX22's headline numbers — `CommanderCastFromCommandZone` 0 → 36, 13 CR 903.9a
+/// returns, the first-cast turn band 3-29 — were produced by a scratch
+/// `crates/simulator/examples/` binary that was **deleted**, so nothing in the shipped
+/// tree could re-derive them. The review called that out as the batch's own defect class:
+/// *the batch committed its "before" and discarded its "after"*. This type is the repair.
+/// `mtg-fuzzer` now reports these in its own summary, over **every** game in the run, so
+/// the numbers are a property of committed code rather than of a lost scratch file.
+///
+/// # It is a counter set, not a journal
+///
+/// `GameDriver` deliberately runs with `record_journal: false` (thousands of long games
+/// in parallel; a journal retains up to tens of thousands of `CommandRecord`s per game).
+/// Everything here is `u32`/`Option<u32>` and is folded from the events of each applied
+/// command as they go past, so the fuzzer pays constant memory and no retention. It is
+/// therefore available on **every** game, not on the sampled subset the binary prints
+/// per-violation detail for.
+///
+/// CR 601.2 (`SpellCast`), CR 305.1 (`LandPlayed`), CR 903.8
+/// (`CommanderCastFromCommandZone`), CR 903.9a (`CommanderReturnedToCommandZone`),
+/// CR 903.9b (`CommanderZoneRedirect`), CR 903.10a (`commander_damage_received`).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct MechanicsTally {
+    /// CR 601.2 — every `GameEvent::SpellCast`. A commander cast from the command zone
+    /// emits **both** `SpellCast` and `CommanderCastFromCommandZone` (see that event's
+    /// doc), so it is counted here too; `commander_casts_from_command_zone` is the
+    /// subset.
+    pub spell_casts: u32,
+    /// Turn number of the first `SpellCast` — the number `OOS-UI2-1` / `OOS-SIM3-1` are
+    /// about. `None` if the game cast nothing at all, which is what the pre-PB-DX22
+    /// unshuffled instrument produced below `--max-turns` ~140.
+    pub first_spell_cast_turn: Option<u32>,
+    /// CR 601.2 — the first `SpellCast` that is **not** a command-zone commander cast.
+    /// Distinct from `first_spell_cast_turn` because only this one is gated by library
+    /// order, i.e. only this one measures the CR 103.3 shuffle (review Finding 4).
+    pub first_library_spell_cast_turn: Option<u32>,
+    /// CR 305.1 — lands played, and the turn of the first. Records whether land
+    /// availability, rather than draw depth, is what gates the first cast.
+    pub lands_played: u32,
+    pub first_land_played_turn: Option<u32>,
+    /// CR 903.8 — commander casts from the command zone. **0 in every fuzz game before
+    /// PB-DX22**, because `commander_ids` was never populated (`OOS-SIM1-4`).
+    pub commander_casts_from_command_zone: u32,
+    pub first_commander_cast_turn: Option<u32>,
+    /// CR 903.9a — commanders returned to the command zone from a graveyard or exile.
+    pub commander_returns_to_command_zone: u32,
+    /// CR 903.9b — commanders redirected to the command zone instead of changing zones.
+    pub commander_zone_redirects: u32,
+    /// CR 903.10a — seats whose `commander_damage_received` map is non-empty at the end
+    /// of the game. Read from the final state by [`LocalGame::mechanics`], not folded
+    /// from events (no event carries the running total).
+    pub seats_dealt_commander_damage: u32,
+    /// CR 903.10a — the largest single (dealt-to, dealt-by) commander-damage total at the
+    /// end of the game. The rule's threshold is 21.
+    pub max_commander_damage: u32,
+}
+
+impl MechanicsTally {
+    /// Fold one applied command's events into the census. `turn` is
+    /// `state.turn().turn_number` as of *after* the command was applied — the same
+    /// number `CommandRecord::turn` carries.
+    fn record(&mut self, events: &[GameEvent], turn: u32) {
+        for event in events {
+            match event {
+                GameEvent::SpellCast { .. } => {
+                    self.spell_casts = self.spell_casts.saturating_add(1);
+                    self.first_spell_cast_turn.get_or_insert(turn);
+                }
+                GameEvent::LandPlayed { .. } => {
+                    self.lands_played = self.lands_played.saturating_add(1);
+                    self.first_land_played_turn.get_or_insert(turn);
+                }
+                GameEvent::CommanderCastFromCommandZone { .. } => {
+                    self.commander_casts_from_command_zone =
+                        self.commander_casts_from_command_zone.saturating_add(1);
+                    self.first_commander_cast_turn.get_or_insert(turn);
+                }
+                GameEvent::CommanderReturnedToCommandZone { .. } => {
+                    self.commander_returns_to_command_zone =
+                        self.commander_returns_to_command_zone.saturating_add(1);
+                }
+                GameEvent::CommanderZoneRedirect { .. } => {
+                    self.commander_zone_redirects = self.commander_zone_redirects.saturating_add(1);
+                }
+                _ => {}
+            }
+        }
+        // A command-zone commander cast emits BOTH `SpellCast` and
+        // `CommanderCastFromCommandZone`, so "was any cast in this batch of events a
+        // library cast?" is decided per COMMAND, not per event: if the command produced
+        // a `SpellCast` and no `CommanderCastFromCommandZone`, the spell came from
+        // somewhere that is not the command zone.
+        if self.first_library_spell_cast_turn.is_none()
+            && events
+                .iter()
+                .any(|e| matches!(e, GameEvent::SpellCast { .. }))
+            && !events
+                .iter()
+                .any(|e| matches!(e, GameEvent::CommanderCastFromCommandZone { .. }))
+        {
+            self.first_library_spell_cast_turn = Some(turn);
+        }
+    }
+}
+
 /// Errors `LocalGame::start` / `submit` can return. Distinct from `GameStateError`
 /// (the engine's own rejection reason) so a caller can tell "your seq was stale" apart
 /// from "the engine said no" apart from "the engine itself is unusable".
@@ -234,6 +342,10 @@ pub struct LocalGame<P: LegalActionProvider> {
     rejection_count: u32,
     violations: Vec<InvariantViolation>,
     check_invariants: bool,
+    /// Constant-size mechanics census (PB-DX22 fix cycle). Always on: it costs a fold
+    /// over events already in hand and no retention, so unlike `journal` it does not
+    /// need `LocalGameLimits::record_journal`. See [`MechanicsTally`].
+    mechanics: MechanicsTally,
 }
 
 /// How many [`RejectedCommand`]s a `LocalGame` retains. Unbounded retention is not
@@ -278,6 +390,7 @@ impl<P: LegalActionProvider> LocalGame<P> {
             rejection_count: 0,
             violations: Vec::new(),
             check_invariants,
+            mechanics: MechanicsTally::default(),
         };
         Ok((game, start_events))
     }
@@ -296,6 +409,33 @@ impl<P: LegalActionProvider> LocalGame<P> {
 
     pub fn journal(&self) -> &[CommandRecord] {
         &self.journal
+    }
+
+    /// The game's mechanics census (PB-DX22 fix cycle, review Finding 1).
+    ///
+    /// Everything except the CR 903.10a fields is folded from events as commands are
+    /// applied; `seats_dealt_commander_damage` and `max_commander_damage` are read from
+    /// the **current** state here, because no event carries the running total —
+    /// `rules/combat.rs` accumulates it directly into
+    /// `PlayerState::commander_damage_received`, gated on `commander_ids`, which is
+    /// exactly the registration PB-DX22 added.
+    ///
+    /// Available regardless of `LocalGameLimits::record_journal`.
+    pub fn mechanics(&self) -> MechanicsTally {
+        let mut tally = self.mechanics;
+        for player in self.state.players().values() {
+            if player.commander_damage_received.is_empty() {
+                continue;
+            }
+            tally.seats_dealt_commander_damage =
+                tally.seats_dealt_commander_damage.saturating_add(1);
+            for by_card in player.commander_damage_received.values() {
+                for dmg in by_card.values() {
+                    tally.max_commander_damage = tally.max_commander_damage.max(*dmg);
+                }
+            }
+        }
+        tally
     }
 
     /// Bot-seat commands the engine refused, oldest first (SIM-5 fix (3)).
@@ -814,6 +954,11 @@ impl<P: LegalActionProvider> LocalGame<P> {
                 Err(e) => return Err(LocalGameError::Rejected(e)),
             }
         }
+        // Folded only on the COMMIT path: `apply_sequence` is atomic, so a sequence that
+        // failed part-way applied nothing and must census nothing either.
+        for record in &records {
+            self.mechanics.record(&record.events, record.turn);
+        }
 
         if self.check_invariants {
             let new_violations = invariants::check_all(&working, Some(self.prev_turn));
@@ -849,6 +994,8 @@ impl<P: LegalActionProvider> LocalGame<P> {
                 }
                 self.state = new_state;
                 self.command_count += 1;
+                self.mechanics
+                    .record(&events, self.state.turn().turn_number);
                 if self.limits.record_journal {
                     self.journal.push(CommandRecord {
                         command,

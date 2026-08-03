@@ -222,10 +222,31 @@ fn stack_card_of(kind: &mtg_engine::StackObjectKind) -> Option<ObjectId> {
 /// (CR 903.6), so the first cast lands on game turn **3-29** instead of 143-154 and a
 /// 20-game run casts **670** spells rather than ~120. Same command as the table above,
 /// widened to `--games 20 --seed 1 --max-turns 200 --threads 1 --profile fuzz`:
-/// **426 total violations, and not one of them is `stack_consistency`.** (The binary
-/// prints only the first five offending games; those 94 printed lines are 90
-/// `no_orphaned_tokens` + 3 `attachment_validity` + 1 `player_consistency`.) So the
-/// clean side now IS evidence about games with real spells in them — for the first
+///
+/// | check | violations | games |
+/// |---|---|---|
+/// | `no_orphaned_tokens` | 301 | 15 of 20 |
+/// | `player_consistency` | 114 | 5 of 20 |
+/// | `attachment_validity` | 11 | 3 of 20 (seeds 5, 9, 15) |
+/// | **`stack_consistency`** | **0** | **0** |
+/// | total | **426** | 16 of 20 |
+///
+/// **That is the COMPLETE tally over all 20 games, and it was not when this paragraph was
+/// first written.** As shipped, PB-DX22 asserted "426 total violations, and not one of
+/// them is `stack_consistency`" from the **94** lines the binary prints — it prints
+/// per-violation detail for the first five offending games only
+/// (`bin/fuzzer.rs`, `if violation_seeds.len() <= 5`) — i.e. a universal negative over 426
+/// from a 22% sample, in the very block whose sampling caveat it was correcting. Its fix
+/// cycle made the binary print a by-`check` histogram over **every** game
+/// (`print_violation_histogram`), and the table above is that histogram's output, recorded
+/// verbatim in `memory/primitives/pb-dx22-measurement-after-fixcycle.txt`.
+///
+/// The conclusion survived; the sample did not represent the population. The 94 printed
+/// lines were 90 `no_orphaned_tokens` + 3 `attachment_validity` + 1 `player_consistency`,
+/// which projects `player_consistency` at ~1% of the run; it is **27%**. Read the
+/// histogram, never the detail loop, for any claim about what did or did not fire.
+///
+/// So the clean side now IS evidence about games with real spells in them — for the first
 /// time — though still not about counters, copies, mutates or suspends specifically.
 /// Recorded as `OOS-DX22-3`.
 ///

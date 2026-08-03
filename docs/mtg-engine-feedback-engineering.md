@@ -158,6 +158,10 @@ tripwires that plain `--release` compiles out — this is how PB-DX19's SIGABRT 
   first `SpellCast` moved from game turn **143-154** to a **3-29** band (min 3 / median 12 /
   max 29), and a 20-game run casts **670** spells. The `--max-turns` caveat above stays as the
   rule for reading pre-merge claims; it no longer describes the instrument.
+  *(PB-DX22's fix cycle refinement: that 3-29 band counts command-zone commander casts, which
+  library order does not gate. The band for the first cast the SHUFFLE is responsible for is
+  **5-29, median 17** — `OOS-DX22-12`. Both are printed by `mtg-fuzzer`'s own summary now; raw
+  run at `memory/primitives/pb-dx22-measurement-after-fixcycle.txt`.)*
 * **Commander rules.** `fuzzer.rs:322-327` puts the commander card in `ZoneId::Command` but never
   calls `builder.player_commander` — the only production registrar is `setup.rs:399`, whose own
   comment at `:384` says *"`ZoneId::Command` only puts a card there; `player_commander` is what

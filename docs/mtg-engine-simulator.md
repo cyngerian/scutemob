@@ -398,13 +398,25 @@ offer was unreachable there, and that unreachability was *why* no recorded fuzz 
 (`OOS-SIM1-4`). **That is closed by PB-DX22 (`scutemob-196`)**: `fuzz_setup::place_registered_deck`
 places and registers as one operation, and `build_fuzz_state` also installs the CR 903.9b
 replacements. The offer fires in fuzzer games now, so **the reason no seed moved is gone
-and the seeds did move** — the one-time cost SIM-1 predicted, paid. Measured on
-`--games 20 --seed 1 --max-turns 200 --threads 1 --profile fuzz`:
-`CommanderCastFromCommandZone` **0 → 36** (16 of 20 games), 13 CR 903.9a returns, non-empty
-`commander_damage_received` in 16 of 20 games — CR 903.8 / 903.9a / 903.10a under automated
-exercise for the first time. The re-roll did **not** reach the play server (78/0 green;
-`session.rs` builds through `setup.rs`) or `crates/simulator/tests/local_game.rs` (23
-passed unchanged).
+and the seeds did move** — the one-time cost SIM-1 predicted, paid.
+
+The **after** side is `mtg-fuzzer --games 20 --seed 1 --max-turns 200 --threads 1
+--profile fuzz`, whose summary now prints these numbers itself (`print_mechanics_summary`,
+added by the PB-DX22 fix cycle): `CommanderCastFromCommandZone` **36 across 16 of 20
+games**, **13** CR 903.9a returns, non-empty `commander_damage_received` in **16 of 20**
+games with a largest single total of **31** — past CR 903.10a's 21 threshold, so the
+loss condition itself is now reachable under automated exercise. Raw run committed at
+`memory/primitives/pb-dx22-measurement-after-fixcycle.txt`.
+
+The **before** side is a different instrument with a different denominator, and saying so
+is the point (review Finding 3): it is a scratch harness over **5** games (~56,800
+commands) recorded at `memory/primitives/pb-dx22-measurement-head.txt`, in which every one
+of those counts was **0**. A "0 → 36" written under one command name hides that; the fuzzer
+could not print either number until the fix cycle, and cannot print the pre-fix ones at all,
+because the build path they measured no longer exists.
+
+The re-roll did **not** reach the play server (78/0 green; `session.rs` builds through
+`setup.rs`) or `crates/simulator/tests/local_game.rs` (23 passed unchanged).
 
 ---
 

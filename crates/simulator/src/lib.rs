@@ -51,7 +51,7 @@ pub use legal_actions::{
 };
 pub use local_game::{
     human_only_actions, AdvanceOutcome, CommandRecord, DecisionKind, HaltReason, LocalGame,
-    LocalGameError, LocalGameLimits, PendingDecision,
+    LocalGameError, LocalGameLimits, MechanicsTally, PendingDecision,
 };
 pub use mana_solver::solve_mana_payment;
 pub use params::{action_to_command_with_params, ActionParams, HumanChoice, ParamError};

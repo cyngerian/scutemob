@@ -19,12 +19,12 @@ use std::sync::Arc;
 
 use mtg_engine::{
     all_cards, apply_commander_tax, CardDefinition, CardId, CardRegistry, CardType, Command,
-    GameStateBuilder, ObjectFilter, ObjectId, PlayerId, ReplacementModification,
+    GameEvent, GameStateBuilder, ObjectFilter, ObjectId, PlayerId, ReplacementModification,
     ReplacementTrigger, SuperType, ZoneId, ZoneType,
 };
 use mtg_simulator::{
     build_fuzz_state, build_registry, effective_cast_cost, place_registered_deck, Bot, DeckConfig,
-    FuzzGameSetup, LocalGame, LocalGameLimits, RandomBot, StubProvider,
+    FuzzGameSetup, GameDriver, LocalGame, LocalGameLimits, RandomBot, StubProvider,
 };
 
 const PLAYERS: u32 = 4;
@@ -105,13 +105,13 @@ fn test_dx22_build_fuzz_state_produces_the_fuzzers_table() {
     let setup = built(1, &cards, &registry);
 
     assert_eq!(
-        setup.decks.len(),
+        setup.decklists.len(),
         PLAYERS as usize,
         "one decklist per seat must be returned"
     );
 
     for (i, pid) in seats(PLAYERS).into_iter().enumerate() {
-        let (deck_pid, deck) = &setup.decks[i];
+        let (deck_pid, deck) = &setup.decklists[i];
         assert_eq!(*deck_pid, pid, "decks must be in ascending PlayerId order");
         assert_eq!(
             deck.main_deck.len(),
@@ -159,34 +159,73 @@ fn test_dx22_build_fuzz_state_produces_the_fuzzers_table() {
 ///
 /// Non-vacuity floor: both sides are asserted to be exactly 99 long before they are
 /// compared, so a build that produced two empty vectors cannot pass.
+///
+/// # Two seeds, and the second one is the point (review Finding 8)
+///
+/// Every structural probe in this file builds seed 1, and no seat of seed 1 has a
+/// colourless commander — so the CR 903.5c padding arm the paragraph above is *written
+/// for* was never actually exercised by any probe. **Seed 8 seat `PlayerId(3)` draws
+/// `rograkh-son-of-rohgahh`**, whose colour identity is empty, so its 99 cards are
+/// colourless nonlands and lands rather than ~34 basics. The seed was found by
+/// enumeration over seeds 1..=120 (hits: 8, 50, 73, 119 — all the same commander, which
+/// is the only `Complete` colourless legendary creature in the pool); 8 is used because
+/// it is the first.
+///
+/// The test asserts that this arm was really taken, so the seed silently ceasing to draw
+/// a colourless commander reddens rather than quietly reverting the coverage.
 #[test]
 fn test_dx22_libraries_are_shuffled_cr_103_3() {
     let (cards, registry) = pool();
-    let setup = built(1, &cards, &registry);
 
-    for (i, pid) in seats(PLAYERS).into_iter().enumerate() {
-        let pre_shuffle = setup.decks[i].1.main_deck.clone();
-        let library = library_card_ids(&setup, pid);
+    // (seed, how many seats must have a colourless commander)
+    let mut colourless_seats_seen = 0usize;
+    for seed in [1u64, 8] {
+        let setup = built(seed, &cards, &registry);
 
-        assert_eq!(
-            pre_shuffle.len(),
-            99,
-            "non-vacuity: seat {pid:?} pre-shuffle deck"
-        );
-        assert_eq!(library.len(), 99, "non-vacuity: seat {pid:?} built library");
+        for (i, pid) in seats(PLAYERS).into_iter().enumerate() {
+            let pre_shuffle = setup.decklists[i].1.main_deck.clone();
+            let library = library_card_ids(&setup, pid);
 
-        assert_ne!(
-            library, pre_shuffle,
-            "CR 103.3: seat {pid:?}'s library must not be the decklist in its \
-             construction order — that is the unshuffled instrument PB-DX22 closes"
-        );
-        assert_eq!(
-            sorted(library),
-            sorted(pre_shuffle),
-            "CR 103.3: a shuffle is a permutation — seat {pid:?}'s library must hold \
-             exactly the same cards, no more and no fewer"
-        );
+            let commander_def = cards
+                .iter()
+                .find(|c| c.card_id == setup.decklists[i].1.commander)
+                .expect("a decklist's commander must be in the pool");
+            if mtg_engine::compute_color_identity(commander_def).is_empty() {
+                colourless_seats_seen += 1;
+            }
+
+            assert_eq!(
+                pre_shuffle.len(),
+                99,
+                "non-vacuity: seed {seed} seat {pid:?} pre-shuffle deck"
+            );
+            assert_eq!(
+                library.len(),
+                99,
+                "non-vacuity: seed {seed} seat {pid:?} built library"
+            );
+
+            assert_ne!(
+                library, pre_shuffle,
+                "CR 103.3: seed {seed} seat {pid:?}'s library must not be the decklist \
+                 in its construction order — that is the unshuffled instrument PB-DX22 \
+                 closes"
+            );
+            assert_eq!(
+                sorted(library),
+                sorted(pre_shuffle),
+                "CR 103.3: a shuffle is a permutation — seed {seed} seat {pid:?}'s \
+                 library must hold exactly the same cards, no more and no fewer"
+            );
+        }
     }
+
+    assert_eq!(
+        colourless_seats_seen, 1,
+        "non-vacuity: seed 8 seat PlayerId(3) must still draw a colourless commander, \
+         or the CR 903.5c padding arm (deck.rs's `basics.is_empty()` branch) is once \
+         again unexercised by every probe in this file"
+    );
 }
 
 // ── P3 ───────────────────────────────────────────────────────────────────────────
@@ -263,12 +302,32 @@ fn test_dx22_different_seed_different_order() {
 /// `fuzz_setup.rs` (the lift of `bin/fuzzer.rs`) and `tests/local_game.rs` both violated
 /// it, which is the strongest available proof that it discriminates.
 ///
-/// Non-vacuity floor: the matched-file set must be non-empty and at least 4, so a
-/// renamed API or a broken walk cannot make this pass by finding nothing.
+/// # The non-vacuity floor, and why the needles are spelled with `concat!`
+///
+/// As first written this gate **counted itself**: its own `PLACEMENT` and `REGISTRATION`
+/// constants are literal occurrences of the needles, so this file entered `matched` and
+/// satisfied the rule because of its own declarations. The census read 5 files where only
+/// 4 genuinely place, i.e. the stated floor of 4 was an effective floor of 3 — two genuine
+/// files could have stopped placing with the gate still green (review Finding 5).
+///
+/// `concat!` splits both needles at compile time, so the file no longer matches itself.
+/// The floor is then re-derived from the genuine census and stated by NAME rather than by
+/// count: naming them means a file that stops placing reddens this test, while a *new*
+/// placing file (which must obey the rule anyway) does not.
 #[test]
 fn test_dx22_command_zone_placement_and_registration_are_one_operation() {
-    const PLACEMENT: &str = "in_zone(ZoneId::Command(";
-    const REGISTRATION: &str = "player_commander";
+    // Split so this file is not its own match — see the doc above.
+    const PLACEMENT: &str = concat!("in_zone(ZoneId::", "Command(");
+    const REGISTRATION: &str = concat!("player_", "commander");
+    /// The genuine placing files as of the PB-DX22 fix cycle, re-derived after the
+    /// self-match was removed. A file that stops placing must be removed from this list
+    /// deliberately, not silently.
+    const EXPECTED_PLACERS: [&str; 4] = [
+        "src/fuzz_setup.rs",
+        "src/legal_actions.rs",
+        "src/setup.rs",
+        "tests/commander_cast.rs",
+    ];
 
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     let mut matched: Vec<String> = Vec::new();
@@ -306,11 +365,27 @@ fn test_dx22_command_zone_placement_and_registration_are_one_operation() {
 
     matched.sort();
     offenders.sort();
+    // Printed so the census is readable from the run rather than trusted from a comment
+    // — the exact failure Finding 5 was.
+    println!(
+        "P11 genuine command-zone placers ({}): {matched:?}",
+        matched.len()
+    );
 
+    // Non-vacuity by NAME, not by count. The gate no longer matches itself (`concat!`
+    // above), so `matched` is the genuine census; every file that placed at the fix
+    // cycle must still be found, or the walk/needle has rotted.
+    for expected in EXPECTED_PLACERS {
+        assert!(
+            matched.iter().any(|m| m.replace('\\', "/") == expected),
+            "non-vacuity: `{expected}` places a command-zone object and this gate did \
+             not find it — the needle or the walk has rotted. Found: {matched:?}"
+        );
+    }
     assert!(
-        matched.len() >= 4,
-        "non-vacuity: this gate must find at least 4 files placing a command-zone \
-         object, found {} ({matched:?}) — if the API was renamed, rename the needle",
+        matched.len() >= EXPECTED_PLACERS.len(),
+        "non-vacuity: expected at least {} placing files, found {} ({matched:?})",
+        EXPECTED_PLACERS.len(),
         matched.len()
     );
     assert!(
@@ -330,8 +405,26 @@ fn test_dx22_command_zone_placement_and_registration_are_one_operation() {
 /// commander rule keys off, and before PB-DX22 the fuzzer's path and
 /// `tests/local_game.rs`'s path were two independent copies that both left it empty
 /// (`OOS-SIM1-4`); a probe on one would have proven half the fix. They now share
-/// `place_registered_deck`, and the second half exercises it with the fixed 99-Plains
-/// deck `tests/local_game.rs::build_state` uses, which is that function's live path.
+/// `place_registered_deck`, and the second half exercises it with the same fixed
+/// 99-Plains deck shape `tests/local_game.rs::build_state` uses.
+///
+/// # What half (b) is, precisely — it is NOT a gate on `build_state` (review Finding 7)
+///
+/// `tests/local_game.rs::build_state` is private to a different test crate and cannot be
+/// called from here, so half (b) **rebuilds the scaffolding** and duplicates that file's
+/// `fixed_deck`. It therefore adds no discrimination over half (a): the same revert
+/// (delete `builder.player_commander`) reddens both, because both call the same
+/// `place_registered_deck`. It is kept because it exercises the helper against a
+/// hand-built deck rather than a `random_deck` one, not because it watches that file.
+///
+/// `build_state`'s real gates are elsewhere, and they are two:
+/// * `test_dx22_command_zone_placement_and_registration_are_one_operation` (P11) — a
+///   source walk over `crates/simulator/{src,tests}`; if anyone re-inlines the placement
+///   into `build_state`, the literal `in_zone(ZoneId::Command(` reappears in a file with
+///   no `player_commander` and P11 reddens by name;
+/// * `test_dx22_cr_903_9b_replacements_exist_in_the_fixed_deck_build` (the stage-4b
+///   probe) — it asserts on the state `build_state` actually returns, so it is the probe
+///   that watches that function's live output.
 ///
 /// CR 903.5b/702.124 partner: `random_deck` never builds a partner pair and `DeckConfig`
 /// cannot represent one (`OOS-SIM4-3`), so exactly one registered commander per seat is
@@ -343,7 +436,7 @@ fn test_dx22_commander_ids_are_registered_by_both_build_paths() {
     // (a) the fuzzer's own path.
     let setup = built(1, &cards, &registry);
     for (i, pid) in seats(PLAYERS).into_iter().enumerate() {
-        let expected = &setup.decks[i].1.commander;
+        let expected = &setup.decklists[i].1.commander;
         let ids: Vec<CardId> = setup
             .state
             .player(pid)
@@ -415,7 +508,7 @@ fn test_dx22_cr_903_9b_replacements_are_registered() {
     );
 
     for (i, pid) in seats(PLAYERS).into_iter().enumerate() {
-        let cmdr = &setup.decks[i].1.commander;
+        let cmdr = &setup.decklists[i].1.commander;
         for want in [ZoneType::Hand, ZoneType::Library] {
             let hits = effects
                 .iter()
@@ -563,16 +656,39 @@ fn test_dx22_cr_903_8_tax_applies_on_the_fuzz_build() {
 /// cards would move this "by ≤1-2 personal draws" — true, and that is 4-8 GAME turns,
 /// which is the unit this threshold is written in.
 ///
-/// # What reverting the shuffle alone does — and does NOT do
+/// # It is a probe on the LIBRARY, and the predicate says so (review Finding 4)
 ///
-/// The plan states this test reddens on every seed if the shuffle is deleted. **Executed,
-/// and that is false**: with the shuffle removed but the commander still registered,
-/// seeds 1/2/3 still cast, at turns 26/25/25, and only seed 4 fails. The reason is that a
-/// registered commander is cast **from the command zone**, which is not in the library and
-/// so is not gated by library order at all — and `Command::CastSpell` covers that cast
-/// too. Reverting **both** this batch's fixes (the merge-base behaviour) fails on the
-/// first seed with zero casts in 1,073 commands, which is the discrimination that
-/// matters and is what was recorded.
+/// As first written this matched `Command::CastSpell(_)` with no zone discrimination.
+/// `CastSpellData` carries only `card: ObjectId` — no zone — so a **commander** cast from
+/// the command zone satisfied it identically, and the commander is not in the library:
+/// this test's own subject, CR 103.3 library order, did not gate it. The batch measured
+/// that from one side (shuffle reverted ⇒ 3 of 4 seeds still green at turns 26/25/25) and
+/// recorded it, but shipped the weak predicate.
+///
+/// The predicate now excludes command-zone casts **twice over**, because either half
+/// alone leaves a gap:
+///
+/// 1. by OBJECT — the four command-zone `ObjectId`s are read off the started state and a
+///    matching record's `CastSpellData.card` must not be one of them;
+/// 2. by EVENT — a command-zone commander cast emits `CommanderCastFromCommandZone`
+///    alongside `SpellCast` (see that event's doc), so a record carrying it is rejected
+///    regardless of ids. This half also covers a commander that returned to the command
+///    zone under CR 903.9a and was recast under a *new* `ObjectId` (CR 400.7), which the
+///    id set cannot see.
+///
+/// Re-run after the strengthening, the observed turns did **not** move: 17/9/25/23, the
+/// same four numbers. That is a measurement, not a coincidence to shrug at — it says
+/// seeds 1-4's first casts always were library casts, which is what the batch could only
+/// call "probably". Independently confirmed by `mtg-fuzzer`'s own census, which puts the
+/// first *commander* cast on those seeds at game turn 45-49.
+///
+/// # What reverting the shuffle alone does
+///
+/// The plan states this test reddens on every seed if the shuffle is deleted; the
+/// pre-strengthening probe did not deliver that (seeds 1/2/3 still cast, via the
+/// command zone, at turns 26/25/25). With the predicate above it does, which is the
+/// single-variable shuffle probe the plan intended. Reverting **both** fixes (the
+/// merge-base behaviour) also fails on the first seed with zero casts in 1,073 commands.
 ///
 /// `max_commands` is set to `30 * 400`, deliberately double `GameDriver`'s `max_turns *
 /// 200` ratio, so a failure here can only mean "no cast", never "budget exhausted"
@@ -615,22 +731,51 @@ fn test_dx22_a_spell_is_cast_at_an_ordinary_depth() {
         )
         .unwrap_or_else(|e| panic!("seed {seed} must start: {e:?}"));
 
+        // Read off the STARTED state, not off `setup.state`, so no assumption about
+        // `start_game` preserving `ObjectId`s is needed.
+        let command_zone_ids: BTreeSet<ObjectId> = seats(PLAYERS)
+            .into_iter()
+            .flat_map(|pid| {
+                game.state()
+                    .objects_in_zone(&ZoneId::Command(pid))
+                    .into_iter()
+                    .map(|o| o.id)
+                    .collect::<Vec<_>>()
+            })
+            .collect();
+        assert_eq!(
+            command_zone_ids.len(),
+            PLAYERS as usize,
+            "non-vacuity: the exclusion set must name one command-zone object per seat, \
+             or this probe is not excluding anything"
+        );
+
         let _outcome = game.advance();
 
-        let first_cast = game
-            .journal()
-            .iter()
-            .find(|rec| matches!(rec.command, Command::CastSpell(_)))
-            .map(|rec| rec.turn);
+        let first_cast =
+            game.journal()
+                .iter()
+                .find(|rec| match &rec.command {
+                    // CR 903.8 casts are excluded by BOTH halves — see this test's doc.
+                    Command::CastSpell(data) => {
+                        !command_zone_ids.contains(&data.card)
+                            && !rec.events.iter().any(|e| {
+                                matches!(e, GameEvent::CommanderCastFromCommandZone { .. })
+                            })
+                    }
+                    _ => false,
+                })
+                .map(|rec| rec.turn);
 
         let turn = first_cast.unwrap_or_else(|| {
             panic!(
-                "CR 103.3: seed {seed} cast no spell at all within {MAX_TURNS} turns \
-                 ({} commands recorded) — that is the unshuffled instrument's signature",
+                "CR 103.3: seed {seed} cast no spell from anywhere but the command zone \
+                 within {MAX_TURNS} turns ({} commands recorded) — that is the \
+                 unshuffled instrument's signature",
                 game.command_count()
             )
         });
-        println!("P9 seed {seed}: first CastSpell on game turn {turn}");
+        println!("P9 seed {seed}: first non-commander CastSpell on game turn {turn}");
         assert!(
             turn <= MAX_TURNS,
             "seed {seed} first cast on turn {turn}, beyond the {MAX_TURNS}-turn floor"
@@ -640,4 +785,221 @@ fn test_dx22_a_spell_is_cast_at_an_ordinary_depth() {
 
     println!("P9 observed first-cast turns: {observed:?}");
     assert_eq!(observed.len(), 4, "non-vacuity: all four seeds must be run");
+}
+
+// ── P12 ──────────────────────────────────────────────────────────────────────────
+
+/// CR 903.10a — **commander damage is recorded, and its loss condition is reachable,
+/// from a fuzz-built state.**
+///
+/// # Why this probe exists (review Finding 1)
+///
+/// Acceptance criterion 2 required the commander mechanics to be "exercised **or
+/// explicitly probed**". CR 903.6 has P5, CR 903.8 has P8, CR 903.9a has P7, CR 903.9b
+/// has P6 — and CR 903.10a had **nothing**. Its only evidence was a scratch
+/// `examples/dx22_p10.rs` that was deleted, so the one commander rule with a
+/// *lose-the-game* consequence was the one with no committed gate. This is that gate, and
+/// it is deterministic rather than statistical: it drives one attack, not a fuzz sample.
+///
+/// # What it actually gates
+///
+/// `rules/combat.rs`'s damage loop only attributes damage as *commander* damage when the
+/// source's controller has that source's `CardId` in `commander_ids` — the exact field
+/// `place_registered_deck`'s `builder.player_commander(..)` populates and which no fuzz
+/// game had before PB-DX22. So on a build with the registration deleted, the attack still
+/// happens and P2 still loses 21+ life, but `commander_damage_received` stays **empty**
+/// and the CR 903.10a state-based action can never fire. That is the revert this probe is
+/// proven red by.
+///
+/// The `test-util` escape hatches (`turn_mut`, `objects_mut`, `move_object_to_zone`) put
+/// the fuzz-built state into a declare-attackers step; everything after that is the real
+/// engine — `handle_declare_attackers` then `apply_combat_damage` then
+/// `rules::sba::check_state_based_actions`.
+#[test]
+fn test_dx22_cr_903_10a_commander_damage_is_recorded_on_the_fuzz_build() {
+    use mtg_engine::state::test_util;
+    use mtg_engine::AttackTarget;
+
+    let (cards, registry) = pool();
+    let setup = built(1, &cards, &registry);
+    let attacker_seat = PlayerId(1);
+    let defender_seat = PlayerId(2);
+
+    let commander_card_id = setup.decklists[0].1.commander.clone();
+    let (mut state, _events) = mtg_engine::start_game(setup.state).expect("fuzz state must start");
+
+    // CR 400.7: moving the commander to the battlefield mints a new ObjectId.
+    let in_command_zone = state.objects_in_zone(&ZoneId::Command(attacker_seat))[0].id;
+    let (attacker, _) =
+        test_util::move_object_to_zone(&mut state, in_command_zone, ZoneId::Battlefield)
+            .expect("the commander must be movable to the battlefield");
+
+    // CR 302.6 / CR 506.4: make it a legal attacker without changing what it IS.
+    {
+        let obj = test_util::object_mut(&mut state, attacker).expect("the attacker must resolve");
+        obj.has_summoning_sickness = false;
+        obj.status.tapped = false;
+    }
+    let power = mtg_engine::rules::layers::calculate_characteristics(&state, attacker)
+        .and_then(|c| c.power)
+        .expect("a legendary creature commander has a power");
+    assert!(
+        power > 0,
+        "non-vacuity: seed 1's commander must have positive power to deal any damage \
+         (got {power})"
+    );
+
+    // CR 508.1: put the state in the attacker's declare-attackers step.
+    {
+        let turn = state.turn_mut();
+        turn.active_player = attacker_seat;
+        turn.phase = mtg_engine::state::turn::Phase::Combat;
+        turn.step = mtg_engine::state::turn::Step::DeclareAttackers;
+        turn.priority_holder = Some(attacker_seat);
+    }
+
+    assert!(
+        state
+            .player(defender_seat)
+            .expect("seat 2 must exist")
+            .commander_damage_received
+            .is_empty(),
+        "non-vacuity: no commander damage may be recorded before the attack"
+    );
+
+    mtg_engine::rules::combat::handle_declare_attackers(
+        &mut state,
+        attacker_seat,
+        vec![(attacker, AttackTarget::Player(defender_seat))],
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+    )
+    .expect("CR 508.1: the registered commander must be able to attack");
+
+    // No blockers declared, so CR 510.1c sends the whole assignment at the player.
+    let _damage_events = mtg_engine::rules::combat::apply_combat_damage(&mut state, false);
+
+    let dealt = state
+        .player(defender_seat)
+        .expect("seat 2 must exist")
+        .commander_damage_received
+        .get(&attacker_seat)
+        .and_then(|by_card| by_card.get(&commander_card_id))
+        .copied();
+    assert_eq!(
+        dealt,
+        Some(power as u32),
+        "CR 903.10a: combat damage from a REGISTERED commander must be recorded against \
+         the defending player, keyed by (dealing player, commander CardId). \
+         `commander_damage_received` = {:?}",
+        state
+            .player(defender_seat)
+            .expect("seat 2 must exist")
+            .commander_damage_received
+    );
+
+    // CR 903.10a's threshold, through the real SBA rather than a re-derivation: 21 or
+    // more from the same commander loses the game. `sba.rs` reads exactly the map the
+    // combat loop just wrote.
+    assert!(
+        !state
+            .player(defender_seat)
+            .expect("seat 2 must exist")
+            .has_lost,
+        "non-vacuity: {power} damage is below the 21 threshold, so seat 2 must still be \
+         in the game before the total is raised"
+    );
+    {
+        let defender = test_util::player_mut(&mut state, defender_seat).expect("seat 2 must exist");
+        let mut by_card = defender
+            .commander_damage_received
+            .get(&attacker_seat)
+            .cloned()
+            .unwrap_or_default();
+        by_card.insert(commander_card_id.clone(), 21);
+        defender
+            .commander_damage_received
+            .insert(attacker_seat, by_card);
+    }
+    let sba_events = mtg_engine::rules::sba::check_and_apply_sbas(&mut state);
+    assert!(
+        state
+            .player(defender_seat)
+            .expect("seat 2 must exist")
+            .has_lost,
+        "CR 903.10a: 21 combat damage from the same commander must lose the game; SBA \
+         events were {sba_events:?}"
+    );
+}
+
+// ── P13 ──────────────────────────────────────────────────────────────────────────
+
+/// The fuzzer's own mechanics census is **not vacuous** (review Findings 1 and 2).
+///
+/// `mtg-fuzzer` now prints a commander-mechanics and first-cast summary, and a
+/// violation-by-`check` histogram over **every** game in a run, so the numbers PB-DX22
+/// published are re-derivable from committed code instead of from a deleted scratch
+/// binary. A printed summary that silently reports zeros is worse than no summary — it is
+/// the exact failure this batch exists to remove — so the counters are gated here.
+///
+/// This runs the same `GameDriver::run_game_with_mechanics` the binary calls, on the same
+/// `build_fuzz_state`, with the same per-seat bot seeding. It asserts the census is
+/// populated in every dimension the summary prints and that PB-DX22's own claims are
+/// consistent with it.
+#[test]
+fn test_dx22_the_fuzzers_mechanics_census_is_not_vacuous() {
+    const SEED: u64 = 1;
+    const MAX_TURNS: u32 = 60;
+    let (cards, registry) = pool();
+    let setup = built(SEED, &cards, &registry);
+
+    let mut bots: HashMap<PlayerId, Box<dyn Bot>> = HashMap::new();
+    for (i, pid) in seats(PLAYERS).into_iter().enumerate() {
+        let bot_seed = SEED.wrapping_add(100 + i as u64);
+        bots.insert(
+            pid,
+            Box::new(RandomBot::new(bot_seed, format!("Bot-{}", pid.0))),
+        );
+    }
+
+    let driver = GameDriver::new(StubProvider, bots, MAX_TURNS, SEED);
+    let (result, mechanics) = driver.run_game_with_mechanics(setup.state, SEED);
+    println!(
+        "P13 seed {SEED} ({} turns): {mechanics:?}",
+        result.turn_count
+    );
+
+    assert!(
+        mechanics.spell_casts > 0,
+        "CR 601.2: the census must count the spells a fuzz game casts (got {mechanics:?})"
+    );
+    assert!(
+        mechanics.first_spell_cast_turn.is_some(),
+        "CR 601.2: the census must record the first-cast turn — the number `OOS-UI2-1` \
+         and `OOS-SIM3-1` are about (got {mechanics:?})"
+    );
+    assert!(
+        mechanics.first_library_spell_cast_turn.is_some(),
+        "CR 103.3: the census must separate the first NON-commander cast, which is the \
+         only one library order gates (got {mechanics:?})"
+    );
+    assert!(
+        mechanics.lands_played > 0 && mechanics.first_land_played_turn.is_some(),
+        "CR 305.1: the census must count lands, which is how the batch showed land \
+         availability is not what gates the first cast (got {mechanics:?})"
+    );
+    assert!(
+        mechanics.commander_casts_from_command_zone > 0
+            && mechanics.first_commander_cast_turn.is_some(),
+        "CR 903.8: the census must count command-zone commander casts. This number was \
+         **0 in every fuzz game** before PB-DX22 (`OOS-SIM1-4`), so a zero here means \
+         either the registration or the counter has regressed (got {mechanics:?})"
+    );
+    assert!(
+        mechanics.seats_dealt_commander_damage > 0 && mechanics.max_commander_damage > 0,
+        "CR 903.10a: commander damage must be recorded in a fuzz game — also 0 before \
+         PB-DX22 (got {mechanics:?})"
+    );
 }
