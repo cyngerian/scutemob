@@ -348,13 +348,25 @@ pub struct LocalGame<P: LegalActionProvider> {
     mechanics: MechanicsTally,
 }
 
-/// How many [`RejectedCommand`]s a `LocalGame` retains. Unbounded retention is not
-/// safe here: nothing caps how often a bot re-chooses an action the engine refuses
-/// (`advance()`'s own comment on the auto-tap notes the identical action is re-offered
-/// next priority), and `mtg-fuzzer` runs thousands of games in parallel. The count is
-/// kept whole so a caller can always see that dropping happened — see
+/// How many [`RejectedCommand`]s a `LocalGame` retains **when `record_journal` is
+/// on** (play-server, the SIM-5/SIM-6 fixtures). Unbounded retention is not safe here:
+/// nothing caps how often a bot re-chooses an action the engine refuses (`advance()`'s
+/// own comment on the auto-tap notes the identical action is re-offered next priority).
+/// The count is kept whole so a caller can always see that dropping happened — see
 /// [`LocalGame::rejection_count`].
 pub const MAX_RETAINED_REJECTIONS: usize = 256;
+
+/// How many [`RejectedCommand`]s a `LocalGame` retains **when `record_journal` is
+/// off** (PB-DX32 Stage 2 — `mtg-fuzzer`'s own case, see
+/// [`LocalGame::record_rejection`]).
+///
+/// A much smaller cap than [`MAX_RETAINED_REJECTIONS`] on purpose: `results` in
+/// `bin/fuzzer.rs` retains **every** game's `GameResult` for the whole run, so at
+/// `--games 1000` a 256-cap would retain up to 256,000 cloned `Command`s. Eight per
+/// game is a diagnosis sample — [`LocalGame::rejection_count`] is uncapped and
+/// ungated (see that method), so truncation of the sample stays visible even though
+/// the sample itself is small.
+pub const MAX_SAMPLED_REJECTIONS: usize = 8;
 
 impl<P: LegalActionProvider> LocalGame<P> {
     /// Starts a game from an assembled (but not yet started) `GameState`. Delegates to
@@ -421,6 +433,9 @@ impl<P: LegalActionProvider> LocalGame<P> {
             total_commands: self.command_count as usize,
             violations: self.violations.clone(),
             error,
+            // PB-DX32 Stage 2 (SR-38).
+            rejection_count: self.rejection_count,
+            rejections: self.rejections.clone(),
         }
     }
 
@@ -465,9 +480,14 @@ impl<P: LegalActionProvider> LocalGame<P> {
 
     /// Bot-seat commands the engine refused, oldest first (SIM-5 fix (3)).
     ///
-    /// **Empty when `LocalGameLimits::record_journal` is off**, and otherwise truncated
-    /// at [`MAX_RETAINED_REJECTIONS`] — compare against [`Self::rejection_count`], which
-    /// is neither gated nor truncated, to see whether anything was dropped.
+    /// **PB-DX32 Stage 2 correction**: before this stage the doc here said "Empty when
+    /// `LocalGameLimits::record_journal` is off" — true at the time, false the moment
+    /// SR-38 needed a sample from exactly that configuration (`mtg-fuzzer`'s own case).
+    /// The record is no longer gated on `record_journal` at all; only its CAP is —
+    /// truncated at [`MAX_RETAINED_REJECTIONS`] when the journal is on, or the much
+    /// smaller [`MAX_SAMPLED_REJECTIONS`] when it is off (see
+    /// [`Self::record_rejection`]). Compare against [`Self::rejection_count`], which is
+    /// never gated or truncated, to see whether anything was dropped.
     pub fn rejections(&self) -> &[RejectedCommand] {
         &self.rejections
     }
@@ -1032,17 +1052,33 @@ impl<P: LegalActionProvider> LocalGame<P> {
     /// `command` is the bot's chosen action, not the tapping plan around it — see
     /// [`RejectedCommand::command`].
     ///
-    /// **The count is always incremented; the RECORD follows
-    /// `LocalGameLimits::record_journal`**, and is additionally capped at
-    /// [`MAX_RETAINED_REJECTIONS`]. Gating on the same flag the journal uses is
-    /// deliberate: `GameDriver` sets it `false` precisely so the fuzzer "retains what
-    /// the pre-M11 driver retained, which was nothing" (see that field's doc), and a
-    /// rejection record holds a cloned `Command` exactly like a `CommandRecord` does.
-    /// A caller that has opted out of the journal keeps the *number* — which is the
-    /// part a crash report needs — and pays no per-game allocation for the detail.
+    /// **The count is always incremented and never gated.** The RECORD is always
+    /// retained too, as of PB-DX32 Stage 2 (SR-38, `OOS-SIM3-2`) — only its CAP
+    /// depends on `LocalGameLimits::record_journal`: [`MAX_RETAINED_REJECTIONS`] (256)
+    /// when the journal is on, or the much smaller [`MAX_SAMPLED_REJECTIONS`] (8) when
+    /// it is off.
+    ///
+    /// **Correction of this doc's pre-Stage-2 account**: it used to say the record
+    /// followed `record_journal` as a gate — true before Stage 2, false the moment
+    /// SR-38 needed a sample from exactly the configuration that gate excluded:
+    /// `mtg-fuzzer` runs with `record_journal: false` (`GameDriver` sets it so
+    /// deliberately, to retain nothing per-game across thousands of parallel games —
+    /// see that field's doc), and a rejection sample is precisely what
+    /// `bin/fuzzer.rs`'s `print_sr38_summary` needs from that exact configuration. A
+    /// full [`MAX_RETAINED_REJECTIONS`] (256) cap would be unsafe there for the same
+    /// reason the journal itself stays off: `results` in `bin/fuzzer.rs` retains
+    /// **every** game's `GameResult` for the whole run, so at `--games 1000` a 256-cap
+    /// would retain up to 256,000 cloned `Command`s. Eight per game is a diagnosis
+    /// sample, not the journal — [`Self::rejection_count`] stays uncapped and
+    /// ungated, so truncation of the sample is always visible.
     fn record_rejection(&mut self, player: PlayerId, command: &Command, error: &LocalGameError) {
         self.rejection_count = self.rejection_count.saturating_add(1);
-        if self.limits.record_journal && self.rejections.len() < MAX_RETAINED_REJECTIONS {
+        let cap = if self.limits.record_journal {
+            MAX_RETAINED_REJECTIONS
+        } else {
+            MAX_SAMPLED_REJECTIONS
+        };
+        if self.rejections.len() < cap {
             self.rejections.push(RejectedCommand {
                 player,
                 turn: self.state.turn().turn_number,

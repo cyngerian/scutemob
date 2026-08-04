@@ -181,3 +181,86 @@ substantive change). `tools/check-defs-fmt.sh` — 1803 defs, clean.
 baseline, the one new T1.1 test), residual list empty.
 `git diff -- crates/engine/src/ crates/card-defs/ crates/card-types/ crates/view-model/`
 EMPTY. `git diff -- tools/` EMPTY (deferred to Stage 2, see divergence above).
+
+---
+
+## Stage 2 DONE — (a) SR-38: the rejection channel becomes a run-level invariant
+
+Plan §5 Stage 2. Files: `crates/simulator/src/local_game.rs` (`MAX_SAMPLED_REJECTIONS`,
+`record_rejection`'s cap logic, three doc-comment corrections, `result_snapshot`
+extended), `crates/simulator/src/report.rs` (`GameResult::rejection_count` /
+`rejections`, `MAX_BOT_REJECTION_PER_MILLE`, `MAX_BOT_REJECTION_PER_MILLE_AT_GATE_CONFIG`),
+`crates/simulator/src/bin/fuzzer.rs` (`print_sr38_summary`, called from both the
+`--replay` path and the parallel-run path; `std::process::exit(1)` on breach),
+`crates/simulator/src/driver.rs` + `tools/play-server/src/main.rs:3326` (the two
+`..Default::default()` insertions deferred from Stage 1 — see that section), `lib.rs`
+re-exports (`RejectedCommand`, `MAX_RETAINED_REJECTIONS`, `MAX_SAMPLED_REJECTIONS`,
+`MAX_BOT_REJECTION_PER_MILLE`, `MAX_BOT_REJECTION_PER_MILLE_AT_GATE_CONFIG`). Three new
+tests in `pb_dx32_fuzz_output.rs`: **T2.1** `test_dx32_rejections_are_sampled_without_the_journal`,
+**T2.2** `test_dx32_sr38_bot_rejection_rate_is_ratcheted`, **T2.3**
+`test_dx32_game_result_carries_the_rejection_channel`.
+
+**Both threshold constants pinned exactly at the Stage-0-measured values**, no
+deviation: `MAX_BOT_REJECTION_PER_MILLE = 30` (measured 22.953‰ over 5 fuzz-shaped
+games) and `MAX_BOT_REJECTION_PER_MILLE_AT_GATE_CONFIG = 40` (measured 31.081‰ at the
+gate's own 3-seed/25-turn/debug-build configuration). **Confirmed live at the binary**:
+`./target/fuzz/mtg-fuzzer --games 5 --seed 1 --max-turns 200` printed `542 rejections /
+23613 commands = 22.953 per mille`, per-seed band `79/2190, 27/5518, 43/4812, 157/5902,
+236/5191` — byte-identical to §0.3's own table.
+
+**A real bug found and fixed while smoke-testing the binary (not by a written test,
+by reading the output)**: the first draft of `print_sr38_summary`'s class grouping
+truncated the error string at the first `(`, but every recorded rejection's error is
+`format!("{:?}", LocalGameError::Rejected(GameStateError))`, so EVERY class collapsed
+to the literal string `"Rejected"` — the wrapper, not the actual reason. Fixed by
+stripping a `"Rejected("` prefix before the truncation. Confirmed by re-running the
+5-seed smoke command: classes now read `InsufficientMana` (16), `InvalidTarget` (15),
+`AlreadyDeclaredBlockers` (4), `InvalidCommand` (3), `CrossPlayerBlock` (2) — matching
+the five named open-seed shapes in plan §0.4 (`OOS-SIM5-3`, `OOS-SIM5-5`,
+`OOS-SIM6-3`, `OOS-CARDS2-4`) almost exactly.
+
+**T2.3's fixture required two new bots not in the plan** (`AlwaysRejectedBot`,
+`ConcedeOnFirstCallBot`) because a genuinely discriminating parity check needs a
+NON-ZERO `rejection_count` on the GameOver path, and the obvious zero-rejection
+GameOver fixture (a player pre-marked `has_lost`, T1.1's own approach) is vacuous for
+this specific field — `Default::default()`'s `rejection_count` is also 0, so a
+regression that silently drops the field back to its default would pass a
+zero-on-both check undetected. `AlwaysRejectedBot` issues a guaranteed-rejected
+`PlayLand` every priority window; `ConcedeOnFirstCallBot` concedes CR 104.3a on its
+first call, ending the game via `is_game_over` on the very next loop check, after
+`AlwaysRejectedBot` has already been rejected at least once.
+
+**Revert proofs (all three EXECUTED, rebuild confirmed each time)**:
+* **T2.1**: restored `self.limits.record_journal &&` in `record_rejection`'s cap
+  guard. Failure: `"record_journal: false must still sample SOME rejections (SR-38,
+  OOS-SIM3-2)"`.
+* **T2.2**: set `MAX_BOT_REJECTION_PER_MILLE_AT_GATE_CONFIG` to 30 (measured − 1,
+  rounding down from 31.081). Failure: `"aggregate rejection rate 31.081 per mille
+  exceeds the ratchet MAX_BOT_REJECTION_PER_MILLE_AT_GATE_CONFIG = 30"` — names the
+  exact measured rate, proving the comparison is live.
+* **T2.3**: hard-coded `rejection_count: 0` in `result_snapshot`. Failure (GameOver
+  half, the first assertion reached): `"p1's AlwaysRejectedBot must have produced >=1
+  rejection before p2 conceded: GameResult { ... rejection_count: 0, rejections:
+  [RejectedCommand { ... error: "Rejected(NotMainPhase)" }] ... }"` — the debug dump
+  shows the sample WAS non-empty while the count field was wrongly 0, which is exactly
+  the divergence the test exists to catch.
+
+All three restored immediately after each revert; `git diff` confirmed clean before
+moving to the next.
+
+**Stage gates, all EXECUTED**: `cargo build --workspace` clean; `cargo test -p
+mtg-simulator` **186 / 0 / 0** (+3); `cargo test -p play-server` **78 / 0 / 0** unmoved.
+`cargo clippy --workspace --all-targets -- -D warnings` — one real finding fixed along
+the way: the first draft's `loop { match game.advance() { .. => break } }` in the new
+`play_fuzz_shaped` helper tripped `clippy::never_loop` / `clippy::while_let_loop`
+(since `advance()` with no human seats always resolves in one call — the outer `loop`
+was never going to iterate twice). Fixed by dropping the wrapper loop entirely (a
+single `match`, mirroring `driver.rs`'s own comment). Clean after. `cargo fmt --check`
+clean (ran `cargo fmt` twice — once for the new tests, once after the class-grouping
+fix). `tools/check-defs-fmt.sh` — 1803 defs, clean.
+`cargo test --workspace --no-fail-fast` — **4,362 / 0 / 5** (+4 over the Stage-1
+pin), residual list empty.
+`git diff -- crates/engine/src/ crates/card-defs/ crates/card-types/ crates/view-model/`
+EMPTY. `git diff --numstat -- tools/` — **exactly one file, `+1 -0`**
+(`tools/play-server/src/main.rs`), matching plan §3.1's acceptance criterion (landed
+here rather than Stage 1, per the Stage-1 divergence note).

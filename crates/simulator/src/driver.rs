@@ -118,12 +118,12 @@ impl<P: LegalActionProvider> GameDriver<P> {
                 };
                 return (
                     // Error path: no `LocalGame` exists to snapshot (`start` itself
-                    // failed), so this stays a literal. `..Default::default()` is
-                    // added at PB-DX32 Stage 2, the first stage that gives it a
-                    // non-vacuous effect (`clippy::needless_update` rejects it at
-                    // Stage 1, where every field is still named explicitly) — plan §5
-                    // Stage 1 step 2 named this site, but the edit lands one stage
-                    // later than planned for exactly that reason (plan §7 R7).
+                    // failed), so this stays a literal. `..Default::default()` picks
+                    // up every instrumentation field PB-DX32 adds (starting with this
+                    // stage's `rejection_count`/`rejections`) without this site ever
+                    // needing another edit (plan §5 Stage 1 step 2 named this site;
+                    // the edit landed here, at Stage 2, per plan §7 R7 — see the
+                    // Stage 1 handoff for why).
                     GameResult {
                         seed,
                         winner: None,
@@ -131,6 +131,7 @@ impl<P: LegalActionProvider> GameDriver<P> {
                         total_commands: 0,
                         violations: Vec::new(),
                         error: Some(GameDriverError::EngineError(message)),
+                        ..Default::default()
                     },
                     MechanicsTally::default(),
                 );

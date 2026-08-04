@@ -8,6 +8,7 @@ use mtg_engine::{Command, PlayerId};
 use serde::{Deserialize, Serialize};
 
 use crate::invariants::InvariantViolation;
+use crate::local_game::RejectedCommand;
 
 /// A crash report from a fuzzer game that hit an invariant violation.
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -52,7 +53,35 @@ pub struct GameResult {
     pub total_commands: usize,
     pub violations: Vec<InvariantViolation>,
     pub error: Option<GameDriverError>,
+    /// SR-38 at run scale (PB-DX32 Stage 2, `OOS-SIM3-2`). Never gated or truncated —
+    /// see [`crate::local_game::LocalGame::rejection_count`].
+    pub rejection_count: u32,
+    /// A bounded diagnosis sample of the rejections counted in `rejection_count` — see
+    /// [`crate::local_game::LocalGame::rejections`] for the cap rule.
+    pub rejections: Vec<RejectedCommand>,
 }
+
+/// SR-38 at run scale. Measured at HEAD (2026-08-03) over 5 fuzz-shaped games,
+/// 23,613 commands, 542 rejections = 22.953 per mille.
+/// Pinned with headroom, NOT at zero: OOS-SIM5-3 (blocker refusals, the largest
+/// family), OOS-SIM5-5 (modal per-mode target slices), OOS-SIM6-3 (auto-tap covers
+/// CastSpell alone), OOS-CARDS2-4 (Aura offers refused by CR 303.4a) and
+/// OOS-SIM4-2 are all open. Ratchet DOWNWARD as each closes; never raise it to
+/// fit a measurement without naming the seed that justifies the rise.
+pub const MAX_BOT_REJECTION_PER_MILLE: u32 = 30;
+
+/// The SR-38 threshold for the Stage-2 TEST gate (T2.2), distinct from
+/// [`MAX_BOT_REJECTION_PER_MILLE`] above (the fuzz BINARY's threshold, measured at
+/// `--profile fuzz` over 200-turn games). Measured at Stage 0 (2026-08-03), on the
+/// gate's OWN configuration — a `cargo test` DEBUG build, 3 seeds ([1, 2, 3]) x 25
+/// turns x `RandomBot` x `build_fuzz_state`, `record_journal: false`: 2,767 commands,
+/// 86 rejections = 31.081 per mille. Pinned at 40 (~30% headroom over 31.081). NOT
+/// zero, for the same five open seeds `MAX_BOT_REJECTION_PER_MILLE` names above.
+/// Ratchet DOWNWARD as each closes, and re-measure (do not guess) if the gate's own
+/// seeds or turn cap ever change — this number is NOT interchangeable with
+/// `MAX_BOT_REJECTION_PER_MILLE`, which is a different (200-turn, release-profile)
+/// measurement of a different configuration.
+pub const MAX_BOT_REJECTION_PER_MILLE_AT_GATE_CONFIG: u32 = 40;
 
 /// Errors that can occur during game execution (distinct from invariant violations).
 #[derive(Clone, Debug, Serialize, Deserialize)]

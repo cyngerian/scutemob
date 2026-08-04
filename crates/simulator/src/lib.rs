@@ -53,10 +53,19 @@ pub use local_game::{
     human_only_actions, AdvanceOutcome, CommandRecord, DecisionKind, HaltReason, LocalGame,
     LocalGameError, LocalGameLimits, MechanicsTally, PendingDecision,
 };
+// PB-DX32 Stage 2 (SR-38): `RejectedCommand` was constructible only inside this crate
+// before -- `mtg-fuzzer` (its own crate) needs it to read `GameResult::rejections`, and
+// the two retention caps are re-exported for the same reason `MAX_AUTO_CHOSEN_COMPLETE_UNION`-
+// style constants are exported elsewhere: a caller reading `rejections().len() ==
+// MAX_SAMPLED_REJECTIONS` needs the same symbol this crate compares against.
+pub use local_game::{RejectedCommand, MAX_RETAINED_REJECTIONS, MAX_SAMPLED_REJECTIONS};
 pub use mana_solver::solve_mana_payment;
 pub use params::{action_to_command_with_params, ActionParams, HumanChoice, ParamError};
 pub use random_bot::RandomBot;
-pub use report::{CrashReport, GameDriverError, GameResult};
+pub use report::{
+    CrashReport, GameDriverError, GameResult, MAX_BOT_REJECTION_PER_MILLE,
+    MAX_BOT_REJECTION_PER_MILLE_AT_GATE_CONFIG,
+};
 pub use setup::{
     build_initial_state, dealt_decks, redeal, BotKind, DeckSource, LocalGameConfig, SetupError,
 };

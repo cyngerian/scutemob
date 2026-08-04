@@ -3336,6 +3336,7 @@ mod tests {
             error: Some(GameDriverError::EngineError(format!(
                 "InvalidTarget {{ object: {PLANTED} }}"
             ))),
+            ..Default::default()
         };
         let over = view::game_over_view(&result, &HashMap::new());
 

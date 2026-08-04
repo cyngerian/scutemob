@@ -167,6 +167,7 @@ fn main() {
         // of this game's violations, not the first five.
         print_violation_histogram(std::slice::from_ref(&result));
         print_mechanics_summary(std::slice::from_ref(&mechanics));
+        print_sr38_summary(std::slice::from_ref(&result));
         return;
     }
 
@@ -255,6 +256,7 @@ fn main() {
 
     print_violation_histogram(&results);
     print_mechanics_summary(&tallies);
+    let sr38_breached = print_sr38_summary(&results);
 
     if cli.verbose {
         for result in &results {
@@ -308,6 +310,13 @@ fn main() {
             }
         }
     }
+
+    // SR-38 (PB-DX32 Stage 2): fail the run loudly on a threshold breach. Safe to do
+    // unconditionally -- F19, this binary is not run in CI, so a non-zero exit here
+    // cannot redden a pipeline.
+    if sr38_breached {
+        std::process::exit(1);
+    }
 }
 
 fn run_single_game(
@@ -330,11 +339,11 @@ fn run_single_game(
         Err(FuzzSetupError::Builder(e)) => {
             return (
                 // Error path: state build failed before any `LocalGame` existed.
-                // `..Default::default()` is added at PB-DX32 Stage 2, the first stage
-                // that gives it a non-vacuous effect (`clippy::needless_update` rejects
-                // it at Stage 1, where every field is still named explicitly) — plan §5
-                // Stage 1 step 2 named this site, but the edit lands one stage later
-                // than planned for exactly that reason (plan §7 R7).
+                // `..Default::default()` picks up every instrumentation field PB-DX32
+                // adds (starting with this stage's `rejection_count`/`rejections`)
+                // without this site ever needing another edit (plan §5 Stage 1 step 2
+                // named this site; the edit landed here, at Stage 2, per plan §7 R7 —
+                // see the Stage 1 handoff for why).
                 GameResult {
                     seed,
                     winner: None,
@@ -345,6 +354,7 @@ fn run_single_game(
                         "Failed to build state: {:?}",
                         e
                     ))),
+                    ..Default::default()
                 },
                 MechanicsTally::default(),
             );
@@ -550,6 +560,105 @@ fn print_mechanics_summary(tallies: &[MechanicsTally]) {
         "  CR 903.10a commander damage            non-empty in {} of {} games; largest single total {} (rule threshold 21)",
         games_with_cmdr_damage, games, max_cmdr_damage
     );
+}
+
+/// SR-38 at run scale (PB-DX32 Stage 2, `OOS-SIM3-2`) — every `GameResult` in `results`
+/// carries `rejection_count` (uncapped) and a bounded `rejections` diagnosis sample
+/// (`report::MAX_SAMPLED_REJECTIONS` per game with the journal off, which is this
+/// binary's own configuration). Prints total rejections, total commands, the aggregate
+/// per-mille against [`mtg_simulator::MAX_BOT_REJECTION_PER_MILLE`], the per-seed band
+/// (seeds with >=1 rejection only, to keep this readable at `--games 1000`), and the top
+/// rejection classes by error-string prefix — truncated at the first `(` so e.g.
+/// `InvalidTarget("expected 1..=1 target(s) but got 0")` and `InvalidTarget("modal spell
+/// with per-mode targets requires exactly 1 target(s) for ..")` group under one
+/// `InvalidTarget` row. The class breakdown is read from the SAMPLE
+/// (`GameResult::rejections`), not the full count, and says so.
+///
+/// Rows sorted descending by count then by name, so the output is stable across runs —
+/// this text gets committed as evidence, mirroring `print_violation_histogram`.
+///
+/// Returns whether the aggregate rate breached [`mtg_simulator::MAX_BOT_REJECTION_PER_MILLE`],
+/// so `main` can fail the run loudly (F19: this binary is not run in CI).
+fn print_sr38_summary(results: &[GameResult]) -> bool {
+    let total_commands: u64 = results.iter().map(|r| r.total_commands as u64).sum();
+    let total_rejections: u64 = results.iter().map(|r| u64::from(r.rejection_count)).sum();
+    let per_mille = if total_commands == 0 {
+        0.0
+    } else {
+        (total_rejections as f64 / total_commands as f64) * 1000.0
+    };
+
+    let mut per_seed: Vec<(u64, u32, usize)> = results
+        .iter()
+        .map(|r| (r.seed, r.rejection_count, r.total_commands))
+        .collect();
+    per_seed.sort_unstable_by_key(|(seed, ..)| *seed);
+
+    let mut by_class: HashMap<String, usize> = HashMap::new();
+    for result in results {
+        for rejection in &result.rejections {
+            // Every recorded rejection is `LocalGameError::Rejected(GameStateError)`
+            // (the only variant `record_rejection`'s call site ever sees — see
+            // `apply_sequence`), so the Debug string is always wrapped as
+            // `Rejected(<GameStateError Debug>)`. Strip that wrapper first so the
+            // class is the GameStateError variant (`InvalidTarget`, `InsufficientMana`,
+            // ...), which is what a reader actually wants grouped, not the constant
+            // outer wrapper every rejection shares.
+            let inner = rejection
+                .error
+                .strip_prefix("Rejected(")
+                .unwrap_or(&rejection.error);
+            let class = inner
+                .split_once('(')
+                .map(|(prefix, _)| prefix.trim().to_string())
+                .unwrap_or_else(|| inner.trim_end_matches(')').trim().to_string());
+            *by_class.entry(class).or_insert(0) += 1;
+        }
+    }
+
+    println!();
+    println!(
+        "SR-38: bot-seat command rejections (ALL {} games)",
+        results.len()
+    );
+    println!("---------------------------------------------------");
+    println!(
+        "  {} rejections / {} commands = {:.3} per mille (threshold {})",
+        total_rejections,
+        total_commands,
+        per_mille,
+        mtg_simulator::MAX_BOT_REJECTION_PER_MILLE
+    );
+    let seeds_with_rejections: Vec<&(u64, u32, usize)> =
+        per_seed.iter().filter(|(_, n, _)| *n > 0).collect();
+    if seeds_with_rejections.is_empty() {
+        println!("  per-seed band: (no rejections in any game)");
+    } else {
+        println!("  per-seed band (seed: rejections/commands):");
+        for (seed, rejections, commands) in seeds_with_rejections {
+            println!("    seed {seed}: {rejections}/{commands}");
+        }
+    }
+    if by_class.is_empty() {
+        println!("  top rejection classes (from the sample): (none sampled)");
+    } else {
+        let mut rows: Vec<(String, usize)> = by_class.into_iter().collect();
+        rows.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+        println!("  top rejection classes (from the sample, NOT the full count):");
+        for (class, count) in rows {
+            println!("    {:<6} {}", count, class);
+        }
+    }
+
+    let breached = per_mille > f64::from(mtg_simulator::MAX_BOT_REJECTION_PER_MILLE);
+    if breached {
+        println!(
+            "  SR-38 THRESHOLD EXCEEDED: {:.3} per mille > {} (MAX_BOT_REJECTION_PER_MILLE)",
+            per_mille,
+            mtg_simulator::MAX_BOT_REJECTION_PER_MILLE
+        );
+    }
+    breached
 }
 
 fn print_game_result(result: &GameResult, verbose: bool) {

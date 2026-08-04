@@ -16,13 +16,166 @@
 
 use std::collections::{BTreeSet, HashMap};
 
-use mtg_engine::{GameStateBuilder, ObjectSpec, PlayerId, ZoneId};
+use mtg_engine::{
+    all_cards, AttackTarget, Command, GameState, GameStateBuilder, ObjectId, ObjectSpec, PlayerId,
+    ZoneId,
+};
 use mtg_simulator::{
-    AdvanceOutcome, Bot, GameDriver, GameDriverError, LocalGame, LocalGameLimits, StubProvider,
+    build_fuzz_state, build_registry, AdvanceOutcome, Bot, GameDriver, GameDriverError,
+    LegalAction, LocalGame, LocalGameLimits, RandomBot, StubProvider,
 };
 
 fn p(n: u64) -> PlayerId {
     PlayerId(n)
+}
+
+/// A bot that always attempts to `PlayLand` a nonexistent object — a command the
+/// engine rejects unconditionally (the object cannot resolve), so every priority
+/// window this bot acts on increments `LocalGame::rejection_count()` by exactly one.
+/// Used to drive Stage 2's deterministic non-zero-rejection fixtures (T2.3).
+struct AlwaysRejectedBot;
+
+impl Bot for AlwaysRejectedBot {
+    fn choose_action(
+        &mut self,
+        _state: &GameState,
+        player: PlayerId,
+        _legal: &[LegalAction],
+    ) -> Command {
+        Command::PlayLand {
+            player,
+            card: ObjectId(999_999_999),
+        }
+    }
+    fn choose_targets(&mut self, _: &GameState, _: &[ObjectId], _: usize) -> Vec<ObjectId> {
+        Vec::new()
+    }
+    fn choose_attackers(
+        &mut self,
+        _: &GameState,
+        _: &[ObjectId],
+        _: &[AttackTarget],
+    ) -> Vec<(ObjectId, AttackTarget)> {
+        Vec::new()
+    }
+    fn choose_blockers(
+        &mut self,
+        _: &GameState,
+        _: &[ObjectId],
+        _: &[ObjectId],
+    ) -> Vec<(ObjectId, ObjectId)> {
+        Vec::new()
+    }
+    fn choose_mulligan_bottom(&mut self, _: &[ObjectId], _: usize) -> Vec<ObjectId> {
+        Vec::new()
+    }
+    fn name(&self) -> &str {
+        "always-rejected"
+    }
+}
+
+/// A bot that concedes (CR 104.3a) the FIRST time it is asked to act, and passes
+/// thereafter (unreachable in practice — a concede ends the game the next loop
+/// iteration checks `is_game_over`). Used to drive T2.3's deterministic
+/// GameOver-with-rejections fixture.
+struct ConcedeOnFirstCallBot {
+    conceded: bool,
+}
+
+impl ConcedeOnFirstCallBot {
+    fn new() -> Self {
+        Self { conceded: false }
+    }
+}
+
+impl Bot for ConcedeOnFirstCallBot {
+    fn choose_action(
+        &mut self,
+        _state: &GameState,
+        player: PlayerId,
+        _legal: &[LegalAction],
+    ) -> Command {
+        if self.conceded {
+            Command::PassPriority { player }
+        } else {
+            self.conceded = true;
+            Command::Concede { player }
+        }
+    }
+    fn choose_targets(&mut self, _: &GameState, _: &[ObjectId], _: usize) -> Vec<ObjectId> {
+        Vec::new()
+    }
+    fn choose_attackers(
+        &mut self,
+        _: &GameState,
+        _: &[ObjectId],
+        _: &[AttackTarget],
+    ) -> Vec<(ObjectId, AttackTarget)> {
+        Vec::new()
+    }
+    fn choose_blockers(
+        &mut self,
+        _: &GameState,
+        _: &[ObjectId],
+        _: &[ObjectId],
+    ) -> Vec<(ObjectId, ObjectId)> {
+        Vec::new()
+    }
+    fn choose_mulligan_bottom(&mut self, _: &[ObjectId], _: usize) -> Vec<ObjectId> {
+        Vec::new()
+    }
+    fn name(&self) -> &str {
+        "concede-on-first-call"
+    }
+}
+
+/// Four `RandomBot` seats, seeded exactly as `bin/fuzzer.rs::run_single_game` and
+/// `sim5_bot_cast_discipline.rs::bots_for` seed theirs.
+fn random_bots(seed: u64, player_count: u32) -> HashMap<PlayerId, Box<dyn Bot>> {
+    let mut bots: HashMap<PlayerId, Box<dyn Bot>> = HashMap::new();
+    for i in 1..=u64::from(player_count) {
+        let bot_seed = seed.wrapping_add(100 + i);
+        bots.insert(
+            PlayerId(i),
+            Box::new(RandomBot::new(bot_seed, format!("Bot-{i}"))),
+        );
+    }
+    bots
+}
+
+/// Play a fuzz-shaped game (`build_fuzz_state` + `RandomBot` + `StubProvider`,
+/// `record_journal: false`) to conclusion and return the finished `LocalGame` so the
+/// caller can read its accessors. Mirrors `bin/fuzzer.rs::run_single_game` and the
+/// Stage-0 measurement probe.
+fn play_fuzz_shaped(seed: u64, player_count: u32, max_turns: u32) -> LocalGame<StubProvider> {
+    let cards = all_cards();
+    let registry = build_registry();
+    let setup = build_fuzz_state(seed, player_count, &cards, &registry)
+        .unwrap_or_else(|e| panic!("fuzz state for seed {seed} must build: {e:?}"));
+    let limits = LocalGameLimits {
+        max_turns,
+        max_commands: max_turns * 200,
+        max_consecutive_passes: 500,
+        record_journal: false,
+    };
+    let (mut game, _events) = LocalGame::start(
+        setup.state,
+        seed,
+        StubProvider,
+        random_bots(seed, player_count),
+        BTreeSet::new(),
+        limits,
+        true,
+    )
+    .unwrap_or_else(|e| panic!("fuzz state for seed {seed} must start: {e:?}"));
+    // A single `advance()` call runs the whole game to conclusion: with `human_seats`
+    // empty it never yields `AwaitingHuman`, so `advance()`'s own internal loop only
+    // stops at `GameOver` or `Halted` (mirrors `driver.rs`'s own comment).
+    match game.advance() {
+        AdvanceOutcome::AwaitingHuman(_) => unreachable!("no human seats in this fixture"),
+        AdvanceOutcome::GameOver(_) | AdvanceOutcome::Halted(_) => {}
+    }
+    game
 }
 
 /// A bare, object-free two-player state. `GameStateBuilder::build()` has no minimum
@@ -185,5 +338,167 @@ fn test_dx32_halted_and_game_over_results_carry_the_same_instrumentation() {
         "non-vacuity: the MaxTurns valve must trip only after real commands were \
          applied, or a revert that hard-codes total_commands: 0 in driver.rs's Halted \
          arm would stay green"
+    );
+}
+
+/// **T2.1** (Stage 2) — SR-38 (`OOS-SIM3-2`). A fuzz-shaped game with
+/// `record_journal: false` (the fuzzer's own configuration) still SAMPLES rejections:
+/// non-empty, capped at `MAX_SAMPLED_REJECTIONS`, and `rejection_count() >=
+/// rejections().len()` (the count is never truncated; only the record is).
+/// Non-vacuity: seed 1 at `max_turns: 25` is the exact seed Stage 0 measured producing
+/// 85 rejections over 1,005 commands (`memory/primitive-wip.md`), so this fixture is
+/// KNOWN, not hoped, to fire.
+#[test]
+fn test_dx32_rejections_are_sampled_without_the_journal() {
+    let game = play_fuzz_shaped(1, 4, 25);
+
+    assert!(
+        game.rejection_count() > 0,
+        "seed 1 at max_turns 25 is known to produce rejections (Stage 0 measured 85)"
+    );
+    assert!(
+        !game.rejections().is_empty(),
+        "record_journal: false must still sample SOME rejections (SR-38, OOS-SIM3-2)"
+    );
+    assert!(
+        game.rejections().len() <= mtg_simulator::MAX_SAMPLED_REJECTIONS,
+        "the sample must be capped at MAX_SAMPLED_REJECTIONS ({}), got {}",
+        mtg_simulator::MAX_SAMPLED_REJECTIONS,
+        game.rejections().len()
+    );
+    assert!(
+        game.rejection_count() as usize >= game.rejections().len(),
+        "the count must never be smaller than the (possibly truncated) sample"
+    );
+}
+
+/// **T2.2** (Stage 2) — the SR-38 ratchet at the TEST gate's own configuration: 3 seeds
+/// ([1, 2, 3]) x 25 turns x `RandomBot` x `build_fuzz_state`, `record_journal: false` —
+/// the exact configuration Stage 0 measured (2,767 commands, 86 rejections = 31.081 per
+/// mille). Aggregate per-mille must stay at or under
+/// `MAX_BOT_REJECTION_PER_MILLE_AT_GATE_CONFIG`. Floors on `total_commands` and
+/// `total_rejections` so a game that stops early, or a bot that stops acting, cannot
+/// pass trivially.
+#[test]
+fn test_dx32_sr38_bot_rejection_rate_is_ratcheted() {
+    let mut total_commands: u64 = 0;
+    let mut total_rejections: u64 = 0;
+
+    for &seed in &[1u64, 2, 3] {
+        let game = play_fuzz_shaped(seed, 4, 25);
+        eprintln!(
+            "T2.2 seed {seed}: commands={} rejections={}",
+            game.command_count(),
+            game.rejection_count()
+        );
+        total_commands += u64::from(game.command_count());
+        total_rejections += u64::from(game.rejection_count());
+    }
+
+    let per_mille = (total_rejections as f64 / total_commands as f64) * 1000.0;
+    eprintln!("T2.2 aggregate: {total_rejections} / {total_commands} = {per_mille:.3} per mille");
+
+    assert!(
+        per_mille <= f64::from(mtg_simulator::MAX_BOT_REJECTION_PER_MILLE_AT_GATE_CONFIG),
+        "aggregate rejection rate {per_mille:.3} per mille exceeds the ratchet \
+         MAX_BOT_REJECTION_PER_MILLE_AT_GATE_CONFIG = {}",
+        mtg_simulator::MAX_BOT_REJECTION_PER_MILLE_AT_GATE_CONFIG
+    );
+    // Non-vacuity floors (Stage 0 measured 2,767 commands / 86 rejections at this exact
+    // configuration; 80% of the measured command count, per plan §5 Stage 0 step 4).
+    assert!(
+        total_commands >= 2_200,
+        "non-vacuity floor: total_commands {total_commands} is far below the Stage-0 \
+         measurement (2,767) — a game that stopped early cannot pass this gate trivially"
+    );
+    assert!(
+        total_rejections > 0,
+        "non-vacuity floor: the gate's own seeds are known to produce rejections"
+    );
+}
+
+/// **T2.3** (Stage 2) — `GameResult.rejection_count` equals `LocalGame::rejection_count()`
+/// on BOTH the GameOver and the Halted path, with a NON-ZERO count on both: a
+/// zero-on-both fixture cannot discriminate a regression that silently drops the field
+/// back to its `Default` value of 0. [`AlwaysRejectedBot`] forces the rejection on both
+/// halves; [`ConcedeOnFirstCallBot`] forces the GameOver outcome (p2 concedes at its
+/// first priority window, after p1's `AlwaysRejectedBot` has already been rejected
+/// once), and the Halted half reuses [`two_player_state_with_libraries`] the same way
+/// T1.1's Halted half does.
+#[test]
+fn test_dx32_game_result_carries_the_rejection_channel() {
+    // ---- GameOver half ----
+    let over_state = two_player_state_with_libraries(10);
+    let mut over_bots: HashMap<PlayerId, Box<dyn Bot>> = HashMap::new();
+    over_bots.insert(p(1), Box::new(AlwaysRejectedBot));
+    over_bots.insert(p(2), Box::new(ConcedeOnFirstCallBot::new()));
+    let limits = LocalGameLimits {
+        max_turns: 200,
+        max_commands: 400,
+        max_consecutive_passes: 500,
+        record_journal: false,
+    };
+    let (mut over_game, _events) = LocalGame::start(
+        over_state,
+        3,
+        StubProvider,
+        over_bots,
+        BTreeSet::new(),
+        limits,
+        true,
+    )
+    .expect("fixture must start");
+    let over_result = match over_game.advance() {
+        AdvanceOutcome::GameOver(result) => result,
+        other => panic!("expected GameOver once p2 concedes: {other:?}"),
+    };
+    assert!(
+        over_result.rejection_count > 0,
+        "p1's AlwaysRejectedBot must have produced >=1 rejection before p2 conceded: \
+         {over_result:?}"
+    );
+    assert_eq!(
+        over_result.rejection_count,
+        over_game.rejection_count(),
+        "GameResult.rejection_count must match the game's own accessor (GameOver path)"
+    );
+
+    // ---- Halted half ----
+    const HALT_MAX_TURNS: u32 = 3;
+    let halted_state = two_player_state_with_libraries(10);
+    let mut halted_bots: HashMap<PlayerId, Box<dyn Bot>> = HashMap::new();
+    halted_bots.insert(p(1), Box::new(AlwaysRejectedBot));
+    // p2 gets no bot assigned -- falls to the "no bot assigned" auto-pass branch, same
+    // as T1.1's Halted half.
+    let halted_limits = LocalGameLimits {
+        max_turns: HALT_MAX_TURNS,
+        max_commands: HALT_MAX_TURNS * 200,
+        max_consecutive_passes: 500,
+        record_journal: false,
+    };
+    let (mut halted_game, _events2) = LocalGame::start(
+        halted_state,
+        4,
+        StubProvider,
+        halted_bots,
+        BTreeSet::new(),
+        halted_limits,
+        true,
+    )
+    .expect("fixture must start");
+    let halt_reason = match halted_game.advance() {
+        AdvanceOutcome::Halted(reason) => reason,
+        other => panic!("expected a MaxTurns halt: {other:?}"),
+    };
+    let halted_result = halted_game.result_snapshot(None, Some(halt_reason.into()));
+    assert!(
+        halted_result.rejection_count > 0,
+        "p1's AlwaysRejectedBot must have produced >=1 rejection before the turn cap: \
+         {halted_result:?}"
+    );
+    assert_eq!(
+        halted_result.rejection_count,
+        halted_game.rejection_count(),
+        "GameResult.rejection_count must match the game's own accessor (Halted path)"
     );
 }
