@@ -169,6 +169,7 @@ fn main() {
         print_mechanics_summary(std::slice::from_ref(&mechanics));
         print_sr38_summary(std::slice::from_ref(&result));
         print_waste_summary(std::slice::from_ref(&result), &cli.bot);
+        print_decision_coverage(std::slice::from_ref(&result));
         return;
     }
 
@@ -269,6 +270,7 @@ fn main() {
     print_mechanics_summary(&tallies);
     let sr38_breached = print_sr38_summary(&results);
     print_waste_summary(&results, &cli.bot);
+    print_decision_coverage(&results);
 
     if cli.verbose {
         for result in &results {
@@ -772,6 +774,82 @@ fn print_waste_summary(results: &[GameResult], bot: &BotType) {
         "  casts: {} total, {} with >=1 announced target (CR 601.2c)",
         t.casts, t.targeted_casts
     );
+}
+
+/// Decision-point runtime coverage (PB-DX32 Stage 6) — which of
+/// `decision_site_walk.rs`'s `ROWS` a fuzz run actually reaches. Every `GameResult`
+/// in `results` carries a `DecisionCoverage`; this prints the REACHED and NEVER
+/// REACHED partitions over `mtg_simulator::OBSERVABLE_ROW_IDS` (summed across every
+/// game in the run), then the `UNOBSERVABLE_ROW_IDS` list with its reason column.
+///
+/// **The counts are re-observation-weighted** (a `BlockingDecision` is re-offered on
+/// every `advance()` loop iteration until it is answered), exactly like
+/// `print_violation_histogram`'s raw counts — read reached/never-reached as the
+/// primary signal, not the numbers next to them.
+fn print_decision_coverage(results: &[GameResult]) {
+    use mtg_simulator::{OBSERVABLE_ROW_IDS, UNOBSERVABLE_ROW_IDS};
+
+    let mut totals: HashMap<&str, u64> = OBSERVABLE_ROW_IDS.iter().map(|id| (*id, 0)).collect();
+    for result in results {
+        for id in OBSERVABLE_ROW_IDS {
+            *totals.get_mut(id).unwrap() += u64::from(result.decision_coverage.observations(id));
+        }
+    }
+
+    println!();
+    println!(
+        "Decision-point runtime coverage (ALL {} games)",
+        results.len()
+    );
+    println!("---------------------------------------------------");
+    println!(
+        "  Keyed by decision_site_walk.rs's ROWS ids. Counts are RE-OBSERVATION-WEIGHTED \
+         (a decision is re-offered on every advance() loop iteration until it is \
+         answered) -- read reached/never-reached, not the counts, as the primary signal."
+    );
+    let mut reached: Vec<(&str, u64)> = totals
+        .iter()
+        .filter(|(_, n)| **n > 0)
+        .map(|(k, v)| (*k, *v))
+        .collect();
+    reached.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(b.0)));
+    println!(
+        "  reached ({}/{}):",
+        reached.len(),
+        OBSERVABLE_ROW_IDS.len()
+    );
+    if reached.is_empty() {
+        println!("    (none)");
+    } else {
+        for (id, n) in &reached {
+            println!("    {:<20} {}", id, n);
+        }
+    }
+    let mut never: Vec<&str> = totals
+        .iter()
+        .filter(|(_, n)| **n == 0)
+        .map(|(k, _)| *k)
+        .collect();
+    never.sort_unstable();
+    println!(
+        "  NEVER REACHED ({}/{}):",
+        never.len(),
+        OBSERVABLE_ROW_IDS.len()
+    );
+    if never.is_empty() {
+        println!("    (none)");
+    } else {
+        for id in &never {
+            println!("    {id}");
+        }
+    }
+    println!(
+        "  UNOBSERVABLE rows (no runtime hook BY CONSTRUCTION -- a zero here means \
+         nothing, see decision_coverage.rs's module doc):"
+    );
+    for (id, why) in UNOBSERVABLE_ROW_IDS {
+        println!("    {:<24} {}", id, why);
+    }
 }
 
 fn print_game_result(result: &GameResult, verbose: bool) {

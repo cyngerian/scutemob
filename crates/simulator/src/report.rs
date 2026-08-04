@@ -7,6 +7,7 @@
 use mtg_engine::{Command, PlayerId};
 use serde::{Deserialize, Serialize};
 
+use crate::decision_coverage::DecisionCoverage;
 use crate::invariants::InvariantViolation;
 use crate::local_game::{RejectedCommand, WasteTally};
 
@@ -67,6 +68,10 @@ pub struct GameResult {
     /// NOT halting `--stop-on-error` — see
     /// [`crate::local_game::LocalGame::transient_violations`].
     pub transient_violations: Vec<InvariantViolation>,
+    /// Decision-point runtime coverage (PB-DX32 Stage 6) — see
+    /// [`crate::local_game::LocalGame::decision_coverage`] and
+    /// [`crate::decision_coverage`].
+    pub decision_coverage: DecisionCoverage,
 }
 
 /// SR-38 at run scale. Measured at HEAD (2026-08-03) over 5 fuzz-shaped games,

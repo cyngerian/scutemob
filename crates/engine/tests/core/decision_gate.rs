@@ -1433,3 +1433,134 @@ fn named_residual_seed_ids_still_exist_in_the_audit() {
          from the search_library row, restore them or drop this test deliberately."
     );
 }
+
+// ── T17: decision-point RUNTIME coverage roster matches ROWS (PB-DX32 Stage 6) ────
+//
+// `crates/simulator/src/decision_coverage.rs` carries a SEPARATE id-only roster (no
+// predicates, no CR cites, no classification logic -- those stay here, exactly once)
+// so `crates/simulator` can fold a runtime observation count without either crate
+// dev-depending on the other's test tree. This is the source gate that keeps the two
+// rosters from drifting: it EXTENDS the static gate (reads the simulator file as
+// text), it does NOT rebuild it -- `ROWS`, `BASELINE` and
+// `MAX_AUTO_CHOSEN_COMPLETE_UNION` above are untouched.
+
+/// Every quoted string literal in `src`, in source order. An unescaped backslash
+/// consumes the following character too (so it can never itself close the string,
+/// which is all this needs: line-continuation escapes and any hypothetical `\"` both
+/// stay inside the literal rather than ending it early).
+fn quoted_strings(src: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut chars = src.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c != '"' {
+            continue;
+        }
+        let mut s = String::new();
+        while let Some(next) = chars.next() {
+            if next == '\\' {
+                s.push(next);
+                if let Some(escaped) = chars.next() {
+                    s.push(escaped);
+                }
+                continue;
+            }
+            if next == '"' {
+                break;
+            }
+            s.push(next);
+        }
+        out.push(s);
+    }
+    out
+}
+
+/// The text of one `pub const <NAME>: ... = &[ ... ];` array literal, from the const's
+/// declaration to its OWN terminating `];` -- block-scoped, so `rustfmt` re-wrapping
+/// the array cannot defeat it (mirrors this file's own `read_ct`/`strip_line_comments`
+/// idiom, F17 of the PB-DX32 plan). `anchor` must be unambiguous against a
+/// LONGER name sharing the same suffix (e.g. `"const OBSERVABLE_ROW_IDS"` does NOT
+/// match inside `"const UNOBSERVABLE_ROW_IDS"`, because `"UN"` sits between `"const "`
+/// and `"OBSERVABLE"` there).
+fn extract_const_array_block<'a>(src: &'a str, anchor: &str) -> &'a str {
+    let start = src
+        .find(anchor)
+        .unwrap_or_else(|| panic!("{anchor:?} not found in decision_coverage.rs"));
+    let after = &src[start..];
+    let end = after
+        .find("];")
+        .unwrap_or_else(|| panic!("no terminating '];' found after {anchor:?}"));
+    &after[..end + 2]
+}
+
+/// **T17 (PB-DX32 Stage 6)** — `crates/simulator/src/decision_coverage.rs`'s
+/// `OBSERVABLE_ROW_IDS` ∪ `UNOBSERVABLE_ROW_IDS` must equal `ROWS`'s ids exactly, and
+/// `OBSERVABLE_ROW_IDS` must equal exactly the ids whose class is `Served`. Comments
+/// are stripped FIRST (`strip_line_comments`), so a row moved into a `//`-prefixed
+/// comment is NOT counted as present — the comment-satisfiable-gate class PB-DX22's
+/// review cycle 2 found in this exact family (see this file's own header note).
+#[test]
+fn runtime_decision_coverage_roster_matches_rows() {
+    let src = strip_line_comments(&read_ct("crates/simulator/src/decision_coverage.rs"));
+
+    let observable_block = extract_const_array_block(&src, "const OBSERVABLE_ROW_IDS");
+    let unobservable_block = extract_const_array_block(&src, "const UNOBSERVABLE_ROW_IDS");
+
+    let observable: BTreeSet<String> = quoted_strings(observable_block).into_iter().collect();
+
+    let unobservable_all = quoted_strings(unobservable_block);
+    assert_eq!(
+        unobservable_all.len() % 2,
+        0,
+        "UNOBSERVABLE_ROW_IDS must be a flat list of (id, reason) string-literal pairs \
+         -- found an ODD number of quoted strings ({}), so a tuple is malformed or the \
+         block boundary was mis-detected",
+        unobservable_all.len()
+    );
+    // Every (id, reason) tuple's FIRST string is the id; the reason is never compared
+    // against ROWS ids.
+    let unobservable: BTreeSet<String> = unobservable_all.iter().step_by(2).cloned().collect();
+
+    let rows_ids: BTreeSet<String> = ROWS.iter().map(|r| r.id.to_string()).collect();
+    let served_ids: BTreeSet<String> = ROWS
+        .iter()
+        .filter(|r| matches!(r.class, DecisionClass::Served { .. }))
+        .map(|r| r.id.to_string())
+        .collect();
+
+    let union: BTreeSet<String> = observable.union(&unobservable).cloned().collect();
+
+    let missing_from_roster: Vec<&String> = rows_ids.difference(&union).collect();
+    let extra_in_roster: Vec<&String> = union.difference(&rows_ids).collect();
+    assert!(
+        missing_from_roster.is_empty() && extra_in_roster.is_empty(),
+        "decision_coverage.rs's OBSERVABLE_ROW_IDS ∪ UNOBSERVABLE_ROW_IDS must equal \
+         decision_site_walk.rs's ROWS ids exactly. In ROWS but missing from the \
+         roster: {missing_from_roster:?}. In the roster but not a ROWS id: \
+         {extra_in_roster:?}"
+    );
+
+    let observable_not_served: Vec<&String> = observable.difference(&served_ids).collect();
+    let served_not_observable: Vec<&String> = served_ids.difference(&observable).collect();
+    assert!(
+        observable_not_served.is_empty() && served_not_observable.is_empty(),
+        "OBSERVABLE_ROW_IDS must equal EXACTLY the ROWS ids whose class is Served. In \
+         OBSERVABLE_ROW_IDS but not Served in ROWS: {observable_not_served:?}. Served \
+         in ROWS but missing from OBSERVABLE_ROW_IDS: {served_not_observable:?}"
+    );
+
+    assert!(
+        union.len() >= MIN_ROWS,
+        "the combined roster shrank to {} (< MIN_ROWS {MIN_ROWS}) -- rows may be \
+         added, never removed",
+        union.len()
+    );
+    assert!(
+        observable.len() >= 5,
+        "OBSERVABLE_ROW_IDS must have at least the 5 known Served rows, got {}",
+        observable.len()
+    );
+    assert!(
+        !unobservable.is_empty(),
+        "UNOBSERVABLE_ROW_IDS must not be empty"
+    );
+}

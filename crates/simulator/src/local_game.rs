@@ -20,6 +20,7 @@ use mtg_engine::{
 };
 
 use crate::bot::Bot;
+use crate::decision_coverage::{self, DecisionCoverage};
 use crate::invariants::{self, InvariantViolation};
 use crate::legal_actions;
 use crate::legal_actions::{LegalAction, LegalActionProvider};
@@ -47,7 +48,14 @@ pub struct LocalGameLimits {
 }
 
 /// The outcome of a single `LocalGame::advance()` call.
+///
+/// `#[allow(clippy::large_enum_variant)]`: `GameOver`'s `GameResult` carries
+/// PB-DX32's own instrumentation growth (rejections sample, waste tally, decision
+/// coverage) and is constructed at most once per game, not per loop iteration —
+/// boxing it would touch every `AdvanceOutcome::GameOver` match arm across
+/// `tools/play-server`, which is outside this batch's footprint (plan §3.1).
 #[derive(Debug)]
+#[allow(clippy::large_enum_variant)]
 pub enum AdvanceOutcome {
     /// A human-occupied seat must act. The game state has not been advanced any
     /// further than the moment this decision became available.
@@ -383,6 +391,11 @@ pub struct LocalGame<P: LegalActionProvider> {
     /// [`WasteTally`] itself, so that type stays a plain `Copy` counter set exactly
     /// like [`MechanicsTally`] (§3.4 of the plan).
     waste_run: Option<(PlayerId, u32)>,
+    /// Decision-point runtime coverage (PB-DX32 Stage 6). Folded at the
+    /// `state.blocking_decision()` branch in [`Self::advance`] — the branch every
+    /// path (human or bot) goes through before either the human-return or the bot's
+    /// own choice. See [`crate::decision_coverage`].
+    decisions: DecisionCoverage,
 }
 
 /// How many [`RejectedCommand`]s a `LocalGame` retains **when `record_journal` is
@@ -443,6 +456,7 @@ impl<P: LegalActionProvider> LocalGame<P> {
             mechanics: MechanicsTally::default(),
             waste: WasteTally::default(),
             waste_run: None,
+            decisions: DecisionCoverage::default(),
         };
         Ok((game, start_events))
     }
@@ -492,6 +506,8 @@ impl<P: LegalActionProvider> LocalGame<P> {
             waste: self.waste(),
             // PB-DX32 Stage 4.
             transient_violations: self.transient_violations.clone(),
+            // PB-DX32 Stage 6.
+            decision_coverage: self.decisions,
         }
     }
 
@@ -507,6 +523,12 @@ impl<P: LegalActionProvider> LocalGame<P> {
     /// time (PB-DX32 Stage 4) — see [`Self::record_violations`].
     pub fn transient_violations(&self) -> &[InvariantViolation] {
         &self.transient_violations
+    }
+
+    /// Decision-point runtime coverage (PB-DX32 Stage 6). See
+    /// [`crate::decision_coverage`].
+    pub fn decision_coverage(&self) -> DecisionCoverage {
+        self.decisions
     }
 
     /// Split `check_all`'s output at the point of collection (PB-DX32 Stage 4,
@@ -738,6 +760,17 @@ impl<P: LegalActionProvider> LocalGame<P> {
                     BlockingDecision::TriggerTargets { .. } => DecisionKind::TriggerTargets,
                     BlockingDecision::EffectChoice { .. } => DecisionKind::EffectChoice,
                 };
+                // PB-DX32 Stage 6: a SEPARATE exhaustive classification, on a
+                // DIFFERENT axis, from the `kind` match immediately above. `kind`
+                // answers "which `DecisionKind` does the browser/TUI show"; this
+                // answers "which `decision_site_walk.rs` ROWS row (if any) does this
+                // decision observe". Deliberately NOT merged into one match: the two
+                // taxonomies are not the same shape (`DecisionKind::CleanupDiscard`
+                // is a real UI kind with no ROWS row) and collapsing them would make
+                // a future reader assume they always move together.
+                if let Some(row_id) = decision_coverage::row_id_for(&self.state, &decision) {
+                    self.decisions.observe(row_id);
+                }
                 (decision.player(), Some(kind))
             } else if let Some(pending) = self.state.pending_commander_zone_choices().iter().next()
             {

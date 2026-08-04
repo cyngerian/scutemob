@@ -16,14 +16,15 @@
 
 use std::collections::{BTreeSet, HashMap};
 
+use mtg_engine::rules::engine::BlockingDecision;
 use mtg_engine::{
-    all_cards, AttackTarget, CardDefinition, CardType, Command, GameState, GameStateBuilder,
-    ObjectId, ObjectSpec, PlayerId, SuperType, ZoneId,
+    all_cards, AttackTarget, CardDefinition, CardType, Command, EffectChoiceQuestion, GameState,
+    GameStateBuilder, ObjectId, ObjectSpec, PendingEffectChoice, PlayerId, SuperType, ZoneId,
 };
 use mtg_simulator::{
-    build_fuzz_state, build_registry, invariants, random_deck, AdvanceOutcome, Bot, GameDriver,
-    GameDriverError, InvariantViolation, LegalAction, LocalGame, LocalGameLimits, RandomBot,
-    StubProvider,
+    build_fuzz_state, build_registry, invariants, random_deck, row_id_for, AdvanceOutcome, Bot,
+    GameDriver, GameDriverError, InvariantViolation, LegalAction, LocalGame, LocalGameLimits,
+    RandomBot, StubProvider, OBSERVABLE_ROW_IDS,
 };
 use rand::{rngs::StdRng, SeedableRng};
 
@@ -749,5 +750,168 @@ fn test_dx32_commander_pool_filter_mirrors_deck_rs() {
          commander_pool -- if this fails, commander_pool's filter has diverged from \
          deck.rs's own (plan §3.6)",
         deck.commander
+    );
+}
+
+// ── Stage 6 -- (e) decision-point runtime coverage ──────────────────────────────────
+
+/// A `GameState` carrying a hand-built `PendingEffectChoice` (mirrors
+/// `crates/engine/tests/core/hash_schema.rs:807`'s own fixture pattern) — the only
+/// public way to seed `state.pending_effect_choice()` from outside the engine crate
+/// (`GameStateBuilder::pending_effect_choice`).
+fn effect_choice_state(question: EffectChoiceQuestion) -> GameState {
+    GameStateBuilder::new()
+        .add_player(p(1))
+        .add_player(p(2))
+        .pending_effect_choice(PendingEffectChoice {
+            choice_id: 1,
+            player: p(1),
+            source: ObjectId(1),
+            question,
+            index: 0,
+        })
+        .build()
+        .expect("effect-choice fixture must build")
+}
+
+/// **T6.2** (Stage 6) — the non-vacuity partner of T6.1: `decision_coverage::row_id_for`
+/// is exercised from REAL code (a hand-built `BlockingDecision` +, for the
+/// `EffectChoice` rows, a matching `PendingEffectChoice`), not merely declared in a
+/// constant list. One fixture per observable row; asserts the returned id AND that the
+/// full set of ids `row_id_for` can ever return equals `OBSERVABLE_ROW_IDS` exactly.
+/// Also proves `CleanupDiscard` (CR 514.1) maps to `None` — a real decision with no
+/// `ROWS` row, not a silently-skipped one.
+#[test]
+fn test_dx32_row_id_for_covers_every_observable_row() {
+    let cases: Vec<(&str, BlockingDecision, GameState)> = vec![
+        (
+            "triggered_targets",
+            BlockingDecision::TriggerTargets {
+                player: p(1),
+                choice_id: 1,
+                source: ObjectId(1),
+            },
+            bare_two_player_state(),
+        ),
+        (
+            "search_library",
+            BlockingDecision::EffectChoice {
+                player: p(1),
+                choice_id: 1,
+                source: ObjectId(1),
+            },
+            effect_choice_state(EffectChoiceQuestion::SearchLibrary {
+                candidates: vec![],
+                may_fail_to_find: false,
+            }),
+        ),
+        (
+            "scry",
+            BlockingDecision::EffectChoice {
+                player: p(1),
+                choice_id: 1,
+                source: ObjectId(1),
+            },
+            effect_choice_state(EffectChoiceQuestion::Scry { looked_at: vec![] }),
+        ),
+        (
+            "surveil",
+            BlockingDecision::EffectChoice {
+                player: p(1),
+                choice_id: 1,
+                source: ObjectId(1),
+            },
+            effect_choice_state(EffectChoiceQuestion::Surveil { looked_at: vec![] }),
+        ),
+        (
+            "discard_cards",
+            BlockingDecision::EffectChoice {
+                player: p(1),
+                choice_id: 1,
+                source: ObjectId(1),
+            },
+            effect_choice_state(EffectChoiceQuestion::Discard {
+                hand: vec![],
+                count: 0,
+            }),
+        ),
+    ];
+
+    let mut reachable: BTreeSet<&'static str> = BTreeSet::new();
+    for (expected_id, decision, state) in &cases {
+        let got = row_id_for(state, decision);
+        assert_eq!(
+            got,
+            Some(*expected_id),
+            "row_id_for must return {expected_id:?} for this fixture, got {got:?}"
+        );
+        if let Some(id) = got {
+            reachable.insert(id);
+        }
+    }
+
+    let observable: BTreeSet<&'static str> = OBSERVABLE_ROW_IDS.iter().copied().collect();
+    assert_eq!(
+        reachable, observable,
+        "the set of ids row_id_for can ever return must equal OBSERVABLE_ROW_IDS exactly"
+    );
+
+    // CR 514.1: CleanupDiscard is a real decision with NO ROWS row -- proven here as
+    // an explicit None, not merely never exercised.
+    let cleanup = BlockingDecision::CleanupDiscard {
+        player: p(1),
+        count: 1,
+    };
+    assert_eq!(
+        row_id_for(&bare_two_player_state(), &cleanup),
+        None,
+        "CleanupDiscard (CR 514.1) is a real decision with no ROWS row"
+    );
+}
+
+/// **T6.3** (Stage 6, plan §7 R9) — does a fuzz-shaped run reach at least one served
+/// decision row? R9 was explicitly unmeasured in the plan, and the honest answer,
+/// widening seeds/turns until measured rather than guessed, is BETTER than the
+/// plan's own worst-case hypothesis ("possibly 0 of 5"): at 10 fuzz-shaped games x
+/// 60 turns (`RandomBot`, `build_fuzz_state`, `record_journal: false`), **4 of the 5
+/// served rows are reached** — `triggered_targets`, `search_library`, `scry`,
+/// `discard_cards` — and exactly one, `surveil`, is never reached at this budget.
+/// Deterministic (re-run twice at implementation time, identical partition both
+/// times), so this is asserted EXACTLY, not as a floor, and the message on failure
+/// tells the reader this is a finding to report, not a knob to retune blindly.
+#[test]
+fn test_dx32_a_fuzz_run_reaches_at_least_one_served_row() {
+    let mut combined = mtg_simulator::DecisionCoverage::default();
+    for seed in 1u64..=10 {
+        let game = play_fuzz_shaped(seed, 4, 60);
+        let coverage = game.decision_coverage();
+        for id in OBSERVABLE_ROW_IDS {
+            for _ in 0..coverage.observations(id) {
+                combined.observe(id);
+            }
+        }
+    }
+    let reached: BTreeSet<&str> = combined.reached().into_iter().collect();
+    let never_reached: BTreeSet<&str> = combined.never_reached().into_iter().collect();
+    eprintln!("T6.3 reached: {reached:?}");
+    eprintln!("T6.3 never reached: {never_reached:?}");
+
+    let expected_reached: BTreeSet<&str> = [
+        "triggered_targets",
+        "search_library",
+        "scry",
+        "discard_cards",
+    ]
+    .into_iter()
+    .collect();
+    assert_eq!(
+        reached, expected_reached,
+        "the reached/never-reached partition of a 10-seed x 60-turn fuzz-shaped run \
+         changed from the measured baseline (4 of 5 served rows: triggered_targets, \
+         search_library, scry, discard_cards; surveil never reached at this budget). \
+         Report this as a finding (does the engine now serve fewer/more decisions, or \
+         did an unrelated change move which cards get drawn/cast) rather than \
+         silently re-tuning the seed range to make it pass: reached {reached:?}, \
+         never reached {never_reached:?}"
     );
 }

@@ -488,3 +488,104 @@ T5.1, T5.2), residual list empty.
 crates/card-types/ crates/view-model/` EMPTY. `git diff main..HEAD --numstat --
 tools/` — **still exactly one file, `+1 -0`** (unchanged — Stage 5 touched no file
 under `tools/`).
+
+---
+
+## Stage 6 DONE — (e) decision-point runtime coverage
+
+Plan §5 Stage 6. New file `crates/simulator/src/decision_coverage.rs`
+(`OBSERVABLE_ROW_IDS` = 5 ids, `UNOBSERVABLE_ROW_IDS` = 17 `(id, reason)` pairs,
+`ROW_COUNT`, `DecisionCoverage` with a hand-written `Default`, `row_id_for` —
+exhaustive on both `BlockingDecision` and `EffectChoiceQuestion`, no wildcard).
+Wired: `local_game.rs` (`decisions: DecisionCoverage` field, folded at the
+`state.blocking_decision()` branch alongside the pre-existing `DecisionKind` match —
+kept as two SEPARATE exhaustive matches on purpose, commented so a future reader
+does not merge them; `decision_coverage()` accessor; `result_snapshot` extended;
+`AdvanceOutcome` gained `#[allow(clippy::large_enum_variant)]` — `GameResult` crossed
+clippy's default threshold once `decision_coverage` (88 bytes) landed, and boxing it
+would touch `tools/play-server` match arms outside this batch's footprint, so the
+allow follows this crate's own precedent, `crates/engine/src/rules/events.rs:61` /
+`card_definition.rs:1238`), `report.rs` (`GameResult::decision_coverage`), `lib.rs`
+(new `pub mod decision_coverage;` + re-exports), `bin/fuzzer.rs`
+(`print_decision_coverage`, called from both the run path and the `--replay` path).
+**New engine test appended to the EXISTING `crates/engine/tests/core/decision_gate.rs`**
+(criterion (e)'s "extend, don't rebuild" — `ROWS`, `BASELINE`,
+`MAX_AUTO_CHOSEN_COMPLETE_UNION = 80` untouched): `quoted_strings`,
+`extract_const_array_block`, and **T6.1**
+`runtime_decision_coverage_roster_matches_rows`. New tests in
+`pb_dx32_fuzz_output.rs`: **T6.2** `test_dx32_row_id_for_covers_every_observable_row`,
+**T6.3** `test_dx32_a_fuzz_run_reaches_at_least_one_served_row`.
+
+**R9 measured, not guessed, and the honest answer is BETTER than the plan's own
+worst-case hypothesis.** At T6.3's own gate configuration (10 fuzz-shaped games x
+60 turns, `RandomBot`, `build_fuzz_state`, `record_journal: false`, debug build) —
+**4 of the 5 served rows are reached**: `triggered_targets`, `search_library`,
+`scry`, `discard_cards`. Only `surveil` is never reached at this budget. Deterministic
+(re-run twice, identical partition both times), so T6.3 asserts the partition
+EXACTLY rather than as a floor, with a message that tells a failing future reader to
+report the change as a finding rather than silently re-tuning the seed range.
+**A second, independent data point at the release-profile binary's own
+configuration** (`--games 20 --seed 1 --max-turns 200`, `--profile fuzz`,
+committed as `memory/primitives/pb-dx32-stage6-fuzz-smoke.txt`): **all 5 of 5 served
+rows are reached**, including `surveil` (30 observations) — confirming the gap at
+T6.3's debug/60-turn budget is a depth artefact, not evidence that `surveil` is hard
+to reach in general. Both configurations and both results are recorded rather than
+only the more favourable one.
+
+**Revert proofs (all four EXECUTED against the REAL source files, rebuild confirmed
+each time — no throwaway fixture stand-ins)**:
+* **T6.1(a)**: moved `"surveil"` from `OBSERVABLE_ROW_IDS` to `UNOBSERVABLE_ROW_IDS`
+  in `decision_coverage.rs`. Failure: `"OBSERVABLE_ROW_IDS must equal EXACTLY the
+  ROWS ids whose class is Served. In OBSERVABLE_ROW_IDS but not Served in ROWS: [].
+  Served in ROWS but missing from OBSERVABLE_ROW_IDS: [\"surveil\"]"` — names
+  `surveil` and the class mismatch exactly as required.
+* **T6.1(b), mandatory**: commented out the `"proliferate"` tuple in
+  `UNOBSERVABLE_ROW_IDS` with `//` on every line. Failure: `"...In ROWS but missing
+  from the roster: [\"proliferate\"]..."` — proves `strip_line_comments` is being
+  applied (an unstripped scan would still have found `"proliferate"` as plain text
+  inside the comment and stayed green, the exact comment-satisfiable-gate class
+  PB-DX22's review cycle 2 found in this file's own family).
+* **T6.2**: changed `row_id_for`'s `EffectChoiceQuestion::Scry` arm to return `None`
+  (via a temporary `.and_then` restructuring, since the real code returns a bare
+  `&'static str` from inside a `.map`). Failure: `"row_id_for must return \"scry\"
+  for this fixture, got None"`.
+* **T6.3**: made `DecisionCoverage::observe` a no-op (`let _ = row_id;`). Failure:
+  reddened with `reached: {}` printed, naming the empty partition against the
+  measured baseline.
+
+All four restored immediately after each revert; `git diff`/re-read confirmed clean
+before moving to the next.
+
+**A design deviation from the plan's own reasoning-organization worth stating**:
+`row_id_for`'s exhaustive match on `EffectChoiceQuestion` is written as
+`.map(|pending| match ... { ... => "id" })` (each arm a bare `&'static str`), not
+`.and_then(|pending| match ... { ... => Some("id") })` — `clippy::bind_instead_of_map`
+rejects the latter under `-D warnings` because every arm was `Some(_)` in the
+non-reverted code (no arm needed `None`). The two are behaviourally identical; the
+revert proofs above used the `and_then` shape ONLY as a scratch vehicle to express a
+temporary `None` arm, then were restored to the clippy-clean `map` shape.
+
+**Stage gates, all EXECUTED**: `cargo check -p mtg-simulator` clean throughout;
+`cargo test -p mtg-simulator --test pb_dx32_fuzz_output` **12 / 0 / 0** (+2 over
+Stage 5's 10; T6.3 runs in ~19s, the slowest test in the file, from playing 10 real
+fuzz-shaped games to gather the reached/never-reached partition); `cargo test -p
+mtg-engine --test core runtime_decision_coverage_roster_matches_rows` **1 / 0 / 0**;
+`cargo clippy --workspace --all-targets -- -D warnings` clean (two findings fixed
+along the way: `clippy::bind_instead_of_map` in `row_id_for`, and
+`clippy::large_enum_variant` on `AdvanceOutcome` once `GameResult` grew past its
+default threshold — see the `#[allow]` note above); `cargo fmt --check` clean (ran
+`cargo fmt` once). `tools/check-defs-fmt.sh` — 1803 defs, clean.
+`cargo test --workspace --no-fail-fast` — **4,373 / 0 / 5** (+3 over the Stage-5 pin:
+T6.1, T6.2, T6.3), residual list empty.
+`cargo test -p mtg-engine --test core hash_schema` / `--test core protocol_schema` —
+**HASH 72 / PROTOCOL 35 unmoved**, read off the constants. `cargo test -p
+play-server` — **78 / 0** unmoved.
+`git diff main..HEAD --numstat -- crates/engine/src/ crates/card-defs/
+crates/card-types/ crates/view-model/` EMPTY. `git diff main..HEAD --numstat --
+tools/` — **still exactly one file, `+1 -0`**. `git status --short --
+crates/engine/tests/` shows exactly one modified file, `core/decision_gate.rs`
+(appended-only, per criterion (e)'s "extend, don't rebuild").
+`tools/authoring-report.py` regenerated: body byte-identical except the git-sha/date
+stamp lines (`docs/authoring-status.md`, `docs/authoring-status-missing.txt`,
+`docs/authoring-status-prev.json`); coverage unmoved **1,133/1,803 = 62.8%**;
+regeneration churn reverted (`git checkout --`) before this commit.

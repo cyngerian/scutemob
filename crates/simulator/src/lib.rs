@@ -13,6 +13,7 @@
 //!   Session 2)
 
 pub mod bot;
+pub mod decision_coverage;
 pub mod deck;
 pub mod driver;
 pub mod fuzz_setup;
@@ -29,6 +30,14 @@ pub mod targeting;
 
 // Re-export key types for convenience
 pub use bot::Bot;
+// PB-DX32 Stage 6: decision-point runtime coverage. `row_id_for`/`DecisionCoverage`
+// are also usable directly from `mtg_simulator::decision_coverage::*` (that path is
+// what `crates/engine/tests/core/decision_gate.rs`'s source gate reads as TEXT, so
+// leave the module itself `pub` even though the common items are re-exported here
+// too).
+pub use decision_coverage::{
+    row_id_for, DecisionCoverage, OBSERVABLE_ROW_IDS, ROW_COUNT, UNOBSERVABLE_ROW_IDS,
+};
 pub use deck::{build_registry, random_deck, DeckConfig};
 pub use driver::GameDriver;
 // PB-DX22 (§B3): `bin/fuzzer.rs` is its own crate, so nothing could `use` its state
