@@ -74,13 +74,24 @@ pub struct GameResult {
     pub decision_coverage: DecisionCoverage,
 }
 
-/// SR-38 at run scale. Measured at HEAD (2026-08-03) over 5 fuzz-shaped games,
-/// 23,613 commands, 542 rejections = 22.953 per mille.
+/// SR-38 at run scale. Re-quoted (PB-DX32 fix cycle, review finding M6) from the
+/// batch's own committed **20-game** artefact
+/// (`memory/primitives/pb-dx32-stage4-fuzz-after.txt:41`, 2026-08-03): 1,995
+/// rejections / 94,467 commands = 21.118 per mille. This supersedes the earlier
+/// 5-game reading (22.953‰ over seeds 1-5, a strict SUBSET of this 20-game run) that
+/// was originally quoted here without saying it was a 5-game sample — `OOS-DX22-13`'s
+/// exact lesson, inside this same batch. The two figures describe the same
+/// population at different sample sizes and agree to within 2‰; the threshold below
+/// is unmoved because 30 already has ample headroom over either reading.
 /// Pinned with headroom, NOT at zero: OOS-SIM5-3 (blocker refusals, the largest
 /// family), OOS-SIM5-5 (modal per-mode target slices), OOS-SIM6-3 (auto-tap covers
 /// CastSpell alone), OOS-CARDS2-4 (Aura offers refused by CR 303.4a) and
 /// OOS-SIM4-2 are all open. Ratchet DOWNWARD as each closes; never raise it to
 /// fit a measurement without naming the seed that justifies the rise.
+/// **Enforced by the BINARY alone** (review finding L7): no test in this workspace
+/// reads this constant — [`MAX_BOT_REJECTION_PER_MILLE_AT_GATE_CONFIG`] below is the
+/// TEST gate's own, separate pin — and `bin/fuzzer.rs`'s own module doc (F19) records
+/// that `mtg-fuzzer` is not run in CI, so a breach here cannot redden the pipeline.
 pub const MAX_BOT_REJECTION_PER_MILLE: u32 = 30;
 
 /// The SR-38 threshold for the Stage-2 TEST gate (T2.2), distinct from
@@ -96,13 +107,33 @@ pub const MAX_BOT_REJECTION_PER_MILLE: u32 = 30;
 /// measurement of a different configuration.
 pub const MAX_BOT_REJECTION_PER_MILLE_AT_GATE_CONFIG: u32 = 40;
 
-/// Measured at HEAD (2026-08-03), `RandomBot`, 5 fuzz-shaped games, 200 turns:
-/// 1,986 wasted of 2,641 taps = 75%. Pinned at 85 with headroom.
+/// Re-quoted (PB-DX32 fix cycle, review finding M6) from the batch's own committed
+/// **20-game** artefact (`memory/primitives/pb-dx32-stage4-fuzz-after.txt:74`,
+/// 2026-08-03): `RandomBot`, 5,141 tap runs, 8,423 of 10,720 taps wasted = **78.6%**.
+/// This supersedes the earlier 5-game reading (75%, seeds 1-5, a strict SUBSET of
+/// this 20-game run) that was originally quoted here as if it were the whole
+/// population.
+///
+/// **Re-decided, not left standing**: real headroom over this measurement is **6.4
+/// points** (78.6 -> 85), not the ~10 the stale 75% figure implied. Pinned at 85
+/// DELIBERATELY rather than lowered to track the new number: `mtg-fuzzer` is NOT
+/// run-to-run deterministic for very long games (`OOS-M11-3` / `OOS-DP3-9`), so this
+/// single 200-turn/20-game run is a good point estimate but not a promise that a
+/// different seed at the same configuration cannot land a point or two higher by
+/// ordinary variance; 6.4 points of headroom is judged enough to absorb that without
+/// inviting a real regression to hide inside it. A future batch that wants to shave
+/// this further should do so from a multi-run measurement (several seeds' 20-game
+/// aggregates), not a single one.
 /// **`RandomBot` picks `TapForMana` uniformly with no plan, so most of its taps are
-/// wasted BY DESIGN OF THE BOT.** A value near 75 is ordinary behaviour and is not a
-/// defect; a rise past 85 means the auto-tap or the atomic-sequence rollback
+/// wasted BY DESIGN OF THE BOT.** A value near 78.6% is ordinary behaviour and is not
+/// a defect; a rise past 85 means the auto-tap or the atomic-sequence rollback
 /// regressed. This can only be ratcheted toward zero by a PLANNING bot
 /// (a successor to `OOS-SIM6-3`/`OOS-SIM2-1`), never by an engine fix.
+/// **Enforced by the BINARY alone** (review finding L7): no test in this workspace
+/// reads this constant — [`MAX_RANDOM_BOT_WASTED_TAP_PCT_AT_GATE_CONFIG`] below is
+/// the TEST gate's own, separate pin — and `bin/fuzzer.rs`'s own module doc (F19)
+/// records that `mtg-fuzzer` is not run in CI, so a breach here cannot redden the
+/// pipeline.
 pub const MAX_RANDOM_BOT_WASTED_TAP_PCT: u32 = 85;
 
 /// The waste-ratio threshold for the Stage-3 TEST gate (T3.1), distinct from

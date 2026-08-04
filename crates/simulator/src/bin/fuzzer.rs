@@ -10,7 +10,8 @@
 //!   --seed <SEED>       Base RNG seed (default: random)
 //!   --threads <N>       Parallel threads (default: num_cpus)
 //!   --bot <TYPE>        random | heuristic (default: random)
-//!   --stop-on-error     Stop after first violation
+//!   --stop-on-error     Stop after first HARD violation (PB-DX32 Stage 4: a
+//!                       known-transient no_orphaned_tokens report no longer halts)
 //!   --replay <SEED>     Replay a specific game by seed
 //!   --verbose           Print each game result
 //!
@@ -59,6 +60,15 @@
 //! command; the raw run is committed at
 //! `memory/primitives/pb-dx22-measurement-after-fixcycle.txt`. The pre-fix rows
 //! cannot be: the build path they measured no longer exists.
+//!
+//! **Boundary event: PB-DX32 (`scutemob-197`) does NOT apply — no seed moves.** It
+//! adds no RNG draw and no provider action; it only reads the command/journal/state
+//! streams a game already produces and reports on them. Checkable, not merely
+//! claimed: `git diff main..HEAD --numstat` over `deck.rs`, `fuzz_setup.rs`,
+//! `legal_actions.rs`, `random_bot.rs` and `heuristic_bot.rs` is empty for this
+//! batch. A pre-PB-DX32 seed still reproduces the same game post-merge; only the
+//! printed SUMMARY (SR-38 rejections, waste, violation buckets, decision coverage)
+//! is new.
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
@@ -664,10 +674,15 @@ fn print_sr38_summary(results: &[GameResult]) -> bool {
                 .error
                 .strip_prefix("Rejected(")
                 .unwrap_or(&rejection.error);
-            let class = inner
-                .split_once('(')
-                .map(|(prefix, _)| prefix.trim().to_string())
-                .unwrap_or_else(|| inner.trim_end_matches(')').trim().to_string());
+            // Review finding L1: a struct-like error variant Debug-prints as
+            // `Name { field: value, ... }`, not `Name(...)`, so splitting at the
+            // first `(` alone let a `{` slip through untouched and produced junk
+            // class rows (`CrossPlayerBlock { blocker: ObjectId` — see the committed
+            // evidence). Split at whichever of `(` or `{` comes first instead.
+            let class = match inner.find(['(', '{']) {
+                Some(idx) => inner[..idx].trim().to_string(),
+                None => inner.trim_end_matches(')').trim().to_string(),
+            };
             *by_class.entry(class).or_insert(0) += 1;
         }
     }
@@ -787,7 +802,7 @@ fn print_waste_summary(results: &[GameResult], bot: &BotType) {
 /// `print_violation_histogram`'s raw counts — read reached/never-reached as the
 /// primary signal, not the numbers next to them.
 fn print_decision_coverage(results: &[GameResult]) {
-    use mtg_simulator::{OBSERVABLE_ROW_IDS, UNOBSERVABLE_ROW_IDS};
+    use mtg_simulator::{OBSERVABLE_ROW_IDS, ROW_COUNT, UNOBSERVABLE_ROW_IDS};
 
     let mut totals: HashMap<&str, u64> = OBSERVABLE_ROW_IDS.iter().map(|id| (*id, 0)).collect();
     for result in results {
@@ -803,9 +818,13 @@ fn print_decision_coverage(results: &[GameResult]) {
     );
     println!("---------------------------------------------------");
     println!(
-        "  Keyed by decision_site_walk.rs's ROWS ids. Counts are RE-OBSERVATION-WEIGHTED \
-         (a decision is re-offered on every advance() loop iteration until it is \
-         answered) -- read reached/never-reached, not the counts, as the primary signal."
+        "  Keyed by decision_site_walk.rs's ROWS ids. {} of {ROW_COUNT} ROWS ids are \
+         observable at runtime (the Served class); the rest have no runtime hook by \
+         construction (see the UNOBSERVABLE list below). Counts are \
+         RE-OBSERVATION-WEIGHTED (a decision is re-offered on every advance() loop \
+         iteration until it is answered) -- read reached/never-reached, not the \
+         counts, as the primary signal.",
+        OBSERVABLE_ROW_IDS.len()
     );
     let mut reached: Vec<(&str, u64)> = totals
         .iter()

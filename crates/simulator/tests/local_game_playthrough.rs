@@ -454,12 +454,18 @@ fn play(seed: u64) -> Playthrough {
 
     // Split the violations by check name — see `Playthrough`'s field docs and the
     // OOS-M11-7 note on the test below.
+    //
+    // PB-DX32 fix cycle (review finding M1): the `no_orphaned_tokens` split now
+    // happens upstream, inside `LocalGame::record_violations` (PB-DX32 Stage 4) —
+    // `game.violations()` can no longer contain that check at all, so the old
+    // `if v.check == "no_orphaned_tokens"` branch here was permanently dead and
+    // `transient_token_violations` printed `0` on every seed forever. Read each
+    // half from the game's own two accessors instead of re-deriving the split.
     for v in game.violations() {
-        if v.check == "no_orphaned_tokens" {
-            result.transient_token_violations.push(format!("{v:?}"));
-        } else {
-            result.violations.push(format!("{v:?}"));
-        }
+        result.violations.push(format!("{v:?}"));
+    }
+    for v in game.transient_violations() {
+        result.transient_token_violations.push(format!("{v:?}"));
     }
     // The proof that every one of those was transient: at the end of the game no
     // token is anywhere but the battlefield.

@@ -529,9 +529,17 @@ fn test_dx32_random_bot_waste_ratio_is_bounded() {
         wasted_taps += u64::from(waste.wasted_taps);
     }
 
+    // Review finding M7: a bare `> 0` floor is a token gesture next to T2.2's own
+    // measured 80%-of-baseline floor twelve lines away in that test. Stage 0 measured
+    // 97 taps at this exact configuration; 77 is 80% of that, same rule T2.2 uses, so
+    // a change that collapsed the tap population (a bot scoring change, an offer-gate
+    // change, a `build_fuzz_state` change) cannot pass this gate at a single unwasted
+    // tap.
     assert!(
-        total_taps > 0,
-        "non-vacuity floor: the gate's own seeds are known to produce taps"
+        total_taps >= 77,
+        "non-vacuity floor: total_taps {total_taps} is far below the Stage-0 \
+         measurement (97) at this configuration — a run that stopped tapping cannot \
+         pass this gate trivially"
     );
     let pct = wasted_taps * 100 / total_taps;
     eprintln!("T3.1 aggregate: {wasted_taps} / {total_taps} = {pct}%");
@@ -700,7 +708,9 @@ fn test_dx32_fuzz_deck_pool_size_is_pinned() {
     const MOVED_MSG: &str = "the fuzz deck pool changed. Every seeded fixture in the \
          workspace now deals a different game (OOS-CARDS2-3). Update these three \
          constants in the SAME commit as the card-def change, and expect the seeded \
-         pins listed in memory/workstream-state.md (CARDS-2 handoff, item 1) to move.";
+         pins listed in memory/workstream-state.md (CARDS-2 handoff, item 1) to move \
+         -- including this file's OWN other seeded gates (T2.2, T3.1, T4.1, T4.3, \
+         T6.3), which deal from the same corpus and will redden alongside this one.";
 
     assert_eq!(
         defs.len(),
@@ -850,10 +860,18 @@ fn test_dx32_row_id_for_covers_every_observable_row() {
         }
     }
 
+    // Review finding L9: this test observes only the five fixtures constructed above
+    // -- it does not itself prove `row_id_for` can NEVER return anything else. That
+    // bound comes from `row_id_for`'s own match being EXHAUSTIVE with no wildcard on
+    // both `BlockingDecision` and `EffectChoiceQuestion` (a compile-time property, not
+    // a runtime one this test can observe). What this assertion DOES prove: every id
+    // in OBSERVABLE_ROW_IDS is reachable from a real fixture, and every fixture above
+    // maps to a row in OBSERVABLE_ROW_IDS -- non-vacuity in both directions.
     let observable: BTreeSet<&'static str> = OBSERVABLE_ROW_IDS.iter().copied().collect();
     assert_eq!(
         reachable, observable,
-        "the set of ids row_id_for can ever return must equal OBSERVABLE_ROW_IDS exactly"
+        "these five fixtures must reach exactly OBSERVABLE_ROW_IDS -- every id \
+         reachable from a real fixture, and no fixture mapping outside the list"
     );
 
     // CR 514.1: CleanupDiscard is a real decision with NO ROWS row -- proven here as

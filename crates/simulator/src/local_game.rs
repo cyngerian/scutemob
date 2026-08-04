@@ -51,9 +51,13 @@ pub struct LocalGameLimits {
 ///
 /// `#[allow(clippy::large_enum_variant)]`: `GameOver`'s `GameResult` carries
 /// PB-DX32's own instrumentation growth (rejections sample, waste tally, decision
-/// coverage) and is constructed at most once per game, not per loop iteration —
-/// boxing it would touch every `AdvanceOutcome::GameOver` match arm across
-/// `tools/play-server`, which is outside this batch's footprint (plan §3.1).
+/// coverage). Review finding L3: this is NOT "constructed at most once per game" —
+/// `advance()` rebuilds it via `result_snapshot` on EVERY call once
+/// `is_game_over(&self.state)` is true, so a caller that polls `advance()` after the
+/// game ends gets a fresh `GameResult` each time. The `allow` is justified on cost,
+/// not frequency: boxing `GameOver`'s payload would touch every
+/// `AdvanceOutcome::GameOver` match arm across `tools/play-server`, which is outside
+/// this batch's footprint (plan §3.1).
 #[derive(Debug)]
 #[allow(clippy::large_enum_variant)]
 pub enum AdvanceOutcome {
@@ -369,8 +373,10 @@ pub struct LocalGame<P: LegalActionProvider> {
     pending: Option<PendingDecision>,
     journal: Vec<CommandRecord>,
     /// Bot-seat commands the engine refused (SIM-5 fix (3)). Retention is capped at
-    /// [`MAX_RETAINED_REJECTIONS`]; `rejection_count` is not, so truncation is
-    /// visible rather than silent.
+    /// [`MAX_RETAINED_REJECTIONS`] with the journal on and [`MAX_SAMPLED_REJECTIONS`]
+    /// with it off (PB-DX32 Stage 2, `OOS-SIM3-2`) — see [`Self::record_rejection`];
+    /// `rejection_count` is capped by neither, so truncation is visible rather than
+    /// silent.
     rejections: Vec<RejectedCommand>,
     rejection_count: u32,
     violations: Vec<InvariantViolation>,
@@ -533,8 +539,9 @@ impl<P: LegalActionProvider> LocalGame<P> {
 
     /// Split `check_all`'s output at the point of collection (PB-DX32 Stage 4,
     /// `OOS-SIM3-3` / `OOS-SIM3-4`): `no_orphaned_tokens` is transient by construction
-    /// (CR 704.3 — SBAs are checked on step entry and at resolution, not on every
-    /// priority grant), so it goes to `transient_violations`; everything else is
+    /// in deviation from CR 704.3 (`OOS-M11-7`) — this engine checks SBAs on step
+    /// entry and at resolution, not whenever a player would get priority as the rule
+    /// actually requires — so it goes to `transient_violations`; everything else is
     /// `violations`, the hard bucket `--stop-on-error` and the crash-report writer key
     /// on. Mirrors `crates/simulator/tests/local_game_playthrough.rs:457-463`'s own
     /// treatment.

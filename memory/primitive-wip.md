@@ -589,3 +589,128 @@ crates/engine/tests/` shows exactly one modified file, `core/decision_gate.rs`
 stamp lines (`docs/authoring-status.md`, `docs/authoring-status-missing.txt`,
 `docs/authoring-status-prev.json`); coverage unmoved **1,133/1,803 = 62.8%**;
 regeneration churn reverted (`git checkout --`) before this commit.
+
+---
+
+## Fix cycle DONE — `memory/primitives/pb-review-DX32.md` (0 HIGH / 8 MEDIUM / 10 LOW,
+all 18 taken)
+
+Read in full: `memory/primitives/pb-review-DX32.md`. Every M/L finding applied; none
+disputed. Two of L4's four cited sites (`report.rs:66-69`,
+`pb_dx32_fuzz_output.rs:547-552`) do NOT contain the flagged "SBAs are checked on
+step entry ... not on every priority grant" phrasing on inspection (grep-confirmed
+across the crate) — the fix was applied at the two sites that actually carry it
+(`invariants.rs`, `local_game.rs`), and this discrepancy is reported rather than
+silently sourced from a different location.
+
+**M8 — the coordinator's own pre-verified block-comment hole, closed and
+re-confirmed.** `crates/engine/tests/core/decision_gate.rs`: new `strip_block_comments`
+helper (mirrors `strip_line_comments`'s idiom, applied after it in
+`runtime_decision_coverage_roster_matches_rows`), plus a raw-count assertion
+(`observable_raw.len() + unobservable_all.len() / 2 == ROWS.len()`) that catches a
+duplicate id as well as a block-commented one. **Coordinator's exact experiment
+re-executed**: wrapped the `"proliferate"` tuple in `UNOBSERVABLE_ROW_IDS` in a
+`/* … */` block, rebuilt (`Compiling mtg-engine` observed), reran the gate — **now
+FAILS**: `roster id COUNT must equal ROWS.len() (22) ... left: 21 right: 22`. Restored;
+`git diff --stat` on `decision_coverage.rs` confirmed empty before moving on. Also
+re-ran the line-comment revert (T6.1(b), commenting out the same tuple with `//`) to
+confirm the reordering didn't regress it — still reddens, though now on the new count
+assertion (`left: 21 right: 22`) rather than the old "missing from the roster" message,
+since the count check now runs first; this is a message-shape change only, the
+regression is still caught. Restored, confirmed clean.
+
+**M7 — T3.1's floor tightened.** `total_taps > 0` → `total_taps >= 77` (80% of the
+Stage-0-measured 97, T2.2's own rule). Revert: set the floor to `999_999`, rebuild
+(`Compiling mtg-simulator` observed), reran — fails naming the live measured value
+(`total_taps 97 is far below...`). Restored, confirmed clean by `git diff --stat`.
+
+**L5 — T3.2's controlled half now asserts the equivalence it's named for.**
+`sim5_bot_cast_discipline.rs`: added `let mid_run_walked = metrics_of(&mid_run_game);`
+and compare `mid_run_waste` against it field-for-field (`total_taps`, `tap_runs`)
+instead of bare literals. Revert: reproduced T3.2's own original R8 revert (drop the
+open-run close in `local_game.rs::waste()`, written as a no-op `let tally = self.waste`
++ `let _ = &tally;` inside the `if` to satisfy `-D unused-mut` under `-D warnings` — a
+literal removal tripped `error: variable does not need to be mutable`, exactly the R7
+class the plan warns about, caught by requiring the rebuild to actually succeed before
+trusting the result). Rebuilt, reran — fails on the equivalence:
+`streamed WasteTally { tap_runs: 0, ... total_taps: 1, ... } vs walked Metrics {
+tap_runs: 1, ... total_taps: 1, ... }`. Restored, confirmed clean by `git diff --stat`.
+
+**M1 — verified by execution, not just by reading the diff.** Ran
+`cargo test -p mtg-simulator --test local_game_playthrough
+test_s8_scripted_human_playthrough_is_clean_on_five_seeds -- --nocapture`: seeds 7 and
+42 now print **12** and **4** transient-token reports respectively (seeds 1/1234/9001
+print 0, genuinely — not every seed produces the class). Before the fix every seed
+printed 0 forever. Test still green (nothing was asserted on this field, per the
+review's own note).
+
+**L1 / L2 — verified by a real fuzz smoke run**, not just unit tests (the printer
+functions are private to the `mtg-fuzzer` binary, so this is the only way to exercise
+them): `cargo run --profile fuzz --bin mtg-fuzzer -- --games 20 --seed 1 --max-turns
+200 --threads 1 --verbose` (byte-identical rejection numbers to the committed
+`pb-dx32-stage4-fuzz-after.txt`, confirming this run is a faithful re-measurement).
+L1: the rejection-class table now prints a clean `7 CrossPlayerBlock` row instead of
+the old `7 CrossPlayerBlock { blocker: ObjectId` junk. L2: the decision-coverage
+header now reads "5 of 22 ROWS ids are observable at runtime ...".
+
+**M6 — the sample-size correction, and the threshold decision.** Both
+`report.rs` constant docs re-quoted from the batch's own committed 20-game artefact
+(`memory/primitives/pb-dx32-stage4-fuzz-after.txt:41` → 21.118‰;
+`:74` → 78.6%), naming the file and superseding the earlier 5-game reading in-place
+rather than deleting it silently. **Decision on `MAX_RANDOM_BOT_WASTED_TAP_PCT`: KEPT
+at 85**, with the 6.4-point headroom (78.6 → 85) stated explicitly as deliberate, not
+an oversight — reasoning recorded at the constant: `mtg-fuzzer` is not run-to-run
+deterministic for very long games (`OOS-M11-3` / `OOS-DP3-9`), so a single 20-game
+measurement, however good a point estimate, is not a promise that a different seed at
+the same 200-turn configuration cannot land a point or two higher by ordinary
+variance; 6.4 points is judged sufficient to absorb that without hiding a real
+regression inside it. `MAX_BOT_REJECTION_PER_MILLE` left at 30 (ample headroom over
+either the 5-game or 20-game reading either way — no threshold decision needed there,
+only the doc citation).
+
+**Doc-only, no revert needed** (verified by re-reading, not by execution — no
+assertion changed): M2 (`local_game.rs` `rejections` field doc), M3/M4
+(`invariants.rs` — `check_no_orphaned_tokens` doc + module header, "ten checks"),
+M5 (`docs/mtg-engine-simulator.md` #10 served-at-run-scope + banner consistency
+edit), L3 (`local_game.rs` `#[allow(clippy::large_enum_variant)]` justification —
+corrected to say `advance()` rebuilds `GameResult` on EVERY call once the game is
+over, not "at most once per game"), L4 (CR 704.3 deviation phrasing, 2 of the 4 cited
+sites — see note above), L6 (`MOVED_MSG` now lists T2.2/T3.1/T4.1/T4.3/T6.3 as the
+other seeded gates that will redden alongside T5.1), L7 (both binary-only constants
+now say so explicitly, citing F19), L8 (`--stop-on-error` help text says "first HARD
+violation"; a fourth boundary-event paragraph added for PB-DX32, stating and proving
+by `git diff --numstat` that it moves no seed), L9 (`test_dx32_row_id_for_covers_...`'s
+message reworded — the test proves non-vacuity of the five fixtures, not exhaustiveness,
+which is a compile-time property of `row_id_for`'s match, not something this test
+observes), L10 (`check_no_leaked_tokens` doc now states its deliberate divergence
+from its sibling's Stack exemption, citing the corrected
+`local_game_playthrough.rs:472-476` line range).
+
+**Full gates, all EXECUTED**:
+- `cargo check --workspace --all-targets` clean.
+- Targeted: `pb_dx32_fuzz_output` **12/0**, `sim5_bot_cast_discipline` **6/0**,
+  `core runtime_decision_coverage_roster_matches_rows` **1/0** — all green after
+  every fix and every restore.
+- `cargo test --workspace --no-fail-fast` → **4,373 / 0 / 5**, residual list empty —
+  **unmoved from the pre-fix-cycle pin** (this cycle strengthened existing
+  assertions and fixed comments/printers; it added zero new `#[test]` functions).
+- `cargo clippy --workspace --all-targets -- -D warnings` — one real finding hit and
+  fixed along the way: the M4 module-header rewrite's line-wrapped `+
+  \`print_sr38_summary\`` was parsed by rustdoc as a markdown bullet, tripping
+  `clippy::doc_lazy_continuation` on the following two lines; reworded to avoid a
+  line starting with `+`. Clean after.
+- `cargo fmt --check` clean. `tools/check-defs-fmt.sh` — 1803 defs, clean.
+- `cargo test -p mtg-engine --test core hash_schema` / `--test core protocol_schema`
+  — all sub-tests pass; **HASH 72 / PROTOCOL 35 unmoved** (this cycle touches no
+  wire type).
+- `cargo test -p play-server` — **78 / 0** unmoved.
+- `cargo build --workspace` clean.
+- Scope, re-run and reported:
+  `git diff main..HEAD --numstat -- crates/engine/src/ crates/card-defs/
+  crates/card-types/ crates/view-model/` **EMPTY**.
+  `git diff main..HEAD --numstat -- tools/` — **still exactly one file, `+1 -0`**
+  (`tools/play-server/src/main.rs`, unmoved from before this fix cycle — nothing in
+  `tools/` was touched).
+  `git status --short -- crates/engine/tests/` — **exactly one file**,
+  `core/decision_gate.rs` (the only engine-side file this cycle was permitted to
+  touch, per the coordinator's brief).

@@ -463,15 +463,23 @@ fn test_dx32_streaming_waste_tally_equals_the_sim5_journal_walk() {
         .expect("tapping the fixture land must succeed");
 
     let mid_run_waste = mid_run_game.waste();
+    // Review finding L5: this controlled half is named for the SAME equivalence
+    // property the AB_SEEDS loop above checks (streamed `waste()` vs the journal
+    // walk in `metrics_of`), but it was asserting an absolute `tap_runs == 1`
+    // instead -- true here, but not what the test claims to prove. `record_journal:
+    // true` on this fixture means `metrics_of` can walk it too, so compare against
+    // that instead of a bare literal.
+    let mid_run_walked = metrics_of(&mid_run_game);
     assert_eq!(
-        mid_run_waste.total_taps, 1,
-        "the tap itself must always be counted regardless of run-closing: {mid_run_waste:?}"
+        mid_run_waste.total_taps as usize, mid_run_walked.total_taps,
+        "the tap itself must always be counted regardless of run-closing: streamed \
+         {mid_run_waste:?} vs walked {mid_run_walked:?}"
     );
     assert_eq!(
-        mid_run_waste.tap_runs, 1,
+        mid_run_waste.tap_runs as usize, mid_run_walked.tap_runs,
         "the still-open run must be closed on the snapshot COPY `waste()` returns \
          (plan §3.4 / T3.2, the R8 case this AB_SEEDS loop above cannot reach): \
-         {mid_run_waste:?}"
+         streamed {mid_run_waste:?} vs walked {mid_run_walked:?}"
     );
 }
 

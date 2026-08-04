@@ -1131,6 +1131,33 @@ fn strip_line_comments(src: &str) -> String {
         .join("\n")
 }
 
+/// Strips `/* ... */` block comments (PB-DX32 fix cycle, review finding M8).
+/// `strip_line_comments` above only truncates at `//`, per line -- it knows nothing
+/// about `/* ... */`, so a `UNOBSERVABLE_ROW_IDS` tuple wrapped in a block comment
+/// compiled out of the roster (the compiler drops it, `ROW_COUNT` shrinks) while
+/// `quoted_strings` still found both of its string literals INSIDE the comment text,
+/// leaving `runtime_decision_coverage_roster_matches_rows` green against a silently
+/// shrunk roster. Naive (does not understand string literals containing `/*`), same
+/// as `strip_line_comments`'s own naivety about `//` inside a string -- adequate for
+/// this data file, not a general Rust tokenizer.
+fn strip_block_comments(src: &str) -> String {
+    let mut out = String::with_capacity(src.len());
+    let mut rest = src;
+    while let Some(start) = rest.find("/*") {
+        out.push_str(&rest[..start]);
+        let after = &rest[start + 2..];
+        match after.find("*/") {
+            Some(end) => rest = &after[end + 2..],
+            None => {
+                rest = "";
+                break;
+            }
+        }
+    }
+    out.push_str(rest);
+    out
+}
+
 /// Counts lines whose TRIMMED content begins with `key` immediately followed by a
 /// non-identifier character -- an enum variant DECLARATION shape (`Key,` / `Key {` /
 /// `Key(..)`), not a usage site (`Foo::Key`, which never begins a trimmed line with the
@@ -1495,17 +1522,26 @@ fn extract_const_array_block<'a>(src: &'a str, anchor: &str) -> &'a str {
 /// **T17 (PB-DX32 Stage 6)** — `crates/simulator/src/decision_coverage.rs`'s
 /// `OBSERVABLE_ROW_IDS` ∪ `UNOBSERVABLE_ROW_IDS` must equal `ROWS`'s ids exactly, and
 /// `OBSERVABLE_ROW_IDS` must equal exactly the ids whose class is `Served`. Comments
-/// are stripped FIRST (`strip_line_comments`), so a row moved into a `//`-prefixed
-/// comment is NOT counted as present — the comment-satisfiable-gate class PB-DX22's
-/// review cycle 2 found in this exact family (see this file's own header note).
+/// are stripped FIRST — both `//` (`strip_line_comments`) and `/* ... */`
+/// (`strip_block_comments`, PB-DX32 fix cycle, review finding M8) — so a row moved
+/// into EITHER comment form is NOT counted as present. Also asserts the raw (pre-set)
+/// id COUNT against `ROWS.len()`, which the set comparisons below cannot: a
+/// duplicated id collapses invisibly inside a `BTreeSet`, so without this a
+/// duplicate-plus-drop pair could cancel out and still pass. This is the
+/// comment-satisfiable-gate class PB-DX22's review cycle 2 found in this exact
+/// family (see this file's own header note) — closed here a second time, for block
+/// comments.
 #[test]
 fn runtime_decision_coverage_roster_matches_rows() {
-    let src = strip_line_comments(&read_ct("crates/simulator/src/decision_coverage.rs"));
+    let src = strip_block_comments(&strip_line_comments(&read_ct(
+        "crates/simulator/src/decision_coverage.rs",
+    )));
 
     let observable_block = extract_const_array_block(&src, "const OBSERVABLE_ROW_IDS");
     let unobservable_block = extract_const_array_block(&src, "const UNOBSERVABLE_ROW_IDS");
 
-    let observable: BTreeSet<String> = quoted_strings(observable_block).into_iter().collect();
+    let observable_raw = quoted_strings(observable_block);
+    let observable: BTreeSet<String> = observable_raw.iter().cloned().collect();
 
     let unobservable_all = quoted_strings(unobservable_block);
     assert_eq!(
@@ -1519,6 +1555,17 @@ fn runtime_decision_coverage_roster_matches_rows() {
     // Every (id, reason) tuple's FIRST string is the id; the reason is never compared
     // against ROWS ids.
     let unobservable: BTreeSet<String> = unobservable_all.iter().step_by(2).cloned().collect();
+
+    assert_eq!(
+        observable_raw.len() + unobservable_all.len() / 2,
+        ROWS.len(),
+        "roster id COUNT must equal ROWS.len() ({}) -- a duplicate id, or a row \
+         hidden inside a /* */ comment, is invisible to the set comparison below. \
+         observable raw count: {}, unobservable raw pair count: {}",
+        ROWS.len(),
+        observable_raw.len(),
+        unobservable_all.len() / 2
+    );
 
     let rows_ids: BTreeSet<String> = ROWS.iter().map(|r| r.id.to_string()).collect();
     let served_ids: BTreeSet<String> = ROWS
