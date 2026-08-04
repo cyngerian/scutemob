@@ -13,6 +13,7 @@
 //!   Session 2)
 
 pub mod bot;
+pub mod decision_coverage;
 pub mod deck;
 pub mod driver;
 pub mod fuzz_setup;
@@ -29,6 +30,14 @@ pub mod targeting;
 
 // Re-export key types for convenience
 pub use bot::Bot;
+// PB-DX32 Stage 6: decision-point runtime coverage. `row_id_for`/`DecisionCoverage`
+// are also usable directly from `mtg_simulator::decision_coverage::*` (that path is
+// what `crates/engine/tests/core/decision_gate.rs`'s source gate reads as TEXT, so
+// leave the module itself `pub` even though the common items are re-exported here
+// too).
+pub use decision_coverage::{
+    row_id_for, DecisionCoverage, OBSERVABLE_ROW_IDS, ROW_COUNT, UNOBSERVABLE_ROW_IDS,
+};
 pub use deck::{build_registry, random_deck, DeckConfig};
 pub use driver::GameDriver;
 // PB-DX22 (§B3): `bin/fuzzer.rs` is its own crate, so nothing could `use` its state
@@ -51,12 +60,22 @@ pub use legal_actions::{
 };
 pub use local_game::{
     human_only_actions, AdvanceOutcome, CommandRecord, DecisionKind, HaltReason, LocalGame,
-    LocalGameError, LocalGameLimits, MechanicsTally, PendingDecision,
+    LocalGameError, LocalGameLimits, MechanicsTally, PendingDecision, WasteTally,
 };
+// PB-DX32 Stage 2 (SR-38): `RejectedCommand` was constructible only inside this crate
+// before -- `mtg-fuzzer` (its own crate) needs it to read `GameResult::rejections`, and
+// the two retention caps are re-exported for the same reason `MAX_AUTO_CHOSEN_COMPLETE_UNION`-
+// style constants are exported elsewhere: a caller reading `rejections().len() ==
+// MAX_SAMPLED_REJECTIONS` needs the same symbol this crate compares against.
+pub use local_game::{RejectedCommand, MAX_RETAINED_REJECTIONS, MAX_SAMPLED_REJECTIONS};
 pub use mana_solver::solve_mana_payment;
 pub use params::{action_to_command_with_params, ActionParams, HumanChoice, ParamError};
 pub use random_bot::RandomBot;
-pub use report::{CrashReport, GameDriverError, GameResult};
+pub use report::{
+    CrashReport, GameDriverError, GameResult, MAX_BOT_REJECTION_PER_MILLE,
+    MAX_BOT_REJECTION_PER_MILLE_AT_GATE_CONFIG, MAX_HEURISTIC_POOLS_EMPTIED_PER_SEED,
+    MAX_RANDOM_BOT_WASTED_TAP_PCT, MAX_RANDOM_BOT_WASTED_TAP_PCT_AT_GATE_CONFIG,
+};
 pub use setup::{
     build_initial_state, dealt_decks, redeal, BotKind, DeckSource, LocalGameConfig, SetupError,
 };

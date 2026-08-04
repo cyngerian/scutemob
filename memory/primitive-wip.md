@@ -1,716 +1,717 @@
-# Primitive batch WIP — PB-DX22 (prior batches are stale history; see their own plan files)
+# Primitive batch WIP — PB-DX32 (prior batches are stale history; see their own plan files)
 
-**Batch**: PB-DX22 — make the fuzzer a real instrument
-**Seeds**: `OOS-UI2-1` (the fuzzer has never cast a spell at ordinary depth) + `OOS-SIM3-1`
-(earliest measured cast turn 143) + `OOS-SIM1-4` (`commander_ids` never registered, so
-CR 903.8 / 903.9a / 903.10a have never been fuzzed)
-**Brief (authoritative)**: `memory/primitives/seed-rerank-2026-08-02.md` §4, PB-DX22 entry
-(rank 4, EVIDENCE INTEGRITY) + §2.4. Cross-read `docs/mtg-engine-feedback-engineering.md` §2.1
-row 1.
-**Task**: `scutemob-196` · **Branch**: `feat/pb-dx22-make-the-fuzzer-a-real-instrument-oos-ui2-1-oos-sim3`
-**Phase**: COMPLETE — stages 0-5 + stage 4b + two review cycles, close-out written
-
----
-
-## THE MANDATORY PRE-PLAN MEASUREMENT — RAN, AND IT IS DECISIVE
-
-The brief made one measurement mandatory *before* acceptance evidence could be written:
-SIM-1 added a command-zone cast loop (`legal_actions.rs:675-693`) and a commander is **not**
-in the library, so the no-shuffle defect does not gate it — a bot should be able to cast its
-commander around game turn 12-24, a hundred-odd turns before SIM-3's measured 143. **Either
-SIM-3 measured a pre-SIM-1 build, or something suppresses that offer for bots.**
-
-**Method**: a scratch `crates/simulator/examples/dx22_measure.rs` (deleted before commit)
-replicating `mtg-fuzzer::run_single_game`'s state build byte-for-byte as it stands at HEAD
-(`9aa4f220`) — no shuffle, no `player_commander` — driven through `LocalGame` with
-`record_journal: true`, scanning the journal for `SpellCast`,
-`CommanderCastFromCommandZone`, `CommanderReturnedToCommandZone` and
-`CommanderZoneRedirect`. 5 games, base seed 1, `--max-turns 200`, 4 players, `RandomBot`.
-Raw output: `memory/primitives/pb-dx22-measurement-head.txt`.
-
-| seed | end | commands | `commander_ids` populated | first `SpellCast` turn | total casts | first commander cast | cmdr returns / redirects | rejections |
-|---|---|---|---|---|---|---|---|---|
-| 1 | GameOver t176 | 9,802 | **0/4** | **154** | 25 | **none** | 0 / 0 | 33 |
-| 2 | GameOver t192 | 12,631 | **0/4** | **143** | 21 | **none** | 0 / 0 | 107 |
-| 3 | Halted MaxTurns 201 | 12,362 | **0/4** | **151** | 35 | **none** | 0 / 0 | 149 |
-| 4 | GameOver t167 | 9,397 | **0/4** | **153** | 7 | **none** | 0 / 0 | 98 |
-| 5 | Halted MaxTurns 201 | 12,601 | **0/4** | **151** | 33 | **none** | 0 / 0 | 38 |
-
-**THE ANSWER: the offer is SUPPRESSED, not merely late — and `OOS-SIM1-4` is the cause of it.**
-Zero `CommanderCastFromCommandZone` in ~56,800 commands across five games running to turn
-167-201. The mechanism is in the provider's own documented filter: `legal_actions.rs:675-693`
-says in as many words that "the zone is NOT the filter; `commander_ids` is" (CR 903.8, and
-CR 408.1 is the reason — emblems live in the command zone too). `fuzzer.rs:322-327` places the
-commander *object* in `ZoneId::Command(pid)` but never calls `builder.player_commander`, so
-`commander_ids` is empty in **every seat of every game** and the loop's own CR 903.8 filter
-rejects the commander before the offer is ever built.
-
-**Three consequences the plan must carry, none of which were settled before this ran:**
-
-1. **The brief's disjunction resolves to its second branch.** SIM-3 did **not** measure a
-   pre-SIM-1 build — SIM-1's loop is present and correct at HEAD; it is starved of its input.
-   `OOS-SIM1-4` and the missing commander cast are **one defect, not two**, and registering
-   `commander_ids` is what un-suppresses the offer. That reduces PB-DX22's sizing: no provider
-   change is needed.
-2. **`OOS-SIM3-1`'s turn-143 number reproduces exactly** (seed 2, first `SpellCast` at turn
-   143), and the whole five-seed band is **143-154**, which sits inside §2.4's arithmetically
-   predicted 136-156. So `OOS-UI2-1`'s word "never" and `OOS-SIM3-1`'s "turn 143" are the same
-   fact read at two `--max-turns` values, exactly as the brief argued — and this batch must
-   record that as a **threshold**, not a closure.
-3. **The horizon is a hard floor for commander mechanics too.** CR 903.9a zone return and
-   CR 903.10a commander damage cannot be exercised by a commander that is never cast, so they
-   are gated on fix (1), not on the shuffle.
-
-Recorded **before** any acceptance evidence was written, per the brief.
+**Batch**: PB-DX32 — make the fuzzer's *output* mean something
+**Seeds**: `OOS-SIM3-2` (SR-38 / legal-action soundness is asserted nowhere the fuzzer runs)
++ `OOS-SIM3-3` (every "N violations" figure is checkpoint-weighted, not a defect count)
++ `OOS-SIM3-4` (the orphaned-token class is the noise floor and `--stop-on-error` halts on it)
++ `OOS-CARDS2-3` (nothing pins the fuzz deck pool size, so a completeness flip silently
+re-rolls every recorded seed)
+**Brief (authoritative)**: `memory/primitives/seed-rerank-2026-08-02.md` §4 row 19
+(PB-DX32) **plus** `docs/mtg-engine-feedback-engineering.md` §2.3 (row 3 — the promotion
+case and the (a)/(b)/(c) component breakdown; this dispatch IS that promotion,
+user-approved 2026-08-03).
+**Plan**: `memory/primitives/pb-plan-DX32.md`
+**Task**: `scutemob-197` · **Branch**: `feat/pb-dx32-make-the-fuzzers-output-mean-something-oos-sim3-2-oo`
+**Phase**: **COMPLETE** — stages 0-7 + the `/review` fix cycle (0 HIGH / 8 MEDIUM / 10 LOW, all 18
+taken), close-out written
 
 ---
 
-## Plan file
+## Stage 0 is DONE — every baseline re-measured at HEAD (`45dacc7c`)
 
-`memory/primitives/pb-plan-DX22.md` (written by `primitive-impl-planner`).
+PB-DX22 is merged (`95f53b78`): the fuzzer now shuffles every library from the game's own
+seeded RNG and registers commanders, so **every SIM-3 / SIM-5 number this batch would
+otherwise quote is dead**, and `OOS-DX22-13` records that several of them were read off a
+5-game sample in the first place. Nothing pre-2026-08-03 may be cited as evidence here.
 
----
+Committed evidence:
+* `memory/primitives/pb-dx32-measurement-head-fuzzer.txt` — `mtg-fuzzer --games 20 --seed 1
+  --max-turns 200 --threads 1` under `--profile fuzz`.
+* `memory/primitives/pb-dx32-measurement-head-harness.txt` — 5 fuzz-shaped games with the
+  journal ON, for the numbers the binary cannot print at HEAD.
 
-## Stage checklist (plan §5)
+Headline figures (full tables in the plan §0):
 
-### - [x] Stage 0 — baseline, no source edits
-
-**Full-workspace baseline**, captured to a file (never `| tail`), summed with awk over 41
-`^test result` lines: **4,345 passed / 0 failed / 5 ignored**. Exit 0, zero `failures:` /
-`FAILED` / `error[` lines. Raw: `/tmp/pb-dx22-baseline.txt`. Matches the plan's expected 4,345.
-
-**Wire sentinels GATE-EXECUTED, not predicted**:
-
-* `cargo test -p mtg-engine --test core hash_schema` → exit 0, all green;
-  `crates/engine/src/state/hash.rs:743` `pub const HASH_SCHEMA_VERSION: u8 = 72;` → **HASH 72**.
-* `cargo test -p mtg-engine --test core protocol_schema` → `17 passed; 0 failed`;
-  `crates/engine/src/rules/protocol.rs:360` `pub const PROTOCOL_VERSION: u32 = 35;` →
-  **PROTOCOL 35**.
-
-**Baseline fuzz run** (`--profile fuzz`, the assertions profile):
-`cargo run --profile fuzz --bin mtg-fuzzer -- --games 20 --seed 1 --max-turns 200 --threads 1
---verbose` → `/tmp/pb-dx22-fuzz-before.txt`.
-
-| metric | value |
+| measurement | value at HEAD |
 |---|---|
-| games completed | 20 |
-| wall time | 40.7 s (build 25.5 s separately) |
-| wins / draws / errors | 9 / 0 / **11** |
-| error distribution | 11 × `MaxTurnsReached(200)`, 0 of any other kind |
-| total violations | **1,519** |
-| avg turns per game | **191.7** |
-| violations by `check` (over the 721 lines the binary prints — it prints only the first 5 offending games, so this is a *sample*, not the 1,519) | `no_orphaned_tokens` 569, `player_consistency` 152 |
+| workspace tests, this branch, before any edit | **4,358 / 0 / 5**, residual list empty |
+| fuzz violations, 20 games | **426** = 301 `no_orphaned_tokens` + 114 `player_consistency` + 11 `attachment_validity` |
+| bot rejections | **542 / 23,613 commands = 22.953‰** |
+| wasted taps (`RandomBot`) | **1,986 / 2,641 = 75.2%**, in 968 wasted runs |
+| `ManaPoolsEmptied` | 885 |
+| violations deduped by `(check, description)` | **94 → 20** (4.7×) |
+| leaked tokens in the FINAL state | **0 on all five seeds** |
+| deck pool | `all_cards()` **1,803** / `Complete` **1,133** / commander pool **90** |
 
-Per-game (seed / turns / commands / violations / end): 1/176/9802/526/P1 · 2/192/12631/50/P1 ·
-3/201/12362/14/MaxTurns · 4/167/9397/116/P1 · 5/201/12601/15/MaxTurns · 6/172/9338/0/P1 ·
-7/173/10182/36/P2 · 8/201/12035/8/MaxTurns · 9/201/11594/8/MaxTurns · 10/201/11575/36/MaxTurns ·
-11/201/12013/445/MaxTurns · 12/201/12083/14/MaxTurns · 13/182/10044/0/P1 · 14/193/10943/3/P1 ·
-15/182/9876/35/P1 · 16/201/12079/31/MaxTurns · 17/201/11475/0/MaxTurns · 18/185/10739/5/P3 ·
-19/201/13228/151/MaxTurns · 20/201/11279/26/MaxTurns.
-Seeds 1-5 reproduce the §0 pre-plan table exactly (turns 176/192/201/167/201, commands
-9802/12631/12362/9397/12601) — the instrument is the same one the measurement used.
+`OOS-SIM3-4`'s "929 of the 938 remaining violations" is **both stale and a sample**: at HEAD
+the orphaned-token class is 70.7% of the run, and `player_consistency` is a second class at
+26.8% that no seed row records at that size.
 
-**Tree hygiene**: `git status --short` showed exactly `?? crates/simulator/examples/` and
-`?? memory/primitives/pb-plan-DX22.md`; `git ls-files crash-reports` **empty**;
-`git check-ignore -v crash-reports` → `.gitignore:52`, so the run's crash artefacts are
-untracked by construction.
+---
 
-### - [x] Stage 1 — extract the build path, behaviour-NEUTRAL
+## Plan divergences agreed before implementation (do not read these as missed requirements)
 
-**New** `crates/simulator/src/fuzz_setup.rs` (147 lines): `FuzzGameSetup`, `FuzzSetupError`,
-`place_registered_deck` (`:64`), `build_fuzz_state` (`:102`). A verbatim lift of the old
-`fuzzer.rs:289-359` — **no shuffle, no `player_commander`, no
-`register_commander_zone_replacements`** at this stage. The `if let Some(def)` silent-skip is
-preserved verbatim and documented as a divergence from `setup.rs` (`OOS-DX22-4`), not fixed.
+1. **The counters do NOT go in `invariants.rs`.** The feedback doc §2.3(b) says
+   "`invariants.rs`/`GameResult`", but `check_all(&GameState, Option<u32>)` is a pure
+   function of one state and every one of the nine live checks is too. A rejection count, a
+   tap run and a `ManaPoolsEmptied` event are properties of the **command stream**. The fold
+   therefore lives beside `MechanicsTally` in `local_game.rs` (same mechanism: constant-size,
+   always-on, no journal) and the thresholds live in `report.rs`. `invariants.rs` gains
+   exactly one new function, and it *is* a pure state function: the end-state leaked-token
+   check. Plan §3.0.
+2. **`tools/play-server` is touched by exactly one line** (`main.rs:3326`, a `#[cfg(test)]`
+   construction site, `..Default::default()`). Criterion (a) mandates the `GameResult`
+   field, which closes the escape hatch `driver.rs:76-78` took on purpose. Acceptance:
+   `git diff main..HEAD --numstat -- tools/` is one file, `+1 -0`. Plan §3.1.
+3. **Criterion (c) is satisfied in its literal wording only.** After the split
+   `--stop-on-error` still halts at HEAD — on `player_consistency` and `attachment_validity`,
+   neither of which is a *known-transient* class. Widening the split to cover them is
+   refused: `player_consistency` is 26.8% of the run and undiagnosed, and suppressing an
+   undiagnosed quarter of the signal is exactly what SIM-3's own withdrawal was about.
+   Plan §7 R1/R2.
+4. **Decision-point runtime coverage is honestly 5 of 22 rows.** The five `Served` rows are
+   observable and the mapping to `BlockingDecision`/`EffectChoiceQuestion` is total and
+   1:1; the other seventeen are unobservable **by definition** — an `AutoChosen` row is one
+   where the engine takes the choice inline and leaves no artefact, and the absence of the
+   artefact is the same property that makes it a defect. Three alternatives were considered
+   and all three rejected with reasons. Plan §3.5.
 
-* `crates/simulator/src/lib.rs:19` `pub mod fuzz_setup;` + `:35` re-exports
-  `build_fuzz_state, place_registered_deck, FuzzGameSetup, FuzzSetupError`.
-* `crates/simulator/src/bin/fuzzer.rs:281-306` — `run_single_game`'s 70-line state build
-  collapses to one `build_fuzz_state(..)` call. The `GameDriverError::EngineError(format!(
-  "Failed to build state: {:?}", e))` string is kept **byte-identical**. Imports narrowed to
-  `{all_cards, CardDefinition, CardRegistry, PlayerId}` + `{build_fuzz_state, ..., FuzzSetupError}`.
-* `crates/simulator/examples/dx22_measure.rs` **deleted**, and the now-empty `examples/` dir
-  with it. `git ls-files crates/simulator/examples` → empty (it was never tracked).
+---
 
-**NEUTRALITY EVIDENCE (mandatory, plan §5)**: the Stage-0 fuzz command re-run verbatim into
-`/tmp/pb-dx22-fuzz-after-stage1.txt`, then `diff` against `/tmp/pb-dx22-fuzz-before.txt` with
-only cargo's own build chatter filtered out. **766 lines each side; exactly ONE differing
-line**, and it is wall time:
+## Stage 0 step 4 — the two deferred thresholds, measured (this invocation, stages 0-3)
 
+Plan §5 Stage 0 step 4. Both measured on this branch, debug build (`cargo test`), before
+any Stage 1-3 source edit.
+
+* **`MAX_HEURISTIC_POOLS_EMPTIED_PER_SEED`**: `cargo test -p mtg-simulator --test
+  sim5_bot_cast_discipline -- --nocapture` → seeds 0/7/42 (`HeuristicBot`, `AB_MAX_TURNS
+  = 25`, `setup::build_initial_state`) printed `mana_pools_emptied: 0`, `1`, `0`.
+  Max observed = **1**, matching the plan's cited SIM-5 prior exactly. Pinned at **1**
+  (§3.4: not zero, `OOS-SIM2-1` is open).
+* **`MAX_BOT_REJECTION_PER_MILLE_AT_GATE_CONFIG`**: measured with a throwaway probe
+  mirroring the Stage-2 gate's own configuration exactly (3 seeds [1, 2, 3] x 25 turns x
+  `RandomBot` x `build_fuzz_state`, `record_journal: false`, debug build — the same
+  binary `cargo test` will run for T2.2). Seed 1: 1005 commands / 85 rejections; seed 2:
+  886 / 0; seed 3: 876 / 1. **Aggregate: 2,767 commands / 86 rejections = 31.081‰.**
+  Runtime was 2.06s for all three seeds — well under plan §7 R3's ~60s concern, so no
+  seed-count reduction was needed. Pinned at **40** (~30% headroom over 31.081), with a
+  floor `total_commands >= 2200` (2767 x 0.8, rounded down) and `rejections > 0`. This
+  is a DIFFERENT number from §0.3's 22.953‰ (200-turn release-profile number) by design
+  — plan §5 Stage 0 step 4 explicitly forbids reusing it for the test gate, since the two
+  measure different configurations (25 vs 200 turns, debug vs fuzz profile).
+  Scratch probe file `crates/simulator/tests/pb_dx32_stage0_measure_scratch.rs` was
+  written, run, and deleted — never committed.
+
+---
+
+## Stage 1 DONE — `GameResult` construction collapses to one place (behaviour-NEUTRAL)
+
+Plan §5 Stage 1. Files: `crates/simulator/src/report.rs` (`Default` derive on
+`GameResult`), `crates/simulator/src/local_game.rs` (new `LocalGame::result_snapshot`,
+rewires the GameOver return), `crates/simulator/src/driver.rs` (rewires the Halted arm
+onto `result_snapshot`). New test file `crates/simulator/tests/pb_dx32_fuzz_output.rs`
+with **T1.1**
+`test_dx32_halted_and_game_over_results_carry_the_same_instrumentation`.
+
+**Plan divergence 5 (new, this stage) — the `tools/` one-line insertion moved from
+Stage 1 to Stage 2.** The plan's §5 Stage 1 step 3 and §3.1 both name
+`tools/play-server/src/main.rs:3326` as a Stage-1 edit (`..Default::default()` appended
+to the literal). At Stage 1, `GameResult` has gained the `Default` derive but ZERO new
+fields — every field the literal at 3326 (and the two error-path literals in
+`driver.rs:120` / `fuzzer.rs:332`) sets is still explicit, so `..Default::default()` is
+provably a no-op there and `clippy::needless_update` (`-D warnings`) rejects it (plan §7
+R7's exact class, confirmed by executing clippy — see below). Moving the edit to Stage
+2, where `rejection_count`/`rejections` are the first new fields, makes the same
+`..Default::default()` non-vacuous and clippy-clean, with **zero change to the overall
+plan**: still exactly one inserted line in `tools/`, still `..Default::default()`, still
+the same three sites, just landing one stage later than the plan's step numbering. Not
+a scope change — a sequencing fix. `git diff -- tools/` is confirmed EMPTY at the end
+of this stage (was `+1 -0` mid-stage before the revert below).
+
+**T1.1's design deviates from the plan's literal wording in one respect, stated
+because the plan asked for it to be**: the plan says "set max_turns low" for the Halted
+half, implying a `LocalGame::advance()`-only construction. A truly empty two-player
+`GameStateBuilder` fixture reaches `GameOver` (CR 104.3c, draw from an empty library)
+within the first turn or two regardless of `max_turns`, so a bare fixture can never
+reach `Halted` at all — every attempt produced a `GameOver` instead (confirmed by
+running it: the first draft's Halted half returned `error: None` and reddened T1.1's own
+assertion). Fixed by stocking each library with 10 unregistered filler objects (no
+`card_id`, so Architecture Invariant 9 never sees them) so the game survives to
+`max_turns: 3`. The Halted half also routes through `GameDriver::run_game_with_mechanics`
+(the actual production caller of `driver.rs`'s Halted arm) rather than calling
+`LocalGame::advance()` + `result_snapshot` directly, and checks the resulting
+`GameResult` against an INDEPENDENT, identically-parameterised `LocalGame` run for the
+"game's own accessors" comparison — the two are deterministic and reach the identical
+halt, and this way the revert proof below actually exercises the reverted code.
+
+**Revert proof (EXECUTED)**: replaced `driver.rs`'s
+`AdvanceOutcome::Halted(reason) => game.result_snapshot(None, Some(reason.into()))` with
+a literal hard-coding `turn_count: 0, total_commands: 0`. Rebuild confirmed (`Compiling
+mtg-simulator` present in the captured output). Observed failure:
+```
+thread 'test_dx32_halted_and_game_over_results_carry_the_same_instrumentation' panicked at crates/simulator/tests/pb_dx32_fuzz_output.rs:173:5:
+assertion `left == right` failed: GameResult.turn_count must match the game's own turn accessor
+  left: 0
+ right: 4
+```
+Restored immediately after (confirmed via `git diff crates/simulator/src/driver.rs`
+showing the clean two-line replacement, no residue).
+
+**NEUTRALITY EVIDENCE**: re-ran Stage 0 step 3 verbatim
+(`./target/fuzz/mtg-fuzzer --games 20 --seed 1 --max-turns 200 --threads 1 --verbose`)
+and diffed against the committed `pb-dx32-stage0-fuzz-before.txt`. **Exactly one
+differing line, the run's wall-clock line — no games/sec change either**, executed
+diff:
 ```
 9c9
-< Games completed: 20  Time: 40.7s  (0 games/sec)
+< Games completed: 20  Time: 11.5s  (2 games/sec)
 ---
-> Games completed: 20  Time: 41.3s  (0 games/sec)
+> Games completed: 20  Time: 11.4s  (2 games/sec)
 ```
+Every violation count, histogram row, win/draw/error tally and per-game detail line is
+byte-identical between the two files. Output committed as
+`memory/primitives/pb-dx32-stage1-fuzz-after.txt`.
 
-Every per-game line (seed / turns / commands / violations / winner) and all 721 printed
-violation lines are byte-identical. The extraction changed nothing.
-
-**Probe P1** — `test_dx22_build_fuzz_state_produces_the_fuzzers_table`
-(`crates/simulator/tests/pb_dx22_fuzz_instrument.rs`). Asserts, per seat: `decks` in ascending
-`PlayerId` order, `main_deck.len() == 99`, exactly 1 command-zone object and it IS the
-decklist's commander, 99 library objects, and **0 hand objects** (the CR 103.5 pin for §B2 /
-`OOS-DX22-1`).
-
-**P1 revert-proof, EXECUTED**: `place_registered_deck`'s `for card_id in &deck.main_deck` →
-`deck.main_deck.iter().take(98)`. Rebuild **succeeded** (`Compiling mtg-simulator v0.1.0` in
-the output — checked, per the `-D warnings`/stale-binary gotcha), then:
-
-```
-thread 'test_dx22_build_fuzz_state_produces_the_fuzzers_table' panicked at
-crates/simulator/tests/pb_dx22_fuzz_instrument.rs:78:9:
-assertion `left == right` failed: seat PlayerId(1)'s library must hold all 99 main-deck cards
-  left: 98
- right: 99
-test result: FAILED. 0 passed; 1 failed
-```
-
-Restored; green again.
-
-**Divergence from the plan worth recording**: the plan's probe table has P2's
-`library_card_ids` helper living in this file from Stage 1. Written that way it is *dead code
-at Stage 1*, and `-D warnings` turned that into a **build failure** — `error: function
-library_card_ids is never used ... -D dead-code implied by -D warnings`. Rather than paper
-over it with an `#[allow(dead_code)]` that would have to be remembered and removed, the helper
-is deferred to Stage 2 where it has a caller. (Same mechanism as the gotchas-infra revert
-lesson, arriving from the other direction.)
-
-**Stage-1 gates, all executed**: `cargo build --workspace` OK · `cargo test -p mtg-simulator`
-**170 passed / 0 failed** across 12 targets · `cargo clippy --workspace --all-targets -D
-warnings` exit 0 · `cargo fmt --check` exit 0 · `tools/check-defs-fmt.sh` → `1803 defs
-checked / clean` (SR-35).
-
-### - [x] Stage 2 — CR 103.3 / CR 903.6 shuffle
-
-`fuzz_setup.rs::build_fuzz_state` now keeps **two** lists: `decks` is the pre-shuffle decklist
-(returned on `FuzzGameSetup`, so the probe has something to compare against) and `dealt` is the
-shuffled order actually placed. The shuffle is drawn **inside the existing per-seat deck loop,
-immediately after that seat's `random_deck` call**, in ascending `PlayerId` order — the
-`deck₁, shuffle₁, deck₂, shuffle₂, …` interleaving `setup.rs` uses. The reason for that choice
-(free here; load-bearing there) is written at the function, not left to the plan.
-
-**Probes P2 / P3 / P4** added, each proven red by an EXECUTED revert whose rebuild succeeded:
-
-| probe | revert executed | rebuild | failure observed |
-|---|---|---|---|
-| **P2** `test_dx22_libraries_are_shuffled_cr_103_3` | `deck.main_deck.shuffle(&mut rng)` → `deck.main_deck.truncate(99)` (a no-op) | `Compiling mtg-simulator` present | `pb_dx22_fuzz_instrument.rs:146` `assertion left != right failed: CR 103.3: seat PlayerId(1)'s library must not be the decklist in its construction order` — 3 passed / 1 failed |
-| **P3** `test_dx22_shuffle_is_seed_deterministic` | `shuffle(&mut rng)` → `shuffle(&mut rand::rng())` | present | `:177` `assertion left == right failed: seed 1 must reproduce seat PlayerId(1)'s library order exactly` — 3 passed / 1 failed |
-| **P4** `test_dx22_different_seed_different_order` | `StdRng::seed_from_u64(seed)` → `seed_from_u64(0)` | present | `:209` `assertion left != right failed: seeds 1 and 2 must not deal seat PlayerId(1) the same library` — 3 passed / 1 failed |
-
-**PLAN DIVERGENCE (P4's revert).** The plan's probe table gives P4's revert as "as P3". That is
-**wrong, and it was measured, not reasoned**: under P3's revert (`rand::rng()`) P4 stayed
-GREEN, and under P2's revert (no shuffle at all) P4 *also* stayed green — because seeds 1 and 2
-draw different **decklists**, so the two libraries differ in construction order too. The only
-revert that actually reddens P4 is one that makes the build ignore its `seed`, which is what
-was executed. Recorded rather than accommodated: had the plan's revert been run and reported,
-P4 would have been shipped with no discrimination proof at all.
-
-**SECOND `-D warnings` TRAP, hit and recorded.** The first draft of P2's revert deleted the
-shuffle line outright. That rebuild **FAILED** — `error: unused import: rand::seq::SliceRandom`
-and `error: variable does not need to be mutable` — which under the gotchas-infra rule means
-`cargo test` would have run the stale binary and reported a pass. The revert was rewritten as a
-no-op that still consumes `mut deck` (`truncate(99)`) plus an `#[allow(unused_imports)]`, and
-only then was the red result trusted. This is the documented hazard occurring in the wild
-twice in one batch.
-
-**Stage-2 fuzz run** (`/tmp/pb-dx22-fuzz-after-stage2.txt`, same command as Stage 0). This is
-the point of the batch and it moves enormously:
-
-| metric | Stage 0 (no shuffle) | Stage 2 (shuffled) |
-|---|---|---|
-| games completed | 20 | 20 |
-| wall time | 40.7 s | **14.3 s** |
-| wins / draws / errors | 9 / 0 / **11** | **20 / 0 / 0** |
-| error distribution | 11 × `MaxTurnsReached(200)` | **none** |
-| total violations | 1,519 | **504** |
-| avg turns per game | 191.7 | **112.7** |
-| total turns / total commands | 3,833 / 225,276 | 2,254 / 104,252 |
-| commands per turn | 58.8 | **46.3** |
-| violation `check`s seen | `no_orphaned_tokens`, `player_consistency` | same two — **no new check class** *(⚠️ read off the binary's 5-game detail sample, not a tally — see the fix cycle's HIGH 2; the by-`check` histogram did not exist yet)* |
-
-Notable: not one game now hits the turn cap, and `HaltReason::InfiniteLoop` did **not** appear
-either — commands/turn went *down*, 58.8 → 46.3, so risk 2 of plan §8 (`max_commands` binding
-before `max_turns`) did **not** materialise at these settings. That number is the input
-`OOS-DX22-2` asks for. No crash, no abort, no new violation class surfaced at this stage
-(plan §8 risk 1 did not fire here).
-
-**Stage-2 gates**: `cargo build --workspace` OK · `cargo test -p mtg-simulator` **173 passed /
-0 failed** (+3 = P2/P3/P4) · `clippy --workspace --all-targets -D warnings` exit 0 ·
-`cargo fmt --check` exit 0 · `tools/check-defs-fmt.sh` clean.
-
-### - [x] Stage 3 — CR 903.6 / 903.8 / 903.9 commander registration
-
-**P11 CONFIRMED RED ON THE PRE-FIX TREE, BY EXECUTION** — this is the plan's strongest
-discrimination proof and it was taken first, before the fix:
-
-```
-thread 'test_dx22_command_zone_placement_and_registration_are_one_operation' panicked at
-crates/simulator/tests/pb_dx22_fuzz_instrument.rs:288:5:
-CR 903.6: these files place an object in a command zone without ever calling
-`player_commander`, so `commander_ids` stays empty and every commander rule is silently
-inert there: ["src/fuzz_setup.rs", "tests/local_game.rs"]
-test result: FAILED. 4 passed; 1 failed
-```
-
-The gate walks `crates/simulator/{src,tests}` from `CARGO_MANIFEST_DIR`; **5 files** contain
-`in_zone(ZoneId::Command(` (`src/setup.rs`, `src/fuzz_setup.rs`, `src/legal_actions.rs`,
-`tests/commander_cast.rs`, `tests/local_game.rs`), which clears the ≥4 non-vacuity floor, and
-exactly the 2 named were offenders.
-
-**Fix**:
-
-* `fuzz_setup.rs::place_registered_deck` — `builder.player_commander(pid, deck.commander.clone())`
-  placed adjacent to the `in_zone(ZoneId::Command(pid))` object, inside the same `if let
-  Some(def)` so the two cannot separate. The `setup.rs:381-393` rationale is restated at the
-  function.
-* `fuzz_setup.rs::build_fuzz_state` — `register_commander_zone_replacements(&mut state)` after
-  `builder.build()` (CR 903.9b, plan §B1).
-* `crates/simulator/tests/local_game.rs::build_state` rewired onto `place_registered_deck`; its
-  `:56-59` doc corrected from "Mirrors `mtg-fuzzer::run_single_game`'s builder logic" to the
-  account of why the mirror existed and what it inherited. Import list gains
-  `place_registered_deck`.
-
-**Probes P5 / P6 / P7 / P8 added. Reverts EXECUTED, rebuilds confirmed:**
-
-*Revert A — delete `builder.player_commander(..)`* (rebuild OK, `Compiling mtg-simulator`
-present). Result **5 passed / 4 failed**, and each of the four fails on its own subject rather
-than a shared symptom:
-
-| probe | message |
-|---|---|
-| **P5** `..._commander_ids_are_registered_by_both_build_paths` | `:355` `left: []` / `right: [CardId("samut-voice-of-dissent")]` |
-| **P6** `..._cr_903_9b_replacements_are_registered` | `:411` `left: 0` / `right: 8` |
-| **P7** `..._cr_903_9a_zone_return_sba_is_reachable_from_the_fuzz_build` | `:477` `CR 903.9a: the SBA must offer P1 the choice ...; pending = []` |
-| **P8** `..._cr_903_8_tax_applies_on_the_fuzz_build` | `:525` `left: generic 3` / `right: generic 5` — i.e. the tax silently vanished |
-
-*Revert B — delete only `register_commander_zone_replacements(&mut state)`* (rebuild OK; the
-revert was written as `let _revert_proof = register_commander_zone_replacements; let _ = &mut
-state;` precisely so `-D warnings` could not turn it into a build failure). Result **8 passed /
-1 failed**: only **P6** reddens (`left: 0` / `right: 8`).
-
-**That isolation CONFIRMS plan §B1's claim by experiment**: under revert B, **P7 stays GREEN**.
-CR 903.9a's graveyard/exile return is a state-based action keyed on `commander_ids` and does
-not depend on the CR 903.9b replacements at all — exactly as §B1 argued, now measured rather
-than asserted. What omitting the call breaks is CR 903.9b *silently*, which is the vacuity
-§B1 warns about.
-
-**Plan §D verification, EXECUTED not assumed**: `cargo test -p play-server` → **78 passed / 0
-failed**, no fixture-drift message. No play-server seed pin moved, as the plan's chain predicted
-(`session::new_game` builds through `setup::build_initial_state`, which this batch does not
-touch). `git diff main..HEAD --numstat -- crates/engine/ crates/card-defs/ crates/card-types/
-crates/view-model/ tools/` is **EMPTY**.
-
-**`crates/simulator/tests/local_game.rs` re-roll**: plan §4 predicted "expected: all pass
-unchanged" and that is what happened — **23 passed / 0 failed**, no pin re-derived, no
-numerical adjustment made.
-
-**Stage-3 fuzz run** (`/tmp/pb-dx22-fuzz-after-stage3.txt`, same command):
-
-| metric | Stage 0 | Stage 2 | Stage 3 |
-|---|---|---|---|
-| games completed | 20 | 20 | 20 |
-| wall time | 40.7 s | 14.3 s | **12.5 s** |
-| wins / draws / errors | 9 / 0 / 11 | 20 / 0 / 0 | **20 / 0 / 0** |
-| total violations | 1,519 | 504 | **426** |
-| avg turns | 191.7 | 112.7 | **103.4** |
-| commands per turn | 58.8 | 46.3 | **45.7** |
-| `check`s seen | orphaned_tokens, player_consistency | same | orphaned_tokens, player_consistency, **`attachment_validity` (NEW)** |
-
-#### FINDING — a pre-existing engine defect became reachable (plan §8 risk 1)
-
-`[attachment_validity] Object ObjectId(532) attached to ObjectId(677) which doesn't exist
-(turn 88)`, ×3, **game seed 5**. Zero occurrences of this check in the Stage-0 and Stage-2
-runs; first appearance at Stage 3.
-
-* **Repro (deterministic, re-run and confirmed identical ObjectIds and turn)**:
-  `cargo run --profile fuzz --bin mtg-fuzzer -- --replay 5 --players 4 --max-turns 200`
-  **Fix-cycle correction: this is 3 of 11 violations in 1 of 3 affected games.** The full
-  by-`check` histogram gives `attachment_validity` **11 violations across seeds 5, 9 and 15**
-  (5: `532 → 677` turn 88 ×3; 9: `1158 → 928` turn 145 ×4; 15: `573 → 678` turn 94 ×4). The
-  original "×3, seed 5" was read off the detail loop, which prints the first five offending
-  games only. Each game reports the violation at exactly ONE turn and then runs to a winner —
-  the shape of the `OOS-M11-7` transient SBA-lag class, i.e. a false-positive candidate.
-* **Check**: `crates/simulator/src/invariants.rs:386 check_attachment_validity` — a
-  battlefield object whose `attached_to` names an `ObjectId` that no longer resolves. CR 400.7
-  (a zone change makes a NEW object) / ~~CR 704.5n~~ **CR 704.5m** (an Aura attached to an
-  illegal or absent object is put into its owner's graveyard as an SBA). **The cite was wrong
-  as filed and is corrected here and in the audit row** — 704.5n is the Equipment/Fortification
-  rule and prescribes the opposite disposition ("it becomes unattached … It remains on the
-  battlefield"). Verified against the CR text via MCP during the fix cycle.
-* **Why this is not a regression this batch caused**: `git diff main..HEAD --numstat --
-  crates/engine/` is **empty** — 0 engine lines. Per plan §8 that is the strongest available
-  argument, and it is stronger than attempting to reproduce on the merge base, which *cannot
-  shuffle* and therefore cannot reach turn-88 board states of this kind.
-* **NOT FIXED, by instruction and by `memory/conventions.md`'s default-to-defer.** Captured
-  here for Stage 5 seed filing.
-
-**Stage-3 gates**: `cargo build --workspace` OK · `cargo test -p mtg-simulator` **178 passed /
-0 failed** (+5 = P5/P6/P7/P8/P11) · `cargo test -p play-server` 78/0 · `clippy --workspace
---all-targets -D warnings` exit 0 · `cargo fmt --check` exit 0 · `check-defs-fmt.sh` clean.
-
-### - [x] Stage 4 — the ordinary-depth probes
-
-**P9** `test_dx22_a_spell_is_cast_at_an_ordinary_depth` — seeds `[1,2,3,4]`, 4 seats,
-`RandomBot` seeded exactly as `run_single_game` seeds its bots, `LocalGameLimits { max_turns:
-30, max_commands: 30*400, max_consecutive_passes: 500, record_journal: true }`, `human_seats`
-empty. Asserts a `CommandRecord` with `Command::CastSpell(..)` at `turn <= 30` for **every**
-seed, and PRINTS the observed turn. Wall time for all four games: **0.90 s**, so the plan's
-"reduce to seeds `[1,2]` if it exceeds 60 s" escape hatch was not needed.
-
-```
-P9 seed 1: first CastSpell on game turn 17
-P9 seed 2: first CastSpell on game turn 9
-P9 seed 3: first CastSpell on game turn 25
-P9 seed 4: first CastSpell on game turn 23
-```
-
-**THE BINDING RULE FIRED, AND THE GATE WAS NOT MOVED.** The plan says: record the observed
-turn on every seed, and *if any exceeds 15, do NOT raise the gate to fit the data — investigate
-and report*. **Three of the four exceed 15** (17, 25, 23). The gate stays at **30**, exactly as
-the plan specified it; nothing was tuned. The investigation is below.
-
-**P10** is a measurement, not a test (a commander needs 3-6 lands, which a 30-turn debug probe
-cannot reliably reach, and a statistical assertion in the suite is the flake class this project
-bans). Measured with a scratch `crates/simulator/examples/dx22_p10.rs` on the POST-FIX build
-path — 20 games, base seed 1, `--max-turns 200`, `--profile fuzz`, journal on — then
-**deleted**; `git ls-files crates/simulator/examples` is empty and `crates/simulator/examples/`
-no longer exists.
-
-| event | before (pre-plan measurement) | after (20 games) |
-|---|---|---|
-| `CommanderCastFromCommandZone` | **0** in ~56,800 commands / 5 games | **36**, in **16 of 20** games (first cast typically game turn 38-107; seed 8 as early as turn 3) |
-| `CommanderReturnedToCommandZone` (CR 903.9a) | 0 | **13** |
-| non-empty `commander_damage_received` (CR 903.10a) | 0 games | **16 of 20** games |
-| `CommanderZoneRedirect` (CR 903.9b) | 0 | **0** — see the finding below |
-| `SpellCast` | 25/21/35/7/33 per game at turns 143-154 | **670** across 20 games |
-
-**`OOS-SIM1-4`'s closure condition (c) is SATISFIED — the count is 36, not 0, so no STOP.**
-CR 903.8, CR 903.9a and CR 903.10a are all now exercised by the fuzzer for the first time.
-
-#### FINDING — the plan's "≤15" expectation for P9 is refuted by measurement
-
-Over 20 seeds the first-cast game turn is **min 3 / median 12 / max 29**, sorted:
-`[3, 5, 5, 6, 8, 9, 9, 10, 10, 11, 12, 17, 17, 18, 18, 18, 23, 25, 26, 29]`.
-
-Against a gate of 30 that is a margin of **one turn** at 20 seeds. P9 itself uses seeds
-`[1,2,3,4]` (max 25) so it is not currently at risk, but a successor that widens the seed set
-without reading this will get a flake, and the correct response will still be to investigate,
-not to raise the gate.
-
-**Mechanism, measured not guessed.** The same run records the first `Command::PlayLand` turn:
-it is **1-7 on every one of the 20 seeds**, so land availability is *not* the limiter (seed 14
-plays its first land on turn 1 and still does not cast until turn 29). The limiter is §B2's own
-declined item, **`OOS-DX22-1` — no opening hand (CR 103.5)**: every seat starts with **zero**
-cards and draws one per *personal* turn, so by game turn *T* in a four-player game a seat has
-drawn only about *T*/4 cards. The plan's §B2 reason 2 says "Seven extra opening cards move that
-by ≤1-2 personal draws" — which is true, and is precisely the point: **1-2 personal draws is
-4-8 GAME turns at four seats**, and P9's threshold is stated in game turns. The plan converted
-personal draws to game turns when arguing the pre-fix floor (draw ~35-40 ⇒ turn ≈136-156) and
-did not convert them when predicting the post-fix band. `RandomBot`'s uniform choice adds the
-rest of the spread.
-
-This does not weaken any closure: the pre-fix floor was 143-154 and the post-fix band is 3-29,
-so `OOS-UI2-1` and `OOS-SIM3-1` are closed by an order of magnitude either way. It sharpens
-`OOS-DX22-1` from "would not change anything measurable" to "is the measured reason the band is
-3-29 rather than 3-12", which is the number the successor needs.
-
-#### FINDING — CR 903.9b is registered but still never exercised
-
-`CommanderZoneRedirect` fired **0 times in 20 games**, even though P6 proves the eight
-replacement effects exist on every built state. Nothing in those games bounced a commander to
-its owner's hand or shuffled one into a library. So the CR 903.9b half of the commander rules
-is now *reachable* but still *unreached* by the fuzzer at this sample size — which is exactly
-the vacuity §B1 warned about, one step removed: before this batch a zero would have meant "the
-mechanism does not exist"; now a zero means "no game happened to trigger it". The distinction
-is only visible because P6 exists. Worth a seed at Stage 5.
-
-#### FINDING — P9's revert-proof does NOT work the way the plan says
-
-The plan's row for P9 gives the revert as "delete the shuffle → no cast before turn ~136,
-every seed reddens". **Executed on the Stage-4 tree, that is false.** With the shuffle removed
-but the commander still registered:
-
-```
-P9 seed 1: first CastSpell on game turn 26
-P9 seed 2: first CastSpell on game turn 25
-P9 seed 3: first CastSpell on game turn 25
-panicked ...: CR 103.3: seed 4 cast no spell at all within 30 turns (1094 commands recorded)
-test result: FAILED. 0 passed; 1 failed
-```
-
-Only **one of four** seeds reddens. The reason is a genuine confound the plan did not
-anticipate: a **registered commander is cast from the command zone**, which is not in the
-library and therefore is not gated by library order at all — and `Command::CastSpell` is the
-same command either way. Stage 3's fix partially *masks* Stage 2's fix from this probe.
-
-The discrimination that matters was then executed: reverting **both** fixes, i.e. the
-merge-base behaviour, fails on the very first seed —
-
-```
-CR 103.3: seed 1 cast no spell at all within 30 turns (1073 commands recorded)
-test result: FAILED. 0 passed; 1 failed
-```
-
-— rebuild confirmed (`Compiling mtg-simulator`) on both runs. So P9 does discriminate against
-the tree it exists to discriminate against; it is simply not a single-variable probe for the
-shuffle, and the plan's row overstates it. P9's doc comment now records this measurement in
-place of the plan's claim (`memory/conventions.md`'s aspirationally-wrong-comment rule); the
-gate itself was **not** changed.
-
-**Stage-4 gates**: `cargo build --workspace` OK · `cargo test -p mtg-simulator` **179 passed /
-0 failed** (+1 = P9) · `clippy --workspace --all-targets -D warnings` exit 0 · `cargo fmt
---check` exit 0 · `tools/check-defs-fmt.sh` → `1803 defs checked / clean`.
-
-**FULL-WORKSPACE RE-MEASURE** (`--workspace --no-fail-fast` to `/tmp/pb-dx22-final.txt`, never
-tail-piped, summed with awk over 42 `^test result` lines): **4,355 passed / 0 failed / 5
-ignored**. That is **+10** over the Stage-0 baseline of 4,345, and 10 is exactly the probe count
-(P1-P9 + P11). Residual failure list **empty** — zero `failures:` / `FAILED` / `error[` lines.
-
-**Wire sentinels re-executed** (not predicted): `hash_schema` and `protocol_schema` green;
-`HASH_SCHEMA_VERSION = 72`, `PROTOCOL_VERSION = 35` — **unmoved**, as they must be, since the
-branch touches 0 engine lines.
-
-**Footprint, verified by diff rather than claimed**:
-
-* `git diff main..HEAD --numstat -- crates/engine/ crates/card-defs/ crates/card-types/
-  crates/view-model/ tools/` → **EMPTY**.
-* `git diff main..HEAD -- crates/simulator/src/setup.rs` → **EMPTY** (0 lines, not even doc
-  comments — the plan's §5 `setup.rs` doc correction is Stage 5's).
-* Card coverage unmoved by construction: 0 lines in `crates/card-defs`.
-* `git ls-files crates/simulator/examples` → empty; the directory does not exist.
-* Changed files, whole branch: `crates/simulator/src/{bin/fuzzer.rs, fuzz_setup.rs, lib.rs}`,
-  `crates/simulator/tests/{local_game.rs, pb_dx22_fuzz_instrument.rs}`, plus `memory/`.
+**Stage gates, all EXECUTED**: `cargo build --workspace` clean. `cargo test -p
+mtg-simulator` **183 / 0 / 0**. `cargo test -p play-server` **78 / 0 / 0** (matches plan's
+expected 78/0 exactly). `cargo clippy --workspace --all-targets -- -D warnings` clean
+(after the Stage-2-deferral fix above). `cargo fmt --check` clean (ran `cargo fmt` once
+to fix one auto-formatting diff in the new test file — a line-wrap choice, not a
+substantive change). `tools/check-defs-fmt.sh` — 1803 defs, clean.
+`cargo test --workspace --no-fail-fast` — **4,359 / 0 / 5** (+1 over the 4,358
+baseline, the one new T1.1 test), residual list empty.
+`git diff -- crates/engine/src/ crates/card-defs/ crates/card-types/ crates/view-model/`
+EMPTY. `git diff -- tools/` EMPTY (deferred to Stage 2, see divergence above).
 
 ---
 
-### - [x] Stage 4b (unplanned) — the second half of `tests/local_game.rs`'s Commander game
+## Stage 2 DONE — (a) SR-38: the rejection channel becomes a run-level invariant
 
-Commit `eb60cc80`, found after Stage 4 and outside the plan. Stage 3 rewired
-`tests/local_game.rs::build_state` onto `place_registered_deck`, which fixed its *placement +
-registration* half — but that file's own post-`build()` step never called
-`register_commander_zone_replacements`, so CR 903.9b was inert in every game it drove: the
-same half-built Commander game one link down from the defect `OOS-SIM1-4` names. Fixed, with
-probe `test_dx22_cr_903_9b_replacements_exist_in_the_fixed_deck_build` proven red by an
-executed revert (**left 0 / right 8**). That is the +1 that takes the branch's probe count to
-11 and its test total to 4,356. The third site, `tests/commander_cast.rs`, has the same shape
-and was deliberately **left alone** — it is a focused CR 903.8 tax fixture that never bounces
-a commander, so widening P11 into "every registrar must also install the 903.9b redirects"
-would have fired on legitimate code. Recorded as `OOS-DX22-10`.
+Plan §5 Stage 2. Files: `crates/simulator/src/local_game.rs` (`MAX_SAMPLED_REJECTIONS`,
+`record_rejection`'s cap logic, three doc-comment corrections, `result_snapshot`
+extended), `crates/simulator/src/report.rs` (`GameResult::rejection_count` /
+`rejections`, `MAX_BOT_REJECTION_PER_MILLE`, `MAX_BOT_REJECTION_PER_MILLE_AT_GATE_CONFIG`),
+`crates/simulator/src/bin/fuzzer.rs` (`print_sr38_summary`, called from both the
+`--replay` path and the parallel-run path; `std::process::exit(1)` on breach),
+`crates/simulator/src/driver.rs` + `tools/play-server/src/main.rs:3326` (the two
+`..Default::default()` insertions deferred from Stage 1 — see that section), `lib.rs`
+re-exports (`RejectedCommand`, `MAX_RETAINED_REJECTIONS`, `MAX_SAMPLED_REJECTIONS`,
+`MAX_BOT_REJECTION_PER_MILLE`, `MAX_BOT_REJECTION_PER_MILLE_AT_GATE_CONFIG`). Three new
+tests in `pb_dx32_fuzz_output.rs`: **T2.1** `test_dx32_rejections_are_sampled_without_the_journal`,
+**T2.2** `test_dx32_sr38_bot_rejection_rate_is_ratcheted`, **T2.3**
+`test_dx32_game_result_carries_the_rejection_channel`.
 
----
+**Both threshold constants pinned exactly at the Stage-0-measured values**, no
+deviation: `MAX_BOT_REJECTION_PER_MILLE = 30` (measured 22.953‰ over 5 fuzz-shaped
+games) and `MAX_BOT_REJECTION_PER_MILLE_AT_GATE_CONFIG = 40` (measured 31.081‰ at the
+gate's own 3-seed/25-turn/debug-build configuration). **Confirmed live at the binary**:
+`./target/fuzz/mtg-fuzzer --games 5 --seed 1 --max-turns 200` printed `542 rejections /
+23613 commands = 22.953 per mille`, per-seed band `79/2190, 27/5518, 43/4812, 157/5902,
+236/5191` — byte-identical to §0.3's own table.
 
-## Stage 5 — corrections + seed filing DONE; bookkeeping still the coordinator's
+**A real bug found and fixed while smoke-testing the binary (not by a written test,
+by reading the output)**: the first draft of `print_sr38_summary`'s class grouping
+truncated the error string at the first `(`, but every recorded rejection's error is
+`format!("{:?}", LocalGameError::Rejected(GameStateError))`, so EVERY class collapsed
+to the literal string `"Rejected"` — the wrapper, not the actual reason. Fixed by
+stripping a `"Rejected("` prefix before the truncation. Confirmed by re-running the
+5-seed smoke command: classes now read `InsufficientMana` (16), `InvalidTarget` (15),
+`AlreadyDeclaredBlockers` (4), `InvalidCommand` (3), `CrossPlayerBlock` (2) — matching
+the five named open-seed shapes in plan §0.4 (`OOS-SIM5-3`, `OOS-SIM5-5`,
+`OOS-SIM6-3`, `OOS-CARDS2-4`) almost exactly.
 
-**DONE (`6e7988cd` corrections, `8c23e1f0` seeds).** Nine correction sites and the seed
-filing shipped. Still NOT done and deliberately left: the `CLAUDE.md` Current State delta,
-`memory/workstream-state.md`'s handoff section, and **`memory/primitives/seed-rerank-2026-08-02.md`
-— untouched by instruction** (the coordinator strikes the §4 row and settles §2.4's open
-measurement at collect; the settled answer lives in the plan, this file, and
-`docs/mtg-engine-feedback-engineering.md` §2.1's status block instead).
+**T2.3's fixture required two new bots not in the plan** (`AlwaysRejectedBot`,
+`ConcedeOnFirstCallBot`) because a genuinely discriminating parity check needs a
+NON-ZERO `rejection_count` on the GameOver path, and the obvious zero-rejection
+GameOver fixture (a player pre-marked `has_lost`, T1.1's own approach) is vacuous for
+this specific field — `Default::default()`'s `rejection_count` is also 0, so a
+regression that silently drops the field back to its default would pass a
+zero-on-both check undetected. `AlwaysRejectedBot` issues a guaranteed-rejected
+`PlayLand` every priority window; `ConcedeOnFirstCallBot` concedes CR 104.3a on its
+first call, ending the game via `is_game_over` on the very next loop check, after
+`AlwaysRejectedBot` has already been rejected at least once.
 
-**Corrections made (aspirationally-wrong-comment rule, `memory/conventions.md`)** — each
-past-tenses the record rather than deleting it, and each carries the measured replacement:
-`crates/simulator/src/legal_actions.rs` (SIM-1's structural-unreachability argument →
-`OOS-SIM1-4` CLOSED, seeds DID move, play-server 78/0 and `tests/local_game.rs` 23/23 did
-not), `src/local_game.rs` (SIM-5's premise closed, its parity claim retired **not**
-re-validated), `src/invariants.rs` (the SIM-3 A/B table dated as an unshuffled measurement +
-the post-shuffle re-measure: 426 violations, **0** `stack_consistency`), `src/setup.rs`
-(**doc lines only, verified: 0 non-`//` lines in the whole-branch diff** — the "not rewired"
-claim is still true, so it now names the three things that still differ), `src/bin/fuzzer.rs`
-(PB-DX22 appended as a third seed-portability boundary event), `tests/local_game.rs` (UI-2's
-25,964-observation block), `docs/mtg-engine-simulator.md`, `docs/mtg-engine-feedback-engineering.md`
-(row 1 SHIPPED + its open measurement recorded SETTLED), `memory/workstream-state.md:2903`
-(the `--seed 504` repro annotated dead across this merge).
+**Revert proofs (all three EXECUTED, rebuild confirmed each time)**:
+* **T2.1**: restored `self.limits.record_journal &&` in `record_rejection`'s cap
+  guard. Failure: `"record_journal: false must still sample SOME rejections (SR-38,
+  OOS-SIM3-2)"`.
+* **T2.2**: set `MAX_BOT_REJECTION_PER_MILLE_AT_GATE_CONFIG` to 30 (measured − 1,
+  rounding down from 31.081). Failure: `"aggregate rejection rate 31.081 per mille
+  exceeds the ratchet MAX_BOT_REJECTION_PER_MILLE_AT_GATE_CONFIG = 30"` — names the
+  exact measured rate, proving the comparison is live.
+* **T2.3**: hard-coded `rejection_count: 0` in `result_snapshot`. Failure (GameOver
+  half, the first assertion reached): `"p1's AlwaysRejectedBot must have produced >=1
+  rejection before p2 conceded: GameResult { ... rejection_count: 0, rejections:
+  [RejectedCommand { ... error: "Rejected(NotMainPhase)" }] ... }"` — the debug dump
+  shows the sample WAS non-empty while the count field was wrongly 0, which is exactly
+  the divergence the test exists to catch.
 
-**Seeds filed** in `docs/audits/decision-point-audit.md` §8.1: closures appended in-row to
-**`OOS-SIM1-4`** (CLOSED), **`OOS-UI2-1`** (CLOSED, "never" corrected to a `--max-turns 80`
-threshold) and **`OOS-SIM3-1`** (CLOSED, turn 143 retained as the calibration constant), plus
-a §8.1 banner and eleven new rows **`OOS-DX22-1..11`** — four more than the plan's seven, the
-extras being `-8` (the `attachment_validity` find), `-9` (CR 903.9b registered but
-unexercised), `-10` (`commander_cast.rs`'s half-built shape, judged acceptable, and why P11
-was not widened) and `-11` (the method seed: P4's and P9's stated revert-proofs were both
-wrong and were re-derived by execution).
+All three restored immediately after each revert; `git diff` confirmed clean before
+moving to the next.
 
-**Stage-5 gates**: `cargo build --workspace` OK · `cargo test -p mtg-simulator` **180 passed /
-0 failed** · `clippy --workspace --all-targets -D warnings` exit 0 · `cargo fmt --check` exit 0
-· `tools/check-defs-fmt.sh` 1803 clean · full workspace `--no-fail-fast` to a file over 42
-targets: **4,356 passed / 0 failed / 5 ignored**, residual list empty. (4,355 at Stage 4, +1
-for the `eb60cc80` probe added after that measurement.) The forbidden-path diff
-(`crates/engine/`, `crates/card-defs/`, `crates/card-types/`, `crates/view-model/`, `tools/`)
-is still **EMPTY** across the whole branch.
-
-### Original Stage-5 note (kept as filed)
-
-The A/B measurement write-up, the 10 comment/doc corrections in plan §5, seed filing
-(`OOS-DX22-1..7` plus the three new ones below), and the `CLAUDE.md` /
-`memory/workstream-state.md` bookkeeping are Stage 5 and were deliberately not started.
-
-**New seed candidates this run surfaced, with their evidence already captured above:**
-
-* **`attachment_validity` on fuzz seed 5, turn 88** — a pre-existing engine defect made
-  reachable. Repro `mtg-fuzzer --replay 5 --players 4 --max-turns 200 --profile fuzz`;
-  0 engine lines in the branch diff.
-* **P9's band is 3-29, not ≤15**, and the cause is `OOS-DX22-1` (no opening hand) measured
-  rather than assumed — this sharpens that seed's justification and gives it the number it
-  needs.
-* **CR 903.9b is registered but unexercised** — `CommanderZoneRedirect` = 0 in 20 post-fix
-  games, while P6 proves the 8 replacements exist.
-
-**Numbers Stage 5 needs and already has**: commands/turn **58.8 → 46.3 → 45.7** across the
-three stages (the input `OOS-DX22-2` asks for; `HaltReason::InfiniteLoop` never appeared and
-the turn cap stopped being reached at all, so `max_commands` did **not** start binding first).
-
-### Probe → revert-proof ledger (all EXECUTED, all rebuilds confirmed)
-
-| probe | revert executed | observed failure |
-|---|---|---|
-| P1 | `place_registered_deck` library loop → `.iter().take(98)` | `left: 98 / right: 99` |
-| P2 | `deck.main_deck.shuffle(&mut rng)` → `truncate(99)` no-op | `left != right` — library IS the construction order |
-| P3 | `shuffle(&mut rng)` → `shuffle(&mut rand::rng())` | seed 1 did not reproduce seat 1's order |
-| P4 | `seed_from_u64(seed)` → `seed_from_u64(0)` | seeds 1 and 2 dealt the same library (**plan's stated revert does not work — see Stage 2**) |
-| P5 | delete `builder.player_commander(..)` | `left: [] / right: [CardId("samut-voice-of-dissent")]` |
-| P6 | delete `register_commander_zone_replacements(..)` only | `left: 0 / right: 8` — **and P7 stays green, confirming §B1** |
-| P7 | delete `builder.player_commander(..)` | `pending = []` |
-| P8 | delete `builder.player_commander(..)` | effective cost `generic 3` where `generic 5` was required |
-| P9 | delete shuffle **and** registration (merge-base) | seed 1 cast no spell in 30 turns / 1,073 commands (**plan's stated revert reddens only 1 of 4 — see the finding above**) |
-| P11 | **none needed — RED on the pre-fix tree**, on exactly `["src/fuzz_setup.rs", "tests/local_game.rs"]` | recorded verbatim in Stage 3 |
+**Stage gates, all EXECUTED**: `cargo build --workspace` clean; `cargo test -p
+mtg-simulator` **186 / 0 / 0** (+3); `cargo test -p play-server` **78 / 0 / 0** unmoved.
+`cargo clippy --workspace --all-targets -- -D warnings` — one real finding fixed along
+the way: the first draft's `loop { match game.advance() { .. => break } }` in the new
+`play_fuzz_shaped` helper tripped `clippy::never_loop` / `clippy::while_let_loop`
+(since `advance()` with no human seats always resolves in one call — the outer `loop`
+was never going to iterate twice). Fixed by dropping the wrapper loop entirely (a
+single `match`, mirroring `driver.rs`'s own comment). Clean after. `cargo fmt --check`
+clean (ran `cargo fmt` twice — once for the new tests, once after the class-grouping
+fix). `tools/check-defs-fmt.sh` — 1803 defs, clean.
+`cargo test --workspace --no-fail-fast` — **4,362 / 0 / 5** (+4 over the Stage-1
+pin), residual list empty.
+`git diff -- crates/engine/src/ crates/card-defs/ crates/card-types/ crates/view-model/`
+EMPTY. `git diff --numstat -- tools/` — **exactly one file, `+1 -0`**
+(`tools/play-server/src/main.rs`), matching plan §3.1's acceptance criterion (landed
+here rather than Stage 1, per the Stage-1 divergence note).
 
 ---
 
-## Fix cycle — all 13 review findings TAKEN, 0 deferred, 0 filed-instead-of-fixed
+## Stage 3 DONE — (b) the waste instrument, promoted and thresholded
 
-**Phase**: fix · **Review**: `memory/primitives/pb-review-DX22.md` (2 HIGH, 4 MEDIUM, 7 LOW).
+Plan §5 Stage 3. Files: `crates/simulator/src/local_game.rs` (new `WasteTally`,
+`waste`/`waste_run` fields, `fold_waste`, `waste()` accessor, wired at the two F8 fold
+sites, `result_snapshot` extended), `crates/simulator/src/report.rs`
+(`GameResult::waste`, `MAX_RANDOM_BOT_WASTED_TAP_PCT`,
+`MAX_RANDOM_BOT_WASTED_TAP_PCT_AT_GATE_CONFIG`, `MAX_HEURISTIC_POOLS_EMPTIED_PER_SEED`),
+`crates/simulator/src/bin/fuzzer.rs` (`print_waste_summary`, called from both paths),
+`lib.rs` re-exports. New test **T3.1**
+`test_dx32_random_bot_waste_ratio_is_bounded` in `pb_dx32_fuzz_output.rs`; **T3.2**
+`test_dx32_streaming_waste_tally_equals_the_sim5_journal_walk` (extended with a
+purpose-built controlled sub-case, see below) and **T3.3**
+`heuristic_pools_emptied_is_pinned` in `sim5_bot_cast_discipline.rs` — `metrics_of` and
+`Metrics` kept exactly as the plan requires (not deleted).
 
-**Headline**: the review's HIGH 1 asked for the deleted instrument back. It came back as part
-of the fuzzer itself — `mtg-fuzzer` now prints a **violation-by-`check` histogram over every
-game** and a **commander-mechanics and first-cast census over every game**, so both HIGHs are
-settled by the same change, and PB-DX22's "after" side now has the same standing as its
-committed "before" side. Raw run: `memory/primitives/pb-dx22-measurement-after-fixcycle.txt`.
+**Both thresholds confirmed live at the binary**: `./target/fuzz/mtg-fuzzer --games 5
+--seed 1 --max-turns 200` printed `tap runs: 1258 total, 968 wasted (1986 taps of 2641
+total = 75.2%, threshold 85%)` and `CR 500.4 ManaPoolsEmptied: 885` — byte-identical to
+§0.3's own numbers.
 
-### The re-measurement, against the six published numbers
+**A second `_AT_GATE_CONFIG` threshold was needed for T3.1, beyond what the plan wrote
+down — the SAME structural reason Stage 2 needed one for SR-38, discovered by running
+the test, not anticipated in advance.** The plan's single `MAX_RANDOM_BOT_WASTED_TAP_PCT
+= 85` is a 200-turn, `--profile fuzz` measurement. At T3.1's own 3-seed/25-turn debug
+configuration the measured waste ratio is **89%** (87/97 taps, seeds 1/2/3) — ABOVE the
+85% ceiling, so the test would have been red on arrival using the binary's own constant.
+Added `MAX_RANDOM_BOT_WASTED_TAP_PCT_AT_GATE_CONFIG = 95` (a flat +6 percentage points
+over 89, not the ~30% multiplicative headroom the per-mille `_AT_GATE_CONFIG` constants
+use, since a percentage is bounded at 100 and 89×1.3 would overshoot meaninglessly),
+with the reasoning for WHY the two populations genuinely differ (a shorter game's early
+taps have proportionally fewer high-value casts to land on) recorded in the constant's
+own doc, not just asserted.
 
-`cargo run --profile fuzz --bin mtg-fuzzer -- --games 20 --seed 1 --max-turns 200 --threads 1
---verbose`, i.e. exactly the command the batch published under.
+**T3.2's revert did NOT discriminate on the plan's own AB_SEEDS fixture — plan §7 R8's
+explicitly-anticipated failure mode, hit for real.** Executing the revert (drop the
+open-run close in `waste()`) against the `AB_SEEDS`/`HeuristicBot`/25-turn loop left the
+test GREEN. Root-caused, not just observed: `HeuristicBot` scores
+`LegalAction::TapForMana` at 0, "below passing" (`heuristic_bot.rs:271`), so it never
+chooses a standalone tap — every tap it makes is an auto-tap PREFIX bundled with a cast
+in one `[taps…, cast]` atomic sequence, and that whole bundle is folded (and its own run
+closed) inside the single `apply_sequence` call that commits it, before the call
+returns. A run can only survive past one `advance()` iteration if the WHOLE decision
+was a standalone tap with nothing queued after — structurally unreachable for
+`HeuristicBot`. **Fix, per R8's own instruction ("construct a fixture that ends on a
+tap")**: extended T3.2 with a controlled second case — a human seat submits exactly one
+`TapForMana` command via `submit()` and nothing follows, which is the only way to force
+`waste_run` open at inspection time. Confirmed by an initial two-pass empirical scan
+(scratch file, deleted, never committed) that tried to find a naturally-occurring
+mid-tap-run halt by truncating `max_commands` at various points in an already-played
+journal — every candidate in a window of +1..+6 past a `TapForMana` index still ended on
+a non-tap command, which is what led to root-causing the atomic-batch mechanism above
+rather than continuing to search blindly.
 
-| published by the deleted instrument | re-derived by the shipped instrument | verdict |
-|---|---|---|
-| `CommanderCastFromCommandZone` **36**, in **16 of 20** games | 36, in 16 of 20 | **exact** |
-| CR 903.9a returns **13** | 13 | **exact** |
-| non-empty `commander_damage_received` in **16 of 20** | 16 of 20 | **exact** |
-| `SpellCast` **670** | 670 | **exact** |
-| first-cast band **3-29** | min 3 / median 12 / max 29 | **exact** |
-| first `PlayLand` turn **1-7** | min 1 / median 2 / max 7 | **exact** |
-| (also) total violations **426**, avg turns **103.4**, 20 wins / 0 errors | 426 / 103.4 / 20 / 0 | **exact** |
-| `CommanderZoneRedirect` **0** | 0 | **exact** |
+**Revert proofs (all three EXECUTED, rebuild confirmed each time)**:
+* **T3.1**: set `MAX_RANDOM_BOT_WASTED_TAP_PCT_AT_GATE_CONFIG` to 88 (measured − 1,
+  truncating 89.69%→89 first). Failure: `"RandomBot wasted-tap ratio 89% exceeds
+  MAX_RANDOM_BOT_WASTED_TAP_PCT_AT_GATE_CONFIG = 88"`.
+* **T3.2**: dropped the trailing open-run close (`tally.tap_runs += 1`), using the NEW
+  controlled human-submit fixture. Failure: `"the still-open run must be closed on the
+  snapshot COPY waste() returns ... WasteTally { tap_runs: 0, ... total_taps: 1, ... }
+  left: 0 right: 1"` — proves the tap itself is still counted (`total_taps: 1`)
+  while only the run-closing logic broke, exactly the divergence the test exists to
+  catch.
+* **T3.3**: set `MAX_HEURISTIC_POOLS_EMPTIED_PER_SEED` to 0 (measured − 1). Failure:
+  `"seed 7: mana_pools_emptied 1 exceeds MAX_HEURISTIC_POOLS_EMPTIED_PER_SEED (0) — a
+  rise past this pin means either a new wasted-tap class or that the greedy-solver
+  slack OOS-SIM2-1 leaves on casts that SUCCEED has widened"` — names `OOS-SIM2-1` at
+  the pin, satisfying criterion (b)'s literal requirement.
 
-**No discrepancy in any published number.** The deleted instrument was accurate; it was
-unreproducible, which is a different defect and is the one that is now closed.
+All three restored immediately after each revert; `git diff` confirmed clean before
+moving to the next.
 
-**Three things the re-measurement adds that the published set did not contain**, each of which
-changes how an existing claim should be read:
-
-1. **The by-`check` tally is 301 `no_orphaned_tokens` (15 games) + 114 `player_consistency`
-   (5 games) + 11 `attachment_validity` (3 games) + **0** `stack_consistency` = 426.** The
-   bolded universal negative SURVIVES. Its 94-line sample did **not**: it projected
-   `player_consistency` at ~1% of the run (it is **27%**) and `attachment_validity` at 3
-   violations in 1 game (it is **11 in 3**). Restated at `invariants.rs` as a table, with the
-   sampling failure named. Filed as the generic class in `OOS-DX22-13`.
-2. **`attachment_validity` fired in seeds 5, 9 AND 15, not seed 5 alone** — and in each game at
-   exactly one turn, after which the game runs to a winner. That is the shape of the
-   `OOS-M11-7` transient SBA-lag class, so it is a live candidate for the same false-positive
-   family SIM-3 withdrew from `stack_consistency`. Recorded in `OOS-DX22-8` as the successor's
-   first check.
-3. **`max_commander_damage` = 31**, past CR 903.10a's threshold of 21. The commander-damage
-   *loss condition itself* is now reachable under automated exercise, not merely the counter.
-
-### Finding-by-finding
-
-| # | sev | disposition |
-|---|---|---|
-| 1 | HIGH | **FIXED, both parts.** (a) `bin/fuzzer.rs::print_mechanics_summary` + `print_violation_histogram`, fed by a new constant-size `MechanicsTally` folded from events in `local_game.rs` (no journal, so `GameDriver`'s `record_journal: false` is untouched) and returned by a new `GameDriver::run_game_with_mechanics`. **Not a new field on `GameResult`**: `tools/play-server/src/main.rs:3326` constructs one and this batch may not touch `tools/`. (b) new probe **P12** `test_dx22_cr_903_10a_commander_damage_is_recorded_on_the_fuzz_build` — real combat on the fuzz-built state (`handle_declare_attackers` → `apply_combat_damage` → `check_and_apply_sbas`), plus **P13** gating the census itself against vacuity. |
-| 2 | HIGH | **FIXED by obtaining the real tally**, not by re-wording to the sampled scope. See the table above; `invariants.rs`'s block restated, `OOS-DX22-3` restated, `OOS-DX22-13` filed for the generic class. |
-| 3 | MED | **FIXED.** `bin/fuzzer.rs`'s boundary-event doc is now a 3-row table with the instrument AND denominator per side (5 games before / 20 after); `docs/mtg-engine-simulator.md` likewise; `docs/mtg-engine-feedback-engineering.md` (a third site the review did not name) carries the refinement pointer. |
-| 4 | MED | **FIXED, and it settled the open question.** P9 excludes command-zone casts twice over — by the four command-zone `ObjectId`s read off the STARTED state, and by rejecting any record carrying a `CommanderCastFromCommandZone` event (which also covers a post-CR-903.9a recast under a new id, which the id set cannot see). **The turns did not move: 17/9/25/23 before and after.** Seeds 1-4's first casts always were library casts — the thing the batch could only call "probably". |
-| 5 | MED | **FIXED.** Both needles split with `concat!` so the gate no longer matches itself; census is now exactly **4** and is printed. Floor re-derived and stated **by name** (`src/fuzz_setup.rs`, `src/legal_actions.rs`, `src/setup.rs`, `tests/commander_cast.rs`) rather than by count, so a file that stops placing reddens while a new placer does not. |
-| 6 | MED | **FIXED, and both additions made.** CR text fetched via MCP: 704.5m is the Aura rule (graveyard), 704.5n is Equipment/Fortification (unattach, stays). Row corrected in both `docs/audits/decision-point-audit.md` and this file, both dispositions kept since the orphan's card type is unknown, and the two successor checks added — (a) transient-vs-persistent with the one-turn-per-game evidence, (b) the commander-zone-change mechanism (13 CR 903.9a returns = CR 400.7 events this batch uniquely enabled). |
-| 7 | LOW | **FIXED.** P5's doc now says half (b) is a reconstruction with no discrimination over half (a), and names `build_state`'s two real gates (P11 by source walk; the stage-4b probe by output). |
-| 8 | LOW | **FIXED.** P2 loops seeds `[1, 8]`; **seed 8 seat `PlayerId(3)` draws `rograkh-son-of-rohgahh`** (empty colour identity), so the CR 903.5c colourless padding arm is exercised for the first time by any probe. Found by enumerating seeds 1..=120 (hits 8, 50, 73, 119 — all the same card, the only `Complete` colourless legendary creature in the pool). The test asserts the arm was taken, so losing it reddens. |
-| 9 | LOW | **FIXED, not filed.** `place_registered_deck` builds a local `HashMap<&CardId, &CardDefinition>` once per seat (the `setup.rs::find_def` index), replacing an O(defs) scan per card. Built with `entry().or_insert()`, not `collect()`, so a duplicated `card_id` keeps the FIRST def exactly as `Iterator::find` did — behaviour-identical. |
-| 10 | LOW | **FIXED.** `debug_assert_eq!(deck.main_deck.len(), 99, ...)` at `build_fuzz_state`'s per-seat loop, mirroring `setup.rs`. |
-| 11 | LOW | **FIXED.** The "both branches advance the stream identically" claim is replaced with the honest one ("nothing here depends on cross-branch alignment"; `shuffle` is rejection-sampled and data-dependent), and the fallback branch now says it would place no commander at all if `teysa-karlov` left the pool. |
-| 12 | LOW | **FIXED.** `FuzzGameSetup::decks` → **`decklists`**, with the reason at the field. |
-| 13 | LOW | **SATISFIED, recorded rather than re-run.** The coordinator ran `tools/authoring-report.py` at collect: the report body came back **byte-identical except the git-sha stamp line**; coverage **1,133 clean / 1,803 = 62.8%**, unmoved. Consistent with the by-construction argument (`git diff main..HEAD -- crates/card-defs` is empty), and it is now the executed check the plan §7 asked for rather than a substitution. |
-
-### Revert-proof ledger for the fix cycle (all EXECUTED, all rebuilds confirmed)
-
-| revert executed | rebuild | observed |
-|---|---|---|
-| delete `builder.player_commander(..)` (replaced by a `let _revert_proof = GameStateBuilder::player_commander;` so `-D warnings` could not turn it into a build failure) | `Compiling mtg-simulator` present | **6 failed / 6 passed** — P5, P6, P7, P8 as before, **plus P12** (`left: None / right: Some(3)`, `commander_damage_received = {}`) and **P13** (`commander_casts_from_command_zone: 0, seats_dealt_commander_damage: 0`) |
-| `deck.main_deck.shuffle(&mut rng)` → `truncate(99)` no-op (+ `#[allow(unused_imports)]` on the `SliceRandom` import — the same `-D warnings` trap, hit a THIRD time in this batch and worked around the same way) | present | **P9 reddens on seed 1**, and, re-run with the seed list narrowed to each of `[2]`, `[3]`, `[4]` in turn, **on all four seeds individually**. That is the plan's original prediction, delivered for the first time — the pre-fix probe reddened only 1 of 4 |
-| P2's seed list `[1, 8]` → `[1, 1]` | present | P2 reddens on the colourless-commander non-vacuity assertion |
-| P11's walk `vec![src, tests]` → `vec![src]` | present | P11 reddens by NAME on `tests/commander_cast.rs` — the by-name floor discriminates where a bare count would not have |
-| `MechanicsTally::record` made a no-op | present | P13 reddens: `spell_casts: 0, first_spell_cast_turn: None, lands_played: 0, …` |
-
-### Fix-cycle gates, all EXECUTED
-
-* `cargo build --workspace` OK · `cargo clippy --workspace --all-targets -- -D warnings` exit 0 ·
-  `cargo fmt --check` exit 0 · `tools/check-defs-fmt.sh` → `1803 defs checked / clean` (SR-35).
-* Full workspace `--no-fail-fast` to `/tmp/pb-dx22-fixcycle-final.txt`, summed with awk over
-  **42** `^test result` lines: **4,358 passed / 0 failed / 5 ignored**. That is **+2** over the
-  batch's 4,356, and 2 is exactly the new probe count (P12, P13). Residual list **empty** — zero
-  `failures:` / `FAILED` / `error[` / `error:` lines.
-* Wire sentinels **re-executed**, not predicted: `hash_schema` 21/0, `protocol_schema` 17/0;
-  `HASH_SCHEMA_VERSION = 72`, `PROTOCOL_VERSION = 35` — **unmoved**.
-* `git diff main..HEAD --numstat -- crates/engine/ crates/card-defs/ crates/card-types/
-  crates/view-model/ tools/` → **EMPTY** (and the working tree likewise).
-* `git diff main..HEAD -- crates/simulator/src/setup.rs` → 27 changed lines, of which **0** are
-  non-comment lines.
-
-### New seeds filed by the fix cycle
-
-* **`OOS-DX22-12`** — the published "first cast turn 3-29" band mixes command-zone commander
-  casts with library casts; the shuffle-gated band is **5-29 / median 17**. Everywhere the
-  batch reasons from library depth, that is the number that belongs. No conclusion changes.
-* **`OOS-DX22-13`** — **method**: the 5-game detail cap is a property of the binary, so every
-  historical "check X never fired in a fuzz run" claim (including SIM-3's 90.3% share and
-  `OOS-SIM3-4`'s 929-of-938 noise floor) was read off a sample unless it says otherwise. Not a
-  retraction; a filing that they were never re-derived from a complete tally, which
-  `print_violation_histogram` now makes a one-command job.
-
-Rows `OOS-DX22-3`, `OOS-DX22-8` and `OOS-DX22-11` were **corrected in place** rather than
-re-filed, each keeping the original text and naming what changed.
+**Stage gates, all EXECUTED**: `cargo build --workspace` clean; `cargo test -p
+mtg-simulator --test sim5_bot_cast_discipline --test pb_dx32_fuzz_output` **6 + 5 = 11
+passed / 0 failed**; `cargo test -p play-server` **78 / 0 / 0** unmoved. `cargo clippy
+--workspace --all-targets -- -D warnings` clean. `cargo fmt --check` clean (ran `cargo
+fmt` once). `tools/check-defs-fmt.sh` — 1803 defs, clean.
+`cargo test --workspace --no-fail-fast` — **4,365 / 0 / 5** (+3 over the Stage-2 pin:
+T3.1, T3.2, T3.3), residual list empty.
+`git diff main..HEAD --numstat -- crates/engine/src/ crates/card-defs/
+crates/card-types/ crates/view-model/` EMPTY. `git diff main..HEAD --numstat --
+tools/` — **still exactly one file, `+1 -0`** (unchanged from Stage 2 — Stage 3 touched
+no file under `tools/`).
 
 ---
 
-## Close-out (2026-08-03)
+## Stage 4 DONE — (c) the noise floor
 
-* **Review cycle 1** — `primitive-impl-reviewer`, findings in `memory/primitives/pb-review-DX22.md`:
-  2 HIGH / 4 MEDIUM / 7 LOW, **all 13 taken** (`b79a943a`). The two HIGHs were the batch's own
-  defect class: the headline "after" numbers came from a deleted scratch instrument, and a
-  universal negative over 426 violations was evidenced by the 94 the binary prints. Both repaired
-  by making `mtg-fuzzer` report an all-games violation histogram and mechanics census, then
-  re-measuring — every published number matched to the digit.
-* **Review cycle 2** — the `/review` skill's Opus reviewer, **with shell access** (cycle 1 had
-  none, so it could verify no git-diff or measurement claim). It re-executed the full suite, both
-  version gates, the play-server pins, clippy/fmt/defs-fmt, the whole 20-game fuzz A/B, **and
-  built the merge base in a throwaway worktree to reproduce the before side**. All five acceptance
-  clauses PASS (clause 5 partial by design at the time). 4 findings, **all 4 taken** (`59ad18a1`):
-  a comment-satisfiable P11 source gate (the only code change — proven by an executed revert that
-  truly deletes the call), a 5-game-vs-20-game denominator mismatch in `invariants.rs`, a stale
-  "23 passed" in four shipped places (stage 4b made it 24), and an audit banner saying eleven rows
-  where thirteen were filed.
-* **Coverage** — `tools/authoring-report.py` regenerated; body byte-identical except the git-sha
-  stamp line. **1,133 clean / 1,803 = 62.8%, unmoved.** The regeneration churn was reverted, since
-  the batch changed 0 card defs.
-* **Final gates**: `--workspace --no-fail-fast` to a file → **4,358 / 0 / 5 over 42 targets**,
-  residual list empty. `hash_schema` 21/0 and `protocol_schema` 17/0 EXECUTED; declared
-  **HASH 72 / PROTOCOL 35**, unmoved. `clippy --workspace --all-targets -D warnings`, `fmt
-  --check` and `tools/check-defs-fmt.sh` (1803 defs) all clean. Forbidden-path branch diff
-  (`crates/engine/`, `crates/card-defs/`, `crates/card-types/`, `crates/view-model/`, `tools/`)
-  **EMPTY**; `crates/simulator/src/setup.rs` doc-comment lines only.
-* **Close-out written**: lean CLAUDE.md bullet (2026-08-02 `memory/decisions.md` schema) + a new
-  `Tests (delta 2026-08-03, PB-DX22)` pin; full handoff at the head of
-  `memory/workstream-state.md`; `OOS-DX22-1..13` filed and `OOS-UI2-1` / `OOS-SIM3-1` /
-  `OOS-SIM1-4` closed in `docs/audits/decision-point-audit.md` §8.1.
-  `memory/primitives/seed-rerank-2026-08-02.md` untouched by design.
+Plan §5 Stage 4. Files: `crates/simulator/src/invariants.rs` (new
+`check_no_leaked_tokens`, `distinct`), `crates/simulator/src/local_game.rs` (new
+`transient_violations` field + accessor, `record_violations` split helper wired at
+both `check_all` call sites, `result_snapshot` extended to run the leaked-token check
+at both real terminal paths), `crates/simulator/src/report.rs`
+(`GameResult::transient_violations`), `crates/simulator/src/bin/fuzzer.rs`
+(`print_violation_bucket` + rewritten `print_violation_histogram` printing HARD and
+TRANSIENT blocks with raw+distinct counts each, `main`'s summary line split into
+"Total violations (HARD)" / "Total violations (TRANSIENT, ...)"). Three new tests in
+`pb_dx32_fuzz_output.rs`: **T4.1**
+`test_dx32_orphaned_tokens_are_transient_and_the_end_state_is_clean`, **T4.2**
+`test_dx32_leaked_token_at_game_end_is_a_hard_violation`, **T4.3**
+`test_dx32_distinct_collapses_checkpoint_weighting`.
+
+**Fixture seed measured, not guessed**: `play_fuzz_shaped(2, 4, 25)` (RandomBot,
+`build_fuzz_state`, `record_journal: false` — the same configuration T2.x/T3.x
+already use) was scanned at implementation time (throwaway scratch test, run then
+deleted, never committed) and found to produce exactly 4 raw `no_orphaned_tokens`
+transient reports (same Treasure token, turn 24, dedup 1), 0 hard violations, 0
+leaked tokens at the final state — used for T4.1's non-vacuity and T4.3's real-seeded
+half.
+
+**A/B, EXECUTED (criterion (c)'s mandatory before/after)**: re-ran Stage 0 step 3
+verbatim (`./target/fuzz/mtg-fuzzer --games 20 --seed 1 --max-turns 200 --threads 1
+--verbose`), committed as `memory/primitives/pb-dx32-stage4-fuzz-after.txt`:
+
+| metric | before (§0.2) | after (measured) |
+|---|---|---|
+| `Total violations` (hard) | 426 | **125** = 114 `player_consistency` + 11 `attachment_validity` — matches the plan's prediction exactly |
+| transient (reported, not halting) | — | **301** `no_orphaned_tokens` |
+| distinct hard / distinct transient | — | **7** / **67** |
+| games with ≥1 **hard** violation | 16 / 20 | **6 / 20** (≤ 8 predicted) |
+| crash reports written | 16 files (stale, pre-Stage-4 semantics) | **6 files** (`crash-reports/` cleared first, then re-measured: `crash_{2,5,7,9,15,19}.json`) |
+| `--stop-on-error` halts on `no_orphaned_tokens` | yes | **NO** |
+
+**`--stop-on-error` outcome, recorded per §7 R1** (`memory/primitives/pb-dx32-stage4-stoponerror.txt`):
+run `--games 20 --seed 1 --max-turns 200 --stop-on-error --verbose` completed only
+**2** games (not 20) before halting, on seed 2's `player_consistency` violation
+("Active player PlayerId(1) has lost or conceded (turn 123)") — exactly the class
+R1 predicted, and it is **not** suppressed here: `player_consistency` stays
+undiagnosed and un-widened into the transient split, per plan §7 R1/R2 and plan
+divergence 3.
+
+**R10 measured, not predicted**: the 20-game run produced **zero** `leaked_tokens`
+violations — `check_no_leaked_tokens` never fired at either terminal path across all
+20 games. No new finding here; consistent with §0.3's 0-on-five-seeds measurement,
+now confirmed at 20-game scale.
+
+**Revert proofs (all three EXECUTED, rebuild confirmed each time)**:
+* **T4.1**: changed `record_violations`'s split predicate from `v.check ==
+  "no_orphaned_tokens"` to `v.check == "zone_integrity"`. Failure: `"seed 2 at
+  max_turns 25 is known to produce no_orphaned_tokens transient reports (measured at
+  implementation time: 4 raw reports)"` — token violations landed in the hard bucket
+  instead, so `transient_violations()` came back empty.
+* **T4.2**: made `check_no_leaked_tokens` return `Vec::new()` unconditionally (behind
+  an early `return`, function-level `#[allow(unreachable_code)]` so `-D warnings`
+  doesn't turn the revert into a silent stale-binary pass — plan §7 R7). Failure:
+  `"exactly one token, exactly one violation: [] left: 0 right: 1"` — fails on the
+  broken-state (leaked-token) half while the clean-state half (asserted first)
+  stayed green, which is what proves the probe is paired and not one-sided.
+* **T4.3**: made `distinct` return `violations.to_vec()` unconditionally (same
+  early-return + `#[allow(unreachable_code)]` shape). Failure: `"left: 3 right: 1"`
+  on the hand-built half (three identical `(check, description)` pairs at three
+  different turns, expected to collapse to 1, stayed at 3).
+
+All three restored immediately after each revert; `git diff` confirmed clean before
+moving to the next.
+
+**Stage gates, all EXECUTED**: `cargo check -p mtg-simulator` clean after each edit;
+`cargo build --profile fuzz --bin mtg-fuzzer` clean; `cargo test -p mtg-simulator
+--test pb_dx32_fuzz_output` **8 / 0 / 0** (+3 over Stage 3's 5); `cargo clippy
+--workspace --all-targets -- -D warnings` clean; `cargo fmt --check` clean (ran
+`cargo fmt` once — two import-list rewraps and three string-literal unwraps in the
+new tests, no substantive change); `tools/check-defs-fmt.sh` — 1803 defs, clean.
+`cargo test --workspace --no-fail-fast` — **4,368 / 0 / 5** (+3 over the Stage-3 pin:
+T4.1, T4.2, T4.3), residual list empty.
+`cargo test -p mtg-engine --test core hash_schema` / `--test core protocol_schema` —
+**HASH 72 / PROTOCOL 35 unmoved**, read off the constants (this stage touches no
+engine source at all).
+`git diff main..HEAD --numstat -- crates/engine/src/ crates/card-defs/
+crates/card-types/ crates/view-model/` EMPTY. `git diff main..HEAD --numstat --
+tools/` — **still exactly one file, `+1 -0`** (unchanged — Stage 4 touched no file
+under `tools/`).
+
+---
+
+## Stage 5 DONE — (d) the corpus→seed gate (`OOS-CARDS2-3`)
+
+Plan §5 Stage 5. File: `crates/simulator/tests/pb_dx32_fuzz_output.rs` only —
+`CORPUS_DEFS`/`CORPUS_COMPLETE`/`COMMANDER_POOL` consts, a `commander_pool()` helper
+mirroring `deck.rs:40-47`'s three-clause filter (with a comment naming the line
+range, per the plan's anti-drift instruction), **T5.1**
+`test_dx32_fuzz_deck_pool_size_is_pinned`, **T5.2**
+`test_dx32_commander_pool_filter_mirrors_deck_rs`.
+
+**Pinned exactly as measured at Stage 0 / plan §0.5, both confirmed live by running
+the gate**: `CORPUS_DEFS = 1803`, `CORPUS_COMPLETE = 1133`, `COMMANDER_POOL = 90`.
+T5.1's shared `MOVED_MSG` constant is appended to all three assertion messages and
+states, in these terms: the fuzz deck pool changed, every seeded fixture now deals a
+different game (`OOS-CARDS2-3`), update the three constants in the SAME commit as the
+card-def change, and expect the seeded pins in `memory/workstream-state.md`'s CARDS-2
+handoff item 1 to move.
+
+**Revert proofs (both EXECUTED, rebuild confirmed each time)**:
+* **T5.1(a)**: set `CORPUS_COMPLETE` to 1132 (measured − 1). Failure: `"the
+  Complete-def count moved from the pinned CORPUS_COMPLETE (1132) to 1133 -- the fuzz
+  deck pool changed. Every seeded fixture..."` — names the direction and
+  `OOS-CARDS2-3` exactly as required.
+* **T5.1(b) / T5.2 discrimination**: dropped the `CardType::Creature` clause from
+  `commander_pool()`'s mirrored filter. Pool grew 90 → 128 (Legendary-Complete minus
+  the Creature-type requirement). T5.1 reddened: `"the commander pool (Complete +
+  Legendary + Creature, deck.rs:40-47) moved from the pinned COMMANDER_POOL (90) to
+  128..."`. **T5.2 stayed GREEN** on this same revert — the plan's own instruction —
+  because T5.2 asserts membership (`random_deck`'s pick is IN the mirrored pool),
+  which still holds when the mirrored pool is a wider superset of the true one; T5.2
+  therefore discriminates a DIFFERENT failure mode from T5.1 (a genuinely diverged
+  filter, e.g. one that excludes a legal commander), not a mere size change, so no
+  restatement was needed.
+
+Both restored immediately after each revert; `git diff` confirmed clean before moving
+to the next.
+
+**Stage gates, all EXECUTED**: `cargo test -p mtg-simulator --test pb_dx32_fuzz_output`
+**10 / 0 / 0** (+2 over Stage 4's 8); `cargo clippy --workspace --all-targets -- -D
+warnings` clean; `cargo fmt --check` clean (ran `cargo fmt` once — an import-list
+rewrap and a line-wrap in `commander_pool`'s filter chain). `tools/check-defs-fmt.sh`
+— 1803 defs, clean.
+`cargo test --workspace --no-fail-fast` — **4,370 / 0 / 5** (+2 over the Stage-4 pin:
+T5.1, T5.2), residual list empty.
+`git diff main..HEAD --numstat -- crates/engine/src/ crates/card-defs/
+crates/card-types/ crates/view-model/` EMPTY. `git diff main..HEAD --numstat --
+tools/` — **still exactly one file, `+1 -0`** (unchanged — Stage 5 touched no file
+under `tools/`).
+
+---
+
+## Stage 6 DONE — (e) decision-point runtime coverage
+
+Plan §5 Stage 6. New file `crates/simulator/src/decision_coverage.rs`
+(`OBSERVABLE_ROW_IDS` = 5 ids, `UNOBSERVABLE_ROW_IDS` = 17 `(id, reason)` pairs,
+`ROW_COUNT`, `DecisionCoverage` with a hand-written `Default`, `row_id_for` —
+exhaustive on both `BlockingDecision` and `EffectChoiceQuestion`, no wildcard).
+Wired: `local_game.rs` (`decisions: DecisionCoverage` field, folded at the
+`state.blocking_decision()` branch alongside the pre-existing `DecisionKind` match —
+kept as two SEPARATE exhaustive matches on purpose, commented so a future reader
+does not merge them; `decision_coverage()` accessor; `result_snapshot` extended;
+`AdvanceOutcome` gained `#[allow(clippy::large_enum_variant)]` — `GameResult` crossed
+clippy's default threshold once `decision_coverage` (88 bytes) landed, and boxing it
+would touch `tools/play-server` match arms outside this batch's footprint, so the
+allow follows this crate's own precedent, `crates/engine/src/rules/events.rs:61` /
+`card_definition.rs:1238`), `report.rs` (`GameResult::decision_coverage`), `lib.rs`
+(new `pub mod decision_coverage;` + re-exports), `bin/fuzzer.rs`
+(`print_decision_coverage`, called from both the run path and the `--replay` path).
+**New engine test appended to the EXISTING `crates/engine/tests/core/decision_gate.rs`**
+(criterion (e)'s "extend, don't rebuild" — `ROWS`, `BASELINE`,
+`MAX_AUTO_CHOSEN_COMPLETE_UNION = 80` untouched): `quoted_strings`,
+`extract_const_array_block`, and **T6.1**
+`runtime_decision_coverage_roster_matches_rows`. New tests in
+`pb_dx32_fuzz_output.rs`: **T6.2** `test_dx32_row_id_for_covers_every_observable_row`,
+**T6.3** `test_dx32_a_fuzz_run_reaches_at_least_one_served_row`.
+
+**R9 measured, not guessed, and the honest answer is BETTER than the plan's own
+worst-case hypothesis.** At T6.3's own gate configuration (10 fuzz-shaped games x
+60 turns, `RandomBot`, `build_fuzz_state`, `record_journal: false`, debug build) —
+**4 of the 5 served rows are reached**: `triggered_targets`, `search_library`,
+`scry`, `discard_cards`. Only `surveil` is never reached at this budget. Deterministic
+(re-run twice, identical partition both times), so T6.3 asserts the partition
+EXACTLY rather than as a floor, with a message that tells a failing future reader to
+report the change as a finding rather than silently re-tuning the seed range.
+**A second, independent data point at the release-profile binary's own
+configuration** (`--games 20 --seed 1 --max-turns 200`, `--profile fuzz`,
+committed as `memory/primitives/pb-dx32-stage6-fuzz-smoke.txt`): **all 5 of 5 served
+rows are reached**, including `surveil` (30 observations) — confirming the gap at
+T6.3's debug/60-turn budget is a depth artefact, not evidence that `surveil` is hard
+to reach in general. Both configurations and both results are recorded rather than
+only the more favourable one.
+
+**Revert proofs (all four EXECUTED against the REAL source files, rebuild confirmed
+each time — no throwaway fixture stand-ins)**:
+* **T6.1(a)**: moved `"surveil"` from `OBSERVABLE_ROW_IDS` to `UNOBSERVABLE_ROW_IDS`
+  in `decision_coverage.rs`. Failure: `"OBSERVABLE_ROW_IDS must equal EXACTLY the
+  ROWS ids whose class is Served. In OBSERVABLE_ROW_IDS but not Served in ROWS: [].
+  Served in ROWS but missing from OBSERVABLE_ROW_IDS: [\"surveil\"]"` — names
+  `surveil` and the class mismatch exactly as required.
+* **T6.1(b), mandatory**: commented out the `"proliferate"` tuple in
+  `UNOBSERVABLE_ROW_IDS` with `//` on every line. Failure: `"...In ROWS but missing
+  from the roster: [\"proliferate\"]..."` — proves `strip_line_comments` is being
+  applied (an unstripped scan would still have found `"proliferate"` as plain text
+  inside the comment and stayed green, the exact comment-satisfiable-gate class
+  PB-DX22's review cycle 2 found in this file's own family).
+* **T6.2**: changed `row_id_for`'s `EffectChoiceQuestion::Scry` arm to return `None`
+  (via a temporary `.and_then` restructuring, since the real code returns a bare
+  `&'static str` from inside a `.map`). Failure: `"row_id_for must return \"scry\"
+  for this fixture, got None"`.
+* **T6.3**: made `DecisionCoverage::observe` a no-op (`let _ = row_id;`). Failure:
+  reddened with `reached: {}` printed, naming the empty partition against the
+  measured baseline.
+
+All four restored immediately after each revert; `git diff`/re-read confirmed clean
+before moving to the next.
+
+**A design deviation from the plan's own reasoning-organization worth stating**:
+`row_id_for`'s exhaustive match on `EffectChoiceQuestion` is written as
+`.map(|pending| match ... { ... => "id" })` (each arm a bare `&'static str`), not
+`.and_then(|pending| match ... { ... => Some("id") })` — `clippy::bind_instead_of_map`
+rejects the latter under `-D warnings` because every arm was `Some(_)` in the
+non-reverted code (no arm needed `None`). The two are behaviourally identical; the
+revert proofs above used the `and_then` shape ONLY as a scratch vehicle to express a
+temporary `None` arm, then were restored to the clippy-clean `map` shape.
+
+**Stage gates, all EXECUTED**: `cargo check -p mtg-simulator` clean throughout;
+`cargo test -p mtg-simulator --test pb_dx32_fuzz_output` **12 / 0 / 0** (+2 over
+Stage 5's 10; T6.3 runs in ~19s, the slowest test in the file, from playing 10 real
+fuzz-shaped games to gather the reached/never-reached partition); `cargo test -p
+mtg-engine --test core runtime_decision_coverage_roster_matches_rows` **1 / 0 / 0**;
+`cargo clippy --workspace --all-targets -- -D warnings` clean (two findings fixed
+along the way: `clippy::bind_instead_of_map` in `row_id_for`, and
+`clippy::large_enum_variant` on `AdvanceOutcome` once `GameResult` grew past its
+default threshold — see the `#[allow]` note above); `cargo fmt --check` clean (ran
+`cargo fmt` once). `tools/check-defs-fmt.sh` — 1803 defs, clean.
+`cargo test --workspace --no-fail-fast` — **4,373 / 0 / 5** (+3 over the Stage-5 pin:
+T6.1, T6.2, T6.3), residual list empty.
+`cargo test -p mtg-engine --test core hash_schema` / `--test core protocol_schema` —
+**HASH 72 / PROTOCOL 35 unmoved**, read off the constants. `cargo test -p
+play-server` — **78 / 0** unmoved.
+`git diff main..HEAD --numstat -- crates/engine/src/ crates/card-defs/
+crates/card-types/ crates/view-model/` EMPTY. `git diff main..HEAD --numstat --
+tools/` — **still exactly one file, `+1 -0`**. `git status --short --
+crates/engine/tests/` shows exactly one modified file, `core/decision_gate.rs`
+(appended-only, per criterion (e)'s "extend, don't rebuild").
+`tools/authoring-report.py` regenerated: body byte-identical except the git-sha/date
+stamp lines (`docs/authoring-status.md`, `docs/authoring-status-missing.txt`,
+`docs/authoring-status-prev.json`); coverage unmoved **1,133/1,803 = 62.8%**;
+regeneration churn reverted (`git checkout --`) before this commit.
+
+---
+
+## Fix cycle DONE — `memory/primitives/pb-review-DX32.md` (0 HIGH / 8 MEDIUM / 10 LOW,
+all 18 taken)
+
+Read in full: `memory/primitives/pb-review-DX32.md`. Every M/L finding applied; none
+disputed. Two of L4's four cited sites (`report.rs:66-69`,
+`pb_dx32_fuzz_output.rs:547-552`) do NOT contain the flagged "SBAs are checked on
+step entry ... not on every priority grant" phrasing on inspection (grep-confirmed
+across the crate) — the fix was applied at the two sites that actually carry it
+(`invariants.rs`, `local_game.rs`), and this discrepancy is reported rather than
+silently sourced from a different location.
+
+**M8 — the coordinator's own pre-verified block-comment hole, closed and
+re-confirmed.** `crates/engine/tests/core/decision_gate.rs`: new `strip_block_comments`
+helper (mirrors `strip_line_comments`'s idiom, applied after it in
+`runtime_decision_coverage_roster_matches_rows`), plus a raw-count assertion
+(`observable_raw.len() + unobservable_all.len() / 2 == ROWS.len()`) that catches a
+duplicate id as well as a block-commented one. **Coordinator's exact experiment
+re-executed**: wrapped the `"proliferate"` tuple in `UNOBSERVABLE_ROW_IDS` in a
+`/* … */` block, rebuilt (`Compiling mtg-engine` observed), reran the gate — **now
+FAILS**: `roster id COUNT must equal ROWS.len() (22) ... left: 21 right: 22`. Restored;
+`git diff --stat` on `decision_coverage.rs` confirmed empty before moving on. Also
+re-ran the line-comment revert (T6.1(b), commenting out the same tuple with `//`) to
+confirm the reordering didn't regress it — still reddens, though now on the new count
+assertion (`left: 21 right: 22`) rather than the old "missing from the roster" message,
+since the count check now runs first; this is a message-shape change only, the
+regression is still caught. Restored, confirmed clean.
+
+**M7 — T3.1's floor tightened.** `total_taps > 0` → `total_taps >= 77` (80% of the
+Stage-0-measured 97, T2.2's own rule). Revert: set the floor to `999_999`, rebuild
+(`Compiling mtg-simulator` observed), reran — fails naming the live measured value
+(`total_taps 97 is far below...`). Restored, confirmed clean by `git diff --stat`.
+
+**L5 — T3.2's controlled half now asserts the equivalence it's named for.**
+`sim5_bot_cast_discipline.rs`: added `let mid_run_walked = metrics_of(&mid_run_game);`
+and compare `mid_run_waste` against it field-for-field (`total_taps`, `tap_runs`)
+instead of bare literals. Revert: reproduced T3.2's own original R8 revert (drop the
+open-run close in `local_game.rs::waste()`, written as a no-op `let tally = self.waste`
++ `let _ = &tally;` inside the `if` to satisfy `-D unused-mut` under `-D warnings` — a
+literal removal tripped `error: variable does not need to be mutable`, exactly the R7
+class the plan warns about, caught by requiring the rebuild to actually succeed before
+trusting the result). Rebuilt, reran — fails on the equivalence:
+`streamed WasteTally { tap_runs: 0, ... total_taps: 1, ... } vs walked Metrics {
+tap_runs: 1, ... total_taps: 1, ... }`. Restored, confirmed clean by `git diff --stat`.
+
+**M1 — verified by execution, not just by reading the diff.** Ran
+`cargo test -p mtg-simulator --test local_game_playthrough
+test_s8_scripted_human_playthrough_is_clean_on_five_seeds -- --nocapture`: seeds 7 and
+42 now print **12** and **4** transient-token reports respectively (seeds 1/1234/9001
+print 0, genuinely — not every seed produces the class). Before the fix every seed
+printed 0 forever. Test still green (nothing was asserted on this field, per the
+review's own note).
+
+**L1 / L2 — verified by a real fuzz smoke run**, not just unit tests (the printer
+functions are private to the `mtg-fuzzer` binary, so this is the only way to exercise
+them): `cargo run --profile fuzz --bin mtg-fuzzer -- --games 20 --seed 1 --max-turns
+200 --threads 1 --verbose` (byte-identical rejection numbers to the committed
+`pb-dx32-stage4-fuzz-after.txt`, confirming this run is a faithful re-measurement).
+L1: the rejection-class table now prints a clean `7 CrossPlayerBlock` row instead of
+the old `7 CrossPlayerBlock { blocker: ObjectId` junk. L2: the decision-coverage
+header now reads "5 of 22 ROWS ids are observable at runtime ...".
+
+**M6 — the sample-size correction, and the threshold decision.** Both
+`report.rs` constant docs re-quoted from the batch's own committed 20-game artefact
+(`memory/primitives/pb-dx32-stage4-fuzz-after.txt:41` → 21.118‰;
+`:74` → 78.6%), naming the file and superseding the earlier 5-game reading in-place
+rather than deleting it silently. **Decision on `MAX_RANDOM_BOT_WASTED_TAP_PCT`: KEPT
+at 85**, with the 6.4-point headroom (78.6 → 85) stated explicitly as deliberate, not
+an oversight — reasoning recorded at the constant: `mtg-fuzzer` is not run-to-run
+deterministic for very long games (`OOS-M11-3` / `OOS-DP3-9`), so a single 20-game
+measurement, however good a point estimate, is not a promise that a different seed at
+the same 200-turn configuration cannot land a point or two higher by ordinary
+variance; 6.4 points is judged sufficient to absorb that without hiding a real
+regression inside it. `MAX_BOT_REJECTION_PER_MILLE` left at 30 (ample headroom over
+either the 5-game or 20-game reading either way — no threshold decision needed there,
+only the doc citation).
+
+**Doc-only, no revert needed** (verified by re-reading, not by execution — no
+assertion changed): M2 (`local_game.rs` `rejections` field doc), M3/M4
+(`invariants.rs` — `check_no_orphaned_tokens` doc + module header, "ten checks"),
+M5 (`docs/mtg-engine-simulator.md` #10 served-at-run-scope + banner consistency
+edit), L3 (`local_game.rs` `#[allow(clippy::large_enum_variant)]` justification —
+corrected to say `advance()` rebuilds `GameResult` on EVERY call once the game is
+over, not "at most once per game"), L4 (CR 704.3 deviation phrasing, 2 of the 4 cited
+sites — see note above), L6 (`MOVED_MSG` now lists T2.2/T3.1/T4.1/T4.3/T6.3 as the
+other seeded gates that will redden alongside T5.1), L7 (both binary-only constants
+now say so explicitly, citing F19), L8 (`--stop-on-error` help text says "first HARD
+violation"; a fourth boundary-event paragraph added for PB-DX32, stating and proving
+by `git diff --numstat` that it moves no seed), L9 (`test_dx32_row_id_for_covers_...`'s
+message reworded — the test proves non-vacuity of the five fixtures, not exhaustiveness,
+which is a compile-time property of `row_id_for`'s match, not something this test
+observes), L10 (`check_no_leaked_tokens` doc now states its deliberate divergence
+from its sibling's Stack exemption, citing the corrected
+`local_game_playthrough.rs:472-476` line range).
+
+**Full gates, all EXECUTED**:
+- `cargo check --workspace --all-targets` clean.
+- Targeted: `pb_dx32_fuzz_output` **12/0**, `sim5_bot_cast_discipline` **6/0**,
+  `core runtime_decision_coverage_roster_matches_rows` **1/0** — all green after
+  every fix and every restore.
+- `cargo test --workspace --no-fail-fast` → **4,373 / 0 / 5**, residual list empty —
+  **unmoved from the pre-fix-cycle pin** (this cycle strengthened existing
+  assertions and fixed comments/printers; it added zero new `#[test]` functions).
+- `cargo clippy --workspace --all-targets -- -D warnings` — one real finding hit and
+  fixed along the way: the M4 module-header rewrite's line-wrapped `+
+  \`print_sr38_summary\`` was parsed by rustdoc as a markdown bullet, tripping
+  `clippy::doc_lazy_continuation` on the following two lines; reworded to avoid a
+  line starting with `+`. Clean after.
+- `cargo fmt --check` clean. `tools/check-defs-fmt.sh` — 1803 defs, clean.
+- `cargo test -p mtg-engine --test core hash_schema` / `--test core protocol_schema`
+  — all sub-tests pass; **HASH 72 / PROTOCOL 35 unmoved** (this cycle touches no
+  wire type).
+- `cargo test -p play-server` — **78 / 0** unmoved.
+- `cargo build --workspace` clean.
+- Scope, re-run and reported:
+  `git diff main..HEAD --numstat -- crates/engine/src/ crates/card-defs/
+  crates/card-types/ crates/view-model/` **EMPTY**.
+  `git diff main..HEAD --numstat -- tools/` — **still exactly one file, `+1 -0`**
+  (`tools/play-server/src/main.rs`, unmoved from before this fix cycle — nothing in
+  `tools/` was touched).
+  `git status --short -- crates/engine/tests/` — **exactly one file**,
+  `core/decision_gate.rs` (the only engine-side file this cycle was permitted to
+  touch, per the coordinator's brief).

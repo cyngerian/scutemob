@@ -20,6 +20,7 @@ use mtg_engine::{
 };
 
 use crate::bot::Bot;
+use crate::decision_coverage::{self, DecisionCoverage};
 use crate::invariants::{self, InvariantViolation};
 use crate::legal_actions;
 use crate::legal_actions::{LegalAction, LegalActionProvider};
@@ -47,7 +48,18 @@ pub struct LocalGameLimits {
 }
 
 /// The outcome of a single `LocalGame::advance()` call.
+///
+/// `#[allow(clippy::large_enum_variant)]`: `GameOver`'s `GameResult` carries
+/// PB-DX32's own instrumentation growth (rejections sample, waste tally, decision
+/// coverage). Review finding L3: this is NOT "constructed at most once per game" —
+/// `advance()` rebuilds it via `result_snapshot` on EVERY call once
+/// `is_game_over(&self.state)` is true, so a caller that polls `advance()` after the
+/// game ends gets a fresh `GameResult` each time. The `allow` is justified on cost,
+/// not frequency: boxing `GameOver`'s payload would touch every
+/// `AdvanceOutcome::GameOver` match arm across `tools/play-server`, which is outside
+/// this batch's footprint (plan §3.1).
 #[derive(Debug)]
+#[allow(clippy::large_enum_variant)]
 pub enum AdvanceOutcome {
     /// A human-occupied seat must act. The game state has not been advanced any
     /// further than the moment this decision became available.
@@ -285,6 +297,31 @@ impl MechanicsTally {
     }
 }
 
+/// A constant-size streaming waste census (PB-DX32 Stage 3).
+///
+/// This is the promotion of `crates/simulator/tests/sim5_bot_cast_discipline.rs`'s
+/// `Metrics` (`:40-58`) from a test-only journal walk to an always-on fold — same
+/// mechanism as [`MechanicsTally`]: `Copy`, constant size, folded from a command's
+/// events (plus the command itself) as they go past, no journal required. The run
+/// cursor a live tally needs is NOT a field here (see [`LocalGame::waste`]'s doc);
+/// this type is a plain, private-field-free counter set.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct WasteTally {
+    /// Consecutive-`TapForMana`-by-one-player runs.
+    pub tap_runs: u32,
+    /// Runs followed immediately by that same player's `PassPriority` (SIM-5's
+    /// "wasted" classification).
+    pub wasted_tap_runs: u32,
+    /// Taps inside those wasted runs.
+    pub wasted_taps: u32,
+    pub total_taps: u32,
+    /// CR 500.4 — emitted only when at least one pool was actually non-empty.
+    pub mana_pools_emptied: u32,
+    pub casts: u32,
+    /// Casts that announced at least one target (CR 601.2c).
+    pub targeted_casts: u32,
+}
+
 /// Errors `LocalGame::start` / `submit` can return. Distinct from `GameStateError`
 /// (the engine's own rejection reason) so a caller can tell "your seq was stale" apart
 /// from "the engine said no" apart from "the engine itself is unusable".
@@ -336,25 +373,56 @@ pub struct LocalGame<P: LegalActionProvider> {
     pending: Option<PendingDecision>,
     journal: Vec<CommandRecord>,
     /// Bot-seat commands the engine refused (SIM-5 fix (3)). Retention is capped at
-    /// [`MAX_RETAINED_REJECTIONS`]; `rejection_count` is not, so truncation is
-    /// visible rather than silent.
+    /// [`MAX_RETAINED_REJECTIONS`] with the journal on and [`MAX_SAMPLED_REJECTIONS`]
+    /// with it off (PB-DX32 Stage 2, `OOS-SIM3-2`) — see [`Self::record_rejection`];
+    /// `rejection_count` is capped by neither, so truncation is visible rather than
+    /// silent.
     rejections: Vec<RejectedCommand>,
     rejection_count: u32,
     violations: Vec<InvariantViolation>,
+    /// `no_orphaned_tokens` reports split out here at collection time (PB-DX32 Stage 4,
+    /// `OOS-SIM3-3` / `OOS-SIM3-4`) — see [`Self::record_violations`]. Everything else
+    /// stays in `violations`, the hard bucket `--stop-on-error` and the crash-report
+    /// writer key on.
+    transient_violations: Vec<InvariantViolation>,
     check_invariants: bool,
     /// Constant-size mechanics census (PB-DX22 fix cycle). Always on: it costs a fold
     /// over events already in hand and no retention, so unlike `journal` it does not
     /// need `LocalGameLimits::record_journal`. See [`MechanicsTally`].
     mechanics: MechanicsTally,
+    /// Constant-size streaming waste census (PB-DX32 Stage 3). See [`WasteTally`] and
+    /// [`Self::waste`].
+    waste: WasteTally,
+    /// The open tap-run cursor `fold_waste` tracks — deliberately NOT a field on
+    /// [`WasteTally`] itself, so that type stays a plain `Copy` counter set exactly
+    /// like [`MechanicsTally`] (§3.4 of the plan).
+    waste_run: Option<(PlayerId, u32)>,
+    /// Decision-point runtime coverage (PB-DX32 Stage 6). Folded at the
+    /// `state.blocking_decision()` branch in [`Self::advance`] — the branch every
+    /// path (human or bot) goes through before either the human-return or the bot's
+    /// own choice. See [`crate::decision_coverage`].
+    decisions: DecisionCoverage,
 }
 
-/// How many [`RejectedCommand`]s a `LocalGame` retains. Unbounded retention is not
-/// safe here: nothing caps how often a bot re-chooses an action the engine refuses
-/// (`advance()`'s own comment on the auto-tap notes the identical action is re-offered
-/// next priority), and `mtg-fuzzer` runs thousands of games in parallel. The count is
-/// kept whole so a caller can always see that dropping happened — see
+/// How many [`RejectedCommand`]s a `LocalGame` retains **when `record_journal` is
+/// on** (play-server, the SIM-5/SIM-6 fixtures). Unbounded retention is not safe here:
+/// nothing caps how often a bot re-chooses an action the engine refuses (`advance()`'s
+/// own comment on the auto-tap notes the identical action is re-offered next priority).
+/// The count is kept whole so a caller can always see that dropping happened — see
 /// [`LocalGame::rejection_count`].
 pub const MAX_RETAINED_REJECTIONS: usize = 256;
+
+/// How many [`RejectedCommand`]s a `LocalGame` retains **when `record_journal` is
+/// off** (PB-DX32 Stage 2 — `mtg-fuzzer`'s own case, see
+/// [`LocalGame::record_rejection`]).
+///
+/// A much smaller cap than [`MAX_RETAINED_REJECTIONS`] on purpose: `results` in
+/// `bin/fuzzer.rs` retains **every** game's `GameResult` for the whole run, so at
+/// `--games 1000` a 256-cap would retain up to 256,000 cloned `Command`s. Eight per
+/// game is a diagnosis sample — [`LocalGame::rejection_count`] is uncapped and
+/// ungated (see that method), so truncation of the sample stays visible even though
+/// the sample itself is small.
+pub const MAX_SAMPLED_REJECTIONS: usize = 8;
 
 impl<P: LegalActionProvider> LocalGame<P> {
     /// Starts a game from an assembled (but not yet started) `GameState`. Delegates to
@@ -389,8 +457,12 @@ impl<P: LegalActionProvider> LocalGame<P> {
             rejections: Vec::new(),
             rejection_count: 0,
             violations: Vec::new(),
+            transient_violations: Vec::new(),
             check_invariants,
             mechanics: MechanicsTally::default(),
+            waste: WasteTally::default(),
+            waste_run: None,
+            decisions: DecisionCoverage::default(),
         };
         Ok((game, start_events))
     }
@@ -399,12 +471,88 @@ impl<P: LegalActionProvider> LocalGame<P> {
         &self.state
     }
 
+    /// Build a [`GameResult`] snapshot from the current game state (PB-DX32 Stage 1).
+    ///
+    /// The single construction point for both REAL `GameResult` sites — the `GameOver`
+    /// return in `advance()` below, and `GameDriver`'s Halted arm. Before this, those
+    /// two sites were hand-maintained literals that had to agree, field-for-field, by
+    /// inspection alone; PB-DX32 adds instrumentation fields across four stages, and a
+    /// second hand-maintained literal is exactly the divergence class that produces a
+    /// Halted-game report silently missing its instrumentation (plan §7 R5). `winner`
+    /// and `error` are parameters because only the caller knows which of those two
+    /// outcomes it is reporting — everything else is read straight off `self`.
+    pub fn result_snapshot(
+        &self,
+        winner: Option<PlayerId>,
+        error: Option<GameDriverError>,
+    ) -> GameResult {
+        // PB-DX32 Stage 4: the strictly-stronger end-state property that keeps the
+        // Stage-4 noise-floor split honest. This is the ONE call site both real
+        // terminal paths share (`advance()`'s GameOver return and `GameDriver`'s
+        // Halted arm both go through `result_snapshot` -- plan §7 R5), so running the
+        // check here reaches both without a second hand-maintained call site. Folded
+        // into the HARD bucket, not `transient_violations`: a token still off the
+        // battlefield when the game is OVER is a real defect (CR 704.3 / OOS-M11-7),
+        // not a checkpoint artefact.
+        let mut violations = self.violations.clone();
+        violations.extend(invariants::check_no_leaked_tokens(&self.state));
+        GameResult {
+            seed: self.seed,
+            winner,
+            turn_count: self.state.turn().turn_number,
+            total_commands: self.command_count as usize,
+            violations,
+            error,
+            // PB-DX32 Stage 2 (SR-38).
+            rejection_count: self.rejection_count,
+            rejections: self.rejections.clone(),
+            // PB-DX32 Stage 3 -- `self.waste()`, not `self.waste`, so the open tap
+            // run at the moment of the snapshot is closed the same way `mechanics()`
+            // closes its own final-state read.
+            waste: self.waste(),
+            // PB-DX32 Stage 4.
+            transient_violations: self.transient_violations.clone(),
+            // PB-DX32 Stage 6.
+            decision_coverage: self.decisions,
+        }
+    }
+
     pub fn command_count(&self) -> u32 {
         self.command_count
     }
 
     pub fn violations(&self) -> &[InvariantViolation] {
         &self.violations
+    }
+
+    /// `no_orphaned_tokens` reports split out from [`Self::violations`] at collection
+    /// time (PB-DX32 Stage 4) — see [`Self::record_violations`].
+    pub fn transient_violations(&self) -> &[InvariantViolation] {
+        &self.transient_violations
+    }
+
+    /// Decision-point runtime coverage (PB-DX32 Stage 6). See
+    /// [`crate::decision_coverage`].
+    pub fn decision_coverage(&self) -> DecisionCoverage {
+        self.decisions
+    }
+
+    /// Split `check_all`'s output at the point of collection (PB-DX32 Stage 4,
+    /// `OOS-SIM3-3` / `OOS-SIM3-4`): `no_orphaned_tokens` is transient by construction
+    /// in deviation from CR 704.3 (`OOS-M11-7`) — this engine checks SBAs on step
+    /// entry and at resolution, not whenever a player would get priority as the rule
+    /// actually requires — so it goes to `transient_violations`; everything else is
+    /// `violations`, the hard bucket `--stop-on-error` and the crash-report writer key
+    /// on. Mirrors `crates/simulator/tests/local_game_playthrough.rs:457-463`'s own
+    /// treatment.
+    fn record_violations(&mut self, new: Vec<InvariantViolation>) {
+        for v in new {
+            if v.check == "no_orphaned_tokens" {
+                self.transient_violations.push(v);
+            } else {
+                self.violations.push(v);
+            }
+        }
     }
 
     pub fn journal(&self) -> &[CommandRecord] {
@@ -438,11 +586,80 @@ impl<P: LegalActionProvider> LocalGame<P> {
         tally
     }
 
+    /// The game's streaming waste census (PB-DX32 Stage 3), with any still-open tap
+    /// run closed on the returned COPY.
+    ///
+    /// Mirrors [`Self::mechanics`]'s own final-state read, and mirrors
+    /// `sim5_bot_cast_discipline.rs::metrics_of`'s trailing
+    /// `if run.take().is_some() { tap_runs += 1 }` (`:196-198`) — miss this and the
+    /// streaming tally is off by one run in every game that ends mid-tap-run.
+    pub fn waste(&self) -> WasteTally {
+        let mut tally = self.waste;
+        if self.waste_run.is_some() {
+            tally.tap_runs = tally.tap_runs.saturating_add(1);
+        }
+        tally
+    }
+
+    /// Fold one applied command's command+events into the streaming waste census — a
+    /// literal transcription of `sim5_bot_cast_discipline.rs::metrics_of`'s per-record
+    /// body (`:154-195`), including that file's own "a different player interleaved
+    /// closes the old run unclassified" behaviour. Called at the same two sites
+    /// [`MechanicsTally::record`] is, immediately alongside it, so the two tallies
+    /// cannot disagree about what they saw (plan §3.4, fact F8).
+    fn fold_waste(&mut self, command: &Command, events: &[GameEvent]) {
+        self.waste.mana_pools_emptied = self.waste.mana_pools_emptied.saturating_add(
+            events
+                .iter()
+                .filter(|e| matches!(e, GameEvent::ManaPoolsEmptied))
+                .count() as u32,
+        );
+
+        match command {
+            Command::TapForMana { player, .. } => {
+                self.waste.total_taps = self.waste.total_taps.saturating_add(1);
+                match &mut self.waste_run {
+                    Some((p, n)) if *p == *player => *n = n.saturating_add(1),
+                    Some(_) => {
+                        self.waste.tap_runs = self.waste.tap_runs.saturating_add(1);
+                        self.waste_run = Some((*player, 1));
+                    }
+                    None => self.waste_run = Some((*player, 1)),
+                }
+            }
+            Command::PassPriority { player } => {
+                if let Some((p, n)) = self.waste_run.take() {
+                    self.waste.tap_runs = self.waste.tap_runs.saturating_add(1);
+                    if p == *player {
+                        self.waste.wasted_tap_runs = self.waste.wasted_tap_runs.saturating_add(1);
+                        self.waste.wasted_taps = self.waste.wasted_taps.saturating_add(n);
+                    }
+                }
+            }
+            other => {
+                if let Command::CastSpell(cast) = other {
+                    self.waste.casts = self.waste.casts.saturating_add(1);
+                    if !cast.targets.is_empty() {
+                        self.waste.targeted_casts = self.waste.targeted_casts.saturating_add(1);
+                    }
+                }
+                if self.waste_run.take().is_some() {
+                    self.waste.tap_runs = self.waste.tap_runs.saturating_add(1);
+                }
+            }
+        }
+    }
+
     /// Bot-seat commands the engine refused, oldest first (SIM-5 fix (3)).
     ///
-    /// **Empty when `LocalGameLimits::record_journal` is off**, and otherwise truncated
-    /// at [`MAX_RETAINED_REJECTIONS`] — compare against [`Self::rejection_count`], which
-    /// is neither gated nor truncated, to see whether anything was dropped.
+    /// **PB-DX32 Stage 2 correction**: before this stage the doc here said "Empty when
+    /// `LocalGameLimits::record_journal` is off" — true at the time, false the moment
+    /// SR-38 needed a sample from exactly that configuration (`mtg-fuzzer`'s own case).
+    /// The record is no longer gated on `record_journal` at all; only its CAP is —
+    /// truncated at [`MAX_RETAINED_REJECTIONS`] when the journal is on, or the much
+    /// smaller [`MAX_SAMPLED_REJECTIONS`] when it is off (see
+    /// [`Self::record_rejection`]). Compare against [`Self::rejection_count`], which is
+    /// never gated or truncated, to see whether anything was dropped.
     pub fn rejections(&self) -> &[RejectedCommand] {
         &self.rejections
     }
@@ -484,14 +701,7 @@ impl<P: LegalActionProvider> LocalGame<P> {
                 // A finished game has no outstanding decision — do not keep reporting one
                 // from `pending_decision()`, and do not let `submit()` accept it.
                 self.pending = None;
-                return AdvanceOutcome::GameOver(GameResult {
-                    seed: self.seed,
-                    winner,
-                    turn_count: self.state.turn().turn_number,
-                    total_commands: self.command_count as usize,
-                    violations: self.violations.clone(),
-                    error: None,
-                });
+                return AdvanceOutcome::GameOver(self.result_snapshot(winner, None));
             }
 
             // Re-entrancy guard (see the doc comment above). Placed after the game-over
@@ -557,6 +767,17 @@ impl<P: LegalActionProvider> LocalGame<P> {
                     BlockingDecision::TriggerTargets { .. } => DecisionKind::TriggerTargets,
                     BlockingDecision::EffectChoice { .. } => DecisionKind::EffectChoice,
                 };
+                // PB-DX32 Stage 6: a SEPARATE exhaustive classification, on a
+                // DIFFERENT axis, from the `kind` match immediately above. `kind`
+                // answers "which `DecisionKind` does the browser/TUI show"; this
+                // answers "which `decision_site_walk.rs` ROWS row (if any) does this
+                // decision observe". Deliberately NOT merged into one match: the two
+                // taxonomies are not the same shape (`DecisionKind::CleanupDiscard`
+                // is a real UI kind with no ROWS row) and collapsing them would make
+                // a future reader assume they always move together.
+                if let Some(row_id) = decision_coverage::row_id_for(&self.state, &decision) {
+                    self.decisions.observe(row_id);
+                }
                 (decision.player(), Some(kind))
             } else if let Some(pending) = self.state.pending_commander_zone_choices().iter().next()
             {
@@ -958,11 +1179,12 @@ impl<P: LegalActionProvider> LocalGame<P> {
         // failed part-way applied nothing and must census nothing either.
         for record in &records {
             self.mechanics.record(&record.events, record.turn);
+            self.fold_waste(&record.command, &record.events);
         }
 
         if self.check_invariants {
             let new_violations = invariants::check_all(&working, Some(self.prev_turn));
-            self.violations.extend(new_violations);
+            self.record_violations(new_violations);
         }
         self.prev_turn = working.turn().turn_number;
         self.command_count += records.len() as u32;
@@ -988,7 +1210,7 @@ impl<P: LegalActionProvider> LocalGame<P> {
                     if self.check_invariants {
                         let new_violations =
                             invariants::check_all(&new_state, Some(self.prev_turn));
-                        self.violations.extend(new_violations);
+                        self.record_violations(new_violations);
                     }
                     self.prev_turn = new_state.turn().turn_number;
                 }
@@ -996,6 +1218,7 @@ impl<P: LegalActionProvider> LocalGame<P> {
                 self.command_count += 1;
                 self.mechanics
                     .record(&events, self.state.turn().turn_number);
+                self.fold_waste(&command, &events);
                 if self.limits.record_journal {
                     self.journal.push(CommandRecord {
                         command,
@@ -1014,17 +1237,33 @@ impl<P: LegalActionProvider> LocalGame<P> {
     /// `command` is the bot's chosen action, not the tapping plan around it — see
     /// [`RejectedCommand::command`].
     ///
-    /// **The count is always incremented; the RECORD follows
-    /// `LocalGameLimits::record_journal`**, and is additionally capped at
-    /// [`MAX_RETAINED_REJECTIONS`]. Gating on the same flag the journal uses is
-    /// deliberate: `GameDriver` sets it `false` precisely so the fuzzer "retains what
-    /// the pre-M11 driver retained, which was nothing" (see that field's doc), and a
-    /// rejection record holds a cloned `Command` exactly like a `CommandRecord` does.
-    /// A caller that has opted out of the journal keeps the *number* — which is the
-    /// part a crash report needs — and pays no per-game allocation for the detail.
+    /// **The count is always incremented and never gated.** The RECORD is always
+    /// retained too, as of PB-DX32 Stage 2 (SR-38, `OOS-SIM3-2`) — only its CAP
+    /// depends on `LocalGameLimits::record_journal`: [`MAX_RETAINED_REJECTIONS`] (256)
+    /// when the journal is on, or the much smaller [`MAX_SAMPLED_REJECTIONS`] (8) when
+    /// it is off.
+    ///
+    /// **Correction of this doc's pre-Stage-2 account**: it used to say the record
+    /// followed `record_journal` as a gate — true before Stage 2, false the moment
+    /// SR-38 needed a sample from exactly the configuration that gate excluded:
+    /// `mtg-fuzzer` runs with `record_journal: false` (`GameDriver` sets it so
+    /// deliberately, to retain nothing per-game across thousands of parallel games —
+    /// see that field's doc), and a rejection sample is precisely what
+    /// `bin/fuzzer.rs`'s `print_sr38_summary` needs from that exact configuration. A
+    /// full [`MAX_RETAINED_REJECTIONS`] (256) cap would be unsafe there for the same
+    /// reason the journal itself stays off: `results` in `bin/fuzzer.rs` retains
+    /// **every** game's `GameResult` for the whole run, so at `--games 1000` a 256-cap
+    /// would retain up to 256,000 cloned `Command`s. Eight per game is a diagnosis
+    /// sample, not the journal — [`Self::rejection_count`] stays uncapped and
+    /// ungated, so truncation of the sample is always visible.
     fn record_rejection(&mut self, player: PlayerId, command: &Command, error: &LocalGameError) {
         self.rejection_count = self.rejection_count.saturating_add(1);
-        if self.limits.record_journal && self.rejections.len() < MAX_RETAINED_REJECTIONS {
+        let cap = if self.limits.record_journal {
+            MAX_RETAINED_REJECTIONS
+        } else {
+            MAX_SAMPLED_REJECTIONS
+        };
+        if self.rejections.len() < cap {
             self.rejections.push(RejectedCommand {
                 player,
                 turn: self.state.turn().turn_number,

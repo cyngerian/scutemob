@@ -10,7 +10,8 @@
 //!   --seed <SEED>       Base RNG seed (default: random)
 //!   --threads <N>       Parallel threads (default: num_cpus)
 //!   --bot <TYPE>        random | heuristic (default: random)
-//!   --stop-on-error     Stop after first violation
+//!   --stop-on-error     Stop after first HARD violation (PB-DX32 Stage 4: a
+//!                       known-transient no_orphaned_tokens report no longer halts)
 //!   --replay <SEED>     Replay a specific game by seed
 //!   --verbose           Print each game result
 //!
@@ -59,6 +60,15 @@
 //! command; the raw run is committed at
 //! `memory/primitives/pb-dx22-measurement-after-fixcycle.txt`. The pre-fix rows
 //! cannot be: the build path they measured no longer exists.
+//!
+//! **Boundary event: PB-DX32 (`scutemob-197`) does NOT apply — no seed moves.** It
+//! adds no RNG draw and no provider action; it only reads the command/journal/state
+//! streams a game already produces and reports on them. Checkable, not merely
+//! claimed: `git diff main..HEAD --numstat` over `deck.rs`, `fuzz_setup.rs`,
+//! `legal_actions.rs`, `random_bot.rs` and `heuristic_bot.rs` is empty for this
+//! batch. A pre-PB-DX32 seed still reproduces the same game post-merge; only the
+//! printed SUMMARY (SR-38 rejections, waste, violation buckets, decision coverage)
+//! is new.
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
@@ -167,6 +177,9 @@ fn main() {
         // of this game's violations, not the first five.
         print_violation_histogram(std::slice::from_ref(&result));
         print_mechanics_summary(std::slice::from_ref(&mechanics));
+        print_sr38_summary(std::slice::from_ref(&result));
+        print_waste_summary(std::slice::from_ref(&result), &cli.bot);
+        print_decision_coverage(std::slice::from_ref(&result));
         return;
     }
 
@@ -246,15 +259,28 @@ fn main() {
         .count();
     let errors: usize = results.iter().filter(|r| r.error.is_some()).count();
     let total_violations: usize = results.iter().map(|r| r.violations.len()).sum();
+    // PB-DX32 Stage 4: printed as a SEPARATE line, deliberately -- `OOS-DX22-13`'s
+    // lesson is that redefining what a headline number means without saying so is how
+    // a stale comparison gets made. "Total violations" now means the HARD bucket only
+    // (what `--stop-on-error` halts on); the TRANSIENT count is a different number,
+    // printed next to it rather than folded in.
+    let total_transient: usize = results.iter().map(|r| r.transient_violations.len()).sum();
     let avg_turns: f64 =
         results.iter().map(|r| r.turn_count as f64).sum::<f64>() / results.len().max(1) as f64;
 
     println!("Wins: {}  Draws: {}  Errors: {}", wins, draws, errors);
-    println!("Total violations: {}", total_violations);
+    println!("Total violations (HARD): {}", total_violations);
+    println!(
+        "Total violations (TRANSIENT, reported -- does not halt --stop-on-error): {}",
+        total_transient
+    );
     println!("Avg turns per game: {:.1}", avg_turns);
 
     print_violation_histogram(&results);
     print_mechanics_summary(&tallies);
+    let sr38_breached = print_sr38_summary(&results);
+    print_waste_summary(&results, &cli.bot);
+    print_decision_coverage(&results);
 
     if cli.verbose {
         for result in &results {
@@ -308,6 +334,13 @@ fn main() {
             }
         }
     }
+
+    // SR-38 (PB-DX32 Stage 2): fail the run loudly on a threshold breach. Safe to do
+    // unconditionally -- F19, this binary is not run in CI, so a non-zero exit here
+    // cannot redden a pipeline.
+    if sr38_breached {
+        std::process::exit(1);
+    }
 }
 
 fn run_single_game(
@@ -329,6 +362,12 @@ fn run_single_game(
         // reports and `driver.rs`'s error-shape comment depend on it.
         Err(FuzzSetupError::Builder(e)) => {
             return (
+                // Error path: state build failed before any `LocalGame` existed.
+                // `..Default::default()` picks up every instrumentation field PB-DX32
+                // adds (starting with this stage's `rejection_count`/`rejections`)
+                // without this site ever needing another edit (plan §5 Stage 1 step 2
+                // named this site; the edit landed here, at Stage 2, per plan §7 R7 —
+                // see the Stage 1 handoff for why).
                 GameResult {
                     seed,
                     winner: None,
@@ -339,6 +378,7 @@ fn run_single_game(
                         "Failed to build state: {:?}",
                         e
                     ))),
+                    ..Default::default()
                 },
                 MechanicsTally::default(),
             );
@@ -362,40 +402,45 @@ fn run_single_game(
     driver.run_game_with_mechanics(state, seed)
 }
 
-/// Every violation in the run, grouped by `check` — **all games, not a sample**.
-///
-/// # Why this exists (PB-DX22 fix cycle, review Finding 2)
-///
-/// The per-violation detail loop below prints only the first five offending games
-/// (`if violation_seeds.len() <= 5`). PB-DX22 read a by-check breakdown off those printed
-/// lines and then stated a universal negative about the whole run — "426 total violations,
-/// and not one of them is `stack_consistency`" — from 94 of them. Every `GameResult` in
-/// `results` carries its complete `violations` vector, so the real tally costs one fold
-/// and there is no reason to sample it. Anything that wants to say "check X did not fire"
-/// must read this block, not the detail loop.
-fn print_violation_histogram(results: &[GameResult]) {
+/// One bucket of [`print_violation_histogram`] — HARD (`result.violations`) or
+/// TRANSIENT (`result.transient_violations`), selected by `select`. Prints raw AND
+/// distinct counts (`OOS-SIM3-3`'s "report distinct conditions alongside the raw
+/// count" prescription — `distinct` is `mtg_simulator::invariants::distinct`, the
+/// SAME dedupe the noise-floor split's own gates use, not a second copy of it), plus
+/// the by-`check` breakdown with seed lists.
+fn print_violation_bucket(
+    label: &str,
+    results: &[GameResult],
+    select: impl Fn(&GameResult) -> &[mtg_simulator::InvariantViolation],
+) -> usize {
     let mut by_check: HashMap<&str, (usize, Vec<u64>)> = HashMap::new();
-    let mut games_with_violations = 0usize;
-    let mut total = 0usize;
+    let mut games_with = 0usize;
+    let mut raw_total = 0usize;
+    let mut all: Vec<mtg_simulator::InvariantViolation> = Vec::new();
     for result in results {
-        if !result.violations.is_empty() {
-            games_with_violations += 1;
+        let vs = select(result);
+        if !vs.is_empty() {
+            games_with += 1;
         }
-        for v in &result.violations {
+        raw_total += vs.len();
+        all.extend(vs.iter().cloned());
+        for v in vs {
             let entry = by_check.entry(v.check.as_str()).or_insert((0, Vec::new()));
             entry.0 += 1;
             if entry.1.last() != Some(&result.seed) {
                 entry.1.push(result.seed);
             }
-            total += 1;
         }
     }
+    let distinct_total = mtg_simulator::invariants::distinct(&all).len();
 
     println!();
-    println!("Violations by check (ALL {} games)", results.len());
-    println!("---------------------------------");
+    println!(
+        "  {label} (raw {raw_total} / distinct {distinct_total}), {games_with}/{} game(s)",
+        results.len()
+    );
     if by_check.is_empty() {
-        println!("  (none)");
+        println!("    (none)");
     } else {
         let mut rows: Vec<(&str, (usize, Vec<u64>))> = by_check.into_iter().collect();
         // Descending count, then name, so the output is stable across runs regardless of
@@ -407,7 +452,7 @@ fn print_violation_histogram(results: &[GameResult]) {
             // violations where this run prints the first five games' worth.
             seeds.sort_unstable();
             println!(
-                "  {:<24} {:<6} in {} game(s): {:?}",
+                "    {:<24} {:<6} in {} game(s): {:?}",
                 check,
                 count,
                 seeds.len(),
@@ -415,15 +460,52 @@ fn print_violation_histogram(results: &[GameResult]) {
             );
         }
     }
+    raw_total
+}
+
+/// Every violation in the run, grouped by `check` — **all games, not a sample**, split
+/// into the HARD and TRANSIENT buckets `result.violations` /
+/// `result.transient_violations` already carry (PB-DX32 Stage 4, `OOS-SIM3-3` /
+/// `OOS-SIM3-4`). `--stop-on-error` and the crash-report writer key on the HARD bucket
+/// only, so the TRANSIENT block below is diagnostic, not a halting signal.
+///
+/// # Why this exists (PB-DX22 fix cycle, review Finding 2)
+///
+/// The per-violation detail loop below prints only the first five offending games
+/// (`if violation_seeds.len() <= 5`). PB-DX22 read a by-check breakdown off those printed
+/// lines and then stated a universal negative about the whole run — "426 total violations,
+/// and not one of them is `stack_consistency`" — from 94 of them. Every `GameResult` in
+/// `results` carries its complete `violations`/`transient_violations` vectors, so the real
+/// tally costs one fold and there is no reason to sample it. Anything that wants to say
+/// "check X did not fire" must read this block, not the detail loop.
+fn print_violation_histogram(results: &[GameResult]) {
+    println!();
+    println!("Violations by check (ALL {} games)", results.len());
+    println!("---------------------------------");
     println!(
-        "  games with >=1 violation: {} / {}",
-        games_with_violations,
+        "  Raw counts are CHECKPOINT-weighted (OOS-SIM3-3): the same underlying condition \
+         can be reported once per checkpoint until the next SBA sweep clears it. Distinct \
+         counts (deduped by (check, description), first occurrence wins) are the \
+         defect-shaped number."
+    );
+    let hard_total = print_violation_bucket("HARD", results, |r| r.violations.as_slice());
+    let transient_total = print_violation_bucket(
+        "TRANSIENT (reported, does NOT halt --stop-on-error and does NOT write a crash \
+         report -- known-transient class only, PB-DX32 Stage 4)",
+        results,
+        |r| r.transient_violations.as_slice(),
+    );
+    println!();
+    println!(
+        "  games with >=1 HARD violation: {} / {}",
+        results.iter().filter(|r| !r.violations.is_empty()).count(),
         results.len()
     );
-    // Printed so the block is self-checking: this must equal the "Total violations" line
-    // above. If it does not, the histogram is reading a different population than the
-    // summary and neither number should be quoted.
-    println!("  histogram total: {}", total);
+    // Printed so the block is self-checking: `hard_total` must equal the "Total
+    // violations (HARD)" line in `main`'s summary above. If it does not, the histogram
+    // is reading a different population than the summary and neither number should be
+    // quoted.
+    println!("  histogram total (HARD): {hard_total}  (TRANSIENT): {transient_total}");
 }
 
 /// The commander-mechanics and first-cast census over the whole run.
@@ -544,6 +626,249 @@ fn print_mechanics_summary(tallies: &[MechanicsTally]) {
         "  CR 903.10a commander damage            non-empty in {} of {} games; largest single total {} (rule threshold 21)",
         games_with_cmdr_damage, games, max_cmdr_damage
     );
+}
+
+/// SR-38 at run scale (PB-DX32 Stage 2, `OOS-SIM3-2`) — every `GameResult` in `results`
+/// carries `rejection_count` (uncapped) and a bounded `rejections` diagnosis sample
+/// (`report::MAX_SAMPLED_REJECTIONS` per game with the journal off, which is this
+/// binary's own configuration). Prints total rejections, total commands, the aggregate
+/// per-mille against [`mtg_simulator::MAX_BOT_REJECTION_PER_MILLE`], the per-seed band
+/// (seeds with >=1 rejection only, to keep this readable at `--games 1000`), and the top
+/// rejection classes by error-string prefix — truncated at the first `(` so e.g.
+/// `InvalidTarget("expected 1..=1 target(s) but got 0")` and `InvalidTarget("modal spell
+/// with per-mode targets requires exactly 1 target(s) for ..")` group under one
+/// `InvalidTarget` row. The class breakdown is read from the SAMPLE
+/// (`GameResult::rejections`), not the full count, and says so.
+///
+/// Rows sorted descending by count then by name, so the output is stable across runs —
+/// this text gets committed as evidence, mirroring `print_violation_histogram`.
+///
+/// Returns whether the aggregate rate breached [`mtg_simulator::MAX_BOT_REJECTION_PER_MILLE`],
+/// so `main` can fail the run loudly (F19: this binary is not run in CI).
+fn print_sr38_summary(results: &[GameResult]) -> bool {
+    let total_commands: u64 = results.iter().map(|r| r.total_commands as u64).sum();
+    let total_rejections: u64 = results.iter().map(|r| u64::from(r.rejection_count)).sum();
+    let per_mille = if total_commands == 0 {
+        0.0
+    } else {
+        (total_rejections as f64 / total_commands as f64) * 1000.0
+    };
+
+    let mut per_seed: Vec<(u64, u32, usize)> = results
+        .iter()
+        .map(|r| (r.seed, r.rejection_count, r.total_commands))
+        .collect();
+    per_seed.sort_unstable_by_key(|(seed, ..)| *seed);
+
+    let mut by_class: HashMap<String, usize> = HashMap::new();
+    for result in results {
+        for rejection in &result.rejections {
+            // Every recorded rejection is `LocalGameError::Rejected(GameStateError)`
+            // (the only variant `record_rejection`'s call site ever sees — see
+            // `apply_sequence`), so the Debug string is always wrapped as
+            // `Rejected(<GameStateError Debug>)`. Strip that wrapper first so the
+            // class is the GameStateError variant (`InvalidTarget`, `InsufficientMana`,
+            // ...), which is what a reader actually wants grouped, not the constant
+            // outer wrapper every rejection shares.
+            let inner = rejection
+                .error
+                .strip_prefix("Rejected(")
+                .unwrap_or(&rejection.error);
+            // Review finding L1: a struct-like error variant Debug-prints as
+            // `Name { field: value, ... }`, not `Name(...)`, so splitting at the
+            // first `(` alone let a `{` slip through untouched and produced junk
+            // class rows (`CrossPlayerBlock { blocker: ObjectId` — see the committed
+            // evidence). Split at whichever of `(` or `{` comes first instead.
+            let class = match inner.find(['(', '{']) {
+                Some(idx) => inner[..idx].trim().to_string(),
+                None => inner.trim_end_matches(')').trim().to_string(),
+            };
+            *by_class.entry(class).or_insert(0) += 1;
+        }
+    }
+
+    println!();
+    println!(
+        "SR-38: bot-seat command rejections (ALL {} games)",
+        results.len()
+    );
+    println!("---------------------------------------------------");
+    println!(
+        "  {} rejections / {} commands = {:.3} per mille (threshold {})",
+        total_rejections,
+        total_commands,
+        per_mille,
+        mtg_simulator::MAX_BOT_REJECTION_PER_MILLE
+    );
+    let seeds_with_rejections: Vec<&(u64, u32, usize)> =
+        per_seed.iter().filter(|(_, n, _)| *n > 0).collect();
+    if seeds_with_rejections.is_empty() {
+        println!("  per-seed band: (no rejections in any game)");
+    } else {
+        println!("  per-seed band (seed: rejections/commands):");
+        for (seed, rejections, commands) in seeds_with_rejections {
+            println!("    seed {seed}: {rejections}/{commands}");
+        }
+    }
+    if by_class.is_empty() {
+        println!("  top rejection classes (from the sample): (none sampled)");
+    } else {
+        let mut rows: Vec<(String, usize)> = by_class.into_iter().collect();
+        rows.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+        println!("  top rejection classes (from the sample, NOT the full count):");
+        for (class, count) in rows {
+            println!("    {:<6} {}", count, class);
+        }
+    }
+
+    let breached = per_mille > f64::from(mtg_simulator::MAX_BOT_REJECTION_PER_MILLE);
+    if breached {
+        println!(
+            "  SR-38 THRESHOLD EXCEEDED: {:.3} per mille > {} (MAX_BOT_REJECTION_PER_MILLE)",
+            per_mille,
+            mtg_simulator::MAX_BOT_REJECTION_PER_MILLE
+        );
+    }
+    breached
+}
+
+/// The promoted SIM-5 tap/pool instrument (PB-DX32 Stage 3) — every `GameResult` in
+/// `results` now carries a [`mtg_simulator::WasteTally`]. Prints total taps, wasted
+/// taps and their percentage, `ManaPoolsEmptied` (CR 500.4), casts and targeted casts.
+///
+/// **One sentence naming the bot, deliberately** (plan §5 Stage 3 step 3): a
+/// `RandomBot` wasted-tap percentage and a `HeuristicBot` one are NOT comparable —
+/// `RandomBot` picks `TapForMana` uniformly with no plan, so a value near
+/// [`mtg_simulator::MAX_RANDOM_BOT_WASTED_TAP_PCT`] is ordinary behaviour for it and
+/// would be a real regression for `HeuristicBot`.
+fn print_waste_summary(results: &[GameResult], bot: &BotType) {
+    let mut t = mtg_simulator::WasteTally::default();
+    for result in results {
+        t.tap_runs = t.tap_runs.saturating_add(result.waste.tap_runs);
+        t.wasted_tap_runs = t
+            .wasted_tap_runs
+            .saturating_add(result.waste.wasted_tap_runs);
+        t.wasted_taps = t.wasted_taps.saturating_add(result.waste.wasted_taps);
+        t.total_taps = t.total_taps.saturating_add(result.waste.total_taps);
+        t.mana_pools_emptied = t
+            .mana_pools_emptied
+            .saturating_add(result.waste.mana_pools_emptied);
+        t.casts = t.casts.saturating_add(result.waste.casts);
+        t.targeted_casts = t.targeted_casts.saturating_add(result.waste.targeted_casts);
+    }
+
+    let wasted_pct = if t.total_taps == 0 {
+        0.0
+    } else {
+        (f64::from(t.wasted_taps) / f64::from(t.total_taps)) * 100.0
+    };
+
+    println!();
+    println!(
+        "Waste census (ALL {} games) -- bot: {:?}",
+        results.len(),
+        bot
+    );
+    println!("-----------------------------------------");
+    println!(
+        "  {:?} wastes taps BY DESIGN (no plan) -- do not read a high percentage here as an \
+         engine defect for this bot.",
+        bot
+    );
+    println!(
+        "  tap runs: {} total, {} wasted ({} taps of {} total = {:.1}%, threshold {}%)",
+        t.tap_runs,
+        t.wasted_tap_runs,
+        t.wasted_taps,
+        t.total_taps,
+        wasted_pct,
+        mtg_simulator::MAX_RANDOM_BOT_WASTED_TAP_PCT
+    );
+    println!("  CR 500.4 ManaPoolsEmptied: {}", t.mana_pools_emptied);
+    println!(
+        "  casts: {} total, {} with >=1 announced target (CR 601.2c)",
+        t.casts, t.targeted_casts
+    );
+}
+
+/// Decision-point runtime coverage (PB-DX32 Stage 6) — which of
+/// `decision_site_walk.rs`'s `ROWS` a fuzz run actually reaches. Every `GameResult`
+/// in `results` carries a `DecisionCoverage`; this prints the REACHED and NEVER
+/// REACHED partitions over `mtg_simulator::OBSERVABLE_ROW_IDS` (summed across every
+/// game in the run), then the `UNOBSERVABLE_ROW_IDS` list with its reason column.
+///
+/// **The counts are re-observation-weighted** (a `BlockingDecision` is re-offered on
+/// every `advance()` loop iteration until it is answered), exactly like
+/// `print_violation_histogram`'s raw counts — read reached/never-reached as the
+/// primary signal, not the numbers next to them.
+fn print_decision_coverage(results: &[GameResult]) {
+    use mtg_simulator::{OBSERVABLE_ROW_IDS, ROW_COUNT, UNOBSERVABLE_ROW_IDS};
+
+    let mut totals: HashMap<&str, u64> = OBSERVABLE_ROW_IDS.iter().map(|id| (*id, 0)).collect();
+    for result in results {
+        for id in OBSERVABLE_ROW_IDS {
+            *totals.get_mut(id).unwrap() += u64::from(result.decision_coverage.observations(id));
+        }
+    }
+
+    println!();
+    println!(
+        "Decision-point runtime coverage (ALL {} games)",
+        results.len()
+    );
+    println!("---------------------------------------------------");
+    println!(
+        "  Keyed by decision_site_walk.rs's ROWS ids. {} of {ROW_COUNT} ROWS ids are \
+         observable at runtime (the Served class); the rest have no runtime hook by \
+         construction (see the UNOBSERVABLE list below). Counts are \
+         RE-OBSERVATION-WEIGHTED (a decision is re-offered on every advance() loop \
+         iteration until it is answered) -- read reached/never-reached, not the \
+         counts, as the primary signal.",
+        OBSERVABLE_ROW_IDS.len()
+    );
+    let mut reached: Vec<(&str, u64)> = totals
+        .iter()
+        .filter(|(_, n)| **n > 0)
+        .map(|(k, v)| (*k, *v))
+        .collect();
+    reached.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(b.0)));
+    println!(
+        "  reached ({}/{}):",
+        reached.len(),
+        OBSERVABLE_ROW_IDS.len()
+    );
+    if reached.is_empty() {
+        println!("    (none)");
+    } else {
+        for (id, n) in &reached {
+            println!("    {:<20} {}", id, n);
+        }
+    }
+    let mut never: Vec<&str> = totals
+        .iter()
+        .filter(|(_, n)| **n == 0)
+        .map(|(k, _)| *k)
+        .collect();
+    never.sort_unstable();
+    println!(
+        "  NEVER REACHED ({}/{}):",
+        never.len(),
+        OBSERVABLE_ROW_IDS.len()
+    );
+    if never.is_empty() {
+        println!("    (none)");
+    } else {
+        for id in &never {
+            println!("    {id}");
+        }
+    }
+    println!(
+        "  UNOBSERVABLE rows (no runtime hook BY CONSTRUCTION -- a zero here means \
+         nothing, see decision_coverage.rs's module doc):"
+    );
+    for (id, why) in UNOBSERVABLE_ROW_IDS {
+        println!("    {:<24} {}", id, why);
+    }
 }
 
 fn print_game_result(result: &GameResult, verbose: bool) {

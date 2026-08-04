@@ -1,0 +1,208 @@
+MTG Fuzzer — Commander Rules Engine
+===================================
+Games: 20  Players: 4  Max turns: 200  Bot: Random  Seed: 1
+Cards available: 1803
+
+
+Results
+-------
+Games completed: 20  Time: 11.7s  (2 games/sec)
+Wins: 20  Draws: 0  Errors: 0
+Total violations (HARD): 125
+Total violations (TRANSIENT, reported -- does not halt --stop-on-error): 301
+Avg turns per game: 103.4
+
+Violations by check (ALL 20 games)
+---------------------------------
+  Raw counts are CHECKPOINT-weighted (OOS-SIM3-3): the same underlying condition can be reported once per checkpoint until the next SBA sweep clears it. Distinct counts (deduped by (check, description), first occurrence wins) are the defect-shaped number.
+
+  HARD (raw 125 / distinct 7), 6/20 game(s)
+    player_consistency       114    in 5 game(s): [2, 7, 9, 15, 19]
+    attachment_validity      11     in 3 game(s): [5, 9, 15]
+
+  TRANSIENT (reported, does NOT halt --stop-on-error and does NOT write a crash report -- known-transient class only, PB-DX32 Stage 4) (raw 301 / distinct 67), 15/20 game(s)
+    no_orphaned_tokens       301    in 15 game(s): [1, 2, 3, 4, 5, 9, 10, 11, 12, 13, 14, 15, 16, 19, 20]
+
+  games with >=1 HARD violation: 6 / 20
+  histogram total (HARD): 125  (TRANSIENT): 301
+
+Mechanics census (ALL 20 games)
+------------------------------
+  CR 601.2  SpellCast                    670 total; first on game turn min 3 / median 12 / max 29 (20 of 20 games cast)
+  CR 601.2  first NON-commander cast     game turn min 5 / median 17 / max 29 (20 of 20 games) -- this is the one CR 103.3 library order gates
+  CR 305.1  LandPlayed                   799 total; first on game turn min 1 / median 2 / max 7 (20 of 20 games)
+  CR 903.8  CommanderCastFromCommandZone 36 total, in 16 of 20 games; first on game turn min 3 / median 67 / max 107
+  CR 903.9a CommanderReturnedToCommandZone 13
+  CR 903.9b CommanderZoneRedirect        0
+  CR 903.10a commander damage            non-empty in 16 of 20 games; largest single total 31 (rule threshold 21)
+
+SR-38: bot-seat command rejections (ALL 20 games)
+---------------------------------------------------
+  1995 rejections / 94467 commands = 21.118 per mille (threshold 30)
+  per-seed band (seed: rejections/commands):
+    seed 1: 79/2190
+    seed 2: 27/5518
+    seed 3: 43/4812
+    seed 4: 157/5902
+    seed 5: 236/5191
+    seed 6: 76/4723
+    seed 7: 34/5372
+    seed 8: 51/3178
+    seed 9: 418/6597
+    seed 10: 100/4604
+    seed 11: 60/5283
+    seed 12: 84/5943
+    seed 13: 105/5135
+    seed 14: 35/4158
+    seed 15: 147/5180
+    seed 16: 14/3920
+    seed 17: 64/3464
+    seed 18: 76/3392
+    seed 19: 56/4492
+    seed 20: 133/5413
+  top rejection classes (from the sample, NOT the full count):
+    69     InvalidTarget
+    52     InsufficientMana
+    14     InvalidCommand
+    10     ObjectNotFound
+    8      AlreadyDeclaredBlockers
+    7      CrossPlayerBlock { blocker: ObjectId
+
+Waste census (ALL 20 games) -- bot: Random
+-----------------------------------------
+  Random wastes taps BY DESIGN (no plan) -- do not read a high percentage here as an engine defect for this bot.
+  tap runs: 5141 total, 4147 wasted (8423 taps of 10720 total = 78.6%, threshold 85%)
+  CR 500.4 ManaPoolsEmptied: 3770
+  casts: 663 total, 77 with >=1 announced target (CR 601.2c)
+
+Decision-point runtime coverage (ALL 20 games)
+---------------------------------------------------
+  Keyed by decision_site_walk.rs's ROWS ids. Counts are RE-OBSERVATION-WEIGHTED (a decision is re-offered on every advance() loop iteration until it is answered) -- read reached/never-reached, not the counts, as the primary signal.
+  reached (5/5):
+    search_library       71
+    triggered_targets    45
+    surveil              30
+    scry                 28
+    discard_cards        10
+  NEVER REACHED (0/5):
+    (none)
+  UNOBSERVABLE rows (no runtime hook BY CONSTRUCTION -- a zero here means nothing, see decision_coverage.rs's module doc):
+    proliferate              AutoChosen -- auto-selects every eligible permanent/player inline; CR 701.34a gives the choice to the player
+    wheel_hand               NoDecision -- the whole hand is discarded (CR 701.9), so there is no 'which card' pick to hook
+    sacrifice_permanents     AutoChosen -- picks the n lowest ObjectIds inline; CR 701.21a gives the choice to the controller
+    may_pay_then_effect      AutoChosen -- pays iff affordable inline (CR 118.12); the engine still chooses on the player's behalf
+    choose_color_or_type     AutoChosen -- picks the most common color/type the controller already has inline (CR 614.12a / 608.2d)
+    look_at_top_or_route     AutoChosen -- deterministic routing inline (CR 608.2d); an upper bound on real decisions, not an exact one
+    counter_unless_pays      AutoChosen -- always counters inline; the controller is never offered the pay (CR 118.12a)
+    modal_trigger            AutoChosen -- a modal TRIGGERED ability's mode is fixed to mode 0 inline (CR 603.3c)
+    change_targets           AutoChosen -- declines an optional retarget and picks the lowest id for a mandatory one, inline (CR 115.7d)
+    put_on_library           AutoChosen -- sorted by ascending ObjectId inline; CR 608.2d/401.4 give the order to the player
+    bolster_amass            AutoChosen -- least-toughness/smallest-id inline; ties are the CONTROLLER's choice under CR 701.39a/701.47a
+    connive                  AutoChosen -- the discard half is picked by min ObjectId inline, same as plain DiscardCards before it was served
+    discover                 AutoChosen -- always casts the exiled card inline; CR 701.57a makes it optional
+    may_pay_or_else          Gated -- barred from Complete entirely by effect_choose_gate.rs::no_complete_def_uses_the_may_pay_or_else_stub
+    add_mana_filter_choice   AutoChosen -- always taps for one of each colour inline (CR 605.1a); held at 0 Complete defs by authoring discipline alone
+    choose_stub              Gated -- barred from Complete entirely by effect_choose_gate.rs::no_complete_def_uses_the_choose_stub
+    the_ring_tempts_you      AutoChosen -- ring-bearer is always the lowest id inline (CR 701.54a); held at 0 Complete defs by authoring discipline alone
+
+Violation in game seed 2:
+  [player_consistency] Active player PlayerId(1) has lost or conceded (turn 123)
+
+Violation in game seed 5:
+  [attachment_validity] Object ObjectId(532) attached to ObjectId(677) which doesn't exist (turn 88)
+  [attachment_validity] Object ObjectId(532) attached to ObjectId(677) which doesn't exist (turn 88)
+  [attachment_validity] Object ObjectId(532) attached to ObjectId(677) which doesn't exist (turn 88)
+
+Violation in game seed 7:
+  [player_consistency] Active player PlayerId(2) has lost or conceded (turn 90)
+  [player_consistency] Active player PlayerId(2) has lost or conceded (turn 90)
+  [player_consistency] Active player PlayerId(2) has lost or conceded (turn 90)
+  [player_consistency] Active player PlayerId(2) has lost or conceded (turn 90)
+  [player_consistency] Active player PlayerId(2) has lost or conceded (turn 90)
+  [player_consistency] Active player PlayerId(2) has lost or conceded (turn 90)
+  [player_consistency] Active player PlayerId(2) has lost or conceded (turn 90)
+  [player_consistency] Active player PlayerId(2) has lost or conceded (turn 90)
+  [player_consistency] Active player PlayerId(2) has lost or conceded (turn 90)
+  [player_consistency] Active player PlayerId(2) has lost or conceded (turn 90)
+  [player_consistency] Active player PlayerId(2) has lost or conceded (turn 90)
+  [player_consistency] Active player PlayerId(2) has lost or conceded (turn 90)
+  [player_consistency] Active player PlayerId(2) has lost or conceded (turn 90)
+  [player_consistency] Active player PlayerId(2) has lost or conceded (turn 90)
+  [player_consistency] Active player PlayerId(2) has lost or conceded (turn 90)
+  [player_consistency] Active player PlayerId(2) has lost or conceded (turn 90)
+  [player_consistency] Active player PlayerId(2) has lost or conceded (turn 90)
+  [player_consistency] Active player PlayerId(2) has lost or conceded (turn 90)
+  [player_consistency] Active player PlayerId(2) has lost or conceded (turn 90)
+  [player_consistency] Active player PlayerId(2) has lost or conceded (turn 90)
+  [player_consistency] Active player PlayerId(2) has lost or conceded (turn 90)
+  [player_consistency] Active player PlayerId(4) has lost or conceded (turn 98)
+  [player_consistency] Active player PlayerId(4) has lost or conceded (turn 98)
+  [player_consistency] Active player PlayerId(4) has lost or conceded (turn 98)
+  [player_consistency] Active player PlayerId(4) has lost or conceded (turn 98)
+  [player_consistency] Active player PlayerId(4) has lost or conceded (turn 98)
+  [player_consistency] Active player PlayerId(4) has lost or conceded (turn 98)
+  [player_consistency] Active player PlayerId(4) has lost or conceded (turn 98)
+  [player_consistency] Active player PlayerId(4) has lost or conceded (turn 98)
+  [player_consistency] Active player PlayerId(4) has lost or conceded (turn 98)
+  [player_consistency] Active player PlayerId(4) has lost or conceded (turn 98)
+  [player_consistency] Active player PlayerId(4) has lost or conceded (turn 98)
+  [player_consistency] Active player PlayerId(4) has lost or conceded (turn 98)
+  [player_consistency] Active player PlayerId(4) has lost or conceded (turn 98)
+  [player_consistency] Active player PlayerId(4) has lost or conceded (turn 98)
+  [player_consistency] Active player PlayerId(3) has lost or conceded (turn 100)
+
+Violation in game seed 9:
+  [player_consistency] Active player PlayerId(1) has lost or conceded (turn 93)
+  [player_consistency] Active player PlayerId(1) has lost or conceded (turn 93)
+  [player_consistency] Active player PlayerId(1) has lost or conceded (turn 93)
+  [player_consistency] Active player PlayerId(1) has lost or conceded (turn 93)
+  [player_consistency] Active player PlayerId(1) has lost or conceded (turn 93)
+  [player_consistency] Active player PlayerId(1) has lost or conceded (turn 93)
+  [player_consistency] Active player PlayerId(1) has lost or conceded (turn 93)
+  [player_consistency] Active player PlayerId(1) has lost or conceded (turn 93)
+  [player_consistency] Active player PlayerId(1) has lost or conceded (turn 93)
+  [player_consistency] Active player PlayerId(1) has lost or conceded (turn 93)
+  [player_consistency] Active player PlayerId(1) has lost or conceded (turn 93)
+  [player_consistency] Active player PlayerId(1) has lost or conceded (turn 93)
+  [player_consistency] Active player PlayerId(1) has lost or conceded (turn 93)
+  [player_consistency] Active player PlayerId(1) has lost or conceded (turn 93)
+  [player_consistency] Active player PlayerId(1) has lost or conceded (turn 93)
+  [player_consistency] Active player PlayerId(1) has lost or conceded (turn 93)
+  [player_consistency] Active player PlayerId(1) has lost or conceded (turn 93)
+  [player_consistency] Active player PlayerId(1) has lost or conceded (turn 93)
+  [player_consistency] Active player PlayerId(1) has lost or conceded (turn 93)
+  [player_consistency] Active player PlayerId(1) has lost or conceded (turn 93)
+  [player_consistency] Active player PlayerId(1) has lost or conceded (turn 93)
+  [player_consistency] Active player PlayerId(1) has lost or conceded (turn 93)
+  [player_consistency] Active player PlayerId(1) has lost or conceded (turn 93)
+  [player_consistency] Active player PlayerId(1) has lost or conceded (turn 93)
+  [attachment_validity] Object ObjectId(1158) attached to ObjectId(928) which doesn't exist (turn 145)
+  [attachment_validity] Object ObjectId(1158) attached to ObjectId(928) which doesn't exist (turn 145)
+  [attachment_validity] Object ObjectId(1158) attached to ObjectId(928) which doesn't exist (turn 145)
+  [attachment_validity] Object ObjectId(1158) attached to ObjectId(928) which doesn't exist (turn 145)
+  [player_consistency] Active player PlayerId(3) has lost or conceded (turn 147)
+
+Violation in game seed 15:
+  [attachment_validity] Object ObjectId(573) attached to ObjectId(678) which doesn't exist (turn 94)
+  [attachment_validity] Object ObjectId(573) attached to ObjectId(678) which doesn't exist (turn 94)
+  [attachment_validity] Object ObjectId(573) attached to ObjectId(678) which doesn't exist (turn 94)
+  [attachment_validity] Object ObjectId(573) attached to ObjectId(678) which doesn't exist (turn 94)
+  [player_consistency] Active player PlayerId(4) has lost or conceded (turn 107)
+  [player_consistency] Active player PlayerId(4) has lost or conceded (turn 107)
+  [player_consistency] Active player PlayerId(4) has lost or conceded (turn 107)
+  [player_consistency] Active player PlayerId(4) has lost or conceded (turn 107)
+  [player_consistency] Active player PlayerId(4) has lost or conceded (turn 107)
+  [player_consistency] Active player PlayerId(4) has lost or conceded (turn 107)
+  [player_consistency] Active player PlayerId(4) has lost or conceded (turn 107)
+  [player_consistency] Active player PlayerId(4) has lost or conceded (turn 107)
+  [player_consistency] Active player PlayerId(4) has lost or conceded (turn 107)
+  [player_consistency] Active player PlayerId(4) has lost or conceded (turn 107)
+  [player_consistency] Active player PlayerId(4) has lost or conceded (turn 107)
+  [player_consistency] Active player PlayerId(4) has lost or conceded (turn 107)
+  [player_consistency] Active player PlayerId(4) has lost or conceded (turn 107)
+  [player_consistency] Active player PlayerId(4) has lost or conceded (turn 107)
+  [player_consistency] Active player PlayerId(4) has lost or conceded (turn 107)
+  [player_consistency] Active player PlayerId(4) has lost or conceded (turn 107)
+... and 1 more games with violations
+
+Replay violations with: mtg-fuzzer --replay <SEED>

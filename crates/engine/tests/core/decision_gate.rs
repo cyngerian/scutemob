@@ -1131,6 +1131,33 @@ fn strip_line_comments(src: &str) -> String {
         .join("\n")
 }
 
+/// Strips `/* ... */` block comments (PB-DX32 fix cycle, review finding M8).
+/// `strip_line_comments` above only truncates at `//`, per line -- it knows nothing
+/// about `/* ... */`, so a `UNOBSERVABLE_ROW_IDS` tuple wrapped in a block comment
+/// compiled out of the roster (the compiler drops it, `ROW_COUNT` shrinks) while
+/// `quoted_strings` still found both of its string literals INSIDE the comment text,
+/// leaving `runtime_decision_coverage_roster_matches_rows` green against a silently
+/// shrunk roster. Naive (does not understand string literals containing `/*`), same
+/// as `strip_line_comments`'s own naivety about `//` inside a string -- adequate for
+/// this data file, not a general Rust tokenizer.
+fn strip_block_comments(src: &str) -> String {
+    let mut out = String::with_capacity(src.len());
+    let mut rest = src;
+    while let Some(start) = rest.find("/*") {
+        out.push_str(&rest[..start]);
+        let after = &rest[start + 2..];
+        match after.find("*/") {
+            Some(end) => rest = &after[end + 2..],
+            None => {
+                rest = "";
+                break;
+            }
+        }
+    }
+    out.push_str(rest);
+    out
+}
+
 /// Counts lines whose TRIMMED content begins with `key` immediately followed by a
 /// non-identifier character -- an enum variant DECLARATION shape (`Key,` / `Key {` /
 /// `Key(..)`), not a usage site (`Foo::Key`, which never begins a trimmed line with the
@@ -1431,5 +1458,156 @@ fn named_residual_seed_ids_still_exist_in_the_audit() {
         "no residual seeds were checked -- the ROWS table's residual lists are all empty, \
          so this test is vacuous. If PB-DP9's residuals (OOS-DP9-9/OOS-DP9-3) were removed \
          from the search_library row, restore them or drop this test deliberately."
+    );
+}
+
+// ── T17: decision-point RUNTIME coverage roster matches ROWS (PB-DX32 Stage 6) ────
+//
+// `crates/simulator/src/decision_coverage.rs` carries a SEPARATE id-only roster (no
+// predicates, no CR cites, no classification logic -- those stay here, exactly once)
+// so `crates/simulator` can fold a runtime observation count without either crate
+// dev-depending on the other's test tree. This is the source gate that keeps the two
+// rosters from drifting: it EXTENDS the static gate (reads the simulator file as
+// text), it does NOT rebuild it -- `ROWS`, `BASELINE` and
+// `MAX_AUTO_CHOSEN_COMPLETE_UNION` above are untouched.
+
+/// Every quoted string literal in `src`, in source order. An unescaped backslash
+/// consumes the following character too (so it can never itself close the string,
+/// which is all this needs: line-continuation escapes and any hypothetical `\"` both
+/// stay inside the literal rather than ending it early).
+fn quoted_strings(src: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut chars = src.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c != '"' {
+            continue;
+        }
+        let mut s = String::new();
+        while let Some(next) = chars.next() {
+            if next == '\\' {
+                s.push(next);
+                if let Some(escaped) = chars.next() {
+                    s.push(escaped);
+                }
+                continue;
+            }
+            if next == '"' {
+                break;
+            }
+            s.push(next);
+        }
+        out.push(s);
+    }
+    out
+}
+
+/// The text of one `pub const <NAME>: ... = &[ ... ];` array literal, from the const's
+/// declaration to its OWN terminating `];` -- block-scoped, so `rustfmt` re-wrapping
+/// the array cannot defeat it (mirrors this file's own `read_ct`/`strip_line_comments`
+/// idiom, F17 of the PB-DX32 plan). `anchor` must be unambiguous against a
+/// LONGER name sharing the same suffix (e.g. `"const OBSERVABLE_ROW_IDS"` does NOT
+/// match inside `"const UNOBSERVABLE_ROW_IDS"`, because `"UN"` sits between `"const "`
+/// and `"OBSERVABLE"` there).
+fn extract_const_array_block<'a>(src: &'a str, anchor: &str) -> &'a str {
+    let start = src
+        .find(anchor)
+        .unwrap_or_else(|| panic!("{anchor:?} not found in decision_coverage.rs"));
+    let after = &src[start..];
+    let end = after
+        .find("];")
+        .unwrap_or_else(|| panic!("no terminating '];' found after {anchor:?}"));
+    &after[..end + 2]
+}
+
+/// **T17 (PB-DX32 Stage 6)** — `crates/simulator/src/decision_coverage.rs`'s
+/// `OBSERVABLE_ROW_IDS` ∪ `UNOBSERVABLE_ROW_IDS` must equal `ROWS`'s ids exactly, and
+/// `OBSERVABLE_ROW_IDS` must equal exactly the ids whose class is `Served`. Comments
+/// are stripped FIRST — both `//` (`strip_line_comments`) and `/* ... */`
+/// (`strip_block_comments`, PB-DX32 fix cycle, review finding M8) — so a row moved
+/// into EITHER comment form is NOT counted as present. Also asserts the raw (pre-set)
+/// id COUNT against `ROWS.len()`, which the set comparisons below cannot: a
+/// duplicated id collapses invisibly inside a `BTreeSet`, so without this a
+/// duplicate-plus-drop pair could cancel out and still pass. This is the
+/// comment-satisfiable-gate class PB-DX22's review cycle 2 found in this exact
+/// family (see this file's own header note) — closed here a second time, for block
+/// comments.
+#[test]
+fn runtime_decision_coverage_roster_matches_rows() {
+    let src = strip_block_comments(&strip_line_comments(&read_ct(
+        "crates/simulator/src/decision_coverage.rs",
+    )));
+
+    let observable_block = extract_const_array_block(&src, "const OBSERVABLE_ROW_IDS");
+    let unobservable_block = extract_const_array_block(&src, "const UNOBSERVABLE_ROW_IDS");
+
+    let observable_raw = quoted_strings(observable_block);
+    let observable: BTreeSet<String> = observable_raw.iter().cloned().collect();
+
+    let unobservable_all = quoted_strings(unobservable_block);
+    assert_eq!(
+        unobservable_all.len() % 2,
+        0,
+        "UNOBSERVABLE_ROW_IDS must be a flat list of (id, reason) string-literal pairs \
+         -- found an ODD number of quoted strings ({}), so a tuple is malformed or the \
+         block boundary was mis-detected",
+        unobservable_all.len()
+    );
+    // Every (id, reason) tuple's FIRST string is the id; the reason is never compared
+    // against ROWS ids.
+    let unobservable: BTreeSet<String> = unobservable_all.iter().step_by(2).cloned().collect();
+
+    assert_eq!(
+        observable_raw.len() + unobservable_all.len() / 2,
+        ROWS.len(),
+        "roster id COUNT must equal ROWS.len() ({}) -- a duplicate id, or a row \
+         hidden inside a /* */ comment, is invisible to the set comparison below. \
+         observable raw count: {}, unobservable raw pair count: {}",
+        ROWS.len(),
+        observable_raw.len(),
+        unobservable_all.len() / 2
+    );
+
+    let rows_ids: BTreeSet<String> = ROWS.iter().map(|r| r.id.to_string()).collect();
+    let served_ids: BTreeSet<String> = ROWS
+        .iter()
+        .filter(|r| matches!(r.class, DecisionClass::Served { .. }))
+        .map(|r| r.id.to_string())
+        .collect();
+
+    let union: BTreeSet<String> = observable.union(&unobservable).cloned().collect();
+
+    let missing_from_roster: Vec<&String> = rows_ids.difference(&union).collect();
+    let extra_in_roster: Vec<&String> = union.difference(&rows_ids).collect();
+    assert!(
+        missing_from_roster.is_empty() && extra_in_roster.is_empty(),
+        "decision_coverage.rs's OBSERVABLE_ROW_IDS ∪ UNOBSERVABLE_ROW_IDS must equal \
+         decision_site_walk.rs's ROWS ids exactly. In ROWS but missing from the \
+         roster: {missing_from_roster:?}. In the roster but not a ROWS id: \
+         {extra_in_roster:?}"
+    );
+
+    let observable_not_served: Vec<&String> = observable.difference(&served_ids).collect();
+    let served_not_observable: Vec<&String> = served_ids.difference(&observable).collect();
+    assert!(
+        observable_not_served.is_empty() && served_not_observable.is_empty(),
+        "OBSERVABLE_ROW_IDS must equal EXACTLY the ROWS ids whose class is Served. In \
+         OBSERVABLE_ROW_IDS but not Served in ROWS: {observable_not_served:?}. Served \
+         in ROWS but missing from OBSERVABLE_ROW_IDS: {served_not_observable:?}"
+    );
+
+    assert!(
+        union.len() >= MIN_ROWS,
+        "the combined roster shrank to {} (< MIN_ROWS {MIN_ROWS}) -- rows may be \
+         added, never removed",
+        union.len()
+    );
+    assert!(
+        observable.len() >= 5,
+        "OBSERVABLE_ROW_IDS must have at least the 5 known Served rows, got {}",
+        observable.len()
+    );
+    assert!(
+        !unobservable.is_empty(),
+        "UNOBSERVABLE_ROW_IDS must not be empty"
     );
 }

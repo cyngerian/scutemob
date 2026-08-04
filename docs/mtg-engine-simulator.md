@@ -220,12 +220,15 @@ mtg-fuzzer [OPTIONS]
 
 ### Invariant Checks (run after every state transition)
 
-> **Nine of these twelve can fire.** Re-derived from `invariants::check_all` by SIM-3
-> (`scutemob-177`, 2026-08-02) rather than trusted: #3 is an explicit no-op in the
-> source, and **#10 and #11 do not exist** — no function implements them and no
-> violation in the codebase carries their name. They are marked below rather than
-> deleted, because they are still worth having; filed as **OOS-SIM3-2**. A list of
-> checks is not a list of checks that run.
+> **Nine of these twelve can fire from `check_all`.** Re-derived from
+> `invariants::check_all` by SIM-3 (`scutemob-177`, 2026-08-02) rather than trusted:
+> #3 is an explicit no-op in the source, and **#10 and #11 are not `check_all`
+> functions** — neither is a function `check_all` runs, and #11 still has no
+> implementation anywhere. #10 is now served, but at RUN scope, by PB-DX32 Stage 2
+> (SR-38) — see its own entry below; do not read this as "#10 does not exist". Marked
+> below rather than deleted, because #11 is still worth having; filed as
+> **OOS-SIM3-2**, now PARTIALLY closed. A list of checks is not a list of checks that
+> run.
 
 1. **Zone integrity**: Every object in exactly one zone
 2. **ID uniqueness**: No duplicate ObjectIds
@@ -248,9 +251,13 @@ mtg-fuzzer [OPTIONS]
 8. **Attachment validity**: attached_to references existing battlefield objects
 9. **Game progression**: Turn number never decreases
 10. **Legal action soundness**: Actions from provider don't get rejected by `process_command()`
-    — **NOT IMPLEMENTED** (OOS-SIM3-2). Nothing in `invariants.rs` checks this. It is the
-    SR-38 property, and it is currently enforced only by the assertions in
-    `local_game_playthrough.rs` (a policy rejection fails that test), not by the fuzzer.
+    — **NOT a `check_all` function** (OOS-SIM3-2, PARTIALLY closed by PB-DX32). Nothing in
+    `invariants.rs` checks this — that half of the finding stands. But as of PB-DX32 Stage 2
+    it IS served at RUN scope: `GameResult::rejection_count`/`rejections` fold every bot-seat
+    rejection (SR-38), `mtg-fuzzer` prints and fails on `MAX_BOT_REJECTION_PER_MILLE`
+    (`report.rs`), and `cargo test`'s T2.2 ratchets the same property at gate scale. It is
+    also still enforced by the assertions in `local_game_playthrough.rs` (a policy rejection
+    fails that test) — that channel did not go away, PB-DX32 added a second one.
 11. **SBA idempotency**: After SBAs, running again produces no events — **NOT IMPLEMENTED**
     (OOS-SIM3-2).
 12. **No orphaned tokens**: No tokens in non-battlefield zones after SBAs

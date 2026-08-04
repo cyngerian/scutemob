@@ -1,18 +1,25 @@
 //! Invariant checks run after every state transition during fuzzing.
 //!
-//! **Nine checks can fire**, plus one deliberate no-op: zone integrity, ID
-//! uniqueness, stack consistency, player consistency, turn order, object-zone
-//! agreement, attachment validity, game progression, orphaned tokens — and
-//! `check_mana_non_negative`, which cannot fail because `ManaPool` is `u32`.
+//! **Ten checks exist; nine of them fire from [`check_all`]**, plus one deliberate
+//! no-op: zone integrity, ID uniqueness, stack consistency, player consistency, turn
+//! order, object-zone agreement, attachment validity, game progression, orphaned
+//! tokens — and `check_mana_non_negative`, which cannot fail because `ManaPool` is
+//! `u32`. The tenth, [`check_no_leaked_tokens`] (PB-DX32 Stage 4), is an END-OF-GAME
+//! check and is deliberately NOT in [`check_all`] — it runs once per game, at both
+//! real `LocalGame` terminal paths, not per command.
 //!
 //! This header used to say "12 checks", and `docs/mtg-engine-simulator.md` still
 //! lists twelve. Two of those twelve (legal-action soundness, SBA idempotency)
 //! have never been written; SIM-3 (`scutemob-177`) re-derived the list from
-//! [`check_all`] and marked them there. Filed as `OOS-SIM3-2`.
+//! [`check_all`] and marked them there. Filed as `OOS-SIM3-2`. PB-DX32 Stage 2 serves
+//! legal-action soundness at RUN scope (`report.rs::MAX_BOT_REJECTION_PER_MILLE` and
+//! `print_sr38_summary`) rather than as a `check_all` function — see
+//! `docs/mtg-engine-simulator.md`'s checklist for the current disposition. SBA
+//! idempotency (the module's own #11) is still unwritten.
 
 use mtg_engine::{GameState, ObjectId, ZoneId};
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 
 /// An invariant violation found during fuzzing.
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -462,7 +469,13 @@ fn check_game_progression(
 
 /// 10. No orphaned tokens: no tokens in non-battlefield zones after SBAs.
 ///
-/// Tokens in graveyard/exile are cleaned up by SBAs — if they remain, something is wrong.
+/// Tokens in graveyard/exile are cleaned up by SBAs. A report here is a CHECKPOINT
+/// ARTEFACT, not a defect, in deviation from CR 704.3 (`OOS-M11-7`):
+/// `LocalGame::record_violations` (PB-DX32 Stage 4) splits every report from this
+/// function out of the hard `violations` bucket into `transient_violations`, and
+/// [`check_no_leaked_tokens`] answers the split with the strictly stronger end-state
+/// property at both real terminal paths — a token still off the battlefield when the
+/// game is OVER *is* a hard violation.
 fn check_no_orphaned_tokens(state: &GameState, violations: &mut Vec<InvariantViolation>) {
     for (obj_id, obj) in state.objects().iter() {
         if obj.is_token && obj.zone != ZoneId::Battlefield && obj.zone != ZoneId::Stack {
@@ -478,6 +491,68 @@ fn check_no_orphaned_tokens(state: &GameState, violations: &mut Vec<InvariantVio
             });
         }
     }
+}
+
+/// The strictly stronger END-STATE property that keeps the PB-DX32 Stage 4 noise-floor
+/// split honest (`OOS-SIM3-3` / `OOS-SIM3-4`).
+///
+/// [`check_no_orphaned_tokens`] reports a token in a non-battlefield zone at EVERY
+/// checkpoint until the next SBA sweep clears it — in deviation from CR 704.3
+/// (`OOS-M11-7`), this engine checks SBAs on step entry and at resolution, not
+/// whenever a player would get priority as the rule actually requires — which makes
+/// that report transient by construction. This function asks the question that would
+/// actually be a bug: is any token anywhere but the battlefield when the game is OVER?
+/// Measured 0 on all five HEAD seeds (`memory/primitive-wip.md`, Stage 0). Mirrors
+/// `crates/simulator/tests/local_game_playthrough.rs:464-472`'s own end-of-playthrough
+/// read, generalized from a five-seed script harness to every `LocalGame` terminal path
+/// (`LocalGame::result_snapshot`).
+///
+/// Not called from [`check_all`] — this is an end-of-game check, and `check_all` runs
+/// per command.
+///
+/// **Deliberately stricter than its sibling**: unlike [`check_no_orphaned_tokens`],
+/// this function does NOT exempt `ZoneId::Stack` — a token cannot legitimately be on
+/// the stack once the game is OVER (contrast a token copy of a spell mid-game, which
+/// is the case the sibling's exemption exists for), so a stack-zone token here is a
+/// hard `leaked_tokens` violation. Faithful to
+/// `crates/simulator/tests/local_game_playthrough.rs:472-476`'s own end-state read, which
+/// makes the same choice, and measured 0/20 at Stage 4 (no seed has ever exercised
+/// this branch).
+pub fn check_no_leaked_tokens(state: &GameState) -> Vec<InvariantViolation> {
+    let mut violations = Vec::new();
+    for (obj_id, obj) in state.objects().iter() {
+        if obj.is_token && obj.zone != ZoneId::Battlefield {
+            violations.push(InvariantViolation {
+                check: "leaked_tokens".into(),
+                description: format!(
+                    "Token {:?} '{}' found in zone {:?} at game end",
+                    obj_id, obj.characteristics.name, obj.zone
+                ),
+                turn_number: state.turn().turn_number,
+            });
+        }
+    }
+    violations
+}
+
+/// First occurrence per `(check, description)`, order preserved (PB-DX32 Stage 4,
+/// `OOS-SIM3-3`'s "report distinct conditions alongside the raw count" prescription).
+///
+/// Neither `check` nor `description` carries a turn number (that is a separate field),
+/// which is why the collapse works: the same underlying condition reported at every
+/// checkpoint produces identical `(check, description)` pairs and dedupes to one.
+/// `InvariantViolation` derives no `PartialEq`/`Hash` (it is a wire type, not a
+/// set-keyed one — see its own doc), so this dedupes on the two `String` fields
+/// directly via a `BTreeSet<(String, String)>` rather than deriving anything onto it.
+pub fn distinct(violations: &[InvariantViolation]) -> Vec<InvariantViolation> {
+    let mut seen: BTreeSet<(String, String)> = BTreeSet::new();
+    let mut out = Vec::new();
+    for v in violations {
+        if seen.insert((v.check.clone(), v.description.clone())) {
+            out.push(v.clone());
+        }
+    }
+    out
 }
 
 /// SIM-3 (`scutemob-177`): probes for [`check_stack_consistency`], both directions.
