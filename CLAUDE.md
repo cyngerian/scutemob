@@ -35,7 +35,7 @@
   enumerates no Adventure, alt-cost or Convoke/Improvise/Delve casts (R4). **The active track is now
   the PB-DX correctness queue alone** (`memory/primitives/seed-rerank-2026-08-02.md` §4 — v3,
   `scutemob-182`; PB-DX19 shipped `451e3517`, PB-DX22 shipped `95f53b78`;
-  PB-DX32 shipped `scutemob-197` (promoted per feedback doc §2.3, user-approved 2026-08-03);
+  PB-DX32 shipped `scutemob-197`/`685aa1c4` (promoted per feedback doc §2.3, user-approved 2026-08-03);
   **next PB-DX20**; the playtest-successor run 174–181
   AND the triage-2 successor run 187–194 both completed 2026-08-02 — triage 2 is fully closed,
   8/8 rows shipped. **FEEDBACK-1 SHIPPED** (`scutemob-192`, merge `d55e74cc`, doc-only):
@@ -260,7 +260,7 @@
 - **Recurrence rule** — future `/collect` and milestone-close bookkeeping appends its detailed PB/SR
   narrative to that archive file (newest first), and updates only a one-paragraph snapshot delta
   here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
-- **Last Updated**: 2026-08-03 — **PB-DX32 SHIPPED** (`scutemob-197`; v3 queue rank 19,
+- **Last Updated**: 2026-08-03 — **PB-DX32 SHIPPED** (`scutemob-197`, merge `685aa1c4`; v3 queue rank 19,
   promoted per FEEDBACK-1 §2.3, user-approved). The fuzzer's OUTPUT now means something:
   `GameResult` carries an SR-38 rejection channel + a promoted waste tally, both behind
   ratchets pinned at measured values; the CR 704.3 orphaned-token class is split off as
