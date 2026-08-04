@@ -117,6 +117,13 @@ impl<P: LegalActionProvider> GameDriver<P> {
                     other => format!("{:?}", other),
                 };
                 return (
+                    // Error path: no `LocalGame` exists to snapshot (`start` itself
+                    // failed), so this stays a literal. `..Default::default()` is
+                    // added at PB-DX32 Stage 2, the first stage that gives it a
+                    // non-vacuous effect (`clippy::needless_update` rejects it at
+                    // Stage 1, where every field is still named explicitly) — plan §5
+                    // Stage 1 step 2 named this site, but the edit lands one stage
+                    // later than planned for exactly that reason (plan §7 R7).
                     GameResult {
                         seed,
                         winner: None,
@@ -135,14 +142,10 @@ impl<P: LegalActionProvider> GameDriver<P> {
         // internal loop only stops at `GameOver` or `Halted`.
         let result = match game.advance() {
             AdvanceOutcome::GameOver(result) => result,
-            AdvanceOutcome::Halted(reason) => GameResult {
-                seed,
-                winner: None,
-                turn_count: game.state().turn().turn_number,
-                total_commands: game.command_count() as usize,
-                violations: game.violations().to_vec(),
-                error: Some(reason.into()),
-            },
+            // PB-DX32 Stage 1: routed through the same `result_snapshot` the GameOver
+            // arm uses (see that method's doc — plan §7 R5) instead of a second
+            // hand-maintained literal.
+            AdvanceOutcome::Halted(reason) => game.result_snapshot(None, Some(reason.into())),
             AdvanceOutcome::AwaitingHuman(_) => unreachable!(
                 "human_seats is empty; LocalGame::advance() must never yield AwaitingHuman"
             ),

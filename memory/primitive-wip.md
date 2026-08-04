@@ -100,3 +100,84 @@ any Stage 1-3 source edit.
   measure different configurations (25 vs 200 turns, debug vs fuzz profile).
   Scratch probe file `crates/simulator/tests/pb_dx32_stage0_measure_scratch.rs` was
   written, run, and deleted — never committed.
+
+---
+
+## Stage 1 DONE — `GameResult` construction collapses to one place (behaviour-NEUTRAL)
+
+Plan §5 Stage 1. Files: `crates/simulator/src/report.rs` (`Default` derive on
+`GameResult`), `crates/simulator/src/local_game.rs` (new `LocalGame::result_snapshot`,
+rewires the GameOver return), `crates/simulator/src/driver.rs` (rewires the Halted arm
+onto `result_snapshot`). New test file `crates/simulator/tests/pb_dx32_fuzz_output.rs`
+with **T1.1**
+`test_dx32_halted_and_game_over_results_carry_the_same_instrumentation`.
+
+**Plan divergence 5 (new, this stage) — the `tools/` one-line insertion moved from
+Stage 1 to Stage 2.** The plan's §5 Stage 1 step 3 and §3.1 both name
+`tools/play-server/src/main.rs:3326` as a Stage-1 edit (`..Default::default()` appended
+to the literal). At Stage 1, `GameResult` has gained the `Default` derive but ZERO new
+fields — every field the literal at 3326 (and the two error-path literals in
+`driver.rs:120` / `fuzzer.rs:332`) sets is still explicit, so `..Default::default()` is
+provably a no-op there and `clippy::needless_update` (`-D warnings`) rejects it (plan §7
+R7's exact class, confirmed by executing clippy — see below). Moving the edit to Stage
+2, where `rejection_count`/`rejections` are the first new fields, makes the same
+`..Default::default()` non-vacuous and clippy-clean, with **zero change to the overall
+plan**: still exactly one inserted line in `tools/`, still `..Default::default()`, still
+the same three sites, just landing one stage later than the plan's step numbering. Not
+a scope change — a sequencing fix. `git diff -- tools/` is confirmed EMPTY at the end
+of this stage (was `+1 -0` mid-stage before the revert below).
+
+**T1.1's design deviates from the plan's literal wording in one respect, stated
+because the plan asked for it to be**: the plan says "set max_turns low" for the Halted
+half, implying a `LocalGame::advance()`-only construction. A truly empty two-player
+`GameStateBuilder` fixture reaches `GameOver` (CR 104.3c, draw from an empty library)
+within the first turn or two regardless of `max_turns`, so a bare fixture can never
+reach `Halted` at all — every attempt produced a `GameOver` instead (confirmed by
+running it: the first draft's Halted half returned `error: None` and reddened T1.1's own
+assertion). Fixed by stocking each library with 10 unregistered filler objects (no
+`card_id`, so Architecture Invariant 9 never sees them) so the game survives to
+`max_turns: 3`. The Halted half also routes through `GameDriver::run_game_with_mechanics`
+(the actual production caller of `driver.rs`'s Halted arm) rather than calling
+`LocalGame::advance()` + `result_snapshot` directly, and checks the resulting
+`GameResult` against an INDEPENDENT, identically-parameterised `LocalGame` run for the
+"game's own accessors" comparison — the two are deterministic and reach the identical
+halt, and this way the revert proof below actually exercises the reverted code.
+
+**Revert proof (EXECUTED)**: replaced `driver.rs`'s
+`AdvanceOutcome::Halted(reason) => game.result_snapshot(None, Some(reason.into()))` with
+a literal hard-coding `turn_count: 0, total_commands: 0`. Rebuild confirmed (`Compiling
+mtg-simulator` present in the captured output). Observed failure:
+```
+thread 'test_dx32_halted_and_game_over_results_carry_the_same_instrumentation' panicked at crates/simulator/tests/pb_dx32_fuzz_output.rs:173:5:
+assertion `left == right` failed: GameResult.turn_count must match the game's own turn accessor
+  left: 0
+ right: 4
+```
+Restored immediately after (confirmed via `git diff crates/simulator/src/driver.rs`
+showing the clean two-line replacement, no residue).
+
+**NEUTRALITY EVIDENCE**: re-ran Stage 0 step 3 verbatim
+(`./target/fuzz/mtg-fuzzer --games 20 --seed 1 --max-turns 200 --threads 1 --verbose`)
+and diffed against the committed `pb-dx32-stage0-fuzz-before.txt`. **Exactly one
+differing line, the run's wall-clock line — no games/sec change either**, executed
+diff:
+```
+9c9
+< Games completed: 20  Time: 11.5s  (2 games/sec)
+---
+> Games completed: 20  Time: 11.4s  (2 games/sec)
+```
+Every violation count, histogram row, win/draw/error tally and per-game detail line is
+byte-identical between the two files. Output committed as
+`memory/primitives/pb-dx32-stage1-fuzz-after.txt`.
+
+**Stage gates, all EXECUTED**: `cargo build --workspace` clean. `cargo test -p
+mtg-simulator` **183 / 0 / 0**. `cargo test -p play-server` **78 / 0 / 0** (matches plan's
+expected 78/0 exactly). `cargo clippy --workspace --all-targets -- -D warnings` clean
+(after the Stage-2-deferral fix above). `cargo fmt --check` clean (ran `cargo fmt` once
+to fix one auto-formatting diff in the new test file — a line-wrap choice, not a
+substantive change). `tools/check-defs-fmt.sh` — 1803 defs, clean.
+`cargo test --workspace --no-fail-fast` — **4,359 / 0 / 5** (+1 over the 4,358
+baseline, the one new T1.1 test), residual list empty.
+`git diff -- crates/engine/src/ crates/card-defs/ crates/card-types/ crates/view-model/`
+EMPTY. `git diff -- tools/` EMPTY (deferred to Stage 2, see divergence above).

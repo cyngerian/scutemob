@@ -329,6 +329,12 @@ fn run_single_game(
         // reports and `driver.rs`'s error-shape comment depend on it.
         Err(FuzzSetupError::Builder(e)) => {
             return (
+                // Error path: state build failed before any `LocalGame` existed.
+                // `..Default::default()` is added at PB-DX32 Stage 2, the first stage
+                // that gives it a non-vacuous effect (`clippy::needless_update` rejects
+                // it at Stage 1, where every field is still named explicitly) — plan §5
+                // Stage 1 step 2 named this site, but the edit lands one stage later
+                // than planned for exactly that reason (plan §7 R7).
                 GameResult {
                     seed,
                     winner: None,

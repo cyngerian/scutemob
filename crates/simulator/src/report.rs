@@ -29,7 +29,22 @@ impl CrashReport {
 }
 
 /// Summary of a completed game (success or failure).
-#[derive(Clone, Debug)]
+///
+/// # `Default`, and why it matters (PB-DX32 Stage 1)
+///
+/// Constructed at **five** sites: `local_game.rs` (GameOver), `driver.rs` (start
+/// failure and Halted), `bin/fuzzer.rs` (build failure) — and a fifth **outside this
+/// crate**, `tools/play-server/src/main.rs`'s `#[cfg(test)]` module. PB-DX32 adds five
+/// new fields to this struct over its four stages (`rejection_count`, `rejections`,
+/// `waste`, `transient_violations`, `decision_coverage`); the out-of-crate site cannot
+/// be taught about any of them without becoming a wire dependency on `crates/simulator`
+/// internals that `tools/play-server` has no reason to know. `Default` closes that gap:
+/// every field type here is `Default`-able, so the fifth site appends
+/// `..Default::default()` once (`main.rs:3326`) and never needs to change again as this
+/// struct grows. The two REAL construction sites (`local_game.rs`'s GameOver return and
+/// `driver.rs`'s Halted arm) do **not** rely on `Default` — they go through
+/// `LocalGame::result_snapshot`, which populates every field from live game state.
+#[derive(Clone, Debug, Default)]
 pub struct GameResult {
     pub seed: u64,
     pub winner: Option<PlayerId>,

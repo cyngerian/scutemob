@@ -399,6 +399,31 @@ impl<P: LegalActionProvider> LocalGame<P> {
         &self.state
     }
 
+    /// Build a [`GameResult`] snapshot from the current game state (PB-DX32 Stage 1).
+    ///
+    /// The single construction point for both REAL `GameResult` sites — the `GameOver`
+    /// return in `advance()` below, and `GameDriver`'s Halted arm. Before this, those
+    /// two sites were hand-maintained literals that had to agree, field-for-field, by
+    /// inspection alone; PB-DX32 adds instrumentation fields across four stages, and a
+    /// second hand-maintained literal is exactly the divergence class that produces a
+    /// Halted-game report silently missing its instrumentation (plan §7 R5). `winner`
+    /// and `error` are parameters because only the caller knows which of those two
+    /// outcomes it is reporting — everything else is read straight off `self`.
+    pub fn result_snapshot(
+        &self,
+        winner: Option<PlayerId>,
+        error: Option<GameDriverError>,
+    ) -> GameResult {
+        GameResult {
+            seed: self.seed,
+            winner,
+            turn_count: self.state.turn().turn_number,
+            total_commands: self.command_count as usize,
+            violations: self.violations.clone(),
+            error,
+        }
+    }
+
     pub fn command_count(&self) -> u32 {
         self.command_count
     }
@@ -484,14 +509,7 @@ impl<P: LegalActionProvider> LocalGame<P> {
                 // A finished game has no outstanding decision — do not keep reporting one
                 // from `pending_decision()`, and do not let `submit()` accept it.
                 self.pending = None;
-                return AdvanceOutcome::GameOver(GameResult {
-                    seed: self.seed,
-                    winner,
-                    turn_count: self.state.turn().turn_number,
-                    total_commands: self.command_count as usize,
-                    violations: self.violations.clone(),
-                    error: None,
-                });
+                return AdvanceOutcome::GameOver(self.result_snapshot(winner, None));
             }
 
             // Re-entrancy guard (see the doc comment above). Placed after the game-over
