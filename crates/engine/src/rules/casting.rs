@@ -22,7 +22,7 @@
 use super::events::GameEvent;
 use crate::cards::card_definition::{
     AbilityDefinition, Cost, CostModifierScope, SelfCostReduction, SpellAdditionalCost,
-    SpellCostFilter, TargetController, TargetRequirement,
+    SpellCostFilter, TargetController, TargetFilter, TargetRequirement,
 };
 use crate::rules::commander::apply_commander_tax;
 use crate::rules::layers::expect_characteristics;
@@ -34,7 +34,8 @@ use crate::state::stubs::PendingTriggerKind;
 use crate::state::targeting::{SpellTarget, Target};
 use crate::state::turn::Step;
 use crate::state::types::{
-    AffinityTarget, AltCostKind, CardType, EnchantTarget, KeywordAbility, SubType,
+    AffinityTarget, AltCostKind, CardType, EnchantControllerConstraint, EnchantTarget,
+    KeywordAbility, SubType,
 };
 use crate::state::zone::ZoneId;
 use crate::state::{GameState, PendingTrigger};
@@ -3616,6 +3617,13 @@ pub fn handle_cast_spell(
         card_def_target_requirements(state, card_id.as_ref(), casting_with_aftermath);
     // CR 702.96b: When overloaded, the spell has no targets.
     // Override requirements to empty so validate_targets doesn't require targets.
+    //
+    // CR 303.4a (PB-DX20 §5 Step 2): the ELSE branch specifically — not after this whole
+    // `if` — folds in the Aura's keyword-carried requirement via `aura_spell_target_
+    // requirements`. `queries::spell_target_requirements` returns `vec![]` for overload
+    // BEFORE any Aura synthesis runs; mirroring that here means an overloaded Aura (no
+    // shipped card, §0.7) never gets a requirement the offer-path query doesn't also
+    // report, which is exactly the drift this batch closes.
     let requirements = if casting_with_overload {
         // CR 702.96b: Overloaded spells have no targets.
         if !targets.is_empty() {
@@ -3625,7 +3633,7 @@ pub fn handle_cast_spell(
         }
         vec![]
     } else {
-        requirements
+        aura_spell_target_requirements(&chars, requirements)
     };
     // CR 700.2c/700.2f (PB-AC4): If the spell has per-mode target requirements
     // (ModeSelection.mode_targets is Some), targets are announced/validated ONLY for the
@@ -3717,14 +3725,30 @@ pub fn handle_cast_spell(
     } else {
         validate_targets_with_source(state, &targets, &requirements, player, Some(&chars), card)?
     };
-    // CR 702.5a / 303.4a: Aura spells require exactly one target matching the Enchant restriction.
-    // The Enchant keyword defines the target restriction — it is derived from the card's
-    // keywords rather than from an explicit TargetRequirement (which applies to instants/sorceries).
+    // CR 702.5a / 303.4a (PB-DX20 §4.2): this gate is now a DELIBERATELY REDUNDANT second
+    // check. The announceable requirement itself is synthesized upstream, at the
+    // `aura_spell_target_requirements` call site above (and, on the offer path,
+    // `queries::spell_target_requirements`) — with `requirements` non-empty,
+    // `validate_targets_with_source`/`validate_targets_inner` already enforced the CR
+    // 303.4a count (exactly one target) and CR 702.5a type restriction before this point
+    // is ever reached. Two of this gate's three checks still earn their keep, though:
+    // the battlefield check just below is redundant with the requirement (every mapped
+    // variant carries an implicit `on_battlefield` conjunct) but produces the specific
+    // CR 303.4a message, and `matches_enchant_target` a few lines down is the SBA's OWN
+    // predicate (CR 704.5m, `sba.rs`) — keeping it here at cast time is what guarantees
+    // cast-time and SBA-time agree, a DIFFERENT property from "the offer and the cast
+    // agree" that this batch must not trade away. The `spell_targets.is_empty()` arm
+    // immediately below is unreachable for any Aura whose synthesis fired (a non-empty
+    // requirement makes an empty declaration fail earlier, in slot assignment, with
+    // `InvalidTarget` per CR 601.2c) — it stays live only for an Aura whose `base` was
+    // already non-empty (guard 3, `aura_spell_target_requirements`) and whose own
+    // declared targets were all players, a combination no shipped card reaches.
     if chars.subtypes.contains(&SubType("Aura".to_string()))
         && chars.card_types.contains(&CardType::Enchantment)
     {
         if let Some(enchant_target) = super::sba::get_enchant_target(&chars.keywords) {
-            // CR 303.4a: Aura spell must target exactly one legal object.
+            // CR 303.4a: Aura spell must target exactly one legal object. See the block
+            // comment above — this arm is unreachable once synthesis has fired.
             if spell_targets.is_empty() {
                 return Err(GameStateError::InvalidCommand(
                     "Aura spells require exactly one target (CR 303.4a)".into(),
@@ -5145,7 +5169,7 @@ fn get_evoke_cost(
     })
 }
 /// CR 702.103a / CR 118.9: Look up the bestow cost from the card's `AbilityDefinition`.
-fn get_bestow_cost(
+pub(crate) fn get_bestow_cost(
     card_id: &Option<crate::state::CardId>,
     registry: &crate::cards::CardRegistry,
 ) -> Option<ManaCost> {
@@ -5408,6 +5432,99 @@ pub(crate) fn card_def_target_requirements(
             }
         })
         .unwrap_or_default()
+}
+/// CR 702.5a / 303.4a / 205.4a / 601.2c — the `TargetRequirement` an `EnchantTarget`
+/// restriction is equivalent to (PB-DX20 §3.2/§3.3, `pb-plan-DX20.md`).
+///
+/// Exhaustive on purpose: a new `EnchantTarget` variant is a compile error here, not a
+/// silent `vec![]`. Read alongside `super::sba::matches_enchant_target` (the incumbent
+/// predicate — kept, not replaced; see the CR 303.4a gate below) and
+/// `validate_object_satisfies_requirement` + `effects::matches_filter` (the synthesized
+/// predicate this maps INTO) — both run against layer-resolved characteristics, so every
+/// row below is an equivalence between two predicates over the same input, not a guess:
+///
+/// | `EnchantTarget` | synthesized requirement | equivalence |
+/// |---|---|---|
+/// | `Creature` | `TargetCreature` | YES — `on_battlefield` is checked separately by the CR 303.4a gate this batch keeps |
+/// | `Permanent` | `TargetPermanent` | YES, same reason |
+/// | `Artifact` | `TargetArtifact` | YES |
+/// | `Enchantment` | `TargetEnchantment` | YES |
+/// | `Land` | `TargetLand` | YES |
+/// | `Planeswalker` | `TargetPlaneswalker` | YES |
+/// | `Player` | `TargetPlayer` | YES on objects (CR 702.5d forbids attaching to a permanent — the object-side catch-all rejects); on the player side this is `TargetPlayer`-legal by CR 702.5d, but no def in the corpus carries this today and the attachment path (`GameObject.attached_to: Option<ObjectId>`) has no player variant — `OOS-DX20-2`, gated by a T4 roster assertion |
+/// | `CreatureOrPlaneswalker` | `TargetPermanentWithFilter{ has_card_types: [Creature, Planeswalker] }` | YES — NOT `TargetAny`, which also accepts players (CR 702.5d forbids that for a non-Player Enchant) |
+/// | `Filtered(f)` | `TargetPermanentWithFilter(EnchantFilter -> TargetFilter, §3.3)` | YES, field by field — see the six-field mapping below |
+///
+/// **CR 702.5c is NOT implemented, deliberately and identically on both sides**:
+/// `super::sba::get_enchant_target` returns only the FIRST `Enchant` keyword via
+/// `find_map` (multiple instances on one Aura are not combined). This function inherits
+/// exactly that from its caller, `aura_spell_target_requirements` — widening it is a
+/// scope change (`OOS-DX20-1`), not a bug this function introduces.
+pub(crate) fn enchant_target_to_requirement(et: &EnchantTarget) -> TargetRequirement {
+    match et {
+        EnchantTarget::Creature => TargetRequirement::TargetCreature,
+        EnchantTarget::Permanent => TargetRequirement::TargetPermanent,
+        EnchantTarget::Artifact => TargetRequirement::TargetArtifact,
+        EnchantTarget::Enchantment => TargetRequirement::TargetEnchantment,
+        EnchantTarget::Land => TargetRequirement::TargetLand,
+        EnchantTarget::Planeswalker => TargetRequirement::TargetPlaneswalker,
+        // CR 702.5d: legal on objects AND players in principle; see the doc table
+        // above for why the player half is unreachable today (OOS-DX20-2).
+        EnchantTarget::Player => TargetRequirement::TargetPlayer,
+        EnchantTarget::CreatureOrPlaneswalker => {
+            TargetRequirement::TargetPermanentWithFilter(TargetFilter {
+                has_card_types: vec![CardType::Creature, CardType::Planeswalker],
+                ..Default::default()
+            })
+        }
+        EnchantTarget::Filtered(f) => TargetRequirement::TargetPermanentWithFilter(TargetFilter {
+            // §3.3: every `EnchantFilter` field maps 1:1 onto `TargetFilter`. Everything
+            // else stays `..Default::default()` on purpose (§3.4) so a future
+            // `TargetFilter` field cannot silently acquire meaning here.
+            has_card_type: f.has_card_type,
+            has_subtype: f.has_subtype.clone(),
+            has_subtypes: f.has_subtypes.clone(),
+            basic: f.basic,
+            nonbasic: f.nonbasic,
+            controller: match f.controller {
+                EnchantControllerConstraint::Any => TargetController::Any,
+                EnchantControllerConstraint::You => TargetController::You,
+                EnchantControllerConstraint::Opponent => TargetController::Opponent,
+            },
+            ..Default::default()
+        }),
+    }
+}
+/// CR 303.4a — `base`, plus the Aura's keyword-carried target requirement when it has
+/// one. Returns `base` unchanged for every non-Aura spell, and for an Aura whose `base`
+/// was already non-empty (guard 3 below) — see `pb-plan-DX20.md` §3.1.
+///
+/// Called from BOTH `handle_cast_spell` (the cast path) and
+/// `rules::queries::spell_target_requirements` (the offer path) so the two cannot drift
+/// (`OOS-CARDS2-4`) — the whole point of this primitive.
+///
+/// Synthesizes only when all four hold:
+/// 1. `chars.subtypes` contains `SubType("Aura")`
+/// 2. `chars.card_types` contains `CardType::Enchantment`
+/// 3. `base.is_empty()` — an Aura that ALSO declares its own `AbilityDefinition::Spell`
+///    targets keeps that list untouched (measured: 0 such defs in the corpus today,
+///    `pb-plan-DX20.md` §0.7) rather than silently being given two requirements
+/// 4. `super::sba::get_enchant_target(&chars.keywords)` is `Some` — an Aura with no
+///    Enchant keyword at all (2 `inert` defs, `pb-plan-DX20.md` §0.9) gets nothing
+pub(crate) fn aura_spell_target_requirements(
+    chars: &Characteristics,
+    base: Vec<TargetRequirement>,
+) -> Vec<TargetRequirement> {
+    if !base.is_empty()
+        || !chars.card_types.contains(&CardType::Enchantment)
+        || !chars.subtypes.contains(&SubType("Aura".to_string()))
+    {
+        return base;
+    }
+    match super::sba::get_enchant_target(&chars.keywords) {
+        Some(et) => vec![enchant_target_to_requirement(&et)],
+        None => base,
+    }
 }
 /// CR 700.2a: The `ModeSelection` a modal spell cast from `card_id` carries, if any.
 ///

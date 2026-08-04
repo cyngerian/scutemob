@@ -496,7 +496,14 @@ fn test_702_5_enchant_permanent_accepts_any_permanent() {
 // ── Test 8: Aura casting rejected without a target ────────────────────────────
 
 #[test]
-/// CR 303.4a — An Aura spell with an Enchant restriction and no targets is rejected.
+/// CR 303.4a / 601.2c — An Aura spell with an Enchant restriction and no targets is
+/// rejected. Since PB-DX20, the Enchant restriction is synthesized into a real
+/// `TargetRequirement` BEFORE this cast reaches its old ad-hoc "Aura spells require
+/// exactly one target" gate (`casting.rs`'s CR 303.4a check) — so the CR 601.2c count
+/// check in `validate_targets_inner` fires first and the error VARIANT changes from
+/// `InvalidCommand` to `InvalidTarget`. This is the batch's own evidence that the
+/// synthesis took effect: if this test goes back to expecting `InvalidCommand`, the
+/// synthesis silently stopped firing (`pb-plan-DX20.md` §4.1 / §5 Step 8).
 fn test_702_5_enchant_casting_rejected_without_target() {
     let p1 = p(1);
     let p2 = p(2);
@@ -540,8 +547,11 @@ fn test_702_5_enchant_casting_rejected_without_target() {
         "Aura spell cast with no targets should be rejected (CR 303.4a)"
     );
     match result.unwrap_err() {
-        GameStateError::InvalidCommand(_) => {}
-        e => panic!("Expected InvalidCommand, got: {:?}", e),
+        GameStateError::InvalidTarget(_) => {}
+        e => panic!(
+            "Expected InvalidTarget (CR 601.2c count check), got: {:?}",
+            e
+        ),
     }
 }
 

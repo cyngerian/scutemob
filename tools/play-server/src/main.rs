@@ -1663,24 +1663,25 @@ mod tests {
                 .as_array()
                 .expect("actions is an array")
                 .clone();
-            // Candidates in policy order, not one pick: the FIRST choice may be an action the
-            // provider offers and the engine then refuses, and the driver must be able to fall
-            // through to the next rather than abort the whole fixture.
+            // Candidates in POLICY order (only the first is ever tried -- see below):
+            // prefer PlayLand, then a zero-target develop cast, then PassPriority, then
+            // whatever is first in the offered list. This is priority selection among
+            // simultaneously-legal actions, not a fallback-on-refusal mechanism; the
+            // latter used to exist here (to fall through past a documented false
+            // offer) and was deleted along with the excusal register it existed for
+            // -- see the comment on the single `if let` below.
             //
-            // This is not hypothetical and not a test smell. An **Aura** carries its target
-            // requirement in `KeywordAbility::Enchant(...)`, which `casting.rs` special-cases
-            // (CR 303.4a, "Aura spells require exactly one target"); the *provider* does not
-            // read that keyword, so the offer reports `target_min: 0` — "announces nothing" —
-            // and the engine rejects the cast with a 422. The develop policy below selects on
-            // `target_min == 0`, so it walks straight into it: CARDS-2 (2026-08-02) re-dealt
-            // seed 6 and the driver died on "Cast Hyena Umbra". That is a live browser-client
-            // defect (a human clicking any Aura gets a 422) of the same family as playtest
-            // findings F4 and F9, filed as **OOS-CARDS2-4**, and it is the provider's bug to
-            // fix — not something a fixture should be reshaped around.
-            //
-            // A rejection is skipped, never silently swallowed: if every candidate is refused
-            // the loop makes no progress and the panic below reports the fixture unreached with
-            // the last payload, which is the same loud failure as before.
+            // This list used to also carry a documented false offer: an **Aura**
+            // carries its target requirement in `KeywordAbility::Enchant(...)`, which
+            // `casting.rs` special-cases (CR 303.4a, "Aura spells require exactly one
+            // target"); the *provider* did not read that keyword, so the offer
+            // reported `target_min: 0` — "announces nothing" — and the engine
+            // rejected the cast with a 422. PB-DX20 closed that: `spell_target_
+            // requirements` now synthesizes the Enchant-derived requirement for both
+            // the offer and the cast path from the SAME function, so an Aura's
+            // `target_min` is correctly 1 and the develop policy's `target_min == 0`
+            // filter now excludes Auras at the source rather than selecting them and
+            // eating the refusal. `OOS-CARDS2-4` is CLOSED.
             let candidates: Vec<Value> = actions
                 .iter()
                 .filter(|a| a["kind"] == "PlayLand")
@@ -1696,8 +1697,21 @@ mod tests {
                 .cloned()
                 .collect();
 
+            // Only the FIRST candidate is ever actually tried: every documented false
+            // offer this driver used to excuse is now closed (SIM-2 deleted the
+            // mana-affordability pair; PB-DX20 closes the Aura entry above), so the
+            // excusal register is EMPTY — and the whole excusal mechanism is deleted
+            // along with it (`crates/simulator/tests/local_game_playthrough.rs:495-506`'s
+            // own precedent: "an excusal list is a debt register with a maturity
+            // date... the whole excusal mechanism is deleted along with it"). This is
+            // the staleness assertion the register never had: ANY refusal is now
+            // unconditionally fatal, naming the refused label and reason, so a future
+            // provider/engine disagreement of this SR-38 class ("never offer what the
+            // engine rejects") fails loudly instead of being silently re-excused —
+            // which is also why trying a SECOND candidate after a refusal would never
+            // be reachable: there is no longer a tolerated failure to fall through past.
             let mut advanced = false;
-            for pick in &candidates {
+            if let Some(pick) = candidates.first() {
                 let (status, next) = post_json(
                     state,
                     "/api/game/action",
@@ -1707,59 +1721,23 @@ mod tests {
                 if status == StatusCode::OK {
                     view = next;
                     advanced = true;
-                    break;
+                } else {
+                    let reason = next["error"].as_str().unwrap_or_default();
+                    panic!(
+                        "driving seed {seed}: the engine refused {} with reason {reason:?}. The \
+                         excusal register is empty — every action this driver's policy offers \
+                         must be one the engine actually accepts; a refusal here is a NEW SR-38 \
+                         provider/engine disagreement and must be filed as a finding, not driven \
+                         past.",
+                        pick["label"]
+                    );
                 }
-                // Only the ONE documented false offer is skipped. Anything else is a NEW
-                // provider/engine disagreement — the same SR-38 class — and tolerating it
-                // would make this driver absorb exactly the bug it exists downstream of.
-                // A blanket skip would be near-unfailable, because `PassPriority` is in the
-                // candidate chain and essentially always succeeds.
-                // Named, filed defects only. Each is a case of the provider offering an
-                // action `process_command` then refuses — SR-38's "never offer what the engine
-                // rejects". Anything NOT on this list fails loudly: a fixture driver that
-                // tolerates arbitrary refusals absorbs exactly the class it sits downstream of.
-                //
-                // The last three entries are ONE defect with three symptoms, not three
-                // defects — **OOS-CARDS2-9**: the provider's affordability check counts mana
-                // abilities it could not legally activate. It checks that a source is untapped
-                // and nothing else, so an unmet `activation_condition` (CR 602.5b), a
-                // summoning-sick creature (CR 302.6) and — per the previously filed **SG-1** —
-                // a `life_cost` it cannot pay all inflate the pool it believes in. Playtest
-                // finding **F4** is the fourth symptom (Sol Ring credited as one mana). The fix
-                // is one place: make the solver ask whether the ability is *activatable*, not
-                // whether its source is untapped.
-                //
-                // **SIM-2 (`scutemob-176`) CLOSED symptoms 1 and 2 and DELETED their entries**,
-                // adopting the policy the sibling list in
-                // `crates/simulator/tests/local_game_playthrough.rs` states and enforces: *"an
-                // excusal list is a debt register with a maturity date — delete the entry the
-                // moment it stops firing"*. A dead entry is not inert here: this list has no
-                // staleness assertion (the sibling's does), so carrying
-                // `"mana ability activation condition not met"` and `"summoning sickness and
-                // cannot tap for mana"` after the fix would silently drive a future REGRESSION
-                // of either past instead of failing this driver. SIM-2's first pass argued for
-                // keeping them as a record; the record belongs in the seed row (`OOS-CARDS2-9`),
-                // not in a live allowlist.
-                const KNOWN_FALSE_OFFERS: &[&str] = &[
-                    // OOS-CARDS2-4: an Aura's target requirement lives in
-                    // `KeywordAbility::Enchant(...)`, which `casting.rs` special-cases (CR
-                    // 303.4a) and the provider never reads, so the offer says `target_min: 0`.
-                    "Aura spells require exactly one target",
-                ];
-                let reason = next["error"].as_str().unwrap_or_default();
-                assert!(
-                    KNOWN_FALSE_OFFERS.iter().any(|k| reason.contains(k)),
-                    "driving seed {seed}: the engine refused {} with an UNEXPECTED reason \
-                     {reason:?}. Only the shapes in KNOWN_FALSE_OFFERS are filed; a new refusal \
-                     means the provider is offering something else the engine rejects, and that \
-                     is a finding, not something to drive past.",
-                    pick["label"]
-                );
             }
             assert!(
                 advanced,
-                "driving seed {seed}: the engine refused every action the provider offered at \
-                 this decision — {}",
+                "driving seed {seed}: no candidate action (PlayLand / develop CastSpell / \
+                 PassPriority / anything) was found among the actions offered at this \
+                 decision — {}",
                 decision(&view)
             );
         }
@@ -9853,6 +9831,202 @@ mod tests {
             !text.is_empty() && text != "TargetsAnnounced",
             "the line must be the rendered prose arm, not the kind-only redaction \
              floor: {text:?}"
+        );
+    }
+
+    // ── PB-DX20 T6 ───────────────────────────────────────────────────────────
+
+    /// Mono-green, `{2}{G}{G}`, `Complete` -- fixes color identity (CR 903.5c) for
+    /// a deck holding Rancor + Llanowar Elves. Cheap enough that the drive loop
+    /// below never needs to worry about it: neither seat casts its own
+    /// commander in this fixture (the driver only ever offers-and-picks
+    /// PlayLand / "Cast Llanowar Elves" / "Cast Rancor" / PassPriority, in that
+    /// order, so a `CastSpell` for the commander is simply never selected).
+    const DX20_T6_COMMANDER: &str = "dwynen-gilt-leaf-daen";
+
+    /// 97 Forests + Llanowar Elves + Rancor for the human seat; 99 Forests for
+    /// the bot seat. Swept (throwaway scratch test, run then deleted, never
+    /// committed -- mirrors the `[UI6_RESTRICTED_SEED]`/`[ENG1_SEED]`
+    /// precedent) directly against `setup::build_initial_state`'s dealt hand
+    /// and library, not against a played-out game: at this seed Llanowar
+    /// Elves is in the OPENING hand and Rancor is drawn within the next two
+    /// draws, so the drive below reaches its target well before the bot's own
+    /// commander (also mono-green, also castable) can attack the human down.
+    const DX20_T6_SEED: u64 = 411;
+
+    fn dx20_t6_human_deck() -> mtg_simulator::DeckConfig {
+        use mtg_engine::CardId;
+        let mut main_deck: Vec<CardId> = vec![
+            CardId("llanowar-elves".to_string()),
+            CardId("rancor".to_string()),
+        ];
+        while main_deck.len() < 99 {
+            main_deck.push(CardId("forest".to_string()));
+        }
+        mtg_simulator::DeckConfig {
+            commander: CardId(DX20_T6_COMMANDER.to_string()),
+            main_deck,
+        }
+    }
+
+    fn dx20_t6_bot_deck() -> mtg_simulator::DeckConfig {
+        use mtg_engine::CardId;
+        mtg_simulator::DeckConfig {
+            commander: CardId(DX20_T6_COMMANDER.to_string()),
+            main_deck: (0..99).map(|_| CardId("forest".to_string())).collect(),
+        }
+    }
+
+    /// Install the T6 fixture through `session::new_game` -- the same
+    /// constructor the real handler uses, running the same two Invariant-9
+    /// gates (`validate_deck`, `check_all_defs_complete`). See [`ui1_install`]'s
+    /// doc for why `POST /api/game` cannot express a `DeckSource::Fixed` game.
+    fn dx20_t6_install(state: &SharedState) {
+        let cfg = mtg_simulator::LocalGameConfig {
+            player_count: 2,
+            human_seats: [mtg_engine::PlayerId(1)].into_iter().collect(),
+            bot_kind: BotKind::Heuristic,
+            seed: DX20_T6_SEED,
+            decks: mtg_simulator::DeckSource::Fixed(vec![
+                (mtg_engine::PlayerId(1), dx20_t6_human_deck()),
+                (mtg_engine::PlayerId(2), dx20_t6_bot_deck()),
+            ]),
+            limits: mtg_simulator::LocalGameLimits {
+                max_turns: 200,
+                max_commands: 40_000,
+                max_consecutive_passes: 500,
+                record_journal: true,
+            },
+        };
+        let session = session::new_game(cfg, 0).expect("the PB-DX20 T6 fixture deck must be legal");
+        *state.session.lock().expect("fresh lock") = Some(session);
+    }
+
+    /// Drive the human seat: play a land every chance, cast Llanowar Elves the
+    /// moment it is offered (getting an own creature onto the battlefield),
+    /// otherwise pass -- UNTIL "Cast Rancor" is offered with at least one
+    /// target candidate. Returns that view and the Rancor `CastSpell` option
+    /// itself, submitting NOTHING for that option (the caller does the actual
+    /// targeted-cast assertion).
+    async fn dx20_t6_drive_to_rancor_with_a_target(
+        state: &SharedState,
+        max_steps: usize,
+    ) -> (Value, Value) {
+        let (status, mut view) = get_json(state, "/api/game").await;
+        assert_eq!(status, StatusCode::OK, "{view}");
+        for step in 0..max_steps {
+            if !view["decision"].is_null() {
+                if let Some(rancor) = view["decision"]["actions"].as_array().and_then(|actions| {
+                    actions.iter().find(|a| {
+                        a["kind"] == "CastSpell"
+                            && a["label"] == "Cast Rancor"
+                            && a["target_slots"][0]["candidates"]
+                                .as_array()
+                                .is_some_and(|c| !c.is_empty())
+                    })
+                }) {
+                    return (view.clone(), rancor.clone());
+                }
+            }
+            assert!(
+                !view["decision"].is_null(),
+                "the game ended at step {step} without Rancor ever being offered with a \
+                 legal target: {view}"
+            );
+            let wire_seq = seq(&view);
+            let actions = view["decision"]["actions"]
+                .as_array()
+                .expect("actions is an array")
+                .clone();
+            let pick = actions
+                .iter()
+                .find(|a| a["kind"] == "PlayLand")
+                .or_else(|| {
+                    actions
+                        .iter()
+                        .find(|a| a["kind"] == "CastSpell" && a["label"] == "Cast Llanowar Elves")
+                })
+                .or_else(|| actions.iter().find(|a| a["kind"] == "PassPriority"))
+                .or_else(|| actions.iter().find(|a| a["kind"] != "Concede"))
+                .unwrap_or_else(|| panic!("only Concede was offered at step {step}: {view}"));
+            let index = pick["index"].as_u64().expect("index is a number");
+            let (status, next) = post_json(
+                state,
+                "/api/game/action",
+                json!({"seq": wire_seq, "action_index": index, "params": {}}),
+            )
+            .await;
+            assert_eq!(
+                status,
+                StatusCode::OK,
+                "step {step} submitting {}: {next}",
+                pick["label"]
+            );
+            view = next;
+        }
+        panic!("Rancor was never offered with a legal target within {max_steps} steps");
+    }
+
+    /// **CR 303.4a (Aura half, acceptance criterion 1 second half) -- Rancor
+    /// castable end to end over the REAL HTTP API.** Before PB-DX20 this was a
+    /// 422: `action_option_view` read `target_min: 0` for every Aura (no
+    /// picker was ever rendered), and `POST /api/game/action` with a target
+    /// anyway was refused by `casting.rs`'s independent CR 303.4a gate.
+    ///
+    /// This is a REAL HTTP round trip through `app(state.clone()).oneshot(...)`
+    /// (the same router `main()` serves), not a `view::decision_view` call --
+    /// stated per the dispatch brief's instruction to say which was done.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_dx20_t6_rancor_castable_with_a_real_target_over_http() {
+        let state = shared_state();
+        dx20_t6_install(&state);
+
+        let (view, rancor) = dx20_t6_drive_to_rancor_with_a_target(&state, 4_000).await;
+
+        assert_eq!(
+            rancor["target_min"], 1,
+            "Rancor's offered CastSpell action should carry target_min == 1 (today: 0), \
+             got {:?}",
+            rancor["target_min"]
+        );
+        let candidates = rancor["target_slots"][0]["candidates"]
+            .as_array()
+            .expect("candidates is an array");
+        assert!(
+            !candidates.is_empty(),
+            "Rancor's target_slots[0].candidates should contain the creature on the \
+             battlefield, got {:?}",
+            rancor["target_slots"]
+        );
+        let target_label = candidates[0]["label"].as_str().unwrap_or_default();
+        assert!(
+            target_label.contains("Llanowar Elves") || !target_label.is_empty(),
+            "the candidate should be a real (redacted) label, got {:?}",
+            candidates[0]
+        );
+        let target = candidates[0]["value"].clone();
+
+        let before_commands = command_count(&view);
+        let (status, after) = post_json(
+            &state,
+            "/api/game/action",
+            json!({
+                "seq": seq(&view),
+                "action_index": rancor["index"],
+                "params": { "targets": [target] },
+            }),
+        )
+        .await;
+        assert_eq!(
+            status,
+            StatusCode::OK,
+            "POST /api/game/action with Rancor's declared target should return 200 \
+             (today: 422): {after}"
+        );
+        assert!(
+            command_count(&after) > before_commands,
+            "the command count should have advanced past {before_commands}, got {:?}",
+            command_count(&after)
         );
     }
 }

@@ -34,13 +34,15 @@
 //!   gives them a minimum of 0 (`casting.rs:5903`), so declining is always legal, and
 //!   "up to one target creature" on an unknown-polarity spell is a strategy question
 //!   this module has no basis to answer (`OOS-SIM5-2`).
-//! * **Auras are still unannounceable** (`OOS-CARDS2-4`). An Aura's target restriction
-//!   lives in `KeywordAbility::Enchant`, not in a `TargetRequirement`, so
-//!   `spell_target_requirements` returns an empty list for one and the CR 303.4a check
-//!   at `casting.rs:3722` then refuses the cast. The predicate that would decide it
-//!   (`rules::sba::get_enchant_target` / `matches_enchant_target`) is `pub(crate)`, and
-//!   re-implementing it here is exactly the drift this module refuses to do. Post-fix
-//!   (1) the attempt is a harmless no-op that shows up in `LocalGame::rejections()`.
+//! * **Auras are now announceable — `OOS-CARDS2-4` is CLOSED (PB-DX20).** An Aura's
+//!   target restriction still lives in `KeywordAbility::Enchant`, not in a
+//!   `TargetRequirement`, but `spell_target_requirements` now SYNTHESIZES a
+//!   `TargetRequirement` from that keyword (`casting.rs`'s `aura_spell_target_
+//!   requirements`, shared with `handle_cast_spell` itself) before this module ever
+//!   sees it. This module still re-derives nothing: it reaches the Enchant-derived
+//!   predicate *through* the same `queries.rs` surface every other targeting decision
+//!   goes through, not by importing `rules::sba::get_enchant_target` /
+//!   `matches_enchant_target` directly.
 //! * **Candidate choice is "the first legal one", not a strategy.** See
 //!   [`plan_targets`].
 
@@ -78,12 +80,15 @@ pub enum TargetPlan {
     ///   predicate cannot see them either. The remaining ~161 are `InsufficientMana`
     ///   and `activation condition not met` on activations (SIM-6's subject, and
     ///   explicitly out of this batch's scope) plus blocker-declaration refusals.
-    /// * **It does not cover `OOS-CARDS2-4`**, which was fix (4)'s main advertised
-    ///   benefit. An Aura's restriction is a `KeywordAbility::Enchant`, not a
-    ///   `TargetRequirement`, so this returns [`TargetPlan::NotTargeted`] for one; the
-    ///   predicates that would decide it (`rules::sba::get_enchant_target` /
-    ///   `matches_enchant_target`) are `pub(crate)`. Covering Auras needs a new
-    ///   **engine** query, which SIM-5 is forbidden to add (0 engine lines).
+    /// * **`Unsatisfiable` is now REACHABLE for Auras (PB-DX20).** Before PB-DX20,
+    ///   `spell_target_requirements` returned an empty list for every Aura, so this
+    ///   arm could never fire for one — an Aura with no legal target on the board
+    ///   fell through to [`TargetPlan::NotTargeted`] instead, and the engine's
+    ///   refusal was the only signal. Post-fix an Aura's synthesized requirement is
+    ///   mandatory (`(1, 1)`), so an Aura with no legal target now correctly reaches
+    ///   `Unsatisfiable` here — new, correct behaviour, and the blocker that used to
+    ///   say "covering Auras needs a new engine query" is stale: `queries.rs` answers
+    ///   it already (`OOS-DX20-3`, the remaining sub-case of `OOS-SIM5-4`).
     /// * **Cost.** The filter runs a full candidate sweep per offered cast per
     ///   priority window, and `queries::legal_targets_per_slot`'s own doc asks for a
     ///   measurement and a per-`(state, source)` cache before it is put on a polled

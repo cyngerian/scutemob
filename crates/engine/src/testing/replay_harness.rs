@@ -3997,8 +3997,16 @@ pub fn enrich_spec_from_def(
         if let AbilityDefinition::Reconfigure { cost } = ability {
             spec = spec.with_keyword(KeywordAbility::Reconfigure);
             // Ability 1: Attach to a target creature you control (sorcery speed).
+            // CR 702.151a: "another target creature you control" -- exclude_self is
+            // load-bearing here (unlike the Equip repair in skullclamp.rs, whose CR
+            // 702.6a text has no "another" and correctly omits it). pb-plan-DX20.md §5
+            // step 5 flags this as the single most likely place to get wrong.
             let attach_ab = ActivatedAbility {
-                targets: vec![],
+                targets: vec![TargetRequirement::TargetCreatureWithFilter(TargetFilter {
+                    controller: TargetController::You,
+                    exclude_self: true,
+                    ..Default::default()
+                })],
                 cost: cost_to_activation_cost(&Cost::Mana(cost.clone())),
                 description: "Reconfigure (CR 702.151a): Attach to target creature you control."
                     .to_string(),

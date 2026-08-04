@@ -231,8 +231,10 @@ fn seat_ids(cfg: &LocalGameConfig) -> Vec<PlayerId> {
 /// seat's shuffle interleave, so seat 2's *deck* depends on seat 1's *shuffle*), and moving
 /// it re-rolls every table every existing seed builds. That reddened seven tests —
 /// six `tools/play-server` probes that pin card names at `SEED = 0`, and
-/// `local_game_playthrough` seed 1, which landed on a deck that exposes a pre-existing
-/// engine defect ("Aura spells require exactly one target"). Reading the dealt state
+/// `local_game_playthrough` seed 1, which at the time landed on a deck that exposed a
+/// pre-existing engine defect ("Aura spells require exactly one target") — since closed
+/// by PB-DX20 (`OOS-CARDS2-4`); the historical reason this factoring was reverted (moving
+/// the RNG stream) is unchanged and is what this doc still records. Reading the dealt state
 /// instead moves **nothing**: the game is built exactly as before, and this only records
 /// what it was built with. It is also the stronger guarantee — the multiset a mulligan
 /// permutes is the one the player was literally dealt, not one re-derived from a config

@@ -85,9 +85,13 @@ pub struct GameResult {
 /// is unmoved because 30 already has ample headroom over either reading.
 /// Pinned with headroom, NOT at zero: OOS-SIM5-3 (blocker refusals, the largest
 /// family), OOS-SIM5-5 (modal per-mode target slices), OOS-SIM6-3 (auto-tap covers
-/// CastSpell alone), OOS-CARDS2-4 (Aura offers refused by CR 303.4a) and
-/// OOS-SIM4-2 are all open. Ratchet DOWNWARD as each closes; never raise it to
-/// fit a measurement without naming the seed that justifies the rise.
+/// CastSpell alone) and OOS-SIM4-2 are all open. `OOS-CARDS2-4` (Aura offers refused
+/// by CR 303.4a) is CLOSED by PB-DX20 and struck from this list — the constant is
+/// NOT re-measured or lowered here per §7 R2 of that batch's plan: this rejection
+/// rate is dominated by the still-open families above, and re-tuning a threshold
+/// without a fresh measurement is exactly what this doc's own rule forbids. Ratchet
+/// DOWNWARD as each closes; never raise it to fit a measurement without naming the
+/// seed that justifies the rise.
 /// **Enforced by the BINARY alone** (review finding L7): no test in this workspace
 /// reads this constant — [`MAX_BOT_REJECTION_PER_MILLE_AT_GATE_CONFIG`] below is the
 /// TEST gate's own, separate pin — and `bin/fuzzer.rs`'s own module doc (F19) records
@@ -100,7 +104,7 @@ pub const MAX_BOT_REJECTION_PER_MILLE: u32 = 30;
 /// gate's OWN configuration — a `cargo test` DEBUG build, 3 seeds ([1, 2, 3]) x 25
 /// turns x `RandomBot` x `build_fuzz_state`, `record_journal: false`: 2,767 commands,
 /// 86 rejections = 31.081 per mille. Pinned at 40 (~30% headroom over 31.081). NOT
-/// zero, for the same five open seeds `MAX_BOT_REJECTION_PER_MILLE` names above.
+/// zero, for the same four open seeds `MAX_BOT_REJECTION_PER_MILLE` names above.
 /// Ratchet DOWNWARD as each closes, and re-measure (do not guess) if the gate's own
 /// seeds or turn cap ever change — this number is NOT interchangeable with
 /// `MAX_BOT_REJECTION_PER_MILLE`, which is a different (200-turn, release-profile)
