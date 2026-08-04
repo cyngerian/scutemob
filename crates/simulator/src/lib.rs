@@ -51,7 +51,7 @@ pub use legal_actions::{
 };
 pub use local_game::{
     human_only_actions, AdvanceOutcome, CommandRecord, DecisionKind, HaltReason, LocalGame,
-    LocalGameError, LocalGameLimits, MechanicsTally, PendingDecision,
+    LocalGameError, LocalGameLimits, MechanicsTally, PendingDecision, WasteTally,
 };
 // PB-DX32 Stage 2 (SR-38): `RejectedCommand` was constructible only inside this crate
 // before -- `mtg-fuzzer` (its own crate) needs it to read `GameResult::rejections`, and
@@ -64,7 +64,8 @@ pub use params::{action_to_command_with_params, ActionParams, HumanChoice, Param
 pub use random_bot::RandomBot;
 pub use report::{
     CrashReport, GameDriverError, GameResult, MAX_BOT_REJECTION_PER_MILLE,
-    MAX_BOT_REJECTION_PER_MILLE_AT_GATE_CONFIG,
+    MAX_BOT_REJECTION_PER_MILLE_AT_GATE_CONFIG, MAX_HEURISTIC_POOLS_EMPTIED_PER_SEED,
+    MAX_RANDOM_BOT_WASTED_TAP_PCT, MAX_RANDOM_BOT_WASTED_TAP_PCT_AT_GATE_CONFIG,
 };
 pub use setup::{
     build_initial_state, dealt_decks, redeal, BotKind, DeckSource, LocalGameConfig, SetupError,

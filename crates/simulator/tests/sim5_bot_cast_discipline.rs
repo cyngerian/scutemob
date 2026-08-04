@@ -349,6 +349,153 @@ fn seeded_four_bot_game_wastes_no_taps() {
     );
 }
 
+/// **T3.2** (PB-DX32 Stage 3) — the anti-drift gate for the `WasteTally` promotion.
+/// `LocalGame::waste()` is folded incrementally at the same two sites
+/// `MechanicsTally::record` is folded at (plan §3.4, fact F8); this proves the
+/// streaming fold and this file's own journal-walk ([`metrics_of`]) are the SAME
+/// measurement on a journal-ON game, field for field, across all seven counters. This
+/// is what stops the promoted copy from silently drifting from its origin.
+///
+/// # The trailing open-run close (plan §7 R8) needed a SECOND, purpose-built case
+///
+/// None of `AB_SEEDS` ever exercises `waste()`'s trailing "close the still-open run"
+/// step (`local_game.rs::waste`, mirroring `metrics_of`'s own `:196-198`) — verified
+/// by executing the revert (dropping that close) against this test's AB_SEEDS loop
+/// alone: it stayed GREEN. The reason is structural, not a missing seed:
+/// `HeuristicBot` scores `LegalAction::TapForMana` at 0, "below passing"
+/// (`heuristic_bot.rs:271`), so it only ever taps as an auto-tap PREFIX bundled
+/// with a cast (`advance()`'s `[taps…, cast]` vector) — and a whole `[taps…, cast]`
+/// bundle is folded, and its own run therefore CLOSED, inside the single
+/// `apply_sequence` call that commits it, before that call ever returns to the caller.
+/// A run can only survive PAST one `advance()` iteration if that iteration's WHOLE
+/// decision was a STANDALONE tap with nothing queued after it — which `HeuristicBot`
+/// structurally never chooses. So the block below drives a controlled fixture instead:
+/// a human seat submits exactly one `TapForMana` command and nothing follows, which
+/// is the only way to leave `waste_run` open at the moment `.waste()` is called.
+#[test]
+fn test_dx32_streaming_waste_tally_equals_the_sim5_journal_walk() {
+    for &seed in &AB_SEEDS {
+        let (game, _names) = play(seed, BotKind::Heuristic, AB_MAX_TURNS);
+        let walked = metrics_of(&game);
+        let streamed = game.waste();
+        assert_eq!(
+            streamed.tap_runs as usize, walked.tap_runs,
+            "seed {seed}: tap_runs — streamed {streamed:?} vs walked {walked:?}"
+        );
+        assert_eq!(
+            streamed.wasted_tap_runs as usize, walked.wasted_tap_runs,
+            "seed {seed}: wasted_tap_runs — streamed {streamed:?} vs walked {walked:?}"
+        );
+        assert_eq!(
+            streamed.wasted_taps as usize, walked.wasted_taps,
+            "seed {seed}: wasted_taps — streamed {streamed:?} vs walked {walked:?}"
+        );
+        assert_eq!(
+            streamed.total_taps as usize, walked.total_taps,
+            "seed {seed}: total_taps — streamed {streamed:?} vs walked {walked:?}"
+        );
+        assert_eq!(
+            streamed.mana_pools_emptied as usize, walked.mana_pools_emptied,
+            "seed {seed}: mana_pools_emptied — streamed {streamed:?} vs walked {walked:?}"
+        );
+        assert_eq!(
+            streamed.casts as usize, walked.casts,
+            "seed {seed}: casts — streamed {streamed:?} vs walked {walked:?}"
+        );
+        assert_eq!(
+            streamed.targeted_casts as usize, walked.targeted_casts,
+            "seed {seed}: targeted_casts — streamed {streamed:?} vs walked {walked:?}"
+        );
+    }
+
+    // The controlled mid-tap-run case (see this test's doc comment for why AB_SEEDS
+    // alone cannot reach it): a human seat with one untapped mana-producing land taps
+    // it and submit() returns -- nothing else has been applied, so the run is open.
+    let p1 = PlayerId(1);
+    let p2 = PlayerId(2);
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .object(
+            ObjectSpec::land(p1, "Swamp 1")
+                .with_mana_ability(ManaAbility::tap_for(ManaColor::Black)),
+        )
+        .build()
+        .expect("mid-tap-run fixture must build");
+    state.turn_mut().priority_holder = Some(p1);
+
+    let human: BTreeSet<PlayerId> = [p1].into_iter().collect();
+    let (mut mid_run_game, _events) = LocalGame::start(
+        state,
+        0,
+        StubProvider,
+        HashMap::new(),
+        human,
+        LocalGameLimits {
+            max_turns: 3,
+            max_commands: 400,
+            max_consecutive_passes: 100,
+            record_journal: true,
+        },
+        false,
+    )
+    .expect("mid-tap-run fixture must start");
+
+    let decision = match mid_run_game.advance() {
+        AdvanceOutcome::AwaitingHuman(d) => d,
+        other => panic!("expected p1 to hold priority: {other:?}"),
+    };
+    let index = decision
+        .actions
+        .iter()
+        .position(|a| matches!(a, LegalAction::TapForMana { .. }))
+        .expect("the untapped Swamp must offer a TapForMana action");
+    mid_run_game
+        .submit(
+            decision.seq,
+            HumanChoice {
+                action_index: index,
+                params: ActionParams::default(),
+            },
+        )
+        .expect("tapping the fixture land must succeed");
+
+    let mid_run_waste = mid_run_game.waste();
+    assert_eq!(
+        mid_run_waste.total_taps, 1,
+        "the tap itself must always be counted regardless of run-closing: {mid_run_waste:?}"
+    );
+    assert_eq!(
+        mid_run_waste.tap_runs, 1,
+        "the still-open run must be closed on the snapshot COPY `waste()` returns \
+         (plan §3.4 / T3.2, the R8 case this AB_SEEDS loop above cannot reach): \
+         {mid_run_waste:?}"
+    );
+}
+
+/// **T3.3** (PB-DX32 Stage 3) — criterion (b)'s literal requirement: `OOS-SIM2-1`
+/// named IN the assertion message, at the pin. Reuses the same A/B seeds
+/// (`AB_SEEDS`, `AB_MAX_TURNS`, `HeuristicBot`) as
+/// [`seeded_four_bot_game_wastes_no_taps`] above.
+#[test]
+fn heuristic_pools_emptied_is_pinned() {
+    for &seed in &AB_SEEDS {
+        let (game, _names) = play(seed, BotKind::Heuristic, AB_MAX_TURNS);
+        let m = metrics_of(&game);
+        assert!(
+            m.mana_pools_emptied <= mtg_simulator::MAX_HEURISTIC_POOLS_EMPTIED_PER_SEED,
+            "seed {seed}: mana_pools_emptied {} exceeds \
+             MAX_HEURISTIC_POOLS_EMPTIED_PER_SEED ({}) — a rise past this pin means \
+             either a new wasted-tap class or that the greedy-solver slack OOS-SIM2-1 \
+             leaves on casts that SUCCEED has widened: {m:?}",
+            m.mana_pools_emptied,
+            mtg_simulator::MAX_HEURISTIC_POOLS_EMPTIED_PER_SEED
+        );
+    }
+}
+
 // ── Focused gates ────────────────────────────────────────────────────────────────
 //
 // The A/B test above is a whole-game measurement; these three are fixtures small

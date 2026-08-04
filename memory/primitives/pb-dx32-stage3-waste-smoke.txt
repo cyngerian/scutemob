@@ -1,0 +1,159 @@
+MTG Fuzzer — Commander Rules Engine
+===================================
+Games: 5  Players: 4  Max turns: 200  Bot: Random  Seed: 1
+Cards available: 1803
+
+
+Results
+-------
+Games completed: 5  Time: 3.0s  (2 games/sec)
+Wins: 5  Draws: 0  Errors: 0
+Total violations: 94
+Avg turns per game: 98.8
+
+Violations by check (ALL 5 games)
+---------------------------------
+  no_orphaned_tokens       90     in 5 game(s): [1, 2, 3, 4, 5]
+  attachment_validity      3      in 1 game(s): [5]
+  player_consistency       1      in 1 game(s): [2]
+  games with >=1 violation: 5 / 5
+  histogram total: 94
+
+Mechanics census (ALL 5 games)
+------------------------------
+  CR 601.2  SpellCast                    177 total; first on game turn min 5 / median 17 / max 25 (5 of 5 games cast)
+  CR 601.2  first NON-commander cast     game turn min 5 / median 17 / max 25 (5 of 5 games) -- this is the one CR 103.3 library order gates
+  CR 305.1  LandPlayed                   205 total; first on game turn min 1 / median 3 / max 5 (5 of 5 games)
+  CR 903.8  CommanderCastFromCommandZone 10 total, in 4 of 5 games; first on game turn min 45 / median 49 / max 107
+  CR 903.9a CommanderReturnedToCommandZone 2
+  CR 903.9b CommanderZoneRedirect        0
+  CR 903.10a commander damage            non-empty in 4 of 5 games; largest single total 13 (rule threshold 21)
+
+SR-38: bot-seat command rejections (ALL 5 games)
+---------------------------------------------------
+  542 rejections / 23613 commands = 22.953 per mille (threshold 30)
+  per-seed band (seed: rejections/commands):
+    seed 1: 79/2190
+    seed 2: 27/5518
+    seed 3: 43/4812
+    seed 4: 157/5902
+    seed 5: 236/5191
+  top rejection classes (from the sample, NOT the full count):
+    16     InsufficientMana
+    15     InvalidTarget
+    4      AlreadyDeclaredBlockers
+    3      InvalidCommand
+    2      CrossPlayerBlock { blocker: ObjectId
+
+Waste census (ALL 5 games) -- bot: Random
+-----------------------------------------
+  Random wastes taps BY DESIGN (no plan) -- do not read a high percentage here as an engine defect for this bot.
+  tap runs: 1258 total, 968 wasted (1986 taps of 2641 total = 75.2%, threshold 85%)
+  CR 500.4 ManaPoolsEmptied: 885
+  casts: 177 total, 24 with >=1 announced target (CR 601.2c)
+
+Violation in game seed 1:
+  [no_orphaned_tokens] Token ObjectId(520) 'Spirit' found in zone Graveyard(PlayerId(2)) (turn 38)
+  [no_orphaned_tokens] Token ObjectId(520) 'Spirit' found in zone Graveyard(PlayerId(2)) (turn 38)
+  [no_orphaned_tokens] Token ObjectId(520) 'Spirit' found in zone Graveyard(PlayerId(2)) (turn 38)
+  [no_orphaned_tokens] Token ObjectId(520) 'Spirit' found in zone Graveyard(PlayerId(2)) (turn 38)
+  [no_orphaned_tokens] Token ObjectId(527) 'Treasure' found in zone Graveyard(PlayerId(2)) (turn 38)
+  [no_orphaned_tokens] Token ObjectId(527) 'Treasure' found in zone Graveyard(PlayerId(2)) (turn 38)
+  [no_orphaned_tokens] Token ObjectId(527) 'Treasure' found in zone Graveyard(PlayerId(2)) (turn 38)
+  [no_orphaned_tokens] Token ObjectId(527) 'Treasure' found in zone Graveyard(PlayerId(2)) (turn 38)
+  [no_orphaned_tokens] Token ObjectId(527) 'Treasure' found in zone Graveyard(PlayerId(2)) (turn 38)
+
+Violation in game seed 2:
+  [no_orphaned_tokens] Token ObjectId(433) 'Treasure' found in zone Graveyard(PlayerId(4)) (turn 20)
+  [no_orphaned_tokens] Token ObjectId(433) 'Treasure' found in zone Graveyard(PlayerId(4)) (turn 20)
+  [no_orphaned_tokens] Token ObjectId(433) 'Treasure' found in zone Graveyard(PlayerId(4)) (turn 20)
+  [no_orphaned_tokens] Token ObjectId(433) 'Treasure' found in zone Graveyard(PlayerId(4)) (turn 20)
+  [no_orphaned_tokens] Token ObjectId(655) 'Faerie Rogue' found in zone Graveyard(PlayerId(1)) (turn 77)
+  [no_orphaned_tokens] Token ObjectId(655) 'Faerie Rogue' found in zone Graveyard(PlayerId(1)) (turn 77)
+  [no_orphaned_tokens] Token ObjectId(655) 'Faerie Rogue' found in zone Graveyard(PlayerId(1)) (turn 77)
+  [no_orphaned_tokens] Token ObjectId(655) 'Faerie Rogue' found in zone Graveyard(PlayerId(1)) (turn 77)
+  [no_orphaned_tokens] Token ObjectId(655) 'Faerie Rogue' found in zone Graveyard(PlayerId(1)) (turn 77)
+  [no_orphaned_tokens] Token ObjectId(655) 'Faerie Rogue' found in zone Graveyard(PlayerId(1)) (turn 77)
+  [no_orphaned_tokens] Token ObjectId(655) 'Faerie Rogue' found in zone Graveyard(PlayerId(1)) (turn 77)
+  [no_orphaned_tokens] Token ObjectId(655) 'Faerie Rogue' found in zone Graveyard(PlayerId(1)) (turn 77)
+  [no_orphaned_tokens] Token ObjectId(655) 'Faerie Rogue' found in zone Graveyard(PlayerId(1)) (turn 77)
+  [no_orphaned_tokens] Token ObjectId(664) 'Treasure' found in zone Graveyard(PlayerId(1)) (turn 77)
+  [no_orphaned_tokens] Token ObjectId(664) 'Treasure' found in zone Graveyard(PlayerId(1)) (turn 77)
+  [no_orphaned_tokens] Token ObjectId(664) 'Treasure' found in zone Graveyard(PlayerId(1)) (turn 77)
+  [no_orphaned_tokens] Token ObjectId(664) 'Treasure' found in zone Graveyard(PlayerId(1)) (turn 77)
+  [no_orphaned_tokens] Token ObjectId(721) 'Faerie Rogue' found in zone Graveyard(PlayerId(1)) (turn 85)
+  [no_orphaned_tokens] Token ObjectId(721) 'Faerie Rogue' found in zone Graveyard(PlayerId(1)) (turn 85)
+  [no_orphaned_tokens] Token ObjectId(721) 'Faerie Rogue' found in zone Graveyard(PlayerId(1)) (turn 85)
+  [no_orphaned_tokens] Token ObjectId(721) 'Faerie Rogue' found in zone Graveyard(PlayerId(1)) (turn 85)
+  [player_consistency] Active player PlayerId(1) has lost or conceded (turn 123)
+
+Violation in game seed 3:
+  [no_orphaned_tokens] Token ObjectId(720) 'Spawn' found in zone Graveyard(PlayerId(3)) (turn 55)
+  [no_orphaned_tokens] Token ObjectId(720) 'Spawn' found in zone Graveyard(PlayerId(3)) (turn 55)
+  [no_orphaned_tokens] Token ObjectId(720) 'Spawn' found in zone Graveyard(PlayerId(3)) (turn 55)
+  [no_orphaned_tokens] Token ObjectId(720) 'Spawn' found in zone Graveyard(PlayerId(3)) (turn 55)
+  [no_orphaned_tokens] Token ObjectId(723) 'Food' found in zone Graveyard(PlayerId(4)) (turn 56)
+  [no_orphaned_tokens] Token ObjectId(723) 'Food' found in zone Graveyard(PlayerId(4)) (turn 56)
+  [no_orphaned_tokens] Token ObjectId(723) 'Food' found in zone Graveyard(PlayerId(4)) (turn 56)
+  [no_orphaned_tokens] Token ObjectId(723) 'Food' found in zone Graveyard(PlayerId(4)) (turn 56)
+  [no_orphaned_tokens] Token ObjectId(723) 'Food' found in zone Graveyard(PlayerId(4)) (turn 56)
+  [no_orphaned_tokens] Token ObjectId(723) 'Food' found in zone Graveyard(PlayerId(4)) (turn 56)
+  [no_orphaned_tokens] Token ObjectId(830) 'Spawn' found in zone Graveyard(PlayerId(3)) (turn 67)
+  [no_orphaned_tokens] Token ObjectId(830) 'Spawn' found in zone Graveyard(PlayerId(3)) (turn 67)
+  [no_orphaned_tokens] Token ObjectId(830) 'Spawn' found in zone Graveyard(PlayerId(3)) (turn 67)
+  [no_orphaned_tokens] Token ObjectId(830) 'Spawn' found in zone Graveyard(PlayerId(3)) (turn 67)
+
+Violation in game seed 4:
+  [no_orphaned_tokens] Token ObjectId(836) 'Treasure' found in zone Graveyard(PlayerId(1)) (turn 102)
+  [no_orphaned_tokens] Token ObjectId(839) 'Treasure' found in zone Graveyard(PlayerId(1)) (turn 102)
+  [no_orphaned_tokens] Token ObjectId(839) 'Treasure' found in zone Graveyard(PlayerId(1)) (turn 102)
+  [no_orphaned_tokens] Token ObjectId(839) 'Treasure' found in zone Graveyard(PlayerId(1)) (turn 102)
+  [no_orphaned_tokens] Token ObjectId(839) 'Treasure' found in zone Graveyard(PlayerId(1)) (turn 102)
+  [no_orphaned_tokens] Token ObjectId(842) 'Treasure' found in zone Graveyard(PlayerId(1)) (turn 102)
+  [no_orphaned_tokens] Token ObjectId(839) 'Treasure' found in zone Graveyard(PlayerId(1)) (turn 102)
+  [no_orphaned_tokens] Token ObjectId(842) 'Treasure' found in zone Graveyard(PlayerId(1)) (turn 102)
+  [no_orphaned_tokens] Token ObjectId(839) 'Treasure' found in zone Graveyard(PlayerId(1)) (turn 102)
+  [no_orphaned_tokens] Token ObjectId(842) 'Treasure' found in zone Graveyard(PlayerId(1)) (turn 102)
+  [no_orphaned_tokens] Token ObjectId(839) 'Treasure' found in zone Graveyard(PlayerId(1)) (turn 102)
+  [no_orphaned_tokens] Token ObjectId(842) 'Treasure' found in zone Graveyard(PlayerId(1)) (turn 102)
+  [no_orphaned_tokens] Token ObjectId(871) 'Treasure' found in zone Graveyard(PlayerId(1)) (turn 105)
+  [no_orphaned_tokens] Token ObjectId(871) 'Treasure' found in zone Graveyard(PlayerId(1)) (turn 105)
+  [no_orphaned_tokens] Token ObjectId(871) 'Treasure' found in zone Graveyard(PlayerId(1)) (turn 105)
+  [no_orphaned_tokens] Token ObjectId(871) 'Treasure' found in zone Graveyard(PlayerId(1)) (turn 105)
+
+Violation in game seed 5:
+  [no_orphaned_tokens] Token ObjectId(550) 'Treasure' found in zone Graveyard(PlayerId(2)) (turn 50)
+  [no_orphaned_tokens] Token ObjectId(550) 'Treasure' found in zone Graveyard(PlayerId(2)) (turn 50)
+  [no_orphaned_tokens] Token ObjectId(550) 'Treasure' found in zone Graveyard(PlayerId(2)) (turn 50)
+  [no_orphaned_tokens] Token ObjectId(550) 'Treasure' found in zone Graveyard(PlayerId(2)) (turn 50)
+  [attachment_validity] Object ObjectId(532) attached to ObjectId(677) which doesn't exist (turn 88)
+  [attachment_validity] Object ObjectId(532) attached to ObjectId(677) which doesn't exist (turn 88)
+  [attachment_validity] Object ObjectId(532) attached to ObjectId(677) which doesn't exist (turn 88)
+  [no_orphaned_tokens] Token ObjectId(773) 'Goblin' found in zone Graveyard(PlayerId(1)) (turn 97)
+  [no_orphaned_tokens] Token ObjectId(773) 'Goblin' found in zone Graveyard(PlayerId(1)) (turn 97)
+  [no_orphaned_tokens] Token ObjectId(776) 'Goblin' found in zone Graveyard(PlayerId(1)) (turn 97)
+  [no_orphaned_tokens] Token ObjectId(773) 'Goblin' found in zone Graveyard(PlayerId(1)) (turn 97)
+  [no_orphaned_tokens] Token ObjectId(776) 'Goblin' found in zone Graveyard(PlayerId(1)) (turn 97)
+  [no_orphaned_tokens] Token ObjectId(773) 'Goblin' found in zone Graveyard(PlayerId(1)) (turn 97)
+  [no_orphaned_tokens] Token ObjectId(776) 'Goblin' found in zone Graveyard(PlayerId(1)) (turn 97)
+  [no_orphaned_tokens] Token ObjectId(773) 'Goblin' found in zone Graveyard(PlayerId(1)) (turn 97)
+  [no_orphaned_tokens] Token ObjectId(776) 'Goblin' found in zone Graveyard(PlayerId(1)) (turn 97)
+  [no_orphaned_tokens] Token ObjectId(773) 'Goblin' found in zone Graveyard(PlayerId(1)) (turn 97)
+  [no_orphaned_tokens] Token ObjectId(776) 'Goblin' found in zone Graveyard(PlayerId(1)) (turn 97)
+  [no_orphaned_tokens] Token ObjectId(773) 'Goblin' found in zone Graveyard(PlayerId(1)) (turn 97)
+  [no_orphaned_tokens] Token ObjectId(776) 'Goblin' found in zone Graveyard(PlayerId(1)) (turn 97)
+  [no_orphaned_tokens] Token ObjectId(837) 'Archon of Emeria' found in zone Graveyard(PlayerId(4)) (turn 104)
+  [no_orphaned_tokens] Token ObjectId(837) 'Archon of Emeria' found in zone Graveyard(PlayerId(4)) (turn 104)
+  [no_orphaned_tokens] Token ObjectId(837) 'Archon of Emeria' found in zone Graveyard(PlayerId(4)) (turn 104)
+  [no_orphaned_tokens] Token ObjectId(837) 'Archon of Emeria' found in zone Graveyard(PlayerId(4)) (turn 104)
+  [no_orphaned_tokens] Token ObjectId(837) 'Archon of Emeria' found in zone Graveyard(PlayerId(4)) (turn 104)
+  [no_orphaned_tokens] Token ObjectId(918) 'Eldrazi' found in zone Graveyard(PlayerId(4)) (turn 110)
+  [no_orphaned_tokens] Token ObjectId(918) 'Eldrazi' found in zone Graveyard(PlayerId(4)) (turn 110)
+  [no_orphaned_tokens] Token ObjectId(918) 'Eldrazi' found in zone Graveyard(PlayerId(4)) (turn 110)
+  [no_orphaned_tokens] Token ObjectId(918) 'Eldrazi' found in zone Graveyard(PlayerId(4)) (turn 110)
+  [no_orphaned_tokens] Token ObjectId(918) 'Eldrazi' found in zone Graveyard(PlayerId(4)) (turn 110)
+  [no_orphaned_tokens] Token ObjectId(918) 'Eldrazi' found in zone Graveyard(PlayerId(4)) (turn 110)
+  [no_orphaned_tokens] Token ObjectId(918) 'Eldrazi' found in zone Graveyard(PlayerId(4)) (turn 110)
+  [no_orphaned_tokens] Token ObjectId(918) 'Eldrazi' found in zone Graveyard(PlayerId(4)) (turn 110)
+
+Replay violations with: mtg-fuzzer --replay <SEED>

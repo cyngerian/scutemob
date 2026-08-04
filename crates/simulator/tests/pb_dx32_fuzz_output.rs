@@ -502,3 +502,41 @@ fn test_dx32_game_result_carries_the_rejection_channel() {
         "GameResult.rejection_count must match the game's own accessor (Halted path)"
     );
 }
+
+/// **T3.1** (Stage 3) — the waste ratio at the TEST gate's own configuration: 3 seeds
+/// x 25 turns x `RandomBot` x `build_fuzz_state`, `record_journal: false` (the same
+/// configuration T2.2 uses). `wasted_taps * 100 / total_taps` must stay at or under
+/// `MAX_RANDOM_BOT_WASTED_TAP_PCT_AT_GATE_CONFIG` — a SEPARATE pin from
+/// `MAX_RANDOM_BOT_WASTED_TAP_PCT` (the fuzz BINARY's 200-turn threshold), for the
+/// same reason T2.2 needed its own SR-38 pin distinct from the binary's: measured
+/// live, this exact 3-seed/25-turn configuration produces 89% wasted taps, ABOVE the
+/// 200-turn population's 85% ceiling — reusing that ceiling here would be red on
+/// arrival (see the constant's own doc for why the two populations genuinely differ).
+/// Floor: `total_taps > 0`, so a game with no taps at all cannot pass trivially.
+#[test]
+fn test_dx32_random_bot_waste_ratio_is_bounded() {
+    let mut total_taps: u64 = 0;
+    let mut wasted_taps: u64 = 0;
+
+    for &seed in &[1u64, 2, 3] {
+        let game = play_fuzz_shaped(seed, 4, 25);
+        let waste = game.waste();
+        eprintln!("T3.1 seed {seed}: {waste:?}");
+        total_taps += u64::from(waste.total_taps);
+        wasted_taps += u64::from(waste.wasted_taps);
+    }
+
+    assert!(
+        total_taps > 0,
+        "non-vacuity floor: the gate's own seeds are known to produce taps"
+    );
+    let pct = wasted_taps * 100 / total_taps;
+    eprintln!("T3.1 aggregate: {wasted_taps} / {total_taps} = {pct}%");
+    assert!(
+        pct <= u64::from(mtg_simulator::MAX_RANDOM_BOT_WASTED_TAP_PCT_AT_GATE_CONFIG),
+        "RandomBot wasted-tap ratio {pct}% exceeds \
+         MAX_RANDOM_BOT_WASTED_TAP_PCT_AT_GATE_CONFIG = {} -- RandomBot wastes taps BY \
+         DESIGN (no plan), so this is a ceiling on ordinary behaviour, not a zero target",
+        mtg_simulator::MAX_RANDOM_BOT_WASTED_TAP_PCT_AT_GATE_CONFIG
+    );
+}

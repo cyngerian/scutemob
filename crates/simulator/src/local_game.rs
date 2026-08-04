@@ -285,6 +285,31 @@ impl MechanicsTally {
     }
 }
 
+/// A constant-size streaming waste census (PB-DX32 Stage 3).
+///
+/// This is the promotion of `crates/simulator/tests/sim5_bot_cast_discipline.rs`'s
+/// `Metrics` (`:40-58`) from a test-only journal walk to an always-on fold — same
+/// mechanism as [`MechanicsTally`]: `Copy`, constant size, folded from a command's
+/// events (plus the command itself) as they go past, no journal required. The run
+/// cursor a live tally needs is NOT a field here (see [`LocalGame::waste`]'s doc);
+/// this type is a plain, private-field-free counter set.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct WasteTally {
+    /// Consecutive-`TapForMana`-by-one-player runs.
+    pub tap_runs: u32,
+    /// Runs followed immediately by that same player's `PassPriority` (SIM-5's
+    /// "wasted" classification).
+    pub wasted_tap_runs: u32,
+    /// Taps inside those wasted runs.
+    pub wasted_taps: u32,
+    pub total_taps: u32,
+    /// CR 500.4 — emitted only when at least one pool was actually non-empty.
+    pub mana_pools_emptied: u32,
+    pub casts: u32,
+    /// Casts that announced at least one target (CR 601.2c).
+    pub targeted_casts: u32,
+}
+
 /// Errors `LocalGame::start` / `submit` can return. Distinct from `GameStateError`
 /// (the engine's own rejection reason) so a caller can tell "your seq was stale" apart
 /// from "the engine said no" apart from "the engine itself is unusable".
@@ -346,6 +371,13 @@ pub struct LocalGame<P: LegalActionProvider> {
     /// over events already in hand and no retention, so unlike `journal` it does not
     /// need `LocalGameLimits::record_journal`. See [`MechanicsTally`].
     mechanics: MechanicsTally,
+    /// Constant-size streaming waste census (PB-DX32 Stage 3). See [`WasteTally`] and
+    /// [`Self::waste`].
+    waste: WasteTally,
+    /// The open tap-run cursor `fold_waste` tracks — deliberately NOT a field on
+    /// [`WasteTally`] itself, so that type stays a plain `Copy` counter set exactly
+    /// like [`MechanicsTally`] (§3.4 of the plan).
+    waste_run: Option<(PlayerId, u32)>,
 }
 
 /// How many [`RejectedCommand`]s a `LocalGame` retains **when `record_journal` is
@@ -403,6 +435,8 @@ impl<P: LegalActionProvider> LocalGame<P> {
             violations: Vec::new(),
             check_invariants,
             mechanics: MechanicsTally::default(),
+            waste: WasteTally::default(),
+            waste_run: None,
         };
         Ok((game, start_events))
     }
@@ -436,6 +470,10 @@ impl<P: LegalActionProvider> LocalGame<P> {
             // PB-DX32 Stage 2 (SR-38).
             rejection_count: self.rejection_count,
             rejections: self.rejections.clone(),
+            // PB-DX32 Stage 3 -- `self.waste()`, not `self.waste`, so the open tap
+            // run at the moment of the snapshot is closed the same way `mechanics()`
+            // closes its own final-state read.
+            waste: self.waste(),
         }
     }
 
@@ -476,6 +514,70 @@ impl<P: LegalActionProvider> LocalGame<P> {
             }
         }
         tally
+    }
+
+    /// The game's streaming waste census (PB-DX32 Stage 3), with any still-open tap
+    /// run closed on the returned COPY.
+    ///
+    /// Mirrors [`Self::mechanics`]'s own final-state read, and mirrors
+    /// `sim5_bot_cast_discipline.rs::metrics_of`'s trailing
+    /// `if run.take().is_some() { tap_runs += 1 }` (`:196-198`) — miss this and the
+    /// streaming tally is off by one run in every game that ends mid-tap-run.
+    pub fn waste(&self) -> WasteTally {
+        let mut tally = self.waste;
+        if self.waste_run.is_some() {
+            tally.tap_runs = tally.tap_runs.saturating_add(1);
+        }
+        tally
+    }
+
+    /// Fold one applied command's command+events into the streaming waste census — a
+    /// literal transcription of `sim5_bot_cast_discipline.rs::metrics_of`'s per-record
+    /// body (`:154-195`), including that file's own "a different player interleaved
+    /// closes the old run unclassified" behaviour. Called at the same two sites
+    /// [`MechanicsTally::record`] is, immediately alongside it, so the two tallies
+    /// cannot disagree about what they saw (plan §3.4, fact F8).
+    fn fold_waste(&mut self, command: &Command, events: &[GameEvent]) {
+        self.waste.mana_pools_emptied = self.waste.mana_pools_emptied.saturating_add(
+            events
+                .iter()
+                .filter(|e| matches!(e, GameEvent::ManaPoolsEmptied))
+                .count() as u32,
+        );
+
+        match command {
+            Command::TapForMana { player, .. } => {
+                self.waste.total_taps = self.waste.total_taps.saturating_add(1);
+                match &mut self.waste_run {
+                    Some((p, n)) if *p == *player => *n = n.saturating_add(1),
+                    Some(_) => {
+                        self.waste.tap_runs = self.waste.tap_runs.saturating_add(1);
+                        self.waste_run = Some((*player, 1));
+                    }
+                    None => self.waste_run = Some((*player, 1)),
+                }
+            }
+            Command::PassPriority { player } => {
+                if let Some((p, n)) = self.waste_run.take() {
+                    self.waste.tap_runs = self.waste.tap_runs.saturating_add(1);
+                    if p == *player {
+                        self.waste.wasted_tap_runs = self.waste.wasted_tap_runs.saturating_add(1);
+                        self.waste.wasted_taps = self.waste.wasted_taps.saturating_add(n);
+                    }
+                }
+            }
+            other => {
+                if let Command::CastSpell(cast) = other {
+                    self.waste.casts = self.waste.casts.saturating_add(1);
+                    if !cast.targets.is_empty() {
+                        self.waste.targeted_casts = self.waste.targeted_casts.saturating_add(1);
+                    }
+                }
+                if self.waste_run.take().is_some() {
+                    self.waste.tap_runs = self.waste.tap_runs.saturating_add(1);
+                }
+            }
+        }
     }
 
     /// Bot-seat commands the engine refused, oldest first (SIM-5 fix (3)).
@@ -996,6 +1098,7 @@ impl<P: LegalActionProvider> LocalGame<P> {
         // failed part-way applied nothing and must census nothing either.
         for record in &records {
             self.mechanics.record(&record.events, record.turn);
+            self.fold_waste(&record.command, &record.events);
         }
 
         if self.check_invariants {
@@ -1034,6 +1137,7 @@ impl<P: LegalActionProvider> LocalGame<P> {
                 self.command_count += 1;
                 self.mechanics
                     .record(&events, self.state.turn().turn_number);
+                self.fold_waste(&command, &events);
                 if self.limits.record_journal {
                     self.journal.push(CommandRecord {
                         command,

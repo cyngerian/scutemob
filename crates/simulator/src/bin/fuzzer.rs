@@ -168,6 +168,7 @@ fn main() {
         print_violation_histogram(std::slice::from_ref(&result));
         print_mechanics_summary(std::slice::from_ref(&mechanics));
         print_sr38_summary(std::slice::from_ref(&result));
+        print_waste_summary(std::slice::from_ref(&result), &cli.bot);
         return;
     }
 
@@ -257,6 +258,7 @@ fn main() {
     print_violation_histogram(&results);
     print_mechanics_summary(&tallies);
     let sr38_breached = print_sr38_summary(&results);
+    print_waste_summary(&results, &cli.bot);
 
     if cli.verbose {
         for result in &results {
@@ -659,6 +661,65 @@ fn print_sr38_summary(results: &[GameResult]) -> bool {
         );
     }
     breached
+}
+
+/// The promoted SIM-5 tap/pool instrument (PB-DX32 Stage 3) — every `GameResult` in
+/// `results` now carries a [`mtg_simulator::WasteTally`]. Prints total taps, wasted
+/// taps and their percentage, `ManaPoolsEmptied` (CR 500.4), casts and targeted casts.
+///
+/// **One sentence naming the bot, deliberately** (plan §5 Stage 3 step 3): a
+/// `RandomBot` wasted-tap percentage and a `HeuristicBot` one are NOT comparable —
+/// `RandomBot` picks `TapForMana` uniformly with no plan, so a value near
+/// [`mtg_simulator::MAX_RANDOM_BOT_WASTED_TAP_PCT`] is ordinary behaviour for it and
+/// would be a real regression for `HeuristicBot`.
+fn print_waste_summary(results: &[GameResult], bot: &BotType) {
+    let mut t = mtg_simulator::WasteTally::default();
+    for result in results {
+        t.tap_runs = t.tap_runs.saturating_add(result.waste.tap_runs);
+        t.wasted_tap_runs = t
+            .wasted_tap_runs
+            .saturating_add(result.waste.wasted_tap_runs);
+        t.wasted_taps = t.wasted_taps.saturating_add(result.waste.wasted_taps);
+        t.total_taps = t.total_taps.saturating_add(result.waste.total_taps);
+        t.mana_pools_emptied = t
+            .mana_pools_emptied
+            .saturating_add(result.waste.mana_pools_emptied);
+        t.casts = t.casts.saturating_add(result.waste.casts);
+        t.targeted_casts = t.targeted_casts.saturating_add(result.waste.targeted_casts);
+    }
+
+    let wasted_pct = if t.total_taps == 0 {
+        0.0
+    } else {
+        (f64::from(t.wasted_taps) / f64::from(t.total_taps)) * 100.0
+    };
+
+    println!();
+    println!(
+        "Waste census (ALL {} games) -- bot: {:?}",
+        results.len(),
+        bot
+    );
+    println!("-----------------------------------------");
+    println!(
+        "  {:?} wastes taps BY DESIGN (no plan) -- do not read a high percentage here as an \
+         engine defect for this bot.",
+        bot
+    );
+    println!(
+        "  tap runs: {} total, {} wasted ({} taps of {} total = {:.1}%, threshold {}%)",
+        t.tap_runs,
+        t.wasted_tap_runs,
+        t.wasted_taps,
+        t.total_taps,
+        wasted_pct,
+        mtg_simulator::MAX_RANDOM_BOT_WASTED_TAP_PCT
+    );
+    println!("  CR 500.4 ManaPoolsEmptied: {}", t.mana_pools_emptied);
+    println!(
+        "  casts: {} total, {} with >=1 announced target (CR 601.2c)",
+        t.casts, t.targeted_casts
+    );
 }
 
 fn print_game_result(result: &GameResult, verbose: bool) {

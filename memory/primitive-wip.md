@@ -264,3 +264,89 @@ pin), residual list empty.
 EMPTY. `git diff --numstat -- tools/` — **exactly one file, `+1 -0`**
 (`tools/play-server/src/main.rs`), matching plan §3.1's acceptance criterion (landed
 here rather than Stage 1, per the Stage-1 divergence note).
+
+---
+
+## Stage 3 DONE — (b) the waste instrument, promoted and thresholded
+
+Plan §5 Stage 3. Files: `crates/simulator/src/local_game.rs` (new `WasteTally`,
+`waste`/`waste_run` fields, `fold_waste`, `waste()` accessor, wired at the two F8 fold
+sites, `result_snapshot` extended), `crates/simulator/src/report.rs`
+(`GameResult::waste`, `MAX_RANDOM_BOT_WASTED_TAP_PCT`,
+`MAX_RANDOM_BOT_WASTED_TAP_PCT_AT_GATE_CONFIG`, `MAX_HEURISTIC_POOLS_EMPTIED_PER_SEED`),
+`crates/simulator/src/bin/fuzzer.rs` (`print_waste_summary`, called from both paths),
+`lib.rs` re-exports. New test **T3.1**
+`test_dx32_random_bot_waste_ratio_is_bounded` in `pb_dx32_fuzz_output.rs`; **T3.2**
+`test_dx32_streaming_waste_tally_equals_the_sim5_journal_walk` (extended with a
+purpose-built controlled sub-case, see below) and **T3.3**
+`heuristic_pools_emptied_is_pinned` in `sim5_bot_cast_discipline.rs` — `metrics_of` and
+`Metrics` kept exactly as the plan requires (not deleted).
+
+**Both thresholds confirmed live at the binary**: `./target/fuzz/mtg-fuzzer --games 5
+--seed 1 --max-turns 200` printed `tap runs: 1258 total, 968 wasted (1986 taps of 2641
+total = 75.2%, threshold 85%)` and `CR 500.4 ManaPoolsEmptied: 885` — byte-identical to
+§0.3's own numbers.
+
+**A second `_AT_GATE_CONFIG` threshold was needed for T3.1, beyond what the plan wrote
+down — the SAME structural reason Stage 2 needed one for SR-38, discovered by running
+the test, not anticipated in advance.** The plan's single `MAX_RANDOM_BOT_WASTED_TAP_PCT
+= 85` is a 200-turn, `--profile fuzz` measurement. At T3.1's own 3-seed/25-turn debug
+configuration the measured waste ratio is **89%** (87/97 taps, seeds 1/2/3) — ABOVE the
+85% ceiling, so the test would have been red on arrival using the binary's own constant.
+Added `MAX_RANDOM_BOT_WASTED_TAP_PCT_AT_GATE_CONFIG = 95` (a flat +6 percentage points
+over 89, not the ~30% multiplicative headroom the per-mille `_AT_GATE_CONFIG` constants
+use, since a percentage is bounded at 100 and 89×1.3 would overshoot meaninglessly),
+with the reasoning for WHY the two populations genuinely differ (a shorter game's early
+taps have proportionally fewer high-value casts to land on) recorded in the constant's
+own doc, not just asserted.
+
+**T3.2's revert did NOT discriminate on the plan's own AB_SEEDS fixture — plan §7 R8's
+explicitly-anticipated failure mode, hit for real.** Executing the revert (drop the
+open-run close in `waste()`) against the `AB_SEEDS`/`HeuristicBot`/25-turn loop left the
+test GREEN. Root-caused, not just observed: `HeuristicBot` scores
+`LegalAction::TapForMana` at 0, "below passing" (`heuristic_bot.rs:271`), so it never
+chooses a standalone tap — every tap it makes is an auto-tap PREFIX bundled with a cast
+in one `[taps…, cast]` atomic sequence, and that whole bundle is folded (and its own run
+closed) inside the single `apply_sequence` call that commits it, before the call
+returns. A run can only survive past one `advance()` iteration if the WHOLE decision
+was a standalone tap with nothing queued after — structurally unreachable for
+`HeuristicBot`. **Fix, per R8's own instruction ("construct a fixture that ends on a
+tap")**: extended T3.2 with a controlled second case — a human seat submits exactly one
+`TapForMana` command via `submit()` and nothing follows, which is the only way to force
+`waste_run` open at inspection time. Confirmed by an initial two-pass empirical scan
+(scratch file, deleted, never committed) that tried to find a naturally-occurring
+mid-tap-run halt by truncating `max_commands` at various points in an already-played
+journal — every candidate in a window of +1..+6 past a `TapForMana` index still ended on
+a non-tap command, which is what led to root-causing the atomic-batch mechanism above
+rather than continuing to search blindly.
+
+**Revert proofs (all three EXECUTED, rebuild confirmed each time)**:
+* **T3.1**: set `MAX_RANDOM_BOT_WASTED_TAP_PCT_AT_GATE_CONFIG` to 88 (measured − 1,
+  truncating 89.69%→89 first). Failure: `"RandomBot wasted-tap ratio 89% exceeds
+  MAX_RANDOM_BOT_WASTED_TAP_PCT_AT_GATE_CONFIG = 88"`.
+* **T3.2**: dropped the trailing open-run close (`tally.tap_runs += 1`), using the NEW
+  controlled human-submit fixture. Failure: `"the still-open run must be closed on the
+  snapshot COPY waste() returns ... WasteTally { tap_runs: 0, ... total_taps: 1, ... }
+  left: 0 right: 1"` — proves the tap itself is still counted (`total_taps: 1`)
+  while only the run-closing logic broke, exactly the divergence the test exists to
+  catch.
+* **T3.3**: set `MAX_HEURISTIC_POOLS_EMPTIED_PER_SEED` to 0 (measured − 1). Failure:
+  `"seed 7: mana_pools_emptied 1 exceeds MAX_HEURISTIC_POOLS_EMPTIED_PER_SEED (0) — a
+  rise past this pin means either a new wasted-tap class or that the greedy-solver
+  slack OOS-SIM2-1 leaves on casts that SUCCEED has widened"` — names `OOS-SIM2-1` at
+  the pin, satisfying criterion (b)'s literal requirement.
+
+All three restored immediately after each revert; `git diff` confirmed clean before
+moving to the next.
+
+**Stage gates, all EXECUTED**: `cargo build --workspace` clean; `cargo test -p
+mtg-simulator --test sim5_bot_cast_discipline --test pb_dx32_fuzz_output` **6 + 5 = 11
+passed / 0 failed**; `cargo test -p play-server` **78 / 0 / 0** unmoved. `cargo clippy
+--workspace --all-targets -- -D warnings` clean. `cargo fmt --check` clean (ran `cargo
+fmt` once). `tools/check-defs-fmt.sh` — 1803 defs, clean.
+`cargo test --workspace --no-fail-fast` — **4,365 / 0 / 5** (+3 over the Stage-2 pin:
+T3.1, T3.2, T3.3), residual list empty.
+`git diff main..HEAD --numstat -- crates/engine/src/ crates/card-defs/
+crates/card-types/ crates/view-model/` EMPTY. `git diff main..HEAD --numstat --
+tools/` — **still exactly one file, `+1 -0`** (unchanged from Stage 2 — Stage 3 touched
+no file under `tools/`).
