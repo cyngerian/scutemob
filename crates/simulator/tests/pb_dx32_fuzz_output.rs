@@ -17,13 +17,15 @@
 use std::collections::{BTreeSet, HashMap};
 
 use mtg_engine::{
-    all_cards, AttackTarget, Command, GameState, GameStateBuilder, ObjectId, ObjectSpec, PlayerId,
-    ZoneId,
+    all_cards, AttackTarget, CardDefinition, CardType, Command, GameState, GameStateBuilder,
+    ObjectId, ObjectSpec, PlayerId, SuperType, ZoneId,
 };
 use mtg_simulator::{
-    build_fuzz_state, build_registry, invariants, AdvanceOutcome, Bot, GameDriver, GameDriverError,
-    InvariantViolation, LegalAction, LocalGame, LocalGameLimits, RandomBot, StubProvider,
+    build_fuzz_state, build_registry, invariants, random_deck, AdvanceOutcome, Bot, GameDriver,
+    GameDriverError, InvariantViolation, LegalAction, LocalGame, LocalGameLimits, RandomBot,
+    StubProvider,
 };
+use rand::{rngs::StdRng, SeedableRng};
 
 fn p(n: u64) -> PlayerId {
     PlayerId(n)
@@ -654,5 +656,98 @@ fn test_dx32_distinct_collapses_checkpoint_weighting() {
          collapse at full scale, §0.3): raw {} distinct {}",
         raw.len(),
         distinct.len()
+    );
+}
+
+// ── Stage 5 -- (d) the corpus→seed gate (`OOS-CARDS2-3`) ───────────────────────────
+
+/// Measured on this branch, 2026-08-03. An exact pin, both directions (the
+/// `MAX_AUTO_CHOSEN_COMPLETE_UNION` idiom, F18): a completeness flip that changes any
+/// of these three numbers silently re-rolls every recorded fuzz seed, because
+/// `random_deck` (`deck.rs:30-157`) draws its commander and its color-identity pool
+/// straight from `all_cards()`.
+const CORPUS_DEFS: usize = 1803;
+const CORPUS_COMPLETE: usize = 1133;
+const COMMANDER_POOL: usize = 90;
+
+/// Mirrors `crates/simulator/src/deck.rs:40-47`'s three-clause commander filter
+/// EXACTLY -- not re-derived from memory, so this pin cannot stay green while
+/// `random_deck`'s own filter changes underneath it (plan §3.6). T5.2 is the proof
+/// that this mirror has NOT diverged from the real filter.
+fn commander_pool() -> Vec<CardDefinition> {
+    all_cards()
+        .into_iter()
+        .filter(|c| {
+            c.completeness.is_complete()
+                && c.types.supertypes.contains(&SuperType::Legendary)
+                && c.types.card_types.contains(&CardType::Creature)
+        })
+        .collect()
+}
+
+/// **T5.1** (Stage 5) — `OOS-CARDS2-3`: the fuzz deck pool size is pinned, exactly, in
+/// both directions. Before this gate, a completeness flip that changed the pool size
+/// was discovered only by watching eight seeded fixtures across the workspace go red
+/// one at a time; this gate makes the change announce itself in one place, with a
+/// message that says what to do.
+#[test]
+fn test_dx32_fuzz_deck_pool_size_is_pinned() {
+    let defs = all_cards();
+    let complete = defs.iter().filter(|c| c.completeness.is_complete()).count();
+    let commanders = commander_pool().len();
+
+    const MOVED_MSG: &str = "the fuzz deck pool changed. Every seeded fixture in the \
+         workspace now deals a different game (OOS-CARDS2-3). Update these three \
+         constants in the SAME commit as the card-def change, and expect the seeded \
+         pins listed in memory/workstream-state.md (CARDS-2 handoff, item 1) to move.";
+
+    assert_eq!(
+        defs.len(),
+        CORPUS_DEFS,
+        "all_cards().len() moved from the pinned CORPUS_DEFS ({CORPUS_DEFS}) to {} -- {MOVED_MSG}",
+        defs.len()
+    );
+    assert_eq!(
+        complete, CORPUS_COMPLETE,
+        "the Complete-def count moved from the pinned CORPUS_COMPLETE \
+         ({CORPUS_COMPLETE}) to {complete} -- {MOVED_MSG}"
+    );
+    assert_eq!(
+        commanders, COMMANDER_POOL,
+        "the commander pool (Complete + Legendary + Creature, deck.rs:40-47) moved \
+         from the pinned COMMANDER_POOL ({COMMANDER_POOL}) to {commanders} -- {MOVED_MSG}"
+    );
+}
+
+/// **T5.2** (Stage 5) — non-vacuity + anti-drift for T5.1's mirrored filter. Without
+/// this, `commander_pool`'s mirror could diverge from `deck.rs`'s own filter while
+/// T5.1's exact pin stayed green (a filter that always returned the empty set would
+/// still satisfy an exact-count pin of 0 just as well as one of 90). Two independent
+/// checks: the pool sits strictly between empty and the full Complete corpus
+/// (non-vacuity), and `random_deck` on a fixed seed actually picks a commander that
+/// IS a member of the recomputed pool (the real anti-drift proof — if
+/// `commander_pool`'s filter ever diverges from `deck.rs`'s own, `random_deck`'s pick
+/// would fall outside it).
+#[test]
+fn test_dx32_commander_pool_filter_mirrors_deck_rs() {
+    let defs = all_cards();
+    let pool = commander_pool();
+    let complete_count = defs.iter().filter(|c| c.completeness.is_complete()).count();
+    assert!(
+        !pool.is_empty() && pool.len() < complete_count,
+        "COMMANDER_POOL must be a non-empty STRICT subset of the Complete corpus: \
+         pool={} complete={complete_count}",
+        pool.len()
+    );
+
+    let mut rng = StdRng::seed_from_u64(1);
+    let deck =
+        random_deck(&mut rng, &defs).expect("random_deck must succeed against the real corpus");
+    assert!(
+        pool.iter().any(|c| c.card_id == deck.commander),
+        "random_deck's own commander pick ({:?}) must be a member of the mirrored \
+         commander_pool -- if this fails, commander_pool's filter has diverged from \
+         deck.rs's own (plan §3.6)",
+        deck.commander
     );
 }

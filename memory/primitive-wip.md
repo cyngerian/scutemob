@@ -438,3 +438,53 @@ engine source at all).
 crates/card-types/ crates/view-model/` EMPTY. `git diff main..HEAD --numstat --
 tools/` — **still exactly one file, `+1 -0`** (unchanged — Stage 4 touched no file
 under `tools/`).
+
+---
+
+## Stage 5 DONE — (d) the corpus→seed gate (`OOS-CARDS2-3`)
+
+Plan §5 Stage 5. File: `crates/simulator/tests/pb_dx32_fuzz_output.rs` only —
+`CORPUS_DEFS`/`CORPUS_COMPLETE`/`COMMANDER_POOL` consts, a `commander_pool()` helper
+mirroring `deck.rs:40-47`'s three-clause filter (with a comment naming the line
+range, per the plan's anti-drift instruction), **T5.1**
+`test_dx32_fuzz_deck_pool_size_is_pinned`, **T5.2**
+`test_dx32_commander_pool_filter_mirrors_deck_rs`.
+
+**Pinned exactly as measured at Stage 0 / plan §0.5, both confirmed live by running
+the gate**: `CORPUS_DEFS = 1803`, `CORPUS_COMPLETE = 1133`, `COMMANDER_POOL = 90`.
+T5.1's shared `MOVED_MSG` constant is appended to all three assertion messages and
+states, in these terms: the fuzz deck pool changed, every seeded fixture now deals a
+different game (`OOS-CARDS2-3`), update the three constants in the SAME commit as the
+card-def change, and expect the seeded pins in `memory/workstream-state.md`'s CARDS-2
+handoff item 1 to move.
+
+**Revert proofs (both EXECUTED, rebuild confirmed each time)**:
+* **T5.1(a)**: set `CORPUS_COMPLETE` to 1132 (measured − 1). Failure: `"the
+  Complete-def count moved from the pinned CORPUS_COMPLETE (1132) to 1133 -- the fuzz
+  deck pool changed. Every seeded fixture..."` — names the direction and
+  `OOS-CARDS2-3` exactly as required.
+* **T5.1(b) / T5.2 discrimination**: dropped the `CardType::Creature` clause from
+  `commander_pool()`'s mirrored filter. Pool grew 90 → 128 (Legendary-Complete minus
+  the Creature-type requirement). T5.1 reddened: `"the commander pool (Complete +
+  Legendary + Creature, deck.rs:40-47) moved from the pinned COMMANDER_POOL (90) to
+  128..."`. **T5.2 stayed GREEN** on this same revert — the plan's own instruction —
+  because T5.2 asserts membership (`random_deck`'s pick is IN the mirrored pool),
+  which still holds when the mirrored pool is a wider superset of the true one; T5.2
+  therefore discriminates a DIFFERENT failure mode from T5.1 (a genuinely diverged
+  filter, e.g. one that excludes a legal commander), not a mere size change, so no
+  restatement was needed.
+
+Both restored immediately after each revert; `git diff` confirmed clean before moving
+to the next.
+
+**Stage gates, all EXECUTED**: `cargo test -p mtg-simulator --test pb_dx32_fuzz_output`
+**10 / 0 / 0** (+2 over Stage 4's 8); `cargo clippy --workspace --all-targets -- -D
+warnings` clean; `cargo fmt --check` clean (ran `cargo fmt` once — an import-list
+rewrap and a line-wrap in `commander_pool`'s filter chain). `tools/check-defs-fmt.sh`
+— 1803 defs, clean.
+`cargo test --workspace --no-fail-fast` — **4,370 / 0 / 5** (+2 over the Stage-4 pin:
+T5.1, T5.2), residual list empty.
+`git diff main..HEAD --numstat -- crates/engine/src/ crates/card-defs/
+crates/card-types/ crates/view-model/` EMPTY. `git diff main..HEAD --numstat --
+tools/` — **still exactly one file, `+1 -0`** (unchanged — Stage 5 touched no file
+under `tools/`).
