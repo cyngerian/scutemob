@@ -35,8 +35,8 @@
   enumerates no Adventure, alt-cost or Convoke/Improvise/Delve casts (R4). **The active track is now
   the PB-DX correctness queue alone** (`memory/primitives/seed-rerank-2026-08-02.md` §4 — v3,
   `scutemob-182`; PB-DX19 shipped `451e3517`, PB-DX22 shipped `95f53b78`;
-  **next PB-DX32** (promoted per feedback doc §2.3, user-approved run 2026-08-03),
-  then back to **PB-DX20**; the playtest-successor run 174–181
+  PB-DX32 shipped `scutemob-197` (promoted per feedback doc §2.3, user-approved 2026-08-03);
+  **next PB-DX20**; the playtest-successor run 174–181
   AND the triage-2 successor run 187–194 both completed 2026-08-02 — triage 2 is fully closed,
   8/8 rows shipped. **FEEDBACK-1 SHIPPED** (`scutemob-192`, merge `d55e74cc`, doc-only):
   `docs/mtg-engine-feedback-engineering.md` is the alpha feedback-loop strategy — 8 ranked
@@ -101,6 +101,13 @@
   DX42b dispatch). **PB-DX7 is no longer next** — it survives at
   rank 9; eight new entries outrank it. Older queue history (the PB-OS,
   PB-RS and PB-DP chains) is rotated to the 2026-08 archive.
+- **Tests (delta 2026-08-03, PB-DX32)**: **4,373 / 0 / 5** full-workspace on branch
+  `scutemob-197` (+15 over PB-DX22's 4,358, re-measured on this branch BEFORE any edit as its
+  own baseline — 14 probes in the new `crates/simulator/tests/pb_dx32_fuzz_output.rs`, 1 in
+  `sim5_bot_cast_discipline.rs`, plus one test appended to `crates/engine/tests/core/
+  decision_gate.rs`), measured with `--workspace --no-fail-fast` to a file, residual list
+  empty, and re-run independently after the fix cycle. **PROTOCOL 35 / HASH 72 unmoved**,
+  both gate-executed. Earlier pins below.
 - **Tests (delta 2026-08-03, PB-DX22)**: **4,358 / 0 / 5** full-workspace on branch
   `scutemob-196` (+13 over UI-6's 4,345, which this branch re-measured as its own pre-edit
   baseline — 12 probes in the new `crates/simulator/tests/pb_dx22_fuzz_instrument.rs` + 1
@@ -253,7 +260,25 @@
 - **Recurrence rule** — future `/collect` and milestone-close bookkeeping appends its detailed PB/SR
   narrative to that archive file (newest first), and updates only a one-paragraph snapshot delta
   here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
-- **Last Updated**: 2026-08-03 — **PB-DX22 SHIPPED** (`scutemob-196`; v3 queue rank 4,
+- **Last Updated**: 2026-08-03 — **PB-DX32 SHIPPED** (`scutemob-197`; v3 queue rank 19,
+  promoted per FEEDBACK-1 §2.3, user-approved). The fuzzer's OUTPUT now means something:
+  `GameResult` carries an SR-38 rejection channel + a promoted waste tally, both behind
+  ratchets pinned at measured values; the CR 704.3 orphaned-token class is split off as
+  transient and answered by a strictly stronger end-state check, so hard violations go
+  **426 → 125** and crash files **16 → 6**; a source gate keys a runtime decision-point
+  counter to `decision_site_walk.rs`'s `ROWS`. **Every pre-PB-DX22 fuzz number was
+  re-measured at HEAD first** — `OOS-SIM3-4`'s "929 of 938" was both stale and a sample.
+  **Criterion (c) is met literally, not colloquially**: `--stop-on-error` still halts, now
+  on undiagnosed `player_consistency` (26.8% of a run, `OOS-DX32-1`), deliberately NOT
+  suppressed. Tests **4,373 / 0 / 5** (+15); 0 engine-source lines, 0 card-def lines, 0
+  wire, `tools/` exactly `+1 -0`; PROTOCOL **35** / HASH **72** gate-executed and unmoved;
+  coverage unmoved **1,133/1,803 = 62.8%**. Seeds: **OOS-SIM3-3**, **OOS-SIM3-4**,
+  **OOS-CARDS2-3** CLOSED, **OOS-SIM3-2** PARTIAL (#10 served at run scope; #11 SBA
+  idempotency still unwritten); filed **OOS-DX32-1..10**. Review 0 HIGH / 8 MEDIUM / 10 LOW,
+  all 18 taken — **`OOS-DX32-6` was proven by experiment, not argued**: a `/* */`-wrapped
+  roster row left the compiled roster while the gate AND all 12 probes stayed green. Full
+  handoff: `memory/workstream-state.md`.
+- **Prior**: 2026-08-03 — **PB-DX22 SHIPPED** (`scutemob-196`; v3 queue rank 4,
   FEEDBACK-1 §2.1 row 1). The fuzzer is an instrument: it shuffles every library from the
   game's own seeded RNG (CR 103.3) and registers commanders (CR 903.6) via the new shared
   `crates/simulator/src/fuzz_setup.rs`, so the first cast moves **turn 143-154 → 3-29**

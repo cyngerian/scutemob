@@ -848,6 +848,144 @@ must read adjudication §5 alongside it. OOS-ADJ-3 warns `OOS-DX19-2`'s "613.8b 
 would make a worker build the wrong thing — re-word at dispatch. OOS-ADJ-7 (blood_moon strips
 Artifact card type) rides PB-DX27.
 
+## Worker Handoff (PB-DX32, `scutemob-197`) — the fuzzer's output starts meaning something
+
+**Three seeds closed (`OOS-SIM3-3`, `OOS-SIM3-4`, `OOS-CARDS2-3`), one PARTIAL (`OOS-SIM3-2`).**
+Rank 19 of the v3 queue (`memory/primitives/seed-rerank-2026-08-02.md` §4), row 3 of
+`docs/mtg-engine-feedback-engineering.md` §2.3 — **promoted from rank 19, user-approved
+2026-08-03**. Plan: `memory/primitives/pb-plan-DX32.md`. Full stage-by-stage evidence including
+every revert proof: `memory/primitive-wip.md`. Review: `memory/primitives/pb-review-DX32.md`.
+
+### Stage 0 first: every baseline this batch could have quoted was dead
+
+PB-DX22 (`95f53b78`) changed the deal, so no SIM-3 or SIM-5 number survives, and `OOS-DX22-13`
+records that several of them were a five-game sample in the first place. Everything was
+re-measured at HEAD **before any edit** and committed:
+`memory/primitives/pb-dx32-measurement-head-{fuzzer,harness}.txt`.
+
+| measurement at HEAD | value |
+|---|---|
+| workspace tests, this branch, pre-edit | **4,358 / 0 / 5**, residual empty |
+| fuzz violations, 20 games × 200 turns | **426** = 301 `no_orphaned_tokens` + 114 `player_consistency` + 11 `attachment_validity` |
+| bot rejections | **542 / 23,613 commands = 22.953‰** (5 games); **1,995 / 94,467 = 21.118‰** (20 games) |
+| `RandomBot` wasted taps | **1,986 / 2,641 = 75%** (5 games); **8,423 / 10,720 = 78.6%** (20 games) |
+| violations deduped by `(check, description)` | **94 → 20** (4.7×) |
+| leaked tokens in the FINAL state | **0**, on 5 seeds and again on all 20 |
+| deck pool | `all_cards()` **1,803** / `Complete` **1,133** / commander pool **90** |
+
+**`OOS-SIM3-4`'s "929 of 938" was both stale and a sample.** At HEAD the orphaned-token class is
+**70.7%** of the run, and `player_consistency` is a second class at **26.8%** that no seed row
+records at anything like that size. Every figure this handoff quotes names its game count.
+
+### What shipped, by criterion
+
+* **(a) SR-38 becomes a run-level invariant.** `GameResult` carries `rejection_count` and a bounded
+  `rejections` sample; the fuzzer prints a class histogram and **exits 1** above
+  `MAX_BOT_REJECTION_PER_MILLE`. `rejection_count` was already unconditional — only the *sample*
+  needed the new `MAX_SAMPLED_REJECTIONS = 8` cap for the journal-off (fuzzer) path, since
+  `results` retains every game's `GameResult` and a 256-cap at `--games 1000` would hold 256,000
+  cloned `Command`s.
+* **(b) the waste instrument is promoted, not copied.** `WasteTally` folds `tap_runs` /
+  `wasted_tap_runs` / `wasted_taps` / `total_taps` / `mana_pools_emptied` at the two sites that see
+  exactly the journal's command stream — so the streaming fold and `sim5_bot_cast_discipline.rs`'s
+  journal walk are provably the same measurement, and `metrics_of` was **kept** as the equivalence
+  oracle rather than deleted. `OOS-SIM2-1` is named at the pin.
+* **(c) the noise floor.** `check_no_orphaned_tokens` output is split into a `transient_violations`
+  bucket at the point of collection; `--stop-on-error` and the crash-report writer key on the hard
+  bucket only; counts are deduped by `(check, description)` and printed raw **and** distinct for
+  both buckets. Hard violations **426 → 125**, games with ≥1 hard **16/20 → 6/20**, crash files
+  **16 → 6**.
+* **(d) `OOS-CARDS2-3`.** `CORPUS_DEFS`/`CORPUS_COMPLETE`/`COMMANDER_POOL` pinned exact in both
+  directions, the pool recomputed by mirroring `deck.rs`'s own filter clause-for-clause.
+* **(e) decision-point runtime coverage.** `crates/simulator/src/decision_coverage.rs` carries
+  **ids only**; the roster is kept single-source by a **source gate appended to the existing**
+  `decision_gate.rs` (`BASELINE` and `MAX_AUTO_CHOSEN_COMPLETE_UNION = 80` untouched).
+
+### The split is only honest because of what replaces it — read this before widening it
+
+Reclassifying a violation class as non-halting is exactly what SIM-3's `stack_consistency`
+withdrawal was about, so the batch bought the right to do it in two ways. First, the **strictly
+stronger end-state property** is asserted in the **hard** bucket at both terminal paths
+(`invariants::check_no_leaked_tokens` — a new pure-state check, deliberately *not* in `check_all`),
+and it measured 0 across all 20 games. Second, **nothing else was reclassified**:
+`player_consistency` and `attachment_validity` stay hard, on purpose.
+
+**So criterion (c) is met in its literal wording and not in the colloquial one.**
+`--stop-on-error` still halts — now on seed 2's `player_consistency` at turn 123, two games in.
+The fuzzer is not yet a clean smoke test; the reason has moved from a false-positive check
+(`OOS-SIM3-1`, withdrawn) to a known-transient one (closed here) to an **undiagnosed** one
+(`OOS-DX32-1`, filed). That is progress, and stating it as anything more would be false.
+
+### Findings the batch did not go looking for
+
+* **`HeuristicBot` can never leave a tap run open** (`OOS-DX32-5`). It scores `TapForMana` at 0, so
+  every tap it makes is an auto-tap prefix inside one atomic sequence. The equivalence probe's
+  revert stayed **green** on the plan's own fixture (§7 R8's anticipated failure, hit for real) and
+  had to be given a human-`submit()` fixture. Any "0 wasted taps" measured on that bot is weaker
+  evidence than it reads as.
+* **Every threshold needed two constants** (`OOS-DX32-4`). The debug/25-turn gate and the
+  release/200-turn binary measure genuinely different populations, and the gate measures *higher*
+  in both cases (31.081‰ vs 21.118‰; 89% vs 78.6%) — which is also the proof the duplication is
+  forced rather than a dodge, since an evasive twin loosens for a *lower* number.
+* **The SR-38 channel produced its ranked defect list on the first run** (`OOS-DX32-9`):
+  `InsufficientMana` (`OOS-SIM6-3`), `InvalidTarget` (`OOS-SIM5-5`), the blocker-refusal family
+  (`OOS-SIM5-3`, the largest), and CR 303.4a Aura casts (`OOS-CARDS2-4`). Close any of them and
+  ratchet the constant down.
+* **Runtime coverage is budget-dependent** (`OOS-DX32-3`): 4 of 5 served rows at the CI gate's
+  10×60 debug budget, 5 of 5 at the binary's 20×200 release budget. Both recorded, not just the
+  better one.
+
+### The review cycle: 0 HIGH, 8 MEDIUM, 10 LOW — all 18 taken, and one was proven by experiment
+
+The reviewer **had no shell and executed nothing**, and said so; its revert checks were source
+inspection. The coordinator closed that gap by executing three things directly, and one of them
+found a live hole:
+
+* **`OOS-DX32-6`, the block-comment gate hole.** Wrapping one `UNOBSERVABLE_ROW_IDS` tuple in
+  `/* … */` removed it from the **compiled** roster (`ROW_COUNT` 22 → 21) while the source gate's
+  `quoted_strings` still found its literals. **The gate stayed green — and so did all 12 probes in
+  `pb_dx32_fuzz_output.rs`.** A row silently vanished and nothing in the workspace noticed. Fixed
+  (`strip_block_comments` + a raw-count assertion that also catches a duplicated id) and the same
+  experiment now fails `left: 21 right: 22`, re-run by the coordinator after the fix. **The open
+  half: `strip_line_comments` is used by the other source-reading tests in `decision_gate.rs`, and
+  those were not audited for the same hole.** Third appearance of this class in this file's family.
+* **T6.1(b) and T4.2 verified genuine** by execution, matching the runner's quoted messages. T4.2's
+  revert needed `let _ = state;` as well as `#[allow(unreachable_code)]` — the first attempt failed
+  to compile under `-D unused-variables`, which is plan §7 R7's exact class and is worth repeating:
+  **a revert whose rebuild failed proves nothing.**
+* **M1 — the batch zeroed a diagnostic in its own precedent file.** `local_game_playthrough.rs`
+  still split `game.violations()` on `no_orphaned_tokens`, a string that can no longer match, so
+  its run report would have printed `0 transient-token reports` forever. Nothing asserted on it, so
+  no test went vacuous — but it is the `OOS-DX22-13` "a number's meaning changed silently" class,
+  committed in the file the batch cites as its own pattern. Fixed to read
+  `transient_violations()`; verified by execution (seeds 7/42 now print 12 and 4).
+* **M6 — the thresholds cited the 5-game sample while the 20-game artefact sat in the same commit.**
+  Re-quoted from the 20-game run. `MAX_RANDOM_BOT_WASTED_TAP_PCT` **kept at 85** with the real
+  headroom (6.4 points over 78.6%, not the ~10 the 75% figure implied) stated as a deliberate
+  choice, because the fuzzer is not run-to-run deterministic for long games
+  (`OOS-M11-3`/`OOS-DP3-9`) and a single point estimate should not be shaved to the wire.
+
+### For the collector
+
+* Tests **4,373 / 0 / 5** (+15 over the 4,358 pre-edit baseline), full `--workspace --no-fail-fast`
+  to a file, residual list **empty** — re-run independently by the coordinator after the fix cycle.
+* **PROTOCOL 35 / HASH 72 gate-EXECUTED** (`--test core -- protocol_schema hash_schema`, 38 tests
+  green) and unmoved; `PROTOCOL_VERSION = 35` at `protocol.rs:360`, `HASH_SCHEMA_VERSION = 72` at
+  `hash.rs:743`.
+* **0 wire, 0 engine source, 0 card defs** — `git diff main..HEAD -- crates/engine/src/
+  crates/card-defs/ crates/card-types/ crates/view-model/` is EMPTY. Coverage unmoved
+  **1,133/1,803 = 62.8%**, proven by regenerating `tools/authoring-report.py` to a body identical
+  apart from its own git-sha/date stamp lines, then reverting the churn.
+* **`tools/` is exactly one file, `+1 -0`** — a `..Default::default()` in a `#[cfg(test)]`
+  construction site. `cargo test -p play-server` 78/0 unmoved.
+* The only engine-side file touched is the **test** `crates/engine/tests/core/decision_gate.rs`
+  (appended to).
+* **`memory/primitives/seed-rerank-2026-08-02.md` is untouched** — striking row 19 is the
+  coordinator's at collect.
+* Successor candidate: **`OOS-DX32-1`** — diagnose `player_consistency` (is it ever true *at
+  rest*?). It is the last thing standing between the fuzzer and a usable smoke test, and it is
+  26.8% of a run.
+
 ## Worker Handoff (PB-DX22, `scutemob-196`) — the fuzzer becomes a real instrument
 
 **Three seeds closed: `OOS-UI2-1`, `OOS-SIM3-1`, `OOS-SIM1-4`.** Rank 4 of the v3 queue
