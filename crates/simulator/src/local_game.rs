@@ -366,6 +366,11 @@ pub struct LocalGame<P: LegalActionProvider> {
     rejections: Vec<RejectedCommand>,
     rejection_count: u32,
     violations: Vec<InvariantViolation>,
+    /// `no_orphaned_tokens` reports split out here at collection time (PB-DX32 Stage 4,
+    /// `OOS-SIM3-3` / `OOS-SIM3-4`) — see [`Self::record_violations`]. Everything else
+    /// stays in `violations`, the hard bucket `--stop-on-error` and the crash-report
+    /// writer key on.
+    transient_violations: Vec<InvariantViolation>,
     check_invariants: bool,
     /// Constant-size mechanics census (PB-DX22 fix cycle). Always on: it costs a fold
     /// over events already in hand and no retention, so unlike `journal` it does not
@@ -433,6 +438,7 @@ impl<P: LegalActionProvider> LocalGame<P> {
             rejections: Vec::new(),
             rejection_count: 0,
             violations: Vec::new(),
+            transient_violations: Vec::new(),
             check_invariants,
             mechanics: MechanicsTally::default(),
             waste: WasteTally::default(),
@@ -460,12 +466,22 @@ impl<P: LegalActionProvider> LocalGame<P> {
         winner: Option<PlayerId>,
         error: Option<GameDriverError>,
     ) -> GameResult {
+        // PB-DX32 Stage 4: the strictly-stronger end-state property that keeps the
+        // Stage-4 noise-floor split honest. This is the ONE call site both real
+        // terminal paths share (`advance()`'s GameOver return and `GameDriver`'s
+        // Halted arm both go through `result_snapshot` -- plan §7 R5), so running the
+        // check here reaches both without a second hand-maintained call site. Folded
+        // into the HARD bucket, not `transient_violations`: a token still off the
+        // battlefield when the game is OVER is a real defect (CR 704.3 / OOS-M11-7),
+        // not a checkpoint artefact.
+        let mut violations = self.violations.clone();
+        violations.extend(invariants::check_no_leaked_tokens(&self.state));
         GameResult {
             seed: self.seed,
             winner,
             turn_count: self.state.turn().turn_number,
             total_commands: self.command_count as usize,
-            violations: self.violations.clone(),
+            violations,
             error,
             // PB-DX32 Stage 2 (SR-38).
             rejection_count: self.rejection_count,
@@ -474,6 +490,8 @@ impl<P: LegalActionProvider> LocalGame<P> {
             // run at the moment of the snapshot is closed the same way `mechanics()`
             // closes its own final-state read.
             waste: self.waste(),
+            // PB-DX32 Stage 4.
+            transient_violations: self.transient_violations.clone(),
         }
     }
 
@@ -483,6 +501,29 @@ impl<P: LegalActionProvider> LocalGame<P> {
 
     pub fn violations(&self) -> &[InvariantViolation] {
         &self.violations
+    }
+
+    /// `no_orphaned_tokens` reports split out from [`Self::violations`] at collection
+    /// time (PB-DX32 Stage 4) — see [`Self::record_violations`].
+    pub fn transient_violations(&self) -> &[InvariantViolation] {
+        &self.transient_violations
+    }
+
+    /// Split `check_all`'s output at the point of collection (PB-DX32 Stage 4,
+    /// `OOS-SIM3-3` / `OOS-SIM3-4`): `no_orphaned_tokens` is transient by construction
+    /// (CR 704.3 — SBAs are checked on step entry and at resolution, not on every
+    /// priority grant), so it goes to `transient_violations`; everything else is
+    /// `violations`, the hard bucket `--stop-on-error` and the crash-report writer key
+    /// on. Mirrors `crates/simulator/tests/local_game_playthrough.rs:457-463`'s own
+    /// treatment.
+    fn record_violations(&mut self, new: Vec<InvariantViolation>) {
+        for v in new {
+            if v.check == "no_orphaned_tokens" {
+                self.transient_violations.push(v);
+            } else {
+                self.violations.push(v);
+            }
+        }
     }
 
     pub fn journal(&self) -> &[CommandRecord] {
@@ -1103,7 +1144,7 @@ impl<P: LegalActionProvider> LocalGame<P> {
 
         if self.check_invariants {
             let new_violations = invariants::check_all(&working, Some(self.prev_turn));
-            self.violations.extend(new_violations);
+            self.record_violations(new_violations);
         }
         self.prev_turn = working.turn().turn_number;
         self.command_count += records.len() as u32;
@@ -1129,7 +1170,7 @@ impl<P: LegalActionProvider> LocalGame<P> {
                     if self.check_invariants {
                         let new_violations =
                             invariants::check_all(&new_state, Some(self.prev_turn));
-                        self.violations.extend(new_violations);
+                        self.record_violations(new_violations);
                     }
                     self.prev_turn = new_state.turn().turn_number;
                 }

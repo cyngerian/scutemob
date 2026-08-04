@@ -1,0 +1,63 @@
+MTG Fuzzer — Commander Rules Engine
+===================================
+Games: 20  Players: 4  Max turns: 200  Bot: Random  Seed: 1
+Cards available: 1803
+
+
+Results
+-------
+Games completed: 2  Time: 0.9s  (2 games/sec)
+Wins: 2  Draws: 0  Errors: 0
+Total violations (HARD): 1
+Total violations (TRANSIENT, reported -- does not halt --stop-on-error): 30
+Avg turns per game: 86.5
+
+Violations by check (ALL 2 games)
+---------------------------------
+  Raw counts are CHECKPOINT-weighted (OOS-SIM3-3): the same underlying condition can be reported once per checkpoint until the next SBA sweep clears it. Distinct counts (deduped by (check, description), first occurrence wins) are the defect-shaped number.
+
+  HARD (raw 1 / distinct 1), 1/2 game(s)
+    player_consistency       1      in 1 game(s): [2]
+
+  TRANSIENT (reported, does NOT halt --stop-on-error and does NOT write a crash report -- known-transient class only, PB-DX32 Stage 4) (raw 30 / distinct 6), 2/2 game(s)
+    no_orphaned_tokens       30     in 2 game(s): [1, 2]
+
+  games with >=1 HARD violation: 1 / 2
+  histogram total (HARD): 1  (TRANSIENT): 30
+
+Mechanics census (ALL 2 games)
+------------------------------
+  CR 601.2  SpellCast                    48 total; first on game turn min 9 / median 17 / max 17 (2 of 2 games cast)
+  CR 601.2  first NON-commander cast     game turn min 9 / median 17 / max 17 (2 of 2 games) -- this is the one CR 103.3 library order gates
+  CR 305.1  LandPlayed                   72 total; first on game turn min 3 / median 5 / max 5 (2 of 2 games)
+  CR 903.8  CommanderCastFromCommandZone 1 total, in 1 of 2 games; first on game turn min 45 / median 45 / max 45
+  CR 903.9a CommanderReturnedToCommandZone 0
+  CR 903.9b CommanderZoneRedirect        0
+  CR 903.10a commander damage            non-empty in 1 of 2 games; largest single total 12 (rule threshold 21)
+
+SR-38: bot-seat command rejections (ALL 2 games)
+---------------------------------------------------
+  106 rejections / 7708 commands = 13.752 per mille (threshold 30)
+  per-seed band (seed: rejections/commands):
+    seed 1: 79/2190
+    seed 2: 27/5518
+  top rejection classes (from the sample, NOT the full count):
+    8      InsufficientMana
+    3      InvalidTarget
+    2      AlreadyDeclaredBlockers
+    2      InvalidCommand
+    1      CrossPlayerBlock { blocker: ObjectId
+
+Waste census (ALL 2 games) -- bot: Random
+-----------------------------------------
+  Random wastes taps BY DESIGN (no plan) -- do not read a high percentage here as an engine defect for this bot.
+  tap runs: 353 total, 291 wasted (679 taps of 828 total = 82.0%, threshold 85%)
+  CR 500.4 ManaPoolsEmptied: 267
+  casts: 48 total, 7 with >=1 announced target (CR 601.2c)
+  Seed: 1  Turns: 50  Commands: 2190  Violations: 0  Winner: P1
+  Seed: 2  Turns: 123  Commands: 5518  Violations: 1  Winner: P2
+
+Violation in game seed 2:
+  [player_consistency] Active player PlayerId(1) has lost or conceded (turn 123)
+
+Replay violations with: mtg-fuzzer --replay <SEED>

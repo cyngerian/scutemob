@@ -350,3 +350,91 @@ T3.1, T3.2, T3.3), residual list empty.
 crates/card-types/ crates/view-model/` EMPTY. `git diff main..HEAD --numstat --
 tools/` — **still exactly one file, `+1 -0`** (unchanged from Stage 2 — Stage 3 touched
 no file under `tools/`).
+
+---
+
+## Stage 4 DONE — (c) the noise floor
+
+Plan §5 Stage 4. Files: `crates/simulator/src/invariants.rs` (new
+`check_no_leaked_tokens`, `distinct`), `crates/simulator/src/local_game.rs` (new
+`transient_violations` field + accessor, `record_violations` split helper wired at
+both `check_all` call sites, `result_snapshot` extended to run the leaked-token check
+at both real terminal paths), `crates/simulator/src/report.rs`
+(`GameResult::transient_violations`), `crates/simulator/src/bin/fuzzer.rs`
+(`print_violation_bucket` + rewritten `print_violation_histogram` printing HARD and
+TRANSIENT blocks with raw+distinct counts each, `main`'s summary line split into
+"Total violations (HARD)" / "Total violations (TRANSIENT, ...)"). Three new tests in
+`pb_dx32_fuzz_output.rs`: **T4.1**
+`test_dx32_orphaned_tokens_are_transient_and_the_end_state_is_clean`, **T4.2**
+`test_dx32_leaked_token_at_game_end_is_a_hard_violation`, **T4.3**
+`test_dx32_distinct_collapses_checkpoint_weighting`.
+
+**Fixture seed measured, not guessed**: `play_fuzz_shaped(2, 4, 25)` (RandomBot,
+`build_fuzz_state`, `record_journal: false` — the same configuration T2.x/T3.x
+already use) was scanned at implementation time (throwaway scratch test, run then
+deleted, never committed) and found to produce exactly 4 raw `no_orphaned_tokens`
+transient reports (same Treasure token, turn 24, dedup 1), 0 hard violations, 0
+leaked tokens at the final state — used for T4.1's non-vacuity and T4.3's real-seeded
+half.
+
+**A/B, EXECUTED (criterion (c)'s mandatory before/after)**: re-ran Stage 0 step 3
+verbatim (`./target/fuzz/mtg-fuzzer --games 20 --seed 1 --max-turns 200 --threads 1
+--verbose`), committed as `memory/primitives/pb-dx32-stage4-fuzz-after.txt`:
+
+| metric | before (§0.2) | after (measured) |
+|---|---|---|
+| `Total violations` (hard) | 426 | **125** = 114 `player_consistency` + 11 `attachment_validity` — matches the plan's prediction exactly |
+| transient (reported, not halting) | — | **301** `no_orphaned_tokens` |
+| distinct hard / distinct transient | — | **7** / **67** |
+| games with ≥1 **hard** violation | 16 / 20 | **6 / 20** (≤ 8 predicted) |
+| crash reports written | 16 files (stale, pre-Stage-4 semantics) | **6 files** (`crash-reports/` cleared first, then re-measured: `crash_{2,5,7,9,15,19}.json`) |
+| `--stop-on-error` halts on `no_orphaned_tokens` | yes | **NO** |
+
+**`--stop-on-error` outcome, recorded per §7 R1** (`memory/primitives/pb-dx32-stage4-stoponerror.txt`):
+run `--games 20 --seed 1 --max-turns 200 --stop-on-error --verbose` completed only
+**2** games (not 20) before halting, on seed 2's `player_consistency` violation
+("Active player PlayerId(1) has lost or conceded (turn 123)") — exactly the class
+R1 predicted, and it is **not** suppressed here: `player_consistency` stays
+undiagnosed and un-widened into the transient split, per plan §7 R1/R2 and plan
+divergence 3.
+
+**R10 measured, not predicted**: the 20-game run produced **zero** `leaked_tokens`
+violations — `check_no_leaked_tokens` never fired at either terminal path across all
+20 games. No new finding here; consistent with §0.3's 0-on-five-seeds measurement,
+now confirmed at 20-game scale.
+
+**Revert proofs (all three EXECUTED, rebuild confirmed each time)**:
+* **T4.1**: changed `record_violations`'s split predicate from `v.check ==
+  "no_orphaned_tokens"` to `v.check == "zone_integrity"`. Failure: `"seed 2 at
+  max_turns 25 is known to produce no_orphaned_tokens transient reports (measured at
+  implementation time: 4 raw reports)"` — token violations landed in the hard bucket
+  instead, so `transient_violations()` came back empty.
+* **T4.2**: made `check_no_leaked_tokens` return `Vec::new()` unconditionally (behind
+  an early `return`, function-level `#[allow(unreachable_code)]` so `-D warnings`
+  doesn't turn the revert into a silent stale-binary pass — plan §7 R7). Failure:
+  `"exactly one token, exactly one violation: [] left: 0 right: 1"` — fails on the
+  broken-state (leaked-token) half while the clean-state half (asserted first)
+  stayed green, which is what proves the probe is paired and not one-sided.
+* **T4.3**: made `distinct` return `violations.to_vec()` unconditionally (same
+  early-return + `#[allow(unreachable_code)]` shape). Failure: `"left: 3 right: 1"`
+  on the hand-built half (three identical `(check, description)` pairs at three
+  different turns, expected to collapse to 1, stayed at 3).
+
+All three restored immediately after each revert; `git diff` confirmed clean before
+moving to the next.
+
+**Stage gates, all EXECUTED**: `cargo check -p mtg-simulator` clean after each edit;
+`cargo build --profile fuzz --bin mtg-fuzzer` clean; `cargo test -p mtg-simulator
+--test pb_dx32_fuzz_output` **8 / 0 / 0** (+3 over Stage 3's 5); `cargo clippy
+--workspace --all-targets -- -D warnings` clean; `cargo fmt --check` clean (ran
+`cargo fmt` once — two import-list rewraps and three string-literal unwraps in the
+new tests, no substantive change); `tools/check-defs-fmt.sh` — 1803 defs, clean.
+`cargo test --workspace --no-fail-fast` — **4,368 / 0 / 5** (+3 over the Stage-3 pin:
+T4.1, T4.2, T4.3), residual list empty.
+`cargo test -p mtg-engine --test core hash_schema` / `--test core protocol_schema` —
+**HASH 72 / PROTOCOL 35 unmoved**, read off the constants (this stage touches no
+engine source at all).
+`git diff main..HEAD --numstat -- crates/engine/src/ crates/card-defs/
+crates/card-types/ crates/view-model/` EMPTY. `git diff main..HEAD --numstat --
+tools/` — **still exactly one file, `+1 -0`** (unchanged — Stage 4 touched no file
+under `tools/`).

@@ -1,0 +1,198 @@
+MTG Fuzzer — Commander Rules Engine
+===================================
+Games: 20  Players: 4  Max turns: 200  Bot: Random  Seed: 1
+Cards available: 1803
+
+
+Results
+-------
+Games completed: 20  Time: 11.5s  (2 games/sec)
+Wins: 20  Draws: 0  Errors: 0
+Total violations (HARD): 125
+Total violations (TRANSIENT, reported -- does not halt --stop-on-error): 301
+Avg turns per game: 103.4
+
+Violations by check (ALL 20 games)
+---------------------------------
+  Raw counts are CHECKPOINT-weighted (OOS-SIM3-3): the same underlying condition can be reported once per checkpoint until the next SBA sweep clears it. Distinct counts (deduped by (check, description), first occurrence wins) are the defect-shaped number.
+
+  HARD (raw 125 / distinct 7), 6/20 game(s)
+    player_consistency       114    in 5 game(s): [2, 7, 9, 15, 19]
+    attachment_validity      11     in 3 game(s): [5, 9, 15]
+
+  TRANSIENT (reported, does NOT halt --stop-on-error and does NOT write a crash report -- known-transient class only, PB-DX32 Stage 4) (raw 301 / distinct 67), 15/20 game(s)
+    no_orphaned_tokens       301    in 15 game(s): [1, 2, 3, 4, 5, 9, 10, 11, 12, 13, 14, 15, 16, 19, 20]
+
+  games with >=1 HARD violation: 6 / 20
+  histogram total (HARD): 125  (TRANSIENT): 301
+
+Mechanics census (ALL 20 games)
+------------------------------
+  CR 601.2  SpellCast                    670 total; first on game turn min 3 / median 12 / max 29 (20 of 20 games cast)
+  CR 601.2  first NON-commander cast     game turn min 5 / median 17 / max 29 (20 of 20 games) -- this is the one CR 103.3 library order gates
+  CR 305.1  LandPlayed                   799 total; first on game turn min 1 / median 2 / max 7 (20 of 20 games)
+  CR 903.8  CommanderCastFromCommandZone 36 total, in 16 of 20 games; first on game turn min 3 / median 67 / max 107
+  CR 903.9a CommanderReturnedToCommandZone 13
+  CR 903.9b CommanderZoneRedirect        0
+  CR 903.10a commander damage            non-empty in 16 of 20 games; largest single total 31 (rule threshold 21)
+
+SR-38: bot-seat command rejections (ALL 20 games)
+---------------------------------------------------
+  1995 rejections / 94467 commands = 21.118 per mille (threshold 30)
+  per-seed band (seed: rejections/commands):
+    seed 1: 79/2190
+    seed 2: 27/5518
+    seed 3: 43/4812
+    seed 4: 157/5902
+    seed 5: 236/5191
+    seed 6: 76/4723
+    seed 7: 34/5372
+    seed 8: 51/3178
+    seed 9: 418/6597
+    seed 10: 100/4604
+    seed 11: 60/5283
+    seed 12: 84/5943
+    seed 13: 105/5135
+    seed 14: 35/4158
+    seed 15: 147/5180
+    seed 16: 14/3920
+    seed 17: 64/3464
+    seed 18: 76/3392
+    seed 19: 56/4492
+    seed 20: 133/5413
+  top rejection classes (from the sample, NOT the full count):
+    69     InvalidTarget
+    52     InsufficientMana
+    14     InvalidCommand
+    10     ObjectNotFound
+    8      AlreadyDeclaredBlockers
+    7      CrossPlayerBlock { blocker: ObjectId
+
+Waste census (ALL 20 games) -- bot: Random
+-----------------------------------------
+  Random wastes taps BY DESIGN (no plan) -- do not read a high percentage here as an engine defect for this bot.
+  tap runs: 5141 total, 4147 wasted (8423 taps of 10720 total = 78.6%, threshold 85%)
+  CR 500.4 ManaPoolsEmptied: 3770
+  casts: 663 total, 77 with >=1 announced target (CR 601.2c)
+  Seed: 1  Turns: 50  Commands: 2190  Violations: 0  Winner: P1
+  Seed: 2  Turns: 123  Commands: 5518  Violations: 1  Winner: P2
+  Seed: 3  Turns: 90  Commands: 4812  Violations: 0  Winner: P1
+  Seed: 4  Turns: 119  Commands: 5902  Violations: 0  Winner: P2
+  Seed: 5  Turns: 112  Commands: 5191  Violations: 3  Winner: P4
+  Seed: 6  Turns: 109  Commands: 4723  Violations: 0  Winner: P2
+  Seed: 7  Turns: 100  Commands: 5372  Violations: 36  Winner: P1
+  Seed: 8  Turns: 74  Commands: 3178  Violations: 0  Winner: P1
+  Seed: 9  Turns: 147  Commands: 6597  Violations: 29  Winner: P2
+  Seed: 10  Turns: 108  Commands: 4604  Violations: 0  Winner: P2
+  Seed: 11  Turns: 118  Commands: 5283  Violations: 0  Winner: P4
+  Seed: 12  Turns: 140  Commands: 5943  Violations: 0  Winner: P4
+  Seed: 13  Turns: 117  Commands: 5135  Violations: 0  Winner: P2
+  Seed: 14  Turns: 98  Commands: 4158  Violations: 0  Winner: P2
+  Seed: 15  Turns: 114  Commands: 5180  Violations: 20  Winner: P1
+  Seed: 16  Turns: 94  Commands: 3920  Violations: 0  Winner: P3
+  Seed: 17  Turns: 80  Commands: 3464  Violations: 0  Winner: P1
+  Seed: 18  Turns: 76  Commands: 3392  Violations: 0  Winner: P3
+  Seed: 19  Turns: 90  Commands: 4492  Violations: 36  Winner: P2
+  Seed: 20  Turns: 109  Commands: 5413  Violations: 0  Winner: P1
+
+Violation in game seed 2:
+  [player_consistency] Active player PlayerId(1) has lost or conceded (turn 123)
+
+Violation in game seed 5:
+  [attachment_validity] Object ObjectId(532) attached to ObjectId(677) which doesn't exist (turn 88)
+  [attachment_validity] Object ObjectId(532) attached to ObjectId(677) which doesn't exist (turn 88)
+  [attachment_validity] Object ObjectId(532) attached to ObjectId(677) which doesn't exist (turn 88)
+
+Violation in game seed 7:
+  [player_consistency] Active player PlayerId(2) has lost or conceded (turn 90)
+  [player_consistency] Active player PlayerId(2) has lost or conceded (turn 90)
+  [player_consistency] Active player PlayerId(2) has lost or conceded (turn 90)
+  [player_consistency] Active player PlayerId(2) has lost or conceded (turn 90)
+  [player_consistency] Active player PlayerId(2) has lost or conceded (turn 90)
+  [player_consistency] Active player PlayerId(2) has lost or conceded (turn 90)
+  [player_consistency] Active player PlayerId(2) has lost or conceded (turn 90)
+  [player_consistency] Active player PlayerId(2) has lost or conceded (turn 90)
+  [player_consistency] Active player PlayerId(2) has lost or conceded (turn 90)
+  [player_consistency] Active player PlayerId(2) has lost or conceded (turn 90)
+  [player_consistency] Active player PlayerId(2) has lost or conceded (turn 90)
+  [player_consistency] Active player PlayerId(2) has lost or conceded (turn 90)
+  [player_consistency] Active player PlayerId(2) has lost or conceded (turn 90)
+  [player_consistency] Active player PlayerId(2) has lost or conceded (turn 90)
+  [player_consistency] Active player PlayerId(2) has lost or conceded (turn 90)
+  [player_consistency] Active player PlayerId(2) has lost or conceded (turn 90)
+  [player_consistency] Active player PlayerId(2) has lost or conceded (turn 90)
+  [player_consistency] Active player PlayerId(2) has lost or conceded (turn 90)
+  [player_consistency] Active player PlayerId(2) has lost or conceded (turn 90)
+  [player_consistency] Active player PlayerId(2) has lost or conceded (turn 90)
+  [player_consistency] Active player PlayerId(2) has lost or conceded (turn 90)
+  [player_consistency] Active player PlayerId(4) has lost or conceded (turn 98)
+  [player_consistency] Active player PlayerId(4) has lost or conceded (turn 98)
+  [player_consistency] Active player PlayerId(4) has lost or conceded (turn 98)
+  [player_consistency] Active player PlayerId(4) has lost or conceded (turn 98)
+  [player_consistency] Active player PlayerId(4) has lost or conceded (turn 98)
+  [player_consistency] Active player PlayerId(4) has lost or conceded (turn 98)
+  [player_consistency] Active player PlayerId(4) has lost or conceded (turn 98)
+  [player_consistency] Active player PlayerId(4) has lost or conceded (turn 98)
+  [player_consistency] Active player PlayerId(4) has lost or conceded (turn 98)
+  [player_consistency] Active player PlayerId(4) has lost or conceded (turn 98)
+  [player_consistency] Active player PlayerId(4) has lost or conceded (turn 98)
+  [player_consistency] Active player PlayerId(4) has lost or conceded (turn 98)
+  [player_consistency] Active player PlayerId(4) has lost or conceded (turn 98)
+  [player_consistency] Active player PlayerId(4) has lost or conceded (turn 98)
+  [player_consistency] Active player PlayerId(3) has lost or conceded (turn 100)
+
+Violation in game seed 9:
+  [player_consistency] Active player PlayerId(1) has lost or conceded (turn 93)
+  [player_consistency] Active player PlayerId(1) has lost or conceded (turn 93)
+  [player_consistency] Active player PlayerId(1) has lost or conceded (turn 93)
+  [player_consistency] Active player PlayerId(1) has lost or conceded (turn 93)
+  [player_consistency] Active player PlayerId(1) has lost or conceded (turn 93)
+  [player_consistency] Active player PlayerId(1) has lost or conceded (turn 93)
+  [player_consistency] Active player PlayerId(1) has lost or conceded (turn 93)
+  [player_consistency] Active player PlayerId(1) has lost or conceded (turn 93)
+  [player_consistency] Active player PlayerId(1) has lost or conceded (turn 93)
+  [player_consistency] Active player PlayerId(1) has lost or conceded (turn 93)
+  [player_consistency] Active player PlayerId(1) has lost or conceded (turn 93)
+  [player_consistency] Active player PlayerId(1) has lost or conceded (turn 93)
+  [player_consistency] Active player PlayerId(1) has lost or conceded (turn 93)
+  [player_consistency] Active player PlayerId(1) has lost or conceded (turn 93)
+  [player_consistency] Active player PlayerId(1) has lost or conceded (turn 93)
+  [player_consistency] Active player PlayerId(1) has lost or conceded (turn 93)
+  [player_consistency] Active player PlayerId(1) has lost or conceded (turn 93)
+  [player_consistency] Active player PlayerId(1) has lost or conceded (turn 93)
+  [player_consistency] Active player PlayerId(1) has lost or conceded (turn 93)
+  [player_consistency] Active player PlayerId(1) has lost or conceded (turn 93)
+  [player_consistency] Active player PlayerId(1) has lost or conceded (turn 93)
+  [player_consistency] Active player PlayerId(1) has lost or conceded (turn 93)
+  [player_consistency] Active player PlayerId(1) has lost or conceded (turn 93)
+  [player_consistency] Active player PlayerId(1) has lost or conceded (turn 93)
+  [attachment_validity] Object ObjectId(1158) attached to ObjectId(928) which doesn't exist (turn 145)
+  [attachment_validity] Object ObjectId(1158) attached to ObjectId(928) which doesn't exist (turn 145)
+  [attachment_validity] Object ObjectId(1158) attached to ObjectId(928) which doesn't exist (turn 145)
+  [attachment_validity] Object ObjectId(1158) attached to ObjectId(928) which doesn't exist (turn 145)
+  [player_consistency] Active player PlayerId(3) has lost or conceded (turn 147)
+
+Violation in game seed 15:
+  [attachment_validity] Object ObjectId(573) attached to ObjectId(678) which doesn't exist (turn 94)
+  [attachment_validity] Object ObjectId(573) attached to ObjectId(678) which doesn't exist (turn 94)
+  [attachment_validity] Object ObjectId(573) attached to ObjectId(678) which doesn't exist (turn 94)
+  [attachment_validity] Object ObjectId(573) attached to ObjectId(678) which doesn't exist (turn 94)
+  [player_consistency] Active player PlayerId(4) has lost or conceded (turn 107)
+  [player_consistency] Active player PlayerId(4) has lost or conceded (turn 107)
+  [player_consistency] Active player PlayerId(4) has lost or conceded (turn 107)
+  [player_consistency] Active player PlayerId(4) has lost or conceded (turn 107)
+  [player_consistency] Active player PlayerId(4) has lost or conceded (turn 107)
+  [player_consistency] Active player PlayerId(4) has lost or conceded (turn 107)
+  [player_consistency] Active player PlayerId(4) has lost or conceded (turn 107)
+  [player_consistency] Active player PlayerId(4) has lost or conceded (turn 107)
+  [player_consistency] Active player PlayerId(4) has lost or conceded (turn 107)
+  [player_consistency] Active player PlayerId(4) has lost or conceded (turn 107)
+  [player_consistency] Active player PlayerId(4) has lost or conceded (turn 107)
+  [player_consistency] Active player PlayerId(4) has lost or conceded (turn 107)
+  [player_consistency] Active player PlayerId(4) has lost or conceded (turn 107)
+  [player_consistency] Active player PlayerId(4) has lost or conceded (turn 107)
+  [player_consistency] Active player PlayerId(4) has lost or conceded (turn 107)
+  [player_consistency] Active player PlayerId(4) has lost or conceded (turn 107)
+... and 1 more games with violations
+
+Replay violations with: mtg-fuzzer --replay <SEED>

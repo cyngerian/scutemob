@@ -12,7 +12,7 @@
 
 use mtg_engine::{GameState, ObjectId, ZoneId};
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 
 /// An invariant violation found during fuzzing.
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -478,6 +478,58 @@ fn check_no_orphaned_tokens(state: &GameState, violations: &mut Vec<InvariantVio
             });
         }
     }
+}
+
+/// The strictly stronger END-STATE property that keeps the PB-DX32 Stage 4 noise-floor
+/// split honest (`OOS-SIM3-3` / `OOS-SIM3-4`).
+///
+/// [`check_no_orphaned_tokens`] reports a token in a non-battlefield zone at EVERY
+/// checkpoint until the next SBA sweep clears it (CR 704.3 — SBAs are checked on step
+/// entry and at resolution, not on every priority grant, `OOS-M11-7`), which makes that
+/// report transient by construction. This function asks the question that would
+/// actually be a bug: is any token anywhere but the battlefield when the game is OVER?
+/// Measured 0 on all five HEAD seeds (`memory/primitive-wip.md`, Stage 0). Mirrors
+/// `crates/simulator/tests/local_game_playthrough.rs:464-472`'s own end-of-playthrough
+/// read, generalized from a five-seed script harness to every `LocalGame` terminal path
+/// (`LocalGame::result_snapshot`).
+///
+/// Not called from [`check_all`] — this is an end-of-game check, and `check_all` runs
+/// per command.
+pub fn check_no_leaked_tokens(state: &GameState) -> Vec<InvariantViolation> {
+    let mut violations = Vec::new();
+    for (obj_id, obj) in state.objects().iter() {
+        if obj.is_token && obj.zone != ZoneId::Battlefield {
+            violations.push(InvariantViolation {
+                check: "leaked_tokens".into(),
+                description: format!(
+                    "Token {:?} '{}' found in zone {:?} at game end",
+                    obj_id, obj.characteristics.name, obj.zone
+                ),
+                turn_number: state.turn().turn_number,
+            });
+        }
+    }
+    violations
+}
+
+/// First occurrence per `(check, description)`, order preserved (PB-DX32 Stage 4,
+/// `OOS-SIM3-3`'s "report distinct conditions alongside the raw count" prescription).
+///
+/// Neither `check` nor `description` carries a turn number (that is a separate field),
+/// which is why the collapse works: the same underlying condition reported at every
+/// checkpoint produces identical `(check, description)` pairs and dedupes to one.
+/// `InvariantViolation` derives no `PartialEq`/`Hash` (it is a wire type, not a
+/// set-keyed one — see its own doc), so this dedupes on the two `String` fields
+/// directly via a `BTreeSet<(String, String)>` rather than deriving anything onto it.
+pub fn distinct(violations: &[InvariantViolation]) -> Vec<InvariantViolation> {
+    let mut seen: BTreeSet<(String, String)> = BTreeSet::new();
+    let mut out = Vec::new();
+    for v in violations {
+        if seen.insert((v.check.clone(), v.description.clone())) {
+            out.push(v.clone());
+        }
+    }
+    out
 }
 
 /// SIM-3 (`scutemob-177`): probes for [`check_stack_consistency`], both directions.

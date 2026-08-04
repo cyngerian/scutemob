@@ -21,8 +21,8 @@ use mtg_engine::{
     ZoneId,
 };
 use mtg_simulator::{
-    build_fuzz_state, build_registry, AdvanceOutcome, Bot, GameDriver, GameDriverError,
-    LegalAction, LocalGame, LocalGameLimits, RandomBot, StubProvider,
+    build_fuzz_state, build_registry, invariants, AdvanceOutcome, Bot, GameDriver, GameDriverError,
+    InvariantViolation, LegalAction, LocalGame, LocalGameLimits, RandomBot, StubProvider,
 };
 
 fn p(n: u64) -> PlayerId {
@@ -538,5 +538,121 @@ fn test_dx32_random_bot_waste_ratio_is_bounded() {
          MAX_RANDOM_BOT_WASTED_TAP_PCT_AT_GATE_CONFIG = {} -- RandomBot wastes taps BY \
          DESIGN (no plan), so this is a ceiling on ordinary behaviour, not a zero target",
         mtg_simulator::MAX_RANDOM_BOT_WASTED_TAP_PCT_AT_GATE_CONFIG
+    );
+}
+
+/// **T4.1** (Stage 4) — CR 704.3 / `OOS-M11-7`: `no_orphaned_tokens` reports are
+/// transient by construction, and the strictly stronger end-state property holds.
+/// Seed 2 at `max_turns: 25` (the exact `play_fuzz_shaped` configuration T2.x/T3.x
+/// already use) is KNOWN, not hoped, to produce them: measured at implementation time,
+/// 4 raw `no_orphaned_tokens` reports (all the same Treasure token, turn 24), 0 hard
+/// violations, 0 leaked tokens in the final state.
+#[test]
+fn test_dx32_orphaned_tokens_are_transient_and_the_end_state_is_clean() {
+    let game = play_fuzz_shaped(2, 4, 25);
+
+    assert!(
+        !game.transient_violations().is_empty(),
+        "seed 2 at max_turns 25 is known to produce no_orphaned_tokens transient reports \
+         (measured at implementation time: 4 raw reports)"
+    );
+    assert!(
+        game.transient_violations()
+            .iter()
+            .all(|v| v.check == "no_orphaned_tokens"),
+        "transient_violations() must contain ONLY no_orphaned_tokens: {:?}",
+        game.transient_violations()
+    );
+    assert!(
+        game.violations()
+            .iter()
+            .all(|v| v.check != "no_orphaned_tokens"),
+        "violations() (the hard bucket) must contain NO no_orphaned_tokens -- the split \
+         must be exhaustive in both directions: {:?}",
+        game.violations()
+    );
+    let leaked = invariants::check_no_leaked_tokens(game.state());
+    assert!(
+        leaked.is_empty(),
+        "CR 704.3 / OOS-M11-7: the transient reports must actually BE transient -- no \
+         token may remain outside the battlefield in the FINAL state, or the split would \
+         be hiding a real defect: {leaked:?}"
+    );
+}
+
+/// **T4.2** (Stage 4) — `check_no_leaked_tokens`, both directions (the paired-probe
+/// convention `invariants.rs`'s own test module already uses). A state with no token
+/// at all is silent; a hand-built terminal state with one token stranded in a
+/// graveyard produces exactly one `leaked_tokens` violation.
+#[test]
+fn test_dx32_leaked_token_at_game_end_is_a_hard_violation() {
+    let clean = bare_two_player_state();
+    assert!(
+        invariants::check_no_leaked_tokens(&clean).is_empty(),
+        "a state with no token at all must be silent"
+    );
+
+    let leaked_state = GameStateBuilder::new()
+        .add_player(p(1))
+        .add_player(p(2))
+        .object(
+            ObjectSpec::card(p(1), "Spirit")
+                .token()
+                .in_zone(ZoneId::Graveyard(p(1))),
+        )
+        .build()
+        .expect("leaked-token fixture must build");
+
+    let violations = invariants::check_no_leaked_tokens(&leaked_state);
+    assert_eq!(
+        violations.len(),
+        1,
+        "exactly one token, exactly one violation: {violations:?}"
+    );
+    assert_eq!(violations[0].check, "leaked_tokens");
+}
+
+/// **T4.3** (Stage 4) — `distinct` collapses checkpoint weighting (`OOS-SIM3-3`):
+/// first occurrence per `(check, description)` wins, order preserved. The hand-built
+/// half proves the ORDER guarantee (three identical `(check, description)` pairs at
+/// three different turn numbers — neither field carries the turn, so all three
+/// collapse, and the FIRST turn number survives); the real-seeded half (seed 2, the
+/// same fixture T4.1 uses) proves the collapse on genuine engine output, matching
+/// Stage 0's own 94 -> 20 collapse at full scale (§0.3).
+#[test]
+fn test_dx32_distinct_collapses_checkpoint_weighting() {
+    let hand_built = vec![
+        InvariantViolation {
+            check: "no_orphaned_tokens".into(),
+            description: "Token ObjectId(1) 'Spirit' found in zone Graveyard(PlayerId(1))".into(),
+            turn_number: 3,
+        },
+        InvariantViolation {
+            check: "no_orphaned_tokens".into(),
+            description: "Token ObjectId(1) 'Spirit' found in zone Graveyard(PlayerId(1))".into(),
+            turn_number: 4,
+        },
+        InvariantViolation {
+            check: "no_orphaned_tokens".into(),
+            description: "Token ObjectId(1) 'Spirit' found in zone Graveyard(PlayerId(1))".into(),
+            turn_number: 5,
+        },
+    ];
+    let deduped = invariants::distinct(&hand_built);
+    assert_eq!(deduped.len(), 1, "{deduped:?}");
+    assert_eq!(
+        deduped[0].turn_number, 3,
+        "the FIRST occurrence must be preserved, not the last"
+    );
+
+    let game = play_fuzz_shaped(2, 4, 25);
+    let raw = game.transient_violations();
+    let distinct = invariants::distinct(raw);
+    assert!(
+        distinct.len() < raw.len(),
+        "seed 2 at max_turns 25 is known to repeat a violation (Stage 0's own 94 -> 20 \
+         collapse at full scale, §0.3): raw {} distinct {}",
+        raw.len(),
+        distinct.len()
     );
 }

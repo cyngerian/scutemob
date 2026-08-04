@@ -248,11 +248,21 @@ fn main() {
         .count();
     let errors: usize = results.iter().filter(|r| r.error.is_some()).count();
     let total_violations: usize = results.iter().map(|r| r.violations.len()).sum();
+    // PB-DX32 Stage 4: printed as a SEPARATE line, deliberately -- `OOS-DX22-13`'s
+    // lesson is that redefining what a headline number means without saying so is how
+    // a stale comparison gets made. "Total violations" now means the HARD bucket only
+    // (what `--stop-on-error` halts on); the TRANSIENT count is a different number,
+    // printed next to it rather than folded in.
+    let total_transient: usize = results.iter().map(|r| r.transient_violations.len()).sum();
     let avg_turns: f64 =
         results.iter().map(|r| r.turn_count as f64).sum::<f64>() / results.len().max(1) as f64;
 
     println!("Wins: {}  Draws: {}  Errors: {}", wins, draws, errors);
-    println!("Total violations: {}", total_violations);
+    println!("Total violations (HARD): {}", total_violations);
+    println!(
+        "Total violations (TRANSIENT, reported -- does not halt --stop-on-error): {}",
+        total_transient
+    );
     println!("Avg turns per game: {:.1}", avg_turns);
 
     print_violation_histogram(&results);
@@ -380,40 +390,45 @@ fn run_single_game(
     driver.run_game_with_mechanics(state, seed)
 }
 
-/// Every violation in the run, grouped by `check` — **all games, not a sample**.
-///
-/// # Why this exists (PB-DX22 fix cycle, review Finding 2)
-///
-/// The per-violation detail loop below prints only the first five offending games
-/// (`if violation_seeds.len() <= 5`). PB-DX22 read a by-check breakdown off those printed
-/// lines and then stated a universal negative about the whole run — "426 total violations,
-/// and not one of them is `stack_consistency`" — from 94 of them. Every `GameResult` in
-/// `results` carries its complete `violations` vector, so the real tally costs one fold
-/// and there is no reason to sample it. Anything that wants to say "check X did not fire"
-/// must read this block, not the detail loop.
-fn print_violation_histogram(results: &[GameResult]) {
+/// One bucket of [`print_violation_histogram`] — HARD (`result.violations`) or
+/// TRANSIENT (`result.transient_violations`), selected by `select`. Prints raw AND
+/// distinct counts (`OOS-SIM3-3`'s "report distinct conditions alongside the raw
+/// count" prescription — `distinct` is `mtg_simulator::invariants::distinct`, the
+/// SAME dedupe the noise-floor split's own gates use, not a second copy of it), plus
+/// the by-`check` breakdown with seed lists.
+fn print_violation_bucket(
+    label: &str,
+    results: &[GameResult],
+    select: impl Fn(&GameResult) -> &[mtg_simulator::InvariantViolation],
+) -> usize {
     let mut by_check: HashMap<&str, (usize, Vec<u64>)> = HashMap::new();
-    let mut games_with_violations = 0usize;
-    let mut total = 0usize;
+    let mut games_with = 0usize;
+    let mut raw_total = 0usize;
+    let mut all: Vec<mtg_simulator::InvariantViolation> = Vec::new();
     for result in results {
-        if !result.violations.is_empty() {
-            games_with_violations += 1;
+        let vs = select(result);
+        if !vs.is_empty() {
+            games_with += 1;
         }
-        for v in &result.violations {
+        raw_total += vs.len();
+        all.extend(vs.iter().cloned());
+        for v in vs {
             let entry = by_check.entry(v.check.as_str()).or_insert((0, Vec::new()));
             entry.0 += 1;
             if entry.1.last() != Some(&result.seed) {
                 entry.1.push(result.seed);
             }
-            total += 1;
         }
     }
+    let distinct_total = mtg_simulator::invariants::distinct(&all).len();
 
     println!();
-    println!("Violations by check (ALL {} games)", results.len());
-    println!("---------------------------------");
+    println!(
+        "  {label} (raw {raw_total} / distinct {distinct_total}), {games_with}/{} game(s)",
+        results.len()
+    );
     if by_check.is_empty() {
-        println!("  (none)");
+        println!("    (none)");
     } else {
         let mut rows: Vec<(&str, (usize, Vec<u64>))> = by_check.into_iter().collect();
         // Descending count, then name, so the output is stable across runs regardless of
@@ -425,7 +440,7 @@ fn print_violation_histogram(results: &[GameResult]) {
             // violations where this run prints the first five games' worth.
             seeds.sort_unstable();
             println!(
-                "  {:<24} {:<6} in {} game(s): {:?}",
+                "    {:<24} {:<6} in {} game(s): {:?}",
                 check,
                 count,
                 seeds.len(),
@@ -433,15 +448,52 @@ fn print_violation_histogram(results: &[GameResult]) {
             );
         }
     }
+    raw_total
+}
+
+/// Every violation in the run, grouped by `check` — **all games, not a sample**, split
+/// into the HARD and TRANSIENT buckets `result.violations` /
+/// `result.transient_violations` already carry (PB-DX32 Stage 4, `OOS-SIM3-3` /
+/// `OOS-SIM3-4`). `--stop-on-error` and the crash-report writer key on the HARD bucket
+/// only, so the TRANSIENT block below is diagnostic, not a halting signal.
+///
+/// # Why this exists (PB-DX22 fix cycle, review Finding 2)
+///
+/// The per-violation detail loop below prints only the first five offending games
+/// (`if violation_seeds.len() <= 5`). PB-DX22 read a by-check breakdown off those printed
+/// lines and then stated a universal negative about the whole run — "426 total violations,
+/// and not one of them is `stack_consistency`" — from 94 of them. Every `GameResult` in
+/// `results` carries its complete `violations`/`transient_violations` vectors, so the real
+/// tally costs one fold and there is no reason to sample it. Anything that wants to say
+/// "check X did not fire" must read this block, not the detail loop.
+fn print_violation_histogram(results: &[GameResult]) {
+    println!();
+    println!("Violations by check (ALL {} games)", results.len());
+    println!("---------------------------------");
     println!(
-        "  games with >=1 violation: {} / {}",
-        games_with_violations,
+        "  Raw counts are CHECKPOINT-weighted (OOS-SIM3-3): the same underlying condition \
+         can be reported once per checkpoint until the next SBA sweep clears it. Distinct \
+         counts (deduped by (check, description), first occurrence wins) are the \
+         defect-shaped number."
+    );
+    let hard_total = print_violation_bucket("HARD", results, |r| r.violations.as_slice());
+    let transient_total = print_violation_bucket(
+        "TRANSIENT (reported, does NOT halt --stop-on-error and does NOT write a crash \
+         report -- known-transient class only, PB-DX32 Stage 4)",
+        results,
+        |r| r.transient_violations.as_slice(),
+    );
+    println!();
+    println!(
+        "  games with >=1 HARD violation: {} / {}",
+        results.iter().filter(|r| !r.violations.is_empty()).count(),
         results.len()
     );
-    // Printed so the block is self-checking: this must equal the "Total violations" line
-    // above. If it does not, the histogram is reading a different population than the
-    // summary and neither number should be quoted.
-    println!("  histogram total: {}", total);
+    // Printed so the block is self-checking: `hard_total` must equal the "Total
+    // violations (HARD)" line in `main`'s summary above. If it does not, the histogram
+    // is reading a different population than the summary and neither number should be
+    // quoted.
+    println!("  histogram total (HARD): {hard_total}  (TRANSIENT): {transient_total}");
 }
 
 /// The commander-mechanics and first-cast census over the whole run.

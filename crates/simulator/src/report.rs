@@ -62,6 +62,11 @@ pub struct GameResult {
     /// The SIM-5 tap/pool instrument, promoted (PB-DX32 Stage 3) — see
     /// [`crate::local_game::LocalGame::waste`].
     pub waste: WasteTally,
+    /// The noise-floor split (PB-DX32 Stage 4, `OOS-SIM3-3` / `OOS-SIM3-4`):
+    /// `no_orphaned_tokens` reports, reported but NOT counted toward `violations` and
+    /// NOT halting `--stop-on-error` — see
+    /// [`crate::local_game::LocalGame::transient_violations`].
+    pub transient_violations: Vec<InvariantViolation>,
 }
 
 /// SR-38 at run scale. Measured at HEAD (2026-08-03) over 5 fuzz-shaped games,
