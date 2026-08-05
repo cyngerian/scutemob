@@ -8317,10 +8317,11 @@ fn is_target_legal(state: &GameState, spell_target: &SpellTarget) -> bool {
 /// callers are the two probes in `crates/engine/tests/core/resolution.rs`
 /// (plus, as of PB-DX25, `crates/engine/tests/primitives/
 /// pb_dx25_counterspell_stack_shapes.rs`'s T7). Kept as a second, independent
-/// counter path rather than deleted -- it is `pub`, it is API, and PB-DX9's
-/// precedent for this exact function's tail applies here too: *"routed
-/// through the shared helper so a future caller does not inherit a shipped
-/// deadlock."* Leaving one of two counter paths carrying PB-DX25's
+/// counter path rather than deleted -- it is `pub`, it is API, and PB-DP9's
+/// precedent for this exact function's tail applies here too (`f33aabe2`,
+/// `scutemob-157`, "second closing review"): *"routed through the shared
+/// helper so a future caller does not inherit a shipped deadlock."*
+/// Leaving one of two counter paths carrying PB-DX25's
 /// pre-fix defect (the per-kind `Spell`-only lookup that silently dropped
 /// `MutatingCreatureSpell`) is precisely how a future caller would have
 /// inherited it a second time.
