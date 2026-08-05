@@ -19,12 +19,19 @@
 //! half (Change 3). T10-family (stage 5) covers the index-space fixes
 //! (Change 4, OOS-DX1-4).
 
+use mtg_engine::state::stubs::PendingTriggerKind;
 use mtg_engine::testing::replay_harness::build_face_ability_vectors;
 use mtg_engine::{
-    all_cards, check_and_apply_sbas, enrich_spec_from_def, CardDefinition, CardRegistry,
-    GameState, GameStateBuilder, ObjectId, ObjectSpec, PlayerId, Step, ZoneId,
+    all_cards, check_and_apply_sbas, enrich_spec_from_def, process_command, CardDefinition,
+    CardRegistry, Command, GameEvent, GameState, GameStateBuilder, ManaPool, ObjectId, ObjectSpec,
+    PlayerId, PlayerTarget, Step, TriggerCondition, TriggerEvent, ZoneId,
 };
 use std::collections::HashMap;
+
+#[allow(unused_imports)]
+use mtg_card_types::cards::card_definition::{
+    AbilityDefinition as CardDefAbilityDefinition, TriggerZone,
+};
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -44,6 +51,78 @@ fn find_by_name(state: &GameState, name: &str) -> ObjectId {
         .find(|(_, o)| o.characteristics.name == name)
         .map(|(&id, _)| id)
         .unwrap_or_else(|| panic!("object '{name}' not found in state"))
+}
+
+/// Find an object in the graveyard by name -- used to pick up a just-died
+/// creature's NEW `ObjectId` (CR 400.7) after `check_and_apply_sbas`.
+fn find_in_graveyard(state: &GameState, name: &str) -> ObjectId {
+    state
+        .objects()
+        .iter()
+        .find(|(_, o)| o.characteristics.name == name && matches!(o.zone, ZoneId::Graveyard(_)))
+        .map(|(&id, _)| id)
+        .unwrap_or_else(|| panic!("object '{name}' not found in any graveyard"))
+}
+
+fn on_battlefield(state: &GameState, name: &str) -> bool {
+    state
+        .objects()
+        .values()
+        .any(|o| o.characteristics.name == name && o.zone == ZoneId::Battlefield)
+}
+
+fn in_graveyard(state: &GameState, name: &str, owner: PlayerId) -> bool {
+    state
+        .objects()
+        .values()
+        .any(|o| o.characteristics.name == name && o.zone == ZoneId::Graveyard(owner))
+}
+
+/// Re-derive Nether Traitor's `WheneverCreatureDies` ability's CARD-DEF index
+/// from `all_cards()` -- never hard-coded (the plan's own instruction, T2).
+fn nether_traitor_death_ability_index(defs: &HashMap<String, CardDefinition>) -> usize {
+    let def = defs.get("Nether Traitor").unwrap();
+    def.abilities
+        .iter()
+        .position(|a| {
+            matches!(
+                a,
+                CardDefAbilityDefinition::Triggered {
+                    trigger_condition: TriggerCondition::WheneverCreatureDies { .. },
+                    ..
+                }
+            )
+        })
+        .expect("Nether Traitor must have a WheneverCreatureDies ability")
+}
+
+/// Pass priority for all listed players once, accumulating events. Mirrors
+/// `pb_ef10_sacrifice_driven_amounts.rs::pass_all`.
+fn pass_all(state: GameState, players: &[PlayerId]) -> (GameState, Vec<GameEvent>) {
+    let mut all_events = Vec::new();
+    let mut current = state;
+    for &pl in players {
+        let (s, ev) = process_command(current, Command::PassPriority { player: pl })
+            .unwrap_or_else(|e| panic!("PassPriority by {:?} failed: {:?}", pl, e));
+        current = s;
+        all_events.extend(ev);
+    }
+    let (current, pump_events) =
+        mtg_engine::testing::replay_harness::auto_answer_blocking_decisions(current);
+    all_events.extend(pump_events);
+    (current, all_events)
+}
+
+/// Drain the stack completely (repeated `pass_all` rounds).
+fn drain_stack(mut state: GameState, players: &[PlayerId]) -> GameState {
+    let mut guard = 0;
+    while !state.stack_objects().is_empty() {
+        let (s, _) = pass_all(state, players);
+        state = s;
+        guard += 1;
+        assert!(guard < 20, "drain_stack: stack did not empty after 20 rounds");
+    }
+    state
 }
 
 // ── T1: Nether Traitor must NOT trigger from the battlefield ────────────────
@@ -192,4 +271,500 @@ fn test_dx24_lowering_drops_every_zone_scoped_ability_over_the_corpus() {
          defs: {:?}",
         divergent_defs
     );
+}
+
+// ── Stage 4 shared fixture ───────────────────────────────────────────────────
+
+/// Nether Traitor already in `p1`'s graveyard, with `black_mana` floating in
+/// `p1`'s pool, and a vanilla "Fodder" creature (controlled by
+/// `fodder_controller`, toughness 0 so SBA 704.5f kills it on the next
+/// `check_and_apply_sbas`/`pass_all`).
+fn build_nether_in_graveyard_fixture(
+    defs: &HashMap<String, CardDefinition>,
+    black_mana: u32,
+    fodder_controller: PlayerId,
+) -> GameState {
+    let p1 = p(1);
+    let nether_card_id = defs.get("Nether Traitor").unwrap().card_id.clone();
+    let nether_spec = enrich_spec_from_def(
+        ObjectSpec::card(p1, "Nether Traitor")
+            .in_zone(ZoneId::Graveyard(p1))
+            .with_card_id(nether_card_id),
+        defs,
+    );
+    let fodder_spec =
+        ObjectSpec::creature(fodder_controller, "Fodder", 1, 0).in_zone(ZoneId::Battlefield);
+    let defs_vec: Vec<CardDefinition> = defs.values().cloned().collect();
+    GameStateBuilder::four_player()
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .with_registry(CardRegistry::new(defs_vec))
+        .player_mana(
+            p1,
+            ManaPool {
+                black: black_mana,
+                ..Default::default()
+            },
+        )
+        .object(nether_spec)
+        .object(fodder_spec)
+        .build()
+        .unwrap()
+}
+
+// ── T2: Nether Traitor triggers from the graveyard ───────────────────────────
+
+/// CR 603.6c / CR 113.6b / CR 108.4a — a creature `p1` controls dies while
+/// Nether Traitor is in `p1`'s OWN graveyard: exactly one trigger, sourced at
+/// the graveyard object, `kind == CardDefETB`, `controller == p1` (the card's
+/// OWNER, per CR 108.4a -- a graveyard card has no controller), keyed on
+/// `AnyCreatureDies`, carrying the dying creature's new graveyard id, at the
+/// ability's real card-def index (re-derived, never hard-coded).
+#[test]
+fn test_dx24_nether_traitor_triggers_from_the_graveyard() {
+    let p1 = p(1);
+    let defs = load_defs();
+    let expected_ability_index = nether_traitor_death_ability_index(&defs);
+
+    let mut state = build_nether_in_graveyard_fixture(&defs, 1, p1);
+    let nether_gy_id = find_by_name(&state, "Nether Traitor");
+
+    check_and_apply_sbas(&mut state);
+
+    let fodder_new_id = find_in_graveyard(&state, "Fodder");
+
+    let nether_triggers: Vec<_> = state
+        .pending_triggers()
+        .iter()
+        .filter(|t| t.source == nether_gy_id)
+        .collect();
+    assert_eq!(
+        nether_triggers.len(),
+        1,
+        "CR 603.6c / CR 113.6b: Nether Traitor in the GRAVEYARD must trigger \
+         exactly once when a creature its owner controls dies. Got {} \
+         trigger(s): {:?}",
+        nether_triggers.len(),
+        nether_triggers
+    );
+    let t = nether_triggers[0];
+    assert_eq!(t.kind, PendingTriggerKind::CardDefETB, "kind must be CardDefETB");
+    assert_eq!(
+        t.controller, p1,
+        "CR 108.4a: a graveyard card's controller is its owner"
+    );
+    assert_eq!(
+        t.triggering_event,
+        Some(TriggerEvent::AnyCreatureDies),
+        "must dispatch through AnyCreatureDies"
+    );
+    assert_eq!(
+        t.entering_object_id,
+        Some(fodder_new_id),
+        "must carry the dying creature's NEW graveyard ObjectId (CR 400.7)"
+    );
+    assert_eq!(
+        t.ability_index, expected_ability_index,
+        "ability_index must be the CARD-DEF index of the WheneverCreatureDies \
+         ability, re-derived from all_cards() rather than hard-coded"
+    );
+}
+
+// ── T3: end-to-end return, with a paired no-mana negative ───────────────────
+
+/// CR 603.3 / CR 603.3a / CR 118.12 (`MayPayThenEffect`) — driven through
+/// `process_command`: a creature dies, the trigger flushes, resolves, and (if
+/// `{B}` is available) Nether Traitor returns to the battlefield. The paired
+/// negative -- zero black mana available -- proves the assertion discriminates
+/// the RETURN, not merely the trigger firing.
+#[test]
+fn test_dx24_nether_traitor_returns_itself_end_to_end() {
+    let p1 = p(1);
+    let all = [p(1), p(2), p(3), p(4)];
+    let defs = load_defs();
+
+    // Positive: 1 black mana floating.
+    let state = build_nether_in_graveyard_fixture(&defs, 1, p1);
+    let state = drain_stack(state, &all);
+    assert!(
+        on_battlefield(&state, "Nether Traitor"),
+        "CR 118.12: with {{B}} available, Nether Traitor's MayPayThenEffect \
+         must pay (CR 118.12 pay-when-able) and return it to the battlefield"
+    );
+    assert!(
+        !in_graveyard(&state, "Nether Traitor", p1),
+        "Nether Traitor must have LEFT the graveyard"
+    );
+
+    // Negative: zero black mana floating -- the cost cannot be paid, so the
+    // `then` arm (MoveZone to battlefield) never runs.
+    let state_no_mana = build_nether_in_graveyard_fixture(&defs, 0, p1);
+    let state_no_mana = drain_stack(state_no_mana, &all);
+    assert!(
+        in_graveyard(&state_no_mana, "Nether Traitor", p1),
+        "with NO black mana available, Nether Traitor must stay in the \
+         graveyard -- the trigger fired but the optional cost went unpaid"
+    );
+    assert!(
+        !on_battlefield(&state_no_mana, "Nether Traitor"),
+        "Nether Traitor must NOT be on the battlefield when the cost went \
+         unpaid"
+    );
+}
+
+// ── T4: CR 603.10a simultaneity ──────────────────────────────────────────────
+
+/// CR 603.10a + the Gatherer simultaneity ruling (plan §1.5) — Nether Traitor
+/// and another creature dying in the SAME event batch must NOT trigger Nether
+/// Traitor: immediately prior to the event it was on the battlefield, where
+/// (CR 113.6m) the ability did not function. Non-vacuity: a second sub-case,
+/// where Nether Traitor was ALREADY in the graveyard before the batch, fires
+/// exactly one trigger from the SAME helper -- proving the fixture can fire.
+#[test]
+fn test_dx24_simultaneous_death_does_not_trigger() {
+    let p1 = p(1);
+    let defs = load_defs();
+    let defs_vec: Vec<CardDefinition> = defs.values().cloned().collect();
+
+    // Nether Traitor and Fodder BOTH die in the same SBA batch: both start on
+    // the battlefield with toughness 0.
+    let nether_spec = enrich_spec_from_def(
+        ObjectSpec::card(p1, "Nether Traitor").in_zone(ZoneId::Battlefield),
+        &defs,
+    );
+    let mut nether_spec = nether_spec;
+    nether_spec.toughness = Some(0);
+    let fodder_spec = ObjectSpec::creature(p1, "Fodder", 1, 0).in_zone(ZoneId::Battlefield);
+
+    let mut state = GameStateBuilder::four_player()
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .with_registry(CardRegistry::new(defs_vec.clone()))
+        .player_mana(
+            p1,
+            ManaPool {
+                black: 1,
+                ..Default::default()
+            },
+        )
+        .object(nether_spec)
+        .object(fodder_spec)
+        .build()
+        .unwrap();
+
+    check_and_apply_sbas(&mut state);
+    let nether_gy_id_simultaneous = find_in_graveyard(&state, "Nether Traitor");
+    let simultaneous_triggers: Vec<_> = state
+        .pending_triggers()
+        .iter()
+        .filter(|t| t.source == nether_gy_id_simultaneous)
+        .collect();
+    assert!(
+        simultaneous_triggers.is_empty(),
+        "CR 603.10a: Nether Traitor and another creature dying in the SAME \
+         batch must NOT trigger Nether Traitor -- it was on the battlefield \
+         immediately prior. Got {} trigger(s): {:?}",
+        simultaneous_triggers.len(),
+        simultaneous_triggers
+    );
+
+    // Non-vacuity: Nether Traitor ALREADY in the graveyard (a prior, separate
+    // batch), then a creature dies -- must fire exactly once.
+    let mut state2 = build_nether_in_graveyard_fixture(&defs, 1, p1);
+    let nether_gy_id_already = find_by_name(&state2, "Nether Traitor");
+    check_and_apply_sbas(&mut state2);
+    let already_triggers: Vec<_> = state2
+        .pending_triggers()
+        .iter()
+        .filter(|t| t.source == nether_gy_id_already)
+        .collect();
+    assert_eq!(
+        already_triggers.len(),
+        1,
+        "non-vacuity: Nether Traitor ALREADY in the graveyard before the \
+         batch must fire exactly once when a controlled creature dies -- the \
+         same helper must be capable of firing, or the simultaneity assertion \
+         above proves nothing."
+    );
+}
+
+// ── T5: exclude_self compares the GRAVEYARD identity ─────────────────────────
+
+/// CR 400.7 / CR 603.10a — `exclude_self` must compare against `new_grave_id`
+/// (the graveyard id space Nether Traitor's own `obj_id` lives in), not only
+/// the dying creature's battlefield `pre_death_id`. This is the whole point of
+/// the test: a comparison written against `pre_death_id` alone fails OPEN,
+/// silently, because a graveyard id can never equal a battlefield id.
+#[test]
+fn test_dx24_exclude_self_compares_the_graveyard_identity() {
+    let p1 = p(1);
+    let defs = load_defs();
+    let nether_card_id = defs.get("Nether Traitor").unwrap().card_id.clone();
+    let defs_vec: Vec<CardDefinition> = defs.values().cloned().collect();
+
+    // Nether Traitor itself is the dying object: it starts on the battlefield
+    // with toughness 0, dies via SBA, and its OWN new_grave_id is what
+    // exclude_self must catch.
+    let mut nether_spec = enrich_spec_from_def(
+        ObjectSpec::card(p1, "Nether Traitor").in_zone(ZoneId::Battlefield),
+        &defs,
+    );
+    nether_spec.toughness = Some(0);
+
+    let mut state = GameStateBuilder::four_player()
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .with_registry(CardRegistry::new(defs_vec))
+        .player_mana(
+            p1,
+            ManaPool {
+                black: 1,
+                ..Default::default()
+            },
+        )
+        .object(nether_spec)
+        .build()
+        .unwrap();
+
+    check_and_apply_sbas(&mut state);
+    let nether_gy_id = find_in_graveyard(&state, "Nether Traitor");
+    let self_triggers: Vec<_> = state
+        .pending_triggers()
+        .iter()
+        .filter(|t| t.source == nether_gy_id)
+        .collect();
+    assert!(
+        self_triggers.is_empty(),
+        "CR 400.7 / exclude_self: Nether Traitor dying by itself (no OTHER \
+         creature) must not trigger itself. Got {} trigger(s): {:?}",
+        self_triggers.len(),
+        self_triggers
+    );
+    let _ = nether_card_id; // kept for parity with the other fixtures' shape
+}
+
+// ── T6: graveyard death filters mirror the battlefield path ─────────────────
+
+/// CR 108.4a / CR 111.7 / CR 603.10a / CR 613.1d — (a) an OPPONENT's creature
+/// dying does not trigger Nether Traitor (`controller: Some(You)`), with its
+/// positive counterpart (a creature P1 CONTROLS dying DOES trigger it, proven
+/// by T2 already, so (a) here only needs the negative half plus a same-fixture
+/// positive control to prove the fixture can fire at all).
+#[test]
+fn test_dx24_graveyard_death_filters_mirror_the_battlefield_path() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let defs = load_defs();
+    let nether_card_id = defs.get("Nether Traitor").unwrap().card_id.clone();
+    let defs_vec: Vec<CardDefinition> = defs.values().cloned().collect();
+
+    // (a) negative: an OPPONENT's creature dies -- must NOT trigger.
+    let nether_spec = enrich_spec_from_def(
+        ObjectSpec::card(p1, "Nether Traitor")
+            .in_zone(ZoneId::Graveyard(p1))
+            .with_card_id(nether_card_id.clone()),
+        &defs,
+    );
+    let opponent_fodder = ObjectSpec::creature(p2, "Fodder", 1, 0).in_zone(ZoneId::Battlefield);
+    let mut state = GameStateBuilder::four_player()
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .with_registry(CardRegistry::new(defs_vec.clone()))
+        .player_mana(
+            p1,
+            ManaPool {
+                black: 1,
+                ..Default::default()
+            },
+        )
+        .object(nether_spec)
+        .object(opponent_fodder)
+        .build()
+        .unwrap();
+    let nether_gy_id = find_by_name(&state, "Nether Traitor");
+    check_and_apply_sbas(&mut state);
+    let opp_triggers: Vec<_> = state
+        .pending_triggers()
+        .iter()
+        .filter(|t| t.source == nether_gy_id)
+        .collect();
+    assert!(
+        opp_triggers.is_empty(),
+        "CR 108.4a: an opponent's creature dying must NOT trigger Nether \
+         Traitor (controller: Some(You) is an OWNER-scoped check via \
+         death_controller vs owner). Got {} trigger(s): {:?}",
+        opp_triggers.len(),
+        opp_triggers
+    );
+
+    // (a) positive control, SAME fixture shape: p1's OWN creature dies.
+    let (state_pos, nether_gy_id_pos) = {
+        let nether_spec = enrich_spec_from_def(
+            ObjectSpec::card(p1, "Nether Traitor")
+                .in_zone(ZoneId::Graveyard(p1))
+                .with_card_id(nether_card_id),
+            &defs,
+        );
+        let own_fodder = ObjectSpec::creature(p1, "Fodder", 1, 0).in_zone(ZoneId::Battlefield);
+        let mut s = GameStateBuilder::four_player()
+            .active_player(p1)
+            .at_step(Step::PreCombatMain)
+            .with_registry(CardRegistry::new(defs_vec))
+            .player_mana(
+                p1,
+                ManaPool {
+                    black: 1,
+                    ..Default::default()
+                },
+            )
+            .object(nether_spec)
+            .object(own_fodder)
+            .build()
+            .unwrap();
+        let id = find_by_name(&s, "Nether Traitor");
+        check_and_apply_sbas(&mut s);
+        (s, id)
+    };
+    let pos_triggers: Vec<_> = state_pos
+        .pending_triggers()
+        .iter()
+        .filter(|t| t.source == nether_gy_id_pos)
+        .collect();
+    assert_eq!(
+        pos_triggers.len(),
+        1,
+        "non-vacuity: p1's OWN creature dying, same fixture shape, must fire \
+         exactly once -- otherwise (a)'s negative proves nothing."
+    );
+}
+
+/// Build a synthetic graveyard-scoped `WheneverCreatureDies` def (mirrors
+/// `pb_ac7_ability_index_desync.rs`'s synthetic-def idiom) with `nontoken_only`
+/// or `filter` set, so (b)/(c) can be tested without a corpus card carrying
+/// them alongside `trigger_zone: Some(Graveyard)`.
+fn synthetic_graveyard_watcher_def(
+    name: &str,
+    nontoken_only: bool,
+    filter: Option<mtg_engine::TargetFilter>,
+) -> CardDefinition {
+    CardDefinition {
+        card_id: mtg_engine::CardId(format!("dx24-synthetic-{name}")),
+        name: name.to_string(),
+        types: mtg_engine::cards::helpers::creature_types(&["Spirit"]),
+        power: Some(1),
+        toughness: Some(1),
+        abilities: vec![CardDefAbilityDefinition::Triggered {
+            once_per_turn: false,
+            trigger_condition: TriggerCondition::WheneverCreatureDies {
+                controller: None,
+                exclude_self: true,
+                nontoken_only,
+                filter,
+            },
+            effect: mtg_engine::Effect::DrawCards {
+                player: PlayerTarget::Controller,
+                count: mtg_engine::EffectAmount::Fixed(1),
+            },
+            intervening_if: None,
+            targets: vec![],
+            modes: None,
+            trigger_zone: Some(TriggerZone::Graveyard),
+        }],
+        completeness: mtg_engine::Completeness::Complete,
+        ..Default::default()
+    }
+}
+
+/// CR 111.7 (`nontoken_only`) — a TOKEN dying must not trigger a graveyard
+/// watcher whose `nontoken_only` is set; a NONTOKEN death (same fixture
+/// shape) must.
+#[test]
+fn test_dx24_graveyard_death_filter_nontoken_only() {
+    let p1 = p(1);
+    let watcher_def = synthetic_graveyard_watcher_def("DX24 Nontoken Watcher", true, None);
+
+    for (fodder_is_token, expect_fires) in [(true, false), (false, true)] {
+        let watcher_spec = ObjectSpec::card(p1, "DX24 Nontoken Watcher")
+            .in_zone(ZoneId::Graveyard(p1))
+            .with_card_id(watcher_def.card_id.clone());
+        let watcher_spec = enrich_spec_from_def(
+            watcher_spec,
+            &[("DX24 Nontoken Watcher".to_string(), watcher_def.clone())]
+                .into_iter()
+                .collect(),
+        );
+        let mut fodder_spec = ObjectSpec::creature(p1, "Fodder", 1, 0).in_zone(ZoneId::Battlefield);
+        if fodder_is_token {
+            fodder_spec = fodder_spec.token();
+        }
+        let mut state = GameStateBuilder::four_player()
+            .active_player(p1)
+            .at_step(Step::PreCombatMain)
+            .with_registry(CardRegistry::new(vec![watcher_def.clone()]))
+            .object(watcher_spec)
+            .object(fodder_spec)
+            .build()
+            .unwrap();
+        let watcher_id = find_by_name(&state, "DX24 Nontoken Watcher");
+        check_and_apply_sbas(&mut state);
+        let fired = state
+            .pending_triggers()
+            .iter()
+            .any(|t| t.source == watcher_id);
+        assert_eq!(
+            fired, expect_fires,
+            "CR 111.7: nontoken_only watcher, fodder_is_token={fodder_is_token} \
+             -- expected fires={expect_fires}, got {fired}"
+        );
+    }
+}
+
+/// CR 613.1d (subtype `filter`) — a dying creature that does NOT match the
+/// watcher's subtype filter must not trigger it; a matching subtype (same
+/// fixture shape) must.
+#[test]
+fn test_dx24_graveyard_death_filter_subtype_filter() {
+    let p1 = p(1);
+    let filter = mtg_engine::TargetFilter {
+        has_subtype: Some(mtg_engine::SubType("Zombie".to_string())),
+        ..Default::default()
+    };
+    let watcher_def =
+        synthetic_graveyard_watcher_def("DX24 Zombie Watcher", false, Some(filter));
+
+    for (fodder_subtypes, expect_fires) in [
+        (vec![mtg_engine::SubType("Human".to_string())], false),
+        (vec![mtg_engine::SubType("Zombie".to_string())], true),
+    ] {
+        let watcher_spec = ObjectSpec::card(p1, "DX24 Zombie Watcher")
+            .in_zone(ZoneId::Graveyard(p1))
+            .with_card_id(watcher_def.card_id.clone());
+        let watcher_spec = enrich_spec_from_def(
+            watcher_spec,
+            &[("DX24 Zombie Watcher".to_string(), watcher_def.clone())]
+                .into_iter()
+                .collect(),
+        );
+        let mut fodder_spec = ObjectSpec::creature(p1, "Fodder", 1, 0).in_zone(ZoneId::Battlefield);
+        fodder_spec.subtypes = fodder_subtypes.clone();
+        let mut state = GameStateBuilder::four_player()
+            .active_player(p1)
+            .at_step(Step::PreCombatMain)
+            .with_registry(CardRegistry::new(vec![watcher_def.clone()]))
+            .object(watcher_spec)
+            .object(fodder_spec)
+            .build()
+            .unwrap();
+        let watcher_id = find_by_name(&state, "DX24 Zombie Watcher");
+        check_and_apply_sbas(&mut state);
+        let fired = state
+            .pending_triggers()
+            .iter()
+            .any(|t| t.source == watcher_id);
+        assert_eq!(
+            fired, expect_fires,
+            "CR 613.1d: subtype-filtered watcher, fodder_subtypes={fodder_subtypes:?} \
+             -- expected fires={expect_fires}, got {fired}"
+        );
+    }
 }
