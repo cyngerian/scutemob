@@ -311,6 +311,65 @@ applied here.
 
 ---
 
+## Stage 1 — the SR-36 corpus roster + G3 (this runner, DONE)
+
+**G3** written into the existing `crates/engine/tests/core/pb_dx25_stack_registry_roster.rs`
+(the file G1/G2 already lived in — this runner's assignment per plan §10 was
+explicitly to add G3 there, not a new file). Enumerated from `all_cards()` via
+structural walks over `AbilityDefinition`/`Effect` — **never grepped** — with
+helper functions `mutate_defs`, `has_spell_level_target_requirement`,
+`effect_contains_counter_spell` (recurses into `Sequence`, `Conditional` (both
+branches), `ForEach`, and `Effect::Choose` — the SR-33 stub "modal", distinct
+from `AbilityDefinition::Spell.modes`, which is a sibling field walked
+separately), `ability_contains_counter_spell`, `counterspell_defs`, and
+`counter_target_requirement` (locates the `TargetRequirement` governing the
+counter effect: `targets[0]` for a flat `Spell` whose effect tree contains the
+counter anywhere — not just at the top level, see below — or
+`mode_targets[i][0]` for the modal mode `i` whose effect tree contains it).
+
+### Measured values (ALL recorded, including zeros, per the brief's instruction)
+
+| # | population | plan's grep estimate | **measured** |
+|---|---|---|---|
+| M1 | Mutate-keyword defs (either face) | 8 | **8** — matches exactly: `{Gemrazer, Sea-Dasher Octopus, Brokkos Apex of Forever, Vulpikeet, Necropanther, Glowstone Recluse, Mindleecher, Nethroi Apex of Death}` |
+| M2 | M1 ∩ `is_complete()` | 6 | **6** — `{Gemrazer, Sea-Dasher Octopus, Brokkos Apex of Forever, Vulpikeet, Necropanther, Glowstone Recluse}` (Mindleecher and Nethroi Apex of Death excluded, both `partial`) |
+| M3 | M2 with any spell-level target requirement | expected 0 | **0** — confirmed, not a finding. No `Complete` Mutate def declares a non-empty `targets` or a non-empty `mode_targets` slice. Shape (a) stays corpus-unreachable via Ward today, exactly as plan §2.2 argues. |
+| C1 | defs with `Effect::CounterSpell` anywhere (recursive walk, front face) | 24 | **23** — **the plan's own grep estimate was itself wrong**, and the reason is an SR-36 textbook case: `transcendent_dragon.rs`'s `completeness: Completeness::partial(...)` note contains the literal substring `"Effect::CounterSpell cannot redirect..."` inside a TODO/blocker *comment string* — a grep for `Effect::CounterSpell` matches it, but the card has **no `Effect::CounterSpell` node anywhere in its actual `abilities` Vec** (its `abilities` list is `[Flash, Flying]` only, the counter clause is entirely unimplemented). The structural walk correctly excludes it. Real C1 (23): `{Abjure, Access Denied, An Offer You Can't Refuse, Arcane Denial, Archmage's Charm, Counterspell, Cryptic Command, Dispel, Dovin's Veto, Fierce Guardianship, Flare of Denial, Force of Negation, Force of Will, Mana Drain, Memory Lapse, Mental Misstep, Negate, Pyroblast, Red Elemental Blast, Rewind, Saw It Coming, Stubborn Denial, Swan Song}` |
+| C2 | C1 ∩ `is_complete()` | 18 | **18** — matches exactly |
+| C3 | C2 with the UNRESTRICTED `TargetRequirement::TargetSpell` (syntactic) | 8 | **8** — `{Abjure, Archmage's Charm, Counterspell, Cryptic Command, Force of Will, Saw It Coming, Access Denied, Rewind}`. **First pass under-counted this at 6** (missing Access Denied and Rewind) because my first `counter_target_requirement` implementation only matched a `Spell` ability whose TOP-LEVEL `effect` field was `Effect::CounterSpell` directly — `access_denied.rs` and `rewind.rs` both wrap it one level inside `Effect::Sequence([CounterSpell{..}, ..other effects..])`. Fixed by reusing the SAME recursive `effect_contains_counter_spell` predicate used for C1 (rather than a shallow `matches!`), while still reading `targets[0]` for the requirement — every corpus def observed (flat and modal alike) uses `EffectTarget::DeclaredTarget { index: 0 }` for the counter's own target regardless of nesting depth, so slot 0 is always the right requirement to read. |
+| **P** | live-wrong pairs = \|M2\| × \|C3\| | ~48 (plan's own estimate) | **48** (6 × 8) — **confirmed exactly**, despite C1's grep estimate being off by one; the discrepancy was entirely in the `partial` Transcendent Dragon, which was never going to reach C2/C3 regardless. The plan's "6 × 24 = 144 is an overcount" framing and its own "~48" replacement estimate are BOTH corrected-and-confirmed by this measurement — no further correction needed to the "~48" number itself, only to the intermediate C1=24 grep figure it was partly derived from. |
+
+**Non-vacuity floor**: `all_cards().len() >= 1_700` asserted in the same test
+(measured: 1,803, matching every prior batch's pin).
+
+**Note, not pinned** (plan §5's instruction: "record the extra count as a note
+rather than pinning it"): `red_elemental_blast` (`Complete`, `TargetSpellWithFilter`
+admitting blue) is excluded from C3 by design (C3 is the syntactic
+`TargetRequirement::TargetSpell` subset only). Of M2's 6 mutate defs, 2 are blue
+(`Sea-Dasher Octopus`, `Brokkos, Apex of Forever` — mana costs read directly from
+each def: `{1}{U}`, `{2}{U}{B}{G}`), so evaluating `matches_filter` against a
+synthetic blue creature spell would add up to 2 more live-wrong pairs beyond the
+pinned P=48 (not evaluated here, per the plan's own scope note — `pyroblast`,
+the other `TargetSpellWithFilter(red)`-carrying def, is `known_wrong` and
+already excluded from C2).
+
+**Queue-row correction (I do NOT edit the queue/seed docs myself per the
+brief — recording the correction here for the coordinator/close-out runner)**:
+`memory/primitives/seed-rerank-2026-08-02.md` §4 row 7 and the `OOS-SIM3-5` row
+in `docs/audits/decision-point-audit.md` both currently say "6 × 24 = 144,
+overcount". The corrected reading, to be written in by whoever does Stage 7's
+close-out: **the live-wrong pair count is a MEASURED 48** (not "~48" and not
+144), and the "24" intermediate in the old "6 × 24" framing was itself off by
+one against a proper enumeration (23), for the SR-36 reason recorded above
+(a grep matched a comment string, not code).
+
+### G3 revert (executed here, see Stage 6 below for the record required by the brief)
+
+Handled together with the rest of Stage 6's revert matrix below, since G3 is a
+single gate with one clean revert shape.
+
+---
+
 ## Summary for the handoff to Stage 1 / Stage 5 / Stage 6 / Stage 7's runner
 
 * Stages 2, 3, 4 are DONE and committed (three commits, `W6-prim:` prefix,

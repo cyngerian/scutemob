@@ -1,6 +1,6 @@
-//! PB-DX25 gates (plan §6 File B). **This file covers G1 and G2 only** — G3 (the
-//! SR-36 corpus roster gate) is Stage 1 / Stage 6, a different runner's
-//! assignment; see `memory/primitives/pb-plan-DX25.md` §10.
+//! PB-DX25 gates (plan §6 File B): G1 + G2 (source gates over the registry and
+//! the `Effect::CounterSpell` arm) and G3 (the SR-36 corpus roster gate, plan
+//! §5 — enumerate `all_cards()`, never grep the corpus).
 //!
 //! Both source gates strip **line and block** comments before scanning — the
 //! PB-DX32 M8 lesson (also applied by PB-DX24's own gates in this same
@@ -10,6 +10,10 @@
 //! that load-bearing property by executing BOTH revert shapes (`//` and `/*
 //! */`), not just the line-comment one.
 
+use mtg_engine::{
+    all_cards, AbilityDefinition, CardDefinition, Effect, KeywordAbility, TargetRequirement,
+};
+use std::collections::BTreeSet;
 use std::path::Path;
 
 // ── Comment-stripping (mirrors core::decision_gate / pb_dx24_trigger_zone_roster's idiom) ──
@@ -224,5 +228,319 @@ fn g2_scan_is_not_vacuous() {
         "the extracted Effect::CounterSpell arm body looks too small ({} chars) \
          to contain the full lookup + zone-move logic -- extraction may be broken",
         body.len()
+    );
+}
+
+// ── G3: the SR-36 corpus roster (plan §5) ───────────────────────────────────────
+//
+// Enumerated from `all_cards()`, never grepped -- the §0.3 grep numbers in the
+// plan are reconnaissance, replaced here by a measured enumeration. Every
+// population, including zeros, is recorded in
+// `memory/primitives/pb-DX25-execution-notes.md`.
+
+/// True if `def` carries `AbilityDefinition::Keyword(KeywordAbility::Mutate)`
+/// on either face.
+fn has_mutate_keyword(def: &CardDefinition) -> bool {
+    let face_has_it = |abilities: &[AbilityDefinition]| {
+        abilities
+            .iter()
+            .any(|a| matches!(a, AbilityDefinition::Keyword(KeywordAbility::Mutate)))
+    };
+    face_has_it(&def.abilities)
+        || def
+            .back_face
+            .as_ref()
+            .is_some_and(|f| face_has_it(&f.abilities))
+}
+
+/// M1 (plan §5): defs carrying `AbilityDefinition::Keyword(KeywordAbility::Mutate)`
+/// on either face, by card name.
+fn mutate_defs(cards: &[CardDefinition]) -> BTreeSet<String> {
+    cards
+        .iter()
+        .filter(|d| has_mutate_keyword(d))
+        .map(|d| d.name.clone())
+        .collect()
+}
+
+/// True if any `AbilityDefinition::Spell` on `def`'s FRONT face declares a
+/// spell-level target requirement -- either a non-empty `targets` (the flat,
+/// non-modal path) or a `mode_targets` entry that is itself non-empty (the
+/// modal path, PB-AC4). This is the §2.2 "does a Ward on the mutate target
+/// have anything to announce against" measurement -- it is scoped to whether
+/// the spell declares ANY target, not specifically whether that target is the
+/// mutate target (the mutate target itself is carried in `AdditionalCost::
+/// Mutate` and is invisible to `spell_targets` entirely, per plan §0.2 F1 /
+/// `OOS-DX25-1` -- out of scope here).
+fn has_spell_level_target_requirement(def: &CardDefinition) -> bool {
+    def.abilities.iter().any(|a| match a {
+        AbilityDefinition::Spell { targets, modes, .. } => {
+            !targets.is_empty()
+                || modes.as_ref().is_some_and(|m| {
+                    m.mode_targets
+                        .as_ref()
+                        .is_some_and(|mt| mt.iter().any(|slice| !slice.is_empty()))
+                })
+        }
+        _ => false,
+    })
+}
+
+/// Recursive walk (plan §5 C1: "anywhere, incl. inside Modal") over an
+/// `Effect` tree for `Effect::CounterSpell`. Recurses into every
+/// `Effect`-nesting variant: `Sequence`, `Conditional` (both branches),
+/// `ForEach`, and `Choose` (the `Effect`-level modal stub, SR-33 -- distinct
+/// from `AbilityDefinition::Spell.modes`, which is walked separately by the
+/// caller since it is a sibling field, not a nested `Effect`).
+fn effect_contains_counter_spell(effect: &Effect) -> bool {
+    match effect {
+        Effect::CounterSpell { .. } => true,
+        Effect::Sequence(effects) => effects.iter().any(effect_contains_counter_spell),
+        Effect::Conditional {
+            if_true, if_false, ..
+        } => effect_contains_counter_spell(if_true) || effect_contains_counter_spell(if_false),
+        Effect::ForEach { effect, .. } => effect_contains_counter_spell(effect),
+        Effect::Choose { choices, .. } => choices.iter().any(effect_contains_counter_spell),
+        _ => false,
+    }
+}
+
+/// True if `AbilityDefinition::Spell`'s top-level effect OR any of its modal
+/// modes (`ModeSelection.modes`, CR 700.2) contains `Effect::CounterSpell`
+/// anywhere in its tree.
+fn ability_contains_counter_spell(ability: &AbilityDefinition) -> bool {
+    match ability {
+        AbilityDefinition::Spell { effect, modes, .. } => {
+            effect_contains_counter_spell(effect)
+                || modes
+                    .as_ref()
+                    .is_some_and(|m| m.modes.iter().any(effect_contains_counter_spell))
+        }
+        _ => false,
+    }
+}
+
+/// C1 (plan §5): defs whose FRONT-face abilities contain `Effect::CounterSpell`
+/// anywhere (incl. inside a modal `ModeSelection`), by card name.
+fn counterspell_defs(cards: &[CardDefinition]) -> BTreeSet<String> {
+    cards
+        .iter()
+        .filter(|d| d.abilities.iter().any(ability_contains_counter_spell))
+        .map(|d| d.name.clone())
+        .collect()
+}
+
+/// For a def in C1, find the `TargetRequirement` that governs the counter
+/// effect: `targets[0]` for a non-modal `Spell` whose effect tree contains
+/// the counter (whether the counter is the ability's own top-level effect, as
+/// in `counterspell.rs`, or nested one level inside `Effect::Sequence`, as in
+/// `access_denied.rs`/`rewind.rs` -- every corpus def observed uses
+/// `EffectTarget::DeclaredTarget { index: 0 }` for the counter's target
+/// regardless of nesting depth, i.e. `targets[0]` is always the slot), or
+/// `mode_targets[i][0]` for the modal mode `i` whose effect tree contains the
+/// counter (PB-AC4 -- `mode_targets[i]` is local to mode `i`, index 0 being
+/// that mode's own first target). Returns `None` if no ability's effect tree
+/// contains the counter, or if the requirement list is empty -- in which case
+/// the def is deliberately excluded from C3 rather than mis-measured.
+fn counter_target_requirement(def: &CardDefinition) -> Option<TargetRequirement> {
+    for ability in &def.abilities {
+        let AbilityDefinition::Spell {
+            effect,
+            targets,
+            modes,
+            ..
+        } = ability
+        else {
+            continue;
+        };
+        if effect_contains_counter_spell(effect) {
+            return targets.first().cloned();
+        }
+        if let Some(m) = modes {
+            for (i, mode_effect) in m.modes.iter().enumerate() {
+                if effect_contains_counter_spell(mode_effect) {
+                    return m
+                        .mode_targets
+                        .as_ref()
+                        .and_then(|mt| mt.get(i))
+                        .and_then(|slice| slice.first())
+                        .cloned();
+                }
+            }
+        }
+    }
+    None
+}
+
+/// C3 (plan §5): C2 (C1 ∩ `is_complete()`) whose counter target requirement is
+/// the UNRESTRICTED `TargetRequirement::TargetSpell` -- deliberately
+/// syntactic (no `matches_filter` evaluation against a synthetic creature
+/// spell; `TargetSpellWithFilter` admitting a creature spell, e.g. Red
+/// Elemental Blast's blue filter, is recorded as a separate note per the
+/// plan, not folded into this pin).
+fn unrestricted_target_spell_defs(cards: &[CardDefinition]) -> BTreeSet<String> {
+    let c2 = counterspell_defs(cards)
+        .into_iter()
+        .filter(|name| {
+            cards
+                .iter()
+                .find(|d| &d.name == name)
+                .is_some_and(|d| d.completeness.is_complete())
+        })
+        .collect::<BTreeSet<_>>();
+    c2.into_iter()
+        .filter(|name| {
+            let def = cards.iter().find(|d| &d.name == name).unwrap();
+            counter_target_requirement(def) == Some(TargetRequirement::TargetSpell)
+        })
+        .collect()
+}
+
+/// G3 (plan §5 / §6): the SR-36 corpus roster, pinned by NAME where the
+/// population is small, with the `all_cards().len() >= 1_700` non-vacuity
+/// floor asserted in the SAME test (the PB-DX24 R2 lesson: a broken
+/// enumeration must not make an empty roster look correct). Message names
+/// `OOS-SIM3-5` and tells a future author that a new mutate def or a new
+/// unrestricted counter def widens the class.
+#[test]
+fn g3_corpus_roster_is_pinned() {
+    let cards = all_cards();
+    assert!(
+        cards.len() >= 1_700,
+        "OOS-SIM3-5 roster (PB-DX25 G3): non-vacuity floor -- all_cards() must \
+         return at least 1,700 defs (measured on this branch: {}) -- got {}. A \
+         broken enumeration cannot make an empty roster look correct.",
+        cards.len(),
+        cards.len()
+    );
+
+    // M1: mutate defs, by name.
+    let m1 = mutate_defs(&cards);
+    let expected_m1: BTreeSet<String> = [
+        "Gemrazer",
+        "Sea-Dasher Octopus",
+        "Brokkos, Apex of Forever",
+        "Vulpikeet",
+        "Necropanther",
+        "Glowstone Recluse",
+        "Mindleecher",
+        "Nethroi, Apex of Death",
+    ]
+    .into_iter()
+    .map(String::from)
+    .collect();
+    assert_eq!(
+        m1,
+        expected_m1,
+        "OOS-SIM3-5 roster M1 (Mutate-keyword defs) moved -- expected {} names, \
+         got {}: {m1:?}. A new Mutate def widens the OOS-SIM3-5 live-wrong-pair \
+         class -- re-derive M2/M3/P below.",
+        expected_m1.len(),
+        m1.len()
+    );
+
+    // M2: M1 ∩ is_complete().
+    let m2: BTreeSet<String> = m1
+        .iter()
+        .filter(|name| {
+            cards
+                .iter()
+                .find(|d| &d.name == *name)
+                .is_some_and(|d| d.completeness.is_complete())
+        })
+        .cloned()
+        .collect();
+    assert_eq!(
+        m2.len(),
+        6,
+        "OOS-SIM3-5 roster M2 (Complete Mutate defs) moved from 6 -- got {}: \
+         {m2:?}",
+        m2.len()
+    );
+
+    // M3: M2 that declare ANY spell-level target requirement. Expected 0 --
+    // this is what makes shape (a) corpus-unreachable via Ward today (plan
+    // §2.2); a non-zero count is a finding, not a failure of this gate, and
+    // must be reported (not silently accepted) by whoever re-runs this.
+    let m3: BTreeSet<String> = m2
+        .iter()
+        .filter(|name| {
+            cards
+                .iter()
+                .find(|d| &d.name == *name)
+                .is_some_and(has_spell_level_target_requirement)
+        })
+        .cloned()
+        .collect();
+    assert_eq!(
+        m3.len(),
+        0,
+        "OOS-SIM3-5 roster M3 (Complete Mutate defs with a spell-level target \
+         requirement) moved from the expected 0 -- got {}: {m3:?}. This is a \
+         FINDING (shape (a) may now be corpus-reachable via Ward), not just a \
+         drifted pin -- report it.",
+        m3.len()
+    );
+
+    // C1: defs carrying Effect::CounterSpell anywhere (incl. inside Modal).
+    let c1 = counterspell_defs(&cards);
+    assert_eq!(
+        c1.len(),
+        23,
+        "OOS-SIM3-5 roster C1 (defs carrying Effect::CounterSpell anywhere) \
+         moved from the MEASURED 23 -- got {}: {c1:?}. (The plan's own §0.3 \
+         grep estimate of 24 was itself wrong: it substring-matched the \
+         literal text \"Effect::CounterSpell\" inside a TODO *comment* on \
+         Transcendent Dragon, which has no such effect in code -- an SR-36 \
+         example of exactly the failure this enumeration replaces.)",
+        c1.len()
+    );
+
+    // C2: C1 ∩ is_complete().
+    let c2: BTreeSet<String> = c1
+        .iter()
+        .filter(|name| {
+            cards
+                .iter()
+                .find(|d| &d.name == *name)
+                .is_some_and(|d| d.completeness.is_complete())
+        })
+        .cloned()
+        .collect();
+    assert_eq!(
+        c2.len(),
+        18,
+        "OOS-SIM3-5 roster C2 (Complete counter defs) moved from 18 -- got {}: \
+         {c2:?}",
+        c2.len()
+    );
+
+    // C3: C2 whose counter target requirement is the unrestricted
+    // TargetRequirement::TargetSpell (syntactic subset -- TargetSpellWithFilter
+    // admitting a creature spell, e.g. Red Elemental Blast's blue filter, is a
+    // separate note, not folded into this pin -- see the plan §5 note).
+    let c3 = unrestricted_target_spell_defs(&cards);
+    assert_eq!(
+        c3.len(),
+        8,
+        "OOS-SIM3-5 roster C3 (Complete counter defs with an unrestricted \
+         TargetRequirement::TargetSpell) moved from 8 -- got {}: {c3:?}",
+        c3.len()
+    );
+
+    // P: measured live-wrong pairs = |M2| x |C3|. The queue row's "6 x 24 =
+    // 144" and this plan's own "~48" estimate are both superseded by this
+    // measured number -- report it, do not hand-edit the queue rows here (a
+    // later runner corrects seed-rerank-2026-08-02.md and
+    // decision-point-audit.md's OOS-SIM3-5 row).
+    let p = m2.len() * c3.len();
+    assert_eq!(
+        p,
+        48,
+        "OOS-SIM3-5 roster P (live-wrong pairs = |M2| x |C3|) moved -- expected \
+         48 (6 x 8), got {p} ({} x {}). Correct the queue row and the seed row \
+         with this measured number.",
+        m2.len(),
+        c3.len()
     );
 }
