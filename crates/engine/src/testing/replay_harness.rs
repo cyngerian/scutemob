@@ -2446,7 +2446,7 @@ pub fn parse_counter_type(s: &str) -> Option<CounterType> {
 /// | `once_per_turn`    | **propagated (this batch, phase 7)** — was hardcoded `false` at 31 of 34 sites; `flush_pending_triggers`'s once-per-turn gate reads the runtime value first, so three `Complete` defs (welcoming_vampire / elvish_warmaster / whispering_wizard) over-fired. CR 603.2c/603.2h. |
 /// | `modes`            | collapsed to mode 0 as a bot fallback — deliberate, OOS-DP8-7 / PB-DX10 |
 /// | `trigger_zone`     | **no runtime home** — dropped; `collect_triggers_for_event` scans the battlefield only; the graveyard sweep is a separate registry path. Seeded OOS-DX1-3 |
-pub(crate) fn build_face_ability_vectors(
+pub fn build_face_ability_vectors(
     abilities: &[AbilityDefinition],
 ) -> (
     imbl::Vector<ManaAbility>,
