@@ -37,7 +37,9 @@
   `scutemob-182`; PB-DX19 shipped `451e3517`, PB-DX22 shipped `95f53b78`;
   PB-DX32 shipped `scutemob-197`/`685aa1c4` (promoted per feedback doc §2.3, user-approved 2026-08-03);
   PB-DX20 shipped `scutemob-198`/`ecd7b119` 2026-08-04;
-  **next PB-DX21**; the playtest-successor run 174–181
+  PB-DX21 shipped `scutemob-200` 2026-08-04 (ranks 1-4 all shipped);
+  **next PB-DX23** (rank 5);
+  the playtest-successor run 174–181
   AND the triage-2 successor run 187–194 both completed 2026-08-02 — triage 2 is fully closed,
   8/8 rows shipped. **FEEDBACK-1 SHIPPED** (`scutemob-192`, merge `d55e74cc`, doc-only):
   `docs/mtg-engine-feedback-engineering.md` is the alpha feedback-loop strategy — 8 ranked
@@ -62,7 +64,9 @@
   not on every priority grant, so a token sacrificed as a mana cost lingers in the graveyard until
   the next of those — self-healing, never wrong at rest), **OOS-M11-9** (`handle_declare_attackers`
   has no "already declared this combat" guard; CR 508.1 makes it a once-per-combat turn-based
-  action, and with a vigilant attacker the engine will accept re-declaration without limit).
+  action, and with a vigilant attacker the engine will accept re-declaration without limit)
+  — **CLOSED 2026-08-04 by PB-DX21** (`scutemob-200`), so this milestone's last open combat-side
+  seed is gone.
   **CLOSED by M11-local**: OOS-M11-1 (PB-DP2), OOS-M11-4 (PB-DP8), OOS-M11-6 (PB-DX4), OOS-M11-8
   (S8). **Milestone review DONE and its fix cycle closed** (`docs/mtg-engine-milestone-reviews.md`,
   MR-M11-01..21): 1 HIGH + 9 MEDIUM all closed; of 8 LOW, 1 closed and 7 left open. The reviewer's
@@ -98,13 +102,21 @@
   narratives in `memory/archive/claude-md-changelog-2026-08.md`, per-batch handoffs in
   `memory/workstream-state.md`). PROTOCOL **35** / HASH **72** (as of ENG-2, `scutemob-193`).
   **PB-DX19 SHIPPED** (`scutemob-184`, `451e3517`) and **PB-DX20 SHIPPED** (`scutemob-198`,
-  `ecd7b119`) — **next dispatch: PB-DX21** (brief in
-  `memory/primitives/seed-rerank-2026-08-02.md` §4; re-word OOS-DX19-2 per OOS-ADJ-3 before any
-  DX42b dispatch). **PB-DX7 is no longer next** — it survives at
+  `ecd7b119`) and **PB-DX21 SHIPPED** (`scutemob-200`) — **next dispatch: PB-DX23** (rank 5;
+  brief in `memory/primitives/seed-rerank-2026-08-02.md` §4; re-word OOS-DX19-2 per OOS-ADJ-3
+  before any DX42b dispatch). **PB-DX7 is no longer next** — it survives at
   rank 9; eight new entries outrank it. Older queue history (the PB-OS,
   PB-RS and PB-DP chains) is rotated to the 2026-08 archive.
-  **PB-DX20 SHIPPED** (`scutemob-198`; v3 queue rank 2) — **next dispatch: PB-DX21**
-  (CR 508.1, attackers declared without limit, `OOS-M11-9`; brief in the same §4).
+  **PB-DX20 SHIPPED** (`scutemob-198`; v3 queue rank 2).
+  **PB-DX21 SHIPPED** (`scutemob-200`; v3 queue rank 3) — v3 ranks **1-4 are all shipped**, so
+  **next dispatch: PB-DX23** (rank 5, dredge has no answer channel; brief in the same §4).
+  PROTOCOL **35** / HASH **73** as of PB-DX21.
+- **Tests (delta 2026-08-04, PB-DX21)**: **4,398 / 0 / 5** full-workspace on branch
+  `scutemob-200` (+10 over the **4,388** baseline measured on this branch BEFORE any edit —
+  9 probes in the new `crates/engine/tests/primitives/pb_dx21_declare_attackers_once_per_
+  combat.rs` + 1 simulator offer-suppression probe), `--workspace --no-fail-fast` to a file,
+  residual list empty. **PROTOCOL 35 unmoved / HASH 72 → 73**, both gate-executed. Earlier
+  pins below.
 - **Tests (delta 2026-08-04, PB-DX20)**: **4,388 / 0 / 5** full-workspace on branch
   `scutemob-198` (+15 over the **4,373** baseline measured on this branch BEFORE any edit —
   14 probes in the new `crates/engine/tests/primitives/pb_dx20_keyword_carried_target_
@@ -269,7 +281,39 @@
 - **Recurrence rule** — future `/collect` and milestone-close bookkeeping appends its detailed PB/SR
   narrative to that archive file (newest first), and updates only a one-paragraph snapshot delta
   here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
-- **Last Updated**: 2026-08-04 — **PB-DX20 SHIPPED** (`scutemob-198`; v3 queue rank 2).
+- **Last Updated**: 2026-08-04 — **PB-DX21 SHIPPED** (`scutemob-200`; v3 queue rank 3).
+  Declaring attackers is once per combat. CR 508.1 makes it a turn-based action;
+  `handle_declare_attackers` guarded on step, active player, priority and per-attacker legality
+  and **on nothing else**, so a second `DeclareAttackers` reran the whole body. **Three
+  consequences, not the seed's one** — the map is `insert`ed into, so a repeated id **moves that
+  creature's attack target mid-combat**; a fresh `AttackersDeclared` + `check_triggers` +
+  `flush_pending_triggers` **re-fires every attack trigger** (the one a human hits first); and
+  `attackers_declared_this_turn` is clobbered, killing `windbrisk_heights`/`legions_landing`'s
+  raid gate. **A fourth was found**: each accepted declaration resets `players_passed`, so a
+  re-declaring client holds the CR 117.4 pass-round open with **no attacker changing**.
+  **The brief's preferred one-liner would have shipped a new bug.** It said prefer reading
+  `combat.attackers` to avoid a HASH bump; refuted three ways — CR 508.1a's "*if any*" + CR 508.8
+  make an **empty** declaration a completed one (and `params.rs:474` sends exactly that), and
+  **CR 508.4/506.3 "put onto the battlefield attacking" inserts straight into `combat.attackers`
+  at four sites** without any declaration, so that guard would have refused a player's **first,
+  legal** declaration. `CombatState` gains `attackers_declared: bool`, hashed; HASH **72 → 73**
+  gate-computed, PROTOCOL **35** gate-executed unmoved. **CR 509.1a verified covered, NOT
+  widened.** Both client-side mitigations deleted **with their mechanism** — the bot's
+  `RepeatKey::DeclareAttackers` cap and the playthrough's `PolicyState` — which forced
+  `legal_actions.rs` to suppress the offer (SR-38); the S8 playthrough's *"a rejection means the
+  offer was wrong"* assertion, green **with no cap**, is the closure proof. Tests **4,398 / 0 / 5**
+  (+10); coverage unmoved **1,133/1,803 = 62.8%** (comment-only card-def edits). Review 0 HIGH /
+  7 MEDIUM / 8 LOW, all 15 taken — the two that mattered: a **card-def comment asserted a defect
+  the card does not have** (`legions_landing` is a CR 508.3d *per-declaration* trigger; CR 508.6
+  was mis-cited, and following the note would have **regressed** it — `OOS-DX21-1` re-scoped to
+  `windbrisk_heights` alone), and **four probes were reading state their failing call never
+  touched** — `process_command`'s `Err` arm carries no `GameState`, so "the rejection mutated
+  nothing" is structurally vacuous through it; T4's CR 117.4 pin was repaired to the direct-handler
+  idiom and re-watched failing. Durable lesson: **a guard keyed on a collection cannot tell "chose
+  nothing" from "has not chosen", and cannot tell your own writes from someone else's.** Seeds:
+  **OOS-M11-9 CLOSED**; filed **OOS-DX21-1..7**. Full handoff: `memory/workstream-state.md`;
+  revert matrix and measurements: `memory/primitives/pb-DX21-execution-notes.md`.
+- **Prior**: 2026-08-04 — **PB-DX20 SHIPPED** (`scutemob-198`; v3 queue rank 2).
   The offer layer can now see a keyword-carried target requirement. An Aura's CR 303.4a
   requirement lives in `KeywordAbility::Enchant`, which `casting.rs` special-cased and
   `spell_target_requirements` could not see, so 13 deck-legal `Complete` Auras rendered a
