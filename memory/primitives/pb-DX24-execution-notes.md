@@ -1,8 +1,10 @@
-# PB-DX24 — execution notes (stages 1-4 of this invocation)
+# PB-DX24 — execution notes (stages 1-6)
 
 **Task**: `scutemob-202` · **Branch**: `feat/pb-dx24-the-lowering-drops-triggerzone-the-two-index-spaces-`
-**Scope of this invocation**: plan stages 1-4 only. Stage 5 (Q1-Q7 index-space fixes), stage 6
-(gates), stage 7 (close-out, seed filing) are OUT OF SCOPE and NOT done here.
+**Scope of the first invocation**: plan stages 1-4 only (see the "Stages 1-4" body below).
+**Scope of this (second) invocation**: plan stages 5 (Q1-Q7 index-space fixes) and 6 (gates) only.
+Stage 7 (close-out, seed filing) is OUT OF SCOPE and NOT done here. Stages 5-6 content is
+appended at the bottom of this file, after the original stages 1-4 record (left verbatim).
 
 ---
 
@@ -445,3 +447,222 @@ scope note rather than silently treated as equivalent.
 **Not run in this invocation** (deferred to stage 6/7 per scope): `tools/check-defs-fmt.sh` (no
 card-def edit to check), `python3 tools/authoring-report.py` (no coverage-affecting change),
 `docs/audits/decision-point-audit.md` seed filing.
+
+---
+
+## Stage 5 — the two index spaces (Change 4, OOS-DX1-4 Q1-Q7)
+
+Re-cited every Q-site at current HEAD (stage 4 shifted line numbers, per the task brief's
+warning) before editing. All 7 dispositions matched the plan exactly: FIX Q1/Q2/Q3/Q4/Q6/Q7,
+RE-SCOPE Q5 (comment-only).
+
+**Q1** (`abilities.rs`, Backup ETB, ~`:3187`) — `obj` was already in hand (via
+`state.fizzle_object`). One shared binding `let eff = def.effective_abilities(obj.is_transformed);`
+now serves BOTH the `eff.iter().enumerate()` loop and the `eff[idx + 1..]` "printed below" slice,
+per the plan's explicit requirement that index and slice never diverge.
+
+**Q2** (`abilities.rs`, `WhenYouCastThisSpell`, ~`:3809`) — `stack_obj` already in hand. Fixed to
+`def.effective_abilities(stack_obj.is_transformed)`, documented as DEFENSIVE (zero behaviour
+change): `is_transformed` is never true on a stack object (§4.0).
+
+**Q3** (`abilities.rs`, `WhenExertedAsAttacks`, ~`:4169`) — `src_obj` already in hand. Fixed to
+`def.effective_abilities(src_obj.is_transformed)`. Genuinely reachable: an attacking transformed
+DFC is ordinary, and `WhenExertedAsAttacks` has NO Channel-A lowering arm (confirmed by grep —
+zero hits in `replay_harness.rs`), so this is the ONLY dispatch path for this trigger condition.
+
+**Q4** (`abilities.rs`, `WhenDealsCombatDamageToPlayer`, ~`:5222`) — `src_obj` already in hand.
+Fixed to `def.effective_abilities(src_obj.is_transformed)`. **Finding not in the plan's own
+text, discovered while designing the probe**: this trigger condition IS ALSO one of the ~34
+arms lowered into the runtime Channel-A vector by `build_face_ability_vectors`
+(`replay_harness.rs:2689-2722`, `TriggerEvent::SelfDealsCombatDamageToPlayer`), and Channel A is
+ALREADY face-aware via `apply_face_change` (an earlier, unrelated PB-OS4b/PB-RS4 mechanism) —
+so an end-to-end (life-total) probe would be satisfied by Channel A alone regardless of whether
+Q4's own raw card-registry scan is fixed, and would NOT discriminate this fix. The probe instead
+calls `check_triggers` directly and filters the returned `PendingTrigger`s by
+`kind == PendingTriggerKind::CardDefETB`, which isolates exactly the raw-scan path Q4 touches.
+
+**Q5** (`resolution.rs:7665-7676` per the plan's cite, re-found at current HEAD unchanged from
+stage-0's line numbers) — RE-SCOPED, no behaviour change. Both ends already index plain
+`def.abilities`; CR 712.2 forbids turning a transforming DFC face down, so
+`PermanentTurnedFaceUp`'s source can never be a transformed DFC and `is_transformed` is
+unreachable at this site. Comment rewritten to state this is CORRECT-because-unreachable rather
+than an open TODO (the prior comment cited `OOS-DX1-4` as if still open).
+
+**Q6** (`abilities.rs`, `WheneverRingTemptsYou`, ~`:6196`) — the site only had `card_id`, not the
+whole object, in hand (`state.expect_object(obj_id).and_then(|o| o.card_id.clone())`). Restructured
+to bind `obj` first, then read both `card_id` and `is_transformed` off it, then
+`def.effective_abilities(is_transformed)`. Documented as DEFENSIVE (§4.0: `is_transformed` is
+never true off the battlefield, and `WheneverRingTemptsYou` has no Channel-A lowering arm either,
+so — unlike Q4 — this one COULD be tested end-to-end at the `check_triggers` level with no masking
+concern; the probe uses that shape for consistency with Q4's design, not because it needs to.)
+
+**Q7** (`abilities.rs`, `collect_graveyard_carddef_triggers`'s graveyard sweep, ~`:7198`) — the
+`gy_objects` tuple gained a 4th field (`is_transformed: bool`, read once per graveyard object at
+collection time, mirroring the existing `card_id_opt` pattern rather than a second
+`state.objects.get` lookup per iteration). Fixed to `def.effective_abilities(is_transformed)`.
+Documented as DEFENSIVE (§4.0) but noted as mattering MORE than Q2's defensive fix because this
+batch's own Change 3 adds a SECOND `fires` arm to this exact loop (the new `WheneverCreatureDies`
+graveyard dispatch) — making the expression uniform now avoids the new arm resting on a
+reset-on-zone-change invariant three files away.
+
+### The §4.0 measurement, re-confirmed by direct grep at this stage
+
+`grep -rn "is_transformed = true\|is_transformed: true" crates/ --include=*.rs | grep -v "/tests/"`
+returns exactly ONE production hit: `resolution.rs:853` (the disturb ETB). Three doc-comment
+mentions in `crates/card-types/src/state/{stack.rs,types.rs}` (all `///`-prefixed) are the only
+other occurrences in the whole workspace. This is the fact both Q2's and Q7's "defensive, zero
+behaviour change" classification rests on, and it is now itself pinned by a structural test
+(`test_dx24_is_transformed_true_assignment_has_exactly_one_site`) rather than asserted once and
+left to rot.
+
+### T10-family probes (all in `pb_dx24_trigger_zone_and_index_spaces.rs`, stage 5)
+
+Per §4.2's stage-1 measurement (all 7 shapes: 0 real corpus hits on any back face), every Q1/Q3/Q4/
+Q6 probe uses a SYNTHETIC `CardDefinition`/`CardFace` fixture, mirroring
+`pb_rs4_face_aware_residuals.rs`'s idiom (disturb-cast helper for Q1, `Command::Transform` for
+Q3/Q4/Q6). Q2/Q7 (defensive) are pinned structurally instead, per the task's explicit allowance
+("if no Q-site can be exercised end-to-end with a synthetic fixture, say so plainly and pin what
+you can at the unit level").
+
+| test | site | mechanism | discriminating observable |
+|---|---|---|---|
+| `test_dx24_backup_lowering_reads_the_visible_face_of_a_disturbed_dfc` | Q1 | disturb cast (front: Disturb only, no Backup; back: `Backup(2)` only) → `drain_stack` twice (once for the permanent, once for the ETB Backup trigger's own KeywordTrigger stack object) | +1/+1 counter count on the entered (back-face) permanent: 2 fixed / 0 broken |
+| `test_dx24_when_exerted_as_attacks_reads_the_visible_face_of_a_transformed_attacker` | Q3 | `Command::Transform`, then `DeclareAttackers` with `exert_choices: [obj_id]` (legal only because `calculate_characteristics` — an unrelated, already-face-aware mechanism — reports the back face's `Exert` keyword), `drain_stack` | controller life total: `life_before + 7` fixed / unchanged broken |
+| `test_dx24_when_deals_combat_damage_to_player_reads_the_visible_face_of_a_transformed_attacker` | Q4 | `Command::Transform`, then a DIRECT `check_triggers(&state, &[GameEvent::CombatDamageDealt{..}])` call (bypassing the double-dispatch masking, see above) | count of `PendingTriggerKind::CardDefETB` hits sourced at the object: 1 fixed (with the back face's own re-derived `ability_index`) / 0 broken |
+| `test_dx24_whenever_ring_tempts_you_reads_the_visible_face_of_a_transformed_permanent` | Q6 | `Command::Transform`, then a direct `check_triggers(&state, &[GameEvent::RingTempted{..}])` call | same shape as Q4: 1 `CardDefETB` hit fixed / 0 broken |
+| `test_dx24_is_transformed_true_assignment_has_exactly_one_site` | §4.0 invariant | recursive source scan of `crates/engine/src` for `is_transformed = true` / `is_transformed: true` assignments (comment-aware: skips lines starting with `//`, strips trailing `//` comments) | exactly 1 hit, in `resolution.rs` |
+| `test_dx24_q2_and_q7_queue_sites_call_effective_abilities` | Q2 + Q7 | locates each `OOS-DX1-4 Q<n>` anchor comment in `abilities.rs` by line, scans the next 8 lines for `effective_abilities(` (must be present) and the bare `.abilities.iter().enumerate()` shape (must be absent) | structural presence/absence, not runtime behaviour |
+
+**All 6 reverts EXECUTED (rebuild confirmed in each captured output), all restored, `git diff`
+confirmed clean after every one**:
+
+- **Q1**: `let eff = &def.abilities;` (drop the `effective_abilities` call). Failure:
+  `"Got 0 counters"` (expected 2).
+- **Q3**: restored `def.abilities.iter().enumerate()` at the Q3 site. Failure:
+  `"life_before=40, life_after=40"` (expected `life_after=47`).
+- **Q4**: restored `def.abilities.iter().enumerate()` at the Q4 site. Failure:
+  `"Got: []"` (expected exactly 1 `CardDefETB` hit).
+- **Q6**: restored `def.abilities.iter().enumerate()` at the Q6 site (plus a temporary
+  `let _ = is_transformed;` to silence the resulting unused-variable warning — the
+  `local_game.rs` "a revert-and-rerun proves nothing unless the rebuild succeeded" gotcha, applied
+  proactively rather than discovered the hard way). Failure: `"Got: []"` (expected 1).
+- **§4.0 pin**: added a literal second `obj.is_transformed = true;` line immediately after the
+  real one in `resolution.rs`. Failure: `"Found: [\"...resolution.rs:853\", \"...resolution.rs:854\"]"`
+  (expected exactly 1 hit).
+- **Q2/Q7 structural pin**: reverted EACH site in turn (Q2 first, restored, then Q7) to the bare
+  `def.abilities.iter().enumerate()` shape. Q2 failure: window text shows
+  `def.abilities.iter().enumerate()` immediately after the Q2 anchor, no `effective_abilities(`
+  in the 8-line window. Q7 failure: same shape, naming the Q7 anchor.
+
+No pre-existing test reddened by any of the 6 fixes (`cargo test -p mtg-engine --test primitives
+pb_dx24` stayed 15/15 green after landing all six; `pb_rs4_face_aware_residuals` stayed 19/19;
+`pb_ac7_ability_index_desync` stayed 4/4; `core face_dereg_parity` stayed 2/2;
+`pb_dx1_lowered_intervening_if` stayed 17/17).
+
+Committed at `36bbeed0`.
+
+---
+
+## Stage 6 — the gates (§2.6 G-A/G-B, §4.3 R1/R2)
+
+New file `crates/engine/tests/core/pb_dx24_trigger_zone_roster.rs`, `mod` line added to
+`crates/engine/tests/core/main.rs` (alphabetically before `pb_dx5_...`, since `cargo fmt` sorts
+`"pb_dx24"` before `"pb_dx5"` as a plain string).
+
+**G-A / G-B mechanism**: `strip_line_comments` + `strip_block_comments` (the latter copied
+verbatim from `core::decision_gate`'s PB-DX32-M8-motivated idiom, not re-derived), then
+`extract_function_body` does a brace-balance walk from `fn build_face_triggered_abilities(`'s
+first `{` to its matching `}`.
+
+- **G-A** (`g_a_lowering_function_never_sees_trigger_zone`): asserts `trigger_zone` occurs zero
+  times in the extracted body.
+- **G-A non-vacuity** (`g_a_scan_is_not_vacuous`): asserts the extracted body contains >= 30
+  `trigger_condition:` match arms (measured 34 at stage 3), so a collapsed/empty extraction can't
+  make G-A pass by accident.
+- **G-B** (`g_b_call_site_is_unique_and_filtered`): asserts `build_face_triggered_abilities(`
+  occurs exactly twice in the comment-stripped file (def + 1 call), and that the literal
+  `build_face_triggered_abilities(&battlefield_triggers)` is present.
+- **R1** (`r1_trigger_zone_population_is_pinned`): the `trigger_zone: Some(_)` population, pinned
+  by symbol, `{"Bloodghast", "Squee, Goblin Nabob", "Nether Traitor"}`, plus an
+  `all_cards().len() >= 1_700` non-vacuity floor.
+- **R2** (`r2_back_face_population_is_pinned_with_a_non_vacuity_floor`): the `back_face: Some(_)`
+  population pinned at 15 (matching stage 1's measurement exactly), with its own
+  `!back_face_defs.is_empty()` non-vacuity floor.
+
+**All 5 gates EXECUTED (rebuild confirmed), reverts run against every one, all restored**:
+
+- **G-A (line-comment form)**: added a real `trigger_zone,` binding (plus `let _ = trigger_zone;`
+  to silence the unused-variable warning) to the `WhenDies` arm inside
+  `build_face_triggered_abilities`. Failure: the exact "must never see `trigger_zone`" message.
+- **G-A (block-comment variant, PB-DX32 M8 lesson applied both ways)**: replaced that same edit
+  with `/* trigger_zone, */` (a genuine comment — the code is UNCHANGED and correct). Confirmed
+  this does NOT falsely redden G-A (block-comment stripping correctly ignores it). Then, to prove
+  the stripping step itself matters (not just that it's present), temporarily edited the TEST
+  file's own `strip_comments` to skip `strip_block_comments` (line-comment stripping only) while
+  the `/* trigger_zone, */` text was still in the source — this DID falsely redden G-A
+  (`"Got: ...contains trigger_zone"` — a false positive against genuinely clean production code),
+  proving block-comment stripping is load-bearing for this gate, not decorative. Restored the
+  test file's `strip_comments` first, then the source's block comment.
+- **G-B**: added a second, unfiltered call `let _unfiltered_second_call =
+  build_face_triggered_abilities(&unfiltered);` (where `unfiltered: Vec<&AbilityDefinition> =
+  abilities.iter().collect()`) after the real call. Failure: `"got 3"` (expected 2).
+- **R1**: added `if def.name == "Nether Traitor" { continue; }` inside `trigger_zone_population`.
+  Failure: `"Expected {...Nether Traitor...}, got {\"Bloodghast\", \"Squee, Goblin Nabob\"}"`.
+- **R2**: changed the pinned constant from `15` to `14`. Failure: `"got 15"` (names the real,
+  unchanged population).
+
+Committed at `f302f7a7`.
+
+---
+
+## Final verification for stages 5-6 (this invocation's close)
+
+- `cargo build --workspace`: clean.
+- `cargo clippy --workspace --all-targets -- -D warnings`: clean (no findings this stage).
+- `cargo fmt --check`: clean (one `cargo fmt` run — reflowed a multi-line type annotation in
+  `collect_graveyard_carddef_triggers` and two lines in the new roster-gate/probe files; no
+  semantic change, confirmed by re-running every gate/probe after).
+- `cargo test --workspace --no-fail-fast`: **4,433 / 0 / 5** (+11 over the 4,422 stage-1-4
+  baseline: 6 new T10-family tests in File A + 5 new gate tests in File B), residual list empty.
+- `cargo test -p mtg-engine --test core protocol_schema` / `--test core hash_schema`: both green,
+  **PROTOCOL 35 / HASH 73 both gate-confirmed unmoved** (read directly off the source constants
+  too: `crates/engine/src/rules/protocol.rs:360` / `crates/engine/src/state/hash.rs:757`).
+- `cargo test -p mtg-engine --test core keyword_registry`: green, unmoved (9/9) — nothing in this
+  stage is a `KeywordAbility`.
+- `cargo test -p mtg-engine --test core bare_lookup_ratchet`: green, unmoved (3/3) — no new bare
+  `state.objects.get`-shaped read was introduced this stage (Q6/Q7 both read through
+  `state.expect_object`/the existing `gy_objects` collection pass, not a fresh bare lookup).
+- `cargo test -p mtg-engine --test primitives pb_rs4_face_aware_residuals` (19/19),
+  `--test primitives pb_ac7_ability_index_desync` (4/4), `--test core face_dereg_parity` (2/2),
+  `--test primitives pb_dx1_lowered_intervening_if` (17/17): all green, all unmoved — the four
+  sibling gates the plan names in stage 5's own "Verify" line.
+- `git diff main..HEAD --numstat -- crates/simulator/ tools/`: **empty**.
+- `git diff main..HEAD --numstat -- crates/card-defs/`: **empty** (no card-def edit in stages
+  5-6 — `nether_traitor.rs`'s comment-only edit from plan §5 is stage-7 close-out work, out of
+  this invocation's scope, per the task brief).
+- `git diff main..HEAD --numstat -- crates/card-types/`: **empty** (no DSL type change).
+- `git status --short`: clean after both commits (`36bbeed0` stage 5, `f302f7a7` stage 6).
+
+**Not run in this invocation** (deferred to stage 7 per scope): `tools/check-defs-fmt.sh` (no
+card-def edit), `python3 tools/authoring-report.py` (no coverage-affecting change), the
+`docs/audits/decision-point-audit.md` `OOS-DX1-3`/`OOS-DX1-4` row closures, the
+`nether_traitor.rs` comment-only card-def edit (plan §5), and seed filing for the two findings
+below.
+
+### Findings recorded (not fixed — out of this invocation's scope)
+
+1. **Q4's dual-dispatch discovery, stated plainly because it changed the probe design**:
+   `WhenDealsCombatDamageToPlayer` is lowered into BOTH the runtime Channel-A vector
+   (`replay_harness.rs`, already face-aware via the earlier `apply_face_change` mechanism) AND
+   dispatched via the raw card-registry scan this batch fixes (`abilities.rs`). The two are not in
+   conflict — a `Normal`-kind trigger from Channel A and a `CardDefETB`-kind trigger from the raw
+   scan would BOTH fire for a def that has this ability lowered both ways, meaning a REAL
+   `Complete` card using this exact shape could double-fire the effect. No corpus exposure found
+   (a targeted check of the trigger's dispatch showed no `Complete` def combining both paths for
+   this specific trigger condition, and this was not the reported defect of PB-DX24 — it predates
+   this batch and is orthogonal to the index-space fix). Candidate for a seed at stage 7
+   (`OOS-DX24-n`, "WhenDealsCombatDamageToPlayer dispatches via two independent paths that are
+   not mutually exclusive").
+2. **`squee_goblin_nabob` remains broken**, restated per the plan's own instruction (already
+   recorded in the stage 1-4 section above; unaffected by stages 5-6, which touch none of its
+   fields).
