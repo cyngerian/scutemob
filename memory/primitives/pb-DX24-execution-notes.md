@@ -666,3 +666,289 @@ below.
 2. **`squee_goblin_nabob` remains broken**, restated per the plan's own instruction (already
    recorded in the stage 1-4 section above; unaffected by stages 5-6, which touch none of its
    fields).
+
+---
+
+## Fix cycle — `memory/primitives/pb-review-DX24.md` (0 HIGH / 6 MEDIUM / 7 LOW; scope 1, 2, 3,
+5, 6, 7, 8, 9, 10, 11, 12 — findings 4 and 13 are the coordinator's audit-registry rows, not
+touched here)
+
+**Stage-7 gap, discovered while working this cycle**: the execution-notes file above has NO
+stage-7 section at all — the `nether_traitor.rs` comment-only edit (plan §5) and the six seed
+filings landed as a separate commit (`0ca69b6b`, "PB-DX24 stage 7 — nether_traitor comment
+records what the engine now reads") with no corresponding entry here. This directly confirms
+Finding 12's second half: the stages-1-4 and stages-5-6 sections' repeated "no card-def edit in
+this invocation" / "`crates/card-defs/` empty" claims were each locally true for their own scope
+but the overall file gives the false impression that `crates/card-defs/` was never touched by
+this batch. `git diff main..HEAD --numstat -- crates/card-defs/` at the time of this fix cycle
+shows exactly one file, `nether_traitor.rs`, `+17 -0` (the stage-7 comment block). SR-35
+(`tools/check-defs-fmt.sh`) was re-run in this fix cycle and reports "1803 defs checked / clean"
+— it is unknown whether it was run at stage-7 time, but it is confirmed clean NOW.
+
+### F1 (MEDIUM) — wrong CR citation at the Q5 comment
+
+`crates/engine/src/rules/resolution.rs:7673-7689` (pre-edit line numbers) cited CR 712.2 for
+"a transforming DFC can't be turned face down." Re-derived: CR 712.2 is only about DFC face
+SYMBOLS (712.2a-c); the correct rule is **CR 712.16** ("Melded permanents and other double-faced
+permanents can't be turned face down..."). CR 712.16 alone doesn't make the site unreachable,
+though — **CR 712.15** explicitly allows a DFC card to enter the battlefield face down
+(manifest/cloak), so a `PermanentTurnedFaceUp` source COULD in principle be a DFC that arrived
+face down. What actually makes `is_transformed` unreachable at Q5 is the ENGINE's write
+discipline (`face.rs:67-69`'s battlefield-only gate + `state/mod.rs`'s four zone-change resets),
+not a CR prohibition. Rewrote the comment to cite 712.16 + 712.15 + the engine mechanism, all
+three. **Caveat**: this session has no MCP tool access (the `mtg-rules` MCP tools are not wired
+into this task's tool set), so the CR 712.15/712.16 text could not be independently re-verified
+against the live rules server — it is taken from the reviewer's own quoted MCP output, which
+quotes exact rule text, and matches this engineer's own knowledge of the DFC rules family. Flagged
+so a future reader knows this one citation rests on the reviewer's MCP call, not a second
+independent one. **Per the task brief, `docs/audits/decision-point-audit.md:1213`'s copy of the
+same wrong citation was NOT corrected here** — that file is the coordinator's, edited
+concurrently; the coordinator should apply the identical correction there.
+
+### F2 (MEDIUM) — the §4.0 pin didn't gate what it claimed; Q2/Q7's real invariant was untested
+
+Replaced `test_dx24_is_transformed_true_assignment_has_exactly_one_site` (matched only the two
+literal strings `is_transformed = true` / `is_transformed: true`, missing `face.rs:104`'s
+COMPUTED write `obj_mut.is_transformed = new_is_transformed;`) with THREE things:
+
+1. `test_dx24_is_transformed_writes_are_confined_to_resolution_and_face_rs` — a widened structural
+   scan (word-boundary-aware, RHS-aware: excludes `false`/`bool` RHS so the CR 712.8a reset writes
+   in `state/mod.rs` and type annotations don't pollute it) asserting exactly one write in each of
+   `resolution.rs` and `face.rs`, none elsewhere. **This is a drift gate, not the load-bearing
+   proof** — it cannot catch the deletion of a guard (only the addition of a write), which is
+   exactly the revert shape that defeated the original test.
+2. `test_dx24_transform_state_resets_on_zone_change_to_graveyard` — runtime probe of CR
+   712.8a/400.7's OWN mechanism: transform a synthetic DFC (front toughness 5, back toughness 2,
+   3 damage marked from the start), let CR 704.3's post-transform SBA check kill it (discovered
+   during authoring: `transform_permanent_in_place` checks SBAs INSIDE the same `Command::Transform`
+   call, so "transformed and still alive" is not an observable intermediate state for a fixture
+   built this way — the test asserts the death happened AS the transformed permanent via the
+   `CreatureDied` event's `pre_death_characteristics.toughness == Some(2)`, then asserts the new
+   graveyard object's `is_transformed == false`).
+3. `test_dx24_apply_face_change_is_a_noop_off_the_battlefield` — runtime probe of `face.rs`'s OWN
+   gate. **Promoted `apply_face_change` `pub(crate)` -> `pub`** (mirrors `build_face_ability_vectors`'s
+   identical PB-DX24 promotion, T7's access problem) because NO production call site ever invokes
+   it on a non-battlefield object (verified by reading all 7 call sites: `Command::Transform`'s own
+   `handle_transform` already rejects off-battlefield before reaching `apply_face_change`; every
+   other caller has just moved the object TO the battlefield in the same call), so the gate was
+   previously unreachable through the public command API by ANY test.
+
+**F2 experiment result (the reviewer's own claim, re-executed)**: deleted `face.rs:67-69`'s
+`if obj.zone != ZoneId::Battlefield { return; }` guard, rebuilt (`Compiling mtg-engine` observed),
+ran the full `pb_dx24` primitives suite: **exactly one test reddened**,
+`test_dx24_apply_face_change_is_a_noop_off_the_battlefield`, with
+`face.rs:63-69: apply_face_change must be a no-op ... Got is_transformed=true after calling
+apply_face_change on a graveyard object.` — the other 16 tests, INCLUDING the new
+"writes-confined" structural scan and the Q2/Q7 test, stayed green, confirming the reviewer's
+point that a structural scan cannot see a deleted guard. Restored; `git diff --stat -- face.rs`
+showed only the intended `pub(crate)` -> `pub` promotion + doc comment afterward.
+
+Also executed a second revert on the structural scan alone (added a duplicate
+`obj.is_transformed = true;` line in `resolution.rs`): reddened
+`test_dx24_is_transformed_writes_are_confined_to_resolution_and_face_rs` with
+`left: 2 right: 1`, naming both `resolution.rs:853` and `:854` — the widened scan does catch an
+ADDED write, just not a REMOVED guard. Restored.
+
+### F3 (MEDIUM) — plan risk #2 (slice granularity) was never discharged
+
+Added a per-caller granularity note at `arrived_in_graveyard_this_batch`'s construction site
+(`abilities.rs:2962-2998`, now +30 lines of comment). **Measurement, by reading every
+`check_triggers` caller**:
+
+| caller | events slice | granularity |
+|---|---|---|
+| `sba.rs:97` | `apply_sbas_once`'s own return value, ONE fixpoint pass | **EXACT** — one CR 704.3 simultaneous SBA batch |
+| `resolution.rs` (post-resolution call, ~line 8142 at this fix cycle's HEAD; was `:8118` at review time, drifted from earlier edits in this same cycle) | the WHOLE resolution's accumulated `events` vec across every sequential sub-effect | **COARSER** — confirmed by reading the function: `events` is built up across the entire body (sacrifice effects, exile effects, etc. all `.push()` into the SAME vec), then `check_triggers(state, &events)` is called ONCE at the very end |
+| `combat.rs:846`/`:1743`, `engine.rs:34`/`:2499` | per-action / per-command event batches | **NOT audited this cycle** — `engine.rs:34` (`check_and_flush_triggers`) is shared by nearly every `Command` arm, so its own granularity is a separate investigation; out of this fix cycle's scope per the finding's own boundary |
+
+**The over-suppression mechanism** (resolution.rs's coarse slice): a resolution whose effects read
+"sacrifice a creature, THEN destroy target creature" pushes both deaths into ONE `events` vec. If
+the sacrificed creature is ITSELF a `trigger_zone: Graveyard` source (Nether Traitor's shape), its
+graveyard id lands in `arrived_in_graveyard_this_batch` from the FIRST sub-effect; when the loop
+reaches the SECOND sub-effect's death, the look-back guard sees that id already in the set and
+suppresses what should be a live trigger — CR 603.10a asks whether the ability existed immediately
+prior to THAT (second) event, and by then it already did, having arrived earlier in the SAME
+resolution. Direction: **over-suppression**.
+
+**Seed text for `OOS-DX24-7`** (coordinator to file):
+
+> **Title**: `check_triggers`'s CR 603.10a look-back set is coarser than "one simultaneous batch"
+> at its `resolution.rs` caller, and over-suppresses a sequential graveyard-trigger-zone source
+> within one resolution.
+> **Class**: correctness, latent — requires a resolution whose effects sequentially (1) put a
+> `trigger_zone: Graveyard` source (e.g. Nether Traitor) into the graveyard, THEN (2) put another
+> creature into a graveyard, both within the SAME stack-object resolution. No such `Complete` card
+> pairing exists in the corpus today (measured: the `trigger_zone: Some(_)` population is exactly
+> the 3 defs `{Bloodghast, Squee Goblin Nabob, Nether Traitor}`, and none of Nether Traitor's own
+> effects also destroys/sacrifices ANOTHER creature in the same resolution).
+> **Mechanism**: `abilities.rs`'s `resolution.rs` caller passes the WHOLE resolution's accumulated
+> `events` vec into `check_triggers`, so `arrived_in_graveyard_this_batch` treats every death in
+> that resolution as simultaneous, even when they are sequential sub-effects.
+> **Direction**: over-suppression (the safer of the two possible directions, and the one that
+> matches the common SBA-simultaneous-death case — but it is wrong for the sequential-within-one-
+> resolution case specifically).
+> **Fix sketch** (not done here, correctly out of scope): rebuild `arrived_in_graveyard_this_batch`
+> per event-PREFIX rather than per whole-slice, so each event only "looks back" at deaths that
+> occurred strictly before it in `events`' order, not after.
+> **Filed by**: PB-DX24 fix cycle (`scutemob-202`), review Finding 3.
+
+### F5 (LOW) — no benchmark was recorded
+
+Ran the three named benches (`cargo bench -p mtg-engine --bench engine_perf -- "full_turn_4p|sba_check|priority_cycle_4p"`, release/opt profile):
+
+| bench | this fix cycle | prior pin (CLAUDE.md / PB-DX6 collect) |
+|---|---|---|
+| `priority_cycle_4p` | 24.60–24.83 µs | 25.5–26.0 µs |
+| `sba_check` | 14.92–14.99 µs | 14 µs |
+| `full_turn_4p` | 221.46–223.45 µs | 220–222 µs |
+
+**All three within noise of the prior pin** — no regression. Expected: this batch's new graveyard
+dispatch arm only runs per `CreatureDied` event, and `full_turn_4p`'s baseline turn has few (if
+any) creature deaths, so the marginal cost is not visible at this resolution.
+
+### F6 (LOW) — the arm-count cells restated a number with no counting rule
+
+Added a counting-rule paragraph directly under the lossy-lowering table in
+`replay_harness.rs` (`build_face_ability_vectors`'s doc comment). Rule: count every
+`for ability in abilities` loop-opening line in the file's CODE (not doc comments), subtract the
+2 that sit OUTSIDE `build_face_triggered_abilities` (the mana-ability and activated-ability loops,
+which run over the unfiltered slice before any `trigger_zone` filtering). **Verified by execution,
+not trusted from the review**: `grep -c "for ability in abilities {" crates/engine/src/testing/replay_harness.rs`
+→ 36 (after phrasing the new doc paragraph so it does NOT itself contain the literal substring
+`for ability in abilities {` — an earlier draft of this exact comment DID contain it and inflated
+the count to 37, which would have made the rule self-falsifying the moment a future reader ran the
+`rg` command the rule describes; caught and reworded before committing). 36 − 2 = 34, matching
+both the shipped table cells and stage 3's own re-measurement.
+
+### F7 (LOW) — queue-time vs consume-time face residual at Q3/Q4
+
+Added a residual comment at both `abilities.rs`'s Q3 (`WhenExertedAsAttacks`) and Q4
+(`WhenDealsCombatDamageToPlayer`) sites: the fix reads `is_transformed` at QUEUE time, while
+`resolution.rs`'s own read side documents an explicit "is_transformed at CONSUME time" contract
+(verified by reading `resolution.rs:2177` and `:2209` at this fix cycle's HEAD — both still say
+exactly `"is_transformed at consume time" contract`). Same expression, not the same evaluation — a
+permanent that transforms between the trigger's queue point and its later resolution would desync
+in either direction. Zero corpus exposure (stage 1 measured 0 real back-face Q3/Q4 shapes), and
+the fix is still strictly better than pre-PB-DX24 code on every state reachable today. The durable
+fix (snapshotting the face onto `PendingTrigger` itself) is a HASH bump, correctly out of scope.
+
+**Seed text for `OOS-DX24-8`** (coordinator to file):
+
+> **Title**: Q3/Q4's queue-time `is_transformed` read can desync from `resolution.rs`'s documented
+> consume-time contract if the source permanent transforms between queue and resolution.
+> **Class**: correctness, latent — 0 real corpus exposure (stage 1 measured 0 back-face
+> `WhenExertedAsAttacks`/`WhenDealsCombatDamageToPlayer` abilities in the whole corpus).
+> **Mechanism**: `abilities.rs`'s Q3/Q4 sites read `src_obj.is_transformed` at the moment the
+> trigger is QUEUED (inside `check_triggers`); `resolution.rs:2177`/`:2209` documents its own read
+> as an explicit "is_transformed at CONSUME time" contract. They are the same Rust EXPRESSION
+> (`def.effective_abilities(<obj>.is_transformed)`) evaluated at two different points in time, so
+> for a permanent that transforms between the trigger firing and the trigger resolving, the two
+> reads can disagree.
+> **Direction**: could go either way (a permanent that starts transformed and untransforms before
+> resolution, or vice versa); PB-DX24 made both sites strictly no-worse than before (pre-batch code
+> read `def.abilities` unconditionally at these sites, which is simply the FRONT face always — this
+> fix is at least sometimes right where the old code was never right for a transformed attacker).
+> **Fix sketch** (a HASH bump, correctly out of scope for a fix cycle): snapshot `is_transformed`
+> onto `PendingTrigger` at queue time and have `resolution.rs` read the snapshot instead of the
+> live object.
+> **Filed by**: PB-DX24 fix cycle (`scutemob-202`), review Finding 7.
+
+### F8 (MEDIUM) — R1 front-face-only; R2 pinned a count, not the seven-shape measurement
+
+`trigger_zone_population` (R1) now also walks `def.back_face`'s abilities. `r2_back_face_population_...`
+now asserts the seven per-shape counts directly (each measured 0 at stage 1), in addition to the
+15-def-count pin (kept as an eighth assertion). **Both reverts executed**:
+
+- R1: added a synthetic `Triggered { trigger_zone: Some(TriggerZone::Graveyard), .. }` ability to
+  `delver_of_secrets.rs`'s BACK face. Reddened: `got {"Bloodghast", "Delver of Secrets", "Nether
+  Traitor", "Squee, Goblin Nabob"}` (names the new member). Restored; `git diff --stat` empty.
+- R2: added `AbilityDefinition::Keyword(KeywordAbility::Backup(1))` to the same back face. Reddened
+  the Q1 shape assertion: `Got 1` (expected 0), naming the exact Q-site it would unblock. Restored;
+  `git diff --stat` empty.
+
+### F9 (MEDIUM) — T3's CR 118.12 citation asserted the opposite of what CR 118.12 says
+
+Reworded T3's doc comment and its assertion message: CR 118.12 makes optional-cost payment a
+PLAYER CHOICE ("checks whether the player CHOSE to pay"); the engine's OWN deviation is
+pay-when-able, documented at its one implementation site (`effects/mod.rs:4299-4301`,
+`try_pay_optional_cost` — verified by reading, the comment there literally says "CR 118.12:
+beneficial optional cost. Deterministic path: the payer pays when able..."), and already named
+"the DP-19 (`MayPayThenEffect`) bug class" at `engine.rs:1568` (verified). T3 now pins the ENGINE
+deviation, cites CR 118.12 correctly (as the rule the engine deviates FROM, not the rule it
+implements), and cross-references `OOS-DX24-9`.
+
+**Seed text for `OOS-DX24-9`** (coordinator to file):
+
+> **Title**: `nether_traitor`'s "you may pay {B}" is engine-chosen (pay-when-able), not a real
+> player decision, contradicting CR 118.12's own text.
+> **Class**: correctness deviation, LIVE on a `Complete` deck-legal card (`nether_traitor`) — every
+> game where Nether Traitor's trigger fires with `{B}` available auto-pays, with no channel for a
+> player to decline even when declining would be strictly better play (e.g. holding the mana up
+> for something else, or deliberately keeping the Traitor in the graveyard for a later, larger
+> return window).
+> **Mechanism**: `effects/mod.rs:4299-4345`'s `MayPayThenEffect` handler calls
+> `try_pay_optional_cost` unconditionally for every eligible payer with no suspension point — this
+> is the pre-existing DP-19 bug class (`engine.rs:1568`), NOT introduced by PB-DX24, but PB-DX24 is
+> the first batch to make `nether_traitor`'s specific instance of it reachable end-to-end (its
+> trigger previously never fired at all, from either zone).
+> **Cross-reference**: `OOS-DP10-9` (the class this instance belongs to).
+> **Filed by**: PB-DX24 fix cycle (`scutemob-202`), review Finding 9, plan §10 risk #9.
+
+### F10 (LOW) — T7's corpus differential was front-face-only
+
+Extended `test_dx24_lowering_drops_every_zone_scoped_ability_over_the_corpus` to also
+differentiate over `def.back_face`'s abilities for every def with a back face (same filter, same
+`build_face_ability_vectors` comparison, pushing `"{name} (back face)"` into `divergent_defs` on a
+mismatch). Currently contributes 0 to `non_identity_inputs` (stage 1: 0 back-face
+`trigger_zone: Some(_)` abilities in the corpus) — a coverage completion, not a new finding.
+
+### F11 (LOW) — the Q2/Q7 structural pin was comment-blind with a brittle hard window
+
+Rewrote `test_dx24_q2_and_q7_queue_sites_call_effective_abilities`: (1) duplicated the roster
+file's `strip_line_comments`/`strip_block_comments`/`strip_comments` idiom into the primitives
+test file (no shared support crate exists between the `primitives` and `core` test binaries, so
+byte-identical duplication rather than a shared helper — noted as a real limitation, not silently
+glossed); (2) replaced the hard 8-line window with a statement-boundary scan (first line after the
+anchor's own comment block whose comment-stripped, trimmed text ends with `;` or `{`, i.e. a `let`
+binding's end or a `for`/`if` header's end).
+
+**Reverts executed**: (a) restored `def.abilities.iter().enumerate()` at the Q2 site — reddened
+naming Q2 exactly. (b) Repeated the PB-DX32 M8 experiment from this project's own precedent:
+replaced the working `let eff = def.effective_abilities(...)` line with a genuine
+`/* effective_abilities( */` block comment ABOVE the reverted bare-`.abilities` loop — confirmed
+this correctly REDDENS (the block comment's text is stripped before the `contains()` check, so it
+cannot fool the gate the way it fooled a line-comment-only scanner in the PB-DX32 precedent). Both
+restored; `git diff --stat` empty before continuing each time.
+
+### F12 (LOW) — stray blank line in `nether_traitor.rs`; the stale "untouched" claim
+
+Removed the blank line between `targets: vec![],` and `modes: None,` in the struct literal. Ran
+`tools/check-defs-fmt.sh`: **"1803 defs checked / clean"**. Corrected the execution-notes' stale
+claim (see the "Stage-7 gap" section at the top of this fix-cycle entry) — the file WAS touched, at
+stage 7, in a commit with no execution-notes entry of its own.
+
+### Full verification (this fix cycle, all executed)
+
+- `cargo test -p mtg-engine --test primitives pb_dx24`: 17/17 green.
+- `cargo test -p mtg-engine --test core pb_dx24`: 5/5 green.
+- `cargo test --workspace --no-fail-fast`: **4,435 / 0 / 5** (+2 over the 4,433 pre-fix-cycle
+  baseline — the two new runtime probes `test_dx24_transform_state_resets_on_zone_change_to_graveyard`
+  and `test_dx24_apply_face_change_is_a_noop_off_the_battlefield`; every other fix strengthened an
+  EXISTING test or extended one without adding a new `#[test]` function), residual list empty.
+- `cargo test -p mtg-engine --test core protocol_schema` / `--test core hash_schema`: both green.
+  **PROTOCOL 35 / HASH 73 both gate-confirmed unmoved** (also read directly off the source
+  constants: `protocol.rs:360` / `hash.rs:757`).
+- `cargo clippy --workspace --all-targets -- -D warnings`: clean (one real finding fixed along the
+  way — `clippy::manual_pattern_char_comparison` on a `.split(|c: char| c == ',' || c == ';')`,
+  rewritten to `.split([',', ';'])`).
+- `cargo fmt --check`: clean (one `cargo fmt` run — reflowed a `for` loop header and two call sites
+  across the two touched test files; no semantic change, confirmed by re-running every gate/probe
+  after).
+- `tools/check-defs-fmt.sh`: 1803 defs, clean.
+- `cargo build --workspace`: clean.
+- Scope: `git status --short` shows exactly 7 tracked files touched (5 engine source/test files +
+  1 card-def file) plus this execution-notes file and the (previously untracked) review doc.
+  `git diff main..HEAD --numstat -- crates/simulator/ tools/ crates/card-types/`: empty.
+  `git diff main..HEAD --numstat -- crates/card-defs/`: exactly one file, `nether_traitor.rs`,
+  `+17 -0` total across the whole batch (stage 7's comment block + this fix cycle's 1-line
+  deletion).
