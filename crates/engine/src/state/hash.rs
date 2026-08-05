@@ -740,7 +740,21 @@
 ///   field feeds are exercised only by the direct `HashInto` unit test in
 ///   `pb_eng2_targets_announced.rs`. `GameEvent` IS in the SR-8 wire closure,
 ///   so this bump is paired with `PROTOCOL_VERSION` 34 -> 35.
-pub const HASH_SCHEMA_VERSION: u8 = 72;
+/// - 73: PB-DX21 (2026-08-04, OOS-M11-9 — CR 508.1's once-per-combat
+///   declaration marker): `CombatState` gains `attackers_declared: bool`
+///   (`#[serde(default)]`), reachable from `GameState` via
+///   `combat: Option<CombatState>`. `decl_fingerprint` MOVES (new field in the
+///   serde closure); `stream_fingerprint` moves per the v40 mechanism only
+///   (`HASH_SCHEMA_VERSION` is the stream's first byte) — `canonical_fixture()`
+///   cannot populate `combat` (`tests/core/hash_schema.rs`'s five named
+///   exclusions), so this is the v69/v72 version-sentinel-byte-only case, not
+///   the v70/v71 payload-bytes case, and the field's own bytes are covered by
+///   the direct `HashInto` unit test in
+///   `pb_dx21_declare_attackers_once_per_combat.rs` and by nothing else.
+///   `PROTOCOL_VERSION` is UNMOVED — `CombatState` is reachable from none of
+///   `Command`/`GameEvent`/`ReplayLog` (zero occurrences of `CombatState` in
+///   `crates/engine/src/rules/protocol.rs`).
+pub const HASH_SCHEMA_VERSION: u8 = 73;
 
 /// One `(version, fingerprints)` row of the append-only hash-schema history.
 ///
@@ -1146,6 +1160,23 @@ pub const HASH_SCHEMA_HISTORY: &[HashSchemaEpoch] = &[
         // `pb_eng2_targets_announced.rs`, not by this stream fixture.
         decl_fingerprint: "6cb06c1058f199b5ee257a11c0fd86aa19f68785f67320eeac09d3b49f069329",
         stream_fingerprint: "c5786aaa4327b08b77978de63a772b65787a701b5ef34465705a84ef659eed5c",
+    },
+    HashSchemaEpoch {
+        version: 73,
+        // PB-DX21 (2026-08-04, OOS-M11-9 -- CR 508.1's once-per-combat
+        // declaration marker): `CombatState` gains `attackers_declared: bool`,
+        // reached from `GameState` only via `combat: Option<CombatState>`.
+        // decl_fingerprint MOVES (new field in the GameState serde closure).
+        // stream_fingerprint moves per the v40 mechanism (HASH_SCHEMA_VERSION
+        // is the stream's first byte) -- `canonical_fixture()` cannot
+        // populate `combat` (one of its five named exclusions), so this is
+        // the v69/v72 version-sentinel-byte-only case, not the v70/v71
+        // payload-bytes case; the new field's own bytes are exercised only by
+        // the direct `HashInto` unit test in
+        // `pb_dx21_declare_attackers_once_per_combat.rs`, not by this stream
+        // fixture.
+        decl_fingerprint: "44f2c13034226674d8fa081deb1ba913b7a95544c21a6b493e680e3e67e7941a",
+        stream_fingerprint: "cf3e47e7c4fbc4b1fe1d662a3a6a8f37cefb1c493cd59da0ec42f45058f4a424",
     },
 ];
 
@@ -4427,6 +4458,8 @@ impl HashInto for CombatState {
         self.damage_assignment_order.hash_into(hasher);
         // CR 702.7b: first-strike participant snapshot -- populated at start of first-strike step
         self.first_strike_participants.hash_into(hasher);
+        // CR 508.1 (PB-DX21): the once-per-combat declaration marker.
+        self.attackers_declared.hash_into(hasher);
         self.defenders_declared.hash_into(hasher);
         // CR 702.39a / CR 509.1c: forced_blocks -- provoke blocking requirements
         self.forced_blocks.hash_into(hasher);
