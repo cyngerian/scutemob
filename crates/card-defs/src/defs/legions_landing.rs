@@ -69,6 +69,16 @@ pub fn card() -> CardDefinition {
             // Condition::YouAttackedWithNOrMore(3), reading the captured
             // PlayerState.attackers_declared_this_turn. Transforms even if some of
             // those creatures later leave combat (ruling 2017-09-29).
+            //
+            // Same residual as `windbrisk_heights.rs` (`OOS-DX21-1`, unfixed by
+            // PB-DX21): on a turn with an extra combat (CR 500.8/506.5), the
+            // WheneverYouAttack trigger fires again in combat 2 and re-reads
+            // `attackers_declared_this_turn`, which PB-DX21 protects only WITHIN
+            // one combat -- so attacking with 1 creature in combat 2 after 3 in
+            // combat 1 overwrites the count to 1 and this trigger evaluates false,
+            // even though CR 508.6's "attacked with three or more creatures" is a
+            // whole-turn count across every combat phase. Comment only; no
+            // completeness change.
             AbilityDefinition::Triggered {
                 once_per_turn: false,
                 trigger_condition: TriggerCondition::WheneverYouAttack { filter: None },

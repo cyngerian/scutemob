@@ -4,16 +4,28 @@
 // The play condition ("attacked with 3+ creatures this turn") is
 // Condition::YouAttackedWithNOrMore(3), reading PlayerState.attackers_declared_this_turn.
 //
-// KNOWN RESIDUAL, stated rather than claimed away (CARDS-2 review, scutemob-181): that field
-// is ASSIGNED, not accumulated -- `rules/combat.rs` sets it to the size of the latest
-// declaration and says so in its own comment. On a turn with an extra combat
-// (`Effect::AdditionalCombatPhase` is implemented), attacking with three and then one drops
-// the count to one and this land goes dead, which the printed card does not do. It is also
-// not deduplicated by creature. An earlier draft of this comment cited the 2007-10-01 ruling
-// as though the primitive implemented it; it does not, and asserting fidelity a primitive
-// does not have is exactly what `braided_net.rs` was demoted for. The condition is still a
-// strict improvement on the `None` it replaced (which let the exiled card be played with no
-// attack at all).
+// KNOWN RESIDUAL, stated rather than claimed away (CARDS-2 review, scutemob-181; narrowed by
+// PB-DX21, scutemob-200): that field is ASSIGNED, not accumulated -- `rules/combat.rs` sets it
+// to the size of the latest declaration and says so in its own comment.
+//
+// PB-DX21 (CR 508.1, `OOS-M11-9`) closed the WITHIN-one-combat half of this: the engine now
+// rejects a second `DeclareAttackers` in the same combat (`GameStateError::
+// AlreadyDeclaredAttackers`), so `attackers_declared_this_turn` can no longer be
+// re-assigned mid-combat by a repeated declaration of the SAME combat.
+//
+// The EXTRA-COMBAT half survives, unaffected by that fix, because the guard is scoped to one
+// combat phase by design (CR 500.8/506.5 -- a fresh `CombatState` is installed at each
+// `BeginningOfCombat`). On a turn with an extra combat (`Effect::AdditionalCombatPhase` is
+// implemented), attacking with three in combat 1 and then one in combat 2 still drops the
+// count to one and this land still goes dead for the rest of the turn, which the printed card
+// does not do. It is also still not deduplicated by creature. Filed as `OOS-DX21-1`; closing
+// it needs the field to become a per-turn accumulation with per-creature dedup (CR 508.6 "has
+// attacked"), which is a different primitive from PB-DX21's once-per-combat guard.
+//
+// An earlier draft of this comment cited the 2007-10-01 ruling as though the primitive
+// implemented it; it does not, and asserting fidelity a primitive does not have is exactly
+// what `braided_net.rs` was demoted for. The condition is still a strict improvement on the
+// `None` it replaced (which let the exiled card be played with no attack at all).
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {

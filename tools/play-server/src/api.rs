@@ -297,13 +297,23 @@ fn json_rejection(rejection: JsonRejection) -> ApiFailure {
 ///
 /// It also closes a hole the engine cannot see. `params.rs` maps
 /// `LegalAction::DeclareAttackers` with **default** params to
-/// `Command::DeclareAttackers { attackers: vec![] }` — a legal, irreversible "I
-/// attack with nothing" that the engine accepts silently. The S6 handoff flagged
-/// that as its second review MEDIUM. It is not fixed by rejecting the empty set
-/// (declaring no attackers is legal under CR 508.1 and rejecting it would
-/// deadlock a combat); it is fixed by the client now having a picker, which is
-/// item 4 of this session. What this function adds is that a picker bug cannot
-/// silently produce a *different* legal declaration than the one the human made.
+/// `Command::DeclareAttackers { attackers: vec![] }` — a legal "I attack with
+/// nothing" that the engine accepts silently. The S6 handoff flagged that as its
+/// second review MEDIUM. It is not fixed by rejecting the empty set (declaring no
+/// attackers is legal under CR 508.1 and rejecting it would deadlock a combat); it
+/// is fixed by the client now having a picker, which is item 4 of this session.
+/// What this function adds is that a picker bug cannot silently produce a
+/// *different* legal declaration than the one the human made.
+///
+/// **The word *irreversible* above was aspirational until PB-DX21 (`OOS-M11-9`,
+/// `scutemob-200`) and is now true.** CR 508.1 makes declaring attackers a
+/// once-per-combat turn-based action; before PB-DX21 the engine accepted a second
+/// `DeclareAttackers` in the same combat without limit, so an empty declaration
+/// could always be followed by a real one. `combat.rs::handle_declare_attackers`
+/// now rejects any second declaration with `GameStateError::
+/// AlreadyDeclaredAttackers`, and `legal_actions.rs` stops offering the action
+/// once `CombatState::attackers_declared` is set — so the empty declaration this
+/// function guards really is the player's one shot at CR 508.1 for the combat.
 ///
 /// # What is checked, and what is deliberately left to the engine
 ///

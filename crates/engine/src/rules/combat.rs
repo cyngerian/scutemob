@@ -772,7 +772,16 @@ pub fn handle_declare_attackers(
             ps.attacked_this_turn = true;
             // PB-OS6(b) / CR 508.1/508.4: capture the declared-attacker count for
             // Condition::YouAttackedWithNOrMore. Only declared attackers count;
-            // overwritten (not accumulated) on multi-combat turns.
+            // overwritten (not accumulated) on MULTI-COMBAT turns (CR 500.8/506.5)
+            // -- e.g. `aurelia_the_warleader`'s extra combat phase. This line can no
+            // longer be reached twice for the SAME combat: PB-DX21 (`OOS-M11-9`)
+            // makes a second `DeclareAttackers` in one combat phase an error
+            // (`GameStateError::AlreadyDeclaredAttackers`, guarded earlier in this
+            // function), so the only surviving overwrite is across a
+            // `BeginningOfCombat`-to-`BeginningOfCombat` boundary, which installs a
+            // fresh `CombatState` and clears `attackers_declared`. That surviving
+            // half is filed as `OOS-DX21-1` (`windbrisk_heights.rs`,
+            // `legions_landing.rs`).
             ps.attackers_declared_this_turn = attackers.len() as u32;
         }
     }
