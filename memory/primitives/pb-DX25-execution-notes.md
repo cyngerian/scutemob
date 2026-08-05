@@ -168,12 +168,163 @@ untouched).
 
 ---
 
-## Stage 4 — the counter arm, atomically (§3.3 + §3.5) + T2-T5 + G2
+## Stage 4 — the counter arm, atomically (§3.3 + §3.5) + T2-T5 + G2 (DONE)
 
-(written below as the stage is executed)
+`crates/engine/src/effects/mod.rs`'s `Effect::CounterSpell` arm rewritten in ONE
+edit, both halves together (plan §2.2's binding instruction — shipping the lookup
+fix alone would create a permanent `ZoneId::Stack` leak, strictly worse than
+HEAD):
+
+* **§3.3 lookup**: `position()`'s second clause now calls
+  `state::stack_registry::card_in_stack_zone(&so.kind) == Some(id)` (guarded by
+  `!so.is_copy`, CR 707.10) instead of matching the literal `StackObjectKind::Spell`
+  pattern. `so.id == id` (the Ward clause) is unchanged.
+* **§3.5 zone-move**: the whole per-kind `match stack_obj.kind { Spell {..} => ..,
+  ActivatedAbility|TriggeredAbility {..} => .., _ => {} }` is replaced by
+  `card_owned = card_in_stack_zone(&stack_obj.kind)`, `card_to_move = if
+  stack_obj.is_copy { None } else { card_owned }`, then an `if let Some(source_object)
+  = card_to_move { <verbatim pre-PB-DX25 Spell-arm body> } else { <copy-aware named-
+  event branch> }`.
+* **§3.7 CR-citation corrections** applied to the two lines this edit already
+  touches: `CR 701.5` → `CR 701.6a` at the arm's opening comment and at the
+  EF-W-MISS-1 note (the non-existent "CR 701.5g" citation deleted, since the
+  effect's own wording plus CR 701.6a is the real warrant per the plan).
+
+`cargo check -p mtg-engine` clean immediately after the edit.
+
+### T1 and File C flip green
+
+Both re-run against the NEW source with zero test-file changes (they were already
+written to assert the fixed shape at Stage 2/3):
+* `test_dx25_counterspell_counters_a_mutate_spell` — **PASS**.
+* `test_dx25_counter_on_mutate_produces_no_stack_consistency_violations` — **PASS**
+  (both the violation-count half AND the behavioural half now).
+
+### T2, T3, T4, T5 — written and green on first run
+
+All four new tests in
+`crates/engine/tests/primitives/pb_dx25_counterspell_stack_shapes.rs` passed on
+their first execution (no debugging cycle needed, unlike T1's fixture in Stage 2):
+
+* **T2** `test_dx25_ward_path_counter_on_a_mutate_spell_moves_the_card` — route
+  used: **hand-built `EffectContext`**, not a hand-built trigger `StackObject`.
+  `ward.rs:136-260` was read first per the plan's instruction; a real Ward
+  creature cannot reach a mutate spell's target today (`OOS-DX25-1`, roster M3 =
+  0), so the fallback route was used, and it is a faithful shortcut (not a
+  different mechanism) because `EffectContext.targets` is exactly what
+  `EffectTarget::DeclaredTarget` reads at resolution — same value a real Ward
+  trigger's context would carry.
+* **T3** `test_dx25_countering_a_copy_moves_no_card` — uses the real, `pub`
+  `rules::copy::copy_spell_on_stack` (not a hand-rolled copy). Both halves
+  present: the copy's own stack-entry id is used for both `stack_object_id` and
+  `source_object_id` on `SpellCountered` (§4.3), and the non-vacuity sibling
+  (countering the ORIGINAL afterward, same fixture) confirms the effect path
+  really can move a card.
+* **T4** `test_dx25_countered_spell_destination_is_preserved` — three sub-cases
+  (exile_instead, cast_with_flashback, neither with owner != controller) plus a
+  fourth STRUCTURAL sub-case (no fixture, just a doc-comment citing
+  `rules/command.rs:792`'s single `Option<AltCostKind>` and the mutually
+  exclusive alt-cost dispatch) pinning that `MutatingCreatureSpell` and
+  `cast_with_flashback` can never co-occur on one `StackObject`.
+* **T5** `test_dx25_uncounterable_mutate_spell_still_sets_the_controller` — newly
+  reachable by this batch (before PB-DX25, `position()` never found a
+  `MutatingCreatureSpell`, so this line of the arm never ran for one).
+
+**A cleanup during writing, not a defect**: T4's first draft called an unused
+`build()` closure once and then immediately discarded its result before
+overwriting `state` with a second, differently-configured builder call in
+sub-case 1 — dead code left over from an earlier draft. Removed before running
+any test (caught by inspection, not by a failing assertion).
+
+### G2 — written and green on first run
+
+`crates/engine/tests/core/pb_dx25_stack_registry_roster.rs` gains
+`extract_match_arm_body` (finds a match arm's pattern, then its `=> {`, then
+brace-balances the body — a sibling of `extract_function_body` for when the
+gated region is one arm inside a giant `match`, not a whole function) and
+`EFFECTS_MOD_PATH`, both re-added (they were removed at the end of Stage 3
+specifically to avoid dead-code warnings before this arm existed to gate).
+`g2_counter_spell_arm_does_not_reclassify_by_kind` and `g2_scan_is_not_vacuous`
+both pass on first run.
+
+### Full revert matrix — T1-T5 and G2, ALL EXECUTED against the real source
+
+Every row: reverted, rebuilt (confirmed via `Compiling mtg-engine` in captured
+output), watched fail, restored, `diff` against a pre-edit backup copy confirmed
+byte-identical, then the full File A + File B + File C suite re-run green before
+moving to the next row.
+
+| id | revert | observed failure (verbatim) |
+|---|---|---|
+| **T1** | restored the `Spell { source_object } == id`-only clause in `position()` | `panicked at .../pb_dx25_counterspell_stack_shapes.rs:367:13: CR 701.6a: countered Gemrazer should be in p1's graveyard under a fresh ObjectId` |
+| **T2** | restored the `_ => {}` shape: replaced the whole `if let Some(source_object) = card_to_move {..} else {..}` with a no-op (nothing happens after removal) | `panicked at .../pb_dx25_counterspell_stack_shapes.rs:484:13: CR 701.6a / CR 702.140a: a MutatingCreatureSpell countered via the Ward-shaped so.id == id lookup must move its card to the graveyard, not strand it in ZoneId::Stack` |
+| **T3** | deleted the `is_copy` guard: `let card_to_move = card_owned;` (dropped the `if stack_obj.is_copy { None } else { .. }`) | `panicked at .../pb_dx25_counterspell_stack_shapes.rs:645:5: assertion \`left == right\` failed: CR 707.10: the ORIGINAL's card must still be in ZoneId::Stack -- the copy has no card of its own to move / left: None / right: Some(Stack)` -- i.e. the original's card WAS moved out (its `ZoneId` lookup returned `None`), exactly the predicted defect |
+| **T4** | hard-coded `let destination = ZoneId::Graveyard(owner);`, dropping the `exile_instead`/`cast_with_flashback`/`cast_with_jump_start` branch | `panicked at .../pb_dx25_counterspell_stack_shapes.rs:812:9: CR 701.6a: exile_instead should send the card to Exile` |
+| **T5** | moved the `ctx.countered_spell_controller = ..` assignment to AFTER the `cant_be_countered` check | `panicked at .../pb_dx25_counterspell_stack_shapes.rs:955:5: assertion \`left == right\` failed: EF-W-MISS-1 / An Offer: countered_spell_controller must be set to the (uncounterable) target's controller even though nothing was countered / left: None / right: Some(PlayerId(1))` |
+| **G2** | restored the ENTIRE original (pre-PB-DX25) `Effect::CounterSpell` arm verbatim (via `git show HEAD` at the Stage-3 commit) | `panicked at .../pb_dx25_stack_registry_roster.rs:188:5: the zone-move is driven off state::stack_registry, never off a per-kind match -- do not add an arm, extend the registry. Expected >= 2 calls to card_in_stack_zone (lookup + move) in the Effect::CounterSpell arm, got 0` |
+
+**A mechanical note on running these reverts under `-D warnings`**: two of the
+revert edits (T2, T4) left an unused `exile_instead`/`controller` binding behind,
+which this workspace's `-D warnings` turns into a **compile error**, not a
+warning — so the FIRST attempt at each of those two reverts failed to build at
+all (not "passed vacuously on a stale binary", the opposite failure mode from
+the PB-DX32/PB-DX24 lesson, but worth recording: it is possible for a
+revert-proof's own mechanics to be blocked by the SAME gate the batch's
+Post-Implementation Verification requires). Fixed by renaming the now-unread
+bindings to `_exile_instead` / prefixing with `_`/adding an explicit `let _ = ..;`
+line, which does not change the revert's semantics, only silences the warning so
+the REAL assertion failure could be observed. Recorded so a future reader
+re-executing this matrix isn't surprised by a compile error that looks like it
+might be hiding something -- it isn't; it is exactly what `-D warnings` is
+supposed to do.
+
+### Full-suite verification (Stage 4 close)
+
+* `cargo check -p mtg-engine` clean.
+* `cargo build --workspace` clean.
+* `cargo clippy --workspace --all-targets -- -D warnings` clean.
+* `cargo fmt` (one run — reformatted line-wraps in the two new test files and the
+  roster gate file; `cargo fmt -- --check` clean after).
+* `tools/check-defs-fmt.sh` — 1803 defs, clean.
+* `cargo test --workspace --no-fail-fast` — **4,448 / 0 / 5** (+13 over the
+  Stage-0/pre-edit 4,435 baseline: T1-T6 = 6, G1 = 3, G2 = 2, File C = 2; residual
+  list empty).
+* `cargo test -p mtg-engine --test core protocol_schema` / `--test core
+  hash_schema` — all sub-tests pass; **PROTOCOL 35 / HASH 73 unmoved**,
+  gate-executed (not predicted).
+* `cargo test -p mtg-engine --test core keyword_registry` — **9 / 0**, unmoved
+  and green (the plan's predicted-unmoved SR-5 gate; `effects/mod.rs` was already
+  a declared `Handled` site for `KeywordAbility::Ward`, and this batch adds no
+  new keyword read).
+* `cargo test -p mtg-simulator` — **206 / 0** (+2 over the pre-batch count, the
+  new File C tests).
+* `cargo test -p play-server` — **80 / 0**, unmoved by this batch (pre-existing
+  count on this branch, untouched by any file this stage edited).
+* `git diff main..HEAD --numstat -- crates/card-defs/ crates/card-types/
+  crates/view-model/ tools/` — **EMPTY** (SR-6 / exhaustive-match-sweep scope,
+  confirmed at Stage 4 too, not just Stage 3).
+
+**No pre-existing test reddened at any point in Stage 4** — every failure
+observed in this stage was a revert I introduced and then restored; the
+"if a pre-existing test reddens, it was asserting the defect" instruction never
+applied here.
 
 ---
 
-## Stage 4 — the counter arm, atomically (§3.3 + §3.5) + T2-T5 + G2
+## Summary for the handoff to Stage 1 / Stage 5 / Stage 6 / Stage 7's runner
 
-(written below as the stage is executed)
+* Stages 2, 3, 4 are DONE and committed (three commits, `W6-prim:` prefix,
+  `scutemob-203`).
+* **NOT done here, still owed**: Stage 1 (SR-36 corpus roster, G3, the "6 x 24"
+  overcount correction in the plan/queue rows), Stage 5 (`resolution.rs::
+  counter_stack_object` fix + T7 + the `invariants.rs` t8 doc cross-reference),
+  Stage 6 (G3's revert execution + acceptance criterion 6232 mapping), Stage 7
+  (close-out: `docs/audits/decision-point-audit.md`'s `OOS-SIM3-5` row, the §11
+  seed filings, CLAUDE.md delta).
+* Test count at the end of this runner's work: **4,448 / 0 / 5** on this branch.
+  The next runner's own Stage-0-style re-measurement should start FROM this
+  number, not from the original 4,435 pre-batch baseline.
+* PROTOCOL 35 / HASH 73 confirmed unmoved through Stage 4; the plan's wire
+  prediction (§7) holds so far. Stage 5's `counter_stack_object` refactor is
+  ALSO predicted wire-neutral (no type change) but must be gate-executed again,
+  not assumed.

@@ -2722,26 +2722,35 @@ fn execute_effect_inner(
             target,
             exile_instead,
         } => {
-            // CR 701.5: Counter target spell on the stack.
+            // CR 701.6a: Counter target spell on the stack.
             let targets = resolve_effect_target_list(state, target, ctx);
             for resolved in targets {
                 if let ResolvedTarget::Object(id) = resolved {
                     // CR 702.21a: Find the stack object by direct ID match (for Ward
                     // triggers that pass the stack object's own ID as their target) OR
-                    // by source_object match (for traditional CounterSpell usage).
-                    let pos = state
-                        .stack_objects
-                        .iter()
-                        .position(|so| {
-                            so.id == id
-                                || matches!(&so.kind, crate::state::stack::StackObjectKind::Spell { source_object } if *source_object == id)
-                        });
+                    // by card match (for traditional CounterSpell usage -- CR 601.2c /
+                    // CR 608.2b, `TargetSpell` validates against the CARD in
+                    // `ZoneId::Stack`, never a stack-entry id). Every card-owning kind,
+                    // not just `Spell` -- CR 702.140a / CR 729.2 makes
+                    // `MutatingCreatureSpell` a card-owning kind too, and the single
+                    // classification for "which kinds own a card" lives in
+                    // `state::stack_registry`, never re-derived here.
+                    //
+                    // CR 707.10: a COPY has no card of its own -- `copy.rs` clones the
+                    // original's `kind` wholesale, so a copy's `source_object` names the
+                    // ORIGINAL's card and must never make the copy findable by it.
+                    let pos = state.stack_objects.iter().position(|so| {
+                        so.id == id
+                            || (!so.is_copy
+                                && crate::state::stack_registry::card_in_stack_zone(&so.kind)
+                                    == Some(id))
+                    });
                     if let Some(pos) = pos {
                         // EF-W-MISS-1 / An Offer ruling (2022-04-29): capture the target
                         // spell's controller BEFORE the cant_be_countered check — an
                         // uncounterable-but-legal target's controller still creates the
                         // tokens for "its controller creates …" cards (Swan Song, An Offer
-                        // You Can't Refuse). CR 701.5g.
+                        // You Can't Refuse). CR 701.6a.
                         ctx.countered_spell_controller = Some(state.stack_objects[pos].controller);
                         // CR 101.6: If the spell can't be countered, the CounterSpell
                         // has no effect on it (does as much as possible — CR 101.2).
@@ -2750,56 +2759,89 @@ fn execute_effect_inner(
                         }
                         let stack_obj = state.stack_objects.remove(pos);
                         let controller = stack_obj.controller;
-                        match stack_obj.kind {
-                            crate::state::stack::StackObjectKind::Spell { source_object } => {
-                                let owner = state
-                                    .objects
-                                    .get(&source_object)
-                                    .map(|o| o.owner)
-                                    .unwrap_or(controller);
-                                // CR 702.34a: If cast with flashback, exile instead of
-                                // graveyard when countered by an effect.
-                                // CR 702.133a: Jump-start also exiles when countered by an effect.
-                                // PB-AC5 add-on: `exile_instead` (Force of Negation: "exile it
-                                // instead of putting it into its owner's graveyard") takes the
-                                // same exile destination regardless of how the spell was cast.
-                                let destination = if *exile_instead
-                                    || stack_obj.cast_with_flashback
-                                    || stack_obj.cast_with_jump_start
-                                {
-                                    crate::state::zone::ZoneId::Exile
-                                } else {
-                                    ZoneId::Graveyard(owner)
-                                };
-                                if let Some((new_id, _)) =
-                                    state.fizzle_move_object_to_zone(source_object, destination)
-                                {
-                                    events.push(GameEvent::SpellCountered {
-                                        player: controller,
-                                        stack_object_id: stack_obj.id,
-                                        source_object_id: new_id,
-                                    });
-                                }
-                            }
-                            crate::state::stack::StackObjectKind::ActivatedAbility {
-                                source_object,
-                                ..
-                            }
-                            | crate::state::stack::StackObjectKind::TriggeredAbility {
-                                source_object,
-                                ..
-                            } => {
-                                // CR 701.5: Countering an ability removes it from the stack.
-                                // Unlike spells, the source stays in its current zone.
+
+                        // CR 701.6a: "A countered spell is put into its owner's
+                        // graveyard." Which stack objects own a card is decided ONCE, in
+                        // `state::stack_registry` -- never re-derived per-kind here.
+                        let card_owned =
+                            crate::state::stack_registry::card_in_stack_zone(&stack_obj.kind);
+                        // CR 707.10 / CR 707.10a: a copy is a spell with no card. It has
+                        // nothing to move and simply ceases to exist on leaving the
+                        // stack. `copy.rs` clones the ORIGINAL's `kind`, so moving
+                        // `source_object` here would put someone else's spell in the
+                        // graveyard.
+                        let card_to_move = if stack_obj.is_copy { None } else { card_owned };
+
+                        if let Some(source_object) = card_to_move {
+                            // Unchanged from the pre-PB-DX25 `Spell` arm, verbatim.
+                            let owner = state
+                                .objects
+                                .get(&source_object)
+                                .map(|o| o.owner)
+                                .unwrap_or(controller);
+                            // CR 702.34a: If cast with flashback, exile instead of
+                            // graveyard when countered by an effect.
+                            // CR 702.133a: Jump-start also exiles when countered by an effect.
+                            // PB-AC5 add-on: `exile_instead` (Force of Negation: "exile it
+                            // instead of putting it into its owner's graveyard") takes the
+                            // same exile destination regardless of how the spell was cast.
+                            let destination = if *exile_instead
+                                || stack_obj.cast_with_flashback
+                                || stack_obj.cast_with_jump_start
+                            {
+                                crate::state::zone::ZoneId::Exile
+                            } else {
+                                ZoneId::Graveyard(owner)
+                            };
+                            if let Some((new_id, _)) =
+                                state.fizzle_move_object_to_zone(source_object, destination)
+                            {
                                 events.push(GameEvent::SpellCountered {
                                     player: controller,
                                     stack_object_id: stack_obj.id,
-                                    source_object_id: source_object,
+                                    source_object_id: new_id,
                                 });
                             }
-                            _ => {
-                                // Other stack object kinds (StormTrigger, etc.) are not
-                                // currently counterable via ward.
+                        } else {
+                            let named = if card_owned.is_some() {
+                                // A COPY of a card-owning kind. CR 707.10: no card, so
+                                // no card id may be named -- least of all the
+                                // original's. Its own stack-entry id is used;
+                                // `next_object_id` is monotone and never a `GameObject`
+                                // key, so the event view's card-name lookup returns
+                                // None and the line renders "<player>'s spell is
+                                // countered" -- exactly what happened.
+                                Some(stack_obj.id)
+                            } else {
+                                match &stack_obj.kind {
+                                    // CR 701.6a: countering an ability removes it from
+                                    // the stack; the source stays where it is. CR
+                                    // 707.10b: a copy of an ability has the SAME source,
+                                    // so this arm is correct for ability copies too.
+                                    crate::state::stack::StackObjectKind::ActivatedAbility {
+                                        source_object,
+                                        ..
+                                    }
+                                    | crate::state::stack::StackObjectKind::TriggeredAbility {
+                                        source_object,
+                                        ..
+                                    } => Some(*source_object),
+                                    // Every other ability/trigger kind: NO event, exactly
+                                    // as before PB-DX25. This wildcard is a DIAGNOSTICS
+                                    // omission, not a state one -- the card-ownership
+                                    // decision above (`card_in_stack_zone`) has no
+                                    // wildcard and cannot lose a card. Widening the event
+                                    // to every kind is `OOS-DX25-4`, deliberately not
+                                    // taken here.
+                                    _ => None,
+                                }
+                            };
+                            if let Some(source_object_id) = named {
+                                events.push(GameEvent::SpellCountered {
+                                    player: controller,
+                                    stack_object_id: stack_obj.id,
+                                    source_object_id,
+                                });
                             }
                         }
                     }

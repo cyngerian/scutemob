@@ -40,17 +40,19 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use mtg_engine::effects::{execute_effect, EffectContext};
 use mtg_engine::rules::command::CastSpellData;
 use mtg_engine::state::stack_registry::card_in_stack_zone;
 use mtg_engine::state::stubs::DelayedTriggerAction;
+use mtg_engine::state::test_util;
 use mtg_engine::state::types::AltCostKind;
 use mtg_engine::state::zone::ZoneId;
 use mtg_engine::{
     all_cards, card_name_to_id, enrich_spec_from_def, process_command, AdditionalCost,
-    AttackTarget, CardDefinition, CardId, CardRegistry, CardType, Command, DungeonId, Effect,
-    EffectAmount, GameEvent, GameState, GameStateBuilder, KeywordAbility, ManaColor, ManaCost,
-    ObjectId, ObjectSpec, PlayerId, PlayerTarget, StackObjectKind, Step, SubType, Target,
-    TriggerData,
+    AttackTarget, CardDefinition, CardEffectTarget, CardId, CardRegistry, CardType, Command,
+    DungeonId, Effect, EffectAmount, GameEvent, GameState, GameStateBuilder, KeywordAbility,
+    ManaColor, ManaCost, ObjectId, ObjectSpec, PlayerId, PlayerTarget, SpellTarget, StackObject,
+    StackObjectKind, Step, SubType, Target, TriggerData,
 };
 
 // ── Shared helpers ──────────────────────────────────────────────────────────────
@@ -149,6 +151,70 @@ fn wolf_spec(owner: PlayerId) -> ObjectSpec {
     wolf.power = Some(2);
     wolf.toughness = Some(3);
     wolf
+}
+
+/// Push a bare `StackObject::MutatingCreatureSpell` entry, mirroring the
+/// manual-stack-push idiom used elsewhere in the suite (see
+/// `crates/engine/tests/casting/optional_cost_and_counter_tax.rs`'s
+/// `push_spell_stack_object` -- same full-literal shape, `kind` swapped).
+fn push_mutating_creature_spell_stack_object(
+    state: &mut GameState,
+    source_object: ObjectId,
+    target: ObjectId,
+    controller: PlayerId,
+) -> ObjectId {
+    let stack_id = test_util::next_object_id(state);
+    state.stack_objects_mut().push_back(StackObject {
+        id: stack_id,
+        controller,
+        kind: StackObjectKind::MutatingCreatureSpell {
+            source_object,
+            target,
+        },
+        targets: vec![],
+        cant_be_countered: false,
+        is_copy: false,
+        cast_with_flashback: false,
+        kicker_times_paid: 0,
+        was_evoked: false,
+        was_bestowed: false,
+        cast_with_madness: false,
+        cast_with_miracle: false,
+        was_escaped: false,
+        cast_with_foretell: false,
+        was_buyback_paid: false,
+        was_suspended: false,
+        was_overloaded: false,
+        cast_with_jump_start: false,
+        cast_with_aftermath: false,
+        was_dashed: false,
+        was_warped: false,
+        was_blitzed: false,
+        was_plotted: false,
+        was_prototyped: false,
+        was_impended: false,
+        was_bargained: false,
+        was_surged: false,
+        was_casualty_paid: false,
+        was_cleaved: false,
+        was_cast_as_adventure: false,
+        x_value: 0,
+        evidence_collected: false,
+        spliced_effects: vec![],
+        spliced_card_ids: vec![],
+        modes_chosen: vec![],
+        is_cast_transformed: false,
+        additional_costs: vec![],
+        damaged_player: None,
+        combat_damage_amount: 0,
+        triggering_creature_id: None,
+        cast_from_top_with_bonus: false,
+        sacrificed_creature_lki: vec![],
+        lki_counters: imbl::OrdMap::new(),
+        lki_power: None,
+        defending_player: None,
+    });
+    stack_id
 }
 
 // ── T1 — shape (c), REAL corpus cards, gemrazer x counterspell ─────────────────
@@ -339,6 +405,565 @@ fn test_dx25_counterspell_counters_a_mutate_spell() {
         "CR 701.6a / CR 400.7: SpellCountered.source_object_id must be the POST-move \
          graveyard id, got {:?}",
         countered[0]
+    );
+}
+
+// ── T2 — shape (a), SYNTHETIC, the Ward-shaped so.id == id lookup ──────────────
+
+/// CR 702.21a / CR 701.6a — a `MutatingCreatureSpell` countered through the
+/// `so.id == id` clause (the Ward shape: a trigger names the STACK ENTRY's own
+/// id, not the card's id) must move the card to the graveyard exactly like a
+/// card-id counter does.
+///
+/// **SYNTHETIC, and here is why (plan §2.2).** No `Complete` mutate def declares
+/// a spell-level target requirement (roster M3 = 0, `pb-DX25-stage0.md`), so no
+/// real Ward creature can announce a `PermanentTargeted` event against a mutate
+/// spell's target today (`OOS-DX25-1` -- the mutate target is carried in
+/// `AdditionalCost::Mutate`, never in `spell_targets`). `ward.rs:136-260` was
+/// read first, per the plan's instruction, before falling back to this route: a
+/// real Ward creature cannot be made to fire against a mutate spell's target
+/// without first fixing `OOS-DX25-1`, which is explicitly out of scope (plan §12
+/// risk 6). This fixture reaches the `so.id == id` clause directly, the same
+/// shape a real Ward trigger's `EffectContext` would carry
+/// (`abilities.rs:4605-4633`/`:8400-8405` tag the pending trigger with the stack
+/// entry's own id as its target) -- **route used: hand-built `EffectContext`,
+/// not a hand-built trigger `StackObject`** (simpler, and `EffectContext.targets`
+/// is exactly what `EffectTarget::DeclaredTarget` reads at resolution time,
+/// so this is a faithful shortcut, not a different mechanism).
+#[test]
+fn test_dx25_ward_path_counter_on_a_mutate_spell_moves_the_card() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let registry = CardRegistry::new(vec![]);
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .object(
+            ObjectSpec::card(p1, "Mock Mutating Beast")
+                .in_zone(ZoneId::Stack)
+                .with_card_id(CardId("mock-mutating-beast".to_string())),
+        )
+        .object(wolf_spec(p1))
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+
+    let beast_card_id = find_object(&state, "Mock Mutating Beast");
+    let wolf_id = find_object(&state, "Mock Wolf");
+
+    let stack_entry_id =
+        push_mutating_creature_spell_stack_object(&mut state, beast_card_id, wolf_id, p1);
+    assert_eq!(state.stack_objects().len(), 1);
+
+    let mut ctx = EffectContext::new(
+        p2,
+        wolf_id,
+        vec![SpellTarget {
+            target: Target::Object(stack_entry_id),
+            zone_at_cast: None,
+        }],
+    );
+    let events = execute_effect(
+        &mut state,
+        &Effect::CounterSpell {
+            target: CardEffectTarget::DeclaredTarget { index: 0 },
+            exile_instead: false,
+        },
+        &mut ctx,
+    );
+
+    assert!(
+        state.stack_objects().is_empty(),
+        "CR 701.6a: the Ward-shaped counter must remove the stack entry"
+    );
+    let beast_graveyard_id = find_in_zone(&state, "Mock Mutating Beast", ZoneId::Graveyard(p1))
+        .unwrap_or_else(|| {
+            panic!(
+                "CR 701.6a / CR 702.140a: a MutatingCreatureSpell countered via the \
+                 Ward-shaped so.id == id lookup must move its card to the graveyard, \
+                 not strand it in ZoneId::Stack"
+            )
+        });
+    assert!(
+        find_in_zone(&state, "Mock Mutating Beast", ZoneId::Stack).is_none(),
+        "CR 701.6a: the card must no longer be in ZoneId::Stack"
+    );
+    assert_eq!(
+        events
+            .iter()
+            .filter(|e| matches!(e, GameEvent::SpellCountered { .. }))
+            .count(),
+        1,
+        "exactly one SpellCountered event expected, got {:?}",
+        events
+    );
+    assert!(
+        events.iter().any(|e| matches!(
+            e,
+            GameEvent::SpellCountered { source_object_id, .. }
+            if *source_object_id == beast_graveyard_id
+        )),
+        "SpellCountered.source_object_id must be the post-move graveyard id"
+    );
+}
+
+// ── T3 — shape (b), SYNTHETIC, countering a copy moves no card ─────────────────
+
+/// CR 707.10 / CR 707.10a / CR 707.10b — countering a COPY of a spell removes
+/// its stack entry but moves NO card (a copy has no card of its own); countering
+/// the ORIGINAL (a sibling, non-vacuity fixture) DOES move the card, proving the
+/// fixture is capable of moving one at all.
+///
+/// **SYNTHETIC, and here is why (plan §2.3).** Three independent mechanisms make
+/// countering a copy unreachable at HEAD through the ordinary cast path: (1)
+/// order -- `copy.rs` pushes the copy ABOVE the original, and `position()`
+/// returns the FIRST (lowest-index) match, so a card-id lookup always lands on
+/// the original while it's still present; (2) the dead-id filter --
+/// `resolve_effect_target_list_indexed` only resolves a `DeclaredTarget` if the
+/// id names a live object or stack entry, and once the original leaves the
+/// stack its card gets a new id under CR 400.7, so the window in which the copy
+/// could be found by the original's card id is empty, not merely narrow; (3)
+/// nothing aims a counter at a copy in the first place -- `TargetSpell` cannot
+/// name a copy's stack-entry id (it isn't a `state.objects` key), and Ward never
+/// fires on a copy (`OOS-DX25-2`, no `PermanentTargeted` event from
+/// `copy_spell_on_stack`). This fixture reaches the counter-on-a-copy state
+/// directly via `rules::copy::copy_spell_on_stack` (a real, `pub` engine
+/// function) + a hand-built `EffectContext` targeting the copy's own
+/// stack-entry id (the ONLY id that could ever legitimately name it).
+#[test]
+fn test_dx25_countering_a_copy_moves_no_card() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let registry = CardRegistry::new(vec![]);
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .object(
+            ObjectSpec::card(p1, "Mock Original Spell")
+                .in_zone(ZoneId::Stack)
+                .with_card_id(CardId("mock-original-spell".to_string())),
+        )
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+
+    let original_card_id = find_object(&state, "Mock Original Spell");
+    let original_stack_id = {
+        let stack_id = test_util::next_object_id(&mut state);
+        state.stack_objects_mut().push_back(StackObject {
+            id: stack_id,
+            controller: p1,
+            kind: StackObjectKind::Spell {
+                source_object: original_card_id,
+            },
+            targets: vec![],
+            cant_be_countered: false,
+            is_copy: false,
+            cast_with_flashback: false,
+            kicker_times_paid: 0,
+            was_evoked: false,
+            was_bestowed: false,
+            cast_with_madness: false,
+            cast_with_miracle: false,
+            was_escaped: false,
+            cast_with_foretell: false,
+            was_buyback_paid: false,
+            was_suspended: false,
+            was_overloaded: false,
+            cast_with_jump_start: false,
+            cast_with_aftermath: false,
+            was_dashed: false,
+            was_warped: false,
+            was_blitzed: false,
+            was_plotted: false,
+            was_prototyped: false,
+            was_impended: false,
+            was_bargained: false,
+            was_surged: false,
+            was_casualty_paid: false,
+            was_cleaved: false,
+            was_cast_as_adventure: false,
+            x_value: 0,
+            evidence_collected: false,
+            spliced_effects: vec![],
+            spliced_card_ids: vec![],
+            modes_chosen: vec![],
+            is_cast_transformed: false,
+            additional_costs: vec![],
+            damaged_player: None,
+            combat_damage_amount: 0,
+            triggering_creature_id: None,
+            cast_from_top_with_bonus: false,
+            sacrificed_creature_lki: vec![],
+            lki_counters: imbl::OrdMap::new(),
+            lki_power: None,
+            defending_player: None,
+        });
+        stack_id
+    };
+
+    // CR 707.10: put a copy of the spell on the stack, above the original.
+    let (copy_stack_id, _copy_event) =
+        mtg_engine::rules::copy::copy_spell_on_stack(&mut state, original_stack_id, p2, false)
+            .unwrap_or_else(|e| panic!("copy_spell_on_stack failed: {:?}", e));
+    assert_eq!(
+        state.stack_objects().len(),
+        2,
+        "original + copy on the stack"
+    );
+
+    // Counter the COPY, by its own stack-entry id (the only legitimate way to
+    // name it -- see the doc comment above).
+    let mut ctx = EffectContext::new(
+        p1,
+        original_card_id,
+        vec![SpellTarget {
+            target: Target::Object(copy_stack_id),
+            zone_at_cast: None,
+        }],
+    );
+    let events = execute_effect(
+        &mut state,
+        &Effect::CounterSpell {
+            target: CardEffectTarget::DeclaredTarget { index: 0 },
+            exile_instead: false,
+        },
+        &mut ctx,
+    );
+
+    assert_eq!(
+        state.stack_objects().len(),
+        1,
+        "CR 707.10a: only the copy's entry should be removed"
+    );
+    assert!(
+        state
+            .stack_objects()
+            .iter()
+            .any(|so| so.id == original_stack_id),
+        "the ORIGINAL's stack entry must be untouched"
+    );
+    assert_eq!(
+        state.objects().get(&original_card_id).map(|o| o.zone),
+        Some(ZoneId::Stack),
+        "CR 707.10: the ORIGINAL's card must still be in ZoneId::Stack -- the copy \
+         has no card of its own to move"
+    );
+    assert_eq!(
+        events
+            .iter()
+            .filter(|e| matches!(e, GameEvent::SpellCountered { .. }))
+            .count(),
+        1,
+        "exactly one SpellCountered event expected, got {:?}",
+        events
+    );
+    assert!(
+        events.iter().any(|e| matches!(
+            e,
+            GameEvent::SpellCountered { stack_object_id, source_object_id, .. }
+            if *stack_object_id == copy_stack_id && *source_object_id == copy_stack_id
+        )),
+        "CR 707.10: SpellCountered for a copy must name the copy's OWN stack-entry \
+         id for both stack_object_id and source_object_id (no card id may be named) \
+         -- got {:?}",
+        events
+    );
+
+    // Non-vacuity, same test: countering the ORIGINAL (sibling fixture) DOES
+    // move its card -- proving this fixture/effect path is capable of moving a
+    // card at all, so the "no card moved" assertion above is a real negative.
+    let mut ctx2 = EffectContext::new(
+        p1,
+        original_card_id,
+        vec![SpellTarget {
+            target: Target::Object(original_card_id),
+            zone_at_cast: None,
+        }],
+    );
+    let _ = execute_effect(
+        &mut state,
+        &Effect::CounterSpell {
+            target: CardEffectTarget::DeclaredTarget { index: 0 },
+            exile_instead: false,
+        },
+        &mut ctx2,
+    );
+    assert!(
+        state.stack_objects().is_empty(),
+        "CR 701.6a: countering the original should remove its stack entry too"
+    );
+    assert!(
+        find_in_zone(&state, "Mock Original Spell", ZoneId::Graveyard(p1)).is_some(),
+        "non-vacuity: countering the ORIGINAL (not a copy) DOES move its card -- \
+         this fixture and Effect::CounterSpell are capable of moving a card"
+    );
+}
+
+// ── T4 — destination preservation (CR 702.34a / CR 702.133a) ───────────────────
+
+/// CR 701.6a / CR 702.34a / CR 702.133a — a countered spell's destination is
+/// Exile when `exile_instead` or `cast_with_flashback` was set, and
+/// `Graveyard(owner)` otherwise -- with `owner != controller` so the OWNER
+/// lookup (not the controller) is what is actually being exercised. A fourth
+/// sub-case pins that a `MutatingCreatureSpell` structurally cannot carry
+/// `cast_with_flashback` (mutually exclusive alternative costs, CR 118.9) --
+/// asserted, not exercised, since there is no way to construct that state.
+#[test]
+fn test_dx25_countered_spell_destination_is_preserved() {
+    let p1 = p(1); // owner
+    let p2 = p(2); // controller (e.g. after a control-change effect)
+    let registry = CardRegistry::new(vec![]);
+
+    let push_spell = |state: &mut GameState,
+                      card_id: ObjectId,
+                      controller: PlayerId,
+                      cast_with_flashback: bool,
+                      cast_with_jump_start: bool| {
+        let stack_id = test_util::next_object_id(state);
+        state.stack_objects_mut().push_back(StackObject {
+            id: stack_id,
+            controller,
+            kind: StackObjectKind::Spell {
+                source_object: card_id,
+            },
+            targets: vec![],
+            cant_be_countered: false,
+            is_copy: false,
+            cast_with_flashback,
+            kicker_times_paid: 0,
+            was_evoked: false,
+            was_bestowed: false,
+            cast_with_madness: false,
+            cast_with_miracle: false,
+            was_escaped: false,
+            cast_with_foretell: false,
+            was_buyback_paid: false,
+            was_suspended: false,
+            was_overloaded: false,
+            cast_with_jump_start,
+            cast_with_aftermath: false,
+            was_dashed: false,
+            was_warped: false,
+            was_blitzed: false,
+            was_plotted: false,
+            was_prototyped: false,
+            was_impended: false,
+            was_bargained: false,
+            was_surged: false,
+            was_casualty_paid: false,
+            was_cleaved: false,
+            was_cast_as_adventure: false,
+            x_value: 0,
+            evidence_collected: false,
+            spliced_effects: vec![],
+            spliced_card_ids: vec![],
+            modes_chosen: vec![],
+            is_cast_transformed: false,
+            additional_costs: vec![],
+            damaged_player: None,
+            combat_damage_amount: 0,
+            triggering_creature_id: None,
+            cast_from_top_with_bonus: false,
+            sacrificed_creature_lki: vec![],
+            lki_counters: imbl::OrdMap::new(),
+            lki_power: None,
+            defending_player: None,
+        });
+        stack_id
+    };
+
+    let counter = |state: &mut GameState, card_id: ObjectId, exile_instead: bool| {
+        let mut ctx = EffectContext::new(
+            p2,
+            card_id,
+            vec![SpellTarget {
+                target: Target::Object(card_id),
+                zone_at_cast: None,
+            }],
+        );
+        execute_effect(
+            state,
+            &Effect::CounterSpell {
+                target: CardEffectTarget::DeclaredTarget { index: 0 },
+                exile_instead,
+            },
+            &mut ctx,
+        )
+    };
+
+    // Sub-case 1: exile_instead: true -> Exile.
+    {
+        let mut state = GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(p2)
+            .with_registry(registry.clone())
+            .object(
+                ObjectSpec::card(p1, "Card A")
+                    .in_zone(ZoneId::Stack)
+                    .with_card_id(CardId("card-a".to_string())),
+            )
+            .active_player(p1)
+            .at_step(Step::PreCombatMain)
+            .build()
+            .unwrap();
+        let card_id = find_object(&state, "Card A");
+        push_spell(&mut state, card_id, p2, false, false);
+        counter(&mut state, card_id, true);
+        assert!(
+            find_in_zone(&state, "Card A", ZoneId::Exile).is_some(),
+            "CR 701.6a: exile_instead should send the card to Exile"
+        );
+    }
+
+    // Sub-case 2: cast_with_flashback: true -> Exile.
+    {
+        let mut state = GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(p2)
+            .with_registry(registry.clone())
+            .object(
+                ObjectSpec::card(p1, "Card B")
+                    .in_zone(ZoneId::Stack)
+                    .with_card_id(CardId("card-b".to_string())),
+            )
+            .active_player(p1)
+            .at_step(Step::PreCombatMain)
+            .build()
+            .unwrap();
+        let card_id = find_object(&state, "Card B");
+        push_spell(&mut state, card_id, p2, true, false);
+        counter(&mut state, card_id, false);
+        assert!(
+            find_in_zone(&state, "Card B", ZoneId::Exile).is_some(),
+            "CR 702.34a: a flashback-cast spell should be exiled when countered"
+        );
+    }
+
+    // Sub-case 3: neither -> Graveyard(owner), owner != controller.
+    {
+        let mut state = GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(p2)
+            .with_registry(registry.clone())
+            .object(
+                ObjectSpec::card(p1, "Card C")
+                    .in_zone(ZoneId::Stack)
+                    .with_card_id(CardId("card-c".to_string())),
+            )
+            .active_player(p1)
+            .at_step(Step::PreCombatMain)
+            .build()
+            .unwrap();
+        let card_id = find_object(&state, "Card C");
+        // Controller p2, but the CARD's owner (set by ObjectSpec::card(p1, ..))
+        // is p1 -- discriminates the owner lookup from a controller fallback.
+        push_spell(&mut state, card_id, p2, false, false);
+        counter(&mut state, card_id, false);
+        assert!(
+            find_in_zone(&state, "Card C", ZoneId::Graveyard(p1)).is_some(),
+            "CR 701.6a: with neither exile_instead nor flashback, the card goes to \
+             its OWNER's (p1's) graveyard, not the controller's (p2's)"
+        );
+        assert!(
+            find_in_zone(&state, "Card C", ZoneId::Graveyard(p2)).is_none(),
+            "the card must NOT be in the controller's graveyard"
+        );
+    }
+
+    // Sub-case 4: a MutatingCreatureSpell structurally cannot carry
+    // cast_with_flashback -- mutually exclusive alternative costs (CR 118.9: a
+    // spell is cast via at most one alternative cost). Asserted, not exercised
+    // via a fixture: `CastSpellData::alt_cost` (`rules/command.rs:792`) is a
+    // single `Option<AltCostKind>`, and `casting.rs`'s alt-cost dispatch
+    // (`:2527`, cited by the plan) picks the `MutatingCreatureSpell` kind and
+    // the `cast_with_flashback` flag from two DISJOINT arms of that same
+    // `Option` match -- one CastSpell command can select at most one, so no
+    // legal command, and therefore no `StackObject`, is ever constructed with
+    // both `kind: StackObjectKind::MutatingCreatureSpell` and
+    // `cast_with_flashback: true` set together. This is a fact about the
+    // command's shape, not a runtime behaviour a fixture can exercise.
+}
+
+// ── T5 — cant_be_countered still sets countered_spell_controller ───────────────
+
+/// EF-W-MISS-1 / An Offer You Can't Refuse ruling (2022-04-29), CR 701.6a — a
+/// `cant_be_countered` mutate spell: the entry stays on the stack, the card
+/// stays in `ZoneId::Stack`, and `ctx.countered_spell_controller` is STILL set
+/// (captured before the `cant_be_countered` check, unconditionally). Newly
+/// reachable by this batch: before PB-DX25, `position()` never found a
+/// `MutatingCreatureSpell` at all, so this line of `Effect::CounterSpell` never
+/// ran for one.
+#[test]
+fn test_dx25_uncounterable_mutate_spell_still_sets_the_controller() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let registry = CardRegistry::new(vec![]);
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .object(
+            ObjectSpec::card(p1, "Mock Mutating Beast")
+                .in_zone(ZoneId::Stack)
+                .with_card_id(CardId("mock-mutating-beast".to_string())),
+        )
+        .object(wolf_spec(p1))
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+
+    let beast_card_id = find_object(&state, "Mock Mutating Beast");
+    let wolf_id = find_object(&state, "Mock Wolf");
+    push_mutating_creature_spell_stack_object(&mut state, beast_card_id, wolf_id, p1);
+    // CR 101.6: mark it uncounterable.
+    state.stack_objects_mut()[0].cant_be_countered = true;
+
+    let mut ctx = EffectContext::new(
+        p2,
+        wolf_id,
+        vec![SpellTarget {
+            target: Target::Object(beast_card_id),
+            zone_at_cast: None,
+        }],
+    );
+    let events = execute_effect(
+        &mut state,
+        &Effect::CounterSpell {
+            target: CardEffectTarget::DeclaredTarget { index: 0 },
+            exile_instead: false,
+        },
+        &mut ctx,
+    );
+
+    assert_eq!(
+        state.stack_objects().len(),
+        1,
+        "CR 101.6: an uncounterable spell's entry must stay on the stack"
+    );
+    assert_eq!(
+        state.objects().get(&beast_card_id).map(|o| o.zone),
+        Some(ZoneId::Stack),
+        "the card must stay in ZoneId::Stack -- nothing was countered"
+    );
+    assert!(
+        events.is_empty(),
+        "no SpellCountered event should be emitted, got {:?}",
+        events
+    );
+    assert_eq!(
+        ctx.countered_spell_controller,
+        Some(p1),
+        "EF-W-MISS-1 / An Offer: countered_spell_controller must be set to the \
+         (uncounterable) target's controller even though nothing was countered"
     );
 }
 
