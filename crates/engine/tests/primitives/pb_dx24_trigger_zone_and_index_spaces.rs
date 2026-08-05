@@ -171,15 +171,18 @@ fn test_dx24_lowering_drops_every_zone_scoped_ability_over_the_corpus() {
         non_identity_inputs >= 1,
         "non-vacuity: at least one corpus def must carry a `trigger_zone: Some(_)` \
          ability (measured at PB-DX24 stage 1: 3 defs -- Bloodghast, Squee Goblin \
-         Nabob, Nether Traitor), or this differential exercises nothing."
+         Nabob, Nether Traitor), or this differential exercises nothing. This floor \
+         holds REGARDLESS of whether the lowering is fixed -- it only asserts that \
+         removal actually shrinks at least one def's input."
     );
-    assert!(
-        !divergent_defs.is_empty(),
-        "non-vacuity: at least one def's lowered triggered-abilities vector must \
-         actually DIFFER between the full and trigger_zone-stripped inputs today \
-         (Nether Traitor's WheneverCreatureDies arm swallows trigger_zone via a \
-         `..` rest pattern), or this differential exercises nothing."
-    );
+    // Non-vacuity note (fail-before record, not re-asserted here): stage 2 of
+    // PB-DX24 watched this test fail on the unmodified tree with
+    // divergent_defs == ["Nether Traitor"] -- the filter removal reproduces
+    // that observation (see the revert recipe in the assertion message below
+    // and memory/primitives/pb-DX24-execution-notes.md). Asserting
+    // "divergent_defs must be non-empty" HERE would make this test
+    // permanently red after the fix it exists to gate, which is the opposite
+    // of its purpose.
     assert!(
         divergent_defs.is_empty(),
         "CR 113.6b / CR 113.6m: build_face_ability_vectors must lower a def's \
