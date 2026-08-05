@@ -704,3 +704,50 @@ a revert introduced and then restored by this runner.
   own record, but were not attested by either runner -- Stage 7's job).
 * Final test count at the end of THIS runner's work: **4,450 / 0 / 5** on
   this branch. PROTOCOL 35 / HASH 73, both gate-confirmed unmoved.
+
+---
+
+## Stage 7 — coordinator measurements (worker `scutemob-203`)
+
+### Coverage: 0 flips, verified by REGENERATION, not by an empty diff
+
+Criterion 6233 asks for regeneration specifically, so the empty `crates/card-defs/`
+diff was not accepted as sufficient. `python3 tools/authoring-report.py` executed at
+`13127136`:
+
+```
+1,803 files | clean 1,133 (62.8%) | todo 519 | empty 151
+plan: 1,501 / 1,636 (91.7%) authored, 135 missing, 321 extras
+```
+
+**1,133 / 1,803 = 62.8% — identical to the PB-DX24 pin.** Diffing the regenerated
+`docs/authoring-status.md` against the committed one shows **only** self-dating
+metadata: the `**Git:**` line (SHA + branch), the rolling "last 7 days" commit
+counter, and the tail of the recent-commit list. **No coverage row moved.**
+
+The regenerated files were then **restored with `git checkout`** and are NOT part of
+this batch's diff. Note for the next reader: the committed `docs/authoring-status.md`
+was generated on the `feat/sim-6-...` branch and carries that SHA — it is stale as a
+*header*, current as a *measurement*. Regenerating it is a measurement, not a
+deliverable, and committing it would put this branch's SHA in a file every parallel
+branch also touches.
+
+### Benches: within noise, and the direction is not a regression
+
+`cargo bench --bench engine_perf -- --warm-up-time 1 --measurement-time 3`
+(short measurement window — a sanity check, not a pinned benchmark run):
+
+| bench | this batch | PB-DX24 pin |
+|---|---|---|
+| `priority_cycle_4p` | 24.3–24.7 µs | 25.5–26.0 µs |
+| `full_turn_4p` | 214.1–215.4 µs | 221.5–223.5 µs |
+| `sba_check` | 15.1–15.3 µs | — |
+| `priority_cycle_6p` | 38.4–38.9 µs | — |
+| `full_turn_6p` | 340.1–342.2 µs | — |
+| `board_wipe_4p` | 123.8–126.4 µs | — |
+
+Expected: the classification is one non-allocating `match` per stack entry examined,
+on a path that runs once per counter resolution — not per priority pass and not per
+SBA check. Nothing in the benched paths calls it at all, which is why the two
+comparable rows land slightly *below* the prior pin rather than above; read that as
+machine/measurement-window variance, **not** as an improvement this batch earned.
