@@ -3184,8 +3184,13 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         let card_id = obj.card_id.clone();
                         if let Some(cid) = card_id {
                             if let Some(def) = state.card_registry.get(cid) {
+                                // CR 702.165a / OOS-DX1-4 Q1 (PB-DX24): one binding serves BOTH
+                                // the enumerate() below and the "printed below this one" slice,
+                                // so index and slice can never diverge across a DFC's two faces.
+                                // "Printed below" is a property of the VISIBLE face.
+                                let eff = def.effective_abilities(obj.is_transformed);
                                 // Find all Backup(N) instances and their positions.
-                                for (idx, ability) in def.abilities.iter().enumerate() {
+                                for (idx, ability) in eff.iter().enumerate() {
                                     if let crate::cards::card_definition::AbilityDefinition::Keyword(
                                         KeywordAbility::Backup(n),
                                     ) = ability
@@ -3193,8 +3198,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         // CR 702.165d: Snapshot abilities below this Backup entry.
                                         // CR 702.165a: "non-backup abilities printed below this one"
                                         // CR 702.165c: Only printed abilities.
-                                        let abilities_below: Vec<KeywordAbility> = def.abilities
-                                            [idx + 1..]
+                                        let abilities_below: Vec<KeywordAbility> = eff[idx + 1..]
                                             .iter()
                                             .filter_map(|a| match a {
                                                 crate::cards::card_definition::AbilityDefinition::Keyword(kw)
@@ -3802,7 +3806,13 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     let caster = stack_obj.controller;
                     if let Some(card_id) = stack_obj.card_id.clone() {
                         if let Some(def) = state.card_registry.get(card_id) {
-                            for (idx, ability) in def.abilities.iter().enumerate() {
+                            // OOS-DX1-4 Q2 (PB-DX24): `is_transformed` is never true on a
+                            // stack object (it is set only at ETB and reset on every zone
+                            // change, `state/mod.rs`), so this is defensive rather than a
+                            // live repair -- it makes the queue side the SAME expression the
+                            // read side uses (`resolution.rs`), not accidentally equal to it.
+                            let eff = def.effective_abilities(stack_obj.is_transformed);
+                            for (idx, ability) in eff.iter().enumerate() {
                                 if let AbilityDefinition::Triggered {
                                     trigger_condition: TriggerCondition::WhenYouCastThisSpell,
                                     intervening_if,
@@ -4156,8 +4166,12 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         // CR 603.4 (PB-DP6): gate at queue time. The
                                         // guard above already requires
                                         // `zone == Battlefield && is_phased_in()`.
+                                        // OOS-DX1-4 Q3 (PB-DX24): an attacking transformed
+                                        // DFC is ordinary, and the read side
+                                        // (`resolution.rs`) is already face-aware -- read
+                                        // the same face here.
                                         let carddef_indices: Vec<usize> = def
-                                            .abilities
+                                            .effective_abilities(src_obj.is_transformed)
                                             .iter()
                                             .enumerate()
                                             .filter_map(|(idx, a)| match a {
@@ -5205,8 +5219,10 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                     {
                                         // CR 603.4 (PB-DP6): gate at queue time. LKI
                                         // source read via `fizzle_object` above.
+                                        // OOS-DX1-4 Q4 (PB-DX24): same argument as Q3 --
+                                        // the read side (`resolution.rs`) is face-aware.
                                         let carddef_indices: Vec<usize> = def
-                                            .abilities
+                                            .effective_abilities(src_obj.is_transformed)
                                             .iter()
                                             .enumerate()
                                             .filter_map(|(idx, a)| match a {
@@ -6178,12 +6194,19 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     .map(|obj| obj.id)
                     .collect();
                 for obj_id in obj_ids {
-                    let card_id = state.expect_object(obj_id).and_then(|o| o.card_id.clone());
+                    let Some(obj) = state.expect_object(obj_id) else {
+                        continue;
+                    };
+                    let card_id = obj.card_id.clone();
+                    let is_transformed = obj.is_transformed;
                     let Some(cid) = card_id else { continue };
                     let Some(def) = state.card_registry.get(cid) else {
                         continue;
                     };
-                    for (idx, ability) in def.abilities.iter().enumerate() {
+                    // OOS-DX1-4 Q6 (PB-DX24): `obj` is already in hand; read the same
+                    // face the resolution side (`resolution.rs`) reads.
+                    for (idx, ability) in def.effective_abilities(is_transformed).iter().enumerate()
+                    {
                         if let AbilityDefinition::Triggered {
                             trigger_condition: TriggerCondition::WheneverRingTemptsYou,
                             intervening_if,
@@ -7172,22 +7195,36 @@ fn collect_graveyard_carddef_triggers(
     };
     use crate::state::game_object::TriggerEvent;
     // Collect all graveyard object IDs first to avoid borrow issues.
-    let gy_objects: Vec<(ObjectId, PlayerId, Option<crate::state::player::CardId>)> = state
+    let gy_objects: Vec<(
+        ObjectId,
+        PlayerId,
+        Option<crate::state::player::CardId>,
+        bool,
+    )> = state
         .objects
         .values()
         .filter_map(|obj| match obj.zone {
-            ZoneId::Graveyard(owner) => Some((obj.id, owner, obj.card_id.clone())),
+            ZoneId::Graveyard(owner) => {
+                Some((obj.id, owner, obj.card_id.clone(), obj.is_transformed))
+            }
             _ => None,
         })
         .collect();
-    for (obj_id, owner, card_id_opt) in gy_objects {
+    for (obj_id, owner, card_id_opt, is_transformed) in gy_objects {
         let Some(card_id) = card_id_opt else {
             continue;
         };
         let Some(def) = state.card_registry.get(card_id) else {
             continue;
         };
-        for (idx, ability) in def.abilities.iter().enumerate() {
+        // OOS-DX1-4 Q7 (PB-DX24): `is_transformed` is always false for a graveyard
+        // object (reset on every zone change, `state/mod.rs`), so this is defensive
+        // rather than a live repair -- it makes this loop's expression the SAME as
+        // the read side's (`resolution.rs`), rather than resting on a distant
+        // reset-on-zone-change invariant. This batch also adds a second `fires` arm
+        // to this same loop (Change 3), so making it uniform now matters more than
+        // usual.
+        for (idx, ability) in def.effective_abilities(is_transformed).iter().enumerate() {
             let AbilityDefinition::Triggered {
                 trigger_condition,
                 intervening_if,

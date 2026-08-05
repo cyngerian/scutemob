@@ -7668,12 +7668,25 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                                 // `PermanentTurnedFaceUp` arm) is not the whole
                                 // rule; CR 603.4 requires a second check here.
                                 // Same evaluability guard as the harmonised
-                                // registry-path re-check above (§9.3). Both
-                                // ends of THIS trigger index `def.abilities`
-                                // (never `effective_abilities(is_transformed)`),
-                                // so there is no OOS-DP6-2 index-space hazard --
-                                // the face-unaware indexing itself is a shared,
-                                // separate, latent gap (seeded OOS-DX1-4).
+                                // registry-path re-check above (§9.3).
+                                //
+                                // OOS-DX1-4 Q5 (measured, PB-DX24): both ends of
+                                // THIS trigger deliberately index plain
+                                // `def.abilities`, never
+                                // `effective_abilities(is_transformed)`, and that
+                                // is CORRECT rather than latent -- CR 712.2
+                                // forbids turning a transforming double-faced
+                                // card face down, so a `PermanentTurnedFaceUp`
+                                // source can never be a transformed DFC and
+                                // `is_transformed` is unreachable here. PB-DX24
+                                // measured this and fixed the six OTHER
+                                // OOS-DX1-4 sites (Q1/Q2/Q3/Q4/Q6/Q7) where the
+                                // queue and read sides genuinely disagreed; this
+                                // site was re-scoped with no code change because
+                                // the queue side (`abilities.rs`'s
+                                // `PermanentTurnedFaceUp` arm) already uses plain
+                                // `def.abilities` too, so the pair is
+                                // self-consistent on the unreachable case.
                                 let condition_holds = intervening_if
                                     .as_ref()
                                     .map(|cond| {

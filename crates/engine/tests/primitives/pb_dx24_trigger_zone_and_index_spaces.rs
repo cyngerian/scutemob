@@ -19,12 +19,16 @@
 //! half (Change 3). T10-family (stage 5) covers the index-space fixes
 //! (Change 4, OOS-DX1-4).
 
+use mtg_engine::rules::abilities::check_triggers;
 use mtg_engine::state::stubs::PendingTriggerKind;
 use mtg_engine::testing::replay_harness::build_face_ability_vectors;
 use mtg_engine::{
-    all_cards, check_and_apply_sbas, enrich_spec_from_def, process_command, CardDefinition,
-    CardRegistry, Command, GameEvent, GameState, GameStateBuilder, ManaPool, ObjectId, ObjectSpec,
-    PlayerId, PlayerTarget, Step, TriggerCondition, TriggerEvent, ZoneId,
+    all_cards, check_and_apply_sbas, enrich_spec_from_def, process_command, AltCostKind,
+    AttackTarget, CardDefinition, CardFace, CardId, CardRegistry, CardType, CastSpellData, Color,
+    CombatDamageAssignment, CombatDamageTarget, Command, CounterType, Effect, EffectAmount,
+    GameEvent, GameState, GameStateBuilder, KeywordAbility, ManaColor, ManaCost, ManaPool,
+    ObjectId, ObjectSpec, PlayerId, PlayerTarget, Step, SubType, TriggerCondition, TriggerEvent,
+    TypeLine, ZoneId,
 };
 use std::collections::HashMap;
 
@@ -819,6 +823,693 @@ fn test_dx24_graveyard_death_filter_subtype_filter() {
             fired, expect_fires,
             "CR 613.1d: subtype-filtered watcher, fodder_subtypes={fodder_subtypes:?} \
              -- expected fires={expect_fires}, got {fired}"
+        );
+    }
+}
+
+// ── T10-family (stage 5): OOS-DX1-4 Q1/Q3/Q4/Q6 — the two index spaces ──────
+//
+// Q1/Q3/Q4/Q6 are genuinely reachable index-space disagreements (§4.1 of the
+// plan): the queue side indexed `def.abilities` (front face always) while the
+// resolution side indexes `def.effective_abilities(is_transformed)`
+// (face-aware). §4.2's corpus measurement found 0 real cards exercising any
+// of the 7 shapes on a back face, so every probe below uses a SYNTHETIC
+// `CardDefinition`/`CardFace`, mirroring `pb_rs4_face_aware_residuals.rs`
+// (the precedent for this whole half of the batch).
+//
+// Q2 (stack) and Q7 (graveyard) are DEFENSIVE fixes: §4.0 establishes that
+// `is_transformed` is reachable-true on a BATTLEFIELD permanent only (set at
+// exactly one production site, resolution.rs's disturb ETB), so a stack
+// object or a graveyard object can never actually show the divergence a
+// behavioral probe would need to discriminate -- reverting either site
+// produces the SAME observable behavior post-revert as pre-revert, because
+// `effective_abilities(false) == &self.abilities` by `effective_abilities`'s
+// own `(_, _) => &self.abilities` match arm. Per the task's explicit
+// allowance, these two are pinned at the STRUCTURAL level instead
+// (`test_dx24_q2_and_q7_queue_sites_call_effective_abilities` below), plus a
+// pin on the §4.0 invariant itself that the fix's "zero behaviour change"
+// claim depends on.
+
+fn cid(s: &str) -> CardId {
+    CardId(s.to_string())
+}
+
+// ── Q1: Backup, via a disturb DFC (the one production path that sets
+//    is_transformed == true on an ENTERING permanent) ──────────────────────
+
+/// A minimal Disturb DFC: front is a vanilla {W} 1/1 Human with Disturb and NO
+/// Backup ability; the back face's ONLY ability is `Keyword(Backup(2))`.
+fn q1_disturb_backup_def() -> CardDefinition {
+    CardDefinition {
+        card_id: cid("dx24-q1-backup-disturb"),
+        name: "DX24 Q1 Backup Front".to_string(),
+        mana_cost: Some(ManaCost {
+            white: 1,
+            ..Default::default()
+        }),
+        types: TypeLine {
+            card_types: [CardType::Creature].into_iter().collect(),
+            subtypes: [SubType("Human".to_string())].into_iter().collect(),
+            ..Default::default()
+        },
+        oracle_text: String::new(),
+        abilities: vec![
+            CardDefAbilityDefinition::Keyword(KeywordAbility::Disturb),
+            CardDefAbilityDefinition::Disturb {
+                cost: ManaCost {
+                    white: 1,
+                    generic: 1,
+                    ..Default::default()
+                },
+            },
+        ],
+        power: Some(1),
+        toughness: Some(1),
+        color_indicator: None,
+        back_face: Some(CardFace {
+            name: "DX24 Q1 Backup Back".to_string(),
+            mana_cost: None,
+            types: TypeLine {
+                card_types: [CardType::Creature, CardType::Enchantment]
+                    .into_iter()
+                    .collect(),
+                subtypes: [SubType("Spirit".to_string())].into_iter().collect(),
+                ..Default::default()
+            },
+            oracle_text: String::new(),
+            abilities: vec![CardDefAbilityDefinition::Keyword(KeywordAbility::Backup(2))],
+            power: Some(3),
+            toughness: Some(2),
+            color_indicator: Some(vec![Color::White]),
+        }),
+        ..Default::default()
+    }
+}
+
+fn empty_cast_spell_disturb(player: PlayerId, card: ObjectId) -> Command {
+    Command::CastSpell(Box::new(CastSpellData {
+        player,
+        card,
+        alt_cost: Some(AltCostKind::Disturb),
+        targets: vec![],
+        convoke_creatures: vec![],
+        improvise_artifacts: vec![],
+        delve_cards: vec![],
+        kicker_times: 0,
+        prototype: false,
+        modes_chosen: vec![],
+        x_value: 0,
+        face_down_kind: None,
+        additional_costs: vec![],
+        hybrid_choices: vec![],
+        phyrexian_life_payments: vec![],
+    }))
+}
+
+/// CR 702.165a / OOS-DX1-4 Q1: a disturb DFC whose BACK face is the only face
+/// declaring `Backup(2)` must fire its ETB Backup trigger once it enters
+/// back-face-up -- Q1's queue site must read the SAME face the permanent is
+/// actually showing, not always the front `def.abilities`.
+///
+/// The pushed trigger's default target is the source itself (abilities.rs's
+/// `ETBBackup { target: *object_id, .. }`), so a FIXED queue site puts
+/// exactly 2 +1/+1 counters on the entered permanent once the trigger
+/// resolves; a BROKEN queue site (reading the front list, which has no
+/// Backup ability at all) queues nothing, so the permanent ends with 0
+/// counters. Revert (restore `def.abilities` at the Q1 site): counters == 0.
+#[test]
+fn test_dx24_backup_lowering_reads_the_visible_face_of_a_disturbed_dfc() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let def = q1_disturb_backup_def();
+    let registry = CardRegistry::new(vec![def.clone()]);
+
+    let mut spec = ObjectSpec::card(p1, &def.name)
+        .in_zone(ZoneId::Graveyard(p1))
+        .with_card_id(def.card_id.clone())
+        .with_types(vec![CardType::Creature])
+        .with_keyword(KeywordAbility::Disturb)
+        .with_mana_cost(ManaCost {
+            white: 1,
+            ..Default::default()
+        });
+    spec.power = Some(1);
+    spec.toughness = Some(1);
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .object(spec)
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+
+    let card_id = def.card_id.clone();
+    let beggar_id = find_by_name(&state, &def.name);
+    state
+        .players_mut()
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::White, 1);
+    state
+        .players_mut()
+        .get_mut(&p1)
+        .unwrap()
+        .mana_pool
+        .add(ManaColor::Colorless, 1);
+    state.turn_mut().priority_holder = Some(p1);
+
+    let (state, _) = process_command(state, empty_cast_spell_disturb(p1, beggar_id))
+        .unwrap_or_else(|e| panic!("cast with disturb should succeed: {:?}", e));
+    let state = drain_stack(state, &[p1, p2]);
+
+    let entered_id = state
+        .objects()
+        .iter()
+        .find(|(_, obj)| {
+            obj.zone == ZoneId::Battlefield
+                && obj.card_id == Some(card_id.clone())
+                && obj.is_transformed
+        })
+        .map(|(id, _)| *id)
+        .expect("back face should be on the battlefield");
+    // Resolving the Backup trigger's KeywordTrigger stack object requires
+    // another drain pass (the ETB trigger itself resolves onto the stack
+    // separately from the permanent it came from).
+    let state = drain_stack(state, &[p1, p2]);
+
+    let counters = state.objects()[&entered_id]
+        .counters
+        .get(&CounterType::PlusOnePlusOne)
+        .copied()
+        .unwrap_or(0);
+    assert_eq!(
+        counters, 2,
+        "CR 702.165a / OOS-DX1-4 Q1: the back face's Backup(2) ETB trigger must \
+         fire and put 2 +1/+1 counters on the entered (back-face) permanent -- \
+         Q1's queue site must read the visible (back) face, not always \
+         def.abilities. Got {counters} counters."
+    );
+}
+
+// ── Q3: WhenExertedAsAttacks, via Command::Transform on a battlefield DFC ───
+
+fn q3_exert_dfc_def() -> CardDefinition {
+    CardDefinition {
+        card_id: cid("dx24-q3-exert-transform"),
+        name: "DX24 Q3 Front".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            ..Default::default()
+        }),
+        types: TypeLine {
+            card_types: [CardType::Creature].into_iter().collect(),
+            ..Default::default()
+        },
+        oracle_text: "Transform".to_string(),
+        abilities: vec![CardDefAbilityDefinition::Keyword(KeywordAbility::Transform)],
+        power: Some(2),
+        toughness: Some(2),
+        color_indicator: None,
+        back_face: Some(CardFace {
+            name: "DX24 Q3 Back".to_string(),
+            mana_cost: None,
+            types: TypeLine {
+                card_types: [CardType::Creature].into_iter().collect(),
+                subtypes: [SubType("Horror".to_string())].into_iter().collect(),
+                ..Default::default()
+            },
+            oracle_text: "You may exert this creature as it attacks. When you do, \
+                           you gain 7 life."
+                .to_string(),
+            abilities: vec![
+                CardDefAbilityDefinition::Keyword(KeywordAbility::Exert),
+                CardDefAbilityDefinition::Triggered {
+                    once_per_turn: false,
+                    trigger_condition: TriggerCondition::WhenExertedAsAttacks,
+                    intervening_if: None,
+                    effect: Effect::GainLife {
+                        player: PlayerTarget::Controller,
+                        amount: EffectAmount::Fixed(7),
+                    },
+                    targets: vec![],
+                    modes: None,
+                    trigger_zone: None,
+                },
+            ],
+            power: Some(4),
+            toughness: Some(4),
+            color_indicator: Some(vec![Color::Black]),
+        }),
+        ..Default::default()
+    }
+}
+
+/// CR 701.43d / OOS-DX1-4 Q3: the BACK face's ONLY ability is `Exert` +
+/// `WhenExertedAsAttacks`. Once the permanent is `Command::Transform`ed, an
+/// attack declared with `exert_choices: [obj_id]` is legal ONLY because
+/// `calculate_characteristics` (layer-resolved, already face-aware -- an
+/// EARLIER, unrelated mechanism) reports the back face's `Exert` keyword; the
+/// LINKED trigger itself is Q3's own subject. Revert (restore `def.abilities`
+/// at the Q3 site): the back face's `WhenExertedAsAttacks` ability is never
+/// found (front declares none), so no life is gained.
+#[test]
+fn test_dx24_when_exerted_as_attacks_reads_the_visible_face_of_a_transformed_attacker() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let def = q3_exert_dfc_def();
+    let mut defs = HashMap::new();
+    defs.insert(def.name.clone(), def.clone());
+    let registry = CardRegistry::new(vec![def.clone()]);
+
+    let spec = enrich_spec_from_def(
+        ObjectSpec::card(p1, &def.name)
+            .with_card_id(def.card_id.clone())
+            .in_zone(ZoneId::Battlefield),
+        &defs,
+    );
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .object(spec)
+        .active_player(p1)
+        .at_step(Step::DeclareAttackers)
+        .build()
+        .unwrap();
+    state.turn_mut().priority_holder = Some(p1);
+
+    let obj_id = find_by_name(&state, &def.name);
+    let (state, _) = process_command(
+        state,
+        Command::Transform {
+            player: p1,
+            permanent: obj_id,
+        },
+    )
+    .expect("Transform should succeed");
+    assert!(state.objects()[&obj_id].is_transformed);
+
+    let life_before = state.players()[&p1].life_total;
+    let (state, _) = process_command(
+        state,
+        Command::DeclareAttackers {
+            player: p1,
+            attackers: vec![(obj_id, AttackTarget::Player(p2))],
+            enlist_choices: vec![],
+            exert_choices: vec![obj_id],
+            hybrid_choices: vec![],
+            phyrexian_life_payments: vec![],
+        },
+    )
+    .expect("declare attackers with exert should succeed (back face declares Exert)");
+    let state = drain_stack(state, &[p1, p2]);
+
+    let life_after = state.players()[&p1].life_total;
+    assert_eq!(
+        life_after,
+        life_before + 7,
+        "CR 701.43d / OOS-DX1-4 Q3: the back face's WhenExertedAsAttacks \
+         trigger must fire and gain 7 life -- Q3's queue site must read the \
+         visible (back) face. life_before={life_before}, life_after={life_after}"
+    );
+}
+
+// ── Q4: WhenDealsCombatDamageToPlayer, checked directly against
+//    check_triggers (see the doc comment on the test for why) ──────────────
+
+fn q4_combat_damage_dfc_def() -> CardDefinition {
+    CardDefinition {
+        card_id: cid("dx24-q4-combat-damage-transform"),
+        name: "DX24 Q4 Front".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            ..Default::default()
+        }),
+        types: TypeLine {
+            card_types: [CardType::Creature].into_iter().collect(),
+            ..Default::default()
+        },
+        oracle_text: "Transform".to_string(),
+        abilities: vec![CardDefAbilityDefinition::Keyword(KeywordAbility::Transform)],
+        power: Some(2),
+        toughness: Some(2),
+        color_indicator: None,
+        back_face: Some(CardFace {
+            name: "DX24 Q4 Back".to_string(),
+            mana_cost: None,
+            types: TypeLine {
+                card_types: [CardType::Creature].into_iter().collect(),
+                subtypes: [SubType("Horror".to_string())].into_iter().collect(),
+                ..Default::default()
+            },
+            oracle_text: "Whenever this creature deals combat damage to a player, \
+                           you gain 5 life."
+                .to_string(),
+            abilities: vec![CardDefAbilityDefinition::Triggered {
+                once_per_turn: false,
+                trigger_condition: TriggerCondition::WhenDealsCombatDamageToPlayer,
+                intervening_if: None,
+                effect: Effect::GainLife {
+                    player: PlayerTarget::Controller,
+                    amount: EffectAmount::Fixed(5),
+                },
+                targets: vec![],
+                modes: None,
+                trigger_zone: None,
+            }],
+            power: Some(4),
+            toughness: Some(4),
+            color_indicator: Some(vec![Color::Black]),
+        }),
+        ..Default::default()
+    }
+}
+
+/// CR 510.3a / OOS-DX1-4 Q4: checked directly against `check_triggers`, NOT
+/// end-to-end through combat -- `WhenDealsCombatDamageToPlayer` is ALSO
+/// lowered into the runtime Channel-A vector by `build_face_ability_vectors`
+/// (already face-aware via `apply_face_change`, an EARLIER and unrelated
+/// mechanism -- PB-OS4b/PB-RS4), so an end-to-end life-total assertion would
+/// be satisfied by Channel A alone and would NOT discriminate Q4's own raw
+/// card-registry scan in `abilities.rs`. Filtering the returned
+/// `PendingTrigger`s by `kind == PendingTriggerKind::CardDefETB` isolates
+/// exactly the code path this batch touches. Revert (restore `def.abilities`
+/// at the Q4 site): zero `CardDefETB` hits (front declares no such ability).
+#[test]
+fn test_dx24_when_deals_combat_damage_to_player_reads_the_visible_face_of_a_transformed_attacker() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let def = q4_combat_damage_dfc_def();
+    let mut defs = HashMap::new();
+    defs.insert(def.name.clone(), def.clone());
+    let registry = CardRegistry::new(vec![def.clone()]);
+
+    let spec = enrich_spec_from_def(
+        ObjectSpec::card(p1, &def.name)
+            .with_card_id(def.card_id.clone())
+            .in_zone(ZoneId::Battlefield),
+        &defs,
+    );
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .object(spec)
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+
+    let obj_id = find_by_name(&state, &def.name);
+    let (state, _) = process_command(
+        state,
+        Command::Transform {
+            player: p1,
+            permanent: obj_id,
+        },
+    )
+    .expect("Transform should succeed");
+    assert!(state.objects()[&obj_id].is_transformed);
+
+    // Re-derive the expected CARD-DEF index of the back face's
+    // WhenDealsCombatDamageToPlayer ability -- never hard-code it (T2's own
+    // convention).
+    let back_face = def.back_face.as_ref().unwrap();
+    let expected_index = back_face
+        .abilities
+        .iter()
+        .position(|a| {
+            matches!(
+                a,
+                CardDefAbilityDefinition::Triggered {
+                    trigger_condition: TriggerCondition::WhenDealsCombatDamageToPlayer,
+                    ..
+                }
+            )
+        })
+        .expect("back face must declare WhenDealsCombatDamageToPlayer");
+
+    let event = GameEvent::CombatDamageDealt {
+        assignments: vec![CombatDamageAssignment {
+            source: obj_id,
+            target: CombatDamageTarget::Player(p2),
+            amount: 3,
+        }],
+    };
+    let triggers = check_triggers(&state, &[event]);
+    let carddef_hits: Vec<_> = triggers
+        .iter()
+        .filter(|t| t.source == obj_id && t.kind == PendingTriggerKind::CardDefETB)
+        .collect();
+
+    assert_eq!(
+        carddef_hits.len(),
+        1,
+        "CR 510.3a / OOS-DX1-4 Q4: exactly one CardDefETB trigger must be \
+         queued from the back face's WhenDealsCombatDamageToPlayer ability -- \
+         Q4's queue site must read the visible (back) face. Got: {:?}",
+        carddef_hits
+    );
+    assert_eq!(
+        carddef_hits[0].ability_index, expected_index,
+        "the queued CardDefETB trigger's ability_index must be the BACK \
+         face's card-def index ({expected_index}), not a front-face index"
+    );
+}
+
+// ── Q6: WheneverRingTemptsYou, checked directly against check_triggers ──────
+
+fn q6_ring_tempts_dfc_def() -> CardDefinition {
+    CardDefinition {
+        card_id: cid("dx24-q6-ring-tempts-transform"),
+        name: "DX24 Q6 Front".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 2,
+            ..Default::default()
+        }),
+        types: TypeLine {
+            card_types: [CardType::Creature].into_iter().collect(),
+            ..Default::default()
+        },
+        oracle_text: "Transform".to_string(),
+        abilities: vec![CardDefAbilityDefinition::Keyword(KeywordAbility::Transform)],
+        power: Some(2),
+        toughness: Some(2),
+        color_indicator: None,
+        back_face: Some(CardFace {
+            name: "DX24 Q6 Back".to_string(),
+            mana_cost: None,
+            types: TypeLine {
+                card_types: [CardType::Creature].into_iter().collect(),
+                subtypes: [SubType("Horror".to_string())].into_iter().collect(),
+                ..Default::default()
+            },
+            oracle_text: "Whenever the Ring tempts you, you gain 3 life.".to_string(),
+            abilities: vec![CardDefAbilityDefinition::Triggered {
+                once_per_turn: false,
+                trigger_condition: TriggerCondition::WheneverRingTemptsYou,
+                intervening_if: None,
+                effect: Effect::GainLife {
+                    player: PlayerTarget::Controller,
+                    amount: EffectAmount::Fixed(3),
+                },
+                targets: vec![],
+                modes: None,
+                trigger_zone: None,
+            }],
+            power: Some(4),
+            toughness: Some(4),
+            color_indicator: Some(vec![Color::Black]),
+        }),
+        ..Default::default()
+    }
+}
+
+/// CR 701.54d / OOS-DX1-4 Q6: `WheneverRingTemptsYou` is not lowered into
+/// Channel A (it has no arm in `build_face_ability_vectors`), so -- unlike
+/// Q4 -- this one CAN be checked end-to-end at the `check_triggers` level
+/// without a masking second dispatch path. Revert (restore `def.abilities`
+/// at the Q6 site): zero `CardDefETB` hits (front declares no such ability).
+#[test]
+fn test_dx24_whenever_ring_tempts_you_reads_the_visible_face_of_a_transformed_permanent() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let def = q6_ring_tempts_dfc_def();
+    let mut defs = HashMap::new();
+    defs.insert(def.name.clone(), def.clone());
+    let registry = CardRegistry::new(vec![def.clone()]);
+
+    let spec = enrich_spec_from_def(
+        ObjectSpec::card(p1, &def.name)
+            .with_card_id(def.card_id.clone())
+            .in_zone(ZoneId::Battlefield),
+        &defs,
+    );
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .object(spec)
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+
+    let obj_id = find_by_name(&state, &def.name);
+    let (state, _) = process_command(
+        state,
+        Command::Transform {
+            player: p1,
+            permanent: obj_id,
+        },
+    )
+    .expect("Transform should succeed");
+    assert!(state.objects()[&obj_id].is_transformed);
+
+    let back_face = def.back_face.as_ref().unwrap();
+    let expected_index = back_face
+        .abilities
+        .iter()
+        .position(|a| {
+            matches!(
+                a,
+                CardDefAbilityDefinition::Triggered {
+                    trigger_condition: TriggerCondition::WheneverRingTemptsYou,
+                    ..
+                }
+            )
+        })
+        .expect("back face must declare WheneverRingTemptsYou");
+
+    let event = GameEvent::RingTempted {
+        player: p1,
+        new_level: 1,
+    };
+    let triggers = check_triggers(&state, &[event]);
+    let carddef_hits: Vec<_> = triggers
+        .iter()
+        .filter(|t| t.source == obj_id && t.kind == PendingTriggerKind::CardDefETB)
+        .collect();
+
+    assert_eq!(
+        carddef_hits.len(),
+        1,
+        "CR 701.54d / OOS-DX1-4 Q6: exactly one CardDefETB trigger must be \
+         queued from the back face's WheneverRingTemptsYou ability -- Q6's \
+         queue site must read the visible (back) face. Got: {:?}",
+        carddef_hits
+    );
+    assert_eq!(
+        carddef_hits[0].ability_index, expected_index,
+        "the queued CardDefETB trigger's ability_index must be the BACK \
+         face's card-def index ({expected_index}), not a front-face index"
+    );
+}
+
+// ── §4.0 invariant pin + Q2/Q7 structural pins (defensive, unreachable via
+//    the public API -- see the section doc comment above) ──────────────────
+
+/// PB-DX24 §4.0: `is_transformed` must be assignable to `true` at EXACTLY ONE
+/// production site in the engine (the disturb ETB in `resolution.rs`) -- this
+/// is the fact Q2's (stack) and Q7's (graveyard) "defensive, zero-behaviour
+/// -change" classification (plan §4.1) depends on. If a future patch adds a
+/// SECOND such site, Q2/Q7 may become LIVE repairs and this pin's failure is
+/// the signal to re-examine them, not to just widen the count.
+#[test]
+fn test_dx24_is_transformed_true_assignment_has_exactly_one_site() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+    let mut hits: Vec<String> = Vec::new();
+    scan_dir_for_is_transformed_true(&root, &mut hits);
+    assert_eq!(
+        hits.len(),
+        1,
+        "PB-DX24 §4.0: `is_transformed = true` / `is_transformed: true` must \
+         be assigned at EXACTLY ONE site in crates/engine/src (the disturb \
+         ETB in resolution.rs) -- a second site means is_transformed is \
+         reachable off the battlefield, and Q2/Q7's 'defensive, zero-\
+         behaviour-change' classification is no longer sound as stated. \
+         Found: {:?}",
+        hits
+    );
+    assert!(
+        hits[0].contains("resolution.rs"),
+        "the one site must be resolution.rs's disturb ETB assignment; found {:?}",
+        hits
+    );
+}
+
+fn scan_dir_for_is_transformed_true(dir: &std::path::Path, hits: &mut Vec<String>) {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            scan_dir_for_is_transformed_true(&path, hits);
+            continue;
+        }
+        if path.extension().and_then(|e| e.to_str()) != Some("rs") {
+            continue;
+        }
+        let Ok(contents) = std::fs::read_to_string(&path) else {
+            continue;
+        };
+        for (lineno, line) in contents.lines().enumerate() {
+            if line.trim_start().starts_with("//") {
+                continue;
+            }
+            // Strip a trailing line comment so an assignment followed by an
+            // explanatory `// ...` isn't miscounted.
+            let code_part = match line.find("//") {
+                Some(idx) => &line[..idx],
+                None => line,
+            };
+            if code_part.contains("is_transformed = true")
+                || code_part.contains("is_transformed: true")
+            {
+                hits.push(format!("{}:{}", path.display(), lineno + 1));
+            }
+        }
+    }
+}
+
+/// OOS-DX1-4 Q2/Q7: both are DEFENSIVE fixes (§4.0 -- `is_transformed` can
+/// never be true at either site, so no behavioral probe can discriminate
+/// them). Pinned structurally instead: within a small window after each
+/// site's `OOS-DX1-4 Q<n>` anchor comment in `abilities.rs`, the code must
+/// call `effective_abilities(` and must NOT fall back to the bare
+/// `.abilities.iter().enumerate()` shape the batch replaced.
+#[test]
+fn test_dx24_q2_and_q7_queue_sites_call_effective_abilities() {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/rules/abilities.rs");
+    let contents = std::fs::read_to_string(&path)
+        .unwrap_or_else(|e| panic!("failed to read {}: {e}", path.display()));
+    let lines: Vec<&str> = contents.lines().collect();
+
+    for anchor in ["OOS-DX1-4 Q2", "OOS-DX1-4 Q7"] {
+        let anchor_line = lines
+            .iter()
+            .position(|l| l.contains(anchor))
+            .unwrap_or_else(|| panic!("anchor comment `{anchor}` not found in abilities.rs"));
+        let window = &lines[anchor_line..(anchor_line + 8).min(lines.len())];
+        let window_text = window.join("\n");
+        assert!(
+            window_text.contains("effective_abilities("),
+            "OOS-DX1-4 {anchor}: the queue site must call `effective_abilities(` \
+             within 8 lines of its anchor comment. Window:\n{window_text}"
+        );
+        assert!(
+            !window_text.contains(".abilities.iter().enumerate()"),
+            "OOS-DX1-4 {anchor}: the queue site must NOT fall back to the bare \
+             `def.abilities.iter().enumerate()` shape this batch replaced. \
+             Window:\n{window_text}"
         );
     }
 }
