@@ -1987,8 +1987,9 @@ fn pb_dx6_wire_versions() {
          + Command::DeclareAttackers both gain hybrid_choices/phyrexian_life_payments)"
     );
     assert_eq!(
-        HASH_SCHEMA_VERSION, 72,
-        "HASH_SCHEMA_VERSION live sentinel -- PB-DX6 leaves it unmoved at 70 \
+        HASH_SCHEMA_VERSION, 73,
+        "HASH_SCHEMA_VERSION live sentinel -- PB-DX21 moved it 72->73 (CombatState \
+         gains attackers_declared); PB-DX6 itself left it unmoved at 70 \
          (Command has no HashInto impl; no GameState field added)"
     );
 }

@@ -66,7 +66,25 @@ pub fn handle_declare_attackers(
             actual: player,
         });
     }
+    // CR 508.1 (PB-DX21, OOS-M11-9): declaring attackers is a once-per-combat
+    // turn-based action. Rejected HERE, before the CombatState init below and
+    // before any validation, tapping (508.1f) or cost payment (508.1j), so a
+    // refused re-declaration leaves the game byte-identical (CR 732: "the game
+    // returns to the moment before the declaration").
+    if state.combat.as_ref().is_some_and(|c| c.attackers_declared) {
+        return Err(GameStateError::AlreadyDeclaredAttackers(player));
+    }
     // Initialize CombatState if not already set (may be set by BeginningOfCombat action).
+    //
+    // Review finding L2 (pre-existing, not introduced by PB-DX21): only the
+    // guard immediately above this comment avoids installing a `CombatState`
+    // as a side effect of a rejected command -- every OTHER rejection in this
+    // function (illegal attacker, tax, enlist, exert, below) runs AFTER this
+    // init, so a non-guard rejection still installs a fresh `CombatState`.
+    // Invisible through `process_command` (which drops the moved `GameState`
+    // on `Err`); visible to a direct-handler caller like this file's own T6.
+    // Note only, per the review -- moving this init below the validation loop
+    // is left to a successor batch.
     if state.combat.is_none() {
         state.combat = Some(CombatState::new(player));
     }
@@ -739,11 +757,30 @@ pub fn handle_declare_attackers(
             }
         }
     }
+    // SR-4 / review finding L1: `state.combat` is provably `Some` here -- the
+    // guard above only fires against an already-`Some` `CombatState`, and
+    // `:69-72`'s init runs unconditionally when it was `None`. Loud, not
+    // silent, if a future edit ever breaks that: skipping the marker set below
+    // would reopen the exact defect PB-DX21 closes.
+    debug_assert!(
+        state.combat.is_some(),
+        "handle_declare_attackers: state.combat must be Some here (CR 508.1) -- \
+         initialized above, and nothing between there and here clears it"
+    );
     // Record attackers in combat state.
     if let Some(combat) = state.combat.as_mut() {
         for (attacker_id, target) in &attackers {
             combat.attackers.insert(*attacker_id, target.clone());
         }
+        // CR 508.1 / 508.1a / 508.8 (PB-DX21): the turn-based action has now been
+        // performed. Set on the SUCCESS path only -- every `return Err` above leaves
+        // it clear, so a rejected declaration (an unaffordable CR 508.1h tax, an
+        // illegal attacker, a goad violation) does NOT lock out a legal retry.
+        // Set even when `attackers` is EMPTY: CR 508.1a's "if any" makes the empty
+        // choice a completed declaration, and CR 508.8 defines the game's behaviour
+        // for it. Mirrors `handle_declare_blockers`' `defenders_declared.insert`,
+        // which is likewise inside this same shape.
+        combat.attackers_declared = true;
     }
     // PB-AC6 / Raid, CR 508.1: mark that this player attacked this turn (one or more
     // attackers were declared). Only a declare-attackers action counts as "you
@@ -755,7 +792,16 @@ pub fn handle_declare_attackers(
             ps.attacked_this_turn = true;
             // PB-OS6(b) / CR 508.1/508.4: capture the declared-attacker count for
             // Condition::YouAttackedWithNOrMore. Only declared attackers count;
-            // overwritten (not accumulated) on multi-combat turns.
+            // overwritten (not accumulated) on MULTI-COMBAT turns (CR 500.8/506.5)
+            // -- e.g. `aurelia_the_warleader`'s extra combat phase. This line can no
+            // longer be reached twice for the SAME combat: PB-DX21 (`OOS-M11-9`)
+            // makes a second `DeclareAttackers` in one combat phase an error
+            // (`GameStateError::AlreadyDeclaredAttackers`, guarded earlier in this
+            // function), so the only surviving overwrite is across a
+            // `BeginningOfCombat`-to-`BeginningOfCombat` boundary, which installs a
+            // fresh `CombatState` and clears `attackers_declared`. That surviving
+            // half is filed as `OOS-DX21-1` (`windbrisk_heights.rs`,
+            // `legions_landing.rs`).
             ps.attackers_declared_this_turn = attackers.len() as u32;
         }
     }

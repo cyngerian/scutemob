@@ -716,7 +716,7 @@ treat a mismatch as a signal to stop.
 |---|---|---|---|---|---|---|
 | **1** | ~~**PB-DX19**~~ ✅ SHIPPED (`scutemob-184`, `451e3517`, 2026-08-02) | the unbounded characteristics recursion + unchecked P/T arithmetic | **OOS-SIM2-6** (HIGH) + **OOS-SIM2-5** | **CORRECTNESS — hard process abort, deck-legal** | 0 flips; closes the only HIGH in the registry; 10 arithmetic sites hardened | **none** (both fixes are arithmetic/read-site) |
 | **2** | ~~**PB-DX20**~~ ✅ SHIPPED (`scutemob-198`, `ecd7b119`, 2026-08-04) | the offer layer cannot see a keyword-carried target requirement | **OOS-CARDS2-4** (HIGH) + **OOS-CARDS1-2** | **CORRECTNESS — live in the browser on first contact** | 0 flips; repairs 13 `Complete` Auras + 1 `Complete` Reconfigure | **none** (provider + one synth site) |
-| **3** | **PB-DX21** | CR 508.1 — attackers may be declared without limit | **OOS-M11-9** | **CORRECTNESS — silent state corruption by a normal client action** | 0 flips; 14 `Complete` vigilant creatures; deletes 2 client-side mitigations | **none** if the guard reads `combat.attackers`; **HASH** if it mirrors `defenders_declared` |
+| **3** | ~~**PB-DX21**~~ ✅ SHIPPED (`scutemob-200`, 2026-08-04) | CR 508.1 — attackers may be declared without limit | **OOS-M11-9** | **CORRECTNESS — silent state corruption by a normal client action** | 0 flips (as predicted); both client-side mitigations deleted with their mechanism | **HASH 72 → 73**, gate-computed — the "none if the guard reads `combat.attackers`" branch is **refuted**, see the row's SHIPPED banner; PROTOCOL **35** unmoved |
 | **4** | ~~**PB-DX22**~~ ✅ SHIPPED (`scutemob-196`, `95f53b78`, 2026-08-03) | make the fuzzer a real instrument | **OOS-UI2-1** + **OOS-SIM3-1** + **OOS-SIM1-4** | **EVIDENCE INTEGRITY — every historical fuzz-parity claim depends on it** | 0 flips; re-rolls every recorded seed **once** | **none** (`crates/simulator` only) |
 | **5** | **PB-DX23** | dredge has no answer channel for anyone | **OOS-DX2-5** + **OOS-DX2-2** + **OOS-DX2-7** + **OOS-DX2-3** *(watch item)* | **CORRECTNESS — permanent draw-cadence corruption, deck-legal** | 0 flips; 1 def (`golgari_grave_troll`); adds a `LegalAction` variant | **none** (`Command::ChooseDredge` and the event already exist) |
 | **6** | **PB-DX24** | the lowering drops `trigger_zone`; the two index spaces disagree | **OOS-DX1-3** + **OOS-DX1-4** | **CORRECTNESS — live-wrong on `nether_traitor`** | 0 flips; 1 live def + 6 latent queue sites aligned | **none** for the narrow fix; **HASH** only if `TriggeredAbilityDef` grows the field |
@@ -871,6 +871,39 @@ so nothing is live today — pin that, because it is the shape that rots silentl
 ---
 
 **PB-DX21 — `PB-DX21: CR 508.1 — attackers may be declared without limit (OOS-M11-9)` · CORRECTNESS**
+
+> **✅ SHIPPED 2026-08-04** (`scutemob-200`). **`OOS-M11-9` CLOSED.** Seeds `OOS-DX21-1..7` filed in
+> `docs/audits/decision-point-audit.md` §8.1. Tests **4,398 / 0 / 5** (+10 over the 4,388 pre-edit
+> baseline re-measured on-branch); HASH **72 → 73** gate-computed, PROTOCOL **35** gate-executed and
+> unmoved; coverage unmoved **1,133/1,803 = 62.8%** (comment-only card-def edits).
+>
+> **This brief's "PREFER reading `combat.attackers`" (below) is REFUTED — it is left standing rather
+> than deleted, because the reason it is wrong is the batch's most reusable finding.** Three
+> independent CR-grounded reasons, any one sufficient: (1) **CR 508.1a** ("chooses which creatures …
+> **if any**") plus **CR 508.8** make an *empty* declaration a **completed** turn-based action, and
+> the empty declaration is a live shipped client action — `params.rs:474` maps a default-param
+> `LegalAction::DeclareAttackers` to `Command::DeclareAttackers { attackers: vec![] }` — so an
+> `attackers`-keyed guard lets a player who declined to attack then attack anyway. (2) **CR 508.4 /
+> 506.3** "put onto the battlefield attacking" inserts **straight into `combat.attackers`** at four
+> sites (`effects/mod.rs:1502`, `:6331`, `resolution.rs:6020`, `:6480`) without any declaration and
+> CR 508.4c exempts such creatures from declaration requirements, so an `attackers`-keyed guard would
+> have refused a player's **first, legal** declaration in any combat where such a creature entered
+> first — *a new bug inside the fix.* (3) It cannot see the fourth consequence (below). So
+> `CombatState` gained `attackers_declared: bool`, hashed, and the HASH bump was **computed from the
+> failing gate's own output** — which is exactly what this row's "gate-compute rather than assume"
+> asked for; the answer just came back "it does need one".
+>
+> **The row's consequence list is also corrected in the closure banner** at
+> `docs/audits/decision-point-audit.md` §8.1: there is a **fourth** consequence this brief does not
+> list — `combat.rs:818` resets `state.turn.players_passed` on every accepted declaration, so a
+> re-declaring client holds the CR 117.4 pass-round open **without any attacker changing**, which is
+> the *empty* declaration's only consequence.
+>
+> Both mandated deletions shipped **with their mechanism**, and the offer layer had to follow:
+> `legal_actions.rs:878` now suppresses the `DeclareAttackers` offer once the marker is set (SR-38),
+> because deleting `local_game_playthrough.rs`'s policy cap without it would have turned that test's
+> *"a rejection means the offer was wrong"* assertion red. That test being green **with no cap** is
+> the closure proof. **CR 509.1a verified COVERED and NOT widened**, as this brief directs.
 
 `crates/engine/src/rules/combat.rs:41-75` guards `handle_declare_attackers` on step, active player,
 priority holder and per-attacker legality, and on nothing else; `:69-71` initialises `CombatState`

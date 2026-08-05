@@ -1,10 +1,13 @@
 # Primitive batch WIP — PB-DX32 (prior batches are stale history; see their own plan files)
 
 > **STALE as a "current batch" pointer.** PB-DX32 is shipped, and **PB-DX20 (`scutemob-198`,
-> 2026-08-04) shipped after it without using this file** — it ran the planner/runner/reviewer
-> agents directly rather than through `/implement-primitive`, so nothing here was overwritten.
+> 2026-08-04) and PB-DX21 (`scutemob-200`, 2026-08-04) both shipped after it without using this
+> file** — each ran the planner/runner/reviewer agents directly rather than through
+> `/implement-primitive`, so nothing here was overwritten.
 > PB-DX20's record is `memory/primitives/pb-plan-DX20.md` + `pb-review-DX20.md` + the handoff in
-> `memory/workstream-state.md`. Read this file as PB-DX32's record, not as "what is in flight".
+> `memory/workstream-state.md`. **PB-DX21's** is `pb-plan-DX21.md` + `pb-DX21-stage0.md` +
+> `pb-review-DX21.md` + `pb-DX21-execution-notes.md` (revert matrix and measurements) + the same
+> handoff file. Read this file as PB-DX32's record, not as "what is in flight".
 
 **Batch**: PB-DX32 — make the fuzzer's *output* mean something
 **Seeds**: `OOS-SIM3-2` (SR-38 / legal-action soundness is asserted nowhere the fuzzer runs)

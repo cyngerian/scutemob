@@ -1,6 +1,6 @@
 # MTG Engine — Game Simulator & Fuzzer
 
-<!-- last_updated: 2026-08-03 -->
+<!-- last_updated: 2026-08-04 -->
 
 > Design document for automated game simulation, fuzz testing, and interactive TUI play.
 
@@ -327,27 +327,46 @@ fuzz seed reproducing the same game**: `RandomBot` picks an index into the provi
 list, so appending to that list would re-roll every subsequent draw.
 
 **`HeuristicBot` carries a per-turn preference cap** (`RepeatKey`) on repeated
-activations and on re-declaring a combat. Both were found by the M11-local S8 scripted
-playthrough halting on `max_commands`: a free repeatable ability (`lightning_greaves`'
-Equip `{0}`, which resolves as a no-op) and re-declaring the same combat (neither the
-provider nor `combat.rs::handle_declare_attackers` gates "already declared", CR 508.1 —
-seed `OOS-M11-9`). CR 104.4b loop detection catches neither, because both are *optional*
-actions. `RandomBot` is unaffected: it picks uniformly and passes often enough to
-advance.
+activations and — until PB-DX21 — on re-declaring a combat. The re-declaration half was
+found by the M11-local S8 scripted playthrough halting on `max_commands`: neither the
+provider nor `combat.rs::handle_declare_attackers` gated "already declared" (CR 508.1 —
+seed `OOS-M11-9`), and CR 104.4b loop detection did not catch it because the action is
+*optional*. The surviving half is a free repeatable ability (`lightning_greaves`' Equip
+`{0}`, which resolves as a no-op). `RandomBot` is unaffected by either: it picks
+uniformly and passes often enough to advance.
 
 **SIM-1 (2026-08-02) made the `OOS-M11-9` loop reachable from a second client, and
-mitigated it the same way.** Once the provider offers a command-zone cast, commanders
-actually reach the battlefield — and commanders are disproportionately vigilant. The
-scripted human policy in `local_game_playthrough.rs` had no repeat cap, so seed 1 halted
-`InfiniteLoop` at turn 17 with exactly 20,000 commands, **19,351 of them
+mitigated it the same way — client-side, deliberately, to keep `StubProvider`'s action
+list and every recorded fuzz seed untouched.** Once the provider offers a command-zone
+cast, commanders actually reach the battlefield — and commanders are disproportionately
+vigilant. The scripted human policy in `local_game_playthrough.rs` had no repeat cap, so
+seed 1 halted `InfiniteLoop` at turn 17 with exactly 20,000 commands, **19,351 of them
 `DeclareAttackers` in that single turn** (seed 1's human commander is `Samut, Voice of
-Dissent`, which has Vigilance). That policy now carries the same per-combat cap the bot
-does, reset on the combat-entry edge rather than the turn number — `MR-M11-09` found that
-exact regression in `HeuristicBot`, where a turn-keyed tally silently disabled attacks in
-every CR 506.5 extra combat. **The mitigation stayed client-side both times, deliberately:
-putting it in `StubProvider` would change the provider's action list and re-roll every
-recorded fuzz seed.** The engine-side fix — an "already declared this combat" guard in
-`combat.rs::handle_declare_attackers` — remains `OOS-M11-9` and is still open.
+Dissent`, which has Vigilance). That policy carried the same per-combat cap the bot did,
+reset on the combat-entry edge rather than the turn number — `MR-M11-09` found that exact
+regression in `HeuristicBot`, where a turn-keyed tally silently disabled attacks in every
+CR 506.5 extra combat.
+
+**PB-DX21 (2026-08-04, `scutemob-200`) closed `OOS-M11-9` at the engine and deleted both
+client-side mitigations.** `combat.rs::handle_declare_attackers` now rejects a second
+declaration in the same combat phase with `GameStateError::AlreadyDeclaredAttackers`
+(`CombatState::attackers_declared`, hashed), and `legal_actions.rs` stops offering
+`DeclareAttackers` once that marker is set — so the provider's action list and the
+engine's legality now agree, and there is nothing left for a client-side preference
+damper to guard. `HeuristicBot`'s `RepeatKey` lost its `DeclareAttackers` variant
+entirely; the MR-M11-09 combat-entry-reset property survives on `DeclareBlockers`, the
+one remaining combat-scoped key. **`OOS-DX21-2` (review finding L7, corrected): the
+attacker-side offer suppression was NOT mirrored onto the blocker side** —
+`legal_actions.rs` still offers `DeclareBlockers` after `defenders_declared` already
+contains the player (the CR 509.1a twin of the hole just closed on the attacker side),
+deliberately not widened into per the PB-DX21 brief; CR 509.1a's own guard
+(`AlreadyDeclaredBlockers`) still rejects the repeat, unaffected either way.
+`local_game_playthrough.rs`'s `PolicyState`
+is gone; `test_s8_scripted_human_playthrough_is_clean_on_five_seeds` runs with no cap at
+all, which is the closure proof: the policy only ever submits an action the game just
+offered it, so a clean run means offer and engine legality agree end to end. The
+extra-combat half of the *raid-count* clobber (`ps.attackers_declared_this_turn`, distinct
+from the declaration guard) is unaffected and remains open as `OOS-DX21-1`.
 
 **The play server itself** is `tools/play-server` (axum, port 3040, 6 routes, Svelte 5
 frontend). It is the only crate in the M11-local stack with async or IO; nothing below

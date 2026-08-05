@@ -487,6 +487,15 @@ fn test_dx32_streaming_waste_tally_equals_the_sim5_journal_walk() {
 /// named IN the assertion message, at the pin. Reuses the same A/B seeds
 /// (`AB_SEEDS`, `AB_MAX_TURNS`, `HeuristicBot`) as
 /// [`seeded_four_bot_game_wastes_no_taps`] above.
+///
+/// **Re-measured after PB-DX21** (2026-08-04, `scutemob-200`, review finding
+/// M7): still 0/1/0 across seeds 0/7/42, UNMOVED. This is the plan's own
+/// prediction (§3.1: "churn from A + C together is expected to be small, and
+/// possibly zero on many seeds") confirmed: `HeuristicBot` already scored
+/// `TapForMana` at 0 and never chose a standalone re-declare via the deleted
+/// `RepeatKey::DeclareAttackers` cap, so deleting that cap and suppressing the
+/// offer are behaviourally EQUIVALENT for this bot, not merely coincidentally
+/// unmoved.
 #[test]
 fn heuristic_pools_emptied_is_pinned() {
     for &seed in &AB_SEEDS {

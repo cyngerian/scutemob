@@ -45,6 +45,53 @@ pub struct CombatState {
     ///
     /// Empty set = first-strike step has not yet occurred this combat.
     pub first_strike_participants: OrdSet<ObjectId>,
+    /// CR 508.1 (PB-DX21, OOS-M11-9): whether the active player has performed the
+    /// once-per-combat "declare attackers" turn-based action this combat phase.
+    ///
+    /// `true` even for an **empty** declaration: CR 508.1a's "if any" makes the
+    /// empty choice a completed declaration. Do **not** replace this field with
+    /// `!attackers.is_empty()` -- see plan `memory/primitives/pb-plan-DX21.md`
+    /// §1.3 for the three CR-grounded reasons that guard is unsound (an empty
+    /// declaration is a live, shipped client action; a rejected re-declaration
+    /// must not be indistinguishable from "no declaration yet"; and CR
+    /// 508.4/506.3 populate `attackers` directly, bypassing declaration
+    /// entirely).
+    ///
+    /// **This field is NOT read by CR 508.8's skip predicate, and does not close
+    /// that residue** (PB-DX21 review, finding M1). `rules::turn_structure::
+    /// advance_step` decides "skip declare-blockers and combat-damage" from a
+    /// STEP-END read of `combat.attackers.is_empty()` (`turn_structure.rs:43-47`
+    /// at the time of writing), not from this marker -- a pre-existing deviation
+    /// from CR 508.8's own declaration-TIME predicate (declare one attacker, then
+    /// remove it from combat before the step ends, and the skip still fires even
+    /// though creatures WERE declared this combat). This field answers a
+    /// different question ("was the CR 508.1 turn-based action PERFORMED") from
+    /// "how many attackers survive to step end", and the two must not be
+    /// conflated. See `docs/audits/decision-point-audit.md` for the tracking id.
+    ///
+    /// Creatures **put onto the battlefield attacking** (CR 508.4, e.g. Ninjutsu)
+    /// populate `attackers` without ever setting this flag -- CR 508.4 says such
+    /// creatures "never *attacked*". See `effects/mod.rs` (the `enters_attacking`
+    /// handler), which inserts into `attackers` directly and never calls
+    /// `handle_declare_attackers`.
+    ///
+    /// This is a `bool`, unlike its sibling `defenders_declared` below
+    /// (`OrdSet<PlayerId>`), because CR 508.1 gives the declare-attackers action
+    /// to exactly one player -- the active player, already named by
+    /// `attacking_player` above -- while CR 509.1a lets each defending player
+    /// declare blockers independently.
+    ///
+    /// Cleared naturally when `CombatState` is dropped at `EndOfCombat` and
+    /// rebuilt fresh (`false`) at the next `BeginningOfCombat`, so this marker is
+    /// per **combat phase** (CR 500.8 / 506.5), not per turn -- an extra combat
+    /// phase (e.g. Aurelia, the Warleader) gets its own fresh declaration.
+    ///
+    /// `#[serde(default)]`: an older serialized `CombatState` deserializes as
+    /// `false` ("the declaration has not been performed"). This is a deliberate,
+    /// lossy default -- an old snapshot resumed mid-combat permits one extra
+    /// declaration (`OOS-DX21-4`).
+    #[serde(default)]
+    pub attackers_declared: bool,
     /// Defending players who have already declared blockers this step.
     /// In multiplayer, each defending player declares independently (CR 509.1).
     pub defenders_declared: OrdSet<PlayerId>,
@@ -89,6 +136,7 @@ impl CombatState {
             blockers: OrdMap::new(),
             damage_assignment_order: OrdMap::new(),
             first_strike_participants: OrdSet::new(),
+            attackers_declared: false,
             defenders_declared: OrdSet::new(),
             forced_blocks: OrdMap::new(),
             enlist_pairings: Vec::new(),

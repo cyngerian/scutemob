@@ -874,8 +874,21 @@ impl LegalActionProvider for StubProvider {
         }
 
         // Declare attackers: untapped creatures without summoning sickness
-        // (unless haste) during DeclareAttackers step when active player
-        if state.turn().step == Step::DeclareAttackers && is_active && stack_empty {
+        // (unless haste) during DeclareAttackers step when active player.
+        //
+        // CR 508.1 (PB-DX21, OOS-M11-9, SR-38): the action is a once-per-combat
+        // turn-based action. `combat.rs::handle_declare_attackers` now rejects a
+        // second declaration with `GameStateError::AlreadyDeclaredAttackers`, so
+        // the offer must not survive past the first accepted declaration -- an
+        // action the engine will refuse is never offered.
+        if state.turn().step == Step::DeclareAttackers
+            && is_active
+            && stack_empty
+            && !state
+                .combat()
+                .as_ref()
+                .is_some_and(|c| c.attackers_declared)
+        {
             let mut eligible = Vec::new();
             let mut targets = Vec::new();
 

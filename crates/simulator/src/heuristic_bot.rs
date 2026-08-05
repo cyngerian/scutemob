@@ -22,14 +22,19 @@ use crate::random_bot::action_to_command;
 /// [`HeuristicBot::repeats_this_turn`].
 ///
 /// Deliberately coarse: it names the class of choice, not the parameters, because
-/// re-declaring the same combat with a *different* attacker set is exactly as much
-/// of a non-move as re-declaring the identical one.
+/// re-declaring the same combat with a *different* blocker assignment is exactly as
+/// much of a non-move as re-declaring the identical one.
+///
+/// **No `DeclareAttackers` variant.** CR 508.1's once-per-combat legality is now
+/// enforced by the engine itself (`GameStateError::AlreadyDeclaredAttackers`,
+/// PB-DX21 / `OOS-M11-9`) and `legal_actions.rs` no longer offers the action once
+/// `CombatState::attackers_declared` is set, so a *preference* damper on top of it
+/// would be redundant scoring logic with nothing left to guard against. See
+/// [`HeuristicBot::repeats_this_turn`]'s "CLOSED by PB-DX21" note for the history.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 enum RepeatKey {
     /// CR 602: one entry per `(source, ability_index)`.
     Activate(ObjectId, usize),
-    /// CR 508.1.
-    DeclareAttackers,
     /// CR 509.1.
     DeclareBlockers,
 }
@@ -42,11 +47,11 @@ impl RepeatKey {
             // Repeat activation is legitimate play (pump twice, crew then equip), so
             // allow a couple before treating it as a stall.
             RepeatKey::Activate(..) => 2,
-            // CR 508.1 / 509.1 are turn-based actions performed once **per combat
-            // phase**, and the tally for these two is reset on each combat entry
-            // rather than on each turn — see `HeuristicBot::repeats_this_turn`.
-            // Anything past the first *within one combat* is never a real play.
-            RepeatKey::DeclareAttackers | RepeatKey::DeclareBlockers => 1,
+            // CR 509.1 is a turn-based action performed once **per combat phase**,
+            // and the tally for it is reset on each combat entry rather than on each
+            // turn — see `HeuristicBot::repeats_this_turn`. Anything past the first
+            // *within one combat* is never a real play.
+            RepeatKey::DeclareBlockers => 1,
         }
     }
 
@@ -57,7 +62,6 @@ impl RepeatKey {
                 ability_index,
                 ..
             } => Some(RepeatKey::Activate(*source, *ability_index)),
-            LegalAction::DeclareAttackers { .. } => Some(RepeatKey::DeclareAttackers),
             LegalAction::DeclareBlockers { .. } => Some(RepeatKey::DeclareBlockers),
             _ => None,
         }
@@ -71,43 +75,51 @@ pub struct HeuristicBot {
     repeat_turn: u32,
     /// Whether a `CombatState` existed the last time this bot acted.
     ///
-    /// The combat-scoped [`RepeatKey`]s are reset when this goes `false` → `true`,
-    /// which is what makes the cap **per combat phase** rather than per turn — see
-    /// [`HeuristicBot::repeats_this_turn`]'s "the extra-combat regression" note.
-    /// `turn_actions.rs` sets `state.combat = None` at end of combat and installs a
-    /// fresh `CombatState` at `BeginningOfCombat`, so the transition is a reliable
-    /// "a new combat phase has begun" signal with no counter to maintain.
+    /// The combat-scoped [`RepeatKey`] (`DeclareBlockers`) is reset when this goes
+    /// `false` → `true`, which is what makes its cap **per combat phase** rather than
+    /// per turn — see [`HeuristicBot::repeats_this_turn`]'s "the extra-combat
+    /// regression" note. `turn_actions.rs` sets `state.combat = None` at end of
+    /// combat and installs a fresh `CombatState` at `BeginningOfCombat`, so the
+    /// transition is a reliable "a new combat phase has begun" signal with no
+    /// counter to maintain.
     in_combat: bool,
     /// How many times this bot has already chosen each [`RepeatKey`] this turn.
     ///
-    /// # The two stuck games this prevents (M11-local S8)
+    /// # The stuck game this prevents (M11-local S8)
     ///
     /// `score_action` rates every real play above `PassPriority`'s 1, and a bot that
     /// always prefers a real play will take one *forever* if the game keeps offering
-    /// the same one. Both instances were found by the S8 scripted playthrough halting
-    /// on `max_commands`, not by reading code:
+    /// the same one. Found by the S8 scripted playthrough halting on `max_commands`,
+    /// not by reading code:
     ///
-    /// 1. **A free, repeatable activated ability** (seed 9001, turn 2, 5,000 commands).
-    ///    `lightning_greaves`: Equip `{0}`. Its runtime `ActivatedAbility` declares
-    ///    `targets: []` while its `AttachEquipment` effect names
-    ///    `DeclaredTarget { index: 0 }`, so it is not merely cheap — it resolves as a
-    ///    **no-op**, changing nothing that could ever make the bot stop wanting it.
-    /// 2. **Re-declaring the same combat** (seed 1, turn 19, 20,000 commands). Neither
-    ///    `StubProvider` nor `combat.rs::handle_declare_attackers` gates "attackers
-    ///    have already been declared this combat", so with a vigilant attacker (which
-    ///    stays untapped and therefore stays `eligible`) `DeclareAttackers` is offered
-    ///    and accepted without limit. CR 508.1 makes declaring attackers a turn-based
-    ///    action performed *once*, so the engine accepting a second one is a real gap
-    ///    — filed as **OOS-M11-9**; fixing it is an engine change and M11-local makes
-    ///    none.
+    /// **A free, repeatable activated ability** (seed 9001, turn 2, 5,000 commands).
+    /// `lightning_greaves`: Equip `{0}`. Its runtime `ActivatedAbility` declares
+    /// `targets: []` while its `AttachEquipment` effect names
+    /// `DeclaredTarget { index: 0 }`, so it is not merely cheap — it resolves as a
+    /// **no-op**, changing nothing that could ever make the bot stop wanting it.
     ///
-    /// CR 104.4b loop detection catches neither: that rule is for a loop of
-    /// **mandatory** actions, and both of these are optional. The bot is the right
-    /// place for the mitigation — this is plan §8 R5 ("bot play quality") — and doing
-    /// it here rather than in `StubProvider` keeps the provider's action list, and
-    /// therefore every recorded `mtg-fuzzer` seed, untouched. (The fuzzer's default
-    /// bot is `RandomBot`, which has neither problem: it picks uniformly, so it passes
-    /// often enough to advance.)
+    /// # CLOSED by PB-DX21 (`OOS-M11-9`) — historical record, not a live instance
+    ///
+    /// This map used to carry a second stuck-game instance: **re-declaring the same
+    /// combat** (seed 1, turn 19, 20,000 commands). Neither `StubProvider` nor
+    /// `combat.rs::handle_declare_attackers` gated "attackers have already been
+    /// declared this combat", so with a vigilant attacker (which stays untapped and
+    /// therefore stays `eligible`) `DeclareAttackers` was offered and accepted
+    /// without limit, even though CR 508.1 makes declaring attackers a turn-based
+    /// action performed *once*. **PB-DX21 closes this at the engine**:
+    /// `handle_declare_attackers` now rejects a second declaration with
+    /// `GameStateError::AlreadyDeclaredAttackers`, and `legal_actions.rs` no longer
+    /// offers the action once `CombatState::attackers_declared` is set — so there is
+    /// no `RepeatKey::DeclareAttackers` any more; a preference damper on top of an
+    /// action the provider never offers would guard nothing.
+    ///
+    /// CR 104.4b loop detection does not catch the surviving instance above: that
+    /// rule is for a loop of **mandatory** actions, and a free Equip is optional.
+    /// The bot is the right place for the mitigation — this is plan §8 R5 ("bot play
+    /// quality") — and doing it here rather than in `StubProvider` keeps the
+    /// provider's action list, and therefore every recorded `mtg-fuzzer` seed,
+    /// untouched. (The fuzzer's default bot is `RandomBot`, which has no such
+    /// problem: it picks uniformly, so it passes often enough to advance.)
     ///
     /// The cap is a **preference** cap, not a legality cap. A capped action is scored
     /// 0 rather than removed, so it is still chosen when nothing else is available —
@@ -115,18 +127,20 @@ pub struct HeuristicBot {
     ///
     /// # The extra-combat regression this map's *scope* fixes (review MR-M11-09)
     ///
-    /// The first version keyed the whole map on `turn_number` alone, which is right for
-    /// `Activate` and **wrong** for the two combat keys. CR 506.5: a turn can contain
-    /// more than one combat phase, and `aurelia_the_warleader` is `Complete`,
-    /// deck-legal, and — since PB-DX1 (`scutemob-160`) made her `once_per_turn` trigger
-    /// actually fire — grants a real one. With a per-*turn* cap of 1, a bot that
-    /// attacked in the first combat scored `DeclareAttackers` at 0 in the second, below
-    /// `PassPriority`'s 1, and so **silently declined to attack in every extra combat**
-    /// — a quiet play-quality regression introduced by the fix for a loud stall.
+    /// The first version keyed the whole map on `turn_number` alone, which is right
+    /// for `Activate` and **wrong** for the combat-scoped `DeclareBlockers` key.
+    /// CR 506.5: a turn can contain more than one combat phase, and
+    /// `aurelia_the_warleader` is `Complete`, deck-legal, and — since PB-DX1
+    /// (`scutemob-160`) made her `once_per_turn` trigger actually fire — grants a
+    /// real one. With a per-*turn* cap of 1, a bot that had already declared
+    /// blockers in the first combat scored `DeclareBlockers` at 0 in the second,
+    /// below `PassPriority`'s 1, and so **silently declined to block in every extra
+    /// combat** — a quiet play-quality regression introduced by the fix for a loud
+    /// stall.
     ///
-    /// So the two combat keys are reset on combat-phase entry
-    /// ([`HeuristicBot::in_combat`]) and `Activate` stays on the turn. Both resets are
-    /// applied in `refresh_repeat_scope`.
+    /// So `DeclareBlockers` is reset on combat-phase entry
+    /// ([`HeuristicBot::in_combat`]) and `Activate` stays on the turn. Both resets
+    /// are applied in `refresh_repeat_scope`.
     repeats_this_turn: HashMap<RepeatKey, u32>,
 }
 
@@ -142,8 +156,8 @@ impl HeuristicBot {
     }
 
     /// Drop each tally at the end of its own scope: the whole map on a new turn, and
-    /// the two combat keys on entry to each combat phase (CR 506.5 — a turn may have
-    /// several). See [`HeuristicBot::repeats_this_turn`].
+    /// the combat-scoped `DeclareBlockers` key on entry to each combat phase
+    /// (CR 506.5 — a turn may have several). See [`HeuristicBot::repeats_this_turn`].
     fn refresh_repeat_scope(&mut self, state: &GameState) {
         let turn = state.turn().turn_number;
         if turn != self.repeat_turn {
@@ -153,7 +167,6 @@ impl HeuristicBot {
 
         let in_combat = state.combat().is_some();
         if in_combat && !self.in_combat {
-            self.repeats_this_turn.remove(&RepeatKey::DeclareAttackers);
             self.repeats_this_turn.remove(&RepeatKey::DeclareBlockers);
         }
         self.in_combat = in_combat;

@@ -463,15 +463,24 @@ fn test_s8_only_concede_is_offered_while_a_decision_blocks() {
 
 // ── Review MR-M11-09: the repeat cap is per COMBAT, not per turn ─────────────
 
-/// CR 506.5 / 508.1 — `HeuristicBot`'s S8 repeat cap must not stop it attacking in a
+/// CR 506.5 / 509.1 — `HeuristicBot`'s S8 repeat cap must not stop it blocking in a
 /// second combat phase of the same turn.
 ///
-/// The first version of the cap keyed on `turn_number` alone, so a bot that attacked
-/// in combat 1 scored `DeclareAttackers` at 0 in combat 2 — below `PassPriority` — and
-/// silently declined to attack for the rest of the turn. `aurelia_the_warleader` is
-/// `Complete` and deck-legal and grants exactly that extra combat, so this was
-/// reachable in ordinary play: a quiet play-quality regression introduced by the fix
-/// for a loud stall (review MR-M11-09).
+/// The first version of the cap keyed on `turn_number` alone, so a bot that had
+/// already declared blockers in combat 1 scored `DeclareBlockers` at 0 in combat 2 —
+/// below `PassPriority` — and silently declined to block for the rest of the turn.
+/// `aurelia_the_warleader` is `Complete` and deck-legal and grants exactly that extra
+/// combat, so this was reachable in ordinary play: a quiet play-quality regression
+/// introduced by the fix for a loud stall (review MR-M11-09).
+///
+/// **Re-scoped from `DeclareAttackers` to `DeclareBlockers` by PB-DX21.** This test
+/// used to drive the bot's own `RepeatKey::DeclareAttackers` cap, which no longer
+/// exists — CR 508.1's once-per-combat legality is now enforced by the engine
+/// (`GameStateError::AlreadyDeclaredAttackers`) and suppressed at the offer layer
+/// (`legal_actions.rs`), so `heuristic_bot.rs` has nothing left to guard on the
+/// attacker side. `DeclareBlockers` is the surviving combat-scoped `RepeatKey`, and
+/// MR-M11-09's finding — the cap must reset on combat-phase entry, not on turn
+/// number — applies to it identically, so this probe now exercises that key instead.
 ///
 /// Driven through `Bot::choose_action` directly rather than through a game, because
 /// staging a real extra combat needs Aurelia to trigger and resolve; what is under test
@@ -481,40 +490,40 @@ fn test_s8_only_concede_is_offered_while_a_decision_blocks() {
 fn test_mr_m11_09_repeat_cap_resets_on_each_combat_phase() {
     use mtg_simulator::HeuristicBot;
 
-    let attacker_action = LegalAction::DeclareAttackers {
+    let blocker_action = LegalAction::DeclareBlockers {
         eligible: vec![ObjectId(1)],
-        targets: vec![AttackTarget::Player(P2)],
+        attackers: vec![ObjectId(2)],
     };
-    let legal = vec![LegalAction::PassPriority, attacker_action];
+    let legal = vec![LegalAction::PassPriority, blocker_action];
 
     // Combat 1: a `CombatState` exists.
-    let mut in_combat = two_player_state(Step::DeclareAttackers, Vec::new());
-    *in_combat.combat_mut() = Some(mtg_engine::CombatState::new(P1));
+    let mut in_combat = two_player_state(Step::DeclareBlockers, Vec::new());
+    *in_combat.combat_mut() = Some(mtg_engine::CombatState::new(P2));
     // Between combats: `turn_actions.rs` sets `state.combat = None` at end of combat.
     let mut between = two_player_state(Step::PostCombatMain, Vec::new());
     *between.combat_mut() = None;
 
     let mut bot = HeuristicBot::new(7, "Bot".to_string());
 
-    // Combat 1 — the bot attacks.
+    // Combat 1 — the bot blocks.
     let first = bot.choose_action(&in_combat, P1, &legal);
     assert!(
-        matches!(first, Command::DeclareAttackers { .. }),
-        "the bot must attack in the first combat; got {first:?}"
+        matches!(first, Command::DeclareBlockers { .. }),
+        "the bot must block in the first combat; got {first:?}"
     );
     // Still combat 1 — the cap holds, which is the whole point of it.
     let second = bot.choose_action(&in_combat, P1, &legal);
     assert!(
         matches!(second, Command::PassPriority { .. }),
-        "CR 508.1: a second declaration in the SAME combat must not be preferred; got {second:?}"
+        "CR 509.1: a second declaration in the SAME combat must not be preferred; got {second:?}"
     );
 
     // Combat ends, then a new combat phase begins on the same turn (CR 506.5).
     let _ = bot.choose_action(&between, P1, &[LegalAction::PassPriority]);
     let third = bot.choose_action(&in_combat, P1, &legal);
     assert!(
-        matches!(third, Command::DeclareAttackers { .. }),
-        "CR 506.5: the cap must reset on combat-phase entry, so the bot attacks again \
+        matches!(third, Command::DeclareBlockers { .. }),
+        "CR 506.5: the cap must reset on combat-phase entry, so the bot blocks again \
          in the extra combat; got {third:?}"
     );
 }
@@ -752,5 +761,63 @@ fn test_s8_an_unsupported_param_is_refused_not_discarded() {
         game.pending_decision().map(|d| d.seq),
         Some(decision.seq),
         "the decision survives its own refused answer"
+    );
+}
+
+// ── PB-DX21 (OOS-M11-9, §2.7): the offer disappears once CR 508.1 is done ────
+
+/// CR 508.1 / SR-38 — `legal_actions.rs` must not offer `DeclareAttackers` once
+/// `CombatState::attackers_declared` is set, because `combat.rs::handle_declare_
+/// attackers` now refuses a second declaration with
+/// `GameStateError::AlreadyDeclaredAttackers`. Before this offer suppression a
+/// vigilant attacker (untapped, still `eligible`, per PB-DX21's plan §2.7) would
+/// keep the action on the list forever.
+///
+/// Discriminates directly against the `!c.attackers_declared` condition added at
+/// `legal_actions.rs`'s `DeclareAttackers` arm: three states differing only in
+/// `combat`/`attackers_declared`, asserted in order so a revert of exactly that
+/// condition (commenting out the guard clause) reddens this test and no other in
+/// the file.
+#[test]
+fn test_dx21_declare_attackers_offer_suppressed_once_the_cr_5081_action_is_done() {
+    let state = two_player_state(
+        Step::DeclareAttackers,
+        vec![ObjectSpec::creature(P1, "DX21 Attacker", 2, 2).in_zone(ZoneId::Battlefield)],
+    );
+
+    // (1) No CombatState yet (BeginningOfCombat may not have run) — offered.
+    assert!(
+        StubProvider
+            .legal_actions(&state, P1)
+            .iter()
+            .any(|a| matches!(a, LegalAction::DeclareAttackers { .. })),
+        "with no CombatState the CR 508.1 action has not been performed and must \
+         still be offered"
+    );
+
+    // (2) A fresh CombatState with the marker clear — still offered.
+    let mut not_yet_declared = state.clone();
+    *not_yet_declared.combat_mut() = Some(mtg_engine::CombatState::new(P1));
+    assert!(
+        StubProvider
+            .legal_actions(&not_yet_declared, P1)
+            .iter()
+            .any(|a| matches!(a, LegalAction::DeclareAttackers { .. })),
+        "attackers_declared == false must still offer DeclareAttackers"
+    );
+
+    // (3) The marker set — SUPPRESSED. This is the discriminating assertion.
+    let mut already_declared = state;
+    let mut combat = mtg_engine::CombatState::new(P1);
+    combat.attackers_declared = true;
+    *already_declared.combat_mut() = Some(combat);
+    let actions = StubProvider.legal_actions(&already_declared, P1);
+    assert!(
+        !actions
+            .iter()
+            .any(|a| matches!(a, LegalAction::DeclareAttackers { .. })),
+        "CR 508.1 (PB-DX21): once attackers_declared is set the offer must be \
+         suppressed (SR-38: the engine will refuse a second declaration with \
+         AlreadyDeclaredAttackers); got {actions:?}"
     );
 }

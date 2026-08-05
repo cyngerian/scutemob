@@ -302,6 +302,21 @@ disabling it would deadlock the game, and CR 508.1 makes declaring no attackers 
 legal choice), but they are marked `declares none` and their tooltip says so. S7's
 `AttackerPicker` / `BlockerPicker` are what actually close it.
 
+**PB-DX21 (2026-08-04, `scutemob-200`, `OOS-M11-9`) makes *irreversible* above
+literally true, and narrows the "buttons stay enabled" claim.** Before PB-DX21
+the engine accepted a second `DeclareAttackers` in the same combat without
+limit, so *irreversible* here was aspirational -- a picker bug or a client
+re-send could still be followed by a real declaration. `combat.rs::
+handle_declare_attackers` now rejects any second declaration with
+`GameStateError::AlreadyDeclaredAttackers`, and `legal_actions.rs` stops
+offering the action once `CombatState::attackers_declared` is set -- so the
+buttons described above as staying enabled **no longer do**: the offer
+disappears once the declaration (empty or not) has been made. This does not
+deadlock: `legal_actions.rs:515` pushes `PassPriority` unconditionally, so a
+seat whose `DeclareAttackers` offer has been suppressed always has a legal
+action available. The blockers side is unaffected (CR 509.1a is a different
+guard, `OOS-DX21-2`).
+
 **An activated ability's `{X}` is announced as 0, and the client cannot even tell
 which abilities have one.** `params.rs` maps `LegalAction::ActivateAbility` with
 default params to `x_value: None`, which `abilities.rs` reads as `unwrap_or(0)`;
