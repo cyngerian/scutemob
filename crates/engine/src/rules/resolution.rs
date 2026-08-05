@@ -7689,10 +7689,26 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                                 // a double-faced CARD enter the battlefield face
                                 // down (manifest/cloak), so a
                                 // `PermanentTurnedFaceUp` source COULD in
-                                // principle be a DFC that arrived face down. What
-                                // actually makes `is_transformed` unreachable at
-                                // THIS site is the engine's own write discipline,
-                                // not a CR prohibition: `is_transformed` is set
+                                // principle be a DFC that arrived face down.
+                                //
+                                // CR 712.15a settles that remaining case in the
+                                // SAME direction, and it is the strongest reason
+                                // this site is right rather than merely lucky:
+                                // "While face down, a double-faced permanent
+                                // can't transform or convert. If it's turned face
+                                // up, it will have its FRONT face up." So the one
+                                // DFC that can reach this site does so on its
+                                // FRONT face BY RULE -- reading `def.abilities`
+                                // here is CR-correct, not an unreachable-case
+                                // accident. (PB-DX24 fix cycle, coordinator:
+                                // 712.15a verified against the rules MCP; review
+                                // Finding 1 stopped at 712.15 and did not reach
+                                // it, which is why it could only conclude
+                                // "unreachable" rather than "correct".)
+                                //
+                                // The engine's own write discipline agrees, so
+                                // the two ends cannot desync even independently
+                                // of the CR argument: `is_transformed` is set
                                 // `true` at exactly one production site
                                 // (`resolution.rs:853`, disturb ETB) and is
                                 // otherwise only ever mutated by
