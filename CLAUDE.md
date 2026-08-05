@@ -38,7 +38,8 @@
   PB-DX32 shipped `scutemob-197`/`685aa1c4` (promoted per feedback doc §2.3, user-approved 2026-08-03);
   PB-DX20 shipped `scutemob-198`/`ecd7b119` 2026-08-04;
   PB-DX21 shipped `scutemob-200` 2026-08-04 (ranks 1-4 all shipped);
-  **next PB-DX23** (rank 5);
+  PB-DX23 shipped `scutemob-201` 2026-08-05 (rank 5);
+  **next PB-DX24** (rank 6);
   the playtest-successor run 174–181
   AND the triage-2 successor run 187–194 both completed 2026-08-02 — triage 2 is fully closed,
   8/8 rows shipped. **FEEDBACK-1 SHIPPED** (`scutemob-192`, merge `d55e74cc`, doc-only):
@@ -102,15 +103,24 @@
   narratives in `memory/archive/claude-md-changelog-2026-08.md`, per-batch handoffs in
   `memory/workstream-state.md`). PROTOCOL **35** / HASH **72** (as of ENG-2, `scutemob-193`).
   **PB-DX19 SHIPPED** (`scutemob-184`, `451e3517`) and **PB-DX20 SHIPPED** (`scutemob-198`,
-  `ecd7b119`) and **PB-DX21 SHIPPED** (`scutemob-200`) — **next dispatch: PB-DX23** (rank 5;
+  `ecd7b119`) and **PB-DX21 SHIPPED** (`scutemob-200`) and **PB-DX23 SHIPPED**
+  (`scutemob-201`) — **next dispatch: PB-DX24** (rank 6;
   brief in `memory/primitives/seed-rerank-2026-08-02.md` §4; re-word OOS-DX19-2 per OOS-ADJ-3
   before any DX42b dispatch). **PB-DX7 is no longer next** — it survives at
   rank 9; eight new entries outrank it. Older queue history (the PB-OS,
   PB-RS and PB-DP chains) is rotated to the 2026-08 archive.
   **PB-DX20 SHIPPED** (`scutemob-198`; v3 queue rank 2).
-  **PB-DX21 SHIPPED** (`scutemob-200`; v3 queue rank 3) — v3 ranks **1-4 are all shipped**, so
-  **next dispatch: PB-DX23** (rank 5, dredge has no answer channel; brief in the same §4).
-  PROTOCOL **35** / HASH **73** as of PB-DX21.
+  **PB-DX21 SHIPPED** (`scutemob-200`; v3 queue rank 3) — v3 ranks **1-4 are all shipped**.
+  **PB-DX23 SHIPPED** (`scutemob-201`; v3 queue rank 5), so **next dispatch: PB-DX24**
+  (rank 6, the lowering drops `trigger_zone`; brief in the same §4).
+  PROTOCOL **35** / HASH **73** as of PB-DX23 (both unmoved by it).
+- **Tests (delta 2026-08-05, PB-DX23)**: **4,413 / 0 / 5** full-workspace on branch
+  `scutemob-201` (+15 over the **4,398** baseline measured on this branch BEFORE any edit —
+  1 mandatory probe + 6 more in the new `crates/simulator/tests/pb_dx23_dredge_answer_
+  channel.rs`, 7 in the new `crates/engine/tests/primitives/pb_dx23_dredge_tail_and_
+  query.rs`, 1 play-server HTTP probe), `--workspace --no-fail-fast` to a file,
+  residual list empty. **PROTOCOL 35 / HASH 73 both unmoved**, gate-executed. Earlier
+  pins below.
 - **Tests (delta 2026-08-04, PB-DX21)**: **4,398 / 0 / 5** full-workspace on branch
   `scutemob-200` (+10 over the **4,388** baseline measured on this branch BEFORE any edit —
   9 probes in the new `crates/engine/tests/primitives/pb_dx21_declare_attackers_once_per_
@@ -281,7 +291,43 @@
 - **Recurrence rule** — future `/collect` and milestone-close bookkeeping appends its detailed PB/SR
   narrative to that archive file (newest first), and updates only a one-paragraph snapshot delta
   here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
-- **Last Updated**: 2026-08-04 — **PB-DX21 SHIPPED** (`scutemob-200`; v3 queue rank 3).
+- **Last Updated**: 2026-08-05 — **PB-DX23 SHIPPED** (`scutemob-201`; v3 queue rank 5).
+  Dredge is answerable, by anyone. `grep -rn "ChooseDredge" crates/simulator/src/ tools/`
+  returned **zero**: the engine had the command, the event and a gated handler, and
+  **nothing could reach any of it**. Not a lost option — a permanent draw-cadence
+  corruption, and the probe **measured** it rather than arguing it: on a real 2-player
+  `LocalGame`, both bot seats, no state pokes, **2** dredge offers fired, **1** card was
+  drawn where **2** were owed, and **1** `PendingDraw` survived to the halt. Each turn's
+  draw defers and the *next* turn's discharges the stale entry — forever one behind, off a
+  library reordered a full turn later. `LegalAction::ChooseDredge { card, mill }` is now
+  emitted, mapped, scored and labelled; `rules::queries::dredge_options` makes the offer
+  and the engine's own scan **one arithmetic** (the PB-DX20 shape) — and **the SR-5 keyword
+  registry caught what the brief missed**, `queries.rs` being a `Dredge` handling site.
+  **The brief was short by one site and its naive fix would have shipped a new bug**: there
+  are **three** `offer_dredge: false` resume sites, not two, and an *unconditional* tail
+  flip makes the REOPENED `OOS-DX2-3` **live from the corpus's only dredge card** — the
+  implicit discharge's tail pushes one entry, the outer call pushes another, two
+  dredge-originated entries. The flag is threaded; the exact trace is pinned. **Why PB-DP5
+  §3.3 does not extend to the tail**: it argues about the SAME draw event; CR 121.2 makes
+  "draw three" three draws and CR 614.11a/121.6b resume the sequence, so each resumed draw
+  is its own fresh "would draw". **The brief's UI prescription was one layer off** — the
+  choice lives in the `LegalAction` (the `PayEcho` shape), so **zero frontend production
+  lines**; a `BlockingDecision` variant would be CR-wrong (CR 702.52a is "you **may**") and
+  a HASH bump. **The review found the batch's own overclaim, and it was this batch's own
+  failure mode**: the suppression rule was documented as removing the decline-forever loop
+  *"structurally"*, but it is keyed on the **graveyard** while the answered entry is keyed
+  **FIFO** — the same shape of claim `OOS-DX2-3` was wrongly closed on, made inside the
+  batch dispatched not to repeat it. Fixed with a third conjunct whose limits are stated,
+  not glossed. The reviewer's suggested bot-side repeat cap was **declined on precedent**:
+  PB-DX21 deleted exactly that shape. Tests **4,413 / 0 / 5** (+15); coverage unmoved
+  **1,133/1,803 = 62.8%** (comment-only card-def edit). Review 0 HIGH / 4 MEDIUM / 9 LOW,
+  all 13 taken. Durable lesson: **a guard keyed on one thing cannot police a decision keyed
+  on another** — both halves were right about their own subject and the pair was wrong.
+  Seeds: **OOS-DX2-5** and **OOS-DX2-2** CLOSED; **OOS-DX2-7** RECORDED as an AUTO-CHOSEN
+  audit row (still open); **OOS-DX2-3** STAYS REOPENED, pin byte-unedited; filed
+  **OOS-DX23-1..4, -6, -7, -8**. Full handoff: `memory/workstream-state.md`; measurements
+  and revert matrix: `memory/primitives/pb-DX23-execution-notes.md`.
+- **Prior**: 2026-08-04 — **PB-DX21 SHIPPED** (`scutemob-200`; v3 queue rank 3).
   Declaring attackers is once per combat. CR 508.1 makes it a turn-based action;
   `handle_declare_attackers` guarded on step, active player, priority and per-attacker legality
   and **on nothing else**, so a second `DeclareAttackers` reran the whole body. **Three
