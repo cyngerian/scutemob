@@ -120,7 +120,10 @@ fn drain_stack(mut state: GameState, players: &[PlayerId]) -> GameState {
         let (s, _) = pass_all(state, players);
         state = s;
         guard += 1;
-        assert!(guard < 20, "drain_stack: stack did not empty after 20 rounds");
+        assert!(
+            guard < 20,
+            "drain_stack: stack did not empty after 20 rounds"
+        );
     }
     state
 }
@@ -348,7 +351,11 @@ fn test_dx24_nether_traitor_triggers_from_the_graveyard() {
         nether_triggers
     );
     let t = nether_triggers[0];
-    assert_eq!(t.kind, PendingTriggerKind::CardDefETB, "kind must be CardDefETB");
+    assert_eq!(
+        t.kind,
+        PendingTriggerKind::CardDefETB,
+        "kind must be CardDefETB"
+    );
     assert_eq!(
         t.controller, p1,
         "CR 108.4a: a graveyard card's controller is its owner"
@@ -383,8 +390,18 @@ fn test_dx24_nether_traitor_returns_itself_end_to_end() {
     let all = [p(1), p(2), p(3), p(4)];
     let defs = load_defs();
 
-    // Positive: 1 black mana floating.
-    let state = build_nether_in_graveyard_fixture(&defs, 1, p1);
+    // Positive: 1 black mana floating. Fodder already has toughness 0 at build
+    // time, so it must be killed via a DIRECT check_and_apply_sbas +
+    // flush_pending_triggers pair, NOT via a priority-pass round: an initial
+    // pass_all with an empty stack would hit CR 500.4's step-advance branch
+    // BEFORE the SBA check that kills Fodder ever runs (SBA is checked inside
+    // enter_step, not on every PassPriority), clearing the mana pool a step
+    // early and starving the very payment this test exists to observe.
+    // Confirmed by a throwaway debug trace during authoring: without this,
+    // Nether Traitor's OWN {B} showed 0 already at MayPayThenEffect time.
+    let mut state = build_nether_in_graveyard_fixture(&defs, 1, p1);
+    check_and_apply_sbas(&mut state);
+    mtg_engine::rules::abilities::flush_pending_triggers(&mut state);
     let state = drain_stack(state, &all);
     assert!(
         on_battlefield(&state, "Nether Traitor"),
@@ -398,7 +415,9 @@ fn test_dx24_nether_traitor_returns_itself_end_to_end() {
 
     // Negative: zero black mana floating -- the cost cannot be paid, so the
     // `then` arm (MoveZone to battlefield) never runs.
-    let state_no_mana = build_nether_in_graveyard_fixture(&defs, 0, p1);
+    let mut state_no_mana = build_nether_in_graveyard_fixture(&defs, 0, p1);
+    check_and_apply_sbas(&mut state_no_mana);
+    mtg_engine::rules::abilities::flush_pending_triggers(&mut state_no_mana);
     let state_no_mana = drain_stack(state_no_mana, &all);
     assert!(
         in_graveyard(&state_no_mana, "Nether Traitor", p1),
@@ -427,9 +446,20 @@ fn test_dx24_simultaneous_death_does_not_trigger() {
     let defs_vec: Vec<CardDefinition> = defs.values().cloned().collect();
 
     // Nether Traitor and Fodder BOTH die in the same SBA batch: both start on
-    // the battlefield with toughness 0.
+    // the battlefield with toughness 0. `.with_card_id(...)` is REQUIRED even
+    // though the object starts on the battlefield -- `move_object_to_zone`
+    // carries `card_id` through the zone change, but `card_id` is never
+    // auto-populated by `enrich_spec_from_def` for a battlefield object, and
+    // `collect_graveyard_carddef_triggers` looks the def up by `card_id`; with
+    // it unset, EVERY graveyard object in this fixture is silently invisible
+    // to the dispatch (found by an intermediate debug trace during authoring:
+    // pending_triggers stayed `[]` even with the look-back guard forcibly
+    // disabled, which is what exposed this).
+    let nether_card_id = defs.get("Nether Traitor").unwrap().card_id.clone();
     let nether_spec = enrich_spec_from_def(
-        ObjectSpec::card(p1, "Nether Traitor").in_zone(ZoneId::Battlefield),
+        ObjectSpec::card(p1, "Nether Traitor")
+            .in_zone(ZoneId::Battlefield)
+            .with_card_id(nether_card_id),
         &defs,
     );
     let mut nether_spec = nether_spec;
@@ -490,11 +520,33 @@ fn test_dx24_simultaneous_death_does_not_trigger() {
 
 // ── T5: exclude_self compares the GRAVEYARD identity ─────────────────────────
 
-/// CR 400.7 / CR 603.10a — `exclude_self` must compare against `new_grave_id`
-/// (the graveyard id space Nether Traitor's own `obj_id` lives in), not only
-/// the dying creature's battlefield `pre_death_id`. This is the whole point of
-/// the test: a comparison written against `pre_death_id` alone fails OPEN,
-/// silently, because a graveyard id can never equal a battlefield id.
+/// CR 400.7 / CR 603.10a — Nether Traitor dying ALONE (no other creature) must
+/// not trigger itself.
+///
+/// **Finding, recorded honestly per the plan's runner obligations**: the
+/// plan's §3.3 table predicted this test's revert (comparing `exclude_self`
+/// against `pre_death_id` alone, dropping `new_grave_id`) would "fire,
+/// because the two id spaces never meet." Executing that revert (during
+/// stage 4 authoring) did NOT redden this test -- it stayed green. Root
+/// cause, proven rather than argued: for a GRAVEYARD-dispatched
+/// `WheneverCreatureDies` trigger, `new_grave_id == obj_id` can only be true
+/// when the trigger's OWN source is the object that just died THIS batch --
+/// and `arrived_in_graveyard_this_batch` (CR 603.10a look-back, T4) is built
+/// from the SAME `events` slice `collect_graveyard_carddef_triggers` is
+/// invoked per-event from, so that exact id is ALWAYS already a member of
+/// the look-back set. The two guards are therefore logically overlapping for
+/// every state reachable through the public API: there is no game state
+/// where dropping the `new_grave_id` comparison changes observable behavior,
+/// for THIS corpus's only `exclude_self: true` graveyard-scoped card. The
+/// `new_grave_id` comparison (`abilities.rs`, the `WheneverCreatureDies` arm
+/// of `collect_graveyard_carddef_triggers`) is kept anyway -- it is still the
+/// CR 400.7-correct comparison (a `pre_death_id`-only comparison is silently
+/// wrong in principle, matching the ETB arm's identical "moot but kept for
+/// symmetry" comment) and it is defense-in-depth against a future narrowing
+/// of the look-back guard's scope. This test therefore verifies the
+/// OBSERVABLE outcome (self-death does not self-trigger), not the id-space
+/// choice in isolation -- the id-space choice is a source-level fact, verified
+/// by reading `abilities.rs`, not by an integration-level revert.
 #[test]
 fn test_dx24_exclude_self_compares_the_graveyard_identity() {
     let p1 = p(1);
@@ -504,9 +556,13 @@ fn test_dx24_exclude_self_compares_the_graveyard_identity() {
 
     // Nether Traitor itself is the dying object: it starts on the battlefield
     // with toughness 0, dies via SBA, and its OWN new_grave_id is what
-    // exclude_self must catch.
+    // exclude_self must catch. `.with_card_id(...)` is REQUIRED (see T4's
+    // comment for why -- without it the graveyard object is invisible to
+    // collect_graveyard_carddef_triggers and this test passes VACUOUSLY).
     let mut nether_spec = enrich_spec_from_def(
-        ObjectSpec::card(p1, "Nether Traitor").in_zone(ZoneId::Battlefield),
+        ObjectSpec::card(p1, "Nether Traitor")
+            .in_zone(ZoneId::Battlefield)
+            .with_card_id(nether_card_id.clone()),
         &defs,
     );
     nether_spec.toughness = Some(0);
@@ -540,7 +596,6 @@ fn test_dx24_exclude_self_compares_the_graveyard_identity() {
         self_triggers.len(),
         self_triggers
     );
-    let _ = nether_card_id; // kept for parity with the other fixtures' shape
 }
 
 // ── T6: graveyard death filters mirror the battlefield path ─────────────────
@@ -729,8 +784,7 @@ fn test_dx24_graveyard_death_filter_subtype_filter() {
         has_subtype: Some(mtg_engine::SubType("Zombie".to_string())),
         ..Default::default()
     };
-    let watcher_def =
-        synthetic_graveyard_watcher_def("DX24 Zombie Watcher", false, Some(filter));
+    let watcher_def = synthetic_graveyard_watcher_def("DX24 Zombie Watcher", false, Some(filter));
 
     for (fodder_subtypes, expect_fires) in [
         (vec![mtg_engine::SubType("Human".to_string())], false),
