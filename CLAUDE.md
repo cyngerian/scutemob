@@ -36,7 +36,8 @@
   the PB-DX correctness queue alone** (`memory/primitives/seed-rerank-2026-08-02.md` §4 — v3,
   `scutemob-182`; PB-DX19 shipped `451e3517`, PB-DX22 shipped `95f53b78`;
   PB-DX32 shipped `scutemob-197`/`685aa1c4` (promoted per feedback doc §2.3, user-approved 2026-08-03);
-  **next PB-DX20**; the playtest-successor run 174–181
+  PB-DX20 shipped `scutemob-198`/`ecd7b119` 2026-08-04;
+  **next PB-DX21**; the playtest-successor run 174–181
   AND the triage-2 successor run 187–194 both completed 2026-08-02 — triage 2 is fully closed,
   8/8 rows shipped. **FEEDBACK-1 SHIPPED** (`scutemob-192`, merge `d55e74cc`, doc-only):
   `docs/mtg-engine-feedback-engineering.md` is the alpha feedback-loop strategy — 8 ranked
@@ -96,7 +97,8 @@
   **PB-DX1..PB-DX6 ALL SHIPPED** (`scutemob-160`/`162`/`164`/`166`/`168`/`170`/`172`; full
   narratives in `memory/archive/claude-md-changelog-2026-08.md`, per-batch handoffs in
   `memory/workstream-state.md`). PROTOCOL **35** / HASH **72** (as of ENG-2, `scutemob-193`).
-  **PB-DX19 SHIPPED** (`scutemob-184`, `451e3517`) — **next dispatch: PB-DX20** (brief in
+  **PB-DX19 SHIPPED** (`scutemob-184`, `451e3517`) and **PB-DX20 SHIPPED** (`scutemob-198`,
+  `ecd7b119`) — **next dispatch: PB-DX21** (brief in
   `memory/primitives/seed-rerank-2026-08-02.md` §4; re-word OOS-DX19-2 per OOS-ADJ-3 before any
   DX42b dispatch). **PB-DX7 is no longer next** — it survives at
   rank 9; eight new entries outrank it. Older queue history (the PB-OS,

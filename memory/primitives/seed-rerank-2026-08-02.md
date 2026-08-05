@@ -715,7 +715,7 @@ treat a mismatch as a signal to stop.
 | rank | batch | scope | seeds | class | discounted yield | wire |
 |---|---|---|---|---|---|---|
 | **1** | ~~**PB-DX19**~~ ✅ SHIPPED (`scutemob-184`, `451e3517`, 2026-08-02) | the unbounded characteristics recursion + unchecked P/T arithmetic | **OOS-SIM2-6** (HIGH) + **OOS-SIM2-5** | **CORRECTNESS — hard process abort, deck-legal** | 0 flips; closes the only HIGH in the registry; 10 arithmetic sites hardened | **none** (both fixes are arithmetic/read-site) |
-| **2** | **PB-DX20** | the offer layer cannot see a keyword-carried target requirement | **OOS-CARDS2-4** (HIGH) + **OOS-CARDS1-2** | **CORRECTNESS — live in the browser on first contact** | 0 flips; repairs 13 `Complete` Auras + 1 `Complete` Reconfigure | **none** (provider + one synth site) |
+| **2** | ~~**PB-DX20**~~ ✅ SHIPPED (`scutemob-198`, `ecd7b119`, 2026-08-04) | the offer layer cannot see a keyword-carried target requirement | **OOS-CARDS2-4** (HIGH) + **OOS-CARDS1-2** | **CORRECTNESS — live in the browser on first contact** | 0 flips; repairs 13 `Complete` Auras + 1 `Complete` Reconfigure | **none** (provider + one synth site) |
 | **3** | **PB-DX21** | CR 508.1 — attackers may be declared without limit | **OOS-M11-9** | **CORRECTNESS — silent state corruption by a normal client action** | 0 flips; 14 `Complete` vigilant creatures; deletes 2 client-side mitigations | **none** if the guard reads `combat.attackers`; **HASH** if it mirrors `defenders_declared` |
 | **4** | ~~**PB-DX22**~~ ✅ SHIPPED (`scutemob-196`, `95f53b78`, 2026-08-03) | make the fuzzer a real instrument | **OOS-UI2-1** + **OOS-SIM3-1** + **OOS-SIM1-4** | **EVIDENCE INTEGRITY — every historical fuzz-parity claim depends on it** | 0 flips; re-rolls every recorded seed **once** | **none** (`crates/simulator` only) |
 | **5** | **PB-DX23** | dredge has no answer channel for anyone | **OOS-DX2-5** + **OOS-DX2-2** + **OOS-DX2-7** + **OOS-DX2-3** *(watch item)* | **CORRECTNESS — permanent draw-cadence corruption, deck-legal** | 0 flips; 1 def (`golgari_grave_troll`); adds a `LegalAction` variant | **none** (`Command::ChooseDredge` and the event already exist) |
@@ -826,6 +826,10 @@ the result either way. **Wire: none.** Expect PROTOCOL 33 / HASH 70 unmoved; gat
 ---
 
 **PB-DX20 — `PB-DX20: the offer layer cannot see a keyword-carried target requirement (OOS-CARDS2-4 + OOS-CARDS1-2)` · CORRECTNESS**
+
+> **✅ SHIPPED 2026-08-04** (`scutemob-198`, merge `ecd7b119`). Both seeds CLOSED; plan
+> `memory/primitives/pb-plan-DX20.md`, review `memory/primitives/pb-review-DX20.md`, handoff in
+> `memory/workstream-state.md`. The brief below is retained as the historical dispatch record.
 
 `crates/engine/src/rules/casting.rs:3723-3733` rejects an Aura spell cast with no targets, deriving
 the requirement from `sba::get_enchant_target(&chars.keywords)` (CR 303.4a) rather than from a
