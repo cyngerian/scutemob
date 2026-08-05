@@ -1,6 +1,23 @@
 // Nether Traitor — {B}{B}, Creature — Spirit 1/1; Haste, Shadow.
 // Whenever another creature is put into your graveyard from the battlefield, you may pay
 // {B}. If you do, return this card from your graveyard to the battlefield.
+//
+// CR 113.6m: this ability functions ONLY from the graveyard — its effect moves the card out of
+// the graveyard, and its trigger condition does not put it there. On the battlefield, another
+// creature dying does nothing. That is what `trigger_zone: Some(TriggerZone::Graveyard)` below
+// records, and the def has been right about it since it was written.
+//
+// PB-DX24 (`scutemob-202`, 2026-08-05) is when the ENGINE started reading it. Before that the
+// lowering (`testing::replay_harness::build_face_ability_vectors`) dropped `trigger_zone` in
+// 33 of its 34 trigger arms, so this ability was installed on the battlefield object and was
+// never dispatched from the graveyard at all — the card functioned from exactly the wrong zone.
+// Seeded as `OOS-DX1-3`, closed by PB-DX24.
+//
+// CR 603.10a (Gatherer, Nether Traitor): if Nether Traitor and another creature are put into
+// your graveyard at the same time, this ability does NOT trigger — a leaves-the-battlefield
+// ability looks back in time, and immediately prior to the event this card was on the
+// battlefield, where (CR 113.6m) the ability did not function. Enforced by
+// `rules::abilities::check_triggers`'s `arrived_in_graveyard_this_batch` set.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
