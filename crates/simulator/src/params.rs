@@ -633,6 +633,18 @@ pub fn action_to_command_with_params(
             recover_card: *recover_card,
             pay: *pay,
         }),
+        // PB-DX23 (CR 702.52a): the choice lives entirely in the `LegalAction`
+        // itself — there is no params channel, so this arm stays OUTSIDE the
+        // nine-arm allowlist above and any param announced alongside it is
+        // refused with `ParamError::UnsupportedParam` rather than silently
+        // discarded. "Absent means accept the default" does not arise here: the
+        // nearest thing to a default is the decline (`card: None`), which is a
+        // DISTINCT offer the client must click, not an implicit fallback (plan §3
+        // Q6).
+        LegalAction::ChooseDredge { card, .. } => Ok(Command::ChooseDredge {
+            player,
+            card: *card,
+        }),
         // ── The three blocking-decision arms (UI-1) ──────────────────────────────
         //
         // Each of these used to submit the `LegalAction`'s own default

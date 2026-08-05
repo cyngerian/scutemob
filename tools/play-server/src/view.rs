@@ -1227,6 +1227,7 @@ fn action_kind(action: &LegalAction) -> &'static str {
         LegalAction::DiscardToHandSize { .. } => "DiscardToHandSize",
         LegalAction::ChooseTriggerTargets { .. } => "ChooseTriggerTargets",
         LegalAction::AnswerEffectChoice { .. } => "AnswerEffectChoice",
+        LegalAction::ChooseDredge { .. } => "ChooseDredge",
     }
 }
 
@@ -1261,6 +1262,9 @@ fn action_object(action: &LegalAction) -> Option<ObjectId> {
         | LegalAction::TakeMulligan
         | LegalAction::KeepHand
         | LegalAction::DiscardToHandSize { .. } => None,
+        // PB-DX23 (CR 702.52a): `card` is already `Option<ObjectId>` -- a decline
+        // correctly has no object, and a `Some(id)` names the dredge card itself.
+        LegalAction::ChooseDredge { card, .. } => *card,
     }
 }
 
@@ -1334,6 +1338,16 @@ fn action_label(action: &LegalAction, names: &NameIndex) -> String {
         }
         LegalAction::AnswerEffectChoice { source, .. } => {
             format!("Answer {}'s choice", card(*source))
+        }
+        // PB-DX23 (CR 702.52a).
+        LegalAction::ChooseDredge {
+            card: Some(c),
+            mill,
+        } => {
+            format!("Dredge {} (mill {mill})", card(*c))
+        }
+        LegalAction::ChooseDredge { card: None, .. } => {
+            "Decline dredge — draw normally".to_string()
         }
     }
 }

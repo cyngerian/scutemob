@@ -367,10 +367,212 @@ markers).
   test in the same file (`test_dx2_needschoice_redefer_grows_the_queue`,
   the plan's protected pin) left completely unedited
 
-## Next stage
+## Stage 3 — simulator: the variant, the provider, `params.rs`
 
-Stage 3 (simulator: `LegalAction::ChooseDredge`, `StubProvider` emission,
-`params.rs` wiring — per plan §4 Stage 3) has NOT been started. Stage 0's
-probe (`crates/simulator/tests/pb_dx23_dredge_answer_channel.rs`) remains,
-as required, RED with unchanged failure numbers. This file's Stage 1 and
-Stage 2 sections are the complete deliverable for this dispatch.
+* `LegalAction::ChooseDredge { card: Option<ObjectId>, mill: u32 }` added to
+  `crates/simulator/src/legal_actions.rs`'s enum, doc citing CR 702.52a and
+  the plan §3 Q1/Q2 arguments verbatim.
+* `StubProvider::legal_actions`: the emission block appended immediately
+  after the `PayRecover` loop and before `is_main_phase`'s computation
+  (exactly the plan's named insertion point). Guard is the conjunction
+  `state.pending_draws().iter().any(|p| p.player == player)` AND
+  `!dredge_options(state, player).is_empty()`; when both hold, pushes
+  `ChooseDredge { card: None, mill: 0 }` plus one `Some` entry per
+  `dredge_options` result, in that function's own (`ObjectId`-sorted) order.
+* `crates/simulator/src/params.rs::action_to_command_with_params`: one arm,
+  `LegalAction::ChooseDredge { card, .. } => Ok(Command::ChooseDredge {
+  player, card: *card })`. Left OUTSIDE the nine-arm parameterisation
+  allowlist (`:271-286`), confirmed by reading — no edit needed there since
+  the allowlist is closed over exactly nine named variants and `ChooseDredge`
+  is not one of them; any `params` field announced alongside it is refused
+  with `ParamError::UnsupportedParam` by the existing pre-match guard.
+
+Gate: `cargo build --workspace` after the three edits pointed at exactly the
+sites Stage 5 predicts (see below) — no more, no fewer.
+
+## Stage 4 — bot policy
+
+`crates/simulator/src/heuristic_bot.rs::score_action`: `_player` promoted to
+`player` (line `:186`, now read by the new arm). Two arms added at the end
+of the match, verbatim per plan §3 Q4:
+
+* `ChooseDredge { card: None, .. } => 2` (the `PayEcho { pay: false }`
+  precedent).
+* `ChooseDredge { card: Some(_), mill } => if library_count >= 2 * mill { 3 }
+  else { 0 }`, `library_count` read via `state.zones().get(&ZoneId::Library(
+  player))` (mirrors the provider's own zone-length idiom elsewhere in this
+  file).
+
+## Stage 5 — the exhaustive-match sweep
+
+`cargo build --workspace` pointed at exactly three FORCED sites, matching
+the plan's table one-for-one (line numbers shifted from the plan's estimate,
+as expected — the plan itself said "let `cargo build --workspace` confirm"):
+
+| file | match | action taken |
+|---|---|---|
+| `tools/play-server/src/view.rs::action_kind` | `"ChooseDredge"` |
+| `tools/play-server/src/view.rs::action_object` | `LegalAction::ChooseDredge { card, .. } => *card` |
+| `tools/play-server/src/view.rs::action_label` | `format!("Dredge {} (mill {mill})", card(*c))` / `"Decline dredge — draw normally"` |
+
+**One compile-forced site the plan's table did NOT name, found only by
+running `cargo clippy --workspace --all-targets`** (a plain `cargo build
+--workspace` does not compile test targets by default and did not surface
+it): `crates/simulator/tests/local_game_playthrough.rs::kind_of`, the S8
+scripted-playthrough helper's own exhaustive `LegalAction` match (a
+`#[test]`-only file, so `cargo build` never reaches it). Added
+`LegalAction::ChooseDredge { .. } => "ChooseDredge"`, documented as a no-op
+for that policy (step 4's `PassPriority` always matches first while a
+dredge offer stands, since Q1 made it an ordinary, non-exclusive action).
+This is exactly the class of gap `cargo build --workspace` is known to miss
+per CLAUDE.md's Milestone Completion Checklist ("catches missed match arms
+... that `cargo check` misses") — here the miss was one level further,
+inside a `#[cfg(test)]`-gated integration test, and clippy's
+`--all-targets` flag is what closed it.
+
+**Confirmed NOT compile-forced, by reading** (matching the plan's second
+list exactly, no surprises): `view.rs::action_needs_x`, `action_modes`,
+`action_target_requirements`, `target_query_source`, the combat-options
+match, `blocking_decision_view` (`_ => None`), `api.rs::
+validate_combat_params` / `validate_decision_params` (both catch-all).
+`tools/tui/` compiled with zero changes (`cargo build --workspace` never
+touched it after the `mtg-simulator` recompile) — confirms `OOS-DX23-3`
+(the TUI gets no dredge channel) without needing a new probe.
+`crates/view-model` does not depend on `crates/simulator` and was untouched.
+
+## Stage 7 (T4/T5 test rows) — revert matrix, all EXECUTED and watched RED,
+rebuild confirmed each time (`Compiling mtg-simulator` / `Compiling
+play-server` observed), then restored and re-confirmed GREEN
+
+| test | revert executed | observed failure | restored? |
+|---|---|---|---|
+| T4.1 `test_dx23_provider_offers_decline_plus_one_per_eligible_card` | dropped the `card: None` push in the provider's dredge block | `dredge actions: [ChooseDredge { card: Some(ObjectId(1)), mill: 6 }]` — decline assertion fails | yes |
+| T4.2 `test_dx23_provider_offers_nothing_when_no_dredge_card_is_eligible` | removed the `options.is_empty()` guard | `Offered: [ChooseDredge { card: None, mill: 0 }]` — the exact Q2 re-defer-loop bait reappears | yes |
+| T4.3 `test_dx23_provider_is_silent_while_a_blocking_decision_stands` | duplicated the dredge emission block to run BEFORE the `blocking_decision()` early return | `Offered: [ChooseDredge { card: None, mill: 0 }, ChooseDredge { card: Some(ObjectId(1)), mill: 6 }, DiscardToHandSize {...}]` — both dredge options appear alongside the cleanup discard | yes |
+| T4.4 `test_dx23_every_offered_action_is_engine_accepted` | added an extra unconditional push offering a real LIBRARY object (not a graveyard/Dredge card) as `Some` | `error=Some(InvalidCommand("dredge card ObjectId(2) is not in PlayerId(4401)'s graveyard (zone: Library(PlayerId(4401)))"))` — engine's own independent validation catches it, proving the assertion is a real discriminator | yes |
+| T4.5 `test_dx23_heuristic_bot_declines_rather_than_milling_itself_out` | dropped the `2 *` margin multiplier (`library_count >= mill` instead of `>= 2*mill`) | `Chose: ChooseDredge { player: PlayerId(4501), card: Some(ObjectId(1)) }` — bot mills itself at library == mill == 6 | yes |
+| T5.1 `test_dx23_browser_can_answer_a_dredge_offer` | disabled the provider's whole dredge conjunct (`if false && ...`) | drive loop exhausts the game (`GameOver` at turn 86, human lost to Bot-2's commander damage) without the offer ever appearing — `the game ended at step 778 without ever offering a named ChooseDredge option` | yes |
+| Stage-0 probe T1.1 (re-confirmed, not re-executed fresh — Stage 3 is what turns it green) | N/A, see above | goes GREEN once Stage 3 lands: `pending_draws_at_halt=0, card_drawn_p1=1, dredged_p1=1, a2_lhs=2, a2_rhs=2, dredge_choice_required_p1=1` — non-vacuous (a real dredge occurred, not just declines) | n/a |
+
+Post-restore verification: `grep -rn "REVERT-" crates/simulator/src
+tools/play-server/src` returns 0 hits; every touched production file
+matches its pre-revert state (confirmed by re-running the full suite green
+after each restore, not just by eyeballing the diff).
+
+## T5.1 — HTTP fixture notes
+
+**Seed had to be swept, exactly as the plan's Q6/budget-note anticipated.**
+First draft used an unswept seed (`235_023`) with p1 and p2 both dealt an
+identical 99-card `mono-green` deck (98 Forests + Golgari Grave-Troll,
+commander `azusa-lost-but-seeking` — {2}{G}, chosen ONLY for CR 903.5c color
+identity, +2 land plays as an incidental but harmless side effect since both
+players get the identical deck). **That draft never reached a dredge
+offer at all** — with the Troll buried deep in a near-homogeneous 98-card
+library and no interaction beyond commander-damage combat, the two
+identical decks raced to a mutual near-deck-out, and the game ended (Bot-2
+lost to `LibraryEmpty` at turn 96 / step 866) with the Troll never drawn by
+either seat. Root-caused by inspection of the `game_over` JSON payload
+(`graveyard_size: 0` for the human — the Troll was never cast, so never
+died, so never dredge-eligible).
+
+**Fix: swept seeds 0..2000 with a throwaway `#[test]` (`session::new_game`
++ direct `state.objects_in_zone(&Hand(p1))` inspection, NOT going through
+HTTP), looking for the FIRST seed that deals the Troll straight into p1's
+opening 7-card hand** — the same `ui1_deck`/`UI1_SEED` precedent
+("`main_deck[0]` lands in the opening hand at the right seed, verified by
+sweep, not assumed"). Seed **1** hit on the first attempt (the sweep
+printed ~90 hits between 0 and 2000; used the lowest). The throwaway sweep
+test was deleted after use — `grep -rn scratch_sweep` in `tools/play-server/
+src/main.rs` returns 0 hits.
+
+With seed 1, the shipped test completes in **0.17s** wall time — no long
+drive was needed once the Troll started in the opening hand (cast on curve,
+dies to CR 704.5f as a 0/0, dredge offer arrives on the very next draw
+step). `max_steps: 4_000` in the drive loop is generous headroom, not a
+measured requirement.
+
+**play-server test count**: 79 (Stage-0-measured pre-batch baseline, itself
+a divergence from the plan's stale "78" pin — see the Stage 0 section
+above) → **80** (+1, `test_dx23_browser_can_answer_a_dredge_offer`),
+confirmed by `cargo test -p play-server` (80 passed / 0 failed).
+
+## Full-suite gates — all EXECUTED after Stage 5 + the T4/T5 tests, output
+captured to a file, none piped through `tail`
+
+| gate | result |
+|---|---|
+| `cargo build --workspace` | clean, 0 warnings |
+| `cargo test --workspace --no-fail-fast` (final, post-`cargo fmt`) | **4,412 passed / 0 failed / 5 ignored**. Delta over the Stage-2 collect's **4,405 / 1 failed / 5 ignored**: +6 new tests (T4.1-T4.5 in `crates/simulator/tests/pb_dx23_dredge_answer_channel.rs`, +1 `test_dx23_browser_can_answer_a_dredge_offer` in `tools/play-server/src/main.rs`) and the Stage-0 probe flipping from failing to passing (no count change from that flip alone). Arithmetic note: 4,405 + 6 = 4,411, one short of the measured 4,412; the extra +1 was not traced to a specific PB-DX23 edit (no other test file changed) and is flagged here rather than silently rounded away -- possibly a pre-existing count fluctuation orthogonal to this batch (e.g. a doctest or parallel-enumeration artifact), not re-investigated further since the only load-bearing fact -- **0 failed, residual list empty** -- is independently confirmed twice (`/tmp/pb-dx23-full-suite.txt` and `/tmp/pb-dx23-full-suite-final.txt`, both `grep -c FAILED` == 0). |
+| `cargo test -p mtg-engine --test core hash_schema` | 21/21 green; `hash_schema_version_sentinel` confirms **HASH 73 unmoved** |
+| `cargo test -p mtg-engine --test core protocol_schema` | 17/17 green; `protocol_schema_fingerprint_is_pinned` confirms **PROTOCOL 35 unmoved** |
+| `cargo test -p play-server` | **80 passed / 0 failed** (79 baseline + 1) |
+| `cargo clippy --workspace --all-targets -- -D warnings` | clean, run twice (pre- and post-`cargo fmt`), both clean |
+| `cargo fmt --check` | FAILED once (4 blocks in the new test file needing reformat, all long builder-chain / assert-macro lines) → `cargo fmt` → `cargo fmt --check` clean on re-run |
+| `tools/check-defs-fmt.sh` | clean, "1803 defs checked" |
+| `python3 tools/authoring-report.py` | ran; **62.8% (1,133/1,803) unmoved** -- body differs only in self-dating fields (generated timestamp, HEAD sha, branch name, rolling 7-day commit-touch count, recent-commits list), confirmed by reading the diff before reverting it; `git checkout -- docs/authoring-status.md docs/authoring-status-missing.txt docs/authoring-status-prev.json` afterward so the working tree carries no unrelated doc noise |
+| golden script `replacement/014_golgari_grave_troll_dredge.json` | green -- `run_all_approved_scripts: 1 of 271 discovered scripts ran and passed; 0 retired; 0 skipped silently`, byte-identical outcome to the Stage 0 baseline |
+| `git diff --stat -- crates/card-defs/` | **empty** -- 0 card-def lines touched in Stages 3-5 |
+
+## R1 ratchets (fuzz seed drift) — checked explicitly, all UNMOVED
+
+| gate | file | result |
+|---|---|---|
+| `test_dx32_sr38_bot_rejection_rate_is_ratcheted` | `pb_dx32_fuzz_output.rs` | green, aggregate 6.909 per mille (pin 40) -- unmoved |
+| `test_dx32_random_bot_waste_ratio_is_bounded` | same | green, aggregate 92% (pin 95%) -- unmoved |
+| `test_dx32_orphaned_tokens_are_transient_and_the_end_state_is_clean` / `test_dx32_distinct_collapses_checkpoint_weighting` | same | green, seed-2 transient counts unchanged |
+| `test_dx32_a_fuzz_run_reaches_at_least_one_served_row` | same | green, reached partition `{"discard_cards","scry","search_library","triggered_targets"}`, never-reached `{"surveil"}` -- identical partition, unmoved |
+| `heuristic_pools_emptied_is_pinned` | `sim5_bot_cast_discipline.rs` | green, `MAX_HEURISTIC_POOLS_EMPTIED_PER_SEED` pin unmoved |
+| `test_s8_scripted_human_playthrough_is_clean_on_five_seeds` | `local_game_playthrough.rs` | green, all 5 seeds; **diagnosis**: none of seeds 1/7/42/1234/9001's `kinds` sets contain `"ChooseDredge"` -- no dredge offer arose in any of the five S8 seeds (none deals `golgari_grave_troll` to a reachable graveyard within the drive), so this ratchet correctly did not move. Per R1's rule ("a moved pin is a FINDING first"): here nothing moved, and the diagnosis (checked, not assumed) is that these five recorded seeds' deals simply never touch the new channel. |
+
+**play-server's `DeckSource::Fixed` seeded pins** (`UI1_SEED`/`SIM1_SEED`/
+`UI2_SEED`/`UI6_SEED`/`COMBAT_SEED`/`TARGET_SEED`/`UI3_SPLIT_COMBAT_SEED`/
+`DISTINCTIVE_SEED`): confirmed **unmoved** -- the full `cargo test -p
+play-server` run (80/0) includes every test built on those fixtures and
+none reddened; none of those fixed decks contains `golgari-grave-troll`
+(mono-black/-white/etc. `UI1_COMMANDER`/`UI6_SEARCHER` decks per those
+fixtures' own doc comments), so this is exactly the "must NOT move at all"
+case the plan named, and it held.
+
+## Files touched this dispatch (Stages 3-5 + T4/T5 tests, nothing committed)
+
+* `crates/simulator/src/legal_actions.rs` -- `ChooseDredge` variant + doc
+  (Stage 3a); `StubProvider` emission block (Stage 3b)
+* `crates/simulator/src/params.rs` -- one arm (Stage 3c)
+* `crates/simulator/src/heuristic_bot.rs` -- `_player` -> `player`; two
+  score arms (Stage 4)
+* `tools/play-server/src/view.rs` -- three arms: `action_kind`,
+  `action_object`, `action_label` (Stage 5)
+* `crates/simulator/tests/local_game_playthrough.rs` -- one arm in the S8
+  scripted-playthrough's `kind_of` helper (Stage 5, found by clippy
+  `--all-targets`, not in the plan's table)
+* `crates/simulator/tests/pb_dx23_dredge_answer_channel.rs` -- 5 new tests
+  (T4.1-T4.5) + 3 shared helpers (`pass_all`, `build_single_dredge_offer_state`,
+  `drive_to_a_blocking_decision`) appended after the existing T1.1
+* `tools/play-server/src/main.rs` -- T5.1 (`test_dx23_browser_can_answer_a_dredge_offer`)
+  plus its own deck/install/hand/drive helpers, all prefixed `t5_dx23_`
+
+## Deviations from the plan's literal text
+
+1. **Stage 5's compile-forced-sites table missed one site**: the S8
+   scripted-playthrough test file's own exhaustive `LegalAction` match
+   (`local_game_playthrough.rs::kind_of`). `cargo build --workspace` does
+   not compile test targets, so this was only caught by running `cargo
+   clippy --workspace --all-targets -- -D warnings`. No production
+   behavior depends on this arm (the policy never chooses `ChooseDredge`,
+   documented inline); it exists purely so the match stays exhaustive.
+2. **T5.1's seed could not be picked arbitrarily** -- the plan's own §3 Q6
+   budget note anticipated this ("if the drive proves impractical..."); a
+   sweep (not a guess) found seed 1 puts the Troll in the opening hand,
+   avoiding the ~90-turn mutual-deck-out race an unswept seed hit on first
+   attempt.
+3. **Full-suite count arithmetic has an unreconciled +1** (4,405 + 6 new
+   tests = 4,411 measured vs 4,412 actual). Flagged above rather than
+   silently rounded away; does not affect the pass/fail/residual facts,
+   which were independently confirmed twice.
+
+Everything else matched the plan's predictions exactly: the three named
+`view.rs` sites, the `params.rs` allowlist exclusion, the Q1/Q2 provider
+placement and guard, the Q4 bot-policy formula, zero card-def lines, zero
+wire changes (HASH 73 / PROTOCOL 35 both gate-executed and confirmed
+unmoved), and the TUI's total non-involvement (`OOS-DX23-3` re-confirmed by
+observation rather than assumed).

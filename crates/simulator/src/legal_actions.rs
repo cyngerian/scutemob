@@ -273,6 +273,43 @@ pub enum LegalAction {
         recover_card: ObjectId,
         pay: bool,
     },
+    /// CR 702.52a (PB-DX23, `OOS-DX2-5`): answer an outstanding dredge offer
+    /// (`state.pending_draws()`). Emitted as an ORDINARY priority-window action —
+    /// appended after the `PayRecover` loop, never as an exclusive early-return and
+    /// never as a fourth `BlockingDecision` variant. Both alternatives were
+    /// considered and rejected (plan §3 Q1): CR 702.52a is "you **may** instead",
+    /// so the engine deliberately does not block on it
+    /// (`GameEvent::DredgeChoiceRequired`'s own doc), and the engine's admission
+    /// gate enforces no exclusivity here the way it does for `DiscardToHandSize` —
+    /// `PassPriority` and every cast stay legal while a dredge offer stands, so
+    /// offering `ChooseDredge` alone would lie about legality in the withholding
+    /// direction (the mirror image of SR-38).
+    ///
+    /// `card: None` is the always-legal decline (CR 702.52a "may"); `card: Some(id)`
+    /// names a currently-eligible dredge card from the player's graveyard, with
+    /// `mill` its `N`. Re-derived at OFFER time from live state via
+    /// `rules::queries::dredge_options` — never read off the stale
+    /// `DredgeChoiceRequired` event, whose `options` were computed when the entry
+    /// was pushed and can have gone stale (the card exiled, the library milled
+    /// below `n`).
+    ///
+    /// **Suppression rule (plan §3 Q2), load-bearing, not defensive**: this action
+    /// is offered at ALL only when `dredge_options(state, player)` is non-empty —
+    /// even the `None` decline is withheld when nothing is eligible. Without this, a
+    /// `NeedsChoice`-origin `PendingDraw` (CR 616.1e, zero corpus reach today) would
+    /// get a bare decline offer whose resume RE-DEFERS — hits `NeedsChoice` again
+    /// and pushes a fresh entry (pinned by
+    /// `pb_dx2_command_gates.rs::test_dx2_choose_dredge_some_can_answer_a_needschoice_originated_entry`).
+    /// A bot scoring `ChooseDredge` above `PassPriority` would then decline forever
+    /// and burn `max_commands`. Trade-off: a `NeedsChoice` entry remains
+    /// unanswerable through this channel — `OOS-DX23-2`, `LegalAction::
+    /// OrderReplacements` is the real fix and is out of scope here.
+    ChooseDredge {
+        card: Option<ObjectId>,
+        /// CR 702.52a's `N` for this dredge card. `0` when `card` is `None` (the
+        /// decline carries no mill).
+        mill: u32,
+    },
     /// CR 509.2 (M11-local S8, plan item 2): set the damage-assignment order for
     /// one attacker that is blocked by two or more creatures.
     ///
@@ -614,6 +651,36 @@ impl LegalActionProvider for StubProvider {
                     recover_card: *recover_card,
                     pay: true,
                 });
+            }
+        }
+
+        // PB-DX23 (CR 702.52a, `OOS-DX2-5`): an outstanding dredge offer. An
+        // ORDINARY priority-window action, appended here for the exact reasons
+        // given at `LegalAction::ChooseDredge`'s own doc (plan §3 Q1) — not an
+        // exclusive early-return (the engine enforces no exclusivity here) and not
+        // a `BlockingDecision` (CR 702.52a is "may", so the engine deliberately
+        // does not block on it).
+        //
+        // BOTH conjuncts are required, and the second is load-bearing (plan §3
+        // Q2): a `PendingDraw` for this player must exist, AND at least one card
+        // must currently be dredge-eligible per `rules::queries::dredge_options`
+        // (the shared CR 702.52a/b derivation — PB-DX20 shape, one arithmetic, two
+        // consumers). Without the second conjunct a `NeedsChoice`-origin entry
+        // (zero corpus reach today) would get a bare decline offer whose answer
+        // re-defers the entry rather than discharging it — see the variant doc.
+        if state.pending_draws().iter().any(|p| p.player == player) {
+            let options = mtg_engine::rules::queries::dredge_options(state, player);
+            if !options.is_empty() {
+                actions.push(LegalAction::ChooseDredge {
+                    card: None,
+                    mill: 0,
+                });
+                for (card, mill) in options {
+                    actions.push(LegalAction::ChooseDredge {
+                        card: Some(card),
+                        mill,
+                    });
+                }
             }
         }
 
