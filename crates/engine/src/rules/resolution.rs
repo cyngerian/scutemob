@@ -8295,13 +8295,35 @@ fn is_target_legal(state: &GameState, spell_target: &SpellTarget) -> bool {
         }
     }
 }
-/// Counter a specific stack object without it resolving (CR 608.2b, 701.5).
+/// Counter a specific stack object without it resolving (CR 608.2b, 701.6a).
 ///
-/// Finds the stack object by ID, removes it from the stack, and moves the
-/// associated card to its owner's graveyard. After countering, the active
-/// player receives priority.
+/// Finds the stack object by ID, removes it from the stack, and -- if it owns
+/// a card sitting in `ZoneId::Stack` -- moves that card to its owner's
+/// graveyard (or exile, for flashback/jump-start; CR 702.34a / CR 702.133a).
+/// Which stack objects own a card is decided ONCE, in `state::stack_registry`
+/// (`card_in_stack_zone`), never re-derived per-kind here -- the same
+/// classification `Effect::CounterSpell` (`effects/mod.rs`) drives its own
+/// zone-move off. CR 707.10 / 707.10a: a COPY owns no card of its own and is
+/// simply removed; if the removed object is an `ActivatedAbility` or
+/// `TriggeredAbility` (including a copy of one, CR 707.10b -- a copy of an
+/// ability has the SAME source as the original), a `SpellCountered` event
+/// still names its source. Every other kind is removed with no event
+/// (`OOS-DX25-4` -- widening the event to every ability/trigger kind is
+/// deliberately not taken here; see the per-keyword notes below). After
+/// countering, the active player receives priority.
 ///
-/// Used by: the fizzle rule (M3-D), counterspell effects (M3-D/E).
+/// **Not production API.** `Effect::CounterSpell` is the only production path
+/// either corpus counter effect resolves through; this function's only
+/// callers are the two probes in `crates/engine/tests/core/resolution.rs`
+/// (plus, as of PB-DX25, `crates/engine/tests/primitives/
+/// pb_dx25_counterspell_stack_shapes.rs`'s T7). Kept as a second, independent
+/// counter path rather than deleted -- it is `pub`, it is API, and PB-DX9's
+/// precedent for this exact function's tail applies here too: *"routed
+/// through the shared helper so a future caller does not inherit a shipped
+/// deadlock."* Leaving one of two counter paths carrying PB-DX25's
+/// pre-fix defect (the per-kind `Spell`-only lookup that silently dropped
+/// `MutatingCreatureSpell`) is precisely how a future caller would have
+/// inherited it a second time.
 pub fn counter_stack_object(
     state: &mut GameState,
     stack_object_id: ObjectId,
@@ -8314,102 +8336,106 @@ pub fn counter_stack_object(
         .position(|s| s.id == stack_object_id)
         .ok_or(GameStateError::ObjectNotFound(stack_object_id))?;
     let stack_obj = state.stack_objects.remove(pos);
-    match stack_obj.kind.clone() {
-        StackObjectKind::Spell { source_object }
-        | StackObjectKind::MutatingCreatureSpell { source_object, .. } => {
-            let controller = stack_obj.controller;
-            let owner = state.object(source_object)?.owner;
-            // CR 702.34a: If cast with flashback, exile instead of graveyard when countered.
-            // CR 702.133a: Jump-start also exiles instead of graveyard when countered.
-            // CR 702.140: Countered mutating spells move to graveyard like normal spells.
-            // NOTE: Adventure spells go to graveyard when countered, NOT exile
-            // (CR 715.3d: exile only on successful resolution).
-            let destination = if stack_obj.cast_with_flashback || stack_obj.cast_with_jump_start {
-                ZoneId::Exile // CR 702.34a / CR 702.133a
-            } else {
-                ZoneId::Graveyard(owner)
-            };
-            let (new_id, _old) = state.move_object_to_zone(source_object, destination)?;
+    let controller = stack_obj.controller;
+
+    // CR 701.6a: "A countered spell is put into its owner's graveyard." Which
+    // stack objects own a card is decided ONCE, in `state::stack_registry` --
+    // never re-derived per-kind here.
+    let card_owned = crate::state::stack_registry::card_in_stack_zone(&stack_obj.kind);
+    // CR 707.10 / CR 707.10a: a copy is a spell with no card of its own --
+    // `copy.rs` clones the ORIGINAL's `kind` wholesale, so moving
+    // `source_object` here would put someone else's spell in the graveyard.
+    let card_to_move = if stack_obj.is_copy { None } else { card_owned };
+
+    if let Some(source_object) = card_to_move {
+        let owner = state.object(source_object)?.owner;
+        // CR 702.34a: If cast with flashback, exile instead of graveyard when countered.
+        // CR 702.133a: Jump-start also exiles instead of graveyard when countered.
+        // CR 702.140: Countered mutating spells move to graveyard like normal spells.
+        // NOTE: Adventure spells go to graveyard when countered, NOT exile
+        // (CR 715.3d: exile only on successful resolution).
+        let destination = if stack_obj.cast_with_flashback || stack_obj.cast_with_jump_start {
+            ZoneId::Exile // CR 702.34a / CR 702.133a
+        } else {
+            ZoneId::Graveyard(owner)
+        };
+        let (new_id, _old) = state.move_object_to_zone(source_object, destination)?;
+        events.push(GameEvent::SpellCountered {
+            player: controller,
+            stack_object_id: stack_obj.id,
+            source_object_id: new_id,
+        });
+    } else {
+        let named = if card_owned.is_some() {
+            // A COPY of a card-owning kind (`Spell` or `MutatingCreatureSpell`).
+            // CR 707.10: no card, so no card id may be named -- least of all
+            // the original's. Its own stack-entry id is used; `next_object_id`
+            // is monotone and never a `GameObject` key, so the event's
+            // `source_object_id` doubles as a machine-detectable "this was a
+            // copy" marker (`stack_object_id == source_object_id`).
+            Some(stack_obj.id)
+        } else {
+            match &stack_obj.kind {
+                // CR 701.6a: countering an ability removes it from the stack;
+                // the source stays where it is. CR 707.10b: a copy of an
+                // ability has the SAME source, so this arm is correct for
+                // ability copies too.
+                StackObjectKind::ActivatedAbility { source_object, .. }
+                | StackObjectKind::TriggeredAbility { source_object, .. } => Some(*source_object),
+                // Every other ability/trigger kind: NO event, exactly as
+                // before PB-DX25. This wildcard is a DIAGNOSTICS omission,
+                // not a state one -- the card decision above has no wildcard
+                // and cannot lose a card. Widening the event to every kind is
+                // `OOS-DX25-4`, deliberately not taken here.
+                //
+                // Countering abilities is non-standard; just remove from stack.
+                // Note: For HauntExileTrigger, if countered (e.g. by Stifle), the haunt
+                // card stays in the graveyard and no haunting relationship is established.
+                // Note: For HauntedCreatureDiesTrigger, if countered (e.g. by Stifle),
+                // no haunt effect fires, but the haunt card stays in exile (CR 702.55c).
+                // Note: For BloodrushAbility, if countered (e.g. by Stifle), the source
+                // card is already in the graveyard (discarded as cost — CR 602.2b). No
+                // pump or keyword is applied, but the card stays in the graveyard.
+                // Note: For BackupTrigger, if countered (e.g. by Stifle), no counters
+                // are placed and no abilities are granted (CR 702.165a).
+                // Note: For ScavengeAbility, if countered (e.g. by Stifle), the card is
+                // already in exile (exiled as cost during activation). No counters are
+                // placed on the target, but the source card stays in exile (CR 702.97a).
+                // Note: For ForecastAbility, if countered (e.g. by Stifle), the forecast
+                // activation is already consumed (once-per-turn tracked) and the card
+                // remains in hand (CR 702.57a).
+                // Note: For Echo KeywordTrigger, if countered (e.g. by Stifle), echo_pending
+                // remains set so the trigger fires again on the next upkeep (CR 702.30a).
+                // Note: For CumulativeUpkeep KeywordTrigger, if countered (e.g. by Stifle), no
+                // age counter is added (counter addition happens at resolution, not queueing).
+                // The trigger fires again next upkeep with the same counter count (CR 702.24a).
+                // Note: For EncoreAbility, the card is already in exile (exiled as cost
+                // during activation). Countering does not return the card (CR 702.141a).
+                // Note: For DashReturnTrigger, the creature stays on the battlefield
+                // with haste (haste is a static ability, not tied to this trigger -- CR 702.109a).
+                // Note: For BlitzSacrificeTrigger, the creature stays on the battlefield
+                // with haste and the draw-on-death trigger intact (CR 702.152a).
+                // Note: For Impending KeywordTrigger (CounterRemoval), if countered (e.g. by Stifle),
+                // the permanent retains its time counter(s) and remains a non-creature (CR 702.176a).
+                // Note: For CasualtyTrigger, if countered (e.g. by Stifle), the original
+                // spell stays on the stack but no copy is made (CR 702.153a).
+                // Note: For ReplicateTrigger, if countered (e.g. by Stifle), no copies are
+                // made but the original spell stays on the stack (CR 702.56a).
+                // Note: For GravestormTrigger, if countered (e.g. by Stifle), no copies are
+                // made but the original spell stays on the stack (CR 702.69a).
+                // Note: For Vanishing KeywordTrigger (CounterRemoval), if countered (e.g. by Stifle),
+                // the permanent retains its time counter(s) (CR 702.63a).
+                // Note: For Vanishing KeywordTrigger (CounterSacrifice), if countered (e.g. by Stifle),
+                // the permanent stays on the battlefield with 0 time counters (CR 702.63a ruling).
+                _ => None,
+            }
+        };
+        if let Some(source_object_id) = named {
             events.push(GameEvent::SpellCountered {
                 player: controller,
                 stack_object_id: stack_obj.id,
-                source_object_id: new_id,
+                source_object_id,
             });
-        }
-        StackObjectKind::ActivatedAbility { .. }
-        | StackObjectKind::TriggeredAbility { .. }
-        | StackObjectKind::MadnessTrigger { .. }
-        | StackObjectKind::MiracleTrigger { .. }
-        | StackObjectKind::UnearthAbility { .. }
-        | StackObjectKind::SuspendCounterTrigger { .. }
-        | StackObjectKind::SuspendCastTrigger { .. }
-        | StackObjectKind::NinjutsuAbility { .. }
-        | StackObjectKind::EmbalmAbility { .. }
-        | StackObjectKind::EternalizeAbility { .. }
-        | StackObjectKind::EncoreAbility { .. }
-        | StackObjectKind::ForecastAbility { .. }
-        | StackObjectKind::ScavengeAbility { .. }
-        | StackObjectKind::BloodrushAbility { .. }
-        | StackObjectKind::SaddleAbility { .. }
-        // CR 701.28 / CR 712: Transform triggers and Craft abilities countered — no effect.
-        | StackObjectKind::TransformTrigger { .. }
-        | StackObjectKind::CraftAbility { .. }
-        | StackObjectKind::DayboundTransformTrigger { .. }
-        // CR 708.8: TurnFaceUpTrigger countered — no effect; permanent remains face-up.
-        | StackObjectKind::TurnFaceUpTrigger { .. }
-        // All migrated triggers now consolidated under KeywordTrigger.
-        | StackObjectKind::KeywordTrigger { .. }
-        // CR 309.4c: RoomAbility countered (e.g. by Stifle) — no room effect fires.
-        // The venture marker has already been advanced; only the room trigger is countered.
-        // CR 701.54c: RingAbility countered — no ring effect fires.
-        | StackObjectKind::RoomAbility { .. }
-        | StackObjectKind::RingAbility { .. }
-        // CR 606: Loyalty ability countered — cost already paid, no effect.
-        | StackObjectKind::LoyaltyAbility { .. }
-        // CR 716.2a: ClassLevelAbility countered — mana cost already paid, level stays unchanged.
-        | StackObjectKind::ClassLevelAbility { .. }
-        // CR 603.7: DelayedActionTrigger countered (e.g. by Stifle) — the delayed action
-        // does not fire; the exiled or targeted permanent is unaffected.
-        | StackObjectKind::DelayedActionTrigger { .. } => {
-            // Countering abilities is non-standard; just remove from stack.
-            // Note: For HauntExileTrigger, if countered (e.g. by Stifle), the haunt
-            // card stays in the graveyard and no haunting relationship is established.
-            // Note: For HauntedCreatureDiesTrigger, if countered (e.g. by Stifle),
-            // no haunt effect fires, but the haunt card stays in exile (CR 702.55c).
-            // Note: For BloodrushAbility, if countered (e.g. by Stifle), the source
-            // card is already in the graveyard (discarded as cost — CR 602.2b). No
-            // pump or keyword is applied, but the card stays in the graveyard.
-            // Note: For BackupTrigger, if countered (e.g. by Stifle), no counters
-            // are placed and no abilities are granted (CR 702.165a).
-            // Note: For ScavengeAbility, if countered (e.g. by Stifle), the card is
-            // already in exile (exiled as cost during activation). No counters are
-            // placed on the target, but the source card stays in exile (CR 702.97a).
-            // Note: For ForecastAbility, if countered (e.g. by Stifle), the forecast
-            // activation is already consumed (once-per-turn tracked) and the card
-            // remains in hand (CR 702.57a).
-            // Note: For Echo KeywordTrigger, if countered (e.g. by Stifle), echo_pending
-            // remains set so the trigger fires again on the next upkeep (CR 702.30a).
-            // Note: For CumulativeUpkeep KeywordTrigger, if countered (e.g. by Stifle), no
-            // age counter is added (counter addition happens at resolution, not queueing).
-            // The trigger fires again next upkeep with the same counter count (CR 702.24a).
-            // Note: For EncoreAbility, the card is already in exile (exiled as cost
-            // during activation). Countering does not return the card (CR 702.141a).
-            // Note: For DashReturnTrigger, the creature stays on the battlefield
-            // with haste (haste is a static ability, not tied to this trigger -- CR 702.109a).
-            // Note: For BlitzSacrificeTrigger, the creature stays on the battlefield
-            // with haste and the draw-on-death trigger intact (CR 702.152a).
-            // Note: For Impending KeywordTrigger (CounterRemoval), if countered (e.g. by Stifle),
-            // the permanent retains its time counter(s) and remains a non-creature (CR 702.176a).
-            // Note: For CasualtyTrigger, if countered (e.g. by Stifle), the original
-            // spell stays on the stack but no copy is made (CR 702.153a).
-            // Note: For ReplicateTrigger, if countered (e.g. by Stifle), no copies are
-            // made but the original spell stays on the stack (CR 702.56a).
-            // Note: For GravestormTrigger, if countered (e.g. by Stifle), no copies are
-            // made but the original spell stays on the stack (CR 702.69a).
-            // Note: For Vanishing KeywordTrigger (CounterRemoval), if countered (e.g. by Stifle),
-            // the permanent retains its time counter(s) (CR 702.63a).
-            // Note: For Vanishing KeywordTrigger (CounterSacrifice), if countered (e.g. by Stifle),
-            // the permanent stays on the battlefield with 0 time counters (CR 702.63a ruling).
         }
     }
     // CR 704.3: Check SBAs before granting priority.

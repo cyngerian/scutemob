@@ -156,7 +156,7 @@ pub enum GameEvent {
         player: PlayerId,
         object_id: ObjectId,
     },
-    /// A spell was countered without resolving (CR 608.2b, 701.5).
+    /// A spell was countered without resolving (CR 608.2b, 701.6a).
     ///
     /// The card is put into its owner's graveyard. `source_object_id` is the
     /// card's new ID in the graveyard.

@@ -31,11 +31,10 @@
 //! T4/T5 cover destination preservation (CR 702.34a/702.133a) and the
 //! `cant_be_countered` controller-capture ordering (EF-W-MISS-1 / An Offer) on the
 //! newly-reachable `MutatingCreatureSpell` path. T6 pins `stack_registry`'s own
-//! classification, exhaustively, against every `StackObjectKind` variant.
-//!
-//! **This file holds T1-T6 only.** T7 (the `resolution::counter_stack_object`
-//! second-path parity probe) is Stage 5 — a different runner's scope; see
-//! `memory/primitives/pb-plan-DX25.md` §10.
+//! classification, exhaustively, against every `StackObjectKind` variant. T7
+//! (Stage 5) proves `resolution::counter_stack_object` — the engine's second,
+//! non-production counter path — agrees with `Effect::CounterSpell` on the same
+//! two newly-fixed shapes.
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -1219,4 +1218,213 @@ fn test_dx25_stack_registry_classifies_every_kind() {
          own a card in ZoneId::Stack -- got {:?}",
         card_owning
     );
+}
+
+// ── T7 — resolution::counter_stack_object agrees with Effect::CounterSpell ─────
+
+/// CR 701.6a / CR 707.10 -- `resolution::counter_stack_object`, the engine's
+/// second (non-production) counter path, agrees with `Effect::CounterSpell` on
+/// both of PB-DX25's newly-fixed shapes: a `MutatingCreatureSpell` moves its
+/// card (mirrors T1's end state), and a COPY moves no card and is named by its
+/// OWN stack-entry id (mirrors T3's end state). This is the only pin on
+/// `resolution::counter_stack_object` -- a `pub` function with zero production
+/// callers (plan §3.6 / `OOS-DX25-5`): both counter effects in the corpus
+/// resolve through `Effect::CounterSpell` alone, but the function is `pub` API
+/// and leaving one of two counter paths carrying PB-DX25's pre-fix defect is
+/// precisely how a future caller would inherit it.
+#[test]
+fn test_dx25_both_engine_counter_paths_agree() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let registry = CardRegistry::new(vec![]);
+
+    // ── Half 1: a MutatingCreatureSpell moves its card (mirrors T1's shape) ──
+    {
+        let mut state = GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(p2)
+            .with_registry(registry.clone())
+            .object(
+                ObjectSpec::card(p1, "Mock Mutating Beast")
+                    .in_zone(ZoneId::Stack)
+                    .with_card_id(CardId("mock-mutating-beast".to_string())),
+            )
+            .object(wolf_spec(p1))
+            .active_player(p1)
+            .at_step(Step::PreCombatMain)
+            .build()
+            .unwrap();
+
+        let beast_card_id = find_object(&state, "Mock Mutating Beast");
+        let wolf_id = find_object(&state, "Mock Wolf");
+        let stack_entry_id =
+            push_mutating_creature_spell_stack_object(&mut state, beast_card_id, wolf_id, p1);
+
+        let events =
+            mtg_engine::rules::resolution::counter_stack_object(&mut state, stack_entry_id)
+                .unwrap_or_else(|e| {
+                    panic!(
+                        "counter_stack_object (MutatingCreatureSpell) failed: {:?}",
+                        e
+                    )
+                });
+
+        assert!(
+            state.stack_objects().is_empty(),
+            "CR 701.6a: the stack entry must be removed"
+        );
+        let beast_graveyard_id = find_in_zone(&state, "Mock Mutating Beast", ZoneId::Graveyard(p1))
+            .unwrap_or_else(|| {
+                panic!(
+                    "CR 701.6a / CR 702.140a: counter_stack_object must move a \
+                         MutatingCreatureSpell's card to the graveyard, exactly like \
+                         Effect::CounterSpell does (T1) -- the second counter path must \
+                         not carry PB-DX25's pre-fix defect"
+                )
+            });
+        assert!(
+            find_in_zone(&state, "Mock Mutating Beast", ZoneId::Stack).is_none(),
+            "the card must no longer be in ZoneId::Stack"
+        );
+        assert_eq!(
+            events
+                .iter()
+                .filter(|e| matches!(e, GameEvent::SpellCountered { .. }))
+                .count(),
+            1,
+            "exactly one SpellCountered event expected, got {:?}",
+            events
+        );
+        assert!(
+            events.iter().any(|e| matches!(
+                e,
+                GameEvent::SpellCountered { source_object_id, .. }
+                if *source_object_id == beast_graveyard_id
+            )),
+            "SpellCountered.source_object_id must be the post-move graveyard id"
+        );
+    }
+
+    // ── Half 2: a copy moves no card (mirrors T3's shape) ──
+    {
+        let mut state = GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(p2)
+            .with_registry(registry.clone())
+            .object(
+                ObjectSpec::card(p1, "Mock Original Spell")
+                    .in_zone(ZoneId::Stack)
+                    .with_card_id(CardId("mock-original-spell".to_string())),
+            )
+            .active_player(p1)
+            .at_step(Step::PreCombatMain)
+            .build()
+            .unwrap();
+
+        let original_card_id = find_object(&state, "Mock Original Spell");
+        let original_stack_id = {
+            let stack_id = test_util::next_object_id(&mut state);
+            state.stack_objects_mut().push_back(StackObject {
+                id: stack_id,
+                controller: p1,
+                kind: StackObjectKind::Spell {
+                    source_object: original_card_id,
+                },
+                targets: vec![],
+                cant_be_countered: false,
+                is_copy: false,
+                cast_with_flashback: false,
+                kicker_times_paid: 0,
+                was_evoked: false,
+                was_bestowed: false,
+                cast_with_madness: false,
+                cast_with_miracle: false,
+                was_escaped: false,
+                cast_with_foretell: false,
+                was_buyback_paid: false,
+                was_suspended: false,
+                was_overloaded: false,
+                cast_with_jump_start: false,
+                cast_with_aftermath: false,
+                was_dashed: false,
+                was_warped: false,
+                was_blitzed: false,
+                was_plotted: false,
+                was_prototyped: false,
+                was_impended: false,
+                was_bargained: false,
+                was_surged: false,
+                was_casualty_paid: false,
+                was_cleaved: false,
+                was_cast_as_adventure: false,
+                x_value: 0,
+                evidence_collected: false,
+                spliced_effects: vec![],
+                spliced_card_ids: vec![],
+                modes_chosen: vec![],
+                is_cast_transformed: false,
+                additional_costs: vec![],
+                damaged_player: None,
+                combat_damage_amount: 0,
+                triggering_creature_id: None,
+                cast_from_top_with_bonus: false,
+                sacrificed_creature_lki: vec![],
+                lki_counters: imbl::OrdMap::new(),
+                lki_power: None,
+                defending_player: None,
+            });
+            stack_id
+        };
+
+        let (copy_stack_id, _copy_event) =
+            mtg_engine::rules::copy::copy_spell_on_stack(&mut state, original_stack_id, p2, false)
+                .unwrap_or_else(|e| panic!("copy_spell_on_stack failed: {:?}", e));
+        assert_eq!(
+            state.stack_objects().len(),
+            2,
+            "original + copy on the stack"
+        );
+
+        let events = mtg_engine::rules::resolution::counter_stack_object(&mut state, copy_stack_id)
+            .unwrap_or_else(|e| panic!("counter_stack_object (copy) failed: {:?}", e));
+
+        assert_eq!(
+            state.stack_objects().len(),
+            1,
+            "CR 707.10a: only the copy's entry should be removed"
+        );
+        assert!(
+            state
+                .stack_objects()
+                .iter()
+                .any(|so| so.id == original_stack_id),
+            "the ORIGINAL's stack entry must be untouched"
+        );
+        assert_eq!(
+            state.objects().get(&original_card_id).map(|o| o.zone),
+            Some(ZoneId::Stack),
+            "CR 707.10: the ORIGINAL's card must still be in ZoneId::Stack -- \
+             counter_stack_object must not move it when countering a copy"
+        );
+        assert_eq!(
+            events
+                .iter()
+                .filter(|e| matches!(e, GameEvent::SpellCountered { .. }))
+                .count(),
+            1,
+            "exactly one SpellCountered event expected, got {:?}",
+            events
+        );
+        assert!(
+            events.iter().any(|e| matches!(
+                e,
+                GameEvent::SpellCountered { stack_object_id, source_object_id, .. }
+                if *stack_object_id == copy_stack_id && *source_object_id == copy_stack_id
+            )),
+            "counter_stack_object must name a countered copy by its OWN stack-entry \
+             id for both stack_object_id and source_object_id, exactly like \
+             Effect::CounterSpell does (T3) -- got {:?}",
+            events
+        );
+    }
 }

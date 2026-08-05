@@ -168,8 +168,11 @@ pub struct EffectContext {
     /// `Characteristics.power` was `None` (e.g. non-creature permanents); lookup
     /// returns 0 in both cases.
     pub lki_power: Option<i32>,
-    /// CR 701.5g / EF-W-MISS-1 (An Offer ruling 2022-04-29): the controller of the spell
+    /// CR 701.6a / EF-W-MISS-1 (An Offer ruling 2022-04-29): the controller of the spell
     /// that `Effect::CounterSpell` countered earlier in this same effect resolution.
+    /// (PB-DX25 F4/OOS-UI3-1: the real warrant here is the effect's own printed
+    /// wording plus CR 701.6a — there is no "CR 701.5g"; CR 701.5 is "Cast" and
+    /// has exactly two subrules.)
     /// Set the moment a valid target position is found, BEFORE the `cant_be_countered`
     /// check — an uncounterable-but-legal target's controller still creates tokens for
     /// "its controller creates …" cards (Swan Song, An Offer You Can't Refuse).
