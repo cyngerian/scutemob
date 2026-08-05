@@ -66,6 +66,14 @@ pub fn handle_declare_attackers(
             actual: player,
         });
     }
+    // CR 508.1 (PB-DX21, OOS-M11-9): declaring attackers is a once-per-combat
+    // turn-based action. Rejected HERE, before the CombatState init below and
+    // before any validation, tapping (508.1f) or cost payment (508.1j), so a
+    // refused re-declaration leaves the game byte-identical (CR 732: "the game
+    // returns to the moment before the declaration").
+    if state.combat.as_ref().is_some_and(|c| c.attackers_declared) {
+        return Err(GameStateError::AlreadyDeclaredAttackers(player));
+    }
     // Initialize CombatState if not already set (may be set by BeginningOfCombat action).
     if state.combat.is_none() {
         state.combat = Some(CombatState::new(player));
@@ -744,6 +752,15 @@ pub fn handle_declare_attackers(
         for (attacker_id, target) in &attackers {
             combat.attackers.insert(*attacker_id, target.clone());
         }
+        // CR 508.1 / 508.1a / 508.8 (PB-DX21): the turn-based action has now been
+        // performed. Set on the SUCCESS path only -- every `return Err` above leaves
+        // it clear, so a rejected declaration (an unaffordable CR 508.1h tax, an
+        // illegal attacker, a goad violation) does NOT lock out a legal retry.
+        // Set even when `attackers` is EMPTY: CR 508.1a's "if any" makes the empty
+        // choice a completed declaration, and CR 508.8 defines the game's behaviour
+        // for it. Mirrors `handle_declare_blockers`' `defenders_declared.insert`,
+        // which is likewise inside this same shape.
+        combat.attackers_declared = true;
     }
     // PB-AC6 / Raid, CR 508.1: mark that this player attacked this turn (one or more
     // attackers were declared). Only a declare-attackers action counts as "you

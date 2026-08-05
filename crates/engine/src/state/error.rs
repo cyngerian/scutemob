@@ -60,6 +60,20 @@ pub enum GameStateError {
         blocker: ObjectId,
         attacker: ObjectId,
     },
+    /// CR 508.1 (PB-DX21 / OOS-M11-9): declaring attackers is a once-per-combat
+    /// turn-based action. This is returned when a second
+    /// `Command::DeclareAttackers` is submitted in the same combat phase (the
+    /// attacker-side mirror of `AlreadyDeclaredBlockers` below, CR 509.1a).
+    /// Carries a bare `PlayerId` and nothing else -- Architecture Invariant 7:
+    /// `tools/play-server/src/api.rs` renders a `Rejected(GameStateError)` as
+    /// text in a 422 addressed to the acting seat, so this variant must never
+    /// carry an `ObjectId` or a card name (a hidden-information channel).
+    ///
+    /// Not part of the SR-8 wire closure (`GameStateError` is reachable from
+    /// none of `Command`/`GameEvent`/`ReplayLog`) -- adding this variant is
+    /// not a protocol change.
+    #[error("player {0:?} has already declared attackers this combat phase")]
+    AlreadyDeclaredAttackers(PlayerId),
     #[error("player {0:?} has already declared blockers this combat phase")]
     AlreadyDeclaredBlockers(PlayerId),
     /// Architecture Invariant 9: a game may not start with a card whose
