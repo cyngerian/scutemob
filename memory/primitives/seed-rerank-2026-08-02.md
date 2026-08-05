@@ -461,6 +461,13 @@ Until that A/B runs, "very likely the mechanism" is the correct strength.
 
 ### 2.2 OOS-CARDS2-4 — every Aura is unplayable in the browser, and the offer layer cannot see why
 
+> **CLOSED by PB-DX20 (`scutemob-198`, 2026-08-04).** This section's three-end diagnosis was
+> correct and its **prescription was one layer off**: it proposed synthesising the requirement in
+> `crates/simulator/src/legal_actions.rs`, but that file is not on the browser's path — the offer
+> reads `mtg_engine::spell_target_requirements` (`rules/queries.rs`), which is where the synthesis
+> landed. `legal_actions.rs` took **zero** lines and `tools/play-server` took zero production
+> lines. Kept unedited below as the record of the diagnosis.
+
 Verified both ends personally. **Engine end**: `crates/engine/src/rules/casting.rs:3723-3733` — if
 the card is an Aura enchantment and `sba::get_enchant_target(&chars.keywords)` yields a restriction,
 then `if spell_targets.is_empty() { return Err(... "Aura spells require exactly one target

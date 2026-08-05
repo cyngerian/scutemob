@@ -309,7 +309,17 @@ always been a field. That is the third stale "not expressible" note this batch f
   as CARDS-1's equip bug one link earlier in the chain — an engine special-case the offer layer
   is blind to. Found because the re-dealt COMBAT_SEED drove the S7 test driver straight into
   "Cast Hyena Umbra"; the driver now skips a refused action rather than aborting, which is a
-  workaround in the *test*, not a fix. Simulator-only to fix; no engine or wire change. Unfixed.
+  workaround in the *test*, not a fix. Simulator-only to fix; no engine or wire change.
+  **CLOSED by PB-DX20 (`scutemob-198`, 2026-08-04)** — and the "simulator-only to fix" reading
+  was wrong: the fix is in the **engine**, because the offer layer reads
+  `mtg_engine::spell_target_requirements`, not the provider. That query now synthesizes the
+  Enchant-derived `TargetRequirement` through `casting::aura_spell_target_requirements`, the
+  same function `handle_cast_spell` itself consumes, so the offer and the cast are literally
+  one arithmetic. `crates/simulator/src/legal_actions.rs` needed **zero** lines and
+  `tools/play-server` needed zero production lines. The `KNOWN_FALSE_OFFERS` workaround named
+  in the sentence above is deleted, and the whole excusal mechanism with it — any refusal in
+  that driver is now unconditionally fatal, which is what proves the closure rather than
+  asserting it.
 * **OOS-CARDS2-5** — no `Effect` turns an already-on-battlefield permanent face down in place
   (see §2.4). Blocks `cyber_conversion`, and any card of the Kasmina's Transmutation / Ixidron
   family. Unfixed; the def is honestly `inert`.

@@ -536,6 +536,16 @@ pub fn handle_activate_ability(
     //
     // Legacy special-case check for AttachEquipment effects. Cards with proper
     // TargetRequirement declarations will be validated by the general check above.
+    //
+    // OOS-DX20-7: this guard is now redundant with the declarative check above for
+    // every ability that carries a `TargetRequirement` (that check runs first and
+    // rejects), and silently PERMISSIVE for any ability that does not, because
+    // `targets.first()` on an empty `Vec` is `None` -- the `if let` below simply
+    // does not fire, and a zero-target activation proceeds to pay its cost and
+    // fizzle at resolution with no error. Kept (not removed) because it still covers
+    // card-def-authored equip abilities with no declared `TargetRequirement`; the
+    // durable closure would be a roster gate over `all_cards()` pinning
+    // "Activated + AttachEquipment ⇒ non-empty targets" (out of scope here).
     if matches!(
         &embedded_effect,
         Some(crate::cards::card_definition::Effect::AttachEquipment { .. })

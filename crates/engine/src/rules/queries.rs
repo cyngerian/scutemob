@@ -19,8 +19,8 @@ use crate::rules::casting;
 use crate::rules::combat;
 use crate::rules::layers::calculate_characteristics;
 use crate::state::{
-    AltCostKind, AttackTarget, GameState, KeywordAbility, ManaCost, ObjectId, PlayerId, Target,
-    ZoneId,
+    AltCostKind, AttackTarget, CardType, EnchantTarget, GameState, KeywordAbility, ManaCost,
+    ObjectId, PlayerId, SubType, Target, ZoneId,
 };
 
 /// CR 601.2c — the target requirements a spell cast from `card` announces, honouring
@@ -58,6 +58,16 @@ use crate::state::{
 ///    effects granting or removing Aftermath do not arise). Left asymmetric rather
 ///    than "fixed" in either direction, because changing the cast path is a behaviour
 ///    change and this batch's `casting.rs` edits are refactor-only.
+/// 3. (PB-DX20 §4.5) Bestow (CR 702.103b) is applied here to a LOCAL CLONE of `chars`,
+///    mirroring the transform `casting.rs`'s Step 1b applies to its own (mutable) `chars`
+///    at `:980-988`, long before that function's synthesis point. Both callers already
+///    compute layer-resolved characteristics for their own reasons, so this is a
+///    query-side RE-DERIVATION of caster intent — the same shape divergences 1 and 2
+///    above already are — not a new layer walk. `casting::get_bestow_cost` is the exact
+///    eligibility check `casting.rs:975` uses. Bestow is not reachable from the browser
+///    today (`StubProvider` enumerates no alt-cost casts, CLAUDE.md M11-local R4, and
+///    every `spell_target_requirements` caller here passes `alt_cost: None`); the value
+///    is that the cast path and this query cannot drift the day that changes.
 pub fn spell_target_requirements(
     state: &GameState,
     card: ObjectId,
@@ -90,23 +100,46 @@ pub fn spell_target_requirements(
         && matches!(obj.zone, ZoneId::Graveyard(_))
         && chars.keywords.contains(&KeywordAbility::Aftermath);
 
+    // CR 702.103b (PB-DX20 §4.5, divergence 3 above): if cast bestowed, apply the SAME
+    // keyword transform `casting.rs:980-988` applies to its own `chars`, to a LOCAL
+    // CLONE — `chars` itself must stay untransformed for every other caller.
+    let casting_with_bestow = alt_cost == Some(AltCostKind::Bestow)
+        && casting::get_bestow_cost(&obj.card_id, &state.card_registry).is_some();
+    let eff_chars = if casting_with_bestow {
+        let mut c = chars.clone();
+        c.card_types.remove(&CardType::Creature);
+        c.card_types.insert(CardType::Enchantment);
+        c.subtypes.insert(SubType("Aura".to_string()));
+        c.keywords
+            .insert(KeywordAbility::Enchant(EnchantTarget::Creature));
+        c
+    } else {
+        chars
+    };
+
     let (requirements, _cant_be_countered) =
         casting::card_def_target_requirements(state, card_id, casting_with_aftermath);
 
     // CR 702.127a: aftermath suppresses per-mode targets (mirrors `casting.rs:3689`'s
-    // `if casting_with_aftermath { None } else { ... }`).
+    // `if casting_with_aftermath { None } else { ... }`). CR 303.4a (PB-DX20 §5 Step 4c):
+    // wrap in the shared Aura synthesis so this return point cannot drift from the cast
+    // path either.
     if casting_with_aftermath {
-        return requirements;
+        return casting::aura_spell_target_requirements(&eff_chars, requirements);
     }
 
     // CR 700.2c/700.2f: if the spell has per-mode target requirements, they replace the
-    // flat `Spell.targets` list for the chosen modes.
-    match casting::spell_mode_selection(state, card_id) {
+    // flat `Spell.targets` list for the chosen modes. CR 303.4a: wrap the final result in
+    // the shared Aura synthesis (§5 Step 4c) — an Aura never has per-mode targets today
+    // (no shipped card combines the two), so this is a no-op guard in practice, not a
+    // behaviour change.
+    let requirements = match casting::spell_mode_selection(state, card_id) {
         Some(ms) => {
             casting::per_mode_target_requirements(&ms, modes_chosen).unwrap_or(requirements)
         }
         None => requirements,
-    }
+    };
+    casting::aura_spell_target_requirements(&eff_chars, requirements)
 }
 
 /// CR 602.2b — the target requirements an activated ability announces.

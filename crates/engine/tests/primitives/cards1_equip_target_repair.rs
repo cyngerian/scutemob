@@ -639,13 +639,22 @@ fn t7a_cryptic_coat_triggered_attach_untouched() {
 /// **What membership here asserts, and does NOT assert**: only that this def's
 /// shape exists at this specific site (an Activated+AttachFortification ability,
 /// or a `KeywordAbility::Reconfigure` marker). It says nothing about whether that
-/// def's own equip-style target validation is itself correct -- Darksteel Garrison
-/// (Fortify) and Lizard Blades (Reconfigure) BOTH carry the exact same
-/// `targets: vec![]` defect shape as the equip roster today, and this batch does
-/// NOT fix either of them (out of scope: the plan is Equipment-Activated-
-/// AttachEquipment only). This test exists so a future reader does not mistake
-/// "this batch shipped" for "the neighbouring Fortify/Reconfigure mechanisms are
-/// also fixed" -- they are not, and this pin is the record of that.
+/// def's own equip-style target validation is itself correct.
+///
+/// **Reconfigure (Lizard Blades) — CLOSED by PB-DX20.** The `targets: vec![]` defect
+/// this comment used to describe is fixed: `testing/replay_harness.rs`'s
+/// `AbilityDefinition::Reconfigure` attach-arm synth site now carries CR 702.151a's
+/// "another target creature you control" requirement
+/// (`TargetCreatureWithFilter { controller: You, exclude_self: true, .. }`), proven
+/// through the real corpus synth path (not a hand-built stand-in) by
+/// `pb_dx20_keyword_carried_target_requirements.rs`'s T5 probes.
+///
+/// **Fortify (Darksteel Garrison) — STILL OPEN, deliberately not widened here.**
+/// It carries the exact same `targets: vec![]` shape the equip roster had before
+/// this batch's predecessor (CARDS-1) fixed Equipment, and PB-DX20's scope was
+/// Aura + Reconfigure only — Fortify was never in either plan. This test exists so
+/// a future reader does not mistake "Reconfigure shipped" for "Fortify is also
+/// fixed" -- it is not, and this pin is the record of that.
 #[test]
 fn t7b_fortify_and_reconfigure_rosters_pinned_and_unperturbed() {
     use mtg_engine::{AbilityDefinition, KeywordAbility};

@@ -291,7 +291,11 @@ fn plannable_tap_ability(
 /// refused), and this file had the affordability half. Splitting the fix would have left
 /// **`tools/play-server/src/main.rs`**'s `KNOWN_FALSE_OFFERS` list — not the same-named
 /// list in `crates/simulator/tests/local_game_playthrough.rs`, which never carried these
-/// two entries — still describing a live bug.
+/// two entries — still describing a live bug. **Historical note (PB-DX20,
+/// `scutemob-198`, 2026-08-04): `KNOWN_FALSE_OFFERS` no longer exists anywhere in the
+/// tree** — PB-DX20 deleted the play-server list and replaced its excusal with an
+/// unconditional failure (acceptance criterion 4); this paragraph's reference to it is
+/// kept as the historical record of why the shared predicate exists.
 pub(crate) fn tap_ability_is_activatable(
     state: &GameState,
     player: PlayerId,

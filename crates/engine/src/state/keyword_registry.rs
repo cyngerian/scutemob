@@ -82,6 +82,15 @@ pub fn handling(keyword: &KeywordAbility) -> KeywordHandling {
         K::Enchant(..) => KeywordHandling::Handled {
             sites: &[
                 "crates/engine/src/rules/casting.rs",
+                // PB-DX20 (CR 303.4a): `queries::spell_target_requirements` is a
+                // handling site because it reads the Enchant keyword to synthesize the
+                // Aura's announceable `TargetRequirement` — the SAME
+                // `casting::aura_spell_target_requirements` the cast path consumes, so
+                // the offer layer and `handle_cast_spell` cannot drift (`OOS-CARDS2-4`).
+                // A query that reads the keyword IS a handling site under SR-5: the
+                // registry's claim is "here is every place this keyword's behaviour is
+                // decided", and what the browser is allowed to announce is behaviour.
+                "crates/engine/src/rules/queries.rs",
                 "crates/engine/src/rules/resolution.rs",
                 "crates/engine/src/rules/sba.rs",
             ],

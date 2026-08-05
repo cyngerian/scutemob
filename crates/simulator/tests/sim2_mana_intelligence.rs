@@ -956,7 +956,10 @@ fn t18_residual_spends_coloured_pool_on_matching_pips_first() {
 /// refuse. Before SIM-2 it checked only `life_cost` (SG-1), so an unmet
 /// `activation_condition` and a summoning-sick creature were both offered — and the
 /// play-server test driver carried both refusal strings in its `KNOWN_FALSE_OFFERS`
-/// allowlist to drive past them.
+/// allowlist to drive past them. **Historical note (PB-DX20, `scutemob-198`,
+/// 2026-08-04): `KNOWN_FALSE_OFFERS` no longer exists anywhere in the tree** — PB-DX20
+/// deleted the play-server list and replaced its excusal with an unconditional failure
+/// (acceptance criterion 4). Kept as the historical record of why this test exists.
 #[test]
 fn t19_unactivatable_mana_abilities_are_not_offered() {
     use mtg_engine::{CardType, Condition};

@@ -2399,6 +2399,12 @@ fn action_option_view(
     // it selects. `spell_target_requirements` with an empty `modes_chosen`
     // deliberately returns `vec![]` for such a card (its own doc, divergence 1),
     // which is why `target_slots` above is empty for them rather than wrong.
+    //
+    // OOS-DX20-8: for a modal AURA specifically, this reasoning has a gap -- once
+    // a mode is chosen, the cast path and this query path can diverge on the
+    // per-mode target requirement (an unconditional cast rejection in one shape,
+    // a query/cast disagreement in the other). Corpus exposure is 0 today (no Aura
+    // def also carries `AbilityDefinition::Spell`), gated by a roster assertion.
     let mode_selection = action_modes(action, state);
     let (modes, mode_min, mode_max) = match &mode_selection {
         None => (Vec::new(), 0, 0),

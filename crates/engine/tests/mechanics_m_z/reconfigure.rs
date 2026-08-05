@@ -16,7 +16,7 @@ use mtg_engine::state::{ActivatedAbility, ActivationCost};
 use mtg_engine::{
     calculate_characteristics, process_command, CardEffectTarget, CardType, Command, Effect,
     GameEvent, GameStateBuilder, KeywordAbility, ManaCost, ObjectId, PlayerId, Step, SubType,
-    Target,
+    Target, TargetController, TargetFilter, TargetRequirement,
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -51,9 +51,17 @@ fn pass_all(
 }
 
 /// Build the Reconfigure attach activated ability with the given generic cost.
+///
+/// CR 702.151a: "another target creature you control" -- mirrors the production synth
+/// site (`testing/replay_harness.rs`'s `AbilityDefinition::Reconfigure` attach arm,
+/// PB-DX20 §5 step 5) so this hand-built fixture doesn't silently drift from it.
 fn reconfigure_attach_ability(generic_mana: u32) -> ActivatedAbility {
     ActivatedAbility {
-        targets: vec![],
+        targets: vec![TargetRequirement::TargetCreatureWithFilter(TargetFilter {
+            controller: TargetController::You,
+            exclude_self: true,
+            ..Default::default()
+        })],
         cost: ActivationCost {
             requires_tap: false,
             mana_cost: if generic_mana > 0 {
