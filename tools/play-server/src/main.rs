@@ -9904,34 +9904,37 @@ mod tests {
 
     /// Drive the human seat: play a land every chance, cast Llanowar Elves the
     /// moment it is offered (getting an own creature onto the battlefield),
-    /// otherwise pass -- UNTIL "Cast Rancor" is offered with at least one
-    /// target candidate. Returns that view and the Rancor `CastSpell` option
-    /// itself, submitting NOTHING for that option (the caller does the actual
-    /// targeted-cast assertion).
-    async fn dx20_t6_drive_to_rancor_with_a_target(
-        state: &SharedState,
-        max_steps: usize,
-    ) -> (Value, Value) {
+    /// otherwise pass -- UNTIL "Cast Rancor" is offered AT ALL. Returns that view
+    /// and the Rancor `CastSpell` option itself, submitting NOTHING for that option
+    /// (the caller does the actual targeted-cast assertion).
+    ///
+    /// E5 (pb-review-DX20.md): the search predicate here is deliberately WEAKER than
+    /// it once was -- it used to also require a non-empty `target_slots[0].candidates`
+    /// before returning, which meant a reverted synthesis (where `target_min` stays 0
+    /// and no candidates are ever populated) made the loop run to the game's end and
+    /// panic HERE, in the drive loop, rather than at the `target_min == 1` /
+    /// candidate-content assertions the committed test is actually named for and
+    /// advertises. Confirmed by executing the T2-class revert against the COMMITTED
+    /// test (not a scratch stand-in): it failed exactly this way, at this assertion,
+    /// with the message "the game ended ... without Rancor ever being offered" --
+    /// which is what motivated this split. Finding Rancor by LABEL ALONE here means
+    /// the discriminating checks now live where the test advertises them.
+    async fn dx20_t6_drive_to_rancor(state: &SharedState, max_steps: usize) -> (Value, Value) {
         let (status, mut view) = get_json(state, "/api/game").await;
         assert_eq!(status, StatusCode::OK, "{view}");
         for step in 0..max_steps {
             if !view["decision"].is_null() {
                 if let Some(rancor) = view["decision"]["actions"].as_array().and_then(|actions| {
-                    actions.iter().find(|a| {
-                        a["kind"] == "CastSpell"
-                            && a["label"] == "Cast Rancor"
-                            && a["target_slots"][0]["candidates"]
-                                .as_array()
-                                .is_some_and(|c| !c.is_empty())
-                    })
+                    actions
+                        .iter()
+                        .find(|a| a["kind"] == "CastSpell" && a["label"] == "Cast Rancor")
                 }) {
                     return (view.clone(), rancor.clone());
                 }
             }
             assert!(
                 !view["decision"].is_null(),
-                "the game ended at step {step} without Rancor ever being offered with a \
-                 legal target: {view}"
+                "the game ended at step {step} without Rancor ever being offered: {view}"
             );
             let wire_seq = seq(&view);
             let actions = view["decision"]["actions"]
@@ -9964,7 +9967,7 @@ mod tests {
             );
             view = next;
         }
-        panic!("Rancor was never offered with a legal target within {max_steps} steps");
+        panic!("Rancor was never offered within {max_steps} steps");
     }
 
     /// **CR 303.4a (Aura half, acceptance criterion 1 second half) -- Rancor
@@ -9981,14 +9984,26 @@ mod tests {
         let state = shared_state();
         dx20_t6_install(&state);
 
-        let (view, rancor) = dx20_t6_drive_to_rancor_with_a_target(&state, 4_000).await;
+        let (view, rancor) = dx20_t6_drive_to_rancor(&state, 4_000).await;
 
+        // E5 (pb-review-DX20.md): the drive loop above now finds "Cast Rancor" by
+        // LABEL ALONE (it no longer also requires a non-empty candidates array before
+        // returning -- that requirement moved HERE, into the assertions the test is
+        // actually named for), so a reverted synthesis reddens on THIS assertion
+        // (target_min stays 0) instead of panicking inside the drive loop with a
+        // misleading "game ended without Rancor ever being offered" message. Executed
+        // against the committed test: verbatim record in `scratchpad/dx20-reverts.md`.
         assert_eq!(
             rancor["target_min"], 1,
             "Rancor's offered CastSpell action should carry target_min == 1 (today: 0), \
              got {:?}",
             rancor["target_min"]
         );
+        // E8 (pb-review-DX20.md): with the drive-loop split above, this emptiness
+        // check is NO LONGER tautological -- the drive loop no longer guarantees a
+        // non-empty candidates array, so this is now a genuine assertion (kept, not
+        // dropped, unlike the original E8 finding's context) that fails cleanly
+        // instead of panicking on an out-of-bounds `candidates[0]` index.
         let candidates = rancor["target_slots"][0]["candidates"]
             .as_array()
             .expect("candidates is an array");
@@ -10000,8 +10015,8 @@ mod tests {
         );
         let target_label = candidates[0]["label"].as_str().unwrap_or_default();
         assert!(
-            target_label.contains("Llanowar Elves") || !target_label.is_empty(),
-            "the candidate should be a real (redacted) label, got {:?}",
+            target_label.contains("Llanowar Elves"),
+            "the candidate should be the real (redacted) Llanowar Elves label, got {:?}",
             candidates[0]
         );
         let target = candidates[0]["value"].clone();

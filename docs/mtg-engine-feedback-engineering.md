@@ -533,8 +533,8 @@ should dispatch the existing batch number.
 |---|---|---|---|---|---|
 | 1 | **≡ PB-DX22 — ✅ SHIPPED** (`scutemob-196`, merge `95f53b78`; was v3 rank 4) — make the fuzzer a real instrument: shuffle the library, register the commander | **none directly, and that is the honest answer** — no F/G finding is catchable by a shuffled fuzzer *alone*. It is what makes row 3 able to catch **F3, F4, F5, G5** at all, and it is the only row that puts CR 903.8/903.9a/903.10a (**F7**'s subsystem) under any automated exercise | simulator | `bin/fuzzer.rs` + `deck.rs`; re-rolls every recorded seed **once** | none |
 | 2 | **FUZZ-CRASH** *(new)* — make the crash artefact reproduce | PB-DX19's SIGABRT (found by a bespoke instrument, not by the fuzzer's own artefact) | simulator | ~120-200 lines: fill `command_history`, per-game abort boundary, `--replay-report` | none |
-| 3 | **≡ PB-DX32** *(v3 rank 19, already queued — argue for promotion)* — invariant #10 (legal-action soundness = SR-38 at runtime) + dedupe the checkpoint weighting + classify the transient-token floor | **F4, F9, G5**; `OOS-SIM5-3` (25 blocker refusals), `OOS-SIM6-3` (62 refusals), `OOS-CARDS2-4` | simulator | `invariants.rs` + `GameResult` fields + dedupe by `(check, description)` | none |
-| 4 | **HTTP-FUZZ** *(new)* — a randomized walker over the 6 play-server routes driving the **human** seat | **G2**, F7, F9, **G4**, G6-as-coverage, `OOS-CARDS2-4`, `OOS-G10-1`, `OOS-SIM6-3`'s human half | play-server (test/bin) | ~300-500 lines over `build_router` + `oneshot`, no port | none |
+| 3 | **≡ PB-DX32** *(v3 rank 19, already queued — argue for promotion)* — invariant #10 (legal-action soundness = SR-38 at runtime) + dedupe the checkpoint weighting + classify the transient-token floor | **F4, F9, G5**; `OOS-SIM5-3` (25 blocker refusals), `OOS-SIM6-3` (62 refusals), `OOS-CARDS2-4` *(CLOSED by PB-DX20, `scutemob-198`, 2026-08-04)* | simulator | `invariants.rs` + `GameResult` fields + dedupe by `(check, description)` | none |
+| 4 | **HTTP-FUZZ** *(new)* — a randomized walker over the 6 play-server routes driving the **human** seat | **G2**, F7, F9, **G4**, G6-as-coverage, `OOS-CARDS2-4` *(CLOSED by PB-DX20, `scutemob-198`, 2026-08-04)*, `OOS-G10-1`, `OOS-SIM6-3`'s human half | play-server (test/bin) | ~300-500 lines over `build_router` + `oneshot`, no port | none |
 | 5 | **R7-HARNESS** *(≡ `OOS-UI5-4`, designed twice, built zero times)* — tier 1 vitest/jsdom + tier 2 playwright-core | **G1 — and nothing else catches G1** | frontend | tier 1 ~400-600 lines + 3 devDeps; tier 2 ~30 lines setup | none |
 | 6 | **DECK-CHANNEL** *(new)* — steered decks: a salt on `random_deck` + a decklist channel on `POST /api/game` | PB-DX19's crash sooner; **and it deletes the ~2,400-seed fixture cost that is R7's largest line item** | simulator + play-server | ~150-250 lines; **re-rolls seeds — batch with row 1** | none (DTO only) |
 | 7 | **CI-POLICY** *(new, policy not code)* — what runs in CI vs a scheduled job | **none — a policy row catches nothing itself.** It decides how often rows 3, 4 and 5 run, which is the difference between catching **F4/F9/G2/G4/G5** on the commit that introduces them and catching them at the next playtest | infra | see §2.7; first deliverable is a **measurement**, not a config change | none |
@@ -729,7 +729,10 @@ params from the **descriptors the server itself sends** (`AnswerShapeView`, `cos
 **Why the 51 existing probes are not this**: each drives one hand-picked flow to one assertion.
 Nothing walks the *whole* offer space, so an action kind nobody wrote a probe for is untested — and
 that is the shape of F7 (commander casts), G6 (~70 defs with an unofferable alt cost) and
-`OOS-CARDS2-4` (13 `Complete` Auras that 422 on first contact).
+`OOS-CARDS2-4` (13 `Complete` Auras that 422 on first contact) — the last of these **CLOSED by
+PB-DX20** (`scutemob-198`, 2026-08-04): the offer layer and the cast path now derive an Aura's
+target requirement from the same function, and a real HTTP round trip (T6) proves at least one of
+the 13 (Rancor) castable end to end.
 
 **Cannot catch**: **G1** — it starts below the browser, which is the exact sentence the G1 triage
 wrote about the probe that proved library search worked (*"an end-to-end HTTP probe that starts below

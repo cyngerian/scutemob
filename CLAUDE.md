@@ -101,6 +101,13 @@
   DX42b dispatch). **PB-DX7 is no longer next** — it survives at
   rank 9; eight new entries outrank it. Older queue history (the PB-OS,
   PB-RS and PB-DP chains) is rotated to the 2026-08 archive.
+  **PB-DX20 SHIPPED** (`scutemob-198`; v3 queue rank 2) — **next dispatch: PB-DX21**
+  (CR 508.1, attackers declared without limit, `OOS-M11-9`; brief in the same §4).
+- **Tests (delta 2026-08-04, PB-DX20)**: **4,388 / 0 / 5** full-workspace on branch
+  `scutemob-198` (+15 over the **4,373** baseline measured on this branch BEFORE any edit —
+  14 probes in the new `crates/engine/tests/primitives/pb_dx20_keyword_carried_target_
+  requirements.rs` + 1 play-server HTTP probe), `--workspace --no-fail-fast` to a file,
+  residual list empty. **PROTOCOL 35 / HASH 72 unmoved**, both gate-executed. Earlier pins below.
 - **Tests (delta 2026-08-03, PB-DX32)**: **4,373 / 0 / 5** full-workspace on branch
   `scutemob-197` (+15 over PB-DX22's 4,358, re-measured on this branch BEFORE any edit as its
   own baseline — 14 probes in the new `crates/simulator/tests/pb_dx32_fuzz_output.rs`, 1 in
@@ -260,7 +267,36 @@
 - **Recurrence rule** — future `/collect` and milestone-close bookkeeping appends its detailed PB/SR
   narrative to that archive file (newest first), and updates only a one-paragraph snapshot delta
   here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
-- **Last Updated**: 2026-08-03 — **PB-DX32 SHIPPED** (`scutemob-197`, merge `685aa1c4`; v3 queue rank 19,
+- **Last Updated**: 2026-08-04 — **PB-DX20 SHIPPED** (`scutemob-198`; v3 queue rank 2).
+  The offer layer can now see a keyword-carried target requirement. An Aura's CR 303.4a
+  requirement lives in `KeywordAbility::Enchant`, which `casting.rs` special-cased and
+  `spell_target_requirements` could not see, so 13 deck-legal `Complete` Auras rendered a
+  zero-target action and 422'd on click. One **total** derivation now serves both sides —
+  `casting::enchant_target_to_requirement` (exhaustive over all 9 `EnchantTarget` variants,
+  no wildcard arm) + `aura_spell_target_requirements`, consumed by `handle_cast_spell` AND
+  `rules::queries::spell_target_requirements`, so the two are one arithmetic rather than two
+  that agree. **No new `TargetRequirement` variant.** **The brief's prescription was one layer
+  off**: it named `legal_actions.rs`, which took 0 lines — the browser reads the engine query,
+  and `tools/play-server` needed 0 production lines. The CR 303.4a gate is KEPT deliberately:
+  it is the **SBA's own** predicate, and cast-vs-SBA agreement is a different property from
+  offer-vs-cast agreement. Reconfigure (`OOS-CARDS1-2`) gets CR 702.151a's *another* target
+  creature you control (`exclude_self: true` — the equip repair was NOT copied); its live
+  symptom was worse than its row said — a zero-target attach **paid the mana and fizzled in
+  silence**. `KNOWN_FALSE_OFFERS` is deleted with its whole mechanism; any refusal in that
+  driver is now fatal, which is what proves the closure. **The SR-5 keyword registry caught
+  what two green targeted test runs missed** — `queries.rs` is an Enchant handling site.
+  Tests **4,388 / 0 / 5** (+15); 0 card-def lines, coverage unmoved **1,133/1,803 = 62.8%**;
+  PROTOCOL **35** / HASH **72** gate-executed and unmoved. Review 1 HIGH / 5 MEDIUM / 7 LOW,
+  all 13 taken — **the HIGH is not the primitive** (the reviewer re-derived its 9-variant
+  equivalence by hand and found it exact) but a card def inside the batch's own 13:
+  `imprisoned_in_the_moon` declares `Permanent` for a printed "creature, land, or
+  planeswalker", unreachable before this batch and human-reachable after it; filed
+  `OOS-DX20-10` with a wrong-way-round roster pin, not fixed, because `EnchantFilter` has no
+  OR over card types and adding one moves HASH. Durable lesson: **a differential probe between
+  two consumers of one function proves consistency, not correctness.** Seeds:
+  **OOS-CARDS2-4** + **OOS-CARDS1-2** CLOSED; filed **OOS-DX20-1..10**. Full handoff:
+  `memory/workstream-state.md`.
+- **Prior**: 2026-08-03 — **PB-DX32 SHIPPED** (`scutemob-197`, merge `685aa1c4`; v3 queue rank 19,
   promoted per FEEDBACK-1 §2.3, user-approved). The fuzzer's OUTPUT now means something:
   `GameResult` carries an SR-38 rejection channel + a promoted waste tally, both behind
   ratchets pinned at measured values; the CR 704.3 orphaned-token class is split off as

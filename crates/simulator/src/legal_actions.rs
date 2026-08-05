@@ -814,6 +814,12 @@ impl LegalActionProvider for StubProvider {
                     // It does NOT cover what needs the activation performed to decide; see
                     // `mana_solver::plannable_tap_ability`'s doc for that bound.
                     //
+                    // Historical note (PB-DX20, `scutemob-198`, 2026-08-04):
+                    // `KNOWN_FALSE_OFFERS` no longer exists anywhere in the tree — PB-DX20
+                    // deleted the play-server list and replaced its excusal with an
+                    // unconditional failure. Kept as the historical record of the two
+                    // entries this predicate was built to make unnecessary.
+                    //
                     // The SAME predicate the mana solver uses, so the offer list and the
                     // payment plan cannot drift: that identity is the fix, not the
                     // individual checks.

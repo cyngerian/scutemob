@@ -204,6 +204,45 @@ fn test_dx20_t1_enchant_target_offer_and_cast_agree_for_every_variant() {
             controller: EnchantControllerConstraint::You,
             ..Default::default()
         }),
+        // E2 (pb-review-DX20.md): the single `Filtered` row above exercises only 3 of
+        // `EnchantFilter`'s 6 fields (`has_card_type`, `has_subtype`, `controller`).
+        // The four rows below cover the rest -- `basic` is not hypothetical: it is
+        // live in two deck-legal `Complete` defs (`ossification`, `dimensional_exile`)
+        // and was never probed before this fix.
+        //
+        // **Revert executed** (review's exact prediction): swap
+        // `enchant_target_to_requirement`'s `basic: f.basic, nonbasic: f.nonbasic`
+        // lines. The `basic: true` row below reddens on THIS test (T1) specifically
+        // -- offer says "Own Karoo" (nonbasic) is legal, cast still rejects it,
+        // because `casting.rs`'s CR 303.4a gate independently re-checks the
+        // UNMODIFIED incumbent predicate `sba::matches_enchant_target` -- proving the
+        // synth/incumbent disagreement is exactly what T1's offer-vs-cast comparison
+        // is built to catch, for a field no earlier probe touched. Verbatim failure
+        // in `scratchpad/dx20-reverts.md`.
+        EnchantTarget::Filtered(EnchantFilter {
+            has_card_type: Some(CardType::Land),
+            basic: true,
+            controller: EnchantControllerConstraint::You,
+            ..Default::default()
+        }),
+        EnchantTarget::Filtered(EnchantFilter {
+            has_card_type: Some(CardType::Land),
+            nonbasic: true,
+            ..Default::default()
+        }),
+        EnchantTarget::Filtered(EnchantFilter {
+            has_subtypes: vec![
+                SubType("Mountain".to_string()),
+                SubType("Forest".to_string()),
+            ],
+            ..Default::default()
+        }),
+        EnchantTarget::Filtered(EnchantFilter {
+            has_card_type: Some(CardType::Land),
+            has_subtype: Some(SubType("Mountain".to_string())),
+            controller: EnchantControllerConstraint::Opponent,
+            ..Default::default()
+        }),
     ];
 
     for enchant in variants {
@@ -299,6 +338,143 @@ fn test_dx20_t1_enchant_target_offer_and_cast_agree_for_every_variant() {
     }
 }
 
+// ── E1: exact-shape pin + player-side correctness (pb-review-DX20.md finding E1) ───
+
+/// CR 702.5a / 702.5d — E1's fix: T1 above only proves the offer and cast paths agree
+/// WITH EACH OTHER, which is blind to a mapping that is stricter (or wider) than the
+/// CR-correct answer in BOTH places at once, because both paths now derive the SAME
+/// synthesized requirement -- a bug in `enchant_target_to_requirement` itself (e.g.
+/// `Permanent -> TargetCreature`, or the exact mistake plan §3.2 warns against in
+/// bold, `CreatureOrPlaneswalker -> TargetAny`) would make offer and cast agree with
+/// EACH OTHER while both silently disagree with the CR. This test pins the ACTUAL
+/// literal `TargetRequirement` for all 9 `EnchantTarget` variants (not merely "offer
+/// == cast"), and separately asserts CAST-SIDE player-target correctness directly
+/// (not via offer/cast self-consistency): for the 8 non-`Player` variants, BOTH
+/// `Target::Player(p1)` and `Target::Player(p2)` must be rejected by `process_command`
+/// (CR 702.5d: "can't target permanents" also implies the converse -- a
+/// non-player-enchanting Aura can't target a player); for `Player`, both must be
+/// accepted and every object candidate rejected.
+///
+/// **Two reverts executed, proving the two halves discriminate INDEPENDENTLY** (a
+/// single combined revert cannot prove this: `assert_eq!` panics and unwinds the test
+/// at the first failing assertion, so if the shape check fails it never reaches the
+/// player-rejection checks below it in the same loop iteration):
+/// 1. Change the `CreatureOrPlaneswalker` arm to `TargetRequirement::TargetAny` (the
+///    exact mistake plan §3.2 warns against) -- reddens the EXACT-SHAPE assertion.
+/// 2. Leave the mapping untouched; instead add a
+///    `TargetRequirement::TargetPermanentWithFilter(_) => Ok(())` arm to
+///    `validate_player_satisfies_requirement`'s match (ahead of its catch-all) -- the
+///    synthesized requirement's SHAPE is unchanged (the exact-shape assertion stays
+///    green), but a player is now wrongly accepted as a `CreatureOrPlaneswalker`
+///    target -- reddens the PLAYER-REJECTION assertion, on its own, with the shape
+///    check passing right up to that point. Both reverts recorded verbatim in
+///    `scratchpad/dx20-reverts.md`.
+#[test]
+fn test_dx20_e1_exact_shape_pin_and_player_side_correctness() {
+    let filtered = EnchantTarget::Filtered(EnchantFilter {
+        has_card_type: Some(CardType::Land),
+        has_subtype: Some(SubType("Mountain".to_string())),
+        controller: EnchantControllerConstraint::You,
+        ..Default::default()
+    });
+
+    let cases: Vec<(EnchantTarget, TargetRequirement)> = vec![
+        (EnchantTarget::Creature, TargetRequirement::TargetCreature),
+        (EnchantTarget::Permanent, TargetRequirement::TargetPermanent),
+        (EnchantTarget::Artifact, TargetRequirement::TargetArtifact),
+        (
+            EnchantTarget::Enchantment,
+            TargetRequirement::TargetEnchantment,
+        ),
+        (EnchantTarget::Land, TargetRequirement::TargetLand),
+        (
+            EnchantTarget::Planeswalker,
+            TargetRequirement::TargetPlaneswalker,
+        ),
+        (EnchantTarget::Player, TargetRequirement::TargetPlayer),
+        (
+            EnchantTarget::CreatureOrPlaneswalker,
+            TargetRequirement::TargetPermanentWithFilter(mtg_engine::TargetFilter {
+                has_card_types: vec![CardType::Creature, CardType::Planeswalker],
+                ..Default::default()
+            }),
+        ),
+        (
+            filtered.clone(),
+            TargetRequirement::TargetPermanentWithFilter(mtg_engine::TargetFilter {
+                has_card_type: Some(CardType::Land),
+                has_subtype: Some(SubType("Mountain".to_string())),
+                controller: mtg_engine::TargetController::You,
+                ..Default::default()
+            }),
+        ),
+    ];
+
+    for (enchant, expected) in &cases {
+        let (state, p1, p2) = build_board_with_aura(enchant.clone());
+        let aura_id = find_object(&state, "Test Aura");
+
+        // (a) Exact-shape pin: the literal the synthesis returns, not merely "offer
+        // agrees with cast".
+        let reqs = spell_target_requirements(&state, aura_id, &[], None);
+        assert_eq!(
+            reqs,
+            vec![expected.clone()],
+            "{:?}: synthesized requirement should be EXACTLY {:?}, got {:?}",
+            enchant,
+            expected,
+            reqs
+        );
+
+        // (b) Cast-side player correctness, decided directly against process_command
+        // -- NOT via offer/cast self-consistency, which cannot see a mapping bug that
+        // moves both sides together.
+        let is_player_variant = matches!(enchant, EnchantTarget::Player);
+        for (label, target_player) in [("p1", p1), ("p2", p2)] {
+            let result = process_command(
+                state.clone(),
+                cast(p1, aura_id, vec![Target::Player(target_player)]),
+            );
+            assert_eq!(
+                result.is_ok(),
+                is_player_variant,
+                "{:?} / player target {}: expected cast Ok={} (CR 702.5d), got {:?}",
+                enchant,
+                label,
+                is_player_variant,
+                result.err()
+            );
+        }
+
+        // For the `Player` variant, every OBJECT candidate on the board must be
+        // rejected (CR 702.5d: "can't target permanents").
+        if is_player_variant {
+            for name in [
+                "Own Creature",
+                "Opp Creature",
+                "Own Mountain",
+                "Own Karoo",
+                "Opp Mountain",
+                "Own Artifact",
+                "Own Enchantment",
+                "Own Planeswalker",
+            ] {
+                let obj_id = find_object(&state, name);
+                let result = process_command(
+                    state.clone(),
+                    cast(p1, aura_id, vec![Target::Object(obj_id)]),
+                );
+                assert!(
+                    result.is_err(),
+                    "EnchantTarget::Player: object candidate {} should be rejected \
+                     (CR 702.5d), got Ok",
+                    name
+                );
+            }
+        }
+    }
+}
+
 // ── T2: the cast path and the offer path are the same function ────────────────────
 
 /// CR 303.4a / 601.2c — T2.1: an "Enchant creature" Aura's offer is exactly one
@@ -369,10 +545,23 @@ fn test_dx20_t2_2_zero_and_two_target_casts_are_both_rejected() {
             ],
         ),
     );
-    assert!(
-        two_target_result.is_err(),
-        "a two-target Aura cast should be rejected (CR 303.4a: exactly one target)"
-    );
+    // E9 (pb-review-DX20.md): match the error VARIANT and a message substring, not
+    // merely `is_err()` -- an `is_err()`-only assertion would also pass if the
+    // `Creature` mapping broke so badly that NO creature were a legal target at all,
+    // which would report this exact shape while the batch's core mapping was
+    // silently wrong.
+    match two_target_result {
+        Err(GameStateError::InvalidTarget(msg)) => {
+            assert!(
+                msg.contains("expected 1..=1 target(s) but got 2"),
+                "expected the CR 303.4a/601.2c count-check message, got: {msg}"
+            );
+        }
+        other => panic!(
+            "expected Err(InvalidTarget(\"expected 1..=1 target(s) but got 2\")), got: {:?}",
+            other
+        ),
+    }
 }
 
 /// CR 303.4b — T2.3 regression floor: a legal single-target cast still succeeds
@@ -427,10 +616,24 @@ fn test_dx20_t2_4_hexproof_creature_still_rejected_as_aura_target() {
     let target_id = find_object(&state, "Hexproof Bear");
 
     let result = process_command(state, cast(p1, aura_id, vec![Target::Object(target_id)]));
-    assert!(
-        result.is_err(),
-        "CR 702.11b: a hexproof creature should still be an illegal Aura target"
-    );
+    // E9 (pb-review-DX20.md): match the error VARIANT and a hexproof-specific message
+    // substring, not merely `is_err()` -- a bare `is_err()` would also pass if the
+    // `Creature` mapping broke so no creature were a legal target at all, which would
+    // report "hexproof still works" while the batch's core mapping was silently
+    // wrong.
+    match result {
+        Err(GameStateError::InvalidTarget(msg)) => {
+            assert!(
+                msg.contains("hexproof"),
+                "expected the CR 702.11b hexproof-rejection message, got: {msg}"
+            );
+        }
+        other => panic!(
+            "expected Err(InvalidTarget(\"object has hexproof and cannot be targeted by \
+             opponents\")), got: {:?}",
+            other
+        ),
+    }
 }
 
 // ── T3: Bestow (plan §4.5) ──────────────────────────────────────────────────────────
@@ -567,6 +770,52 @@ fn test_dx20_t4_roster_gates_over_all_cards() {
          of aura_spell_target_requirements means these get NO Enchant-derived \
          requirement; either that guard needs removing or these defs need review",
         aura_with_spell
+    );
+
+    // 5. **DEVIATION, pinned wrong-way-round (review finding C1 / OOS-DX20-10).**
+    //    `EnchantTarget::Permanent` is almost always a WIDENING of a printed
+    //    multi-type restriction ("creature, land, or planeswalker" etc admits
+    //    artifacts and enchantments too) -- `imprisoned_in_the_moon` (`Complete`,
+    //    deck-legal) declares it for exactly such a printed line, and PB-DX20 makes
+    //    the widened offer human-reachable. Fixing it needs `EnchantFilter`/
+    //    `EnchantTarget` card-type-OR expressiveness that does not exist today and
+    //    would move `HASH_SCHEMA_VERSION` -- out of this batch's scope (OOS-DX20-10).
+    //    This assertion is written the WRONG way round, mirroring PB-DX19's
+    //    `deviation_animated_nexus_does_not_count_toward_metalcraft` precedent: it
+    //    pins the SET of `Complete` Aura defs declaring `EnchantTarget::Permanent`
+    //    at exactly `{"Imprisoned in the Moon"}` rather than asserting the set is
+    //    empty, so the wrongness is discoverable (a second member appearing here is
+    //    a NEW HIGH, not a silent pass) rather than merely remembered. When
+    //    `OOS-DX20-10`'s successor adds the expressiveness `imprisoned_in_the_moon`
+    //    needs, THIS assertion is the one to invert.
+    //
+    //    **Revert executed** (temporarily changing `imprisoned_in_the_moon.rs`'s
+    //    declared `EnchantTarget` to `CreatureOrPlaneswalker`, then restoring):
+    //    reddened as `left: [] right: ["Imprisoned in the Moon"]`, confirming the
+    //    assertion discriminates the card's presence/absence in this roster. `git
+    //    diff -- crates/card-defs/` confirmed empty after restore. Verbatim failure
+    //    in `scratchpad/dx20-reverts.md`.
+    let permanent_complete_auras: Vec<&str> = aura_defs
+        .iter()
+        .filter(|d| matches!(d.completeness, Completeness::Complete))
+        .filter(|d| {
+            enchant_keywords(d)
+                .iter()
+                .any(|et| matches!(et, EnchantTarget::Permanent))
+        })
+        .map(|d| d.name.as_str())
+        .collect();
+    assert_eq!(
+        permanent_complete_auras,
+        vec!["Imprisoned in the Moon"],
+        "OOS-DX20-10: the roster of `Complete` Aura defs declaring \
+         EnchantTarget::Permanent moved from the pinned {{\"Imprisoned in the \
+         Moon\"}} -- if a NEW member appeared, check its oracle text before assuming \
+         it belongs here (`Permanent` is almost always a widening of a printed \
+         multi-type restriction); if `imprisoned_in_the_moon` itself is gone, \
+         OOS-DX20-10 was closed and this assertion should be INVERTED to EMPTY, got \
+         {:?}",
+        permanent_complete_auras
     );
 
     // Non-vacuity floor: the Enchant-carrying roster and its Complete subset, named so
@@ -758,13 +1007,27 @@ fn test_dx20_t5_4_attach_to_own_other_creature_succeeds_and_attaches() {
     );
 }
 
-/// CR 702.151a / 601.2c / 602.2c — T5.5: attach with ZERO targets is rejected, and
-/// critically the mana was NOT spent (an illegal activation rewinds -- CR 602.2c).
-/// This is the discriminating probe for the live defect (plan §6 T5): before PB-DX20
-/// this was `Ok` with the cost paid and a silent fizzle.
+/// CR 702.151a / 601.2c — T5.5: attach with ZERO targets is rejected. This is the
+/// discriminating probe for the live defect (plan §6 T5): before PB-DX20 this was
+/// `Ok` with the cost paid and a silent fizzle.
+///
+/// E7 (pb-review-DX20.md): the doc this replaces claimed to test "the mana was NOT
+/// spent" (CR 602.2c), but `process_command` takes `GameState` BY VALUE and returns
+/// `Err` with no state at all on rejection -- re-reading the caller's own `state`
+/// after a rejected call therefore observes an object no code path could possibly
+/// have touched. That assertion was structurally guaranteed to pass and is deleted.
+/// This is NOT a hole in the engine: `process_command`'s ownership shape makes CR
+/// 602.2c's rewind structural here, which is a STRONGER property than any assertion
+/// could prove. What this probe actually discriminates is that a zero-target attach
+/// is `Err` at all (before PB-DX20 it was `Ok` with a silent fizzle) -- and, as a real
+/// observation rather than a decorative one, that the SAME state with mana still in
+/// the pool can still perform a LEGAL activation afterward and that activation DOES
+/// spend the mana, proving the rejected attempt consumed nothing observable and the
+/// state was left genuinely usable.
 #[test]
-fn test_dx20_t5_5_zero_target_attach_is_rejected_and_mana_is_not_spent() {
+fn test_dx20_t5_5_zero_target_attach_is_rejected_and_the_state_is_still_usable() {
     let (state, p1, _p2, blades_id) = build_board_with_lizard_blades();
+    let own_creature_id = find_object(&state, "Own Creature");
     let mana_before = state.players().get(&p1).unwrap().mana_pool.colorless;
     assert_eq!(
         mana_before, 2,
@@ -777,14 +1040,17 @@ fn test_dx20_t5_5_zero_target_attach_is_rejected_and_mana_is_not_spent() {
         "a zero-target Reconfigure attach should be rejected, not silently fizzle"
     );
 
-    // The rejected command must not have mutated `state` -- `process_command` takes the
-    // state by value and returns Err without a new state, so re-reading the ORIGINAL
-    // `state` (still owned here via the clone above) is the correct check that nothing
-    // was spent on the rejected attempt.
-    let mana_after = state.players().get(&p1).unwrap().mana_pool.colorless;
+    // Real observation: the SAME original `state` (untouched by the Err above, by
+    // construction of `process_command`'s ownership) can still perform a LEGAL
+    // attach, and that legal attach spends the mana -- proving the pool was never
+    // silently drained by the rejected zero-target attempt.
+    let (legal_state, _) =
+        activate_attach(state, p1, blades_id, vec![Target::Object(own_creature_id)])
+            .expect("a legal attach on the same original state should still succeed");
+    let mana_after_legal = legal_state.players().get(&p1).unwrap().mana_pool.colorless;
     assert_eq!(
-        mana_after, mana_before,
-        "CR 602.2c: an illegal activation must not spend its cost"
+        mana_after_legal, 0,
+        "the legal attach should have spent the 2 colorless mana Reconfigure costs"
     );
 }
 
