@@ -13,7 +13,7 @@
 //! while every probe stays green, because the compiler drops the commented-out code
 //! and the scanner never sees it disappear.
 
-use mtg_engine::{all_cards, AbilityDefinition, CardDefinition};
+use mtg_engine::{all_cards, AbilityDefinition, CardDefinition, KeywordAbility, TriggerCondition};
 use std::collections::BTreeSet;
 use std::path::Path;
 
@@ -158,6 +158,11 @@ fn g_b_call_site_is_unique_and_filtered() {
 
 // ── R1: the trigger_zone: Some(_) corpus population (§4.3) ──────────────────────
 
+/// Fix cycle (review Finding 8): the ORIGINAL version walked `def.abilities`
+/// only (front face). R1's own doc comment says a new `trigger_zone` def
+/// "must ALSO have a dispatch arm ... or it will silently never fire" -- a
+/// def declaring `trigger_zone: Some(_)` on its BACK face is exactly that
+/// population, and was invisible to this roster. Now walks both faces.
 fn trigger_zone_population(defs: &[CardDefinition]) -> BTreeSet<String> {
     let mut out = BTreeSet::new();
     for def in defs {
@@ -168,6 +173,17 @@ fn trigger_zone_population(defs: &[CardDefinition]) -> BTreeSet<String> {
             } = ability
             {
                 out.insert(def.name.clone());
+            }
+        }
+        if let Some(back) = &def.back_face {
+            for ability in &back.abilities {
+                if let AbilityDefinition::Triggered {
+                    trigger_zone: Some(_),
+                    ..
+                } = ability
+                {
+                    out.insert(def.name.clone());
+                }
             }
         }
     }
@@ -210,6 +226,15 @@ fn r1_trigger_zone_population_is_pinned() {
 /// back face -- which is WHY every Q1/Q3/Q4/Q6 probe in
 /// `pb_dx24_trigger_zone_and_index_spaces.rs` uses a SYNTHETIC fixture rather than
 /// a real corpus card.
+///
+/// Fix cycle (review Finding 8): the ORIGINAL version asserted only the
+/// def-count (15) and told a human, in its failure message, to "re-run the
+/// shape scan by hand" -- so the actual §4.2 finding this test claims to back
+/// ("0 real corpus cards exercise any Q-shape") was pinned by NOTHING
+/// machine-checked. A def could gain `Keyword(Backup(_))` on its back face
+/// and this gate would stay green. Now asserts the SEVEN per-shape counts
+/// directly (each measured 0 at PB-DX24 stage 1), keeping the def-count pin
+/// as an eighth, still-real assertion.
 #[test]
 fn r2_back_face_population_is_pinned_with_a_non_vacuity_floor() {
     let cards = all_cards();
@@ -228,13 +253,118 @@ fn r2_back_face_population_is_pinned_with_a_non_vacuity_floor() {
         back_face_defs.len(),
         15,
         "PB-DX24 R2: the back_face: Some(_) corpus population moved from the \
-         PB-DX24-stage-1-measured 15 -- got {}. If this count grew, re-run the \
-         §4.2 shape scan (Keyword(Backup), WhenYouCastThisSpell, \
-         WhenExertedAsAttacks, WhenDealsCombatDamageToPlayer, WhenTurnedFaceUp, \
-         WheneverRingTemptsYou, trigger_zone: Some(_)) against the NEW members -- \
-         a nonzero count on any of the 7 shapes would mean a Q-site probe can now \
-         be written against a real card instead of a synthetic fixture. Population: \
-         {back_face_defs:?}",
+         PB-DX24-stage-1-measured 15 -- got {}. Population: {back_face_defs:?}",
         back_face_defs.len()
     );
+
+    let backup = count_back_face_shape(&cards, |a| {
+        matches!(a, AbilityDefinition::Keyword(KeywordAbility::Backup(_)))
+    });
+    assert_eq!(
+        backup, 0,
+        "Q1 (abilities.rs's Backup ETB lowering) moved off its PB-DX24-stage-1 \
+         measurement of 0 real back-face Keyword(Backup(_)) abilities -- a Q1 \
+         probe can now be written against a REAL corpus card instead of a \
+         synthetic fixture. Got {backup}."
+    );
+    let when_you_cast = count_back_face_shape(&cards, |a| {
+        matches!(
+            a,
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenYouCastThisSpell,
+                ..
+            }
+        )
+    });
+    assert_eq!(
+        when_you_cast, 0,
+        "Q2 (abilities.rs's WhenYouCastThisSpell queue site) moved off 0 real \
+         back-face abilities of this shape. Got {when_you_cast}."
+    );
+    let when_exerted = count_back_face_shape(&cards, |a| {
+        matches!(
+            a,
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenExertedAsAttacks,
+                ..
+            }
+        )
+    });
+    assert_eq!(
+        when_exerted, 0,
+        "Q3 (abilities.rs's WhenExertedAsAttacks queue site) moved off 0 real \
+         back-face abilities of this shape. Got {when_exerted}."
+    );
+    let combat_damage = count_back_face_shape(&cards, |a| {
+        matches!(
+            a,
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenDealsCombatDamageToPlayer,
+                ..
+            }
+        )
+    });
+    assert_eq!(
+        combat_damage, 0,
+        "Q4 (abilities.rs's WhenDealsCombatDamageToPlayer queue site) moved off \
+         0 real back-face abilities of this shape. Got {combat_damage}."
+    );
+    let turned_face_up = count_back_face_shape(&cards, |a| {
+        matches!(
+            a,
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WhenTurnedFaceUp,
+                ..
+            }
+        )
+    });
+    assert_eq!(
+        turned_face_up, 0,
+        "Q5 (resolution.rs's WhenTurnedFaceUp queue site, re-scoped not fixed) \
+         moved off 0 real back-face abilities of this shape. Got {turned_face_up}."
+    );
+    let ring_tempts = count_back_face_shape(&cards, |a| {
+        matches!(
+            a,
+            AbilityDefinition::Triggered {
+                trigger_condition: TriggerCondition::WheneverRingTemptsYou,
+                ..
+            }
+        )
+    });
+    assert_eq!(
+        ring_tempts, 0,
+        "Q6 (abilities.rs's WheneverRingTemptsYou queue site) moved off 0 real \
+         back-face abilities of this shape. Got {ring_tempts}."
+    );
+    let trigger_zone_shape = count_back_face_shape(&cards, |a| {
+        matches!(
+            a,
+            AbilityDefinition::Triggered {
+                trigger_zone: Some(_),
+                ..
+            }
+        )
+    });
+    assert_eq!(
+        trigger_zone_shape, 0,
+        "Q7 (abilities.rs's graveyard sweep, collect_graveyard_carddef_triggers) \
+         moved off 0 real back-face abilities carrying trigger_zone: Some(_). \
+         Got {trigger_zone_shape}."
+    );
+}
+
+/// Counts abilities matching `pred` across every def's BACK face only (the
+/// §4.2 measurement is specifically about the back-face population -- the
+/// front face is already covered by R1 and by ordinary corpus authoring).
+fn count_back_face_shape(
+    cards: &[CardDefinition],
+    pred: impl Fn(&AbilityDefinition) -> bool,
+) -> usize {
+    cards
+        .iter()
+        .filter_map(|d| d.back_face.as_ref())
+        .flat_map(|f| f.abilities.iter())
+        .filter(|a| pred(a))
+        .count()
 }

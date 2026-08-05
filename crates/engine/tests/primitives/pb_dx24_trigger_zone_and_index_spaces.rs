@@ -251,6 +251,36 @@ fn test_dx24_lowering_drops_every_zone_scoped_ability_over_the_corpus() {
         if full_triggered != filtered_triggered {
             divergent_defs.push(def.name.clone());
         }
+
+        // Fix cycle (review Finding 10): the ORIGINAL version fed ONLY
+        // `def.abilities` into this differential -- `build_face_ability_vectors`
+        // is called on the BACK face too (`face.rs:104`'s rebuild,
+        // `resolution.rs:888`'s disturb rebuild), so a back-face
+        // `trigger_zone: Some(_)` ability was never differentiated here.
+        if let Some(back) = &def.back_face {
+            let back_filtered: Vec<AbilityDefinition> = back
+                .abilities
+                .iter()
+                .filter(|a| {
+                    !matches!(
+                        a,
+                        AbilityDefinition::Triggered {
+                            trigger_zone: Some(_),
+                            ..
+                        }
+                    )
+                })
+                .cloned()
+                .collect();
+            if back_filtered.len() != back.abilities.len() {
+                non_identity_inputs += 1;
+            }
+            let (_, _, back_full_triggered) = build_face_ability_vectors(&back.abilities);
+            let (_, _, back_filtered_triggered) = build_face_ability_vectors(&back_filtered);
+            if back_full_triggered != back_filtered_triggered {
+                divergent_defs.push(format!("{} (back face)", def.name));
+            }
+        }
     }
 
     assert!(
@@ -388,6 +418,15 @@ fn test_dx24_nether_traitor_triggers_from_the_graveyard() {
 /// `{B}` is available) Nether Traitor returns to the battlefield. The paired
 /// negative -- zero black mana available -- proves the assertion discriminates
 /// the RETURN, not merely the trigger firing.
+///
+/// Fix cycle (review Finding 9): CR 118.12 itself makes this a PLAYER CHOICE
+/// ("checks whether the player CHOSE to pay an optional cost") -- it does not
+/// say "pay when able." The engine's OWN deviation is pay-when-able,
+/// documented at its one implementation site
+/// (`effects/mod.rs:4299-4301`, `try_pay_optional_cost`) as a deliberate M7
+/// simplification, not a CR requirement; `engine.rs:1568` already names this
+/// the "DP-19 (`MayPayThenEffect`) bug class." This test pins THAT engine
+/// deviation, not CR 118.12 -- see `OOS-DX24-9`.
 #[test]
 fn test_dx24_nether_traitor_returns_itself_end_to_end() {
     let p1 = p(1);
@@ -409,8 +448,10 @@ fn test_dx24_nether_traitor_returns_itself_end_to_end() {
     let state = drain_stack(state, &all);
     assert!(
         on_battlefield(&state, "Nether Traitor"),
-        "CR 118.12: with {{B}} available, Nether Traitor's MayPayThenEffect \
-         must pay (CR 118.12 pay-when-able) and return it to the battlefield"
+        "engine deviation (NOT CR 118.12, which makes this a player choice --\
+         see OOS-DX24-9): with {{B}} available, the engine's pay-when-able \
+         MayPayThenEffect handler (effects/mod.rs:4299-4301) must pay and \
+         return Nether Traitor to the battlefield"
     );
     assert!(
         !in_graveyard(&state, "Nether Traitor", p1),
@@ -1413,46 +1454,74 @@ fn test_dx24_whenever_ring_tempts_you_reads_the_visible_face_of_a_transformed_pe
     );
 }
 
-// ── §4.0 invariant pin + Q2/Q7 structural pins (defensive, unreachable via
-//    the public API -- see the section doc comment above) ──────────────────
+// ── §4.0 invariant pins + Q2/Q7 structural pin (fix cycle, review Findings 2
+//    / 11) -- both rewritten after the review showed the originals did not
+//    gate what they claimed ─────────────────────────────────────────────────
 
-/// PB-DX24 §4.0: `is_transformed` must be assignable to `true` at EXACTLY ONE
-/// production site in the engine (the disturb ETB in `resolution.rs`) -- this
-/// is the fact Q2's (stack) and Q7's (graveyard) "defensive, zero-behaviour
-/// -change" classification (plan §4.1) depends on. If a future patch adds a
-/// SECOND such site, Q2/Q7 may become LIVE repairs and this pin's failure is
-/// the signal to re-examine them, not to just widen the count.
+/// PB-DX24 §4.0 fix cycle (review Finding 2): the ORIGINAL version of this
+/// test matched only the two literal strings `is_transformed = true` /
+/// `is_transformed: true` and so missed `face.rs:104`'s COMPUTED write
+/// (`obj_mut.is_transformed = new_is_transformed;`, the site
+/// `Command::Transform` -- and every other flip -- routes through). That
+/// write already existed in the tree when the original pin shipped, so the
+/// gate was GREEN while its own stated failure condition ("a second site")
+/// was already true. Widened here to catch ANY write whose right-hand side
+/// is not the literal `false` (the CR 712.8a reset writes in `state/mod.rs`
+/// are excluded on purpose -- they are the RESET half of the invariant, not
+/// a candidate for setting `is_transformed` true off the battlefield, and are
+/// covered by the runtime probe below instead). This is a drift gate, not
+/// the load-bearing proof -- the two runtime probes that follow are, because
+/// this structural scan cannot detect the REMOVAL of a guard (only the
+/// ADDITION of a write), which is exactly the shape of revert that defeated
+/// the original test (deleting `face.rs`'s battlefield check adds no new
+/// `is_transformed` write line at all).
 #[test]
-fn test_dx24_is_transformed_true_assignment_has_exactly_one_site() {
+fn test_dx24_is_transformed_writes_are_confined_to_resolution_and_face_rs() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
     let mut hits: Vec<String> = Vec::new();
-    scan_dir_for_is_transformed_true(&root, &mut hits);
-    assert_eq!(
-        hits.len(),
-        1,
-        "PB-DX24 §4.0: `is_transformed = true` / `is_transformed: true` must \
-         be assigned at EXACTLY ONE site in crates/engine/src (the disturb \
-         ETB in resolution.rs) -- a second site means is_transformed is \
-         reachable off the battlefield, and Q2/Q7's 'defensive, zero-\
-         behaviour-change' classification is no longer sound as stated. \
-         Found: {:?}",
-        hits
-    );
+    scan_dir_for_is_transformed_writes(&root, &mut hits);
+    let other_hits: Vec<_> = hits
+        .iter()
+        .filter(|h| !h.contains("resolution.rs") && !h.contains("face.rs"))
+        .collect();
     assert!(
-        hits[0].contains("resolution.rs"),
-        "the one site must be resolution.rs's disturb ETB assignment; found {:?}",
-        hits
+        other_hits.is_empty(),
+        "PB-DX24 §4.0: a write to `is_transformed` (outside a comment, RHS \
+         not literally `false`) was found somewhere other than resolution.rs \
+         (the disturb ETB) or face.rs (`apply_face_change`'s flip) -- \
+         is_transformed may be reachable off the battlefield through a path \
+         Q2/Q7's classification never accounted for. Unexpected: {other_hits:?}. \
+         Full set: {hits:?}"
+    );
+    let resolution_hits = hits.iter().filter(|h| h.contains("resolution.rs")).count();
+    let face_hits = hits.iter().filter(|h| h.contains("face.rs")).count();
+    assert_eq!(
+        resolution_hits, 1,
+        "expected exactly one resolution.rs write (the disturb ETB); full set: {hits:?}"
+    );
+    assert_eq!(
+        face_hits, 1,
+        "expected exactly one face.rs write (apply_face_change's flip); full set: {hits:?}"
     );
 }
 
-fn scan_dir_for_is_transformed_true(dir: &std::path::Path, hits: &mut Vec<String>) {
+/// Scans for a WRITE to the `is_transformed` field: either the field-mutation
+/// form (`<expr>.is_transformed = <rhs>;`, requires a leading `.` so a
+/// same-suffix local binding like `entering_is_transformed = ...` can never
+/// match) or the struct-literal form (`is_transformed: <rhs>,`, requires the
+/// character immediately before `is_transformed` to NOT be an identifier
+/// character, so `new_is_transformed: bool` -- a parameter declaration, not a
+/// write -- is excluded by construction rather than by an ad hoc filter).
+/// Excludes any hit whose right-hand side is literally `false` (the
+/// CR 712.8a reset writes) or `bool` (a type annotation, not a value).
+fn scan_dir_for_is_transformed_writes(dir: &std::path::Path, hits: &mut Vec<String>) {
     let Ok(entries) = std::fs::read_dir(dir) else {
         return;
     };
     for entry in entries.flatten() {
         let path = entry.path();
         if path.is_dir() {
-            scan_dir_for_is_transformed_true(&path, hits);
+            scan_dir_for_is_transformed_writes(&path, hits);
             continue;
         }
         if path.extension().and_then(|e| e.to_str()) != Some("rs") {
@@ -1465,27 +1534,245 @@ fn scan_dir_for_is_transformed_true(dir: &std::path::Path, hits: &mut Vec<String
             if line.trim_start().starts_with("//") {
                 continue;
             }
-            // Strip a trailing line comment so an assignment followed by an
-            // explanatory `// ...` isn't miscounted.
             let code_part = match line.find("//") {
                 Some(idx) => &line[..idx],
                 None => line,
             };
-            if code_part.contains("is_transformed = true")
-                || code_part.contains("is_transformed: true")
+            for (needle, dot_prefixed) in
+                [(".is_transformed = ", true), ("is_transformed: ", false)]
             {
-                hits.push(format!("{}:{}", path.display(), lineno + 1));
+                let mut search_from = 0usize;
+                while let Some(rel) = code_part[search_from..].find(needle) {
+                    let idx = search_from + rel;
+                    search_from = idx + needle.len();
+                    let boundary_ok = if dot_prefixed {
+                        true
+                    } else {
+                        let before = code_part[..idx].chars().next_back();
+                        !matches!(before, Some(c) if c.is_alphanumeric() || c == '_')
+                    };
+                    if !boundary_ok {
+                        continue;
+                    }
+                    let rhs = code_part[idx + needle.len()..]
+                        .split([',', ';'])
+                        .next()
+                        .unwrap_or("")
+                        .trim();
+                    if rhs != "false" && rhs != "bool" {
+                        hits.push(format!("{}:{}", path.display(), lineno + 1));
+                    }
+                }
             }
         }
     }
 }
 
+/// PB-DX24 §4.0 fix cycle (review Finding 2, part (a)): the REAL invariant
+/// behind Q2/Q7's "defensive" classification is CR 712.8a / CR 400.7 --
+/// `is_transformed` resets to `false` when a battlefield permanent leaves the
+/// battlefield, because the destination-zone object is a NEW object built by
+/// `state::GameState::move_object_to_zone` with `is_transformed: false`
+/// hard-coded (never carried over from the departing object). This pins that
+/// mechanism directly: transform a DFC on the battlefield (back face
+/// toughness 2, front face toughness 5, 3 damage marked from the start so it
+/// is inert pre-transform and lethal post-transform), let it die via SBA, and
+/// assert the NEW graveyard object -- found by the FRONT face's name, per
+/// CR 712.8a's "front face in all non-battlefield zones" -- is not
+/// transformed. Revert: change `state/mod.rs`'s `move_object_to_zone`
+/// literal `is_transformed: false,` to carry the departing object's own
+/// value instead.
+#[test]
+fn test_dx24_transform_state_resets_on_zone_change_to_graveyard() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let def = f2_probe_dfc_def();
+    let mut defs = HashMap::new();
+    defs.insert(def.name.clone(), def.clone());
+    let registry = CardRegistry::new(vec![def.clone()]);
+
+    let spec = enrich_spec_from_def(
+        ObjectSpec::card(p1, &def.name)
+            .with_card_id(def.card_id.clone())
+            .in_zone(ZoneId::Battlefield)
+            .with_damage(3),
+        &defs,
+    );
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .object(spec)
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+
+    let obj_id = find_by_name(&state, &def.name);
+    assert!(
+        on_battlefield(&state, &def.name),
+        "sanity: alive pre-transform (3 damage is inert against the FRONT \
+         face's toughness 5; the builder never checks SBAs at build time)"
+    );
+
+    // CR 704.3: `transform_permanent_in_place` checks SBAs immediately after
+    // the flip, so the die-from-transform and the zone-change happen inside
+    // this ONE `Command::Transform` call -- there is no separate window in
+    // which to observe "transformed and still alive". The 3 damage marked
+    // from the start is lethal against the BACK face's toughness 2, inert
+    // against the FRONT face's toughness 5.
+    let (state, events) = process_command(
+        state,
+        Command::Transform {
+            player: p1,
+            permanent: obj_id,
+        },
+    )
+    .expect("Transform should succeed");
+
+    let died_as_transformed = events.iter().any(|e| {
+        matches!(
+            e,
+            GameEvent::CreatureDied {
+                object_id,
+                pre_death_characteristics: Some(c),
+                ..
+            } if *object_id == obj_id && c.toughness == Some(2)
+        )
+    });
+    assert!(
+        died_as_transformed,
+        "sanity: the transform's own CR 704.3 SBA check must kill the \
+         permanent AS the transformed (toughness-2 back face) permanent -- \
+         otherwise this fixture isn't exercising the transformed-then-zone- \
+         changed case this test needs. Got events: {events:?}"
+    );
+
+    let new_id = find_in_graveyard(&state, &def.name);
+    assert!(
+        !state.objects()[&new_id].is_transformed,
+        "CR 712.8a / CR 400.7: the graveyard object is a NEW object and the \
+         front face is used in all non-battlefield zones -- is_transformed \
+         must reset to false. Got is_transformed=true on the new graveyard \
+         object {new_id:?}."
+    );
+}
+
+/// PB-DX24 §4.0 fix cycle (review Finding 2, part (b)): the OTHER half of
+/// Q2/Q7's "defensive" classification is `rules::face::apply_face_change`'s
+/// OWN battlefield gate (`face.rs:67-69` at authoring time, since renumbered
+/// by this fix cycle's own comment edits -- re-find by symbol, not by line).
+/// No PRODUCTION call site ever invokes `apply_face_change` on a
+/// non-battlefield object (every one either checks the zone first, like
+/// `Command::Transform`'s `handle_transform`, or has just moved the object
+/// TO the battlefield in the same call, like the craft return-from-exile
+/// path) -- so that gate was previously unreachable by ANY test using only
+/// the public command API, and a revert deleting it left every PB-DX24 test
+/// green (review Finding 2's own measured claim). `apply_face_change` was
+/// promoted `pub(crate)` -> `pub` (mirroring `build_face_ability_vectors`'s
+/// identical PB-DX24 promotion, T7's access problem) so this test can call
+/// it DIRECTLY on a graveyard object and observe the gate itself. Revert:
+/// delete the `if obj.zone != ZoneId::Battlefield { return; }` guard.
+#[test]
+fn test_dx24_apply_face_change_is_a_noop_off_the_battlefield() {
+    let p1 = p(1);
+    let def = f2_probe_dfc_def();
+    let mut defs = HashMap::new();
+    defs.insert(def.name.clone(), def.clone());
+    let registry = CardRegistry::new(vec![def.clone()]);
+
+    let spec = enrich_spec_from_def(
+        ObjectSpec::card(p1, &def.name)
+            .with_card_id(def.card_id.clone())
+            .in_zone(ZoneId::Graveyard(p1)),
+        &defs,
+    );
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p(2))
+        .with_registry(registry)
+        .object(spec)
+        .active_player(p1)
+        .at_step(Step::PreCombatMain)
+        .build()
+        .unwrap();
+
+    let obj_id = find_by_name(&state, &def.name);
+    assert_eq!(
+        state.objects()[&obj_id].zone,
+        ZoneId::Graveyard(p1),
+        "sanity: the object must be off the battlefield before the call"
+    );
+    assert!(
+        !state.objects()[&obj_id].is_transformed,
+        "sanity: starts false"
+    );
+
+    mtg_engine::rules::face::apply_face_change(&mut state, obj_id, true);
+
+    assert!(
+        !state.objects()[&obj_id].is_transformed,
+        "face.rs:63-69: apply_face_change must be a no-op for an object that \
+         is not on the battlefield -- CR 712.8a governs only battlefield \
+         permanents. Got is_transformed=true after calling apply_face_change \
+         on a graveyard object."
+    );
+}
+
+fn f2_probe_dfc_def() -> CardDefinition {
+    CardDefinition {
+        card_id: cid("dx24-f2-transform-reset-probe"),
+        name: "DX24 F2 Probe Front".to_string(),
+        mana_cost: Some(ManaCost {
+            generic: 1,
+            ..Default::default()
+        }),
+        types: TypeLine {
+            card_types: [CardType::Creature].into_iter().collect(),
+            ..Default::default()
+        },
+        oracle_text: "Transform".to_string(),
+        abilities: vec![CardDefAbilityDefinition::Keyword(KeywordAbility::Transform)],
+        power: Some(1),
+        toughness: Some(5),
+        color_indicator: None,
+        back_face: Some(CardFace {
+            name: "DX24 F2 Probe Back".to_string(),
+            mana_cost: None,
+            types: TypeLine {
+                card_types: [CardType::Creature].into_iter().collect(),
+                ..Default::default()
+            },
+            oracle_text: String::new(),
+            abilities: vec![],
+            power: Some(1),
+            toughness: Some(2),
+            color_indicator: Some(vec![Color::Black]),
+        }),
+        ..Default::default()
+    }
+}
+
 /// OOS-DX1-4 Q2/Q7: both are DEFENSIVE fixes (§4.0 -- `is_transformed` can
 /// never be true at either site, so no behavioral probe can discriminate
-/// them). Pinned structurally instead: within a small window after each
-/// site's `OOS-DX1-4 Q<n>` anchor comment in `abilities.rs`, the code must
-/// call `effective_abilities(` and must NOT fall back to the bare
+/// them). Pinned structurally: within the first statement after each site's
+/// `OOS-DX1-4 Q<n>` anchor comment in `abilities.rs`, the code must call
+/// `effective_abilities(` and must NOT fall back to the bare
 /// `.abilities.iter().enumerate()` shape the batch replaced.
+///
+/// Fix cycle (review Finding 11): the ORIGINAL version scanned raw source
+/// (no comment stripping) over a hard 8-line window. Rewritten to (1) strip
+/// line AND block comments before checking content -- mirroring
+/// `pb_dx24_trigger_zone_roster.rs`'s `strip_comments` idiom (duplicated here
+/// rather than shared, since `primitives` and `core` are separate test
+/// binaries with no common support crate) -- so a `/* effective_abilities( */`
+/// stub comment can no longer produce a false PASS, and (2) end the window at
+/// the first statement boundary (a `;` or `{` outside a comment) after the
+/// anchor's own comment block, rather than an arbitrary line count, so a
+/// `cargo fmt` reflow that moves the call past line 8 can no longer produce a
+/// false FAIL.
 #[test]
 fn test_dx24_q2_and_q7_queue_sites_call_effective_abilities() {
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/rules/abilities.rs");
@@ -1498,18 +1785,76 @@ fn test_dx24_q2_and_q7_queue_sites_call_effective_abilities() {
             .iter()
             .position(|l| l.contains(anchor))
             .unwrap_or_else(|| panic!("anchor comment `{anchor}` not found in abilities.rs"));
-        let window = &lines[anchor_line..(anchor_line + 8).min(lines.len())];
-        let window_text = window.join("\n");
+        // Skip past the anchor's own (possibly multi-line) `//` comment block.
+        let mut stmt_start = anchor_line;
+        while stmt_start < lines.len() && lines[stmt_start].trim_start().starts_with("//") {
+            stmt_start += 1;
+        }
+        // Scan forward to the end of the FIRST statement: the first line
+        // (inclusive) whose comment-stripped, trimmed text ends with `;`
+        // (a `let` binding, Q2's shape) or `{` (a `for`/`if` header, Q7's
+        // shape). Capped as a sanity backstop, not a real limit.
+        let mut stmt_end = stmt_start;
+        while stmt_end < lines.len() && stmt_end < stmt_start + 40 {
+            let code = match lines[stmt_end].find("//") {
+                Some(i) => &lines[stmt_end][..i],
+                None => lines[stmt_end],
+            };
+            let trimmed = code.trim_end();
+            if trimmed.ends_with(';') || trimmed.ends_with('{') {
+                break;
+            }
+            stmt_end += 1;
+        }
+        let window_end = (stmt_end + 1).min(lines.len());
+        let window_text = strip_comments(&lines[anchor_line..window_end].join("\n"));
         assert!(
             window_text.contains("effective_abilities("),
-            "OOS-DX1-4 {anchor}: the queue site must call `effective_abilities(` \
-             within 8 lines of its anchor comment. Window:\n{window_text}"
+            "{anchor}: the queue site's first statement after the anchor \
+             comment must call `effective_abilities(`. Window \
+             (comment-stripped):\n{window_text}"
         );
         assert!(
             !window_text.contains(".abilities.iter().enumerate()"),
-            "OOS-DX1-4 {anchor}: the queue site must NOT fall back to the bare \
+            "{anchor}: the queue site must NOT fall back to the bare \
              `def.abilities.iter().enumerate()` shape this batch replaced. \
-             Window:\n{window_text}"
+             Window (comment-stripped):\n{window_text}"
         );
     }
+}
+
+/// Mirrors `pb_dx24_trigger_zone_roster.rs`'s `strip_line_comments` (PB-DX32
+/// M8 lesson: line-comment stripping alone lets a block-commented row escape
+/// detection).
+fn strip_line_comments(src: &str) -> String {
+    src.lines()
+        .map(|line| match line.find("//") {
+            Some(i) => &line[..i],
+            None => line,
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+/// Mirrors `pb_dx24_trigger_zone_roster.rs`'s `strip_block_comments`.
+fn strip_block_comments(src: &str) -> String {
+    let mut out = String::with_capacity(src.len());
+    let mut rest = src;
+    while let Some(start) = rest.find("/*") {
+        out.push_str(&rest[..start]);
+        let after = &rest[start + 2..];
+        match after.find("*/") {
+            Some(end) => rest = &after[end + 2..],
+            None => {
+                rest = "";
+                break;
+            }
+        }
+    }
+    out.push_str(rest);
+    out
+}
+
+fn strip_comments(src: &str) -> String {
+    strip_block_comments(&strip_line_comments(src))
 }
