@@ -55,10 +55,18 @@ fn find_in_zone(state: &GameState, name: &str, zone: ZoneId) -> Option<ObjectId>
 }
 
 fn all_defs_by_name() -> HashMap<String, CardDefinition> {
-    all_cards().into_iter().map(|d| (d.name.clone(), d)).collect()
+    all_cards()
+        .into_iter()
+        .map(|d| (d.name.clone(), d))
+        .collect()
 }
 
-fn enrich(owner: PlayerId, name: &str, zone: ZoneId, defs: &HashMap<String, CardDefinition>) -> ObjectSpec {
+fn enrich(
+    owner: PlayerId,
+    name: &str,
+    zone: ZoneId,
+    defs: &HashMap<String, CardDefinition>,
+) -> ObjectSpec {
     enrich_spec_from_def(
         ObjectSpec::card(owner, name)
             .in_zone(zone)

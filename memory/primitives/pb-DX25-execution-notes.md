@@ -95,7 +95,80 @@ Commit for this stage: test-only, no `src/` changes. `git diff --stat -- crates/
 
 ---
 
-## Stage 3 — the registry (`state::stack_registry`) + T6 + G1
+## Stage 3 — the registry (`state::stack_registry`) + T6 + G1 (DONE)
+
+New file `crates/engine/src/state/stack_registry.rs`, `pub fn card_in_stack_zone(kind:
+&StackObjectKind) -> Option<ObjectId>`, exhaustive over all **27** `StackObjectKind`
+variants with **no wildcard arm** (2 `=> Some(...)`, 25 `=> None`), `pub mod
+stack_registry;` added in `crates/engine/src/state/mod.rs` beside `keyword_registry`.
+Doc comment states the "this is NOT is-it-a-spell" warning (pointing at `casting.rs`'s
+`is_spell` check for `TargetSpellWithSingleTarget`) and the deliberate-duplication
+note pointing at `mtg_simulator::invariants::stack_card_of`, per plan §3.1/§3.2.
+
+**Variant count independently confirmed at 27**, matching the plan's own count:
+`awk '/^pub enum StackObjectKind/{flag=1} flag' crates/card-types/src/state/stack.rs
+| grep -E "^    [A-Za-z]+ \{"` lists 27 names. **My own first draft of T6's fixture
+was missing `TransformTrigger`** (26 entries, not 27) until this re-derivation caught
+it — the registry itself was correct (built by mirroring the simulator's own
+`stack_card_of`, which already includes it), only my hand-typed T6 roster had drifted.
+Fixed before running T6.
+
+**T6** (`test_dx25_stack_registry_classifies_every_kind`,
+`crates/engine/tests/primitives/pb_dx25_counterspell_stack_shapes.rs`): one instance of
+every variant, asserts `card_in_stack_zone` returns `Some` for exactly `["Spell",
+"MutatingCreatureSpell"]`, non-vacuity via `variants.len() == 27`. PASSES (T1 is
+unaffected — still red, as expected, since the counter arm itself hasn't been
+rewritten yet).
+
+**G1** (`crates/engine/tests/core/pb_dx25_stack_registry_roster.rs`, new file,
+`mod pb_dx25_stack_registry_roster;` added to `crates/engine/tests/core/main.rs`):
+comment-stripping (`strip_line_comments`/`strip_block_comments`/`strip_comments`) +
+`extract_function_body` mirror `pb_dx24_trigger_zone_roster.rs`'s idiom exactly.
+`g1_stack_registry_has_no_wildcard_arm` asserts no `_ =>`/`_ |` in
+`card_in_stack_zone`'s body; `g1_scan_is_not_vacuous` pins the arm count at 27;
+`g1_line_comment_stripping_does_not_hide_the_wildcard_it_is_meant_to_find` is an
+inverse sanity check on the stripping helpers themselves (a genuine wildcard next to a
+line comment must still be found after stripping). **This file's scope is G1 only —
+G2 is deliberately deferred to Stage 4** (a gate over the `Effect::CounterSpell` arm
+calling `card_in_stack_zone` cannot be meaningfully green OR red before that arm is
+rewritten to call it at all), noted in the file's own module doc and its "G2" section
+stub.
+
+### G1 revert matrix — both variants EXECUTED against the real source file
+
+| revert | how | observed failure (verbatim) | rebuild confirmed |
+|---|---|---|---|
+| bare wildcard | replaced the tail arm `K::DelayedActionTrigger { .. } => None,` with `_ => None,` | `a new StackObjectKind must be classified here, not defaulted -- Effect::CounterSpell and counter_stack_object both drive their zone-move off this answer. Found a wildcard arm in card_in_stack_zone's body.` (`g1_stack_registry_has_no_wildcard_arm`, panicked at `pb_dx25_stack_registry_roster.rs:107`) | yes — `Compiling mtg-engine` present in captured output before the failing test line |
+| `/* */`-wrapped variant | kept `K::ClassLevelAbility { .. } => None,` as a real arm, replaced the tail arm with `/* a real block comment sitting right before the wildcard */ _ => None,` — i.e. a REAL (uncommented, compiled) wildcard sitting immediately after a real block comment, proving `strip_block_comments` doesn't over-strip and accidentally swallow the live wildcard code along with the comment | identical failure text/location to the row above | yes — `Compiling mtg-engine` present |
+
+Both reverts restored immediately after observing the failure; `cargo test -p
+mtg-engine --test core pb_dx25_stack_registry_roster::` and `--test primitives
+pb_dx25_counterspell_stack_shapes::test_dx25_stack_registry_classifies_every_kind`
+re-run green after each restore (confirmed identical to the pre-revert state — no
+`git diff` tracked yet at this point since the file is new/untracked, so the restore
+was confirmed by re-running the full G1 + T6 test set, not by `git diff`).
+
+**Note on the `/* */` revert's semantics** (recorded because the brief's own wording
+for this row could be read two ways): the interpretation used here is "does
+`strip_block_comments` correctly leave a REAL wildcard intact when a real block
+comment sits immediately before it" (a false-negative risk on the STRIPPING
+function itself), not "is a commented-OUT wildcard correctly ignored" (which would
+be a *different*, weaker experiment — a `/* _ => None, */`-only replacement with no
+real arm for the removed variant would fail to COMPILE at all, catching the same
+class by a stronger, but different, mechanism than G1's own assertion). Both
+readings protect the same invariant; this one exercises G1's own scanner rather than
+routing the failure through `rustc`'s exhaustiveness check.
+
+**Stage gates, all EXECUTED**: `cargo check -p mtg-engine` clean; `cargo build
+--workspace` clean; `cargo clippy --workspace --all-targets -- -D warnings` clean;
+`cargo fmt` (one run, reformatted the two new test files -- multi-line struct
+literals and a `vec![...]` -- then `cargo fmt -- --check` clean); `git diff --stat --
+crates/card-defs/ crates/card-types/` **EMPTY** (SR-6, card-defs and card-types
+untouched).
+
+---
+
+## Stage 4 — the counter arm, atomically (§3.3 + §3.5) + T2-T5 + G2
 
 (written below as the stage is executed)
 

@@ -8,6 +8,7 @@ pub mod diagnostics;
 pub mod error;
 pub mod hash;
 pub mod keyword_registry;
+pub mod stack_registry;
 /// Escape hatches for tests — see the module docs. Not compiled in production builds.
 #[cfg(any(test, feature = "test-util"))]
 pub mod test_util;

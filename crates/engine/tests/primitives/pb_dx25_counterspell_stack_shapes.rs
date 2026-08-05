@@ -41,13 +41,16 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use mtg_engine::rules::command::CastSpellData;
+use mtg_engine::state::stack_registry::card_in_stack_zone;
+use mtg_engine::state::stubs::DelayedTriggerAction;
 use mtg_engine::state::types::AltCostKind;
 use mtg_engine::state::zone::ZoneId;
 use mtg_engine::{
     all_cards, card_name_to_id, enrich_spec_from_def, process_command, AdditionalCost,
-    CardDefinition, CardId, CardRegistry, CardType, Command, GameEvent, GameState,
-    GameStateBuilder, ManaColor, ObjectId, ObjectSpec, PlayerId, StackObjectKind, Step, SubType,
-    Target,
+    AttackTarget, CardDefinition, CardId, CardRegistry, CardType, Command, DungeonId, Effect,
+    EffectAmount, GameEvent, GameState, GameStateBuilder, KeywordAbility, ManaColor, ManaCost,
+    ObjectId, ObjectSpec, PlayerId, PlayerTarget, StackObjectKind, Step, SubType, Target,
+    TriggerData,
 };
 
 // ── Shared helpers ──────────────────────────────────────────────────────────────
@@ -77,14 +80,22 @@ fn find_in_zone(state: &GameState, name: &str, zone: ZoneId) -> Option<ObjectId>
 /// wants (mirrors `crates/engine/tests/mechanics_e_l/golgari_grave_troll.rs`'s
 /// `build_defs_and_registry`).
 fn all_defs_by_name() -> HashMap<String, CardDefinition> {
-    all_cards().into_iter().map(|d| (d.name.clone(), d)).collect()
+    all_cards()
+        .into_iter()
+        .map(|d| (d.name.clone(), d))
+        .collect()
 }
 
 fn full_registry() -> Arc<CardRegistry> {
     CardRegistry::new(all_cards())
 }
 
-fn enrich(owner: PlayerId, name: &str, zone: ZoneId, defs: &HashMap<String, CardDefinition>) -> ObjectSpec {
+fn enrich(
+    owner: PlayerId,
+    name: &str,
+    zone: ZoneId,
+    defs: &HashMap<String, CardDefinition>,
+) -> ObjectSpec {
     enrich_spec_from_def(
         ObjectSpec::card(owner, name)
             .in_zone(zone)
@@ -224,8 +235,14 @@ fn test_dx25_counterspell_counters_a_mutate_spell() {
         "CR 702.140a: the mutating spell should be the only thing on the stack"
     );
     let gemrazer_stack_card_id = match &state.stack_objects()[0].kind {
-        StackObjectKind::MutatingCreatureSpell { source_object, target } => {
-            assert_eq!(*target, wolf_id, "CR 702.140a: mutate target should be the Wolf");
+        StackObjectKind::MutatingCreatureSpell {
+            source_object,
+            target,
+        } => {
+            assert_eq!(
+                *target, wolf_id,
+                "CR 702.140a: mutate target should be the Wolf"
+            );
             *source_object
         }
         other => panic!(
@@ -322,5 +339,259 @@ fn test_dx25_counterspell_counters_a_mutate_spell() {
         "CR 701.6a / CR 400.7: SpellCountered.source_object_id must be the POST-move \
          graveyard id, got {:?}",
         countered[0]
+    );
+}
+
+// ── T6 — stack_registry classifies every StackObjectKind variant ───────────────
+
+/// One instance of every `StackObjectKind` variant, by name. The names must be
+/// checked against the enum's actual variant set independently (`grep -c "^
+/// [A-Za-z]* {" ... | rg -v TriggerData` at plan-verification time measured 27) —
+/// this function's own non-vacuity is what T6 checks below, not assumed here.
+fn one_of_each_variant() -> Vec<(&'static str, StackObjectKind)> {
+    let oid = |n: u64| ObjectId(n);
+    let pid = p(1);
+    let simple_effect = || {
+        Box::new(Effect::DrawCards {
+            player: PlayerTarget::Controller,
+            count: EffectAmount::Fixed(1),
+        })
+    };
+    vec![
+        (
+            "Spell",
+            StackObjectKind::Spell {
+                source_object: oid(1),
+            },
+        ),
+        (
+            "ActivatedAbility",
+            StackObjectKind::ActivatedAbility {
+                source_object: oid(1),
+                ability_index: 0,
+                embedded_effect: None,
+            },
+        ),
+        (
+            "LoyaltyAbility",
+            StackObjectKind::LoyaltyAbility {
+                source_object: oid(1),
+                ability_index: 0,
+                effect: simple_effect(),
+            },
+        ),
+        (
+            "TriggeredAbility",
+            StackObjectKind::TriggeredAbility {
+                source_object: oid(1),
+                ability_index: 0,
+                is_carddef_etb: false,
+                embedded_effect: None,
+            },
+        ),
+        (
+            "MadnessTrigger",
+            StackObjectKind::MadnessTrigger {
+                source_object: oid(1),
+                exiled_card: oid(2),
+                madness_cost: ManaCost::default(),
+                owner: pid,
+            },
+        ),
+        (
+            "MiracleTrigger",
+            StackObjectKind::MiracleTrigger {
+                source_object: oid(1),
+                revealed_card: oid(2),
+                miracle_cost: ManaCost::default(),
+                owner: pid,
+            },
+        ),
+        (
+            "UnearthAbility",
+            StackObjectKind::UnearthAbility {
+                source_object: oid(1),
+            },
+        ),
+        (
+            "SuspendCounterTrigger",
+            StackObjectKind::SuspendCounterTrigger {
+                source_object: oid(1),
+                suspended_card: oid(2),
+            },
+        ),
+        (
+            "SuspendCastTrigger",
+            StackObjectKind::SuspendCastTrigger {
+                source_object: oid(1),
+                suspended_card: oid(2),
+                owner: pid,
+            },
+        ),
+        (
+            "NinjutsuAbility",
+            StackObjectKind::NinjutsuAbility {
+                source_object: oid(1),
+                ninja_card: oid(1),
+                attack_target: AttackTarget::Player(pid),
+                from_command_zone: false,
+            },
+        ),
+        (
+            "EmbalmAbility",
+            StackObjectKind::EmbalmAbility {
+                source_card_id: Some(CardId("x".to_string())),
+            },
+        ),
+        (
+            "EternalizeAbility",
+            StackObjectKind::EternalizeAbility {
+                source_card_id: Some(CardId("x".to_string())),
+                source_name: "X".to_string(),
+            },
+        ),
+        (
+            "EncoreAbility",
+            StackObjectKind::EncoreAbility {
+                source_card_id: Some(CardId("x".to_string())),
+                activator: pid,
+            },
+        ),
+        (
+            "ForecastAbility",
+            StackObjectKind::ForecastAbility {
+                source_object: oid(1),
+                embedded_effect: simple_effect(),
+            },
+        ),
+        (
+            "ScavengeAbility",
+            StackObjectKind::ScavengeAbility {
+                source_card_id: Some(CardId("x".to_string())),
+                power_snapshot: 0,
+            },
+        ),
+        (
+            "BloodrushAbility",
+            StackObjectKind::BloodrushAbility {
+                source_object: oid(1),
+                target_creature: oid(2),
+                power_boost: 0,
+                toughness_boost: 0,
+                grants_keyword: None,
+            },
+        ),
+        (
+            "SaddleAbility",
+            StackObjectKind::SaddleAbility {
+                source_object: oid(1),
+            },
+        ),
+        (
+            "MutatingCreatureSpell",
+            StackObjectKind::MutatingCreatureSpell {
+                source_object: oid(1),
+                target: oid(2),
+            },
+        ),
+        (
+            "TransformTrigger",
+            StackObjectKind::TransformTrigger {
+                permanent: oid(1),
+                ability_timestamp: 0,
+            },
+        ),
+        (
+            "CraftAbility",
+            StackObjectKind::CraftAbility {
+                source_card_id: Some(CardId("x".to_string())),
+                exiled_source: oid(1),
+                material_ids: vec![],
+                activator: pid,
+            },
+        ),
+        (
+            "DayboundTransformTrigger",
+            StackObjectKind::DayboundTransformTrigger { permanent: oid(1) },
+        ),
+        (
+            "TurnFaceUpTrigger",
+            StackObjectKind::TurnFaceUpTrigger {
+                permanent: oid(1),
+                source_card_id: Some(CardId("x".to_string())),
+                ability_index: 0,
+            },
+        ),
+        (
+            "KeywordTrigger",
+            StackObjectKind::KeywordTrigger {
+                source_object: oid(1),
+                keyword: KeywordAbility::Deathtouch,
+                data: TriggerData::Simple,
+            },
+        ),
+        (
+            "RoomAbility",
+            StackObjectKind::RoomAbility {
+                owner: pid,
+                dungeon: DungeonId::LostMineOfPhandelver,
+                room: 0,
+            },
+        ),
+        (
+            "RingAbility",
+            StackObjectKind::RingAbility {
+                source_object: oid(1),
+                effect: simple_effect(),
+                controller: pid,
+            },
+        ),
+        (
+            "ClassLevelAbility",
+            StackObjectKind::ClassLevelAbility {
+                source_object: oid(1),
+                target_level: 1,
+            },
+        ),
+        (
+            "DelayedActionTrigger",
+            StackObjectKind::DelayedActionTrigger {
+                source_object: oid(1),
+                target: oid(2),
+                action: DelayedTriggerAction::ExileObject,
+            },
+        ),
+    ]
+}
+
+/// CR 601.2c / CR 702.140a / CR 729.2 — `stack_registry::card_in_stack_zone`
+/// classifies every `StackObjectKind` variant, exhaustively: `Some` for exactly
+/// `Spell` and `MutatingCreatureSpell`, `None` for everything else. Non-vacuity:
+/// the fixture's own variant count is asserted equal to the measured count (27 at
+/// HEAD, `memory/primitives/pb-DX25-stage0.md`), so a 28th variant that compiles
+/// (because it was classified in the registry) but is never added to this
+/// fixture cannot silently escape T6's coverage.
+#[test]
+fn test_dx25_stack_registry_classifies_every_kind() {
+    let variants = one_of_each_variant();
+    assert_eq!(
+        variants.len(),
+        27,
+        "CR 601.2c: this fixture must cover exactly the measured StackObjectKind \
+         variant count (27) -- a mismatch means either a variant was added to the \
+         enum without a fixture entry here, or this list has drifted"
+    );
+
+    let card_owning: Vec<&str> = variants
+        .iter()
+        .filter(|(_, kind)| card_in_stack_zone(kind).is_some())
+        .map(|(name, _)| *name)
+        .collect();
+    assert_eq!(
+        card_owning,
+        vec!["Spell", "MutatingCreatureSpell"],
+        "CR 601.2c / CR 702.140a / CR 729.2: exactly Spell and MutatingCreatureSpell \
+         own a card in ZoneId::Stack -- got {:?}",
+        card_owning
     );
 }
