@@ -718,7 +718,7 @@ treat a mismatch as a signal to stop.
 | **2** | ~~**PB-DX20**~~ ✅ SHIPPED (`scutemob-198`, `ecd7b119`, 2026-08-04) | the offer layer cannot see a keyword-carried target requirement | **OOS-CARDS2-4** (HIGH) + **OOS-CARDS1-2** | **CORRECTNESS — live in the browser on first contact** | 0 flips; repairs 13 `Complete` Auras + 1 `Complete` Reconfigure | **none** (provider + one synth site) |
 | **3** | ~~**PB-DX21**~~ ✅ SHIPPED (`scutemob-200`, 2026-08-04) | CR 508.1 — attackers may be declared without limit | **OOS-M11-9** | **CORRECTNESS — silent state corruption by a normal client action** | 0 flips (as predicted); both client-side mitigations deleted with their mechanism | **HASH 72 → 73**, gate-computed — the "none if the guard reads `combat.attackers`" branch is **refuted**, see the row's SHIPPED banner; PROTOCOL **35** unmoved |
 | **4** | ~~**PB-DX22**~~ ✅ SHIPPED (`scutemob-196`, `95f53b78`, 2026-08-03) | make the fuzzer a real instrument | **OOS-UI2-1** + **OOS-SIM3-1** + **OOS-SIM1-4** | **EVIDENCE INTEGRITY — every historical fuzz-parity claim depends on it** | 0 flips; re-rolls every recorded seed **once** | **none** (`crates/simulator` only) |
-| **5** | **PB-DX23** | dredge has no answer channel for anyone | **OOS-DX2-5** + **OOS-DX2-2** + **OOS-DX2-7** + **OOS-DX2-3** *(watch item)* | **CORRECTNESS — permanent draw-cadence corruption, deck-legal** | 0 flips; 1 def (`golgari_grave_troll`); adds a `LegalAction` variant | **none** (`Command::ChooseDredge` and the event already exist) |
+| **5** | ~~**PB-DX23**~~ ✅ SHIPPED (`scutemob-201`, `49958549`, 2026-08-05) | dredge has no answer channel for anyone | **OOS-DX2-5** + **OOS-DX2-2** + **OOS-DX2-7** + **OOS-DX2-3** *(watch item — stays REOPENED, pin unedited)* | **CORRECTNESS — permanent draw-cadence corruption, deck-legal** | 0 flips; 1 def (`golgari_grave_troll`); adds a `LegalAction` variant | **none**, gate-executed (PROTOCOL 35 / HASH 73 unmoved) |
 | **6** | **PB-DX24** | the lowering drops `trigger_zone`; the two index spaces disagree | **OOS-DX1-3** + **OOS-DX1-4** | **CORRECTNESS — live-wrong on `nether_traitor`** | 0 flips; 1 live def + 6 latent queue sites aligned | **none** for the narrow fix; **HASH** only if `TriggeredAbilityDef` grows the field |
 | **7** | **PB-DX25** | `Effect::CounterSpell`'s three stack-object shapes | **OOS-SIM3-5** | **CORRECTNESS — a countered spell resolves anyway, silently** | 0 flips; 6 `Complete` mutate defs × 24 counter defs | **none** (one arm's internals) |
 | **8** | **PB-DX26** | the equip surface, one link earlier | **OOS-CARDS1-3** + **OOS-CARDS1-1** + **OOS-DX3b-1** | **CORRECTNESS + CARD YIELD** | **~4-6 flips** (**10** deck-legal defs gain their printed ability — exact; the batch's *total* is 21, or 18 under a naive set difference — re-measure from `all_cards()` at dispatch, §2.7) | **none** (card-def; or a `keyword_registry` promotion) |
@@ -985,6 +985,13 @@ fuzzer has never cast a spell" claim survives. Do this **before** writing the ac
 ---
 
 **PB-DX23 — `PB-DX23: dredge has no answer channel for anyone (OOS-DX2-5 + OOS-DX2-2 + OOS-DX2-7)` · CORRECTNESS**
+
+> **✅ SHIPPED 2026-08-05** (`scutemob-201`, merge `49958549`). OOS-DX2-5/-2/-7 closed;
+> **OOS-DX2-3 stays REOPENED** (deliberately — no structural-proof re-closure, pin byte-unedited).
+> Tests **4,413 / 0 / 5** (+15 over the re-measured 4,398 baseline); PROTOCOL **35** / HASH **73**
+> gate-executed and unmoved. Plan `memory/primitives/pb-plan-DX23.md`, review
+> `memory/primitives/pb-review-DX23.md`, handoff in `memory/workstream-state.md`. The brief below
+> is retained as the historical dispatch record.
 
 `grep -rn "ChooseDredge" crates/simulator/src/ tools/` returns **zero** hits: there is no
 `LegalAction::ChooseDredge` variant at all, so neither a bot nor the **human seat in the shipped
