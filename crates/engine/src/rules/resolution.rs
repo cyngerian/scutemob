@@ -7668,12 +7668,65 @@ fn resolve_top_of_stack_inner(state: &mut GameState) -> Result<Vec<GameEvent>, G
                                 // `PermanentTurnedFaceUp` arm) is not the whole
                                 // rule; CR 603.4 requires a second check here.
                                 // Same evaluability guard as the harmonised
-                                // registry-path re-check above (§9.3). Both
-                                // ends of THIS trigger index `def.abilities`
-                                // (never `effective_abilities(is_transformed)`),
-                                // so there is no OOS-DP6-2 index-space hazard --
-                                // the face-unaware indexing itself is a shared,
-                                // separate, latent gap (seeded OOS-DX1-4).
+                                // registry-path re-check above (§9.3).
+                                //
+                                // OOS-DX1-4 Q5 (measured, PB-DX24; re-cited in
+                                // the fix cycle, review Finding 1): both ends of
+                                // THIS trigger deliberately index plain
+                                // `def.abilities`, never
+                                // `effective_abilities(is_transformed)`, and that
+                                // is CORRECT rather than latent -- but the reason
+                                // is NOT CR 712.2 (that rule is only about DFC
+                                // face symbols, 712.2a-c, and says nothing about
+                                // face-down). The rule that forbids turning a
+                                // face-up transforming DFC permanent face down is
+                                // CR 712.16: "Melded permanents and other
+                                // double-faced permanents can't be turned face
+                                // down. If a spell or ability tries to turn a
+                                // double-faced permanent face down, nothing
+                                // happens." That alone would not make this site
+                                // unreachable, though: CR 712.15 explicitly lets
+                                // a double-faced CARD enter the battlefield face
+                                // down (manifest/cloak), so a
+                                // `PermanentTurnedFaceUp` source COULD in
+                                // principle be a DFC that arrived face down.
+                                //
+                                // CR 712.15a settles that remaining case in the
+                                // SAME direction, and it is the strongest reason
+                                // this site is right rather than merely lucky:
+                                // "While face down, a double-faced permanent
+                                // can't transform or convert. If it's turned face
+                                // up, it will have its FRONT face up." So the one
+                                // DFC that can reach this site does so on its
+                                // FRONT face BY RULE -- reading `def.abilities`
+                                // here is CR-correct, not an unreachable-case
+                                // accident. (PB-DX24 fix cycle, coordinator:
+                                // 712.15a verified against the rules MCP; review
+                                // Finding 1 stopped at 712.15 and did not reach
+                                // it, which is why it could only conclude
+                                // "unreachable" rather than "correct".)
+                                //
+                                // The engine's own write discipline agrees, so
+                                // the two ends cannot desync even independently
+                                // of the CR argument: `is_transformed` is set
+                                // `true` at exactly one production site
+                                // (`resolution.rs:853`, disturb ETB) and is
+                                // otherwise only ever mutated by
+                                // `rules::face::apply_face_change`, which returns
+                                // early at `face.rs:67-69` for any object whose
+                                // `zone != ZoneId::Battlefield` -- and every zone
+                                // change resets it to `false`
+                                // (`state/mod.rs:1404/1558/1678/1900`, CR 712.8a /
+                                // CR 400.7). So a manifested/cloaked DFC that
+                                // later turns face up here does so with
+                                // `is_transformed` already `false`, and the pair
+                                // stays self-consistent -- both ends read plain
+                                // `def.abilities` (the queue side is
+                                // `abilities.rs`'s `PermanentTurnedFaceUp` arm).
+                                // PB-DX24 measured this and fixed the six OTHER
+                                // OOS-DX1-4 sites (Q1/Q2/Q3/Q4/Q6/Q7) where the
+                                // queue and read sides genuinely disagreed; this
+                                // site was re-scoped with no code change.
                                 let condition_holds = intervening_if
                                     .as_ref()
                                     .map(|cond| {

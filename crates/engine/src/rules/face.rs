@@ -60,7 +60,14 @@ use crate::state::GameState;
 ///
 /// This does NOT queue ETB triggers, fire "when turned face up" triggers, or check
 /// SBAs -- callers retain responsibility for those (unchanged from before this PB).
-pub(crate) fn apply_face_change(state: &mut GameState, obj_id: ObjectId, new_is_transformed: bool) {
+///
+/// Promoted `pub(crate)` -> `pub` in the PB-DX24 fix cycle (review Finding 2) so
+/// `test_dx24_apply_face_change_is_a_noop_off_the_battlefield` can drive the
+/// `:67-69` battlefield gate directly -- no production call site passes a
+/// non-battlefield zone today, so that gate was previously unreachable by any
+/// public-API test, mirroring `build_face_ability_vectors`'s own PB-DX24
+/// promotion for the identical reason (T7's access problem).
+pub fn apply_face_change(state: &mut GameState, obj_id: ObjectId, new_is_transformed: bool) {
     let Some(obj) = state.expect_object(obj_id) else {
         return;
     };

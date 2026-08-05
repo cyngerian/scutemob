@@ -2961,6 +2961,69 @@ fn get_encore_cost(
 /// at trigger time; the ability only queues if the condition is true.
 pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTrigger> {
     let mut triggers = Vec::new();
+    // CR 603.10a (PB-DX24): a leaves-the-battlefield ability looks back in time --
+    // the game asks whether the ability EXISTED immediately prior to the event. A
+    // card that arrived in a graveyard as part of THIS event batch was NOT yet a
+    // functioning graveyard-zone ability immediately prior to the event (CR 113.6m).
+    // Gatherer, Nether Traitor: "If Nether Traitor and another creature are put
+    // into your graveyard at the same time, Nether Traitor's ability won't
+    // trigger."
+    //
+    // Scope (runner note, plan §3.2): built from every event in this batch that
+    // shares `collect_graveyard_carddef_triggers`'s `new_grave_id` field name --
+    // CreatureDied, PlaneswalkerDied, PermanentDestroyed, AuraFellOff,
+    // ObjectPutInGraveyard. `PermanentSacrificed` is deliberately EXCLUDED: its
+    // field is `new_id`, not `new_grave_id` (a real name mismatch against the
+    // plan's literal list), and every creature-sacrifice call site that emits it
+    // ALSO emits `CreatureDied` with the IDENTICAL id in the same push
+    // (e.g. `abilities.rs:966-992`, `casting.rs:4340-4344` alongside `:4321`) --
+    // so including it would only ever re-insert an id already in the set.
+    // Mill/discard/cycle events (`CardMilled`, `CardDiscarded`, `CardCycled`) are
+    // deliberately EXCLUDED too: those move a card into a graveyard from hand or
+    // library, never from the battlefield, and this arm's `WheneverCreatureDies`
+    // dispatch only ever fires on `CreatureDied` -- so a card whose OWN
+    // `trigger_zone` ability needed that coverage does not exist in the corpus
+    // today (measured: the `trigger_zone: Some(_)` population is exactly 3 defs,
+    // stage 1). Filed as a seed rather than widened further.
+    //
+    // Per-caller GRANULARITY (fix cycle, review Finding 3 -- plan §10 risk #2,
+    // not discharged at ship time): `arrived_in_graveyard_this_batch` is built
+    // fresh from whichever `events` slice THIS caller passes, so its accuracy as
+    // "one CR 603.10a simultaneous batch" depends entirely on what that caller
+    // considers one batch. Measured by enumerating every `check_triggers` call
+    // site:
+    //   - `sba.rs:97` -- EXACT. `events` is `apply_sbas_once`'s own return value
+    //     for ONE fixpoint pass, so this is precisely one CR 704.3 simultaneous
+    //     SBA batch.
+    //   - `resolution.rs` (the post-resolution call, `abilities::check_triggers`
+    //     inside stack-object resolution) -- COARSER. `events` there is the
+    //     WHOLE resolution's accumulated events vec, spanning every sequential
+    //     sub-effect of one spell/ability resolution. A resolution whose effects
+    //     read "sacrifice a creature, THEN destroy target creature" pushes both
+    //     deaths into ONE `events` vec; if the sacrificed creature is itself a
+    //     `trigger_zone: Graveyard` source (Nether Traitor's shape), its
+    //     graveyard id lands in the look-back set from the FIRST sub-effect,
+    //     wrongly suppressing what should be a live trigger off the SECOND
+    //     sub-effect's death (CR 603.10a asks whether the ability existed
+    //     immediately prior to THAT event -- and by then it already did,
+    //     having arrived earlier in the SAME resolution). Direction:
+    //     over-suppression. Filed as `OOS-DX24-7`.
+    //   - `combat.rs:846`/`:1743`, `engine.rs:34`/`:2499` -- NOT audited by this
+    //     batch (out of the plan's scope; `engine.rs:34` in particular is
+    //     `check_and_flush_triggers`, shared by nearly every `Command` arm, so
+    //     its own granularity is a per-command-handler question that would need
+    //     its own investigation).
+    let arrived_in_graveyard_this_batch: std::collections::HashSet<ObjectId> = events
+        .iter()
+        .filter_map(|event| match event {
+            GameEvent::CreatureDied { new_grave_id, .. }
+            | GameEvent::PlaneswalkerDied { new_grave_id, .. }
+            | GameEvent::PermanentDestroyed { new_grave_id, .. }
+            | GameEvent::AuraFellOff { new_grave_id, .. }
+            | GameEvent::ObjectPutInGraveyard { new_grave_id, .. } => Some(*new_grave_id),
+            _ => None,
+        })
+        .collect();
     for event in events {
         match event {
             GameEvent::PermanentEnteredBattlefield { object_id, .. } => {
@@ -2985,7 +3048,13 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                 // PB-35 / CR 603.3 / TriggerZone::Graveyard: Also scan graveyard objects
                 // for CardDef triggered abilities that monitor AnyPermanentEntersBattlefield
                 // while in the graveyard (e.g. Bloodghast's Landfall trigger).
-                collect_graveyard_carddef_triggers(state, &mut triggers, event, Some(*object_id));
+                collect_graveyard_carddef_triggers(
+                    state,
+                    &mut triggers,
+                    event,
+                    Some(*object_id),
+                    &arrived_in_graveyard_this_batch,
+                );
                 // CR 702.74a: If the permanent was evoked, generate the evoke sacrifice trigger.
                 // "When this permanent enters, if its evoke cost was paid, its controller
                 // sacrifices it." This goes on the stack as a separate triggered ability,
@@ -3143,8 +3212,13 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         let card_id = obj.card_id.clone();
                         if let Some(cid) = card_id {
                             if let Some(def) = state.card_registry.get(cid) {
+                                // CR 702.165a / OOS-DX1-4 Q1 (PB-DX24): one binding serves BOTH
+                                // the enumerate() below and the "printed below this one" slice,
+                                // so index and slice can never diverge across a DFC's two faces.
+                                // "Printed below" is a property of the VISIBLE face.
+                                let eff = def.effective_abilities(obj.is_transformed);
                                 // Find all Backup(N) instances and their positions.
-                                for (idx, ability) in def.abilities.iter().enumerate() {
+                                for (idx, ability) in eff.iter().enumerate() {
                                     if let crate::cards::card_definition::AbilityDefinition::Keyword(
                                         KeywordAbility::Backup(n),
                                     ) = ability
@@ -3152,8 +3226,7 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         // CR 702.165d: Snapshot abilities below this Backup entry.
                                         // CR 702.165a: "non-backup abilities printed below this one"
                                         // CR 702.165c: Only printed abilities.
-                                        let abilities_below: Vec<KeywordAbility> = def.abilities
-                                            [idx + 1..]
+                                        let abilities_below: Vec<KeywordAbility> = eff[idx + 1..]
                                             .iter()
                                             .filter_map(|a| match a {
                                                 crate::cards::card_definition::AbilityDefinition::Keyword(kw)
@@ -3761,7 +3834,13 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     let caster = stack_obj.controller;
                     if let Some(card_id) = stack_obj.card_id.clone() {
                         if let Some(def) = state.card_registry.get(card_id) {
-                            for (idx, ability) in def.abilities.iter().enumerate() {
+                            // OOS-DX1-4 Q2 (PB-DX24): `is_transformed` is never true on a
+                            // stack object (it is set only at ETB and reset on every zone
+                            // change, `state/mod.rs`), so this is defensive rather than a
+                            // live repair -- it makes the queue side the SAME expression the
+                            // read side uses (`resolution.rs`), not accidentally equal to it.
+                            let eff = def.effective_abilities(stack_obj.is_transformed);
+                            for (idx, ability) in eff.iter().enumerate() {
                                 if let AbilityDefinition::Triggered {
                                     trigger_condition: TriggerCondition::WhenYouCastThisSpell,
                                     intervening_if,
@@ -4115,8 +4194,27 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         // CR 603.4 (PB-DP6): gate at queue time. The
                                         // guard above already requires
                                         // `zone == Battlefield && is_phased_in()`.
+                                        // OOS-DX1-4 Q3 (PB-DX24): an attacking transformed
+                                        // DFC is ordinary, and the read side
+                                        // (`resolution.rs`) is already face-aware -- read
+                                        // the same face here.
+                                        //
+                                        // Residual, stated not glossed (fix cycle, review
+                                        // Finding 7): this reads `is_transformed` at QUEUE
+                                        // time; `resolution.rs:2177`/`:2209` documents its
+                                        // own read as a CONSUME-time contract. They are the
+                                        // SAME EXPRESSION, not the same EVALUATION -- a
+                                        // permanent that transforms between this queue point
+                                        // and the trigger's later resolution would desync.
+                                        // Zero corpus exposure today (stage 1 measured 0
+                                        // back-face Q3/Q4 shapes in the whole corpus), and
+                                        // this fix is still strictly better than the
+                                        // pre-PB-DX24 code on every state reachable today.
+                                        // The durable fix is snapshotting the face onto
+                                        // `PendingTrigger` itself, which is a HASH bump and
+                                        // out of scope here; filed as OOS-DX24-8.
                                         let carddef_indices: Vec<usize> = def
-                                            .abilities
+                                            .effective_abilities(src_obj.is_transformed)
                                             .iter()
                                             .enumerate()
                                             .filter_map(|(idx, a)| match a {
@@ -4945,6 +5043,16 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                         }
                     }
                 }
+                // CR 113.6b/113.6m (PB-DX24): a `trigger_zone: Some(Graveyard)` death
+                // trigger fires from the graveyard, not from the battlefield. Mirrors
+                // the ETB call above (search `AnyPermanentEntersBattlefield`).
+                collect_graveyard_carddef_triggers(
+                    state,
+                    &mut triggers,
+                    event,
+                    Some(*new_grave_id),
+                    &arrived_in_graveyard_this_batch,
+                );
             }
             GameEvent::AuraFellOff {
                 new_grave_id,
@@ -5154,8 +5262,12 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                     {
                                         // CR 603.4 (PB-DP6): gate at queue time. LKI
                                         // source read via `fizzle_object` above.
+                                        // OOS-DX1-4 Q4 (PB-DX24): same argument as Q3 --
+                                        // the read side (`resolution.rs`) is face-aware.
+                                        // Same queue-time-vs-consume-time residual as Q3
+                                        // (fix cycle, review Finding 7) -- OOS-DX24-8.
                                         let carddef_indices: Vec<usize> = def
-                                            .abilities
+                                            .effective_abilities(src_obj.is_transformed)
                                             .iter()
                                             .enumerate()
                                             .filter_map(|(idx, a)| match a {
@@ -6127,12 +6239,19 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                     .map(|obj| obj.id)
                     .collect();
                 for obj_id in obj_ids {
-                    let card_id = state.expect_object(obj_id).and_then(|o| o.card_id.clone());
+                    let Some(obj) = state.expect_object(obj_id) else {
+                        continue;
+                    };
+                    let card_id = obj.card_id.clone();
+                    let is_transformed = obj.is_transformed;
                     let Some(cid) = card_id else { continue };
                     let Some(def) = state.card_registry.get(cid) else {
                         continue;
                     };
-                    for (idx, ability) in def.abilities.iter().enumerate() {
+                    // OOS-DX1-4 Q6 (PB-DX24): `obj` is already in hand; read the same
+                    // face the resolution side (`resolution.rs`) reads.
+                    for (idx, ability) in def.effective_abilities(is_transformed).iter().enumerate()
+                    {
                         if let AbilityDefinition::Triggered {
                             trigger_condition: TriggerCondition::WheneverRingTemptsYou,
                             intervening_if,
@@ -7114,25 +7233,43 @@ fn collect_graveyard_carddef_triggers(
     triggers: &mut Vec<PendingTrigger>,
     event: &GameEvent,
     entering_object: Option<ObjectId>,
+    arrived_in_graveyard_this_batch: &std::collections::HashSet<ObjectId>,
 ) {
-    use crate::cards::card_definition::{AbilityDefinition, TriggerCondition, TriggerZone};
+    use crate::cards::card_definition::{
+        AbilityDefinition, TargetController, TriggerCondition, TriggerZone,
+    };
+    use crate::state::game_object::TriggerEvent;
     // Collect all graveyard object IDs first to avoid borrow issues.
-    let gy_objects: Vec<(ObjectId, PlayerId, Option<crate::state::player::CardId>)> = state
+    let gy_objects: Vec<(
+        ObjectId,
+        PlayerId,
+        Option<crate::state::player::CardId>,
+        bool,
+    )> = state
         .objects
         .values()
         .filter_map(|obj| match obj.zone {
-            ZoneId::Graveyard(owner) => Some((obj.id, owner, obj.card_id.clone())),
+            ZoneId::Graveyard(owner) => {
+                Some((obj.id, owner, obj.card_id.clone(), obj.is_transformed))
+            }
             _ => None,
         })
         .collect();
-    for (obj_id, owner, card_id_opt) in gy_objects {
+    for (obj_id, owner, card_id_opt, is_transformed) in gy_objects {
         let Some(card_id) = card_id_opt else {
             continue;
         };
         let Some(def) = state.card_registry.get(card_id) else {
             continue;
         };
-        for (idx, ability) in def.abilities.iter().enumerate() {
+        // OOS-DX1-4 Q7 (PB-DX24): `is_transformed` is always false for a graveyard
+        // object (reset on every zone change, `state/mod.rs`), so this is defensive
+        // rather than a live repair -- it makes this loop's expression the SAME as
+        // the read side's (`resolution.rs`), rather than resting on a distant
+        // reset-on-zone-change invariant. This batch also adds a second `fires` arm
+        // to this same loop (Change 3), so making it uniform now matters more than
+        // usual.
+        for (idx, ability) in def.effective_abilities(is_transformed).iter().enumerate() {
             let AbilityDefinition::Triggered {
                 trigger_condition,
                 intervening_if,
@@ -7142,8 +7279,11 @@ fn collect_graveyard_carddef_triggers(
             else {
                 continue;
             };
-            // Check whether this event matches the trigger condition.
-            let fires = match event {
+            // Check whether this event matches the trigger condition, and if so,
+            // which TriggerEvent it dispatches as (varies by arm below, so this is
+            // Option<TriggerEvent> rather than a bare bool -- see the push at the
+            // bottom of the loop, which is now shared across BOTH arms).
+            let fired_as: Option<TriggerEvent> = match event {
                 GameEvent::PermanentEnteredBattlefield {
                     object_id: entering_id,
                     ..
@@ -7161,7 +7301,7 @@ fn collect_graveyard_carddef_triggers(
                         // is always a different object, so this gate is moot for
                         // graveyard triggers but kept for symmetry with the battlefield
                         // path.
-                        if *exclude_self && *entering_id == obj_id {
+                        let matched = if *exclude_self && *entering_id == obj_id {
                             false
                         } else if let Some(entering_obj) = state.objects.get(entering_id) {
                             let entering_chars =
@@ -7171,9 +7311,7 @@ fn collect_graveyard_carddef_triggers(
                                     // "you control" filter: the entering land's controller
                                     // must be the graveyard card's owner.
                                     && match f.controller {
-                                        crate::cards::card_definition::TargetController::You => {
-                                            entering_obj.controller == owner
-                                        }
+                                        TargetController::You => entering_obj.controller == owner,
                                         _ => true,
                                     }
                             } else {
@@ -7181,15 +7319,102 @@ fn collect_graveyard_carddef_triggers(
                             }
                         } else {
                             false
-                        }
+                        };
+                        matched.then_some(TriggerEvent::AnyPermanentEntersBattlefield)
                     }
-                    _ => false,
+                    _ => None,
                 },
-                _ => false,
+                // CR 603.6c / CR 113.6b (PB-DX24): "Whenever [another/a] [nontoken]
+                // creature [you control / an opponent controls] dies" from the
+                // GRAVEYARD. Mirrors the battlefield AnyCreatureDies arm
+                // (search `df.controller_you` in this file) clause for clause --
+                // see the table in the PB-DX24 plan §3.3.
+                GameEvent::CreatureDied {
+                    object_id: pre_death_id,
+                    new_grave_id,
+                    controller: death_controller,
+                    pre_death_characteristics,
+                    ..
+                } => match trigger_condition {
+                    TriggerCondition::WheneverCreatureDies {
+                        controller: death_scope,
+                        exclude_self,
+                        nontoken_only,
+                        filter,
+                    } => {
+                        // CR 108.4a: a graveyard card has no controller; `owner` (its
+                        // OWNER) stands in, mirroring the battlefield arm's
+                        // `obj.controller` read. Deliberately controller-scoped, not
+                        // owner-scoped, matching the printed-text deviation this DSL
+                        // field already carries everywhere else (OOS-DX4-1,
+                        // nether_traitor.rs:30-34) -- do NOT read the dying object's
+                        // owner here instead, that would give the SAME DSL field two
+                        // different meanings at two dispatch sites.
+                        let controller_you = matches!(death_scope, Some(TargetController::You));
+                        let controller_opponent =
+                            matches!(death_scope, Some(TargetController::Opponent));
+                        // controller_you / controller_opponent: CR 108.4a, see above.
+                        let controller_blocks = (controller_you && *death_controller != owner)
+                            || (controller_opponent && *death_controller == owner);
+                        // exclude_self: CR 400.7 -- `obj_id` lives in the GRAVEYARD id
+                        // space, so the comparison that can match is `new_grave_id`.
+                        // `pre_death_id` is the battlefield id and can never equal a
+                        // graveyard id; compared anyway for symmetry (see plan §1.4 --
+                        // a battlefield-only comparison here fails OPEN, silently).
+                        let exclude_self_blocks =
+                            *exclude_self && (*new_grave_id == obj_id || *pre_death_id == obj_id);
+                        // nontoken_only: CR 111.7.
+                        let nontoken_blocks = *nontoken_only
+                            && state
+                                .fizzle_object(*new_grave_id)
+                                .is_some_and(|o| o.is_token);
+                        // CR 603.10a + the Gatherer simultaneity ruling: a
+                        // leaves-the-battlefield ability looks back in time. Applied
+                        // on THIS arm only -- the ETB arm above dispatches
+                        // AnyPermanentEntersBattlefield, which is CR 603.6a, not in
+                        // CR 603.10a's list, and must NOT gain this guard (Bloodghast
+                        // arriving in the graveyard the same batch as a land entering
+                        // DOES trigger).
+                        let lookback_blocks = arrived_in_graveyard_this_batch.contains(&obj_id);
+                        let matched = if controller_blocks
+                            || exclude_self_blocks
+                            || nontoken_blocks
+                            || lookback_blocks
+                        {
+                            false
+                        } else {
+                            match filter {
+                                Some(f) => {
+                                    if let Some(dying_obj) = state.fizzle_object(*new_grave_id) {
+                                        if f.is_token && !dying_obj.is_token {
+                                            false
+                                        } else {
+                                            // CR 603.10a / 613.1d: pre-death snapshot,
+                                            // falling back to the graveyard object's
+                                            // base characteristics (mirrors the
+                                            // battlefield arm).
+                                            let dying_chars =
+                                                pre_death_characteristics.clone().unwrap_or_else(
+                                                    || dying_obj.characteristics.clone(),
+                                                );
+                                            crate::effects::matches_filter(&dying_chars, f)
+                                        }
+                                    } else {
+                                        false
+                                    }
+                                }
+                                None => true,
+                            }
+                        };
+                        matched.then_some(TriggerEvent::AnyCreatureDies)
+                    }
+                    _ => None,
+                },
+                _ => None,
             };
-            if !fires {
+            let Some(triggering_event) = fired_as else {
                 continue;
-            }
+            };
             // CR 603.4 (PB-DP6): queue-time gate via the shared helper. Behaviour-
             // neutral refactor of the pre-existing inline check (same site the
             // audit named as one of the two already-correct gates); `owner` stays
@@ -7206,9 +7431,7 @@ fn collect_graveyard_carddef_triggers(
             }
             triggers.push(PendingTrigger {
                 ability_index: idx,
-                triggering_event: Some(
-                    crate::state::game_object::TriggerEvent::AnyPermanentEntersBattlefield,
-                ),
+                triggering_event: Some(triggering_event),
                 entering_object_id: entering_object,
                 ..PendingTrigger::blank(
                     obj_id,

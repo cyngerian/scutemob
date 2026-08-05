@@ -34,6 +34,7 @@ mod pb_dx1_lowered_intervening_if;
 mod pb_dx20_keyword_carried_target_requirements;
 mod pb_dx21_declare_attackers_once_per_combat;
 mod pb_dx23_dredge_tail_and_query;
+mod pb_dx24_trigger_zone_and_index_spaces;
 mod pb_dx2_command_gates;
 mod pb_dx3_stale_blocker_notes;
 mod pb_dx3b_stale_blocker_bucket;

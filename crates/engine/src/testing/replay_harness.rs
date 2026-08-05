@@ -1,3 +1,4 @@
+use crate::cards::card_definition::TriggerZone;
 use crate::rules::command::CastSpellData;
 use crate::state::combat::AttackTarget;
 use crate::state::game_object::HybridManaPayment;
@@ -2445,8 +2446,25 @@ pub fn parse_counter_type(s: &str) -> Option<CounterType> {
 /// | `intervening_if`   | **propagated (this batch)** — was `None` at all 34 push sites |
 /// | `once_per_turn`    | **propagated (this batch, phase 7)** — was hardcoded `false` at 31 of 34 sites; `flush_pending_triggers`'s once-per-turn gate reads the runtime value first, so three `Complete` defs (welcoming_vampire / elvish_warmaster / whispering_wizard) over-fired. CR 603.2c/603.2h. |
 /// | `modes`            | collapsed to mode 0 as a bot fallback — deliberate, OOS-DP8-7 / PB-DX10 |
-/// | `trigger_zone`     | **no runtime home** — dropped; `collect_triggers_for_event` scans the battlefield only; the graveyard sweep is a separate registry path. Seeded OOS-DX1-3 |
-pub(crate) fn build_face_ability_vectors(
+/// | `trigger_zone`     | **honoured (PB-DX24)** — an ability carrying `trigger_zone: Some(_)` is filtered out of the input to `build_face_triggered_abilities` at its single call site (`lowers_onto_the_battlefield`), so no lowering arm can install it on a battlefield object. CR 113.6b/113.6m: it functions only from the named zone. Its dispatch lives in `rules::abilities::collect_graveyard_carddef_triggers`, which reads the card registry directly. Closes OOS-DX1-3; `core::pb_dx24_trigger_zone_roster` fails if a future arm re-swallows the field. |
+///
+/// The `34` in the two cells above is not a number to trust — it is a number
+/// to RE-DERIVE (fix cycle, review Finding 6). Counting rule: count the
+/// `for ability in abilities` LOOPS (each opens a brace block) in this file
+/// OUTSIDE this doc comment, then subtract the two that sit OUTSIDE
+/// `build_face_triggered_abilities` (the mana-ability loop and the
+/// activated-ability loop, which run over the unfiltered `abilities` slice
+/// before the CR 113.6b/113.6m filter is ever applied, so they are not
+/// trigger-lowering arms at all). At PB-DX24: 36 loop sites total in the
+/// file's CODE, minus those 2, leaves 34 inside
+/// `build_face_triggered_abilities` -- one per `trigger_condition:` match arm
+/// it lowers. Re-measured at PB-DX24 stage 3 after the extraction
+/// (`build_face_triggered_abilities` did not change the arm count, only
+/// where the loops live) and independently re-derived by the PB-DX24
+/// fix-cycle reviewer via the same rule. An earlier stage-0 census of this
+/// batch had claimed 40 before any edit existed to re-derive against; that
+/// number was simply wrong, not a different measurement of a moving target.
+pub fn build_face_ability_vectors(
     abilities: &[AbilityDefinition],
 ) -> (
     imbl::Vector<ManaAbility>,
@@ -2455,7 +2473,6 @@ pub(crate) fn build_face_ability_vectors(
 ) {
     let mut mana_abilities: imbl::Vector<ManaAbility> = imbl::Vector::new();
     let mut activated_abilities: Vec<ActivatedAbility> = Vec::new();
-    let mut triggered_abilities: Vec<TriggeredAbilityDef> = Vec::new();
     // SR-34 (CR 605.1a): convert mana-producing activated abilities into mana abilities.
     // CR 605.1a classifies an ability as a mana ability by what it *does* (no target,
     // could add mana, not a loyalty ability), not by what it costs — so this is no longer
@@ -2524,6 +2541,51 @@ pub(crate) fn build_face_ability_vectors(
             }
         }
     }
+    // CR 113.6b/113.6m (PB-DX24, OOS-DX1-3): filter out any ability that states
+    // which zone it functions in BEFORE lowering triggers onto the battlefield
+    // object's runtime trigger vector -- such an ability must never be installed
+    // there (see lowers_onto_the_battlefield's doc). This is the ONLY filter
+    // site; build_face_triggered_abilities never sees trigger_zone at all, so a
+    // future lowering arm cannot silently swallow it again
+    // (core::pb_dx24_trigger_zone_roster's G-A/G-B gates fail if one does).
+    let battlefield_triggers: Vec<&AbilityDefinition> = abilities
+        .iter()
+        .filter(|a| lowers_onto_the_battlefield(a))
+        .collect();
+    let triggered_abilities = build_face_triggered_abilities(&battlefield_triggers);
+    (mana_abilities, activated_abilities, triggered_abilities)
+}
+
+/// CR 113.6b / CR 113.6m: an ability that states which zone it functions in
+/// functions only from that zone, so it must never be lowered onto the
+/// battlefield object's runtime trigger vector. Exhaustive on `TriggerZone`
+/// deliberately: a new variant must be classified here, not defaulted -- a
+/// wildcard arm would silently keep lowering a future zone-scoped ability onto
+/// the battlefield, the exact defect PB-DX24 closes for TriggerZone::Graveyard.
+fn lowers_onto_the_battlefield(ability: &AbilityDefinition) -> bool {
+    match ability {
+        AbilityDefinition::Triggered {
+            trigger_zone: Some(zone),
+            ..
+        } => match zone {
+            TriggerZone::Graveyard => false,
+        },
+        _ => true,
+    }
+}
+
+/// Lower a face's (already zone-filtered) abilities into runtime
+/// `TriggeredAbilityDef` entries for `characteristics.triggered_abilities`.
+///
+/// Extracted from `build_face_ability_vectors` by PB-DX24 (OOS-DX1-3): the
+/// input type `&[&AbilityDefinition]` is chosen deliberately -- it can never
+/// contain a `trigger_zone: Some(_)` ability, because the single caller filters
+/// through `lowers_onto_the_battlefield` before invoking this function. Do NOT
+/// add a per-arm `trigger_zone` guard inside this function; extend the filter
+/// at the call site instead (`core::pb_dx24_trigger_zone_roster`'s G-A gate
+/// fails if `trigger_zone` is ever destructured inside this body again).
+fn build_face_triggered_abilities(abilities: &[&AbilityDefinition]) -> Vec<TriggeredAbilityDef> {
+    let mut triggered_abilities: Vec<TriggeredAbilityDef> = Vec::new();
     // CR 603.6c / CR 700.4: Convert "When ~ dies" card-definition triggers into
     // runtime TriggeredAbilityDef entries so check_triggers can dispatch them.
     // This covers self-referential dies triggers (e.g. Solemn Simulacrum).
@@ -3026,10 +3088,13 @@ pub(crate) fn build_face_ability_vectors(
     //   - `card_type_filter: filter.has_card_type` (PB-L)
     //   - `exclude_self: trigger_condition.exclude_self` (PB-XS-E)
     //
-    // Skips abilities with `trigger_zone: Some(TriggerZone::Graveyard)` — those are
-    // handled by collect_graveyard_carddef_triggers at dispatch time and must NOT
-    // be added to the battlefield spec (the spec lives on the battlefield object,
-    // but these triggers fire only from the graveyard).
+    // CR 113.6b/113.6m (PB-DX24): a `trigger_zone: Some(_)` ability (e.g.
+    // Bloodghast) never reaches this loop at all -- it is filtered out of the
+    // input by `lowers_onto_the_battlefield` at build_face_ability_vectors's
+    // single call site into build_face_triggered_abilities, so there is no
+    // per-arm guard here to maintain (see the field-status table above this
+    // function and core::pb_dx24_trigger_zone_roster, which fails if a future
+    // arm re-destructures trigger_zone to reintroduce one).
     for ability in abilities {
         if let AbilityDefinition::Triggered {
             trigger_condition:
@@ -3038,17 +3103,12 @@ pub(crate) fn build_face_ability_vectors(
                     exclude_self,
                 },
             effect,
-            trigger_zone,
             targets,
             intervening_if,
             once_per_turn,
             ..
         } = ability
         {
-            // Graveyard-zone triggers (Bloodghast) are dispatched separately.
-            if trigger_zone.is_some() {
-                continue;
-            }
             let (creature_only, card_type_filter, controller_you, color_filter) = match filter {
                 Some(f) => {
                     let creature_only = matches!(f.has_card_type, Some(CardType::Creature));
@@ -3860,7 +3920,7 @@ pub(crate) fn build_face_ability_vectors(
             });
         }
     }
-    (mana_abilities, activated_abilities, triggered_abilities)
+    triggered_abilities
 }
 
 /// Enrich an [`ObjectSpec`] with card type, mana cost, keyword, and mana-ability
