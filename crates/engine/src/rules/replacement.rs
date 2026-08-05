@@ -691,39 +691,16 @@ pub fn check_would_draw_replacement(
     use crate::state::replacement_effect::{
         PlayerFilter, ReplacementModification, ReplacementTrigger,
     };
-    use crate::state::types::KeywordAbility;
-    // CR 702.52a: Scan the player's graveyard for dredge-eligible cards.
-    // A card is eligible if:
-    //   1. It has KeywordAbility::Dredge(n) in its keywords.
-    //   2. The player has >= n cards in their library (CR 702.52b).
+    // CR 702.52a/b: dredge-eligible cards in the player's graveyard, via the
+    // shared query (PB-DX23 §3 Q2) — this function no longer keeps its own
+    // copy of the scan. `rules::queries::dredge_options` is the SAME
+    // derivation `crates/simulator`'s offer layer consumes, so the two
+    // cannot drift (the PB-DX20 one-arithmetic-two-consumers shape; see that
+    // function's doc for the anti-drift argument and why a differential
+    // probe between the two consumers is a consistency check, not a
+    // correctness one).
     if offer_dredge {
-        let graveyard_zone = ZoneId::Graveyard(player);
-        let library_zone = ZoneId::Library(player);
-        // SR-14: the library zone is built before turn 1 and never removed (ground truth 2).
-        let library_count = state
-            .expect_zone(&library_zone)
-            .map(|z| z.len())
-            .unwrap_or(0);
-        let mut dredge_options: Vec<(ObjectId, u32)> = state
-            .objects
-            .values()
-            .filter(|obj| obj.zone == graveyard_zone)
-            .filter_map(|obj| {
-                obj.characteristics.keywords.iter().find_map(|kw| {
-                    if let KeywordAbility::Dredge(n) = kw {
-                        if (*n as usize) <= library_count {
-                            Some((obj.id, *n))
-                        } else {
-                            None
-                        }
-                    } else {
-                        None
-                    }
-                })
-            })
-            .collect();
-        // Sort for determinism (by ObjectId).
-        dredge_options.sort_by_key(|(id, _)| *id);
+        let dredge_options = crate::rules::queries::dredge_options(state, player);
         if !dredge_options.is_empty() {
             // CR 702.52a: Dredge options available — pause for player choice.
             return DrawAction::DredgeAvailable(GameEvent::DredgeChoiceRequired {
@@ -946,7 +923,14 @@ pub(crate) fn perform_one_draw(
     if let Some(i) = state.pending_draws.iter().position(|p| p.player == player) {
         let stale = state.pending_draws[i].clone();
         state.pending_draws.remove(i);
-        events.extend(resolve_declined_pending_draw(state, player, stale));
+        // PB-DX23 §3 Q3: `tail_offers_dredge: false`. This is an IMPLICIT
+        // discharge — forced because a second, unrelated draw arrived before
+        // `player` answered the stale offer — not an active decline, and an
+        // unconditional `true` here would let this discharge's own
+        // re-entrant call mint a second dredge-originated `PendingDraw`
+        // before the OUTER call (this one) has pushed its own; see
+        // `resolve_declined_pending_draw`'s doc for the full trace.
+        events.extend(resolve_declined_pending_draw(state, player, stale, false));
     }
     let (draw_events, outcome) =
         match check_would_draw_replacement(state, player, &already_applied, offer_dredge) {
@@ -956,10 +940,24 @@ pub(crate) fn perform_one_draw(
                 // obligation. Record it in the same `pending_draws` queue the
                 // CR 616.1 deferral uses — see `handle_choose_dredge`, which
                 // requires and CONSUMES an entry, and pb-plan-DX2.md §3.3 for
-                // why one undiscriminated queue is sound. This push is always
-                // into an EMPTY slot for `player` — the discharge above
-                // guarantees it, so there is no fold/accumulate case here
-                // anymore (fix-cycle Finding 1).
+                // why one undiscriminated queue is sound.
+                //
+                // CORRECTED (re-review Finding R1, `pb-review-DX2.md`; PB-DX23
+                // §1.4 / §3 Q3): this push is NOT always into an empty slot
+                // for `player`. An earlier version of this comment claimed
+                // the discharge above guaranteed it — that reasoned from
+                // WHERE the two push sites live, not WHEN they run relative
+                // to the discharge, and a re-review reproduced a second
+                // dredge-originated entry empirically and REOPENED
+                // `OOS-DX2-3`. See `perform_one_draw`'s own "Per-player
+                // invariant" doc above for the exact mechanism and the
+                // narrower invariant that DOES hold: at most one
+                // dredge-originated (`DredgeAvailable` arm) entry per player,
+                // because this arm only runs when `offer_dredge` is true,
+                // which a re-entrant discharge call never sets (PB-DX23
+                // threads `tail_offers_dredge`/`offer_dredge` through the
+                // tail-draw call chain specifically to preserve that
+                // narrower invariant — see `resolve_declined_pending_draw`).
                 //
                 // Determinism (SR-9b): sort `already_applied` by
                 // ReplacementId before storing — `HashSet` iteration order is
@@ -980,8 +978,15 @@ pub(crate) fn perform_one_draw(
                 // CR 616.1e: 2+ replacements apply — record the pending state
                 // so a future `Command::OrderReplacements` (routed by
                 // `handle_order_replacements` to `resolve_pending_draw`) can
-                // resume this exact draw. As above, this push is always into
-                // an empty slot for `player` (fix-cycle Finding 1).
+                // resume this exact draw.
+                //
+                // CORRECTED (re-review Finding R1; PB-DX23 §1.4 / §3 Q3): as
+                // with the `DredgeAvailable` arm above, this push is NOT
+                // always into an empty slot for `player` — the retracted
+                // "the discharge above guarantees it" claim applied here too
+                // and is refuted the same way. See `perform_one_draw`'s
+                // "Per-player invariant" doc and `OOS-DX2-3` (REOPENED, not
+                // re-closed) for the corrected statement.
                 //
                 // Determinism (SR-9b): sort by ReplacementId before storing.
                 // `HashSet` iteration order is not stable and this field is
@@ -1094,11 +1099,38 @@ pub(crate) fn perform_one_draw(
 /// sticky" note on `handle_choose_dredge`'s `None` arm), then perform the
 /// rest of the sequence it belonged to (CR 614.11a).
 ///
+/// **`tail_offers_dredge` (PB-DX23 §3 Q3): the two-axis vocabulary.** THIS
+/// draw — the one the discharged `PendingDraw` itself replaced — is always
+/// resumed with `offer_dredge: false` at the `perform_one_draw` call just
+/// below, unconditionally, regardless of this parameter: PB-DP5 §3.3's
+/// argument is about not re-offering dredge on the SAME draw event a
+/// CR 616.1 application (or a dredge offer) already paused, and that applies
+/// here identically whether the discharge is explicit or implicit. The TAIL
+/// — the sequence's further draws, each a genuinely DIFFERENT draw event
+/// under CR 121.2 — is a separate question this parameter answers, and it
+/// answers differently for this function's two callers:
+/// - `handle_choose_dredge`'s `None` arm (an EXPLICIT decline) passes
+///   `true`: the player just actively declined, so the tail is theirs to
+///   answer too, same as an answered `Some(id)`.
+/// - `perform_one_draw`'s unconditional stale-entry discharge (an IMPLICIT
+///   decline, forced because a second, unrelated draw arrived before the
+///   player answered the first offer) passes `false`: an unconditional
+///   `true` here would let THIS discharge's own re-entrant `perform_one_draw`
+///   call push a fresh dredge-originated `PendingDraw` for the tail, and
+///   then — because the discharge runs before the OUTER `perform_one_draw`
+///   examines what its own draw needs — the outer call can push a SECOND
+///   dredge-originated entry for the same player, breaking the one invariant
+///   the discharge exists to establish (see `perform_one_draw`'s "Per-player
+///   invariant" doc) and making the REOPENED `OOS-DX2-3` live and reachable
+///   from `golgari_grave_troll` alone. The five-step trace is in PB-DX23 §3
+///   Q3; the guard test is
+///   `pb_dx23_dredge_tail_and_query::test_dx23_implicit_discharge_does_not_mint_a_second_dredge_entry`.
+///
 /// Shared by two callers (fix-cycle Finding 1, `pb-review-DX2.md`):
 /// `handle_choose_dredge`'s `None` arm, an EXPLICIT decline, and
 /// `perform_one_draw`'s unconditional stale-entry discharge, an IMPLICIT one
 /// — forced because a second, unrelated draw arrived before the player
-/// answered the first offer. Both play out identically: the draw is never
+/// answered the first offer. Both play out identically for THIS draw: it is never
 /// destroyed, only completed at a different moment than a human answer would
 /// have chosen.
 ///
@@ -1123,18 +1155,27 @@ fn resolve_declined_pending_draw(
     state: &mut GameState,
     player: PlayerId,
     pending: PendingDraw,
+    tail_offers_dredge: bool,
 ) -> Vec<GameEvent> {
     let (mut events, outcome) = perform_one_draw(
         state,
         player,
-        false, // CR 702.52a: declining suppresses the automatic re-offer for
-        // THIS draw (see the sticky-decline note referenced above).
+        // CR 702.52a: `false` here is UNCONDITIONAL, independent of
+        // `tail_offers_dredge` — this is the SAME draw the discharged
+        // `PendingDraw` itself replaced, so declining suppresses the
+        // automatic re-offer for THIS draw regardless of who called us (see
+        // the two-axis vocabulary in this function's doc, and the sticky-
+        // decline note referenced above). `tail_offers_dredge` governs only
+        // the DIFFERENT draws below, if any.
+        false,
         pending.sets_has_drawn_for_turn,
         pending.already_applied.iter().copied().collect(),
         pending.remaining,
     );
     // CR 614.11a: if this draw completed (not itself deferred again), perform
-    // the rest of the sequence it belonged to.
+    // the rest of the sequence it belonged to — each of THOSE draws is a
+    // DIFFERENT draw event (CR 121.2), so whether they may offer dredge is
+    // `tail_offers_dredge`'s question, not this draw's.
     if !matches!(
         outcome,
         DrawStepOutcome::Deferred
@@ -1147,6 +1188,7 @@ fn resolve_declined_pending_draw(
             player,
             pending.remaining,
             pending.sets_has_drawn_for_turn,
+            tail_offers_dredge,
         ));
     }
     events
@@ -1546,13 +1588,48 @@ pub fn resolve_pending_zone_change(
 ///
 /// Extracted from `resolve_pending_draw` by PB-DX2 so `handle_choose_dredge` and
 /// `resolve_declined_pending_draw` can discharge the same obligation without
-/// duplicating it. Behaviour is byte-for-byte the pre-PB-DX2 loop, including
-/// `offer_dredge: false` (see OOS-DX2-2: each draw of a sequence is separately
-/// replaceable under CR 702.52a, and suppressing dredge for the whole tail is a
-/// pre-existing simplification this batch deliberately does not change).
+/// duplicating it.
+///
+/// **`offer_dredge` (PB-DX23 §3 Q3, closing `OOS-DX2-2`): the tail is now
+/// dredge-offerable, but only when the CALLER says so.** The pre-PB-DX23 body
+/// hard-coded `false` here for every caller, on a doc claim that suppressing
+/// dredge for the whole tail was "a pre-existing simplification this batch
+/// deliberately does not change" — that claim is now FALSE and this doc
+/// replaces it. CR 121.2 makes "draw N" N separate individual draws; CR
+/// 614.11a / 121.6b say a replacement's actions complete and THEN the
+/// sequence resumes, so each resumed draw is a fresh "would draw" event under
+/// CR 702.52a, independently offerable. `PB-DP5 §3.3`'s `offer_dredge: false`
+/// argument does NOT reach these resumed draws — that argument is about not
+/// restarting a CR 616.1 application on the SAME draw event
+/// (`resolve_declined_pending_draw`'s own `perform_one_draw` call, and
+/// `resolve_pending_draw`'s CR 616.1f re-check, both keep `false`
+/// unconditionally for exactly that reason and are unaffected by this
+/// parameter).
+///
+/// `perform_remaining_draws` itself has no opinion on whether the tail should
+/// offer dredge — each of its three callers passes what CR 702.52a/121.2
+/// actually decide for that caller:
+/// - `handle_choose_dredge`'s `Some(id)` arm and `resolve_pending_draw`'s
+///   CR 614.11a resume both pass `true` — the player is actively answering
+///   (or has just finished a CR 616.1 order choice), and the tail is theirs
+///   to answer too.
+/// - `resolve_declined_pending_draw` forwards its OWN `tail_offers_dredge`
+///   parameter, which differs by caller in turn (see that function's doc) —
+///   an EXPLICIT decline (`handle_choose_dredge`'s `None` arm) passes `true`,
+///   but an IMPLICIT auto-discharge (`perform_one_draw`'s stale-entry
+///   discharge) passes `false`, because an unconditional `true` there would
+///   let the discharge's own re-entrant call mint a SECOND
+///   dredge-originated `PendingDraw` entry for the same player before the
+///   outer call has even pushed its own — making the REOPENED `OOS-DX2-3`
+///   live and reachable from `golgari_grave_troll` alone (traced in full in
+///   `perform_one_draw`'s "Per-player invariant" doc and PB-DX23 §3 Q3).
 ///
 /// Terminates in at most `remaining` iterations: `remaining` is a `u32` captured
 /// before the loop and `perform_one_draw` never calls back into this function.
+/// A `DredgeOffered` break still leaves `remaining_after` correctly recorded on
+/// the pushed `PendingDraw` (computed as `remaining - 1 - i` before the call,
+/// unaffected by this parameter), so `handle_choose_dredge`'s later resume of
+/// that entry picks up with the right count of further draws still owed.
 ///
 /// (Fix-cycle Finding 6, `pb-review-DX2.md`: this function is placed ABOVE
 /// `resolve_pending_draw`'s own doc block below, not between it and `fn
@@ -1565,6 +1642,7 @@ fn perform_remaining_draws(
     player: PlayerId,
     remaining: u32,
     sets_has_drawn_for_turn: bool,
+    offer_dredge: bool,
 ) -> Vec<GameEvent> {
     let mut events = Vec::new();
     for i in 0..remaining {
@@ -1572,7 +1650,7 @@ fn perform_remaining_draws(
         let (evts, out) = perform_one_draw(
             state,
             player,
-            false,
+            offer_dredge,
             sets_has_drawn_for_turn,
             HashSet::new(),
             remaining_after,
@@ -1694,11 +1772,17 @@ pub fn resolve_pending_draw(
                                              // would double-count it.
     ) && pending.remaining > 0
     {
+        // PB-DX23 §3 Q3: `offer_dredge: true`. The player has just finished
+        // resolving a CR 616.1 order choice (or the chain of them) for the
+        // draw this entry replaced; the tail draws are each a DIFFERENT draw
+        // event (CR 121.2) and are theirs to answer too, same as the
+        // `handle_choose_dredge::Some` resume.
         events.extend(perform_remaining_draws(
             state,
             pending.player,
             pending.remaining,
             pending.sets_has_drawn_for_turn,
+            true,
         ));
     }
     Ok(events)
@@ -3303,10 +3387,13 @@ pub fn handle_choose_dredge(
             // IS an explicit decline, the sibling of that function's implicit
             // one (fix-cycle Finding 1: both now route through
             // `resolve_declined_pending_draw` so the bookkeeping cannot drift
-            // apart).
+            // apart). PB-DX23 §3 Q3: `tail_offers_dredge: true` — unlike the
+            // implicit discharge, this IS the player actively answering, so
+            // the tail (a sequence of genuinely DIFFERENT draws, CR 121.2)
+            // is theirs to answer too.
             let pending = state.pending_draws[idx].clone();
             state.pending_draws.remove(idx);
-            Ok(resolve_declined_pending_draw(state, player, pending))
+            Ok(resolve_declined_pending_draw(state, player, pending, true))
         }
         Some(card_id) => {
             // Player chose to dredge card_id.
@@ -3391,12 +3478,16 @@ pub fn handle_choose_dredge(
             });
             // Step 7 (CR 614.11a): `Dredged` does not set `has_drawn_for_turn`
             // -- only the tail draws do, per the entry's own flag.
+            // PB-DX23 §3 Q3: `offer_dredge: true` -- the player is actively
+            // answering this offer, so the tail (each a DIFFERENT draw,
+            // CR 121.2) is theirs to answer too.
             if pending.remaining > 0 {
                 events.extend(perform_remaining_draws(
                     state,
                     player,
                     pending.remaining,
                     pending.sets_has_drawn_for_turn,
+                    true,
                 ));
             }
             Ok(events)

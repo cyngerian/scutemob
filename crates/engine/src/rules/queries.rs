@@ -324,3 +324,65 @@ pub fn attack_tax_total(
         Some(total)
     }
 }
+
+/// CR 702.52a/b: every card in `player`'s graveyard that could replace a draw
+/// right now, as `(card, N)`, sorted by `ObjectId` for determinism.
+///
+/// (Placement: appended at the END of this module, not inserted above
+/// `attack_tax_total`. A doc comment attaches to the item immediately
+/// following it, so inserting a function between an existing doc block and
+/// its function silently reassigns that doc to the newcomer and leaves the
+/// original undocumented. That is exactly what happened on this function's
+/// first draft — `attack_tax_total` lost its whole doc, including the
+/// load-bearing PB-DX6 "`None` does NOT always mean free" warning — and it is
+/// the same trap `replacement::perform_remaining_draws`' own placement note
+/// records from PB-DX2's fix cycle. Second occurrence; append here.)
+///
+/// **Advisory, re-validated at answer time** (this module's header): the
+/// caller still submits a `Command::ChooseDredge` through the normal path,
+/// and `handle_choose_dredge`'s own `Some(id)` validation
+/// (`rules::replacement`) re-checks both conjuncts against LIVE state at the
+/// moment of the answer, not against whatever this function returned when
+/// the offer was computed — a card can leave the graveyard, or the library
+/// can shrink below `n`, between the offer and the answer.
+///
+/// **One derivation, two consumers (PB-DX23 §3 Q2, the PB-DX20 shape):**
+/// `rules::replacement::check_would_draw_replacement` calls this SAME
+/// function for the `DredgeChoiceRequired` offer's own `options` list rather
+/// than keeping its own copy of the CR 702.52a/b scan — re-deriving dredge
+/// eligibility inside `crates/simulator` (the other consumer, via this
+/// query) would be the `OOS-RS-2` drift class this module's whole point is
+/// to avoid. A differential probe between the two consumers proves they
+/// AGREE, not that either is CR-correct — see `dredge_options`'s own direct
+/// CR 702.52a/b test pair for the correctness half (PB-DX20's durable
+/// lesson).
+pub fn dredge_options(state: &GameState, player: PlayerId) -> Vec<(ObjectId, u32)> {
+    let graveyard_zone = ZoneId::Graveyard(player);
+    let library_zone = ZoneId::Library(player);
+    // SR-14: the library zone is built before turn 1 and never removed (ground truth 2).
+    let library_count = state
+        .expect_zone(&library_zone)
+        .map(|z| z.len())
+        .unwrap_or(0);
+    let mut options: Vec<(ObjectId, u32)> = state
+        .objects()
+        .values()
+        .filter(|obj| obj.zone == graveyard_zone)
+        .filter_map(|obj| {
+            obj.characteristics.keywords.iter().find_map(|kw| {
+                if let KeywordAbility::Dredge(n) = kw {
+                    if (*n as usize) <= library_count {
+                        Some((obj.id, *n))
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            })
+        })
+        .collect();
+    // Sort for determinism (by ObjectId).
+    options.sort_by_key(|(id, _)| *id);
+    options
+}

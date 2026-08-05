@@ -42,7 +42,20 @@
   `replacement.rs::perform_one_draw`'s "Per-player invariant" doc for the full argument.
   Declining re-checks other `WouldDraw` replacements but does not re-offer dredge for THAT SAME
   draw (`offer_dredge: false`) — this avoids an infinite loop of choices, not a "bypassed
-  replacement check".
+  replacement check". **The TAIL of a multi-draw sequence is a different matter (PB-DX23,
+  closing `OOS-DX2-2`): each further draw of the sequence IS independently dredge-offerable**,
+  because CR 121.2 makes "draw N" N separate draws and CR 614.11a/121.6b resume the sequence only
+  after the replacement's own actions complete — so each resumed draw is a fresh "would draw"
+  event, distinct from the one `offer_dredge: false` above protects. `perform_remaining_draws`
+  takes a caller-supplied `offer_dredge` flag for exactly this: `handle_choose_dredge`'s `Some`
+  arm and `resolve_pending_draw`'s CR 614.11a resume pass `true` (the player is actively
+  answering); `resolve_declined_pending_draw` forwards its own `tail_offers_dredge` parameter,
+  which is `true` for an EXPLICIT decline (`handle_choose_dredge`'s `None` arm) but `false` for
+  the IMPLICIT stale-entry discharge inside `perform_one_draw` — an unconditional `true` there
+  would let that discharge's own re-entrant call mint a second dredge-originated `PendingDraw`
+  entry before the outer call pushes its own, making the REOPENED `OOS-DX2-3` live and reachable
+  from `golgari_grave_troll` alone (see `perform_one_draw`'s "Per-player invariant" doc for the
+  five-step trace).
 - **Flashback must exile at ALL departure points (CR 702.34a).** The card must be exiled when
   it leaves the stack for ANY reason: (1) normal resolution, (2) fizzle (all targets illegal),
   (3) countered by a spell/ability, AND (4) the `CounterSpell` effect path in `effects/mod.rs`.
