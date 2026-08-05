@@ -754,3 +754,61 @@ fn test_s8_an_unsupported_param_is_refused_not_discarded() {
         "the decision survives its own refused answer"
     );
 }
+
+// ── PB-DX21 (OOS-M11-9, §2.7): the offer disappears once CR 508.1 is done ────
+
+/// CR 508.1 / SR-38 — `legal_actions.rs` must not offer `DeclareAttackers` once
+/// `CombatState::attackers_declared` is set, because `combat.rs::handle_declare_
+/// attackers` now refuses a second declaration with
+/// `GameStateError::AlreadyDeclaredAttackers`. Before this offer suppression a
+/// vigilant attacker (untapped, still `eligible`, per PB-DX21's plan §2.7) would
+/// keep the action on the list forever.
+///
+/// Discriminates directly against the `!c.attackers_declared` condition added at
+/// `legal_actions.rs`'s `DeclareAttackers` arm: three states differing only in
+/// `combat`/`attackers_declared`, asserted in order so a revert of exactly that
+/// condition (commenting out the guard clause) reddens this test and no other in
+/// the file.
+#[test]
+fn test_dx21_declare_attackers_offer_suppressed_once_the_cr_5081_action_is_done() {
+    let state = two_player_state(
+        Step::DeclareAttackers,
+        vec![ObjectSpec::creature(P1, "DX21 Attacker", 2, 2).in_zone(ZoneId::Battlefield)],
+    );
+
+    // (1) No CombatState yet (BeginningOfCombat may not have run) — offered.
+    assert!(
+        StubProvider
+            .legal_actions(&state, P1)
+            .iter()
+            .any(|a| matches!(a, LegalAction::DeclareAttackers { .. })),
+        "with no CombatState the CR 508.1 action has not been performed and must \
+         still be offered"
+    );
+
+    // (2) A fresh CombatState with the marker clear — still offered.
+    let mut not_yet_declared = state.clone();
+    *not_yet_declared.combat_mut() = Some(mtg_engine::CombatState::new(P1));
+    assert!(
+        StubProvider
+            .legal_actions(&not_yet_declared, P1)
+            .iter()
+            .any(|a| matches!(a, LegalAction::DeclareAttackers { .. })),
+        "attackers_declared == false must still offer DeclareAttackers"
+    );
+
+    // (3) The marker set — SUPPRESSED. This is the discriminating assertion.
+    let mut already_declared = state;
+    let mut combat = mtg_engine::CombatState::new(P1);
+    combat.attackers_declared = true;
+    *already_declared.combat_mut() = Some(combat);
+    let actions = StubProvider.legal_actions(&already_declared, P1);
+    assert!(
+        !actions
+            .iter()
+            .any(|a| matches!(a, LegalAction::DeclareAttackers { .. })),
+        "CR 508.1 (PB-DX21): once attackers_declared is set the offer must be \
+         suppressed (SR-38: the engine will refuse a second declaration with \
+         AlreadyDeclaredAttackers); got {actions:?}"
+    );
+}
