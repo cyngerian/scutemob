@@ -1,4 +1,14 @@
-# PB-DX25 — execution notes (Stages 2, 3, 4 — this runner's scope only)
+# PB-DX25 — execution notes
+
+**Appended to by TWO runners; never rewritten.** The first runner covered
+Stages 2, 3, 4 (see that section's original header note below). This second
+runner covered Stages 1, 5, 6 (added below the first runner's material, in
+Stage order rather than chronological order — Stage 1 was written first by
+this runner but appears after the first runner's Stage-2/3/4 material because
+Stage numbering, not authorship order, is the organizing axis of this file).
+Stage 7 (close-out) is NOT covered by either runner — see the final summary.
+
+## Header note from the first runner (Stages 2, 3, 4 — that runner's scope only)
 
 Worker: `scutemob-203`, branch
 `feat/pb-dx25-effectcounterspells-three-stack-object-shapes-counte`. This runner's
@@ -370,7 +380,250 @@ single gate with one clean revert shape.
 
 ---
 
-## Summary for the handoff to Stage 1 / Stage 5 / Stage 6 / Stage 7's runner
+## Stage 5 — the second counter path (§3.6) + T7 + doc work (§3.2, §3.7) (this runner, DONE)
+
+`crates/engine/src/rules/resolution.rs::counter_stack_object` rewritten in
+place: the `Spell | MutatingCreatureSpell` arm plus the 20-variant ability
+OR-list are collapsed onto `card_owned = crate::state::stack_registry::
+card_in_stack_zone(&stack_obj.kind)`, with `card_to_move = if stack_obj.is_copy
+{ None } else { card_owned }` (CR 707.10), replicating the SAME shape as
+`effects/mod.rs`'s §3.5 rewrite (per the plan's own "same shape as §3.5"
+instruction) — including the copy-aware `named` branch (a countered copy is
+named by its own stack-entry id) and the `ActivatedAbility`/`TriggeredAbility`
+source-naming branch, both absent from the function's original body but
+present in the corresponding effects/mod.rs arm. The whole per-keyword "if
+countered by Stifle..." comment block (`:8374-8412` at Stage-4 HEAD) was moved
+**verbatim** onto the inner match's `_ => None` fallback arm — read side by
+side with the pre-edit body to confirm every line survived, byte-for-byte,
+just relocated.
+
+**No information was found that the OR-list carried and the registry does
+not** (plan §12 risk 3's stop-and-report condition) — the OR-list was a flat
+enumeration of ability/trigger kinds with no per-variant behavioural
+divergence beyond the two now-preserved special cases (Activated/Triggered
+naming, everything else silent), both carried forward exactly.
+
+**Doc correction** (plan §3.6 point 3): the function's doc comment no longer
+claims `"Used by: the fizzle rule (M3-D), counterspell effects (M3-D/E)"` —
+confirmed false by the SAME grep the plan's own §0.1 table already recorded
+(zero production callers; the two callers are `crates/engine/tests/core/
+resolution.rs:630`/`:711`, now joined by T7). The new doc states plainly: a
+`pub` API with no production caller, kept as a second independent counter
+path on the PB-DP9 precedent already cited in the function's own pre-existing
+tail comment (*"routed through the shared helper so a future caller does not
+inherit a shipped deadlock"*) — leaving one of two counter paths carrying
+PB-DX25's pre-fix defect (the per-kind `Spell`-only lookup) is exactly that
+shape of risk.
+
+**T7** (`test_dx25_both_engine_counter_paths_agree`,
+`crates/engine/tests/primitives/pb_dx25_counterspell_stack_shapes.rs`): two
+halves in one test, mirroring T1's and T3's fixtures respectively but routed
+through `mtg_engine::rules::resolution::counter_stack_object` instead of
+`Effect::CounterSpell`. Half 1 pushes a `MutatingCreatureSpell` stack object
+(reusing the file's existing `push_mutating_creature_spell_stack_object`
+helper) and asserts the card lands in the graveyard under a fresh id with one
+`SpellCountered` event. Half 2 pushes a real `Spell`, copies it via the real
+`pub rules::copy::copy_spell_on_stack`, counters the copy by its own
+stack-entry id, and asserts the ORIGINAL's card stays in `ZoneId::Stack`
+while `SpellCountered.stack_object_id == source_object_id == copy_stack_id`.
+**Passed on first run** (no debugging cycle needed — the function's rewrite
+mirrors the already-tested effects/mod.rs shape exactly).
+
+### T7 revert — executed
+
+| revert | how | observed failure (verbatim) | rebuild confirmed |
+|---|---|---|---|
+| delete the `is_copy` guard | `let card_to_move = card_owned;` (dropped `if stack_obj.is_copy { None } else { .. }`) | `panicked at .../pb_dx25_counterspell_stack_shapes.rs:1405:9: assertion \`left == right\` failed: CR 707.10: the ORIGINAL's card must still be in ZoneId::Stack -- counter_stack_object must not move it when countering a copy / left: None / right: Some(Stack)` -- i.e. the ORIGINAL's card was moved out, exactly the predicted defect, mirroring T3's revert row exactly | yes -- `Compiling mtg-engine` present in captured output before the failing test line |
+
+Restored immediately after observing the failure; `git diff --stat --
+crates/engine/src/rules/resolution.rs` confirmed **220 insertions/deletions**
+(the intentional rewrite) both before and after the revert-and-restore cycle
+(i.e. the restore round-tripped to the exact pre-revert edit, not to the
+original pre-Stage-5 HEAD) — re-verified by re-running the full File A + File
+B + File C suite green.
+
+### CR-citation corrections (§3.7 / F4 / `OOS-UI3-1`)
+
+Verified via MCP before editing: **CR 701.5 is "Cast"**, exactly two
+subrules (701.5a, 701.5b); **CR 701.6 is "Counter"**, with 701.6a/701.6b as
+quoted in plan §1. No "CR 701.5g" exists anywhere in the rules text.
+
+* `crates/engine/src/effects/mod.rs:171` (the `EffectContext.countered_spell_
+  controller` field doc, `pub countered_spell_controller`): `CR 701.5g` →
+  `CR 701.6a`, with a note explaining the real warrant (the effect's own
+  printed wording plus CR 701.6a — there never was a subrule 701.5g).
+* `crates/engine/src/rules/events.rs:159` (`GameEvent::SpellCountered`'s doc):
+  `CR 608.2b, 701.5` → `CR 608.2b, 701.6a`.
+* `crates/engine/src/effects/mod.rs:2725`/`:2744` (the `Effect::CounterSpell`
+  arm's own two `CR 701.5`/`701.5g` cites) and `resolution.rs:8298`/`:8304`
+  (the function's opening doc) were **already corrected by the Stage-4
+  runner** (confirmed by grep before touching anything -- `grep -n "CR
+  701\.5\|CR 701\.6\|701\.5g"` across `effects/mod.rs`, `resolution.rs`,
+  `events.rs` found exactly one remaining stale cite, the `171` one above,
+  before this stage's edit; zero remain after).
+
+**Scope respected**: only the counter-related cites in these three files were
+touched. The ~337 tree-wide `CR 701.5` cites (correct citations to the actual
+"Cast" rule, on unrelated code) were left untouched, per the plan's explicit
+"NOT this batch" instruction.
+
+### Doc cross-references (§3.2), `crates/simulator/src/invariants.rs`
+
+Three edits, none behavioural:
+
+1. `stack_card_of`'s doc comment gains a paragraph naming
+   `mtg_engine::state::stack_registry::card_in_stack_zone` (PB-DX25) as a
+   second, independent, DELIBERATELY duplicated classification of the same
+   question -- states the "if the verifier read the engine's own answer back,
+   a wrong classification would go silent in exactly the case this check
+   exists to catch" argument from plan §3.2, and names the behavioural
+   cross-check (`crates/simulator/tests/pb_dx25_counter_on_mutate_is_
+   consistent.rs`) as what keeps the two honest without coupling them.
+2. `t8_mutating_creature_spell_owns_its_stack_card`'s doc comment gains one
+   sentence: its discrimination is over THIS crate's own `stack_card_of`, and
+   the engine-side registry is a separate classification, cross-referenced by
+   name.
+3. `check_stack_consistency`'s doc block, right after the existing "Two live
+   engine defects... filed as `OOS-SIM3-5`" sentence: a new paragraph stating
+   PB-DX25 CLOSES `OOS-SIM3-5` -- **not** deleting the history (the finding
+   motivated the fix), explaining that the fix lives in the ENGINE
+   (`stack_registry::card_in_stack_zone`), not in this check, and that this
+   check "was never the thing that was wrong" (it correctly classified
+   `MutatingCreatureSpell` since the S8 rewrite; `Effect::CounterSpell` did
+   not).
+
+### Stage 5 verification, all EXECUTED
+
+* `cargo check -p mtg-engine` clean (immediately after the resolution.rs
+  rewrite, before writing T7).
+* `cargo check -p mtg-simulator` clean (after the invariants.rs doc edits).
+* `cargo test -p mtg-engine --test core resolution::` -- **10 / 0**, all
+  pre-existing `counter_stack_object` callers (`test_counter_stack_object_
+  spell_to_graveyard`, `test_counter_stack_object_permanent_to_graveyard_
+  not_battlefield`) pass unchanged -- confirms the rewrite preserves the
+  plain-`Spell` behaviour exactly, as the plan's §3.3 "character-for-character
+  today's second clause" argument predicted.
+* `cargo test -p mtg-engine --test primitives pb_dx25_counterspell_stack_
+  shapes::` -- **7 / 0** (T1-T7 all green; T7 new this stage).
+* `cargo test -p mtg-simulator --lib invariants::` -- **10 / 0**, all
+  pre-existing `t1`-`t10` (incl. `t8_mutating_creature_spell_owns_its_stack_
+  card`) pass unchanged after the doc-only edits.
+* `cargo fmt -p mtg-engine -p mtg-simulator` then `cargo fmt --check` --
+  clean (one reformatting pass on the new T7 block's line-wraps; no
+  behavioural change).
+* `cargo clippy -p mtg-engine -p mtg-simulator --all-targets -- -D warnings`
+  -- clean.
+* SR-6 scope: `git diff main..HEAD --numstat -- crates/card-defs/
+  crates/card-types/ crates/view-model/ tools/` -- **EMPTY**.
+
+No pre-existing test reddened at any point in this stage.
+
+---
+
+## Stage 6 — the gates (this runner, DONE)
+
+### G3 revert -- executed
+
+| revert | how | observed failure (verbatim) | rebuild confirmed |
+|---|---|---|---|
+| pinned constant off by 1 | `assert_eq!(p, 48, ...)` -> `assert_eq!(p, 49, ...)` (the P = |M2| x |C3| pin) | `panicked at .../pb_dx25_stack_registry_roster.rs:537:5: assertion \`left == right\` failed: OOS-SIM3-5 roster P (live-wrong pairs = |M2| x |C3|) moved -- expected 48 (6 x 8), got 48 (6 x 8) ... / left: 48 / right: 49` | yes -- `Compiling mtg-engine` present |
+
+Restored immediately; `git diff --stat -- crates/engine/tests/core/
+pb_dx25_stack_registry_roster.rs` empty afterward (the file matches its
+Stage-1 committed state exactly); G1/G2/G3 all re-run green together.
+
+### Acceptance criterion 6232 -- mapped against the REAL text, not inferred
+
+Fetched verbatim via `esm task get scutemob-203` (the plan's own §6 could only
+infer it -- confirmed exact match, word for word):
+
+> "The zone-move is driven by a single per-kind classification (not per-arm
+> duplication); the catch-all no longer silently swallows card-carrying kinds
+> -- adding a new card-carrying StackObjectKind cannot recreate this bug
+> silently (gate or exhaustive match)."
+
+Mapping, clause by clause:
+
+* **"driven by a single per-kind classification (not per-arm duplication)"**
+  -- satisfied by `state::stack_registry::card_in_stack_zone` itself (the
+  ONE classification, Stage 3) consumed by BOTH engine counter paths: `effects/
+  mod.rs`'s `Effect::CounterSpell` arm (Stage 4) AND, as of THIS runner's
+  Stage 5, `resolution.rs::counter_stack_object` too. The plan's own §6
+  inference (G1+G2+T6) was written before Stage 5 existed and is true only of
+  the FIRST path -- Stage 5 is what makes the criterion's "single... not
+  per-arm duplication" clause true of the WHOLE engine rather than one of its
+  two counter paths, closing the gap the plan itself flagged in §3.6 ("leaving
+  one of two counter paths carrying the known-wrong shape is precisely how a
+  future caller inherits a shipped defect").
+* **"the catch-all no longer silently swallows card-carrying kinds"** --
+  satisfied by G2 (`effects/mod.rs`'s arm: the literals `StackObjectKind::
+  Spell`/`MutatingCreatureSpell` appear zero times, so there is no per-kind
+  catch-all left TO swallow anything) and, by the same shape (not separately
+  gated, since the plan named no new gate file for `resolution.rs`), by
+  Stage 5's rewrite of `counter_stack_object`'s own catch-all -- its
+  `card_owned`/`card_to_move` decision has NO wildcard arm either; only the
+  DIAGNOSTICS-only `named` sub-match (which cannot lose a card, per its own
+  `OOS-DX25-4` comment) still has one.
+* **"adding a new card-carrying StackObjectKind cannot recreate this bug
+  silently (gate or exhaustive match)"** -- satisfied by G1 (no wildcard arm
+  in `card_in_stack_zone` itself -- a compile error, not a gate, for a new
+  variant left unclassified) AND T6 (the classification's CONTENT is pinned
+  exhaustively against all 27 variants with a non-vacuity floor, so a new
+  variant wrongly classified as `Some` when it should be `None`, or vice
+  versa, is caught even though it compiles). G3 additionally pins the CORPUS
+  population this bug was live on, so a new card-carrying kind that widens
+  the live-wrong class is caught by G3 moving too.
+
+**Confirmed, not assumed**: the plan's inferred G1+G2+T6 triple was correct
+as far as it went but incomplete -- it did not anticipate that Stage 5 (a
+different runner's assignment) would extend the SAME criterion to a second
+function. Recorded here so a reader trusting the plan's own §6 alone would
+undercount what actually satisfies 6232 at the end of the batch.
+
+### Full verification, ALL EXECUTED (not predicted)
+
+* `cargo build --workspace` -- clean (7 crates compiled, no warnings).
+* `cargo clippy --workspace --all-targets -- -D warnings` -- clean.
+* `cargo fmt --check` -- clean (exit 0).
+* `tools/check-defs-fmt.sh` -- `card-defs fmt gate: 1803 defs checked / clean`.
+* `cargo test -p mtg-engine --test core protocol_schema` -- **17 / 0**, all
+  green, incl. `protocol_schema_fingerprint_is_pinned`.
+* `cargo test -p mtg-engine --test core hash_schema` -- **21 / 0**, all
+  green, incl. `declaration_fingerprint_is_pinned` / `stream_fingerprint_is_
+  pinned`.
+* `cargo test -p mtg-engine --test core keyword_registry` -- **9 / 0**, all
+  green, incl. `registry_sites_match_the_source_tree` (the gate that caught
+  PB-DX20/PB-DX23's missed sites -- clean here, as predicted, since PB-DX25
+  adds no `KeywordAbility::` literal and `effects/mod.rs` was already a
+  declared `Ward` handling site).
+* **PROTOCOL / HASH read directly from source, matching the gate output**:
+  `grep -n "pub const PROTOCOL_VERSION" crates/engine/src/rules/protocol.rs`
+  -> `35`; `grep -n "pub const HASH_SCHEMA_VERSION" crates/engine/src/state/
+  hash.rs` -> `73`. **Both confirmed UNMOVED** through the whole batch
+  (Stages 1 through 6), gate-executed, never hand-edited.
+* `cargo test --workspace --no-fail-fast` to a FILE (never `| tail`) --
+  **4,450 / 0 / 5** (37 test binaries ran, `grep -c "FAILED"` on the captured
+  file returns 0, residual list EMPTY). **+2 over the Stage-4 baseline of
+  4,448** -- exactly this runner's own two additions: G3
+  (`g3_corpus_roster_is_pinned`, Stage 1) + T7
+  (`test_dx25_both_engine_counter_paths_agree`, Stage 5). Full captured
+  output: `/tmp/claude-1000/-home-skydude-projects-scutemob--worktrees-
+  scutemob-203/de60b249-271f-4f80-9313-2e03f4ec0af7/scratchpad/
+  pb-dx25-stage6-full-suite.txt` (scratchpad, not committed).
+* `cargo test -p mtg-simulator` -- **206 / 0**, UNMOVED from the Stage-4-
+  recorded pin (Stage 5's `invariants.rs` edits were doc-only).
+* `cargo test -p play-server` -- **80 / 0**, UNMOVED, as predicted (this
+  batch touches no play-server file).
+* SR-6 scope: `git diff main..HEAD --numstat -- crates/card-defs/
+  crates/card-types/ crates/view-model/ tools/` -- **EMPTY**, confirmed
+  AFTER the G3 revert-and-restore cycle too (not just before it).
+
+No pre-existing test reddened anywhere in Stage 6; every failure observed was
+a revert introduced and then restored by this runner.
+
+---
+
+## Summary from the first runner (Stages 2, 3, 4) — kept verbatim as written
 
 * Stages 2, 3, 4 are DONE and committed (three commits, `W6-prim:` prefix,
   `scutemob-203`).
@@ -387,3 +640,67 @@ single gate with one clean revert shape.
   prediction (§7) holds so far. Stage 5's `counter_stack_object` refactor is
   ALSO predicted wire-neutral (no type change) but must be gate-executed again,
   not assumed.
+
+---
+
+## Summary for the handoff to Stage 7's runner (this second runner, Stages 1/5/6)
+
+* Stages 1, 5, 6 are DONE and committed (two commits so far -- Stage 1 and
+  Stage 5; Stage 6 produced no lasting source diff, only a revert-and-restore
+  cycle, so it has no commit of its own; this notes-file update is the final
+  commit for this runner's scope).
+* **Stage 1**: G3 written into the EXISTING `crates/engine/tests/core/
+  pb_dx25_stack_registry_roster.rs` (not a new file). Measured, not grepped:
+  M1=8, M2=6, M3=0, C1=23 (the plan's grep-derived "24" was itself wrong --
+  see the Stage 1 section above), C2=18, C3=8, P=48. **The "6 x 24 = 144"
+  correction owed to `memory/primitives/seed-rerank-2026-08-02.md` §4 row 7
+  and `docs/audits/decision-point-audit.md`'s `OOS-SIM3-5` row is: the
+  measured live-wrong pair count is 48 (not 144, not merely "~48"), and the
+  intermediate "24" in that framing should read 23 with the SR-36 comment-
+  string reason recorded in the Stage 1 section.** I did NOT edit either doc
+  myself, per this runner's brief -- that edit is Stage 7's.
+* **Stage 5**: `resolution.rs::counter_stack_object` now drives its zone-move
+  off `state::stack_registry::card_in_stack_zone` (same classification as
+  `effects/mod.rs`), gains the `is_copy` guard, and its stale "Used by: the
+  fizzle rule..." doc claim is corrected. T7 added and passes; its revert
+  (deleting the `is_copy` guard) was executed and watched red. CR-citation
+  corrections applied at `effects/mod.rs:171` (the one remaining stale
+  `701.5g` cite -- the two at `:2725`/`:2744` were already fixed by the
+  Stage-4 runner) and `rules/events.rs:159`. Doc cross-references added at
+  `crates/simulator/src/invariants.rs`'s `stack_card_of`, its `t8` test, and
+  the `check_stack_consistency` `OOS-SIM3-5` paragraph (history kept, not
+  deleted; a new paragraph records the closure).
+* **Stage 6**: G3's revert executed (pinned `P == 48` flipped to `49`, watched
+  red, restored). Acceptance criterion 6232's REAL text fetched via
+  `esm task get scutemob-203` (not inferred) and mapped clause-by-clause in
+  the Stage 6 section above -- the plan's own §6 inference (G1+G2+T6) was
+  correct but INCOMPLETE, because it predates Stage 5's extension of the SAME
+  classification to the SECOND counter path; recorded so a future reader
+  trusting the plan alone would undercount what satisfies 6232.
+* **Full gate suite, ALL EXECUTED**: `cargo build --workspace` clean;
+  `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo fmt
+  --check` clean; `tools/check-defs-fmt.sh` clean (1,803 defs); `--test core
+  protocol_schema` 17/0; `--test core hash_schema` 21/0; `--test core
+  keyword_registry` 9/0; PROTOCOL **35** / HASH **73** read directly from
+  source and confirmed unmoved through every stage this runner touched.
+  `cargo test --workspace --no-fail-fast` to a file: **4,450 / 0 / 5**
+  (+2 over the Stage-4 baseline of 4,448 -- exactly G3 + T7, this runner's
+  only two new `#[test]` functions), residual list EMPTY.
+  `cargo test -p mtg-simulator` **206 / 0** and `cargo test -p play-server`
+  **80 / 0**, both UNMOVED from the Stage-4 pin.
+* SR-6 scope: `git diff main..HEAD --numstat -- crates/card-defs/
+  crates/card-types/ crates/view-model/ tools/` EMPTY, confirmed at the end
+  of Stage 6.
+* **NOT done here, per this runner's explicit instructions -- Stage 7 is
+  owed**: `docs/audits/decision-point-audit.md`'s `OOS-SIM3-5` row
+  disposition (CLOSED, with the corrected "6 x 24 = 144" -> measured 48
+  reading, and the framing correction that (c) was the live shape and (a) the
+  rider, per the plan's own §10 Stage 7 instruction, which this runner did not
+  re-derive independently -- see the plan text for the exact wording to use);
+  the v3 queue row 7 marked SHIPPED; filing the plan §11 seeds
+  (`OOS-DX25-1`..`-6`); the CLAUDE.md delta and workstream-state handoff; and
+  the acceptance-criteria `esm task satisfy` calls for criteria 6229-6234 (all
+  six read as satisfied by the combined work of both runners, per this file's
+  own record, but were not attested by either runner -- Stage 7's job).
+* Final test count at the end of THIS runner's work: **4,450 / 0 / 5** on
+  this branch. PROTOCOL 35 / HASH 73, both gate-confirmed unmoved.
