@@ -4054,6 +4054,67 @@ behaviourally identical.
 
 ## Last Handoff
 
+**Date**: 2026-08-04..05 (oversight session #5 — correctness-queue run, v3 ranks 2/3/5/6)
+**Workstream**: W6 correctness queue (v3)
+**Task**: five tasks: `scutemob-199` (OOS-FB1 filing — DUPLICATE of `scutemob-195`, deduped at
+`/eot`, see hazards; `e7edcdd1`), `scutemob-198` (PB-DX20, merge `ecd7b119`), `scutemob-200`
+(PB-DX21, `e490153b`), `scutemob-201` (PB-DX23, `49958549`), `scutemob-202` (PB-DX24, `7b3d7d58`).
+
+**Completed**:
+- **PB-DX20 shipped** (rank 2): offer layer sees keyword-carried target requirements — ONE shared
+  derivation (`casting::enchant_target_to_requirement`); 13 `Complete` Auras castable in the
+  browser; Reconfigure synth site carries `exclude_self: true` (CR 702.151a); the whole
+  `KNOWN_FALSE_OFFERS` excusal mechanism deleted. Brief correction: the "4 no-Enchant Auras" set
+  was a grep artefact — the T4 roster gates over `all_cards()` (SR-36).
+- **PB-DX21 shipped** (rank 3): CR 508.1 once-per-combat guard. The brief's PREFERRED mechanism
+  (read `combat.attackers`) was **refuted three ways** (CR 508.1a "if any" + CR 508.8: an EMPTY
+  declaration is a completed action, live via `params.rs:474`) → `CombatState::attackers_declared`
+  bool, **HASH 72 → 73 gate-computed**. Both client-side mitigations deleted; 3 discriminating
+  probes; refuted advice left standing in the brief with the reasoning.
+- **PB-DX23 shipped** (rank 5): `LegalAction::ChooseDredge` end-to-end (bot + browser);
+  Grave-Troll draw-cadence probe on a real game; OOS-DX2-2 tail flip with the PB-DP5 §3.3
+  distinction argued in the commit; OOS-DX2-7 AUTO-CHOSEN row added; **OOS-DX2-3 stays REOPENED**,
+  pin byte-unedited.
+- **PB-DX24 shipped** (rank 6): `trigger_zone` honoured structurally at the single lowering call
+  site (not 34 per-arm edits); graveyard death dispatch built — beyond the brief, the sweep
+  handled only `PermanentEnteredBattlefield`; OOS-DX1-4 six of seven sites fixed, seventh
+  re-scoped with reason; both seeds CLOSED with their own row-claim corrections.
+- Tests **4,373 → 4,435 / 0 / 5**; full suite re-verified on merged main after EVERY collect
+  (4,388 / 4,398 / 4,413 / 4,435, all exit 0); PROTOCOL **35** unmoved throughout; HASH **72 → 73**
+  (PB-DX21 only); coverage unmoved **1,133/1,803 = 62.8%**.
+- **OOS-FB1 double-filing found and deduplicated at `/eot`**: `scutemob-199` re-filed what
+  `scutemob-195` had already filed (stale "NOT filed" CLAUDE.md bullet); nine duplicate rows
+  removed, the chain-verified `scutemob-199` set kept with the older set's two unique facts
+  folded in; banners corrected in registry + feedback doc + CLAUDE.md.
+
+**Not done / deferred**:
+- Feedback doc rows 2 (FUZZ-CRASH) / 4 / 5 / 6 / 7 / 8 still undispatched; **OOS-DX22-8** still
+  unclassified; **OOS-DX32-1** still undiagnosed.
+- Inherited: v3 §4 not re-rowed with DX42a/b; OOS-ADJ-1..7 not rowed into §8.1; `scutemob-127`
+  still backlog.
+
+**Next session candidates** (highest-yield first):
+- **PB-DX25** (rank 7 — `Effect::CounterSpell`'s three stack-object shapes; a countered spell
+  resolves anyway, silently). Table-only rank: write the brief at dispatch from the seed rows,
+  re-verify premise first.
+- **OOS-DX32-1 diagnosis** or **FUZZ-CRASH** (feedback row 2, cheapest row, OOS-DX22-7 feeds it).
+- **OOS-ADJ-1..7 rowing into §8.1** (small, closes an inherited deferral) — grep the registry for
+  each ID first, per the new dedup rule.
+
+**Hazards** (carrying forward):
+- **Seed-filing dedup rule (new, learned the hard way)**: before filing any OOS seed, grep
+  `docs/audits/decision-point-audit.md` for the ID — the registry is ground truth; status bullets
+  in CLAUDE.md/handoffs lag it (OOS-FB1-1..9 was double-filed exactly this way).
+- Monitor tool over bash poll loops for worker watches — bash loops were killed within ~2 min
+  repeatedly this session; one persistent Monitor per worker was reliable.
+- Workers now do their own collect state-sync inconsistently (DX21/DX24 fully, DX20/DX23
+  partially) — `/collect` step 7 must still verify the queue-memo row strike + brief banner.
+
+**Commit prefix used**: `scutemob-N:` (workers/self-task) + `chore:` (collects, eot) + `merge:`
+
+## Previous Handoff (preserved for chain context)
+
+
 **Date**: 2026-08-03..04 (oversight session #4 — FEEDBACK-1 + the first two feedback-buildout
 batches, user-directed "stop after 3 tasks for a check-in")
 **Workstream**: W6 correctness queue + feedback-engineering track
@@ -4110,60 +4171,6 @@ batches, user-directed "stop after 3 tasks for a check-in")
   quote SIM-3/SIM-5 numbers.
 
 **Commit prefix used**: `scutemob-N:` (workers/self-task) + `chore:` (collects) + `merge:`
-
-## Previous Handoff (preserved for chain context)
-
-**Date**: 2026-08-02 (oversight session #3 — playtest-triage-2 successor run, rows 2-8)
-**Workstream**: playtest-triage-2 successor track (SIM/ENG/UI)
-**Task**: seven tasks dispatched serially and collected same-day: `scutemob-187` (SIM-4, merge
-`dcb1fe55`), `scutemob-188` (SIM-5, `e185a2ff`), `scutemob-189` (SIM-6, `ee99929d`),
-`scutemob-190` (UI-5, `08dc4e6a`), `scutemob-191` (ENG-1, `a3b5e56b`), `scutemob-193` (ENG-2,
-`4ab68fdc`), `scutemob-194` (UI-6, `dd5cb47d`). **The triage-2 successor table is COMPLETE (8/8
-rows shipped)**; every row ✅-marked in `memory/playtest-triage-2026-08-02b.md`.
-
-**Completed**:
-- **G2/G5/G4/G8+G10-13/G3/G7/G9 all CLOSED** — per-batch detail in each Worker Handoff above and
-  the lean CLAUDE.md bullets (per the new `memory/decisions.md` 2026-08-02 lean-bullet schema,
-  first applied this session; ENG-1/ENG-2/UI-6 workers wrote theirs in-schema unprompted).
-- Tests **4,263 → 4,345 / 0 / 5** across the run; PROTOCOL **33 → 35** / HASH **70 → 72** (ENG-1
-  and ENG-2, both gate-computed); coverage unmoved **1,133/1,803 = 62.8%**.
-- **FEEDBACK-1 created** (`scutemob-192`, backlog): planning task for the alpha feedback-loop
-  buildout (HTTP browser-path fuzzer, rejection/waste/decision-point invariants, R7 harness,
-  steered decks, CI integration). **Deliberately NOT dispatched — user wants a fresh session.**
-- Ceremony decision recorded (`memory/decisions.md` 2026-08-02): lean close-out bullets, cut
-  explanation never identifiers, lean dispatch briefs from ENG-2 onward. Evaluation gate = next
-  `/start` reconstructing the run from lean bullets.
-- Mid-run incident: kitty crashed during ENG-2 (`scutemob-193`); worktree survived with 9 clean
-  commits; worker relaunched with a verify-don't-reimplement resume prompt (user-approved) and
-  re-ran the browser verification whose evidence died with the crash.
-
-**Not done / deferred**:
-- **FEEDBACK-1 (`scutemob-192`) dispatch** — waits for a fresh Claude Code session by user request.
-  - **→ DONE 2026-08-03** (oversight #4): dispatched, collected, merge `d55e74cc`, doc-only
-    (`docs/mtg-engine-feedback-engineering.md`); handoff lives in ESM task comments
-    (scutemob-183 pattern); OOS-FB1-1..9 specified in doc §5 but NOT yet filed.
-- Inherited from oversight #2 (see Previous Handoff): v3 §4 not re-rowed with DX42a/b; OOS-ADJ-1..7
-  not rowed into `decision-point-audit.md` §8.1; `scutemob-127` still backlog.
-- Successor candidates flagged by workers, unranked: **OOS-SIM6-3** (bot/human mana-cost
-  activation auto-tap — 62 of 113 residual refusals), **OOS-ENG1-9** (suspend-rollback question
-  labels), **OOS-ENG2-1+2** (Ward never fires on a triggered ability).
-
-**Next session candidates** (highest-yield first):
-- **Dispatch FEEDBACK-1** (`scutemob-192`) from the fresh session — brief is complete in ESM.
-- **PB-DX20** (v3 queue next) or the worker-flagged seeds above once FEEDBACK-1's plan lands.
-- Third human playtest — the run closed every functional finding from playtest 2; the success
-  criterion adopted for the feedback plan is "playtest 3 triages to UX-only".
-
-**Hazards** (carrying forward):
-- All oversight-#2 hazards stand (verbatim working_branch attests; commit brief inputs to main
-  pre-dispatch; both-append CLAUDE.md conflicts → union-merge, demote to Prior).
-- kitty crash kills all worker tabs but NOT worktrees — recovery = relaunch in the same worktree
-  with a resume prompt; check `git log main..HEAD` + `git status` before assuming loss. Worker
-  relaunch requires explicit user approval (retraction rule).
-- `~/.local/bin` can drop off the coordinator shell PATH after a kitty crash — `export
-  PATH="$HOME/.local/bin:$PATH"` per call.
-
-**Commit prefix used**: `scutemob-N:` (workers) / `merge:` / `chore:`
 
 ## Worker Handoff (UI-1, `scutemob-174`)
 
@@ -4639,6 +4646,62 @@ shows S7's work, not this branch's.
 
 ## Handoff History
 
+### 2026-08-02 (oversight #3 — playtest-triage-2 successor run, rows 2-8) [rotated]
+
+
+**Date**: 2026-08-02 (oversight session #3 — playtest-triage-2 successor run, rows 2-8)
+**Workstream**: playtest-triage-2 successor track (SIM/ENG/UI)
+**Task**: seven tasks dispatched serially and collected same-day: `scutemob-187` (SIM-4, merge
+`dcb1fe55`), `scutemob-188` (SIM-5, `e185a2ff`), `scutemob-189` (SIM-6, `ee99929d`),
+`scutemob-190` (UI-5, `08dc4e6a`), `scutemob-191` (ENG-1, `a3b5e56b`), `scutemob-193` (ENG-2,
+`4ab68fdc`), `scutemob-194` (UI-6, `dd5cb47d`). **The triage-2 successor table is COMPLETE (8/8
+rows shipped)**; every row ✅-marked in `memory/playtest-triage-2026-08-02b.md`.
+
+**Completed**:
+- **G2/G5/G4/G8+G10-13/G3/G7/G9 all CLOSED** — per-batch detail in each Worker Handoff above and
+  the lean CLAUDE.md bullets (per the new `memory/decisions.md` 2026-08-02 lean-bullet schema,
+  first applied this session; ENG-1/ENG-2/UI-6 workers wrote theirs in-schema unprompted).
+- Tests **4,263 → 4,345 / 0 / 5** across the run; PROTOCOL **33 → 35** / HASH **70 → 72** (ENG-1
+  and ENG-2, both gate-computed); coverage unmoved **1,133/1,803 = 62.8%**.
+- **FEEDBACK-1 created** (`scutemob-192`, backlog): planning task for the alpha feedback-loop
+  buildout (HTTP browser-path fuzzer, rejection/waste/decision-point invariants, R7 harness,
+  steered decks, CI integration). **Deliberately NOT dispatched — user wants a fresh session.**
+- Ceremony decision recorded (`memory/decisions.md` 2026-08-02): lean close-out bullets, cut
+  explanation never identifiers, lean dispatch briefs from ENG-2 onward. Evaluation gate = next
+  `/start` reconstructing the run from lean bullets.
+- Mid-run incident: kitty crashed during ENG-2 (`scutemob-193`); worktree survived with 9 clean
+  commits; worker relaunched with a verify-don't-reimplement resume prompt (user-approved) and
+  re-ran the browser verification whose evidence died with the crash.
+
+**Not done / deferred**:
+- **FEEDBACK-1 (`scutemob-192`) dispatch** — waits for a fresh Claude Code session by user request.
+  - **→ DONE 2026-08-03** (oversight #4): dispatched, collected, merge `d55e74cc`, doc-only
+    (`docs/mtg-engine-feedback-engineering.md`); handoff lives in ESM task comments
+    (scutemob-183 pattern); OOS-FB1-1..9 specified in doc §5 but NOT yet filed.
+- Inherited from oversight #2 (see Previous Handoff): v3 §4 not re-rowed with DX42a/b; OOS-ADJ-1..7
+  not rowed into `decision-point-audit.md` §8.1; `scutemob-127` still backlog.
+- Successor candidates flagged by workers, unranked: **OOS-SIM6-3** (bot/human mana-cost
+  activation auto-tap — 62 of 113 residual refusals), **OOS-ENG1-9** (suspend-rollback question
+  labels), **OOS-ENG2-1+2** (Ward never fires on a triggered ability).
+
+**Next session candidates** (highest-yield first):
+- **Dispatch FEEDBACK-1** (`scutemob-192`) from the fresh session — brief is complete in ESM.
+- **PB-DX20** (v3 queue next) or the worker-flagged seeds above once FEEDBACK-1's plan lands.
+- Third human playtest — the run closed every functional finding from playtest 2; the success
+  criterion adopted for the feedback plan is "playtest 3 triages to UX-only".
+
+**Hazards** (carrying forward):
+- All oversight-#2 hazards stand (verbatim working_branch attests; commit brief inputs to main
+  pre-dispatch; both-append CLAUDE.md conflicts → union-merge, demote to Prior).
+- kitty crash kills all worker tabs but NOT worktrees — recovery = relaunch in the same worktree
+  with a resume prompt; check `git log main..HEAD` + `git status` before assuming loss. Worker
+  relaunch requires explicit user approval (retraction rule).
+- `~/.local/bin` can drop off the coordinator shell PATH after a kitty crash — `export
+  PATH="$HOME/.local/bin:$PATH"` per call.
+
+**Commit prefix used**: `scutemob-N:` (workers) / `merge:` / `chore:`
+
+
 ### 2026-08-02 (oversight #2 — OOS pivot: re-rank v3, triage 2, PB-DX19, UI-4, adjudication) [rotated]
 
 **Date**: 2026-08-02 (oversight session #2 — OOS pivot: re-rank v3, triage 2, PB-DX19, UI-4, adjudication)
@@ -4810,42 +4873,3 @@ same-day. Merges: `f28df527` (174 UI-1), `d04f42a1` (179 CARDS-1), `83bfdba5` (1
 > seed lists) live in: CLAUDE.md "Last Updated" (DP9/DP10 verbatim), the audit doc
 > `docs/audits/decision-point-audit.md` §5/§8/§8.1 (every row updated at ship time), and the
 > merge commits listed in the Last Handoff above.
-
-### 2026-07-19 (oversight — PB-OS queue complete, OS4..OS11 + OS4b) [rotated]
-
-**Date**: 2026-07-19 (oversight session — fully autonomous coordinator chain, user-directed "stop after PB-OS11")
-**Workstream**: W6 (PB-OS queue) — **QUEUE COMPLETE**
-**Task**: PB-OS4..OS11 + OS4b dispatched/collected (`scutemob-130`/`134`..`141`), audit-#2 DOCB-1..3 executed (`131` inline, `132`/`133` dispatched). Final merge `bd220b00`, close-out `14497516`.
-
-**Completed**:
-- **PB-OS4** (`scutemob-130`, `7ee96913`, SHIPPED NARROWED): `ExileSourceAndReturnTransformed` (CR 400.7/712.18); reviewer HIGH → OOS-OS4-2; edgar UN-authored (would ship wrong state); PROTOCOL 18→19 / HASH 55→56.
-- **PB-OS4b** (`scutemob-134`, `77d411a0`, correctness insert): face-aware ability gathering wire-neutral; **docent + bloodline Complete-but-wrong → verified Complete by execution**; **OOS-OS4-2 was only PARTIALLY closed here** (3 CR 712.8d/e residuals survived — `replacement.rs:1180-1191`, `:1907-1913`, `face.rs:118-148`; tracked as OOS-RS-3, `scutemob-142`) — ✅ **now FULLY CLOSED by PB-RS4 (`scutemob-146`, 2026-07-26)**; OOS-OS4-3 filed.
-- **PB-OS5..OS11** (`scutemob-135`..`141`): relative-count amount (shared_animosity, piledriver); flip-condition sub-batch (delver, legions_landing, thaumatic_compass); defending-player filter (silumgar); LookAtTopThenPlace + min_cmc (birthing_ritual, growing_rites); YouControlYourCommander (skyhunter); distinctness + Jitte trigger (umezawas_jitte); RemoveCounter lowering + filtered-attack trigger (workhorse, anim_pakal, kreat, hermes + 2 backfills). PROTOCOL 19→**26**, HASH 56→**63**, one justified bump per PB.
-- **DOCB-1..3** (audit #2): state resync (inline), skill rewiring off retired docs + /start-work RETIRED + /collect state-sync step (`132`), 10-item polish (`133`, 1 item coordinator-fixed).
-- **Totals**: coverage 62.1% → **62.9%** (1,135/1,804); tests 3476 → **3560+**; +18 flips, 4 Complete-but-wrong made right, 3 known_wrong redeemed; 2 seed premises falsified-and-reframed against oracle; every review clean or fixed.
-
-**Not done / deferred**:
-- ~~**Rider-seed mini-triage** (8 seeds)~~ ✅ **DONE `scutemob-142`** (2026-07-19) → `memory/primitives/rider-seed-triage-2026-07-19.md`. Was 8 seeds; actually 11 OS-series IDs (OOS-OS10-1 phantom, OOS-OS7-3 never filed) + OOS-OS4-1 restored + **6 new seeds filed (OOS-RS-1..6), of which 4 are correctness-class and outrank every previously-filed seed**, 2 live-wrong on `Complete` cards. Ranked queue R1..R11; first dispatch **PB-RS1 (OOS-RS-1, library top/bottom inversion)** fully specified.
-- scutemob-127 (abilities-corpus distillation) still backlog; dormant/defer backlog (`oos-retriage-plan` §1c/§1d); retired-scripts worklist; M10.
-
-**Next session candidates** (highest-yield first):
-- ~~**PB-RS1**~~ ✅ **SHIPPED `scutemob-143`** (2026-07-19, merge `56697a00`): camp A (top=last) CR-confirmed; `Zone::top_n` shared helper across all 4 arms + a 5th inverted read caught in review; bottom-writes rerouted; 41-card roster repaired via `all_cards()` (grep's 47 over-counted); 5 golden scripts + 2 harness fixtures + 1 stale-convention test reconciled; PROTOCOL 26 / HASH 63 unchanged; OOS-RS1-1 filed (`ZoneTarget::Library` position inert — muxus/OOS-OS8-2 STILL gated).
-- ~~**PB-RS2**~~ ✅ **SHIPPED `scutemob-144`** (2026-07-20, merge `86176ff7`): `Command::ActivateAbility` **and** `TapForMana` gain hybrid/Phyrexian payment fields (PROTOCOL 26→**27**, machine-forced; HASH 63); flatten relocated to `card-types` as shared method; fail-loud residue guard in `can_spend`/`spend`; simulator plan-resolution (non-suicidal, CR 104.3b); **birthing_pod inert→Complete (OOS-OS8-1 CLOSED)**; 7 filter lands stop being free (stay `known_wrong`, output-side mode issue remains); self-caught CR 119.4 combined-life bug + pre-existing casting.rs 119.4 hole fixed; coverage **1,136/1,804 = 63.0%**.
-- ~~**PB-RS3**~~ ✅ **SHIPPED `scutemob-145`** (2026-07-20, merge `b1c21909`): card-def `AtBeginningOfCombat` sweep in `begin_combat` (fifth copy of the proven sibling template); **3 flips** (loyal_apprentice, siege_gang_lieutenant, + probe-earned goblin_rabblemaster — its "needs new must-attack GameRestriction" blocker was misframed, all pieces existed) + helm_of_the_host integrity repair (explicit `Complete` marker); mirage_phalanx note amended (now wrong both directions, contained by `known_wrong`); PROTOCOL 27 / HASH 63 unchanged; seeds filed OOS-RS3-1..4 (RS3-1 marked **rankable** — queue-time intervening-if, CR 603.4) + OOS-RS2-1 (TurnFaceUp unflattened cost). Coverage **1,139/1,804 = 63.1%**.
-- ~~**PB-RS4**~~ ✅ **SHIPPED `scutemob-146`** (2026-07-26): face-aware residuals — **OOS-RS-3 CLOSED, and with it OOS-OS4-2 is fully closed**. Both `replacement.rs` gathering sites (`apply_self_etb_from_definition`, `register_permanent_replacement_abilities`) now read `def.effective_abilities(entering_is_transformed)` via a live `fizzle_object` read rather than a threaded parameter (justified per-call-site: `is_transformed` is written in exactly two places, both strictly before every consumer). `deregister_face_statics` extended from `Static`-only to **all ten** registered families through a new `remove_one_registration` inverse helper mirroring `register_static_continuous_effects` arm for arm — the AC's "justified subset + re-filed seed" escape hatch was **not** needed — plus a source-scan drift gate (`tests/core/face_dereg_parity.rs`) that fails the build if a family is added to one function and not the other. **A fourth deviation was found during planning and fixed**: the CR 714.3b precombat-main Saga lore sweep and `fire_saga_chapter_triggers`'s `ability_index` namespace both read the front face, the latter disagreeing with all **8** of its consumers (docs had claimed 3) — same CR 712.8d/e root cause, and the only defect in the batch reachable with a shipped card def (`fable_of_the_mirror_breaker`, which stays `partial`). **0 flips** as predicted, 2 integrity repairs; 17 fail-before/pass-after probes with verbatim failure messages recorded; review 0 HIGH / 1 MEDIUM / 11 LOW, all 12 dispositioned (the MEDIUM — degenerate probe field values — took two attempts: non-default values alone proved non-discriminating, so both tests were rebuilt around a phantom same-source entry). Also corrected a pre-existing CR miscitation (614.16a does not exist) and a false claim in the old `replacement.rs` comment (four `Complete` MDFC lands *do* declare back-face self-ETB replacements; they are unreachable only because MDFC face-selection is unimplemented). PROTOCOL 27 / HASH 63 unchanged. Seeds filed: **OOS-RS4-1** (stack craft / `ExileSourceAndReturnTransformed` never register permanent replacements or queue ETB triggers), **OOS-RS4-2** (4 `Complete` MDFC lands with permanently-unreachable back faces), **OOS-RS4-4** (transform between trigger queue and resolution can desync a CardDef ability index, CR 113.7a). Coverage unchanged at **1,139/1,804 = 63.1%**.
-- ~~**Next: R5** (Anim Pakal LKI counters, OOS-RS-4) per `rider-seed-triage-2026-07-19.md` §5 banner; weigh OOS-RS3-1 insert + OOS-RS2-1 rider.~~ **STRUCK 2026-07-31 by the re-rank (`scutemob-159`).** The **PB-RS queue is RETIRED**; the authoritative queue is `memory/primitives/seed-rerank-2026-07-27.md` §4, **PB-DX1..PB-DX18**. Dispositions: **R5 retired** (LOW, 0 flips, and the obvious `CounterCountAtLastKnownInformation` swap returns 0 — that variant is LBA-only and Anim Pakal's trigger is `WheneverYouAttack`); R6→**PB-DX5** (re-ranked *up*: CR 611.2c is unimplemented and **7 `Complete` defs are live-wrong in ordinary play**, not the "0 flips" its filing claimed); R7→PB-DX13; R8→PB-DX12; R9→PB-DX16; R10→PB-DX14; R11→PB-DX17 (and `karazikar` has no def at all, so its "1 flip" is a new authoring). **OOS-RS3-1 was already CLOSED by PB-DP6** — all five `CardDefETB` sweeps gate at queue time; the banner had advertised it as the next insert for a week. **OOS-RS2-1 re-ranked up to PB-DX6** (still live: `can_spend`'s residue guard is `debug_assert`-only, so `kitchen_finks`'s two `{G/W}` pips are free in release). **`OOS-RS1-2` is a phantom** — never filed; strike it.
-- ~~**PB-DX1**~~ ✅ **SHIPPED `scutemob-160`** (2026-08-01): **OOS-DP6-1 CLOSED**, with both riders (**OOS-DP6-5** TurnFaceUp resolution re-check, **OOS-DP6-9** haunt at both ends — and *both* their §8.1 cites were stale and corrected on closure: `resolution.rs:7369`→`:7564`, `:5351`→`:5494`). Fix **(a)** as a **variant**, `InterveningIf::CardDef(Box<Condition>)`, not a field on `TriggeredAbilityDef`: a field would have forced `None` at ~140 struct literals across 84 files and left a permanent "did you read the other field too?" hazard; the variant costs zero construction-site churn, makes an unclassified case a compile error, and repairs all 13 queue sites + the 1 resolution site at once because every dispatch already routes through `check_intervening_if`. Alternative **(b)** rejected on a ground the seed never anticipated — a registry re-read discards `layers::expect_characteristics`, so Humility/Dress Down would stop suppressing all 34 trigger events (a CR 613.1f regression *larger than the bug*), and it discards every runtime filter the lowering exists to carry and breaks tokens/copies. Alternative **(c)** rejected with evidence stronger than OOS-DP6-2: `replay_harness.rs:2642`/`:2781` already carry an *"Index-namespace fix (2026-07-09)"* comment recording that **this exact trick on this exact function** was the root cause of the Monastery Mentor / Leaf-Crowned Visionary filter-bypass bug — and the fix applied then was (a). A three-valued `InterveningIfMoment { TriggerTime, TriggerTimeLookBack, Resolution }` classifies the 14 call sites (8/5/1), independently re-derived twice. **PROTOCOL 31→32 AND HASH 68→69 — the brief's "HASH only" was half wrong** (`Characteristics` is in `CLOSURE_MUST_CONTAIN`); planning predicted the correction *and stated the falsifier in advance*. **Two things the brief did not contain.** (1) `once_per_turn` is dropped by the **same** lowering at 31 of 34 sites, and three `Complete` deck-legal defs over-fire (`welcoming_vampire`, `elvish_warmaster`, `whispering_wizard` — `elvish_warmaster`'s is a *self-reinforcing cascade*, since the Elf token it makes re-qualifies its own trigger); wire-neutral, fixed in the same batch. (2) The **review's HIGH was a regression this batch introduced**: `aurelia_the_warleader`'s `Condition::IsFirstCombatPhase` is a *proxy* for "attacks for the first time each turn", and once the condition actually started being evaluated the proxy began **suppressing** a legitimate trigger (first attack occurring in an extra combat granted by Aggravated Assault / Moraug / Port Razer) — the one failure direction PB-DP6's hard constraint 3 forbids. The plan had declined to re-author her on the grounds it would "change which mechanism T1 exercises"; the reviewer **falsified that using the batch's own T12b**, which already drives the identical shape on Karlach. Yield honesty: **1 flip, not 2** — `karlach_fury_of_avernus` `known_wrong`→`Complete` (MCP ruling #11 verbatim: *"Karlach doesn't have to be among the attacking creatures"*), `tatyova_steward_of_tides` **stays `partial`** (two untouched blockers), and the review caught its `ControlAtLeastNOtherLands(6)` meaning 6 where oracle says **seven** — inert before this batch because the condition was being discarded, live afterwards. **Next: PB-DX2** (`ChooseDredge` free-card exploit, wire-neutral), then **PB-DX3** (2 flips, zero engine change).
-- M10 per strategic review (protocol machinery battle-tested: 8 bumps this queue, all machine-forced).
-- Retired-scripts worklist (61 scripts, each names its one blocker).
-
-**Hazards** (carrying forward):
-- **Attestation branch-name drift → false `esm worktree check` conflicts AND false provisioned-damage ("unknown (diff failed)")**: always attest the branch verbatim from `esm worktree create` output; `git merge-tree --write-tree` is the arbiter when the check screams.
-- Harness kills long background poll loops after ~1 iteration — use the Monitor tool for worker-ready watches, not restart-churn Bash loops.
-- `esm update` may clobber the DOCB-2 customizations in provisioned skills (collect/dispatch) — re-apply from `scutemob-132` branch history if doctor/update touches them.
-- Pausing a queue must include state resync on resume (audit-#2 N4; now encoded in /collect step 7).
-- PB yield estimates stay unreliable in BOTH directions (OS4: 4→0+narrowed; OS11: 2→6) — verify premises against oracle before building; falsified seeds are wins.
-
-**Commit prefix used**: worker `scutemob-N:`/`W6-prim:`, `merge:`, coordinator `chore:`.
-
----
-

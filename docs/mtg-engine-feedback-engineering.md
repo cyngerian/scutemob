@@ -1,6 +1,6 @@
 # Feedback Engineering for Alpha
 
-<!-- last_updated: 2026-08-04 -->
+<!-- last_updated: 2026-08-05 -->
 
 > **Status: STRATEGY + DISPATCH PROPOSAL.** **Row 1 (≡ PB-DX22) is SHIPPED** as of 2026-08-03
 > (`scutemob-196`, merge `95f53b78` — see §2.1); rows 2-8 are unimplemented. This file is written in
@@ -988,8 +988,10 @@ bug-report artefact's missing free-text field.
 
 ## 5. Seeds this task would file (none filed here — this branch may touch one file)
 
-> **FILED 2026-08-04 (`scutemob-199`)**: all nine rowed into `docs/audits/decision-point-audit.md`
-> §8.1, each chain-verified at HEAD first. Three changed between spec and filing: **`OOS-FB1-5` is
+> **FILED**: all nine rowed into `docs/audits/decision-point-audit.md` §8.1 — first by
+> `scutemob-195` (2026-08-03), again by `scutemob-199` (2026-08-04, misled by a stale "NOT
+> filed" bullet), **deduplicated 2026-08-05** keeping the `scutemob-199` set, each row
+> chain-verified at HEAD. Three changed between spec and filing: **`OOS-FB1-5` is
 > CLOSED on arrival** (PB-DX32 Stage 6 built its instrument), **`OOS-FB1-6`'s absolute claim is
 > corrected** (`docs/sr-remediation-plan.md:215` holds a stale ~13-min datum; substance stands),
 > and **`OOS-FB1-3`'s cite re-anchors** to `local_game.rs:1175`/`:938`. The registry rows, not the

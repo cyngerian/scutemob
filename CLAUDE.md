@@ -479,8 +479,10 @@
   (`fuzzer.rs:270`); the decision-point gate already exists (`decision_gate.rs`, ratchet 80) —
   extend, don't rebuild; the rejection channel is bot-path-only (`local_game.rs:564`).
   Tests unmoved (0 code lines, 1 doc file); PROTOCOL **35** / HASH **72** by construction.
-  Seeds: **OOS-FB1-1..9** specified in doc §5, **NOT filed** (conflict bar) — filing is a
-  successor step. Full handoff: ESM task comments on `scutemob-192` (scutemob-183 pattern).
+  Seeds: **OOS-FB1-1..9** specified in doc §5; **FILED** by `scutemob-195` (2026-08-03) and
+  again by `scutemob-199` (2026-08-04, this bullet's stale "NOT filed" the cause) —
+  **deduplicated 2026-08-05**, the chain-verified set kept; see the registry banner.
+  Full handoff: ESM task comments on `scutemob-192` (scutemob-183 pattern).
 - **Prior**: 2026-08-02 — **UI-6 SHIPPED** (`scutemob-194`, merge `dd5cb47d`; **G9** of
   `memory/playtest-triage-2026-08-02b.md`, row 8 — the **last** row of its successor table, which
   is now fully dispatched).
