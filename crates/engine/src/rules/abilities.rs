@@ -2985,6 +2985,34 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
     // `trigger_zone` ability needed that coverage does not exist in the corpus
     // today (measured: the `trigger_zone: Some(_)` population is exactly 3 defs,
     // stage 1). Filed as a seed rather than widened further.
+    //
+    // Per-caller GRANULARITY (fix cycle, review Finding 3 -- plan §10 risk #2,
+    // not discharged at ship time): `arrived_in_graveyard_this_batch` is built
+    // fresh from whichever `events` slice THIS caller passes, so its accuracy as
+    // "one CR 603.10a simultaneous batch" depends entirely on what that caller
+    // considers one batch. Measured by enumerating every `check_triggers` call
+    // site:
+    //   - `sba.rs:97` -- EXACT. `events` is `apply_sbas_once`'s own return value
+    //     for ONE fixpoint pass, so this is precisely one CR 704.3 simultaneous
+    //     SBA batch.
+    //   - `resolution.rs` (the post-resolution call, `abilities::check_triggers`
+    //     inside stack-object resolution) -- COARSER. `events` there is the
+    //     WHOLE resolution's accumulated events vec, spanning every sequential
+    //     sub-effect of one spell/ability resolution. A resolution whose effects
+    //     read "sacrifice a creature, THEN destroy target creature" pushes both
+    //     deaths into ONE `events` vec; if the sacrificed creature is itself a
+    //     `trigger_zone: Graveyard` source (Nether Traitor's shape), its
+    //     graveyard id lands in the look-back set from the FIRST sub-effect,
+    //     wrongly suppressing what should be a live trigger off the SECOND
+    //     sub-effect's death (CR 603.10a asks whether the ability existed
+    //     immediately prior to THAT event -- and by then it already did,
+    //     having arrived earlier in the SAME resolution). Direction:
+    //     over-suppression. Filed as `OOS-DX24-7`.
+    //   - `combat.rs:846`/`:1743`, `engine.rs:34`/`:2499` -- NOT audited by this
+    //     batch (out of the plan's scope; `engine.rs:34` in particular is
+    //     `check_and_flush_triggers`, shared by nearly every `Command` arm, so
+    //     its own granularity is a per-command-handler question that would need
+    //     its own investigation).
     let arrived_in_graveyard_this_batch: std::collections::HashSet<ObjectId> = events
         .iter()
         .filter_map(|event| match event {
@@ -4170,6 +4198,21 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         // DFC is ordinary, and the read side
                                         // (`resolution.rs`) is already face-aware -- read
                                         // the same face here.
+                                        //
+                                        // Residual, stated not glossed (fix cycle, review
+                                        // Finding 7): this reads `is_transformed` at QUEUE
+                                        // time; `resolution.rs:2177`/`:2209` documents its
+                                        // own read as a CONSUME-time contract. They are the
+                                        // SAME EXPRESSION, not the same EVALUATION -- a
+                                        // permanent that transforms between this queue point
+                                        // and the trigger's later resolution would desync.
+                                        // Zero corpus exposure today (stage 1 measured 0
+                                        // back-face Q3/Q4 shapes in the whole corpus), and
+                                        // this fix is still strictly better than the
+                                        // pre-PB-DX24 code on every state reachable today.
+                                        // The durable fix is snapshotting the face onto
+                                        // `PendingTrigger` itself, which is a HASH bump and
+                                        // out of scope here; filed as OOS-DX24-8.
                                         let carddef_indices: Vec<usize> = def
                                             .effective_abilities(src_obj.is_transformed)
                                             .iter()
@@ -5221,6 +5264,8 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
                                         // source read via `fizzle_object` above.
                                         // OOS-DX1-4 Q4 (PB-DX24): same argument as Q3 --
                                         // the read side (`resolution.rs`) is face-aware.
+                                        // Same queue-time-vs-consume-time residual as Q3
+                                        // (fix cycle, review Finding 7) -- OOS-DX24-8.
                                         let carddef_indices: Vec<usize> = def
                                             .effective_abilities(src_obj.is_transformed)
                                             .iter()
