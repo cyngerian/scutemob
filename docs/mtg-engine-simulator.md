@@ -355,8 +355,13 @@ declaration in the same combat phase with `GameStateError::AlreadyDeclaredAttack
 engine's legality now agree, and there is nothing left for a client-side preference
 damper to guard. `HeuristicBot`'s `RepeatKey` lost its `DeclareAttackers` variant
 entirely; the MR-M11-09 combat-entry-reset property survives on `DeclareBlockers`, the
-one remaining combat-scoped key (CR 509.1a is unaffected — each defending player may
-still declare independently, `OOS-DX21-2`). `local_game_playthrough.rs`'s `PolicyState`
+one remaining combat-scoped key. **`OOS-DX21-2` (review finding L7, corrected): the
+attacker-side offer suppression was NOT mirrored onto the blocker side** —
+`legal_actions.rs` still offers `DeclareBlockers` after `defenders_declared` already
+contains the player (the CR 509.1a twin of the hole just closed on the attacker side),
+deliberately not widened into per the PB-DX21 brief; CR 509.1a's own guard
+(`AlreadyDeclaredBlockers`) still rejects the repeat, unaffected either way.
+`local_game_playthrough.rs`'s `PolicyState`
 is gone; `test_s8_scripted_human_playthrough_is_clean_on_five_seeds` runs with no cap at
 all, which is the closure proof: the policy only ever submits an action the game just
 offered it, so a clean run means offer and engine legality agree end to end. The

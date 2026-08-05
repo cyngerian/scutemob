@@ -70,14 +70,27 @@ pub fn card() -> CardDefinition {
             // PlayerState.attackers_declared_this_turn. Transforms even if some of
             // those creatures later leave combat (ruling 2017-09-29).
             //
-            // Same residual as `windbrisk_heights.rs` (`OOS-DX21-1`, unfixed by
-            // PB-DX21): on a turn with an extra combat (CR 500.8/506.5), the
-            // WheneverYouAttack trigger fires again in combat 2 and re-reads
-            // `attackers_declared_this_turn`, which PB-DX21 protects only WITHIN
-            // one combat -- so attacking with 1 creature in combat 2 after 3 in
-            // combat 1 overwrites the count to 1 and this trigger evaluates false,
-            // even though CR 508.6's "attacked with three or more creatures" is a
-            // whole-turn count across every combat phase. Comment only; no
+            // PB-DX21 review (finding M3): this card is NOT a member of
+            // `OOS-DX21-1` (the windbrisk_heights.rs residual) -- do not migrate
+            // it there. This is a CR 508.3d "Whenever [a player] attacks" trigger:
+            // it fires PER DECLARATION and its count reads the SAME declaration
+            // that fired it (ruling 2017-09-29: "The last ability of Legion's
+            // Landing only counts creatures that you declare as attacking
+            // creatures" -- a per-declaration, not per-turn, statement; the
+            // second ruling's "once you've attacked with three or more creatures"
+            // is about creatures leaving combat AFTER that one declaration, not
+            // about accumulating count across separate declarations). CR 508.6
+            // ("has attacked [a player]") is a boolean per-player predicate with
+            // no count or turn-scope content and does not apply to this trigger's
+            // gate at all -- an earlier draft of this comment cited it in error.
+            // So attacking with 3 in combat 1 (transforms) and then 1 in combat 2
+            // (does not re-transform, already transformed; a hypothetical second
+            // copy would correctly evaluate false on 1 < 3) is the ENGINE'S
+            // CORRECT behaviour for this card's own trigger, not a residual to
+            // close. Windbrisk Heights' activation condition, by contrast, is
+            // genuinely turn-scoped ("if you attacked with three or more
+            // creatures this turn", ruling 2007-10-01, "at any point in the
+            // turn") -- that is the sole member of `OOS-DX21-1`. Comment only; no
             // completeness change.
             AbilityDefinition::Triggered {
                 once_per_turn: false,

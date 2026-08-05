@@ -295,10 +295,12 @@ fn config(seed: u64) -> LocalGameConfig {
             // binding constraint.
             max_commands: MAX_TURNS * 800,
             max_consecutive_passes: 500,
-            // Off: nothing here reads the journal, and a 5,000-command game would
-            // retain a cloned `Vec<GameEvent>` per command for no reason.
-            // Off: nothing here reads the journal, and a 1,000-command game would
-            // retain a cloned `Vec<GameEvent>` per command for no reason.
+            // Off: nothing here reads the journal, and a 20,000-command game
+            // (MAX_TURNS * 800, above) would retain a cloned `Vec<GameEvent>` per
+            // command for no reason. (Review finding L8: this comment was
+            // duplicated with two different, both-stale command-count guesses --
+            // confirmed pre-existing via `git log -S`, from this file's original
+            // commit `222ff84f` (`scutemob-173`), not introduced by PB-DX21.)
             record_journal: false,
         },
     }

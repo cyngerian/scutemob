@@ -558,6 +558,17 @@ fn test_dx32_random_bot_waste_ratio_is_bounded() {
 /// already use) is KNOWN, not hoped, to produce them: measured at implementation time,
 /// 4 raw `no_orphaned_tokens` reports (all the same Treasure token, turn 24), 0 hard
 /// violations, 0 leaked tokens in the final state.
+///
+/// **Re-measured after PB-DX21** (2026-08-04, `scutemob-200`, review finding
+/// M7): still 4 raw reports, UNMOVED, and this is PROVEN, not just observed:
+/// disabling PB-DX21's `legal_actions.rs` offer-suppression clause entirely
+/// and re-running this exact seed produces a byte-identical
+/// `command_count`/`rejection_count`/`transient_violations().len()` triple —
+/// the suppression window (a same-active-player re-priority within one
+/// `DeclareAttackers` step, which needs a mid-step instant response) is
+/// simply never reached by this specific low-turn, low-complexity trajectory,
+/// unlike the T2.2/T3.1 gate-config aggregate above, which spans a wider
+/// 3-seed sample and does move.
 #[test]
 fn test_dx32_orphaned_tokens_are_transient_and_the_end_state_is_clean() {
     let game = play_fuzz_shaped(2, 4, 25);
@@ -630,6 +641,10 @@ fn test_dx32_leaked_token_at_game_end_is_a_hard_violation() {
 /// collapse, and the FIRST turn number survives); the real-seeded half (seed 2, the
 /// same fixture T4.1 uses) proves the collapse on genuine engine output, matching
 /// Stage 0's own 94 -> 20 collapse at full scale (§0.3).
+///
+/// **Re-measured after PB-DX21** (review finding M7): the real-seeded half
+/// still measures raw=4/distinct=1, UNMOVED -- same fixture as T4.1, same
+/// ablation-proven reason (see T4.1's doc).
 #[test]
 fn test_dx32_distinct_collapses_checkpoint_weighting() {
     let hand_built = vec![
@@ -897,6 +912,14 @@ fn test_dx32_row_id_for_covers_every_observable_row() {
 /// Deterministic (re-run twice at implementation time, identical partition both
 /// times), so this is asserted EXACTLY, not as a floor, and the message on failure
 /// tells the reader this is a finding to report, not a knob to retune blindly.
+///
+/// **Re-measured after PB-DX21** (review finding M7): identical partition,
+/// UNMOVED -- `{"discard_cards", "scry", "search_library", "triggered_targets"}`
+/// reached, `{"surveil"}` never reached, across 10 seeds x 60 turns. Less
+/// surprising than T4.1's byte-exact match: this is a coarse binary
+/// reached/never-reached membership test over a much larger aggregate (10
+/// seeds), so a trajectory perturbation would have to flip EVERY seed's
+/// outcome for `surveil` specifically to move this partition, which none did.
 #[test]
 fn test_dx32_a_fuzz_run_reaches_at_least_one_served_row() {
     let mut combined = mtg_simulator::DecisionCoverage::default();

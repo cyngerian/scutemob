@@ -49,14 +49,25 @@ pub struct CombatState {
     /// once-per-combat "declare attackers" turn-based action this combat phase.
     ///
     /// `true` even for an **empty** declaration: CR 508.1a's "if any" makes the
-    /// empty choice a completed declaration, and CR 508.8 defines the game's own
-    /// downstream behaviour for it (skip declare-blockers/combat-damage). Do
-    /// **not** replace this field with `!attackers.is_empty()` -- see plan
-    /// `memory/primitives/pb-plan-DX21.md` §1.3 for the three CR-grounded reasons
-    /// that guard is unsound (an empty declaration is a live, shipped client
-    /// action; a rejected re-declaration must not be indistinguishable from "no
-    /// declaration yet"; and CR 508.4/506.3 populate `attackers` directly,
-    /// bypassing declaration entirely).
+    /// empty choice a completed declaration. Do **not** replace this field with
+    /// `!attackers.is_empty()` -- see plan `memory/primitives/pb-plan-DX21.md`
+    /// §1.3 for the three CR-grounded reasons that guard is unsound (an empty
+    /// declaration is a live, shipped client action; a rejected re-declaration
+    /// must not be indistinguishable from "no declaration yet"; and CR
+    /// 508.4/506.3 populate `attackers` directly, bypassing declaration
+    /// entirely).
+    ///
+    /// **This field is NOT read by CR 508.8's skip predicate, and does not close
+    /// that residue** (PB-DX21 review, finding M1). `rules::turn_structure::
+    /// advance_step` decides "skip declare-blockers and combat-damage" from a
+    /// STEP-END read of `combat.attackers.is_empty()` (`turn_structure.rs:43-47`
+    /// at the time of writing), not from this marker -- a pre-existing deviation
+    /// from CR 508.8's own declaration-TIME predicate (declare one attacker, then
+    /// remove it from combat before the step ends, and the skip still fires even
+    /// though creatures WERE declared this combat). This field answers a
+    /// different question ("was the CR 508.1 turn-based action PERFORMED") from
+    /// "how many attackers survive to step end", and the two must not be
+    /// conflated. See `docs/audits/decision-point-audit.md` for the tracking id.
     ///
     /// Creatures **put onto the battlefield attacking** (CR 508.4, e.g. Ninjutsu)
     /// populate `attackers` without ever setting this flag -- CR 508.4 says such

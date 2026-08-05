@@ -18,9 +18,20 @@
 // `BeginningOfCombat`). On a turn with an extra combat (`Effect::AdditionalCombatPhase` is
 // implemented), attacking with three in combat 1 and then one in combat 2 still drops the
 // count to one and this land still goes dead for the rest of the turn, which the printed card
-// does not do. It is also still not deduplicated by creature. Filed as `OOS-DX21-1`; closing
-// it needs the field to become a per-turn accumulation with per-creature dedup (CR 508.6 "has
-// attacked"), which is a different primitive from PB-DX21's once-per-combat guard.
+// does not do (ruling 2007-10-01: "at any point in the turn"). It is also still not
+// deduplicated by creature. Filed as `OOS-DX21-1`; closing it needs the field to become a
+// per-turn accumulation with per-creature dedup, which is a different primitive from
+// PB-DX21's once-per-combat guard.
+//
+// `OOS-DX21-1` is SCOPED TO THIS CARD ALONE (PB-DX21 review, finding M3) -- do NOT migrate
+// `legions_landing.rs`'s "Whenever you attack with three or more creatures" trigger into this
+// class. That trigger is CR 508.3d's per-DECLARATION family: it fires once per declaration and
+// its count gate correctly reads the SAME declaration that fired it, so attacking with 1
+// creature in a later combat correctly does not (re-)satisfy it -- that is the card working
+// as printed, not a defect. This card's activation condition is the genuinely turn-scoped one
+// (ruling 2007-10-01, "at any point in the turn"), which is why it and only it is the residual.
+// CR 508.6 ("has attacked [a player]") is a boolean predicate with no count or turn-scope
+// content; it does not warrant either card's behaviour and must not be cited for this class.
 //
 // An earlier draft of this comment cited the 2007-10-01 ruling as though the primitive
 // implemented it; it does not, and asserting fidelity a primitive does not have is exactly

@@ -75,6 +75,16 @@ pub fn handle_declare_attackers(
         return Err(GameStateError::AlreadyDeclaredAttackers(player));
     }
     // Initialize CombatState if not already set (may be set by BeginningOfCombat action).
+    //
+    // Review finding L2 (pre-existing, not introduced by PB-DX21): only the
+    // guard immediately above this comment avoids installing a `CombatState`
+    // as a side effect of a rejected command -- every OTHER rejection in this
+    // function (illegal attacker, tax, enlist, exert, below) runs AFTER this
+    // init, so a non-guard rejection still installs a fresh `CombatState`.
+    // Invisible through `process_command` (which drops the moved `GameState`
+    // on `Err`); visible to a direct-handler caller like this file's own T6.
+    // Note only, per the review -- moving this init below the validation loop
+    // is left to a successor batch.
     if state.combat.is_none() {
         state.combat = Some(CombatState::new(player));
     }
@@ -747,6 +757,16 @@ pub fn handle_declare_attackers(
             }
         }
     }
+    // SR-4 / review finding L1: `state.combat` is provably `Some` here -- the
+    // guard above only fires against an already-`Some` `CombatState`, and
+    // `:69-72`'s init runs unconditionally when it was `None`. Loud, not
+    // silent, if a future edit ever breaks that: skipping the marker set below
+    // would reopen the exact defect PB-DX21 closes.
+    debug_assert!(
+        state.combat.is_some(),
+        "handle_declare_attackers: state.combat must be Some here (CR 508.1) -- \
+         initialized above, and nothing between there and here clears it"
+    );
     // Record attackers in combat state.
     if let Some(combat) = state.combat.as_mut() {
         for (attacker_id, target) in &attackers {

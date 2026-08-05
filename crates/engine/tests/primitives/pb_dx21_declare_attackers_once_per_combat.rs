@@ -12,22 +12,28 @@
 //! record that it had happened.
 //!
 //! `memory/primitives/pb-plan-DX21.md` is authoritative. T1-T7 below are its §4;
-//! T8 is included (not omitted) per its own "cheap, so include it" framing.
+//! T8 is included (not omitted) per its own "cheap, so include it" framing. T2b
+//! (review finding M2) covers the CR 603.3d suspended-trigger sub-case the plan's
+//! own §10 risk 4 flagged and left unpinned.
 //!
 //! **VERDICT 2 (plan §1.3), the decisive one**: the brief's stated preference —
 //! key the guard on `!combat.attackers.is_empty()` — is refused. An EMPTY
 //! declaration is a real, CR 508.1a-legal, live client action
-//! (`params.rs:474`/`api.rs:298-306`, "a legal, irreversible 'I attack with
-//! nothing'"), so `combat.attackers` cannot distinguish "declared nothing" from
+//! (`params.rs:474`/`tools/play-server/README.md:294-303`, "a legal,
+//! irreversible \"I attack with nothing\" for that combat" -- corrected
+//! citation, review finding L4: the quoted word lives in the README, not
+//! `api.rs`), so `combat.attackers` cannot distinguish "declared nothing" from
 //! "has not declared". T4 is the probe that makes this real; its own doc records
 //! the second, alternate-guard revert that proves the distinction.
 
+use mtg_engine::cards::card_definition::TargetRequirement;
 use mtg_engine::state::hash::HashInto;
 use mtg_engine::state::stubs::ActiveRestriction;
 use mtg_engine::{
     all_cards, card_name_to_id, enrich_spec_from_def, process_command, AttackTarget,
-    CardDefinition, CardRegistry, CombatState, Command, GameEvent, GameRestriction, GameState,
-    GameStateBuilder, GameStateError, ManaCost, ObjectId, ObjectSpec, PlayerId, Step, ZoneId,
+    CardDefinition, CardEffectTarget, CardRegistry, CombatState, Command, Effect, EffectAmount,
+    GameEvent, GameRestriction, GameState, GameStateBuilder, GameStateError, ManaCost, ObjectId,
+    ObjectSpec, PlayerId, Step, TriggerEvent, TriggeredAbilityDef, ZoneId,
 };
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -141,11 +147,18 @@ fn advance_until(
 /// keeps her untapped after attacking, so `combat.rs`'s already-tapped check
 /// (an accident, not a guard — plan §4 T1) cannot mask the defect.
 ///
-/// Pre-fix behaviour (Stage 0, `memory/primitives/pb-DX21-stage0.md`): the
-/// second command returned `Ok`, and `combat.attackers.insert(*attacker_id, ..)`
-/// OVERWROTE Samut's target from p2 to p3 — the seed's "overwrites
-/// combat.attackers" wording describes the per-key overwrite of an `OrdMap`,
-/// not a replace of the whole map.
+/// **Review finding M4, corrected**: the second declaration is issued as
+/// `process_command(state.clone(), ..)`, and `process_command`'s `Err` arm
+/// carries no `GameState` -- so ANY mutation the rejected call would have made
+/// (pre-fix or post-fix) lands only in the discarded clone and is structurally
+/// unobservable through assertion (3), which reads the pristine ORIGINAL
+/// `state`. Assertion (3) is therefore a POSITIVE CONTROL proving the first,
+/// accepted declaration's target survives untouched -- it holds under ANY
+/// engine behaviour and is not what discriminates fixed from unfixed. The
+/// discriminator is assertion (2)'s `expect_err`/`AlreadyDeclaredAttackers`
+/// match alone: pre-fix (Stage 0, `memory/primitives/pb-DX21-stage0.md`), the
+/// second command returned `Ok` instead of `Err`, which this test's `expect_err`
+/// panics on.
 fn test_dx21_second_declaration_rejected_target_not_overwritten() {
     let (defs, registry) = build_defs_and_registry();
     let p1 = p(1);
@@ -199,11 +212,13 @@ fn test_dx21_second_declaration_rejected_target_not_overwritten() {
         "expected AlreadyDeclaredAttackers(p1), got: {err:?}"
     );
 
-    // (3) The target did not move.
+    // (3) Positive control: the FIRST declaration's target survives (the real
+    // discriminator is the expect_err above -- see this test's doc comment).
     assert_eq!(
         state.combat().as_ref().unwrap().attackers.get(&samut_id),
         Some(&AttackTarget::Player(p2)),
-        "the rejected re-declaration must not overwrite Samut's attack target"
+        "positive control: Samut's attack target from the first, accepted declaration \
+         survives"
     );
 }
 
@@ -224,7 +239,14 @@ fn test_dx21_second_declaration_rejected_target_not_overwritten() {
 /// observable, per plan §4 T2's own fallback instruction ("if it raises a
 /// blocking decision, do not fight it" -- confirmed here it does not).
 ///
-/// Pre-fix behaviour: two `AttackersDeclared` events and two ventures.
+/// **Review finding M4**: assertions (2) and (3) below read events/state
+/// produced by the accepted FIRST declaration alone -- the second (rejected)
+/// declaration is issued as `process_command(state.clone(), ..)`, whose `Err`
+/// arm carries no `GameState`, so anything it would have done (pre-fix or
+/// post-fix) is unobservable here. They are POSITIVE CONTROLS confirming a
+/// single accepted declaration produces exactly one event and one venture; the
+/// discriminator between fixed and unfixed is assertion (1)'s `expect_err`
+/// alone.
 fn test_dx21_second_declaration_rejected_attack_trigger_fires_once() {
     let (defs, registry) = build_defs_and_registry();
     let p1 = p(1);
@@ -277,9 +299,11 @@ fn test_dx21_second_declaration_rejected_attack_trigger_fires_once() {
     );
 
     // (assertion 3) Resolve Nadaar's WhenAttacks trigger and count
-    // VenturedIntoDungeon exactly once. Pre-fix, the rejected call above would
-    // instead have SUCCEEDED and re-queued the trigger, so two ventures would
-    // resolve here.
+    // VenturedIntoDungeon. This is a POSITIVE CONTROL (review finding M4): it
+    // resolves against `state`, which the rejected call above (issued on
+    // `state.clone()`) never touched, so it observes only the FIRST, accepted
+    // declaration's trigger -- one venture, regardless of engine correctness.
+    // The real discriminator is assertion (1) above.
     let (state, t_events1) =
         process_command(state, Command::PassPriority { player: p1 }).expect("p1 passes");
     let (_state, t_events2) =
@@ -292,9 +316,150 @@ fn test_dx21_second_declaration_rejected_attack_trigger_fires_once() {
         .count();
     assert_eq!(
         ventured_count, 1,
-        "the WhenAttacks trigger must fire exactly once (CR 508.2a/508.3a) -- pre-fix, \
-         a second (accepted) declaration re-fired it, producing two VenturedIntoDungeon \
-         events"
+        "the WhenAttacks trigger must fire exactly once (CR 508.2a/508.3a) from the \
+         single accepted declaration (a positive control -- the real fixed-vs-unfixed \
+         discriminator is the expect_err above)"
+    );
+}
+
+// ── T2b — CR 603.3d suspended-trigger path (review finding M2) ─────────────
+
+#[test]
+/// CR 603.3d / CR 508.1 (PB-DX21 review, finding M2): the marker set at
+/// `combat.rs` (`:751-764`) runs BEFORE the CR 603.3d suspended-trigger early
+/// return (`:837-840`) -- a declaration whose `WhenAttacks` trigger needs a
+/// target choice is already marked, so a second `Command::DeclareAttackers`
+/// submitted while that trigger batch is still suspended is rejected exactly
+/// like any other repeat. Plan §10 risk 4 named this "the hardest variant to
+/// notice"; no probe covered it until this one.
+///
+/// Fixture mirrors `pb_dp8_trigger_target_choice.rs`'s T29
+/// (`test_dp8_declare_attackers_guard_grants_no_priority_while_suspended`): a
+/// `SelfAttacks` trigger with `TargetRequirement::TargetCreature` and TWO
+/// legal creature candidates on the defending side, so the choice is real and
+/// `flush_pending_triggers` suspends rather than auto-resolving.
+///
+/// **Discovered empirically, not assumed**: a first draft of step (2) issued
+/// the second `Command::DeclareAttackers` through `process_command` (like
+/// T1-T4) and expected `AlreadyDeclaredAttackers`. It got
+/// `GameStateError::BlockedByPendingDecision` instead -- PB-DP7's own
+/// admission gate refuses ANY command but the specific pending answer while a
+/// decision is outstanding, and that gate runs BEFORE `handle_declare_
+/// attackers` is even entered, so it masks the very code path this test
+/// exists to cover. Plan §4 T2's own contingency names this exact fallback
+/// ("if the PB-DP7 `BlockedByPendingDecision` gate fires first, [assert] that
+/// the marker is already true on the suspended state"). Assertion (2) below
+/// does exactly that (the direct, load-bearing observation); step (3) then
+/// uses T6's direct-handler idiom to ALSO exercise `handle_declare_attackers`'s
+/// own internal guard in isolation from the admission gate, on a throwaway
+/// clone, which is the only way to prove the ORDERING inside that function
+/// (marker-set-before-suspended-early-return) rather than just its net effect.
+fn test_dx21_second_declaration_rejected_while_suspended_on_trigger_target_choice() {
+    let p1 = p(1);
+    let p2 = p(2);
+
+    let attacker = ObjectSpec::creature(p1, "T2b Vanguard", 2, 2).with_triggered_ability(
+        TriggeredAbilityDef {
+            trigger_on: TriggerEvent::SelfAttacks,
+            intervening_if: None,
+            description: "PB-DX21 review fixture: on attack, zap a creature".to_string(),
+            effect: Some(Effect::DealDamage {
+                source: None,
+                target: CardEffectTarget::DeclaredTarget { index: 0 },
+                amount: EffectAmount::Fixed(1),
+            }),
+            etb_filter: None,
+            death_filter: None,
+            combat_damage_filter: None,
+            triggering_creature_filter: None,
+            targets: vec![TargetRequirement::TargetCreature],
+            counter_filter: None,
+            counter_on_self: false,
+            once_per_turn: false,
+        },
+    );
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .active_player(p1)
+        .at_step(Step::DeclareAttackers)
+        .object(attacker)
+        .object(ObjectSpec::creature(p2, "T2b Blocker 0", 3, 3).in_zone(ZoneId::Battlefield))
+        .object(ObjectSpec::creature(p2, "T2b Blocker 1", 3, 3).in_zone(ZoneId::Battlefield))
+        .build()
+        .unwrap();
+    state.turn_mut().priority_holder = Some(p1);
+
+    let vanguard_id = find_by_name(&state, "T2b Vanguard");
+
+    // (1) First declaration: it triggers Vanguard's WhenAttacks ability, which
+    // has two legal creature targets -- a real choice, so the flush suspends
+    // (CR 603.3d) rather than auto-resolving.
+    let (state, _events) = process_command(
+        state,
+        declare_cmd(p1, vec![(vanguard_id, AttackTarget::Player(p2))]),
+    )
+    .expect("first declaration must succeed");
+    assert!(
+        state.pending_trigger_targets().is_some(),
+        "CR 603.3d: the attack trigger has two legal creature targets -- a real \
+         choice, the flush must suspend rather than auto-resolve, or this probe \
+         never reaches the case it exists to cover"
+    );
+
+    // (2) The load-bearing observation: the marker is ALREADY set on the
+    // SUSPENDED state, before the batch has been answered and before priority
+    // has even been granted -- proving `combat.attackers_declared = true` (at
+    // combat.rs's success-path block) runs BEFORE the CR 603.3d suspended
+    // early return, not after it.
+    assert!(
+        state.combat().as_ref().unwrap().attackers_declared,
+        "CR 508.1/603.3d: the once-per-combat marker must already be set on a \
+         SUSPENDED declaration -- if it were set only after the suspended early \
+         return, a re-declaration attempted before the trigger's targets are \
+         answered would find it clear and wrongly succeed"
+    );
+
+    // (3) `handle_declare_attackers`'s OWN internal guard, exercised directly
+    // (T6's idiom) on a throwaway clone so `process_command`'s outer
+    // `BlockedByPendingDecision` admission gate (which would otherwise
+    // intercept first, per this test's own doc) cannot mask it: a second
+    // declaration is rejected by the SAME guard as every other repeat.
+    let mut probe_state = state.clone();
+    let err = mtg_engine::rules::combat::handle_declare_attackers(
+        &mut probe_state,
+        p1,
+        vec![(vanguard_id, AttackTarget::Player(p2))],
+        vec![],
+        vec![],
+        vec![],
+        vec![],
+    )
+    .expect_err(
+        "CR 508.1/603.3d: handle_declare_attackers' own guard must reject a second \
+         declaration even while the first declaration's own trigger batch is \
+         suspended on a target choice",
+    );
+    assert!(
+        matches!(err, GameStateError::AlreadyDeclaredAttackers(pid) if pid == p1),
+        "expected AlreadyDeclaredAttackers(p1), got: {err:?}"
+    );
+
+    // (4) The suspended choice itself is undisturbed by the probe above (a
+    // clone, never fed back) -- resolving it on the REAL `state` still works
+    // normally, and the marker is (still) set.
+    let (state, resume) =
+        crate::pb_dp8_trigger_target_choice::answer_pending_trigger_targets(state);
+    assert!(
+        resume
+            .iter()
+            .any(|e| matches!(e, GameEvent::PriorityGiven { .. })),
+        "CR 117.3b: the suspended declaration still owed the priority grant on resume"
+    );
+    assert!(
+        state.combat().as_ref().unwrap().attackers_declared,
+        "the marker set by the first declaration must still be true after resume"
     );
 }
 
@@ -308,9 +473,15 @@ fn test_dx21_second_declaration_rejected_attack_trigger_fires_once() {
 /// YouAttackedWithNOrMore(3)` must still hold, exercised through the real
 /// activation path.
 ///
-/// Pre-fix behaviour: the second (accepted, no-op) declaration of only the
-/// vigilant creature reassigned `attackers_declared_this_turn` to 1, and
-/// Windbrisk Heights' `{W},{T}` ability went dead for the rest of the turn.
+/// **Review finding M4**: the rejected second declaration is issued as
+/// `process_command(state.clone(), ..)`, whose `Err` arm carries no `GameState`
+/// -- so what a pre-fix (accepted) second declaration would have done to
+/// `attackers_declared_this_turn` is unobservable through assertions (3)/(4)
+/// below, which read the pristine ORIGINAL `state`. Those two are POSITIVE
+/// CONTROLS confirming the raid count and Windbrisk Heights' activatability
+/// survive the FIRST, accepted declaration alone; the discriminator between
+/// fixed and unfixed is assertion (2)'s `expect_err`/`AlreadyDeclaredAttackers`
+/// match.
 fn test_dx21_second_declaration_rejected_raid_count_not_clobbered() {
     let (defs, registry) = build_defs_and_registry();
     let p1 = p(1);
@@ -373,7 +544,8 @@ fn test_dx21_second_declaration_rejected_raid_count_not_clobbered() {
     assert_eq!(
         state.player(p1).unwrap().attackers_declared_this_turn,
         3,
-        "a rejected re-declaration must not clobber attackers_declared_this_turn"
+        "positive control: the raid count from the first, accepted declaration survives \
+         (the real discriminator is the expect_err above)"
     );
 
     // (4) Windbrisk Heights' {W},{T} ability (activated_abilities[0] -- its
@@ -483,9 +655,33 @@ fn test_dx21_empty_declaration_counts_and_blocks_redeclaration() {
         "attackers must still be empty after the rejected attempt"
     );
 
-    // (4) The rejected re-declaration must not have reset the pass-round --
-    // `combat.rs`'s `players_passed = OrdSet::new()` runs only on the SUCCESS
-    // path.
+    // (4) The fourth consequence (stage 0), pinned via the direct-handler idiom
+    // T6 establishes (review finding M5). `process_command`'s `Err` arm carries
+    // no `GameState` (see T6's doc comment for the full argument), so checking
+    // "did a REJECTED re-declaration reset `players_passed`" against the
+    // pristine ORIGINAL `state` -- which the `process_command(state.clone(), ..)`
+    // call in step (2) above never touches -- would be trivially true under ANY
+    // engine behaviour, including one that resets `players_passed` BEFORE
+    // rejecting. Calling `handle_declare_attackers` directly on the SAME
+    // (mutated-in-place) `state` instance is the only way to make this a real
+    // observation.
+    let err = mtg_engine::rules::combat::handle_declare_attackers(
+        &mut state,
+        p1,
+        vec![(samut_id, AttackTarget::Player(p2))],
+        vec![],
+        vec![],
+        vec![],
+        vec![],
+    )
+    .expect_err(
+        "CR 508.1a/508.8: the empty declaration already performed the once-per-combat \
+         action; a later non-empty declaration must be rejected",
+    );
+    assert!(
+        matches!(err, GameStateError::AlreadyDeclaredAttackers(pid) if pid == p1),
+        "expected AlreadyDeclaredAttackers(p1), got: {err:?}"
+    );
     assert_eq!(
         state.turn().players_passed,
         passed_before_reject,

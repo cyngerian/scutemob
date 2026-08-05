@@ -109,6 +109,18 @@ pub const MAX_BOT_REJECTION_PER_MILLE: u32 = 30;
 /// seeds or turn cap ever change — this number is NOT interchangeable with
 /// `MAX_BOT_REJECTION_PER_MILLE`, which is a different (200-turn, release-profile)
 /// measurement of a different configuration.
+///
+/// **Re-measured after PB-DX21** (2026-08-04, `scutemob-200`, review finding
+/// M7): with the CR 508.1 `DeclareAttackers` offer now suppressed once a
+/// declaration has been made (§2.7), the SAME configuration produces 2,750
+/// commands / 19 rejections = 6.909 per mille — well under this ratchet, not a
+/// breach, left UNCHANGED. The measurable drop (31.081 → 6.909) is the
+/// mechanism PB-DX21's own plan §2.7 flagged as "to be MEASURED not
+/// predicted": `RandomBot` picks uniformly by index, and removing an offered
+/// action reindexes every subsequent draw for the remainder of the game, so
+/// the whole trajectory after the first declaration in each combat can
+/// diverge — here, toward fewer of the specific illegal-action rejections a
+/// re-indexed list happens to produce for this fixture, not toward zero.
 pub const MAX_BOT_REJECTION_PER_MILLE_AT_GATE_CONFIG: u32 = 40;
 
 /// Re-quoted (PB-DX32 fix cycle, review finding M6) from the batch's own committed
@@ -157,6 +169,14 @@ pub const MAX_RANDOM_BOT_WASTED_TAP_PCT: u32 = 85;
 /// meaninglessly). Same caveat as `MAX_RANDOM_BOT_WASTED_TAP_PCT`: `RandomBot` wastes
 /// taps BY DESIGN, so this can only be ratcheted down by a planning bot, never an
 /// engine fix; re-measure (do not guess) if T3.1's seeds or turn cap ever change.
+///
+/// **Re-measured after PB-DX21** (2026-08-04, `scutemob-200`, review finding
+/// M7): the same configuration now produces 95 total taps / 88 wasted = 92%
+/// (truncated) — still under this 95 ceiling, not a breach, left UNCHANGED.
+/// Moved for the same reindexing reason as the per-mille sibling
+/// (`MAX_BOT_REJECTION_PER_MILLE_AT_GATE_CONFIG`'s own doc): the
+/// `DeclareAttackers` offer disappearing after a declaration reindexes every
+/// subsequent uniform draw `RandomBot` makes for the rest of the game.
 pub const MAX_RANDOM_BOT_WASTED_TAP_PCT_AT_GATE_CONFIG: u32 = 95;
 
 /// Measured at Stage 0 (2026-08-03) on the SIM-5 A/B seeds (0/7/42, `HeuristicBot`, 25
