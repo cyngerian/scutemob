@@ -565,10 +565,22 @@ case the plan named, and it held.
    sweep (not a guess) found seed 1 puts the Troll in the opening hand,
    avoiding the ~90-turn mutual-deck-out race an unswept seed hit on first
    attempt.
-3. **Full-suite count arithmetic has an unreconciled +1** (4,405 + 6 new
-   tests = 4,411 measured vs 4,412 actual). Flagged above rather than
-   silently rounded away; does not affect the pass/fail/residual facts,
-   which were independently confirmed twice.
+3. ~~**Full-suite count arithmetic has an unreconciled +1**~~ — **RESOLVED at
+   the Stage 3-5 collect, and the resolution is worth recording because the
+   mistake is an easy one to repeat.** The Stage 2 run reported
+   `4,405 passed / 1 failed`; that is **4,406 tests**, not 4,405 — the
+   failing Stage 0 probe is a test too, and reading the *passed* column as a
+   *total* is what produced the phantom `+1`. The full reconciliation:
+
+   | | tests | running total |
+   |---|---|---|
+   | pre-edit baseline (measured on this branch at `e490153b`) | 4,398 | 4,398 |
+   | Stage 0 — the mandatory probe (committed RED) | +1 | 4,399 |
+   | Stages 1-2 — engine probes (T2.1-2.3, T3.1-3.4) | +7 | 4,406 |
+   | Stages 3-5 — T4.1-4.5 (simulator) + T5.1 (play-server) | +6 | **4,412** |
+
+   Measured post-edit: **4,412 / 0 / 5**, residual list empty. Exact. There is
+   no residual and nothing was rounded away.
 
 Everything else matched the plan's predictions exactly: the three named
 `view.rs` sites, the `params.rs` allowlist exclusion, the Q1/Q2 provider
