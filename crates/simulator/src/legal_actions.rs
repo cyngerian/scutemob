@@ -294,8 +294,8 @@ pub enum LegalAction {
     /// below `n`).
     ///
     /// **Suppression rule (plan §3 Q2), load-bearing, not defensive**: this action
-    /// is offered at ALL only when `dredge_options(state, player)` is non-empty —
-    /// even the `None` decline is withheld when nothing is eligible. Without this, a
+    /// is offered only when `dredge_options(state, player)` is non-empty — even
+    /// the `None` decline is withheld when nothing is eligible. Without this, a
     /// `NeedsChoice`-origin `PendingDraw` (CR 616.1e, zero corpus reach today) would
     /// get a bare decline offer whose resume RE-DEFERS — hits `NeedsChoice` again
     /// and pushes a fresh entry (pinned by
@@ -304,6 +304,19 @@ pub enum LegalAction {
     /// and burn `max_commands`. Trade-off: a `NeedsChoice` entry remains
     /// unanswerable through this channel — `OOS-DX23-2`, `LegalAction::
     /// OrderReplacements` is the real fix and is out of scope here.
+    ///
+    /// **Corrected (PB-DX23 review, finding S1 — this does NOT remove the
+    /// re-defer loop "structurally", and no claim here should be read that
+    /// way).** The graveyard-eligibility conjunct above is a property of the
+    /// GRAVEYARD; the entry `handle_choose_dredge`'s `None` arm actually
+    /// answers is the FIFO-OLDEST `PendingDraw` for the player, which can be
+    /// `NeedsChoice`-origin even while a dredge card sits eligible in the
+    /// graveyard. `StubProvider::legal_actions` therefore carries a THIRD
+    /// conjunct: it withholds the offer unless declining the FIFO entry, on
+    /// current state, would complete a draw rather than re-raise
+    /// `NeedsChoice`. That check is a CONSERVATIVE APPROXIMATION, not an
+    /// equality (see the provider's own comment for why), exact today only
+    /// because corpus reach is zero. See `OOS-DX23-8`.
     ChooseDredge {
         card: Option<ObjectId>,
         /// CR 702.52a's `N` for this dredge card. `0` when `card` is `None` (the
@@ -661,16 +674,63 @@ impl LegalActionProvider for StubProvider {
         // a `BlockingDecision` (CR 702.52a is "may", so the engine deliberately
         // does not block on it).
         //
-        // BOTH conjuncts are required, and the second is load-bearing (plan §3
-        // Q2): a `PendingDraw` for this player must exist, AND at least one card
-        // must currently be dredge-eligible per `rules::queries::dredge_options`
-        // (the shared CR 702.52a/b derivation — PB-DX20 shape, one arithmetic, two
-        // consumers). Without the second conjunct a `NeedsChoice`-origin entry
-        // (zero corpus reach today) would get a bare decline offer whose answer
-        // re-defers the entry rather than discharging it — see the variant doc.
-        if state.pending_draws().iter().any(|p| p.player == player) {
+        // THREE conjuncts, and the second and third are both load-bearing: a
+        // `PendingDraw` for this player must exist; at least one card must
+        // currently be dredge-eligible per `rules::queries::dredge_options` (the
+        // shared CR 702.52a/b derivation — PB-DX20 shape, one arithmetic, two
+        // consumers, plan §3 Q2); and declining the FIFO entry must actually
+        // discharge it rather than re-raise `NeedsChoice` (finding S1 of this
+        // batch's own review — see the block comment below, which also states
+        // precisely what that third conjunct does and does not guarantee).
+        //
+        // The plan shipped only the first two and claimed they removed the
+        // re-defer loop "structurally". They do not: the second conjunct is a
+        // property of the GRAVEYARD, while the entry `handle_choose_dredge`
+        // answers is chosen FIFO, and `PendingDraw` carries no origin
+        // discriminator. Review caught it; the design did not. That overclaim is
+        // the same shape as the one `OOS-DX2-3` was wrongly closed on — inside
+        // the batch dispatched to avoid repeating it — so it is recorded here
+        // rather than quietly corrected.
+        if let Some(fifo) = state.pending_draws().iter().find(|p| p.player == player) {
             let options = mtg_engine::rules::queries::dredge_options(state, player);
-            if !options.is_empty() {
+            // S1 (PB-DX23 review, MEDIUM): the graveyard-eligibility conjunct
+            // above is necessary but NOT sufficient. `handle_choose_dredge`'s
+            // `None` arm answers the FIFO-OLDEST `PendingDraw` for this
+            // player, not necessarily a dredge-origin one — so with a
+            // `NeedsChoice`-origin entry queued ahead of an eligible dredge
+            // card, `options` is non-empty (the guard above passes) but a
+            // `None` answer discharges the WRONG entry: its own resume hits
+            // `NeedsChoice` again and re-defers, the exact loop this guard
+            // exists to prevent. Withhold the offer in that case too, by
+            // checking whether declining the FIFO entry would actually
+            // complete a draw rather than re-raise `NeedsChoice`.
+            //
+            // CONSERVATIVE, NOT EXACT — recorded as `OOS-DX23-8`, not claimed
+            // as structural. This evaluates the FIFO entry's resume on state
+            // AS IT STANDS NOW; the real resume
+            // (`resolve_declined_pending_draw` via `perform_one_draw`'s
+            // implicit stale-entry discharge) runs AFTER any EARLIER entry's
+            // own discharge has already recursed and possibly changed state,
+            // so this is an approximation of that later evaluation, not an
+            // equality. It is exact whenever the player has at most one
+            // queued entry — which is every reachable case today: 0
+            // `ReplacementTrigger::WouldDraw` card defs exist in the corpus,
+            // so no `NeedsChoice`-origin `PendingDraw` can arise from a legal
+            // deck at all. A fully correct guard needs an origin
+            // discriminator on `PendingDraw` itself (a HASH bump for a
+            // zero-reach case) — see `OOS-DX23-8`.
+            let fifo_already_applied: std::collections::HashSet<_> =
+                fifo.already_applied.iter().copied().collect();
+            let fifo_decline_would_redefer = matches!(
+                mtg_engine::rules::replacement::check_would_draw_replacement(
+                    state,
+                    player,
+                    &fifo_already_applied,
+                    false,
+                ),
+                mtg_engine::rules::replacement::DrawAction::NeedsChoice(_)
+            );
+            if !options.is_empty() && !fifo_decline_would_redefer {
                 actions.push(LegalAction::ChooseDredge {
                     card: None,
                     mill: 0,

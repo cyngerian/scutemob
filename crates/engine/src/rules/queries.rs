@@ -356,6 +356,16 @@ pub fn attack_tax_total(
 /// AGREE, not that either is CR-correct — see `dredge_options`'s own direct
 /// CR 702.52a/b test pair for the correctness half (PB-DX20's durable
 /// lesson).
+// PB-DX23 review, finding E3: this reads `obj.characteristics.keywords`
+// RAW, not layer-resolved (`calculate_characteristics`). That matches
+// `handle_choose_dredge`'s own answer-time validator, which reads the same
+// raw field — so there is no offer-vs-engine divergence today — but it means
+// an effect that altered a graveyard card's keywords (e.g. "cards in
+// graveyards lose all abilities") would be invisible to BOTH sides at once
+// rather than caught by either. Closing this means changing this function
+// and `handle_choose_dredge` together, not just here (the PB-DX19 durable
+// lesson: a differential probe between two raw readers proves agreement, not
+// correctness).
 pub fn dredge_options(state: &GameState, player: PlayerId) -> Vec<(ObjectId, u32)> {
     let graveyard_zone = ZoneId::Graveyard(player);
     let library_zone = ZoneId::Library(player);

@@ -679,9 +679,14 @@ pub enum DrawAction {
 ///
 /// `already_applied` (CR 614.5) is threaded in so a CR 616.1f re-check (from
 /// `resolve_pending_draw`) does not re-offer an effect already applied to this
-/// draw event. `offer_dredge` is `false` on a resume (PB-DP5 §3.3): re-offering
-/// dredge mid-chain would restart a CR 616.1 application the player already
-/// began, and there is nowhere to record a second pause.
+/// draw event. **`offer_dredge` is `false` on a SAME-DRAW resume** (PB-DP5
+/// §3.3): re-offering dredge mid-chain would restart a CR 616.1 application
+/// the player already began, and there is nowhere to record a second pause.
+/// A TAIL resume (`perform_remaining_draws`, a DIFFERENT draw each iteration
+/// under CR 121.2) passes the caller's own flag instead — see PB-DX23 §3 Q3
+/// and `DrawStepOutcome::DredgeOffered`'s doc (corrected by the PB-DX23
+/// review's E2 finding; this comment used to say "false on a resume" without
+/// the same-draw/different-draw distinction, which was false for the tail).
 pub fn check_would_draw_replacement(
     state: &GameState,
     player: PlayerId,
@@ -783,10 +788,20 @@ pub(crate) enum DrawStepOutcome {
     /// entry was recorded (PB-DX2, closing OOS-DP5-7). The caller MUST STOP
     /// the sequence (CR 614.11a) — this reverses the pre-PB-DX2 behaviour,
     /// under which the caller did NOT stop and a multi-draw sequence
-    /// destroyed every draw but the last-answered one. Dredge is only ever
-    /// offered with `offer_dredge: true`, i.e. never mid-resume (PB-DP5 plan
-    /// §3.3) — the resume paths pass `false` and thread the entry's own
-    /// `already_applied`/`remaining` instead.
+    /// destroyed every draw but the last-answered one. **Corrected (PB-DX23
+    /// review, finding E1): dredge CAN arise mid-resume.** The governing
+    /// axis is SAME draw vs. DIFFERENT draw, not "resume vs. fresh". A resume
+    /// that completes the SAME draw event (`resolve_declined_pending_draw`'s
+    /// and `resolve_pending_draw`'s own `perform_one_draw` calls) always
+    /// passes `false` — re-offering dredge on a draw already in flight would
+    /// restart a CR 616.1 application the player began. But
+    /// `perform_remaining_draws` is *also* a resume path, and CR 121.2 makes
+    /// each of its iterations a DIFFERENT draw; it forwards its caller's own
+    /// `offer_dredge` flag, which is `true` in three of its four caller
+    /// configurations (see that function's own doc for the caller table,
+    /// PB-DX23 §3 Q3) — so `DredgeOffered` DOES arise inside a resume, and
+    /// `test_dx23_tail_of_an_answered_multi_draw_offers_dredge_again` pins
+    /// exactly that.
     DredgeOffered,
     /// CR 104.3b: the library was empty; `PlayerLost` emitted.
     LostToEmptyLibrary,
@@ -1777,6 +1792,15 @@ pub fn resolve_pending_draw(
         // draw this entry replaced; the tail draws are each a DIFFERENT draw
         // event (CR 121.2) and are theirs to answer too, same as the
         // `handle_choose_dredge::Some` resume.
+        //
+        // Asymmetry, recorded (review finding E4): a tail auto-declined
+        // WHOLE by `perform_one_draw`'s implicit stale-entry discharge
+        // (`tail_offers_dredge: false`, see that function's `DredgeAvailable`
+        // arm) becomes dredge-offerable again if one of its own draws hits
+        // `NeedsChoice` and is later resumed THROUGH HERE (`true`). Zero
+        // corpus reach today (0 `ReplacementTrigger::WouldDraw` defs) — see
+        // `OOS-DX2-7`'s row in `docs/audits/decision-point-audit.md` §3.1,
+        // which now names this tail case explicitly.
         events.extend(perform_remaining_draws(
             state,
             pending.player,

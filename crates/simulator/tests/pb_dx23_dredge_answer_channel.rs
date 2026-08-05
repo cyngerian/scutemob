@@ -716,3 +716,135 @@ fn test_dx23_heuristic_bot_declines_rather_than_milling_itself_out() {
         ),
     }
 }
+
+/// **S1** (PB-DX23 review fix cycle, MEDIUM) -- CR 616.1e/616.1f, 702.52a.
+///
+/// The Q2 suppression guard (`dredge_options(state, player).is_empty()`) is a
+/// property of the GRAVEYARD. The entry `handle_choose_dredge`'s `None` arm
+/// actually answers is `state.pending_draws.iter().position(|p| p.player ==
+/// player)` -- FIFO, oldest first, with no discriminator between a
+/// dredge-origin and a `NeedsChoice`-origin entry. So the two-conjunct guard
+/// passes (graveyard eligible) even when the FIFO entry it will actually
+/// discharge is `NeedsChoice`-origin, and declining THAT entry re-defers it
+/// rather than completing it -- the exact loop the guard exists to prevent.
+///
+/// This reproduces `pb_dx2_command_gates.rs::
+/// test_dx2_needschoice_redefer_grows_the_queue`'s exact fixture recipe (same
+/// `Dredge(3)` card, same two `SkipDraw` `WouldDraw` replacements watching
+/// `p1`, same 4-card library) via the SAME direct-engine calls that test
+/// uses (`turn_actions::draw_card` + `Command::ChooseDredge`, never a hand-poke
+/// of `state.pending_draws`), to reach the two-entry queue state
+/// `[NeedsChoice-origin, dredge-origin]` -- FIFO order, `NeedsChoice` first --
+/// and then asserts the PROVIDER's behaviour against it, which
+/// `pb_dx2_command_gates.rs` (an engine-level test with no provider) never
+/// does.
+///
+/// **Revert to watch RED**: drop the third guard conjunct
+/// (`fifo_decline_would_redefer`) from `StubProvider::legal_actions`'s dredge
+/// block, restoring the two-conjunct (graveyard-only) guard this batch
+/// originally shipped -- the provider re-offers `ChooseDredge` against the
+/// queue's FIFO `NeedsChoice`-origin entry.
+#[test]
+fn test_dx23_provider_withholds_when_declining_would_re_defer() {
+    let p1 = PlayerId(4601);
+    let p2 = PlayerId(4602);
+    let skip_a = ReplacementEffect {
+        id: ReplacementId(9601),
+        source: None,
+        controller: p2,
+        duration: EffectDuration::Indefinite,
+        is_self_replacement: false,
+        trigger: ReplacementTrigger::WouldDraw {
+            player_filter: PlayerFilter::Specific(p1),
+        },
+        modification: ReplacementModification::SkipDraw,
+    };
+    let skip_b = ReplacementEffect {
+        id: ReplacementId(9602),
+        ..skip_a.clone()
+    };
+
+    let mut state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .object(
+            ObjectSpec::card(p1, "Dredge Card")
+                .in_zone(ZoneId::Graveyard(p1))
+                .with_keyword(KeywordAbility::Dredge(3)),
+        )
+        .object(ObjectSpec::card(p1, "Library Card 0").in_zone(ZoneId::Library(p1)))
+        .object(ObjectSpec::card(p1, "Library Card 1").in_zone(ZoneId::Library(p1)))
+        .object(ObjectSpec::card(p1, "Library Card 2").in_zone(ZoneId::Library(p1)))
+        .object(ObjectSpec::card(p1, "Library Card 3").in_zone(ZoneId::Library(p1)))
+        .with_replacement_effect(skip_a)
+        .with_replacement_effect(skip_b)
+        .build()
+        .unwrap();
+
+    // Step 1: a real draw offers dredge first (dredge is checked before the
+    // WouldDraw replacements) -- one dredge-origin entry, `[D1]`.
+    mtg_engine::rules::turn_actions::draw_card(&mut state, p1).unwrap();
+    // Step 2: declining it re-checks the two SkipDraw replacements, which are
+    // 2+ applicable -- CR 616.1 NeedsChoice -- and re-defers to a fresh
+    // NeedsChoice-origin entry, `[N1]`.
+    let (mut state, _decline_events) = process_command(
+        state,
+        Command::ChooseDredge {
+            player: p1,
+            card: None,
+        },
+    )
+    .unwrap();
+    assert_eq!(
+        state.pending_draws().len(),
+        1,
+        "sanity (matches pb_dx2_command_gates.rs's own fixture): the decline \
+         re-defers to a fresh NeedsChoice entry"
+    );
+
+    // Step 3: a second, independent draw discharges the stale N1 entry first
+    // (its own resume re-defers to N1'), THEN raises its own dredge offer for
+    // THIS draw (the card is still in the graveyard) -- D2. Queue ends at
+    // `[N1', D2]`, NeedsChoice FIRST -- the exact `OOS-DX2-3` two-entry trace,
+    // reproduced live.
+    mtg_engine::rules::turn_actions::draw_card(&mut state, p1).unwrap();
+    assert_eq!(
+        state.pending_draws().len(),
+        2,
+        "sanity (matches pb_dx2_command_gates.rs's own fixture): a second \
+         independent draw must not clobber or merge with the re-raised entry"
+    );
+
+    // The FIFO-oldest entry (index 0) is the one `handle_choose_dredge`'s
+    // `None` arm will actually answer. Confirm it is NOT the dredge-origin
+    // one -- if this is ever wrong, the whole premise of S1 does not apply to
+    // this fixture and the test below would be checking nothing.
+    let fifo = &state.pending_draws()[0];
+    assert!(
+        fifo.already_applied.is_empty(),
+        "S1 premise check: the FIFO-oldest entry must be the re-raised \
+         NeedsChoice-origin one (empty already_applied, no replacement chosen \
+         yet), not the dredge-origin D2. pending_draws: {:?}",
+        state.pending_draws()
+    );
+
+    // The graveyard is still eligible (the Dredge Card was never actually
+    // dredged away -- only declined). Under the two-conjunct guard this
+    // batch originally shipped, that alone is enough to offer ChooseDredge.
+    // Under the corrected three-conjunct guard, the provider must also see
+    // that declining the FIFO entry (a NeedsChoice-origin one) would
+    // re-defer rather than discharge -- and withhold.
+    let actions = StubProvider.legal_actions(&state, p1);
+    let dredge_actions: Vec<&LegalAction> = actions
+        .iter()
+        .filter(|a| matches!(a, LegalAction::ChooseDredge { .. }))
+        .collect();
+    assert!(
+        dredge_actions.is_empty(),
+        "S1: the provider must withhold ChooseDredge entirely while the \
+         FIFO-oldest PendingDraw is NeedsChoice-origin, even though the \
+         graveyard itself still has an eligible dredge card -- offering it \
+         would answer the wrong entry and re-defer it forever. Offered: {:?}",
+        dredge_actions
+    );
+}

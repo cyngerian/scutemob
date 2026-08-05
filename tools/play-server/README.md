@@ -1076,7 +1076,12 @@ repeated here so this README does not claim more than the implementation does.
     command refusals in `sim5_bot_cast_discipline`'s A/B (seeds 0/7/42). Seed
     **OOS-SIM6-3**; the largest remaining SR-38 violation on this surface.
 
-29. **The dredge offer (CR 702.52a) is an ordinary action button, not a picker
+29. *(Numbering note, review finding S4: this item lands between 26 and 27 —
+    appended at the list's end when written, not renumbered in. Pre-existing
+    disorder already exists in this list — item 25 precedes item 24 — so this
+    is a continuation of that pattern, not a new regression. Left as-is rather
+    than renumbering the whole list, to avoid an unrelated mass-diff.)* **The
+    dredge offer (CR 702.52a) is an ordinary action button, not a picker
     (PB-DX23).** `LegalAction::ChooseDredge { card: Option<ObjectId>, mill: u32 }`
     renders in `ActionBar`'s `plays` group like any other labelled action —
     "Dredge \<card\> (mill N)" per eligible graveyard card, plus a separate "Decline

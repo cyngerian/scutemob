@@ -588,3 +588,301 @@ placement and guard, the Q4 bot-policy formula, zero card-def lines, zero
 wire changes (HASH 73 / PROTOCOL 35 both gate-executed and confirmed
 unmoved), and the TUI's total non-involvement (`OOS-DX23-3` re-confirmed by
 observation rather than assumed).
+
+---
+
+## Fix cycle — review `memory/primitives/pb-review-DX23.md` (0 HIGH / 4 MEDIUM /
+9 LOW, all 13 taken)
+
+**Task**: `scutemob-201` fix cycle, same worktree. **Baseline going in**:
+4,412 / 0 / 5, PROTOCOL 35 / HASH 73 gate-executed and unmoved (both
+re-confirmed, not re-derived, below).
+
+### S1 (MEDIUM) — the real defect: the Q2 guard was graveyard-keyed, the
+entry it answers is FIFO-keyed
+
+**Taken as the third option** (a real third conjunct on the provider's
+guard), NOT the reviewer's rejected first suggestion (a `RepeatKey::
+ChooseDredge` bot-side cap) — that shape is exactly what PB-DX21
+(`scutemob-200`) deleted for the once-per-combat attack loop, and the
+durable lesson from that batch (SR-38: suppress a bad offer at the offer
+layer, not with a bot-side damper) applies here without modification.
+
+**What changed**: `crates/simulator/src/legal_actions.rs`'s dredge-offer
+block, previously `if let Some(_) = pending_draws().find(...) { if
+!options.is_empty() { ...push... } }`, now also computes, before pushing:
+
+```rust
+let fifo_already_applied: std::collections::HashSet<_> =
+    fifo.already_applied.iter().copied().collect();
+let fifo_decline_would_redefer = matches!(
+    mtg_engine::rules::replacement::check_would_draw_replacement(
+        state, player, &fifo_already_applied, false,
+    ),
+    mtg_engine::rules::replacement::DrawAction::NeedsChoice(_)
+);
+if !options.is_empty() && !fifo_decline_would_redefer { ...push... }
+```
+
+`fifo` is the FIRST `PendingDraw` matching `player` (`state.pending_draws()
+.iter().find(...)`) — the SAME entry `handle_choose_dredge`'s `None` arm
+will actually answer (its own `position()` call is FIFO-oldest, identical
+selection). The check re-derives, ON CURRENT STATE, what declining that
+entry would do; if it would re-raise `NeedsChoice`, the whole offer
+(including the `Some` entries) is withheld.
+
+**Honesty requirement, followed**: the in-source comment states this is a
+CONSERVATIVE APPROXIMATION, not an equality — the real resume runs after any
+EARLIER queued entry's own discharge has already recursed and mutated
+state, which this snapshot-check cannot see. It is exact only when the
+player has at most one queued entry, which is every reachable case today
+(0 `ReplacementTrigger::WouldDraw` defs, re-grepped, confirmed unchanged).
+No "structurally" language survives anywhere touched by this fix cycle —
+the `ChooseDredge` variant doc and the provider's own inline comment were
+both rewritten to state the approximation and point at `OOS-DX23-8`.
+
+**New test**: `crates/simulator/tests/pb_dx23_dredge_answer_channel.rs::
+test_dx23_provider_withholds_when_declining_would_re_defer` (CR 616.1e/
+616.1f, 702.52a). Built the fixture EXACTLY per
+`pb_dx2_command_gates.rs::test_dx2_needschoice_redefer_grows_the_queue`'s own
+recipe (same `Dredge(3)` card, same two `SkipDraw` `WouldDraw`
+replacements watching `p1`, same 4-card library), driven through the SAME
+direct-engine calls that test uses (`turn_actions::draw_card` +
+`Command::ChooseDredge`, never a hand-poke of `pending_draws`) to reach the
+identical two-entry queue state `[NeedsChoice-origin, dredge-origin]`
+(asserted: `pending_draws().len() == 1` after the first decline,
+`== 2` after the second draw — both sanity-pinned against the exact
+`pb_dx2_command_gates.rs` numbers, plus a premise check that the FIFO-index-0
+entry has empty `already_applied`, i.e. IS the re-raised `NeedsChoice` one,
+not the dredge-origin `D2`). Then asserts `StubProvider.legal_actions`
+returns **zero** `ChooseDredge` actions.
+
+**Revert executed, RED confirmed, rebuild confirmed** (`Compiling
+mtg-simulator`): dropped the third conjunct (`if !options.is_empty()`
+only, `fifo_decline_would_redefer` bound to `let _ = ...` to silence the
+unused warning). Observed failure:
+
+```
+thread 'test_dx23_provider_withholds_when_declining_would_re_defer' panicked at
+crates/simulator/tests/pb_dx23_dredge_answer_channel.rs:842:5:
+S1: the provider must withhold ChooseDredge entirely while the FIFO-oldest
+PendingDraw is NeedsChoice-origin, even though the graveyard itself still has
+an eligible dredge card -- offering it would answer the wrong entry and
+re-defer it forever. Offered: [ChooseDredge { card: None, mill: 0 },
+ChooseDredge { card: Some(ObjectId(1)), mill: 3 }]
+```
+
+Restored; full 7-test file green afterward; `grep -rn "REVERT-"
+crates/simulator/src` returns 0 hits post-restore.
+
+**Seed filed**: `OOS-DX23-8` in `docs/audits/decision-point-audit.md` §8.1
+— states the approximation precisely (exact when ≤1 queued entry, zero
+corpus reach today, a fully correct guard needs an origin discriminator
+field on `PendingDraw`, which would be a HASH bump for a zero-reach case).
+
+### S2 (MEDIUM) — `OOS-DX23-2`'s statement was over-broad
+
+Reworded in place (`docs/audits/decision-point-audit.md`, the `OOS-DX23-2`
+row): the original claim ("unanswerable through any simulator channel")
+conflated two distinct mechanisms that both end in "no offer" — the
+Q2 graveyard-empty case (truly nothing eligible) and the new S1/`OOS-DX23-8`
+case (something is eligible, but it isn't the FIFO entry's problem to
+answer). Cross-referenced to `OOS-DX23-8`.
+
+### E1 (MEDIUM) — `DrawStepOutcome::DredgeOffered`'s doc asserted the
+deleted invariant
+
+`crates/engine/src/rules/replacement.rs` (doc comment on the `DredgeOffered`
+variant, originally at plan-cited `:786-789`, found live at line 787's
+"never mid-resume" sentence). Rewritten in the two-axis vocabulary (SAME
+draw vs. DIFFERENT draw), citing `perform_remaining_draws`' own caller
+table and naming the pinning test
+(`test_dx23_tail_of_an_answered_multi_draw_offers_dredge_again`).
+
+### E2 (MEDIUM) — `check_would_draw_replacement`'s doc asserted the same
+stale claim
+
+Same file, the function's own doc (originally cited `:682-684`, found live
+at line 682's "`offer_dredge` is `false` on a resume" sentence). Amended
+to "`false` on a SAME-DRAW resume; a TAIL resume passes the caller's own
+flag", pointing at PB-DX23 §3 Q3 and `DredgeOffered`'s doc.
+
+Both E1/E2 edits are doc-only; `cargo build -p mtg-engine` after each
+confirmed no compile impact (doc comments only).
+
+### E3 (LOW) — `dredge_options` raw-keyword-read note
+
+One-line-equivalent note added directly above `dredge_options` in
+`crates/engine/src/rules/queries.rs`, stating the read is raw (not
+layer-resolved), that this matches `handle_choose_dredge`'s own answer-time
+validator (so no offer-vs-engine divergence today), and that closing it
+means changing both together — citing the PB-DX19 durable lesson by name.
+
+### E4 (LOW) — the tail-discharge asymmetry, recorded
+
+Added at `resolve_pending_draw`'s own `offer_dredge: true` call comment
+(`crates/engine/src/rules/replacement.rs`, the "PB-DX23 §3 Q3: `offer_dredge:
+true`" comment block): a tail auto-declined WHOLE by the implicit
+stale-entry discharge (`tail_offers_dredge: false`) becomes dredge-offerable
+again if one of ITS OWN draws hits `NeedsChoice` and is later resumed
+THROUGH `resolve_pending_draw` (`true`). Cross-referenced to `OOS-DX2-7`'s
+row, which E5 (below) extends to name this explicitly.
+
+### E5 (LOW) — extended `OOS-DX2-7`'s text to name the tail explicitly
+
+**Chose: extend, not file `OOS-DX23-9`.** Two places in
+`docs/audits/decision-point-audit.md` updated: the §3.1 prose block's
+"Status after PB-DX23" paragraph, and the §8.1 seed-table `OOS-DX2-7` row
+itself. Both now state the tail case as its own sentence (asymmetric
+against the answered-path tail, which DOES get re-offered per-draw) rather
+than leaving it implicit in E4's engine-side comment alone.
+
+### S3 (LOW) — `heuristic_bot.rs` "stays choosable" comment
+
+Parenthetical added at the `ChooseDredge { card: Some(_), mill }` score-0
+arm's comment: notes the arm is an inherited idiom shared with
+`TapForMana`, and that for `ChooseDredge` specifically it is effectively
+"never the top score" in practice, because `PassPriority` (1) is pushed
+unconditionally before this block runs.
+
+### S4 (LOW) — `tools/play-server/README.md` item-29 ordering
+
+**Chose: leave with a note, not renumber the whole list.** A one-sentence
+italic parenthetical was inserted at the start of item 29 explaining the
+disorder is a continuation of a pre-existing pattern (item 25 already
+precedes item 24), not a new regression, and that renumbering the whole
+list was deliberately avoided to keep this fix cycle's diff scoped to
+findings actually taken.
+
+### T1 (LOW) — executed the mandatory revert instead of the equivalence
+argument
+
+**Revert**: disabled the WHOLE `ChooseDredge` push block in
+`StubProvider::legal_actions` (`if false && ...` guarding the push), rebuilt
+(`Compiling mtg-simulator` observed), and re-ran
+`test_dx23_real_game_with_a_grave_troll_keeps_its_draw_cadence`. **Observed
+failure** (A1 fires first, exactly as Stage 0's original pre-fix run):
+
+```
+PB-DX23 T1.1 pre-fix measurement: pending_draws_at_halt=1, card_drawn_p1=1,
+dredged_p1=0, a2_lhs=1, a2_rhs(p1 draw-eligible turns)=2,
+dredge_choice_required_p1=2
+
+thread 'test_dx23_real_game_with_a_grave_troll_keeps_its_draw_cadence' panicked at
+crates/simulator/tests/pb_dx23_dredge_answer_channel.rs:281:5:
+assertion `left == right` failed: CR 702.52a/121.1: no PendingDraw should survive
+to the halt of a real game once dredge offers are answerable. pending_draws() at
+halt: [PendingDraw { player: PlayerId(1), already_applied: [], remaining: 0,
+sets_has_drawn_for_turn: true }]
+  left: 1
+ right: 0
+```
+
+The A1/A2 diagnostic printout matches the Stage-0 pre-fix numbers exactly
+(`pending_draws_at_halt=1`, `a2_lhs=1` vs `a2_rhs=2`,
+`dredge_choice_required_p1=2`), confirming the fix-phase revert reproduces
+the identical pre-batch defect rather than a different one. Restored; test
+green afterward (`pending_draws_at_halt=0`, `a2_lhs=2`, `a2_rhs=2`); `grep
+-rn "T1-REVERT"` returns 0 hits post-restore.
+
+### T2 (LOW) — named the inherited-baseline shortfall explicitly
+
+This session's OWN pre-edit baseline (confirmed by the coordinator's brief
+and re-confirmed here by re-running `cargo test --workspace --no-fail-fast`
+against HEAD before any fix-cycle edit landed): **4,412 / 0 / 5**, sound —
+this number WAS freshly re-measured on this branch, not carried over from
+an earlier commit's plan text. **What was genuinely inherited, not
+re-measured, going INTO the original PB-DX23 implementation dispatch** was
+the play-server "78/0" pin the plan quoted at §4 Stage 0 step 3 — Stage 0
+of that dispatch measured the branch's actual value as 79/0 and flagged the
+plan's "78" as stale (see the Stage 0 section above, §0.2). That
+divergence was correctly recorded there; this fix cycle repeats the
+methodology point explicitly per the review's ask: **the mechanism that
+made "78" stale (a plan text quoting a number from an earlier measurement
+that drifted before the branch was worked) is exactly the kind of
+inheritance-without-re-measurement this finding warns about in general**,
+and the fix-cycle brief's own baseline line ("current state: tests
+4,412/0/5") was independently re-confirmed rather than trusted, for that
+reason.
+
+### T3 (LOW) — moved the `pending_draws().len()` assertion above the
+offer-count assertion
+
+`crates/engine/tests/primitives/pb_dx23_dredge_tail_and_query.rs::
+test_dx23_implicit_discharge_does_not_mint_a_second_dredge_entry`: the
+`OOS-DX2-3` guard assertion (`state.pending_draws().len() == 1`) now runs
+immediately after `turn_actions::draw_card`, BEFORE `outer_offer_count` and
+`discharge_card_drawn`. **Revert executed** (`perform_one_draw`'s implicit
+discharge call changed from `resolve_declined_pending_draw(state, player,
+stale, false)` to `..., true)`), rebuilt (`Compiling mtg-engine` observed),
+re-run: the guard assertion now fires FIRST, as intended:
+
+```
+thread '...test_dx23_implicit_discharge_does_not_mint_a_second_dredge_entry'
+panicked at crates/engine/tests/primitives/pb_dx23_dredge_tail_and_query.rs:463:5:
+assertion `left == right` failed: OOS-DX2-3 guard: at most one dredge-originated
+PendingDraw entry may exist per player. If the discharged sequence's tail also
+pushed a dredge-originated entry, this would be 2.
+  left: 2
+ right: 1
+```
+
+Restored; full 7-test file green afterward; `grep -rn "REVERT-UNDER-TEST"
+crates/` returns 0 hits post-restore.
+
+### T4 (LOW) — stated plainly: no browser-level verification was run this
+fix cycle either
+
+No standalone HTTP server was started (per the standing SIGKILL hazard for
+agent-run play-server binaries). `T5.1`
+(`test_dx23_browser_can_answer_a_dredge_offer`) remains the coverage for
+this path — it drives a real game over the real HTTP router in-process,
+which is NOT the same as a browser/JS client actually parsing and clicking
+the rendered option (`ActionBar.svelte`'s `plays` group). This gap is
+explicitly NOT closed by this fix cycle; it is recorded here, again, as a
+known and accepted limitation rather than silently repeated without
+comment.
+
+### T5 (LOW) — corrected the seed-count claim in the audit doc
+
+`docs/audits/decision-point-audit.md`'s PB-DX23 SHIPPED paragraph corrected
+from "Four new rows OOS-DX23-1..4" to "six new rows... `OOS-DX23-1..4` +
+`-6` + `-7`", with a note that this fix cycle adds a seventh
+(`OOS-DX23-8`). Both this fix cycle's own edits to that paragraph and the
+original miscount are now consistent with the actual seed table (`OOS-DX23-
+1,2,3,4,6,7,8` — 7 rows total after this session; `-5` deliberately never
+filed, per plan §7).
+
+### Gates — all executed after every fix above, output captured to a file
+
+| gate | result |
+|---|---|
+| `cargo build --workspace` | clean, 0 warnings |
+| `cargo test --workspace --no-fail-fast` (`/tmp/pb-dx23-fixcycle-full-suite.txt`) | **4,413 passed / 0 failed / 5 ignored** — exactly 4,412 + 1 (the new S1 test); reconciled exactly, no residual |
+| `cargo test -p mtg-engine --test core hash_schema` | 21/21 green; `hash_schema_version_sentinel` confirms **HASH 73 unmoved** |
+| `cargo test -p mtg-engine --test core protocol_schema` | 17/17 green; `protocol_schema_fingerprint_is_pinned` confirms **PROTOCOL 35 unmoved** |
+| `cargo test -p mtg-engine --test core decision_gate` | 19/19 green, including `named_residual_seed_ids_still_exist_in_the_audit` (reads the audit doc as text — confirms the S1/S2/E5/T5 doc edits did not break any seed-ID cross-reference the gate checks) |
+| `cargo test -p play-server` | 80/0, unmoved (no play-server production code touched this fix cycle) |
+| `cargo clippy --workspace --all-targets -- -D warnings` | clean, 0 warnings |
+| `cargo fmt --check` | clean, no reformat needed |
+| `tools/check-defs-fmt.sh` | clean, "1803 defs checked" |
+| golden script `replacement/014_golgari_grave_troll_dredge.json` | green, `run_all_approved_scripts: 1 of 271 discovered scripts ran and passed; 0 retired; 0 skipped silently`, matching every prior baseline |
+| `git diff --stat -- crates/card-defs/` | empty — 0 card-def lines touched this fix cycle |
+
+### Files touched this fix cycle
+
+* `crates/simulator/src/legal_actions.rs` — S1 (third guard conjunct + doc
+  rewrite on both the block comment and the `ChooseDredge` variant doc)
+* `crates/simulator/src/heuristic_bot.rs` — S3 (comment only)
+* `crates/simulator/tests/pb_dx23_dredge_answer_channel.rs` — S1's new test
+  (`test_dx23_provider_withholds_when_declining_would_re_defer`)
+* `crates/engine/src/rules/replacement.rs` — E1, E2, E4 (comments only)
+* `crates/engine/src/rules/queries.rs` — E3 (comment only)
+* `crates/engine/tests/primitives/pb_dx23_dredge_tail_and_query.rs` — T3
+  (assertion reorder, no new assertion, no fixture change)
+* `docs/audits/decision-point-audit.md` — S2, E5, T5, and the new
+  `OOS-DX23-8` row (S1's seed)
+* `tools/play-server/README.md` — S4 (one-sentence note)
+* `memory/primitives/pb-DX23-execution-notes.md` — this section
+
+No card-def file touched. No wire type touched. No `HashInto` field added.

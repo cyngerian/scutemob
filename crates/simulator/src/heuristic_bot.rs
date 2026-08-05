@@ -353,7 +353,11 @@ impl HeuristicBot {
             // scores 0 -- the "below PassPriority, above nothing" idiom used
             // throughout this function -- so the action stays choosable when it
             // is all there is and the resulting command is one the engine
-            // ACCEPTS (SR-38).
+            // ACCEPTS (SR-38). (Inherited idiom -- shared with `TapForMana`;
+            // for `ChooseDredge` specifically this 0 arm is effectively
+            // "never the top score" in practice, since `PassPriority` (1) is
+            // pushed unconditionally before this block runs, so a `0` can
+            // never outscore it -- review finding S3.)
             LegalAction::ChooseDredge {
                 card: Some(_),
                 mill,

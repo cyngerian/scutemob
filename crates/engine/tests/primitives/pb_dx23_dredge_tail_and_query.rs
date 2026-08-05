@@ -453,6 +453,21 @@ fn test_dx23_implicit_discharge_does_not_mint_a_second_dredge_entry() {
     // (still eligible, never dredged).
     let outer_events = mtg_engine::rules::turn_actions::draw_card(&mut state, p1).unwrap();
 
+    // THE GUARD (headline assertion, moved above the two supporting ones per
+    // review finding T3 -- this is the `OOS-DX2-3` discriminator this test
+    // exists to pin, and it must be the FIRST assertion this test reaches so
+    // a revert reddens on IT, not on `outer_offer_count` below, which fires
+    // first if left in its original position and would leave the reader
+    // thinking that assertion is the guard when it is not): exactly ONE
+    // outstanding entry -- the outer call's own new offer -- not two.
+    assert_eq!(
+        state.pending_draws().len(),
+        1,
+        "OOS-DX2-3 guard: at most one dredge-originated PendingDraw entry \
+         may exist per player. If the discharged sequence's tail also \
+         pushed a dredge-originated entry, this would be 2."
+    );
+
     let outer_offer_count = outer_events
         .iter()
         .filter(|e| matches!(e, GameEvent::DredgeChoiceRequired { player, .. } if *player == p1))
@@ -478,16 +493,6 @@ fn test_dx23_implicit_discharge_does_not_mint_a_second_dredge_entry() {
          their own, before the outer call's offer is even evaluated. \
          Events: {:?}",
         outer_events
-    );
-
-    // THE GUARD: exactly ONE outstanding entry -- the outer call's own new
-    // offer -- not two.
-    assert_eq!(
-        state.pending_draws().len(),
-        1,
-        "OOS-DX2-3 guard: at most one dredge-originated PendingDraw entry \
-         may exist per player. If the discharged sequence's tail also \
-         pushed a dredge-originated entry, this would be 2."
     );
 }
 
