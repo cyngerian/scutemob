@@ -39,7 +39,8 @@
   PB-DX20 shipped `scutemob-198`/`ecd7b119` 2026-08-04;
   PB-DX21 shipped `scutemob-200` 2026-08-04 (ranks 1-4 all shipped);
   PB-DX23 shipped `scutemob-201` 2026-08-05 (rank 5);
-  **next PB-DX24** (rank 6);
+  PB-DX24 shipped `scutemob-202` 2026-08-05 (rank 6);
+  **next PB-DX25** (rank 7);
   the playtest-successor run 174–181
   AND the triage-2 successor run 187–194 both completed 2026-08-02 — triage 2 is fully closed,
   8/8 rows shipped. **FEEDBACK-1 SHIPPED** (`scutemob-192`, merge `d55e74cc`, doc-only):
@@ -104,16 +105,24 @@
   `memory/workstream-state.md`). PROTOCOL **35** / HASH **72** (as of ENG-2, `scutemob-193`).
   **PB-DX19 SHIPPED** (`scutemob-184`, `451e3517`) and **PB-DX20 SHIPPED** (`scutemob-198`,
   `ecd7b119`) and **PB-DX21 SHIPPED** (`scutemob-200`) and **PB-DX23 SHIPPED**
-  (`scutemob-201`) — **next dispatch: PB-DX24** (rank 6;
+  (`scutemob-201`) and **PB-DX24 SHIPPED** (`scutemob-202`) — **next dispatch: PB-DX25** (rank 7;
   brief in `memory/primitives/seed-rerank-2026-08-02.md` §4; re-word OOS-DX19-2 per OOS-ADJ-3
   before any DX42b dispatch). **PB-DX7 is no longer next** — it survives at
   rank 9; eight new entries outrank it. Older queue history (the PB-OS,
   PB-RS and PB-DP chains) is rotated to the 2026-08 archive.
   **PB-DX20 SHIPPED** (`scutemob-198`; v3 queue rank 2).
   **PB-DX21 SHIPPED** (`scutemob-200`; v3 queue rank 3) — v3 ranks **1-4 are all shipped**.
-  **PB-DX23 SHIPPED** (`scutemob-201`; v3 queue rank 5), so **next dispatch: PB-DX24**
-  (rank 6, the lowering drops `trigger_zone`; brief in the same §4).
-  PROTOCOL **35** / HASH **73** as of PB-DX23 (both unmoved by it).
+  **PB-DX23 SHIPPED** (`scutemob-201`; v3 queue rank 5) and **PB-DX24 SHIPPED**
+  (`scutemob-202`; v3 queue rank 6) — v3 ranks **1-6 are all shipped**, so
+  **next dispatch: PB-DX25** (rank 7, `Effect::CounterSpell`'s three stack-object shapes).
+  PROTOCOL **35** / HASH **73** as of PB-DX24 (both unmoved by it).
+- **Tests (delta 2026-08-05, PB-DX24)**: **4,435 / 0 / 5** full-workspace on branch
+  `scutemob-202` (+22 over the **4,413** baseline measured on this branch BEFORE any edit —
+  17 probes in the new `crates/engine/tests/primitives/pb_dx24_trigger_zone_and_index_
+  spaces.rs` and 5 gates in the new `crates/engine/tests/core/pb_dx24_trigger_zone_
+  roster.rs`), `--workspace --no-fail-fast` to a file, residual list empty.
+  **PROTOCOL 35 / HASH 73 both unmoved**, gate-executed. Benches within noise
+  (`full_turn_4p` 221.5-223.5 µs). Earlier pins below.
 - **Tests (delta 2026-08-05, PB-DX23)**: **4,413 / 0 / 5** full-workspace on branch
   `scutemob-201` (+15 over the **4,398** baseline measured on this branch BEFORE any edit —
   1 mandatory probe + 6 more in the new `crates/simulator/tests/pb_dx23_dredge_answer_
@@ -291,7 +300,49 @@
 - **Recurrence rule** — future `/collect` and milestone-close bookkeeping appends its detailed PB/SR
   narrative to that archive file (newest first), and updates only a one-paragraph snapshot delta
   here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
-- **Last Updated**: 2026-08-05 — **PB-DX23 SHIPPED** (`scutemob-201`; v3 queue rank 5).
+- **Last Updated**: 2026-08-05 — **PB-DX24 SHIPPED** (`scutemob-202`; v3 queue rank 6).
+  A zone-scoped ability finally functions in its zone. `AbilityDefinition::Triggered`
+  carries `trigger_zone`; the runtime `TriggeredAbilityDef` has no home for it, so **33 of
+  the lowering's 34 arms swallowed it** and `nether_traitor` (`Complete`, deck-legal) had
+  its graveyard ability installed on the **battlefield object** — functioning from exactly
+  the wrong zone. CR **113.6m** is load-bearing. **The brief and the queue row were both
+  short by a whole half, and the "one-line, wire-neutral" fix alone would have shipped a
+  card that fires NOWHERE**: `collect_graveyard_carddef_triggers` had a single `fires` arm
+  (`PermanentEnteredBattlefield`, written for Bloodghast), so a `WheneverCreatureDies`
+  graveyard trigger had **no dispatch path at all** — criterion 6205's "both directions" is
+  what forced the discovery. **Uniformity is structural, not 33 more `continue`s**: the
+  trigger-lowering region becomes `build_face_triggered_abilities`, filtered **once** at its
+  single call site through `lowers_onto_the_battlefield` (exhaustive on `TriggerZone`), with
+  the old per-arm guard **deleted** so there is one mechanism; two source gates fail if a
+  41st arm re-swallows it, and the gate's comment-stripping was itself proven load-bearing
+  by executing both variants. The new death arm mirrors the battlefield arm clause for
+  clause (CR 108.4a owner-as-controller, CR 400.7 `exclude_self` on the **graveyard** id —
+  a battlefield-only comparison fails **open, silently** — CR 111.7, CR 603.10a/613.1d) plus
+  a CR 603.10a look-back guard applied to **that arm only**, because ETB triggers are not in
+  603.10a's list. **`OOS-DX1-4`'s "6 latent queue sites" was right for the wrong reason**:
+  the SR-36 enumeration measured **0** corpus defs with any Q-shape on a back face, so all
+  seven are latent and every probe is synthetic. **Q5's rule was wrong in the plan AND in
+  the review**: not CR 712.2 (face symbols) but CR **712.16**; CR 712.15 makes the site
+  reachable, and CR **712.15a** ("turned face up → its **front** face up") makes the
+  front-face read **CR-correct** rather than merely unreachable. Review 0 HIGH / 6 MEDIUM /
+  7 LOW, all 13 taken, and **two were the coordinator's own**: a seed row claimed
+  "live-wrong on 2 `Complete` defs" when both doublers are `partial`, and framed a
+  **pre-existing** class (the ETB arms have had a graveyard-sourced pairing since PB-35) as
+  new — re-measured, **no pairing is deck-legal on both halves in either direction**. Also
+  caught: **a gate that was green while the invariant it pinned was already violated**
+  (it scanned for a literal `is_transformed = true`; `face.rs:97` writes a computed bool,
+  which the batch's own probes assert). Tests **4,435 / 0 / 5** (+22); coverage unmoved
+  **1,133/1,803 = 62.8%** (comment-only card-def edit, proven by regeneration);
+  PROTOCOL **35** / HASH **73** gate-executed and unmoved. Seeds: **OOS-DX1-3** and
+  **OOS-DX1-4** CLOSED (each row also corrects its own original claims); filed
+  **OOS-DX24-1..9**, of which **OOS-DX24-9** is **LIVE on a `Complete` def** (CR 118.12's
+  optional cost is engine-chosen; the class is the pre-existing DP-19 shape, but this batch
+  is what makes the instance reachable). Durable lesson: **a guard, a gate and a claim each
+  have a subject, and "it passes" only tells you about the subject it actually has** — three
+  findings were one shape, each true about what it examined and wrong about what it was
+  taken to mean. Full handoff: `memory/workstream-state.md`; measurements and revert matrix:
+  `memory/primitives/pb-DX24-execution-notes.md`.
+- **Prior**: 2026-08-05 — **PB-DX23 SHIPPED** (`scutemob-201`; v3 queue rank 5).
   Dredge is answerable, by anyone. `grep -rn "ChooseDredge" crates/simulator/src/ tools/`
   returned **zero**: the engine had the command, the event and a gated handler, and
   **nothing could reach any of it**. Not a lost option — a permanent draw-cadence
