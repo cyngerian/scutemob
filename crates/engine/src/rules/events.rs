@@ -867,12 +867,21 @@ pub enum GameEvent {
     /// (`replacement::handle_choose_dredge`), which is what stops the command
     /// minting a free card (OOS-DP5-7).
     ///
-    /// It is a DEADLINE, not a `rules::engine::BlockingDecision`, for two
-    /// reasons: CR 702.52a is "you MAY instead", so declining is always legal
-    /// and "no answer" has a well-defined meaning (the block-vs-deadline test
-    /// PB-DP4/PB-DP7 use); and `crates/simulator` constructs no `ChooseDredge`
-    /// at all, so blocking would deadlock every bot game in which a dredge
-    /// card reaches a graveyard.
+    /// It is a DEADLINE, not a `rules::engine::BlockingDecision`. CR 702.52a
+    /// is "you MAY instead", so declining is always legal and "no answer" has
+    /// a well-defined meaning — the block-vs-deadline test PB-DP4/PB-DP7 use
+    /// — and that alone decides it.
+    ///
+    /// **Struck (PB-DX23 §4 Stage 2, §3 Q1): a second reason used to stand
+    /// here** — *"`crates/simulator` constructs no `ChooseDredge` at all, so
+    /// blocking would deadlock every bot game"* — **which is now false.**
+    /// PB-DX23 gives `crates/simulator` a `LegalAction::ChooseDredge`
+    /// (`StubProvider::legal_actions`) and a bot policy for it
+    /// (`HeuristicBot::score_action`), so that premise no longer holds. The
+    /// CR argument in the paragraph above was always sufficient on its own —
+    /// CR 702.52a's "may" decides the block-vs-deadline question regardless
+    /// of who constructs the answering command — and is the one this doc now
+    /// rests on.
     ///
     /// **A single obligation does NOT accumulate WITHOUT BOUND across
     /// unanswered turns** (fix-cycle Finding 1, `pb-review-DX2.md` — an

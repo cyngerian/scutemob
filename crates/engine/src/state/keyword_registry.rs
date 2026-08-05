@@ -208,7 +208,17 @@ pub fn handling(keyword: &KeywordAbility) -> KeywordHandling {
         },
         K::Flashback => KeywordHandling::Handled { sites: &["crates/engine/src/rules/casting.rs"] },
         K::Cycling => KeywordHandling::Handled { sites: &["crates/engine/src/rules/abilities.rs"] },
-        K::Dredge(..) => KeywordHandling::Handled { sites: &["crates/engine/src/rules/replacement.rs"] },
+        K::Dredge(..) => KeywordHandling::Handled {
+            // PB-DX23: the CR 702.52a/b eligibility scan moved into
+            // `rules::queries::dredge_options` (one derivation, two
+            // consumers — `check_would_draw_replacement` here and
+            // `crates/simulator`'s offer layer both call it), so this
+            // keyword is now handled at both sites.
+            sites: &[
+                "crates/engine/src/rules/replacement.rs",
+                "crates/engine/src/rules/queries.rs",
+            ],
+        },
         K::Convoke => KeywordHandling::Handled { sites: &["crates/engine/src/rules/casting.rs"] },
         K::Delve => KeywordHandling::Handled { sites: &["crates/engine/src/rules/casting.rs"] },
         K::Kicker => KeywordHandling::Marker {

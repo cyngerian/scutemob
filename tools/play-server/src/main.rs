@@ -10044,4 +10044,235 @@ mod tests {
             command_count(&after)
         );
     }
+
+    // ── PB-DX23 -- the human dredge channel (CR 702.52a, 400.1; plan §5 T5.1) ──
+    //
+    // Q6 (the play-server shape): NO new `AnswerShapeView` variant, NO new
+    // `ActionParamsDto` field, NO new picker component -- the choice lives in
+    // the `LegalAction` itself, one action per choice, the `PayEcho`/
+    // `PayRecover` shape verbatim. This probe drives a real game to a real
+    // dredge offer over the REAL HTTP API and answers it with the
+    // NON-DEFAULT choice (`Some(troll)`, not the decline) so game state
+    // distinguishes the human's answer from any fallback (the UI-4/SIM-6
+    // standard), and pins that the offered option carries no blocking-decision
+    // payload (the Q6 divergence from the brief's literal "blocking-decision
+    // UI" wording).
+
+    /// A mono-green commander (5+ mana, never affordable inside this
+    /// fixture's short window) so it fixes CR 903.5c color identity without
+    /// ever perturbing the drive -- same role `UI1_COMMANDER` plays for the
+    /// mono-black UI-1 fixtures.
+    const T5_DX23_COMMANDER: &str = "azusa-lost-but-seeking";
+
+    /// CR 903.5c: one Golgari Grave-Troll ({4}{G}) plus 98 Forests,
+    /// mono-green. Almost-all-basics on purpose, same rationale as
+    /// `ui1_deck`: the Troll is the ONLY castable non-land card in the whole
+    /// 99-card deck, so the drive's "play a land, else cast anything
+    /// castable" policy can never be confused about what to do, regardless
+    /// of exactly which Forests land in the opening hand at this seed.
+    fn t5_dx23_deck() -> mtg_simulator::DeckConfig {
+        use mtg_engine::CardId;
+        let mut main_deck: Vec<CardId> = vec![CardId("golgari-grave-troll".to_string())];
+        while main_deck.len() < 99 {
+            main_deck.push(CardId("forest".to_string()));
+        }
+        mtg_simulator::DeckConfig {
+            commander: CardId(T5_DX23_COMMANDER.to_string()),
+            main_deck,
+        }
+    }
+
+    /// **Read off a sweep, not reasoned to** (the `ui1_deck`/`UI1_SEED` precedent):
+    /// at this seed the Troll is in p1's opening 7-card hand, which is what keeps
+    /// this drive to a handful of turns instead of racing two near-identical
+    /// mono-Forest decks toward a mutual deck-out (empirically ~90+ turns at an
+    /// unswept seed — a first draft of this fixture hit exactly that and never
+    /// reached a dredge offer at all).
+    const T5_DX23_SEED: u64 = 1;
+
+    /// Install the fixture through `session::new_game` -- the same
+    /// constructor the real handler uses, running the same two Invariant-9
+    /// gates. See `ui1_install`'s doc for why `POST /api/game` cannot
+    /// express this (it hard-codes `DeckSource::RandomPerSeat`).
+    fn t5_dx23_install(state: &SharedState) {
+        let cfg = mtg_simulator::LocalGameConfig {
+            player_count: 2,
+            human_seats: [mtg_engine::PlayerId(1)].into_iter().collect(),
+            bot_kind: BotKind::Heuristic,
+            seed: T5_DX23_SEED,
+            decks: mtg_simulator::DeckSource::Fixed(vec![
+                (mtg_engine::PlayerId(1), t5_dx23_deck()),
+                (mtg_engine::PlayerId(2), t5_dx23_deck()),
+            ]),
+            limits: mtg_simulator::LocalGameLimits {
+                max_turns: 200,
+                max_commands: 40_000,
+                max_consecutive_passes: 500,
+                record_journal: true,
+            },
+        };
+        let session =
+            session::new_game(cfg, 0).expect("the PB-DX23 T5.1 fixture deck must be legal");
+        *state.session.lock().expect("fresh lock") = Some(session);
+    }
+
+    fn t5_dx23_hand(state: &SharedState) -> Vec<u64> {
+        let guard = state.session.lock().expect("lock");
+        let session = guard.as_ref().expect("a session is installed");
+        session
+            .game
+            .state()
+            .zones()
+            .get(&mtg_engine::ZoneId::Hand(mtg_engine::PlayerId(1)))
+            .map(|z| z.object_ids())
+            .unwrap_or_default()
+            .iter()
+            .map(|id| id.0)
+            .collect()
+    }
+
+    /// Drive the human seat -- play a land, else cast anything castable, else
+    /// pass, else take the first action that is not `Concede` -- until a
+    /// `ChooseDredge` option naming an OBJECT (the `Some` arm, CR 702.52a,
+    /// distinguished from the always-present decline by a non-null
+    /// `object_id`) is offered.
+    ///
+    /// The Troll reaches the graveyard by LEGAL means along the way: cast
+    /// with an empty graveyard, it enters as a 0/0 and dies to CR 704.5f --
+    /// already proven by `crates/engine/tests/mechanics_e_l/
+    /// golgari_grave_troll.rs::test_golgari_grave_troll_empty_graveyard_dies_to_sba`
+    /// -- so this drive never pokes state; every step is a real POST through
+    /// the router `main()` itself serves.
+    async fn t5_dx23_drive_to_a_named_dredge_offer(state: &SharedState, max_steps: usize) -> Value {
+        let (status, mut view) = get_json(state, "/api/game").await;
+        assert_eq!(status, StatusCode::OK, "{view}");
+        for step in 0..max_steps {
+            if let Some(actions) = view["decision"]["actions"].as_array() {
+                if actions
+                    .iter()
+                    .any(|a| a["kind"] == "ChooseDredge" && !a["object_id"].is_null())
+                {
+                    return view;
+                }
+            }
+            assert!(
+                !view["decision"].is_null(),
+                "the game ended at step {step} without ever offering a named \
+                 ChooseDredge option; T5_DX23_SEED may need re-pinning: {view}"
+            );
+            let wire_seq = seq(&view);
+            let actions = view["decision"]["actions"]
+                .as_array()
+                .expect("actions is an array")
+                .clone();
+            let pick = actions
+                .iter()
+                .find(|a| a["kind"] == "PlayLand")
+                .or_else(|| actions.iter().find(|a| a["kind"] == "CastSpell"))
+                .or_else(|| actions.iter().find(|a| a["kind"] == "PassPriority"))
+                .or_else(|| actions.iter().find(|a| a["kind"] != "Concede"))
+                .unwrap_or_else(|| panic!("only Concede was offered at step {step}: {view}"));
+            let index = pick["index"].as_u64().expect("index is a number");
+            let (status, next) = post_json(
+                state,
+                "/api/game/action",
+                json!({"seq": wire_seq, "action_index": index, "params": {}}),
+            )
+            .await;
+            assert_eq!(
+                status,
+                StatusCode::OK,
+                "step {step} submitting {}: {next}",
+                pick["label"]
+            );
+            view = next;
+        }
+        panic!("no named ChooseDredge option within {max_steps} steps");
+    }
+
+    /// **T5.1** -- CR 702.52a, 400.1 (plan §5 T5.1, acceptance criterion 1
+    /// human half). A human seat can answer a dredge offer over the REAL
+    /// HTTP API with the NON-DEFAULT answer (`Some(troll)`, not the
+    /// decline), so game state distinguishes the human's choice from any
+    /// fallback (the UI-4/SIM-6 standard).
+    ///
+    /// Also pins the Q6 divergence from the brief's literal
+    /// "blocking-decision UI" wording: the offered option carries NO
+    /// `decision` payload -- CR 702.52a is "you MAY instead", so the engine
+    /// deliberately does not block on it, and a dredge offer is an ORDINARY
+    /// play, not a blocking decision.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_dx23_browser_can_answer_a_dredge_offer() {
+        let state = shared_state();
+        t5_dx23_install(&state);
+
+        let view = t5_dx23_drive_to_a_named_dredge_offer(&state, 4_000).await;
+        let actions = view["decision"]["actions"]
+            .as_array()
+            .expect("actions is an array");
+        let option = actions
+            .iter()
+            .find(|a| a["kind"] == "ChooseDredge" && !a["object_id"].is_null())
+            .expect("just found by the drive loop");
+
+        // The Q6 pin: an ordinary play, not a blocking decision.
+        assert!(
+            option["decision"].is_null(),
+            "CR 702.52a is \"you MAY instead\" -- the engine deliberately does not \
+             block on it, so a ChooseDredge option must carry no blocking-decision \
+             payload. got {:?}",
+            option["decision"]
+        );
+        let label = option["label"].as_str().unwrap_or_default();
+        assert!(
+            label.contains("Dredge"),
+            "the label should name the dredge action, got {label:?}"
+        );
+
+        let wire_seq = seq(&view);
+        let (status, after) = post_json(
+            &state,
+            "/api/game/action",
+            json!({"seq": wire_seq, "action_index": option["index"], "params": {}}),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{after}");
+
+        // Out-of-band oracle: read the engine's own journal for the Dredged
+        // event, exactly as `ui1_zone`/`ui1_library` read the engine's own
+        // state -- never used to build the payload, only to verify the
+        // effect. CR 400.7: the dredged card gets a NEW ObjectId in hand, so
+        // this reads `card_new_id` from the event rather than re-using the
+        // graveyard-zone `object_id` the offer carried.
+        let (dredged_new_id, milled) = {
+            let guard = state.session.lock().expect("lock");
+            let session = guard.as_ref().expect("a session is installed");
+            session
+                .game
+                .journal()
+                .iter()
+                .flat_map(|r| r.events.iter())
+                .find_map(|e| match e {
+                    mtg_engine::GameEvent::Dredged {
+                        player,
+                        card_new_id,
+                        milled,
+                    } if *player == mtg_engine::PlayerId(1) => Some((card_new_id.0, *milled)),
+                    _ => None,
+                })
+                .expect("a GameEvent::Dredged for p1 must be in the journal")
+        };
+        assert_eq!(
+            milled, 6,
+            "CR 702.52a: Golgari Grave-Troll mills exactly its own Dredge N (6)"
+        );
+
+        let after_hand = t5_dx23_hand(&state);
+        assert!(
+            after_hand.contains(&dredged_new_id),
+            "CR 702.52a: dredging must return the card to hand (under its new, \
+             CR 400.7 zone-change id). hand: {:?}",
+            after_hand
+        );
+    }
 }

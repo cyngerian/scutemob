@@ -230,6 +230,20 @@ fn test_dx2_choose_dredge_some_without_offer_dredges_at_will_today() {
 /// once answered. Before PB-DX2, `draw_cards_for_player`'s break set did not
 /// include `DredgeOffered`, so the loop iterated again, re-offered dredge for
 /// the SAME card, and destroyed the other draws (plan §1 P3).
+///
+/// **Decline section REWRITTEN by PB-DX23 §3 Q3 (closing `OOS-DX2-2`).** The
+/// dredge card is never actually dredged away in this fixture — it is only
+/// ever DECLINED — so it stays eligible in the graveyard for every remaining
+/// draw of the sequence. Before PB-DX23, `perform_remaining_draws` hard-coded
+/// `offer_dredge: false` for the whole tail, so one decline drained all 3
+/// draws in a single `CardDrawn`-only burst. CR 121.2 makes "draw three"
+/// three SEPARATE draws and CR 614.11a/121.6b say the replacement's actions
+/// complete and THEN the sequence resumes — so each resumed draw is its own
+/// fresh "would draw" event and is independently dredge-offerable. With a
+/// dredge card that is never removed from the graveyard, that means each of
+/// the 3 draws is offered and declined in turn: this test now drives that to
+/// completion with one `ChooseDredge { None }` per remaining draw rather than
+/// asserting the whole sequence completes off a single decline.
 fn test_dx2_multi_draw_sequence_stops_at_the_dredge_offer() {
     use mtg_engine::effects::{execute_effect, EffectContext};
 
@@ -293,24 +307,47 @@ fn test_dx2_multi_draw_sequence_stops_at_the_dredge_offer() {
         "two further draws remain in the sequence"
     );
 
-    // Decline: should complete all 3 draws.
-    let (state, decline_events) = process_command(
-        state,
-        Command::ChooseDredge {
-            player: p1,
-            card: None,
-        },
-    )
-    .unwrap();
-    let total_drawn = decline_events
-        .iter()
-        .filter(|e| matches!(e, GameEvent::CardDrawn { player, .. } if *player == p1))
-        .count();
+    // PB-DX23 §3 Q3 / OOS-DX2-2: decline once per remaining draw. The dredge
+    // card is never actually dredged in this fixture, so it stays eligible
+    // and each resumed draw (a DIFFERENT draw event, CR 121.2) is offered
+    // dredge again -- decline drains the sequence one draw at a time rather
+    // than all at once.
+    let mut total_drawn = 0usize;
+    let mut rounds = 0usize;
+    while !state.pending_draws().is_empty() {
+        rounds += 1;
+        assert!(
+            rounds <= 3,
+            "the 3-draw sequence must fully discharge within 3 decline rounds \
+             -- exceeding that means a draw is being lost or an offer is \
+             looping instead of terminating"
+        );
+        let (next_state, decline_events) = process_command(
+            state,
+            Command::ChooseDredge {
+                player: p1,
+                card: None,
+            },
+        )
+        .unwrap();
+        state = next_state;
+        total_drawn += decline_events
+            .iter()
+            .filter(|e| matches!(e, GameEvent::CardDrawn { player, .. } if *player == p1))
+            .count();
+    }
     assert_eq!(
         total_drawn, 3,
-        "CR 614.11a: declining the offer must complete the full sequence -- 3 \
-         cards drawn, not 1 (the other 2 must not be destroyed). Events: {:?}",
-        decline_events
+        "CR 614.11a / 121.2: across the whole decline chain, the full \
+         sequence must complete -- 3 cards drawn total, none destroyed, none \
+         double-counted."
+    );
+    assert_eq!(
+        rounds, 3,
+        "CR 121.2: with a dredge card that is never removed from the \
+         graveyard, each of the 3 draws is independently offered and \
+         declined -- exactly 3 decline rounds, not 1 (that would be the \
+         pre-PB-DX23 OOS-DX2-2 tail-immunity defect)."
     );
     assert!(
         state.pending_draws().is_empty(),
@@ -436,6 +473,17 @@ fn test_dx2_dredge_offer_records_a_pending_draw() {
 /// count is still conserved (CR 614.11a), just split across two moments
 /// instead of banked into one, and `pending_draws` never holds more than the
 /// most recently offered draw's own remainder.
+///
+/// **Decline section REWRITTEN by PB-DX23 §3 Q3 (closing `OOS-DX2-2`), same
+/// reason as `test_dx2_multi_draw_sequence_stops_at_the_dredge_offer`**: the
+/// dredge card is never dredged away in this fixture, so it stays eligible
+/// for every remaining draw of the second sequence and each resumed draw
+/// (CR 121.2) is independently offered dredge again. A single decline no
+/// longer drains the whole remainder; this test now drives the second
+/// sequence to completion with one `ChooseDredge { None }` per remaining
+/// draw. The end-to-end conservation invariant (3 total cards drawn, none
+/// destroyed, none banked past its own offer's window) is unchanged and is
+/// re-asserted across the WHOLE decline chain rather than a single call.
 fn test_dx2_second_dredge_offer_discharges_the_first_and_conserves_draws() {
     use mtg_engine::effects::{execute_effect, EffectContext};
 
@@ -515,24 +563,44 @@ fn test_dx2_second_dredge_offer_discharges_the_first_and_conserves_draws() {
          entry can never grow past a single offer's own remainder."
     );
 
-    // Declining the new offer completes the SECOND sequence's remainder.
-    let (state, decline_events) = process_command(
-        state,
-        Command::ChooseDredge {
-            player: p1,
-            card: None,
-        },
-    )
-    .unwrap();
-    let decline_drawn = decline_events
-        .iter()
-        .filter(|e| matches!(e, GameEvent::CardDrawn { player, .. } if *player == p1))
-        .count();
+    // PB-DX23 §3 Q3 / OOS-DX2-2: decline once per remaining draw of the
+    // second sequence -- the dredge card is never dredged away, so each
+    // resumed draw (a DIFFERENT draw event, CR 121.2) is offered again.
+    let mut decline_drawn = 0usize;
+    let mut decline_rounds = 0usize;
+    while !state.pending_draws().is_empty() {
+        decline_rounds += 1;
+        assert!(
+            decline_rounds <= 2,
+            "the second sequence's 2-draw remainder must fully discharge \
+             within 2 decline rounds -- exceeding that means a draw is being \
+             lost or an offer is looping instead of terminating"
+        );
+        let (next_state, decline_events) = process_command(
+            state,
+            Command::ChooseDredge {
+                player: p1,
+                card: None,
+            },
+        )
+        .unwrap();
+        state = next_state;
+        decline_drawn += decline_events
+            .iter()
+            .filter(|e| matches!(e, GameEvent::CardDrawn { player, .. } if *player == p1))
+            .count();
+    }
     assert_eq!(
         decline_drawn, 2,
-        "CR 614.11a: declining must complete the SECOND sequence's remaining \
-         two draws. Events: {:?}",
-        decline_events
+        "CR 614.11a: across the whole decline chain, declining must complete \
+         the SECOND sequence's remaining two draws."
+    );
+    assert_eq!(
+        decline_rounds, 2,
+        "CR 121.2: with a dredge card that is never removed from the \
+         graveyard, each of the second sequence's 2 remaining draws is \
+         independently offered and declined -- exactly 2 decline rounds, not \
+         1 (that would be the pre-PB-DX23 OOS-DX2-2 tail-immunity defect)."
     );
     assert!(state.pending_draws().is_empty());
 

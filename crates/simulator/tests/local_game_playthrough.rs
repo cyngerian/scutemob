@@ -121,6 +121,11 @@ fn kind_of(action: &LegalAction) -> &'static str {
         LegalAction::DiscardToHandSize { .. } => "DiscardToHandSize",
         LegalAction::ChooseTriggerTargets { .. } => "ChooseTriggerTargets",
         LegalAction::AnswerEffectChoice { .. } => "AnswerEffectChoice",
+        // PB-DX23 (CR 702.52a): an ordinary priority-window action, so it never
+        // changes this policy's decision tree (step 4's `PassPriority` still
+        // matches first whenever a dredge offer stands) -- this arm exists only
+        // because `kind_of`'s match is exhaustive.
+        LegalAction::ChooseDredge { .. } => "ChooseDredge",
     }
 }
 

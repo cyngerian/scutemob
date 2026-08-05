@@ -29,6 +29,17 @@
 // while this card is in the graveyard. Requires >= 6 cards in library
 // (CR 702.52b). Engine machinery already exists (rules/replacement.rs
 // `DredgeAvailable` + Command::ChooseDredge).
+//
+// PB-DX23 (2026-08-05, `scutemob-201`, OOS-DX2-5): that machinery existed but
+// nothing could reach it — no answer channel existed for either a bot or the
+// human browser seat, so an offer stood forever and the next draw silently
+// auto-declined it (OOS-DX2-7, still open). An answer channel now exists
+// end to end: `crates/simulator/src/legal_actions.rs::LegalAction::ChooseDredge`
+// is offered by `StubProvider`, scored by `heuristic_bot.rs::score_action`,
+// mapped to `Command::ChooseDredge` by `params.rs`, and rendered as an
+// ordinary (non-blocking) action button by `tools/play-server` — this is the
+// corpus's only dredge def, so it is this card that exercises the whole
+// channel.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {

@@ -1076,6 +1076,30 @@ repeated here so this README does not claim more than the implementation does.
     command refusals in `sim5_bot_cast_discipline`'s A/B (seeds 0/7/42). Seed
     **OOS-SIM6-3**; the largest remaining SR-38 violation on this surface.
 
+29. *(Numbering note, review finding S4: this item lands between 26 and 27 —
+    appended at the list's end when written, not renumbered in. Pre-existing
+    disorder already exists in this list — item 25 precedes item 24 — so this
+    is a continuation of that pattern, not a new regression. Left as-is rather
+    than renumbering the whole list, to avoid an unrelated mass-diff.)* **The
+    dredge offer (CR 702.52a) is an ordinary action button, not a picker
+    (PB-DX23).** `LegalAction::ChooseDredge { card: Option<ObjectId>, mill: u32 }`
+    renders in `ActionBar`'s `plays` group like any other labelled action —
+    "Dredge \<card\> (mill N)" per eligible graveyard card, plus a separate "Decline
+    dredge — draw normally" — with **no** `decision` key and **no** picker in the
+    chain. This is deliberate, not an oversight: CR 702.52a is "you **may** instead",
+    so the engine never blocks on it (`GameEvent::DredgeChoiceRequired`'s own doc
+    explains why), and every other action — including `PassPriority` — stays legal
+    and rendered alongside it, so a human can simply ignore the offer for as long as
+    they like. `tools/play-server/src/view.rs` needs three `LegalAction` arms only
+    (`action_kind`, `action_object`, `action_label`); `params.rs::
+    action_to_command_with_params` maps it straight to `Command::ChooseDredge` with
+    no announced param, since there is no params field for one to be absent from.
+    An unanswered offer self-heals (but loses the option) the instant the player's
+    next draw event arrives — see `OOS-DX2-7` in
+    `docs/audits/decision-point-audit.md` §3.1, still open. The TUI does **not**
+    get this channel (`tools/tui/` hand-builds commands and never routes through
+    `params.rs`) — seed **OOS-DX23-3**.
+
 27. **A draw-then-discard effect renders SOME of its `PickN` candidates unlabelled
     (ENG-1).** CR 608.2d's suspension rolls the **whole** resolution back
     (`rules/resolution.rs`, `*state = restart_point`), so for a printing that draws

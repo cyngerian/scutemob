@@ -183,7 +183,7 @@ impl HeuristicBot {
             .is_some_and(|n| *n >= key.cap())
     }
 
-    fn score_action(&self, state: &GameState, _player: PlayerId, action: &LegalAction) -> i32 {
+    fn score_action(&self, state: &GameState, player: PlayerId, action: &LegalAction) -> i32 {
         // Below `PassPriority`'s 1, so the bot passes instead of looping — but still
         // above nothing, so it remains choosable when it is all there is.
         if self.is_capped_repeat(action) {
@@ -338,6 +338,41 @@ impl HeuristicBot {
             // resolution-time choice is outstanding -- same precedent and
             // rationale as DiscardToHandSize above.
             LegalAction::AnswerEffectChoice { .. } => 100,
+            // PB-DX23 (CR 702.52a, 104.3c; plan §3 Q4). `None` (decline) mirrors
+            // `PayEcho { pay: false }` verbatim -- just above `PassPriority`'s 1
+            // so the bot always discharges an outstanding offer rather than
+            // sitting on it, and below every real play so answering never
+            // displaces one.
+            LegalAction::ChooseDredge { card: None, .. } => 2,
+            // `Some(_)` scores 3 (above the decline, above `PassPriority`) only
+            // with 2x library headroom over the mill count -- CR 702.52b's
+            // `library_count >= n` is a LEGALITY floor the engine and the offer
+            // already enforce; `2 * n` is a SURVIVAL rule against CR 104.3c
+            // (milling out) that is this bot's only defence, since it has no
+            // other way to value what it would give up. Below the margin it
+            // scores 0 -- the "below PassPriority, above nothing" idiom used
+            // throughout this function -- so the action stays choosable when it
+            // is all there is and the resulting command is one the engine
+            // ACCEPTS (SR-38). (Inherited idiom -- shared with `TapForMana`;
+            // for `ChooseDredge` specifically this 0 arm is effectively
+            // "never the top score" in practice, since `PassPriority` (1) is
+            // pushed unconditionally before this block runs, so a `0` can
+            // never outscore it -- review finding S3.)
+            LegalAction::ChooseDredge {
+                card: Some(_),
+                mill,
+            } => {
+                let library_count = state
+                    .zones()
+                    .get(&mtg_engine::ZoneId::Library(player))
+                    .map(|z| z.object_ids().len())
+                    .unwrap_or(0);
+                if library_count >= 2 * (*mill as usize) {
+                    3
+                } else {
+                    0
+                }
+            }
         }
     }
 }
