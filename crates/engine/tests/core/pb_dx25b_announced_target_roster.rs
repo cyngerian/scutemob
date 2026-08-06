@@ -13,9 +13,7 @@
 //! probe stays green, because the compiler drops the commented-out code and the
 //! scanner never sees it disappear.
 
-use mtg_engine::{
-    all_cards, AbilityDefinition, CardDefinition, Completeness, Effect, TargetRequirement,
-};
+use mtg_engine::{all_cards, CardDefinition, Completeness};
 use std::collections::BTreeSet;
 use std::path::Path;
 
@@ -93,48 +91,68 @@ fn extract_match_arm_body<'a>(stripped: &'a str, pattern_marker: &str) -> &'a st
 
 const EFFECTS_MOD_PATH: &str = "src/effects/mod.rs";
 
-// ── R1: the requirement roster ──────────────────────────────────────────────
+// ── Sanitized-Debug walker (PB-DX25b review Finding E3) ─────────────────────
+//
+// R1/R2/R3 originally used HAND-WRITTEN structural walkers over `Effect` /
+// `AbilityDefinition` (matching `Spell`/`Activated`/`Triggered` and
+// `Sequence`/`Conditional`/`ForEach`/`Choose`, `_ => false` elsewhere). The
+// PB-DX25b review (Finding E3) measured their blind spots against
+// `card_definition.rs`: four recursive `Effect` carriers were never descended
+// into (`Repeat`, `MayPayOrElse`, `MayPayThenEffect`, `CoinFlip`), and four
+// `AbilityDefinition` variants were never examined at all (`LoyaltyAbility`,
+// `SagaChapter`, `ClassLevel`, `Forecast`) -- all correctly excluded from
+// today's corpus, but a `_ => {}`/`_ => false` arm cannot tell "correctly
+// excluded" from "silently missed", and a FUTURE def in one of those shapes
+// would move R1/R2/R3's rosters without moving these tests.
+//
+// **Chosen fix: plan §5.3 option (b), the sanitized-Debug scan** -- total over
+// the WHOLE struct by construction (every field must implement `Debug` for
+// `#[derive(Debug)]` to compile at all), so it is immune to a new recursive
+// `Effect`/`AbilityDefinition` variant in a way a hand-written walker never
+// can be. `Effect`/`TargetRequirement`/`AbilityDefinition` all derive `Debug`
+// with NO custom impl, so the emitted text is the bare variant name (e.g.
+// `ChangeTargets { .. }`, not `Effect::ChangeTargets { .. }`) -- confirmed by
+// grepping their `#[derive(..)]` attributes before relying on it.
+//
+// **The blind spot of THIS approach, stated per the plan's own instruction
+// ("the choice and its blind spot go in the file's doc comment")**: a
+// sanitized `Debug` scan is a SUBSTRING search over free text. It is immune to
+// new *code* shapes (new enum variants, new nesting), but NOT immune to a
+// FUTURE free-text `String` field elsewhere on `CardDefinition` that happens
+// to contain one of the needle strings (`"ChangeTargets"`,
+// `"CopySpellOnStack"`, `"TargetSpellWithSingleTarget"`,
+// `"TargetSpellOrAbilityWithSingleTarget"`, `"DrawCards"`) in hand-authored
+// English. `sanitize()` below closes the ONE such field this batch found by
+// experiment (`Completeness`'s note, `plumb_the_forbidden.rs`'s own
+// `Completeness::partial(...)` prose literally contains the string
+// `Effect::CopySpellOnStack` -- see the executed proof at R3's own site
+// below) plus `oracle_text` on every face (front, back, adventure) as a
+// defensive measure (printed game text is Rust-identifier-shaped only by
+// coincidence, but nothing stops a future author's note referencing an
+// engine type name the way `plumb_the_forbidden.rs`'s did). A field this
+// sanitization does NOT know about (e.g. a future free-text `description` on
+// `AbilityDefinition::Activated`) is a residual, exactly as R4/R5's own doc
+// comments state their residuals rather than implying total coverage.
 
-/// True if `req` is `TargetSpellWithSingleTarget` or
-/// `TargetSpellOrAbilityWithSingleTarget`, including inside a `TargetRequirement::UpToN`.
-fn is_single_target_spell_requirement(req: &TargetRequirement) -> bool {
-    match req {
-        TargetRequirement::TargetSpellWithSingleTarget
-        | TargetRequirement::TargetSpellOrAbilityWithSingleTarget => true,
-        TargetRequirement::UpToN { inner, .. } => is_single_target_spell_requirement(inner),
-        _ => false,
+/// Returns a `{:?}`-formatted string of `def` with every known free-text
+/// prose field cleared/normalized, so a substring search over it cannot
+/// false-positive on hand-authored English that happens to contain a Rust
+/// type name. See the module note above for the mechanism and its own
+/// residual.
+fn sanitized_debug(def: &CardDefinition) -> String {
+    let mut clone = def.clone();
+    clone.oracle_text = String::new();
+    if let Some(face) = clone.back_face.as_mut() {
+        face.oracle_text = String::new();
     }
+    if let Some(face) = clone.adventure_face.as_mut() {
+        face.oracle_text = String::new();
+    }
+    clone.completeness = Completeness::Complete;
+    format!("{clone:?}")
 }
 
-/// True if any `targets` list on `def` -- **either face**, walking `Spell`,
-/// `Activated`, AND `Triggered` abilities (all three carry `targets` and
-/// `modes`) -- declares `TargetSpellWithSingleTarget` or
-/// `TargetSpellOrAbilityWithSingleTarget`, either in the flat non-modal
-/// `targets` field or inside `ModeSelection.mode_targets` (the modal path,
-/// PB-AC4).
-fn has_single_target_spell_requirement(def: &CardDefinition) -> bool {
-    let ability_has_it = |ability: &AbilityDefinition| -> bool {
-        let (targets, modes): (&[TargetRequirement], &Option<_>) = match ability {
-            AbilityDefinition::Spell { targets, modes, .. } => (targets, modes),
-            AbilityDefinition::Activated { targets, modes, .. } => (targets, modes),
-            AbilityDefinition::Triggered { targets, modes, .. } => (targets, modes),
-            _ => return false,
-        };
-        targets.iter().any(is_single_target_spell_requirement)
-            || modes.as_ref().is_some_and(|m| {
-                m.mode_targets.as_ref().is_some_and(|mt| {
-                    mt.iter()
-                        .any(|slice| slice.iter().any(is_single_target_spell_requirement))
-                })
-            })
-    };
-    let face_has_it = |abilities: &[AbilityDefinition]| abilities.iter().any(ability_has_it);
-    face_has_it(&def.abilities)
-        || def
-            .back_face
-            .as_ref()
-            .is_some_and(|f| face_has_it(&f.abilities))
-}
+// ── R1: the requirement roster ──────────────────────────────────────────────
 
 /// R1 (plan §5.3): defs carrying `TargetSpellWithSingleTarget` or
 /// `TargetSpellOrAbilityWithSingleTarget` anywhere, by NAME. Non-vacuity floor
@@ -154,7 +172,11 @@ fn r1_single_target_spell_requirement_roster_is_pinned() {
 
     let roster: BTreeSet<String> = cards
         .iter()
-        .filter(|d| has_single_target_spell_requirement(d))
+        .filter(|d| {
+            let debug = sanitized_debug(d);
+            debug.contains("TargetSpellWithSingleTarget")
+                || debug.contains("TargetSpellOrAbilityWithSingleTarget")
+        })
         .map(|d| d.name.clone())
         .collect();
 
@@ -175,8 +197,14 @@ fn r1_single_target_spell_requirement_roster_is_pinned() {
     );
 
     // Of the roster, exactly the two named `Complete` defs are live-wrong at
-    // HEAD (plan §2.4) -- Untimely Malfunction is `partial` for an unrelated
-    // reason (mode 2's variable target count).
+    // HEAD (plan §2.4). Untimely Malfunction stays `partial`, but NOT for the
+    // C1/C2 lookup defect this batch fixes: mode 2's variable-target-count
+    // gap (TargetRequirement::UpToN has no minimum) is a SEPARATE, unrelated
+    // limitation. This is now a MEASURED claim, not an assumed one -- PB-DX25b
+    // review Finding C2 required a modal-index probe before "unrelated" could
+    // be trusted; `t10_untimely_malfunction_mode1_target_index` casts mode 1
+    // for real and confirms it redirects correctly post-fix, so mode 2's gap
+    // really is the only thing keeping this def out of `Complete`.
     let complete: BTreeSet<String> = roster
         .iter()
         .filter(|name| {
@@ -203,33 +231,6 @@ fn r1_single_target_spell_requirement_roster_is_pinned() {
 
 // ── R2: the Effect::ChangeTargets roster ────────────────────────────────────
 
-fn effect_contains_change_targets(effect: &Effect) -> bool {
-    match effect {
-        Effect::ChangeTargets { .. } => true,
-        Effect::Sequence(effects) => effects.iter().any(effect_contains_change_targets),
-        Effect::Conditional {
-            if_true, if_false, ..
-        } => effect_contains_change_targets(if_true) || effect_contains_change_targets(if_false),
-        Effect::ForEach { effect, .. } => effect_contains_change_targets(effect),
-        Effect::Choose { choices, .. } => choices.iter().any(effect_contains_change_targets),
-        _ => false,
-    }
-}
-
-fn ability_contains_change_targets(ability: &AbilityDefinition) -> bool {
-    match ability {
-        AbilityDefinition::Spell { effect, modes, .. }
-        | AbilityDefinition::Activated { effect, modes, .. }
-        | AbilityDefinition::Triggered { effect, modes, .. } => {
-            effect_contains_change_targets(effect)
-                || modes
-                    .as_ref()
-                    .is_some_and(|m| m.modes.iter().any(effect_contains_change_targets))
-        }
-        _ => false,
-    }
-}
-
 /// R2 (plan §5.3): defs whose abilities -- either face -- contain
 /// `Effect::ChangeTargets` anywhere (incl. inside a modal `ModeSelection`), by
 /// NAME. Includes Deflecting Swat (`must_change: false`), which the dispatch
@@ -237,17 +238,19 @@ fn ability_contains_change_targets(ability: &AbilityDefinition) -> bool {
 /// no-op after this batch (`must_change: false` -> `effects/mod.rs`'s
 /// deterministic-fallback `continue`), so membership here does NOT mean
 /// "works" for every row.
+///
+/// **PB-DX25b review Finding E3: now built on the sanitized-Debug walker**
+/// (see the module note above), not a hand-written structural walk -- total
+/// over the whole `Effect` tree by construction, including
+/// `LoyaltyAbility`/`SagaChapter`/`ClassLevel`/`Forecast` and
+/// `Repeat`/`MayPayOrElse`/`MayPayThenEffect`/`CoinFlip`, none of which the
+/// old walker examined.
 #[test]
 fn r2_change_targets_roster_is_pinned() {
     let cards = all_cards();
     let roster: BTreeSet<String> = cards
         .iter()
-        .filter(|d| {
-            d.abilities.iter().any(ability_contains_change_targets)
-                || d.back_face
-                    .as_ref()
-                    .is_some_and(|f| f.abilities.iter().any(ability_contains_change_targets))
-        })
+        .filter(|d| sanitized_debug(d).contains("ChangeTargets"))
         .map(|d| d.name.clone())
         .collect();
 
@@ -274,54 +277,6 @@ fn r2_change_targets_roster_is_pinned() {
 
 // ── R3: the Effect::CopySpellOnStack roster (expected EMPTY) ───────────────
 
-fn effect_contains_copy_spell_on_stack(effect: &Effect) -> bool {
-    match effect {
-        Effect::CopySpellOnStack { .. } => true,
-        Effect::Sequence(effects) => effects.iter().any(effect_contains_copy_spell_on_stack),
-        Effect::Conditional {
-            if_true, if_false, ..
-        } => {
-            effect_contains_copy_spell_on_stack(if_true)
-                || effect_contains_copy_spell_on_stack(if_false)
-        }
-        Effect::ForEach { effect, .. } => effect_contains_copy_spell_on_stack(effect),
-        Effect::Choose { choices, .. } => choices.iter().any(effect_contains_copy_spell_on_stack),
-        _ => false,
-    }
-}
-
-fn effect_contains_draw_cards(effect: &Effect) -> bool {
-    match effect {
-        Effect::DrawCards { .. } => true,
-        Effect::Sequence(effects) => effects.iter().any(effect_contains_draw_cards),
-        Effect::Conditional {
-            if_true, if_false, ..
-        } => effect_contains_draw_cards(if_true) || effect_contains_draw_cards(if_false),
-        Effect::ForEach { effect, .. } => effect_contains_draw_cards(effect),
-        Effect::Choose { choices, .. } => choices.iter().any(effect_contains_draw_cards),
-        _ => false,
-    }
-}
-
-fn ability_contains<F: Fn(&Effect) -> bool>(ability: &AbilityDefinition, pred: &F) -> bool {
-    match ability {
-        AbilityDefinition::Spell { effect, modes, .. }
-        | AbilityDefinition::Activated { effect, modes, .. }
-        | AbilityDefinition::Triggered { effect, modes, .. } => {
-            pred(effect) || modes.as_ref().is_some_and(|m| m.modes.iter().any(pred))
-        }
-        _ => false,
-    }
-}
-
-fn def_contains<F: Fn(&Effect) -> bool>(def: &CardDefinition, pred: &F) -> bool {
-    def.abilities.iter().any(|a| ability_contains(a, pred))
-        || def
-            .back_face
-            .as_ref()
-            .is_some_and(|f| f.abilities.iter().any(|a| ability_contains(a, pred)))
-}
-
 /// R3 (plan §5.3): the `Effect::CopySpellOnStack` roster, expected EMPTY --
 /// with a walker-liveness CONTROL, not just a corpus floor. PB-DX25's own T6
 /// advertised non-vacuity while comparing a hand-written fixture to itself;
@@ -337,13 +292,20 @@ fn def_contains<F: Fn(&Effect) -> bool>(def: &CardDefinition, pred: &F) -> bool 
 /// mentions the literal string only inside `Completeness::partial(...)` PROSE,
 /// the other only inside a Rust comment) -- exactly the SR-36 failure mode
 /// this structural walk exists to avoid.
+///
+/// **PB-DX25b review Finding E3: now built on `sanitized_debug` (module note
+/// above), not a hand-written structural walk.** `plumb_the_forbidden.rs`'s
+/// `Completeness::partial(...)` prose LITERALLY CONTAINS the string
+/// `Effect::CopySpellOnStack` -- see `r3_sanitization_is_load_bearing` below,
+/// which executes the UNSANITIZED variant and shows it false-positives on
+/// exactly this def, proving the sanitization step is not decorative.
 #[test]
 fn r3_copy_spell_on_stack_roster_is_empty_with_liveness_control() {
     let cards = all_cards();
 
     let draw_cards_control: BTreeSet<String> = cards
         .iter()
-        .filter(|d| def_contains(d, &effect_contains_draw_cards))
+        .filter(|d| sanitized_debug(d).contains("DrawCards"))
         .map(|d| d.name.clone())
         .collect();
     assert!(
@@ -358,7 +320,7 @@ fn r3_copy_spell_on_stack_roster_is_empty_with_liveness_control() {
 
     let copy_spell_on_stack_roster: BTreeSet<String> = cards
         .iter()
-        .filter(|d| def_contains(d, &effect_contains_copy_spell_on_stack))
+        .filter(|d| sanitized_debug(d).contains("CopySpellOnStack"))
         .map(|d| d.name.clone())
         .collect();
     assert!(
@@ -371,6 +333,44 @@ fn r3_copy_spell_on_stack_roster_is_empty_with_liveness_control() {
     );
 }
 
+/// PB-DX25b review Finding E3: executes the UNSANITIZED variant of R3's own
+/// scan (`format!("{:?}", def)` with no `oracle_text`/`completeness`
+/// clearing) and asserts it FALSE-POSITIVES on `plumb_the_forbidden` -- the
+/// trap the plan named (§5.3): that def's `Completeness::partial(...)` note
+/// literally contains the string `Effect::CopySpellOnStack` in hand-authored
+/// English, even though the def never constructs that effect in code. This is
+/// the executed proof that `sanitized_debug`'s cleanup is load-bearing, not
+/// decorative -- required by the review rather than merely asserted.
+#[test]
+fn r3_sanitization_is_load_bearing() {
+    let cards = all_cards();
+    let plumb = cards
+        .iter()
+        .find(|d| d.name == "Plumb the Forbidden")
+        .expect("Plumb the Forbidden must exist in the corpus for this proof");
+
+    // The SANITIZED scan (R3's real mechanism) must NOT flag it.
+    assert!(
+        !sanitized_debug(plumb).contains("CopySpellOnStack"),
+        "sanitized_debug(Plumb the Forbidden) must NOT contain \
+         \"CopySpellOnStack\" -- the def does not construct that effect in \
+         code; if this fails, sanitization regressed"
+    );
+
+    // The UNSANITIZED scan (the naive `format!("{:?}", def)` the plan warned
+    // against) MUST flag it -- proving the sanitization step, not the corpus,
+    // is what keeps R3 from false-positiving.
+    let unsanitized = format!("{plumb:?}");
+    assert!(
+        unsanitized.contains("CopySpellOnStack"),
+        "UNSANITIZED format!(\"{{:?}}\", def) must contain \"CopySpellOnStack\" \
+         for Plumb the Forbidden -- if this fails, the def's note no longer \
+         contains the literal string this proof depends on, and the trap this \
+         test exists to demonstrate no longer applies here (re-derive against \
+         a different def before deleting this test)"
+    );
+}
+
 // ── R4: source gate over the two effects/mod.rs arms ────────────────────────
 
 /// R4 (plan §5.3): after comment-stripping, the `Effect::ChangeTargets` and
@@ -378,12 +378,21 @@ fn r3_copy_spell_on_stack_roster_is_empty_with_liveness_control() {
 /// `stack_index_for_announced_target` at least once, and (b) contain ZERO
 /// occurrences of `stack_objects.iter()` / `stack_objects.iter_mut()`.
 ///
-/// **Residual, stated honestly**: this gate sees only the two arms it names.
-/// A brand-new arm elsewhere in `effects/mod.rs` that takes an announced id
-/// and re-open-codes `stack_objects.iter().find(...)` is invisible to it --
-/// exactly as PB-DX25's G2 was blind to `resolution.rs` until its review added
-/// G4. R5 below is the closest thing to a wide net, and it too is scoped (see
-/// its own doc).
+/// **Residual, stated honestly (PB-DX25b review Finding E2 correction)**: this
+/// gate sees only the two arms it names. A brand-new arm elsewhere in
+/// `effects/mod.rs`, OR a brand-new `TargetRequirement` arm in `casting.rs`,
+/// that takes an announced id and re-open-codes `stack_objects.iter().find
+/// (...)` is invisible to it -- exactly as PB-DX25's G2 was blind to
+/// `resolution.rs` until its review added G4. R6 below extends this SAME
+/// per-arm structural check to the two `casting.rs` arms (C1/C2), closing that
+/// half of the gap for the FOUR arms this batch actually touched. **R5 below
+/// is NOT a wide net** (the review found and this batch confirmed three ways
+/// to defeat its original form -- see R5's own doc for what its hardened form
+/// still cannot catch): a genuinely NEW fifth site that never calls
+/// `card_in_stack_zone` at all is invisible to every gate in this file. No
+/// mechanism in this tree detects that shape; only R4+R6 (per-arm, per known
+/// site) and R5 (per-shape, corpus-wide) exist, and each is scoped to what its
+/// own doc says.
 #[test]
 fn r4_change_targets_and_copy_spell_on_stack_arms_use_the_shared_helper() {
     let stripped = strip_comments(&read_source(EFFECTS_MOD_PATH));
@@ -423,6 +432,80 @@ fn r4_change_targets_and_copy_spell_on_stack_arms_use_the_shared_helper() {
     }
 }
 
+// ── R6: source gate over the two casting.rs arms (PB-DX25b review Finding E2) ──
+
+const CASTING_RS_PATH: &str = "src/rules/casting.rs";
+
+/// `casting.rs`'s C1/C2 sites are `if matches!(req, TargetRequirement::X) {
+/// .. }` blocks inside `validate_object_satisfies_requirement`, not `match`
+/// arms with `=> {` -- `extract_match_arm_body`'s marker shape does not apply.
+/// Finds the marker, then the FIRST `{` after it, and extracts the balanced
+/// body from there (reusing `balanced_body`, which is shape-agnostic).
+fn extract_if_block_body<'a>(stripped: &'a str, pattern_marker: &str) -> &'a str {
+    let pat_start = stripped
+        .find(pattern_marker)
+        .unwrap_or_else(|| panic!("`{pattern_marker}` not found in stripped source"));
+    let brace_rel = stripped[pat_start..]
+        .find('{')
+        .unwrap_or_else(|| panic!("no `{{` found after `{pattern_marker}`"));
+    let open_brace = pat_start + brace_rel;
+    balanced_body(stripped, open_brace, pattern_marker)
+}
+
+/// R6 (PB-DX25b review Finding E2, the PREFERRED fix): the SAME structural
+/// check R4 applies to the two `effects/mod.rs` arms (C3/C4), applied to the
+/// two `casting.rs` arms (C1/C2) -- the only production sites with a
+/// behavioural regression test (T1/T2/the in-source `casting.rs` tests) but,
+/// before this fix, NO structural source gate at all. After
+/// comment-stripping, the `TargetSpellOrAbilityWithSingleTarget` and
+/// `TargetSpellWithSingleTarget` `if` blocks must each (a) contain
+/// `stack_index_for_announced_target` at least once, and (b) contain ZERO
+/// occurrences of `stack_objects.iter()` / `stack_objects.iter_mut()`.
+///
+/// **Residual, stated honestly (same shape as R4's)**: this gate sees only
+/// the two arms it names. A BRAND-NEW `TargetRequirement` arm elsewhere in
+/// this function that re-open-codes the lookup is invisible to it.
+#[test]
+fn r6_casting_c1_c2_arms_use_the_shared_helper() {
+    let stripped = strip_comments(&read_source(CASTING_RS_PATH));
+
+    for (marker, label) in [
+        (
+            "if matches!(req, TargetRequirement::TargetSpellOrAbilityWithSingleTarget) {",
+            "TargetSpellOrAbilityWithSingleTarget (C1)",
+        ),
+        (
+            "if matches!(req, TargetRequirement::TargetSpellWithSingleTarget) {",
+            "TargetSpellWithSingleTarget (C2)",
+        ),
+    ] {
+        let body = extract_if_block_body(&stripped, marker);
+        assert!(
+            body.len() >= 200,
+            "PB-DX25b R6 non-vacuity: the extracted {label} block body looks \
+             too small ({} chars) to contain the full lookup logic -- \
+             extraction may be broken",
+            body.len()
+        );
+        let helper_calls = body.matches("stack_index_for_announced_target").count();
+        assert!(
+            helper_calls >= 1,
+            "PB-DX25b R6: the {label} block must call \
+             stack_index_for_announced_target at least once -- do not \
+             re-open-code the announced-target lookup here, got \
+             {helper_calls} calls"
+        );
+        assert_eq!(
+            body.matches("stack_objects.iter()").count()
+                + body.matches("stack_objects.iter_mut()").count(),
+            0,
+            "PB-DX25b R6: the {label} block must contain ZERO occurrences of \
+             stack_objects.iter()/iter_mut() -- the lookup must go through \
+             stack_index_for_announced_target, not a re-open-coded scan"
+        );
+    }
+}
+
 // ── R5: the helper has no second implementation ─────────────────────────────
 
 /// R5 (plan §5.3): scan `crates/engine/src/` (comment-stripped) for the
@@ -430,6 +513,39 @@ fn r4_change_targets_and_copy_spell_on_stack_arms_use_the_shared_helper() {
 /// as `so.id ==` / `s.id ==`, OUTSIDE `state/stack_registry.rs` -- the shape
 /// `stack_index_for_announced_target`'s body itself has, and the shape a
 /// future author re-open-coding the rule would reproduce. Assert zero.
+///
+/// **PB-DX25b review Finding E2: hardened, order- and preceding-statement-
+/// insensitive.** The original version scanned a FIXED 150-byte window
+/// strictly BEFORE each `card_in_stack_zone(` match and required no `;`
+/// anywhere in that window. The review defeated it two ways, both executed
+/// against the real gate and confirmed to defeat the ORIGINAL implementation
+/// before this fix (see the batch's fix-cycle notes for the captured
+/// before/after): (b) a PRECEDING statement's own trailing `;` (e.g. `let
+/// announced = id;` two lines above a faithfully re-open-coded
+/// `so.id == announced || (!so.is_copy && card_in_stack_zone(&so.kind) ==
+/// Some(announced))`) falls inside the fixed window and trips the `;`
+/// veto even though it has nothing to do with the two literals' own
+/// statement; (c) writing the disjuncts in the OTHER order
+/// (`card_in_stack_zone(...) == Some(announced) || so.id == announced`) puts
+/// the id comparison AFTER the match position, invisible to a
+/// backward-only window.
+///
+/// The fix: for each `card_in_stack_zone(` occurrence, search a SYMMETRIC
+/// window in both directions for the nearest `so.id ==`/`s.id ==`
+/// occurrence, then evaluate the span STRICTLY BETWEEN the two literals
+/// (not a fixed byte count) for `||` (must be present -- this is what
+/// legitimately excludes `resolution.rs::counter_stack_object`, whose
+/// `so.id ==` lookup and later, separate `card_in_stack_zone(...)`
+/// classification call have NO `||` connecting them at all, verified by
+/// grep before relying on it) and the absence of `;`/`}` in that inter-
+/// literal span (both would mean the two literals are in different
+/// statements/blocks, not one joined expression). This closes (b) and (c);
+/// it does NOT close every possible defeat -- see the module note on
+/// `sanitized_debug` above for the general principle, and Finding E2's own
+/// remaining residual stated at R4's doc: a genuinely new lookup that never
+/// calls `card_in_stack_zone` at all has no `card_in_stack_zone(` occurrence
+/// for this scan to anchor on, and is invisible to it BY CONSTRUCTION, not
+/// by an implementation gap this hardening could close.
 #[test]
 fn r5_the_announced_target_rule_has_no_second_open_coded_copy() {
     let src_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
@@ -473,28 +589,44 @@ fn r5_the_announced_target_rule_has_no_second_open_coded_copy() {
         let raw = std::fs::read_to_string(path)
             .unwrap_or_else(|e| panic!("failed to read {}: {e}", path.display()));
         let stripped = strip_comments(&raw);
-        // Look for `card_in_stack_zone(` within 150 chars BEFORE an id-equality
-        // comparison (`so.id ==` / `s.id ==`), where the intervening span ALSO
-        // contains `||` and does NOT contain `;` -- i.e. the two are joined by
-        // OR inside the SAME statement, the exact shape
-        // `stack_index_for_announced_target`'s body has
-        // (`so.id == announced || (!so.is_copy && card_in_stack_zone(&so.kind)
-        // == Some(announced))`). Mere co-occurrence within a function (e.g.
-        // `resolution.rs::counter_stack_object`, which legitimately does an
-        // `so.id ==` lookup in one statement and a SEPARATE, later
-        // `card_in_stack_zone(...)` classification call for the zone-move
-        // decision, plan §2.3/§3.4 -- deliberately NOT unified) must NOT flag.
-        for window_start in stripped
+        // Symmetric window, statement-boundary-aware -- see the doc comment
+        // above (PB-DX25b review Finding E2) for why this replaced the
+        // original fixed-backward-window/`;`-only heuristic.
+        const SEARCH_WINDOW: usize = 250;
+        let id_eq_positions: Vec<(usize, usize)> = ["so.id ==", "s.id =="]
+            .iter()
+            .flat_map(|needle| {
+                stripped
+                    .match_indices(needle)
+                    .map(|(i, m)| (i, m.len()))
+                    .collect::<Vec<_>>()
+            })
+            .collect();
+        for czi_pos in stripped
             .match_indices("card_in_stack_zone(")
             .map(|(i, _)| i)
         {
-            let ctx_start = window_start.saturating_sub(150);
-            let before = &stripped[ctx_start..window_start];
-            let has_id_eq = before.contains("so.id ==") || before.contains("s.id ==");
-            let has_or = before.contains("||");
-            let same_statement = !before.contains(';');
-            if has_id_eq && has_or && same_statement {
-                offending.push(format!("{relative} (byte offset {window_start})"));
+            let ctx_lo = czi_pos.saturating_sub(SEARCH_WINDOW);
+            let ctx_hi = (czi_pos + SEARCH_WINDOW).min(stripped.len());
+            for &(id_eq_pos, id_eq_len) in &id_eq_positions {
+                if id_eq_pos < ctx_lo || id_eq_pos > ctx_hi {
+                    continue;
+                }
+                let (span_start, span_end) = if id_eq_pos < czi_pos {
+                    (id_eq_pos, czi_pos + "card_in_stack_zone(".len())
+                } else {
+                    (czi_pos, id_eq_pos + id_eq_len)
+                };
+                let span = &stripped[span_start..span_end];
+                let has_or = span.contains("||");
+                let same_statement =
+                    !span.contains(';') && !span.contains('}') && !span.contains("let ");
+                if has_or && same_statement {
+                    offending.push(format!(
+                        "{relative} (card_in_stack_zone at byte offset {czi_pos}, \
+                         id-eq at byte offset {id_eq_pos})"
+                    ));
+                }
             }
         }
     }

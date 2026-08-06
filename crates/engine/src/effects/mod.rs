@@ -7567,10 +7567,16 @@ fn execute_effect_inner(
                     // legal alternative. Simplified approach: player targets → different
                     // active player; object targets → different object in same zone.
                     let stack_obj = state.stack_objects[pos].clone();
-                    // The event below must name the STACK-ENTRY id
-                    // (`GameEvent::TargetsChanged.stack_object_id` is documented as
-                    // one, and view-model/replay consumers read it as one) -- not
-                    // the announced card id. Capture it now, before any mutation.
+                    // The event below must name the STACK-ENTRY id, not the
+                    // announced card id -- per the field's OWN doc comment
+                    // (`rules/events.rs:1421-1422`, "The stack object whose
+                    // targets changed"). PB-DX25b review Finding E5: no
+                    // consumer reads this field today
+                    // (`event_view.rs:927` destructures it and discards the
+                    // field via `..`), so this is a contract correction on an
+                    // event that will eventually be consumed, not a
+                    // compatibility fix for an existing reader. Capture it
+                    // now, before any mutation.
                     let real_stack_id = stack_obj.id;
                     if stack_obj.targets.is_empty() {
                         continue;

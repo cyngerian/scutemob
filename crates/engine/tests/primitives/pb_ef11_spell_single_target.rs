@@ -536,7 +536,11 @@ fn test_misdirection_retargets_single_target_spell() {
         )),
         "TargetsChanged event should be emitted naming the STACK-ENTRY id \
          (victim_entry_id), not the announced card id (victim_card_id) -- \
-         GameEvent::TargetsChanged.stack_object_id is documented as a \
-         stack-object id and the view-model/replay consumers read it as one"
+         GameEvent::TargetsChanged.stack_object_id's OWN doc comment \
+         (rules/events.rs:1421-1422, \"The stack object whose targets \
+         changed\") says so. No consumer reads this field today \
+         (event_view.rs:927 destructures it and discards the field via \
+         `..`), so this is a contract correction, not a compatibility fix \
+         for an existing reader (PB-DX25b review Finding E5)."
     );
 }

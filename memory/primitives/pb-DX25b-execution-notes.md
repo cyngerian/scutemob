@@ -313,20 +313,42 @@ itself asked for.
    "another LEGAL target"). Self-documented as a KNOWN LIMITATION in the source at the same lines
    (unchanged by this batch). This was UNREACHABLE before this batch (nothing could announce a
    target at all); this batch makes it reachable for the FIRST time. Object-target redirect
-   legality is untested by T1-T8 (both use PLAYER targets, the CR-correct branch, deliberately —
-   plan §8 R2). No dedicated probe was added in this batch for the illegal-redirect behavior itself
-   (the plan scoped this as future work, not this batch's test surface) — recommend the filing
-   include a note that a probe for the actual wrong-answer behavior does not yet exist in the tree.
+   legality is untested by T1-T2 (both use PLAYER targets, the CR-correct branch, deliberately —
+   plan §8 R2).
+   **CORRECTED at the fix cycle (PB-DX25b review Finding E1, HIGH)**: the paragraph that used to
+   sit here said "the plan scoped this as future work, not this batch's test surface" — **that is
+   false as to the plan's own text**. Plan §8 R2 option (iii) is explicit: *"One additional probe
+   asserts the object-target branch's illegal redirect **as the current behaviour**, cites CR
+   115.7a, names `OOS-DX25b-3`, and tells the successor batch to invert it."* The plan scoped the
+   **fix** as future work, not the **probe** — the probe was this batch's deliverable from the
+   start, and it was missing from the implement phase. It has since been added:
+   `pb_dx25b_announced_stack_target_space.rs::t9_object_target_redirect_ignores_the_original_requirement`,
+   which casts a "destroy target creature" spell, redirects it via Misdirection onto a bystander
+   land (lowest `ObjectId` on the battlefield other than the original target), and asserts the LAND
+   is destroyed while the original creature survives — pinned wrong-way-round, citing CR 115.7a,
+   naming `OOS-DX25b-3`, with an explicit instruction that the successor batch implementing
+   object-target legality must invert the assertion. See §12 below for the completeness-decision
+   record this finding also required.
 4. **`OOS-DX25b-4`** — `deflecting_swat` (CR 115.7d "choose new targets", `must_change: false`)
    gains nothing from this batch: `effects/mod.rs`'s `!must_change` branch deterministically leaves
    all targets unchanged (`continue`), so the card announces its target correctly (post this batch)
    but the retarget itself is still a no-op — pre-existing (M9.4 "interactive choice deferred"), not
    caused by this batch. `r2_change_targets_roster_is_pinned` documents this in its own message
    ("membership here does not mean 'works'") but does not itself constitute a filed seed.
+5. **`OOS-DX25b-5`** (added at the fix cycle, review Finding C3) — `deflecting_swat.rs` declares
+   `TargetRequirement::TargetSpell` (spell-only) against a printed "target spell **or ability**".
+   Blocked from being widened by the same missing ability id space `OOS-DX25b-1` names (an
+   activated/triggered ability's stack entry is never added to `state.objects`, so it is
+   unannounceable either way), and would change nothing observable even if widened
+   (`must_change: false` makes the effect a deterministic no-op regardless of the requirement).
+   The def's own comment previously asserted the OPPOSITE of what its code declares ("can target
+   ANY spell or ability") — that contradiction is fixed in place (comment-only).
 
-All four IDs were grepped against `docs/audits/decision-point-audit.md` and the `memory/` tree
+All five IDs were grepped against `docs/audits/decision-point-audit.md` and the `memory/` tree
 before this report — **none exist yet** (the only occurrences found were inside
-`memory/primitives/pb-plan-DX25b.md` itself, the plan document that names them prospectively).
+`memory/primitives/pb-plan-DX25b.md` itself, the plan document that names them prospectively, and
+`memory/primitives/pb-review-DX25b.md`, which discusses `OOS-DX25b-5` as a candidate without filing
+it).
 
 ---
 
@@ -340,3 +362,201 @@ before this report — **none exist yet** (the only occurrences found were insid
   `memory/workstream-state.md`'s handoff entry were **not** written — not named in this task's
   explicit instructions, and left to the coordinator to avoid guessing at cross-batch bookkeeping
   conventions under a grep-first protocol I was told not to run myself.
+
+---
+
+## §12 Fix cycle (`memory/primitives/pb-review-DX25b.md`, 1 HIGH / 5 MEDIUM / 6 LOW, all 12 taken)
+
+All twelve findings were applied. Three had a coordinator-directed scope decision (C1, C3, and
+E1's completeness half); the other nine took the reviewer's own stated Fix directive. None
+declined.
+
+**E1 (HIGH), three parts, all landed in one set:**
+1. `pb_dx25b_announced_stack_target_space.rs::t9_object_target_redirect_ignores_the_original_
+   requirement` — a real 2-player cast chain (Destroy Creature → Misdirection targeting it),
+   resolved via real `PassPriority`. Confirms, wrong-way-round: the redirect lands on a
+   `TargetCreature`-violating LAND (lowest `ObjectId` on the battlefield other than the current
+   target) and destroys it, while the original creature survives. Cites CR 115.7a, names
+   `OOS-DX25b-3`, states the successor batch must invert the assertion.
+2. Execution notes §10.3 (this file) corrected in place — the plan required the PROBE (§8 R2
+   option (iii)), not the fix; the old parenthetical wrongly said the plan scoped the probe as
+   future work.
+3. Completeness decided explicitly for BOTH cards, not by omission: `bolt_bend.rs` and
+   `misdirection.rs` each gained a comment-only block naming `OOS-DX25b-3` (and, for Bolt Bend,
+   `OOS-DX25b-1` too), stating the reasoning (`completeness` measures fidelity to the PRINTED
+   card; both defs translate it faithfully; the gap is in the SHARED `Effect::ChangeTargets`
+   resolution logic, reachable from every card using it) and pointing at the wrong-way-round
+   pins that must be inverted and revisited together. **Coordinator-directed**: neither def is
+   demoted — see the coordinator's brief for the `OOS-DX20-10` precedent and the blast-radius
+   argument (`CORPUS_COMPLETE = 1133` gate in `pb_dx32_fuzz_output.rs`, `OOS-CARDS2-3`'s
+   re-roll-every-seed consequence). Verified, not merely trusted: `pb_dx32_fuzz_output.rs`'s
+   `test_dx32_fuzz_deck_pool_size_is_pinned` stayed green throughout this fix cycle (unmoved,
+   `CORPUS_COMPLETE` still 1,133 — confirmed via the full workspace run, §14 below).
+
+**E2 (MEDIUM), preferred fix + hardening, both done — see §13 for the three-defeat re-execution.**
+New `r6_casting_c1_c2_arms_use_the_shared_helper` (`pb_dx25b_announced_target_roster.rs`) mirrors
+R4's per-arm structural check (helper called ≥1, zero `stack_objects.iter()`/`iter_mut()`) over
+`casting.rs`'s two `if matches!(req, TargetRequirement::X) { .. }` blocks (a new
+`extract_if_block_body` helper, since these are not `match` arms). R5 rewritten:
+fixed-backward-window/`;`-only heuristic replaced with a symmetric, statement-boundary-aware scan
+over the SPAN STRICTLY BETWEEN the nearest `card_in_stack_zone(`/`so.id ==` pair (`||` required
+present, `;`/`}`/`let ` required absent in that span). R4's own doc corrected to stop calling R5
+"the closest thing to a wide net" and states the true residual: no gate in this tree detects a
+brand-new FIFTH site that never calls `card_in_stack_zone` at all.
+
+**E3 (MEDIUM)**: R1/R2/R3's hand-written structural walkers (`is_single_target_spell_requirement`,
+`effect_contains_change_targets`, `effect_contains_copy_spell_on_stack`, `effect_contains_draw_
+cards`, `ability_contains`, `def_contains`, plus their `AbilityDefinition`/`TargetRequirement`
+match arms) all DELETED, replaced by `sanitized_debug` — a `{:?}`-formatted, sanitized clone
+(`oracle_text` cleared on all three faces, `completeness` normalized to `Complete`) scanned for
+the needle string. Total over the whole struct by construction (derive-`Debug`), so immune to
+`LoyaltyAbility`/`SagaChapter`/`ClassLevel`/`Forecast` and `Repeat`/`MayPayOrElse`/
+`MayPayThenEffect`/`CoinFlip` — the exact blind spots the review measured. All three rosters
+(`{Bolt Bend, Misdirection, Untimely Malfunction}` for R1, `+ Deflecting Swat` for R2, empty for
+R3) reproduce IDENTICALLY under the new mechanism — re-measured, not assumed. **Load-bearing
+proof, executed**: new `r3_sanitization_is_load_bearing` runs BOTH the sanitized scan (must NOT
+flag Plumb the Forbidden) and the raw unsanitized `format!("{:?}", def)` (MUST flag it, on the
+literal string inside its own `Completeness::partial(...)` prose) — both assertions pass, proving
+sanitization is doing real work, not decoration. The module doc states the new mechanism's own
+residual: a FUTURE free-text field this batch's sanitization doesn't know about is still a gap.
+
+**E4 (LOW)**: `pb_dx25_stack_registry_roster.rs`'s G2 gains the same zero-`stack_objects.iter()`/
+`iter_mut()` conjunct R4 holds its two arms to. Revert executed: inserted a bare
+`state.stack_objects.iter().any(|s| s.id == id)` alongside the helper call in the
+`Effect::CounterSpell` arm — reddened (`left: 1, right: 0`); restored, confirmed clean.
+
+**E5 (LOW)**: all three sites (`effects/mod.rs:7570`, `pb_ef11_spell_single_target.rs:537`,
+`pb_dx25b_announced_stack_target_space.rs:288`) re-justified from `GameEvent::TargetsChanged`'s
+OWN doc comment (`rules/events.rs:1421-1422`) plus the true fact (`event_view.rs:927` discards the
+field via `..`, so no consumer reads it today) — the fabricated "view-model/replay consumers read
+it as one" claim removed everywhere it appeared. Doc-only, no revert needed.
+
+**E6 (LOW)**: `casting.rs:8258`'s "C2" → "C1" — matches the plan's own census (C1 =
+`TargetSpellOrAbilityWithSingleTarget`, `casting.rs:6476`-era). Doc-only.
+
+**E7 (LOW)**: T5's doc gained a paragraph stating it is the ONLY test in the tree discriminating
+the shared `!so.is_copy` guard, and that PB-DX25's own `pb_dx25_counterspell_stack_shapes` suite
+does NOT discriminate it (re-confirmed: all six of that suite's tests stayed green under V2 during
+the implement phase's own revert matrix — cited, not re-executed, since V2 was already executed
+once and restoring/re-breaking it a second time for a doc-only fix would be pure overhead). A guard
+shared by five consumers resting on one synthetic assertion is now a STATED residual, not an
+implicit one. Doc-only.
+
+**E8 (LOW)**: `casting.rs:8367-8368`'s misapplied "CR 115.7a's 'another legal target' excludes a
+target that was never the spell's own target to begin with" sentence removed; the argument now
+rests on CR 601.2a/601.2c alone, as the review specified. Checked (per the Fix directive) whether
+`pb_ef11_spell_single_target.rs`'s module doc carries the same sentence — it does NOT (its own
+citation-correction paragraph never had the misapplied clause), so no second edit was needed there.
+Doc-only.
+
+**C1 (MEDIUM, coordinator-decided)**: `bolt_bend.rs` stays `Complete` — see E1 part 3 above (same
+comment block covers both C1's ability-half concern and E1's object-target-redirect concern).
+
+**C2 (MEDIUM)**: new `t10_untimely_malfunction_mode1_target_index` probe. **First attempt (1
+declared target) failed outright** — `InvalidTarget("expected 3..=3 target(s) but got 1")` — a
+DIFFERENT, more fundamental mechanism than the plan anticipated: `Untimely Malfunction` uses
+`mode_targets: None` (the flat/pooled scheme), so `casting.rs::target_count_range` demands a
+target for ALL THREE pooled slots regardless of which single mode is chosen — CR 700.2c/700.2f's
+per-mode-only targeting (the `mode_targets: Some(...)` fix PB-AC4 built) does not apply to this
+def at all. Rebuilt declaring all three pooled targets in slot order (artifact, spell, creature) —
+`validate_mapped_targets`'s own doc (`casting.rs:6226-6227`) states the returned targets preserve
+DECLARATION order, not slot order, so declaration order must match pooled-slot order for
+`DeclaredTarget{index: 1}` to land correctly. **Result: mode 1 DOES redirect correctly** —
+`TargetsChanged` fires naming the victim's stack-entry id, and the victim's target becomes the
+caster. The card def's own comment-only note (a `//` comment, not the `Completeness::partial(...)`
+string itself — the string's TEXT was deliberately left byte-unchanged after an initial attempt to
+edit it violated the "card-defs must be comment-only" scope rule, caught and reverted before this
+report) now cites the probe as evidence for "Modes 0 and 1 are complete." R1's roster-test comment
+softened per the review's instruction — no longer bare "unrelated", now "measured, not assumed",
+citing T10.
+
+**C3 (MEDIUM, coordinator-decided)**: `deflecting_swat.rs`'s contradictory `:32` comment ("can
+target ANY spell or ability") corrected in place (removed — it directly contradicted the
+`TargetRequirement::TargetSpell` line one below it); the requirement itself is UNWIDENED per
+explicit coordinator instruction. A comment-only block records the mismatch as candidate
+`OOS-DX25b-5`, notes it is blocked by the same missing ability id space `OOS-DX25b-1` names, and
+states plainly that widening would change nothing observable (`must_change: false` is a
+deterministic no-op regardless) and would misrepresent a no-op card as a completeness fix.
+
+**T1 (LOW)**: `copy_redirect.rs` gained a module-doc paragraph naming the fiction (its
+`push_spell_targeting_player` helper returns the `StackObject`'s OWN id, so every test using it
+exercises only the direct-id clause) and pointing at the real-cast coverage
+(`pb_dx25b_announced_stack_target_space.rs::t1`/`t2`). `test_bolt_bend_redirects_single_target_
+spell` renamed to `test_change_targets_redirects_single_target_spell_by_stack_entry_id`, with a
+doc note explaining the rename and crediting T2 as the real Bolt Bend integration test. Grepped
+for the old name elsewhere in the tree — the only surviving occurrence is inside
+`pb-review-DX25b.md` itself (the review's own historical record, left untouched).
+
+---
+
+## §13 The reviewer's three R5 defeats, re-executed against the hardened gate
+
+Each defeat re-created verbatim as an orphan scratch `.rs` file dropped directly under
+`crates/engine/src/` (R5's own directory walk reads file CONTENTS via `std::fs::read_dir` +
+`read_to_string`, not the Rust module graph, so an orphan file needs no `mod` declaration and
+never enters compilation — confirmed: `cargo test` for these runs did not print `Compiling
+mtg-engine`, since no *compiled* code changed). Each file deleted immediately after its run;
+`find crates/engine/src -name "_pb_dx25b*"` empty before moving to the next.
+
+* **Defeat (a)** — a genuinely new lookup with NO `card_in_stack_zone` call anywhere
+  (`state.stack_objects.iter().position(|so| so.id == id)` alone). **Still NOT caught** — R5
+  stayed green. This is the STATED residual (R4's doc, R5's own doc): R5 anchors its scan on
+  `card_in_stack_zone(` occurrences, so a lookup that never calls it has nothing for R5 to find.
+  No gate in this tree catches this shape; only a much larger change (e.g. making
+  `state.stack_objects` inaccessible outside a small set of sanctioned callers) could, and that
+  is out of this fix cycle's scope.
+* **Defeat (b)** — the preceding-statement `;` (`let announced = id; let pos = ...position(|so|
+  { so.id == announced || (!so.is_copy && card_in_stack_zone(&so.kind) == Some(announced)) });`).
+  **NOW CAUGHT**: `"found a second open-coded copy in: [\"_pb_dx25b_r5_defeat_b.rs (card_in_stack_
+  zone at byte offset 268, id-eq at byte offset 188)\"]"`. The symmetric span-between-literals
+  check no longer includes the unrelated preceding statements the old fixed backward window did.
+* **Defeat (c)** — the reversed clause order (`card_in_stack_zone(...) == Some(id) || so.id ==
+  id`). **NOW CAUGHT**: `"found a second open-coded copy in: [\"_pb_dx25b_r5_defeat_c.rs
+  (card_in_stack_zone at byte offset 200, id-eq at byte offset 257)\"]"`. The new scan searches
+  both directions from each `card_in_stack_zone(` occurrence, so which literal comes first no
+  longer matters.
+
+R5 re-confirmed green (no residue, no false positive on the real `resolution.rs::
+counter_stack_object` site) after each defeat file was deleted.
+
+**Net**: 2 of 3 named defeats closed; defeat (a) is a structural limit of a shape-based scan and
+is now stated as such at both R4's and R5's own doc comments, rather than implied away by calling
+R5 "the closest thing to a wide net."
+
+---
+
+## §14 Final gates, fix cycle — all EXECUTED, none predicted
+
+* `cargo test --workspace --no-fail-fast` (to a file, never `| tail`) — **4,469 / 0 / 5**
+  (+4 over the implement-phase pin of 4,465: `t9`, `t10`,
+  `r6_casting_c1_c2_arms_use_the_shared_helper`, `r3_sanitization_is_load_bearing`). Residual
+  list empty.
+* `cargo test -p mtg-engine --test core hash_schema` — 21/21, `HASH_SCHEMA_VERSION == 73`
+  unmoved.
+* `cargo test -p mtg-engine --test core protocol_schema` — 17/17, `PROTOCOL_VERSION == 35` and
+  the fingerprint gate unmoved.
+* `cargo test -p play-server` — 80/80, unmoved.
+* `cargo fmt --check` — clean (ran `cargo fmt` once for a rustfmt-driven rewrap in the new T9/R6
+  test code).
+* `tools/check-defs-fmt.sh` — 1,803 defs, clean (ran `--fix` once after the `untimely_
+  malfunction.rs` comment addition).
+* `cargo clippy --workspace --all-targets -- -D warnings` — clean, zero warnings.
+* `cargo build --workspace` — clean (catches replay-viewer/TUI match-arm gaps; none here, no
+  wire-type change in this cycle).
+* Scope: `git diff main --numstat -- crates/simulator/ crates/view-model/ crates/card-types/
+  tools/` — **EMPTY**. `git diff main -- crates/card-defs/` — every changed line across all four
+  touched files (`bolt_bend.rs`, `deflecting_swat.rs`, `misdirection.rs`, `untimely_
+  malfunction.rs`) is a `//` comment; the `Completeness::partial(...)` STRING in `untimely_
+  malfunction.rs` was deliberately left byte-unchanged after an initial edit to it was caught and
+  reverted for violating this exact rule (see §12 C2).
+* Coverage: `tools/authoring-report.py` regenerated — substantive line byte-identical
+  (`1,803 files | clean 1,133 (62.8%) | todo 519 | empty 151`), only the self-dating
+  timestamp/git-head banner and recent-commits window differed; regeneration churn reverted with
+  `git checkout --` (nothing substantive to commit).
+* One real finding fixed along the way, NOT in the review: `bolt_bend.rs`/`misdirection.rs`'s new
+  comment blocks tripped `completeness_deviation_scan::deviation_language_requires_a_marker_or_
+  allowlist` (SR-12) — both contained the literal word "deviation". Reworded to "ENGINE-layer gap"
+  throughout (meaning unchanged) rather than adding either card to that gate's `ALLOWLIST`, since
+  `ALLOWLIST` is reserved for entries whose language describes FAITHFUL MODELING, not a real
+  behavioural gap — these two genuinely have one, so allowlisting them would have been the wrong
+  kind of exemption for what they are.

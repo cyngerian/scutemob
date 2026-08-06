@@ -8255,7 +8255,7 @@ mod tests {
     /// is now DISTINCT from the announced card id (`spell_id`) -- before this
     /// repair both ids were the same value, which collapsed the announced-id
     /// space and the stack-entry-id space onto one id and made the lookup this
-    /// test exercises (C2, `casting.rs`'s `TargetSpellOrAbilityWithSingleTarget`
+    /// test exercises (C1, `casting.rs`'s `TargetSpellOrAbilityWithSingleTarget`
     /// arm) pass regardless of whether it correctly resolved the announced CARD
     /// id or merely got lucky matching the entry's own id. `entry_id != spell_id`
     /// is asserted below so a future edit cannot silently re-collapse the
@@ -8363,9 +8363,12 @@ mod tests {
     /// they don't target") and has nothing to do with a spell targeting itself.
     /// The correct grounding is CR 601.2a + 601.2c + 115.7a: at the moment
     /// targets are announced, the spell being cast has chosen no targets yet, so
-    /// it is not yet an appropriate object for its own "single target" -- CR
-    /// 115.7a's "another legal target" excludes a target that was never the
-    /// spell's own target to begin with. Misdirection's own 2004-10-04 ruling
+    /// it is not yet an appropriate object for its own "single target".
+    /// (PB-DX25b review Finding E8: CR 115.7a's "another legal target" governs
+    /// the VICTIM's new target, not which spell may be chosen as the caster's
+    /// own target -- that sentence is dropped here; CR 601.2a/601.2c plus the
+    /// requirement's own "appropriate object" definition already carry the
+    /// argument.) Misdirection's own 2004-10-04 ruling
     /// ("You can't make a spell which is on the stack target itself") is about
     /// the DEFLECTED spell, not about Misdirection targeting itself. This is a
     /// comment-only correction; the guard's behavior is unchanged.

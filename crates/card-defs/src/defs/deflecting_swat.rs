@@ -29,9 +29,23 @@ pub fn card() -> CardDefinition {
             },
             AbilityDefinition::Spell {
                 // CR 115.7d: "You may choose new targets" — must_change: false.
-                // Deflecting Swat can target ANY spell or ability (not just single-target ones).
                 // Deterministic fallback: targets left unchanged (player "chose" not to change).
                 // Interactive choice deferred to M10.
+                //
+                // PB-DX25b review Finding C3: the printed card says "target spell
+                // OR ABILITY", but `targets` below declares `TargetSpell`
+                // (spell-only) -- an oracle/def mismatch this batch's census
+                // touched (F-A) but did not fix, filed as a candidate seed
+                // (`OOS-DX25b-5`). Widening this to
+                // `TargetSpellOrAbilityWithSingleTarget`-shaped coverage is
+                // BLOCKED by the same missing id space `OOS-DX25b-1` names: an
+                // activated/triggered ability's stack entry is never added to
+                // `state.objects`, so it could not be announced either way.
+                // With `must_change: false` this effect is ALSO a deterministic
+                // no-op regardless of the requirement (`effects/mod.rs`'s
+                // `!must_change` branch always `continue`s before any mutation)
+                // -- do not widen the requirement here; it would change nothing
+                // observable and would misrepresent this as a completeness fix.
                 effect: Effect::ChangeTargets {
                     target: EffectTarget::DeclaredTarget { index: 0 },
                     must_change: false,

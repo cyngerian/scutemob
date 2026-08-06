@@ -228,7 +228,12 @@ fn g1_line_comment_stripping_does_not_hide_the_wildcard_it_is_meant_to_find() {
 /// PB-DX25b-introduced shared LOOKUP, which itself calls `card_in_stack_zone`
 /// internally -- inside `state/stack_registry.rs`, not here, which is why the
 /// count in THIS arm dropped from >= 2 to >= 1 when PB-DX25b routed the lookup
-/// through the helper), (b) calls `fizzle_move_object_to_zone` exactly once,
+/// through the helper), (a3) [PB-DX25b review Finding E4, closed here] contains
+/// ZERO occurrences of `stack_objects.iter()`/`iter_mut()` -- the same
+/// zero-raw-scan conjunct R4 (`pb_dx25b_announced_target_roster.rs`) holds the
+/// two `effects/mod.rs` consumer arms to, now extended to this arm too, so a
+/// "fast path" lookup added ALONGSIDE the helper call cannot slip past (a2)
+/// unnoticed, (b) calls `fizzle_move_object_to_zone` exactly once,
 /// (c) never spells out `StackObjectKind::Spell` or
 /// `StackObjectKind::MutatingCreatureSpell` as a literal. Message: the
 /// zone-move AND the announced-target lookup are each driven off
@@ -258,6 +263,22 @@ fn g2_counter_spell_arm_does_not_reclassify_by_kind() {
          never off a re-open-coded `so.id == id` scan. Expected >= 1 call in the \
          Effect::CounterSpell arm, got {}",
         stack_index_for_announced_target_calls
+    );
+
+    // PB-DX25b review Finding E4: unlike the two `effects/mod.rs` arms R4
+    // (`pb_dx25b_announced_target_roster.rs`) covers, this arm had no
+    // zero-`stack_objects.iter()`/`iter_mut()` conjunct -- a future edit could
+    // add a "fast path" or second lookup ALONGSIDE the helper call above and
+    // both prior conjuncts would stay green. Add the same conjunct R4 uses.
+    let raw_iter_calls = body.matches("stack_objects.iter()").count()
+        + body.matches("stack_objects.iter_mut()").count();
+    assert_eq!(
+        raw_iter_calls, 0,
+        "PB-DX25b review Finding E4: the Effect::CounterSpell arm must contain \
+         ZERO occurrences of stack_objects.iter()/iter_mut() -- any lookup must \
+         go through stack_index_for_announced_target, not a re-open-coded scan \
+         added alongside it. Got {}",
+        raw_iter_calls
     );
 
     let fizzle_calls = body.matches("fizzle_move_object_to_zone").count();

@@ -4,7 +4,29 @@
 //! - Effect::CopySpellOnStack: basic copy (CR 707.10) and multi-copy
 //! - Effect::ChangeTargets: must_change true (CR 115.7a) and false (CR 115.7d)
 //! - TargetRequirement::TargetSpellOrAbilityWithSingleTarget: behavioral contract
-//! - Integration: Bolt Bend pattern — redirects a single-target spell on stack
+//! - Integration: a single-target-spell redirect pattern (was named after Bolt
+//!   Bend; see the note below on why that name moved)
+//!
+//! **PB-DX25b review Finding T1**: this file's `push_spell_targeting_player`
+//! helper returns the `StackObject`'s OWN id -- every test in this file that
+//! calls it and announces the returned id directly into `execute_effect` is
+//! announcing a STACK-ENTRY id, not a CARD id (CR 601.2c). No real
+//! `Command::CastSpell` can ever produce that shape: a real cast announces the
+//! CARD's `state.objects` id, a DISJOINT id space from the `StackObject`'s own
+//! id (`state::stack_registry::stack_index_for_announced_target`'s whole
+//! reason to exist, PB-DX25b/`OOS-DX25-3`). These tests therefore exercise
+//! only the DIRECT-id clause of that lookup (the one Ward, CR 702.21a, uses in
+//! production) -- never the card-owning-kind clause a real Misdirection/Bolt
+//! Bend cast depends on. They stayed green through the entire period both
+//! cards could never resolve a legal target in a real game. For coverage of a
+//! REAL cast reaching this code, see
+//! `crates/engine/tests/primitives/pb_dx25b_announced_stack_target_space.rs`
+//! (`t1_misdirection_announces_and_resolves`, `t2_bolt_bend_announces_and_
+//! resolves`) and `crates/engine/tests/primitives/pb_ef11_spell_single_
+//! target.rs`. Not a coverage hole -- V7 of PB-DX25b's revert matrix confirmed
+//! this file's own tests DO catch a regression of the direct-id clause -- but
+//! a claim problem: this file's tests do not, and never did, prove anything
+//! about Bolt Bend or Misdirection specifically.
 
 use mtg_engine::effects::{execute_effect, EffectContext};
 use mtg_engine::state::stack::{StackObject, StackObjectKind};
@@ -506,17 +528,26 @@ fn test_change_targets_object_redirect() {
     let _ = creature_b_id; // suppress unused warning
 }
 
-// ── Bolt Bend integration test ────────────────────────────────────────────────
+// ── Single-target-spell redirect (fixture-level, not a Bolt Bend integration test) ──
 
 #[test]
-/// CR 115.7a — Bolt Bend integration: redirects a single-target spell from one
-/// player to another. Verifies ChangeTargets must_change: true with 3 players.
-fn test_bolt_bend_redirects_single_target_spell() {
+/// CR 115.7a — redirects a single-target spell on the stack from one player to
+/// another. Verifies ChangeTargets must_change: true with 3 players.
+///
+/// **PB-DX25b review Finding T1: renamed** (was
+/// `test_bolt_bend_redirects_single_target_spell`) -- this test announces the
+/// `StackObject`'s OWN id directly (see this file's module doc), a shape no
+/// real Bolt Bend cast can produce, so it proved nothing about Bolt Bend
+/// specifically; `pb_dx25b_announced_stack_target_space.rs::
+/// t2_bolt_bend_announces_and_resolves` now owns that claim, through a real
+/// `Command::CastSpell`.
+fn test_change_targets_redirects_single_target_spell_by_stack_entry_id() {
     let mut state = three_player_state();
     // p(2) cast Lightning Bolt targeting p(3).
     let bolt_stack_id = push_spell_targeting_player(&mut state, p(2), p(3));
 
-    // p(1) uses Bolt Bend — redirects to p(1) (the controller).
+    // p(1) redirects to p(1) (the controller) -- announcing the STACK-ENTRY
+    // id directly (see module doc: no real cast can produce this shape).
     let bolt_bend_declared = SpellTarget {
         target: Target::Object(bolt_stack_id),
         zone_at_cast: Some(ZoneId::Stack),

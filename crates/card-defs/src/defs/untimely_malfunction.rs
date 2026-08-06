@@ -71,6 +71,22 @@ pub fn card() -> CardDefinition {
             }),
             cant_be_countered: false,
         }],
+        // PB-DX25b review Finding C2: "Modes 0 and 1 are complete" (below) was
+        // UNVERIFIED at the note's original authoring, and false at PB-DX25b's
+        // own HEAD (mode 1's TargetSpellOrAbilityWithSingleTarget slot could
+        // never resolve a legal target before the `stack_index_for_
+        // announced_target` fix -- casting.rs C1). Now VERIFIED BY PROBE:
+        // `crates/engine/tests/primitives/pb_dx25b_announced_stack_target_
+        // space.rs::t10_untimely_malfunction_mode1_target_index` casts with
+        // mode 1 chosen and all three pooled targets declared in slot order
+        // (this card uses `mode_targets: None`, the flat/pooled scheme, so
+        // `casting.rs::target_count_range` requires a target for EVERY
+        // pooled slot regardless of which single mode is chosen, and
+        // `validate_mapped_targets` preserves DECLARATION order rather than
+        // reordering to slot order -- see the probe's own doc for both
+        // mechanisms) and confirms the redirect actually lands on and
+        // changes the correct victim's target. The note's claim now rests on
+        // executed evidence, not just prose.
         completeness: Completeness::partial(
             "mode 2 ('One or two target creatures can't block this turn') applies CantBlock to a \
              single target only. TargetRequirement::UpToN exists but has no minimum — \
