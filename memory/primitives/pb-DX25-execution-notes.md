@@ -751,3 +751,371 @@ on a path that runs once per counter resolution — not per priority pass and no
 SBA check. Nothing in the benched paths calls it at all, which is why the two
 comparable rows land slightly *below* the prior pin rather than above; read that as
 machine/measurement-window variance, **not** as an improvement this batch earned.
+
+---
+
+## Review fix cycle (third runner) — `memory/primitives/pb-review-DX25.md`
+
+Findings 1-8 (5 MEDIUM, 3 LOW) plus the "Additional LOW notes" block and the
+reviewer's own G2-note-as-a-finding all taken, per finding below. Finding 9
+(Stage 7 bookkeeping) and Finding 8(b) (`PB-DX9` -> `PB-DP9`, already fixed
+before this cycle started, verified unchanged at `resolution.rs:8320`) are
+explicitly OUT OF SCOPE for this runner and untouched, per the dispatching
+agent's own instruction.
+
+### Finding 3 (MOST IMPORTANT — done FIRST, per instruction): the re-measured
+### C1/C2/C3/P, and the reasoning for `TargetFilter::default()`
+
+**`effects/mod.rs:4401-4411` confirmed**: `Effect::CounterUnlessPays { target,
+cost: _ }` delegates unconditionally into `Effect::CounterSpell { target,
+exile_instead: false }` via `execute_effect_inner` — same arm, same zone-move,
+same pre-fix defect. `effect_contains_counter_spell` (the C1 predicate) is
+widened with an `Effect::CounterUnlessPays { .. } => true` arm.
+
+**`TargetFilter::default()` decision, stated (the brief's own question):**
+treated as UNRESTRICTED and folded directly into C3 (not split into a separate
+C4). Reasoning: `TargetFilter`'s `#[derive(Default)]` (`card_definition.rs:
+3035-3036`) sets every field to its type's own default — `None`/`false`/empty
+collection for every Option/bool/collection field, and `TargetController::
+default()` is explicitly `#[default] Any` (`:3242-3244`, not `You`). Read
+against `casting.rs:6430-6453`'s `matches_filter` check (a pure AND over those
+same fields, with `TargetSpell | TargetSpellWithFilter(_)` sharing the SAME
+zone-membership half at `:6433`), an all-default `TargetFilter` accepts every
+legal spell target with zero restriction — semantically indistinguishable from
+the bare `TargetSpell` variant, differing only in which of two ways a card
+author spelled "no restriction". Folding both into one C3 measures the
+SEMANTIC class (which is what P is supposed to be: live-wrong PAIRS), not the
+syntactic literal. Verified against real card defs, not just the type
+definition: `mana_leak`, `mana_tithe`, `make_disappear` (all `Complete`, all
+`CounterUnlessPays`) all declare `TargetSpellWithFilter(TargetFilter::
+default())` for a printed "Counter target spell unless its controller pays
+[cost]" with no oracle-text restriction whatsoever — read from the actual
+`.rs` files, not inferred.
+
+**Re-measured, via `all_cards()` (never grepped), all six populations —
+report to the dispatching agent, verbatim:**
+
+| # | population | Stage-1 (pre-review) measured | **re-measured (this fix cycle)** | delta / reason |
+|---|---|---|---|---|
+| M1 | Mutate-keyword defs (either face) | 8 | **8**, unchanged | Finding 3 does not touch M1/M2/M3 |
+| M2 | M1 ∩ `is_complete()` | 6 | **6**, unchanged | |
+| M3 | M2 with any spell-level target requirement | 0 | **0**, unchanged (now also widened to walk BOTH faces, matching M1's own back-face walk — still 0 on the current corpus) | |
+| C1 | defs with `Effect::CounterSpell` OR `Effect::CounterUnlessPays` anywhere (recursive, both faces, `Spell`/`Activated`/`Triggered` abilities) | 23 | **29** (+6: Flusterstorm, Izzet Charm, Make Disappear, Mana Leak, Mana Tithe, Spell Pierce) | the +6 are exactly the `CounterUnlessPays` defs the Stage-1 walk was structurally blind to |
+| C2 | C1 ∩ `is_complete()` | 18 | **24** (+6) | all 6 new C1 members are `Complete` |
+| C3 | C2 with an UNRESTRICTED target requirement (`TargetSpell` bare, OR `TargetSpellWithFilter(TargetFilter::default())`) | 8 | **11** (+3: Make Disappear, Mana Leak, Mana Tithe) | Izzet Charm/Flusterstorm/Spell Pierce/Stubborn Denial all carry a REAL (non-default) filter or are excluded some other way and stay out of C3 |
+| **P** | live-wrong pairs = `\|M2\| x \|C3\|` | **48** (6 x 8) | **66** (6 x 11) | the number Stage 7 must NOT write "48" for — 66 is the corrected figure |
+
+**The Stage-1 runner's own "48 (confirmed exactly)" claim was right about its
+OWN subject and wrong about the batch's actual live-wrong count** — it
+correctly re-derived the plan's "~48" ESTIMATE (which was itself only ever
+about the `Effect::CounterSpell`-only slice), but neither the plan nor Stage 1
+knew `Effect::CounterUnlessPays` existed as a second delegating variant, so
+"confirmed exactly" was a coincidence of two intermediate corrections (a -1 on
+C1's grep count, offset by nothing) landing back on the original estimate,
+not evidence the full class was measured. **66, not 48, is the number for
+Stage 7 to write into the queue row and the `OOS-SIM3-5` row.**
+
+Two smaller scoping-gap fixes made in the same pass, per the finding's own
+"worth fixing" directive: `ability_contains_counter_spell` now also matches
+`AbilityDefinition::Activated`/`Triggered` (not `Spell` alone) — moot on the
+current corpus (C1 unchanged by this half alone), but the walk can now SEE a
+counter on an activated/triggered ability rather than being structurally
+blind to one; `counterspell_defs` and `has_spell_level_target_requirement`
+now both walk `back_face` too, mirroring `mutate_defs`'s own back-face walk —
+also moot today (no `Complete` counter-carrying or mutate-carrying def has a
+back face), but symmetric rather than merely documented as asymmetric.
+
+G3's own failure message (the "a new mutate def or a new unrestricted counter
+def widens the class" line the finding quoted) is corrected to name all three
+widening classes explicitly, including `CounterUnlessPays`, since it can now
+actually see that one.
+
+**Files touched**: `crates/engine/tests/core/pb_dx25_stack_registry_roster.rs`
+only. Zero engine-source lines for this finding.
+
+**Revert executed**: `P == 66` pinned constant flipped to `67` (mirroring the
+Stage-6 shape exactly) — watched red (`expected 66 (6 x 11), got 66 (6 x 11)`,
+`left: 66 / right: 67`), restored, `git diff --stat` confirmed the file
+returned to its pre-revert edited state (273 insertions / 70 deletions against
+the pre-review-cycle HEAD), full G1/G2/G3/G4 suite re-run green.
+
+### Finding 1 — `abilities.rs:6732-6737` (`targeting_is_spell`)
+
+TAKEN. Paired `StackObjectKind::MutatingCreatureSpell { .. }` alongside
+`Spell { .. }`, mirroring `casting.rs:6504-6509` verbatim, with a CR 702.140a
+cite and an explicit note that this is deliberately NOT routed through
+`card_in_stack_zone` (a different question, plan §3.4) and that it is latent
+today for the same reason shape (a) is (`OOS-DX25-1` — the mutate target never
+enters `spell_targets`, so no `PermanentBecomesTarget` event is ever raised
+for it). Zero test file added for this one — no corpus card can reach it
+today (M3 = 0, confirmed above), matching the reasoning already accepted for
+the identical-shape T2 fixture; documented at the site instead of a synthetic
+test, consistent with how the plan itself treated shape (a).
+
+### Finding 2 — `casting.rs:7124-7138` (`has_split_second_on_stack`)
+
+TAKEN. Rewritten to call `state::stack_registry::card_in_stack_zone(&stack_obj.
+kind)` and `.and_then(|card| calculate_characteristics(state, card))`, with
+the CR 400.7/113.7a LKI comment preserved verbatim and a new comment stating
+this IS `card_in_stack_zone`'s exact question (contrasted with `casting.rs:
+6503`'s DIFFERENT `is_spell` question, cross-referenced by line). No printed
+card makes this live (no Mutate def carries Split Second) — stated in the new
+comment, not silently left implicit.
+
+**This finding's fix produced Finding 5's fix as a side effect**: writing the
+cross-reference comment at `has_split_second_on_stack` required writing the
+OTHER half of the note at `casting.rs:6503` (the `is_spell` site) for the
+cross-reference to mean anything, so both were done together.
+
+### Finding 4 — T6's non-vacuity is a self-comparison
+
+TAKEN. The doc comment's false claim ("a 28th variant... cannot silently
+escape T6's coverage") is REPLACED, not merely reworded — the new comment
+explicitly states the assertion is a self-comparison (fixture vs its own
+literal `27`), states exactly why that CANNOT detect a 28th enum variant, and
+names `g1_scan_is_not_vacuous` (a different crate target, source-derived) as
+the place the real property lives. Did not merge T6's assertion with G1's
+source scan (they live in different test binaries — `primitives` vs `core` —
+and coupling them would require exposing test-only code across a crate
+boundary for no behavioural gain); the honest-doc route from the finding's own
+menu of options was taken instead of the reuse route.
+
+### Finding 5 — the missing `casting.rs:6503` comment
+
+TAKEN, together with Finding 2 (see above). The comment names
+`state::stack_registry::card_in_stack_zone`, cites CR 707.10, and states why
+`is_spell` must never be re-expressed through it (a copy is a spell with no
+card — re-expressing would make copies illegal targets for "target spell").
+
+### Finding 6 — `SpellCountered`'s doc restated for all three payload shapes
+
+TAKEN. `rules/events.rs:159-167`'s doc comment now enumerates all three
+shapes explicitly: card-owning non-copy (post-move id), copy of a card-owning
+kind (`stack_object_id == source_object_id`, the copy's own stack-entry id,
+CR 707.10), and `ActivatedAbility`/`TriggeredAbility` including a copy of one
+(unmoved source, CR 707.10b).
+
+### Finding 7 — T7's missing `ActivatedAbility` half
+
+TAKEN. Added a third half to `test_dx25_both_engine_counter_paths_agree`:
+pushes a bare `StackObjectKind::ActivatedAbility` stack entry, counters it via
+`resolution::counter_stack_object`, and asserts (a) the source object's zone
+is untouched (`ZoneId::Battlefield`, unmoved), (b) exactly one
+`SpellCountered` fires, (c) `source_object_id` names the ability's own
+(unmoved) source — CR 707.10b.
+
+**Revert executed**: restored the pre-Finding-7-fix shape
+(`StackObjectKind::ActivatedAbility { .. } | TriggeredAbility { .. } => None`
+instead of `Some(*source_object)`) — watched red (`exactly one SpellCountered
+event expected, got [PriorityGiven ...] / left: 0 / right: 1`, at the NEW
+Half-3 assertion specifically, not at Half 1 or Half 2), restored, `git diff
+--stat -- crates/engine/src/rules/resolution.rs` confirmed clean against the
+pre-revert edited state (0 net diff — this finding touched only the test
+file, not `resolution.rs`, since the production code for this branch already
+existed from Stage 5; only the PROBE was missing).
+
+### Finding 8(a) — the module doc's overstated "both revert shapes prove the
+### load-bearing property" claim
+
+TAKEN. The module doc for `pb_dx25_stack_registry_roster.rs` is rewritten to
+state the property PER GATE: G1's comment-stripping is defence-in-depth (a
+`/* */`-wrapped wildcard cannot compile — `rustc`'s own exhaustiveness check
+catches it before this gate runs; stripping here only guards the SCANNER
+against a false negative on a real wildcard sitting near a real comment); G2
+AND G4 (the new gate, see below) both have stripping that IS load-bearing,
+because they scan ordinary non-exhaustive code where the compiler enforces
+nothing about comment content.
+
+### Finding 8(b) — `PB-DX9` -> `PB-DP9`
+
+ALREADY DONE before this cycle (per the dispatching agent's own note).
+Verified unchanged: `resolution.rs:8320` reads "PB-DP9's precedent for this
+exact function's tail" — confirmed by direct read, not re-edited.
+
+### Finding 9 — Stage 7 bookkeeping
+
+OUT OF SCOPE for this runner, per explicit instruction (the dispatching
+agent's own item — `docs/audits/decision-point-audit.md`,
+`memory/primitives/seed-rerank-2026-08-02.md`, `CLAUDE.md`,
+`memory/workstream-state.md` all UNTOUCHED by this fix cycle). The corrected
+P = 66 (not 48, not "~48") is reported above for whoever does Stage 7 to
+consume.
+
+### The reviewer's G2 note (treated as a finding): no source gate over
+### `counter_stack_object`
+
+TAKEN. New gate pair `g4_counter_stack_object_does_not_reclassify_by_kind` +
+`g4_scan_is_not_vacuous` added to `pb_dx25_stack_registry_roster.rs`, mirroring
+G2's exact shape but aimed at `resolution.rs::counter_stack_object`: asserts
+`card_in_stack_zone` is called at least once, `move_object_to_zone` is called
+exactly once, and neither `StackObjectKind::Spell {`/`MutatingCreatureSpell {`
+(nor their `K::`-aliased form) appears as a literal in the function body. The
+`ActivatedAbility`/`TriggeredAbility` diagnostics-naming arm is explicitly
+exempted by the gate's own failure message (it names an ability's SOURCE, not
+a card-owning kind, and per `OOS-DX25-4` cannot lose a card).
+
+**Also hardened G2 itself** against the `use StackObjectKind as K;` alias form
+`stack_registry.rs` uses internally — added `K::Spell {`/`K::
+MutatingCreatureSpell {` to G2's forbidden-literal check.
+
+**Revert matrix, G4 (three rows, each executed independently and restored,
+full G1-G4 suite re-run green after each restore):**
+
+| revert | how | observed failure (verbatim) |
+|---|---|---|
+| literal `StackObjectKind::Spell { .. }` reintroduced inside the function | added `if let StackObjectKind::Spell { .. } = &stack_obj.kind { /* forbidden literal */ }` right after the `card_owned` computation | `the zone-move is driven off state::stack_registry, never off a per-kind match -- do not add an arm, extend the registry. Found a literal StackObjectKind::Spell or StackObjectKind::MutatingCreatureSpell (or their K:: alias form) inside counter_stack_object.` |
+| a second `move_object_to_zone` call added | duplicated the existing move call with a throwaway `let _ = ...;` right after it | `counter_stack_object must call move_object_to_zone exactly once (CR 400.7 zone move on the card-owning branch) -- got 2` (`left: 2 / right: 1`) |
+| `card_owned` computed WITHOUT calling `card_in_stack_zone` | replaced `let card_owned = crate::state::stack_registry::card_in_stack_zone(&stack_obj.kind);` with `let card_owned: Option<ObjectId> = None;` | `Expected >= 1 call to card_in_stack_zone in counter_stack_object, got 0` |
+
+**Revert matrix, G2's new alias hardening (executed AND double-checked that
+the hardening is genuinely load-bearing, not redundant):**
+
+1. Introduced a local `use crate::state::stack::StackObjectKind as K;` +
+   `if let K::Spell { .. } = &stack_obj.kind {}` inside the `Effect::
+   CounterSpell` arm of `effects/mod.rs` (a harmless literal that doesn't
+   change the arm's logic — same shape as the G4 revert above). With the
+   HARDENED check (both fully-qualified AND `K::`-aliased forbidden literals),
+   G2 caught it: `Found a literal StackObjectKind::Spell or
+   StackObjectKind::MutatingCreatureSpell (or their K:: alias form) inside the
+   Effect::CounterSpell arm.`
+2. **Load-bearing check**: with ONLY the ORIGINAL (pre-hardening) forbidden-
+   literal check active (`K::` clauses temporarily removed from the test
+   file), the SAME alias-form revert in `effects/mod.rs` passed G2
+   VACUOUSLY (`... ok`) — proving the hardening is not redundant with the
+   existing check, it closes a real gap.
+3. Both `effects/mod.rs` and the test file restored; `git diff --stat --
+   crates/engine/src/effects/mod.rs` confirmed clean against the pre-revert
+   edited state (this finding's own doc-comment addition at `:2771-2782`
+   survived the round-trip unchanged).
+
+### Additional LOW notes — all taken
+
+- **T4 `cast_with_jump_start` sub-case**: added as sub-case 4 (renumbering the
+  old sub-case 4, the structural `MutatingCreatureSpell`-can't-carry-
+  `cast_with_flashback` pin, to sub-case 5). **Revert executed** in ISOLATION
+  from the other three sub-cases (dropped ONLY `cast_with_jump_start` from the
+  destination condition, keeping `exile_instead`/`cast_with_flashback` intact)
+  to prove sub-case 4 discriminates on its own, not merely as collateral
+  damage from a whole-branch revert: watched red at exactly `CR 702.133a: a
+  jump-start-cast spell should be exiled when countered`, with sub-cases 1-3
+  passing. Restored, `git diff --stat -- crates/engine/src/effects/mod.rs`
+  confirmed clean.
+- **T4 `unwrap_or(controller)` owner-fallback sub-case**: NOT added, and the
+  plan's own claim (`§3.5`: "individually probed") is NARROWED in T4's doc
+  comment instead, with the reasoning stated in full: `move_object_to_zone`
+  (`state/mod.rs:1270-1273`) performs the identical `self.objects.get(&
+  object_id)` lookup on the SAME id, moments after the owner lookup, with no
+  intervening mutation — so whenever the owner lookup's `.get()` would return
+  `None` (triggering the `unwrap_or(controller)` fallback), the immediately
+  -following `fizzle_move_object_to_zone` call's OWN lookup also returns
+  `None` (CR 400.7 fizzle semantics), the move never happens, no
+  `SpellCountered` fires, and the fallback VALUE is never used to place a card
+  anywhere observable. Confirmed by reading `move_object_to_zone`'s source
+  (`state/mod.rs:1258-1273`) — the FIRST thing it does is the exact same
+  `self.objects.get(&object_id)` call, same map, same id. This is DEAD CODE at
+  this specific call site by construction, not merely untested; no legal or
+  illegal `GameState` exercises it observably, so no sub-case was added — a
+  synthetic sub-case claiming to test it would have been misleading (it would
+  necessarily test something else, e.g. an `ObjectNotFound` panic path via
+  `debug_assert!` for a mismatched-zone case, which is a DIFFERENT failure
+  mode entirely and not safe to construct in a test that must not panic).
+- **T3 "sibling fixture" wording**: fixed — now reads "the SAME `state`,
+  continued right after the copy-counter above, not a separate/sibling
+  fixture".
+- **Unclaimed positive at `effects/mod.rs:2771-2775`**: documented in place.
+  The `is_copy` guard's comment now states explicitly that for the CR
+  702.99c cipher-copy population (`resolution.rs:5418-5430`,
+  `source_object: encoded_object_id`, `is_copy: true`), the card the guard
+  protects from being moved is not merely "someone else's spell" but a card
+  sitting in EXILE (the cipher-encoded original) — without the guard, `so.id
+  == id` would have pulled it straight out of exile into a graveyard.
+  Verified `resolution.rs:5418-5430` directly before writing the comment
+  (confirmed `encoded_object_id` names a card CR 702.99c keeps in Exile, not
+  on the stack).
+- **`invariants.rs:284-286`**: corrected IN PLACE with a new paragraph
+  immediately following the now-false sentence, explicitly flagging that
+  sentence (not just adding a LATER correction two paragraphs down, which is
+  what the pre-fix-cycle state did) — the original sentence is KEPT
+  (history), and the new paragraph states the correction: zero of the three
+  shapes ever tripped `stack_consistency` (shape (c) produces no divergence;
+  shapes (a)/(b) were unreachable).
+- **G3's P-message**: already correctly discriminating before this cycle
+  (the format string reads "expected 66 (6 x 11), got {p} (...)" — `{p}` is
+  the LIVE computed value, not a second copy of the literal `66`) — re-
+  verified during the Finding-3 rewrite; the finding's specific complaint
+  (both "expected" and "got" printing the SAME hard-coded number under a
+  revert) does not reproduce with the current message shape, confirmed by
+  the G3 revert executed above (`got 66 (6 x 11)` when the actual computed
+  `p` was still 66, with `assert_eq!`'s own `left: 66 / right: 67` carrying
+  the discriminating information regardless).
+- **Front-face-only asymmetry at M3**: RESOLVED, not merely documented (see
+  Finding 3's "two smaller scoping gaps" section above) — `has_spell_level_
+  target_requirement` now walks both faces, mirroring `has_mutate_keyword`'s
+  own back-face walk exactly. Moot on the current corpus (no `Complete`
+  Mutate def has a back face) but no longer merely-documented-as-asymmetric.
+- **`strip_line_comments` string-literal robustness**: documented at the
+  function's own location in the roster test file — a line containing a
+  literal `//` inside a string (e.g. a URL) would be silently over-stripped;
+  latent (none of the three gated source files contains one today), not live,
+  and inherited from `pb_dx24_trigger_zone_roster.rs`'s identical idiom, not
+  newly introduced by this batch.
+
+### The "FOUR sites" census correction
+
+`memory/primitives/pb-plan-DX25.md` §0.2 F3 corrected in place: the table now
+lists SIX sites (not four), with the two Findings-1/2 sites added as rows 5
+and 6, both marked "WRONG at ship time — found by review, fixed in the fix
+cycle", and the header text ("FOUR sites... three right and one wrong")
+corrected to "SIX sites... most right and two wrong". A new paragraph above
+the table states explicitly that the original count of four was itself short
+by two, naming both missed sites and pointing at this fix cycle. This
+execution-notes file's own body (this very section) is the "in the execution
+notes" half of that same correction, since no prior version of this file
+carried a "FOUR sites" claim to edit — Findings 1/2 postdate every prior
+runner's work.
+
+### Non-negotiables checklist (all satisfied, gate-executed)
+
+- Every new probe/gate's revert executed and recorded above (T7 half 3, T4
+  sub-case 4, G3's re-pin, G4 both new tests x3 revert rows, G2's hardening
+  x2 revert rows including the load-bearing double-check).
+- `cargo test --workspace --no-fail-fast` run to a FILE both before `cargo
+  fmt` and after (never `| tail`): **4,452 / 0 / 5** both times (+2 over the
+  pre-review-cycle 4,450 — exactly `g4_counter_stack_object_does_not_
+  reclassify_by_kind` + `g4_scan_is_not_vacuous`; every other finding's fix
+  either touched an EXISTING `#[test]` fn or was doc/comment-only), residual
+  list empty both times.
+- `cargo clippy --workspace --all-targets -- -D warnings` — clean.
+- `cargo fmt --check` — clean (after one `cargo fmt` run that reformatted
+  `pb_dx25_stack_registry_roster.rs`'s `counterspell_defs` closure — content
+  unchanged, only line-wrap).
+- `tools/check-defs-fmt.sh` — 1,803 defs, clean.
+- `--test core protocol_schema` (17/0), `--test core hash_schema` (21/0),
+  `--test core keyword_registry` (9/0) — all gate-EXECUTED after the Finding
+  1/2 edits to `abilities.rs`/`casting.rs` (both keyword-registry-scanned
+  files, per the dispatching agent's own warning). **All three unmoved.**
+  PROTOCOL confirmed **35** and HASH confirmed **73** by direct `grep` on
+  `rules/protocol.rs`/`state/hash.rs` AND by the gate's own pinned-value
+  assertions passing — neither number moved, and this was NOT assumed, it
+  was re-executed after every source edit in this cycle.
+- SR-6 scope: `git diff main..HEAD --numstat -- crates/card-defs/
+  crates/card-types/ crates/view-model/ tools/` — EMPTY, confirmed after
+  every finding's fix, not just once at the end.
+- No pre-existing test reddened at any point in this fix cycle — every
+  failure observed was a revert introduced and then restored.
+
+### Final state at the end of this fix cycle
+
+Tests: **4,452 / 0 / 5** full-workspace (`--workspace --no-fail-fast`, to a
+file, residual list empty). PROTOCOL **35** / HASH **73**, both gate-executed
+and confirmed unmoved through every finding in this cycle. Corrected roster:
+**M1=8, M2=6, M3=0, C1=29, C2=24, C3=11, P=66** (not 48; report this number,
+not 48, to whoever completes Stage 7). SR-6 scope empty. Files touched this
+cycle: `crates/engine/src/effects/mod.rs`, `crates/engine/src/rules/
+abilities.rs`, `crates/engine/src/rules/casting.rs`, `crates/engine/src/
+rules/events.rs`, `crates/simulator/src/invariants.rs`,
+`crates/engine/tests/core/pb_dx25_stack_registry_roster.rs`,
+`crates/engine/tests/primitives/pb_dx25_counterspell_stack_shapes.rs`,
+`memory/primitives/pb-plan-DX25.md` (census correction). Stage 7 (queue row,
+`OOS-SIM3-5` disposition, seed filing, CLAUDE.md/workstream-state delta) is
+explicitly NOT done here — that is the dispatching agent's own scope.

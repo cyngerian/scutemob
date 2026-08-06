@@ -55,19 +55,32 @@ So Ward never fires on a copy either. CR 702.21a + CR 707.10 (a copy is put on t
 the original's targets) say it should. §9 `OOS-DX25-2`. Out of scope, and the third independent
 reason shape (b) is unreachable.
 
-**F3. There are FOUR sites in the workspace that answer "does this stack object own a card in
-`ZoneId::Stack`?", three of them right and one wrong, and none shares a mechanism.**
+**F3. There are SIX sites in the workspace that answer "does this stack object own a card in
+`ZoneId::Stack`?" (or the closely-related "is this stack object a spell?"), most of them right
+and two wrong, and none shares a mechanism.**
 
-| # | site | answer for `MutatingCreatureSpell` | correct? |
+**Corrected post-ship, by the PB-DX25 review (`pb-review-DX25.md` Findings 1 and 2): the original
+count of FOUR was itself short by two.** The review found `abilities.rs:6736`
+(`targeting_is_spell`, wrong in the SAME direction as this batch's own defect — it answered the
+"is this a spell" question, missing `MutatingCreatureSpell`, exactly like `effects/mod.rs`'s
+pre-fix `position()` clause did for the different "does it own a card" question) and
+`casting.rs:7126` (`has_split_second_on_stack`, which is `card_in_stack_zone`'s EXACT question
+left unconverted — the fifth site the registry was built to replace). Both were fixed in the
+PB-DX25 fix cycle (`memory/primitives/pb-DX25-execution-notes.md`).
+
+| # | site | answer for `MutatingCreatureSpell` (as originally shipped) | correct? |
 |---|---|---|---|
-| 1 | `effects/mod.rs:2737` (`position()` + the per-kind match) | no | **WRONG — this batch** |
+| 1 | `effects/mod.rs:2737` (`position()` + the per-kind match) | no | **WRONG — this batch, fixed** |
 | 2 | `resolution.rs:8318-8319` (`counter_stack_object`) | yes | right |
 | 3 | `casting.rs:6504-6509` (`is_spell` for `TargetSpellWithSingleTarget`) | yes | right — **but it answers a DIFFERENT question**, see §3.4 |
 | 4 | `crates/simulator/src/invariants.rs:141` (`stack_card_of`) | yes | right |
+| 5 | `abilities.rs:6732-6737` (`targeting_is_spell` for `PermanentBecomesTarget`) | no | **WRONG at ship time — found by review Finding 1, fixed in the fix cycle** |
+| 6 | `casting.rs:7124-7138` (`has_split_second_on_stack`) | no | **WRONG at ship time — found by review Finding 2, fixed in the fix cycle** (this one answers `card_in_stack_zone`'s question, not `is_spell`'s) |
 
-Three agreeing implementations is not a mechanism; it is three chances to be right and one to be
-wrong, and the one that was wrong is the one nobody had a test for. This table is the argument
-for §3.1.
+Agreeing implementations are not a mechanism; they are chances to be right, and the ones that were
+wrong were the ones nobody had a test for. This table is the argument for §3.1 — and its own
+initial undercount is the argument for auditing a "N sites answer this question" claim by
+re-deriving it, not by trusting the count that shipped.
 
 **F4. Two CR citations in the code under edit are wrong**, of the `OOS-UI3-1` renumbering-rot
 class. `effects/mod.rs:2725` says *"CR 701.5: Counter target spell on the stack"* and `:2744` cites
