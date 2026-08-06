@@ -4194,6 +4194,60 @@ behaviourally identical.
 
 ## Last Handoff
 
+**Date**: 2026-08-05 (oversight session #6 — v3 rank 7, single dispatch)
+**Workstream**: W6 correctness queue (v3)
+**Task**: `scutemob-203` (PB-DX25, merge `f8ed9618`), dispatched and collected same evening.
+
+**Completed**:
+- **PB-DX25 shipped** (rank 7): counter-on-mutate silent no-op closed. Structural fix — a new
+  engine-side `state::stack_registry::card_in_stack_zone`, exhaustive over `StackObjectKind`
+  with no wildcard, consumed by BOTH counter paths, so a 28th kind is a compile error until
+  classified. The simulator's `stack_card_of` deliberately NOT unified with it (a verifier
+  reading the engine's own answer goes silent on exactly the defect it exists to catch).
+- **The seed and the queue row had the live shape backwards**: (c) was the only live shape;
+  (a) was never independently reachable — Ward cannot reach a mutate spell because the mutate
+  target rides `AdditionalCost::Mutate` and never enters `spell_targets` (`OOS-DX25-1`) — so
+  (a) is what fixing (c) ALONE would have created, a permanent `ZoneId::Stack` leak in place
+  of a silent no-op. (b) is unreachable three independent ways. Live-wrong population
+  re-measured: **66** pairs, not the row's implied 144. All corrections written into the
+  registry row and the v3 §3 row in place.
+- Tests **4,435 → 4,452 / 0 / 5**; PROTOCOL **35** / HASH **73** gate-executed and unmoved
+  (prediction held); coverage unmoved **1,133/1,803 = 62.8%** proven by regeneration; benches
+  within noise (`full_turn_4p` 214-215 µs).
+- Review 0 HIGH / 6 MEDIUM / 3 LOW + 7 folded notes, **all taken** — its sharpest findings
+  were the batch's own failure mode recurring inside it (a census short by two sites; a roster
+  blind to a delegating variant; a non-vacuity assertion comparing a fixture to itself).
+- **OOS-SIM3-5 CLOSED**; **OOS-DX25-1..6 filed** (registry grep-checked per the dedup rule).
+  Worker did FULL collect state-sync (queue row struck, W6 row, CLAUDE.md delta, registry) —
+  verified, not assumed, at `/collect`.
+
+**Not done / deferred** (inherited set, unchanged):
+- Feedback doc rows 2 (FUZZ-CRASH) / 4 / 5 / 6 / 7 / 8 undispatched; **OOS-DX22-8**
+  unclassified; **OOS-DX32-1** undiagnosed; v3 §4 not re-rowed with DX42a/b; OOS-ADJ-1..7 not
+  rowed into §8.1; `scutemob-127` still backlog.
+
+**Next session candidates** (highest-yield first):
+- **Read `OOS-DX25-3` first — LIVE on 2 deck-legal `Complete` defs**: `misdirection` and
+  `bolt_bend` can NEVER resolve a legal target (`TargetSpellWithSingleTarget` compares a card
+  id to a stack-entry id across disjoint id namespaces; the in-src negative tests pass
+  vacuously). Weigh as an insert before PB-DX26.
+- **PB-DX26** (rank 8 — the equip surface one link earlier; ~4-6 flips; re-measure the
+  21/18/10 roster from `all_cards()` at dispatch per v3 §2.7).
+- **OOS-DX32-1 diagnosis** or **FUZZ-CRASH** (feedback row 2, cheapest row).
+
+**Hazards** (carrying forward):
+- The three standing #5 hazards (registry-grep dedup rule; Monitor over bash poll loops;
+  verify worker state-sync at `/collect`) all held this session — PB-DX25's worker synced
+  fully.
+- New from PB-DX25: `next_object_id` mints stack-entry ids and card ids from ONE counter, so
+  an id lives in exactly one namespace — any `so.id == <card id>` comparison type-checks and
+  can never match. `OOS-DX25-3` is a second instance of the same class one function over from
+  the seed's. Grep for the pattern before trusting any stack-lookup-by-id.
+
+**Commit prefix used**: `scutemob-203:` (worker) + `merge:` + `chore:` (eot)
+
+## Previous Handoff (preserved for chain context)
+
 **Date**: 2026-08-04..05 (oversight session #5 — correctness-queue run, v3 ranks 2/3/5/6)
 **Workstream**: W6 correctness queue (v3)
 **Task**: five tasks: `scutemob-199` (OOS-FB1 filing — DUPLICATE of `scutemob-195`, deduped at
@@ -4251,66 +4305,6 @@ behaviourally identical.
   partially) — `/collect` step 7 must still verify the queue-memo row strike + brief banner.
 
 **Commit prefix used**: `scutemob-N:` (workers/self-task) + `chore:` (collects, eot) + `merge:`
-
-## Previous Handoff (preserved for chain context)
-
-
-**Date**: 2026-08-03..04 (oversight session #4 — FEEDBACK-1 + the first two feedback-buildout
-batches, user-directed "stop after 3 tasks for a check-in")
-**Workstream**: W6 correctness queue + feedback-engineering track
-**Task**: four tasks dispatched/collected serially: `scutemob-192` (FEEDBACK-1 planning, merge
-`d55e74cc`), `scutemob-195` (OOS-FB1 seed filing, coordinator-inline, `9aa4f220`),
-`scutemob-196` (PB-DX22, `95f53b78`), `scutemob-197` (PB-DX32, `685aa1c4`).
-
-**Completed**:
-- **FEEDBACK-1 shipped** (doc-only): `docs/mtg-engine-feedback-engineering.md` — 14-channel
-  inventory, 8-row ranked proposal table, alpha-loop ownership table, 18 from/to corrections.
-  Registered in `.claude/docs.yaml` (25 templates) + the CLAUDE.md primary-docs table. Its four
-  coordinator-notes (decision gate exists / crash pipeline absent / two rows already queued /
-  rejection channel bot-only) are in the ESM task comments (scutemob-183 pattern).
-- **OOS-FB1-1..9 filed** into `docs/audits/decision-point-audit.md` §8.1 (`scutemob-195`).
-- **PB-DX22 shipped** (v3 rank 4): fuzzer shuffles from the game's seeded RNG + registers
-  commanders in both builders (new shared `crates/simulator/src/fuzz_setup.rs`); first-cast
-  turn 143-154 → **3-29 band**; CR 903.8/903.9a/903.10a fuzzed for the first time; fuzz games
-  END (20 wins / 0 errors vs 9/11 timeouts). The §2.4 open measurement settled: the commander
-  offer was SUPPRESSED (empty `commander_ids`), OOS-SIM1-4 the cause. **OOS-UI2-1 / OOS-SIM3-1 /
-  OOS-SIM1-4 CLOSED**; OOS-DX22-1..11 filed; every pre-merge fuzz seed dead (OOS-DX22-7); the
-  repaired instrument's first real find is **OOS-DX22-8** (attachment_validity transient).
-- **PB-DX32 shipped** (v3 rank 19, PROMOTED per feedback doc §2.3): `GameResult` carries the
-  SR-38 rejection invariant + promoted waste tally behind measured-at-HEAD ratchets (2.30%
-  rejection rate; wasted taps 1,986/2,641); orphan-token noise floor gets the transient/end-state
-  treatment; violations deduped by condition; fuzz deck pool size gated (**OOS-CARDS2-3 CLOSED**);
-  decision-point runtime coverage counter (reached-vs-ROWS). **OOS-SIM3-3 / OOS-SIM3-4 CLOSED,
-  OOS-SIM3-2 PARTIAL**; OOS-DX32-1..10 filed. Review 0 HIGH / 8 MEDIUM / 10 LOW, all 18 taken.
-- Tests **4,345 → 4,373 / 0 / 5**; PROTOCOL **35** / HASH **72** unmoved by every batch,
-  gate-executed each time; coverage unmoved **1,133/1,803 = 62.8%**.
-- **Lean-bullet evaluation gate PASSED** at `/start` (UI-6 reconstructed from its bullet plus one
-  pointer-follow) — the lean form stands, no rollback.
-
-**Not done / deferred**:
-- Feedback doc rows undispatched: **2 FUZZ-CRASH** (now the cheapest row; OOS-DX22-7 feeds it),
-  **4 HTTP-FUZZ** (yield gated on OOS-SIM6-3), **5 R7-HARNESS**, **6 DECK-CHANNEL** (re-rolls
-  seeds again — batch with card-def work), **7 CI-POLICY** (needs the OOS-FB1-6 timing
-  measurement first), **8 REPORT-LOOP**.
-- **OOS-DX22-8** unclassified (classify before fixing — OOS-M11-7 SBA-lag family candidate);
-  **OOS-DX32-1** undiagnosed (player_consistency = 26.8% of a run, now what --stop-on-error
-  halts on).
-- Inherited from oversight #2: v3 §4 not re-rowed with DX42a/b; OOS-ADJ-1..7 not rowed into
-  §8.1; `scutemob-127` still backlog.
-
-**Next session candidates** (highest-yield first):
-- **OOS-DX32-1 diagnosis** (PB-DX32's flagged successor) or **FUZZ-CRASH** (feedback row 2).
-- **PB-DX20** (standing queue next — 13 `Complete` Auras unplayable in the browser).
-- **OOS-SIM6-3** (unlocks HTTP-FUZZ row 4's yield and 62 of 113 residual bot refusals).
-
-**Hazards** (carrying forward):
-- `esm task create --criteria` is REPEATABLE, not pipe-separated — a pipe-joined string becomes
-  ONE mega-criterion (scutemob-196 shipped that way; workable, avoid). A `backlog` task cannot
-  be archived; reuse it rather than recreate.
-- Every fuzz baseline pinned before `95f53b78` is dead (OOS-DX22-7) — re-measure at HEAD, never
-  quote SIM-3/SIM-5 numbers.
-
-**Commit prefix used**: `scutemob-N:` (workers/self-task) + `chore:` (collects) + `merge:`
 
 ## Worker Handoff (UI-1, `scutemob-174`)
 
@@ -4786,6 +4780,65 @@ shows S7's work, not this branch's.
 
 ## Handoff History
 
+### 2026-08-03..04 (oversight #4 — FEEDBACK-1 + first two feedback-buildout batches) [rotated]
+
+**Date**: 2026-08-03..04 (oversight session #4 — FEEDBACK-1 + the first two feedback-buildout
+batches, user-directed "stop after 3 tasks for a check-in")
+**Workstream**: W6 correctness queue + feedback-engineering track
+**Task**: four tasks dispatched/collected serially: `scutemob-192` (FEEDBACK-1 planning, merge
+`d55e74cc`), `scutemob-195` (OOS-FB1 seed filing, coordinator-inline, `9aa4f220`),
+`scutemob-196` (PB-DX22, `95f53b78`), `scutemob-197` (PB-DX32, `685aa1c4`).
+
+**Completed**:
+- **FEEDBACK-1 shipped** (doc-only): `docs/mtg-engine-feedback-engineering.md` — 14-channel
+  inventory, 8-row ranked proposal table, alpha-loop ownership table, 18 from/to corrections.
+  Registered in `.claude/docs.yaml` (25 templates) + the CLAUDE.md primary-docs table. Its four
+  coordinator-notes (decision gate exists / crash pipeline absent / two rows already queued /
+  rejection channel bot-only) are in the ESM task comments (scutemob-183 pattern).
+- **OOS-FB1-1..9 filed** into `docs/audits/decision-point-audit.md` §8.1 (`scutemob-195`).
+- **PB-DX22 shipped** (v3 rank 4): fuzzer shuffles from the game's seeded RNG + registers
+  commanders in both builders (new shared `crates/simulator/src/fuzz_setup.rs`); first-cast
+  turn 143-154 → **3-29 band**; CR 903.8/903.9a/903.10a fuzzed for the first time; fuzz games
+  END (20 wins / 0 errors vs 9/11 timeouts). The §2.4 open measurement settled: the commander
+  offer was SUPPRESSED (empty `commander_ids`), OOS-SIM1-4 the cause. **OOS-UI2-1 / OOS-SIM3-1 /
+  OOS-SIM1-4 CLOSED**; OOS-DX22-1..11 filed; every pre-merge fuzz seed dead (OOS-DX22-7); the
+  repaired instrument's first real find is **OOS-DX22-8** (attachment_validity transient).
+- **PB-DX32 shipped** (v3 rank 19, PROMOTED per feedback doc §2.3): `GameResult` carries the
+  SR-38 rejection invariant + promoted waste tally behind measured-at-HEAD ratchets (2.30%
+  rejection rate; wasted taps 1,986/2,641); orphan-token noise floor gets the transient/end-state
+  treatment; violations deduped by condition; fuzz deck pool size gated (**OOS-CARDS2-3 CLOSED**);
+  decision-point runtime coverage counter (reached-vs-ROWS). **OOS-SIM3-3 / OOS-SIM3-4 CLOSED,
+  OOS-SIM3-2 PARTIAL**; OOS-DX32-1..10 filed. Review 0 HIGH / 8 MEDIUM / 10 LOW, all 18 taken.
+- Tests **4,345 → 4,373 / 0 / 5**; PROTOCOL **35** / HASH **72** unmoved by every batch,
+  gate-executed each time; coverage unmoved **1,133/1,803 = 62.8%**.
+- **Lean-bullet evaluation gate PASSED** at `/start` (UI-6 reconstructed from its bullet plus one
+  pointer-follow) — the lean form stands, no rollback.
+
+**Not done / deferred**:
+- Feedback doc rows undispatched: **2 FUZZ-CRASH** (now the cheapest row; OOS-DX22-7 feeds it),
+  **4 HTTP-FUZZ** (yield gated on OOS-SIM6-3), **5 R7-HARNESS**, **6 DECK-CHANNEL** (re-rolls
+  seeds again — batch with card-def work), **7 CI-POLICY** (needs the OOS-FB1-6 timing
+  measurement first), **8 REPORT-LOOP**.
+- **OOS-DX22-8** unclassified (classify before fixing — OOS-M11-7 SBA-lag family candidate);
+  **OOS-DX32-1** undiagnosed (player_consistency = 26.8% of a run, now what --stop-on-error
+  halts on).
+- Inherited from oversight #2: v3 §4 not re-rowed with DX42a/b; OOS-ADJ-1..7 not rowed into
+  §8.1; `scutemob-127` still backlog.
+
+**Next session candidates** (highest-yield first):
+- **OOS-DX32-1 diagnosis** (PB-DX32's flagged successor) or **FUZZ-CRASH** (feedback row 2).
+- **PB-DX20** (standing queue next — 13 `Complete` Auras unplayable in the browser).
+- **OOS-SIM6-3** (unlocks HTTP-FUZZ row 4's yield and 62 of 113 residual bot refusals).
+
+**Hazards** (carrying forward):
+- `esm task create --criteria` is REPEATABLE, not pipe-separated — a pipe-joined string becomes
+  ONE mega-criterion (scutemob-196 shipped that way; workable, avoid). A `backlog` task cannot
+  be archived; reuse it rather than recreate.
+- Every fuzz baseline pinned before `95f53b78` is dead (OOS-DX22-7) — re-measure at HEAD, never
+  quote SIM-3/SIM-5 numbers.
+
+**Commit prefix used**: `scutemob-N:` (workers/self-task) + `chore:` (collects) + `merge:`
+
 ### 2026-08-02 (oversight #3 — playtest-triage-2 successor run, rows 2-8) [rotated]
 
 
@@ -4975,37 +5028,6 @@ same-day. Merges: `f28df527` (174 UI-1), `d04f42a1` (179 CARDS-1), `83bfdba5` (1
 **Commit prefix used**: worker `W6-prim:`, `merge:`, coordinator `chore:`.
 
 ---
-
-### 2026-07-19..20 (oversight — rider-seed RS1..RS3, queue paused) [rotated]
-
-**Date**: 2026-07-19..20 (oversight session — autonomous coordinator chain, user-directed "stop dispatching after PB-RS3"; /eot 2026-07-26)
-**Workstream**: W6 (rider-seed queue PB-RS1..RS11) — **RS1..RS3 SHIPPED, QUEUE PAUSED**
-**Task**: rider-seed mini-triage + first three RS batches dispatched/collected (`scutemob-142..145`). Final merge `b1c21909`, close-out `52b59154`.
-
-**Completed**:
-- **Rider-seed mini-triage** (`scutemob-142`, `6f50b7f7`): 8 briefed seeds → 11 OS-series IDs (OOS-OS10-1 phantom, OOS-OS7-3 never filed), OOS-OS4-1 restored, **6 new seeds filed (OOS-RS-1..6); 4 correctness-class findings outranked every filed seed**, 2 live-wrong on `Complete` cards. Plan: `memory/primitives/rider-seed-triage-2026-07-19.md` (queue R1..R11).
-- **PB-RS1** (`scutemob-143`, `56697a00`): library top/bottom inversion — `Zone::top_n` shared helper across Scry/Surveil/RevealAndRoute/LookAtTopThenPlace (+ a 5th inverted read caught in review); bottom-writes rerouted; camp A (top=last) CR-confirmed by probe; 41-card roster repaired; 5 golden scripts + 2 fixtures + 1 stale-convention test reconciled; no wire bump; OOS-RS1-1 filed (`ZoneTarget::Library` position inert — muxus still gated).
-- **PB-RS2** (`scutemob-144`, `86176ff7`): hybrid/Phyrexian pips in activated+mana abilities now charged — `ActivateAbility`+`TapForMana` schema fields (PROTOCOL 26→**27**); flatten relocated to `card-types` as shared method; fail-loud residue guard; simulator non-suicidal payment plans; **birthing_pod inert→Complete (OOS-OS8-1 CLOSED)**; 7 filter lands stop being free (stay `known_wrong`); self-caught CR 119.4 combined-life bug + pre-existing casting.rs 119.4 hole fixed; OOS-RS2-1 filed (TurnFaceUp is the 4th unrouted payment site).
-- **PB-RS3** (`scutemob-145`, `b1c21909`): card-def `AtBeginningOfCombat` sweep in `begin_combat` (5th copy of proven sibling template); **3 flips** (loyal_apprentice, siege_gang_lieutenant, probe-earned goblin_rabblemaster — "needs new must-attack GameRestriction" was misframed) + helm_of_the_host integrity repair (explicit `Complete`); mirage_phalanx note honest-amended; no wire bump; OOS-RS3-1..4 filed (**RS3-1 rankable** — CardDefETB sweeps skip queue-time intervening-if, CR 603.4; helper `check_intervening_if` already exists).
-- **Totals**: coverage 62.9% → **63.1%** (1,139/1,804); PROTOCOL 26→**27** / HASH **63**; OOS-RS-1, OOS-RS-2, OOS-OS8-1, OOS-OS9-1 all CLOSED; every review clean or fixed (0 HIGH across all three).
-
-**Not done / deferred**:
-- **Queue PAUSED after R3 by user.** R4..R11 undispatched; OOS-RS3-1 (rankable insert) + OOS-RS2-1 (cheap rider) filed but unranked.
-- OOS-RS3-2 (8 effectively-Complete defs textually admitting unimplemented behavior — emeria_the_sky_ruin is live-wrong; re-marking pass, not a primitive).
-- scutemob-127 (abilities-corpus distillation) still backlog; dormant/defer backlog; retired-scripts worklist; M10.
-
-**Next session candidates** (highest-yield first):
-- **Resume the RS queue at R4** (face-aware residuals, OOS-RS-3) per the §5 banner in `rider-seed-triage-2026-07-19.md` — but first weigh inserting **OOS-RS3-1** (5 call-sites of an existing helper, correctness) and riding **OOS-RS2-1** (4th payment-site routing, materially smaller than R2).
-- Pull forward emeria_the_sky_ruin from OOS-RS3-2 (the one live-wrong member) or run the full re-marking pass.
-- scutemob-127, M10 per strategic review, or retired-scripts worklist.
-
-**Hazards** (carrying forward):
-- All five prior hazards below still stand (attestation verbatim, poll-loop cap, `esm update` clobber risk, resume state-resync, yield unreliability both directions).
-- **Probe-first pays**: RS1's probe settled the fix direction; RS3's probe overturned a card's stated blocker and earned an unplanned flip. Keep step-0 probes in every RS brief.
-- **Reviews keep catching real misses** (RS1's 5th inverted read, RS2's 12 findings, RS3's seed-scope corrections) — never skip the reviewer pass even on "template" PBs.
-
-**Commit prefix used**: worker `scutemob-N:`/`W6-prim:`, `merge:`, coordinator `chore:`.
-
 
 ### PB-DP suite — worker close-out detail
 
