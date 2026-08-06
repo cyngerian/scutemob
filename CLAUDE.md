@@ -41,8 +41,8 @@
   PB-DX23 shipped `scutemob-201` 2026-08-05 (rank 5);
   PB-DX24 shipped `scutemob-202` 2026-08-05 (rank 6);
   PB-DX25 shipped `scutemob-203` 2026-08-05 (rank 7);
-  **next PB-DX25b** (rank 7b, INSERTED 2026-08-06 user-approved — OOS-DX25-3, live on
-  `misdirection`/`bolt_bend`; PB-DX26 moves one slot later);
+  PB-DX25b shipped `scutemob-204` 2026-08-06 (rank 7b, INSERTED 2026-08-06 user-approved);
+  **next PB-DX26** (rank 8, moved one slot later by the 7b insert);
   the playtest-successor run 174–181
   AND the triage-2 successor run 187–194 both completed 2026-08-02 — triage 2 is fully closed,
   8/8 rows shipped. **FEEDBACK-1 SHIPPED** (`scutemob-192`, merge `d55e74cc`, doc-only):
@@ -116,11 +116,19 @@
   **PB-DX21 SHIPPED** (`scutemob-200`; v3 queue rank 3) — v3 ranks **1-4 are all shipped**.
   **PB-DX23 SHIPPED** (`scutemob-201`; v3 queue rank 5) and **PB-DX24 SHIPPED**
   (`scutemob-202`; v3 queue rank 6) — v3 ranks **1-6 are all shipped**.
-  **PB-DX25 SHIPPED** (`scutemob-203`; v3 queue rank 7) — v3 ranks **1-7 are all shipped**, so
-  **next dispatch: PB-DX25b** (rank 7b, INSERTED 2026-08-06 user-approved — closes
-  **OOS-DX25-3**, the `validate_target_requirement` id-space confusion LIVE on
-  `misdirection`/`bolt_bend`; row in the v3 memo §4; PB-DX26 is next after it).
-  PROTOCOL **35** / HASH **73** as of PB-DX25 (both unmoved by it).
+  **PB-DX25 SHIPPED** (`scutemob-203`; v3 queue rank 7) — v3 ranks **1-7 are all shipped**.
+  **PB-DX25b SHIPPED** (`scutemob-204`; v3 queue rank 7b) — **OOS-DX25-3 CLOSED**; ranks
+  **1-7b are all shipped**, so **next dispatch: PB-DX26** (rank 8; row in the v3 memo §4).
+  PROTOCOL **35** / HASH **73** as of PB-DX25b (both unmoved by it, gate-executed).
+- **Tests (delta 2026-08-06, PB-DX25b)**: **4,469 / 0 / 5** full-workspace on branch
+  `scutemob-204` (+17 over the **4,452** baseline measured on this branch BEFORE any edit —
+  10 probes in the new `crates/engine/tests/primitives/pb_dx25b_announced_stack_target_
+  space.rs` and 7 gates in the new `crates/engine/tests/core/pb_dx25b_announced_target_
+  roster.rs`; the repaired fixtures in `casting.rs`, `pb_ef11_spell_single_target.rs` and
+  `copy_redirect.rs` are modifications, not additions), `--workspace --no-fail-fast` to a
+  file, residual list empty. **PROTOCOL 35 / HASH 73 both unmoved**, gate-executed after the
+  fix cycle as well. Coverage unmoved **1,133/1,803 = 62.8%**, proven by regeneration; all 4
+  card-def edits comment-only, verified per-line. Earlier pins below.
 - **Tests (delta 2026-08-05, PB-DX25)**: **4,452 / 0 / 5** full-workspace on branch
   `scutemob-203` (+17 over the **4,435** baseline measured on this branch BEFORE any edit —
   T1-T7 in the new `crates/engine/tests/primitives/pb_dx25_counterspell_stack_shapes.rs`,
@@ -313,7 +321,48 @@
 - **Recurrence rule** — future `/collect` and milestone-close bookkeeping appends its detailed PB/SR
   narrative to that archive file (newest first), and updates only a one-paragraph snapshot delta
   here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
-- **Last Updated**: 2026-08-05 — **PB-DX25 SHIPPED** (`scutemob-203`; v3 queue rank 7).
+- **Last Updated**: 2026-08-06 — **PB-DX25b SHIPPED** (`scutemob-204`; v3 queue rank 7b).
+  A spell you can target is a spell you can retarget. `validate_object_satisfies_requirement`
+  resolved the announced id through `state.objects` — the **card** — and then compared it to
+  `so.id`, a **stack-entry** id. `next_object_id` mints both namespaces from one monotone
+  counter, so the comparison **type-checks and can never match**: `misdirection` and
+  `bolt_bend` were `Complete`, deck-legal, and unable to resolve a legal target ever.
+  **The brief's "validation-site only" was short by three sites, and obeying it would have
+  shipped a strictly worse cast than HEAD**: `Effect::ChangeTargets` — the effect *both*
+  cards use — matches the same announced id against stack-entry ids at three more places, so
+  a validation-only fix takes the mana, announces the target, and then **silently does
+  nothing** at resolution. `Effect::CopySpellOnStack` is a fourth site (latent) and
+  `Effect::CounterSpell` had open-coded the correct rule as a fifth. **The fix is
+  structural**: one `state::stack_registry::stack_index_for_announced_target` beside PB-DX25's
+  `card_in_stack_zone`, encoding `so.id == announced || (!so.is_copy && card_in_stack_zone(..)
+  == Some(announced))` ONCE and consumed by all five. The `!so.is_copy` guard is load-bearing
+  **twice** — disambiguation (a copy's `kind` is cloned wholesale, so one card id would match
+  the original *and* every copy) and the CR 702.99c cipher-copy exile leak. The `is_spell`
+  guard is **kept though now production-unreachable**: it is the only thing distinguishing the
+  two requirements, and deleting it becomes CR-wrong the day `OOS-DX25b-1` closes.
+  **The existing tests were green while testing a fiction** — `make_test_stack_spell` built
+  `StackObject { id, kind: Spell { source_object: id } }`, collapsing the two id spaces into a
+  configuration no real cast can produce; three test files carried that fixture and
+  `tests/rules/copy_redirect.rs` still has eight more, now disclosed. Review 1 HIGH / 5 MEDIUM
+  / 6 LOW, **all 12 taken**, and **the HIGH was a plan deliverable the implement phase silently
+  dropped** — the CR 115.7a wrong-way-round probe — with an execution note that misstated the
+  plan as having deferred it; the plan deferred the *fix*, not the *probe*. **The reviewer also
+  defeated the new R5 gate three ways**; two are now caught and the third is stated as a
+  permanent structural residual in the gate's own doc rather than papered over — a gate that
+  overclaims its reach being this batch's own subject matter. The reviewer re-derived the
+  census by the inverse method and confirmed **no sixth site**. Tests **4,469 / 0 / 5** (+17);
+  coverage unmoved **1,133/1,803 = 62.8%**, proven by regeneration; PROTOCOL **35** / HASH
+  **73** gate-executed and unmoved; 0 simulator, view-model, card-types or `tools/` lines, and
+  all 4 card-def edits comment-only. Seeds: **OOS-DX25-3 CLOSED** (its row now carries four
+  corrections to its own claims); filed **OOS-DX25b-1..5**, of which **OOS-DX25b-3 is LIVE on
+  the same two `Complete` defs** — this batch is what makes CR 115.7a's unchecked object-target
+  redirect reachable, so a Misdirected "destroy target creature" now destroys a basic land.
+  Durable lesson: **a fixture that collapses two id spaces makes a test green by removing the
+  only condition under which the code is wrong** — and the enumeration lesson recurred, the
+  brief, the plan and the batch's own notes each being short about a different thing.
+  Full handoff: `memory/workstream-state.md`; measurements and revert matrix:
+  `memory/primitives/pb-DX25b-execution-notes.md`.
+- **Prior**: 2026-08-05 — **PB-DX25 SHIPPED** (`scutemob-203`; v3 queue rank 7).
   A countered spell is countered, whichever shape it arrived in. `Effect::CounterSpell`
   decided "does this stack object own a card" by matching the **variant name**, so
   `MutatingCreatureSpell` fell through a `_ =>` catch-all. **The seed and the queue row both
