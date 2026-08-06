@@ -675,9 +675,13 @@ fn test_dx25_countering_a_copy_moves_no_card() {
         events
     );
 
-    // Non-vacuity, same test: countering the ORIGINAL (sibling fixture) DOES
-    // move its card -- proving this fixture/effect path is capable of moving a
-    // card at all, so the "no card moved" assertion above is a real negative.
+    // Non-vacuity, same test: countering the ORIGINAL -- the SAME `state`,
+    // continued right after the copy-counter above, not a separate/sibling
+    // fixture (review Finding, additional LOW notes: the prior wording called
+    // this a "sibling fixture", which wrongly implied a second, independent
+    // setup) -- DOES move its card, proving this fixture/effect path is
+    // capable of moving a card at all, so the "no card moved" assertion above
+    // is a real negative.
     let mut ctx2 = EffectContext::new(
         p1,
         original_card_id,
@@ -708,12 +712,30 @@ fn test_dx25_countering_a_copy_moves_no_card() {
 // ── T4 — destination preservation (CR 702.34a / CR 702.133a) ───────────────────
 
 /// CR 701.6a / CR 702.34a / CR 702.133a — a countered spell's destination is
-/// Exile when `exile_instead` or `cast_with_flashback` was set, and
-/// `Graveyard(owner)` otherwise -- with `owner != controller` so the OWNER
-/// lookup (not the controller) is what is actually being exercised. A fourth
-/// sub-case pins that a `MutatingCreatureSpell` structurally cannot carry
-/// `cast_with_flashback` (mutually exclusive alternative costs, CR 118.9) --
-/// asserted, not exercised, since there is no way to construct that state.
+/// Exile when `exile_instead`, `cast_with_flashback`, OR `cast_with_jump_start`
+/// was set, and `Graveyard(owner)` otherwise -- with `owner != controller` so
+/// the OWNER lookup (not the controller) is what is actually being exercised.
+/// A fifth sub-case pins that a `MutatingCreatureSpell` structurally cannot
+/// carry `cast_with_flashback` (mutually exclusive alternative costs, CR
+/// 118.9) -- asserted, not exercised, since there is no way to construct that
+/// state.
+///
+/// **`cast_with_jump_start` (review Finding, additional LOW notes) was named
+/// by plan §3.5 as "individually probed" and was not — sub-case 4 below fixes
+/// that.** The plan's OTHER named claim, that the `owner =
+/// state.objects.get(&source_object).map(|o| o.owner).unwrap_or(controller)`
+/// fallback (`effects/mod.rs:2780-2784`) is "individually probed", does NOT
+/// hold and is narrowed here rather than faked with a misleading sub-case:
+/// `move_object_to_zone` (`state/mod.rs:1270-1273`) performs the SAME
+/// `self.objects.get(&object_id)` lookup, on the SAME id, moments after this
+/// line, with no mutation in between. If the owner lookup's `.get()` returns
+/// `None` (triggering the fallback), the immediately-following
+/// `fizzle_move_object_to_zone` call's own lookup ALSO returns `None`
+/// (CR 400.7 fizzle), so the move never happens, no `SpellCountered` fires,
+/// and the `unwrap_or(controller)` value is never actually used to place a
+/// card anywhere observable. This fallback is dead code at THIS call site by
+/// construction, not merely untested -- there is no legal or illegal
+/// `GameState` that exercises it observably, so no sub-case is added for it.
 #[test]
 fn test_dx25_countered_spell_destination_is_preserved() {
     let p1 = p(1); // owner
@@ -876,7 +898,33 @@ fn test_dx25_countered_spell_destination_is_preserved() {
         );
     }
 
-    // Sub-case 4: a MutatingCreatureSpell structurally cannot carry
+    // Sub-case 4 (review Finding, additional LOW notes): cast_with_jump_start:
+    // true -> Exile (CR 702.133a). Named by plan §3.5 as "individually probed"
+    // and was not, until this fix cycle.
+    {
+        let mut state = GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(p2)
+            .with_registry(registry.clone())
+            .object(
+                ObjectSpec::card(p1, "Card D")
+                    .in_zone(ZoneId::Stack)
+                    .with_card_id(CardId("card-d".to_string())),
+            )
+            .active_player(p1)
+            .at_step(Step::PreCombatMain)
+            .build()
+            .unwrap();
+        let card_id = find_object(&state, "Card D");
+        push_spell(&mut state, card_id, p2, false, true);
+        counter(&mut state, card_id, false);
+        assert!(
+            find_in_zone(&state, "Card D", ZoneId::Exile).is_some(),
+            "CR 702.133a: a jump-start-cast spell should be exiled when countered"
+        );
+    }
+
+    // Sub-case 5: a MutatingCreatureSpell structurally cannot carry
     // cast_with_flashback -- mutually exclusive alternative costs (CR 118.9: a
     // spell is cast via at most one alternative cost). Asserted, not exercised
     // via a fixture: `CastSpellData::alt_cost` (`rules/command.rs:792`) is a
@@ -1190,20 +1238,34 @@ fn one_of_each_variant() -> Vec<(&'static str, StackObjectKind)> {
 
 /// CR 601.2c / CR 702.140a / CR 729.2 — `stack_registry::card_in_stack_zone`
 /// classifies every `StackObjectKind` variant, exhaustively: `Some` for exactly
-/// `Spell` and `MutatingCreatureSpell`, `None` for everything else. Non-vacuity:
-/// the fixture's own variant count is asserted equal to the measured count (27 at
-/// HEAD, `memory/primitives/pb-DX25-stage0.md`), so a 28th variant that compiles
-/// (because it was classified in the registry) but is never added to this
-/// fixture cannot silently escape T6's coverage.
+/// `Spell` and `MutatingCreatureSpell`, `None` for everything else.
+///
+/// **What the `variants.len() == 27` assertion below actually proves, and what
+/// it does NOT (review Finding 4, PB-DX25 fix cycle):** `one_of_each_variant()`
+/// is a hand-written `Vec` and the literal `27` is compared against that SAME
+/// vec's own length — a self-comparison. It catches this fixture drifting from
+/// its own author's intent (e.g. an accidental duplicate or a dropped entry),
+/// but it CANNOT detect a 28th `StackObjectKind` variant added to the enum and
+/// classified in the registry: `variants.len()` would still read 27 from this
+/// hand-written list, and this assertion would still pass. The property this
+/// comment previously (and wrongly) claimed the assertion held — "a 28th
+/// variant that compiles but is never added to this fixture cannot silently
+/// escape coverage" — is held by `g1_scan_is_not_vacuous`
+/// (`crates/engine/tests/core/pb_dx25_stack_registry_roster.rs`), which counts
+/// classification arms in the SOURCE file itself, not in a hand-written test
+/// fixture in a different crate target. That is the different, correct
+/// subject; this assertion's real job is narrower, and is stated as such.
 #[test]
 fn test_dx25_stack_registry_classifies_every_kind() {
     let variants = one_of_each_variant();
     assert_eq!(
         variants.len(),
         27,
-        "CR 601.2c: this fixture must cover exactly the measured StackObjectKind \
-         variant count (27) -- a mismatch means either a variant was added to the \
-         enum without a fixture entry here, or this list has drifted"
+        "this fixture's own variant count moved from 27 -- this is a \
+         self-comparison (fixture vs its own literal) that catches drift in \
+         THIS list only; it does NOT detect a new StackObjectKind variant \
+         added to the enum -- that property is g1_scan_is_not_vacuous's job, \
+         in crates/engine/tests/core/pb_dx25_stack_registry_roster.rs"
     );
 
     let card_owning: Vec<&str> = variants
@@ -1222,11 +1284,18 @@ fn test_dx25_stack_registry_classifies_every_kind() {
 
 // ── T7 — resolution::counter_stack_object agrees with Effect::CounterSpell ─────
 
-/// CR 701.6a / CR 707.10 -- `resolution::counter_stack_object`, the engine's
-/// second (non-production) counter path, agrees with `Effect::CounterSpell` on
-/// both of PB-DX25's newly-fixed shapes: a `MutatingCreatureSpell` moves its
-/// card (mirrors T1's end state), and a COPY moves no card and is named by its
-/// OWN stack-entry id (mirrors T3's end state). This is the only pin on
+/// CR 701.6a / CR 707.10 / CR 707.10b -- `resolution::counter_stack_object`,
+/// the engine's second (non-production) counter path, agrees with
+/// `Effect::CounterSpell` on all three of PB-DX25's shapes: a
+/// `MutatingCreatureSpell` moves its card (mirrors T1's end state), a COPY
+/// moves no card and is named by its OWN stack-entry id (mirrors T3's end
+/// state), and (review Finding 7, fix cycle) a countered `ActivatedAbility`
+/// names its UNMOVED source object and moves no card at all (CR 707.10b: a
+/// copy of an ability has the same source as the original). This third half is
+/// this function's own genuinely new emission branch (plan §3.6 collapsed the
+/// function's 20-variant ability OR-list onto the same `named` shape
+/// `effects/mod.rs`'s arm uses, which is new here) and had no probe on either
+/// counter path before this fix cycle. This is the only pin on
 /// `resolution::counter_stack_object` -- a `pub` function with zero production
 /// callers (plan §3.6 / `OOS-DX25-5`): both counter effects in the corpus
 /// resolve through `Effect::CounterSpell` alone, but the function is `pub` API
@@ -1424,6 +1493,119 @@ fn test_dx25_both_engine_counter_paths_agree() {
             "counter_stack_object must name a countered copy by its OWN stack-entry \
              id for both stack_object_id and source_object_id, exactly like \
              Effect::CounterSpell does (T3) -- got {:?}",
+            events
+        );
+    }
+
+    // ── Half 3 (review Finding 7): a countered ActivatedAbility names its
+    //    UNMOVED source and moves no card (CR 707.10b) -- this function's own
+    //    genuinely new emission branch, previously untested on either counter
+    //    path. ──
+    {
+        let mut state = GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(p2)
+            .with_registry(registry.clone())
+            .object(
+                ObjectSpec::card(p1, "Mock Ability Source")
+                    .in_zone(ZoneId::Battlefield)
+                    .with_card_id(CardId("mock-ability-source".to_string())),
+            )
+            .active_player(p1)
+            .at_step(Step::PreCombatMain)
+            .build()
+            .unwrap();
+
+        let source_object = find_object(&state, "Mock Ability Source");
+        let stack_entry_id = {
+            let stack_id = test_util::next_object_id(&mut state);
+            state.stack_objects_mut().push_back(StackObject {
+                id: stack_id,
+                controller: p1,
+                kind: StackObjectKind::ActivatedAbility {
+                    source_object,
+                    ability_index: 0,
+                    embedded_effect: None,
+                },
+                targets: vec![],
+                cant_be_countered: false,
+                is_copy: false,
+                cast_with_flashback: false,
+                kicker_times_paid: 0,
+                was_evoked: false,
+                was_bestowed: false,
+                cast_with_madness: false,
+                cast_with_miracle: false,
+                was_escaped: false,
+                cast_with_foretell: false,
+                was_buyback_paid: false,
+                was_suspended: false,
+                was_overloaded: false,
+                cast_with_jump_start: false,
+                cast_with_aftermath: false,
+                was_dashed: false,
+                was_warped: false,
+                was_blitzed: false,
+                was_plotted: false,
+                was_prototyped: false,
+                was_impended: false,
+                was_bargained: false,
+                was_surged: false,
+                was_casualty_paid: false,
+                was_cleaved: false,
+                was_cast_as_adventure: false,
+                x_value: 0,
+                evidence_collected: false,
+                spliced_effects: vec![],
+                spliced_card_ids: vec![],
+                modes_chosen: vec![],
+                is_cast_transformed: false,
+                additional_costs: vec![],
+                damaged_player: None,
+                combat_damage_amount: 0,
+                triggering_creature_id: None,
+                cast_from_top_with_bonus: false,
+                sacrificed_creature_lki: vec![],
+                lki_counters: imbl::OrdMap::new(),
+                lki_power: None,
+                defending_player: None,
+            });
+            stack_id
+        };
+
+        let events =
+            mtg_engine::rules::resolution::counter_stack_object(&mut state, stack_entry_id)
+                .unwrap_or_else(|e| {
+                    panic!("counter_stack_object (ActivatedAbility) failed: {:?}", e)
+                });
+
+        assert!(
+            state.stack_objects().is_empty(),
+            "CR 701.6a: the ability's stack entry must be removed"
+        );
+        assert_eq!(
+            state.objects().get(&source_object).map(|o| o.zone),
+            Some(ZoneId::Battlefield),
+            "CR 701.6a / CR 707.10b: countering an ACTIVATED ABILITY moves no \
+             card at all -- the source stays exactly where it was"
+        );
+        assert_eq!(
+            events
+                .iter()
+                .filter(|e| matches!(e, GameEvent::SpellCountered { .. }))
+                .count(),
+            1,
+            "exactly one SpellCountered event expected, got {:?}",
+            events
+        );
+        assert!(
+            events.iter().any(|e| matches!(
+                e,
+                GameEvent::SpellCountered { source_object_id, .. }
+                if *source_object_id == source_object
+            )),
+            "CR 707.10b: SpellCountered.source_object_id must name the \
+             ability's UNMOVED source -- got {:?}",
             events
         );
     }
