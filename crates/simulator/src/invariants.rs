@@ -131,6 +131,23 @@ fn check_mana_non_negative(_state: &GameState, _violations: &mut Vec<InvariantVi
 /// `None` means "this stack object moved no card": every ability and trigger
 /// kind, whose `source_object` (where it has one) "remains in whatever zone it
 /// is in" per `StackObjectKind`'s own docs.
+///
+/// **Deliberately duplicated**, not delegated to,
+/// `mtg_engine::state::stack_registry::card_in_stack_zone` (added PB-DX25,
+/// `OOS-SIM3-5`). That function is the ENGINE's own classification, consumed by
+/// `Effect::CounterSpell` and `resolution::counter_stack_object` to decide
+/// which card to move when a spell is countered — the exact defect this check
+/// exists to catch. If this verifier simply read the engine's answer back, a
+/// wrong `Some`/`None` there would make the check agree with the defect and go
+/// silent, in precisely the case it was written for. What keeps the two
+/// answers honest without coupling them: both are exhaustive with no wildcard
+/// arm (a new `StackObjectKind` variant is a compile error in BOTH crates
+/// independently), and a behavioural cross-check
+/// (`crates/simulator/tests/pb_dx25_counter_on_mutate_is_consistent.rs`) proves
+/// the two agree on the case that matters by running a real counter-on-mutate
+/// game and asserting zero `stack_consistency` violations, rather than by
+/// sharing code. See `stack_registry`'s own doc comment for the mirror image
+/// of this note.
 fn stack_card_of(kind: &mtg_engine::StackObjectKind) -> Option<ObjectId> {
     use mtg_engine::StackObjectKind as K;
     match kind {
@@ -267,6 +284,27 @@ fn stack_card_of(kind: &mtg_engine::StackObjectKind) -> Option<ObjectId> {
 /// Two live engine defects that legitimately trip this check are filed as `OOS-SIM3-5`
 /// precisely because the earlier evidence could not have caught them — read a
 /// `stack_consistency` violation as a real finding, which is the point of both batches.
+///
+/// **Correction (PB-DX25 review fix cycle, kept here rather than silently edited
+/// away — the paragraph below already corrects it in substance, this note flags
+/// the sentence itself as known-wrong so a reader stops at THIS line, not just
+/// the next one):** "two live... trip THIS check" is false as originally written.
+/// Of `OOS-SIM3-5`'s three shapes, only shape (c) was live, and shape (c) produces
+/// NO `stack_consistency` divergence (the card and its stack entry both survive
+/// consistently — the countered spell just resolves anyway, silently). Shapes
+/// (a) and (b) were both UNREACHABLE on the corpus at the time this sentence was
+/// written (plan §2.2 / §2.3). Zero of the three ever tripped this specific check.
+///
+/// **PB-DX25 closes `OOS-SIM3-5`** (not deleted from the history above, since the
+/// finding is what motivated the fix): `Effect::CounterSpell`'s zone-move used to
+/// decide "does this stack object own a card" by matching the `StackObjectKind`
+/// variant NAME rather than asking the question this file already asks correctly —
+/// so countering a `MutatingCreatureSpell` was a silent no-op (the countered spell
+/// resolved anyway) rather than a `stack_consistency`-visible card-in-Stack leak.
+/// The fix lives in the engine (`mtg_engine::state::stack_registry::
+/// card_in_stack_zone`, deliberately duplicated here rather than delegated to —
+/// see [`stack_card_of`]'s doc comment), not in this check; this check was never
+/// the thing that was wrong.
 ///
 /// # What is actually invariant
 ///
@@ -842,6 +880,12 @@ mod tests {
     ///
     /// Revert `stack_card_of`'s `MutatingCreatureSpell` arm to `None` and this test
     /// fails; that is the discrimination.
+    ///
+    /// This test's discrimination is over THIS crate's own `stack_card_of` --
+    /// `mtg_engine::state::stack_registry::card_in_stack_zone` (PB-DX25) is a
+    /// second, independent classification of the same question, consumed by
+    /// `Effect::CounterSpell` and `resolution::counter_stack_object`. See
+    /// `stack_card_of`'s doc comment for why the two are not shared.
     #[test]
     fn t8_mutating_creature_spell_owns_its_stack_card() {
         let (mut state, ids, _hand) = state_with(&["Gemrazer"]);

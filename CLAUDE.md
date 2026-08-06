@@ -40,7 +40,8 @@
   PB-DX21 shipped `scutemob-200` 2026-08-04 (ranks 1-4 all shipped);
   PB-DX23 shipped `scutemob-201` 2026-08-05 (rank 5);
   PB-DX24 shipped `scutemob-202` 2026-08-05 (rank 6);
-  **next PB-DX25** (rank 7);
+  PB-DX25 shipped `scutemob-203` 2026-08-05 (rank 7);
+  **next PB-DX26** (rank 8);
   the playtest-successor run 174–181
   AND the triage-2 successor run 187–194 both completed 2026-08-02 — triage 2 is fully closed,
   8/8 rows shipped. **FEEDBACK-1 SHIPPED** (`scutemob-192`, merge `d55e74cc`, doc-only):
@@ -113,9 +114,18 @@
   **PB-DX20 SHIPPED** (`scutemob-198`; v3 queue rank 2).
   **PB-DX21 SHIPPED** (`scutemob-200`; v3 queue rank 3) — v3 ranks **1-4 are all shipped**.
   **PB-DX23 SHIPPED** (`scutemob-201`; v3 queue rank 5) and **PB-DX24 SHIPPED**
-  (`scutemob-202`; v3 queue rank 6) — v3 ranks **1-6 are all shipped**, so
-  **next dispatch: PB-DX25** (rank 7, `Effect::CounterSpell`'s three stack-object shapes).
-  PROTOCOL **35** / HASH **73** as of PB-DX24 (both unmoved by it).
+  (`scutemob-202`; v3 queue rank 6) — v3 ranks **1-6 are all shipped**.
+  **PB-DX25 SHIPPED** (`scutemob-203`; v3 queue rank 7) — v3 ranks **1-7 are all shipped**, so
+  **next dispatch: PB-DX26** (rank 8, the equip surface one link earlier).
+  PROTOCOL **35** / HASH **73** as of PB-DX25 (both unmoved by it).
+- **Tests (delta 2026-08-05, PB-DX25)**: **4,452 / 0 / 5** full-workspace on branch
+  `scutemob-203` (+17 over the **4,435** baseline measured on this branch BEFORE any edit —
+  T1-T7 in the new `crates/engine/tests/primitives/pb_dx25_counterspell_stack_shapes.rs`,
+  G1-G4 in the new `crates/engine/tests/core/pb_dx25_stack_registry_roster.rs`, and 2 in the
+  new `crates/simulator/tests/pb_dx25_counter_on_mutate_is_consistent.rs`),
+  `--workspace --no-fail-fast` to a file, residual list empty.
+  **PROTOCOL 35 / HASH 73 both unmoved**, gate-executed after the `abilities.rs`/`casting.rs`
+  edits as well. Benches within noise (`full_turn_4p` 214-215 µs). Earlier pins below.
 - **Tests (delta 2026-08-05, PB-DX24)**: **4,435 / 0 / 5** full-workspace on branch
   `scutemob-202` (+22 over the **4,413** baseline measured on this branch BEFORE any edit —
   17 probes in the new `crates/engine/tests/primitives/pb_dx24_trigger_zone_and_index_
@@ -300,7 +310,46 @@
 - **Recurrence rule** — future `/collect` and milestone-close bookkeeping appends its detailed PB/SR
   narrative to that archive file (newest first), and updates only a one-paragraph snapshot delta
   here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
-- **Last Updated**: 2026-08-05 — **PB-DX24 SHIPPED** (`scutemob-202`; v3 queue rank 6).
+- **Last Updated**: 2026-08-05 — **PB-DX25 SHIPPED** (`scutemob-203`; v3 queue rank 7).
+  A countered spell is countered, whichever shape it arrived in. `Effect::CounterSpell`
+  decided "does this stack object own a card" by matching the **variant name**, so
+  `MutatingCreatureSpell` fell through a `_ =>` catch-all. **The seed and the queue row both
+  ranked the three shapes backwards, and the batch's own review then did the same thing to the
+  batch.** (a), filed as the stranding, was **never independently live** — Ward cannot reach a
+  mutate spell, because the mutate target rides in `AdditionalCost::Mutate` and never enters
+  `spell_targets` (`OOS-DX25-1`) — so **(a) is what fixing (c) ALONE would have created**, a
+  permanent `ZoneId::Stack` leak in place of a silent no-op. **A "just fix the lookup" change was
+  strictly worse than HEAD**, which is why (c) and (a) had to land in one commit. (b) is
+  unreachable **three** ways, not the memo's one. And (c) is worse than "silent no-op" sounds:
+  `TargetSpell` validates against the **card**, which a mutate spell really does have in
+  `ZoneId::Stack`, so the engine **offers the target, takes the mana, and does nothing**.
+  **The fix is structural**: one engine-side `state::stack_registry::card_in_stack_zone`,
+  exhaustive over all 27 kinds with **no wildcard**, consumed by **both** counter paths
+  (`Effect::CounterSpell` and `resolution.rs::counter_stack_object`) — a 28th card-carrying
+  variant is now a compile error until classified. **The simulator's `stack_card_of` is
+  deliberately NOT unified with it**: `check_stack_consistency` exists to catch the engine
+  getting this classification wrong, and a verifier that reads the engine's own answer goes
+  **silent** on exactly the defect it was written for. Both sides stay exhaustive independently;
+  a behavioural probe proves they agree without coupling them. Review 0 HIGH / 6 MEDIUM / 3 LOW
+  + 7 folded notes, **all taken**, and its three sharpest findings were **this batch's own
+  failure mode recurring inside it**: the plan's "FOUR classification sites" census was short by
+  two — and one of the two (`abilities.rs:6736`) was wrong in the **same direction** as the
+  defect being fixed while its sibling one function over was right; the SR-36 roster measured
+  **48** live-wrong pairs by walking `Effect::CounterSpell` alone, blind to
+  `Effect::CounterUnlessPays` **delegating into the same arm** (`mana_leak`, `mana_tithe`,
+  `make_disappear`, all `Complete`) — the real figure is **66**; and T6's advertised
+  "non-vacuity" compared a hand-written fixture to **itself**. Durable lesson: **an enumeration
+  is only as wide as the variant list it walks, and an exhaustive match proves nothing about the
+  callers that never ask it.** Tests **4,452 / 0 / 5** (+17); coverage unmoved
+  **1,133/1,803 = 62.8%**, proven by regeneration; PROTOCOL **35** / HASH **73** gate-executed
+  and unmoved; 0 card-def, card-types, view-model or `tools/` lines. Seeds: **OOS-SIM3-5
+  CLOSED** (its row now carries four corrections to its own claims); filed **OOS-DX25-1..6**,
+  of which **OOS-DX25-3** is **LIVE on two `Complete` deck-legal defs** — `misdirection` and
+  `bolt_bend` can never resolve a legal target, the same id-space confusion one function over,
+  behind negative tests that pass **vacuously** because the requirement refuses everything.
+  Full handoff: `memory/workstream-state.md`; measurements and revert matrix:
+  `memory/primitives/pb-DX25-execution-notes.md`.
+- **Prior**: 2026-08-05 — **PB-DX24 SHIPPED** (`scutemob-202`; v3 queue rank 6).
   A zone-scoped ability finally functions in its zone. `AbilityDefinition::Triggered`
   carries `trigger_zone`; the runtime `TriggeredAbilityDef` has no home for it, so **33 of
   the lowering's 34 arms swallowed it** and `nether_traitor` (`Complete`, deck-legal) had
