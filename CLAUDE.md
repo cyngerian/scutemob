@@ -41,7 +41,8 @@
   PB-DX23 shipped `scutemob-201` 2026-08-05 (rank 5);
   PB-DX24 shipped `scutemob-202` 2026-08-05 (rank 6);
   PB-DX25 shipped `scutemob-203` 2026-08-05 (rank 7);
-  **next PB-DX26** (rank 8);
+  **next PB-DX25b** (rank 7b, INSERTED 2026-08-06 user-approved — OOS-DX25-3, live on
+  `misdirection`/`bolt_bend`; PB-DX26 moves one slot later);
   the playtest-successor run 174–181
   AND the triage-2 successor run 187–194 both completed 2026-08-02 — triage 2 is fully closed,
   8/8 rows shipped. **FEEDBACK-1 SHIPPED** (`scutemob-192`, merge `d55e74cc`, doc-only):
@@ -116,7 +117,9 @@
   **PB-DX23 SHIPPED** (`scutemob-201`; v3 queue rank 5) and **PB-DX24 SHIPPED**
   (`scutemob-202`; v3 queue rank 6) — v3 ranks **1-6 are all shipped**.
   **PB-DX25 SHIPPED** (`scutemob-203`; v3 queue rank 7) — v3 ranks **1-7 are all shipped**, so
-  **next dispatch: PB-DX26** (rank 8, the equip surface one link earlier).
+  **next dispatch: PB-DX25b** (rank 7b, INSERTED 2026-08-06 user-approved — closes
+  **OOS-DX25-3**, the `validate_target_requirement` id-space confusion LIVE on
+  `misdirection`/`bolt_bend`; row in the v3 memo §4; PB-DX26 is next after it).
   PROTOCOL **35** / HASH **73** as of PB-DX25 (both unmoved by it).
 - **Tests (delta 2026-08-05, PB-DX25)**: **4,452 / 0 / 5** full-workspace on branch
   `scutemob-203` (+17 over the **4,435** baseline measured on this branch BEFORE any edit —
