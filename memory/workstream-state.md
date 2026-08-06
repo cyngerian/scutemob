@@ -30,7 +30,7 @@ games reaching `Effect::ChangeTargets` at 80 turns, so it is NOT shipped, per th
 plan's own instruction) + 5 roster/gate tests (`pb_dx25c_retarget_roster.rs`, R1-R5)
 + 1 in-source R6 test in `retarget.rs`, HASH 73 → 74 (gate-computed), `bare_lookup_
 ratchet` ceiling 110 → 108, both card-def pointer comments updated (comment-only).
-**Tests 4,469 → 4,487 (+18)**; PROTOCOL 35 unmoved; coverage unmoved 1,133/1,803 =
+**Tests 4,469 → 4,491 (+22)**; PROTOCOL 35 unmoved; coverage unmoved 1,133/1,803 =
 62.8% (proven by regeneration, reverted before commit). Full revert matrix (19
 rows, all executed): 15 discriminate (12 exactly as predicted, 3 with a corrected
 discriminator — V6/V8/V19); **4 honestly undiscriminated by the full workspace

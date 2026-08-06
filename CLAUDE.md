@@ -354,7 +354,7 @@
   (its own `StackObject` entry is popped before its effect runs — resolution.rs's own
   documented order), and `StubProvider`'s offer layer reads `obj.characteristics.
   mana_cost` directly rather than the registry def, a third instance of the "ObjectSpec
-  ::card() is naked" gotcha. Tests **4,487** (+18); coverage unmoved **1,133/1,803 =
+  ::card() is naked" gotcha. Tests **4,491** (+22); coverage unmoved **1,133/1,803 =
   62.8%**, proven by regeneration; PROTOCOL **35** / HASH **73 → 74** gate-executed.
   **Correction (fix cycle 2, this bullet was stale by one)**: the chooser-first row
   (V9) was CLOSED in fix cycle 1 by `t3b_chooser_first_preference_beats_seat_order` —
