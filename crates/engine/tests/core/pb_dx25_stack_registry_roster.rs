@@ -1,22 +1,63 @@
-//! PB-DX25 gates (plan §6 File B): G1 + G2 (source gates over the registry and
-//! the `Effect::CounterSpell` arm) and G3 (the SR-36 corpus roster gate, plan
-//! §5 — enumerate `all_cards()`, never grep the corpus).
+//! PB-DX25 gates (plan §6 File B, extended in the review fix cycle): G1 (the
+//! registry's no-wildcard classification), G2 + G4 (source gates over the two
+//! consumers — `Effect::CounterSpell` in `effects/mod.rs` and
+//! `resolution::counter_stack_object` respectively — proving neither
+//! re-classifies by kind), and G3 (the SR-36 corpus roster gate, plan §5 —
+//! enumerate `all_cards()`, never grep the corpus).
 //!
-//! Both source gates strip **line and block** comments before scanning — the
+//! All source gates strip **line and block** comments before scanning — the
 //! PB-DX32 M8 lesson (also applied by PB-DX24's own gates in this same
 //! directory): a `/* ... */`-wrapped line defeats a line-comment-only scanner
 //! while every probe stays green, because the compiler drops the commented-out
-//! code and the scanner never sees it disappear. This file's own gates prove
-//! that load-bearing property by executing BOTH revert shapes (`//` and `/*
-//! */`), not just the line-comment one.
+//! code and the scanner never sees it disappear.
+//!
+//! **Where that stripping is actually load-bearing, stated PER GATE (review
+//! Finding 8(a), fix cycle — the previous version of this doc claimed a single
+//! blanket property that does not hold for G1):**
+//!
+//! - **G1** — stripping is DEFENCE-IN-DEPTH, not load-bearing. A `/*
+//!   */`-wrapped wildcard arm cannot be a live catch-all: `card_in_stack_zone`'s
+//!   `match` is exhaustive with no `_` arm anywhere else, so commenting out one
+//!   real arm without replacing it fails to COMPILE — `rustc`'s own
+//!   exhaustiveness check catches it before this gate ever runs. Stripping here
+//!   only protects against a *false negative in the scanner itself* (a real,
+//!   uncommented wildcard sitting textually near a real comment) — the inverse
+//!   sanity check `g1_line_comment_stripping_does_not_hide_the_wildcard_it_is_
+//!   meant_to_find` tests exactly that, on a synthetic fixture, not on the
+//!   gated file.
+//! - **G2 and G4** — stripping IS load-bearing. Both scan the BODY of a
+//!   specific region (`Effect::CounterSpell`'s match arm; `counter_stack_object`'s
+//!   whole function) for forbidden literals and required call counts inside
+//!   ordinary (non-exhaustive) code, where the compiler enforces nothing about
+//!   comment content. An unstripped comment mentioning `card_in_stack_zone`
+//!   (e.g. the arm's own explanatory prose) would inflate the call count and
+//!   let a comment satisfy a code gate; an unstripped `/* StackObjectKind::
+//!   Spell { .. } => ... */` would not trip the forbidden-literal check if
+//!   comments were counted as code. This file's own gates prove BOTH revert
+//!   shapes (`//` and `/* */`) discriminate, by executing them (see
+//!   `memory/primitives/pb-DX25-execution-notes.md`'s revert matrix) — not just
+//!   the line-comment one.
 
 use mtg_engine::{
-    all_cards, AbilityDefinition, CardDefinition, Effect, KeywordAbility, TargetRequirement,
+    all_cards, AbilityDefinition, CardDefinition, Effect, KeywordAbility, TargetFilter,
+    TargetRequirement,
 };
 use std::collections::BTreeSet;
 use std::path::Path;
 
 // ── Comment-stripping (mirrors core::decision_gate / pb_dx24_trigger_zone_roster's idiom) ──
+//
+// Robustness note (review, additional LOW notes): `strip_line_comments` finds
+// the FIRST literal "//" on each line with no awareness of string/char
+// literals -- a line containing `"https://example.com"` or similar would have
+// everything after the first `//` treated as a comment and stripped. Neither
+// `STACK_REGISTRY_PATH` nor `EFFECTS_MOD_PATH` nor `RESOLUTION_PATH` contains
+// a `//` inside a string literal today, so this is a latent robustness limit,
+// not a live bug -- a future edit to any gated file that introduces one (e.g.
+// a URL in a doc comment reads fine since the WHOLE line after `//` is a
+// comment already, but a URL inside an actual string LITERAL would not) could
+// silently over-strip. Same limit is inherited from `pb_dx24_trigger_zone_
+// roster.rs`'s identical idiom, not new here.
 
 fn strip_line_comments(src: &str) -> String {
     src.lines()
@@ -114,6 +155,7 @@ fn balanced_body<'a>(stripped: &'a str, open_brace: usize, label: &str) -> &'a s
 
 const STACK_REGISTRY_PATH: &str = "src/state/stack_registry.rs";
 const EFFECTS_MOD_PATH: &str = "src/effects/mod.rs";
+const RESOLUTION_PATH: &str = "src/rules/resolution.rs";
 
 // ── G1: the registry's classification has no wildcard arm ──────────────────────
 
@@ -208,11 +250,20 @@ fn g2_counter_spell_arm_does_not_reclassify_by_kind() {
 
     assert!(
         !body.contains("StackObjectKind::Spell {")
-            && !body.contains("StackObjectKind::MutatingCreatureSpell {"),
+            && !body.contains("StackObjectKind::MutatingCreatureSpell {")
+            // Hardened (review finding, PB-DX25 fix cycle): `stack_registry.rs`
+            // itself imports `use StackObjectKind as K;` -- if the
+            // Effect::CounterSpell arm were ever rewritten to alias the enum
+            // the same way and match on `K::Spell {`/`K::MutatingCreatureSpell
+            // {`, the fully-qualified literal check above would miss it. Proven
+            // load-bearing by executing exactly that revert shape (see
+            // `memory/primitives/pb-DX25-execution-notes.md`).
+            && !body.contains("K::Spell {")
+            && !body.contains("K::MutatingCreatureSpell {"),
         "the zone-move is driven off state::stack_registry, never off a per-kind \
          match -- do not add an arm, extend the registry. Found a literal \
-         StackObjectKind::Spell or StackObjectKind::MutatingCreatureSpell inside \
-         the Effect::CounterSpell arm."
+         StackObjectKind::Spell or StackObjectKind::MutatingCreatureSpell (or \
+         their `K::` alias form) inside the Effect::CounterSpell arm."
     );
 }
 
@@ -227,6 +278,74 @@ fn g2_scan_is_not_vacuous() {
         body.len() >= 400,
         "the extracted Effect::CounterSpell arm body looks too small ({} chars) \
          to contain the full lookup + zone-move logic -- extraction may be broken",
+        body.len()
+    );
+}
+
+// ── G4: `counter_stack_object` does not re-classify by kind either ──────────────
+//
+// Added in the PB-DX25 review fix cycle. G2 gates ONLY `effects/mod.rs`'s
+// `Effect::CounterSpell` arm; before this gate existed there was NO source
+// gate at all over `resolution.rs::counter_stack_object` -- the plan's own
+// acceptance-criterion-6232 mapping (Stage 6) conceded that its "single
+// classification, driving BOTH counter paths" half rested on argument plus
+// T7 alone, not on a machine. G4 is G2's exact shape, aimed at the second
+// function.
+
+/// G4: `counter_stack_object`'s body (a) calls `card_in_stack_zone` at least
+/// once, (b) never spells out `StackObjectKind::Spell` or
+/// `StackObjectKind::MutatingCreatureSpell` as a literal (including the `K::`
+/// alias form `stack_registry.rs` itself uses). Message: the zone-move is
+/// driven off `state::stack_registry`, never off a per-kind match -- do not
+/// add an arm, extend the registry.
+#[test]
+fn g4_counter_stack_object_does_not_reclassify_by_kind() {
+    let stripped = strip_comments(&read_source(RESOLUTION_PATH));
+    let body = extract_function_body(&stripped, "counter_stack_object");
+
+    let card_in_stack_zone_calls = body.matches("card_in_stack_zone").count();
+    assert!(
+        card_in_stack_zone_calls >= 1,
+        "the zone-move is driven off state::stack_registry, never off a per-kind \
+         match -- do not add an arm, extend the registry. Expected >= 1 call to \
+         card_in_stack_zone in counter_stack_object, got {}",
+        card_in_stack_zone_calls
+    );
+
+    let move_calls = body.matches("move_object_to_zone").count();
+    assert_eq!(
+        move_calls, 1,
+        "counter_stack_object must call move_object_to_zone exactly once (CR \
+         400.7 zone move on the card-owning branch) -- got {}",
+        move_calls
+    );
+
+    assert!(
+        !body.contains("StackObjectKind::Spell {")
+            && !body.contains("StackObjectKind::MutatingCreatureSpell {")
+            && !body.contains("K::Spell {")
+            && !body.contains("K::MutatingCreatureSpell {"),
+        "the zone-move is driven off state::stack_registry, never off a per-kind \
+         match -- do not add an arm, extend the registry. Found a literal \
+         StackObjectKind::Spell or StackObjectKind::MutatingCreatureSpell (or \
+         their `K::` alias form) inside counter_stack_object. Note: the \
+         ActivatedAbility/TriggeredAbility diagnostics-naming arm is NOT part \
+         of the zone-move decision (it cannot lose a card, OOS-DX25-4) and is \
+         exempt from this check by construction -- it names an ability's \
+         SOURCE, not a card-owning kind."
+    );
+}
+
+/// G4 non-vacuity: the extracted body must be non-trivially sized, so a
+/// collapsed extraction cannot make G4 pass vacuously.
+#[test]
+fn g4_scan_is_not_vacuous() {
+    let stripped = strip_comments(&read_source(RESOLUTION_PATH));
+    let body = extract_function_body(&stripped, "counter_stack_object");
+    assert!(
+        body.len() >= 400,
+        "the extracted counter_stack_object body looks too small ({} chars) to \
+         contain the full lookup + zone-move logic -- extraction may be broken",
         body.len()
     );
 }
@@ -263,31 +382,47 @@ fn mutate_defs(cards: &[CardDefinition]) -> BTreeSet<String> {
         .collect()
 }
 
-/// True if any `AbilityDefinition::Spell` on `def`'s FRONT face declares a
-/// spell-level target requirement -- either a non-empty `targets` (the flat,
-/// non-modal path) or a `mode_targets` entry that is itself non-empty (the
-/// modal path, PB-AC4). This is the §2.2 "does a Ward on the mutate target
-/// have anything to announce against" measurement -- it is scoped to whether
-/// the spell declares ANY target, not specifically whether that target is the
-/// mutate target (the mutate target itself is carried in `AdditionalCost::
-/// Mutate` and is invisible to `spell_targets` entirely, per plan §0.2 F1 /
-/// `OOS-DX25-1` -- out of scope here).
+/// True if any `AbilityDefinition::Spell` on `def` -- **either face** (review
+/// Finding 3's "smaller scoping gap": the original walk was front-face only,
+/// asymmetric with `has_mutate_keyword`'s own back-face walk right above it) --
+/// declares a spell-level target requirement: either a non-empty `targets`
+/// (the flat, non-modal path) or a `mode_targets` entry that is itself
+/// non-empty (the modal path, PB-AC4). This is the §2.2 "does a Ward on the
+/// mutate target have anything to announce against" measurement -- it is
+/// scoped to whether the spell declares ANY target, not specifically whether
+/// that target is the mutate target (the mutate target itself is carried in
+/// `AdditionalCost::Mutate` and is invisible to `spell_targets` entirely, per
+/// plan §0.2 F1 / `OOS-DX25-1` -- out of scope here). Moot on the current
+/// corpus (no `Complete` Mutate def has a back face at all), but the walk
+/// itself is now symmetric with M1's rather than merely documented as
+/// asymmetric.
 fn has_spell_level_target_requirement(def: &CardDefinition) -> bool {
-    def.abilities.iter().any(|a| match a {
-        AbilityDefinition::Spell { targets, modes, .. } => {
-            !targets.is_empty()
-                || modes.as_ref().is_some_and(|m| {
-                    m.mode_targets
-                        .as_ref()
-                        .is_some_and(|mt| mt.iter().any(|slice| !slice.is_empty()))
-                })
-        }
-        _ => false,
-    })
+    let face_has_it = |abilities: &[AbilityDefinition]| {
+        abilities.iter().any(|a| match a {
+            AbilityDefinition::Spell { targets, modes, .. } => {
+                !targets.is_empty()
+                    || modes.as_ref().is_some_and(|m| {
+                        m.mode_targets
+                            .as_ref()
+                            .is_some_and(|mt| mt.iter().any(|slice| !slice.is_empty()))
+                    })
+            }
+            _ => false,
+        })
+    };
+    face_has_it(&def.abilities)
+        || def
+            .back_face
+            .as_ref()
+            .is_some_and(|f| face_has_it(&f.abilities))
 }
 
 /// Recursive walk (plan §5 C1: "anywhere, incl. inside Modal") over an
-/// `Effect` tree for `Effect::CounterSpell`. Recurses into every
+/// `Effect` tree for `Effect::CounterSpell` **and** `Effect::CounterUnlessPays`
+/// (review Finding 3: `effects/mod.rs:4401-4411` delegates `CounterUnlessPays`
+/// straight into the `CounterSpell` arm under repair -- CR 118.12a -- so every
+/// `CounterUnlessPays` def was equally live-wrong against a mutate spell and
+/// this walk must see it or the roster undercounts). Recurses into every
 /// `Effect`-nesting variant: `Sequence`, `Conditional` (both branches),
 /// `ForEach`, and `Choose` (the `Effect`-level modal stub, SR-33 -- distinct
 /// from `AbilityDefinition::Spell.modes`, which is walked separately by the
@@ -295,6 +430,12 @@ fn has_spell_level_target_requirement(def: &CardDefinition) -> bool {
 fn effect_contains_counter_spell(effect: &Effect) -> bool {
     match effect {
         Effect::CounterSpell { .. } => true,
+        // CR 118.12a: "Counter target spell unless its controller pays [cost]."
+        // `effects/mod.rs` resolves this deterministically straight through
+        // `Effect::CounterSpell`'s own arm -- same zone-move, same stack-object
+        // classification -- so it is the identical live-wrong class, not a
+        // different one.
+        Effect::CounterUnlessPays { .. } => true,
         Effect::Sequence(effects) => effects.iter().any(effect_contains_counter_spell),
         Effect::Conditional {
             if_true, if_false, ..
@@ -305,12 +446,20 @@ fn effect_contains_counter_spell(effect: &Effect) -> bool {
     }
 }
 
-/// True if `AbilityDefinition::Spell`'s top-level effect OR any of its modal
-/// modes (`ModeSelection.modes`, CR 700.2) contains `Effect::CounterSpell`
-/// anywhere in its tree.
+/// True if ANY ability on `def` -- `Spell`, `Activated`, or `Triggered` --
+/// contains `Effect::CounterSpell`/`Effect::CounterUnlessPays` anywhere in its
+/// top-level effect or any of its modal modes (`ModeSelection.modes`, CR
+/// 700.2). Review Finding 3 (scoping gap): the original walk saw only
+/// `AbilityDefinition::Spell`, so a counter on an activated or triggered
+/// ability was invisible to this roster. Measured: no corpus def currently
+/// puts a counter effect on an `Activated`/`Triggered` ability (C1 is unchanged
+/// by this widening), but the walk must be able to see one, not merely fail to
+/// find one today.
 fn ability_contains_counter_spell(ability: &AbilityDefinition) -> bool {
     match ability {
-        AbilityDefinition::Spell { effect, modes, .. } => {
+        AbilityDefinition::Spell { effect, modes, .. }
+        | AbilityDefinition::Activated { effect, modes, .. }
+        | AbilityDefinition::Triggered { effect, modes, .. } => {
             effect_contains_counter_spell(effect)
                 || modes
                     .as_ref()
@@ -320,12 +469,21 @@ fn ability_contains_counter_spell(ability: &AbilityDefinition) -> bool {
     }
 }
 
-/// C1 (plan §5): defs whose FRONT-face abilities contain `Effect::CounterSpell`
-/// anywhere (incl. inside a modal `ModeSelection`), by card name.
+/// C1 (plan §5): defs whose abilities -- **either face** (review Finding 3's
+/// "smaller scoping gap": the original walk was front-face only) -- contain
+/// `Effect::CounterSpell`/`Effect::CounterUnlessPays` anywhere (incl. inside a
+/// modal `ModeSelection`), by card name. Moot on the current corpus (no
+/// `Complete` counter-carrying def has a back face), but the walk is now
+/// symmetric with M1's rather than merely documented as asymmetric.
 fn counterspell_defs(cards: &[CardDefinition]) -> BTreeSet<String> {
     cards
         .iter()
-        .filter(|d| d.abilities.iter().any(ability_contains_counter_spell))
+        .filter(|d| {
+            d.abilities.iter().any(ability_contains_counter_spell)
+                || d.back_face
+                    .as_ref()
+                    .is_some_and(|f| f.abilities.iter().any(ability_contains_counter_spell))
+        })
         .map(|d| d.name.clone())
         .collect()
 }
@@ -372,12 +530,30 @@ fn counter_target_requirement(def: &CardDefinition) -> Option<TargetRequirement>
     None
 }
 
-/// C3 (plan §5): C2 (C1 ∩ `is_complete()`) whose counter target requirement is
-/// the UNRESTRICTED `TargetRequirement::TargetSpell` -- deliberately
-/// syntactic (no `matches_filter` evaluation against a synthetic creature
-/// spell; `TargetSpellWithFilter` admitting a creature spell, e.g. Red
-/// Elemental Blast's blue filter, is recorded as a separate note per the
-/// plan, not folded into this pin).
+/// C3 (plan §5, WIDENED by review Finding 3): C2 (C1 ∩ `is_complete()`) whose
+/// counter target requirement is UNRESTRICTED. Two syntactic shapes count as
+/// unrestricted, not one:
+///
+/// 1. The bare `TargetRequirement::TargetSpell` (the plan's original pin).
+/// 2. `TargetRequirement::TargetSpellWithFilter(f)` where `f ==
+///    TargetFilter::default()`. Review Finding 3's argument, verified here by
+///    reading `TargetFilter`'s own field defaults
+///    (`card_definition.rs:3036-3080`): every field is `None`/`false`/
+///    `TargetController::Any` (the `#[default]` variant, `:3244`), and
+///    `casting.rs:6430-6453`'s `matches_filter` check is a pure AND over those
+///    fields -- an all-default filter accepts every legal spell, exactly like
+///    the bare `TargetSpell` variant. `mana_leak`, `mana_tithe`, and
+///    `make_disappear` (all `Complete`, all `CounterUnlessPays`) declare
+///    `TargetSpellWithFilter(TargetFilter::default())` for "counter target
+///    spell" with no oracle-text restriction -- syntactically different from
+///    `TargetSpell`, semantically identical, and this pin now measures the
+///    semantic class rather than the one literal spelling of it.
+///
+/// Deliberately still excludes a filter that is non-default but happens to
+/// admit a creature spell (`red_elemental_blast`'s blue filter) -- that
+/// remains a separate, unevaluated note (no `matches_filter` run against a
+/// synthetic creature-spell `Characteristics`), exactly as the plan scoped
+/// C3's syntactic-only measurement.
 fn unrestricted_target_spell_defs(cards: &[CardDefinition]) -> BTreeSet<String> {
     let c2 = counterspell_defs(cards)
         .into_iter()
@@ -391,7 +567,11 @@ fn unrestricted_target_spell_defs(cards: &[CardDefinition]) -> BTreeSet<String> 
     c2.into_iter()
         .filter(|name| {
             let def = cards.iter().find(|d| &d.name == name).unwrap();
-            counter_target_requirement(def) == Some(TargetRequirement::TargetSpell)
+            match counter_target_requirement(def) {
+                Some(TargetRequirement::TargetSpell) => true,
+                Some(TargetRequirement::TargetSpellWithFilter(f)) => f == TargetFilter::default(),
+                _ => false,
+            }
         })
         .collect()
 }
@@ -400,8 +580,12 @@ fn unrestricted_target_spell_defs(cards: &[CardDefinition]) -> BTreeSet<String> 
 /// population is small, with the `all_cards().len() >= 1_700` non-vacuity
 /// floor asserted in the SAME test (the PB-DX24 R2 lesson: a broken
 /// enumeration must not make an empty roster look correct). Message names
-/// `OOS-SIM3-5` and tells a future author that a new mutate def or a new
-/// unrestricted counter def widens the class.
+/// `OOS-SIM3-5` and tells a future author that a new mutate def, a new
+/// unrestricted `Effect::CounterSpell` def, OR a new unrestricted
+/// `Effect::CounterUnlessPays` def widens the class -- review Finding 3
+/// corrected this gate to actually see the third case (it was previously
+/// blind to `CounterUnlessPays` and its own message claimed a class it
+/// could not see).
 #[test]
 fn g3_corpus_roster_is_pinned() {
     let cards = all_cards();
@@ -482,17 +666,28 @@ fn g3_corpus_roster_is_pinned() {
         m3.len()
     );
 
-    // C1: defs carrying Effect::CounterSpell anywhere (incl. inside Modal).
+    // C1: defs carrying Effect::CounterSpell OR Effect::CounterUnlessPays
+    // anywhere (incl. inside Modal). Review Finding 3: the first-runner
+    // measurement (23) was itself an undercount -- it was blind to
+    // Effect::CounterUnlessPays, which effects/mod.rs:4401-4411 (CR 118.12a)
+    // delegates straight into the Effect::CounterSpell arm this batch
+    // repaired, making every CounterUnlessPays def equally live-wrong. The
+    // widened walk adds exactly 6: Flusterstorm, Izzet Charm, Make Disappear,
+    // Mana Leak, Mana Tithe, Spell Pierce.
     let c1 = counterspell_defs(&cards);
     assert_eq!(
         c1.len(),
-        23,
-        "OOS-SIM3-5 roster C1 (defs carrying Effect::CounterSpell anywhere) \
-         moved from the MEASURED 23 -- got {}: {c1:?}. (The plan's own §0.3 \
-         grep estimate of 24 was itself wrong: it substring-matched the \
-         literal text \"Effect::CounterSpell\" inside a TODO *comment* on \
-         Transcendent Dragon, which has no such effect in code -- an SR-36 \
-         example of exactly the failure this enumeration replaces.)",
+        29,
+        "OOS-SIM3-5 roster C1 (defs carrying Effect::CounterSpell or \
+         Effect::CounterUnlessPays anywhere) moved from the MEASURED 29 -- \
+         got {}: {c1:?}. (The original 23-count was blind to \
+         Effect::CounterUnlessPays, which delegates into the same arm this \
+         batch repaired -- review Finding 3. Separately, the plan's own §0.3 \
+         grep estimate of 24 for the CounterSpell-only subset was itself \
+         wrong: it substring-matched the literal text \"Effect::CounterSpell\" \
+         inside a TODO *comment* on Transcendent Dragon, which has no such \
+         effect in code -- an SR-36 example of exactly the failure this \
+         enumeration replaces.)",
         c1.len()
     );
 
@@ -509,36 +704,44 @@ fn g3_corpus_roster_is_pinned() {
         .collect();
     assert_eq!(
         c2.len(),
-        18,
-        "OOS-SIM3-5 roster C2 (Complete counter defs) moved from 18 -- got {}: \
-         {c2:?}",
+        24,
+        "OOS-SIM3-5 roster C2 (Complete counter defs) moved from the MEASURED \
+         24 (18 CounterSpell + 6 CounterUnlessPays, all 6 Complete -- review \
+         Finding 3) -- got {}: {c2:?}",
         c2.len()
     );
 
-    // C3: C2 whose counter target requirement is the unrestricted
-    // TargetRequirement::TargetSpell (syntactic subset -- TargetSpellWithFilter
-    // admitting a creature spell, e.g. Red Elemental Blast's blue filter, is a
-    // separate note, not folded into this pin -- see the plan §5 note).
+    // C3: C2 whose counter target requirement is UNRESTRICTED -- the bare
+    // TargetRequirement::TargetSpell OR TargetSpellWithFilter(TargetFilter::
+    // default()) (review Finding 3: mana_leak/mana_tithe/make_disappear all
+    // declare the latter, all Complete, all semantically "counter target
+    // spell" with no restriction). TargetSpellWithFilter admitting a creature
+    // spell through a NON-default filter (e.g. Red Elemental Blast's blue
+    // filter) is a separate note, not folded into this pin -- see the plan §5
+    // note.
     let c3 = unrestricted_target_spell_defs(&cards);
     assert_eq!(
         c3.len(),
-        8,
+        11,
         "OOS-SIM3-5 roster C3 (Complete counter defs with an unrestricted \
-         TargetRequirement::TargetSpell) moved from 8 -- got {}: {c3:?}",
+         target requirement) moved from the MEASURED 11 (8 bare TargetSpell + \
+         3 TargetSpellWithFilter(TargetFilter::default()) -- review Finding 3) \
+         -- got {}: {c3:?}",
         c3.len()
     );
 
     // P: measured live-wrong pairs = |M2| x |C3|. The queue row's "6 x 24 =
-    // 144" and this plan's own "~48" estimate are both superseded by this
-    // measured number -- report it, do not hand-edit the queue rows here (a
-    // later runner corrects seed-rerank-2026-08-02.md and
+    // 144" and the plan's own "~48" estimate (itself an undercount -- review
+    // Finding 3, blind to Effect::CounterUnlessPays) are both superseded by
+    // this measured number -- report it, do not hand-edit the queue rows here
+    // (a later runner corrects seed-rerank-2026-08-02.md and
     // decision-point-audit.md's OOS-SIM3-5 row).
     let p = m2.len() * c3.len();
     assert_eq!(
         p,
-        48,
+        66,
         "OOS-SIM3-5 roster P (live-wrong pairs = |M2| x |C3|) moved -- expected \
-         48 (6 x 8), got {p} ({} x {}). Correct the queue row and the seed row \
+         66 (6 x 11), got {p} ({} x {}). Correct the queue row and the seed row \
          with this measured number.",
         m2.len(),
         c3.len()
