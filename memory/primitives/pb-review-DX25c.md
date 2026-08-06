@@ -521,6 +521,13 @@ own T8 section.
   pin once the 1 new `t3b` test and the 2 quota-artifact failures are accounted for (4,486 + 1
   = 4,487 expected; 4,485 + 2 = 4,487 measured). The ignored-count (2 vs. the historical 5) is
   disclosed as unreconciled — full reasoning in the execution notes' own gates section.
+  **SETTLED by the coordinator's clean re-run (2026-08-06, tmpfs headroom restored):
+  4,487 passed / 0 failed / 5 ignored, exit 0, 46 result-producing targets, zero
+  `test result: FAILED` blocks.** Both halves of the prediction above were exactly right:
+  the pass/fail arithmetic reconciles, and the ignored-count gap WAS a second casualty of
+  the same outage. `core card_defs_fmt` re-run in isolation: 5/5 green. **4,487 / 0 / 5 is
+  the batch's shipped pin**; the 4,485/2/2 figures are retained as the record of the
+  outage, not as a measurement of the tree.
 - `cargo test -p mtg-engine --test core hash_schema` — 21/21 green.
   `cargo test -p mtg-engine --test core protocol_schema` — 17/17 green. **HASH 74 / PROTOCOL
   35 gate-EXECUTED and unmoved.**

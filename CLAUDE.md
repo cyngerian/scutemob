@@ -340,12 +340,15 @@
   (its own `StackObject` entry is popped before its effect runs — resolution.rs's own
   documented order), and `StubProvider`'s offer layer reads `obj.characteristics.
   mana_cost` directly rather than the registry def, a third instance of the "ObjectSpec
-  ::card() is naked" gotcha. Tests **4,486** (+17); coverage unmoved **1,133/1,803 =
+  ::card() is naked" gotcha. Tests **4,487** (+18); coverage unmoved **1,133/1,803 =
   62.8%**, proven by regeneration; PROTOCOL **35** / HASH **73 → 74** gate-executed.
   4 of 19 revert-matrix rows are honestly UNDISCRIMINATED by the full suite (2 predicted
   by the plan, 2 not: `retarget_candidates`'s `has_conceded` filter and its chooser-first
   preference are each shadowed by a redundant downstream check/coincidental fixture
-  ordering). Seeds: **OOS-DX25b-3 CLOSED**; filed **OOS-DX25c-1..4**. Full handoff:
+  ordering). Seeds: **OOS-DX25b-3 CLOSED**; filed **OOS-DX25c-1..6**, of which
+  **OOS-DX25c-5 is LIVE on the same 2 `Complete` defs** — a `TargetSpell` victim can be
+  redirected onto its OWN card, those validator arms consulting `self_id` nowhere, and
+  this batch is what made `self_id` live at all. Full handoff:
   `memory/workstream-state.md`; measurements and revert matrix:
   `memory/primitives/pb-DX25c-execution-notes.md`.
 - **Prior**: 2026-08-06 — **PB-DX25b SHIPPED** (`scutemob-204`; v3 queue rank 7b).

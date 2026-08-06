@@ -677,6 +677,24 @@ for the coordinator**: treat this run's PASS/FAIL numbers as trustworthy
 provisional; a clean re-run once the host `/tmp` quota has full headroom
 would settle it definitively.
 
+> **SETTLED — clean re-run by the coordinator, 2026-08-06, after the tmpfs
+> regained headroom (4.4G free).** `cargo test --workspace --no-fail-fast`
+> captured to a file: **4,487 passed / 0 failed / 5 ignored**, exit 0, **46**
+> result-producing targets, **zero** `test result: FAILED` blocks and no
+> `failures:` section at all. The prediction above was exactly right in both
+> halves: the passed/failed arithmetic reconciles (4,486 + 1 `t3b` = 4,487, and
+> 4,487 is what the clean run measures), and the ignored-count gap WAS a second
+> casualty of the same outage (5, as every prior batch cites). `core
+> card_defs_fmt` re-run in isolation: **5/5 green**. `hash_schema` 21/21 (HASH
+> **74**), `protocol_schema` 17/17 (PROTOCOL **35**), `clippy --workspace
+> --all-targets -- -D warnings` clean, `cargo fmt --check` clean,
+> `tools/check-defs-fmt.sh` clean (1,803 defs), coverage regenerated and
+> unmoved at **1,133/1,803 = 62.8%**. **This is the batch's shipped pin**;
+> the 4,485/2/2 figures above are retained as the record of the outage, not as
+> a measurement of the tree. The fix-cycle agent's refusal to round its own
+> anomaly away is why this was settleable rather than silently wrong — the
+> 38-vs-46 target count in the line above is the tell it correctly flagged.
+
 **`cargo test -p mtg-engine --test core hash_schema`**: 21/21 green.
 **`cargo test -p mtg-engine --test core protocol_schema`**: 17/17 green.
 Both confirm **HASH 74 / PROTOCOL 35 gate-EXECUTED and unmoved** by the fix
