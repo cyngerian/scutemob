@@ -324,7 +324,31 @@
 - **Recurrence rule** — future `/collect` and milestone-close bookkeeping appends its detailed PB/SR
   narrative to that archive file (newest first), and updates only a one-paragraph snapshot delta
   here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
-- **Last Updated**: 2026-08-06 — **PB-DX25b SHIPPED** (`scutemob-204`; v3 queue rank 7b).
+- **Last Updated**: 2026-08-06 — **PB-DX25c SHIPPED** (`scutemob-205`; v3 queue rank 7c,
+  closing `OOS-DX25b-3`). A spell you can retarget is a spell you can retarget LEGALLY.
+  New `StackObject.target_requirements` (hashed) + `rules::retarget::plan_target_change`
+  delegate the whole "which object or player may become the new target" decision to
+  `casting::validate_targets_inner` — the same collective arithmetic a real cast is
+  checked against (CR 115.3/115.7e/115.7a all-or-nothing) — closing BOTH the object
+  branch (the filed defect) and an independently-reachable player-branch defect the
+  filing missed (no `TargetOpponent` check, `has_lost`-only not `has_conceded`).
+  Fail-closed on a missing requirement list. `t9_object_target_redirect_ignores_the_
+  original_requirement` inverted (renamed `...obeys_the_original_requirement`) with a
+  new `t9b` sibling proving the fix isn't "never redirect". Two structural findings
+  surfaced only by executing tests: `TargetSpellWithSingleTarget`/`TargetSpellOrAbility
+  WithSingleTarget` cannot observe the ACTIVELY-RESOLVING spell as a redirect candidate
+  (its own `StackObject` entry is popped before its effect runs — resolution.rs's own
+  documented order), and `StubProvider`'s offer layer reads `obj.characteristics.
+  mana_cost` directly rather than the registry def, a third instance of the "ObjectSpec
+  ::card() is naked" gotcha. Tests **4,486** (+17); coverage unmoved **1,133/1,803 =
+  62.8%**, proven by regeneration; PROTOCOL **35** / HASH **73 → 74** gate-executed.
+  4 of 19 revert-matrix rows are honestly UNDISCRIMINATED by the full suite (2 predicted
+  by the plan, 2 not: `retarget_candidates`'s `has_conceded` filter and its chooser-first
+  preference are each shadowed by a redundant downstream check/coincidental fixture
+  ordering). Seeds: **OOS-DX25b-3 CLOSED**; filed **OOS-DX25c-1..4**. Full handoff:
+  `memory/workstream-state.md`; measurements and revert matrix:
+  `memory/primitives/pb-DX25c-execution-notes.md`.
+- **Prior**: 2026-08-06 — **PB-DX25b SHIPPED** (`scutemob-204`; v3 queue rank 7b).
   A spell you can target is a spell you can retarget. `validate_object_satisfies_requirement`
   resolved the announced id through `state.objects` — the **card** — and then compared it to
   `so.id`, a **stack-entry** id. `next_object_id` mints both namespaces from one monotone

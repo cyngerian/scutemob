@@ -890,7 +890,7 @@ fn test_pb_os9_version_sentinels() {
         "PROTOCOL_VERSION should be 24 after PB-OS9 (Condition::YouControlYourCommander)"
     );
     assert_eq!(
-        HASH_SCHEMA_VERSION, 73u8,
+        HASH_SCHEMA_VERSION, 74u8,
         "HASH_SCHEMA_VERSION should be 61 after PB-OS9 (Condition::YouControlYourCommander, \
          discriminant 51)"
     );

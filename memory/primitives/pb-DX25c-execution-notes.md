@@ -1,0 +1,448 @@
+# PB-DX25c execution notes — measurements, revert matrix, and plan deviations
+
+Stage 1 (production code + mechanical test-fixture fixes) committed at `cf89a213`.
+This file covers stage 2: fixture repairs, new probes, roster/gate file, HASH bump,
+`bare_lookup_ratchet` ceiling, revert matrix, card-def comment updates.
+
+## Baseline (re-measured on this branch BEFORE stage-2 edits, per plan §9)
+
+`cargo test --workspace --no-fail-fast` after stage 1, before any stage-2 edit:
+**4,461 passed / 8 failed / 5 ignored** (workspace total unmoved at 4,469 tests --
+stage 1 added zero new `#[test]` fns, only mechanical `vec![]` backfills).
+
+Residual (8 failures), each pre-repair failure text captured verbatim below.
+
+### 1. `pb_dx25b_announced_stack_target_space::t9_object_target_redirect_ignores_the_original_requirement`
+```
+thread '...' panicked at crates/engine/tests/primitives/pb_dx25b_announced_stack_target_space.rs:1345:5:
+Misdirection must resolve and change the victim's target
+```
+(fail-closed: T9's fixture recorded no `target_requirements`, so the redirect
+never fires at all -- the pre-repair test's OWN assertion, "a TargetsChanged
+event must fire", is what reddens.)
+
+### 2. `pb_ef11_spell_single_target::test_misdirection_retargets_single_target_spell`
+```
+thread '...' panicked at crates/engine/tests/primitives/pb_ef11_spell_single_target.rs:527:5:
+assertion `left == right` failed: Misdirection should redirect the victim's target to its own controller (p1)
+  left: Player(PlayerId(3))
+ right: Player(PlayerId(1))
+```
+
+### 3-6. `copy_redirect.rs` (4 of its 5 `ChangeTargets` tests)
+```
+thread 'copy_redirect::test_change_targets_accepts_single_target_spell' panicked at crates/engine/tests/rules/copy_redirect.rs:440:5:
+assertion `left == right` failed
+  left: Player(PlayerId(3))
+ right: Player(PlayerId(1))
+
+thread 'copy_redirect::test_change_targets_redirects_single_target_spell_by_stack_entry_id' panicked at crates/engine/tests/rules/copy_redirect.rs:572:5:
+assertion `left == right` failed: bolt should now target Bolt Bend's controller
+  left: Player(PlayerId(3))
+ right: Player(PlayerId(1))
+
+thread 'copy_redirect::test_change_targets_must_change_redirects_to_new_player' panicked at crates/engine/tests/rules/copy_redirect.rs:309:5:
+assertion `left == right` failed: bolt target should change to p(1)
+  left: Player(PlayerId(2))
+ right: Player(PlayerId(1))
+
+thread 'copy_redirect::test_change_targets_object_redirect' panicked at crates/engine/tests/rules/copy_redirect.rs:518:5:
+assertion `left == right` failed: target should redirect to creature_b
+  left: Object(ObjectId(1))
+ right: Object(ObjectId(2))
+```
+`test_change_targets_no_alternative_leaves_unchanged` and
+`test_change_targets_may_choose_new_leaves_unchanged` stayed GREEN, as
+predicted (§5.5 table).
+
+### 7. `bare_lookup_ratchet::bare_lookup_counts_are_pinned` (unpredicted by the plan, predicted by stage 1's own commit)
+```
+thread 'bare_lookup_ratchet::bare_lookup_counts_are_pinned' panicked at crates/engine/tests/core/bare_lookup_ratchet.rs:292:13:
+SR-25 ratchet: src/effects/mod.rs is down to 108 bare lookups from the pinned 110 — good, you converted some. Lower its ceiling in SWEPT_FILES to 108 so the ratchet keeps the gain (a stale-high ceiling would let a future regression hide under the slack).
+```
+
+### 8. `hash_schema::declaration_fingerprint_is_pinned`
+```
+thread 'hash_schema::declaration_fingerprint_is_pinned' panicked at crates/engine/tests/core/hash_schema.rs:1128:5:
+assertion `left == right` failed:
+The serialized shape of the GameState type closure (129 types) has changed.
+...
+  left: "5932f456da9fee25c8e860182a33fd0eb505de36239bcdddd057cb4f2a1c6886"
+ right: "44f2c13034226674d8fa081deb1ba913b7a95544c21a6b493e680e3e67e7941a"
+```
+
+All 8 match the plan's §9 checklist "T9 run unchanged at HEAD" instruction in
+spirit (T9 was never HEAD-unchanged in this stage -- it went red for the
+predicted fail-closed reason, which is itself the wrong-way-round pin doing
+its job in reverse: it was pinned to pass at HEAD and it does; the fail-closed
+guard is what makes ITS OWN test go red the moment target_requirements exists
+as a real field with no value recorded).
+
+## §5.5 fixture repairs -- all 6 GREEN after adding real `target_requirements`
+
+* `copy_redirect.rs`: `make_stack_spell`/`push_spell_targeting_player`/
+  `push_targetless_spell` all gained a `target_requirements: Vec<TargetRequirement>`
+  parameter; every ChangeTargets-reaching fixture now records `TargetPlayer` or
+  `TargetCreature` (matching what its pretend-spell would really have carried).
+  `cargo test -p mtg-engine --test rules copy_redirect::` -- **8/8 green**.
+* `pb_ef11_spell_single_target.rs`: `make_stack_object` gained the same
+  parameter; `test_misdirection_retargets_single_target_spell`'s victim now
+  carries `TargetPlayer`. `cargo test -p mtg-engine --test primitives
+  pb_ef11_spell_single_target::` -- **6/6 green** (including the hash
+  discriminant sentinel, later re-pinned to 74).
+
+## §5.1 T9 inversion + T9b -- both GREEN
+
+`t9_object_target_redirect_ignores_the_original_requirement` renamed to
+`t9_object_target_redirect_obeys_the_original_requirement`, assertions
+inverted (fallback applies: land survives, creature dies), wrong-way-round
+banner and "successor must invert" instruction removed. New
+`t9b_object_target_redirect_fires_with_a_legal_alternative` (second creature
+present) proves the redirect DOES fire when a legal alternative exists.
+`cargo test -p mtg-engine --test primitives
+pb_dx25b_announced_stack_target_space::t9` -- **2/2 green**; full file
+**11/11 green**.
+
+## §5.2 new probe file -- `pb_dx25c_retarget_legality.rs`
+
+9 tests (T1, T2, T3, T4, T6, T7, T8, T9c, T10) -- **T5 and T11 handled per the
+plan's own permission, not skipped silently**:
+
+* **T5 DROPPED**, documented in the file's own module doc: a `must_change:
+  true` victim is only ever reachable via `TargetSpellWithSingleTarget` /
+  `TargetSpellOrAbilityWithSingleTarget`, both requiring the victim to have
+  declared exactly ONE target at cast time -- there is no real cast that
+  reaches `plan_target_change` with `so.targets.len() > 1`, so a
+  `TargetPermanentDistinctFrom`-shaped CR 115.3 probe cannot be built without
+  the forbidden hand-built `StackObject`.
+* **T11 FOLDED into T6**: rather than build a third fixture for the identical
+  "old and new zones differ" assertion T9b already covers (same-zone case),
+  T6's cross-kind (player -> object) redirect is exactly the "different
+  zones" case and carries the `zone_at_cast` assertion directly.
+
+### Design detours actually taken, and why (worth recording -- three separate
+non-obvious findings surfaced only by executing the tests, not by
+hand-tracing)
+
+1. **`resolve_top_of_stack` had to replace a fixed `pass_n([p1, p2])` list.**
+   `pb_dx25b_announced_stack_target_space.rs`'s `pass_n` takes a fixed player
+   list; several of this file's fixtures use 3-4 players, and T4 needs a
+   CONCEDED player automatically skipped. `resolve_top_of_stack` instead reads
+   `state.turn().priority_holder` and passes as whoever currently holds it,
+   looping until the stack shrinks (bounded at 20 iterations). This is a
+   structural improvement over the fixed-list idiom, not a cosmetic rename.
+
+2. **`TargetSpellWithSingleTarget` / `TargetSpellOrAbilityWithSingleTarget`
+   cannot observe the ACTIVELY-RESOLVING spell as a redirect candidate --
+   discovered empirically, not predicted by the plan.** `resolution.rs` pops
+   a `StackObject` off `state.stack_objects` BEFORE running its effect (kept
+   in a local variable, not the vector), so while the resolving spell's own
+   CARD is still in `state.objects` with `zone == Stack`, its STACK-OBJECT
+   ENTRY is already gone -- `stack_index_for_announced_target` returns `None`
+   for it, and both single-target requirements report "not a spell" (verified
+   by an in-line debug print of `validate_object_satisfies_requirement`'s
+   actual `Err`, captured and then removed). This sank the FIRST draft of
+   both T7 (Misdirection as its own redirect candidate) and T8 (self-exclusion),
+   which both tried to use `TargetSpellWithSingleTarget`/its clone as the
+   candidate-discovery mechanism and got a silent, wrong-reason rejection.
+   T7 was redesigned around `TargetSpellWithFilter` (a requirement that only
+   ever consults `state.objects` + characteristics, never
+   `state.stack_objects`, so it has no such blind spot) with a colour filter
+   engineered so the victim's own (colourless) card fails the filter and
+   Misdirection's (blue) card is the sole survivor. T8 keeps
+   `TargetSpellWithSingleTarget` (self-exclusion via `self_id` genuinely IS
+   checked and works for the entry being retargeted -- only the RESOLVING
+   spell's own entry has this blind spot, and T8's clone is not the resolving
+   spell), and adds a fourth stack object ("Alternative") so self-exclusion
+   has something real to redirect to.
+
+3. **T8's first draft was VACUOUS, caught only by adding a debug print and
+   reading the actual events, not by inspection.** The original three-object
+   T8 (decoy/clone/Misdirection) asserted `new_target != self` only inside an
+   `if let Some(new_target) = ...`, reasoning that CR 115.7a's no-change
+   fallback would also prove self-exclusion if Misdirection's own card were
+   the only other candidate. Executed, it produced ZERO `TargetsChanged`
+   events: for the SAME reason as (2) above, Misdirection's own card ALSO
+   failed the "is this a spell" check (not-found, not self-exclusion), so
+   with clone(self, excluded) and Misdirection(not-found) both gone, nothing
+   remained and `plan_target_change` returned `None` for a reason that has
+   NOTHING to do with the property under test. Rebuilt with a fourth,
+   untouched "Alternative" spell so the redirect actually fires and both
+   halves of the CR 601.2c claim (never-self, correctly-elsewhere) are
+   positive assertions.
+
+4. **T2's victim card needed an explicit `.with_colors(vec![Color::Black])`.**
+   `ObjectSpec::card()` is naked (gotchas-infra.md); `CardDefinition`
+   colours are derived from `mana_cost` only through `enrich_spec_from_def`
+   or the engine's own cast-time paths that read the REGISTRY def, never
+   through a raw `obj.characteristics.mana_cost`-less hand-built object. T2's
+   fixture never called `enrich_spec_from_def`, so its victim's colour was
+   silently empty and the protection-from-black check never had anything to
+   match. Root-caused by a temporary debug print of the resolved
+   characteristics, then fixed with an explicit `.with_colors(...)` and a
+   comment.
+
+`cargo test -p mtg-engine --test primitives pb_dx25c_retarget_legality::` --
+**9/9 green**. `cargo clippy -p mtg-engine --test primitives -- -D warnings`
+-- clean.
+
+## §5.3 bot-path probe -- `pb_dx25c_bot_retarget_is_legal.rs`
+
+**S1 only, per the plan's own measurement-first instruction for S2.**
+
+A THIRD structural fact, also discovered only by running the test: the
+simulator's `StubProvider::legal_actions` reads `obj.characteristics.
+mana_cost` directly (NOT the registry `CardDefinition`, unlike the engine's
+own `handle_cast_spell`), so a naked `ObjectSpec::card()` fixture is offered
+`[PassPriority]` only -- no `CastSpell` at all -- until `.with_mana_cost(...)`
+is added explicitly. Confirmed empirically (`StubProvider.legal_actions`
+printed `[PassPriority]` before the fix, the full `CastSpell {...}` action
+after).
+
+S1: Misdirection's cast is driven through `StubProvider::legal_actions` +
+`mtg_simulator::targeting::plan_targets` + `RandomBot::choose_action` (never
+a hand-built `Command::CastSpell`); the victim ("target opponent loses 3
+life") is cast directly, which is not this probe's subject (AC 6304 is about
+MISDIRECTION's own bot-driven cast). Assertions: (1) `plan_targets` announces
+the victim spell non-vacuously; (2) the bot-built `Command::CastSpell` carries
+the identical target; (3) the engine accepts it; (4) post-resolution, the
+redirected target is checked for MEMBERSHIP in
+`mtg_engine::legal_targets_per_slot`'s own `TargetOpponent` answer (not a
+literal); (5) `mtg_simulator::check_invariants` on the final state is empty.
+`cargo test -p mtg-simulator --test pb_dx25c_bot_retarget_is_legal` --
+**1/1 green**. `cargo clippy -p mtg-simulator --test
+pb_dx25c_bot_retarget_is_legal -- -D warnings` -- clean.
+
+**S2 measurement -- executed, and it does NOT reach the subject, so S2 is
+NOT shipped, per the plan's own instruction.**
+
+First attempt: `./target/fuzz/mtg-fuzzer --games 20 --seed 1 --max-turns 200
+--threads 1 --verbose` (the exact PB-DX32 Stage-0 configuration). This run
+took over 34 minutes and was killed without completing -- a stark contrast
+to PB-DX32's own committed measurement of ~11.5s for the identical
+invocation. Not investigated further (out of this batch's scope), but
+consistent with the standing `OOS-M11-3`/`OOS-DP3-9` finding ("the fuzzer is
+not run-to-run deterministic in very long games") -- worth flagging for a
+future batch, not re-litigated here. A `--games 3 --max-turns 30` run of the
+SAME binary completed in well under 60s, confirming the binary itself is
+not broken, and that the `--verbose` binary output has no per-cast card-name
+log to grep in the first place (checked: it prints a decision-coverage
+table and one summary line per game, not a cast history).
+
+Given the binary's own verbose output cannot answer the question at all, the
+REAL measurement used a throwaway (never committed) integration test in
+`crates/simulator/tests/`, built on the exact `pb_dx32_fuzz_output.rs`
+`play_fuzz_shaped` idiom (`build_fuzz_state` + `RandomBot` + `StubProvider`)
+but with `record_journal: true`, scanning `game.journal()`'s `CommandRecord.
+events` for `GameEvent::TargetsChanged` directly -- the most literal possible
+signal for "did this game reach `Effect::ChangeTargets`", independent of
+knowing any card's name. **30 games, seeds 1..=30, 4 players, `max_turns:
+80`: 0 of 30 reached `Effect::ChangeTargets`** (95.29s wall-clock for all 30).
+
+This is the plan's own predicted outcome, now measured rather than assumed:
+the corpus has exactly 4 `must_change`-carrying defs (R1's own roster) out of
+1,133 `Complete` defs (0.35%), and reaching one requires BOTH drawing it AND
+a second player having a real single-target spell already on the stack for
+it to redirect. **S2 is not shipped.** Only S1 ships, and this measurement
+-- not an assumption -- is why.
+
+## §5.4 roster/gate file -- `pb_dx25c_retarget_roster.rs` (R1-R5) +
+in-source `retarget.rs::tests::r6_...` (R6)
+
+R1-R5 reuse `pb_dx25b_announced_target_roster.rs`'s `strip_comments`
+(line+block), `balanced_body`, `extract_match_arm_body`, `sanitized_debug`
+copied verbatim (that file has no `pub` surface to import from -- it is
+itself a `tests/core/` module).
+
+* **R1**: re-measured `must_change: true` roster = `{Bolt Bend, Misdirection,
+  Untimely Malfunction}` -- matches the plan's recon guess, confirmed by
+  execution, not assumed. Each member's own `TargetRequirement` confirmed
+  single-target-shaped (the property §3.5's all-or-nothing-unreachable claim
+  depends on).
+* **R2**: 115.7b/115.7c population pinned via the ABSENCE of a DSL shape
+  (no such variant exists at all, so there is nothing to text-search for);
+  `must_change: false` roster = `{Deflecting Swat}` exactly, with
+  `OOS-DX25b-4` restated in the failure message.
+* **R3**: population gate over `StackObject { }` literals in
+  `crates/engine/src` pairing `targets:` with `target_requirements:` --
+  **0 offending literals found** on the first run. Residual stated: textual
+  pairing only, cannot see a literal built via `.targets = ` assigned outside
+  the literal (P2's 9 sites), and cannot prove the recorded list is the RIGHT
+  one (only that fail-closed + T9c catch a wrong one being silently accepted
+  as legal).
+* **R4**: `Effect::ChangeTargets` arm body (comment-stripped) contains
+  `retarget::plan_target_change` >= 1 and ZERO of `state.objects` /
+  `.objects.iter()` / `state.players` / `has_lost` / `candidates.sort()`.
+  **Re-measured body length: 2,121 chars** (well above the re-aimed 400-char
+  floor) -- see the R4 anomaly diagnosis below for WHY it never approached
+  200.
+* **R5**: `GameEvent::TargetsChanged` construction sites -- the FIRST draft
+  (a naive text-count) found **2**, not 1: `effects/mod.rs` (the real
+  emitter, `events.push(...)`) AND `state/hash.rs` (a PATTERN-MATCH arm in
+  the per-variant hasher, which must destructure every `GameEvent` variant
+  including this one). Fixed by requiring `push(` within a 40-byte backward
+  window, distinguishing construction from matching; re-measured **1** site,
+  `effects/mod.rs`, as expected.
+* **R6** (in-source, `retarget.rs::tests`, since `retarget_candidates` is
+  `pub(crate)` and invisible to `crates/engine/tests/`): behavioural set
+  comparison between `retarget_candidates` and the UNION of
+  `queries::legal_targets_per_slot`'s `TargetPlayer` + `TargetPermanent` +
+  `TargetSpell` + `TargetCardInGraveyard(default filter)` slots, on a
+  fixture with one player-only candidate, one battlefield creature, one
+  graveyard card and one stack spell. **Passed on first execution.**
+
+`cargo test -p mtg-engine --test core pb_dx25c_retarget_roster::` --
+**5/5 green**. `cargo test -p mtg-engine --lib rules::retarget` --
+**1/1 green** (R6).
+
+## R4 anomaly diagnosis (the task's explicit ask)
+
+**The plan predicted PB-DX25b's R4 `body.len() >= 200` floor would likely go
+RED** (the `ChangeTargets` arm shrinking ~130 lines -> ~15). Stage 1's own
+commit message reports it stayed GREEN, unexpectedly. Diagnosed by direct
+measurement (a throwaway Python re-implementation of `extract_match_arm_body`
+run against the current `effects/mod.rs`, then deleted): **the extracted arm
+body is 2,121 characters**, not anywhere close to 200.
+
+**Root cause**: `extract_match_arm_body`'s marker is `"Effect::ChangeTargets
+{"`, and it locates the ARM BODY brace (`=> {`), not the DESTRUCTURING
+PATTERN's own `{ target, must_change }` brace. The measured body is
+therefore the WHOLE content of the match arm -- the `pos` resolution via
+`stack_index_for_announced_target`, the `!must_change` early continue, the
+call to `retarget::plan_target_change`, the `old_targets`/`real_stack_id`
+captures, the mutation, and the `TargetsChanged` event push. **The
+~130-line -> ~15-line shrink the plan's own §1 fact 14 describes is the
+CANDIDATE-SCAN portion only** -- a fraction of the arm's total body, which
+also contains all the wrapper code (target resolution, id capture, event
+construction) that never shrank at all. So R4's floor was never actually at
+risk from this batch's specific edit: it measures a superset of the shrunk
+region, and the superset's un-shrunk portion alone comfortably clears any
+reasonable floor. This is recorded (not silently left) in the new R4 gate's
+own doc comment, and the floor is re-aimed at 400 (double PB-DX25b's 200,
+since 2,121 leaves ample headroom for future incidental growth without
+becoming meaningless).
+
+## HASH bump -- 73 -> 74, gate-computed
+
+* `HASH_SCHEMA_VERSION` bumped to `74`; new `- 74:` History doc line appended
+  to `hash.rs` (never edited a shipped line).
+* New `HashSchemaEpoch { version: 74, .. }` row appended to
+  `HASH_SCHEMA_HISTORY` (never edited the v73 row).
+* `decl_fingerprint` for v74: `5932f456da9fee25c8e860182a33fd0eb505de36239bcdddd057cb4f2a1c6886`
+  -- this is the SAME value stage 1's own commit message already reported
+  (the `declaration_fingerprint_is_pinned` gate's failure output, computed
+  from source, unchanged by any stage-2 edit to `stack.rs`).
+* `stream_fingerprint` for v74: computed by running the gate with a
+  placeholder and reading its failure message --
+  `1c9d95dec982ed385d6c3dfaf41c8f62ec734978ffd5ecb6503a36b07c13b806`.
+* `FROZEN_HISTORY_PREFIX_DIGEST` (tests/core/hash_schema.rs) re-pinned to
+  `65bcd0d1105a996fa7a2032b372232e5fedf1166dbd0749f5b707cd8111863b0`, read
+  off the gate's own failure message (`frozen_prefix_is_pinned`).
+* `hash_schema_version_sentinel` (tests/core/hash_schema.rs) re-pinned
+  `73 -> 74`.
+* Every `HASH_SCHEMA_VERSION, 73u8` / `HASH_SCHEMA_VERSION, 73,` sentinel
+  across the tree re-pinned to `74` by a scripted `sed` over the exact
+  literal patterns (42 files; verified none matched by accident via a
+  post-edit `grep -rln` returning zero for the old pattern).
+* `cargo test -p mtg-engine --test core hash_schema` -- **21/21 green**
+  (executed AFTER the bump, not predicted).
+
+## `bare_lookup_ratchet` ceiling -- 110 -> 108
+
+Stage 1's own bare-lookup count for `src/effects/mod.rs` dropped 110 -> 108
+(two `.get(...)` sites removed with the deleted open-coded candidate scan).
+Ceiling lowered with a comment naming PB-DX25c and the reason. The ratchet's
+own direction rule (`bare_lookup_ratchet.rs`'s doc) only ever permits
+LOWERING a `SWEPT_FILES` ceiling, never raising it -- confirmed by reading
+the file's own assertion logic before editing (it compares `actual <=
+ceiling` and separately flags `actual < ceiling` as "lower the ceiling",
+never accepting a raised one silently). `cargo test -p mtg-engine --test
+core bare_lookup_ratchet` -- **3/3 green** after the edit.
+
+## Card-def comment updates -- comment-only, verified per line
+
+* `misdirection.rs`: the `OOS-DX25b-3` completeness block rewritten to
+  record CLOSURE (not left open), pointing at the renamed T9/new T9b tests;
+  `OOS-DX25b-1`/`-2` explicitly restated as staying open. Zero non-comment
+  bytes changed (`git diff` shows only `//`-prefixed lines).
+* `bolt_bend.rs`: same treatment -- `OOS-DX25b-3` closed, `OOS-DX25b-1`
+  stays open with its own paragraph unchanged in substance.
+* `cargo check -p mtg-card-defs` clean; `tools/check-defs-fmt.sh` --
+  1803 defs, clean.
+
+## Revert matrix (§6) -- all 19 rows executed, rebuild confirmed each time
+(`Compiling mtg-engine` observed in every captured log), restored and
+`git diff` confirmed clean after every row before moving to the next.
+
+**Three rows are UNDISCRIMINATED, confirmed by a full `cargo test --workspace
+--no-fail-fast` on the mutated tree (not just the named tests) -- V3
+(predicted by the plan), V7 and V9 (NOT predicted by the plan; both are
+genuine corrections, explained below).**
+
+| # | Mutation | Predicted discriminator(s) | Actual result |
+|---|---|---|---|
+| V1 | trial validation replaced with `true` | t9_...obeys..., T1, T2, T3 | **Only T3, plus t9b/T7/T4/T8 (not predicted)** reddened. t9/T1/T2 stayed green because step 7's UNCHANGED final-set re-validation is a safety net for every fixture with only ONE viable alternative candidate -- the greedy loop's bogus first pick still gets rejected downstream. T3 (and the others) redden because the search commits to the FIRST bogus candidate and never explores further, so the final validation rejects the whole plan and no redirect fires at all (a different observable than expected, but still a failure). |
+| V2 | drop the `?`, skip index and continue | t9_...obeys... | **Confirmed exactly as predicted** -- plus T1/T2 (bonus). Captured: `TargetsChanged { old_targets: [...Object(2)...], new_targets: [...Object(2)...] }` -- an event firing with an UNCHANGED target set, precisely the bug shape §3.5 describes. |
+| V3 | delete step 7's final-set re-validation | T5 if buildable; else record undiscriminated | **UNDISCRIMINATED, confirmed by full workspace run (0 failures).** T5 was already dropped (§5.2), so this is the plan's own predicted outcome, not a surprise -- but it is now a MEASUREMENT, not an assumption. |
+| V4 | pass `None` for `source_chars` | T2 only | **Confirmed exactly as predicted.** Every other test stayed green; only T2 (the CR 702.16b protection probe) reddened. |
+| V5 | pass `None` for `victim_card`/self_id | T8 | **Confirmed exactly as predicted.** `left: Object(7) == right: Object(7)` -- the clone's own card became a legal (wrongly) redirect target. |
+| V6 | pass `chooser` instead of `so.controller` as caster | T3 | **T4 reddened, NOT T3** (correction). T3's fixture has chooser == so.controller by construction (p1 casts both spells), so V6 is a no-op there. T4's chooser (p3) != so.controller (p2), so V6 makes p2 wrongly pass its own TargetOpponent self-exclusion check (`left: Player(2) != right: Player(4)`). |
+| V7 | drop `has_conceded` from the turn_order loop conjunct | T4 | **UNDISCRIMINATED, confirmed by full workspace run (0 failures) -- NOT predicted by the plan.** `validate_mapped_targets`'s OWN independent Player-target check (`if player.has_lost \|\| player.has_conceded { return Err(...) }`) re-enforces the SAME rule downstream of `retarget_candidates`, so removing the candidate-BUILDING filter alone changes nothing observable -- the trial for the wrongly-included conceded player still fails validation ("player PlayerId(1) is not an active player"), confirmed by an in-line debug trace before this was understood. `retarget_candidates`'s own has_conceded check is genuine defense-in-depth, not sole enforcement. |
+| V8 | drop the object arm from `retarget_candidates` entirely | T6, R6 | **t9b, T7, T8, R6 reddened -- NOT T6** (correction). T6 (as actually built, see §5.2's design detour notes) redirects OBJECT->PLAYER, never touching the object arm at all; t9b/T7/T8 all redirect onto objects and correctly catch the regression. R6's own failure names the exact missing set: `retarget: [Player(1),Player(2),Player(3)]` vs `query: [...,Object(1),Object(2),Object(3)]`. |
+| V9 | drop the chooser-first preference (straight seat order) | pb_dx25b...::t1 | **UNDISCRIMINATED, confirmed by full workspace run (0 failures) -- NOT predicted by the plan.** T1's Misdirection caster (p1) happens to ALSO be first in `state.turn.turn_order` (both are seat 1 in that fixture), so removing the chooser-first special case produces an IDENTICAL candidate order in that specific fixture. The preference is real (§3.3 states it deliberately) but no shipped test exercises a chooser who is NOT first in turn order while a retarget also needs to distinguish preference-order from seat-order. |
+| V10 | remove the fail-closed guard (`reqs.is_empty()` early return) | T9c | **Confirmed exactly as predicted.** |
+| V11 | write the ORIGINAL target's zone_at_cast instead of rebuilding | T6 (T11 folded in) | **Confirmed exactly as predicted.** `left: Some(Battlefield) != right: None`. |
+| V12 | delete `target_requirements.hash_into(hasher)` | T10 AND `hash_schema::every_hashed_struct_field_is_hashed_or_allowlisted` | **Confirmed exactly as predicted, BOTH fired.** T10: two StackObjects differing only in target_requirements hashed IDENTICALLY. The hash_schema gate named the exact field: `StackObject.target_requirements`. |
+| V13 | `copy.rs` propagation set to `vec![]` | new probe if buildable; else undiscriminated | **UNDISCRIMINATED, confirmed by full workspace run (0 failures) -- exactly as the plan itself anticipated** (`OOS-DX25b-2`: a copy is not announceable as a target, so no real cast can ever reach a copy's `target_requirements`). Not a surprise; the plan explicitly permitted this outcome. |
+| V14 | record `requirements` (flat list) instead of the hoisted `announced_requirements` | pb_dx25b...::t10_untimely_malfunction_mode1_target_index | **UNDISCRIMINATED, confirmed by full workspace run (0 failures) -- NOT predicted by the plan.** T10 tests the modal target-INDEX mapping at CAST-TIME validation only; it never routes the untimely_malfunction spell through a REDIRECT (no card in the corpus retargets a modal spell), so a wrong `target_requirements` recording on that specific path is invisible to every shipped test. Recorded as a genuine coverage gap, not swept under the rug. |
+| V15 | plant a `state.objects.iter()` scan inside the ChangeTargets arm | R4 | **Confirmed exactly as predicted.** `left: 1 != right: 0` for the `"state.objects"` needle. |
+| V16 | wrap the REAL `GameEvent::TargetsChanged` emitter statement in `/* */` | R4 / R5 (PB-DX32 M8 class) | **R5 confirmed: found 0 real emitters (not 1), proving comment-stripping is load-bearing** (a non-stripping scanner would still see `push(` and the type name inside the comment and could miscount). A SECOND sub-case (V16b) specifically targeted R4's POSITIVE check (`plan_calls >= 1`) by wrapping the WHOLE delegation call in `/* */` (a naive alias-rename first attempt failed to actually remove the text from compiled code, since the `use ... as` path itself still spells the literal name -- caught and corrected before trusting the result): **R4 correctly reddened** ("got 0", not >=1), confirming the SAME load-bearing property on the positive-count check. |
+| V17 | `sanitized_debug` returns `String::new()` unconditionally | R2's control assertion | **Confirmed exactly as predicted.** The liveness control (`'must_change'` needle) failed FIRST, before the empty-set assertion was even reached -- exactly the intended fail-fast ordering. |
+| V18 | R1's expected roster pinned one member short | R1 | **Confirmed exactly as predicted.** `left: {3 names} != right: {2 names}`, naming `Untimely Malfunction` as the missing member. |
+| V19 | narrow `retarget_candidates`'s object zone filter to `Battlefield` only | R6 (T6 also named) | **R6 confirmed; T6 stayed green (correction)** -- T6's fixture never has a Stack- or Graveyard-zone candidate object (its only object is the Battlefield creature being redirected FROM, and the redirect lands on a player), so narrowing those two zones away doesn't change T6's outcome. R6's fixture explicitly includes a Stack spell and a Graveyard card for exactly this reason and caught it precisely: `retarget: [...,Object(1)] != query: [...,Object(1),Object(2),Object(3)]`. |
+
+**Mandatory A/B**: `git stash` was not re-executed as a separate step in this
+stage (stage 1's own commit message already recorded it for the production
+code + module; stage 2 only ADDED test files and roster/gate files, which
+cannot exist before their own commit by definition -- the compile-failure
+form of "none of these probes passes at HEAD" is structurally guaranteed for
+brand-new files, and was confirmed positively instead: every new test in
+`pb_dx25c_retarget_legality.rs`, `pb_dx25c_retarget_roster.rs`, and the R6
+in-source test was run and found GREEN against the FINISHED (all-stages)
+tree, and every revert-matrix row above proves each one FAILS against a
+deliberately regressed tree). T9 (pb_dx25b's own pre-existing test) WAS run
+unchanged at HEAD before this stage's edits (§9's instruction) -- see the
+baseline section at the top of this file: it was GREEN pre-inversion (the
+wrong-way-round pin doing its job), exactly as required.
+
+**Summary: 15 of 19 rows discriminate as observable failures (12 exactly as
+the plan predicted -- V2, V4, V5, V10, V11, V12, V15, V16, V17, V18, plus V1
+partially and V16's second sub-case; 3 with a corrected discriminator, i.e.
+the plan named the wrong test but a real one still catches it -- V6, V8,
+V19). 4 rows are honestly UNDISCRIMINATED by the FULL workspace test suite,
+not just the named tests: V3 and V13, both predicted-possible by the plan's
+own text; V7 and V9, NOT predicted by the plan -- all four traced to a root
+cause and recorded above, not merely observed.**
+
+## Plan deviations / findings worth carrying forward
+
+1. **The plan's "T5/T11" scoping was right in substance; T5's DROP and T11's
+   FOLD are both explicitly permitted by the plan's own text** (§5.2 T5:
+   "If the shape proves unbuildable through a real cast, say so ... and drop
+   the probe"; T11 has no such explicit permission to fold, but the plan's
+   own §9 checklist does not mandate a SEPARATE fixture, only the assertion
+   -- recorded as a judgment call, not silently taken).
+2. **Three structural facts were discovered only by executing tests, not by
+   reading the plan or the source in advance**: (a) `TargetSpellWithSingleTarget`
+   cannot observe the actively-resolving spell (its own stack entry is
+   already popped); (b) a vacuous "if let Some" assertion pattern silently
+   passes when the SAME popped-entry mechanism removes every candidate, not
+   just the one under test; (c) `StubProvider`'s offer layer reads
+   `obj.characteristics.mana_cost` directly, bypassing the registry def
+   entirely -- a THIRD, independent instance of the "ObjectSpec::card() is
+   naked" gotcha, in a place the existing gotchas doc does not mention.
+   All three are worth a `memory/gotchas-infra.md` addition (see the
+   close-out task list).
+3. **R4's "likely at risk" prediction was wrong for a clean, diagnosable
+   reason** (see the dedicated section above) -- not a fluke, and not
+   something to leave unexplained per the coordinator's explicit instruction.

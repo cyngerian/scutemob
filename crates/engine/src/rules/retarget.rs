@@ -236,3 +236,102 @@ pub(crate) fn retarget_candidates(state: &GameState, chooser: PlayerId) -> Vec<T
 
     candidates
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::cards::card_definition::{TargetFilter, TargetRequirement};
+    use crate::state::builder::{GameStateBuilder, ObjectSpec};
+    use crate::state::game_object::ObjectId;
+    use crate::state::types::CardType;
+
+    fn p(n: u64) -> PlayerId {
+        PlayerId(n)
+    }
+
+    /// R6 (plan §5.4): `retarget_candidates`'s universe is the SAME SET
+    /// `rules::queries::legal_targets_per_slot` enumerates -- proved by
+    /// EXECUTION, not by the doc comment above claiming it. Built as an
+    /// in-source test because `retarget_candidates` is `pub(crate)`, invisible
+    /// to `crates/engine/tests/` (the `casting.rs::validate_target_spell_
+    /// with_single_target_self_and_kind_check` precedent PB-DX25b's own T8
+    /// cited).
+    ///
+    /// The PLAYER half is recovered via a single `TargetPlayer` call (every
+    /// alive player satisfies it unconditionally, no other requirement does).
+    /// The OBJECT half is recovered via the UNION of three single-clause
+    /// requirements, each of which accepts EVERY object in exactly one of the
+    /// three zones `retarget_candidates` covers with NO type restriction:
+    /// `TargetPermanent` (Battlefield, unconditional), `TargetSpell` (Stack,
+    /// unconditional), `TargetCardInGraveyard(default filter)` (Graveyard(_),
+    /// unconditional). **Residual, stated rather than glossed**: this proves
+    /// the SET equality this specific fixture produces; it is not a proof
+    /// that no OTHER zone or player-exclusion path could ever diverge.
+    #[test]
+    fn r6_candidate_universe_matches_legal_targets_per_slot() {
+        let p1 = p(1);
+        let p2 = p(2);
+        let p3 = p(3);
+
+        let state = GameStateBuilder::new()
+            .add_player(p1)
+            .add_player(p2)
+            .add_player(p3)
+            .object(ObjectSpec::creature(p2, "R6 Battlefield Creature", 2, 2))
+            .object(
+                ObjectSpec::card(p2, "R6 Graveyard Card")
+                    .in_zone(ZoneId::Graveyard(p2))
+                    .with_types(vec![CardType::Instant]),
+            )
+            .object(
+                ObjectSpec::card(p3, "R6 Stack Spell")
+                    .in_zone(ZoneId::Stack)
+                    .with_types(vec![CardType::Instant]),
+            )
+            .build()
+            .unwrap();
+
+        let chooser = p1;
+        let dummy_source = ObjectId(999_999);
+
+        let mut from_retarget: Vec<Target> = retarget_candidates(&state, chooser);
+        from_retarget.sort_by_key(sort_key);
+        from_retarget.dedup();
+
+        let via_query = crate::rules::queries::legal_targets_per_slot(
+            &state,
+            chooser,
+            dummy_source,
+            &[
+                TargetRequirement::TargetPlayer,
+                TargetRequirement::TargetPermanent,
+                TargetRequirement::TargetSpell,
+                TargetRequirement::TargetCardInGraveyard(TargetFilter::default()),
+            ],
+        );
+        let mut from_query: Vec<Target> = via_query.into_iter().flatten().collect();
+        from_query.sort_by_key(sort_key);
+        from_query.dedup();
+
+        assert!(
+            !from_retarget.is_empty(),
+            "R6 non-vacuity: retarget_candidates must return a non-empty set \
+             on this fixture (a player, a creature, a graveyard card and a \
+             stack spell are all present)"
+        );
+        assert_eq!(
+            from_retarget, from_query,
+            "R6: retarget_candidates's universe must equal the union of \
+             legal_targets_per_slot's TargetPlayer + TargetPermanent + \
+             TargetSpell + TargetCardInGraveyard(default) slots -- \
+             retarget: {from_retarget:?}, query: {from_query:?}"
+        );
+    }
+
+    fn sort_key(t: &Target) -> (u8, u64) {
+        match t {
+            Target::Player(p) => (0, p.0),
+            Target::Object(o) => (1, o.0),
+        }
+    }
+}

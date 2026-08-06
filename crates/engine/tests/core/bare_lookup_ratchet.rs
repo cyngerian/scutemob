@@ -95,7 +95,13 @@ const SWEPT_FILES: &[(&str, usize)] = &[
     // consolidated into `replacement::perform_one_draw` (which already used
     // `expect_*` throughout); `draw_cards_for_player` now just calls it in a
     // loop, netting one fewer bare lookup site in this file.
-    ("src/effects/mod.rs", 110),
+    // PB-DX25c (2026-08-06): 110 → 108. `Effect::ChangeTargets`'s ~130-line
+    // open-coded candidate scan (two `.get(...)` bare-lookup sites feeding the
+    // player/object candidate builds) is deleted; the whole decision now
+    // delegates to `rules::retarget::plan_target_change` in a separate file.
+    // The ratchet only ever moves DOWN -- this lowers the ceiling to keep the
+    // gain rather than leaving slack a future regression could hide in.
+    ("src/effects/mod.rs", 108),
     // PB-OS4b (2026-07-19): 102 → 101. `apply_face_change` replaced several raw
     // `state.objects.get_mut(&id)` transform-flip sites with a single call, and one
     // `debug_assert_object_live!` + bare-lookup pair collapsed into a plain
