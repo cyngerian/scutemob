@@ -6501,6 +6501,16 @@ fn validate_object_satisfies_requirement(
         }
         let stack_obj = state.stack_objects.iter().find(|so| so.id == id);
         // Spell-only: reject activated/loyalty abilities and non-spell stack objects.
+        //
+        // This is deliberately NOT expressed through
+        // `state::stack_registry::card_in_stack_zone` (plan §3.4 / PB-DX25). That
+        // function answers "does this stack object own a card in ZoneId::Stack",
+        // which is a different question from "is this stack object a spell" --
+        // CR 707.10: a copy of a spell IS a spell (so it must pass this check) but
+        // owns no card of its own (so `card_in_stack_zone` returns `None` for it).
+        // Re-expressing `is_spell` as `card_in_stack_zone(..).is_some()` would make
+        // a copy an illegal target for "target spell", which is CR-wrong. Keep the
+        // two-variant `matches!` here.
         let is_spell = stack_obj.is_some_and(|so| {
             matches!(
                 so.kind,
@@ -7123,17 +7133,23 @@ fn find_play_from_top_on_cast_effect(
 }
 pub fn has_split_second_on_stack(state: &GameState) -> bool {
     state.stack_objects.iter().any(|stack_obj| {
-        if let StackObjectKind::Spell { source_object } = &stack_obj.kind {
-            // CR 400.7 / 113.7a: a Spell stack entry can outlive its source object in
-            // state.objects (e.g. a free/plotted cast whose source has left), so
-            // `source_object` may be last-known-information. A missing object cannot have
-            // Split Second, so absence resolves the predicate to false (CR 608.2b).
-            crate::rules::layers::calculate_characteristics(state, *source_object)
-                .map(|chars| chars.keywords.contains(&KeywordAbility::SplitSecond))
-                .unwrap_or(false)
-        } else {
-            false
-        }
+        // This is `card_in_stack_zone`'s exact question -- "which card does this
+        // stack entry own, so I can read its keywords" -- not "is it a spell"
+        // (that distinction is `casting.rs:6503`'s, see its comment). CR 702.140a:
+        // a mutating creature spell owns a card too, so Split Second on a mutate
+        // spell must suppress casting exactly as it does for a plain Spell
+        // (PB-DX25 review Finding 2; no printed card makes this live today --
+        // no Mutate def carries Split Second).
+        //
+        // CR 400.7 / 113.7a: a card-owning stack entry can outlive its source
+        // object in state.objects (e.g. a free/plotted cast whose source has
+        // left), so the card id may be last-known-information. A missing object
+        // cannot have Split Second, so absence resolves the predicate to false
+        // (CR 608.2b).
+        crate::state::stack_registry::card_in_stack_zone(&stack_obj.kind)
+            .and_then(|card| crate::rules::layers::calculate_characteristics(state, card))
+            .map(|chars| chars.keywords.contains(&KeywordAbility::SplitSecond))
+            .unwrap_or(false)
     })
 }
 /// Deduct a mana cost from the mana pool. Caller must verify `can_pay_cost` first.

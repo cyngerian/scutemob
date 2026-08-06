@@ -6709,7 +6709,11 @@ pub fn check_triggers(state: &GameState, events: &[GameEvent]) -> Vec<PendingTri
 /// params:
 /// - `include_abilities`: `false` restricts to spells only (CR 601.2c); `true` also
 ///   fires for abilities (CR 602.2b). Determined by looking up the stack object for
-///   `targeting_stack_id` and checking `StackObjectKind::Spell`.
+///   `targeting_stack_id` and checking `StackObjectKind::Spell` (CR 702.140a: a mutating
+///   creature spell counts too -- see `targeting_is_spell` below; PB-DX25 review Finding 1).
+///   **Latent for the mutate case today**: the mutate target is never entered into
+///   `spell_targets` (`OOS-DX25-1`), so no `PermanentBecomesTarget` event is ever raised
+///   for a mutate cast's own target -- this fix only takes effect once that gap closes.
 /// - `by_opponent`: `true` restricts to targeting sources controlled by an opponent
 ///   of the trigger source's controller (CR 702.21a-style gate).
 /// - `scope`: `None` = the trigger source itself must be the target ("Whenever this
@@ -6729,11 +6733,24 @@ fn collect_permanent_becomes_target_triggers(
     targeting_stack_id: ObjectId,
     targeting_controller: PlayerId,
 ) {
+    // CR 601.2c vs 602.2b, and CR 702.140a: a mutating creature spell IS a
+    // creature spell, so it must count as a spell for this "becomes the
+    // target of a spell" gate -- mirrors casting.rs:6504-6509's identical
+    // `is_spell` question verbatim (review Finding 1, PB-DX25 fix cycle). This
+    // is deliberately NOT routed through `state::stack_registry::
+    // card_in_stack_zone` -- "is it a spell" is a different question from
+    // "does it own a card" (CR 707.10: a copy is a spell with no card), which
+    // is the whole point of that registry's own doc comment (plan §3.4).
     let targeting_is_spell = state
         .stack_objects
         .iter()
         .find(|so| so.id == targeting_stack_id)
-        .map(|so| matches!(so.kind, StackObjectKind::Spell { .. }))
+        .map(|so| {
+            matches!(
+                so.kind,
+                StackObjectKind::Spell { .. } | StackObjectKind::MutatingCreatureSpell { .. }
+            )
+        })
         .unwrap_or(false);
     let target_controller = state.objects.get(&target_id).map(|o| o.controller);
     for src in state
