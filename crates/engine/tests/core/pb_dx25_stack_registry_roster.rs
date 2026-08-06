@@ -219,12 +219,21 @@ fn g1_line_comment_stripping_does_not_hide_the_wildcard_it_is_meant_to_find() {
 
 // ── G2: the counter arm does not re-classify by kind ────────────────────────────
 
-/// G2 (plan §3.5 / §6): the `Effect::CounterSpell` arm in `effects/mod.rs`
-/// (a) calls `card_in_stack_zone` at least twice (lookup + move), (b) calls
-/// `fizzle_move_object_to_zone` exactly once, (c) never spells out
-/// `StackObjectKind::Spell` or `StackObjectKind::MutatingCreatureSpell` as a
-/// literal. Message: the zone-move is driven off `state::stack_registry`, never
-/// off a per-kind match -- do not add an arm, extend the registry.
+/// G2 (plan §3.5 / §6; RE-AIMED by PB-DX25b §8 R6 -- see that batch's own
+/// execution notes for the deliberate-edit record and its own revert proof):
+/// the `Effect::CounterSpell` arm in `effects/mod.rs` (a) calls
+/// `card_in_stack_zone` at least once (the CR 701.6a zone-move classification,
+/// `card_owned = crate::state::stack_registry::card_in_stack_zone(&stack_obj.kind)`),
+/// (a2) calls `stack_index_for_announced_target` at least once (the
+/// PB-DX25b-introduced shared LOOKUP, which itself calls `card_in_stack_zone`
+/// internally -- inside `state/stack_registry.rs`, not here, which is why the
+/// count in THIS arm dropped from >= 2 to >= 1 when PB-DX25b routed the lookup
+/// through the helper), (b) calls `fizzle_move_object_to_zone` exactly once,
+/// (c) never spells out `StackObjectKind::Spell` or
+/// `StackObjectKind::MutatingCreatureSpell` as a literal. Message: the
+/// zone-move AND the announced-target lookup are each driven off
+/// `state::stack_registry`, never off a per-kind match -- do not add an arm,
+/// extend the registry.
 #[test]
 fn g2_counter_spell_arm_does_not_reclassify_by_kind() {
     let stripped = strip_comments(&read_source(EFFECTS_MOD_PATH));
@@ -232,11 +241,23 @@ fn g2_counter_spell_arm_does_not_reclassify_by_kind() {
 
     let card_in_stack_zone_calls = body.matches("card_in_stack_zone").count();
     assert!(
-        card_in_stack_zone_calls >= 2,
+        card_in_stack_zone_calls >= 1,
         "the zone-move is driven off state::stack_registry, never off a per-kind \
-         match -- do not add an arm, extend the registry. Expected >= 2 calls to \
-         card_in_stack_zone (lookup + move) in the Effect::CounterSpell arm, got {}",
+         match -- do not add an arm, extend the registry. Expected >= 1 call to \
+         card_in_stack_zone (the CR 701.6a zone-move classification) in the \
+         Effect::CounterSpell arm, got {}",
         card_in_stack_zone_calls
+    );
+
+    let stack_index_for_announced_target_calls =
+        body.matches("stack_index_for_announced_target").count();
+    assert!(
+        stack_index_for_announced_target_calls >= 1,
+        "PB-DX25b (`OOS-DX25-3`): the announced-target LOOKUP is driven off the \
+         shared state::stack_registry::stack_index_for_announced_target helper, \
+         never off a re-open-coded `so.id == id` scan. Expected >= 1 call in the \
+         Effect::CounterSpell arm, got {}",
+        stack_index_for_announced_target_calls
     );
 
     let fizzle_calls = body.matches("fizzle_move_object_to_zone").count();

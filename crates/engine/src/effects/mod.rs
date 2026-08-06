@@ -2742,12 +2742,17 @@ fn execute_effect_inner(
                     // CR 707.10: a COPY has no card of its own -- `copy.rs` clones the
                     // original's `kind` wholesale, so a copy's `source_object` names the
                     // ORIGINAL's card and must never make the copy findable by it.
-                    let pos = state.stack_objects.iter().position(|so| {
-                        so.id == id
-                            || (!so.is_copy
-                                && crate::state::stack_registry::card_in_stack_zone(&so.kind)
-                                    == Some(id))
-                    });
+                    //
+                    // PB-DX25b (`OOS-DX25-3`): this whole rule -- both the direct-id
+                    // clause AND the card-owning-kind clause -- is now ONE shared
+                    // function, `state::stack_registry::stack_index_for_announced_target`,
+                    // also consumed by `casting.rs`'s `TargetSpell{,OrAbility}WithSingleTarget`
+                    // validators and `Effect::ChangeTargets`/`Effect::CopySpellOnStack`
+                    // below. Do not re-open-code this comparison anywhere else.
+                    let pos = crate::state::stack_registry::stack_index_for_announced_target(
+                        &state.stack_objects,
+                        id,
+                    );
                     if let Some(pos) = pos {
                         // EF-W-MISS-1 / An Offer ruling (2022-04-29): capture the target
                         // spell's controller BEFORE the cant_be_countered check — an
@@ -7492,12 +7497,26 @@ fn execute_effect_inner(
             let n = resolve_amount(state, count, ctx).max(0) as u32;
             for resolved in targets {
                 if let ResolvedTarget::Object(stack_obj_id) = resolved {
-                    let is_on_stack = state.stack_objects.iter().any(|s| s.id == stack_obj_id);
-                    if is_on_stack {
+                    // PB-DX25b (`OOS-DX25-3`, C4): `stack_obj_id` here is an
+                    // ANNOUNCED id (via `resolve_effect_target_list` above), which
+                    // lives in the CARD id space (CR 601.2c), not the stack-entry
+                    // id space `copy::copy_spell_on_stack` expects as its
+                    // `stack_object_id` parameter. Resolve through the shared
+                    // helper once, then pass the REAL stack-entry id
+                    // (`state.stack_objects[pos].id`) into the callee -- `copy.rs`
+                    // itself is untouched; its other three callers already pass
+                    // genuine stack ids (storm/casualty/replicate).
+                    if let Some(pos) =
+                        crate::state::stack_registry::stack_index_for_announced_target(
+                            &state.stack_objects,
+                            stack_obj_id,
+                        )
+                    {
+                        let real_stack_id = state.stack_objects[pos].id;
                         for _ in 0..n {
                             match crate::rules::copy::copy_spell_on_stack(
                                 state,
-                                stack_obj_id,
+                                real_stack_id,
                                 ctx.controller,
                                 false,
                             ) {
@@ -7524,11 +7543,19 @@ fn execute_effect_inner(
             let target_refs = resolve_effect_target_list(state, target, ctx);
             for resolved in target_refs {
                 if let ResolvedTarget::Object(stack_obj_id) = resolved {
-                    // Only applies to stack objects.
-                    let is_on_stack = state.stack_objects.iter().any(|s| s.id == stack_obj_id);
-                    if !is_on_stack {
+                    // PB-DX25b (`OOS-DX25-3`, C3): `stack_obj_id` here is an
+                    // ANNOUNCED id (via `resolve_effect_target_list` above), which
+                    // lives in the CARD id space (CR 601.2c) for a real
+                    // Misdirection/Bolt Bend/Untimely Malfunction cast. Resolve
+                    // through the shared helper ONCE for the whole arm -- both the
+                    // read below and the write further down use the same `pos`,
+                    // so they cannot disagree about which stack entry is meant.
+                    let Some(pos) = crate::state::stack_registry::stack_index_for_announced_target(
+                        &state.stack_objects,
+                        stack_obj_id,
+                    ) else {
                         continue;
-                    }
+                    };
                     // CR 115.7d: if not must_change, deterministic fallback = unchanged.
                     if !must_change {
                         // "Choose new targets" — player may leave any unchanged.
@@ -7539,11 +7566,12 @@ fn execute_effect_inner(
                     // CR 115.7a: must change. Find the current target and pick a different
                     // legal alternative. Simplified approach: player targets → different
                     // active player; object targets → different object in same zone.
-                    let stack_obj = match state.stack_objects.iter().find(|s| s.id == stack_obj_id)
-                    {
-                        Some(s) => s.clone(),
-                        None => continue,
-                    };
+                    let stack_obj = state.stack_objects[pos].clone();
+                    // The event below must name the STACK-ENTRY id
+                    // (`GameEvent::TargetsChanged.stack_object_id` is documented as
+                    // one, and view-model/replay consumers read it as one) -- not
+                    // the announced card id. Capture it now, before any mutation.
+                    let real_stack_id = stack_obj.id;
                     if stack_obj.targets.is_empty() {
                         continue;
                     }
@@ -7627,16 +7655,17 @@ fn execute_effect_inner(
                         }
                     }
                     if changed {
-                        // Update the stack object's targets in-place.
-                        if let Some(so) = state
-                            .stack_objects
-                            .iter_mut()
-                            .find(|s| s.id == stack_obj_id)
-                        {
+                        // Update the stack object's targets in-place, by the SAME
+                        // index resolved above -- not a fresh id lookup, so this
+                        // cannot land on a different entry than the one just read.
+                        if let Some(so) = state.stack_objects.get_mut(pos) {
                             so.targets = new_targets.clone();
                         }
                         events.push(crate::rules::events::GameEvent::TargetsChanged {
-                            stack_object_id: stack_obj_id,
+                            // PB-DX25b: the stack-ENTRY id (`real_stack_id`), not the
+                            // announced card id (`stack_obj_id`) -- see the capture
+                            // above.
+                            stack_object_id: real_stack_id,
                             old_targets,
                             new_targets,
                         });
