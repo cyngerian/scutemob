@@ -88,6 +88,7 @@ fn push_spell_stack_object(
         controller,
         kind: StackObjectKind::Spell { source_object },
         targets: vec![],
+        target_requirements: vec![],
         cant_be_countered: false,
         is_copy: false,
         cast_with_flashback,

@@ -676,6 +676,7 @@ fn test_forecast_blocked_by_split_second() {
             source_object: split_second_oid,
         },
         targets: vec![],
+        target_requirements: vec![],
         cant_be_countered: false,
         is_copy: false,
         cast_with_flashback: false,

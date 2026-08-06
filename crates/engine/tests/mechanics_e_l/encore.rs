@@ -556,6 +556,7 @@ fn test_encore_sorcery_speed_non_empty_stack() {
             embedded_effect: None,
         },
         targets: Vec::new(),
+        target_requirements: vec![],
         cant_be_countered: false,
         is_copy: false,
         cast_with_flashback: false,

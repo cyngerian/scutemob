@@ -166,6 +166,28 @@ pub struct StackObject {
     /// Targets announced at cast time (CR 601.2c). Empty for non-targeting spells.
     /// Validated again at resolution for the fizzle rule (CR 608.2b).
     pub targets: Vec<SpellTarget>,
+    /// CR 115.7a / CR 115.7e: the `TargetRequirement` list this stack object's
+    /// targets were validated against at announcement time (CR 601.2c / 602.2b).
+    ///
+    /// Recorded, never re-derived. `casting::handle_cast_spell` chooses between
+    /// the flat `Spell.targets` list, the per-mode slice
+    /// (`ModeSelection.mode_targets`), the aftermath half's list, the
+    /// Aura-synthesised list (CR 303.4a) and the empty list (overload,
+    /// CR 702.96b) BEFORE it validates; the result of that choice is what lands
+    /// here, so a later reader cannot disagree with the validation that actually
+    /// happened. Re-deriving it from the card definition at read time is wrong
+    /// for at least the aftermath case (a spell cast as its aftermath half sits
+    /// in `ZoneId::Stack`, so the `casting_with_aftermath` test that selects the
+    /// aftermath list cannot be reproduced from the stack-resident object).
+    ///
+    /// Empty means "this stack object announced no targets" OR "no list was
+    /// recorded at this push site". Readers must FAIL CLOSED on a non-empty
+    /// `targets` with an empty list — see `rules::retarget`.
+    ///
+    /// Propagated to copies (CR 707.10: a copy has the same characteristics and
+    /// the same targets, so it has the same targeting requirements).
+    #[serde(default)]
+    pub target_requirements: Vec<crate::cards::card_definition::TargetRequirement>,
     /// CR 101.6: If true, this spell can't be countered by spells or abilities.
     /// Set from the card definition at cast time.
     #[serde(default)]
@@ -524,6 +546,11 @@ impl StackObject {
             controller,
             kind,
             targets: vec![],
+            // `trigger_default` never populates `targets`, so leaving this empty
+            // is consistent (§3.4 fail-closed only matters when `targets` is
+            // non-empty). A caller that sets `.targets` on a `trigger_default`
+            // result and needs a governing requirement list must set this too.
+            target_requirements: vec![],
             cant_be_countered: false,
             is_copy: false,
             cast_with_flashback: false,

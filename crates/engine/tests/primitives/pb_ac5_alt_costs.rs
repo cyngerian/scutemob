@@ -490,6 +490,7 @@ fn test_was_warped_field_participates_in_hash() {
             source_object: ObjectId(9001),
         },
         targets: vec![],
+        target_requirements: vec![],
         cant_be_countered: false,
         is_copy: false,
         cast_with_flashback: false,

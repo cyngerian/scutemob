@@ -3127,6 +3127,8 @@ pub fn ring_ability_stack_object(
             controller,
         },
         targets: vec![],
+        // A ring-bearer trigger never announces targets (§3.1).
+        target_requirements: vec![],
         cant_be_countered: false,
         is_copy: false,
         cast_with_flashback: false,
@@ -3191,6 +3193,8 @@ fn room_ability_stack_object(
             room,
         },
         targets: vec![],
+        // A room ability never announces targets (§3.1).
+        target_requirements: vec![],
         cant_be_countered: false,
         is_copy: false,
         cast_with_flashback: false,
@@ -3701,6 +3705,9 @@ fn handle_activate_loyalty_ability(
             effect: Box::new(effect_clone),
         },
         targets: spell_targets,
+        // PB-DX25c §3.1: the same list `ability_targets` that validated the
+        // declared targets above (line ~3638).
+        target_requirements: ability_targets.clone(),
         cant_be_countered: false,
         is_copy: false,
         cast_with_flashback: false,
@@ -3872,6 +3879,8 @@ fn handle_level_up_class(
             target_level,
         },
         targets: vec![],
+        // A Class level-up ability never announces targets (§3.1).
+        target_requirements: vec![],
         cant_be_countered: false,
         is_copy: false,
         cast_with_flashback: false,

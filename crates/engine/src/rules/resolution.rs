@@ -8510,6 +8510,7 @@ mod dx2_pending_effect_choice_reap_tests {
                 ))),
             },
             targets: vec![],
+            target_requirements: vec![], // no targets announced (§3.1)
             cant_be_countered: false,
             is_copy: false,
             cast_with_flashback: false,

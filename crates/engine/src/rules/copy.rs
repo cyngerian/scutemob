@@ -161,6 +161,13 @@ pub fn copy_spell_on_stack(
         controller,
         kind: original.kind.clone(),
         targets: original.targets.clone(),
+        // CR 707.10: a copy has the same characteristics AND the same targets as the
+        // original, so it has the same targeting requirements — a copy must be
+        // retargetable (`rules::retarget`) on the identical legality basis as the
+        // original, not on none at all. `_choose_new_targets` stays unwired
+        // (`OOS-DX25c-2`): CR 707.10a/115.7d permit the leave-unchanged fallback, so
+        // that is a behaviour change this batch was not dispatched to make.
+        target_requirements: original.target_requirements.clone(),
         cant_be_countered: original.cant_be_countered,
         is_copy: true,
         // CR 707.10: Copies are never cast, so cast_with_flashback is always false.
@@ -395,7 +402,10 @@ pub fn resolve_cascade(
                 kind: StackObjectKind::Spell {
                     source_object: stack_source_id,
                 },
+                // `targets: vec![]` regardless of the cascaded card's own targeting —
+                // a pre-existing limitation (`OOS-ENG2-3`), not this batch's to fix.
                 targets: vec![],
+                target_requirements: vec![],
                 cant_be_countered: false,
                 is_copy: false,
                 cast_with_flashback: false,
@@ -633,7 +643,10 @@ pub fn resolve_discover(
                 kind: StackObjectKind::Spell {
                     source_object: stack_source_id,
                 },
+                // `targets: vec![]` regardless of the discovered card's own targeting —
+                // a pre-existing limitation (`OOS-ENG2-3`), not this batch's to fix.
                 targets: vec![],
+                target_requirements: vec![],
                 cant_be_countered: false,
                 is_copy: false,
                 cast_with_flashback: false,

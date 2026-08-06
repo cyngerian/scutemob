@@ -257,6 +257,7 @@ fn test_play_land_stack_nonempty_fails() {
             source_object: fake_id,
         },
         targets: vec![],
+        target_requirements: vec![], // fake stack object; no targets announced (§3.1)
         cant_be_countered: false,
         is_copy: false,
         cast_with_flashback: false,

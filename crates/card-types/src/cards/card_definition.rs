@@ -2458,6 +2458,15 @@ pub enum Effect {
     /// controller (if legal). If the controller is not a legal target, picks the
     /// first legal alternative (smallest PlayerId/ObjectId). If no legal alternative
     /// exists, target unchanged.
+    ///
+    /// PB-DX25c: legality is delegated to the SAME validator a real cast is checked
+    /// against (`casting::validate_targets_inner`, via `rules::retarget::plan_target_
+    /// change`) — "legal" here means the target satisfies the victim spell's own
+    /// `TargetRequirement`, not merely that it exists in the right zone. CR 115.7a is
+    /// all-or-nothing ACROSS every target on the spell: if any one target has no
+    /// legal replacement, NONE of the targets are changed (not just that one). The
+    /// controller-first preference above is a preference among legal candidates —
+    /// it never widens what "legal" means.
     ChangeTargets {
         /// The spell or ability whose targets to change.
         target: EffectTarget,

@@ -861,6 +861,7 @@ fn test_backup_another_creature_gets_counters_and_abilities() {
             },
         },
         targets: vec![],
+        target_requirements: vec![],
         cant_be_countered: false,
         is_copy: false,
         cast_with_flashback: false,

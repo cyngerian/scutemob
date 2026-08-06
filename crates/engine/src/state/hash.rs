@@ -4339,6 +4339,11 @@ impl HashInto for StackObject {
         self.controller.hash_into(hasher);
         self.kind.hash_into(hasher);
         self.targets.hash_into(hasher);
+        // PB-DX25c (§3.1): CR 115.7a — the requirement list this stack object's
+        // targets were validated against at announcement time. It changes what a
+        // legal retarget is, so two states differing only in it are genuinely
+        // different positions.
+        self.target_requirements.hash_into(hasher);
         self.cant_be_countered.hash_into(hasher);
         // M9.4: is_copy (CR 707.10) — copies don't move cards on resolution
         self.is_copy.hash_into(hasher);

@@ -887,6 +887,7 @@ fn blank_stack_object() -> StackObject {
             source_object: ObjectId(0),
         },
         targets: vec![],
+        target_requirements: vec![],
         cant_be_countered: false,
         is_copy: false,
         cast_with_flashback: false,

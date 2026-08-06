@@ -365,6 +365,7 @@ fn test_loyalty_needs_empty_stack_cr606_3() {
                 embedded_effect: None,
             },
             targets: vec![],
+            target_requirements: vec![],
             cant_be_countered: false,
             is_copy: false,
             cast_with_flashback: false,

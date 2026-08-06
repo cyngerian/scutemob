@@ -91,6 +91,7 @@ fn make_stack_object(
         controller,
         kind,
         targets,
+        target_requirements: vec![],
         cant_be_countered: false,
         is_copy: false,
         cast_with_flashback: false,
