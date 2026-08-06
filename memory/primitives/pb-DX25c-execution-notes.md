@@ -419,10 +419,16 @@ core bare_lookup_ratchet` -- **3/3 green** after the edit.
 (`Compiling mtg-engine` observed in every captured log), restored and
 `git diff` confirmed clean after every row before moving to the next.
 
-**Three rows are UNDISCRIMINATED, confirmed by a full `cargo test --workspace
+**Three rows remain UNDISCRIMINATED as of the current state of this file
+(post-fix-cycle-1), confirmed by a full `cargo test --workspace
 --no-fail-fast` on the mutated tree (not just the named tests) -- V3
-(predicted by the plan), V7 and V9 (NOT predicted by the plan; both are
-genuine corrections, explained below).**
+(predicted by the plan), V7 (NOT predicted by the plan) and V13 (predicted
+by the plan). Corrected here (fix cycle 3, Issue 3(b)) to agree with the
+authoritative "Summary (post-fix-cycle, review Finding T3)" section below --
+V9 is no longer in this list; it was undiscriminated only at IMPLEMENT
+TIME (see "Summary (implement-time)" below for that 4-row count, V3/V7/V9/
+V13) and was closed by fix cycle 1's `t3b_chooser_first_preference_beats_
+seat_order`.**
 
 | # | Mutation | Predicted discriminator(s) | Actual result |
 |---|---|---|---|
@@ -479,6 +485,47 @@ plan's own explicit permission, V7 because `validate_mapped_targets`'s
 downstream check is genuine defense-in-depth that makes the candidate-BUILDING
 filter's own removal unobservable through any test that only watches the
 FINAL outcome.
+
+## Revert matrix addendum (fix cycle 3, Issue 1) -- V20/V21, the
+HEAD-heuristic mutation
+
+Fix cycle 2's Issue 2 and Issue 3 revert proofs (BB1/BB2, S1B) both used a
+two-part mutation that discards ALL legality checking via the unified
+`retarget_candidates` walk (players first, then objects) -- a real proof
+that `plan_target_change`'s internal legality gates are load-bearing, but
+NOT a reproduction of what pre-batch HEAD's object branch actually did
+(`retarget.rs`'s own module doc: "the smallest `ObjectId` in the same zone
+that isn't the current target", no legality check, no player candidates at
+all). BB1's and S1B's fixtures also originally declared their decoy land
+AFTER the legal creature, giving the land the HIGHER `ObjectId` -- so even a
+correct HEAD-heuristic mutation would have picked the (accidentally
+correct) legal creature there, and neither test would have failed at actual
+pre-batch HEAD. Both defects are fixed together: the fixtures now declare
+the land FIRST (lower id), and a new mutation reproduces HEAD's real
+heuristic directly.
+
+| # | Mutation | Discriminator(s) | Actual result |
+|---|---|---|---|
+| V20 | `plan_target_change`'s per-index closure replaced with "smallest `ObjectId` among `state.objects()` in the same `zone_at_cast` as the current target, excluding the current target, no legality check", AND the final CR 115.7e re-validation's result discarded (both changes needed together -- see below) | BB1 | **Confirmed.** Rebuild observed (`Compiling mtg-engine`). Failure: `assertion `left != right` failed: CR 601.2c/115.7a: TargetCreature is a TYPE check, not a zone check -- the redirect must never land on the land even though it is a legal battlefield object in retarget_candidates's universe` / `left: Object(ObjectId(2))` / `right: Object(ObjectId(2))` -- `ObjectId(2)` is `BB1 Land`, now the lower id after the fixture reorder. BB2 (same mutation, same run) stayed GREEN, confirming it as the conformance pin Issue 2 (fix cycle 3) now documents it as. |
+| V21 | Identical mutation to V20 | S1B | **Confirmed.** Rebuild observed (`Compiling mtg-engine`, `Compiling mtg-simulator`). Failure: `assertion `left != right` failed: the redirect must never select the land -- a legal battlefield object in retarget_candidates's universe that nonetheless fails TargetCreature's type check` / `left: Object(ObjectId(2))` / `right: Object(ObjectId(2))` -- `ObjectId(2)` is `S1b Land`. **S1 (the player-branch sibling, same run) also reddened under this mutation** -- a difference from fix cycle 2's Issue 3 revert (where S1 was the negative control): V20/V21's filter requires `Some(obj.zone) == zone_at_cast`, and a player target's `zone_at_cast` is always `None` while every `obj.zone` is a real zone, so the mutated per-index search finds no candidate for S1's player-branch victim at all and the whole plan aborts (no redirect fires, "Misdirection must redirect" panics). This is expected and not a discrepancy: V20/V21 only reproduces the OBJECT-branch half of HEAD's heuristic (the brief's own subject), and was never claimed to reproduce the PLAYER branch's separate HEAD heuristic ("the effect's controller if alive, else the smallest live `PlayerId`", per the module doc's own history note). |
+
+Both rows restored immediately after capture; `git diff --stat --
+crates/engine/src/rules/retarget.rs` confirmed byte-identical to the
+pre-mutation file (`md5sum` match) before moving on.
+
+**Why the two-part form (per-index heuristic AND discarding the final
+re-validation) was needed, not just the per-index change alone**: tried the
+per-index-only form first, exactly as fix cycle 2's Issue 2 section already
+recorded for the ORIGINAL two-part mutation's own draft history -- with the
+final `validate_targets_inner` re-validation still active, it correctly
+rejects the wrongly-picked land (a real creature requirement fails on a
+land) and the whole plan silently returns `None`, so BB1's assertion at the
+"Destroy must redirect" `unwrap_or_else` fires instead of the intended
+"must never select the land" assertion -- still a failure, but not one that
+NAMES the land, which is the specific proof the brief asked for. Discarding
+the final re-validation's result (matching HEAD's own total absence of a
+CR 115.7e-shaped step) is what lets the wrong pick reach the observable
+output.
 
 ## Plan deviations / findings worth carrying forward
 
@@ -861,6 +908,23 @@ requirement, exactly the class of defect the two-part mutation
 reintroduces. Restored via `/tmp/retarget.rs.bak`; `git diff --stat --
 crates/engine/src/rules/retarget.rs` confirmed clean.
 
+**Correction (fix cycle 3, Issue 1): this two-part mutation discards ALL
+legality checking and walks the unified `retarget_candidates` (players
+first, then objects), which is NOT pre-batch HEAD's own object-branch
+heuristic ("the smallest ObjectId in the same zone that isn't the current
+target", no legality check, no player candidates at all).** Worse, at the
+time this row was written BB1's fixture declared the land AFTER the legal
+creature, so the land held the HIGHER `ObjectId` -- HEAD's real heuristic
+would already have returned the legal creature there by accident, and this
+revert proof's "reproduces the pre-fix bug SHAPE" claim, while true of the
+mutation exercised, did not establish that BB1 discriminates the actual
+shipped defect. BB1's fixture is now reordered (land declared first, lower
+id) and a SEPARATE mutation reproducing HEAD's real heuristic verbatim is
+recorded in fix cycle 3's own section below, where it reddens BB1 naming
+the land directly. What THIS row's revert proof actually establishes is
+that `plan_target_change`'s internal legality gates are load-bearing, not
+that it reproduces the shipped defect.
+
 **A single-part mutation (legality check removed, final re-validation left
 intact) was tried FIRST and only discriminated BB1, not BB2** -- worth
 recording as a real finding, not just a discarded draft: with only the
@@ -887,7 +951,20 @@ answer (never a literal), and the final state is checked with
 
 **Revert proof, EXECUTED, with S1 kept as the negative control in the SAME
 run**: the identical two-part `retarget.rs` mutation from Issue 2, run
-against BOTH `s1_...` and `s1b_...` in one `cargo test` invocation:
+against BOTH `s1_...` and `s1b_...` in one `cargo test` invocation.
+**Correction (fix cycle 3, Issue 1): this mutation discards ALL legality
+checking (both the per-index check and the final CR 115.7e re-validation),
+which is NOT what pre-batch HEAD actually did — HEAD's own object branch
+was the narrower "smallest ObjectId in the same zone that isn't the current
+target", still with no legality check, but never touching the PLAYER
+candidates this mutation's `candidates.iter().find(|c| **c != current)`
+walk considers first. What this revert proof actually establishes is that
+`plan_target_change`'s internal legality gates (both of them) are
+load-bearing — not, as originally implied, that it reproduces the shipped
+pre-batch defect. See fix cycle 3's own section below for a mutation that
+DOES reproduce HEAD's actual heuristic, and for why S1B's ORIGINAL fixture
+(land declared after the legal creature) could not have discriminated that
+real defect regardless of which mutation is used.**
 
 ```
 thread 's1b_bot_driven_misdirection_object_branch_redirects_legally' panicked at crates/simulator/tests/pb_dx25c_bot_retarget_is_legal.rs:525:5:
@@ -991,3 +1068,120 @@ folded into an existing sentence, per the review's directive.
   `crates/simulator/tests/pb_dx25c_bot_retarget_is_legal.rs`,
   `docs/audits/decision-point-audit.md`, `CLAUDE.md`) plus this file. No
   other file changed.
+
+## Fix cycle 3 (`scutemob-205`, 2026-08-06) -- a second acceptance-criteria
+review found 3 issues; all 3 taken. Zero production-code changes (per the
+coordinator's hard constraint) -- every change is a test-fixture reorder, a
+doc comment, or a doc-file correction.
+
+### Issue 1 -- fixture ordering + a genuine HEAD-heuristic revert proof
+
+`bb1_bolt_bend_object_branch_lands_only_on_a_legal_creature_never_a_land`
+(`crates/engine/tests/primitives/pb_dx25c_retarget_legality.rs`) and
+`s1b_bot_driven_misdirection_object_branch_redirects_legally`
+(`crates/simulator/tests/pb_dx25c_bot_retarget_is_legal.rs`) both declared
+their decoy land AFTER the legal creature, giving the land the HIGHER
+`ObjectId` -- pre-batch HEAD's own object-branch heuristic ("smallest
+`ObjectId` in the same zone that isn't the current target", per
+`retarget.rs`'s own module doc) would already have returned the legal
+creature there BY ACCIDENT, so neither fixture, as originally declared,
+could have failed at actual pre-batch HEAD. Fixed by moving the land's
+`.object(...)` declaration ABOVE the legal creature's in both files, so the
+land now holds the lower id. Re-ran both tests unmodified against HEAD
+(post-fix, per the fixture-ordering change alone) -- both still pass, as
+expected.
+
+A NEW revert proof (V20/V21, added to the revert matrix addendum above)
+mutates `plan_target_change` to reproduce HEAD's real object-branch
+heuristic directly (smallest `ObjectId` in the same `zone_at_cast`, no
+legality check), rather than reusing Issue 2/3's original two-part mutation
+(which discards ALL legality via the unified `retarget_candidates` walk --
+a real proof the internal guards are load-bearing, but not a reproduction
+of the shipped defect, now stated as such in place at both original revert
+proofs -- see the corrections added to fix cycle 2's Issue 2 and Issue 3
+sections above). Both BB1 and S1B redden under V20/V21, naming the land
+directly (`ObjectId(2)` in both fixtures' post-reorder numbering) -- full
+captured output in the revert matrix addendum. Both mutations restored
+immediately after capture; `git diff --stat -- crates/engine/src/rules/
+retarget.rs` confirmed clean (byte-identical `md5sum` against a
+pre-mutation backup) before moving to the next.
+
+### Issue 2 -- `bb2` documented as a conformance pin, not contrived into a discriminator
+
+`bb2_bolt_bend_object_branch_no_legal_target_leaves_targets_unchanged`'s
+board has exactly one battlefield object (the current target) -- pre-batch
+HEAD's object-branch heuristic also finds no candidate there (there is
+nothing else in the same zone), so this test is green at both pre-batch
+HEAD and at HEAD-after-the-fix by construction, not by coincidence. Per the
+coordinator's explicit instruction, no fixture change was made to force a
+discrimination that does not exist -- a doc comment was added instead,
+stating plainly that this is a CR 115.7a fallback conformance pin and
+naming `bb1` as the sibling that actually discriminates the fix. Confirmed
+unchanged in the V20/V21 revert run above: bb2 stayed GREEN under the
+HEAD-heuristic mutation in the same `cargo test` invocation as bb1's
+failure.
+
+### Issue 3 -- three doc-staleness corrections
+
+(a) `memory/primitives/seed-rerank-2026-08-02.md`'s row 7c: "OOS-DX25c-5
+LIVE on the same 2 defs" corrected to "OOS-DX25c-5 CLOSED, fix cycle 2"
+(the guard closing it shipped in fix cycle 2, before this row was last
+touched); the test-count parenthetical corrected from the stale
+fix-cycle-1 pin (4,487) to the re-measured fix-cycle-3 final count
+(4,469 → **4,491**, +22 across the implement stage and both fix cycles --
+re-measured by executing `cargo test --workspace --no-fail-fast`, not
+copied from this brief).
+
+(b) `memory/primitives/pb-DX25c-execution-notes.md`'s own revert-matrix
+lead-in paragraph (originally at the line the coordinator cited) read
+"Three rows are UNDISCRIMINATED ... V3, V7 and V9" -- stale twice over: it
+never listed V13 (the implement-time count was actually FOUR --
+V3/V7/V9/V13, correctly given in the "Summary (implement-time)" section
+just below it), and it still named V9 after fix cycle 1 closed it. Reworded
+to state its own post-fix-cycle-1 vintage explicitly and to agree with the
+authoritative "Summary (post-fix-cycle, review Finding T3)" section
+(V3, V7, V13) -- both re-checked against this fix cycle's own new
+V20/V21 rows, which discriminate a DIFFERENT defect (fixture-declaration-
+order-dependent HEAD-heuristic reproduction) untouched by any of V3/V7/V13's
+own mutations, so the 16/19-discriminate-3-undiscriminated count is
+UNCHANGED by fix cycle 3 -- verified by inspection, the same method fix
+cycle 2's Issue 4 used for its own new tests.
+
+(c) `docs/audits/decision-point-audit.md:1373`: "an validator-KIND
+mismatch" corrected to "a validator-KIND mismatch".
+
+## Fix-cycle-3 final gates -- all EXECUTED
+
+- `cargo check --workspace --all-targets` -- clean, exit 0.
+- `cargo clippy --workspace --all-targets -- -D warnings` -- clean, exit 0,
+  zero warnings.
+- `cargo fmt --check` -- clean, exit 0 (no reformatting needed).
+- `tools/check-defs-fmt.sh` -- clean, 1,803 defs.
+- `cargo test --workspace --no-fail-fast`, captured to
+  `.../scratchpad/fixcycle3-full-test-run.txt` (not committed, per the
+  established convention -- only this summary is): **4,491 passed / 0
+  failed / 5 ignored**, 46 result-producing targets, 0 `test result: FAILED`
+  blocks -- UNMOVED from the fix-cycle-2 pin, exactly as expected: this
+  cycle added zero new `#[test]` functions (fixture reorders + doc comments
+  + doc-file corrections only).
+- `cargo test -p mtg-engine --test core hash_schema` -- 21/21 green.
+  `cargo test -p mtg-engine --test core protocol_schema` -- 17/17 green.
+  **HASH 74 / PROTOCOL 35 both gate-EXECUTED and unmoved.**
+- Coverage regeneration (`python3 tools/authoring-report.py`): `1,803 files
+  | clean 1,133 (62.8%) | todo 519 | empty 151`, `135 missing` --
+  byte-identical to the pre-fix-cycle-3 count. Self-dating churn across
+  `docs/authoring-status.md`, `docs/authoring-status-missing.txt`,
+  `docs/authoring-status-prev.json` reverted with `git checkout --` before
+  commit; confirmed by a post-revert `git status --short docs/` showing
+  only the deliberate `decision-point-audit.md` typo fix, not the
+  authoring-status files.
+- Every revert proof in this fix cycle rebuilt before trusting a result
+  (`Compiling mtg-engine` / `Compiling mtg-simulator` observed in every
+  captured log) and was restored with a byte-identical `md5sum` match
+  before moving to the next.
+- Scope: this fix cycle's tracked-file footprint is
+  `crates/engine/tests/primitives/pb_dx25c_retarget_legality.rs`,
+  `crates/simulator/tests/pb_dx25c_bot_retarget_is_legal.rs`,
+  `memory/primitives/seed-rerank-2026-08-02.md`,
+  `docs/audits/decision-point-audit.md`, plus this file -- zero production
+  code, zero card defs.

@@ -1512,6 +1512,17 @@ fn t8_self_targeting_is_still_refused() {
 /// creature" victim: a land is present specifically to prove the redirect
 /// can never land on it (CR 601.2c: `TargetCreature` is a type check, not a
 /// zone check, and only a legal creature satisfies it).
+///
+/// **Correction (`/review` fix cycle 3, Issue 1)**: the land is declared
+/// BEFORE the legal creature, giving it the lower `ObjectId`. Pre-batch
+/// HEAD picked "the smallest `ObjectId` in the same zone that isn't the
+/// current target" with no legality check at all -- with the land declared
+/// AFTER the legal creature (this fixture's original order), the land was
+/// never the smallest id, so HEAD's own blind heuristic already returned
+/// the legal creature by accident and this test would have PASSED
+/// unmodified at pre-batch HEAD. See
+/// `memory/primitives/pb-DX25c-execution-notes.md`'s revert matrix
+/// addendum for the HEAD-heuristic mutation this correction adds.
 #[test]
 fn bb1_bolt_bend_object_branch_lands_only_on_a_legal_creature_never_a_land() {
     let p1 = p(1);
@@ -1544,8 +1555,16 @@ fn bb1_bolt_bend_object_branch_lands_only_on_a_legal_creature_never_a_land() {
             },
         )
         .object(ObjectSpec::creature(p3, "BB1 Original Creature", 2, 2))
-        .object(ObjectSpec::creature(p1, "BB1 Legal Creature", 2, 2))
+        // The land is declared BEFORE the legal creature so it receives the
+        // LOWER ObjectId (`/review` fix cycle 3, Issue 1) -- pre-batch HEAD's
+        // object branch picked "the smallest ObjectId in the same zone that
+        // isn't the current target" with no legality check at all
+        // (`retarget.rs`'s own module doc), so a land declared AFTER the
+        // legal creature would already have satisfied HEAD's blind
+        // heuristic by accident, leaving this fixture unable to discriminate
+        // the shipped defect it exists to catch.
         .object(ObjectSpec::land(p1, "BB1 Land"))
+        .object(ObjectSpec::creature(p1, "BB1 Legal Creature", 2, 2))
         .object(
             ObjectSpec::card(p1, "Bolt Bend")
                 .in_zone(ZoneId::Hand(p1))
@@ -1643,6 +1662,18 @@ fn bb1_bolt_bend_object_branch_lands_only_on_a_legal_creature_never_a_land() {
 /// since `TargetCreature` would reject one anyway; this isolates the
 /// "there is genuinely nothing else" case from BB1's "there is something,
 /// but it's the wrong type" case.
+///
+/// **This is a CR 115.7a fallback CONFORMANCE PIN, not a discriminator of
+/// the PB-DX25c fix** (`/review` fix cycle 3, Issue 2, stated rather than
+/// contrived): with only the current target present on the battlefield,
+/// `retarget_candidates`' object universe contains nothing else to pick, so
+/// pre-batch HEAD's own blind "smallest ObjectId in the same zone that
+/// isn't the current target" heuristic finds no candidate either and the
+/// redirect is a no-op there too -- this test is green at both pre-batch
+/// HEAD and at HEAD-after-the-fix. `bb1_bolt_bend_object_branch_lands_
+/// only_on_a_legal_creature_never_a_land` is the sibling that actually
+/// discriminates the shipped defect (a legal-battlefield-object-but-wrong-
+/// type decoy IS present there).
 #[test]
 fn bb2_bolt_bend_object_branch_no_legal_target_leaves_targets_unchanged() {
     let p1 = p(1);

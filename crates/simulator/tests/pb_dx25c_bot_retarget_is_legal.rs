@@ -376,6 +376,19 @@ fn s1_bot_driven_misdirection_cast_redirects_legally() {
 /// wrongly prefer (CR 601.2c: `TargetCreature` is a type check, so a land
 /// must never be selected even though it is a legal battlefield object in
 /// `retarget_candidates`'s universe).
+///
+/// **Correction (`/review` fix cycle 3, Issue 1)**: the land is declared
+/// BEFORE the legal creature, giving it the lower `ObjectId`. Pre-batch HEAD
+/// picked "the smallest `ObjectId` in the same zone that isn't the current
+/// target" with no legality check at all -- with the land declared AFTER
+/// the legal creature (this fixture's original order), the land was never
+/// the smallest id, so HEAD's own blind heuristic already returned the
+/// legal creature by accident and this test would have PASSED unmodified at
+/// pre-batch HEAD. The fixture's original "red-proven by revert" claim was
+/// therefore true of the two-part `retarget.rs` mutation (Issue 2's
+/// revert, which discards ALL legality) but false of the actual shipped
+/// defect -- see `memory/primitives/pb-DX25c-execution-notes.md`'s revert
+/// matrix addendum for the HEAD-heuristic mutation this correction adds.
 #[test]
 fn s1b_bot_driven_misdirection_object_branch_redirects_legally() {
     let p1 = p(1);
@@ -409,8 +422,16 @@ fn s1b_bot_driven_misdirection_object_branch_redirects_legally() {
             },
         )
         .object(ObjectSpec::creature(p3, "S1b Original Creature", 2, 2))
-        .object(ObjectSpec::creature(p1, "S1b Legal Creature", 2, 2))
+        // The land is declared BEFORE the legal creature so it receives the
+        // LOWER ObjectId (`/review` fix cycle 3, Issue 1) -- pre-batch HEAD's
+        // object branch picked "the smallest ObjectId in the same zone that
+        // isn't the current target" with no legality check at all
+        // (`retarget.rs`'s own module doc), so a land declared AFTER the
+        // legal creature would already have satisfied HEAD's blind
+        // heuristic by accident, leaving this fixture unable to discriminate
+        // the shipped defect it exists to catch.
         .object(ObjectSpec::land(p1, "S1b Land"))
+        .object(ObjectSpec::creature(p1, "S1b Legal Creature", 2, 2))
         .object(
             ObjectSpec::card(p1, "Misdirection")
                 .in_zone(ZoneId::Hand(p1))
