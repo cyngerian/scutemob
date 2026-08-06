@@ -6458,6 +6458,27 @@ fn validate_object_satisfies_requirement(
                 id
             )));
         }
+        // Self-targeting prevention (CR 601.2c / Misdirection 2004-10-04: "You can't
+        // make a spell which is on the stack target itself"), mirroring the two
+        // single-target arms below exactly. **Closes `OOS-DX25c-5`** (PB-DX25c
+        // `/review` Finding E2, fix cycle 2): this arm previously took no `self_id`
+        // check at all, so `rules::retarget::plan_target_change` — which passes the
+        // VICTIM's own stack-resident card id as `victim_card`/`self_id` — could
+        // legally redirect a `TargetSpell`/`TargetSpellWithFilter` victim onto its
+        // own card. At cast time this guard is provably a no-op: `self_id` there is
+        // `card`, the PRE-zone-move id (`handle_cast_spell`'s validation call runs
+        // before `move_object_to_zone` mints the post-move stack id — CR 400.7, a
+        // zone change is a new object), so it can never equal a candidate `id`,
+        // which this arm already requires to be `ZoneId::Stack`. The guard is
+        // therefore live ONLY on the retarget path this batch created.
+        if let Some(self_oid) = self_id {
+            if id == self_oid {
+                return Err(GameStateError::InvalidTarget(format!(
+                    "spell {:?} cannot target itself (self-targeting prevention)",
+                    id
+                )));
+            }
+        }
         // For TargetSpellWithFilter, also check the filter against the spell's characteristics.
         if let TargetRequirement::TargetSpellWithFilter(filter) = req {
             // SR-14: id was fetched present via `state.objects.get(&id).ok_or(...)?` at the top

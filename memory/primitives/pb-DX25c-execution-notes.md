@@ -4,7 +4,52 @@ Stage 1 (production code + mechanical test-fixture fixes) committed at `cf89a213
 This file covers stage 2: fixture repairs, new probes, roster/gate file, HASH bump,
 `bare_lookup_ratchet` ceiling, revert matrix, card-def comment updates.
 
-## Baseline (re-measured on this branch BEFORE stage-2 edits, per plan §9)
+## TRUE pre-edit baseline (AC 6305, corrected by `/review` fix cycle 2, Issue 6)
+
+The section immediately below ("Baseline (re-measured on this branch BEFORE
+stage-2 edits...)") is **post-stage-1**, not pre-any-edit -- it was measured
+after `cf89a213` (production code + `StackObject.target_requirements` +
+`rules::retarget` already landed), so its 8 pre-repair failures are an
+artefact of the field existing with old fixtures not yet populating it, not a
+measurement of the UNTOUCHED tree.
+
+**The TRUE pre-any-edit baseline exists and was captured before this task's
+plan was even written**: the coordinator ran `cargo test --workspace
+--no-fail-fast` as the very first action on this branch, tree clean at
+`a071e4ba` (the PB-DX25c insert commit -- immediately before the plan commit
+`6a25a1db` and stage 1 `cf89a213`), captured to
+`/tmp/claude-1000/-home-skydude-projects-scutemob--worktrees-scutemob-205/
+78031acb-4049-42e9-91e6-32d9167e0a00/scratchpad/baseline.txt` (still on disk,
+re-read and re-summed for this correction rather than trusted from memory):
+
+```
+$ grep "^test result:" baseline.txt | grep -oP '\d+(?= passed)' | awk '{s+=$1} END{print s}'
+4469
+$ grep "^test result:" baseline.txt | grep -oP '\d+(?= failed)' | awk '{s+=$1} END{print s}'
+0
+$ grep "^test result:" baseline.txt | grep -oP '\d+(?= ignored)' | awk '{s+=$1} END{print s}'
+5
+$ grep -c "^test result:" baseline.txt
+45
+$ grep -c "test result: FAILED" baseline.txt
+0
+```
+
+**4,469 passed / 0 failed / 5 ignored, 45 result-producing targets, 0
+`test result: FAILED` blocks** -- exactly the PB-DX25b close-out pin (the
+same tree, one commit later), and exactly the number the plan's own §0
+"Baseline to re-measure BEFORE any edit" line cited (4,469/0/5). This is the
+figure `+18` (the fix-cycle-1 SETTLED pin, 4,487) and `+N` (this fix cycle's
+own final pin, below) are measured against for AC 6305 -- the post-stage-1
+section below stays as a separate, correctly-labelled measurement (it answers
+a different question: "what did stage 2's fixture repairs have to fix",
+not "what was the tree before this batch touched it").
+
+## Post-stage-1 baseline (re-measured on this branch BEFORE stage-2 edits, per plan §9)
+
+**Not the AC 6305 baseline -- see the TRUE pre-edit baseline section above.**
+This section measures the tree AFTER stage 1's production code landed and
+BEFORE stage 2's test repairs, to characterize what stage 2 had to fix.
 
 `cargo test --workspace --no-fail-fast` after stage 1, before any stage-2 edit:
 **4,461 passed / 8 failed / 5 ignored** (workspace total unmoved at 4,469 tests --
@@ -721,3 +766,228 @@ cycle shows exactly the 13 tracked files listed in the review doc's own
 disposition table modified, plus `memory/primitives/pb-review-DX25c.md`
 (untracked -- the review artefact itself, never previously committed) and
 this file. No other file changed.
+
+---
+
+## Fix cycle 2 (`scutemob-205`, 2026-08-06) -- an acceptance-criteria review
+found 7 issues; all 7 taken.
+
+### Issue 1 -- `OOS-DX25c-5` CLOSED, not shipped live
+
+`casting.rs:6450-6473`'s `TargetSpell`/`TargetSpellWithFilter` arm gained a
+two-line `self_id` guard, mirroring the two single-target arms verbatim (the
+guard text and rationale are in-source at the guard's own site).
+
+**Cast-path neutrality verified BEFORE shipping, not asserted**:
+`handle_cast_spell`'s target-validation call (`casting.rs:3727`/`:3736-3743`,
+inside the `announced_requirements`-hoisted block) runs strictly BEFORE
+`state.move_object_to_zone(card, ZoneId::Stack)` (`casting.rs:4440`), and
+`move_object_to_zone` mints a NEW `ObjectId` for the post-move object
+(`(new_card_id, _old_obj)` -- CR 400.7, a zone change is a new object). So
+`self_id = card` at cast time is always the PRE-move (hand-zone) id, which
+this arm already requires the CANDIDATE `id` to be `ZoneId::Stack` to pass --
+the two can never be equal at cast time, confirmed by reading, not by
+assumption. The guard is therefore live ONLY on
+`rules::retarget::plan_target_change`'s path, which passes `victim_card` --
+the STACK-RESIDENT id -- as `self_id`.
+
+**T7's fixture (2004-10-04 "Misdirection is itself a legal candidate")
+handled per the review's "or add a sibling" option**: T7 itself is
+UNCHANGED in mechanism (still uses `TargetSpellWithFilter` + a colour
+filter), with its doc comment corrected to record that the filter's
+self-exclusion side effect is now REDUNDANT (the guard does it
+structurally), not load-bearing. A new sibling,
+`t7b_plain_target_spell_victim_cannot_redirect_onto_its_own_card`
+(`pb_dx25c_retarget_legality.rs`), discriminates the guard DIRECTLY on the
+PLAIN `TargetSpell` variant (no filter, no side door) -- the exact shape
+`OOS-DX25c-5`'s registry row names as the concrete failure scenario.
+
+**Revert proof, EXECUTED**: removed the guard (`// REVERT-PROOF TEMP: guard
+removed`), rebuild confirmed (`Compiling mtg-engine`), ran the new test:
+
+```
+thread 'pb_dx25c_retarget_legality::t7b_plain_target_spell_victim_cannot_redirect_onto_its_own_card' panicked at crates/engine/tests/primitives/pb_dx25c_retarget_legality.rs:1334:5:
+assertion `left != right` failed: OOS-DX25c-5: a plain TargetSpell victim must never be redirected onto its OWN card -- self_id exclusion must fire here even with no filter to fall back on (Misdirection 2004-10-04: "You can't make a spell which is on the stack target itself")
+  left: Object(ObjectId(6))
+ right: Object(ObjectId(6))
+test result: FAILED. 0 passed; 1 failed
+```
+
+Restored via a pre-mutation backup copy (`/tmp/casting.rs.bak`, itself
+verified byte-identical to the file at fix-cycle-2 start before use);
+`git diff --stat -- crates/engine/src/rules/casting.rs` matched the intended
+21-insertion diff exactly, confirmed clean after restore.
+
+**Registry**: `OOS-DX25c-5`'s row (`docs/audits/decision-point-audit.md`)
+rewritten past-tense -- CLOSED, with the fix description, the cast-path
+neutrality argument, the new probe, the executed-revert evidence, and an
+explicit note that `OOS-DX25c-6` STAYS OPEN (the two rulings-halves are
+independent; this row's half is complete on its own).
+
+### Issue 2 -- AC 6303's `bolt_bend` object-branch half closed
+
+Two new probes in `pb_dx25c_retarget_legality.rs`:
+`bb1_bolt_bend_object_branch_lands_only_on_a_legal_creature_never_a_land`
+(a real Bolt Bend redirecting a real "destroy target creature" spell, with a
+LAND present as a legal-battlefield-object-but-illegal-type decoy -- the
+redirect must land on the one other CREATURE, never the land, and the
+SECOND resolution must actually destroy the NEW target while the original
+creature and the land both survive) and
+`bb2_bolt_bend_object_branch_no_legal_target_leaves_targets_unchanged` (the
+CR 115.7a fallback half: no other creature exists at all, so NO
+`TargetsChanged` event may fire, and the SECOND resolution must still
+destroy the ORIGINAL target -- proving the fallback left it intact rather
+than fizzling it).
+
+**Revert proof, EXECUTED (BOTH tests, one mutation)**: a two-part mutation
+in `rules::retarget::plan_target_change` -- (a) the per-index closure
+reduced to `candidates.iter().find(|c| **c != current)?` (no legality check
+at all) and (b) the final re-validation's result discarded (`let _ = ...`
+instead of `.ok()?`) -- rebuild confirmed, both tests run:
+
+```
+thread 'pb_dx25c_retarget_legality::bb1_bolt_bend_object_branch_lands_only_on_a_legal_creature_never_a_land' panicked at crates/engine/tests/primitives/pb_dx25c_retarget_legality.rs:1606:5:
+assertion `left == right` failed: with the original creature (current target, excluded) and the land (fails TargetCreature) both unavailable, BB1 Legal Creature is the only remaining CR 115.7a-legal candidate
+  left: Player(PlayerId(1))
+ right: Object(ObjectId(2))
+
+thread 'pb_dx25c_retarget_legality::bb2_bolt_bend_object_branch_no_legal_target_leaves_targets_unchanged' panicked at crates/engine/tests/primitives/pb_dx25c_retarget_legality.rs:1721:5:
+CR 115.7a: with no legal alternative creature, NO TargetsChanged event may be emitted -- the original target is unchanged, events: [..., TargetsChanged { stack_object_id: ObjectId(5), old_targets: [SpellTarget { target: Object(ObjectId(1)), zone_at_cast: Some(Battlefield) }], new_targets: [SpellTarget { target: Player(PlayerId(1)), zone_at_cast: None }] }, ...]
+test result: FAILED. 0 passed; 2 failed
+```
+
+Both reddened -- illegally selecting a PLAYER for a `TargetCreature`
+requirement, exactly the class of defect the two-part mutation
+reintroduces. Restored via `/tmp/retarget.rs.bak`; `git diff --stat --
+crates/engine/src/rules/retarget.rs` confirmed clean.
+
+**A single-part mutation (legality check removed, final re-validation left
+intact) was tried FIRST and only discriminated BB1, not BB2** -- worth
+recording as a real finding, not just a discarded draft: with only the
+per-index legality check removed, the final `validate_targets_inner`
+re-validation (still active) rejects the blindly-picked candidate and the
+whole plan returns `None` -- which happens to be EXACTLY the BB2-expected
+outcome (no event) for the WRONG reason (an accidental catch, not a
+deliberate "no legal alternative" answer). This is why the two-part mutation
+was used for the row above: it is the mutation that actually reproduces the
+pre-fix bug SHAPE (a wrong pick reaching the output), and it is the one that
+discriminates both tests.
+
+### Issue 3 -- AC 6304's object-branch half closed
+
+New `s1b_bot_driven_misdirection_object_branch_redirects_legally`
+(`crates/simulator/tests/pb_dx25c_bot_retarget_is_legal.rs`): a bot-driven
+Misdirection cast (through `StubProvider::legal_actions` +
+`mtg_simulator::targeting::plan_targets` + `RandomBot::choose_action`,
+identical machinery to S1) redirecting a real "destroy target creature"
+spell, with the same land-decoy shape as BB1. Legality is checked by
+MEMBERSHIP in `mtg_engine::legal_targets_per_slot`'s own `TargetCreature`
+answer (never a literal), and the final state is checked with
+`mtg_simulator::check_invariants`.
+
+**Revert proof, EXECUTED, with S1 kept as the negative control in the SAME
+run**: the identical two-part `retarget.rs` mutation from Issue 2, run
+against BOTH `s1_...` and `s1b_...` in one `cargo test` invocation:
+
+```
+thread 's1b_bot_driven_misdirection_object_branch_redirects_legally' panicked at crates/simulator/tests/pb_dx25c_bot_retarget_is_legal.rs:525:5:
+the redirected target Player(PlayerId(1)) must be a MEMBER of legal_targets_per_slot's own TargetCreature answer [Object(ObjectId(1)), Object(ObjectId(2))] -- if this fails, the retarget and the offer layer disagree about what 'legal' means
+test s1b_bot_driven_misdirection_object_branch_redirects_legally ... FAILED
+test s1_bot_driven_misdirection_cast_redirects_legally ... ok
+
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+**S1 stayed GREEN under the exact mutation that reddens S1b** -- direct,
+executed confirmation of the review's own diagnosis that S1's player-branch
+fixture cannot discriminate an object-branch legality defect (S1's chooser
+IS legal for `TargetOpponent` by construction, so a blind "first candidate
+!= current" pick still lands on a legal player there). Restored via
+`/tmp/retarget2.rs.bak` (itself diffed byte-identical against
+`/tmp/retarget.rs.bak` before use, confirming a clean starting point for
+this second mutation); `git diff --stat -- crates/engine/src/rules/
+retarget.rs` confirmed clean after restore.
+
+### Issue 4 -- CLAUDE.md revert-matrix headline corrected
+
+CLAUDE.md's PB-DX25c "Last Updated" delta (the "4 of 19... 2 not: has_lost
+... chooser-first preference" sentence) was stale by exactly the V9 closure
+fix cycle 1 already performed. Replaced with a "Correction (fix cycle 2...)"
+paragraph stating the true count -- **16 of 19 revert-matrix rows
+discriminate; 3 remain honestly UNDISCRIMINATED (V3, V7, V13)** -- matching
+this file's own §"Summary (post-fix-cycle, review Finding T3)" verbatim, and
+naming this fix cycle's OOS-DX25c-5 closure and its 4 new probes in the same
+paragraph. **Confirmed unmoved by this fix cycle's own new tests**: T7b/
+BB1/BB2/S1b discriminate a DIFFERENT defect (the missing `self_id` guard)
+from every V1-V19 mutation in the original table -- none of V3 (final
+re-validation redundancy at n=1), V7 (has_conceded defense-in-depth), or
+V13 (copy propagation, blocked behind `OOS-DX25b-2`) is touched by the new
+guard or the new tests, so the 16/19-discriminate, 3-undiscriminated count
+from fix cycle 1 is UNCHANGED by fix cycle 2 -- verified by inspection of
+what each new test's revert mutation actually is (a `casting.rs` guard
+removal for T7b; a `retarget.rs` two-part mutation for BB1/BB2/S1b, neither
+overlapping V3/V7/V13's own mutations).
+
+### Issue 5 -- new `Tests (delta 2026-08-06, PB-DX25c fix cycle 2)` bullet
+
+Added to CLAUDE.md as a NEW bullet (never grew an existing line, per the
+2026-08-02 formatting rule) immediately above the pre-existing PB-DX25b
+bullet: **4,491 / 0 / 5** (+4 over the 4,487 fix-cycle-1 SETTLED pin),
+46 result-producing targets, HASH 74 / PROTOCOL 35 both gate-executed and
+unmoved, coverage unmoved 1,133/1,803 = 62.8%.
+
+### Issue 6 -- TRUE pre-edit baseline recorded
+
+New section added above the (correctly-relabelled) post-stage-1 "Baseline"
+section: the coordinator's own pre-any-edit `cargo test --workspace
+--no-fail-fast` run, captured to `.../scratchpad/baseline.txt` at
+`a071e4ba` before the plan was written, re-summed for this correction
+(`grep`+`awk` over the raw file, shown in-section) -- **4,469 passed / 0
+failed / 5 ignored, 45 result-producing targets, 0 `test result: FAILED`
+blocks**. This is the TRUE AC 6305 baseline; the post-stage-1 section is
+kept, relabelled, as the separate measurement it always was.
+
+### Issue 7 -- positional-vs-best-fit validator mismatch recorded
+
+`OOS-DX25c-1`'s row widened again: `plan_target_change` always re-validates
+through the BEST-FIT `casting::validate_targets_inner`
+(`retarget.rs:155-163`/`:173-181`), even for a victim whose CAST-TIME
+validation used the POSITIONAL `validate_targets_positional`
+(`casting.rs:3727`, the `ModeSelection.mode_targets` / CR 700.2c path).
+Moot today for the same reason (a)/(b)/T10 already state (no `must_change:
+true` corpus member is modal), stated as its own mechanism rather than
+folded into an existing sentence, per the review's directive.
+
+## Fix-cycle-2 final gates -- all EXECUTED
+
+- `cargo check --workspace --all-targets` -- clean, exit 0.
+- `cargo clippy --workspace --all-targets -- -D warnings` -- clean, exit 0,
+  zero warnings.
+- `cargo fmt --check` -- FAILED on first run (the two new test files' hand-
+  formatting), fixed with `cargo fmt` (whole-workspace, touched only the 2
+  files this fix cycle already owned), re-ran clean, exit 0.
+- `tools/check-defs-fmt.sh` -- clean, 1,803 defs.
+- `cargo test --workspace --no-fail-fast`, captured to
+  `.../scratchpad/fixcycle2-full-test-run.txt` (not committed, per the
+  established convention -- only this summary is): **4,491 passed / 0
+  failed / 5 ignored**, 46 result-producing targets, 0 `test result: FAILED`
+  blocks. Reconciles exactly against the fix-cycle-1 SETTLED pin (4,487) +
+  4 new tests (t7b, bb1, bb2, s1b) = 4,491.
+- `cargo test -p mtg-engine --test core hash_schema` -- 21/21 green.
+  `cargo test -p mtg-engine --test core protocol_schema` -- 17/17 green.
+  **HASH 74 / PROTOCOL 35 both gate-EXECUTED and unmoved.**
+- Coverage regeneration (`python3 tools/authoring-report.py`): `1,803 files
+  | clean 1,133 (62.8%) | todo 519 | empty 151`, `135 missing` --
+  byte-identical to the pre-fix-cycle-2 count. The self-dating churn across
+  THREE files this time (`docs/authoring-status.md`,
+  `docs/authoring-status-missing.txt`, `docs/authoring-status-prev.json` --
+  the third one not touched by fix cycle 1's own note, confirmed a real
+  diff, and reverted the same way) was reverted with `git checkout --`
+  before commit; confirmed by a post-revert `git status --short docs/`
+  showing zero diff on any `docs/authoring-status*` file.
+- Scope: `git status --short` shows exactly the 5 tracked files this
+  section's disposition covers (`crates/engine/src/rules/casting.rs`,
+  `crates/engine/tests/primitives/pb_dx25c_retarget_legality.rs`,
+  `crates/simulator/tests/pb_dx25c_bot_retarget_is_legal.rs`,
+  `docs/audits/decision-point-audit.md`, `CLAUDE.md`) plus this file. No
+  other file changed.

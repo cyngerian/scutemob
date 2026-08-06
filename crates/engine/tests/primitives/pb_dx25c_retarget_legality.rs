@@ -285,6 +285,34 @@ fn target_spell_with_filter_def(name: &str, card_id: &str, colors: Vec<Color>) -
     }
 }
 
+/// A "fizzle target spell" instant -- PLAIN `TargetRequirement::TargetSpell`,
+/// no filter at all. Used by T7b: the exact shape `OOS-DX25c-5`'s registry
+/// row names as the concrete failure scenario (Counterspell, unfiltered), so
+/// this is the requirement variant the new `self_id` guard must be proven
+/// against directly, not through `TargetSpellWithFilter`'s colour side door.
+fn target_spell_def(name: &str, card_id: &str) -> CardDefinition {
+    CardDefinition {
+        card_id: CardId(card_id.to_string()),
+        name: name.to_string(),
+        mana_cost: Some(ManaCost {
+            blue: 1,
+            ..Default::default()
+        }),
+        types: TypeLine {
+            card_types: imbl::ordset![CardType::Instant],
+            ..Default::default()
+        },
+        oracle_text: format!("{name}: fizzles target spell."),
+        abilities: vec![AbilityDefinition::Spell {
+            effect: Effect::Nothing,
+            targets: vec![TargetRequirement::TargetSpell],
+            modes: None,
+            cant_be_countered: false,
+        }],
+        ..Default::default()
+    }
+}
+
 /// A "change the target of target spell with a single target" instant --
 /// structurally identical to Misdirection's own Spell ability, but a
 /// SEPARATE card def so T8 can build a triangle of three stack objects
@@ -1057,16 +1085,27 @@ fn t6_cross_kind_redirect_lands_on_a_player_and_rebuilds_zone_at_cast() {
 /// and both single-target requirements report "not a spell". Plain
 /// `TargetSpell` / `TargetSpellWithFilter` have no such blind spot (they
 /// only ever consult `state.objects` + layer-resolved characteristics), so
-/// this probe uses `TargetSpellWithFilter` instead -- the filter (blue-only)
-/// also solves the OTHER problem plain `TargetSpell` would have: with no
-/// self-exclusion at all, and the victim's own card always carrying a
-/// SMALLER `ObjectId` than Misdirection's (Misdirection must be cast AFTER
-/// the victim already exists on the stack, so its ids are always later), a
-/// plain `TargetSpell` victim would legally redirect onto ITSELF before ever
-/// reaching Misdirection's card. Giving the victim's own card no colour
-/// (fails the filter) and Misdirection genuine blue (matches Misdirection's
-/// real cost) makes the outcome structural rather than an artefact of id
-/// order.
+/// this probe uses `TargetSpellWithFilter` instead.
+///
+/// **Historical note, corrected by fix cycle 2 (`OOS-DX25c-5` CLOSED)**: this
+/// fixture's colour filter was ORIGINALLY engineered to double as a
+/// self-exclusion workaround -- at the time this test was written,
+/// `validate_object_satisfies_requirement`'s `TargetSpell`/`TargetSpellWith
+/// Filter` arm took no `self_id` check at all, so with no filter a victim's
+/// own card (a smaller `ObjectId` than Misdirection's, since Misdirection is
+/// always cast AFTER the victim already exists on the stack) would have been
+/// legally redirected onto ITSELF before ever reaching Misdirection's card.
+/// That gap is now closed at the source (`casting.rs`'s `TargetSpell`/
+/// `TargetSpellWithFilter` arm gained a `self_id` guard mirroring the two
+/// single-target arms) -- self-exclusion is enforced STRUCTURALLY now, not
+/// as an artefact of this fixture's colour engineering. See
+/// `t7b_plain_target_spell_victim_cannot_redirect_onto_its_own_card` for the
+/// probe that discriminates the guard directly, on the PLAIN `TargetSpell`
+/// variant (no filter at all) the guard's own commit named as the concrete
+/// failure scenario. This fixture's filter is kept as-is -- it still proves
+/// the 2004-10-04 ruling under a real (if now redundant) colour constraint,
+/// and rebuilding it around the guard would not add coverage T7b doesn't
+/// already provide.
 #[test]
 fn t7_misdirection_is_itself_a_legal_candidate() {
     let p1 = p(1);
@@ -1180,6 +1219,133 @@ fn t7_misdirection_is_itself_a_legal_candidate() {
          (colourless) card failing the blue filter, Misdirection's (blue) \
          card is the only remaining candidate that satisfies \
          TargetSpellWithFilter"
+    );
+}
+
+// ── T7b: OOS-DX25c-5 -- the plain-TargetSpell self-redirect guard ──────────
+
+/// **Closes `OOS-DX25c-5`** (`/review` Finding E2, fix cycle 2): a victim
+/// with a PLAIN `TargetRequirement::TargetSpell` (no filter, so no colour
+/// side door like T7's) must never be redirected onto its own card. This is
+/// the exact shape the registry row's concrete failure scenario names
+/// (Counterspell, unfiltered) -- p2's victim targets p3's decoy; p1
+/// Misdirects the victim. Candidates in ascending `ObjectId` order, current
+/// target excluded: the victim's OWN card (would have been picked first,
+/// pre-fix, since it is always minted before Misdirection's), then
+/// Misdirection's own card. With the guard, the victim's own card is
+/// excluded and Misdirection's card -- itself a legal `TargetSpell`
+/// candidate, no filter to fail -- is the only one left.
+#[test]
+fn t7b_plain_target_spell_victim_cannot_redirect_onto_its_own_card() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let p3 = p(3);
+
+    let decoy = any_target_def("PB-DX25c T7b Decoy", "pb-dx25c-t7b-decoy");
+    let victim = target_spell_def("PB-DX25c T7b Victim", "pb-dx25c-t7b-victim");
+    let misdirection = mtg_engine::cards::defs::misdirection::card();
+    let registry: Arc<CardRegistry> =
+        CardRegistry::new(vec![misdirection.clone(), decoy.clone(), victim.clone()]);
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .add_player(p3)
+        .with_registry(registry)
+        .player_mana(
+            p1,
+            ManaPool {
+                colorless: 3,
+                blue: 2,
+                ..Default::default()
+            },
+        )
+        .player_mana(
+            p2,
+            ManaPool {
+                blue: 1,
+                ..Default::default()
+            },
+        )
+        .player_mana(
+            p3,
+            ManaPool {
+                red: 1,
+                ..Default::default()
+            },
+        )
+        .object(
+            ObjectSpec::card(p3, "PB-DX25c T7b Decoy")
+                .in_zone(ZoneId::Hand(p3))
+                .with_card_id(decoy.card_id.clone())
+                .with_types(vec![CardType::Instant]),
+        )
+        .object(
+            ObjectSpec::card(p2, "PB-DX25c T7b Victim")
+                .in_zone(ZoneId::Hand(p2))
+                .with_card_id(victim.card_id.clone())
+                .with_types(vec![CardType::Instant]),
+        )
+        .object(
+            ObjectSpec::card(p1, "Misdirection")
+                .in_zone(ZoneId::Hand(p1))
+                .with_card_id(misdirection.card_id.clone())
+                .with_types(vec![CardType::Instant])
+                .with_colors(vec![Color::Blue]),
+        )
+        .at_step(Step::PreCombatMain)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let decoy_hand_id = find_obj(&state, "PB-DX25c T7b Decoy");
+    let (state, _) = cast(state, p3, decoy_hand_id, vec![Target::Player(p1)])
+        .unwrap_or_else(|e| panic!("Decoy cast must succeed: {:?}", e));
+    let decoy_card_id = find_stack_obj_on_stack(&state, "T7b Decoy");
+
+    let victim_hand_id = find_obj(&state, "PB-DX25c T7b Victim");
+    let (state, _) = cast(
+        state,
+        p2,
+        victim_hand_id,
+        vec![Target::Object(decoy_card_id)],
+    )
+    .unwrap_or_else(|e| panic!("Victim cast must succeed: {:?}", e));
+    let victim_card_id = find_stack_obj_on_stack(&state, "T7b Victim");
+
+    let misdirection_hand_id = find_obj(&state, "Misdirection");
+    let (state, _) = cast(
+        state,
+        p1,
+        misdirection_hand_id,
+        vec![Target::Object(victim_card_id)],
+    )
+    .unwrap_or_else(|e| panic!("Misdirection cast must succeed: {:?}", e));
+    let misdirection_card_id = find_stack_obj_on_stack(&state, "Misdirection");
+
+    let (_, resolve_events) = resolve_top_of_stack(state);
+    let new_target = resolve_events
+        .iter()
+        .find_map(|e| match e {
+            GameEvent::TargetsChanged { new_targets, .. } => Some(new_targets.clone()),
+            _ => None,
+        })
+        .unwrap_or_else(|| panic!("Victim must redirect: {:?}", resolve_events));
+    assert_ne!(
+        new_target[0].target,
+        Target::Object(victim_card_id),
+        "OOS-DX25c-5: a plain TargetSpell victim must never be redirected \
+         onto its OWN card -- self_id exclusion must fire here even with no \
+         filter to fall back on (Misdirection 2004-10-04: \"You can't make a \
+         spell which is on the stack target itself\")"
+    );
+    assert_eq!(
+        new_target[0].target,
+        Target::Object(misdirection_card_id),
+        "with decoy(current, excluded) and the victim's own card excluded \
+         via self_id, Misdirection's own card -- a legal TargetSpell \
+         candidate with no filter to fail -- is the only remaining \
+         candidate"
     );
 }
 
@@ -1333,6 +1499,243 @@ fn t8_self_targeting_is_still_refused() {
         Target::Object(alternative_card_id),
         "with decoy(current, excluded) and clone(self, excluded via \
          self_id), the alternative is the only remaining legal candidate"
+    );
+}
+
+// ── BB1/BB2: Bolt Bend, OBJECT branch (AC 6303's `bolt_bend` half) ─────────
+
+/// **Closes AC 6303's `bolt_bend` half** (`/review` fix cycle 2, Issue 2): no
+/// prior PB-DX25c test cast the real `bolt_bend` def on the OBJECT branch --
+/// `pb_dx25b_announced_stack_target_space.rs::t2_bolt_bend_announces_and_
+/// resolves` casts it, but exercises the PLAYER branch (its victim targets a
+/// player). This test drives a REAL Bolt Bend redirecting a "destroy target
+/// creature" victim: a land is present specifically to prove the redirect
+/// can never land on it (CR 601.2c: `TargetCreature` is a type check, not a
+/// zone check, and only a legal creature satisfies it).
+#[test]
+fn bb1_bolt_bend_object_branch_lands_only_on_a_legal_creature_never_a_land() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let p3 = p(3);
+
+    let destroy = destroy_creature_def("PB-DX25c BB1 Destroy", "pb-dx25c-bb1-destroy");
+    let bolt_bend = mtg_engine::cards::defs::bolt_bend::card();
+    let registry: Arc<CardRegistry> = CardRegistry::new(vec![bolt_bend.clone(), destroy.clone()]);
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .add_player(p3)
+        .with_registry(registry)
+        .player_mana(
+            p1,
+            ManaPool {
+                colorless: 3,
+                red: 1,
+                ..Default::default()
+            },
+        )
+        .player_mana(
+            p2,
+            ManaPool {
+                black: 1,
+                colorless: 1,
+                ..Default::default()
+            },
+        )
+        .object(ObjectSpec::creature(p3, "BB1 Original Creature", 2, 2))
+        .object(ObjectSpec::creature(p1, "BB1 Legal Creature", 2, 2))
+        .object(ObjectSpec::land(p1, "BB1 Land"))
+        .object(
+            ObjectSpec::card(p1, "Bolt Bend")
+                .in_zone(ZoneId::Hand(p1))
+                .with_card_id(bolt_bend.card_id.clone())
+                .with_types(vec![CardType::Instant]),
+        )
+        .object(
+            ObjectSpec::card(p2, "PB-DX25c BB1 Destroy")
+                .in_zone(ZoneId::Hand(p2))
+                .with_card_id(destroy.card_id.clone())
+                .with_types(vec![CardType::Instant]),
+        )
+        .at_step(Step::PreCombatMain)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let original_creature_id = find_obj(&state, "BB1 Original Creature");
+    let legal_creature_id = find_obj(&state, "BB1 Legal Creature");
+    let land_id = find_obj(&state, "BB1 Land");
+
+    let destroy_hand_id = find_obj(&state, "PB-DX25c BB1 Destroy");
+    let (state, _) = cast(
+        state,
+        p2,
+        destroy_hand_id,
+        vec![Target::Object(original_creature_id)],
+    )
+    .unwrap_or_else(|e| panic!("Destroy cast must succeed: {:?}", e));
+    let destroy_card_id = find_stack_obj_on_stack(&state, "BB1 Destroy");
+
+    let bolt_bend_hand_id = find_obj(&state, "Bolt Bend");
+    let (state, _) = cast(
+        state,
+        p1,
+        bolt_bend_hand_id,
+        vec![Target::Object(destroy_card_id)],
+    )
+    .unwrap_or_else(|e| panic!("Bolt Bend cast must succeed: {:?}", e));
+
+    // First resolution: Bolt Bend itself.
+    let (state, resolve_events) = resolve_top_of_stack(state);
+    let new_target = resolve_events
+        .iter()
+        .find_map(|e| match e {
+            GameEvent::TargetsChanged { new_targets, .. } => Some(new_targets.clone()),
+            _ => None,
+        })
+        .unwrap_or_else(|| panic!("Destroy must redirect: {:?}", resolve_events));
+    assert_ne!(
+        new_target[0].target,
+        Target::Object(land_id),
+        "CR 601.2c/115.7a: TargetCreature is a TYPE check, not a zone check \
+         -- the redirect must never land on the land even though it is a \
+         legal battlefield object in retarget_candidates's universe"
+    );
+    assert_eq!(
+        new_target[0].target,
+        Target::Object(legal_creature_id),
+        "with the original creature (current target, excluded) and the \
+         land (fails TargetCreature) both unavailable, BB1 Legal Creature \
+         is the only remaining CR 115.7a-legal candidate"
+    );
+
+    // Second resolution: the (now-redirected) Destroy effect.
+    let (state, _) = resolve_top_of_stack(state);
+    assert!(
+        !state.objects().values().any(
+            |o| o.characteristics.name == "BB1 Legal Creature" && o.zone == ZoneId::Battlefield
+        ),
+        "the redirected Destroy must actually destroy the NEW (legal) target"
+    );
+    assert!(
+        state
+            .objects()
+            .values()
+            .any(|o| o.characteristics.name == "BB1 Original Creature"
+                && o.zone == ZoneId::Battlefield),
+        "the original creature target must survive -- the redirect moved off it"
+    );
+    assert!(
+        state
+            .objects()
+            .values()
+            .any(|o| o.characteristics.name == "BB1 Land" && o.zone == ZoneId::Battlefield),
+        "the land must never have been a legal candidate, so it must survive untouched"
+    );
+}
+
+/// **The no-legal-target half of AC 6303's `bolt_bend` object-branch
+/// coverage.** CR 115.7a's own fallback ("If a target can't be changed to
+/// another legal target, the original target is unchanged") on a REAL Bolt
+/// Bend cast against a REAL "destroy target creature" victim, with no other
+/// creature on the battlefield at all -- not even a land to be tempted by,
+/// since `TargetCreature` would reject one anyway; this isolates the
+/// "there is genuinely nothing else" case from BB1's "there is something,
+/// but it's the wrong type" case.
+#[test]
+fn bb2_bolt_bend_object_branch_no_legal_target_leaves_targets_unchanged() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let p3 = p(3);
+
+    let destroy = destroy_creature_def("PB-DX25c BB2 Destroy", "pb-dx25c-bb2-destroy");
+    let bolt_bend = mtg_engine::cards::defs::bolt_bend::card();
+    let registry: Arc<CardRegistry> = CardRegistry::new(vec![bolt_bend.clone(), destroy.clone()]);
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .add_player(p3)
+        .with_registry(registry)
+        .player_mana(
+            p1,
+            ManaPool {
+                colorless: 3,
+                red: 1,
+                ..Default::default()
+            },
+        )
+        .player_mana(
+            p2,
+            ManaPool {
+                black: 1,
+                colorless: 1,
+                ..Default::default()
+            },
+        )
+        .object(ObjectSpec::creature(p3, "BB2 Original Creature", 2, 2))
+        .object(
+            ObjectSpec::card(p1, "Bolt Bend")
+                .in_zone(ZoneId::Hand(p1))
+                .with_card_id(bolt_bend.card_id.clone())
+                .with_types(vec![CardType::Instant]),
+        )
+        .object(
+            ObjectSpec::card(p2, "PB-DX25c BB2 Destroy")
+                .in_zone(ZoneId::Hand(p2))
+                .with_card_id(destroy.card_id.clone())
+                .with_types(vec![CardType::Instant]),
+        )
+        .at_step(Step::PreCombatMain)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let original_creature_id = find_obj(&state, "BB2 Original Creature");
+
+    let destroy_hand_id = find_obj(&state, "PB-DX25c BB2 Destroy");
+    let (state, _) = cast(
+        state,
+        p2,
+        destroy_hand_id,
+        vec![Target::Object(original_creature_id)],
+    )
+    .unwrap_or_else(|e| panic!("Destroy cast must succeed: {:?}", e));
+    let destroy_card_id = find_stack_obj_on_stack(&state, "BB2 Destroy");
+
+    let bolt_bend_hand_id = find_obj(&state, "Bolt Bend");
+    let (state, _) = cast(
+        state,
+        p1,
+        bolt_bend_hand_id,
+        vec![Target::Object(destroy_card_id)],
+    )
+    .unwrap_or_else(|e| panic!("Bolt Bend cast must succeed: {:?}", e));
+
+    // First resolution: Bolt Bend itself -- CR 115.7a fallback, no legal
+    // alternative creature exists.
+    let (state, resolve_events) = resolve_top_of_stack(state);
+    assert!(
+        !resolve_events
+            .iter()
+            .any(|e| matches!(e, GameEvent::TargetsChanged { .. })),
+        "CR 115.7a: with no legal alternative creature, NO TargetsChanged \
+         event may be emitted -- the original target is unchanged, events: \
+         {:?}",
+        resolve_events
+    );
+
+    // Second resolution: Destroy resolves against its UNCHANGED original target.
+    let (state, _) = resolve_top_of_stack(state);
+    assert!(
+        !state
+            .objects()
+            .values()
+            .any(|o| o.characteristics.name == "BB2 Original Creature"
+                && o.zone == ZoneId::Battlefield),
+        "the fallback must leave the original target intact, not fizzle it \
+         -- Destroy must still destroy it"
     );
 }
 
