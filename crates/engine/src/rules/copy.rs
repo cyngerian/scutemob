@@ -405,6 +405,10 @@ pub fn resolve_cascade(
                 // `targets: vec![]` regardless of the cascaded card's own targeting —
                 // a pre-existing limitation (`OOS-ENG2-3`), not this batch's to fix.
                 targets: vec![],
+                // `target_requirements: vec![]`: `targets` is always empty here
+                // (see above), so this is the benign empty case PB-DX25c's
+                // `StackObject.target_requirements` doc names — nothing was
+                // validated because nothing was announced.
                 target_requirements: vec![],
                 cant_be_countered: false,
                 is_copy: false,
@@ -646,6 +650,10 @@ pub fn resolve_discover(
                 // `targets: vec![]` regardless of the discovered card's own targeting —
                 // a pre-existing limitation (`OOS-ENG2-3`), not this batch's to fix.
                 targets: vec![],
+                // `target_requirements: vec![]`: `targets` is always empty here
+                // (see above), so this is the benign empty case PB-DX25c's
+                // `StackObject.target_requirements` doc names — nothing was
+                // validated because nothing was announced.
                 target_requirements: vec![],
                 cant_be_countered: false,
                 is_copy: false,

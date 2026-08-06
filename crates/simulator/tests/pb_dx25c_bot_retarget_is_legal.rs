@@ -236,6 +236,8 @@ fn s1_bot_driven_misdirection_cast_redirects_legally() {
         )
     });
 
+    let p1_life_before = state.players().get(&p1).unwrap().life_total;
+    let p2_life_before = state.players().get(&p2).unwrap().life_total;
     let p3_life_before = state.players().get(&p3).unwrap().life_total;
     let (state, resolve_events) = resolve_top_of_stack(state);
     let new_target = resolve_events
@@ -245,6 +247,22 @@ fn s1_bot_driven_misdirection_cast_redirects_legally() {
             _ => None,
         })
         .unwrap_or_else(|| panic!("Misdirection must redirect: {:?}", resolve_events));
+
+    // `/review` Finding T7: the redirect must land on a NEW target, not the
+    // original p3 -- V2 in the engine-side revert matrix (`retarget.rs`'s
+    // `?`) showed a `TargetsChanged` event CAN fire with an unchanged target
+    // set if the all-or-nothing abort is dropped; this is the bot-path
+    // assertion that would catch that shape reaching a bot-driven cast.
+    assert_ne!(
+        new_target[0].target,
+        Target::Player(p3),
+        "the redirect must change the target away from p3 (the original), \
+         not merely emit an event that leaves it unchanged"
+    );
+    let new_target_player = match &new_target[0].target {
+        Target::Player(pid) => *pid,
+        other => panic!("expected the redirect to land on a player, got {other:?}"),
+    };
 
     // The post-resolution target must satisfy its own requirement, checked
     // against the OFFER LAYER's own answer -- `legal_targets_per_slot` --
@@ -273,5 +291,37 @@ fn s1_bot_driven_misdirection_cast_redirects_legally() {
         violations
     );
 
-    let _ = p3_life_before;
+    // `/review` Finding T7: the life-total observables were computed
+    // (`p3_life_before` et al.) and then discarded (`let _ = p3_life_before;`)
+    // -- assert them for real. Whichever player the redirect landed on must
+    // be the ONE who lost 3 life; p3 (the original target) and the player who
+    // was NOT chosen must both be untouched.
+    let p1_life_after = state.players().get(&p1).unwrap().life_total;
+    let p2_life_after = state.players().get(&p2).unwrap().life_total;
+    let p3_life_after = state.players().get(&p3).unwrap().life_total;
+    assert_eq!(
+        p3_life_after, p3_life_before,
+        "p3 (the original, un-redirected-to target) must be untouched"
+    );
+    // p2 (so.controller, the victim's own caster) can never be a legal
+    // TargetOpponent target for its own spell (CR 102.3 self-exclusion), so
+    // p1 -- the only other player -- is the sole legal candidate. Asserted,
+    // not assumed: the earlier membership check already proved it satisfies
+    // legal_targets_per_slot; this pins WHICH player, so a wrong-player
+    // redirect that still happens to satisfy membership cannot pass silently.
+    assert_eq!(
+        new_target_player, p1,
+        "p2 (the victim's own caster) can never legally be its own \
+         TargetOpponent, and p3 is excluded as the current target -- p1 is \
+         the only legal candidate"
+    );
+    assert_eq!(
+        p1_life_after,
+        p1_life_before - 3,
+        "p1 (the redirected target) must lose 3 life"
+    );
+    assert_eq!(
+        p2_life_after, p2_life_before,
+        "p2 (the victim's own caster, never a legal target for it) must be untouched"
+    );
 }

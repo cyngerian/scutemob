@@ -389,7 +389,7 @@ genuine corrections, explained below).**
 | V6 | pass `chooser` instead of `so.controller` as caster | T3 | **T4 reddened, NOT T3** (correction). T3's fixture has chooser == so.controller by construction (p1 casts both spells), so V6 is a no-op there. T4's chooser (p3) != so.controller (p2), so V6 makes p2 wrongly pass its own TargetOpponent self-exclusion check (`left: Player(2) != right: Player(4)`). |
 | V7 | drop `has_conceded` from the turn_order loop conjunct | T4 | **UNDISCRIMINATED, confirmed by full workspace run (0 failures) -- NOT predicted by the plan.** `validate_mapped_targets`'s OWN independent Player-target check (`if player.has_lost \|\| player.has_conceded { return Err(...) }`) re-enforces the SAME rule downstream of `retarget_candidates`, so removing the candidate-BUILDING filter alone changes nothing observable -- the trial for the wrongly-included conceded player still fails validation ("player PlayerId(1) is not an active player"), confirmed by an in-line debug trace before this was understood. `retarget_candidates`'s own has_conceded check is genuine defense-in-depth, not sole enforcement. |
 | V8 | drop the object arm from `retarget_candidates` entirely | T6, R6 | **t9b, T7, T8, R6 reddened -- NOT T6** (correction). T6 (as actually built, see §5.2's design detour notes) redirects OBJECT->PLAYER, never touching the object arm at all; t9b/T7/T8 all redirect onto objects and correctly catch the regression. R6's own failure names the exact missing set: `retarget: [Player(1),Player(2),Player(3)]` vs `query: [...,Object(1),Object(2),Object(3)]`. |
-| V9 | drop the chooser-first preference (straight seat order) | pb_dx25b...::t1 | **UNDISCRIMINATED, confirmed by full workspace run (0 failures) -- NOT predicted by the plan.** T1's Misdirection caster (p1) happens to ALSO be first in `state.turn.turn_order` (both are seat 1 in that fixture), so removing the chooser-first special case produces an IDENTICAL candidate order in that specific fixture. The preference is real (§3.3 states it deliberately) but no shipped test exercises a chooser who is NOT first in turn order while a retarget also needs to distinguish preference-order from seat-order. |
+| V9 | drop the chooser-first preference (straight seat order) | pb_dx25b...::t1 | **UNDISCRIMINATED at implement time, confirmed by full workspace run (0 failures) -- NOT predicted by the plan.** T1's Misdirection caster (p1) happens to ALSO be first in `state.turn.turn_order` (both are seat 1 in that fixture), so removing the chooser-first special case produces an IDENTICAL candidate order in that specific fixture. The preference is real (§3.3 states it deliberately) but no shipped test exercised a chooser who is NOT first in turn order while a retarget also needed to distinguish preference-order from seat-order. **CLOSED in the fix cycle (review Finding T3)**: new `t3b_chooser_first_preference_beats_seat_order` (`pb_dx25c_retarget_legality.rs`) -- 4 players, `turn_order = [p1,p2,p3,p4]`, chooser = p3 (NOT first in seat order, NOT the current target), victim uses UNCONDITIONAL `TargetRequirement::TargetPlayer` so p1 (seat-order-first) is just as legal as p3. Re-executed this SAME V9 mutation against the new fixture (temporarily dropped the chooser-first push + `if p == chooser { continue; }` in `retarget_candidates`, rebuild confirmed via `Compiling mtg-engine`): **now REDDENS**, `left: Player(PlayerId(1))` (seat-order pick) `!= right: Player(PlayerId(3))` (the chooser) -- exact match to the predicted failure shape. Restored immediately after; `git diff --stat -- crates/engine/src/rules/retarget.rs` confirmed clean. |
 | V10 | remove the fail-closed guard (`reqs.is_empty()` early return) | T9c | **Confirmed exactly as predicted.** |
 | V11 | write the ORIGINAL target's zone_at_cast instead of rebuilding | T6 (T11 folded in) | **Confirmed exactly as predicted.** `left: Some(Battlefield) != right: None`. |
 | V12 | delete `target_requirements.hash_into(hasher)` | T10 AND `hash_schema::every_hashed_struct_field_is_hashed_or_allowlisted` | **Confirmed exactly as predicted, BOTH fired.** T10: two StackObjects differing only in target_requirements hashed IDENTICALLY. The hash_schema gate named the exact field: `StackObject.target_requirements`. |
@@ -415,14 +415,25 @@ unchanged at HEAD before this stage's edits (§9's instruction) -- see the
 baseline section at the top of this file: it was GREEN pre-inversion (the
 wrong-way-round pin doing its job), exactly as required.
 
-**Summary: 15 of 19 rows discriminate as observable failures (12 exactly as
-the plan predicted -- V2, V4, V5, V10, V11, V12, V15, V16, V17, V18, plus V1
-partially and V16's second sub-case; 3 with a corrected discriminator, i.e.
-the plan named the wrong test but a real one still catches it -- V6, V8,
-V19). 4 rows are honestly UNDISCRIMINATED by the FULL workspace test suite,
-not just the named tests: V3 and V13, both predicted-possible by the plan's
-own text; V7 and V9, NOT predicted by the plan -- all four traced to a root
-cause and recorded above, not merely observed.**
+**Summary (implement-time): 15 of 19 rows discriminate as observable failures
+(12 exactly as the plan predicted -- V2, V4, V5, V10, V11, V12, V15, V16,
+V17, V18, plus V1 partially and V16's second sub-case; 3 with a corrected
+discriminator, i.e. the plan named the wrong test but a real one still
+catches it -- V6, V8, V19). 4 rows are honestly UNDISCRIMINATED by the FULL
+workspace test suite, not just the named tests: V3 and V13, both
+predicted-possible by the plan's own text; V7 and V9, NOT predicted by the
+plan -- all four traced to a root cause and recorded above, not merely
+observed.**
+
+**Summary (post-fix-cycle, review Finding T3): V9 is now DISCRIMINATED.**
+`t3b_chooser_first_preference_beats_seat_order` was added specifically to
+close it (see V9's own row above for the re-executed revert proof). **16 of
+19 rows now discriminate; 3 remain honestly UNDISCRIMINATED** (V3, V7, V13),
+each for the reason already recorded at its own row -- V3 and V13 by the
+plan's own explicit permission, V7 because `validate_mapped_targets`'s
+downstream check is genuine defense-in-depth that makes the candidate-BUILDING
+filter's own removal unobservable through any test that only watches the
+FINAL outcome.
 
 ## Plan deviations / findings worth carrying forward
 
@@ -446,3 +457,249 @@ cause and recorded above, not merely observed.**
 3. **R4's "likely at risk" prediction was wrong for a clean, diagnosable
    reason** (see the dedicated section above) -- not a fluke, and not
    something to leave unexplained per the coordinator's explicit instruction.
+
+---
+
+## Fix cycle (`scutemob-205`, 2026-08-06) -- `memory/primitives/pb-review-DX25c.md`,
+0 HIGH / 5 MEDIUM / 17 LOW across E1-E8 / T1-T12 / C1 / B1 (22 rows), all taken.
+Per-finding disposition table is in the review doc's own new "Fix cycle" section;
+this section carries only the measurements and revert proofs the review's fix
+directives required.
+
+### E1 -- comment fix + registry widen, no behaviour change
+
+`retarget.rs:108-143`'s comment corrected (it had claimed trial-set validation
+itself satisfied CR 115.7e; actually CR 115.7e is satisfied ONLY by the
+separate final-set re-validation a few lines below). `OOS-DX25c-1`'s row in
+`docs/audits/decision-point-audit.md` widened to name TWO failure mechanisms
+(no backtracking; mixed-trial poisoning of an undecided original). No test
+changes -- both mechanisms are already measured zero-reachable by R1, and
+that measurement is unperturbed by a comment edit.
+
+### T3 -- new fixture, V9 now discriminated (revert proof EXECUTED)
+
+New `t3b_chooser_first_preference_beats_seat_order`
+(`pb_dx25c_retarget_legality.rs`): 4 players, `turn_order = [p1,p2,p3,p4]`,
+chooser = p3 (NOT first in seat order, NOT the current target), victim
+`any_player_life_loss_def` uses UNCONDITIONAL `TargetRequirement::TargetPlayer`
+so seat-order-first p1 is exactly as legal a candidate as the chooser p3.
+
+Green on the finished tree: `cargo test -p mtg-engine --test primitives
+pb_dx25c_retarget_legality::` -- **10/10 green** (was 9/9 pre-fix-cycle; the
+new test is the only addition).
+
+**Revert proof, EXECUTED**: reproduced V9's exact mutation in
+`retarget_candidates` (dropped the chooser-first `candidates.push(Target::
+Player(chooser))` special case and its `if p == chooser { continue; }` guard,
+replaced with a plain `for &p in state.turn.turn_order.iter()` loop plus
+`let _ = chooser;` to silence the now-unused parameter under `-D warnings`).
+Rebuild confirmed (`Compiling mtg-engine` observed in the captured output).
+Ran `cargo test -p mtg-engine --test primitives
+pb_dx25c_retarget_legality::t3b_chooser_first_preference_beats_seat_order --
+--nocapture`:
+
+```
+thread 'pb_dx25c_retarget_legality::t3b_chooser_first_preference_beats_seat_order' panicked at crates/engine/tests/primitives/pb_dx25c_retarget_legality.rs:758:5:
+assertion `left == right` failed: the chooser (p3) is offered FIRST regardless of seat order -- turn_order is [p1, p2, p3, p4], so a build that fell back to plain seat order would land on p1 instead (p1 is legal: TargetPlayer has no self-exclusion, and p1 is not the current target p4). This is the fixture V9 (revert matrix) was missing: dropping the chooser-first special case now reddens THIS assertion, where it left every pre-existing probe green.
+  left: Player(PlayerId(1))
+ right: Player(PlayerId(3))
+test result: FAILED. 0 passed; 1 failed
+```
+
+Exact match to the predicted failure shape (`left: Player(1)` the seat-order
+pick, `right: Player(3)` the chooser). Restored immediately after
+(`cp` from a pre-mutation backup); `git diff --stat --
+crates/engine/src/rules/retarget.rs` confirmed clean before moving on.
+
+**Revert matrix updated**: V9's row and the file's own summary paragraph
+(previously "15 of 19... 4 UNDISCRIMINATED") now read 16 of 19 discriminate,
+3 remain honestly undiscriminated (V3, V7, V13), each for the reason already
+recorded at its own row.
+
+### T7 -- S1 assertions fixed (revert proof: N/A, strengthened assertions only)
+
+`pb_dx25c_bot_retarget_is_legal.rs`: added `assert_ne!(new_target[0].target,
+Target::Player(p3), ...)`; replaced the dead `let _ = p3_life_before;` tail
+with real life-total assertions for p1/p2/p3 (p1 loses 3, p2 and p3
+untouched), plus a pinned `assert_eq!(new_target_player, p1, ...)` reasoned
+from CR 102.3 self-exclusion (p2, the victim's own controller, can never be
+its own legal `TargetOpponent`). Green: `cargo test -p mtg-simulator --test
+pb_dx25c_bot_retarget_is_legal` -- **1/1 green**. No new revert proof required
+(strengthens an existing green assertion path; the underlying behaviour this
+test exercises is already covered by T3/T4/T6's revert rows).
+
+### T4 / T5 / T6 -- roster/gate file, all green after the changes
+
+`cargo test -p mtg-engine --test core pb_dx25c_retarget_roster::` --
+**5/5 green** after: R2 renamed + gained the source-level `Effect` enum scan
+(T4); R3's redundant outer conjunct simplified + doc widened to state both
+residuals (T5); R4 gained the marker-uniqueness assertion (T6). R1 gained a
+documented residual only (T11), no logic change. No revert proof required for
+T4/T5/T6/T11 -- these are documentation/robustness additions to gates whose
+underlying invariants are unchanged; the gates' own pre-existing revert
+matrix (R1-R5 rows in the implement-phase revert matrix above) still covers
+the invariants they assert.
+
+### E7 / E8 -- comment-only / ratchet-roster additions
+
+`copy.rs`'s two `target_requirements: vec![]` sites gained a one-line reason
+each (E7, comment-only, no logic change). `bare_lookup_ratchet.rs` gained
+`("src/rules/retarget.rs", 0)` in `SWEPT_FILES` with a comment explaining the
+relocation (E8) -- measured (not assumed) that the file's needle-matching
+count is 0 today, because its reads are spelled through the `.objects()`
+accessor method rather than the bare `.objects.get(` field-access idiom the
+ratchet's `NEEDLES` match.
+
+### T8 -- the self-evidencing HEAD run, EXECUTED (recovered from an environment outage)
+
+**Environment note, for the record**: the session's Bash tool went down for an
+extended period (host-level `/tmp` tmpfs per-user quota exhaustion, `EDQUOT`,
+independently confirmed by three diagnostic sub-agents via `/proc/mounts` and
+direct `Write` probes). It recovered partway through this fix cycle. The
+fix below was completed once it did, using a method that avoids `/tmp`
+entirely (a `git stash` + `git checkout` cycle inside THIS worktree, which
+lives on the persistent filesystem, not the quota-constrained tmpfs) after an
+earlier attempt via a `/tmp`-based `git worktree` repeatedly starved the same
+quota during its own `cargo build`.
+
+**Method, executed**:
+1. `git stash push -u -m "pb-dx25c-fixcycle-wip"` -- stashed all 13 modified
+   tracked files plus untracked scratch files. Confirmed clean tree after.
+2. `git checkout a071e4ba` -- the commit immediately before this batch's
+   plan/stage-1 commits (`6a25a1db`, `cf89a213`). Confirmed via `git status`
+   (detached HEAD, clean).
+3. `cargo test -p mtg-engine --test primitives
+   t9_object_target_redirect_ignores_the_original_requirement -- --nocapture`
+   -- **result below**.
+4. `git checkout feat/pb-dx25c-the-object-target-redirect-ignores-cr-1157as-anothe`
+   -- confirmed back on the working branch, all 13 modified files intact.
+5. `git stash pop` -- restored. One untracked scratch file (a same-named log
+   this step's own tooling had recreated post-checkout) collided and was left
+   in the stash rather than silently overwritten; everything else (all 13
+   tracked modifications, every other untracked file) restored cleanly. The
+   stash was then inspected (`git stash list` showed only that one collision)
+   and dropped (`git stash drop`) once confirmed harmless -- the colliding
+   file was a disposable scratch log, not a deliverable.
+6. `cargo check --workspace --all-targets` re-run post-restore: **clean, exit
+   0** -- proves the stash/checkout/pop cycle did not corrupt any of the 13
+   modified files.
+
+**Result, captured verbatim**:
+```
+   Compiling mtg-card-defs v0.1.0 (.../crates/card-defs)
+   Compiling mtg-card-types v0.1.0 (.../crates/card-types)
+   Compiling mtg-engine v0.1.0 (.../crates/engine)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 14.65s
+     Running tests/primitives/main.rs (target/debug/deps/primitives-65b2366bbfb11497)
+
+running 1 test
+test pb_dx25b_announced_stack_target_space::t9_object_target_redirect_ignores_the_original_requirement ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1127 filtered out; finished in 0.00s
+```
+
+**T9 was GREEN at the TRUE pre-PB-DX25c HEAD** (`a071e4ba`) -- exactly as the
+§9 checklist claimed, and now pasted here directly rather than left to
+cross-reference the Stage-1 baseline section above (which shows a DIFFERENT,
+later-stage RED, for the fail-closed reason -- not the same claim, and T1's
+own finding is what caught the two being conflated). This is the wrong-way-round
+pin doing its job, confirmed by execution rather than by cross-reference.
+
+**Disposition**: taken in full.
+
+---
+
+## Fix-cycle final gates -- all EXECUTED
+
+**`cargo check --workspace --all-targets`**: clean, exit 0.
+
+**`cargo test --workspace --no-fail-fast`**, captured to
+`memory/primitives/pb-dx25c-fixcycle-full-test-run.txt` (4,820 lines; the raw
+file is NOT committed, kept out of the tree per the coordinator's own file-set
+convention -- only this summary is). Per-binary `test result:` lines summed:
+**4,485 passed / 2 failed / 2 ignored** across 38 result-producing targets.
+
+**The 2 failures are BOTH environment-caused, not code-caused, and are
+independently verifiable from the captured output**:
+```
+---- card_defs_fmt::gate_catches_a_def_whose_oracle_text_is_one_long_line stdout ----
+thread '...' panicked at crates/engine/tests/core/card_defs_fmt.rs:178:6:
+copy gate script: Os { code: 122, kind: QuotaExceeded, message: "Disk quota exceeded" }
+
+---- card_defs_fmt::gate_catches_an_unbreakable_over_width_line stdout ----
+thread '...' panicked at crates/engine/tests/core/card_defs_fmt.rs:178:6:
+copy gate script: Os { code: 122, kind: QuotaExceeded, message: "Disk quota exceeded" }
+
+test result: FAILED. 500 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.48s
+```
+Both are in `core::card_defs_fmt` -- a PRE-EXISTING gate this batch never
+touched, that copies a script to a temp location as part of its own test
+setup. It failed for the identical `EDQUOT` reason as every Bash invocation
+in this session, not because of anything PB-DX25c's fix cycle changed.
+`crates/engine/tests/primitives/pb_dx25c_retarget_legality.rs` and
+`crates/engine/tests/core/pb_dx25c_retarget_roster.rs` both live in the
+**same physical test binary** as `card_defs_fmt` (`core` and `primitives`
+respectively) and their own tests are cleanly green within it -- confirmed
+directly: the `primitives` binary's result line reads `1137 passed; 0
+failed; 2 ignored`, and re-running `pb_dx25c_retarget_legality::` /
+`pb_dx25c_retarget_roster::` in isolation (both before AND after this full
+run) shows 10/10 and 5/5 green, respectively.
+
+The workspace-level summary corroborates this precisely: `cargo`'s own final
+`error: 9 targets failed:` block lists EXACTLY `-p mtg-engine --test core`
+plus 8 `--doc` (doctest) targets across `mtg-card-db`/`mtg-card-defs`/
+`mtg-card-pipeline`/`mtg-card-types`/`mtg-engine`/`mtg-network`/
+`mtg-simulator`/`mtg-view-model` -- every one of the 8 doctest failures
+prints the identical `error: failed to write arguments to temporary file:
+Os { code: 122, kind: QuotaExceeded, message: "Disk quota exceeded" }` before
+even collecting a test count. **No `primitives`, `simulator`, `rules`,
+`play-server`, or any other target this batch's fix cycle touched appears
+anywhere in that failure list.**
+
+**Discrepancy from the coordinator's stated pre-fix-cycle pin (4,486/0/5),
+disclosed rather than glossed**: this run measures 4,485/2/2, i.e. 1 fewer
+passed (before accounting for the 1 new `t3b` test, which IS included in the
+1137 count above -- so the true comparison is 4,486 + 1 = 4,487 expected vs.
+4,485 + 2(quota-failed) = 4,487 measured, which reconciles exactly) and only
+2 ignored where prior batches consistently cite 5. The passed/failed
+reconciliation is exact; the ignored-count gap (2 vs. 5) is NOT explained by
+anything this fix cycle changed (no `#[ignore]` attribute was touched) and is
+most plausibly a second, unaudited casualty of the same quota outage --
+though this could not be fully traced given the scale of the raw log and the
+unreliability of `grep`-based searching under the same duress (`grep -c
+"Compiling"` on the very output file quoted above intermittently returned
+NO output against a file KNOWN to contain "Compiling" many times, confirming
+Bash's own stdout-capture was unreliable independent of the command's actual
+success -- several commands in this recovery window produced correct output
+FILES while the tool's own captured stdout came back empty). **Recommendation
+for the coordinator**: treat this run's PASS/FAIL numbers as trustworthy
+(cross-checked three independent ways above) and the IGNORED count as
+provisional; a clean re-run once the host `/tmp` quota has full headroom
+would settle it definitively.
+
+**`cargo test -p mtg-engine --test core hash_schema`**: 21/21 green.
+**`cargo test -p mtg-engine --test core protocol_schema`**: 17/17 green.
+Both confirm **HASH 74 / PROTOCOL 35 gate-EXECUTED and unmoved** by the fix
+cycle (no hash/wire-affecting edit was made; every fix-cycle change is a
+comment, a test, or a doc-string).
+
+**`cargo clippy --workspace --all-targets -- -D warnings`**: clean, exit 0,
+zero warnings.
+
+**`cargo fmt --check`**: clean, exit 0. **`tools/check-defs-fmt.sh`**: clean,
+1,803 defs checked (SR-35).
+
+**Coverage regeneration** (`python3 tools/authoring-report.py`): `1,803
+files | clean 1,133 (62.8%) | todo 519 | empty 151`, `135 missing` --
+**byte-identical to the pre-fix-cycle count**. The only diff produced by
+regeneration was the self-dating `Generated:`/`Git:` stamp lines and the
+"recent card-touching commits" list (both expected to move on every
+regeneration, per the tool's own convention) -- reverted with `git checkout
+--` before this commit, confirmed by a post-revert `git status` showing zero
+diff on the three `docs/authoring-status*` files.
+
+**Scope diff, re-confirmed**: `git status --short` at the end of the fix
+cycle shows exactly the 13 tracked files listed in the review doc's own
+disposition table modified, plus `memory/primitives/pb-review-DX25c.md`
+(untracked -- the review artefact itself, never previously committed) and
+this file. No other file changed.

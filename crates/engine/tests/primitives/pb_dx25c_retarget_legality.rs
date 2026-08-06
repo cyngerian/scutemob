@@ -188,6 +188,38 @@ fn life_loss_player_def(name: &str, card_id: &str) -> CardDefinition {
     }
 }
 
+/// A "target player loses 3 life" instant -- `TargetRequirement::TargetPlayer`,
+/// UNCONDITIONAL (unlike `life_loss_player_def`'s `TargetOpponent`, every
+/// player including the caster's own ally satisfies this). Used by T3b to
+/// discriminate the chooser-first PREFERENCE (§3.3) from plain seat order:
+/// with no requirement restricting candidacy, a chooser who is legal but NOT
+/// first in `turn_order` still must be tried first if the preference is real.
+fn any_player_life_loss_def(name: &str, card_id: &str) -> CardDefinition {
+    CardDefinition {
+        card_id: CardId(card_id.to_string()),
+        name: name.to_string(),
+        mana_cost: Some(ManaCost {
+            red: 1,
+            ..Default::default()
+        }),
+        types: TypeLine {
+            card_types: imbl::ordset![CardType::Instant],
+            ..Default::default()
+        },
+        oracle_text: format!("{name}: Target player loses 3 life."),
+        abilities: vec![AbilityDefinition::Spell {
+            effect: Effect::LoseLife {
+                player: mtg_engine::PlayerTarget::DeclaredTarget { index: 0 },
+                amount: EffectAmount::Fixed(3),
+            },
+            targets: vec![TargetRequirement::TargetPlayer],
+            modes: None,
+            cant_be_countered: false,
+        }],
+        ..Default::default()
+    }
+}
+
 /// A "deal 3 damage to any target" instant -- CR 115.4's `TargetAny`. Used
 /// by T6 for the cross-kind (player<->object) redirect probe.
 fn any_target_def(name: &str, card_id: &str) -> CardDefinition {
@@ -630,6 +662,130 @@ fn t3_target_opponent_requirement_on_the_player_branch() {
     );
 }
 
+// ── T3b: chooser-first PREFERENCE discriminated from plain seat order ──────
+
+/// §3.3 -- the chooser-first preference is a deliberately preserved
+/// observable, kept so this batch changes what is LEGAL, not what is
+/// PREFERRED among legal candidates. `/review` (Finding T3) found it had
+/// ZERO discriminating coverage: T1/T2/T3/T4's chooser always happened to
+/// double as either the first legal candidate in seat order, or a candidate
+/// excluded from mattering, so a build that dropped the chooser-first special
+/// case (V9 in the revert matrix) left every existing test green.
+///
+/// This fixture is built specifically to fail V9: turn_order = [p1, p2, p3,
+/// p4] (p3 is NOT first), the chooser (Misdirection's caster) is p3, and the
+/// victim uses `TargetRequirement::TargetPlayer` -- UNCONDITIONAL, so p1
+/// (first in seat order) is just as legal a candidate as p3 (the chooser).
+/// If the redirect lands on p3, the chooser-first preference is real and
+/// discriminated; if it lands on p1, the code has silently fallen back to
+/// plain seat order.
+#[test]
+fn t3b_chooser_first_preference_beats_seat_order() {
+    let p1 = p(1);
+    let p2 = p(2);
+    let p3 = p(3);
+    let p4 = p(4);
+
+    let life_loss = any_player_life_loss_def("PB-DX25c T3b Life Loss", "pb-dx25c-t3b-lifeloss");
+    let misdirection = mtg_engine::cards::defs::misdirection::card();
+    let registry: Arc<CardRegistry> =
+        CardRegistry::new(vec![misdirection.clone(), life_loss.clone()]);
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .add_player(p3)
+        .add_player(p4)
+        .with_registry(registry)
+        .player_mana(
+            p3,
+            ManaPool {
+                colorless: 3,
+                blue: 2,
+                red: 1,
+                ..Default::default()
+            },
+        )
+        .object(
+            ObjectSpec::card(p3, "Misdirection")
+                .in_zone(ZoneId::Hand(p3))
+                .with_card_id(misdirection.card_id.clone())
+                .with_types(vec![CardType::Instant]),
+        )
+        .object(
+            ObjectSpec::card(p1, "PB-DX25c T3b Life Loss")
+                .in_zone(ZoneId::Hand(p1))
+                .with_card_id(life_loss.card_id.clone())
+                .with_types(vec![CardType::Instant]),
+        )
+        .at_step(Step::PreCombatMain)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let life_loss_hand_id = find_obj(&state, "PB-DX25c T3b Life Loss");
+
+    // p1 casts "target player loses 3 life" at p4 -- p4 is the CURRENT
+    // target, unrelated to both the chooser (p3) and the seat-order-first
+    // legal candidate (p1 itself, still legal since TargetPlayer has no
+    // self-exclusion).
+    let (state, _) = cast(state, p1, life_loss_hand_id, vec![Target::Player(p4)])
+        .unwrap_or_else(|e| panic!("Life Loss cast must succeed: {:?}", e));
+    let life_loss_card_id = find_stack_obj_on_stack(&state, "T3b Life Loss");
+
+    // p3 (NOT the victim's caster, NOT first in turn_order, NOT the current
+    // target) Misdirects it.
+    let misdirection_hand_id = find_obj(&state, "Misdirection");
+    let (state, _) = cast(
+        state,
+        p3,
+        misdirection_hand_id,
+        vec![Target::Object(life_loss_card_id)],
+    )
+    .unwrap_or_else(|e| panic!("Misdirection cast must succeed: {:?}", e));
+
+    let p1_life_before = life_of(&state, p1);
+    let p3_life_before = life_of(&state, p3);
+    let p4_life_before = life_of(&state, p4);
+    let (state, resolve_events) = resolve_top_of_stack(state);
+    let new_target = resolve_events
+        .iter()
+        .find_map(|e| match e {
+            GameEvent::TargetsChanged { new_targets, .. } => Some(new_targets.clone()),
+            _ => None,
+        })
+        .unwrap_or_else(|| panic!("Misdirection must redirect: {:?}", resolve_events));
+    assert_eq!(
+        new_target[0].target,
+        Target::Player(p3),
+        "the chooser (p3) is offered FIRST regardless of seat order -- \
+         turn_order is [p1, p2, p3, p4], so a build that fell back to plain \
+         seat order would land on p1 instead (p1 is legal: TargetPlayer has \
+         no self-exclusion, and p1 is not the current target p4). This is \
+         the fixture V9 (revert matrix) was missing: dropping the \
+         chooser-first special case now reddens THIS assertion, where it \
+         left every pre-existing probe green."
+    );
+
+    let (state, _) = resolve_top_of_stack(state);
+    assert_eq!(
+        life_of(&state, p3),
+        p3_life_before - 3,
+        "p3 (the chooser, and the redirected target) must lose 3 life"
+    );
+    assert_eq!(
+        life_of(&state, p1),
+        p1_life_before,
+        "p1 (the seat-order-first candidate, wrongly picked by a \
+         preference-less implementation) must be untouched"
+    );
+    assert_eq!(
+        life_of(&state, p4),
+        p4_life_before,
+        "p4 (the original target) must be untouched"
+    );
+}
+
 // ── T4: CR 104.3a / CR 115.7a on the PLAYER branch, has_conceded ───────────
 
 /// CR 104.3a / CR 115.7a — a conceded player is not a legal redirect
@@ -735,11 +891,20 @@ fn t4_conceded_player_is_not_a_legal_redirect_candidate() {
     assert_eq!(
         new_target[0].target,
         Target::Player(p4),
-        "candidate order is [p3(chooser, ==current, excluded), p1(SHOULD be \
-         filtered -- has_conceded), p2(fails TargetOpponent -- p2 IS the \
-         caster, CR 102.3 self-exclusion), p4(legal)]. A version that checks \
-         only has_lost would offer p1 BEFORE p2/p4 and this assertion would \
-         see Player(p1) instead."
+        "candidate order is [p3(chooser, ==current, excluded), p1(conceded, \
+         CR 104.3a), p2(fails TargetOpponent -- p2 IS the caster, CR 102.3 \
+         self-exclusion), p4(legal)]. This pins the WHOLE legality \
+         delegation (`validate_targets_inner` via `plan_target_change`) \
+         landing on p4, not specifically the has_conceded filter in \
+         isolation -- `validate_mapped_targets:6265` independently rejects a \
+         conceded player downstream of `retarget_candidates`, so \
+         `retarget_candidates`'s OWN has_conceded check is defense-in-depth \
+         with no test that discriminates it alone (confirmed by execution: \
+         V7 in the revert matrix drops that candidate-building filter and \
+         this assertion stays GREEN, because the trial for p1 still fails \
+         validation one layer downstream). A regression that dropped \
+         has_conceded from BOTH layers would still redden this test, just \
+         not by isolating which layer caught it."
     );
 
     let (state, _) = resolve_top_of_stack(state);
@@ -1175,9 +1340,30 @@ fn t8_self_targeting_is_still_refused() {
 
 /// §3.4's fail-closed decision, pinned directly. This configuration --
 /// non-empty `targets` with an EMPTY `target_requirements` -- is unreachable
-/// through any real cast after §3.1's population work (every production
-/// `.targets`-writing site records a real list); it exists solely to prove
-/// the guard, and proves NOTHING about the production path.
+/// on any path `plan_target_change` can actually reach, because a
+/// `ChangeTargets` victim is always a `Spell`/`MutatingCreatureSpell`
+/// (`OOS-DX25b-1`: only a CARD id can ever be "announced" by a player, and
+/// `stack_index_for_announced_target` resolves `pos` from that announced id
+/// alone -- an ability's stack entry owns no card and can never be named).
+///
+/// **This is NOT a claim that every production `.targets`-writing site
+/// records a real list -- it is false as stated, and `/review` caught it**:
+/// `abilities.rs:1799` (Forecast), `:2017` (Bloodrush), `:8837` (Modular),
+/// `:10975` (Scavenge) each write a NON-EMPTY `targets` with a deliberately
+/// EMPTY `target_requirements` (there is no `TargetRequirement` shape for
+/// "the attacking creature" or "the deterministically-scanned artifact
+/// creature" those abilities target -- see `stack::StackObject`'s own doc:
+/// "Empty means ... no list was recorded at this push site"). Those four
+/// sites are exactly this configuration, and they are why the fail-closed
+/// guard is load-bearing rather than decorative: the day `OOS-DX25b-1`
+/// closes and abilities become reachable `ChangeTargets` victims, this guard
+/// is what stops one of those four from silently reintroducing an unfiltered
+/// redirect instead of correctly refusing to change a target it was never
+/// told the legality rule for.
+///
+/// This fixture exists solely to prove the guard on the ONE path that CAN
+/// reach it today (a hand-built `StackObject`, deliberately the only one in
+/// this file), and proves NOTHING about the production path.
 #[test]
 fn t9c_missing_requirement_list_fails_closed() {
     let p1 = p(1);

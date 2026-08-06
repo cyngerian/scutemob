@@ -100,6 +100,8 @@ branches. That is a stronger statement than "the brief named one of two", and it
 | `crates/simulator/src/targeting.rs::plan_targets` | announces the *Misdirection* target (which spell to retarget). The retarget itself is engine-side. **No production line changes**; it is the *channel* the AC-6304 probe drives (§5.3). |
 | `deflecting_swat` (`must_change: false`, CR 115.7d) | deterministic no-op before and after. `OOS-DX25b-4` stays open. The R2 roster message must keep saying membership ≠ works. |
 | `hydroelectric_specimen.rs:27-33` | its `Completeness::partial(...)` string says *"must_change retargets to the effect's controller"* — still substantially true after this batch (the controller preference is **kept**, §3.3). **Leave byte-unchanged**; editing a `partial(...)` string is a card-def content edit and PB-DX25b's C2 already learned that lesson the hard way. |
+| `EffectContext::target_remaps` (`effects/mod.rs:69`, written `:2659`/`:2704`/`:3588`, read `:7639`) | **Added by `/review` (Finding T12) — an Inverse-III channel a FORWARD census cannot see.** CR 400.7 identity-following inside ONE resolution: an effect moves the target to a new zone and later effects in the same resolution follow the new `ObjectId`. It selects a different id for the SAME object, never a different object; is scoped to one `EffectContext`; is never written back to the stack object; emits no `TargetsChanged`. Correctly out of scope. |
+| `resolution.rs:636` `ctx.targets = slice` | **Added by `/review` (Finding T12) — the second Inverse-III channel.** A per-mode narrowing of the resolving object's OWN target list — a read-side slice of an already-validated list, not a choice. Correctly out of scope. |
 
 ### 2.5 Documentation consumers whose text becomes false
 

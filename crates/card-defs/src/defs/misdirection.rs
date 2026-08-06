@@ -4,7 +4,7 @@
 //
 // CR 118.9: pitch a blue card instead of the mana cost (no life component — unlike
 // Force of Will's pitch, which also pays 1 life).
-// CR 115.7a/115.7b: TargetSpellWithSingleTarget is spell-only (unlike Bolt Bend's
+// CR 115.7a: TargetSpellWithSingleTarget is spell-only (unlike Bolt Bend's
 // TargetSpellOrAbilityWithSingleTarget, which also legalizes activated/loyalty
 // abilities). Misdirection's oracle text says "target spell", not "target spell or
 // ability", so the spell-only requirement is correct here.
@@ -21,7 +21,11 @@
 // `Effect::ChangeTargets` resolution logic, reachable from every card that
 // uses it, never a fidelity problem with this def's translation of the
 // printed card (which correctly declares `TargetSpellWithSingleTarget` and
-// `must_change: true`, matching CR 115.7a/115.7b exactly). Pinned
+// `must_change: true`, matching CR 115.7a exactly -- the printed text is
+// "Change THE target", not "change A target", so CR 115.7b (a distinct,
+// unimplemented rule with no corpus user, per R2 of
+// `pb_dx25c_retarget_roster.rs`) does not apply here; `/review` Finding C1).
+// Pinned
 // (post-fix) by
 // `crates/engine/tests/primitives/pb_dx25b_announced_stack_target_space.rs
 // ::t9_object_target_redirect_obeys_the_original_requirement` and
@@ -58,7 +62,7 @@ pub fn card() -> CardDefinition {
                     opponents_turn_only: false,
                 }),
             },
-            // CR 115.7a/115.7b: change the target of target spell with a single target.
+            // CR 115.7a: change the target of target spell with a single target.
             AbilityDefinition::Spell {
                 effect: Effect::ChangeTargets {
                     target: EffectTarget::DeclaredTarget { index: 0 },

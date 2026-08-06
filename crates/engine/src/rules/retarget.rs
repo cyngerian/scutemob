@@ -86,12 +86,19 @@ pub(crate) fn plan_target_change(
     if reqs.is_empty() {
         return None;
     }
-    // CR 702.16b protection checks read the VICTIM spell's own characteristics
-    // (what `handle_cast_spell` passed as `Some(&chars)` when the victim was
-    // first cast — `casting.rs`'s `announced_requirements` validation site).
-    // `victim_card` doubles as `self_id` (CR 601.2c self-targeting prevention /
-    // `TargetFilter.exclude_self`), matching that same call site's `card`
-    // argument. For a non-card-owning stack kind (an ability) both are `None`;
+    // CR 702.16b protection checks read the VICTIM spell's own characteristics,
+    // resolved HERE from the stack-resident object (CR 608.2b/613) rather than
+    // reproduced from what `handle_cast_spell` passed at cast time. Those are
+    // NOT the same value: `casting.rs`'s cast-time validation
+    // (`announced_requirements`, `:3696-3743`) runs BEFORE the card's zone
+    // move onto the stack (`:4440`), so its `card`/`Some(&chars)` arguments
+    // describe the card in its PRE-move zone (typically the caster's hand).
+    // `victim_card`/`source_chars` here describe the same card AFTER the
+    // move — the values a retarget must use, since the object being
+    // redirected is on the stack right now. `victim_card` doubles as
+    // `self_id` (CR 601.2c self-targeting prevention /
+    // `TargetFilter.exclude_self`) for the same reason. For a non-card-owning
+    // stack kind (an ability) both are `None`;
     // that case is unreachable here today — a `ChangeTargets` victim is always
     // a `Spell`/`MutatingCreatureSpell`, because the only route to one is an
     // announced CARD id resolved through `stack_registry::stack_index_for_
@@ -105,22 +112,39 @@ pub(crate) fn plan_target_change(
 
     let candidates = retarget_candidates(state, chooser);
 
-    // Greedy per-index search. Each trial is validated as a WHOLE SET (CR
-    // 115.3 inter-target distinctness, CR 115.7e) via `validate_targets_
+    // Greedy per-index search. Each trial is validated via `validate_targets_
     // inner` — never index-matched against a stored per-slot requirement,
     // because `casting::validate_mapped_targets`' own doc states the
     // returned `Vec<SpellTarget>` does NOT preserve a target→slot mapping
     // (declaration order is kept, not requirement-slot order), so a stored
     // `target_requirements` list only supports set-level re-validation.
     //
+    // A TRIAL here is a MIXED set — index `i` holds the candidate under test,
+    // every index `> i` still holds its ORIGINAL target, which may itself be
+    // illegal by now. Validating a trial is therefore a HEURISTIC FILTER, not
+    // CR 115.7e compliance in itself: CR 115.7e says "only the FINAL set of
+    // targets is evaluated to determine whether the change is legal", i.e.
+    // intermediate/mixed sets are explicitly NOT what decides legality. CR
+    // 115.7e compliance comes from the single re-validation of the actual
+    // final set below, on its own, after every index has been decided — and
+    // from that step ALONE.
+    //
     // Known incompleteness, stated rather than glossed (`OOS-DX25c-1`): this
-    // search is GREEDY, so for target count > 1 it can fail to find a legal
+    // greedy filter has TWO distinct failure mechanisms, not one. (a) No
+    // backtracking, so for target count > 1 it can fail to find a legal
     // assignment that exists (Bolt Bend's 2024-11-08 ruling: "you must change
-    // the target if possible"). A complete search is combinatorial in the
-    // candidate universe; the failure direction is "leave unchanged" — CR
-    // 115.7a's own fallback — and the reachable population is measured as
-    // zero (every `must_change: true` corpus user requires exactly one
-    // target).
+    // the target if possible") even when one does. (b) Because a trial is a
+    // MIXED set, an already-illegal ORIGINAL target at an undecided index
+    // poisons every candidate at every earlier index — `validate_targets_
+    // inner`'s two-pass best-fit assignment requires the WHOLE slice to be
+    // assignable, so one bad original can abort the entire plan even though
+    // CR 115.7a explicitly contemplates a now-illegal original ("even if the
+    // original target is itself illegal by then") and CR 115.7e forbids
+    // evaluating anything but the final set. Both failure directions resolve
+    // to "leave unchanged" — CR 115.7a's own fallback — and the reachable
+    // population is measured as zero (every `must_change: true` corpus user
+    // requires exactly one target, so `next.len() == 1` and no trial ever
+    // contains an undecided original).
     let mut next: Vec<Target> = so.targets.iter().map(|st| st.target.clone()).collect();
     for i in 0..next.len() {
         let current = so.targets[i].target.clone();
@@ -200,6 +224,21 @@ pub(crate) fn plan_target_change(
 /// 3. Every object in `state.objects()` (ascending `ObjectId` —
 ///    `imbl::OrdMap` iteration order) whose zone is `Battlefield`, `Stack`,
 ///    or `Graveyard(_)`.
+///
+/// **Deviation from `legal_targets_per_slot`, stated rather than hidden
+/// (PB-DX25c `/review` Finding E5)**: step 1 pushes `Target::Player(chooser)`
+/// unconditionally once `chooser_alive` holds — it does NOT also check that
+/// `chooser` appears in `state.turn.turn_order`. `legal_targets_per_slot`
+/// enumerates players from `turn_order` alone, so if `chooser` were ever
+/// alive-but-absent from `turn_order` this function would offer one more
+/// candidate than the query does, and R6's fixture (every player it builds is
+/// in `turn_order` by construction) cannot see the divergence. In every
+/// production caller `chooser` is `EffectContext.controller`, itself always a
+/// seated player recorded in `turn_order`, so the gap is believed
+/// unreachable — but it is not machine-checked the way the rest of this
+/// function's parity with `legal_targets_per_slot` is (R6). Recorded rather
+/// than silently fixed, since gating step 1 on `turn_order` membership would
+/// be an unproven behaviour change with no failing test to justify it.
 ///
 /// `pub(crate)` so the R6 gate and the test probes can assert this universe
 /// is the same SET `legal_targets_per_slot` enumerates, by execution rather

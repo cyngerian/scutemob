@@ -176,6 +176,19 @@ fn r1_must_change_true_roster_and_single_target_claim_are_pinned() {
     // target-shaped (TargetSpellWithSingleTarget /
     // TargetSpellOrAbilityWithSingleTarget) -- the property that makes CR
     // 115.7a's all-or-nothing clause (§3.5) unreachable for n=1.
+    //
+    // **Residual, stated rather than glossed (`/review` Finding T11)**: this
+    // check greps the WHOLE DEF's sanitized Debug, not the specific ability
+    // that carries `must_change: true`. A future def with `must_change: true`
+    // on ONE ability and an unrelated single-target requirement on a
+    // DIFFERENT ability would satisfy this assertion vacuously -- the needle
+    // would find the single-target string somewhere in the def without it
+    // governing the ChangeTargets-carrying ability at all. This is a
+    // DEF-LEVEL approximation, not an ability-scoped proof; today's three
+    // roster members each have exactly one relevant ability, so the
+    // approximation and the precise property coincide, but a def added later
+    // with multiple abilities is not distinguished from one that is
+    // genuinely single-target-shaped.
     for name in &roster {
         let def = cards.iter().find(|d| &d.name == name).unwrap();
         let debug = sanitized_debug(def);
@@ -192,15 +205,50 @@ fn r1_must_change_true_roster_and_single_target_claim_are_pinned() {
 
 // ── R2: the 115.7b/115.7c population is EMPTY, with a liveness control ─────
 
-/// R2 (plan §5.4): the DSL has no representation for "change A target" /
-/// "change ANY targets" (CR 115.7b/115.7c) -- pin the ABSENCE of a need, with
-/// a walker-liveness control (PB-DX25b R3 lesson: an empty pin needs a
-/// control, not just a corpus floor). Also pins `deflecting_swat` as the sole
+/// R2 (plan §5.4). **Renamed by `/review` (Finding T4): the old name
+/// (`r2_115_7b_115_7c_population_is_empty_with_a_control_and_deflecting_
+/// swat_is_pinned`) claimed a CR 115.7b/115.7c *population* pin the body
+/// never asserted over the CORPUS** -- it asserted walker liveness plus the
+/// `must_change: false` roster, neither of which measures 115.7b/115.7c at
+/// all. This version does two things instead: (1) what the old name promised
+/// but the old body didn't check -- a source-level assertion that the
+/// `Effect` enum (`card_definition.rs`) declares NO variant shaped for CR
+/// 115.7b ("change A target") or CR 115.7c ("change ANY targets"), i.e. the
+/// DSL genuinely has no representation for either, not merely that no CORPUS
+/// def happens to use one; (2) the corpus-side checks the old body actually
+/// ran: a walker-liveness control (PB-DX25b R3 lesson: an empty pin needs a
+/// control, not just a corpus floor) and `deflecting_swat` pinned as the sole
 /// `must_change: false` user, restating `OOS-DX25b-4`: membership here does
-/// NOT mean the card gains anything -- `must_change: false` is a deterministic
-/// no-op by construction (§3.3), unchanged by this batch.
+/// NOT mean the card gains anything -- `must_change: false` is a
+/// deterministic no-op by construction (§3.3), unchanged by this batch.
 #[test]
-fn r2_115_7b_115_7c_population_is_empty_with_a_control_and_deflecting_swat_is_pinned() {
+fn r2_effect_enum_has_no_115_7b_115_7c_variant_and_must_change_false_roster_is_pinned() {
+    // ── (1) source-level: the Effect enum itself has no 115.7b/115.7c shape ──
+    let card_def_src = strip_comments(&read_source("../card-types/src/cards/card_definition.rs"));
+    let enum_marker = "pub enum Effect {";
+    let enum_start = card_def_src
+        .find(enum_marker)
+        .unwrap_or_else(|| panic!("`{enum_marker}` not found in card_definition.rs"));
+    let open_brace = enum_start + enum_marker.len() - 1;
+    let enum_body = balanced_body(&card_def_src, open_brace, enum_marker);
+    assert!(
+        enum_body.contains("ChangeTargets"),
+        "PB-DX25c R2 non-vacuity: the extracted Effect enum body must contain \
+         the ChangeTargets variant it is supposed to be scanning -- \
+         extraction is broken"
+    );
+    for needle in ["ChangeSomeTargets", "ChangeATarget", "ChangeAnyTargets"] {
+        assert!(
+            !enum_body.contains(needle),
+            "PB-DX25c R2: the Effect enum must declare NO variant named \
+             {needle:?} -- if one now exists, CR 115.7b/115.7c has gained a \
+             DSL shape and this test's whole premise (no representation \
+             exists) is stale; update it to cover the new variant instead of \
+             asserting its absence."
+        );
+    }
+
+    // ── (2) corpus-side: walker liveness + the must_change: false roster ──
     let cards = all_cards();
 
     // Liveness control: the SAME walker mechanism must find a non-empty set
@@ -219,9 +267,11 @@ fn r2_115_7b_115_7c_population_is_empty_with_a_control_and_deflecting_swat_is_pi
 
     // The DSL encodes CR 115.7a (must_change: true) and CR 115.7d
     // (must_change: false) only -- there is no `ChangeSomeTargets { count }`
-    // or similar CR 115.7b/115.7c shape at all, so a text-needle scan for one
-    // is meaningless; what CAN be measured is that `must_change: false` has
-    // exactly the one known user, and that this batch changes nothing for it.
+    // or similar CR 115.7b/115.7c shape at all (confirmed above at the
+    // source level), so a corpus text-needle scan for one would be
+    // meaningless; what CAN be measured on the corpus is that
+    // `must_change: false` has exactly the one known user, and that this
+    // batch changes nothing for it.
     let must_change_false: BTreeSet<String> = cards
         .iter()
         .filter(|d| sanitized_debug(d).contains("must_change: false"))
@@ -248,16 +298,38 @@ fn r2_115_7b_115_7c_population_is_empty_with_a_control_and_deflecting_swat_is_pi
 /// non-empty announcement) also mentions `target_requirements:` in the SAME
 /// literal.
 ///
-/// **Residual, stated honestly rather than overclaimed**: this is a TEXTUAL
-/// pairing check over a fixed file set. It cannot prove the recorded list is
-/// the RIGHT one (a site could write `target_requirements: vec![]` next to a
-/// non-empty `targets:` and this gate would not object -- that is what §3.4's
-/// fail-closed guard and T9c exist to make merely a LOST feature, never a
-/// wrong one). It also cannot see a literal built through `..Default::
-/// default()` with `targets` set via a later `.targets = ` assignment
-/// outside the literal -- P2's 9 sites (§3.1) are checked separately by
-/// inspection, not by this gate, and are named in this test's own doc so a
-/// reviewer can re-verify by hand.
+/// **Residuals, stated honestly rather than overclaimed (`/review` Finding
+/// T5) -- TWO of them, not one:**
+///
+/// 1. **This test is MOSTLY redundant with rustc, and that is worth saying
+///    plainly rather than presenting it as this gate's main protection.** A
+///    `StackObject { .. }` literal that omits `target_requirements` entirely
+///    does not COMPILE unless it uses a `..base` spread (every field is
+///    required otherwise) -- so for a literal with NO spread, rustc itself
+///    already forces the field to be written, and this gate adds nothing.
+///    The ONE shape this gate adds anything over the compiler for is a
+///    literal that DOES use a `..spread` (e.g. `..blank_stack_object()`)
+///    while setting `targets:` explicitly and relying on the spread's
+///    DEFAULT for `target_requirements` -- that compiles fine, silently
+///    inheriting whatever the spread source's `target_requirements` happens
+///    to be (typically empty), and is exactly the configuration this gate
+///    exists to catch. It cannot prove the recorded list is the RIGHT one
+///    either way (a site could write `target_requirements: vec![]` explicitly
+///    next to a non-empty `targets:` and this gate would not object -- that
+///    is what §3.4's fail-closed guard and T9c exist to make merely a LOST
+///    feature, never a wrong one).
+/// 2. **This gate scans `crates/engine/src` only.** A production `StackObject
+///    { .. }` literal in `crates/simulator`, `crates/view-model`, or
+///    `tools/` is invisible to it. Measured, not assumed: none exist today
+///    (every production site outside `crates/engine/src` goes through
+///    `StackObject::trigger_default`, a function, not a literal -- its BODY
+///    is inside the swept directory and IS covered).
+///
+/// It also cannot see a literal built through `..Default::default()` with
+/// `targets` set via a later `.targets = ` assignment outside the literal --
+/// P2's 9 sites (§3.1) are checked separately by inspection, not by this
+/// gate, and are named in this test's own doc so a reviewer can re-verify by
+/// hand.
 #[test]
 fn r3_stack_object_literals_pair_targets_with_target_requirements() {
     let src_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
@@ -286,8 +358,11 @@ fn r3_stack_object_literals_pair_targets_with_target_requirements() {
             let open_brace = marker_pos + "StackObject {".len() - 1;
             let body = balanced_body(&stripped, open_brace, &relative);
             literals_scanned += 1;
+            // `/review` Finding T5: the outer `body.contains("targets:") &&`
+            // this used to be gated behind was redundant -- `has_targets`
+            // already contains that exact conjunct.
             let has_targets = body.contains("targets:") && !body.contains("target_requirements:");
-            if body.contains("targets:") && has_targets {
+            if has_targets {
                 offending.push(format!(
                     "{relative} (StackObject literal at byte {marker_pos})"
                 ));
@@ -323,7 +398,29 @@ fn r3_stack_object_literals_pair_targets_with_target_requirements() {
 #[test]
 fn r4_change_targets_arm_contains_no_second_decision() {
     let stripped = strip_comments(&read_source(EFFECTS_MOD_PATH));
-    let body = extract_match_arm_body(&stripped, "Effect::ChangeTargets {");
+
+    // `/review` Finding T6: `extract_match_arm_body` anchors on the FIRST
+    // textual occurrence of the marker -- a future non-comment
+    // `matches!(e, Effect::ChangeTargets { .. })` earlier in this file would
+    // silently retarget the gate at a different (and misleading) arm body.
+    // It would fail CLOSED (plan_calls would read 0 against the wrong body)
+    // but with a message that blames the wrong cause. Guard the anchor
+    // itself: the marker must occur EXACTLY once in the stripped source, so
+    // "first occurrence" and "the only occurrence" are provably the same
+    // thing here.
+    let marker = "Effect::ChangeTargets {";
+    let marker_count = stripped.matches(marker).count();
+    assert_eq!(
+        marker_count, 1,
+        "PB-DX25c R4: `{marker:?}` must occur EXACTLY once in the \
+         comment-stripped src/effects/mod.rs -- found {marker_count}. A \
+         second occurrence (e.g. a `matches!(e, Effect::ChangeTargets {{ .. \
+         }})` guard added earlier in the file) would make \
+         extract_match_arm_body anchor on the WRONG arm body, and this gate \
+         would then be measuring the wrong code without saying so."
+    );
+
+    let body = extract_match_arm_body(&stripped, marker);
 
     // Re-measured floor (plan §1 fact 14 / §9 checklist): PB-DX25b's own R4
     // floor (200 chars) was predicted AT RISK from this batch's shrink and
