@@ -285,6 +285,16 @@ fn stack_card_of(kind: &mtg_engine::StackObjectKind) -> Option<ObjectId> {
 /// precisely because the earlier evidence could not have caught them — read a
 /// `stack_consistency` violation as a real finding, which is the point of both batches.
 ///
+/// **Correction (PB-DX25 review fix cycle, kept here rather than silently edited
+/// away — the paragraph below already corrects it in substance, this note flags
+/// the sentence itself as known-wrong so a reader stops at THIS line, not just
+/// the next one):** "two live... trip THIS check" is false as originally written.
+/// Of `OOS-SIM3-5`'s three shapes, only shape (c) was live, and shape (c) produces
+/// NO `stack_consistency` divergence (the card and its stack entry both survive
+/// consistently — the countered spell just resolves anyway, silently). Shapes
+/// (a) and (b) were both UNREACHABLE on the corpus at the time this sentence was
+/// written (plan §2.2 / §2.3). Zero of the three ever tripped this specific check.
+///
 /// **PB-DX25 closes `OOS-SIM3-5`** (not deleted from the history above, since the
 /// finding is what motivated the fix): `Effect::CounterSpell`'s zone-move used to
 /// decide "does this stack object own a card" by matching the `StackObjectKind`
