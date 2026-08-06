@@ -964,6 +964,7 @@ fn test_eternalize_split_second_blocks() {
             source_object: fake_object_id,
         },
         targets: Vec::new(),
+        target_requirements: vec![],
         cant_be_countered: false,
         is_copy: false,
         cast_with_flashback: false,

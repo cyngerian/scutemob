@@ -2226,6 +2226,7 @@ fn test_companion_rejected_with_non_empty_stack() {
             source_object: ObjectId(9001),
         },
         targets: vec![],
+        target_requirements: vec![],
         cant_be_countered: false,
         is_copy: false,
         cast_with_flashback: false,

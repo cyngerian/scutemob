@@ -887,6 +887,7 @@ fn blank_stack_object() -> StackObject {
             source_object: ObjectId(0),
         },
         targets: vec![],
+        target_requirements: vec![],
         cant_be_countered: false,
         is_copy: false,
         cast_with_flashback: false,
@@ -1218,29 +1219,30 @@ fn t8_copy_spell_on_stack_finds_its_target() {
     );
 }
 
-// ── T9: object-target redirect ignores the original requirement (WRONG-WAY-ROUND) ──
+// ── T9: object-target redirect obeys the original requirement ──────────────
 
-/// `OOS-DX25b-3` (PB-DX25b review Finding E1, HIGH) -- CR 115.7a: "each target
-/// can be changed only to ANOTHER LEGAL target." The `Target::Object` branch of
-/// `Effect::ChangeTargets` (`effects/mod.rs:7619-7654`, self-documented as a
-/// KNOWN LIMITATION) picks the smallest `ObjectId` in the recorded
-/// `zone_at_cast` with NO check that the new object satisfies the original
-/// spell's `TargetRequirement`. Before PB-DX25b this branch was UNREACHABLE
-/// (nothing could announce a target at all, C1/C2 always failed). After it,
-/// Misdirection/Bolt Bend can redirect a "destroy target CREATURE" spell onto
-/// a LAND.
+/// `OOS-DX25b-3` CLOSED (PB-DX25b review Finding E1, HIGH; fixed by
+/// PB-DX25c). CR 115.7a: "each target can be changed only to ANOTHER LEGAL
+/// target." Before PB-DX25c, the `Target::Object` branch of
+/// `Effect::ChangeTargets` picked the smallest `ObjectId` in the recorded
+/// `zone_at_cast` with NO check that the new object satisfied the original
+/// spell's `TargetRequirement` -- a "destroy target CREATURE" spell could be
+/// redirected onto a LAND. `rules::retarget::plan_target_change` now
+/// delegates the whole decision to `casting::validate_targets_inner`, the
+/// same collective legality arithmetic a real cast is checked against.
 ///
-/// **THIS TEST PINS THE CURRENT (CR-WRONG) BEHAVIOUR ON PURPOSE.** It is
-/// wrong-way-round, the `blinkmoth_nexus` pattern PB-DX19 established: the
-/// assertions below describe what the engine DOES today, not what CR 115.7a
-/// requires. The successor batch that implements object-target legality for
-/// `Effect::ChangeTargets` (needs the victim spell's `TargetRequirement` list
-/// stored on `StackObject` -- a hashed field, plan §8 R2 option (i), rejected
-/// as its own batch out of PB-DX25b's scope) MUST INVERT this assertion: the
-/// land must survive and the destroy spell must fizzle or find no legal
-/// alternative, not redirect onto an object of the wrong type.
+/// **This test was PINNED WRONG-WAY-ROUND for one batch** (the
+/// `blinkmoth_nexus` pattern, PB-DX19), asserting what the engine DID at
+/// HEAD rather than what CR 115.7a requires. PB-DX25c inverts it: on THIS
+/// fixture (the only other object on the board is a land, and the victim
+/// spell's requirement is `TargetCreature`), CR 115.7a's own fallback
+/// applies -- "If a target can't be changed to another legal target, the
+/// original target is unchanged." See T9b below for the sibling fixture
+/// that proves the redirect DOES fire when a legal alternative exists (a
+/// `plan_target_change` that always returned `None` would pass THIS test
+/// alone, without T9b).
 #[test]
-fn t9_object_target_redirect_ignores_the_original_requirement() {
+fn t9_object_target_redirect_obeys_the_original_requirement() {
     let p1 = p(1);
     let p2 = p(2);
 
@@ -1337,37 +1339,196 @@ fn t9_object_target_redirect_ignores_the_original_requirement() {
 
     // Resolve Misdirection first (LIFO). CR 115.7a requires the redirect to
     // land on ANOTHER LEGAL target -- the victim's own requirement is
-    // TargetCreature, so a land is not a legal alternative. At HEAD the
-    // redirect ignores that requirement and picks the smallest ObjectId on
-    // the Battlefield other than the current target: the LAND.
+    // TargetCreature, and the only other object on the board is a land, so
+    // there is no legal alternative. CR 115.7a's fallback applies: "the
+    // original target is unchanged."
     let (state, resolve_events) = pass_n(state, &[p1, p2]);
     assert!(
-        resolve_events
+        !resolve_events
             .iter()
             .any(|e| matches!(e, GameEvent::TargetsChanged { .. })),
-        "Misdirection must resolve and change the victim's target"
+        "OOS-DX25b-3 (CR 115.7a): with no legal alternative (the only other \
+         object is a land, and the victim's requirement is TargetCreature), \
+         Misdirection must resolve WITHOUT changing the victim's target -- \
+         no TargetsChanged event. Got: {:?}",
+        resolve_events
+    );
+
+    // Resolve the (unchanged) Destroy Creature spell -- it still destroys
+    // its ORIGINAL target, the creature.
+    let (state, _) = pass_n(state, &[p1, p2]);
+
+    assert!(
+        state.objects().values().any(|o| o.characteristics.name == "T9 Bystander Land"
+            && o.zone == ZoneId::Battlefield),
+        "OOS-DX25b-3 CLOSED (CR 115.7a): the bystander land must survive -- \
+         the redirect must not have landed on it, since a land does not \
+         satisfy the victim spell's TargetCreature requirement"
+    );
+    assert!(
+        !state.objects().values().any(
+            |o| o.characteristics.name == "T9 Victim Creature" && o.zone == ZoneId::Battlefield
+        ),
+        "the ORIGINAL target (the creature) must be destroyed -- the redirect \
+         found no legal alternative, so Destroy Creature resolves against its \
+         unchanged original target"
+    );
+}
+
+// ── T9b: object-target redirect DOES fire when a legal alternative exists ──
+
+/// The sibling of T9 above, using the plan's exact prescription (§5.1): same
+/// board, plus a SECOND creature (controlled by p2, the victim spell's
+/// caster) so a legal `TargetCreature` alternative actually exists. Proves
+/// the fix is not simply "never change anything" -- without this test, a
+/// `plan_target_change` that always returned `None` would pass T9 alone.
+#[test]
+fn t9b_object_target_redirect_fires_with_a_legal_alternative() {
+    let p1 = p(1);
+    let p2 = p(2);
+
+    let destroy_creature = CardDefinition {
+        card_id: CardId("pb-dx25c-t9b-destroy-creature".to_string()),
+        name: "PB-DX25c T9b Destroy Creature".to_string(),
+        mana_cost: Some(ManaCost {
+            black: 1,
+            generic: 1,
+            ..Default::default()
+        }),
+        types: TypeLine {
+            card_types: imbl::ordset![CardType::Instant],
+            ..Default::default()
+        },
+        oracle_text: "Destroy target creature.".to_string(),
+        abilities: vec![AbilityDefinition::Spell {
+            effect: Effect::DestroyPermanent {
+                target: CardEffectTarget::DeclaredTarget { index: 0 },
+                cant_be_regenerated: false,
+            },
+            targets: vec![TargetRequirement::TargetCreature],
+            modes: None,
+            cant_be_countered: false,
+        }],
+        ..Default::default()
+    };
+
+    let misdirection = mtg_engine::cards::defs::misdirection::card();
+    let registry: Arc<CardRegistry> =
+        CardRegistry::new(vec![misdirection.clone(), destroy_creature.clone()]);
+
+    let state = GameStateBuilder::new()
+        .add_player(p1)
+        .add_player(p2)
+        .with_registry(registry)
+        .player_mana(
+            p1,
+            ManaPool {
+                colorless: 3,
+                blue: 2,
+                ..Default::default()
+            },
+        )
+        .player_mana(
+            p2,
+            ManaPool {
+                black: 1,
+                colorless: 1,
+                ..Default::default()
+            },
+        )
+        .object(ObjectSpec::land(p1, "T9b Bystander Land"))
+        .object(ObjectSpec::creature(p1, "T9b Victim Creature", 2, 2))
+        .object(ObjectSpec::creature(p2, "T9b Alternative Creature", 3, 3))
+        .object(
+            ObjectSpec::card(p1, "Misdirection")
+                .in_zone(ZoneId::Hand(p1))
+                .with_card_id(misdirection.card_id.clone())
+                .with_types(vec![CardType::Instant]),
+        )
+        .object(
+            ObjectSpec::card(p2, "PB-DX25c T9b Destroy Creature")
+                .in_zone(ZoneId::Hand(p2))
+                .with_card_id(destroy_creature.card_id.clone())
+                .with_types(vec![CardType::Instant]),
+        )
+        .at_step(Step::PreCombatMain)
+        .active_player(p1)
+        .build()
+        .unwrap();
+
+    let creature_id = find_obj(&state, "T9b Victim Creature");
+    let alt_creature_id = find_obj(&state, "T9b Alternative Creature");
+    let destroy_hand_id = find_obj(&state, "PB-DX25c T9b Destroy Creature");
+
+    // p2 casts "destroy target creature" at p1's creature.
+    let (state, _) = cast(
+        state,
+        p2,
+        destroy_hand_id,
+        vec![Target::Object(creature_id)],
+    )
+    .unwrap_or_else(|e| panic!("Destroy Creature cast must succeed: {:?}", e));
+    let destroy_card_id = find_stack_obj_on_stack(&state, "Destroy Creature");
+
+    // p1 casts Misdirection targeting that spell.
+    let misdirection_hand_id = find_obj(&state, "Misdirection");
+    let (state, _) = cast(
+        state,
+        p1,
+        misdirection_hand_id,
+        vec![Target::Object(destroy_card_id)],
+    )
+    .unwrap_or_else(|e| panic!("Misdirection cast must succeed: {:?}", e));
+
+    // Resolve Misdirection first (LIFO). A legal alternative (the second
+    // creature) exists, so the redirect must fire.
+    let (state, resolve_events) = pass_n(state, &[p1, p2]);
+    let changed = resolve_events.iter().find_map(|e| match e {
+        GameEvent::TargetsChanged { new_targets, .. } => Some(new_targets.clone()),
+        _ => None,
+    });
+    let new_targets =
+        changed.unwrap_or_else(|| panic!("Misdirection must redirect: {:?}", resolve_events));
+    assert_eq!(
+        new_targets.len(),
+        1,
+        "the redirected target set must still have exactly one target"
+    );
+    assert_eq!(
+        new_targets[0].target,
+        Target::Object(alt_creature_id),
+        "the redirect must land on the SECOND creature (the only legal \
+         alternative), not the land"
+    );
+    assert_eq!(
+        new_targets[0].zone_at_cast,
+        Some(ZoneId::Battlefield),
+        "CR 608.2b: zone_at_cast must be rebuilt from the NEW target's own \
+         zone"
     );
 
     // Resolve the (redirected) Destroy Creature spell.
     let (state, _) = pass_n(state, &[p1, p2]);
 
     assert!(
-        !state.objects().values().any(|o| o.characteristics.name == "T9 Bystander Land"
-            && o.zone == ZoneId::Battlefield),
-        "OOS-DX25b-3 (CR 115.7a): AT HEAD, the object-target redirect picks the \
-         smallest ObjectId in the recorded zone with NO legality check against \
-         the original spell's TargetRequirement -- a 'destroy target CREATURE' \
-         spell redirects onto a LAND and destroys it. THIS IS THE CURRENT \
-         (CR-WRONG) BEHAVIOUR, pinned wrong-way-round: the successor batch that \
-         implements CR 115.7a legality for object-target redirects MUST INVERT \
-         this assertion."
+        state.objects().values().any(
+            |o| o.characteristics.name == "T9b Bystander Land" && o.zone == ZoneId::Battlefield
+        ),
+        "the bystander land must survive -- it was never a candidate"
     );
     assert!(
-        state.objects().values().any(
-            |o| o.characteristics.name == "T9 Victim Creature" && o.zone == ZoneId::Battlefield
-        ),
-        "the ORIGINAL target (the creature) must survive -- at HEAD it is the \
-         land, not the creature, that gets redirected onto and destroyed"
+        state
+            .objects()
+            .values()
+            .any(|o| o.characteristics.name == "T9b Victim Creature"
+                && o.zone == ZoneId::Battlefield),
+        "the ORIGINAL target must survive -- the redirect moved the spell off it"
+    );
+    assert!(
+        !state.objects().values().any(|o| {
+            o.characteristics.name == "T9b Alternative Creature" && o.zone == ZoneId::Battlefield
+        }),
+        "the ALTERNATIVE creature (the new target) must be destroyed"
     );
 }
 

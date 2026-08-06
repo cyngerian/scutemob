@@ -121,8 +121,8 @@ pub const UNOBSERVABLE_ROW_IDS: &[(&str, &str)] = &[
     ),
     (
         "change_targets",
-        "AutoChosen -- declines an optional retarget and picks the lowest id for a \
-         mandatory one, inline (CR 115.7d)",
+        "AutoChosen -- declines an optional retarget and picks the lowest-id LEGAL \
+         candidate for a mandatory one, inline (CR 115.7a/115.7d, PB-DX25c)",
     ),
     (
         "put_on_library",

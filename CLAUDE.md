@@ -42,8 +42,8 @@
   PB-DX24 shipped `scutemob-202` 2026-08-05 (rank 6);
   PB-DX25 shipped `scutemob-203` 2026-08-05 (rank 7);
   PB-DX25b shipped `scutemob-204` 2026-08-06 (rank 7b, INSERTED 2026-08-06 user-approved);
-  **next PB-DX25c** (rank 7c, INSERTED 2026-08-06 user-approved — OOS-DX25b-3, the
-  CR 115.7a redirect-legality gap PB-DX25b made reachable; PB-DX26 moves after it);
+  PB-DX25c shipped `scutemob-205` 2026-08-06 (rank 7c, INSERTED 2026-08-06 user-approved —
+  closed OOS-DX25b-3, the CR 115.7a redirect-legality gap); **next dispatch: PB-DX26** (rank 8);
   the playtest-successor run 174–181
   AND the triage-2 successor run 187–194 both completed 2026-08-02 — triage 2 is fully closed,
   8/8 rows shipped. **FEEDBACK-1 SHIPPED** (`scutemob-192`, merge `d55e74cc`, doc-only):
@@ -119,10 +119,24 @@
   (`scutemob-202`; v3 queue rank 6) — v3 ranks **1-6 are all shipped**.
   **PB-DX25 SHIPPED** (`scutemob-203`; v3 queue rank 7) — v3 ranks **1-7 are all shipped**.
   **PB-DX25b SHIPPED** (`scutemob-204`; v3 queue rank 7b) — **OOS-DX25-3 CLOSED**; ranks
-  **1-7b are all shipped**, so **next dispatch: PB-DX25c** (rank 7c, INSERTED 2026-08-06
-  user-approved — closes **OOS-DX25b-3**, the CR 115.7a redirect-legality gap; row in the
-  v3 memo §4; HASH 73 → 74 predicted; PB-DX26 is next after it).
-  PROTOCOL **35** / HASH **73** as of PB-DX25b (both unmoved by it, gate-executed).
+  **1-7b are all shipped**. **PB-DX25c SHIPPED** (`scutemob-205`; v3 queue rank 7c, INSERTED
+  2026-08-06 user-approved — closed **OOS-DX25b-3**, the CR 115.7a redirect-legality gap; row
+  in the v3 memo §4) — ranks **1-7c are all shipped**, so **next dispatch: PB-DX26** (rank 8).
+  PROTOCOL **35** / HASH **73 → 74** as of PB-DX25c (HASH moved by it, gate-executed).
+- **Tests (delta 2026-08-06, PB-DX25c fix cycle 2)**: **4,491 / 0 / 5** full-workspace on
+  branch `scutemob-205` (+4 over the **4,487** fix-cycle-1 SETTLED pin — 4 new probes:
+  `t7b_plain_target_spell_victim_cannot_redirect_onto_its_own_card`,
+  `bb1_bolt_bend_object_branch_lands_only_on_a_legal_creature_never_a_land`,
+  `bb2_bolt_bend_object_branch_no_legal_target_leaves_targets_unchanged`,
+  `s1b_bot_driven_misdirection_object_branch_redirects_legally`), `--workspace
+  --no-fail-fast` to a file, 46 result-producing targets, residual list empty.
+  **PROTOCOL 35 / HASH 74 both unmoved**, gate-executed (`hash_schema` 21/21,
+  `protocol_schema` 17/17). Coverage unmoved **1,133/1,803 = 62.8%**, proven by
+  regeneration, self-dating churn reverted. `clippy --workspace --all-targets -- -D
+  warnings` clean, `cargo fmt --check` clean (one fmt pass applied to the 2 new test
+  files), `tools/check-defs-fmt.sh` clean (1,803 defs). Closed **OOS-DX25c-5** (a
+  `TargetSpell`/`TargetSpellWithFilter` victim could be redirected onto its own card) with
+  a two-line `self_id` guard, proven cast-path-neutral and red by an executed revert.
 - **Tests (delta 2026-08-06, PB-DX25b)**: **4,469 / 0 / 5** full-workspace on branch
   `scutemob-204` (+17 over the **4,452** baseline measured on this branch BEFORE any edit —
   10 probes in the new `crates/engine/tests/primitives/pb_dx25b_announced_stack_target_
@@ -324,7 +338,45 @@
 - **Recurrence rule** — future `/collect` and milestone-close bookkeeping appends its detailed PB/SR
   narrative to that archive file (newest first), and updates only a one-paragraph snapshot delta
   here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
-- **Last Updated**: 2026-08-06 — **PB-DX25b SHIPPED** (`scutemob-204`; v3 queue rank 7b).
+- **Last Updated**: 2026-08-06 — **PB-DX25c SHIPPED** (`scutemob-205`; v3 queue rank 7c,
+  closing `OOS-DX25b-3`). A spell you can retarget is a spell you can retarget LEGALLY.
+  New `StackObject.target_requirements` (hashed) + `rules::retarget::plan_target_change`
+  delegate the whole "which object or player may become the new target" decision to
+  `casting::validate_targets_inner` — the same collective arithmetic a real cast is
+  checked against (CR 115.3/115.7e/115.7a all-or-nothing) — closing BOTH the object
+  branch (the filed defect) and an independently-reachable player-branch defect the
+  filing missed (no `TargetOpponent` check, `has_lost`-only not `has_conceded`).
+  Fail-closed on a missing requirement list. `t9_object_target_redirect_ignores_the_
+  original_requirement` inverted (renamed `...obeys_the_original_requirement`) with a
+  new `t9b` sibling proving the fix isn't "never redirect". Two structural findings
+  surfaced only by executing tests: `TargetSpellWithSingleTarget`/`TargetSpellOrAbility
+  WithSingleTarget` cannot observe the ACTIVELY-RESOLVING spell as a redirect candidate
+  (its own `StackObject` entry is popped before its effect runs — resolution.rs's own
+  documented order), and `StubProvider`'s offer layer reads `obj.characteristics.
+  mana_cost` directly rather than the registry def, a third instance of the "ObjectSpec
+  ::card() is naked" gotcha. Tests **4,491** (+22); coverage unmoved **1,133/1,803 =
+  62.8%**, proven by regeneration; PROTOCOL **35** / HASH **73 → 74** gate-executed.
+  **Correction (fix cycle 2, this bullet was stale by one)**: the chooser-first row
+  (V9) was CLOSED in fix cycle 1 by `t3b_chooser_first_preference_beats_seat_order` —
+  **16 of 19 revert-matrix rows discriminate; 3 remain honestly UNDISCRIMINATED**
+  (V3 final-set re-validation, V7 `has_conceded` — both shadowed by a redundant
+  downstream check — and V13 copy propagation, blocked behind `OOS-DX25b-2`). Fix
+  cycle 2 CLOSED **OOS-DX25c-5** (a `TargetSpell`/`TargetSpellWithFilter` victim could
+  be redirected onto its OWN card): a two-line `self_id` guard mirroring the two
+  single-target arms, proven cast-path-neutral (cast-time validation runs before the
+  CR 400.7 zone-move id change) and red by an executed revert; new probes
+  `t7b_plain_target_spell_victim_cannot_redirect_onto_its_own_card`,
+  `bb1_bolt_bend_object_branch_lands_only_on_a_legal_creature_never_a_land`,
+  `bb2_bolt_bend_object_branch_no_legal_target_leaves_targets_unchanged` (closing
+  AC 6303's `bolt_bend` object-branch gap) and `s1b_bot_driven_misdirection_object_
+  branch_redirects_legally` (closing AC 6304's object-branch gap; S1 alone only
+  ever exercised the player branch). Seeds: **OOS-DX25b-3 CLOSED**; filed
+  **OOS-DX25c-1..6**, of which **OOS-DX25c-5 is now CLOSED** and **OOS-DX25c-6
+  stays open** (the resolving spell's own `StackObject` entry is popped before its
+  effect runs, so Misdirection can still never target ITSELF as its own new
+  victim card). Full handoff: `memory/workstream-state.md`; measurements and
+  revert matrix: `memory/primitives/pb-DX25c-execution-notes.md`.
+- **Prior**: 2026-08-06 — **PB-DX25b SHIPPED** (`scutemob-204`; v3 queue rank 7b).
   A spell you can target is a spell you can retarget. `validate_object_satisfies_requirement`
   resolved the announced id through `state.objects` — the **card** — and then compared it to
   `so.id`, a **stack-entry** id. `next_object_id` mints both namespaces from one monotone

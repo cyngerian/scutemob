@@ -80,17 +80,25 @@ fn find_obj(state: &GameState, name: &str) -> ObjectId {
 }
 
 /// Build a minimal StackObject of the given `kind` with `targets`.
+///
+/// PB-DX25c (`OOS-DX25b-3`): `target_requirements` is a real parameter now,
+/// not a hardcoded empty list -- `rules::retarget::plan_target_change` fails
+/// closed on an empty list (`crates/card-types/src/state/stack.rs`'s doc), so
+/// a fixture that wants a real `Effect::ChangeTargets` redirect must record
+/// the requirement its pretend-spell would really have carried.
 fn make_stack_object(
     id: ObjectId,
     controller: PlayerId,
     kind: StackObjectKind,
     targets: Vec<SpellTarget>,
+    target_requirements: Vec<TargetRequirement>,
 ) -> StackObject {
     StackObject {
         id,
         controller,
         kind,
         targets,
+        target_requirements,
         cant_be_countered: false,
         is_copy: false,
         cast_with_flashback: false,
@@ -242,7 +250,8 @@ fn build_base_state(
             source_object: other_id,
         }
     };
-    let stack_entry = make_stack_object(entry_id, p2, kind, other_targets);
+    // Decoy fixtures (never reach `Effect::ChangeTargets`) get an empty list.
+    let stack_entry = make_stack_object(entry_id, p2, kind, other_targets, vec![]);
     state.stack_objects_mut().push_back(stack_entry);
 
     (state, test_spell_id, other_id, entry_id)
@@ -403,7 +412,7 @@ fn test_spell_single_target_hash_discriminant() {
     use mtg_engine::state::hash::HashInto;
 
     assert_eq!(
-        HASH_SCHEMA_VERSION, 73u8,
+        HASH_SCHEMA_VERSION, 74u8,
         "HASH_SCHEMA_VERSION drifted without this sentinel being updated. Bump this \
          assertion and the state/hash.rs history block together; the authoritative check \
          is the SR-17 machine gate in tests/core/hash_schema.rs."
@@ -492,6 +501,10 @@ fn test_misdirection_retargets_single_target_spell() {
         "PB-DX25b non-vacuity anchor: the fixture must not collapse the \
          announced-card-id space and the stack-entry-id space onto one id"
     );
+    // PB-DX25c: the victim is a "target player" spell (a real single-target
+    // burn-style spell), so it carries TargetPlayer -- without a real
+    // requirement list, `plan_target_change` fails closed (§3.4) and no
+    // redirect happens.
     let victim = make_stack_object(
         victim_entry_id,
         p2,
@@ -502,6 +515,7 @@ fn test_misdirection_retargets_single_target_spell() {
             target: Target::Player(p3),
             zone_at_cast: None,
         }],
+        vec![TargetRequirement::TargetPlayer],
     );
     state.stack_objects_mut().push_back(victim);
 

@@ -102,6 +102,7 @@ fn make_partner_with_trigger_stack_obj(
             },
         },
         targets: vec![],
+        target_requirements: vec![],
         cant_be_countered: false,
         is_copy: false,
         cast_with_flashback: false,

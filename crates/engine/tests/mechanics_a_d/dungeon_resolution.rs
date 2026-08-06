@@ -313,6 +313,7 @@ fn test_sba_704_5t_waits_for_room_ability() {
             room: bottommost,
         },
         targets: vec![],
+        target_requirements: vec![],
         cant_be_countered: false,
         is_copy: false,
         cast_with_flashback: false,

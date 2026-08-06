@@ -5,17 +5,18 @@
 // CR 115.7a: "Change the target" — must change to a different legal target.
 //
 // PB-DX25b review Findings C1/E1 (`OOS-DX25b-1`, `OOS-DX25b-3`) -- COMPLETENESS
-// DECISION, recorded explicitly rather than left to be inferred:
+// DECISION, recorded explicitly rather than left to be inferred. `OOS-DX25b-3`
+// CLOSED by PB-DX25c; `OOS-DX25b-1` STAYS OPEN.
 //
-// This def STAYS `Complete` (no demotion, no note). Two known ENGINE-layer
-// gaps apply here (recorded below, filed as seeds), and BOTH apply identically
-// to every other card carrying the same requirement/effect pair -- neither is
-// a fidelity problem with THIS def's translation of the printed card:
+// This def STAYS `Complete` (no demotion, no note). One known ENGINE-layer
+// gap remains (recorded below, filed as a seed), and it applies identically
+// to every other card carrying the same requirement -- it is not a fidelity
+// problem with THIS def's translation of the printed card:
 //
-// (1) `OOS-DX25b-1` -- the "or ability" half of "target spell or ability" is
-//     unreachable: an activated/triggered ability's stack entry is never added
-//     to `state.objects` (`abilities.rs:1381`), so neither the offer layer
-//     (`queries::legal_targets_per_slot`) nor the validator
+// (1) `OOS-DX25b-1` (OPEN) -- the "or ability" half of "target spell or
+//     ability" is unreachable: an activated/triggered ability's stack entry
+//     is never added to `state.objects` (`abilities.rs:1381`), so neither the
+//     offer layer (`queries::legal_targets_per_slot`) nor the validator
 //     (`casting.rs::validate_object_satisfies_requirement`'s opening
 //     `state.objects.get(&id)?`) can ever see it. This def correctly declares
 //     `TargetSpellOrAbilityWithSingleTarget` -- the requirement variant that
@@ -27,15 +28,16 @@
 //     ::t3_ability_half_is_still_unreachable` -- the SUCCESSOR batch that adds
 //     a stack-entry target id space must invert that test AND revisit this
 //     comment.
-// (2) `OOS-DX25b-3` -- CR 115.7a's "another LEGAL target" is not enforced for
-//     OBJECT-target redirects (`effects/mod.rs:7619-7654`, a KNOWN LIMITATION
-//     self-documented at the call site): the redirect can land on an object
-//     that does not satisfy the original spell's own `TargetRequirement`
-//     (e.g. a "destroy target creature" spell redirected onto a land). This is
-//     a gap in `Effect::ChangeTargets`'s shared resolution logic, reachable
-//     from ANY card using it (Misdirection included) -- not specific to this
-//     def. Pinned wrong-way-round by the same test file's
-//     `t9_object_target_redirect_ignores_the_original_requirement`.
+// (2) `OOS-DX25b-3` (CLOSED by PB-DX25c) -- CR 115.7a's "another LEGAL
+//     target" is now enforced for OBJECT-target redirects:
+//     `rules::retarget::plan_target_change` delegates the whole redirect
+//     decision to `casting::validate_targets_inner`, the same collective
+//     legality arithmetic a real cast is checked against -- the redirect can
+//     no longer land on an object that fails the original spell's own
+//     `TargetRequirement` (e.g. a "destroy target creature" spell redirected
+//     onto a land). Pinned (post-fix) by the same test file's
+//     `t9_object_target_redirect_obeys_the_original_requirement` and
+//     `t9b_object_target_redirect_fires_with_a_legal_alternative`.
 //
 // Precedent: `OOS-DX20-10` (a wrong-way-round roster pin filed rather than
 // fixed, because the fix belongs to a different subsystem). `completeness`

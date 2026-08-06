@@ -754,7 +754,30 @@
 ///   `PROTOCOL_VERSION` is UNMOVED — `CombatState` is reachable from none of
 ///   `Command`/`GameEvent`/`ReplayLog` (zero occurrences of `CombatState` in
 ///   `crates/engine/src/rules/protocol.rs`).
-pub const HASH_SCHEMA_VERSION: u8 = 73;
+/// - 74: PB-DX25c (2026-08-06, `OOS-DX25b-3` -- CR 115.7a's "another LEGAL
+///   target" at redirect time): `StackObject` gains
+///   `target_requirements: Vec<TargetRequirement>` (`#[serde(default)]`),
+///   reachable from `GameState` via `stack_objects: Vector<StackObject>`.
+///   `decl_fingerprint` MOVES (new field in the `GameState` serde closure).
+///   `stream_fingerprint` moves per the v40 mechanism only
+///   (`HASH_SCHEMA_VERSION` is the stream's first byte) --
+///   `canonical_fixture()` cannot populate `stack_objects`
+///   (`tests/core/hash_schema.rs`'s five named exclusions), so this is the
+///   v69/v72/v73 version-sentinel-byte-only case, not the v70/v71
+///   payload-bytes case; the new field's own bytes are exercised only by the
+///   direct `HashInto` unit test in
+///   `pb_dx25c_retarget_legality.rs::t10_target_requirements_field_is_hashed`,
+///   not by this stream fixture. `PROTOCOL_VERSION` is UNMOVED --
+///   `StackObject` is *required* to be absent from the SR-8 wire closure
+///   (`crates/engine/tests/core/protocol_schema.rs`'s
+///   `CLOSURE_MUST_NOT_CONTAIN`), so a field added to it can never move
+///   `PROTOCOL_VERSION`. `loop_detection.rs:144-146` folds the whole
+///   `StackObject` via `so.hash_into` already, so the new field enters
+///   `compute_mandatory_state_hash` automatically -- this adds no new CR
+///   104.4b false-negative risk, because the field is fixed at construction
+///   and never mutated after (the v70 `affected_set` argument, the opposite
+///   of PB-DP9's excluded fields).
+pub const HASH_SCHEMA_VERSION: u8 = 74;
 
 /// One `(version, fingerprints)` row of the append-only hash-schema history.
 ///
@@ -1177,6 +1200,23 @@ pub const HASH_SCHEMA_HISTORY: &[HashSchemaEpoch] = &[
         // fixture.
         decl_fingerprint: "44f2c13034226674d8fa081deb1ba913b7a95544c21a6b493e680e3e67e7941a",
         stream_fingerprint: "cf3e47e7c4fbc4b1fe1d662a3a6a8f37cefb1c493cd59da0ec42f45058f4a424",
+    },
+    HashSchemaEpoch {
+        version: 74,
+        // PB-DX25c (2026-08-06, `OOS-DX25b-3` -- CR 115.7a redirect legality):
+        // `StackObject.target_requirements` added, reached from `GameState`
+        // only via `stack_objects: Vector<StackObject>`. decl_fingerprint
+        // MOVES (new field in the GameState serde closure). stream_fingerprint
+        // moves per the v40 mechanism (HASH_SCHEMA_VERSION is the stream's
+        // first byte) -- `canonical_fixture()` cannot populate `stack_objects`
+        // (one of its five named exclusions), so this is the
+        // v69/v72/v73-style version-sentinel-byte-only case, not the v70/v71
+        // payload-bytes case; the new field's own bytes are exercised only by
+        // the direct `HashInto` unit test in
+        // `pb_dx25c_retarget_legality.rs::t10_target_requirements_field_is_hashed`,
+        // not by this stream fixture.
+        decl_fingerprint: "5932f456da9fee25c8e860182a33fd0eb505de36239bcdddd057cb4f2a1c6886",
+        stream_fingerprint: "1c9d95dec982ed385d6c3dfaf41c8f62ec734978ffd5ecb6503a36b07c13b806",
     },
 ];
 
@@ -4339,6 +4379,11 @@ impl HashInto for StackObject {
         self.controller.hash_into(hasher);
         self.kind.hash_into(hasher);
         self.targets.hash_into(hasher);
+        // PB-DX25c (§3.1): CR 115.7a — the requirement list this stack object's
+        // targets were validated against at announcement time. It changes what a
+        // legal retarget is, so two states differing only in it are genuinely
+        // different positions.
+        self.target_requirements.hash_into(hasher);
         self.cant_be_countered.hash_into(hasher);
         // M9.4: is_copy (CR 707.10) — copies don't move cards on resolution
         self.is_copy.hash_into(hasher);

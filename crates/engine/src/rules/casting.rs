@@ -3693,7 +3693,17 @@ pub fn handle_cast_spell(
     // CR 601.2c: Validate and record targets at cast time.
     // Pass source characteristics for protection-from checks (CR 702.16b).
     // Pass card (the casting spell's own ObjectId) for self-targeting prevention (CR 115.7a).
-    let spell_targets = if let Some(active_reqs) = &mode_targets_active {
+    //
+    // PB-DX25c §3.1: the requirement list that actually governs THIS cast — whichever of
+    // `mode_targets_active` (per-mode, CR 700.2c/700.2f) or `requirements` (the flat list)
+    // applies below. Hoisted into ONE binding and used both to validate (immediately below)
+    // and to record onto the stack object (`target_requirements`, at this function's push
+    // site) — so the validated list and the recorded list are the same value, not two
+    // expressions that happen to agree.
+    let announced_requirements: Vec<TargetRequirement> = mode_targets_active
+        .clone()
+        .unwrap_or_else(|| requirements.clone());
+    let spell_targets = if mode_targets_active.is_some() {
         // CR 700.2c/700.2f: per-mode target validation is POSITIONAL, not best-fit — slice
         // offsets computed at resolution time (resolution.rs) depend on declaration order
         // matching active_reqs order exactly.
@@ -3706,7 +3716,7 @@ pub fn handle_cast_spell(
                 "modal spell has both Spell.targets and ModeSelection.mode_targets set; only one may be used (CR 700.2c author invariant)".into(),
             ));
         }
-        if active_reqs
+        if announced_requirements
             .iter()
             .any(|r| matches!(r, TargetRequirement::UpToN { .. }))
         {
@@ -3717,13 +3727,20 @@ pub fn handle_cast_spell(
         validate_targets_positional(
             state,
             &targets,
-            active_reqs,
+            &announced_requirements,
             player,
             Some(&chars),
             Some(card),
         )?
     } else {
-        validate_targets_with_source(state, &targets, &requirements, player, Some(&chars), card)?
+        validate_targets_with_source(
+            state,
+            &targets,
+            &announced_requirements,
+            player,
+            Some(&chars),
+            card,
+        )?
     };
     // CR 702.5a / 303.4a (PB-DX20 §4.2): this gate is now a DELIBERATELY REDUNDANT second
     // check. The announceable requirement itself is synthesized upstream, at the
@@ -4554,6 +4571,9 @@ pub fn handle_cast_spell(
         controller: player,
         kind: spell_kind,
         targets: spell_targets,
+        // PB-DX25c §3.1: the SAME binding that governed the validation above
+        // (`announced_requirements`), never re-derived — see that binding's doc.
+        target_requirements: announced_requirements.clone(),
         cant_be_countered,
         is_copy: false,
         // CR 702.34a / CR 702.127a: Set exile-on-departure flag for flashback or aftermath casts.
@@ -6438,6 +6458,27 @@ fn validate_object_satisfies_requirement(
                 id
             )));
         }
+        // Self-targeting prevention (CR 601.2c / Misdirection 2004-10-04: "You can't
+        // make a spell which is on the stack target itself"), mirroring the two
+        // single-target arms below exactly. **Closes `OOS-DX25c-5`** (PB-DX25c
+        // `/review` Finding E2, fix cycle 2): this arm previously took no `self_id`
+        // check at all, so `rules::retarget::plan_target_change` — which passes the
+        // VICTIM's own stack-resident card id as `victim_card`/`self_id` — could
+        // legally redirect a `TargetSpell`/`TargetSpellWithFilter` victim onto its
+        // own card. At cast time this guard is provably a no-op: `self_id` there is
+        // `card`, the PRE-zone-move id (`handle_cast_spell`'s validation call runs
+        // before `move_object_to_zone` mints the post-move stack id — CR 400.7, a
+        // zone change is a new object), so it can never equal a candidate `id`,
+        // which this arm already requires to be `ZoneId::Stack`. The guard is
+        // therefore live ONLY on the retarget path this batch created.
+        if let Some(self_oid) = self_id {
+            if id == self_oid {
+                return Err(GameStateError::InvalidTarget(format!(
+                    "spell {:?} cannot target itself (self-targeting prevention)",
+                    id
+                )));
+            }
+        }
         // For TargetSpellWithFilter, also check the filter against the spell's characteristics.
         if let TargetRequirement::TargetSpellWithFilter(filter) = req {
             // SR-14: id was fetched present via `state.objects.get(&id).ok_or(...)?` at the top
@@ -8200,6 +8241,10 @@ mod tests {
             controller,
             kind: StackObjectKind::Spell { source_object },
             targets,
+            // PB-DX25c stage 1: mechanical compile fix only. This helper's callers
+            // are among the six fixtures §5.5 expects to redden fail-closed
+            // (§3.4) — NOT repaired here; see stage 2.
+            target_requirements: vec![],
             cant_be_countered: false,
             is_copy: false,
             cast_with_flashback: false,

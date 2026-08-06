@@ -583,3 +583,27 @@ This is the same pattern as `myriad_exile_at_eoc`. See `game_object.rs` (Decayed
 - **`cargo test --all | tail -N` silently drops most of the result lines.** Redirect the
   whole run to a file and sum `^test result` with awk; the workspace has 36 test binaries
   and a truncated tail sees two of them.
+
+- **`StubProvider::legal_actions` reads `obj.characteristics.mana_cost` directly, NOT
+  the registry `CardDefinition`** (unlike the engine's own `handle_cast_spell`, which
+  reads the card def by id). A THIRD instance of the "`ObjectSpec::card()` is naked"
+  gotcha: a hand-built fixture card placed via `ObjectSpec::card(...).with_card_id(...)`
+  with no `enrich_spec_from_def` call is offered `[PassPriority]` only — no `CastSpell`
+  at all — until `.with_mana_cost(cost)` is added explicitly. Found while building a
+  bot-driven cast probe (PB-DX25c S1); the offer layer's own gate silently returns an
+  empty action list rather than erroring, so this fails as "nothing offered", not as a
+  build error.
+
+- **A spell's own `StackObject` entry is POPPED from `state.stack_objects` before its
+  effect runs** (`resolution.rs`'s own documented order: "Execute the card's effect
+  before it moves to its final zone" — the popped entry is kept in a local variable,
+  not the vector). Consequence: `TargetRequirement::TargetSpellWithSingleTarget` /
+  `TargetSpellOrAbilityWithSingleTarget` (which resolve a candidate via `stack_index_
+  for_announced_target(&state.stack_objects, id)`) can NEVER observe the actively-
+  resolving spell as a legal candidate for anything that spell's OWN effect does mid-
+  resolution — the card is still in `state.objects` with `zone == Stack` (so plain
+  `TargetSpell`/`TargetSpellWithFilter`, which never touch `state.stack_objects`, have
+  no such blind spot), but the stack-entry lookup reports "not a spell" (not-found, not
+  a real rejection). Found while building PB-DX25c's T7/T8 retarget probes — two
+  separate first drafts silently produced vacuous tests (zero events fired) before this
+  was traced with an in-line debug print of the actual `Err` and understood.

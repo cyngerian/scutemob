@@ -4,33 +4,39 @@
 //
 // CR 118.9: pitch a blue card instead of the mana cost (no life component — unlike
 // Force of Will's pitch, which also pays 1 life).
-// CR 115.7a/115.7b: TargetSpellWithSingleTarget is spell-only (unlike Bolt Bend's
+// CR 115.7a: TargetSpellWithSingleTarget is spell-only (unlike Bolt Bend's
 // TargetSpellOrAbilityWithSingleTarget, which also legalizes activated/loyalty
 // abilities). Misdirection's oracle text says "target spell", not "target spell or
 // ability", so the spell-only requirement is correct here.
 //
-// PB-DX25b review Finding E1 (`OOS-DX25b-3`) -- COMPLETENESS DECISION, recorded
-// explicitly rather than left to be inferred (same reasoning as `bolt_bend.rs`'s
-// own note, which this batch's coordinator directed be applied here too): this
-// def STAYS `Complete`. CR 115.7a's "another LEGAL target" is not enforced for
-// OBJECT-target redirects (`effects/mod.rs:7619-7654`, a KNOWN LIMITATION
-// self-documented at the call site) -- e.g. a "destroy target creature" spell
-// redirected through Misdirection can land on a land. This is a gap in the
-// SHARED `Effect::ChangeTargets` resolution logic, reachable from every card
-// that uses it, not a fidelity problem with this def's translation of the
+// PB-DX25b review Finding E1 (`OOS-DX25b-3`) CLOSED by PB-DX25c -- COMPLETENESS
+// DECISION, recorded explicitly rather than left to be inferred (same
+// reasoning as `bolt_bend.rs`'s own note): this def STAYS `Complete`. CR
+// 115.7a's "another LEGAL target" is now enforced for OBJECT-target redirects:
+// `rules::retarget::plan_target_change` delegates the whole "which object or
+// player may become the new target" decision to `casting::validate_targets_
+// inner`, the same collective legality arithmetic a real cast is checked
+// against -- e.g. a "destroy target creature" spell redirected through
+// Misdirection can no longer land on a land. This was a gap in the SHARED
+// `Effect::ChangeTargets` resolution logic, reachable from every card that
+// uses it, never a fidelity problem with this def's translation of the
 // printed card (which correctly declares `TargetSpellWithSingleTarget` and
-// `must_change: true`, matching CR 115.7a/115.7b exactly). Pinned
-// wrong-way-round by
+// `must_change: true`, matching CR 115.7a exactly -- the printed text is
+// "Change THE target", not "change A target", so CR 115.7b (a distinct,
+// unimplemented rule with no corpus user, per R2 of
+// `pb_dx25c_retarget_roster.rs`) does not apply here; `/review` Finding C1).
+// Pinned
+// (post-fix) by
 // `crates/engine/tests/primitives/pb_dx25b_announced_stack_target_space.rs
-// ::t9_object_target_redirect_ignores_the_original_requirement` -- the
-// SUCCESSOR batch that implements object-target legality for
-// `Effect::ChangeTargets` (needs the victim spell's `TargetRequirement` list
-// stored on `StackObject`, a hashed field, its own batch) must invert that
-// test AND revisit this comment. `OOS-DX25b-2` (a copy of a spell is not an
-// announceable target, CR 707.10) is a similar, smaller ENGINE-layer gap that
-// does not affect this def's completeness: no card was announceable as a
-// copy target before OR after this batch, so nothing regressed and nothing
-// to decide here.
+// ::t9_object_target_redirect_obeys_the_original_requirement` and
+// `::t9b_object_target_redirect_fires_with_a_legal_alternative`.
+// `OOS-DX25b-1` (the "or ability" half of "target spell or ability" is
+// unreachable, Bolt Bend's shape) and `OOS-DX25b-2` (a copy of a spell is not
+// an announceable target, CR 707.10) both STAY OPEN -- neither affects this
+// def's completeness: no card was announceable as a copy target before OR
+// after PB-DX25c, and the ability half was never Misdirection's own shape
+// (it declares the spell-only `TargetSpellWithSingleTarget`, not Bolt Bend's
+// `TargetSpellOrAbilityWithSingleTarget`).
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -56,7 +62,7 @@ pub fn card() -> CardDefinition {
                     opponents_turn_only: false,
                 }),
             },
-            // CR 115.7a/115.7b: change the target of target spell with a single target.
+            // CR 115.7a: change the target of target spell with a single target.
             AbilityDefinition::Spell {
                 effect: Effect::ChangeTargets {
                     target: EffectTarget::DeclaredTarget { index: 0 },

@@ -887,6 +887,7 @@ fn test_ninjutsu_split_second_blocks() {
             source_object: scout_id,
         },
         targets: vec![],
+        target_requirements: vec![],
         cant_be_countered: false,
         is_copy: false,
         cast_with_flashback: false,

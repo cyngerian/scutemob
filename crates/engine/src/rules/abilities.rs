@@ -507,6 +507,15 @@ pub fn handle_activate_ability(
             source,
         )?;
     }
+    // PB-DX25c §3.1: the requirement list that actually governed the validation above —
+    // whichever of `mode_targets_active` (per-mode, CR 700.2c/700.2f) or
+    // `target_requirements` (the flat list) applied. Recorded onto the stack object
+    // below so a later retarget (`rules::retarget`) validates against the SAME list a
+    // real cast was checked against, never a re-derivation.
+    let announced_requirements: Vec<crate::cards::card_definition::TargetRequirement> =
+        mode_targets_active
+            .clone()
+            .unwrap_or_else(|| target_requirements.clone());
     // CR 700.2a (PB-EF7): Bake the chosen mode(s) into a concrete effect NOW, at
     // activation time -- not at resolution. Both eligible cards (Goblin Cratermaker,
     // Cankerbloom) cost `Cost::SacrificeSelf`, so at resolution `state.objects.get(source)`
@@ -1403,6 +1412,8 @@ pub fn handle_activate_ability(
         },
     );
     stack_obj.targets = spell_targets;
+    // PB-DX25c §3.1: the same hoisted `announced_requirements` the validation above used.
+    stack_obj.target_requirements = announced_requirements;
     // CR 700.2a (PB-EF7): Record the chosen mode(s) on the stack object for LKI/replay/hash
     // observability, even though approach (a) already baked them into `embedded_effect`.
     stack_obj.modes_chosen = validated_modes_chosen;
@@ -1786,6 +1797,9 @@ pub fn handle_activate_forecast(
         },
     );
     stack_obj.targets = spell_targets;
+    // PB-DX25c §3.1: `AbilityDefinition::Forecast` carries no `TargetRequirement` list
+    // at all (no `targets` field) — there is nothing to record, and none of the
+    // corpus's Forecast abilities declares `targets` in practice.
     state.stack_objects.push_back(stack_obj);
     // 12. CR 602.2b -> 601.2i / CR 117.3c: the activating player gets priority (CR 117.4:
     //     reset the pass-round). (This handler is AP-gated above — owner's upkeep, CR
@@ -2004,6 +2018,9 @@ pub fn handle_activate_bloodrush(
         target: Target::Object(target),
         zone_at_cast: state.expect_object(target).map(|o| o.zone),
     }];
+    // PB-DX25c §3.1: Bloodrush's "target attacking creature" is validated ad-hoc
+    // above (step 5), NOT through a `TargetRequirement` — no variant expresses
+    // "attacking creature" — so there is nothing accurate to record here.
     state.stack_objects.push_back(stack_obj);
     // 9. CR 602.2b -> 601.2i / CR 117.3c: the activating player gets priority (CR 117.4:
     //    reset the pass-round). Bloodrush (CR 702.94a) has no active-player gate, so this
@@ -8433,36 +8450,47 @@ fn flush_sorted(
         // cheap presence check (not the full auto-select below); does not change behavior
         // for any existing trigger, since every current defending_player_id/exalted_attacker_id
         // user declares `targets: vec![]`.
-        let has_ability_targets = matches!(
+        //
+        // PB-DX25c §3.1: this is also the CardDef-declared `TargetRequirement` list
+        // recorded onto the stack object (line ~9451) — `has_ability_targets` just
+        // below is its emptiness check, not a second, independent lookup.
+        let trigger_target_requirements: Vec<crate::cards::card_definition::TargetRequirement> = if matches!(
             trigger.kind,
             PendingTriggerKind::Normal | PendingTriggerKind::CardDefETB
-        ) && state.objects.get(&trigger.source).is_some_and(|obj| {
-            if trigger.kind == PendingTriggerKind::Normal {
-                obj.characteristics
-                    .triggered_abilities
-                    .get(trigger.ability_index)
-                    .is_some_and(|ab| !ab.targets.is_empty())
-            } else {
-                // PB-OS4b (CR 712.8d/e): index into the currently-visible face's
-                // effective list ("is_transformed at consume time" contract).
-                obj.card_id
-                    .as_ref()
-                    .and_then(|cid| state.card_registry.get(cid.clone()))
-                    .and_then(|def| {
-                        def.effective_abilities(obj.is_transformed)
+        ) {
+            state
+                .objects
+                .get(&trigger.source)
+                .and_then(|obj| {
+                    if trigger.kind == PendingTriggerKind::Normal {
+                        obj.characteristics
+                            .triggered_abilities
                             .get(trigger.ability_index)
-                    })
-                    .is_some_and(|abil| {
-                        matches!(
-                            abil,
-                            crate::cards::card_definition::AbilityDefinition::Triggered {
-                                targets,
-                                ..
-                            } if !targets.is_empty()
-                        )
-                    })
-            }
-        });
+                            .map(|ab| ab.targets.clone())
+                    } else {
+                        // PB-OS4b (CR 712.8d/e): index into the currently-visible face's
+                        // effective list ("is_transformed at consume time" contract).
+                        obj.card_id
+                            .as_ref()
+                            .and_then(|cid| state.card_registry.get(cid.clone()))
+                            .and_then(|def| {
+                                def.effective_abilities(obj.is_transformed)
+                                    .get(trigger.ability_index)
+                            })
+                            .and_then(|abil| match abil {
+                                crate::cards::card_definition::AbilityDefinition::Triggered {
+                                    targets,
+                                    ..
+                                } => Some(targets.clone()),
+                                _ => None,
+                            })
+                    }
+                })
+                .unwrap_or_default()
+        } else {
+            vec![]
+        };
+        let has_ability_targets = !trigger_target_requirements.is_empty();
         // Returns None if a required target cannot be satisfied (trigger skipped per CR 603.3d).
         let trigger_targets_opt: Option<Vec<SpellTarget>> = if let Some(tsid) =
             trigger.targeting_stack_id
@@ -8807,6 +8835,9 @@ fn flush_sorted(
                         },
                     );
                     stack_obj.targets = modular_targets;
+                    // PB-DX25c §3.1: Modular's "target artifact creature" is chosen by the
+                    // deterministic auto-target scan above, not validated through a
+                    // `TargetRequirement` — there is no formal requirement to record.
                     state.stack_objects.push_back(stack_obj);
                     events.push(GameEvent::AbilityTriggered {
                         controller: trigger.controller,
@@ -9429,6 +9460,18 @@ fn flush_sorted(
             // MR-TC-25: use trigger_default; override targets if non-empty.
             let mut stack_obj = StackObject::trigger_default(stack_id, trigger.controller, kind);
             stack_obj.targets = trigger_targets.clone();
+            // PB-DX25c §3.1: `trigger_target_requirements` (computed above, the same
+            // lookup `has_ability_targets` used) whenever this trigger's kind is
+            // Normal/CardDefETB. Residual, stated rather than glossed: the
+            // engine-internal Ward (`targeting_stack_id`) and OpponentCastsSpell
+            // (`triggering_player`) shortcuts take precedence UNCONDITIONALLY above
+            // and could in principle fire alongside a CardDef-declared requirement,
+            // in which case this list would describe a requirement that did not
+            // actually govern `trigger_targets` — no corpus trigger combines both
+            // today, and it is moot regardless: `rules::retarget` can never reach an
+            // ability-kind stack object at all (§8 R2 of the plan,
+            // `stack_index_for_announced_target` only resolves card-owning kinds).
+            stack_obj.target_requirements = trigger_target_requirements.clone();
             // CR 510.3a: Propagate combat damage data from PendingTrigger to StackObject
             // so resolution.rs can populate EffectContext correctly.
             stack_obj.damaged_player = trigger.damaged_player;
@@ -10933,6 +10976,8 @@ pub fn handle_scavenge_card(
         target: Target::Object(target_creature),
         zone_at_cast: Some(ZoneId::Battlefield),
     }];
+    // PB-DX25c §3.1: Scavenge's "target creature" is validated ad-hoc above (step 6),
+    // NOT through a `TargetRequirement` — there is nothing accurate to record here.
     state.stack_objects.push_back(stack_obj);
     // 12. CR 602.2b -> 601.2i / CR 117.3c: the activating player gets priority (CR 117.4:
     //     reset the pass-round). (This handler is AP-gated above -- "activate only as a

@@ -33,7 +33,7 @@ use mtg_engine::state::stack::{StackObject, StackObjectKind};
 use mtg_engine::state::test_util;
 use mtg_engine::{
     CardEffectTarget, CardType, Effect, EffectAmount, GameEvent, GameState, GameStateBuilder,
-    ObjectId, ObjectSpec, PlayerId, SpellTarget, Step, Target, ZoneId,
+    ObjectId, ObjectSpec, PlayerId, SpellTarget, Step, Target, TargetRequirement, ZoneId,
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -43,11 +43,20 @@ fn p(n: u64) -> PlayerId {
 }
 
 /// Build a minimal StackObject for a spell.
+///
+/// PB-DX25c (`OOS-DX25b-3`): `target_requirements` is no longer hardcoded
+/// empty -- `rules::retarget::plan_target_change` FAILS CLOSED on an empty
+/// list (`crates/card-types/src/state/stack.rs`'s `target_requirements` doc),
+/// so a fixture that wants to exercise a real redirect must carry the
+/// requirement its pretend-spell would really have been validated against at
+/// cast time. Callers that don't care (the CopySpellOnStack tests, which
+/// never reach `Effect::ChangeTargets`) may still pass `vec![]`.
 fn make_stack_spell(
     id: ObjectId,
     controller: PlayerId,
     source: ObjectId,
     targets: Vec<SpellTarget>,
+    target_requirements: Vec<TargetRequirement>,
 ) -> StackObject {
     StackObject {
         id,
@@ -56,6 +65,7 @@ fn make_stack_spell(
             source_object: source,
         },
         targets,
+        target_requirements,
         cant_be_countered: false,
         is_copy: false,
         cast_with_flashback: false,
@@ -137,10 +147,17 @@ fn three_player_state() -> GameState {
 }
 
 /// Push a spell onto the stack, returning its assigned ID.
+///
+/// PB-DX25c: `target_requirements` is the requirement list the pretend-spell
+/// was "validated against" at cast time -- pass `vec![TargetRequirement::
+/// TargetPlayer]` for a fixture standing in for a real "target player" spell
+/// (which is what every caller in this file redirects). An empty list is
+/// only correct for a fixture that never reaches `Effect::ChangeTargets`.
 fn push_spell_targeting_player(
     state: &mut GameState,
     controller: PlayerId,
     target_player: PlayerId,
+    target_requirements: Vec<TargetRequirement>,
 ) -> ObjectId {
     let id = test_util::next_object_id(state);
     let source = test_util::next_object_id(state); // dummy source
@@ -152,6 +169,7 @@ fn push_spell_targeting_player(
             target: Target::Player(target_player),
             zone_at_cast: None,
         }],
+        target_requirements,
     );
     state.stack_objects_mut().push_back(spell);
     id
@@ -161,7 +179,7 @@ fn push_spell_targeting_player(
 fn push_targetless_spell(state: &mut GameState, controller: PlayerId) -> ObjectId {
     let id = test_util::next_object_id(state);
     let source = test_util::next_object_id(state);
-    let spell = make_stack_spell(id, controller, source, vec![]);
+    let spell = make_stack_spell(id, controller, source, vec![], vec![]);
     state.stack_objects_mut().push_back(spell);
     id
 }
@@ -173,7 +191,7 @@ fn push_targetless_spell(state: &mut GameState, controller: PlayerId) -> ObjectI
 /// The copy has is_copy: true and inherits the original's targets.
 fn test_copy_spell_on_stack_basic() {
     let mut state = two_player_state();
-    let original_stack_id = push_spell_targeting_player(&mut state, p(1), p(2));
+    let original_stack_id = push_spell_targeting_player(&mut state, p(1), p(2), vec![]);
 
     assert_eq!(state.stack_objects().len(), 1);
 
@@ -279,8 +297,15 @@ fn test_copy_spell_on_stack_twice() {
 /// a spell currently targeting p(2).
 fn test_change_targets_must_change_redirects_to_new_player() {
     let mut state = two_player_state();
-    // p(2) cast a spell targeting themselves.
-    let bolt_stack_id = push_spell_targeting_player(&mut state, p(2), p(2));
+    // p(2) cast a spell targeting themselves. PB-DX25c: the pretend-spell is
+    // a "target player" spell (Bolt Bend's real victim shape), so it carries
+    // TargetPlayer -- an empty list fails closed and no redirect happens.
+    let bolt_stack_id = push_spell_targeting_player(
+        &mut state,
+        p(2),
+        p(2),
+        vec![TargetRequirement::TargetPlayer],
+    );
 
     // p(1) (Bolt Bend controller) redirects the spell.
     let bolt_bend_target = SpellTarget {
@@ -334,7 +359,19 @@ fn test_change_targets_no_alternative_leaves_unchanged() {
         .build()
         .unwrap();
 
-    let spell_stack_id = push_spell_targeting_player(&mut state, p(1), p(1));
+    // PB-DX25c: a real requirement list is recorded even though this test's
+    // whole point is that no OTHER candidate exists (only p(1) is in the
+    // game) -- with it, the "no alternative" fallback fires because the
+    // candidate scan finds nothing but the current target; without it, the
+    // SAME outcome would fire for the unrelated reason of the fail-closed
+    // guard (§3.4). Recording a real list keeps this test discriminating
+    // the CR 115.7a "no alternative" case, not the missing-requirement case.
+    let spell_stack_id = push_spell_targeting_player(
+        &mut state,
+        p(1),
+        p(1),
+        vec![TargetRequirement::TargetPlayer],
+    );
 
     let redirect_target = SpellTarget {
         target: Target::Object(spell_stack_id),
@@ -370,7 +407,12 @@ fn test_change_targets_no_alternative_leaves_unchanged() {
 /// unchanged in the deterministic fallback. The player "chose" not to change them.
 fn test_change_targets_may_choose_new_leaves_unchanged() {
     let mut state = two_player_state();
-    let spell_stack_id = push_spell_targeting_player(&mut state, p(1), p(2));
+    let spell_stack_id = push_spell_targeting_player(
+        &mut state,
+        p(1),
+        p(2),
+        vec![TargetRequirement::TargetPlayer],
+    );
 
     let swat_target = SpellTarget {
         target: Target::Object(spell_stack_id),
@@ -412,7 +454,12 @@ fn test_change_targets_may_choose_new_leaves_unchanged() {
 fn test_change_targets_accepts_single_target_spell() {
     let mut state = three_player_state();
     // p(2) cast a spell targeting p(3) — exactly one target.
-    let single_target_stack_id = push_spell_targeting_player(&mut state, p(2), p(3));
+    let single_target_stack_id = push_spell_targeting_player(
+        &mut state,
+        p(2),
+        p(3),
+        vec![TargetRequirement::TargetPlayer],
+    );
 
     // p(1) redirects via ChangeTargets.
     let redirect_target = SpellTarget {
@@ -479,7 +526,14 @@ fn test_change_targets_object_redirect() {
     let creature_a_id = bf_ids[0];
     let creature_b_id = bf_ids[1];
 
-    // A spell on the stack targeting Creature A.
+    // A spell on the stack targeting Creature A. PB-DX25c: the pretend-spell
+    // is a "target creature" spell, so it carries TargetCreature -- both
+    // battlefield objects are Creature-typed, so this exercises the type
+    // check without deciding the outcome on it. Note (plan §5.5 table): this
+    // fixture's `source` id is NOT in `state.objects`, so `source_chars` is
+    // `None` here -- it therefore does NOT exercise the CR 702.16b
+    // protection-from-colour path (T2 in `pb_dx25c_retarget_legality.rs`
+    // does).
     let bolt_stack_id = test_util::next_object_id(&mut state);
     let source = test_util::next_object_id(&mut state);
     let bolt = make_stack_spell(
@@ -490,6 +544,7 @@ fn test_change_targets_object_redirect() {
             target: Target::Object(creature_a_id),
             zone_at_cast: Some(ZoneId::Battlefield),
         }],
+        vec![TargetRequirement::TargetCreature],
     );
     state.stack_objects_mut().push_back(bolt);
 
@@ -544,7 +599,12 @@ fn test_change_targets_object_redirect() {
 fn test_change_targets_redirects_single_target_spell_by_stack_entry_id() {
     let mut state = three_player_state();
     // p(2) cast Lightning Bolt targeting p(3).
-    let bolt_stack_id = push_spell_targeting_player(&mut state, p(2), p(3));
+    let bolt_stack_id = push_spell_targeting_player(
+        &mut state,
+        p(2),
+        p(3),
+        vec![TargetRequirement::TargetPlayer],
+    );
 
     // p(1) redirects to p(1) (the controller) -- announcing the STACK-ENTRY
     // id directly (see module doc: no real cast can produce this shape).

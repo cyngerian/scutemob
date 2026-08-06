@@ -2450,14 +2450,25 @@ pub enum Effect {
     /// Two modes based on card text:
     /// - `must_change: true` (CR 115.7a): "Change the target" — MUST change to
     ///   another legal target. If no other legal target exists, target is unchanged.
-    ///   Used by Bolt Bend, Untimely Malfunction.
+    ///   Used by Bolt Bend, Misdirection, Untimely Malfunction.
     /// - `must_change: false` (CR 115.7d): "Choose new targets" — MAY change any
     ///   or all targets. Used by Deflecting Swat. Deterministic fallback: unchanged.
     ///
     /// Deterministic fallback for `must_change: true`: retargets to the effect's
     /// controller (if legal). If the controller is not a legal target, picks the
-    /// first legal alternative (smallest PlayerId/ObjectId). If no legal alternative
-    /// exists, target unchanged.
+    /// first legal alternative in `rules::retarget::retarget_candidates`'s own
+    /// order: remaining players in SEAT order (`state.turn.turn_order`), then
+    /// objects by ascending `ObjectId` — not "smallest PlayerId/ObjectId". If no
+    /// legal alternative exists, target unchanged.
+    ///
+    /// PB-DX25c: legality is delegated to the SAME validator a real cast is checked
+    /// against (`casting::validate_targets_inner`, via `rules::retarget::plan_target_
+    /// change`) — "legal" here means the target satisfies the victim spell's own
+    /// `TargetRequirement`, not merely that it exists in the right zone. CR 115.7a is
+    /// all-or-nothing ACROSS every target on the spell: if any one target has no
+    /// legal replacement, NONE of the targets are changed (not just that one). The
+    /// controller-first preference above is a preference among legal candidates —
+    /// it never widens what "legal" means.
     ChangeTargets {
         /// The spell or ability whose targets to change.
         target: EffectTarget,

@@ -426,10 +426,10 @@ pub static ROWS: &[Row] = &[
     Row {
         id: "change_targets",
         cr: "115.7d",
-        site: "effects/mod.rs (ChangeTargets) -- always declines when optional; smallest id when must_change",
+        site: "effects/mod.rs (ChangeTargets) delegates to rules::retarget::plan_target_change (PB-DX25c) -- always declines when optional; lowest-id LEGAL candidate when must_change",
         class: DecisionClass::AutoChosen {
             why_not_flagged_is_wrong:
-                "CR 115.7d gives the choice of new target(s) to a player; the engine never changes an optional retarget and picks the lowest id for a mandatory one",
+                "CR 115.7d gives the choice of new target(s) to a player; the engine never changes an optional retarget and picks the lowest-id legal candidate for a mandatory one (CR 115.7a legality is delegated to casting::validate_targets_inner, PB-DX25c)",
         },
         predicate: p_change_targets,
     },

@@ -95,7 +95,28 @@ const SWEPT_FILES: &[(&str, usize)] = &[
     // consolidated into `replacement::perform_one_draw` (which already used
     // `expect_*` throughout); `draw_cards_for_player` now just calls it in a
     // loop, netting one fewer bare lookup site in this file.
-    ("src/effects/mod.rs", 110),
+    // PB-DX25c (2026-08-06): 110 → 108. `Effect::ChangeTargets`'s ~130-line
+    // open-coded candidate scan (two `.get(...)` bare-lookup sites feeding the
+    // player/object candidate builds) is deleted; the whole decision now
+    // delegates to `rules::retarget::plan_target_change` in a separate file.
+    // The ratchet only ever moves DOWN -- this lowers the ceiling to keep the
+    // gain rather than leaving slack a future regression could hide in.
+    ("src/effects/mod.rs", 108),
+    // PB-DX25c fix cycle (2026-08-06, review Finding E8): the two lookups
+    // above did not disappear, they RELOCATED into this new file -- and
+    // without this entry the ratchet's denominator would have silently
+    // shrunk by two, exactly the class this gate exists to prevent (a
+    // conversion vs. a relocation look identical from the effects/mod.rs
+    // ceiling alone). Measured ceiling is 0, not because the risk vanished
+    // but because `retarget.rs`'s reads are spelled through the `objects()`
+    // accessor method (`state.objects().get(id)`) rather than the bare
+    // `.objects.get(` field-access idiom this ratchet's NEEDLES match -- the
+    // exact same silent-`None` shape, invisible to this specific scan only
+    // because of the parenthesized method call. Swept here so a FUTURE bare
+    // `.objects.get(`/`.players.get(`/`.zones.get(` added to this file (e.g.
+    // by a reviewer "simplifying" the accessor call) is caught rather than
+    // silently absorbed into an unswept file.
+    ("src/rules/retarget.rs", 0),
     // PB-OS4b (2026-07-19): 102 → 101. `apply_face_change` replaced several raw
     // `state.objects.get_mut(&id)` transform-flip sites with a single call, and one
     // `debug_assert_object_live!` + bare-lookup pair collapsed into a plain

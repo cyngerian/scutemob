@@ -200,7 +200,7 @@ const BASELINE_STREAM_FINGERPRINT: &str =
 // PB-DX21 (2026-08-04): re-pinned on the 72→73 bump — version 72 became a
 // superseded row and joined the frozen prefix.
 const FROZEN_HISTORY_PREFIX_DIGEST: &str =
-    "e00c419bef219287904c271a281c2155258b7eb1f9e361cd8ac11bcc432811ce";
+    "65bcd0d1105a996fa7a2032b372232e5fedf1166dbd0749f5b707cd8111863b0";
 
 /// The workspace root: `crates/engine/` is two levels down from it.
 fn workspace_root() -> PathBuf {
@@ -1248,7 +1248,7 @@ fn frozen_prefix_is_pinned() {
 #[test]
 fn hash_schema_version_sentinel() {
     assert_eq!(
-        HASH_SCHEMA_VERSION, 73,
+        HASH_SCHEMA_VERSION, 74,
         "HASH_SCHEMA_VERSION changed. Update this sentinel, append a HASH_SCHEMA_HISTORY row with \
          the new fingerprints, and add a `- N:` History line in state/hash.rs."
     );

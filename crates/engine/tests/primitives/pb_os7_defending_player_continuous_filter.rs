@@ -697,7 +697,7 @@ fn test_os7_card_registered() {
 #[test]
 fn test_os7_version_sentinels() {
     assert_eq!(
-        HASH_SCHEMA_VERSION, 73u8,
+        HASH_SCHEMA_VERSION, 74u8,
         "HASH_SCHEMA_VERSION drifted from this live sentinel. PB-OS7 first moved it to 59 \
          (EffectFilter gained CreaturesControlledByDefendingPlayer, discriminant 36); it is \
          since 60 (PB-OS8 TargetFilter.min_cmc_amount). Bump this value with the state/hash.rs \

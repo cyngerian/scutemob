@@ -7563,10 +7563,20 @@ fn execute_effect_inner(
                         // No event emitted (no change was made).
                         continue;
                     }
-                    // CR 115.7a: must change. Find the current target and pick a different
-                    // legal alternative. Simplified approach: player targets → different
-                    // active player; object targets → different object in same zone.
-                    let stack_obj = state.stack_objects[pos].clone();
+                    // CR 115.7a: must change. PB-DX25c: the WHOLE decision — which
+                    // object or player becomes the new target, whether it is legal,
+                    // and CR 115.7a's all-or-nothing clause — is delegated to
+                    // `rules::retarget::plan_target_change`, the same legality
+                    // arithmetic (`casting::validate_targets_inner`) a real cast is
+                    // checked against. See that function's doc for every case in
+                    // which it returns `None` (CR 115.7a's own fallback, plus this
+                    // module's fail-closed policy on a missing requirement list).
+                    let Some(new_targets) =
+                        crate::rules::retarget::plan_target_change(state, pos, ctx.controller)
+                    else {
+                        continue; // CR 115.7a fallback: targets unchanged, no event.
+                    };
+                    let old_targets = state.stack_objects[pos].targets.clone();
                     // The event below must name the STACK-ENTRY id, not the
                     // announced card id -- per the field's OWN doc comment
                     // (`rules/events.rs:1421-1422`, "The stack object whose
@@ -7577,105 +7587,21 @@ fn execute_effect_inner(
                     // event that will eventually be consumed, not a
                     // compatibility fix for an existing reader. Capture it
                     // now, before any mutation.
-                    let real_stack_id = stack_obj.id;
-                    if stack_obj.targets.is_empty() {
-                        continue;
+                    let real_stack_id = state.stack_objects[pos].id;
+                    // Update the stack object's targets in-place, by the SAME
+                    // index resolved above -- not a fresh id lookup, so this
+                    // cannot land on a different entry than the one just read.
+                    if let Some(so) = state.stack_objects.get_mut(pos) {
+                        so.targets = new_targets.clone();
                     }
-                    let old_targets = stack_obj.targets.clone();
-                    let mut new_targets = old_targets.clone();
-                    let mut changed = false;
-                    for (i, spell_target) in old_targets.iter().enumerate() {
-                        match &spell_target.target {
-                            Target::Player(current_pid) => {
-                                // Find a different active player to retarget to.
-                                // Prefer the effect controller, then any other player.
-                                let controller = ctx.controller;
-                                // CR 115.7a: A player who has lost the game is not a legal target.
-                                // Check has_lost before preferring the controller as the new target.
-                                let controller_alive = !state
-                                    .players
-                                    .get(&controller)
-                                    .map(|ps| ps.has_lost)
-                                    .unwrap_or(true);
-                                let new_pid = if controller_alive && controller != *current_pid {
-                                    Some(controller)
-                                } else {
-                                    // Pick the first active player that isn't the current target.
-                                    let mut sorted_pids: Vec<PlayerId> =
-                                        state.players.keys().copied().collect();
-                                    sorted_pids.sort();
-                                    sorted_pids.into_iter().find(|&p| {
-                                        p != *current_pid
-                                            && !state
-                                                .players
-                                                .get(&p)
-                                                .map(|ps| ps.has_lost)
-                                                .unwrap_or(true)
-                                    })
-                                };
-                                if let Some(new_pid) = new_pid {
-                                    new_targets[i] = SpellTarget {
-                                        target: Target::Player(new_pid),
-                                        zone_at_cast: None,
-                                    };
-                                    changed = true;
-                                }
-                                // If no alternative exists, target remains unchanged (CR 115.7a).
-                            }
-                            Target::Object(current_oid) => {
-                                // Find a different object in the same zone as the original target.
-                                // The original target's zone is captured in zone_at_cast.
-                                // Prefer the smallest ObjectId (deterministic).
-                                //
-                                // KNOWN LIMITATION: The redirect picks the smallest ObjectId in the
-                                // same zone without checking whether the new object satisfies the
-                                // original spell's TargetRequirement (CR 115.7a — "another legal
-                                // target"). The original TargetRequirement is not readily available
-                                // from StackObject. Simplified approach is safer for M9.4;
-                                // M10 interactive choice will replace this deterministic fallback.
-                                let original_zone = spell_target.zone_at_cast;
-                                let new_oid = {
-                                    let mut candidates: Vec<ObjectId> = state
-                                        .objects
-                                        .iter()
-                                        .filter(|(oid, obj)| {
-                                            **oid != *current_oid
-                                                && original_zone
-                                                    .map(|z| obj.zone == z)
-                                                    .unwrap_or(true)
-                                        })
-                                        .map(|(oid, _)| *oid)
-                                        .collect();
-                                    candidates.sort();
-                                    candidates.into_iter().next()
-                                };
-                                if let Some(new_oid) = new_oid {
-                                    new_targets[i] = SpellTarget {
-                                        target: Target::Object(new_oid),
-                                        zone_at_cast: original_zone,
-                                    };
-                                    changed = true;
-                                }
-                                // If no alternative exists, target remains unchanged (CR 115.7a).
-                            }
-                        }
-                    }
-                    if changed {
-                        // Update the stack object's targets in-place, by the SAME
-                        // index resolved above -- not a fresh id lookup, so this
-                        // cannot land on a different entry than the one just read.
-                        if let Some(so) = state.stack_objects.get_mut(pos) {
-                            so.targets = new_targets.clone();
-                        }
-                        events.push(crate::rules::events::GameEvent::TargetsChanged {
-                            // PB-DX25b: the stack-ENTRY id (`real_stack_id`), not the
-                            // announced card id (`stack_obj_id`) -- see the capture
-                            // above.
-                            stack_object_id: real_stack_id,
-                            old_targets,
-                            new_targets,
-                        });
-                    }
+                    events.push(crate::rules::events::GameEvent::TargetsChanged {
+                        // PB-DX25b: the stack-ENTRY id (`real_stack_id`), not the
+                        // announced card id (`stack_obj_id`) -- see the capture
+                        // above.
+                        stack_object_id: real_stack_id,
+                        old_targets,
+                        new_targets,
+                    });
                 }
             }
         }

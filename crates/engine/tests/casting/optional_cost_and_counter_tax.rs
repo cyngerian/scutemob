@@ -88,6 +88,7 @@ fn push_spell_stack_object(
         controller,
         kind: StackObjectKind::Spell { source_object },
         targets: vec![],
+        target_requirements: vec![],
         cant_be_countered: false,
         is_copy: false,
         cast_with_flashback,
@@ -1136,7 +1137,7 @@ fn test_counter_unless_pays_noncreature_filter() {
 /// `MayPayThenEffect` discriminant 88 and `CounterUnlessPays` discriminant 89).
 /// If you bumped again, update this test and the `state/hash.rs` history block.
 fn test_hash_schema_version_is_29() {
-    assert_eq!(HASH_SCHEMA_VERSION, 73u8);
+    assert_eq!(HASH_SCHEMA_VERSION, 74u8);
 }
 
 #[test]
