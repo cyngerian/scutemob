@@ -156,10 +156,27 @@ pub enum GameEvent {
         player: PlayerId,
         object_id: ObjectId,
     },
-    /// A spell was countered without resolving (CR 608.2b, 701.6a).
+    /// A spell or ability was countered without resolving (CR 608.2b, 701.6a).
     ///
-    /// The card is put into its owner's graveyard. `source_object_id` is the
-    /// card's new ID in the graveyard.
+    /// `source_object_id`'s meaning depends on WHAT was countered (review
+    /// Finding 6, PB-DX25 fix cycle — this doc previously described only the
+    /// first shape below, which is now one of three):
+    ///
+    /// - **A card-owning, non-copy stack object** (`Spell` or
+    ///   `MutatingCreatureSpell`, CR 701.6a / 702.140a): the card is put into
+    ///   its owner's graveyard (or exile — flashback/jump-start/`exile_instead`)
+    ///   and `source_object_id` is the card's NEW id there (CR 400.7 — a new
+    ///   object).
+    /// - **A copy of a card-owning kind** (CR 707.10: a copy is itself a spell
+    ///   but owns no card of its own): no card moves anywhere, and
+    ///   `source_object_id == stack_object_id`, both naming the copy's OWN
+    ///   stack-entry id — a deliberate marker, machine-detectable on this
+    ///   existing wire shape, that this `SpellCountered` was for a copy.
+    /// - **An `ActivatedAbility` or `TriggeredAbility`, including a copy of one**
+    ///   (CR 707.10b: a copy of an ability has the same source as the
+    ///   original): nothing moves (the source is not a card and has not left
+    ///   any zone) and `source_object_id` names the ability's unmoved source
+    ///   object.
     SpellCountered {
         player: PlayerId,
         stack_object_id: ObjectId,
