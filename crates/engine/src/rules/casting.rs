@@ -6472,8 +6472,21 @@ fn validate_object_satisfies_requirement(
                 )));
             }
         }
-        // Find the StackObject to check its declared targets.
-        let stack_obj = state.stack_objects.iter().find(|so| so.id == id);
+        // PB-DX25b (`OOS-DX25-3`): find the StackObject this ANNOUNCED id names.
+        // `id` here is a `state.objects` id (the CARD, CR 601.2a/601.2c -- the
+        // offer layer, `queries::legal_targets_per_slot`, only ever enumerates
+        // `state.objects()`), not a `state.stack_objects` entry's OWN id -- those
+        // are a disjoint id space minted one line later
+        // (`abilities.rs:1381`/`casting.rs:4425`) and are never announceable.
+        // `stack_index_for_announced_target` is the one shared resolution of
+        // "which stack object does this announced id name", also consumed by
+        // `Effect::CounterSpell`/`ChangeTargets`/`CopySpellOnStack` -- do not
+        // re-open-code `stack_objects.iter().find(|so| so.id == id)` here again.
+        let stack_obj = crate::state::stack_registry::stack_index_for_announced_target(
+            &state.stack_objects,
+            id,
+        )
+        .map(|i| &state.stack_objects[i]);
         let target_count = stack_obj.map(|so| so.targets.len()).unwrap_or(0);
         if target_count != 1 {
             return Err(GameStateError::InvalidTarget(format!(
@@ -6499,10 +6512,10 @@ fn validate_object_satisfies_requirement(
                 )));
             }
         }
-        let stack_obj = state.stack_objects.iter().find(|so| so.id == id);
-        // Spell-only: reject activated/loyalty abilities and non-spell stack objects.
-        //
-        // This is deliberately NOT expressed through
+        // PB-DX25b (`OOS-DX25-3`): the LOOKUP now goes through the shared
+        // `stack_index_for_announced_target` (same reasoning as C1 above), but
+        // the CLASSIFICATION -- "is this stack object a spell" -- stays a local
+        // `matches!`, deliberately NOT expressed through
         // `state::stack_registry::card_in_stack_zone` (plan §3.4 / PB-DX25). That
         // function answers "does this stack object own a card in ZoneId::Stack",
         // which is a different question from "is this stack object a spell" --
@@ -6511,6 +6524,27 @@ fn validate_object_satisfies_requirement(
         // Re-expressing `is_spell` as `card_in_stack_zone(..).is_some()` would make
         // a copy an illegal target for "target spell", which is CR-wrong. Keep the
         // two-variant `matches!` here.
+        //
+        // OOS-DX25b-1: on every real cast this guard can only fire via the
+        // direct-id clause of `stack_index_for_announced_target` -- the
+        // card-owning-kind clause requires the announced id to be simultaneously
+        // a live `state.objects` entry (this fn's opening `?`) and a stack-entry
+        // id, which never happens in production (an activated/triggered
+        // ability's stack entry is never added to `state.objects`,
+        // `abilities.rs:1381`). So `TargetSpellWithSingleTarget` and
+        // `TargetSpellOrAbilityWithSingleTarget` are behaviourally IDENTICAL on
+        // the production path today -- not a defect introduced here, but the
+        // visible shadow of the ability half still being unreachable (§8 R1 of
+        // the PB-DX25b plan). Do NOT delete this guard: it is CR-correct, it is
+        // the only thing distinguishing the two variants, and it becomes
+        // load-bearing the day OOS-DX25b-1 is closed (a `Target::StackObject` id
+        // space, which is a wire change out of this batch's scope).
+        let stack_obj = crate::state::stack_registry::stack_index_for_announced_target(
+            &state.stack_objects,
+            id,
+        )
+        .map(|i| &state.stack_objects[i]);
+        // Spell-only: reject activated/loyalty abilities and non-spell stack objects.
         let is_spell = stack_obj.is_some_and(|so| {
             matches!(
                 so.kind,
@@ -8147,15 +8181,24 @@ mod tests {
     }
 
     /// Build a minimal StackObject for testing self-targeting prevention.
+    ///
+    /// PB-DX25b (`OOS-DX25-3`, plan §5.2 row 1): `id` (the StackObject's OWN id,
+    /// the stack-entry id space) and `source_object` (the card this entry owns
+    /// in `ZoneId::Stack`, the announced-id space) are now SEPARATE parameters.
+    /// The two previous callers passed one value for both, which collapsed the
+    /// two id spaces this whole batch exists to keep apart -- see the callers'
+    /// own doc comments for why that collapse made both callers pass vacuously
+    /// before this batch.
     fn make_test_stack_spell(
         id: ObjectId,
+        source_object: ObjectId,
         controller: PlayerId,
         targets: Vec<SpellTarget>,
     ) -> StackObject {
         StackObject {
             id,
             controller,
-            kind: StackObjectKind::Spell { source_object: id },
+            kind: StackObjectKind::Spell { source_object },
             targets,
             cant_be_countered: false,
             is_copy: false,
@@ -8206,6 +8249,17 @@ mod tests {
     /// The casting spell's own ObjectId is not a valid target for its own
     /// TargetSpellOrAbilityWithSingleTarget requirement. This prevents self-reference
     /// loops (e.g., Bolt Bend targeting itself on the stack).
+    ///
+    /// **PB-DX25b (`OOS-DX25-3`) non-vacuity repair (plan §5.2 row 2):** the
+    /// StackObject's own id (`entry_id`, minted via `state.next_object_id()`)
+    /// is now DISTINCT from the announced card id (`spell_id`) -- before this
+    /// repair both ids were the same value, which collapsed the announced-id
+    /// space and the stack-entry-id space onto one id and made the lookup this
+    /// test exercises (C1, `casting.rs`'s `TargetSpellOrAbilityWithSingleTarget`
+    /// arm) pass regardless of whether it correctly resolved the announced CARD
+    /// id or merely got lucky matching the entry's own id. `entry_id != spell_id`
+    /// is asserted below so a future edit cannot silently re-collapse the
+    /// fixture.
     #[test]
     fn test_target_spell_single_target_self_targeting_prevented() {
         // Build a state with a card in ZoneId::Stack (simulating a spell already there).
@@ -8226,8 +8280,21 @@ mod tests {
             .map(|(id, _)| *id)
             .expect("expected a stack object");
 
+        // PB-DX25b non-vacuity: mint a DISTINCT id for the StackObject entry
+        // itself, so `spell_id` (the announced CARD id) and `entry_id` (the
+        // stack-entry id) live in the two disjoint id spaces a real cast
+        // produces (`state/mod.rs::next_object_id` is the same monotone
+        // counter both `move_object_to_zone` and this call draw from).
+        let entry_id = state.next_object_id();
+        assert_ne!(
+            entry_id, spell_id,
+            "PB-DX25b non-vacuity anchor: the fixture must not collapse the \
+             announced-card-id space and the stack-entry-id space onto one id"
+        );
+
         // Also add a StackObject entry so the target-count check works.
         let stack_entry = make_test_stack_spell(
+            entry_id,
             spell_id,
             p(1),
             vec![SpellTarget {
@@ -8279,7 +8346,7 @@ mod tests {
         );
     }
 
-    /// CR 115.7a/115.7b/115.10 -- PB-EF11 COMMIT 2: `TargetSpellWithSingleTarget`
+    /// CR 115.7a/115.7b/601.2a/601.2c -- PB-EF11 COMMIT 2: `TargetSpellWithSingleTarget`
     /// self-targeting prevention AND spell-only kind check, exercised directly
     /// (private-fn precision test; mirrors the sibling
     /// `TargetSpellOrAbilityWithSingleTarget` test above). The external
@@ -8288,6 +8355,40 @@ mod tests {
     /// accepts/decoy/hash/integration cases; this test pins the two branches that
     /// pipeline cannot isolate (self_id-specific rejection message, and rejection
     /// of a non-spell stack object with exactly one target).
+    ///
+    /// **Citation correction (PB-DX25b §4.4):** this test and its sibling in
+    /// `pb_ef11_spell_single_target.rs` previously cited "CR 115.10" for
+    /// self-targeting prevention -- that rule is the affects-vs-targets rule
+    /// (CR 115.10/115.10a: "spells and abilities can affect objects and players
+    /// they don't target") and has nothing to do with a spell targeting itself.
+    /// The correct grounding is CR 601.2a + 601.2c + 115.7a: at the moment
+    /// targets are announced, the spell being cast has chosen no targets yet, so
+    /// it is not yet an appropriate object for its own "single target".
+    /// (PB-DX25b review Finding E8: CR 115.7a's "another legal target" governs
+    /// the VICTIM's new target, not which spell may be chosen as the caster's
+    /// own target -- that sentence is dropped here; CR 601.2a/601.2c plus the
+    /// requirement's own "appropriate object" definition already carry the
+    /// argument.) Misdirection's own 2004-10-04 ruling
+    /// ("You can't make a spell which is on the stack target itself") is about
+    /// the DEFLECTED spell, not about Misdirection targeting itself. This is a
+    /// comment-only correction; the guard's behavior is unchanged.
+    ///
+    /// **PB-DX25b (`OOS-DX25-3`) repair, non-vacuity (plan §5.2 row 2):** this
+    /// test now covers THREE sub-cases, each labelled with what it isolates:
+    /// (i) distinct ids -- the spell half, which discriminates C2's lookup
+    /// (`stack_index_for_announced_target`'s card-owning-kind clause); (ii)
+    /// collapsed ids -- kept deliberately, because it is now the ONLY
+    /// configuration in the tree that reaches the `is_spell` guard with a
+    /// non-spell actually FOUND (OOS-DX25b-1: that configuration is unreachable
+    /// in production, since an ability's stack entry never enters
+    /// `state.objects`); (iii) an ActivatedAbility entry with a DISTINCT id,
+    /// asserting rejection with the same "is not a spell" message but for the
+    /// NOT-FOUND reason -- documented as such, and explicitly NOT discriminating
+    /// the `is_spell` guard (deleting the guard would not redden this sub-case,
+    /// because the lookup itself already returns `None` for a distinct-id
+    /// ability entry -- `stack_index_for_announced_target` never matches an
+    /// ActivatedAbility's card_in_stack_zone, since `card_in_stack_zone` returns
+    /// `None` for that kind).
     #[test]
     fn test_target_spell_with_single_target_self_and_kind_check() {
         // Build a state with a card in ZoneId::Stack (simulating Misdirection's
@@ -8308,7 +8409,18 @@ mod tests {
             .map(|(id, _)| *id)
             .expect("expected a stack object");
 
+        // Sub-case (i), distinct ids: mint a DISTINCT StackObject-entry id, same
+        // reasoning as the sibling test above -- this discriminates C2's lookup
+        // (`stack_index_for_announced_target`'s card-owning-kind clause).
+        let entry_id = state.next_object_id();
+        assert_ne!(
+            entry_id, spell_id,
+            "PB-DX25b non-vacuity anchor: the fixture must not collapse the \
+             announced-card-id space and the stack-entry-id space onto one id"
+        );
+
         let stack_entry = make_test_stack_spell(
+            entry_id,
             spell_id,
             p(1),
             vec![SpellTarget {
@@ -8329,7 +8441,9 @@ mod tests {
             result_no_self
         );
 
-        // With self_id == spell_id: self-targeting is rejected (CR 115.10).
+        // With self_id == spell_id: self-targeting is rejected. CR 601.2a/601.2c
+        // + 115.7a -- see the corrected citation in this test's doc comment
+        // (not CR 115.10, which is the unrelated affects-vs-targets rule).
         let result_self =
             validate_object_satisfies_requirement(&state, spell_id, &req, p(1), Some(spell_id));
         assert!(
@@ -8343,14 +8457,19 @@ mod tests {
             err_msg
         );
 
-        // Spell-only kind check: an ACTIVATED ABILITY on the stack with exactly one
-        // declared target must be REJECTED (this is the sole difference from
-        // TargetSpellOrAbilityWithSingleTarget). ActivatedAbility targets validate
-        // against the ability's own StackObject id, which itself must satisfy
-        // `obj.zone == ZoneId::Stack` for the (spell-only) requirement to even reach
-        // the kind check -- so a second builder object is placed directly in
-        // ZoneId::Stack to stand in for the ability's own stack presence (avoids a
-        // bare `.objects.get(` lookup; SR-25 ratchet).
+        // Sub-case (ii), COLLAPSED ids (deliberately kept, not "cleaned up" --
+        // see this test's doc comment): an ACTIVATED ABILITY on the stack with
+        // exactly one declared target, whose StackObject id EQUALS the
+        // announced id, must be REJECTED (this is the sole difference from
+        // TargetSpellOrAbilityWithSingleTarget). ActivatedAbility targets
+        // validate against the ability's own StackObject id, which itself must
+        // satisfy `obj.zone == ZoneId::Stack` for the (spell-only) requirement
+        // to even reach the kind check -- so a second builder object is placed
+        // directly in ZoneId::Stack to stand in for the ability's own stack
+        // presence (avoids a bare `.objects.get(` lookup; SR-25 ratchet). This
+        // is now the ONLY configuration in the tree that reaches the `is_spell`
+        // guard with a non-spell actually FOUND (OOS-DX25b-1: unreachable in
+        // production).
         let mut ability_state = GameStateBuilder::new()
             .add_player(p(1))
             .add_player(p(2))
@@ -8378,7 +8497,9 @@ mod tests {
                 ability_index: 0,
                 embedded_effect: None,
             },
+            // COLLAPSED by construction: id == source_object == ability_stack_id.
             ..make_test_stack_spell(
+                ability_stack_id,
                 ability_stack_id,
                 p(1),
                 vec![SpellTarget {
@@ -8407,6 +8528,95 @@ mod tests {
             ability_err_msg.contains("is not a spell"),
             "error should mention the spell-only restriction, got: {}",
             ability_err_msg
+        );
+
+        // Sub-case (iii), DISTINCT id (PB-DX25b plan §5.2 row 3, third
+        // sub-case): an ActivatedAbility whose StackObject id is DIFFERENT from
+        // the announced (marker) id -- the shape a real ability actually has in
+        // production (its stack entry is never added to `state.objects` at all,
+        // `abilities.rs:1381`; this marker object is a test-only stand-in for
+        // `obj.zone == ZoneId::Stack`). `stack_index_for_announced_target`
+        // returns `None` for this configuration: `so.id == announced` is false
+        // (distinct ids by construction) and `card_in_stack_zone` returns `None`
+        // for every ActivatedAbility kind, so the card-owning-kind clause is
+        // `None == Some(announced)`, also false. The result is REJECTED with
+        // the SAME "is not a spell" message text as sub-case (ii) -- but for a
+        // different reason: `stack_obj` is `None` entirely (NOT-FOUND), not
+        // "found, and its kind failed the `is_spell` check". This sub-case does
+        // **not** discriminate the `is_spell` guard (deleting that guard would
+        // NOT redden this sub-case, since the lookup already returns `None`
+        // before the guard is ever reached) -- it discriminates the LOOKUP
+        // itself still refusing an ability's true stack-entry id, which is
+        // exactly OOS-DX25b-1's "ability half does not work" deviation, pinned
+        // wrong-way-round on purpose.
+        let mut distinct_ability_state = GameStateBuilder::new()
+            .add_player(p(1))
+            .add_player(p(2))
+            .object(ObjectSpec::card(p(1), "Distinct Ability Source").in_zone(ZoneId::Battlefield))
+            .object(ObjectSpec::card(p(1), "Distinct Ability Stack Marker").in_zone(ZoneId::Stack))
+            .at_step(Step::PreCombatMain)
+            .active_player(p(1))
+            .build()
+            .unwrap();
+        let distinct_source_id = distinct_ability_state
+            .objects
+            .iter()
+            .find(|(_, obj)| obj.zone == ZoneId::Battlefield)
+            .map(|(id, _)| *id)
+            .expect("expected a battlefield object");
+        let distinct_marker_id = distinct_ability_state
+            .objects
+            .iter()
+            .find(|(_, obj)| obj.zone == ZoneId::Stack)
+            .map(|(id, _)| *id)
+            .expect("expected a stack object");
+        let distinct_entry_id = distinct_ability_state.next_object_id();
+        assert_ne!(
+            distinct_entry_id, distinct_marker_id,
+            "PB-DX25b non-vacuity anchor: sub-case (iii) requires a StackObject \
+             id that is DIFFERENT from the announced marker id"
+        );
+        let distinct_ability_entry = StackObject {
+            kind: StackObjectKind::ActivatedAbility {
+                source_object: distinct_source_id,
+                ability_index: 0,
+                embedded_effect: None,
+            },
+            ..make_test_stack_spell(
+                distinct_entry_id,
+                distinct_marker_id,
+                p(1),
+                vec![SpellTarget {
+                    target: Target::Player(p(2)),
+                    zone_at_cast: None,
+                }],
+            )
+        };
+        distinct_ability_state
+            .stack_objects
+            .push_back(distinct_ability_entry);
+
+        let result_distinct_ability = validate_object_satisfies_requirement(
+            &distinct_ability_state,
+            distinct_marker_id,
+            &req,
+            p(1),
+            None,
+        );
+        assert!(
+            result_distinct_ability.is_err(),
+            "sub-case (iii): an ActivatedAbility with a DISTINCT stack-entry id \
+             (the production shape) must still be REJECTED by \
+             TargetSpellWithSingleTarget -- got: {:?}",
+            result_distinct_ability
+        );
+        let distinct_ability_err_msg = format!("{:?}", result_distinct_ability.unwrap_err());
+        assert!(
+            distinct_ability_err_msg.contains("is not a spell"),
+            "sub-case (iii) error should mention the spell-only restriction \
+             (NOT-FOUND path reuses the same message text as sub-case (ii)'s \
+             found-but-wrong-kind path), got: {}",
+            distinct_ability_err_msg
         );
     }
 }

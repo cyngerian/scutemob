@@ -47,7 +47,7 @@
 //! case that matters by running a real counter-on-mutate game and asserting
 //! zero `stack_consistency` violations, rather than by sharing code.
 
-use super::stack::StackObjectKind;
+use super::stack::{StackObject, StackObjectKind};
 use crate::state::game_object::ObjectId;
 
 /// The card this stack object owns in `ZoneId::Stack`, if it owns one.
@@ -107,4 +107,51 @@ pub fn card_in_stack_zone(kind: &StackObjectKind) -> Option<ObjectId> {
         K::ClassLevelAbility { .. } => None,
         K::DelayedActionTrigger { .. } => None,
     }
+}
+
+/// PB-DX25b (`OOS-DX25-3`): the index in `stack_objects` of the stack object an
+/// **announced target id** names, if any (CR 601.2c).
+///
+/// Two disjoint id spaces meet here, and the whole point of this function is that
+/// the decision is made once:
+///
+/// * a **card** id — `casting.rs::handle_cast_spell` moves the card into
+///   `ZoneId::Stack` (CR 601.2a) with a fresh `ObjectId` (CR 400.7), and that is
+///   the id the offer layer (`rules::queries::legal_targets_per_slot`) enumerates
+///   and the player announces (CR 601.2c). `casting.rs:6308-6311` states this
+///   invariant in prose.
+/// * a **stack-entry** id — `state.next_object_id()`, one line later. It is never
+///   in `state.objects`, so it can never be announced by a player, but it IS
+///   passed as a target by engine-internal triggers (Ward, CR 702.21a, via
+///   `PermanentTargeted`/`targeting_stack_id`).
+///
+/// Both are minted from the one monotone `timestamp_counter`
+/// (`state/mod.rs:1012-1015`), so an id lives in exactly one of them and a bare
+/// `so.id == announced` type-checks while being unsatisfiable on any real cast —
+/// `OOS-SIM3-5` and `OOS-DX25-3` are the same defect, two functions apart.
+///
+/// CR 707.10: a COPY of a spell owns no card of its own. `copy.rs` clones the
+/// ORIGINAL's `kind` wholesale, so a copy's `source_object` names the ORIGINAL's
+/// card; without the `!so.is_copy` guard a single card id would match BOTH the
+/// original and every copy of it, and `position` would silently return whichever
+/// came first. The guard is therefore load-bearing twice over: for
+/// disambiguation here, and for the CR 702.99c cipher-copy exile leak documented
+/// at `Effect::CounterSpell`'s call site.
+///
+/// **This is not "is it a spell".** See this module's header: a copy IS a spell
+/// (CR 707.10) and is deliberately NOT findable here. A consequence, stated
+/// rather than hidden: a copy of a spell can never be the announced target of
+/// Misdirection/Bolt Bend (`OOS-DX25b-2`).
+///
+/// **Why an index and not `Option<&StackObject>`**: `Effect::CounterSpell` needs
+/// `state.stack_objects.remove(pos)`; `Effect::ChangeTargets` needs a shared read
+/// *and* an `iter_mut()` write; `casting.rs` needs a shared read. An index serves
+/// all three with one function.
+pub fn stack_index_for_announced_target(
+    stack_objects: &imbl::Vector<StackObject>,
+    announced: ObjectId,
+) -> Option<usize> {
+    stack_objects.iter().position(|so| {
+        so.id == announced || (!so.is_copy && card_in_stack_zone(&so.kind) == Some(announced))
+    })
 }

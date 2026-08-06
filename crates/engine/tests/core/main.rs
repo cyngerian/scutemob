@@ -31,6 +31,7 @@ mod lki_diagnostics_scan;
 mod object_identity;
 mod pb_dx24_trigger_zone_roster;
 mod pb_dx25_stack_registry_roster;
+mod pb_dx25b_announced_target_roster;
 mod pb_dx5_continuous_effect_roster;
 mod pb_dx6_turn_face_up_and_attack_tax_roster;
 mod pb_rs1_roster_sweep;

@@ -1,5 +1,31 @@
 //! Tests for PB-EF11 COMMIT 2: `TargetRequirement::TargetSpellWithSingleTarget`
-//! (CR 115.7a/115.7b/115.10).
+//! (CR 115.7a/115.7b/601.2a/601.2c).
+//!
+//! **Citation correction (PB-DX25b `OOS-DX25-3`, plan §4.4):** this file
+//! previously cited "CR 115.10" for self-targeting prevention -- that rule is
+//! the affects-vs-targets rule (CR 115.10/115.10a) and has nothing to do with a
+//! spell targeting itself. The correct grounding is CR 601.2a + 601.2c + 115.7a:
+//! at the moment targets are announced, the spell being cast has not yet chosen
+//! any targets, so it is not an appropriate object for its own "single target".
+//! Comment-only correction; behavior is unchanged. See `casting.rs`'s in-source
+//! test module for the fuller version of this note.
+//!
+//! **PB-DX25b (`OOS-DX25-3`) non-vacuity repair (plan §5.2):** every fixture in
+//! this file used to build `build_base_state`'s pre-existing stack object with
+//! its StackObject's own id EQUAL to its `source_object` (`kind_with_source_object
+//! (other_id)` where the StackObject's `id` was also `other_id`) -- collapsing
+//! the announced-card-id space and the stack-entry-id space onto one id, the
+//! exact defect `casting.rs:6480`/`:6506` (C1/C2) had at HEAD. `build_base_state`
+//! now mints a SEPARATE `entry_id` for the StackObject and returns it alongside
+//! `other_id` (the announced card id) so callers can tell the two apart; `Test 1`
+//! (`test_spell_single_target_accepts_single_target_spell`) is the headline
+//! non-vacuity proof -- it is RED against the un-fixed `casting.rs` lookup with
+//! this repair in place (see `memory/primitives/pb-DX25b-execution-notes.md` for
+//! the executed revert). `Test 6`
+//! (`test_misdirection_retargets_single_target_spell`) is similarly rebuilt to
+//! place a real victim CARD object in `ZoneId::Stack` and announce THAT id,
+//! rather than announcing the StackObject's own id directly into `execute_effect`
+//! -- the old version tested a path no real cast can ever produce.
 //!
 //! Misdirection's oracle ("Change the target of target spell with a single
 //! target") needs a single-target restriction that is spell-ONLY — the existing
@@ -136,11 +162,25 @@ fn single_target_test_spell() -> CardDefinition {
 /// Build a 3-player state with `single_target_test_spell` in p1's hand, plus a
 /// pre-existing stack object of the given `kind`/`target_count` (both a
 /// `state.objects` entry in `ZoneId::Stack` and a matching `StackObject` entry).
-/// Returns (state, test_spell_id, other_stack_object_id).
+///
+/// PB-DX25b (`OOS-DX25-3`) non-vacuity repair: the `StackObject`'s own id
+/// (`entry_id`) is a SEPARATE id from the announced card id (`other_id`) --
+/// minted via `test_util::next_object_id`, the same monotone counter a real
+/// cast draws from (`state/mod.rs::next_object_id`). Before this repair both
+/// were the same value (`other_id` doubled as both the `state.objects` entry's
+/// id AND the `StackObject`'s own id), which collapsed the two id spaces this
+/// whole batch exists to keep apart and made every caller's cast-time lookup
+/// pass regardless of whether `casting.rs` correctly resolved the announced
+/// CARD id.
+///
+/// Returns `(state, test_spell_id, other_id, entry_id)` -- callers announce
+/// `other_id` (the card a real player would target); `entry_id` is exposed for
+/// callers that need to assert against the `StackObject`'s own id directly
+/// (e.g. a `TargetsChanged.stack_object_id` observable).
 fn build_base_state(
     other_kind_ability: bool,
     other_target_count: usize,
-) -> (GameState, ObjectId, ObjectId) {
+) -> (GameState, ObjectId, ObjectId, ObjectId) {
     let p1 = p(1);
     let p2 = p(2);
     let p3 = p(3);
@@ -176,6 +216,14 @@ fn build_base_state(
     let test_spell_id = find_obj(&state, "EF11 Spell Single Target Test Spell");
     let other_id = find_obj(&state, "Other Stack Object");
 
+    // PB-DX25b non-vacuity: mint a DISTINCT id for the StackObject entry.
+    let entry_id = test_util::next_object_id(&mut state);
+    assert_ne!(
+        entry_id, other_id,
+        "PB-DX25b non-vacuity anchor: build_base_state must not collapse the \
+         announced-card-id space and the stack-entry-id space onto one id"
+    );
+
     let mut other_targets = Vec::new();
     for _ in 0..other_target_count {
         other_targets.push(SpellTarget {
@@ -194,10 +242,10 @@ fn build_base_state(
             source_object: other_id,
         }
     };
-    let stack_entry = make_stack_object(other_id, p2, kind, other_targets);
+    let stack_entry = make_stack_object(entry_id, p2, kind, other_targets);
     state.stack_objects_mut().push_back(stack_entry);
 
-    (state, test_spell_id, other_id)
+    (state, test_spell_id, other_id, entry_id)
 }
 
 fn cast_spell(
@@ -236,7 +284,7 @@ fn cast_spell(
 /// legal target for `TargetSpellWithSingleTarget`.
 #[test]
 fn test_spell_single_target_accepts_single_target_spell() {
-    let (state, test_spell_id, other_id) = build_base_state(false, 1);
+    let (state, test_spell_id, other_id, entry_id) = build_base_state(false, 1);
     let (state, _events) = cast_spell(state, p(1), test_spell_id, vec![Target::Object(other_id)])
         .unwrap_or_else(|e| {
             panic!(
@@ -248,13 +296,13 @@ fn test_spell_single_target_accepts_single_target_spell() {
     // and the StackObject itself gets another fresh id), so the original hand-card
     // `test_spell_id` is dead. The successful cast — hence a passing target validation —
     // is proven by the `unwrap_or_else(panic)` above. As a non-vacuous sanity check, a NEW
-    // spell entry (one that is not the pre-placed `other_id` the spell targeted) is now on
-    // the stack: before the cast only `other_id` was there.
+    // spell entry (one that is not the pre-placed `entry_id` StackObject) is now on
+    // the stack: before the cast only `entry_id` was there.
     assert!(
         state
             .stack_objects()
             .iter()
-            .any(|s| s.id != other_id && matches!(s.kind, StackObjectKind::Spell { .. })),
+            .any(|s| s.id != entry_id && matches!(s.kind, StackObjectKind::Spell { .. })),
         "a newly cast spell must be on the stack after a successful cast"
     );
 }
@@ -267,7 +315,7 @@ fn test_spell_single_target_accepts_single_target_spell() {
 /// Must fail if the count guard is removed.
 #[test]
 fn test_spell_single_target_rejects_two_target_spell() {
-    let (state, test_spell_id, other_id) = build_base_state(false, 2);
+    let (state, test_spell_id, other_id, _entry_id) = build_base_state(false, 2);
     let result = cast_spell(state, p(1), test_spell_id, vec![Target::Object(other_id)]);
     assert!(
         matches!(result, Err(GameStateError::InvalidTarget(_))),
@@ -277,38 +325,60 @@ fn test_spell_single_target_rejects_two_target_spell() {
     );
 }
 
-// ── Test 3: DECOY — rejects an activated ability (pinned on the kind check) ───
+// ── Test 3: DECOY — rejects an activated ability (NOT-FOUND path, post-PB-DX25b) ─
 
-/// DECOY, pinned on the `is_spell` guard. An `ActivatedAbility` on the stack
-/// with exactly ONE declared target must be REJECTED — this is the sole
-/// difference from `TargetSpellOrAbilityWithSingleTarget`, which would accept
-/// it. Must fail if the kind guard is removed.
+/// DECOY. An `ActivatedAbility` on the stack with exactly ONE declared target
+/// must be REJECTED — this is the sole difference from
+/// `TargetSpellOrAbilityWithSingleTarget`, which would accept it.
+///
+/// **PB-DX25b (`OOS-DX25-3`) correction — this no longer discriminates the
+/// `is_spell` guard, once `build_base_state`'s ids are distinct (see that
+/// function's doc).** With `other_id` (the announced card id) and `entry_id`
+/// (the ActivatedAbility's own StackObject id) now separate,
+/// `stack_index_for_announced_target(&state.stack_objects, other_id)` returns
+/// `None` outright: `so.id == other_id` is false (the entry's real id is
+/// `entry_id`), and `card_in_stack_zone` returns `None` for every
+/// ActivatedAbility kind, so the card-owning-kind clause is also false. The
+/// rejection observed here is therefore the LOOKUP returning `None`
+/// (NOT-FOUND), not the `is_spell` guard rejecting a FOUND-but-wrong-kind
+/// object — deleting the `is_spell` guard would NOT redden this test. The
+/// `is_spell` guard's own precision test lives in `casting.rs`'s in-source
+/// `#[cfg(test)] mod tests::test_target_spell_with_single_target_self_and_kind_
+/// check`, sub-case (ii) (the deliberately-COLLAPSED-id configuration that is
+/// the ONLY place in the tree the guard can still be reached with a FOUND
+/// object) — see that test's doc for the full account, including sub-case
+/// (iii), which is this exact NOT-FOUND shape pinned directly against the
+/// private validator.
 #[test]
 fn test_spell_single_target_rejects_activated_ability() {
-    let (state, test_spell_id, other_id) = build_base_state(true, 1);
+    let (state, test_spell_id, other_id, _entry_id) = build_base_state(true, 1);
     let result = cast_spell(state, p(1), test_spell_id, vec![Target::Object(other_id)]);
     assert!(
         matches!(result, Err(GameStateError::InvalidTarget(_))),
         "DECOY: an ActivatedAbility with 1 target must be rejected by \
-         TargetSpellWithSingleTarget (spell-only, is_spell guard), got: {:?}",
+         TargetSpellWithSingleTarget (spell-only; NOT-FOUND path post-PB-DX25b, \
+         see doc comment above), got: {:?}",
         result.map(|_| ())
     );
 }
 
 // ── Test 4: self-prevention ─────────────────────────────────────────────────────
 
-/// CR 115.10 (ruling) — a spell cannot legally declare itself as its own
-/// `TargetSpellWithSingleTarget` target. At cast-time-validation the casting
-/// spell is still in `ZoneId::Hand` (it has not yet moved to the stack), so
-/// this is rejected by the same early-return block (the zone check fires
-/// before the self_id-specific message would) — the observable, user-facing
-/// behavior is the same either way: the cast is illegal. The self_id-specific
-/// branch itself (message text) is precision-pinned directly in
-/// `casting.rs`'s internal test module (`validate_object_satisfies_requirement`
-/// is private to the engine crate and not reachable from this external test).
+/// CR 601.2a/601.2c/115.7a — a spell cannot legally declare itself as its own
+/// `TargetSpellWithSingleTarget` target (PB-DX25b `OOS-DX25-3` §4.4 citation
+/// correction: previously cited "CR 115.10", the unrelated affects-vs-targets
+/// rule — see this file's module doc for the corrected grounding). At
+/// cast-time-validation the casting spell is still in `ZoneId::Hand` (it has
+/// not yet moved to the stack), so this is rejected by the same early-return
+/// block (the zone check fires before the self_id-specific message would) —
+/// the observable, user-facing behavior is the same either way: the cast is
+/// illegal. The self_id-specific branch itself (message text) is
+/// precision-pinned directly in `casting.rs`'s internal test module
+/// (`validate_object_satisfies_requirement` is private to the engine crate and
+/// not reachable from this external test).
 #[test]
 fn test_spell_single_target_self_prevention() {
-    let (state, test_spell_id, _other_id) = build_base_state(false, 1);
+    let (state, test_spell_id, _other_id, _entry_id) = build_base_state(false, 1);
     let result = cast_spell(
         state,
         p(1),
@@ -368,6 +438,21 @@ fn test_spell_single_target_hash_discriminant() {
 /// stack (targeting p3) is retargeted by Misdirection's `ChangeTargets` effect
 /// to the effect controller (p1), mirroring the Bolt Bend integration test
 /// pattern (`crates/engine/tests/rules/copy_redirect.rs`).
+///
+/// **PB-DX25b (`OOS-DX25-3`) rebuild (plan §5.2, `pb_ef11 … :372` row).** The
+/// old version of this test announced the STACK-ENTRY id
+/// (`bolt_id == bolt.id`, minted directly via `test_util::next_object_id`)
+/// straight into `execute_effect`'s `ctx.targets` -- a path NO real cast can
+/// ever produce, because the offer layer (`queries::legal_targets_per_slot`)
+/// only ever enumerates `state.objects()`, and a stack-entry id is never a
+/// member of that set (§1 fact 4/8 of the plan). It was green while testing a
+/// fiction. This version places a real victim CARD object directly in
+/// `ZoneId::Stack` via `ObjectSpec::card(..).in_zone(ZoneId::Stack)` (the exact
+/// shape `casting.rs::handle_cast_spell` produces after `move_object_to_zone`),
+/// gives its `StackObject` entry a SEPARATE, distinct id
+/// (`victim_entry_id`), and announces the CARD id (`victim_card_id`) --
+/// the id space a real Misdirection cast actually receives from
+/// `Command::CastSpell.targets`.
 #[test]
 fn test_misdirection_retargets_single_target_spell() {
     let card = mtg_engine::cards::defs::misdirection::card();
@@ -390,53 +475,72 @@ fn test_misdirection_retargets_single_target_spell() {
         .add_player(p1)
         .add_player(p2)
         .add_player(p3)
+        .object(ObjectSpec::card(p2, "PB-DX25b Victim").in_zone(ZoneId::Stack))
         .at_step(Step::PreCombatMain)
         .active_player(p1)
         .build()
         .unwrap();
 
-    // p2 cast a single-target spell targeting p3.
-    let bolt_id = test_util::next_object_id(&mut state);
-    let bolt_source = test_util::next_object_id(&mut state);
-    let bolt = make_stack_object(
-        bolt_id,
+    // p2 cast a single-target spell targeting p3. `victim_card_id` is the
+    // `state.objects` entry -- the CARD id a real cast announces target ids
+    // against.
+    let victim_card_id = find_obj(&state, "PB-DX25b Victim");
+    // PB-DX25b non-vacuity: the StackObject's own id is a SEPARATE mint.
+    let victim_entry_id = test_util::next_object_id(&mut state);
+    assert_ne!(
+        victim_entry_id, victim_card_id,
+        "PB-DX25b non-vacuity anchor: the fixture must not collapse the \
+         announced-card-id space and the stack-entry-id space onto one id"
+    );
+    let victim = make_stack_object(
+        victim_entry_id,
         p2,
         StackObjectKind::Spell {
-            source_object: bolt_source,
+            source_object: victim_card_id,
         },
         vec![SpellTarget {
             target: Target::Player(p3),
             zone_at_cast: None,
         }],
     );
-    state.stack_objects_mut().push_back(bolt);
+    state.stack_objects_mut().push_back(victim);
 
-    // p1 casts Misdirection targeting the bolt.
+    // p1 casts Misdirection targeting the victim's CARD id -- the id a real
+    // `Command::CastSpell` would carry, per CR 601.2c.
     let source = ObjectId(0);
     let mut ctx = EffectContext::new(
         p1,
         source,
         vec![SpellTarget {
-            target: Target::Object(bolt_id),
+            target: Target::Object(victim_card_id),
             zone_at_cast: Some(ZoneId::Stack),
         }],
     );
     let events = execute_effect(&mut state, effect, &mut ctx);
 
-    let bolt = state
+    let victim = state
         .stack_objects()
         .iter()
-        .find(|s| s.id == bolt_id)
-        .expect("bolt not found");
+        .find(|s| s.id == victim_entry_id)
+        .expect("victim stack entry not found");
     assert_eq!(
-        bolt.targets[0].target,
+        victim.targets[0].target,
         Target::Player(p1),
-        "Misdirection should redirect the bolt's target to its own controller (p1)"
+        "Misdirection should redirect the victim's target to its own controller (p1)"
     );
     assert!(
-        events
-            .iter()
-            .any(|e| matches!(e, GameEvent::TargetsChanged { .. })),
-        "TargetsChanged event should be emitted"
+        events.iter().any(|e| matches!(
+            e,
+            GameEvent::TargetsChanged { stack_object_id, .. }
+                if *stack_object_id == victim_entry_id
+        )),
+        "TargetsChanged event should be emitted naming the STACK-ENTRY id \
+         (victim_entry_id), not the announced card id (victim_card_id) -- \
+         GameEvent::TargetsChanged.stack_object_id's OWN doc comment \
+         (rules/events.rs:1421-1422, \"The stack object whose targets \
+         changed\") says so. No consumer reads this field today \
+         (event_view.rs:927 destructures it and discards the field via \
+         `..`), so this is a contract correction, not a compatibility fix \
+         for an existing reader (PB-DX25b review Finding E5)."
     );
 }
