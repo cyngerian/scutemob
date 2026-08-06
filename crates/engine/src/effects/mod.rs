@@ -2772,7 +2772,17 @@ fn execute_effect_inner(
                         // nothing to move and simply ceases to exist on leaving the
                         // stack. `copy.rs` clones the ORIGINAL's `kind`, so moving
                         // `source_object` here would put someone else's spell in the
-                        // graveyard.
+                        // graveyard -- and for the CR 702.99c cipher-copy population
+                        // specifically (`resolution.rs:5418-5430`, `is_copy: true`,
+                        // `source_object: encoded_object_id`), "someone else's spell"
+                        // is understating it: `encoded_object_id` is a card sitting in
+                        // EXILE (the encoded original, which CR 702.99c keeps there),
+                        // not on the stack. Without this `is_copy` guard, countering a
+                        // cipher copy via the `so.id == id` clause would have moved the
+                        // encoded card straight out of exile into a graveyard --
+                        // review's "unclaimed positive": this guard closes that hole
+                        // too, incidentally, and it was not among the three named
+                        // shapes this batch was dispatched to fix.
                         let card_to_move = if stack_obj.is_copy { None } else { card_owned };
 
                         if let Some(source_object) = card_to_move {
