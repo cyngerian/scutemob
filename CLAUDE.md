@@ -42,7 +42,8 @@
   PB-DX24 shipped `scutemob-202` 2026-08-05 (rank 6);
   PB-DX25 shipped `scutemob-203` 2026-08-05 (rank 7);
   PB-DX25b shipped `scutemob-204` 2026-08-06 (rank 7b, INSERTED 2026-08-06 user-approved);
-  **next PB-DX26** (rank 8, moved one slot later by the 7b insert);
+  **next PB-DX25c** (rank 7c, INSERTED 2026-08-06 user-approved — OOS-DX25b-3, the
+  CR 115.7a redirect-legality gap PB-DX25b made reachable; PB-DX26 moves after it);
   the playtest-successor run 174–181
   AND the triage-2 successor run 187–194 both completed 2026-08-02 — triage 2 is fully closed,
   8/8 rows shipped. **FEEDBACK-1 SHIPPED** (`scutemob-192`, merge `d55e74cc`, doc-only):
@@ -118,7 +119,9 @@
   (`scutemob-202`; v3 queue rank 6) — v3 ranks **1-6 are all shipped**.
   **PB-DX25 SHIPPED** (`scutemob-203`; v3 queue rank 7) — v3 ranks **1-7 are all shipped**.
   **PB-DX25b SHIPPED** (`scutemob-204`; v3 queue rank 7b) — **OOS-DX25-3 CLOSED**; ranks
-  **1-7b are all shipped**, so **next dispatch: PB-DX26** (rank 8; row in the v3 memo §4).
+  **1-7b are all shipped**, so **next dispatch: PB-DX25c** (rank 7c, INSERTED 2026-08-06
+  user-approved — closes **OOS-DX25b-3**, the CR 115.7a redirect-legality gap; row in the
+  v3 memo §4; HASH 73 → 74 predicted; PB-DX26 is next after it).
   PROTOCOL **35** / HASH **73** as of PB-DX25b (both unmoved by it, gate-executed).
 - **Tests (delta 2026-08-06, PB-DX25b)**: **4,469 / 0 / 5** full-workspace on branch
   `scutemob-204` (+17 over the **4,452** baseline measured on this branch BEFORE any edit —
