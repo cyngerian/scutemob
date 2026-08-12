@@ -777,6 +777,33 @@
 ///   104.4b false-negative risk, because the field is fixed at construction
 ///   and never mutated after (the v70 `affected_set` argument, the opposite
 ///   of PB-DP9's excluded fields).
+///
+/// **PB-DX7 follow-up correction (2026-08-11) — NOT a version bump, and NOT
+/// an edit to any row above; the history stays append-only and no shipped
+/// row above is rewritten.** Several rows in this history, and many more
+/// arm-level comments in the impls below, describe an enum addition with
+/// "(discriminant N)" phrasing that reads as a claim of enum-wide
+/// uniqueness. For `Effect` specifically that reading is imprecise: the
+/// `Nu8.hash_into(hasher)` at the head of each `match self` arm is an ARM
+/// TAG, not a guaranteed-unique identifier, and **9 tag values are each
+/// reused by exactly 2 of `Effect`'s ~98 variants** (18 variants total;
+/// verified — `crates/engine/tests/core/hash_schema.rs::discriminant_
+/// collisions_are_ratcheted_at_their_known_bad_state` pins the 9 pairs and
+/// fails if a 10th ever appears in `Effect` or any other hashed enum; the
+/// full list is at the correction comment immediately above `impl HashInto
+/// for Effect`, and the 14 individual arm comments naming a reused tag were
+/// reworded from "discriminant N" to "arm tag N -- reused" at their sites).
+/// **Checked directly, not assumed**: none of the 18 colliding variant
+/// names, and none of their 9 shared tag values, appear anywhere in the
+/// numbered history above — so no SPECIFIC row above is factually wrong
+/// about THIS issue, and none needed editing. The correction is general:
+/// read any "(discriminant N)" comment on an `Effect` variant, in this
+/// history or on the arms themselves, as arm-tag identification, not a
+/// per-enum uniqueness guarantee. A shared tag does not, by itself, make
+/// two variants hash identically — see the `impl HashInto for Effect`
+/// header comment for why, settled by an executed pairwise-distinctness
+/// experiment (`effect_colliding_variant_digests_are_pairwise_distinct`),
+/// not argued.
 pub const HASH_SCHEMA_VERSION: u8 = 74;
 
 /// One `(version, fingerprints)` row of the append-only hash-schema history.
@@ -3303,12 +3330,24 @@ impl HashInto for PendingCleanupDiscard {
         self.count.hash_into(hasher);
     }
 }
-// CR 603.3d (PB-DP8 / DP-6). SR-19 / OOS-DP7-11: these two impls are written
-// with BARE struct names on purpose. `tests/core/hash_schema.rs`'s
-// `every_hashed_struct_field_is_hashed_or_allowlisted` looks impl bodies up by
-// the bare name, so `impl HashInto for crate::state::stubs::Foo` silently falls
-// out of the gate with no diagnostic. Verified by the delete-a-field
-// demonstration during the implement phase (both impls failed the gate by name).
+// CR 603.3d (PB-DP8 / DP-6). SR-19 / OOS-DP7-11: these two impls were
+// ORIGINALLY written with BARE struct names on purpose, because
+// `tests/core/hash_schema.rs`'s `every_hashed_struct_field_is_hashed_or_allowlisted`
+// looked impl bodies up by the exact spelling, so `impl HashInto for
+// crate::state::stubs::Foo` would have silently fallen out of the gate with no
+// diagnostic. Verified by the delete-a-field demonstration during the implement
+// phase (both impls failed the gate by name).
+//
+// PB-DX7 (2026-08-11) correction: `hashinto_impl_bodies()` now keys on the
+// BARE NAME (the last `::` segment) regardless of how the impl target is
+// spelled, so this is no longer load-bearing -- a path-qualified spelling is
+// caught by the gate exactly the same as a bare one (re-proven by an executed
+// revert: reintroducing the path-qualification skip fails
+// `every_hashed_type_resolves_to_a_declaration` by name for all 15
+// path-qualified targets, `memory/primitives/pb-DX7-execution-notes.md` row 3).
+// The bare spelling on `TriggerTargetOption` below is retained as-is
+// (existing call sites are never renamed by that fix), not because it is
+// still required.
 impl HashInto for TriggerTargetOption {
     fn hash_into(&self, hasher: &mut Hasher) {
         self.optional.hash_into(hasher);
@@ -3329,30 +3368,50 @@ impl HashInto for crate::state::stubs::FlushResumeSite {
         }
     }
 }
-// CR 608.2d (PB-DP9 / DP-7/8/9). SR-19 / OOS-DP7-11: these four impls are
-// written with BARE type names on purpose, for the same reason the two above
-// are -- a path-qualified `impl HashInto for crate::state::stubs::Foo` falls out
-// of `every_hashed_struct_field_is_hashed_or_allowlisted` with no diagnostic.
+// CR 608.2d (PB-DP9 / DP-7/8/9). SR-19 / OOS-DP7-11: these four impls were
+// ORIGINALLY written with BARE type names on purpose, for the same reason the
+// two above were -- a path-qualified `impl HashInto for crate::state::stubs::Foo`
+// would have fallen out of `every_hashed_struct_field_is_hashed_or_allowlisted`
+// with no diagnostic.
 //
 // Verified by the delete-a-field demonstration during the implement phase, which
-// also found the gate's own limit (**OOS-DP9-13**): deleting a field from either
-// STRUCT impl below fails the gate by name, but the gate scans structs only, so
-// an ENUM arm rewritten as `{ candidates, .. }` with its feed dropped passes
-// every gate green. The two enum impls below are therefore held by review and by
-// `stream_fingerprint`, not by the SR-19 scan -- do not read the gate as covering
-// them.
+// also found the gate's own limit at the time (**OOS-DP9-13**): deleting a field
+// from either STRUCT impl below failed the gate by name, but the gate scanned
+// structs only, so an ENUM arm rewritten as `{ candidates, .. }` with its feed
+// dropped passed every gate green. The two enum impls below were therefore held
+// by review and by `stream_fingerprint`, not by the SR-19 scan.
+//
+// PB-DX7 (2026-08-11) correction, both paragraphs above: NEITHER limitation is
+// live any more. `hashinto_impl_bodies()` now keys on the bare name regardless
+// of spelling (closing OOS-DP7-11 for good, re-proven in
+// `memory/primitives/pb-DX7-execution-notes.md` row 3), and a new
+// `every_hashed_enum_variant_field_is_hashed_or_allowlisted` gate parses every
+// hashed enum's `match self` arms and asserts every declared variant has an arm
+// that binds and hashes EVERY declared field by name -- no `..` rest pattern, no
+// bare `_` binding, no `_ =>` catch-all once any sibling variant carries data --
+// closing OOS-DP9-13 (re-proven by an executed revert reintroducing exactly the
+// `{ candidates, .. }` shape above, row 2 of the same execution-notes file: it
+// now fails the new gate by name, and was independently confirmed still
+// clippy-clean at that revert state, matching the original finding). The two
+// enum impls immediately below are now covered by that gate like every other
+// hashed enum; dropping the `Discard` arm's `count` feed, or writing
+// `{ candidates, .. }` again, now fails it by name -- do not read them as
+// review-and-stream-fingerprint-only any more.
 //
 // ENG-1 /review fix cycle, Finding 1: "held by ... `stream_fingerprint`" was
-// FALSE for the `Discard` arm of either impl until this fix cycle --
+// FALSE for the `Discard` arm of either impl until that fix cycle --
 // `canonical_fixture()` never populated `pending_effect_choice`, so all four
 // arms of both impls (not just `Discard`) were unexercised by any gate in the
-// workspace. The fixture now carries a `Discard`-shaped `pending_effect_choice`
-// plus one `effect_choice_answers` entry, so the `Discard` arm of each impl is
-// genuinely stream-exercised (proven by an executed revert: dropping
-// `count.hash_into(..)` reddens `stream_fingerprint_is_pinned`). The other
-// three arms (`SearchLibrary`, `Scry`, `Surveil`) remain unexercised by
-// construction -- the fixture populates exactly one `EffectChoiceQuestion`
-// variant at a time.
+// workspace at the time. The fixture now carries a `Discard`-shaped
+// `pending_effect_choice` plus one `effect_choice_answers` entry, so the
+// `Discard` arm of each impl is genuinely stream-exercised (proven by an
+// executed revert: dropping `count.hash_into(..)` reddens
+// `stream_fingerprint_is_pinned`). The other three arms (`SearchLibrary`,
+// `Scry`, `Surveil`) remain unexercised BY THE STREAM FIXTURE by construction --
+// the fixture populates exactly one `EffectChoiceQuestion` variant at a time --
+// but as of PB-DX7 all four arms of both enums ARE exercised by the new
+// variant-coverage gate above, which checks field coverage from the impl
+// body's own text rather than from a hashed fixture.
 impl HashInto for EffectChoiceQuestion {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
@@ -6711,6 +6770,42 @@ impl HashInto for ModeSelection {
         }
     }
 }
+// PB-DX7 follow-up (2026-08-11, coordinator-directed correction): the leading
+// `Nu8.hash_into(hasher)` in each arm below is an ARM TAG, not a unique
+// per-variant identifier — despite several arm comments in this impl reading
+// "(discriminant N)" (now reworded to "(arm tag N)" at each site) as if it
+// were one. It is not: **9 tag values are each reused by exactly 2 of this
+// enum's ~98 variants** (18 variants total), verified by an executed scan
+// (`crates/engine/tests/core/hash_schema.rs::discriminant_collisions_are_
+// ratcheted_at_their_known_bad_state`, which pins the 9 pairs and fails if a
+// 10th ever appears, in `Effect` or any other hashed enum):
+//
+//   tag 56: AddManaScaled / AddCounterAmount        tag 60: AddManaOfAnyColorAmount / CoinFlip
+//   tag 57: AddManaRestricted / AdditionalCombatPhase   tag 70: ExileWithDelayedReturn / PreventCombatDamageFromOrTo
+//   tag 58: AddManaAnyColorRestricted / Fight        tag 71: SetReturnToHandAtEndStep / GainControl
+//   tag 59: ChooseCreatureType / Bite                tag 73: AddManaFilterChoice / GrantPlayerProtection
+//                                                     tag 74: BounceAll / PutLandFromHandOntoBattlefield
+//
+// The shape (an `AddMana*` mana-family cluster at roughly line 6832-6920
+// reusing the same low tag range as an unrelated cluster at roughly line
+// 7150-7420) indicates two historically-separate numbering sequences were
+// merged into this one enum without reconciling their ranges — a
+// documentation/hygiene defect inherited by several `HASH_SCHEMA_HISTORY`
+// entries below (SR-17's history is append-only and its shipped rows are
+// never edited, so those entries' "discriminant N" phrasing stands as
+// originally written; this note is the correction, not a rewrite of them).
+//
+// It does NOT, by itself, make two different `Effect` values hash
+// identically — uniqueness of the ARM TAG was never what made the byte
+// STREAM injective; the tag is one prefix byte among however many the arm
+// goes on to feed for its own fields, and two different variants almost
+// always hash different subsequent bytes even when they share a tag.
+// Settled by experiment, not argued: `effect_colliding_variant_digests_are_
+// pairwise_distinct` builds one sampled value of each of the 18 variants
+// above and hashes each through this real impl — the 18 resulting digests
+// are pairwise DISTINCT (that test's own doc states the precise limit: this
+// is evidence from one sampled point per variant, not a proof of
+// injectivity over the whole field-value space).
 impl HashInto for Effect {
     fn hash_into(&self, hasher: &mut Hasher) {
         match self {
@@ -6796,7 +6891,7 @@ impl HashInto for Effect {
                 player.hash_into(hasher);
                 count.hash_into(hasher);
             }
-            // CR 605.1a: AddManaFilterChoice (discriminant 73) — filter land mana
+            // CR 605.1a: AddManaFilterChoice (arm tag 73 -- reused, see the impl header note above) — filter land mana
             Effect::AddManaFilterChoice {
                 player,
                 color_a,
@@ -6839,7 +6934,7 @@ impl HashInto for Effect {
                 59u8.hash_into(hasher);
                 default.0.hash_into(hasher);
             }
-            // "Add N mana of any one color" scaled variant — discriminant 60
+            // "Add N mana of any one color" scaled variant — arm tag 60 (reused, see the impl header note above)
             Effect::AddManaOfAnyColorAmount { player, amount } => {
                 60u8.hash_into(hasher);
                 player.hash_into(hasher);
@@ -6934,7 +7029,7 @@ impl HashInto for Effect {
                 or_else.hash_into(hasher);
             }
             Effect::Nothing => 26u8.hash_into(hasher),
-            // CR 603.7 / PB-33: SetReturnToHandAtEndStep (discriminant 71)
+            // CR 603.7 / PB-33: SetReturnToHandAtEndStep (arm tag 71 -- reused, see the impl header note above)
             Effect::SetReturnToHandAtEndStep => 71u8.hash_into(hasher),
             Effect::PutOnLibrary {
                 player,
@@ -7094,7 +7189,7 @@ impl HashInto for Effect {
                 55u8.hash_into(hasher);
                 filter.hash_into(hasher);
             }
-            // BounceAll (discriminant 74) — mass return to hand
+            // BounceAll (arm tag 74 -- reused, see the impl header note above) — mass return to hand
             Effect::BounceAll {
                 filter,
                 max_toughness_amount,
@@ -7103,7 +7198,7 @@ impl HashInto for Effect {
                 filter.hash_into(hasher);
                 max_toughness_amount.hash_into(hasher);
             }
-            // CR 122: AddCounterAmount (discriminant 56) — dynamic count via EffectAmount
+            // CR 122: AddCounterAmount (arm tag 56 -- reused, see the impl header note above) — dynamic count via EffectAmount
             Effect::AddCounterAmount {
                 target,
                 counter,
@@ -7114,24 +7209,24 @@ impl HashInto for Effect {
                 counter.hash_into(hasher);
                 count.hash_into(hasher);
             }
-            // CR 500.8: AdditionalCombatPhase (discriminant 57)
+            // CR 500.8: AdditionalCombatPhase (arm tag 57 -- reused, see the impl header note above)
             Effect::AdditionalCombatPhase { followed_by_main } => {
                 57u8.hash_into(hasher);
                 followed_by_main.hash_into(hasher);
             }
-            // CR 701.14a: Fight (discriminant 58)
+            // CR 701.14a: Fight (arm tag 58 -- reused, see the impl header note above)
             Effect::Fight { attacker, defender } => {
                 58u8.hash_into(hasher);
                 attacker.hash_into(hasher);
                 defender.hash_into(hasher);
             }
-            // CR 701.14 (one-sided): Bite (discriminant 59)
+            // CR 701.14 (one-sided): Bite (arm tag 59 -- reused, see the impl header note above)
             Effect::Bite { source, target } => {
                 59u8.hash_into(hasher);
                 source.hash_into(hasher);
                 target.hash_into(hasher);
             }
-            // CR 705.1: CoinFlip (discriminant 60)
+            // CR 705.1: CoinFlip (arm tag 60 -- reused, see the impl header note above)
             Effect::CoinFlip { on_win, on_lose } => {
                 60u8.hash_into(hasher);
                 on_win.hash_into(hasher);
@@ -7172,7 +7267,7 @@ impl HashInto for Effect {
                 target.hash_into(hasher);
                 return_tapped.hash_into(hasher);
             }
-            // CR 610.3 / CR 603.7: ExileWithDelayedReturn (discriminant 70)
+            // CR 610.3 / CR 603.7: ExileWithDelayedReturn (arm tag 70 -- reused, see the impl header note above)
             Effect::ExileWithDelayedReturn {
                 target,
                 return_timing,
@@ -7310,7 +7405,7 @@ impl HashInto for Effect {
             Effect::PreventAllCombatDamage => {
                 69u8.hash_into(hasher);
             }
-            // CR 615: PreventCombatDamageFromOrTo (discriminant 70) — per-creature prevention
+            // CR 615: PreventCombatDamageFromOrTo (arm tag 70 -- reused, see the impl header note above) — per-creature prevention
             Effect::PreventCombatDamageFromOrTo {
                 target,
                 prevent_from,
@@ -7321,7 +7416,7 @@ impl HashInto for Effect {
                 prevent_from.hash_into(hasher);
                 prevent_to.hash_into(hasher);
             }
-            // CR 613.1b: GainControl (discriminant 71) — Layer 2 control-changing effect
+            // CR 613.1b: GainControl (arm tag 71 -- reused, see the impl header note above) — Layer 2 control-changing effect
             Effect::GainControl { target, duration } => {
                 71u8.hash_into(hasher);
                 target.hash_into(hasher);
@@ -7338,7 +7433,7 @@ impl HashInto for Effect {
                 target_b.hash_into(hasher);
                 duration.hash_into(hasher);
             }
-            // CR 702.16b/e/j: GrantPlayerProtection (discriminant 73)
+            // CR 702.16b/e/j: GrantPlayerProtection (arm tag 73 -- reused, see the impl header note above)
             Effect::GrantPlayerProtection {
                 player,
                 qualities,
@@ -7352,7 +7447,7 @@ impl HashInto for Effect {
                 }
                 duration.hash_into(hasher);
             }
-            // CR 305.4: PutLandFromHandOntoBattlefield (discriminant 74)
+            // CR 305.4: PutLandFromHandOntoBattlefield (arm tag 74 -- reused, see the impl header note above)
             Effect::PutLandFromHandOntoBattlefield { tapped } => {
                 74u8.hash_into(hasher);
                 tapped.hash_into(hasher);
