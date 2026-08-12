@@ -69,8 +69,8 @@
 //! `completeness` is for.
 
 use mtg_engine::{
-    AbilityDefinition, CardDefinition, CardType, Completeness, HybridMana, ManaColor, ManaCost,
-    PhyrexianMana, SubType, SuperType,
+    AbilityDefinition, CardDefinition, CardType, Completeness, Cost, Effect, HybridMana, ManaColor,
+    ManaCost, PhyrexianMana, SubType, SuperType,
 };
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -688,7 +688,28 @@ fn r4_type_lines_match_printed() {
 /// not by the gate built to stop exactly this. The batch then found three more by hand
 /// (Braided Net's craft, Akroma's and Birchlore Rangers' morph — the last free at `{0}` for a
 /// printed `{G}`). Four found by eye in one batch is a class, so it gets a rule.
-const ABILITY_COST_KEYWORDS: &[&str] = &["Bestow", "Morph", "Megamorph", "Disguise", "Craft"];
+const ABILITY_COST_KEYWORDS: &[&str] = &[
+    "Bestow",
+    "Morph",
+    "Megamorph",
+    "Disguise",
+    "Craft",
+    "Equip",
+    "Fortify",
+];
+
+/// Defs whose printed text carries a CR 702.6c **variant** equip cost ("equip
+/// [quality] {N}") ahead of the plain line.
+///
+/// `printed_ability_cost` scans for the first `Equip` occurrence with a
+/// brace-delimited cost on its own line, which on these two cards is the variant,
+/// not the plain cost the def actually declares. That is not a def error: the
+/// variant has no DSL representation at all (`AbilityDefinition::Activated` carries
+/// one `cost`, and CR 702.6c restricts the TARGET as well as the cost), so PB-DX26
+/// authored the plain line and left the variant unmodelled — filed as
+/// `OOS-DX26-2`. Excused HERE, and only for the `Equip` keyword, rather than
+/// weakening the scanner for every card.
+const EQUIP_VARIANT_COST_DEFS: &[&str] = &["Blackblade Reforged", "Commander's Plate"];
 
 /// Pull the mana cost a printed keyword clause charges, e.g. `Bestow {3}{G}{G}` -> `{3}{G}{G}`.
 ///
@@ -700,6 +721,25 @@ const ABILITY_COST_KEYWORDS: &[&str] = &["Bestow", "Morph", "Megamorph", "Disgui
 fn printed_ability_cost(oracle: &str, keyword: &str) -> Option<String> {
     for (idx, _) in oracle.match_indices(keyword) {
         let rest = &oracle[idx + keyword.len()..];
+        // PB-DX26: the occurrence must be the WHOLE word. Without this, "Equip"
+        // matches inside "Equipped creature has \"{3}, {Q}: …\"" and the scanner
+        // reads the GRANTED ability's cost as the equip cost. Measured, not
+        // theorised: adding Equip to ABILITY_COST_KEYWORDS reported three
+        // "mismatches" (Paradise Mantle, Thornbite Staff, Umbral Mantle) that were
+        // all this bug and no def error at all — every one of those three defs
+        // declares exactly its printed cost. The leading side is checked too, so a
+        // hypothetical "…Equip" suffix cannot match either.
+        let leading_ok = oracle[..idx]
+            .chars()
+            .next_back()
+            .is_none_or(|c| !c.is_ascii_alphanumeric());
+        let trailing_ok = rest
+            .chars()
+            .next()
+            .is_none_or(|c| !c.is_ascii_alphanumeric());
+        if !leading_ok || !trailing_ok {
+            continue;
+        }
         // `Craft with artifact {1}{U}` — skip the materials clause to the first brace, but
         // stop at a line break so a later line's cost is never mistaken for this one.
         let line_end = rest.find('\n').unwrap_or(rest.len());
@@ -731,6 +771,30 @@ fn def_ability_cost(def: &CardDefinition, keyword: &str) -> Option<ManaCost> {
         ("Megamorph", AbilityDefinition::Megamorph { cost }) => Some(cost.clone()),
         ("Disguise", AbilityDefinition::Disguise { cost }) => Some(cost.clone()),
         ("Craft", AbilityDefinition::Craft { cost, .. }) => Some(cost.clone()),
+        // PB-DX26: Equip and Fortify have no dedicated `AbilityDefinition` variant —
+        // CR 702.6b/702.67b make both plain activated abilities, so their cost lives
+        // in `Activated { cost: Cost::Mana(..) }` beside an `Effect::AttachEquipment`
+        // / `Effect::AttachFortification`. Before this, **38 authored equip costs and
+        // 1 fortify cost were checked by nothing**: `cards1_equip_target_roster` pins
+        // the target requirement and the roster membership, `pb_dx26_attach_keyword_
+        // roster` pins that the ability exists, and neither looks at the number. A def
+        // charging Equip {1} for a printed Equip {3} sailed past every gate.
+        (
+            "Equip",
+            AbilityDefinition::Activated {
+                cost: Cost::Mana(m),
+                effect: Effect::AttachEquipment { .. },
+                ..
+            },
+        ) => Some(m.clone()),
+        (
+            "Fortify",
+            AbilityDefinition::Activated {
+                cost: Cost::Mana(m),
+                effect: Effect::AttachFortification { .. },
+                ..
+            },
+        ) => Some(m.clone()),
         _ => None,
     })
 }
@@ -756,6 +820,9 @@ fn r7_ability_embedded_costs_match_printed() {
             continue;
         }
         for keyword in ABILITY_COST_KEYWORDS {
+            if *keyword == "Equip" && EQUIP_VARIANT_COST_DEFS.contains(&def.name.as_str()) {
+                continue;
+            }
             let (Some(want_raw), Some(got)) = (
                 printed_ability_cost(&p.oracle_text, keyword),
                 def_ability_cost(def, keyword),

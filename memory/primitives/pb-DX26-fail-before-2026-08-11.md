@@ -286,3 +286,49 @@ What this means for reading the evidence:
 
 This is the same shape as PB-DX25c's V3/V7 rows: an assertion shadowed by a
 redundant downstream check is still worth having and is not worth overclaiming.
+
+## 4. A gate the batch added after trying to defeat its own gates
+
+Asked of the new gates: *can a def be wrong in a way all of them stay green for?*
+**Yes — the equip COST.** `cards1_equip_target_roster` pins roster membership and
+the target requirement; `pb_dx26_attach_keyword_roster` pins that the ability
+exists; neither looks at the number. So **38 authored equip costs and 1 fortify
+cost were checked by nothing**, and PB-DX26 itself created 21 of them. SR-37's R7
+(`cards2_printed_field_fidelity`) is the right home — it already diffs
+ability-embedded costs against the committed Scryfall fixture — but its
+`def_ability_cost` only matched keyword-typed `AbilityDefinition` variants
+(Bestow/Morph/Megamorph/Disguise/Craft), and Equip has none: CR 702.6b makes it a
+plain activated ability, so its cost lives in `Activated { cost: Cost::Mana(..) }`.
+
+R7 now covers `Equip` and `Fortify`. Proven red by an executed revert:
+
+```
+$ # bone_saw.rs: generic: 1 -> generic: 9
+1 ability-embedded cost mismatch(es) against the printed card:
+  Bone Saw Equip: def {9} != printed {1} (raw "{1}")
+test result: FAILED. 0 passed; 1 failed; ...
+```
+
+### The extension found a bug in the SCANNER, not in the corpus
+
+Its first run reported three mismatches — and **all three were the gate being
+wrong, not the defs**:
+
+```
+  Paradise Mantle: Equip cost unparseable — unmodelled mana symbol {T}
+  Thornbite Staff Equip: def {4} != printed {2} (raw "{2}")
+  Umbral Mantle Equip: def {0} != printed {3} (raw "{3}")
+```
+
+`printed_ability_cost` scanned with `match_indices(keyword)` and no word boundary,
+so **"Equip" matched inside "Equipped"** and it read the cost of the ability the
+Equipment *grants* — `{T}` from Paradise Mantle's granted mana ability, `{2}` from
+Thornbite Staff's granted ping, `{3}` from Umbral Mantle's granted pump — instead
+of the printed equip cost. All three defs declare exactly their printed cost
+(MCP-verified independently: Equip {1}, Equip {4}, Equip {0}). Fixed with a
+leading-and-trailing word-boundary check; the whole suite is green afterwards.
+
+Worth stating plainly: this was a **pre-existing latent bug in a shipped gate**,
+harmless only because no keyword in its old list is a prefix of a common English
+word the way `Equip`/`Equipped` is. Widening a gate's subject is how you find out
+whether it was right about the subject it already had.
