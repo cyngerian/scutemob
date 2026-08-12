@@ -130,10 +130,12 @@
   (rank 9). Live coverage NET UNMOVED at **1,133/1,803 = 62.8%** — one flip up
   (`sword_of_body_and_mind`) and one honest flip down (`the_reaver_cleaver`).
   PROTOCOL **35** / HASH **74** as of PB-DX26 (both gate-executed, both unmoved by it).
-- **Tests (delta 2026-08-11, PB-DX26)**: **4,506 / 0 / 5** full-workspace on branch
-  `scutemob-206` (+15 over the **4,491** baseline measured on this branch BEFORE any edit —
-  6 gates in the new `crates/engine/tests/core/pb_dx26_attach_keyword_roster.rs` (R1-R6) and
-  9 probes in the new `crates/engine/tests/primitives/pb_dx26_equip_surface.rs` (T1-T9);
+- **Tests (delta 2026-08-11, PB-DX26 + fix cycle)**: **4,508 / 0 / 5** full-workspace on
+  branch `scutemob-206` (+17 over the **4,491** baseline measured on this branch BEFORE any
+  edit — 6 gates in the new `crates/engine/tests/core/pb_dx26_attach_keyword_roster.rs`
+  (R1-R6) and 11 probes in the new `crates/engine/tests/primitives/pb_dx26_equip_surface.rs`
+  (T1-T9 plus the fix cycle's T10/T11, which pay the corpus's only coloured equip cost
+  `{1}{W}` and its only zero cost `{0}` for real rather than comparing them statically);
   every other change is a modification of an existing test, not an addition), `--workspace
   --no-fail-fast` to a file, 46 result-producing targets, residual list empty.
   **PROTOCOL 35 / HASH 74 both unmoved**, gate-executed (`hash_schema` 21/21,

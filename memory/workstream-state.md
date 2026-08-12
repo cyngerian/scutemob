@@ -174,6 +174,56 @@ print one), `-3` (the `ability_index` renumbering hazard), `-4` (nothing gates
 stated residual), `-6` (the ten-def worklist). The registry was grepped for
 `OOS-DX26` **before** filing (dispatch hygiene 5): none existed.
 
+### The `/review` cycle: 1 HIGH / 6 MEDIUM / 11 LOW + a CR gap, all 18 taken
+
+Findings in `memory/primitives/pb-review-DX26.md`. The reviewer re-derived the census
+on a **fourth axis** the batch had not used — the printed oracle text stored in the
+defs — and it reconciled exactly (42 Equipment defs; minus Fortify and Reconfigure = 40
+printing an Equip line; minus the two `Inert` ones = **38**, R1's re-pin). *There is no
+third def.* Four findings are worth carrying past this batch:
+
+1. **The HIGH was a live defect on a deck-legal `Complete` def the batch had touched.**
+   `sword_of_light_and_shadow` declared a MANDATORY `TargetCardInYourGraveyard` for a
+   printed *"you may return **up to one target** creature card"*. With an empty
+   graveyard the trigger has no legal target and is removed under **CR 603.3d** —
+   taking **"you gain 3 life"** with it, since both ride one `Effect::Sequence`.
+   `UpToN` exists and its own roster-mate `sword_of_sinew_and_steel` uses it twice for
+   exactly this shape, so it was never a DSL gap. Filed as `OOS-DX26-7`: the instance is
+   closed, but **nothing enumerates the corpus for "up to" vs. mandatory**, the way
+   SR-37's R7 now does for costs.
+
+2. **The gate that claimed exhaustiveness was already wrong when it shipped.**
+   `Effect::RollDice { results: Vec<(u32, u32, Effect)> }` is an **eleventh** nesting
+   site, invisible to a `Box<Effect>`/`Vec<Effect>` substring count — and the residual
+   R6 *did* state (`Option<Box<Effect>>`) was **backwards**: that spelling contains the
+   substring and would have fired the gate. So the gate documented a hole that does not
+   exist while missing the one that does. All three walks now carry a `RollDice` arm and
+   R6 counts a third form, pinned `(8, 2, 1)`.
+
+3. **`the_reaver_cleaver` was `Complete` by the `#[default]` derive with nobody having
+   ever ruled on it**, while the trigger it grants under-fires (printed "…to a player
+   **or planeswalker**"; neither `TriggerCondition` variant is exact). Demoted. The
+   generalisable half is `OOS-DX26-8`: **965 of 1,803 defs declare no marker at all**,
+   so the corpus's default answer to "has a human ruled on this card?" is *yes* when the
+   truth is *nobody looked*. That is a `card-types` change, not another review pass.
+
+4. **The batch asserted a correction it had not made.** `OOS-DX26-1` and this handoff
+   both said Sting's stale header "was corrected in place"; the reviewer found the text
+   verbatim. The `OOS-DX3-1` discipline had been applied to the `completeness` field and
+   not to the `//` TODOs beside it, on **six** defs — and then the closure prose claimed
+   otherwise. All six rewritten and dated; both false claims corrected. **A closure claim
+   is a dated claim too.**
+
+Two process notes, recorded rather than tidied away. **A stable `CORPUS_COMPLETE` is not
+a stable deal**: the two completeness moves cancelled in the COUNT and not in the SET, so
+the fuzz pool holds a different card, `UI3_SPLIT_COMBAT_SEED` needed re-observing a
+*second* time (21 → 28 → 26), and the constant that normally shouts about a pool change
+stayed green through it. And **the revert harness restores with `git checkout --`, which
+reverts to HEAD**: two files still had uncommitted work when their rows ran, one row
+consequently measured a file with the assertion missing and came back green, and the
+whole thing had to be re-applied and re-run. Commit before running a revert matrix, and
+treat a green revert row with the same suspicion as a green test.
+
 ### Durable lesson
 
 **A roster derived from a keyword marker measures the marker, not the printed
