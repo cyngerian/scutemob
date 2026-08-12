@@ -1065,6 +1065,130 @@ fn canonical_walk_reproduces_pb_dp9_rosters() {
     }
 }
 
+/// A byte-faithful replica of `primitives/pb_dp9_effect_choice.rs::roster`'s walk: it
+/// matches OBJECT KEYS ONLY and is therefore blind to a unit variant, which serializes as
+/// a bare JSON string. This is deliberately the *weaker* of the two walks — it exists so
+/// [`pb_dp9_roster_walks_agree_by_value`] can compare the two by value from inside a single
+/// test target.
+///
+/// **Do not "fix" this to call [`crate::decision_site_walk::json_contains_variant`].** Making the
+/// replica correct would make the equality check below trivially true and delete the only
+/// mechanical link between the copy and the canonical walk.
+fn key_only_contains_variant(v: &serde_json::Value, variant: &str) -> bool {
+    match v {
+        serde_json::Value::Object(map) => map
+            .iter()
+            .any(|(k, child)| k == variant || key_only_contains_variant(child, variant)),
+        serde_json::Value::Array(items) => {
+            items.iter().any(|c| key_only_contains_variant(c, variant))
+        }
+        _ => false,
+    }
+}
+
+#[test]
+/// **PB-DX7 (OOS-DP10-1 rider).** The seed's stated mitigation for keeping a second copy of
+/// the decision-site walk in `primitives/pb_dp9_effect_choice.rs` is that the copy is
+/// "cross-checked BY VALUE (not by text) against the canonical walk". Re-verified at HEAD:
+/// the canonical walk is byte-unchanged since PB-DP10's review-fix commit (`0d4adcb5`) —
+/// the two later edits to `decision_site_walk.rs` (`87594d08` ENG-1, `cf89a213` PB-DX25c)
+/// moved the `discard_cards` and `change_targets` ROW metadata only, neither of which is
+/// one of PB-DP9's three rows — and both walks return **74 / 15 / 8** today.
+///
+/// But `canonical_walk_reproduces_pb_dp9_rosters` above asserts **floors** (73 / 15 / 8),
+/// not agreement, and `search_library`'s floor sits one below the live count. A one-def
+/// divergence between the copy and the canonical walk would therefore pass both tests in
+/// silence — the cross-check was checking that each walk was individually plausible, not
+/// that they agreed. This test closes that: for each of PB-DP9's three targets, the
+/// key-only walk (the copy's algorithm) and the unit-variant-aware canonical walk must
+/// return the **same** count.
+///
+/// The `..._DISAGREE` half is what makes the equality half mean something. Without it,
+/// this test would pass just as well if `key_only_contains_variant` had been silently
+/// replaced by a call to the canonical walk. `Effect::Proliferate` and
+/// `Effect::TheRingTemptsYou` are unit variants (`card_definition.rs:1933`/`:2122`), so
+/// they serialize as bare strings that only the canonical walk can see — the exact blindness
+/// OOS-DP10-1 names. If a future refactor makes these two agree, the equality half above has
+/// lost its teeth and the seed's residual hazard must be re-assessed, not the assertion
+/// relaxed.
+///
+/// **Residual, stated plainly (`/review` L6, 2026-08-12):** this test compares the canonical
+/// walk against `key_only_contains_variant` — a REPLICA of `primitives/pb_dp9_effect_choice
+/// .rs::roster`'s algorithm, hand-copied into this file (see its own doc above: "a
+/// byte-faithful replica"). It does NOT read the real copy. What this test proves is that the
+/// ALGORITHM `key_only_contains_variant` implements is blind to unit variants (with a real
+/// discriminating control, `Proliferate` 23 vs 0) — it does not prove the real copy in
+/// `pb_dp9_effect_choice.rs` still IS that algorithm today. If the real copy drifts away from
+/// the replica (a rename, a refactor, a bug fix applied to one but not the other), this test
+/// stays green throughout, because it never touches the real copy at all. The replica was
+/// verified byte-faithful to the real copy AT THE TIME this test was written
+/// (`pb-DX7-execution-notes.md` §4.1); nothing re-verifies that afterward. The durable fix —
+/// promoting the walk to one shared function both files call — is out of scope here (an engine
+/// change) and is recorded as such, not silently deferred.
+fn pb_dp9_roster_walks_agree_by_value() {
+    let defs = all_cards();
+    let jsons: Vec<serde_json::Value> = defs
+        .iter()
+        .map(|d| serde_json::to_value(d).unwrap())
+        .collect();
+
+    let count = |pred: &dyn Fn(&serde_json::Value) -> bool| -> usize {
+        defs.iter()
+            .zip(&jsons)
+            .filter(|(d, _)| is_effectively_complete(d))
+            .filter(|(_, j)| pred(j))
+            .count()
+    };
+
+    let mut checked = 0usize;
+    for variant in ["SearchLibrary", "Scry", "Surveil"] {
+        let canonical = count(&|j| crate::decision_site_walk::json_contains_variant(j, variant));
+        let key_only = count(&|j| key_only_contains_variant(j, variant));
+        println!("  {variant}: canonical={canonical} key_only={key_only}");
+        assert_eq!(
+            canonical, key_only,
+            "OOS-DP10-1: the pb_dp9_effect_choice.rs roster copy (key-only walk) and the \
+             canonical unit-variant-aware walk disagree on {variant} ({key_only} vs \
+             {canonical}). The copy is kept only because it is cross-checked by value \
+             against the canonical walk; that cross-check has just failed, so either the \
+             copy has drifted or {variant} has acquired a unit-variant spelling."
+        );
+        assert!(
+            canonical > 0,
+            "{variant} roster collapsed to zero — both walks are vacuous, so their \
+             agreement proves nothing"
+        );
+        checked += canonical;
+    }
+    assert!(
+        checked >= 60,
+        "only {checked} defs matched across all three PB-DP9 targets; the walks are \
+         under-counting and the equality above is near-vacuous"
+    );
+
+    // Discriminating control: the two walks MUST disagree on a unit variant, or the
+    // equality assertions above are not testing anything.
+    //
+    // `Proliferate` only. `Effect::TheRingTemptsYou` is the other unit variant OOS-DP10-1's
+    // note names, and it was tried here first — it is carried by **0** `Complete` defs in the
+    // corpus today (measured, not assumed: both walks return 0, and the control reddened on
+    // its own first run). A control that compares 0 to 0 discriminates nothing, so it is
+    // stated here rather than left in as a passing-looking assertion. `Proliferate` measures
+    // canonical=23 / key_only=0, which is the blindness the seed describes.
+    let unit_variant = "Proliferate";
+    let canonical = count(&|j| crate::decision_site_walk::json_contains_variant(j, unit_variant));
+    let key_only = count(&|j| key_only_contains_variant(j, unit_variant));
+    println!("  (control) {unit_variant}: canonical={canonical} key_only={key_only}");
+    assert!(
+        canonical > key_only,
+        "control failed: the key-only walk found {key_only} defs carrying the UNIT variant \
+         {unit_variant} and the canonical walk found {canonical}. The key-only replica is \
+         supposed to be blind to unit variants (that IS OOS-DP10-1); if it is not, \
+         `key_only_contains_variant` has been replaced by the canonical walk and the equality \
+         assertions above are trivially true."
+    );
+}
+
 #[test]
 /// Reproduces PB-DP8's enumerated targeted-trigger `Complete` count. Originally pinned
 /// at `>= 77`; **lowered to `>= 76` by PB-DX3b (2026-08-01)**, and the reason is
