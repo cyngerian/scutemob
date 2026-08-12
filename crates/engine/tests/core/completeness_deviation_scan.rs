@@ -397,9 +397,16 @@ fn the_marker_detector_is_not_vacuous() {
     // colour" has no `Cost` variant; its Morph cost was also `{0}` for a printed `{G}`).
     // RE-MEASURED DIRECTLY, not derived: `all_cards()` reports 1,133 Complete / 670 non-Complete
     // of 1,803, and an independent MARKER_FRAGMENTS grep also reports 670.
+    // PB-DX26 (2026-08-11, `scutemob-206`): threshold lowered 670 -> 669. ONE flip UP, in the
+    // direction this comment's earlier passes never went: `sword_of_body_and_mind` was
+    // `Completeness::partial` naming its unimplemented "Equip {2}" as its ONLY remaining
+    // blocker, and PB-DX26 authored that ability (`OOS-CARDS1-3`), discharging the note. Its
+    // protection-from-green/blue statics and combat-damage trigger were already implemented.
+    // RE-MEASURED DIRECTLY, not derived: `all_cards()` reports 1,134 Complete / 669
+    // non-Complete of 1,803.
     assert!(
-        marked >= 670,
-        "marker detector matched {marked} files; expected >= 670. This assertion has NO \
+        marked >= 669,
+        "marker detector matched {marked} files; expected >= 669. This assertion has NO \
          margin (see the comment above) and can fail for two different reasons: (1) \
          MARKER_FRAGMENTS stopped matching (a detector bug -- the gate would then spuriously \
          flag marked defs) or, far more likely on an ordinary day, (2) a ROUTINE Complete \

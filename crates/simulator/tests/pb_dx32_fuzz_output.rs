@@ -691,7 +691,12 @@ fn test_dx32_distinct_collapses_checkpoint_weighting() {
 /// `random_deck` (`deck.rs:30-157`) draws its commander and its color-identity pool
 /// straight from `all_cards()`.
 const CORPUS_DEFS: usize = 1803;
-const CORPUS_COMPLETE: usize = 1133;
+// PB-DX26 (2026-08-11, `scutemob-206`): 1133 -> 1134. One completeness flip UP
+// (`sword_of_body_and_mind` `partial` -> `Complete`, its only blocker being the missing
+// Equip {2} that `OOS-CARDS1-3` authored), so the fuzz deck pool grew by one card and every
+// seeded fixture deals a different game -- exactly what MOVED_MSG warns about. Re-measured
+// by executing this gate, not predicted.
+const CORPUS_COMPLETE: usize = 1134;
 const COMMANDER_POOL: usize = 90;
 
 /// Mirrors `crates/simulator/src/deck.rs:40-47`'s three-clause commander filter

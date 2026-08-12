@@ -374,6 +374,22 @@ fn t3_umezawas_jitte_equip_is_appended_and_does_not_renumber_the_modal_ability()
 /// `casting::validate_targets_inner`); PB-DX20's durable lesson is that agreement
 /// between two consumers of one function proves consistency, not correctness, so
 /// both sides are checked.
+///
+/// **This probe does NOT discriminate the requirement, and that is measured, not
+/// assumed.** Weakening `bone_saw`'s requirement to a bare `TargetCreature` leaves
+/// this test GREEN (revert matrix row V4b in
+/// `memory/primitives/pb-DX26-fail-before-2026-08-11.md`), because `OOS-DX20-7`'s
+/// legacy `Effect::AttachEquipment` special-case in `rules/abilities.rs` separately
+/// validates a *volunteered* target's creature-ness and controller — it simply never
+/// *required* a target, which is why `OOS-M11-10(equip)` was a silent fizzle rather
+/// than a visible error. So the rejection here has two independent providers and
+/// this assertion cannot tell which one answered.
+///
+/// The "you control" clause is proven instead by **T1** (offer side, row V4c) and by
+/// `core::cards1_equip_target_roster::r2` (shape side, row V4); both go red under
+/// the same reversion. T4 is kept as a behavioural pin of the CR rule at the command
+/// boundary — it catches a regression that removed *both* providers — and must not
+/// be read as evidence about the requirement on its own.
 #[test]
 fn t4_bone_saw_equip_rejects_an_opponents_creature() {
     let (state, saw_id, _p1_creature_id, p2_creature_id, p1, _p2) = setup("Bone Saw", 1);

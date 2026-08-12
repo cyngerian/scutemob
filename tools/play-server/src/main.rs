@@ -2291,20 +2291,36 @@ mod tests {
     /// different defending players.
     ///
     /// Not [`COMBAT_SEED`], and the difference is the whole point of having a
-    /// second constant. Observed by a throwaway probe over `seed` ∈ 0..24 at
-    /// [`PLAYERS`] seats, driving each to its first attack offer and recording
-    /// the offer's shape: **every** seed offers 3 player targets (the three
-    /// opponents, which is just CR 506.2), and **only seed 21 offers 2 eligible
-    /// attackers** — every other seed offers exactly 1, because at the turn the
-    /// first attack becomes available the boards hold a single creature. The
-    /// probe was then deleted.
+    /// second constant. Observed by a throwaway probe driving each seed to its
+    /// first attack offer and recording the offer's shape; the probe is then
+    /// deleted. **Every** seed offers 3 player targets (the three opponents,
+    /// which is just CR 506.2), and only a few offer more than one eligible
+    /// attacker — most offer exactly 1, because at the turn the first attack
+    /// becomes available the boards hold a single creature.
     ///
     /// With one attacker, "attacker → defender" degenerates to "there is a
     /// defender", and a mapping bug that *swapped two attackers' defenders*
     /// would pass. Re-observe rather than guess if this stops splitting: like
     /// [`COMBAT_SEED`] and [`TARGET_SEED`], it is a function of the whole card
     /// corpus, and a completeness flip in any card-def batch re-deals it.
-    const UI3_SPLIT_COMBAT_SEED: u64 = 21;
+    ///
+    /// UI-3 (`scutemob-180`) observed seed **21** over `seed` ∈ 0..24.
+    /// **PB-DX26 (`scutemob-206`, 2026-08-11) re-observed it over `seed` ∈
+    /// 0..40 and moved it to 28**, because exactly the re-deal this doc predicts
+    /// happened: one completeness flip (`sword_of_body_and_mind` `partial` ->
+    /// `Complete`) grew the deck pool by one card, and seed 21 now offers a
+    /// single eligible attacker.
+    ///
+    /// New sweep, recorded because the next re-deal will need it: **9, 26, 28,
+    /// 29, 30** offer 2 eligible attackers; every other seed in 0..40 offers 1.
+    /// The seed must satisfy BOTH halves of the test, and that is a second,
+    /// independent filter the original doc did not mention — of those five, only
+    /// **28 and 29** also reach a declared blocker within the test's 40 passes
+    /// (9, 26 and 30 split the attack and then no bot ever blocks). 28 is the
+    /// lower. Measured by running the test against each candidate, not guessed:
+    /// the lowest split-seed, 9, was tried first and failed on the CR 509.1a
+    /// half alone.
+    const UI3_SPLIT_COMBAT_SEED: u64 = 28;
 
     /// **UI-3 AC 6006**: after attackers are declared, the seat payload says
     /// **which attacker is attacking which defending player**, and after blockers
