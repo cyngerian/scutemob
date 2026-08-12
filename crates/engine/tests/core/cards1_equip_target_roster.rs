@@ -1,7 +1,13 @@
 //! CARDS-1 (OOS-M11-10) roster sweep (SR-36 -- enumerate `all_cards()`, never grep
 //! source): the equip-ability target-requirement repair.
 //!
-//! R1 -- every def carrying an `AbilityDefinition::Activated` whose `effect` is
+//! > **PB-DX26 re-pinned R1 from 17 to 38 and made its `Effect` match recursive.**
+//! > Read "R1 is green" as covering exactly the defs listed in R1 and nothing
+//! > else: the complementary "no `Equip`-marker def lacks an ability" property is
+//! > `pb_dx26_attach_keyword_roster::r2`, and the type-line-derived census that no
+//! > keyword-derived roster can see is that file's R4.
+//!
+//! R1 -- every def carrying an `AbilityDefinition::Activated` whose `effect` reaches
 //! `Effect::AttachEquipment` (`abilities.rs`'s `handle_activate_ability`, which
 //! reads `target_requirements` from the layer-resolved `ActivatedAbility.targets`
 //! -- `rules/abilities.rs:315-334`/`495`). Pinned EXACT (not a floor): a new
@@ -16,7 +22,7 @@
 //! `targets: vec![]`, or to an under-restrictive `TargetCreature` (Helm of the
 //! Host's pre-fix shape), fails here.
 //!
-//! R3 -- non-vacuity floor: R1 must be exactly 17.
+//! R3 -- non-vacuity floor: R1 must be exactly 38 (17 + PB-DX26's 21).
 //!
 //! What membership in R1/R2 asserts, and does NOT assert (PB-DX4's `BASELINE`
 //! lesson, same wording): membership means only that this def's equip ability
@@ -28,14 +34,45 @@ use mtg_engine::{
 };
 use std::collections::BTreeSet;
 
-/// R1: every def with an `AbilityDefinition::Activated` whose `effect` is
-/// `Effect::AttachEquipment`.
+/// Does this effect tree reach an `Effect::AttachEquipment`?
+///
+/// **PB-DX26 made this recursive.** It was a flat `matches!`, so a def nesting its
+/// attach inside an `Effect::Sequence` dropped out of R1's exact pin **silently** —
+/// the hazard `memory/primitives/seed-rerank-2026-08-02.md` §2.7 names about this
+/// exact line and about `cards1_equip_target_repair.rs:541`. Every `Box<Effect>` /
+/// `Vec<Effect>` nesting site in the `Effect` enum is walked; the site list itself
+/// is pinned by `core::pb_dx26_attach_keyword_roster::r6`, so this walk cannot
+/// silently go shallow when a new nesting variant is added.
+fn reaches_attach_equipment(effect: &Effect) -> bool {
+    if matches!(effect, Effect::AttachEquipment { .. }) {
+        return true;
+    }
+    match effect {
+        Effect::Sequence(inner) => inner.iter().any(reaches_attach_equipment),
+        Effect::Conditional {
+            if_true, if_false, ..
+        } => reaches_attach_equipment(if_true) || reaches_attach_equipment(if_false),
+        Effect::Repeat { effect, .. } => reaches_attach_equipment(effect),
+        Effect::ForEach { effect, .. } => reaches_attach_equipment(effect),
+        Effect::Choose { choices, .. } => choices.iter().any(reaches_attach_equipment),
+        Effect::MayPayOrElse { or_else, .. } => reaches_attach_equipment(or_else),
+        Effect::MayPayThenEffect { then, .. } => reaches_attach_equipment(then),
+        Effect::CoinFlip {
+            on_win, on_lose, ..
+        } => reaches_attach_equipment(on_win) || reaches_attach_equipment(on_lose),
+        _ => false,
+    }
+}
+
+/// R1: every def with an `AbilityDefinition::Activated` whose `effect` reaches
+/// `Effect::AttachEquipment` (see `reaches_attach_equipment` on why "reaches"
+/// rather than "is").
 fn roster_r1(defs: &[CardDefinition]) -> BTreeSet<String> {
     let mut out = BTreeSet::new();
     for def in defs {
         for ability in &def.abilities {
             if let AbilityDefinition::Activated { effect, .. } = ability {
-                if matches!(effect, Effect::AttachEquipment { .. }) {
+                if reaches_attach_equipment(effect) {
                     out.insert(def.name.clone());
                 }
             }
@@ -55,7 +92,7 @@ fn equip_targets_for(def: &CardDefinition) -> Option<&[TargetRequirement]> {
             effect, targets, ..
         } = ability
         {
-            if matches!(effect, Effect::AttachEquipment { .. }) {
+            if reaches_attach_equipment(effect) {
                 return Some(targets.as_slice());
             }
         }
@@ -63,14 +100,30 @@ fn equip_targets_for(def: &CardDefinition) -> Option<&[TargetRequirement]> {
     })
 }
 
-/// R1 -- pinned exact set of 17 (16 hand-authored equip defs + Helm of the Host,
-/// whose equip ability was already declaring a target -- an under-restrictive
-/// `TargetCreature`, per R2 -- before this batch).
+/// R1 -- pinned exact set of **38**.
+///
+/// **Re-pinned 17 -> 38 by PB-DX26 (`OOS-CARDS1-3`).** The original 17 were the
+/// defs that already had an `Activated` + `AttachEquipment` ability and were
+/// missing only the CR 702.6a *target* (16 hand-authored + Helm of the Host, whose
+/// declared requirement was an under-restrictive bare `TargetCreature`). The 21
+/// added here had no equip **ability** at all -- only an
+/// `AbilityDefinition::Keyword(KeywordAbility::Equip)` marker, which
+/// `keyword_registry.rs` classifies as `KeywordHandling::Marker` and which
+/// therefore synthesises nothing.
+///
+/// **This pin was the hazard `OOS-CARDS1-3` was filed to prevent**: at 17 it read
+/// as "all the equip defs are correct" while 21 more had no equip at all. It is
+/// exact-pinned precisely so that a reader cannot mistake its greenness for
+/// coverage of a population it never enumerated. The complementary property --
+/// "no `Equip`-marker def lacks a reachable ability" -- is `pb_dx26_attach_
+/// keyword_roster::r2`, and the type-line-derived census that neither of these
+/// keyword-derived rosters can see is that file's R4.
 #[test]
 fn r1_equip_activated_attach_equipment_roster_is_pinned() {
     let defs = mtg_engine::all_cards();
     let found = roster_r1(&defs);
     let expected: BTreeSet<String> = [
+        // -- CARDS-1's original 17 (target authored into an existing ability) ----
         "Accorder's Shield",
         "Argentum Armor",
         "Basilisk Collar",
@@ -88,6 +141,28 @@ fn r1_equip_activated_attach_equipment_roster_is_pinned() {
         "Sword of Vengeance",
         "Thornbite Staff",
         "Whispersilk Cloak",
+        // -- PB-DX26's 21 (the whole ability authored; marker-only before) -------
+        "Blackblade Reforged",
+        "Blade of the Bloodchief",
+        "Bone Saw",
+        "Commander's Plate",
+        "Empyrial Plate",
+        "Glimmer Lens",
+        "Illusionist's Bracers",
+        "Kite Shield",
+        "Mask of Memory",
+        "Paradise Mantle",
+        "Sword of Body and Mind",
+        "Sword of Feast and Famine",
+        "Sword of Light and Shadow",
+        "Sword of Sinew and Steel",
+        "Sword of the Animist",
+        "Sword of the Paruns",
+        "Sword of Truth and Justice",
+        "Sword of War and Peace",
+        "The Reaver Cleaver",
+        "Umbral Mantle",
+        "Umezawa's Jitte",
     ]
     .iter()
     .map(|s| s.to_string())
@@ -114,9 +189,9 @@ fn r3_walk_is_not_vacuous() {
     let found = roster_r1(&defs);
     assert_eq!(
         found.len(),
-        17,
-        "R1 must contain exactly 17 members (16 hand-authored equip defs + Helm of the \
-         Host); found {}: {found:?}",
+        38,
+        "R1 must contain exactly 38 members (CARDS-1's 17 + PB-DX26's 21 marker-only defs); \
+         found {}: {found:?}",
         found.len()
     );
     let with_any_activated = defs

@@ -26,10 +26,35 @@ pub fn card() -> CardDefinition {
             //   LayerModification::AddActivatedAbility + EffectFilter::AttachedCreature.
             //   Blocked on {Q} (untap symbol) — ActivationCost needs requires_untap_self.
             AbilityDefinition::Keyword(KeywordAbility::Equip),
+            // Equip {0}: attach this Equipment to target creature you control. A {0} cost is
+            // legal (see bone_saw.rs for another Equip {0} card).
+            // CR 702.6b: Equip is an activated ability; CR 702.6d: sorcery speed only.
+            AbilityDefinition::Activated {
+                cost: Cost::Mana(ManaCost::default()),
+                effect: Effect::AttachEquipment {
+                    equipment: EffectTarget::Source,
+                    target: EffectTarget::DeclaredTarget { index: 0 },
+                },
+                timing_restriction: Some(TimingRestriction::SorcerySpeed),
+                // PB-DX26 (OOS-CARDS1-3) / CR 702.6a: "Equip {0}" means "[Cost]: Attach this
+                // permanent to target creature you control." Printed line MCP-verified as
+                // plain "Equip {0}" with no CR 702.6c quality restriction, so the requirement
+                // is the unmodified 702.6a one.
+                targets: vec![TargetRequirement::TargetCreatureWithFilter(TargetFilter {
+                    controller: TargetController::You,
+                    ..Default::default()
+                })],
+                activation_condition: None,
+                activation_zone: None,
+                once_per_turn: false,
+                modes: None,
+            },
         ],
         completeness: Completeness::partial(
             "grant '3, {Q}: gets +2/+2 until EOT' to equipped creature via \
-             LayerModification::AddActivatedAbility +...",
+             LayerModification::AddActivatedAbility + EffectFilter::AttachedCreature; blocked on \
+             {Q} (untap symbol) — ActivationCost still lacks requires_untap_self. Equip {0} is \
+             now authored as an Activated/AttachEquipment ability.",
         ),
         ..Default::default()
     }

@@ -38,6 +38,7 @@ mod pb_dx24_trigger_zone_and_index_spaces;
 mod pb_dx25_counterspell_stack_shapes;
 mod pb_dx25b_announced_stack_target_space;
 mod pb_dx25c_retarget_legality;
+mod pb_dx26_equip_surface;
 mod pb_dx2_command_gates;
 mod pb_dx3_stale_blocker_notes;
 mod pb_dx3b_stale_blocker_bucket;
