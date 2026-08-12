@@ -4331,6 +4331,68 @@ behaviourally identical.
 
 ## Last Handoff
 
+**Date**: 2026-08-06 (oversight session #7 — two user-approved queue inserts, ranks 7b + 7c)
+**Workstream**: W6 correctness queue (v3)
+**Task**: `scutemob-204` (PB-DX25b, merge `8258e715`) + `scutemob-205` (PB-DX25c, merge
+`241d82f9`) — each read-the-seed → insert-row → user-approve → dispatch → collect, in sequence.
+
+**Completed**:
+- **PB-DX25b shipped** (rank 7b insert): `OOS-DX25-3` CLOSED — the announced-target id-space
+  confusion one function over from PB-DX25's. **The brief's "validation-site only" was short by
+  three sites** and obeying it would have shipped a cast that announces then silently does
+  nothing at resolution; the fix went structural (`stack_registry::stack_index_for_announced_
+  target`, consumed by all five sites, reviewer confirmed no sixth by inverse census). The old
+  negative tests were green against a fixture that **collapsed the two id spaces** — a
+  configuration no real cast can produce. Tests 4,452 → **4,469** (+17); PROTOCOL 35 / HASH 73
+  unmoved, gate-executed.
+- **PB-DX25c shipped** (rank 7c insert): `OOS-DX25b-3` CLOSED — CR 115.7a redirect legality.
+  New hashed `StackObject.target_requirements` + `rules::retarget::plan_target_change`
+  delegate the whole redirect decision to `casting::validate_targets_inner`, closing the filed
+  object branch AND an unfiled, independently-reachable player-branch defect. `t9` pin
+  inverted (+ `t9b` sibling); fix cycle 2 closed `OOS-DX25c-5` (self-redirect onto own card).
+  Tests → **4,491** (+22); **HASH 73 → 74 gate-computed exactly as the insert row predicted**;
+  PROTOCOL 35 unmoved. Three review cycles, all 32 findings taken; revert matrix honest at
+  16/19 discriminating with 3 recorded UNDISCRIMINATED with reasons.
+- Both inserts were recorded as v3 §4 rows (7b, 7c) with pointers repointed BEFORE dispatch,
+  each explicitly user-approved — no silent repoint. Both workers did full collect
+  state-sync; verified (not assumed) at `/collect` both times.
+- Seeds: `OOS-DX25-3`, `OOS-DX25b-3`, `OOS-DX25c-5` CLOSED; `OOS-DX25b-1..5` +
+  `OOS-DX25c-1..6` filed (registry grep-checked).
+
+**Not done / deferred** (inherited set, unchanged):
+- Feedback doc rows 2 (FUZZ-CRASH) / 4 / 5 / 6 / 7 / 8 undispatched; **OOS-DX22-8**
+  unclassified; **OOS-DX32-1** undiagnosed; v3 §4 not re-rowed with DX42a/b; OOS-ADJ-1..7 not
+  rowed into §8.1; `scutemob-127` still backlog. **PB-DX26 not dispatched** (queue-next,
+  offered; session ended before the go).
+
+**Next session candidates** (highest-yield first):
+- **PB-DX26** (rank 8, equip surface; ~4-6 flips; re-measure the 21/18/10 roster from
+  `all_cards()` per v3 §2.7). For the first time in three batches there is **no insert to
+  weigh first** — the DX25 family is burned down and none of its residual seeds is live-wrong
+  on a `Complete` def.
+- **OOS-DX32-1 diagnosis** or **FUZZ-CRASH** (feedback row 2, cheapest row).
+
+**Hazards** (carrying forward):
+- **The DX25-family lesson, three times over: a filed site list is a FLOOR, not a census.**
+  DX25's census was short by two, DX25b's brief short by three, DX25c's filing missed a whole
+  player branch. Writing "the site list is a floor" + an inverse-method census criterion into
+  the DX25c brief is what recovered the third one — keep doing that in every PB brief.
+- A fixture that collapses two id spaces makes a test green by removing the only condition
+  under which the code is wrong; `tests/rules/copy_redirect.rs` still carries **8 disclosed
+  instances** of the collapsed-id fixture.
+- `OOS-DX25c-6` stays open: a resolving spell's own `StackObject` entry is popped before its
+  effect runs (resolution.rs's documented order), so `TargetSpellWithSingleTarget` can never
+  observe the actively-resolving spell as a redirect candidate.
+- Coordinator ops: `esm` dropped off PATH again mid-session (`export PATH="$HOME/.local/bin:
+  $PATH"` per call); and a Monitor that interpolates `esm task get` JSON inline into a python
+  `-c` string breaks the moment a worker comment carries quotes — pipe the JSON to python via
+  **stdin** (the v2 monitor pattern held for both workers).
+
+**Commit prefix used**: `scutemob-204:` / `scutemob-205:` (workers) + `merge:` + `chore:`
+(insert bookkeeping, eot)
+
+## Previous Handoff (preserved for chain context)
+
 **Date**: 2026-08-05 (oversight session #6 — v3 rank 7, single dispatch)
 **Workstream**: W6 correctness queue (v3)
 **Task**: `scutemob-203` (PB-DX25, merge `f8ed9618`), dispatched and collected same evening.
@@ -4382,66 +4444,6 @@ behaviourally identical.
   the seed's. Grep for the pattern before trusting any stack-lookup-by-id.
 
 **Commit prefix used**: `scutemob-203:` (worker) + `merge:` + `chore:` (eot)
-
-## Previous Handoff (preserved for chain context)
-
-**Date**: 2026-08-04..05 (oversight session #5 — correctness-queue run, v3 ranks 2/3/5/6)
-**Workstream**: W6 correctness queue (v3)
-**Task**: five tasks: `scutemob-199` (OOS-FB1 filing — DUPLICATE of `scutemob-195`, deduped at
-`/eot`, see hazards; `e7edcdd1`), `scutemob-198` (PB-DX20, merge `ecd7b119`), `scutemob-200`
-(PB-DX21, `e490153b`), `scutemob-201` (PB-DX23, `49958549`), `scutemob-202` (PB-DX24, `7b3d7d58`).
-
-**Completed**:
-- **PB-DX20 shipped** (rank 2): offer layer sees keyword-carried target requirements — ONE shared
-  derivation (`casting::enchant_target_to_requirement`); 13 `Complete` Auras castable in the
-  browser; Reconfigure synth site carries `exclude_self: true` (CR 702.151a); the whole
-  `KNOWN_FALSE_OFFERS` excusal mechanism deleted. Brief correction: the "4 no-Enchant Auras" set
-  was a grep artefact — the T4 roster gates over `all_cards()` (SR-36).
-- **PB-DX21 shipped** (rank 3): CR 508.1 once-per-combat guard. The brief's PREFERRED mechanism
-  (read `combat.attackers`) was **refuted three ways** (CR 508.1a "if any" + CR 508.8: an EMPTY
-  declaration is a completed action, live via `params.rs:474`) → `CombatState::attackers_declared`
-  bool, **HASH 72 → 73 gate-computed**. Both client-side mitigations deleted; 3 discriminating
-  probes; refuted advice left standing in the brief with the reasoning.
-- **PB-DX23 shipped** (rank 5): `LegalAction::ChooseDredge` end-to-end (bot + browser);
-  Grave-Troll draw-cadence probe on a real game; OOS-DX2-2 tail flip with the PB-DP5 §3.3
-  distinction argued in the commit; OOS-DX2-7 AUTO-CHOSEN row added; **OOS-DX2-3 stays REOPENED**,
-  pin byte-unedited.
-- **PB-DX24 shipped** (rank 6): `trigger_zone` honoured structurally at the single lowering call
-  site (not 34 per-arm edits); graveyard death dispatch built — beyond the brief, the sweep
-  handled only `PermanentEnteredBattlefield`; OOS-DX1-4 six of seven sites fixed, seventh
-  re-scoped with reason; both seeds CLOSED with their own row-claim corrections.
-- Tests **4,373 → 4,435 / 0 / 5**; full suite re-verified on merged main after EVERY collect
-  (4,388 / 4,398 / 4,413 / 4,435, all exit 0); PROTOCOL **35** unmoved throughout; HASH **72 → 73**
-  (PB-DX21 only); coverage unmoved **1,133/1,803 = 62.8%**.
-- **OOS-FB1 double-filing found and deduplicated at `/eot`**: `scutemob-199` re-filed what
-  `scutemob-195` had already filed (stale "NOT filed" CLAUDE.md bullet); nine duplicate rows
-  removed, the chain-verified `scutemob-199` set kept with the older set's two unique facts
-  folded in; banners corrected in registry + feedback doc + CLAUDE.md.
-
-**Not done / deferred**:
-- Feedback doc rows 2 (FUZZ-CRASH) / 4 / 5 / 6 / 7 / 8 still undispatched; **OOS-DX22-8** still
-  unclassified; **OOS-DX32-1** still undiagnosed.
-- Inherited: v3 §4 not re-rowed with DX42a/b; OOS-ADJ-1..7 not rowed into §8.1; `scutemob-127`
-  still backlog.
-
-**Next session candidates** (highest-yield first):
-- **PB-DX25** (rank 7 — `Effect::CounterSpell`'s three stack-object shapes; a countered spell
-  resolves anyway, silently). Table-only rank: write the brief at dispatch from the seed rows,
-  re-verify premise first.
-- **OOS-DX32-1 diagnosis** or **FUZZ-CRASH** (feedback row 2, cheapest row, OOS-DX22-7 feeds it).
-- **OOS-ADJ-1..7 rowing into §8.1** (small, closes an inherited deferral) — grep the registry for
-  each ID first, per the new dedup rule.
-
-**Hazards** (carrying forward):
-- **Seed-filing dedup rule (new, learned the hard way)**: before filing any OOS seed, grep
-  `docs/audits/decision-point-audit.md` for the ID — the registry is ground truth; status bullets
-  in CLAUDE.md/handoffs lag it (OOS-FB1-1..9 was double-filed exactly this way).
-- Monitor tool over bash poll loops for worker watches — bash loops were killed within ~2 min
-  repeatedly this session; one persistent Monitor per worker was reliable.
-- Workers now do their own collect state-sync inconsistently (DX21/DX24 fully, DX20/DX23
-  partially) — `/collect` step 7 must still verify the queue-memo row strike + brief banner.
-
-**Commit prefix used**: `scutemob-N:` (workers/self-task) + `chore:` (collects, eot) + `merge:`
 
 ## Worker Handoff (UI-1, `scutemob-174`)
 
@@ -4917,6 +4919,66 @@ shows S7's work, not this branch's.
 
 ## Handoff History
 
+### 2026-08-04..05 (oversight #5 — correctness-queue run, ranks 2/3/5/6) [rotated]
+
+**Date**: 2026-08-04..05 (oversight session #5 — correctness-queue run, v3 ranks 2/3/5/6)
+**Workstream**: W6 correctness queue (v3)
+**Task**: five tasks: `scutemob-199` (OOS-FB1 filing — DUPLICATE of `scutemob-195`, deduped at
+`/eot`, see hazards; `e7edcdd1`), `scutemob-198` (PB-DX20, merge `ecd7b119`), `scutemob-200`
+(PB-DX21, `e490153b`), `scutemob-201` (PB-DX23, `49958549`), `scutemob-202` (PB-DX24, `7b3d7d58`).
+
+**Completed**:
+- **PB-DX20 shipped** (rank 2): offer layer sees keyword-carried target requirements — ONE shared
+  derivation (`casting::enchant_target_to_requirement`); 13 `Complete` Auras castable in the
+  browser; Reconfigure synth site carries `exclude_self: true` (CR 702.151a); the whole
+  `KNOWN_FALSE_OFFERS` excusal mechanism deleted. Brief correction: the "4 no-Enchant Auras" set
+  was a grep artefact — the T4 roster gates over `all_cards()` (SR-36).
+- **PB-DX21 shipped** (rank 3): CR 508.1 once-per-combat guard. The brief's PREFERRED mechanism
+  (read `combat.attackers`) was **refuted three ways** (CR 508.1a "if any" + CR 508.8: an EMPTY
+  declaration is a completed action, live via `params.rs:474`) → `CombatState::attackers_declared`
+  bool, **HASH 72 → 73 gate-computed**. Both client-side mitigations deleted; 3 discriminating
+  probes; refuted advice left standing in the brief with the reasoning.
+- **PB-DX23 shipped** (rank 5): `LegalAction::ChooseDredge` end-to-end (bot + browser);
+  Grave-Troll draw-cadence probe on a real game; OOS-DX2-2 tail flip with the PB-DP5 §3.3
+  distinction argued in the commit; OOS-DX2-7 AUTO-CHOSEN row added; **OOS-DX2-3 stays REOPENED**,
+  pin byte-unedited.
+- **PB-DX24 shipped** (rank 6): `trigger_zone` honoured structurally at the single lowering call
+  site (not 34 per-arm edits); graveyard death dispatch built — beyond the brief, the sweep
+  handled only `PermanentEnteredBattlefield`; OOS-DX1-4 six of seven sites fixed, seventh
+  re-scoped with reason; both seeds CLOSED with their own row-claim corrections.
+- Tests **4,373 → 4,435 / 0 / 5**; full suite re-verified on merged main after EVERY collect
+  (4,388 / 4,398 / 4,413 / 4,435, all exit 0); PROTOCOL **35** unmoved throughout; HASH **72 → 73**
+  (PB-DX21 only); coverage unmoved **1,133/1,803 = 62.8%**.
+- **OOS-FB1 double-filing found and deduplicated at `/eot`**: `scutemob-199` re-filed what
+  `scutemob-195` had already filed (stale "NOT filed" CLAUDE.md bullet); nine duplicate rows
+  removed, the chain-verified `scutemob-199` set kept with the older set's two unique facts
+  folded in; banners corrected in registry + feedback doc + CLAUDE.md.
+
+**Not done / deferred**:
+- Feedback doc rows 2 (FUZZ-CRASH) / 4 / 5 / 6 / 7 / 8 still undispatched; **OOS-DX22-8** still
+  unclassified; **OOS-DX32-1** still undiagnosed.
+- Inherited: v3 §4 not re-rowed with DX42a/b; OOS-ADJ-1..7 not rowed into §8.1; `scutemob-127`
+  still backlog.
+
+**Next session candidates** (highest-yield first):
+- **PB-DX25** (rank 7 — `Effect::CounterSpell`'s three stack-object shapes; a countered spell
+  resolves anyway, silently). Table-only rank: write the brief at dispatch from the seed rows,
+  re-verify premise first.
+- **OOS-DX32-1 diagnosis** or **FUZZ-CRASH** (feedback row 2, cheapest row, OOS-DX22-7 feeds it).
+- **OOS-ADJ-1..7 rowing into §8.1** (small, closes an inherited deferral) — grep the registry for
+  each ID first, per the new dedup rule.
+
+**Hazards** (carrying forward):
+- **Seed-filing dedup rule (new, learned the hard way)**: before filing any OOS seed, grep
+  `docs/audits/decision-point-audit.md` for the ID — the registry is ground truth; status bullets
+  in CLAUDE.md/handoffs lag it (OOS-FB1-1..9 was double-filed exactly this way).
+- Monitor tool over bash poll loops for worker watches — bash loops were killed within ~2 min
+  repeatedly this session; one persistent Monitor per worker was reliable.
+- Workers now do their own collect state-sync inconsistently (DX21/DX24 fully, DX20/DX23
+  partially) — `/collect` step 7 must still verify the queue-memo row strike + brief banner.
+
+**Commit prefix used**: `scutemob-N:` (workers/self-task) + `chore:` (collects, eot) + `merge:`
+
 ### 2026-08-03..04 (oversight #4 — FEEDBACK-1 + first two feedback-buildout batches) [rotated]
 
 **Date**: 2026-08-03..04 (oversight session #4 — FEEDBACK-1 + the first two feedback-buildout
@@ -5135,40 +5197,3 @@ same-day. Merges: `f28df527` (174 UI-1), `d04f42a1` (179 CARDS-1), `83bfdba5` (1
   collect, not just `esm worktree list`.
 
 **Commit prefix used**: `scutemob-N:` (workers) / `merge:` / `chore:`
-
-### 2026-07-26..27 (oversight — PB-DP suite complete + re-rank) [rotated]
-
-**Date**: 2026-07-26..27 (oversight session — autonomous coordinator chain, user-directed "task out the PB suite and run autonomously", then "task it out and rerank"; /eot 2026-07-27)
-**Workstream**: W6 (PB-DP suite) — **DP1..DP10 ALL SHIPPED + seed re-rank DONE; queue handoff to PB-DX**
-**Task**: `scutemob-149..158` (suite) + `scutemob-159` (re-rank). Final merges `16ffcfd0` (DP10) and `0dd79b5d` (re-rank).
-
-**Completed**:
-- **THE PB-DP SUITE IS COMPLETE** — all 10 batches dispatched, collected, merge-verified (full test suite run on main after every merge). Tests 3,683 → **3,928 / 0**; PROTOCOL 27 → **31**; HASH 63 → **68**. All five Tier-0 correctness findings (DP-1..DP-5) closed. Per-batch detail: CLAUDE.md "Last Updated" entries + `docs/audits/decision-point-audit.md` §5/§8 rows (each marked SHIPPED with verified breakdowns) + git merges `f7651bb5`/`68172717`/`3b04bd17`/`799dcc0a`/`922252f7`/`d52fe5b6`/`8f890611`/`48353a36`/`d65e7f1e`/`16ffcfd0`.
-- **Seeds closed by the suite**: OOS-M11-1 (DP2), OOS-M11-4 (DP8), OOS-DP1-1 + OOS-RS3-4 (DP4), OOS-DP7-7 (DP10) — plus OOS-RS3-1, discovered closed by DP6 only during the re-rank census.
-- **Seed re-rank** (`scutemob-159`, merge `0dd79b5d`, docs-only): 204-seed census, 7 closures source-verified, RS5..RS11 dispositioned (only ex-RS6 gained rank; ex-RS5 demoted — its obvious fix is a trap), phantom seed OOS-RS1-2 struck. **Successor queue PB-DX1..DX18** in `memory/primitives/seed-rerank-2026-07-27.md` §4 (authoritative; rider-seed-triage §5 banner defused). Honest yield ~13-15 flips + ~15 integrity repairs + 3 gate-integrity fixes.
-
-**Not done / deferred**:
-- ~~PB-DX queue not started~~ — **PB-DX1 SHIPPED** (`scutemob-160`, 2026-08-01); OOS-DP6-1 + riders DP6-5/DP6-9 all CLOSED. **Next dispatch is PB-DX2**, then PB-DX3.
-- M11-local S2 (pregame setup + mulligans) unblocked and parallel-safe; scutemob-127 (abilities-corpus distillation) still backlog; M10 line untouched.
-
-**Next session candidates** (highest-yield first):
-- ~~Dispatch PB-DX1~~ **DONE** (`scutemob-160`; PROTOCOL 31→32 / HASH 68→69 — the §4 brief predicted HASH only and was half wrong). **Dispatch PB-DX2** (`ChooseDredge` free-card exploit, wire-neutral) — then chain DX3 (2 flips, 0 engine lines) under the standing autonomous-chaining rule.
-- M11-local S2 in parallel (`crates/simulator` only — disjoint from DX1/DX2 engine surface).
-
-**Hazards** (carrying forward):
-- All prior hazards stand (attestation verbatim, Monitor-not-poll-loops, `esm update` clobber, probe-first, never skip the reviewer).
-- **Merge conflicts in coordination files are routine** on worker branches that update CLAUDE.md/workstream-state (DP1, DP9): resolve by taking the worker's richer version, then reconcile counts in the collect chore commit. `git merge-tree --write-tree` remains the conflict arbiter (`esm worktree check` false-positives persist).
-- **Audit rosters are magnitudes, not rosters** — SR-36 enumeration beat the §3.1 regex every time (84→77, 74→73, 7→2). Trust only computed counts; DP10's gate now ratchets them.
-- **The CR 800.4 concede/departure priority-strand class bit three batches** before DP9's engine-wide backstop; watch for it in any new blocking-decision work (PB-DX10 adds one).
-- **Worker state-sync is inconsistent** — some workers update CLAUDE.md/workstream-state in-branch, some don't; the collect step must check and reconcile every time (N4).
-
-**Commit prefix used**: worker `W6-prim:`, `merge:`, coordinator `chore:`.
-
----
-
-### PB-DP suite — worker close-out detail
-
-> Rotated out at /eot 2026-07-27. The per-batch close-outs (DP2..DP10 designs, deviations,
-> seed lists) live in: CLAUDE.md "Last Updated" (DP9/DP10 verbatim), the audit doc
-> `docs/audits/decision-point-audit.md` §5/§8/§8.1 (every row updated at ship time), and the
-> merge commits listed in the Last Handoff above.
