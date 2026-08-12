@@ -20,7 +20,7 @@
 ## Worker Handoff (PB-DX7, `scutemob-207`) — a gate that reported success while checking nothing
 
 > v3 queue rank 9. **`OOS-DP7-11` + `OOS-DP9-13` CLOSED**; riders **`OOS-DP10-1` CLOSED** and
-> **`OOS-DP9-10`'s residual CLOSED** (gated, not deferred). Tests **4,508 → 4,524** (+16),
+> **`OOS-DP9-10`'s residual CLOSED** (gated, not deferred). Tests **4,508 → 4,527** (+19),
 > 46 targets, residual empty; delta itemised by test NAME, not arithmetic. Coverage **unmoved at
 > 1,133/1,803 = 62.8%**, proven by *regeneration* with the self-dating churn reverted.
 > **PROTOCOL 35 / HASH 74 both gate-EXECUTED and unmoved.** Test-only held exactly: **0
@@ -64,13 +64,43 @@
 >   coordinator's first reading of it was wrong and the correction is recorded rather than quietly
 >   dropped.
 >
-> **24 revert rows, all executed red then restored, none UNDISCRIMINATED — and two found real bugs
+> **34 revert rows (24 numbered + 10 in the fix cycle), all executed red then restored, none
+> UNDISCRIMINATED — and three found real bugs
 > before shipping.** V14 exposed a **false negative in the new dead-entry checker itself**: it
 > searched for the literal tuple-index string `"0"` instead of re-deriving the actual pattern
 > binding, so the guard passed GREEN where it should have failed RED. That is this batch's exact
 > subject matter recurring inside its own implementation, and it was caught only because every row
 > had to *demonstrate* red rather than be argued. V18 forced an artificial digest collision rather
 > than assuming the collision detector fired.
+>
+> **The `/review` cycle found 2 HIGH / 5 MEDIUM / 9 LOW, all 16 taken, and both HIGHs were this
+> batch committing its own subject matter.** The reviewer had no shell, so nothing in its report
+> was executed; the coordinator executed both before any fix, and both were real.
+> - **H1 — the gate was proven with the single input it handled.** The unordered-container ratchet
+>   counted the literal `HashSet<` spelling: the type-ANNOTATION form, and the *minority* idiom
+>   here. `casting.rs` has **0** annotations, **9** constructions, ceiling **0**. The exact
+>   `OOS-DP9-10` defect, written with `HashMap::new()` instead of an annotation, left all three
+>   tests green — in `layers.rs`, the same file V5 used. **V5 had reddened only because I wrote its
+>   probe with an explicit type annotation.** Widened to whole-token: **27/6 files → 85/9**, all 85
+>   traced and classified individually.
+> - **H2 — the closure did not hold when first claimed.** `FieldCoverage::Full` meant "the token
+>   appears", not "the value is hashed", so `let _ = may_fail_to_find;` on the seed's own card was
+>   33/33 green and clippy-clean with the field gone from the stream. That is verbatim
+>   `OOS-DP9-13`'s sentence. Fail-open `else` → fail-closed `Unverified`.
+>
+> **The M5 fix then repeated H2 inside the fix cycle** — its first draft used bare presence and its
+> revert proof PASSED when it should have failed. Third instance in one batch, caught only because
+> every row must *demonstrate* red. **M7 is the one worth carrying**: both
+> `PARTIALLY_HASHED_VARIANT_FIELDS` reasons cited `hash.rs:4105-4111`, the impl header and the
+> `Spell` arm, and the `ActivatedAbility` arm had **no comment at all** — a reason asserting
+> in-source documentation that did not exist, which the coordinator approved without opening the
+> lines after telling the implementer that a false reason is worse than no allowlist.
+>
+> Two reviewer recommendations **declined with reasons, recorded not buried**: the `OOS-DP9-10`
+> rider stays (the reviewer argued it should have been deferred, and H1 gave that teeth — but
+> deferring leaves a registry row carrying a wrong count and a gate that green-lights the defect it
+> names), and the 18-sample digest experiment stays (it is the only executed evidence behind
+> `OOS-DX7-1`; the alternative is the assertion that was rejected).
 >
 > **Corrections carried back into the rows themselves**, since each was a claim someone trusted:
 > the seed's cite `hash_schema.rs:1540-1541` names `COVERAGE_MUST_INCLUDE`, not the skip (which is

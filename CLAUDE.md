@@ -136,13 +136,13 @@
   **1-9 are all shipped**, so **next dispatch: PB-DX8** (rank 10). Coverage unmoved at
   **62.8%**, proven by regeneration. PROTOCOL **35** / HASH **74** as of PB-DX7
   (both gate-executed, both unmoved by it).
-- **Tests (delta 2026-08-11, PB-DX7)**: **4,524 / 0 / 5** full-workspace on branch
-  `scutemob-207` (+16 over the **4,508** baseline measured on this branch BEFORE any edit),
+- **Tests (delta 2026-08-12, PB-DX7 + fix cycle)**: **4,527 / 0 / 5** full-workspace on branch
+  `scutemob-207` (+19 over the **4,508** baseline measured on this branch BEFORE any edit),
   `--workspace --no-fail-fast` to a file, 46 result-producing targets, residual list empty.
   **The delta is itemised by test NAME, not by arithmetic**: 4 on the rider commit
   (`decision_gate::pb_dp9_roster_walks_agree_by_value` plus the three in the new
-  `crates/engine/tests/core/unordered_iteration_ratchet.rs`) and 12 in
-  `crates/engine/tests/core/hash_schema.rs`. **PROTOCOL 35 / HASH 74 both unmoved**,
+  `crates/engine/tests/core/unordered_iteration_ratchet.rs`) and 15 in
+  `crates/engine/tests/core/hash_schema.rs` (21 → 36 across the whole task). **PROTOCOL 35 / HASH 74 both unmoved**,
   gate-executed (`hash_schema` 33/33, `protocol_schema` 17/17) — no genuinely-unhashed
   field was found, so no bump was warranted and none was taken. **0 non-comment lines in
   `crates/engine/src/state/hash.rs`** — verified line-by-line in python, because
@@ -417,15 +417,45 @@
   settled instead by an **executed** pairwise-distinctness experiment over all 18, plus a
   ratchet so a 10th cannot appear (`OOS-DX7-1`); and **`GameState` was carved out of the
   field gate entirely**, with 3 of its 45 fields reaching no hash and no stated exclusion
-  list (`OOS-DX7-3`). **24 revert rows, all executed red then restored, none
+  list (`OOS-DX7-3`). **34 revert rows (24 numbered + 10 in the fix cycle), all executed red
+  then restored, none
   UNDISCRIMINATED — and two caught real bugs before shipping**: V14 exposed a **false
   negative in the new dead-entry checker itself** (it searched for the literal tuple-index
   string `"0"` instead of the actual pattern binding, passing GREEN where it should have
   failed RED — this batch's own subject matter recurring inside its implementation, caught
   only because every row had to *demonstrate* red), and V18 forced an artificial digest
-  collision rather than assuming the detector fired. Tests **4,524** (+16, itemised by test
+  collision rather than assuming the detector fired. Tests **4,527** (+19, itemised by test
   name); coverage unmoved at **62.8%** by regeneration; PROTOCOL **35** / HASH **74**
   gate-executed and unmoved; **0 non-comment `hash.rs` lines**, 0 card-def edits.
+  **The `/review` cycle found 2 HIGH / 5 MEDIUM / 9 LOW, all 16 taken, and both HIGHs were
+  this batch committing its own subject matter — verified by EXECUTION, since the reviewer had
+  no shell.** (1) The new unordered-container ratchet counted the literal `HashSet<` spelling,
+  which is the type-ANNOTATION form and the **minority** idiom in this tree: `casting.rs` has
+  **0** annotations and **9** constructions and was pinned at ceiling **0**. Appending the exact
+  `OOS-DP9-10` defect to `layers.rs` with `HashMap::new()` + `into_iter().max_by_key()` left all
+  three tests **green** — and V5 had reddened only because its probe used the one spelling the
+  gate could see, i.e. **the gate was proven with the single input it handled**. Needle widened
+  to whole-token; **27 across 6 files → 85 across 9**, each of the 85 traced to a named variable
+  and classified (the extra 58 are imports, parameter restatements, `.clone()`s and
+  empty-literal arguments — no new hazard). The module doc had called type-inferred construction
+  "deliberately obscure code review would reject"; it is ordinary Rust. (2) `FieldCoverage::Full`
+  meant "the token appears", not "the value is hashed": `let _ = may_fail_to_find;` on the
+  seed's **own card** was 33/33 green and clippy-clean with the field gone from the stream —
+  **verbatim `OOS-DP9-13`'s sentence, so that closure did not hold when first claimed.** The
+  fail-open `else` is now a fail-closed `Unverified`. Also taken: an empty arm
+  (`GiftType::Food => {}`) passed both the enum gate and the discriminant ratchet; the Named
+  branch accepted `_` bindings while Tuple rejected them; a hand-hashed struct with no `HashInto`
+  hit the `else { continue }` Part A existed to remove; the GameState gate used the very matcher
+  this batch had diagnosed; and **both `PARTIALLY_HASHED_VARIANT_FIELDS` citations pointed at the
+  impl header rather than the arms, with `ActivatedAbility` carrying no in-source comment at all
+  — a reason asserting documentation that did not exist, approved by the coordinator without
+  opening the lines.** **The M5 fix's own first draft then repeated H2**: it used bare presence
+  and its revert proof PASSED when it should have failed, caught before shipping — the third
+  instance in one batch. Two reviewer recommendations were **declined with reasons rather than
+  buried**: the `OOS-DP9-10` rider stays (deferring leaves a wrong count and a gate that
+  green-lights its own defect) and the 18-sample digest experiment stays (it is the only executed
+  evidence behind `OOS-DX7-1`). Both defeats re-executed against the fixed gates by the
+  coordinator: RED.
   **Corrections carried back into the rows themselves**: the seed's cite
   `hash_schema.rs:1540-1541` names the wrong symbol; the implement phase's "26 revert rows"
   is **24**; `OOS-DP10-1`'s "cross-checked BY VALUE" was a **floor** check with one floor
