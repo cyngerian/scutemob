@@ -1,12 +1,15 @@
 // Sting, the Glinting Dagger — {2}, Legendary Artifact — Equipment
-// TODO: DSL gap — static "Equipped creature gets +1/+1 and has haste."
-//   (equipment continuous effects require EffectFilter::EquippedCreature which may not exist)
-// TODO: DSL gap — triggered "At the beginning of each combat, untap equipped creature."
-//   (AtBeginningOfCombat trigger targeting equipped creature not supported)
-// TODO: DSL gap — conditional keyword "Equipped creature has first strike as long as it's
-//   blocking or blocked by a Goblin or Orc." (combat-conditional keyword grant not supported)
-// Equip {2} is a keyword but Equipment Equip activated ability requires target-creature
-// activated ability which is also a DSL gap.
+// RE-VERIFIED 2026-08-11 (PB-DX26 fix cycle, review Finding 4). Three of the four clauses
+// are expressible TODAY and the old TODOs here claimed otherwise:
+//   * "+1/+1 and has haste" — `EffectFilter::AttachedCreature` is the equipment filter and
+//     it exists (the old note guessed at an `EffectFilter::EquippedCreature` that never did).
+//   * "At the beginning of each combat, untap equipped creature" — expressible.
+//   * "Equip {2}" — expressible; PB-DX26 authored this exact shape into 21 other defs.
+// TODO: still genuinely blocked — "Equipped creature has first strike as long as it's
+//   blocking or blocked by a Goblin or Orc": no `Condition` expresses a combat relationship
+//   to a creature of a given subtype (re-checked against the current enum 2026-08-11).
+// The whole card stays WITHHELD (`Completeness::inert`, no abilities) under W5/W6 rather
+// than shipping three clauses and dropping a combat-relevant keyword. See `OOS-DX26-1`.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {

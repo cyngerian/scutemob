@@ -69,8 +69,8 @@
 //! `completeness` is for.
 
 use mtg_engine::{
-    AbilityDefinition, CardDefinition, CardType, Completeness, HybridMana, ManaColor, ManaCost,
-    PhyrexianMana, SubType, SuperType,
+    AbilityDefinition, CardDefinition, CardType, Completeness, Cost, Effect, HybridMana, ManaColor,
+    ManaCost, PhyrexianMana, SubType, SuperType,
 };
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -688,7 +688,28 @@ fn r4_type_lines_match_printed() {
 /// not by the gate built to stop exactly this. The batch then found three more by hand
 /// (Braided Net's craft, Akroma's and Birchlore Rangers' morph — the last free at `{0}` for a
 /// printed `{G}`). Four found by eye in one batch is a class, so it gets a rule.
-const ABILITY_COST_KEYWORDS: &[&str] = &["Bestow", "Morph", "Megamorph", "Disguise", "Craft"];
+const ABILITY_COST_KEYWORDS: &[&str] = &[
+    "Bestow",
+    "Morph",
+    "Megamorph",
+    "Disguise",
+    "Craft",
+    "Equip",
+    "Fortify",
+];
+
+/// Defs whose printed text carries a CR 702.6c **variant** equip cost ("equip
+/// [quality] {N}") ahead of the plain line.
+///
+/// `printed_ability_cost` scans for the first `Equip` occurrence with a
+/// brace-delimited cost on its own line, which on these two cards is the variant,
+/// not the plain cost the def actually declares. That is not a def error: the
+/// variant has no DSL representation at all (`AbilityDefinition::Activated` carries
+/// one `cost`, and CR 702.6c restricts the TARGET as well as the cost), so PB-DX26
+/// authored the plain line and left the variant unmodelled — filed as
+/// `OOS-DX26-2`. Excused HERE, and only for the `Equip` keyword, rather than
+/// weakening the scanner for every card.
+const EQUIP_VARIANT_COST_DEFS: &[&str] = &["Blackblade Reforged", "Commander's Plate"];
 
 /// Pull the mana cost a printed keyword clause charges, e.g. `Bestow {3}{G}{G}` -> `{3}{G}{G}`.
 ///
@@ -700,6 +721,25 @@ const ABILITY_COST_KEYWORDS: &[&str] = &["Bestow", "Morph", "Megamorph", "Disgui
 fn printed_ability_cost(oracle: &str, keyword: &str) -> Option<String> {
     for (idx, _) in oracle.match_indices(keyword) {
         let rest = &oracle[idx + keyword.len()..];
+        // PB-DX26: the occurrence must be the WHOLE word. Without this, "Equip"
+        // matches inside "Equipped creature has \"{3}, {Q}: …\"" and the scanner
+        // reads the GRANTED ability's cost as the equip cost. Measured, not
+        // theorised: adding Equip to ABILITY_COST_KEYWORDS reported three
+        // "mismatches" (Paradise Mantle, Thornbite Staff, Umbral Mantle) that were
+        // all this bug and no def error at all — every one of those three defs
+        // declares exactly its printed cost. The leading side is checked too, so a
+        // hypothetical "…Equip" suffix cannot match either.
+        let leading_ok = oracle[..idx]
+            .chars()
+            .next_back()
+            .is_none_or(|c| !c.is_ascii_alphanumeric());
+        let trailing_ok = rest
+            .chars()
+            .next()
+            .is_none_or(|c| !c.is_ascii_alphanumeric());
+        if !leading_ok || !trailing_ok {
+            continue;
+        }
         // `Craft with artifact {1}{U}` — skip the materials clause to the first brace, but
         // stop at a line break so a later line's cost is never mistaken for this one.
         let line_end = rest.find('\n').unwrap_or(rest.len());
@@ -725,15 +765,63 @@ fn printed_ability_cost(oracle: &str, keyword: &str) -> Option<String> {
 
 /// The cost a definition charges for the same keyword, if it declares one.
 fn def_ability_cost(def: &CardDefinition, keyword: &str) -> Option<ManaCost> {
-    def.abilities.iter().find_map(|a| match (keyword, a) {
-        ("Bestow", AbilityDefinition::Bestow { cost }) => Some(cost.clone()),
-        ("Morph", AbilityDefinition::Morph { cost }) => Some(cost.clone()),
-        ("Megamorph", AbilityDefinition::Megamorph { cost }) => Some(cost.clone()),
-        ("Disguise", AbilityDefinition::Disguise { cost }) => Some(cost.clone()),
-        ("Craft", AbilityDefinition::Craft { cost, .. }) => Some(cost.clone()),
-        _ => None,
-    })
+    // PB-DX26 fix cycle (review Finding 6): both faces. This walked `def.abilities`
+    // only while the batch's own census chained `back_face`, so a DFC Equipment's
+    // back-face equip cost was compared against nothing — `None` here makes the
+    // caller `continue` SILENTLY, which is the dangerous direction.
+    std::iter::once(&def.abilities)
+        .chain(def.back_face.iter().map(|f| &f.abilities))
+        .flatten()
+        .find_map(|a| match (keyword, a) {
+            ("Bestow", AbilityDefinition::Bestow { cost }) => Some(cost.clone()),
+            ("Morph", AbilityDefinition::Morph { cost }) => Some(cost.clone()),
+            ("Megamorph", AbilityDefinition::Megamorph { cost }) => Some(cost.clone()),
+            ("Disguise", AbilityDefinition::Disguise { cost }) => Some(cost.clone()),
+            ("Craft", AbilityDefinition::Craft { cost, .. }) => Some(cost.clone()),
+            // PB-DX26: Equip and Fortify have no dedicated `AbilityDefinition` variant —
+            // CR 702.6b/702.67b make both plain activated abilities, so their cost lives
+            // in `Activated { cost: Cost::Mana(..) }` beside an `Effect::AttachEquipment`
+            // / `Effect::AttachFortification`. Before this, **38 authored equip costs and
+            // 1 fortify cost were checked by nothing**: `cards1_equip_target_roster` pins
+            // the target requirement and the roster membership, `pb_dx26_attach_keyword_
+            // roster` pins that the ability exists, and neither looks at the number. A def
+            // charging Equip {1} for a printed Equip {3} sailed past every gate.
+            (
+                "Equip",
+                AbilityDefinition::Activated {
+                    cost: Cost::Mana(m),
+                    effect: Effect::AttachEquipment { .. },
+                    ..
+                },
+            ) => Some(m.clone()),
+            (
+                "Fortify",
+                AbilityDefinition::Activated {
+                    cost: Cost::Mana(m),
+                    effect: Effect::AttachFortification { .. },
+                    ..
+                },
+            ) => Some(m.clone()),
+            _ => None,
+        })
 }
+
+// PB-DX26 fix cycle (review Finding L9): the `Equip`/`Fortify` arms above match
+// `Effect::AttachEquipment` / `Effect::AttachFortification` FLATLY, not recursively,
+// unlike the three walks the batch made recursive. Deliberate, and the reasoning is
+// different in each direction:
+//
+//   * A `Sequence`-nested attach would make this return `None`, and the caller then
+//     `continue`s **in silence** — the failure mode is a lost comparison, not a loud
+//     one, which is exactly why the roster walks were made recursive.
+//   * It is nevertheless safe TODAY and cannot rot unnoticed, because
+//     `cards1_equip_target_roster`'s recursive R1 pins the 38-member roster EXACTLY
+//     and the per-keyword floor below pins 36 comparisons: a def that nested its
+//     attach would stay in R1 (recursive) and drop out of R7's tally (flat), taking
+//     the `Equip` floor from 36 to 35 and failing loudly.
+//
+// So the flat match is covered by a floor rather than by recursion. If that floor is
+// ever weakened, make these arms recursive instead.
 
 #[test]
 /// R7 — where a card PRINTS a keyword cost and the definition DECLARES that keyword, the two
@@ -748,6 +836,7 @@ fn r7_ability_embedded_costs_match_printed() {
     let defs = corpus();
     let mut bad = Vec::new();
     let mut compared = 0usize;
+    let mut per_keyword: BTreeMap<&str, usize> = BTreeMap::new();
     for def in &defs {
         let Some(p) = printed.get(&def.name) else {
             continue;
@@ -756,6 +845,37 @@ fn r7_ability_embedded_costs_match_printed() {
             continue;
         }
         for keyword in ABILITY_COST_KEYWORDS {
+            if *keyword == "Equip" && EQUIP_VARIANT_COST_DEFS.contains(&def.name.as_str()) {
+                // PB-DX26 fix cycle (review Finding L8): the excusal is asserted, not
+                // assumed — the same standard `pb_dx26_attach_keyword_roster::r4` applies
+                // to its own residual. The entry is only legitimate while the card really
+                // does print a CR 702.6c variant line ("equip [quality] {N}") AHEAD of its
+                // plain one, which is what confuses the scanner. If the printed text ever
+                // stops doing that, the excusal expires here instead of silently hiding a
+                // real mismatch forever.
+                let lines: Vec<&str> = p.oracle_text.lines().collect();
+                let first_equip_line = lines
+                    .iter()
+                    .position(|l| l.trim_start().starts_with("Equip "))
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "{} is on EQUIP_VARIANT_COST_DEFS but its printed text has no \
+                             Equip line at all",
+                            def.name
+                        )
+                    });
+                let variant = lines[first_equip_line];
+                assert!(
+                    !variant.trim_start().starts_with("Equip {"),
+                    "{} is excused from R7's Equip comparison because its printed text puts \
+                     a CR 702.6c VARIANT cost line ahead of the plain one, which is what \
+                     `printed_ability_cost` reads. Its first Equip line is now {variant:?} \
+                     — a plain cost — so the excusal no longer applies: remove it from \
+                     EQUIP_VARIANT_COST_DEFS and let the comparison run (OOS-DX26-2).",
+                    def.name
+                );
+                continue;
+            }
             let (Some(want_raw), Some(got)) = (
                 printed_ability_cost(&p.oracle_text, keyword),
                 def_ability_cost(def, keyword),
@@ -763,6 +883,7 @@ fn r7_ability_embedded_costs_match_printed() {
                 continue;
             };
             compared += 1;
+            *per_keyword.entry(*keyword).or_insert(0usize) += 1;
             let want = match canonical_printed_cost(&want_raw) {
                 Ok(c) => c,
                 Err(e) => {
@@ -779,7 +900,7 @@ fn r7_ability_embedded_costs_match_printed() {
             }
         }
     }
-    // MEASURED, not guessed: 9 definitions declare one of these five variants today
+    // MEASURED, not guessed: 9 definitions declared one of the original five variants
     // (Bestow 1, Morph 4, Megamorph 2, Disguise 1, Craft 1). The first draft of this floor
     // was written as `>= 20` from intuition and reddened immediately — which is the whole
     // argument for measuring, made against this file by this file.
@@ -788,11 +909,31 @@ fn r7_ability_embedded_costs_match_printed() {
     // declares the keyword. Two cards print Bestow and only one declares it (Springheart
     // Nantuko is `inert` with a documented blocker), and that gap is `completeness`'s
     // business, not this rule's. Raise the floor when the corpus gains such a def.
+    //
+    // PB-DX26 fix cycle (review Finding 3): the keyword list grew from five to SEVEN and
+    // the aggregate floor was left at 9 — so a regression confined to `Equip` (a broken
+    // whole-word guard, a `def_ability_cost` arm that stops matching) would have dropped
+    // ~37 comparisons and left this assertion green, with every equip cost unchecked. The
+    // aggregate floor is re-measured, and PER-KEYWORD floors are added underneath it,
+    // because an aggregate floor cannot see a single keyword going silent. Re-measured by
+    // executing this gate: Equip 36 (38 roster members minus the two allowlisted CR 702.6c
+    // variant-cost defs), Fortify 1, the original five 9.
     assert!(
-        compared >= 9,
-        "R7 compared only {compared} ability costs — the extraction has stopped matching, \
-         which would make this rule silently vacuous"
+        compared >= 46,
+        "R7 compared only {compared} ability costs (expected at least 46) — the extraction \
+         has stopped matching, which would make this rule silently vacuous"
     );
+    for (keyword, floor) in [("Equip", 36usize), ("Fortify", 1)] {
+        let got = per_keyword.get(keyword).copied().unwrap_or(0);
+        assert!(
+            got >= floor,
+            "R7 compared only {got} `{keyword}` cost(s), expected at least {floor}. An \
+             AGGREGATE floor cannot see one keyword going silent behind the others, which \
+             is what this per-keyword floor exists for: before PB-DX26 authored them, 38 \
+             equip costs and 1 fortify cost were checked by NO gate at all — the roster \
+             gates pin membership and the target requirement and never look at the number."
+        );
+    }
     bad.sort();
     assert!(
         bad.is_empty(),

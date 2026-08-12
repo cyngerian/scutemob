@@ -421,9 +421,25 @@ fn activate(
     )
 }
 
-/// Jitte's modal ability is its only entry in `activated_abilities` (Equip is not
-/// wired through the indexed activated-ability path; the counters trigger is a
-/// `TriggeredAbilityDef`, also not indexed there).
+/// The modal counter-removal ability's index.
+///
+/// **Rewritten by PB-DX26 (`scutemob-206`, 2026-08-11, review Finding 5).** This doc
+/// used to say the modal ability was Jitte's *only* entry in `activated_abilities`
+/// and that "Equip is not wired through the indexed activated-ability path". Both
+/// clauses are now false: `OOS-CARDS1-3` authored Umezawa's Jitte's printed
+/// Equip {2} as a real `AbilityDefinition::Activated`, so there are **two** entries
+/// and equip is index **1**.
+///
+/// The value below is still 0, and the reason matters more than the value: equip was
+/// deliberately **appended** to `umezawas_jitte.rs`'s `abilities` vec rather than
+/// inserted beside its keyword marker, precisely so this constant would not move.
+/// The first pass did insert it there and silently renumbered the modal ability
+/// 0 -> 1 — caught by `primitives::pb_dx26_equip_surface::t3`, which pins the order
+/// and cites this file by name. Filed as `OOS-DX26-3`: `Command::ActivateAbility
+/// { ability_index }` is positional over declaration order, and nothing gates that
+/// class corpus-wide, so a def gaining an ability can renumber a caller far away.
+///
+/// (The counters trigger is a `TriggeredAbilityDef` and is still not indexed here.)
 const JITTE_MODAL_ABILITY_INDEX: usize = 0;
 
 /// CR 510.3a / 603.2c (core OOS-EF7-1 proof): equipped creature deals combat damage to

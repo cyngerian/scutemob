@@ -70,15 +70,51 @@ pub fn card() -> CardDefinition {
                     },
                 ]),
                 intervening_if: None,
-                targets: vec![TargetRequirement::TargetCardInYourGraveyard(TargetFilter {
-                    has_card_type: Some(CardType::Creature),
-                    ..Default::default()
-                })],
+                // PB-DX26 fix cycle (review Finding 1, HIGH): the printed clause is "you may
+                // return UP TO ONE target creature card", so the requirement is optional.
+                // Declared MANDATORY before this, which made the whole trigger illegal under
+                // CR 603.3d whenever the controller's graveyard held no creature card — and
+                // since the life gain rides the same Sequence, "you gain 3 life" was lost
+                // too, on a def that is `Complete` by the `#[default]` derive and deck-legal
+                // today. `UpToN` is the right shape and needed no DSL work: its roster-mate
+                // `sword_of_sinew_and_steel` already uses it twice for exactly this reading.
+                targets: vec![TargetRequirement::UpToN {
+                    count: 1,
+                    inner: Box::new(TargetRequirement::TargetCardInYourGraveyard(TargetFilter {
+                        has_card_type: Some(CardType::Creature),
+                        ..Default::default()
+                    })),
+                }],
 
                 modes: None,
                 trigger_zone: None,
             },
             AbilityDefinition::Keyword(KeywordAbility::Equip),
+            // Equip {2}: attach this Equipment to target creature you control.
+            // CR 702.6b: Equip is an activated ability; CR 702.6d: sorcery speed only.
+            AbilityDefinition::Activated {
+                cost: Cost::Mana(ManaCost {
+                    generic: 2,
+                    ..Default::default()
+                }),
+                effect: Effect::AttachEquipment {
+                    equipment: EffectTarget::Source,
+                    target: EffectTarget::DeclaredTarget { index: 0 },
+                },
+                timing_restriction: Some(TimingRestriction::SorcerySpeed),
+                // PB-DX26 (OOS-CARDS1-3) / CR 702.6a: "Equip {2}" means "[Cost]: Attach this
+                // permanent to target creature you control." Printed line MCP-verified as
+                // plain "Equip {2}" with no CR 702.6c quality restriction, so the requirement
+                // is the unmodified 702.6a one.
+                targets: vec![TargetRequirement::TargetCreatureWithFilter(TargetFilter {
+                    controller: TargetController::You,
+                    ..Default::default()
+                })],
+                activation_condition: None,
+                activation_zone: None,
+                once_per_turn: false,
+                modes: None,
+            },
         ],
         ..Default::default()
     }

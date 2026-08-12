@@ -2,8 +2,8 @@
 
 # Card Authoring Status — Canonical Report
 
-**Generated:** 2026-08-02 20:31 UTC  
-**Git:** `e5162b1e` on `feat/sim-6-activation-cost-payment-channel-sacrificediscard-costs`  
+**Generated:** 2026-08-12 01:48 UTC  
+**Git:** `3d5db7b2` on `feat/pb-dx26-the-equip-surface-one-link-earlier-21-equipment-defs`  
 **Source:** `tools/authoring-report.py`
 
 This document is the single source of truth for card authoring progress. 
@@ -28,16 +28,16 @@ and what is intentionally NOT in it.**
 | Clean (no TODO/ENGINE-BLOCKED, non-empty abilities)  — 62.8% | 1,133 | · |
 | With TODO markers | 519 | · |
 | Empty `abilities: vec![]` placeholders | 151 | · |
-| Total TODO lines across all defs | 940 | · |
+| Total TODO lines across all defs | 933 | -5 |
 
 ## Authoring activity (git, by window)
 
 | Window | New files added | Existing files modified |
 | --- | ---: | ---: |
-| last 7 days | 0 | 83 |
-| last 30 days | 57 | 2,943 |
-| last 90 days | 57 | 2,955 |
-| last 1 year | 1,830 | 3,366 |
+| last 7 days | 0 | 33 |
+| last 30 days | 57 | 1,772 |
+| last 90 days | 57 | 2,954 |
+| last 1 year | 1,830 | 3,369 |
 
 ## Bonus defs outside the plan
 
@@ -171,8 +171,8 @@ the next thing to triage when the classifier table is grown.
 
 | Gap bucket | TODO lines | Δ since last run |
 | --- | ---: | ---: |
-| OTHER (unclassified) | 576 | · |
-| DSL gap (unspecified) | 122 | · |
+| OTHER (unclassified) | 577 | +2 |
+| DSL gap (unspecified) | 117 | -5 |
 | attack trigger (self / generic) | 23 | · |
 | TriggerCondition::* missing variant | 17 | · |
 | dynamic hexproof / protection | 15 | · |
@@ -185,45 +185,45 @@ the next thing to triage when the classifier table is grown.
 | can't / must block-attack | 7 | · |
 | can't be countered | 7 | · |
 | opponent-action trigger | 7 | · |
-| TargetFilter missing field | 7 | · |
+| TargetFilter missing field | 6 | · |
 | per-opponent upkeep | 6 | · |
 | conditional static / grant | 5 | · |
 | delayed triggers | 5 | · |
-| equipment grants ability | 5 | · |
 | untap-all / untap trigger | 4 | · |
 | noncombat-damage prevent | 4 | · |
 | ETB choice | 4 | · |
 | impulse draw | 4 | · |
 | CDA / dynamic P/T | 4 | · |
 | devotion | 4 | · |
+| per-player effect dispatch | 3 | · |
 
 _…and 26 more buckets totaling 44 lines._
 
 ### Raw OTHER samples (read these to design new classifier buckets)
 
-Showing 12 of 576 
+Showing 12 of 577 
 unclassified TODO lines. If two or three of these have a common theme, that's a 
 new bucket to add to `TODO_BUCKETS` in `tools/authoring-report.py`. Sample is 
 deterministic (sorted by slug).
 
 ```
 abstergo_entertainment: // TODO: {3}, {T}, Exile Abstergo Entertainment: Return up to one target historic card
-bloodghast: // TODO: Oracle says "you may return" — currently non-optional (bot always returns).
-deep_gnome_terramancer: // TODO: "lands enter under opponent's control without being played" trigger condition
-exuberant_fuseling: // TODO: "whenever another creature or artifact you control is put into a graveyard
-goblin_king: // TODO: AllCreaturesWithSubtype includes Goblin King itself — "other" semantics
-joraga_treespeaker: // TODO: Level-dependent abilities and P/T changes (Level 1-4: 1/2 + {T}: Add {G}{G};
-marisi_breaker_of_the_coil: // TODO: "goad each creature that player controls" — ForEach over DamagedPlayer's creatures
-pact_of_negation: // TODO: Counter target spell + delayed upkeep trigger "pay {3}{U}{U} or lose the game."
-sarkhan_fireblood: // TODO: Optional discard-then-draw not in DSL. Using Nothing to avoid free draw.
-sorin_imperious_bloodlord: // TODO: Interactive hand selection by creature subtype ("Vampire creature card from
-teferis_protection: // TODO: "Exile Teferi's Protection" — self-exile on resolution.
-tyvar_jubilant_brawler: // TODO: Mill effect + conditional graveyard return with MV filter.
+blood_tribute: // TODO: Kicker cost "tap a Vampire" is non-mana kicker.
+curse_of_opulence: // TODO: "Whenever enchanted player is attacked" trigger not in DSL.
+everflowing_chalice: // TODO: "This artifact enters with a charge counter on it for each time it was kicked." —
+glimmer_lens: // TODO: the attack trigger only — "For Mirrodin!" is expressible and unauthored
+jeskas_will: // TODO: Mode 2 needs impulse-draw (exile top 3, play this turn).
+marionette_apprentice: // ENGINE-BLOCKED: "Whenever another creature or artifact you control dies" — there is no
+out_of_the_tombs: // TODO: Upkeep counter + mill scaling with counter count not expressible.
+sakashimas_student: // TODO: "enter as a copy of any creature, except it's also a Ninja" — needs
+sorin_imperious_bloodlord: // TODO: "You may sacrifice a Vampire. When you do, [effects]" — optional sacrifice
+teferis_protection: // TODO: "All permanents you control phase out" — Effect::PhaseOut for all controller permanents.
+tyvar_jubilant_brawler: // TODO: static — creatures you control can activate abilities as though they had haste
 ```
 
 ## ⚠ Completeness-marker drift
 
-12 defs whose `completeness:` marker contradicts their comments. The marker is authoritative (it is what `validate_deck` reads), so fix whichever is stale.
+13 defs whose `completeness:` marker contradicts their comments. The marker is authoritative (it is what `validate_deck` reads), so fix whichever is stale.
 
 - `ashnods_altar` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `birchlore_rangers` — marked partial but has no TODO / ENGINE-BLOCKED comment
@@ -236,11 +236,22 @@ tyvar_jubilant_brawler: // TODO: Mill effect + conditional graveyard return with
 - `phyrexian_tower` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `shambling_ghast` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `temple_of_the_dragon_queen` — marked partial but has no TODO / ENGINE-BLOCKED comment
+- `the_reaver_cleaver` — marked partial but has no TODO / ENGINE-BLOCKED comment
 - `thrasios_triton_hero` — marked partial but has no TODO / ENGINE-BLOCKED comment
 
 ## Recent card-touching commits
 
 ```
+3d5db7b2 scutemob-206: PB-DX26 fix cycle — all 18 review findings taken (1 HIGH / 6 MEDIUM / 11 LOW)
+72ad0f93 scutemob-206: PB-DX26 — the equip surface, one link earlier
+32373601 scutemob-205: PB-DX25c fix cycle — take all 22 review findings (0 HIGH / 5 MEDIUM / 17 LOW)
+557ef5ce scutemob-205: PB-DX25c stage 2 — fixture repairs, new probes, roster/gate, HASH bump, revert matrix, seed close-out (closes OOS-DX25b-3)
+a275a949 scutemob-204: PB-DX25b fix cycle — take all 12 findings (1 HIGH / 5 MEDIUM / 6 LOW)
+cadb346b scutemob-202: PB-DX24 fix cycle — F12, drop stray blank line in nether_traitor.rs
+0ca69b6b scutemob-202: PB-DX24 stage 7 — nether_traitor comment records what the engine now reads
+789867db scutemob-201: PB-DX23 Stage 6 — the auto-discharge gets a row, and seeds
+f573ef21 scutemob-200: PB-DX21 fix cycle — take M1-M5, M7, L1-L5, L7-L8 (M6/L6 coordinator's)
+91e1f6b4 scutemob-200: PB-DX21 Stage 5 — comments and docs that PB-DX21 made wrong
 a878ca26 scutemob-189: SIM-6 — activation-cost payment channel (sacrifice + discard) end to end
 569087e6 scutemob-184: close OOS-DX19-1 for real, and gate it so the claim stays true
 697606a6 scutemob-184: apply the rest of the review — devilish_valet probe, docs, seeds
@@ -256,16 +267,6 @@ b7a46cb3 scutemob-181: CARDS-2 — repair all 45 printed-field mismatches; gate 
 99d54ed5 scutemob-179: CARDS-1 — author the CR 702.6a equip target into all 17 equip defs (OOS-M11-10)
 869f09d6 scutemob-168: PB-DX4 fix cycle — 2 HIGH / 5 MEDIUM / 6 LOW from pb-review-DX4.md, all 13 applied
 e658c9d8 scutemob-168: PB-DX4 — triage the 97-entry decision BASELINE against oracle text (OOS-DP10-8)
-39d4902c scutemob-166: PB-DX3b fix cycle — apply review findings (5 MEDIUM / 7 LOW)
-bc035684 scutemob-166: PB-DX3b implement — OOS-DX3-1 bucket, 4 fixes / 3 dated defers
-8e336544 scutemob-164: PB-DX3 fix cycle -- apply review findings (1 MEDIUM / 5 LOW)
-f3e92ecc scutemob-164: PB-DX3 implement — two stale blocker notes closed (OOS-DP6-3)
-95c35f7a W6-prim: scutemob-160 — PB-DX1 review fixes
-03053182 W6-prim: scutemob-160 — PB-DX1 phase 8: card def dispositions (§6.3, §6.4)
-460e7f4e W6-prim: scutemob-154 -- PB-DP6 phase 1: queue-time intervening-if gate (CR 603.4)
-5c463339 W6-prim: scutemob-152 -- PB-DP4 engine changes: attack tax debit + payment deadline (DP-10/DP-11)
-36e64283 W6-prim: scutemob-145 — PB-RS3 /review nits: correct two overstated claims
-83e0f4e1 W6-prim: scutemob-145 — PB-RS3 fix cycle: all 7 review findings (0 HIGH, 3 MEDIUM, 4 LOW)
 ```
 
 ## Missing card-defs sidecar

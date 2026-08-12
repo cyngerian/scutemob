@@ -49,7 +49,28 @@ pub fn card() -> CardDefinition {
                     target: EffectTarget::DeclaredTarget { index: 0 },
                 },
                 timing_restriction: Some(TimingRestriction::SorcerySpeed),
-                targets: vec![],
+                // PB-DX26 (OOS-CARDS1-1) / CR 702.67a: "Fortify {3}" means "[Cost]: Attach
+                // this permanent to target LAND you control." Printed line MCP-verified as
+                // plain "Fortify {3}" with no further quality restriction.
+                //
+                // NOT the equip repair's `TargetCreatureWithFilter`: copying CARDS-1's shape
+                // verbatim would demand a *creature* and make this ability un-activatable on
+                // the only permanents it may legally attach to. There is no controller-scoped
+                // land analogue (`TargetRequirement::TargetLand` is unfiltered), so the
+                // "you control" half comes from the filter's own `controller` field —
+                // `casting.rs`'s `TargetPermanentWithFilter` arm checks `has_card_type` via
+                // `matches_filter` and `TargetController::You => obj.controller == caster`
+                // in the same arm.
+                //
+                // Before this: `targets: vec![]` with the effect reading
+                // `DeclaredTarget { index: 0 }` — the offer layer reported zero slots, so
+                // nothing ever asked, the cost was paid, and the attach fizzled in silence.
+                // Identical shape and identical chain to the equip defect CARDS-1 closed.
+                targets: vec![TargetRequirement::TargetPermanentWithFilter(TargetFilter {
+                    has_card_type: Some(CardType::Land),
+                    controller: TargetController::You,
+                    ..Default::default()
+                })],
                 activation_condition: None,
                 activation_zone: None,
                 once_per_turn: false,
@@ -57,8 +78,13 @@ pub fn card() -> CardDefinition {
             },
         ],
         completeness: Completeness::partial(
-            "TriggerCondition::WhenFortifiedLandBecomesTapped does not exist yet. 'Whenever \
-             fortified land becomes tapped, target...",
+            "TriggerCondition::WhenFortifiedLandBecomesTapped does not exist yet, so 'Whenever \
+             fortified land becomes tapped, target creature gets +1/+1 until end of turn' is \
+             unimplemented — the trigger never fires and no creature is ever pumped (re-checked \
+             against the current enum 2026-08-11; WhenSelfBecomesTapped is self-scoped to the \
+             Fortification, not the fortified land). The indestructible static \
+             (EffectFilter::AttachedLand) and Fortify {3} — including its CR 702.67a target, \
+             authored by PB-DX26 / OOS-CARDS1-1 — ARE implemented.",
         ),
         ..Default::default()
     }

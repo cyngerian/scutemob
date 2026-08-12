@@ -691,6 +691,16 @@ fn test_dx32_distinct_collapses_checkpoint_weighting() {
 /// `random_deck` (`deck.rs:30-157`) draws its commander and its color-identity pool
 /// straight from `all_cards()`.
 const CORPUS_DEFS: usize = 1803;
+// PB-DX26 (2026-08-11, `scutemob-206`): UNCHANGED at 1133, and that is a trap worth
+// naming. Two markers moved in opposite directions and the COUNT cancelled while the
+// SET did not: `sword_of_body_and_mind` `partial` -> `Complete` (its only blocker was
+// the missing Equip {2} that `OOS-CARDS1-3` authored) and `the_reaver_cleaver`
+// derive-`Complete` -> `partial` (an honest demotion, review Finding 7). The fuzz deck
+// pool therefore holds a DIFFERENT card than it did, so every seeded fixture still
+// deals a different game -- exactly what MOVED_MSG warns about -- while this constant
+// stays put and cannot warn about it. `UI3_SPLIT_COMBAT_SEED` in
+// `tools/play-server/src/main.rs` was re-observed for precisely this reason.
+// Re-measured by executing this gate, not predicted.
 const CORPUS_COMPLETE: usize = 1133;
 const COMMANDER_POOL: usize = 90;
 

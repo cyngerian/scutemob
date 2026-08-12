@@ -59,7 +59,51 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
             AbilityDefinition::Keyword(KeywordAbility::Equip),
+            // Equip {3}: attach this Equipment to target creature you control.
+            // CR 702.6b: Equip is an activated ability; CR 702.6d: sorcery speed only.
+            AbilityDefinition::Activated {
+                cost: Cost::Mana(ManaCost {
+                    generic: 3,
+                    ..Default::default()
+                }),
+                effect: Effect::AttachEquipment {
+                    equipment: EffectTarget::Source,
+                    target: EffectTarget::DeclaredTarget { index: 0 },
+                },
+                timing_restriction: Some(TimingRestriction::SorcerySpeed),
+                // PB-DX26 (OOS-CARDS1-3) / CR 702.6a: "Equip {3}" means "[Cost]: Attach this
+                // permanent to target creature you control." Printed line MCP-verified as
+                // plain "Equip {3}" with no CR 702.6c quality restriction, so the requirement
+                // is the unmodified 702.6a one.
+                targets: vec![TargetRequirement::TargetCreatureWithFilter(TargetFilter {
+                    controller: TargetController::You,
+                    ..Default::default()
+                })],
+                activation_condition: None,
+                activation_zone: None,
+                once_per_turn: false,
+                modes: None,
+            },
         ],
+        // PB-DX26 fix cycle (review Finding 7): DEMOTED to `partial`. This def had no
+        // `completeness` field at all, so it was `Complete` by the `#[default]` derive
+        // (the `aurelia_the_warleader` trap) and nobody had ever ruled on it — while the
+        // granted trigger under-fires against the printed card. PB-DX26's `r3` pin now
+        // asserts each member's marker as a REVIEWED fact, so an unexamined derive is no
+        // longer an acceptable state for a roster member.
+        completeness: Completeness::partial(
+            "The granted trigger under-fires: printed 'Whenever this creature deals combat damage \
+             to a player OR PLANESWALKER, create that many Treasure tokens' (MCP-verified \
+             2026-08-11), but no exact TriggerCondition variant exists — \
+             WhenEquippedCreatureDealsCombatDamageToPlayer fires only on damage to a player (its \
+             own enum doc says so) and the sibling WhenEquippedCreatureDealsCombatDamage is \
+             any-recipient and would OVER-fire on damage to a creature. Combat damage to a \
+             planeswalker therefore makes no Treasures. Needs a \
+             WhenEquippedCreatureDealsCombatDamageToPlayerOrPlaneswalker variant. Separately \
+             (narrower, not the blocker): the printed card GRANTS the trigger to the equipped \
+             creature, while this def installs it on the Equipment — a distinction that shows \
+             only if the Equipment leaves mid-combat. Equip {3} IS authored (PB-DX26).",
+        ),
         ..Default::default()
     }
 }

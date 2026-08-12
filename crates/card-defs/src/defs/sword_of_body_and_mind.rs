@@ -3,9 +3,6 @@
 // Whenever equipped creature deals combat damage to a player, you create a 2/2 green
 // Wolf creature token and that player mills ten cards.
 // Equip {2}
-//
-// TODO: Protection from green and blue on equipped creature — multi-color
-//   protection grant not in LayerModification.
 use crate::cards::helpers::*;
 
 pub fn card() -> CardDefinition {
@@ -93,14 +90,33 @@ pub fn card() -> CardDefinition {
                 trigger_zone: None,
             },
             AbilityDefinition::Keyword(KeywordAbility::Equip),
+            // Equip {2}: attach this Equipment to target creature you control.
+            // CR 702.6b: Equip is an activated ability; CR 702.6d: sorcery speed only.
+            AbilityDefinition::Activated {
+                cost: Cost::Mana(ManaCost {
+                    generic: 2,
+                    ..Default::default()
+                }),
+                effect: Effect::AttachEquipment {
+                    equipment: EffectTarget::Source,
+                    target: EffectTarget::DeclaredTarget { index: 0 },
+                },
+                timing_restriction: Some(TimingRestriction::SorcerySpeed),
+                // PB-DX26 (OOS-CARDS1-3) / CR 702.6a: "Equip {2}" means "[Cost]: Attach this
+                // permanent to target creature you control." Printed line MCP-verified as
+                // plain "Equip {2}" with no CR 702.6c quality restriction, so the requirement
+                // is the unmodified 702.6a one.
+                targets: vec![TargetRequirement::TargetCreatureWithFilter(TargetFilter {
+                    controller: TargetController::You,
+                    ..Default::default()
+                })],
+                activation_condition: None,
+                activation_zone: None,
+                once_per_turn: false,
+                modes: None,
+            },
         ],
-        completeness: Completeness::partial(
-            "Equip {2} unimplemented — bare Keyword(Equip) marker with no \
-             AbilityDefinition::Activated { cost: Mana({2}), effect: AttachEquipment                  modes: None,
-             } (see \
-             keyword_registry.rs:89). Protection from green/blue and the combat-damage trigger \
-             ARE implemented.",
-        ),
+        completeness: Completeness::Complete,
         ..Default::default()
     }
 }

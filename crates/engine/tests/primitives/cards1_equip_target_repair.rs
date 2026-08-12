@@ -535,13 +535,14 @@ fn t6_non_vacuity_floors() {
     let roster = equip_activated_attach_equipment_roster(&defs);
     assert!(
         !roster.is_empty(),
-        "the AttachEquipment-carrying Activated-ability roster must be non-empty (17 \
+        "the AttachEquipment-carrying Activated-ability roster must be non-empty (38 \
          expected -- see core/cards1_equip_target_roster.rs R1)"
     );
     assert_eq!(
         roster.len(),
-        17,
-        "expected exactly 17 members, found {}",
+        38,
+        "expected exactly 38 members (CARDS-1's 17 + PB-DX26's 21 formerly marker-only \
+         defs), found {}",
         roster.len()
     );
 }
@@ -559,9 +560,20 @@ fn equip_activated_attach_equipment_roster(defs: &[CardDefinition]) -> Vec<Strin
     use mtg_engine::AbilityDefinition;
     let mut out = Vec::new();
     for def in defs {
-        for ability in &def.abilities {
+        // PB-DX26 fix cycle (review Finding 6): both faces, matching the census in
+        // `core::pb_dx26_attach_keyword_roster` rather than the front-face-only walks
+        // this file used to share with it.
+        for ability in std::iter::once(&def.abilities)
+            .chain(def.back_face.iter().map(|f| &f.abilities))
+            .flatten()
+        {
             if let AbilityDefinition::Activated { effect, .. } = ability {
-                if matches!(effect, Effect::AttachEquipment { .. }) {
+                // PB-DX26: was a flat `matches!`, which dropped a Sequence-nested
+                // attach out of the pin SILENTLY (`seed-rerank-2026-08-02.md` §2.7
+                // names this line by number). Reuses the file's own recursive
+                // finder, which PB-DX26 widened past `Sequence` to every nesting
+                // site in the `Effect` enum.
+                if find_attach_equipment_target(effect).is_some() {
                     out.push(def.name.clone());
                 }
             }
@@ -570,12 +582,35 @@ fn equip_activated_attach_equipment_roster(defs: &[CardDefinition]) -> Vec<Strin
     out
 }
 
-/// Recursively search an `Effect` tree (through `Sequence`) for an
-/// `Effect::AttachEquipment`, returning its `target` field if found.
+/// Recursively search an `Effect` tree for an `Effect::AttachEquipment`,
+/// returning its `target` field if found.
+///
+/// **PB-DX26 widened this past `Sequence`.** It walks every `Box<Effect>` /
+/// `Vec<Effect>` nesting site in the `Effect` enum; that site list is itself
+/// pinned by `core::pb_dx26_attach_keyword_roster::r6`, so this walk fails loudly
+/// rather than going quietly shallow when a new nesting variant is added.
 fn find_attach_equipment_target(effect: &Effect) -> Option<&CardEffectTarget> {
     match effect {
         Effect::AttachEquipment { target, .. } => Some(target),
         Effect::Sequence(effects) => effects.iter().find_map(find_attach_equipment_target),
+        Effect::Conditional {
+            if_true, if_false, ..
+        } => {
+            find_attach_equipment_target(if_true).or_else(|| find_attach_equipment_target(if_false))
+        }
+        Effect::Repeat { effect, .. } => find_attach_equipment_target(effect),
+        Effect::ForEach { effect, .. } => find_attach_equipment_target(effect),
+        Effect::Choose { choices, .. } => choices.iter().find_map(find_attach_equipment_target),
+        Effect::MayPayOrElse { or_else, .. } => find_attach_equipment_target(or_else),
+        Effect::MayPayThenEffect { then, .. } => find_attach_equipment_target(then),
+        Effect::CoinFlip {
+            on_win, on_lose, ..
+        } => find_attach_equipment_target(on_win).or_else(|| find_attach_equipment_target(on_lose)),
+        // PB-DX26 fix cycle: `Vec<(u32, u32, Effect)>` — the eleventh site, invisible
+        // to a `Box<Effect>`/`Vec<Effect>` count and missed by this walk's first draft.
+        Effect::RollDice { results, .. } => results
+            .iter()
+            .find_map(|(_, _, e)| find_attach_equipment_target(e)),
         _ => None,
     }
 }
@@ -649,15 +684,24 @@ fn t7a_cryptic_coat_triggered_attach_untouched() {
 /// through the real corpus synth path (not a hand-built stand-in) by
 /// `pb_dx20_keyword_carried_target_requirements.rs`'s T5 probes.
 ///
-/// **Fortify (Darksteel Garrison) — STILL OPEN, deliberately not widened here.**
-/// It carries the exact same `targets: vec![]` shape the equip roster had before
-/// this batch's predecessor (CARDS-1) fixed Equipment, and PB-DX20's scope was
-/// Aura + Reconfigure only — Fortify was never in either plan. This test exists so
-/// a future reader does not mistake "Reconfigure shipped" for "Fortify is also
-/// fixed" -- it is not, and this pin is the record of that.
+/// **Fortify (Darksteel Garrison) — CLOSED by PB-DX26 (`OOS-CARDS1-1`).** It had
+/// carried the exact same `targets: vec![]` shape the equip roster had before this
+/// batch's predecessor (CARDS-1) fixed Equipment; PB-DX20's scope was Aura +
+/// Reconfigure only, so Fortify was in neither plan and this pin was the record of
+/// that. It is now fixed, and the pin below is **strengthened rather than deleted**:
+/// it no longer only asserts *who* is in the roster, it asserts that the one member
+/// declares CR 702.67a's requirement — `TargetPermanentWithFilter(has_card_type
+/// Land + controller You)`, explicitly **not** the equip repair's
+/// `TargetCreatureWithFilter`, which would demand a creature this ability may never
+/// legally attach to. A name-set pin alone would have stayed green through the fix
+/// and through a regression of it alike, which is the failure mode this whole file
+/// exists to prevent.
 #[test]
 fn t7b_fortify_and_reconfigure_rosters_pinned_and_unperturbed() {
-    use mtg_engine::{AbilityDefinition, KeywordAbility};
+    use mtg_engine::{
+        AbilityDefinition, CardType, KeywordAbility, TargetController, TargetFilter,
+        TargetRequirement,
+    };
     use std::collections::BTreeSet;
 
     let defs = all_cards();
@@ -703,5 +747,46 @@ fn t7b_fortify_and_reconfigure_rosters_pinned_and_unperturbed() {
          AbilityDefinition::Activated + Effect::AttachEquipment defs only, never \
          AbilityDefinition::Reconfigure. Found: {reconfigure_roster:?}, expected: \
          {expected_reconfigure:?}"
+    );
+
+    // PB-DX26 (OOS-CARDS1-1): the Fortify member's declared requirement, pinned by
+    // SHAPE and not merely by name. CR 702.67a is "attach to target LAND you
+    // control" -- a different requirement from equip's CR 702.6a creature, and the
+    // one place a copy-paste of the equip repair would have gone wrong silently
+    // (an activation offering only creatures can never attach a Fortification).
+    let expected_fortify_requirement = TargetRequirement::TargetPermanentWithFilter(TargetFilter {
+        has_card_type: Some(CardType::Land),
+        controller: TargetController::You,
+        ..Default::default()
+    });
+    let mut checked = 0usize;
+    for def in &defs {
+        for ability in &def.abilities {
+            if let AbilityDefinition::Activated {
+                effect, targets, ..
+            } = ability
+            {
+                if matches!(effect, Effect::AttachFortification { .. }) {
+                    checked += 1;
+                    assert_eq!(
+                        targets.as_slice(),
+                        std::slice::from_ref(&expected_fortify_requirement),
+                        "'{}' declares the wrong target requirement for its Fortify ability. \
+                         CR 702.67a: '[Cost]: Attach this permanent to target LAND you \
+                         control.' An empty `targets` vec is OOS-CARDS1-1's original defect \
+                         -- the offer layer reports zero slots, nothing asks, the cost is \
+                         paid and the attach fizzles in silence. A `TargetCreatureWithFilter` \
+                         here is the copy-the-equip-repair mistake: it demands a creature.\n\
+                         Found:    {targets:?}\nExpected: [{expected_fortify_requirement:?}]",
+                        def.name
+                    );
+                }
+            }
+        }
+    }
+    assert_eq!(
+        checked, 1,
+        "non-vacuity: exactly one def must carry an Activated Effect::AttachFortification \
+         ability for the requirement check above to have examined anything; found {checked}"
     );
 }

@@ -43,7 +43,9 @@
   PB-DX25 shipped `scutemob-203` 2026-08-05 (rank 7);
   PB-DX25b shipped `scutemob-204` 2026-08-06 (rank 7b, INSERTED 2026-08-06 user-approved);
   PB-DX25c shipped `scutemob-205` 2026-08-06 (rank 7c, INSERTED 2026-08-06 user-approved —
-  closed OOS-DX25b-3, the CR 115.7a redirect-legality gap); **next dispatch: PB-DX26** (rank 8);
+  closed OOS-DX25b-3, the CR 115.7a redirect-legality gap);
+  PB-DX26 shipped `scutemob-206` 2026-08-11 (rank 8 — closed OOS-CARDS1-3, OOS-CARDS1-1 and
+  OOS-DX3b-1); **next dispatch: PB-DX7** (rank 9);
   the playtest-successor run 174–181
   AND the triage-2 successor run 187–194 both completed 2026-08-02 — triage 2 is fully closed,
   8/8 rows shipped. **FEEDBACK-1 SHIPPED** (`scutemob-192`, merge `d55e74cc`, doc-only):
@@ -94,6 +96,7 @@
   true, the number was stale, PB-DX5 moved it on the parallel W6 track before this branch forked.
 - **Card Authoring Campaign** (continuous, was M12): plan
   `memory/card-authoring/campaign-plan-2026-05-16.md` §0. **Live coverage: 1,133/1,803 = 62.8%**
+  (unmoved by PB-DX26 — one flip up and one honest flip down cancelled, 2026-08-11)
   (PB-DX4's 6 honest demotions outweigh its 6 in-place repairs — the number went *down* because the
   corpus got *truer*) — regenerate with `tools/authoring-report.py`; `docs/authoring-status.md` is
   the canonical, self-dating source. **Current queue state: the PB-OS queue is COMPLETE; the PB-DP
@@ -121,8 +124,37 @@
   **PB-DX25b SHIPPED** (`scutemob-204`; v3 queue rank 7b) — **OOS-DX25-3 CLOSED**; ranks
   **1-7b are all shipped**. **PB-DX25c SHIPPED** (`scutemob-205`; v3 queue rank 7c, INSERTED
   2026-08-06 user-approved — closed **OOS-DX25b-3**, the CR 115.7a redirect-legality gap; row
-  in the v3 memo §4) — ranks **1-7c are all shipped**, so **next dispatch: PB-DX26** (rank 8).
-  PROTOCOL **35** / HASH **73 → 74** as of PB-DX25c (HASH moved by it, gate-executed).
+  in the v3 memo §4) — ranks **1-7c are all shipped**.
+  **PB-DX26 SHIPPED** (`scutemob-206`; v3 queue rank 8 — **OOS-CARDS1-3**, **OOS-CARDS1-1**
+  and **OOS-DX3b-1** all CLOSED) — ranks **1-8 are all shipped**, so **next dispatch: PB-DX7**
+  (rank 9). Live coverage NET UNMOVED at **1,133/1,803 = 62.8%** — one flip up
+  (`sword_of_body_and_mind`) and one honest flip down (`the_reaver_cleaver`).
+  PROTOCOL **35** / HASH **74** as of PB-DX26 (both gate-executed, both unmoved by it).
+- **Tests (delta 2026-08-11, PB-DX26 + fix cycle)**: **4,508 / 0 / 5** full-workspace on
+  branch `scutemob-206` (+17 over the **4,491** baseline measured on this branch BEFORE any
+  edit — 6 gates in the new `crates/engine/tests/core/pb_dx26_attach_keyword_roster.rs`
+  (R1-R6) and 11 probes in the new `crates/engine/tests/primitives/pb_dx26_equip_surface.rs`
+  (T1-T9 plus the fix cycle's T10/T11, which pay the corpus's only coloured equip cost
+  `{1}{W}` and its only zero cost `{0}` for real rather than comparing them statically);
+  every other change is a modification of an existing test, not an addition), `--workspace
+  --no-fail-fast` to a file, 46 result-producing targets, residual list empty.
+  **PROTOCOL 35 / HASH 74 both unmoved**, gate-executed (`hash_schema` 21/21,
+  `protocol_schema` 17/17). **0 engine-source lines** — `git diff --numstat` over
+  `crates/engine/src`, `crates/card-types/src`, `crates/view-model/src` and
+  `crates/simulator/src` is empty. **`tools/` is not zero**, and the first draft of this
+  line implied it was (review Finding L11): `tools/play-server/src/main.rs` moves
+  **+~50 -~24**, entirely inside its `#[cfg(test)]` module — the
+  `UI3_SPLIT_COMBAT_SEED` constant and its doc. **Coverage NET ZERO at 1,133/1,803 =
+  62.8%**, regenerated: one flip UP (`sword_of_body_and_mind`, its only blocker being
+  the Equip {2} this batch authored) and one honest flip DOWN (`the_reaver_cleaver`,
+  review Finding 7 — derive-`Complete` with no marker anyone had ever ruled on, while
+  the trigger it grants under-fires against "a player **or planeswalker**").
+  **A stable count is not a stable deal**: the two moves cancelled in
+  `CORPUS_COMPLETE` and not in the SET, so the fuzz pool holds a different card and
+  `UI3_SPLIT_COMBAT_SEED` had to be re-observed **twice** (21 → 28 → 26), each time by
+  an executed sweep, while the constant that normally shouts about a pool change
+  stayed green. `clippy --workspace --all-targets -- -D warnings` clean, `cargo fmt
+  --check` clean, `tools/check-defs-fmt.sh` clean (1,803 defs).
 - **Tests (delta 2026-08-06, PB-DX25c fix cycle 2)**: **4,491 / 0 / 5** full-workspace on
   branch `scutemob-205` (+4 over the **4,487** fix-cycle-1 SETTLED pin — 4 new probes:
   `t7b_plain_target_spell_victim_cannot_redirect_onto_its_own_card`,
@@ -338,7 +370,49 @@
 - **Recurrence rule** — future `/collect` and milestone-close bookkeeping appends its detailed PB/SR
   narrative to that archive file (newest first), and updates only a one-paragraph snapshot delta
   here. Start a new dated archive (`claude-md-changelog-YYYY-MM.md`) when the month turns over.
-- **Last Updated**: 2026-08-06 — **PB-DX25c SHIPPED** (`scutemob-205`; v3 queue rank 7c,
+- **Last Updated**: 2026-08-11 — **PB-DX26 SHIPPED** (`scutemob-206`; v3 queue rank 8,
+  closing `OOS-CARDS1-3`, `OOS-CARDS1-1` and `OOS-DX3b-1`). A printed ability that did not
+  exist. `keyword_registry.rs`'s `K::Equip` arm is a `KeywordHandling::Marker` and a marker
+  **synthesises nothing**, so 21 defs carrying only
+  `AbilityDefinition::Keyword(KeywordAbility::Equip)` had no `ActivatedAbility` at all — no
+  offer, no index, no `Command` that could reach one. Where `OOS-M11-10(equip)` was "the
+  picker never asks for a target", this is **"there is no action to pick"**, one link sooner
+  and on a larger population: **10 of the 21 were deck-legal `Complete`**, nine by the
+  `#[default]` derive. All 21 now carry the MCP-verified printed ability (CR 702.6a target
+  creature you control, CR 702.6d sorcery speed) **beside a retained keyword marker**;
+  `darksteel_garrison` gets CR 702.67a's `TargetPermanentWithFilter(Land + You)` —
+  explicitly not the equip repair's creature filter; `guardian_project` gets
+  `is_nontoken: true` and stays `known_wrong` on the name-uniqueness half alone.
+  **The "~4-6 flips" estimate was wrong in an instructive direction**: the ten deck-legal
+  defs were ALREADY `Complete`, so repairing them flips nothing, and the batch's single flip
+  came from an eleventh def nobody was counting (`sword_of_body_and_mind`, whose `partial`
+  note named the missing Equip {2} as its only blocker). **A card-def-only batch is not
+  automatically an index-neutral one**: `Command::ActivateAbility { ability_index }` indexes
+  activated abilities in declaration order, and the first pass silently renumbered Umezawa's
+  Jitte's PB-EF7 modal ability 0 → 1 — caught only by this batch's own `t3` (`OOS-DX26-3`).
+  **The inverse census earned its keep**: R4/R5 start from the printed TYPE LINE rather than
+  the keyword marker and found `quietus_spike` + `sting_the_glinting_dagger`, which print
+  "Equip {N}" and carry neither marker nor ability, so neither the seed's grep nor R1's
+  `all_cards()` walk could ever see them (both `Inert`, 0 deck-legal blast radius —
+  `OOS-DX26-1`). `cards1_equip_target_roster` R1 re-pinned **17 → 38** and its `Effect` match
+  made **recursive** over all ten nesting sites — the §2.7 hazard, proven live by revert row
+  V6b; `t7b` strengthened from a name-set pin to a requirement-shape pin. Revert matrix: **15
+  rows — 13 RED as required, 1 CONTROL (V6a, must be green), 1 UNDISCRIMINATED** (V4b,
+  shadowed by `OOS-DX20-7`'s legacy guard, disclosed in the test's own doc rather than
+  glossed). **Review: 1 HIGH / 6 MEDIUM / 11 LOW, all 18 taken**, and its two sharpest were
+  this batch's own failure modes recurring inside it — a `Complete` def declaring a MANDATORY
+  target for a printed "up to one target" (`sword_of_light_and_shadow`, which lost its
+  unconditional life gain under CR 603.3d), and **an eleventh `Effect` nesting site that was
+  already in the enum while the new gate claimed to be exhaustive** (`RollDice`'s
+  `Vec<(u32, u32, Effect)>`, invisible to a `Box`/`Vec` count — and the residual the gate
+  DID state named a form that would have fired it). Tests **4,508** (+17); coverage net
+  unmoved at **62.8%**; PROTOCOL **35** / HASH **74** gate-executed and unmoved. Seeds: three
+  CLOSED, **OOS-DX26-1..6** filed. Durable lesson: **a roster derived from a keyword marker
+  measures the marker, not the printed card** — the fix for a short census is a second axis,
+  not a better grep.
+  Full handoff: `memory/workstream-state.md`; measurements and revert matrix:
+  `memory/primitives/pb-DX26-fail-before-2026-08-11.md`.
+- **Prior**: 2026-08-06 — **PB-DX25c SHIPPED** (`scutemob-205`; v3 queue rank 7c,
   closing `OOS-DX25b-3`). A spell you can retarget is a spell you can retarget LEGALLY.
   New `StackObject.target_requirements` (hashed) + `rules::retarget::plan_target_change`
   delegate the whole "which object or player may become the new target" decision to

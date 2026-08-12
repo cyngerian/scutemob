@@ -2291,20 +2291,46 @@ mod tests {
     /// different defending players.
     ///
     /// Not [`COMBAT_SEED`], and the difference is the whole point of having a
-    /// second constant. Observed by a throwaway probe over `seed` ∈ 0..24 at
-    /// [`PLAYERS`] seats, driving each to its first attack offer and recording
-    /// the offer's shape: **every** seed offers 3 player targets (the three
-    /// opponents, which is just CR 506.2), and **only seed 21 offers 2 eligible
-    /// attackers** — every other seed offers exactly 1, because at the turn the
-    /// first attack becomes available the boards hold a single creature. The
-    /// probe was then deleted.
+    /// second constant. Observed by a throwaway probe driving each seed to its
+    /// first attack offer and recording the offer's shape; the probe is then
+    /// deleted. **Every** seed offers 3 player targets (the three opponents,
+    /// which is just CR 506.2), and only a few offer more than one eligible
+    /// attacker — most offer exactly 1, because at the turn the first attack
+    /// becomes available the boards hold a single creature.
     ///
     /// With one attacker, "attacker → defender" degenerates to "there is a
     /// defender", and a mapping bug that *swapped two attackers' defenders*
     /// would pass. Re-observe rather than guess if this stops splitting: like
     /// [`COMBAT_SEED`] and [`TARGET_SEED`], it is a function of the whole card
     /// corpus, and a completeness flip in any card-def batch re-deals it.
-    const UI3_SPLIT_COMBAT_SEED: u64 = 21;
+    ///
+    /// UI-3 (`scutemob-180`) observed seed **21** over `seed` ∈ 0..24.
+    /// **PB-DX26 (`scutemob-206`, 2026-08-11) re-observed it twice and settled on
+    /// 26** — and the two re-observations are worth recording together, because the
+    /// second one contradicts the intuition the first would leave you with.
+    ///
+    /// *First re-observation*, after one completeness flip UP
+    /// (`sword_of_body_and_mind` `partial` -> `Complete`) grew the deck pool: seed
+    /// 21 dropped to one eligible attacker; the sweep over 0..40 gave **9, 26, 28,
+    /// 29, 30**, of which only **28 and 29** also reached a declared blocker.
+    ///
+    /// *Second re-observation*, after the batch's `/review` demoted
+    /// `the_reaver_cleaver` back down: the Complete COUNT returned to exactly what
+    /// it was before the batch — and **the deal moved anyway**, because the pool
+    /// holds a *different card*, not a different number of them. Seed 28 lost its
+    /// split. The fresh sweep is **26, 29, 30, 36, 38**, of which **26, 29 and 38**
+    /// also reach a declared blocker (30 and 36 split and then no bot blocks).
+    /// 26 is the lowest.
+    ///
+    /// The durable lesson for whoever re-observes this next: **a stable
+    /// `CORPUS_COMPLETE` is not evidence that the deal is stable.** Two markers
+    /// moving in opposite directions cancel in the count and not in the set, and
+    /// `pb_dx32_fuzz_output`'s pinned constant — the thing that normally shouts
+    /// when the pool changes — stays green through it. Run the sweep; do not infer
+    /// it from the count. And the seed must satisfy BOTH halves of the test (the
+    /// split AND a declared blocker), which is a second filter this doc did not
+    /// mention before PB-DX26 hit it.
+    const UI3_SPLIT_COMBAT_SEED: u64 = 26;
 
     /// **UI-3 AC 6006**: after attackers are declared, the seat payload says
     /// **which attacker is attacking which defending player**, and after blockers
